@@ -19,16 +19,24 @@ func serverExtras(t *testing.T) map[string]yaml.Node {
 	return map[string]yaml.Node{"server": node}
 }
 
-// TestWarnUnsyncedCoordinates covers the venue caveat: coordinates are resolved
-// by the run that reads the recipe, and only a local run reads it. A connected
-// project therefore has to be told that its coordinate governance stops at the
-// machine it ran on — the same content coming back in two voices depending on
-// where the loop ran is what the warning exists to pre-empt.
+// TestWarnUnsyncedCoordinates covers what is left of the venue caveat now that
+// coordinates sync.
+//
+// The warning used to fire for any coordinate governance on a connected
+// project, because none of it reached the server. The context content type
+// carries the collections, their points and the voice governing each, so a
+// voice bound by coordinates now resolves the same in both venues and must NOT
+// warn. A `terms:` binding is still a local path with nothing on the wire, and
+// still must.
 func TestWarnUnsyncedCoordinates(t *testing.T) {
 	coordinated := project.Coordinates{"product": {{ID: "kapi"}}}
-	profiles := []project.ProfileBinding{{
+	voiceProfiles := []project.ProfileBinding{{
 		When:  map[string]string{"product": "kapi"},
 		Voice: &project.BrandVoiceBinding{ProfileFile: "voice.yaml"},
+	}}
+	termsProfiles := []project.ProfileBinding{{
+		When:  map[string]string{"product": "kapi"},
+		Terms: "terms/kapi.json",
 	}}
 
 	tests := []struct {
@@ -38,27 +46,32 @@ func TestWarnUnsyncedCoordinates(t *testing.T) {
 		want  bool
 	}{
 		{
-			name: "connected and governed by coordinates: warn",
+			name: "connected and binding terms by coordinates: warn",
 			proj: &project.KapiProject{
-				Version: "v1", Coordinates: coordinated, Profiles: profiles,
+				Version: "v1", Coordinates: coordinated, Profiles: termsProfiles,
 				Extras: serverExtras(t),
 			},
 			want: true,
 		},
 		{
-			name: "profiles alone are coordinate governance too",
+			name: "a terms binding at the base point warns too",
 			proj: &project.KapiProject{
-				Version: "v1",
-				Profiles: []project.ProfileBinding{
-					{Voice: &project.BrandVoiceBinding{ProfileFile: "voice.yaml"}},
-				},
-				Extras: serverExtras(t),
+				Version:  "v1",
+				Profiles: []project.ProfileBinding{{Terms: "terms/all.json"}},
+				Extras:   serverExtras(t),
 			},
 			want: true,
+		},
+		{
+			name: "connected and binding only a voice: the context content type carries it, nothing to warn about",
+			proj: &project.KapiProject{
+				Version: "v1", Coordinates: coordinated, Profiles: voiceProfiles,
+				Extras: serverExtras(t),
+			},
 		},
 		{
 			name: "standalone: the recipe is the only venue, nothing to warn about",
-			proj: &project.KapiProject{Version: "v1", Coordinates: coordinated, Profiles: profiles},
+			proj: &project.KapiProject{Version: "v1", Coordinates: coordinated, Profiles: termsProfiles},
 		},
 		{
 			name: "connected but ungoverned: no coordinates to diverge over",
@@ -67,7 +80,7 @@ func TestWarnUnsyncedCoordinates(t *testing.T) {
 		{
 			name: "quiet suppresses it like every other run warning",
 			proj: &project.KapiProject{
-				Version: "v1", Coordinates: coordinated, Profiles: profiles,
+				Version: "v1", Coordinates: coordinated, Profiles: termsProfiles,
 				Extras: serverExtras(t),
 			},
 			quiet: true,
@@ -91,8 +104,8 @@ func TestWarnUnsyncedCoordinates(t *testing.T) {
 }
 
 // TestKapiProject_GovernsByCoordinates pins what "governed by coordinates"
-// means for the warning above: either half of the model counts, and a recipe
-// written before the model existed is untouched by it.
+// means: either half of the model counts, and a recipe written before the model
+// existed is untouched by it.
 func TestKapiProject_GovernsByCoordinates(t *testing.T) {
 	assert.False(t, (&project.KapiProject{Version: "v1"}).GovernsByCoordinates())
 	assert.True(t, (&project.KapiProject{
@@ -101,4 +114,20 @@ func TestKapiProject_GovernsByCoordinates(t *testing.T) {
 	assert.True(t, (&project.KapiProject{
 		Profiles: []project.ProfileBinding{{Terms: "terms.json"}},
 	}).GovernsByCoordinates())
+}
+
+// TestKapiProject_BindsTermsByCoordinates pins the narrower question the venue
+// warning now asks: not "is there a context space?" but "does it bind something
+// that cannot travel?".
+func TestKapiProject_BindsTermsByCoordinates(t *testing.T) {
+	assert.False(t, (&project.KapiProject{Version: "v1"}).BindsTermsByCoordinates())
+	assert.False(t, (&project.KapiProject{
+		Profiles: []project.ProfileBinding{{Voice: &project.BrandVoiceBinding{ProfileFile: "voice.yaml"}}},
+	}).BindsTermsByCoordinates(), "a voice binding travels with the push")
+	assert.True(t, (&project.KapiProject{
+		Profiles: []project.ProfileBinding{
+			{Voice: &project.BrandVoiceBinding{ProfileFile: "voice.yaml"}},
+			{Terms: "terms.json"},
+		},
+	}).BindsTermsByCoordinates(), "one terms binding anywhere is enough")
 }

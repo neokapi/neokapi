@@ -428,40 +428,9 @@ type BrandResolveOptions struct {
 // Returns (profile, source, found, error). found is false (with nil error)
 // when the project carries no brand binding and no convention file.
 func (a *App) ResolveBrandProfile(ctx context.Context, proj *project.KapiProject, root string, opts BrandResolveOptions) (*brand.VoiceProfile, string, bool, error) {
-	if proj == nil {
-		return nil, "", false, nil
-	}
-	storePath := opts.StorePath
-	if storePath == "" {
-		storePath = filepath.Join(root, "brand.db")
-	}
-
-	rc, err := proj.ResolveGovernance(opts.Collection)
-	if err != nil {
+	profile, rc, src, found, err := a.LoadCollectionVoice(ctx, proj, root, opts)
+	if err != nil || !found {
 		return nil, "", false, err
-	}
-	profile, src, found, err := a.loadBoundBrandProfile(ctx, rc.Voice, root, storePath, rc.VoiceField)
-	if err != nil {
-		return nil, "", false, err
-	}
-	if !found {
-		// Convention files at the project root.
-		for _, conv := range []string{
-			filepath.Join(root, "brand.yaml"),
-			filepath.Join(root, project.StateDirName, "brand.yaml"),
-		} {
-			p, lerr := loadProfileFile(conv)
-			if lerr != nil {
-				return nil, "", false, lerr
-			}
-			if p != nil {
-				profile, src, found = p, conv, true
-				break
-			}
-		}
-	}
-	if !found {
-		return nil, "", false, nil
 	}
 
 	// The recipe's match enters the shared chain at the collection tier. No
@@ -480,6 +449,58 @@ func (a *App) ResolveBrandProfile(ctx context.Context, proj *project.KapiProject
 		return nil, "", false, err
 	}
 	return resolved, src, true, nil
+}
+
+// LoadCollectionVoice loads the voice profile bound to a collection's point AS
+// AUTHORED — before any locale, channel or persona override is layered on —
+// together with the governance that point resolved to.
+//
+// ResolveBrandProfile is this plus the override composition, and calls it. The
+// split exists because a caller that is going to CARRY the profile somewhere
+// else needs the authored content, not a resolution of it: a profile whose
+// base tone has already been replaced by one channel's override no longer
+// describes how the brand sounds on any other channel, so storing it under the
+// profile's name would quietly collapse the variants into whichever collection
+// happened to be resolved last.
+//
+// Returns (profile, governance, source, found, error). found is false (with a
+// nil error) when the project carries no brand binding and no convention file;
+// the governance is still returned, since its channel and terms are resolved
+// whether or not a voice was bound.
+func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject, root string, opts BrandResolveOptions) (*brand.VoiceProfile, *project.ResolvedGovernance, string, bool, error) {
+	if proj == nil {
+		return nil, nil, "", false, nil
+	}
+	storePath := opts.StorePath
+	if storePath == "" {
+		storePath = filepath.Join(root, "brand.db")
+	}
+
+	rc, err := proj.ResolveGovernance(opts.Collection)
+	if err != nil {
+		return nil, nil, "", false, err
+	}
+	profile, src, found, err := a.loadBoundBrandProfile(ctx, rc.Voice, root, storePath, rc.VoiceField)
+	if err != nil {
+		return nil, rc, "", false, err
+	}
+	if !found {
+		// Convention files at the project root.
+		for _, conv := range []string{
+			filepath.Join(root, "brand.yaml"),
+			filepath.Join(root, project.StateDirName, "brand.yaml"),
+		} {
+			p, lerr := loadProfileFile(conv)
+			if lerr != nil {
+				return nil, rc, "", false, lerr
+			}
+			if p != nil {
+				profile, src, found = p, conv, true
+				break
+			}
+		}
+	}
+	return profile, rc, src, found, nil
 }
 
 // loadBoundBrandProfile turns a resolved voice binding into a VoiceProfile.

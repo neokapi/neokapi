@@ -33,6 +33,10 @@ type syncPushManifest struct {
 	ActorID       string          `json:"actor_id"`
 	WorkspaceSlug string          `json:"workspace_slug"`
 	ConnectorID   string          `json:"connector_id"`
+	// Contexts is the context content type: the collections the recipe
+	// declares. It rides in the manifest so the structure lands in the same
+	// transaction as the items stored into it (see worker_context.go).
+	Contexts json.RawMessage `json:"contexts"`
 }
 
 type syncChunkRef struct {
@@ -135,6 +139,41 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		itemMetaMap[itemMetas[i].Name] = &itemMetas[i]
 	}
 
+	// Read the project once: its source language seeds the content memory below,
+	// and its workspace is the brand hub the context reconcile binds voices in.
+	// A project that cannot be read leaves both unresolved, which degrades each
+	// to its own no-op rather than failing a push whose content is fine.
+	var projectRow *store.Project
+	if p, perr := deps.ContentStore.GetProject(ctx, projectID); perr == nil {
+		projectRow = p
+	}
+
+	// The context content type reconciles BEFORE the chunks are stored: the
+	// collections are the structure the items are stored into, so an item
+	// naming a collection that has not been created yet would be stored
+	// ungrouped and stay that way until the next push.
+	contextEntries, err := parseContextEntries(manifest.Contexts)
+	if err != nil {
+		markJobFailed(ctx, deps, job.ID, "invalid context entries")
+		return err
+	}
+	workspaceID := ""
+	if projectRow != nil {
+		workspaceID = projectRow.WorkspaceID
+	}
+	contextResult, err := reconcileContext(ctx, deps, projectID, stream, workspaceID, manifest.ActorID, contextEntries)
+	if err != nil {
+		markJobFailed(ctx, deps, job.ID, err.Error())
+		return err
+	}
+	if contextResult.total() > 0 {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Reconciled %d collection(s): %d created, %d updated, %d claimed, %d unchanged",
+				contextResult.total(), len(contextResult.Created), len(contextResult.Updated),
+				len(contextResult.Claimed), len(contextResult.Unchanged)),
+			nil)
+	}
+
 	// Resolve the project content memory (optional) and source language once, so ingest can
 	// seed pushed target translations into the content memory for future recycling (theme
 	// A2). A missing content memory or source language simply disables seeding — never an
@@ -149,8 +188,8 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		if tm, terr := deps.MemoryResolver.GetMemory(slug); terr == nil {
 			seedMemory = tm
 		}
-		if proj, perr := deps.ContentStore.GetProject(ctx, projectID); perr == nil {
-			sourceLocale = proj.DefaultSourceLanguage
+		if projectRow != nil {
+			sourceLocale = projectRow.DefaultSourceLanguage
 		}
 	}
 
@@ -270,12 +309,17 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			ProjectID: projectID,
 			Actor:     manifest.ActorID,
 			Data: map[string]string{
-				"items":          strings.Join(allItemNames, ","),
-				"items_sample":   strings.Join(sampleItemNames(allItemNames, 3), ","),
-				"files_count":    strconv.Itoa(len(allItemNames)),
-				"blocks_count":   strconv.Itoa(totalStored),
-				"push_id":        pushID,
-				"workspace_slug": manifest.WorkspaceSlug,
+				"items":        strings.Join(allItemNames, ","),
+				"items_sample": strings.Join(sampleItemNames(allItemNames, 3), ","),
+				"files_count":  strconv.Itoa(len(allItemNames)),
+				"blocks_count": strconv.Itoa(totalStored),
+				"push_id":      pushID,
+				// Collections the recipe stopped declaring. They ride on the
+				// event rather than being acted on, which is the whole of the
+				// server's answer to a removed collection: say so, keep the
+				// content.
+				"undeclared_collections": strings.Join(contextResult.Undeclared, ","),
+				"workspace_slug":         manifest.WorkspaceSlug,
 			},
 		})
 	}

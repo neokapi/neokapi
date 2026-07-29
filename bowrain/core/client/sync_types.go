@@ -1,6 +1,10 @@
 package client
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
+)
 
 // SyncBlock carries the full block model through the sync boundary (Bowrain AD-009 Phase 7).
 // Unlike BlockContent which only carries plain text, SyncBlock preserves structured
@@ -162,4 +166,12 @@ type RichPullResponse struct {
 	Blocks  []SyncBlock `json:"blocks"`
 	Terms   []SyncTerm  `json:"terms,omitempty"`
 	Media   []SyncMedia `json:"media,omitempty"`
+
+	// Contexts is the project's collections, each carrying its owner. Unlike
+	// the other content types this one is not cursor-driven: the declared
+	// context is small and always current, so every page carries it rather
+	// than replaying changes to it. A recipe-owned entry is descriptive here —
+	// the client reads it and leaves the local governance alone, because
+	// kapi.yaml is the authority for it.
+	Contexts []*pb.SyncContextEntry `json:"contexts,omitempty"`
 }

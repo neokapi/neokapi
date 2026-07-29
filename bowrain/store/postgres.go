@@ -10,6 +10,7 @@ import (
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
@@ -235,12 +236,19 @@ func (s *PostgresStore) CreateCollection(ctx context.Context, c *platstore.Colle
 	if err != nil {
 		return fmt.Errorf("seal connector config: %w", err)
 	}
+	// The coordinates are slugs a recipe declares in plain sight, so unlike the
+	// connector config — which carries credentials — they are stored unsealed.
+	contextJSON, err := json.Marshal(c.Context)
+	if err != nil {
+		return fmt.Errorf("marshal collection context: %w", err)
+	}
+	c.Owner = coresync.NormalizeContextOwner(c.Owner)
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 		c.ID, c.ProjectID, c.Name, string(c.Kind), c.ItemLabel, c.IsDefault, c.Stream,
-		sealedConfig, now, now)
+		sealedConfig, string(contextJSON), c.Owner, c.ContextHash, now, now)
 	if err != nil {
 		return fmt.Errorf("create collection: %w", err)
 	}
@@ -249,14 +257,14 @@ func (s *PostgresStore) CreateCollection(ctx context.Context, c *platstore.Colle
 
 func (s *PostgresStore) GetCollection(ctx context.Context, projectID, collectionID string) (*platstore.Collection, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
 		 FROM collections WHERE project_id=$1 AND id=$2`, projectID, collectionID)
 	return s.scanCollectionPg(row)
 }
 
 func (s *PostgresStore) GetCollectionByName(ctx context.Context, projectID, name, stream string) (*platstore.Collection, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
 		 FROM collections WHERE project_id=$1 AND name=$2 AND (stream='' OR stream=$3)`,
 		projectID, name, stream)
 	return s.scanCollectionPg(row)
@@ -264,14 +272,14 @@ func (s *PostgresStore) GetCollectionByName(ctx context.Context, projectID, name
 
 func (s *PostgresStore) GetDefaultCollection(ctx context.Context, projectID string) (*platstore.Collection, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
 		 FROM collections WHERE project_id=$1 AND is_default=TRUE`, projectID)
 	return s.scanCollectionPg(row)
 }
 
 func (s *PostgresStore) ListCollections(ctx context.Context, projectID, stream string) ([]*platstore.Collection, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
 		 FROM collections WHERE project_id=$1 AND (stream='' OR stream=$2)
 		 ORDER BY is_default DESC, name`, projectID, stream)
 	if err != nil {
@@ -301,11 +309,17 @@ func (s *PostgresStore) UpdateCollection(ctx context.Context, c *platstore.Colle
 	if err != nil {
 		return fmt.Errorf("seal connector config: %w", err)
 	}
+	contextJSON, err := json.Marshal(c.Context)
+	if err != nil {
+		return fmt.Errorf("marshal collection context: %w", err)
+	}
+	c.Owner = coresync.NormalizeContextOwner(c.Owner)
 
 	_, err = s.db.ExecContext(ctx,
-		`UPDATE collections SET name=$1, kind=$2, item_label=$3, stream=$4, connector_config=$5, updated_at=$6
-		 WHERE project_id=$7 AND id=$8`,
-		c.Name, string(c.Kind), c.ItemLabel, c.Stream, sealedConfig, c.UpdatedAt, c.ProjectID, c.ID)
+		`UPDATE collections SET name=$1, kind=$2, item_label=$3, stream=$4, connector_config=$5, context=$6, owner=$7, context_hash=$8, updated_at=$9
+		 WHERE project_id=$10 AND id=$11`,
+		c.Name, string(c.Kind), c.ItemLabel, c.Stream, sealedConfig,
+		string(contextJSON), c.Owner, c.ContextHash, c.UpdatedAt, c.ProjectID, c.ID)
 	if err != nil {
 		return fmt.Errorf("update collection: %w", err)
 	}
@@ -348,9 +362,10 @@ func (s *PostgresStore) DeleteCollection(ctx context.Context, projectID, collect
 
 func (s *PostgresStore) scanCollectionPg(row scanner) (*platstore.Collection, error) {
 	var c platstore.Collection
-	var kindStr, configJSON string
+	var kindStr, configJSON, contextJSON string
 	err := row.Scan(&c.ID, &c.ProjectID, &c.Name, &kindStr, &c.ItemLabel,
-		&c.IsDefault, &c.Stream, &configJSON, &c.CreatedAt, &c.UpdatedAt)
+		&c.IsDefault, &c.Stream, &configJSON, &contextJSON, &c.Owner, &c.ContextHash,
+		&c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan collection: %w", err)
 	}
@@ -362,6 +377,10 @@ func (s *PostgresStore) scanCollectionPg(row scanner) (*platstore.Collection, er
 	if err := json.Unmarshal([]byte(plainConfig), &c.ConnectorConfig); err != nil {
 		c.ConnectorConfig = map[string]string{}
 	}
+	if err := json.Unmarshal([]byte(contextJSON), &c.Context); err != nil {
+		c.Context = map[string]string{}
+	}
+	c.Owner = coresync.NormalizeContextOwner(c.Owner)
 	return &c, nil
 }
 

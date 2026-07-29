@@ -923,4 +923,34 @@ var storeMigrations = []storage.Migration{
 				ON forge_installations(workspace_id);
 		`,
 	},
+	{
+		Version:     14,
+		Description: "collection context: coordinates, ownership, and the entry hash the context content type reconciles on",
+		SQL: `
+			-- The context content type (sync protocol): a push carries the
+			-- collections the recipe declares, so a collection now has a
+			-- server-side existence instead of being a name items merely
+			-- mentioned.
+			--
+			-- context      — the point the collection's content occupies in the
+			--                project's context space (axis → value), as the
+			--                recipe declares under 'context:'. Slugs a recipe
+			--                writes in plain sight, so unlike connector_config
+			--                (credentials) this column is not sealed.
+			-- owner        — 'recipe' or 'workspace': which side is
+			--                authoritative. Existing rows were created by the web
+			--                hub, the editor or a connector, so they backfill to
+			--                'workspace' — the conservative default, since
+			--                reading them as recipe-owned would hand authority
+			--                over them to a kapi.yaml that never mentioned them.
+			-- context_hash — the hash of the context entry the row was
+			--                reconciled from. It is what makes a re-push
+			--                idempotent: an unchanged hash leaves the row, and
+			--                its updated_at, untouched. Empty until a push
+			--                reconciles the row.
+			ALTER TABLE collections ADD COLUMN IF NOT EXISTS context      TEXT NOT NULL DEFAULT '{}';
+			ALTER TABLE collections ADD COLUMN IF NOT EXISTS owner        TEXT NOT NULL DEFAULT 'workspace';
+			ALTER TABLE collections ADD COLUMN IF NOT EXISTS context_hash TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

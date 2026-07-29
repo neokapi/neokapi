@@ -18,12 +18,26 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
+// This file also carries the context content type's client half: the recipe's
+// declared collections travel with the push (PushContext) instead of being
+// uploaded by a separate call afterwards.
+
 // PushInitRequest is the request for the Merkle tree diff negotiation.
 type PushInitRequest struct {
 	ProjectID  string            `json:"project_id"`
 	Stream     string            `json:"stream"`
 	ItemHashes map[string]string `json:"item_hashes"` // item_name → hash
 	RootHash   string            `json:"root_hash"`
+
+	// ContextHash is the fast path for the context content type: a hash over
+	// every declared collection's context entry. When it matches the server's,
+	// the recipe's structure and governance are already in force and the
+	// manifest carries no contexts.
+	ContextHash string `json:"context_hash,omitempty"`
+
+	// Collections names the collections the recipe declares, so the server can
+	// answer which of the ones it holds are no longer declared.
+	Collections []string `json:"collections,omitempty"`
 }
 
 // PushInitResponse is the response from the init endpoint.
@@ -34,6 +48,17 @@ type PushInitResponse struct {
 	NewItems           []string `json:"new_items"`
 	DeletedItems       []string `json:"deleted_items"`
 	UnchangedItemCount int      `json:"unchanged_item_count"`
+
+	// ContextChanged reports whether the declared context differs from what the
+	// server holds.
+	ContextChanged bool `json:"context_changed"`
+
+	// UndeclaredCollections lists recipe-owned collections the server holds
+	// that this push no longer declares. Reported, never acted on — the same
+	// contract as DeletedItems, and for a stronger reason: a collection is
+	// where content lives, so dropping one on a recipe edit would take the
+	// server-side content grouped under it with it.
+	UndeclaredCollections []string `json:"undeclared_collections,omitempty"`
 }
 
 // PushDiffRequest sends block-level hashes for one item.
@@ -61,6 +86,43 @@ type PushCommitRequest struct {
 	Items         json.RawMessage `json:"items"`
 	ActorID       string          `json:"actor_id"`
 	WorkspaceSlug string          `json:"workspace_slug"`
+
+	// Contexts carries the context content type: the collections the recipe
+	// declares, their coordinates and their resolved governance. It rides in
+	// the manifest rather than in a chunk because it is the shape the uploaded
+	// items are stored into — one push is one consistent state.
+	Contexts []*pb.SyncContextEntry `json:"contexts,omitempty"`
+}
+
+// PushContext is everything the context content type contributes to one push:
+// the entries themselves and the hash negotiated at init. Callers build it with
+// NewPushContext so the two cannot drift apart.
+type PushContext struct {
+	Entries []*pb.SyncContextEntry
+	Hash    string
+}
+
+// NewPushContext stamps each entry's content hash, folds them into the push's
+// context hash, and returns both. A push with no declared collections yields
+// the empty-fold hash, which is exactly what a server holding no collections
+// computes — so an uncoordinated project negotiates "unchanged" rather than
+// re-reconciling nothing on every push.
+func NewPushContext(entries []*pb.SyncContextEntry) *PushContext {
+	return &PushContext{Entries: entries, Hash: bowsync.ContextHashOf(entries)}
+}
+
+// names returns the declared collection names, for the init negotiation.
+func (p *PushContext) names() []string {
+	if p == nil {
+		return nil
+	}
+	out := make([]string, 0, len(p.Entries))
+	for _, e := range p.Entries {
+		if e != nil && e.Name != "" {
+			out = append(out, e.Name)
+		}
+	}
+	return out
 }
 
 // ChunkRef identifies a single uploaded chunk in the push commit manifest.
@@ -97,7 +159,11 @@ const (
 
 // Push performs a complete push: init → diff → upload chunks → commit.
 // blocksByItem maps item_name → blocks for that item; items is the item
-// metadata.
+// metadata; pushCtx is the context content type — the collections the recipe
+// declares, which travel in the commit manifest so the structure the items are
+// stored into lands in the same transaction as the items themselves. A nil
+// pushCtx pushes content without touching the declared context, which is what
+// a caller that has no recipe to read (or a --no-brand-style opt-out) wants.
 //
 // WIRE CONTRACT — additive-only push (#43).
 //
@@ -121,7 +187,7 @@ const (
 // longer has) is ever required, the caller must pass the FULL block set so
 // ItemHashes / RootHash become authoritative, and this comment + the
 // deletion-ignoring sites below must be revisited together.
-func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta) (*SyncPushResponse, error) {
+func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, pushCtx *PushContext) (*SyncPushResponse, error) {
 	// Guard a nil client: callers build the client from the recipe's server:
 	// block, which is absent until the project is connected. Return a clear
 	// error instead of a nil-pointer panic in projectPrefix/streamPrefix.
@@ -143,17 +209,28 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	}
 	rootHash := bowsync.ComputeRootHash(itemHashes)
 
-	// 2. Init — send item hashes.
+	// 2. Init — send item hashes and the declared context.
 	initResp, err := c.pushInit(ctx, PushInitRequest{
-		ItemHashes: itemHashes,
-		RootHash:   rootHash,
+		ItemHashes:  itemHashes,
+		RootHash:    rootHash,
+		ContextHash: contextHashOf(pushCtx),
+		Collections: pushCtx.names(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("push init: %w", err)
 	}
 	if initResp.Status == "unchanged" {
-		return &SyncPushResponse{PushID: "unchanged"}, nil
+		return &SyncPushResponse{
+			PushID:                "unchanged",
+			UndeclaredCollections: initResp.UndeclaredCollections,
+		}, nil
 	}
+
+	// The context reconcile is skipped when the server already holds this
+	// context — the fast path's whole point. The entries are dropped from the
+	// manifest rather than sent and ignored, so an unedited recipe costs
+	// nothing beyond the hash it negotiated on.
+	contexts := pushCtx.entriesIfChanged(initResp.ContextChanged)
 
 	// 3. For each changed/new item, send block-level diff and collect needed blocks.
 	//
@@ -262,12 +339,38 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		UploadID: initResp.UploadID,
 		Chunks:   chunks,
 		Items:    itemsJSON,
+		Contexts: contexts,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("push commit: %w", err)
 	}
+	if commitResp != nil {
+		commitResp.UndeclaredCollections = initResp.UndeclaredCollections
+	}
 
 	return commitResp, nil
+}
+
+// contextHashOf returns the push's negotiated context hash, or "" when the
+// caller pushes no context at all. The empty string is distinct from the
+// empty-fold hash: it means "this push makes no claim about the declared
+// context", which is what stops a content-only caller from looking like a
+// recipe that just deleted every collection.
+func contextHashOf(p *PushContext) string {
+	if p == nil {
+		return ""
+	}
+	return p.Hash
+}
+
+// entriesIfChanged returns the entries to put in the manifest: none when the
+// server reported the context unchanged, and none when the caller pushes no
+// context.
+func (p *PushContext) entriesIfChanged(changed bool) []*pb.SyncContextEntry {
+	if p == nil || !changed {
+		return nil
+	}
+	return p.Entries
 }
 
 func (c *BowrainClient) pushInit(ctx context.Context, req PushInitRequest) (*PushInitResponse, error) {

@@ -252,10 +252,29 @@ func matchesPoint(when, coords map[string]string) bool {
 // GovernsByCoordinates reports whether the recipe governs content through the
 // context space at all — it declares axes, or profiles bound to them. False for
 // every recipe written before coordinates existed, which is what lets a caller
-// skip the whole mechanism (and its venue caveat) for a project that never
-// opted in.
+// skip the whole mechanism for a project that never opted in.
 func (p *KapiProject) GovernsByCoordinates() bool {
 	return len(p.Coordinates) > 0 || len(p.Profiles) > 0
+}
+
+// BindsTermsByCoordinates reports whether any profile binds a VOCABULARY to a
+// region of the context space, as opposed to a voice.
+//
+// The distinction is a venue one. A collection's coordinates and the voice they
+// select are carried to a connected server by the context content type, so both
+// venues resolve the same voice for the same content. A profile's `terms:` is a
+// path into the local project — a file the recipe points at — and there is
+// nothing on the wire for it: the server governs terminology from the workspace
+// vocabulary instead. A recipe that binds terms per point therefore still
+// resolves differently depending on where the loop ran, and that is what the
+// remaining warning is about.
+func (p *KapiProject) BindsTermsByCoordinates() bool {
+	for i := range p.Profiles {
+		if p.Profiles[i].Terms != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // CollectionForPath returns the name of the content collection whose item

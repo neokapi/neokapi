@@ -134,6 +134,11 @@ type PushResult struct {
 	ChunkCount   int
 	WordCount    int    // total source words across pushed blocks
 	PushID       string // server-assigned push correlation ID (empty if nothing stored)
+
+	// UndeclaredCollections names recipe-owned collections the server holds
+	// that this push no longer declares. Reported so the push can say so, never
+	// deleted — the content grouped under them is still there.
+	UndeclaredCollections []string
 }
 
 // PullResult summarizes the result of a pull operation.
@@ -141,6 +146,16 @@ type PullResult struct {
 	BlocksPulled int
 	FilesWritten int
 	LocalesCount int
+
+	// CollectionsObserved is how many collections the server reported. They are
+	// recorded as observation only — a pull never rewrites the governance the
+	// recipe declares.
+	CollectionsObserved int
+
+	// GovernanceDiverged names recipe-owned collections the server holds at a
+	// different point than the recipe declares. Reported so the divergence is
+	// visible; never resolved here, because kapi.yaml is the authority.
+	GovernanceDiverged []string
 }
 
 // SourceConnector represents a content source that pushes to and pulls from Bowrain.

@@ -36,11 +36,14 @@ relation, a concept delete) are bundled into a single change-set proposal for
 review — the same separation of duties the web hub enforces. Push reports what
 applied directly versus what was proposed.
 
-When the recipe binds a brand voice profile (defaults.brand_voice, or a
-brand.yaml at the project root), push also carries it into the workspace brand
-hub: created on first push, unchanged content is a no-op, and a changed profile
-lands as a new version — server-side edits are archived, never overwritten.
-Use --no-brand to skip.`,
+Push also carries the project's declared context: the collections the recipe
+names, the point each occupies in the project's context space, and the brand
+voice governing it. They travel inside the push, so the collections a pushed
+item belongs to exist server-side by the time the item is stored — created on
+first push, unchanged content is a no-op, and a changed voice lands as a new
+version with server-side edits archived rather than overwritten. A collection
+the recipe no longer names is reported, never deleted. Use --no-brand to carry
+the structure without the governance.`,
 	RunE: runPush,
 }
 
@@ -52,10 +55,23 @@ type PushResult struct {
 	PushID       string
 	DryRun       bool
 	UpToDate     bool
+
+	// Brand reports what the governance carried in the push amounted to. Nil
+	// when the project binds no voice.
+	Brand *PushBrandResult
+
+	// UndeclaredCollections names recipe-owned collections the server holds
+	// that this push no longer declares. Reported, never deleted.
+	UndeclaredCollections []string
 }
 
 // doPush executes the core push logic and returns structured results.
-func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*PushResult, *bconn.BowrainSourceConnector, error) {
+//
+// The context content type is built and attached here rather than at each call
+// site, so `kapi push` and both `kapi up` venues carry the project's declared
+// structure and governance by construction — there is no push path that moves
+// content while leaving the collections it belongs to behind.
+func doPush(ctx context.Context, opts connector.PushOptions, args []string, noBrand bool) (*PushResult, *bconn.BowrainSourceConnector, error) {
 	proj, err := project.FindProject("")
 	if err != nil {
 		return nil, nil, err
@@ -71,6 +87,13 @@ func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*Pu
 		conn.SetStream(pushStream)
 	}
 
+	pushCtx, brand, err := buildPushContext(ctx, proj, noBrand, opts.DryRun)
+	if err != nil {
+		conn.Close()
+		return nil, nil, err
+	}
+	conn.SetPushContext(pushCtx)
+
 	result, err := conn.Push(ctx, connector.PushOptions{
 		Paths:  args,
 		Force:  opts.Force,
@@ -82,10 +105,12 @@ func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*Pu
 	}
 
 	pr := &PushResult{
-		BlocksPushed: result.BlocksPushed,
-		WordCount:    result.WordCount,
-		FilesScanned: result.FilesScanned,
-		PushID:       result.PushID,
+		BlocksPushed:          result.BlocksPushed,
+		WordCount:             result.WordCount,
+		FilesScanned:          result.FilesScanned,
+		PushID:                result.PushID,
+		Brand:                 brand,
+		UndeclaredCollections: result.UndeclaredCollections,
 	}
 	if opts.DryRun {
 		pr.DryRun = true
@@ -129,19 +154,26 @@ func runPush(cmd *cobra.Command, args []string) error {
 	pr, conn, err := doPush(cmd.Context(), connector.PushOptions{
 		Force:  pushForce,
 		DryRun: pushDryRun,
-	}, args)
+	}, args, pushNoBrand)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 
 	out := output.PushOutput{
-		BlocksPushed: pr.BlocksPushed,
-		WordCount:    pr.WordCount,
-		FilesScanned: pr.FilesScanned,
-		Stream:       conn.Stream(),
-		DryRun:       pr.DryRun,
-		UpToDate:     pr.UpToDate,
+		BlocksPushed:          pr.BlocksPushed,
+		WordCount:             pr.WordCount,
+		FilesScanned:          pr.FilesScanned,
+		Stream:                conn.Stream(),
+		DryRun:                pr.DryRun,
+		UpToDate:              pr.UpToDate,
+		UndeclaredCollections: pr.UndeclaredCollections,
+	}
+	if pr.Brand != nil {
+		out.BrandProfile = pr.Brand.Name
+		out.BrandAction = pr.Brand.Action
+		out.BrandVersion = pr.Brand.Version
+		out.BrandReason = pr.Brand.Reason
 	}
 
 	// Fold the workspace's governed terminology into the push: reconcile local
@@ -157,20 +189,6 @@ func runPush(cmd *cobra.Command, args []string) error {
 			out.ConceptsProposed = cres.ConceptsProposed
 			out.ChangesetID = cres.ChangesetID
 			out.ChangesetURL = cres.ChangesetURL
-		}
-		// Carry the recipe-bound brand voice profile into the workspace brand
-		// hub (idempotent upsert by name; server-side edits are versioned,
-		// never clobbered). Skipped silently when the project is not
-		// workspace-claimed or binds no profile; --no-brand opts out.
-		if !pushNoBrand {
-			if bres, berr := brandPush(cmd.Context(), proj, pushDryRun); berr != nil {
-				return berr
-			} else if bres != nil {
-				out.BrandProfile = bres.Name
-				out.BrandAction = bres.Action
-				out.BrandVersion = bres.Version
-				out.BrandReason = bres.Reason
-			}
 		}
 		applyLoopStatus(&out, proj, conn.Stream())
 	}
@@ -219,6 +237,6 @@ func init() {
 	pushCmd.Flags().BoolVar(&pushDryRun, "dry-run", false, "Show what would be uploaded without sending")
 	pushCmd.Flags().StringVar(&pushStream, "stream", "", "Target stream (default: auto-detect from git/CI)")
 	pushCmd.Flags().BoolVar(&pushConceptsOnly, "concepts", false, "Sync only local terminology edits to the workspace (direct edits + governed change-set); no content transport, no hooks")
-	pushCmd.Flags().BoolVar(&pushNoBrand, "no-brand", false, "Skip uploading the recipe-bound brand voice profile to the workspace brand hub")
+	pushCmd.Flags().BoolVar(&pushNoBrand, "no-brand", false, "Carry the declared collections without their brand voice governance")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(pushCmd) })
 }

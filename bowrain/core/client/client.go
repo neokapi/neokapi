@@ -238,16 +238,23 @@ type SyncPushRequest struct {
 
 // ItemMeta carries per-item editor metadata generated during push.
 //
-// The JSON tags are not cosmetic. On the sync path this struct is marshaled
-// into the push commit manifest and read back by the worker as a
-// pb.SyncItemMeta, so a tag that does not match the generated one silently
-// drops the field. Keep them aligned with
-// bowrain/core/proto/sync/v1.SyncItemMeta.
+// The JSON tags are not free: on the sync path this struct is marshaled into
+// the commit manifest and read back by the worker as a pb.SyncItemMeta, so a
+// tag that does not match the generated one silently drops the field. That is
+// what happened to BlockIndex, which travelled as "block_index" against the
+// proto's "block_index_json" and never reached a stored item. Keep the tags
+// aligned with bowrain/core/proto/sync/v1.SyncItemMeta.
 type ItemMeta struct {
 	Name        string `json:"name"`                       // item name (relative file path)
 	Format      string `json:"format"`                     // detected format
 	BlockIndex  string `json:"block_index_json,omitempty"` // JSON-serialized BlockIndex
 	PreviewHTML string `json:"preview_html,omitempty"`     // pre-rendered editor preview HTML
+
+	// Collection names the recipe collection whose glob claims this item's
+	// path — the linkage that gives the item a place in the project's declared
+	// structure. Empty when no collection claims it: an ad-hoc file syncs
+	// ungrouped, governed by the project's default point.
+	Collection string `json:"collection,omitempty"`
 }
 
 // BlockInput represents a block in the API.
@@ -265,6 +272,12 @@ type SyncPushResponse struct {
 	Stored    int    `json:"stored"`
 	NewCursor int64  `json:"new_cursor"`
 	PushID    string `json:"push_id,omitempty"`
+
+	// UndeclaredCollections carries forward what the init negotiation reported:
+	// recipe-owned collections the server holds that this push no longer
+	// declares. Not a server field on the commit response — Push copies it here
+	// so one return value carries the whole push's outcome.
+	UndeclaredCollections []string `json:"-"`
 }
 
 // ChangeEntry represents a single change log entry from the server.

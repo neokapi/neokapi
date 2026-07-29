@@ -46,14 +46,25 @@ type SyncPushInit struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId    string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	Stream       string                 `protobuf:"bytes,2,opt,name=stream,proto3" json:"stream,omitempty"`
-	ContentTypes []string               `protobuf:"bytes,3,rep,name=content_types,json=contentTypes,proto3" json:"content_types,omitempty"` // "blocks", "terms", "memory", "media"
+	ContentTypes []string               `protobuf:"bytes,3,rep,name=content_types,json=contentTypes,proto3" json:"content_types,omitempty"` // "blocks", "context", "terms", "memory", "media"
 	// Merkle tree: item-level hashes (item_name → hash of block hashes).
 	ItemHashes map[string]string `protobuf:"bytes,4,rep,name=item_hashes,json=itemHashes,proto3" json:"item_hashes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Fast path: root hash of all item hashes. If server matches, nothing changed.
 	RootHash string `protobuf:"bytes,5,opt,name=root_hash,json=rootHash,proto3" json:"root_hash,omitempty"`
 	// Collection-level hashes for non-block content.
-	TermsHash     string `protobuf:"bytes,6,opt,name=terms_hash,json=termsHash,proto3" json:"terms_hash,omitempty"`
-	MemoryHash    string `protobuf:"bytes,7,opt,name=memory_hash,json=memoryHash,proto3" json:"memory_hash,omitempty"`
+	TermsHash  string `protobuf:"bytes,6,opt,name=terms_hash,json=termsHash,proto3" json:"terms_hash,omitempty"`
+	MemoryHash string `protobuf:"bytes,7,opt,name=memory_hash,json=memoryHash,proto3" json:"memory_hash,omitempty"`
+	// Fast path for the context content type: a hash over every declared
+	// collection's context entry (see SyncContextEntry.content_hash). When it
+	// matches the server's, the recipe's declared structure and governance are
+	// already in force and the whole context reconcile is skipped.
+	ContextHash string `protobuf:"bytes,8,opt,name=context_hash,json=contextHash,proto3" json:"context_hash,omitempty"`
+	// The names of the content collections the recipe declares. Sent beside
+	// context_hash so the server can answer which collections it holds that the
+	// recipe no longer declares — the context content type's counterpart to
+	// deleted_items, and reported for exactly the same reason: the server says
+	// what diverged, it does not act on it.
+	Collections   []string `protobuf:"bytes,9,rep,name=collections,proto3" json:"collections,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -137,6 +148,20 @@ func (x *SyncPushInit) GetMemoryHash() string {
 	return ""
 }
 
+func (x *SyncPushInit) GetContextHash() string {
+	if x != nil {
+		return x.ContextHash
+	}
+	return ""
+}
+
+func (x *SyncPushInit) GetCollections() []string {
+	if x != nil {
+		return x.Collections
+	}
+	return nil
+}
+
 type SyncPushInitResponse struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	UploadId string                 `protobuf:"bytes,1,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
@@ -151,8 +176,17 @@ type SyncPushInitResponse struct {
 	TermsChanged       bool  `protobuf:"varint,6,opt,name=terms_changed,json=termsChanged,proto3" json:"terms_changed,omitempty"`
 	MemoryChanged      bool  `protobuf:"varint,7,opt,name=memory_changed,json=memoryChanged,proto3" json:"memory_changed,omitempty"`
 	UnchangedItemCount int32 `protobuf:"varint,8,opt,name=unchanged_item_count,json=unchangedItemCount,proto3" json:"unchanged_item_count,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Whether the declared context — collections, their coordinates, their
+	// governance — differs from what the server holds. False means the recipe's
+	// structure is already in force and the manifest need not carry it.
+	ContextChanged bool `protobuf:"varint,9,opt,name=context_changed,json=contextChanged,proto3" json:"context_changed,omitempty"`
+	// Collections the server holds under recipe ownership that this push no
+	// longer declares. REPORTED, NEVER ACTED ON: a collection is where content
+	// lives, and a recipe edit is not consent to drop the server-side content
+	// grouped under it. The symmetry with deleted_items is deliberate.
+	UndeclaredCollections []string `protobuf:"bytes,10,rep,name=undeclared_collections,json=undeclaredCollections,proto3" json:"undeclared_collections,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *SyncPushInitResponse) Reset() {
@@ -239,6 +273,20 @@ func (x *SyncPushInitResponse) GetUnchangedItemCount() int32 {
 		return x.UnchangedItemCount
 	}
 	return 0
+}
+
+func (x *SyncPushInitResponse) GetContextChanged() bool {
+	if x != nil {
+		return x.ContextChanged
+	}
+	return false
+}
+
+func (x *SyncPushInitResponse) GetUndeclaredCollections() []string {
+	if x != nil {
+		return x.UndeclaredCollections
+	}
+	return nil
 }
 
 type SyncItemDiff struct {
@@ -391,11 +439,18 @@ type SyncManifest struct {
 	Chunks []*ChunkRef `protobuf:"bytes,4,rep,name=chunks,proto3" json:"chunks,omitempty"`
 	// Item metadata.
 	Items []*SyncItemMeta `protobuf:"bytes,5,rep,name=items,proto3" json:"items,omitempty"`
-	// Context.
+	// Who and what pushed.
 	ActorId       string            `protobuf:"bytes,6,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
 	WorkspaceSlug string            `protobuf:"bytes,7,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
 	ConnectorId   string            `protobuf:"bytes,8,opt,name=connector_id,json=connectorId,proto3" json:"connector_id,omitempty"`
 	Context       map[string]string `protobuf:"bytes,9,rep,name=context,proto3" json:"context,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// The context content type: the collections the recipe declares, the point
+	// each occupies in the project's context space, and the governance resolved
+	// for that point. It rides in the manifest rather than in a chunk because it
+	// is the shape the uploaded items are stored INTO — one push is one
+	// consistent state, so the collections must land in the same transaction as
+	// the blocks that reference them.
+	Contexts      []*SyncContextEntry `protobuf:"bytes,10,rep,name=contexts,proto3" json:"contexts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -493,10 +548,17 @@ func (x *SyncManifest) GetContext() map[string]string {
 	return nil
 }
 
+func (x *SyncManifest) GetContexts() []*SyncContextEntry {
+	if x != nil {
+		return x.Contexts
+	}
+	return nil
+}
+
 type ChunkRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Index         int32                  `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
-	ContentType   string                 `protobuf:"bytes,2,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"` // "blocks", "terms", "tm", "media"
+	ContentType   string                 `protobuf:"bytes,2,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"` // "blocks", "terms", "memory", "media"
 	Hash          string                 `protobuf:"bytes,3,opt,name=hash,proto3" json:"hash,omitempty"`                                  // SHA-256 of compressed bytes
 	RecordCount   int32                  `protobuf:"varint,4,opt,name=record_count,json=recordCount,proto3" json:"record_count,omitempty"`
 	ByteSize      int64                  `protobuf:"varint,5,opt,name=byte_size,json=byteSize,proto3" json:"byte_size,omitempty"`
@@ -1357,23 +1419,150 @@ func (x *SyncMedia) GetContentHash() string {
 	return ""
 }
 
+// SyncContextEntry is one content collection as the recipe declares it: the
+// name its items are grouped under, the point it occupies in the project's
+// context space, the governance resolved for that point, and which side owns
+// it. Together the entries are the "context" content type — the project's
+// declared structure and governance, carried in the push transaction rather
+// than uploaded beside it.
+//
+// PERSISTED IDENTIFIERS. `name` and every value in `coordinates` become
+// identifiers on the server: items are linked to a collection by name, and the
+// coordinates are stored as the point the governance was resolved at. Renaming
+// a collection in the recipe therefore does not rename it on the server — it
+// declares a new one and leaves the old reported-but-undeclared.
+type SyncContextEntry struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Name is the collection name from `content[].name`. Non-empty: an unnamed
+	// bare entry declares no collection and is not carried here.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// Coordinates is the collection's `context:` — axis → value over the axes
+	// the recipe declares under `coordinates:`. Slugs, never concept references.
+	Coordinates map[string]string `protobuf:"bytes,2,rep,name=coordinates,proto3" json:"coordinates,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Channel is the collection's value on the one axis the framework reads for
+	// itself (core/project.ChannelAxis), resolved by the client. It selects the
+	// matching override inside the voice profile.
+	Channel string `protobuf:"bytes,3,opt,name=channel,proto3" json:"channel,omitempty"`
+	// VoiceProfile is the NAME of the voice profile governing this collection —
+	// the linkage key the workspace brand hub upserts by. Empty when the
+	// collection's point binds no voice.
+	VoiceProfile string `protobuf:"bytes,4,opt,name=voice_profile,json=voiceProfile,proto3" json:"voice_profile,omitempty"`
+	// VoiceProfileJson is the authored content of that profile, so the push
+	// carries the governance itself and not merely a reference to one the server
+	// may not hold. Sent once per distinct profile name in a push; later entries
+	// naming the same profile carry only the name. Empty on a --no-brand push,
+	// which reduces the entry to structure without governance.
+	VoiceProfileJson []byte `protobuf:"bytes,5,opt,name=voice_profile_json,json=voiceProfileJson,proto3" json:"voice_profile_json,omitempty"`
+	// Owner is "recipe" or "workspace" (see above).
+	Owner string `protobuf:"bytes,6,opt,name=owner,proto3" json:"owner,omitempty"`
+	// ContentHash is the entry's own hash, over the fields above. The server
+	// stores it and compares it: an entry whose hash is unchanged is not
+	// rewritten, so a re-push of an unedited recipe does not churn the row.
+	ContentHash   string `protobuf:"bytes,7,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SyncContextEntry) Reset() {
+	*x = SyncContextEntry{}
+	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SyncContextEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SyncContextEntry) ProtoMessage() {}
+
+func (x *SyncContextEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SyncContextEntry.ProtoReflect.Descriptor instead.
+func (*SyncContextEntry) Descriptor() ([]byte, []int) {
+	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SyncContextEntry) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SyncContextEntry) GetCoordinates() map[string]string {
+	if x != nil {
+		return x.Coordinates
+	}
+	return nil
+}
+
+func (x *SyncContextEntry) GetChannel() string {
+	if x != nil {
+		return x.Channel
+	}
+	return ""
+}
+
+func (x *SyncContextEntry) GetVoiceProfile() string {
+	if x != nil {
+		return x.VoiceProfile
+	}
+	return ""
+}
+
+func (x *SyncContextEntry) GetVoiceProfileJson() []byte {
+	if x != nil {
+		return x.VoiceProfileJson
+	}
+	return nil
+}
+
+func (x *SyncContextEntry) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *SyncContextEntry) GetContentHash() string {
+	if x != nil {
+		return x.ContentHash
+	}
+	return ""
+}
+
 type SyncItemMeta struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Format         string                 `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`     // "json", "xliff2", "markdown" — declared, not guessed
-	Encoding       string                 `protobuf:"bytes,3,opt,name=encoding,proto3" json:"encoding,omitempty"` // "utf-8"
-	Collection     string                 `protobuf:"bytes,4,opt,name=collection,proto3" json:"collection,omitempty"`
-	BlockIndexJson string                 `protobuf:"bytes,5,opt,name=block_index_json,json=blockIndexJson,proto3" json:"block_index_json,omitempty"`
-	PreviewHtml    string                 `protobuf:"bytes,6,opt,name=preview_html,json=previewHtml,proto3" json:"preview_html,omitempty"`
-	SourceLanguage string                 `protobuf:"bytes,7,opt,name=source_language,json=sourceLanguage,proto3" json:"source_language,omitempty"`
-	ConnectorData  map[string]string      `protobuf:"bytes,8,rep,name=connector_data,json=connectorData,proto3" json:"connector_data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Name     string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Format   string                 `protobuf:"bytes,2,opt,name=format,proto3" json:"format,omitempty"`     // "json", "xliff2", "markdown" — declared, not guessed
+	Encoding string                 `protobuf:"bytes,3,opt,name=encoding,proto3" json:"encoding,omitempty"` // "utf-8"
+	// Collection names the SyncContextEntry this item belongs to — the recipe
+	// collection whose glob claims the item's path. Empty when no collection
+	// claims it, which is not an error: an ad-hoc file syncs ungrouped and the
+	// project's default point governs it.
+	Collection     string            `protobuf:"bytes,4,opt,name=collection,proto3" json:"collection,omitempty"`
+	BlockIndexJson string            `protobuf:"bytes,5,opt,name=block_index_json,json=blockIndexJson,proto3" json:"block_index_json,omitempty"`
+	PreviewHtml    string            `protobuf:"bytes,6,opt,name=preview_html,json=previewHtml,proto3" json:"preview_html,omitempty"`
+	SourceLanguage string            `protobuf:"bytes,7,opt,name=source_language,json=sourceLanguage,proto3" json:"source_language,omitempty"`
+	ConnectorData  map[string]string `protobuf:"bytes,8,rep,name=connector_data,json=connectorData,proto3" json:"connector_data,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *SyncItemMeta) Reset() {
 	*x = SyncItemMeta{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[13]
+	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1385,7 +1574,7 @@ func (x *SyncItemMeta) String() string {
 func (*SyncItemMeta) ProtoMessage() {}
 
 func (x *SyncItemMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[13]
+	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1398,7 +1587,7 @@ func (x *SyncItemMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncItemMeta.ProtoReflect.Descriptor instead.
 func (*SyncItemMeta) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{13}
+	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *SyncItemMeta) GetName() string {
@@ -1471,7 +1660,7 @@ type SyncPullRequest struct {
 
 func (x *SyncPullRequest) Reset() {
 	*x = SyncPullRequest{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[14]
+	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1483,7 +1672,7 @@ func (x *SyncPullRequest) String() string {
 func (*SyncPullRequest) ProtoMessage() {}
 
 func (x *SyncPullRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[14]
+	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1496,7 +1685,7 @@ func (x *SyncPullRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPullRequest.ProtoReflect.Descriptor instead.
 func (*SyncPullRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{14}
+	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SyncPullRequest) GetProjectId() string {
@@ -1550,13 +1739,18 @@ type SyncPullResponse struct {
 	Terms         []*SyncTerm        `protobuf:"bytes,11,rep,name=terms,proto3" json:"terms,omitempty"`
 	MemoryEntries []*SyncMemoryEntry `protobuf:"bytes,12,rep,name=memory_entries,json=memoryEntries,proto3" json:"memory_entries,omitempty"`
 	Media         []*SyncMedia       `protobuf:"bytes,13,rep,name=media,proto3" json:"media,omitempty"`
+	// The project's collections, each carrying its owner. A recipe-owned entry
+	// is descriptive on this path — the client reads it and leaves the local
+	// governance alone, because kapi.yaml is the authority for it. A
+	// workspace-owned entry is the one a pull may act on.
+	Contexts      []*SyncContextEntry `protobuf:"bytes,14,rep,name=contexts,proto3" json:"contexts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SyncPullResponse) Reset() {
 	*x = SyncPullResponse{}
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[15]
+	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1568,7 +1762,7 @@ func (x *SyncPullResponse) String() string {
 func (*SyncPullResponse) ProtoMessage() {}
 
 func (x *SyncPullResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[15]
+	mi := &file_bowrain_core_proto_sync_v1_sync_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1581,7 +1775,7 @@ func (x *SyncPullResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncPullResponse.ProtoReflect.Descriptor instead.
 func (*SyncPullResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{15}
+	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *SyncPullResponse) GetCursor() int64 {
@@ -1626,11 +1820,18 @@ func (x *SyncPullResponse) GetMedia() []*SyncMedia {
 	return nil
 }
 
+func (x *SyncPullResponse) GetContexts() []*SyncContextEntry {
+	if x != nil {
+		return x.Contexts
+	}
+	return nil
+}
+
 var File_bowrain_core_proto_sync_v1_sync_proto protoreflect.FileDescriptor
 
 const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\n" +
-	"%bowrain/core/proto/sync/v1/sync.proto\x12\x0fneokapi.sync.v1\x1a#core/proto/content/v1/content.proto\"\xd6\x02\n" +
+	"%bowrain/core/proto/sync/v1/sync.proto\x12\x0fneokapi.sync.v1\x1a#core/proto/content/v1/content.proto\"\x9b\x03\n" +
 	"\fSyncPushInit\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x16\n" +
@@ -1642,10 +1843,12 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\n" +
 	"terms_hash\x18\x06 \x01(\tR\ttermsHash\x12\x1f\n" +
 	"\vmemory_hash\x18\a \x01(\tR\n" +
-	"memoryHash\x1a=\n" +
+	"memoryHash\x12!\n" +
+	"\fcontext_hash\x18\b \x01(\tR\vcontextHash\x12 \n" +
+	"\vcollections\x18\t \x03(\tR\vcollections\x1a=\n" +
 	"\x0fItemHashesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb0\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x90\x03\n" +
 	"\x14SyncPushInitResponse\x12\x1b\n" +
 	"\tupload_id\x18\x01 \x01(\tR\buploadId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12#\n" +
@@ -1654,7 +1857,10 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\tnew_items\x18\x05 \x03(\tR\bnewItems\x12#\n" +
 	"\rterms_changed\x18\x06 \x01(\bR\ftermsChanged\x12%\n" +
 	"\x0ememory_changed\x18\a \x01(\bR\rmemoryChanged\x120\n" +
-	"\x14unchanged_item_count\x18\b \x01(\x05R\x12unchangedItemCount\"\xdb\x01\n" +
+	"\x14unchanged_item_count\x18\b \x01(\x05R\x12unchangedItemCount\x12'\n" +
+	"\x0fcontext_changed\x18\t \x01(\bR\x0econtextChanged\x125\n" +
+	"\x16undeclared_collections\x18\n" +
+	" \x03(\tR\x15undeclaredCollections\"\xdb\x01\n" +
 	"\fSyncItemDiff\x12\x1b\n" +
 	"\tupload_id\x18\x01 \x01(\tR\buploadId\x12\x1b\n" +
 	"\titem_name\x18\x02 \x01(\tR\bitemName\x12Q\n" +
@@ -1668,7 +1874,7 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\tconflicts\x18\x03 \x03(\tR\tconflicts\x12\x1d\n" +
 	"\n" +
 	"chunk_urls\x18\x04 \x03(\tR\tchunkUrls\x12\x1c\n" +
-	"\ttransport\x18\x05 \x01(\tR\ttransport\"\xb1\x03\n" +
+	"\ttransport\x18\x05 \x01(\tR\ttransport\"\xf0\x03\n" +
 	"\fSyncManifest\x12\x1b\n" +
 	"\tupload_id\x18\x01 \x01(\tR\buploadId\x12\x1d\n" +
 	"\n" +
@@ -1679,7 +1885,9 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\bactor_id\x18\x06 \x01(\tR\aactorId\x12%\n" +
 	"\x0eworkspace_slug\x18\a \x01(\tR\rworkspaceSlug\x12!\n" +
 	"\fconnector_id\x18\b \x01(\tR\vconnectorId\x12D\n" +
-	"\acontext\x18\t \x03(\v2*.neokapi.sync.v1.SyncManifest.ContextEntryR\acontext\x1a:\n" +
+	"\acontext\x18\t \x03(\v2*.neokapi.sync.v1.SyncManifest.ContextEntryR\acontext\x12=\n" +
+	"\bcontexts\x18\n" +
+	" \x03(\v2!.neokapi.sync.v1.SyncContextEntryR\bcontexts\x1a:\n" +
 	"\fContextEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x97\x01\n" +
@@ -1794,6 +2002,17 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\fcontent_hash\x18\x0f \x01(\tR\vcontentHash\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe2\x02\n" +
+	"\x10SyncContextEntry\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12T\n" +
+	"\vcoordinates\x18\x02 \x03(\v22.neokapi.sync.v1.SyncContextEntry.CoordinatesEntryR\vcoordinates\x12\x18\n" +
+	"\achannel\x18\x03 \x01(\tR\achannel\x12#\n" +
+	"\rvoice_profile\x18\x04 \x01(\tR\fvoiceProfile\x12,\n" +
+	"\x12voice_profile_json\x18\x05 \x01(\fR\x10voiceProfileJson\x12\x14\n" +
+	"\x05owner\x18\x06 \x01(\tR\x05owner\x12!\n" +
+	"\fcontent_hash\x18\a \x01(\tR\vcontentHash\x1a>\n" +
+	"\x10CoordinatesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x87\x03\n" +
 	"\fSyncItemMeta\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
@@ -1816,7 +2035,7 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	"\x06cursor\x18\x03 \x01(\x03R\x06cursor\x12\x14\n" +
 	"\x05limit\x18\x04 \x01(\x05R\x05limit\x12#\n" +
 	"\rcontent_types\x18\x05 \x03(\tR\fcontentTypes\x12\x18\n" +
-	"\alocales\x18\x06 \x03(\tR\alocales\"\xa5\x02\n" +
+	"\alocales\x18\x06 \x03(\tR\alocales\"\xe4\x02\n" +
 	"\x10SyncPullResponse\x12\x16\n" +
 	"\x06cursor\x18\x01 \x01(\x03R\x06cursor\x12\x19\n" +
 	"\bhas_more\x18\x02 \x01(\bR\ahasMore\x122\n" +
@@ -1824,7 +2043,8 @@ const file_bowrain_core_proto_sync_v1_sync_proto_rawDesc = "" +
 	" \x03(\v2\x1a.neokapi.sync.v1.SyncBlockR\x06blocks\x12/\n" +
 	"\x05terms\x18\v \x03(\v2\x19.neokapi.sync.v1.SyncTermR\x05terms\x12G\n" +
 	"\x0ememory_entries\x18\f \x03(\v2 .neokapi.sync.v1.SyncMemoryEntryR\rmemoryEntries\x120\n" +
-	"\x05media\x18\r \x03(\v2\x1a.neokapi.sync.v1.SyncMediaR\x05mediaB>Z<github.com/neokapi/neokapi/bowrain/core/proto/sync/v1;syncv1b\x06proto3"
+	"\x05media\x18\r \x03(\v2\x1a.neokapi.sync.v1.SyncMediaR\x05media\x12=\n" +
+	"\bcontexts\x18\x0e \x03(\v2!.neokapi.sync.v1.SyncContextEntryR\bcontextsB>Z<github.com/neokapi/neokapi/bowrain/core/proto/sync/v1;syncv1b\x06proto3"
 
 var (
 	file_bowrain_core_proto_sync_v1_sync_proto_rawDescOnce sync.Once
@@ -1838,7 +2058,7 @@ func file_bowrain_core_proto_sync_v1_sync_proto_rawDescGZIP() []byte {
 	return file_bowrain_core_proto_sync_v1_sync_proto_rawDescData
 }
 
-var file_bowrain_core_proto_sync_v1_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_bowrain_core_proto_sync_v1_sync_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_bowrain_core_proto_sync_v1_sync_proto_goTypes = []any{
 	(*SyncPushInit)(nil),         // 0: neokapi.sync.v1.SyncPushInit
 	(*SyncPushInitResponse)(nil), // 1: neokapi.sync.v1.SyncPushInitResponse
@@ -1853,53 +2073,58 @@ var file_bowrain_core_proto_sync_v1_sync_proto_goTypes = []any{
 	(*SyncTermTranslation)(nil),  // 10: neokapi.sync.v1.SyncTermTranslation
 	(*SyncMemoryEntry)(nil),      // 11: neokapi.sync.v1.SyncMemoryEntry
 	(*SyncMedia)(nil),            // 12: neokapi.sync.v1.SyncMedia
-	(*SyncItemMeta)(nil),         // 13: neokapi.sync.v1.SyncItemMeta
-	(*SyncPullRequest)(nil),      // 14: neokapi.sync.v1.SyncPullRequest
-	(*SyncPullResponse)(nil),     // 15: neokapi.sync.v1.SyncPullResponse
-	nil,                          // 16: neokapi.sync.v1.SyncPushInit.ItemHashesEntry
-	nil,                          // 17: neokapi.sync.v1.SyncItemDiff.BlockHashesEntry
-	nil,                          // 18: neokapi.sync.v1.SyncManifest.ContextEntry
-	nil,                          // 19: neokapi.sync.v1.SyncBlock.TargetsEntry
-	nil,                          // 20: neokapi.sync.v1.SyncBlock.PropertiesEntry
-	nil,                          // 21: neokapi.sync.v1.SyncBlock.ConnectorDataEntry
-	nil,                          // 22: neokapi.sync.v1.SyncTerm.PropertiesEntry
-	nil,                          // 23: neokapi.sync.v1.SyncMemoryEntry.PropertiesEntry
-	nil,                          // 24: neokapi.sync.v1.SyncMedia.PropertiesEntry
-	nil,                          // 25: neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
-	(*v1.SegmentMessage)(nil),    // 26: neokapi.content.v1.SegmentMessage
-	(*v1.OverlayMessage)(nil),    // 27: neokapi.content.v1.OverlayMessage
+	(*SyncContextEntry)(nil),     // 13: neokapi.sync.v1.SyncContextEntry
+	(*SyncItemMeta)(nil),         // 14: neokapi.sync.v1.SyncItemMeta
+	(*SyncPullRequest)(nil),      // 15: neokapi.sync.v1.SyncPullRequest
+	(*SyncPullResponse)(nil),     // 16: neokapi.sync.v1.SyncPullResponse
+	nil,                          // 17: neokapi.sync.v1.SyncPushInit.ItemHashesEntry
+	nil,                          // 18: neokapi.sync.v1.SyncItemDiff.BlockHashesEntry
+	nil,                          // 19: neokapi.sync.v1.SyncManifest.ContextEntry
+	nil,                          // 20: neokapi.sync.v1.SyncBlock.TargetsEntry
+	nil,                          // 21: neokapi.sync.v1.SyncBlock.PropertiesEntry
+	nil,                          // 22: neokapi.sync.v1.SyncBlock.ConnectorDataEntry
+	nil,                          // 23: neokapi.sync.v1.SyncTerm.PropertiesEntry
+	nil,                          // 24: neokapi.sync.v1.SyncMemoryEntry.PropertiesEntry
+	nil,                          // 25: neokapi.sync.v1.SyncMedia.PropertiesEntry
+	nil,                          // 26: neokapi.sync.v1.SyncContextEntry.CoordinatesEntry
+	nil,                          // 27: neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
+	(*v1.SegmentMessage)(nil),    // 28: neokapi.content.v1.SegmentMessage
+	(*v1.OverlayMessage)(nil),    // 29: neokapi.content.v1.OverlayMessage
 }
 var file_bowrain_core_proto_sync_v1_sync_proto_depIdxs = []int32{
-	16, // 0: neokapi.sync.v1.SyncPushInit.item_hashes:type_name -> neokapi.sync.v1.SyncPushInit.ItemHashesEntry
-	17, // 1: neokapi.sync.v1.SyncItemDiff.block_hashes:type_name -> neokapi.sync.v1.SyncItemDiff.BlockHashesEntry
+	17, // 0: neokapi.sync.v1.SyncPushInit.item_hashes:type_name -> neokapi.sync.v1.SyncPushInit.ItemHashesEntry
+	18, // 1: neokapi.sync.v1.SyncItemDiff.block_hashes:type_name -> neokapi.sync.v1.SyncItemDiff.BlockHashesEntry
 	5,  // 2: neokapi.sync.v1.SyncManifest.chunks:type_name -> neokapi.sync.v1.ChunkRef
-	13, // 3: neokapi.sync.v1.SyncManifest.items:type_name -> neokapi.sync.v1.SyncItemMeta
-	18, // 4: neokapi.sync.v1.SyncManifest.context:type_name -> neokapi.sync.v1.SyncManifest.ContextEntry
-	7,  // 5: neokapi.sync.v1.SyncChunk.blocks:type_name -> neokapi.sync.v1.SyncBlock
-	9,  // 6: neokapi.sync.v1.SyncChunk.terms:type_name -> neokapi.sync.v1.SyncTerm
-	11, // 7: neokapi.sync.v1.SyncChunk.memory_entries:type_name -> neokapi.sync.v1.SyncMemoryEntry
-	12, // 8: neokapi.sync.v1.SyncChunk.media:type_name -> neokapi.sync.v1.SyncMedia
-	26, // 9: neokapi.sync.v1.SyncBlock.source:type_name -> neokapi.content.v1.SegmentMessage
-	19, // 10: neokapi.sync.v1.SyncBlock.targets:type_name -> neokapi.sync.v1.SyncBlock.TargetsEntry
-	20, // 11: neokapi.sync.v1.SyncBlock.properties:type_name -> neokapi.sync.v1.SyncBlock.PropertiesEntry
-	21, // 12: neokapi.sync.v1.SyncBlock.connector_data:type_name -> neokapi.sync.v1.SyncBlock.ConnectorDataEntry
-	27, // 13: neokapi.sync.v1.SyncBlock.overlays:type_name -> neokapi.content.v1.OverlayMessage
-	26, // 14: neokapi.sync.v1.SyncSegmentList.segments:type_name -> neokapi.content.v1.SegmentMessage
-	10, // 15: neokapi.sync.v1.SyncTerm.translations:type_name -> neokapi.sync.v1.SyncTermTranslation
-	22, // 16: neokapi.sync.v1.SyncTerm.properties:type_name -> neokapi.sync.v1.SyncTerm.PropertiesEntry
-	23, // 17: neokapi.sync.v1.SyncMemoryEntry.properties:type_name -> neokapi.sync.v1.SyncMemoryEntry.PropertiesEntry
-	24, // 18: neokapi.sync.v1.SyncMedia.properties:type_name -> neokapi.sync.v1.SyncMedia.PropertiesEntry
-	25, // 19: neokapi.sync.v1.SyncItemMeta.connector_data:type_name -> neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
-	7,  // 20: neokapi.sync.v1.SyncPullResponse.blocks:type_name -> neokapi.sync.v1.SyncBlock
-	9,  // 21: neokapi.sync.v1.SyncPullResponse.terms:type_name -> neokapi.sync.v1.SyncTerm
-	11, // 22: neokapi.sync.v1.SyncPullResponse.memory_entries:type_name -> neokapi.sync.v1.SyncMemoryEntry
-	12, // 23: neokapi.sync.v1.SyncPullResponse.media:type_name -> neokapi.sync.v1.SyncMedia
-	8,  // 24: neokapi.sync.v1.SyncBlock.TargetsEntry.value:type_name -> neokapi.sync.v1.SyncSegmentList
-	25, // [25:25] is the sub-list for method output_type
-	25, // [25:25] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	14, // 3: neokapi.sync.v1.SyncManifest.items:type_name -> neokapi.sync.v1.SyncItemMeta
+	19, // 4: neokapi.sync.v1.SyncManifest.context:type_name -> neokapi.sync.v1.SyncManifest.ContextEntry
+	13, // 5: neokapi.sync.v1.SyncManifest.contexts:type_name -> neokapi.sync.v1.SyncContextEntry
+	7,  // 6: neokapi.sync.v1.SyncChunk.blocks:type_name -> neokapi.sync.v1.SyncBlock
+	9,  // 7: neokapi.sync.v1.SyncChunk.terms:type_name -> neokapi.sync.v1.SyncTerm
+	11, // 8: neokapi.sync.v1.SyncChunk.memory_entries:type_name -> neokapi.sync.v1.SyncMemoryEntry
+	12, // 9: neokapi.sync.v1.SyncChunk.media:type_name -> neokapi.sync.v1.SyncMedia
+	28, // 10: neokapi.sync.v1.SyncBlock.source:type_name -> neokapi.content.v1.SegmentMessage
+	20, // 11: neokapi.sync.v1.SyncBlock.targets:type_name -> neokapi.sync.v1.SyncBlock.TargetsEntry
+	21, // 12: neokapi.sync.v1.SyncBlock.properties:type_name -> neokapi.sync.v1.SyncBlock.PropertiesEntry
+	22, // 13: neokapi.sync.v1.SyncBlock.connector_data:type_name -> neokapi.sync.v1.SyncBlock.ConnectorDataEntry
+	29, // 14: neokapi.sync.v1.SyncBlock.overlays:type_name -> neokapi.content.v1.OverlayMessage
+	28, // 15: neokapi.sync.v1.SyncSegmentList.segments:type_name -> neokapi.content.v1.SegmentMessage
+	10, // 16: neokapi.sync.v1.SyncTerm.translations:type_name -> neokapi.sync.v1.SyncTermTranslation
+	23, // 17: neokapi.sync.v1.SyncTerm.properties:type_name -> neokapi.sync.v1.SyncTerm.PropertiesEntry
+	24, // 18: neokapi.sync.v1.SyncMemoryEntry.properties:type_name -> neokapi.sync.v1.SyncMemoryEntry.PropertiesEntry
+	25, // 19: neokapi.sync.v1.SyncMedia.properties:type_name -> neokapi.sync.v1.SyncMedia.PropertiesEntry
+	26, // 20: neokapi.sync.v1.SyncContextEntry.coordinates:type_name -> neokapi.sync.v1.SyncContextEntry.CoordinatesEntry
+	27, // 21: neokapi.sync.v1.SyncItemMeta.connector_data:type_name -> neokapi.sync.v1.SyncItemMeta.ConnectorDataEntry
+	7,  // 22: neokapi.sync.v1.SyncPullResponse.blocks:type_name -> neokapi.sync.v1.SyncBlock
+	9,  // 23: neokapi.sync.v1.SyncPullResponse.terms:type_name -> neokapi.sync.v1.SyncTerm
+	11, // 24: neokapi.sync.v1.SyncPullResponse.memory_entries:type_name -> neokapi.sync.v1.SyncMemoryEntry
+	12, // 25: neokapi.sync.v1.SyncPullResponse.media:type_name -> neokapi.sync.v1.SyncMedia
+	13, // 26: neokapi.sync.v1.SyncPullResponse.contexts:type_name -> neokapi.sync.v1.SyncContextEntry
+	8,  // 27: neokapi.sync.v1.SyncBlock.TargetsEntry.value:type_name -> neokapi.sync.v1.SyncSegmentList
+	28, // [28:28] is the sub-list for method output_type
+	28, // [28:28] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_bowrain_core_proto_sync_v1_sync_proto_init() }
@@ -1913,7 +2138,7 @@ func file_bowrain_core_proto_sync_v1_sync_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bowrain_core_proto_sync_v1_sync_proto_rawDesc), len(file_bowrain_core_proto_sync_v1_sync_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   26,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

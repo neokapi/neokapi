@@ -146,6 +146,11 @@ const (
 // Collection groups items within a project.
 // Collections are project-scoped by default. When Stream is non-empty,
 // the collection is visible only within that stream.
+//
+// A collection reached the server one of two ways, and Owner says which: the
+// web hub, the editor or a connector created it (workspace-owned), or a
+// project's recipe declared it and a push carried it up (recipe-owned). The
+// distinction is not cosmetic — it decides who may change the row.
 type Collection struct {
 	ID              string            `json:"id"`
 	ProjectID       string            `json:"project_id"`
@@ -155,8 +160,26 @@ type Collection struct {
 	IsDefault       bool              `json:"is_default"`
 	Stream          string            `json:"stream,omitempty"`           // empty = project-wide
 	ConnectorConfig map[string]string `json:"connector_config,omitempty"` // connector type + settings
-	CreatedAt       time.Time         `json:"created_at"`
-	UpdatedAt       time.Time         `json:"updated_at"`
+
+	// Context is the point this collection's content occupies in the project's
+	// context space: axis → value, as the recipe declares under `context:`.
+	// Empty for a workspace-owned collection, which sits at no declared point.
+	Context map[string]string `json:"context,omitempty"`
+
+	// Owner is "recipe" or "workspace" (bowrain/core/sync.ContextOwner*). It
+	// arrives as a protocol field on the pushed context entry and is stored
+	// verbatim: every later ownership decision is a lookup of this field, not a
+	// rule reconstructed from how the row happens to look.
+	Owner string `json:"owner,omitempty"`
+
+	// ContextHash is the hash of the context entry this row was reconciled
+	// from (bowrain/core/sync.ComputeContextEntryHash). It is what makes a
+	// re-push idempotent: an entry arriving with an unchanged hash leaves the
+	// row — and its UpdatedAt — untouched.
+	ContextHash string `json:"context_hash,omitempty"`
+
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // ---------------------------------------------------------------------------
