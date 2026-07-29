@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
@@ -130,6 +131,69 @@ func gitRun(t *testing.T, dir string, args ...string) string {
 	return string(out)
 }
 
+// A forge connector's config arrives over the workspace connectors API, from
+// anyone holding PermManageConnectors. The checkout directory is where the
+// server reads through and publishes into, so it is the server's to choose:
+// no config may name a path on the host.
+func TestForgeConnectorIgnoresConfiguredLocalPath(t *testing.T) {
+	tmp := t.TempDir()
+
+	prevRoot := forgeCheckoutRoot
+	forgeCheckoutRoot = filepath.Join(tmp, "checkouts")
+	t.Cleanup(func() { forgeCheckoutRoot = prevRoot })
+
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	named := filepath.Join(tmp, "somewhere-the-tenant-picked")
+
+	tests := []struct {
+		name string
+		id   string
+	}{
+		{name: "default id", id: ""},
+		{name: "explicit id", id: "my-connector"},
+		{name: "id that tries to walk out of the root", id: "../../../../etc"},
+		{name: "id of only separators", id: "../.."},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := map[string]string{
+				"repo":       "https://github.com/acme/site.git",
+				"token":      "tok",
+				"project_id": "proj-1",
+				"local_path": named,
+			}
+			if tc.id != "" {
+				cfg["id"] = tc.id
+			}
+
+			c, err := NewForgeConnector(reg, cfg)
+			require.NoError(t, err)
+
+			assert.NotEqual(t, named, c.git.localPath, "config must not name the checkout directory")
+
+			// Whatever the id, the checkout stays inside the server's root.
+			rel, err := filepath.Rel(forgeCheckoutRoot, c.git.localPath)
+			require.NoError(t, err)
+			assert.False(t, strings.HasPrefix(rel, ".."),
+				"checkout %q escaped the server-owned root %q", c.git.localPath, forgeCheckoutRoot)
+			assert.Equal(t, forgeCheckoutRoot, filepath.Dir(c.git.localPath),
+				"checkout must sit directly under the server-owned root")
+		})
+	}
+}
+
+// The same connector must return to the same checkout across restarts, and two
+// different connectors must never share one.
+func TestForgeCheckoutPathIsStableAndDistinct(t *testing.T) {
+	a := forgeCheckoutPath("conn-a", "acme/site")
+	assert.Equal(t, a, forgeCheckoutPath("conn-a", "acme/site"), "path must be stable for one connector")
+	assert.NotEqual(t, a, forgeCheckoutPath("conn-b", "acme/site"), "distinct ids must not share a checkout")
+	assert.NotEqual(t, a, forgeCheckoutPath("conn-a", "acme/other"), "distinct repos must not share a checkout")
+}
+
 // TestForgeConnectorPublish_BranchAndPR drives the whole delivery against a
 // real local bare repository: the produced file must land on the delivery
 // branch (never the tracked branch), the PR must be ensured with the report
@@ -155,11 +219,11 @@ func TestForgeConnectorPublish_BranchAndPR(t *testing.T) {
 	gitRun(t, seed, "commit", "-m", "seed")
 	gitRun(t, seed, "push", "origin", "main")
 
-	// The connector's clone, pre-created so ensureRepo takes the pull path and
-	// origin stays the local bare repo (the https repo URL is only validated,
-	// never dialed).
-	clone := filepath.Join(tmp, "clone")
-	gitRun(t, tmp, "clone", origin, clone)
+	// The checkout location is the server's, so the fixture moves the root the
+	// server uses rather than naming a path in config.
+	prevRoot := forgeCheckoutRoot
+	forgeCheckoutRoot = filepath.Join(tmp, "checkouts")
+	t.Cleanup(func() { forgeCheckoutRoot = prevRoot })
 
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
@@ -167,10 +231,16 @@ func TestForgeConnectorPublish_BranchAndPR(t *testing.T) {
 		"repo":       "https://github.com/acme/site.git",
 		"token":      "tok",
 		"project_id": "proj-1",
-		"local_path": clone,
 		"pr_labels":  "translations, kapi",
 	})
 	require.NoError(t, err)
+
+	// The connector's own clone, pre-created so ensureRepo takes the pull path
+	// and origin stays the local bare repo (the https repo URL is only
+	// validated, never dialed).
+	clone := c.git.localPath
+	require.NoError(t, os.MkdirAll(filepath.Dir(clone), 0o755))
+	gitRun(t, tmp, "clone", origin, clone)
 	fake := &fakeForgeClient{}
 	c.newClient = func(token string) forge.Client { fake.token = token; return fake }
 
