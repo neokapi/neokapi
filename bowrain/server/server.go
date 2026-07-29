@@ -2154,3 +2154,56 @@ func originOf(rawURL string) string {
 	}
 	return u.Scheme + "://" + u.Host
 }
+
+// wsOriginPatterns lists the origins allowed to open one of this server's
+// WebSockets, in the host-pattern form websocket.AcceptOptions expects.
+//
+// Both sockets authenticate through AuthMiddleware, and an upgrade is a GET —
+// a CSRF-safe method — so a browser that already holds the session cookie needs
+// nothing else to connect. SameSite=Lax keeps a genuinely cross-site page out,
+// but "same-site" is a registrable-domain relation, not an origin one: any
+// sibling host under the same domain still sends the cookie. The origin check
+// is what makes the socket same-origin, so it has to be a real allowlist.
+//
+// The policy is deliberately narrower than corsConfig's. CORS grants the
+// landing origin one credentialed read (GET whoami, display JSON only); a
+// socket is a different privilege — the notification stream, and join-and-write
+// access to a collaboration room — and nothing off-origin needs it. Note also
+// that OIDCPublicURL, which corsConfig puts on its production allowlist, is the
+// browser-facing *identity provider* URL rather than this app's origin, so it
+// would be the wrong thing to authorize here.
+//
+// What is allowed:
+//
+//   - The origin the request itself arrived on. The library already accepts an
+//     Origin matching r.Host; this adds the public host from X-Forwarded-Host
+//     for deployments where the proxy rewrites Host, the same header
+//     requestBaseURL trusts when it builds OIDC redirect URIs. A browser cannot
+//     set that header on a WebSocket handshake, so it does not widen the
+//     browser-driven surface this check exists to close.
+//   - Any localhost origin in development, mirroring corsConfig's dev branch,
+//     so a Vite dev server on another port can connect.
+//
+// An absent Origin — every non-browser client, so the CLI and the Go SDK — is
+// accepted by the library before these patterns are consulted.
+func (s *Server) wsOriginPatterns(c echo.Context) []string {
+	var patterns []string
+
+	// Host patterns rather than scheme://host: a proxy that terminates TLS may
+	// not set X-Forwarded-Proto, and a scheme guessed wrong here would reject
+	// the app's own origin.
+	if host := c.Request().Header.Get("X-Forwarded-Host"); host != "" {
+		patterns = append(patterns, host)
+	}
+
+	// Development, gated exactly as corsConfig gates its dynamic branch.
+	if s.Config.OIDCPublicURL == "" {
+		patterns = append(patterns,
+			"localhost", "localhost:*",
+			"127.0.0.1", "127.0.0.1:*",
+			"[::1]", "[::1]:*",
+		)
+	}
+
+	return patterns
+}
