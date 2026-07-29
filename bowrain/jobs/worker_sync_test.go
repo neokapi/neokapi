@@ -1,9 +1,12 @@
 package jobs
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"testing"
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
@@ -291,6 +294,110 @@ func TestProcessSyncPush_ItemMetadata(t *testing.T) {
 	item, err := deps.ContentStore.GetItem(ctx, projectID, "main", "page.md")
 	require.NoError(t, err)
 	assert.Equal(t, "markdown", item.Format)
+}
+
+// swappedBlobStore serves one substituted payload for a chosen key and
+// otherwise delegates. It stands in for any store that could return content
+// other than what a key names — a bug, a shared cache, a backend whose keys are
+// not derived from content.
+type swappedBlobStore struct {
+	corestorage.BlobStore
+	key     string
+	payload []byte
+}
+
+func (s *swappedBlobStore) Download(ctx context.Context, key string) (io.ReadCloser, error) {
+	if key == s.key {
+		return io.NopCloser(bytes.NewReader(s.payload)), nil
+	}
+	return s.BlobStore.Download(ctx, key)
+}
+
+// TestProcessSyncPush_ChunkContentMustMatchItsHash pins that the worker treats a
+// manifest hash as a promise about the bytes rather than only as a place to look
+// them up. Content that does not re-derive to the hash it was fetched under is
+// refused, so no store that hands back the wrong payload can get that payload
+// parsed and written into a project.
+func TestProcessSyncPush_ChunkContentMustMatchItsHash(t *testing.T) {
+	deps := newTestWorkerDeps(t)
+	ctx := t.Context()
+
+	projectID := "hash-mismatch-project"
+	_ = deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Hash Mismatch"})
+
+	// The chunk the manifest describes, and whose hash it carries.
+	declared := &pb.SyncChunk{
+		ContentType: "blocks",
+		RecordCount: 1,
+		Blocks: []*pb.SyncBlock{
+			{Id: "declared", ItemName: "en.json", SourceText: "Declared", Translatable: true},
+		},
+	}
+	declaredData, err := proto.Marshal(declared)
+	require.NoError(t, err)
+	sum := sha256.Sum256(declaredData)
+	chunkHash := hex.EncodeToString(sum[:])
+	_, err = deps.BlobStore.Upload(ctx, declaredData, corestorage.UploadOptions{})
+	require.NoError(t, err)
+
+	// Different content, perfectly valid on its own terms, that the store will
+	// return for that hash instead.
+	substituted := &pb.SyncChunk{
+		ContentType: "blocks",
+		RecordCount: 1,
+		Blocks: []*pb.SyncBlock{
+			{Id: "substituted", ItemName: "en.json", SourceText: "Substituted", Translatable: true},
+		},
+	}
+	substitutedData, err := proto.Marshal(substituted)
+	require.NoError(t, err)
+
+	items := []map[string]string{{"name": "en.json", "format": "json"}}
+	itemsJSON, _ := json.Marshal(items)
+	manifest := map[string]any{
+		"upload_id":  "mismatch-upload",
+		"project_id": projectID,
+		"stream":     "main",
+		"chunks": []map[string]any{{
+			"index":        0,
+			"content_type": "blocks",
+			"hash":         chunkHash,
+			"record_count": 1,
+			"byte_size":    len(declaredData),
+		}},
+		"items": json.RawMessage(itemsJSON),
+	}
+	manifestData, _ := json.Marshal(manifest)
+	manifestRef, err := deps.BlobStore.Upload(ctx, manifestData, corestorage.UploadOptions{})
+	require.NoError(t, err)
+
+	// Only now swap what that hash resolves to, so the manifest itself still loads.
+	deps.BlobStore = &swappedBlobStore{
+		BlobStore: deps.BlobStore,
+		key:       chunkHash,
+		payload:   substitutedData,
+	}
+
+	job := &TranslationJob{
+		ID:        "job-hash-mismatch",
+		ProjectID: projectID,
+		ItemName:  "__sync_push__",
+		Model:     manifestRef.Key,
+		PushID:    "push-hash-mismatch",
+		Status:    StatusQueued,
+	}
+	require.NoError(t, deps.JobStore.CreateJob(ctx, job))
+
+	err = ProcessSyncPushJobForTest(ctx, deps, job.ID)
+	require.Error(t, err, "a chunk whose content does not match its hash must not be processed")
+
+	blocks, err := deps.ContentStore.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: "main", Limit: 100})
+	require.NoError(t, err)
+	assert.Empty(t, blocks, "nothing from an unverified chunk may reach the project")
+
+	j, err := deps.JobStore.GetJob(ctx, job.ID)
+	require.NoError(t, err)
+	assert.Equal(t, StatusFailed, j.Status)
 }
 
 // TestComputeHashes verifies that the Merkle hash computation in bowsync is deterministic.

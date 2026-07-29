@@ -2,6 +2,8 @@ package jobs
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -144,6 +146,17 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		if err != nil {
 			_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "chunk read failed")
 			return fmt.Errorf("read chunk %d: %w", chunkRef.Index, err)
+		}
+
+		// The manifest's hash is a promise about the bytes, not just the name of
+		// a place to find them. Re-derive it: whatever the store returned is
+		// accepted only if it is in fact the content that was pushed, so a
+		// manifest cannot make the worker parse bytes that were never uploaded
+		// under that digest.
+		if sum := sha256.Sum256(chunkData); hex.EncodeToString(sum[:]) != chunkRef.Hash {
+			_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed,
+				fmt.Sprintf("chunk %d content does not match its hash", chunkRef.Index))
+			return fmt.Errorf("chunk %d: content does not match hash %s", chunkRef.Index, chunkRef.Hash)
 		}
 
 		// Attempt zstd decompression (compressed chunks start with zstd magic bytes).
