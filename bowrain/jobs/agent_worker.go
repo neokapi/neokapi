@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platagent "github.com/neokapi/neokapi/bowrain/core/agent"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/service"
 )
 
@@ -98,14 +99,21 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 		return fmt.Errorf("gateway stream: %w", err)
 	}
 
-	// Record container time usage and deduct billing credits.
+	// Record container time usage and deduct billing credits. Fail-open by
+	// policy — the container has already run, and the reply is already on its
+	// way to the user — but the discarded record is logged and counted, since
+	// unmetered runner time is unbilled runner time.
 	if deps.QuotaStore != nil && job.WorkspaceID != "" {
-		_ = deps.QuotaStore.RecordRunnerUsage(ctx, RunnerUsageRecord{
+		if err := deps.QuotaStore.RecordRunnerUsage(ctx, RunnerUsageRecord{
 			WorkspaceID: job.WorkspaceID,
 			Operation:   "bravo_container",
 			DurationSec: containerDuration.Seconds(),
 			ReferenceID: job.ConversationID,
-		})
+		}); err != nil {
+			observe.MeteringDiscarded(ctx, observe.MeterRunnerSeconds, containerDuration.Seconds(), err,
+				"operation", "bravo_container", "workspace_id", job.WorkspaceID,
+				"conversation_id", job.ConversationID)
+		}
 	}
 	if deps.BillingHooks != nil && job.WorkspaceID != "" {
 		// Reference id is per-deduction-unique: each worker job serves one message
@@ -117,9 +125,10 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 		deps.BillingHooks.DeductContainerTime(ctx, job.WorkspaceID, containerDuration, refID)
 	}
 
-	// Record token usage.
+	// Record token usage. Fail-open by policy — the message is answered and the
+	// tokens are spent — and logged + counted so the loss is not silent.
 	if result != nil && (result.InputTokens > 0 || result.OutputTokens > 0) {
-		_ = deps.AgentStore.RecordUsage(ctx, &platagent.UsageRecord{
+		if err := deps.AgentStore.RecordUsage(ctx, &platagent.UsageRecord{
 			WorkspaceID:    job.WorkspaceID,
 			UserID:         job.UserID,
 			ConversationID: job.ConversationID,
@@ -127,7 +136,12 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 			Kind:           "tokens",
 			InputTokens:    result.InputTokens,
 			OutputTokens:   result.OutputTokens,
-		})
+		}); err != nil {
+			observe.MeteringDiscarded(ctx, observe.MeterAgentTokens,
+				float64(result.InputTokens+result.OutputTokens), err,
+				"operation", "bravo_message", "workspace_id", job.WorkspaceID,
+				"conversation_id", job.ConversationID, "message_id", result.MessageID)
+		}
 
 		// Deduct billing credits + report the Stripe meter for the message tokens.
 		// In queue mode this worker is the only place @bravo message tokens are

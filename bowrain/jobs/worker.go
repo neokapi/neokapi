@@ -605,8 +605,14 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		totalTokensUsed += chunkTokens
 
 		// Record usage per chunk so quota is updated incrementally.
+		//
+		// Fail-open by policy: the tokens are already spent by the time this
+		// runs, so a meter that is down must not also cost the customer the
+		// translation. Fail-open is not fail-silent, though — the discarded
+		// record is the only trace this spend ever leaves, so it is logged and
+		// counted rather than dropped.
 		if deps.QuotaStore != nil {
-			_ = deps.QuotaStore.RecordUsage(ctx, AIUsageRecord{
+			if err := deps.QuotaStore.RecordUsage(ctx, AIUsageRecord{
 				WorkspaceSlug: job.WorkspaceSlug,
 				WorkspaceID:   job.WorkspaceID,
 				ProjectID:     job.ProjectID,
@@ -616,7 +622,11 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 				PromptTokens:  chunkInput,
 				OutputTokens:  chunkOutput,
 				TotalTokens:   chunkTokens,
-			})
+			}); err != nil {
+				observe.MeteringDiscarded(ctx, observe.MeterAITokens, float64(chunkTokens), err,
+					"operation", "translate", "job_id", job.ID,
+					"workspace", job.WorkspaceSlug, "model", job.Model)
+			}
 		}
 
 		// Deduct billing credits and report to Stripe Meters — but only for the
