@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/core/i18n"
@@ -14,12 +15,13 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 )
 
-// init exposes every CLI-visible framework tool over MCP as a schema-derived
-// text tool. Unlike the hand-authored MCP tools (which operate on file paths),
-// these run a single tool over a snippet of text the caller supplies, with the
-// tool's own parameters projected straight from its schema. The set is scoped
-// by mode (see registerFrameworkMCPTools): in a kapi project, only the tools the
-// project allows; ad-hoc, the full set.
+// init exposes a CURATED set of framework tools over MCP as schema-derived text
+// tools. Unlike the hand-authored MCP tools (which operate on file paths), these
+// run a single tool over a snippet of text the caller supplies, with the tool's
+// own parameters projected straight from its schema.
+//
+// It used to expose every CLI-visible tool, which is how the agent surface grew
+// to 51 tools nobody chose. See agentFacingTools.
 func init() {
 	RegisterMCPToolFactory(registerFrameworkMCPTools)
 }
@@ -40,20 +42,68 @@ func (a *App) ResolveMCPProject(cmd Command) {
 	a.ProjectContext = project.NewProjectContext(proj, path)
 }
 
-// registerFrameworkMCPTools registers one MCP tool per CLI-visible framework
-// tool. In project mode (a.ProjectContext set) the set is filtered to the
-// project's allowed sources and the project's first target language becomes the
-// default; in ad-hoc mode the full CLI tool set is exposed with no language
-// default. This mirrors the desktop's ListTools vs ListProjectTools split.
+// registerFrameworkMCPTools registers one MCP tool per curated framework tool.
+// Project scoping still applies on top: in project mode the set is further
+// filtered to the project's allowed sources and the project's first target
+// language becomes the default.
+//
+// agentFacingTools is the curated set of registry tools worth offering to an
+// assistant (AD-037). Exposure is a decision with a name attached, not a
+// consequence of a tool being CLI-visible.
+//
+// The unfiltered surface was 51 tools in ad-hoc mode, of which about 12 were
+// deliberately authored. The rest arrived because someone added a pipeline step
+// — `whitespace-correct`, `encoding-detect`, `inline-codes-remove`,
+// `xml-validation` — which no caller should be assembling by hand. Worse, the
+// loop's own job was to invite hand-cranking the loop: `recycle` and
+// `diff-leverage` are what `up` does automatically, and content-memory
+// recycling is invisible by design.
+//
+// KAPI_MCP_ALL_TOOLS=1 restores the full generated surface for debugging.
+// Only registry tools are listed here — the hand-authored porcelain
+// (check_file, apply_edits, up, context_search, …) registers itself elsewhere
+// and is unaffected. Anything with a porcelain equivalent is deliberately
+// absent: two names for one job means the caller picks wrong half the time.
+// `qa` is check_text/check_file, and `pseudo-translate` is pseudo_translate.
+var agentFacingTools = map[string]bool{
+	// Producing content the caller cannot produce itself.
+	"translate": true,
+	// Checks with no porcelain equivalent.
+	"term-check": true,
+	// Redaction is a deliberate act on content, not a pipeline step.
+	"redact": true,
+}
+
+// neverAgentFacing are tools withheld even under KAPI_MCP_ALL_TOOLS.
+//
+// "Show me every tool" and "let a caller execute arbitrary commands and
+// JavaScript" are different classes of decision. Bundling them would mean
+// enabling the first silently grants the second to any MCP client. Neither is
+// removed from the CLI: `kapi exec` still runs both.
+var neverAgentFacing = map[string]bool{
+	"external-command": true, // "Executes an external command on block text"
+	"script":           true, // "Run a JavaScript processing script on each part"
+}
+
+// ExposeAllMCPToolsEnv opts into the full generated tool surface.
+const ExposeAllMCPToolsEnv = "KAPI_MCP_ALL_TOOLS"
+
 func registerFrameworkMCPTools(server *mcp.Server, a *App) {
 	if a.ToolReg == nil {
 		return
 	}
 	entries, defaultTargetLang := scopeFrameworkTools(a.ToolReg.CLITools(), a.ProjectContext)
+	exposeAll := os.Getenv(ExposeAllMCPToolsEnv) != ""
 
 	t := a.T()
 	for _, entry := range entries {
 		name := string(entry.Info.Name)
+		if neverAgentFacing[name] {
+			continue
+		}
+		if !exposeAll && !agentFacingTools[name] {
+			continue
+		}
 		scope := "tools." + name
 		desc := t.T(i18n.Scope(scope+".description"), entry.Info.Description)
 		if desc == "" {
