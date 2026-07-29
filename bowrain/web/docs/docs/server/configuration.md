@@ -64,7 +64,7 @@ All Bowrain variables use the `BOWRAIN_` prefix; a few external integrations
 | --- | --- | --- |
 | `BOWRAIN_JWT_SECRET` | _(empty)_ | JWT signing secret. When set, auth, OIDC login, and workspace management are enabled |
 | `BOWRAIN_OIDC_ISSUER_URL` | _(empty)_ | OIDC issuer URL (internal, used for token validation) |
-| `BOWRAIN_OIDC_PUBLIC_URL` | _(falls back to issuer URL)_ | Browser-facing OIDC URL (for redirects) |
+| `BOWRAIN_OIDC_PUBLIC_URL` | _(empty)_ | Browser-facing URL of the identity provider, when it differs from the issuer URL (for redirects) |
 | `BOWRAIN_OIDC_CLIENT_ID` | _(empty)_ | OIDC OAuth client ID |
 | `BOWRAIN_OIDC_CLIENT_SECRET` | _(empty)_ | OIDC OAuth client secret |
 
@@ -85,8 +85,50 @@ and the admin control plane are optional:
 When your OIDC provider has a different internal hostname than the browser-facing
 URL (common in Docker), set `BOWRAIN_OIDC_ISSUER_URL` to the internal URL (e.g.
 `http://keycloak:8080/realms/bowrain`) and `BOWRAIN_OIDC_PUBLIC_URL` to the
-browser-facing URL (e.g. `http://localhost:8180/realms/bowrain`). If unset,
-`BOWRAIN_OIDC_PUBLIC_URL` defaults to `BOWRAIN_OIDC_ISSUER_URL`.
+browser-facing URL (e.g. `http://localhost:8180/realms/bowrain`). Leave it
+unset when the two are the same.
+
+Earlier versions of this page said the variable defaults to
+`BOWRAIN_OIDC_ISSUER_URL`. It never did, and it does not now — leaving it unset
+means "the browser reaches the provider at the issuer URL", which is what each
+redirect already assumes. It names the *identity provider's* address, not this
+application's: for the app's own origin, see `BOWRAIN_APP_PUBLIC_URL` below.
+:::
+
+### Origins and cookies
+
+These decide which other origins may talk to the API, and whether session
+cookies are marked `Secure`.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `BOWRAIN_APP_PUBLIC_URL` | _(empty)_ | This application's browser-facing origin (e.g. `https://app.bowrain.cloud`). Used to build the CORS and WebSocket origin allowlists |
+| `BOWRAIN_PUBLIC_SITE_URL` | _(empty)_ | Marketing landing origin, allowed one credentialed cross-origin read (`GET /api/v1/auth/whoami`) so the landing can render a signed-in link |
+| `BOWRAIN_FORCE_SECURE_COOKIES` | `true`, or `false` in development | Marks session cookies `Secure` regardless of the request scheme |
+| `BOWRAIN_ALLOW_INSECURE_DEV` | `false` | Marks the process a development instance. Also relaxes startup configuration checks and enables direct device approval |
+
+:::warning Development mode is opted into, never inferred
+A server is production unless `BOWRAIN_ALLOW_INSECURE_DEV` (or
+`--allow-insecure-dev`) says otherwise. In production, only
+`BOWRAIN_APP_PUBLIC_URL` and `BOWRAIN_PUBLIC_SITE_URL` may make credentialed
+cross-origin requests, and WebSockets are accepted only from the app's own
+origin. In development, any `localhost` origin is accepted as well.
+
+Set `BOWRAIN_APP_PUBLIC_URL` on any deployment where a browser reaches the API
+from a different origin than the one it was served from. If it is unset, no
+cross-origin caller is allowed — which is the safe answer, not a broken one:
+same-origin requests never consult CORS.
+
+Do not use `BOWRAIN_ALLOW_INSECURE_DEV` on anything reachable from the
+internet.
+:::
+
+:::tip Secure cookies behind a proxy
+Bowrain infers the request scheme from `X-Forwarded-Proto`, so behind a
+TLS-terminating proxy the `Secure` flag would otherwise depend on that header
+arriving. It is forced on by default outside development for exactly that
+reason. Development leaves it off, because browsers discard `Secure` cookies
+sent over plain HTTP.
 :::
 
 ### Blob storage

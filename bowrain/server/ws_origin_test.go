@@ -24,7 +24,7 @@ func TestWSOriginPatterns(t *testing.T) {
 	}{
 		{
 			name: "development allows localhost so a dev server on another port can connect",
-			cfg:  Config{},
+			cfg:  Config{DevMode: true},
 			want: []string{
 				"localhost", "localhost:*",
 				"127.0.0.1", "127.0.0.1:*",
@@ -32,27 +32,43 @@ func TestWSOriginPatterns(t *testing.T) {
 			},
 		},
 		{
+			// The zero value is production. That is the point of the change:
+			// the strict policy is what omission gets you.
 			name: "production allows nothing beyond the request's own origin",
-			cfg:  Config{OIDCPublicURL: "https://auth.bowrain.cloud/realms/bowrain"},
+			cfg:  Config{},
 			want: nil,
 		},
 		{
 			name:          "production honours the proxy's public host",
-			cfg:           Config{OIDCPublicURL: "https://auth.bowrain.cloud/realms/bowrain"},
+			cfg:           Config{},
 			forwardedHost: "app.bowrain.cloud",
 			want:          []string{"app.bowrain.cloud"},
 		},
 		{
+			name: "the app's own public origin is authorized",
+			cfg:  Config{AppPublicURL: "https://app.bowrain.cloud"},
+			want: []string{"app.bowrain.cloud"},
+		},
+		{
 			name: "the landing origin is not authorized for a socket",
 			cfg: Config{
-				OIDCPublicURL: "https://auth.bowrain.cloud/realms/bowrain",
+				AppPublicURL:  "https://app.bowrain.cloud",
 				PublicSiteURL: "https://bowrain.cloud",
 			},
+			want: []string{"app.bowrain.cloud"},
+		},
+		{
+			// It never was the app's origin; it is the identity provider's.
+			name: "the identity provider's origin is not authorized either",
+			cfg:  Config{OIDCPublicURL: "https://auth.bowrain.cloud/realms/bowrain"},
 			want: nil,
 		},
 		{
-			name: "the identity provider's origin is not authorized either",
-			cfg:  Config{OIDCPublicURL: "https://auth.bowrain.cloud/realms/bowrain"},
+			// The reported bug: a production deployment that configured only
+			// the issuer URL used to fall into the development branch and
+			// accept join-and-write sockets from any localhost page.
+			name: "an issuer URL alone does not open the development branch",
+			cfg:  Config{OIDCIssuerURL: "https://auth.bowrain.cloud/realms/bowrain"},
 			want: nil,
 		},
 	}
@@ -91,6 +107,7 @@ var wsOriginCases = []wsOriginTestCase{
 	{
 		name:      "a localhost origin in development",
 		origin:    "http://localhost:5173",
+		cfg:       Config{DevMode: true},
 		wantAllow: true,
 	},
 	{
@@ -109,9 +126,17 @@ var wsOriginCases = []wsOriginTestCase{
 		wantAllow: false,
 	},
 	{
-		name:      "a localhost origin once a production OIDC URL is configured",
+		name:      "a localhost origin against a production server",
 		origin:    "http://localhost:5173",
-		cfg:       Config{OIDCPublicURL: "https://auth.bowrain.cloud/realms/bowrain"},
+		cfg:       Config{},
+		wantAllow: false,
+	},
+	{
+		// The reported bug, at the socket: only the issuer configured, which
+		// the documentation described as a supported production setup.
+		name:      "a localhost origin when only the issuer URL is configured",
+		origin:    "http://localhost:5173",
+		cfg:       Config{OIDCIssuerURL: "https://auth.bowrain.cloud/realms/bowrain"},
 		wantAllow: false,
 	},
 }
