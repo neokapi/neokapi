@@ -31,6 +31,23 @@ var providerEnvVars = map[string][]string{
 	// ollama and demo never require a key; they have no entry on purpose.
 }
 
+// ProviderKeyEnvNames returns every environment variable that may carry a
+// provider API key, sorted. It is the denylist for anything that hands an
+// environment to a subprocess kapi did not write — see
+// pluginhost.WithoutProviderKeys.
+//
+// Exported from here because providerEnvVars is already the single source of
+// truth for "which variable holds which provider's key"; a second list would
+// drift, and the failure mode of drift is a key kapi believes it removed.
+func ProviderKeyEnvNames() []string {
+	var out []string
+	for _, names := range providerEnvVars {
+		out = append(out, names...)
+	}
+	slices.Sort(out)
+	return out
+}
+
 // keylessProviders are the providers that never require an API key: the local,
 // on-device ones (ollama, demo — mirrors aiprovider.IsLocalProvider) plus
 // claude-code, which authenticates through the local Claude Code CLI login and

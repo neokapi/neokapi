@@ -26,7 +26,7 @@ func RunContributionSubprocess(ctx context.Context, p *Plugin, args []string, di
 	cmd.Stderr = os.Stderr
 	cmd.Dir = dir
 
-	env := os.Environ()
+	env := pluginEnviron()
 	env = append(env, "KAPI_PLUGIN_DIR="+p.Dir)
 	env = append(env, "KAPI_PLUGIN_NAME="+p.Name())
 	env = append(env, "KAPI_PLUGIN_VERSION="+p.Version())

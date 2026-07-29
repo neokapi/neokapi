@@ -166,7 +166,10 @@ invocation:
 ```
 
 stdin / stdout / stderr inherited; env block carries
-`KAPI_PLUGIN_DIR`, `KAPI_PLUGIN_NAME`, `KAPI_PLUGIN_VERSION`. Exit
+`KAPI_PLUGIN_DIR`, `KAPI_PLUGIN_NAME`, `KAPI_PLUGIN_VERSION`, and inherits
+kapi's environment except the provider API-key variables — installing a plugin
+is not a decision to hand it the user's model credentials (see the
+[plugin protocol](../implementation/plugin-protocol-v1.md)). Exit
 code propagated. The plugin doesn't keep state across calls.
 
 Command attachment follows the **no-shadowing rule**: installing a plugin
