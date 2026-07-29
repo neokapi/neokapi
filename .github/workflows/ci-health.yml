@@ -12,10 +12,21 @@ name: CI Health (main)
 # This watches the full-suite workflows complete on `main` and keeps a single
 # tracking issue in sync: opened/commented when one goes red, closed when `main`
 # is green across all of them again. It changes nothing about per-PR cost.
+#
+# E2E is watched too, and it is the case that proves the point. It runs only on
+# the nightly schedule, so it blocks nothing and nobody is notified — it failed
+# every night from 2026-07-15 to 2026-07-29 across all three of its jobs, for
+# three unrelated reasons that landed a week apart, and none of the fifteen
+# nights produced a signal anyone read. A lane whose red is unread is not a lane.
+#
+# Being nightly, E2E also keeps the issue open longer than the others: a fix
+# merged at noon is not confirmed until 02:00 UTC. That is honest — until the
+# suite has actually run, `main` is not known to be green — and `gh workflow run
+# e2e.yml --ref <branch>` is the way to prove a fix before merging it.
 
 on:
   workflow_run:
-    workflows: ["CI", "Docs — kapi", "Nightly"]
+    workflows: ["CI", "Docs — kapi", "Nightly", "E2E"]
     types: [completed]
 
 permissions:
@@ -45,7 +56,7 @@ jobs:
 
           LABEL="ci-health"
           TITLE="🔴 main CI is red"
-          WATCHED=("CI" "Docs — kapi" "Nightly")
+          WATCHED=("CI" "Docs — kapi" "Nightly" "E2E")
 
           # Ensure the label exists (idempotent).
           gh label create "$LABEL" --repo "$REPO" --color b60205 \
