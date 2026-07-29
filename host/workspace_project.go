@@ -46,10 +46,17 @@ func (a *App) RunPack(cmd Command) error {
 	pkg := &kpz.Package{Kind: kpz.KindProject, Generator: &kpz.GeneratorInfo{ID: "kapi"}}
 
 	// Full project recipe — the one source of truth for intent (AD-025 §6).
-	// Side-effecting Extras (server/hooks/automations) are stripped so they
-	// travel inert; secrets never live in a recipe (keychain).
+	// Everything side-effecting is stripped so the recipe travels inert (see
+	// kpz.SanitizeRecipe); secrets never live in a recipe (keychain). The same
+	// sweep runs again on ingest, since this side only binds honest packers —
+	// but running it here is what tells the AUTHOR which parts of their own
+	// recipe a hand-off cannot carry.
 	if recipe, lerr := project.Load(projectPath); lerr == nil {
-		pkg.Recipe, _ = kpz.SanitizeRecipe(recipe)
+		sanitized, removed := kpz.SanitizeRecipe(recipe)
+		pkg.Recipe = sanitized
+		for _, r := range removed {
+			fmt.Fprintf(os.Stderr, "Note: pack: %s stays behind — a package travels inert\n", r)
+		}
 	} else {
 		fmt.Fprintf(os.Stderr, "Warning: pack: load recipe %s: %v (packing content only)\n", projectPath, lerr)
 	}

@@ -327,10 +327,14 @@ func (r *Reader) loadExternalITSRules(refs []its.ExternalRef) *its.RuleSet {
 			// which we don't reproduce here.
 			return
 		}
-		if visited[href] {
+		// Key the cycle guard on the cleaned relative name rather than the raw
+		// href, so "a.xml" and "./a.xml" are recognised as the same document —
+		// the joined absolute path used to provide that normalisation.
+		key := filepath.Clean(filepath.FromSlash(href))
+		if visited[key] {
 			return
 		}
-		visited[href] = true
+		visited[key] = true
 		// The doc comment above states the invariant — linked rules are sibling
 		// files in the project tree — and os.ReadFile of a joined path did not
 		// enforce it: "../../.." cleaned to a real path outside the document's
