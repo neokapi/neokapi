@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manual dispatch exists so the push-only lanes can be exercised on a branch
+  # before they reach main. The `changes` filter step runs on pull_request only,
+  # so on a dispatch its outputs are empty and the path-gated jobs skip: what
+  # runs is the set gated on `github.event_name != 'pull_request'`.
+  workflow_dispatch:
 
 # Cancel superseded runs on the same PR; never cancel a push to main (each
 # main commit's run is the canonical record and must complete).
@@ -736,6 +741,48 @@ jobs:
       # four are outside it. Each recipe runs GOWORK=off in its own module.
       - name: Test the pure-Go plugin modules
         run: make test-plugins
+  # ── The //go:build integration lane ───────────────────────────────────────
+  # The cross-store correctness suites: content-memory and terms parity between
+  # SQLite and Postgres, the governed change-set lifecycle, and the knowledge
+  # HTTP surface against a real database. They sit behind `//go:build
+  # integration`, so no other job in this file compiles them — before this job
+  # existed `make test-integration` was reachable only by hand, and it did not
+  # work when you did reach it (it dropped the fts5 tag and filtered itself down
+  # with `-run Integration`).
+  #
+  # Push and manual dispatch only, matching the policy for every other
+  # Postgres-backed suite here: PRs run -short and skip them to keep the wall
+  # fast. scripts/test-integration.sh narrows the run to the packages that
+  # actually carry a tagged file, so this is not a second full test wall.
+  test-integration:
+    name: Test (integration)
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 30
+    services:
+      # Same GitHub-managed Postgres as Test (bowrain), for the same reason: a
+      # per-binary testcontainer can be reaped mid-run by Ryuk under -race.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bowrain
+          POSTGRES_PASSWORD: bowrain
+          POSTGRES_DB: bowrain_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bowrain -d bowrain_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      BOWRAIN_TEST_POSTGRES_URL: postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go-modules
+
+      - name: Run the integration lane
+        run: make test-integration
 
   # ── Race pass over changed packages (PR only) ─────────────────────────────
   # The PR test wall deliberately drops -race (Makefile fast profile) and main
