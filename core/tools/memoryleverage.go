@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -29,14 +30,19 @@ const (
 )
 
 // MemoryProvider is the interface for content memory lookup.
+//
+// Every method takes the run's context. A lookup is I/O — a SQLite query, or a
+// network round-trip for a provider that is not local — so cancelling a run has
+// to reach it. The context comes from the tool.VariantView being processed, so
+// it is the caller's real one rather than a placeholder.
 type MemoryProvider interface {
 	// LookupExact looks up an exact match for the source text.
 	// Returns the translation and true if found.
-	LookupExact(source string, sourceLocale, targetLocale model.LocaleID) (string, bool)
+	LookupExact(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID) (string, bool)
 
 	// LookupFuzzy looks up a fuzzy match for the source text.
 	// Returns the translation, match score (0-100), and true if found above threshold.
-	LookupFuzzy(source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool)
+	LookupFuzzy(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool)
 }
 
 // MemoryBlockMatch is the result of a structure-aware (block-level) content-memory lookup.
@@ -72,7 +78,7 @@ type BlockMemoryProvider interface {
 	// LookupBlock looks up the best match for the block's source content.
 	// threshold is the minimum acceptable score (0-100) for fuzzy matches.
 	// Returns false when no match at or above threshold exists.
-	LookupBlock(block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (MemoryBlockMatch, bool)
+	LookupBlock(ctx context.Context, block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (MemoryBlockMatch, bool)
 }
 
 // NullMemoryProvider is a MemoryProvider that returns no matches.
@@ -80,12 +86,12 @@ type BlockMemoryProvider interface {
 type NullMemoryProvider struct{}
 
 // LookupExact always returns no match.
-func (NullMemoryProvider) LookupExact(string, model.LocaleID, model.LocaleID) (string, bool) {
+func (NullMemoryProvider) LookupExact(context.Context, string, model.LocaleID, model.LocaleID) (string, bool) {
 	return "", false
 }
 
 // LookupFuzzy always returns no match.
-func (NullMemoryProvider) LookupFuzzy(string, model.LocaleID, model.LocaleID, int) (string, int, bool) {
+func (NullMemoryProvider) LookupFuzzy(context.Context, string, model.LocaleID, model.LocaleID, int) (string, int, bool) {
 	return "", 0, false
 }
 
@@ -243,7 +249,7 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 		}
 
 		// Try exact match first.
-		if translation, found := conf.Provider.LookupExact(sourceText, conf.SourceLocale, conf.TargetLocale); found {
+		if translation, found := conf.Provider.LookupExact(v.Context(), sourceText, conf.SourceLocale, conf.TargetLocale); found {
 			score := 100
 			if conf.DowngradeIdenticalBestMatches {
 				score = 99
@@ -253,7 +259,7 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 		}
 
 		// Try fuzzy match.
-		if translation, score, found := conf.Provider.LookupFuzzy(sourceText, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
+		if translation, score, found := conf.Provider.LookupFuzzy(v.Context(), sourceText, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
 			recordWholeBlockMatch(v, conf, translation, score, model.MatchFuzzy, "fuzzy")
 			return nil
 		}
@@ -344,7 +350,7 @@ func leverageBlockRuns(conf *MemoryLeverageConfig, v tool.VariantView, bp BlockM
 		block.SetAnno(key, payload)
 	}
 
-	m, found := bp.LookupBlock(block, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold)
+	m, found := bp.LookupBlock(v.Context(), block, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold)
 	if !found || len(m.TargetRuns) == 0 {
 		return false
 	}
@@ -497,7 +503,7 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 			matched++
 			continue
 		}
-		if tr, found := conf.Provider.LookupExact(segTexts[i], conf.SourceLocale, conf.TargetLocale); found {
+		if tr, found := conf.Provider.LookupExact(v.Context(), segTexts[i], conf.SourceLocale, conf.TargetLocale); found {
 			translations[i] = tr
 			matched++
 			score := 100
@@ -511,7 +517,7 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 			annotateSegmentMatch(v, conf, i, segRuns, tr, score, model.MatchExact)
 			continue
 		}
-		if tr, score, found := conf.Provider.LookupFuzzy(segTexts[i], conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
+		if tr, score, found := conf.Provider.LookupFuzzy(v.Context(), segTexts[i], conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
 			translations[i] = tr
 			matched++
 			allExact = false

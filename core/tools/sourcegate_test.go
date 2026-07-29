@@ -118,11 +118,11 @@ func applyProduce(t *testing.T, tl tool.Tool, b *model.Block) error {
 // staticMemoryProvider is a minimal exact-match content memory for the producer-skip test.
 type staticMemoryProvider map[string]string
 
-func (m staticMemoryProvider) LookupExact(src string, _, _ model.LocaleID) (string, bool) {
+func (m staticMemoryProvider) LookupExact(_ context.Context, src string, _, _ model.LocaleID) (string, bool) {
 	v, ok := m[src]
 	return v, ok
 }
 
-func (m staticMemoryProvider) LookupFuzzy(_ string, _, _ model.LocaleID, _ int) (string, int, bool) {
+func (m staticMemoryProvider) LookupFuzzy(_ context.Context, _ string, _, _ model.LocaleID, _ int) (string, int, bool) {
 	return "", 0, false
 }

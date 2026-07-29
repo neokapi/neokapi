@@ -1,6 +1,7 @@
 package tools_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -20,7 +21,7 @@ type fuzzyMatch struct {
 	score       int
 }
 
-func (m *mockMemoryProvider) LookupExact(source string, _, _ model.LocaleID) (string, bool) {
+func (m *mockMemoryProvider) LookupExact(_ context.Context, source string, _, _ model.LocaleID) (string, bool) {
 	if m.exact == nil {
 		return "", false
 	}
@@ -28,7 +29,7 @@ func (m *mockMemoryProvider) LookupExact(source string, _, _ model.LocaleID) (st
 	return trans, ok
 }
 
-func (m *mockMemoryProvider) LookupFuzzy(source string, _, _ model.LocaleID, threshold int) (string, int, bool) {
+func (m *mockMemoryProvider) LookupFuzzy(_ context.Context, source string, _, _ model.LocaleID, threshold int) (string, int, bool) {
 	if m.fuzzy == nil {
 		return "", 0, false
 	}
@@ -442,7 +443,7 @@ type mockBlockMemoryProvider struct {
 	calls int
 }
 
-func (m *mockBlockMemoryProvider) LookupBlock(_ *model.Block, _, _ model.LocaleID, _ int) (tools.MemoryBlockMatch, bool) {
+func (m *mockBlockMemoryProvider) LookupBlock(_ context.Context, _ *model.Block, _, _ model.LocaleID, _ int) (tools.MemoryBlockMatch, bool) {
 	m.calls++
 	return m.match, m.found
 }
@@ -731,4 +732,100 @@ func TestMemoryLeverageBlockAwareCloneIsolation(t *testing.T) {
 
 	rb.Target(model.LocaleFrench).Runs[1].Text.Text = "MUTATED"
 	assert.Equal(t, " Installer", stored[1].Text.Text, "content-memory entry runs unaffected by target edits")
+}
+
+// ctxCapturingProvider records the context each lookup was called with.
+type ctxCapturingProvider struct {
+	exact string
+	block bool
+	got   []context.Context
+}
+
+func (p *ctxCapturingProvider) LookupExact(ctx context.Context, _ string, _, _ model.LocaleID) (string, bool) {
+	p.got = append(p.got, ctx)
+	if p.exact != "" {
+		return p.exact, true
+	}
+	return "", false
+}
+
+func (p *ctxCapturingProvider) LookupFuzzy(ctx context.Context, _ string, _, _ model.LocaleID, _ int) (string, int, bool) {
+	p.got = append(p.got, ctx)
+	return "", 0, false
+}
+
+func (p *ctxCapturingProvider) LookupBlock(ctx context.Context, _ *model.Block, _, _ model.LocaleID, _ int) (tools.MemoryBlockMatch, bool) {
+	p.got = append(p.got, ctx)
+	if p.block {
+		return tools.MemoryBlockMatch{
+			TargetRuns: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}},
+			Score:      100,
+			Exact:      true,
+		}, true
+	}
+	return tools.MemoryBlockMatch{}, false
+}
+
+// TestMemoryLeverageLookupsReceiveTheRunContext: a content-memory lookup is
+// I/O — a SQLite query, or a network round-trip for a non-local provider — so
+// cancelling a run has to reach it. These lookups used to be handed
+// context.Background(), which cannot be cancelled and carries no deadline.
+//
+// The assertion is not that a context arrives (a placeholder would satisfy
+// that) but that cancelling the caller's context cancels what the provider
+// received.
+func TestMemoryLeverageLookupsReceiveTheRunContext(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		provider *ctxCapturingProvider
+	}{
+		// Exercises LookupBlock, the structure-aware path.
+		{"block lookup", &ctxCapturingProvider{block: true}},
+		// A provider whose block lookup misses falls through to the
+		// text-based LookupExact / LookupFuzzy pair.
+		{"text lookup", &ctxCapturingProvider{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tl := tools.NewMemoryLeverageTool(&tools.MemoryLeverageConfig{
+				TargetLocale:   model.LocaleFrench,
+				SourceLocale:   model.LocaleEnglish,
+				FuzzyThreshold: 70,
+				Provider:       tc.provider,
+			})
+
+			ctx, cancel := context.WithCancel(context.Background())
+			in := make(chan *model.Part, 1)
+			out := make(chan *model.Part, 1)
+			in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("b1", "Hello world")}
+			close(in)
+			require.NoError(t, tl.Process(ctx, in, out))
+			close(out)
+			require.NotNil(t, <-out)
+
+			require.NotEmpty(t, tc.provider.got, "the provider must have been consulted")
+			for i, got := range tc.provider.got {
+				require.NotNil(t, got, "lookup %d received no context", i)
+				select {
+				case <-got.Done():
+					t.Fatalf("lookup %d received an already-cancelled context", i)
+				default:
+				}
+			}
+
+			// The decisive step: cancelling the caller's context must cancel
+			// what the provider was given. context.Background() would not
+			// react here.
+			cancel()
+			for i, got := range tc.provider.got {
+				select {
+				case <-got.Done():
+				default:
+					t.Fatalf("lookup %d received a context detached from the run", i)
+				}
+			}
+		})
+	}
 }
