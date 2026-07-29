@@ -20,12 +20,12 @@ import type { CandidateRule, BlastRadius } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
 /**
- * BrandReviewRoute is the correction-learning loop's review surface: the
+ * ContextReviewRoute is the correction-learning loop's review surface: the
  * candidate rules a team's corrections have produced for a profile, with
  * Promote / Reject. Pick a project to also preview a candidate's blast radius
  * across that project's content and to see its compliance-drift status (AD-019).
  */
-export function BrandReviewRoute() {
+export function ContextReviewRoute() {
   const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const { profileId } = useParams({ strict: false });
   const pid = profileId ?? "";

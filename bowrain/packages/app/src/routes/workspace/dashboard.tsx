@@ -212,7 +212,7 @@ export function ProjectDashboardRoute() {
 
   const handleScanBrand = useCallback(() => {
     void navigate({
-      to: "/$workspace/brand/scan",
+      to: "/$workspace/context/scan",
       params: { workspace: workspace ?? ws },
     });
   }, [navigate, workspace, ws]);
@@ -278,7 +278,7 @@ export function ProjectDashboardRoute() {
 
   const handleOpenBrandDashboard = useCallback(() => {
     void navigate({
-      to: "/$workspace/brand/dashboard",
+      to: "/$workspace/context/dashboard",
       params: { workspace: workspace ?? ws },
     });
   }, [navigate, workspace, ws]);

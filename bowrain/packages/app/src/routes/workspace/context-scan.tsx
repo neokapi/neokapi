@@ -22,7 +22,7 @@ export function rememberBrandScanRequest(jobId: string, request: BrandScanReques
   }
 }
 
-export function BrandScanRoute() {
+export function ContextScanRoute() {
   const navigate = useNavigate();
   const { workspace } = useParams({ strict: false });
   const { activeWorkspace, brandScanAvailable } = useRouteContext({
@@ -39,7 +39,7 @@ export function BrandScanRoute() {
     (jobId: string, request: BrandScanRequest) => {
       rememberBrandScanRequest(jobId, request);
       void navigate({
-        to: "/$workspace/brand/scan/$jobId",
+        to: "/$workspace/context/scan/$jobId",
         params: { workspace: workspace ?? "", jobId },
       });
     },
@@ -48,7 +48,7 @@ export function BrandScanRoute() {
 
   const handleLocalLane = useCallback(() => {
     void navigate({
-      to: "/$workspace/brand/voice/mcp-guide",
+      to: "/$workspace/context/voice/mcp-guide",
       params: { workspace: workspace ?? "" },
     });
   }, [navigate, workspace]);

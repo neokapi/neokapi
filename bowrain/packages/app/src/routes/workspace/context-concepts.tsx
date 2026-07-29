@@ -18,7 +18,7 @@ export function ConceptsRoute() {
     <ConceptsSection
       onOpenConcept={(cid) =>
         void navigate({
-          to: "/$workspace/brand/concepts/$cid",
+          to: "/$workspace/context/concepts/$cid",
           params: { workspace: workspace ?? "", cid },
         })
       }

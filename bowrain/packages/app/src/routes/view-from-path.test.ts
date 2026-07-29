@@ -15,8 +15,29 @@ describe("viewFromPath", () => {
     expect(viewFromPath("/acme/terms", "acme")).toBe("terms");
   });
 
-  it("returns 'memory' for memory route", () => {
+  it("returns 'memory' for the legacy top-level memory route", () => {
     expect(viewFromPath("/acme/memory", "acme")).toBe("memory");
+  });
+
+  it("returns 'context' for context hub routes", () => {
+    expect(viewFromPath("/acme/context", "acme")).toBe("context");
+    expect(viewFromPath("/acme/context/concepts", "acme")).toBe("context");
+    expect(viewFromPath("/acme/context/concepts/c-1", "acme")).toBe("context");
+    expect(viewFromPath("/acme/context/voice", "acme")).toBe("context");
+    expect(viewFromPath("/acme/context/changes", "acme")).toBe("context");
+    expect(viewFromPath("/acme/context/activity", "acme")).toBe("context");
+  });
+
+  it("returns 'context' for content memory inside the hub", () => {
+    // Content memory is a Context sub-nav section, so the rail highlights
+    // Context; the sub-nav picks out "memory".
+    expect(viewFromPath("/acme/context/memory", "acme")).toBe("context");
+  });
+
+  it("returns 'insights' for the context dashboard", () => {
+    // The overview reads the graph back to you, so it files under Insights
+    // even though it lives on a /context URL.
+    expect(viewFromPath("/acme/context/dashboard", "acme")).toBe("insights");
   });
 
   it("returns 'insights' for locale demand route", () => {

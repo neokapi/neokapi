@@ -9,7 +9,7 @@ import {
 import type { VoiceProfile } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
-export function BrandProfilesRoute() {
+export function ContextProfilesRoute() {
   const navigate = useNavigate();
   const { workspace } = useParams({ strict: false });
   const { activeWorkspace, brandScanAvailable } = useRouteContext({
@@ -28,7 +28,7 @@ export function BrandProfilesRoute() {
   const handleSelect = useCallback(
     (profile: VoiceProfile) => {
       void navigate({
-        to: "/$workspace/brand/voice/$profileId",
+        to: "/$workspace/context/voice/$profileId",
         params: { workspace: workspace ?? "", profileId: profile.id },
       });
     },
@@ -37,21 +37,21 @@ export function BrandProfilesRoute() {
 
   const handleCreate = useCallback(() => {
     void navigate({
-      to: "/$workspace/brand/voice/$profileId",
+      to: "/$workspace/context/voice/$profileId",
       params: { workspace: workspace ?? "", profileId: "new" },
     });
   }, [navigate, workspace]);
 
   const handleScanBrand = useCallback(() => {
     void navigate({
-      to: "/$workspace/brand/scan",
+      to: "/$workspace/context/scan",
       params: { workspace: workspace ?? "" },
     });
   }, [navigate, workspace]);
 
   const handleLocalLane = useCallback(() => {
     void navigate({
-      to: "/$workspace/brand/voice/mcp-guide",
+      to: "/$workspace/context/voice/mcp-guide",
       params: { workspace: workspace ?? "" },
     });
   }, [navigate, workspace]);
@@ -59,7 +59,7 @@ export function BrandProfilesRoute() {
   const handleReview = useCallback(
     (profileId: string) => {
       void navigate({
-        to: "/$workspace/brand/voice/review/$profileId",
+        to: "/$workspace/context/voice/review/$profileId",
         params: { workspace: workspace ?? "", profileId },
       });
     },

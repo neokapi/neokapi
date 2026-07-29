@@ -14,7 +14,7 @@ import {
 import type { StarterPackMeta } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
-export function BrandEditorRoute() {
+export function ContextEditorRoute() {
   const navigate = useNavigate();
   const { workspace, profileId } = useParams({ strict: false });
   const { activeWorkspace } = useRouteContext({
@@ -49,7 +49,7 @@ export function BrandEditorRoute() {
 
   const handleCancel = useCallback(() => {
     void navigate({
-      to: "/$workspace/brand/voice",
+      to: "/$workspace/context/voice",
       params: { workspace: workspace ?? "" },
     });
   }, [navigate, workspace]);
@@ -63,7 +63,7 @@ export function BrandEditorRoute() {
       }
       capture(AnalyticsEvents.brandVoiceSaved, { mode: isNew ? "created" : "updated" });
       void navigate({
-        to: "/$workspace/brand/voice",
+        to: "/$workspace/context/voice",
         params: { workspace: workspace ?? "" },
       });
     },
@@ -84,7 +84,7 @@ export function BrandEditorRoute() {
         capture(AnalyticsEvents.brandVoiceSaved, { mode: "created", source: "starter" });
         setShowPicker(false);
         void navigate({
-          to: "/$workspace/brand/voice/$profileId",
+          to: "/$workspace/context/voice/$profileId",
           params: { workspace: workspace ?? "", profileId: created.id },
         });
       } catch (err) {

@@ -19,15 +19,17 @@ export function ConceptStoryRoute() {
   return (
     <ConceptStorySection
       conceptId={cid ?? ""}
-      onBack={() => void navigate({ to: "/$workspace/brand/concepts", params: { workspace: ws } })}
+      onBack={() =>
+        void navigate({ to: "/$workspace/context/concepts", params: { workspace: ws } })
+      }
       onOpenConcept={(nextCid) =>
         void navigate({
-          to: "/$workspace/brand/concepts/$cid",
+          to: "/$workspace/context/concepts/$cid",
           params: { workspace: ws, cid: nextCid },
         })
       }
       onOpenExperiments={() =>
-        void navigate({ to: "/$workspace/brand/experiments", params: { workspace: ws } })
+        void navigate({ to: "/$workspace/context/changes", params: { workspace: ws } })
       }
     />
   );
