@@ -1878,6 +1878,13 @@ func (s *Server) registerConvergenceRoutes(g *echo.Group) {
 	g.PATCH("/:id/settings", s.HandleUpdateProjectSettings)
 }
 
+// readHeaderTimeout bounds the header-read phase so a slow client cannot hold a
+// connection open indefinitely (Slowloris). Request bodies can be large — block
+// pushes — and stream over slow links, so only the header deadline is set,
+// never a whole-request ReadTimeout. Both listeners below use it: a bound that
+// applies to one of two ways into the same server is not a bound.
+const readHeaderTimeout = 30 * time.Second
+
 // Start initializes the Echo server and starts listening.
 // When GRPCServer is set, gRPC and HTTP are multiplexed on the same port
 // using h2c (cleartext HTTP/2). Requests with Content-Type: application/grpc
@@ -1893,9 +1900,21 @@ func (s *Server) Start(addr string) error {
 		addr = fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port)
 	}
 
-	// When no gRPC server is configured, use Echo's built-in listener.
+	// When no gRPC server is configured, serve Echo from a server built here
+	// rather than from e.Start, which constructs an http.Server with the
+	// zero-value — that is, absent — header timeout. Both listeners answer the
+	// same internet and need the same bound; this one only lacked it because
+	// nothing along its path had occasion to set one.
 	if s.GRPCServer == nil {
-		return e.Start(addr)
+		srv := &http.Server{
+			Addr:              addr,
+			ReadHeaderTimeout: readHeaderTimeout,
+		}
+		// Recorded for Shutdown, which prefers httpServer over Echo's own —
+		// e.Shutdown would stop the server Echo built, not this one.
+		s.httpServer = srv
+		slog.Info("starting Bowrain server", "addr", addr, "mode", "HTTP")
+		return e.StartServer(srv)
 	}
 
 	// Multiplex gRPC and HTTP on the same port via h2c.
@@ -1918,14 +1937,10 @@ func (s *Server) Start(addr string) error {
 	protocols.SetUnencryptedHTTP2(true)
 
 	srv := &http.Server{
-		Addr:      addr,
-		Handler:   handler,
-		Protocols: protocols,
-		// Bound the header-read phase so a slow client cannot hold a
-		// connection open indefinitely (Slowloris). Request bodies can be
-		// large (block pushes) and stream over slow links, so only the
-		// header deadline is set — not a whole-request ReadTimeout.
-		ReadHeaderTimeout: 30 * time.Second,
+		Addr:              addr,
+		Handler:           handler,
+		Protocols:         protocols,
+		ReadHeaderTimeout: readHeaderTimeout,
 	}
 	s.httpServer = srv
 	slog.Info("starting Bowrain server", "addr", addr, "mode", "HTTP+gRPC")

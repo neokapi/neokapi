@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"regexp"
+	"slices"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -101,8 +102,14 @@ func (s *Server) HandleListBlockNotes(c echo.Context) error {
 }
 
 // HandleDeleteBlockNote deletes a note by ID.
+//
+// Reading a note and deleting it are not the same act. This gated on
+// PermViewContent alone, which is exactly — and only — what the built-in
+// observer role holds: read-only access to project content. So every member of
+// a project, including one deliberately given no write access at all, could
+// delete anyone's note. Deleting a note is either your own housekeeping or a
+// manager's, and it now takes one of those.
 func (s *Server) HandleDeleteBlockNote(c echo.Context) error {
-	// TODO(phase5): restrict deletion to the note's author or PermManageProject.
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
@@ -111,13 +118,49 @@ func (s *Server) HandleDeleteBlockNote(c echo.Context) error {
 	}
 
 	pid := projectParam(c)
+	bid := c.Param("bid")
 	nid := c.Param("nid")
+
+	// The note has to be read before it can be authorized on — there is no
+	// store method that fetches one by id, but the route carries the block, so
+	// the block's notes are enough.
+	notes, err := s.ContentStore.ListBlockNotes(c.Request().Context(), pid, "main", bid)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	idx := slices.IndexFunc(notes, func(n model.BlockNote) bool { return n.ID == nid })
+	if idx < 0 {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "note not found"})
+	}
+	if !s.mayDeleteNote(c, notes[idx]) {
+		return deny(c, "only the note's author or a project manager can delete a note")
+	}
 
 	if err := s.ContentStore.DeleteBlockNote(c.Request().Context(), pid, "main", nid); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
 	return c.NoContent(http.StatusNoContent)
+}
+
+// mayDeleteNote reports whether the caller may delete this note: its author, or
+// anyone holding PermManageProject.
+//
+// Authorship is compared through extractAuthor, the same derivation that wrote
+// the value when the note was created — so whoever left a note always matches
+// their own. That value is a display name or an email rather than a stable user
+// id, which is the weaker half of this check: two people sharing a display name
+// inside one project could still delete each other's notes. Closing that means
+// giving model.BlockNote an author id, which is a change to stored data and a
+// migration; this closes the part that does not need one. An empty author
+// matches nobody, so a caller whose token carries neither claim gains nothing.
+func (s *Server) mayDeleteNote(c echo.Context, note model.BlockNote) bool {
+	if perms, ok := c.Get("project_permissions").(platauth.Permission); ok &&
+		perms.Has(platauth.PermManageProject) {
+		return true
+	}
+	author := extractAuthor(c)
+	return author != "" && author == note.Author
 }
 
 func blockNoteToResponse(n model.BlockNote) BlockNoteResponse {
