@@ -38,7 +38,12 @@ function StatefulPicker(props: Omit<ResourcePickerProps, "onChange">) {
 
 export const Default: Story = {
   render: () => (
-    <StatefulPicker value="" label="Content memory" resourceKind="memory" resources={sampleMemories} />
+    <StatefulPicker
+      value=""
+      label="Content memory"
+      resourceKind="memory"
+      resources={sampleMemories}
+    />
   ),
 };
 
