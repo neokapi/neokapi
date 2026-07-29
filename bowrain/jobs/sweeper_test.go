@@ -3,11 +3,11 @@ package jobs
 import (
 	"context"
 	"errors"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,35 +28,14 @@ func (failingEnqueueQueue) Close() error  { return nil }
 
 // newPgJobStore returns a migrated JobStore plus the underlying PgDB (for
 // direct SQL that seeds attempt/updated_at state the public API can't set).
-// It mirrors newTestJobStore (claim_test.go): a real PostgreSQL from
-// BOWRAIN_TEST_DATABASE_URL, closed per test so the package's goleak check
-// stays green. Skips when the env var is unset.
+// The database is an isolated schema from pgtest, so the tests below never
+// see each other's rows and never touch a neighbouring package's tables.
 func newPgJobStore(t *testing.T) (JobStore, *storage.PgDB) {
 	t.Helper()
-	dbURL := os.Getenv("BOWRAIN_TEST_DATABASE_URL")
-	if dbURL == "" {
-		t.Skip("BOWRAIN_TEST_DATABASE_URL not set")
-	}
-	db, err := storage.OpenPostgres(dbURL)
-	require.NoError(t, err)
+	db := pgtest.NewTestDB(t)
 	store, err := NewJobStore(db)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		_, _ = db.ExecContext(context.Background(), "DELETE FROM translation_jobs")
-		closePgDB(db)
-	})
 	return store, db
-}
-
-// closePgDB closes both the sql.DB and its underlying pgxpool. The pgxpool's
-// background health-check goroutine is not stopped by the embedded
-// *sql.DB.Close() alone, so the pool must be closed explicitly to keep the
-// package's goleak check green (matching testutil/pgtest's cleanup).
-func closePgDB(db *storage.PgDB) {
-	db.Close()
-	if p := db.Pool(); p != nil {
-		p.Close()
-	}
 }
 
 func newQueuedJob(t *testing.T, store JobStore) *TranslationJob {
