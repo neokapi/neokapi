@@ -1047,12 +1047,7 @@ func (tb *SQLiteStore) queryFuzzyTrigramCandidates(ctx context.Context, normaliz
 }
 
 func (tb *SQLiteStore) queryFuzzyFullScan(ctx context.Context, normalizedSource string, opts LookupOptions) ([]TermCandidate, error) {
-	keyLen := len([]rune(normalizedSource))
-	minLen := int(float64(keyLen) * 0.7)
-	maxLen := int(float64(keyLen) * 1.3)
-	if minLen < 0 {
-		minLen = 0
-	}
+	minLen, maxLen := FuzzyLengthWindow(len([]rune(normalizedSource)), opts.MinScore)
 
 	where := "t.locale = ? AND LENGTH(t.text_lower) BETWEEN ? AND ?"
 	args := []any{string(opts.SourceLocale), minLen, maxLen}

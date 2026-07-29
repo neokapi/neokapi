@@ -3,12 +3,44 @@ package terms
 import (
 	"cmp"
 	"context"
+	"math"
 	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
 )
+
+// FuzzyLengthWindow returns the inclusive term-length bounds a fuzzy candidate
+// must fall within to be able to reach minScore, for a query of queryLen runes.
+// Both backends' full-scan fallbacks pre-filter on it.
+//
+// The fuzzy score is memory.LevenshteinRatio, which is 1 - dist/max(m,n), and
+// the edit distance between two strings is at least their length difference.
+// So the best a candidate of length n can score against a query of length m is
+//
+//	1 - |m-n|/max(m,n) = min(m,n)/max(m,n)
+//
+// which reaches minScore only while minScore*m <= n <= m/minScore. Deriving the
+// window from minScore keeps the pre-filter consistent with the score gate that
+// follows it. The fixed ±30% window it replaces was not: any caller asking for
+// a minScore below 0.7 lost candidates that would have passed, silently and
+// only on the full-scan path, so the two backends disagreed exactly when their
+// trigram pre-filters happened to fall through differently.
+func FuzzyLengthWindow(queryLen int, minScore float64) (minLen, maxLen int) {
+	if queryLen <= 0 {
+		return 0, 0
+	}
+	// A non-positive or impossible minScore bounds nothing; scan unrestricted
+	// rather than invent a window.
+	if minScore <= 0 || minScore > 1 {
+		return 0, math.MaxInt32
+	}
+	// Floor/ceil rather than truncate, so a boundary-length candidate is
+	// admitted to the pool and rejected (or kept) by the score gate itself.
+	return int(math.Floor(float64(queryLen) * minScore)),
+		int(math.Ceil(float64(queryLen) / minScore))
+}
 
 // TermCandidate is one scanned term row from a backend candidate query, before
 // the shared lookup applies validity/status/score filtering and hydrates the
