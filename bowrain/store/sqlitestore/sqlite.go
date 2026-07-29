@@ -597,7 +597,9 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		if !isNew && len(b.Targets) > 0 {
 			oldTargets, loadErr := loadExistingTargets(ctx, tx, projectID, itemName, internalID)
 			if loadErr == nil && oldTargets != nil {
-				_ = recordTargetHistory(ctx, tx, projectID, stream, internalID, oldTargets, b.Targets)
+				if err := recordTargetHistory(ctx, tx, projectID, stream, internalID, oldTargets, b.Targets); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -1297,7 +1299,9 @@ func (s *SQLiteStore) StoreAssetVariant(ctx context.Context, projectID string, v
 		if variant.Status == "approved" && existingKey != "" {
 			changeType = "variant_approved"
 		}
-		_ = logChange(ctx, tx, assetProjectID, assetStream, variant.AssetID, changeType, variant.Locale, variant.BlobKey)
+		if err := logChange(ctx, tx, assetProjectID, assetStream, variant.AssetID, changeType, variant.Locale, variant.BlobKey); err != nil {
+			return fmt.Errorf("log change for asset variant %s/%s: %w", variant.AssetID, variant.Locale, err)
+		}
 	}
 
 	return tx.Commit()

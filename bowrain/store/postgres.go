@@ -1398,7 +1398,9 @@ func (s *PostgresStore) StoreAssetVariant(ctx context.Context, projectID string,
 		if variant.Status == "approved" && existingKey != "" {
 			changeType = "variant_approved"
 		}
-		_ = logChange(ctx, tx, assetProjectID, assetStream, variant.AssetID, changeType, variant.Locale, variant.BlobKey)
+		if err := logChange(ctx, tx, assetProjectID, assetStream, variant.AssetID, changeType, variant.Locale, variant.BlobKey); err != nil {
+			return fmt.Errorf("log change for asset variant %s/%s: %w", variant.AssetID, variant.Locale, err)
+		}
 	}
 
 	return tx.Commit()

@@ -1031,3 +1031,45 @@ func TestStoreBlocks_OverlaysRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, got2.Block.Overlays)
 }
+
+// The change log is what a client pulling by cursor reads to learn a variant
+// moved. Committing the variant without its entry produces a change nobody
+// downstream is ever told about, so the write is part of the transaction's
+// promise rather than bookkeeping beside it. Mirrors the SQLite twin.
+func TestStoreAssetVariantRequiresItsChangeLogEntry(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	p := createTestProject(t, s)
+
+	asset := &platstore.Asset{BlobKey: "aabbccdd", MimeType: "image/png"}
+	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset))
+
+	variant := &platstore.AssetVariant{
+		AssetID:  asset.ID,
+		Locale:   "fr-FR",
+		BlobKey:  "eeff0011",
+		Status:   "draft",
+		MimeType: "image/png",
+	}
+	require.NoError(t, s.StoreAssetVariant(ctx, p.ID, variant))
+
+	var logged int
+	require.NoError(t, s.SQLDB().QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM change_log WHERE block_id = $1 AND locale = $2`,
+		asset.ID, "fr-FR").Scan(&logged))
+	assert.Positive(t, logged, "a stored variant must appear in the change log")
+
+	// Take the change log away and store another variant. The variant write
+	// must fail rather than commit a change the feed will never carry.
+	_, err := s.SQLDB().ExecContext(ctx, `DROP TABLE change_log`)
+	require.NoError(t, err)
+
+	err = s.StoreAssetVariant(ctx, p.ID, &platstore.AssetVariant{
+		AssetID:  asset.ID,
+		Locale:   "de-DE",
+		BlobKey:  "22334455",
+		Status:   "draft",
+		MimeType: "image/png",
+	})
+	require.Error(t, err, "a variant whose change-log entry failed must not report success")
+}
