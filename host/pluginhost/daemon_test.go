@@ -1,15 +1,18 @@
 package pluginhost
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -19,24 +22,134 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// buildFakeDaemon compiles the fake daemon binary and returns its path.
-// Builds once per test run (via t.Helper + t.TempDir cache file).
+// sharedFakeDaemon builds the fake daemon once per test binary and returns
+// the path to it, already executed once. Every test in the package shares
+// that one binary, and both properties are load-bearing.
+//
+// Built once: a `go build` per caller is roughly a second of nested toolchain
+// work each, and it is the daemon spawns themselves that then compete for the
+// CPU it consumed.
+//
+// Executed once, here, outside any startup budget: on macOS the *first* exec
+// of a given inode pays a code-signature/policy assessment that the kernel
+// then caches per inode. Measured on this tree, that first exec costs
+// 330-590ms with the assessment path warm and 5.1-6.6s with it cold, against
+// 10-20ms for every later exec of the same inode. DaemonPool.spawn starts its
+// startup budget before cmd.Start, so a binary materialised per test put that
+// one-off platform cost inside the handshake window — where, cold, it can
+// exceed the window on its own. Paying it here takes it off the clock.
+//
+// Fixtures reach this binary through linkFakeDaemon, which hard-links rather
+// than copies so the plugin dir shares this inode and inherits the warm
+// assessment.
+var sharedFakeDaemon = sync.OnceValues(buildAndWarmFakeDaemon)
+
+// fakeDaemonDir holds the shared build; TestMain removes it.
+var fakeDaemonDir string
+
+func buildAndWarmFakeDaemon() (string, error) {
+	dir, err := os.MkdirTemp("", "kapi-pluginhost-fakedaemon-")
+	if err != nil {
+		return "", fmt.Errorf("temp dir: %w", err)
+	}
+	fakeDaemonDir = dir
+	binPath := filepath.Join(dir, "fakedaemon")
+
+	// Build from this package's testdata.
+	cmd := exec.CommandContext(context.Background(), "go", "build", "-o", binPath, "./testdata/fakedaemon")
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stderr
+	cmd.Env = os.Environ()
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("build fakedaemon: %w", err)
+	}
+	if err := warmFakeDaemon(binPath); err != nil {
+		return "", err
+	}
+	return binPath, nil
+}
+
+// warmFakeDaemon runs the freshly built binary once and waits for its
+// handshake, so the platform's first-exec cost for this inode is paid here
+// rather than inside a DaemonPool startup budget.
+//
+// The FAKE_DAEMON_* knobs are cleared explicitly: this runs lazily from
+// whichever test happens to call buildFakeDaemon first, and that test may
+// already have t.Setenv'd one of them (FAKE_DAEMON_NO_HANDSHAKE would hang
+// the warm-up, FAKE_DAEMON_SPAWN_LOG would corrupt the spawn count
+// TestDaemonPool_ConcurrentAcquireSpawnsOneDaemon asserts on).
+func warmFakeDaemon(binPath string) error {
+	cmd := exec.CommandContext(context.Background(), binPath, "daemon")
+	cmd.Env = append(os.Environ(),
+		"FAKE_DAEMON_NAME=warmup",
+		"FAKE_DAEMON_NO_HANDSHAKE=",
+		"FAKE_DAEMON_CRASH_AFTER=",
+		"FAKE_DAEMON_STARTUP_DELAY=",
+		"FAKE_DAEMON_SPAWN_LOG=",
+		"FAKE_DAEMON_BRIDGE=",
+	)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("warm fakedaemon: stdout pipe: %w", err)
+	}
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("warm fakedaemon: start: %w", err)
+	}
+
+	// The bound is deliberately generous — this is the one place that pays a
+	// cold first-exec assessment, and the point of it is not to fail on one.
+	read := make(chan error, 1)
+	go func() {
+		_, rerr := bufio.NewReader(stdout).ReadString('\n')
+		read <- rerr
+	}()
+	var readErr error
+	select {
+	case readErr = <-read:
+	case <-time.After(60 * time.Second):
+		// Join the reader before Wait: os/exec documents reading a
+		// StdoutPipe concurrently with Wait as unsafe (Wait closes the pipe
+		// under the reader) — the same hazard DaemonClient.close handles
+		// with drainDone. Kill unblocks the read by closing stdout.
+		readErr = errors.New("no handshake within 60s")
+		_ = cmd.Process.Kill()
+		<-read
+	}
+
+	// SIGTERM lets the daemon unlink its own socket (a no-op if we killed it).
+	_ = cmd.Process.Signal(syscall.SIGTERM)
+	_ = cmd.Wait()
+	if readErr != nil {
+		return fmt.Errorf("warm fakedaemon: read handshake: %w", readErr)
+	}
+	return nil
+}
+
+// buildFakeDaemon returns the shared fake daemon binary.
 func buildFakeDaemon(t *testing.T) string {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("Mode-C daemon is not supported on Windows")
 	}
-
-	dir := t.TempDir()
-	binPath := filepath.Join(dir, "fakedaemon")
-
-	// Build from this package's testdata.
-	cmd := exec.CommandContext(t.Context(), "go", "build", "-o", binPath, "./testdata/fakedaemon")
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stderr
-	cmd.Env = os.Environ()
-	require.NoErrorf(t, cmd.Run(), "build fakedaemon")
+	binPath, err := sharedFakeDaemon()
+	require.NoError(t, err)
 	return binPath
+}
+
+// linkFakeDaemon materialises the shared daemon binary at dst.
+//
+// It hard-links, so dst is the *same inode* as the warmed binary and costs
+// no first-exec assessment. Copying — what the fixtures used to do — makes a
+// new inode and puts that cost back inside the caller's startup budget.
+// Falls back to a byte copy if the link cannot be made (different volume).
+func linkFakeDaemon(t *testing.T, src, dst string) {
+	t.Helper()
+	if err := os.Link(src, dst); err == nil {
+		return
+	}
+	require.NoError(t, copyFile(src, dst))
+	require.NoError(t, os.Chmod(dst, 0o755))
 }
 
 // makePlugin assembles a plugin install dir with a manifest.json and the
@@ -45,8 +158,7 @@ func makePlugin(t *testing.T, name, daemonBin string, daemonCfg *manifest.Daemon
 	t.Helper()
 	dir := t.TempDir()
 	binDest := filepath.Join(dir, "fakedaemon")
-	require.NoError(t, copyFile(daemonBin, binDest))
-	require.NoError(t, os.Chmod(binDest, 0o755))
+	linkFakeDaemon(t, daemonBin, binDest)
 
 	m := &manifest.Manifest{
 		ManifestVersion: manifest.CurrentVersion,
