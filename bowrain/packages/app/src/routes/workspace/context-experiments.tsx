@@ -18,7 +18,7 @@ export function ExperimentsRoute() {
     <ExperimentsView
       onOpenExperiment={(id) =>
         void navigate({
-          to: "/$workspace/brand/experiments/$id",
+          to: "/$workspace/context/changes/$id",
           params: { workspace: workspace ?? "", id },
         })
       }

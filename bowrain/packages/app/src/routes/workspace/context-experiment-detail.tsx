@@ -19,7 +19,7 @@ export function ExperimentDetailRoute() {
       changesetId={id ?? ""}
       onBack={() =>
         void navigate({
-          to: "/$workspace/brand/experiments",
+          to: "/$workspace/context/changes",
           params: { workspace: workspace ?? "" },
         })
       }

@@ -35,20 +35,27 @@ describe("featureFromRoutePattern", () => {
     expect(featureFromRoutePattern(`${base}/$itemId/pre-process`)).toBe("pre_process");
   });
 
-  it("derives brand hub features", () => {
-    expect(featureFromRoutePattern("/$workspace/brand/concepts")).toBe("brand_concepts");
-    expect(featureFromRoutePattern("/$workspace/brand/concepts/$cid")).toBe("brand_concepts");
-    expect(featureFromRoutePattern("/$workspace/brand/voice")).toBe("brand_voice");
-    expect(featureFromRoutePattern("/$workspace/brand/voice/$profileId")).toBe("brand_voice");
-    expect(featureFromRoutePattern("/$workspace/brand/voice/review/$profileId")).toBe(
-      "brand_voice_review",
+  // The hub moved from /brand to /context, so the derived feature names move
+  // with it (brand_concepts → context_concepts). Deliberate: the feature name
+  // is derived from the route pattern, and a shim that kept the old names would
+  // make the taxonomy disagree with the URL it is supposed to describe.
+  it("derives context hub features", () => {
+    expect(featureFromRoutePattern("/$workspace/context/concepts")).toBe("context_concepts");
+    expect(featureFromRoutePattern("/$workspace/context/concepts/$cid")).toBe("context_concepts");
+    expect(featureFromRoutePattern("/$workspace/context/voice")).toBe("context_voice");
+    expect(featureFromRoutePattern("/$workspace/context/voice/$profileId")).toBe("context_voice");
+    expect(featureFromRoutePattern("/$workspace/context/voice/review/$profileId")).toBe(
+      "context_voice_review",
     );
-    expect(featureFromRoutePattern("/$workspace/brand/voice/mcp-guide")).toBe(
-      "brand_voice_mcp_guide",
+    expect(featureFromRoutePattern("/$workspace/context/voice/mcp-guide")).toBe(
+      "context_voice_mcp_guide",
     );
-    expect(featureFromRoutePattern("/$workspace/brand/experiments/$id")).toBe("brand_experiments");
-    expect(featureFromRoutePattern("/$workspace/brand/scan/$jobId")).toBe("brand_scan");
-    expect(featureFromRoutePattern("/$workspace/brand/dashboard")).toBe("brand_dashboard");
+    expect(featureFromRoutePattern("/$workspace/context/changes")).toBe("context_changes");
+    expect(featureFromRoutePattern("/$workspace/context/changes/$id")).toBe("context_changes");
+    expect(featureFromRoutePattern("/$workspace/context/memory")).toBe("context_memory");
+    expect(featureFromRoutePattern("/$workspace/context/activity")).toBe("context_activity");
+    expect(featureFromRoutePattern("/$workspace/context/scan/$jobId")).toBe("context_scan");
+    expect(featureFromRoutePattern("/$workspace/context/dashboard")).toBe("context_dashboard");
   });
 
   it("derives auth/entry features and drops the bare root", () => {
@@ -64,7 +71,7 @@ describe("featureFromRoutePattern", () => {
   it("never emits param placeholders or slashes", () => {
     for (const pattern of [
       "/$workspace/p/$projectId/s/$stream/$itemId/translate",
-      "/$workspace/brand/voice/$profileId",
+      "/$workspace/context/voice/$profileId",
       "/join/$code",
     ]) {
       const feature = featureFromRoutePattern(pattern);

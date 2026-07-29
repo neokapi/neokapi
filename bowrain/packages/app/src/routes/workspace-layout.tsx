@@ -289,17 +289,19 @@ export function WorkspaceLayout() {
   const effectiveView =
     activeView === "auditlog" || activeView === "bin" ? ("settings" as const) : activeView;
 
-  // Derive Brand hub sub-nav from URL (Concepts · Voice · Experiments · Activity
-  // · Dashboard). Concept-story and experiment-detail pages keep their section
-  // highlighted; bare /brand falls back to Concepts (the landing section).
-  const brandSubNav = useMemo(() => {
-    if (activeView !== "brand") return undefined;
-    const brandPath = `/${workspaceSlug}/brand`;
-    const rest = pathname.slice(brandPath.length).replace(/^\//, "");
+  // Derive Context hub sub-nav from URL (Concepts · Voice · Content memory ·
+  // Changes · Activity). Concept-story and change-detail pages keep their
+  // section highlighted; bare /context falls back to Concepts (the landing
+  // section). /context/dashboard is deliberately absent: it resolves to the
+  // Insights view, so it never reaches this branch.
+  const contextSubNav = useMemo(() => {
+    if (activeView !== "context") return undefined;
+    const contextPath = `/${workspaceSlug}/context`;
+    const rest = pathname.slice(contextPath.length).replace(/^\//, "");
     if (rest.startsWith("voice")) return "voice";
-    if (rest.startsWith("experiments")) return "experiments";
+    if (rest.startsWith("memory")) return "memory";
+    if (rest.startsWith("changes")) return "changes";
     if (rest.startsWith("activity")) return "activity";
-    if (rest.startsWith("dashboard")) return "dashboard";
     return "concepts";
   }, [activeView, pathname, workspaceSlug]);
 
@@ -326,34 +328,41 @@ export function WorkspaceLayout() {
     (id: string) => {
       const wsSlug = workspaceSlug ?? "";
       switch (id) {
-        // Brand hub sections
+        // Context hub sections
         case "concepts":
           void navigate({
-            to: "/$workspace/brand/concepts",
+            to: "/$workspace/context/concepts",
             params: { workspace: wsSlug },
           });
           break;
         case "voice":
           void navigate({
-            to: "/$workspace/brand/voice",
+            to: "/$workspace/context/voice",
             params: { workspace: wsSlug },
           });
           break;
-        case "experiments":
+        case "memory":
           void navigate({
-            to: "/$workspace/brand/experiments",
+            to: "/$workspace/context/memory",
+            params: { workspace: wsSlug },
+          });
+          break;
+        case "changes":
+          void navigate({
+            to: "/$workspace/context/changes",
             params: { workspace: wsSlug },
           });
           break;
         case "activity":
           void navigate({
-            to: "/$workspace/brand/activity",
+            to: "/$workspace/context/activity",
             params: { workspace: wsSlug },
           });
           break;
+        // Insights sections
         case "dashboard":
           void navigate({
-            to: "/$workspace/brand/dashboard",
+            to: "/$workspace/context/dashboard",
             params: { workspace: wsSlug },
           });
           break;
@@ -627,21 +636,21 @@ export function WorkspaceLayout() {
             params: { workspace: wsSlug },
           });
           break;
-        case "brand":
+        case "context":
           void navigate({
-            to: "/$workspace/brand",
+            to: "/$workspace/context",
             params: { workspace: wsSlug },
           });
           break;
         case "insights":
           void navigate({
-            to: "/$workspace/brand/dashboard",
+            to: "/$workspace/context/dashboard",
             params: { workspace: wsSlug },
           });
           break;
         case "memory":
           void navigate({
-            to: "/$workspace/memory",
+            to: "/$workspace/context/memory",
             params: { workspace: wsSlug },
           });
           break;
@@ -772,7 +781,7 @@ export function WorkspaceLayout() {
               onCollapsedChange={setSidebarCollapsed}
               showThemeToggle={false}
               sidebarContext={sidebarContext}
-              activeSubNav={activeView === "brand" ? brandSubNav : settingsSubNav}
+              activeSubNav={activeView === "context" ? contextSubNav : settingsSubNav}
               onSubNavChange={handleSubNavChange}
               headerSlot={
                 <ConnectedTopBar

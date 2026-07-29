@@ -9,9 +9,9 @@ import {
 } from "@neokapi/ui";
 import type { BrandScanRequest, VoiceProfile } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
-import { brandScanRequestKey, rememberBrandScanRequest } from "./brand-scan";
+import { brandScanRequestKey, rememberBrandScanRequest } from "./context-scan";
 
-export function BrandScanJobRoute() {
+export function ContextScanJobRoute() {
   const navigate = useNavigate();
   const { workspace, jobId } = useParams({ strict: false });
   const api = useApi();
@@ -40,7 +40,7 @@ export function BrandScanJobRoute() {
     }
     if (!request) {
       void navigate({
-        to: "/$workspace/brand/scan",
+        to: "/$workspace/context/scan",
         params: { workspace: workspace ?? "" },
       });
       return;
@@ -48,7 +48,7 @@ export function BrandScanJobRoute() {
     const { job_id } = await api.startBrandScan(ws, request);
     rememberBrandScanRequest(job_id, request);
     void navigate({
-      to: "/$workspace/brand/scan/$jobId",
+      to: "/$workspace/context/scan/$jobId",
       params: { workspace: workspace ?? "", jobId: job_id },
     });
   }, [api, ws, jobId, navigate, workspace]);
@@ -56,7 +56,7 @@ export function BrandScanJobRoute() {
   const handleApproved = useCallback(
     (profile: VoiceProfile) => {
       void navigate({
-        to: "/$workspace/brand/voice/$profileId",
+        to: "/$workspace/context/voice/$profileId",
         params: { workspace: workspace ?? "", profileId: profile.id },
       });
     },

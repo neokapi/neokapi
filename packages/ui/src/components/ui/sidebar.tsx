@@ -467,12 +467,23 @@ function SidebarMenuButton({
   variant = "default",
   size = "default",
   tooltip,
+  tooltipWhenExpanded = false,
   className,
   ...props
 }: React.ComponentProps<"button"> & {
   asChild?: boolean;
   isActive?: boolean;
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
+  /**
+   * Show the tooltip even when the sidebar is not in its collapsed state.
+   *
+   * The default gate below assumes icon-only implies collapsed. That does not
+   * hold for a rail rendered with `collapsible="none"` at icon width: it is
+   * permanently icon-only, yet `state` never becomes "collapsed", so its
+   * tooltips are built and then hidden forever — icons with no name, on hover
+   * or to a screen reader.
+   */
+  tooltipWhenExpanded?: boolean;
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const Comp = asChild ? Slot.Root : "button";
   const { isMobile, state } = useSidebar();
@@ -481,9 +492,16 @@ function SidebarMenuButton({
   // name. The visible text is hidden when the sidebar is collapsed, and
   // for icon-only buttons there's no other source of name. Caller-supplied
   // aria-label takes precedence.
-  const ariaLabel =
-    (props as { "aria-label"?: string })["aria-label"] ??
-    (typeof tooltip === "string" ? tooltip : undefined);
+  // Accept the label from either tooltip form: a caller that needs to set
+  // tooltip options passes an object, and that must not silently cost the
+  // button its accessible name.
+  const tooltipText =
+    typeof tooltip === "string"
+      ? tooltip
+      : typeof tooltip?.children === "string"
+        ? tooltip.children
+        : undefined;
+  const ariaLabel = (props as { "aria-label"?: string })["aria-label"] ?? tooltipText;
 
   const button = (
     <Comp
@@ -513,7 +531,7 @@ function SidebarMenuButton({
       <TooltipContent
         side="right"
         align="center"
-        hidden={state !== "collapsed" || isMobile}
+        hidden={(tooltipWhenExpanded ? false : state !== "collapsed") || isMobile}
         {...tooltip}
       />
     </Tooltip>

@@ -7,7 +7,13 @@ import {
   useSidebar,
 } from "@neokapi/ui-primitives";
 import { useRef, type ReactNode } from "react";
-import { AppSidebar, type AppSidebarProps, type SubNavItem, subNavConfig } from "./AppSidebar";
+import {
+  AppSidebar,
+  type AppSidebarProps,
+  type SubNavItem,
+  subNavConfig,
+  viewLabel,
+} from "./AppSidebar";
 import { BreadcrumbProvider, useBreadcrumb } from "../context/BreadcrumbContext";
 
 export interface AppShellProps<V extends string = string> extends Omit<
@@ -106,15 +112,6 @@ function SecondaryPanel({
   );
 }
 
-const viewLabels: Record<string, string> = {
-  translate: "Projects",
-  brand: "Brand",
-  memory: "Content memory",
-  auditlog: "Audit Log",
-  bin: "Recycle Bin",
-  settings: "Settings",
-};
-
 export function AppShell<V extends string = string>({
   collapsed,
   onCollapsedChange,
@@ -139,11 +136,11 @@ export function AppShell<V extends string = string>({
 
   const lastSubNavRef = useRef<{ items: SubNavItem[]; title: string } | null>(null);
   if (subNavItems && activeView) {
-    lastSubNavRef.current = { items: subNavItems, title: viewLabels[activeView] ?? activeView };
+    lastSubNavRef.current = { items: subNavItems, title: viewLabel(activeView) ?? activeView };
   }
 
   const panelData = showSecondary
-    ? { items: subNavItems!, title: viewLabels[activeView!] ?? activeView! }
+    ? { items: subNavItems!, title: viewLabel(activeView!) ?? activeView! }
     : lastSubNavRef.current;
 
   return (

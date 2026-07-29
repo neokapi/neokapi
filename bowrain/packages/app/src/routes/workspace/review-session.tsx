@@ -49,7 +49,7 @@ export function ReviewSessionRoute() {
         }
         onOpenChangeset={(id) =>
           navigate({
-            to: "/$workspace/brand/experiments/$id",
+            to: "/$workspace/context/changes/$id",
             params: { workspace: wsParam, id },
           })
         }
