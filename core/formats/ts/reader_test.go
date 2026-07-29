@@ -1147,6 +1147,62 @@ func TestSnippet_Roundtrip(t *testing.T) {
 	assert.Contains(t, output, `sourcelanguage="en"`)
 }
 
+// TestSnippet_RoundtripAngleBracketInAttribute pins the round-trip against a
+// '>' inside a `<TS …>` attribute value. '>' needs no escaping in an XML
+// attribute value, so the document below is well-formed; capturing the tag by
+// scanning for the first '>' byte truncated it mid-attribute, dropped the
+// remaining attributes and the tag's own '>', and left everything the writer
+// emitted afterwards inside an unterminated tag — kapi could not re-read its
+// own output and lost every message (#1606).
+func TestSnippet_RoundtripAngleBracketInAttribute(t *testing.T) {
+	t.Parallel()
+	for name, tc := range map[string]struct {
+		snippet string
+		wantTag string
+	}{
+		"double-quoted": {
+			snippet: `<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE TS []>
+<TS version="2.1" language="a>b" sourcelanguage="en">
+<context><name>C</name>
+<message><source>Hello</source><translation>Bonjour</translation></message>
+</context>
+</TS>`,
+			wantTag: `<TS version="2.1" language="a>b" sourcelanguage="en">`,
+		},
+		"single-quoted": {
+			snippet: `<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE TS []>
+<TS version='2.1' language='a>b' sourcelanguage='en'>
+<context><name>C</name>
+<message><source>Hello</source><translation>Bonjour</translation></message>
+</context>
+</TS>`,
+			wantTag: `<TS version='2.1' language='a>b' sourcelanguage='en'>`,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			output := snippetRoundtrip(t, tc.snippet)
+
+			// The whole opening tag survives, attributes and all.
+			assert.Contains(t, output, tc.wantTag,
+				"the opening tag must survive verbatim, attributes and all")
+
+			// And the output is readable: a truncated tag swallows every
+			// message, so a re-read returns nothing at all.
+			reader := ts.NewReader()
+			require.NoError(t, reader.Open(t.Context(), testutil.RawDocFromString(output, model.LocaleEnglish)))
+			parts := testutil.CollectParts(t, reader.Read(t.Context()))
+			reader.Close()
+
+			var texts []string
+			for _, b := range testutil.FilterBlocks(parts) {
+				texts = append(texts, b.SourceText())
+			}
+			assert.Equal(t, []string{"Hello"}, texts, "re-reading kapi's own output must find the message")
+		})
+	}
+}
+
 // TestSnippet_DoubleExtraction verifies reading twice produces same results.
 //
 // okapi: TsXliffCompareIT#tsXliffCompareFiles — re-extraction yields identical translatable content, verifying extraction is stable; Okapi's tsXliffCompareFiles extracts to XLIFF and compares against a gold XLIFF corpus.

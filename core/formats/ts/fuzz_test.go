@@ -103,17 +103,12 @@ func FuzzReadTs(f *testing.F) {
 // FuzzRoundTripTs asserts read → write → read is stable in content. The .ts
 // writer is generative — it reconstructs the whole document from the part
 // stream — so no skeleton store or original bytes are needed.
-//
-// Known open failure: fuzzing this target rediscovers #1606 within two minutes.
-// extractTSPrologue finds the end of the <TS …> tag by scanning for the first
-// '>' byte, ignoring quoted attribute values, so a perfectly valid
-// language="a>b" truncates the captured tag and the writer re-emits a document
-// that is not well-formed — kapi then cannot read its own output. None of the
-// seeds below trip it; it is recorded here so the failure is not mistaken for a
-// new one.
 func FuzzRoundTripTs(f *testing.F) {
 	fuzzTSSeed(f, "simple.ts", "plurals.ts", "bilingual.ts")
 	f.Add([]byte(`<?xml version="1.0"?><TS version="2.1" language="fr" sourcelanguage="en"><context><name>C</name><message><source>Hello</source><translation>Bonjour</translation></message></context></TS>`))
+	// #1606: a '>' inside an attribute value truncated the captured <TS …>
+	// tag, so kapi wrote a document it could not read back.
+	f.Add([]byte(`<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE TS []><TS version="2.1" language="a>b" sourcelanguage="en"><context><name>C</name><message><source>Hello</source><translation>Bonjour</translation></message></context></TS>`))
 	seedDamagedTS(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
