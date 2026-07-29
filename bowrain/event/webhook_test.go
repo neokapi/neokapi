@@ -114,7 +114,7 @@ func TestWebhookDeliveryStopsOnContextCancellation(t *testing.T) {
 	elapsed := time.Since(start)
 
 	require.Error(t, err)
-	assert.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, err, context.Canceled)
 	assert.Less(t, elapsed, 2*time.Second, "delivery slept through backoff after cancellation")
 	assert.Equal(t, int32(1), attempts.Load(), "delivery retried after cancellation")
 }

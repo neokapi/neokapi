@@ -60,7 +60,7 @@ func (w *WebhookDelivery) Deliver(ctx context.Context, event platev.Event) error
 			case <-ctx.Done():
 				backoff.Stop()
 				if lastErr != nil {
-					return fmt.Errorf("webhook delivery abandoned after %d attempts: %w (last error: %v)", attempt, ctx.Err(), lastErr)
+					return fmt.Errorf("webhook delivery abandoned after %d attempts: %w (last error: %w)", attempt, ctx.Err(), lastErr)
 				}
 				return fmt.Errorf("webhook delivery abandoned after %d attempts: %w", attempt, ctx.Err())
 			case <-backoff.C:
