@@ -57,9 +57,10 @@ export async function setupServerApp(page: Page): Promise<SeedResult> {
   // Reload to pick up the workspace selection
   await page.reload();
 
-  // Wait for the app to show the dashboard with seeded projects
+  // Wait for the app to show the dashboard with seeded projects. Testids only
+  // — a readiness gate must not key on dashboard copy.
   await page
-    .getByText("Get started with your first project")
+    .getByTestId("empty-projects")
     .or(page.getByTestId("nav-translate"))
     .first()
     .waitFor({ state: "visible", timeout: 30000 });

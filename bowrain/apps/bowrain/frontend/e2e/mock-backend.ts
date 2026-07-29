@@ -1364,9 +1364,12 @@ export async function skipConnectionScreen(page: Page) {
   await page.addInitScript(() => {
     (window as any).__skipConnection = true;
   });
-  // Wait for the main sidebar to appear, indicating the app is ready.
+  // Wait for the app shell to appear: either the empty-projects onboarding or,
+  // when the workspace already has projects, the nav rail. Both are testids —
+  // a readiness gate must never key on copy, which is how this suite spent a
+  // fortnight red after the dashboard hero was reworded (#1363).
   await page
-    .getByText("Get started with your first project")
+    .getByTestId("empty-projects")
     .or(page.getByTestId("nav-translate"))
     .first()
     .waitFor({ state: "visible", timeout: 10000 });
@@ -1383,9 +1386,12 @@ export async function setupLocalApp(page: Page) {
     (window as any).__skipConnection = true;
   });
   await page.goto("/");
-  // Wait for the main sidebar to appear, indicating the app is ready.
+  // Wait for the app shell to appear: either the empty-projects onboarding or,
+  // when the workspace already has projects, the nav rail. Both are testids —
+  // a readiness gate must never key on copy, which is how this suite spent a
+  // fortnight red after the dashboard hero was reworded (#1363).
   await page
-    .getByText("Get started with your first project")
+    .getByTestId("empty-projects")
     .or(page.getByTestId("nav-translate"))
     .first()
     .waitFor({ state: "visible", timeout: 10000 });
