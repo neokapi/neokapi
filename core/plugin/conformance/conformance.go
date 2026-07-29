@@ -257,6 +257,11 @@ type Suite struct {
 	// Env adds "KEY=VALUE" entries to the environment of every plugin process
 	// the suite spawns, on top of the host environment and the protocol's own
 	// KAPI_PLUGIN_* variables.
+	//
+	// The host environment arrives scrubbed of provider API keys, exactly as it
+	// does under kapi (core/credentials/providerenv). Naming one here overrides
+	// that — which is the point: a caller writing the variable down is granting
+	// it, where a plugin inheriting it was never granted anything.
 	Env []string
 
 	// Timeout bounds the work each individual check does. Zero means

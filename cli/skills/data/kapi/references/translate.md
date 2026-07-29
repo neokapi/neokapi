@@ -77,7 +77,11 @@ written file, is the finish line.
 ## Or have kapi call a provider (unattended / CI)
 
 When no assistant is in the loop, kapi can translate via a configured provider.
-This needs a saved credential (`kapi credentials add`) or `--api-key`:
+This needs a saved credential (`kapi credentials add`) or `--api-key`. The two
+are not interchangeable when the provider is self-hosted: `--base-url` belongs
+to the saved credential and applies only on the `--credential` route, because an
+inline `--api-key` resolves before an endpoint is attached and calls the public
+host.
 
 ```bash
 kapi run translate-qa -i ./locales/en.json --target-lang fr --json   # translate + QA

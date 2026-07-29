@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/zalando/go-keyring"
 )
 
 // TestResolveCredentials_EndpointIsNotRecipeSettable is the invariant that keeps
@@ -50,6 +51,66 @@ func TestResolveCredentials_EndpointIsNotRecipeSettable(t *testing.T) {
 				"a config-supplied endpoint must not survive credential resolution")
 		})
 	}
+}
+
+// TestResolveCredentials_OnlyAStoredCredentialCarriesAnEndpoint states the
+// consequence of the rule above, which is the part a user meets rather than the
+// part a reviewer reads: a custom endpoint reaches a provider through a saved
+// credential and through nothing else.
+//
+// Both of the other ways to supply a key resolve BEFORE any endpoint could be
+// injected — an inline key returns immediately, and the environment fallback
+// builds a provider config that has no endpoint to give. So a self-hosted
+// endpoint plus `--api-key`, or a self-hosted endpoint plus OPENAI_API_KEY,
+// silently calls the public host. `kapi credentials add --base-url` with
+// `--credential` is the combination that works, and it is what the docs say.
+func TestResolveCredentials_OnlyAStoredCredentialCarriesAnEndpoint(t *testing.T) {
+	const endpoint = "https://mt.internal.example/v1"
+
+	// The keychain is the developer's, so the key goes to the in-memory
+	// keyring rather than the real one — the same guard cli's credential
+	// tests use.
+	keyring.MockInit()
+
+	newStoreWithEndpoint := func(t *testing.T) *Store {
+		t.Helper()
+		store := newTestStore(t)
+		saved, err := store.Upsert(ProviderConfig{
+			Name: "internal", ProviderType: "openai", BaseURL: endpoint,
+		})
+		require.NoError(t, err)
+		require.NoError(t, store.SetAPIKey(saved.ID, "stored-key"))
+		return store
+	}
+
+	t.Run("an inline key never gets one", func(t *testing.T) {
+		clearProviderEnv(t)
+		got, err := ResolveCredentials(newStoreWithEndpoint(t), "translate",
+			[]string{"credentials"}, map[string]any{"provider": "openai", "apiKey": "inline"})
+		require.NoError(t, err)
+		assert.NotContains(t, got, "baseURL",
+			"an inline key short-circuits before an endpoint could be injected")
+	})
+
+	t.Run("an environment key never gets one", func(t *testing.T) {
+		clearProviderEnv(t)
+		t.Setenv("OPENAI_API_KEY", "from-the-environment")
+		got, err := ResolveCredentials(newStoreWithEndpoint(t), "translate",
+			[]string{"credentials"}, map[string]any{"provider": "openai"})
+		require.NoError(t, err)
+		assert.Equal(t, "from-the-environment", got["apiKey"])
+		assert.NotContains(t, got, "baseURL",
+			"the environment fallback carries a key and nothing else, saved endpoint or not")
+	})
+
+	t.Run("the named credential does", func(t *testing.T) {
+		clearProviderEnv(t)
+		got, err := ResolveCredentials(newStoreWithEndpoint(t), "translate",
+			[]string{"credentials"}, map[string]any{"credential": "internal"})
+		require.NoError(t, err)
+		assert.Equal(t, endpoint, got["baseURL"],
+			"the supported way to reach a self-hosted endpoint")
+	})
 }
 
 // TestMergeCredentials_EndpointComesFromTheCredential: removing the recipe's say

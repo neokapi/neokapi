@@ -7,46 +7,28 @@ import (
 	"os"
 	"slices"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/credentials/providerenv"
 )
 
 // providerEnvVars maps a provider id to the ordered list of environment
 // variables that may carry its API key. The first non-empty variable wins.
-// These follow the conventional names used by each provider's own SDKs and
-// CLIs (and reuse GEMINI_API_KEY, the name the harness tooling already reads).
 //
-// API keys must never be sourced from the committable .kapi/kapi.yaml recipe;
-// only provider/model defaults belong there. The standard per-provider env var
-// is the supported fallback when no inline --api-key and no --credential are
+// API keys must never be sourced from the committable kapi.yaml recipe; only
+// provider/model defaults belong there. The standard per-provider env var is
+// the supported fallback when no inline --api-key and no --credential are
 // given, slotting in just above store auto-detect in the resolution order.
 //
-// Provider ids match the constants in providers/ai (anthropic, openai, gemini,
-// azureopenai, ollama, demo). The map is the single source of truth for the
-// fallback; keep it self-contained here to avoid import cycles with the
-// provider packages.
-var providerEnvVars = map[string][]string{
-	"anthropic":   {"ANTHROPIC_API_KEY"},
-	"openai":      {"OPENAI_API_KEY"},
-	"gemini":      {"GEMINI_API_KEY", "GOOGLE_API_KEY"},
-	"azureopenai": {"AZURE_OPENAI_API_KEY"},
-	// ollama and demo never require a key; they have no entry on purpose.
-}
+// The list itself lives in core/credentials/providerenv, because the plugin
+// conformance harness under core/ has to scrub the same variables the host
+// does and cannot import host. This is an alias, not a copy.
+var providerEnvVars = providerenv.Vars
 
 // ProviderKeyEnvNames returns every environment variable that may carry a
 // provider API key, sorted. It is the denylist for anything that hands an
 // environment to a subprocess kapi did not write — see
 // pluginhost.WithoutProviderKeys.
-//
-// Exported from here because providerEnvVars is already the single source of
-// truth for "which variable holds which provider's key"; a second list would
-// drift, and the failure mode of drift is a key kapi believes it removed.
-func ProviderKeyEnvNames() []string {
-	var out []string
-	for _, names := range providerEnvVars {
-		out = append(out, names...)
-	}
-	slices.Sort(out)
-	return out
-}
+func ProviderKeyEnvNames() []string { return providerenv.Names() }
 
 // keylessProviders are the providers that never require an API key: the local,
 // on-device ones (ollama, demo — mirrors aiprovider.IsLocalProvider) plus

@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/credentials/providerenv"
 )
 
 // unknownVerb is an argument the protocol reserves for nothing. A conformant
@@ -102,8 +104,16 @@ func (r *runner) runPlugin(ctx context.Context, args ...string) execResult {
 }
 
 // pluginEnv is the environment every spawned plugin process sees: the host
-// environment, the protocol's KAPI_PLUGIN_* variables, then the suite's own
-// additions (which therefore win on a duplicate key).
+// environment less the provider API keys, then the protocol's KAPI_PLUGIN_*
+// variables, then the suite's own additions (which therefore win on a duplicate
+// key).
+//
+// The scrub is what the host does before launching a plugin for real
+// (host/pluginhost), and this harness exists to predict that launch — a
+// conformance run that handed over credentials the host withholds would pass a
+// plugin that reads them. Suite.Env is added afterwards on purpose: a caller
+// naming a variable is granting it, which is a different thing from a binary
+// inheriting one.
 //
 // Name and version come from the manifest when it decoded, and are empty
 // otherwise — a plugin whose manifest did not decode is still worth running the
@@ -113,7 +123,7 @@ func (r *runner) pluginEnv() []string {
 	if r.man != nil {
 		name, version = r.man.Plugin, r.man.Version
 	}
-	env := os.Environ()
+	env := providerenv.Without(os.Environ())
 	env = append(env,
 		"KAPI_PLUGIN_DIR="+r.suite.Dir,
 		"KAPI_PLUGIN_NAME="+name,
