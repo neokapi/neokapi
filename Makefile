@@ -1597,12 +1597,19 @@ cover: ## Run tests with coverage (merged report)
 
 # ── E2E Tests ────────────────────────────────────────────────────────────────
 
+# The kapi suite is tagged `e2e` and lives in ./kapi/e2e — both are load-bearing.
+# These targets named ./e2e/... (a path that has not existed since the module
+# reorg) and dropped the tag, so they selected nothing; `test-e2e` additionally
+# swallowed the error, which is why `make test-e2e` "passed" while the nightly
+# was red. Keep the tag and the path together.
 test-e2e: ## Run all end-to-end tests
-	$(GOTEST) ./e2e/... -count=1 -v 2>/dev/null || true
+	$(MAKE) test-e2e-kapi
 	$(MAKE) -C bowrain test-e2e-bowrain
 
+# Not $(GOTEST): that bakes in $(GOTAGS), and a second -tags would silently
+# shadow it rather than add to it.
 test-e2e-kapi: ## Run kapi e2e tests
-	$(GOTEST) ./e2e/... -count=1 -v
+	$(GO) test -tags "fts5,e2e" ./kapi/e2e/... -count=1 -v
 
 test-e2e-bowrain: ; $(MAKE) -C bowrain $@
 test-e2e-cloud: ; $(MAKE) -C bowrain $@ ## Run cloud e2e tests against a live server
