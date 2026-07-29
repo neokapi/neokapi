@@ -16,7 +16,11 @@ import (
 // with an Authorization: Bearer header. It routes HogQL text to canned result
 // sets and counts query calls.
 type fakePostHog struct {
-	srv        *httptest.Server
+	srv *httptest.Server
+	// baseURL addresses srv through the connector test network, so the client
+	// under test reaches it the way it reaches any host: past the address
+	// policy, not around it.
+	baseURL    string
 	queryCalls atomic.Int64
 
 	apiKey    string
@@ -94,6 +98,7 @@ func newFakePostHog(t *testing.T) *fakePostHog {
 	})
 	f.srv = httptest.NewServer(mux)
 	t.Cleanup(f.srv.Close)
+	f.baseURL = withTestNetwork(t, f.srv)
 	return f
 }
 
@@ -120,6 +125,82 @@ func TestResolvePostHogHost(t *testing.T) {
 	}
 	assert.Equal(t, "us.posthog.com", PostHogHostLabel("us"))
 	assert.Equal(t, "ph.example.com", PostHogHostLabel("https://ph.example.com"))
+}
+
+// A self-hosted PostHog URL is tenant input the server dials from inside its
+// own network, so the same address policy applies to it as to any other
+// integration.
+
+// TestResolvePostHogHostRejectsPrivateAddresses: the configuration-time half.
+// A URL naming private space never becomes a client at all.
+func TestResolvePostHogHostRejectsPrivateAddresses(t *testing.T) {
+	tests := []struct {
+		name    string
+		host    string
+		wantErr string
+	}{
+		{"loopback", "http://127.0.0.1:8000", "loopback"},
+		{"loopback IPv6", "https://[::1]/", "loopback"},
+		{"link-local metadata", "http://169.254.169.254", "link-local"},
+		{"RFC 1918", "http://10.0.0.5", "private"},
+		{"RFC 1918 other block", "https://192.168.1.10/", "private"},
+		{"unique-local IPv6", "https://[fd00::1]/", "private"},
+		{"IPv4-mapped private", "http://[::ffff:10.0.0.5]/", "private"},
+		{"CGNAT", "https://100.64.1.2", "carrier-grade NAT"},
+		{"unspecified", "http://0.0.0.0/", "unspecified"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ResolvePostHogHost(tt.host)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+			assert.Empty(t, got)
+
+			c, clientErr := NewPostHogClient(tt.host, "12345", "phx_key")
+			require.Error(t, clientErr)
+			assert.Nil(t, c)
+		})
+	}
+
+	// Public hosts, self-hosted or not, still resolve.
+	for _, host := range []string{"us", "eu", "https://ph.example.com", "https://203.0.113.7:8000"} {
+		t.Run("allows "+host, func(t *testing.T) {
+			_, err := ResolvePostHogHost(host)
+			require.NoError(t, err)
+		})
+	}
+}
+
+// TestPostHogRejectsHostResolvingToPrivateSpace: an ordinary-looking name
+// whose addresses are private is stopped at the dial, where they are known.
+func TestPostHogRejectsHostResolvingToPrivateSpace(t *testing.T) {
+	f := newFakePostHog(t)
+
+	c, err := NewPostHogClient("http://"+testPrivateHost, "12345", "phx_test_key_1234")
+	require.NoError(t, err, "the name looks ordinary, so building the client succeeds")
+
+	err = c.TestConnection(t.Context())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "private")
+	assert.Zero(t, f.queryCalls.Load(), "the request must never have been made")
+}
+
+// TestPostHogRejectsRedirectIntoPrivateSpace: the first hop is a legitimate
+// public host, so only a policy re-applied per hop catches the second.
+func TestPostHogRejectsRedirectIntoPrivateSpace(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/projects/{pid}/query", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "http://10.0.0.5/api/projects/12345/query", http.StatusTemporaryRedirect)
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	c, err := NewPostHogClient(withTestNetwork(t, srv), "12345", "phx_test_key_1234")
+	require.NoError(t, err)
+
+	err = c.TestConnection(t.Context())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "private")
 }
 
 func TestNormalizePostHogLangTag(t *testing.T) {
@@ -150,12 +231,12 @@ func TestValidatePostHogPathPattern(t *testing.T) {
 func TestPostHogTestConnection(t *testing.T) {
 	f := newFakePostHog(t)
 
-	c, err := NewPostHogClient(f.srv.URL, "12345", "phx_test_key_1234")
+	c, err := NewPostHogClient(f.baseURL, "12345", "phx_test_key_1234")
 	require.NoError(t, err)
 	require.NoError(t, c.TestConnection(t.Context()))
 
 	// Bad key → classified as bad_key (401).
-	c, err = NewPostHogClient(f.srv.URL, "12345", "phx_wrong")
+	c, err = NewPostHogClient(f.baseURL, "12345", "phx_wrong")
 	require.NoError(t, err)
 	err = c.TestConnection(t.Context())
 	var pe *PostHogError
@@ -164,16 +245,19 @@ func TestPostHogTestConnection(t *testing.T) {
 	assert.True(t, IsPostHogAuthError(err))
 
 	// Bad project → classified as bad_project (404).
-	c, err = NewPostHogClient(f.srv.URL, "99999", "phx_test_key_1234")
+	c, err = NewPostHogClient(f.baseURL, "99999", "phx_test_key_1234")
 	require.NoError(t, err)
 	err = c.TestConnection(t.Context())
 	require.ErrorAs(t, err, &pe)
 	assert.Equal(t, PostHogErrBadProject, pe.Code)
 
-	// Unreachable host → classified as bad_host.
+	// Unreachable host → classified as bad_host. The address is captured while
+	// the listener is still open, then the listener goes away, so the dial is
+	// refused rather than the URL.
 	closed := httptest.NewServer(http.NotFoundHandler())
+	closedURL := withTestNetwork(t, closed)
 	closed.Close()
-	c, err = NewPostHogClient(closed.URL, "12345", "phx_test_key_1234")
+	c, err = NewPostHogClient(closedURL, "12345", "phx_test_key_1234")
 	require.NoError(t, err)
 	err = c.TestConnection(t.Context())
 	require.ErrorAs(t, err, &pe)
@@ -182,7 +266,7 @@ func TestPostHogTestConnection(t *testing.T) {
 
 func TestPostHogFetchDemandHappyPath(t *testing.T) {
 	f := newFakePostHog(t)
-	c, err := NewPostHogClient(f.srv.URL, "12345", "phx_test_key_1234")
+	c, err := NewPostHogClient(f.baseURL, "12345", "phx_test_key_1234")
 	require.NoError(t, err)
 
 	snap, err := c.FetchDemand(t.Context(), "30d", "")
@@ -227,7 +311,7 @@ func TestPostHogFetchDemandHappyPath(t *testing.T) {
 
 func TestPostHogFetchDemandBadKeyAborts(t *testing.T) {
 	f := newFakePostHog(t)
-	c, err := NewPostHogClient(f.srv.URL, "12345", "phx_wrong")
+	c, err := NewPostHogClient(f.baseURL, "12345", "phx_wrong")
 	require.NoError(t, err)
 
 	snap, err := c.FetchDemand(t.Context(), "7d", "")
@@ -241,7 +325,7 @@ func TestPostHogFetchDemandMalformedResponseIsPartial(t *testing.T) {
 	f := newFakePostHog(t)
 	f.malformedFor = "toStartOfWeek" // trend query returns broken JSON
 
-	c, err := NewPostHogClient(f.srv.URL, "12345", "phx_test_key_1234")
+	c, err := NewPostHogClient(f.baseURL, "12345", "phx_test_key_1234")
 	require.NoError(t, err)
 
 	snap, err := c.FetchDemand(t.Context(), "90d", "")
@@ -263,7 +347,7 @@ func TestPostHogFetchDemandMalformedResponseIsPartial(t *testing.T) {
 
 func TestPostHogFetchDemandInvalidRange(t *testing.T) {
 	f := newFakePostHog(t)
-	c, err := NewPostHogClient(f.srv.URL, "12345", "phx_test_key_1234")
+	c, err := NewPostHogClient(f.baseURL, "12345", "phx_test_key_1234")
 	require.NoError(t, err)
 	_, err = c.FetchDemand(t.Context(), "365d", "")
 	require.Error(t, err)

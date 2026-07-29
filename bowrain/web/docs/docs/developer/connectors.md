@@ -68,7 +68,7 @@ Connectors are organized by category:
 
 ### FileConnector
 
-Wraps the `FormatRegistry` to read/write content files:
+Wraps the `FormatRegistry` to read/write content files. Single-tenant hosts only — see [Connector Registry](#connector-registry):
 
 ```go
 config := map[string]string{
@@ -128,18 +128,30 @@ config := map[string]string{
 
 ## Connector Registry
 
-The registry lives in `bowrain/core/connector`; the concrete implementations and their registration helpers live in `bowrain/connector`. `RegisterAll` registers every built-in type (the server/worker surface); `RegisterRemote` registers only the remote/CMS types (the desktop surface — local-filesystem sourcing is a server-side concern):
+The registry lives in `bowrain/core/connector`; the concrete implementations and their registration helpers live in `bowrain/connector`.
+
+Which types a registry offers is a security boundary, not a capability list, so there is no "register everything" helper — each host names the surface it is:
+
+| Helper           | Registers                                     | Used by                     |
+| ---------------- | --------------------------------------------- | --------------------------- |
+| `RegisterServer` | forge, wordpress, figma, hubspot              | Bowrain server, ingest worker |
+| `RegisterLocal`  | file, git, forge, wordpress, figma, hubspot   | single-tenant hosts          |
+| `RegisterRemote` | wordpress, figma, hubspot                     | desktop app                 |
+
+A connector is built from a config map, and on a multi-tenant server that map arrives over the workspace connectors API from anyone holding `PermManageConnectors`. The `file` and `git` connectors take a filesystem path from that config, so `RegisterServer` omits them: a tenant must not be able to name a path on the host the server runs on. Server-side work that genuinely needs a local checkout (the brand-scan repository harvest, for example) constructs its connector directly in Go with a path the server chose.
 
 ```go
 reg := connector.NewRegistry()
-bowrainconn.RegisterAll(reg, formatReg) // file, forge, git, wordpress, figma, hubspot
+bowrainconn.RegisterServer(reg, formatReg) // forge, wordpress, figma, hubspot
 
 // Create a connector instance
-c, err := reg.NewConnector("file", config)
+c, err := reg.NewConnector("wordpress", config)
 
 // List available types
 types := reg.List()
 ```
+
+Every remote connector's HTTP client is built from a `bowrain/safehttp` policy, because a base URL in a connector config is tenant input aimed at the network the server sits on. The policy resolves and re-checks the host at connect time, disables environment proxies, re-applies itself to every redirect hop, and refuses loopback, private, link-local, CGNAT, multicast, and unspecified addresses. A new connector that dials a configured host must use it — `core/httputil` is about TLS and retries, and is not a substitute.
 
 At the API level, connector instances are workspace-scoped: they are created with `POST /api/v1/{workspace}/connectors` and addressed under that workspace. See [Connectors](/server/connectors) for the setup guides.
 

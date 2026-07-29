@@ -385,7 +385,7 @@ func NewServer(cfg Config) *Server {
 	toolReg := registry.NewToolRegistry()
 	libtools.RegisterAll(toolReg)
 	connReg := platconn.NewRegistry()
-	connector.RegisterAll(connReg, formatReg)
+	connector.RegisterServer(connReg, formatReg)
 
 	// GitHub App for forge delivery: when configured, forge connectors may use
 	// `auth: app` (per-installation tokens, no stored credentials) and the

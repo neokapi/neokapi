@@ -10,13 +10,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/bowrain/safehttp/safehttptest"
 )
 
 // fakePostHogAPI is a minimal PostHog query API for handler tests: it accepts
 // one API key + project id, serves a single canned demand result set, and
 // counts query calls (for cache assertions).
 type fakePostHogAPI struct {
-	srv        *httptest.Server
+	srv *httptest.Server
+	// baseURL addresses srv through the SSRF policy — see newFakePostHogAPI.
+	baseURL    string
 	queryCalls atomic.Int64
 	status     int // non-zero forces this HTTP status on every query
 }
@@ -61,6 +65,11 @@ func newFakePostHogAPI(t *testing.T) *fakePostHogAPI {
 	})
 	f.srv = httptest.NewServer(mux)
 	t.Cleanup(f.srv.Close)
+	// A self-hosted PostHog host is dialed through the platform's SSRF policy,
+	// which refuses the loopback address an httptest listener binds to. Address
+	// the fixture through the policy instead of around it, so these handler
+	// tests keep exercising the real client.
+	f.baseURL = safehttptest.Serve(t, f.srv)
 	return f
 }
 
@@ -110,7 +119,7 @@ func TestPostHogConfigSaveGetAndSecretMasking(t *testing.T) {
 	assert.False(t, cfg.Configured)
 
 	// PUT runs the test connection ("SELECT 1") and saves.
-	body := `{"host":"` + ph.srv.URL + `","posthog_project_id":"12345","api_key":"phx_live_key_9876"}`
+	body := `{"host":"` + ph.baseURL + `","posthog_project_id":"12345","api_key":"phx_live_key_9876"}`
 	rec = posthogJSON(t, srv, token, http.MethodPut, "/api/v1/test/"+pid+"/connectors/posthog", body)
 	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
 	assert.EqualValues(t, 1, ph.queryCalls.Load(), "save must run exactly one test query")
@@ -133,7 +142,7 @@ func TestPostHogConfigSaveGetAndSecretMasking(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), `"api_key"`, "redacted key name is reported in connector_secret_keys")
 
 	// Update without api_key keeps the stored secret (carry-forward rule).
-	body = `{"host":"` + ph.srv.URL + `","posthog_project_id":"12345"}`
+	body = `{"host":"` + ph.baseURL + `","posthog_project_id":"12345"}`
 	rec = posthogJSON(t, srv, token, http.MethodPut, "/api/v1/test/"+pid+"/connectors/posthog", body)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &cfg))
@@ -160,19 +169,22 @@ func TestPostHogConfigTestConnectionErrors(t *testing.T) {
 	}
 
 	// Wrong key → bad_key.
-	code, e := put(`{"host":"` + ph.srv.URL + `","posthog_project_id":"12345","api_key":"phx_wrong"}`)
+	code, e := put(`{"host":"` + ph.baseURL + `","posthog_project_id":"12345","api_key":"phx_wrong"}`)
 	assert.Equal(t, http.StatusBadRequest, code)
 	assert.Equal(t, "bad_key", e.Code)
 
 	// Wrong project → bad_project.
-	code, e = put(`{"host":"` + ph.srv.URL + `","posthog_project_id":"777","api_key":"phx_live_key_9876"}`)
+	code, e = put(`{"host":"` + ph.baseURL + `","posthog_project_id":"777","api_key":"phx_live_key_9876"}`)
 	assert.Equal(t, http.StatusBadRequest, code)
 	assert.Equal(t, "bad_project", e.Code)
 
-	// Unreachable host → bad_host.
+	// Unreachable host → bad_host. The address is captured while the listener
+	// is still open, then the listener goes away, so the dial is refused rather
+	// than the URL.
 	dead := httptest.NewServer(http.NotFoundHandler())
+	deadURL := safehttptest.Serve(t, dead)
 	dead.Close()
-	code, e = put(`{"host":"` + dead.URL + `","posthog_project_id":"12345","api_key":"phx_live_key_9876"}`)
+	code, e = put(`{"host":"` + deadURL + `","posthog_project_id":"12345","api_key":"phx_live_key_9876"}`)
 	assert.Equal(t, http.StatusBadRequest, code)
 	assert.Equal(t, "bad_host", e.Code)
 
@@ -198,7 +210,7 @@ func TestPostHogDemandEndpointAndCache(t *testing.T) {
 	assert.Equal(t, "not_configured", e.Code)
 
 	// Connect.
-	body := `{"host":"` + ph.srv.URL + `","posthog_project_id":"12345","api_key":"phx_live_key_9876"}`
+	body := `{"host":"` + ph.baseURL + `","posthog_project_id":"12345","api_key":"phx_live_key_9876"}`
 	rec = posthogJSON(t, srv, token, http.MethodPut, "/api/v1/test/"+pid+"/connectors/posthog", body)
 	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
 	callsAfterSave := ph.queryCalls.Load()

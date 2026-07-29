@@ -20,6 +20,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/brandscan"
 	"github.com/neokapi/neokapi/bowrain/connector"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/bowrain/safehttp"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
@@ -552,7 +553,7 @@ func readBrandScanUpload(ctx context.Context, blobs corestorage.BlobStore, key s
 // markdown, so the patterns are set explicitly.
 //
 // The repo URL comes straight from an API request, so it gets the same
-// destination policy as the urls[] path (brandscan.FetchURL): https only —
+// destination policy as the urls[] path (bowrain/safehttp): https only —
 // which also excludes the scp-like SSH form — and a host that resolves to no
 // loopback/private/link-local/CGNAT address. The git subprocess re-resolves
 // DNS itself, so the vet is a pre-check rather than a rebinding-proof pin;
@@ -566,7 +567,7 @@ func fetchBrandScanRepo(ctx context.Context, formatReg *registry.FormatRegistry,
 	if !strings.EqualFold(u.Scheme, "https") || u.Hostname() == "" {
 		return "", errors.New("brand scans accept only public https:// repository URLs")
 	}
-	if err := brandscan.VetPublicHost(ctx, u.Hostname()); err != nil {
+	if err := safehttp.VetPublicHost(ctx, u.Hostname()); err != nil {
 		return "", err
 	}
 

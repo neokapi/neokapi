@@ -19,17 +19,22 @@ import (
 )
 
 // newIngestFetcher builds the worker's connector fetcher for durable forge-
-// ingest jobs: a full server-side connector registry (file/git/forge + remote,
-// with the GitHub App wired when configured, mirroring bowrain-server) over a
+// ingest jobs: the server-side connector registry (forge + remote, with the
+// GitHub App wired when configured, mirroring bowrain-server) over a
 // ConnectorService whose instances are created on demand from the persisted
 // connector config. The server rehydrates every connector at boot; the worker
 // instead instantiates lazily per job, so it never holds clones for
 // connectors it will never ingest.
+//
+// The registry must stay the *server* one. The worker builds its connectors
+// from the same persisted, tenant-supplied config the server does, so a
+// registry that knew the local-filesystem connectors would reopen there
+// exactly what RegisterServer closes on the server.
 func newIngestFetcher(cs store.ContentStore, configs *bstore.ConnectorConfigStore) *workerConnectorFetcher {
 	formatReg := registry.NewFormatRegistry()
 	formats.RegisterAll(formatReg)
 	connReg := platconn.NewRegistry()
-	bowconn.RegisterAll(connReg, formatReg)
+	bowconn.RegisterServer(connReg, formatReg)
 
 	// GitHub App (auth: app forge connectors). Env contract mirrors
 	// bowrain-server: PEM text, or a file path under systemd/compose.

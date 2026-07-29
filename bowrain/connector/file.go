@@ -138,6 +138,10 @@ func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.C
 		lastChanged = info.ModTime()
 	}
 
+	// No absolute path in the metadata: a content item travels out through the
+	// connector-content API, which is gated by workspace membership alone, and
+	// the host's directory layout is not part of what a workspace member asked
+	// for. The connector-relative path is what a caller can act on anyway.
 	return &platconn.ContentItem{
 		ID:          relPath,
 		Name:        filepath.Base(path),
@@ -145,7 +149,6 @@ func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.C
 		Format:      formatName,
 		Blocks:      blocks,
 		LastChanged: lastChanged,
-		Metadata:    map[string]string{"absolute_path": path},
 	}, nil
 }
 
@@ -377,7 +380,6 @@ func (c *FileConnector) List(ctx context.Context) ([]*platconn.ContentItem, erro
 			Path:        relPath,
 			Format:      formatName,
 			LastChanged: info.ModTime(),
-			Metadata:    map[string]string{"absolute_path": path},
 		})
 		return nil
 	})
