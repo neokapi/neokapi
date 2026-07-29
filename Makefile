@@ -218,7 +218,7 @@ test-verbose: ## Run tests with verbose output
 	@$(MAKE) --no-print-directory _fw-test-verbose
 	@$(MAKE) -C bowrain test-verbose
 
-test-integration: ## Run integration tests
+test-integration: ## Run the //go:build integration lane (Postgres-backed cross-store suites; needs Docker or BOWRAIN_TEST_POSTGRES_URL)
 	@$(MAKE) --no-print-directory _fw-test-integration
 	@$(MAKE) -C bowrain test-integration
 
@@ -328,7 +328,7 @@ _fw-test-verbose:
 	cd kapi && $(GOTEST_BASE) ./... -count=1 -v
 
 _fw-test-integration:
-	$(GOTEST_BASE) ./... -count=1 -tags=integration -run Integration
+	@bash scripts/test-integration.sh $(_RACE) $(_SHUFFLE)
 
 # host/ carries the runtime and every service the CLI dispatches to, so it is
 # vetted and linted alongside the modules that import it — not left to the

@@ -441,8 +441,8 @@ test-verbose: ## Run platform tests with verbose output
 	cd plugin && $(GOTEST_BASE) ./... -count=1 -v
 	$(GOTEST_BASE) ./... -count=1 -v
 
-test-integration: ## Run platform integration tests
-	$(GOTEST_BASE) ./... -count=1 -tags=integration -run Integration
+test-integration: ## Run the platform's //go:build integration lane (Postgres-backed cross-store suites)
+	@bash ../scripts/test-integration.sh $(_RACE) $(_SHUFFLE)
 
 test-platform: ## Run platform core module tests only
 	@mkdir -p $(COVER_DIR)
