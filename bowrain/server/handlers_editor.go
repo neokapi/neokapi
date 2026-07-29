@@ -5,7 +5,6 @@ import (
 	"io"
 	"maps"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -667,29 +666,25 @@ func (s *Server) HandleGetWordCount(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
-// HandleExportTranslatedFile exports a translated file.
+// HandleExportTranslatedFile answers the editor's export request.
+//
+// Server-side merged-file export is not available and will not become
+// available: source bytes stopped being stored in the Item model in #136, so
+// there is nothing to merge into. `kapi pull` is the export path.
+//
+// That refusal is permanent and expected, so it must not travel as a 500. It
+// used to: the stub error went through serverErr, which rendered "the server
+// hit an unexpected error", buried the sentence naming the alternative in the
+// server log, and paged the on-call for a working endpoint. 501 states the
+// condition plainly and puts the sentence in the body where the caller reads
+// it.
 func (s *Server) HandleExportTranslatedFile(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
-
-	pid := projectParam(c)
-	fname := fileParam(c)
-
-	var req struct {
-		TargetLocale string `json:"target_locale"`
-	}
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-
-	outputPath, err := editorExportTranslatedFile(c.Request().Context(), s.ContentStore, s.FormatRegistry, pid, streamParam(c), fname, req.TargetLocale, s.Config.DataDir)
-	if err != nil {
-		return serverErr(c, err)
-	}
-	defer os.Remove(outputPath)
-
-	return c.File(outputPath)
+	return c.JSON(http.StatusNotImplemented, ErrorResponse{
+		Error: "server-side file export is not available: use 'kapi pull' to export translated files",
+	})
 }
 
 // HandleLookupMemoryForBlock looks up content-memory matches for a specific block.
