@@ -119,6 +119,16 @@ type ProtectedTag struct {
 
 // compileTagPatterns compiles the protection patterns once, dropping any that
 // fail to compile (matching findProtectedTags' old per-block skip behavior).
+//
+// The skip is a backstop, not the report. Patterns are this tool's entire
+// behaviour, so a pattern that silently never compiles is a tool that silently
+// does nothing — and the tag it was written to protect gets mangled by the MT
+// step downstream with no trace of why. Every configurable path reaches here
+// through NewTagProtectFromConfig, which runs Validate first and refuses to
+// build the tool when a regex does not compile, naming the offending index.
+// What is left here catches an in-process caller that assembled a
+// TagProtectConfig in Go and skipped Validate, plus defaultTagPatterns, which
+// TestDefaultTagPatternsCompile pins as compilable.
 func compileTagPatterns(patterns []string) []*regexp.Regexp {
 	out := make([]*regexp.Regexp, 0, len(patterns))
 	for _, pat := range patterns {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -152,6 +153,41 @@ func (c *QACheckConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
 		return errors.New("qa: TargetLocale is required")
 	}
+	return c.validatePatterns()
+}
+
+// validatePatterns rejects QA patterns whose regexes do not compile.
+//
+// This is the whole point of surfacing them: a pattern that fails to compile
+// can never match, so a typo'd rule is indistinguishable from a rule that
+// legitimately found nothing. The person who wrote it gets silence either way,
+// and reads the silence as "my content is clean". Naming the bad expression at
+// construction is the only moment the mistake is still attributable.
+//
+// Split out from Validate so the config factory can enforce it without also
+// newly enforcing TargetLocale, which the factory legitimately leaves empty
+// when it is building the tool for schema/listing purposes rather than a run.
+func (c *QACheckConfig) validatePatterns() error {
+	for i, p := range c.Patterns {
+		if !p.Enabled {
+			continue
+		}
+		label := strconv.Itoa(i)
+		if p.Description != "" {
+			label = fmt.Sprintf("%d (%s)", i, p.Description)
+		}
+		if p.Source == "" {
+			return fmt.Errorf("qa: pattern %s has no source expression", label)
+		}
+		if _, err := regexp.Compile(p.Source); err != nil {
+			return fmt.Errorf("qa: pattern %s source %q is not a valid regular expression: %w", label, p.Source, err)
+		}
+		if !p.Forbidden && p.Target != "" && p.Target != "<same>" {
+			if _, err := regexp.Compile(p.Target); err != nil {
+				return fmt.Errorf("qa: pattern %s target %q is not a valid regular expression: %w", label, p.Target, err)
+			}
+		}
+	}
 	return nil
 }
 
@@ -175,6 +211,10 @@ func QACheckSchema() *schema.ComponentSchema {
 }
 
 // NewQACheckFromConfig creates a qa tool from a config map.
+//
+// This is the path a recipe's `qa:` step config travels, so it is the one
+// place a hand-written regex can arrive — and therefore the one place a
+// hand-written mistake can still be reported to the person who made it.
 func NewQACheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	cfg := NewQACheckConfig(model.LocaleID(targetLang))
 	if err := schema.ApplyConfig(config, cfg); err != nil {
@@ -182,6 +222,9 @@ func NewQACheckFromConfig(config map[string]any, targetLang string) (tool.Tool, 
 	}
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	if err := cfg.validatePatterns(); err != nil {
+		return nil, fmt.Errorf("qa config: %w", err)
 	}
 	return NewQACheckTool(cfg), nil
 }
@@ -210,6 +253,14 @@ type compiledQAPattern struct {
 // invalid (or missing) source regex, or an invalid target regex — matching the
 // old per-block code's "continue past bad patterns" behavior. Forbidden
 // patterns only need the source regex (matched against the target text).
+//
+// The skip is a backstop, not the report. Every configurable path reaches this
+// function through NewQACheckFromConfig, which runs validatePatterns first and
+// refuses to build the tool at all when a regex does not compile — so a typo in
+// a recipe now names itself instead of producing a rule that quietly never
+// fires. What is left here catches an in-process caller that assembled a
+// QACheckConfig in Go and skipped Validate; dropping the pattern keeps that
+// caller running rather than panicking on its behalf.
 func compileQAPatterns(patterns []QAPattern) []compiledQAPattern {
 	out := make([]compiledQAPattern, 0, len(patterns))
 	for _, p := range patterns {

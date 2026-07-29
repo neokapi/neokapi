@@ -305,6 +305,14 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			if stats == nil {
 				return nil, nil
 			}
+			// Stamp-write failures do not endanger the extracted content, so
+			// they never fail the pass — but left unsaid they make kapi
+			// re-extract and re-translate everything on every run with no
+			// visible cause. Printed regardless of the event consumer: this is
+			// an operator fault, not run progress.
+			for _, w := range stats.Warnings {
+				fmt.Fprintf(cmd.ErrOrStderr(), "warning: %s\n", w)
+			}
 			if opts.onEvent == nil && !a.Quiet {
 				// No event consumer: keep the plain run-log line (bare
 				// `kapi run`, embedders listening on LogWriter only).
