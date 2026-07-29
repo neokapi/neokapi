@@ -208,10 +208,12 @@ func TestTermCheckWithTerms(t *testing.T) {
 	// terms loading and processing. It runs as an informational QA pass
 	// (exit 0; no stdout), so a clean run is the assertion. term-check is not
 	// in the curated TopLevelTools tier, so it executes via `kapi exec`.
+	// The store selector is --termstore (#1505): --terms is a different flag,
+	// the boolean gate on `exec dnt-check`.
 	kapi(t, "exec", "term-check", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
-		"--terms", tb)
+		"--termstore", tb)
 }
 
 // TestQACheckWithoutTerms verifies that qa works standalone for
@@ -341,7 +343,7 @@ func TestFullPipeline(t *testing.T) {
 	kapi(t, "exec", "term-check", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
-		"--terms", tb)
+		"--termstore", tb)
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

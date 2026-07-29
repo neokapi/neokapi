@@ -169,9 +169,19 @@ that bite most often:
   before you commit prose — inflections are what a noun-only search misses.
   **The identifiers now match the concepts.** The retired spellings were swept
   out of recipe keys (`memory:`/`terms:`), state filenames (`memory.db`,
-  `terms.db`), CLI flags (`--memory`/`--terms`) and the package tree
-  (`core/profile`), finishing what #1462 and #1504 began. Do not reintroduce
-  `tm`/`termbase` as an identifier — if you find one, it is a leftover.
+  `terms.db`), CLI flags (`--memory` for the content memory, `--termstore` for
+  the terms store) and the package tree (`core/profile`), finishing what #1462
+  and #1504 began. Do not reintroduce `tm`/`termbase` as an identifier — if you
+  find one, it is a leftover.
+
+  **The terms-store selector is `--termstore`, not `--terms`.** `--tm` became
+  `--memory` (#1520), but `--termbase` became `--termstore` (#1505) rather than
+  `--terms`, because `--terms` was already taken — it is the boolean gate on
+  `kapi exec dnt-check`. The asymmetry is deliberate,
+  `cli/project_brand_termbase_test.go` guards it, and a vocabulary sweep that
+  "corrects" `--termstore` to `--terms` is a regression. That is precisely how
+  `kapi/e2e` drifted: #1462 rewrote the flag inside a suite no PR runs, and the
+  nightly said so for a fortnight with nobody listening.
 
   The persisted discriminators followed too (#1522): `model.Origin.Kind`, the
   KPZ content type, the sync `content_type` and apply change-set kinds all now
