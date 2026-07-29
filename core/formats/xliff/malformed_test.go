@@ -107,6 +107,87 @@ func TestReadMalformedSurfacesError(t *testing.T) {
 	}
 }
 
+// TestReadMalformedTransUnitNamesTheUnit pins the attribution of a tokenizer
+// failure that lands INSIDE a <trans-unit>.
+//
+// parseTransUnit used to answer such a failure with a bare `return nil, nil`:
+// no unit, no error. That the read failed at all was an accident of
+// encoding/xml — the abandoned decoder latches its error, so the caller's own
+// next Token() re-reported it — which meant the error arrived stripped of the
+// one fact worth having: which trans-unit's content went missing. On a file
+// with thousands of units, "XML syntax error on line 5" and "trans-unit
+// \"greeting-2\"" are very different bug reports.
+//
+// The unit id is read from the start tag's attributes before the body is
+// walked, so it is available even when the failure happens on the first token
+// of the body.
+func TestReadMalformedTransUnitNamesTheUnit(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		unitID string
+		input  string
+	}{
+		{
+			// Truncated immediately after </source>: the unit's own end tag
+			// and everything after it are gone.
+			name:   "truncated after source",
+			unitID: "greeting-2",
+			input: `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="t">
+    <body>
+      <trans-unit id="greeting-1"><source>One</source></trans-unit>
+      <trans-unit id="greeting-2"><source>Two</source>`,
+		},
+		{
+			// Truncated inside a <note>, i.e. after the unit's <source> and
+			// <target> were already read.
+			name:   "truncated inside note",
+			unitID: "u-42",
+			input: `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="t">
+    <body>
+      <trans-unit id="u-42"><source>Two</source><target>Deux</target><note>unfinished`,
+		},
+		{
+			// Truncated on the unit's own start tag body, before any child.
+			name:   "truncated at unit start",
+			unitID: "solo",
+			input: `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="t">
+    <body>
+      <trans-unit id="solo">`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := t.Context()
+			reader := xliff.NewReader()
+			require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(tt.input, model.LocaleEnglish)))
+			defer reader.Close()
+
+			var readErr error
+			require.NotPanics(t, func() {
+				for result := range reader.Read(ctx) {
+					if result.Error != nil && readErr == nil {
+						readErr = result.Error
+					}
+				}
+			})
+
+			require.Error(t, readErr, "a trans-unit abandoned mid-parse must surface an error")
+			assert.Contains(t, readErr.Error(), "xliff:", "errors carry the format prefix")
+			assert.Contains(t, readErr.Error(), tt.unitID,
+				"the error must name the trans-unit whose content was lost")
+		})
+	}
+}
+
 // TestReadLenientInputsDoNotPanic feeds inputs the reader deliberately
 // tolerates or that simply contain no XLIFF content. The reader sanitizes C0
 // control characters and falls back to Windows-1252 for undeclared non-UTF-8

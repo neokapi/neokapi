@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -158,6 +159,124 @@ func TestExtractToBlockStore_RoundTripAndStamps(t *testing.T) {
 	require.NoError(t, os.WriteFile(storePath, []byte("db"), 0o644))
 	d := project.DetectStoreDrift(storePath, files)
 	assert.False(t, d.Any(), "freshly extracted ⇒ no drift: %+v", d)
+}
+
+// TestExtractToBlockStore_ReportsUnwritableStamps covers the failure that used
+// to be completely invisible.
+//
+// The version and drift stamps are written best-effort on purpose: the blocks
+// are already committed, so a failed sidecar write must not fail the run. But
+// "best effort" was implemented as `_ = StampBlockStoreVersion(...)` with no
+// report of any kind, and the comment justifying it assumes the NEXT write
+// succeeds. When the cause is permanent — the cache directory read-only here,
+// a full disk or a changed owner in the field — DetectStoreDrift reads the
+// store as stale forever, so every single run re-extracts and re-translates the
+// whole project. The only symptom is that kapi is slow and redoes finished
+// work, with nothing anywhere naming the cause.
+//
+// The contract: the extraction still succeeds, and it says what went wrong.
+func TestExtractToBlockStore_ReportsUnwritableStamps(t *testing.T) {
+	dir := t.TempDir()
+	real, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+
+	recipe := filepath.Join(real, "app.kapi")
+	proj := &project.KapiProject{
+		Version:  "v1",
+		Name:     "StoreSync",
+		Defaults: project.Defaults{SourceLanguage: "en-US"},
+		Content: []project.ContentCollection{{
+			Name:   "ui",
+			Path:   "src/*.json",
+			Format: &project.FormatSpec{Name: "json"},
+		}},
+	}
+	require.NoError(t, project.Save(recipe, proj))
+	srcDir := filepath.Join(real, "src")
+	require.NoError(t, os.MkdirAll(srcDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.json"), []byte(`{"greeting":"Hello"}`), 0o644))
+
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	pctx := project.NewProjectContext(proj, recipe)
+	files, err := pctx.ResolveContent(reg)
+	require.NoError(t, err)
+	require.Len(t, files, 1)
+
+	cacheDir := filepath.Join(real, ".kapi", "cache")
+	require.NoError(t, os.MkdirAll(cacheDir, 0o755))
+	storePath := filepath.Join(cacheDir, "blocks.db")
+
+	// Make the sidecars unwritable by taking write permission off the
+	// directory they live in. Both stamp writes are os.WriteFile of a NEW
+	// file, so they need the directory bit, not the file bit.
+	require.NoError(t, os.Chmod(cacheDir, 0o555))
+	t.Cleanup(func() { _ = os.Chmod(cacheDir, 0o755) })
+	if f, err := os.Create(filepath.Join(cacheDir, ".probe")); err == nil {
+		_ = f.Close()
+		t.Skip("filesystem ignores directory write permission (running as root?)")
+	}
+
+	store := blockstore.NewMemoryStore()
+	defer store.Close()
+
+	stats, err := project.ExtractToBlockStore(context.Background(), reg, pctx, store, storePath, files)
+
+	// The content is safe: unwritable sidecars must not fail the extraction.
+	require.NoError(t, err, "a failed cache hint must not throw away committed blocks")
+	assert.Equal(t, 1, stats.Files)
+	assert.Positive(t, stats.Blocks)
+
+	// ...and the operator is told, once per failed sidecar.
+	require.Len(t, stats.Warnings, 2, "both the version stamp and the drift stamps failed")
+	joined := strings.Join(stats.Warnings, "\n")
+	assert.Contains(t, joined, project.BlockStoreVersionStampPath(storePath),
+		"the warning must name the file that could not be written")
+	assert.Contains(t, joined, project.BlockStoreSourceStampsPath(storePath))
+	assert.Contains(t, joined, "re-extract on every run",
+		"the warning must say what the consequence is, not just that a write failed")
+}
+
+// TestExtractToBlockStore_NoWarningsOnHealthyRun is the companion guard: the
+// warning channel must stay empty when nothing is wrong, or it becomes noise
+// that operators learn to ignore.
+func TestExtractToBlockStore_NoWarningsOnHealthyRun(t *testing.T) {
+	dir := t.TempDir()
+	real, err := filepath.EvalSymlinks(dir)
+	require.NoError(t, err)
+
+	recipe := filepath.Join(real, "app.kapi")
+	proj := &project.KapiProject{
+		Version:  "v1",
+		Name:     "StoreSync",
+		Defaults: project.Defaults{SourceLanguage: "en-US"},
+		Content: []project.ContentCollection{{
+			Name:   "ui",
+			Path:   "src/*.json",
+			Format: &project.FormatSpec{Name: "json"},
+		}},
+	}
+	require.NoError(t, project.Save(recipe, proj))
+	srcDir := filepath.Join(real, "src")
+	require.NoError(t, os.MkdirAll(srcDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.json"), []byte(`{"greeting":"Hello"}`), 0o644))
+
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	pctx := project.NewProjectContext(proj, recipe)
+	files, err := pctx.ResolveContent(reg)
+	require.NoError(t, err)
+
+	storePath := filepath.Join(real, ".kapi", "cache", "blocks.db")
+	require.NoError(t, os.MkdirAll(filepath.Dir(storePath), 0o755))
+	store := blockstore.NewMemoryStore()
+	defer store.Close()
+
+	stats, err := project.ExtractToBlockStore(context.Background(), reg, pctx, store, storePath, files)
+	require.NoError(t, err)
+	assert.Empty(t, stats.Warnings, "a healthy extraction must report nothing")
 }
 
 func TestExtractToBlockStore_SkipsUnreadable(t *testing.T) {

@@ -162,7 +162,15 @@ func (r *Reader) materialize() (path string, cleanup func(), err error) {
 		_ = os.Remove(tmp.Name())
 		return "", noop, fmt.Errorf("audio: spool: %w", err)
 	}
-	_ = tmp.Close()
+	// Checked on the success path too. io.Copy returning nil does not mean the
+	// bytes reached the disk: a write it buffered can still fail at Close (a
+	// full filesystem, a quota, a failing network mount). Discarding that error
+	// hands ffmpeg a silently TRUNCATED file, and the fault resurfaces as a
+	// decode error that names the wrong cause, far from where it happened.
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmp.Name())
+		return "", noop, fmt.Errorf("audio: spool: close: %w", err)
+	}
 	return tmp.Name(), func() { _ = os.Remove(tmp.Name()) }, nil
 }
 

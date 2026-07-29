@@ -491,9 +491,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if !inBody || currentFile == nil {
 					continue
 				}
-				tu, tuPositions := r.parseTransUnit(decoder, t, currentFile, blockCount, content)
-				if tu == nil {
-					continue
+				tu, tuPositions, perr := r.parseTransUnit(decoder, t, currentFile, blockCount, content)
+				if perr != nil {
+					ch <- model.PartResult{Error: fmt.Errorf("xliff: parsing: %w", perr)}
+					return
 				}
 				if r.skeletonStore != nil {
 					elemPositions = append(elemPositions, tuPositions...)
@@ -731,14 +732,16 @@ type parsedAltTrans struct {
 }
 
 // parseTransUnit parses a <trans-unit> element and all its children.
-// It returns the parsed trans-unit and skeleton element positions (if skeleton tracking is active).
+// It returns the parsed trans-unit, the skeleton element positions (if
+// skeleton tracking is active), and any tokenizer error that abandoned the
+// unit half-read.
 //
 // content is the full input file's bytes — used to slice raw inner XML
 // for <source>/<target>/<seg-source> bodies. Slicing the raw input
 // preserves namespace prefixes (encoding/xml resolves them to URIs,
 // which loses the source's prefix mapping), original entity escaping,
 // and source whitespace formatting that re-serialization would mangle.
-func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi *fileInfo, blockIdx int, content []byte) (*parsedTransUnit, []elemPos) {
+func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi *fileInfo, blockIdx int, content []byte) (*parsedTransUnit, []elemPos, error) {
 	tu := &parsedTransUnit{
 		translatable: true,
 	}
@@ -775,7 +778,15 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 		preOff := int(decoder.InputOffset())
 		tok, err := decoder.Token()
 		if err != nil {
-			return nil, nil
+			// Propagate. This loop abandons a half-read trans-unit, and the
+			// only reason the failure ever reached the caller was that the
+			// caller's own decoder.Token() re-reported the same latched
+			// error on its next iteration — an encoding/xml implementation
+			// detail, not a contract, and one that stripped the error of the
+			// context that says WHICH unit was lost. Naming the unit is the
+			// difference between "this file is malformed somewhere" and a
+			// pointer at the trans-unit whose content went missing.
+			return nil, nil, fmt.Errorf("trans-unit %q: %w", tu.id, err)
 		}
 
 		switch t := tok.(type) {
@@ -940,7 +951,7 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 		})
 	}
 
-	return tu, positions
+	return tu, positions, nil
 }
 
 // readInnerXML reads all content until the matching end element. It
