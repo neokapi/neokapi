@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T10:36:14Z",
+  "generatedAt": "2026-07-29T11:31:20Z",
   "commands": [
     {
       "id": "add",
@@ -1239,7 +1239,7 @@
       "flags": [
         {
           "name": "api-key",
-          "usage": "API key for the provider",
+          "usage": "API key for the provider (omit on a terminal to be prompted, unechoed)",
           "type": "string"
         },
         {
