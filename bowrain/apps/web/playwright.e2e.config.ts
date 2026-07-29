@@ -19,11 +19,16 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  reporter: [["list"]],
+  reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: process.env.BOWRAIN_URL || "http://localhost:8080",
-    screenshot: "off",
-    trace: "off",
+    // On failure, keep the evidence. This suite runs only in CI against the
+    // Docker stack, so a failure that leaves nothing behind can only be
+    // re-run, never read — which is how two of these specs stayed unexplained
+    // from 2026-07-15 to 2026-07-29. Note `retain-on-failure`, not
+    // `on-first-retry`: retries is 0 here, so on-first-retry never fires.
+    screenshot: "only-on-failure",
+    trace: "retain-on-failure",
     ...devices["Desktop Chrome"],
   },
 });
