@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -54,10 +55,11 @@ func TestDeviceAuthStartRespectsForwardedHeaders(t *testing.T) {
 }
 
 func TestHandleDeviceVerificationFormValues(t *testing.T) {
-	// No OIDC configured → uses direct authorization with form values.
+	// Direct authorization explicitly opted into → uses the form values.
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
+	cfg.AllowInsecureDeviceAuth = true
 	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	e := srv.GetEcho()
@@ -108,6 +110,7 @@ func TestHandleDeviceAuthPollStoreRefreshTokenError(t *testing.T) {
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
+	cfg.AllowInsecureDeviceAuth = true
 	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 	// Wrap the wired AuthStore so StoreRefreshToken always fails.
@@ -156,10 +159,11 @@ func TestHandleDeviceAuthPollStoreRefreshTokenError(t *testing.T) {
 }
 
 func TestHandleDeviceVerificationDefaultValues(t *testing.T) {
-	// No OIDC configured, no email/name provided → defaults should be used.
+	// Direct authorization opted into, no email/name provided → defaults.
 	cfg := DefaultConfig()
 
 	cfg.JWTSecret = "test-secret"
+	cfg.AllowInsecureDeviceAuth = true
 	srv := shutdownOnCleanup(t, NewServer(cfg))
 	initTestStores(t, srv)
 
@@ -990,4 +994,203 @@ func TestOIDCCodeExchangeUsesInternalURL(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "invalid_grant")
 	assert.NotContains(t, rec.Body.String(), "public-keycloak.invalid",
 		"no request may dial the public hostname directly")
+}
+
+// newMockOIDCProvider starts an httptest server that answers OIDC discovery
+// with endpoints pointing back at itself, and returns its issuer URL.
+func newMockOIDCProvider(t *testing.T) string {
+	t.Helper()
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(mock.Close)
+	issuer := mock.URL
+	mock.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/.well-known/openid-configuration" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"issuer": "` + issuer + `",
+			"authorization_endpoint": "` + issuer + `/auth",
+			"token_endpoint": "` + issuer + `/token",
+			"jwks_uri": "` + issuer + `/certs"
+		}`))
+	})
+	return issuer
+}
+
+// seedPendingDevice stores a pending device authorization and its user-code
+// index, as HandleDeviceAuthStart would.
+func seedPendingDevice(t *testing.T, srv *Server, deviceCode, userCode string) {
+	t.Helper()
+	ctx := t.Context()
+	entry := &deviceCodeEntry{UserCode: userCode, ClientID: "kapi-cli"}
+	require.NoError(t, sessionSet(ctx, srv.SessionStore, prefixDeviceCode, deviceCode, entry, authStateTTL))
+	require.NoError(t, srv.SessionStore.Set(ctx, prefixUserCode+userCode, []byte(deviceCode), authStateTTL))
+}
+
+// TestDeviceVerificationEmailDoesNotBypassOIDC pins the invariant that device
+// authorization always goes through the identity provider. An identity named
+// in the request is an input to the (opted-in) direct path, never a reason to
+// take it: with OIDC configured and no opt-in, a request naming an email is
+// redirected to the provider and authorizes nothing.
+func TestDeviceVerificationEmailDoesNotBypassOIDC(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.JWTSecret = "test-secret"
+	cfg.OIDCIssuerURL = newMockOIDCProvider(t)
+	cfg.OIDCClientID = "test-client"
+	require.False(t, cfg.AllowInsecureDeviceAuth, "direct approval must be off by default")
+
+	srv := shutdownOnCleanup(t, NewServer(cfg))
+	initTestStores(t, srv)
+	seedPendingDevice(t, srv, "email-bypass-device", "1111-2222-3333-4444")
+
+	for _, tc := range []struct {
+		name string
+		form url.Values
+	}{
+		{"email only", url.Values{
+			"user_code": {"1111-2222-3333-4444"},
+			"email":     {"owner@example.com"},
+		}},
+		{"email and name", url.Values{
+			"user_code": {"1111-2222-3333-4444"},
+			"email":     {"owner@example.com"},
+			"name":      {"Workspace Owner"},
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/device/verify",
+				strings.NewReader(tc.form.Encode()))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			rec := httptest.NewRecorder()
+			srv.GetEcho().ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusFound, rec.Code)
+			assert.Contains(t, rec.Header().Get("Location"), cfg.OIDCIssuerURL+"/auth",
+				"verification must be handed to the identity provider")
+			assert.NotEqual(t, "/device/authorized", rec.Header().Get("Location"))
+
+			entry, err := sessionGet[deviceCodeEntry](t.Context(), srv.SessionStore, prefixDeviceCode, "email-bypass-device")
+			require.NoError(t, err)
+			assert.False(t, entry.Authorized, "no request may authorize a device without the identity provider")
+			assert.Empty(t, entry.UserEmail, "a caller-supplied email must never become the device's identity")
+		})
+	}
+}
+
+// TestDeviceVerificationDirectRefusedWithoutOptIn proves the direct path is
+// unreachable unless the operator opted in — including the case that used to
+// fall through to it, a server with no OIDC provider configured at all.
+func TestDeviceVerificationDirectRefusedWithoutOptIn(t *testing.T) {
+	t.Run("no OIDC configured refuses instead of authorizing", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.JWTSecret = "test-secret"
+		srv := shutdownOnCleanup(t, NewServer(cfg))
+		initTestStores(t, srv)
+		seedPendingDevice(t, srv, "no-oidc-device", "aaaa-bbbb-cccc-dddd")
+
+		form := url.Values{
+			"user_code": {"aaaa-bbbb-cccc-dddd"},
+			"email":     {"owner@example.com"},
+		}
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/device/verify",
+			strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		srv.GetEcho().ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusServiceUnavailable, rec.Code,
+			"an unconfigured server reports a misconfiguration, it does not authorize the device")
+
+		entry, err := sessionGet[deviceCodeEntry](t.Context(), srv.SessionStore, prefixDeviceCode, "no-oidc-device")
+		require.NoError(t, err)
+		assert.False(t, entry.Authorized)
+		assert.Empty(t, entry.UserEmail)
+	})
+
+	t.Run("the direct handler refuses on its own", func(t *testing.T) {
+		cfg := DefaultConfig()
+		cfg.JWTSecret = "test-secret"
+		srv := shutdownOnCleanup(t, NewServer(cfg))
+		initTestStores(t, srv)
+		seedPendingDevice(t, srv, "guarded-device", "eeee-ffff-0000-1111")
+
+		e := echo.New()
+		e.POST("/direct", func(c echo.Context) error {
+			return srv.handleDeviceVerificationDirect(c, "guarded-device")
+		})
+		req := httptest.NewRequest(http.MethodPost, "/direct",
+			strings.NewReader(url.Values{"email": {"owner@example.com"}}.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+
+		entry, err := sessionGet[deviceCodeEntry](t.Context(), srv.SessionStore, prefixDeviceCode, "guarded-device")
+		require.NoError(t, err)
+		assert.False(t, entry.Authorized)
+	})
+}
+
+// TestDeviceVerificationAttemptsAreBounded proves one pending authorization
+// accepts only maxDeviceVerifyAttempts verification attempts, after which it
+// is discarded rather than staying live for the rest of its TTL.
+func TestDeviceVerificationAttemptsAreBounded(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.JWTSecret = "test-secret"
+	cfg.OIDCIssuerURL = newMockOIDCProvider(t)
+	cfg.OIDCClientID = "test-client"
+	srv := shutdownOnCleanup(t, NewServer(cfg))
+	initTestStores(t, srv)
+	seedPendingDevice(t, srv, "attempt-device", "2222-3333-4444-5555")
+
+	e := echo.New()
+	e.POST("/verify", func(c echo.Context) error {
+		return srv.handleDeviceVerification(c, "2222-3333-4444-5555")
+	})
+	attempt := func() string {
+		req := httptest.NewRequest(http.MethodPost, "/verify", nil)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusFound, rec.Code)
+		return rec.Header().Get("Location")
+	}
+
+	for i := range maxDeviceVerifyAttempts {
+		assert.Contains(t, attempt(), cfg.OIDCIssuerURL+"/auth", "attempt %d is within budget", i+1)
+	}
+
+	assert.Contains(t, attempt(), "/device/verify?error=", "the attempt past the cap is refused")
+
+	_, err := sessionGet[deviceCodeEntry](t.Context(), srv.SessionStore, prefixDeviceCode, "attempt-device")
+	require.ErrorIs(t, err, ErrSessionNotFound, "the exhausted authorization is discarded")
+	_, err = srv.SessionStore.Get(t.Context(), prefixUserCode+"2222-3333-4444-5555")
+	require.ErrorIs(t, err, ErrSessionNotFound, "its user-code index goes with it")
+}
+
+// TestRandomUserCodeWidth pins the entropy of the user code. It is the only
+// secret guarding a pending device authorization for the whole authStateTTL
+// window, so it carries userCodeBytes of randomness rather than the 4 bytes it
+// started with, which a determined caller can walk through.
+func TestRandomUserCodeWidth(t *testing.T) {
+	require.Equal(t, 8, userCodeBytes, "a user code carries 64 bits of entropy")
+
+	seen := make(map[string]struct{}, 128)
+	for range 128 {
+		code := randomUserCode()
+
+		assert.Len(t, strings.Split(code, "-"), userCodeBytes*2/4, "code is grouped in fours")
+		hexOnly := strings.ReplaceAll(code, "-", "")
+		raw, err := hex.DecodeString(hexOnly)
+		require.NoError(t, err, "code must be hex")
+		assert.Len(t, raw, userCodeBytes, "code encodes userCodeBytes of randomness")
+
+		_, dup := seen[code]
+		assert.False(t, dup, "user codes must not repeat")
+		seen[code] = struct{}{}
+	}
 }

@@ -46,6 +46,12 @@ services:
       BLOB_STORAGE_LOCAL_DIR: /data/blobs
       BOWRAIN_WEB_UI_DIR: /web
       BOWRAIN_LOG_FORMAT: text
+      # Marks this stack as a development one. Among other things it lets the
+      # harness seed scripts complete the device flow programmatically, without
+      # driving the Keycloak login form in a browser. Never set this on a real
+      # deployment: it approves a pending device for the identity the request
+      # names, with no identity-provider check.
+      BOWRAIN_ALLOW_INSECURE_DEV: "1"
     # No published ports: access is via Traefik (https://bowrain.mymac). This
     # also avoids clashing with a host `make dev-server` on :8080.
     volumes:
