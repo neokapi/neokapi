@@ -139,17 +139,16 @@ func FuzzReadXml(f *testing.F) {
 // cannot be re-read. With one, the writer reconstructs the original markup and
 // the re-read is a real comparison. Using the in-memory store keeps each
 // iteration off the filesystem.
-//
-// Known open failure: fuzzing this target rediscovers #1605 within two minutes.
-// An element that begins with an element child, separates two children with
-// whitespace only, and ends with non-whitespace text gains one byte of
-// whitespace on every round-trip, without bound — "<r><a>x</a> <b>y</b> tail</r>"
-// grows a space per pass. None of the seeds below trip it; it is recorded here
-// so the failure is not mistaken for a new one.
 func FuzzRoundTripXml(f *testing.F) {
 	fuzzXMLSeed(f, "simple.xml")
 	f.Add([]byte(`<?xml version="1.0"?><r><s>one</s><s>two</s></r>`))
 	f.Add([]byte(`<r><s>text</s></r>`))
+	// #1605: a parent's text nodes are non-contiguous, so a whitespace-only
+	// separator between element children was emitted both as skeleton text
+	// and inside the following block, growing the document every pass.
+	f.Add([]byte(`<r><a>x</a> <b>y</b> tail</r>`))
+	f.Add([]byte(`<r><a>x</a> <b>y</b> <c>z</c> tail</r>`))
+	f.Add([]byte("<r><a>x</a>\n<b>y</b> tail</r>"))
 	seedDamagedXML(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
