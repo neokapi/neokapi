@@ -107,9 +107,11 @@ bowrain/web/docs/i18n/nb/
 /.kapi/
 # A `kapi memory`/`kapi terms` run with no --file/--name defaults to --local,
 # which writes these into the working directory. They are rebuildable state, not
-# source (AD-009/AD-010), so they must never be committed.
-/tm.db
-/termbase.db
+# source (AD-009/AD-010), so they must never be committed. The names track
+# core/project.MemoryFileName and TermsFileName; the pre-#1504/#1522 spellings
+# (tm.db, termbase.db) matched nothing here any more.
+/memory.db
+/terms.db
 # Disposable TMX/CSV review views of the native l10n seeds (l10n-review-export).
 /l10n/review/
 
