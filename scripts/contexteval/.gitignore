@@ -1,1 +1,6 @@
-/scripts/contexteval/contexteval
+# A leading '/' in a nested .gitignore anchors to THIS directory, not the repo
+# root, so the binary `go build` drops next to these sources is '/contexteval'.
+# The previous '/scripts/contexteval/contexteval' resolved to
+# scripts/contexteval/scripts/contexteval/contexteval, matched nothing, and left
+# a 35 MB Mach-O tracked from #1125 onward without anyone noticing.
+/contexteval
