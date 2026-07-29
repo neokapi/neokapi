@@ -4,8 +4,22 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 2 * * *" # Nightly at 2 AM UTC
-  # Intentionally not on push/PR: the e2e suites (CLI e2e + Playwright) are heavy
-  # and run nightly. Use workflow_dispatch to trigger on demand for a branch.
+  # The Docker and browser suites stay nightly — they are heavy, and a PR should
+  # not wait on them. Use workflow_dispatch to run the whole lane for a branch.
+  #
+  # The Kapi CLI job is the exception, and it earned it. It needs no Docker, no
+  # browser and no services; it takes under two minutes. It also spent thirteen
+  # nights red because #1462 rewrote a CLI flag inside it — a change that touched
+  # cli/ and host/, so a path-gated pre-merge run would have caught it in review
+  # instead of in a nightly nobody read. The paths below are the CLI surface it
+  # actually exercises, deliberately not `core/**`: broad enough to catch a flag
+  # or command rename, narrow enough that most PRs never trigger it.
+  pull_request:
+    paths:
+      - "cli/**"
+      - "host/**"
+      - "kapi/**"
+      - ".github/workflows/e2e.yml"
 
 permissions:
   contents: read
@@ -29,6 +43,7 @@ jobs:
   # ── Bowrain frontend Playwright E2E (self-contained, mock backend) ───────
   playwright:
     name: Playwright E2E
+    if: github.event_name != 'pull_request' # heavy: browsers — nightly only
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -70,6 +85,7 @@ jobs:
   # ── Build Docker images (prerequisites for Docker E2E) ───────────────────
   build-images:
     name: Build E2E Images
+    if: github.event_name != 'pull_request' # heavy: four Docker images — nightly only
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -185,6 +201,7 @@ jobs:
   # it gates the workflow.
   bowrain-e2e:
     name: Bowrain E2E (Docker)
+    if: github.event_name != 'pull_request' # heavy: full Docker stack — nightly only
     runs-on: ubuntu-latest
     needs: build-images
     timeout-minutes: 15
@@ -230,7 +247,32 @@ jobs:
       - name: Run web app E2E tests
         working-directory: bowrain/apps/web
         run: vpx playwright test --config playwright.e2e.config.ts
-        timeout-minutes: 5
+        # A 5-minute cap could not contain this suite: brand-scan-onboarding
+        # alone sets test.setTimeout(180_000), so one slow test may legitimately
+        # spend 3 of the 5 minutes, and the layout-scroll matrix costs 13s each.
+        # On 2026-07-29 the step was killed mid-run and reported a timeout rather
+        # than the two specs that actually failed — a cap that truncates the
+        # report hides the defect it was supposed to surface. The job's own
+        # timeout-minutes: 15 remains the real backstop.
+        timeout-minutes: 10
+
+      # The Playwright job has always uploaded its report; this one never did,
+      # so a failure here left only the console tail — no trace, no screenshot,
+      # no error-context. That is a large part of why these two specs stayed
+      # unexplained for a fortnight.
+      - name: Upload web app test results
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: web-e2e-report
+          path: |
+            bowrain/apps/web/playwright-report/
+            bowrain/apps/web/test-results/
+          retention-days: 30
+
+      - name: Dump server + worker logs
+        if: failure()
+        run: docker compose -f bowrain/e2e/server/compose.yaml logs --no-color --tail 300
 
       - name: Tear down E2E stack
         if: always()
