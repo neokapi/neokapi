@@ -703,6 +703,12 @@ parity-sandbox: ## Build the parity sandbox (kapi + okapi-bridge plugin)
 TIKAL_LAUNCHER := $(PARITY_DIR)/tikal/tikal.sh
 TIKAL_JAR_GLOB := $(OKAPI_REPO)/applications/tikal/target/okapi-application-tikal-*.jar
 
+# The go invocation below spells both tags in one flag and calls $(GO), not
+# $(GOTEST): go does not union repeated -tags, the last occurrence wins, and
+# $(GOTEST) bakes in $(GOTAGS). `$(GOTEST) -tags parity` therefore dropped fts5
+# and ran the parity suite — the adjudicator for every round-trip change — in a
+# build configuration no other target uses. Nothing failed, because fts5 is a
+# runtime SQL capability rather than a compile gate.
 parity-test: parity-sandbox ## Run the full parity test suite (#448)
 	@TIKAL_ENV=""; \
 	if ls $(TIKAL_JAR_GLOB) >/dev/null 2>&1; then \
@@ -718,7 +724,7 @@ parity-test: parity-sandbox ## Run the full parity test suite (#448)
 	    echo "[parity] tikal not built at $$OKAPI_REPO — third-corner comparison will skip"; \
 	fi; \
 	cd cli && env $$TIKAL_ENV KAPI_PARITY_SANDBOX=$(PARITY_DIR) KAPI_PARITY_REPORT=$(PARITY_REPORT) \
-	    $(GOTEST) -tags parity -count=1 -timeout 60m ./parity/...
+	    $(GO) test -tags "fts5,parity" -count=1 -timeout 60m ./parity/...
 	@echo "Parity report: $(PARITY_REPORT)"
 
 # Parity output stays inside the sandbox. It used to be published to
