@@ -19,10 +19,21 @@ import (
 )
 
 // Language-to-image mapping.
+//
+// The shell entry is the official bash image rather than alpine: alpine ships
+// busybox ash and no bash at all, so [languageCmd]'s "bash" could never have
+// executed there. Pointing it at a shell that is not bash would be worse than
+// the missing binary — a script using arrays or [[ ]] would misbehave quietly
+// instead of failing loudly.
+//
+// These tags are mutable. Pinning them to digests would make a sandbox run
+// reproducible and remove the registry's ability to change what executes here
+// between two pulls; it needs a published digest per image and a way to update
+// them, so it is deliberately not attempted in this change.
 var languageImages = map[string]string{
 	"python": "ghcr.io/neokapi/bravo-sandbox-python:latest",
 	"node":   "ghcr.io/neokapi/bravo-sandbox-node:latest",
-	"bash":   "alpine:latest",
+	"bash":   "bash:latest",
 }
 
 // languageCmd returns the command to execute a script in the given language.
@@ -184,9 +195,15 @@ func (d *DockerSandbox) createContainer(ctx context.Context, image string, cmd [
 	}
 
 	body := containerCreateRequest{
-		Image:      image,
-		Cmd:        cmd,
-		Env:        envList,
+		Image: image,
+		Cmd:   cmd,
+		Env:   envList,
+		// Run as nobody. The neokapi sandbox images already declare a
+		// non-root USER, but stating it here means the isolation holds for
+		// whatever image is actually pulled rather than resting on the image
+		// having been built correctly — including the stock third-party shell
+		// image, which defaults to root.
+		User:       "65534:65534",
 		WorkingDir: "/workspace",
 		HostConfig: hostConfig{
 			Memory:         d.cfg.memoryBytes(),
@@ -194,7 +211,19 @@ func (d *DockerSandbox) createContainer(ctx context.Context, image string, cmd [
 			ReadonlyRootfs: true,
 			NetworkMode:    "none",
 			AutoRemove:     true,
-			Tmpfs:          map[string]string{"/workspace": "rw,noexec,size=32m"},
+			// mode=1777 so the unprivileged user above can write to the only
+			// writable path it has: the root filesystem is read-only, so a
+			// workspace it cannot write to leaves it nowhere to work.
+			Tmpfs: map[string]string{"/workspace": "rw,noexec,mode=1777,size=32m"},
+			// Drop every capability. Sandboxed code has no reason to hold any,
+			// and the default set includes CHOWN, SETUID and MKNOD.
+			CapDrop: []string{"ALL"},
+			// Deny privilege escalation outright, so a setuid binary reachable
+			// inside the image cannot be used to regain what CapDrop removed.
+			SecurityOpt: []string{"no-new-privileges:true"},
+			// Bound process creation. Memory and CPU limits alone do not stop a
+			// fork bomb from exhausting the host's PID space.
+			PidsLimit: 128,
 		},
 		NetworkDisabled: true,
 	}
@@ -380,6 +409,7 @@ type containerCreateRequest struct {
 	Image           string     `json:"Image"`
 	Cmd             []string   `json:"Cmd"`
 	Env             []string   `json:"Env,omitempty"`
+	User            string     `json:"User,omitempty"`
 	WorkingDir      string     `json:"WorkingDir"`
 	NetworkDisabled bool       `json:"NetworkDisabled"`
 	HostConfig      hostConfig `json:"HostConfig"`
@@ -392,4 +422,7 @@ type hostConfig struct {
 	NetworkMode    string            `json:"NetworkMode"`
 	AutoRemove     bool              `json:"AutoRemove"`
 	Tmpfs          map[string]string `json:"Tmpfs,omitempty"`
+	CapDrop        []string          `json:"CapDrop,omitempty"`
+	SecurityOpt    []string          `json:"SecurityOpt,omitempty"`
+	PidsLimit      int64             `json:"PidsLimit,omitempty"`
 }
