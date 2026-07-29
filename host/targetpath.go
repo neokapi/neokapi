@@ -94,9 +94,13 @@ func checkMaterializeTargetsWritable(proj *project.KapiProject, root string, fil
 	for _, f := range files {
 		for _, locale := range locales {
 			entry := &project.ExtractionFile{Source: f.Relative}
+			target, err := resolveMergeOutputPath(entry, proj, root, locale)
+			if err != nil {
+				return err
+			}
 			units = append(units, VerifyUnit{
 				SourcePath: f.Path,
-				TargetPath: resolveMergeOutputPath(entry, proj, root, locale),
+				TargetPath: target,
 				Locale:     string(locale),
 			})
 		}

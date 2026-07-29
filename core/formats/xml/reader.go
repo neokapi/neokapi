@@ -302,8 +302,11 @@ func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartR
 // xlink:href="...">` references and returns the combined RuleSet of
 // every rule successfully read. Each href is resolved relative to the
 // document's URI directory; references with absolute paths or URIs
-// (http://…, file:///…) are skipped because the parity contract scopes
-// linked ITS rules to sibling files in the project tree. Recursive
+// (http://…, file:///…) are skipped, and a relative href that would
+// climb out of that directory is skipped too, because the parity
+// contract scopes linked ITS rules to sibling files in the project
+// tree — a document says which rules it uses, not where on the disk to
+// go looking. Recursive
 // xlink:href chains are followed; cycles are short-circuited via a
 // visited map. Read failures and parse errors are silently skipped —
 // missing rule files leave the round-trip behaving as if no external
@@ -324,12 +327,25 @@ func (r *Reader) loadExternalITSRules(refs []its.ExternalRef) *its.RuleSet {
 			// which we don't reproduce here.
 			return
 		}
-		path := filepath.Join(baseDir, href)
-		if visited[path] {
+		// Key the cycle guard on the cleaned relative name rather than the raw
+		// href, so "a.xml" and "./a.xml" are recognised as the same document —
+		// the joined absolute path used to provide that normalisation.
+		key := filepath.Clean(filepath.FromSlash(href))
+		if visited[key] {
 			return
 		}
-		visited[path] = true
-		data, err := os.ReadFile(path)
+		visited[key] = true
+		// The doc comment above states the invariant — linked rules are sibling
+		// files in the project tree — and os.ReadFile of a joined path did not
+		// enforce it: "../../.." cleaned to a real path outside the document's
+		// directory. OpenInRoot confines the open to baseDir at the OS level, so
+		// a symlink inside the tree cannot lead out of it either.
+		f, err := safeio.OpenInRoot(baseDir, href)
+		if err != nil {
+			return
+		}
+		data, err := io.ReadAll(safeio.DefaultBudget().Reader(f))
+		_ = f.Close()
 		if err != nil {
 			return
 		}

@@ -163,19 +163,43 @@ func TestKpzMultiLocaleAccumulates(t *testing.T) {
 
 // TestKpzRecipeRemembersOutput verifies the recipe (locales + out layout)
 // travels with the .kpz, so `merge` needs no flags.
+//
+// The layout is relative because a workspace is a hand-off: it records where
+// output goes relative to wherever it is merged, not a path on the machine that
+// packed it. So the merge runs from the project directory, the way its owner
+// would; `merge -o <dir>` is how you send the output somewhere else.
 func TestKpzRecipeRemembersOutput(t *testing.T) {
 	dir := t.TempDir()
 	src := writeWS(t, dir, "app.json", `{"greeting":"Hello world"}`)
 	work := filepath.Join(dir, "work.kpz")
 	kapi(t, "extract", src, "-o", work, "--target-lang", "fr,qps",
-		"--out", filepath.Join(dir, "l10n", "{lang}", "{name}.{ext}"))
+		"--out", "l10n/{lang}/{name}.{ext}")
 
 	kapi(t, "pseudo-translate", work, "--target-lang", "fr")
 	kapi(t, "pseudo-translate", work, "--target-lang", "qps")
 
-	kapi(t, "merge", work) // no -o: uses the recipe's locales + out layout
+	kapiIn(t, dir, "merge", work) // no -o: uses the recipe's locales + out layout
 	assert.FileExists(t, filepath.Join(dir, "l10n", "fr", "app.json"))
 	assert.FileExists(t, filepath.Join(dir, "l10n", "qps", "app.json"))
+}
+
+// TestKpzRefusesAnAbsoluteRecordedLayout: the out layout travels inside the
+// package, so it has to mean the same thing wherever the package is merged. An
+// absolute destination baked in at extract time is refused there and then,
+// rather than writing to the packer's paths on the recipient's disk.
+func TestKpzRefusesAnAbsoluteRecordedLayout(t *testing.T) {
+	dir := t.TempDir()
+	src := writeWS(t, dir, "app.json", `{"greeting":"Hello world"}`)
+
+	out, err := kapiAllowFail(t, "extract", src, "-o", filepath.Join(dir, "work.kpz"),
+		"--target-lang", "fr", "--out", filepath.Join(dir, "l10n", "{lang}", "{name}.{ext}"))
+	require.Error(t, err, "a recorded layout naming an absolute destination must be refused")
+	assert.Contains(t, out, "merge -o", "the error must name the supported alternative")
+
+	out, err = kapiAllowFail(t, "extract", src, "-o", filepath.Join(dir, "work2.kpz"),
+		"--target-lang", "fr", "--out", "../../escape/{lang}/{name}.{ext}")
+	require.Error(t, err, "a recorded layout climbing out of the merge directory must be refused")
+	assert.Contains(t, out, "must be relative to the merge directory")
 }
 
 // TestKpzCacheDirtyAndPack verifies the git-bundle model: a transform touches

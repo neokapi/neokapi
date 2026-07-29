@@ -68,6 +68,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		translator:          a.translator,
 		AISetupIOOverride:   a.AISetupIOOverride,
 		AISetupPrompter:     a.AISetupPrompter,
+		isTTY:               a.isTTY,
 		convergeProgressTap: tap,
 
 		// Pre-seed the parent's runtime (building it on the parent if needed —
@@ -117,10 +118,14 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"Credentials":       fieldShared,
 	"AISetupIOOverride": fieldShared,
 	"AISetupPrompter":   fieldShared, // presentation, and a worker never prompts
-	"RegistryResolver":  fieldShared,
-	"FallbackRunE":      fieldShared,
-	"ExtraFlows":        fieldShared,
-	"ProjectContext":    fieldShared,
+	// Terminal detection for App's own prompts. A worker never prompts (the
+	// parent owns the terminal), so this is inert in a worker — carried rather
+	// than reset so the clone stays a faithful copy, like MCPSurface below.
+	"isTTY":            fieldShared,
+	"RegistryResolver": fieldShared,
+	"FallbackRunE":     fieldShared,
+	"ExtraFlows":       fieldShared,
+	"ProjectContext":   fieldShared,
 	// The MCP tool surface is set from `kapi mcp` flags and read only while that
 	// server is running. A converge worker never serves MCP, so sharing the
 	// parent's value is correct and inert — it is carried rather than reset so

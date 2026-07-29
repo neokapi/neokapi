@@ -92,6 +92,23 @@ func kapi(t *testing.T, args ...string) string {
 	return string(out)
 }
 
+// kapiIn runs a kapi command from a given working directory. Use it when the
+// behaviour under test is relative to where the user is standing — a workspace
+// records its merge layout relative to wherever it is merged, so exercising
+// that needs a cwd rather than an absolute path baked into the package.
+//
+// The isolation env is the same as kapi(); running from a fresh temp dir is if
+// anything stricter, since the upward project walk finds nothing there.
+func kapiIn(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command(kapiBin, args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), isoEnv...)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "kapi %s (in %s) failed:\n%s", strings.Join(args, " "), dir, string(out))
+	return string(out)
+}
+
 // kapiAllowFail runs kapi and returns combined output + error WITHOUT failing
 // the test. Use for QA gates (qa, term-check) that exit non-zero when
 // they find issues — a non-zero exit is a result to assert on, not a harness

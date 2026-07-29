@@ -3,8 +3,11 @@ package kpz
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/safeio"
 	"gopkg.in/yaml.v3"
 )
 
@@ -96,30 +99,195 @@ func unmarshalRecipe(raw json.RawMessage) (*project.KapiProject, error) {
 	return &p, nil
 }
 
-// SanitizeRecipe returns a copy of the recipe with side-effecting top-level
-// Extras keys stripped (`server`, `hooks`, `automations`), so they travel inert
-// in a .kpz and re-activate only when the package is adopted into a project
-// with explicit re-auth / re-arming (AD-025 §6). Secrets never live in a recipe
-// (they are in the OS keychain), so there is nothing else to scrub. A nil
-// recipe returns nil.
-func SanitizeRecipe(p *project.KapiProject) *project.KapiProject {
+// execClassTools are the built-in tool IDs that run code the recipe names
+// rather than transforming content: `external-command` spawns a subprocess from
+// its own config, and `script` evaluates recipe-supplied JavaScript (and reads
+// an arbitrary file via scriptFile). A recipe that rides in a .kpz has crossed a
+// trust boundary, so neither may survive into a project that adopts it.
+var execClassTools = map[string]bool{
+	"external-command": true,
+	"script":           true,
+}
+
+// execClassFormats are format names that spawn a subprocess to read content.
+// `exec` runs its configured command line, so a package may not name it.
+var execClassFormats = map[string]bool{"exec": true}
+
+// SanitizeRecipe returns a copy of the recipe with everything side-effecting
+// removed, plus the list of removals in human-readable form (empty when the
+// recipe was already inert). A nil recipe returns (nil, nil).
+//
+// A .kpz carries the full project recipe so a package is a runnable project in
+// a file (AD-025 §6) — which is exactly why the recipe cannot be trusted on the
+// way back in. The format's original contract asked the PACKER to sanitize
+// before packing; a hostile packer simply won't, so the guarantee has to hold
+// on ingest. Sanitizing on both sides costs nothing and means the answer no
+// longer depends on who wrote the archive.
+//
+// What is removed:
+//
+//   - Side-effecting top-level Extras (`server`, `hooks`, `automations`), so
+//     they re-activate only with explicit re-auth / re-arming.
+//   - Exec-class flow steps ([execClassTools]) anywhere in a flow — including
+//     nested `parallel` branches and `source_transforms` — and the per-tool
+//     config that would arm them (`defaults.tools`, `defaults.locales.*.tools`).
+//   - Exec-class format bindings ([execClassFormats]) on any content item.
+//   - A kpz `out:` layout that is not a local path, since a package describes
+//     where its output goes relative to wherever it is merged, never an
+//     absolute or climbing destination. An explicit `merge -o` is the supported
+//     way to send output somewhere else.
+//
+// Secrets never live in a recipe (they are in the OS keychain), so there is
+// nothing else to scrub. Note that `requires:` survives: a package legitimately
+// declares the plugins its flows need, and installing one is separately gated
+// by the prompt in LoadProjectInteractive.
+func SanitizeRecipe(p *project.KapiProject) (*project.KapiProject, []string) {
 	if p == nil {
-		return nil
+		return nil, nil
 	}
+	var removed []string
+	note := func(format string, args ...any) {
+		removed = append(removed, fmt.Sprintf(format, args...))
+	}
+
+	// A shallow struct copy aliases every map and slice, so mutating the clone
+	// would corrupt the caller's recipe. Each field below is rebuilt, never
+	// edited in place.
 	clone := *p
+
 	if len(p.Extras) > 0 {
 		extras := make(map[string]yaml.Node, len(p.Extras))
 		for k, v := range p.Extras {
 			switch k {
 			case "server", "hooks", "automations":
-				// side-effecting — drop so it travels inert
+				note("the %s block", k)
 			default:
 				extras[k] = v
 			}
 		}
 		clone.Extras = extras
 	}
-	return &clone
+
+	if len(p.Flows) > 0 {
+		flows := make(map[string]*flow.StepsSpec, len(p.Flows))
+		for name, spec := range p.Flows {
+			if spec == nil {
+				flows[name] = nil
+				continue
+			}
+			s := *spec
+			s.Steps = sanitizeSteps(spec.Steps, name, note)
+			s.SourceTransforms = sanitizeSteps(spec.SourceTransforms, name, note)
+			flows[name] = &s
+		}
+		clone.Flows = flows
+	}
+
+	clone.Defaults.Tools = sanitizeToolConfig(p.Defaults.Tools, "defaults.tools", note)
+	if len(p.Defaults.Locales) > 0 {
+		locales := make(map[string]project.LocaleDefaults, len(p.Defaults.Locales))
+		for loc, ld := range p.Defaults.Locales {
+			ld.Tools = sanitizeToolConfig(ld.Tools, "defaults.locales."+loc+".tools", note)
+			locales[loc] = ld
+		}
+		clone.Defaults.Locales = locales
+	}
+
+	if len(p.Content) > 0 {
+		content := make([]project.ContentCollection, len(p.Content))
+		for i, coll := range p.Content {
+			content[i] = sanitizeContent(coll, note)
+		}
+		clone.Content = content
+	}
+
+	if meta := RecipeWorkspaceMeta(&clone); meta.Out != "" && !IsLocalOutTemplate(meta.Out) {
+		note("the out layout %q (it names a destination outside the merge directory)", meta.Out)
+		meta.Out = ""
+		_ = SetRecipeWorkspaceMeta(&clone, meta)
+	}
+
+	return &clone, removed
+}
+
+// sanitizeSteps drops exec-class steps from a flow, recursing into `parallel`
+// branches so a nested step cannot survive by hiding one level down.
+func sanitizeSteps(steps []flow.FlowStep, flowName string, note func(string, ...any)) []flow.FlowStep {
+	if len(steps) == 0 {
+		return nil
+	}
+	out := make([]flow.FlowStep, 0, len(steps))
+	for _, step := range steps {
+		if execClassTools[step.Tool] {
+			note("the %q step in flow %q", step.Tool, flowName)
+			continue
+		}
+		step.Parallel = sanitizeSteps(step.Parallel, flowName, note)
+		out = append(out, step)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// sanitizeToolConfig drops per-tool config presets for exec-class tools. The
+// config alone runs nothing, but it is the argv a re-added step would use, so
+// it travels no further than the step does.
+func sanitizeToolConfig(in map[string]map[string]any, where string, note func(string, ...any)) map[string]map[string]any {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]map[string]any, len(in))
+	for id, cfg := range in {
+		if execClassTools[id] {
+			note("the %q config in %s", id, where)
+			continue
+		}
+		out[id] = cfg
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// sanitizeContent drops exec-class format bindings from a content collection
+// and its items, leaving the paths so the content is still described — kapi
+// detects the format instead.
+func sanitizeContent(coll project.ContentCollection, note func(string, ...any)) project.ContentCollection {
+	if coll.Format != nil && execClassFormats[coll.Format.Name] {
+		note("the %q format on content %q", coll.Format.Name, coll.Path)
+		coll.Format = nil
+	}
+	if len(coll.Items) > 0 {
+		items := make([]project.ContentItem, len(coll.Items))
+		for i, item := range coll.Items {
+			if item.Format != nil && execClassFormats[item.Format.Name] {
+				note("the %q format on content %q", item.Format.Name, item.Path)
+				item.Format = nil
+			}
+			items[i] = item
+		}
+		coll.Items = items
+	}
+	return coll
+}
+
+// outTemplateProbe replaces the kpz output-layout placeholders with a neutral
+// segment, so a template can be validated as a path without being expanded.
+// The placeholders stand in for single segments ({lang} is a locale, {name} and
+// {ext} come from a base name), so substituting one keeps the shape intact.
+var outTemplateProbe = strings.NewReplacer("{name}", "x", "{lang}", "x", "{ext}", "x", "{dir}", "x")
+
+// IsLocalOutTemplate reports whether a kpz `out:` layout names a destination
+// inside the directory the package is merged in. An empty template (the default
+// per-locale layout) is local by definition.
+func IsLocalOutTemplate(out string) bool {
+	if out == "" {
+		return true
+	}
+	return safeio.IsLocalPath(outTemplateProbe.Replace(out))
 }
 
 // RecipeWorkspaceMeta reads the kpz workspace metadata from a recipe's Extras,
