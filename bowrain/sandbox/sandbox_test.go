@@ -265,6 +265,116 @@ func TestDockerSandboxExecutePythonContainerConfig(t *testing.T) {
 	assert.Contains(t, c.env, "MY_VAR=hello")
 }
 
+// The constraints a sandbox is worth are the ones it actually sends to the
+// daemon, so assert on the create request rather than trusting the defaults.
+func TestDockerSandboxContainerIsConfined(t *testing.T) {
+	for _, language := range []string{"python", "node", "bash"} {
+		t.Run(language, func(t *testing.T) {
+			var got containerCreateRequest
+
+			mux := http.NewServeMux()
+			mux.HandleFunc("/v1.43/containers/create", func(w http.ResponseWriter, r *http.Request) {
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+				w.WriteHeader(http.StatusCreated)
+				_ = json.NewEncoder(w).Encode(map[string]string{"Id": "confined"})
+			})
+			mux.HandleFunc("/v1.43/containers/", func(w http.ResponseWriter, r *http.Request) {
+				path := strings.TrimPrefix(r.URL.Path, "/v1.43/containers/")
+				_, action, _ := strings.Cut(path, "/")
+				switch {
+				case action == "start":
+					w.WriteHeader(http.StatusNoContent)
+				case action == "wait":
+					_ = json.NewEncoder(w).Encode(map[string]int{"StatusCode": 0})
+				case action == "logs":
+					w.WriteHeader(http.StatusOK)
+					writeDockerLogFrame(w, 1, "ok\n")
+				case action == "" && r.Method == http.MethodDelete:
+					w.WriteHeader(http.StatusNoContent)
+				default:
+					http.Error(w, "not found", http.StatusNotFound)
+				}
+			})
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+
+			sb := newTestSandbox(srv)
+			_, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{Language: language, Code: "x"})
+			require.NoError(t, err)
+
+			assert.Equal(t, "65534:65534", got.User, "sandboxed code must not run as the image's default user")
+			assert.Equal(t, []string{"ALL"}, got.HostConfig.CapDrop, "every capability must be dropped")
+			assert.Equal(t, []string{"no-new-privileges:true"}, got.HostConfig.SecurityOpt,
+				"privilege escalation must be denied")
+			assert.Positive(t, got.HostConfig.PidsLimit, "process count must be bounded against a fork bomb")
+
+			// The confinement that was already in place, kept honest.
+			assert.True(t, got.NetworkDisabled)
+			assert.True(t, got.HostConfig.ReadonlyRootfs)
+			assert.Equal(t, "none", got.HostConfig.NetworkMode)
+			assert.Contains(t, got.HostConfig.Tmpfs["/workspace"], "noexec")
+			assert.Positive(t, got.HostConfig.Memory)
+		})
+	}
+}
+
+// The workspace tmpfs is the only writable path under a read-only rootfs, so an
+// unprivileged user that cannot write to it has nowhere to work at all.
+func TestDockerSandboxWorkspaceIsWritableByTheSandboxUser(t *testing.T) {
+	var got containerCreateRequest
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1.43/containers/create", func(w http.ResponseWriter, r *http.Request) {
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&got))
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]string{"Id": "writable"})
+	})
+	mux.HandleFunc("/v1.43/containers/", func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/v1.43/containers/")
+		_, action, _ := strings.Cut(path, "/")
+		switch {
+		case action == "start":
+			w.WriteHeader(http.StatusNoContent)
+		case action == "wait":
+			_ = json.NewEncoder(w).Encode(map[string]int{"StatusCode": 0})
+		case action == "logs":
+			w.WriteHeader(http.StatusOK)
+			writeDockerLogFrame(w, 1, "ok\n")
+		case action == "" && r.Method == http.MethodDelete:
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.Error(w, "not found", http.StatusNotFound)
+		}
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	sb := newTestSandbox(srv)
+	_, err := sb.Execute(t.Context(), mcpserver.SandboxRequest{Language: "python", Code: "x"})
+	require.NoError(t, err)
+
+	assert.Contains(t, got.HostConfig.Tmpfs["/workspace"], "mode=1777")
+}
+
+// Every language must name an image that can actually run the command chosen
+// for it. alpine ships busybox ash and no bash, so the pairing this replaces
+// could not execute.
+func TestLanguageImagesCanRunTheirCommand(t *testing.T) {
+	for language, image := range languageImages {
+		cmd := languageCmd(language, "x")
+		require.NotEmpty(t, cmd, "language %q has an image but no command", language)
+
+		if cmd[0] == "bash" {
+			assert.NotContains(t, image, "alpine",
+				"language %q runs %q, which alpine does not ship", language, cmd[0])
+		}
+	}
+
+	for language := range languageImages {
+		assert.NotEmpty(t, languageCmd(language, "x"), "language %q maps to no command", language)
+	}
+}
+
 func TestDockerSandboxExecuteBash(t *testing.T) {
 	srv, _ := newMockDockerServer(t,
 		withStdout("hello world\n"),
