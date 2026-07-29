@@ -159,7 +159,28 @@ func (p *ClaudeCodeProvider) invoke(ctx context.Context, messages []Message, sch
 		"--setting-sources", "",
 	}
 	if systemPrompt != "" {
-		args = append(args, "--append-system-prompt", systemPrompt)
+		// The system prompt is document-derived — translation instructions,
+		// brand voice, terms, and surrounding content. On argv it is readable
+		// by every process on the machine for the lifetime of the call, which
+		// is why the user prompt already goes over stdin. Hand it over as a
+		// file instead.
+		//
+		// --append-system-prompt-file is the faithful counterpart of the inline
+		// flag, not an inline system turn: the CLI rejects the two together
+		// ("Cannot use both --append-system-prompt and
+		// --append-system-prompt-file"), so it treats them as one input in two
+		// encodings. It is absent from `claude --help`'s option list — only
+		// named under --bare — so if a future CLI drops it, this call fails
+		// loudly with "unknown option" and the fix is to inline the prompt
+		// again here.
+		promptFile, cleanup, ferr := writeSystemPromptFile(systemPrompt)
+		if ferr != nil {
+			return nil, ferr
+		}
+		// Held until invoke returns, which is after both runWithRetry attempts
+		// — they share this args slice.
+		defer cleanup()
+		args = append(args, "--append-system-prompt-file", promptFile)
 	}
 	if schema != nil {
 		schemaJSON, err := json.Marshal(schema.Schema)
@@ -195,6 +216,34 @@ func (p *ClaudeCodeProvider) invoke(ctx context.Context, messages []Message, sch
 			CacheReadTokens:     env.Usage.CacheReadInputTokens,
 		},
 	}, nil
+}
+
+// writeSystemPromptFile stores the system prompt where only this user can read
+// it, and returns the path plus a cleanup the caller must defer.
+//
+// os.CreateTemp opens at 0600, so the prompt is unreadable to other local
+// accounts even though the containing temp directory is world-traversable.
+func writeSystemPromptFile(systemPrompt string) (string, func(), error) {
+	f, err := os.CreateTemp("", "kapi-claude-system-*.txt")
+	if err != nil {
+		return "", nil, fmt.Errorf("claude-code: create system prompt file: %w", err)
+	}
+	name := f.Name()
+	cleanup := func() {
+		_ = f.Close()
+		_ = os.Remove(name)
+	}
+	if _, err := f.WriteString(systemPrompt); err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("claude-code: write system prompt file: %w", err)
+	}
+	// Closed before the CLI reads it; cleanup's second Close is a harmless
+	// no-op error we discard.
+	if err := f.Close(); err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("claude-code: write system prompt file: %w", err)
+	}
+	return name, cleanup, nil
 }
 
 // runWithRetry executes the CLI once, retrying a single time on transient
