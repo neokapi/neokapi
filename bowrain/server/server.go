@@ -1119,12 +1119,24 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// in it because together they are what turns a guessed user code into a
 		// session. OIDC redirect callbacks are intentionally excluded — they
 		// carry provider state and must not be dropped.
-		authLimit := RateLimitByIP(rl.AuthPerMin, rl.AuthBurst)
+		authThrottle := newIPThrottle(rl.AuthPerMin, rl.AuthBurst)
+		authLimit := authThrottle.middleware(nil)
+
+		// The device poll is a loop, not a one-shot: the CLI calls it every few
+		// seconds until the browser leg finishes. A throttled poll therefore has
+		// to say "wait longer" in the device flow's own vocabulary (RFC 8628
+		// slow_down); the generic throttle error reads as fatal to the client,
+		// which would abandon a sign-in that was going fine. Same bucket, so the
+		// throttle still holds — only the way it answers changes.
+		pollLimit := authThrottle.middleware(func(c echo.Context) error {
+			c.Response().Header().Set("Retry-After", "5")
+			return apiErr(c, http.StatusTooManyRequests, "slow_down")
+		})
 
 		// Public auth routes (no token required)
 		authGroup := v1.Group("/auth")
 		authGroup.POST("/device/start", s.HandleDeviceAuthStart, authLimit)
-		authGroup.POST("/device/poll", s.HandleDeviceAuthPoll, authLimit)
+		authGroup.POST("/device/poll", s.HandleDeviceAuthPoll, pollLimit)
 		authGroup.POST("/refresh", s.HandleTokenRefresh, authLimit)
 		authGroup.GET("/login", s.HandleAuthLogin, authLimit)
 		authGroup.GET("/callback", s.HandleAuthCallback)

@@ -82,19 +82,41 @@ func RateLimitSyncPush(perMinute int, burst int) echo.MiddlewareFunc {
 // same middleware to each) so they draw from one per-IP bucket; passing a fresh
 // value per route gives each route an independent bucket.
 func RateLimitByIP(perMinute, burst int) echo.MiddlewareFunc {
-	limiter := newProjectRateLimiter(rate.Limit(float64(perMinute)/60.0), burst)
+	return newIPThrottle(perMinute, burst).middleware(nil)
+}
 
+// ipThrottle is a per-client-IP token bucket that several routes share. It
+// exists so routes can draw on ONE bucket while still answering a throttled
+// request in their own terms: a protocol that defines its own back-off signal
+// must be able to send it, because a client that reads a generic error as fatal
+// will abandon work the throttle only meant to slow down.
+type ipThrottle struct {
+	*projectRateLimiter
+}
+
+func newIPThrottle(perMinute, burst int) *ipThrottle {
+	return &ipThrottle{newProjectRateLimiter(rate.Limit(float64(perMinute)/60.0), burst)}
+}
+
+// middleware returns Echo middleware drawing on this throttle. deny renders the
+// throttled response; nil gives the generic 429 with a Retry-After hint.
+func (t *ipThrottle) middleware(deny echo.HandlerFunc) echo.MiddlewareFunc {
+	if deny == nil {
+		deny = func(c echo.Context) error {
+			c.Response().Header().Set("Retry-After", "60")
+			return c.JSON(http.StatusTooManyRequests, ErrorResponse{
+				Error: "rate limit exceeded: too many requests from this client, retry later",
+			})
+		}
+	}
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			ip := c.RealIP()
 			if ip == "" {
 				return next(c) // cannot key — do not block
 			}
-			if !limiter.getLimiter(ip).Allow() {
-				c.Response().Header().Set("Retry-After", "60")
-				return c.JSON(http.StatusTooManyRequests, ErrorResponse{
-					Error: "rate limit exceeded: too many requests from this client, retry later",
-				})
+			if !t.getLimiter(ip).Allow() {
+				return deny(c)
 			}
 			return next(c)
 		}
