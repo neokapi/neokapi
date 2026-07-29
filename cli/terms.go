@@ -25,14 +25,14 @@ locale — as a SQLite database. Use these commands to import, export, look up,
 and manage terms.
 
 Resource location (mutually exclusive):
-  --name <n>      Named terms store in KAPI_HOME (~/.config/kapi/termbases/<n>.db)
+  --name <n>      Named terms store in the kapi config dir (terms/<n>.db)
   --local         Terms store in current directory (./terms.db)
   --file <path>   Explicit file path
 
 Default (no flag): same as --local (uses ./terms.db).`,
 		Example: `  kapi terms stats
   kapi terms lookup "dashboard" -s en -t fr
-  kapi terms import glossary.csv -s en -t fr`,
+  kapi terms import terms.csv -s en -t fr`,
 	}
 
 	importCmd := newTermsImportCmd(a)
@@ -55,7 +55,7 @@ func newTermsImportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "import [file]",
 		Short:   "Import terms from CSV, JSON, TBX, or a native .terms.json bundle",
-		Example: "  kapi terms import glossary.csv -s en -t fr --header\n  kapi terms import vocab.csv -s en --monolingual --header\n  kapi terms import terms.tbx --format tbx\n  kapi terms import seeds/terms.json",
+		Example: "  kapi terms import terms.csv -s en -t fr --header\n  kapi terms import vocab.csv -s en --monolingual --header\n  kapi terms import terms.tbx --format tbx\n  kapi terms import seeds/terms.json",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			format, _ := cmd.Flags().GetString("format")

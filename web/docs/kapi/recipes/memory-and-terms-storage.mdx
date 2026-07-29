@@ -54,8 +54,8 @@ kapi terms stats --local
 
 Pass `--name <n>` to use a database under your config home that persists between
 sessions and is reusable across directories — a content memory at
-`~/.config/kapi/tm/<n>.db` and a terms store at
-`~/.config/kapi/termbases/<n>.db`. This is the model to reach for when a set of
+`~/.config/kapi/memory/<n>.db` and a terms store at
+`~/.config/kapi/terms/<n>.db`. This is the model to reach for when a set of
 terms or a memory outlives any single working directory.
 
 ```bash
@@ -128,7 +128,7 @@ kapi exec term-check messages_fr.json --source-lang en --target-lang fr \
 | Model | Selected by | Lives at | Use when |
 | --- | --- | --- | --- |
 | Loose file | default, `--local`, `--file <path>` | `./memory.db` / `./terms.db`, or the path you give | a one-off or throwaway store |
-| Named store | `--name <n>` | `~/.config/kapi/tm/<n>.db` / `~/.config/kapi/termbases/<n>.db` | a set of terms or a memory reused across directories |
+| Named store | `--name <n>` | `~/.config/kapi/memory/<n>.db` / `~/.config/kapi/terms/<n>.db` | a set of terms or a memory reused across directories |
 | Project store | no flag, inside a `.kapi` project | `<root>/.kapi/memory.db` / project terms store | a repository you translate repeatedly |
 
 :::note[Works with Bowrain]

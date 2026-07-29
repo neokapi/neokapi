@@ -48,11 +48,11 @@ Each pass re-derives coverage from the working tree, runs the flow only for
 the locales still short of their gate, and stops when everything ships, a pass
 makes no progress (the remainder parks — it needs a human), or the pass cap is
 reached. After each pass the project's bound checks run over what was
-produced: a unit with failing findings (dropped placeholders, glossary
+produced: a unit with failing findings (dropped placeholders, terminology
 violations) counts as drafted, not translated, so it cannot lift its locale
 over the gate until fixed. --no-checks opts out.
 
-When the loop ends, the materialize policy decides whether localized files
+When the loop ends, the materialize policy decides whether target-language files
 are written from the project store: 'defaults.materialize: on-converge' (or
 the --materialize flag) writes them for every locale whose gated scopes are
 all shippable; the default ('manual') leaves that to 'kapi merge'.
@@ -82,7 +82,7 @@ gates (e.g. before a release tag).
 		Example: `  kapi up                # loop the default flow until every gated scope ships or parks
   kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale
   kapi up --passes 1     # a single pass over every locale that needs work
-  kapi up --materialize  # also write localized files for the shippable locales
+  kapi up --materialize  # also write target-language files for the shippable locales
   kapi up --local        # connected project: run the loop on this machine, then push the results
   kapi up -p kapi.yaml   # bring an explicit project recipe up to date`,
 		RunE: func(cmd *cobra.Command, _ []string) error {

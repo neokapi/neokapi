@@ -51,7 +51,7 @@ plus one bilingual file per source → target pair in --out-dir (default "out/")
 	}
 	AddProjectFlag(cmd)
 	cmd.Flags().StringP("output", "o", "", "write an ad-hoc .kpz workspace from the given source files")
-	cmd.Flags().String("out", "", "merge-time output layout recorded in the .kpz (e.g. 'l10n/{lang}/{name}.{ext}')")
+	cmd.Flags().String("out", "", "merge-time output layout recorded in the .kpz (e.g. 'translated/{lang}/{name}.{ext}')")
 	cmd.Flags().String("target-lang", "", "comma-separated target locales (default: all in recipe)")
 	cmd.Flags().String("only", "", "restrict to a single content collection by name")
 	cmd.Flags().String("pattern", "", "extra glob pattern restricting which source files to include")

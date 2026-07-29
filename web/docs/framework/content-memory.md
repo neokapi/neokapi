@@ -67,7 +67,7 @@ All `kapi memory` commands (except `list`) accept these mutually exclusive flags
 
 | Flag            | Resolves to                   | Example                    |
 | --------------- | ----------------------------- | -------------------------- |
-| `--name <n>`    | `~/.config/kapi/tm/<n>.db`    | `--name project-memory`    |
+| `--name <n>`    | `~/.config/kapi/memory/<n>.db`    | `--name project-memory`    |
 | `--local`       | `./memory.db` (current directory) | `--local`                  |
 | `--file <path>` | Explicit file path            | `--file /shared/memory.db` |
 | _(no flag)_     | Same as `--local`             |                            |

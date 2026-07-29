@@ -22,7 +22,7 @@ func NewApplyCmd(a *App) *cobra.Command {
 		Short:   "Apply a typed change-set (content + asset edits) — the one write verb",
 		GroupID: "work",
 		Long: `Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is
-one reviewed change — a content edit, an asset edit (glossary term, content-memory pair,
+one reviewed change — a content edit, an asset edit (term, content-memory pair,
 brand rule, recipe field), or a review decision (kind:"review"). Content edits
 land through the same byte-faithful round-trip the engine's writers use (structure and
 inline codes preserved), drift-guarded by content_hash; asset edits are written

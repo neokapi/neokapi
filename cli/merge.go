@@ -14,14 +14,14 @@ func NewMergeCmd(a *App, _ MergeCmdOptions) *cobra.Command {
 		Use:     "merge",
 		Short:   "Apply a returned bilingual file (.kpz/XLIFF/PO) back onto the project source",
 		GroupID: "advanced",
-		Long: `Materialize localized files for a project, or apply bilingual files
+		Long: `Materialize target-language files for a project, or apply bilingual files
 returned by a translator back onto the project's source locales.
 
-With no -i in a project, merge writes the localized files from the
+With no -i in a project, merge writes the target-language files from the
 project block store: a process-only "kapi run" (in a project, no -o)
 commits its work as targets/<locale> overlays, and merge is the matching
 sink — it reads each source, applies the stored overlays, and writes the
-localized file via the source format's skeleton round-trip.
+target-language file via the source format's skeleton round-trip.
 
 With -i, merge applies one or more bilingual files returned by a
 translator back onto the project's source locales, using the skeleton
@@ -29,15 +29,15 @@ captured by kapi extract. Each input carries the extraction
 batch id in a file-level <note>, so merge finds the right extraction
 manifest without guessing from the filename. Mixed target locales in one
 batch are fine — merge handles each input independently.`,
-		Example: `  kapi merge                     # materialize localized files from the project store
+		Example: `  kapi merge                     # materialize target-language files from the project store
   kapi merge -i out/app.en-to-fr.xliff
   kapi merge -i file1.xliff -i file2.xliff
   kapi merge -i vendor-return/ --no-tm-update
-  kapi merge work.kpz -o l10n/   # emit localized files from a .kpz workspace`,
+  kapi merge work.kpz -o out/    # emit target-language files from a .kpz workspace`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// A single .kpz positional arg is either a bilingual interchange
 			// file (kind=kapi-interchange — ingest the translator's targets) or
-			// an ad-hoc workspace (emit its localized files).
+			// an ad-hoc workspace (emit its target-language files).
 			if len(args) == 1 && IsKpzPath(args[0]) {
 				out, _ := cmd.Flags().GetString("output")
 				if pkg, err := LoadWorkspace(args[0]); err == nil && pkg.Kind == kpz.KindInterchange {
@@ -45,7 +45,7 @@ batch are fine — merge handles each input independently.`,
 				}
 				return a.MergeFromKpz(cmd.Context(), args[0], out)
 			}
-			// In a project with no -i input, materialize the localized files
+			// In a project with no -i input, materialize the target-language files
 			// from the project block store: a process-only `kapi run` lands its
 			// work as `targets/<locale>` overlays, and this is the matching sink
 			// (AD-026 §3). Explicit -i keeps the XLIFF/PO/dir merge path below.
