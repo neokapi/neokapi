@@ -107,7 +107,7 @@ func TestExportTMXReportsWriteFailure(t *testing.T) {
 			err := memory.ExportTMX(context.Background(), bigStore(t, 200), w, nil)
 
 			require.Error(t, err, "a truncated export must not report success")
-			assert.ErrorIs(t, err, sentinel, "the underlying write error must be wrapped, not replaced")
+			require.ErrorIs(t, err, sentinel, "the underlying write error must be wrapped, not replaced")
 			assert.Less(t, w.written, total, "the failing writer must have received fewer bytes than a full export")
 		})
 	}
@@ -151,7 +151,7 @@ func TestExportTMXReportsWriteFailureCodeOnlyEntries(t *testing.T) {
 	err := memory.ExportTMX(context.Background(), codeStore(), w, nil)
 
 	require.Error(t, err, "a truncated code-only export must not report success")
-	assert.ErrorIs(t, err, sentinel)
+	require.ErrorIs(t, err, sentinel)
 }
 
 // TestExportTMXReportsFlushFailure pins the narrow case the deferred
@@ -178,7 +178,7 @@ func TestExportTMXReportsFlushFailure(t *testing.T) {
 	err := memory.ExportTMX(context.Background(), tm, w, nil)
 
 	require.Error(t, err, "a flush that wrote nothing must not report success")
-	assert.ErrorIs(t, err, sentinel)
+	require.ErrorIs(t, err, sentinel)
 	assert.Zero(t, w.written, "nothing reached the writer, so the file would be empty")
 }
 
