@@ -28,12 +28,20 @@ type ProviderConfig struct {
 	ProviderType string `json:"provider_type"` // "anthropic", "openai", "ollama", "azureopenai", "gemini"
 	Model        string `json:"model,omitempty"`
 	BaseURL      string `json:"base_url,omitempty"`
-	// WorkspaceID scopes a config to a tenant on a shared (multi-tenant) store
-	// such as the bowrain server, which keeps every workspace's provider configs
-	// in one store. Single-tenant consumers (kapi CLI, desktop) leave it empty.
-	// Name de-duplication in Upsert is scoped by this field, and server handlers
-	// filter List/Get/Remove by it, so one tenant cannot see, overwrite, or
-	// delete another tenant's provider config.
+	// WorkspaceID scopes a config to a tenant on a shared (multi-tenant) store.
+	// Single-tenant consumers (kapi CLI, desktop) leave it empty.
+	//
+	// The store scopes by this field exactly where one tenant's call would
+	// otherwise mutate another tenant's row: name de-duplication in Upsert, and
+	// the flag-clearing in SetDefault. The lookups — List, Get, GetByName,
+	// FindByType — and Remove are deliberately unscoped, because they take no
+	// action on rows they do not name; a caller sharing one store across tenants
+	// is responsible for filtering their results and for checking ownership
+	// before it passes an ID to Remove.
+	//
+	// bowrain's server does not share this store across tenants: its
+	// multi-tenant provider configs live in bowrain/store.ProviderConfigStore,
+	// which is workspace-scoped in every query and seals keys at rest.
 	WorkspaceID string `json:"workspace_id,omitempty"`
 	// Default marks this as the credential to use when its provider has more than
 	// one saved — at most one per provider type (enforced by SetDefault). With a
@@ -172,6 +180,13 @@ func (s *Store) Upsert(cfg ProviderConfig) (ProviderConfig, error) {
 // clearing the flag on every other credential of the same type so at most one
 // default exists per provider. Persists the change; a non-nil error means it
 // was NOT persisted.
+//
+// The clearing is scoped to the credential's workspace. Unlike a lookup, this
+// writes to rows the caller did not name, so a caller-side filter cannot make
+// it safe: on a shared store an unscoped clear would silently un-default
+// another tenant's credential, and auto-detect would then fail as ambiguous for
+// a tenant that had made a choice. Empty WorkspaceID is single-tenant, where
+// every config is in the same (empty) scope and the behavior is unchanged.
 func (s *Store) SetDefault(configID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -187,12 +202,13 @@ func (s *Store) SetDefault(configID string) error {
 		return fmt.Errorf("provider config %q not found", configID)
 	}
 	providerType := s.configs[idx].ProviderType
+	workspaceID := s.configs[idx].WorkspaceID
 
 	prev := s.configs
 	updated := make([]ProviderConfig, len(s.configs))
 	copy(updated, s.configs)
 	for i := range updated {
-		if strings.EqualFold(updated[i].ProviderType, providerType) {
+		if updated[i].WorkspaceID == workspaceID && strings.EqualFold(updated[i].ProviderType, providerType) {
 			updated[i].Default = updated[i].ID == configID
 		}
 	}
