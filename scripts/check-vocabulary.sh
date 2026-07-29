@@ -71,6 +71,9 @@ readonly SWEPT_SURFACES=(
   # their own catalogs, so nothing else looked here (P-7).
   bowrain/emails/src
   bowrain/mailer/subjects
+  # The landing is the surface a stranger meets first, and the last place the
+  # retired framing survived (P-1).
+  bowrain/web/landing/src
 )
 
 # Surfaces deliberately NOT scanned yet, each with the worklist item that will
@@ -78,7 +81,6 @@ readonly SWEPT_SURFACES=(
 # visible, not silently absent, or a green check reads as "all prose is clean"
 # when it means "the prose we swept is clean".
 readonly PENDING_SURFACES=(
-  "bowrain/web/landing/src   P-1  landing rebuild (founder-gated: section order + whether 'coordinates' survives a buyer)"
   "bowrain/packages/app      P-3  nav re-root, Brand hub → Context hub (founder-gated: UX + string-orphaning hazard)"
 )
 

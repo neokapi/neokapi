@@ -59,15 +59,15 @@ export function Hero() {
         </div>
 
         <h1 className="animate-fade-in-up-delay-1 font-display text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl md:text-6xl">
-          On-brand, in every language,
-          <span className="prism-text block">everywhere you publish.</span>
+          Human communication
+          <span className="prism-text block">is contextual.</span>
         </h1>
 
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-xl text-lg text-muted-foreground md:text-xl">
-          Bowrain is the shared brand memory for your team and your agents. Voice, vocabulary,
-          approved text, and corrections live in one place that every project, person, and agent
-          draws from — and improves with every review. Connected to the systems your content already
-          lives in.
+          Bowrain is the context graph for your content — the one your people and your AI agents
+          plug into. A legal notice is not a help article, so the rules that fix voice and tone move
+          with the audience, the surface and the moment. Recorded once, applied everywhere,
+          connected to the systems your content already lives in.
         </p>
 
         <div className="animate-fade-in-up-delay-3 mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
