@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -1577,7 +1578,7 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 
 	// Core properties and table column names are plain text (no XML wrapping needed).
 	if block.Type == "property" || block.Type == "table-column" {
-		return xmlEscapeAttr(model.FlattenRuns(runs))
+		return xmlesc.Attr(model.FlattenRuns(runs))
 	}
 
 	// An OMML <m:nor/> prose span (equation text — "where", "otherwise", units):
@@ -1587,7 +1588,7 @@ func (w *Writer) renderBlock(block *model.Block, dt docType) string {
 	// untranslated span reproduces the original bytes and a translated one splices
 	// the translation into the OMML in place.
 	if block.Type == ommlNorBlockType {
-		return xmlEscape(model.FlattenRuns(runs))
+		return xmlesc.Text(model.FlattenRuns(runs))
 	}
 
 	// Chart and diagram parts inside a DOCX are DrawingML, not WML —
@@ -2381,7 +2382,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		// truly plain paragraphs (e.g. "Heading 1" inside a paragraph
 		// whose style already supplies all formatting).
 		if !runsHaveInlineCodes(runs) && sourceRPr == "" && effectiveRPr(0) == "" {
-			return `<w:r><w:t xml:space="preserve">` + xmlEscape(model.FlattenRuns(runs)) + `</w:t></w:r>`
+			return `<w:r><w:t xml:space="preserve">` + xmlesc.Text(model.FlattenRuns(runs)) + `</w:t></w:r>`
 		}
 
 		// Fast path: no inline codes but we DO have rPr → single
@@ -2392,7 +2393,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		// TextRun (after font-mapping + subtractProps + mergeRuns).
 		if !runsHaveInlineCodes(runs) {
 			return `<w:r><w:rPr>` + effectiveRPr(0) + `</w:rPr><w:t xml:space="preserve">` +
-				xmlEscape(model.FlattenRuns(runs)) + `</w:t></w:r>`
+				xmlesc.Text(model.FlattenRuns(runs)) + `</w:t></w:r>`
 		}
 	}
 
@@ -4628,7 +4629,7 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 		}
 		switch kind {
 		case "PROP":
-			return xmlEscapeAttr(model.FlattenRuns(runs))
+			return xmlesc.Attr(model.FlattenRuns(runs))
 		case "PARA":
 			fieldStraddle := block.Properties != nil && block.Properties["openxml:field-straddle"] == "true"
 			return w.renderWMLBlock(runs, blockSourceRPrXML(block), blockPerRunRPrFragments(block), blockPerRunSrcRunStartFlags(block), blockPerRunInFieldDisplayFlags(block), blockPerRunSourceHadRPrFlags(block), fieldStraddle)
@@ -4642,7 +4643,7 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 			// from PROP only in the escape rules — text contexts
 			// don't need the quote escape that attribute contexts
 			// require.
-			return xmlEscape(model.FlattenRuns(runs))
+			return xmlesc.Text(model.FlattenRuns(runs))
 		default:
 			return ""
 		}
@@ -4652,7 +4653,7 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 // renderDMLBlock renders a run sequence as DrawingML runs.
 func (w *Writer) renderDMLBlock(runs []model.Run) string {
 	if !runsHaveInlineCodes(runs) {
-		return `<a:r><a:t>` + xmlEscape(model.FlattenRuns(runs)) + `</a:t></a:r>`
+		return `<a:r><a:t>` + xmlesc.Text(model.FlattenRuns(runs)) + `</a:t></a:r>`
 	}
 
 	var buf strings.Builder
@@ -4758,13 +4759,13 @@ func (w *Writer) renderSMLBlock(runs []model.Run, block *model.Block) string {
 	// Cell content — wrap in <v> element as inline string type. Flatten
 	// to plain text: inline codes in cell values are rare and the legacy
 	// path stripped markers via Fragment.Text().
-	return `<v>` + xmlEscape(model.FlattenRuns(runs)) + `</v>`
+	return `<v>` + xmlesc.Text(model.FlattenRuns(runs)) + `</v>`
 }
 
 // renderSMLSharedString renders a run sequence as shared string <si> content.
 func (w *Writer) renderSMLSharedString(runs []model.Run) string {
 	if !runsHaveInlineCodes(runs) {
-		return `<t>` + xmlEscape(model.FlattenRuns(runs)) + `</t>`
+		return `<t>` + xmlesc.Text(model.FlattenRuns(runs)) + `</t>`
 	}
 
 	// Rich text shared string — emit <r> elements

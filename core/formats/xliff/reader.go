@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 	"golang.org/x/text/encoding/ianaindex"
@@ -987,7 +988,7 @@ func readInnerXML(decoder *xml.Decoder) (string, int) {
 				}
 				buf.WriteString(a.Name.Local)
 				buf.WriteString(`="`)
-				buf.WriteString(xmlEscapeAttr(a.Value))
+				buf.WriteString(xmlesc.Attr(a.Value))
 				buf.WriteString(`"`)
 			}
 			buf.WriteString(">")
@@ -1017,6 +1018,11 @@ func readInnerXML(decoder *xml.Decoder) (string, int) {
 // CDATA-end sequence). Most writers (including okapi's XLIFFWriter)
 // emit literal `>` in text. We follow that convention for byte-stable
 // round-trips and match the spec's minimum requirement.
+//
+// DELIBERATELY not xmlesc.Text, which escapes every `>`. This narrower
+// reading is what keeps xliff output byte-identical to okapi's XLIFFWriter,
+// and the parity suite asserts those bytes — pointing this at the shared
+// helper would move the goldens.
 func xmlEscapeText(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "<", "&lt;")
@@ -1024,15 +1030,6 @@ func xmlEscapeText(s string) string {
 	if strings.Contains(s, "]]>") {
 		s = strings.ReplaceAll(s, "]]>", "]]&gt;")
 	}
-	return s
-}
-
-// xmlEscapeAttr escapes XML special characters in attribute values.
-func xmlEscapeAttr(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, `"`, "&quot;")
 	return s
 }
 
@@ -1073,7 +1070,7 @@ func parseSegSource(decoder *xml.Decoder) []segment {
 						buf.WriteString(" ")
 						buf.WriteString(a.Name.Local)
 						buf.WriteString(`="`)
-						buf.WriteString(xmlEscapeAttr(a.Value))
+						buf.WriteString(xmlesc.Attr(a.Value))
 						buf.WriteString(`"`)
 					}
 					buf.WriteString(">")
@@ -1090,7 +1087,7 @@ func parseSegSource(decoder *xml.Decoder) []segment {
 					}
 					buf.WriteString(a.Name.Local)
 					buf.WriteString(`="`)
-					buf.WriteString(xmlEscapeAttr(a.Value))
+					buf.WriteString(xmlesc.Attr(a.Value))
 					buf.WriteString(`"`)
 				}
 				buf.WriteString(">")
@@ -1102,7 +1099,7 @@ func parseSegSource(decoder *xml.Decoder) []segment {
 					buf.WriteString(" ")
 					buf.WriteString(a.Name.Local)
 					buf.WriteString(`="`)
-					buf.WriteString(xmlEscapeAttr(a.Value))
+					buf.WriteString(xmlesc.Attr(a.Value))
 					buf.WriteString(`"`)
 				}
 				buf.WriteString(">")
@@ -1945,7 +1942,7 @@ func parseMrkSegmentsFromString(targetXML string) []segment {
 					buf.WriteString(" ")
 					buf.WriteString(a.Name.Local)
 					buf.WriteString(`="`)
-					buf.WriteString(xmlEscapeAttr(a.Value))
+					buf.WriteString(xmlesc.Attr(a.Value))
 					buf.WriteString(`"`)
 				}
 				buf.WriteString(">")

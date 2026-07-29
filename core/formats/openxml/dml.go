@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -131,7 +132,7 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			p.skelWriteEndElement(t)
 
 		case xml.CharData:
-			p.skelText(xmlEscape(string(t)))
+			p.skelText(xmlesc.Text(string(t)))
 
 		case xml.ProcInst:
 			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
@@ -450,7 +451,7 @@ func (p *dmlParser) skelWriteDrawingPropElement(t xml.StartElement, partPath str
 			(a.Name.Local == "descr" || a.Name.Local == "title") {
 			p.skelRef(p.emitDrawingProp(a, partPath, emitBlock))
 		} else {
-			p.skelWriteString(xmlEscapeAttr(a.Value))
+			p.skelWriteString(xmlesc.Attr(a.Value))
 		}
 		p.skelWriteString(`"`)
 	}
@@ -553,7 +554,7 @@ func (p *dmlParser) skelWriteStartElement(t xml.StartElement) {
 		buf.WriteString(" ")
 		writeAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(xmlEscapeAttr(a.Value))
+		buf.WriteString(xmlesc.Attr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")

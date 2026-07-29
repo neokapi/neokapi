@@ -282,6 +282,13 @@ func writePcCloseAsTMX(w *tmxWriter, c *model.PcCloseRun) {
 
 // xmlEscape is a minimal character-data escaper compatible with TMX
 // (we handle &, <, >, and forbidden control characters).
+//
+// DELIBERATELY not core/internal/xmlesc.Text — and not only because memory/
+// sits outside core/ and cannot import it. html.EscapeString emits NUMERIC
+// entities (&#39;, &#34;) for `'` and `"`, and the ContainsAny guard means
+// those two escape only when an &, < or > is present somewhere in the string.
+// That is odd, but it is what every TMX this exporter has ever written
+// contains, so changing it is a data question rather than a cleanup.
 func xmlEscape(s string) string {
 	if !strings.ContainsAny(s, "&<>") {
 		return s
@@ -290,6 +297,9 @@ func xmlEscape(s string) string {
 }
 
 // xmlAttr escapes characters illegal inside an XML attribute value.
+//
+// Output-identical to core/internal/xmlesc.Attr, but memory/ is not under
+// core/ so the internal package is out of reach. Keep the two in step by hand.
 func xmlAttr(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "\"", "&quot;")
