@@ -110,7 +110,7 @@ func run() error {
 	flag.StringVar(&cfg.OIDCClientSecret, "oidc-client-secret", cfg.OIDCClientSecret, "OIDC OAuth client secret")
 	flag.StringVar(&cfg.WebUIDir, "web-ui-dir", cfg.WebUIDir, "Path to built web UI static files")
 	allowInsecureDev := flag.Bool("allow-insecure-dev", false,
-		"Allow starting without BOWRAIN_JWT_SECRET / BOWRAIN_DATABASE_URL (local development only; also BOWRAIN_ALLOW_INSECURE_DEV=1)")
+		"Allow starting without BOWRAIN_JWT_SECRET / BOWRAIN_DATABASE_URL, and approve device authorizations without an identity provider (local development only; also BOWRAIN_ALLOW_INSECURE_DEV=1)")
 	flag.Parse()
 
 	// Allow environment variable overrides.
@@ -346,6 +346,11 @@ func run() error {
 			slog.Warn("INSECURE DEV MODE: starting despite missing configuration", "issue", m.Error())
 		}
 	}
+	// Direct device approval belongs to the same escape hatch: it authorizes a
+	// device for whatever identity the request names, so it rides on the one
+	// explicit "this is a development box" signal rather than on any inference
+	// from how OIDC happens to be configured.
+	cfg.AllowInsecureDeviceAuth = insecureDev
 
 	srv := server.NewServer(cfg)
 

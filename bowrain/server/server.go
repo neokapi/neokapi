@@ -1113,16 +1113,18 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			RateLimitByIP(rl.AnonPerMin, rl.AnonBurst))
 
 		// Shared per-IP throttle for the unauthenticated / pre-auth token
-		// endpoints (login, refresh, device-code start). One bucket across them
-		// so a client cannot fan a brute-force / token-mint flood across
-		// endpoints. OIDC redirect callbacks are intentionally excluded — they
+		// endpoints (login, refresh, and every leg of the device flow — start,
+		// verify, poll). One bucket across them so a client cannot fan a
+		// brute-force / token-mint flood across endpoints; verify and poll are
+		// in it because together they are what turns a guessed user code into a
+		// session. OIDC redirect callbacks are intentionally excluded — they
 		// carry provider state and must not be dropped.
 		authLimit := RateLimitByIP(rl.AuthPerMin, rl.AuthBurst)
 
 		// Public auth routes (no token required)
 		authGroup := v1.Group("/auth")
 		authGroup.POST("/device/start", s.HandleDeviceAuthStart, authLimit)
-		authGroup.POST("/device/poll", s.HandleDeviceAuthPoll)
+		authGroup.POST("/device/poll", s.HandleDeviceAuthPoll, authLimit)
 		authGroup.POST("/refresh", s.HandleTokenRefresh, authLimit)
 		authGroup.GET("/login", s.HandleAuthLogin, authLimit)
 		authGroup.GET("/callback", s.HandleAuthCallback)
@@ -1131,11 +1133,17 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authGroup.GET("/desktop/callback", s.HandleDesktopCallback)
 
 		// Device verification page (user opens in browser)
-		authGroup.GET("/device/verify", s.HandleAuthCallback)
+		authGroup.GET("/device/verify", s.HandleAuthCallback, authLimit)
 		authGroup.POST("/device/verify", func(c echo.Context) error {
 			return s.handleDeviceVerification(c, c.FormValue("user_code"))
-		})
+		}, authLimit)
 		authGroup.GET("/device/callback", s.HandleDeviceAuthCallback)
+
+		if s.Config.AllowInsecureDeviceAuth {
+			slog.Warn("device authorization mounted with INSECURE direct approval: " +
+				"/device/verify approves a pending device for the identity the request names, " +
+				"with no identity-provider check. Do NOT use in production.")
+		}
 
 		// Back-channel logout (called server-to-server by Keycloak, unauthenticated)
 		authGroup.POST("/backchannel-logout", s.HandleBackChannelLogout)

@@ -201,6 +201,24 @@ type Config struct {
 	// accepting regular-user tokens (privilege escalation).
 	AllowInsecureAdminAuth bool
 
+	// AllowInsecureDeviceAuth opts the device authorization flow (RFC 8628)
+	// into direct approval: /device/verify marks the pending device code
+	// authorized straight from the browser request instead of routing the
+	// person at the keyboard through the identity provider.
+	//
+	// SECURITY: with this enabled, an unauthenticated request authorizes a
+	// pending device for whatever identity it names, and the subsequent poll
+	// mints a platform token for the EXISTING account with that email. There is
+	// no proof of identity anywhere in the path. It exists so local development
+	// and the e2e/harness stacks can complete the device flow without driving a
+	// browser login. It is deliberately NOT the default, and there is no silent
+	// fallback: with it off, verification always goes through OIDC, and a
+	// server with no OIDC provider configured refuses to verify rather than
+	// approving the device itself — that absent-provider state is also the
+	// state a misconfigured production deploy lands in, so failing open there
+	// would hand out sessions for the asking.
+	AllowInsecureDeviceAuth bool
+
 	// Audit (Phase 2). AuditRetentionDays prunes audit_log rows older than the
 	// given number of days (0 = keep forever). AuditSIEMWebhookURL forwards
 	// every event as NDJSON to an external SIEM/log sink (empty = disabled).

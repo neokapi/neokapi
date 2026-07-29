@@ -130,6 +130,44 @@ func TestRateLimitByIPSharedBucket(t *testing.T) {
 	assert.Equal(t, http.StatusOK, call("/a", "198.51.100.6"))
 }
 
+// TestDeviceFlowRateLimit proves every leg of the device flow draws on the
+// shared pre-auth per-IP bucket. Start alone was throttled once; verify and
+// poll are the two calls that turn a user code into a session, so leaving
+// either unmetered leaves the flow open to being hammered.
+func TestDeviceFlowRateLimit(t *testing.T) {
+	// Tight, deterministic limit for the test (read in SetupRoutes).
+	t.Setenv("BOWRAIN_RL_AUTH_PER_MIN", "1")
+	t.Setenv("BOWRAIN_RL_AUTH_BURST", "2")
+
+	s, _ := newTestServer(t)
+	e := s.GetEcho()
+
+	call := func(method, path, body, ip string) int {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.RemoteAddr = ip + ":40000"
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	// Each case uses its own client IP so the per-IP buckets do not interfere.
+	for _, tc := range []struct {
+		name, method, path, body, ip string
+	}{
+		{"POST verify", http.MethodPost, "/api/v1/auth/device/verify", "user_code=0000-0000-0000-0000", "203.0.113.21"},
+		{"GET verify", http.MethodGet, "/api/v1/auth/device/verify?user_code=0000-0000-0000-0000", "", "203.0.113.22"},
+		{"POST poll", http.MethodPost, "/api/v1/auth/device/poll", "device_code=nope", "203.0.113.23"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NotEqual(t, http.StatusTooManyRequests, call(tc.method, tc.path, tc.body, tc.ip))
+			assert.NotEqual(t, http.StatusTooManyRequests, call(tc.method, tc.path, tc.body, tc.ip))
+			assert.Equal(t, http.StatusTooManyRequests, call(tc.method, tc.path, tc.body, tc.ip),
+				"the request past the burst must be throttled")
+		})
+	}
+}
+
 // TestHourlyIPLimiter proves the imperative hourly per-IP limiter admits up to
 // the burst and then denies, per IP, and treats an empty IP as allowed.
 func TestHourlyIPLimiter(t *testing.T) {
