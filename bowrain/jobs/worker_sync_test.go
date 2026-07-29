@@ -4,15 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"os"
 	"testing"
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
-	"github.com/neokapi/neokapi/bowrain/storage"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/stretchr/testify/assert"
@@ -23,16 +22,7 @@ import (
 // newTestWorkerDeps creates WorkerDeps with PostgreSQL stores and local blob storage.
 func newTestWorkerDeps(t *testing.T) *WorkerDeps {
 	t.Helper()
-	dbURL := os.Getenv("BOWRAIN_TEST_DATABASE_URL")
-	if dbURL == "" {
-		t.Skip("BOWRAIN_TEST_DATABASE_URL not set")
-	}
-	db, err := storage.OpenPostgres(dbURL)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_, _ = db.ExecContext(t.Context(), "DELETE FROM translation_jobs")
-		closePgDB(db) // closes the pgxpool too, keeping the goleak check green
-	})
+	db := pgtest.NewTestDB(t)
 	js, err := NewJobStore(db)
 	require.NoError(t, err)
 	cs, err := bstore.NewPostgresStoreFromDB(db)
