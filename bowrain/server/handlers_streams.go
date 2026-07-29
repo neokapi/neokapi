@@ -211,7 +211,13 @@ func (s *Server) HandleMergeStream(c echo.Context) error {
 	var req struct {
 		DryRun bool `json:"dry_run"`
 	}
-	_ = c.Bind(&req)
+	// A body that will not parse must not be read as "dry_run: false". Echo
+	// binds an empty body without error, so omitting the body still means a
+	// real merge — but a caller who sent something and got it wrong asked for
+	// something, and the something they most often ask for here is the preview.
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
 
 	result, err := s.ContentStore.MergeStream(c.Request().Context(), projectID, streamName, store.MergeOptions{
 		DryRun: req.DryRun,

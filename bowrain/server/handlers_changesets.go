@@ -399,7 +399,13 @@ func (s *Server) HandleApproveChangeSet(c echo.Context) error {
 	}
 
 	var req ReviewRequest
-	_ = c.Bind(&req)
+	// The comment is optional, and Echo binds an empty body without error — so
+	// checking this cannot break a caller who sent nothing. What it stops is a
+	// body that was sent and did not parse silently becoming an empty comment
+	// on a governed approval, which is a record of a review nobody wrote.
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
 	review := &knowledge.ChangeSetReview{
 		WorkspaceID: wsID,
 		ChangesetID: cs.ID,
@@ -445,7 +451,13 @@ func (s *Server) HandleRejectChangeSet(c echo.Context) error {
 	}
 
 	var req ReviewRequest
-	_ = c.Bind(&req)
+	// The comment is optional, and Echo binds an empty body without error — so
+	// checking this cannot break a caller who sent nothing. What it stops is a
+	// body that was sent and did not parse silently becoming an empty comment
+	// on a governed approval, which is a record of a review nobody wrote.
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
 	review := &knowledge.ChangeSetReview{
 		WorkspaceID: wsID,
 		ChangesetID: cs.ID,

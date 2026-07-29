@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -256,8 +257,15 @@ func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSour
 
 	// A mark-dnt proposal additionally records the (new) source string as
 	// do-not-translate so the re-draft leaves it untranslated.
+	//
+	// This is the one write a mark-dnt proposal exists for. Losing it makes the
+	// operation do the opposite of what was asked — the source changes and the
+	// string is re-translated anyway — so it is logged rather than dropped.
 	if p.Kind == bstore.SourceProposalMarkDNT && s.ReviewQueueStore != nil {
-		_ = s.ReviewQueueStore.AddDNTEntry(ctx, p.ProjectID, p.ProposedSource, "", p.FoundInLocale, "source-proposal")
+		if err := s.ReviewQueueStore.AddDNTEntry(ctx, p.ProjectID, p.ProposedSource, "", p.FoundInLocale, "source-proposal"); err != nil {
+			slog.ErrorContext(ctx, "source-proposal: failed to record do-not-translate entry; the new source will be re-translated",
+				"project", p.ProjectID, "proposal", p.ID, "error", err)
+		}
 	}
 
 	// Nudge: start a convergence run so the cleared targets are re-drafted straight
@@ -335,7 +343,10 @@ func (s *Server) completeSourceProposalTasks(ctx context.Context, p *bstore.Prop
 		if t.Data["proposal_id"] != p.ID {
 			continue
 		}
-		_ = s.TaskStore.Complete(ctx, t.ID, completedBy)
+		if err := s.TaskStore.Complete(ctx, t.ID, completedBy); err != nil {
+			slog.ErrorContext(ctx, "source-proposal: failed to close the review task; it stays open",
+				"task", t.ID, "proposal", p.ID, "error", err)
+		}
 	}
 }
 
