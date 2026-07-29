@@ -127,6 +127,8 @@ import type {
   BrandScanUploadResult,
   BrandScanJob,
   BrandScanCheckResult,
+  GitHubSetupState,
+  ClaimInstallationResult,
   InstallationRepo,
   BindInstallationRepoRequest,
   BindInstallationRepoResult,
@@ -1151,6 +1153,21 @@ export class RestApiAdapter implements ApiAdapter {
       method: "POST",
       body: JSON.stringify({ type, config }),
     });
+  }
+
+  async githubSetupState(workspaceSlug: string): Promise<GitHubSetupState> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/github/setup-state`);
+  }
+
+  async claimInstallation(
+    workspaceSlug: string,
+    installationId: string,
+    state: string,
+  ): Promise<ClaimInstallationResult> {
+    return this.fetchJSON(
+      `/api/v1/${workspaceSlug}/github/installations/${encodeURIComponent(installationId)}/claim`,
+      { method: "POST", body: JSON.stringify({ state }) },
+    );
   }
 
   async listInstallationRepos(

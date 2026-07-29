@@ -698,4 +698,26 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE blocks ADD COLUMN overlays TEXT NOT NULL DEFAULT '[]';
 		`,
 	},
+	{
+		Version:     12,
+		Description: "GitHub App installation ownership (an installation belongs to one workspace)",
+		SQL: `
+			-- Mirrors forge_installations in bowrain/store/migrations.go
+			-- (Version 13): which workspace a GitHub App installation belongs to,
+			-- the sole authority the post-install setup endpoints consult before
+			-- acting on an installation id. workspace_id is empty until the signed
+			-- setup state claims the row; the app-level webhook only records and
+			-- removes. INTEGER PRIMARY KEY holds the same 64-bit id as the
+			-- Postgres BIGINT.
+			CREATE TABLE IF NOT EXISTS forge_installations (
+				installation_id INTEGER PRIMARY KEY,
+				workspace_id    TEXT NOT NULL DEFAULT '',
+				account         TEXT NOT NULL DEFAULT '',
+				created_at      TEXT NOT NULL DEFAULT '',
+				updated_at      TEXT NOT NULL DEFAULT ''
+			);
+			CREATE INDEX IF NOT EXISTS idx_forge_installations_ws
+				ON forge_installations(workspace_id);
+		`,
+	},
 }

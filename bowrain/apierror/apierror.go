@@ -103,6 +103,8 @@ var messages = map[string]string{
 	"installation id must be numeric":                 "The GitHub installation id in the URL must be numeric.",
 	"the installation does not cover that repository": "The GitHub App installation does not include that repository. Grant the app access to it on GitHub and try again.",
 	"repository and project_id are required":          "A repository and a project are required.",
+	"installation not found":                          "That GitHub installation is not connected to this workspace. Install the app from this workspace to connect it.",
+	"the GitHub setup link is no longer valid":        "This GitHub setup link has expired. Start the install again from this workspace.",
 
 	// Server components not configured.
 	"auth not configured":          "Authentication is not configured on this server.",

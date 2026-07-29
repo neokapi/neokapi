@@ -97,6 +97,15 @@ The server verifies the secret before acting, and only a verified push to the
   keeps working alongside app mode; GitLab always uses a project access
   token.
 
+  One app serves every workspace, so the server records which workspace each
+  installation belongs to and serves the setup endpoints only to that
+  workspace. The record is made when the install is started from Bowrain —
+  the install link carries signed state that GitHub returns on the redirect —
+  and it is dropped as soon as GitHub reports the app uninstalled. An
+  installation started elsewhere (GitHub's own app page, the Marketplace)
+  arrives unattributed; open **Connect GitHub** from the workspace to attach
+  it, which is the same round trip with the state included.
+
 ## Self-hosting: register the app
 
 On Bowrain Cloud the app is already registered. A self-hosted server needs
@@ -104,7 +113,13 @@ its own GitHub App, registered once (GitHub → Settings → Developer settings 
 GitHub Apps → New):
 
 - **Webhook URL** `$SERVER/api/webhooks/github-app`, with a webhook secret,
-  subscribed to the **push** event.
+  subscribed to **push**, **installation** and **installation repositories**.
+  The last two are what keep the installation records current — without
+  `installation` an uninstall goes unnoticed and the workspace keeps a claim
+  on an installation the app no longer has.
+- **Setup URL** `$SERVER/github/setup`, with *Redirect on update* enabled, so
+  GitHub returns the installation (and the signed state that attributes it)
+  after an install or a repository-access change.
 - **Repository permissions**: Contents read and write, Pull requests read and
   write, Metadata read.
 

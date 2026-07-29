@@ -58,6 +58,25 @@ function setReturnPathCookie(path: string) {
   document.cookie = `bowrain_return_path=${encodeURIComponent(path)}; path=/; max-age=600; SameSite=Lax`;
 }
 
+/**
+ * Where GitHub installs the app. Bowrain appends a signed `state` naming the
+ * workspace that started the install; GitHub echoes it on the setup redirect,
+ * which is what lets the returning visit claim the installation. An install
+ * begun anywhere else (GitHub's own app page, the Marketplace) arrives without
+ * state, and is reconnected by following this link from the workspace.
+ */
+const GITHUB_INSTALL_URL = "https://github.com/apps/bowrain-cloud/installations/new";
+
+/** An installation this workspace does not own reads as a plain not-found. */
+function isNotConnected(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    (error as { status?: unknown }).status === 404
+  );
+}
+
 /** Same handle rules the server enforces (see WelcomePage). */
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 
@@ -326,11 +345,16 @@ function WorkspaceSection({
 }
 
 export function GithubSetupRoute() {
-  const { installation_id: rawInstallationId, setup_action: setupAction } = useSearch({
+  const {
+    installation_id: rawInstallationId,
+    setup_action: setupAction,
+    state: setupState,
+  } = useSearch({
     strict: false,
   }) as {
     installation_id?: string | number;
     setup_action?: "install" | "update";
+    state?: string;
   };
   const installationId = coerceInstallationId(rawInstallationId);
   const api = useApi();
@@ -369,11 +393,42 @@ export function GithubSetupRoute() {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const setupPath = `/github/setup?installation_id=${installationId ?? ""}`;
+  // The state has to survive the sign-in round trip too: a logged-out visitor
+  // comes back through OIDC, and without it the claim below has nothing to
+  // redeem.
+  const setupPath =
+    `/github/setup?installation_id=${installationId ?? ""}` +
+    (setupState ? `&state=${encodeURIComponent(setupState)}` : "");
 
   const workspaces = useQuery({ ...workspacesQueryOptions(api), enabled: !!user });
   const [workspaceSlug, setWorkspaceSlug] = useState<string>("");
   const activeSlug = workspaceSlug || workspaces.data?.[0]?.slug || "";
+
+  // Fresh state for an install started from here. It goes on the GitHub link
+  // below so the installation comes back attributable to this workspace.
+  const mintedState = useQuery({
+    queryKey: ["github-setup-state", activeSlug],
+    queryFn: () => api.githubSetupState(activeSlug),
+    enabled: !!user && !!activeSlug,
+    staleTime: 5 * 60 * 1000,
+  });
+  const installUrl = mintedState.data?.state
+    ? `${GITHUB_INSTALL_URL}?state=${encodeURIComponent(mintedState.data.state)}`
+    : GITHUB_INSTALL_URL;
+
+  // Redeem the state GitHub echoed back, before anything reads the
+  // installation. Every installation endpoint requires the workspace to own
+  // the installation, and this is the only thing that makes it so; arriving
+  // without state (installed straight from GitHub, say) simply leaves the
+  // claim unmade, and the repo list below reports it.
+  const claim = useQuery({
+    queryKey: ["github-installation-claim", activeSlug, installationId, setupState],
+    queryFn: () => api.claimInstallation(activeSlug, installationId ?? "", setupState ?? ""),
+    enabled: !!user && !!activeSlug && !!installationId && !!setupState,
+    retry: false,
+    staleTime: Infinity,
+  });
+  const claimSettled = !setupState || claim.isSuccess || claim.isError;
 
   // One import at a time: while a repository's connect/import is in flight,
   // the rest of the wizard (workspace cards, other rows) locks so the user
@@ -387,7 +442,9 @@ export function GithubSetupRoute() {
   const repos = useQuery({
     queryKey: ["github-installation-repos", activeSlug, installationId],
     queryFn: () => api.listInstallationRepos(activeSlug, installationId ?? ""),
-    enabled: !!user && !!activeSlug && !!installationId,
+    // Gated on the claim: listing before the installation belongs to this
+    // workspace would just 404, and would cache that 404 as the answer.
+    enabled: !!user && !!activeSlug && !!installationId && claimSettled,
   });
 
   // --- No installation id: opened out of context or the redirect lost it. --
@@ -423,10 +480,7 @@ export function GithubSetupRoute() {
         </ol>
         <p className="mt-4 text-sm text-muted-foreground">
           Not installed yet? Install{" "}
-          <a
-            className="underline underline-offset-2"
-            href="https://github.com/apps/bowrain-cloud/installations/new"
-          >
+          <a className="underline underline-offset-2" href={installUrl}>
             the Bowrain app
           </a>{" "}
           on a repository and GitHub brings you back here automatically.
@@ -504,13 +558,39 @@ export function GithubSetupRoute() {
         disabled={importingRepo !== null}
       />
 
-      {repos.isLoading && <Spinner />}
-      {repos.isError && (
-        <ErrorNotice
-          error={repos.error}
-          title="Could not list the installation's repositories"
-          variant="inline"
-        />
+      {(repos.isLoading || claim.isLoading) && <Spinner />}
+
+      {/* The installation is not this workspace's — either it was installed
+          outside Bowrain, or it belongs somewhere else entirely. Reconnecting
+          from here sends the signed state along, which is what attributes it. */}
+      {repos.isError && isNotConnected(repos.error) ? (
+        <Card className="p-5" data-testid="installation-not-connected">
+          <p className="text-sm text-muted-foreground">
+            This GitHub installation is not connected to{" "}
+            <span className="font-medium text-foreground">{activeSlug}</span>. Connect it from this
+            workspace — GitHub brings you straight back.
+          </p>
+          {/* Only offer the link once the state is minted: following it
+              without one installs the app all over again and lands back
+              here just as unattributed. */}
+          {mintedState.data ? (
+            <Button className="mt-4" asChild>
+              <a href={installUrl}>Connect this installation</a>
+            </Button>
+          ) : (
+            <Button className="mt-4" disabled>
+              Connect this installation
+            </Button>
+          )}
+        </Card>
+      ) : (
+        repos.isError && (
+          <ErrorNotice
+            error={repos.error}
+            title="Could not list the installation's repositories"
+            variant="inline"
+          />
+        )
       )}
 
       <div className="flex flex-col gap-3">

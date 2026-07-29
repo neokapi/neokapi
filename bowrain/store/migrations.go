@@ -884,4 +884,43 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE blocks ADD COLUMN IF NOT EXISTS overlays JSONB NOT NULL DEFAULT '[]'::jsonb;
 		`,
 	},
+	{
+		Version:     13,
+		Description: "GitHub App installation ownership (an installation belongs to one workspace)",
+		SQL: `
+			-- Which workspace a GitHub App installation belongs to. One registered
+			-- app serves every workspace on a shared instance, and an installation
+			-- id is a bare integer that carries no tenancy of its own — so the
+			-- post-install setup endpoints have nothing to answer "may THIS
+			-- workspace act on installation N?" with unless the answer is written
+			-- down. This table is that record, and it is the sole authority: an
+			-- installation with no row here is reachable from no workspace.
+			--
+			-- workspace_id is empty until the installation is CLAIMED. The two
+			-- steps arrive independently and in either order:
+			--   - the app-level 'installation' webhook records the installation as
+			--     soon as GitHub reports it. It is authentic (signed with the app's
+			--     webhook secret) but names no workspace, so it can only ever
+			--     record — never claim;
+			--   - the post-install redirect carries the signed setup state minted
+			--     when the workspace started the install, which names the
+			--     workspace and is what claims the row.
+			-- First claim wins: once workspace_id is set, a claim from any other
+			-- workspace is refused, and an uninstall ('installation' deleted) drops
+			-- the row so a re-install starts unclaimed again.
+			--
+			-- Timestamps are TEXT RFC3339 (UTC) so one ForgeInstallationStore
+			-- (*sql.DB) scans identically on PostgreSQL and SQLite, like
+			-- connector_configs.
+			CREATE TABLE IF NOT EXISTS forge_installations (
+				installation_id BIGINT PRIMARY KEY,
+				workspace_id    TEXT NOT NULL DEFAULT '',
+				account         TEXT NOT NULL DEFAULT '',
+				created_at      TEXT NOT NULL DEFAULT '',
+				updated_at      TEXT NOT NULL DEFAULT ''
+			);
+			CREATE INDEX IF NOT EXISTS idx_forge_installations_ws
+				ON forge_installations(workspace_id);
+		`,
+	},
 }

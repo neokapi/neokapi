@@ -115,6 +115,8 @@ import type {
   BrandScanUploadResult,
   BrandScanJob,
   BrandScanCheckResult,
+  GitHubSetupState,
+  ClaimInstallationResult,
   InstallationRepo,
   BindInstallationRepoRequest,
   BindInstallationRepoResult,
@@ -444,6 +446,25 @@ export interface ApiAdapter {
   // GitHub App post-install setup: the repositories an installation covers
   // (annotated with existing bindings), and binding one to a project — which
   // creates an app-auth forge connector server-side.
+  /**
+   * Mint the signed state that ties an installation back to this workspace.
+   * It goes to GitHub as the install URL's `state`; GitHub echoes it on the
+   * setup redirect, and {@link claimInstallation} redeems it. Without it a
+   * returning request carries only an installation id GitHub chose, which is
+   * evidence of nothing.
+   */
+  githubSetupState(workspaceSlug: string): Promise<GitHubSetupState>;
+  /**
+   * Record that an installation belongs to this workspace, on the strength of
+   * the signed state. Every other installation endpoint requires this to have
+   * happened; an installation another workspace already holds answers 404,
+   * exactly as an unknown one does.
+   */
+  claimInstallation(
+    workspaceSlug: string,
+    installationId: string,
+    state: string,
+  ): Promise<ClaimInstallationResult>;
   listInstallationRepos(workspaceSlug: string, installationId: string): Promise<InstallationRepo[]>;
   /**
    * Inspect one repository of an installation before binding: reads the repo

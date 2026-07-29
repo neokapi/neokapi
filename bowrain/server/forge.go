@@ -175,9 +175,17 @@ func (s *Server) HandleGitHubAppWebhook(c echo.Context) error {
 		return c.NoContent(http.StatusUnauthorized)
 	}
 
-	if c.Request().Header.Get("X-GitHub-Event") != "push" {
-		// installation created/removed, ping, … — acknowledged; connectors
-		// bind repositories explicitly, so there is nothing to mirror here.
+	event := c.Request().Header.Get("X-GitHub-Event")
+	if event == "installation" || event == "installation_repositories" {
+		return s.recordInstallationEvent(c, body, event)
+	}
+	if event != "push" {
+		// ping, and every other type GitHub delivers to the one app hook —
+		// acknowledged; nothing downstream acts on them.
+		slog.InfoContext(c.Request().Context(), "github app webhook: acknowledged without action",
+			"reason", "event type is not acted on",
+			"event", event,
+			"delivery", c.Request().Header.Get("X-GitHub-Delivery"))
 		return c.NoContent(http.StatusAccepted)
 	}
 	ev, ok := forge.ParsePushEvent(forge.KindGitHub, body)
@@ -215,6 +223,66 @@ func (s *Server) HandleGitHubAppWebhook(c echo.Context) error {
 	}
 
 	s.forgeIngest(c.Request().Context(), cfg, ev, "forge-webhook")
+	return c.NoContent(http.StatusAccepted)
+}
+
+// recordInstallationEvent maintains the installation ownership record from the
+// app-level "installation" and "installation_repositories" deliveries.
+//
+// These are the only authentic notice the server gets that an installation of
+// its app exists, changed scope, or is gone — GitHub signs them with the app's
+// webhook secret, which HandleGitHubAppWebhook has already verified. What they
+// do NOT carry is a workspace: the delivery is anonymous, so it can only ever
+// RECORD an installation, never attribute one. Attribution comes from the
+// signed setup state redeemed through HandleClaimInstallation, and a recorded
+// installation is reachable from no workspace until it does.
+//
+// A deleted installation is forgotten immediately. An uninstall on GitHub
+// withdraws the app's access there and then, and the record must not outlive
+// it: leaving the row would keep the setup endpoints willing to act on an
+// installation the workspace no longer holds, and would let a later re-install
+// of the same id inherit the old claim.
+func (s *Server) recordInstallationEvent(c echo.Context, body []byte, event string) error {
+	ctx := c.Request().Context()
+	delivery := c.Request().Header.Get("X-GitHub-Delivery")
+
+	ev, ok := forge.ParseInstallationEvent(body)
+	if !ok {
+		slog.InfoContext(ctx, "github app webhook: acknowledged without action",
+			"reason", "payload carries no installation id",
+			"event", event, "delivery", delivery)
+		return c.NoContent(http.StatusAccepted)
+	}
+	if s.ForgeInstallationStore == nil {
+		// The in-memory/desktop path runs no installation store; there is no
+		// multi-tenant surface to protect there and nothing to record.
+		slog.InfoContext(ctx, "github app webhook: acknowledged without action",
+			"reason", "no installation store configured",
+			"event", event, "installation", ev.InstallationID, "delivery", delivery)
+		return c.NoContent(http.StatusAccepted)
+	}
+
+	// Failures return 500 rather than a silent 202: GitHub retries a failed
+	// delivery, and a dropped "deleted" would strand a revoked installation.
+	if event == "installation" && ev.Action == "deleted" {
+		if err := s.ForgeInstallationStore.Forget(ctx, ev.InstallationID); err != nil {
+			slog.ErrorContext(ctx, "github app webhook: forgetting installation failed",
+				"installation", ev.InstallationID, "delivery", delivery, "error", err)
+			return c.NoContent(http.StatusInternalServerError)
+		}
+		slog.InfoContext(ctx, "github app webhook: installation forgotten",
+			"installation", ev.InstallationID, "account", ev.Account, "delivery", delivery)
+		return c.NoContent(http.StatusAccepted)
+	}
+
+	if err := s.ForgeInstallationStore.Record(ctx, ev.InstallationID, ev.Account); err != nil {
+		slog.ErrorContext(ctx, "github app webhook: recording installation failed",
+			"installation", ev.InstallationID, "delivery", delivery, "error", err)
+		return c.NoContent(http.StatusInternalServerError)
+	}
+	slog.InfoContext(ctx, "github app webhook: installation recorded",
+		"event", event, "action", ev.Action, "installation", ev.InstallationID,
+		"account", ev.Account, "delivery", delivery)
 	return c.NoContent(http.StatusAccepted)
 }
 
