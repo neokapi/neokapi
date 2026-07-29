@@ -237,11 +237,17 @@ type SyncPushRequest struct {
 }
 
 // ItemMeta carries per-item editor metadata generated during push.
+//
+// The JSON tags are not cosmetic. On the sync path this struct is marshaled
+// into the push commit manifest and read back by the worker as a
+// pb.SyncItemMeta, so a tag that does not match the generated one silently
+// drops the field. Keep them aligned with
+// bowrain/core/proto/sync/v1.SyncItemMeta.
 type ItemMeta struct {
-	Name        string `json:"name"`                   // item name (relative file path)
-	Format      string `json:"format"`                 // detected format
-	BlockIndex  string `json:"block_index,omitempty"`  // JSON-serialized BlockIndex
-	PreviewHTML string `json:"preview_html,omitempty"` // pre-rendered editor preview HTML
+	Name        string `json:"name"`                       // item name (relative file path)
+	Format      string `json:"format"`                     // detected format
+	BlockIndex  string `json:"block_index_json,omitempty"` // JSON-serialized BlockIndex
+	PreviewHTML string `json:"preview_html,omitempty"`     // pre-rendered editor preview HTML
 }
 
 // BlockInput represents a block in the API.
