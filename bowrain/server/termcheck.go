@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"github.com/neokapi/neokapi/bowrain/core/brandscope"
@@ -274,7 +275,14 @@ func snapshotTerms(ctx context.Context, tb terms.Store) terms.Terminology {
 	}
 	mem := terms.NewInMemoryStore()
 	for _, c := range concepts {
-		_ = mem.AddConcept(ctx, c)
+		// A concept that does not make it into the snapshot is a term the
+		// on-brand gate then fails to enforce, silently and for that check
+		// only. Nothing here can repair it mid-snapshot, so it is logged and
+		// the gate runs on what it has.
+		if err := mem.AddConcept(ctx, c); err != nil {
+			slog.ErrorContext(ctx, "termcheck: concept omitted from the snapshot; it will not be enforced",
+				"concept", c.ID, "error", err)
+		}
 	}
 	return mem
 }

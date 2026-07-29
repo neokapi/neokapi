@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -156,6 +157,40 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 			wsRole = string(r)
 		}
 
+		// The grant is established before the SSE headers go out, and both
+		// because of what it is and because of where it was.
+		//
+		// What it is: a ceiling. CreateSessionGrantForMode intersects the
+		// user's permissions with the mode's, and the middleware that reads it
+		// treats a missing grant as "no restriction". A write that failed
+		// therefore does not degrade the session, it un-restricts it — an
+		// ask-mode conversation would run with the user's full write
+		// permissions. So a failure has to stop the request.
+		//
+		// Where it was: after WriteHeader(200), where no status code can be
+		// sent any more. Nothing in this block needs the SSE writer, so it
+		// moves up to where failing is still possible.
+		if s.SessionStore != nil && req.Mode != "" {
+			userPerms, _ := c.Get("project_permissions").(platauth.Permission)
+			if userPerms == 0 {
+				userPerms = platauth.DefaultPermissionsForRole(platauth.Role(wsRole)).Permissions
+			}
+			userLangs, _ := c.Get("project_languages").([]string)
+			grant := CreateSessionGrantForMode(convID, userID, platauth.AgentMode(req.Mode), userPerms, userLangs)
+			if err := SetSessionGrant(c.Request().Context(), s.SessionStore, grant); err != nil {
+				return serverErr(c, fmt.Errorf("store session grant: %w", err))
+			}
+			// Only now is there a grant to announce. This record used to be
+			// written unconditionally, asserting a restriction that may never
+			// have been persisted.
+			s.emitAudit(c, auditEvent{
+				Type:         platev.EventSessionGrantCreated,
+				ResourceType: "session_grant",
+				ResourceID:   convID,
+				Data:         map[string]string{"mode": req.Mode, "permissions": grant.Permissions.String()},
+			})
+		}
+
 		c.Response().Header().Set("Content-Type", "text/event-stream")
 		c.Response().Header().Set("Cache-Control", "no-cache")
 		c.Response().Header().Set("Connection", "keep-alive")
@@ -175,23 +210,6 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 			if req.Context.ItemID != "" {
 				bravoCtx["item_id"] = req.Context.ItemID
 			}
-		}
-
-		// Create or update session grant based on the requested mode.
-		if s.SessionStore != nil && req.Mode != "" {
-			userPerms, _ := c.Get("project_permissions").(platauth.Permission)
-			if userPerms == 0 {
-				userPerms = platauth.DefaultPermissionsForRole(platauth.Role(wsRole)).Permissions
-			}
-			userLangs, _ := c.Get("project_languages").([]string)
-			grant := CreateSessionGrantForMode(convID, userID, platauth.AgentMode(req.Mode), userPerms, userLangs)
-			_ = SetSessionGrant(c.Request().Context(), s.SessionStore, grant)
-			s.emitAudit(c, auditEvent{
-				Type:         platev.EventSessionGrantCreated,
-				ResourceType: "session_grant",
-				ResourceID:   convID,
-				Data:         map[string]string{"mode": req.Mode, "permissions": grant.Permissions.String()},
-			})
 		}
 
 		if err := s.AgentService.SendMessageStream(

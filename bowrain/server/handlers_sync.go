@@ -260,10 +260,6 @@ func (s *Server) HandleSyncProxyChunkUpload(c echo.Context) error {
 		return err
 	}
 
-	uploadID := c.Param("uploadId")
-	chunkIndex := 0
-	_, _ = fmt.Sscanf(c.Param("chunkIndex"), "%d", &chunkIndex)
-
 	data, err := readBody(c, 2*1024*1024) // 2MB max per chunk
 	if err != nil {
 		return apiErr(c, http.StatusRequestEntityTooLarge, "chunk too large")
@@ -273,9 +269,15 @@ func (s *Server) HandleSyncProxyChunkUpload(c echo.Context) error {
 	// chunk by its hash (from the commit manifest), so we need the chunk to be
 	// accessible via BlobStore.Download(hash). Content-addressed Upload gives
 	// us a stable key that matches the SHA-256 the client computes.
+	//
+	// Which is why :uploadId and :chunkIndex are not read here. They used to be
+	// parsed into an UploadOptions.Filename — but the key is the content hash,
+	// and neither blob store reads Filename at all, so the parse fed nothing.
+	// An unparseable :chunkIndex silently became 0 and changed no outcome; a
+	// 400 for one would reject a request that is, as far as this endpoint is
+	// concerned, perfectly well formed.
 	if _, err := s.BlobStore.Upload(c.Request().Context(), data, storage.UploadOptions{
 		ContentType: "application/octet-stream",
-		Filename:    fmt.Sprintf("chunks/%s/%04d", uploadID, chunkIndex),
 	}); err != nil {
 		return serverErr(c, err)
 	}

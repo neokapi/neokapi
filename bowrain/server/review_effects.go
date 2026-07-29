@@ -119,9 +119,16 @@ func (s *Server) approveTermCandidate(ctx context.Context, item *bstore.ReviewIt
 		return
 	}
 
-	// If translatability is DNT, also add to dnt_entries.
+	// If translatability is DNT, also add to dnt_entries. Losing this write is
+	// not cosmetic — the term the reviewer marked do-not-translate goes on
+	// being machine-translated — but the caller is a fire-and-forget goroutine
+	// with no one to return to, so it is logged like every other failure in
+	// this file.
 	if candidate.Translatability == model.TranslatabilityDNT && s.ReviewQueueStore != nil {
-		_ = s.ReviewQueueStore.AddDNTEntry(ctx, item.ProjectID, candidate.Text, "", item.Locale, "review")
+		if err := s.ReviewQueueStore.AddDNTEntry(ctx, item.ProjectID, candidate.Text, "", item.Locale, "review"); err != nil {
+			slog.ErrorContext(ctx, "review-effects: failed to record do-not-translate entry",
+				"project", item.ProjectID, "term", candidate.Text, "error", err)
+		}
 	}
 }
 
@@ -138,6 +145,9 @@ func (s *Server) approveEntity(ctx context.Context, item *bstore.ReviewItem) {
 	}
 
 	if entity.DNT {
-		_ = s.ReviewQueueStore.AddDNTEntry(ctx, item.ProjectID, entity.Text, string(entity.Type), item.Locale, "review")
+		if err := s.ReviewQueueStore.AddDNTEntry(ctx, item.ProjectID, entity.Text, string(entity.Type), item.Locale, "review"); err != nil {
+			slog.ErrorContext(ctx, "review-effects: failed to record do-not-translate entry",
+				"project", item.ProjectID, "entity", entity.Text, "error", err)
+		}
 	}
 }
