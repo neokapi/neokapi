@@ -8,12 +8,13 @@ on:
   # not wait on them. Use workflow_dispatch to run the whole lane for a branch.
   #
   # The Kapi CLI job is the exception, and it earned it. It needs no Docker, no
-  # browser and no services; it takes under two minutes. It also spent thirteen
-  # nights red because #1462 rewrote a CLI flag inside it — a change that touched
-  # cli/ and host/, so a path-gated pre-merge run would have caught it in review
-  # instead of in a nightly nobody read. The paths below are the CLI surface it
-  # actually exercises, deliberately not `core/**`: broad enough to catch a flag
-  # or command rename, narrow enough that most PRs never trigger it.
+  # browser and no services; it takes about three minutes. It also went red on
+  # 2026-07-26 and stayed red because #1462 rewrote a CLI flag inside it — a
+  # change that touched cli/ and host/, so a path-gated pre-merge run would have
+  # caught it in review instead of in a nightly nobody read. The paths below are
+  # the CLI surface it actually exercises, deliberately not `core/**`: broad
+  # enough to catch a flag or command rename, narrow enough that most PRs never
+  # trigger it.
   pull_request:
     paths:
       - "cli/**"
