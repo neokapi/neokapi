@@ -51,6 +51,12 @@
 //     root, using filepath.IsLocal and os.Root confinement.
 //   - [Budget] — bundles the byte, depth, and zip limits with sane defaults
 //     and composes via the With* methods.
+//   - [NoCopyString] — a zero-copy string view over a document buffer, with
+//     the aliasing contract stated once rather than re-argued in a comment at
+//     every reader that needs it. The odd one out in this list: it bounds
+//     memory by NOT copying rather than by refusing to read, but it belongs
+//     here for the same reason as the rest — it is a rule about handling
+//     untrusted input bytes that every reader must apply identically.
 //   - [Admission] — a weighted byte semaphore capping the *total* bytes a
 //     file-level fan-out holds in flight at once (the per-document Budget
 //     bounds one read; Admission bounds concurrency × per-file peak). Sized

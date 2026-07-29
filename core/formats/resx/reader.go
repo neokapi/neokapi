@@ -8,7 +8,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"unsafe"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -249,13 +248,13 @@ func (r *Reader) readBuffered(ctx context.Context, ch chan<- model.PartResult) {
 		Properties: map[string]string{},
 	}
 	// Preserve the original document bytes so the writer can produce
-	// byte-faithful output, splicing only changed values. unsafe.String shares
-	// the backing array — content is not mutated after this point. When a
-	// skeleton store is wired the skeleton carries every byte instead, so the
-	// (potentially large) original property is omitted — merge replays the
-	// skeleton, not the layer property.
+	// byte-faithful output, splicing only changed values. The view shares
+	// content's backing array (safeio.NoCopyString states the contract);
+	// content is only read from here on. When a skeleton store is wired the
+	// skeleton carries every byte instead, so the (potentially large) original
+	// property is omitted — merge replays the skeleton, not the layer property.
 	if r.skeletonStore == nil {
-		layer.Properties["resx.original"] = unsafe.String(unsafe.SliceData(content), len(content))
+		layer.Properties["resx.original"] = safeio.NoCopyString(content)
 	}
 
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {

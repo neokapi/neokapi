@@ -11,7 +11,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unsafe"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -175,13 +174,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	// Store original JSON for non-skeleton roundtrip.
-	// Use unsafe.String to share the backing array with the content []byte,
-	// avoiding a full copy of the file content. This is safe because content
-	// is not modified after this point — only passed to newScanner which
-	// reads but never writes to it.
+	// Store original JSON for non-skeleton roundtrip. The view shares content's
+	// backing array rather than copying the whole file (safeio.NoCopyString
+	// states the contract); content is only read from here on — newScanner
+	// reads it but never writes to it.
 	if r.skeletonStore == nil {
-		layer.Properties["json.original"] = unsafe.String(unsafe.SliceData(content), len(content))
+		layer.Properties["json.original"] = safeio.NoCopyString(content)
 	}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 		return
