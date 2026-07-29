@@ -376,7 +376,7 @@ func variantsFromInput(in map[string]VariantInputDTO) map[model.LocaleID][]model
 // --- Resource discovery ---
 
 func (a *App) ListNamedMemories() []ResourceInfo {
-	return listNamedResources("tm")
+	return listNamedResources("memory")
 }
 
 func listNamedResources(kind string) []ResourceInfo {
@@ -458,7 +458,7 @@ func (a *App) CreateMemory(path string) (string, error) {
 }
 
 func (a *App) CreateNamedMemory(name string) (string, error) {
-	dir := namedResourceDir("tm")
+	dir := namedResourceDir("memory")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("create Memory directory: %w", err)
 	}

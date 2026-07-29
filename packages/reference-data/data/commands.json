@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-28T18:06:51Z",
+  "generatedAt": "2026-07-29T02:30:35Z",
   "commands": [
     {
       "id": "add",
@@ -63,7 +63,7 @@
       ],
       "use": "apply [flags] [CHANGESET]",
       "short": "Apply a typed change-set (content + asset edits) — the one write verb",
-      "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (glossary term, content-memory pair,\nbrand rule, recipe field), or a review decision (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review decision is recorded in the project state store.\n\nA content memory pair (kind:\"tm\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the decision lands in the project\nstate store (defaults.state, default .kapi-state.json) and is bound to the\ntranslation's content hash, so a later edit drops the unit back below reviewed.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
+      "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (glossary term, content-memory pair,\nbrand rule, recipe field), or a review decision (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review decision is recorded in the project state store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the decision lands in the project\nstate store (defaults.state, default .kapi-state.json) and is bound to the\ntranslation's content hash, so a later edit drops the unit back below reviewed.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
       "groupID": "work",
       "flags": [
         {

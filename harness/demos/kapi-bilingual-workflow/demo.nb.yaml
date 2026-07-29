@@ -64,7 +64,9 @@ narration:
   - id: merge
     kind: terminal
     text: >
-      Oversetteren fyller ut resten og sender filene tilbake. Merge fletter dem tilbake i kilden, tar hvert godkjente segment opp i minnet, og memory audit sporer nøyaktig hvilken retur hver oppføring kom fra.
+      The translator fills the remaining targets and returns the files. Merge
+      applies them back onto the source, absorbs every accepted segment into the
+      memory, and memory audit traces exactly which return each entry came from.
     caption: "merge reconciles the return and absorbs it into the memory, with provenance"
   - id: fr
     kind: artifact

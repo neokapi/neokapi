@@ -27,7 +27,7 @@ type changeKind string
 const (
 	kindContent changeKind = "content"
 	kindTerm    changeKind = "term"
-	kindMemory  changeKind = "tm"
+	kindMemory  changeKind = "memory"
 	kindBrand   changeKind = "brand"
 	kindRecipe  changeKind = "recipe"
 	kindReview  changeKind = "review"

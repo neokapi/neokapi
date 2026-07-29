@@ -29,7 +29,7 @@ inline codes preserved), drift-guarded by content_hash; asset edits are written
 into their committed source artifact and the existing import compiles them into
 the cache; a review decision is recorded in the project state store.
 
-A content memory pair (kind:"tm") is recycle leverage for future translation — it does not
+A content memory pair (kind:"memory") is recycle leverage for future translation — it does not
 promote a unit to reviewed. To approve a translated unit, use a kind:"review"
 entry addressed by its file/id/locale (as 'kapi status --review' lists it), with
 status "reviewed" (default) or "signed-off"; the decision lands in the project

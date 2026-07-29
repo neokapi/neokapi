@@ -26,7 +26,7 @@ func AddResourceFlags(cmd Command) {
 }
 
 // resolveResourcePath resolves a resource file path from the --name, --local, and
-// --file flags. The kind parameter is the subdirectory name ("termbases" or "tm")
+// --file flags. The kind parameter is the subdirectory name ("terms" or "tm")
 // and defaultFilename is the default filename for --local mode (e.g. "terms.db").
 //
 // Resolution order:

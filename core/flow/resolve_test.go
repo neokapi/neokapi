@@ -14,13 +14,13 @@ func TestResolveToolConfig_URIPrefixes(t *testing.T) {
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
 
 	// Create expected directories.
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "tm"), 0755))
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "termbases"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "memory"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "terms"), 0755))
 	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "srx"), 0755))
 
 	config := map[string]any{
-		"tmxPath":   "tm:project-memory",
-		"termsPath": "termbase:glossary",
+		"tmxPath":   "memory:project-memory",
+		"termsPath": "terms:glossary",
 		"srxPath":   "srx:custom-rules",
 	}
 
@@ -31,8 +31,8 @@ func TestResolveToolConfig_URIPrefixes(t *testing.T) {
 	}
 
 	expected := map[string]string{
-		"tmxPath":   filepath.Join(tmpDir, "tm", "project-memory.db"),
-		"termsPath": filepath.Join(tmpDir, "termbases", "glossary.db"),
+		"tmxPath":   filepath.Join(tmpDir, "memory", "project-memory.db"),
+		"termsPath": filepath.Join(tmpDir, "terms", "glossary.db"),
 		"srxPath":   filepath.Join(tmpDir, "srx", "custom-rules.srx"),
 	}
 
@@ -143,7 +143,7 @@ func TestResolveToolConfig_LanguageVariables(t *testing.T) {
 func TestResolveToolConfig_SchemaAnnotation(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "termbases"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "terms"), 0755))
 
 	cs := &schema.ComponentSchema{
 		Properties: map[string]schema.PropertySchema{
@@ -162,8 +162,8 @@ func TestResolveToolConfig_SchemaAnnotation(t *testing.T) {
 	}
 
 	config := map[string]any{
-		"termsFile":     "termbase:glossary",
-		"regularString": "tm:not-a-path", // should NOT be resolved (no x-path annotation, name doesn't match heuristic)
+		"termsFile":     "terms:glossary",
+		"regularString": "memory:not-a-path", // should NOT be resolved (no x-path annotation, name doesn't match heuristic)
 	}
 
 	ctx := ResourceContext{ProjectDir: "/project"}
@@ -174,13 +174,13 @@ func TestResolveToolConfig_SchemaAnnotation(t *testing.T) {
 
 	// termsFile should be resolved via URI prefix.
 	got := resolved["termsFile"].(string)
-	want := filepath.Join(tmpDir, "termbases", "glossary.db")
+	want := filepath.Join(tmpDir, "terms", "glossary.db")
 	if got != want {
 		t.Errorf("termsFile: got %q, want %q", got, want)
 	}
 
 	// regularString should be unchanged (no x-path, name doesn't match heuristic).
-	if resolved["regularString"] != "tm:not-a-path" {
+	if resolved["regularString"] != "memory:not-a-path" {
 		t.Errorf("regularString should be unchanged, got %v", resolved["regularString"])
 	}
 }
@@ -273,7 +273,7 @@ func TestShortLang(t *testing.T) {
 }
 
 func TestResolveURIPrefix_EmptyName(t *testing.T) {
-	_, ok, err := resolveURIPrefix("tm:")
+	_, ok, err := resolveURIPrefix("memory:")
 	if !ok {
 		t.Error("expected ok=true for tm: prefix")
 	}

@@ -34,7 +34,7 @@ export interface ResourceBrowserProps {
   open: boolean;
   /** Called when the dialog should close. */
   onClose: () => void;
-  /** Called when a resource is selected. Returns "tm:name" or a file path. */
+  /** Called when a resource is selected. Returns "memory:name" or a file path. */
   onSelect: (ref: string) => void;
   /** Resource kind to browse. */
   resourceKind: ResourceKind;
@@ -43,13 +43,13 @@ export interface ResourceBrowserProps {
 }
 
 const kindLabels: Record<ResourceKind, string> = {
-  tm: "Content Memories",
+  memory: "Content Memories",
   terms: "Termbases",
   srx: "Segmentation Rules",
 };
 
 const kindPrefixes: Record<ResourceKind, string> = {
-  tm: "tm:",
+  memory: "memory:",
   terms: "terms:",
   srx: "srx:",
 };

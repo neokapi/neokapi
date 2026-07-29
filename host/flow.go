@@ -1194,7 +1194,7 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 	if info != nil {
 		for _, req := range info.Requires {
 			switch req {
-			case "termbase":
+			case schema.RequiresTerms:
 				// Tools requiring a terms store get term lookup/enforce tools appended.
 				t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, a.TargetLang)
 				if err != nil {
@@ -1219,7 +1219,7 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 				}
 				return qaTools, cleanup, nil
 
-			case "tm":
+			case schema.RequiresMemory:
 				// Tools requiring a content memory get a real SQLite provider injected from
 				// the --memory flag or, with no flag, the project's .kapi/memory.db.
 				memoryConfig := map[string]any{
@@ -1407,7 +1407,7 @@ func (a *App) openTerms(cmd ...Command) (*sqltb.SQLiteStore, func(), error) {
 	default:
 		// Named resource.
 		var err error
-		tbPath, err = resolveNamedResource("termbases", tbValue)
+		tbPath, err = resolveNamedResource("terms", tbValue)
 		if err != nil {
 			return nil, nil, fmt.Errorf("resolve terms %q: %w", tbValue, err)
 		}
@@ -1466,7 +1466,7 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 	default:
 		// Named resource.
 		var err error
-		memoryPath, err = resolveNamedResource("tm", memoryValue)
+		memoryPath, err = resolveNamedResource("memory", memoryValue)
 		if err != nil {
 			return nil, nil, fmt.Errorf("resolve content memory %q: %w", memoryValue, err)
 		}
@@ -1556,7 +1556,7 @@ func (a *App) resolveProjectTermsPath(cmd Command) (string, error) {
 			if strings.ContainsAny(tbValue, "/\\") || strings.HasSuffix(tbValue, ".db") {
 				return tbValue, nil
 			}
-			path, err := resolveNamedResource("termbases", tbValue)
+			path, err := resolveNamedResource("terms", tbValue)
 			if err != nil {
 				return "", fmt.Errorf("resolve terms %q: %w", tbValue, err)
 			}

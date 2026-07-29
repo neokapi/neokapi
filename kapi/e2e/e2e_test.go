@@ -224,9 +224,9 @@ func TestQACheckWithoutTerms(t *testing.T) {
 //   content-memory leverage → pseudo-translate remaining → QA with terms
 
 func TestMemoryImport(t *testing.T) {
-	memoryFile := tempDB(t, "tm")
+	memoryFile := tempDB(t, "memory")
 
-	out := kapi(t, "tm", "import", filepath.Join(testdata, "project.tmx"),
+	out := kapi(t, "memory", "import", filepath.Join(testdata, "project.tmx"),
 		"--file", memoryFile, "-s", "en", "-t", "fr")
 	assert.Contains(t, out, "Imported 2") // 2 entries imported
 }
@@ -234,7 +234,7 @@ func TestMemoryImport(t *testing.T) {
 func TestMemoryStats(t *testing.T) {
 	memoryFile := importedMemory(t)
 
-	out := kapi(t, "tm", "stats", "--file", memoryFile)
+	out := kapi(t, "memory", "stats", "--file", memoryFile)
 	assert.Contains(t, out, "Entries: 2") // 2 entries
 	assert.Contains(t, out, "en")
 	assert.Contains(t, out, "fr")
@@ -243,7 +243,7 @@ func TestMemoryStats(t *testing.T) {
 func TestMemoryLookup(t *testing.T) {
 	memoryFile := importedMemory(t)
 
-	out := kapi(t, "tm", "lookup", "Settings", "--file", memoryFile, "-s", "en", "-t", "fr")
+	out := kapi(t, "memory", "lookup", "Settings", "--file", memoryFile, "-s", "en", "-t", "fr")
 	assert.Contains(t, out, "Paramètres")
 }
 
@@ -255,7 +255,7 @@ func TestMemoryLookup(t *testing.T) {
 func TestMemorySearch(t *testing.T) {
 	memoryFile := importedMemory(t)
 
-	out := kapi(t, "tm", "search", "Settings", "--file", memoryFile, "-s", "en", "-t", "fr")
+	out := kapi(t, "memory", "search", "Settings", "--file", memoryFile, "-s", "en", "-t", "fr")
 	assert.Contains(t, out, "Settings")
 	assert.Contains(t, out, "Paramètres")
 }
@@ -264,7 +264,7 @@ func TestMemoryExport(t *testing.T) {
 	memoryFile := importedMemory(t)
 
 	outFile := filepath.Join(t.TempDir(), "export.tmx")
-	kapi(t, "tm", "export", "--file", memoryFile, "-o", outFile)
+	kapi(t, "memory", "export", "--file", memoryFile, "-o", outFile)
 
 	content := readFile(t, outFile)
 	assert.Contains(t, content, "Settings")
@@ -344,8 +344,8 @@ func importedTerms(t *testing.T) string {
 
 func importedMemory(t *testing.T) string {
 	t.Helper()
-	memoryFile := tempDB(t, "tm")
-	kapi(t, "tm", "import", filepath.Join(testdata, "project.tmx"),
+	memoryFile := tempDB(t, "memory")
+	kapi(t, "memory", "import", filepath.Join(testdata, "project.tmx"),
 		"--file", memoryFile, "-s", "en", "-t", "fr")
 	return memoryFile
 }

@@ -29,7 +29,7 @@ interface PreProcessSurfaceProps {
   surfaceTabs?: React.ReactNode;
 }
 
-type OpKey = "pseudo" | "tm" | "ai";
+type OpKey = "pseudo" | "memory" | "ai";
 
 /**
  * PreProcessSurface is the pre-flight route — bulk source-prep operations run
@@ -101,11 +101,11 @@ export function PreProcessSurface({
   }, [fullApi, wsSlug, project.id, fileName, targetLocale]);
 
   const runMemory = useCallback(async () => {
-    setRunning("tm");
+    setRunning("memory");
     setError(null);
     try {
       const stats = await api.memoryTranslateFile(project.id, fileName, targetLocale);
-      setResults((prev) => ({ ...prev, tm: stats }));
+      setResults((prev) => ({ ...prev, memory: stats }));
     } catch (e) {
       setError({ title: "Couldn't recycle from the content memory", cause: e });
     } finally {
@@ -139,7 +139,7 @@ export function PreProcessSurface({
       cta: "Run pseudo-translate",
     },
     {
-      key: "tm",
+      key: "memory",
       title: "Bulk recycle",
       desc: "Pre-fill targets from the content memory across the whole file — exact and high-confidence fuzzy matches land as drafts you can review.",
       icon: <Languages className="w-4 h-4" />,

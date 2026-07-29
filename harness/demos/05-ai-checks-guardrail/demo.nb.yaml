@@ -34,22 +34,30 @@ narration:
   - id: title
     kind: title
     text: >
-      En KI har oversatt denne appen til tysk. Det meste er bra — men to ting ville sviktet i produksjon: en plassholder er borte, og produktnavnet er oversatt.
+      An AI translated this app into German. Most of it is fine — but two things
+      would break in production: a placeholder was dropped, and the product name
+      was translated.
   - id: check
     kind: terminal
     text: >
-      kapi check leser den tyske oversettelsen mot den engelske kilden og kjører reglene som tester — ikke-oversettbare navn, plassholderintegritet, terminologi. Den rapporterer nøyaktig hva som røk: antall-plassholderen mangler, og Acme Cloud er oversatt.
-    caption: "kapi check rapporterer funnene for ikke-oversettbart og plassholdere"
+      kapi check reads the German against the English and runs the rules like
+      tests — do-not-translate, placeholder integrity, terminology. It reports
+      exactly what broke: the count placeholder is missing, and Acme Cloud was
+      translated.
+    caption: "kapi check reports the do-not-translate and placeholder findings"
   - id: fix
     kind: terminal
     text: >
-      Vi retter de to feilene — gjenoppretter plassholderen og lar produktnavnet stå urørt — og kjører nøyaktig samme kontroll på nytt.
-    caption: "rett feilene, kjør kontrollen på nytt"
+      We apply the two corrections — restore the placeholder, keep the product
+      name verbatim — and run the very same check again.
+    caption: "apply the fixes, re-run the check"
   - id: pass
     kind: terminal
     text: >
-      Nå passerer den. Med porten på er det dette som stopper en dårlig oversettelse fra å gå ut — i kontinuerlig integrasjon, eller i en assistents rettesløyfe.
+      Now it passes. With the gate on, this is what stops a bad translation from
+      shipping — in continuous integration, or inside an assistant's fix-loop.
   - id: outro
     kind: outro
     text: >
-      Kontroller som holder KI-resultater i sjakk, slik tester holder koden i sjakk: deterministiske, flerspråklige, og kjørt ved hver endring.
+      Checks that keep AI output in line, the way tests keep code in line:
+      deterministic, multilingual, and run on every change.

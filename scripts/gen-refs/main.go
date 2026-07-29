@@ -23,7 +23,13 @@ import (
 
 func main() {
 	var (
-		bridgeDir  = flag.String("bridge", "../okapi-bridge/dist/plugin", "okapi-bridge plugin dir (manifest.json + formats/ + tools/)")
+		// Empty by default, deliberately. A relative default pointed at a
+		// SIBLING repository, so simply running this generator on a machine
+		// that happened to have okapi-bridge checked out produced a dataset
+		// nobody else could reproduce — and the docs site then built ~180 MDX
+		// pages that exist only there, until Docusaurus ran out of heap on CI.
+		// Absent must mean absent; pass -bridge explicitly to include it.
+		bridgeDir  = flag.String("bridge", "", "okapi-bridge plugin dir (manifest.json + formats/ + tools/); empty = built-in and in-repo plugins only")
 		pluginsDir = flag.String("plugins", "plugins", "in-repo Mode-C plugin dir (plugins/<name>/manifest.json) for plugin-provided formats")
 		metaPath   = flag.String("meta", "core/i18n/builtins/metadata.json", "i18n builtins metadata.json (native display names/descriptions)")
 		nativeDocs = flag.String("nativedocs", "scripts/gen-refs/nativedocs", "dir of authored native doc sidecars ({formats,tools}/<id>.yaml)")

@@ -287,7 +287,7 @@ func conceptID(text string, locale model.LocaleID) string {
 // shared ApproveReviewUnit path — the CLI counterpart of the desktop "approve"
 // action and the write side of `kapi status --review`. The unit is addressed by
 // (file, id, locale) exactly as the review queue lists it; `status` is "reviewed"
-// (default) or "signed-off". This is distinct from a `kind:"tm"` entry: a content memory
+// (default) or "signed-off". This is distinct from a `kind:"memory"` entry: a content memory
 // correction is recycle leverage, not a review decision.
 func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.ID}

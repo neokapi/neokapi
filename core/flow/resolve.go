@@ -36,8 +36,8 @@ type ResourceContext struct {
 
 // URI prefix schemes for named resources.
 const (
-	PrefixMemory = "tm:"
-	PrefixTerms  = "termbase:"
+	PrefixMemory = "memory:"
+	PrefixTerms  = "terms:"
 	PrefixSRX    = "srx:"
 )
 
@@ -46,9 +46,9 @@ var resourceKinds = map[string]struct {
 	Dir string
 	Ext string
 }{
-	"tm":       {Dir: "tm", Ext: ".db"},
-	"termbase": {Dir: "termbases", Ext: ".db"},
-	"srx":      {Dir: "srx", Ext: ".srx"},
+	"memory": {Dir: "memory", Ext: ".db"},
+	"terms":  {Dir: "terms", Ext: ".db"},
+	"srx":    {Dir: "srx", Ext: ".srx"},
 }
 
 // ResolveToolConfig resolves resource references and path variables in a step config map.
@@ -134,8 +134,8 @@ func resolveURIPrefix(value string) (string, bool, error) {
 	for prefix, info := range map[string]struct {
 		kind string
 	}{
-		PrefixMemory: {kind: "tm"},
-		PrefixTerms:  {kind: "termbase"},
+		PrefixMemory: {kind: "memory"},
+		PrefixTerms:  {kind: "terms"},
 		PrefixSRX:    {kind: "srx"},
 	} {
 		if after, ok := strings.CutPrefix(value, prefix); ok {

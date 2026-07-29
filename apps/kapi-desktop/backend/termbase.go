@@ -121,7 +121,7 @@ func dtoToTerms(dtos []TermDTO) []terms.Term {
 
 // ListNamedTerms returns named terms stores from KAPI_HOME/termbases/.
 func (a *App) ListNamedTerms() []ResourceInfo {
-	return listNamedResources("termbases")
+	return listNamedResources("terms")
 }
 
 // --- Lifecycle ---
@@ -163,7 +163,7 @@ func (a *App) CreateTerms(path string) (string, error) {
 
 // CreateNamedTerms creates a new named terms in KAPI_HOME/termbases/.
 func (a *App) CreateNamedTerms(name string) (string, error) {
-	dir := namedResourceDir("termbases")
+	dir := namedResourceDir("terms")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("create terms stores directory: %w", err)
 	}

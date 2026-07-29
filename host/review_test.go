@@ -175,7 +175,7 @@ func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {
 // TestReview_ApplyReviewKindPromotesViaStateStore drives the CLI approval verb:
 // `kapi apply` with a `kind:"review"` change-set records the decision in the
 // project state store (the counterpart of the desktop approve), so the unit
-// counts as reviewed — unlike a `kind:"tm"` entry, which is recycle-only.
+// counts as reviewed — unlike a `kind:"memory"` entry, which is recycle-only.
 func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 	root := writeReviewProject(t)
 	t.Chdir(root)

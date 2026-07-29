@@ -567,7 +567,7 @@ export function TranslationEditor({
                 ? {
                     ...b,
                     targets: { ...b.targets, [targetLocale]: match.target },
-                    properties: { ...b.properties, "translation-origin": "tm" },
+                    properties: { ...b.properties, "translation-origin": "memory" },
                   }
                 : b,
             ),
