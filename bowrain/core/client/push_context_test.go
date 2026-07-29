@@ -159,7 +159,9 @@ func TestPushContextHashCoversGovernance(t *testing.T) {
 		{"a moved coordinate", func(e []*pb.SyncContextEntry) { e[0].Coordinates["product"] = "bowrain" }},
 		{"a different channel", func(e []*pb.SyncContextEntry) { e[0].Channel = "email" }},
 		{"a rebound voice", func(e []*pb.SyncContextEntry) { e[0].VoiceProfile = "Other Voice" }},
-		{"an edited voice", func(e []*pb.SyncContextEntry) { e[0].VoiceProfileJson = []byte(`{"name":"Acme Voice","description":"x"}`) }},
+		{"an edited voice", func(e []*pb.SyncContextEntry) {
+			e[0].VoiceProfileJson = []byte(`{"name":"Acme Voice","description":"x"}`)
+		}},
 		{"a new collection", func(e []*pb.SyncContextEntry) { e[0].Name = "docs-v2" }},
 	}
 	for _, tc := range cases {

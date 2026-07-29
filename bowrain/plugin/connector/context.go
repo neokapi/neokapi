@@ -4,8 +4,8 @@ import (
 	"maps"
 	"slices"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
+	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	coreproj "github.com/neokapi/neokapi/core/project"
 )
