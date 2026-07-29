@@ -633,6 +633,12 @@ export function WorkspaceLayout() {
             params: { workspace: wsSlug },
           });
           break;
+        case "insights":
+          void navigate({
+            to: "/$workspace/brand/dashboard",
+            params: { workspace: wsSlug },
+          });
+          break;
         case "memory":
           void navigate({
             to: "/$workspace/memory",
