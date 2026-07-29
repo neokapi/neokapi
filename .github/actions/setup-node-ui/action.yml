@@ -10,7 +10,43 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: voidzero-dev/setup-vp@v1
+    # `vp env use <node-version>` downloads a Node.js runtime from the Vite+
+    # CDN whenever the runner has no matching one cached. That download is the
+    # single point of failure for every job that uses this action: on
+    # 2026-07-29 it took out three unrelated jobs (Deploy Ctrl, Kapi Desktop,
+    # and a CI run) inside twenty minutes with a byte-identical "operation
+    # timed out", skipping every step after it, and all three passed on re-run.
+    #
+    # The installer's own retry tries viteplus.dev and then a
+    # raw.githubusercontent.com fallback, but both serve the SAME runtime
+    # artefact — so it reads as resilient while having no independent mirror.
+    # setup-vp exposes no input to point elsewhere, so the retry has to live
+    # here: one more attempt, after a pause long enough for a transient CDN
+    # failure to clear.
+    #
+    # The step is named for what it does, not for the action it wraps, so a
+    # failure here is not mistaken for a code failure in the calling job.
+    - name: Install Vite+ and the Node.js runtime
+      id: vp-setup
+      uses: voidzero-dev/setup-vp@v1
+      continue-on-error: true
+      with:
+        version: "0.1.23"
+        node-version: ${{ inputs.node-version }}
+        cache: true
+        cache-dependency-path: pnpm-lock.yaml
+        run-install: false
+
+    - name: Report the Vite+ setup failure before retrying
+      if: steps.vp-setup.outcome == 'failure'
+      shell: bash
+      run: |
+        echo "::warning title=Vite+ setup failed::Installing Vite+ or its Node.js runtime failed — usually the runtime download from the Vite+ CDN, not anything in this repository. Retrying once in 30s; if the retry also fails, this job is red for infrastructure reasons."
+        sleep 30
+
+    - name: Install Vite+ and the Node.js runtime (retry)
+      if: steps.vp-setup.outcome == 'failure'
+      uses: voidzero-dev/setup-vp@v1
       with:
         version: "0.1.23"
         node-version: ${{ inputs.node-version }}
