@@ -35,7 +35,16 @@ jobs:
       i18n_react: ${{ github.event_name == 'push' || steps.filter.outputs.i18n_react }}
       l10n_surfaces: ${{ github.event_name == 'push' || steps.filter.outputs.l10n_surfaces }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
-      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_plugin || steps.filter.outputs.bowrain }}
+      # Every operand is compared to 'true' on purpose. GitHub's `||` returns
+      # the first TRUTHY operand rather than a boolean, and a non-empty string
+      # is truthy — so a bare `steps.filter.outputs.cli` yields the *string*
+      # 'false' and short-circuits the rest of the chain. Chaining bare outputs
+      # collapses the whole expression to the first one: `any_go` was exactly
+      # `framework`, and the three jobs it gates (Build, Tidy Check, Race) were
+      # skipped on every PR that did not touch core/, go.mod, go.sum, go.work
+      # or this file. The single-filter outputs above are safe because they have
+      # nothing to short-circuit past — do not chain one without `== 'true'`.
+      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework == 'true' || steps.filter.outputs.cli == 'true' || steps.filter.outputs.platform == 'true' || steps.filter.outputs.kapi == 'true' || steps.filter.outputs.bowrain_plugin == 'true' || steps.filter.outputs.bowrain == 'true' }}
     steps:
       - uses: actions/checkout@v7
         with:
