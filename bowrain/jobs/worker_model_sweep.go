@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/observe"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -189,8 +190,13 @@ func runModelSweep(ctx context.Context, deps *WorkerDeps, job *TranslationJob, e
 		// DELIBERATELY not invoked here: measured steerability is platform QC
 		// and must never deduct customer credits (contrast the per-chunk
 		// DeductTokens in executeTranslationWithDeps).
+		//
+		// Fail-open by policy, as everywhere else on the metering path: the
+		// sweep has already paid for both arms, and losing the measurement over
+		// a meter outage would waste that spend twice. The discard is logged and
+		// counted so the unrecorded platform spend is still visible.
 		if deps.QuotaStore != nil {
-			_ = deps.QuotaStore.RecordUsage(ctx, AIUsageRecord{
+			if err := deps.QuotaStore.RecordUsage(ctx, AIUsageRecord{
 				WorkspaceSlug: job.WorkspaceSlug,
 				WorkspaceID:   job.WorkspaceID,
 				ProjectID:     job.ProjectID,
@@ -200,7 +206,11 @@ func runModelSweep(ctx context.Context, deps *WorkerDeps, job *TranslationJob, e
 				PromptTokens:  ctxTokens.InputTokens + bareTokens.InputTokens,
 				OutputTokens:  ctxTokens.OutputTokens + bareTokens.OutputTokens,
 				TotalTokens:   tokens,
-			})
+			}); err != nil {
+				observe.MeteringDiscarded(ctx, observe.MeterAITokens, float64(tokens), err,
+					"operation", "model_sweep", "job_id", job.ID,
+					"workspace", job.WorkspaceSlug, "model", candidate)
+			}
 		}
 
 		// Final per-candidate lease gate before persisting the measurement.
