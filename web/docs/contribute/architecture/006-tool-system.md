@@ -631,6 +631,12 @@ applies them as a shared post-encode step (see AD-005).
 | `script`           | Run user-provided JavaScript (ES5 via goja) on each part                 |
 | `batch`            | Collect blocks into configurable batches for downstream batch processing |
 
+`external-command` and `script` are the **exec class**: their job is to run
+code the configuration names, rather than to transform content with code kapi
+ships. They are ordinary tools on the command line — `kapi exec` runs both —
+but a recipe cannot arm one silently. Which surfaces may name them, and how a
+recipe asks, is [AD-038](038-execution-trust.md).
+
 ### AI, MT, and terminology tools
 
 AI and MT tools are registered at startup like the other built-ins, so they

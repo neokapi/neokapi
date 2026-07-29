@@ -74,6 +74,13 @@ func (a *App) LoadProjectInteractive(ctx context.Context, recipePath string, opt
 		return nil, err
 	}
 
+	// A recipe that names an exec-class step runs code the recipe chose, so
+	// that decision is taken before anything else happens with the project —
+	// including installing the plugins it asks for. See host/exectrust.go.
+	if err := a.ensureExecTrust(recipePath, proj, opts); err != nil {
+		return nil, err
+	}
+
 	missing := proj.MissingRequires()
 	if len(missing) == 0 {
 		return proj, nil
@@ -203,6 +210,28 @@ func Confirm(r io.Reader, w io.Writer, prompt string) (bool, error) {
 	answer := strings.ToLower(strings.TrimSpace(line))
 	switch answer {
 	case "", "y", "yes":
+		return true, nil
+	default:
+		return false, nil
+	}
+}
+
+// ConfirmDefaultNo reads a Y/N answer from r, accepting only an explicit y or
+// yes. Empty input — a bare Return, or a closed stdin — is no.
+//
+// It is the counterpart to Confirm for questions where the safe answer is the
+// one a distracted person gives. Confirm's empty-means-yes suits "install the
+// plugin this recipe asks for"; it does not suit granting a project the right
+// to run commands.
+func ConfirmDefaultNo(r io.Reader, w io.Writer, prompt string) (bool, error) {
+	fmt.Fprint(w, prompt)
+	br := bufio.NewReader(r)
+	line, err := br.ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false, fmt.Errorf("read confirmation: %w", err)
+	}
+	switch strings.ToLower(strings.TrimSpace(line)) {
+	case "y", "yes":
 		return true, nil
 	default:
 		return false, nil

@@ -80,3 +80,4 @@ pseudocode) are separated into [Implementation Notes](/contribute/implementation
 | [017](017-bilingual-format-interop.md)  | Bilingual Format Interop  | XLIFF/PO/TMX bilingual round-trip, target alignment     |
 | [018](018-parity-testing.md)            | Parity Testing            | Okapi parity harness, test-comparison dashboard, faithful% |
 | [020](020-redaction.md)                 | Content Redaction         | Placeholder model, local vault, rule/entity detection, secure-translate, extract/merge |
+| [038](038-execution-trust.md)           | Execution Trust           | exec-class tools and formats, per-project consent keyed to the approved argv, per-surface answers |

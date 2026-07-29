@@ -256,6 +256,36 @@ func TestProcessErrors(t *testing.T) {
 	})
 }
 
+// TestProcessRefusesExecClassTools: a tool name and its config reach this
+// server over the wire, so an exec-class tool would let the caller choose the
+// argv the server runs. There is no user at a terminal to ask, so the answer is
+// fixed — the same conclusion MCP reached for its agent surface (AD-037).
+// The refusal is PermissionDenied, not InvalidArgument: the tool exists and the
+// request is well-formed, it is simply not on offer here.
+func TestProcessRefusesExecClassTools(t *testing.T) {
+	client := newTestClient(t)
+
+	for _, toolName := range []string{"external-command", "script"} {
+		t.Run(toolName, func(t *testing.T) {
+			stream, err := client.Process(t.Context())
+			require.NoError(t, err)
+			require.NoError(t, stream.Send(&enginev1.ProcessRequest{Request: &enginev1.ProcessRequest_Header{
+				Header: &enginev1.ProcessHeader{
+					TargetLocale: "nb",
+					Tools: []*enginev1.ToolSpec{{
+						Tool:   toolName,
+						Config: []byte(`{"command":"/bin/sh","args":["-c","id"]}`),
+					}},
+				},
+			}}))
+			_, err = stream.Recv()
+			require.Error(t, err)
+			assert.Equal(t, codes.PermissionDenied, status.Code(err))
+			assert.Contains(t, err.Error(), toolName)
+		})
+	}
+}
+
 func TestExtractErrors(t *testing.T) {
 	client := newTestClient(t)
 
