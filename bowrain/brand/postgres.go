@@ -526,7 +526,9 @@ func (s *PostgresBrandStore) ListProfileVersions(ctx context.Context, profileID 
 		if err := rows.Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &v.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan profile version: %w", err)
 		}
-		_ = json.Unmarshal([]byte(snapshotJSON), &v.Snapshot)
+		if err := json.Unmarshal([]byte(snapshotJSON), &v.Snapshot); err != nil {
+			return nil, fmt.Errorf("profile %s v%d: unmarshal snapshot: %w", v.ProfileID, v.Version, err)
+		}
 		versions = append(versions, &v)
 	}
 	return versions, rows.Err()
@@ -545,7 +547,9 @@ func (s *PostgresBrandStore) GetProfileVersion(ctx context.Context, profileID st
 	if err != nil {
 		return nil, fmt.Errorf("get profile version: %w", err)
 	}
-	_ = json.Unmarshal([]byte(snapshotJSON), &v.Snapshot)
+	if err := json.Unmarshal([]byte(snapshotJSON), &v.Snapshot); err != nil {
+		return nil, fmt.Errorf("profile %s v%d: unmarshal snapshot: %w", v.ProfileID, v.Version, err)
+	}
 	return &v, nil
 }
 

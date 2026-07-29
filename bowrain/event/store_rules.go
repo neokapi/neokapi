@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -131,7 +132,21 @@ func scanRule(row scanner) (*StoredRule, error) {
 	}
 
 	r.Trigger = platev.EventType(trigger)
-	_ = json.Unmarshal([]byte(condJSON), &r.Conditions)
-	_ = json.Unmarshal([]byte(actJSON), &r.Actions)
+	// Conditions and actions are the rule itself. A rule whose conditions
+	// silently decode to nil matches everything it was meant to filter, and one
+	// whose actions decode to nil does nothing while still reporting as active
+	// — both indistinguishable from a rule deliberately written that way. The
+	// columns are NOT NULL DEFAULT '[]' but permit an empty string, so an empty
+	// value is an old row rather than corruption.
+	if condJSON != "" {
+		if err := json.Unmarshal([]byte(condJSON), &r.Conditions); err != nil {
+			return nil, fmt.Errorf("rule %s: unmarshal conditions: %w", r.ID, err)
+		}
+	}
+	if actJSON != "" {
+		if err := json.Unmarshal([]byte(actJSON), &r.Actions); err != nil {
+			return nil, fmt.Errorf("rule %s: unmarshal actions: %w", r.ID, err)
+		}
+	}
 	return &r, nil
 }

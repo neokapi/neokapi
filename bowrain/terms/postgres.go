@@ -92,6 +92,12 @@ func pgValidityFromColumns(validFrom, validTo sql.NullTime, tags string) *graph.
 		v.ValidTo = &t
 	}
 	if tags != "" && tags != "{}" {
+		// Best-effort, matching the annotated SQLite original in
+		// terms/sqlite.go: validity tags are optional relation metadata, so a
+		// malformed blob degrades to no tags rather than failing the read.
+		// This function returns no error by design; mandatory columns
+		// (properties, created_at, updated_at) are propagated by the row
+		// scanners instead.
 		_ = json.Unmarshal([]byte(tags), &v.Tags)
 	}
 	if v.ValidFrom == nil && v.ValidTo == nil && len(v.Tags) == 0 {
@@ -771,8 +777,12 @@ func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept
 
 	c.Source = fw.TermSource(source)
 
+	// tb_concepts.properties is plain TEXT with no NOT NULL, so the nil check
+	// is load-bearing: a row that never had properties is not a corrupt one.
 	if propsJSON != nil && *propsJSON != "" {
-		_ = json.Unmarshal([]byte(*propsJSON), &c.Properties)
+		if err := json.Unmarshal([]byte(*propsJSON), &c.Properties); err != nil {
+			return c, fmt.Errorf("concept %s: unmarshal properties: %w", c.ID, err)
+		}
 	}
 
 	rows, err := tb.db.QueryContext(ctx, `

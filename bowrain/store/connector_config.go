@@ -323,11 +323,22 @@ func (s *ConnectorConfigStore) scan(sc storage.Scanner, redact bool) (ConnectorC
 	if err != nil {
 		return ConnectorConfig{}, fmt.Errorf("scan connector config: %w", err)
 	}
-	cfg.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	cfg.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	// A timestamp that will not parse is a corrupt row, not an old one, and
+	// silently becoming the zero time makes a connector look as though it were
+	// created at the start of the epoch and had never synced — which is exactly
+	// what the sync scheduler reads these for.
+	var perr error
+	if cfg.CreatedAt, perr = time.Parse(time.RFC3339, createdStr); perr != nil {
+		return ConnectorConfig{}, fmt.Errorf("connector config %s: parse created_at: %w", cfg.ID, perr)
+	}
+	if cfg.UpdatedAt, perr = time.Parse(time.RFC3339, updatedStr); perr != nil {
+		return ConnectorConfig{}, fmt.Errorf("connector config %s: parse updated_at: %w", cfg.ID, perr)
+	}
 	// last_sync_at is "" until the first successful sync; leave the zero value.
 	if lastSyncStr != "" {
-		cfg.LastSyncAt, _ = time.Parse(time.RFC3339, lastSyncStr)
+		if cfg.LastSyncAt, perr = time.Parse(time.RFC3339, lastSyncStr); perr != nil {
+			return ConnectorConfig{}, fmt.Errorf("connector config %s: parse last_sync_at: %w", cfg.ID, perr)
+		}
 	}
 
 	stored := map[string]string{}

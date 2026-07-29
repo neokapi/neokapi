@@ -544,7 +544,9 @@ func scanStreamTag(row scanner) (*platstore.StreamTag, error) {
 	tag.Kind = platstore.StreamTagKind(kindStr)
 	tag.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	if metaStr != "" && metaStr != "{}" {
-		_ = json.Unmarshal([]byte(metaStr), &tag.Metadata)
+		if err := json.Unmarshal([]byte(metaStr), &tag.Metadata); err != nil {
+			return nil, fmt.Errorf("unmarshal stream tag metadata: %w", err)
+		}
 	}
 	return &tag, nil
 }
