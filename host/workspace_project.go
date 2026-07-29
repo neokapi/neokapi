@@ -49,7 +49,7 @@ func (a *App) RunPack(cmd Command) error {
 	// Side-effecting Extras (server/hooks/automations) are stripped so they
 	// travel inert; secrets never live in a recipe (keychain).
 	if recipe, lerr := project.Load(projectPath); lerr == nil {
-		pkg.Recipe = kpz.SanitizeRecipe(recipe)
+		pkg.Recipe, _ = kpz.SanitizeRecipe(recipe)
 	} else {
 		fmt.Fprintf(os.Stderr, "Warning: pack: load recipe %s: %v (packing content only)\n", projectPath, lerr)
 	}
@@ -222,11 +222,20 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 		return err
 	}
 
-	// Write the recipe back as <name>.kapi (the authoritative intent). When a
-	// project already exists, its on-disk recipe is authoritative — do not
-	// overwrite it; only reconstitute when there was no recipe.
-	if pkg.Recipe != nil {
-		if !fileExists(layout.RecipePath) {
+	// Write the recipe back as the project recipe (the authoritative intent).
+	// When a project already exists, its on-disk recipe is authoritative — do
+	// not overwrite it; only reconstitute when there was no recipe.
+	//
+	// Adopting a package's recipe makes every later `kapi run` in this directory
+	// execute steps the package author wrote, so it is a decision the recipient
+	// makes rather than a side effect of unpacking. LoadWorkspace has already
+	// made the recipe inert; the prompt is about intent, not safety.
+	if pkg.Recipe != nil && !fileExists(layout.RecipePath) {
+		ok, cerr := a.confirmAdoptRecipe(cmd, snapshotPath)
+		if cerr != nil {
+			return cerr
+		}
+		if ok {
 			if serr := project.Save(layout.RecipePath, pkg.Recipe); serr != nil {
 				return fmt.Errorf("unpack: write recipe: %w", serr)
 			}
@@ -322,6 +331,34 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 	return outputPrint(cmd, fmt.Sprintf("Unpacked %s → %s", snapshotPath, layout.StateDir))
 }
 
+// confirmAdoptRecipe asks whether to adopt the recipe a package carries as this
+// directory's project recipe. --yes adopts; an interactive terminal is asked;
+// anything else declines and says how to adopt deliberately.
+//
+// Declining is not a failure — the content the package exists to carry has
+// already been restored. Only the intent is withheld, which is the part that
+// makes later runs execute steps someone else wrote.
+func (a *App) confirmAdoptRecipe(cmd Command, snapshotPath string) (bool, error) {
+	if a.AssumeYes {
+		return true, nil
+	}
+	isTTY := a.isTTY
+	if isTTY == nil {
+		isTTY = defaultIsStdinTTY
+	}
+	w := cmd.ErrOrStderr()
+	if !isTTY() {
+		fmt.Fprintf(w, "Note: %s carries its own project recipe; this directory has none.\n"+
+			"      Not adopting it — re-run with --yes to use the packaged recipe as %s.\n",
+			filepath.Base(snapshotPath), project.RecipeFileName)
+		return false, nil
+	}
+	fmt.Fprintf(w, "\n%s carries its own project recipe, and this directory has none.\n"+
+		"Adopting it means later `kapi run` invocations here execute the flows it declares.\n",
+		filepath.Base(snapshotPath))
+	return Confirm(cmd.InOrStdin(), w, fmt.Sprintf("Use it as %s? [Y/n] ", project.RecipeFileName))
+}
+
 // restoreSources writes a snapshot's raw source members back into the project
 // tree under their logical paths (the archive path minus the "source/" prefix).
 //
@@ -339,15 +376,9 @@ func restoreSources(pkg *kpz.Package, root string) error {
 	}
 	for _, doc := range pkg.Source {
 		rel := strings.TrimPrefix(doc.Path, kpz.SourceDir)
-		if rel == "" || strings.HasPrefix(rel, "/") {
-			// An absolute member path would be silently reinterpreted as
-			// project-relative by filepath.Join. Refusing beats writing
-			// somewhere the archive did not name.
-			return fmt.Errorf("unpack: source member %q has no usable relative path", doc.Path)
-		}
-		dst := filepath.Join(absRoot, filepath.FromSlash(rel))
-		if !strings.HasPrefix(dst, absRoot+string(os.PathSeparator)) {
-			return fmt.Errorf("unpack: source member %q escapes the project root", doc.Path)
+		dst, err := containedJoin(absRoot, rel, "unpack: source member")
+		if err != nil {
+			return err
 		}
 		if fileExists(dst) {
 			continue // the working tree already has this source
@@ -367,11 +398,20 @@ func restoreSources(pkg *kpz.Package, root string) error {
 // is fixed, so the project's identity is carried by its folder: a fresh
 // <name>/ directory beside the snapshot (named from the recipe, else the
 // snapshot's base name) holding the kapi.yaml recipe.
+//
+// The recipe's name is package-controlled, so it is accepted only as a single
+// directory segment — a name carrying a separator or ".." would place the
+// reconstituted project (and the block store, content memory and terms that
+// follow it) outside the directory the snapshot was unpacked in. It falls back
+// to the snapshot's own base name rather than failing: the folder is a
+// convenience, not the payload.
 func reconstitutedProjectPath(snapshotPath string, pkg *kpz.Package) string {
 	dir := filepath.Dir(snapshotPath)
 	name := format.Stem(snapshotPath)
 	if pkg != nil && pkg.Recipe != nil && pkg.Recipe.Name != "" {
-		name = pkg.Recipe.Name
+		if err := checkPathSegment(pkg.Recipe.Name, "unpack: recipe name"); err == nil {
+			name = pkg.Recipe.Name
+		}
 	}
 	return filepath.Join(dir, name, project.RecipeFileName)
 }

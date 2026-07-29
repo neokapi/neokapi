@@ -52,6 +52,11 @@ type App struct {
 	// explain collects LLM exchanges while Explain is set.
 	explain *explainCollector
 
+	// isTTY overrides terminal detection for the prompts App itself raises
+	// (today: adopting a package-carried recipe on unpack). nil means check
+	// os.Stdin. Tests swap it; nothing else should.
+	isTTY func() bool
+
 	// Processing flags bound by AddProcessingFlags.
 	FormatFlag string
 	Encoding   string

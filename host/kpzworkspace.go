@@ -82,6 +82,12 @@ func (a *App) ExtractToKpz(ctx context.Context, sources []string, outKpz, target
 	if !IsKpzPath(outKpz) {
 		outKpz += workspaceExt
 	}
+	// The layout is recorded IN the package, so it has to mean the same thing
+	// wherever the package is merged. Say so now rather than at merge time in
+	// someone else's checkout.
+	if !kpz.IsLocalOutTemplate(outLayout) {
+		return fmt.Errorf("extract: --out %q must be relative to the merge directory (e.g. 'l10n/{lang}/{name}.{ext}') — a workspace records this layout for whoever merges it; pass an absolute destination to `kapi merge -o` instead", outLayout)
+	}
 
 	recipe := newWorkspaceRecipe(a.SourceLang, splitLocales(targetLang), outLayout)
 
@@ -289,9 +295,18 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 	if len(locales) == 0 {
 		return errors.New("merge: workspace has no translated locales yet — run a tool on it first")
 	}
+	// -o is the user speaking, and an absolute destination there is legitimate.
+	// The recipe's own layout is the PACKAGE speaking, and a package describes
+	// where its output goes relative to wherever it is merged — never an
+	// absolute or climbing destination. LoadWorkspace already drops a non-local
+	// layout on ingest; this is the check at the point of use, so a cache built
+	// by an older build cannot slip one through.
 	layout := outOverride
 	if layout == "" {
 		layout = recipeOut(c.meta.Recipe)
+		if !kpz.IsLocalOutTemplate(layout) {
+			return fmt.Errorf("merge: the workspace's recorded output layout %q names a destination outside the merge directory — pass `-o <dir>` to choose one deliberately", layout)
+		}
 	}
 	if sl := recipeSourceLang(c.meta.Recipe); sl != "" {
 		a.SourceLang = sl
@@ -300,7 +315,10 @@ func (a *App) MergeFromKpz(ctx context.Context, kpzPath, outOverride string) err
 	written := 0
 	for _, src := range c.meta.Sources {
 		for _, locale := range locales {
-			docOut := mergeOutputPath(layout, src.Path, locale, len(locales) > 1)
+			docOut, derr := mergeOutputPath(layout, src.Path, locale, len(locales) > 1)
+			if derr != nil {
+				return derr
+			}
 			tools := []tool.Tool{newHydrateTargetsTool(model.LocaleID(locale))}
 			if err := a.runCacheSource(ctx, c, src, "merge", tools, docOut, locale); err != nil {
 				return err
@@ -486,7 +504,14 @@ func overlaysForSource(overlays []kpz.OverlayDoc, sourcePath string) []kpz.Overl
 // mergeOutputPath computes one source × locale output path. A template
 // ({name} {lang} {ext} {dir}) is expanded; a bare directory receives
 // <dir>/[<lang>/]<name>; the default is ./<lang>/<name>.
-func mergeOutputPath(layout, sourcePath, locale string, multiLocale bool) string {
+//
+// The locale is a package-supplied value that becomes a path segment in every
+// branch, so it is checked before it can redirect the write — the layout may be
+// as absolute as the user asked for, but the locale is an identifier.
+func mergeOutputPath(layout, sourcePath, locale string, multiLocale bool) (string, error) {
+	if err := checkPathSegment(locale, "merge: target locale"); err != nil {
+		return "", err
+	}
 	base := filepath.Base(sourcePath)
 	ext := format.Ext(base)
 	name := strings.TrimSuffix(base, ext)
@@ -497,15 +522,15 @@ func mergeOutputPath(layout, sourcePath, locale string, multiLocale bool) string
 		if d := filepath.Dir(out); d != "." {
 			_ = os.MkdirAll(d, 0o755)
 		}
-		return out
+		return out, nil
 	}
 	if layout != "" {
 		if multiLocale {
-			return filepath.Join(layout, locale, base)
+			return filepath.Join(layout, locale, base), nil
 		}
-		return filepath.Join(layout, base)
+		return filepath.Join(layout, base), nil
 	}
-	return filepath.Join(locale, base)
+	return filepath.Join(locale, base), nil
 }
 
 // splitLocales splits a comma-separated locale flag into a trimmed list.

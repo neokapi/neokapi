@@ -300,7 +300,10 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 		}
 		for _, locale := range locales {
 			entry := &project.ExtractionFile{Source: f.Relative}
-			targetPath := resolveMergeOutputPath(entry, proj, layout.Root, locale)
+			targetPath, terr := resolveMergeOutputPath(entry, proj, layout.Root, locale)
+			if terr != nil {
+				return written, terr
+			}
 
 			// Whole-image (target-asset) replacement: an existing localized
 			// binary-asset variant is authoritative — keep it rather than clobber
@@ -466,6 +469,11 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	if targetLocale == "" {
 		return errors.New("merge: interchange package has no target locale")
 	}
+	// The locale is interpolated into the output path as one segment, so a
+	// package cannot be allowed to spell it as a path.
+	if err := checkPathSegment(string(targetLocale), "merge: package target locale"); err != nil {
+		return err
+	}
 	policy := proj.Defaults.Merge.ResolvedConflictPolicy()
 
 	var tm *memory.SQLiteStore
@@ -498,7 +506,13 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	var tmErr error
 	for _, si := range pkg.Sources {
 		srcRel := si.SourcePath
-		sourceAbs := filepath.Join(layout.Root, srcRel)
+		// The package names which of the project's sources it carries work for.
+		// That name decides both the file re-read here and the file written
+		// below, so it is contained before either happens.
+		sourceAbs, err := containedJoin(layout.Root, srcRel, "merge: package source path")
+		if err != nil {
+			return err
+		}
 		srcFormat := si.FormatID
 		if srcFormat == "" {
 			srcFormat = detectSourceFormat(a.FormatReg, pctx, srcRel, sourceAbs)
@@ -584,7 +598,10 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 			}
 		}
 		entry := &project.ExtractionFile{Source: srcRel}
-		targetPath := resolveMergeOutputPath(entry, pctx.Project, layout.Root, targetLocale)
+		targetPath, terr := resolveMergeOutputPath(entry, pctx.Project, layout.Root, targetLocale)
+		if terr != nil {
+			return terr
+		}
 		if werr := writeMergedSourceWithSkeleton(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, targetLocale, currentBlocks, "", skelBytes, formatConfigForSource(pctx.Project, srcFormat, srcRel)); werr != nil {
 			return fmt.Errorf("write merged target %s: %w", targetPath, werr)
 		}
@@ -698,7 +715,10 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 	}
 
 	// 4. Re-read the current source (for per-block staleness detection).
-	sourceAbs := filepath.Join(task.layout.Root, entry.Source)
+	sourceAbs, err := containedJoin(task.layout.Root, entry.Source, "merge: manifest source path")
+	if err != nil {
+		return stats, err
+	}
 	currentHash, err := project.HashFile(sourceAbs)
 	if err != nil {
 		return stats, fmt.Errorf("hash current source %s: %w", sourceAbs, err)
@@ -804,7 +824,10 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 	}
 
 	// 6. Write the merged target file via the project's writer + skeleton.
-	targetPath := resolveMergeOutputPath(entry, task.ctx.Project, task.layout.Root, targetLocale)
+	targetPath, err := resolveMergeOutputPath(entry, task.ctx.Project, task.layout.Root, targetLocale)
+	if err != nil {
+		return stats, err
+	}
 	if err := writeMergedSource(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, task.layout, batchID, entry, targetLocale, currentSourceBlocks, task.ctx.Project); err != nil {
 		return stats, fmt.Errorf("write merged target %s: %w", targetPath, err)
 	}
@@ -846,7 +869,10 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 	targetLocale := pair.TargetLocale
 
 	// Re-read the current source.
-	sourceAbs := filepath.Join(task.layout.Root, entry.Source)
+	sourceAbs, err := containedJoin(task.layout.Root, entry.Source, "merge: manifest source path")
+	if err != nil {
+		return stats, err
+	}
 	srcFormat := detectSourceFormat(a.FormatReg, task.ctx, entry.Source, sourceAbs)
 	if srcFormat == "" {
 		return stats, fmt.Errorf("merge: cannot detect format for source %s", sourceAbs)
@@ -925,7 +951,10 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 	}
 
 	// Write merged target via source format writer + captured skeleton.
-	targetPath := resolveMergeOutputPath(entry, task.ctx.Project, task.layout.Root, targetLocale)
+	targetPath, err := resolveMergeOutputPath(entry, task.ctx.Project, task.layout.Root, targetLocale)
+	if err != nil {
+		return stats, err
+	}
 	if err := writeMergedSource(ctx, a.FormatReg, srcFormat, sourceAbs, targetPath, task.layout, po.BatchID, entry, targetLocale, currentSourceBlocks, task.ctx.Project); err != nil {
 		return stats, fmt.Errorf("write merged target %s: %w", targetPath, err)
 	}
@@ -1004,7 +1033,20 @@ func detectSourceFormat(reg *registry.FormatRegistry, ctx *project.ProjectContex
 // resolveMergeOutputPath returns the path to write the merged target
 // source to. Falls back to a sensible default next to the source when
 // the recipe does not declare a target template.
-func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiProject, root string, locale model.LocaleID) string {
+//
+// Two inputs decide the destination and they carry different trust. The target
+// template comes from the LOCAL recipe — the project owner's own file — so an
+// absolute template stays a supported way to write outside the tree. The source
+// path may come from a package, and it feeds both the default layout and the
+// template's {path}/{filename} substitutions, so it is contained first: a
+// package may only name a source inside the project it is merged into.
+func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiProject, root string, locale model.LocaleID) (string, error) {
+	if _, err := containedJoin(root, entry.Source, "merge: source path"); err != nil {
+		return "", err
+	}
+	if err := checkPathSegment(string(locale), "merge: target locale"); err != nil {
+		return "", err
+	}
 	// Search the recipe for the ContentItem whose Path matches entry.Source.
 	// Patterns use doublestar (matching ExpandGlob's `**` semantics), and the
 	// target template supports {lang}, {path}, {filename}, {basename}, and the
@@ -1023,13 +1065,13 @@ func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiPro
 				if !filepath.IsAbs(tmpl) {
 					tmpl = filepath.Join(root, tmpl)
 				}
-				return tmpl
+				return tmpl, nil
 			}
 		}
 	}
 	// Default: <source-dir>/<locale>/<basename>
 	base := filepath.Base(entry.Source)
-	return filepath.Join(root, filepath.Dir(entry.Source), string(locale), base)
+	return filepath.Join(root, filepath.Dir(entry.Source), string(locale), base), nil
 }
 
 // writeMergedSource writes the merged blocks to the target file using the
