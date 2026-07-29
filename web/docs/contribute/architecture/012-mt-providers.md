@@ -85,7 +85,8 @@ Each provider:
 - Handles locale format conversion from BCP-47 (the framework's canonical
   form, [AD-002: Content Model](002-content-model.md)) to the provider's
   expected codes.
-- Exposes a `BaseURL` override for tests and private cloud endpoints.
+- Accepts a `BaseURL` naming a self-hosted or private-cloud endpoint. It is
+  **host configuration, not a recipe field** — see Credential resolution below.
 - Returns structured errors with HTTP status codes.
 
 ### Pipeline integration via MTTranslateTool
@@ -140,6 +141,19 @@ providers:
 3. Explicit `--api-key` flag.
 
 Keys never appear in flow definitions or project files.
+
+**The endpoint travels with the key.** `BaseURL` is part of the same decision
+as the secret sent to it, so it is stored alongside the credential (`kapi
+credentials add --base-url`) and injected during credential resolution. A flow
+step's `config:` cannot set it: `host/credentials.ResolveCredentials` clears the
+key on the way in and re-sets it only from a resolved credential.
+
+This is enforced in the resolver rather than by the tool's struct tags, because
+the two kinds of tag mean different things. `schema:"-"` keeps a field off the
+CLI and out of the generated form, but `core/schema.ApplyConfig` is a plain
+json round-trip — a step's config map reaches every field with a `json` tag,
+whatever its `schema` tag says. Hiding a field from the form is a presentation
+choice; keeping a recipe out of it is a separate act.
 
 ### Flow composition
 
