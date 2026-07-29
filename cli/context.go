@@ -53,17 +53,23 @@ terminology match and a wording match are not scored on comparable things.`,
 
 			src := host.ContextSearchSources{Scope: host.ScopeProject}
 
-			// A store the project has not bound is not an error: a project with
-			// terminology but no content memory is ordinary. SearchContext
-			// reports the gap in its notes so an empty answer is never ambiguous
-			// between "no answer" and "nowhere to look".
+			// A store that will not open degrades to a note rather than failing
+			// the command — the other store may still answer, and half an answer
+			// beats an error mid-task. But it is never silent: these openers
+			// create a missing file, so an error here means broken, not absent,
+			// and reporting it as "not bound" would send the caller looking for
+			// a store they already have.
 			if tb, _, err := a.OpenTermsSQLite(cmd); err == nil {
 				defer tb.Close()
 				src.Terms = tb
+			} else {
+				src.TermsErr = err
 			}
 			if tm, _, err := a.OpenMemorySQLite(cmd); err == nil {
 				defer tm.Close()
 				src.Memory = tm
+			} else {
+				src.MemoryErr = err
 			}
 
 			res, err := host.SearchContext(cmd.Context(), src, host.ContextSearchRequest{

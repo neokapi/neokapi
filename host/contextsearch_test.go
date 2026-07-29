@@ -2,6 +2,7 @@ package host_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -196,6 +197,92 @@ func TestSearchContextPrecedentSkipsOtherLanguages(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Empty(t, res.Precedent, "a French-only entry is not English precedent")
+}
+
+// The text output must say which language each verdict is about. This repo's
+// own terms store has "termbase" deprecated in English and admitted in
+// Norwegian, and rendering both without the locale made one search look like
+// two contradictory answers to the same question.
+func TestFormatTextNamesTheLocaleBehindEachVerdict(t *testing.T) {
+	res := &host.ContextSearchResult{
+		Terms: []host.ContextTermHit{
+			{Term: "termbase", Locale: "en", Status: "deprecated", Discouraged: true, Replacement: "terms store"},
+			{Term: "termbase", Locale: "nb", Status: "admitted"},
+		},
+	}
+
+	var buf strings.Builder
+	require.NoError(t, res.FormatText(&buf))
+
+	assert.Contains(t, buf.String(), `discouraged — say "terms store" (en, deprecated)`)
+	assert.Contains(t, buf.String(), "ok (nb, admitted)")
+}
+
+// Precedent carrying a term the same search called retired must say so. The
+// regression this guards is a real one: pointed at this repo's own context, the
+// surface reported "termbase" discouraged and then offered wording containing
+// it as approved, in one answer.
+func TestSearchContextFlagsPrecedentThatUsesARetiredTerm(t *testing.T) {
+	src := host.ContextSearchSources{
+		Terms: fakeTerms{concepts: []terms.Concept{renameConcept()}},
+		Memory: fakeMemory{entries: []memory.Entry{
+			{
+				ID:          "m-stale",
+				HintSrcLang: model.LocaleEnglish,
+				Variants: map[model.LocaleID][]model.Run{
+					model.LocaleEnglish: {{Text: &model.TextRun{Text: "Export the Widget to CSV."}}},
+				},
+			},
+			{
+				ID:          "m-current",
+				HintSrcLang: model.LocaleEnglish,
+				Variants: map[model.LocaleID][]model.Run{
+					model.LocaleEnglish: {{Text: &model.TextRun{Text: "Export the gadget to CSV."}}},
+				},
+			},
+		}},
+		Scope: host.ScopeProject,
+	}
+
+	res, err := host.SearchContext(context.Background(), src, host.ContextSearchRequest{
+		Query:  "widget",
+		Locale: model.LocaleEnglish,
+	})
+	require.NoError(t, err)
+	require.Len(t, res.Precedent, 2)
+
+	byID := map[string]host.ContextPrecedentHit{}
+	for _, p := range res.Precedent {
+		byID[p.EntryID] = p
+	}
+	// Matched case-insensitively: "Widget" in prose is the same retired word.
+	assert.Equal(t, []string{"widget"}, byID["m-stale"].Discouraged)
+	// Wording that uses the preferred term stays unqualified — the flag must
+	// mark the stale line, not shade the whole group.
+	assert.Empty(t, byID["m-current"].Discouraged)
+}
+
+// A store that failed to open must not read as a store the project lacks. The
+// SQLite openers create a missing file, so an error from one means broken —
+// and a caller told "nothing is bound" goes looking for a store it already has.
+// A kapi built without the fts5 tag hit exactly this and reported the dogfood
+// project as having no terminology.
+func TestSearchContextSaysAStoreBrokeRatherThanIsAbsent(t *testing.T) {
+	res, err := host.SearchContext(context.Background(),
+		host.ContextSearchSources{
+			Scope:    host.ScopeProject,
+			TermsErr: errors.New("no such function: fts5"),
+		},
+		host.ContextSearchRequest{Query: "widget"})
+	require.NoError(t, err, "an unopenable store degrades, it does not fail the call")
+
+	joined := notesText(res)
+	assert.Contains(t, joined, "terms store could not be opened: no such function: fts5")
+	// The two are different answers to "why is this empty?" and must not both
+	// appear — a broken store is not also an absent one.
+	assert.NotContains(t, joined, "no terms store is bound")
+	// The store that was genuinely never bound still reports as such.
+	assert.Contains(t, joined, "no content memory is bound")
 }
 
 func TestSearchContextRejectsEmptyQuery(t *testing.T) {
