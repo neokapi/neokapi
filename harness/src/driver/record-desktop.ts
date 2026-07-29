@@ -714,10 +714,10 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
     if (await s.count()) await humanType(page, s, "mission", { submit: true });
     await page.waitForTimeout(1600);
   });
-  // Open the Brand hub — Concepts is its landing section (nav-brand lands on
-  // /brand, which redirects to /brand/concepts).
+  // Open the Context hub — Concepts is its landing section (nav-context lands
+  // on /context, which redirects to /context/concepts).
   await beat("open-concepts", null, async () => {
-    await tap("nav-brand");
+    await tap("nav-context");
     await page
       .waitForSelector('input[aria-label="Search concepts"]', { timeout: 20_000 })
       .catch(() => {});

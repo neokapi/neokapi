@@ -90,9 +90,9 @@ describe("posthog integration", () => {
     vi.stubEnv("VITE_POSTHOG_KEY", "phc_test_key");
     const posthog = (await import("posthog-js")).default;
     const { captureEvent } = await import("../posthog");
-    captureEvent("$pageview", { path_pattern: "/$workspace/brand/concepts" });
+    captureEvent("$pageview", { path_pattern: "/$workspace/context/concepts" });
     expect(vi.mocked(posthog.capture)).toHaveBeenCalledWith("$pageview", {
-      path_pattern: "/$workspace/brand/concepts",
+      path_pattern: "/$workspace/context/concepts",
     });
   });
 
