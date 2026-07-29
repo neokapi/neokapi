@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"testing"
 
@@ -311,6 +312,145 @@ func (s *swappedBlobStore) Download(ctx context.Context, key string) (io.ReadClo
 		return io.NopCloser(bytes.NewReader(s.payload)), nil
 	}
 	return s.BlobStore.Download(ctx, key)
+}
+
+// failingItemStore fails every StoreItem and otherwise delegates. Item metadata
+// is a separate write from the blocks it describes, so it is the write that can
+// fail on its own.
+type failingItemStore struct {
+	store.ContentStore
+	err error
+}
+
+func (s *failingItemStore) StoreItem(context.Context, string, string, *store.Item) error {
+	return s.err
+}
+
+// Item metadata — format, block index, preview, collection — is written
+// separately from the blocks it describes. If that write is allowed to fail
+// unheard, the push reports success while the items it just stored are missing
+// everything that says how to render them.
+func TestProcessSyncPush_ItemMetadataWriteFailureFailsTheJob(t *testing.T) {
+	deps := newTestWorkerDeps(t)
+	ctx := t.Context()
+
+	projectID := "item-write-failure-project"
+	_ = deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Item Write Failure"})
+
+	chunk := &pb.SyncChunk{
+		ContentType: "blocks",
+		RecordCount: 1,
+		Blocks: []*pb.SyncBlock{
+			{Id: "b1", ItemName: "en.json", SourceText: "Hello", Translatable: true},
+		},
+	}
+	chunkData, err := proto.Marshal(chunk)
+	require.NoError(t, err)
+	sum := sha256.Sum256(chunkData)
+	chunkHash := hex.EncodeToString(sum[:])
+	_, err = deps.BlobStore.Upload(ctx, chunkData, corestorage.UploadOptions{})
+	require.NoError(t, err)
+
+	manifestRef := uploadSyncManifest(t, ctx, deps, projectID, chunkHash, len(chunkData),
+		json.RawMessage(`[{"name":"en.json","format":"json"}]`))
+
+	deps.ContentStore = &failingItemStore{
+		ContentStore: deps.ContentStore,
+		err:          errors.New("item table is unavailable"),
+	}
+
+	job := &TranslationJob{
+		ID:        "job-item-write-failure",
+		ProjectID: projectID,
+		ItemName:  "__sync_push__",
+		Model:     manifestRef.Key,
+		PushID:    "push-item-write-failure",
+		Status:    StatusQueued,
+	}
+	require.NoError(t, deps.JobStore.CreateJob(ctx, job))
+
+	err = ProcessSyncPushJobForTest(ctx, deps, job.ID)
+	require.Error(t, err, "an item metadata write that failed must not be reported as a completed push")
+	assert.Contains(t, err.Error(), "item table is unavailable")
+
+	j, err := deps.JobStore.GetJob(ctx, job.ID)
+	require.NoError(t, err)
+	assert.Equal(t, StatusFailed, j.Status)
+}
+
+// The manifest's item metadata is what tells the worker each item's format,
+// block index, preview and collection. Parsing it as far as the first bad byte
+// and carrying on would store the content with default metadata and nothing to
+// say the rest was ever there.
+func TestProcessSyncPush_UnparseableItemMetadataFailsTheJob(t *testing.T) {
+	deps := newTestWorkerDeps(t)
+	ctx := t.Context()
+
+	projectID := "corrupt-items-project"
+	_ = deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Corrupt Items"})
+
+	chunk := &pb.SyncChunk{
+		ContentType: "blocks",
+		RecordCount: 1,
+		Blocks: []*pb.SyncBlock{
+			{Id: "b1", ItemName: "en.json", SourceText: "Hello", Translatable: true},
+		},
+	}
+	chunkData, err := proto.Marshal(chunk)
+	require.NoError(t, err)
+	sum := sha256.Sum256(chunkData)
+	chunkHash := hex.EncodeToString(sum[:])
+	_, err = deps.BlobStore.Upload(ctx, chunkData, corestorage.UploadOptions{})
+	require.NoError(t, err)
+
+	// Well-formed JSON, but an object where the array of item metadata belongs.
+	manifestRef := uploadSyncManifest(t, ctx, deps, projectID, chunkHash, len(chunkData),
+		json.RawMessage(`{"en.json":{"format":"json"}}`))
+
+	job := &TranslationJob{
+		ID:        "job-corrupt-items",
+		ProjectID: projectID,
+		ItemName:  "__sync_push__",
+		Model:     manifestRef.Key,
+		PushID:    "push-corrupt-items",
+		Status:    StatusQueued,
+	}
+	require.NoError(t, deps.JobStore.CreateJob(ctx, job))
+
+	err = ProcessSyncPushJobForTest(ctx, deps, job.ID)
+	require.Error(t, err, "item metadata that cannot be parsed must fail the push rather than be dropped")
+
+	blocks, err := deps.ContentStore.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: "main", Limit: 100})
+	require.NoError(t, err)
+	assert.Empty(t, blocks, "no content may land from a push whose item metadata was lost")
+
+	j, err := deps.JobStore.GetJob(ctx, job.ID)
+	require.NoError(t, err)
+	assert.Equal(t, StatusFailed, j.Status)
+}
+
+// uploadSyncManifest writes a single-chunk push manifest carrying the given raw
+// item metadata, and returns the blob ref the job points at.
+func uploadSyncManifest(t *testing.T, ctx context.Context, deps *WorkerDeps, projectID, chunkHash string, byteSize int, items json.RawMessage) *corestorage.BlobRef {
+	t.Helper()
+	manifest := map[string]any{
+		"upload_id":  "upload-" + projectID,
+		"project_id": projectID,
+		"stream":     "main",
+		"chunks": []map[string]any{{
+			"index":        0,
+			"content_type": "blocks",
+			"hash":         chunkHash,
+			"record_count": 1,
+			"byte_size":    byteSize,
+		}},
+		"items": items,
+	}
+	manifestData, err := json.Marshal(manifest)
+	require.NoError(t, err)
+	ref, err := deps.BlobStore.Upload(ctx, manifestData, corestorage.UploadOptions{})
+	require.NoError(t, err)
+	return ref
 }
 
 // TestProcessSyncPush_ChunkContentMustMatchItsHash pins that the worker treats a
