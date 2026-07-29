@@ -115,13 +115,6 @@ func ExportTMX(ctx context.Context, tm ContentMemory, writer io.Writer, locales 
 	return w.flush()
 }
 
-// ExportTMXBilingual writes a bilingual TMX containing only variants for
-// the given source and target locales. Preserved for callers still passing
-// a (src, tgt) pair.
-func ExportTMXBilingual(ctx context.Context, tm ContentMemory, writer io.Writer, src, tgt model.LocaleID) error {
-	return ExportTMX(ctx, tm, writer, []model.LocaleID{src, tgt})
-}
-
 // tmxWriter is a write-error-latching wrapper over the buffered output.
 //
 // The export emits a long, branchy sequence of small writes, and threading an

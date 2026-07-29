@@ -58,15 +58,13 @@ func withWritesOutput() func(*schema.ToolMeta) {
 	return func(m *schema.ToolMeta) { m.WritesOutput = true }
 }
 
-func withParallelBlocks(n int) func(*schema.ToolMeta) {
-	return func(m *schema.ToolMeta) { m.DefaultParallelBlocks = n }
-}
-
-// Keep withParallelBlocks reachable until the first tool adopts it.
-// Without this anchor, linters flag the helper as unused even though
-// it's part of the builder chain that sits next to withWritesOutput
-// / withSideEffects / withAliases.
-var _ = withParallelBlocks
+// No withParallelBlocks builder: the tools that want a parallel-block default
+// are in core/ai/tools and set schema.ToolMeta.DefaultParallelBlocks directly
+// in their meta literals. A builder existed here for the tools registered
+// through this file, kept alive by a `var _ =` anchor "until the first tool
+// adopts it" — none did, and the anchor is precisely the mechanism that stops
+// the compiler from ever saying so. Add it back when a tool in this file needs
+// it, not before.
 
 func withAliases(aliases ...string) func(*schema.ToolMeta) {
 	return func(m *schema.ToolMeta) { m.Aliases = aliases }
