@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"maps"
+	"path"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -522,10 +523,52 @@ func editorCreateProject(ctx context.Context, cs store.ContentStore, ws, name, s
 	return projectToInfoResponse(p), nil
 }
 
+// maxItemNameLen bounds an item name. Real names are repository-relative paths;
+// anything approaching this is not one.
+const maxItemNameLen = 1024
+
+// safeItemName reports whether name may be stored as an item name.
+//
+// An item name is not just a label: it is a repository-relative path that the
+// delivery side joins onto a checkout root to decide which file to write. It
+// therefore has to be a path that stays inside the tree it is relative to.
+// Nested names are ordinary and stay allowed — "locales/en/messages.json" is
+// the common case, so filepath.Base would be wrong — but the name must be
+// relative, canonical, and free of parent references.
+//
+// The rule is expressed in slash terms rather than the host's, because an item
+// name means the same thing on every platform: it is stored on one OS and may
+// be delivered on another. Requiring path.Clean to be a fixed point is what
+// rejects "..", ".", doubled separators and trailing slashes in one test.
+func safeItemName(name string) bool {
+	if name == "" || len(name) > maxItemNameLen {
+		return false
+	}
+	if strings.ContainsRune(name, 0) {
+		return false
+	}
+	// A backslash is a separator on Windows and an ordinary character
+	// elsewhere; refusing it keeps one stored name from meaning two things.
+	if strings.ContainsRune(name, '\\') {
+		return false
+	}
+	if path.IsAbs(name) || filepath.IsAbs(name) || filepath.VolumeName(name) != "" {
+		return false
+	}
+	// Canonical form only: this is what rejects "./x", "a//b" and "a/b/".
+	if path.Clean(name) != name {
+		return false
+	}
+	// Clean keeps a leading ".." on a relative path — "../x" is already
+	// canonical — so the escape has to be rejected on its own.
+	return name != "." && name != ".." && !strings.HasPrefix(name, "../")
+}
+
 // editorAddFiles parses uploaded files, stores items and blocks in ContentStore.
-// Files that cannot be imported (unknown extension, no reader, parse failure)
-// are reported per-file in the response's Skipped list rather than silently
-// dropped or failing the whole batch; the importable files still land.
+// Files that cannot be imported (unknown extension, no reader, parse failure,
+// or a name that is not a contained relative path) are reported per-file in the
+// response's Skipped list rather than silently dropped or failing the whole
+// batch; the importable files still land.
 func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID, stream string, files map[string][]byte) (*ProjectInfoResponse, error) {
 	return editorAddFilesInternal(ctx, cs, formatReg, projectID, stream, "", files)
 }
@@ -553,6 +596,11 @@ func editorAddFilesInternal(ctx context.Context, cs store.ContentStore, formatRe
 	}
 
 	for itemName, data := range files {
+		if !safeItemName(itemName) {
+			skip(itemName, "invalid file name")
+			continue
+		}
+
 		ext := filepath.Ext(itemName)
 		fmtName, err := formatReg.Detector().DetectByExtension(ext)
 		if err != nil {
