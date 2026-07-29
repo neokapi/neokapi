@@ -74,6 +74,10 @@ readonly SWEPT_SURFACES=(
   # The landing is the surface a stranger meets first, and the last place the
   # retired framing survived (P-1).
   bowrain/web/landing/src
+  # The in-product nav and shell (P-3). The hub is Context now, and its change
+  # surface is Changes rather than Experiments.
+  bowrain/packages/app/src
+  bowrain/packages/ui/src
 )
 
 # Surfaces deliberately NOT scanned yet, each with the worklist item that will
@@ -81,7 +85,6 @@ readonly SWEPT_SURFACES=(
 # visible, not silently absent, or a green check reads as "all prose is clean"
 # when it means "the prose we swept is clean".
 readonly PENDING_SURFACES=(
-  "bowrain/packages/app      P-3  nav re-root, Brand hub → Context hub (founder-gated: UX + string-orphaning hazard)"
 )
 
 # Files inside a swept surface that legitimately spell a retired phrase.
@@ -213,9 +216,16 @@ fi
 
 if hits=$(scan_paths "${SWEPT_SURFACES[@]}"); then
   echo "✓ no retired framing in the swept surfaces"
-  echo ""
-  echo "Not yet scanned — each is swept by the worklist item named:"
-  printf '  %s\n' "${PENDING_SURFACES[@]}"
+  # An empty pending list is the completion signal for the whole sweep, so say
+  # so rather than printing a bare heading over nothing. (Also: bash 3.2, which
+  # macOS ships, treats "${arr[@]}" on an empty array as unbound under set -u.)
+  if [ "${#PENDING_SURFACES[@]}" -gt 0 ]; then
+    echo ""
+    echo "Not yet scanned — each is swept by the worklist item named:"
+    printf '  %s\n' "${PENDING_SURFACES[@]}"
+  else
+    echo "  every user-facing surface is in scope — the sweep is complete."
+  fi
   exit 0
 fi
 

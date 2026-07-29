@@ -479,6 +479,11 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	cd packages/i18n-react && vp run build
 	cd bowrain/packages/ui && vp check
 	cd bowrain/packages/ui && vp test
+	# packages/app was never covered here, so a broken viewFromPath sat on main
+	# from #1462 until #1533: the sidebar stopped highlighting on /terms and no
+	# job noticed. It holds the routing every surface depends on.
+	cd bowrain/packages/app && vp check
+	cd bowrain/packages/app && vp test
 	cd bowrain/apps/web && vp check
 	cd bowrain/apps/web && vp test
 	cd bowrain/apps/web && vp build

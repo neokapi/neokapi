@@ -19,8 +19,10 @@ describe("viewFromPath", () => {
     expect(viewFromPath("/acme/memory", "acme")).toBe("memory");
   });
 
-  it("returns 'locale-demand' for locale demand route", () => {
-    expect(viewFromPath("/acme/locale-demand", "acme")).toBe("locale-demand");
+  it("returns 'insights' for locale demand route", () => {
+    // Locale demand moved into Insights: demand by market is evidence for a
+    // coordinate decision, not a standalone report.
+    expect(viewFromPath("/acme/locale-demand", "acme")).toBe("insights");
   });
 
   it("returns 'settings' for settings routes", () => {

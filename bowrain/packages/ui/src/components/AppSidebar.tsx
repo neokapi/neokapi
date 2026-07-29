@@ -44,7 +44,15 @@ import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
 // Types
 // ---------------------------------------------------------------------------
 
-export type View = "translate" | "brand" | "terms" | "memory" | "auditlog" | "bin" | "settings";
+export type View =
+  | "translate"
+  | "brand"
+  | "insights"
+  | "terms"
+  | "memory"
+  | "auditlog"
+  | "bin"
+  | "settings";
 
 export interface NavItem {
   id: string;
@@ -118,10 +126,13 @@ export interface AppSidebarProps<V extends string = string> {
 // them below) picks up a locale switch; a module-level const would freeze the
 // labels in whatever locale was active at import time.
 
+// Context is what you author and govern; Insights is what the graph tells you
+// back. Keeping them as peers is the whole point of the re-root: three
+// top-level entries that read as one product, not several.
 const workspaceNavItems = (): NavItem[] => [
   { id: "translate", label: t("Projects"), icon: <Home /> },
-  { id: "brand", label: t("Brand"), icon: <Palette /> },
-  { id: "memory", label: t("Content memory"), icon: <Brain /> },
+  { id: "brand", label: t("Context"), icon: <Palette /> },
+  { id: "insights", label: t("Insights"), icon: <LayoutDashboard /> },
 ];
 
 const workspaceBottomItems = (): NavItem[] => [
@@ -133,9 +144,18 @@ export const subNavConfig = (): Record<string, SubNavItem[]> => ({
   brand: [
     { id: "concepts", label: t("Concepts"), icon: <Network /> },
     { id: "voice", label: t("Voice"), icon: <Palette /> },
-    { id: "experiments", label: t("Experiments"), icon: <FlaskConical /> },
+    { id: "memory", label: t("Content memory"), icon: <Brain /> },
+    // "Changes", not "Experiments": these are change-sets with a reach preview
+    // and an optional pilot — the ONLY route a governed change can take, not
+    // optional exploration. Nav labels name destinations, so a noun.
+    { id: "experiments", label: t("Changes"), icon: <FlaskConical /> },
     { id: "activity", label: t("Activity"), icon: <Activity /> },
-    { id: "dashboard", label: t("Dashboard"), icon: <LayoutDashboard /> },
+  ],
+  // What the graph tells you back. locale-demand moves in rather than leaving:
+  // demand by market is evidence for a coordinate decision, not a stray report.
+  insights: [
+    { id: "dashboard", label: t("Overview"), icon: <LayoutDashboard /> },
+    { id: "locale-demand", label: t("Locale demand"), icon: <Globe /> },
   ],
   settings: [
     { id: "general", label: t("General"), icon: <Settings /> },
