@@ -130,3 +130,63 @@ func TestStreamingBufferedParity(t *testing.T) {
 		})
 	}
 }
+
+// TestExtractTSPrologue_QuotedAngleBracket pins the extent of the captured
+// `<TS …>` tag against attribute values containing a '>'. A '>' needs no
+// escaping in an XML attribute value, so a conforming producer may emit
+// language="a>b"; scanning for the first '>' byte truncates the tag
+// mid-attribute and the writer re-emits the truncation (#1606).
+func TestExtractTSPrologue_QuotedAngleBracket(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		raw      string
+		prologue string
+		tsTag    string
+	}{
+		"plain": {
+			raw:      `<?xml version="1.0"?><TS version="2.1" language="fr">`,
+			prologue: `<?xml version="1.0"?>`,
+			tsTag:    `<TS version="2.1" language="fr">`,
+		},
+		"gt in double-quoted value": {
+			raw:      `<?xml version="1.0"?><TS version="2.1" language="a>b" sourcelanguage="en">`,
+			prologue: `<?xml version="1.0"?>`,
+			tsTag:    `<TS version="2.1" language="a>b" sourcelanguage="en">`,
+		},
+		"gt in single-quoted value": {
+			raw:      `<?xml version="1.0"?><TS version='2.1' language='a>b'>`,
+			prologue: `<?xml version="1.0"?>`,
+			tsTag:    `<TS version='2.1' language='a>b'>`,
+		},
+		"quote of the other kind inside a value": {
+			raw:   `<TS version="2.1" language="it's > here" sourcelanguage='say "hi" > there'>`,
+			tsTag: `<TS version="2.1" language="it's > here" sourcelanguage='say "hi" > there'>`,
+		},
+		"bare tag": {
+			raw:   `<TS>`,
+			tsTag: `<TS>`,
+		},
+		"doctype internal subset before the tag": {
+			raw:      `<?xml version="1.0"?><!DOCTYPE TS []><TS version="2.1" language="a>b">`,
+			prologue: `<?xml version="1.0"?><!DOCTYPE TS []>`,
+			tsTag:    `<TS version="2.1" language="a>b">`,
+		},
+		"never terminated": {
+			raw: `<TS version="2.1" language="a`,
+		},
+		"unterminated quote swallows the rest": {
+			raw: `<TS version="2.1" language="a>b>`,
+		},
+		"no TS element": {
+			raw: `<?xml version="1.0"?><other/>`,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			prologue, tsTag := extractTSPrologue(tc.raw)
+			assert.Equal(t, tc.prologue, prologue, "prologue")
+			assert.Equal(t, tc.tsTag, tsTag, "tsTag")
+		})
+	}
+}

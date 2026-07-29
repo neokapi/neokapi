@@ -1305,8 +1305,10 @@ func detectLineBreak(raw string) string {
 // whitespace.
 //
 // Returns ("", "") when the document does not contain a recognisable
-// `<TS` opening, in which case the writer falls back to its
-// hard-coded prologue (xml.Header + bare `<!DOCTYPE TS>`).
+// `<TS` opening, or when that opening is never terminated outside a
+// quoted attribute value. In both cases the writer falls back to its
+// hard-coded prologue (xml.Header + bare `<!DOCTYPE TS>`), which is
+// well-formed — emitting a truncated tag is not.
 func extractTSPrologue(raw string) (string, string) {
 	idx := strings.Index(raw, "<TS")
 	if idx < 0 {
@@ -1320,11 +1322,33 @@ func extractTSPrologue(raw string) (string, string) {
 			return "", ""
 		}
 	}
-	end := strings.IndexByte(raw[idx:], '>')
+	end := indexTagEnd(raw[idx:])
 	if end < 0 {
 		return "", ""
 	}
 	return raw[:idx], raw[idx : idx+end+1]
+}
+
+// indexTagEnd returns the offset of the '>' that closes the tag starting at
+// tag[0], or -1 when there is none. A '>' inside a quoted attribute value does
+// not close the tag — XML requires escaping only '<' and '&' there, so
+// `language="a>b"` is well-formed and any conforming producer may emit it.
+// Scanning for the first '>' byte truncated such a tag mid-attribute (#1606).
+func indexTagEnd(tag string) int {
+	var quote byte // 0 outside a quoted value, else the opening quote byte
+	for i := 0; i < len(tag); i++ {
+		switch c := tag[i]; {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '"' || c == '\'':
+			quote = c
+		case c == '>':
+			return i
+		}
+	}
+	return -1
 }
 
 // Close releases resources.
