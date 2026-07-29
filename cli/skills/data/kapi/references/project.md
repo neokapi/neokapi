@@ -72,11 +72,17 @@ defaults:
   ```
 
   Axis names and values are slugs. Of the profiles matching a point, the one
-  matching on the most coordinates wins; `channel` additionally picks the
-  override inside the selected profile's voice, so a landing register lives
-  beside the voice it varies rather than in a second file. An undeclared axis or
-  value, and two profiles matching one collection equally well, both fail the
-  load — kapi will not quietly translate that content in the wrong voice.
+  matching on the most coordinates wins; an explicit `--profile` still beats
+  them all. `channel` additionally picks the override inside the selected
+  profile's voice, so a landing register lives beside the voice it varies rather
+  than in a second file. An undeclared axis or value, and two profiles matching
+  one collection equally well, both fail the load — kapi will not quietly
+  translate that content in the wrong voice.
+
+  The recipe is the authoring surface for governance, and one venue applies it
+  at a time. A project that declares coordinates and also has a `server:` block
+  warns on every run that coordinate governance applies to local runs only until
+  it is synced — the server governs by `defaults.brand_voice` until then.
 - **Terms** — import terms into the project terms store
   (`kapi terms import terms.csv -s en -t fr`); `kapi exec term-check <file>` and
   the translation flow then enforce it with no `--termstore` flag.

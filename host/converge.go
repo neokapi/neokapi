@@ -233,6 +233,11 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	a.ProjectBindings = bindings
 	defer func() { a.ProjectBindings = nil }()
 
+	// This loop runs here, on this machine, and resolves the recipe's
+	// coordinates; the same loop at the server venue would not, until they are
+	// synced there.
+	a.WarnUnsyncedCoordinates(cmd.ErrOrStderr(), proj)
+
 	// The flow run inside a pass is per collection: the source set splits into
 	// one group per distinct (brand voice, terms) binding, and a worker runs the
 	// flow once per group. A recipe where no collection overrides either yields

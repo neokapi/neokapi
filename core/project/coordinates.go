@@ -136,14 +136,14 @@ type ProfileBinding struct {
 	Terms string `yaml:"terms,omitempty" json:"terms,omitempty"`
 }
 
-// ResolvedContext is the governance in force over one collection's content:
+// ResolvedGovernance is the governance in force over one collection's content:
 // the profile that matched its coordinates, resolved into what a run carries.
 //
 // Voice and Terms are resolved already, so a caller applies them without
 // knowing whether they came from a profile or from the project defaults.
 // Channel is passed on to profile resolution, which selects the matching
 // override inside the voice profile.
-type ResolvedContext struct {
+type ResolvedGovernance struct {
 	// Channel is the collection's value on ChannelAxis, empty when it names
 	// none.
 	Channel string
@@ -159,7 +159,7 @@ type ResolvedContext struct {
 	VoiceField string
 }
 
-// ResolveContext returns the governance in force over the named content
+// ResolveGovernance returns the governance in force over the named content
 // collection: the most specific profile matching its coordinates, resolved over
 // defaults.brand_voice / defaults.terms.
 //
@@ -169,7 +169,7 @@ type ResolvedContext struct {
 // the ambiguous recipe: two profiles matching equally well. Validation runs the
 // same selection for every collection at load, so a project that loaded cleanly
 // has no failure left here.
-func (p *KapiProject) ResolveContext(collection string) (*ResolvedContext, error) {
+func (p *KapiProject) ResolveGovernance(collection string) (*ResolvedGovernance, error) {
 	if collection != "" {
 		for i := range p.Content {
 			if c := &p.Content[i]; c.Name == collection {
@@ -182,8 +182,8 @@ func (p *KapiProject) ResolveContext(collection string) (*ResolvedContext, error
 
 // resolveAt resolves the governance at one point. subject names that point for
 // the ambiguity error.
-func (p *KapiProject) resolveAt(coords map[string]string, subject string) (*ResolvedContext, error) {
-	rc := &ResolvedContext{
+func (p *KapiProject) resolveAt(coords map[string]string, subject string) (*ResolvedGovernance, error) {
+	rc := &ResolvedGovernance{
 		Channel:    coords[ChannelAxis],
 		Voice:      p.Defaults.BrandVoice,
 		Terms:      p.Defaults.Terms,
@@ -247,6 +247,15 @@ func matchesPoint(when, coords map[string]string) bool {
 		}
 	}
 	return true
+}
+
+// GovernsByCoordinates reports whether the recipe governs content through the
+// context space at all — it declares axes, or profiles bound to them. False for
+// every recipe written before coordinates existed, which is what lets a caller
+// skip the whole mechanism (and its venue caveat) for a project that never
+// opted in.
+func (p *KapiProject) GovernsByCoordinates() bool {
+	return len(p.Coordinates) > 0 || len(p.Profiles) > 0
 }
 
 // CollectionForPath returns the name of the content collection whose item

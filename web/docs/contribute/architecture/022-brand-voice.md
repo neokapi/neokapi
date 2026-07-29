@@ -145,6 +145,24 @@ chain, by `ResolveProfile`. A channel bound to a scope (a collection's
 content is published; `ResolveContext.Channel` is the caller overriding it for
 one call, the tier a `--channel` flag occupies.
 
+### The recipe authors; one venue runs
+
+`kapi.yaml` is an **authoring surface**, not a second runtime source. It is
+git-owned and authoritative over what the governance *is*; at any moment exactly
+one venue *applies* it — the recipe when the project runs standalone, the
+server's rows when it runs connected. Two live sources would mean a voice that
+depends on where the loop happened to run, and a platform user quietly editing
+over a committed decision.
+
+Until coordinates are synced to the server, a connected project's rows carry no
+coordinates, so a run there governs by `defaults.brand_voice` while a local run
+governs by the point. That divergence is real and is reported rather than
+hidden: a run over a project that declares `coordinates:`/`profiles:` *and*
+carries a `server:` block prints
+`host.UnsyncedCoordinatesWarning` to stderr (`kapi run`, `kapi up`, and the
+embedded flow runner). It warns and proceeds — a recipe field that is not yet
+readable at the other venue is not a reason to refuse the run.
+
 ### Profile sources and the `kapi brand` command tree
 
 `NewBrandCmd` (`cli/brand.go`) builds the `kapi brand` group. A profile is

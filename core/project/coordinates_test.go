@@ -75,34 +75,34 @@ func twoProductProject() *KapiProject {
 	}
 }
 
-func TestKapiProject_ResolveContext(t *testing.T) {
+func TestKapiProject_ResolveGovernance(t *testing.T) {
 	proj := twoProductProject()
 	base := proj.Defaults.BrandVoice
 
 	tests := []struct {
 		name       string
 		collection string
-		want       ResolvedContext
+		want       ResolvedGovernance
 	}{
 		{
 			name:       "empty name sits at the project default point",
 			collection: "",
-			want:       ResolvedContext{Voice: base, Terms: ".kapi/terms.db", VoiceField: "defaults.brand_voice"},
+			want:       ResolvedGovernance{Voice: base, Terms: ".kapi/terms.db", VoiceField: "defaults.brand_voice"},
 		},
 		{
 			name:       "unknown name sits at the project default point",
 			collection: "no-such-collection",
-			want:       ResolvedContext{Voice: base, Terms: ".kapi/terms.db", VoiceField: "defaults.brand_voice"},
+			want:       ResolvedGovernance{Voice: base, Terms: ".kapi/terms.db", VoiceField: "defaults.brand_voice"},
 		},
 		{
 			name:       "a collection declaring no coordinates inherits",
 			collection: "emails",
-			want:       ResolvedContext{Voice: base, Terms: ".kapi/terms.db", VoiceField: "defaults.brand_voice"},
+			want:       ResolvedGovernance{Voice: base, Terms: ".kapi/terms.db", VoiceField: "defaults.brand_voice"},
 		},
 		{
 			name:       "a matched profile binding no terms keeps the project's",
 			collection: "docs",
-			want: ResolvedContext{
+			want: ResolvedGovernance{
 				Channel:    "docs",
 				Voice:      &BrandVoiceBinding{ProfileFile: "context/kapi-voice.yaml"},
 				Terms:      ".kapi/terms.db",
@@ -112,7 +112,7 @@ func TestKapiProject_ResolveContext(t *testing.T) {
 		{
 			name:       "a matched profile binds voice and terms",
 			collection: "docs-bowrain",
-			want: ResolvedContext{
+			want: ResolvedGovernance{
 				Channel:    "docs",
 				Voice:      &BrandVoiceBinding{ProfileFile: "context/bowrain-voice.yaml"},
 				Terms:      "context/bowrain-terms.json",
@@ -122,7 +122,7 @@ func TestKapiProject_ResolveContext(t *testing.T) {
 		{
 			name:       "one voice, two channels: the same profile, a different override",
 			collection: "landing",
-			want: ResolvedContext{
+			want: ResolvedGovernance{
 				Channel:    "landing",
 				Voice:      &BrandVoiceBinding{ProfileFile: "context/bowrain-voice.yaml"},
 				Terms:      "context/bowrain-terms.json",
@@ -132,7 +132,7 @@ func TestKapiProject_ResolveContext(t *testing.T) {
 		{
 			name:       "the most specific match wins over the broader one",
 			collection: "landing-de",
-			want: ResolvedContext{
+			want: ResolvedGovernance{
 				Channel:    "landing",
 				Voice:      &BrandVoiceBinding{ProfileFile: "context/bowrain-de.yaml"},
 				Terms:      "context/de-terms.json",
@@ -142,19 +142,19 @@ func TestKapiProject_ResolveContext(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rc, err := proj.ResolveContext(tt.collection)
+			rc, err := proj.ResolveGovernance(tt.collection)
 			require.NoError(t, err)
 			assert.Equal(t, &tt.want, rc)
 		})
 	}
 }
 
-// TestKapiProject_ResolveContext_BaseProfile covers the `when: {}` base: it
+// TestKapiProject_ResolveGovernance_BaseProfile covers the `when: {}` base: it
 // governs every point no profile claims more specifically, and always loses to
 // one that does. It also pins what "wins" means — one profile governs, and what
 // it leaves unbound comes from the project defaults, not from the broader
 // profile it beat.
-func TestKapiProject_ResolveContext_BaseProfile(t *testing.T) {
+func TestKapiProject_ResolveGovernance_BaseProfile(t *testing.T) {
 	proj := &KapiProject{
 		Version:     "v1",
 		Defaults:    Defaults{Terms: "project-terms.json"},
@@ -177,23 +177,23 @@ func TestKapiProject_ResolveContext_BaseProfile(t *testing.T) {
 	}
 	require.NoError(t, proj.Validate())
 
-	plain, err := proj.ResolveContext("plain")
+	plain, err := proj.ResolveGovernance("plain")
 	require.NoError(t, err)
 	assert.Equal(t, "base.yaml", plain.Voice.ProfileFile, "the base profile governs an unclaimed point")
 	assert.Equal(t, "base-terms.json", plain.Terms)
 
-	platform, err := proj.ResolveContext("platform")
+	platform, err := proj.ResolveGovernance("platform")
 	require.NoError(t, err)
 	assert.Equal(t, "bowrain.yaml", platform.Voice.ProfileFile, "a non-empty match beats the base")
 	assert.Equal(t, "project-terms.json", platform.Terms,
 		"the winning profile binds no terms, so the project defaults apply — profiles select, they do not layer")
 }
 
-// TestKapiProject_ResolveContext_NoProfiles covers the project that declares
+// TestKapiProject_ResolveGovernance_NoProfiles covers the project that declares
 // coordinates but binds no governance to them: every point resolves the project
 // defaults, and an unbound default resolves to nothing rather than to something
 // borrowed.
-func TestKapiProject_ResolveContext_NoProfiles(t *testing.T) {
+func TestKapiProject_ResolveGovernance_NoProfiles(t *testing.T) {
 	proj := &KapiProject{
 		Version:     "v1",
 		Coordinates: Coordinates{"product": {{ID: "kapi"}}},
@@ -204,7 +204,7 @@ func TestKapiProject_ResolveContext_NoProfiles(t *testing.T) {
 		}},
 	}
 
-	rc, err := proj.ResolveContext("docs")
+	rc, err := proj.ResolveGovernance("docs")
 	require.NoError(t, err)
 	assert.Nil(t, rc.Voice)
 	assert.Empty(t, rc.Terms)
@@ -525,7 +525,7 @@ content:
 		{ID: "bowrain", Concept: "term:9a1c0f42b7"},
 	}, proj.Coordinates["product"], "both forms decode to the same shape")
 
-	rc, err := proj.ResolveContext("landing")
+	rc, err := proj.ResolveGovernance("landing")
 	require.NoError(t, err)
 	require.NotNil(t, rc.Voice)
 	assert.Equal(t, "context/bowrain-voice.yaml", rc.Voice.ProfileFile,
@@ -551,7 +551,7 @@ func TestContextSpace_RoundTrip(t *testing.T) {
 	assert.Equal(t, twoProductProject().Coordinates, loaded.Coordinates)
 	require.Len(t, loaded.Profiles, 3)
 
-	rc, err := loaded.ResolveContext("landing-de")
+	rc, err := loaded.ResolveGovernance("landing-de")
 	require.NoError(t, err)
 	assert.Equal(t, "landing", rc.Channel)
 	assert.Equal(t, "context/bowrain-de.yaml", rc.Voice.ProfileFile)

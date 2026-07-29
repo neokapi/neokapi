@@ -160,6 +160,10 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	a.ProjectContext = ctx
 	defer func() { a.ProjectContext = nil }()
 
+	// This run resolves the recipe's coordinates; a run at the server venue
+	// would not, until they are synced there.
+	a.WarnUnsyncedCoordinates(cmd.ErrOrStderr(), proj)
+
 	// Resolve standing brand-voice + glossary bindings so project-flow steps
 	// honor them with no flags (defaults.brand_voice / defaults.terms), per
 	// content collection: the input set splits into one group per distinct

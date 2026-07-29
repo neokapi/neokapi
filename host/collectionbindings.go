@@ -43,7 +43,7 @@ type bindingGroup struct {
 // one group naming no collection, which resolves the project-wide bindings
 // exactly as an ungrouped run always did.
 //
-// The error is an ambiguous recipe (project.ResolveContext); a recipe that
+// The error is an ambiguous recipe (project.ResolveGovernance); a recipe that
 // loaded cleanly cannot produce one.
 func groupInputsByBinding(proj *project.KapiProject, projectDir string, inputPaths []string) ([]bindingGroup, error) {
 	whole := []bindingGroup{{Inputs: inputPaths}}
@@ -51,7 +51,7 @@ func groupInputsByBinding(proj *project.KapiProject, projectDir string, inputPat
 		return whole, nil
 	}
 
-	defaultRC, err := proj.ResolveContext("")
+	defaultRC, err := proj.ResolveGovernance("")
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func groupInputsByBinding(proj *project.KapiProject, projectDir string, inputPat
 		if rel, ok := projectRelPath(projectDir, in); ok {
 			collection = proj.CollectionForPath(rel)
 		}
-		rc, rerr := proj.ResolveContext(collection)
+		rc, rerr := proj.ResolveGovernance(collection)
 		if rerr != nil {
 			return nil, rerr
 		}
@@ -107,7 +107,7 @@ func hasCollectionContext(proj *project.KapiProject) bool {
 // voices in practice. The rest of the coordinates do not: two points sharing a
 // profile produce the same run, and keying on the labels would split it for
 // nothing.
-func bindingKey(rc *project.ResolvedContext) string {
+func bindingKey(rc *project.ResolvedGovernance) string {
 	var b strings.Builder
 	b.WriteString(rc.Channel)
 	b.WriteByte(0)

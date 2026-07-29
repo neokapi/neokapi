@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -236,6 +237,13 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	if source != "" {
 		a.SourceLang = source
 	}
+
+	// The venue caveat goes to the process's own stderr rather than to cmd: the
+	// synthetic command above discards its error stream on purpose, because it
+	// carries tool-assembly noise an embedder should not see. This is not that —
+	// it says the recipe's coordinates govern here and would not govern a server
+	// run — so discarding it would be the one thing worse than printing it.
+	a.WarnUnsyncedCoordinates(os.Stderr, proj)
 
 	// Governance is per collection: the input set splits into one group per
 	// distinct (brand voice, terms) binding, and each group runs the flow with

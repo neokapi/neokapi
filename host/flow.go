@@ -1555,7 +1555,7 @@ func ToolRequires(s *schema.ComponentSchema, req string) bool {
 //
 //  1. An explicit --termstore flag (named resource or path).
 //  2. The terms governing the named collection — the `terms:` of the profile
-//     matching its point, else defaults.terms (project.ResolveContext) —
+//     matching its point, else defaults.terms (project.ResolveGovernance) —
 //     relative to the project root.
 //  3. <projectRoot>/.kapi/terms.db when it exists.
 //
@@ -1591,7 +1591,7 @@ func (a *App) resolveProjectTermsPath(cmd Command, collection string) (string, e
 	if lerr != nil {
 		return "", fmt.Errorf("load project for terms: %w", lerr)
 	}
-	rc, rerr := proj.ResolveContext(collection)
+	rc, rerr := proj.ResolveGovernance(collection)
 	if rerr != nil {
 		return "", rerr
 	}
@@ -1756,7 +1756,7 @@ func (a *App) resolveProjectTermsSourcePath(cmd Command, collection string) (str
 	root := filepath.Dir(projectPath)
 
 	if collection != "" {
-		rc, rerr := proj.ResolveContext(collection)
+		rc, rerr := proj.ResolveGovernance(collection)
 		if rerr != nil {
 			return "", rerr
 		}

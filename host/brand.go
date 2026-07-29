@@ -410,7 +410,7 @@ func (a *App) ResolveBrandProfile(ctx context.Context, proj *project.KapiProject
 		storePath = filepath.Join(root, "brand.db")
 	}
 
-	rc, err := proj.ResolveContext(opts.Collection)
+	rc, err := proj.ResolveGovernance(opts.Collection)
 	if err != nil {
 		return nil, "", false, err
 	}

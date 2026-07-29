@@ -331,6 +331,56 @@ func TestResolveProjectBindings_ExplicitProfileWinsOverTheRecipe(t *testing.T) {
 		"an explicit per-call profile outranks the recipe's collection-tier binding")
 }
 
+// TestRecipeGovernanceEntersTheChain is the unification: the profile a
+// collection's coordinates select is not resolved beside the framework's
+// precedence chain, it *is* the chain's collection tier. So it outranks the
+// bindings a server-governed project carries on its stream, project and
+// workspace rows, and is outranked by an explicit per-call profile — one
+// ordering, whichever surface the project is governed from.
+func TestRecipeGovernanceEntersTheChain(t *testing.T) {
+	recipe, root := governedProject(t, map[string]string{"product": "platform"})
+	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
+	require.NoError(t, err)
+
+	a := &App{}
+	b, err := a.resolveProjectBindings(bindingsCmd(t, recipe), proj, recipe, "platform-docs")
+	require.NoError(t, err)
+	require.NotNil(t, b)
+	require.NotNil(t, b.profile)
+	require.Equal(t, "Platform Voice", b.profile.Name, "the collection's coordinates select profile A")
+
+	// A real store holding what the tiers under (and over) the collection name.
+	store, err := openBrandStoreAt(filepath.Join(root, "brand.db"))
+	require.NoError(t, err)
+	defer store.Close()
+	for _, p := range []*profile.VoiceProfile{
+		{ID: "explicit-voice", Name: "Explicit Voice", WorkspaceID: LocalWorkspace},
+		{ID: "stream-voice", Name: "Stream Voice", WorkspaceID: LocalWorkspace},
+		{ID: "project-voice", Name: "Project Voice", WorkspaceID: LocalWorkspace},
+		{ID: "workspace-voice", Name: "Workspace Voice", WorkspaceID: LocalWorkspace},
+	} {
+		require.NoError(t, store.CreateProfile(t.Context(), p))
+	}
+
+	rc := profile.ResolveContext{
+		CollectionProfile:  b.profile,
+		StreamProperties:   map[string]string{profile.PropertyProfileID: "stream-voice"},
+		ProjectProperties:  map[string]string{profile.PropertyProfileID: "project-voice"},
+		WorkspaceProfileID: "workspace-voice",
+	}
+
+	got, err := profile.ResolveProfileFromContext(t.Context(), rc, store)
+	require.NoError(t, err)
+	assert.Equal(t, "Platform Voice", got.Name,
+		"the recipe's coordinate governs over stream, project and workspace bindings")
+
+	rc.ExplicitProfileID = "explicit-voice"
+	got, err = profile.ResolveProfileFromContext(t.Context(), rc, store)
+	require.NoError(t, err)
+	assert.Equal(t, "Explicit Voice", got.Name,
+		"and yields to an explicit per-call profile")
+}
+
 // TestResolveProjectBindings_ChannelSelectsTheOverride proves the well-known
 // axis takes effect: after a profile is selected, the channel selects the
 // override inside that profile's voice (profile.VoiceProfile.Channels), so one

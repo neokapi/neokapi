@@ -137,20 +137,29 @@ profile declares no override for is not an error — the base voice applies. The
 axis may also appear in a `when:`; both apply, matching choosing the voice and
 the override refining the register within it.
 
-`KapiProject.ResolveContext(collection)` resolves a point into a
-`ResolvedContext` (channel, voice binding, terms, and the recipe key the voice
-came from), falling back to the project defaults for an empty or unknown
+`KapiProject.ResolveGovernance(collection)` resolves a point into a
+`ResolvedGovernance` (channel, voice binding, terms, and the recipe key the
+voice came from), falling back to the project defaults for an empty or unknown
 collection name, and for a collection that declares no point;
 `CollectionForPath(relPath)` names the collection that claims a file, by the
-same first-match glob rule as target resolution.
+same first-match glob rule as target resolution. The name keeps its distance
+from `profile.ResolveContext`, which is a different thing in a package used
+alongside this one — the input to profile resolution, not the recipe's answer.
 
-That is the recipe half. The voice it names is loaded by the host and then
-handed to `profile.ResolveProfileFromContext` as `CollectionProfile` — the
-collection tier of the framework's single precedence chain
-([AD-022](/contribute/architecture/022-brand-voice)) — so an explicit per-call
-profile still outranks the recipe and a project governed from the server ranks
-its bindings identically. The point's channel goes in beside it as
+That is the recipe half, and it is an **authoring** half: the voice it names is
+loaded by the host and then handed to `profile.ResolveProfileFromContext` as
+`CollectionProfile` — the collection tier of the framework's single precedence
+chain ([AD-022](/contribute/architecture/022-brand-voice)) — so an explicit
+per-call profile still outranks the recipe and a project governed from the
+server ranks its bindings identically. The point's channel goes in beside it as
 `CollectionConfig[PropertyChannel]`, and `ResolveProfile` applies the override.
+
+One venue applies the recipe at a time. A project that declares coordinates
+(`KapiProject.GovernsByCoordinates`) and also carries a `server:` block is
+warned at run time (`host.WarnUnsyncedCoordinates`, called by `kapi run`,
+`kapi up` and `RunFlowAllLocales`) that coordinate governance applies to local
+runs only until it is synced: the server has no coordinate rows yet and governs
+by `defaults.brand_voice`. The run proceeds — this is a caveat, not a fault.
 
 A run resolves its governance per collection and executes once per distinct
 resolution: `groupInputsByBinding` (host) partitions the input set, and each
