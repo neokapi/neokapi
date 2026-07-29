@@ -173,12 +173,19 @@ that bite most often:
   (`core/profile`), finishing what #1462 and #1504 began. Do not reintroduce
   `tm`/`termbase` as an identifier — if you find one, it is a leftover.
 
+  The persisted discriminators followed too (#1522): `model.Origin.Kind`, the
+  KPZ content type, the sync `content_type` and apply change-set kinds all now
+  write `"memory"`. That was possible because the standing decision is to
+  **prefer resetting data over writing a migration** until the dogfood setup is
+  proven — see `bowrain-infra/docs/runbooks/data-reset.md`, which also records
+  that the trade is only correct while we are the only customer.
+
   What genuinely stays: `TMX`/`TBX` (external file-format standards we do not
   own), the `l10n-*` make targets (developer-facing internals on no user
-  surface), and `"tm"` as a **persisted discriminator** — `model.Origin.Kind`,
-  the KPZ content type, the sync `content_type`, apply change-set kinds. Those
-  last ones are values inside live data, so changing them is a migration rather
-  than a rename; see AD-037.
+  surface), the `termbase` SQLite migration bookkeeping table (renaming it makes
+  `Migrate` replay every migration — see `terms/sqlite.go`), and the analytics
+  property `method: "tm"` (event values are a rename boundary: PostHog holds the
+  history, so renaming splits a metric rather than moving it).
 - **Never hardcode counts the code controls** (formats, tools, providers,
   filters). Name the category and link to the generated reference.
 - **Diagrams are real React components, never ASCII art.** The themed light/dark
