@@ -11,7 +11,7 @@ func TestKapiConfigDirHonorsEnv(t *testing.T) {
 		t.Fatalf("kapiConfigDir = %q, want /tmp/iso/kapi", got)
 	}
 	// namedResourceDir composes onto the overridden root.
-	if got := namedResourceDir("termbases"); got != filepath.Join("/tmp/iso/kapi", "termbases") {
+	if got := namedResourceDir("terms"); got != filepath.Join("/tmp/iso/kapi", "terms") {
 		t.Fatalf("namedResourceDir(terms stores) = %q", got)
 	}
 }

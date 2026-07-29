@@ -136,11 +136,13 @@ Once connected, your AI assistant can call these tools:
 | `pseudo_translate` | Pseudo-translate a file to test translation readiness             |
 | `list_flows`       | List available processing flows                                  |
 | `list_tools`       | List available processing tools                                  |
+| `brand_guide`      | Render a brand voice guide from a starter pack or profile YAML   |
 | `brand_check`      | Score text against a brand voice profile (rule-based)            |
 | `brand_rewrite`    | Rewrite text to fix forbidden/competitor terms                   |
 | `check_file`       | Verify a file's content against the checkset; returns a `kapi.check/v1` Report with per-block locations |
 | `check_text`       | Verify a text snippet against the content checkset; returns a `kapi.check/v1` Report |
-| `context_search`   | Ask what the project's context says about a word or phrase — terminology and previously-approved wording, in one call |
+| `term_lookup`      | Look up a term in a local terms store                            |
+| `tm_search`        | Search a local content memory                                    |
 
 ## Example Conversations
 
@@ -255,7 +257,7 @@ Kapi MCP uses the same infrastructure as the CLI commands — `FormatRegistry` f
 No server process, ports, or authentication needed. Your AI tool launches `kapi mcp` as a child process, communicates over stdin/stdout, and shuts it down when the session ends.
 
 :::note
-LLM-backed tools like `translate` need API keys and run from the CLI, not over MCP: `kapi translate -i file.json --target-lang fr`. The `brand_check`, `brand_rewrite`, and `context_search` tools above are rule-based and need no key.
+LLM-backed tools like `translate` need API keys and run from the CLI, not over MCP: `kapi translate -i file.json --target-lang fr`. The `brand_check`, `brand_rewrite`, `term_lookup`, and `tm_search` tools above are rule-based and need no key.
 :::
 
 ## Related

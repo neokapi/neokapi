@@ -39,7 +39,7 @@ func loadOldTargetText(ctx context.Context, tx *sql.Tx, projectID, stream string
 }
 
 // originText renders a target Origin to the short label stored in
-// block_history.origin (e.g. "human", "mt", "ai", "tm").
+// block_history.origin (e.g. "human", "mt", "ai", "memory").
 func originText(o model.Origin) string {
 	return o.Kind
 }

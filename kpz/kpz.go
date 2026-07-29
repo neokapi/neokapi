@@ -103,7 +103,7 @@ const (
 
 	ContentTypeBlocks      = "blocks"
 	ContentTypeAnnotations = "annotations"
-	ContentTypeMemory      = "tm"
+	ContentTypeMemory      = "memory"
 	ContentTypeTerms       = "terms"
 	ContentTypeMedia       = "media"
 	// ContentTypeSkeleton carries one source document's round-trip skeleton

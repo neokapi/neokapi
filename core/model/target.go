@@ -148,7 +148,7 @@ type Origin struct {
 // preserved in Origin.Engine; the refining tool/provider lives in Tool/Reference.
 const (
 	OriginHuman      = "human"
-	OriginMemory     = "tm"
+	OriginMemory     = "memory"
 	OriginMT         = "mt"
 	OriginAI         = "ai"
 	OriginOCR        = "ocr"

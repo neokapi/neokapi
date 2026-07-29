@@ -30,7 +30,7 @@ func TestPackageHasContent(t *testing.T) {
 		"overlays":  {Overlays: []OverlayDoc{{Kind: "targets/fr", Source: "a.json"}}},
 		"skeletons": {Skeletons: []SkeletonDoc{{Path: "skeletons/x", SourcePath: "a.json"}}},
 		"source":    {Source: []SourceDoc{{Path: "source/a.json", Content: BytesContent([]byte("{}"))}}},
-		"tm":        {Memory: &kmb.File{Entries: make([]kmb.Entry, 1)}},
+		"memory":    {Memory: &kmb.File{Entries: make([]kmb.Entry, 1)}},
 	}
 	for name, pkg := range cases {
 		if !pkg.HasContent() {

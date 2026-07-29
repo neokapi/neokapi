@@ -39,12 +39,12 @@ func (a *App) ResolveTermsCmdPath(cmd Command) (string, error) {
 	local, _ := cmd.Flags().GetBool("local")
 	file, _ := cmd.Flags().GetString("file")
 	if name != "" || file != "" || local {
-		return resolveResourcePath(cmd, "termbases", "terms.db")
+		return resolveResourcePath(cmd, "terms", "terms.db")
 	}
 	if p, err := a.resolveProjectTermsPath(cmd); err == nil && p != "" {
 		return p, nil
 	}
-	return resolveResourcePath(cmd, "termbases", "terms.db")
+	return resolveResourcePath(cmd, "terms", "terms.db")
 }
 
 // TermsFileFormats names the terms file formats, in the order they are offered

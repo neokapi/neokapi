@@ -80,7 +80,7 @@ type ToolMeta struct {
 	Tags []string `json:"tags,omitempty"` // "ai-powered","batch","regex","configurable"
 
 	// Requires declares external resources this tool needs at runtime.
-	Requires []string `json:"requires,omitempty"` // "target-language","source-language","tm","terms","credentials"
+	Requires []string `json:"requires,omitempty"` // "target-language","source-language","memory","terms","credentials"
 
 	// Cardinality declares how many locales the tool operates on per execution.
 	Cardinality LocaleCardinality `json:"cardinality,omitempty"`
@@ -212,8 +212,8 @@ func NormalizeCategory(c string) string {
 const (
 	RequiresTargetLanguage = "target-language"
 	RequiresSourceLanguage = "source-language"
-	RequiresMemory         = "tm"
-	RequiresTerms          = "termbase"
+	RequiresMemory         = "memory"
+	RequiresTerms          = "terms"
 	RequiresCredentials    = "credentials"
 	RequiresRetryable      = "retryable"
 )
@@ -329,7 +329,7 @@ type PathAnnotation struct {
 	// Role is "input" or "output". Output paths get auto-placed into the output directory.
 	Role string `json:"role,omitempty"`
 
-	// ResourceKind enables URI prefix resolution: "tm", "terms", or "srx".
+	// ResourceKind enables URI prefix resolution: "memory", "terms", or "srx".
 	ResourceKind string `json:"resourceKind,omitempty"`
 
 	// Accepts lists file extensions for validation and UI filtering (e.g. ["html", "txt"]).

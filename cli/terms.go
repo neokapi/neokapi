@@ -406,7 +406,7 @@ func newTermsListCmd(a *App) *cobra.Command {
 		Use:   "list",
 		Short: "List named terms stores in KAPI_HOME",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			resources, err := ListNamedResources("termbases")
+			resources, err := ListNamedResources("terms")
 			if err != nil {
 				return fmt.Errorf("list terms stores: %w", err)
 			}

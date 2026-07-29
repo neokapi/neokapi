@@ -42,8 +42,8 @@ func main() {
 		must(err)
 		root = filepath.Join(cfg, "kapi")
 	}
-	tbDir := filepath.Join(root, "termbases")
-	memoryDir := filepath.Join(root, "tm")
+	tbDir := filepath.Join(root, "terms")
+	memoryDir := filepath.Join(root, "memory")
 	must(os.MkdirAll(tbDir, 0o755))
 	must(os.MkdirAll(memoryDir, 0o755))
 

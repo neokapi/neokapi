@@ -45,12 +45,12 @@ func (a *App) ResolveMemoryCmdPath(cmd Command) (string, error) {
 	local, _ := cmd.Flags().GetBool("local")
 	file, _ := cmd.Flags().GetString("file")
 	if name != "" || file != "" || local {
-		return resolveResourcePath(cmd, "tm", "memory.db")
+		return resolveResourcePath(cmd, "memory", "memory.db")
 	}
 	if p, err := a.resolveProjectMemoryPath(cmd); err == nil && p != "" {
 		return p, nil
 	}
-	return resolveResourcePath(cmd, "tm", "memory.db")
+	return resolveResourcePath(cmd, "memory", "memory.db")
 }
 
 // resolveProjectMemoryPath returns the authoritative content memory path for the .kapi project

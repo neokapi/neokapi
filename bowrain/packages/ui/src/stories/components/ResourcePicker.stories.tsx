@@ -38,7 +38,7 @@ function StatefulPicker(props: Omit<ResourcePickerProps, "onChange">) {
 
 export const Default: Story = {
   render: () => (
-    <StatefulPicker value="" label="Content memory" resourceKind="tm" resources={sampleMemories} />
+    <StatefulPicker value="" label="Content memory" resourceKind="memory" resources={sampleMemories} />
   ),
 };
 
@@ -47,7 +47,7 @@ export const WithNamedResource: Story = {
     <StatefulPicker
       value="tm:project-memory"
       label="Content memory"
-      resourceKind="tm"
+      resourceKind="memory"
       resources={sampleMemories}
       resolvedPath="~/.config/kapi/tm/project-memory.db"
     />
@@ -59,7 +59,7 @@ export const WithFilePath: Story = {
     <StatefulPicker
       value="./resources/my-memory.db"
       label="Content memory"
-      resourceKind="tm"
+      resourceKind="memory"
       resources={sampleMemories}
       resolvedPath="/home/user/project/resources/my-memory.db"
     />
@@ -99,7 +99,7 @@ export const DirectoryType: Story = {
     <StatefulPicker
       value=""
       label="content memory Directory"
-      resourceKind="tm"
+      resourceKind="memory"
       pathType="directory"
       resources={sampleMemories}
     />
@@ -122,7 +122,7 @@ export const Disabled: Story = {
     <StatefulPicker
       value="tm:project-memory"
       label="Content memory"
-      resourceKind="tm"
+      resourceKind="memory"
       resources={sampleMemories}
       disabled
     />

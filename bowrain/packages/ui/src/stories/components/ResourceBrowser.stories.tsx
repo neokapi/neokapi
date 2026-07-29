@@ -20,7 +20,7 @@ type Story = StoryObj<typeof ResourceBrowser>;
 const sampleMemories: ResourceInfo[] = [
   {
     name: "project-memory",
-    kind: "tm",
+    kind: "memory",
     path: "~/.config/kapi/tm/project-memory.db",
     entryCount: 12450,
     sourceLocale: "en",
@@ -28,7 +28,7 @@ const sampleMemories: ResourceInfo[] = [
   },
   {
     name: "legacy-tm",
-    kind: "tm",
+    kind: "memory",
     path: "~/.config/kapi/tm/legacy-memory.db",
     entryCount: 85000,
     sourceLocale: "en",
@@ -36,7 +36,7 @@ const sampleMemories: ResourceInfo[] = [
   },
   {
     name: "small-test",
-    kind: "tm",
+    kind: "memory",
     path: "~/.config/kapi/tm/small-test.db",
     entryCount: 120,
     sourceLocale: "en",
@@ -104,7 +104,7 @@ function InteractiveBrowser(props: Omit<ResourceBrowserProps, "open" | "onClose"
 }
 
 export const MemoryBrowser: Story = {
-  render: () => <InteractiveBrowser resourceKind="tm" resources={sampleMemories} />,
+  render: () => <InteractiveBrowser resourceKind="memory" resources={sampleMemories} />,
 };
 
 export const TermsBrowser: Story = {
@@ -116,7 +116,7 @@ export const SrxBrowser: Story = {
 };
 
 export const EmptyState: Story = {
-  render: () => <InteractiveBrowser resourceKind="tm" resources={[]} />,
+  render: () => <InteractiveBrowser resourceKind="memory" resources={[]} />,
 };
 
 export const WithSelection: Story = {
@@ -124,7 +124,7 @@ export const WithSelection: Story = {
     open: true,
     onClose: fn(),
     onSelect: fn(),
-    resourceKind: "tm",
+    resourceKind: "memory",
     resources: sampleMemories,
   },
 };
