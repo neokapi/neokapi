@@ -1197,13 +1197,6 @@ func editorGetWordCount(ctx context.Context, cs store.ContentStore, projectID, s
 	return result, nil
 }
 
-// editorExportTranslatedFile is no longer supported server-side.
-// Source bytes are no longer stored in the Item model. Use the CLI
-// ('kapi pull') for translated file export.
-func editorExportTranslatedFile(_ context.Context, _ store.ContentStore, _ *registry.FormatRegistry, _, _, itemName, _, _ string) (string, error) {
-	return "", fmt.Errorf("server-side export not available for %q: use 'kapi pull' for translated file export", itemName)
-}
-
 // editorLookupMemoryForBlock looks up content-memory matches for a specific block.
 func editorLookupMemoryForBlock(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, stream, blockID, targetLocale string) ([]MemoryMatchInfoResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
