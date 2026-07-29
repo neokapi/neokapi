@@ -62,6 +62,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 
 		ProjectContext:      a.ProjectContext,
 		MCPSurface:          a.MCPSurface,
+		execTrustGranted:    a.execTrustGranted,
 		ProjectBindings:     a.ProjectBindings,
 		convergeWriteFiles:  a.convergeWriteFiles,
 		docCache:            a.docCache,
@@ -126,6 +127,11 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"FallbackRunE":     fieldShared,
 	"ExtraFlows":       fieldShared,
 	"ProjectContext":   fieldShared,
+	// The execution-trust decision belongs to the run, not to the locale: the
+	// user was asked once about one project's recipe, and every worker fanning
+	// out over that project inherits the answer. Owning it instead would leave
+	// each worker unable to build the step the user approved (AD-038).
+	"execTrustGranted": fieldShared,
 	// The MCP tool surface is set from `kapi mcp` flags and read only while that
 	// server is running. A converge worker never serves MCP, so sharing the
 	// parent's value is correct and inert — it is carried rather than reset so

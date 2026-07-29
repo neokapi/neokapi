@@ -24,6 +24,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/protoconvert"
+	"github.com/neokapi/neokapi/core/project"
 	contentv1 "github.com/neokapi/neokapi/core/proto/content/v1"
 	enginev1 "github.com/neokapi/neokapi/core/proto/engine/v1"
 	"github.com/neokapi/neokapi/core/registry"
@@ -326,6 +327,14 @@ func (s *Server) buildTools(header *enginev1.ProcessHeader) ([]tool.Tool, error)
 	for _, sp := range specs {
 		if !s.ToolReg.Has(registry.ToolID(sp.name)) {
 			return nil, status.Errorf(codes.InvalidArgument, "unknown tool %q", sp.name)
+		}
+		// A tool name and its config arrive here over the wire, so an
+		// exec-class tool would let a caller choose the argv this process
+		// runs. Unlike a recipe in the working directory there is nobody to
+		// ask, so the answer is fixed — the same conclusion MCP reached for
+		// its agent surface (AD-037) and .kpz reached for package ingest.
+		if project.IsExecClassTool(sp.name) {
+			return nil, status.Errorf(codes.PermissionDenied, "tool %q runs commands the caller names and is not available over the engine API", sp.name)
 		}
 		t, err := s.ToolReg.NewToolWithConfig(registry.ToolID(sp.name), sp.config, header.GetTargetLocale())
 		if err != nil {

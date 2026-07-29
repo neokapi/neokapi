@@ -191,6 +191,22 @@ The [MCP server](/reference/mcp) (`kapi mcp`) is part of the same contract: its 
 
 The registry tools on that surface are exactly the CLI-visible ones — a built-in tool appears under `kapi exec`, in `kapi tools list`, and as an MCP tool when it registers a config factory and does not declare itself internal (`registry.ToolRegistry.CLITools`). Wiring a factory for a tool that lacked one is therefore an additive surface change: it adds the tool to all three at once, and the snapshot moves. `whitespace-correct` gained one this way, and `dnt-check`, `placeholder-check`, `xml-validation`, `create-target`, `remove-target`, `inline-codes-remove` and `external-command` followed.
 
+## Running commands a recipe names
+
+`external-command` and `script` run code the configuration chooses. They stay
+available on every surface where the argv is the user's own: `kapi exec
+external-command --command …` runs what it was told to, unchanged.
+
+What a **recipe** does with them is gated. A project whose recipe names either
+tool prompts once, showing the command it would run, and the answer is
+remembered under the kapi config directory against a fingerprint of what was
+approved — so an unrelated recipe edit keeps the approval and a changed command
+asks again. With no terminal attached kapi refuses rather than assuming
+consent; `KAPI_TRUST_EXEC=1` is the opt-in for automation, and the general
+`--yes` flag deliberately does not grant it. The engine gRPC API and the MCP
+tool surface refuse these tools outright. See
+[AD-038](/contribute/architecture/038-execution-trust).
+
 ## Tool registration invariants
 
 Three properties of a built-in tool's registration are asserted over the populated registry, in `core/tools/registration_invariants_test.go`, because each one fails silently when it is left to review:

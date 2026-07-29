@@ -1188,6 +1188,12 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 		return nil, nil, fmt.Errorf("tool %q not found in registry", toolName)
 	}
 
+	// Same gate as toolFromStep: a flow-driven exec-class tool needs an
+	// established trust decision (host/exectrust.go).
+	if err := a.checkExecToolAllowed(toolName); err != nil {
+		return nil, nil, err
+	}
+
 	info := a.ToolReg.ToolInfo(registry.ToolID(toolName))
 
 	// Resource setup driven by Requires metadata.
@@ -1803,6 +1809,13 @@ func (a *App) runProjectStepsOver(ctx context.Context, cmd Command, flowName str
 // resource references in the step config are resolved before applying.
 func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceContext) (tool.Tool, error) {
 	toolID := registry.ToolID(step.Tool)
+
+	// A step's argv comes from a file, which is not necessarily written by
+	// whoever is running kapi. Building an exec-class tool needs an
+	// established trust decision for the project (host/exectrust.go).
+	if err := a.checkExecToolAllowed(step.Tool); err != nil {
+		return nil, err
+	}
 
 	// Try config factory first (schema-driven tools).
 	if a.ToolReg.Has(toolID) {
