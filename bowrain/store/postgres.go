@@ -497,10 +497,21 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 
 	// When storing blocks for a specific item, map format-reader IDs (source_id)
 	// to internal project-unique IDs.
-	existingSourceIDs := map[string]string{} // source_id → internal id
+	//
+	// Both directions are loaded, because a block can arrive carrying either
+	// kind of ID. A push or a format read supplies the caller's own ID, which
+	// this item may already have minted an internal ID for. But a caller that
+	// read blocks *out* of this store — the extraction worker annotating an
+	// item, the editor writing a parsed item back — hands back rows whose ID is
+	// already the internal one. Treating that as an unseen caller ID minted a
+	// second row for content that was already stored, under source_id = the
+	// first row's ID: two rows, same content_hash, different ids, which is
+	// exactly the duplication in #1527.
+	existingSourceIDs := map[string]string{} // caller/source id → internal id
+	internalSourceIDs := map[string]string{} // internal id → its source id
 	if itemName != "" {
 		rows, err := tx.QueryContext(ctx,
-			`SELECT source_id, id FROM blocks WHERE project_id=$1 AND item_name=$2 AND source_id != ''`,
+			`SELECT source_id, id FROM blocks WHERE project_id=$1 AND item_name=$2`,
 			projectID, itemName)
 		if err != nil {
 			return fmt.Errorf("load source_id mapping: %w", err)
@@ -511,7 +522,10 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 				rows.Close()
 				return fmt.Errorf("scan source_id mapping: %w", err)
 			}
-			existingSourceIDs[srcID] = intID
+			if srcID != "" {
+				existingSourceIDs[srcID] = intID
+			}
+			internalSourceIDs[intID] = srcID
 		}
 		rows.Close()
 		if err := rows.Err(); err != nil {
@@ -533,6 +547,9 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 		for _, b := range blocks {
 			if _, mapped := existingSourceIDs[b.ID]; mapped {
 				continue
+			}
+			if _, isInternal := internalSourceIDs[b.ID]; isInternal {
+				continue // already a row of this item; nothing to adopt
 			}
 			res, err := adopt.ExecContext(ctx, itemName, b.ID, projectID, b.ID)
 			if err != nil {
@@ -629,12 +646,23 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 		internalID := b.ID
 
 		if itemName != "" {
-			sourceID = b.ID
-			if existingID, found := existingSourceIDs[sourceID]; found {
-				internalID = existingID
+			// An ID this item's rows already carry is that row — the block was
+			// read out of this store and is being written back. Checked before
+			// the caller-ID map because naming a row directly is the stronger
+			// claim; the two only ever collide on rows this bug already
+			// created, where resolving to the original row is also the repair.
+			if existingSource, isInternal := internalSourceIDs[b.ID]; isInternal {
+				internalID = b.ID
+				sourceID = existingSource
 			} else {
-				internalID = storeutil.NewBlockID()
-				existingSourceIDs[sourceID] = internalID
+				sourceID = b.ID
+				if existingID, found := existingSourceIDs[sourceID]; found {
+					internalID = existingID
+				} else {
+					internalID = storeutil.NewBlockID()
+					existingSourceIDs[sourceID] = internalID
+					internalSourceIDs[internalID] = sourceID
+				}
 			}
 			b.ID = internalID
 		}
