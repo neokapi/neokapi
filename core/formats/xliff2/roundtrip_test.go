@@ -201,6 +201,125 @@ func notExpectedByteEqual() map[string]string {
 	}
 }
 
+// TestRoundTrip_CollidingUnitIDs pins the writer against units whose ids do
+// not identify them uniquely. XLIFF 2 requires `id` on `<unit>` and requires it
+// to be unique within the enclosing `<file>`, but kapi accepts documents that
+// break either rule — they arrive from other tools, and in the packaged-handoff
+// workflow from outside the project entirely.
+//
+// The writer resolved every unit element through a single id-keyed map, so a
+// collision made one unit's content overwrite another's: not a dropped block
+// but silent cross-unit corruption, on a document kapi had accepted, still
+// valid XLIFF afterwards (#1599). There are two ways to collide — a repeated
+// id, and an absent id, which keys every id-less unit on the empty string.
+func TestRoundTrip_CollidingUnitIDs(t *testing.T) {
+	const head = `<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+  <file id="f1">
+`
+	const tail = `  </file>
+</xliff>
+`
+	cases := map[string]struct {
+		units []string
+		want  []string
+	}{
+		"repeated id": {
+			units: []string{
+				`<unit id="1"><segment><source>one</source></segment></unit>`,
+				`<unit id="1"><segment><source>two</source></segment></unit>`,
+			},
+			want: []string{"one", "two"},
+		},
+		"absent id on every unit": {
+			units: []string{
+				`<unit><segment><source>0</source></segment></unit>`,
+				`<unit><segment><source></source></segment></unit>`,
+			},
+			want: []string{"", "0"},
+		},
+		"absent id mixed with present": {
+			units: []string{
+				`<unit><segment><source>bare</source></segment></unit>`,
+				`<unit id="u1"><segment><source>named</source></segment></unit>`,
+				`<unit><segment><source>bare2</source></segment></unit>`,
+			},
+			want: []string{"bare", "bare2", "named"},
+		},
+		"three units sharing one id": {
+			units: []string{
+				`<unit id="x"><segment><source>a</source></segment></unit>`,
+				`<unit id="x"><segment><source>b</source></segment></unit>`,
+				`<unit id="x"><segment><source>c</source></segment></unit>`,
+			},
+			want: []string{"a", "b", "c"},
+		},
+		"collision inside a group": {
+			units: []string{
+				`<group id="g1">` +
+					`<unit id="1"><segment><source>in-group-one</source></segment></unit>` +
+					`<unit id="1"><segment><source>in-group-two</source></segment></unit>` +
+					`</group>`,
+			},
+			want: []string{"in-group-one", "in-group-two"},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			input := []byte(head + "    " + strings.Join(tc.units, "\n    ") + "\n" + tail)
+
+			pass1 := xliff2SourceTexts(t, input)
+			if diff := cmpStrings(pass1, tc.want); diff != "" {
+				t.Fatalf("read did not extract the expected units: %s", diff)
+			}
+
+			out, err := readWrite(t, input)
+			if err != nil {
+				t.Fatalf("readWrite: %v", err)
+			}
+			pass2 := xliff2SourceTexts(t, out)
+			if diff := cmpStrings(pass2, tc.want); diff != "" {
+				t.Errorf("round-trip changed unit content: %s\ninput:\n%s\noutput:\n%s", diff, input, out)
+			}
+		})
+	}
+}
+
+// xliff2SourceTexts reads a document and returns its blocks' source texts,
+// sorted so the comparison does not depend on emission order.
+func xliff2SourceTexts(t *testing.T, in []byte) []string {
+	t.Helper()
+	ctx := context.Background()
+	reader := xliff2.NewReader()
+	if err := reader.Open(ctx, testutil.RawDocFromString(string(in), model.LocaleEnglish)); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer reader.Close()
+	var texts []string
+	for _, b := range testutil.FilterBlocks(testutil.CollectParts(t, reader.Read(ctx))) {
+		texts = append(texts, b.SourceText())
+	}
+	sort.Strings(texts)
+	return texts
+}
+
+func cmpStrings(got, want []string) string {
+	if len(got) == len(want) {
+		same := true
+		for i := range got {
+			if got[i] != want[i] {
+				same = false
+				break
+			}
+		}
+		if same {
+			return ""
+		}
+	}
+	return fmt.Sprintf("got %q, want %q", got, want)
+}
+
 // TestRoundTrip_StaleIRDetection verifies the writer's staleness
 // auto-detection: when a tool modifies Segment.Runs without touching
 // SegmentInlineAnnotation, the writer should still see the change and

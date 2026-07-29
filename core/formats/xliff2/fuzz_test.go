@@ -82,27 +82,21 @@ func seedDamagedXliff2(f *testing.F) {
 	}
 }
 
-// seedCollidingUnitIDXliff2 holds the documents whose unit ids collide. They
-// are seeded into the read target, where the reader handles them correctly, but
-// NOT into the round-trip target: they fail there, and the failure is a real
-// defect filed as #1599 rather than something to assert around.
+// seedCollidingUnitIDXliff2 holds the documents whose unit ids collide. XLIFF 2
+// requires a unique id on every unit, so all of these are invalid — but kapi
+// accepts them, and used to produce a plausible wrong answer: the writer
+// resolved every unit element through one id-keyed map entry, so a collision
+// patched one unit with another's content, overwritten rather than merely
+// dropped (#1599). Two ways to collide, and the fix covers both:
 //
-// The reader extracts every unit. The writer indexes the model by block ID
-// (writer.go:341-347) and resolves every unit element through that map
-// (writer.go:502-508), so units whose ids collide share one entry and one unit
-// is patched with the other's content — overwritten, not merely dropped.
-//
-// Two ways to collide, and the fix has to cover both:
 //   - two units declaring the same id;
 //   - two units declaring NO id, which both resolve to the empty-string key.
-//
-// XLIFF 2 requires a unique id on every unit, so both inputs are invalid; the
-// defect is that kapi accepts them and produces a plausible wrong answer rather
-// than refusing them.
 func seedCollidingUnitIDXliff2(f *testing.F) {
 	f.Helper()
 	f.Add([]byte(xliff2Head + `<unit id="1"><segment><source>one</source></segment></unit><unit id="1"><segment><source>two</source></segment></unit></file></xliff>`))
 	f.Add([]byte(xliff2Head + `<unit><segment><source>one</source></segment></unit><unit><segment><source></source></segment></unit></file></xliff>`))
+	f.Add([]byte(xliff2Head + `<unit><segment><source>bare</source></segment></unit><unit id="u1"><segment><source>named</source></segment></unit><unit><segment><source>bare2</source></segment></unit></file></xliff>`))
+	f.Add([]byte(xliff2Head + `<group id="g1"><unit id="1"><segment><source>one</source></segment></unit><unit id="1"><segment><source>two</source></segment></unit></group></file></xliff>`))
 }
 
 // FuzzReadXliff2 asserts the XLIFF 2 reader never panics and always terminates
@@ -125,10 +119,8 @@ func FuzzReadXliff2(f *testing.F) {
 // FuzzRoundTripXliff2 asserts read → write → read is stable in content. The
 // XLIFF 2 writer patches the source DOM, which travels inside the part stream
 // rather than through a setter, so the round-trip is self-contained.
-//
-// Known open failure: fuzzing this target rediscovers #1599 within seconds, by
-// building a document with two id-less units. See seedCollidingUnitIDXliff2.
 func FuzzRoundTripXliff2(f *testing.F) {
+	seedCollidingUnitIDXliff2(f)
 	f.Add([]byte(xliff2Head + `<unit id="1"><segment><source>Hello</source><target>Bonjour</target></segment></unit></file></xliff>`))
 	f.Add([]byte(xliff2Head + `<unit id="1"><segment><source>one</source></segment></unit><unit id="2"><segment><source>two</source></segment></unit></file></xliff>`))
 	seedDamagedXliff2(f)
