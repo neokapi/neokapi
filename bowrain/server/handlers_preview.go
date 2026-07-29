@@ -18,7 +18,17 @@ import (
 // from the stored BlockIndex, and finally to a block-list preview built from the
 // stored blocks themselves.
 // GET /editor/projects/:pid/file-preview/*?locale=xx
+//
+// The response is document-derived HTML and is served sandboxed. See sandboxCSP:
+// this route sits on the authenticated /:ws group, so it shares an origin with
+// the application, and the markup it returns is reproduced verbatim from an
+// uploaded document rather than escaped — which is the feature, not an
+// oversight.
 func (s *Server) HandleRenderDocumentPreview(c echo.Context) error {
+	// Set before any branch: every response from this route is sandboxed, so
+	// the guarantee cannot be lost by an early return added later.
+	applySandboxCSP(c)
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -71,7 +81,14 @@ func (s *Server) HandleRenderDocumentPreview(c echo.Context) error {
 // If a locale query param is provided and a translation exists, the target text
 // is returned; otherwise the source HTML (or plain source text) is returned.
 // GET /editor/projects/:pid/blocks/:bid/html?locale=xx
+//
+// Served sandboxed for the same reason as the document preview, and with one
+// more: the target text is whatever a translator submitted, so this response
+// can carry markup that no document ever contained.
 func (s *Server) HandleRenderBlockHTML(c echo.Context) error {
+	// Set before any branch, as in HandleRenderDocumentPreview.
+	applySandboxCSP(c)
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
