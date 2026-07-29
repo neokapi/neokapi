@@ -37,6 +37,7 @@ import {
 } from "@neokapi/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
+import { subNavTarget } from "./sub-nav-targets";
 import { viewFromPath, type WorkspaceView } from "./view-from-path";
 import { activitiesQueryOptions, myTasksQueryOptions } from "../queries";
 import { useWorkspaceEvents } from "../hooks/useWorkspaceEvents";
@@ -305,6 +306,15 @@ export function WorkspaceLayout() {
     return "concepts";
   }, [activeView, pathname, workspaceSlug]);
 
+  // Derive the insights sub-nav from the URL. Without this the section had no
+  // highlight at all: activeSubNav fell through to settingsSubNav, which
+  // returns undefined for any view that is not settings.
+  const insightsSubNav = useMemo(() => {
+    if (activeView !== "insights") return undefined;
+    if (pathname.startsWith(`/${workspaceSlug}/locale-demand`)) return "locale-demand";
+    return "dashboard";
+  }, [activeView, pathname, workspaceSlug]);
+
   // Derive settings sub-nav from URL.
   const settingsSubNav = useMemo(() => {
     if (activeView === "auditlog") return "auditlog";
@@ -326,123 +336,15 @@ export function WorkspaceLayout() {
 
   const handleSubNavChange = useCallback(
     (id: string) => {
-      const wsSlug = workspaceSlug ?? "";
-      switch (id) {
-        // Context hub sections
-        case "concepts":
-          void navigate({
-            to: "/$workspace/context/concepts",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "voice":
-          void navigate({
-            to: "/$workspace/context/voice",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "memory":
-          void navigate({
-            to: "/$workspace/context/memory",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "changes":
-          void navigate({
-            to: "/$workspace/context/changes",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "activity":
-          void navigate({
-            to: "/$workspace/context/activity",
-            params: { workspace: wsSlug },
-          });
-          break;
-        // Insights sections
-        case "dashboard":
-          void navigate({
-            to: "/$workspace/context/dashboard",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "general":
-          void navigate({
-            to: "/$workspace/settings",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "languages":
-          void navigate({
-            to: "/$workspace/settings/languages",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "members":
-          void navigate({
-            to: "/$workspace/settings/members",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "roles":
-          void navigate({
-            to: "/$workspace/settings/roles",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "governance":
-          void navigate({
-            to: "/$workspace/settings/governance",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "providers":
-          void navigate({
-            to: "/$workspace/settings/providers",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "tokens":
-          void navigate({
-            to: "/$workspace/settings/tokens",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "auditlog":
-          void navigate({
-            to: "/$workspace/auditlog",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "bin":
-          void navigate({
-            to: "/$workspace/bin",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "system":
-          void navigate({
-            to: "/$workspace/settings/system",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "bravo":
-          void navigate({
-            to: "/$workspace/settings/bravo",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "billing":
-          void navigate({
-            to: "/$workspace/settings/billing",
-            params: { workspace: wsSlug },
-          });
-          break;
-      }
+      const to = subNavTarget(id);
+      // An unknown id is a sidebar item with no destination. Returning rather
+      // than navigating keeps it inert instead of throwing, and
+      // sub-nav-targets.test.ts is what stops one existing in the first place.
+      if (!to) return;
+      void navigate({ to, params: { workspace: workspaceSlug ?? "" } });
     },
     [navigate, workspaceSlug],
   );
-
   // -----------------------------------------------------------------------
   // Sidebar context: determine from URL + query cache
   // -----------------------------------------------------------------------
@@ -781,7 +683,7 @@ export function WorkspaceLayout() {
               onCollapsedChange={setSidebarCollapsed}
               showThemeToggle={false}
               sidebarContext={sidebarContext}
-              activeSubNav={activeView === "context" ? contextSubNav : settingsSubNav}
+              activeSubNav={contextSubNav ?? insightsSubNav ?? settingsSubNav}
               onSubNavChange={handleSubNavChange}
               headerSlot={
                 <ConnectedTopBar

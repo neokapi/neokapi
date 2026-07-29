@@ -153,6 +153,9 @@ export type { DigestSettings } from "./components/NotificationSettings";
 export { TopBar } from "./components/TopBar";
 export type { TopBarProps } from "./components/TopBar";
 export { AppSidebar } from "./components/AppSidebar";
+// Exported so a consumer can check its own routing against what the sidebar
+// actually renders — a sub-nav item with no destination is otherwise invisible.
+export { subNavConfig, viewLabel } from "./components/AppSidebar";
 export type { AppSidebarProps, SidebarContext } from "./components/AppSidebar";
 export { AppShell } from "./components/AppShell";
 export type { AppShellProps } from "./components/AppShell";
