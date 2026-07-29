@@ -826,7 +826,12 @@ func NewServer(cfg Config) *Server {
 		mcpCfg := mcpserver.Config{
 			JWTSecret:     cfg.JWTSecret,
 			OIDCIssuerURL: cfg.OIDCIssuerURL,
-			PublicURL:     cfg.OIDCPublicURL,
+			// The RFC 9728 resource identifier is this server's own address,
+			// which is what mcpserver.Config.PublicURL documents. It was being
+			// given OIDCPublicURL — the identity provider's — so the metadata
+			// announced the IdP as the protected resource. The authorization
+			// server is named separately, from OIDCIssuerURL, just below it.
+			PublicURL: cfg.AppPublicURL,
 		}
 		var mcpOpts []mcpserver.Option
 		if s.wsStores != nil {
@@ -2108,11 +2113,16 @@ func requestBaseURL(c echo.Context) string {
 	return fmt.Sprintf("%s://%s", c.Scheme(), host)
 }
 
-// corsConfig builds a CORS middleware configuration. When a fixed
-// OIDCPublicURL is configured (production), only that origin — plus the
-// marketing landing origin (PublicSiteURL), when set — is allowed. Otherwise
-// the middleware dynamically allows the request's own (localhost) origin, plus
-// the configured landing origin.
+// corsConfig builds a CORS middleware configuration. In production only this
+// app's own origin (AppPublicURL) and the marketing landing origin
+// (PublicSiteURL) are allowed; in development the middleware dynamically allows
+// any localhost origin plus the landing.
+//
+// Which of the two applies is decided by Config.DevMode and nothing else. It
+// used to be decided by whether OIDCPublicURL happened to be set — an optional
+// field naming the identity provider — so a production deployment that
+// configured only the issuer URL, which the documentation described as
+// supported, silently served credentialed CORS to any localhost origin.
 //
 // Credentials are enabled so the landing (a DIFFERENT but same-site origin) can
 // read GET /api/v1/auth/whoami with the session cookie and render the signed-in
@@ -2136,24 +2146,30 @@ func (s *Server) corsConfig() middleware.CORSConfig {
 
 	landingOrigin := originOf(s.Config.PublicSiteURL)
 
-	if s.Config.OIDCPublicURL != "" {
-		// Fixed allowlist (production): the app's own origin plus the landing.
+	if !s.Config.DevMode {
+		// Production: a fixed allowlist of this app's own origin plus the
+		// landing. Whether it ends up empty is not a reason to widen it — an
+		// unset or unparsable AppPublicURL means no cross-origin caller is
+		// credentialed, which breaks the landing's signed-in CTA and nothing
+		// else. Same-origin requests never consult CORS.
 		var origins []string
-		if o := originOf(s.Config.OIDCPublicURL); o != "" {
+		if o := originOf(s.Config.AppPublicURL); o != "" {
 			origins = append(origins, o)
 		}
 		if landingOrigin != "" {
 			origins = append(origins, landingOrigin)
 		}
-		if len(origins) > 0 {
-			cfg.AllowOrigins = origins
-			return cfg
+		if len(origins) == 0 {
+			slog.Warn("CORS: no cross-origin caller is allowed; set BOWRAIN_APP_PUBLIC_URL " +
+				"(and BOWRAIN_PUBLIC_SITE_URL) if a different origin must reach this API")
 		}
+		cfg.AllowOrigins = origins
+		return cfg
 	}
 
-	// Dynamic: allow localhost origins (development) and the configured landing
-	// origin. Echo reflects only the matching origin — never "*" — so this stays
-	// credential-safe.
+	// Development: allow localhost origins and the configured landing origin.
+	// Echo reflects only the matching origin — never "*" — so this stays
+	// credential-safe. Reached only when DevMode was set deliberately.
 	cfg.AllowOriginFunc = func(origin string) (bool, error) {
 		u, err := url.Parse(origin)
 		if err != nil {
@@ -2197,10 +2213,10 @@ func originOf(rawURL string) string {
 // The policy is deliberately narrower than corsConfig's. CORS grants the
 // landing origin one credentialed read (GET whoami, display JSON only); a
 // socket is a different privilege — the notification stream, and join-and-write
-// access to a collaboration room — and nothing off-origin needs it. Note also
-// that OIDCPublicURL, which corsConfig puts on its production allowlist, is the
-// browser-facing *identity provider* URL rather than this app's origin, so it
-// would be the wrong thing to authorize here.
+// access to a collaboration room — and nothing off-origin needs it. So the
+// landing is not here, and the app's own origin arrives via AppPublicURL rather
+// than via the identity provider's URL, which is what this policy used to be
+// keyed off and was never the right value for it.
 //
 // What is allowed:
 //
@@ -2210,8 +2226,12 @@ func originOf(rawURL string) string {
 //     requestBaseURL trusts when it builds OIDC redirect URIs. A browser cannot
 //     set that header on a WebSocket handshake, so it does not widen the
 //     browser-driven surface this check exists to close.
+//   - This app's own public host (AppPublicURL), for a deployment whose proxy
+//     leaves Host alone and where the browser therefore arrives on a name the
+//     library's Origin-equals-Host check would not match.
 //   - Any localhost origin in development, mirroring corsConfig's dev branch,
-//     so a Vite dev server on another port can connect.
+//     so a Vite dev server on another port can connect. Development means
+//     Config.DevMode, set deliberately — not "some unrelated field is empty".
 //
 // An absent Origin — every non-browser client, so the CLI and the Go SDK — is
 // accepted by the library before these patterns are consulted.
@@ -2225,8 +2245,16 @@ func (s *Server) wsOriginPatterns(c echo.Context) []string {
 		patterns = append(patterns, host)
 	}
 
-	// Development, gated exactly as corsConfig gates its dynamic branch.
-	if s.Config.OIDCPublicURL == "" {
+	// The app's own public host, for a deployment whose proxy does not rewrite
+	// Host and where the browser therefore arrives on a name the library's
+	// Origin-equals-Host check would not match.
+	if h := hostOf(s.Config.AppPublicURL); h != "" {
+		patterns = append(patterns, h)
+	}
+
+	// Development, gated exactly as corsConfig gates its dynamic branch — on
+	// the explicit discriminator, not on whether some other field is populated.
+	if s.Config.DevMode {
 		patterns = append(patterns,
 			"localhost", "localhost:*",
 			"127.0.0.1", "127.0.0.1:*",
@@ -2235,4 +2263,17 @@ func (s *Server) wsOriginPatterns(c echo.Context) []string {
 	}
 
 	return patterns
+}
+
+// hostOf returns the host[:port] of a URL, or "" if it has none. Host rather
+// than origin because websocket.AcceptOptions matches on host patterns.
+func hostOf(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return u.Host
 }

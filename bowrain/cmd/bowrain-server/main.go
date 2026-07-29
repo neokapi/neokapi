@@ -152,6 +152,11 @@ func run() error {
 	if envPublic := os.Getenv("BOWRAIN_OIDC_PUBLIC_URL"); envPublic != "" {
 		cfg.OIDCPublicURL = envPublic
 	}
+	// This app's own browser-facing origin (e.g. https://app.bowrain.cloud).
+	// The CORS and WebSocket origin allowlists are built from it in production.
+	if v := os.Getenv("BOWRAIN_APP_PUBLIC_URL"); v != "" {
+		cfg.AppPublicURL = v
+	}
 	// Marketing landing origin (e.g. https://bowrain.cloud). Allowlisted for
 	// the credentialed cross-origin whoami fetch that renders the signed-in CTA.
 	if v := os.Getenv("BOWRAIN_PUBLIC_SITE_URL"); v != "" {
@@ -179,10 +184,8 @@ func run() error {
 	if v := os.Getenv("BOWRAIN_PASSKEYS_ENABLED"); v != "" {
 		cfg.PasskeysEnabled, _ = strconv.ParseBool(v)
 	}
-	// Force Secure cookies (set true in TLS-fronted prod). See Config docs.
-	if v := os.Getenv("BOWRAIN_FORCE_SECURE_COOKIES"); v != "" {
-		cfg.ForceSecureCookies, _ = strconv.ParseBool(v)
-	}
+	// BOWRAIN_FORCE_SECURE_COOKIES is read after the dev/prod signal is
+	// resolved, further down, because its default depends on it.
 	if v := os.Getenv("BOWRAIN_KEYCLOAK_ADMIN_URL"); v != "" {
 		cfg.KeycloakAdminURL = v
 	}
@@ -351,6 +354,27 @@ func run() error {
 	// explicit "this is a development box" signal rather than on any inference
 	// from how OIDC happens to be configured.
 	cfg.AllowInsecureDeviceAuth = insecureDev
+
+	// The CORS and WebSocket origin policies ride on the same signal, for the
+	// same reason. They used to key off whether OIDCPublicURL happened to be
+	// set, so a production deployment configuring only the issuer URL — the
+	// documented, supported shape — silently ran the development policy.
+	cfg.DevMode = insecureDev
+
+	// Secure session cookies are the production default. Without one, a
+	// deployment that never heard of this setting leaves the Secure flag to
+	// whatever X-Forwarded-Proto the request carried. An explicit value still
+	// wins in either direction; an unparsable one is refused rather than
+	// silently ignored, because the two answers differ in exactly the way that
+	// matters.
+	cfg.ForceSecureCookies = !cfg.DevMode
+	if v := os.Getenv("BOWRAIN_FORCE_SECURE_COOKIES"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return fmt.Errorf("invalid BOWRAIN_FORCE_SECURE_COOKIES %q: %w", v, err)
+		}
+		cfg.ForceSecureCookies = b
+	}
 
 	srv := server.NewServer(cfg)
 

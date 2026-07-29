@@ -42,6 +42,7 @@ POSTGRES_PASSWORD=...                          # database password
 BOWRAIN_JWT_SECRET=$(openssl rand -base64 32)  # JWT signing secret
 BOWRAIN_OIDC_ISSUER_URL=...                    # your realm's issuer URL
 BOWRAIN_OIDC_CLIENT_SECRET=...                 # the bowrain client's secret
+BOWRAIN_APP_PUBLIC_URL=https://bowrain.example # the URL browsers use to reach Bowrain
 # Machine translation runs in the worker — configure an upstream provider:
 BOWRAIN_PLATFORM_PROVIDER=gemini               # or openai / anthropic / ollama
 BOWRAIN_PLATFORM_API_KEY=...                   # provider API key
@@ -65,7 +66,9 @@ OIDC setup and an offline translation provider by default — see the
 | `BOWRAIN_DATABASE_URL`       |           | PostgreSQL connection string (`postgres://…`) — **required**     |
 | `BOWRAIN_JWT_SECRET`         |           | JWT signing secret — required for auth                           |
 | `BOWRAIN_OIDC_ISSUER_URL`    |           | OIDC issuer URL (internal, reachable from the server)            |
-| `BOWRAIN_OIDC_PUBLIC_URL`    |           | OIDC public URL (browser-facing; defaults to the issuer URL)     |
+| `BOWRAIN_OIDC_PUBLIC_URL`    |           | Browser-facing URL of the identity provider, if it differs from the issuer URL |
+| `BOWRAIN_APP_PUBLIC_URL`     |           | The URL browsers use to reach Bowrain — sets the CORS and WebSocket origin allowlists |
+| `BOWRAIN_FORCE_SECURE_COOKIES` | `true`  | Marks session cookies `Secure` regardless of the request scheme  |
 | `BOWRAIN_OIDC_CLIENT_ID`     | `bowrain` | OIDC client ID                                                   |
 | `BOWRAIN_OIDC_CLIENT_SECRET` |           | OIDC client secret                                               |
 | `BOWRAIN_QUEUE_BACKEND`      |           | `sqs` selects the SQS job-queue backend                          |
@@ -178,8 +181,19 @@ server {
 }
 ```
 
-When using a reverse proxy, set `BOWRAIN_OIDC_PUBLIC_URL` and the OIDC client's
-redirect URI to the public HTTPS URL.
+When using a reverse proxy, set `BOWRAIN_APP_PUBLIC_URL` and the OIDC client's
+redirect URI to the public HTTPS URL. Set `BOWRAIN_OIDC_PUBLIC_URL` too if the
+browser reaches your identity provider under a different name than the server
+does.
+
+`BOWRAIN_FORCE_SECURE_COOKIES` is already `true` by default, which is what you
+want here: TLS terminates at the proxy, so without it the `Secure` flag would
+depend on the `X-Forwarded-Proto` header above continuing to arrive.
+
+A server is production unless `BOWRAIN_ALLOW_INSECURE_DEV=1` says otherwise, so
+a self-hosted deployment gets the strict origin policy by default. That flag is
+for a local development box and should never be set on anything reachable from
+the internet.
 
 ## Docker Image Tags
 

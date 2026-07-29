@@ -146,7 +146,7 @@ func corsEcho(cfg Config) *echo.Echo {
 func TestCORSAllowsLandingOriginWithCredentials(t *testing.T) {
 	const landing = "https://bowrain.cloud"
 	e := corsEcho(Config{
-		OIDCPublicURL: "https://auth.bowrain.cloud/realms/bowrain",
+		AppPublicURL:  "https://app.bowrain.cloud",
 		PublicSiteURL: landing,
 	})
 
@@ -172,8 +172,12 @@ func TestCORSAllowsLandingOriginWithCredentials(t *testing.T) {
 }
 
 func TestCORSAllowsAppOrigin(t *testing.T) {
+	// The app's OWN origin, which is what AppPublicURL names. This used to be
+	// read from OIDCPublicURL — the identity provider's browser-facing URL —
+	// so the production allowlist credentialed the IdP's host rather than the
+	// app's.
 	e := corsEcho(Config{
-		OIDCPublicURL: "https://app.bowrain.cloud",
+		AppPublicURL:  "https://app.bowrain.cloud",
 		PublicSiteURL: "https://bowrain.cloud",
 	})
 
@@ -188,7 +192,7 @@ func TestCORSAllowsAppOrigin(t *testing.T) {
 
 func TestCORSRejectsUnknownOrigin(t *testing.T) {
 	e := corsEcho(Config{
-		OIDCPublicURL: "https://app.bowrain.cloud",
+		AppPublicURL:  "https://app.bowrain.cloud",
 		PublicSiteURL: "https://bowrain.cloud",
 	})
 
@@ -203,8 +207,10 @@ func TestCORSRejectsUnknownOrigin(t *testing.T) {
 }
 
 func TestCORSDevLandingOrigin(t *testing.T) {
-	// No OIDCPublicURL (dev): dynamic allow-list — localhost plus the landing.
-	e := corsEcho(Config{PublicSiteURL: "https://bowrain.cloud"})
+	// DevMode: dynamic allow-list — localhost plus the landing. Development is
+	// now opted into explicitly; it used to be whatever happened when
+	// OIDCPublicURL was left empty.
+	e := corsEcho(Config{DevMode: true, PublicSiteURL: "https://bowrain.cloud"})
 
 	for _, origin := range []string{"http://localhost:5173", "https://bowrain.cloud"} {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/whoami", nil)
