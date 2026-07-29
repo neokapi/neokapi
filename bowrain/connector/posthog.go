@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/resilience"
+	"github.com/neokapi/neokapi/bowrain/safehttp"
 )
 
 // Well-known PostHog Cloud hosts. A custom self-hosted URL is also accepted.
@@ -87,7 +88,12 @@ func IsPostHogAuthError(err error) bool {
 }
 
 // ResolvePostHogHost maps the host config value ("us", "eu", or a custom
-// https URL for self-hosted instances) to an API base URL.
+// http(s) URL for self-hosted instances) to an API base URL.
+//
+// A self-hosted URL is tenant input aimed at the server's own network, so it
+// is refused when it names an address the platform will not dial. This is the
+// configuration-time half only — no DNS happens here, so a hostname passes and
+// the client's vetted dialer decides once its addresses are known.
 func ResolvePostHogHost(host string) (string, error) {
 	switch strings.ToLower(strings.TrimSpace(host)) {
 	case PostHogHostUS:
@@ -100,6 +106,9 @@ func ResolvePostHogHost(host string) (string, error) {
 	u, err := url.Parse(strings.TrimSpace(host))
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return "", fmt.Errorf("posthog host must be %q, %q, or an http(s) URL", PostHogHostUS, PostHogHostEU)
+	}
+	if err := safehttp.CheckLiteralHost(u.Hostname()); err != nil {
+		return "", fmt.Errorf("posthog host: %w", err)
 	}
 	return strings.TrimRight(u.String(), "/"), nil
 }
@@ -159,7 +168,8 @@ func NewPostHogClient(host, projectID, apiKey string) (*PostHogClient, error) {
 		baseURL:   base,
 		projectID: strings.TrimSpace(projectID),
 		apiKey:    apiKey,
-		client:    resilience.Client("connector:posthog", resilience.KindConnector, posthogQueryTimeout),
+		client: resilience.Guard(remotePolicy().Client(posthogQueryTimeout),
+			"connector:posthog", resilience.KindConnector, posthogQueryTimeout),
 	}, nil
 }
 

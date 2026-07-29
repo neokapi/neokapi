@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"maps"
 	"net/http"
@@ -14,7 +13,7 @@ import (
 	"time"
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
-	"github.com/neokapi/neokapi/bowrain/resilience"
+	"github.com/neokapi/neokapi/bowrain/safehttp"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -45,12 +44,20 @@ type wpContent struct {
 }
 
 // NewWordPressConnector creates a new WordPress connector.
+//
+// The site URL is tenant input, so it is checked for a usable shape here —
+// an http(s) scheme, a host, and not an IP literal in private space — and the
+// client enforces the rest of the address policy at dial time, where a
+// hostname's real addresses are known.
 func NewWordPressConnector(config map[string]string) (*WordPressConnector, error) {
-	baseURL := config["url"]
-	if baseURL == "" {
+	rawURL := config["url"]
+	if rawURL == "" {
 		return nil, errors.New("wordpress connector requires 'url' config")
 	}
-	baseURL = strings.TrimRight(baseURL, "/")
+	baseURL := strings.TrimRight(rawURL, "/")
+	if _, err := remotePolicy().CheckStaticURL(baseURL); err != nil {
+		return nil, fmt.Errorf("wordpress connector 'url': %w", err)
+	}
 
 	id := config["id"]
 	if id == "" {
@@ -63,7 +70,7 @@ func NewWordPressConnector(config map[string]string) (*WordPressConnector, error
 		baseURL:  baseURL,
 		username: config["username"],
 		password: config["password"],
-		client:   resilience.Client("connector:wordpress", resilience.KindConnector, 30*time.Second),
+		client:   remoteClient("connector:wordpress"),
 		config:   config,
 	}, nil
 }
@@ -188,8 +195,11 @@ func (c *WordPressConnector) fetchPosts(ctx context.Context) ([]wpPost, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("fetch posts: HTTP %d: %s", resp.StatusCode, string(body))
+		// The status, never the body. The site URL is tenant input, so echoing
+		// what answered would turn a failed request into a read of whatever the
+		// server could reach.
+		safehttp.Drain(resp.Body, errorBodyLimit)
+		return nil, fmt.Errorf("fetch posts: HTTP %d", resp.StatusCode)
 	}
 
 	var posts []wpPost

@@ -12,60 +12,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/bowrain/safehttp"
 )
 
-// rejectingFetcher returns a fetcher whose lookup only knows "localhost"
-// (→ 127.0.0.1) and whose dialer fails the test if it is ever reached —
-// every table case below must be rejected before any connection attempt.
-func rejectingFetcher(t *testing.T) *fetcher {
-	t.Helper()
-	f := newFetcher()
-	f.lookup = func(_ context.Context, host string) ([]netip.Addr, error) {
-		if host == "localhost" {
-			return []netip.Addr{netip.MustParseAddr("127.0.0.1")}, nil
-		}
-		return nil, fmt.Errorf("unexpected DNS lookup for %q", host)
-	}
-	f.dial = func(_ context.Context, _, addr string) (net.Conn, error) {
-		t.Fatalf("dial reached for %q; the URL should have been rejected earlier", addr)
-		return nil, nil
-	}
-	return f
-}
-
-func TestFetchURLRejectsUnsafeURLs(t *testing.T) {
-	tests := []struct {
-		name    string
-		url     string
-		wantErr string
-	}{
-		{"http metadata IP", "http://169.254.169.254/", "https only"},
-		{"http private IP", "http://10.0.0.5", "https only"},
-		{"http loopback IP", "http://127.0.0.1", "https only"},
-		{"http localhost", "http://localhost", "https only"},
-		{"non-https scheme ftp", "ftp://example.com/brand", "https only"},
-		{"https metadata IP", "https://169.254.169.254/", "link-local"},
-		{"https private IP", "https://10.0.0.5/", "private"},
-		{"https loopback IP", "https://127.0.0.1/", "loopback"},
-		{"https IPv6 loopback", "https://[::1]/", "loopback"},
-		{"https localhost via DNS", "https://localhost/", "loopback"},
-		{"https CGNAT IP", "https://100.64.1.2/", "carrier-grade NAT"},
-		{"https unique-local IPv6", "https://[fd00::1]/", "private"},
-		{"https link-local IPv6", "https://[fe80::1]/", "link-local"},
-		{"https IPv4-mapped private", "https://[::ffff:10.0.0.5]/", "private"},
-		{"https unspecified", "https://0.0.0.0/", "unspecified"},
-		{"no host", "https:///path", "no host"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f := rejectingFetcher(t)
-			text, err := f.fetch(context.Background(), tt.url)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tt.wantErr)
-			assert.Empty(t, text)
-		})
-	}
-}
+// The scheme and address policy itself is tested in bowrain/safehttp, which
+// owns it. What is left here is what brandscan adds on top: the https-only
+// scheme choice, the body cap, the HTML content-type requirement, and the text
+// extraction — exercised through the real client so the shared policy is in
+// the path rather than stubbed out.
 
 // newTestServerFetcher wires a fetcher to a TLS httptest server:
 // "example.com" resolves to a public (documentation-range) address via the
@@ -75,20 +30,21 @@ func TestFetchURLRejectsUnsafeURLs(t *testing.T) {
 func newTestServerFetcher(t *testing.T, ts *httptest.Server) *fetcher {
 	t.Helper()
 	tsAddr := ts.Listener.Addr().String()
-	f := newFetcher()
-	f.lookup = func(_ context.Context, host string) ([]netip.Addr, error) {
-		if host == "example.com" {
-			return []netip.Addr{netip.MustParseAddr("203.0.113.7")}, nil
-		}
-		return nil, fmt.Errorf("unexpected DNS lookup for %q", host)
-	}
-	f.dial = func(ctx context.Context, network, _ string) (net.Conn, error) {
-		return (&net.Dialer{}).DialContext(ctx, network, tsAddr)
-	}
 	transport, ok := ts.Client().Transport.(*http.Transport)
 	require.True(t, ok, "httptest client transport should be *http.Transport")
-	f.tlsConfig = transport.TLSClientConfig
-	return f
+
+	return newFetcher(
+		safehttp.WithLookup(func(_ context.Context, host string) ([]netip.Addr, error) {
+			if host == "example.com" {
+				return []netip.Addr{netip.MustParseAddr("203.0.113.7")}, nil
+			}
+			return nil, fmt.Errorf("unexpected DNS lookup for %q", host)
+		}),
+		safehttp.WithDialer(func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, network, tsAddr)
+		}),
+		safehttp.WithTLSConfig(transport.TLSClientConfig),
+	)
 }
 
 func newBrandTestServer(t *testing.T) *httptest.Server {
@@ -189,71 +145,27 @@ func TestFetchURLRejectsNonOKStatus(t *testing.T) {
 	assert.Contains(t, err.Error(), "status")
 }
 
-// TestFetchURLExported exercises the exported entry point on rejections that
-// fail before any DNS lookup or connection attempt.
+// TestFetchURLExported exercises the exported entry point: brand scanning is
+// https only, and the shared address policy is wired into it — a plain-http or
+// private-space source is refused before any DNS lookup or connection attempt.
 func TestFetchURLExported(t *testing.T) {
-	for _, rawURL := range []string{
-		"http://169.254.169.254/",
-		"http://10.0.0.5",
-		"http://127.0.0.1",
-		"http://localhost",
-		"https://[fd00::1]/",
-	} {
-		t.Run(rawURL, func(t *testing.T) {
-			text, err := FetchURL(context.Background(), rawURL)
-			require.Error(t, err)
-			assert.Empty(t, text)
-		})
-	}
-}
-
-// TestVetPublicHost: the exported host policy rejects forbidden IP literals
-// without any DNS lookup and accepts public ones.
-func TestVetPublicHost(t *testing.T) {
-	for _, host := range []string{
-		"127.0.0.1",
-		"::1",
-		"10.0.0.5",
-		"192.168.1.1",
-		"169.254.169.254",
-		"100.64.0.1",
-		"0.0.0.0",
-	} {
-		t.Run(host, func(t *testing.T) {
-			require.Error(t, VetPublicHost(context.Background(), host))
-		})
-	}
-	require.NoError(t, VetPublicHost(context.Background(), "203.0.113.7"))
-}
-
-func TestForbiddenAddr(t *testing.T) {
-	tests := []struct {
-		addr string
-		want string
+	for _, tt := range []struct {
+		rawURL  string
+		wantErr string
 	}{
-		{"127.0.0.1", "loopback"},
-		{"::1", "loopback"},
-		{"10.0.0.5", "private"},
-		{"172.16.9.1", "private"},
-		{"192.168.1.1", "private"},
-		{"fd12:3456::1", "private"},
-		{"169.254.169.254", "link-local"},
-		{"fe80::1", "link-local"},
-		{"100.64.0.1", "carrier-grade NAT"},
-		{"100.127.255.255", "carrier-grade NAT"},
-		{"0.0.0.0", "unspecified"},
-		{"224.0.0.1", "link-local"},
-		{"239.1.2.3", "multicast"},
-		{"::ffff:192.168.0.1", "private"},
-		{"8.8.8.8", ""},
-		{"203.0.113.7", ""},
-		{"2606:4700::6810:84e5", ""},
-		{"100.128.0.1", ""}, // just past the CGNAT /10
-	}
-	for _, tt := range tests {
-		t.Run(tt.addr, func(t *testing.T) {
-			got := forbiddenAddr(netip.MustParseAddr(tt.addr))
-			assert.Equal(t, tt.want, got)
+		{"http://169.254.169.254/", "https only"},
+		{"http://10.0.0.5", "https only"},
+		{"http://127.0.0.1", "https only"},
+		{"http://localhost", "https only"},
+		{"https://[fd00::1]/", "private"},
+		{"https://127.0.0.1/", "loopback"},
+		{"https://169.254.169.254/", "link-local"},
+	} {
+		t.Run(tt.rawURL, func(t *testing.T) {
+			text, err := FetchURL(context.Background(), tt.rawURL)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+			assert.Empty(t, text)
 		})
 	}
 }
