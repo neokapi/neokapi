@@ -23,26 +23,32 @@ gitignored).
   `.kapi/memory.db`; every target-locale output is produced from the content memory
   by `recycle`, so generated catalogs only ever contain reviewed strings.
   The docs sites have one seed each: `docs-nb.memory.json` for the kapi site
-  (surface `docs`: `web/docs/**` → `web/i18n/nb/...`, `make l10n-docs`)
+  (surface `kapi-docs`: `web/docs/**` → `web/i18n/nb/...`, `make l10n-docs`)
   and `bowrain-docs-nb.memory.json` for the bowrain site (surface
-  `docs-bowrain`: `bowrain/web/docs/docs/**` →
+  `bowrain-docs`: `bowrain/web/docs/docs/**` →
   `bowrain/web/docs/i18n/nb/...`, `make l10n-bowrain-docs`); the
   terms store is shared. The bowrain UIs have one seed per surface —
-  `bowrain-app-nb.memory.json` (surface `bowrain-app-ui`: the shared SPA in
+  `bowrain-app-nb.memory.json` (surface `bowrain-app`: the shared SPA in
   `bowrain/packages/{app,ui}` + web/desktop shells,
   `make l10n-bowrain-app`), `bowrain-ctrl-nb.memory.json` and
   `bowrain-pulse-nb.memory.json` (`make l10n-bowrain-{ctrl,pulse}`) — compiled
   into each shell's committed `public/translations/nb.json`.
   `libraries-nb.memory.json` covers the shared frontend libraries
   (`packages/ui`, `packages/flow-editor`) whose strings reach the desktop
-  app through the `kapi-desktop-ui` extraction — it has no Make target of
+  app through the `kapi-desktop` extraction — it has no Make target of
   its own; `l10n-desktop` leverages it. The transactional emails
-  (surfaces `emails` + `email-subjects`: `bowrain/emails/src` templates
-  and `bowrain/mailer/subjects/en.json` → per-locale renders under
+  (surfaces `bowrain-email` + `bowrain-email-subjects`: `bowrain/emails/src`
+  templates and `bowrain/mailer/subjects/en.json` → per-locale renders under
   `bowrain/mailer/`, `make l10n-emails`) use `emails-nb.memory.json`; the
-  bowrain landing page (surface `landing`: `bowrain/web/landing/src` →
+  bowrain landing page (surface `bowrain-landing`: `bowrain/web/landing/src` →
   committed `bowrain/web/landing/translations/<lang>.json`,
   `make l10n-landing`) uses `landing-nb.memory.json`.
+
+  Seed filenames are their own naming, independent of the collection names in
+  `kapi.yaml`: `l10n-seed` imports every `context/memory/*.memory.json` by
+  glob, and nothing maps a file name to a collection. Several deliberately
+  differ — `builtins-nb` seeds the `kapi-engine` collection, and `cli-nb` and
+  `libraries-nb` back surfaces that have no collection at all.
 
 Workflow for a new or changed surface string:
 
