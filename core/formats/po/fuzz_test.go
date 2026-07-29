@@ -99,20 +99,17 @@ func seedDamagedPO(f *testing.F) {
 	}
 }
 
-// seedSentinelPO holds a msgid containing a literal U+0001. It is seeded into
-// the read target, where the reader handles it correctly, but NOT into the
-// round-trip target: it fails there, and the failure is a real defect filed as
-// #1600 rather than something to assert around.
-//
-// The writer brackets verbatim regions with escapeSkipStart = '\x01' and
-// escapeSkipEnd = '\x02' (writer.go:593-599), on the stated assumption that
-// these are "control bytes that never appear in PO source text". They can: the
-// reader accepts a literal 0x01 inside a quoted msgid, so content and delimiter
-// become indistinguishable and escapePO consumes the content byte. Sweeping
-// every byte 0x01-0x7f through a msgid finds exactly this one does not survive.
+// seedSentinelPO holds msgids containing the two control bytes the writer once
+// reserved as in-band escape-skip markers. The reader accepts any byte inside a
+// quoted msgid, so content and delimiter were indistinguishable and the U+0001
+// was silently deleted on write (#1600). The writer now carries its verbatim
+// regions out of band and reserves no byte value, so these belong in the
+// round-trip target as well as the read target.
 func seedSentinelPO(f *testing.F) {
 	f.Helper()
 	f.Add([]byte("msgid \"a\x01b\"\nmsgstr \"x\"\n"))
+	f.Add([]byte("msgid \"a\x02b\"\nmsgstr \"y\"\n"))
+	f.Add([]byte("msgid \"a\x01b\x02c\"\nmsgstr \"z\"\n"))
 }
 
 // FuzzReadPo asserts the PO reader never panics and always terminates on
@@ -138,6 +135,7 @@ func FuzzReadPo(f *testing.F) {
 // whose contract is faithful write-back.
 func FuzzRoundTripPo(f *testing.F) {
 	poSeed(f, "simple.po")
+	seedSentinelPO(f)
 	f.Add([]byte("msgid \"Hello\"\nmsgstr \"Bonjour\"\n"))
 	f.Add([]byte("msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\nmsgid \"a\"\nmsgstr \"b\"\n"))
 	seedDamagedPO(f)
