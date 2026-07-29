@@ -72,6 +72,71 @@ func TestWriter_PreservesManyKeyOrder(t *testing.T) {
 	}
 }
 
+// TestWriter_KeepsEveryBlockWhenKeyPathsRepeat pins the rebuild path against a
+// document where two blocks share a key path. The reader emits a block per key
+// occurrence and the skeleton path reproduces the document byte-for-byte; the
+// rebuild path keyed its block map by the key path, so a repeat collapsed two
+// blocks into one and a translatable string went out of the document with
+// nothing logged (#1597).
+//
+// The consequence is not "a duplicate got deduplicated". Both strings were
+// handed to the pipeline, so both were translated — paid for, and written into
+// content memory — and then one translation was discarded on write-back. The
+// two write paths disagreed about how many strings the document contains.
+func TestWriter_KeepsEveryBlockWhenKeyPathsRepeat(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		input string
+		want  []string
+	}{
+		"repeated top-level key": {
+			input: "title: First\ntitle: Second\n",
+			want:  []string{"First", "Second"},
+		},
+		"repeated nested key": {
+			input: "a:\n  k: one\n  k: two\n",
+			want:  []string{"one", "two"},
+		},
+		"three occurrences": {
+			input: "k: a\nk: b\nk: c\n",
+			want:  []string{"a", "b", "c"},
+		},
+		"repeat interleaved with distinct keys": {
+			input: "k: one\nother: x\nk: two\n",
+			want:  []string{"one", "two", "x"},
+		},
+		"distinct keys are untouched": {
+			input: "greeting: Hello\nfarewell: Goodbye\n",
+			want:  []string{"Goodbye", "Hello"},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			require.ElementsMatch(t, tc.want, yamlBlockTexts(t, tc.input),
+				"the reader must extract every occurrence")
+
+			output := snippetRoundtripWithoutSkeleton(t, tc.input)
+			assert.ElementsMatch(t, tc.want, yamlBlockTexts(t, output),
+				"the rebuild path must not drop a block; output:\n%s", output)
+		})
+	}
+}
+
+// yamlBlockTexts reads a YAML document and returns its blocks' source texts.
+func yamlBlockTexts(t *testing.T, input string) []string {
+	t.Helper()
+	ctx := t.Context()
+	reader := yamlfmt.NewReader()
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+	var texts []string
+	for _, b := range testutil.FilterBlocks(testutil.CollectParts(t, reader.Read(ctx))) {
+		texts = append(texts, b.SourceText())
+	}
+	return texts
+}
+
 // TestWriter_PreservesNestedKeyOrder verifies order inside a nested
 // mapping is also preserved.
 func TestWriter_PreservesNestedKeyOrder(t *testing.T) {

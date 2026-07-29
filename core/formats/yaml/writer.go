@@ -16,8 +16,15 @@ import (
 // Writer implements DataFormatWriter for YAML files.
 type Writer struct {
 	format.BaseFormatWriter
-	blocks        map[string]*model.Block // key path → block
-	blockOrder    []string                // key paths in arrival (= source document) order
+	// blocks holds every block in arrival (= source document) order.
+	//
+	// It is a slice rather than a key-path-keyed map because a key path does
+	// not identify a block: the reader emits one block per key occurrence, and
+	// YAML documents in the wild repeat keys. Keying by path collapsed the
+	// repeats and dropped a translatable string the reader had already handed
+	// to the pipeline — translated, and written into content memory — with
+	// nothing logged (#1597).
+	blocks        []*model.Block
 	skeletonStore *format.SkeletonStore
 }
 
@@ -30,7 +37,6 @@ func NewWriter() *Writer {
 		BaseFormatWriter: format.BaseFormatWriter{
 			FormatName: "yaml",
 		},
-		blocks: make(map[string]*model.Block),
 	}
 }
 
@@ -53,10 +59,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 			if part.Type == model.PartBlock {
 				if block, ok := part.Resource.(*model.Block); ok {
-					if _, seen := w.blocks[block.Name]; !seen {
-						w.blockOrder = append(w.blockOrder, block.Name)
-					}
-					w.blocks[block.Name] = block
+					w.blocks = append(w.blocks, block)
 					blocksByID[block.ID] = block
 				}
 			}
@@ -413,18 +416,19 @@ func (w *Writer) flush() error {
 	// the source document's order. yaml.v3 preserves the slice order of
 	// MappingNode.Content (alternating key/value pairs); the previous
 	// `map[string]any` approach lost order to Go's randomized map
-	// iteration. blockOrder holds the keys in the order they arrived
-	// from the reader, which mirrors the source document.
+	// iteration. w.blocks holds them in the order they arrived from the
+	// reader, which mirrors the source document.
+	//
+	// One entry per block, not per distinct key path. A document that
+	// repeats a key is malformed per YAML 1.2 and every real consumer is
+	// last-wins, but it is the document kapi was handed: reproducing it is
+	// this path's job, and collapsing the repeat here would silently drop a
+	// string that had already been translated.
 	root := &yamlv3.Node{Kind: yamlv3.MappingNode, Tag: "!!map"}
-	for _, name := range w.blockOrder {
-		block, ok := w.blocks[name]
-		if !ok {
-			continue
-		}
-		text := w.blockText(block)
+	for _, block := range w.blocks {
 		root.Content = append(root.Content,
-			&yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: name},
-			&yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: text},
+			&yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: block.Name},
+			&yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: w.blockText(block)},
 		)
 	}
 
