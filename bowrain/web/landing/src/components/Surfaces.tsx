@@ -22,13 +22,15 @@ export function Surfaces() {
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            One brand. <span className="prism-text">Every surface.</span>
+            A profile is a named set of <span className="prism-text">coordinates.</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Your product speaks from more places than your app. In Bowrain, each surface is a
-            project — and all of them share the workspace's brand voice, terminology, and content
-            memory. Docs stay precise, marketing stays warm, support stays patient: channel styles
-            tune one profile, they don't fork it.
+            Who it is for, where it appears, in what register, for which market, and from when until
+            when. A profile bundles those five and gives them a name — developer reference, end-user
+            help, regulated disclosure. Coordinates are declared where they are cheapest to declare
+            and inherited from there: a folder carries a profile for everything inside it, a file
+            can override its folder, and a passage can override its file. Nobody tags a paragraph
+            unless a paragraph is genuinely the exception.
           </p>
         </div>
 
