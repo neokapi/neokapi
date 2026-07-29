@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -105,8 +107,19 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 				}
 			}
 			fmt.Fprintf(w, "  %-24s %s", t.Term, verdict)
+			// Locale before status. One spelling can be deprecated in one
+			// language and admitted in another — "termbase" is, in this repo's
+			// own terms store — and without the locale those two lines read as
+			// the tool contradicting itself rather than answering per language.
+			meta := t.Locale
 			if t.Status != "" {
-				fmt.Fprintf(w, " (%s)", t.Status)
+				if meta != "" {
+					meta += ", "
+				}
+				meta += t.Status
+			}
+			if meta != "" {
+				fmt.Fprintf(w, " (%s)", meta)
 			}
 			if t.ValidTo != "" {
 				fmt.Fprintf(w, " until %s", t.ValidTo)
@@ -122,6 +135,10 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "\nAlready approved wording")
 		for _, p := range r.Precedent {
 			fmt.Fprintf(w, "  %s\n", p.Text)
+			if len(p.Discouraged) > 0 {
+				fmt.Fprintf(w, "  %-24s uses retired wording: %s\n", "",
+					strings.Join(p.Discouraged, ", "))
+			}
 		}
 	}
 
@@ -168,6 +185,12 @@ type ContextPrecedentHit struct {
 	Text    string `json:"text"`
 	Locale  string `json:"locale,omitempty"`
 	Note    string `json:"note,omitempty"`
+	// Discouraged names terms in this wording that the same search found to be
+	// retired. Approval is a fact about when the wording was written, not a
+	// standing endorsement: terminology moves underneath content, and that gap
+	// is exactly what a rename produces. Offering such a line unqualified as
+	// "already approved" would make one answer contradict itself.
+	Discouraged []string `json:"discouraged,omitempty"`
 }
 
 // ContextSearchSources are the stores a search consults. A nil member is a
@@ -178,6 +201,18 @@ type ContextSearchSources struct {
 	Terms  terms.Terminology
 	Memory memory.Store
 	Scope  ContextScope
+	// TermsErr and MemoryErr are set when the caller tried to bind that store
+	// and could not. Unbound and unopenable are different answers to "why is
+	// this group empty?", and only the caller knows which happened.
+	//
+	// Typed per store rather than a free-text note list so the two cannot be
+	// reported at once: a store that failed to open is not also a store the
+	// project does not have. The SQLite openers create a missing file rather
+	// than reporting absence, so an error from one always means broken —
+	// dropping it, as both surfaces originally did, told the caller its project
+	// had no terminology when in fact it could not be read.
+	TermsErr  error
+	MemoryErr error
 }
 
 // SearchContext answers one context question from every bound store.
@@ -209,6 +244,8 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 		} else {
 			res.Terms = termHits(concepts, req.Locale)
 		}
+	} else if src.TermsErr != nil {
+		res.Notes = append(res.Notes, "terms store could not be opened: "+src.TermsErr.Error())
 	} else {
 		res.Notes = append(res.Notes, "no terms store is bound, so terminology was not consulted")
 	}
@@ -223,9 +260,13 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 		} else {
 			res.Precedent = precedentHits(entries, req.Locale, limit)
 		}
+	} else if src.MemoryErr != nil {
+		res.Notes = append(res.Notes, "content memory could not be opened: "+src.MemoryErr.Error())
 	} else {
 		res.Notes = append(res.Notes, "no content memory is bound, so prior wording was not consulted")
 	}
+
+	flagRetiredPrecedent(res.Terms, res.Precedent)
 
 	if scope == ScopeProject {
 		res.Notes = append(res.Notes,
@@ -233,6 +274,41 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	}
 
 	return res, nil
+}
+
+// flagRetiredPrecedent marks prior wording containing a term this same search
+// found discouraged.
+//
+// Without it a single answer contradicts itself. That is not hypothetical: the
+// first time this surface was pointed at this repo's own context, a search for
+// "termbase" reported the word retired and then offered "Export termbase to
+// CSV" under "already approved wording".
+//
+// Scoped to the terms in THIS result rather than every retired term in the
+// store: checking all content against all terminology is the terms check tool's
+// job, and duplicating it here would make one question's answer depend on the
+// whole store's state instead of on what was asked.
+func flagRetiredPrecedent(hits []ContextTermHit, precedent []ContextPrecedentHit) {
+	retired := make(map[string]string) // lowercase form -> term as written
+	for _, t := range hits {
+		if t.Discouraged {
+			retired[strings.ToLower(t.Term)] = t.Term
+		}
+	}
+	if len(retired) == 0 {
+		return
+	}
+	for i := range precedent {
+		text := strings.ToLower(precedent[i].Text)
+		for lower, term := range retired {
+			if strings.Contains(text, lower) {
+				precedent[i].Discouraged = append(precedent[i].Discouraged, term)
+			}
+		}
+		// Map iteration is unordered; a rendered answer must not reshuffle
+		// between identical runs.
+		sort.Strings(precedent[i].Discouraged)
+	}
 }
 
 // termHits projects concepts into the flat, answer-shaped hits a caller wants:

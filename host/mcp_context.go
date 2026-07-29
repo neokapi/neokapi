@@ -53,17 +53,22 @@ type contextSearchInput struct {
 func (a *App) handleContextSearch(ctx context.Context, _ *mcp.CallToolRequest, in contextSearchInput) (*mcp.CallToolResult, *ContextSearchResult, error) {
 	src := ContextSearchSources{Scope: ScopeProject}
 
-	// A store that is absent is ordinary, not an error: a project with
-	// terminology but no content memory is a normal project. SearchContext
-	// reports the gap in its notes, so a caller can tell "no answer" from
-	// "nowhere to look" instead of reading an empty result as a verdict.
+	// A store that will not open degrades to a note rather than failing the
+	// call, so the other store still answers. It is never silent, though: these
+	// openers create a missing file, so an error means broken rather than
+	// absent, and an agent told "nothing is bound" would stop asking instead of
+	// reporting a fault its user can fix.
 	if tb, err := terms.NewSQLiteStore(firstNonEmpty(in.Terms, filepath.Join(project.StateDirName, project.TermsFileName))); err == nil {
 		defer tb.Close()
 		src.Terms = tb
+	} else {
+		src.TermsErr = err
 	}
 	if tm, err := memory.NewSQLiteStore(firstNonEmpty(in.Memory, filepath.Join(project.StateDirName, project.MemoryFileName))); err == nil {
 		defer tm.Close()
 		src.Memory = tm
+	} else {
+		src.MemoryErr = err
 	}
 
 	res, err := SearchContext(ctx, src, ContextSearchRequest{
