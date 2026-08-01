@@ -123,6 +123,9 @@ function applyMeta(name: string | undefined, property: string | undefined, conte
 }
 
 function cssEscape(value: string): string {
-  const fn = (globalThis as { CSS?: { escape?: (v: string) => string } }).CSS?.escape;
-  return fn ? fn(value) : value.replace(/["\\]/g, "\\$&");
+  // Call `escape` with `CSS` as the receiver — jsdom 30's WebIDL binding rejects
+  // an unbound `escape(value)` with "'escape' called on an object that is not a
+  // valid instance of CSS." Browsers accept both; the bound form is correct.
+  const css = (globalThis as { CSS?: { escape?: (v: string) => string } }).CSS;
+  return css?.escape ? css.escape(value) : value.replace(/["\\]/g, "\\$&");
 }
