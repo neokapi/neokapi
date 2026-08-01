@@ -627,16 +627,13 @@ func atLineBoundary(text string, i int) bool {
 // isThematicBreak reports whether text's first line is a CommonMark thematic
 // break: three or more matching '-', '_' or '*', separated only by spaces/tabs.
 func isThematicBreak(text string) bool {
-	line := text
-	if i := strings.IndexByte(text, '\n'); i >= 0 {
-		line = text[:i]
-	}
+	line, _, _ := strings.Cut(text, "\n")
 	c := line[0]
 	if c != '-' && c != '_' && c != '*' {
 		return false
 	}
 	count := 0
-	for i := 0; i < len(line); i++ {
+	for i := range len(line) {
 		switch line[i] {
 		case c:
 			count++

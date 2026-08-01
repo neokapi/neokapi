@@ -79,7 +79,7 @@ func TestRebuildBlockMarkerHarnessIdempotent(t *testing.T) {
 			out2, texts2, ok2 := tripMarkdown(ctx, out1)
 			require.True(t, ok2, "re-reading %q failed", out1)
 			assert.Equal(t, string(out1), string(out2), "trip(trip(x)) != trip(x)")
-			assert.Equal(t, len(texts1), len(texts2), "block count changed")
+			assert.Len(t, texts2, len(texts1), "block count changed")
 		})
 	}
 }
@@ -105,7 +105,7 @@ func TestRebuildBlockquoteLinePrefix(t *testing.T) {
 			out2, texts2, ok2 := tripMarkdown(ctx, out1)
 			require.True(t, ok2, "re-reading %q failed", out1)
 			assert.Equal(t, string(out1), string(out2), "blockquote rebuild is not idempotent")
-			assert.Equal(t, len(texts1), len(texts2), "block count changed on second pass")
+			assert.Len(t, texts2, len(texts1), "block count changed on second pass")
 		})
 	}
 }
