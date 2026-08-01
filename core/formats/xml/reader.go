@@ -1476,6 +1476,18 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 				if runsHaveNonWhitespaceText(parent.runs) {
 					parentPath := s.elemPath()
 					s.flushBlock(parent, parentPath, 0, tokOffset)
+				} else {
+					// No block for purely structural runs (whitespace
+					// between children, a comment's Ph) — but the runs
+					// must still go. Setting hasNonInlineChild below moves
+					// the parent's contentByteStart past this child, so
+					// these bytes are emitted as literal skeleton text.
+					// Leaving them in the accumulator puts them in the
+					// parent's NEXT block too, and the writer then emits
+					// them twice — once as skeleton text, once inside the
+					// ref expansion. That is a byte of growth per separator
+					// per pass, without bound (#1605).
+					parent.resetRuns()
 				}
 				parent.hasNonInlineChild = true
 			}
