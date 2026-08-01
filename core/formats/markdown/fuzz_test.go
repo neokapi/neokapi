@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/markdown"
@@ -41,9 +42,17 @@ func fuzzReadMarkdown(ctx context.Context, input []byte) (parts []*model.Part, h
 // product actually depends on: two outputs that differ only in formatting the
 // key folds out (edge/trailing whitespace, indented-vs-fenced code) are the
 // same content and must not read as a regression.
+//
+// Whitespace-only blocks are skipped: their trimmed source text is empty, so
+// they carry no content identity (nothing keys on them, nothing to match in
+// memory). A block that is only a form feed disappearing across a rebuild is not
+// content loss, so it must not read as one.
 func markdownContentKeys(parts []*model.Part) []string {
 	var keys []string
 	for _, b := range testutil.FilterBlocks(parts) {
+		if strings.TrimSpace(b.SourceText()) == "" {
+			continue
+		}
 		keys = append(keys, model.ComputeContentHash(b.SourceText()))
 	}
 	sort.Strings(keys)
@@ -126,7 +135,8 @@ func FuzzReadMarkdown(f *testing.F) {
 // those carry only the no-panic contract.
 func tripMarkdown(ctx context.Context, data []byte) (out []byte, keys []string, ok bool) {
 	parts, hadErr := fuzzReadMarkdown(ctx, data)
-	if hadErr || len(testutil.FilterBlocks(parts)) == 0 {
+	keys = markdownContentKeys(parts)
+	if hadErr || len(keys) == 0 {
 		return nil, nil, false
 	}
 	var buf bytes.Buffer
@@ -139,7 +149,7 @@ func tripMarkdown(ctx context.Context, data []byte) (out []byte, keys []string, 
 		return nil, nil, false
 	}
 	writer.Close()
-	return buf.Bytes(), markdownContentKeys(parts), true
+	return buf.Bytes(), keys, true
 }
 
 // FuzzRoundTripMarkdown asserts the rebuild write path is a fixed point of
@@ -165,12 +175,11 @@ func tripMarkdown(ctx context.Context, data []byte) (out []byte, keys []string, 
 // The skeleton write path preserves the markup byte-for-byte and is checked
 // separately; that is where byte fidelity is asserted.
 //
-// One known-open failure remains, and it is a REAL content drift, not the
-// cosmetic byte churn this contract now ignores: some backtick / code-span
-// inputs take two passes to converge, so the block's content key is unstable
-// across the first rebuild (see #1657 for the exact reproducer). It is noted so
-// it is not mistaken for a regression; no failing input is committed to
-// testdata/fuzz.
+// One known-open failure remains, a genuine structural drift the contract
+// correctly flags: a multi-line (setext) heading is rebuilt as single-line ATX,
+// so its embedded newline splits it into a heading plus a loose paragraph and
+// the block count changes (#1659). It is noted so it is not mistaken for a
+// regression; no failing input is committed to testdata/fuzz.
 func FuzzRoundTripMarkdown(f *testing.F) {
 	markdownSeed(f, "simple.md")
 	f.Add([]byte("# Hello\n\nA paragraph.\n"))
@@ -203,6 +212,10 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// Under the content-identity contract this is an accepted representation
 	// change (the key is trim-stable); the seed guards that it stays that way.
 	f.Add([]byte("    0"))
+	// #1657: a paragraph starting with 3+ backticks but with another backtick
+	// later on the line is not a fence, so it must be left literal; escaping only
+	// the first backtick used to invent a code span and drift the content.
+	f.Add([]byte("```0`0``"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
