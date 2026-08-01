@@ -269,9 +269,6 @@ type Server struct {
 	// stepCompletionTracker monitors async automation steps. Nil when not configured.
 	stepCompletionTracker *event.StepCompletionTracker
 
-	// runHub manages SSE connections for live automation run updates. Always initialized.
-	runHub *automationRunHub
-
 	// changeRelay fans out platform events to attached web (SSE) and desktop
 	// (gRPC WatchProject) clients so no view shows stale state on an external
 	// change. Always initialized.
@@ -643,8 +640,6 @@ func NewServer(cfg Config) *Server {
 	s.rehydrateConnectors(context.Background())
 
 	// Wire up automation engine with run manager (Bowrain AD-013).
-	s.runHub = newAutomationRunHub()
-
 	runManager := event.NewAutomationRunManager(s.AutomationRunStore, s.executeAutomationAction)
 	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, runManager.Execute)
 	s.registerDefaultAutomations()

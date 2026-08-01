@@ -3,64 +3,13 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
-
-// automationRunHub manages SSE connections for live automation run updates.
-type automationRunHub struct {
-	mu      sync.RWMutex
-	clients map[string]map[chan []byte]struct{} // runID → set of channels
-}
-
-func newAutomationRunHub() *automationRunHub {
-	return &automationRunHub{
-		clients: make(map[string]map[chan []byte]struct{}),
-	}
-}
-
-func (h *automationRunHub) subscribe(runID string) chan []byte {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	ch := make(chan []byte, 16)
-	if h.clients[runID] == nil {
-		h.clients[runID] = make(map[chan []byte]struct{})
-	}
-	h.clients[runID][ch] = struct{}{}
-	return ch
-}
-
-func (h *automationRunHub) unsubscribe(runID string, ch chan []byte) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	if m, ok := h.clients[runID]; ok {
-		delete(m, ch)
-		if len(m) == 0 {
-			delete(h.clients, runID)
-		}
-	}
-	close(ch)
-}
-
-func (h *automationRunHub) broadcast(runID string, eventType string, data any) { //nolint:unused // will be used by RunManager for live push
-	payload, err := json.Marshal(map[string]any{"type": eventType, "data": data})
-	if err != nil {
-		return
-	}
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	for ch := range h.clients[runID] {
-		select {
-		case ch <- payload:
-		default:
-			// Drop if client is slow.
-		}
-	}
-}
 
 // HandleAutomationRunSSE streams live updates for an automation run.
 // GET /projects/:id/automation-runs/:runId/events
@@ -79,15 +28,13 @@ func (s *Server) HandleAutomationRunSSE(c echo.Context) error {
 
 	ctx := c.Request().Context()
 
-	// Subscribe to live updates if hub is available.
-	var ch chan []byte
-	if s.runHub != nil {
-		ch = s.runHub.subscribe(runID)
-		defer s.runHub.unsubscribe(runID, ch)
-	}
-
-	// Poll + stream loop.
-	ticker := time.NewTicker(3 * time.Second)
+	// Snapshot loop. This stream has always been driven by polling the store
+	// rather than by the run itself pushing: there was a hub here to carry
+	// live events, but nothing ever called its broadcast, so every update a
+	// client saw came from this ticker. The hub is gone rather than left
+	// waiting for a producer — see the note above sendRunSnapshot for what
+	// making this event-driven would take.
+	ticker := time.NewTicker(runSnapshotInterval)
 	defer ticker.Stop()
 
 	// Send initial snapshot.
@@ -97,14 +44,7 @@ func (s *Server) HandleAutomationRunSSE(c echo.Context) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case msg, ok := <-ch:
-			if !ok {
-				return nil
-			}
-			fmt.Fprintf(c.Response(), "data: %s\n\n", msg)
-			c.Response().Flush()
 		case <-ticker.C:
-			// Send periodic snapshot for clients that missed events.
 			s.sendRunSnapshot(c, runID)
 
 			// Check if run is complete — close stream.
@@ -122,13 +62,33 @@ func (s *Server) HandleAutomationRunSSE(c echo.Context) error {
 	}
 }
 
+// runSnapshotInterval is how often a connected client is re-sent the run's
+// state. It is the stream's resolution, since nothing pushes.
+//
+// Making this event-driven is a small change, and worth writing down rather
+// than leaving a nolint to imply it: AutomationRunManager (bowrain/event) is
+// the producer — it creates the run, creates each step, and moves each step to
+// completed or failed. Giving it an optional notifier callback and calling that
+// at those transitions, then setting the callback where the run manager is
+// constructed in server.go, is all it needs. That was never done, and a hub
+// waiting here for it only made the stream look event-driven.
+const runSnapshotInterval = 3 * time.Second
+
+// sendRunSnapshot writes the run and its steps to the stream.
 func (s *Server) sendRunSnapshot(c echo.Context, runID string) {
 	ctx := c.Request().Context()
 	run, err := s.AutomationRunStore.GetRun(ctx, runID)
 	if err != nil {
 		return
 	}
-	steps, _ := s.AutomationRunStore.ListSteps(ctx, runID)
+	// A failed step listing would otherwise send "steps": null, which the
+	// client draws as a run that has no steps rather than one we could not
+	// read. Send the run anyway — the next tick may well succeed — but say so.
+	steps, err := s.AutomationRunStore.ListSteps(ctx, runID)
+	if err != nil {
+		slog.WarnContext(ctx, "automation run stream: step listing failed; sending the run without steps",
+			"run", runID, "error", err)
+	}
 
 	payload, _ := json.Marshal(map[string]any{
 		"type":  "snapshot",
