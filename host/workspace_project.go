@@ -210,43 +210,29 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 		return a.unpackKpz(cmd.Context(), snapshotPath)
 	}
 
-	// Resolve the destination project. When one is in scope use it; otherwise
-	// reconstitute a fresh <name>.kapi from the snapshot beside the .kpz, since
-	// a project snapshot carries the full recipe (AD-025 §6) and can rebuild a
-	// complete project in a file.
+	// Resolve the destination project. When one is in scope its own recipe is
+	// authoritative and the package's is only metadata; otherwise the snapshot
+	// reconstitutes one, since a project snapshot carries the full recipe
+	// (AD-025 §6) and can rebuild a complete project in a file.
+	//
+	// Either way the layout that comes back names a recipe that exists on disk
+	// — project.LayoutFor stats it — so there is no later branch where unpack
+	// might still have to write one.
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil {
 		return err
 	}
+	var layout project.Layout
 	if projectPath == "" {
-		projectPath = reconstitutedProjectPath(snapshotPath, pkg)
+		layout, err = a.reconstituteProject(cmd, snapshotPath, pkg)
+	} else {
+		layout, err = project.LayoutFor(projectPath)
 	}
-	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
 		return err
 	}
 	if err := project.EnsureLayout(layout); err != nil {
 		return err
-	}
-
-	// Write the recipe back as the project recipe (the authoritative intent).
-	// When a project already exists, its on-disk recipe is authoritative — do
-	// not overwrite it; only reconstitute when there was no recipe.
-	//
-	// Adopting a package's recipe makes every later `kapi run` in this directory
-	// execute steps the package author wrote, so it is a decision the recipient
-	// makes rather than a side effect of unpacking. LoadWorkspace has already
-	// made the recipe inert; the prompt is about intent, not safety.
-	if pkg.Recipe != nil && !fileExists(layout.RecipePath) {
-		ok, cerr := a.confirmAdoptRecipe(cmd, snapshotPath)
-		if cerr != nil {
-			return cerr
-		}
-		if ok {
-			if serr := project.Save(layout.RecipePath, pkg.Recipe); serr != nil {
-				return fmt.Errorf("unpack: write recipe: %w", serr)
-			}
-		}
 	}
 	// Verify the advisory provenance chain if present. It is advisory, so a
 	// broken chain warns rather than blocks — the content is what matters.
@@ -338,13 +324,64 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 	return outputPrint(cmd, fmt.Sprintf("Unpacked %s → %s", snapshotPath, layout.StateDir))
 }
 
+// reconstituteProject materializes the project a snapshot describes, for a
+// recipient who has none in scope. AD-025 §6 calls a .kpz a project in a file
+// and says unpack reconstitutes a complete kapi.yaml; this is the half that
+// makes that true, and it is the only path on which unpack writes a recipe at
+// all. (Until #1537's follow-up it was unreachable: the path was computed and
+// handed straight to project.LayoutFor, which stats the recipe and failed,
+// so `kapi unpack` outside a project always died on a missing-file error and
+// the adoption prompt guarding it never ran.)
+//
+// Writing that recipe is the moment the package stops being data and starts
+// being intent, so it is the moment there is something to ask about.
+// LoadWorkspace has already made the recipe inert — exec-class steps and
+// non-local paths are gone — and the question that remains is whether this
+// directory becomes a project someone else designed.
+func (a *App) reconstituteProject(cmd Command, snapshotPath string, pkg *kpz.Package) (project.Layout, error) {
+	base := filepath.Base(snapshotPath)
+	if pkg.Recipe == nil {
+		return project.Layout{}, fmt.Errorf(
+			"unpack: no project here and %s carries no recipe to reconstitute one from — run this inside a project, or name one with --project",
+			base)
+	}
+
+	recipePath := reconstitutedProjectPath(snapshotPath, pkg)
+	if fileExists(recipePath) {
+		// A previous unpack already reconstituted this project. Its on-disk
+		// recipe is authoritative exactly as an in-scope project's is, so
+		// unpacking again refreshes the state and asks nothing.
+		return project.LayoutFor(recipePath)
+	}
+
+	ok, err := a.confirmAdoptRecipe(cmd, snapshotPath)
+	if err != nil {
+		return project.Layout{}, err
+	}
+	if !ok {
+		return project.Layout{}, fmt.Errorf(
+			"unpack: no project here, and the recipe %s carries was not adopted — there is nowhere to unpack into",
+			base)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(recipePath), 0o755); err != nil {
+		return project.Layout{}, fmt.Errorf("unpack: create project directory: %w", err)
+	}
+	if err := project.Save(recipePath, pkg.Recipe); err != nil {
+		return project.Layout{}, fmt.Errorf("unpack: write recipe: %w", err)
+	}
+	return project.LayoutFor(recipePath)
+}
+
 // confirmAdoptRecipe asks whether to adopt the recipe a package carries as this
 // directory's project recipe. --yes adopts; an interactive terminal is asked;
 // anything else declines and says how to adopt deliberately.
 //
-// Declining is not a failure — the content the package exists to carry has
-// already been restored. Only the intent is withheld, which is the part that
-// makes later runs execute steps someone else wrote.
+// Declining is not a failure in itself — it withholds only the intent, which is
+// the part that makes later runs execute steps someone else wrote. Whether the
+// unpack can continue afterwards is the caller's question: today the only
+// caller is reconstituteProject, where a declined recipe leaves no project for
+// the content to land in.
 func (a *App) confirmAdoptRecipe(cmd Command, snapshotPath string) (bool, error) {
 	if a.AssumeYes {
 		return true, nil
