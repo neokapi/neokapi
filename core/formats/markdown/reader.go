@@ -2425,11 +2425,33 @@ func (r *Reader) extractInlineText(node ast.Node, source []byte) string {
 	return buf.String()
 }
 
+// nextIsHardBreak reports whether n's next sibling is a hard line break. For a
+// line ending in more than two spaces goldmark splits the marker off into a
+// trailing empty *ast.Text carrying HardLineBreak, leaving the excess spaces on
+// n; the callers trim them so the captured text does not depend on the source's
+// exact space count (#1652).
+func nextIsHardBreak(n ast.Node) bool {
+	if t, ok := n.NextSibling().(*ast.Text); ok {
+		return t.HardLineBreak()
+	}
+	return false
+}
+
 func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source []byte) {
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		switch n := child.(type) {
 		case *ast.Text:
-			buf.Write(n.Segment.Value(source))
+			val := n.Segment.Value(source)
+			if n.HardLineBreak() || nextIsHardBreak(n) {
+				// A hard break is captured as "\n"; trim the trailing spaces
+				// that spell it so the text is the same whatever the source
+				// used — goldmark leaves "0  \n" for five spaces but "0\n" for
+				// two, which otherwise makes the round-trip converge only after
+				// a second pass (#1652). The spaces may sit on this node or on
+				// the following empty hard-break node.
+				val = bytes.TrimRight(val, " \t")
+			}
+			buf.Write(val)
 			if n.SoftLineBreak() {
 				buf.WriteString(softBreakContinuation(source, n.Segment.Stop))
 			}
@@ -2571,7 +2593,14 @@ func (r *Reader) buildCodedRuns(b *runBuilder, node ast.Node, source []byte, idC
 		}
 		switch n := child.(type) {
 		case *ast.Text:
-			addTextWithEntities(b, string(n.Segment.Value(source)), idCounter)
+			seg := n.Segment.Value(source)
+			if n.HardLineBreak() || nextIsHardBreak(n) {
+				// See collectInlineText: trim the trailing spaces that spell a
+				// hard break so the captured runs are stable across a round-trip
+				// regardless of how many spaces the source used (#1652).
+				seg = bytes.TrimRight(seg, " \t")
+			}
+			addTextWithEntities(b, string(seg), idCounter)
 			if n.SoftLineBreak() {
 				b.AddText(softBreakContinuation(source, n.Segment.Stop))
 			}

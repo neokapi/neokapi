@@ -187,12 +187,18 @@ func mdLinkClose(attrs map[string]string, destKey string) string {
 // Callers rendering content inside a fence (RoleCode) want the untrimmed form —
 // there, boundary whitespace is both representable and meaningful.
 func renderInlineMarkdown(runs []model.Run) string {
-	return strings.TrimSpace(renderInlineMarkdownRaw(runs))
+	return strings.TrimSpace(renderInline(runs, true))
 }
 
-// renderInlineMarkdownRaw is renderInlineMarkdown without the boundary trim.
+// renderInlineMarkdownRaw is renderInlineMarkdown without the boundary trim and
+// without angle-bracket escaping — for content inside a code span/fence, where a
+// backslash is literal, not an escape.
 func renderInlineMarkdownRaw(runs []model.Run) string {
-	sink := &mdInlineSink{}
+	return renderInline(runs, false)
+}
+
+func renderInline(runs []model.Run, escapeAngle bool) string {
+	sink := &mdInlineSink{escapeAngle: escapeAngle}
 	projection.WalkInline(runs, sink)
 	sink.flush()
 	return sink.sb.String()
@@ -204,11 +210,39 @@ func renderInlineMarkdownRaw(runs []model.Run) string {
 // decoding + plural/select 'other'-branch resolution. Like the old loop it never
 // consults a run's Data — the same Markdown results whatever the source format.
 type mdInlineSink struct {
-	sb   strings.Builder
-	open []string // stack of closing delimiters (or "" for dropped tags)
+	sb          strings.Builder
+	open        []string // stack of closing delimiters (or "" for dropped tags)
+	escapeAngle bool     // backslash-escape literal '<' (paragraph text, not code)
 }
 
-func (s *mdInlineSink) Text(t string) { s.sb.WriteString(t) }
+func (s *mdInlineSink) Text(t string) {
+	if s.escapeAngle {
+		writeEscapingAngle(&s.sb, t)
+		return
+	}
+	s.sb.WriteString(t)
+}
+
+// writeEscapingAngle writes t, backslash-escaping any '<' that is not already
+// escaped. The rebuild path drops inline-HTML constructs, and the residue can
+// abut surrounding text into a NEW tag: "<<A>A>" drops the <A> and the leftover
+// "<" and "A>" reform "<A>", which re-reads as inline HTML and is dropped
+// entirely, losing the whole block (#1652). Keeping literal '<' escaped stops
+// text from re-parsing as a tag or autolink; the reader preserves the backslash,
+// so already-escaped input is left alone and the output is idempotent. Only
+// Text() (literal run content) is escaped — the HTML the sink emits for
+// formatting fallbacks (<mark>, <sup>, …) comes through Open/Close, untouched.
+func writeEscapingAngle(sb *strings.Builder, t string) {
+	escaped := false
+	for i := range len(t) {
+		c := t[i]
+		if c == '<' && !escaped {
+			sb.WriteByte('\\')
+		}
+		sb.WriteByte(c)
+		escaped = c == '\\' && !escaped
+	}
+}
 
 func (s *mdInlineSink) Open(r *model.PcOpenRun) {
 	switch r.Type {

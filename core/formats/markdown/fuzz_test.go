@@ -151,21 +151,14 @@ func tripMarkdown(ctx context.Context, data []byte) (out []byte, texts []string,
 //
 // The skeleton write path preserves the markup and is checked separately.
 //
-// Known-open families remain in the lossy rebuild path, distinct from the fixes
-// here and all confirmed to reproduce on the base writer. They are tracked
-// separately (#1652); none of the seeds below trip them, so they are noted here
-// only so neither is mistaken for a regression of these fixes:
-//
-//   - TRAILING-WHITESPACE / hard-break normalization: a line ending in two or
-//     more spaces is a hard break, recorded inconsistently ("0     \n0" reads
-//     back as "0  \n0", but "0  \n0" reads back as "0\n0"), so it converges over
-//     two passes and trip(trip(x)) != trip(x) on the first.
-//   - DROPPED-CONSTRUCT residue that fails to re-read: some inputs whose inline
-//     HTML the rebuild path drops ("<<A>A>") produce output the reader can no
-//     longer turn into a block, so the second read yields nothing.
-//
-// Both are unrelated to the block-reinterpretation family fixed here (#1651) —
-// they touch no table, setext bar, or leading marker.
+// A known-open family remains in the lossy rebuild path, distinct from the fixes
+// here and confirmed to reproduce on the base writer: CODE-BLOCK newline
+// normalization (#1654). An indented code block ("    0") is re-rendered as a
+// fenced one whose content gains one trailing newline ("```\n0\n```" ->
+// "```\n0\n\n```"), so trip(trip(x)) != trip(x) on the first pass. It is
+// unrelated to the families fixed here — it touches no hard break, inline-HTML
+// residue, table, setext bar, or leading marker. No seed below trips it; it is
+// noted so it is not mistaken for a regression of these fixes.
 func FuzzRoundTripMarkdown(f *testing.F) {
 	markdownSeed(f, "simple.md")
 	f.Add([]byte("# Hello\n\nA paragraph.\n"))
@@ -189,6 +182,11 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte("|0\n-|"))
 	f.Add([]byte("<A> |0\n-|"))
 	f.Add([]byte("|  |\n| --- |\n|  |\n| 00 |"))
+	// #1652: a hard break (2+ trailing spaces) must be captured the same however
+	// many spaces the source used; dropping inline HTML must not let the residue
+	// reform a tag that re-reads as nothing.
+	f.Add([]byte("0     \n0"))
+	f.Add([]byte("<<A>A>"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
