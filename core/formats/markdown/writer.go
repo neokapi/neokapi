@@ -340,6 +340,28 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 		prefix, suffix = "*", "*"
 	}
 
+	// A paragraph is the switch's implicit default (empty role, no prefix): the
+	// rebuild path emits its text at the very start of a line. Two block-shaped
+	// residues have to be repaired there, or the paragraph re-reads as a
+	// different block kind and trip(trip(x)) != trip(x):
+	//
+	//   - a bare leading marker left behind when a dropped inline construct
+	//     exposes it ("#<A>" -> "#", which re-parses as an empty heading) —
+	//     backslash-escape it so CommonMark keeps it literal (#1632);
+	//   - a multi-line blockquote body whose own "> " line prefix is gone, so
+	//     the block splits into a loose paragraph plus a blockquote (#1633).
+	//
+	// The two are mutually exclusive — a blockquote already opens with ">", the
+	// one marker we must NOT strip — so a block is either re-marked as a
+	// blockquote or has its leading marker escaped, never both.
+	if role == "" {
+		if bqPrefix, body, isQuote := blockquoteRebuild(block, text); isQuote {
+			prefix, text = bqPrefix, body
+		} else {
+			text = escapeLeadingBlockMarker(text)
+		}
+	}
+
 	if _, err := fmt.Fprint(out, prefix, text, suffix); err != nil {
 		return err
 	}
@@ -509,6 +531,166 @@ func escapeTableCell(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 	s = strings.ReplaceAll(s, "\n", "<br>")
 	return s
+}
+
+// escapeLeadingBlockMarker backslash-escapes the marker that begins text when
+// text, emitted verbatim at the start of a line, would OPEN a block-level
+// construct — so a paragraph the rebuild path produced does not re-read as a
+// heading, list, blockquote, thematic break or fenced code (#1632).
+//
+// The residue matters because the rebuild path drops inline constructs it has
+// no Markdown spelling for (inline HTML most of all). Dropping the HTML in
+// "#<A>" leaves the bare text "#", which re-parses as an empty level-1 heading:
+// trip(trip(x)) != trip(x). CommonMark reads a backslash-escaped ASCII
+// punctuation marker as literal text and the reader preserves the backslash in
+// the block text, so the escaped output round-trips and is itself idempotent —
+// an already-escaped "\#..." matches none of the cases below and is left alone.
+//
+// Indented code (a four-space line prefix) is deliberately not covered: the
+// rebuild path trims a block's boundary whitespace before this point (#1603),
+// so a paragraph can never reach the writer with leading spaces.
+func escapeLeadingBlockMarker(text string) string {
+	if i, ok := leadingBlockMarkerPos(text); ok {
+		return text[:i] + "\\" + text[i:]
+	}
+	return text
+}
+
+// leadingBlockMarkerPos reports the byte index of the marker character to
+// backslash-escape so text no longer opens a block construct, and whether any
+// such marker was found. For every construct but ordered lists the marker is
+// the first byte; for an ordered list it is the "." or ")" after the digits (a
+// backslash before a digit is not an escape, so the punctuation is escaped
+// instead — "1. x" -> "1\. x").
+func leadingBlockMarkerPos(text string) (int, bool) {
+	if text == "" {
+		return 0, false
+	}
+	switch c := text[0]; c {
+	case '#':
+		// ATX heading: 1-6 '#' then a space/tab or end of line.
+		n := 0
+		for n < len(text) && text[n] == '#' {
+			n++
+		}
+		if n <= 6 && atLineBoundary(text, n) {
+			return 0, true
+		}
+	case '>':
+		// Blockquote marker.
+		return 0, true
+	case '-', '+', '*', '_':
+		// A run of three or more matching -, _ or * (spaces allowed) is a
+		// thematic break; '-', '+' or '*' then a space/tab or end of line is a
+		// bullet list ('_' is never a bullet).
+		if isThematicBreak(text) {
+			return 0, true
+		}
+		if c != '_' && atLineBoundary(text, 1) {
+			return 0, true
+		}
+	case '`', '~':
+		// Fenced code: three or more backticks or tildes.
+		n := 0
+		for n < len(text) && text[n] == c {
+			n++
+		}
+		if n >= 3 {
+			return 0, true
+		}
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		// Ordered list: 1-9 digits, then '.' or ')', then a space/tab or end.
+		n := 0
+		for n < len(text) && text[n] >= '0' && text[n] <= '9' {
+			n++
+		}
+		if n <= 9 && n < len(text) && (text[n] == '.' || text[n] == ')') && atLineBoundary(text, n+1) {
+			return n, true
+		}
+	}
+	return 0, false
+}
+
+// atLineBoundary reports whether position i in text is the end of the first
+// line — a space, tab, newline, or the end of the string.
+func atLineBoundary(text string, i int) bool {
+	if i >= len(text) {
+		return true
+	}
+	switch text[i] {
+	case ' ', '\t', '\n':
+		return true
+	}
+	return false
+}
+
+// isThematicBreak reports whether text's first line is a CommonMark thematic
+// break: three or more matching '-', '_' or '*', separated only by spaces/tabs.
+func isThematicBreak(text string) bool {
+	line, _, _ := strings.Cut(text, "\n")
+	c := line[0]
+	if c != '-' && c != '_' && c != '*' {
+		return false
+	}
+	count := 0
+	for i := range len(line) {
+		switch line[i] {
+		case c:
+			count++
+		case ' ', '\t':
+			// allowed between markers
+		default:
+			return false
+		}
+	}
+	return count >= 3
+}
+
+// blockquoteRebuild reconstructs a multi-line blockquote body in the rebuild
+// path. A blockquote surfaces as an empty-role paragraph whose per-line ">"
+// marker lives in one of two places: held in BlockPropLinePrefix with the
+// marker stripped from the text (a hard-break body: "a\nb" + prefix "> "), or
+// baked into the text on every continuation line (a soft-break body:
+// "a\n> b"). Either way the FIRST line's marker is missing in the rebuild path
+// — there is no skeleton gap to restore it as RenderBlockContent relies on — so
+// the block re-reads as a loose paragraph followed by a blockquote (#1633).
+//
+// It returns the first-line prefix and the body with continuation markers
+// present, reconstructing "> a\n> b". ok is false for any block that is not a
+// blockquote (list-item and indented continuations also carry
+// BlockPropLinePrefix but must be re-established by their own role prefix, not
+// here), leaving those untouched.
+func blockquoteRebuild(block *model.Block, text string) (prefix, body string, ok bool) {
+	if lp, has := block.Properties[BlockPropLinePrefix]; has && strings.HasPrefix(lp, ">") {
+		// Hard-break body: the marker was stripped from the text. Reinsert it
+		// after every "\n" exactly as RenderBlockContent (the byte-exact
+		// skeleton reference) does, then mark the first line.
+		if strings.Contains(text, "\n") {
+			text = strings.ReplaceAll(text, "\n", "\n"+lp)
+		}
+		return lp, text, true
+	}
+	// Soft-break body: the continuation lines already carry their ">" marker;
+	// only the first line lacks one. Recover the marker from the first
+	// continuation line so the whole quote is marked identically.
+	if m := firstContinuationBlockquoteMarker(text); m != "" {
+		return m, text, true
+	}
+	return "", text, false
+}
+
+// firstContinuationBlockquoteMarker returns the blockquote marker (">" plus an
+// optional single space) that begins the first continuation line of text, or ""
+// when text is single-line or its continuation is not a blockquote line.
+func firstContinuationBlockquoteMarker(text string) string {
+	nl := strings.IndexByte(text, '\n')
+	if nl < 0 || nl+1 >= len(text) || text[nl+1] != '>' {
+		return ""
+	}
+	if nl+2 < len(text) && text[nl+2] == ' ' {
+		return "> "
+	}
+	return ">"
 }
 
 // headingLevel returns a block's heading level, preferring the normalized

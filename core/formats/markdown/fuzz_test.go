@@ -151,19 +151,17 @@ func tripMarkdown(ctx context.Context, data []byte) (out []byte, texts []string,
 //
 // The skeleton write path preserves the markup and is checked separately.
 //
-// Two known open failures remain, both older than #1603 and both confirmed to
-// reproduce on a writer with the #1603 fix reverted. None of the seeds below
-// trip them; they are recorded here so neither is mistaken for a new one.
-//
-//   - #1632, rediscovered in about a second with "#<A>". Same family as #1603 —
-//     a dropped construct whose loss does not stay confined to markup — but the
-//     text left behind begins with a bare block marker, so the emitted
-//     paragraph re-reads as an empty heading. It needs escaping, not the
-//     boundary trim #1603 called for.
-//   - #1633, rediscovered in seconds with "> a\n> b". The rebuild path ignores
-//     BlockPropLinePrefix, so a multi-line blockquote loses its prefix and one
-//     block re-reads as several. That one violates the block-count half of the
-//     contract rather than the idempotence half.
+// A known-open family remains, distinct from #1632/#1633 and confirmed to
+// reproduce on the base writer: MULTI-LINE reinterpretation. When the residue
+// of a dropped construct leaves a paragraph whose SECOND line forms a block
+// signal — a GFM table delimiter row ("|0\n-|" re-reads as a one-cell table) or
+// a setext underline — the paragraph re-reads as that other kind. #1632 escapes
+// only LEADING markers (the first character of the first line); breaking a
+// second-line signal needs a different, delimiter-row-aware escape and its own
+// issue. An empty GFM header row is a second, related open case: its blank
+// cells emit no cell blocks, so the header flag is lost on re-read and the
+// writer accumulates one empty row per pass. None of the seeds above trip these
+// — they are noted so neither is mistaken for a regression of the fixes here.
 func FuzzRoundTripMarkdown(f *testing.F) {
 	markdownSeed(f, "simple.md")
 	f.Add([]byte("# Hello\n\nA paragraph.\n"))
@@ -174,6 +172,12 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	f.Add([]byte("trail <A>"))
 	f.Add([]byte("# <A> heading"))
 	f.Add([]byte("| <A> a | b |\n| --- | --- |\n| c | d |\n"))
+	// #1632: dropping the inline HTML leaves a bare "#", which re-parses as an
+	// empty heading unless the rebuild path escapes the leading marker.
+	f.Add([]byte("#<A>"))
+	// #1633: a multi-line blockquote whose "> " line prefix the rebuild path
+	// must re-establish, or the single block splits into loose paragraphs.
+	f.Add([]byte("> a\n> b"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
