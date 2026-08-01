@@ -1,0 +1,204 @@
+package mdspike_test
+
+import (
+	"context"
+	"os"
+	"strings"
+	"testing"
+
+	"github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/profile/mdspike"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
+)
+
+// repoRelative paths from this package to the two committed profiles. Named as
+// constants so the spike never grows an absolute path.
+const (
+	bowrainYAML = "../../../context/bowrain-voice.yaml"
+	brandYAML   = "../../../context/brand-voice.yaml"
+	termsJSON   = "../../../context/terms.json"
+)
+
+func loadYAML(t *testing.T, path string) *profile.VoiceProfile {
+	t.Helper()
+	f, err := os.Open(path)
+	require.NoError(t, err)
+	defer f.Close()
+	p, err := profile.LoadProfileYAML(f)
+	require.NoError(t, err)
+	return p
+}
+
+func loadMarkdown(t *testing.T, name string, opts mdspike.Options) *profile.VoiceProfile {
+	t.Helper()
+	p, err := mdspike.LoadFile(context.Background(), "testdata/"+name, opts)
+	require.NoError(t, err)
+	return p
+}
+
+// TestMarkdownFormEqualsYAMLForm is the spike's central claim: the same profile
+// authored as markdown-with-frontmatter, inheriting the house rules instead of
+// copying them, decodes to a VoiceProfile that is field-for-field identical to
+// the one context/bowrain-voice.yaml decodes to.
+//
+// Identical means identical — the assertion is on the whole struct, not on a
+// chosen subset. Nothing about the profile is lost in the move, which is why
+// the note's "what does not survive" section is about the surfaces around the
+// file (the store, the web editor, the AI drafting path), not about the file.
+func TestMarkdownFormEqualsYAMLForm(t *testing.T) {
+	fromYAML := loadYAML(t, bowrainYAML)
+	fromMD := loadMarkdown(t, "bowrain-voice.md", mdspike.Options{})
+
+	assert.Equal(t, fromYAML, fromMD)
+}
+
+// TestRenderedGuideIsByteIdentical checks the claim that matters most at
+// runtime. RenderVoiceGuide is what the AI translate prompt, the brand check
+// tool, `kapi brand guide` and the cloud MCP tool all send to the model. If the
+// two forms render the same guide, no generation behaviour changes with the
+// authoring format.
+func TestRenderedGuideIsByteIdentical(t *testing.T) {
+	fromYAML := loadYAML(t, bowrainYAML)
+	fromMD := loadMarkdown(t, "bowrain-voice.md", mdspike.Options{})
+
+	assert.Equal(t, profile.RenderVoiceGuide(fromYAML), profile.RenderVoiceGuide(fromMD))
+	assert.Equal(t, profile.RenderVoiceGuideCompact(fromYAML), profile.RenderVoiceGuideCompact(fromMD))
+}
+
+// TestMarkdownFormValidates confirms the markdown form produces a profile the
+// existing validator accepts, so `kapi brand validate` would need no new
+// semantic rules — only a second decoder in front of the same checks.
+func TestMarkdownFormValidates(t *testing.T) {
+	p := loadMarkdown(t, "bowrain-voice.md", mdspike.Options{})
+	assert.Empty(t, profile.ValidateProfile(p))
+}
+
+// TestHouseRulesAreDuplicatedToday documents the defect the inheritance answers,
+// from the committed files rather than from assertion: the two profiles carry
+// the same four prohibitions verbatim, and one of the four has already drifted
+// in description while the regex stayed in step.
+//
+// A drifted description is not cosmetic. RenderVoiceGuide sends the description,
+// not the regex, to the model, so the two profiles already give the model
+// different instructions for the same prohibition.
+func TestHouseRulesAreDuplicatedToday(t *testing.T) {
+	brand := loadYAML(t, brandYAML)
+	bowrain := loadYAML(t, bowrainYAML)
+
+	byRegex := func(p *profile.VoiceProfile) map[string]string {
+		m := map[string]string{}
+		for _, pat := range p.Style.ProhibitedPatterns {
+			m[pat.Regex] = pat.Description
+		}
+		return m
+	}
+	a, b := byRegex(brand), byRegex(bowrain)
+
+	var shared, drifted []string
+	for regex, descA := range a {
+		descB, ok := b[regex]
+		if !ok {
+			continue
+		}
+		shared = append(shared, regex)
+		if descA != descB {
+			drifted = append(drifted, regex)
+		}
+	}
+
+	require.Len(t, shared, 4, "the two committed profiles share four prohibitions verbatim")
+	assert.Len(t, drifted, 1, "and one of the four has already drifted in description")
+	for _, regex := range drifted {
+		t.Logf("drifted prohibition %s:\n  brand-voice.yaml:   %q\n  bowrain-voice.yaml: %q", regex, a[regex], b[regex])
+	}
+}
+
+// TestCommittedProfileIsMachineRewritten is the constraint that decides how far
+// a new authoring format can go. `kapi apply` with a brand add-rule entry does
+// not patch the committed profile — host.applyBrandEntry loads it, upserts the
+// rule, and writes the whole struct back with yaml.Marshal
+// (host/apply_assets.go:723). Struct marshalling emits no comments, so the
+// header on each committed profile — including the one recording that the house
+// rules are duplicated — does not survive the first applied rule.
+//
+// The read side of a markdown form is easy. This is the side that is not: a
+// write-back that marshals the *resolved* profile would inline every inherited
+// house rule into the child and silently undo the composition.
+func TestCommittedProfileIsMachineRewritten(t *testing.T) {
+	original, err := os.ReadFile(bowrainYAML)
+	require.NoError(t, err)
+	require.Contains(t, string(original), "duplicated from context/brand-voice.yaml",
+		"the committed file explains its own duplication in a comment")
+
+	// The same marshal host.writeProfileYAML performs.
+	rewritten, err := yaml.Marshal(loadYAML(t, bowrainYAML))
+	require.NoError(t, err)
+
+	assert.NotContains(t, string(rewritten), "duplicated from context/brand-voice.yaml",
+		"an applied rule rewrites the file and drops the comment")
+	assert.NotEqual(t, string(original), string(rewritten))
+}
+
+// TestInheritanceDeclaresHouseRulesOnce shows the resolved profile carrying the
+// four inherited prohibitions plus the one the child declares, in that order,
+// with the child's file holding only its own rule.
+func TestInheritanceDeclaresHouseRulesOnce(t *testing.T) {
+	house := loadMarkdown(t, "house.md", mdspike.Options{})
+	child := loadMarkdown(t, "bowrain-voice.md", mdspike.Options{})
+
+	require.Len(t, house.Style.ProhibitedPatterns, 4)
+	require.Len(t, child.Style.ProhibitedPatterns, 5)
+
+	for i, pat := range house.Style.ProhibitedPatterns {
+		assert.Equal(t, pat, child.Style.ProhibitedPatterns[i], "inherited rule %d keeps its position", i)
+	}
+	assert.Equal(t,
+		`\b(enterprise-grade|best-in-class|world-class|trusted by)\b`,
+		child.Style.ProhibitedPatterns[4].Regex,
+		"the child's own rule comes last")
+
+	// The house forbidden terms are inherited whole and the child adds one.
+	require.Len(t, house.Vocabulary.ForbiddenTerms, 3)
+	require.Len(t, child.Vocabulary.ForbiddenTerms, 4)
+	assert.Equal(t, "solution", child.Vocabulary.ForbiddenTerms[3].Term)
+
+	// Style enums the house sets and the child does not restate survive.
+	assert.True(t, child.Style.ActiveVoice)
+	assert.Equal(t, "short", child.Style.SentenceLength)
+	assert.Equal(t, "second", child.Style.PersonPOV)
+	assert.Equal(t, "sometimes", child.Style.Contractions)
+}
+
+// TestRestatingAnInheritedRuleDoesNotDoubleIt guards the one place where the
+// merge is load-bearing rather than tidy. Two copies of a prohibition would
+// raise two findings for one violation and double the score penalty, which is
+// how a composition feature silently changes whether content ships.
+func TestRestatingAnInheritedRuleDoesNotDoubleIt(t *testing.T) {
+	fsys := os.DirFS("testdata")
+	p, err := mdspike.LoadFS(context.Background(), fsys, "restates-house-rule.md", mdspike.Options{})
+	require.NoError(t, err)
+
+	// Four house rules, none duplicated, and the restated one carries the
+	// child's severity rather than the house's.
+	require.Len(t, p.Style.ProhibitedPatterns, 4)
+	for _, pat := range p.Style.ProhibitedPatterns {
+		if strings.Contains(pat.Regex, "powerful") {
+			assert.Equal(t, "critical", pat.Severity, "the child tightened the inherited severity")
+		}
+	}
+
+	require.Len(t, p.Vocabulary.ForbiddenTerms, 3)
+	var simply profile.TermRule
+	for _, tr := range p.Vocabulary.ForbiddenTerms {
+		if tr.Term == "simply" {
+			simply = tr
+		}
+	}
+	assert.Equal(t, "major", simply.Severity, "the child raised the inherited severity in place")
+
+	// One violation, one finding — not two.
+	hits := profile.MatchVocabulary(p, "This simply works.")
+	assert.Len(t, hits, 1)
+}
