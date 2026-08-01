@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
+	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/spf13/cobra"
 )
@@ -257,7 +258,13 @@ func resolveServerURLFrom(explicit string) string {
 	cfg := newBowrainAppConfig()
 	_ = cfg.Load()
 	if u := cfg.GetString("server.url"); u != "" {
-		return config.NormalizeServerURL(u)
+		// The recipe's server.url is a compound project URL —
+		// <server>/<workspace>/<project-id> — so reduce it to the origin before
+		// anything appends an API path. Normalizing alone keeps the path, and
+		// POSTing to /<workspace>/<project>/api/v1/... lands outside the CDN's
+		// /api/* behaviour, which rejects the method before it reaches the
+		// server. That is how device login failed with a CloudFront 403.
+		return config.NormalizeServerURL(schema.ParseProjectURL(u).ServerURL)
 	}
 	// Fall back to auth state — the server this machine last logged into.
 	if stored, err := loadAuth(); err == nil && stored.ServerURL != "" {
