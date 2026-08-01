@@ -168,3 +168,45 @@ func TestRebuildEmptyHeaderRowNoAccumulation(t *testing.T) {
 		})
 	}
 }
+
+// TestRebuildHardBreakTrailingSpaceIsIdempotent is one half of #1652. A line
+// ending in a hard break (two or more trailing spaces) was captured with a
+// space count that depended on the source — goldmark leaves the excess on the
+// preceding text node — so "0     \n0" and "0  \n0" read back differently and
+// the round-trip converged only after a second pass. The reader now trims the
+// spaces that spell the break, so the first pass is already a fixed point.
+func TestRebuildHardBreakTrailingSpaceIsIdempotent(t *testing.T) {
+	for _, in := range []string{"0     \n0", "0  \n0", "0   \n0", "a  \nb  \nc"} {
+		t.Run(in, func(t *testing.T) {
+			ctx := context.Background()
+			out1, texts1, ok := tripMarkdown(ctx, []byte(in))
+			require.True(t, ok, "first trip declined %q", in)
+			out2, texts2, ok2 := tripMarkdown(ctx, out1)
+			require.True(t, ok2, "re-reading %q failed", out1)
+			assert.Equal(t, string(out1), string(out2),
+				"hard-break paragraph is not idempotent on the first pass")
+			assert.Len(t, texts2, len(texts1), "block count changed on second pass")
+		})
+	}
+}
+
+// TestRebuildInlineHTMLResidueIsIdempotent is the other half of #1652. Dropping
+// an inline-HTML construct can juxtapose the surrounding literal text into a new
+// tag: "<<A>A>" drops the <A> and the leftover "<" + "A>" reform "<A>", which
+// re-reads as inline HTML and is dropped entirely — the block is lost. The
+// rebuild path now escapes literal '<', so the residue stays text.
+func TestRebuildInlineHTMLResidueIsIdempotent(t *testing.T) {
+	for _, in := range []string{"<<A>A>", "<<A>>", "<<A>", "x<y"} {
+		t.Run(in, func(t *testing.T) {
+			ctx := context.Background()
+			out1, texts1, ok := tripMarkdown(ctx, []byte(in))
+			require.True(t, ok, "first trip declined %q", in)
+
+			// The rebuilt output must still re-read as a block, not vanish.
+			out2, texts2, ok2 := tripMarkdown(ctx, out1)
+			require.True(t, ok2, "rebuilt %q re-read as nothing: %q", in, out1)
+			assert.Equal(t, string(out1), string(out2), "inline-HTML residue escape is not idempotent")
+			assert.Len(t, texts2, len(texts1), "block count changed on second pass")
+		})
+	}
+}
