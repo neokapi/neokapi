@@ -426,9 +426,24 @@ func (w *Writer) flush() error {
 	// string that had already been translated.
 	root := &yamlv3.Node{Kind: yamlv3.MappingNode, Tag: "!!map"}
 	for _, block := range w.blocks {
+		value := &yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: w.blockText(block)}
+		// A value that begins with a newline drifts through the default
+		// (auto) style: the stock yaml.v3 encoder picks a literal block
+		// scalar (`|2-`, `|2`) whose first content line is emitted
+		// immediately, without the leading blank line, so the leading
+		// "\n" is silently dropped on re-read. That corrupts the
+		// content-derived block identity (AD-036) and breaks content-memory
+		// matches after a conversion. A double-quoted scalar escapes the
+		// newline (`"\nx"`) and round-trips the leading "\n" byte-for-byte.
+		// Only the leading-newline case is remapped — interior and trailing
+		// newlines and plain values already round-trip under the default
+		// style and stay byte-stable.
+		if strings.HasPrefix(value.Value, "\n") {
+			value.Style = yamlv3.DoubleQuotedStyle
+		}
 		root.Content = append(root.Content,
 			&yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: block.Name},
-			&yamlv3.Node{Kind: yamlv3.ScalarNode, Tag: "!!str", Value: w.blockText(block)},
+			value,
 		)
 	}
 
