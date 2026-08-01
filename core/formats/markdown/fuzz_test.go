@@ -112,55 +112,100 @@ func FuzzReadMarkdown(f *testing.F) {
 	})
 }
 
-// FuzzRoundTripMarkdown asserts read → write → read is stable in content: a
-// document that parses cleanly, written back and re-read, yields the same
-// source texts. Without a skeleton store the writer rebuilds from the event
-// stream, so formatting legitimately changes; the extracted text must not.
+// tripMarkdown runs one read → write pass through the writer's rebuild path,
+// reporting the emitted bytes and the source texts the read produced. ok is
+// false when the input does not parse cleanly or the writer declines it — those
+// carry only the no-panic contract.
+func tripMarkdown(ctx context.Context, data []byte) (out []byte, texts []string, ok bool) {
+	parts, hadErr := fuzzReadMarkdown(ctx, data)
+	if hadErr || len(testutil.FilterBlocks(parts)) == 0 {
+		return nil, nil, false
+	}
+	var buf bytes.Buffer
+	writer := markdown.NewWriter()
+	if err := writer.SetOutputWriter(&buf); err != nil {
+		return nil, nil, false
+	}
+	writer.SetLocale(model.LocaleEnglish)
+	if err := writer.Write(ctx, testutil.PartsToChannel(parts)); err != nil {
+		return nil, nil, false
+	}
+	writer.Close()
+	return buf.Bytes(), markdownSourceTexts(parts), true
+}
+
+// FuzzRoundTripMarkdown asserts the rebuild write path converges: no block is
+// lost on the way out, and a second pass over the writer's own output changes
+// neither the bytes nor the extracted text.
 //
-// Known open failure: fuzzing this target rediscovers #1603 within seconds. A
-// paragraph that begins with an inline HTML tag ("<A> 0") loses the tag in the
-// rebuild path, which promotes the space after it to leading whitespace, which
-// markdown then strips — so the text drifts from " 0" to "0". The skeleton
-// write path is correct for the same input. None of the seeds below trip it;
-// it is recorded here so the failure is not mistaken for a new one.
+// Idempotence rather than "pass1 == pass2" is deliberate. Without a skeleton
+// store the writer rebuilds from the event stream and drops constructs it has
+// no Markdown spelling for — inline HTML above all — which is advertised
+// lossiness in markup. But dropping one at a block edge moves the whitespace
+// beside it to a position Markdown cannot represent, so the FIRST pass does
+// legitimately change the text there. Asserting it does not is asserting
+// something this path cannot deliver; what it must deliver, and what #1603 was,
+// is that the change happens once and then stops. A text that keeps changing
+// hashes to a new content key every run (AD-036) and silently stops matching
+// content memory.
+//
+// The skeleton write path preserves the markup and is checked separately.
+//
+// Two known open failures remain, both older than #1603 and both confirmed to
+// reproduce on a writer with the #1603 fix reverted. None of the seeds below
+// trip them; they are recorded here so neither is mistaken for a new one.
+//
+//   - #1632, rediscovered in about a second with "#<A>". Same family as #1603 —
+//     a dropped construct whose loss does not stay confined to markup — but the
+//     text left behind begins with a bare block marker, so the emitted
+//     paragraph re-reads as an empty heading. It needs escaping, not the
+//     boundary trim #1603 called for.
+//   - #1633, rediscovered in seconds with "> a\n> b". The rebuild path ignores
+//     BlockPropLinePrefix, so a multi-line blockquote loses its prefix and one
+//     block re-reads as several. That one violates the block-count half of the
+//     contract rather than the idempotence half.
 func FuzzRoundTripMarkdown(f *testing.F) {
 	markdownSeed(f, "simple.md")
 	f.Add([]byte("# Hello\n\nA paragraph.\n"))
 	f.Add([]byte("## Heading\n\n- one\n- two\n"))
+	// #1603: a construct dropped at a block edge promoted the whitespace
+	// beside it to a position markdown strips on re-read.
+	f.Add([]byte("<A> 0"))
+	f.Add([]byte("trail <A>"))
+	f.Add([]byte("# <A> heading"))
+	f.Add([]byte("| <A> a | b |\n| --- | --- |\n| c | d |\n"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		ctx := t.Context()
-		parts1, hadErr := fuzzReadMarkdown(ctx, data)
-		if hadErr || len(testutil.FilterBlocks(parts1)) == 0 {
-			return
+		out1, texts1, ok := tripMarkdown(ctx, data)
+		if !ok {
+			return // only the no-panic contract applies to a non-clean parse
 		}
-		texts1 := markdownSourceTexts(parts1)
 
-		var buf bytes.Buffer
-		writer := markdown.NewWriter()
-		if err := writer.SetOutputWriter(&buf); err != nil {
-			return
+		out2, texts2, ok2 := tripMarkdown(ctx, out1)
+		if !ok2 {
+			t.Fatalf("re-reading written Markdown failed; round-trip is not stable\ninput:  %q\noutput: %q", data, out1)
 		}
-		writer.SetLocale(model.LocaleEnglish)
-		if err := writer.Write(ctx, testutil.PartsToChannel(parts1)); err != nil {
-			return
-		}
-		writer.Close()
-
-		parts2, hadErr2 := fuzzReadMarkdown(ctx, buf.Bytes())
-		if hadErr2 {
-			t.Fatalf("re-reading written Markdown failed; round-trip is not stable\ninput:  %q\noutput: %q", data, buf.Bytes())
-		}
-		texts2 := markdownSourceTexts(parts2)
 		if len(texts1) != len(texts2) {
 			t.Fatalf("round-trip changed block count: %d -> %d\ninput:  %q\noutput: %q\npass1:  %q\npass2:  %q",
-				len(texts1), len(texts2), data, buf.Bytes(), texts1, texts2)
+				len(texts1), len(texts2), data, out1, texts1, texts2)
 		}
-		for i := range texts1 {
-			if texts1[i] != texts2[i] {
-				t.Fatalf("round-trip drift in source text\npass1: %q\npass2: %q\ninput: %q\noutput: %q",
-					texts1, texts2, data, buf.Bytes())
+
+		_, texts3, ok3 := tripMarkdown(ctx, out2)
+		if !ok3 {
+			t.Fatalf("re-reading the writer's own output failed\nout1: %q\nout2: %q", out1, out2)
+		}
+		if !bytes.Equal(out1, out2) {
+			t.Fatalf("rebuild output is not idempotent\ninput: %q\nout1:  %q\nout2:  %q", data, out1, out2)
+		}
+		if len(texts2) != len(texts3) {
+			t.Fatalf("block count drifted on the third pass: %d -> %d\ninput: %q", len(texts2), len(texts3), data)
+		}
+		for i := range texts2 {
+			if texts2[i] != texts3[i] {
+				t.Fatalf("source text drifted after the first pass\npass2: %q\npass3: %q\ninput: %q\nout2: %q",
+					texts2, texts3, data, out2)
 			}
 		}
 	})

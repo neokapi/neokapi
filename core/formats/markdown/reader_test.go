@@ -1214,3 +1214,113 @@ func TestTableCellEscapedPipeRoundtrip(t *testing.T) {
 		"| `--output-format <json\\|text>` | Select the output format |\n"
 	assert.Equal(t, input, roundtripWithSkeleton(t, input), "escaped pipe survives the round-trip")
 }
+
+// tripRebuild drives one read → write pass through the writer's rebuild path
+// (no skeleton store), returning the emitted Markdown and the block texts the
+// read produced.
+func tripRebuild(t *testing.T, input string) (out string, texts []string) {
+	t.Helper()
+	ctx := t.Context()
+
+	reader := markdown.NewReader()
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+	texts = mdBlockTexts(parts)
+
+	var buf bytes.Buffer
+	writer := markdown.NewWriter()
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(model.LocaleEnglish)
+	require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts)))
+	writer.Close()
+	return buf.String(), texts
+}
+
+func mdBlockTexts(parts []*model.Part) []string {
+	var texts []string
+	for _, b := range testutil.FilterBlocks(parts) {
+		texts = append(texts, b.SourceText())
+	}
+	return texts
+}
+
+// TestRebuildRoundtrip_BoundaryWhitespaceIsStable pins the rebuild path against
+// text drift at a block's edges.
+//
+// Dropping inline HTML is accepted lossiness here — markup goes, by design, and
+// so a first pass legitimately changes the text it removes markup from. What
+// must not happen is the loss continuing on the NEXT pass. Block identity is
+// content-derived (AD-036), so a block whose text keeps changing hashes to a
+// new content key every run and the content-memory matches from the previous
+// run stop hitting; the symptom is "the memory stopped matching after a
+// conversion", with nothing pointing at whitespace (#1603).
+//
+// The property is therefore idempotence — trip(trip(x)) == trip(x) — which is
+// exactly what a dropped construct at a block edge broke: it promoted the
+// whitespace beside it to the boundary, where Markdown cannot represent it and
+// strips it on re-read, so the second pass differed from the first. It happens
+// at both ends and in every inline context: paragraph, heading, list item,
+// blockquote, table cell.
+func TestRebuildRoundtrip_BoundaryWhitespaceIsStable(t *testing.T) {
+	t.Parallel()
+	cases := map[string]struct {
+		input string
+		// stableFirstPass marks inputs with no dropped construct at a block
+		// edge, where the very first pass must already preserve the text.
+		stableFirstPass bool
+	}{
+		// The filed reproducer: a leading tag makes the following space leading.
+		"leading tag then space":    {input: "<A> 0"},
+		"leading tag then two":      {input: "<A>  0"},
+		"leading tag then tab":      {input: "<A>\t0"},
+		"leading void tag":          {input: "<br/> lead"},
+		"leading comment":           {input: "<!-- c --> lead"},
+		"trailing tag after space":  {input: "trail <A>"},
+		"trailing tag mid-sentence": {input: "trail 0 <A>"},
+		"heading":                   {input: "# <A> heading"},
+		"list item":                 {input: "- <A> item"},
+		"blockquote":                {input: "> <A> quote"},
+		"table cell":                {input: "| <A> a | b |\n| --- | --- |\n| c | d |\n"},
+
+		// Controls: nothing is dropped at an edge, so the text must survive
+		// from the very first pass and keep surviving.
+		"interior tag":                         {input: "text <b>bold</b> more", stableFirstPass: true},
+		"paired around text":                   {input: "<a>x</a> y", stableFirstPass: true},
+		"void between words":                   {input: "a <br/> b", stableFirstPass: true},
+		"whole-span tag":                       {input: "<span>inline</span>", stableFirstPass: true},
+		"no whitespace":                        {input: "<A>0", stableFirstPass: true},
+		"fenced code keeps its own whitespace": {input: "```\n  indented\n```\n", stableFirstPass: true},
+		"ordinary prose":                       {input: "# Title\n\nA paragraph.\n", stableFirstPass: true},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			out1, texts1 := tripRebuild(t, tc.input)
+			out2, texts2 := tripRebuild(t, out1)
+
+			// The write is a fixed point: a second pass changes neither the
+			// bytes nor the text. Before the fix, out1 carried boundary
+			// whitespace that the re-read stripped, so out2 differed.
+			assert.Equal(t, out1, out2,
+				"rebuild output is not idempotent\ninput: %q\nout1:  %q\nout2:  %q", tc.input, out1, out2)
+			assert.Equal(t, texts2, mdBlockTexts(mustReadMarkdown(t, out2)),
+				"block text drifted on the third pass\ninput: %q", tc.input)
+
+			if tc.stableFirstPass {
+				assert.Equal(t, texts1, texts2,
+					"text changed on the first pass with nothing dropped at an edge\ninput: %q\nout1: %q",
+					tc.input, out1)
+			}
+		})
+	}
+}
+
+func mustReadMarkdown(t *testing.T, input string) []*model.Part {
+	t.Helper()
+	reader := markdown.NewReader()
+	require.NoError(t, reader.Open(t.Context(), testutil.RawDocFromString(input, model.LocaleEnglish)))
+	defer reader.Close()
+	return testutil.CollectParts(t, reader.Read(t.Context()))
+}

@@ -169,7 +169,29 @@ func mdLinkClose(attrs map[string]string, destKey string) string {
 // placeholders as their equivalent text. This is the cross-format projection —
 // it never consults a run's Data, so the same Markdown results whatever the
 // source format.
+//
+// Boundary whitespace is trimmed, because Markdown cannot represent it in an
+// inline position: a paragraph's, heading's, list item's, blockquote's or table
+// cell's leading and trailing whitespace is stripped when the document is read
+// back. Emitting it produced text that did not survive a re-read.
+//
+// That is not a hypothetical. This path drops constructs it has no Markdown
+// spelling for — inline HTML, most of all — which is accepted lossiness in
+// markup. But dropping a construct at a block's edge PROMOTES the whitespace
+// beside it to the boundary, so `<A> 0` rendered as " 0" and read back as "0":
+// the loss stopped being confined to markup and started changing the text.
+// Block identity is content-derived (AD-036), so the block then hashes to a
+// different content key on the second pass and the content-memory matches from
+// the first stop hitting (#1603).
+//
+// Callers rendering content inside a fence (RoleCode) want the untrimmed form —
+// there, boundary whitespace is both representable and meaningful.
 func renderInlineMarkdown(runs []model.Run) string {
+	return strings.TrimSpace(renderInlineMarkdownRaw(runs))
+}
+
+// renderInlineMarkdownRaw is renderInlineMarkdown without the boundary trim.
+func renderInlineMarkdownRaw(runs []model.Run) string {
 	sink := &mdInlineSink{}
 	projection.WalkInline(runs, sink)
 	sink.flush()
@@ -274,7 +296,6 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	if block.Type == "omml-nor" {
 		return nil
 	}
-	text := renderInlineMarkdown(w.blockRuns(block))
 
 	if !w.firstBlock {
 		if _, err := fmt.Fprint(out, "\n\n"); err != nil {
@@ -291,6 +312,16 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	if role == "" {
 		role = block.Type
 	}
+
+	// Fenced code carries its own leading/trailing whitespace — indentation is
+	// the content there. Every other role lands in an inline position, where
+	// Markdown strips boundary whitespace on re-read, so the writer trims it
+	// rather than emitting text that will not survive (#1603).
+	text := renderInlineMarkdown(w.blockRuns(block))
+	if role == model.RoleCode {
+		text = renderInlineMarkdownRaw(w.blockRuns(block))
+	}
+
 	var prefix, suffix string
 	switch role {
 	case model.RoleTitle:
