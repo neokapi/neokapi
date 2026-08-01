@@ -109,3 +109,62 @@ func TestRebuildBlockquoteLinePrefix(t *testing.T) {
 		})
 	}
 }
+
+// TestRebuildEscapesTableDelimiterRow is one half of the #1651 reproducer. A
+// paragraph whose CONTINUATION line forms a GFM table delimiter row (or a setext
+// underline) — the residue a dropped inline construct can leave, e.g. "<A> |0"
+// on line one and "-|" on line two — was emitted verbatim by the rebuild path,
+// so it re-read as a table / heading (the line above became a header). The
+// writer must escape the bar so a plain paragraph stays one paragraph.
+func TestRebuildEscapesTableDelimiterRow(t *testing.T) {
+	// A plain paragraph block (no role) whose text, emitted verbatim, would form
+	// a table or setext heading on re-read. Built directly so the input really
+	// is a paragraph — several of these read as a table when fed as source.
+	for _, text := range []string{
+		"|0\n-|",
+		"h\n| --- |",
+		"h\n:---:",
+		"a\n| :-- | --: |",
+		"x\n===",
+		"y\n-",
+	} {
+		t.Run(text, func(t *testing.T) {
+			out := rebuildBlocks(t, model.NewBlock("p", text))
+
+			blocks := readBlocks(t, out)
+			require.Len(t, blocks, 1, "rebuilt %q re-read as %d blocks: %q", text, len(blocks), out)
+			role := blocks[0].SemanticRole()
+			assert.NotEqual(t, model.RoleTableCell, role, "rebuilt %q re-read as a table: %q", text, out)
+			assert.NotEqual(t, model.RoleTableHeader, role, "rebuilt %q re-read as a table header: %q", text, out)
+			assert.NotEqual(t, model.RoleHeading, role, "rebuilt %q re-read as a heading: %q", text, out)
+
+			// And the escape is idempotent: a second rebuild is a fixed point.
+			out2 := rebuildBlocks(t, model.NewBlock("p", blocks[0].SourceText()))
+			assert.Equal(t, out, out2, "delimiter/bar escape is not idempotent")
+		})
+	}
+}
+
+// TestRebuildEmptyHeaderRowNoAccumulation is the other half of #1651. A GFM
+// table whose header row has only empty cells emits no header cell blocks, so
+// the header flag rode only on those (absent) cells; the writer then synthesised
+// a fresh blank header and demoted the original to a body row, gaining one empty
+// row per pass. The reader now tags the header row group so the flag survives.
+func TestRebuildEmptyHeaderRowNoAccumulation(t *testing.T) {
+	for _, in := range []string{
+		"|  |\n| --- |\n|  |\n| 00 |",
+		"|\n|-\n0",
+		"|  |\n| --- |\n| a |",
+	} {
+		t.Run(in, func(t *testing.T) {
+			ctx := context.Background()
+			out1, texts1, ok := tripMarkdown(ctx, []byte(in))
+			require.True(t, ok, "first trip declined %q", in)
+			out2, texts2, ok2 := tripMarkdown(ctx, out1)
+			require.True(t, ok2, "re-reading %q failed", out1)
+			assert.Equal(t, string(out1), string(out2),
+				"empty-header table grew a row on re-trip:\n out1=%q\n out2=%q", out1, out2)
+			assert.Len(t, texts2, len(texts1), "block count changed on second pass")
+		})
+	}
+}

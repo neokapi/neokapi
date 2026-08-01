@@ -2306,7 +2306,18 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 
 		r.groupCounter++
 		rowID := fmt.Sprintf("g%d", r.groupCounter)
-		r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: rowID, Name: "table-row", Type: "table-row"}})
+		rowGroup := &model.GroupStart{ID: rowID, Name: "table-row", Type: "table-row"}
+		if isHeaderRow {
+			// Carry header-ness on the row group, not only on the header cells'
+			// RoleTableHeader. An all-empty header row emits no cell blocks
+			// (empty cells are skipped below), so without this the writer loses
+			// the header flag, synthesises a fresh blank header, and demotes the
+			// original empty header to a body row — one extra "| |" row per
+			// round-trip (#1651). projection.AssembleTable already reads this
+			// property.
+			rowGroup.Properties = map[string]string{"header": "true"}
+		}
+		r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: rowGroup})
 
 		for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
 			if cell.Kind() != east.KindTableCell {

@@ -341,7 +341,7 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	}
 
 	// A paragraph is the switch's implicit default (empty role, no prefix): the
-	// rebuild path emits its text at the very start of a line. Two block-shaped
+	// rebuild path emits its text at the very start of a line. Block-shaped
 	// residues have to be repaired there, or the paragraph re-reads as a
 	// different block kind and trip(trip(x)) != trip(x):
 	//
@@ -349,16 +349,22 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	//     exposes it ("#<A>" -> "#", which re-parses as an empty heading) —
 	//     backslash-escape it so CommonMark keeps it literal (#1632);
 	//   - a multi-line blockquote body whose own "> " line prefix is gone, so
-	//     the block splits into a loose paragraph plus a blockquote (#1633).
+	//     the block splits into a loose paragraph plus a blockquote (#1633);
+	//   - a continuation line that forms a GFM table delimiter row or a setext
+	//     underline, which promotes the line above it to a table header / the
+	//     paragraph to a heading ("|0\n-|" -> a one-cell table) — escape the
+	//     bar so it stays literal text (#1651).
 	//
-	// The two are mutually exclusive — a blockquote already opens with ">", the
-	// one marker we must NOT strip — so a block is either re-marked as a
-	// blockquote or has its leading marker escaped, never both.
+	// Blockquote re-marking and leading-marker escaping are mutually exclusive —
+	// a blockquote already opens with ">", the one marker we must NOT strip. The
+	// interior-bar escape applies only to a plain paragraph: a blockquote's
+	// continuation lines carry "> ", which is not a bar.
 	if role == "" {
 		if bqPrefix, body, isQuote := blockquoteRebuild(block, text); isQuote {
 			prefix, text = bqPrefix, body
 		} else {
 			text = escapeLeadingBlockMarker(text)
+			text = escapeInteriorBlockBars(text)
 		}
 	}
 
@@ -644,6 +650,83 @@ func isThematicBreak(text string) bool {
 		}
 	}
 	return count >= 3
+}
+
+// escapeInteriorBlockBars backslash-escapes any line AFTER the first that, in a
+// paragraph the rebuild path emits verbatim, would be read as a GFM table
+// delimiter row or a setext underline — promoting the line above it into a
+// table header, or the whole paragraph into a heading (#1651). #1632 escapes
+// only the LEADING marker of the first line; a table/setext bar is a signal on
+// a *later* line (the first line is its header), so it needs this separate pass.
+//
+// Only the bar line matters: escaping its first hyphen/colon/equals makes the
+// line start with a backslash, which is neither a valid delimiter-cell nor a
+// setext-bar character, so goldmark parses it as ordinary paragraph text. The
+// reader preserves the backslash in the block text, so an already-escaped line
+// matches neither grammar and is left alone — the output is idempotent.
+func escapeInteriorBlockBars(text string) string {
+	if !strings.Contains(text, "\n") {
+		return text
+	}
+	lines := strings.Split(text, "\n")
+	for i := 1; i < len(lines); i++ {
+		if isSetextBar(lines[i]) || isTableDelimiterRow(lines[i]) {
+			if j := firstBarChar(lines[i]); j >= 0 {
+				lines[i] = lines[i][:j] + "\\" + lines[i][j:]
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// firstBarChar returns the byte index of the first '-', '=' or ':' in line, or
+// -1. That character is the one backslash-escaping neutralises: a delimiter cell
+// needs a hyphen and a setext bar is all '=' or all '-', so escaping the first
+// such character breaks either grammar.
+func firstBarChar(line string) int {
+	for i := range len(line) {
+		switch line[i] {
+		case '-', '=', ':':
+			return i
+		}
+	}
+	return -1
+}
+
+// isSetextBar reports whether line is a CommonMark setext underline — up to 3
+// leading spaces, then a run of only '=' or only '-', then optional trailing
+// spaces. Mirrors goldmark's matchesSetextHeadingBar.
+func isSetextBar(line string) bool {
+	s := strings.TrimRight(strings.TrimLeft(line, " "), " \t")
+	if len(line)-len(strings.TrimLeft(line, " ")) > 3 || s == "" {
+		return false
+	}
+	return s == strings.Repeat("=", len(s)) || s == strings.Repeat("-", len(s))
+}
+
+// isTableDelimiterRow reports whether line is a GFM table delimiter row — up to
+// 3 leading spaces, then cells of only '-'/':'/spaces separated by '|', with at
+// least one '-'. Mirrors goldmark's isTableDelim (extension/table.go): every
+// byte is a space, '-', '|' or ':', and the line is not made of '-' alone. A
+// real delimiter also needs a hyphen (a cell is ":?-+:?"), so require one to
+// avoid escaping pipe-only lines that never form a table.
+func isTableDelimiterRow(line string) bool {
+	if len(line)-len(strings.TrimLeft(line, " ")) > 3 {
+		return false
+	}
+	hasDash := false
+	allDash := true
+	for i := range len(line) {
+		switch line[i] {
+		case '-':
+			hasDash = true
+		case ' ', '\t', '|', ':':
+			allDash = false
+		default:
+			return false
+		}
+	}
+	return hasDash && !allDash
 }
 
 // blockquoteRebuild reconstructs a multi-line blockquote body in the rebuild

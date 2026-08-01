@@ -151,17 +151,21 @@ func tripMarkdown(ctx context.Context, data []byte) (out []byte, texts []string,
 //
 // The skeleton write path preserves the markup and is checked separately.
 //
-// A known-open family remains, distinct from #1632/#1633 and confirmed to
-// reproduce on the base writer: MULTI-LINE reinterpretation. When the residue
-// of a dropped construct leaves a paragraph whose SECOND line forms a block
-// signal — a GFM table delimiter row ("|0\n-|" re-reads as a one-cell table) or
-// a setext underline — the paragraph re-reads as that other kind. #1632 escapes
-// only LEADING markers (the first character of the first line); breaking a
-// second-line signal needs a different, delimiter-row-aware escape and its own
-// issue. An empty GFM header row is a second, related open case: its blank
-// cells emit no cell blocks, so the header flag is lost on re-read and the
-// writer accumulates one empty row per pass. None of the seeds above trip these
-// — they are noted so neither is mistaken for a regression of the fixes here.
+// Known-open families remain in the lossy rebuild path, distinct from the fixes
+// here and all confirmed to reproduce on the base writer. They are tracked
+// separately (#1652); none of the seeds below trip them, so they are noted here
+// only so neither is mistaken for a regression of these fixes:
+//
+//   - TRAILING-WHITESPACE / hard-break normalization: a line ending in two or
+//     more spaces is a hard break, recorded inconsistently ("0     \n0" reads
+//     back as "0  \n0", but "0  \n0" reads back as "0\n0"), so it converges over
+//     two passes and trip(trip(x)) != trip(x) on the first.
+//   - DROPPED-CONSTRUCT residue that fails to re-read: some inputs whose inline
+//     HTML the rebuild path drops ("<<A>A>") produce output the reader can no
+//     longer turn into a block, so the second read yields nothing.
+//
+// Both are unrelated to the block-reinterpretation family fixed here (#1651) —
+// they touch no table, setext bar, or leading marker.
 func FuzzRoundTripMarkdown(f *testing.F) {
 	markdownSeed(f, "simple.md")
 	f.Add([]byte("# Hello\n\nA paragraph.\n"))
@@ -178,6 +182,13 @@ func FuzzRoundTripMarkdown(f *testing.F) {
 	// #1633: a multi-line blockquote whose "> " line prefix the rebuild path
 	// must re-establish, or the single block splits into loose paragraphs.
 	f.Add([]byte("> a\n> b"))
+	// #1651: a paragraph whose continuation line forms a GFM table delimiter row
+	// ("|0\n-|") re-reads as a table unless the rebuild path escapes the bar; an
+	// all-empty GFM header row loses its header flag and accumulates one blank
+	// row per pass unless the reader tags the header row group.
+	f.Add([]byte("|0\n-|"))
+	f.Add([]byte("<A> |0\n-|"))
+	f.Add([]byte("|  |\n| --- |\n|  |\n| 00 |"))
 	seedDamagedMarkdown(f)
 
 	f.Fuzz(func(t *testing.T, data []byte) {
