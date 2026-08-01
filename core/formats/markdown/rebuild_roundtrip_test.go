@@ -210,3 +210,28 @@ func TestRebuildInlineHTMLResidueIsIdempotent(t *testing.T) {
 		})
 	}
 }
+
+// TestRebuildBacktickParagraphConverges is the #1657 reproducer. A paragraph
+// whose text begins with a run of three-or-more backticks but carries another
+// backtick later on the line is NOT a fenced-code opener (CommonMark forbids a
+// backtick in a backtick-fence info string), so the rebuild path must leave it
+// literal. Escaping only the first backtick turned the remaining two into a
+// code-span opener, inventing a code span and drifting the block's content key
+// across passes instead of reaching a fixed point after the first rebuild.
+func TestRebuildBacktickParagraphConverges(t *testing.T) {
+	for _, in := range []string{"```0`0``", "```a`b", "````x`y"} {
+		t.Run(in, func(t *testing.T) {
+			ctx := context.Background()
+			out1, keys1, ok := tripMarkdown(ctx, []byte(in))
+			require.True(t, ok, "first trip declined %q", in)
+			out2, keys2, ok2 := tripMarkdown(ctx, out1)
+			require.True(t, ok2, "re-reading %q failed", out1)
+			require.Len(t, keys2, len(keys1), "block count changed for %q", in)
+
+			_, keys3, ok3 := tripMarkdown(ctx, out2)
+			require.True(t, ok3, "re-reading %q failed", out2)
+			assert.Equal(t, keys2, keys3,
+				"content identity drifted after the first pass for %q\nout1: %q\nout2: %q", in, out1, out2)
+		})
+	}
+}

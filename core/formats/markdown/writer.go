@@ -374,14 +374,18 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 		prefix, suffix = "*", "*"
 	}
 
-	// A paragraph is the switch's implicit default (empty role, no prefix): the
-	// rebuild path emits its text at the very start of a line. Block-shaped
-	// residues have to be repaired there, or the paragraph re-reads as a
-	// different block kind and trip(trip(x)) != trip(x):
+	// A block the switch left with no prefix or suffix lands as bare text at the
+	// very start of a line — a paragraph (empty role) but also any block whose
+	// non-empty Type matched no case, most importantly "html-text" (a run of
+	// inline HTML plus text). Block-shaped residues have to be repaired there, or
+	// the text re-reads as a different block kind — or as nothing, losing the
+	// block — and trip(trip(x)) != trip(x):
 	//
 	//   - a bare leading marker left behind when a dropped inline construct
-	//     exposes it ("#<A>" -> "#", which re-parses as an empty heading) —
-	//     backslash-escape it so CommonMark keeps it literal (#1632);
+	//     exposes it ("#<A>" -> "#", which re-parses as an empty heading;
+	//     "<A>\n*" -> "*", an empty bullet that re-reads as no block at all) —
+	//     backslash-escape it so CommonMark keeps it literal (#1632). Gating this
+	//     on the empty role alone missed html-text blocks (#1657);
 	//   - a multi-line blockquote body whose own "> " line prefix is gone, so
 	//     the block splits into a loose paragraph plus a blockquote (#1633);
 	//   - a continuation line that forms a GFM table delimiter row or a setext
@@ -393,7 +397,7 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	// a blockquote already opens with ">", the one marker we must NOT strip. The
 	// interior-bar escape applies only to a plain paragraph: a blockquote's
 	// continuation lines carry "> ", which is not a bar.
-	if role == "" {
+	if prefix == "" && suffix == "" {
 		if bqPrefix, body, isQuote := blockquoteRebuild(block, text); isQuote {
 			prefix, text = bqPrefix, body
 		} else {
@@ -629,10 +633,32 @@ func leadingBlockMarkerPos(text string) (int, bool) {
 		if c != '_' && atLineBoundary(text, 1) {
 			return 0, true
 		}
-	case '`', '~':
-		// Fenced code: three or more backticks or tildes.
+	case '`':
+		// Backtick fenced-code opener: three or more backticks whose info string
+		// — the rest of the first line — contains NO backtick. A backtick later
+		// on the line disqualifies the fence (CommonMark forbids a backtick in a
+		// backtick-fence info string), so the run is ordinary text and must be
+		// left alone: escaping only its first backtick would turn the remaining
+		// two into a code-span opener and change the content (#1657).
 		n := 0
-		for n < len(text) && text[n] == c {
+		for n < len(text) && text[n] == '`' {
+			n++
+		}
+		if n >= 3 {
+			rest := text[n:]
+			if i := strings.IndexByte(rest, '\n'); i >= 0 {
+				rest = rest[:i]
+			}
+			if !strings.Contains(rest, "`") {
+				return 0, true
+			}
+		}
+	case '~':
+		// Tilde fenced-code opener: three or more tildes. A tilde is not a
+		// code-span delimiter, so escaping the first is safe and needs no
+		// info-string guard.
+		n := 0
+		for n < len(text) && text[n] == '~' {
 			n++
 		}
 		if n >= 3 {
