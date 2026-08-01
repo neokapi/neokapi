@@ -20,19 +20,19 @@
     "test:watch": "vp test watch"
   },
   "dependencies": {
-    "@tanstack/react-virtual": "3.14.6"
+    "@tanstack/react-virtual": "3.14.8"
   },
   "devDependencies": {
-    "@storybook/react-vite": "^10.5.0",
+    "@storybook/react-vite": "^10.5.5",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^30.0.1",
-    "storybook": "^10.5.0",
+    "storybook": "^10.5.5",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.4",
+    "vite-plus": "^0.2.6",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {

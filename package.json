@@ -5,9 +5,9 @@
   },
   "devDependencies": {
     "jsdom": "^30.0.1",
-    "storybook": "^10.5.0",
+    "storybook": "^10.5.5",
     "vite": "catalog:",
-    "vite-plus": "^0.2.4"
+    "vite-plus": "^0.2.6"
   },
   "packageManager": "pnpm@11.5.0"
 }

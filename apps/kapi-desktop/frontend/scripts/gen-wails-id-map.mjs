@@ -32,7 +32,7 @@ const js = readFileSync(APP_JS, "utf8");
 // Each bound method is `export function Name(args) { return $Call.ByID(<id>, …`.
 const re = /export function (\w+)\([^)]*\)\s*\{\s*return \$Call\.ByID\((\d+)/g;
 const byId = {};
-for (let m; (m = re.exec(js)); ) byId[m[2]] = m[1];
+for (let m; (m = re.exec(js));) byId[m[2]] = m[1];
 
 const ids = Object.keys(byId)
   .map(Number)
