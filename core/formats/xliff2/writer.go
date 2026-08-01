@@ -339,12 +339,7 @@ func (w *Writer) flush() error {
 //     model's reach.
 //   - Otherwise, serialize the (mutated) DOM via etree.
 func (w *Writer) flushRoundTrip(targetLang model.LocaleID) error {
-	blocksByID := make(map[string]*model.Block, len(w.items))
-	for _, it := range w.items {
-		if it.kind == itemBlock && it.block != nil {
-			blocksByID[it.block.ID] = it.block
-		}
-	}
+	blocksByID := newBlockQueues(w.items)
 
 	root := w.sourceDoc.Root()
 	if root == nil {
@@ -488,10 +483,49 @@ func writeBytesCREscape(w io.Writer, data []byte) error {
 	return nil
 }
 
+// blockQueues indexes the model's blocks by id, keeping the blocks that share
+// an id in document order.
+//
+// XLIFF 2 requires `id` on `<unit>` and requires it to be unique within the
+// enclosing `<file>`, so a well-formed document gives every queue exactly one
+// block and the lookup is a plain id match. kapi accepts documents that break
+// either rule, though — they arrive from other tools — and a plain
+// map[string]*Block silently kept only the last block for a colliding id, so
+// the writer patched every matching unit element with it. That is not a lost
+// block but one unit's content overwritten by another's, on a document kapi
+// accepted, still valid XLIFF afterwards (#1599).
+//
+// Two shapes collide: a repeated id, and an absent id — attrValue returns ""
+// for a missing attribute, so every id-less unit keys on the empty string.
+// Resolving in document order covers both.
+type blockQueues map[string][]*model.Block
+
+func newBlockQueues(items []writerItem) blockQueues {
+	q := make(blockQueues, len(items))
+	for _, it := range items {
+		if it.kind == itemBlock && it.block != nil {
+			q[it.block.ID] = append(q[it.block.ID], it.block)
+		}
+	}
+	return q
+}
+
+// take returns the next unconsumed block for id, so successive unit elements
+// sharing an id each get their own. Reports false once the id is exhausted —
+// which for a unique id means the unit was removed from the model.
+func (q blockQueues) take(id string) (*model.Block, bool) {
+	blocks := q[id]
+	if len(blocks) == 0 {
+		return nil, false
+	}
+	q[id] = blocks[1:]
+	return blocks[0], true
+}
+
 // walkUnitsRoundTrip recurses into <group>/<unit> children of parent,
 // patching each unit against the matching model.Block. Returns true if
 // any segment was patched.
-func walkUnitsRoundTrip(parent *etree.Element, blocksByID map[string]*model.Block, targetLang model.LocaleID) bool {
+func walkUnitsRoundTrip(parent *etree.Element, blocksByID blockQueues, targetLang model.LocaleID) bool {
 	patched := false
 	for _, child := range parent.ChildElements() {
 		switch child.Tag {
@@ -501,7 +535,7 @@ func walkUnitsRoundTrip(parent *etree.Element, blocksByID map[string]*model.Bloc
 			}
 		case "unit":
 			id := attrValue(child, "id")
-			block, ok := blocksByID[id]
+			block, ok := blocksByID.take(id)
 			if !ok {
 				continue // unit removed from model (rare)
 			}
