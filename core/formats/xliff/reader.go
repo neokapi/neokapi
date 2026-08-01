@@ -792,6 +792,26 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 
 		switch t := tok.(type) {
 		case xml.StartElement:
+			if t.Name.Local == "trans-unit" {
+				// A <trans-unit> nested inside another is structurally
+				// impossible in valid XLIFF 1.2. Reaching here means this
+				// unit's own </trans-unit> end tag was lost (e.g. a single
+				// corrupted byte), so the depth counter never unwound and
+				// the next sibling unit arrived inside the current one.
+				// Left unchecked, the non-strict (Strict=false) decoder
+				// would let the inner unit's <source> overwrite this one's
+				// and silently swallow every following unit. Surface an
+				// error naming both the outer unit (whose end tag went
+				// missing) and the inner unit being absorbed. See #1588.
+				var innerID string
+				for _, a := range t.Attr {
+					if a.Name.Local == "id" {
+						innerID = a.Value
+						break
+					}
+				}
+				return nil, nil, fmt.Errorf("trans-unit %q: missing end tag before nested trans-unit %q", tu.id, innerID)
+			}
 			if awaitingNextSibling && depth == 1 {
 				// First sibling-start tag at trans-unit depth after
 				// </source>. Capture the offset of its `<` before we
