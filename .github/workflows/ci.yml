@@ -110,11 +110,21 @@ jobs:
           else
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
           fi
-          check_paths frontend  '^bowrain/apps/(web|bowrain/frontend|ctrl|pulse|keycloak-theme)/' '^bowrain/packages/(ui|app)/' '^bowrain/emails/'
-          check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/'
-          check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/'
-          check_paths i18n_react '^packages/(kapi-format|i18n-react)/'
-          check_paths l10n_surfaces '^bowrain/emails/' '^bowrain/web/landing/' '^bowrain/mailer/' '^l10n/' '^packages/(kapi-format|i18n-react)/' '^kapi\.yaml$'
+          # The shared JS dependency graph. A change to the lockfile, the root
+          # package.json (hoisted devDeps + overrides) or the workspace config
+          # (catalog / overrides / hoisting) re-resolves dependencies for EVERY
+          # workspace package — so it must turn on every JS test filter. Without
+          # this, a root-only devDep bump (jsdom, jest-dom) matches none of the
+          # per-package paths below, the per-package suites skip, and a breaking
+          # bump merges all-green — caught only by the post-merge push run once
+          # main is already red (jsdom 30 → i18n-react CSS.escape, #1646).
+          js_deps=( '^pnpm-lock\.yaml$' '^package\.json$' '^pnpm-workspace\.yaml$' )
+
+          check_paths frontend  '^bowrain/apps/(web|bowrain/frontend|ctrl|pulse|keycloak-theme)/' '^bowrain/packages/(ui|app)/' '^bowrain/emails/' "${js_deps[@]}"
+          check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/' "${js_deps[@]}"
+          check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/' "${js_deps[@]}"
+          check_paths i18n_react '^packages/(kapi-format|i18n-react)/' "${js_deps[@]}"
+          check_paths l10n_surfaces '^bowrain/emails/' '^bowrain/web/landing/' '^bowrain/mailer/' '^l10n/' '^packages/(kapi-format|i18n-react)/' '^kapi\.yaml$' "${js_deps[@]}"
           check_paths workflows '^\.github/workflows/'
           check_paths plugins  '^plugins/'
 
