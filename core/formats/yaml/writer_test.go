@@ -137,6 +137,42 @@ func yamlBlockTexts(t *testing.T, input string) []string {
 	return texts
 }
 
+// TestWriter_PreservesLeadingNewline guards #1630: the rebuild-from-blocks
+// path must keep a block's leading "\n". A bare ScalarNode lets yaml.v3
+// auto-select a literal block scalar (`|2-`, `|2`) that drops the leading
+// blank line, so the text read back loses its leading newline; the writer
+// remaps a leading-newline value to a double-quoted scalar, which escapes
+// the newline and round-trips it byte-for-byte. The drift corrupts the
+// content-derived block identity (AD-036), so content-memory matches stop
+// hitting after a conversion.
+func TestWriter_PreservesLeadingNewline(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"double_quoted_escape", "a: \"\\nx\"\n", "\nx"},
+		{"literal_block_blank_first_line", "k: |\n\n  0\n", "\n0\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// Sanity: the reader parses the leading newline in the first place.
+			before := yamlBlockTexts(t, tc.input)
+			require.Len(t, before, 1, "input should read to exactly one block: %q", tc.input)
+			require.Equal(t, tc.want, before[0], "reader lost leading newline on input %q", tc.input)
+
+			// read → rebuild-write → read must preserve the leading newline.
+			rebuilt := snippetRoundtripWithoutSkeleton(t, tc.input)
+			after := yamlBlockTexts(t, rebuilt)
+			require.Len(t, after, 1, "rebuilt output should read to one block; got:\n%s", rebuilt)
+			assert.Equal(t, tc.want, after[0],
+				"leading newline dropped through rebuild path\ninput:   %q\nrebuilt: %q", tc.input, rebuilt)
+		})
+	}
+}
+
 // TestWriter_PreservesNestedKeyOrder verifies order inside a nested
 // mapping is also preserved.
 func TestWriter_PreservesNestedKeyOrder(t *testing.T) {

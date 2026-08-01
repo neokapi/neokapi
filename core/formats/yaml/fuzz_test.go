@@ -125,6 +125,9 @@ func FuzzRoundTripYaml(f *testing.F) {
 	yamlSeed(f, "simple.yaml")
 	f.Add([]byte("title: Hello\ndesc: World\n"))
 	f.Add([]byte("nested:\n  key: Nested value\n"))
+	// #1630: a block whose text begins with a newline must survive the
+	// rebuild path — the default style drops the leading blank line.
+	f.Add([]byte("a: \"\\nx\"\n"))
 	seedDamagedYAML(f)
 	seedDuplicateKeyYAML(f)
 
