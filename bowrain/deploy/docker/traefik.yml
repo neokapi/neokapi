@@ -6,6 +6,13 @@
 http:
   routers:
     # API requests → bowrain-server
+    #
+    # No security-headers middleware here on purpose. bowrain-server sets the
+    # whole set itself, and it varies the policy per response: the JSON API and
+    # the OAuth callback pages get a locked-down default, while a
+    # document-derived preview gets `sandbox`, which puts untrusted uploaded
+    # markup in an opaque origin. A middleware that overwrote the header would
+    # flatten that distinction. One authority per response.
     bowrain-api:
       rule: "PathPrefix(`/api`)"
       service: bowrain-api
@@ -15,6 +22,7 @@ http:
 
     # gRPC requests → bowrain-server
     # gRPC paths follow /<package>.<service>/<method> convention.
+    # Same reasoning as above, and gRPC responses are not browsed anyway.
     bowrain-grpc:
       rule: "PathPrefix(`/neokapi.`)"
       service: bowrain-api
@@ -29,6 +37,35 @@ http:
       entryPoints:
         - web
       priority: 10
+      middlewares:
+        - security-headers
+
+  middlewares:
+    # The edge asserts the headers that hold for the application document
+    # whatever is behind it. The bowrain-web image sets the same values itself
+    # (bowrain/docker/nginx/security-headers.conf), so the container is already
+    # protected when fronted by something other than this file; stating them
+    # here means a substituted or misconfigured backend cannot quietly drop
+    # them. The values match bowrain-server and the hosted CloudFront policy.
+    #
+    # Two headers are deliberately absent:
+    #
+    #   Content-Security-Policy — it names what a particular application loads,
+    #   and this router is a path prefix, not an application. Asserting one
+    #   policy here would be wrong for whichever SPA the route later lands on,
+    #   and it would override the image that does know. It stays in the image's
+    #   own csp.conf.
+    #
+    #   Strict-Transport-Security — this entrypoint is plain HTTP, and the
+    #   header is meaningless until an operator terminates TLS in front of it.
+    #   The image emits it keyed off X-Forwarded-Proto, so it appears exactly
+    #   when TLS is genuinely in play instead of being asserted unconditionally.
+    security-headers:
+      headers:
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        permissionsPolicy: "camera=(), microphone=(), geolocation=(), payment=()"
 
   services:
     bowrain-api:
