@@ -188,6 +188,58 @@ func TestReadMalformedTransUnitNamesTheUnit(t *testing.T) {
 	}
 }
 
+// TestReadNestedTransUnitNamesBothUnits guards issue #1588: a single corrupted
+// byte in a `</trans-unit>` end tag makes that unit's close vanish. Because the
+// decoder runs with Strict=false (an okapi-parity choice) and parseTransUnit
+// walks with a raw depth counter (EndElement always decrements, regardless of
+// element name), the NEXT <trans-unit> StartElement arrives while the previous
+// unit is still open. Before the fix that inner unit was silently absorbed — its
+// <source> overwrote the outer unit's — exactly one wrong block came out, every
+// following unit was swallowed, and no error was ever surfaced.
+//
+// A <trans-unit> nested inside another is structurally impossible in valid
+// XLIFF 1.2, so encountering one is an unambiguous signal that the outer unit's
+// end tag was lost. The parser must surface an error naming BOTH the outer unit
+// (whose end tag went missing) and the inner unit (being absorbed).
+func TestReadNestedTransUnitNamesBothUnits(t *testing.T) {
+	t.Parallel()
+
+	// A well-formed three-unit document. Corrupting the first unit's end tag
+	// makes the second <trans-unit> start arrive while the first is still open.
+	body := `      <trans-unit id="u-1"><source>One</source></trans-unit>
+      <trans-unit id="u-2"><source>Two</source></trans-unit>
+      <trans-unit id="u-3"><source>Three</source></trans-unit>`
+	doc := wrapXLIFF(body)
+	// Corrupt only the FIRST </trans-unit>: replace its `<` with `>`, so the
+	// close tag becomes literal text and the u-1 unit never closes.
+	corrupted := strings.Replace(doc, "</trans-unit>", ">/trans-unit>", 1)
+	require.NotEqual(t, doc, corrupted, "the corruption must have applied")
+
+	ctx := t.Context()
+	reader := xliff.NewReader()
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(corrupted, model.LocaleEnglish)))
+	defer reader.Close()
+
+	var errText string
+	var blocks int
+	require.NotPanics(t, func() {
+		for result := range reader.Read(ctx) {
+			if result.Error != nil && errText == "" {
+				errText = result.Error.Error()
+			}
+			if result.Part != nil && result.Part.Type == model.PartBlock {
+				blocks++
+			}
+		}
+	})
+
+	require.NotEmpty(t, errText, "a nested trans-unit (lost outer end tag) must surface an error")
+	assert.Contains(t, errText, "xliff:", "errors carry the format prefix")
+	assert.Contains(t, errText, "u-1", "the error must name the outer unit whose end tag was lost")
+	assert.Contains(t, errText, "u-2", "the error must name the inner unit being absorbed")
+	assert.Zero(t, blocks, "no wrong block should be emitted once the structure is broken")
+}
+
 // TestReadLenientInputsDoNotPanic feeds inputs the reader deliberately
 // tolerates or that simply contain no XLIFF content. The reader sanitizes C0
 // control characters and falls back to Windows-1252 for undeclared non-UTF-8
