@@ -59,5 +59,9 @@ RUN corepack pnpm --filter bowrain-ctrl run build
 FROM nginx:1-alpine
 RUN rm /etc/nginx/conf.d/default.conf
 COPY bowrain/docker/bowrain-ctrl/nginx.conf /etc/nginx/conf.d/default.conf
+# Security response headers, included from every location in nginx.conf. Outside
+# conf.d on purpose: these are bare add_header directives, not a server block.
+COPY bowrain/docker/nginx/security-headers.conf /etc/nginx/security-headers.conf
+COPY bowrain/docker/bowrain-ctrl/csp.conf /etc/nginx/csp.conf
 COPY --from=build /src/bowrain/apps/ctrl/dist /usr/share/nginx/html
 EXPOSE 80
