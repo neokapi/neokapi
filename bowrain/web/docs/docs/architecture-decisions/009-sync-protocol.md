@@ -643,5 +643,3 @@ directory; deployed environments pass both the same bucket configuration.
 - [AD-framework-002: Content Model](https://neokapi.github.io/contribute/architecture/002-content-model)
 - [AD-framework-022: Brand Voice](https://neokapi.github.io/contribute/architecture/022-brand-voice)
 - [AD-framework-034: Content-Model Wire Schema](https://neokapi.github.io/contribute/architecture/034-content-model-wire-schema)
-</content>
-</invoke>
