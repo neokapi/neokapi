@@ -69,6 +69,18 @@ kapi credentials add my-anthropic --provider anthropic --api-key …   # once, i
 kapi translate input.html --target-lang fr --credential my-anthropic
 ```
 
+**A self-hosted or private-cloud endpoint travels with the key.** `--base-url`
+is part of the saved credential, not of the recipe — a committed file must not
+be able to decide where your key is sent. That also means a custom endpoint
+takes effect only on the `--credential` route: an inline `--api-key`, or a key
+picked up from the environment, resolves before an endpoint is attached and
+calls the provider's public host. Save both together and name the credential:
+
+```bash
+kapi credentials add internal-mt --provider openai --api-key … --base-url https://mt.internal.example/v1
+kapi translate input.html --target-lang fr --credential internal-mt
+```
+
 **Make it the default** — globally, or per project in the recipe (safe to commit — it carries no key). An explicit `--provider` flag, inline step config, or recipe default overrides the stored value:
 
 ```bash

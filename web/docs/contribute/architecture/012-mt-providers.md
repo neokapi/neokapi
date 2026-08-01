@@ -133,12 +133,14 @@ integration with the flow definition system.
 
 ### Credential resolution
 
-MT providers resolve credentials through the same mechanism as AI
-providers:
+MT providers resolve credentials through the same mechanism as AI providers.
+Highest precedence first, as `host/credentials.ResolveCredentials` applies it:
 
-1. CLI credential store — OS keychain with provider configs as JSON.
-2. Environment variables (e.g. `DEEPL_API_KEY`, `GOOGLE_API_KEY`).
-3. Explicit `--api-key` flag.
+1. An inline `apiKey` — the `--api-key` flag, or a step's own config.
+2. A saved credential named with `--credential`.
+3. The provider's environment variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+   `GEMINI_API_KEY` then `GOOGLE_API_KEY`, `AZURE_OPENAI_API_KEY`).
+4. Auto-detect from the store, when exactly one credential matches.
 
 Keys never appear in flow definitions or project files.
 
@@ -147,6 +149,19 @@ as the secret sent to it, so it is stored alongside the credential (`kapi
 credentials add --base-url`) and injected during credential resolution. A flow
 step's `config:` cannot set it: `host/credentials.ResolveCredentials` clears the
 key on the way in and re-sets it only from a resolved credential.
+
+**So a custom endpoint arrives by exactly one route — step 2.** The two other
+ways to supply a key resolve before an endpoint could be injected: an inline
+key returns immediately, and the environment fallback builds a provider config
+that has no endpoint to give. A self-hosted endpoint combined with `--api-key`,
+or with `OPENAI_API_KEY` set, therefore calls the *public* host, saved
+credential or not. This is the intended shape rather than a gap — the endpoint
+and the secret are one decision, and only a saved credential holds both — but
+it is the shape a user is most likely to be surprised by, so
+`kapi credentials add --base-url` names it and
+[Choose a translation provider](/kapi/recipes/choose-a-translation-provider)
+states it where a user is choosing. Pinned by
+`TestResolveCredentials_OnlyAStoredCredentialCarriesAnEndpoint`.
 
 This is enforced in the resolver rather than by the tool's struct tags, because
 the two kinds of tag mean different things. `schema:"-"` keeps a field off the

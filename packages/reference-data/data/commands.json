@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T13:02:37Z",
+  "generatedAt": "2026-07-29T19:11:14Z",
   "commands": [
     {
       "id": "add",
@@ -1244,7 +1244,7 @@
         },
         {
           "name": "base-url",
-          "usage": "custom API base URL (optional)",
+          "usage": "custom API base URL, e.g. a self-hosted endpoint (applies when used with --credential, not with an inline --api-key)",
           "type": "string"
         },
         {

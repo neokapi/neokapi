@@ -198,7 +198,10 @@ may declare any subset.
   granted. Everything else is inherited — `PATH`, `HOME`, `TMPDIR`,
   `XDG_CACHE_HOME`, and any variables the plugin's own `models` declarations
   resolve to. A plugin that genuinely needs to reach a model provider should
-  say so in its manifest rather than read the host's key by inheritance.
+  say so in its manifest rather than read the host's key by inheritance. The
+  conformance harness (`core/plugin/conformance`) scrubs the same variables, so
+  a plugin that reads one fails under `kapi plugin conform` the way it fails
+  under kapi; the list has one home, `core/credentials/providerenv`.
 - The **exit code is propagated** to kapi's caller.
 - The process exits after each command; no state carries over.
 - A command name the manifest does not declare must exit non-zero.

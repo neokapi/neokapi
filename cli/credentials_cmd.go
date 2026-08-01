@@ -117,7 +117,11 @@ If only one credential is saved, tools will auto-detect it without --credential.
 	cmd.Flags().String("provider", "", "AI provider type (anthropic, openai, gemini, ollama)")
 	cmd.Flags().String("api-key", "", "API key for the provider (omit on a terminal to be prompted, unechoed)")
 	cmd.Flags().String("model", "", "default model name (optional)")
-	cmd.Flags().String("base-url", "", "custom API base URL (optional)")
+	// The usage string carries the rule because this is where a user meets it.
+	// A custom endpoint is part of the saved credential and reaches a provider
+	// only via --credential: an inline --api-key, or a key from the
+	// environment, resolves before an endpoint is attached (AD-012).
+	cmd.Flags().String("base-url", "", "custom API base URL, e.g. a self-hosted endpoint (applies when used with --credential, not with an inline --api-key)")
 	_ = cmd.MarkFlagRequired("provider")
 
 	return cmd
