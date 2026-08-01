@@ -62,6 +62,23 @@ Frontend work runs off a single root pnpm workspace (`pnpm-workspace.yaml`) —
 `vp install` at the repo root, never per-directory installs. Module isolation is
 checked with `GOWORK=off` builds per module plus `make audit-modules`.
 
+**`go` does not union repeated `-tags` — the last occurrence wins.** So
+`$(GOTEST) -tags parity` silently drops the `fts5` that `$(GOTAGS)` baked in,
+and `go build -tags fts5 -tags server` builds without FTS5. Spell every tag in
+one comma-separated flag (`-tags "fts5,parity"`), and reach for `$(GO)` rather
+than `$(GOTEST)`/`$(GOBUILD)` when a target needs its own tag set, so no macro
+can re-introduce the shadowing.
+
+Nothing fails when this goes wrong: `fts5` is a runtime SQL capability, not a
+compile gate, so the build succeeds and only a query that reaches FTS5 notices —
+`no such function: fts5`, arbitrarily far from the flag. It cost a headless
+binary that died on its first memory or terms query, and a parity suite running
+in a configuration no other target used, on the same day. Check with:
+
+```bash
+go list -tags "<your tags>" -f '{{.CgoCFLAGS}}' github.com/mattn/go-sqlite3 | grep FTS5
+```
+
 ## Dogfooding kapi: the in-repo isolation contract
 
 This repo dogfoods kapi. A `kapi.yaml` recipe at the repo root is driven by the
