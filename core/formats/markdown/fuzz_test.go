@@ -166,10 +166,11 @@ func tripMarkdown(ctx context.Context, data []byte) (out []byte, keys []string, 
 // separately; that is where byte fidelity is asserted.
 //
 // One known-open failure remains, and it is a REAL content drift, not the
-// cosmetic byte churn this contract now ignores: some backtick/code-span inputs
-// ("```0`0``") take two passes to converge, so the block's content key is
-// unstable across the first rebuild (#1657). It is noted so it is not mistaken
-// for a regression; no failing input is committed to testdata/fuzz.
+// cosmetic byte churn this contract now ignores: some backtick / code-span
+// inputs take two passes to converge, so the block's content key is unstable
+// across the first rebuild (see #1657 for the exact reproducer). It is noted so
+// it is not mistaken for a regression; no failing input is committed to
+// testdata/fuzz.
 func FuzzRoundTripMarkdown(f *testing.F) {
 	markdownSeed(f, "simple.md")
 	f.Add([]byte("# Hello\n\nA paragraph.\n"))
