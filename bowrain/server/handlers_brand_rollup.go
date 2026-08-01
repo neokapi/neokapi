@@ -11,7 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/core/brandscope"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	corebrand "github.com/neokapi/neokapi/core/brand"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // Workspace brand-compliance rollup — the all-surfaces board that answers "how
@@ -30,16 +30,16 @@ const (
 // ladder (#1268), so a project inherits the workspace default when it carries no
 // binding of its own.
 type BrandRollupEntry struct {
-	ProjectID    string                     `json:"project_id"`
-	ProjectName  string                     `json:"project_name"`
-	ProfileID    string                     `json:"profile_id,omitempty"`
-	ProfileName  string                     `json:"profile_name,omitempty"`
-	Overall      *int                       `json:"overall"`
-	Dimensions   []corebrand.DimensionScore `json:"dimensions,omitempty"`
-	Trend        string                     `json:"trend"` // "up" | "down" | "flat" | "" (no history)
-	Drift        *corebrand.DriftResult     `json:"drift,omitempty"`
-	ScoredBlocks int                        `json:"scored_blocks"`
-	LastScoredAt *time.Time                 `json:"last_scored_at"`
+	ProjectID    string                       `json:"project_id"`
+	ProjectName  string                       `json:"project_name"`
+	ProfileID    string                       `json:"profile_id,omitempty"`
+	ProfileName  string                       `json:"profile_name,omitempty"`
+	Overall      *int                         `json:"overall"`
+	Dimensions   []coreprofile.DimensionScore `json:"dimensions,omitempty"`
+	Trend        string                       `json:"trend"` // "up" | "down" | "flat" | "" (no history)
+	Drift        *coreprofile.DriftResult     `json:"drift,omitempty"`
+	ScoredBlocks int                          `json:"scored_blocks"`
+	LastScoredAt *time.Time                   `json:"last_scored_at"`
 }
 
 // BrandRollupResponse is the workspace-level brand-compliance rollup: one entry
@@ -75,7 +75,7 @@ func (s *Server) HandleGetBrandVoiceRollup(c echo.Context) error {
 
 	allProjects, err := s.Services.Project.ListProjects(ctx)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Keep only the workspace's own live projects, ordered by name so the page is
@@ -130,7 +130,7 @@ func (s *Server) brandRollupEntry(
 	wsID string,
 	cs brandscope.ScopeStore,
 	wd brandscope.WorkspaceDefault,
-	cfg corebrand.DriftConfig,
+	cfg coreprofile.DriftConfig,
 	days int,
 ) BrandRollupEntry {
 	entry := BrandRollupEntry{ProjectID: p.ID, ProjectName: p.Name}
@@ -158,7 +158,7 @@ func (s *Server) brandRollupEntry(
 
 	// Trend direction + drift from the daily score trend.
 	if trends, err := s.BrandStore.GetScoreTrends(ctx, p.ID, days); err == nil && len(trends) > 0 {
-		drift := corebrand.AnalyzeDrift(trends, cfg)
+		drift := coreprofile.AnalyzeDrift(trends, cfg)
 		entry.Drift = &drift
 		entry.Trend = rollupTrend(drift)
 	}
@@ -198,7 +198,7 @@ func paginateProjects(projects []*store.Project, offset, limit int) []*store.Pro
 // rollupAverageScore is the rounded mean of the stored block scores — the
 // project's headline compliance number, matching the web dashboard's
 // averageScore().
-func rollupAverageScore(scores []*corebrand.StoredScore) int {
+func rollupAverageScore(scores []*coreprofile.StoredScore) int {
 	if len(scores) == 0 {
 		return 0
 	}
@@ -211,22 +211,22 @@ func rollupAverageScore(scores []*corebrand.StoredScore) int {
 
 // rollupDimensionOrder is the canonical dimension order so a rollup row reads
 // the same as every other brand breakdown.
-var rollupDimensionOrder = []corebrand.Dimension{
-	corebrand.DimensionTone,
-	corebrand.DimensionStyle,
-	corebrand.DimensionVocabulary,
-	corebrand.DimensionClarity,
-	corebrand.DimensionBrand,
+var rollupDimensionOrder = []coreprofile.Dimension{
+	coreprofile.DimensionTone,
+	coreprofile.DimensionStyle,
+	coreprofile.DimensionVocabulary,
+	coreprofile.DimensionClarity,
+	coreprofile.DimensionBrand,
 }
 
 // rollupAggregateDimensions averages each dimension's score and penalty across
 // the stored scores, sums issue counts, and returns them in canonical order —
 // mirroring the web dashboard's aggregateDimensions().
-func rollupAggregateDimensions(scores []*corebrand.StoredScore) []corebrand.DimensionScore {
+func rollupAggregateDimensions(scores []*coreprofile.StoredScore) []coreprofile.DimensionScore {
 	type acc struct {
 		score, penalty, issues, n int
 	}
-	byDim := make(map[corebrand.Dimension]*acc)
+	byDim := make(map[coreprofile.Dimension]*acc)
 	for _, sc := range scores {
 		for _, dim := range sc.Dimensions {
 			a := byDim[dim.Dimension]
@@ -243,9 +243,9 @@ func rollupAggregateDimensions(scores []*corebrand.StoredScore) []corebrand.Dime
 	if len(byDim) == 0 {
 		return nil
 	}
-	out := make([]corebrand.DimensionScore, 0, len(byDim))
+	out := make([]coreprofile.DimensionScore, 0, len(byDim))
 	for dim, a := range byDim {
-		out = append(out, corebrand.DimensionScore{
+		out = append(out, coreprofile.DimensionScore{
 			Dimension: dim,
 			Score:     int(math.Round(float64(a.score) / float64(a.n))),
 			Penalty:   int(math.Round(float64(a.penalty) / float64(a.n))),
@@ -258,7 +258,7 @@ func rollupAggregateDimensions(scores []*corebrand.StoredScore) []corebrand.Dime
 	return out
 }
 
-func dimRank(d corebrand.Dimension) int {
+func dimRank(d coreprofile.Dimension) int {
 	for i, known := range rollupDimensionOrder {
 		if known == d {
 			return i
@@ -268,7 +268,7 @@ func dimRank(d corebrand.Dimension) int {
 }
 
 // latestCheckedAt returns the most recent CheckedAt across the stored scores.
-func latestCheckedAt(scores []*corebrand.StoredScore) *time.Time {
+func latestCheckedAt(scores []*coreprofile.StoredScore) *time.Time {
 	var latest time.Time
 	for _, sc := range scores {
 		if sc.CheckedAt.After(latest) {
@@ -286,7 +286,7 @@ func latestCheckedAt(scores []*corebrand.StoredScore) *time.Time {
 // falling a point or more as "down", otherwise "flat". No recent activity is
 // "flat" (nothing moved), and no history at all is "" (unknown), handled by the
 // caller.
-func rollupTrend(d corebrand.DriftResult) string {
+func rollupTrend(d coreprofile.DriftResult) string {
 	if d.RecentCount == 0 {
 		return "flat"
 	}

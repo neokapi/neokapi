@@ -10,8 +10,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/id"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,32 +20,32 @@ import (
 // Pure aggregation helpers (no store; always run)
 // ---------------------------------------------------------------------------
 
-func score(s int, dims ...corebrand.DimensionScore) *corebrand.StoredScore {
-	return &corebrand.StoredScore{Score: s, Dimensions: dims}
+func score(s int, dims ...coreprofile.DimensionScore) *coreprofile.StoredScore {
+	return &coreprofile.StoredScore{Score: s, Dimensions: dims}
 }
 
 func TestRollupAverageScore(t *testing.T) {
 	assert.Equal(t, 0, rollupAverageScore(nil))
-	assert.Equal(t, 85, rollupAverageScore([]*corebrand.StoredScore{score(80), score(90)}))
+	assert.Equal(t, 85, rollupAverageScore([]*coreprofile.StoredScore{score(80), score(90)}))
 	// 81 + 82 = 163 / 2 = 81.5 → rounds to 82.
-	assert.Equal(t, 82, rollupAverageScore([]*corebrand.StoredScore{score(81), score(82)}))
+	assert.Equal(t, 82, rollupAverageScore([]*coreprofile.StoredScore{score(81), score(82)}))
 }
 
 func TestRollupAggregateDimensions(t *testing.T) {
-	dims := rollupAggregateDimensions([]*corebrand.StoredScore{
+	dims := rollupAggregateDimensions([]*coreprofile.StoredScore{
 		score(0,
-			corebrand.DimensionScore{Dimension: corebrand.DimensionVocabulary, Score: 70, Penalty: 10, Issues: 2},
-			corebrand.DimensionScore{Dimension: corebrand.DimensionTone, Score: 90, Penalty: 0, Issues: 0},
+			coreprofile.DimensionScore{Dimension: coreprofile.DimensionVocabulary, Score: 70, Penalty: 10, Issues: 2},
+			coreprofile.DimensionScore{Dimension: coreprofile.DimensionTone, Score: 90, Penalty: 0, Issues: 0},
 		),
 		score(0,
-			corebrand.DimensionScore{Dimension: corebrand.DimensionVocabulary, Score: 90, Penalty: 4, Issues: 1},
-			corebrand.DimensionScore{Dimension: corebrand.DimensionTone, Score: 80, Penalty: 2, Issues: 1},
+			coreprofile.DimensionScore{Dimension: coreprofile.DimensionVocabulary, Score: 90, Penalty: 4, Issues: 1},
+			coreprofile.DimensionScore{Dimension: coreprofile.DimensionTone, Score: 80, Penalty: 2, Issues: 1},
 		),
 	})
 	// Canonical order: tone before vocabulary.
 	require.Len(t, dims, 2)
-	assert.Equal(t, corebrand.DimensionTone, dims[0].Dimension)
-	assert.Equal(t, corebrand.DimensionVocabulary, dims[1].Dimension)
+	assert.Equal(t, coreprofile.DimensionTone, dims[0].Dimension)
+	assert.Equal(t, coreprofile.DimensionVocabulary, dims[1].Dimension)
 	// vocabulary: mean(70,90)=80, issues 2+1=3.
 	assert.Equal(t, 80, dims[1].Score)
 	assert.Equal(t, 3, dims[1].Issues)
@@ -53,10 +53,10 @@ func TestRollupAggregateDimensions(t *testing.T) {
 }
 
 func TestRollupTrend(t *testing.T) {
-	assert.Equal(t, "flat", rollupTrend(corebrand.DriftResult{RecentCount: 0, RecentAvg: 0, BaselineAvg: 90}))
-	assert.Equal(t, "up", rollupTrend(corebrand.DriftResult{RecentCount: 5, RecentAvg: 85, BaselineAvg: 80}))
-	assert.Equal(t, "down", rollupTrend(corebrand.DriftResult{RecentCount: 5, RecentAvg: 74, BaselineAvg: 82}))
-	assert.Equal(t, "flat", rollupTrend(corebrand.DriftResult{RecentCount: 5, RecentAvg: 80.4, BaselineAvg: 80}))
+	assert.Equal(t, "flat", rollupTrend(coreprofile.DriftResult{RecentCount: 0, RecentAvg: 0, BaselineAvg: 90}))
+	assert.Equal(t, "up", rollupTrend(coreprofile.DriftResult{RecentCount: 5, RecentAvg: 85, BaselineAvg: 80}))
+	assert.Equal(t, "down", rollupTrend(coreprofile.DriftResult{RecentCount: 5, RecentAvg: 74, BaselineAvg: 82}))
+	assert.Equal(t, "flat", rollupTrend(coreprofile.DriftResult{RecentCount: 5, RecentAvg: 80.4, BaselineAvg: 80}))
 }
 
 func TestRollupPaginateProjects(t *testing.T) {
@@ -92,7 +92,7 @@ func TestLatestCheckedAt(t *testing.T) {
 	assert.Nil(t, latestCheckedAt(nil))
 	t1 := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	t2 := time.Date(2026, 6, 9, 0, 0, 0, 0, time.UTC)
-	got := latestCheckedAt([]*corebrand.StoredScore{{CheckedAt: t1}, {CheckedAt: t2}, {CheckedAt: t1}})
+	got := latestCheckedAt([]*coreprofile.StoredScore{{CheckedAt: t1}, {CheckedAt: t2}, {CheckedAt: t1}})
 	require.NotNil(t, got)
 	assert.True(t, got.Equal(t2))
 }
@@ -119,8 +119,8 @@ func TestBrandRollup_AggregatesAndIsolates(t *testing.T) {
 	mkProject("Bravo", wsA)              // never scored — asserted via the response
 	charlie := mkProject("Charlie", wsB) // other workspace — must not leak
 
-	storeScore := func(projectID string, s int, at time.Time, dims ...corebrand.DimensionScore) {
-		require.NoError(t, srv.BrandStore.StoreScore(ctx, &corebrand.StoredScore{
+	storeScore := func(projectID string, s int, at time.Time, dims ...coreprofile.DimensionScore) {
+		require.NoError(t, srv.BrandStore.StoreScore(ctx, &coreprofile.StoredScore{
 			ProjectID:  projectID,
 			BlockID:    id.New(),
 			ProfileID:  "vp-1",
@@ -132,12 +132,12 @@ func TestBrandRollup_AggregatesAndIsolates(t *testing.T) {
 	}
 	now := time.Now().UTC()
 	storeScore(alpha.ID, 80, now,
-		corebrand.DimensionScore{Dimension: corebrand.DimensionVocabulary, Score: 70, Penalty: 30, Issues: 2},
-		corebrand.DimensionScore{Dimension: corebrand.DimensionTone, Score: 90, Penalty: 10, Issues: 0},
+		coreprofile.DimensionScore{Dimension: coreprofile.DimensionVocabulary, Score: 70, Penalty: 30, Issues: 2},
+		coreprofile.DimensionScore{Dimension: coreprofile.DimensionTone, Score: 90, Penalty: 10, Issues: 0},
 	)
 	storeScore(alpha.ID, 90, now,
-		corebrand.DimensionScore{Dimension: corebrand.DimensionVocabulary, Score: 90, Penalty: 10, Issues: 1},
-		corebrand.DimensionScore{Dimension: corebrand.DimensionTone, Score: 80, Penalty: 20, Issues: 1},
+		coreprofile.DimensionScore{Dimension: coreprofile.DimensionVocabulary, Score: 90, Penalty: 10, Issues: 1},
+		coreprofile.DimensionScore{Dimension: coreprofile.DimensionTone, Score: 80, Penalty: 20, Issues: 1},
 	)
 	storeScore(charlie.ID, 40, now) // wsB — should never appear in a wsA rollup
 
@@ -170,8 +170,8 @@ func TestBrandRollup_AggregatesAndIsolates(t *testing.T) {
 	assert.Equal(t, 2, al.ScoredBlocks)
 	require.NotNil(t, al.LastScoredAt)
 	require.Len(t, al.Dimensions, 2)
-	assert.Equal(t, corebrand.DimensionTone, al.Dimensions[0].Dimension)
-	assert.Equal(t, corebrand.DimensionVocabulary, al.Dimensions[1].Dimension)
+	assert.Equal(t, coreprofile.DimensionTone, al.Dimensions[0].Dimension)
+	assert.Equal(t, coreprofile.DimensionVocabulary, al.Dimensions[1].Dimension)
 	assert.Equal(t, 80, al.Dimensions[1].Score) // mean(70,90)
 	assert.Equal(t, 3, al.Dimensions[1].Issues) // 2+1
 	assert.Equal(t, "flat", al.Trend)           // single date → no baseline movement

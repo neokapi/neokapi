@@ -44,12 +44,26 @@ GO := go
 #
 # ICU requirement: The FTS5 ICU tokenizer requires ICU development libraries.
 #   Linux:  sudo apt-get install libicu-dev pkg-config
-#   macOS:  brew install icu4c && export PKG_CONFIG_PATH="/opt/homebrew/opt/icu4c@78/lib/pkgconfig"
+#   macOS:  brew bundle   (see Brewfile; this Makefile finds the keg itself)
+# `make doctor` reports what is missing.
 GOTAGS  := -tags "fts5"
 
-# macOS Homebrew ICU: expose to pkg-config if not already on the path.
+# macOS Homebrew ICU: expose the keg to pkg-config if it is not already there.
+#
+# Resolved, never hardcoded. icu4c is keg-only and version-pinned (icu4c@76,
+# @78, …), so its path moves on every ICU major bump — a pinned icu4c@NN keeps
+# working on the machine that wrote it and breaks every cgo build on the next
+# one, with a bare "[build failed]" and no mention of ICU. Prefer Homebrew's
+# unversioned alias, which tracks the current keg; fall back to the newest
+# versioned keg installed. Both Apple Silicon and Intel prefixes are searched.
 ifeq ($(shell uname -s),Darwin)
-export PKG_CONFIG_PATH := /opt/homebrew/opt/icu4c@78/lib/pkgconfig:$(PKG_CONFIG_PATH)
+ICU_PKGCONFIG := $(firstword $(wildcard /opt/homebrew/opt/icu4c/lib/pkgconfig /usr/local/opt/icu4c/lib/pkgconfig))
+ifeq ($(ICU_PKGCONFIG),)
+ICU_PKGCONFIG := $(shell ls -d /opt/homebrew/opt/icu4c@*/lib/pkgconfig /usr/local/opt/icu4c@*/lib/pkgconfig 2>/dev/null | sort -V | tail -1)
+endif
+ifneq ($(ICU_PKGCONFIG),)
+export PKG_CONFIG_PATH := $(ICU_PKGCONFIG):$(PKG_CONFIG_PATH)
+endif
 endif
 GOTEST  := $(GO) test $(GOTAGS)
 GOBUILD := $(GO) build $(GOTAGS)
@@ -204,7 +218,7 @@ test-verbose: ## Run tests with verbose output
 	@$(MAKE) --no-print-directory _fw-test-verbose
 	@$(MAKE) -C bowrain test-verbose
 
-test-integration: ## Run integration tests
+test-integration: ## Run the //go:build integration lane (Postgres-backed cross-store suites; needs Docker or BOWRAIN_TEST_POSTGRES_URL)
 	@$(MAKE) --no-print-directory _fw-test-integration
 	@$(MAKE) -C bowrain test-integration
 
@@ -230,18 +244,27 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-package-licenses check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-vocabulary check-reference-provenance check-package-licenses check-tracked-binaries check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
 check-abs-paths: ## Guard: no absolute home path (/Users/…, /home/…, C:\Users\…) in tracked files
 	@./scripts/check-abs-paths.sh
 
+check-vocabulary: ## Guard: no retired framing (brand memory, brand-first, …) in user-facing prose
+	@./scripts/check-vocabulary.sh
+
+check-reference-provenance: ## Guard: the committed reference dataset comes only from this repo (no okapi-bridge)
+	@./scripts/check-reference-provenance.sh
+
 check-lockfile-idempotent: ## Guard: re-resolving pnpm-lock.yaml with the pinned pnpm is a no-op
 	@./scripts/check-lockfile-idempotent.sh
 
 check-package-licenses: ## Guard: every non-private package.json declares a license and ships its LICENSE
 	@./scripts/check-package-licenses.sh
+
+check-tracked-binaries: ## Guard: no compiled executable (ELF/Mach-O/PE) is tracked in git
+	@./scripts/check-tracked-binaries.sh
 
 check-gofmt: ## Guard: every tracked .go file is gofmt-clean (gofmt -l -s); `make fmt` fixes
 	@./scripts/check-gofmt.sh
@@ -308,7 +331,7 @@ _fw-test-verbose:
 	cd kapi && $(GOTEST_BASE) ./... -count=1 -v
 
 _fw-test-integration:
-	$(GOTEST_BASE) ./... -count=1 -tags=integration -run Integration
+	@bash scripts/test-integration.sh $(_RACE) $(_SHUFFLE)
 
 # host/ carries the runtime and every service the CLI dispatches to, so it is
 # vetted and linted alongside the modules that import it — not left to the
@@ -473,6 +496,11 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	cd packages/i18n-react && vp run build
 	cd bowrain/packages/ui && vp check
 	cd bowrain/packages/ui && vp test
+	# packages/app was never covered here, so a broken viewFromPath sat on main
+	# from #1462 until #1533: the sidebar stopped highlighting on /terms and no
+	# job noticed. It holds the routing every surface depends on.
+	cd bowrain/packages/app && vp check
+	cd bowrain/packages/app && vp test
 	cd bowrain/apps/web && vp check
 	cd bowrain/apps/web && vp test
 	cd bowrain/apps/web && vp build
@@ -533,8 +561,15 @@ ci-build: ## Mirror the CI `build` job: build all three binaries (no fts5) + ass
 	@if cd bowrain && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then echo "bowrain should not depend on cli"; exit 1; fi
 	@if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|labstack/echo|keycloak'; then exit 1; fi
 
+# The plugins/* modules are outside go.work, so nothing in the workspace build
+# would ever notice them drifting. They did: plugins/sat carried a stale
+# golang.org/x/text, which made `GOWORK=off go test ./...` — i.e. the whole of
+# `make test-sat-plugin` — refuse to run with "updates to go.mod needed", and
+# plugins/vision and plugins/pdfium had incomplete go.sum/go.mod. Tidy them here
+# so the module that no job builds still cannot rot.
 ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fail on drift
-	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain/plugin/schema bowrain; do \
+	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain/plugin/schema bowrain \
+	            plugins/sat plugins/check plugins/vision plugins/asr plugins/av plugins/pdfium; do \
 	  echo "Checking $$dir..."; \
 	  (cd "$$dir" && go mod tidy); \
 	done
@@ -668,6 +703,12 @@ parity-sandbox: ## Build the parity sandbox (kapi + okapi-bridge plugin)
 TIKAL_LAUNCHER := $(PARITY_DIR)/tikal/tikal.sh
 TIKAL_JAR_GLOB := $(OKAPI_REPO)/applications/tikal/target/okapi-application-tikal-*.jar
 
+# The go invocation below spells both tags in one flag and calls $(GO), not
+# $(GOTEST): go does not union repeated -tags, the last occurrence wins, and
+# $(GOTEST) bakes in $(GOTAGS). `$(GOTEST) -tags parity` therefore dropped fts5
+# and ran the parity suite — the adjudicator for every round-trip change — in a
+# build configuration no other target uses. Nothing failed, because fts5 is a
+# runtime SQL capability rather than a compile gate.
 parity-test: parity-sandbox ## Run the full parity test suite (#448)
 	@TIKAL_ENV=""; \
 	if ls $(TIKAL_JAR_GLOB) >/dev/null 2>&1; then \
@@ -683,7 +724,7 @@ parity-test: parity-sandbox ## Run the full parity test suite (#448)
 	    echo "[parity] tikal not built at $$OKAPI_REPO — third-corner comparison will skip"; \
 	fi; \
 	cd cli && env $$TIKAL_ENV KAPI_PARITY_SANDBOX=$(PARITY_DIR) KAPI_PARITY_REPORT=$(PARITY_REPORT) \
-	    $(GOTEST) -tags parity -count=1 -timeout 60m ./parity/...
+	    $(GO) test -tags "fts5,parity" -count=1 -timeout 60m ./parity/...
 	@echo "Parity report: $(PARITY_REPORT)"
 
 # Parity output stays inside the sandbox. It used to be published to
@@ -989,6 +1030,23 @@ test-vision-plugin: ## Run kapi-vision pure-Go tests (protocol + algorithms + mo
 test-sat-plugin: ## Run kapi-sat pure-Go tests (protocol + algorithm + cache)
 	cd plugins/sat && GOWORK=off $(GO) test ./...
 
+test-asr-plugin: ## Run kapi-asr pure-Go tests (protocol + whisper model plumbing)
+	cd plugins/asr && GOWORK=off $(GO) test ./...
+
+# The plugin modules that need nothing but a Go toolchain, aggregated so CI has
+# one target to call. Deliberately NOT here:
+#   • pdfium — links libpdfium; see test-pdfium-plugin, which needs the library
+#     on PKG_CONFIG_PATH and the loader path.
+#   • av — ships no test files (only cmd/kapi-av).
+# The -tags onnx suites for vision and sat need a real onnxruntime and stay in
+# the nightly vision-onnx job. Each module is its own go.mod outside go.work,
+# hence GOWORK=off in each recipe.
+test-plugins: ## Run every pure-Go plugin module's tests (sat, check, vision, asr)
+	@$(MAKE) --no-print-directory test-sat-plugin
+	@$(MAKE) --no-print-directory test-check-plugin
+	@$(MAKE) --no-print-directory test-vision-plugin
+	@$(MAKE) --no-print-directory test-asr-plugin
+
 # Package a signed-ready distribution tarball for the HOST platform: builds
 # kapi-sat -tags onnx, bundles the onnxruntime shared lib at lib/<name> beside
 # the binary (so an installed plugin needs no KAPI_SAT_ORT_LIB), and emits
@@ -1293,7 +1351,7 @@ kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-transl
 #
 # These targets ARE the dogfood workflow, so they deliberately run WITHOUT
 # $(KAPI_ISO_ENV): they bind to the repo-root project and its .kapi/ state.
-# Reviewed translations are committed as native .memory.json bundles under l10n/tm/; the
+# Reviewed translations are committed as native .memory.json bundles under context/memory/; the
 # project content memory and terms are rebuilt from those seeds (l10n-seed), then
 # each surface is produced by content-memory leverage, so output only ever
 # contains reviewed strings.
@@ -1305,11 +1363,11 @@ L10N_LANGS := nb
 # interchange tier — emit them on demand with l10n-review-export.
 l10n-seed: bin/kapi ## Rebuild .kapi/ terms + content memory from the committed l10n/ seeds
 	@mkdir -p .kapi/cache
-	@# The state filenames stay tm.db / termbase.db — that is what the Go code
+	@# The state filenames stay memory.db / terms.db — that is what the Go code
 	@# opens, and existing projects already have them.
-	@rm -f .kapi/termbase.db .kapi/tm.db
-	./bin/kapi terms import l10n/terms.json
-	@for f in l10n/tm/*.memory.json; do \
+	@rm -f .kapi/terms.db .kapi/memory.db
+	./bin/kapi terms import context/terms.json
+	@for f in context/memory/*.memory.json; do \
 		[ -e "$$f" ] || continue; \
 		./bin/kapi memory import "$$f"; \
 	done
@@ -1384,7 +1442,7 @@ l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → host/
 # so the yaml keyPathPatterns in kapi.yaml bind (only narration/caption/
 # title/subtitle are translatable — never ids, beats, commands, or timings).
 # Sidecars are generated only for the demos listed here — the ones with
-# reviewed nb narration in the content memory (l10n/tm/demo-narration-nb.memory.json); add a
+# reviewed nb narration in the content memory (context/memory/demo-narration-nb.memory.json); add a
 # demo dir once its narration has been translated.
 L10N_DEMO_DIRS := 05-ai-checks-guardrail 09-toolbox-find-replace \
 	kapi-bilingual-workflow kapi-desktop-config kapi-desktop-content \
@@ -1421,7 +1479,7 @@ l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs
 
 # ── Transactional emails (bowrain/emails → bowrain/mailer) ──────────────────
 # neokapi-i18n extraction over the React Email templates; qps via pseudo, nb via
-# Memory recycle from l10n/tm/emails-nb.memory.json; compiled catalogs are inlined into
+# Memory recycle from context/memory/emails-nb.memory.json; compiled catalogs are inlined into
 # per-locale template renders (bowrain/mailer/templates/<lang>/*.html) and the
 # subject catalogs (bowrain/mailer/subjects/<lang>.json) — both committed and
 # embedded into the server binary, so they are drift-gated (emails-l10n-verify).
@@ -1548,12 +1606,19 @@ cover: ## Run tests with coverage (merged report)
 
 # ── E2E Tests ────────────────────────────────────────────────────────────────
 
+# The kapi suite is tagged `e2e` and lives in ./kapi/e2e — both are load-bearing.
+# These targets named ./e2e/... (a path that has not existed since the module
+# reorg) and dropped the tag, so they selected nothing; `test-e2e` additionally
+# swallowed the error, which is why `make test-e2e` "passed" while the nightly
+# was red. Keep the tag and the path together.
 test-e2e: ## Run all end-to-end tests
-	$(GOTEST) ./e2e/... -count=1 -v 2>/dev/null || true
+	$(MAKE) test-e2e-kapi
 	$(MAKE) -C bowrain test-e2e-bowrain
 
+# Not $(GOTEST): that bakes in $(GOTAGS), and a second -tags would silently
+# shadow it rather than add to it.
 test-e2e-kapi: ## Run kapi e2e tests
-	$(GOTEST) ./e2e/... -count=1 -v
+	$(GO) test -tags "fts5,e2e" ./kapi/e2e/... -count=1 -v
 
 test-e2e-bowrain: ; $(MAKE) -C bowrain $@
 test-e2e-cloud: ; $(MAKE) -C bowrain $@ ## Run cloud e2e tests against a live server
@@ -1929,16 +1994,28 @@ harness-videos-staged: ## Full fresh pass: stack up → seed → record, then na
 
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
-# okapi-bridge plugin dir feeding the reference dataset. Override with
-# BRIDGE_PLUGIN=/path. Falls back to built-in-only when the dir is absent
-# (the generator warns rather than fails).
+# okapi-bridge plugin dir feeding the reference dataset.
+#
+# Bridge inclusion is OPT-IN (WITH_BRIDGE=1), not auto-detected, because the
+# generated dataset is COMMITTED. Auto-detection meant the output depended on
+# whether the developer happened to have a sibling okapi-bridge checkout built:
+# with one, `make generate-reference-docs` wrote ~93 formats and ~156 tools
+# instead of the built-in ~38/34, and `make generate-reference-pages` turned
+# that into ~180 extra committed MDX pages — enough to run the docs site's
+# Docusaurus build out of heap on CI, which is exactly how this was found.
+#
+# The committed dataset must be reproducible from this repo alone. That is the
+# same principle as the kapi dogfood isolation contract above: in-repo tooling
+# does not silently consume whatever the developer has installed or checked out
+# next door.
 BRIDGE_PLUGIN ?= $(NEOKAPI_WORKSPACE_DIR)/okapi-bridge/dist/plugin
+BRIDGE_ARG     = $(if $(WITH_BRIDGE),$(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),$(error WITH_BRIDGE=1 but no bridge plugin at $(BRIDGE_PLUGIN))),)
 
-generate-reference-docs: ## Generate the unified format + tool reference dataset (built-in + okapi-bridge) → packages/reference-data/data
-	$(GO) run ./scripts/gen-refs $(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),)
+generate-reference-docs: ## Generate the reference dataset from THIS repo (built-in + in-repo plugins) → packages/reference-data/data. WITH_BRIDGE=1 adds okapi-bridge (not committed).
+	$(GO) run ./scripts/gen-refs $(BRIDGE_ARG)
 
-check-reference-docs: ## Drift gate: fail if the committed reference dataset is stale vs. source (gates the built-in subset; absent okapi-bridge is fine)
-	$(GO) run ./scripts/gen-refs -check $(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),)
+check-reference-docs: ## Drift gate: fail if the committed reference dataset is stale vs. source (gates the built-in subset)
+	$(GO) run ./scripts/gen-refs -check $(BRIDGE_ARG)
 
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
 generate-format-docs: generate-reference-docs
@@ -2095,6 +2172,9 @@ tools: ## Install development tools
 setup-remote: ## Install dependencies for cloud environments
 	CLAUDE_CODE_REMOTE=true bash scripts/setup-remote.sh
 
+doctor: ## Check this machine can build and test neokapi; report what is missing
+	@bash scripts/doctor.sh
+
 pre-push: ## Run checks relevant to your changes (mirrors CI)
 	@./scripts/pre-push-check.sh
 
@@ -2228,8 +2308,9 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         parity-sandbox parity-test parity-publish parity-clean regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-lockfile-idempotent check-package-licenses check-gofmt workspace-paths test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths check-lockfile-idempotent check-package-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
+        test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
@@ -2269,6 +2350,6 @@ help: ## Show this help
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
         emails-frontend-deps emails-extract emails-pseudo-translate l10n-emails emails-l10n-verify \
         landing-frontend-deps landing-extract landing-pseudo-translate l10n-landing landing-l10n-verify \
-        tools setup-remote gha-lint clean \
+        tools setup-remote doctor gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \
         _fw-vet _fw-lint _fw-proto _fw-deps _fw-deps-update

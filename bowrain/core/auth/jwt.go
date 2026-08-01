@@ -31,6 +31,13 @@ const (
 	// accepted on a user route and a user session token can never be accepted on
 	// an admin route — the audience check enforces the admin/user split.
 	TokenAudienceAdmin = "bowrain-admin"
+	// TokenAudienceSetupState scopes the state carried through a third-party
+	// setup redirect (the GitHub App install flow). Its own audience keeps the
+	// two directions closed: a session token can never be presented as setup
+	// state, and setup state — which travels through another party's URL and is
+	// therefore far more exposed than a session — can never be replayed as a
+	// session token.
+	TokenAudienceSetupState = "bowrain-setup-state"
 )
 
 // ErrEmptySecret is returned when a JWT operation is attempted with an empty
@@ -110,6 +117,38 @@ func ValidateToken(tokenString, secret string) (*Claims, error) {
 // token fails ValidateToken, keeping the two identities strictly separated.
 func ValidateAdminToken(tokenString, secret string) (*Claims, error) {
 	return validateToken(tokenString, secret, TokenAudienceAdmin)
+}
+
+// GenerateSetupState mints the signed state a workspace carries through a
+// third-party setup redirect (audience bowrain-setup-state). The workspace id
+// is the subject: the redirect comes back through a URL the other party
+// controls, so the workspace that started the flow has to be carried in
+// something the server signed rather than read off the request.
+//
+// It is deliberately short-lived — long enough for a person to work through an
+// install screen, nowhere near a session — and it carries no identity, only the
+// workspace. Authorization is still resolved from the caller's own session when
+// the state is redeemed.
+func GenerateSetupState(workspaceID, secret string, expiry time.Duration) (string, error) {
+	if workspaceID == "" {
+		return "", errors.New("jwt: setup state requires a workspace")
+	}
+	return generateToken(workspaceID, "", "", secret, TokenAudienceSetupState, expiry)
+}
+
+// ValidateSetupState verifies setup state and returns the workspace it was
+// minted for. A session token (either audience), an expired state, or one
+// signed with a different key all fail — so the only way to hold valid state
+// for a workspace is to have been in that workspace when the flow started.
+func ValidateSetupState(tokenString, secret string) (string, error) {
+	claims, err := validateToken(tokenString, secret, TokenAudienceSetupState)
+	if err != nil {
+		return "", err
+	}
+	if claims.Subject == "" {
+		return "", errors.New("setup state names no workspace")
+	}
+	return claims.Subject, nil
 }
 
 // GenerateRefreshToken returns a cryptographically random opaque token string.

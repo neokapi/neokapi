@@ -32,7 +32,7 @@ func runSingleTMXImport(t *testing.T) string {
 	tmxPath := filepath.Join(dir, "corpus.tmx")
 	require.NoError(t, os.WriteFile(tmxPath, []byte(singleTMX), 0o644))
 
-	dbPath := filepath.Join(dir, "tm.db")
+	dbPath := filepath.Join(dir, "memory.db")
 
 	a := &App{Quiet: true}
 	cmd := newMemoryImportCmd(a)

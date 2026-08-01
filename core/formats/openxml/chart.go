@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -179,7 +180,7 @@ func (p *dmlParser) parseChartOrDiagramPart(data []byte, partPath string, emitBl
 			p.skelWriteEndElement(t)
 
 		case xml.CharData:
-			p.skelText(xmlEscape(string(t)))
+			p.skelText(xmlesc.Text(string(t)))
 
 		case xml.ProcInst:
 			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")

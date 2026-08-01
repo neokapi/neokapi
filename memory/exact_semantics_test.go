@@ -18,7 +18,7 @@ import (
 
 func newExactMemory(t *testing.T) *SQLiteStore {
 	t.Helper()
-	tm, err := NewSQLiteStore(filepath.Join(t.TempDir(), "tm.db"))
+	tm, err := NewSQLiteStore(filepath.Join(t.TempDir(), "memory.db"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = tm.Close() })
 	return tm

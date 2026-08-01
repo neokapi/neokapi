@@ -48,28 +48,36 @@ narration:
   - id: title
     kind: title
     text: >
-      Hva om du kunne kjøre klassiske kommandolinjeverktøy — som cat og grep, eller til og med sed — på både tekst og innholdet i binære formater, som Word- og Excel-dokumenter? Nå kan du det.
+      What if you could run classic CLI tools — like cat and grep, or even sed —
+      across both text and the content inside binary formats, like Word and Excel
+      documents? Well, now you can.
   - id: cat
     kind: terminal
     text: >
-      Her er salgsmateriellet til et team: en pitch i Markdown, et forslag i Word og en prisliste i Excel. kcat leser teksten rett ut av Word-dokumentet og regnearket, som rene linjer.
-    caption: "kcat leser teksten inni .docx- og .xlsx-filene"
+      Here's a sales team's collateral: a Markdown pitch, a Word proposal, and an
+      Excel price list. kcat reads the text straight out of the Word document and
+      the spreadsheet, as plain lines.
+    caption: "kcat reads the text inside the .docx and the .xlsx"
   - id: grep
     kind: terminal
     text: >
-      kgrep søker i den teksten på tvers av alle tre filene samtidig, og finner hver forekomst av produktnavnet.
-    caption: "kgrep finner produktnavnet på tvers av alle formatene"
+      kgrep searches that text across all three files at once, and finds every
+      mention of the product name.
+    caption: "kgrep finds the product name across every format"
   - id: sed
     kind: terminal
     text: >
-      Og én ksed gir produktet nytt navn overalt, direkte i filene — hver fil lagres tilbake i sitt eget format.
-    caption: "én ksed endrer navnet i alle tre, direkte i filene"
+      And one ksed renames the product everywhere, in place — each file saved back
+      in its own format.
+    caption: "one ksed renames across all three, in place"
   - id: after
     kind: artifact
     artifact: after
     text: >
-      Forslaget er fortsatt et gyldig Word-dokument — overskrift og struktur er intakt. Bare ordene er endret.
+      The proposal is still a valid Word document — heading and structure intact.
+      Only the words changed.
   - id: outro
     kind: outro
     text: >
-      kcat, kgrep og ksed: grep, sed og cat, for ordene inni alle de over femti filformatene neokapi leser.
+      kcat, kgrep and ksed: grep, sed and cat, for the words inside any of the
+      more than fifty file formats neokapi reads.

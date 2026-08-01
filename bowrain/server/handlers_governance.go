@@ -71,7 +71,7 @@ func (s *Server) HandleListGroups(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	groups, err := s.AuthStore.ListGroups(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if groups == nil {
 		groups = []*platauth.Group{}
@@ -93,7 +93,7 @@ func (s *Server) HandleCreateGroup(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	g := &platauth.Group{WorkspaceID: wsID, Name: req.Name, Description: req.Description}
 	if err := s.AuthStore.CreateGroup(c.Request().Context(), g); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{Type: platev.EventType("group.created"), ResourceType: "group", ResourceID: g.ID, Data: map[string]string{"name": g.Name}})
 	return c.JSON(http.StatusCreated, g)
@@ -118,7 +118,7 @@ func (s *Server) HandleListGroupMembers(c echo.Context) error {
 	}
 	members, err := s.AuthStore.ListGroupMembers(c.Request().Context(), c.Param("gid"))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if members == nil {
 		members = []string{}
@@ -141,7 +141,7 @@ func (s *Server) HandleAddGroupMember(c echo.Context) error {
 	}
 	gid := c.Param("gid")
 	if err := s.AuthStore.AddGroupMember(c.Request().Context(), gid, req.UserID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{Type: platev.EventType("group.member_added"), ResourceType: "group", ResourceID: gid, Data: map[string]string{"user_id": req.UserID}})
 	return c.NoContent(http.StatusNoContent)
@@ -157,7 +157,7 @@ func (s *Server) HandleRemoveGroupMember(c echo.Context) error {
 	gid := c.Param("gid")
 	uid := c.Param("uid")
 	if err := s.AuthStore.RemoveGroupMember(c.Request().Context(), gid, uid); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{Type: platev.EventType("group.member_removed"), ResourceType: "group", ResourceID: gid, Data: map[string]string{"user_id": uid}})
 	return c.NoContent(http.StatusNoContent)
@@ -175,7 +175,7 @@ func (s *Server) HandleListGroupBindings(c echo.Context) error {
 	}
 	bindings, err := s.AuthStore.ListGroupRoleBindings(c.Request().Context(), c.Param("gid"))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if bindings == nil {
 		bindings = []*platauth.GroupRoleBinding{}
@@ -217,7 +217,7 @@ func (s *Server) HandleAddGroupBinding(c echo.Context) error {
 		Languages:   req.Languages,
 	}
 	if err := s.AuthStore.AddGroupRoleBinding(c.Request().Context(), b); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{Type: platev.EventType("group.binding_added"), ProjectID: req.ProjectID, ResourceType: "group_binding", ResourceID: b.ID, Data: map[string]string{"group_id": b.GroupID, "role_id": req.RoleID}})
 	return c.JSON(http.StatusCreated, b)
@@ -256,7 +256,7 @@ func (s *Server) HandleListDenyRules(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	rules, err := s.AuthStore.ListDenyRules(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if rules == nil {
 		rules = []*platauth.DenyRule{}
@@ -289,7 +289,7 @@ func (s *Server) HandleCreateDenyRule(c echo.Context) error {
 		Reason:      req.Reason,
 	}
 	if err := s.AuthStore.CreateDenyRule(c.Request().Context(), r); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{
 		Type: platev.EventType("deny_rule.created"), ProjectID: req.ProjectID,
@@ -321,7 +321,7 @@ func (s *Server) HandleListRoleOverrides(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	overrides, err := s.AuthStore.ListWorkspaceRoleOverrides(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	out := map[string][]string{}
 	for role, perms := range overrides {
@@ -349,7 +349,7 @@ func (s *Server) HandleSetRoleOverride(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	perms := platauth.ParsePermissions(req.Permissions)
 	if err := s.AuthStore.SetWorkspaceRoleOverride(c.Request().Context(), wsID, role, perms); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{
 		Type: platev.EventType("role_override.set"), ResourceType: "workspace_role", ResourceID: string(role),
@@ -364,7 +364,7 @@ func (s *Server) HandleGetSoD(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	mode, err := s.AuthStore.GetSoDMode(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]string{"mode": string(mode)})
 }
@@ -385,7 +385,7 @@ func (s *Server) HandleSetSoD(c echo.Context) error {
 	}
 	wsID, _ := c.Get("workspace_id").(string)
 	if err := s.AuthStore.SetSoDMode(c.Request().Context(), wsID, mode); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{Type: platev.EventType("sod.mode_changed"), ResourceType: "sod_policy", After: map[string]string{"mode": string(mode)}})
 	return c.JSON(http.StatusOK, map[string]string{"mode": string(mode)})

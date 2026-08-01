@@ -120,6 +120,49 @@ Both resolve their profile eagerly (supplied programmatically) or lazily through
 a `ProfileResolver` against an organizational context hierarchy, so a host can
 defer profile selection to runtime.
 
+### One resolution chain
+
+`profile.ResolveProfileFromContext` is the only place a profile's precedence is
+decided, most specific first:
+
+1. **Explicit** — `ExplicitProfileID`, from tool config or an MCP parameter.
+2. **Collection** — `CollectionProfile`, a profile the caller already loaded,
+   else `CollectionConfig["brand_voice_profile_id"]`.
+3. **Stream** → 4. **Project** → 5. **Workspace**.
+
+The tiers below the collection are property maps read off database rows, which
+is how a connector- or editor-created project with no recipe is governed. A
+recipe-governed project fills the *same* collection tier: `coordinates:` and
+`profiles:` select the voice, the host loads it — a recipe binds a profile file
+or a starter pack, which a store id cannot name — and hands it over as
+`CollectionProfile`. So the two kinds of project differ in which tiers they
+populate, never in how the tiers are ranked, and an explicit per-call profile
+outranks a recipe exactly as it outranks a collection row.
+
+Locale, channel and persona overrides are applied once, at the end of that
+chain, by `ResolveProfile`. A channel bound to a scope (a collection's
+`context.channel`, a `Collection.ConnectorConfig` entry) describes where the
+content is published; `ResolveContext.Channel` is the caller overriding it for
+one call, the tier a `--channel` flag occupies.
+
+### The recipe authors; one venue runs
+
+`kapi.yaml` is an **authoring surface**, not a second runtime source. It is
+git-owned and authoritative over what the governance *is*; at any moment exactly
+one venue *applies* it — the recipe when the project runs standalone, the
+server's rows when it runs connected. Two live sources would mean a voice that
+depends on where the loop happened to run, and a platform user quietly editing
+over a committed decision.
+
+Until coordinates are synced to the server, a connected project's rows carry no
+coordinates, so a run there governs by `defaults.brand_voice` while a local run
+governs by the point. That divergence is real and is reported rather than
+hidden: a run over a project that declares `coordinates:`/`profiles:` *and*
+carries a `server:` block prints
+`host.UnsyncedCoordinatesWarning` to stderr (`kapi run`, `kapi up`, and the
+embedded flow runner). It warns and proceeds — a recipe field that is not yet
+readable at the other venue is not a reason to refuse the run.
+
 ### Profile sources and the `kapi brand` command tree
 
 `NewBrandCmd` (`cli/brand.go`) builds the `kapi brand` group. A profile is
@@ -132,11 +175,67 @@ resolved from one of three mutually exclusive sources:
 - `--pack <name>` — a built-in starter pack.
 
 With no source flag, resolution falls back to the `.kapi` project in scope: the
-recipe's `defaults.brand_voice` binding (a `BrandVoiceBinding` selecting a
-profile file, store profile, or pack — resolved relative to the project root),
-then a convention file at `<root>/brand.yaml` or `<root>/.kapi/brand.yaml`. This
-lets `kapi brand check DRAFT.md` work flag-free inside a project. Locale and
-channel overrides apply on top via `--locale`/`--channel`.
+voice governing the content collection that claims the file, else the recipe's
+`defaults.brand_voice` (a `BrandVoiceBinding` selecting a profile file, store
+profile, or pack — resolved relative to the project root), then a convention
+file at `<root>/brand.yaml` or `<root>/.kapi/brand.yaml`. This lets `kapi brand
+check DRAFT.md` work flag-free inside a project. Locale and channel overrides
+apply on top via `--locale`/`--channel`; an explicit `--channel` wins over the
+channel the recipe declares.
+
+### Context is a coordinate space
+
+A project is not always one voice, and a voice does not read the same
+everywhere. Which product a page belongs to, which channel it appears on, which
+market it addresses — these are coordinates of one thing, the context the
+content is written for, and the recipe treats them that way. A project declares
+its own axes under `coordinates:`, binds governance to regions of that space
+under `profiles:`, and each named content collection names the point its content
+sits at:
+
+```yaml
+coordinates:
+  product: [kapi, bowrain]
+  channel: [docs, landing]
+
+profiles:
+  - when: {}
+    voice: context/base-voice.yaml
+  - when: { product: bowrain }
+    voice: context/bowrain-voice.yaml
+
+content:
+  - name: docs
+    context: { product: kapi, channel: docs }
+  - name: landing
+    context: { product: bowrain, channel: landing }
+```
+
+The taxonomy is the project's own: another team would say business unit, client,
+or tenant, and the framework reads nothing into an axis except `channel`. Of the
+profiles matching a point, the one matching on the most coordinates governs, so
+a broad voice is *refined* by a narrow one instead of being copied into a second
+file that drifts from the first. Two profiles matching equally well is a load
+error, not a coin flip.
+
+`channel` is the one axis the framework interprets: once a profile is selected,
+the point's channel selects the `Channels` override *inside* that profile — the
+same composition `--channel` has always driven. A landing-page register is
+therefore authored once, in the voice it varies, and a channel the profile says
+nothing about leaves the base voice in place. The axis may also appear in a
+`when:`, and the two roles compose: matching decides which voice, the override
+refines the register within it.
+
+The profile a point selects is not resolved beside the chain above — it enters
+it at the collection tier, so a step that names its own profile still wins and a
+server-governed project still ranks its bindings the same way.
+
+Because the tool chain is assembled before any content is read, and bakes the
+resolved profile into the translate steps, a run cannot switch voice per file:
+it resolves the governance per collection and executes once per distinct
+resolution. A recipe where no collection declares a point runs unsplit, exactly
+as one that has never heard of coordinates. See
+[kapi project file](../implementation/kapi-project-file.md#context-coordinates).
 
 The subcommands:
 

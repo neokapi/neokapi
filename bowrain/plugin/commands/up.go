@@ -108,25 +108,17 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 	if !app.Quiet {
 		fmt.Fprintln(cmd.ErrOrStderr(), "Pushing produced results to the server...")
 	}
-	pr, conn, err := doPush(cmd.Context(), connector.PushOptions{}, nil)
+	pr, conn, err := doPush(cmd.Context(), connector.PushOptions{}, nil, upNoBrand)
 	if err != nil {
 		return fmt.Errorf("push after local run: %w", err)
 	}
 	defer conn.Close()
-	var bres *PushBrandResult
+	// The declared context — collections, coordinates, brand voice — travelled
+	// with the push itself; doPush reports what its governance amounted to.
+	bres := pr.Brand
 	if proj, perr := project.FindProject(""); perr == nil {
 		if _, cerr := conceptPush(cmd.Context(), proj, false); cerr != nil {
 			return cerr
-		}
-		// Carry the recipe-bound brand voice profile into the workspace brand
-		// hub, exactly as `kapi push` does (idempotent upsert by name; silent
-		// skip when unauthenticated or unclaimed; a 403 degrades to a skipped
-		// note). --no-brand opts out.
-		if !upNoBrand {
-			var berr error
-			if bres, berr = brandPush(cmd.Context(), proj, false); berr != nil {
-				return berr
-			}
 		}
 	}
 	syncConvergePolicy(cmd.Context(), conn.Client(), server)
@@ -172,25 +164,17 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintln(stderr, "Pushing local changes...")
 	}
-	pr, conn, err := doPush(ctx, connector.PushOptions{}, nil)
+	pr, conn, err := doPush(ctx, connector.PushOptions{}, nil, upNoBrand)
 	if err != nil {
 		return fmt.Errorf("push: %w", err)
 	}
 	defer conn.Close()
-	var bres *PushBrandResult
+	// The declared context — collections, coordinates, brand voice — travelled
+	// with the push itself; doPush reports what its governance amounted to.
+	bres := pr.Brand
 	if proj, perr := project.FindProject(""); perr == nil {
 		if _, cerr := conceptPush(ctx, proj, false); cerr != nil {
 			return cerr
-		}
-		// Carry the recipe-bound brand voice profile into the workspace brand
-		// hub, exactly as `kapi push` does (idempotent upsert by name; silent
-		// skip when unauthenticated or unclaimed; a 403 degrades to a skipped
-		// note). --no-brand opts out.
-		if !upNoBrand {
-			var berr error
-			if bres, berr = brandPush(ctx, proj, false); berr != nil {
-				return berr
-			}
 		}
 	}
 	client := conn.Client()
@@ -368,11 +352,11 @@ func init() {
 	cli.AddProjectFlag(upCmd)
 	cli.AddUpFlags(upCmd)
 	upCmd.Flags().BoolVar(&upLocal, "local", false, "run the loop on this machine instead of the server, then push the results")
-	upCmd.Flags().BoolVar(&upNoBrand, "no-brand", false, "Skip uploading the recipe-bound brand voice profile to the workspace brand hub")
+	upCmd.Flags().BoolVar(&upNoBrand, "no-brand", false, "Carry the declared collections without their brand voice governance")
 	upCmd.Flags().DurationVar(&upTimeout, "timeout", 15*time.Minute, "maximum time to wait for a server run to finish before pulling available results")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, a *cli.App) {
 		// Match the built-in `kapi up` flag surface exactly (NewUpCmd adds the
-		// flow-run flags): without --provider/--model/--tm/--target-lang/… a
+		// flow-run flags): without --provider/--model/--memory/--target-lang/… a
 		// documented invocation would break the moment the plugin is installed,
 		// since kapi dispatches raw argv to this cobra tree.
 		if a != nil {

@@ -1,3 +1,19 @@
+// Package exec holds the registry entry for the `exec` format name.
+//
+// There is no exec extractor. The package once carried a subprocess runner —
+// NUL-separated paths on stdin, NDJSON block records on stdout — reachable
+// from nothing: no caller outside this package, and no handling in
+// core/project's FormatSpec resolution to give a recipe's `format: {name:
+// exec}` any meaning. Its tests exercised only the dead runner, and its
+// `#nosec G204` justification ("argv supplied by trusted project config")
+// assumed a recipe is trusted, which is the assumption AD-038 exists to
+// refute. It was deleted rather than wired up.
+//
+// What remains is a registry entry so the name resolves and kapi-desktop's
+// FormatSelect keeps its option, plus a reader that refuses on Open. If a
+// declarative subprocess extractor is ever wanted, it arrives with a design
+// for how a recipe earns the right to name one — see
+// web/docs/contribute/architecture/038-execution-trust.md.
 package exec
 
 import (
@@ -8,17 +24,15 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// NewReader returns a stub DataFormatReader that exists so `exec`
-// appears in the kapi format registry (and therefore in UI
-// surfaces like kapi-desktop's FormatSelect). The actual
-// extraction pipeline for `exec` runs out-of-band in
-// `kapi extract -p`, which reads the FormatSpec directly from the
-// project file and spawns the declared command once per collection.
-//
-// A user who tries to use `exec` as a per-file reader (via a
-// `--map` flag on a single-file tool command, or a flow step
-// that opens a `.tsx` as if it were extractable without orchestration)
-// gets a clear error pointing them at the right path.
+// FormatName is the name this format is registered under. It stays a constant
+// so the registry and the exec-class classification in core/project agree
+// without stringly-typing it in two places.
+const FormatName = "exec"
+
+// NewReader returns a reader that exists so `exec` resolves in the format
+// registry, and therefore in UI surfaces like kapi-desktop's FormatSelect.
+// It refuses on Open, because there is nothing behind the name: no code path
+// anywhere runs a subprocess for this format.
 func NewReader() format.DataFormatReader {
 	return &stubReader{
 		BaseFormatReader: format.BaseFormatReader{
@@ -28,9 +42,7 @@ func NewReader() format.DataFormatReader {
 	}
 }
 
-// stubReader implements DataFormatReader but intentionally errors on
-// Open/Read. The registry entry exists for discoverability; running
-// actual extraction goes through `kapi extract` in a project.
+// stubReader implements DataFormatReader and always errors on Open/Read.
 type stubReader struct {
 	format.BaseFormatReader
 }
@@ -44,9 +56,9 @@ func (r *stubReader) Signature() format.FormatSignature {
 
 func (r *stubReader) Open(ctx context.Context, doc *model.RawDocument) error {
 	return errors.New(
-		"exec format is declarative — configure a collection's format: " +
-			"{ name: exec, config: { command: ... } } in a kapi.yaml recipe, " +
-			"then run `kapi extract` from the project",
+		"the exec format has no reader — kapi does not extract content by " +
+			"running a subprocess. Name the file's real format instead " +
+			"(`kapi formats` lists them), or convert it to one kapi reads",
 	)
 }
 

@@ -5,11 +5,25 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manual dispatch exists so the push-only lanes can be exercised on a branch
+  # before they reach main. The `changes` filter step runs on pull_request only,
+  # so on a dispatch its outputs are empty and the path-gated jobs skip: what
+  # runs is the set gated on `github.event_name != 'pull_request'`.
+  workflow_dispatch:
 
 # Cancel superseded runs on the same PR; never cancel a push to main (each
 # main commit's run is the canonical record and must complete).
+#
+# Pushes group by commit, not by ref. Grouping every main push under
+# refs/heads/main did not achieve the second half of that sentence:
+# cancel-in-progress protects the run that is *executing*, but GitHub keeps only
+# one *pending* run per group, so a third commit evicts the second while it is
+# still queued. Under merge pressure four consecutive main runs ended
+# `cancelled`, and push-only lanes — the integration suite, coverage, and the
+# race/shuffle profile the PR gate deliberately skips — were skipped with them.
+# One group per SHA means a busy day costs runner minutes instead of coverage.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -35,7 +49,17 @@ jobs:
       i18n_react: ${{ github.event_name == 'push' || steps.filter.outputs.i18n_react }}
       l10n_surfaces: ${{ github.event_name == 'push' || steps.filter.outputs.l10n_surfaces }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
-      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_plugin || steps.filter.outputs.bowrain }}
+      plugins: ${{ github.event_name == 'push' || steps.filter.outputs.plugins }}
+      # Every operand is compared to 'true' on purpose. GitHub's `||` returns
+      # the first TRUTHY operand rather than a boolean, and a non-empty string
+      # is truthy — so a bare `steps.filter.outputs.cli` yields the *string*
+      # 'false' and short-circuits the rest of the chain. Chaining bare outputs
+      # collapses the whole expression to the first one: `any_go` was exactly
+      # `framework`, and the three jobs it gates (Build, Tidy Check, Race) were
+      # skipped on every PR that did not touch core/, go.mod, go.sum, go.work
+      # or this file. The single-filter outputs above are safe because they have
+      # nothing to short-circuit past — do not chain one without `== 'true'`.
+      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework == 'true' || steps.filter.outputs.cli == 'true' || steps.filter.outputs.platform == 'true' || steps.filter.outputs.kapi == 'true' || steps.filter.outputs.bowrain_plugin == 'true' || steps.filter.outputs.bowrain == 'true' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -61,7 +85,16 @@ jobs:
             echo "${label}=false" >> "$GITHUB_OUTPUT"
           }
 
-          check_paths framework '^core/' '^go\.(mod|sum)$' '^go\.work' '^\.github/workflows/ci\.yml$'
+          # The framework is the ROOT module, and the root module is more than
+          # core/: kpz/, memory/, terms/ and providers/ are all part of it, and
+          # `make test-framework` runs `go test ./...` from the root, so the job
+          # already covers them. Only this filter did not — a PR touching just
+          # kpz/ reported framework=false, which skipped Test (framework) AND,
+          # through any_go, Build, Race and Tidy Check. #1612 (a kpz fix) landed
+          # with five checks and no Go test run at all, which is how this was
+          # found. cmd/ and examples/ are in the module too but hold only
+          # binaries and samples; they are covered by the post-merge full run.
+          check_paths framework '^(core|kpz|memory|terms|providers)/' '^go\.(mod|sum)$' '^go\.work' '^\.github/workflows/ci\.yml$'
           check_paths cli       '^(cli|host)/'
           check_paths platform  '^bowrain/core/'
           # kapi: anything under kapi/
@@ -83,6 +116,7 @@ jobs:
           check_paths i18n_react '^packages/(kapi-format|i18n-react)/'
           check_paths l10n_surfaces '^bowrain/emails/' '^bowrain/web/landing/' '^bowrain/mailer/' '^l10n/' '^packages/(kapi-format|i18n-react)/' '^kapi\.yaml$'
           check_paths workflows '^\.github/workflows/'
+          check_paths plugins  '^plugins/'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
   frontend:
@@ -700,6 +734,74 @@ jobs:
           path: coverage/bowrain.out
           retention-days: 1
 
+  # ── Plugin modules ────────────────────────────────────────────────────────
+  # plugins/{sat,check,vision,asr} are separate go.mod modules outside go.work,
+  # so no other job here compiles them, let alone tests them: 15 test files
+  # across four modules ran in no workflow at all. `make test-plugins` needs
+  # nothing but a Go toolchain, so unlike the Postgres-backed lanes this one
+  # belongs on the PR gate, where a break is cheapest to fix.
+  #
+  # Not covered here on purpose: plugins/pdfium links libpdfium, and the
+  # `-tags onnx` suites for vision and sat need a real onnxruntime — those stay
+  # in the nightly vision-onnx / vision-pdf-e2e jobs. plugins/av ships no tests.
+  test-plugins:
+    name: Test (plugins)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.plugins == 'true'
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.26.0"
+      # No setup-go-modules: that action primes the go.work modules, and these
+      # four are outside it. Each recipe runs GOWORK=off in its own module.
+      - name: Test the pure-Go plugin modules
+        run: make test-plugins
+  # ── The //go:build integration lane ───────────────────────────────────────
+  # The cross-store correctness suites: content-memory and terms parity between
+  # SQLite and Postgres, the governed change-set lifecycle, and the knowledge
+  # HTTP surface against a real database. They sit behind `//go:build
+  # integration`, so no other job in this file compiles them — before this job
+  # existed `make test-integration` was reachable only by hand, and it did not
+  # work when you did reach it (it dropped the fts5 tag and filtered itself down
+  # with `-run Integration`).
+  #
+  # Push and manual dispatch only, matching the policy for every other
+  # Postgres-backed suite here: PRs run -short and skip them to keep the wall
+  # fast. scripts/test-integration.sh narrows the run to the packages that
+  # actually carry a tagged file, so this is not a second full test wall.
+  test-integration:
+    name: Test (integration)
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    timeout-minutes: 30
+    services:
+      # Same GitHub-managed Postgres as Test (bowrain), for the same reason: a
+      # per-binary testcontainer can be reaped mid-run by Ryuk under -race.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bowrain
+          POSTGRES_PASSWORD: bowrain
+          POSTGRES_DB: bowrain_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bowrain -d bowrain_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      BOWRAIN_TEST_POSTGRES_URL: postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go-modules
+
+      - name: Run the integration lane
+        run: make test-integration
+
   # ── Race pass over changed packages (PR only) ─────────────────────────────
   # The PR test wall deliberately drops -race (Makefile fast profile) and main
   # is unprotected, so a data race introduced in a PR could merge green and only
@@ -877,8 +979,14 @@ jobs:
         run: ./scripts/check-docs-bowrain-clean.sh
       - name: Guard — no absolute home paths in tracked files
         run: ./scripts/check-abs-paths.sh
+      - name: Guard — no retired framing in user-facing prose
+        run: ./scripts/check-vocabulary.sh
+      - name: Guard — reference dataset is reproducible from this repo
+        run: ./scripts/check-reference-provenance.sh
       - name: Guard — publishable packages declare a license and ship its text
         run: ./scripts/check-package-licenses.sh
+      - name: Guard — no compiled executable is tracked in git
+        run: ./scripts/check-tracked-binaries.sh
 
       # gofmt needs a toolchain, but no modules — gofmt is purely syntactic, so
       # this is a bare setup-go with the cache off and adds ~10s.

@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -87,12 +88,12 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 	ctx := c.Request().Context()
 	if s.Services != nil && s.Services.Auth != nil && userID != "" {
 		if err := s.Services.Auth.CreateWorkspaceWithOwner(ctx, w, userID); err != nil {
-			return apiErr(c, http.StatusInternalServerError, err.Error())
+			return serverErr(c, err)
 		}
 		w.Role = platauth.RoleOwner
 	} else {
 		if err := s.AuthStore.CreateWorkspace(ctx, w); err != nil {
-			return apiErr(c, http.StatusInternalServerError, err.Error())
+			return serverErr(c, err)
 		}
 	}
 
@@ -140,7 +141,7 @@ func (s *Server) HandleListWorkspaces(c echo.Context) error {
 	}
 	workspaces, err := s.AuthStore.ListWorkspaces(c.Request().Context(), userID.(string))
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, workspaces)
 }
@@ -224,7 +225,7 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 			return apiErr(c, http.StatusConflict, "slug is already in use")
 		}
 		if _, _, reserved, err := s.AuthStore.IsSlugReserved(ctx, req.Slug); err != nil {
-			return apiErr(c, http.StatusInternalServerError, "check reserved slug: "+err.Error())
+			return serverErr(c, fmt.Errorf("check reserved slug: %w", err))
 		} else if reserved {
 			return apiErr(c, http.StatusConflict, "slug is reserved from a recent rename")
 		}
@@ -247,7 +248,7 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 			if newVis == platauth.DashboardUnlisted && w.PulseAccessKey == "" {
 				b := make([]byte, 16)
 				if _, err := rand.Read(b); err != nil {
-					return apiErr(c, http.StatusInternalServerError, "generate access key: "+err.Error())
+					return serverErr(c, fmt.Errorf("generate access key: %w", err))
 				}
 				w.PulseAccessKey = hex.EncodeToString(b)
 			}
@@ -274,7 +275,7 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 		w.BrandVoiceProfileID = *req.BrandVoiceProfileID
 	}
 	if err := s.AuthStore.UpdateWorkspace(c.Request().Context(), w); err != nil {
-		return apiErr(c, http.StatusInternalServerError, "update workspace: "+err.Error())
+		return serverErr(c, fmt.Errorf("update workspace: %w", err))
 	}
 	// Reserve the old slug for the configured grace period so it cannot be
 	// reused for impersonation. Reservation failure does not undo the rename
@@ -312,7 +313,7 @@ func (s *Server) HandleDeleteWorkspace(c echo.Context) error {
 		return apiErr(c, http.StatusForbidden, "cannot delete personal workspace")
 	}
 	if err := s.AuthStore.DeleteWorkspace(c.Request().Context(), w.ID); err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.NoContent(http.StatusNoContent)
 }
@@ -327,7 +328,7 @@ func (s *Server) HandleListMembers(c echo.Context) error {
 	}
 	members, err := s.AuthStore.ListMembers(c.Request().Context(), w.ID)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, members)
 }
@@ -451,7 +452,7 @@ func (s *Server) HandleListWorkspaceProjects(c echo.Context) error {
 	ctx := c.Request().Context()
 	allProjects, err := s.Services.Project.ListProjects(ctx)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	result := make([]*ProjectInfoResponse, 0)
 	for _, p := range allProjects {
@@ -532,7 +533,7 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 		WorkspaceID:           workspaceID,
 	}
 	if err := s.Services.Project.CreateProject(ctx, p); err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	// The creator becomes a review-capable project member so governed review has
 	// someone to assign to (and the creator sees pending review on their

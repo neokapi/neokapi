@@ -475,7 +475,14 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	})
 
 	run.Standing = standing.Locales()
-	_ = store.UpdateRun(context.WithoutCancel(ctx), run)
+	// The last write the run makes, and the one that moves it out of "running".
+	// Losing it leaves the row running forever, and the active-run guard then
+	// refuses every new run for that project — a silent stop, not a slow one.
+	// Nothing here can retry it, but it must not go unrecorded.
+	if err := store.UpdateRun(context.WithoutCancel(ctx), run); err != nil {
+		slog.ErrorContext(ctx, "convergence: failed to write the final run row; the run may stay marked running",
+			"run", run.ID, "project", run.ProjectID, "state", run.State, "error", err)
+	}
 
 	// Hold-on-source is a first-class outcome (epic 019): when the run parked
 	// because the source is below the gate, create the source-review task(s) for

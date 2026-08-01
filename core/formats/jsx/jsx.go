@@ -337,7 +337,6 @@ func cloneTargets(in map[kbf.LocaleID][]kbf.Run) map[kbf.LocaleID][]kbf.Run {
 type Writer struct {
 	outPath string
 	out     io.Writer
-	outFile *os.File
 	locale  model.LocaleID
 
 	generator kbf.GeneratorInfo
@@ -536,14 +535,15 @@ func runsFromModel(runs []model.Run) []kbf.Run {
 // Close flushes the accumulated blocks to the configured output.
 // Emits .kbf.json (JSON) either to the configured io.Writer or the
 // configured output path.
+// The writer owns no file handle: SetOutput records a path that writeKBF hands
+// to os.WriteFile, and SetOutputWriter records an io.Writer the caller closes.
+// A `outFile *os.File` field and a deferred close for it lived here, flagged as
+// a discarded Close error — but nothing ever assigned the field, so the branch
+// could not run. Removed rather than error-checked: an unreachable close is a
+// worse defect than an unchecked one, because it reads as coverage that is not
+// there.
 func (w *Writer) Close() error {
 	file := w.buildKBF()
-	if w.outFile != nil {
-		defer func() {
-			_ = w.outFile.Close()
-			w.outFile = nil
-		}()
-	}
 	if w.out != nil {
 		return kbf.Encode(w.out, file)
 	}

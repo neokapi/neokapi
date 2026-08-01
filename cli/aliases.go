@@ -119,6 +119,7 @@ var (
 	CollectFormatPresets         = host.CollectFormatPresets
 	CollectFrameworkPresets      = host.CollectFrameworkPresets
 	Confirm                      = host.Confirm
+	ConfirmDefaultNo             = host.ConfirmDefaultNo
 	MemorySessionDetailFrom      = host.MemorySessionDetailFrom
 	MemorySessionRows            = host.MemorySessionRows
 	ErrNoInput                   = host.ErrNoInput

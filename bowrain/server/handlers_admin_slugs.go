@@ -22,7 +22,7 @@ func (s *Server) HandleAdminListSlugReservations(c echo.Context) error {
 	}
 	res, err := s.AuthStore.ListSlugReservations(c.Request().Context())
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, res)
 }

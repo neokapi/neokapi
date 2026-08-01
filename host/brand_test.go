@@ -4,18 +4,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/profile"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/output"
 )
 
-func testProfile() *brand.VoiceProfile {
-	return &brand.VoiceProfile{
+func testProfile() *profile.VoiceProfile {
+	return &profile.VoiceProfile{
 		ID:   "test",
 		Name: "Test",
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms:  []brand.TermRule{{Term: "utilize", Replacement: "use"}},
-			CompetitorTerms: []brand.TermRule{{Term: "Globex", Replacement: "Acme"}},
+		Vocabulary: profile.VocabularyRules{
+			ForbiddenTerms:  []profile.TermRule{{Term: "utilize", Replacement: "use"}},
+			CompetitorTerms: []profile.TermRule{{Term: "Globex", Replacement: "Acme"}},
 		},
 	}
 }
@@ -57,7 +57,7 @@ func TestRuleRewrite(t *testing.T) {
 }
 
 func TestBrandProfileTemplateParses(t *testing.T) {
-	p, err := brand.LoadProfileYAML(strings.NewReader(BrandProfileTemplate))
+	p, err := profile.LoadProfileYAML(strings.NewReader(BrandProfileTemplate))
 	if err != nil {
 		t.Fatalf("brand new template must parse as a VoiceProfile: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestRunBlockToolFindings(t *testing.T) {
 	if len(findings) != 2 {
 		t.Fatalf("expected 2 findings (forbidden + competitor), got %d: %+v", len(findings), findings)
 	}
-	score := brand.CalculateScore(findings)
+	score := profile.CalculateScore(findings)
 	// One major (5) + one critical (25) = 30 penalty → 70.
 	if score.Overall != 70 {
 		t.Errorf("expected score 70, got %d", score.Overall)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/observe"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
@@ -221,14 +222,22 @@ func (t *StepCompletionTracker) completeStep(ctx context.Context, stepID, runID 
 		if op == "" {
 			op = "automation"
 		}
+		// Fail-open by policy: the step has already run and its runner time is
+		// already spent, so a meter outage must not turn a completed step into a
+		// failed one. Logged and counted rather than discarded, because runner
+		// time nobody metered is runner time nobody bills.
 		if t.quotaStore != nil {
-			_ = t.quotaStore.RecordRunnerUsage(ctx, jobs.RunnerUsageRecord{
+			if err := t.quotaStore.RecordRunnerUsage(ctx, jobs.RunnerUsageRecord{
 				WorkspaceID: ps.workspaceID,
 				ProjectID:   ps.projectID,
 				Operation:   op,
 				DurationSec: durationSec,
 				ReferenceID: stepID,
-			})
+			}); err != nil {
+				observe.MeteringDiscarded(ctx, observe.MeterRunnerSeconds, durationSec, err,
+					"operation", op, "workspace_id", ps.workspaceID,
+					"project_id", ps.projectID, "step_id", stepID, "run_id", runID)
+			}
 		}
 		if t.billingHooks != nil {
 			t.billingHooks.DeductContainerTime(ctx, ps.workspaceID, time.Duration(durationSec*float64(time.Second)), stepID)

@@ -8,9 +8,9 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,10 +67,10 @@ func TestBlockTermCompliant_Directions(t *testing.T) {
 		"with no terms and no profile the predicate is a no-op")
 
 	// PRESENCE (brand vocabulary): a forbidden brand rule matched in the target.
-	profile := &corebrand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID: "p",
-		Vocabulary: corebrand.VocabularyRules{
-			ForbiddenTerms: []corebrand.TermRule{{Term: "cheap"}},
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{{Term: "cheap"}},
 		},
 	}
 	assert.False(t, blockTermCompliant(ctx, mkFrBlock("Affordable", "cheap stuff"), "en", "fr", nil, profile),

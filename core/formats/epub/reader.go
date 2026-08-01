@@ -1128,6 +1128,11 @@ func writeXMLName(buf *bytes.Buffer, name xml.Name) {
 }
 
 // xmlEscape escapes text for XML content.
+//
+// DELIBERATELY not core/internal/xmlesc.Text. It escapes the same three
+// characters, but this pair walks runes, so invalid UTF-8 in the input becomes
+// U+FFFD rather than passing through byte-for-byte — a real difference for a
+// reader that carries raw bytes out of a zip entry.
 func xmlEscape(s string) string {
 	var buf strings.Builder
 	for _, r := range s {
@@ -1145,7 +1150,8 @@ func xmlEscape(s string) string {
 	return buf.String()
 }
 
-// xmlEscapeAttr escapes text for XML attribute values.
+// xmlEscapeAttr escapes text for XML attribute values. Rune-walking, so
+// U+FFFD-substituting on invalid UTF-8 — see xmlEscape above.
 func xmlEscapeAttr(s string) string {
 	var buf strings.Builder
 	for _, r := range s {

@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
@@ -72,11 +72,11 @@ func (a *App) resolveProjectRoot(cmd Command) (recipePath, root string, err erro
 }
 
 // ---------------------------------------------------------------------------
-// term → committed .terms.json source → terms import compile into .kapi/termbase.db
+// term → committed .terms.json source → terms import compile into .kapi/terms.db
 // ---------------------------------------------------------------------------
 
 // applyTermEntry upserts a glossary term. It edits the committed .terms.json source
-// the recipe binds (creating l10n/terms.json and binding it when none
+// the recipe binds (creating context/terms.json and binding it when none
 // exists), then re-imports the whole .terms.json into the project terms store (.db)
 // cache so the SQLite store reflects the committed source — one write path.
 func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
@@ -133,8 +133,8 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 }
 
 // ensureTermsSourceBinding returns the committed .terms.json source path the
-// recipe binds via defaults.termbase_source, creating a default
-// (l10n/terms.json) and writing the binding into the recipe when none is
+// recipe binds via defaults.terms_source, creating a default
+// (context/terms.json) and writing the binding into the recipe when none is
 // bound — so future runs are consistent.
 func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
@@ -144,12 +144,12 @@ func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) 
 	if bound := proj.Defaults.TermsSource; bound != "" {
 		return resolveUnder(root, bound), nil
 	}
-	rel := filepath.Join("l10n", ktb.ConventionalName)
+	rel := filepath.Join("context", ktb.ConventionalName)
 	proj.Defaults.TermsSource = rel
 	// Bind the compiled cache too, so term enforcement (resolveProjectTermsPath)
 	// reads the .db this source compiles into rather than an unrelated default.
 	if proj.Defaults.Terms == "" {
-		proj.Defaults.Terms = filepath.Join(project.StateDirName, "termbase.db")
+		proj.Defaults.Terms = filepath.Join(project.StateDirName, "terms.db")
 	}
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind terms source: %w", err)
@@ -159,9 +159,9 @@ func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) 
 
 // compileTermsSource re-imports the committed .terms.json into the project
 // terms (.db) cache — the single store-write path. The cache is the recipe's
-// bound terms, else the .kapi/termbase.db convention.
+// bound terms, else the .kapi/terms.db convention.
 func (a *App) compileTermsSource(ctx context.Context, root, srcPath string) error {
-	dbPath := filepath.Join(root, project.StateDirName, "termbase.db")
+	dbPath := filepath.Join(root, project.StateDirName, "terms.db")
 	if proj, err := a.loadRecipeForRoot(root); err == nil && proj.Defaults.Terms != "" {
 		dbPath = resolveUnder(root, proj.Defaults.Terms)
 	}
@@ -280,14 +280,14 @@ func conceptID(text string, locale model.LocaleID) string {
 }
 
 // ---------------------------------------------------------------------------
-// tm → committed .memory.json source → tm import compile into .kapi/tm.db
+// tm → committed .memory.json source → tm import compile into .kapi/memory.db
 // ---------------------------------------------------------------------------
 
 // applyReviewEntry records a review decision in the project STATE store via the
 // shared ApproveReviewUnit path — the CLI counterpart of the desktop "approve"
 // action and the write side of `kapi status --review`. The unit is addressed by
 // (file, id, locale) exactly as the review queue lists it; `status` is "reviewed"
-// (default) or "signed-off". This is distinct from a `kind:"tm"` entry: a content memory
+// (default) or "signed-off". This is distinct from a `kind:"memory"` entry: a content memory
 // correction is recycle leverage, not a review decision.
 func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.ID}
@@ -321,7 +321,7 @@ func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) 
 
 // applyMemoryEntry adds a source→target content memory pair. It edits the committed .memory.json
 // source the recipe binds (creating l10n/memory.json and binding it when none
-// exists), then re-imports the .memory.json into the project content memory (.kapi/tm.db) cache.
+// exists), then re-imports the .memory.json into the project content memory (.kapi/memory.db) cache.
 func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Source}
 
@@ -385,7 +385,7 @@ func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) 
 }
 
 // ensureMemorySourceBinding returns the committed bundle path bound via
-// defaults.tm_source, scaffolding and binding l10n/memory.json when none is
+// defaults.memory_source, scaffolding and binding l10n/memory.json when none is
 // bound and the project holds no bundles yet.
 //
 // A project may keep many content-memory bundles — this repository commits one
@@ -403,11 +403,11 @@ func (a *App) ensureMemorySourceBinding(recipePath, root string) (string, error)
 	}
 	if existing := findMemoryBundles(root); len(existing) > 0 {
 		return "", fmt.Errorf(
-			"no defaults.tm_source is bound and this project already has %d content-memory %s (%s); "+
+			"no defaults.memory_source is bound and this project already has %d content-memory %s (%s); "+
 				"bind the one that reviewed edits belong in",
 			len(existing), pluralBundles(len(existing)), strings.Join(existing, ", "))
 	}
-	rel := filepath.Join("l10n", kmb.ConventionalName)
+	rel := filepath.Join("context", kmb.ConventionalName)
 	proj.Defaults.MemorySource = rel
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind tm source: %w", err)
@@ -448,9 +448,9 @@ func pluralBundles(n int) string {
 }
 
 // compileMemorySource re-imports the committed .memory.json into the project content memory cache
-// (the conventional .kapi/tm.db, the same file kapi extract/merge use).
+// (the conventional .kapi/memory.db, the same file kapi extract/merge use).
 func (a *App) compileMemorySource(ctx context.Context, root, srcPath string) error {
-	dbPath := filepath.Join(root, project.StateDirName, "tm.db")
+	dbPath := filepath.Join(root, project.StateDirName, "memory.db")
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		return fmt.Errorf("create tm dir: %w", err)
 	}
@@ -587,7 +587,7 @@ func memoryEntryID(source string, srcLocale, tgtLocale model.LocaleID) string {
 // ---------------------------------------------------------------------------
 
 // applyBrandEntry adds a vocabulary rule to the committed brand voice profile
-// YAML the recipe binds (creating l10n/brand-voice.yaml and binding it under
+// YAML the recipe binds (creating context/brand-voice.yaml and binding it under
 // defaults.brand_voice.profile_file when none exists), then re-imports the
 // profile into the local brand store so the store reflects the committed source.
 func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
@@ -638,7 +638,7 @@ func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) a
 }
 
 // ensureBrandProfileBinding returns the committed profile YAML path bound via
-// defaults.brand_voice.profile_file, creating l10n/brand-voice.yaml and binding
+// defaults.brand_voice.profile_file, creating context/brand-voice.yaml and binding
 // it when no profile_file is bound. A non-file binding (pack/store profile) is
 // an error: apply edits a committed file, not a starter pack or a store row.
 func (a *App) ensureBrandProfileBinding(recipePath, root string) (string, error) {
@@ -654,7 +654,7 @@ func (a *App) ensureBrandProfileBinding(recipePath, root string) (string, error)
 			return "", errors.New("brand: defaults.brand_voice binds a pack/store profile, not a committed profile_file — bind a profile_file to apply rules")
 		}
 	}
-	rel := filepath.Join("l10n", "brand-voice.yaml")
+	rel := filepath.Join("context", "brand-voice.yaml")
 	proj.Defaults.BrandVoice = &project.BrandVoiceBinding{ProfileFile: rel}
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind brand voice profile: %w", err)
@@ -868,7 +868,7 @@ func setRecipeField(proj *project.KapiProject, path string, raw json.RawMessage)
 		proj.Defaults.Encoding = v
 		return true, nil
 
-	case "defaults.termbase":
+	case "defaults.terms":
 		var v string
 		if err := decodeRecipeValue(path, raw, &v); err != nil {
 			return false, err
@@ -879,7 +879,7 @@ func setRecipeField(proj *project.KapiProject, path string, raw json.RawMessage)
 		proj.Defaults.Terms = v
 		return true, nil
 
-	case "defaults.termbase_source":
+	case "defaults.terms_source":
 		var v string
 		if err := decodeRecipeValue(path, raw, &v); err != nil {
 			return false, err
@@ -890,7 +890,7 @@ func setRecipeField(proj *project.KapiProject, path string, raw json.RawMessage)
 		proj.Defaults.TermsSource = v
 		return true, nil
 
-	case "defaults.tm_source":
+	case "defaults.memory_source":
 		var v string
 		if err := decodeRecipeValue(path, raw, &v); err != nil {
 			return false, err

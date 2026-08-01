@@ -62,6 +62,7 @@ func TestClientServerSyncContract(t *testing.T) {
 	pushResp, err := c.Push(ctx,
 		map[string][]*model.Block{"locales/en.json": {block}},
 		[]client.ItemMeta{{Name: "locales/en.json", Format: "json"}},
+		nil,
 	)
 	require.NoError(t, err, "push must hit the real sync route (no nil-client panic, no 404)")
 	require.NotNil(t, pushResp)
@@ -125,6 +126,7 @@ func TestPushNilClientGuard(t *testing.T) {
 	_, err := c.Push(context.Background(),
 		map[string][]*model.Block{"x": {{ID: "b1", Source: []model.Run{{Text: &model.TextRun{Text: "hi"}}}}}},
 		[]client.ItemMeta{{Name: "x", Format: "json"}},
+		nil,
 	)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not connected to a server")

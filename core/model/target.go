@@ -92,10 +92,18 @@ func (s TargetStatus) Rank() int {
 	return -1
 }
 
-// Origin records how content was produced. On a Target it records how the
-// committed translation was made; on a Block's source it records how a
-// *recognized* source was extracted (ocr, asr) — source and target provenance
-// are the same record on two sides of the Block.
+// Origin records how content was produced, and under what context. On a Target
+// it records how the committed translation was made; on a Block's source it
+// records how a *recognized* source was extracted (ocr, asr) — source and target
+// provenance are the same record on two sides of the Block.
+//
+// The Kind/Engine/Tool/Reference/Timestamp/Confidence group answers *how* it was
+// made. The Profile group answers *what governed it*: which named context was in
+// force at the moment of production. That second half cannot be reconstructed
+// after the fact — a profile is edited in place and a timestamp is only a proxy
+// for it, one that breaks for imported content and for anything produced while a
+// pilot shadowed a stream. So it is recorded at production time or approximated
+// forever.
 type Origin struct {
 	Kind      string `json:"kind,omitempty"`      // human | tm | mt | ai | ocr | asr
 	Engine    string `json:"engine,omitempty"`    // MT/AI/OCR/ASR engine name
@@ -106,6 +114,29 @@ type Origin struct {
 	// extraction (ocr, asr); 0 = unset/not applicable. A confidence-gated
 	// refinement step reads this to decide which units to re-examine.
 	Confidence float64 `json:"confidence,omitempty"`
+	// Profile identifies the context profile that governed production, and
+	// ProfileVersion pins the revision of it that was in force. Both are opaque
+	// to the model: the producer stamps whatever its resolver handed it, and
+	// nothing here parses them. Empty when the producer resolved no profile —
+	// an ad-hoc run, or a tool that takes no context (pseudo-translation).
+	Profile        string `json:"profile,omitempty"`
+	ProfileVersion string `json:"profile_version,omitempty"`
+	// ContextFingerprint is a content hash of the governing context as it
+	// actually reached the producer — the rendered voice guidance and the
+	// terminology it was given. It exists because Profile/ProfileVersion pin
+	// only half of that: terminology reaches a producer separately from the
+	// profile and carries no version of its own, so a profile stamp alone
+	// cannot tell whether the terms have moved since.
+	//
+	// It answers "have the governing inputs changed since this was produced?"
+	// — a change detector, not a snapshot: it cannot reconstruct what the
+	// context was, only tell you this target no longer matches it.
+	//
+	// Deliberately NOT the engine's config fingerprint. That one also covers
+	// provider, model and prompt wording, so swapping models would move it and
+	// destroy its meaning as a statement about governance. Empty when no
+	// context governed production at all.
+	ContextFingerprint string `json:"context_fingerprint,omitempty"`
 }
 
 // Origin Kind values. The translation kinds (human, tm, mt, ai) describe how a
@@ -117,7 +148,7 @@ type Origin struct {
 // preserved in Origin.Engine; the refining tool/provider lives in Tool/Reference.
 const (
 	OriginHuman      = "human"
-	OriginMemory     = "tm"
+	OriginMemory     = "memory"
 	OriginMT         = "mt"
 	OriginAI         = "ai"
 	OriginOCR        = "ocr"

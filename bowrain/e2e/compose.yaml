@@ -39,6 +39,12 @@ services:
       BOWRAIN_SMTP_FROM: noreply@bowrain.cloud
       BOWRAIN_GRPC_PORT: "9080"
       BOWRAIN_WEB_UI_DIR: /web
+      # The suites complete the device flow programmatically — no browser, no
+      # Keycloak login form — so they need the direct-approval path, which is
+      # off unless a server is explicitly marked as a development one. Never
+      # set this on a real deployment: it approves a pending device for the
+      # identity the request names, with no identity-provider check.
+      BOWRAIN_ALLOW_INSECURE_DEV: "1"
     volumes:
       - web-dist:/web:ro
     ports:

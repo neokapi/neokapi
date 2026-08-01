@@ -33,7 +33,7 @@ func TestInferVoiceProfileDemoProviderDraft(t *testing.T) {
 	require.NotNil(t, draft)
 	require.NotNil(t, evidence)
 
-	// The draft maps into the real brand.VoiceProfile shape with the caller's name.
+	// The draft maps into the real profile.VoiceProfile shape with the caller's name.
 	assert.Equal(t, "Acme Voice", draft.Name)
 	assert.NotEmpty(t, draft.Description)
 

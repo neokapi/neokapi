@@ -12,9 +12,9 @@ import (
 	"strings"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
-	"github.com/neokapi/neokapi/core/brand"
-	"github.com/neokapi/neokapi/core/brand/packs"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/tool"
@@ -251,7 +251,12 @@ func (a *App) SaveProfileToStore(cmd Command, profile *brand.VoiceProfile, srcPa
 
 // ResolveBrandProfileCmd resolves the effective profile from --profile-file,
 // --pack, or --profile (local store), then applies locale/channel overrides.
-func (a *App) ResolveBrandProfileCmd(cmd Command) (*brand.VoiceProfile, string, error) {
+// paths, when given, are the files the caller is about to act on. The first
+// one decides which content collection's context governs the answer: a repo
+// holding two products binds a different voice per collection, so resolving
+// `kapi brand guide` against the project default would hand back the wrong
+// register for half the tree.
+func (a *App) ResolveBrandProfileCmd(cmd Command, paths ...string) (*brand.VoiceProfile, string, error) {
 	file, _ := cmd.Flags().GetString("profile-file")
 	pack, _ := cmd.Flags().GetString("pack")
 	name, _ := cmd.Flags().GetString("profile")
@@ -273,7 +278,7 @@ func (a *App) ResolveBrandProfileCmd(cmd Command) (*brand.VoiceProfile, string, 
 		// (defaults.brand_voice) or a convention file at the project root.
 		// This makes `kapi brand check DRAFT.md` work flag-free inside a
 		// project directory.
-		profile, src, ok, perr := a.resolveProjectBrandProfile(cmd, locale, channel, persona)
+		profile, src, ok, perr := a.resolveProjectBrandProfile(cmd, locale, channel, persona, paths...)
 		if perr != nil {
 			return nil, "", perr
 		}
@@ -326,7 +331,7 @@ func (a *App) ResolveBrandProfileCmd(cmd Command) (*brand.VoiceProfile, string, 
 // Returns (profile, source, found, error). found is false (with nil error)
 // when no project is in scope or the project carries no brand binding and no
 // convention file — letting the caller surface the "specify a profile" error.
-func (a *App) resolveProjectBrandProfile(cmd Command, locale, channel, persona string) (*brand.VoiceProfile, string, bool, error) {
+func (a *App) resolveProjectBrandProfile(cmd Command, locale, channel, persona string, paths ...string) (*brand.VoiceProfile, string, bool, error) {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil {
 		return nil, "", false, err
@@ -353,8 +358,29 @@ func (a *App) resolveProjectBrandProfile(cmd Command, locale, channel, persona s
 		return nil, "", false, err
 	}
 
+	// Which collection owns the first named file, if any. A path outside every
+	// declared glob yields "", which resolves the project defaults — the same
+	// answer as before this lookup existed.
+	collection := ""
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		abs := path
+		if !filepath.IsAbs(abs) {
+			if cwd, cerr := os.Getwd(); cerr == nil {
+				abs = filepath.Join(cwd, path)
+			}
+		}
+		if rel, rerr := filepath.Rel(root, abs); rerr == nil && !strings.HasPrefix(rel, "..") {
+			collection = proj.CollectionForPath(filepath.ToSlash(rel))
+		}
+		break
+	}
+
 	return a.ResolveBrandProfile(CmdContext(cmd), proj, root, BrandResolveOptions{
 		Locale: locale, Channel: channel, Persona: persona, StorePath: storePath,
+		Collection: collection,
 	})
 }
 
@@ -371,31 +397,92 @@ type BrandResolveOptions struct {
 	// the project root (the CLI's flag-free default resolves against the
 	// working directory instead, via its resource flags).
 	StorePath string
+	// Collection names the content collection whose context to resolve. Its
+	// coordinates select the profile (hence the voice) and the channel; an
+	// empty name, or a collection that declares none, resolves the project's
+	// own default point — defaults.brand_voice, no channel.
+	Collection string
 }
 
 // ResolveBrandProfile resolves the brand voice profile bound to a loaded
 // project — the cobra-free resolution ladder shared by the CLI's flag-free
 // brand/check/verify paths and the Kapi Desktop. Resolution order:
 //
-//  1. defaults.brand_voice in the recipe (profile_file → YAML, pack →
-//     built-in starter pack, profile → local brand store). profile_file is
-//     resolved relative to the project root.
+//  1. The voice governing the collection's point in the context space — the
+//     `voice:` of the profile whose `when:` matches it most closely, else
+//     defaults.brand_voice (profile_file → YAML, pack → built-in starter pack,
+//     profile → local brand store). profile_file is resolved relative to the
+//     project root.
 //  2. A convention file at <root>/brand.yaml, then <root>/.kapi/brand.yaml.
+//
+// What the recipe binds is *loaded* here and then handed to the framework's one
+// resolution chain (brand.ResolveProfileFromContext) at the collection tier,
+// where a connector- or editor-created project's `CollectionConfig` binding
+// sits. Loading has to happen here because a recipe binds a profile file or a
+// starter pack, which the store cannot name — but ranking does not: an explicit
+// per-call profile still wins over the recipe, stream/project/workspace
+// bindings still sit under it, and the locale/channel/persona composition is
+// the same ResolveProfile every surface uses. The collection's channel enters
+// at the same tier; an explicit Channel (a `--channel` flag) outranks it there.
 //
 // Returns (profile, source, found, error). found is false (with nil error)
 // when the project carries no brand binding and no convention file.
 func (a *App) ResolveBrandProfile(ctx context.Context, proj *project.KapiProject, root string, opts BrandResolveOptions) (*brand.VoiceProfile, string, bool, error) {
+	profile, rc, src, found, err := a.LoadCollectionVoice(ctx, proj, root, opts)
+	if err != nil || !found {
+		return nil, "", false, err
+	}
+
+	// The recipe's match enters the shared chain at the collection tier. No
+	// store is passed: every tier this caller binds carries an already-loaded
+	// profile, because a recipe's `profile:` name was resolved against the local
+	// store by path above (matching id, then slug, then name — which
+	// BrandStore.GetProfile does not do).
+	resolved, err := brand.ResolveProfileFromContext(ctx, brand.ResolveContext{
+		CollectionProfile: profile,
+		CollectionConfig:  map[string]string{brand.PropertyChannel: rc.Channel},
+		Locale:            model.LocaleID(opts.Locale),
+		Channel:           opts.Channel,
+		Persona:           opts.Persona,
+	}, nil)
+	if err != nil {
+		return nil, "", false, err
+	}
+	return resolved, src, true, nil
+}
+
+// LoadCollectionVoice loads the voice profile bound to a collection's point AS
+// AUTHORED — before any locale, channel or persona override is layered on —
+// together with the governance that point resolved to.
+//
+// ResolveBrandProfile is this plus the override composition, and calls it. The
+// split exists because a caller that is going to CARRY the profile somewhere
+// else needs the authored content, not a resolution of it: a profile whose
+// base tone has already been replaced by one channel's override no longer
+// describes how the brand sounds on any other channel, so storing it under the
+// profile's name would quietly collapse the variants into whichever collection
+// happened to be resolved last.
+//
+// Returns (profile, governance, source, found, error). found is false (with a
+// nil error) when the project carries no brand binding and no convention file;
+// the governance is still returned, since its channel and terms are resolved
+// whether or not a voice was bound.
+func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject, root string, opts BrandResolveOptions) (*brand.VoiceProfile, *project.ResolvedGovernance, string, bool, error) {
 	if proj == nil {
-		return nil, "", false, nil
+		return nil, nil, "", false, nil
 	}
 	storePath := opts.StorePath
 	if storePath == "" {
 		storePath = filepath.Join(root, "brand.db")
 	}
 
-	profile, src, found, err := a.loadBoundBrandProfile(ctx, proj, root, storePath)
+	rc, err := proj.ResolveGovernance(opts.Collection)
 	if err != nil {
-		return nil, "", false, err
+		return nil, nil, "", false, err
+	}
+	profile, src, found, err := a.loadBoundBrandProfile(ctx, rc.Voice, root, storePath, rc.VoiceField)
+	if err != nil {
+		return nil, rc, "", false, err
 	}
 	if !found {
 		// Convention files at the project root.
@@ -405,7 +492,7 @@ func (a *App) ResolveBrandProfile(ctx context.Context, proj *project.KapiProject
 		} {
 			p, lerr := loadProfileFile(conv)
 			if lerr != nil {
-				return nil, "", false, lerr
+				return nil, rc, "", false, lerr
 			}
 			if p != nil {
 				profile, src, found = p, conv, true
@@ -413,22 +500,16 @@ func (a *App) ResolveBrandProfile(ctx context.Context, proj *project.KapiProject
 			}
 		}
 	}
-	if !found {
-		return nil, "", false, nil
-	}
-
-	if opts.Locale != "" || opts.Channel != "" || opts.Persona != "" {
-		profile = brand.ResolveProfile(profile, model.LocaleID(opts.Locale), opts.Channel, opts.Persona)
-	}
-	return profile, src, true, nil
+	return profile, rc, src, found, nil
 }
 
-// loadBoundBrandProfile resolves the recipe's defaults.brand_voice binding
-// into a VoiceProfile. Returns found=false when the recipe has no binding.
-// profile_file paths are resolved relative to the project root; a profile
-// name is looked up in the local brand store at storePath.
-func (a *App) loadBoundBrandProfile(ctx context.Context, proj *project.KapiProject, root, storePath string) (*brand.VoiceProfile, string, bool, error) {
-	bv := proj.Defaults.BrandVoice
+// loadBoundBrandProfile turns a resolved voice binding into a VoiceProfile.
+// Returns found=false when the binding is nil (nothing bound at this point, nor
+// project-wide). field names the recipe key the binding came from,
+// so a missing file names the line to fix. profile_file paths are resolved
+// relative to the project root; a profile name is looked up in the local brand
+// store at storePath.
+func (a *App) loadBoundBrandProfile(ctx context.Context, bv *project.BrandVoiceBinding, root, storePath, field string) (*brand.VoiceProfile, string, bool, error) {
 	if bv == nil {
 		return nil, "", false, nil
 	}
@@ -443,7 +524,7 @@ func (a *App) loadBoundBrandProfile(ctx context.Context, proj *project.KapiProje
 			return nil, "", false, err
 		}
 		if p == nil {
-			return nil, "", false, fmt.Errorf("brand voice profile file %q (from defaults.brand_voice.profile_file) not found", path)
+			return nil, "", false, fmt.Errorf("brand voice profile file %q (from %s.profile_file) not found", path, field)
 		}
 		return p, path, true, nil
 	case bv.Pack != "":

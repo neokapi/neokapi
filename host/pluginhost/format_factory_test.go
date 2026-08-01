@@ -24,8 +24,7 @@ func makePluginWithBridge(t *testing.T, name, daemonBin, formatName string, exts
 	t.Helper()
 	dir := t.TempDir()
 	binDest := filepath.Join(dir, "fakedaemon")
-	require.NoError(t, copyFile(daemonBin, binDest))
-	require.NoError(t, os.Chmod(binDest, 0o755))
+	linkFakeDaemon(t, daemonBin, binDest)
 
 	m := &manifest.Manifest{
 		ManifestVersion: manifest.CurrentVersion,

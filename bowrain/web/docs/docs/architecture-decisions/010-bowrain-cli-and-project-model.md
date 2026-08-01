@@ -196,8 +196,8 @@ my-app/
 ├── kapi.yaml           # the recipe (committed) — fixed, conventional filename
 ├── .kapi/              # state (gitignored)
 │   ├── manifest.yaml
-│   ├── tm.db           # authoritative project content memory
-│   ├── termbase.db     # authoritative project terms store
+│   ├── memory.db           # authoritative project content memory
+│   ├── terms.db     # authoritative project terms store
 │   ├── flows/          # optional file-per-flow definitions
 │   │   └── pseudo.yaml
 │   └── cache/          # all regenerable caches under one roof
@@ -222,7 +222,7 @@ Ownership:
 - **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's
   cheaply regenerable: the block store, the kapi sync cache, extraction
   intermediates, overlay layers.
-- **`.kapi/tm.db`, `.kapi/termbase.db`, `.kapi/manifest.yaml`** — kapi-owned,
+- **`.kapi/memory.db`, `.kapi/terms.db`, `.kapi/manifest.yaml`** — kapi-owned,
   authoritative. The first two are the project's content memory and terms
   store. Gitignored by default; opt in to commit them when cross-clone
   reproducibility matters.

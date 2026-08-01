@@ -53,7 +53,7 @@ func (s *Server) HandleListTasks(c echo.Context) error {
 
 	result, err := s.TaskStore.List(ctx, q)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if result.Tasks == nil {
 		result.Tasks = []bstore.Task{}
@@ -112,7 +112,7 @@ func (s *Server) HandleCreateTask(c echo.Context) error {
 	}
 
 	if err := s.TaskStore.Create(c.Request().Context(), task); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Notify assignee if set.
@@ -193,7 +193,7 @@ func (s *Server) HandleUpdateTask(c echo.Context) error {
 	}
 
 	if err := s.TaskStore.Update(ctx, task); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, task)
@@ -207,7 +207,7 @@ func (s *Server) HandleDeleteTask(c echo.Context) error {
 
 	taskID := c.Param("taskId")
 	if err := s.TaskStore.Delete(c.Request().Context(), taskID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -228,7 +228,7 @@ func (s *Server) HandleAssignTask(c echo.Context) error {
 	}
 
 	if err := s.TaskStore.Assign(c.Request().Context(), taskID, req.AssigneeID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
@@ -244,7 +244,7 @@ func (s *Server) HandleCompleteTask(c echo.Context) error {
 	userID, _ := c.Get("user_id").(string)
 
 	if err := s.TaskStore.Complete(c.Request().Context(), taskID, userID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Bowrain AD-014: Emit source.review.completed when a source review task is completed,
@@ -274,7 +274,7 @@ func (s *Server) HandleCancelTask(c echo.Context) error {
 
 	taskID := c.Param("taskId")
 	if err := s.TaskStore.Cancel(c.Request().Context(), taskID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})

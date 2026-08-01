@@ -10,8 +10,8 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/id"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // EventBrandVoiceRulePromoted fires when a correction-derived rule is promoted
@@ -21,12 +21,12 @@ const EventBrandVoiceRulePromoted platev.EventType = "brand.voice.rule_promoted"
 
 // BrandCorrectionRequest is the request body for creating a brand voice correction.
 type BrandCorrectionRequest struct {
-	ProfileID     string              `json:"profile_id"`
-	BlockID       string              `json:"block_id"`
-	Dimension     corebrand.Dimension `json:"dimension"`
-	OriginalText  string              `json:"original_text"`
-	CorrectedText string              `json:"corrected_text"`
-	FindingID     string              `json:"finding_id,omitempty"`
+	ProfileID     string                `json:"profile_id"`
+	BlockID       string                `json:"block_id"`
+	Dimension     coreprofile.Dimension `json:"dimension"`
+	OriginalText  string                `json:"original_text"`
+	CorrectedText string                `json:"corrected_text"`
+	FindingID     string                `json:"finding_id,omitempty"`
 }
 
 // HandleCreateBrandVoiceCorrection records a user correction to a brand voice finding.
@@ -49,7 +49,7 @@ func (s *Server) HandleCreateBrandVoiceCorrection(c echo.Context) error {
 
 	userID, _ := c.Get("user_id").(string)
 
-	correction := &corebrand.Correction{
+	correction := &coreprofile.Correction{
 		ID:            id.New(),
 		ProfileID:     req.ProfileID,
 		BlockID:       req.BlockID,
@@ -62,7 +62,7 @@ func (s *Server) HandleCreateBrandVoiceCorrection(c echo.Context) error {
 	}
 
 	if err := s.BrandStore.StoreCorrection(c.Request().Context(), correction); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Progressive autonomy: if this correction pushes its term over the profile's
@@ -94,17 +94,17 @@ func (s *Server) HandleGetSuggestedRules(c echo.Context) error {
 
 	rules, err := s.BrandStore.GetSuggestedRules(c.Request().Context(), wsID, minCount)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, rules)
 }
 
 // PromoteRuleRequest is the body for promoting a suggested rule into a profile.
 type PromoteRuleRequest struct {
-	Term            string              `json:"term"`
-	Replacement     string              `json:"replacement"`
-	Dimension       corebrand.Dimension `json:"dimension,omitempty"`
-	CorrectionCount int                 `json:"correction_count,omitempty"`
+	Term            string                `json:"term"`
+	Replacement     string                `json:"replacement"`
+	Dimension       coreprofile.Dimension `json:"dimension,omitempty"`
+	CorrectionCount int                   `json:"correction_count,omitempty"`
 }
 
 // HandlePromoteSuggestedRule promotes a reviewed, correction-derived rule into
@@ -133,7 +133,7 @@ func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
 	wsSlug := c.Param("ws")
 	wsID, _ := c.Get("workspace_id").(string)
 	userID, _ := c.Get("user_id").(string)
-	rule := corebrand.SuggestedRule{
+	rule := coreprofile.SuggestedRule{
 		Term:            req.Term,
 		Replacement:     req.Replacement,
 		Dimension:       req.Dimension,
@@ -158,7 +158,7 @@ func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
 		rule.ConceptID = conceptID
 	}
 
-	profile, changed, err := corebrand.PromoteAndSave(c.Request().Context(), s.BrandStore, profileID, rule)
+	profile, changed, err := coreprofile.PromoteAndSave(c.Request().Context(), s.BrandStore, profileID, rule)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -166,12 +166,12 @@ func (s *Server) HandlePromoteSuggestedRule(c echo.Context) error {
 	if changed {
 		// Record the decision so the candidate leaves the review list and the
 		// promotion is traceable to the profile version it landed in.
-		_ = s.BrandStore.RecordRuleDecision(c.Request().Context(), &corebrand.RuleDecision{
+		_ = s.BrandStore.RecordRuleDecision(c.Request().Context(), &coreprofile.RuleDecision{
 			ProfileID:       profileID,
 			Term:            req.Term,
 			Replacement:     req.Replacement,
 			Dimension:       req.Dimension,
-			Status:          corebrand.RuleDecisionPromoted,
+			Status:          coreprofile.RuleDecisionPromoted,
 			CorrectionCount: req.CorrectionCount,
 			PromotedVersion: profile.Version,
 			ConceptID:       rule.ConceptID,
@@ -214,7 +214,7 @@ func (s *Server) HandleDemoteSuggestedRule(c echo.Context) error {
 	}
 
 	profileID := c.Param("id")
-	profile, changed, err := corebrand.DemoteAndSave(c.Request().Context(), s.BrandStore, profileID, req.Term)
+	profile, changed, err := coreprofile.DemoteAndSave(c.Request().Context(), s.BrandStore, profileID, req.Term)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}

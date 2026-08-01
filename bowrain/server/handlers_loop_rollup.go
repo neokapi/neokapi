@@ -147,7 +147,7 @@ func (s *Server) HandleWorkspaceLoopRollup(c echo.Context) error {
 
 	allProjects, err := s.Services.Project.ListProjects(ctx)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	projects := make([]*store.Project, 0, len(allProjects))
 	for _, p := range allProjects {

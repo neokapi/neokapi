@@ -19,7 +19,7 @@ const Ext = format.TermsBundleExt
 
 // ConventionalName is the bundle's name when a project keeps its committed
 // glossary at a well-known location instead of binding one through the recipe's
-// defaults.termbase_source. It is also the member name a .kpz carries terms
+// defaults.terms_source. It is also the member name a .kpz carries terms
 // under, so unpacking an archive by hand yields the conventional spelling.
 const ConventionalName = "terms.json"
 

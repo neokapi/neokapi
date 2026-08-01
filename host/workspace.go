@@ -138,7 +138,17 @@ func (a *App) openProjectBlockStore() blockstore.Store {
 	return store
 }
 
-// LoadWorkspace reads and validates a .kpz package from disk.
+// LoadWorkspace reads and validates a .kpz package from disk. It is the single
+// ingest point for every packaged workspace this binary opens — merge, unpack,
+// info, and the shadow cache all come through here — which is why the recipe is
+// made inert here rather than at each caller.
+//
+// kpz.Unmarshal has already refused any package naming a path outside the
+// project. What remains is intent: a recipe travels with the content, and a
+// package arrives from outside, so the exec-class steps and non-local output
+// layouts it may declare are stripped before anything can run them. What was
+// removed is reported, because silently dropping a step the author meant would
+// look like kapi ignoring the recipe.
 func LoadWorkspace(path string) (*kpz.Package, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -147,6 +157,13 @@ func LoadWorkspace(path string) (*kpz.Package, error) {
 	pkg, err := kpz.Unmarshal(data)
 	if err != nil {
 		return nil, fmt.Errorf("parse snapshot %q: %w", filepath.Base(path), err)
+	}
+	if pkg.Recipe != nil {
+		sanitized, removed := kpz.SanitizeRecipe(pkg.Recipe)
+		pkg.Recipe = sanitized
+		for _, r := range removed {
+			fmt.Fprintf(os.Stderr, "Warning: %s: ignoring %s carried by the package\n", filepath.Base(path), r)
+		}
 	}
 	return pkg, nil
 }

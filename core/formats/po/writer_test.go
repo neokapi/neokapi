@@ -2,6 +2,7 @@ package po_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/formats/po"
@@ -58,6 +59,32 @@ func TestWrite_EscapesAmongAlreadyEscaped(t *testing.T) {
 	output := roundTrip(t, input)
 	assert.Contains(t, output, "\\\\", "double backslashes should survive roundtrip")
 	assert.Contains(t, output, "\\n", "newline escape should survive roundtrip")
+}
+
+// TestWrite_EveryByteSurvivesMsgid sweeps every byte the PO reader can carry in
+// a msgid through a round-trip. No byte value may be reserved by the writer's
+// internals: the reader accepts a literal control byte inside a quoted string,
+// so a delimiter drawn from the same alphabet as the data makes content and
+// marker indistinguishable and the content byte is silently deleted (#1600).
+func TestWrite_EveryByteSurvivesMsgid(t *testing.T) {
+	t.Parallel()
+	for b := 0x01; b <= 0x7f; b++ {
+		if b == '\n' || b == '"' || b == '\\' {
+			// Not representable unescaped in a PO string literal; the
+			// dedicated escape tests above cover these.
+			continue
+		}
+		t.Run(fmt.Sprintf("0x%02x", b), func(t *testing.T) {
+			t.Parallel()
+			want := "a" + string(rune(b)) + "b"
+			output := roundTrip(t, "msgid \""+want+"\"\nmsgstr \"x\"\n")
+
+			blocks := translatableBlocks(readDefault(t, output))
+			require.Len(t, blocks, 1)
+			assert.Equal(t, want, blocks[0].SourceText(),
+				"byte 0x%02x must survive read → write → read", b)
+		})
+	}
 }
 
 // okapi: POWriterTest#testOutputWithFuzzy

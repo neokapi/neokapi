@@ -72,7 +72,7 @@ func assertNoRunSideEffects(t *testing.T, root string, locales ...string) {
 	cache := filepath.Join(root, project.StateDirName, "cache")
 	_, err := os.Stat(cache)
 	assert.True(t, os.IsNotExist(err), "explain must not create the project cache (%s)", cache)
-	tm := filepath.Join(root, project.StateDirName, "tm.db")
+	tm := filepath.Join(root, project.StateDirName, "memory.db")
 	_, err = os.Stat(tm)
 	assert.True(t, os.IsNotExist(err), "explain must not create the project content memory (%s)", tm)
 }

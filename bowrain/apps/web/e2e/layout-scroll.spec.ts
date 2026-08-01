@@ -77,7 +77,8 @@ async function injectAuthCookie(page: Page, authToken: string) {
  *   - scrollHeight exceeds clientHeight by more than a rounding tolerance,
  *   - computed overflow-y is `hidden` (so the element itself cannot scroll),
  *   - the element is actually rendered (non-zero box),
- *   - no ancestor scroll container can bring the content into view.
+ *   - no ancestor scroll container can bring the content into view,
+ *   - the clipping is not a deliberate truncation idiom.
  *
  * The tolerance absorbs sub-pixel layout: fractional line heights routinely
  * leave scrollHeight a pixel above clientHeight on a box that is not clipping
@@ -139,6 +140,16 @@ async function findClippedContent(page: Page): Promise<Clip[]> {
       // and is not something a sighted user is meant to reach.
       const rect = el.getBoundingClientRect();
       if (rect.width < MIN_BOX || rect.height < MIN_BOX) continue;
+
+      // Skip the line-clamp idiom. A clamped paragraph is a preview: the copy
+      // is deliberately cut to N lines on a card and reachable in full on the
+      // surface the card links to. It is indistinguishable from accidental
+      // clipping by geometry alone — `-webkit-line-clamp` is the intent.
+      // Nothing tripped this until a voice profile with a real description
+      // existed on /context/voice, which only happened once the brand scan
+      // started completing again (#1587).
+      const clamp = style.getPropertyValue("-webkit-line-clamp");
+      if (clamp && clamp !== "none") continue;
 
       const hidden = el.scrollHeight - el.clientHeight;
       if (hidden <= TOLERANCE) continue;
@@ -205,9 +216,11 @@ test.describe("Layout: no route clips content the user cannot reach", () => {
     { name: "settings-members", path: `/${wsSlug}/settings/members`, ready: "nav-settings" },
     { name: "settings-system", path: `/${wsSlug}/settings/system`, ready: "nav-settings" },
     { name: "settings-billing", path: `/${wsSlug}/settings/billing`, ready: "nav-settings" },
-    { name: "brand-concepts", path: `/${wsSlug}/brand/concepts`, ready: "nav-brand" },
-    { name: "brand-voice", path: `/${wsSlug}/brand/voice`, ready: "nav-brand" },
-    { name: "memory", path: `/${wsSlug}/memory`, ready: "nav-memory" },
+    { name: "context-concepts", path: `/${wsSlug}/context/concepts`, ready: "nav-context" },
+    { name: "context-voice", path: `/${wsSlug}/context/voice`, ready: "nav-context" },
+    // Content memory is a Context surface now; `nav-memory` is not a rail
+    // entry any more, and waiting on it only bought an 8s timeout per sweep.
+    { name: "memory", path: `/${wsSlug}/context/memory`, ready: "nav-context" },
     { name: "project-detail", path: `/${wsSlug}/p/${projectId}/s/main`, ready: "nav-translate" },
     // The editor replaces the shell's scroll container with overflow-hidden and
     // manages its own panes, so it is the route most likely to lose a scroller.

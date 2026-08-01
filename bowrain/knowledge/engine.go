@@ -7,9 +7,9 @@ import (
 	"slices"
 	"strings"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -60,16 +60,16 @@ type ConceptStore interface {
 }
 
 // ProfileStore is the slice of the brand store the engine reads (and the merge
-// path writes) for voice impact. corebrand.BrandStore satisfies it.
+// path writes) for voice impact. coreprofile.BrandStore satisfies it.
 type ProfileStore interface {
 	// GetProfile returns a voice profile by ID, or a nil profile with a nil
 	// error when it is absent (following the brand store's convention).
-	GetProfile(ctx context.Context, id string) (*corebrand.VoiceProfile, error)
+	GetProfile(ctx context.Context, id string) (*coreprofile.VoiceProfile, error)
 	// ListProfiles returns the workspace's voice profiles.
-	ListProfiles(ctx context.Context, workspaceID string) ([]*corebrand.VoiceProfile, error)
+	ListProfiles(ctx context.Context, workspaceID string) ([]*coreprofile.VoiceProfile, error)
 	// UpdateProfile persists a profile (used by the merge path; the read side
 	// never calls it).
-	UpdateProfile(ctx context.Context, profile *corebrand.VoiceProfile) error
+	UpdateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error
 }
 
 // Compile-time proof that the production stores satisfy the engine's interfaces,
@@ -80,7 +80,7 @@ var (
 	_ BlockSource        = (store.ContentStore)(nil)
 	_ CollectionResolver = (store.ContentStore)(nil)
 	_ ConceptStore       = (terms.Store)(nil)
-	_ ProfileStore       = (corebrand.BrandStore)(nil)
+	_ ProfileStore       = (coreprofile.BrandStore)(nil)
 )
 
 // Engine computes the read-side analytics of the brand knowledge graph: the
@@ -325,15 +325,15 @@ func isNotFound(err error) bool {
 // ApplyVoiceOpsToProfile returns a candidate copy of baseline with the
 // voice.rule.add / voice.rule.remove ops that target it applied — the "after"
 // profile a change-set's voice ops would produce. baseline is deep-copied
-// (corebrand.VoiceProfile.Clone), so it is never mutated. Ops whose ProfileID
+// (coreprofile.VoiceProfile.Clone), so it is never mutated. Ops whose ProfileID
 // does not match baseline.ID are ignored, so a caller may pass the full op list
 // and get back only the changes relevant to this profile. A nil baseline yields
 // nil.
 //
 // An add joins the rule to the named vocabulary list (preferred|forbidden|
 // competitor), idempotently by term (case-insensitive) like
-// corebrand.ApplySuggestedRule; a remove drops the rule from that list by term.
-func ApplyVoiceOpsToProfile(baseline *corebrand.VoiceProfile, ops []ChangeSetOp) *corebrand.VoiceProfile {
+// coreprofile.ApplySuggestedRule; a remove drops the rule from that list by term.
+func ApplyVoiceOpsToProfile(baseline *coreprofile.VoiceProfile, ops []ChangeSetOp) *coreprofile.VoiceProfile {
 	if baseline == nil {
 		return nil
 	}
@@ -358,7 +358,7 @@ func ApplyVoiceOpsToProfile(baseline *corebrand.VoiceProfile, ops []ChangeSetOp)
 }
 
 // listFor returns a pointer to the vocabulary list a voice rule belongs to.
-func listFor(p *corebrand.VoiceProfile, list VoiceRuleList) *[]corebrand.TermRule {
+func listFor(p *coreprofile.VoiceProfile, list VoiceRuleList) *[]coreprofile.TermRule {
 	switch list {
 	case VoiceListPreferred:
 		return &p.Vocabulary.PreferredTerms
@@ -374,7 +374,7 @@ func listFor(p *corebrand.VoiceProfile, list VoiceRuleList) *[]corebrand.TermRul
 // addRuleToList appends rule to the named list, idempotently by term: an
 // existing rule with the same term (case-insensitive) is updated in place rather
 // than duplicated.
-func addRuleToList(p *corebrand.VoiceProfile, list VoiceRuleList, rule corebrand.TermRule) {
+func addRuleToList(p *coreprofile.VoiceProfile, list VoiceRuleList, rule coreprofile.TermRule) {
 	lp := listFor(p, list)
 	if lp == nil || strings.TrimSpace(rule.Term) == "" {
 		return
@@ -390,7 +390,7 @@ func addRuleToList(p *corebrand.VoiceProfile, list VoiceRuleList, rule corebrand
 
 // removeRuleFromList drops the rule identified by term (case-insensitive) from
 // the named list.
-func removeRuleFromList(p *corebrand.VoiceProfile, list VoiceRuleList, term string) {
+func removeRuleFromList(p *coreprofile.VoiceProfile, list VoiceRuleList, term string) {
 	lp := listFor(p, list)
 	if lp == nil || strings.TrimSpace(term) == "" {
 		return

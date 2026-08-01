@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -358,4 +359,152 @@ func TestAITranslate_SessionBlockWithoutID(t *testing.T) {
 	defer check.Close()
 	_, err = check.GetOverlay("targets/fr", "")
 	require.ErrorIs(t, err, blockstore.ErrNotFound, "an id-less block writes no overlay")
+}
+
+// TestAITranslate_StampsGoverningProfile: a target produced under a resolved
+// context profile records which profile and which version governed it, not just
+// which engine made it. The profile is rendered into the prompt and then
+// discarded, and profiles are edited in place — so an unstamped target's
+// governing context is unrecoverable, and a timestamp is only a proxy for it.
+func TestAITranslate_StampsGoverningProfile(t *testing.T) {
+	store, err := sqlitestore.New(filepath.Join(t.TempDir(), "blocks.db"))
+	require.NoError(t, err)
+	defer store.Close()
+
+	ctx := context.Background()
+	mock, _ := newTranslateMock(t)
+	cfg := singleBlockConfig()
+	cfg.Profile = &profile.VoiceProfile{ID: "end-user-help", Name: "End-user help", Version: 7}
+	tl := tools.NewAITranslateTool(mock, cfg)
+
+	sess, err := store.Begin(ctx)
+	require.NoError(t, err)
+	block := runSession(t, ctx, tl, sess, model.NewBlock("tu1", "Hello"))
+	require.NoError(t, sess.Commit())
+
+	tgt := block.Target(model.LocaleFrench)
+	require.NotNil(t, tgt)
+	assert.Equal(t, model.OriginAI, tgt.Origin.Kind, "how it was made")
+	assert.Equal(t, "end-user-help", tgt.Origin.Profile, "what governed it")
+	assert.Equal(t, "7", tgt.Origin.ProfileVersion, "which revision of it was in force")
+}
+
+// TestAITranslate_NoProfileLeavesStampEmpty: an ad-hoc run resolves no profile,
+// and the stamp stays empty rather than inventing a default. An empty Profile
+// means "no context was in force", which is a different fact from "some context
+// was in force and we failed to record it".
+func TestAITranslate_NoProfileLeavesStampEmpty(t *testing.T) {
+	store, err := sqlitestore.New(filepath.Join(t.TempDir(), "blocks.db"))
+	require.NoError(t, err)
+	defer store.Close()
+
+	ctx := context.Background()
+	mock, _ := newTranslateMock(t)
+	tl := tools.NewAITranslateTool(mock, singleBlockConfig())
+
+	sess, err := store.Begin(ctx)
+	require.NoError(t, err)
+	block := runSession(t, ctx, tl, sess, model.NewBlock("tu1", "Hello"))
+	require.NoError(t, sess.Commit())
+
+	tgt := block.Target(model.LocaleFrench)
+	require.NotNil(t, tgt)
+	assert.Equal(t, model.OriginAI, tgt.Origin.Kind)
+	assert.Empty(t, tgt.Origin.Profile)
+	assert.Empty(t, tgt.Origin.ProfileVersion)
+}
+
+// TestAITranslate_UnversionedProfileStampsIDOnly: a profile that has never been
+// versioned (Version 0) stamps its id with no version, rather than a misleading
+// "0" that would read as a real revision.
+func TestAITranslate_UnversionedProfileStampsIDOnly(t *testing.T) {
+	store, err := sqlitestore.New(filepath.Join(t.TempDir(), "blocks.db"))
+	require.NoError(t, err)
+	defer store.Close()
+
+	ctx := context.Background()
+	mock, _ := newTranslateMock(t)
+	cfg := singleBlockConfig()
+	cfg.Profile = &profile.VoiceProfile{ID: "draft-profile", Name: "Draft"}
+	tl := tools.NewAITranslateTool(mock, cfg)
+
+	sess, err := store.Begin(ctx)
+	require.NoError(t, err)
+	block := runSession(t, ctx, tl, sess, model.NewBlock("tu1", "Hello"))
+	require.NoError(t, sess.Commit())
+
+	tgt := block.Target(model.LocaleFrench)
+	require.NotNil(t, tgt)
+	assert.Equal(t, "draft-profile", tgt.Origin.Profile)
+	assert.Empty(t, tgt.Origin.ProfileVersion)
+}
+
+// stampedFingerprint runs one block through the tool and returns the context
+// fingerprint stamped on the produced target.
+func stampedFingerprint(t *testing.T, cfg tools.AITranslateConfig) string {
+	t.Helper()
+	store, err := sqlitestore.New(filepath.Join(t.TempDir(), "blocks.db"))
+	require.NoError(t, err)
+	defer store.Close()
+
+	ctx := context.Background()
+	mock, _ := newTranslateMock(t)
+	tl := tools.NewAITranslateTool(mock, cfg)
+
+	sess, err := store.Begin(ctx)
+	require.NoError(t, err)
+	block := runSession(t, ctx, tl, sess, model.NewBlock("tu1", "Hello"))
+	require.NoError(t, sess.Commit())
+
+	tgt := block.Target(model.LocaleFrench)
+	require.NotNil(t, tgt)
+	return tgt.Origin.ContextFingerprint
+}
+
+// TestContextFingerprintTracksTheContextNotTheEngine is the property that makes
+// the stamp mean something. Profile/ProfileVersion pin the profile, but
+// terminology reaches the tool separately and carries no version — so the
+// fingerprint is what notices the terms moving. It must move when the governing
+// context moves, and must NOT move when only the engine does: a stamp that
+// changed on a model swap would be useless as a statement about governance.
+func TestContextFingerprintTracksTheContextNotTheEngine(t *testing.T) {
+	profile := &profile.VoiceProfile{ID: "help", Name: "Help", Version: 3}
+
+	base := singleBlockConfig()
+	base.Profile = profile
+	base.Glossary = map[string]string{"widget": "gadget", "login": "connexion"}
+	baseFP := stampedFingerprint(t, base)
+	require.NotEmpty(t, baseFP)
+
+	// Same context, different order in the map literal → same fingerprint. Map
+	// iteration is randomised, so an unsorted walk would report drift that never
+	// happened; this is the regression test for that.
+	reordered := singleBlockConfig()
+	reordered.Profile = profile
+	reordered.Glossary = map[string]string{"login": "connexion", "widget": "gadget"}
+	assert.Equal(t, baseFP, stampedFingerprint(t, reordered),
+		"identical terminology must hash identically regardless of map order")
+
+	// A changed term → different fingerprint.
+	changedTerms := singleBlockConfig()
+	changedTerms.Profile = profile
+	changedTerms.Glossary = map[string]string{"widget": "doohickey", "login": "connexion"}
+	assert.NotEqual(t, baseFP, stampedFingerprint(t, changedTerms),
+		"changed terminology must move the fingerprint")
+
+	// A changed model → SAME fingerprint. This is what separates it from the
+	// engine's config fingerprint, which must move here so the cache invalidates.
+	changedModel := singleBlockConfig()
+	changedModel.Profile = profile
+	changedModel.Glossary = map[string]string{"widget": "gadget", "login": "connexion"}
+	changedModel.Model = "claude-y"
+	assert.Equal(t, baseFP, stampedFingerprint(t, changedModel),
+		"swapping the model is not a governance change and must not move the fingerprint")
+}
+
+// TestContextFingerprintEmptyWhenUngoverned: no profile and no terminology means
+// no context governed the run, which must read as ungoverned rather than as the
+// hash of two empty strings — a constant that would look like a real value.
+func TestContextFingerprintEmptyWhenUngoverned(t *testing.T) {
+	assert.Empty(t, stampedFingerprint(t, singleBlockConfig()))
 }

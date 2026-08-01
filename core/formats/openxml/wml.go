@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -708,7 +709,7 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			p.closeTableStruct(t.Name.Local)
 
 		case xml.CharData:
-			p.skelText(xmlEscape(string(t)))
+			p.skelText(xmlesc.Text(string(t)))
 
 		case xml.ProcInst:
 			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
@@ -1949,7 +1950,7 @@ func (p *wmlParser) handleTableRow(d *xml.Decoder, start xml.StartElement) error
 		switch tt := tok.(type) {
 		case xml.CharData:
 			// xml.CharData backing slice is reused by the decoder; copy via string().
-			pending = append(pending, xmlEscape(string(tt)))
+			pending = append(pending, xmlesc.Text(string(tt)))
 		case xml.Comment:
 			// xml.Comment backing slice is reused by the decoder; copy via string().
 			pending = append(pending, "<!--"+string(tt)+"-->")
@@ -3869,7 +3870,7 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					rawBuf.WriteString(" ")
 					writeAttrName(&rawBuf, a.Name)
 					rawBuf.WriteString(`="`)
-					rawBuf.WriteString(xmlEscapeAttr(a.Value))
+					rawBuf.WriteString(xmlesc.Attr(a.Value))
 					rawBuf.WriteString(`"`)
 				}
 				rawBuf.WriteString(">")
@@ -3878,7 +3879,7 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 				if err != nil {
 					return nil, err
 				}
-				rawBuf.WriteString(xmlEscape(text))
+				rawBuf.WriteString(xmlesc.Text(text))
 				rawBuf.WriteString("</")
 				writeElementName(&rawBuf, t.Name)
 				rawBuf.WriteString(">")
@@ -3936,7 +3937,7 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 						rawBuf.WriteString(" ")
 						writeAttrName(&rawBuf, a.Name)
 						rawBuf.WriteString(`="`)
-						rawBuf.WriteString(xmlEscapeAttr(a.Value))
+						rawBuf.WriteString(xmlesc.Attr(a.Value))
 						rawBuf.WriteString(`"`)
 					}
 					rawBuf.WriteString(">")
@@ -3946,7 +3947,7 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					return nil, err
 				}
 				if rawCaptured {
-					rawBuf.WriteString(xmlEscape(text))
+					rawBuf.WriteString(xmlesc.Text(text))
 					rawBuf.WriteString("</")
 					writeElementName(&rawBuf, t.Name)
 					rawBuf.WriteString(">")
@@ -4003,7 +4004,7 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					brXML.WriteString(" ")
 					writeAttrName(&brXML, a.Name)
 					brXML.WriteString(`="`)
-					brXML.WriteString(xmlEscapeAttr(a.Value))
+					brXML.WriteString(xmlesc.Attr(a.Value))
 					brXML.WriteString(`"`)
 				}
 				brXML.WriteString("/>")
@@ -4307,7 +4308,7 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 						rawBuf.WriteString(" ")
 						writeAttrName(&rawBuf, a.Name)
 						rawBuf.WriteString(`="`)
-						rawBuf.WriteString(xmlEscapeAttr(a.Value))
+						rawBuf.WriteString(xmlesc.Attr(a.Value))
 						rawBuf.WriteString(`"`)
 					}
 					rawBuf.WriteString("/>")
@@ -4370,7 +4371,7 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 					rawBuf.WriteString(" ")
 					writeAttrName(&rawBuf, a.Name)
 					rawBuf.WriteString(`="`)
-					rawBuf.WriteString(xmlEscapeAttr(a.Value))
+					rawBuf.WriteString(xmlesc.Attr(a.Value))
 					rawBuf.WriteString(`"`)
 				}
 				rawBuf.WriteString("/>")
@@ -4387,7 +4388,7 @@ func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldStat
 						rawBuf.WriteString(" ")
 						writeAttrName(&rawBuf, a.Name)
 						rawBuf.WriteString(`="`)
-						rawBuf.WriteString(xmlEscapeAttr(a.Value))
+						rawBuf.WriteString(xmlesc.Attr(a.Value))
 						rawBuf.WriteString(`"`)
 					}
 					rawBuf.WriteString("/>")
@@ -4872,14 +4873,14 @@ func (p *wmlParser) wrapHyperlinkRuns(runs []textRun, relID string, extraAttrs [
 	b.WriteString("<w:hyperlink")
 	if relID != "" {
 		b.WriteString(` r:id="`)
-		b.WriteString(xmlEscapeAttr(relID))
+		b.WriteString(xmlesc.Attr(relID))
 		b.WriteString(`"`)
 	}
 	for _, a := range extraAttrs {
 		b.WriteString(" ")
 		writeAttrName(&b, a.Name)
 		b.WriteString(`="`)
-		b.WriteString(xmlEscapeAttr(a.Value))
+		b.WriteString(xmlesc.Attr(a.Value))
 		b.WriteString(`"`)
 	}
 	b.WriteString(">")
@@ -5740,7 +5741,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// it intact, matching upstream Okapi RunBuilder which
 			// emits xml:space="preserve" whenever the run text is not
 			// pure non-whitespace.
-			fullRunXML := "<w:r>" + rPrXML + `<w:t xml:space="preserve">` + xmlEscape(run.text) + "</w:t></w:r>"
+			fullRunXML := "<w:r>" + rPrXML + `<w:t xml:space="preserve">` + xmlesc.Text(run.text) + "</w:t></w:r>"
 			spanCounter++
 			b.AddPh(fmt.Sprintf("c%d", spanCounter),
 				TypeHiddenRun, SubTypeHiddenRunVanish,
@@ -6358,7 +6359,7 @@ func runToXML(r textRun) string {
 		buf.WriteString(fmt.Sprintf(`<w:%s w:id="%s"/>`, markerElem, rest))
 	default:
 		buf.WriteString(`<w:t xml:space="preserve">`)
-		buf.WriteString(xmlEscape(r.text))
+		buf.WriteString(xmlesc.Text(r.text))
 		buf.WriteString("</w:t>")
 	}
 	buf.WriteString("</w:r>")
@@ -6733,7 +6734,7 @@ func (p *wmlParser) copyAndExtractDrawing(dec *xml.Decoder, out *strings.Builder
 			}
 			writeRawEndElementTo(out, t)
 		case xml.CharData:
-			out.WriteString(xmlEscape(string(t)))
+			out.WriteString(xmlesc.Text(string(t)))
 		case xml.Comment:
 			out.WriteString("<!--")
 			out.Write(t)
@@ -6833,7 +6834,7 @@ func (p *wmlParser) extractTxbxContent(
 				return nil
 			}
 		case xml.CharData:
-			out.WriteString(xmlEscape(string(t)))
+			out.WriteString(xmlesc.Text(string(t)))
 		case xml.Comment:
 			out.WriteString("<!--")
 			out.Write(t)
@@ -7113,7 +7114,7 @@ func writeRawStartElementTo(out *strings.Builder, t xml.StartElement) {
 		out.WriteString(" ")
 		writeAttrName(out, a.Name)
 		out.WriteString(`="`)
-		out.WriteString(xmlEscapeAttr(a.Value))
+		out.WriteString(xmlesc.Attr(a.Value))
 		out.WriteString(`"`)
 	}
 	out.WriteString(">")
@@ -7170,7 +7171,7 @@ func (p *wmlParser) writeDrawingPropertyElementTo(
 		case surface && a.Name.Space == "" && strings.TrimSpace(a.Value) != "" && a.Name.Local == "title":
 			p.emitDrawingPropMarker(out, a.Value, partPath, "drawing-title", false, emitBlock)
 		default:
-			out.WriteString(xmlEscapeAttr(a.Value))
+			out.WriteString(xmlesc.Attr(a.Value))
 		}
 		out.WriteString(`"`)
 	}
@@ -7249,7 +7250,7 @@ func (p *wmlParser) writeStartElementWithTranslatableAttrTo(
 				},
 			})
 		} else {
-			out.WriteString(xmlEscapeAttr(a.Value))
+			out.WriteString(xmlesc.Attr(a.Value))
 		}
 		out.WriteString(`"`)
 	}
@@ -7419,7 +7420,7 @@ func init() {
 		b.WriteString(` xmlns:`)
 		b.WriteString(prefix)
 		b.WriteString(`="`)
-		b.WriteString(xmlEscapeAttr(uri))
+		b.WriteString(xmlesc.Attr(uri))
 		b.WriteString(`"`)
 	}
 	b.WriteString(">")
@@ -7627,7 +7628,7 @@ func startElementToRaw(start xml.StartElement) string {
 		b.WriteString(" ")
 		writeAttrName(&b, a.Name)
 		b.WriteString(`="`)
-		b.WriteString(xmlEscapeAttr(a.Value))
+		b.WriteString(xmlesc.Attr(a.Value))
 		b.WriteString(`"`)
 	}
 	b.WriteString(">")
@@ -7686,7 +7687,7 @@ func (p *wmlParser) skelWriteStartElement(t xml.StartElement) {
 		buf.WriteString(" ")
 		writeAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(xmlEscapeAttr(a.Value))
+		buf.WriteString(xmlesc.Attr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")
@@ -7725,7 +7726,7 @@ func (p *wmlParser) skipAndSkel(d *xml.Decoder) error {
 			depth--
 			p.skelWriteEndElement(t)
 		case xml.CharData:
-			p.skelText(xmlEscape(string(t)))
+			p.skelText(xmlesc.Text(string(t)))
 		}
 	}
 	return nil
@@ -7834,15 +7835,6 @@ func writeAttrName(buf *strings.Builder, name xml.Name) {
 		// name alone is sufficient for well-formed output.
 	}
 	buf.WriteString(name.Local)
-}
-
-// xmlEscapeAttr escapes a string for use as an XML attribute value.
-func xmlEscapeAttr(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, "\"", "&quot;")
-	return s
 }
 
 // nsPrefix maps namespace URI → prefix for known OpenXML namespaces.
@@ -8341,7 +8333,7 @@ func captureRawElement(d *xml.Decoder, start xml.StartElement) (string, error) {
 		buf.WriteString(" ")
 		writeAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(xmlEscapeAttr(a.Value))
+		buf.WriteString(xmlesc.Attr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")
@@ -8361,7 +8353,7 @@ func captureRawElement(d *xml.Decoder, start xml.StartElement) (string, error) {
 				buf.WriteString(" ")
 				writeAttrName(&buf, a.Name)
 				buf.WriteString(`="`)
-				buf.WriteString(xmlEscapeAttr(a.Value))
+				buf.WriteString(xmlesc.Attr(a.Value))
 				buf.WriteString(`"`)
 			}
 			buf.WriteString(">")
@@ -8371,7 +8363,7 @@ func captureRawElement(d *xml.Decoder, start xml.StartElement) (string, error) {
 			writeElementName(&buf, t.Name)
 			buf.WriteString(">")
 		case xml.CharData:
-			buf.WriteString(xmlEscape(string(t)))
+			buf.WriteString(xmlesc.Text(string(t)))
 		case xml.Comment:
 			buf.WriteString("<!--")
 			buf.Write(t)
@@ -8407,7 +8399,7 @@ func captureAlternateContent(d *xml.Decoder, start xml.StartElement) (string, er
 		buf.WriteString(" ")
 		writeAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(xmlEscapeAttr(a.Value))
+		buf.WriteString(xmlesc.Attr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")
@@ -8466,7 +8458,7 @@ func captureAlternateContent(d *xml.Decoder, start xml.StartElement) (string, er
 			writeElementName(&buf, t.Name)
 			buf.WriteString(">")
 		case xml.CharData:
-			buf.WriteString(xmlEscape(string(t)))
+			buf.WriteString(xmlesc.Text(string(t)))
 		case xml.Comment:
 			buf.WriteString("<!--")
 			buf.Write(t)
@@ -8475,14 +8467,10 @@ func captureAlternateContent(d *xml.Decoder, start xml.StartElement) (string, er
 	}
 }
 
-func xmlEscape(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	return s
-}
-
-// xmlEscapeRune writes a single rune to a string builder, XML-escaping if needed.
+// xmlEscapeRune writes a single rune to a string builder, XML-escaping if
+// needed. Kept local rather than folded into xmlesc: it streams one rune
+// straight into a caller-owned Builder instead of returning a string, so the
+// per-rune writers here avoid an intermediate allocation per run.
 func xmlEscapeRune(buf *strings.Builder, r rune) {
 	switch r {
 	case '&':

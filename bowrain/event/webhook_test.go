@@ -1,12 +1,14 @@
 package event
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/stretchr/testify/assert"
@@ -39,7 +41,7 @@ func TestWebhookDelivery(t *testing.T) {
 		Data:      map[string]string{"block_id": "b1"},
 	}
 
-	err := wh.Deliver(event)
+	err := wh.Deliver(t.Context(), event)
 	require.NoError(t, err)
 
 	assert.Equal(t, "block.created", receivedType)
@@ -69,7 +71,7 @@ func TestWebhookRetry(t *testing.T) {
 
 	wh := NewWebhookDelivery(WebhookConfig{URL: srv.URL, Secret: "s"})
 
-	err := wh.Deliver(platev.Event{Type: platev.EventBlockCreated})
+	err := wh.Deliver(t.Context(), platev.Event{Type: platev.EventBlockCreated})
 	require.NoError(t, err)
 	assert.Equal(t, int32(3), attempts.Load())
 }
@@ -82,9 +84,39 @@ func TestWebhookDeliveryFailure(t *testing.T) {
 
 	wh := NewWebhookDelivery(WebhookConfig{URL: srv.URL, Secret: "s"})
 
-	err := wh.Deliver(platev.Event{Type: platev.EventBlockCreated})
+	err := wh.Deliver(t.Context(), platev.Event{Type: platev.EventBlockCreated})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed after")
+}
+
+// Three attempts spend roughly seven seconds in backoff, so a delivery that
+// ignored cancellation would hold a shutting-down process open sleeping against
+// an endpoint nobody is waiting for any more.
+func TestWebhookDeliveryStopsOnContextCancellation(t *testing.T) {
+	var attempts atomic.Int32
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		attempts.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	wh := NewWebhookDelivery(WebhookConfig{URL: srv.URL, Secret: "s"})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(100 * time.Millisecond) // land inside the first backoff
+		cancel()
+	}()
+
+	start := time.Now()
+	err := wh.Deliver(ctx, platev.Event{Type: platev.EventBlockCreated})
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Less(t, elapsed, 2*time.Second, "delivery slept through backoff after cancellation")
+	assert.Equal(t, int32(1), attempts.Load(), "delivery retried after cancellation")
 }
 
 func TestVerifySignature(t *testing.T) {

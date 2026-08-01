@@ -33,7 +33,47 @@ type Config struct {
 	OIDCIssuerURL    string
 	OIDCClientID     string
 	OIDCClientSecret string
-	OIDCPublicURL    string // browser-facing OIDC URL; defaults to OIDCIssuerURL
+	// OIDCPublicURL is the browser-facing URL of the *identity provider*, for
+	// deployments where the issuer the server validates against is reachable
+	// under a different name than the browser uses. Empty means the two are the
+	// same, which every consumer already re-derives as
+	// `!= "" && != OIDCIssuerURL`.
+	//
+	// It is NOT this application's origin, and it is not defaulted to
+	// OIDCIssuerURL. The documentation claimed that default for a long time and
+	// no assignment ever existed; the claim is now removed rather than
+	// implemented, because implementing it would change confirmEmailURL — which
+	// falls back to the request host — into one that emits the IdP's origin in
+	// verification-email links. See AppPublicURL for the value this used to be
+	// borrowed for.
+	OIDCPublicURL string
+
+	// AppPublicURL is the browser-facing origin of *this* application (e.g.
+	// "https://app.bowrain.cloud"). It is what the CORS allowlist and the
+	// WebSocket origin allowlist are built from in production.
+	//
+	// It exists because those two policies previously used OIDCPublicURL as a
+	// stand-in. That was the wrong value twice over: it names the identity
+	// provider rather than the app, so the production allowlist credentialed
+	// the IdP's origin; and because it is optional, its emptiness was also
+	// serving as the production/development discriminator — so a deployment
+	// that set only BOWRAIN_OIDC_ISSUER_URL silently ran the development
+	// policy. DevMode is that discriminator now. Set via BOWRAIN_APP_PUBLIC_URL.
+	AppPublicURL string
+
+	// DevMode marks this process as a development instance, and is the single
+	// explicit answer to "is this production?".
+	//
+	// It carries the same signal as --allow-insecure-dev / BOWRAIN_ALLOW_INSECURE_DEV,
+	// which already gates the startup-config check and direct device approval.
+	// The reasoning there applies unchanged here, and is worth repeating: a
+	// security policy rides on one deliberate "this is a development box"
+	// statement, never on an inference from how some unrelated field happens to
+	// be configured.
+	//
+	// False — the zero value — means production, so the strict policy is what
+	// you get by omission and by mistake. Development is opted into.
+	DevMode bool
 
 	// PublicSiteURL is the origin of the marketing landing site (e.g.
 	// "https://bowrain.cloud"). It is same-site with the app (shared registrable
@@ -71,10 +111,17 @@ type Config struct {
 	AllowUnverifiedEmail bool
 
 	// ForceSecureCookies forces the Secure flag on session cookies regardless of
-	// the request scheme. Set true in any TLS-fronted deployment (e.g. behind
+	// the request scheme. It matters in any TLS-fronted deployment (e.g. behind
 	// CloudFront→ALB, where TLS terminates at the edge and the task sees the
 	// scheme only via X-Forwarded-Proto), so a proxy-header change can never
 	// silently emit non-Secure session cookies.
+	//
+	// Defaulted true whenever DevMode is false — see ApplyDefaults. Otherwise a
+	// deployment that simply never heard of this setting depends on a header it
+	// does not control for whether its session cookie is Secure, and echo's
+	// Scheme() will believe four different forwarded-proto headers from anyone
+	// who sends them. Development keeps it false: browsers drop Secure cookies
+	// over plain http, which is what every local stack serves.
 	ForceSecureCookies bool
 
 	// Keycloak Admin API — used to write through email changes initiated
@@ -200,6 +247,24 @@ type Config struct {
 	// all so a missing/failed admin-OIDC config can never silently fall back to
 	// accepting regular-user tokens (privilege escalation).
 	AllowInsecureAdminAuth bool
+
+	// AllowInsecureDeviceAuth opts the device authorization flow (RFC 8628)
+	// into direct approval: /device/verify marks the pending device code
+	// authorized straight from the browser request instead of routing the
+	// person at the keyboard through the identity provider.
+	//
+	// SECURITY: with this enabled, an unauthenticated request authorizes a
+	// pending device for whatever identity it names, and the subsequent poll
+	// mints a platform token for the EXISTING account with that email. There is
+	// no proof of identity anywhere in the path. It exists so local development
+	// and the e2e/harness stacks can complete the device flow without driving a
+	// browser login. It is deliberately NOT the default, and there is no silent
+	// fallback: with it off, verification always goes through OIDC, and a
+	// server with no OIDC provider configured refuses to verify rather than
+	// approving the device itself — that absent-provider state is also the
+	// state a misconfigured production deploy lands in, so failing open there
+	// would hand out sessions for the asking.
+	AllowInsecureDeviceAuth bool
 
 	// Audit (Phase 2). AuditRetentionDays prunes audit_log rows older than the
 	// given number of days (0 = keep forever). AuditSIEMWebhookURL forwards

@@ -63,9 +63,13 @@ linters:
         # takes an attacker-controlled magnitude near 2^31/2^63. Classic gosec
         # false-positive class.
         - G115
-        # G110 — decompression bomb: the only sites unpack signed plugin
-        # tarballs and epub parts. Plugin archives are cosign-verified before
-        # extraction; the extractor is already Zip-Slip hardened (see G305).
+        # G110 — decompression bomb: every remaining site is bounded by
+        # core/safeio. Container formats (OOXML/EPUB/IDML) and .kpz packages go
+        # through ZipLimits — declared-header CheckReader up front, then a
+        # ZipGuard enforcing per-entry size, cumulative total, and the
+        # inflate-ratio bomb check on the ACTUAL stream. Plugin tarballs are
+        # additionally cosign-verified before extraction, and every extractor is
+        # Zip-Slip hardened (see G305).
         - G110
         # G201 — SQL string formatting: the dynamic query builders interpolate
         # only a constant WHERE skeleton and "$N" placeholder tokens; every

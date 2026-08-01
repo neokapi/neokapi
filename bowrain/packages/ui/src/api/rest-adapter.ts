@@ -127,6 +127,8 @@ import type {
   BrandScanUploadResult,
   BrandScanJob,
   BrandScanCheckResult,
+  GitHubSetupState,
+  ClaimInstallationResult,
   InstallationRepo,
   BindInstallationRepoRequest,
   BindInstallationRepoResult,
@@ -302,6 +304,24 @@ export class RestApiAdapter implements ApiAdapter {
       // and a cross-origin custom header would force an unwanted preflight.
       h["X-Bowrain-Csrf"] = "1";
     }
+    return h;
+  }
+
+  /**
+   * Headers for a multipart/form-data request: the same auth and CSRF headers
+   * as every other call, minus Content-Type — the browser must set that itself
+   * so the multipart boundary is generated.
+   *
+   * The upload methods used to hand-roll `this.token ? { Authorization } : {}`,
+   * which in cookie (BFF) mode produced no headers at all. When #1239 made the
+   * CSRF header mandatory on cookie-authenticated state-changing requests,
+   * every upload from the web app started coming back 403 "missing CSRF
+   * header" — file upload, collection upload, and brand-scan sources alike.
+   * Deriving from headers() keeps the auth contract in one place.
+   */
+  private uploadHeaders(): Record<string, string> {
+    const h = this.headers();
+    delete h["Content-Type"];
     return h;
   }
 
@@ -1049,7 +1069,7 @@ export class RestApiAdapter implements ApiAdapter {
     const url = `${this.projectEp(workspaceSlug, projectId)}/items/${this.ref(stream)}`;
     const resp = await this.fetchImpl(`${this.baseUrl}${url}`, {
       method: "POST",
-      headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
+      headers: this.uploadHeaders(),
       credentials: "same-origin",
       body: formData,
     });
@@ -1151,6 +1171,21 @@ export class RestApiAdapter implements ApiAdapter {
       method: "POST",
       body: JSON.stringify({ type, config }),
     });
+  }
+
+  async githubSetupState(workspaceSlug: string): Promise<GitHubSetupState> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/github/setup-state`);
+  }
+
+  async claimInstallation(
+    workspaceSlug: string,
+    installationId: string,
+    state: string,
+  ): Promise<ClaimInstallationResult> {
+    return this.fetchJSON(
+      `/api/v1/${workspaceSlug}/github/installations/${encodeURIComponent(installationId)}/claim`,
+      { method: "POST", body: JSON.stringify({ state }) },
+    );
   }
 
   async listInstallationRepos(
@@ -1324,7 +1359,7 @@ export class RestApiAdapter implements ApiAdapter {
     const url = `${this.projectEp(workspaceSlug, projectId)}/collections/${this.ref(stream)}/${encodeURIComponent(collectionId)}/items`;
     const resp = await this.fetchImpl(`${this.baseUrl}${url}`, {
       method: "POST",
-      headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
+      headers: this.uploadHeaders(),
       credentials: "same-origin",
       body: formData,
     });
@@ -2488,7 +2523,7 @@ export class RestApiAdapter implements ApiAdapter {
     }
     const resp = await this.fetchImpl(`${this.baseUrl}${this.brandScanEp(workspaceSlug)}/uploads`, {
       method: "POST",
-      headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
+      headers: this.uploadHeaders(),
       credentials: "same-origin",
       body: formData,
     });

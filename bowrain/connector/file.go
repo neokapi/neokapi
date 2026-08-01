@@ -2,10 +2,12 @@ package connector
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
@@ -52,6 +54,39 @@ func (c *FileConnector) ID() string                  { return c.id }
 func (c *FileConnector) Name() string                { return c.name }
 func (c *FileConnector) Category() platconn.Category { return platconn.CategoryFile }
 
+// resolve joins a connector-relative path onto the connector root and returns
+// the result only if it stays inside that root.
+//
+// The paths that reach here are content, not configuration: an item's Name and
+// Path are whatever the ingest side recorded, and on the delivery side they
+// decide which file gets written. A name carrying ".." would otherwise resolve
+// to a real location outside the checkout the connector was pointed at, and
+// MkdirAll would create the directories to reach it. Containment is checked
+// after the join, so the answer accounts for what Join actually produced —
+// the same idiom serveSPAFile uses.
+func (c *FileConnector) resolve(rel string) (string, error) {
+	if rel == "" {
+		return "", errors.New("empty connector-relative path")
+	}
+	// Refused rather than reinterpreted. filepath.Join would absorb the leading
+	// separator and quietly turn "/etc/passwd" into "<root>/etc/passwd", which
+	// is contained but is not what the caller asked for; a connector-relative
+	// path is never absolute, so this is a malformed input, not a location.
+	if filepath.IsAbs(rel) || strings.HasPrefix(rel, "/") || filepath.VolumeName(rel) != "" {
+		return "", fmt.Errorf("path %q is not connector-relative", rel)
+	}
+
+	base, err := filepath.Abs(c.basePath)
+	if err != nil {
+		return "", fmt.Errorf("resolve connector root: %w", err)
+	}
+	p := filepath.Join(base, filepath.Clean(rel))
+	if p != base && !strings.HasPrefix(p, base+string(filepath.Separator)) {
+		return "", fmt.Errorf("path %q resolves outside the connector root", rel)
+	}
+	return p, nil
+}
+
 func (c *FileConnector) Configure(config map[string]string) error {
 	maps.Copy(c.config, config)
 	if p, ok := config["path"]; ok {
@@ -79,7 +114,11 @@ func (c *FileConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) (
 
 	var result []*platconn.ContentItem
 	for _, p := range paths {
-		item, err := c.fetchFile(ctx, filepath.Join(c.basePath, p))
+		abs, err := c.resolve(p)
+		if err != nil {
+			return nil, fmt.Errorf("fetch %s: %w", p, err)
+		}
+		item, err := c.fetchFile(ctx, abs)
 		if err != nil {
 			return nil, fmt.Errorf("fetch %s: %w", p, err)
 		}
@@ -138,6 +177,10 @@ func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.C
 		lastChanged = info.ModTime()
 	}
 
+	// No absolute path in the metadata: a content item travels out through the
+	// connector-content API, which is gated by workspace membership alone, and
+	// the host's directory layout is not part of what a workspace member asked
+	// for. The connector-relative path is what a caller can act on anyway.
 	return &platconn.ContentItem{
 		ID:          relPath,
 		Name:        filepath.Base(path),
@@ -145,7 +188,6 @@ func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.C
 		Format:      formatName,
 		Blocks:      blocks,
 		LastChanged: lastChanged,
-		Metadata:    map[string]string{"absolute_path": path},
 	}, nil
 }
 
@@ -160,7 +202,12 @@ func (c *FileConnector) Publish(ctx context.Context, items []*platconn.ContentIt
 }
 
 func (c *FileConnector) publishFile(ctx context.Context, item *platconn.ContentItem, opts platconn.PublishOptions) error {
-	path := filepath.Join(c.basePath, item.Path)
+	// item.Path is content the connector is delivering, not a location the
+	// connector chose, so it decides the write target only within the root.
+	path, err := c.resolve(item.Path)
+	if err != nil {
+		return err
+	}
 
 	writer, err := c.formatRegistry.NewWriter(registry.FormatID(item.Format))
 	if err != nil {
@@ -318,26 +365,25 @@ func (c *FileConnector) reparseSourceSkeleton(ctx context.Context, item *platcon
 // source_path (the source-relative path the target path was derived from); the
 // store item name is that same relative path, so it is the fallback. The
 // delivery target path (item.Path) is never treated as the source.
+//
+// Both candidates are connector-relative and are resolved as such. An absolute
+// source_path used to be honoured outright, which let item metadata name any
+// readable file on the host and have its content parsed into the delivery; the
+// materializer has no reason to emit one, and the connector has no business
+// reading outside the root it was pointed at.
 func (c *FileConnector) resolveSourcePath(item *platconn.ContentItem) string {
-	if sp := item.Metadata["source_path"]; sp != "" {
-		if filepath.IsAbs(sp) {
-			if isRegularFile(sp) {
-				return sp
-			}
-			return ""
-		}
-		cand := filepath.Join(c.basePath, sp)
-		if isRegularFile(cand) {
-			return cand
-		}
+	candidate := item.Metadata["source_path"]
+	if candidate == "" {
+		candidate = item.Name
+	}
+	if candidate == "" {
 		return ""
 	}
-	if item.Name != "" {
-		if cand := filepath.Join(c.basePath, item.Name); isRegularFile(cand) {
-			return cand
-		}
+	abs, err := c.resolve(candidate)
+	if err != nil || !isRegularFile(abs) {
+		return ""
 	}
-	return ""
+	return abs
 }
 
 func isRegularFile(path string) bool {
@@ -377,7 +423,6 @@ func (c *FileConnector) List(ctx context.Context) ([]*platconn.ContentItem, erro
 			Path:        relPath,
 			Format:      formatName,
 			LastChanged: info.ModTime(),
-			Metadata:    map[string]string{"absolute_path": path},
 		})
 		return nil
 	})

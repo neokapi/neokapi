@@ -2,8 +2,10 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
@@ -25,6 +27,35 @@ func NewCredentialsCmd(a *App) *cobra.Command {
 	cmd.AddCommand(newCredentialsTestCmd(a))
 
 	return cmd
+}
+
+// promptForAPIKey asks for the key `kapi credentials add` was not given.
+//
+// A key passed as --api-key lands in shell history and, for the life of the
+// process, in every local process listing. The flag stays — scripts and the
+// non-interactive path need it, and it is part of the CLI contract — but a
+// person at a terminal should not have to choose that just to save a
+// credential. There is no third prompt here: this is the wizard's own
+// AISetupPrompter, which the CLI registers globally at init with
+// huh.EchoModePassword, for the reason `kapi models setup` already records —
+// the earlier prompt echoed the key, which is the wrong default for a secret.
+//
+// With no terminal (or no prompter, as in the js/wasm build) the original
+// actionable error is unchanged, so scripts and CI see exactly what they did
+// before.
+func promptForAPIKey(a *App, providerType string) (string, error) {
+	missing := fmt.Errorf("--api-key is required for %s provider", providerType)
+	if a.AISetupPrompter == nil || !isatty.IsTerminal(os.Stdin.Fd()) {
+		return "", missing
+	}
+	key, err := a.AISetupPrompter.APIKey(providerType)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(key) == "" {
+		return "", missing
+	}
+	return key, nil
 }
 
 func newCredentialsAddCmd(a *App) *cobra.Command {
@@ -52,7 +83,11 @@ If only one credential is saved, tools will auto-detect it without --credential.
 				return err
 			}
 			if apiKey == "" && !credentials.Keyless(providerType) {
-				return fmt.Errorf("--api-key is required for %s provider", providerType)
+				key, err := promptForAPIKey(a, providerType)
+				if err != nil {
+					return err
+				}
+				apiKey = key
 			}
 
 			cfg, err := a.Credentials.Upsert(credentials.ProviderConfig{
@@ -80,9 +115,13 @@ If only one credential is saved, tools will auto-detect it without --credential.
 	}
 
 	cmd.Flags().String("provider", "", "AI provider type (anthropic, openai, gemini, ollama)")
-	cmd.Flags().String("api-key", "", "API key for the provider")
+	cmd.Flags().String("api-key", "", "API key for the provider (omit on a terminal to be prompted, unechoed)")
 	cmd.Flags().String("model", "", "default model name (optional)")
-	cmd.Flags().String("base-url", "", "custom API base URL (optional)")
+	// The usage string carries the rule because this is where a user meets it.
+	// A custom endpoint is part of the saved credential and reaches a provider
+	// only via --credential: an inline --api-key, or a key from the
+	// environment, resolves before an endpoint is attached (AD-012).
+	cmd.Flags().String("base-url", "", "custom API base URL, e.g. a self-hosted endpoint (applies when used with --credential, not with an inline --api-key)")
 	_ = cmd.MarkFlagRequired("provider")
 
 	return cmd

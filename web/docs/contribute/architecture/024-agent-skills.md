@@ -177,7 +177,7 @@ covers editing, creating, brand, terminology, translation, i18n, the toolbox,
 and a project model, with one reference file per concern — `edit.md` (the read →
 edit → write → verify loop), `create.md` (the author → parse → check loop),
 `brand.md`, `translate.md` (translation and terminology), `i18n.md`,
-`project.md`, `starter-pack.md`, and `toolbox.md`. Terminology folds into the
+`project.md`, `context-discovery.md`, and `toolbox.md`. Terminology folds into the
 brand and translate references rather than a standalone file. The i18n
 concern is itself a small tree: `references/i18n.md` routes by detected stack
 into per-ecosystem playbooks under `references/i18n/`, driven by a
@@ -220,8 +220,8 @@ through a single command, `kapi apply` (the write sibling of `kapi inspect`):
 | `kind` | What it edits | How it lands |
 |---|---|---|
 | `content` | a block's text in a named `file` | byte-faithful format round-trip, drift- and inline-code guarded |
-| `term` | a term | committed `.terms.json` source → terms import → the terms store (`.kapi/termbase.db`) |
-| `tm` | a content-memory pair | committed `.memory.json` source → memory import → the memory (`.kapi/tm.db`) |
+| `term` | a term | committed `.terms.json` source → terms import → the terms store (`.kapi/terms.db`) |
+| `tm` | a content-memory pair | committed `.memory.json` source → memory import → the memory (`.kapi/memory.db`) |
 | `brand` | a brand vocabulary rule | committed brand profile YAML → brand-store import ([AD-022](022-brand-voice.md)) |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load/save |
 

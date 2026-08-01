@@ -233,23 +233,6 @@ on the shared base (including kapi) exposes them, and non-Claude MCP clients get
 local parity with the brand tools. All run offline against local files and
 SQLite stores.
 
-### `brand_guide`
-
-Render a brand voice guide (markdown) from a starter pack or a profile YAML,
-to inject into context before generating content.
-
-**Input:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `profile_pack` | string | one of pack/file | Starter pack name (e.g. `marketing-blog`, `technical-docs`) |
-| `profile_file` | string | one of pack/file | Path to a profile YAML |
-
-**Output:**
-| Field | Type | Description |
-|-------|------|-------------|
-| `profile` | string | Resolved profile name |
-| `guide` | string | Rendered markdown voice guide |
-
 ### `brand_check`
 
 Score text against a brand voice profile using deterministic vocabulary
@@ -285,60 +268,16 @@ forbidden/competitor terms (deterministic, offline).
 | `rewritten` | string | Rewritten text |
 | `changes` | array | `{from, to, count}` substitutions made |
 
-### `term_lookup`
+## Retired: `brand_guide`, `term_lookup`, `tm_search`
 
-Look up a term in a local terms store to enforce consistent terminology.
+All three are replaced by **`context_search`** (AD-037). They were
+asset-shaped — one call per store — which forced a caller to know where an
+answer lived before it could ask, and returned partial answers that read as
+whole ones: `brand_guide` rendered a profile's own vocabulary while the
+project's terms store went unread.
 
-**Input:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `term` | string | yes | The term to look up |
-| `source_lang` | string | no | Source locale (e.g. `en`) |
-| `target_lang` | string | no | Target locale (e.g. `fr`) |
-| `termbase` | string | no | Path to the terms store db (default: `termbase.db`) |
+`context_search` asks the question once and answers from every store the
+project binds, grouped by kind, and says what it could not reach.
 
-**Output:**
-| Field | Type | Description |
-|-------|------|-------------|
-| `matches` | array | `{term, locale, status, match_type}` entries |
-| `total` | int | `len(matches)` |
-
-### `tm_search`
-
-Search a local content memory for prior translations of source text.
-
-**Input:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `text` | string | yes | Source text to search for |
-| `source_lang` | string | yes | Source locale (e.g. `en`) |
-| `target_lang` | string | yes | Target locale (e.g. `fr`) |
-| `min_score` | number | no | Minimum match score 0–1 (default: `0.7`) |
-| `tm` | string | no | Path to the content memory db (default: `tm.db`) |
-
-**Output:**
-| Field | Type | Description |
-|-------|------|-------------|
-| `matches` | array | `{source, target, score, match_type}` entries (max 10) |
-| `total` | int | `len(matches)` |
-
----
-
-## Implementation Files
-
-| File                              | Purpose                              |
-| --------------------------------- | ------------------------------------ |
-| `cli/mcp.go`                      | Shared `mcp` subcommand + server bootstrap (`NewMCPCmd`) |
-| `host/mcp_brand.go`               | Shared brand, terminology, and content-memory MCP tools registered via `RegisterMCPToolFactory` (`brand_guide`, `brand_check`, `brand_rewrite`, `term_lookup`, `tm_search`) + their input/output types |
-| `kapi/cmd/kapi/root.go`           | Wires the kapi root command, including `mcp`   |
-| `kapi/cmd/kapi/mcp_tools.go`      | kapi MCP tool handlers + input/output types (`list_formats`, `detect_format`, `extract_content`, `run_flow`, `list_flows`, `list_tools`, `pseudo_translate`) |
-| `kapi/cmd/kapi/mcp_tools_test.go` | Unit tests for kapi MCP handlers     |
-
-## Testing
-
-The MCP handshake can be verified manually:
-
-```bash
-echo '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}},"id":1}' \
-  | kapi mcp 2>/dev/null
-```
+`kapi brand guide` remains as a CLI verb: a human asking to see a profile
+rendered is a reasonable thing to type.

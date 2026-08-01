@@ -23,9 +23,9 @@ import (
 	slogecho "github.com/samber/slog-echo"
 	"google.golang.org/grpc"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/formats"
 	coreg "github.com/neokapi/neokapi/core/graph"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	libtools "github.com/neokapi/neokapi/core/tools"
@@ -89,6 +89,15 @@ type Server struct {
 	// store and re-instantiates each connector. Nil until PostgreSQL stores are
 	// initialized (the in-memory/desktop path runs connectors live-only).
 	ConnectorConfigStore *bstore.ConnectorConfigStore
+
+	// ForgeInstallationStore records which workspace each GitHub App
+	// installation belongs to. One registered app serves every workspace on a
+	// shared instance and its JWT can mint a token for any installation, so this
+	// store is what makes the post-install setup endpoints answerable: an
+	// installation a workspace has not claimed is invisible to it. Nil until
+	// PostgreSQL stores are initialized (the in-memory/desktop path is
+	// single-tenant and binds repositories directly).
+	ForgeInstallationStore *bstore.ForgeInstallationStore
 
 	// GitHubApp authenticates forge delivery as an installed GitHub App
 	// (nil unless the GITHUB_APP_* config is complete).
@@ -172,7 +181,7 @@ type Server struct {
 	SessionStore SessionStateStore
 
 	// BrandStore manages brand voice profiles. Nil when not configured.
-	BrandStore corebrand.BrandStore
+	BrandStore coreprofile.BrandStore
 
 	// KnowledgeStore persists the governance and collaboration layer of the
 	// brand knowledge graph (AD-021): markets, observations, comments, concept
@@ -376,7 +385,7 @@ func NewServer(cfg Config) *Server {
 	toolReg := registry.NewToolRegistry()
 	libtools.RegisterAll(toolReg)
 	connReg := platconn.NewRegistry()
-	connector.RegisterAll(connReg, formatReg)
+	connector.RegisterServer(connReg, formatReg)
 
 	// GitHub App for forge delivery: when configured, forge connectors may use
 	// `auth: app` (per-installation tokens, no stored credentials) and the
@@ -542,6 +551,9 @@ func NewServer(cfg Config) *Server {
 			// Workspace-scoped connector configs, sealed at rest with the same
 			// cipher. Backs the /:ws/connectors handlers and boot rehydration.
 			s.ConnectorConfigStore = bstore.NewConnectorConfigStore(pgSQL, secretsCipher)
+			// GitHub App installation ownership — the tenancy record the
+			// post-install setup endpoints gate on.
+			s.ForgeInstallationStore = bstore.NewForgeInstallationStore(pgSQL)
 			s.AuditLogger = event.NewAuditLogger(pgSQL, s.EventBus)
 			if cfg.AuditRetentionDays > 0 {
 				s.AuditRetention = event.NewAuditRetentionCleaner(
@@ -814,7 +826,12 @@ func NewServer(cfg Config) *Server {
 		mcpCfg := mcpserver.Config{
 			JWTSecret:     cfg.JWTSecret,
 			OIDCIssuerURL: cfg.OIDCIssuerURL,
-			PublicURL:     cfg.OIDCPublicURL,
+			// The RFC 9728 resource identifier is this server's own address,
+			// which is what mcpserver.Config.PublicURL documents. It was being
+			// given OIDCPublicURL — the identity provider's — so the metadata
+			// announced the IdP as the protected resource. The authorization
+			// server is named separately, from OIDCIssuerURL, just below it.
+			PublicURL: cfg.AppPublicURL,
 		}
 		var mcpOpts []mcpserver.Option
 		if s.wsStores != nil {
@@ -1049,6 +1066,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// 2. Structured request logging (slog-echo, includes request_id)
 	// 3. Prometheus metrics
 	// 4. Recovery, body limit, CORS
+	// 5. Security response headers
 	e.Use(observe.RequestIDMiddleware())
 	e.Use(slogecho.NewWithConfig(slog.Default(), slogecho.Config{
 		DefaultLevel:     slog.LevelInfo,
@@ -1069,6 +1087,12 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	e.Use(middleware.Recover())
 	e.Use(middleware.BodyLimit("50M"))
 	e.Use(middleware.CORSWithConfig(s.corsConfig()))
+	// Baseline response headers (nosniff, frame policy, referrer policy, HSTS
+	// over TLS, and a content policy for this server's own responses). Runs
+	// after CORS so a preflight carries them too, and before every handler, so a
+	// handler that needs a different policy — the document previews, the SPA in
+	// development — overrides it rather than adding it.
+	e.Use(securityHeaders())
 
 	// Per-IP throttle knobs (env-overridable) used across the abuse-prone
 	// public and pre-auth routes below.
@@ -1113,16 +1137,30 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			RateLimitByIP(rl.AnonPerMin, rl.AnonBurst))
 
 		// Shared per-IP throttle for the unauthenticated / pre-auth token
-		// endpoints (login, refresh, device-code start). One bucket across them
-		// so a client cannot fan a brute-force / token-mint flood across
-		// endpoints. OIDC redirect callbacks are intentionally excluded — they
+		// endpoints (login, refresh, and every leg of the device flow — start,
+		// verify, poll). One bucket across them so a client cannot fan a
+		// brute-force / token-mint flood across endpoints; verify and poll are
+		// in it because together they are what turns a guessed user code into a
+		// session. OIDC redirect callbacks are intentionally excluded — they
 		// carry provider state and must not be dropped.
-		authLimit := RateLimitByIP(rl.AuthPerMin, rl.AuthBurst)
+		authThrottle := newIPThrottle(rl.AuthPerMin, rl.AuthBurst)
+		authLimit := authThrottle.middleware(nil)
+
+		// The device poll is a loop, not a one-shot: the CLI calls it every few
+		// seconds until the browser leg finishes. A throttled poll therefore has
+		// to say "wait longer" in the device flow's own vocabulary (RFC 8628
+		// slow_down); the generic throttle error reads as fatal to the client,
+		// which would abandon a sign-in that was going fine. Same bucket, so the
+		// throttle still holds — only the way it answers changes.
+		pollLimit := authThrottle.middleware(func(c echo.Context) error {
+			c.Response().Header().Set("Retry-After", "5")
+			return apiErr(c, http.StatusTooManyRequests, "slow_down")
+		})
 
 		// Public auth routes (no token required)
 		authGroup := v1.Group("/auth")
 		authGroup.POST("/device/start", s.HandleDeviceAuthStart, authLimit)
-		authGroup.POST("/device/poll", s.HandleDeviceAuthPoll)
+		authGroup.POST("/device/poll", s.HandleDeviceAuthPoll, pollLimit)
 		authGroup.POST("/refresh", s.HandleTokenRefresh, authLimit)
 		authGroup.GET("/login", s.HandleAuthLogin, authLimit)
 		authGroup.GET("/callback", s.HandleAuthCallback)
@@ -1131,11 +1169,17 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authGroup.GET("/desktop/callback", s.HandleDesktopCallback)
 
 		// Device verification page (user opens in browser)
-		authGroup.GET("/device/verify", s.HandleAuthCallback)
+		authGroup.GET("/device/verify", s.HandleAuthCallback, authLimit)
 		authGroup.POST("/device/verify", func(c echo.Context) error {
 			return s.handleDeviceVerification(c, c.FormValue("user_code"))
-		})
+		}, authLimit)
 		authGroup.GET("/device/callback", s.HandleDeviceAuthCallback)
+
+		if s.Config.AllowInsecureDeviceAuth {
+			slog.Warn("device authorization mounted with INSECURE direct approval: " +
+				"/device/verify approves a pending device for the identity the request names, " +
+				"with no identity-provider check. Do NOT use in production.")
+		}
 
 		// Back-channel logout (called server-to-server by Keycloak, unauthenticated)
 		authGroup.POST("/backchannel-logout", s.HandleBackChannelLogout)
@@ -1437,7 +1481,14 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 // serveSPAFile serves a static file from the given directory, falling back to index.html
 // for SPA client-side routing.
+//
+// This path exists only in development and E2E; production builds the SPAs in
+// CI and serves them from the CDN, which owns their content policy. The
+// server's own policy is cleared here so the document behaves the same in both
+// places — see clearCSPForSPA.
 func serveSPAFile(c echo.Context, dir string) error {
+	clearCSPForSPA(c)
+
 	reqPath := c.Param("*")
 	if reqPath == "" {
 		reqPath = "index.html"
@@ -1510,8 +1561,13 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 
 	// Connectors — Bowrain AD-011: /:ws/connectors (moved from public)
 	g.GET("/connectors", s.HandleListActiveConnectors)
-	// GitHub App post-install setup: list an installation's repositories and
-	// bind one to a project (creates an auth:app forge connector).
+	// GitHub App post-install setup: mint the state that ties an installation
+	// to this workspace, redeem it on the way back, then list the
+	// installation's repositories and bind one to a project (creating an
+	// auth:app forge connector). Everything below the claim requires the
+	// workspace to already own the installation.
+	g.GET("/github/setup-state", s.HandleGitHubSetupState)
+	g.POST("/github/installations/:installationID/claim", s.HandleClaimInstallation)
 	g.GET("/github/installations/:installationID/repositories", s.HandleListInstallationRepos)
 	g.POST("/github/installations/:installationID/repositories", s.HandleBindInstallationRepo)
 	g.GET("/github/installations/:installationID/repositories/:owner/:name/detect", s.HandleDetectInstallationRepo)
@@ -1827,6 +1883,13 @@ func (s *Server) registerConvergenceRoutes(g *echo.Group) {
 	g.PATCH("/:id/settings", s.HandleUpdateProjectSettings)
 }
 
+// readHeaderTimeout bounds the header-read phase so a slow client cannot hold a
+// connection open indefinitely (Slowloris). Request bodies can be large — block
+// pushes — and stream over slow links, so only the header deadline is set,
+// never a whole-request ReadTimeout. Both listeners below use it: a bound that
+// applies to one of two ways into the same server is not a bound.
+const readHeaderTimeout = 30 * time.Second
+
 // Start initializes the Echo server and starts listening.
 // When GRPCServer is set, gRPC and HTTP are multiplexed on the same port
 // using h2c (cleartext HTTP/2). Requests with Content-Type: application/grpc
@@ -1842,9 +1905,21 @@ func (s *Server) Start(addr string) error {
 		addr = fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port)
 	}
 
-	// When no gRPC server is configured, use Echo's built-in listener.
+	// When no gRPC server is configured, serve Echo from a server built here
+	// rather than from e.Start, which constructs an http.Server with the
+	// zero-value — that is, absent — header timeout. Both listeners answer the
+	// same internet and need the same bound; this one only lacked it because
+	// nothing along its path had occasion to set one.
 	if s.GRPCServer == nil {
-		return e.Start(addr)
+		srv := &http.Server{
+			Addr:              addr,
+			ReadHeaderTimeout: readHeaderTimeout,
+		}
+		// Recorded for Shutdown, which prefers httpServer over Echo's own —
+		// e.Shutdown would stop the server Echo built, not this one.
+		s.httpServer = srv
+		slog.Info("starting Bowrain server", "addr", addr, "mode", "HTTP")
+		return e.StartServer(srv)
 	}
 
 	// Multiplex gRPC and HTTP on the same port via h2c.
@@ -1867,14 +1942,10 @@ func (s *Server) Start(addr string) error {
 	protocols.SetUnencryptedHTTP2(true)
 
 	srv := &http.Server{
-		Addr:      addr,
-		Handler:   handler,
-		Protocols: protocols,
-		// Bound the header-read phase so a slow client cannot hold a
-		// connection open indefinitely (Slowloris). Request bodies can be
-		// large (block pushes) and stream over slow links, so only the
-		// header deadline is set — not a whole-request ReadTimeout.
-		ReadHeaderTimeout: 30 * time.Second,
+		Addr:              addr,
+		Handler:           handler,
+		Protocols:         protocols,
+		ReadHeaderTimeout: readHeaderTimeout,
 	}
 	s.httpServer = srv
 	slog.Info("starting Bowrain server", "addr", addr, "mode", "HTTP+gRPC")
@@ -2042,11 +2113,16 @@ func requestBaseURL(c echo.Context) string {
 	return fmt.Sprintf("%s://%s", c.Scheme(), host)
 }
 
-// corsConfig builds a CORS middleware configuration. When a fixed
-// OIDCPublicURL is configured (production), only that origin — plus the
-// marketing landing origin (PublicSiteURL), when set — is allowed. Otherwise
-// the middleware dynamically allows the request's own (localhost) origin, plus
-// the configured landing origin.
+// corsConfig builds a CORS middleware configuration. In production only this
+// app's own origin (AppPublicURL) and the marketing landing origin
+// (PublicSiteURL) are allowed; in development the middleware dynamically allows
+// any localhost origin plus the landing.
+//
+// Which of the two applies is decided by Config.DevMode and nothing else. It
+// used to be decided by whether OIDCPublicURL happened to be set — an optional
+// field naming the identity provider — so a production deployment that
+// configured only the issuer URL, which the documentation described as
+// supported, silently served credentialed CORS to any localhost origin.
 //
 // Credentials are enabled so the landing (a DIFFERENT but same-site origin) can
 // read GET /api/v1/auth/whoami with the session cookie and render the signed-in
@@ -2070,24 +2146,30 @@ func (s *Server) corsConfig() middleware.CORSConfig {
 
 	landingOrigin := originOf(s.Config.PublicSiteURL)
 
-	if s.Config.OIDCPublicURL != "" {
-		// Fixed allowlist (production): the app's own origin plus the landing.
+	if !s.Config.DevMode {
+		// Production: a fixed allowlist of this app's own origin plus the
+		// landing. Whether it ends up empty is not a reason to widen it — an
+		// unset or unparsable AppPublicURL means no cross-origin caller is
+		// credentialed, which breaks the landing's signed-in CTA and nothing
+		// else. Same-origin requests never consult CORS.
 		var origins []string
-		if o := originOf(s.Config.OIDCPublicURL); o != "" {
+		if o := originOf(s.Config.AppPublicURL); o != "" {
 			origins = append(origins, o)
 		}
 		if landingOrigin != "" {
 			origins = append(origins, landingOrigin)
 		}
-		if len(origins) > 0 {
-			cfg.AllowOrigins = origins
-			return cfg
+		if len(origins) == 0 {
+			slog.Warn("CORS: no cross-origin caller is allowed; set BOWRAIN_APP_PUBLIC_URL " +
+				"(and BOWRAIN_PUBLIC_SITE_URL) if a different origin must reach this API")
 		}
+		cfg.AllowOrigins = origins
+		return cfg
 	}
 
-	// Dynamic: allow localhost origins (development) and the configured landing
-	// origin. Echo reflects only the matching origin — never "*" — so this stays
-	// credential-safe.
+	// Development: allow localhost origins and the configured landing origin.
+	// Echo reflects only the matching origin — never "*" — so this stays
+	// credential-safe. Reached only when DevMode was set deliberately.
 	cfg.AllowOriginFunc = func(origin string) (bool, error) {
 		u, err := url.Parse(origin)
 		if err != nil {
@@ -2116,4 +2198,82 @@ func originOf(rawURL string) string {
 		return ""
 	}
 	return u.Scheme + "://" + u.Host
+}
+
+// wsOriginPatterns lists the origins allowed to open one of this server's
+// WebSockets, in the host-pattern form websocket.AcceptOptions expects.
+//
+// Both sockets authenticate through AuthMiddleware, and an upgrade is a GET —
+// a CSRF-safe method — so a browser that already holds the session cookie needs
+// nothing else to connect. SameSite=Lax keeps a genuinely cross-site page out,
+// but "same-site" is a registrable-domain relation, not an origin one: any
+// sibling host under the same domain still sends the cookie. The origin check
+// is what makes the socket same-origin, so it has to be a real allowlist.
+//
+// The policy is deliberately narrower than corsConfig's. CORS grants the
+// landing origin one credentialed read (GET whoami, display JSON only); a
+// socket is a different privilege — the notification stream, and join-and-write
+// access to a collaboration room — and nothing off-origin needs it. So the
+// landing is not here, and the app's own origin arrives via AppPublicURL rather
+// than via the identity provider's URL, which is what this policy used to be
+// keyed off and was never the right value for it.
+//
+// What is allowed:
+//
+//   - The origin the request itself arrived on. The library already accepts an
+//     Origin matching r.Host; this adds the public host from X-Forwarded-Host
+//     for deployments where the proxy rewrites Host, the same header
+//     requestBaseURL trusts when it builds OIDC redirect URIs. A browser cannot
+//     set that header on a WebSocket handshake, so it does not widen the
+//     browser-driven surface this check exists to close.
+//   - This app's own public host (AppPublicURL), for a deployment whose proxy
+//     leaves Host alone and where the browser therefore arrives on a name the
+//     library's Origin-equals-Host check would not match.
+//   - Any localhost origin in development, mirroring corsConfig's dev branch,
+//     so a Vite dev server on another port can connect. Development means
+//     Config.DevMode, set deliberately — not "some unrelated field is empty".
+//
+// An absent Origin — every non-browser client, so the CLI and the Go SDK — is
+// accepted by the library before these patterns are consulted.
+func (s *Server) wsOriginPatterns(c echo.Context) []string {
+	var patterns []string
+
+	// Host patterns rather than scheme://host: a proxy that terminates TLS may
+	// not set X-Forwarded-Proto, and a scheme guessed wrong here would reject
+	// the app's own origin.
+	if host := c.Request().Header.Get("X-Forwarded-Host"); host != "" {
+		patterns = append(patterns, host)
+	}
+
+	// The app's own public host, for a deployment whose proxy does not rewrite
+	// Host and where the browser therefore arrives on a name the library's
+	// Origin-equals-Host check would not match.
+	if h := hostOf(s.Config.AppPublicURL); h != "" {
+		patterns = append(patterns, h)
+	}
+
+	// Development, gated exactly as corsConfig gates its dynamic branch — on
+	// the explicit discriminator, not on whether some other field is populated.
+	if s.Config.DevMode {
+		patterns = append(patterns,
+			"localhost", "localhost:*",
+			"127.0.0.1", "127.0.0.1:*",
+			"[::1]", "[::1]:*",
+		)
+	}
+
+	return patterns
+}
+
+// hostOf returns the host[:port] of a URL, or "" if it has none. Host rather
+// than origin because websocket.AcceptOptions matches on host patterns.
+func hostOf(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return u.Host
 }

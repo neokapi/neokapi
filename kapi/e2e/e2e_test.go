@@ -92,6 +92,23 @@ func kapi(t *testing.T, args ...string) string {
 	return string(out)
 }
 
+// kapiIn runs a kapi command from a given working directory. Use it when the
+// behaviour under test is relative to where the user is standing — a workspace
+// records its merge layout relative to wherever it is merged, so exercising
+// that needs a cwd rather than an absolute path baked into the package.
+//
+// The isolation env is the same as kapi(); running from a fresh temp dir is if
+// anything stricter, since the upward project walk finds nothing there.
+func kapiIn(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command(kapiBin, args...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), isoEnv...)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, "kapi %s (in %s) failed:\n%s", strings.Join(args, " "), dir, string(out))
+	return string(out)
+}
+
 // kapiAllowFail runs kapi and returns combined output + error WITHOUT failing
 // the test. Use for QA gates (qa, term-check) that exit non-zero when
 // they find issues — a non-zero exit is a result to assert on, not a harness
@@ -191,10 +208,12 @@ func TestTermCheckWithTerms(t *testing.T) {
 	// terms loading and processing. It runs as an informational QA pass
 	// (exit 0; no stdout), so a clean run is the assertion. term-check is not
 	// in the curated TopLevelTools tier, so it executes via `kapi exec`.
+	// The store selector is --termstore (#1505): --terms is a different flag,
+	// the boolean gate on `exec dnt-check`.
 	kapi(t, "exec", "term-check", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
-		"--terms", tb)
+		"--termstore", tb)
 }
 
 // TestQACheckWithoutTerms verifies that qa works standalone for
@@ -224,9 +243,9 @@ func TestQACheckWithoutTerms(t *testing.T) {
 //   content-memory leverage → pseudo-translate remaining → QA with terms
 
 func TestMemoryImport(t *testing.T) {
-	memoryFile := tempDB(t, "tm")
+	memoryFile := tempDB(t, "memory")
 
-	out := kapi(t, "tm", "import", filepath.Join(testdata, "project.tmx"),
+	out := kapi(t, "memory", "import", filepath.Join(testdata, "project.tmx"),
 		"--file", memoryFile, "-s", "en", "-t", "fr")
 	assert.Contains(t, out, "Imported 2") // 2 entries imported
 }
@@ -234,7 +253,7 @@ func TestMemoryImport(t *testing.T) {
 func TestMemoryStats(t *testing.T) {
 	memoryFile := importedMemory(t)
 
-	out := kapi(t, "tm", "stats", "--file", memoryFile)
+	out := kapi(t, "memory", "stats", "--file", memoryFile)
 	assert.Contains(t, out, "Entries: 2") // 2 entries
 	assert.Contains(t, out, "en")
 	assert.Contains(t, out, "fr")
@@ -243,7 +262,7 @@ func TestMemoryStats(t *testing.T) {
 func TestMemoryLookup(t *testing.T) {
 	memoryFile := importedMemory(t)
 
-	out := kapi(t, "tm", "lookup", "Settings", "--file", memoryFile, "-s", "en", "-t", "fr")
+	out := kapi(t, "memory", "lookup", "Settings", "--file", memoryFile, "-s", "en", "-t", "fr")
 	assert.Contains(t, out, "Paramètres")
 }
 
@@ -255,7 +274,7 @@ func TestMemoryLookup(t *testing.T) {
 func TestMemorySearch(t *testing.T) {
 	memoryFile := importedMemory(t)
 
-	out := kapi(t, "tm", "search", "Settings", "--file", memoryFile, "-s", "en", "-t", "fr")
+	out := kapi(t, "memory", "search", "Settings", "--file", memoryFile, "-s", "en", "-t", "fr")
 	assert.Contains(t, out, "Settings")
 	assert.Contains(t, out, "Paramètres")
 }
@@ -264,7 +283,7 @@ func TestMemoryExport(t *testing.T) {
 	memoryFile := importedMemory(t)
 
 	outFile := filepath.Join(t.TempDir(), "export.tmx")
-	kapi(t, "tm", "export", "--file", memoryFile, "-o", outFile)
+	kapi(t, "memory", "export", "--file", memoryFile, "-o", outFile)
 
 	content := readFile(t, outFile)
 	assert.Contains(t, content, "Settings")
@@ -273,7 +292,7 @@ func TestMemoryExport(t *testing.T) {
 
 // TestMemoryLeverage exercises content-memory leverage via `kapi exec recycle` (the raw
 // registry layer — the porcelain surface folded content memory reuse into `kapi translate`
-// and retired the standalone top-level verb) against an external content memory via --tm. It accepts --tm (and a project .kapi/tm.db), and — since the
+// and retired the standalone top-level verb) against an external content memory via --memory. It accepts --memory (and a project .kapi/memory.db), and — since the
 // #700 fix wired SourceLocale from --source-lang — it fills targets from
 // exact content-memory matches: "Settings" and "File upload" (both in project.tmx) are
 // leveraged into their French equivalents in the output.
@@ -283,7 +302,7 @@ func TestMemoryLeverage(t *testing.T) {
 
 	out := filepath.Join(tmp, "leveraged.json")
 	kapi(t, "exec", "recycle", filepath.Join(testdata, "messages_en.json"),
-		"--tm", memoryFile,
+		"--memory", memoryFile,
 		"--source-lang", "en",
 		"--target-lang", "fr",
 		"-o", out)
@@ -324,7 +343,7 @@ func TestFullPipeline(t *testing.T) {
 	kapi(t, "exec", "term-check", pseudoOut,
 		"--source-lang", "en",
 		"--target-lang", "fr",
-		"--terms", tb)
+		"--termstore", tb)
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -344,8 +363,8 @@ func importedTerms(t *testing.T) string {
 
 func importedMemory(t *testing.T) string {
 	t.Helper()
-	memoryFile := tempDB(t, "tm")
-	kapi(t, "tm", "import", filepath.Join(testdata, "project.tmx"),
+	memoryFile := tempDB(t, "memory")
+	kapi(t, "memory", "import", filepath.Join(testdata, "project.tmx"),
 		"--file", memoryFile, "-s", "en", "-t", "fr")
 	return memoryFile
 }

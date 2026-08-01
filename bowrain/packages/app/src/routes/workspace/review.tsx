@@ -9,7 +9,8 @@ import { useEditorSurfaceNav } from "./useEditorSurfaceNav";
 /**
  * ReviewRoute is the block-level translation review surface — a sibling of the
  * translate route, scoped to the same file. It lists blocks by status, runs QA,
- * and supports bulk review actions. Brand-rule promotion stays in /brand/review.
+ * and supports bulk review actions. Brand-rule promotion stays in
+ * /context/voice/review.
  */
 export function ReviewRoute() {
   const navigate = useNavigate();

@@ -44,7 +44,15 @@ import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
 // Types
 // ---------------------------------------------------------------------------
 
-export type View = "translate" | "brand" | "terms" | "memory" | "auditlog" | "bin" | "settings";
+export type View =
+  | "translate"
+  | "context"
+  | "insights"
+  | "terms"
+  | "memory"
+  | "auditlog"
+  | "bin"
+  | "settings";
 
 export interface NavItem {
   id: string;
@@ -118,24 +126,57 @@ export interface AppSidebarProps<V extends string = string> {
 // them below) picks up a locale switch; a module-level const would freeze the
 // labels in whatever locale was active at import time.
 
+// Context is what you author and govern; Insights is what the graph tells you
+// back. Keeping them as peers is the whole point of the re-root: three
+// top-level entries that read as one product, not several.
 const workspaceNavItems = (): NavItem[] => [
   { id: "translate", label: t("Projects"), icon: <Home /> },
-  { id: "brand", label: t("Brand"), icon: <Palette /> },
-  { id: "memory", label: t("Content memory"), icon: <Brain /> },
+  { id: "context", label: t("Context"), icon: <Palette /> },
+  { id: "insights", label: t("Insights"), icon: <LayoutDashboard /> },
 ];
 
 const workspaceBottomItems = (): NavItem[] => [
   { id: "settings", label: t("Settings"), icon: <Settings /> },
 ];
 
+/**
+ * The label for a top-level view, from the same definition the rail renders.
+ *
+ * Exported because the secondary panel's title names the section you are inside,
+ * so it must be the string the rail shows. AppShell used to keep its own map,
+ * which is a second place to forget: renaming the rail entry to "Context" left
+ * the panel still reading "Brand", and that copy never passed through t(), so it
+ * could not translate either.
+ *
+ * Views with no rail entry (reached from a sub-nav or a direct link) are named
+ * here too, so one lookup answers for every view.
+ */
+export const viewLabel = (id: string): string | undefined =>
+  [...workspaceNavItems(), ...workspaceBottomItems()].find((item) => item.id === id)?.label ??
+  {
+    memory: t("Content memory"),
+    terms: t("Terms"),
+    auditlog: t("Audit log"),
+    bin: t("Recycle bin"),
+  }[id];
+
 /** Sub-navigation items for views that have secondary menus. Exported for AppShell. */
 export const subNavConfig = (): Record<string, SubNavItem[]> => ({
-  brand: [
+  context: [
     { id: "concepts", label: t("Concepts"), icon: <Network /> },
     { id: "voice", label: t("Voice"), icon: <Palette /> },
-    { id: "experiments", label: t("Experiments"), icon: <FlaskConical /> },
+    { id: "memory", label: t("Content memory"), icon: <Brain /> },
+    // "Changes", not "Experiments": these are change-sets with a reach preview
+    // and an optional pilot — the ONLY route a governed change can take, not
+    // optional exploration. Nav labels name destinations, so a noun.
+    { id: "changes", label: t("Changes"), icon: <FlaskConical /> },
     { id: "activity", label: t("Activity"), icon: <Activity /> },
-    { id: "dashboard", label: t("Dashboard"), icon: <LayoutDashboard /> },
+  ],
+  // What the graph tells you back. locale-demand moves in rather than leaving:
+  // demand by market is evidence for a coordinate decision, not a stray report.
+  insights: [
+    { id: "dashboard", label: t("Overview"), icon: <LayoutDashboard /> },
+    { id: "locale-demand", label: t("Locale demand"), icon: <Globe /> },
   ],
   settings: [
     { id: "general", label: t("General"), icon: <Settings /> },
@@ -179,7 +220,12 @@ function IconNav<V extends string>({
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton tooltip="Back" onClick={ctx.onBack} data-testid="sidebar-home">
+                <SidebarMenuButton
+                  tooltip="Back"
+                  tooltipWhenExpanded
+                  onClick={ctx.onBack}
+                  data-testid="sidebar-home"
+                >
                   <ArrowLeft />
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -193,6 +239,7 @@ function IconNav<V extends string>({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   tooltip="Dashboard"
+                  tooltipWhenExpanded
                   isActive={ctx.activeProjectView === "dashboard"}
                   onClick={ctx.onOpenDashboard}
                   data-testid="sidebar-dashboard"
@@ -204,6 +251,7 @@ function IconNav<V extends string>({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     tooltip="Automations"
+                    tooltipWhenExpanded
                     isActive={ctx.activeProjectView === "automations"}
                     onClick={ctx.onOpenAutomations}
                     data-testid="sidebar-automations"
@@ -216,6 +264,7 @@ function IconNav<V extends string>({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     tooltip="Runs"
+                    tooltipWhenExpanded
                     isActive={ctx.activeProjectView === "runs"}
                     onClick={ctx.onOpenRuns}
                     data-testid="sidebar-runs"
@@ -228,6 +277,7 @@ function IconNav<V extends string>({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     tooltip="Connectors"
+                    tooltipWhenExpanded
                     isActive={ctx.activeProjectView === "connectors"}
                     onClick={ctx.onOpenConnectors}
                     data-testid="sidebar-connectors"
@@ -252,6 +302,7 @@ function IconNav<V extends string>({
               <SidebarMenuItem key={id}>
                 <SidebarMenuButton
                   tooltip={label}
+                  tooltipWhenExpanded
                   isActive={activeView === id}
                   onClick={() => onViewChange(id as V)}
                   data-testid={`nav-${id}`}
@@ -271,6 +322,7 @@ function IconNav<V extends string>({
               <SidebarMenuItem key={id}>
                 <SidebarMenuButton
                   tooltip={label}
+                  tooltipWhenExpanded
                   isActive={activeView === id}
                   onClick={() => onViewChange(id as V)}
                   data-testid={`nav-${id}`}
@@ -320,6 +372,14 @@ function MobileNav<V extends string>({
     onSubNavChange?.(id);
     setOpenMobile(false);
   };
+
+  // The sub-nav header names the section you are inside, so it must be the same
+  // string the rail shows — not a title-cased view id. Deriving it from the id
+  // meant renaming a destination silently left the header behind (the Context
+  // section still read "Brand"), and it could never translate, because an id is
+  // not a catalog entry. Settings lives in the bottom group, so both are searched.
+  const navLabelFor = (id: string): string | undefined =>
+    mainItems.find((item) => item.id === id)?.label ?? viewLabel(id);
 
   if (isProject) {
     const ctx = sidebarContext as Extract<SidebarContext, { level: "project" }>;
@@ -451,9 +511,7 @@ function MobileNav<V extends string>({
         <>
           <SidebarSeparator />
           <SidebarGroup>
-            <SidebarGroupLabel>
-              {activeView.charAt(0).toUpperCase() + (activeView as string).slice(1)}
-            </SidebarGroupLabel>
+            <SidebarGroupLabel>{navLabelFor(activeView as string)}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {subItems.map((item) => (

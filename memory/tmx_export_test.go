@@ -38,16 +38,9 @@ func TestExportTMX_LocalesFilter(t *testing.T) {
 	assert.NotContains(t, out, `xml:lang="de"`)
 }
 
-func TestExportTMX_BilingualShim(t *testing.T) {
-	tm := memory.NewInMemoryStore()
-	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "Hello", "Bonjour", "Hallo")))
-	var buf bytes.Buffer
-	require.NoError(t, memory.ExportTMXBilingual(context.Background(), tm, &buf, "en", "de"))
-	out := buf.String()
-	assert.Contains(t, out, "Hello")
-	assert.Contains(t, out, "Hallo")
-	assert.NotContains(t, out, "Bonjour")
-}
+// The bilingual (src, tgt) shim ExportTMXBilingual is gone — its only caller
+// was this test. The two-locale filter it wrapped is the same code path
+// TestExportTMX_LocalesFilter above already covers.
 
 func TestExportTMX_EscapesSpecialChars(t *testing.T) {
 	tm := memory.NewInMemoryStore()

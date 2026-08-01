@@ -224,12 +224,41 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// glossary and write to the right per-locale target paths.
 	a.ProjectContext = pctx
 	defer func() { a.ProjectContext = nil }()
-	bindings, err := a.resolveProjectBindings(cmd, proj, projectPath)
+	bindings, err := a.resolveProjectBindings(cmd, proj, projectPath, "")
 	if err != nil {
 		return err
 	}
+	// The loop itself keeps the project-wide bindings: they feed the coverage
+	// derivation and the check gates, which are not per collection.
 	a.ProjectBindings = bindings
 	defer func() { a.ProjectBindings = nil }()
+
+	// This loop runs here, on this machine, and resolves the recipe's
+	// coordinates; the same loop at the server venue would not, until they are
+	// synced there.
+	a.WarnUnsyncedCoordinates(cmd.ErrOrStderr(), proj)
+
+	// The flow run inside a pass is per collection: the source set splits into
+	// one group per distinct (brand voice, terms) binding, and a worker runs the
+	// flow once per group. A recipe where no collection overrides either yields
+	// one group holding every source, bound to the project-wide resolution
+	// already made above — one flow run per locale, as convergence has always
+	// done.
+	groups, err := groupInputsByBinding(proj, pctx.ProjectDir, sources)
+	if err != nil {
+		return err
+	}
+	for i := range groups {
+		if groups[i].Collection == "" {
+			groups[i].bindings = bindings
+			continue
+		}
+		b, berr := a.resolveProjectBindings(cmd, proj, projectPath, groups[i].Collection)
+		if berr != nil {
+			return berr
+		}
+		groups[i].bindings = b
+	}
 
 	root := filepath.Dir(projectPath)
 	absProjectPath, _ := filepath.Abs(projectPath)
@@ -282,7 +311,17 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			worker := a.convergeWorker(locale, tap)
 			stopWatch := watchTapProgress(tap, pass, emit.Emit)
 			rCtx := flow.ResourceContext{ProjectDir: projectDir, SourceLocale: worker.SourceLang, TargetLocale: locale}
-			err := worker.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, sources)
+			// One flow run per binding group, sequentially on this locale's
+			// worker: each group's bindings are on the worker before its tool
+			// chain is assembled. The tap counts across all of them, so the
+			// locale's progress is unaffected by how the sources split.
+			var err error
+			for _, group := range groups {
+				worker.ProjectBindings = group.bindings
+				if err = worker.runProjectStepsOver(ctx, cmd, flowName, spec, &rCtx, group.Inputs); err != nil {
+					break
+				}
+			}
 			stopWatch()
 			if err != nil {
 				return 0, 0, 0, err
@@ -304,6 +343,18 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			}
 			if stats == nil {
 				return nil, nil
+			}
+			// Stamp-write failures do not endanger the extracted content, so
+			// they never fail the pass — but left unsaid they make kapi
+			// re-extract and re-translate everything on every run with no
+			// visible cause. Independent of the event consumer (this is an
+			// operator fault, not run progress) but respecting --quiet, as
+			// every other warning here does; a caller reading ExtractStats
+			// still gets them in Warnings either way.
+			if !a.Quiet {
+				for _, w := range stats.Warnings {
+					fmt.Fprintln(cmd.ErrOrStderr(), "Warning: "+w)
+				}
 			}
 			if opts.onEvent == nil && !a.Quiet {
 				// No event consumer: keep the plain run-log line (bare

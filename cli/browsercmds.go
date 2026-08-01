@@ -76,7 +76,7 @@ var browserGaps = map[string]browserGap{
 		reason: "the browser build is served as a WebAssembly module and cannot replace itself",
 	},
 	"mcp": {
-		short:  "Start MCP server (stdio) exposing kapi's content tools (read, edit, check, brand, localize)",
+		short:  "Start MCP server (stdio) exposing the project's context and the loop around it",
 		group:  "advanced",
 		reason: "an MCP server serves a long-lived stdio session, which the browser build has no peer for",
 	},
@@ -200,6 +200,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 		NewFormatsCmd(a),
 		newBrowserGapCmd("plugin"),
 		newBrowserGapCmd("models"),
+		NewContextCmd(a),
 		NewTermsCmd(a),
 		NewMemoryCmd(a),
 		NewBrandCmd(a),

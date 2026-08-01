@@ -5,8 +5,8 @@ import (
 	"log/slog"
 
 	"github.com/neokapi/neokapi/bowrain/core/brandscope"
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 

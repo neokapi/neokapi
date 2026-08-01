@@ -5,31 +5,39 @@
 # isolate itself per the contract in CLAUDE.md ("Dogfooding kapi") —
 # KAPI_NO_PROJECT=1 et al. — so only the dogfood workflow binds here.
 #
-# Surfaces:
-#   framework-data   — generated tool/format metadata → gettext MO catalogs
-#                      embedded in the kapi binary (core/i18n)
-#   kapi-desktop-ui  — KBF catalogs extracted from the React frontend by
-#                      @neokapi/i18n-react → public/translations/<locale>.json
-#   bowrain-app-ui   — the shared bowrain SPA (bowrain/packages/{app,ui} + the
-#                      web and desktop shells), same neokapi-i18n pipeline →
-#                      each shell's public/translations/<locale>.json
-#   bowrain-ctrl-ui  — the ctrl admin app (bowrain/apps/ctrl)
-#   bowrain-pulse-ui — the pulse dashboard (bowrain/apps/pulse)
-#   docs             — the kapi Docusaurus site → web/i18n/<locale>/ tree
-#   docs-bowrain     — the bowrain Docusaurus site (bowrain/web/docs) →
-#                      bowrain/web/docs/i18n/<locale>/ tree
-#   demo-narration   — harness demo scripts → generated demo.<lang>.yaml
-#                      sidecars (harness/demos/<id>/, overlaid at load time)
-#   emails           — KBF catalogs extracted from the React Email templates
-#                      (bowrain/emails/src) by @neokapi/i18n-react → per-locale
-#                      template renders under bowrain/mailer/templates/<lang>/
-#                      (make l10n-emails)
-#   email-subjects   — transactional-email subject lines
-#                      (bowrain/mailer/subjects/en.json) → subjects/<lang>.json
-#   landing          — KBF catalogs extracted from the bowrain landing SPA
-#                      (bowrain/web/landing/src) → committed runtime catalogs
-#                      bowrain/web/landing/translations/<lang>.json
-#                      (make l10n-landing)
+# Surfaces. Collection names are <product>-<channel>: the product the content
+# belongs to, then the surface it ships on.
+#
+#   kapi-engine            — generated tool/format metadata → gettext MO
+#                            catalogs embedded in the kapi binary (core/i18n)
+#   kapi-desktop           — KBF catalogs extracted from the React frontend by
+#                            @neokapi/i18n-react →
+#                            public/translations/<locale>.json
+#   bowrain-app            — the shared bowrain SPA (bowrain/packages/{app,ui}
+#                            + the web and desktop shells), same neokapi-i18n
+#                            pipeline → each shell's
+#                            public/translations/<locale>.json
+#   bowrain-ctrl           — the ctrl admin app (bowrain/apps/ctrl)
+#   bowrain-pulse          — the pulse dashboard (bowrain/apps/pulse)
+#   kapi-docs              — the kapi Docusaurus site → web/i18n/<locale>/ tree
+#   bowrain-docs           — the bowrain Docusaurus site (bowrain/web/docs) →
+#                            bowrain/web/docs/i18n/<locale>/ tree
+#   kapi-demos             — harness demo scripts → generated demo.<lang>.yaml
+#                            sidecars (harness/demos/<id>/, overlaid at load
+#                            time)
+#   bowrain-email          — KBF catalogs extracted from the React Email
+#                            templates (bowrain/emails/src) by
+#                            @neokapi/i18n-react → per-locale template renders
+#                            under bowrain/mailer/templates/<lang>/
+#                            (make l10n-emails)
+#   bowrain-email-subjects — transactional-email subject lines
+#                            (bowrain/mailer/subjects/en.json) →
+#                            subjects/<lang>.json
+#   bowrain-landing        — KBF catalogs extracted from the bowrain landing
+#                            SPA (bowrain/web/landing/src) → committed runtime
+#                            catalogs
+#                            bowrain/web/landing/translations/<lang>.json
+#                            (make l10n-landing)
 #
 # Drive it with the l10n-* Makefile targets. Seeds (brand voice, terms,
 # reviewed content memory) live under l10n/.
@@ -39,13 +47,13 @@ defaults:
   source_language: en
   target_languages: [nb]
   brand_voice:
-    profile_file: l10n/brand-voice.yaml
-  # termbase_source is the committed, git-tracked glossary (the review surface
+    profile_file: context/brand-voice.yaml
+  # terms_source is the committed, git-tracked glossary (the review surface
   # `kapi apply` term-edits write to); terms is the gitignored cache the
   # source compiles into. Source of truth lives in git, never in the cache.
-  termbase_source: l10n/terms.json
-  terms: .kapi/termbase.db
-  tm:
+  terms_source: context/terms.json
+  terms: .kapi/terms.db
+  memory:
     fuzzy_threshold: 75
   # YAML surface = the harness demo scripts (the only yaml content items).
   # Only the spoken/displayed keys are translatable — never ids, beats,
@@ -81,8 +89,25 @@ defaults:
     - "bowrain/web/docs/i18n/**"
     - "harness/public/**"
     - "**/testdata/**"
+# The coordinate space this project's content sits in. Two products share one
+# repository and one kapi project, so `product` is what tells their content
+# apart; `channel` is the surface it appears on. Values are slugs — stable
+# identifiers that cross the sync wire, not vocabulary.
+coordinates:
+  product: [kapi, bowrain]
+  channel: [engine, desktop, docs, demos, app, ctrl, pulse, landing, email]
+
+# Governance bound to a point in that space. A collection matching no profile
+# falls back to defaults.brand_voice below.
+profiles:
+  - when: { product: kapi }
+    voice: context/brand-voice.yaml
+  - when: { product: bowrain }
+    voice: context/bowrain-voice.yaml
+
 content:
-  - name: framework-data
+  - name: kapi-engine
+    context: { product: kapi, channel: engine }
     items:
       - path: core/i18n/builtins/metadata.json
         format:
@@ -94,23 +119,28 @@ content:
             useLeadingSlashOnKeyPath: true
             extractionRules: "(display_name|description|title|label)$"
         target: core/i18n/catalogs/{lang}.mo
-  - name: kapi-desktop-ui
+  - name: kapi-desktop
+    context: { product: kapi, channel: desktop }
     items:
       - path: apps/kapi-desktop/frontend/i18n/**/*.kbf.json
         target: apps/kapi-desktop/frontend/i18n-{lang}/{filename}
-  - name: bowrain-app-ui
+  - name: bowrain-app
+    context: { product: bowrain, channel: app }
     items:
       - path: bowrain/packages/app/i18n/**/*.kbf.json
         target: bowrain/packages/app/i18n-{lang}/{filename}
-  - name: bowrain-ctrl-ui
+  - name: bowrain-ctrl
+    context: { product: bowrain, channel: ctrl }
     items:
       - path: bowrain/apps/ctrl/i18n/**/*.kbf.json
         target: bowrain/apps/ctrl/i18n-{lang}/{filename}
-  - name: bowrain-pulse-ui
+  - name: bowrain-pulse
+    context: { product: bowrain, channel: pulse }
     items:
       - path: bowrain/apps/pulse/i18n/**/*.kbf.json
         target: bowrain/apps/pulse/i18n-{lang}/{filename}
-  - name: docs
+  - name: kapi-docs
+    context: { product: kapi, channel: docs }
     items:
       - path: web/docs/**/*.md
         format:
@@ -126,7 +156,8 @@ content:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
         target: web/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
-  - name: docs-bowrain
+  - name: bowrain-docs
+    context: { product: bowrain, channel: docs }
     items:
       - path: bowrain/web/docs/docs/**/*.md
         format:
@@ -142,27 +173,31 @@ content:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
         target: bowrain/web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
-  - name: emails
+  - name: bowrain-email
+    context: { product: bowrain, channel: email }
     items:
       - path: bowrain/emails/i18n/**/*.kbf.json
         target: bowrain/emails/i18n-{lang}/{filename}
-  - name: email-subjects
+  - name: bowrain-email-subjects
+    context: { product: bowrain, channel: email }
     items:
       - path: bowrain/mailer/subjects/en.json
         format:
           name: json
         target: bowrain/mailer/subjects/{lang}.json
-  - name: landing
+  - name: bowrain-landing
+    context: { product: bowrain, channel: landing }
     items:
       - path: bowrain/web/landing/i18n/**/*.kbf.json
         target: bowrain/web/landing/i18n-{lang}/{filename}
-  - name: demo-narration
+  - name: kapi-demos
+    context: { product: kapi, channel: demos }
     items:
       # Narrated demo-video scripts. The English demo.yaml is the master;
       # localized narration is GENERATED into committed demo.<lang>.yaml
       # sidecars (make l10n-demos, content memory-driven) that the harness overlays at
       # load time. Never hand-edit a sidecar — fix the content memory seed instead
-      # (l10n/tm/demo-narration-<lang>.memory.json). Translatable keys are
+      # (context/memory/demo-narration-<lang>.memory.json). Translatable keys are
       # selected by defaults.formats.yaml.config.keyPathPatterns above.
       - path: harness/demos/*/demo.yaml
         format:
@@ -179,7 +214,7 @@ flows:
           fillTarget: true
           fillTargetThreshold: 100
   # content memory-driven translation: reviewed translations live in the project content memory
-  # (seeded from l10n/tm/*.tmx); exact matches fill the target, terminology
+  # (seeded from context/memory/*.tmx); exact matches fill the target, terminology
   # compliance is checked against the project terms.
   translate:
     steps:
@@ -211,7 +246,7 @@ flows:
 #
 # neokapi is the first real workspace on Bowrain. `kapi push` sends every surface
 # above to the project below; nb drafts land in the governed review queue and
-# approved segments round-trip back into l10n/tm/*.memory.json.
+# approved segments round-trip back into context/memory/*.memory.json.
 #
 # converge: manual — a push moves content but does NOT auto-start a server AI
 # convergence run. The first on-push run (2026-07-17) tried to AI-draft the whole

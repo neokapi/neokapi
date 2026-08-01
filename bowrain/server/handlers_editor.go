@@ -5,7 +5,6 @@ import (
 	"io"
 	"maps"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -60,7 +59,7 @@ func (s *Server) HandleGetEditorProject(c echo.Context) error {
 
 	info, err := editorBuildProjectInfo(ctx, s.ContentStore, proj, streamParamWithProject(c, proj))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
@@ -126,12 +125,12 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 	}
 
 	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	info, err := editorBuildProjectInfo(ctx, s.ContentStore, proj, streamParamWithProject(c, proj))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
@@ -170,7 +169,7 @@ func (s *Server) HandleUpdateStreamName(c echo.Context) error {
 	}
 
 	if err := s.ContentStore.UpdateStream(ctx, stream); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, stream)
@@ -233,7 +232,7 @@ func (s *Server) HandleRestoreStream(c echo.Context) error {
 
 	stream.Archived = false
 	if err := s.ContentStore.UpdateStream(ctx, stream); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -248,7 +247,7 @@ func (s *Server) HandleListArchivedProjects(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	projects, err := s.ContentStore.ListArchivedProjects(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, projects)
@@ -277,7 +276,7 @@ func (s *Server) HandlePermanentlyDeleteProject(c echo.Context) error {
 	}
 
 	if err := s.ContentStore.DeleteProject(ctx, pid); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -331,7 +330,7 @@ func (s *Server) HandleUploadFiles(c echo.Context) error {
 
 	info, err := editorAddFiles(ctx, s.ContentStore, s.FormatRegistry, pid, streamParam(c), files)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
@@ -504,7 +503,7 @@ func (s *Server) HandlePseudoTranslate(c echo.Context) error {
 
 	stats, err := editorPseudoTranslate(c.Request().Context(), s.ContentStore, pid, streamParam(c), fname, req.TargetLocale)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
@@ -562,7 +561,7 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 		if resp, ok := unavailableErr(c, err); ok {
 			return resp
 		}
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	s.invalidateDashboardCache(wsID, pid)
@@ -595,7 +594,7 @@ func (s *Server) HandleMemoryTranslate(c echo.Context) error {
 
 	stats, err := editorMemoryTranslate(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, streamParam(c), fname, req.TargetLocale)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
@@ -631,7 +630,7 @@ func (s *Server) HandleTermEnforce(c echo.Context) error {
 
 	results, err := editorTermEnforce(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, streamParam(c), fname, req.TargetLocale)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if results == nil {
 		results = []TermEnforceResultResponse{}
@@ -667,29 +666,25 @@ func (s *Server) HandleGetWordCount(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
-// HandleExportTranslatedFile exports a translated file.
+// HandleExportTranslatedFile answers the editor's export request.
+//
+// Server-side merged-file export is not available and will not become
+// available: source bytes stopped being stored in the Item model in #136, so
+// there is nothing to merge into. `kapi pull` is the export path.
+//
+// That refusal is permanent and expected, so it must not travel as a 500. It
+// used to: the stub error went through serverErr, which rendered "the server
+// hit an unexpected error", buried the sentence naming the alternative in the
+// server log, and paged the on-call for a working endpoint. 501 states the
+// condition plainly and puts the sentence in the body where the caller reads
+// it.
 func (s *Server) HandleExportTranslatedFile(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
-
-	pid := projectParam(c)
-	fname := fileParam(c)
-
-	var req struct {
-		TargetLocale string `json:"target_locale"`
-	}
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-
-	outputPath, err := editorExportTranslatedFile(c.Request().Context(), s.ContentStore, s.FormatRegistry, pid, streamParam(c), fname, req.TargetLocale, s.Config.DataDir)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-	}
-	defer os.Remove(outputPath)
-
-	return c.File(outputPath)
+	return c.JSON(http.StatusNotImplemented, ErrorResponse{
+		Error: "server-side file export is not available: use 'kapi pull' to export translated files",
+	})
 }
 
 // HandleLookupMemoryForBlock looks up content-memory matches for a specific block.
@@ -755,7 +750,7 @@ func (s *Server) HandleGetMemoryEntries(c echo.Context) error {
 
 	tm, err := s.wsStores.getMemory(ws)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	stream := c.QueryParam("stream")
@@ -784,7 +779,7 @@ func (s *Server) HandleGetMemoryEntries(c echo.Context) error {
 		})
 	}
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Post-filter by project_id if specified.
@@ -817,12 +812,12 @@ func (s *Server) HandleGetMemoryCount(c echo.Context) error {
 
 	tm, err := s.wsStores.getMemory(ws)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	count, err := tm.Count(c.Request().Context())
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]int{"count": count})
 }
@@ -845,7 +840,7 @@ func (s *Server) HandleAddMemoryEntry(c echo.Context) error {
 
 	tm, err := s.wsStores.getMemory(ws)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	srcLoc := model.LocaleID(req.SourceLocale)
@@ -868,7 +863,7 @@ func (s *Server) HandleAddMemoryEntry(c echo.Context) error {
 		err = tm.Add(c.Request().Context(), entry)
 	}
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusCreated, editorEntryToInfo(entry, req.SourceLocale, req.TargetLocale))
@@ -893,12 +888,12 @@ func (s *Server) HandleUpdateMemoryEntry(c echo.Context) error {
 
 	tm, err := s.wsStores.getMemory(ws)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	existing, ok, err := tm.GetEntry(c.Request().Context(), eid)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("content-memory entry %q not found", eid)})
@@ -906,7 +901,7 @@ func (s *Server) HandleUpdateMemoryEntry(c echo.Context) error {
 
 	// Delete old and add updated.
 	if err := tm.Delete(c.Request().Context(), eid); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	srcLoc := model.LocaleID(req.SourceLocale)
@@ -922,7 +917,7 @@ func (s *Server) HandleUpdateMemoryEntry(c echo.Context) error {
 	existing.UpdatedAt = time.Now()
 
 	if err := tm.Add(c.Request().Context(), existing); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.NoContent(http.StatusNoContent)
@@ -942,7 +937,7 @@ func (s *Server) HandleDeleteMemoryEntry(c echo.Context) error {
 
 	tm, err := s.wsStores.getMemory(ws)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	if err := tm.Delete(c.Request().Context(), eid); err != nil {
@@ -982,7 +977,7 @@ func (s *Server) HandleListProviderConfigs(c echo.Context) error {
 
 	configs, err := s.ProviderStore.List(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	out := make([]ProviderConfigResponse, len(configs))
 	for i, cfg := range configs {
@@ -1026,7 +1021,7 @@ func (s *Server) HandleSaveProviderConfig(c echo.Context) error {
 		APIKey:        req.APIKey, // sealed on write; empty preserves the stored key
 	})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: fmt.Sprintf("save provider config: %s", err)})
+		return serverErr(c, fmt.Errorf("save provider config: %w", err))
 	}
 	return c.JSON(http.StatusCreated, providerStoreToResponse(saved))
 }
@@ -1102,7 +1097,7 @@ func (s *Server) HandleGetBlockHistory(c echo.Context) error {
 
 	entries, err := s.ContentStore.GetBlockHistory(c.Request().Context(), pid, streamParam(c), bid, locale, limit)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, entries)
@@ -1153,7 +1148,7 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 
 	stats, err := editorGetDashboardStats(ctx, s.ContentStore, proj, stream)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Derive per-locale + per-collection ship states and on-brand rates
@@ -1163,7 +1158,7 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	// (never per block) — a nil gate (no terms, no brand store) is a no-op.
 	gate := s.resolveTermGate(ctx, proj, stream, wsID)
 	if err := applyShipStates(ctx, s.ContentStore, s.BrandStore, proj.ID, stream, gate, stats); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Cache the full result; each request slices its own page from it.

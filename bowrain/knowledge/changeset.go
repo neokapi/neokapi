@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -108,9 +108,9 @@ type RelationRemovePayload struct {
 // is a brand vocabulary rule that references the backing concept by ID; List
 // selects which of the profile's vocabulary lists it joins.
 type VoiceRuleAddPayload struct {
-	ProfileID string             `json:"profile_id"`
-	List      VoiceRuleList      `json:"list"`
-	Rule      corebrand.TermRule `json:"rule"`
+	ProfileID string               `json:"profile_id"`
+	List      VoiceRuleList        `json:"list"`
+	Rule      coreprofile.TermRule `json:"rule"`
 }
 
 // VoiceRuleRemovePayload is the payload for OpVoiceRuleRemove (always governed).

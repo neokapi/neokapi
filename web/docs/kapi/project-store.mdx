@@ -70,7 +70,7 @@ it **pushes** its state to a remote (`kapi push`) and **pulls** it back
 
 ## What the store is *not*
 
-- It is **not** the content memory. The `.memory.json` bundle (`defaults.tm_source`) is a
+- It is **not** the content memory. The `.memory.json` bundle (`defaults.memory_source`) is a
   **recycle** corpus — `kapi apply` with `kind:"tm"` adds leverage for future
   translation; it does **not** record a review decision. Review state lives in the
   state store. See [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).

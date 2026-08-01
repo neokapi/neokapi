@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 )
@@ -725,7 +726,7 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 			if inTranslatable {
 				textBuf.Write(t)
 			} else {
-				p.skelText(xmlEscape(string(t)))
+				p.skelText(xmlesc.Text(string(t)))
 			}
 		case xml.EndElement:
 			if inTranslatable && t.Name.Local == currentElement {
@@ -819,7 +820,7 @@ func writeStartElementToBuilder(buf *strings.Builder, t xml.StartElement) {
 		buf.WriteString(" ")
 		writeAttrName(buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(xmlEscapeAttr(a.Value))
+		buf.WriteString(xmlesc.Attr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")
@@ -868,7 +869,7 @@ func (p *corePropsParser) skelWriteStartElement(t xml.StartElement) {
 		buf.WriteString(" ")
 		writeAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(xmlEscapeAttr(a.Value))
+		buf.WriteString(xmlesc.Attr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")

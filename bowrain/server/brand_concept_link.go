@@ -7,10 +7,10 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -39,7 +39,7 @@ const defaultBrandConceptLocale = model.LocaleID("en")
 //
 // wsSlug keys the workspace terms (getTB); wsID scopes the project lookup that
 // resolves the source locale and stamps the emitted events.
-func (s *Server) linkRuleToConcept(ctx context.Context, wsSlug, wsID string, rule corebrand.SuggestedRule) (string, []knowledge.MergeEvent, error) {
+func (s *Server) linkRuleToConcept(ctx context.Context, wsSlug, wsID string, rule coreprofile.SuggestedRule) (string, []knowledge.MergeEvent, error) {
 	term := strings.TrimSpace(rule.Term)
 	if term == "" {
 		return "", nil, nil

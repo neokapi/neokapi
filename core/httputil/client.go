@@ -40,8 +40,20 @@ func NewClient() *http.Client {
 func NewResilientClient() *http.Client {
 	return &http.Client{
 		Timeout:   DefaultTimeout,
-		Transport: &retryTransport{base: defaultTransport(), maxRetries: MaxRetries},
+		Transport: NewResilientTransport(nil),
 	}
+}
+
+// NewResilientTransport layers the same retry and rate-limit awareness
+// [NewResilientClient] applies over base, for a caller that has to own its own
+// dialing — a vetted dialer, a unix socket — and would otherwise have to
+// choose between that and retries. A nil base means the package default
+// transport.
+func NewResilientTransport(base http.RoundTripper) http.RoundTripper {
+	if base == nil {
+		base = defaultTransport()
+	}
+	return &retryTransport{base: base, maxRetries: MaxRetries}
 }
 
 // retryTransport wraps an http.RoundTripper with retry logic for transient errors.

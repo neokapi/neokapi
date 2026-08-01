@@ -252,7 +252,7 @@ func (s *Server) HandleSavePostHogConfig(c echo.Context) error {
 	if existing != nil {
 		existing.ConnectorConfig = cfg
 		if err := s.ContentStore.UpdateCollection(ctx, existing); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 		s.posthogDemand.Invalidate(pid)
 		return c.JSON(http.StatusOK, posthogConfigResponse(existing))
@@ -266,7 +266,7 @@ func (s *Server) HandleSavePostHogConfig(c echo.Context) error {
 		ConnectorConfig: cfg,
 	}
 	if err := s.ContentStore.CreateCollection(ctx, coll); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.posthogDemand.Invalidate(pid)
 	return c.JSON(http.StatusCreated, posthogConfigResponse(coll))
@@ -286,7 +286,7 @@ func (s *Server) HandleDeletePostHogConfig(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, PostHogErrorResponse{Error: "PostHog connector is not configured", Code: "not_configured"})
 	}
 	if err := s.ContentStore.DeleteCollection(c.Request().Context(), pid, coll.ID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.posthogDemand.Invalidate(pid)
 	return c.NoContent(http.StatusNoContent)
@@ -328,7 +328,7 @@ func (s *Server) HandlePostHogDemand(c echo.Context) error {
 	cfg := coll.ConnectorConfig
 	client, err := connector.NewPostHogClient(cfg[posthogCfgHost], cfg[posthogCfgProjectID], cfg[posthogCfgAPIKey])
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	snap, err := client.FetchDemand(c.Request().Context(), demandRange, cfg[posthogCfgPathPattern])

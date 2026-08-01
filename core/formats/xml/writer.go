@@ -422,6 +422,9 @@ func expandInlineAttrRefs(data string, blocks map[string]*model.Block, w *Writer
 // apostrophe stays unescaped because okapi leaves it literal even
 // when the source used &apos;. Whitespace (newlines, tabs) is preserved
 // for byte-exact skeleton roundtrip.
+//
+// DELIBERATELY not core/internal/xmlesc.Text, which leaves `"` alone in text
+// position. The extra quote escaping is the parity requirement above.
 func xmlEscapeString(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
@@ -571,6 +574,9 @@ func appendSpaceTo(runs []model.Run) []model.Run {
 // escaping inside an attribute value, and okapi-bridge's reference
 // round-trip output for ITS test01.xml shows literal `>` and `'`
 // inside attribute values.
+//
+// DELIBERATELY not core/internal/xmlesc.Attr, which escapes `>`. Pointing this
+// at the shared helper would move the ITS goldens.
 func xmlEscapeAttrValue(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))

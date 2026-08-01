@@ -101,7 +101,16 @@ func AuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareF
 				// JWT token.
 				claims, err := platauth.ValidateToken(token, jwtSecret)
 				if err != nil {
-					return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid token: " + err.Error()})
+					// One message for every way a token can be invalid. The
+					// library distinguishes expiry from a bad signature from
+					// the wrong issuer, and saying which turns the 401 into an
+					// oracle: a holder of a forged token learns whether the
+					// signature or only the clock is the problem, and can tell
+					// "not signed by us" from "signed by us, too old". The
+					// distinction is real and belongs in the log.
+					slog.WarnContext(c.Request().Context(), "bearer token rejected",
+						"path", c.Path(), "reference", requestID(c), "error", err)
+					return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid token"})
 				}
 				// Auto-provision user if not in DB (supports pre-generated agent tokens).
 				if authStore != nil {
@@ -229,7 +238,16 @@ func ClaimOrAuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.Midd
 				// JWT token.
 				claims, err := platauth.ValidateToken(token, jwtSecret)
 				if err != nil {
-					return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid token: " + err.Error()})
+					// One message for every way a token can be invalid. The
+					// library distinguishes expiry from a bad signature from
+					// the wrong issuer, and saying which turns the 401 into an
+					// oracle: a holder of a forged token learns whether the
+					// signature or only the clock is the problem, and can tell
+					// "not signed by us" from "signed by us, too old". The
+					// distinction is real and belongs in the log.
+					slog.WarnContext(c.Request().Context(), "bearer token rejected",
+						"path", c.Path(), "reference", requestID(c), "error", err)
+					return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid token"})
 				}
 				setClaimsOnContext(c, claims)
 				return next(c)

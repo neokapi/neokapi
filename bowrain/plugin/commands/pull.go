@@ -30,9 +30,14 @@ Only changed blocks are transferred. Runs post-pull hooks if configured.
 
 When the project is claimed into a workspace, pull also snapshots the
 workspace's governed concepts and their relations into the project's bound
-terms (.kapi/termbase.db) and records a baseline, so a later 'kapi push'
+terms (.kapi/terms.db) and records a baseline, so a later 'kapi push'
 can diff local terminology edits against it and 'kapi check --ship' gates its
-terminology offline against the same governed vocabulary.`,
+terminology offline against the same governed vocabulary.
+
+Pull also reports the collections the server holds and how it governs them. It
+does not apply them: for a collection this recipe declares, kapi.yaml is the
+authority, so a divergence is reported and resolved in git rather than pulled
+down over the local governance.`,
 	RunE: runPull,
 }
 
@@ -43,6 +48,12 @@ type PullResult struct {
 	FilesWritten int
 	DryRun       bool
 	UpToDate     bool
+
+	// CollectionsObserved and GovernanceDiverged carry the context content
+	// type's pull half: how many collections the server reported, and which
+	// recipe-owned ones it governs differently. Observed, never applied.
+	CollectionsObserved int
+	GovernanceDiverged  []string
 }
 
 // doPull executes the core pull logic and returns structured results.
@@ -76,9 +87,11 @@ func doPull(ctx context.Context, conn *bconn.BowrainSourceConnector, locales []s
 	}
 
 	pr := &PullResult{
-		BlocksPulled: result.BlocksPulled,
-		LocalesCount: result.LocalesCount,
-		FilesWritten: result.FilesWritten,
+		BlocksPulled:        result.BlocksPulled,
+		LocalesCount:        result.LocalesCount,
+		FilesWritten:        result.FilesWritten,
+		CollectionsObserved: result.CollectionsObserved,
+		GovernanceDiverged:  result.GovernanceDiverged,
 	}
 	if dryRun {
 		pr.DryRun = true
@@ -139,12 +152,14 @@ func runPull(cmd *cobra.Command, args []string) error {
 	}
 
 	out := output.PullOutput{
-		BlocksPulled: result.BlocksPulled,
-		LocalesCount: result.LocalesCount,
-		FilesWritten: result.FilesWritten,
-		Stream:       conn.Stream(),
-		DryRun:       result.DryRun,
-		UpToDate:     result.UpToDate,
+		BlocksPulled:        result.BlocksPulled,
+		LocalesCount:        result.LocalesCount,
+		FilesWritten:        result.FilesWritten,
+		Stream:              conn.Stream(),
+		DryRun:              result.DryRun,
+		UpToDate:            result.UpToDate,
+		CollectionsObserved: result.CollectionsObserved,
+		GovernanceDiverged:  result.GovernanceDiverged,
 	}
 
 	// Fold the workspace's governed terminology into the pull: fetch the

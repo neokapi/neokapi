@@ -323,9 +323,18 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 	jobIDs, _ := s.createTranslationJobs(ctx, proj, itemNames, locales, pushID, wsSlug, stepID)
 
 	// Register spawned jobs on the automation step for visibility tracking.
+	//
+	// Tracking a step whose registration failed is worse than not tracking it:
+	// the tracker reads TotalJobs == 0 as "not registered yet", waits thirty
+	// minutes, then marks the step failed and bills the wait as container time —
+	// for jobs that ran perfectly well. So a failed registration means no
+	// tracking, and the step stays untracked rather than becoming a false
+	// failure with an invoice attached.
 	if stepID != "" && s.AutomationRunStore != nil && len(jobIDs) > 0 {
-		_ = s.AutomationRunStore.RegisterStepJobs(ctx, stepID, jobIDs)
-		if s.stepCompletionTracker != nil {
+		if err := s.AutomationRunStore.RegisterStepJobs(ctx, stepID, jobIDs); err != nil {
+			slog.ErrorContext(ctx, "automation: failed to register step jobs; leaving the step untracked",
+				"step", stepID, "jobs", len(jobIDs), "error", err)
+		} else if s.stepCompletionTracker != nil {
 			s.stepCompletionTracker.TrackStep(stepID, "", false)
 		}
 	}
@@ -484,8 +493,12 @@ func (s *Server) triggerAutoExtract(ctx context.Context, projectID string, itemN
 	}
 
 	if stepID != "" && s.AutomationRunStore != nil && len(jobIDs) > 0 {
-		_ = s.AutomationRunStore.RegisterStepJobs(ctx, stepID, jobIDs)
-		if s.stepCompletionTracker != nil {
+		// See triggerAutoTranslate: tracking an unregistered step turns into a
+		// billed thirty-minute false failure.
+		if err := s.AutomationRunStore.RegisterStepJobs(ctx, stepID, jobIDs); err != nil {
+			slog.ErrorContext(ctx, "auto-extract: failed to register step jobs; leaving the step untracked",
+				"step", stepID, "jobs", len(jobIDs), "error", err)
+		} else if s.stepCompletionTracker != nil {
 			s.stepCompletionTracker.TrackStep(stepID, "", true)
 		}
 	}

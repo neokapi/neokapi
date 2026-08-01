@@ -26,8 +26,16 @@ LDFLAGS     ?= -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).
 
 GO          := go
 GOTAGS      := -tags fts5
+# macOS Homebrew ICU, resolved rather than pinned — see the root Makefile for
+# why a hardcoded icu4c@NN breaks silently on the next ICU major bump.
 ifeq ($(shell uname -s),Darwin)
-export PKG_CONFIG_PATH := /opt/homebrew/opt/icu4c@78/lib/pkgconfig:$(PKG_CONFIG_PATH)
+ICU_PKGCONFIG := $(firstword $(wildcard /opt/homebrew/opt/icu4c/lib/pkgconfig /usr/local/opt/icu4c/lib/pkgconfig))
+ifeq ($(ICU_PKGCONFIG),)
+ICU_PKGCONFIG := $(shell ls -d /opt/homebrew/opt/icu4c@*/lib/pkgconfig /usr/local/opt/icu4c@*/lib/pkgconfig 2>/dev/null | sort -V | tail -1)
+endif
+ifneq ($(ICU_PKGCONFIG),)
+export PKG_CONFIG_PATH := $(ICU_PKGCONFIG):$(PKG_CONFIG_PATH)
+endif
 endif
 GOTEST      := $(GO) test $(GOTAGS)
 GOBUILD     := $(GO) build $(GOTAGS)
@@ -151,9 +159,15 @@ build-kapi-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-dri
 build-bowrain: frontend-build ## Build the Bowrain desktop app
 	cd apps/bowrain && wails3 build -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
+# One -tags flag, both tags. `go build -tags fts5 -tags server` does not union
+# them — the second occurrence replaces the first, so $(GOBUILD)'s fts5 was
+# silently dropped and the binary shipped without SQLite FTS5. Content memory
+# and terms then fail at runtime with "no such function: fts5", which is the
+# exact trap CONTRIBUTING.md warns about, and it would have met the first
+# person to run the e2e suite against this binary (#1579).
 build-headless: frontend-build ## Build headless desktop binary (server mode, no GUI deps)
 	@mkdir -p $(BIN_DIR)
-	cd apps/bowrain && $(GOBUILD) -tags server $(LDFLAGS) -o $(BIN_DIR)/bowrain-headless .
+	cd apps/bowrain && $(GO) build -tags fts5,server $(LDFLAGS) -o $(BIN_DIR)/bowrain-headless .
 
 install-kapi-bowrain-plugin: ## Install kapi-bowrain plugin binary to GOPATH/bin
 	cd plugin && $(GO) install $(LDFLAGS) ./cmd/kapi-bowrain
@@ -433,8 +447,8 @@ test-verbose: ## Run platform tests with verbose output
 	cd plugin && $(GOTEST_BASE) ./... -count=1 -v
 	$(GOTEST_BASE) ./... -count=1 -v
 
-test-integration: ## Run platform integration tests
-	$(GOTEST_BASE) ./... -count=1 -tags=integration -run Integration
+test-integration: ## Run the platform's //go:build integration lane (Postgres-backed cross-store suites)
+	@bash ../scripts/test-integration.sh $(_RACE) $(_SHUFFLE)
 
 test-platform: ## Run platform core module tests only
 	@mkdir -p $(COVER_DIR)

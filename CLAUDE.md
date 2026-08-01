@@ -62,12 +62,30 @@ Frontend work runs off a single root pnpm workspace (`pnpm-workspace.yaml`) —
 `vp install` at the repo root, never per-directory installs. Module isolation is
 checked with `GOWORK=off` builds per module plus `make audit-modules`.
 
+**`go` does not union repeated `-tags` — the last occurrence wins.** So
+`$(GOTEST) -tags parity` silently drops the `fts5` that `$(GOTAGS)` baked in,
+and `go build -tags fts5 -tags server` builds without FTS5. Spell every tag in
+one comma-separated flag (`-tags "fts5,parity"`), and reach for `$(GO)` rather
+than `$(GOTEST)`/`$(GOBUILD)` when a target needs its own tag set, so no macro
+can re-introduce the shadowing.
+
+Nothing fails when this goes wrong: `fts5` is a runtime SQL capability, not a
+compile gate, so the build succeeds and only a query that reaches FTS5 notices —
+`no such function: fts5`, arbitrarily far from the flag. It cost a headless
+binary that died on its first memory or terms query, and a parity suite running
+in a configuration no other target used, on the same day. Check with:
+
+```bash
+go list -tags "<your tags>" -f '{{.CgoCFLAGS}}' github.com/mattn/go-sqlite3 | grep FTS5
+```
+
 ## Dogfooding kapi: the in-repo isolation contract
 
 This repo dogfoods kapi. A `kapi.yaml` recipe at the repo root is driven by the
 **system-installed** kapi + plugins (real `kapi-bowrain`, real keychain auth,
 real server), and it is auto-discovered by a git-style **upward walk** from any
-cwd inside the tree (`core/project.ResolveLayout` → `cli.ResolveProjectPath`).
+cwd inside the tree (`core/project.ResolveLayout` → `host.ResolveProjectPath`,
+re-exported as `cli.ResolveProjectPath`).
 
 **Every in-repo kapi invocation that is not the dogfood workflow must isolate
 itself**, or it will silently bind to — and act on — the dogfood project. Set on
@@ -140,7 +158,7 @@ Remotion into light + dark `.webm`. Two things are easy to get wrong:
 
 - **Narration sidecars are generated.** `demo.<lang>.yaml` files come from the
   dogfood recipe (`make l10n-demos`, drift-gated by `l10n-verify`). Fold fixes
-  into `l10n/tm/demo-narration-<lang>.memory.json` and regenerate — never edit a sidecar
+  into `context/memory/demo-narration-<lang>.memory.json` and regenerate — never edit a sidecar
   or author inline translations.
 - **Assets are not in git and not in GitHub releases.** They live only on the
   S3 + CloudFront CDN (`$DOCS_CDN_URL`) and are referenced by URL via
@@ -167,9 +185,35 @@ that bite most often:
   *localize*. *Translate*, *locale*, *language* and *parity* are real words and
   stay. `grep -niE 'localiz|localis|l10n|termbase|glossar|translation memor'`
   before you commit prose — inflections are what a noun-only search misses.
-  Retained identifiers (recipe keys `tm:`/`termbase:`, `tm.db`, `l10n-*`
-  targets, `/translation-memory`, `TMX`/`TBX`) keep their spelling: describe the
-  new concept and quote the old identifier verbatim.
+  **The identifiers now match the concepts.** The retired spellings were swept
+  out of recipe keys (`memory:`/`terms:`), state filenames (`memory.db`,
+  `terms.db`), CLI flags (`--memory` for the content memory, `--termstore` for
+  the terms store) and the package tree (`core/profile`), finishing what #1462
+  and #1504 began. Do not reintroduce `tm`/`termbase` as an identifier — if you
+  find one, it is a leftover.
+
+  **The terms-store selector is `--termstore`, not `--terms`.** `--tm` became
+  `--memory` (#1520), but `--termbase` became `--termstore` (#1505) rather than
+  `--terms`, because `--terms` was already taken — it is the boolean gate on
+  `kapi exec dnt-check`. The asymmetry is deliberate,
+  `cli/project_brand_termbase_test.go` guards it, and a vocabulary sweep that
+  "corrects" `--termstore` to `--terms` is a regression. That is precisely how
+  `kapi/e2e` drifted: #1462 rewrote the flag inside a suite no PR runs, and the
+  nightly said so for a fortnight with nobody listening.
+
+  The persisted discriminators followed too (#1522): `model.Origin.Kind`, the
+  KPZ content type, the sync `content_type` and apply change-set kinds all now
+  write `"memory"`. That was possible because the standing decision is to
+  **prefer resetting data over writing a migration** until the dogfood setup is
+  proven — see `bowrain-infra/docs/runbooks/data-reset.md`, which also records
+  that the trade is only correct while we are the only customer.
+
+  What genuinely stays: `TMX`/`TBX` (external file-format standards we do not
+  own), the `l10n-*` make targets (developer-facing internals on no user
+  surface), the `termbase` SQLite migration bookkeeping table (renaming it makes
+  `Migrate` replay every migration — see `terms/sqlite.go`), and the analytics
+  property `method: "tm"` (event values are a rename boundary: PostHog holds the
+  history, so renaming splits a metric rather than moving it).
 - **Never hardcode counts the code controls** (formats, tools, providers,
   filters). Name the category and link to the generated reference.
 - **Diagrams are real React components, never ASCII art.** The themed light/dark

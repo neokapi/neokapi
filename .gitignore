@@ -96,7 +96,7 @@ bowrain/web/landing/i18n-nb/
 # nb build — see CLAUDE.md "Target-language drift must never block the build".
 # Regenerate with kapi; the nb locale falls back to English until then.
 web/i18n/nb/
-# Same policy for the bowrain docs site: the docs-bowrain surface of the root
+# Same policy for the bowrain docs site: the bowrain-docs surface of the root
 # recipe generates bowrain/web/docs/i18n/<locale>/ from bowrain/web/docs/docs/**
 # (make l10n-bowrain-docs). Build artefact, never committed; the nb locale
 # falls back to English until regenerated.
@@ -107,11 +107,20 @@ bowrain/web/docs/i18n/nb/
 /.kapi/
 # A `kapi memory`/`kapi terms` run with no --file/--name defaults to --local,
 # which writes these into the working directory. They are rebuildable state, not
-# source (AD-009/AD-010), so they must never be committed.
-/tm.db
-/termbase.db
+# source (AD-009/AD-010), so they must never be committed. The names track
+# core/project.MemoryFileName and TermsFileName; the pre-#1504/#1522 spellings
+# (tm.db, termbase.db) matched nothing here any more.
+/memory.db
+/terms.db
 # Disposable TMX/CSV review views of the native l10n seeds (l10n-review-export).
 /l10n/review/
+
+# Strategy and audit notes live in the private strategy repo under
+# $NEOKAPI_WORKSPACE_DIR, never here: this repo is public, and a security audit
+# carries reproductions for vulnerabilities that may still be unfixed. One was
+# swept in at the repo root once (#1520); anchored so a working copy at the root
+# cannot be staged again.
+/kimi-evaluation.md
 
 # Wails
 **/build/bin/
@@ -145,6 +154,7 @@ storybook-static/
 
 # Playwright
 test-results/
+test-results-*.json
 playwright-report/
 # kapi docs scene fixtures stay tracked; any transient recordings or
 # screenshots under web/scenes/ are build artifacts, not source.
@@ -223,9 +233,15 @@ platform/docker/traefik/certs
 /scripts/gen-refs/gen-refs
 /scripts/contract-audit/contract-audit
 /scripts/checkeval/checkeval
+/scripts/contexteval/contexteval
 # Stray build outputs (use `make` targets, which place binaries under bin/ or
-# the wasm demo dir — these default `go build` outputs must never be committed)
+# the wasm demo dir — these default `go build` outputs must never be committed).
+# `go build ./scripts/<tool>` from the REPO ROOT writes ./<tool>, not
+# ./scripts/<tool>/<tool>, so the root-level names need their own rules;
+# scripts/check-tracked-binaries.sh is the backstop for the ones not listed.
 /bowrain/bowrain
+/checkeval
+/contexteval
 /kapi-wasm
 /kapi/kapi-wasm-cli
 

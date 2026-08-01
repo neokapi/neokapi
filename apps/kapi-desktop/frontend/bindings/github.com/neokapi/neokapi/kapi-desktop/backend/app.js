@@ -917,7 +917,7 @@ export function GetProjectHandles(tabID) {
 
 /**
  * GetProjectMemoryHandle returns the auto-opened content-memory handle for a project tab,
- * or empty string if the project has no .kapi/tm.db.
+ * or empty string if the project has no .kapi/memory.db.
  * @param {string} tabID
  * @returns {$CancellablePromise<string>}
  */
@@ -975,7 +975,7 @@ export function GetProjectStatus(tabID) {
 
 /**
  * GetProjectTermsHandle returns the auto-opened terms handle for a project tab,
- * or empty string if the project has no .kapi/termbase.db.
+ * or empty string if the project has no .kapi/terms.db.
  * @param {string} tabID
  * @returns {$CancellablePromise<string>}
  */

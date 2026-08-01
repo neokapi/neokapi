@@ -36,7 +36,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/d3-geo": "3.1.0",
@@ -44,7 +44,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/topojson-client": "3.1.5",
     "@types/topojson-specification": "1.0.5",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^7.0.2",

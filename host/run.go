@@ -160,13 +160,23 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	a.ProjectContext = ctx
 	defer func() { a.ProjectContext = nil }()
 
+	// This run resolves the recipe's coordinates; a run at the server venue
+	// would not, until they are synced there.
+	a.WarnUnsyncedCoordinates(cmd.ErrOrStderr(), proj)
+
 	// Resolve standing brand-voice + glossary bindings so project-flow steps
-	// honor them with no flags (defaults.brand_voice / defaults.termbase).
-	bindings, err := a.resolveProjectBindings(cmd, proj, projectPath)
+	// honor them with no flags (defaults.brand_voice / defaults.terms), per
+	// content collection: the input set splits into one group per distinct
+	// binding, and each group runs the flow with its own. A recipe where no
+	// collection overrides anything yields one group over every input — the
+	// single run, with the single tool chain, that this has always been.
+	groups, err := groupInputsByBinding(proj, ctx.ProjectDir, inputPaths)
 	if err != nil {
 		return err
 	}
-	a.ProjectBindings = bindings
+	if err := a.resolveGroupBindings(cmd, proj, projectPath, groups); err != nil {
+		return err
+	}
 	defer func() { a.ProjectBindings = nil }()
 
 	// Build resource context from project file location.
@@ -175,6 +185,20 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 		ProjectDir:   filepath.Dir(absProjectPath),
 		SourceLocale: a.SourceLang,
 		TargetLocale: a.TargetLang,
+	}
+
+	// One run per binding group: the group's bindings go on the App before the
+	// run, because that is where the tool chain reads them (buildFlowTools →
+	// applyBindings). One group — no collection naming a context — is one run
+	// over every input, exactly as before.
+	runGroups := func() error {
+		for _, group := range groups {
+			a.ProjectBindings = group.bindings
+			if err := a.runProjectStepsOver(cmd.Context(), cmd, flowName, spec, &rCtx, group.Inputs); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 
 	// Locale selection: an explicit --target-lang wins (one pass with it);
@@ -202,7 +226,7 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 				}
 				a.TargetLang = lang
 				rCtx.TargetLocale = lang
-				if err := a.runProjectStepsOver(cmd.Context(), cmd, flowName, spec, &rCtx, inputPaths); err != nil {
+				if err := runGroups(); err != nil {
 					return err
 				}
 			}
@@ -210,5 +234,5 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 		}
 	}
 
-	return a.runProjectStepsOver(cmd.Context(), cmd, flowName, spec, &rCtx, inputPaths)
+	return runGroups()
 }

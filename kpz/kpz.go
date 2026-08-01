@@ -15,9 +15,49 @@ import (
 
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms/ktb"
 )
+
+// A .kpz is the profile that exists to cross a trust boundary: it is packed,
+// handed to an outside translator or reviewer, and returned to be merged. An
+// untrusted package is therefore the expected input, not an edge case, and
+// Unmarshal treats every byte and every name in the manifest as content.
+//
+// Two invariants hold for anything that comes back off the wire:
+//
+//   - A package may only name paths INSIDE the project it is merged into.
+//     Every manifest field that is a path is validated with
+//     [safeio.IsLocalPath] before it can reach the filesystem.
+//   - Parsing a package is bounded. The archive is checked against
+//     [PackageZipLimits] up front, every entry is streamed through one
+//     cumulative [safeio.ZipGuard], and whole-document members are hashed
+//     without ever being buffered.
+
+// PackageZipLimits bounds parsing a .kpz against the classic archive attack
+// classes (oversized entry, decompression bomb, oversized payload, entry
+// flood).
+//
+// The size caps are deliberately looser than [safeio.DefaultZipLimits] and the
+// ratio cap identical. A `kapi pack --with-source` of a media-heavy project is a
+// legitimate multi-gigabyte archive, so the default 4 GiB cumulative cap would
+// reject real work; the guard that actually stops a bomb is the inflate ratio,
+// which is enforced on the streamed bytes and is unaffected by how large an
+// honest package is.
+var PackageZipLimits = safeio.ZipLimits{
+	MaxEntrySize:    2 << 30,  // 2 GiB — one source document or media blob
+	MaxTotalSize:    16 << 30, // 16 GiB — a media-heavy `pack --with-source`
+	MinInflateRatio: safeio.DefaultMinInflateRatio,
+	MaxEntries:      safeio.DefaultMaxEntries,
+}
+
+// MaxInlineMemberSize bounds a member a caller materializes in memory with
+// [ReadAll] — today the round-trip skeleton handed to a reconstructing writer.
+// Whole-document and media members are streamed rather than buffered, so this
+// applies to derived members only, and 256 MiB is far above any skeleton a real
+// document produces.
+const MaxInlineMemberSize int64 = 256 << 20
 
 // Content provides a parcel member's bytes on demand. A .kpz member that can
 // hold a whole document or media asset — a source document, a media blob, a
@@ -53,21 +93,28 @@ func (b bytesContent) Open() (io.ReadCloser, error) {
 }
 
 // zipContent backs a member by its entry in an already-open parcel archive,
-// read lazily so Unmarshal never retains whole documents in memory.
-type zipContent struct{ f *zip.File }
+// read lazily so Unmarshal never retains whole documents in memory. The reader
+// is guarded: a member's declared size can lie, so the per-entry size and
+// inflate-ratio caps are enforced on the bytes the entry actually produces.
+type zipContent struct {
+	f      *zip.File
+	limits safeio.ZipLimits
+}
 
-func (z zipContent) Open() (io.ReadCloser, error) { return z.f.Open() }
+func (z zipContent) Open() (io.ReadCloser, error) { return z.limits.OpenEntry(z.f) }
 
-// ReadAll reads a member's full content into memory. Use only at a boundary
-// that genuinely needs the bytes (e.g. handing a skeleton stream to a reader);
-// prefer streaming via Open elsewhere.
+// ReadAll reads a member's full content into memory, bounded by
+// [MaxInlineMemberSize]. Use only at a boundary that genuinely needs the bytes
+// (e.g. handing a skeleton stream to a reconstructing writer); prefer streaming
+// via Open elsewhere. Whole-document and media members are never read this way —
+// they are streamed — so the bound applies to derived members only.
 func ReadAll(c Content) ([]byte, error) {
 	rc, err := c.Open()
 	if err != nil {
 		return nil, err
 	}
 	defer rc.Close()
-	return io.ReadAll(rc)
+	return io.ReadAll(safeio.NewLimitedReader(rc, MaxInlineMemberSize))
 }
 
 // hashContent streams a member through SHA-256 without retaining its bytes.
@@ -103,7 +150,7 @@ const (
 
 	ContentTypeBlocks      = "blocks"
 	ContentTypeAnnotations = "annotations"
-	ContentTypeMemory      = "tm"
+	ContentTypeMemory      = "memory"
 	ContentTypeTerms       = "terms"
 	ContentTypeMedia       = "media"
 	// ContentTypeSkeleton carries one source document's round-trip skeleton
@@ -574,6 +621,14 @@ func Unmarshal(data []byte) (*Package, error) {
 	if err != nil {
 		return nil, fmt.Errorf("kpz: open archive: %w", err)
 	}
+	// Bound the archive on its declared headers before a single byte is
+	// decompressed, then stream every entry through ONE guard so the cumulative
+	// caps apply across the package rather than per member.
+	if err := PackageZipLimits.CheckReader(zr); err != nil {
+		return nil, fmt.Errorf("kpz: %w", err)
+	}
+	guard := PackageZipLimits.NewGuard()
+
 	files := make(map[string]*zip.File, len(zr.File))
 	for _, f := range zr.File {
 		files[f.Name] = f
@@ -583,7 +638,7 @@ func Unmarshal(data []byte) (*Package, error) {
 	if !ok {
 		return nil, errors.New("kpz: missing manifest.json")
 	}
-	manifestData, err := readZipFile(mf)
+	manifestData, err := readZipEntry(guard, mf)
 	if err != nil {
 		return nil, err
 	}
@@ -606,6 +661,13 @@ func Unmarshal(data []byte) (*Package, error) {
 	}
 	if wantMajor, _ := majorVersion(SchemaVersion); major != wantMajor {
 		return nil, fmt.Errorf("kpz: unsupported major schemaVersion %d (this build speaks %s)", major, SchemaVersion)
+	}
+
+	// Every name in the manifest is content. Validate the whole path surface
+	// once, here, so no later stage has to remember to — a package may only
+	// name paths inside the project it is merged into.
+	if err := validateManifestPaths(&manifest); err != nil {
+		return nil, err
 	}
 
 	recipe, err := unmarshalRecipe(manifest.Recipe)
@@ -635,12 +697,27 @@ func Unmarshal(data []byte) (*Package, error) {
 		if !ok {
 			return nil, fmt.Errorf("kpz: manifest references missing member %q", m.Path)
 		}
-		body, err := readZipFile(zf)
+		// Whole-asset members (media, raw source, skeleton) are verified by
+		// streaming through SHA-256 and never buffered: the package keeps only a
+		// lazy reader over the ZIP entry, so a hostile archive cannot make
+		// `merge` or `info` materialize its largest member in memory. Structured
+		// members are parsed from bytes, so they are read — through the guard,
+		// which bounds them.
+		var body []byte
+		var sum string
+		if opaqueContentType(m.ContentType) {
+			sum, err = hashZipEntry(guard, zf)
+		} else {
+			body, err = readZipEntry(guard, zf)
+			if err == nil {
+				s := sha256.Sum256(body)
+				sum = hex.EncodeToString(s[:])
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
-		s := sha256.Sum256(body)
-		if hex.EncodeToString(s[:]) != m.SHA256 {
+		if sum != m.SHA256 {
 			return nil, fmt.Errorf("kpz: member %q checksum mismatch (corrupt package)", m.Path)
 		}
 		verify = append(verify, memberContent{Member: m})
@@ -673,9 +750,9 @@ func Unmarshal(data []byte) (*Package, error) {
 		case ContentTypeMedia:
 			// Whole-asset members are verified above, then dropped from memory:
 			// the public struct keeps only a lazy reader over the ZIP entry.
-			pkg.Media = append(pkg.Media, Media{Path: m.Path, Content: zipContent{zf}})
+			pkg.Media = append(pkg.Media, Media{Path: m.Path, Content: zipContent{zf, PackageZipLimits}})
 		case ContentTypeSource:
-			pkg.Source = append(pkg.Source, SourceDoc{Path: m.Path, Content: zipContent{zf}})
+			pkg.Source = append(pkg.Source, SourceDoc{Path: m.Path, Content: zipContent{zf, PackageZipLimits}})
 		case ContentTypeSkeleton:
 			si := skelMeta[m.Path]
 			pkg.Skeletons = append(pkg.Skeletons, SkeletonDoc{
@@ -683,7 +760,7 @@ func Unmarshal(data []byte) (*Package, error) {
 				SourcePath:  si.SourcePath,
 				FormatID:    si.FormatID,
 				ContentHash: si.ContentHash,
-				Content:     zipContent{zf},
+				Content:     zipContent{zf, PackageZipLimits},
 			})
 		case ContentTypeHistory:
 			pkg.History = body
@@ -691,6 +768,13 @@ func Unmarshal(data []byte) (*Package, error) {
 			overlays, err := unmarshalOverlaySet(body)
 			if err != nil {
 				return nil, fmt.Errorf("kpz: parse %q: %w", m.Path, err)
+			}
+			// An overlay's Source names the source/<name> member it scopes to,
+			// so it is part of the same path surface as the manifest's.
+			for _, ov := range overlays {
+				if ov.Source != "" && !safeio.IsLocalPath(ov.Source) {
+					return nil, fmt.Errorf("kpz: overlay source %q is not a path inside the project", ov.Source)
+				}
 			}
 			pkg.Overlays = overlays
 		default:
@@ -704,17 +788,81 @@ func Unmarshal(data []byte) (*Package, error) {
 	return pkg, nil
 }
 
-func readZipFile(f *zip.File) ([]byte, error) {
-	rc, err := f.Open()
-	if err != nil {
-		return nil, fmt.Errorf("kpz: open %q: %w", f.Name, err)
+// opaqueContentType reports whether a member is a whole document or asset whose
+// bytes Unmarshal never needs — it is verified by streaming and then referenced
+// lazily. Structured members (blocks, annotations, memory, terms, overlays,
+// history) are parsed, so they must be read.
+func opaqueContentType(ct string) bool {
+	switch ct {
+	case ContentTypeMedia, ContentTypeSource, ContentTypeSkeleton:
+		return true
+	default:
+		return false
 	}
-	defer rc.Close()
-	data, err := io.ReadAll(rc)
+}
+
+// readZipEntry reads one member fully through the archive's cumulative guard.
+func readZipEntry(g *safeio.ZipGuard, f *zip.File) ([]byte, error) {
+	data, err := g.ReadEntry(f)
 	if err != nil {
 		return nil, fmt.Errorf("kpz: read %q: %w", f.Name, err)
 	}
 	return data, nil
+}
+
+// hashZipEntry streams one member through SHA-256 via the archive's cumulative
+// guard, returning the hex digest without ever holding the member in memory.
+func hashZipEntry(g *safeio.ZipGuard, f *zip.File) (string, error) {
+	rc, err := g.Open(f)
+	if err != nil {
+		return "", fmt.Errorf("kpz: open %q: %w", f.Name, err)
+	}
+	defer rc.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, rc); err != nil {
+		return "", fmt.Errorf("kpz: read %q: %w", f.Name, err)
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// validateManifestPaths refuses a manifest naming anything outside the project
+// it would be merged into. Every field here ends up joined onto a project root,
+// a state directory, or the archive's own member index, so a name that is
+// absolute or climbs out via ".." is not a package this build will open —
+// refusing beats reading and writing somewhere the recipient never named.
+//
+// Refusal, not repair: a package asking for this is not one to half-apply, the
+// same rule restoreSources follows on the unpack side.
+func validateManifestPaths(m *Manifest) error {
+	check := func(what, name string) error {
+		if !safeio.IsLocalPath(name) {
+			return fmt.Errorf("kpz: %s %q is not a path inside the project", what, name)
+		}
+		return nil
+	}
+	for _, mem := range m.Members {
+		if err := check("member path", mem.Path); err != nil {
+			return err
+		}
+	}
+	for _, si := range m.Sources {
+		if err := check("source path", si.SourcePath); err != nil {
+			return err
+		}
+		if si.SkeletonPath != "" {
+			if err := check("skeleton path", si.SkeletonPath); err != nil {
+				return err
+			}
+		}
+	}
+	if m.Task != nil {
+		for _, f := range m.Task.SourceFiles {
+			if err := check("interchange source file", f); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func majorVersion(v string) (int, bool) {

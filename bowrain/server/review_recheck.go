@@ -10,8 +10,8 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -179,7 +179,7 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 // recheckRuleViolations re-checks existing reviewed/signed-off targets against a
 // newly promoted forbidden brand rule, scoped to the promoted term so an existing
 // target that only tripped an OLDER rule is not swept up. It reuses the canonical
-// brand-vocabulary matcher (core/brand.MatchVocabulary — the single source the
+// brand-vocabulary matcher (core/profile.MatchVocabulary — the single source the
 // brand-vocab-check tool and the blast radius both call) as the oracle.
 func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, term, actor string) {
 	if s.BrandStore == nil || profileID == "" {
@@ -194,7 +194,7 @@ func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, ter
 		return
 	}
 	violates := func(sb *platstore.StoredBlock, _, tgtLoc model.LocaleID) bool {
-		for _, hit := range corebrand.MatchVocabulary(profile, sb.Block.TargetText(tgtLoc)) {
+		for _, hit := range coreprofile.MatchVocabulary(profile, sb.Block.TargetText(tgtLoc)) {
 			if strings.ToLower(hit.Term) == lowerTerm {
 				return true
 			}

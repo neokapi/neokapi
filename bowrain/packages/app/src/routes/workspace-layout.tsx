@@ -37,6 +37,7 @@ import {
 } from "@neokapi/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
+import { subNavTarget } from "./sub-nav-targets";
 import { viewFromPath, type WorkspaceView } from "./view-from-path";
 import { activitiesQueryOptions, myTasksQueryOptions } from "../queries";
 import { useWorkspaceEvents } from "../hooks/useWorkspaceEvents";
@@ -289,18 +290,29 @@ export function WorkspaceLayout() {
   const effectiveView =
     activeView === "auditlog" || activeView === "bin" ? ("settings" as const) : activeView;
 
-  // Derive Brand hub sub-nav from URL (Concepts · Voice · Experiments · Activity
-  // · Dashboard). Concept-story and experiment-detail pages keep their section
-  // highlighted; bare /brand falls back to Concepts (the landing section).
-  const brandSubNav = useMemo(() => {
-    if (activeView !== "brand") return undefined;
-    const brandPath = `/${workspaceSlug}/brand`;
-    const rest = pathname.slice(brandPath.length).replace(/^\//, "");
+  // Derive Context hub sub-nav from URL (Concepts · Voice · Content memory ·
+  // Changes · Activity). Concept-story and change-detail pages keep their
+  // section highlighted; bare /context falls back to Concepts (the landing
+  // section). /context/dashboard is deliberately absent: it resolves to the
+  // Insights view, so it never reaches this branch.
+  const contextSubNav = useMemo(() => {
+    if (activeView !== "context") return undefined;
+    const contextPath = `/${workspaceSlug}/context`;
+    const rest = pathname.slice(contextPath.length).replace(/^\//, "");
     if (rest.startsWith("voice")) return "voice";
-    if (rest.startsWith("experiments")) return "experiments";
+    if (rest.startsWith("memory")) return "memory";
+    if (rest.startsWith("changes")) return "changes";
     if (rest.startsWith("activity")) return "activity";
-    if (rest.startsWith("dashboard")) return "dashboard";
     return "concepts";
+  }, [activeView, pathname, workspaceSlug]);
+
+  // Derive the insights sub-nav from the URL. Without this the section had no
+  // highlight at all: activeSubNav fell through to settingsSubNav, which
+  // returns undefined for any view that is not settings.
+  const insightsSubNav = useMemo(() => {
+    if (activeView !== "insights") return undefined;
+    if (pathname.startsWith(`/${workspaceSlug}/locale-demand`)) return "locale-demand";
+    return "dashboard";
   }, [activeView, pathname, workspaceSlug]);
 
   // Derive settings sub-nav from URL.
@@ -324,116 +336,15 @@ export function WorkspaceLayout() {
 
   const handleSubNavChange = useCallback(
     (id: string) => {
-      const wsSlug = workspaceSlug ?? "";
-      switch (id) {
-        // Brand hub sections
-        case "concepts":
-          void navigate({
-            to: "/$workspace/brand/concepts",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "voice":
-          void navigate({
-            to: "/$workspace/brand/voice",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "experiments":
-          void navigate({
-            to: "/$workspace/brand/experiments",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "activity":
-          void navigate({
-            to: "/$workspace/brand/activity",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "dashboard":
-          void navigate({
-            to: "/$workspace/brand/dashboard",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "general":
-          void navigate({
-            to: "/$workspace/settings",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "languages":
-          void navigate({
-            to: "/$workspace/settings/languages",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "members":
-          void navigate({
-            to: "/$workspace/settings/members",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "roles":
-          void navigate({
-            to: "/$workspace/settings/roles",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "governance":
-          void navigate({
-            to: "/$workspace/settings/governance",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "providers":
-          void navigate({
-            to: "/$workspace/settings/providers",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "tokens":
-          void navigate({
-            to: "/$workspace/settings/tokens",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "auditlog":
-          void navigate({
-            to: "/$workspace/auditlog",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "bin":
-          void navigate({
-            to: "/$workspace/bin",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "system":
-          void navigate({
-            to: "/$workspace/settings/system",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "bravo":
-          void navigate({
-            to: "/$workspace/settings/bravo",
-            params: { workspace: wsSlug },
-          });
-          break;
-        case "billing":
-          void navigate({
-            to: "/$workspace/settings/billing",
-            params: { workspace: wsSlug },
-          });
-          break;
-      }
+      const to = subNavTarget(id);
+      // An unknown id is a sidebar item with no destination. Returning rather
+      // than navigating keeps it inert instead of throwing, and
+      // sub-nav-targets.test.ts is what stops one existing in the first place.
+      if (!to) return;
+      void navigate({ to, params: { workspace: workspaceSlug ?? "" } });
     },
     [navigate, workspaceSlug],
   );
-
   // -----------------------------------------------------------------------
   // Sidebar context: determine from URL + query cache
   // -----------------------------------------------------------------------
@@ -627,15 +538,21 @@ export function WorkspaceLayout() {
             params: { workspace: wsSlug },
           });
           break;
-        case "brand":
+        case "context":
           void navigate({
-            to: "/$workspace/brand",
+            to: "/$workspace/context",
+            params: { workspace: wsSlug },
+          });
+          break;
+        case "insights":
+          void navigate({
+            to: "/$workspace/context/dashboard",
             params: { workspace: wsSlug },
           });
           break;
         case "memory":
           void navigate({
-            to: "/$workspace/memory",
+            to: "/$workspace/context/memory",
             params: { workspace: wsSlug },
           });
           break;
@@ -766,7 +683,7 @@ export function WorkspaceLayout() {
               onCollapsedChange={setSidebarCollapsed}
               showThemeToggle={false}
               sidebarContext={sidebarContext}
-              activeSubNav={activeView === "brand" ? brandSubNav : settingsSubNav}
+              activeSubNav={contextSubNav ?? insightsSubNav ?? settingsSubNav}
               onSubNavChange={handleSubNavChange}
               headerSlot={
                 <ConnectedTopBar

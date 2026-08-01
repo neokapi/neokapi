@@ -16,7 +16,7 @@ import {
 import * as React from "react";
 import { DatabaseIcon, FileIcon, FolderIcon } from "lucide-react";
 
-export type ResourceKind = "tm" | "terms" | "srx";
+export type ResourceKind = "memory" | "terms" | "srx";
 
 export interface ResourceOption {
   name: string;
@@ -25,7 +25,7 @@ export interface ResourceOption {
 }
 
 export interface ResourcePickerProps {
-  /** Current value: "tm:project-memory", "./path/to/file", etc. */
+  /** Current value: "memory:project-memory", "./path/to/file", etc. */
   value: string;
   /** Called when the value changes. */
   onChange: (value: string) => void;
@@ -50,19 +50,19 @@ export interface ResourcePickerProps {
 }
 
 const kindLabels: Record<ResourceKind, string> = {
-  tm: "Named memory",
+  memory: "Named memory",
   terms: "Named Terms",
   srx: "Named SRX",
 };
 
 const kindIcons: Record<ResourceKind, React.ReactNode> = {
-  tm: <DatabaseIcon className="size-3.5" />,
+  memory: <DatabaseIcon className="size-3.5" />,
   terms: <DatabaseIcon className="size-3.5" />,
   srx: <FileIcon className="size-3.5" />,
 };
 
 const kindPrefixes: Record<ResourceKind, string> = {
-  tm: "tm:",
+  memory: "memory:",
   terms: "terms:",
   srx: "srx:",
 };

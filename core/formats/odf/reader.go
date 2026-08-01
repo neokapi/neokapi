@@ -14,6 +14,7 @@ import (
 	"unicode"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 )
@@ -397,7 +398,7 @@ func (p *odfParser) skelWriteStartElement(t xml.StartElement) {
 		buf.WriteString(" ")
 		odfWriteAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(odfXMLEscapeAttr(a.Value))
+		buf.WriteString(xmlesc.Attr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")
@@ -548,7 +549,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 				elem := elementStack[len(elementStack)-1].Local
 				r.emitAccessibilityContent(ctx, ch, p, string(t), elem, partPath, frameStack, pageNum, blockCounter)
 			default:
-				p.skelText(odfXMLEscape(string(t)))
+				p.skelText(xmlesc.Text(string(t)))
 			}
 
 		case xml.EndElement:
@@ -594,7 +595,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 					} else {
 						// Empty translatable element — pass through to skeleton
 						p.skelWriteStartElement(translatableStart)
-						p.skelText(odfXMLEscape(raw))
+						p.skelText(xmlesc.Text(raw))
 						p.skelWriteEndElement(t)
 					}
 					inTranslatable = false
@@ -656,7 +657,7 @@ func odfBuildStartTagMarkup(t xml.StartElement) string {
 		buf.WriteString(" ")
 		odfWriteAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(odfXMLEscapeAttr(a.Value))
+		buf.WriteString(xmlesc.Attr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")
@@ -697,7 +698,7 @@ func odfReadSubtreeMarkup(dec *xml.Decoder, start xml.StartElement) (string, err
 			buf.WriteString(odfBuildEndTagMarkup(tt))
 			depth--
 		case xml.CharData:
-			buf.WriteString(odfXMLEscape(string(tt)))
+			buf.WriteString(xmlesc.Text(string(tt)))
 		case xml.Comment:
 			buf.WriteString("<!--")
 			buf.Write([]byte(tt))
@@ -728,7 +729,7 @@ func odfBuildEmptyTagMarkup(t xml.StartElement) string {
 		buf.WriteString(" ")
 		odfWriteAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(odfXMLEscapeAttr(a.Value))
+		buf.WriteString(xmlesc.Attr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString("/>")
@@ -829,7 +830,7 @@ func (r *Reader) emitElementWithAttrExtraction(ctx context.Context, ch chan<- mo
 		attr.WriteString(" ")
 		odfWriteAttrName(&attr, a.Name)
 		attr.WriteString(`="`)
-		attr.WriteString(odfXMLEscapeAttr(a.Value))
+		attr.WriteString(xmlesc.Attr(a.Value))
 		attr.WriteString(`"`)
 		p.skelText(attr.String())
 	}
@@ -1182,17 +1183,5 @@ func odfWriteAttrName(buf *strings.Builder, name xml.Name) {
 	buf.WriteString(name.Local)
 }
 
-func odfXMLEscape(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	return s
-}
-
-func odfXMLEscapeAttr(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, "\"", "&quot;")
-	return s
-}
+// The odf reader's two XML escapers were byte-identical to xliff, xliff2 and
+// openxml's; they now live in core/internal/xmlesc.

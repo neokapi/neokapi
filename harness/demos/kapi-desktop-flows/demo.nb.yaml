@@ -33,9 +33,11 @@ narration:
   - id: open-project
     kind: desktop
     beat: open-project
-    caption: KapiMart — åpnet fra startskjermen.
+    caption: KapiMart — opened from the home screen.
     text: >-
-      KapiMart åpnes fra startskjermen, med sitt eget innhold, egne innstillinger og egne flyter.
+      KapiMart opens from the home screen, with its own content, settings and
+      flows.
+
   - id: library
     kind: desktop
     beat: library
@@ -48,15 +50,18 @@ narration:
   - id: library-zoom
     kind: desktop
     beat: library-zoom
-    caption: Hver flyt er en navngitt sekvens av steg.
+    caption: Each flow is a named sequence of steps.
     text: >-
-      Hver av dem er en navngitt sekvens av steg — en ren oversettelse, en oversettelse med kvalitetskontroller, og en pseudooversettelse for testing.
+      Each one is a named sequence of steps — a plain translate, a translate
+      with quality checks, and a pseudo-translation for testing.
+
   - id: open-flow
     kind: desktop
     beat: open-flow
-    caption: En åpnet flyt viser pipelinen sin.
+    caption: Opening a flow shows its pipeline.
     text: >-
-      Åpner du translate-and-qa, ser du pipelinen dens.
+      Opening translate-and-qa reveals its pipeline.
+
   - id: pipeline
     kind: desktop
     beat: pipeline
@@ -76,6 +81,6 @@ narration:
 # Norwegian Bokmål narration is generated, not authored here: `make l10n-demos`
 # TM-recycles this file into the sibling demo.nb.yaml sidecar, which the harness
 # overlays at load time. Fix a translation in the seed
-# (l10n/tm/demo-narration-nb.memory.json) and regenerate — never edit the sidecar.
-# Terminology follows l10n/brand-voice.yaml (nb) and l10n/terms.json
+# (context/memory/demo-narration-nb.memory.json) and regenerate — never edit the sidecar.
+# Terminology follows context/brand-voice.yaml (nb) and context/terms.json
 # (flow → flyt; "pipeline" stays English in nb).

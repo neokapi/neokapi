@@ -17,11 +17,15 @@ import * as gate$0 from "../gate/models.js";
 import * as model$0 from "../model/models.js";
 
 /**
- * BrandVoiceBinding binds a brand voice profile to a project under
- * `defaults.brand_voice`. Exactly one source is expected: a standalone
- * profile YAML (ProfileFile, resolved relative to the project root), a
- * profile in the local brand store (Profile), or a built-in starter pack
- * (Pack).
+ * BrandVoiceBinding binds a brand voice profile — to the project under
+ * `defaults.brand_voice`, or to a region of the context space under a
+ * profile's `voice:`. Exactly one source is expected: a standalone profile YAML
+ * (ProfileFile, resolved relative to the project root), a profile in the local
+ * brand store (Profile), or a built-in starter pack (Pack).
+ * 
+ * The short form is the profile file itself — `voice: context/kapi-voice.yaml`
+ * — which is what a recipe writes when the profile is a file in the project,
+ * as it usually is.
  */
 export class BrandVoiceBinding {
     /**
@@ -134,6 +138,19 @@ export class ContentCollection {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Context places this collection's content at a point in the project's
+             * context space: axis → value, over the axes declared under `coordinates:`.
+             * The point selects the profile whose governance — voice, terms — a run
+             * carries over this content. nil means the project's default point governs
+             * it. Named collections only: a point is resolved by collection name, so an
+             * unnamed entry has nothing to resolve.
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["context"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Bare entry fields (short form — promoted from ContentItem).
              * @member
              * @type {string | undefined}
@@ -166,7 +183,8 @@ export class ContentCollection {
     static createFrom($$source = {}) {
         const $$createField2_0 = $$createType0;
         const $$createField3_0 = $$createType2;
-        const $$createField6_0 = $$createType4;
+        const $$createField5_0 = $$createType3;
+        const $$createField7_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField2_0($$parsedSource["target_languages"]);
@@ -174,8 +192,11 @@ export class ContentCollection {
         if ("items" in $$parsedSource) {
             $$parsedSource["items"] = $$createField3_0($$parsedSource["items"]);
         }
+        if ("context" in $$parsedSource) {
+            $$parsedSource["context"] = $$createField5_0($$parsedSource["context"]);
+        }
         if ("format" in $$parsedSource) {
-            $$parsedSource["format"] = $$createField6_0($$parsedSource["format"]);
+            $$parsedSource["format"] = $$createField7_0($$parsedSource["format"]);
         }
         return new ContentCollection(/** @type {Partial<ContentCollection>} */($$parsedSource));
     }
@@ -251,9 +272,9 @@ export class ContentItem {
      * @returns {ContentItem}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType4;
+        const $$createField1_0 = $$createType5;
         const $$createField5_0 = $$createType0;
-        const $$createField6_0 = $$createType6;
+        const $$createField6_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("format" in $$parsedSource) {
             $$parsedSource["format"] = $$createField1_0($$parsedSource["format"]);
@@ -267,6 +288,70 @@ export class ContentItem {
         return new ContentItem(/** @type {Partial<ContentItem>} */($$parsedSource));
     }
 }
+
+/**
+ * CoordinateValue is one value an axis may take. The short form is the value
+ * itself; the long form adds the concept that names it:
+ * 
+ * 	coordinates:
+ * 	  product:
+ * 	    - id: bowrain
+ * 	      concept: term:9a1c0f42b7
+ * 	    - id: kapi
+ * 
+ * Concept is display metadata — the terms entry a reader should be shown for
+ * this value. It takes no part in matching or identity: the slug is the
+ * identity precisely so that revising the vocabulary cannot move governance.
+ */
+export class CoordinateValue {
+    /**
+     * Creates a new CoordinateValue instance.
+     * @param {Partial<CoordinateValue>} [$$source = {}] - The source object to create the CoordinateValue.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * ID is the slug: the value as a collection or a profile writes it.
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Concept optionally references the concept that names this value, for
+             * display. Carried and shape-checked; never resolved during matching.
+             * @member
+             * @type {string | undefined}
+             */
+            this["concept"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new CoordinateValue instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {CoordinateValue}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new CoordinateValue(/** @type {Partial<CoordinateValue>} */($$parsedSource));
+    }
+}
+
+/**
+ * Coordinates declares the axes of a project's context space: axis name → the
+ * values it may take.
+ * 
+ * An axis declared with no values is open — the recipe names the axis but not
+ * its values, and any well-formed slug is accepted on it. An axis absent from
+ * this map does not exist: naming it in a `context:` or a `when:` is a load
+ * error, so a misspelt axis cannot silently open a new dimension that nothing
+ * governs.
+ * @typedef {{ [_ in string]?: CoordinateValue[] }} Coordinates
+ */
 
 /**
  * Defaults holds project-wide processing defaults.
@@ -409,7 +494,7 @@ export class Defaults {
              * @member
              * @type {MemoryDefaults | undefined}
              */
-            this["tm"] = undefined;
+            this["memory"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -454,7 +539,7 @@ export class Defaults {
              * @member
              * @type {string | undefined}
              */
-            this["termbase"] = undefined;
+            this["terms"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -468,19 +553,19 @@ export class Defaults {
              * @member
              * @type {string | undefined}
              */
-            this["termbase_source"] = undefined;
+            this["terms_source"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
              * MemorySource binds the committed, git-tracked native source artifact (a
              * .memory.json document) the project content memory is compiled from, the content memory
              * analogue of TermsSource. `kapi apply` edits the .memory.json here and
-             * re-imports it into the gitignored .kapi/tm.db cache. The path resolves
+             * re-imports it into the gitignored .kapi/memory.db cache. The path resolves
              * relative to the project root. Empty means no bound content memory source.
              * @member
              * @type {string | undefined}
              */
-            this["tm_source"] = undefined;
+            this["memory_source"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -534,15 +619,15 @@ export class Defaults {
      */
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType0;
-        const $$createField10_0 = $$createType8;
-        const $$createField11_0 = $$createType9;
-        const $$createField12_0 = $$createType10;
-        const $$createField13_0 = $$createType11;
-        const $$createField14_0 = $$createType12;
-        const $$createField15_0 = $$createType6;
-        const $$createField16_0 = $$createType14;
-        const $$createField21_0 = $$createType16;
-        const $$createField22_0 = $$createType18;
+        const $$createField10_0 = $$createType9;
+        const $$createField11_0 = $$createType10;
+        const $$createField12_0 = $$createType11;
+        const $$createField13_0 = $$createType12;
+        const $$createField14_0 = $$createType13;
+        const $$createField15_0 = $$createType7;
+        const $$createField16_0 = $$createType15;
+        const $$createField21_0 = $$createType17;
+        const $$createField22_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
@@ -556,8 +641,8 @@ export class Defaults {
         if ("merge" in $$parsedSource) {
             $$parsedSource["merge"] = $$createField12_0($$parsedSource["merge"]);
         }
-        if ("tm" in $$parsedSource) {
-            $$parsedSource["tm"] = $$createField13_0($$parsedSource["tm"]);
+        if ("memory" in $$parsedSource) {
+            $$parsedSource["memory"] = $$createField13_0($$parsedSource["memory"]);
         }
         if ("segmentation" in $$parsedSource) {
             $$parsedSource["segmentation"] = $$createField14_0($$parsedSource["segmentation"]);
@@ -679,7 +764,7 @@ export class FormatDefaults {
      * @returns {FormatDefaults}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType15;
+        const $$createField1_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField1_0($$parsedSource["config"]);
@@ -737,7 +822,7 @@ export class FormatSpec {
      * @returns {FormatSpec}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType15;
+        const $$createField2_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField2_0($$parsedSource["config"]);
@@ -783,7 +868,7 @@ export class GateRef {
      * @returns {GateRef}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType19;
+        const $$createField1_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("Inline" in $$parsedSource) {
             $$parsedSource["Inline"] = $$createField1_0($$parsedSource["Inline"]);
@@ -849,6 +934,29 @@ export class KapiProject {
              * @type {{ [_ in string]?: flow$0.StepsSpec | null } | undefined}
              */
             this["flows"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Coordinates declares the axes of the context space this project's content
+             * is written for, and Profiles binds governance to regions of it. A project
+             * is not always one voice: a repository holding both a framework and the
+             * platform built on it carries two, and one project-wide binding governs
+             * the wrong one half the time. The taxonomy is the project's own — product,
+             * channel, market, tenant — and a named collection names the point its
+             * content sits at (ContentCollection.Context). Both empty means the whole
+             * project sits at one point, under defaults.brand_voice / defaults.terms.
+             * See coordinates.go.
+             * @member
+             * @type {Coordinates | undefined}
+             */
+            this["coordinates"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {ProfileBinding[] | undefined}
+             */
+            this["profiles"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -944,17 +1052,19 @@ export class KapiProject {
      * @returns {KapiProject}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType22;
-        const $$createField3_0 = $$createType23;
-        const $$createField4_0 = $$createType25;
-        const $$createField6_0 = $$createType28;
-        const $$createField7_0 = $$createType19;
-        const $$createField8_0 = $$createType30;
-        const $$createField9_0 = $$createType31;
-        const $$createField10_0 = $$createType19;
-        const $$createField11_0 = $$createType30;
-        const $$createField12_0 = $$createType19;
-        const $$createField13_0 = $$createType32;
+        const $$createField2_0 = $$createType23;
+        const $$createField3_0 = $$createType24;
+        const $$createField4_0 = $$createType26;
+        const $$createField6_0 = $$createType29;
+        const $$createField7_0 = $$createType30;
+        const $$createField8_0 = $$createType35;
+        const $$createField9_0 = $$createType20;
+        const $$createField10_0 = $$createType37;
+        const $$createField11_0 = $$createType38;
+        const $$createField12_0 = $$createType20;
+        const $$createField13_0 = $$createType37;
+        const $$createField14_0 = $$createType20;
+        const $$createField15_0 = $$createType39;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("plugins" in $$parsedSource) {
             $$parsedSource["plugins"] = $$createField2_0($$parsedSource["plugins"]);
@@ -968,26 +1078,32 @@ export class KapiProject {
         if ("flows" in $$parsedSource) {
             $$parsedSource["flows"] = $$createField6_0($$parsedSource["flows"]);
         }
+        if ("coordinates" in $$parsedSource) {
+            $$parsedSource["coordinates"] = $$createField7_0($$parsedSource["coordinates"]);
+        }
+        if ("profiles" in $$parsedSource) {
+            $$parsedSource["profiles"] = $$createField8_0($$parsedSource["profiles"]);
+        }
         if ("ship_gate" in $$parsedSource) {
-            $$parsedSource["ship_gate"] = $$createField7_0($$parsedSource["ship_gate"]);
+            $$parsedSource["ship_gate"] = $$createField9_0($$parsedSource["ship_gate"]);
         }
         if ("ship_gates" in $$parsedSource) {
-            $$parsedSource["ship_gates"] = $$createField8_0($$parsedSource["ship_gates"]);
+            $$parsedSource["ship_gates"] = $$createField10_0($$parsedSource["ship_gates"]);
         }
         if ("gates" in $$parsedSource) {
-            $$parsedSource["gates"] = $$createField9_0($$parsedSource["gates"]);
+            $$parsedSource["gates"] = $$createField11_0($$parsedSource["gates"]);
         }
         if ("verified_gate" in $$parsedSource) {
-            $$parsedSource["verified_gate"] = $$createField10_0($$parsedSource["verified_gate"]);
+            $$parsedSource["verified_gate"] = $$createField12_0($$parsedSource["verified_gate"]);
         }
         if ("verified_gates" in $$parsedSource) {
-            $$parsedSource["verified_gates"] = $$createField11_0($$parsedSource["verified_gates"]);
+            $$parsedSource["verified_gates"] = $$createField13_0($$parsedSource["verified_gates"]);
         }
         if ("source_gate" in $$parsedSource) {
-            $$parsedSource["source_gate"] = $$createField12_0($$parsedSource["source_gate"]);
+            $$parsedSource["source_gate"] = $$createField14_0($$parsedSource["source_gate"]);
         }
         if ("requires" in $$parsedSource) {
-            $$parsedSource["requires"] = $$createField13_0($$parsedSource["requires"]);
+            $$parsedSource["requires"] = $$createField15_0($$parsedSource["requires"]);
         }
         return new KapiProject(/** @type {Partial<KapiProject>} */($$parsedSource));
     }
@@ -1022,7 +1138,7 @@ export class LocaleDefaults {
      * @returns {LocaleDefaults}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType16;
+        const $$createField0_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tools" in $$parsedSource) {
             $$parsedSource["tools"] = $$createField0_0($$parsedSource["tools"]);
@@ -1068,7 +1184,7 @@ export class MemoryDefaults {
      * @returns {MemoryDefaults}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType9;
+        const $$createField1_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("read" in $$parsedSource) {
             $$parsedSource["read"] = $$createField1_0($$parsedSource["read"]);
@@ -1252,12 +1368,79 @@ export class PluginStatus {
      * @returns {PluginStatus}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType35;
+        const $$createField1_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("issues" in $$parsedSource) {
             $$parsedSource["issues"] = $$createField1_0($$parsedSource["issues"]);
         }
         return new PluginStatus(/** @type {Partial<PluginStatus>} */($$parsedSource));
+    }
+}
+
+/**
+ * ProfileBinding binds governance — a voice, a vocabulary, or both — to a
+ * region of the context space.
+ * 
+ * A profile matches a point when every coordinate in its `when:` equals the
+ * point's coordinate of the same name; the empty `when:` matches everything and
+ * is the project's base. Among the profiles that match, the one matching on the
+ * most coordinates governs, so a broad profile is refined by a narrow one
+ * rather than replaced by a second copy of it. A tie is a load error, never a
+ * coin flip.
+ */
+export class ProfileBinding {
+    /**
+     * Creates a new ProfileBinding instance.
+     * @param {Partial<ProfileBinding>} [$$source = {}] - The source object to create the ProfileBinding.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * When is the coordinate match. Empty matches every point.
+             * @member
+             * @type {{ [_ in string]?: string } | undefined}
+             */
+            this["when"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Voice is the voice profile governing the matched content, in the same
+             * forms as defaults.brand_voice (a bare path, or profile_file / profile /
+             * pack). nil keeps defaults.brand_voice.
+             * @member
+             * @type {BrandVoiceBinding | null | undefined}
+             */
+            this["voice"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Terms is the approved vocabulary for the matched content, resolved
+             * relative to the project root. Empty keeps defaults.terms.
+             * @member
+             * @type {string | undefined}
+             */
+            this["terms"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ProfileBinding instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ProfileBinding}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType3;
+        const $$createField1_0 = $$createType15;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("when" in $$parsedSource) {
+            $$parsedSource["when"] = $$createField0_0($$parsedSource["when"]);
+        }
+        if ("voice" in $$parsedSource) {
+            $$parsedSource["voice"] = $$createField1_0($$parsedSource["voice"]);
+        }
+        return new ProfileBinding(/** @type {Partial<ProfileBinding>} */($$parsedSource));
     }
 }
 
@@ -1316,7 +1499,7 @@ export class RedactionSpec {
      * @returns {RedactionSpec}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType9;
+        const $$createField2_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("detectors" in $$parsedSource) {
             $$parsedSource["detectors"] = $$createField2_0($$parsedSource["detectors"]);
@@ -1409,8 +1592,8 @@ export class ShipGateRule {
      * @returns {ShipGateRule}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType37;
-        const $$createField1_0 = $$createType38;
+        const $$createField0_0 = $$createType43;
+        const $$createField1_0 = $$createType44;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("when" in $$parsedSource) {
             $$parsedSource["when"] = $$createField0_0($$parsedSource["when"]);
@@ -1426,49 +1609,60 @@ export class ShipGateRule {
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = ContentItem.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = FormatSpec.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = RedactionSpec.createFrom;
-const $$createType6 = $Create.Nullable($$createType5);
-const $$createType7 = FormatDefaults.createFrom;
-const $$createType8 = $Create.Map($Create.Any, $$createType7);
-const $$createType9 = $Create.Array($Create.Any);
-const $$createType10 = MergeDefaults.createFrom;
-const $$createType11 = MemoryDefaults.createFrom;
-const $$createType12 = SegmentationDefaults.createFrom;
-const $$createType13 = BrandVoiceBinding.createFrom;
-const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = $Create.Map($Create.Any, $Create.Any);
-const $$createType16 = $Create.Map($Create.Any, $$createType15);
-const $$createType17 = LocaleDefaults.createFrom;
-const $$createType18 = $Create.Map($Create.Any, $$createType17);
-var $$createType19 = /** @type {(...args: any[]) => any} */(function $$initCreateType19(...args) {
-    if ($$createType19 === $$initCreateType19) {
-        $$createType19 = $$createType20;
+const $$createType3 = $Create.Map($Create.Any, $Create.Any);
+const $$createType4 = FormatSpec.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = RedactionSpec.createFrom;
+const $$createType7 = $Create.Nullable($$createType6);
+const $$createType8 = FormatDefaults.createFrom;
+const $$createType9 = $Create.Map($Create.Any, $$createType8);
+const $$createType10 = $Create.Array($Create.Any);
+const $$createType11 = MergeDefaults.createFrom;
+const $$createType12 = MemoryDefaults.createFrom;
+const $$createType13 = SegmentationDefaults.createFrom;
+const $$createType14 = BrandVoiceBinding.createFrom;
+const $$createType15 = $Create.Nullable($$createType14);
+const $$createType16 = $Create.Map($Create.Any, $Create.Any);
+const $$createType17 = $Create.Map($Create.Any, $$createType16);
+const $$createType18 = LocaleDefaults.createFrom;
+const $$createType19 = $Create.Map($Create.Any, $$createType18);
+var $$createType20 = /** @type {(...args: any[]) => any} */(function $$initCreateType20(...args) {
+    if ($$createType20 === $$initCreateType20) {
+        $$createType20 = $$createType21;
     }
-    return $$createType19(...args);
+    return $$createType20(...args);
 });
-const $$createType20 = $Create.Map($Create.Any, $Create.Any);
-const $$createType21 = PluginSpec.createFrom;
-const $$createType22 = $Create.Map($Create.Any, $$createType21);
-const $$createType23 = Defaults.createFrom;
-const $$createType24 = ContentCollection.createFrom;
-const $$createType25 = $Create.Array($$createType24);
-const $$createType26 = flow$0.StepsSpec.createFrom;
-const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = $Create.Map($Create.Any, $$createType27);
-const $$createType29 = ShipGateRule.createFrom;
-const $$createType30 = $Create.Array($$createType29);
-const $$createType31 = $Create.Map($Create.Any, $$createType19);
-var $$createType32 = /** @type {(...args: any[]) => any} */(function $$initCreateType32(...args) {
-    if ($$createType32 === $$initCreateType32) {
-        $$createType32 = $$createType33;
+const $$createType21 = $Create.Map($Create.Any, $Create.Any);
+const $$createType22 = PluginSpec.createFrom;
+const $$createType23 = $Create.Map($Create.Any, $$createType22);
+const $$createType24 = Defaults.createFrom;
+const $$createType25 = ContentCollection.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = flow$0.StepsSpec.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);
+const $$createType29 = $Create.Map($Create.Any, $$createType28);
+var $$createType30 = /** @type {(...args: any[]) => any} */(function $$initCreateType30(...args) {
+    if ($$createType30 === $$initCreateType30) {
+        $$createType30 = $$createType33;
     }
-    return $$createType32(...args);
+    return $$createType30(...args);
 });
-const $$createType33 = $Create.Map($Create.Any, $Create.Any);
-const $$createType34 = PluginIssue.createFrom;
+const $$createType31 = CoordinateValue.createFrom;
+const $$createType32 = $Create.Array($$createType31);
+const $$createType33 = $Create.Map($Create.Any, $$createType32);
+const $$createType34 = ProfileBinding.createFrom;
 const $$createType35 = $Create.Array($$createType34);
-const $$createType36 = gate$0.Selector.createFrom;
-const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = GateRef.createFrom;
+const $$createType36 = ShipGateRule.createFrom;
+const $$createType37 = $Create.Array($$createType36);
+const $$createType38 = $Create.Map($Create.Any, $$createType20);
+var $$createType39 = /** @type {(...args: any[]) => any} */(function $$initCreateType39(...args) {
+    if ($$createType39 === $$initCreateType39) {
+        $$createType39 = $$createType3;
+    }
+    return $$createType39(...args);
+});
+const $$createType40 = PluginIssue.createFrom;
+const $$createType41 = $Create.Array($$createType40);
+const $$createType42 = gate$0.Selector.createFrom;
+const $$createType43 = $Create.Nullable($$createType42);
+const $$createType44 = GateRef.createFrom;

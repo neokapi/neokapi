@@ -5,13 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -24,14 +27,26 @@ var _ tool.SessionTool = (*AITranslateTool)(nil)
 type AITranslateTool struct {
 	tool.BaseTool
 	usageAccumulator
-	provider      aiprovider.LLMProvider
-	streaming     aiprovider.StreamingLLMProvider // nil when provider doesn't support streaming
-	sourceLocale  model.LocaleID
-	targetLocale  model.LocaleID
-	glossary      map[string]string
-	dnt           []string // do-not-translate terms; masked before the model, restored after
-	voiceGuide    string   // compact brand voice guidance injected into every prompt
-	instruction   string   // caller-supplied directive injected into every prompt
+	provider     aiprovider.LLMProvider
+	streaming    aiprovider.StreamingLLMProvider // nil when provider doesn't support streaming
+	sourceLocale model.LocaleID
+	targetLocale model.LocaleID
+	glossary     map[string]string
+	dnt          []string // do-not-translate terms; masked before the model, restored after
+	voiceGuide   string   // compact brand voice guidance injected into every prompt
+	instruction  string   // caller-supplied directive injected into every prompt
+	// profileID and profileVersion identify the context profile whose guidance
+	// went into voiceGuide, stamped onto every target this tool produces. The
+	// guidance itself is rendered once and the profile discarded, so these are
+	// kept separately — without them the governing context is unrecoverable
+	// after the profile is next edited.
+	profileID      string
+	profileVersion string
+	// contextFP hashes the governing context as it actually reached the model —
+	// the rendered voice guidance and the terminology — so a target can be told
+	// stale against a context that has since moved. Narrower than configFP on
+	// purpose: see contextFingerprint.
+	contextFP     string
 	skipMatched   bool
 	batchSize     int
 	contextPolicy string
@@ -242,6 +257,13 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		concurrency:  cfg.BatchConcurrency,
 		onProgress:   cfg.OnProgress,
 	}
+	if cfg.Profile != nil {
+		t.profileID = cfg.Profile.ID
+		if cfg.Profile.Version > 0 {
+			t.profileVersion = strconv.Itoa(cfg.Profile.Version)
+		}
+	}
+	t.contextFP = contextFingerprint(t.voiceGuide, t.glossary)
 	if sp, ok := p.(aiprovider.StreamingLLMProvider); ok {
 		t.streaming = sp
 	}
@@ -802,15 +824,50 @@ func (t *AITranslateTool) annotateTranslation(v tool.VariantView, resp *aiprovid
 	// Stamp how the committed target was produced so coverage and ship gates can
 	// see it. A fresh machine translation lands at draft (produced, not yet
 	// verified); the convergence loop promotes it on a passing check / review.
-	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, model.Origin{
-		Kind:   model.OriginAI,
-		Engine: string(t.provider.Name()),
-	})
+	v.StampTargetProvenance(t.targetLocale, model.TargetStatusDraft, t.aiOrigin())
 }
 
-// aiOrigin describes a target produced by this AI tool.
+// aiOrigin describes a target produced by this AI tool: how it was made (the
+// provider), and which context governed it. The context half is stamped here
+// because it is only knowable at production time — the profile is edited in
+// place and the terminology carries no version at all, so a later reader cannot
+// recover what shaped this target.
 func (t *AITranslateTool) aiOrigin() model.Origin {
-	return model.Origin{Kind: model.OriginAI, Engine: string(t.provider.Name())}
+	return model.Origin{
+		Kind:               model.OriginAI,
+		Engine:             string(t.provider.Name()),
+		Profile:            t.profileID,
+		ProfileVersion:     t.profileVersion,
+		ContextFingerprint: t.contextFP,
+	}
+}
+
+// contextFingerprint hashes the governing context as it reached the model: the
+// rendered voice guidance and the terminology it was given.
+//
+// This is deliberately narrower than aiConfigFingerprint. That one exists to
+// invalidate a cache, so it must move when *anything* output-affecting moves —
+// provider, model, prompt wording. Those say how a target was made, not what
+// governed it, and folding them in would mean a model swap looked like a
+// governance change. This hash moves only when the context does.
+//
+// The glossary is a map, so its keys are sorted: an unsorted walk would produce
+// a different hash on every run for identical terminology, which is worse than
+// no fingerprint — it would report drift that never happened.
+//
+// Returns "" when there is no governing context at all, rather than the hash of
+// two empty strings: an ungoverned run should read as ungoverned, not as a
+// constant that looks like a real fingerprint.
+func contextFingerprint(voiceGuide string, glossary map[string]string) string {
+	if voiceGuide == "" && len(glossary) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(glossary)*2+1)
+	parts = append(parts, voiceGuide)
+	for _, src := range slices.Sorted(maps.Keys(glossary)) {
+		parts = append(parts, src, glossary[src])
+	}
+	return tool.OverlayConfigFingerprint(parts...)
 }
 
 // ---------------------------------------------------------------------------

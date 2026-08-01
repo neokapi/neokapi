@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"log/slog"
 	"net"
 	"net/http"
@@ -32,6 +33,9 @@ type deviceCodeEntry struct {
 	UserEmail  string `json:"user_email"`
 	UserName   string `json:"user_name"`
 	OIDCSub    string `json:"oidc_sub"` // OIDC subject identifier (Keycloak UUID)
+	// Attempts counts verification attempts made against this pending
+	// authorization; see maxDeviceVerifyAttempts.
+	Attempts int `json:"attempts"`
 }
 
 // webAuthEntry stores the state of a pending web OIDC authorization.
@@ -63,12 +67,24 @@ func randomHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
+// userCodeBytes is the entropy behind a device-flow user code. The code is the
+// only secret standing between a stranger and a pending device authorization
+// for the whole authStateTTL window, so it is sized to be unguessable rather
+// than merely short: 8 bytes (64 bits), not the 4 (32 bits) it began as.
+const userCodeBytes = 8
+
+// randomUserCode returns the code the user types into the verification page,
+// hex-encoded and grouped in fours for legibility.
 func randomUserCode() string {
-	b := make([]byte, 4)
+	b := make([]byte, userCodeBytes)
 	// crypto/rand.Read never returns an error as of Go 1.24.
 	_, _ = rand.Read(b)
 	code := hex.EncodeToString(b)
-	return fmt.Sprintf("%s-%s", code[:4], code[4:])
+	groups := make([]string, 0, len(code)/4)
+	for i := 0; i < len(code); i += 4 {
+		groups = append(groups, code[i:i+4])
+	}
+	return strings.Join(groups, "-")
 }
 
 // oidcAuthParams holds the PKCE verifier+challenge, nonce, and state generated
@@ -95,6 +111,15 @@ func newOIDCAuthParams() (*oidcAuthParams, error) {
 // authStateTTL is the TTL for ephemeral auth states (device codes, OIDC states).
 const authStateTTL = 10 * time.Minute
 
+// maxDeviceVerifyAttempts caps how many verification attempts one pending
+// device authorization accepts before it is discarded. Without a cap, a code
+// that has been resolved once can be replayed against the verification
+// endpoint for the whole authStateTTL window; with it, the flow has to be
+// restarted from /device/start, which mints fresh secrets. Guessing a code
+// that was never issued is bounded separately, by the width of the user code
+// and the per-IP throttle on the route.
+const maxDeviceVerifyAttempts = 10
+
 // HandleDeviceAuthStart starts the device authorization flow (RFC 8628).
 // The client receives a device_code and user_code. The user opens the
 // verification_uri in a browser and enters the user_code to authorize.
@@ -114,12 +139,12 @@ func (s *Server) HandleDeviceAuthStart(c echo.Context) error {
 		ClientID: clientID,
 	}
 	if err := sessionSet(ctx, s.SessionStore, prefixDeviceCode, deviceCode, entry, authStateTTL); err != nil {
-		return apiErr(c, http.StatusInternalServerError, "store device code: "+err.Error())
+		return serverErr(c, fmt.Errorf("store device code: %w", err))
 	}
 
 	// Store secondary index: userCode → deviceCode for lookup during verification.
 	if err := s.SessionStore.Set(ctx, prefixUserCode+userCode, []byte(deviceCode), authStateTTL); err != nil {
-		return apiErr(c, http.StatusInternalServerError, "store user code index: "+err.Error())
+		return serverErr(c, fmt.Errorf("store user code index: %w", err))
 	}
 
 	baseURL := requestBaseURL(c)
@@ -151,7 +176,7 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 		return apiErr(c, http.StatusBadRequest, "invalid_grant")
 	}
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "lookup device code: "+err.Error())
+		return serverErr(c, fmt.Errorf("lookup device code: %w", err))
 	}
 
 	if !entry.Authorized {
@@ -161,20 +186,20 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 	// User authorized — create or retrieve user and generate token.
 	user, err := s.Services.Auth.GetOrCreateUser(ctx, entry.UserEmail, entry.UserName, "", entry.OIDCSub, requestLocale(c))
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "create user: "+err.Error())
+		return serverErr(c, fmt.Errorf("create user: %w", err))
 	}
 	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
 	s.emitAuthEvent(c, platev.EventAuthLogin, user.ID, user.Name, "oidc")
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "generate token: "+err.Error())
+		return serverErr(c, fmt.Errorf("generate token: %w", err))
 	}
 
 	// Generate and store a refresh token.
 	refreshToken, err := platformAuth.GenerateRefreshToken()
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "generate refresh token: "+err.Error())
+		return serverErr(c, fmt.Errorf("generate refresh token: %w", err))
 	}
 	rtHash := sha256.Sum256([]byte(refreshToken))
 	if _, err := s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour)); err != nil {
@@ -258,7 +283,7 @@ func (s *Server) HandleAuthLogin(c echo.Context) error {
 	oidcCtx := s.oidcContext(c.Request().Context())
 	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "OIDC discovery failed: "+err.Error())
+		return serverErr(c, fmt.Errorf("OIDC discovery failed: %w", err))
 	}
 	endpoint := provider.Endpoint()
 
@@ -273,7 +298,7 @@ func (s *Server) HandleAuthLogin(c echo.Context) error {
 
 	ap, err := newOIDCAuthParams()
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	// Store state → web auth entry for validation in the callback.
@@ -283,7 +308,7 @@ func (s *Server) HandleAuthLogin(c echo.Context) error {
 		Nonce:        ap.Nonce,
 	}
 	if err := sessionSet(ctx, s.SessionStore, prefixWebAuth, ap.State, webEntry, authStateTTL); err != nil {
-		return apiErr(c, http.StatusInternalServerError, "store auth state: "+err.Error())
+		return serverErr(c, fmt.Errorf("store auth state: %w", err))
 	}
 
 	params := url.Values{
@@ -365,7 +390,7 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 	oidcCtx := s.oidcContext(c.Request().Context())
 	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "OIDC discovery failed: "+err.Error())
+		return serverErr(c, fmt.Errorf("OIDC discovery failed: %w", err))
 	}
 	endpoint := provider.Endpoint()
 
@@ -380,7 +405,7 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 
 	ap, err := newOIDCAuthParams()
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	// Store the state mapping.
@@ -392,7 +417,7 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 		Nonce:         ap.Nonce,
 	}
 	if err := sessionSet(ctx, s.SessionStore, prefixDesktopAuth, ap.State, desktopEntry, authStateTTL); err != nil {
-		return apiErr(c, http.StatusInternalServerError, "store auth state: "+err.Error())
+		return serverErr(c, fmt.Errorf("store auth state: %w", err))
 	}
 
 	params := url.Values{
@@ -429,8 +454,13 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 		if errMsg == "" {
 			errMsg = "missing code or state"
 		}
+		// The identity provider's message is shown to the user, but it arrives
+		// in the query string of an unauthenticated GET, so whoever sends the
+		// link chooses it. Escaped on the way into the document — the sibling
+		// device-flow callback already routes the same two parameters through
+		// url.QueryEscape, and this page was the one that did not.
 		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
-<h1>Authentication Failed</h1><p>`+errMsg+`</p></body></html>`)
+<h1>Authentication Failed</h1><p>`+html.EscapeString(errMsg)+`</p></body></html>`)
 	}
 
 	// Look up and consume the pending state.
@@ -453,7 +483,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 		RedirectURL:  serverCallbackURI,
 	})
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "OIDC discovery failed: "+err.Error())
+		return serverErr(c, fmt.Errorf("OIDC discovery failed: %w", err))
 	}
 
 	oauth2Token, err := oauth2Cfg.Exchange(oidcCtx, code, oauth2.VerifierOption(entry.CodeVerifier))
@@ -469,7 +499,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 
 	verifier, err := auth.NewOIDCVerifier(oidcCtx, s.Config.OIDCIssuerURL, s.Config.OIDCClientID)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "create verifier: "+err.Error())
+		return serverErr(c, fmt.Errorf("create verifier: %w", err))
 	}
 
 	idToken, err := verifier.Verify(oidcCtx, rawIDToken)
@@ -487,25 +517,25 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 		if errors.Is(err, errEmailNotVerified) {
 			return apiErr(c, http.StatusForbidden, "email address is not verified")
 		}
-		return apiErr(c, http.StatusInternalServerError, "extract claims: "+err.Error())
+		return serverErr(c, fmt.Errorf("extract claims: %w", err))
 	}
 
 	user, err := s.Services.Auth.GetOrCreateUser(ctx, claims.Email, claims.Name, "", idToken.Subject, requestLocale(c))
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "create user: "+err.Error())
+		return serverErr(c, fmt.Errorf("create user: %w", err))
 	}
 	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
 	s.emitAuthEvent(c, platev.EventAuthLogin, user.ID, user.Name, "oidc")
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "generate token: "+err.Error())
+		return serverErr(c, fmt.Errorf("generate token: %w", err))
 	}
 
 	// Generate and store a refresh token.
 	refreshToken, rtErr := platformAuth.GenerateRefreshToken()
 	if rtErr != nil {
-		return apiErr(c, http.StatusInternalServerError, "generate refresh token: "+rtErr.Error())
+		return serverErr(c, fmt.Errorf("generate refresh token: %w", rtErr))
 	}
 	rtHash := sha256.Sum256([]byte(refreshToken))
 	if _, err := s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour)); err != nil {
@@ -528,14 +558,15 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 	return c.Redirect(http.StatusFound, desktopRedirect.String())
 }
 
-// handleDeviceVerification matches a user_code to a pending device and either
-// redirects the browser through OIDC (when configured) or falls back to direct
-// authorization (for local dev / testing without an OIDC provider).
+// handleDeviceVerification matches a user_code to a pending device and hands
+// the browser to the identity provider to establish who is authorizing it.
 //
-// When the request includes explicit email (and optional name) form values,
-// direct authorization is used regardless of OIDC configuration. This allows
-// programmatic clients (E2E tests, CLI helpers) to complete the device flow
-// without driving a full browser-based OIDC login.
+// Which path runs is decided by server configuration alone. Nothing in the
+// request selects it — in particular the identity the caller names is an input
+// to the direct path, never a reason to take it. The direct path (approve the
+// device from the request itself, no identity provider involved) is reachable
+// only when the operator set [Config.AllowInsecureDeviceAuth]; see that field
+// for why it has no configuration-derived fallback.
 func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error {
 	// Find the matching device code via the secondary userCode → deviceCode index.
 	ctx := c.Request().Context()
@@ -544,7 +575,7 @@ func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error
 		return c.Redirect(http.StatusFound, "/device/verify?error="+url.QueryEscape("Invalid or expired code. Please check and try again."))
 	}
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "lookup user code: "+err.Error())
+		return serverErr(c, fmt.Errorf("lookup user code: %w", err))
 	}
 	matchedCode := string(deviceCodeBytes)
 
@@ -554,19 +585,35 @@ func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error
 		return c.Redirect(http.StatusFound, "/device/verify?error="+url.QueryEscape("Invalid or expired code. Please check and try again."))
 	}
 
-	// If explicit email is provided (programmatic/test request), use direct
-	// verification — the caller already knows the user identity.
-	if email := c.FormValue("email"); email != "" {
+	// Spend one of this authorization's attempts. Past the cap the pending
+	// authorization and its user-code index are destroyed, so a resolved code
+	// stops being useful long before authStateTTL runs out.
+	entry.Attempts++
+	if entry.Attempts > maxDeviceVerifyAttempts {
+		_ = sessionDelete(ctx, s.SessionStore, prefixDeviceCode, matchedCode)
+		_ = s.SessionStore.Delete(ctx, prefixUserCode+userCode)
+		return c.Redirect(http.StatusFound, "/device/verify?error="+url.QueryEscape("Too many attempts. Please start the sign-in again from your device."))
+	}
+	if err := sessionSet(ctx, s.SessionStore, prefixDeviceCode, matchedCode, entry, authStateTTL); err != nil {
+		return serverErr(c, fmt.Errorf("update device code: %w", err))
+	}
+
+	// Direct approval only when the operator explicitly opted in. Checked
+	// before OIDC so the opt-in is a single, legible switch rather than a
+	// condition on how the rest of the server happens to be configured.
+	if s.Config.AllowInsecureDeviceAuth {
 		return s.handleDeviceVerificationDirect(c, matchedCode)
 	}
 
-	// If OIDC is configured, redirect through the identity provider.
+	// The normal path: the identity provider establishes who is authorizing.
 	if s.Config.OIDCIssuerURL != "" && s.Config.OIDCClientID != "" {
 		return s.handleDeviceVerificationOIDC(c, matchedCode)
 	}
 
-	// No OIDC configured — fall back to direct authorization (local dev / tests).
-	return s.handleDeviceVerificationDirect(c, matchedCode)
+	// No identity provider and no opt-in: the server has no way to learn who is
+	// at the browser, so it refuses. This is a misconfiguration, not a mode.
+	return apiErr(c, http.StatusServiceUnavailable,
+		"device authorization unavailable: no OIDC provider configured")
 }
 
 // handleDeviceVerificationOIDC redirects the browser to the OIDC provider for
@@ -576,7 +623,7 @@ func (s *Server) handleDeviceVerificationOIDC(c echo.Context, deviceCode string)
 	oidcCtx := s.oidcContext(c.Request().Context())
 	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "OIDC discovery failed: "+err.Error())
+		return serverErr(c, fmt.Errorf("OIDC discovery failed: %w", err))
 	}
 	endpoint := provider.Endpoint()
 
@@ -590,7 +637,7 @@ func (s *Server) handleDeviceVerificationOIDC(c echo.Context, deviceCode string)
 
 	ap, err := newOIDCAuthParams()
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	// Store the state → device_code mapping.
@@ -601,7 +648,7 @@ func (s *Server) handleDeviceVerificationOIDC(c echo.Context, deviceCode string)
 		Nonce:        ap.Nonce,
 	}
 	if err := sessionSet(ctx, s.SessionStore, prefixDeviceVerify, ap.State, verifyEntry, authStateTTL); err != nil {
-		return apiErr(c, http.StatusInternalServerError, "store verify state: "+err.Error())
+		return serverErr(c, fmt.Errorf("store verify state: %w", err))
 	}
 
 	params := url.Values{
@@ -618,10 +665,16 @@ func (s *Server) handleDeviceVerificationOIDC(c echo.Context, deviceCode string)
 	return c.Redirect(http.StatusFound, authURL+"?"+params.Encode())
 }
 
-// handleDeviceVerificationDirect authorizes the device without OIDC, using
-// form values or defaults. Used when no OIDC provider is configured
-// (local development, CI tests).
+// handleDeviceVerificationDirect authorizes the device from the request
+// itself, for the identity the request names, with no identity provider in the
+// path. It is a local-development and test affordance, guarded here as well as
+// at the call site so no future caller can reach it by accident.
 func (s *Server) handleDeviceVerificationDirect(c echo.Context, deviceCode string) error {
+	if !s.Config.AllowInsecureDeviceAuth {
+		return apiErr(c, http.StatusForbidden,
+			"direct device authorization is disabled: device authorization goes through the identity provider")
+	}
+
 	email := c.QueryParam("email")
 	if email == "" {
 		email = c.FormValue("email")
@@ -649,7 +702,7 @@ func (s *Server) handleDeviceVerificationDirect(c echo.Context, deviceCode strin
 
 	// Re-store the updated entry (preserves remaining TTL in Redis).
 	if err := sessionSet(ctx, s.SessionStore, prefixDeviceCode, deviceCode, entry, authStateTTL); err != nil {
-		return apiErr(c, http.StatusInternalServerError, "update device code: "+err.Error())
+		return serverErr(c, fmt.Errorf("update device code: %w", err))
 	}
 
 	return c.Redirect(http.StatusFound, "/device/authorized")
@@ -696,7 +749,7 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 		RedirectURL:  callbackURI,
 	})
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "OIDC discovery failed: "+err.Error())
+		return serverErr(c, fmt.Errorf("OIDC discovery failed: %w", err))
 	}
 
 	oauth2Token, err := oauth2Cfg.Exchange(oidcCtx, code, oauth2.VerifierOption(verifyEntry.CodeVerifier))
@@ -712,7 +765,7 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 
 	verifier, err := auth.NewOIDCVerifier(oidcCtx, s.Config.OIDCIssuerURL, s.Config.OIDCClientID)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "create verifier: "+err.Error())
+		return serverErr(c, fmt.Errorf("create verifier: %w", err))
 	}
 
 	idToken, err := verifier.Verify(oidcCtx, rawIDToken)
@@ -730,7 +783,7 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 		if errors.Is(err, errEmailNotVerified) {
 			return apiErr(c, http.StatusForbidden, "email address is not verified")
 		}
-		return apiErr(c, http.StatusInternalServerError, "extract claims: "+err.Error())
+		return serverErr(c, fmt.Errorf("extract claims: %w", err))
 	}
 
 	// Mark the device as authorized with the real OIDC identity.
@@ -906,7 +959,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 		RedirectURL:  redirectURL,
 	})
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "OIDC discovery failed: "+err.Error())
+		return serverErr(c, fmt.Errorf("OIDC discovery failed: %w", err))
 	}
 
 	oauth2Token, err := oauth2Cfg.Exchange(oidcCtx, code, oauth2.VerifierOption(webEntry.CodeVerifier))
@@ -922,7 +975,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 
 	verifier, err := auth.NewOIDCVerifier(oidcCtx, s.Config.OIDCIssuerURL, s.Config.OIDCClientID)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "create verifier: "+err.Error())
+		return serverErr(c, fmt.Errorf("create verifier: %w", err))
 	}
 
 	idToken, err := verifier.Verify(oidcCtx, rawIDToken)
@@ -940,25 +993,25 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 		if errors.Is(err, errEmailNotVerified) {
 			return apiErr(c, http.StatusForbidden, "email address is not verified")
 		}
-		return apiErr(c, http.StatusInternalServerError, "extract claims: "+err.Error())
+		return serverErr(c, fmt.Errorf("extract claims: %w", err))
 	}
 
 	user, err := s.Services.Auth.GetOrCreateUser(ctx, claims.Email, claims.Name, "", idToken.Subject, requestLocale(c))
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "create user: "+err.Error())
+		return serverErr(c, fmt.Errorf("create user: %w", err))
 	}
 	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
 	s.emitAuthEvent(c, platev.EventAuthLogin, user.ID, user.Name, "oidc")
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, "generate token: "+err.Error())
+		return serverErr(c, fmt.Errorf("generate token: %w", err))
 	}
 
 	// Generate and store a refresh token.
 	refreshToken, rtErr := platformAuth.GenerateRefreshToken()
 	if rtErr != nil {
-		return apiErr(c, http.StatusInternalServerError, "generate refresh token: "+rtErr.Error())
+		return serverErr(c, fmt.Errorf("generate refresh token: %w", rtErr))
 	}
 	rtHash := sha256.Sum256([]byte(refreshToken))
 	if _, err := s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour)); err != nil {

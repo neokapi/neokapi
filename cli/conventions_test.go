@@ -3,6 +3,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -182,4 +183,61 @@ func runCommand(t *testing.T, args ...string) string {
 	err := root.Execute()
 	require.NoError(t, err, "stderr: %s", errOut.String())
 	return out.String()
+}
+
+// retiredVocabulary matches the wording this project has retired. Inflections
+// are the point: a noun-only search misses "localized", which is how most of
+// these survive.
+//
+// TMX and TBX are deliberately absent — they are external file-format standards
+// we do not own, and naming them is correct.
+var retiredVocabulary = regexp.MustCompile(`(?i)termbases?|glossar(?:y|ies)|locali[sz](?:e|es|ed|ing|ation|ations)|l10n|translation memor(?:y|ies)`)
+
+// TestConvention_HelpTextUsesCurrentVocabulary holds the CLI's own help to the
+// vocabulary rule in CLAUDE.md.
+//
+// The docs site, the landing pages and the web app are swept by
+// scripts/check-vocabulary.sh, which reads files. Help text is not reachable
+// that way: it is assembled from Go string literals spread across the command
+// constructors, so a grep either misses it or drowns in identifiers and
+// comments. Walking the built tree is exact — it sees the words a user sees,
+// and only those.
+//
+// This is a user-facing surface like any other. `kapi terms --help` documented a
+// "~/.config/kapi/termbases/<n>.db" path for years after named stores moved to
+// <ConfigDir>/terms/ — retired wording and a wrong answer in the same line.
+func TestConvention_HelpTextUsesCurrentVocabulary(t *testing.T) {
+	root, _ := newTestRoot(t)
+
+	var walk func(cmd *cobra.Command, path string)
+	walk = func(cmd *cobra.Command, path string) {
+		check := func(field, text string) {
+			for line := range strings.SplitSeq(text, "\n") {
+				if found := retiredVocabulary.FindAllString(line, -1); found != nil {
+					t.Errorf("%s (%s) uses retired vocabulary %v: %s",
+						path, field, found, strings.TrimSpace(line))
+				}
+			}
+		}
+		check("Short", cmd.Short)
+		check("Long", cmd.Long)
+		check("Example", cmd.Example)
+		// Group titles are section headings in `kapi --help` — as visible as any
+		// Short line, and registered far from the commands they gather, which is
+		// how "Localization:" outlived the sweep that renamed everything under it.
+		for _, g := range cmd.Groups() {
+			check("group "+g.ID, g.Title)
+		}
+		// Flag usage is help text too, and it is the easiest place to forget:
+		// it is written inline at the registration call, far from the Long
+		// paragraph a reviewer reads.
+		cmd.Flags().VisitAll(func(f *pflag.Flag) {
+			check("--"+f.Name, f.Usage)
+		})
+
+		for _, sub := range cmd.Commands() {
+			walk(sub, path+" "+sub.Name())
+		}
+	}
+	walk(root, "kapi")
 }

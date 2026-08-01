@@ -1,10 +1,12 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -12,10 +14,13 @@ import (
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	bowsynccore "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/id"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/storage/compression"
 )
@@ -33,6 +38,8 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		ContentTypes []string          `json:"content_types"`
 		ItemHashes   map[string]string `json:"item_hashes"`
 		RootHash     string            `json:"root_hash"`
+		ContextHash  string            `json:"context_hash"`
+		Collections  []string          `json:"collections"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
@@ -54,13 +61,25 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 
 	diffEngine := bowsync.NewDiffEngine(s.ContentStore, s.SyncCache)
 
-	// Fast path: root hash comparison.
-	if req.RootHash != "" {
+	// The context content type negotiates first, because its answer qualifies
+	// the content fast path below: a push whose blocks are all unchanged but
+	// whose recipe declares a new collection still has work to do.
+	ctxDiff, err := diffEngine.CompareContext(c.Request().Context(), req.ProjectID, req.Stream, req.ContextHash, req.Collections)
+	if err != nil {
+		return serverErr(c, err)
+	}
+
+	// Fast path: root hash comparison. Only "unchanged" when the declared
+	// context matches too — otherwise the push proceeds carrying no chunks and
+	// a manifest that is nothing but the context.
+	if req.RootHash != "" && !ctxDiff.Changed {
 		unchanged, err := diffEngine.CheckRootHash(c.Request().Context(), req.ProjectID, req.Stream, req.RootHash)
 		if err == nil && unchanged {
 			return c.JSON(http.StatusOK, map[string]any{
-				"upload_id": "",
-				"status":    "unchanged",
+				"upload_id":              "",
+				"status":                 "unchanged",
+				"context_changed":        false,
+				"undeclared_collections": ctxDiff.Undeclared,
 			})
 		}
 	}
@@ -68,18 +87,20 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	// Full diff: compare item hashes.
 	itemDiff, err := diffEngine.CompareItems(c.Request().Context(), req.ProjectID, req.Stream, req.ItemHashes)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	uploadID := id.New()
 
 	return c.JSON(http.StatusOK, map[string]any{
-		"upload_id":            uploadID,
-		"status":               "diff_computed",
-		"changed_items":        itemDiff.ChangedItems,
-		"new_items":            itemDiff.NewItems,
-		"deleted_items":        itemDiff.DeletedItems,
-		"unchanged_item_count": itemDiff.UnchangedCount,
+		"upload_id":              uploadID,
+		"status":                 "diff_computed",
+		"changed_items":          itemDiff.ChangedItems,
+		"new_items":              itemDiff.NewItems,
+		"deleted_items":          itemDiff.DeletedItems,
+		"unchanged_item_count":   itemDiff.UnchangedCount,
+		"context_changed":        ctxDiff.Changed,
+		"undeclared_collections": ctxDiff.Undeclared,
 	})
 }
 
@@ -109,7 +130,7 @@ func (s *Server) HandleSyncPushDiff(c echo.Context) error {
 
 	blockDiff, err := diffEngine.CompareBlocks(c.Request().Context(), projectID, stream, req.ItemName, req.BlockHashes)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	// Generate chunk upload URLs if blob store supports it.
@@ -149,6 +170,10 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		ActorID       string          `json:"actor_id"`
 		WorkspaceSlug string          `json:"workspace_slug"`
 		ConnectorID   string          `json:"connector_id"`
+		// Contexts is the context content type, passed through to the worker
+		// verbatim like Items: this handler validates the transport, the worker
+		// reconciles the content.
+		Contexts json.RawMessage `json:"contexts"`
 	}
 	if err := c.Bind(&manifest); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
@@ -178,18 +203,9 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		}
 	}
 
-	// Validate chunks exist. For ChunkedBlobStore (proxy uploads), chunks are
-	// in the upload session, not content-addressed storage.
-	if _, isChunked := s.BlobStore.(storage.ChunkedBlobStore); !isChunked {
-		for _, chunk := range manifest.Chunks {
-			exists, err := s.BlobStore.Exists(c.Request().Context(), chunk.Hash)
-			if err != nil || !exists {
-				return apiErr(c, http.StatusBadRequest, fmt.Sprintf("chunk %d (hash %s) not found in storage", chunk.Index, chunk.Hash))
-			}
-		}
-	}
-
-	// Enforce upload budget.
+	// Enforce upload budget. Cheap and manifest-local, so it runs before the
+	// per-chunk storage probes below — an oversized manifest is rejected without
+	// paying for a stat per chunk.
 	maxPushBytes := s.Config.MaxPushBytes
 	if maxPushBytes <= 0 {
 		maxPushBytes = 256 * 1024 * 1024 // default 256MB
@@ -200,6 +216,24 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 	}
 	if totalBytes > maxPushBytes {
 		return apiErr(c, http.StatusRequestEntityTooLarge, fmt.Sprintf("upload budget exceeded: %d bytes > %d bytes max", totalBytes, maxPushBytes))
+	}
+
+	// Every chunk the manifest names must already be a blob this server stored.
+	//
+	// This check used to be skipped whenever the blob store implemented
+	// ChunkedBlobStore, on the theory that such a store keeps chunks in an
+	// upload session rather than in content-addressed storage. That is not how
+	// either backend behaves: HandleSyncProxyChunkUpload stores every proxied
+	// chunk through BlobStore.Upload, which is content-addressed by
+	// construction, and the ChunkedBlobStore staging methods have no caller.
+	// The exemption therefore only ever applied to the self-hosted local store
+	// — the one deployment where it removed the sole check standing between a
+	// client-supplied hash and the worker that resolves it.
+	for _, chunk := range manifest.Chunks {
+		exists, err := s.BlobStore.Exists(c.Request().Context(), chunk.Hash)
+		if err != nil || !exists {
+			return apiErr(c, http.StatusBadRequest, fmt.Sprintf("chunk %d (hash %s) not found in storage", chunk.Index, chunk.Hash))
+		}
 	}
 
 	pushID := id.New()
@@ -251,10 +285,6 @@ func (s *Server) HandleSyncProxyChunkUpload(c echo.Context) error {
 		return err
 	}
 
-	uploadID := c.Param("uploadId")
-	chunkIndex := 0
-	_, _ = fmt.Sscanf(c.Param("chunkIndex"), "%d", &chunkIndex)
-
 	data, err := readBody(c, 2*1024*1024) // 2MB max per chunk
 	if err != nil {
 		return apiErr(c, http.StatusRequestEntityTooLarge, "chunk too large")
@@ -264,11 +294,17 @@ func (s *Server) HandleSyncProxyChunkUpload(c echo.Context) error {
 	// chunk by its hash (from the commit manifest), so we need the chunk to be
 	// accessible via BlobStore.Download(hash). Content-addressed Upload gives
 	// us a stable key that matches the SHA-256 the client computes.
+	//
+	// Which is why :uploadId and :chunkIndex are not read here. They used to be
+	// parsed into an UploadOptions.Filename — but the key is the content hash,
+	// and neither blob store reads Filename at all, so the parse fed nothing.
+	// An unparseable :chunkIndex silently became 0 and changed no outcome; a
+	// 400 for one would reject a request that is, as far as this endpoint is
+	// concerned, perfectly well formed.
 	if _, err := s.BlobStore.Upload(c.Request().Context(), data, storage.UploadOptions{
 		ContentType: "application/octet-stream",
-		Filename:    fmt.Sprintf("chunks/%s/%04d", uploadID, chunkIndex),
 	}); err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
@@ -324,12 +360,13 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 	// Get change log entries to determine what changed.
 	cs, err := s.Services.Project.GetChanges(ctx, projectID, cursor, locales, limit)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	resp := apiclient.RichPullResponse{
-		Cursor:  cs.NewCursor,
-		HasMore: cs.HasMore,
+		Cursor:   cs.NewCursor,
+		HasMore:  cs.HasMore,
+		Contexts: s.pullContextEntries(ctx, projectID, stream),
 	}
 
 	if len(cs.Changes) > 0 {
@@ -357,7 +394,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 			}
 			stored, err := s.Services.Project.GetBlocks(ctx, query)
 			if err != nil {
-				return apiErr(c, http.StatusInternalServerError, err.Error())
+				return serverErr(c, err)
 			}
 
 			resp.Blocks = make([]apiclient.SyncBlock, 0, len(stored))
@@ -396,6 +433,62 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 	}
 
 	return writePullResponse(c, resp)
+}
+
+// pullContextEntries renders the project's collections as the pull's context
+// content type: which collections exist, the point each occupies, who governs
+// it, and — decisively — which side owns it.
+//
+// Every collection is carried, workspace-owned and recipe-owned alike.
+// Ownership is what the client keys its own decisions on, so withholding the
+// rows it may not act on would leave it unable to tell "not mine to touch" from
+// "not there at all".
+//
+// The voice profile travels as its NAME, resolved from the bound id: a name is
+// what a recipe and a brand hub agree on, while an id is one instance's
+// bookkeeping. Best-effort throughout — a collection listing that fails, or a
+// profile id that no longer resolves, costs the pull its context rather than
+// its content.
+func (s *Server) pullContextEntries(ctx context.Context, projectID, stream string) []*pb.SyncContextEntry {
+	if s.ContentStore == nil {
+		return nil
+	}
+	collections, err := s.ContentStore.ListCollections(ctx, projectID, stream)
+	if err != nil || len(collections) == 0 {
+		return nil
+	}
+
+	profileNames := map[string]string{}
+	entries := make([]*pb.SyncContextEntry, 0, len(collections))
+	for _, col := range collections {
+		if col == nil {
+			continue
+		}
+		e := &pb.SyncContextEntry{
+			Name:        col.Name,
+			Coordinates: col.Context,
+			Channel:     col.ConnectorConfig[coreprofile.PropertyChannel],
+			Owner:       bowsynccore.NormalizeContextOwner(col.Owner),
+			ContentHash: col.ContextHash,
+		}
+		if pid := col.ConnectorConfig[coreprofile.PropertyProfileID]; pid != "" {
+			name, cached := profileNames[pid]
+			if !cached {
+				if s.BrandStore != nil {
+					if p, perr := s.BrandStore.GetProfile(ctx, pid); perr == nil && p != nil {
+						name = p.Name
+					}
+				}
+				profileNames[pid] = name
+			}
+			e.VoiceProfile = name
+		}
+		entries = append(entries, e)
+	}
+	slices.SortFunc(entries, func(a, b *pb.SyncContextEntry) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	return entries
 }
 
 // syncCompressorPool is a lazily-initialized zstd compression pool for pull responses.
@@ -466,7 +559,7 @@ func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
 
 	blocks, err := s.Services.Project.GetBlocks(c.Request().Context(), query)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	result := make([]apiclient.SyncBlock, len(blocks))
@@ -494,7 +587,7 @@ func (s *Server) HandleSyncPushStatus(c echo.Context) error {
 
 	jobList, err := s.JobStore.ListJobsByPushID(c.Request().Context(), pushID)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	total := len(jobList)

@@ -10,8 +10,8 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -109,7 +109,7 @@ func TestCrossTenantBrandProfileIDOR(t *testing.T) {
 	s.BrandStore = bs
 
 	ctx := t.Context()
-	victim := &corebrand.VoiceProfile{ID: "victim-bp", WorkspaceID: "test-ws", Name: "Victim"}
+	victim := &coreprofile.VoiceProfile{ID: "victim-bp", WorkspaceID: "test-ws", Name: "Victim"}
 	require.NoError(t, bs.CreateProfile(ctx, victim))
 
 	t.Run("read via foreign workspace slug is 404", func(t *testing.T) {
@@ -211,11 +211,87 @@ func TestWorkspaceSiblingIDRoutesNotGuarded(t *testing.T) {
 		require.NoError(t, err)
 		s.BrandStore = bs
 
-		profile := &corebrand.VoiceProfile{ID: "bp-sibling-1", WorkspaceID: "test-ws", Name: "Sib"}
+		profile := &coreprofile.VoiceProfile{ID: "bp-sibling-1", WorkspaceID: "test-ws", Name: "Sib"}
 		require.NoError(t, bs.CreateProfile(ctx, profile))
 
 		code := do(t, s, http.MethodGet, "/api/v1/test/brand-profiles/"+profile.ID, ownerToken, "")
 		assert.Equal(t, http.StatusOK, code,
 			"brand-profiles/:id must reach its handler for the owner; the guard must not 404 a non-project :id")
+	})
+}
+
+// TestCrossTenantGitHubInstallationIDOR proves the owner/admin of one workspace
+// cannot reach a GitHub App installation belonging to a DIFFERENT workspace by
+// addressing it through their own workspace slug.
+//
+// One registered GitHub App serves every workspace on a shared instance, and
+// the app JWT behind s.GitHubApp can mint an access token for ANY installation
+// of that app. The installation id in the path is GitHub's own opaque integer
+// and proves nothing on its own, so the ownership record is the whole of what
+// stands between workspace A and workspace B's repositories — which is why
+// every setup endpoint consults it FIRST, before the GitHub App is so much as
+// considered. The guard fails closed with 404 (anti-enumeration, matching
+// ProjectAccessMiddleware), so an installation another workspace owns reads
+// exactly like one that has never existed.
+func TestCrossTenantGitHubInstallationIDOR(t *testing.T) {
+	s, ownerToken := newTestServer(t) // test-user owns "test-ws" (slug "test")
+	attackerToken := addWorkspaceWithOwner(t, s, "attacker-ws", "attacker", "attacker-user", "attacker@example.com")
+
+	ctx := t.Context()
+	require.NotNil(t, s.ForgeInstallationStore, "installation store must be wired by initTestStores")
+
+	// Installation 4242 belongs to the FIRST workspace; 7000 belongs to nobody
+	// (recorded by the webhook, never claimed).
+	_, err := s.ForgeInstallationStore.Claim(ctx, 4242, "test-ws")
+	require.NoError(t, err)
+	require.NoError(t, s.ForgeInstallationStore.Record(ctx, 7000, "acme"))
+
+	base := "/api/v1/attacker/github/installations/"
+
+	t.Run("listing another workspace's installation is 404", func(t *testing.T) {
+		assert.Equal(t, http.StatusNotFound,
+			do(t, s, http.MethodGet, base+"4242/repositories", attackerToken, ""),
+			"cross-tenant installation read must be denied (fail-closed 404)")
+	})
+	t.Run("detecting inside another workspace's installation is 404", func(t *testing.T) {
+		assert.Equal(t, http.StatusNotFound,
+			do(t, s, http.MethodGet, base+"4242/repositories/acme/site/detect", attackerToken, ""),
+			"cross-tenant repository detection must be denied (fail-closed 404)")
+	})
+	t.Run("binding from another workspace's installation is 404", func(t *testing.T) {
+		assert.Equal(t, http.StatusNotFound,
+			do(t, s, http.MethodPost, base+"4242/repositories", attackerToken,
+				`{"repository":"acme/site","project_id":"p1"}`),
+			"cross-tenant bind must be denied (fail-closed 404)")
+	})
+	t.Run("an unclaimed installation is 404", func(t *testing.T) {
+		assert.Equal(t, http.StatusNotFound,
+			do(t, s, http.MethodGet, base+"7000/repositories", attackerToken, ""),
+			"an installation nobody has claimed belongs to no workspace")
+	})
+	t.Run("claiming another workspace's installation is 404", func(t *testing.T) {
+		state, err := platauth.GenerateSetupState("attacker-ws", "test-secret", time.Hour)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusNotFound,
+			do(t, s, http.MethodPost, base+"4242/claim", attackerToken, `{"state":"`+state+`"}`),
+			"valid state for one's own workspace must not take another workspace's installation")
+	})
+
+	// The installation still belongs to the workspace that installed it.
+	inst, err := s.ForgeInstallationStore.Get(ctx, 4242)
+	require.NoError(t, err)
+	assert.Equal(t, "test-ws", inst.WorkspaceID, "the owning workspace must be unchanged")
+
+	// The legitimate owner still passes the guard: its request proceeds to the
+	// next gate (no GitHub App is configured in this harness) rather than being
+	// turned away as not-found. This is the over-application regression guard —
+	// a gate that 404s everyone protects nothing anyone can use.
+	t.Run("the owning workspace still reaches its installation", func(t *testing.T) {
+		code := do(t, s, http.MethodGet,
+			"/api/v1/test/github/installations/4242/repositories", ownerToken, "")
+		assert.NotEqual(t, http.StatusNotFound, code,
+			"the workspace that installed it must pass the ownership guard")
+		assert.Equal(t, http.StatusServiceUnavailable, code,
+			"no GitHub App is configured in this harness, which is the next gate")
 	})
 }

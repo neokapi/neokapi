@@ -1,10 +1,10 @@
 import { Nav } from "./components/Nav";
 import { Hero } from "./components/Hero";
 import { Problem } from "./components/Problem";
+import { Rename } from "./components/Rename";
 import { Loop } from "./components/Loop";
 import { Surfaces } from "./components/Surfaces";
 import { Product } from "./components/Product";
-import { PseudoChallenge } from "./components/PseudoChallenge";
 import { BrandChallenge } from "./components/BrandChallenge";
 import { Apps } from "./components/Apps";
 import { OpenSource } from "./components/OpenSource";
@@ -26,13 +26,13 @@ function App() {
       <Divider />
       <Problem />
       <Divider />
+      <Rename />
+      <Divider />
       <Loop />
       <Divider />
       <Surfaces />
       <Divider />
       <Product />
-      <Divider />
-      <PseudoChallenge />
       <Divider />
       <BrandChallenge />
       <Divider />

@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -9,9 +10,9 @@ import (
 	"github.com/neokapi/neokapi/bowrain/brandscan"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/jobs"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 )
 
@@ -199,12 +200,12 @@ func (s *Server) HandleCreateBrandScan(c echo.Context) error {
 		Request:       requestJSON,
 	}
 	if err := s.BrandScanStore.CreateBrandScanJob(ctx, job); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if err := s.BrandScanQueue.Enqueue(ctx, job.ID); err != nil {
 		// Roll back the job record so no orphaned queued row lingers.
 		_ = s.BrandScanStore.DeleteBrandScanJob(ctx, job.ID)
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "enqueue failed: " + err.Error()})
+		return serverErr(c, fmt.Errorf("enqueue failed: %w", err))
 	}
 
 	return c.JSON(http.StatusAccepted, map[string]any{
@@ -258,8 +259,8 @@ func (s *Server) HandleGetBrandScan(c echo.Context) error {
 // BrandDraftCheckRequest is the request body for the stateless draft tester:
 // an (unsaved, possibly user-edited) draft profile plus sample text.
 type BrandDraftCheckRequest struct {
-	Profile *corebrand.VoiceProfile `json:"profile"`
-	Text    string                  `json:"text"`
+	Profile *coreprofile.VoiceProfile `json:"profile"`
+	Text    string                    `json:"text"`
 }
 
 // HandleCheckBrandDraft scores sample text against an inline draft voice
@@ -285,11 +286,11 @@ func (s *Server) HandleCheckBrandDraft(c echo.Context) error {
 	// Same shared matcher + mapper as the stored-profile check: whole-word,
 	// Unicode-aware vocabulary matching anchored to a single text run.
 	runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
-	findings := corebrand.HitsToFindings(corebrand.MatchVocabulary(req.Profile, req.Text), req.Text, runs)
+	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(req.Profile, req.Text), req.Text, runs)
 	if findings == nil {
-		findings = []corebrand.BrandVoiceFinding{}
+		findings = []coreprofile.BrandVoiceFinding{}
 	}
-	score := corebrand.CalculateScore(findings)
+	score := coreprofile.CalculateScore(findings)
 
 	return c.JSON(http.StatusOK, BrandCheckResponse{
 		Score:    score,

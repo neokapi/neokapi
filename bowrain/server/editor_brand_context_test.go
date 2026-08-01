@@ -11,8 +11,8 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	bstore "github.com/neokapi/neokapi/bowrain/store/sqlitestore"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -20,11 +20,11 @@ import (
 // interface means only GetProfile is implemented — the resolution path uses
 // nothing else.
 type editorFakeBrandStore struct {
-	corebrand.BrandStore
-	profiles map[string]*corebrand.VoiceProfile
+	coreprofile.BrandStore
+	profiles map[string]*coreprofile.VoiceProfile
 }
 
-func (f *editorFakeBrandStore) GetProfile(_ context.Context, id string) (*corebrand.VoiceProfile, error) {
+func (f *editorFakeBrandStore) GetProfile(_ context.Context, id string) (*coreprofile.VoiceProfile, error) {
 	if p, ok := f.profiles[id]; ok {
 		return p, nil
 	}
@@ -73,16 +73,16 @@ func editorBrandContextFixture(t *testing.T) (platstore.ContentStore, editorBran
 	wsStores := newWorkspaceStores()
 	wsStores.tbFactory = func() terms.Store { return &testTermStore{tb} }
 
-	profile := &corebrand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID:   "bp-1",
 		Name: "Acme Voice",
-		Tone: corebrand.ToneProfile{Formality: "casual", Guidelines: "Address the reader as a peer"},
-		Locales: map[model.LocaleID]corebrand.LocaleOverride{
+		Tone: coreprofile.ToneProfile{Formality: "casual", Guidelines: "Address the reader as a peer"},
+		Locales: map[model.LocaleID]coreprofile.LocaleOverride{
 			"fr": {Formality: "formal"},
 		},
 	}
 	brandCtx := editorBrandContext{
-		Brand:            &editorFakeBrandStore{profiles: map[string]*corebrand.VoiceProfile{"bp-1": profile}},
+		Brand:            &editorFakeBrandStore{profiles: map[string]*coreprofile.VoiceProfile{"bp-1": profile}},
 		WorkspaceDefault: editorFakeWorkspaceDefault{id: "bp-1"},
 		Stores:           wsStores,
 	}
@@ -103,7 +103,7 @@ func TestEditorTranslateConfigCarriesBrandContext(t *testing.T) {
 	require.NotNil(t, cfg.Profile)
 	assert.Equal(t, "Acme Voice", cfg.Profile.Name)
 	assert.Equal(t, "formal", cfg.Profile.Tone.Formality, "the target locale's override must be applied")
-	guide := corebrand.RenderVoiceGuideCompact(cfg.Profile)
+	guide := coreprofile.RenderVoiceGuideCompact(cfg.Profile)
 	assert.Contains(t, guide, "formality: formal")
 	assert.Contains(t, guide, "Address the reader as a peer")
 	assert.Equal(t, map[string]string{"software": "logiciel"}, cfg.Glossary)
@@ -166,7 +166,7 @@ func TestEditorTranslateConfigDegradesGracefully(t *testing.T) {
 
 	brandCtx := editorBrandContext{
 		// The workspace default names a profile the store cannot resolve.
-		Brand:            &editorFakeBrandStore{profiles: map[string]*corebrand.VoiceProfile{}},
+		Brand:            &editorFakeBrandStore{profiles: map[string]*coreprofile.VoiceProfile{}},
 		WorkspaceDefault: editorFakeWorkspaceDefault{id: "gone"},
 		// No pgDB and no factory: getTB fails.
 		Stores: newWorkspaceStores(),

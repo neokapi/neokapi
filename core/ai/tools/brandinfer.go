@@ -9,8 +9,8 @@ import (
 	"sync"
 
 	"github.com/neokapi/neokapi/core/ai/prompt"
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -71,19 +71,19 @@ type DraftEvidence struct {
 // InferVoiceProfile infers a draft brand voice profile from a text corpus
 // using the given LLM provider — the inverse of the brand-voice-check tool,
 // which scores text against an existing profile. It returns the draft profile
-// (mapped into the canonical brand.VoiceProfile shape) plus a DraftEvidence
+// (mapped into the canonical profile.VoiceProfile shape) plus a DraftEvidence
 // sidecar carrying the model's per-field confidence and source notes.
 //
 // An empty (or whitespace-only) corpus returns ErrEmptyCorpus; a tiny corpus
 // is analyzed as-is and simply yields a low-evidence draft.
-func InferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, corpus string, opts InferOptions) (*brand.VoiceProfile, *DraftEvidence, error) {
+func InferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, corpus string, opts InferOptions) (*profile.VoiceProfile, *DraftEvidence, error) {
 	draft, evidence, _, err := inferVoiceProfile(ctx, provider, corpus, opts)
 	return draft, evidence, err
 }
 
 // inferVoiceProfile is InferVoiceProfile plus the provider token usage, for
 // callers (the tool) that account usage.
-func inferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, corpus string, opts InferOptions) (*brand.VoiceProfile, *DraftEvidence, aiprovider.TokenUsage, error) {
+func inferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, corpus string, opts InferOptions) (*profile.VoiceProfile, *DraftEvidence, aiprovider.TokenUsage, error) {
 	var usage aiprovider.TokenUsage
 	if provider == nil {
 		return nil, nil, usage, errors.New("brand-voice-infer: nil provider")
@@ -113,7 +113,7 @@ func inferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, cor
 }
 
 // brandVoiceInferSchema returns the JSON schema for structured voice-profile
-// inference output. The shape maps 1:1 into a brand.VoiceProfile subset plus
+// inference output. The shape maps 1:1 into a profile.VoiceProfile subset plus
 // the per-field evidence sidecar.
 func brandVoiceInferSchema() aiprovider.JSONSchema {
 	pattern := map[string]any{
@@ -269,26 +269,26 @@ type inferEvidenceResult struct {
 }
 
 // mapInferResult maps the structured LLM result into the canonical
-// brand.VoiceProfile shape plus the DraftEvidence sidecar. Confidences are
+// profile.VoiceProfile shape plus the DraftEvidence sidecar. Confidences are
 // clamped to [0,1]; empty terms, patterns, and examples are dropped.
-func mapInferResult(res inferLLMResult, opts InferOptions) (*brand.VoiceProfile, *DraftEvidence) {
-	draft := &brand.VoiceProfile{
+func mapInferResult(res inferLLMResult, opts InferOptions) (*profile.VoiceProfile, *DraftEvidence) {
+	draft := &profile.VoiceProfile{
 		Name:        opts.ProfileName,
 		Description: "Draft brand voice profile inferred from a content corpus. Review and adjust before adopting.",
-		Tone: brand.ToneProfile{
+		Tone: profile.ToneProfile{
 			Personality: res.Tone.Personality,
 			Formality:   res.Tone.Formality,
 			Emotion:     res.Tone.Emotion,
 			Humor:       res.Tone.Humor,
 			Guidelines:  res.Tone.Guidelines,
 		},
-		Style: brand.StyleRules{
+		Style: profile.StyleRules{
 			ActiveVoice:    res.Style.ActiveVoice,
 			SentenceLength: res.Style.SentenceLength,
 			PersonPOV:      res.Style.PersonPOV,
 			Contractions:   res.Style.Contractions,
 		},
-		Vocabulary: brand.VocabularyRules{
+		Vocabulary: profile.VocabularyRules{
 			PreferredTerms:  mapInferTermRules(res.Vocabulary.Preferred),
 			ForbiddenTerms:  mapInferTermRules(res.Vocabulary.Forbidden),
 			CompetitorTerms: mapInferTermRules(res.Vocabulary.Competitor),
@@ -298,7 +298,7 @@ func mapInferResult(res inferLLMResult, opts InferOptions) (*brand.VoiceProfile,
 		if strings.TrimSpace(p.Regex) == "" {
 			continue
 		}
-		draft.Style.ProhibitedPatterns = append(draft.Style.ProhibitedPatterns, brand.Pattern{
+		draft.Style.ProhibitedPatterns = append(draft.Style.ProhibitedPatterns, profile.Pattern{
 			Regex:       p.Regex,
 			Description: p.Description,
 			Severity:    p.Severity,
@@ -311,7 +311,7 @@ func mapInferResult(res inferLLMResult, opts InferOptions) (*brand.VoiceProfile,
 		if strings.TrimSpace(ex.Before) == "" && strings.TrimSpace(ex.After) == "" {
 			continue
 		}
-		draft.Examples = append(draft.Examples, brand.VoiceExample{
+		draft.Examples = append(draft.Examples, profile.VoiceExample{
 			Before:      ex.Before,
 			After:       ex.After,
 			Explanation: ex.Explanation,
@@ -332,15 +332,15 @@ func mapInferResult(res inferLLMResult, opts InferOptions) (*brand.VoiceProfile,
 	return draft, evidence
 }
 
-// mapInferTermRules maps LLM term entries into brand.TermRule, dropping
+// mapInferTermRules maps LLM term entries into profile.TermRule, dropping
 // entries with no term.
-func mapInferTermRules(in []inferTermResult) []brand.TermRule {
-	var out []brand.TermRule
+func mapInferTermRules(in []inferTermResult) []profile.TermRule {
+	var out []profile.TermRule
 	for _, t := range in {
 		if strings.TrimSpace(t.Term) == "" {
 			continue
 		}
-		out = append(out, brand.TermRule{Term: t.Term, Replacement: t.Replacement, Note: t.Note})
+		out = append(out, profile.TermRule{Term: t.Term, Replacement: t.Replacement, Note: t.Note})
 	}
 	return out
 }
@@ -387,7 +387,7 @@ type BrandVoiceInferTool struct {
 	opts     InferOptions
 
 	mu       sync.Mutex
-	draft    *brand.VoiceProfile
+	draft    *profile.VoiceProfile
 	evidence *DraftEvidence
 }
 
@@ -498,7 +498,7 @@ func (t *BrandVoiceInferTool) Process(ctx context.Context, in <-chan *model.Part
 
 // Draft returns the inferred draft profile and its evidence sidecar. Both are
 // nil until Process has completed over a stream containing translatable text.
-func (t *BrandVoiceInferTool) Draft() (*brand.VoiceProfile, *DraftEvidence) {
+func (t *BrandVoiceInferTool) Draft() (*profile.VoiceProfile, *DraftEvidence) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.draft, t.evidence

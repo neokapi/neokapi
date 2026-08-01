@@ -11,9 +11,9 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/host/pluginhost"
 )
 
@@ -59,7 +59,7 @@ const DefaultVoiceSimilarity = 0.80
 // voiceExamples returns the on-voice reference texts from a profile (its
 // examples' "after" strings — the desired voice). Empty when the profile has no
 // examples, in which case the voice check has nothing to compare against.
-func voiceExamples(p *brand.VoiceProfile) []string {
+func voiceExamples(p *profile.VoiceProfile) []string {
 	if p == nil {
 		return nil
 	}

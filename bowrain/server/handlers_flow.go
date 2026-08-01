@@ -34,7 +34,7 @@ func (s *Server) HandleListFlowDefinitions(c echo.Context) error {
 	if s.FlowDefStore != nil {
 		stored, err := s.FlowDefStore.List(c.Request().Context(), projectID)
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 		defs = append(defs, stored...)
 	}
@@ -62,7 +62,7 @@ func (s *Server) HandleGetFlowDefinition(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "flow not found"})
 	}
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, def)
 }
@@ -92,11 +92,11 @@ func (s *Server) HandleCreateFlowDefinition(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 	if err := s.FlowDefStore.Upsert(c.Request().Context(), projectID, &def); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	stored, err := s.FlowDefStore.Get(c.Request().Context(), projectID, def.ID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusCreated, stored)
 }
@@ -125,11 +125,11 @@ func (s *Server) HandleUpdateFlowDefinition(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 	if err := s.FlowDefStore.Upsert(c.Request().Context(), projectID, &def); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	stored, err := s.FlowDefStore.Get(c.Request().Context(), projectID, flowID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, stored)
 }
@@ -151,7 +151,7 @@ func (s *Server) HandleDeleteFlowDefinition(c echo.Context) error {
 		if errors.Is(err, bstore.ErrFlowDefNotFound) {
 			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "flow not found"})
 		}
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.NoContent(http.StatusNoContent)
 }

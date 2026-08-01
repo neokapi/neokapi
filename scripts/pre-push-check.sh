@@ -69,6 +69,12 @@ echo ""
 
 run_check "Absolute home paths" ./scripts/check-abs-paths.sh
 
+# Ungated too: retired framing lands wherever prose is edited, and it degrades
+# quietly — a stale phrase reads as intentional to the next reader.
+run_check "Retired framing in user-facing prose" ./scripts/check-vocabulary.sh
+
+run_check "Reference dataset provenance" ./scripts/check-reference-provenance.sh
+
 # Ungated for the same reason, plus one specific to this repo: the bowrain
 # checks below are gated on ^bowrain/core/ and ^bowrain/plugin/ only, so the
 # main bowrain module has no local format gate at all — which is how nine files

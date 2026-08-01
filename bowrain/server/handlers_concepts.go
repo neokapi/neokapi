@@ -168,7 +168,7 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 
 	tb, err := s.wsStores.getTB(ws)
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 
 	ctx := c.Request().Context()
@@ -182,7 +182,7 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 		concepts, total, err = tb.Search(ctx, query, locale, "", offset, limit)
 	}
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Post-filter the page by the graph-specific facets. These facets are derived
@@ -219,11 +219,11 @@ func (s *Server) HandleGetConceptCount(c echo.Context) error {
 	}
 	tb, err := s.wsStores.getTB(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	count, err := tb.Count(c.Request().Context())
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]int{"count": count})
 }
@@ -255,7 +255,7 @@ func (s *Server) HandleCreateConcept(c echo.Context) error {
 
 	tb, err := s.wsStores.getTB(ws)
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	concept := terms.Concept{
 		ID:         id.New(),
@@ -273,7 +273,7 @@ func (s *Server) HandleCreateConcept(c echo.Context) error {
 		err = tb.AddConcept(c.Request().Context(), concept)
 	}
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
@@ -292,11 +292,11 @@ func (s *Server) HandleGetConcept(c echo.Context) error {
 	}
 	tb, err := s.wsStores.getTB(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	concept, ok, err := tb.GetConcept(c.Request().Context(), c.Param("cid"))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("concept %q not found", c.Param("cid"))})
@@ -328,12 +328,12 @@ func (s *Server) HandleUpdateConcept(c echo.Context) error {
 
 	tb, err := s.wsStores.getTB(ws)
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 
 	existing, ok, err := tb.GetConcept(c.Request().Context(), cid)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if !ok {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("concept %q not found", cid)})
@@ -350,7 +350,7 @@ func (s *Server) HandleUpdateConcept(c echo.Context) error {
 	existing.UpdatedAt = time.Now()
 
 	if err := tb.AddConcept(c.Request().Context(), existing); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
@@ -391,7 +391,7 @@ func (s *Server) HandleGetConceptStory(c echo.Context) error {
 
 	revisions, err := s.KnowledgeStore.ListRevisions(ctx, wsID, cid)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	for _, r := range revisions {
 		entries = append(entries, ConceptStoryEntry{
@@ -406,7 +406,7 @@ func (s *Server) HandleGetConceptStory(c echo.Context) error {
 
 	observations, err := s.KnowledgeStore.ListObservationsByConcept(ctx, wsID, cid)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	for _, o := range observations {
 		entries = append(entries, ConceptStoryEntry{
@@ -421,7 +421,7 @@ func (s *Server) HandleGetConceptStory(c echo.Context) error {
 
 	comments, err := s.KnowledgeStore.ListCommentsByConcept(ctx, wsID, cid)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	for _, cm := range comments {
 		entries = append(entries, ConceptStoryEntry{
@@ -437,12 +437,12 @@ func (s *Server) HandleGetConceptStory(c echo.Context) error {
 	// Change-sets whose ops touch this concept.
 	changesets, err := s.KnowledgeStore.ListChangeSets(ctx, wsID, "")
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	for _, cs := range changesets {
 		ops, err := s.KnowledgeStore.ListOps(ctx, wsID, cs.ID)
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 		if !changeSetTouchesConcept(ops, cid) {
 			continue
@@ -480,11 +480,11 @@ func (s *Server) HandleListConceptRelations(c echo.Context) error {
 	}
 	tb, err := s.wsStores.getTB(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	rels, err := tb.RelationsOf(c.Request().Context(), c.Param("cid"), scopeFromQuery(c))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if rels == nil {
 		rels = []terms.ConceptRelation{}
@@ -519,7 +519,7 @@ func (s *Server) HandleAddConceptRelation(c echo.Context) error {
 
 	tb, err := s.wsStores.getTB(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	rel := terms.ConceptRelation{
 		ID:           id.New(),
@@ -555,7 +555,7 @@ func (s *Server) HandleDeleteConceptRelation(c echo.Context) error {
 
 	tb, err := s.wsStores.getTB(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	if err := tb.DeleteRelation(c.Request().Context(), c.Param("rid")); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
@@ -585,7 +585,7 @@ func (s *Server) HandleConceptBlastRadius(c echo.Context) error {
 	}
 	engine, err := s.knowledgeEngineFor(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	opts := knowledge.EvalOptions{}
 	if raw := c.QueryParam("locales"); raw != "" {
@@ -598,7 +598,7 @@ func (s *Server) HandleConceptBlastRadius(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	usage, err := engine.ConceptUsage(c.Request().Context(), wsID, c.Param("cid"), opts)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, usage)
 }
@@ -618,7 +618,7 @@ func (s *Server) HandleListObservations(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	obs, err := s.KnowledgeStore.ListObservationsByConcept(c.Request().Context(), wsID, c.Param("cid"))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if obs == nil {
 		obs = []*knowledge.Observation{}
@@ -664,7 +664,7 @@ func (s *Server) HandleAddObservation(c echo.Context) error {
 		CreatedBy:   actor,
 	}
 	if err := s.KnowledgeStore.AddObservation(c.Request().Context(), obs); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
@@ -703,7 +703,7 @@ func (s *Server) HandleListConceptComments(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	comments, err := s.KnowledgeStore.ListCommentsByConcept(c.Request().Context(), wsID, c.Param("cid"))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if comments == nil {
 		comments = []*knowledge.Comment{}
@@ -741,7 +741,7 @@ func (s *Server) HandleAddConceptComment(c echo.Context) error {
 		Author:      actor,
 	}
 	if err := s.KnowledgeStore.AddComment(c.Request().Context(), comment); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
@@ -800,7 +800,7 @@ func (s *Server) HandleListMarkets(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	markets, err := s.KnowledgeStore.ListMarkets(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	if markets == nil {
 		markets = []*knowledge.Market{}
@@ -833,7 +833,7 @@ func (s *Server) HandleCreateMarket(c echo.Context) error {
 		Locales:     localeIDs(req.Locales),
 	}
 	if err := s.KnowledgeStore.CreateMarket(c.Request().Context(), market); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusCreated, market)
 }
@@ -868,7 +868,7 @@ func (s *Server) HandleUpdateMarket(c echo.Context) error {
 		existing.Locales = localeIDs(req.Locales)
 	}
 	if err := s.KnowledgeStore.UpdateMarket(ctx, existing); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, existing)
 }
@@ -907,7 +907,7 @@ func (s *Server) HandleImportConceptsCSV(c echo.Context) error {
 	}
 	tb, err := s.wsStores.getTB(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	count, err := terms.ImportCSV(c.Request().Context(), tb, strings.NewReader(req.CSVContent), terms.CSVImportOptions{
 		HasHeader:    req.HasHeader,
@@ -916,7 +916,7 @@ func (s *Server) HandleImportConceptsCSV(c echo.Context) error {
 		Domain:       req.Domain,
 	})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]int{"imported": count})
 }
@@ -936,11 +936,11 @@ func (s *Server) HandleImportConceptsJSON(c echo.Context) error {
 	}
 	tb, err := s.wsStores.getTB(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	count, err := terms.ImportJSON(c.Request().Context(), tb, strings.NewReader(req.JSONContent))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]int{"imported": count})
 }
@@ -955,11 +955,11 @@ func (s *Server) HandleExportConceptsJSON(c echo.Context) error {
 	}
 	tb, err := s.wsStores.getTB(c.Param("ws"))
 	if err != nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}
 	var buf strings.Builder
 	if err := terms.ExportJSON(c.Request().Context(), tb, &buf, c.QueryParam("name")); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSONBlob(http.StatusOK, []byte(buf.String()))
 }

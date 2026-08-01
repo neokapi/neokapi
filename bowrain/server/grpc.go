@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/core/connector"
@@ -15,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/yaml.v3"
@@ -332,36 +334,72 @@ func (g *GRPCServer) ExecuteFlow(req *pb.ExecuteFlowRequest, stream pb.NeokapiSe
 	}
 	close(in)
 
+	// Each tool runs in its own goroutine, so a failure cannot be returned — it
+	// has to be carried out of the group. A tool that stops early still closes
+	// its output, and the stage below reads that as "the stream ended", which
+	// is indistinguishable from success. Discarding the error meant a flow that
+	// died in the middle answered "complete", over however many blocks happened
+	// to reach the end before it died.
+	//
+	// This is the shape core/flow's executor already uses for the same
+	// construction: errgroup.WithContext, so the first failure cancels the
+	// remaining stages instead of leaving them blocked on a channel nobody is
+	// draining, and a panic converted into an error rather than logged —
+	// errgroup does not recover, and an unrecovered panic on one of these
+	// goroutines would take the process with it.
+	eg, gctx := errgroup.WithContext(ctx)
+
 	out := in
-	for _, t := range tools {
+	for i, t := range tools {
 		nextOut := make(chan *model.Part, cap(in))
 		currentIn := out
 		currentTool := t
-		go func() {
+		toolName := cfg.Tools[i]
+		eg.Go(func() (err error) {
 			defer close(nextOut)
+			// Registered after the close, so it runs before it: the named
+			// return is set while the stage below is still waiting on the
+			// channel, never after.
 			defer func() {
 				if r := recover(); r != nil {
-					slog.Error("recovered panic in gRPC tool goroutine", "panic", r)
+					slog.ErrorContext(gctx, "tool panicked during flow execution",
+						"flow", cfg.Name, "tool", toolName,
+						"panic", r, "stack", string(debug.Stack()))
+					// The stack stays in the log. The caller gets the tool.
+					err = fmt.Errorf("tool %s panicked", toolName)
 				}
 			}()
-			_ = currentTool.Process(ctx, currentIn, nextOut)
-		}()
+			if perr := currentTool.Process(gctx, currentIn, nextOut); perr != nil {
+				return fmt.Errorf("tool %s: %w", toolName, perr)
+			}
+			return nil
+		})
 		out = nextOut
 	}
 
-	// Collect processed blocks.
+	// Drain the tail before waiting, never after: a stage that fails stops
+	// reading its input, and the stage above it can only finish once something
+	// empties the channel between them.
 	var processed int
 	for part := range out {
 		if part.Type == model.PartBlock {
 			processed++
 		}
 	}
+	if err := eg.Wait(); err != nil {
+		slog.ErrorContext(ctx, "flow execution failed",
+			"flow", cfg.Name, "processed", processed, "total", len(blocks), "error", err)
+		return status.Errorf(codes.Internal, "flow %q failed: %v", cfg.Name, err)
+	}
 
-	// Send completion.
+	// Send completion. processed and total are reported as fields rather than
+	// only as prose, so a client can see a short count for itself.
 	return stream.Send(&pb.FlowProgressResponse{
-		Stage:   "complete",
-		Done:    true,
-		Message: fmt.Sprintf("flow %q completed: processed %d blocks", cfg.Name, processed),
+		Stage:     "complete",
+		Done:      true,
+		Processed: int32(processed),
+		Total:     int32(len(blocks)),
+		Message:   fmt.Sprintf("flow %q completed: processed %d blocks", cfg.Name, processed),
 	})
 }
 

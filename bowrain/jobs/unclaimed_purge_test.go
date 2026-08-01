@@ -2,38 +2,17 @@ package jobs
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// newPurgeTestDB opens a real PostgreSQL from BOWRAIN_TEST_DATABASE_URL, closed
-// per test (keeps the package goleak check green), cleaning the tables the
-// purge touches. Skips when the env var is unset.
-func newPurgeTestDB(t *testing.T) *storage.PgDB {
-	t.Helper()
-	dbURL := os.Getenv("BOWRAIN_TEST_DATABASE_URL")
-	if dbURL == "" {
-		t.Skip("BOWRAIN_TEST_DATABASE_URL not set")
-	}
-	db, err := storage.OpenPostgres(dbURL)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		ctx := context.Background()
-		_, _ = db.ExecContext(ctx, "DELETE FROM projects")
-		_, _ = db.ExecContext(ctx, "DELETE FROM unclaimed_projects")
-		closePgDB(db)
-	})
-	return db
-}
 
 // seedUnclaimed inserts an unclaimed auth record plus its content-store project.
 func seedUnclaimed(t *testing.T, authStore *auth.PostgresAuthStore, cs store.ContentStore, projectID, tokenHash, workspaceID string, expiresAt time.Time) {
@@ -50,7 +29,7 @@ func seedUnclaimed(t *testing.T, authStore *auth.PostgresAuthStore, cs store.Con
 }
 
 func TestUnclaimedProjectPurger_PurgeOnce(t *testing.T) {
-	db := newPurgeTestDB(t)
+	db := pgtest.NewTestDB(t)
 	ctx := context.Background()
 
 	authStore, err := auth.NewAuthStoreFromDB(db)
@@ -121,7 +100,7 @@ func TestUnclaimedProjectPurger_PurgeOnce(t *testing.T) {
 }
 
 func TestPgUnclaimedLister_ListsOnlyExpired(t *testing.T) {
-	db := newPurgeTestDB(t)
+	db := pgtest.NewTestDB(t)
 	ctx := context.Background()
 
 	authStore, err := auth.NewAuthStoreFromDB(db)

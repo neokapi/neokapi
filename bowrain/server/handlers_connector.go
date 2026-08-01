@@ -134,7 +134,7 @@ func (s *Server) HandleListActiveConnectors(c echo.Context) error {
 	if s.ConnectorConfigStore != nil {
 		configs, err := s.ConnectorConfigStore.List(c.Request().Context(), wsID)
 		if err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 		result := make([]connectorInfo, len(configs))
 		for i, cfg := range configs {
@@ -204,7 +204,7 @@ func (s *Server) HandleAddConnector(c echo.Context) error {
 			Config:      req.Config,
 		}); err != nil {
 			_ = s.Services.Connector.RemoveConnector(wsID, conn.ID())
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 	}
 
@@ -245,7 +245,7 @@ func (s *Server) HandleUpdateConnector(c echo.Context) error {
 		if errors.Is(err, bstore.ErrConnectorConfigNotFound) {
 			return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 		}
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	connType := req.Type
 	if connType == "" {
@@ -269,7 +269,7 @@ func (s *Server) HandleUpdateConnector(c echo.Context) error {
 		Config:      req.Config,
 	})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Re-read the effective (decrypted) config — this is the persisted config
@@ -277,7 +277,7 @@ func (s *Server) HandleUpdateConnector(c echo.Context) error {
 	// the live instance from it so the running connector matches what is stored.
 	effective, err := s.ConnectorConfigStore.Get(c.Request().Context(), wsID, id)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	config := effective.Config
 	if config == nil {
@@ -328,7 +328,7 @@ func (s *Server) HandleRemoveConnector(c echo.Context) error {
 			if errors.Is(err, bstore.ErrConnectorConfigNotFound) {
 				return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 			}
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 		return c.NoContent(http.StatusNoContent)
 	}
@@ -369,7 +369,7 @@ func (s *Server) HandleFetch(c echo.Context) error {
 	})
 	if err != nil {
 		s.setConnectorLastError(c.Request().Context(), wsID, connID, err)
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.touchConnectorLastSync(c.Request().Context(), wsID, connID)
 
@@ -395,7 +395,7 @@ func (s *Server) HandlePublish(c echo.Context) error {
 		Message: req.Message,
 	})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.touchConnectorLastSync(c.Request().Context(), wsID, connID)
 
@@ -527,7 +527,7 @@ func (s *Server) HandleConnectorContent(c echo.Context) error {
 		if errors.Is(err, service.ErrConnectorNotFound) {
 			return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 		}
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	items = filterContentByPaths(items, c.QueryParam("paths"))
 	if items == nil {

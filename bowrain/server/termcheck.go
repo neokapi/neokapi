@@ -2,12 +2,13 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	"github.com/neokapi/neokapi/bowrain/core/brandscope"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -20,7 +21,7 @@ import (
 //
 //   - PRESENCE: the target CONTAINS a forbidden or competitor term — drawn from
 //     the terms store (LookupAll, the same matcher the concept blast radius and RV-E
-//     use) AND from the brand profile's vocabulary (core/brand.MatchVocabulary,
+//     use) AND from the brand profile's vocabulary (core/profile.MatchVocabulary,
 //     the single brand-vocab matcher the brand-vocab-check tool and blast radius
 //     call).
 //   - ABSENCE: the source uses a concept that MANDATES a preferred/approved
@@ -47,7 +48,7 @@ import (
 // and always reports compliant, so a project with no terminology governance is
 // byte-identical to the pre-term behavior. An empty (untranslated) target is
 // vacuously compliant — there is nothing to check.
-func blockTermCompliant(ctx context.Context, block *model.Block, srcLoc, tgtLoc model.LocaleID, tb terms.Terminology, profile *corebrand.VoiceProfile) bool {
+func blockTermCompliant(ctx context.Context, block *model.Block, srcLoc, tgtLoc model.LocaleID, tb terms.Terminology, profile *coreprofile.VoiceProfile) bool {
 	if block == nil {
 		return true
 	}
@@ -60,8 +61,8 @@ func blockTermCompliant(ctx context.Context, block *model.Block, srcLoc, tgtLoc 
 		return false
 	}
 	// PRESENCE (brand vocabulary): a forbidden/competitor brand rule matches the
-	// target. core/brand.MatchVocabulary is the canonical brand-vocab matcher.
-	if profile != nil && len(corebrand.MatchVocabulary(profile, targetText)) > 0 {
+	// target. core/profile.MatchVocabulary is the canonical brand-vocab matcher.
+	if profile != nil && len(coreprofile.MatchVocabulary(profile, targetText)) > 0 {
 		return false
 	}
 	// ABSENCE (terms): the source uses a concept whose mandated rendering for
@@ -155,19 +156,19 @@ func containsFold(s, substr string) bool {
 type termGate struct {
 	srcLoc     model.LocaleID
 	tb         terms.Terminology // in-memory snapshot; nil = no terms governance
-	resolve    func(ctx context.Context, loc model.LocaleID) *corebrand.VoiceProfile
-	profiles   map[model.LocaleID]*corebrand.VoiceProfile
+	resolve    func(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile
+	profiles   map[model.LocaleID]*coreprofile.VoiceProfile
 	profileSet map[model.LocaleID]bool
 }
 
 // newTermGate builds a gate around an already-resolved terms snapshot and a
 // per-locale profile resolver. Either input may be absent (nil tb / nil resolve).
-func newTermGate(srcLoc model.LocaleID, tb terms.Terminology, resolve func(ctx context.Context, loc model.LocaleID) *corebrand.VoiceProfile) *termGate {
+func newTermGate(srcLoc model.LocaleID, tb terms.Terminology, resolve func(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile) *termGate {
 	return &termGate{
 		srcLoc:     srcLoc,
 		tb:         tb,
 		resolve:    resolve,
-		profiles:   map[model.LocaleID]*corebrand.VoiceProfile{},
+		profiles:   map[model.LocaleID]*coreprofile.VoiceProfile{},
 		profileSet: map[model.LocaleID]bool{},
 	}
 }
@@ -175,7 +176,7 @@ func newTermGate(srcLoc model.LocaleID, tb terms.Terminology, resolve func(ctx c
 // profileFor resolves (and caches) the brand voice profile for one target locale.
 // The resolver runs at most once per locale across the whole pass — never per
 // block — so the ship/on-brand pass adds no per-block store reads.
-func (g *termGate) profileFor(ctx context.Context, loc model.LocaleID) *corebrand.VoiceProfile {
+func (g *termGate) profileFor(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile {
 	if g == nil || g.resolve == nil {
 		return nil
 	}
@@ -235,13 +236,13 @@ func (s *Server) resolveTermGate(ctx context.Context, proj *store.Project, strea
 
 	// Brand-profile resolver: the same hierarchical binding ladder the editor and
 	// worker resolve through (brandscope.Resolve), scoped per target locale.
-	var resolve func(ctx context.Context, loc model.LocaleID) *corebrand.VoiceProfile
+	var resolve func(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile
 	if s.BrandStore != nil {
 		var wd brandscope.WorkspaceDefault
 		if s.AuthStore != nil {
 			wd = &mcpWorkspaceDefaultAdapter{auth: s.AuthStore}
 		}
-		resolve = func(ctx context.Context, loc model.LocaleID) *corebrand.VoiceProfile {
+		resolve = func(ctx context.Context, loc model.LocaleID) *coreprofile.VoiceProfile {
 			profile, err := brandscope.Resolve(ctx, s.ContentStore, wd, s.BrandStore, brandscope.Scope{
 				WorkspaceID: wsID,
 				ProjectID:   proj.ID,
@@ -274,7 +275,14 @@ func snapshotTerms(ctx context.Context, tb terms.Store) terms.Terminology {
 	}
 	mem := terms.NewInMemoryStore()
 	for _, c := range concepts {
-		_ = mem.AddConcept(ctx, c)
+		// A concept that does not make it into the snapshot is a term the
+		// on-brand gate then fails to enforce, silently and for that check
+		// only. Nothing here can repair it mid-snapshot, so it is logged and
+		// the gate runs on what it has.
+		if err := mem.AddConcept(ctx, c); err != nil {
+			slog.ErrorContext(ctx, "termcheck: concept omitted from the snapshot; it will not be enforced",
+				"concept", c.ID, "error", err)
+		}
 	}
 	return mem
 }

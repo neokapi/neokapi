@@ -4,7 +4,7 @@
 # references, with ONE narrow, capped exception (R9): a sanctioned
 # ":::note[Works with Bowrain]" admonition at defined seams — currently the
 # kapi-bowrain plugin reference entry, governed team review, cross-project
-# brand memory, and the CI loop page. R9 amends the no-mention rule to allow
+# context, and the CI loop page. R9 amends the no-mention rule to allow
 # AT MOST `MAX_SANCTIONED_CALLOUTS` of these neutral callouts; it does not
 # open the door to bowrain mentions anywhere else. bowrain is otherwise a
 # strictly DOWNSTREAM product (AD-001); its docs live in bowrain/web/docs/.

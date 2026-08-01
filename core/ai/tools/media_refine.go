@@ -69,7 +69,15 @@ func (r MediaRef) localPath() (path string, cleanup func(), err error) {
 		_ = os.Remove(tmp.Name())
 		return "", noop, fmt.Errorf("media-refine: spool source: %w", werr)
 	}
-	_ = tmp.Close()
+	// Checked on the success path too. A successful Write does not mean the
+	// bytes reached the disk: the write can still fail at Close (a full
+	// filesystem, a quota, a failing network mount). Discarding that error
+	// hands the slicer a silently TRUNCATED file, and the fault resurfaces as a
+	// decode error that names the wrong cause, far from where it happened.
+	if cerr := tmp.Close(); cerr != nil {
+		_ = os.Remove(tmp.Name())
+		return "", noop, fmt.Errorf("media-refine: spool source: close: %w", cerr)
+	}
 	return tmp.Name(), func() { _ = os.Remove(tmp.Name()) }, nil
 }
 

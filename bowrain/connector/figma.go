@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"maps"
 	"net/http"
 	"time"
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
-	"github.com/neokapi/neokapi/bowrain/resilience"
+	"github.com/neokapi/neokapi/bowrain/safehttp"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -68,7 +67,7 @@ func NewFigmaConnector(config map[string]string) (*FigmaConnector, error) {
 		connName: config["name"],
 		fileKey:  fileKey,
 		token:    token,
-		client:   resilience.Client("connector:figma", resilience.KindConnector, 30*time.Second),
+		client:   remoteClient("connector:figma"),
 		config:   config,
 	}, nil
 }
@@ -149,8 +148,8 @@ func (c *FigmaConnector) fetchFile(ctx context.Context) (*figmaFile, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("figma API: HTTP %d: %s", resp.StatusCode, string(body))
+		safehttp.Drain(resp.Body, errorBodyLimit)
+		return nil, fmt.Errorf("figma API: HTTP %d", resp.StatusCode)
 	}
 
 	var file figmaFile

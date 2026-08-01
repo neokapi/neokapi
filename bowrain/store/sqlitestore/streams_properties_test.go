@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	corebrand "github.com/neokapi/neokapi/core/brand"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,22 +21,22 @@ func TestStreamProperties_RoundTrip(t *testing.T) {
 	require.NoError(t, s.CreateStream(ctx, &platstore.Stream{
 		ProjectID:  p.ID,
 		Name:       "v2",
-		Properties: map[string]string{corebrand.PropertyProfileID: "profile-abc"},
+		Properties: map[string]string{coreprofile.PropertyProfileID: "profile-abc"},
 	}))
 
 	got, err := s.GetStream(ctx, p.ID, "v2")
 	require.NoError(t, err)
-	assert.Equal(t, "profile-abc", got.Properties[corebrand.PropertyProfileID],
+	assert.Equal(t, "profile-abc", got.Properties[coreprofile.PropertyProfileID],
 		"stream brand-voice binding survives create/read")
 
 	// A property update must merge-persist through UpdateStream.
-	got.Properties[corebrand.PropertyChannel] = "email"
+	got.Properties[coreprofile.PropertyChannel] = "email"
 	require.NoError(t, s.UpdateStream(ctx, got))
 
 	reloaded, err := s.GetStream(ctx, p.ID, "v2")
 	require.NoError(t, err)
-	assert.Equal(t, "profile-abc", reloaded.Properties[corebrand.PropertyProfileID])
-	assert.Equal(t, "email", reloaded.Properties[corebrand.PropertyChannel])
+	assert.Equal(t, "profile-abc", reloaded.Properties[coreprofile.PropertyProfileID])
+	assert.Equal(t, "email", reloaded.Properties[coreprofile.PropertyChannel])
 }
 
 // TestStreamProperties_EmptyDefaults verifies a stream created without

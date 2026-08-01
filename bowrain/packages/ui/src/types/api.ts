@@ -2115,6 +2115,22 @@ export interface BrandScanCheckResult {
   findings: unknown[];
 }
 
+/** The signed state that ties a GitHub App installation back to the workspace
+ * that started the install. It travels to GitHub as the install URL's `state`
+ * and comes back on the setup redirect. */
+export interface GitHubSetupState {
+  state: string;
+  /** Seconds the state stays valid. */
+  expires_in: number;
+}
+
+/** Result of claiming an installation for the current workspace. */
+export interface ClaimInstallationResult {
+  installation_id: number;
+  /** The GitHub organization or user the app is installed on, when known. */
+  account?: string;
+}
+
 /** One repository a GitHub App installation covers, with its binding if a
  * forge connector already tracks it. */
 export interface InstallationRepo {

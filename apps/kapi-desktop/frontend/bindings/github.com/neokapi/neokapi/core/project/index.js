@@ -6,6 +6,7 @@ export {
     BrandVoiceBinding,
     ContentCollection,
     ContentItem,
+    CoordinateValue,
     Defaults,
     FlowValidationIssue,
     FormatDefaults,
@@ -18,12 +19,25 @@ export {
     PluginIssue,
     PluginSpec,
     PluginStatus,
+    ProfileBinding,
     RedactionSpec,
     SegmentationDefaults,
     ShipGateRule
 } from "./models.js";
 
 import * as $models from "./models.js";
+
+/**
+ * Coordinates declares the axes of a project's context space: axis name → the
+ * values it may take.
+ * 
+ * An axis declared with no values is open — the recipe names the axis but not
+ * its values, and any well-formed slug is accepted on it. An axis absent from
+ * this map does not exist: naming it in a `context:` or a `when:` is a load
+ * error, so a misspelt axis cannot silently open a new dimension that nothing
+ * governs.
+ * @typedef {$models.Coordinates} Coordinates
+ */
 
 /**
  * RequiresMap is the type of KapiProject.Requires — a map of plugin name to

@@ -30,7 +30,7 @@ func (s *Server) HandleListAuditLog(c echo.Context) error {
 
 	entries, err := s.AuditLogger.ListAuditLog(c.Request().Context(), projectID, eventType, limit, offset)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	if entries == nil {
@@ -72,7 +72,7 @@ func (s *Server) HandleListWorkspaceAuditLog(c echo.Context) error {
 
 	entries, err := s.AuditLogger.QueryAuditLog(c.Request().Context(), q)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	if entries == nil {
@@ -95,7 +95,7 @@ func (s *Server) HandleVerifyWorkspaceAuditChain(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	v, err := s.AuditLogger.VerifyChain(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, v)
 }

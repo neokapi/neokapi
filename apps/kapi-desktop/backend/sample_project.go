@@ -37,7 +37,7 @@ func (a *App) CreateSampleProject(name string) (*TabInfo, error) {
 			return tab, nil
 		}
 		a.logger.Printf("sample %q recipe is stale/unparseable — re-scaffolding", name)
-		// Clear the regenerable state dir first: a tm.db / termbase.db left by an
+		// Clear the regenerable state dir first: a memory.db / terms.db left by an
 		// older app version carries an incompatible migration history, so re-seeding
 		// into it fails ("apply migration N: no such table ..."). Removing .kapi lets
 		// Scaffold create fresh DBs; the user's input/ and output/ are preserved.

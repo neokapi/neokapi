@@ -13,6 +13,7 @@ import (
 	"golang.org/x/text/encoding"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -322,7 +323,7 @@ func (w *Writer) writeFromSkeleton() (retErr error) {
 				// (file's target-language preferred over writer locale)
 				// to match okapi's "preserve declared target" rule.
 				text = fmt.Sprintf("<target xml:lang=\"%s\">%s</target>\n",
-					xmlEscapeAttr(string(injectLang)), inj)
+					xmlesc.Attr(string(injectLang)), inj)
 				if _, err := io.WriteString(out, text); err != nil {
 					return err
 				}
@@ -343,7 +344,7 @@ func (w *Writer) writeFromSkeleton() (retErr error) {
 				}
 				inj := wrapSegmentsAsMrk(segs, base)
 				text = fmt.Sprintf("<target xml:lang=\"%s\">%s</target>\n",
-					xmlEscapeAttr(string(injectLang)), inj)
+					xmlesc.Attr(string(injectLang)), inj)
 				if _, err := io.WriteString(out, text); err != nil {
 					return err
 				}
@@ -479,7 +480,7 @@ func injectTargetLanguage(tag []byte, targetLang string) []byte {
 	if closeIdx >= 1 && tag[closeIdx] == '>' && tag[closeIdx-1] == '/' {
 		closeIdx--
 	}
-	insert := fmt.Appendf(nil, ` target-language="%s"`, xmlEscapeAttr(targetLang))
+	insert := fmt.Appendf(nil, ` target-language="%s"`, xmlesc.Attr(targetLang))
 	out := make([]byte, 0, len(tag)+len(insert))
 	out = append(out, tag[:closeIdx]...)
 	out = append(out, insert...)
@@ -540,11 +541,11 @@ func renderXliffRuns(runs []model.Run) string {
 			b.WriteString(xmlEscapeText(r.Text.Text))
 		case r.Ph != nil:
 			b.WriteString(`<ph id="`)
-			b.WriteString(xmlEscapeAttr(r.Ph.ID))
+			b.WriteString(xmlesc.Attr(r.Ph.ID))
 			b.WriteString(`"`)
 			if r.Ph.Equiv != "" {
 				b.WriteString(` equiv-text="`)
-				b.WriteString(xmlEscapeAttr(r.Ph.Equiv))
+				b.WriteString(xmlesc.Attr(r.Ph.Equiv))
 				b.WriteString(`"`)
 			}
 			if r.Ph.Data != "" {
@@ -556,11 +557,11 @@ func renderXliffRuns(runs []model.Run) string {
 			}
 		case r.PcOpen != nil:
 			b.WriteString(`<bpt id="`)
-			b.WriteString(xmlEscapeAttr(r.PcOpen.ID))
+			b.WriteString(xmlesc.Attr(r.PcOpen.ID))
 			b.WriteString(`"`)
 			if r.PcOpen.Equiv != "" {
 				b.WriteString(` equiv-text="`)
-				b.WriteString(xmlEscapeAttr(r.PcOpen.Equiv))
+				b.WriteString(xmlesc.Attr(r.PcOpen.Equiv))
 				b.WriteString(`"`)
 			}
 			b.WriteString(`>`)
@@ -568,7 +569,7 @@ func renderXliffRuns(runs []model.Run) string {
 			b.WriteString(`</bpt>`)
 		case r.PcClose != nil:
 			b.WriteString(`<ept id="`)
-			b.WriteString(xmlEscapeAttr(r.PcClose.ID))
+			b.WriteString(xmlesc.Attr(r.PcClose.ID))
 			b.WriteString(`">`)
 			b.WriteString(xmlEscapeText(r.PcClose.Data))
 			b.WriteString(`</ept>`)
@@ -600,7 +601,7 @@ func (w *Writer) fullTargetElement(block *model.Block, targetLang, injectLang mo
 				}
 				b.WriteString(attr.Local)
 				b.WriteString(`="`)
-				b.WriteString(xmlEscapeAttr(attr.Value))
+				b.WriteString(xmlesc.Attr(attr.Value))
 				b.WriteString(`"`)
 			}
 		}
@@ -711,7 +712,7 @@ func wrapSegmentsAsMrk(segs, base []segView) string {
 	for i, s := range segs {
 		mid := midForSegView(s, i)
 		b.WriteString(`<mrk mid="`)
-		b.WriteString(xmlEscapeAttr(mid))
+		b.WriteString(xmlesc.Attr(mid))
 		b.WriteString(`" mtype="seg">`)
 		b.WriteString(renderSegmentWithBase(s, baseAt(base, i)))
 		b.WriteString(`</mrk>`)
@@ -771,9 +772,9 @@ func (w *Writer) flush() (retErr error) {
 
 	// Write file envelope
 	fmt.Fprintf(ew, `  <file original="%s" source-language="%s"`,
-		xmlEscapeAttr(w.fileName), xmlEscapeAttr(string(w.sourceLang)))
+		xmlesc.Attr(w.fileName), xmlesc.Attr(string(w.sourceLang)))
 	if !targetLang.IsEmpty() {
-		fmt.Fprintf(ew, ` target-language="%s"`, xmlEscapeAttr(string(targetLang)))
+		fmt.Fprintf(ew, ` target-language="%s"`, xmlesc.Attr(string(targetLang)))
 	}
 	fmt.Fprintf(ew, ` datatype="plaintext">`)
 	fmt.Fprintf(ew, "\n    <body>\n")
@@ -788,7 +789,7 @@ func (w *Writer) flush() (retErr error) {
 			continue
 		}
 
-		fmt.Fprintf(ew, `      <trans-unit id="%s"`, xmlEscapeAttr(block.ID))
+		fmt.Fprintf(ew, `      <trans-unit id="%s"`, xmlesc.Attr(block.ID))
 		if !block.Translatable {
 			fmt.Fprintf(ew, ` translate="no"`)
 		}
@@ -814,13 +815,13 @@ func (w *Writer) flush() (retErr error) {
 		for _, note := range block.Notes() {
 			fmt.Fprintf(ew, "        <note")
 			if note.From != "" {
-				fmt.Fprintf(ew, ` from="%s"`, xmlEscapeAttr(note.From))
+				fmt.Fprintf(ew, ` from="%s"`, xmlesc.Attr(note.From))
 			}
 			if note.Priority > 0 {
 				fmt.Fprintf(ew, ` priority="%d"`, note.Priority)
 			}
 			if note.Annotates != "" {
-				fmt.Fprintf(ew, ` annotates="%s"`, xmlEscapeAttr(note.Annotates))
+				fmt.Fprintf(ew, ` annotates="%s"`, xmlesc.Attr(note.Annotates))
 			}
 			fmt.Fprintf(ew, ">%s</note>\n", xmlEscapeText(note.Text))
 		}
@@ -832,7 +833,7 @@ func (w *Writer) flush() (retErr error) {
 				fmt.Fprintf(ew, ` match-quality="%.0f"`, alt.CombinedScore)
 			}
 			if alt.Origin != "" {
-				fmt.Fprintf(ew, ` origin="%s"`, xmlEscapeAttr(alt.Origin))
+				fmt.Fprintf(ew, ` origin="%s"`, xmlesc.Attr(alt.Origin))
 			}
 			fmt.Fprintf(ew, ">\n")
 			if len(alt.Source) > 0 {
@@ -840,7 +841,7 @@ func (w *Writer) flush() (retErr error) {
 			}
 			if len(alt.Target) > 0 {
 				fmt.Fprintf(ew, `          <target xml:lang="%s">%s</target>`+"\n",
-					xmlEscapeAttr(string(targetLang)), xmlEscapeText(model.FlattenRuns(alt.Target)))
+					xmlesc.Attr(string(targetLang)), xmlEscapeText(model.FlattenRuns(alt.Target)))
 			}
 			fmt.Fprintf(ew, "        </alt-trans>\n")
 		}

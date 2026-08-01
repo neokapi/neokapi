@@ -63,7 +63,7 @@ func TestPushUsesCorrectSyncPathsAndChunkHash(t *testing.T) {
 	}
 	_, err := c.Push(context.Background(),
 		map[string][]*model.Block{"locales/en.json": {blk}},
-		[]ItemMeta{{Name: "locales/en.json", Format: "json"}})
+		[]ItemMeta{{Name: "locales/en.json", Format: "json"}}, nil)
 	require.NoError(t, err)
 
 	// Guard #1: no doubled "/sync/", and all sync calls hit the AD-011 prefix.

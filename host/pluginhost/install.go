@@ -472,6 +472,10 @@ func prewarmFirstExec(ctx context.Context, binPath string) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binPath, "version")
+	// Setting Env matters even for a throwaway `version` call: leaving it nil
+	// inherits the parent environment wholesale, which is the leak this
+	// package otherwise avoids.
+	cmd.Env = pluginEnviron()
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
 	_ = cmd.Run()

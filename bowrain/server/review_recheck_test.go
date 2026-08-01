@@ -16,9 +16,9 @@ import (
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
@@ -130,6 +130,34 @@ func openFrReviewTasks(t *testing.T, s *Server, wsID, projID string) int {
 	return n
 }
 
+// awaitFrReviewTasks waits for the fr review queue to hold want open tasks.
+//
+// The demotion and the review task are written by two INDEPENDENT subscribers
+// of the same event — the re-check writes the block, the automation engine
+// writes the task — so having watched the demotion land says nothing about the
+// task. Reading the queue the instant the block flips is a race the test loses
+// under load; give the second subscriber its own chance to arrive.
+func awaitFrReviewTasks(t *testing.T, s *Server, wsID, projID string, want int) {
+	t.Helper()
+	require.Eventuallyf(t, func() bool {
+		res, err := s.TaskStore.List(context.Background(), bstore.TaskQuery{
+			WorkspaceID: wsID, ProjectID: projID, Type: string(bstore.TaskReview),
+			Statuses: []string{string(bstore.TaskStatusOpen), string(bstore.TaskStatusInProgress)},
+			Limit:    500,
+		})
+		if err != nil {
+			return false
+		}
+		n := 0
+		for _, tk := range res.Tasks {
+			if tk.Data["locale"] == "fr" {
+				n++
+			}
+		}
+		return n == want
+	}, 20*time.Second, 50*time.Millisecond, "the fr review queue should hold %d open task(s)", want)
+}
+
 // TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues (RV-E) is the required
 // end-to-end proof: a governed project with two APPROVED (reviewed) fr targets —
 // one that will violate a term, one that stays clean — has a concept marked with a
@@ -188,7 +216,7 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Hello"]),
 		"the conforming target is left untouched (no needless churn)")
 	assert.Equal(t, 1, frPendingCount(t, s, projID), "the pending-review count goes 0 → 1")
-	assert.Equal(t, 1, openFrReviewTasks(t, s, wsID, projID), "fr re-enters the review queue with exactly one task")
+	awaitFrReviewTasks(t, s, wsID, projID, 1) // fr re-enters the review queue with exactly one task
 
 	// No cascade: RV-E only demotes + re-queues; it must not start a convergence run.
 	runs, err := s.ConvergenceRunStore.ListRuns(ctx, projID, 20)
@@ -264,7 +292,7 @@ func TestReviewRecheck_ConceptMandatedTermAbsenceDemotesAndRequeues(t *testing.T
 	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Close the app"]),
 		"the target that already uses the mandated rendering is left untouched")
 	assert.Equal(t, 1, frPendingCount(t, s, projID), "the pending-review count goes 0 → 1")
-	assert.Equal(t, 1, openFrReviewTasks(t, s, wsID, projID), "fr re-enters the review queue with exactly one task")
+	awaitFrReviewTasks(t, s, wsID, projID, 1) // fr re-enters the review queue with exactly one task
 
 	runs, err := s.ConvergenceRunStore.ListRuns(ctx, projID, 20)
 	require.NoError(t, err)
@@ -291,12 +319,12 @@ func TestReviewRecheck_RulePromotionScopedToPromotedTerm(t *testing.T) {
 
 	// A profile with two forbidden terms: "ancien" (old) and "utiliser" (just
 	// promoted). Both are enforced rules, but only "utiliser" is being promoted now.
-	profile := &corebrand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID:          "p-rc",
 		Name:        "RC Voice",
 		WorkspaceID: wsID,
-		Vocabulary: corebrand.VocabularyRules{
-			ForbiddenTerms: []corebrand.TermRule{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "ancien"},
 				{Term: "utiliser"},
 			},
@@ -329,5 +357,5 @@ func TestReviewRecheck_RulePromotionScopedToPromotedTerm(t *testing.T) {
 	assert.Equal(t, model.TargetStatusReviewed, frStatus(t, s, projID, ids["Old flow"]),
 		"a target tripping only an OLDER rule is not swept up (scoped to the promoted term)")
 	assert.Equal(t, 1, frPendingCount(t, s, projID), "only the promoted-term violation re-enters review")
-	assert.Equal(t, 1, openFrReviewTasks(t, s, wsID, projID))
+	awaitFrReviewTasks(t, s, wsID, projID, 1)
 }

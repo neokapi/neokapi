@@ -52,7 +52,11 @@ export function MemoryRoute() {
 
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
-      <MemoryBrowser adapter={memoryAdapter} sourceLocale={sourceLocale} targetLocales={targetLocales} />
+      <MemoryBrowser
+        adapter={memoryAdapter}
+        sourceLocale={sourceLocale}
+        targetLocales={targetLocales}
+      />
     </div>
   );
 }

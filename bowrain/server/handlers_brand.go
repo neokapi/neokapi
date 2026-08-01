@@ -11,31 +11,31 @@ import (
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
-	corebrand "github.com/neokapi/neokapi/core/brand"
-	"github.com/neokapi/neokapi/core/brand/packs"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/profile/packs"
 )
 
 // BrandProfileRequest is the request body for creating/updating a brand voice profile.
 type BrandProfileRequest struct {
-	Name        string                                      `json:"name"`
-	Description string                                      `json:"description,omitempty"`
-	Tone        corebrand.ToneProfile                       `json:"tone"`
-	Style       corebrand.StyleRules                        `json:"style"`
-	Vocabulary  corebrand.VocabularyRules                   `json:"vocabulary"`
-	Examples    []corebrand.VoiceExample                    `json:"examples"`
-	Locales     map[model.LocaleID]corebrand.LocaleOverride `json:"locales,omitempty"`
-	Channels    map[string]corebrand.ChannelOverride        `json:"channels,omitempty"`
-	Personas    map[string]corebrand.PersonaOverride        `json:"personas,omitempty"`
+	Name        string                                        `json:"name"`
+	Description string                                        `json:"description,omitempty"`
+	Tone        coreprofile.ToneProfile                       `json:"tone"`
+	Style       coreprofile.StyleRules                        `json:"style"`
+	Vocabulary  coreprofile.VocabularyRules                   `json:"vocabulary"`
+	Examples    []coreprofile.VoiceExample                    `json:"examples"`
+	Locales     map[model.LocaleID]coreprofile.LocaleOverride `json:"locales,omitempty"`
+	Channels    map[string]coreprofile.ChannelOverride        `json:"channels,omitempty"`
+	Personas    map[string]coreprofile.PersonaOverride        `json:"personas,omitempty"`
 }
 
 // BrandProfileUpsertResponse reports what HandleUpsertBrandProfile did.
 // Action is "created", "updated", or "unchanged"; Profile is the stored
 // workspace profile after the action.
 type BrandProfileUpsertResponse struct {
-	Action  string                  `json:"action"`
-	Profile *corebrand.VoiceProfile `json:"profile"`
+	Action  string                    `json:"action"`
+	Profile *coreprofile.VoiceProfile `json:"profile"`
 }
 
 // BrandCheckRequest is the request body for checking text against a brand profile.
@@ -46,8 +46,8 @@ type BrandCheckRequest struct {
 
 // BrandCheckResponse is the response for a brand voice check.
 type BrandCheckResponse struct {
-	Score    corebrand.BrandComplianceScore `json:"score"`
-	Findings []corebrand.BrandVoiceFinding  `json:"findings"`
+	Score    coreprofile.BrandComplianceScore `json:"score"`
+	Findings []coreprofile.BrandVoiceFinding  `json:"findings"`
 }
 
 // StarterPackResponse describes an available starter pack template.
@@ -70,7 +70,7 @@ func (s *Server) HandleListBrandProfiles(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	profiles, err := s.BrandStore.ListProfiles(c.Request().Context(), wsID)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, profiles)
 }
@@ -96,7 +96,7 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 	userID, _ := c.Get("user_id").(string)
 	now := time.Now().UTC()
 
-	profile := &corebrand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID:          id.New(),
 		Name:        req.Name,
 		Description: req.Description,
@@ -115,7 +115,7 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 	}
 
 	if err := s.BrandStore.CreateProfile(c.Request().Context(), profile); err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusCreated, profile)
 }
@@ -159,9 +159,9 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 
 	profiles, err := s.BrandStore.ListProfiles(ctx, wsID)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
-	var existing *corebrand.VoiceProfile
+	var existing *coreprofile.VoiceProfile
 	for _, p := range profiles {
 		if strings.EqualFold(p.Name, req.Name) {
 			existing = p
@@ -171,7 +171,7 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 
 	if existing == nil {
 		now := time.Now().UTC()
-		profile := &corebrand.VoiceProfile{
+		profile := &coreprofile.VoiceProfile{
 			ID:          id.New(),
 			Name:        req.Name,
 			Description: req.Description,
@@ -189,7 +189,7 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 			CreatedBy:   userID,
 		}
 		if err := s.BrandStore.CreateProfile(ctx, profile); err != nil {
-			return apiErr(c, http.StatusInternalServerError, err.Error())
+			return serverErr(c, err)
 		}
 		return c.JSON(http.StatusCreated, BrandProfileUpsertResponse{Action: "created", Profile: profile})
 	}
@@ -222,7 +222,7 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 	// UpdateProfile archives the current state as an immutable ProfileVersion
 	// and bumps existing.Version — the pushed change lands as a new version.
 	if err := s.BrandStore.UpdateProfile(ctx, existing); err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventBrandProfileUpdated,
@@ -242,22 +242,22 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 type brandProfileContent struct {
 	Name        string
 	Description string
-	Tone        corebrand.ToneProfile
-	Style       corebrand.StyleRules
-	Vocabulary  corebrand.VocabularyRules
-	Examples    []corebrand.VoiceExample
-	Locales     map[model.LocaleID]corebrand.LocaleOverride
-	Channels    map[string]corebrand.ChannelOverride
-	Personas    map[string]corebrand.PersonaOverride
+	Tone        coreprofile.ToneProfile
+	Style       coreprofile.StyleRules
+	Vocabulary  coreprofile.VocabularyRules
+	Examples    []coreprofile.VoiceExample
+	Locales     map[model.LocaleID]coreprofile.LocaleOverride
+	Channels    map[string]coreprofile.ChannelOverride
+	Personas    map[string]coreprofile.PersonaOverride
 }
 
 // brandContentOf builds a normalized comparable view: every empty top-level
 // collection maps to nil so a YAML-decoded pushed profile (nil slices/maps)
 // compares equal to a stored one that round-tripped through the database.
-func brandContentOf(name, description string, tone corebrand.ToneProfile, style corebrand.StyleRules,
-	vocab corebrand.VocabularyRules, examples []corebrand.VoiceExample,
-	locales map[model.LocaleID]corebrand.LocaleOverride, channels map[string]corebrand.ChannelOverride,
-	personas map[string]corebrand.PersonaOverride,
+func brandContentOf(name, description string, tone coreprofile.ToneProfile, style coreprofile.StyleRules,
+	vocab coreprofile.VocabularyRules, examples []coreprofile.VoiceExample,
+	locales map[model.LocaleID]coreprofile.LocaleOverride, channels map[string]coreprofile.ChannelOverride,
+	personas map[string]coreprofile.PersonaOverride,
 ) brandProfileContent {
 	if len(tone.Personality) == 0 {
 		tone.Personality = nil
@@ -304,16 +304,16 @@ func brandContentOf(name, description string, tone corebrand.ToneProfile, style 
 // its decision is promoted AND the live profile still carries it (a demoted
 // rule is gone from the live profile and stays gone) AND the pushed vocabulary
 // does not itself carry the term. Promotions land in ForbiddenTerms
-// (brand.ApplySuggestedRule), so only that list needs folding. Returns the
+// (profile.ApplySuggestedRule), so only that list needs folding. Returns the
 // number of preserved rules.
-func (s *Server) preservePromotedRules(ctx context.Context, existing *corebrand.VoiceProfile, vocab *corebrand.VocabularyRules) int {
+func (s *Server) preservePromotedRules(ctx context.Context, existing *coreprofile.VoiceProfile, vocab *coreprofile.VocabularyRules) int {
 	decisions, err := s.BrandStore.ListRuleDecisions(ctx, existing.ID)
 	if err != nil || len(decisions) == 0 {
 		return 0
 	}
 	promoted := map[string]bool{}
 	for _, d := range decisions {
-		if d.Status == corebrand.RuleDecisionPromoted {
+		if d.Status == coreprofile.RuleDecisionPromoted {
 			promoted[strings.ToLower(d.Term)] = true
 		}
 	}
@@ -344,7 +344,7 @@ func (s *Server) preservePromotedRules(ctx context.Context, existing *corebrand.
 // Callers respond 404 (anti-enumeration) on a mismatch, matching the
 // project-level cross-tenant guard in ProjectAccessMiddleware. Fails closed when
 // the workspace context is missing (wsID empty).
-func profileInRequestWorkspace(c echo.Context, profile *corebrand.VoiceProfile) bool {
+func profileInRequestWorkspace(c echo.Context, profile *coreprofile.VoiceProfile) bool {
 	wsID, _ := c.Get("workspace_id").(string)
 	return wsID != "" && profile != nil && profile.WorkspaceID == wsID
 }
@@ -402,7 +402,7 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 	profile.UpdatedAt = time.Now().UTC()
 
 	if err := s.BrandStore.UpdateProfile(ctx, profile); err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventBrandProfileUpdated,
@@ -464,13 +464,13 @@ func (s *Server) HandleCheckBrandVoice(c echo.Context) error {
 	}
 
 	// Run vocabulary-based brand checks against the profile using the shared
-	// matcher + mapper (brand.MatchVocabulary → brand.HitsToFindings): whole-word,
+	// matcher + mapper (profile.MatchVocabulary → profile.HitsToFindings): whole-word,
 	// Unicode-aware matching (so "use" never matches inside "user") and concept_id
 	// propagation, identical to the streaming pipeline tool and the MCP tool. A
 	// single text run anchors each finding's position to the checked text.
 	runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
-	findings := corebrand.HitsToFindings(corebrand.MatchVocabulary(profile, req.Text), req.Text, runs)
-	score := corebrand.CalculateScore(findings)
+	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(profile, req.Text), req.Text, runs)
+	score := coreprofile.CalculateScore(findings)
 	score.ProfileID = profile.ID
 
 	return c.JSON(http.StatusOK, BrandCheckResponse{
@@ -483,7 +483,7 @@ func (s *Server) HandleCheckBrandVoice(c echo.Context) error {
 func (s *Server) HandleListStarterPacks(c echo.Context) error {
 	names, err := packs.List()
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 
 	result := make([]StarterPackResponse, 0, len(names))
@@ -538,7 +538,7 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 	}
 
 	if err := s.BrandStore.CreateProfile(c.Request().Context(), profile); err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusCreated, profile)
 }
@@ -552,7 +552,7 @@ func (s *Server) HandleGetBrandVoiceScores(c echo.Context) error {
 	projectID := c.Param("id")
 	scores, err := s.BrandStore.GetScores(c.Request().Context(), projectID, "")
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, scores)
 }
@@ -567,7 +567,7 @@ func (s *Server) HandleGetBrandVoiceScoresByLocale(c echo.Context) error {
 	locale := model.LocaleID(c.Param("locale"))
 	scores, err := s.BrandStore.GetScores(c.Request().Context(), projectID, locale)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, scores)
 }
@@ -588,7 +588,7 @@ func (s *Server) HandleGetBrandVoiceTrends(c echo.Context) error {
 
 	trends, err := s.BrandStore.GetScoreTrends(c.Request().Context(), projectID, days)
 	if err != nil {
-		return apiErr(c, http.StatusInternalServerError, err.Error())
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, trends)
 }

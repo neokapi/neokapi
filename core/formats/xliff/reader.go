@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/safeio"
 	"golang.org/x/text/encoding/ianaindex"
@@ -491,9 +492,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if !inBody || currentFile == nil {
 					continue
 				}
-				tu, tuPositions := r.parseTransUnit(decoder, t, currentFile, blockCount, content)
-				if tu == nil {
-					continue
+				tu, tuPositions, perr := r.parseTransUnit(decoder, t, currentFile, blockCount, content)
+				if perr != nil {
+					ch <- model.PartResult{Error: fmt.Errorf("xliff: parsing: %w", perr)}
+					return
 				}
 				if r.skeletonStore != nil {
 					elemPositions = append(elemPositions, tuPositions...)
@@ -731,14 +733,16 @@ type parsedAltTrans struct {
 }
 
 // parseTransUnit parses a <trans-unit> element and all its children.
-// It returns the parsed trans-unit and skeleton element positions (if skeleton tracking is active).
+// It returns the parsed trans-unit, the skeleton element positions (if
+// skeleton tracking is active), and any tokenizer error that abandoned the
+// unit half-read.
 //
 // content is the full input file's bytes — used to slice raw inner XML
 // for <source>/<target>/<seg-source> bodies. Slicing the raw input
 // preserves namespace prefixes (encoding/xml resolves them to URIs,
 // which loses the source's prefix mapping), original entity escaping,
 // and source whitespace formatting that re-serialization would mangle.
-func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi *fileInfo, blockIdx int, content []byte) (*parsedTransUnit, []elemPos) {
+func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi *fileInfo, blockIdx int, content []byte) (*parsedTransUnit, []elemPos, error) {
 	tu := &parsedTransUnit{
 		translatable: true,
 	}
@@ -775,7 +779,15 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 		preOff := int(decoder.InputOffset())
 		tok, err := decoder.Token()
 		if err != nil {
-			return nil, nil
+			// Propagate. This loop abandons a half-read trans-unit, and the
+			// only reason the failure ever reached the caller was that the
+			// caller's own decoder.Token() re-reported the same latched
+			// error on its next iteration — an encoding/xml implementation
+			// detail, not a contract, and one that stripped the error of the
+			// context that says WHICH unit was lost. Naming the unit is the
+			// difference between "this file is malformed somewhere" and a
+			// pointer at the trans-unit whose content went missing.
+			return nil, nil, fmt.Errorf("trans-unit %q: %w", tu.id, err)
 		}
 
 		switch t := tok.(type) {
@@ -940,7 +952,7 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 		})
 	}
 
-	return tu, positions
+	return tu, positions, nil
 }
 
 // readInnerXML reads all content until the matching end element. It
@@ -976,7 +988,7 @@ func readInnerXML(decoder *xml.Decoder) (string, int) {
 				}
 				buf.WriteString(a.Name.Local)
 				buf.WriteString(`="`)
-				buf.WriteString(xmlEscapeAttr(a.Value))
+				buf.WriteString(xmlesc.Attr(a.Value))
 				buf.WriteString(`"`)
 			}
 			buf.WriteString(">")
@@ -1006,6 +1018,11 @@ func readInnerXML(decoder *xml.Decoder) (string, int) {
 // CDATA-end sequence). Most writers (including okapi's XLIFFWriter)
 // emit literal `>` in text. We follow that convention for byte-stable
 // round-trips and match the spec's minimum requirement.
+//
+// DELIBERATELY not xmlesc.Text, which escapes every `>`. This narrower
+// reading is what keeps xliff output byte-identical to okapi's XLIFFWriter,
+// and the parity suite asserts those bytes — pointing this at the shared
+// helper would move the goldens.
 func xmlEscapeText(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "<", "&lt;")
@@ -1013,15 +1030,6 @@ func xmlEscapeText(s string) string {
 	if strings.Contains(s, "]]>") {
 		s = strings.ReplaceAll(s, "]]>", "]]&gt;")
 	}
-	return s
-}
-
-// xmlEscapeAttr escapes XML special characters in attribute values.
-func xmlEscapeAttr(s string) string {
-	s = strings.ReplaceAll(s, "&", "&amp;")
-	s = strings.ReplaceAll(s, "<", "&lt;")
-	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, `"`, "&quot;")
 	return s
 }
 
@@ -1062,7 +1070,7 @@ func parseSegSource(decoder *xml.Decoder) []segment {
 						buf.WriteString(" ")
 						buf.WriteString(a.Name.Local)
 						buf.WriteString(`="`)
-						buf.WriteString(xmlEscapeAttr(a.Value))
+						buf.WriteString(xmlesc.Attr(a.Value))
 						buf.WriteString(`"`)
 					}
 					buf.WriteString(">")
@@ -1079,7 +1087,7 @@ func parseSegSource(decoder *xml.Decoder) []segment {
 					}
 					buf.WriteString(a.Name.Local)
 					buf.WriteString(`="`)
-					buf.WriteString(xmlEscapeAttr(a.Value))
+					buf.WriteString(xmlesc.Attr(a.Value))
 					buf.WriteString(`"`)
 				}
 				buf.WriteString(">")
@@ -1091,7 +1099,7 @@ func parseSegSource(decoder *xml.Decoder) []segment {
 					buf.WriteString(" ")
 					buf.WriteString(a.Name.Local)
 					buf.WriteString(`="`)
-					buf.WriteString(xmlEscapeAttr(a.Value))
+					buf.WriteString(xmlesc.Attr(a.Value))
 					buf.WriteString(`"`)
 				}
 				buf.WriteString(">")
@@ -1934,7 +1942,7 @@ func parseMrkSegmentsFromString(targetXML string) []segment {
 					buf.WriteString(" ")
 					buf.WriteString(a.Name.Local)
 					buf.WriteString(`="`)
-					buf.WriteString(xmlEscapeAttr(a.Value))
+					buf.WriteString(xmlesc.Attr(a.Value))
 					buf.WriteString(`"`)
 				}
 				buf.WriteString(">")

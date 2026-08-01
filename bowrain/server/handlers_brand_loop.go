@@ -11,8 +11,8 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/id"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // The correction-learning loop's events. rule_promoted (manual) lives with the
@@ -47,13 +47,13 @@ func (s *Server) HandleListCandidates(c echo.Context) error {
 	ctx := c.Request().Context()
 	suggestions, err := s.BrandStore.GetSuggestedRules(ctx, wsID, minCount)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	decisions, err := s.BrandStore.ListRuleDecisions(ctx, profileID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
-	candidates := corebrand.MergeCandidates(suggestions, decisions, includeResolved)
+	candidates := coreprofile.MergeCandidates(suggestions, decisions, includeResolved)
 	return c.JSON(http.StatusOK, candidates)
 }
 
@@ -78,18 +78,18 @@ func (s *Server) HandleRejectSuggestedRule(c echo.Context) error {
 	profileID := c.Param("id")
 	userID, _ := c.Get("user_id").(string)
 	wsID, _ := c.Get("workspace_id").(string)
-	decision := &corebrand.RuleDecision{
+	decision := &coreprofile.RuleDecision{
 		ProfileID:       profileID,
 		Term:            req.Term,
 		Replacement:     req.Replacement,
 		Dimension:       req.Dimension,
-		Status:          corebrand.RuleDecisionRejected,
+		Status:          coreprofile.RuleDecisionRejected,
 		CorrectionCount: req.CorrectionCount,
 		DecidedBy:       userID,
 		DecidedAt:       time.Now().UTC(),
 	}
 	if err := s.BrandStore.RecordRuleDecision(c.Request().Context(), decision); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.publishBrandRuleEvent(EventBrandVoiceRuleRejected, wsID, userID, profileID, req.Term, req.Replacement, 0)
 	return c.JSON(http.StatusOK, decision)
@@ -129,25 +129,25 @@ func (s *Server) HandleEvaluateRulePromotion(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
-	candidate := corebrand.CandidateWithRule(baseline, corebrand.SuggestedRule{Term: req.Term, Replacement: req.Replacement})
+	candidate := coreprofile.CandidateWithRule(baseline, coreprofile.SuggestedRule{Term: req.Term, Replacement: req.Replacement})
 
 	stored, err := s.ContentStore.GetBlocks(ctx, store.BlockQuery{ProjectID: req.ProjectID, Stream: req.Stream})
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
-	blocks := make([]corebrand.EvalBlock, 0, len(stored))
+	blocks := make([]coreprofile.EvalBlock, 0, len(stored))
 	for _, sb := range stored {
 		if sb == nil || sb.Block == nil {
 			continue
 		}
-		blocks = append(blocks, corebrand.EvalBlock{
+		blocks = append(blocks, coreprofile.EvalBlock{
 			BlockID:        sb.Block.ID,
 			CollectionID:   sb.ItemName,
 			CollectionName: sb.ItemName,
 			Text:           sb.Block.SourceText(),
 		})
 	}
-	radius := corebrand.EvaluateBlastRadius(blocks, baseline, candidate)
+	radius := coreprofile.EvaluateBlastRadius(blocks, baseline, candidate)
 	return c.JSON(http.StatusOK, radius)
 }
 
@@ -178,8 +178,8 @@ func (s *Server) publishBrandRuleEvent(t platev.EventType, wsID, userID, profile
 
 // driftConfigFromQuery reads drift-detection settings from query params, falling
 // back to the analyzer's defaults (7-day recent window, 10-point drop).
-func driftConfigFromQuery(c echo.Context) (corebrand.DriftConfig, int) {
-	cfg := corebrand.DriftConfig{}
+func driftConfigFromQuery(c echo.Context) (coreprofile.DriftConfig, int) {
+	cfg := coreprofile.DriftConfig{}
 	days := 30
 	if v := c.QueryParam("days"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
@@ -215,9 +215,9 @@ func (s *Server) HandleGetBrandVoiceDrift(c echo.Context) error {
 	cfg, days := driftConfigFromQuery(c)
 	trends, err := s.BrandStore.GetScoreTrends(c.Request().Context(), projectID, days)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
-	return c.JSON(http.StatusOK, corebrand.AnalyzeDrift(trends, cfg))
+	return c.JSON(http.StatusOK, coreprofile.AnalyzeDrift(trends, cfg))
 }
 
 // HandleRunBrandVoiceDriftCheck runs the drift analysis and, when compliance has
@@ -235,9 +235,9 @@ func (s *Server) HandleRunBrandVoiceDriftCheck(c echo.Context) error {
 	cfg, days := driftConfigFromQuery(c)
 	trends, err := s.BrandStore.GetScoreTrends(c.Request().Context(), projectID, days)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
-	result := corebrand.AnalyzeDrift(trends, cfg)
+	result := coreprofile.AnalyzeDrift(trends, cfg)
 	if result.Drifted && s.EventBus != nil {
 		userID, _ := c.Get("user_id").(string)
 		s.EventBus.Publish(platev.Event{
@@ -265,7 +265,7 @@ func (s *Server) HandleRunBrandVoiceDriftCheck(c echo.Context) error {
 // and announced as brand.voice.rule_auto_promoted). Returns the promoted rule
 // term when an auto-promotion happened. Best-effort: errors are swallowed so a
 // correction is never lost to an autonomy hiccup.
-func (s *Server) maybeAutoPromote(ctx echo.Context, profile *corebrand.VoiceProfile, wsID, userID string, correction *corebrand.Correction) (string, bool) {
+func (s *Server) maybeAutoPromote(ctx echo.Context, profile *coreprofile.VoiceProfile, wsID, userID string, correction *coreprofile.Correction) (string, bool) {
 	if profile == nil || profile.Autonomy.AutoPromoteAtCount <= 0 {
 		return "", false
 	}
@@ -302,16 +302,16 @@ func (s *Server) maybeAutoPromote(ctx echo.Context, profile *corebrand.VoiceProf
 			rule.ConceptID = conceptID
 		}
 
-		updated, changed, err := corebrand.PromoteAndSave(rctx, s.BrandStore, profile.ID, rule)
+		updated, changed, err := coreprofile.PromoteAndSave(rctx, s.BrandStore, profile.ID, rule)
 		if err != nil || !changed {
 			return "", false
 		}
-		_ = s.BrandStore.RecordRuleDecision(rctx, &corebrand.RuleDecision{
+		_ = s.BrandStore.RecordRuleDecision(rctx, &coreprofile.RuleDecision{
 			ProfileID:       profile.ID,
 			Term:            sug.Term,
 			Replacement:     sug.Replacement,
 			Dimension:       sug.Dimension,
-			Status:          corebrand.RuleDecisionPromoted,
+			Status:          coreprofile.RuleDecisionPromoted,
 			CorrectionCount: sug.CorrectionCount,
 			PromotedVersion: updated.Version,
 			Auto:            true,

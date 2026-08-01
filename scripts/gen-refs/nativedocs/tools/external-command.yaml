@@ -12,6 +12,17 @@ overview: |
   required, and a target locale is required when applying to the target. Each
   invocation has a timeout; the exit code is recorded on the block, and a
   non-zero exit leaves the text unchanged and records the error.
+
+  **This tool runs code the recipe chooses, so it is gated.** It is exec-class:
+  a project that names it in a flow runs commands with your privileges and your
+  environment, and a recipe is bound by entering a directory. kapi therefore
+  asks once per project, before anything else happens with it, and remembers the
+  answer; an unattended run with nobody to ask refuses rather than assumes.
+  `KAPI_TRUST_EXEC=1` grants it where the pipeline author — not the repository
+  being processed — is the one deciding. The same classification withholds this
+  tool from the agent surface, from the engine API, and from any recipe arriving
+  inside a `.kpz`. See
+  [AD-038](/contribute/architecture/038-execution-trust).
 parameters:
   command:
     description: The executable to run.

@@ -1,5 +1,5 @@
 id: kapi-desktop-content
-title: Håndter innhold i et prosjekt
+title: Manage content in a project
 subtitle: The files a project translates, and how they map.
 tagline: the visual companion to the kapi command line
 kind: use-case
@@ -19,36 +19,47 @@ narration:
   - id: title
     kind: title
     text: >-
-      I Kapi er innholdet i et prosjekt settet av filer det oversetter.
+      In Kapi, a project's content is the set of files it translates.
+
   - id: intro
     kind: desktop
     beat: intro
     text: >-
-      Vi åpner et eksempelprosjekt for å se hvordan innholdet er organisert.
+      We'll open a sample project to see how that content is organised.
+
   - id: open-project
     kind: desktop
     beat: open-project
-    caption: KapiMart — et ferdig eksempelprosjekt.
+    caption: KapiMart — a ready-made sample project.
     text: >-
-      KapiMart er et ferdig eksempel — en liten butikk med dokumentasjon, en nettbutikk, kontrakter og maler.
+      KapiMart is a ready-made sample — a small store with documentation, a
+      storefront, contracts and templates.
+
   - id: overview
     kind: desktop
     beat: overview
-    caption: Kildespråk og målspråk ligger øverst.
+    caption: Source and target languages sit across the top.
     text: >-
-      Kildespråket og språkene det oversettes til ligger øverst i prosjektet.
+      The source language and the locales it translates into sit across the top
+      of the project.
+
   - id: content
     kind: desktop
     beat: content
-    caption: Innholdet er ett kort per samling.
+    caption: Content is one card per collection.
     text: >-
-      Innholdet er organisert som ett kort per samling: hvert kort bærer mønstrene som definerer hva som hører til, og filene de treffer.
+      Content is organised as one card per collection: each card carries the
+      patterns that define what belongs to it, and the files they match.
+
   - id: patterns
     kind: desktop
     beat: patterns
-    caption: Mønstrene er gruppert i navngitte samlinger.
+    caption: Patterns are grouped into named collections.
     text: >-
-      Mønstrene er gruppert i samlinger — nettstedet, nettbutikken, kontraktene og malene — hvert et glob-mønster som motoren leser fra og skriver tilbake til.
+      Patterns are grouped into collections — the website, the online store, the
+      contracts and the templates — each a glob that the engine reads from and
+      writes back to.
+
   # The matched-files table is two levels since #1442: one row per output
   # pattern, opening to the source file and the per-locale language files.
   - id: files

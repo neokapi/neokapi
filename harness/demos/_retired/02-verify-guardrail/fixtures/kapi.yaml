@@ -5,7 +5,7 @@ defaults:
   target_languages: [fr]
   brand_voice:
     profile_file: brand.yaml
-  terms: .kapi/termbase.db
+  terms: .kapi/terms.db
 content:
   - path: src/en.json
     format: json

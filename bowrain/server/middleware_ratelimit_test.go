@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -128,6 +129,84 @@ func TestRateLimitByIPSharedBucket(t *testing.T) {
 
 	// A distinct IP is unaffected.
 	assert.Equal(t, http.StatusOK, call("/a", "198.51.100.6"))
+}
+
+// TestDeviceFlowRateLimit proves every leg of the device flow draws on the
+// shared pre-auth per-IP bucket. Start alone was throttled once; verify and
+// poll are the two calls that turn a user code into a session, so leaving
+// either unmetered leaves the flow open to being hammered.
+func TestDeviceFlowRateLimit(t *testing.T) {
+	// Tight, deterministic limit for the test (read in SetupRoutes).
+	t.Setenv("BOWRAIN_RL_AUTH_PER_MIN", "1")
+	t.Setenv("BOWRAIN_RL_AUTH_BURST", "2")
+
+	s, _ := newTestServer(t)
+	e := s.GetEcho()
+
+	send := func(method, path, body, ip string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.RemoteAddr = ip + ":40000"
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		return rec
+	}
+	call := func(method, path, body, ip string) int {
+		return send(method, path, body, ip).Code
+	}
+
+	// Each case uses its own client IP so the per-IP buckets do not interfere.
+	for _, tc := range []struct {
+		name, method, path, body, ip string
+	}{
+		{"POST verify", http.MethodPost, "/api/v1/auth/device/verify", "user_code=0000-0000-0000-0000", "203.0.113.21"},
+		{"GET verify", http.MethodGet, "/api/v1/auth/device/verify?user_code=0000-0000-0000-0000", "", "203.0.113.22"},
+		{"POST poll", http.MethodPost, "/api/v1/auth/device/poll", "device_code=nope", "203.0.113.23"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.NotEqual(t, http.StatusTooManyRequests, call(tc.method, tc.path, tc.body, tc.ip))
+			assert.NotEqual(t, http.StatusTooManyRequests, call(tc.method, tc.path, tc.body, tc.ip))
+			assert.Equal(t, http.StatusTooManyRequests, call(tc.method, tc.path, tc.body, tc.ip),
+				"the request past the burst must be throttled")
+		})
+	}
+
+	// A throttled poll must answer in the device flow's own vocabulary. The CLI
+	// polls in a loop and reads any error code it does not recognise as fatal,
+	// so a generic throttle error would end a sign-in rather than pace it;
+	// RFC 8628's slow_down is what tells the client to keep waiting.
+	t.Run("a throttled poll says slow_down, not a fatal error", func(t *testing.T) {
+		const ip = "203.0.113.31"
+		rec := send(http.MethodPost, "/api/v1/auth/device/poll", "device_code=nope", ip)
+		for range 5 {
+			if rec.Code == http.StatusTooManyRequests {
+				break
+			}
+			rec = send(http.MethodPost, "/api/v1/auth/device/poll", "device_code=nope", ip)
+		}
+		require.Equal(t, http.StatusTooManyRequests, rec.Code)
+
+		var body struct {
+			Error string `json:"error"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+		assert.Equal(t, "slow_down", body.Error,
+			"the device client keeps polling on slow_down and gives up on anything else")
+		assert.Equal(t, "5", rec.Header().Get("Retry-After"))
+	})
+
+	// The device legs still draw on the SHARED pre-auth bucket: spending it on
+	// /device/start throttles the poll from the same client.
+	t.Run("start and poll share one bucket", func(t *testing.T) {
+		const ip = "203.0.113.32"
+		require.NotEqual(t, http.StatusTooManyRequests,
+			call(http.MethodPost, "/api/v1/auth/device/start", "client_id=x", ip))
+		require.NotEqual(t, http.StatusTooManyRequests,
+			call(http.MethodPost, "/api/v1/auth/device/start", "client_id=x", ip))
+		assert.Equal(t, http.StatusTooManyRequests,
+			call(http.MethodPost, "/api/v1/auth/device/poll", "device_code=nope", ip),
+			"the poll draws on the same per-IP bucket the starts just spent")
+	})
 }
 
 // TestHourlyIPLimiter proves the imperative hourly per-IP limiter admits up to

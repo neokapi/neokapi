@@ -52,6 +52,11 @@ type App struct {
 	// explain collects LLM exchanges while Explain is set.
 	explain *explainCollector
 
+	// isTTY overrides terminal detection for the prompts App itself raises
+	// (today: adopting a package-carried recipe on unpack). nil means check
+	// os.Stdin. Tests swap it; nothing else should.
+	isTTY func() bool
+
 	// Processing flags bound by AddProcessingFlags.
 	FormatFlag string
 	Encoding   string
@@ -104,6 +109,16 @@ type App struct {
 	// methods (reader creation, writer setup) can apply project format defaults.
 	ProjectContext *project.ProjectContext
 
+	// MCPSurface widens the MCP tool surface beyond the curated default. Set
+	// from `kapi mcp` flags; the zero value is the curated set.
+	MCPSurface MCPSurface
+
+	// execTrustGranted records that this process has established the right to
+	// run the active project's exec-class steps — the user answered the
+	// prompt, a stored decision matched, or the environment granted it. Set by
+	// ensureExecTrust and read by checkExecToolAllowed; see host/exectrust.go.
+	execTrustGranted bool
+
 	// convergeWriteFiles forces the file-writing path even for a single input in
 	// a project, overriding the process-only default (AD-026). Convergence
 	// (`kapi run` with no flow) sets it so it materializes the localized target
@@ -131,7 +146,7 @@ type App struct {
 	convergeProgressTap tool.Tool
 
 	// ProjectBindings carries the standing brand-voice + terms context
-	// resolved from a .kapi project (defaults.brand_voice / defaults.termbase).
+	// resolved from a .kapi project (defaults.brand_voice / defaults.terms).
 	// Set temporarily by RunFromProject so project-flow steps can be made
 	// brand- and terminology-aware with no flags. nil for ad-hoc runs.
 	ProjectBindings *ProjectBindings

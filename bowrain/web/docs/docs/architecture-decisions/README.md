@@ -43,7 +43,7 @@ protocols specific to bowrain) live in [Implementation Notes](/notes/index).
 | AD                                        | Title            | Scope                                                  |
 | ----------------------------------------- | ---------------- | ------------------------------------------------------ |
 | [008](008-connector-system.md)            | Connector System | IntegrationConnector, categories, registry            |
-| [009](009-sync-protocol.md)               | Sync Protocol    | Chunked, resumable, direct-to-storage                  |
+| [009](009-sync-protocol.md)               | Sync Protocol    | Desired-state reconciliation, content types incl. context, ownership in the payload |
 | [010](010-bowrain-cli-and-project-model.md) | Bowrain CLI      | `.kapi` projects with `server:` block, hooks, MCP     |
 | [011](011-rest-api.md)                    | REST API         | Slug-based hierarchy, route taxonomy                   |
 

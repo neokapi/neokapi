@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"maps"
 	"net/http"
 	"strings"
@@ -14,6 +13,7 @@ import (
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/resilience"
+	"github.com/neokapi/neokapi/bowrain/safehttp"
 	"github.com/neokapi/neokapi/core/httputil"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -53,14 +53,21 @@ func NewHubSpotConnector(config map[string]string) (*HubSpotConnector, error) {
 		id = "hubspot"
 	}
 
+	policy := remotePolicy()
 	return &HubSpotConnector{
 		id:       id,
 		connName: config["name"],
 		apiKey:   apiKey,
-		// Breaker outermost, above the retrying transport: one HubSpot call is
-		// one observation, not one per retry attempt.
-		client: resilience.Guard(httputil.NewResilientClient(),
-			"connector:hubspot", resilience.KindConnector, 30*time.Second),
+		// Three layers, outermost first: the breaker (one HubSpot call is one
+		// observation, not one per retry attempt), the retrying transport, and
+		// the vetted dial. HubSpot's host is fixed, so what the address policy
+		// buys here is where a redirect may lead — and redirects are followed
+		// above the transport, so CheckRedirect has to be set alongside it.
+		client: resilience.Guard(&http.Client{
+			Timeout:       connectorTimeout,
+			Transport:     httputil.NewResilientTransport(policy.Transport()),
+			CheckRedirect: policy.CheckRedirect,
+		}, "connector:hubspot", resilience.KindConnector, connectorTimeout),
 		config: config,
 	}, nil
 }
@@ -190,8 +197,8 @@ func (c *HubSpotConnector) fetchPages(ctx context.Context) ([]hsPage, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("hubspot API: HTTP %d: %s", resp.StatusCode, string(body))
+		safehttp.Drain(resp.Body, errorBodyLimit)
+		return nil, fmt.Errorf("hubspot API: HTTP %d", resp.StatusCode)
 	}
 
 	var list hsPageList

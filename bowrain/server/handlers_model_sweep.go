@@ -63,7 +63,7 @@ func (s *Server) HandleGetModelRecommendations(c echo.Context) error {
 
 	rows, err := s.SweepStore.ListModelSweepResults(c.Request().Context(), projectID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Group by locale (rows arrive locale-sorted, lift-descending) and mark
@@ -144,10 +144,10 @@ func (s *Server) HandleRefreshModelRecommendations(c echo.Context) error {
 	for _, locale := range proj.TargetLanguages {
 		job := jobs.NewModelSweepJob(wsID, ws, projectID, string(locale))
 		if err := s.JobStore.CreateJob(ctx, job); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 		if err := s.JobQueue.Enqueue(ctx, job.ID); err != nil {
-			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			return serverErr(c, err)
 		}
 		locales = append(locales, string(locale))
 	}

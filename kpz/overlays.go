@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // OverlaySetVersion is the overlays.json schema version (MAJOR.MINOR, same
@@ -122,6 +123,18 @@ func historyDigest(prev, ts, event, step, note string) string {
 // Prev is set to the last line's Hash and its own Hash is computed. Errors
 // are impossible for the fixed struct, so it never fails.
 func AppendHistory(existing []byte, ev HistoryEvent) []byte {
+	// Hash the values that will SURVIVE serialization, not the ones handed in.
+	// encoding/json is lossy for invalid UTF-8 — it substitutes U+FFFD rather
+	// than failing — so hashing the raw Go string and then marshalling means
+	// VerifyHistory later recomputes the digest over different bytes and
+	// reports a log we wrote as tampered. A Note or Step carrying a filename is
+	// enough to hit it: filenames are arbitrary bytes on Linux. Coercing first
+	// keeps both sides in the same domain (#1608).
+	ev.Timestamp = toValidUTF8(ev.Timestamp)
+	ev.Event = toValidUTF8(ev.Event)
+	ev.Step = toValidUTF8(ev.Step)
+	ev.Note = toValidUTF8(ev.Note)
+
 	ev.Prev = lastHistoryHash(existing)
 	ev.Hash = historyDigest(ev.Prev, ev.Timestamp, ev.Event, ev.Step, ev.Note)
 	line, _ := json.Marshal(ev)
@@ -131,6 +144,11 @@ func AppendHistory(existing []byte, ev HistoryEvent) []byte {
 	out = append(out, '\n')
 	return out
 }
+
+// toValidUTF8 replaces every invalid UTF-8 byte with U+FFFD — the same
+// substitution encoding/json makes — so a value hashed here is byte-identical
+// to the value that comes back out of the JSON line.
+func toValidUTF8(s string) string { return strings.ToValidUTF8(s, "�") }
 
 // lastHistoryHash returns the Hash of the final event in a log, or "" when
 // the log is empty/unparseable (a new chain starts).

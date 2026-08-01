@@ -68,7 +68,7 @@ func (s *Server) HandleCreateToken(c echo.Context) error {
 	ctx := c.Request().Context()
 	token, plaintext, err := s.Services.Auth.CreateAPIToken(ctx, userID, workspaceID, req.Name, scopesJSON, expiresAt)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventTokenCreated,
@@ -100,7 +100,7 @@ func (s *Server) HandleListTokens(c echo.Context) error {
 
 	tokens, err := s.AuthStore.ListAPITokens(ctx, workspaceID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, tokens)

@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -230,7 +230,7 @@ func TestMergeChangeSet_VoiceRuleAddBumpsProfile(t *testing.T) {
 	ctx := context.Background()
 	ws := "ws"
 
-	profile := &corebrand.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: ws, Version: 3}
+	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: ws, Version: 3}
 	profiles := newFakeProfileStore(profile)
 
 	store := newMemStore()
@@ -239,7 +239,7 @@ func TestMergeChangeSet_VoiceRuleAddBumpsProfile(t *testing.T) {
 	// voice.rule.add is always governed.
 	appendOp(t, store, ws, cs.ID, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{
 		ProfileID: "p1", List: VoiceListForbidden,
-		Rule: corebrand.TermRule{Term: "synergy", Replacement: "teamwork"},
+		Rule: coreprofile.TermRule{Term: "synergy", Replacement: "teamwork"},
 	})
 	driveToApproved(t, store, ws, cs.ID)
 	require.NoError(t, store.AddReview(ctx, &ChangeSetReview{

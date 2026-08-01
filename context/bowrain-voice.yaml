@@ -1,0 +1,100 @@
+# Bowrain brand voice profile. Bound to the bowrain-* content collections via
+# the recipe's `profiles:` block, so landing, app UI, docs and email copy are
+# governed by this register while the kapi surfaces keep theirs.
+#
+# The house rules below (no superlatives, no emoji, no hardcoded counts) are
+# duplicated from context/brand-voice.yaml because a profile cannot yet inherit
+# from another. Keep the two in step until profile composition exists.
+name: bowrain platform
+description: >-
+  Register for Bowrain's user-facing text: landing, app UI, docs, and email.
+  Addressed to the person accountable for content across a team, not to a
+  developer reading a reference. Explain by contrast and state the outcome.
+tone:
+  personality: [direct, concrete, assured]
+  formality: neutral
+  emotion: neutral
+  humor: none
+  guidelines: >-
+    Lead with what changes for the reader, then the mechanism that makes it
+    true. Explain by contrast when a distinction carries the point — a legal
+    notice is not a help article. Address the reader as someone answerable for
+    content quality, who has the problem already and does not need convincing
+    it exists. Claims stay checkable: name what the product does, never how it
+    feels to use. Sentences carry one idea.
+style:
+  active_voice: true
+  sentence_length: short
+  person_pov: second
+  contractions: sometimes
+  prohibited_patterns:
+    - regex: '\b(powerful|seamless(?:ly)?|effortless(?:ly)?|blazing|game-changing|cutting-edge|revolutionary|supercharged?|unleash)\b'
+      description: Marketing superlatives and hype words
+      severity: major
+    - regex: '\b(production-proven|everything you need|localize at scale|just point and go)\b'
+      description: Brochure framing
+      severity: major
+    - regex: '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]'
+      description: Emoji in committed prose
+      severity: major
+    - regex: '\b\d+\+?\s+(?:built-in\s+)?(formats|tools|providers|filters|languages)\b'
+      description: Hardcoded counts that the code controls — name categories and link to the generated reference instead
+      severity: critical
+    - regex: '\b(enterprise-grade|best-in-class|world-class|trusted by)\b'
+      description: Credibility-by-assertion; show the mechanism instead
+      severity: major
+vocabulary:
+  preferred_terms:
+    - term: Bowrain
+      note: The platform — capitalized as a product name
+    - term: workspace
+      note: The tenant boundary a team works inside; not "account" or "org"
+    - term: context graph
+      note: What Bowrain holds — the relationships that govern content, not a content store
+    - term: content memory
+      note: The store of source and target pairs
+    - term: terms store
+      note: The store of approved terminology
+  forbidden_terms:
+    - term: simply
+      replacement: ""
+      severity: minor
+    - term: easily
+      replacement: ""
+      severity: minor
+    - term: magic
+      replacement: ""
+      severity: major
+    - term: solution
+      replacement: ""
+      note: Says nothing; name the thing the product actually does
+      severity: minor
+examples:
+  - before: "Bowrain is a powerful enterprise-grade platform trusted by teams everywhere."
+    after: "Bowrain is the context graph for your content — the one your people and your AI agents plug into."
+    explanation: Name what it is and who uses it; credibility comes from the mechanism, not the adjective
+    category: tone
+  - before: "Easily manage all your brand rules in one place."
+    after: "A legal notice is not a help article, so the rules that fix voice and tone move with the audience and the surface."
+    explanation: Explain by contrast; the distinction is the point, not the convenience
+    category: style
+  - before: "Our solution supports 15+ formats and unlimited languages."
+    after: "Bowrain reads the formats kapi reads; see the formats reference."
+    explanation: No hardcoded counts, no unbounded claims, no "solution"
+    category: vocabulary
+locales:
+  nb:
+    formality: neutral
+    person_pov: second
+    cultural_notes: >-
+      Norwegian Bokmål. Address the reader as "du". Use established Norwegian
+      software terminology where the terms store names one, and keep the plain,
+      declarative register. Never translate product names (Bowrain, kapi,
+      neokapi, kapi-desktop), CLI commands, flags, file formats, code
+      identifiers, or file paths. Headings in sentence case. Compound nouns
+      close up in Norwegian — never leave an English noun pair half-translated.
+    vocabulary_overrides:
+      - term: arbeidsområde
+        note: workspace — the tenant boundary, not "arbeidsplass"
+      - term: innholdsminne
+        note: content memory — matches the terms store entry

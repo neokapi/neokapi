@@ -10,6 +10,7 @@ import (
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
@@ -199,12 +200,18 @@ func (s *SQLiteStore) CreateCollection(ctx context.Context, c *platstore.Collect
 	if err != nil {
 		return fmt.Errorf("marshal connector config: %w", err)
 	}
+	contextJSON, err := json.Marshal(c.Context)
+	if err != nil {
+		return fmt.Errorf("marshal collection context: %w", err)
+	}
+	c.Owner = coresync.NormalizeContextOwner(c.Owner)
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		c.ID, c.ProjectID, c.Name, string(c.Kind), c.ItemLabel, c.IsDefault, c.Stream,
-		string(configJSON), now.Format(time.RFC3339), now.Format(time.RFC3339))
+		string(configJSON), string(contextJSON), c.Owner, c.ContextHash,
+		now.Format(time.RFC3339), now.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("create collection: %w", err)
 	}
@@ -213,14 +220,14 @@ func (s *SQLiteStore) CreateCollection(ctx context.Context, c *platstore.Collect
 
 func (s *SQLiteStore) GetCollection(ctx context.Context, projectID, collectionID string) (*platstore.Collection, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
 		 FROM collections WHERE project_id=? AND id=?`, projectID, collectionID)
 	return scanCollection(row)
 }
 
 func (s *SQLiteStore) GetCollectionByName(ctx context.Context, projectID, name, stream string) (*platstore.Collection, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
 		 FROM collections WHERE project_id=? AND name=? AND (stream='' OR stream=?)`,
 		projectID, name, stream)
 	return scanCollection(row)
@@ -228,14 +235,14 @@ func (s *SQLiteStore) GetCollectionByName(ctx context.Context, projectID, name, 
 
 func (s *SQLiteStore) GetDefaultCollection(ctx context.Context, projectID string) (*platstore.Collection, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
 		 FROM collections WHERE project_id=? AND is_default=1`, projectID)
 	return scanCollection(row)
 }
 
 func (s *SQLiteStore) ListCollections(ctx context.Context, projectID, stream string) ([]*platstore.Collection, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at
 		 FROM collections WHERE project_id=? AND (stream='' OR stream=?)
 		 ORDER BY is_default DESC, name`, projectID, stream)
 	if err != nil {
@@ -251,11 +258,17 @@ func (s *SQLiteStore) UpdateCollection(ctx context.Context, c *platstore.Collect
 	if err != nil {
 		return fmt.Errorf("marshal connector config: %w", err)
 	}
+	contextJSON, err := json.Marshal(c.Context)
+	if err != nil {
+		return fmt.Errorf("marshal collection context: %w", err)
+	}
+	c.Owner = coresync.NormalizeContextOwner(c.Owner)
 
 	_, err = s.db.ExecContext(ctx,
-		`UPDATE collections SET name=?, kind=?, item_label=?, stream=?, connector_config=?, updated_at=?
+		`UPDATE collections SET name=?, kind=?, item_label=?, stream=?, connector_config=?, context=?, owner=?, context_hash=?, updated_at=?
 		 WHERE project_id=? AND id=?`,
 		c.Name, string(c.Kind), c.ItemLabel, c.Stream, string(configJSON),
+		string(contextJSON), c.Owner, c.ContextHash,
 		c.UpdatedAt.Format(time.RFC3339), c.ProjectID, c.ID)
 	if err != nil {
 		return fmt.Errorf("update collection: %w", err)
@@ -301,9 +314,10 @@ func (s *SQLiteStore) DeleteCollection(ctx context.Context, projectID, collectio
 
 func scanCollection(row scanner) (*platstore.Collection, error) {
 	var c platstore.Collection
-	var kindStr, configJSON, createdStr, updatedStr string
+	var kindStr, configJSON, contextJSON, createdStr, updatedStr string
 	err := row.Scan(&c.ID, &c.ProjectID, &c.Name, &kindStr, &c.ItemLabel,
-		&c.IsDefault, &c.Stream, &configJSON, &createdStr, &updatedStr)
+		&c.IsDefault, &c.Stream, &configJSON, &contextJSON, &c.Owner, &c.ContextHash,
+		&createdStr, &updatedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan collection: %w", err)
 	}
@@ -313,6 +327,10 @@ func scanCollection(row scanner) (*platstore.Collection, error) {
 	if err := json.Unmarshal([]byte(configJSON), &c.ConnectorConfig); err != nil {
 		c.ConnectorConfig = map[string]string{}
 	}
+	if err := json.Unmarshal([]byte(contextJSON), &c.Context); err != nil {
+		c.Context = map[string]string{}
+	}
+	c.Owner = coresync.NormalizeContextOwner(c.Owner)
 	return &c, nil
 }
 
@@ -458,10 +476,21 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 	// When storing blocks for a specific item, map format-reader IDs (source_id)
 	// to internal project-unique IDs. Blocks stored without an item keep their
 	// original ID (they already carry an internal ID from a prior store call).
-	existingSourceIDs := map[string]string{} // source_id → internal id
+	//
+	// Both directions are loaded, because a block can arrive carrying either
+	// kind of ID. A push or a format read supplies the caller's own ID, which
+	// this item may already have minted an internal ID for. But a caller that
+	// read blocks *out* of this store — the extraction worker annotating an
+	// item, the editor writing a parsed item back — hands back rows whose ID is
+	// already the internal one. Treating that as an unseen caller ID minted a
+	// second row for content that was already stored, under source_id = the
+	// first row's ID: two rows, same content_hash, different ids, which is
+	// exactly the duplication in #1527.
+	existingSourceIDs := map[string]string{} // caller/source id → internal id
+	internalSourceIDs := map[string]string{} // internal id → its source id
 	if itemName != "" {
 		rows, err := tx.QueryContext(ctx,
-			`SELECT source_id, id FROM blocks WHERE project_id=? AND item_name=? AND source_id != ''`,
+			`SELECT source_id, id FROM blocks WHERE project_id=? AND item_name=?`,
 			projectID, itemName)
 		if err != nil {
 			return fmt.Errorf("load source_id mapping: %w", err)
@@ -472,7 +501,10 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 				rows.Close()
 				return fmt.Errorf("scan source_id mapping: %w", err)
 			}
-			existingSourceIDs[srcID] = intID
+			if srcID != "" {
+				existingSourceIDs[srcID] = intID
+			}
+			internalSourceIDs[intID] = srcID
 		}
 		rows.Close()
 		if err := rows.Err(); err != nil {
@@ -494,6 +526,9 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		for _, b := range blocks {
 			if _, mapped := existingSourceIDs[b.ID]; mapped {
 				continue
+			}
+			if _, isInternal := internalSourceIDs[b.ID]; isInternal {
+				continue // already a row of this item; nothing to adopt
 			}
 			res, err := adopt.ExecContext(ctx, itemName, b.ID, projectID, b.ID)
 			if err != nil {
@@ -577,12 +612,23 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		internalID := b.ID
 
 		if itemName != "" {
-			sourceID = b.ID
-			if existingID, found := existingSourceIDs[sourceID]; found {
-				internalID = existingID
+			// An ID this item's rows already carry is that row — the block was
+			// read out of this store and is being written back. Checked before
+			// the caller-ID map because naming a row directly is the stronger
+			// claim; the two only ever collide on rows this bug already
+			// created, where resolving to the original row is also the repair.
+			if existingSource, isInternal := internalSourceIDs[b.ID]; isInternal {
+				internalID = b.ID
+				sourceID = existingSource
 			} else {
-				internalID = storeutil.NewBlockID()
-				existingSourceIDs[sourceID] = internalID
+				sourceID = b.ID
+				if existingID, found := existingSourceIDs[sourceID]; found {
+					internalID = existingID
+				} else {
+					internalID = storeutil.NewBlockID()
+					existingSourceIDs[sourceID] = internalID
+					internalSourceIDs[internalID] = sourceID
+				}
 			}
 			b.ID = internalID
 		}
@@ -597,7 +643,9 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		if !isNew && len(b.Targets) > 0 {
 			oldTargets, loadErr := loadExistingTargets(ctx, tx, projectID, itemName, internalID)
 			if loadErr == nil && oldTargets != nil {
-				_ = recordTargetHistory(ctx, tx, projectID, stream, internalID, oldTargets, b.Targets)
+				if err := recordTargetHistory(ctx, tx, projectID, stream, internalID, oldTargets, b.Targets); err != nil {
+					return err
+				}
 			}
 		}
 
@@ -1297,7 +1345,9 @@ func (s *SQLiteStore) StoreAssetVariant(ctx context.Context, projectID string, v
 		if variant.Status == "approved" && existingKey != "" {
 			changeType = "variant_approved"
 		}
-		_ = logChange(ctx, tx, assetProjectID, assetStream, variant.AssetID, changeType, variant.Locale, variant.BlobKey)
+		if err := logChange(ctx, tx, assetProjectID, assetStream, variant.AssetID, changeType, variant.Locale, variant.BlobKey); err != nil {
+			return fmt.Errorf("log change for asset variant %s/%s: %w", variant.AssetID, variant.Locale, err)
+		}
 	}
 
 	return tx.Commit()

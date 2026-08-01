@@ -42,15 +42,15 @@ func main() {
 		must(err)
 		root = filepath.Join(cfg, "kapi")
 	}
-	tbDir := filepath.Join(root, "termbases")
-	memoryDir := filepath.Join(root, "tm")
+	tbDir := filepath.Join(root, "terms")
+	memoryDir := filepath.Join(root, "memory")
 	must(os.MkdirAll(tbDir, 0o755))
 	must(os.MkdirAll(memoryDir, 0o755))
 
 	seedTerms(filepath.Join(tbDir, "product-glossary.db"))
 	seedSecondaryTerms(filepath.Join(tbDir, "brand-terms.db"))
 	seedMemory(filepath.Join(memoryDir, "acme-app.db"))
-	seedSecondaryMemory(filepath.Join(memoryDir, "global-tm.db"))
+	seedSecondaryMemory(filepath.Join(memoryDir, "global-memory.db"))
 	seedProviders(filepath.Join(root, "providers.json"))
 
 	fmt.Println("seeded:", tbDir, memoryDir)

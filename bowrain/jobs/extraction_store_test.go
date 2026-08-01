@@ -1,29 +1,17 @@
 package jobs
 
 import (
-	"os"
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/neokapi/neokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func newTestExtractionStore(t *testing.T) ExtractionJobStore {
 	t.Helper()
-	dbURL := os.Getenv("BOWRAIN_TEST_DATABASE_URL")
-	if dbURL == "" {
-		t.Skip("BOWRAIN_TEST_DATABASE_URL not set")
-	}
-	db, err := storage.OpenPostgres(dbURL)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		// Clean up test data.
-		_, _ = db.ExecContext(t.Context(), "DELETE FROM extraction_jobs")
-		closePgDB(db) // closes the pgxpool too, keeping the goleak check green
-	})
-	store, err := NewExtractionJobStore(db)
+	store, err := NewExtractionJobStore(pgtest.NewTestDB(t))
 	require.NoError(t, err)
 	return store
 }

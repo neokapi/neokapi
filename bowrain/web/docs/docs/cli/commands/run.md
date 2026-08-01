@@ -106,7 +106,7 @@ steps:
 ```
 
 The terminology step checks against the terms store bound on the recipe
-(`defaults.termbase`), not one configured per step; `--termbase` overrides it
+(`defaults.terms`), not one configured per step; `--terms` overrides it
 for a single run.
 
 Run with:

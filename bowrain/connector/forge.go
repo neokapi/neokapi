@@ -2,18 +2,63 @@ package connector
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/forge"
 	"github.com/neokapi/neokapi/core/registry"
 )
+
+// forgeCheckoutRoot is the directory every forge connector's working checkout
+// lives under. It exists as a var only so connector tests can point it at a
+// t.TempDir(), in the style of allowedGitProtocols; production code never
+// changes it.
+var forgeCheckoutRoot = filepath.Join(os.TempDir(), "neokapi-forge")
+
+// forgeCheckoutPath names the checkout directory for a connector, derived
+// entirely from values the server can vouch for.
+//
+// Both inputs reach here from tenant-supplied config, so neither is joined
+// into a path as-is: an id of "../.." would otherwise walk out of the root.
+// The digest carries the identity — it is what makes two connectors distinct
+// and one connector stable across restarts — while the slug is there only so
+// an operator looking at the directory can tell which connector it belongs to.
+func forgeCheckoutPath(id, repoPath string) string {
+	sum := sha256.Sum256([]byte(id + "\x00" + repoPath))
+	name := hex.EncodeToString(sum[:8])
+	if slug := checkoutSlug(id); slug != "" {
+		name = slug + "-" + name
+	}
+	return filepath.Join(forgeCheckoutRoot, name)
+}
+
+// checkoutSlug reduces s to a short, unmistakably safe directory-name fragment:
+// ASCII alphanumerics, dash and underscore only. Anything else — separators,
+// dots, spaces, non-ASCII — is dropped rather than substituted, so no input can
+// produce "..", a leading dash, or a nested path.
+func checkoutSlug(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '-', r == '_':
+			b.WriteRune(r)
+		}
+		if b.Len() >= 32 {
+			break
+		}
+	}
+	return strings.Trim(b.String(), "-_")
+}
 
 // DefaultDeliveryBranch is the stable head branch the forge connector pushes
 // deliveries to. One branch means one open pull/merge request per project that
@@ -93,6 +138,14 @@ func NewForgeConnectorWithApp(formatReg *registry.FormatRegistry, config map[str
 	if gitCfg["id"] == "" {
 		gitCfg["id"] = "forge-" + repo.Path[strings.LastIndex(repo.Path, "/")+1:]
 	}
+	// The checkout location belongs to the server, not to the config. A forge
+	// connector's config arrives over the workspace connectors API, so honoring
+	// a local_path in it would let the tenant choose which directory on the
+	// host the server reads through and publishes into. Overwrite it rather
+	// than reject it: the key is meaningless for a forge connector either way,
+	// and a delivery should not start failing over a field that never had an
+	// effect worth keeping.
+	gitCfg["local_path"] = forgeCheckoutPath(gitCfg["id"], repo.Path)
 	git, err := NewGitConnector(formatReg, gitCfg)
 	if err != nil {
 		return nil, err

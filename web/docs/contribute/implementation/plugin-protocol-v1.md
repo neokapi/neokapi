@@ -191,7 +191,17 @@ may declare any subset.
 - stdin / stdout / stderr are inherited from kapi. (A data-returning contribution
   is the exception: kapi captures stdout and discards stderr.)
 - The environment carries `KAPI_PLUGIN_DIR`, `KAPI_PLUGIN_NAME`, and
-  `KAPI_PLUGIN_VERSION` on top of kapi's own environment.
+  `KAPI_PLUGIN_VERSION` on top of kapi's own environment, **less the provider
+  API-key variables** (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`,
+  `GOOGLE_API_KEY`, `AZURE_OPENAI_API_KEY`). A plugin is separate software the
+  user installed; kapi's model credentials are not part of what installing it
+  granted. Everything else is inherited — `PATH`, `HOME`, `TMPDIR`,
+  `XDG_CACHE_HOME`, and any variables the plugin's own `models` declarations
+  resolve to. A plugin that genuinely needs to reach a model provider should
+  say so in its manifest rather than read the host's key by inheritance. The
+  conformance harness (`core/plugin/conformance`) scrubs the same variables, so
+  a plugin that reads one fails under `kapi plugin conform` the way it fails
+  under kapi; the list has one home, `core/credentials/providerenv`.
 - The **exit code is propagated** to kapi's caller.
 - The process exits after each command; no state carries over.
 - A command name the manifest does not declare must exit non-zero.

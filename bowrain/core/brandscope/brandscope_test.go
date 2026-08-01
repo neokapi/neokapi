@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,11 +48,11 @@ func (f fakeWorkspaceDefault) WorkspaceBrandProfileID(_ context.Context, _ strin
 
 // fakeBrandStore resolves profiles by ID from a fixed set.
 type fakeBrandStore struct {
-	brand.BrandStore // embed so we only implement GetProfile
-	profiles         map[string]*brand.VoiceProfile
+	profile.BrandStore // embed so we only implement GetProfile
+	profiles           map[string]*profile.VoiceProfile
 }
 
-func (f *fakeBrandStore) GetProfile(_ context.Context, id string) (*brand.VoiceProfile, error) {
+func (f *fakeBrandStore) GetProfile(_ context.Context, id string) (*profile.VoiceProfile, error) {
 	p, ok := f.profiles[id]
 	if !ok {
 		return nil, errors.New("profile not found: " + id)
@@ -61,7 +61,7 @@ func (f *fakeBrandStore) GetProfile(_ context.Context, id string) (*brand.VoiceP
 }
 
 func newBrandStore() *fakeBrandStore {
-	return &fakeBrandStore{profiles: map[string]*brand.VoiceProfile{
+	return &fakeBrandStore{profiles: map[string]*profile.VoiceProfile{
 		"explicit":  {ID: "explicit", Name: "Explicit"},
 		"project":   {ID: "project", Name: "Project"},
 		"stream":    {ID: "stream", Name: "Stream"},
@@ -71,7 +71,7 @@ func newBrandStore() *fakeBrandStore {
 
 func TestResolve_ExplicitWins(t *testing.T) {
 	cs := &fakeScopeStore{
-		project: &store.Project{Properties: map[string]string{brand.PropertyProfileID: "project"}},
+		project: &store.Project{Properties: map[string]string{profile.PropertyProfileID: "project"}},
 	}
 	got, err := Resolve(t.Context(), cs, fakeWorkspaceDefault{id: "workspace"}, newBrandStore(), Scope{
 		ExplicitProfileID: "explicit",
@@ -87,7 +87,7 @@ func TestResolve_ProjectBeatsWorkspaceDefault(t *testing.T) {
 	cs := &fakeScopeStore{
 		project: &store.Project{
 			WorkspaceID: "ws1",
-			Properties:  map[string]string{brand.PropertyProfileID: "project"},
+			Properties:  map[string]string{profile.PropertyProfileID: "project"},
 		},
 	}
 	got, err := Resolve(t.Context(), cs, fakeWorkspaceDefault{id: "workspace"}, newBrandStore(), Scope{
@@ -100,8 +100,8 @@ func TestResolve_ProjectBeatsWorkspaceDefault(t *testing.T) {
 
 func TestResolve_StreamBeatsProject(t *testing.T) {
 	cs := &fakeScopeStore{
-		project: &store.Project{Properties: map[string]string{brand.PropertyProfileID: "project"}},
-		stream:  &store.Stream{Properties: map[string]string{brand.PropertyProfileID: "stream"}},
+		project: &store.Project{Properties: map[string]string{profile.PropertyProfileID: "project"}},
+		stream:  &store.Stream{Properties: map[string]string{profile.PropertyProfileID: "stream"}},
 	}
 	got, err := Resolve(t.Context(), cs, nil, newBrandStore(), Scope{
 		ProjectID: "p1",

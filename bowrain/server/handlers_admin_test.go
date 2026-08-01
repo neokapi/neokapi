@@ -534,9 +534,14 @@ func TestHandleAdminGetMetrics_Error(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
+	// The handler hands the store's failure back rather than rendering it. What
+	// the client sees — the 500, the generic text, the reference ID — is
+	// httpErrorHandler's to write, and TestHTTPErrorHandler_ServerErrorIsRedacted
+	// covers that. Asserting on rec here would only re-test which of the two
+	// wrote it.
 	err := s.HandleAdminGetMetrics(c)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	require.Error(t, err)
+	assert.Empty(t, rec.Body.String(), "the handler must not write a 5xx body itself")
 }
 
 func TestHandleAdminListEvents(t *testing.T) {

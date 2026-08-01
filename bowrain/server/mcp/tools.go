@@ -6,8 +6,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // Phase 1 tools: check_vocabulary, list_profiles, get_voice_guide.
@@ -17,19 +17,19 @@ func (s *MCPServer) registerPhase1Tools() {
 	// check_vocabulary — validate text against brand terms.
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "check_vocabulary",
-		Description: "Validate text against a brand voice profile's vocabulary rules. Returns forbidden and competitor term violations with suggested replacements.",
+		Description: "Check text against the vocabulary rules the governing profile holds. Returns forbidden and competitor term violations with suggested replacements. Prefer retrieving the guidance first (get_voice_guide) and writing to it — this reports what a rule caught after the fact.",
 	}, s.handleCheckVocabulary)
 
 	// list_profiles — list available brand voice profiles in a workspace.
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "list_profiles",
-		Description: "List all brand voice profiles available in a workspace.",
+		Description: "Context discovery: list the profiles this workspace holds — the named bundles of coordinates content is written under (audience, surface, register, market). Start here when you do not yet know which profile governs the content at hand.",
 	}, s.handleListProfiles)
 
 	// get_voice_guide — formatted voice guide for LLM consumption.
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "get_voice_guide",
-		Description: "Get a formatted brand voice guide for a profile, optimized for LLM consumption. Includes tone, style rules, vocabulary constraints, and examples.",
+		Description: "Context retrieval: get the voice guidance that applies under a profile, formatted for a model to read. Includes tone, style rules, vocabulary constraints, and examples. Retrieve this BEFORE generating content, not after a check fails.",
 	}, s.handleGetVoiceGuide)
 }
 
@@ -42,8 +42,8 @@ type checkVocabularyInput struct {
 
 // checkVocabularyOutput is the output for the check_vocabulary tool.
 type checkVocabularyOutput struct {
-	Findings []corebrand.BrandVoiceFinding  `json:"findings"`
-	Score    corebrand.BrandComplianceScore `json:"score"`
+	Findings []coreprofile.BrandVoiceFinding  `json:"findings"`
+	Score    coreprofile.BrandComplianceScore `json:"score"`
 }
 
 func (s *MCPServer) handleCheckVocabulary(ctx context.Context, req *mcp.CallToolRequest, input checkVocabularyInput) (*mcp.CallToolResult, checkVocabularyOutput, error) {
@@ -53,12 +53,12 @@ func (s *MCPServer) handleCheckVocabulary(ctx context.Context, req *mcp.CallTool
 	}
 
 	if input.Locale != "" {
-		profile = corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), "", "")
+		profile = coreprofile.ResolveProfile(profile, model.LocaleID(input.Locale), "", "")
 	}
 
 	runs := []model.Run{{Text: &model.TextRun{Text: input.Text}}}
-	findings := corebrand.HitsToFindings(corebrand.MatchVocabulary(profile, input.Text), input.Text, runs)
-	score := corebrand.CalculateScore(findings)
+	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(profile, input.Text), input.Text, runs)
+	score := coreprofile.CalculateScore(findings)
 	score.ProfileID = profile.ID
 
 	return nil, checkVocabularyOutput{
@@ -123,15 +123,15 @@ func (s *MCPServer) handleGetVoiceGuide(ctx context.Context, req *mcp.CallToolRe
 		return nil, getVoiceGuideOutput{}, fmt.Errorf("get profile: %w", err)
 	}
 
-	resolved := corebrand.ResolveProfile(profile, model.LocaleID(input.Locale), input.Channel, "")
+	resolved := coreprofile.ResolveProfile(profile, model.LocaleID(input.Locale), input.Channel, "")
 	guide := formatVoiceGuide(resolved)
 
 	return nil, getVoiceGuideOutput{Guide: guide}, nil
 }
 
 // formatVoiceGuide produces a markdown-formatted voice guide optimized for LLM
-// consumption. It delegates to corebrand.RenderVoiceGuide, the single source of
+// consumption. It delegates to coreprofile.RenderVoiceGuide, the single source of
 // truth shared with the kapi CLI and the AI translate prompt.
-func formatVoiceGuide(p *corebrand.VoiceProfile) string {
-	return corebrand.RenderVoiceGuide(p)
+func formatVoiceGuide(p *coreprofile.VoiceProfile) string {
+	return coreprofile.RenderVoiceGuide(p)
 }

@@ -407,7 +407,9 @@ func (tm *PostgresStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]
 		e.CreatedAt = createdAt
 		e.UpdatedAt = updatedAt
 		if propsJSON != "" && propsJSON != "{}" {
-			_ = json.Unmarshal([]byte(propsJSON), &e.Properties)
+			if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+				return nil, fmt.Errorf("entry %s: unmarshal properties: %w", e.ID, err)
+			}
 		}
 		e.Variants = make(map[model.LocaleID][]model.Run)
 		entries = append(entries, e)
@@ -1052,6 +1054,11 @@ func scanPgSession(sc pgScanner) (fw.ImportSession, bool) {
 		return fw.ImportSession{}, false
 	}
 	if propsJSON != "" && propsJSON != "{}" {
+		// Best-effort: this scanner reports presence, not failure — its only
+		// error channel is the bool, and returning false for a session that
+		// exists would hide the session rather than the bad column. Session
+		// properties are import provenance, so a malformed blob degrades to
+		// none; the mandatory columns above still fail the scan.
 		_ = json.Unmarshal([]byte(propsJSON), &s.Properties)
 	}
 	return s, true

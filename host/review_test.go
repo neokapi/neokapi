@@ -22,7 +22,7 @@ name: rev
 defaults:
   source_language: en
   target_languages: [nb]
-  tm_source: memory.json
+  memory_source: memory.json
 content:
   - path: en.json
     target: "{lang}.json"
@@ -139,7 +139,7 @@ func TestReview_ApplyMemoryCorrectionIsRecycleNotReview(t *testing.T) {
 }
 
 func TestReview_EmptyQueueWhenNothingTranslated(t *testing.T) {
-	t.Chdir(writeStatusProject(t)) // nb partially translated, ja absent; no tm_source
+	t.Chdir(writeStatusProject(t)) // nb partially translated, ja absent; no memory_source
 	q := reviewQueue(t)
 	// Every present nb target awaits review; ja has no targets. Just assert it
 	// renders and only lists translated units (no panics, no ja entries).
@@ -175,7 +175,7 @@ func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {
 // TestReview_ApplyReviewKindPromotesViaStateStore drives the CLI approval verb:
 // `kapi apply` with a `kind:"review"` change-set records the decision in the
 // project state store (the counterpart of the desktop approve), so the unit
-// counts as reviewed — unlike a `kind:"tm"` entry, which is recycle-only.
+// counts as reviewed — unlike a `kind:"memory"` entry, which is recycle-only.
 func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 	root := writeReviewProject(t)
 	t.Chdir(root)

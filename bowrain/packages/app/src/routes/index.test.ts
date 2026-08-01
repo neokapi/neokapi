@@ -34,7 +34,28 @@ describe("route tree", () => {
     expect(childPaths).toContain("p/$projectId/s/$stream/$itemId/translate");
     expect(childPaths).toContain("terms");
     expect(childPaths).toContain("memory");
+    expect(childPaths).toContain("context");
     expect(childPaths).toContain("settings");
+  });
+
+  it("contains context hub child routes", () => {
+    const children = (rootRoute as AnyRoute).children as AnyRoute[];
+    const workspaceRoute = children[2];
+    const contextRoute = (workspaceRoute.children as AnyRoute[]).find(
+      (r: AnyRoute) => r.path === "context",
+    );
+    expect(contextRoute).toBeDefined();
+
+    const childPaths = (contextRoute!.children as AnyRoute[]).map(
+      (r: AnyRoute) => r.path as string,
+    );
+    // One path per Context sub-nav section, so a renamed nav item that lost its
+    // route shows up here rather than as a dead click.
+    expect(childPaths).toContain("concepts");
+    expect(childPaths).toContain("voice");
+    expect(childPaths).toContain("memory");
+    expect(childPaths).toContain("changes");
+    expect(childPaths).toContain("activity");
   });
 
   it("contains auth child routes", () => {

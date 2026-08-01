@@ -40,12 +40,12 @@ export const Default: Story = {
 
 export const Glass: Story = {
   render: () => (
-    <Tabs defaultValue="tm">
+    <Tabs defaultValue="memory">
       <TabsList>
-        <TabsTrigger value="tm">Content memory</TabsTrigger>
+        <TabsTrigger value="memory">Content memory</TabsTrigger>
         <TabsTrigger value="terms">Terminology</TabsTrigger>
       </TabsList>
-      <TabsContent value="tm">
+      <TabsContent value="memory">
         <p className="text-sm text-muted-foreground p-4">content-memory matches will appear here</p>
       </TabsContent>
       <TabsContent value="terms">

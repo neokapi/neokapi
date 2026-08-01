@@ -54,7 +54,7 @@ content:
 	// `pack` correctly refuses ("nothing to pack"), which is its own contract
 	// and is asserted separately.
 	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
-	tm, err := memory.NewSQLiteStore(filepath.Join(root, project.StateDirName, "tm.db"))
+	tm, err := memory.NewSQLiteStore(filepath.Join(root, project.StateDirName, "memory.db"))
 	require.NoError(t, err)
 	require.NoError(t, tm.Add(context.Background(), memory.Entry{
 		ID:          "rt-1",
@@ -338,8 +338,10 @@ func TestRestoreSourcesRefusesToEscapeTheProject(t *testing.T) {
 		name, member, wantErr string
 	}{
 		{"parent traversal", kpz.SourceDir + "../../victim.txt", "escapes the project root"},
-		{"absolute path", kpz.SourceDir + "/etc/victim.txt", "no usable relative path"},
+		{"absolute path", kpz.SourceDir + "/etc/victim.txt", "escapes the project root"},
 		{"empty path", kpz.SourceDir, "no usable relative path"},
+		{"traversal mid-path", kpz.SourceDir + "src/../../victim.txt", "escapes the project root"},
+		{"bare dot-dot", kpz.SourceDir + "..", "escapes the project root"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			pkg := &kpz.Package{Source: []kpz.SourceDoc{{
@@ -399,7 +401,7 @@ func partByName(t *testing.T, parts []ProjectArchivePart, name string) ProjectAr
 // depending on row ids or insertion order.
 func tmEntries(t *testing.T, root string) map[string]map[string]string {
 	t.Helper()
-	tm, err := memory.NewSQLiteStore(filepath.Join(root, project.StateDirName, "tm.db"))
+	tm, err := memory.NewSQLiteStore(filepath.Join(root, project.StateDirName, "memory.db"))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, tm.Close()) }()
 

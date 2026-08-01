@@ -404,3 +404,52 @@ func TestSkeletonStore_ByteExact_MixedContent(t *testing.T) {
 
 	assert.Equal(t, input, buf.String(), "mixed content roundtrip should be byte-exact")
 }
+
+// TestSkeletonStore_MixedContent_Idempotent pins repeated passes over mixed
+// content, which is the property a convergence loop depends on and which
+// single-pass byte-exactness does not imply.
+//
+// A parent's text nodes are non-contiguous — separated by its element children
+// — but the reader concatenates them into one block while the skeleton reserves
+// a ref for only the last. The bytes of the earlier runs stayed in the skeleton
+// as literal text AND inside the block, so each pass emitted the separator
+// twice and the next pass read the doubled result as the new block text. One
+// byte per whitespace-only separator, per pass, without bound: a project that
+// converges daily grew a byte a day, the source diff showed a whitespace change
+// every run, and nothing in the recipe pointed at a cause (#1605).
+func TestSkeletonStore_MixedContent_Idempotent(t *testing.T) {
+	t.Parallel()
+	for name, input := range map[string]string{
+		// The filed reproducer: element-first, whitespace-only separator,
+		// trailing non-whitespace text.
+		"separator then trailing text": `<r><a>x</a> <b>y</b> tail</r>`,
+		"two separators":               `<r><a>x</a> <b>y</b> <c>z</c> tail</r>`,
+		"tab separator":                "<r><a>x</a>\t<b>y</b> tail</r>",
+		"newline separator":            "<r><a>x</a>\n<b>y</b> tail</r>",
+
+		// Shapes the issue probed as stable; they must stay stable.
+		"non-whitespace separator": `<r><a>x</a>M<b>y</b>N</r>`,
+		"no separator":             `<r><a>x</a><b>y</b> tail</r>`,
+		"no trailing text":         `<r><a>x</a> <b>y</b></r>`,
+		"pretty printed":           "<r>\n  <a>x</a>\n  <b>y</b>\n</r>",
+		"leading text":             `<para>See <emphasis>a</emphasis> <emphasis>b</emphasis> now.</para>`,
+		"ordinary prose":           `<p>Click <b>Save</b> <i>now</i> to continue.</p>`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			// A single pass is byte-exact on an untouched document …
+			pass1 := xmlSkeletonRoundtrip(t, input)
+			assert.Equal(t, input, pass1, "single pass must be byte-exact")
+
+			// … and so is every pass after it. Four, because the growth is
+			// one byte per separator per pass: a fix that merely halved it
+			// would still pass a two-pass check.
+			prev := pass1
+			for i := 2; i <= 5; i++ {
+				next := xmlSkeletonRoundtrip(t, prev)
+				assert.Equal(t, prev, next, "pass %d changed the document", i)
+				prev = next
+			}
+		})
+	}
+}

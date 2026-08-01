@@ -5,6 +5,7 @@ import (
 
 	"golang.org/x/text/encoding"
 
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -199,7 +200,7 @@ func writeAttrs(b *strings.Builder, attrs []Attr) {
 		}
 		b.WriteString(a.Local)
 		b.WriteString(`="`)
-		b.WriteString(xmlEscapeAttr(a.Value))
+		b.WriteString(xmlesc.Attr(a.Value))
 		b.WriteString(`"`)
 	}
 }

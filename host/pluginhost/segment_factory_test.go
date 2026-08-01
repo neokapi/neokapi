@@ -3,8 +3,10 @@ package pluginhost
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -30,8 +32,7 @@ func makeSegmenterPlugin(t *testing.T, daemonBin, pluginName, engineName string)
 	t.Helper()
 	dir := t.TempDir()
 	binDest := filepath.Join(dir, "fakedaemon")
-	require.NoError(t, copyFile(daemonBin, binDest))
-	require.NoError(t, os.Chmod(binDest, 0o755))
+	linkFakeDaemon(t, daemonBin, binDest)
 
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "segment"), 0o755))
 	schemaPath := filepath.Join("segment", "engine.json")
@@ -66,9 +67,24 @@ func makeSegmenterPlugin(t *testing.T, daemonBin, pluginName, engineName string)
 	}
 }
 
+var engineNameSeq atomic.Int64
+
+// uniqueEngineName mints an engine name no earlier test has used.
+//
+// core/segment's registry is process-global and offers no unregister, and
+// RegisterModeCSegmenters registers through segment.RegisterIfAbsent. A fixed
+// engine name therefore only registers on the first pass: under `go test
+// -count=N` (N>1) the same test body runs again in the same process, the name
+// is already taken, RegisterIfAbsent returns false, and the assertion that a
+// new engine was registered fails — deterministically, independent of load or
+// ordering.
+func uniqueEngineName(prefix string) string {
+	return fmt.Sprintf("%s-%d", prefix, engineNameSeq.Add(1))
+}
+
 func TestRegisterModeCSegmenters_RegistersEngineWithSchema(t *testing.T) {
 	bin := buildFakeDaemon(t)
-	const engine = "test-seg-schema"
+	engine := uniqueEngineName("test-seg-schema")
 	plugin := makeSegmenterPlugin(t, bin, "seg-plugin", engine)
 	host := NewHost([]*Plugin{plugin}, nil)
 	pool := daemonPoolWithBridgeEnv(t)
@@ -89,7 +105,7 @@ func TestRegisterModeCSegmenters_RegistersEngineWithSchema(t *testing.T) {
 
 func TestRegisterModeCSegmenters_SegmentOverDaemon(t *testing.T) {
 	bin := buildFakeDaemon(t)
-	const engine = "test-seg-run"
+	engine := uniqueEngineName("test-seg-run")
 	plugin := makeSegmenterPlugin(t, bin, "seg-plugin-run", engine)
 	host := NewHost([]*Plugin{plugin}, nil)
 	pool := daemonPoolWithBridgeEnv(t)

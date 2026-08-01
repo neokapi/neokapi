@@ -55,6 +55,18 @@ type KapiProject struct {
 	Preset   string                     `yaml:"preset,omitempty" json:"preset,omitempty"`
 	Flows    map[string]*flow.StepsSpec `yaml:"flows,omitempty" json:"flows,omitempty"`
 
+	// Coordinates declares the axes of the context space this project's content
+	// is written for, and Profiles binds governance to regions of it. A project
+	// is not always one voice: a repository holding both a framework and the
+	// platform built on it carries two, and one project-wide binding governs
+	// the wrong one half the time. The taxonomy is the project's own — product,
+	// channel, market, tenant — and a named collection names the point its
+	// content sits at (ContentCollection.Context). Both empty means the whole
+	// project sits at one point, under defaults.brand_voice / defaults.terms.
+	// See coordinates.go.
+	Coordinates Coordinates      `yaml:"coordinates,omitempty" json:"coordinates,omitempty"`
+	Profiles    []ProfileBinding `yaml:"profiles,omitempty" json:"profiles,omitempty"`
+
 	// Ship gates decide when localized content is shippable, as coverage
 	// thresholds over the lifecycle ladder (see core/gate). Three optional,
 	// additive forms:
@@ -166,7 +178,7 @@ type Defaults struct {
 	Merge MergeDefaults `yaml:"merge,omitempty" json:"merge,omitzero"`
 
 	// content memory governs content memory pre-fill on kapi extract and content memory write-back on kapi merge (AD-017).
-	Memory MemoryDefaults `yaml:"tm,omitempty" json:"tm,omitzero"`
+	Memory MemoryDefaults `yaml:"memory,omitempty" json:"memory,omitzero"`
 
 	// Segmentation governs the opt-in sentence-level segmentation overlay
 	// applied on extract (AD-017).
@@ -191,7 +203,7 @@ type Defaults struct {
 	// set, project-scoped term enforcement uses it with no --terms flag.
 	// The path resolves relative to the project root (the recipe's
 	// directory). Empty means no bound terms.
-	Terms string `yaml:"termbase,omitempty" json:"termbase,omitempty"`
+	Terms string `yaml:"terms,omitempty" json:"terms,omitempty"`
 
 	// TermsSource binds the committed, git-tracked native source artifact
 	// (a .terms.json document) the project terms store is compiled from. This is the
@@ -200,14 +212,14 @@ type Defaults struct {
 	// store is written by exactly one path and `git diff` is the review
 	// surface. The path resolves relative to the project root. Empty means no
 	// bound source (the .db cache, if any, is the only artifact).
-	TermsSource string `yaml:"termbase_source,omitempty" json:"termbase_source,omitempty"`
+	TermsSource string `yaml:"terms_source,omitempty" json:"terms_source,omitempty"`
 
 	// MemorySource binds the committed, git-tracked native source artifact (a
 	// .memory.json document) the project content memory is compiled from, the content memory
 	// analogue of TermsSource. `kapi apply` edits the .memory.json here and
-	// re-imports it into the gitignored .kapi/tm.db cache. The path resolves
+	// re-imports it into the gitignored .kapi/memory.db cache. The path resolves
 	// relative to the project root. Empty means no bound content memory source.
-	MemorySource string `yaml:"tm_source,omitempty" json:"tm_source,omitempty"`
+	MemorySource string `yaml:"memory_source,omitempty" json:"memory_source,omitempty"`
 
 	// State binds the committed, git-tracked project state artifact (a
 	// kapi-project-state JSON document, core/state) — the authoritative carrier of
@@ -248,11 +260,15 @@ type LocaleDefaults struct {
 	Tools map[string]map[string]any `yaml:"tools,omitempty" json:"tools,omitempty"`
 }
 
-// BrandVoiceBinding binds a brand voice profile to a project under
-// `defaults.brand_voice`. Exactly one source is expected: a standalone
-// profile YAML (ProfileFile, resolved relative to the project root), a
-// profile in the local brand store (Profile), or a built-in starter pack
-// (Pack).
+// BrandVoiceBinding binds a brand voice profile — to the project under
+// `defaults.brand_voice`, or to a region of the context space under a
+// profile's `voice:`. Exactly one source is expected: a standalone profile YAML
+// (ProfileFile, resolved relative to the project root), a profile in the local
+// brand store (Profile), or a built-in starter pack (Pack).
+//
+// The short form is the profile file itself — `voice: context/kapi-voice.yaml`
+// — which is what a recipe writes when the profile is a file in the project,
+// as it usually is.
 type BrandVoiceBinding struct {
 	// ProfileFile is the path to a standalone profile YAML, resolved
 	// relative to the project root.
@@ -263,8 +279,36 @@ type BrandVoiceBinding struct {
 	Pack string `yaml:"pack,omitempty" json:"pack,omitempty"`
 }
 
-// validate checks that exactly one brand-voice source is set.
-func (b *BrandVoiceBinding) validate() error {
+// UnmarshalYAML accepts both forms: a scalar is the profile file, a mapping is
+// the full binding.
+func (b *BrandVoiceBinding) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		b.ProfileFile = node.Value
+		return nil
+	}
+	type brandVoiceBindingAlias BrandVoiceBinding
+	var alias brandVoiceBindingAlias
+	if err := node.Decode(&alias); err != nil {
+		return err
+	}
+	*b = BrandVoiceBinding(alias)
+	return nil
+}
+
+// MarshalYAML writes back the form the binding was authored in, so saving a
+// recipe does not expand a plain profile path into a mapping.
+func (b BrandVoiceBinding) MarshalYAML() (any, error) {
+	if b.Profile == "" && b.Pack == "" {
+		return b.ProfileFile, nil
+	}
+	type brandVoiceBindingAlias BrandVoiceBinding
+	return brandVoiceBindingAlias(b), nil
+}
+
+// validate checks that exactly one brand-voice source is set. field names the
+// recipe key being validated (`defaults.brand_voice`, or a profile's own
+// `profiles[i].voice`), so the message points at the binding at fault.
+func (b *BrandVoiceBinding) validate(field string) error {
 	if b == nil {
 		return nil
 	}
@@ -275,10 +319,10 @@ func (b *BrandVoiceBinding) validate() error {
 		}
 	}
 	if count == 0 {
-		return errors.New("defaults.brand_voice: specify one of profile_file, profile, or pack")
+		return fmt.Errorf("%s: specify one of profile_file, profile, or pack", field)
 	}
 	if count > 1 {
-		return errors.New("defaults.brand_voice: profile_file, profile, and pack are mutually exclusive")
+		return fmt.Errorf("%s: profile_file, profile, and pack are mutually exclusive", field)
 	}
 	return nil
 }
@@ -426,7 +470,7 @@ func (m MergeDefaults) validate() error {
 
 func (t MemoryDefaults) validate() error {
 	if t.FuzzyThreshold < 0 || t.FuzzyThreshold > 100 {
-		return fmt.Errorf("defaults.tm.fuzzy_threshold: %d out of range (0..100)", t.FuzzyThreshold)
+		return fmt.Errorf("defaults.memory.fuzzy_threshold: %d out of range (0..100)", t.FuzzyThreshold)
 	}
 	return nil
 }
@@ -491,6 +535,14 @@ type ContentCollection struct {
 	// (the literal part of Path before the first wildcard). Collection-level
 	// Base applies to every item that doesn't set its own.
 	Base string `yaml:"base,omitempty" json:"base,omitempty"`
+
+	// Context places this collection's content at a point in the project's
+	// context space: axis → value, over the axes declared under `coordinates:`.
+	// The point selects the profile whose governance — voice, terms — a run
+	// carries over this content. nil means the project's default point governs
+	// it. Named collections only: a point is resolved by collection name, so an
+	// unnamed entry has nothing to resolve.
+	Context map[string]string `yaml:"context,omitempty" json:"context,omitempty"`
 
 	// Bare entry fields (short form — promoted from ContentItem).
 	Path   string      `yaml:"path,omitempty" json:"path,omitempty"`
@@ -744,7 +796,10 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	if err := p.Defaults.Redaction.validate(); err != nil {
 		return err
 	}
-	if err := p.Defaults.BrandVoice.validate(); err != nil {
+	if err := p.Defaults.BrandVoice.validate("defaults.brand_voice"); err != nil {
+		return err
+	}
+	if err := p.validateContextSpace(); err != nil {
 		return err
 	}
 	for i, c := range p.Content {
@@ -810,6 +865,17 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 		}
 	}
 	return nil
+}
+
+// sortedKeys returns a map's keys in deterministic order, so validation reports
+// the same message on every load.
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // validateRequiresSyntax checks every Requires entry for non-empty

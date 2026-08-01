@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-26T01:59:51Z",
+  "generatedAt": "2026-07-29T19:11:14Z",
   "commands": [
     {
       "id": "add",
@@ -63,7 +63,7 @@
       ],
       "use": "apply [flags] [CHANGESET]",
       "short": "Apply a typed change-set (content + asset edits) — the one write verb",
-      "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (glossary term, content-memory pair,\nbrand rule, recipe field), or a review decision (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review decision is recorded in the project state store.\n\nA content memory pair (kind:\"tm\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the decision lands in the project\nstate store (defaults.state, default .kapi-state.json) and is bound to the\ntranslation's content hash, so a later edit drops the unit back below reviewed.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
+      "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (term, content-memory pair,\nbrand rule, recipe field), or a review decision (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review decision is recorded in the project state store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the decision lands in the project\nstate store (defaults.state, default .kapi-state.json) and is bound to the\ntranslation's content hash, so a later edit drops the unit back below reviewed.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
       "groupID": "work",
       "flags": [
         {
@@ -747,7 +747,7 @@
       ],
       "use": "check [files...]",
       "short": "Verify content against a checkset and gate on severity, like tests over code",
-      "long": "Run content checks over one or more files and return structured findings\nplus a pass/fail, gating on severity — the content-first counterpart to a test\nrunner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nvocabulary when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual localization checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --output-format json|yaml emits the kapi.check/v1\nReport.\n\nPositional paths accept glob patterns and directories, expanded by kapi itself —\nquote the pattern and `**` recurses identically in every shell. Inside a .kapi\nproject, check with no file arguments checks the project's declared content;\nnaming files narrows it to those.\n\nProject gate mode (--ship): it runs the\nproject's bound quality gates (brand, terminology, QA) plus its ship/source\ncoverage gates over the project's content, and exits non-zero when any gate is\nunmet — the pre-release bar. Target drift never blocks an ordinary build (see\n'kapi status'); --ship is the explicit, opt-in enforcement point. With no file\narguments it inspects the project's content x target languages; pass files to\ngate just those.\n\nExit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits\n0 (report mode) for a fix-loop.",
+      "long": "Run content checks over one or more files and return structured findings\nplus a pass/fail, gating on severity — the content-first counterpart to a test\nrunner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nvocabulary when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --output-format json|yaml emits the kapi.check/v1\nReport.\n\nPositional paths accept glob patterns and directories, expanded by kapi itself —\nquote the pattern and `**` recurses identically in every shell. Inside a .kapi\nproject, check with no file arguments checks the project's declared content;\nnaming files narrows it to those.\n\nProject gate mode (--ship): it runs the\nproject's bound quality gates (brand, terminology, QA) plus its ship/source\ncoverage gates over the project's content, and exits non-zero when any gate is\nunmet — the pre-release bar. Target drift never blocks an ordinary build (see\n'kapi status'); --ship is the explicit, opt-in enforcement point. With no file\narguments it inspects the project's content x target languages; pass files to\ngate just those.\n\nExit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits\n0 (report mode) for a fix-loop.",
       "groupID": "work",
       "flags": [
         {
@@ -862,7 +862,7 @@
         },
         {
           "name": "target",
-          "usage": "translated target file to check against the (single) source — enables bilingual l10n checks",
+          "usage": "translated target file to check against the (single) source — enables bilingual checks",
           "type": "string"
         },
         {
@@ -1152,6 +1152,67 @@
       "demoMode": false
     },
     {
+      "id": "context",
+      "path": [
+        "context"
+      ],
+      "use": "context",
+      "short": "Ask what this project's content context says",
+      "long": "Retrieve the content context this project goes by — the terms, the\nvoice and the rules that hold — without needing to know which store holds the\nanswer.\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says about a word or a phrase before you write, rather than learning it\nfrom a failing check afterwards.",
+      "groupID": "work",
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "context.search",
+      "path": [
+        "context",
+        "search"
+      ],
+      "use": "search \u003cquery\u003e",
+      "short": "Ask what the project's context says about a word or phrase",
+      "long": "Ask one question and get the answer from every store the project\nbinds: what this is called and whether it is discouraged, and wording the\nproject has already approved.\n\nResults are grouped by kind rather than merged into one ranked list, because a\nterminology match and a wording match are not scored on comparable things.",
+      "flags": [
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "usage": "max results per group",
+          "default": "10",
+          "type": "int"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "locale",
+          "shorthand": "l",
+          "usage": "narrow results to one language",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context search widget",
+        "kapi context search \"sign in\" --locale en",
+        "kapi context search widget --json"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
       "id": "credentials",
       "path": [
         "credentials"
@@ -1178,12 +1239,12 @@
       "flags": [
         {
           "name": "api-key",
-          "usage": "API key for the provider",
+          "usage": "API key for the provider (omit on a terminal to be prompted, unechoed)",
           "type": "string"
         },
         {
           "name": "base-url",
-          "usage": "custom API base URL (optional)",
+          "usage": "custom API base URL, e.g. a self-hosted endpoint (applies when used with --credential, not with an inline --api-key)",
           "type": "string"
         },
         {
@@ -3385,6 +3446,11 @@
           "type": "stringArray"
         },
         {
+          "name": "memory",
+          "usage": "named Memory or path to a .db (defaults to the project content memory at .kapi/memory.db)",
+          "type": "string"
+        },
+        {
           "name": "no-query-threshold",
           "usage": "Skip content-memory query if existing candidate scores at or above this value (101 = always query)",
           "default": "101",
@@ -3441,11 +3507,6 @@
         {
           "name": "target-lang",
           "usage": "target language (e.g. fr, de-DE)",
-          "type": "string"
-        },
-        {
-          "name": "tm",
-          "usage": "named Memory or path to a .db (defaults to the project content memory at .kapi/tm.db)",
           "type": "string"
         },
         {
@@ -5341,7 +5402,7 @@
         },
         {
           "name": "out",
-          "usage": "merge-time output layout recorded in the .kpz (e.g. 'l10n/{lang}/{name}.{ext}')",
+          "usage": "merge-time output layout recorded in the .kpz (e.g. 'translated/{lang}/{name}.{ext}')",
           "type": "string"
         },
         {
@@ -5722,8 +5783,29 @@
         "mcp"
       ],
       "use": "mcp",
-      "short": "Start MCP server (stdio) exposing kapi's content tools (read, edit, check, brand, localize)",
+      "short": "Start MCP server (stdio) exposing the project's context and the loop around it",
+      "long": "Start an MCP server over stdio.\n\nThe default surface is deliberately small: retrieving the project's context,\nchecking content against it, writing edits back, and running the loop. That is\nwhat an assistant needs to work inside this project's context.\n\nEverything else the tool registry can do is still reachable — pipeline steps,\nformat internals, one-off transforms — but as an explicit opt-in, because a\nsurface nobody chose is how it grew to fifty-one tools.\n\n  --all-tools   every CLI-visible registry tool\n  --all-flows   the flow-running verbs\n  --all         both",
       "groupID": "advanced",
+      "flags": [
+        {
+          "name": "all",
+          "usage": "shorthand for --all-tools --all-flows",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "all-flows",
+          "usage": "expose the flow-running verbs",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "all-tools",
+          "usage": "expose every CLI-visible registry tool, not the curated set",
+          "default": "false",
+          "type": "bool"
+        }
+      ],
       "offlineCapable": false,
       "runnableInBrowser": false,
       "demoMode": false
@@ -5735,7 +5817,7 @@
       ],
       "use": "memory",
       "short": "Manage content memory",
-      "long": "Manage content memory.\n\nA content memory stores previously produced content — source segments with the\ntargets settled for them — as a SQLite database. Use these commands to\nimport/export TMX, look up matches, and manage entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         Content memory in current directory (./tm.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./tm.db).",
+      "long": "Manage content memory.\n\nA content memory stores previously produced content — source segments with the\ntargets settled for them — as a SQLite database. Use these commands to\nimport/export TMX, look up matches, and manage entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./memory.db).",
       "groupID": "assets",
       "examples": [
         "kapi memory stats",
@@ -6240,7 +6322,7 @@
       ],
       "use": "merge",
       "short": "Apply a returned bilingual file (.kpz/XLIFF/PO) back onto the project source",
-      "long": "Materialize localized files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the localized files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\nlocalized file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently.",
+      "long": "Materialize target-language files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the target-language files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\ntarget-language file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently.",
       "groupID": "advanced",
       "flags": [
         {
@@ -6281,11 +6363,11 @@
         }
       ],
       "examples": [
-        "kapi merge                     # materialize localized files from the project store",
+        "kapi merge                     # materialize target-language files from the project store",
         "kapi merge -i out/app.en-to-fr.xliff",
         "kapi merge -i file1.xliff -i file2.xliff",
         "kapi merge -i vendor-return/ --no-tm-update",
-        "kapi merge work.kpz -o l10n/   # emit localized files from a .kpz workspace"
+        "kapi merge work.kpz -o out/    # emit target-language files from a .kpz workspace"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -6852,7 +6934,7 @@
       "use": "pseudo-translate [files...]",
       "short": "Pseudo-translate files to test locale readiness — no AI keys needed",
       "long": "Run the built-in pseudo-translate flow: expand every string with\nlocale-shaped accents and length padding so truncation, concatenation, and\nhardcoded-string bugs surface before any real translation is bought. Runs\nentirely offline — no AI provider or keys required.\n\nUse it as the pre-flight check; when the UI holds up, 'kapi translate' (ad\nhoc) or 'kapi up' (project) produce the real translations.",
-      "groupID": "localization",
+      "groupID": "translate",
       "flags": [
         {
           "name": "api-key",
@@ -6910,6 +6992,11 @@
         {
           "name": "instruction",
           "usage": "extra guidance for the model while translating (e.g. \"informal register; keep product names in English\")",
+          "type": "string"
+        },
+        {
+          "name": "memory",
+          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
           "type": "string"
         },
         {
@@ -6972,11 +7059,6 @@
         {
           "name": "termstore",
           "usage": "named terms store for term-lookup/enforce (resolves from KAPI_HOME)",
-          "type": "string"
-        },
-        {
-          "name": "tm",
-          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
           "type": "string"
         },
         {
@@ -7111,6 +7193,11 @@
           "type": "string"
         },
         {
+          "name": "memory",
+          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
+          "type": "string"
+        },
+        {
           "name": "model",
           "usage": "AI model name",
           "type": "string"
@@ -7170,11 +7257,6 @@
         {
           "name": "termstore",
           "usage": "named terms store for term-lookup/enforce (resolves from KAPI_HOME)",
-          "type": "string"
-        },
-        {
-          "name": "tm",
-          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
           "type": "string"
         },
         {
@@ -7345,12 +7427,12 @@
       ],
       "use": "terms",
       "short": "Manage terminology",
-      "long": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in KAPI_HOME (~/.config/kapi/termbases/\u003cn\u003e.db)\n  --local         Terms store in current directory (./termbase.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./termbase.db).",
+      "long": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in the kapi config dir (terms/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./terms.db).",
       "groupID": "assets",
       "examples": [
         "kapi terms stats",
         "kapi terms lookup \"dashboard\" -s en -t fr",
-        "kapi terms import glossary.csv -s en -t fr"
+        "kapi terms import terms.csv -s en -t fr"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -7484,7 +7566,7 @@
         }
       ],
       "examples": [
-        "kapi terms import glossary.csv -s en -t fr --header",
+        "kapi terms import terms.csv -s en -t fr --header",
         "kapi terms import vocab.csv -s en --monolingual --header",
         "kapi terms import terms.tbx --format tbx",
         "kapi terms import seeds/terms.json"
@@ -7704,7 +7786,7 @@
       "use": "translate [files...]",
       "short": "Translate files with guardrails — content memory reuse, AI translate, then checks",
       "long": "Translate files through the built-in translate flow: leverage a bound\ncontent memory first (a no-op without one), translate the rest with the\nconfigured AI provider, then run the deterministic checks (placeholders,\ninline tags, untranslated text) over what was produced.\n\nThis is the guardrailed spelling — the same three-step flow 'kapi up' loops\nover a project, applied to ad-hoc files. The raw translate tool (no Memory pass,\nno checks) stays available as 'kapi exec translate'. To bring a whole project\nup to date, use 'kapi up'.",
-      "groupID": "localization",
+      "groupID": "translate",
       "flags": [
         {
           "name": "api-key",
@@ -7762,6 +7844,11 @@
         {
           "name": "instruction",
           "usage": "extra guidance for the model while translating (e.g. \"informal register; keep product names in English\")",
+          "type": "string"
+        },
+        {
+          "name": "memory",
+          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
           "type": "string"
         },
         {
@@ -7824,11 +7911,6 @@
         {
           "name": "termstore",
           "usage": "named terms store for term-lookup/enforce (resolves from KAPI_HOME)",
-          "type": "string"
-        },
-        {
-          "name": "tm",
-          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
           "type": "string"
         },
         {
@@ -7904,7 +7986,7 @@
       ],
       "use": "up",
       "short": "Bring the project up to date (run the default flow until every gated scope ships or parks)",
-      "long": "Bring the project up to date: the recipe declares the languages, the flow, and\nthe gates that decide shippable; kapi up runs the project's default flow\n(defaults.flow) over every target language, looping until every gated scope is\nshippable or parked for a human.\n\nWithout defaults.flow, up runs the built-in default flow — Memory reuse (recycle)\nfollowed by AI translate — so a recipe needs no flow YAML at all to catch up.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a unit with failing findings (dropped placeholders, glossary\nviolations) counts as drafted, not translated, so it cannot lift its locale\nover the gate until fixed. --no-checks opts out.\n\nWhen the loop ends, the materialize policy decides whether localized files\nare written from the project store: 'defaults.materialize: on-converge' (or\nthe --materialize flag) writes them for every locale whose gated scopes are\nall shippable; the default ('manual') leaves that to 'kapi merge'.\n\nVenue: in a server-connected project (a recipe with a server: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default — on\nthe org's keys, against the org's shared Memory and terminology — and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever a server:\nblock is present. Without a server: block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale) — units missing a target, exact Memory\nleverage, the remaining AI work, and a rough token estimate — computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
+      "long": "Bring the project up to date: the recipe declares the languages, the flow, and\nthe gates that decide shippable; kapi up runs the project's default flow\n(defaults.flow) over every target language, looping until every gated scope is\nshippable or parked for a human.\n\nWithout defaults.flow, up runs the built-in default flow — Memory reuse (recycle)\nfollowed by AI translate — so a recipe needs no flow YAML at all to catch up.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a unit with failing findings (dropped placeholders, terminology\nviolations) counts as drafted, not translated, so it cannot lift its locale\nover the gate until fixed. --no-checks opts out.\n\nWhen the loop ends, the materialize policy decides whether target-language files\nare written from the project store: 'defaults.materialize: on-converge' (or\nthe --materialize flag) writes them for every locale whose gated scopes are\nall shippable; the default ('manual') leaves that to 'kapi merge'.\n\nVenue: in a server-connected project (a recipe with a server: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default — on\nthe org's keys, against the org's shared Memory and terminology — and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever a server:\nblock is present. Without a server: block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale) — units missing a target, exact Memory\nleverage, the remaining AI work, and a rough token estimate — computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
       "groupID": "work",
       "flags": [
         {
@@ -7985,9 +8067,14 @@
         },
         {
           "name": "materialize",
-          "usage": "after the loop, write localized files from the project store for every shippable locale (forces defaults.materialize: on-converge)",
+          "usage": "after the loop, write target-language files from the project store for every shippable locale (forces defaults.materialize: on-converge)",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "memory",
+          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
+          "type": "string"
         },
         {
           "name": "model",
@@ -8083,11 +8170,6 @@
           "type": "duration"
         },
         {
-          "name": "tm",
-          "usage": "named Memory for recycle flow (resolves from KAPI_HOME)",
-          "type": "string"
-        },
-        {
           "name": "trace",
           "usage": "write flow trace JSON to file (for flow visualization)",
           "type": "string"
@@ -8097,7 +8179,7 @@
         "kapi up                # loop the default flow until every gated scope ships or parks",
         "kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale",
         "kapi up --passes 1     # a single pass over every locale that needs work",
-        "kapi up --materialize  # also write localized files for the shippable locales",
+        "kapi up --materialize  # also write target-language files for the shippable locales",
         "kapi up --local        # connected project: run the loop on this machine, then push the results",
         "kapi up -p kapi.yaml   # bring an explicit project recipe up to date"
       ],

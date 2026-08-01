@@ -2,10 +2,13 @@ package jobs
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -30,6 +33,10 @@ type syncPushManifest struct {
 	ActorID       string          `json:"actor_id"`
 	WorkspaceSlug string          `json:"workspace_slug"`
 	ConnectorID   string          `json:"connector_id"`
+	// Contexts is the context content type: the collections the recipe
+	// declares. It rides in the manifest so the structure lands in the same
+	// transaction as the items stored into it (see worker_context.go).
+	Contexts json.RawMessage `json:"contexts"`
 }
 
 type syncChunkRef struct {
@@ -38,6 +45,21 @@ type syncChunkRef struct {
 	Hash        string `json:"hash"`
 	RecordCount int    `json:"record_count"`
 	ByteSize    int64  `json:"byte_size"`
+}
+
+// markJobFailed records why a sync job failed, on the way to returning the
+// error that actually stops it.
+//
+// The status write is genuinely best-effort — the caller is already returning
+// the real error, and there is nothing useful to do if the store is also
+// unreachable — but "best-effort" is not "unobserved". A job left in-flight
+// because this write failed looks, to anyone reading the job table, exactly
+// like a job that is still running, so the failure is logged rather than
+// discarded.
+func markJobFailed(ctx context.Context, deps *WorkerDeps, jobID, reason string) {
+	if err := deps.JobStore.UpdateJobStatus(ctx, jobID, StatusFailed, reason); err != nil {
+		slog.Error("could not record sync job failure", "job_id", jobID, "reason", reason, "error", err)
+	}
 }
 
 // processSyncPushJob handles the sync protocol push (Bowrain AD-009).
@@ -49,7 +71,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	pushID := job.PushID
 
 	if deps.BlobStore == nil {
-		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "blob store not configured")
+		markJobFailed(ctx, deps, job.ID, "blob store not configured")
 		return errors.New("blob store not configured")
 	}
 
@@ -59,19 +81,19 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	// 1. Download and parse manifest.
 	reader, err := deps.BlobStore.Download(ctx, manifestKey)
 	if err != nil {
-		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "manifest download failed")
+		markJobFailed(ctx, deps, job.ID, "manifest download failed")
 		return fmt.Errorf("download manifest: %w", err)
 	}
 	manifestData, err := io.ReadAll(reader)
 	reader.Close()
 	if err != nil {
-		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "manifest read failed")
+		markJobFailed(ctx, deps, job.ID, "manifest read failed")
 		return fmt.Errorf("read manifest: %w", err)
 	}
 
 	var manifest syncPushManifest
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
-		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "invalid manifest")
+		markJobFailed(ctx, deps, job.ID, "invalid manifest")
 		return fmt.Errorf("parse manifest: %w", err)
 	}
 
@@ -80,28 +102,76 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		stream = "main"
 	}
 
-	// Auto-create non-main streams.
+	// Auto-create non-main streams. A stream that already exists is the common
+	// case here — GetStream failing does not distinguish "absent" from
+	// "unreachable" — so a create that loses that race is not an error. One
+	// that fails for any other reason leaves the chunks below writing into a
+	// stream that does not exist, which is worth a line in the log.
 	if stream != "main" {
 		if _, err := deps.ContentStore.GetStream(ctx, projectID, stream); err != nil {
 			baseCursor, _ := deps.ContentStore.LatestCursor(ctx, projectID, "main")
-			_ = deps.ContentStore.CreateStream(ctx, &store.Stream{
+			if cerr := deps.ContentStore.CreateStream(ctx, &store.Stream{
 				ProjectID:  projectID,
 				Name:       stream,
 				Parent:     "main",
 				BaseCursor: baseCursor,
 				Visibility: store.StreamPublic,
-			})
+			}); cerr != nil {
+				slog.Warn("could not auto-create stream for sync push",
+					"project_id", projectID, "stream", stream, "error", cerr)
+			}
 		}
 	}
 
-	// Parse item metadata.
+	// Parse item metadata. This carries each item's format, block index,
+	// preview and collection, so parsing it as far as the first bad byte and
+	// carrying on would store the items with default metadata and nothing to
+	// say the rest was ever there. Fail the push instead.
 	var itemMetas []pb.SyncItemMeta
 	if len(manifest.Items) > 0 {
-		_ = json.Unmarshal(manifest.Items, &itemMetas)
+		if err := json.Unmarshal(manifest.Items, &itemMetas); err != nil {
+			markJobFailed(ctx, deps, job.ID, "invalid item metadata")
+			return fmt.Errorf("parse manifest item metadata: %w", err)
+		}
 	}
 	itemMetaMap := map[string]*pb.SyncItemMeta{}
 	for i := range itemMetas {
 		itemMetaMap[itemMetas[i].Name] = &itemMetas[i]
+	}
+
+	// Read the project once: its source language seeds the content memory below,
+	// and its workspace is the brand hub the context reconcile binds voices in.
+	// A project that cannot be read leaves both unresolved, which degrades each
+	// to its own no-op rather than failing a push whose content is fine.
+	var projectRow *store.Project
+	if p, perr := deps.ContentStore.GetProject(ctx, projectID); perr == nil {
+		projectRow = p
+	}
+
+	// The context content type reconciles BEFORE the chunks are stored: the
+	// collections are the structure the items are stored into, so an item
+	// naming a collection that has not been created yet would be stored
+	// ungrouped and stay that way until the next push.
+	contextEntries, err := parseContextEntries(manifest.Contexts)
+	if err != nil {
+		markJobFailed(ctx, deps, job.ID, "invalid context entries")
+		return err
+	}
+	workspaceID := ""
+	if projectRow != nil {
+		workspaceID = projectRow.WorkspaceID
+	}
+	contextResult, err := reconcileContext(ctx, deps, projectID, stream, workspaceID, manifest.ActorID, contextEntries)
+	if err != nil {
+		markJobFailed(ctx, deps, job.ID, err.Error())
+		return err
+	}
+	if contextResult.total() > 0 {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Reconciled %d collection(s): %d created, %d updated, %d claimed, %d unchanged",
+				contextResult.total(), len(contextResult.Created), len(contextResult.Updated),
+				len(contextResult.Claimed), len(contextResult.Unchanged)),
+			nil)
 	}
 
 	// Resolve the project content memory (optional) and source language once, so ingest can
@@ -118,8 +188,8 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		if tm, terr := deps.MemoryResolver.GetMemory(slug); terr == nil {
 			seedMemory = tm
 		}
-		if proj, perr := deps.ContentStore.GetProject(ctx, projectID); perr == nil {
-			sourceLocale = proj.DefaultSourceLanguage
+		if projectRow != nil {
+			sourceLocale = projectRow.DefaultSourceLanguage
 		}
 	}
 
@@ -135,15 +205,26 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		// Download chunk.
 		chunkReader, err := deps.BlobStore.Download(ctx, chunkRef.Hash)
 		if err != nil {
-			_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed,
+			markJobFailed(ctx, deps, job.ID,
 				fmt.Sprintf("chunk %d download failed: %s", chunkRef.Index, err.Error()))
 			return fmt.Errorf("download chunk %d: %w", chunkRef.Index, err)
 		}
 		chunkData, err := io.ReadAll(chunkReader)
 		chunkReader.Close()
 		if err != nil {
-			_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "chunk read failed")
+			markJobFailed(ctx, deps, job.ID, "chunk read failed")
 			return fmt.Errorf("read chunk %d: %w", chunkRef.Index, err)
+		}
+
+		// The manifest's hash is a promise about the bytes, not just the name of
+		// a place to find them. Re-derive it: whatever the store returned is
+		// accepted only if it is in fact the content that was pushed, so a
+		// manifest cannot make the worker parse bytes that were never uploaded
+		// under that digest.
+		if sum := sha256.Sum256(chunkData); hex.EncodeToString(sum[:]) != chunkRef.Hash {
+			markJobFailed(ctx, deps, job.ID,
+				fmt.Sprintf("chunk %d content does not match its hash", chunkRef.Index))
+			return fmt.Errorf("chunk %d: content does not match hash %s", chunkRef.Index, chunkRef.Hash)
 		}
 
 		// Attempt zstd decompression (compressed chunks start with zstd magic bytes).
@@ -157,7 +238,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		// Deserialize protobuf SyncChunk.
 		var chunk pb.SyncChunk
 		if err := proto.Unmarshal(chunkData, &chunk); err != nil {
-			_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "invalid chunk data")
+			markJobFailed(ctx, deps, job.ID, "invalid chunk data")
 			return fmt.Errorf("unmarshal chunk %d: %w", chunkRef.Index, err)
 		}
 
@@ -166,7 +247,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		case "blocks":
 			stored, itemNames, err := processBlockChunk(ctx, deps, &chunk, projectID, stream, itemMetaMap, seedMemory, sourceLocale)
 			if err != nil {
-				_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, err.Error())
+				markJobFailed(ctx, deps, job.ID, err.Error())
 				return err
 			}
 			totalStored += stored
@@ -177,28 +258,43 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			// dropping the payload and marking the job Completed (which would lose
 			// data for any client that emits them), fail the job explicitly.
 			err := fmt.Errorf("sync: content type %q (chunk %d) is not yet supported", chunk.ContentType, chunkRef.Index)
-			_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, err.Error())
+			markJobFailed(ctx, deps, job.ID, err.Error())
 			return err
 
 		default:
 			err := fmt.Errorf("sync: unknown content type %q (chunk %d)", chunk.ContentType, chunkRef.Index)
-			_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, err.Error())
+			markJobFailed(ctx, deps, job.ID, err.Error())
 			return err
 		}
 	}
 
-	// Auto-set project default stream.
+	// Auto-set project default stream. Convenience, not correctness: the
+	// content is already stored, and the next push will try again.
 	if totalStored > 0 {
 		proj, projErr := deps.ContentStore.GetProject(ctx, projectID)
 		if projErr == nil && proj.DefaultStream == "" {
 			proj.DefaultStream = stream
-			_ = deps.ContentStore.UpdateProject(ctx, proj)
+			if err := deps.ContentStore.UpdateProject(ctx, proj); err != nil {
+				slog.Warn("could not set project default stream",
+					"project_id", projectID, "stream", stream, "error", err)
+			}
 		}
 	}
 
-	// Mark completed and clean up.
-	_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusCompleted, "")
-	_ = deps.BlobStore.Delete(ctx, manifestKey)
+	// Mark completed. The content is stored either way, but a job whose
+	// completion never lands stays in-flight forever and is indistinguishable
+	// from one still running — so this one the caller does hear about.
+	if err := deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusCompleted, ""); err != nil {
+		return fmt.Errorf("mark sync push job completed: %w", err)
+	}
+
+	// Clean up the manifest. Failing to delete it orphans a blob rather than
+	// losing content, so it does not fail the job — but unobserved orphans
+	// accumulate, and nobody goes looking for a blob they were never told about.
+	if err := deps.BlobStore.Delete(ctx, manifestKey); err != nil {
+		slog.Warn("could not delete sync push manifest blob",
+			"job_id", job.ID, "manifest_key", manifestKey, "error", err)
+	}
 
 	// Publish EventPushCompleted.
 	if totalStored > 0 && deps.EventBus != nil {
@@ -213,12 +309,17 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			ProjectID: projectID,
 			Actor:     manifest.ActorID,
 			Data: map[string]string{
-				"items":          strings.Join(allItemNames, ","),
-				"items_sample":   strings.Join(sampleItemNames(allItemNames, 3), ","),
-				"files_count":    strconv.Itoa(len(allItemNames)),
-				"blocks_count":   strconv.Itoa(totalStored),
-				"push_id":        pushID,
-				"workspace_slug": manifest.WorkspaceSlug,
+				"items":        strings.Join(allItemNames, ","),
+				"items_sample": strings.Join(sampleItemNames(allItemNames, 3), ","),
+				"files_count":  strconv.Itoa(len(allItemNames)),
+				"blocks_count": strconv.Itoa(totalStored),
+				"push_id":      pushID,
+				// Collections the recipe stopped declaring. They ride on the
+				// event rather than being acted on, which is the whole of the
+				// server's answer to a removed collection: say so, keep the
+				// content.
+				"undeclared_collections": strings.Join(contextResult.Undeclared, ","),
+				"workspace_slug":         manifest.WorkspaceSlug,
 			},
 		})
 	}
@@ -316,7 +417,9 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 					}
 				}
 			}
-			_ = deps.ContentStore.StoreItem(ctx, projectID, stream, item)
+			if err := deps.ContentStore.StoreItem(ctx, projectID, stream, item); err != nil {
+				return stored, itemNames, fmt.Errorf("store item %s: %w", itemName, err)
+			}
 			itemNames = append(itemNames, itemName)
 		} else {
 			if err := deps.ContentStore.StoreBlocks(ctx, projectID, stream, blocks); err != nil {

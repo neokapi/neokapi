@@ -276,6 +276,38 @@ func TestChannelQueueEnqueueAfterDelivers(t *testing.T) {
 	}
 }
 
+// A deferral is a promise to run the job again, and a full buffer is exactly
+// the load that produces deferrals — so giving up there loses the jobs most in
+// need of running, and loses them silently.
+func TestChannelQueueEnqueueAfterWaitsForRoom(t *testing.T) {
+	q := NewChannelQueue(1)
+	defer q.Close()
+
+	// Occupy the only buffer slot, so the deferred send has nowhere to go when
+	// its timer fires.
+	require.NoError(t, q.Enqueue(t.Context(), "job-occupant"))
+	require.NoError(t, q.EnqueueAfter(t.Context(), "job-deferred", 10*time.Millisecond))
+
+	// Let the timer fire well before anything drains the buffer.
+	time.Sleep(150 * time.Millisecond)
+
+	// Drain the occupant, making room.
+	select {
+	case got := <-q.ch:
+		require.Equal(t, "job-occupant", got)
+	case <-time.After(time.Second):
+		t.Fatal("occupant was never delivered")
+	}
+
+	// The deferred job must still arrive.
+	select {
+	case got := <-q.ch:
+		assert.Equal(t, "job-deferred", got)
+	case <-time.After(2 * time.Second):
+		t.Fatal("deferred job was dropped when the buffer was full")
+	}
+}
+
 func TestChannelQueueEnqueueAfterOnClosedQueue(t *testing.T) {
 	q := NewChannelQueue(1)
 	require.NoError(t, q.Close())

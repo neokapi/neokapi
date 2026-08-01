@@ -264,7 +264,9 @@ func scanActivity(row scanner) (*Activity, error) {
 
 	a.Type = ActivityType(typ)
 	if dataJSON != "" {
-		_ = json.Unmarshal([]byte(dataJSON), &a.Data)
+		if err := json.Unmarshal([]byte(dataJSON), &a.Data); err != nil {
+			return nil, fmt.Errorf("activity %s: unmarshal data: %w", a.ID, err)
+		}
 	}
 	if a.Data == nil {
 		a.Data = map[string]string{}

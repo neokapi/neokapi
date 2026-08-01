@@ -130,12 +130,12 @@ cache, not a two-way sync:
 
 - the committed **`.terms.json` bundle is the source** — a diff-friendly,
   reviewable, mergeable JSON document bound by the recipe's
-  `defaults.termbase_source`,
+  `defaults.terms_source`,
   edited directly (`kapi apply` with `kind:"term"` writes the file first),
   reviewed in a PR, and versioned with the code. It is plain JSON under a
   compound suffix, so a reviewer reads it in a browser diff and `jq` reads it on
   the command line.
-- the **terms store (`.kapi/termbase.db`) is a rebuildable read-cache** over it,
+- the **terms store (`.kapi/terms.db`) is a rebuildable read-cache** over it,
   under the gitignored cache, rebuilt when the committed bundle changes
   (content-hash guarded). Discard it, rebuild from the bundle, lose nothing —
   **nothing authoritative ever lives only in the db**. Committing the binary
@@ -154,7 +154,7 @@ thing the terms source exists to do. The repository root therefore comes first:
 2. `<root>/.kapi/terms.json` — second, and only so a project that deliberately
    treats its glossary as local, uncommitted state still resolves.
 
-An explicit `defaults.termbase_source` wins over both. This is the same ladder
+An explicit `defaults.terms_source` wins over both. This is the same ladder
 shape the brand-voice profile uses ([AD-022](022-brand-voice.md)), and the same
 distinction the recipe draws in its own comments: `termbase_source` is the
 committed glossary, `terms` is the gitignored cache it compiles into. Confusing

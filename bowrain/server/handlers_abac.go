@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -72,7 +73,16 @@ func (s *Server) HandleSetBlockStatus(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	cur, _, _ := pg.GetBlockStatus(ctx, pid, bid)
+	// The current status decides which permission is required, so a failed read
+	// must not be answered with the zero value: "" is not published, which
+	// silently swaps the privileged un-publish gate below for the review one.
+	// The store already separates the cases — a missing row comes back as
+	// draft with a nil error — so an error here is a real fault, and the gate
+	// fails closed on it.
+	cur, _, err := pg.GetBlockStatus(ctx, pid, bid)
+	if err != nil {
+		return serverErr(c, fmt.Errorf("read block status for the permission gate: %w", err))
+	}
 
 	// Un-publishing is privileged; other workflow transitions are review actions.
 	if cur == bstore.BlockStatusPublished && req.Status != bstore.BlockStatusPublished {
@@ -88,7 +98,15 @@ func (s *Server) HandleSetBlockStatus(c echo.Context) error {
 	// Separation of duties: approving (publishing) is a four-eyes step — the
 	// approver must not be the translator who authored the content.
 	if req.Status == bstore.BlockStatusPublished {
-		author, _ := pg.GetLastEditor(ctx, pid, bid)
+		// Same shape, sharper consequence: enforceSoD reads an empty author as
+		// "unknown — no conflict of interest" and allows the approval, so a
+		// discarded error here disables the four-eyes check rather than
+		// tightening it. The store returns ("", nil) when there genuinely is no
+		// attributed history; anything else is a fault worth refusing on.
+		author, err := pg.GetLastEditor(ctx, pid, bid)
+		if err != nil {
+			return serverErr(c, fmt.Errorf("read last editor for separation of duties: %w", err))
+		}
 		actor, _ := c.Get("user_id").(string)
 		if err := s.enforceSoD(c, actor, author, "publish_block:"+bid); err != nil {
 			return err

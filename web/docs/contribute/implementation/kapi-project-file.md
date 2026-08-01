@@ -22,6 +22,8 @@ type KapiProject struct {
     Content  []ContentCollection        `yaml:"content,omitempty"`
     Preset   string                     `yaml:"preset,omitempty"`
     Flows    map[string]*flow.StepsSpec `yaml:"flows,omitempty"`
+    Coordinates Coordinates             `yaml:"coordinates,omitempty"` // axis → declared values (see Context coordinates)
+    Profiles    []ProfileBinding        `yaml:"profiles,omitempty"`    // governance bound to a coordinate match
     Requires RequiresMap                `yaml:"requires,omitempty"` // plugin name → semver constraint
     Extras   map[string]yaml.Node       `yaml:",inline"`            // unknown keys (platform extensions)
 }
@@ -47,6 +49,7 @@ type ContentCollection struct {
     TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty"`
     Items           []ContentItem    `yaml:"items,omitempty"`
     Base            string           `yaml:"base,omitempty"`   // dir items' paths are made relative to; items inherit it
+    Context         map[string]string `yaml:"context,omitempty"` // the point this content sits at (named collections only)
     // Bare-entry fields (short form):
     Path   string      `yaml:"path,omitempty"`   // doublestar glob for source files
     Format *FormatSpec `yaml:"format,omitempty"` // format ID; auto-detect per file if empty
@@ -69,6 +72,109 @@ shapes, distinguished by `ContentCollection.IsBareEntry()`:
 - **Named collection** — has a `name` and a non-empty `items` list of
   `ContentItem`, and may set its own `source_language` / `target_languages`.
   Use this to group related patterns and scope languages per group.
+
+### Context coordinates
+
+Content is written for a point in a **context space** the project defines. A
+recipe declares its axes under `coordinates:`, binds governance to regions of
+that space under `profiles:`, and each named collection names its point once:
+
+```yaml
+coordinates:                      # the taxonomy is the project's own
+  product: [kapi, bowrain]
+  channel: [docs, landing, app, email]
+  market:  [us, de]
+  tenant:  []                     # an open axis: declared, values not enumerated
+
+profiles:
+  - when: {}                      # the base: matches every point
+    voice: context/base-voice.yaml
+  - when: { product: bowrain }
+    voice: context/bowrain-voice.yaml
+    terms: context/bowrain-terms.json   # optional; falls back to defaults.terms
+  - when: { product: bowrain, market: de }
+    voice: context/bowrain-de.yaml
+    terms: context/de-terms.json
+
+content:
+  - name: docs
+    context: { product: kapi, channel: docs }
+  - name: landing
+    context: { product: bowrain, channel: landing }
+```
+
+Axis names and values are **slugs** (`^[a-z0-9][a-z0-9-]*$`): stable machine
+identifiers, never translated. A value may carry a concept for display —
+
+```yaml
+coordinates:
+  product:
+    - id: bowrain
+      concept: term:9a1c0f42b7
+    - id: kapi
+```
+
+— but the concept takes no part in matching or identity, and a coordinate value
+must never *be* a concept reference. Concepts are designed to be renamed and
+deprecated as vocabulary is revised; governance that moved when someone edited a
+term would be governance nobody could rely on.
+
+**Selection is most-specific-match-wins.** A profile matches when every key in
+its `when:` equals the point's coordinate of the same name; among the matches,
+the one with the most keys governs. `when: {}` matches everything and always
+loses to a non-empty match. The winner *selects*, it does not layer: what it
+leaves unbound comes from `defaults.brand_voice` / `defaults.terms`, not from the
+broader profile it beat. Two profiles matching on the same number of coordinates
+is a **load error** naming both — which voice a piece of content is written in
+is not a map-order question.
+
+`channel` is the one well-known axis. After a profile is selected, the point's
+channel selects the override *inside* that profile's voice
+(`profile.VoiceProfile.Channels`, [AD-022](/contribute/architecture/022-brand-voice)),
+so a landing-page register is authored once beside the voice it varies rather
+than duplicated into a voice file per product-and-channel pair. A channel the
+profile declares no override for is not an error — the base voice applies. The
+axis may also appear in a `when:`; both apply, matching choosing the voice and
+the override refining the register within it.
+
+`KapiProject.ResolveGovernance(collection)` resolves a point into a
+`ResolvedGovernance` (channel, voice binding, terms, and the recipe key the
+voice came from), falling back to the project defaults for an empty or unknown
+collection name, and for a collection that declares no point;
+`CollectionForPath(relPath)` names the collection that claims a file, by the
+same first-match glob rule as target resolution. The name keeps its distance
+from `profile.ResolveContext`, which is a different thing in a package used
+alongside this one — the input to profile resolution, not the recipe's answer.
+
+That is the recipe half, and it is an **authoring** half: the voice it names is
+loaded by the host and then handed to `profile.ResolveProfileFromContext` as
+`CollectionProfile` — the collection tier of the framework's single precedence
+chain ([AD-022](/contribute/architecture/022-brand-voice)) — so an explicit
+per-call profile still outranks the recipe and a project governed from the
+server ranks its bindings identically. The point's channel goes in beside it as
+`CollectionConfig[PropertyChannel]`, and `ResolveProfile` applies the override.
+
+One venue applies the recipe at a time. A project that declares coordinates
+(`KapiProject.GovernsByCoordinates`) and also carries a `server:` block is
+warned at run time (`host.WarnUnsyncedCoordinates`, called by `kapi run`,
+`kapi up` and `RunFlowAllLocales`) that coordinate governance applies to local
+runs only until it is synced: the server has no coordinate rows yet and governs
+by `defaults.brand_voice`. The run proceeds — this is a caveat, not a fault.
+
+A run resolves its governance per collection and executes once per distinct
+resolution: `groupInputsByBinding` (host) partitions the input set, and each
+group gets its own bindings and its own tool chain — the chain is built before
+any content is seen, so a per-file switch is not possible. Grouping keys on what
+the coordinates *resolve to*, not on the coordinates themselves, so two markets
+governed by one profile share a group, and a recipe where no collection declares
+a point produces exactly one group: the single, unsplit run.
+
+Every failure is caught at load, because a silent fall-back would translate that
+content in a plausible-looking wrong voice: an axis absent from `coordinates:`,
+a value the axis does not declare (unless the axis is open), a non-slug value, a
+profile binding nothing, two profiles claiming one point, and the ambiguous
+match above. Bare entries cannot carry a context at all: resolution is by
+collection name, so a point on an unnamed entry could never be read.
 
 `KapiProject.IterateContent` walks both shapes uniformly, yielding each
 `ContentItem` paired with its parent collection so callers can resolve
@@ -102,7 +208,7 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   `brand_voice` extension.
 - `termbase` (string) — path to the project's terms store, under its retained
   key. Resolved relative to the project root, and used for project-scoped term
-  enforcement with no `--termbase` flag.
+  enforcement with no `--terms` flag.
 - `termbase_source` / `tm_source` (string) — committed, git-tracked native source
   bundles (`.terms.json` / `.memory.json`) the project's terms store and content
   memory are
@@ -144,7 +250,17 @@ model and `server:` schema.
   - Bare entry — `path` is required and `items` must be empty.
   - Named collection — `path` must be empty (use `items`) and `items` must be
     non-empty; each item requires a non-empty `path`.
-- `defaults.merge.conflict_policy`, `defaults.tm.fuzzy_threshold` (0..100),
+  - `context` requires a `name`; every axis it names must be declared under
+    `coordinates:`, and every value must be one the axis declares (any slug, on
+    an open axis).
+- `coordinates:` axis names and values are slugs; a value is declared once and
+  may carry a whitespace-free `concept` reference.
+- Every `profiles[]` entry must bind a `voice`, `terms`, or both; its `when:` is
+  checked like a `context:`; its `voice` is shape-checked exactly like
+  `defaults.brand_voice` (one of `profile_file`, `profile`, `pack`, or a bare
+  path); no two entries may claim the same point, and no two may match one
+  collection with equal specificity.
+- `defaults.merge.conflict_policy`, `defaults.memory.fuzzy_threshold` (0..100),
   `defaults.redaction.detectors`, and `defaults.brand_voice` are each
   shape-checked.
 - Each flow must have at least one step
@@ -271,11 +387,11 @@ defaults:
     - "**/*.generated.json"
   merge:
     conflict_policy: translator-wins
-  tm:
+  memory:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  termbase: terms/termbase.db
+  terms: terms/terms.db
 
 content:
   # Bare entry — single glob, languages inherited from defaults.

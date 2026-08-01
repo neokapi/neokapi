@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/profile"
 )
 
 // BrandGuideOutput is the result of `kapi brand guide`.
@@ -24,13 +24,13 @@ func (o BrandGuideOutput) FormatText(w io.Writer) error {
 // BrandCheckOutput is the result of `kapi brand check` — a brand compliance
 // score plus the findings that produced it.
 type BrandCheckOutput struct {
-	Profile    string                    `json:"profile"`
-	Score      int                       `json:"score"`
-	Passed     bool                      `json:"passed"`
-	MinScore   *int                      `json:"min_score,omitempty"`
-	AIChecked  bool                      `json:"ai_checked"`
-	Dimensions []brand.DimensionScore    `json:"dimensions"`
-	Findings   []brand.BrandVoiceFinding `json:"findings"`
+	Profile    string                      `json:"profile"`
+	Score      int                         `json:"score"`
+	Passed     bool                        `json:"passed"`
+	MinScore   *int                        `json:"min_score,omitempty"`
+	AIChecked  bool                        `json:"ai_checked"`
+	Dimensions []profile.DimensionScore    `json:"dimensions"`
+	Findings   []profile.BrandVoiceFinding `json:"findings"`
 }
 
 // FormatText renders a compact human-readable scorecard.
@@ -138,10 +138,10 @@ func (o BrandProfilesOutput) FormatText(w io.Writer) error {
 // invalid. Errors is always present (an empty list when valid) so the JSON
 // shape is stable for CI: {valid, errors:[]}.
 type BrandValidateOutput struct {
-	Valid   bool                   `json:"valid"`
-	Source  string                 `json:"source,omitempty"`
-	Profile string                 `json:"profile,omitempty"`
-	Errors  []brand.ProfileProblem `json:"errors"`
+	Valid   bool                     `json:"valid"`
+	Source  string                   `json:"source,omitempty"`
+	Profile string                   `json:"profile,omitempty"`
+	Errors  []profile.ProfileProblem `json:"errors"`
 }
 
 // FormatText renders the validation verdict and any problems.

@@ -9,8 +9,8 @@ import (
 	"io"
 	"net/http"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // This file holds the brand-profile push surface: the idempotent upsert
@@ -29,20 +29,20 @@ var ErrForbidden = errors.New("permission denied")
 // surface of a voice profile. Server-managed metadata (id, workspace, version,
 // autonomy, timestamps) is never sent — the upsert cannot touch it.
 type BrandProfileUpsert struct {
-	Name        string                                      `json:"name"`
-	Description string                                      `json:"description,omitempty"`
-	Tone        corebrand.ToneProfile                       `json:"tone"`
-	Style       corebrand.StyleRules                        `json:"style"`
-	Vocabulary  corebrand.VocabularyRules                   `json:"vocabulary"`
-	Examples    []corebrand.VoiceExample                    `json:"examples"`
-	Locales     map[model.LocaleID]corebrand.LocaleOverride `json:"locales,omitempty"`
-	Channels    map[string]corebrand.ChannelOverride        `json:"channels,omitempty"`
-	Personas    map[string]corebrand.PersonaOverride        `json:"personas,omitempty"`
+	Name        string                                        `json:"name"`
+	Description string                                        `json:"description,omitempty"`
+	Tone        coreprofile.ToneProfile                       `json:"tone"`
+	Style       coreprofile.StyleRules                        `json:"style"`
+	Vocabulary  coreprofile.VocabularyRules                   `json:"vocabulary"`
+	Examples    []coreprofile.VoiceExample                    `json:"examples"`
+	Locales     map[model.LocaleID]coreprofile.LocaleOverride `json:"locales,omitempty"`
+	Channels    map[string]coreprofile.ChannelOverride        `json:"channels,omitempty"`
+	Personas    map[string]coreprofile.PersonaOverride        `json:"personas,omitempty"`
 }
 
 // BrandProfileUpsertFromProfile builds the upsert payload from a resolved
 // local voice profile, carrying only the authored surface.
-func BrandProfileUpsertFromProfile(p *corebrand.VoiceProfile) BrandProfileUpsert {
+func BrandProfileUpsertFromProfile(p *coreprofile.VoiceProfile) BrandProfileUpsert {
 	return BrandProfileUpsert{
 		Name:        p.Name,
 		Description: p.Description,
@@ -60,8 +60,8 @@ func BrandProfileUpsertFromProfile(p *corebrand.VoiceProfile) BrandProfileUpsert
 // "updated", or "unchanged"; Profile is the stored workspace profile after the
 // action (its Version reflects any bump).
 type BrandProfileUpsertResult struct {
-	Action  string                  `json:"action"`
-	Profile *corebrand.VoiceProfile `json:"profile"`
+	Action  string                    `json:"action"`
+	Profile *coreprofile.VoiceProfile `json:"profile"`
 }
 
 // UpsertBrandProfile creates or updates the workspace brand profile matching

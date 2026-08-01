@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -38,7 +39,7 @@ func (s *Server) HandleCreateBravoConversation(c echo.Context) error {
 
 	conv, err := s.AgentService.CreateConversation(c.Request().Context(), wsID, userID, req.ProjectID, req.Title)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusCreated, conv)
@@ -58,7 +59,7 @@ func (s *Server) HandleListBravoConversations(c echo.Context) error {
 
 	convs, total, err := s.AgentService.ListConversations(c.Request().Context(), wsID, userID, limit, offset)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	// Force empty array instead of null in JSON.
@@ -107,7 +108,7 @@ func (s *Server) HandleDeleteBravoConversation(c echo.Context) error {
 
 	convID := c.Param("id")
 	if err := s.AgentService.DeleteConversation(c.Request().Context(), convID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.NoContent(http.StatusNoContent)
 }
@@ -156,6 +157,40 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 			wsRole = string(r)
 		}
 
+		// The grant is established before the SSE headers go out, and both
+		// because of what it is and because of where it was.
+		//
+		// What it is: a ceiling. CreateSessionGrantForMode intersects the
+		// user's permissions with the mode's, and the middleware that reads it
+		// treats a missing grant as "no restriction". A write that failed
+		// therefore does not degrade the session, it un-restricts it — an
+		// ask-mode conversation would run with the user's full write
+		// permissions. So a failure has to stop the request.
+		//
+		// Where it was: after WriteHeader(200), where no status code can be
+		// sent any more. Nothing in this block needs the SSE writer, so it
+		// moves up to where failing is still possible.
+		if s.SessionStore != nil && req.Mode != "" {
+			userPerms, _ := c.Get("project_permissions").(platauth.Permission)
+			if userPerms == 0 {
+				userPerms = platauth.DefaultPermissionsForRole(platauth.Role(wsRole)).Permissions
+			}
+			userLangs, _ := c.Get("project_languages").([]string)
+			grant := CreateSessionGrantForMode(convID, userID, platauth.AgentMode(req.Mode), userPerms, userLangs)
+			if err := SetSessionGrant(c.Request().Context(), s.SessionStore, grant); err != nil {
+				return serverErr(c, fmt.Errorf("store session grant: %w", err))
+			}
+			// Only now is there a grant to announce. This record used to be
+			// written unconditionally, asserting a restriction that may never
+			// have been persisted.
+			s.emitAudit(c, auditEvent{
+				Type:         platev.EventSessionGrantCreated,
+				ResourceType: "session_grant",
+				ResourceID:   convID,
+				Data:         map[string]string{"mode": req.Mode, "permissions": grant.Permissions.String()},
+			})
+		}
+
 		c.Response().Header().Set("Content-Type", "text/event-stream")
 		c.Response().Header().Set("Cache-Control", "no-cache")
 		c.Response().Header().Set("Connection", "keep-alive")
@@ -177,23 +212,6 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 			}
 		}
 
-		// Create or update session grant based on the requested mode.
-		if s.SessionStore != nil && req.Mode != "" {
-			userPerms, _ := c.Get("project_permissions").(platauth.Permission)
-			if userPerms == 0 {
-				userPerms = platauth.DefaultPermissionsForRole(platauth.Role(wsRole)).Permissions
-			}
-			userLangs, _ := c.Get("project_languages").([]string)
-			grant := CreateSessionGrantForMode(convID, userID, platauth.AgentMode(req.Mode), userPerms, userLangs)
-			_ = SetSessionGrant(c.Request().Context(), s.SessionStore, grant)
-			s.emitAudit(c, auditEvent{
-				Type:         platev.EventSessionGrantCreated,
-				ResourceType: "session_grant",
-				ResourceID:   convID,
-				Data:         map[string]string{"mode": req.Mode, "permissions": grant.Permissions.String()},
-			})
-		}
-
 		if err := s.AgentService.SendMessageStream(
 			c.Request().Context(), convID, userID, wsID, wsRole, req.Content, req.Mode, bravoCtx, sse,
 		); err != nil {
@@ -206,7 +224,7 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 	// JSON mode (backward-compatible with Phase 1 clients).
 	userMsg, assistantMsg, err := s.AgentService.SendMessage(c.Request().Context(), convID, userID, req.Content)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
@@ -227,7 +245,7 @@ func (s *Server) HandleListBravoMessages(c echo.Context) error {
 
 	msgs, err := s.AgentService.ListMessages(c.Request().Context(), convID, limit, offset)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"messages": msgs})
@@ -248,7 +266,7 @@ func (s *Server) HandleApproveBravoToolCall(c echo.Context) error {
 	userID := c.Get("user_id").(string)
 
 	if err := s.AgentService.ApproveToolCall(c.Request().Context(), convID, tcID, userID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]string{"status": "approved"})
 }
@@ -264,7 +282,7 @@ func (s *Server) HandleDenyBravoToolCall(c echo.Context) error {
 	userID := c.Get("user_id").(string)
 
 	if err := s.AgentService.DenyToolCall(c.Request().Context(), convID, tcID, userID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]string{"status": "denied"})
 }
@@ -281,7 +299,7 @@ func (s *Server) HandleCancelBravoConversation(c echo.Context) error {
 
 	convID := c.Param("id")
 	if err := s.AgentService.CancelConversation(c.Request().Context(), convID); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]string{"status": "cancelled"})
 }
@@ -354,7 +372,7 @@ func (s *Server) HandleGetBravoConfig(c echo.Context) error {
 	wsID := c.Get("workspace_id").(string)
 	cfg, err := s.AgentService.GetConfig(c.Request().Context(), wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, cfg)
 }
@@ -386,7 +404,7 @@ func (s *Server) HandleUpdateBravoConfig(c echo.Context) error {
 	ctx := c.Request().Context()
 	existing, err := s.AgentService.GetConfig(ctx, wsID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	if cfg.Enabled != nil {
@@ -409,7 +427,7 @@ func (s *Server) HandleUpdateBravoConfig(c echo.Context) error {
 	}
 
 	if err := s.AgentService.SaveConfig(ctx, existing); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, existing)
 }
@@ -427,7 +445,7 @@ func (s *Server) HandleListBravoTools(c echo.Context) error {
 	wsID := c.Get("workspace_id").(string)
 	tools, err := s.AgentService.ListAvailableTools(c.Request().Context(), wsID, agentToolNames())
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]any{"tools": tools})
 }
@@ -477,7 +495,7 @@ func (s *Server) HandleGetBravoUsage(c echo.Context) error {
 
 	summary, err := s.AgentService.GetUsageSummary(c.Request().Context(), wsID, from, to)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, summary)

@@ -20,10 +20,12 @@ import (
 	"github.com/neokapi/neokapi/bowrain/brandscan"
 	"github.com/neokapi/neokapi/bowrain/connector"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	"github.com/neokapi/neokapi/bowrain/observe"
+	"github.com/neokapi/neokapi/bowrain/safehttp"
 	"github.com/neokapi/neokapi/core/ai/tools"
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
+	brand "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -552,7 +554,7 @@ func readBrandScanUpload(ctx context.Context, blobs corestorage.BlobStore, key s
 // markdown, so the patterns are set explicitly.
 //
 // The repo URL comes straight from an API request, so it gets the same
-// destination policy as the urls[] path (brandscan.FetchURL): https only —
+// destination policy as the urls[] path (bowrain/safehttp): https only —
 // which also excludes the scp-like SSH form — and a host that resolves to no
 // loopback/private/link-local/CGNAT address. The git subprocess re-resolves
 // DNS itself, so the vet is a pre-check rather than a rebinding-proof pin;
@@ -566,7 +568,7 @@ func fetchBrandScanRepo(ctx context.Context, formatReg *registry.FormatRegistry,
 	if !strings.EqualFold(u.Scheme, "https") || u.Hostname() == "" {
 		return "", errors.New("brand scans accept only public https:// repository URLs")
 	}
-	if err := brandscan.VetPublicHost(ctx, u.Hostname()); err != nil {
+	if err := safehttp.VetPublicHost(ctx, u.Hostname()); err != nil {
 		return "", err
 	}
 
@@ -644,13 +646,17 @@ func fetchBrandScanRepo(ctx context.Context, formatReg *registry.FormatRegistry,
 
 // recordBrandScanUsage records one scan phase's token usage in ai_usage — the
 // internal abuse cap, which must see all AI traffic (platform and BYO alike;
-// brand scans are always platform). Best-effort, like the translation worker's
-// per-chunk recording.
+// brand scans are always platform).
+//
+// Fail-open by policy, like the translation worker's per-chunk recording: the
+// phase has already been paid for, so a meter outage must not fail the scan.
+// The discarded record is logged and counted, because it is otherwise the only
+// evidence that this spend happened at all.
 func recordBrandScanUsage(ctx context.Context, deps *BrandScanWorkerDeps, job *BrandScanJob, usageModel string, usage aiprovider.TokenUsage, totalTokens int) {
 	if deps.QuotaStore == nil {
 		return
 	}
-	_ = deps.QuotaStore.RecordUsage(ctx, AIUsageRecord{
+	if err := deps.QuotaStore.RecordUsage(ctx, AIUsageRecord{
 		WorkspaceSlug: job.WorkspaceSlug,
 		WorkspaceID:   job.WorkspaceID,
 		JobID:         job.ID,
@@ -659,7 +665,11 @@ func recordBrandScanUsage(ctx context.Context, deps *BrandScanWorkerDeps, job *B
 		PromptTokens:  usage.InputTokens,
 		OutputTokens:  usage.OutputTokens,
 		TotalTokens:   totalTokens,
-	})
+	}); err != nil {
+		observe.MeteringDiscarded(ctx, observe.MeterAITokens, float64(totalTokens), err,
+			"operation", "brand_scan", "job_id", job.ID,
+			"workspace", job.WorkspaceSlug, "model", usageModel)
+	}
 }
 
 // extractBrandScanTerms drives the existing term-extract tool over the corpus

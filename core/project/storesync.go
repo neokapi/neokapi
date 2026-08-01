@@ -187,6 +187,18 @@ type ExtractStats struct {
 	// Skipped lists files that could not be extracted (no reader, read error)
 	// with a short reason. Extraction is best-effort per file.
 	Skipped []ExtractSkip `json:"skipped,omitempty"`
+	// Warnings records faults that did not endanger the extracted content —
+	// today, a failure to write the store's version or drift stamps after the
+	// blocks were already committed. Those writes stay best-effort (see
+	// ExtractToBlockStore), but best-effort is not the same as unreportable:
+	// the self-healing story assumes the NEXT write succeeds, and a permanent
+	// cause makes every future run re-extract the whole project while looking
+	// perfectly healthy. This is the channel that lets a caller say so.
+	//
+	// core is deliberately logger-free, so a returned, serialisable value is
+	// the framework's way to report — it is also the only form a test can
+	// assert on.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // CollectionLabel maps a collection name to its block-store label; unnamed
@@ -298,9 +310,27 @@ func ExtractToBlockStore(
 
 	// Stamp the store with the version that wrote it plus the per-source drift
 	// stamps. Best-effort: a failed write only means the next drift check reads
-	// the store as stale/drifted and re-extracts.
-	_ = StampBlockStoreVersion(storePath)
-	_ = SaveSourceStamps(storePath, stamps)
+	// the store as stale/drifted and re-extracts. The blocks are already
+	// committed, so failing the whole extraction over a cache hint would throw
+	// away good work.
+	//
+	// Reported rather than silent, though. "It self-heals on the next run"
+	// holds only if the next write succeeds; when the cause is permanent — a
+	// read-only .kapi/cache, a full disk, a changed owner — every run
+	// re-extracts and re-translates the entire project, and the sole symptom is
+	// that kapi is inexplicably slow and re-does finished work forever. That is
+	// precisely the failure nobody diagnoses, because nothing ever said it
+	// happened.
+	if err := StampBlockStoreVersion(storePath); err != nil {
+		stats.Warnings = append(stats.Warnings, fmt.Sprintf(
+			"could not write the block-store version stamp %s: %v — the store will read as stale and re-extract on every run",
+			BlockStoreVersionStampPath(storePath), err))
+	}
+	if err := SaveSourceStamps(storePath, stamps); err != nil {
+		stats.Warnings = append(stats.Warnings, fmt.Sprintf(
+			"could not write the source drift stamps %s: %v — every source file will read as drifted and re-extract on every run",
+			BlockStoreSourceStampsPath(storePath), err))
+	}
 	return stats, nil
 }
 

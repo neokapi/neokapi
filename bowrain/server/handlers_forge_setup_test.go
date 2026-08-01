@@ -11,6 +11,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/forge"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -90,16 +92,30 @@ func setupServerWithAppTrees(t *testing.T, treeFiles map[string][]string) *Serve
 	t.Cleanup(gh.Close)
 	app.SetAPIBase(gh.URL)
 	s.GitHubApp = app
+
+	// Installation 42 belongs to ws1 — the state every test in this file starts
+	// from, and what setupCtx/detectCtx address. Without the record the setup
+	// endpoints answer 404, which is the point of the record.
+	_, err = s.ForgeInstallationStore.Claim(context.Background(), 42, "ws1")
+	require.NoError(t, err)
 	return s
 }
 
 func setupCtx(t *testing.T, method, body string) (echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
+	return setupCtxFor(t, method, body, "42")
+}
+
+// setupCtxFor is setupCtx with the addressed installation spelled out, so a
+// test can aim a ws1 caller at an installation ws1 does not own.
+func setupCtxFor(t *testing.T, method, body, installationID string) (echo.Context, *httptest.ResponseRecorder) {
+	t.Helper()
+	target := "/github/installations/" + installationID + "/repositories"
 	var r *http.Request
 	if body == "" {
-		r = httptest.NewRequest(method, "/github/installations/42/repositories", nil)
+		r = httptest.NewRequest(method, target, nil)
 	} else {
-		r = httptest.NewRequest(method, "/github/installations/42/repositories", bytes.NewReader([]byte(body)))
+		r = httptest.NewRequest(method, target, bytes.NewReader([]byte(body)))
 		r.Header.Set("Content-Type", "application/json")
 	}
 	rec := httptest.NewRecorder()
@@ -108,7 +124,7 @@ func setupCtx(t *testing.T, method, body string) (echo.Context, *httptest.Respon
 	c.Set("workspace_role", platauth.RoleOwner)
 	c.Set("project_permissions", platauth.PermManageConnectors)
 	c.SetParamNames("installationID")
-	c.SetParamValues("42")
+	c.SetParamValues(installationID)
 	return c, rec
 }
 
@@ -116,7 +132,13 @@ func setupCtx(t *testing.T, method, body string) (echo.Context, *httptest.Respon
 // :owner/:name params (and optional query string, e.g. "scope=apps/web").
 func detectCtx(t *testing.T, owner, name, query string) (echo.Context, *httptest.ResponseRecorder) {
 	t.Helper()
-	target := "/github/installations/42/repositories/" + owner + "/" + name + "/detect"
+	return detectCtxFor(t, "42", owner, name, query)
+}
+
+// detectCtxFor is detectCtx with the addressed installation spelled out.
+func detectCtxFor(t *testing.T, installationID, owner, name, query string) (echo.Context, *httptest.ResponseRecorder) {
+	t.Helper()
+	target := "/github/installations/" + installationID + "/repositories/" + owner + "/" + name + "/detect"
 	if query != "" {
 		target += "?" + query
 	}
@@ -127,8 +149,228 @@ func detectCtx(t *testing.T, owner, name, query string) (echo.Context, *httptest
 	c.Set("workspace_role", platauth.RoleOwner)
 	c.Set("project_permissions", platauth.PermManageConnectors)
 	c.SetParamNames("installationID", "owner", "name")
-	c.SetParamValues("42", owner, name)
+	c.SetParamValues(installationID, owner, name)
 	return c, rec
+}
+
+// An installation is reachable only from the workspace that installed it.
+//
+// The id in the URL is GitHub's, not ours: one registered app serves every
+// workspace, and its JWT can mint an access token for any installation of that
+// app. So each setup endpoint asks the ownership record first, and an
+// installation ws1 has not claimed answers 404 — the same answer an id nobody
+// has ever installed gets, so the endpoints cannot be used to find out which
+// ids are real.
+//
+// fakeGitHub t.Errorf's on any request it does not expect, so these cases also
+// prove the denial happens BEFORE the app API is touched: a 404 that still
+// minted a token would have leaked the repository list into the server.
+func TestInstallationSetup_ForeignInstallationIsNotFound(t *testing.T) {
+	s := setupServerWithAppTrees(t, map[string][]string{"acme/site": {"README.md"}})
+
+	// ws2's installation, recorded and claimed by ws2. Everything below is ws1
+	// asking for it.
+	_, err := s.ForgeInstallationStore.Claim(t.Context(), 99, "ws2")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		invoke  func(t *testing.T) (*httptest.ResponseRecorder, error)
+		message string
+	}{
+		{
+			name: "list an installation owned by another workspace",
+			invoke: func(t *testing.T) (*httptest.ResponseRecorder, error) {
+				c, rec := setupCtxFor(t, http.MethodGet, "", "99")
+				return rec, s.HandleListInstallationRepos(c)
+			},
+			message: "listing another workspace's installation must not enumerate its repositories",
+		},
+		{
+			name: "detect inside an installation owned by another workspace",
+			invoke: func(t *testing.T) (*httptest.ResponseRecorder, error) {
+				c, rec := detectCtxFor(t, "99", "acme", "site", "")
+				return rec, s.HandleDetectInstallationRepo(c)
+			},
+			message: "detecting in another workspace's installation must not read its file tree",
+		},
+		{
+			name: "bind a repository from an installation owned by another workspace",
+			invoke: func(t *testing.T) (*httptest.ResponseRecorder, error) {
+				c, rec := setupCtxFor(t, http.MethodPost,
+					`{"repository": "acme/site", "project_id": "proj1"}`, "99")
+				return rec, s.HandleBindInstallationRepo(c)
+			},
+			message: "binding from another workspace's installation must not clone its repository",
+		},
+		{
+			name: "an installation nobody has claimed",
+			invoke: func(t *testing.T) (*httptest.ResponseRecorder, error) {
+				c, rec := setupCtxFor(t, http.MethodGet, "", "1234")
+				return rec, s.HandleListInstallationRepos(c)
+			},
+			message: "an unclaimed installation belongs to no workspace",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rec, err := tc.invoke(t)
+			// The gate writes the response and returns errAccessDenied, so the
+			// handler aborts. Returning nil here would let a caller's
+			// `if err != nil` fall through and run the body anyway.
+			require.ErrorIs(t, err, errAccessDenied, "the gate must abort the handler")
+			assert.Equal(t, http.StatusNotFound, rec.Code, tc.message)
+			var envelope struct {
+				Error string `json:"error"`
+			}
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &envelope))
+			assert.Equal(t, "installation not found", envelope.Error,
+				"the refusal must read the same as a genuinely unknown installation")
+		})
+	}
+
+	// Nothing was bound as a side effect of the refused bind.
+	configs, err := s.ConnectorConfigStore.List(t.Context(), "ws1")
+	require.NoError(t, err)
+	assert.Len(t, configs, 1, "only the harness's own connector may exist")
+}
+
+// The claim is what makes an installation a workspace's own, and the signed
+// state — not the installation id — is what earns it.
+func TestClaimInstallation(t *testing.T) {
+	s := setupServerWithApp(t)
+	ctx := t.Context()
+
+	claim := func(t *testing.T, wsID, installationID, state string) *httptest.ResponseRecorder {
+		t.Helper()
+		body := `{"state": ` + strconv.Quote(state) + `}`
+		r := httptest.NewRequest(http.MethodPost,
+			"/github/installations/"+installationID+"/claim", strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		c := echo.New().NewContext(r, rec)
+		c.Set("workspace_id", wsID)
+		c.Set("workspace_role", platauth.RoleOwner)
+		c.Set("project_permissions", platauth.PermManageConnectors)
+		c.SetParamNames("installationID")
+		c.SetParamValues(installationID)
+		require.NoError(t, s.HandleClaimInstallation(c))
+		return rec
+	}
+
+	ws1State, err := platauth.GenerateSetupState("ws1", "test-secret", time.Hour)
+	require.NoError(t, err)
+
+	// The webhook recorded installation 77; nobody owns it yet.
+	require.NoError(t, s.ForgeInstallationStore.Record(ctx, 77, "acme"))
+	owned, err := s.ForgeInstallationStore.OwnedBy(ctx, 77, "ws1")
+	require.NoError(t, err)
+	assert.False(t, owned, "a recorded installation is owned by nobody until claimed")
+
+	t.Run("valid state claims the installation", func(t *testing.T) {
+		rec := claim(t, "ws1", "77", ws1State)
+		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+		owned, err := s.ForgeInstallationStore.OwnedBy(ctx, 77, "ws1")
+		require.NoError(t, err)
+		assert.True(t, owned)
+	})
+
+	t.Run("re-claiming from the owning workspace is idempotent", func(t *testing.T) {
+		assert.Equal(t, http.StatusOK, claim(t, "ws1", "77", ws1State).Code,
+			"re-running the install flow must land back on the same installation")
+	})
+
+	t.Run("another workspace cannot take a claimed installation", func(t *testing.T) {
+		ws2State, err := platauth.GenerateSetupState("ws2", "test-secret", time.Hour)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusNotFound, claim(t, "ws2", "77", ws2State).Code,
+			"first claim wins; a second workspace gets the not-found answer")
+		owned, err := s.ForgeInstallationStore.OwnedBy(ctx, 77, "ws1")
+		require.NoError(t, err)
+		assert.True(t, owned, "the original owner must keep the installation")
+	})
+
+	t.Run("state minted for another workspace is refused", func(t *testing.T) {
+		otherState, err := platauth.GenerateSetupState("ws2", "test-secret", time.Hour)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusForbidden, claim(t, "ws1", "88", otherState).Code,
+			"state names the workspace it was minted for; ws1 cannot spend ws2's")
+	})
+
+	t.Run("expired state is refused", func(t *testing.T) {
+		expired, err := platauth.GenerateSetupState("ws1", "test-secret", -time.Minute)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusForbidden, claim(t, "ws1", "88", expired).Code)
+	})
+
+	t.Run("a session token is not setup state", func(t *testing.T) {
+		// The audience split: a token minted for the API can never be spent as
+		// setup state, however valid its signature.
+		session, err := platauth.GenerateToken(
+			&platauth.User{ID: "u1", Email: "u@example.com"}, "test-secret", time.Hour)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusForbidden, claim(t, "ws1", "88", session).Code)
+	})
+
+	t.Run("missing state is refused", func(t *testing.T) {
+		assert.Equal(t, http.StatusForbidden, claim(t, "ws1", "88", "").Code)
+	})
+
+	// None of the refusals left a row behind.
+	_, err = s.ForgeInstallationStore.Get(ctx, 88)
+	require.ErrorIs(t, err, bstore.ErrForgeInstallationNotFound,
+		"a refused claim must not record the installation")
+}
+
+// The state endpoint mints state for the caller's own workspace only.
+func TestGitHubSetupState(t *testing.T) {
+	s := setupServerWithApp(t)
+
+	r := httptest.NewRequest(http.MethodGet, "/github/setup-state", nil)
+	rec := httptest.NewRecorder()
+	c := echo.New().NewContext(r, rec)
+	c.Set("workspace_id", "ws1")
+	c.Set("workspace_role", platauth.RoleOwner)
+	c.Set("project_permissions", platauth.PermManageConnectors)
+	require.NoError(t, s.HandleGitHubSetupState(c))
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+
+	var out struct {
+		State     string `json:"state"`
+		ExpiresIn int    `json:"expires_in"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &out))
+	require.NotEmpty(t, out.State)
+	assert.Positive(t, out.ExpiresIn)
+
+	wsID, err := platauth.ValidateSetupState(out.State, "test-secret")
+	require.NoError(t, err)
+	assert.Equal(t, "ws1", wsID, "state carries the minting workspace, not the caller's choice")
+
+	// And it is not a session token: the audience check rejects it.
+	_, err = platauth.ValidateToken(out.State, "test-secret")
+	require.Error(t, err, "setup state must never pass as an API session token")
+}
+
+// A project in another workspace cannot be bound to, even from an installation
+// this workspace legitimately owns. The project id arrives in the request BODY,
+// which the path-based cross-tenant middleware never inspects.
+func TestBindInstallationRepo_ForeignProjectIsNotFound(t *testing.T) {
+	s := setupServerWithApp(t)
+
+	require.NoError(t, s.ContentStore.CreateProject(t.Context(), &platstore.Project{
+		ID: "ws2-proj", Name: "Theirs", DefaultSourceLanguage: "en", WorkspaceID: "ws2",
+	}))
+
+	c, rec := setupCtx(t, http.MethodPost, `{"repository": "acme/docs", "project_id": "ws2-proj"}`)
+	require.NoError(t, s.HandleBindInstallationRepo(c))
+	assert.Equal(t, http.StatusNotFound, rec.Code,
+		"binding into another workspace's project must be refused")
+
+	configs, err := s.ConnectorConfigStore.List(t.Context(), "ws1")
+	require.NoError(t, err)
+	assert.Len(t, configs, 1, "the refused bind must not have created a connector")
 }
 
 // The detect endpoint reads the repository tree through the app API (no
@@ -210,8 +452,10 @@ func TestDetectInstallationRepo_DocsAndQueries(t *testing.T) {
 }
 
 // An empty repository yields no signals and zero matches — what the wizard
-// turns into its zero-match warning. Unknown repositories surface GitHub's
-// answer through the error envelope, not a fabricated detection.
+// turns into its zero-match warning. An unknown repository is answered with a
+// 502 naming the forge as the thing that did not answer, rather than a
+// fabricated detection — and without GitHub's own reply, which can run to four
+// kilobytes and says nothing the wizard's user can act on.
 func TestDetectInstallationRepo_EmptyAndUnknown(t *testing.T) {
 	s := setupServerWithAppTrees(t, map[string][]string{
 		"acme/empty": {"main.go", "go.sum"},
@@ -232,7 +476,10 @@ func TestDetectInstallationRepo_EmptyAndUnknown(t *testing.T) {
 		Error string `json:"error"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &envelope))
-	assert.Contains(t, envelope.Error, "404")
+	assert.Contains(t, envelope.Error, "the forge did not answer",
+		"the wizard is told which side failed")
+	assert.NotContains(t, rec.Body.String(), "404",
+		"GitHub's own reply stays in the log, not the response")
 }
 
 func TestListInstallationRepos_AnnotatesBindings(t *testing.T) {

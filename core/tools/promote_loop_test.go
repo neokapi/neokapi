@@ -3,20 +3,20 @@ package tools
 import (
 	"testing"
 
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func runBrandVocab(t *testing.T, p *brand.VoiceProfile, text string) []check.Finding {
+func runBrandVocab(t *testing.T, p *profile.VoiceProfile, text string) []check.Finding {
 	t.Helper()
 	b := &model.Block{ID: "b", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}
 	tl := NewBrandVocabCheckTool(p, nil)
 	require.NoError(t, tl.Annotate(tool.NewBlockView(b)))
-	if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
+	if ann, ok := model.AnnoAs[*profile.BrandVoiceAnnotation](b, "brand-voice"); ok {
 		return ann.Findings
 	}
 	return nil
@@ -27,15 +27,15 @@ func runBrandVocab(t *testing.T, p *brand.VoiceProfile, text string) []check.Fin
 // is promoted into the profile, the very same text is flagged with the team's
 // replacement — a correction made once, enforced forever.
 func TestCorrectionBecomesEnforcedCheck(t *testing.T) {
-	p := &brand.VoiceProfile{}
+	p := &profile.VoiceProfile{}
 	const text = "Please utilize the new API."
 
 	// Before promotion: nothing to flag.
 	assert.Empty(t, runBrandVocab(t, p, text), "term is not forbidden yet")
 
 	// A team corrected "utilize" → "use" repeatedly; that becomes a rule.
-	brand.ApplySuggestedRule(p, brand.SuggestedRule{
-		Term: "utilize", Replacement: "use", CorrectionCount: 3, Dimension: brand.DimensionVocabulary,
+	profile.ApplySuggestedRule(p, profile.SuggestedRule{
+		Term: "utilize", Replacement: "use", CorrectionCount: 3, Dimension: profile.DimensionVocabulary,
 	})
 
 	// After promotion: the same content now fails the check, with the fix.

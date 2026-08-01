@@ -61,12 +61,15 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		ExtraFlows:       a.ExtraFlows,
 
 		ProjectContext:      a.ProjectContext,
+		MCPSurface:          a.MCPSurface,
+		execTrustGranted:    a.execTrustGranted,
 		ProjectBindings:     a.ProjectBindings,
 		convergeWriteFiles:  a.convergeWriteFiles,
 		docCache:            a.docCache,
 		translator:          a.translator,
 		AISetupIOOverride:   a.AISetupIOOverride,
 		AISetupPrompter:     a.AISetupPrompter,
+		isTTY:               a.isTTY,
 		convergeProgressTap: tap,
 
 		// Pre-seed the parent's runtime (building it on the parent if needed —
@@ -95,31 +98,45 @@ const (
 // absent once a run fans out. TestConvergeWorker_CoversEveryAppField reconciles
 // this map against App's actual fields and against what the clone produces.
 var convergeWorkerFields = map[string]workerFieldPolicy{
-	"FormatReg":           fieldShared,
-	"ToolReg":             fieldShared,
-	"SchemaReg":           fieldShared,
-	"PluginHost":          fieldShared,
-	"Config":              fieldShared,
-	"Verbose":             fieldShared,
-	"Quiet":               fieldOwned, // workers are silent; the parent owns the terminal
-	"AssumeYes":           fieldShared,
-	"CfgFile":             fieldShared,
-	"PluginDir":           fieldShared,
-	"Lang":                fieldShared,
-	"Explain":             fieldShared,
-	"FormatFlag":          fieldShared,
-	"Encoding":            fieldShared,
-	"SourceLang":          fieldShared,
-	"TargetLang":          fieldOwned, // the whole point: one worker, one locale
-	"MemoryBackend":       fieldShared,
-	"TermsBackend":        fieldShared,
-	"Credentials":         fieldShared,
-	"AISetupIOOverride":   fieldShared,
-	"AISetupPrompter":     fieldShared, // presentation, and a worker never prompts
-	"RegistryResolver":    fieldShared,
-	"FallbackRunE":        fieldShared,
-	"ExtraFlows":          fieldShared,
-	"ProjectContext":      fieldShared,
+	"FormatReg":         fieldShared,
+	"ToolReg":           fieldShared,
+	"SchemaReg":         fieldShared,
+	"PluginHost":        fieldShared,
+	"Config":            fieldShared,
+	"Verbose":           fieldShared,
+	"Quiet":             fieldOwned, // workers are silent; the parent owns the terminal
+	"AssumeYes":         fieldShared,
+	"CfgFile":           fieldShared,
+	"PluginDir":         fieldShared,
+	"Lang":              fieldShared,
+	"Explain":           fieldShared,
+	"FormatFlag":        fieldShared,
+	"Encoding":          fieldShared,
+	"SourceLang":        fieldShared,
+	"TargetLang":        fieldOwned, // the whole point: one worker, one locale
+	"MemoryBackend":     fieldShared,
+	"TermsBackend":      fieldShared,
+	"Credentials":       fieldShared,
+	"AISetupIOOverride": fieldShared,
+	"AISetupPrompter":   fieldShared, // presentation, and a worker never prompts
+	// Terminal detection for App's own prompts. A worker never prompts (the
+	// parent owns the terminal), so this is inert in a worker — carried rather
+	// than reset so the clone stays a faithful copy, like MCPSurface below.
+	"isTTY":            fieldShared,
+	"RegistryResolver": fieldShared,
+	"FallbackRunE":     fieldShared,
+	"ExtraFlows":       fieldShared,
+	"ProjectContext":   fieldShared,
+	// The execution-trust decision belongs to the run, not to the locale: the
+	// user was asked once about one project's recipe, and every worker fanning
+	// out over that project inherits the answer. Owning it instead would leave
+	// each worker unable to build the step the user approved (AD-038).
+	"execTrustGranted": fieldShared,
+	// The MCP tool surface is set from `kapi mcp` flags and read only while that
+	// server is running. A converge worker never serves MCP, so sharing the
+	// parent's value is correct and inert — it is carried rather than reset so
+	// the clone stays a faithful copy.
+	"MCPSurface":          fieldShared,
 	"ProjectBindings":     fieldShared,
 	"convergeWriteFiles":  fieldShared,
 	"docCache":            fieldShared,

@@ -42,6 +42,37 @@ type SyncCache struct {
 	// up directly, governed edits become a reviewed change-set). It is
 	// regenerable — every pull refreshes it.
 	ConceptBaseline *ConceptBaseline `json:"concept_baseline,omitempty"`
+
+	// ContextHash is the context the last push carried — the fold over every
+	// declared collection's entry (bowrain/core/sync.ContextHashOf). It is the
+	// local half of the context fast path: an unedited recipe is not worth a
+	// round trip, and a recipe that gained a collection or rebound a voice must
+	// reach the server even when no content moved. Regenerable — it is derived
+	// from the recipe, and losing it costs one redundant reconcile.
+	ContextHash string `json:"context_hash,omitempty"`
+
+	// ServerContext records the collections the last pull observed on the
+	// server, keyed by collection name. It is an OBSERVATION, never an
+	// instruction: nothing derived from a recipe-owned entry is applied to
+	// local governance, because kapi.yaml is the authority for those and a pull
+	// that could rewrite them would make the same content resolve differently
+	// depending on where it was last synced. What it buys is the ability to say
+	// so — `kapi status` reports a recipe-owned collection the server governs
+	// differently instead of letting the two diverge unremarked.
+	ServerContext map[string]ServerCollection `json:"server_context,omitempty"`
+}
+
+// ServerCollection is one collection as the server holds it, recorded by a pull.
+type ServerCollection struct {
+	// Coordinates is the point the server has the collection at.
+	Coordinates map[string]string `json:"coordinates,omitempty"`
+	// Channel is the channel bound to it server-side.
+	Channel string `json:"channel,omitempty"`
+	// VoiceProfile is the name of the voice profile bound to it server-side.
+	VoiceProfile string `json:"voice_profile,omitempty"`
+	// Owner is "recipe" or "workspace" — which side is authoritative. Every
+	// decision about what a pull may act on is a lookup of this field.
+	Owner string `json:"owner,omitempty"`
 }
 
 // CachedProjectMeta caches server-side project metadata locally.

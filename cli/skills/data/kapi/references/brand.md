@@ -6,7 +6,7 @@ draft, fix what drifts.
 
 ## Profiles
 
-A profile comes from any of: a built-in starter pack (`--pack`), a git-shareable
+A profile comes from any of: a built-in pack (`--pack`), a git-shareable
 YAML (`--profile-file`), or the local store (`--profile`). List options with
 `kapi brand profiles`. Packs: `professional-b2b`, `friendly-dtc`,
 `technical-docs`, `marketing-blog`, `customer-support`.

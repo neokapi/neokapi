@@ -58,7 +58,7 @@ func (s *Server) HandleCreateInvite(c echo.Context) error {
 	ctx := c.Request().Context()
 	inv, err := s.Services.Auth.CreateInvite(ctx, workspaceID, userID, role, req.Email, maxUses, ttl)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventInviteCreated,
@@ -113,7 +113,7 @@ func (s *Server) HandleListInvites(c echo.Context) error {
 
 	invites, err := s.AuthStore.ListInvites(ctx, workspaceID)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return serverErr(c, err)
 	}
 
 	return c.JSON(http.StatusOK, invites)

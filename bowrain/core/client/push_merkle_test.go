@@ -56,7 +56,7 @@ func TestPushItemHashesCoverSentSubset(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClaimTokenClient(srv.URL, "proj1", "tok")
-	_, err := c.Push(context.Background(), blocksByItem, nil)
+	_, err := c.Push(context.Background(), blocksByItem, nil, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, wantItem, gotInit.ItemHashes,
@@ -112,7 +112,7 @@ func TestPushIgnoresServerReportedDeletions(t *testing.T) {
 
 	c := NewClaimTokenClient(srv.URL, "proj1", "tok")
 	resp, err := c.Push(context.Background(), blocksByItem,
-		[]ItemMeta{{Name: "locales/en.json", Format: "json"}})
+		[]ItemMeta{{Name: "locales/en.json", Format: "json"}}, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 

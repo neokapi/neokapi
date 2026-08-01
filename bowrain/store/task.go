@@ -351,7 +351,9 @@ func scanTask(row scanner) (*Task, error) {
 		t.CompletedAt = &c
 	}
 	if dataJSON != "" {
-		_ = json.Unmarshal([]byte(dataJSON), &t.Data)
+		if err := json.Unmarshal([]byte(dataJSON), &t.Data); err != nil {
+			return nil, fmt.Errorf("task %s: unmarshal data: %w", t.ID, err)
+		}
 	}
 
 	return &t, nil

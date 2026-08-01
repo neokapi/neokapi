@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -57,8 +58,18 @@ func TestClaudeCodeArgsAndStdin(t *testing.T) {
 	dir := t.TempDir()
 	argsFile := filepath.Join(dir, "args")
 	stdinFile := filepath.Join(dir, "stdin")
-	writeClaudeShim(t, fmt.Sprintf("printf '%%s\\n' \"$@\" > %q\ncat > %q\n", argsFile, stdinFile)+
-		shimEnvelope(happyEnvelope)[len("cat >/dev/null\n"):])
+	promptFile := filepath.Join(dir, "systemprompt")
+	// Capture argv and stdin, and dereference the system-prompt file so the
+	// test can assert on what the CLI would actually have read.
+	capture := fmt.Sprintf(`printf '%%s\n' "$@" > %q
+prev=""
+for a in "$@"; do
+  if [ "$prev" = "--append-system-prompt-file" ]; then cp "$a" %q; fi
+  prev="$a"
+done
+cat > %q
+`, argsFile, promptFile, stdinFile)
+	writeClaudeShim(t, capture+shimEnvelope(happyEnvelope)[len("cat >/dev/null\n"):])
 
 	p := NewClaudeCodeProvider(Config{Model: "sonnet"})
 	_, err := p.Chat(context.Background(), []Message{
@@ -76,11 +87,74 @@ func TestClaudeCodeArgsAndStdin(t *testing.T) {
 	assert.Contains(t, got, "--tools\n\n") // tool use disabled
 	assert.Contains(t, got, "--no-session-persistence\n")
 	assert.Contains(t, got, "--setting-sources\n\n")
-	assert.Contains(t, got, "--append-system-prompt\nYou translate UI strings.\n")
+	assert.Contains(t, got, "--append-system-prompt-file\n")
+
+	// The system prompt is document-derived and must not be readable in a
+	// process listing; only the path to it rides on argv.
+	assert.NotContains(t, got, "You translate UI strings.",
+		"the system prompt must not appear on the command line")
+
+	system, err := os.ReadFile(promptFile)
+	require.NoError(t, err, "the CLI must be handed a readable system-prompt file")
+	assert.Equal(t, "You translate UI strings.", string(system))
 
 	stdin, err := os.ReadFile(stdinFile)
 	require.NoError(t, err)
 	assert.Equal(t, "Say bonjour", string(stdin))
+}
+
+// TestClaudeCodeSystemPromptFileIsPrivateAndRemoved: the prompt is moved off
+// argv to keep it away from other local accounts, so the file it moves to must
+// be unreadable to them — and must not outlive the call.
+func TestClaudeCodeSystemPromptFileIsPrivateAndRemoved(t *testing.T) {
+	dir := t.TempDir()
+	pathFile := filepath.Join(dir, "path")
+	modeFile := filepath.Join(dir, "mode")
+	capture := fmt.Sprintf(`prev=""
+for a in "$@"; do
+  if [ "$prev" = "--append-system-prompt-file" ]; then
+    printf '%%s' "$a" > %q
+    ls -l "$a" | cut -c1-10 > %q
+  fi
+  prev="$a"
+done
+cat >/dev/null
+`, pathFile, modeFile)
+	writeClaudeShim(t, capture+shimEnvelope(happyEnvelope)[len("cat >/dev/null\n"):])
+
+	p := NewClaudeCodeProvider(Config{Model: "sonnet"})
+	_, err := p.Chat(context.Background(), []Message{
+		TextMessage("system", "secret instructions"),
+		TextMessage("user", "go"),
+	})
+	require.NoError(t, err)
+
+	mode, err := os.ReadFile(modeFile)
+	require.NoError(t, err)
+	assert.Equal(t, "-rw-------", strings.TrimSpace(string(mode)),
+		"only the invoking user may read the system prompt")
+
+	promptPath, err := os.ReadFile(pathFile)
+	require.NoError(t, err)
+	_, statErr := os.Stat(string(promptPath))
+	assert.True(t, os.IsNotExist(statErr), "the system-prompt file is removed when the call returns")
+}
+
+// TestClaudeCodeNoSystemPromptWritesNoFile: the ordinary no-system-prompt call
+// gains neither a flag nor a temp file.
+func TestClaudeCodeNoSystemPromptWritesNoFile(t *testing.T) {
+	dir := t.TempDir()
+	argsFile := filepath.Join(dir, "args")
+	writeClaudeShim(t, fmt.Sprintf("printf '%%s\\n' \"$@\" > %q\n", argsFile)+
+		shimEnvelope(happyEnvelope))
+
+	p := NewClaudeCodeProvider(Config{Model: "sonnet"})
+	_, err := p.Chat(context.Background(), []Message{TextMessage("user", "go")})
+	require.NoError(t, err)
+
+	args, err := os.ReadFile(argsFile)
+	require.NoError(t, err)
+	assert.NotContains(t, string(args), "--append-system-prompt")
 }
 
 func TestClaudeCodeStructuredOutput(t *testing.T) {

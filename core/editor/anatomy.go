@@ -137,6 +137,14 @@ type OriginView struct {
 	Tool      string `json:"tool,omitempty"`
 	Reference string `json:"reference,omitempty"`
 	Timestamp string `json:"timestamp,omitempty"`
+	// Profile and ProfileVersion carry the context that governed production, so
+	// a reviewer looking at a target can see which profile it was written under
+	// rather than inferring it from the timestamp.
+	Profile        string `json:"profile,omitempty"`
+	ProfileVersion string `json:"profile_version,omitempty"`
+	// ContextFingerprint lets a surface mark a target stale against a context
+	// that has moved since it was produced.
+	ContextFingerprint string `json:"context_fingerprint,omitempty"`
 }
 
 // OverlaySpanView is one run-anchored span of an overlay with its extracted text.
@@ -441,7 +449,16 @@ func sortedVariantKeys(targets map[model.VariantKey]*model.Target) []model.Varia
 func targetMeta(key model.VariantKey, t *model.Target) *TargetMeta {
 	m := &TargetMeta{Status: string(t.Status), Score: t.Score, Tone: key.Tone, Channel: key.Channel}
 	if o := t.Origin; o != (model.Origin{}) {
-		m.Origin = &OriginView{Kind: o.Kind, Engine: o.Engine, Tool: o.Tool, Reference: o.Reference, Timestamp: o.Timestamp}
+		m.Origin = &OriginView{
+			Kind:               o.Kind,
+			Engine:             o.Engine,
+			Tool:               o.Tool,
+			Reference:          o.Reference,
+			Timestamp:          o.Timestamp,
+			Profile:            o.Profile,
+			ProfileVersion:     o.ProfileVersion,
+			ContextFingerprint: o.ContextFingerprint,
+		}
 	}
 	return m
 }

@@ -11,7 +11,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"unsafe"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -449,14 +448,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		},
 	}
 	// Preserve the original document bytes so the writer can produce
-	// byte-faithful output, splicing only changed values. unsafe.String
-	// shares the backing array — content is not mutated after this point.
+	// byte-faithful output, splicing only changed values. The view shares
+	// content's backing array (safeio.NoCopyString states the contract);
+	// content is only read from here on.
 	//
 	// When a skeleton store is wired the writer reconstructs from the skeleton
 	// stream instead, so the (potentially large) original-bytes property is
 	// redundant and intentionally omitted — mirroring the native JSON reader.
 	if r.skeletonStore == nil {
-		layer.Properties["xcstrings.original"] = unsafe.String(unsafe.SliceData(content), len(content))
+		layer.Properties["xcstrings.original"] = safeio.NoCopyString(content)
 	}
 
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -119,7 +120,7 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 
 		case xml.CharData:
 			if !inSI {
-				p.skelText(xmlEscape(string(t)))
+				p.skelText(xmlesc.Text(string(t)))
 			}
 
 		case xml.ProcInst:
@@ -301,7 +302,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 						emitBlock(block)
 					} else {
 						p.skelWriteString("<v>")
-						p.skelText(xmlEscape(cellText.String()))
+						p.skelText(xmlesc.Text(cellText.String()))
 						p.skelWriteString("</v>")
 						// A shared-string or value cell carries no translatable text of
 						// its own (a shared string is deduplicated in sharedStrings.xml;
@@ -344,7 +345,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 			if inValue && inCell {
 				cellText.Write(t)
 			} else if !inCell {
-				p.skelText(xmlEscape(string(t)))
+				p.skelText(xmlesc.Text(string(t)))
 			}
 
 		case xml.ProcInst:
@@ -561,7 +562,7 @@ func (p *smlParser) renderSI(runs []textRun) string {
 	var buf strings.Builder
 	for _, r := range runs {
 		buf.WriteString("<t>")
-		buf.WriteString(xmlEscape(r.text))
+		buf.WriteString(xmlesc.Text(r.text))
 		buf.WriteString("</t>")
 	}
 	return buf.String()
@@ -633,7 +634,7 @@ func (p *smlParser) parseTable(data []byte, partPath string, emitBlock func(*mod
 			p.skelWriteEndElement(t)
 
 		case xml.CharData:
-			p.skelText(xmlEscape(string(t)))
+			p.skelText(xmlesc.Text(string(t)))
 
 		case xml.ProcInst:
 			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
@@ -688,7 +689,7 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 					writeAttrName(&ab, a2.Name)
 					p.skelWriteString(ab.String())
 					p.skelWriteString(`="`)
-					p.skelWriteString(xmlEscapeAttr(a2.Value))
+					p.skelWriteString(xmlesc.Attr(a2.Value))
 					p.skelWriteString(`"`)
 				}
 				p.skelWriteString(">")
@@ -704,7 +705,7 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 				emitBlock(block)
 				return
 			}
-			buf.WriteString(xmlEscapeAttr(a.Value))
+			buf.WriteString(xmlesc.Attr(a.Value))
 			buf.WriteString(`"`)
 		}
 	}
@@ -834,7 +835,7 @@ func (p *smlParser) skelWriteStartElement(t xml.StartElement) {
 		buf.WriteString(" ")
 		writeAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(xmlEscapeAttr(a.Value))
+		buf.WriteString(xmlesc.Attr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")

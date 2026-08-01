@@ -46,10 +46,17 @@ func (a *App) RunPack(cmd Command) error {
 	pkg := &kpz.Package{Kind: kpz.KindProject, Generator: &kpz.GeneratorInfo{ID: "kapi"}}
 
 	// Full project recipe — the one source of truth for intent (AD-025 §6).
-	// Side-effecting Extras (server/hooks/automations) are stripped so they
-	// travel inert; secrets never live in a recipe (keychain).
+	// Everything side-effecting is stripped so the recipe travels inert (see
+	// kpz.SanitizeRecipe); secrets never live in a recipe (keychain). The same
+	// sweep runs again on ingest, since this side only binds honest packers —
+	// but running it here is what tells the AUTHOR which parts of their own
+	// recipe a hand-off cannot carry.
 	if recipe, lerr := project.Load(projectPath); lerr == nil {
-		pkg.Recipe = kpz.SanitizeRecipe(recipe)
+		sanitized, removed := kpz.SanitizeRecipe(recipe)
+		pkg.Recipe = sanitized
+		for _, r := range removed {
+			fmt.Fprintf(os.Stderr, "Note: pack: %s stays behind — a package travels inert\n", r)
+		}
 	} else {
 		fmt.Fprintf(os.Stderr, "Warning: pack: load recipe %s: %v (packing content only)\n", projectPath, lerr)
 	}
@@ -79,7 +86,7 @@ func (a *App) RunPack(cmd Command) error {
 	}
 
 	// Authoritative content memory.
-	if memoryPath := filepath.Join(layout.StateDir, "tm.db"); fileExists(memoryPath) {
+	if memoryPath := filepath.Join(layout.StateDir, "memory.db"); fileExists(memoryPath) {
 		tm, err := memory.NewSQLiteStore(memoryPath)
 		if err != nil {
 			return fmt.Errorf("open project content memory: %w", err)
@@ -95,7 +102,7 @@ func (a *App) RunPack(cmd Command) error {
 	}
 
 	// Terms.
-	if tbPath := filepath.Join(layout.StateDir, "termbase.db"); fileExists(tbPath) {
+	if tbPath := filepath.Join(layout.StateDir, "terms.db"); fileExists(tbPath) {
 		tb, err := terms.NewSQLiteStore(tbPath)
 		if err != nil {
 			return fmt.Errorf("open project terms store: %w", err)
@@ -203,34 +210,29 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 		return a.unpackKpz(cmd.Context(), snapshotPath)
 	}
 
-	// Resolve the destination project. When one is in scope use it; otherwise
-	// reconstitute a fresh <name>.kapi from the snapshot beside the .kpz, since
-	// a project snapshot carries the full recipe (AD-025 §6) and can rebuild a
-	// complete project in a file.
+	// Resolve the destination project. When one is in scope its own recipe is
+	// authoritative and the package's is only metadata; otherwise the snapshot
+	// reconstitutes one, since a project snapshot carries the full recipe
+	// (AD-025 §6) and can rebuild a complete project in a file.
+	//
+	// Either way the layout that comes back names a recipe that exists on disk
+	// — project.LayoutFor stats it — so there is no later branch where unpack
+	// might still have to write one.
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil {
 		return err
 	}
+	var layout project.Layout
 	if projectPath == "" {
-		projectPath = reconstitutedProjectPath(snapshotPath, pkg)
+		layout, err = a.reconstituteProject(cmd, snapshotPath, pkg)
+	} else {
+		layout, err = project.LayoutFor(projectPath)
 	}
-	layout, err := project.LayoutFor(projectPath)
 	if err != nil {
 		return err
 	}
 	if err := project.EnsureLayout(layout); err != nil {
 		return err
-	}
-
-	// Write the recipe back as <name>.kapi (the authoritative intent). When a
-	// project already exists, its on-disk recipe is authoritative — do not
-	// overwrite it; only reconstitute when there was no recipe.
-	if pkg.Recipe != nil {
-		if !fileExists(layout.RecipePath) {
-			if serr := project.Save(layout.RecipePath, pkg.Recipe); serr != nil {
-				return fmt.Errorf("unpack: write recipe: %w", serr)
-			}
-		}
 	}
 	// Verify the advisory provenance chain if present. It is advisory, so a
 	// broken chain warns rather than blocks — the content is what matters.
@@ -257,7 +259,7 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 
 	// content memory.
 	if pkg.Memory != nil {
-		tm, err := memory.NewSQLiteStore(filepath.Join(layout.StateDir, "tm.db"))
+		tm, err := memory.NewSQLiteStore(filepath.Join(layout.StateDir, "memory.db"))
 		if err != nil {
 			return fmt.Errorf("open project content memory: %w", err)
 		}
@@ -272,7 +274,7 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 
 	// Terms.
 	if pkg.Terms != nil {
-		tb, err := terms.NewSQLiteStore(filepath.Join(layout.StateDir, "termbase.db"))
+		tb, err := terms.NewSQLiteStore(filepath.Join(layout.StateDir, "terms.db"))
 		if err != nil {
 			return fmt.Errorf("open project terms store: %w", err)
 		}
@@ -322,6 +324,85 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 	return outputPrint(cmd, fmt.Sprintf("Unpacked %s → %s", snapshotPath, layout.StateDir))
 }
 
+// reconstituteProject materializes the project a snapshot describes, for a
+// recipient who has none in scope. AD-025 §6 calls a .kpz a project in a file
+// and says unpack reconstitutes a complete kapi.yaml; this is the half that
+// makes that true, and it is the only path on which unpack writes a recipe at
+// all. (Until #1537's follow-up it was unreachable: the path was computed and
+// handed straight to project.LayoutFor, which stats the recipe and failed,
+// so `kapi unpack` outside a project always died on a missing-file error and
+// the adoption prompt guarding it never ran.)
+//
+// Writing that recipe is the moment the package stops being data and starts
+// being intent, so it is the moment there is something to ask about.
+// LoadWorkspace has already made the recipe inert — exec-class steps and
+// non-local paths are gone — and the question that remains is whether this
+// directory becomes a project someone else designed.
+func (a *App) reconstituteProject(cmd Command, snapshotPath string, pkg *kpz.Package) (project.Layout, error) {
+	base := filepath.Base(snapshotPath)
+	if pkg.Recipe == nil {
+		return project.Layout{}, fmt.Errorf(
+			"unpack: no project here and %s carries no recipe to reconstitute one from — run this inside a project, or name one with --project",
+			base)
+	}
+
+	recipePath := reconstitutedProjectPath(snapshotPath, pkg)
+	if fileExists(recipePath) {
+		// A previous unpack already reconstituted this project. Its on-disk
+		// recipe is authoritative exactly as an in-scope project's is, so
+		// unpacking again refreshes the state and asks nothing.
+		return project.LayoutFor(recipePath)
+	}
+
+	ok, err := a.confirmAdoptRecipe(cmd, snapshotPath)
+	if err != nil {
+		return project.Layout{}, err
+	}
+	if !ok {
+		return project.Layout{}, fmt.Errorf(
+			"unpack: no project here, and the recipe %s carries was not adopted — there is nowhere to unpack into",
+			base)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(recipePath), 0o755); err != nil {
+		return project.Layout{}, fmt.Errorf("unpack: create project directory: %w", err)
+	}
+	if err := project.Save(recipePath, pkg.Recipe); err != nil {
+		return project.Layout{}, fmt.Errorf("unpack: write recipe: %w", err)
+	}
+	return project.LayoutFor(recipePath)
+}
+
+// confirmAdoptRecipe asks whether to adopt the recipe a package carries as this
+// directory's project recipe. --yes adopts; an interactive terminal is asked;
+// anything else declines and says how to adopt deliberately.
+//
+// Declining is not a failure in itself — it withholds only the intent, which is
+// the part that makes later runs execute steps someone else wrote. Whether the
+// unpack can continue afterwards is the caller's question: today the only
+// caller is reconstituteProject, where a declined recipe leaves no project for
+// the content to land in.
+func (a *App) confirmAdoptRecipe(cmd Command, snapshotPath string) (bool, error) {
+	if a.AssumeYes {
+		return true, nil
+	}
+	isTTY := a.isTTY
+	if isTTY == nil {
+		isTTY = defaultIsStdinTTY
+	}
+	w := cmd.ErrOrStderr()
+	if !isTTY() {
+		fmt.Fprintf(w, "Note: %s carries its own project recipe; this directory has none.\n"+
+			"      Not adopting it — re-run with --yes to use the packaged recipe as %s.\n",
+			filepath.Base(snapshotPath), project.RecipeFileName)
+		return false, nil
+	}
+	fmt.Fprintf(w, "\n%s carries its own project recipe, and this directory has none.\n"+
+		"Adopting it means later `kapi run` invocations here execute the flows it declares.\n",
+		filepath.Base(snapshotPath))
+	return Confirm(cmd.InOrStdin(), w, fmt.Sprintf("Use it as %s? [Y/n] ", project.RecipeFileName))
+}
+
 // restoreSources writes a snapshot's raw source members back into the project
 // tree under their logical paths (the archive path minus the "source/" prefix).
 //
@@ -339,15 +420,9 @@ func restoreSources(pkg *kpz.Package, root string) error {
 	}
 	for _, doc := range pkg.Source {
 		rel := strings.TrimPrefix(doc.Path, kpz.SourceDir)
-		if rel == "" || strings.HasPrefix(rel, "/") {
-			// An absolute member path would be silently reinterpreted as
-			// project-relative by filepath.Join. Refusing beats writing
-			// somewhere the archive did not name.
-			return fmt.Errorf("unpack: source member %q has no usable relative path", doc.Path)
-		}
-		dst := filepath.Join(absRoot, filepath.FromSlash(rel))
-		if !strings.HasPrefix(dst, absRoot+string(os.PathSeparator)) {
-			return fmt.Errorf("unpack: source member %q escapes the project root", doc.Path)
+		dst, err := containedJoin(absRoot, rel, "unpack: source member")
+		if err != nil {
+			return err
 		}
 		if fileExists(dst) {
 			continue // the working tree already has this source
@@ -367,11 +442,20 @@ func restoreSources(pkg *kpz.Package, root string) error {
 // is fixed, so the project's identity is carried by its folder: a fresh
 // <name>/ directory beside the snapshot (named from the recipe, else the
 // snapshot's base name) holding the kapi.yaml recipe.
+//
+// The recipe's name is package-controlled, so it is accepted only as a single
+// directory segment — a name carrying a separator or ".." would place the
+// reconstituted project (and the block store, content memory and terms that
+// follow it) outside the directory the snapshot was unpacked in. It falls back
+// to the snapshot's own base name rather than failing: the folder is a
+// convenience, not the payload.
 func reconstitutedProjectPath(snapshotPath string, pkg *kpz.Package) string {
 	dir := filepath.Dir(snapshotPath)
 	name := format.Stem(snapshotPath)
 	if pkg != nil && pkg.Recipe != nil && pkg.Recipe.Name != "" {
-		name = pkg.Recipe.Name
+		if err := checkPathSegment(pkg.Recipe.Name, "unpack: recipe name"); err == nil {
+			name = pkg.Recipe.Name
+		}
 	}
 	return filepath.Join(dir, name, project.RecipeFileName)
 }

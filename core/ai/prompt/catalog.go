@@ -18,7 +18,7 @@ import (
 
 // BrandCheck scores text against a brand voice profile.
 type BrandCheck struct {
-	// VoiceGuide is the rendered voice profile (brand.RenderVoiceGuide).
+	// VoiceGuide is the rendered voice profile (profile.RenderVoiceGuide).
 	VoiceGuide string
 }
 

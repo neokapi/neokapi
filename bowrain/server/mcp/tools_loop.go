@@ -8,7 +8,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	corebrand "github.com/neokapi/neokapi/core/brand"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // Correction-learning loop tools: an AI assistant can see the candidate rules a
@@ -45,7 +45,7 @@ type getSuggestedRulesInput struct {
 }
 
 type getSuggestedRulesOutput struct {
-	Candidates []corebrand.CandidateRule `json:"candidates"`
+	Candidates []coreprofile.CandidateRule `json:"candidates"`
 }
 
 func (s *MCPServer) handleGetSuggestedRules(ctx context.Context, _ *mcp.CallToolRequest, input getSuggestedRulesInput) (*mcp.CallToolResult, getSuggestedRulesOutput, error) {
@@ -61,7 +61,7 @@ func (s *MCPServer) handleGetSuggestedRules(ctx context.Context, _ *mcp.CallTool
 	if err != nil {
 		return nil, getSuggestedRulesOutput{}, fmt.Errorf("list rule decisions: %w", err)
 	}
-	return nil, getSuggestedRulesOutput{Candidates: corebrand.MergeCandidates(suggestions, decisions, input.All)}, nil
+	return nil, getSuggestedRulesOutput{Candidates: coreprofile.MergeCandidates(suggestions, decisions, input.All)}, nil
 }
 
 type promoteRuleInput struct {
@@ -80,19 +80,19 @@ func (s *MCPServer) handlePromoteRule(ctx context.Context, _ *mcp.CallToolReques
 	if input.Term == "" {
 		return nil, promoteRuleOutput{}, errors.New("term is required")
 	}
-	rule := corebrand.SuggestedRule{Term: input.Term, Replacement: input.Replacement}
-	profile, changed, err := corebrand.PromoteAndSave(ctx, s.brandStore, input.ProfileID, rule)
+	rule := coreprofile.SuggestedRule{Term: input.Term, Replacement: input.Replacement}
+	profile, changed, err := coreprofile.PromoteAndSave(ctx, s.brandStore, input.ProfileID, rule)
 	if err != nil {
 		return nil, promoteRuleOutput{}, fmt.Errorf("promote rule: %w", err)
 	}
 	out := promoteRuleOutput{Promoted: changed, Version: profile.Version}
 	if changed {
-		_ = s.brandStore.RecordRuleDecision(ctx, &corebrand.RuleDecision{
+		_ = s.brandStore.RecordRuleDecision(ctx, &coreprofile.RuleDecision{
 			ProfileID:       input.ProfileID,
 			Term:            input.Term,
 			Replacement:     input.Replacement,
-			Dimension:       corebrand.DimensionVocabulary,
-			Status:          corebrand.RuleDecisionPromoted,
+			Dimension:       coreprofile.DimensionVocabulary,
+			Status:          coreprofile.RuleDecisionPromoted,
 			PromotedVersion: profile.Version,
 		})
 		out.Message = fmt.Sprintf("Promoted %q as a forbidden term; profile is now version %d", input.Term, profile.Version)
@@ -110,30 +110,30 @@ type evaluateRuleInput struct {
 	Stream      string `json:"stream,omitempty" jsonschema:"the stream (default main)"`
 }
 
-func (s *MCPServer) handleEvaluateRule(ctx context.Context, _ *mcp.CallToolRequest, input evaluateRuleInput) (*mcp.CallToolResult, corebrand.BlastRadius, error) {
+func (s *MCPServer) handleEvaluateRule(ctx context.Context, _ *mcp.CallToolRequest, input evaluateRuleInput) (*mcp.CallToolResult, coreprofile.BlastRadius, error) {
 	if input.Term == "" || input.ProjectID == "" {
-		return nil, corebrand.BlastRadius{}, errors.New("term and project_id are required")
+		return nil, coreprofile.BlastRadius{}, errors.New("term and project_id are required")
 	}
 	baseline, err := s.brandStore.GetProfile(ctx, input.ProfileID)
 	if err != nil {
-		return nil, corebrand.BlastRadius{}, fmt.Errorf("get profile: %w", err)
+		return nil, coreprofile.BlastRadius{}, fmt.Errorf("get profile: %w", err)
 	}
-	candidate := corebrand.CandidateWithRule(baseline, corebrand.SuggestedRule{Term: input.Term, Replacement: input.Replacement})
+	candidate := coreprofile.CandidateWithRule(baseline, coreprofile.SuggestedRule{Term: input.Term, Replacement: input.Replacement})
 	stored, err := s.contentStore.GetBlocks(ctx, store.BlockQuery{ProjectID: input.ProjectID, Stream: input.Stream})
 	if err != nil {
-		return nil, corebrand.BlastRadius{}, fmt.Errorf("get blocks: %w", err)
+		return nil, coreprofile.BlastRadius{}, fmt.Errorf("get blocks: %w", err)
 	}
-	blocks := make([]corebrand.EvalBlock, 0, len(stored))
+	blocks := make([]coreprofile.EvalBlock, 0, len(stored))
 	for _, sb := range stored {
 		if sb == nil || sb.Block == nil {
 			continue
 		}
-		blocks = append(blocks, corebrand.EvalBlock{
+		blocks = append(blocks, coreprofile.EvalBlock{
 			BlockID:        sb.Block.ID,
 			CollectionID:   sb.ItemName,
 			CollectionName: sb.ItemName,
 			Text:           sb.Block.SourceText(),
 		})
 	}
-	return nil, corebrand.EvaluateBlastRadius(blocks, baseline, candidate), nil
+	return nil, coreprofile.EvaluateBlastRadius(blocks, baseline, candidate), nil
 }

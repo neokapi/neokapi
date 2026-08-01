@@ -7,29 +7,28 @@ import (
 	"os"
 	"slices"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/credentials/providerenv"
 )
 
 // providerEnvVars maps a provider id to the ordered list of environment
 // variables that may carry its API key. The first non-empty variable wins.
-// These follow the conventional names used by each provider's own SDKs and
-// CLIs (and reuse GEMINI_API_KEY, the name the harness tooling already reads).
 //
-// API keys must never be sourced from the committable .kapi/kapi.yaml recipe;
-// only provider/model defaults belong there. The standard per-provider env var
-// is the supported fallback when no inline --api-key and no --credential are
+// API keys must never be sourced from the committable kapi.yaml recipe; only
+// provider/model defaults belong there. The standard per-provider env var is
+// the supported fallback when no inline --api-key and no --credential are
 // given, slotting in just above store auto-detect in the resolution order.
 //
-// Provider ids match the constants in providers/ai (anthropic, openai, gemini,
-// azureopenai, ollama, demo). The map is the single source of truth for the
-// fallback; keep it self-contained here to avoid import cycles with the
-// provider packages.
-var providerEnvVars = map[string][]string{
-	"anthropic":   {"ANTHROPIC_API_KEY"},
-	"openai":      {"OPENAI_API_KEY"},
-	"gemini":      {"GEMINI_API_KEY", "GOOGLE_API_KEY"},
-	"azureopenai": {"AZURE_OPENAI_API_KEY"},
-	// ollama and demo never require a key; they have no entry on purpose.
-}
+// The list itself lives in core/credentials/providerenv, because the plugin
+// conformance harness under core/ has to scrub the same variables the host
+// does and cannot import host. This is an alias, not a copy.
+var providerEnvVars = providerenv.Vars
+
+// ProviderKeyEnvNames returns every environment variable that may carry a
+// provider API key, sorted. It is the denylist for anything that hands an
+// environment to a subprocess kapi did not write — see
+// pluginhost.WithoutProviderKeys.
+func ProviderKeyEnvNames() []string { return providerenv.Names() }
 
 // keylessProviders are the providers that never require an API key: the local,
 // on-device ones (ollama, demo — mirrors aiprovider.IsLocalProvider) plus
@@ -107,7 +106,15 @@ func inferProviderID(_ string, config map[string]any) string {
 //  3. If config has "credential" → resolve by name or ID from store
 //  4. If a standard per-provider env var is set → inject it as "apiKey"
 //  5. Otherwise → auto-detect from store (single match required)
+//
+// Before any of that, the provider endpoint is taken out of the caller's hands
+// — see stripRecipeEndpoint.
 func ResolveCredentials(store *Store, toolName string, toolRequires []string, config map[string]any) (map[string]any, error) {
+	// Unconditionally, and before every return below: the endpoint is host
+	// configuration, so whatever the config arrived with is discarded here and
+	// only a stored credential can put one back.
+	config = stripRecipeEndpoint(config)
+
 	if !slices.Contains(toolRequires, "credentials") {
 		return config, nil
 	}
@@ -155,6 +162,38 @@ func ResolveCredentials(store *Store, toolName string, toolRequires []string, co
 		return nil, err
 	}
 	return mergeCredentials(config, resolved), nil
+}
+
+// configKeyBaseURL is the tool-config key naming the endpoint a provider is
+// called at. The host owns it end to end: it is cleared on the way in and set
+// only from a resolved credential.
+const configKeyBaseURL = "baseURL"
+
+// stripRecipeEndpoint removes any endpoint the tool config arrived with.
+//
+// The endpoint and the secret sent to it are one decision, so they travel
+// together or not at all. A recipe is committable and is authored by whoever
+// wrote the project directory; a credential is per-machine and is authored by
+// the person kapi is running as. Letting the first choose where the second is
+// sent points a user's key at a host the user never picked — which is why the
+// policy stated for keys just above (`providerEnvVars`: "API keys must never be
+// sourced from the committable .kapi/kapi.yaml recipe") has to cover the
+// address as well as the secret.
+//
+// Self-hosted and private-cloud endpoints stay fully supported; they are
+// configured next to the key they authenticate with, via `kapi credentials add
+// --base-url`, and re-injected by mergeCredentials.
+//
+// The map is copied rather than edited, because callers pass configs they
+// still own. Only tool configs carrying the key pay for the copy.
+func stripRecipeEndpoint(config map[string]any) map[string]any {
+	if _, ok := config[configKeyBaseURL]; !ok {
+		return config
+	}
+	out := make(map[string]any, len(config))
+	maps.Copy(out, config)
+	delete(out, configKeyBaseURL)
+	return out
 }
 
 // resolveByRef looks up a credential by name first, then by ID.
@@ -256,6 +295,14 @@ func mergeCredentials(config map[string]any, cred *ProviderConfigWithKey) map[st
 		if _, ok := result["model"]; !ok || result["model"] == "" {
 			result["model"] = cred.Model
 		}
+	}
+	// The endpoint travels with the key that authenticates to it. A stored
+	// credential may name a self-hosted or private-cloud host (`kapi
+	// credentials add --base-url`), and that is the only way one is set —
+	// stripRecipeEndpoint has already removed anything the config arrived
+	// with, so this assignment is never overriding a user's intent.
+	if cred.BaseURL != "" {
+		result[configKeyBaseURL] = cred.BaseURL
 	}
 
 	return result

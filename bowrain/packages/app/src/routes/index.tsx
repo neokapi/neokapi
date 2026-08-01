@@ -27,7 +27,7 @@ import {
   ActivityFeedSkeleton,
   TaskBoardSkeleton,
 } from "@neokapi/ui";
-import { searchInstallationId, searchSetupAction } from "./installation-id";
+import { searchInstallationId, searchSetupAction, searchSetupState } from "./installation-id";
 import {
   searchPlan,
   searchSeats,
@@ -219,6 +219,11 @@ const githubSetupRoute = createRoute({
     // same, keeping it only to tell "arrived from GitHub" apart from a
     // hand-typed URL when the installation id is missing.
     setup_action: searchSetupAction(search.setup_action),
+    // The signed state Bowrain sent to GitHub and GitHub echoed back. It names
+    // the workspace that started the install, which is what lets the returning
+    // request claim the installation; undeclared search params are stripped by
+    // the router, so it has to be validated here to reach the page at all.
+    state: searchSetupState(search.state),
   }),
   component: lazyRouteComponent(() => import("./github-setup"), "GithubSetupRoute"),
 });
@@ -493,147 +498,184 @@ const translationDashboardRoute = createRoute({
   },
 });
 
-// ── Brand hub (AD-021) ───────────────────────────────────────────────────────
+// ── Context hub (AD-021) ─────────────────────────────────────────────────────
 // One workspace surface with five sections: Concepts (graph + list + per-concept
-// story), Voice (profiles + correction loop), Experiments (change-sets), Activity,
-// and Dashboard. The old standalone Terms is absorbed into Concepts.
+// story), Voice (profiles + correction loop), Content memory, Changes
+// (change-sets), and Activity. The old standalone Terms is absorbed into
+// Concepts, and Content memory is re-homed here from its own top-level route.
+// Dashboard also hangs off this section, but the sidebar files it under Insights.
 
-const brandRoute = createRoute({
+const contextRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "brand",
+  path: "context",
   component: Outlet,
 });
 
-// /brand → /brand/concepts (Concepts is the hub's landing section).
-const brandIndexRoute = createRoute({
-  getParentRoute: () => brandRoute,
+// /context → /context/concepts (Concepts is the hub's landing section).
+const contextIndexRoute = createRoute({
+  getParentRoute: () => contextRoute,
   path: "/",
   beforeLoad: ({ params }) => {
     throw redirect({
-      to: "/$workspace/brand/concepts",
+      to: "/$workspace/context/concepts",
       params: { workspace: params.workspace },
       replace: true,
     });
   },
 });
 
-const brandConceptsRoute = createRoute({
-  getParentRoute: () => brandRoute,
+const contextConceptsRoute = createRoute({
+  getParentRoute: () => contextRoute,
   path: "concepts",
   pendingComponent: ExplorerSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-concepts"), "ConceptsRoute"),
+  component: lazyRouteComponent(() => import("./workspace/context-concepts"), "ConceptsRoute"),
 });
 
-const brandConceptStoryRoute = createRoute({
-  getParentRoute: () => brandRoute,
+const contextConceptStoryRoute = createRoute({
+  getParentRoute: () => contextRoute,
   path: "concepts/$cid",
   pendingComponent: ExplorerSkeleton,
   component: lazyRouteComponent(
-    () => import("./workspace/brand-concept-story"),
+    () => import("./workspace/context-concept-story"),
     "ConceptStoryRoute",
   ),
 });
 
-const brandExperimentsRoute = createRoute({
-  getParentRoute: () => brandRoute,
-  path: "experiments",
+// "Changes", not "experiments": a change-set with a reach preview and an
+// optional pilot is the only route a governed change takes, so the URL names
+// the destination the sub-nav names.
+const contextChangesRoute = createRoute({
+  getParentRoute: () => contextRoute,
+  path: "changes",
   pendingComponent: TablePageSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-experiments"), "ExperimentsRoute"),
+  component: lazyRouteComponent(
+    () => import("./workspace/context-experiments"),
+    "ExperimentsRoute",
+  ),
 });
 
-const brandExperimentDetailRoute = createRoute({
-  getParentRoute: () => brandRoute,
-  path: "experiments/$id",
+const contextChangeDetailRoute = createRoute({
+  getParentRoute: () => contextRoute,
+  path: "changes/$id",
   pendingComponent: DashboardSkeleton,
   component: lazyRouteComponent(
-    () => import("./workspace/brand-experiment-detail"),
+    () => import("./workspace/context-experiment-detail"),
     "ExperimentDetailRoute",
   ),
 });
 
-const brandActivityRoute = createRoute({
-  getParentRoute: () => brandRoute,
+const contextActivityRoute = createRoute({
+  getParentRoute: () => contextRoute,
   path: "activity",
   pendingComponent: ActivityFeedSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-activity"), "BrandActivityRoute"),
+  component: lazyRouteComponent(
+    () => import("./workspace/context-activity"),
+    "ContextActivityRoute",
+  ),
 });
 
-const brandDashboardRoute = createRoute({
-  getParentRoute: () => brandRoute,
+const contextMemoryRoute = createRoute({
+  getParentRoute: () => contextRoute,
+  path: "memory",
+  pendingComponent: ExplorerSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/memory"), "MemoryRoute"),
+});
+
+const contextDashboardRoute = createRoute({
+  getParentRoute: () => contextRoute,
   path: "dashboard",
   pendingComponent: DashboardSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-dashboard"), "BrandDashboardRoute"),
+  component: lazyRouteComponent(
+    () => import("./workspace/context-dashboard"),
+    "ContextDashboardRoute",
+  ),
 });
 
 // Brand scan (AI brand onboarding — epic 016): paste/link/upload/repo intake,
 // then a polled job page that flips into the confidence/attribution review.
-const brandScanRoute = createRoute({
-  getParentRoute: () => brandRoute,
+const contextScanRoute = createRoute({
+  getParentRoute: () => contextRoute,
   path: "scan",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-scan"), "BrandScanRoute"),
+  component: lazyRouteComponent(() => import("./workspace/context-scan"), "ContextScanRoute"),
 });
 
-const brandScanJobRoute = createRoute({
-  getParentRoute: () => brandRoute,
+const contextScanJobRoute = createRoute({
+  getParentRoute: () => contextRoute,
   path: "scan/$jobId",
   pendingComponent: DashboardSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-scan-job"), "BrandScanJobRoute"),
+  component: lazyRouteComponent(
+    () => import("./workspace/context-scan-job"),
+    "ContextScanJobRoute",
+  ),
 });
 
 // Voice — the brand-voice profiles + correction loop, re-homed under the hub.
-const brandVoiceRoute = createRoute({
-  getParentRoute: () => brandRoute,
+const contextVoiceRoute = createRoute({
+  getParentRoute: () => contextRoute,
   path: "voice",
   component: Outlet,
 });
 
-const brandVoiceIndexRoute = createRoute({
-  getParentRoute: () => brandVoiceRoute,
+const contextVoiceIndexRoute = createRoute({
+  getParentRoute: () => contextVoiceRoute,
   path: "/",
   pendingComponent: BrandProfilesSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-profiles"), "BrandProfilesRoute"),
+  component: lazyRouteComponent(
+    () => import("./workspace/context-profiles"),
+    "ContextProfilesRoute",
+  ),
 });
 
-const brandVoiceEditorRoute = createRoute({
-  getParentRoute: () => brandVoiceRoute,
+const contextVoiceEditorRoute = createRoute({
+  getParentRoute: () => contextVoiceRoute,
   path: "$profileId",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-editor"), "BrandEditorRoute"),
+  component: lazyRouteComponent(() => import("./workspace/context-editor"), "ContextEditorRoute"),
 });
 
-const brandVoiceReviewRoute = createRoute({
-  getParentRoute: () => brandVoiceRoute,
+const contextVoiceReviewRoute = createRoute({
+  getParentRoute: () => contextVoiceRoute,
   path: "review/$profileId",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-review"), "BrandReviewRoute"),
+  component: lazyRouteComponent(() => import("./workspace/context-review"), "ContextReviewRoute"),
 });
 
-const brandVoiceMCPGuideRoute = createRoute({
-  getParentRoute: () => brandVoiceRoute,
+const contextVoiceMCPGuideRoute = createRoute({
+  getParentRoute: () => contextVoiceRoute,
   path: "mcp-guide",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/brand-mcp-guide"), "BrandMCPGuideRoute"),
+  component: lazyRouteComponent(
+    () => import("./workspace/context-mcp-guide"),
+    "ContextMCPGuideRoute",
+  ),
 });
 
-// Legacy /terms → Brand · Concepts. Terminology now lives inside the graph.
+// Legacy /terms → Context · Concepts. Terminology now lives inside the graph.
 const termsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "terms",
   beforeLoad: ({ params }) => {
     throw redirect({
-      to: "/$workspace/brand/concepts",
+      to: "/$workspace/context/concepts",
       params: { workspace: params.workspace },
       replace: true,
     });
   },
 });
 
+// Legacy /memory → Context · Content memory. The page has one home now
+// (contextMemoryRoute); this only keeps older links and bookmarks resolving.
 const memoryRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "memory",
-  pendingComponent: ExplorerSkeleton,
-  component: lazyRouteComponent(() => import("./workspace/memory"), "MemoryRoute"),
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: "/$workspace/context/memory",
+      params: { workspace: params.workspace },
+      replace: true,
+    });
+  },
 });
 
 // Locale demand — live when a PostHog connector is configured; sample data
@@ -821,21 +863,22 @@ const routeTree = rootRoute.addChildren([
     runsRoute,
     connectorsRoute,
     translationDashboardRoute,
-    brandRoute.addChildren([
-      brandIndexRoute,
-      brandConceptsRoute,
-      brandConceptStoryRoute,
-      brandExperimentsRoute,
-      brandExperimentDetailRoute,
-      brandActivityRoute,
-      brandDashboardRoute,
-      brandScanRoute,
-      brandScanJobRoute,
-      brandVoiceRoute.addChildren([
-        brandVoiceIndexRoute,
-        brandVoiceEditorRoute,
-        brandVoiceReviewRoute,
-        brandVoiceMCPGuideRoute,
+    contextRoute.addChildren([
+      contextIndexRoute,
+      contextConceptsRoute,
+      contextConceptStoryRoute,
+      contextChangesRoute,
+      contextChangeDetailRoute,
+      contextActivityRoute,
+      contextMemoryRoute,
+      contextDashboardRoute,
+      contextScanRoute,
+      contextScanJobRoute,
+      contextVoiceRoute.addChildren([
+        contextVoiceIndexRoute,
+        contextVoiceEditorRoute,
+        contextVoiceReviewRoute,
+        contextVoiceMCPGuideRoute,
       ]),
     ]),
     termsRoute,

@@ -21,7 +21,7 @@ async function openEditorInTable(page: any) {
   await setupLocalApp(page);
 
   // Step 1: Create project via UI
-  await page.getByText("Upload files").click();
+  await page.getByTestId("onboarding-create-btn").click();
   await page.getByTestId("project-name-input").fill("Editor Test");
   await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();

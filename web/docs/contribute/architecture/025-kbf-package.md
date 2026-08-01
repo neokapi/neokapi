@@ -107,7 +107,7 @@ has exactly one glossary, so it gets a conventional location
 ([AD-010](010-terminology.md)) — `<root>/terms.json`, then
 `<root>/.kapi/terms.json`. Content memory gets none, because a project
 accumulates a bundle per content surface (this repository's own dogfood commits
-one per surface under `l10n/tm/`) and a fallback would have nothing single to
+one per surface under `context/memory/`) and a fallback would have nothing single to
 name.
 
 ### 2. The `.kpz` package container
@@ -250,8 +250,9 @@ path would escape the project root is refused rather than written.
 | flows | `flows:` + `.kapi/flows/` | recipe `flows` | **travels** |
 | plugins (declaration) + `requires` | recipe | recipe | travels (binaries re-resolved via registry) |
 | defaults, content, preset | recipe | recipe | travels |
-| `server:` / `hooks:` / `automations:` (Extras) | recipe Extras | recipe Extras | travels **inert** |
-| content memory / terms | `tm.db` / `termbase.db` (authoritative) | `memory.json` / `terms.json` | travels (lossless) |
+| `server:` / `hooks:` / `automations:` (Extras, any scope) | recipe Extras | recipe Extras | travels **inert** |
+| path-valued fields (`defaults.terms`, `terms_source`, `memory_source`, `state`, `redaction.rules`, `brand_voice.profile_file`, content `base` / `target`) | recipe | recipe | travels **contained** |
+| content memory / terms | `memory.db` / `terms.db` (authoritative) | `memory.json` / `terms.json` | travels (lossless) |
 | blocks + targets, annotations, in-progress overlays | `cache/blocks.db` (regenerable) | `blocks/*.kbf.json`, `annotations/*.overlays.jsonl`, `overlays.json` (authoritative) | travels |
 | source identity (path, format, hash) | working tree | `manifest.json` | travels |
 | source skeleton (round-trip template) | `cache/extractions/.../skel-*.bin` | `skeletons/<id>` | travels |
@@ -261,10 +262,45 @@ path would escape the project root is refused rather than written.
 | plugin binaries | user / system install | — | re-resolved via `requires` / registry |
 | provenance | — | `history.jsonl` (opt-in) | travels (excluded from `rootHash`) |
 
+**A packaged recipe may only name places inside the project it lands in.** The
+format asked the *packer* to strip what travels badly, which a hostile packer
+simply will not do, so the sweep (`kpz.SanitizeRecipe`) runs again on **ingest**,
+at the single point every `.kpz` this binary opens comes through. It removes
+exec-class steps and formats, the per-tool config that would arm them, the
+side-effecting `Extras` at every scope they can be registered at, and any
+path-valued field that climbs out of the project or starts at the root — the
+terms, terms-source, memory-source and state bindings, the redaction rules file,
+the brand-voice profile file, and each content entry's `base` and `target`.
+
+The asymmetry is the point. A project's **own** recipe may name an absolute
+destination — publishing outside the tree is a thing its owner is entitled to
+ask for — but a recipe that arrived in a package is answering for a machine it
+has never seen. Nothing is fatal: each removal is reported so the recipient
+learns what the author meant, and every one of these fields has a defined
+meaning when unset.
+
+`requires:` deliberately survives. It declares which plugins the package's flows
+need, and dropping it would remove a statement of fact without removing any
+capability — a recipe installs nothing by itself, and an undeclared plugin just
+fails later with a worse error. The install it can prompt for resolves through
+the signed plugin registry, so a package can ask for a plugin neokapi publishes,
+not for code of its own. That is the line [AD-038](038-execution-trust.md)
+draws for `--yes`: "install the plugin this recipe asks for" and "run the
+commands this recipe names" are different classes of decision.
+
 **Source of truth on round-trip.** When a `.kpz` is unpacked into or sits beside a
 `.kapi` project, the on-disk recipe is authoritative and the package is a
 snapshot; a standalone `.kpz` (the ad-hoc workspace) is authoritative in itself.
 Intent therefore never has two live homes that can drift.
+
+With **no** project in scope, `unpack` reconstitutes one: a directory beside the
+snapshot, named from the recipe (a name that is not a single path segment falls
+back to the snapshot's own base name), holding the recipe as its `kapi.yaml`.
+That write is the only moment unpack turns a package into intent, so it is the
+moment it asks — adopting means later `kapi run` here executes flows someone
+else wrote. Declining leaves nothing behind and says so, because without a
+recipe there is no project for the content to land in. Unpacking the same
+snapshot again finds the project it made and refreshes the state without asking.
 
 ### 7. Boundaries: workspace vs payload, and the two `.kpz` profiles
 

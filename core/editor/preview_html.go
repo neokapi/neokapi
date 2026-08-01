@@ -7,6 +7,20 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
+// The preview writers below reproduce document markup verbatim: skeleton text
+// is the source document's own HTML, and block content is rendered rather than
+// escaped, because a preview that escaped the document would not be a preview
+// of it. The output is therefore exactly as trustworthy as the document it came
+// from — which, for an upload, a translator's target text, or content pulled
+// through a connector from an external CMS, is not at all.
+//
+// That is a deliberate property of the format rather than a defect to fix here,
+// and it puts an obligation on whoever serves the result: never as HTML on an
+// origin that matters. Bowrain's preview routes send
+// Content-Security-Policy: sandbox, and the editor embeds the markup through an
+// iframe's srcDoc with sandbox="allow-scripts" and no allow-same-origin. A new
+// consumer has to arrange something equivalent.
+
 // buildHTMLPreview generates an HTML preview with <kat-block> markers.
 // Uses skeleton data to reconstruct the document structure, wrapping each
 // block's content in a <kat-block id="..."> element.

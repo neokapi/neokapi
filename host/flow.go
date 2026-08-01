@@ -19,11 +19,11 @@ import (
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/preset"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
@@ -81,7 +81,7 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string, opts Fl
 			}
 			doPack, _ := cmd.Flags().GetBool("pack")
 			return a.transformKpzInPlace(ctx, inputPaths[0], flowName, func() ([]tool.Tool, func(), error) { //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
-				return a.buildFlowTools(flowName, cmd)
+				return a.buildFlowTools(flowName, inputPaths[0], cmd)
 			}, a.TargetLang, "", doPack)
 		}
 		if a.TargetLang == "" {
@@ -137,7 +137,7 @@ func (a *App) addFlowRunFlags(cmd Command) {
 	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
 	cmd.Flags().Bool("pack", false, "when transforming a .kpz, also eject the result to the .kpz (auto-pack)")
 	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
-	cmd.Flags().String("tm", "", "named Memory for recycle flow (resolves from KAPI_HOME)")
+	cmd.Flags().String("memory", "", "named Memory for recycle flow (resolves from KAPI_HOME)")
 	cmd.Flags().String("termstore", "", "named terms store for term-lookup/enforce (resolves from KAPI_HOME)")
 	cmd.Flags().Bool("stats", false, "include part/block counts in output")
 	cmd.Flags().Bool("explain", false, "print the resolved source → sink bindings and exit without running")
@@ -260,7 +260,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	}
 
 	// Build tools.
-	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd) //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
+	flowTools, cleanup, err := a.buildFlowTools(flowName, inputPath, cmd) //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
 	if err != nil {
 		return err
 	}
@@ -789,7 +789,7 @@ func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputP
 // events are recorded. Returns trace nodes (nil when recorder is nil).
 func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate, outputBase, registryName string, reader format.DataFormatReader, mergedConfig map[string]any, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
 	// Build fresh tool instances for this file (thread-safe in batch mode).
-	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd) //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
+	flowTools, cleanup, err := a.buildFlowTools(flowName, inputPath, cmd) //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
 	if err != nil {
 		return nil, err
 	}
@@ -915,18 +915,8 @@ func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool) {
 		return "", false
 	}
 	root := a.ProjectContext.ProjectDir
-	abs := inputPath
-	if !filepath.IsAbs(abs) {
-		if r, err := filepath.Abs(abs); err == nil {
-			abs = r
-		}
-	}
-	rel, err := filepath.Rel(root, abs)
-	if err != nil {
-		return "", false
-	}
-	relSlash := filepath.ToSlash(rel)
-	if strings.HasPrefix(relSlash, "../") || relSlash == ".." {
+	relSlash, ok := projectRelPath(root, inputPath)
+	if !ok {
 		return "", false
 	}
 	for _, coll := range a.ProjectContext.Project.Content {
@@ -1015,7 +1005,13 @@ func expandOutputTemplate(tmpl, name, lang, ext, dir string) string {
 // buildFlowTools creates the tool chain for the given flow. The returned cleanup
 // function releases any resources opened during tool creation (e.g. SQLite content memory).
 // Callers must defer cleanup() after checking err.
-func (a *App) buildFlowTools(flowName string, cmd ...Command) ([]tool.Tool, func(), error) {
+//
+// inputPath is the file the chain will process. A built-in flow builds fresh
+// tools per file, so the path is what tells the standing bindings which content
+// collection governs this run — the brand voice and terms of the collection the
+// file belongs to, not necessarily the project-wide ones. Empty when there is no
+// single file in view; the bindings are then the project-wide ones.
+func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool.Tool, func(), error) {
 	noop := func() {}
 
 	// If project flow tools are set (via runProjectSteps), use them directly.
@@ -1091,7 +1087,7 @@ func (a *App) buildFlowTools(flowName string, cmd ...Command) ([]tool.Tool, func
 	// defaults.tools and never sent the project's terminology, while `kapi up` —
 	// the same tools, the project path — honored both. One recipe, two behaviours,
 	// depending on the verb.
-	bindings := a.resolveRunBindings(cmd...)
+	bindings := a.resolveRunBindings(inputPath, cmd...)
 
 	// Inject credential/provider flags from the command into the tool config.
 	if len(cmd) > 0 && cmd[0] != nil {
@@ -1188,13 +1184,19 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 		return nil, nil, fmt.Errorf("tool %q not found in registry", toolName)
 	}
 
+	// Same gate as toolFromStep: a flow-driven exec-class tool needs an
+	// established trust decision (host/exectrust.go).
+	if err := a.checkExecToolAllowed(toolName); err != nil {
+		return nil, nil, err
+	}
+
 	info := a.ToolReg.ToolInfo(registry.ToolID(toolName))
 
 	// Resource setup driven by Requires metadata.
 	if info != nil {
 		for _, req := range info.Requires {
 			switch req {
-			case "termbase":
+			case schema.RequiresTerms:
 				// Tools requiring a terms store get term lookup/enforce tools appended.
 				t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(toolName), config, a.TargetLang)
 				if err != nil {
@@ -1219,9 +1221,9 @@ func (a *App) buildToolByName(toolName string, config map[string]any, cmd ...Com
 				}
 				return qaTools, cleanup, nil
 
-			case "tm":
+			case schema.RequiresMemory:
 				// Tools requiring a content memory get a real SQLite provider injected from
-				// the --tm flag or, with no flag, the project's .kapi/tm.db.
+				// the --memory flag or, with no flag, the project's .kapi/memory.db.
 				memoryConfig := map[string]any{
 					"source_locale":   a.SourceLang,
 					"target_locale":   a.TargetLang,
@@ -1312,14 +1314,13 @@ type cliMemoryProvider struct {
 	tm sqltm.ContentMemory
 }
 
-func (p *cliMemoryProvider) LookupExact(source string, sourceLocale, targetLocale model.LocaleID) (string, bool) {
+func (p *cliMemoryProvider) LookupExact(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID) (string, bool) {
 	opts := sqltm.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 1,
 		MatchModes: []sqltm.MatchMode{sqltm.MatchModePlain},
 	}
-	// TODO: thread a real context once tools.MemoryProvider carries one.
-	matches, err := p.tm.LookupText(context.Background(), source, sourceLocale, targetLocale, opts)
+	matches, err := p.tm.LookupText(ctx, source, sourceLocale, targetLocale, opts)
 	if err != nil || len(matches) == 0 {
 		return "", false
 	}
@@ -1333,13 +1334,12 @@ func (p *cliMemoryProvider) LookupExact(source string, sourceLocale, targetLocal
 // codes is capped below 100 by the content memory; ambiguous exacts (several
 // full-score entries with differing targets) carry the Ambiguous flag so
 // the tool records them without filling.
-func (p *cliMemoryProvider) LookupBlock(block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (coretools.MemoryBlockMatch, bool) {
+func (p *cliMemoryProvider) LookupBlock(ctx context.Context, block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (coretools.MemoryBlockMatch, bool) {
 	opts := sqltm.LookupOptions{
 		MinScore:   float64(threshold) / 100.0,
 		MaxResults: 1,
 	}
-	// TODO: thread a real context once tools.MemoryProvider carries one.
-	matches, err := p.tm.Lookup(context.Background(), block, sourceLocale, targetLocale, opts)
+	matches, err := p.tm.Lookup(ctx, block, sourceLocale, targetLocale, opts)
 	if err != nil || len(matches) == 0 {
 		return coretools.MemoryBlockMatch{}, false
 	}
@@ -1356,14 +1356,13 @@ func (p *cliMemoryProvider) LookupBlock(block *model.Block, sourceLocale, target
 	}, true
 }
 
-func (p *cliMemoryProvider) LookupFuzzy(source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool) {
+func (p *cliMemoryProvider) LookupFuzzy(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool) {
 	minScore := float64(threshold) / 100.0
 	opts := sqltm.LookupOptions{
 		MinScore:   minScore,
 		MaxResults: 1,
 	}
-	// TODO: thread a real context once tools.MemoryProvider carries one.
-	matches, err := p.tm.LookupText(context.Background(), source, sourceLocale, targetLocale, opts)
+	matches, err := p.tm.LookupText(ctx, source, sourceLocale, targetLocale, opts)
 	if err != nil || len(matches) == 0 {
 		return "", 0, false
 	}
@@ -1374,8 +1373,8 @@ func (p *cliMemoryProvider) LookupFuzzy(source string, sourceLocale, targetLocal
 // openTerms resolves the --termstore flag and opens a SQLite terms.
 // The flag value can be a named resource (no path separators) which resolves
 // via KAPI_HOME, or an explicit file path. When no flag is given but a .kapi
-// project is in scope with a bound terms (defaults.termbase) or a
-// <root>/.kapi/termbase.db convention file, that project terms store is opened
+// project is in scope with a bound terms (defaults.terms) or a
+// <root>/.kapi/terms.db convention file, that project terms store is opened
 // instead, so term tools in built-in flows are project-aware flag-free.
 // Returns (nil, noop, nil) when neither a flag nor a project terms store exists.
 func (a *App) openTerms(cmd ...Command) (*sqltb.SQLiteStore, func(), error) {
@@ -1389,7 +1388,7 @@ func (a *App) openTerms(cmd ...Command) (*sqltb.SQLiteStore, func(), error) {
 	switch {
 	case tbValue == "":
 		// No flag — fall back to the project's bound terms.
-		p, err := a.resolveProjectTermsPath(cmd[0])
+		p, err := a.resolveProjectTermsPath(cmd[0], "")
 		if err != nil {
 			return nil, nil, err
 		}
@@ -1407,7 +1406,7 @@ func (a *App) openTerms(cmd ...Command) (*sqltb.SQLiteStore, func(), error) {
 	default:
 		// Named resource.
 		var err error
-		tbPath, err = resolveNamedResource("termbases", tbValue)
+		tbPath, err = resolveNamedResource("terms", tbValue)
 		if err != nil {
 			return nil, nil, fmt.Errorf("resolve terms %q: %w", tbValue, err)
 		}
@@ -1420,15 +1419,15 @@ func (a *App) openTerms(cmd ...Command) (*sqltb.SQLiteStore, func(), error) {
 }
 
 // OpenToolMemory resolves the content memory a `tm`-requiring tool (e.g. recycle) should
-// leverage and opens it as a MemoryProvider. The --tm flag wins: a named resource
+// leverage and opens it as a MemoryProvider. The --memory flag wins: a named resource
 // (no path separators) resolves via KAPI_HOME, an explicit file path is opened
 // directly. When no flag is given but a .kapi project is in scope, the project's
-// authoritative content memory (<root>/.kapi/tm.db) is opened, so `kapi recycle fr.json`
+// authoritative content memory (<root>/.kapi/memory.db) is opened, so `kapi recycle fr.json`
 // leverages the same content memory that `kapi extract`/`kapi merge` use — with no flag.
 //
 // Returns (nil, noop, nil) when no content memory is in scope, or when the resolved DB does
 // not exist outside a project, preserving today's no-match behavior rather than
-// erroring. Inside a project the .kapi/tm.db file is opened (and created on
+// erroring. Inside a project the .kapi/memory.db file is opened (and created on
 // demand by SQLite) so the tool leverages it. This mirrors openTerms and
 // reuses the same resolution as the `kapi tm` subcommands (resolveProjectMemoryPath).
 func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), error) {
@@ -1436,14 +1435,14 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 	if cmd == nil {
 		return nil, noop, nil
 	}
-	memoryValue, _ := cmd.Flags().GetString("tm")
+	memoryValue, _ := cmd.Flags().GetString("memory")
 
 	// A pre-seeded in-memory backend (the wasm build, or any host that sets
 	// a.MemoryBackend) is the authoritative content memory and the only one that works without
 	// the SQLite driver — prefer it over any on-disk project path. The native
 	// CLI never sets a.MemoryBackend, so this only takes effect in the browser/seed
 	// case; the on-disk resolution below is unchanged for the native binary.
-	// An explicit --tm path still wins (handled in the switch).
+	// An explicit --memory path still wins (handled in the switch).
 	if memoryValue == "" && a.MemoryBackend != nil {
 		return &cliMemoryProvider{tm: a.MemoryBackend}, noop, nil
 	}
@@ -1466,7 +1465,7 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 	default:
 		// Named resource.
 		var err error
-		memoryPath, err = resolveNamedResource("tm", memoryValue)
+		memoryPath, err = resolveNamedResource("memory", memoryValue)
 		if err != nil {
 			return nil, nil, fmt.Errorf("resolve content memory %q: %w", memoryValue, err)
 		}
@@ -1484,9 +1483,9 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 type ProjectBindings struct {
 	// profile is the resolved brand voice profile (defaults.brand_voice),
 	// injected into translate steps as config["profile"]. nil when unbound.
-	profile *brand.VoiceProfile
+	profile *profile.VoiceProfile
 	// glossary is the source→target glossary built from the project terms store
-	// (defaults.termbase), injected into term-check steps. nil when unbound.
+	// (defaults.terms), injected into term-check steps. nil when unbound.
 	glossary []coretools.GlossaryEntry
 	// ToolPresets holds the project-level tool presets (defaults.tools):
 	// per-tool config defaults merged under each step's own config wherever
@@ -1501,23 +1500,33 @@ type ProjectBindings struct {
 }
 
 // resolveProjectBindings resolves the standing brand-voice + glossary context
-// for a project flow run. The brand voice comes from defaults.brand_voice (or
-// a convention brand.yaml); the glossary comes from the project terms store
-// (defaults.termbase or <root>/.kapi/termbase.db). Returns nil when the
-// project carries neither, so ad-hoc behavior is unchanged.
-func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, projectPath string) (*ProjectBindings, error) {
+// for one content collection of a project flow run — the governance at the
+// collection's point in the context space. The voice comes from the profile
+// matching that point, else defaults.brand_voice, else a convention brand.yaml,
+// with the point's channel selecting the override inside it; the glossary comes
+// from that profile's terms, else defaults.terms, else <root>/.kapi/terms.db.
+// Returns nil when the project carries neither, so ad-hoc behavior is
+// unchanged.
+//
+// collection is empty for a run that is not split by governance — every caller
+// outside the grouping (groupInputsByBinding) passes "", which resolves exactly
+// the project-wide bindings it always did.
+func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, projectPath, collection string) (*ProjectBindings, error) {
 	root := filepath.Dir(projectPath)
 
 	storePath, err := resolveResourcePath(cmd, "brands", "brand.db")
 	if err != nil {
 		return nil, err
 	}
-	profile, _, _, err := a.ResolveBrandProfile(CmdContext(cmd), proj, root, BrandResolveOptions{StorePath: storePath})
+	profile, _, _, err := a.ResolveBrandProfile(CmdContext(cmd), proj, root, BrandResolveOptions{
+		StorePath:  storePath,
+		Collection: collection,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	glossary, err := a.ResolveProjectGlossary(cmd, a.TargetLang)
+	glossary, err := a.ResolveProjectGlossaryFor(cmd, a.TargetLang, collection)
 	if err != nil {
 		return nil, err
 	}
@@ -1545,18 +1554,23 @@ func ToolRequires(s *schema.ComponentSchema, req string) bool {
 // command should use, with no flag. Resolution order:
 //
 //  1. An explicit --termstore flag (named resource or path).
-//  2. defaults.termbase in the .kapi recipe (relative to the project root).
-//  3. <projectRoot>/.kapi/termbase.db when it exists.
+//  2. The terms governing the named collection — the `terms:` of the profile
+//     matching its point, else defaults.terms (project.ResolveGovernance) —
+//     relative to the project root.
+//  3. <projectRoot>/.kapi/terms.db when it exists.
+//
+// An empty collection resolves the project-wide binding, which is what every
+// caller outside a partitioned flow run wants.
 //
 // Returns "" (with nil error) when nothing resolves, so callers fall through
 // to the tool's default (no glossary).
-func (a *App) resolveProjectTermsPath(cmd Command) (string, error) {
+func (a *App) resolveProjectTermsPath(cmd Command, collection string) (string, error) {
 	if cmd != nil {
 		if tbValue, _ := cmd.Flags().GetString("termstore"); tbValue != "" {
 			if strings.ContainsAny(tbValue, "/\\") || strings.HasSuffix(tbValue, ".db") {
 				return tbValue, nil
 			}
-			path, err := resolveNamedResource("termbases", tbValue)
+			path, err := resolveNamedResource("terms", tbValue)
 			if err != nil {
 				return "", fmt.Errorf("resolve terms %q: %w", tbValue, err)
 			}
@@ -1577,7 +1591,11 @@ func (a *App) resolveProjectTermsPath(cmd Command) (string, error) {
 	if lerr != nil {
 		return "", fmt.Errorf("load project for terms: %w", lerr)
 	}
-	if bound := proj.Defaults.Terms; bound != "" {
+	rc, rerr := proj.ResolveGovernance(collection)
+	if rerr != nil {
+		return "", rerr
+	}
+	if bound := rc.Terms; bound != "" {
 		if !filepath.IsAbs(bound) {
 			bound = filepath.Join(root, bound)
 		}
@@ -1585,7 +1603,7 @@ func (a *App) resolveProjectTermsPath(cmd Command) (string, error) {
 	}
 
 	// Convention: the project's authoritative terms under .kapi/.
-	conv := filepath.Join(root, project.StateDirName, "termbase.db")
+	conv := filepath.Join(root, project.StateDirName, "terms.db")
 	if _, statErr := os.Stat(conv); statErr == nil {
 		return conv, nil
 	}
@@ -1601,7 +1619,16 @@ func (a *App) resolveProjectTermsPath(cmd Command) (string, error) {
 // no terms for the locale pair. The result is suitable for injection into a
 // term-check tool config under the "glossary" key.
 func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretools.GlossaryEntry, error) {
-	concepts, err := a.projectConcepts(cmd)
+	return a.ResolveProjectGlossaryFor(cmd, targetLang, "")
+}
+
+// ResolveProjectGlossaryFor is ResolveProjectGlossary scoped to one content
+// collection: it reads the terms that collection binds (its own `terms:`, else
+// defaults.terms), so a recipe governing two brands enforces each brand's
+// vocabulary over its own content. An empty collection is the project-wide
+// resolution.
+func (a *App) ResolveProjectGlossaryFor(cmd Command, targetLang, collection string) ([]coretools.GlossaryEntry, error) {
+	concepts, err := a.projectConcepts(cmd, collection)
 	if err != nil || len(concepts) == 0 {
 		return nil, err
 	}
@@ -1640,8 +1667,11 @@ func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretool
 //
 // Precedence: an explicit --termstore selects a specific store (honour it); else
 // the committed serialization wins; else the working index the recipe binds
-// directly (the legacy defaults.termbase-only case, with no serialization).
-func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
+// directly (the legacy defaults.terms-only case, with no serialization).
+//
+// collection scopes the resolution to one content collection's terms binding;
+// empty is the project-wide answer.
+func (a *App) projectConcepts(cmd Command, collection string) ([]sqltb.Concept, error) {
 	explicitStore := false
 	if cmd != nil {
 		if v, _ := cmd.Flags().GetString("termstore"); v != "" {
@@ -1651,7 +1681,7 @@ func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 
 	// Source of truth: the committed .terms.json serialization.
 	if !explicitStore {
-		srcPath, err := a.resolveProjectTermsSourcePath(cmd)
+		srcPath, err := a.resolveProjectTermsSourcePath(cmd, collection)
 		if err != nil {
 			return nil, err
 		}
@@ -1660,10 +1690,10 @@ func (a *App) projectConcepts(cmd Command) ([]sqltb.Concept, error) {
 		}
 	}
 
-	// Working index: an explicit --termstore, a defaults.termbase binding, or the
-	// .kapi/termbase.db convention. Read directly only when no serialization is
-	// bound (or the user explicitly selected a store).
-	tbPath, err := a.resolveProjectTermsPath(cmd)
+	// Working index: an explicit --termstore, the collection's or the project's
+	// terms binding, or the .kapi/terms.db convention. Read directly only when no
+	// serialization is bound (or the user explicitly selected a store).
+	tbPath, err := a.resolveProjectTermsPath(cmd, collection)
 	if err != nil {
 		return nil, err
 	}
@@ -1703,11 +1733,18 @@ func conceptsFromKTB(path string) ([]sqltb.Concept, error) {
 // resolveProjectTermsSourcePath returns the absolute path of the project's
 // committed terms bundle, or "" when there is none.
 //
-// An explicit defaults.termbase_source binding wins. With none, the well-known
+// An explicit defaults.terms_source binding wins. With none, the well-known
 // locations are searched, mirroring the ladder the brand voice profile already
 // uses (<root>/brand.yaml, then <root>/.kapi/brand.yaml): a project that keeps
 // its glossary at the conventional path needs no recipe entry at all.
-func (a *App) resolveProjectTermsSourcePath(cmd Command) (string, error) {
+//
+// A collection whose profile binds its own terms has named the vocabulary for
+// that content, and the project-wide committed source then belongs to other
+// content — so there is no committed source at that point, and the profile's
+// store is read through resolveProjectTermsPath instead. Without this the
+// profile's terms would be shadowed in every recipe that also binds
+// defaults.terms_source, which is most of them.
+func (a *App) resolveProjectTermsSourcePath(cmd Command, collection string) (string, error) {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
 		return "", err
@@ -1718,13 +1755,23 @@ func (a *App) resolveProjectTermsSourcePath(cmd Command) (string, error) {
 	}
 	root := filepath.Dir(projectPath)
 
+	if collection != "" {
+		rc, rerr := proj.ResolveGovernance(collection)
+		if rerr != nil {
+			return "", rerr
+		}
+		if rc.Terms != proj.Defaults.Terms {
+			return "", nil
+		}
+	}
+
 	src := proj.Defaults.TermsSource
 	if src == "" {
 		return firstExistingTermsBundle(root), nil
 	}
 	// Only the canonical terms bundle is resolved live at check time. Lossy
 	// interchange sources (CSV, TBX) are import formats: they're compiled into
-	// .kapi/termbase.db by up/apply and read from there, so we don't try to
+	// .kapi/terms.db by up/apply and read from there, so we don't try to
 	// decode them here.
 	if !ktb.IsBundlePath(src) {
 		return "", nil
@@ -1804,6 +1851,13 @@ func (a *App) runProjectStepsOver(ctx context.Context, cmd Command, flowName str
 func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceContext) (tool.Tool, error) {
 	toolID := registry.ToolID(step.Tool)
 
+	// A step's argv comes from a file, which is not necessarily written by
+	// whoever is running kapi. Building an exec-class tool needs an
+	// established trust decision for the project (host/exectrust.go).
+	if err := a.checkExecToolAllowed(step.Tool); err != nil {
+		return nil, err
+	}
+
 	// Try config factory first (schema-driven tools).
 	if a.ToolReg.Has(toolID) {
 		ToolSchema := a.ToolReg.Schema(toolID)
@@ -1851,10 +1905,15 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd Command, rCtx *flow.ResourceC
 // right the first time). That run now carries a binding set holding just the
 // glossary, so the terms are in the prompt.
 //
+// inputPath is the file this chain will process; the content collection that
+// claims it decides which voice and which terms the run carries, so
+// `kapi translate` over one brand's content is governed like that brand rather
+// than like the project as a whole. Empty resolves the project-wide bindings.
+//
 // Nothing here is fatal: a recipe or terms that cannot be read leaves the run
 // unbound rather than failing a translation over context that is, at worst,
 // advisory. The checks still report what the model got wrong.
-func (a *App) resolveRunBindings(cmd ...Command) *ProjectBindings {
+func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindings {
 	if a.ProjectBindings != nil {
 		return a.ProjectBindings
 	}
@@ -1865,7 +1924,14 @@ func (a *App) resolveRunBindings(cmd ...Command) *ProjectBindings {
 
 	if projectPath, err := ResolveProjectPath(c); err == nil && projectPath != "" {
 		if proj, err := project.Load(projectPath); err == nil {
-			b, err := a.resolveProjectBindings(c, proj, projectPath)
+			collection := ""
+			if inputPath != "" {
+				root, aerr := filepath.Abs(filepath.Dir(projectPath))
+				if rel, ok := projectRelPath(root, inputPath); aerr == nil && ok {
+					collection = proj.CollectionForPath(rel)
+				}
+			}
+			b, err := a.resolveProjectBindings(c, proj, projectPath, collection)
 			if err == nil {
 				return b
 			}

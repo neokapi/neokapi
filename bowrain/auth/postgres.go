@@ -909,6 +909,15 @@ func (s *PostgresAuthStore) ResolveProjectPermissions(ctx context.Context, proje
 type scanner = storage.Scanner
 
 // parsePulseTermSources unmarshals JSON into PulseTermSources with defaults.
+//
+// Deliberately best-effort. The defaults are written before the overlay, so a
+// malformed column yields the documented default rather than an absent or
+// zero-valued setting — this is a preference about which term sources feed
+// Pulse, not a policy whose empty value grants anything. Both callers are
+// workspace row scanners, so propagating would make a whole workspace
+// unreadable over one unparseable preference, which is a worse outcome than
+// applying its default. The mandatory columns in those scanners are propagated
+// with %w as usual.
 func parsePulseTermSources(raw string, dst *platauth.PulseTermSources) {
 	dst.Terminology = true
 	dst.BrandVocabulary = false

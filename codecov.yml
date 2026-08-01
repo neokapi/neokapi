@@ -1,12 +1,30 @@
 coverage:
   status:
+    # Both statuses are computed from the push-to-main upload only: the
+    # `coverage` job in .github/workflows/ci.yml runs on `push`, because the PR
+    # profile produces no coverage file to merge. So `project` records the trend
+    # on main; it is not a pre-merge gate, and cannot be one.
     project:
       default:
         target: auto
         threshold: 2%
-    patch:
-      default:
-        target: 60%
+
+    # Off, deliberately — and explicitly, because Codecov applies a default
+    # patch status when the key is absent.
+    #
+    # A patch status can only mean something on a pull request, and no pull
+    # request here produces a coverage report: the PR profile drops
+    # -coverprofile (Makefile, _CI_FAST) because that flag disables Go's
+    # per-package test cache, which is the largest single lever in the fast PR
+    # wall. The 60% patch target this replaces had therefore never been
+    # evaluated once. It advertised a bar on every new line while gating
+    # nothing, which is worse than having no bar: a reader trusts it.
+    #
+    # Turning it on is a real tradeoff, not a config edit. It means restoring
+    # -coverprofile on pull_request, uploading from every PR test job, and
+    # paying the lost test cache on every PR. Do that first, then set a target
+    # here — do not set a target hoping the uploads appear.
+    patch: false
 
 ignore:
   - "**/*_test.go"

@@ -134,7 +134,11 @@ func newForgeTestServer(t *testing.T, cfgID, projectID, secret string) (*Server,
 		ContentStore:         cs,
 		EventBus:             bus,
 		ConnectorConfigStore: bstore.NewConnectorConfigStore(cs.DB(), nil),
-		Services:             service.NewServices(cs, reg, formatReg, toolReg),
+		// The GitHub App setup surface gates on installation ownership, so the
+		// harness carries the store that records it (SQLite migration 12).
+		ForgeInstallationStore: bstore.NewForgeInstallationStore(cs.DB()),
+		Services:               service.NewServices(cs, reg, formatReg, toolReg),
+		Config:                 Config{JWTSecret: "test-secret"},
 	}
 
 	// Persist the forge config and register the matching live instance, the
@@ -150,9 +154,11 @@ func newForgeTestServer(t *testing.T, cfgID, projectID, secret string) (*Server,
 	_, err = s.Services.Connector.AddConnector("ws1", "forge", map[string]string{"id": cfgID})
 	require.NoError(t, err)
 
-	// The project the connector feeds — block storage enforces the FK.
+	// The project the connector feeds — block storage enforces the FK. It
+	// belongs to ws1, the workspace every request in these tests is scoped to:
+	// binding a repository into a project checks that ownership too.
 	require.NoError(t, cs.CreateProject(context.Background(), &platstore.Project{
-		ID: projectID, Name: "Site", DefaultSourceLanguage: "en",
+		ID: projectID, Name: "Site", DefaultSourceLanguage: "en", WorkspaceID: "ws1",
 		TargetLanguages: []model.LocaleID{"fr", "de"},
 	}))
 	return s, stub
@@ -296,7 +302,8 @@ func TestGitHubAppWebhook_RoutesByRepo(t *testing.T) {
 	rec := post(body, map[string]string{"X-GitHub-Event": "push", "X-Hub-Signature-256": "sha256=deadbeef"})
 	assert.Equal(t, http.StatusUnauthorized, rec.Code)
 
-	// Installation lifecycle events are acknowledged without action.
+	// An installation payload carrying no installation id is acknowledged
+	// without action — there is nothing to record.
 	rec = post(`{"action":"created"}`, map[string]string{
 		"X-GitHub-Event": "installation", "X-Hub-Signature-256": githubSign("app-secret", []byte(`{"action":"created"}`))})
 	assert.Equal(t, http.StatusAccepted, rec.Code)
@@ -459,4 +466,89 @@ func TestForgeWebhook_FallsBackInProcessWhenEnqueueFails(t *testing.T) {
 	}
 	assert.Equal(t, 1, stub.fetched)
 	assert.Equal(t, 0, store.count(), "the dead job row is rolled back, nothing strands in 'queued'")
+}
+
+// The app-level webhook is the only authentic notice the server gets that an
+// installation exists, changed scope, or is gone. It is signed by GitHub but
+// names no workspace, so it RECORDS an installation and never attributes one:
+// a recorded installation is reachable from nobody until a signed setup state
+// claims it. An uninstall drops the record immediately, so a workspace's claim
+// cannot outlive the access it was granted.
+func TestGitHubAppWebhook_RecordsInstallationOwnership(t *testing.T) {
+	s, _ := newForgeTestServer(t, "conn1", "proj1", "s3cret")
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	app, err := forge.NewGitHubApp("1", string(pemBytes), "app-secret")
+	require.NoError(t, err)
+	s.GitHubApp = app
+
+	post := func(t *testing.T, event, body string) *httptest.ResponseRecorder {
+		t.Helper()
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodPost, "/api/webhooks/github-app", strings.NewReader(body))
+		req.Header.Set("X-GitHub-Event", event)
+		req.Header.Set("X-Hub-Signature-256", githubSign("app-secret", []byte(body)))
+		rec := httptest.NewRecorder()
+		_ = s.HandleGitHubAppWebhook(e.NewContext(req, rec))
+		return rec
+	}
+
+	created := `{"action":"created","installation":{"id":4242,"account":{"login":"acme"}}}`
+	ctx := t.Context()
+
+	t.Run("created records the installation, unclaimed", func(t *testing.T) {
+		require.Equal(t, http.StatusAccepted, post(t, "installation", created).Code)
+
+		inst, err := s.ForgeInstallationStore.Get(ctx, 4242)
+		require.NoError(t, err)
+		assert.Equal(t, int64(4242), inst.InstallationID)
+		assert.Equal(t, "acme", inst.Account, "the account is carried for display")
+		assert.False(t, inst.Claimed(), "a webhook names no workspace, so it cannot attribute one")
+
+		owned, err := s.ForgeInstallationStore.OwnedBy(ctx, 4242, "ws1")
+		require.NoError(t, err)
+		assert.False(t, owned, "an unclaimed installation is reachable from no workspace")
+	})
+
+	t.Run("an unsigned delivery records nothing", func(t *testing.T) {
+		e := echo.New()
+		body := `{"action":"created","installation":{"id":5150,"account":{"login":"mallory"}}}`
+		req := httptest.NewRequest(http.MethodPost, "/api/webhooks/github-app", strings.NewReader(body))
+		req.Header.Set("X-GitHub-Event", "installation")
+		req.Header.Set("X-Hub-Signature-256", "sha256=deadbeef")
+		rec := httptest.NewRecorder()
+		_ = s.HandleGitHubAppWebhook(e.NewContext(req, rec))
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+		_, err := s.ForgeInstallationStore.Get(ctx, 5150)
+		require.ErrorIs(t, err, bstore.ErrForgeInstallationNotFound)
+	})
+
+	t.Run("installation_repositories refreshes without disturbing the owner", func(t *testing.T) {
+		_, err := s.ForgeInstallationStore.Claim(ctx, 4242, "ws1")
+		require.NoError(t, err)
+
+		added := `{"action":"added","installation":{"id":4242,"account":{"login":"acme-renamed"}}}`
+		require.Equal(t, http.StatusAccepted, post(t, "installation_repositories", added).Code)
+
+		inst, err := s.ForgeInstallationStore.Get(ctx, 4242)
+		require.NoError(t, err)
+		assert.Equal(t, "acme-renamed", inst.Account)
+		assert.Equal(t, "ws1", inst.WorkspaceID, "a scope change must never unbind the installation")
+	})
+
+	t.Run("deleted forgets the installation", func(t *testing.T) {
+		deleted := `{"action":"deleted","installation":{"id":4242,"account":{"login":"acme"}}}`
+		require.Equal(t, http.StatusAccepted, post(t, "installation", deleted).Code)
+
+		_, err := s.ForgeInstallationStore.Get(ctx, 4242)
+		require.ErrorIs(t, err, bstore.ErrForgeInstallationNotFound,
+			"an uninstall revokes the claim there and then")
+
+		owned, err := s.ForgeInstallationStore.OwnedBy(ctx, 4242, "ws1")
+		require.NoError(t, err)
+		assert.False(t, owned)
+	})
 }

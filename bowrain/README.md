@@ -4,7 +4,7 @@
 [![Web Landing](https://github.com/neokapi/neokapi/actions/workflows/web-landing.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/web-landing.yml)
 [![Pages Deploy](https://github.com/neokapi/neokapi/actions/workflows/pages-deploy.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/pages-deploy.yml)
 
-Bowrain governs and stewards multilingual content — the shared brand memory (voice, vocabulary, approved text, corrections) for your team and your agents, built on the [neokapi framework](../README.md): a server that holds it together, connectors to the systems content already lives in, a web app and a desktop app for people, and a CLI plugin for the developer and CI route.
+Bowrain is the context graph your people and agents plug into — the coordinates that fix voice and tone for a specific time, place and audience (voice, vocabulary, approved wording, corrections), held across every project rather than one. kapi holds the same graph for a single project; the difference is reach, not capability. Built on the [neokapi framework](../README.md): a server that holds it together, connectors to the systems content already lives in, a web app and a desktop app for people, and a CLI plugin for the developer and CI route.
 
 This subtree (`bowrain/`) is licensed AGPL-3.0. The neokapi framework at the repository root is Apache-2.0; see the [root README](../README.md) for that side.
 

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -176,7 +176,7 @@ type BlockSample struct {
 // block in each evaluated locale compares the live graph and voice profiles
 // (the "before") against the candidates the ops would produce (the "after"):
 //
-//   - Voice impact reuses core/brand.EvaluateBlastRadius, run per block against
+//   - Voice impact reuses core/profile.EvaluateBlastRadius, run per block against
 //     each voice profile the change-set's voice ops touch.
 //   - Term/concept/relation impact compares the terms the block contains under
 //     the before and after terms stores: a block is affected when a term it
@@ -247,8 +247,8 @@ func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs C
 // profilePair pairs a baseline voice profile with the candidate the change-set's
 // voice ops would produce for it.
 type profilePair struct {
-	baseline  *corebrand.VoiceProfile
-	candidate *corebrand.VoiceProfile
+	baseline  *coreprofile.VoiceProfile
+	candidate *coreprofile.VoiceProfile
 }
 
 // voicePairs loads each profile the change-set's voice ops reference and builds
@@ -305,21 +305,21 @@ func voiceProfileIDs(ops []ChangeSetOp) []string {
 	return ids
 }
 
-// voiceImpactForBlock reuses core/brand.EvaluateBlastRadius — the single source
+// voiceImpactForBlock reuses core/profile.EvaluateBlastRadius — the single source
 // of brand-vocabulary blast-radius truth — per block against each touched
 // profile, summing the new/resolved counts and OR-ing the affected flag.
 func voiceImpactForBlock(pairs []profilePair, colID, colName, blockID, text string) (newV, resolved int, affected bool) {
 	if len(pairs) == 0 {
 		return 0, 0, false
 	}
-	eb := []corebrand.EvalBlock{{
+	eb := []coreprofile.EvalBlock{{
 		BlockID:        blockID,
 		CollectionID:   colID,
 		CollectionName: colName,
 		Text:           text,
 	}}
 	for _, pr := range pairs {
-		br := corebrand.EvaluateBlastRadius(eb, pr.baseline, pr.candidate)
+		br := coreprofile.EvaluateBlastRadius(eb, pr.baseline, pr.candidate)
 		newV += br.NewViolations
 		resolved += br.ResolvedViolations
 		if br.AffectedBlocks > 0 {

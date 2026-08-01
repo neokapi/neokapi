@@ -1,0 +1,98 @@
+import { useCallback, useEffect } from "react";
+import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
+import {
+  BrandScanProgress,
+  BrandScanReview,
+  DashboardSkeleton,
+  useApi,
+  useBrandScanJob,
+} from "@neokapi/ui";
+import type { BrandScanRequest, VoiceProfile } from "@neokapi/ui";
+import type { WorkspaceRouteContext } from "..";
+import { brandScanRequestKey, rememberBrandScanRequest } from "./context-scan";
+
+export function ContextScanJobRoute() {
+  const navigate = useNavigate();
+  const { workspace, jobId } = useParams({ strict: false });
+  const api = useApi();
+  const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const ws = activeWorkspace?.slug ?? "";
+
+  useEffect(() => {
+    if (activeWorkspace) {
+      document.title = `Brand scan — ${activeWorkspace.name} — Bowrain`;
+    }
+  }, [activeWorkspace]);
+
+  const { data: job, isLoading } = useBrandScanJob(jobId);
+
+  /** Re-enqueue with the request that produced this job; if it is no longer
+   * in sessionStorage, fall back to the scan input page. */
+  const handleRegenerate = useCallback(async () => {
+    let request: BrandScanRequest | null = null;
+    if (jobId) {
+      try {
+        const raw = sessionStorage.getItem(brandScanRequestKey(jobId));
+        if (raw) request = JSON.parse(raw) as BrandScanRequest;
+      } catch {
+        request = null;
+      }
+    }
+    if (!request) {
+      void navigate({
+        to: "/$workspace/context/scan",
+        params: { workspace: workspace ?? "" },
+      });
+      return;
+    }
+    const { job_id } = await api.startBrandScan(ws, request);
+    rememberBrandScanRequest(job_id, request);
+    void navigate({
+      to: "/$workspace/context/scan/$jobId",
+      params: { workspace: workspace ?? "", jobId: job_id },
+    });
+  }, [api, ws, jobId, navigate, workspace]);
+
+  const handleApproved = useCallback(
+    (profile: VoiceProfile) => {
+      void navigate({
+        to: "/$workspace/context/voice/$profileId",
+        params: { workspace: workspace ?? "", profileId: profile.id },
+      });
+    },
+    [navigate, workspace],
+  );
+
+  if (isLoading || !job) {
+    return <DashboardSkeleton />;
+  }
+
+  if (job.status === "completed" && job.draft) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-lg font-semibold">Review your draft</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Every field shows the model&rsquo;s confidence and the evidence it rests on. Adjust
+            anything, test it on sample copy, then approve to create the profile and the selected
+            glossary terms.
+          </p>
+        </div>
+        <BrandScanReview
+          draft={job.draft}
+          onApproved={handleApproved}
+          onRegenerate={() => void handleRegenerate()}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-xl mx-auto pt-8">
+      <BrandScanProgress
+        job={job}
+        onRetry={job.status === "failed" ? () => void handleRegenerate() : undefined}
+      />
+    </div>
+  );
+}

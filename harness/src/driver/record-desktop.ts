@@ -698,9 +698,14 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
   await beat("intro", null, async () => {
     await idle(page, 2200);
   });
-  // Open the workspace content memory.
+  // Open the workspace content memory. Content memory is no longer a rail
+  // entry: the context restructure moved it under the Context hub, so the
+  // route is nav-context → subnav-memory. `nav-memory` no longer exists and
+  // tapping it recorded a dead click.
   await beat("open-memory", null, async () => {
-    await tap("nav-memory");
+    await tap("nav-context");
+    await page.waitForTimeout(600);
+    await tap("subnav-memory");
     await page.waitForSelector('[data-testid="tm-browser"]', { timeout: 20_000 }).catch(() => {});
     await page.waitForTimeout(1200);
   });
@@ -714,10 +719,12 @@ async function bowrainGovernanceWalk(c: WalkCtx): Promise<void> {
     if (await s.count()) await humanType(page, s, "mission", { submit: true });
     await page.waitForTimeout(1600);
   });
-  // Open the Brand hub — Concepts is its landing section (nav-brand lands on
-  // /brand, which redirects to /brand/concepts).
+  // Move to Concepts. The memory beat above already entered the Context hub,
+  // so this is a section switch within it — subnav-concepts, not nav-context,
+  // which from inside the hub is at best a redirect back to the landing
+  // section and at worst a no-op.
   await beat("open-concepts", null, async () => {
-    await tap("nav-brand");
+    await tap("subnav-concepts");
     await page
       .waitForSelector('input[aria-label="Search concepts"]', { timeout: 20_000 })
       .catch(() => {});

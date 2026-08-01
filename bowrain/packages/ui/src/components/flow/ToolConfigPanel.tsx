@@ -50,7 +50,7 @@ export interface PropertySchema {
   "x-path"?: {
     type?: "file" | "directory";
     role?: "input" | "output";
-    resourceKind?: "tm" | "terms" | "srx";
+    resourceKind?: "memory" | "terms" | "srx";
     accepts?: string[];
     browseTitle?: string;
     forSaveAs?: boolean;

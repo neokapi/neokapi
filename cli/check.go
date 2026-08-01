@@ -16,7 +16,7 @@ import (
 //	kapi check 'web/**/*.md'                         # glob, expanded in-process
 //	kapi check api.json --max-chars 60 --forbid TODO # length + forbidden-pattern
 //	kapi check post.md --pack marketing-blog         # + brand vocabulary
-//	kapi check api.json --target api.de.json --target-lang de  # + bilingual (l10n) checks
+//	kapi check api.json --target api.de.json --target-lang de  # + bilingual checks
 //
 // The checks are content-level (the translatable units). Document-level
 // structure and encoding validity is a format-reader concern, surfaced on
@@ -38,7 +38,7 @@ The default checkset is source-side and needs no translation: text hygiene
 --max-words), forbidden/required patterns (--forbid/--require), and brand
 vocabulary when a profile is bound (--profile/--pack/--profile-file).
 
-Bilingual localization checks (do-not-translate, placeholder integrity) are an
+Bilingual checks (do-not-translate, placeholder integrity) are an
 opt-in: pass --target <file> --target-lang <lang> to check a translated target
 against its source.
 
@@ -67,7 +67,7 @@ Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 		},
 	}
 	f := cmd.Flags()
-	f.String("target", "", "translated target file to check against the (single) source — enables bilingual l10n checks")
+	f.String("target", "", "translated target file to check against the (single) source — enables bilingual checks")
 	f.String("target-lang", "", "locale of the --target file (e.g. de)")
 	f.StringSlice("dnt", nil, "do-not-translate terms that must survive verbatim into the target (with --target)")
 	f.Int("max-chars", 0, "flag content longer than this many characters (0 = off)")

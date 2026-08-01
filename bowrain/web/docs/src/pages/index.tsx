@@ -63,11 +63,11 @@ function HomepageHeader() {
             {siteConfig.title}
           </Heading>
           <p className={styles.heroSubtitle}>
-            Govern and steward your multilingual content &mdash;{" "}
-            <strong>one shared brand memory for your team and your agents</strong>: voice,
-            vocabulary, approved text, and corrections, versioned and learning from every review.
-            Connected to the systems your content already lives in, with collaborative editing,
-            review, and automation around them.
+            <strong>The context graph your people and agents plug into</strong> &mdash; record and
+            steer the coordinates for content, so what you ship is on&#8209;brand and on&#8209;profile
+            for the audience it was written for. Voice, vocabulary, approved wording, and
+            corrections, versioned and learning from every review. Connected to the systems your
+            content already lives in, with collaborative editing, review, and automation around them.
           </p>
           <div className={styles.buttons}>
             <Link className={clsx("button button--lg", styles.tryButton)} to="/quickstart">
@@ -95,11 +95,11 @@ type ProductItem = {
 
 const BowrainFeatures: ProductItem[] = [
   {
-    title: "The shared brand memory",
+    title: "One graph, every project",
     description:
-      "One brand-voice profile, one vocabulary, and one content memory, held on the server and drawn on by every project, person, and agent — versioned and auditable, and learning from every correction.",
-    link: "/server/brand-voice",
-    linkText: "Brand voice",
+      "Profiles, vocabulary, and content memory held on the server and drawn on by every project, person, and agent — versioned and auditable, and learning from every correction. kapi holds the same graph for one project; the difference is reach, not capability.",
+    link: "/getting-started/the-context-graph",
+    linkText: "The context graph",
   },
   {
     title: "Real-time collaboration",
@@ -155,7 +155,7 @@ export default function Home() {
   return (
     <Layout
       title={siteConfig.title}
-      description="Bowrain — govern and steward your multilingual content: one shared brand memory for your team and your agents"
+      description="Bowrain — the context graph your people and agents plug into: record and steer the coordinates for content, so what you ship is on-brand and on-profile for the audience it was written for"
     >
       <HomepageHeader />
       <main>
