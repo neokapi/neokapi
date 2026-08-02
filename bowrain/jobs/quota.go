@@ -67,18 +67,35 @@ type UsageSummary struct {
 // never fires for legitimate use.
 const DefaultMonthlyQuota int64 = 10_000_000 // 10M tokens/month (abuse ceiling)
 
-// quotaMigrations defines the schema for AI usage tracking.
-var quotaMigrations = []storage.Migration{
+// QuotaMigrations is the AI-usage tracking schema as a single consolidated
+// baseline.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  create ai_usage table
+//	2  add operation column to ai_usage
+//	3  add workspace_id column to ai_usage for billing alignment
+//
+// The columns versions 2 and 3 added by ALTER are declared in the CREATE here,
+// which is the point of a baseline: one statement per table describing what the
+// table is, rather than a transcript of how it got that way.
+//
+// Baseline is version 4 — above every number issued, so an existing database
+// applies it once and any drift between its schema and its bookkeeping is
+// repaired. Retired numbers are never reused; the next migration is version 5.
+var QuotaMigrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "create ai_usage table",
+		Version:     4,
+		Description: "ai usage baseline (folds 1-3)",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS ai_usage (
 				id              BIGSERIAL PRIMARY KEY,
 				workspace_slug  TEXT NOT NULL,
+				workspace_id    TEXT NOT NULL DEFAULT '',
 				project_id      TEXT NOT NULL,
 				job_id          TEXT NOT NULL DEFAULT '',
 				model           TEXT NOT NULL,
+				operation       TEXT NOT NULL DEFAULT '',
 				prompt_tokens   INTEGER NOT NULL DEFAULT 0,
 				output_tokens   INTEGER NOT NULL DEFAULT 0,
 				total_tokens    INTEGER NOT NULL DEFAULT 0,
@@ -86,31 +103,17 @@ var quotaMigrations = []storage.Migration{
 			);
 			CREATE INDEX IF NOT EXISTS idx_ai_usage_workspace_period
 				ON ai_usage(workspace_slug, created_at);
+			CREATE INDEX IF NOT EXISTS idx_ai_usage_operation
+				ON ai_usage(workspace_slug, operation, created_at);
+			CREATE INDEX IF NOT EXISTS idx_ai_usage_workspace_id
+				ON ai_usage(workspace_id, created_at);
 
 			CREATE TABLE IF NOT EXISTS ai_quotas (
 				workspace_slug  TEXT PRIMARY KEY,
+				workspace_id    TEXT NOT NULL DEFAULT '',
 				monthly_limit   BIGINT NOT NULL DEFAULT 10000000,
 				updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-		`,
-	},
-	{
-		Version:     2,
-		Description: "add operation column to ai_usage",
-		SQL: `
-			ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS operation TEXT NOT NULL DEFAULT '';
-			CREATE INDEX IF NOT EXISTS idx_ai_usage_operation
-				ON ai_usage(workspace_slug, operation, created_at);
-		`,
-	},
-	{
-		Version:     3,
-		Description: "add workspace_id column to ai_usage for billing alignment",
-		SQL: `
-			ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS workspace_id TEXT NOT NULL DEFAULT '';
-			CREATE INDEX IF NOT EXISTS idx_ai_usage_workspace_id
-				ON ai_usage(workspace_id, created_at);
-			ALTER TABLE ai_quotas ADD COLUMN IF NOT EXISTS workspace_id TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }
@@ -124,7 +127,7 @@ type QuotaStoreDB struct {
 
 // NewQuotaStore creates a PostgreSQL-backed QuotaStore.
 func NewQuotaStore(db *storage.PgDB) (*QuotaStoreDB, error) {
-	if err := storage.MigratePostgresNS(db, "quota_schema_migrations", quotaMigrations); err != nil {
+	if err := storage.MigratePostgresNS(db, "quota_schema_migrations", QuotaMigrations); err != nil {
 		return nil, fmt.Errorf("migrate quota schema: %w", err)
 	}
 	s := &QuotaStoreDB{db: db}
@@ -252,11 +255,21 @@ type RunnerUsageRecord struct {
 	ReferenceID string  // step ID, conversation ID, etc.
 }
 
-// runnerMigrations extends the quota schema with runner usage.
-var runnerMigrations = []storage.Migration{
+// RunnerMigrations is the runner-usage schema as a single consolidated
+// baseline. It carries its own ledger, separate from QuotaMigrations, so
+// runner accounting could be added without renumbering the quota history.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  create runner_usage table
+//
+// Baseline is version 2 — above every number issued, so an existing database
+// applies it once and any drift between its schema and its bookkeeping is
+// repaired. Retired numbers are never reused; the next migration is version 3.
+var RunnerMigrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "create runner_usage table",
+		Version:     2,
+		Description: "runner usage baseline (folds 1)",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS runner_usage (
 				id              BIGSERIAL PRIMARY KEY,
@@ -275,7 +288,7 @@ var runnerMigrations = []storage.Migration{
 
 // initRunnerSchema runs runner_usage migrations (separate namespace from ai_usage).
 func (s *QuotaStoreDB) initRunnerSchema() error {
-	return storage.MigratePostgresNS(s.db, "runner_schema_migrations", runnerMigrations)
+	return storage.MigratePostgresNS(s.db, "runner_schema_migrations", RunnerMigrations)
 }
 
 // RecordRunnerUsage records a runner/container duration.

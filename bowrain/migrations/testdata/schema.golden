@@ -1,0 +1,1721 @@
+# columns: table.column type nullability default
+activities.actor_id text NOT NULL
+activities.actor_name text NOT NULL DEFAULT ''::text
+activities.created_at timestamp with time zone NOT NULL DEFAULT now()
+activities.data jsonb NOT NULL DEFAULT '{}'::jsonb
+activities.entity_id text NOT NULL DEFAULT ''::text
+activities.entity_type text NOT NULL DEFAULT ''::text
+activities.id text NOT NULL
+activities.project_id text NOT NULL DEFAULT ''::text
+activities.stream text NOT NULL DEFAULT ''::text
+activities.summary text NOT NULL DEFAULT ''::text
+activities.type text NOT NULL
+activities.workspace_id text NOT NULL
+activity_state.last_seen_at timestamp with time zone NOT NULL DEFAULT now()
+activity_state.user_id text NOT NULL
+activity_state.workspace_id text NOT NULL
+agent_config.allowed_tools jsonb NOT NULL DEFAULT '[]'::jsonb
+agent_config.code_exec_enabled boolean NOT NULL DEFAULT false
+agent_config.denied_tools jsonb NOT NULL DEFAULT '[]'::jsonb
+agent_config.enabled boolean NOT NULL DEFAULT false
+agent_config.max_concurrent integer NOT NULL DEFAULT 3
+agent_config.require_approval jsonb NOT NULL DEFAULT '[]'::jsonb
+agent_config.workspace_id text NOT NULL
+agent_conversations.created_at timestamp with time zone NOT NULL DEFAULT now()
+agent_conversations.id text NOT NULL
+agent_conversations.project_id text NOT NULL DEFAULT ''::text
+agent_conversations.status text NOT NULL DEFAULT 'active'::text
+agent_conversations.title text NOT NULL DEFAULT ''::text
+agent_conversations.updated_at timestamp with time zone NOT NULL DEFAULT now()
+agent_conversations.user_id text NOT NULL
+agent_conversations.workspace_id text NOT NULL
+agent_messages.content text NOT NULL DEFAULT ''::text
+agent_messages.conversation_id text NOT NULL
+agent_messages.created_at timestamp with time zone NOT NULL DEFAULT now()
+agent_messages.id text NOT NULL
+agent_messages.input_tokens integer NOT NULL DEFAULT 0
+agent_messages.output_tokens integer NOT NULL DEFAULT 0
+agent_messages.role text NOT NULL
+agent_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+agent_schema_migrations.description text NOT NULL
+agent_schema_migrations.version integer NOT NULL
+agent_tool_calls.duration bigint NOT NULL DEFAULT 0
+agent_tool_calls.error text NOT NULL DEFAULT ''::text
+agent_tool_calls.id text NOT NULL
+agent_tool_calls.input jsonb NOT NULL DEFAULT '{}'::jsonb
+agent_tool_calls.message_id text NOT NULL
+agent_tool_calls.output jsonb NOT NULL DEFAULT '{}'::jsonb
+agent_tool_calls.status text NOT NULL DEFAULT 'pending'::text
+agent_tool_calls.tool_name text NOT NULL
+agent_usage.conversation_id text NOT NULL
+agent_usage.created_at timestamp with time zone NOT NULL DEFAULT now()
+agent_usage.duration_sec double precision NOT NULL DEFAULT 0
+agent_usage.id text NOT NULL
+agent_usage.input_tokens integer NOT NULL DEFAULT 0
+agent_usage.kind text NOT NULL
+agent_usage.message_id text NOT NULL DEFAULT ''::text
+agent_usage.output_tokens integer NOT NULL DEFAULT 0
+agent_usage.user_id text NOT NULL
+agent_usage.workspace_id text NOT NULL
+ai_quotas.monthly_limit bigint NOT NULL DEFAULT 10000000
+ai_quotas.updated_at timestamp with time zone NOT NULL DEFAULT now()
+ai_quotas.workspace_id text NOT NULL DEFAULT ''::text
+ai_quotas.workspace_slug text NOT NULL
+ai_usage.created_at timestamp with time zone NOT NULL DEFAULT now()
+ai_usage.id bigint NOT NULL DEFAULT nextval('ai_usage_id_seq'::regclass)
+ai_usage.job_id text NOT NULL DEFAULT ''::text
+ai_usage.model text NOT NULL
+ai_usage.operation text NOT NULL DEFAULT ''::text
+ai_usage.output_tokens integer NOT NULL DEFAULT 0
+ai_usage.project_id text NOT NULL
+ai_usage.prompt_tokens integer NOT NULL DEFAULT 0
+ai_usage.total_tokens integer NOT NULL DEFAULT 0
+ai_usage.workspace_id text NOT NULL DEFAULT ''::text
+ai_usage.workspace_slug text NOT NULL
+annotations.block_id text NOT NULL
+annotations.kind text NOT NULL
+annotations.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+annotations.project_id text NOT NULL
+annotations.stream text NOT NULL DEFAULT 'main'::text
+annotations.updated_at timestamp with time zone NOT NULL DEFAULT now()
+annotations_p0.block_id text NOT NULL
+annotations_p0.kind text NOT NULL
+annotations_p0.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+annotations_p0.project_id text NOT NULL
+annotations_p0.stream text NOT NULL DEFAULT 'main'::text
+annotations_p0.updated_at timestamp with time zone NOT NULL DEFAULT now()
+annotations_p1.block_id text NOT NULL
+annotations_p1.kind text NOT NULL
+annotations_p1.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+annotations_p1.project_id text NOT NULL
+annotations_p1.stream text NOT NULL DEFAULT 'main'::text
+annotations_p1.updated_at timestamp with time zone NOT NULL DEFAULT now()
+annotations_p2.block_id text NOT NULL
+annotations_p2.kind text NOT NULL
+annotations_p2.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+annotations_p2.project_id text NOT NULL
+annotations_p2.stream text NOT NULL DEFAULT 'main'::text
+annotations_p2.updated_at timestamp with time zone NOT NULL DEFAULT now()
+annotations_p3.block_id text NOT NULL
+annotations_p3.kind text NOT NULL
+annotations_p3.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+annotations_p3.project_id text NOT NULL
+annotations_p3.stream text NOT NULL DEFAULT 'main'::text
+annotations_p3.updated_at timestamp with time zone NOT NULL DEFAULT now()
+annotations_p4.block_id text NOT NULL
+annotations_p4.kind text NOT NULL
+annotations_p4.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+annotations_p4.project_id text NOT NULL
+annotations_p4.stream text NOT NULL DEFAULT 'main'::text
+annotations_p4.updated_at timestamp with time zone NOT NULL DEFAULT now()
+annotations_p5.block_id text NOT NULL
+annotations_p5.kind text NOT NULL
+annotations_p5.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+annotations_p5.project_id text NOT NULL
+annotations_p5.stream text NOT NULL DEFAULT 'main'::text
+annotations_p5.updated_at timestamp with time zone NOT NULL DEFAULT now()
+annotations_p6.block_id text NOT NULL
+annotations_p6.kind text NOT NULL
+annotations_p6.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+annotations_p6.project_id text NOT NULL
+annotations_p6.stream text NOT NULL DEFAULT 'main'::text
+annotations_p6.updated_at timestamp with time zone NOT NULL DEFAULT now()
+annotations_p7.block_id text NOT NULL
+annotations_p7.kind text NOT NULL
+annotations_p7.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+annotations_p7.project_id text NOT NULL
+annotations_p7.stream text NOT NULL DEFAULT 'main'::text
+annotations_p7.updated_at timestamp with time zone NOT NULL DEFAULT now()
+api_tokens.created_at timestamp with time zone NOT NULL DEFAULT now()
+api_tokens.expires_at timestamp with time zone NULL
+api_tokens.id text NOT NULL
+api_tokens.last_used_at timestamp with time zone NULL
+api_tokens.name text NOT NULL
+api_tokens.scopes text NOT NULL DEFAULT '["*"]'::text
+api_tokens.token_hash text NOT NULL
+api_tokens.token_prefix text NOT NULL
+api_tokens.user_id text NOT NULL
+api_tokens.workspace_id text NOT NULL
+asset_variants.asset_id text NOT NULL
+asset_variants.blob_key text NOT NULL
+asset_variants.created_at timestamp with time zone NOT NULL DEFAULT now()
+asset_variants.locale text NOT NULL
+asset_variants.mime_type text NOT NULL DEFAULT ''::text
+asset_variants.properties text NOT NULL DEFAULT '{}'::text
+asset_variants.size_bytes bigint NOT NULL DEFAULT 0
+asset_variants.status text NOT NULL DEFAULT 'pending'::text
+asset_variants.updated_at timestamp with time zone NOT NULL DEFAULT now()
+assets.alt_text text NOT NULL DEFAULT ''::text
+assets.blob_key text NOT NULL
+assets.created_at timestamp with time zone NOT NULL DEFAULT now()
+assets.filename text NOT NULL DEFAULT ''::text
+assets.id text NOT NULL
+assets.item_name text NOT NULL DEFAULT ''::text
+assets.mime_type text NOT NULL
+assets.processing_hint text NOT NULL DEFAULT ''::text
+assets.processing_status text NOT NULL DEFAULT 'none'::text
+assets.project_id text NOT NULL
+assets.properties text NOT NULL DEFAULT '{}'::text
+assets.size_bytes bigint NOT NULL DEFAULT 0
+assets.source_id text NOT NULL DEFAULT ''::text
+assets.stream text NOT NULL DEFAULT 'main'::text
+assets.updated_at timestamp with time zone NOT NULL DEFAULT now()
+audit_log.actor text NOT NULL DEFAULT ''::text
+audit_log.after_state jsonb NULL
+audit_log.before_state jsonb NULL
+audit_log.causation_id text NOT NULL DEFAULT ''::text
+audit_log.chain_key text NOT NULL DEFAULT 'system'::text
+audit_log.created_at timestamp with time zone NOT NULL DEFAULT now()
+audit_log.data jsonb NOT NULL DEFAULT '{}'::jsonb
+audit_log.effect text NOT NULL DEFAULT ''::text
+audit_log.event_type text NOT NULL
+audit_log.hash text NOT NULL DEFAULT ''::text
+audit_log.id bigint NOT NULL DEFAULT nextval('audit_log_id_seq'::regclass)
+audit_log.ip text NOT NULL DEFAULT ''::text
+audit_log.prev_hash text NOT NULL DEFAULT ''::text
+audit_log.project_id text NULL
+audit_log.request_id text NOT NULL DEFAULT ''::text
+audit_log.resource_id text NOT NULL DEFAULT ''::text
+audit_log.resource_type text NOT NULL DEFAULT ''::text
+audit_log.source text NOT NULL DEFAULT ''::text
+audit_log.user_agent text NOT NULL DEFAULT ''::text
+audit_log.workspace_id text NOT NULL DEFAULT ''::text
+auth_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+auth_schema_migrations.description text NOT NULL
+auth_schema_migrations.version integer NOT NULL
+automation_history.ended_at timestamp with time zone NOT NULL DEFAULT now()
+automation_history.error text NOT NULL DEFAULT ''::text
+automation_history.event_id text NOT NULL DEFAULT ''::text
+automation_history.id text NOT NULL
+automation_history.project_id text NOT NULL
+automation_history.rule_id text NOT NULL
+automation_history.started_at timestamp with time zone NOT NULL DEFAULT now()
+automation_history.status text NOT NULL
+automation_logs.data jsonb NOT NULL DEFAULT '{}'::jsonb
+automation_logs.id text NOT NULL
+automation_logs.level text NOT NULL DEFAULT 'info'::text
+automation_logs.message text NOT NULL
+automation_logs.run_id text NOT NULL
+automation_logs.step_id text NOT NULL
+automation_logs.timestamp timestamp with time zone NOT NULL DEFAULT now()
+automation_rules.actions text NOT NULL DEFAULT '[]'::text
+automation_rules.builtin boolean NOT NULL DEFAULT false
+automation_rules.conditions text NOT NULL DEFAULT '[]'::text
+automation_rules.created_at timestamp with time zone NOT NULL DEFAULT now()
+automation_rules.enabled boolean NOT NULL DEFAULT true
+automation_rules.id text NOT NULL
+automation_rules.name text NOT NULL
+automation_rules.project_id text NOT NULL
+automation_rules.trigger text NOT NULL
+automation_rules.updated_at timestamp with time zone NOT NULL DEFAULT now()
+automation_runs.done_count integer NOT NULL DEFAULT 0
+automation_runs.ended_at timestamp with time zone NULL
+automation_runs.error text NOT NULL DEFAULT ''::text
+automation_runs.id text NOT NULL
+automation_runs.project_id text NOT NULL
+automation_runs.started_at timestamp with time zone NOT NULL DEFAULT now()
+automation_runs.status text NOT NULL DEFAULT 'pending'::text
+automation_runs.step_count integer NOT NULL DEFAULT 0
+automation_runs.trigger_data jsonb NOT NULL DEFAULT '{}'::jsonb
+automation_runs.trigger_id text NOT NULL DEFAULT ''::text
+automation_runs.trigger_type text NOT NULL
+automation_steps.action_type text NOT NULL
+automation_steps.config jsonb NOT NULL DEFAULT '{}'::jsonb
+automation_steps.done_jobs integer NOT NULL DEFAULT 0
+automation_steps.ended_at timestamp with time zone NULL
+automation_steps.error text NOT NULL DEFAULT ''::text
+automation_steps.id text NOT NULL
+automation_steps.job_ids jsonb NOT NULL DEFAULT '[]'::jsonb
+automation_steps.rule_name text NOT NULL DEFAULT ''::text
+automation_steps.run_id text NOT NULL
+automation_steps.started_at timestamp with time zone NOT NULL DEFAULT now()
+automation_steps.status text NOT NULL DEFAULT 'pending'::text
+automation_steps.task_ids jsonb NOT NULL DEFAULT '[]'::jsonb
+automation_steps.total_jobs integer NOT NULL DEFAULT 0
+billing_events.created_at timestamp with time zone NOT NULL DEFAULT now()
+billing_events.detail text NOT NULL DEFAULT ''::text
+billing_events.event_type text NOT NULL
+billing_events.id bigint NOT NULL DEFAULT nextval('billing_events_id_seq'::regclass)
+billing_events.workspace_id text NOT NULL
+billing_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+billing_schema_migrations.description text NOT NULL
+billing_schema_migrations.version integer NOT NULL
+block_asset_refs.asset_id text NOT NULL
+block_asset_refs.block_id text NOT NULL
+block_asset_refs.project_id text NOT NULL
+block_asset_refs.ref_type text NOT NULL DEFAULT 'embedded'::text
+block_asset_refs.stream text NOT NULL DEFAULT 'main'::text
+block_history.actor_role text NOT NULL DEFAULT ''::text
+block_history.author text NOT NULL DEFAULT ''::text
+block_history.block_id text NOT NULL
+block_history.change_type text NOT NULL
+block_history.coded_text text NOT NULL DEFAULT ''::text
+block_history.correlation_id text NOT NULL DEFAULT ''::text
+block_history.created_at timestamp with time zone NOT NULL DEFAULT now()
+block_history.edit_reason text NOT NULL DEFAULT ''::text
+block_history.id bigint NOT NULL DEFAULT nextval('block_history_id_seq'::regclass)
+block_history.locale text NOT NULL
+block_history.origin text NOT NULL DEFAULT ''::text
+block_history.project_id text NOT NULL
+block_history.stream text NOT NULL DEFAULT 'main'::text
+block_history.text text NOT NULL DEFAULT ''::text
+block_notes.author text NOT NULL DEFAULT ''::text
+block_notes.block_id text NOT NULL
+block_notes.created_at timestamp with time zone NOT NULL DEFAULT now()
+block_notes.id text NOT NULL
+block_notes.project_id text NOT NULL
+block_notes.stream text NOT NULL DEFAULT 'main'::text
+block_notes.text text NOT NULL
+blocks.content_hash text NOT NULL DEFAULT ''::text
+blocks.context_hash text NOT NULL DEFAULT ''::text
+blocks.id text NOT NULL
+blocks.item_name text NOT NULL DEFAULT ''::text
+blocks.mime_type text NOT NULL DEFAULT ''::text
+blocks.name text NOT NULL DEFAULT ''::text
+blocks.overlays jsonb NOT NULL DEFAULT '[]'::jsonb
+blocks.owner_id text NOT NULL DEFAULT ''::text
+blocks.project_id text NOT NULL
+blocks.properties text NOT NULL DEFAULT '{}'::text
+blocks.source_id text NOT NULL DEFAULT ''::text
+blocks.source_json text NOT NULL DEFAULT '[]'::text
+blocks.status text NOT NULL DEFAULT 'draft'::text
+blocks.stored_at timestamp with time zone NOT NULL DEFAULT now()
+blocks.translatable boolean NOT NULL DEFAULT true
+blocks.type text NOT NULL DEFAULT ''::text
+blocks.updated_at timestamp with time zone NOT NULL DEFAULT now()
+brand_profile_tags.created_at timestamp with time zone NOT NULL DEFAULT now()
+brand_profile_tags.created_by text NOT NULL DEFAULT ''::text
+brand_profile_tags.name text NOT NULL
+brand_profile_tags.profile_id text NOT NULL
+brand_profile_tags.version integer NOT NULL
+brand_profile_versions.created_at timestamp with time zone NOT NULL DEFAULT now()
+brand_profile_versions.created_by text NOT NULL DEFAULT ''::text
+brand_profile_versions.note text NOT NULL DEFAULT ''::text
+brand_profile_versions.profile_id text NOT NULL
+brand_profile_versions.snapshot jsonb NOT NULL
+brand_profile_versions.version integer NOT NULL
+brand_profiles.autonomy jsonb NOT NULL DEFAULT '{}'::jsonb
+brand_profiles.channels jsonb NOT NULL DEFAULT '{}'::jsonb
+brand_profiles.created_at timestamp with time zone NOT NULL DEFAULT now()
+brand_profiles.created_by text NOT NULL DEFAULT ''::text
+brand_profiles.description text NOT NULL DEFAULT ''::text
+brand_profiles.examples jsonb NOT NULL DEFAULT '[]'::jsonb
+brand_profiles.id text NOT NULL
+brand_profiles.locales jsonb NOT NULL DEFAULT '{}'::jsonb
+brand_profiles.name text NOT NULL
+brand_profiles.personas jsonb NOT NULL DEFAULT '{}'::jsonb
+brand_profiles.style jsonb NOT NULL DEFAULT '{}'::jsonb
+brand_profiles.tone jsonb NOT NULL DEFAULT '{}'::jsonb
+brand_profiles.updated_at timestamp with time zone NOT NULL DEFAULT now()
+brand_profiles.version integer NOT NULL DEFAULT 1
+brand_profiles.vocabulary jsonb NOT NULL DEFAULT '{}'::jsonb
+brand_profiles.workspace_id text NOT NULL
+brand_rule_decisions.auto boolean NOT NULL DEFAULT false
+brand_rule_decisions.concept_id text NOT NULL DEFAULT ''::text
+brand_rule_decisions.correction_count integer NOT NULL DEFAULT 0
+brand_rule_decisions.decided_at timestamp with time zone NOT NULL DEFAULT now()
+brand_rule_decisions.decided_by text NOT NULL DEFAULT ''::text
+brand_rule_decisions.dimension text NOT NULL DEFAULT ''::text
+brand_rule_decisions.profile_id text NOT NULL
+brand_rule_decisions.promoted_version integer NOT NULL DEFAULT 0
+brand_rule_decisions.replacement text NOT NULL DEFAULT ''::text
+brand_rule_decisions.status text NOT NULL
+brand_rule_decisions.term text NOT NULL
+brand_scan_jobs.attempts integer NOT NULL DEFAULT 0
+brand_scan_jobs.claim_epoch bigint NOT NULL DEFAULT 0
+brand_scan_jobs.created_at timestamp with time zone NOT NULL DEFAULT now()
+brand_scan_jobs.error text NOT NULL DEFAULT ''::text
+brand_scan_jobs.id text NOT NULL
+brand_scan_jobs.message text NOT NULL DEFAULT ''::text
+brand_scan_jobs.progress integer NOT NULL DEFAULT 0
+brand_scan_jobs.request jsonb NOT NULL DEFAULT '{}'::jsonb
+brand_scan_jobs.result jsonb NULL
+brand_scan_jobs.status text NOT NULL DEFAULT 'queued'::text
+brand_scan_jobs.tokens_used integer NOT NULL DEFAULT 0
+brand_scan_jobs.updated_at timestamp with time zone NOT NULL DEFAULT now()
+brand_scan_jobs.workspace_id text NOT NULL DEFAULT ''::text
+brand_scan_jobs.workspace_slug text NOT NULL DEFAULT ''::text
+brand_scan_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+brand_scan_schema_migrations.description text NOT NULL
+brand_scan_schema_migrations.version integer NOT NULL
+brand_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+brand_schema_migrations.description text NOT NULL
+brand_schema_migrations.version integer NOT NULL
+brand_voice_corrections.block_id text NOT NULL
+brand_voice_corrections.corrected_at timestamp with time zone NOT NULL DEFAULT now()
+brand_voice_corrections.corrected_by text NOT NULL
+brand_voice_corrections.corrected_text text NOT NULL
+brand_voice_corrections.dimension text NOT NULL
+brand_voice_corrections.finding_id text NOT NULL DEFAULT ''::text
+brand_voice_corrections.id text NOT NULL
+brand_voice_corrections.original_text text NOT NULL
+brand_voice_corrections.profile_id text NOT NULL
+brand_voice_scores.block_id text NOT NULL
+brand_voice_scores.checked_at timestamp with time zone NOT NULL DEFAULT now()
+brand_voice_scores.dimensions jsonb NOT NULL
+brand_voice_scores.findings jsonb NOT NULL
+brand_voice_scores.id text NOT NULL
+brand_voice_scores.locale text NOT NULL
+brand_voice_scores.profile_id text NOT NULL
+brand_voice_scores.profile_version integer NOT NULL DEFAULT 0
+brand_voice_scores.project_id text NOT NULL
+brand_voice_scores.score integer NOT NULL
+brand_voice_scores.stream text NOT NULL DEFAULT 'main'::text
+change_log.block_id text NOT NULL
+change_log.change_type text NOT NULL
+change_log.content_hash text NULL
+change_log.correlation_id text NOT NULL DEFAULT ''::text
+change_log.locale text NULL
+change_log.logged_at timestamp with time zone NOT NULL DEFAULT now()
+change_log.project_id text NOT NULL
+change_log.seq bigint NOT NULL DEFAULT nextval('change_log_seq_seq'::regclass)
+change_log.stream text NOT NULL DEFAULT 'main'::text
+change_log_archive.archived_at timestamp with time zone NOT NULL DEFAULT now()
+change_log_archive.block_id text NOT NULL
+change_log_archive.change_type text NOT NULL
+change_log_archive.content_hash text NULL
+change_log_archive.correlation_id text NOT NULL DEFAULT ''::text
+change_log_archive.locale text NULL
+change_log_archive.logged_at timestamp with time zone NOT NULL
+change_log_archive.project_id text NOT NULL
+change_log_archive.seq bigint NOT NULL
+change_log_archive.stream text NOT NULL DEFAULT 'main'::text
+collections.connector_config text NOT NULL DEFAULT '{}'::text
+collections.context text NOT NULL DEFAULT '{}'::text
+collections.context_hash text NOT NULL DEFAULT ''::text
+collections.created_at timestamp with time zone NOT NULL DEFAULT now()
+collections.id text NOT NULL
+collections.is_default boolean NOT NULL DEFAULT false
+collections.item_label text NOT NULL DEFAULT 'item'::text
+collections.kind text NOT NULL DEFAULT 'uploaded'::text
+collections.name text NOT NULL
+collections.owner text NOT NULL DEFAULT 'workspace'::text
+collections.project_id text NOT NULL
+collections.stream text NOT NULL DEFAULT ''::text
+collections.updated_at timestamp with time zone NOT NULL DEFAULT now()
+connector_configs.config text NOT NULL DEFAULT '{}'::text
+connector_configs.created_at text NOT NULL DEFAULT ''::text
+connector_configs.id text NOT NULL
+connector_configs.last_error text NOT NULL DEFAULT ''::text
+connector_configs.last_sync_at text NOT NULL DEFAULT ''::text
+connector_configs.name text NOT NULL DEFAULT ''::text
+connector_configs.type text NOT NULL
+connector_configs.updated_at text NOT NULL DEFAULT ''::text
+connector_configs.workspace_id text NOT NULL
+convergence_run_events.payload text NOT NULL DEFAULT '{}'::text
+convergence_run_events.run_id text NOT NULL
+convergence_run_events.seq integer NOT NULL
+convergence_runs.blocked_on_source integer NOT NULL DEFAULT 0
+convergence_runs.created_at text NOT NULL DEFAULT ''::text
+convergence_runs.current_locale text NOT NULL DEFAULT ''::text
+convergence_runs.current_stage text NOT NULL DEFAULT ''::text
+convergence_runs.error text NOT NULL DEFAULT ''::text
+convergence_runs.failing_checks integer NOT NULL DEFAULT 0
+convergence_runs.finished_at text NOT NULL DEFAULT ''::text
+convergence_runs.id text NOT NULL
+convergence_runs.last_activity text NOT NULL DEFAULT ''::text
+convergence_runs.passes integer NOT NULL DEFAULT 0
+convergence_runs.project_id text NOT NULL
+convergence_runs.stall_reason text NOT NULL DEFAULT ''::text
+convergence_runs.standing text NOT NULL DEFAULT '{}'::text
+convergence_runs.state text NOT NULL DEFAULT 'running'::text
+convergence_runs.trigger text NOT NULL DEFAULT 'manual'::text
+credit_allocations.created_at timestamp with time zone NOT NULL DEFAULT now()
+credit_allocations.credits_total bigint NOT NULL
+credit_allocations.credits_used bigint NOT NULL DEFAULT 0
+credit_allocations.id text NOT NULL
+credit_allocations.source text NOT NULL DEFAULT 'plan'::text
+credit_allocations.week_end timestamp with time zone NOT NULL
+credit_allocations.week_start timestamp with time zone NOT NULL
+credit_allocations.workspace_id text NOT NULL
+credit_ledger.allocation_id text NULL
+credit_ledger.amount bigint NOT NULL
+credit_ledger.balance_after bigint NOT NULL
+credit_ledger.created_at timestamp with time zone NOT NULL DEFAULT now()
+credit_ledger.id bigint NOT NULL DEFAULT nextval('credit_ledger_id_seq'::regclass)
+credit_ledger.operation text NOT NULL
+credit_ledger.reference_id text NULL
+credit_ledger.workspace_id text NOT NULL
+deny_rules.created_at timestamp with time zone NOT NULL DEFAULT now()
+deny_rules.denied_perms bigint NOT NULL DEFAULT 0
+deny_rules.id text NOT NULL
+deny_rules.project_id text NOT NULL DEFAULT ''::text
+deny_rules.reason text NOT NULL DEFAULT ''::text
+deny_rules.subject_id text NOT NULL
+deny_rules.subject_type text NOT NULL
+deny_rules.workspace_id text NOT NULL
+digest_settings.frequency text NOT NULL DEFAULT 'daily'::text
+digest_settings.quiet_end text NOT NULL DEFAULT ''::text
+digest_settings.quiet_start text NOT NULL DEFAULT ''::text
+digest_settings.timezone text NOT NULL DEFAULT 'UTC'::text
+digest_settings.user_id text NOT NULL
+digest_settings.workspace_id text NOT NULL
+digest_state.frequency text NOT NULL DEFAULT 'daily'::text
+digest_state.last_sent_at timestamp with time zone NOT NULL
+digest_state.user_id text NOT NULL
+digest_state.workspace_id text NOT NULL
+dnt_entries.created_at timestamp with time zone NOT NULL DEFAULT now()
+dnt_entries.entity_type text NOT NULL DEFAULT ''::text
+dnt_entries.locale text NOT NULL
+dnt_entries.project_id text NOT NULL
+dnt_entries.source text NOT NULL DEFAULT ''::text
+dnt_entries.text text NOT NULL
+email_change_requests.created_at timestamp with time zone NOT NULL DEFAULT now()
+email_change_requests.expires_at timestamp with time zone NOT NULL
+email_change_requests.id text NOT NULL
+email_change_requests.new_email text NOT NULL
+email_change_requests.token_hash text NOT NULL
+email_change_requests.user_id text NOT NULL
+extraction_jobs.created_at timestamp with time zone NOT NULL DEFAULT now()
+extraction_jobs.done_blocks integer NOT NULL DEFAULT 0
+extraction_jobs.error text NOT NULL DEFAULT ''::text
+extraction_jobs.id text NOT NULL
+extraction_jobs.item_name text NOT NULL
+extraction_jobs.items_created integer NOT NULL DEFAULT 0
+extraction_jobs.locale text NOT NULL DEFAULT ''::text
+extraction_jobs.model text NOT NULL DEFAULT ''::text
+extraction_jobs.project_id text NOT NULL
+extraction_jobs.push_id text NOT NULL DEFAULT ''::text
+extraction_jobs.status text NOT NULL DEFAULT 'queued'::text
+extraction_jobs.step_id text NOT NULL DEFAULT ''::text
+extraction_jobs.total_blocks integer NOT NULL DEFAULT 0
+extraction_jobs.updated_at timestamp with time zone NOT NULL DEFAULT now()
+extraction_jobs.workspace_slug text NOT NULL
+extraction_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+extraction_schema_migrations.description text NOT NULL
+extraction_schema_migrations.version integer NOT NULL
+feature_overrides.created_at timestamp with time zone NOT NULL DEFAULT now()
+feature_overrides.created_by text NOT NULL
+feature_overrides.enabled boolean NOT NULL
+feature_overrides.expires_at timestamp with time zone NULL
+feature_overrides.feature text NOT NULL
+feature_overrides.id text NOT NULL
+feature_overrides.reason text NULL
+feature_overrides.workspace_id text NOT NULL
+flow_definitions.created_at timestamp with time zone NOT NULL DEFAULT now()
+flow_definitions.description text NOT NULL DEFAULT ''::text
+flow_definitions.graph jsonb NOT NULL DEFAULT '{}'::jsonb
+flow_definitions.id text NOT NULL
+flow_definitions.name text NOT NULL
+flow_definitions.project_id text NOT NULL
+flow_definitions.updated_at timestamp with time zone NOT NULL DEFAULT now()
+forge_installations.account text NOT NULL DEFAULT ''::text
+forge_installations.created_at text NOT NULL DEFAULT ''::text
+forge_installations.installation_id bigint NOT NULL
+forge_installations.updated_at text NOT NULL DEFAULT ''::text
+forge_installations.workspace_id text NOT NULL DEFAULT ''::text
+group_members.group_id text NOT NULL
+group_members.user_id text NOT NULL
+group_role_bindings.created_at timestamp with time zone NOT NULL DEFAULT now()
+group_role_bindings.group_id text NOT NULL
+group_role_bindings.id text NOT NULL
+group_role_bindings.languages text NOT NULL DEFAULT '[]'::text
+group_role_bindings.project_id text NOT NULL
+group_role_bindings.role_id text NOT NULL
+group_role_bindings.workspace_id text NOT NULL
+groups.created_at timestamp with time zone NOT NULL DEFAULT now()
+groups.description text NOT NULL DEFAULT ''::text
+groups.id text NOT NULL
+groups.name text NOT NULL
+groups.workspace_id text NOT NULL
+items.block_index text NOT NULL DEFAULT '{}'::text
+items.collection_id text NOT NULL DEFAULT ''::text
+items.created_at timestamp with time zone NOT NULL DEFAULT now()
+items.format text NOT NULL DEFAULT ''::text
+items.id text NOT NULL DEFAULT ''::text
+items.item_type text NOT NULL DEFAULT 'file'::text
+items.name text NOT NULL
+items.preview_html text NOT NULL DEFAULT ''::text
+items.project_id text NOT NULL
+items.properties text NOT NULL DEFAULT '{}'::text
+items.stream text NOT NULL DEFAULT 'main'::text
+items.updated_at timestamp with time zone NOT NULL DEFAULT now()
+jobs_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+jobs_schema_migrations.description text NOT NULL
+jobs_schema_migrations.version integer NOT NULL
+kg_changeset_ops.base_rev bigint NOT NULL DEFAULT 0
+kg_changeset_ops.changeset_id text NOT NULL
+kg_changeset_ops.created_at timestamp with time zone NOT NULL DEFAULT now()
+kg_changeset_ops.created_by text NOT NULL DEFAULT ''::text
+kg_changeset_ops.op text NOT NULL
+kg_changeset_ops.payload jsonb NOT NULL DEFAULT 'null'::jsonb
+kg_changeset_ops.seq bigint NOT NULL
+kg_changeset_ops.workspace_id text NOT NULL
+kg_changeset_reviews.changeset_id text NOT NULL
+kg_changeset_reviews.comment text NOT NULL DEFAULT ''::text
+kg_changeset_reviews.created_at timestamp with time zone NOT NULL DEFAULT now()
+kg_changeset_reviews.reviewer text NOT NULL
+kg_changeset_reviews.verdict text NOT NULL
+kg_changeset_reviews.workspace_id text NOT NULL
+kg_changesets.created_at timestamp with time zone NOT NULL DEFAULT now()
+kg_changesets.created_by text NOT NULL DEFAULT ''::text
+kg_changesets.description text NOT NULL DEFAULT ''::text
+kg_changesets.id text NOT NULL
+kg_changesets.merged_at timestamp with time zone NULL
+kg_changesets.merged_by text NOT NULL DEFAULT ''::text
+kg_changesets.name text NOT NULL DEFAULT ''::text
+kg_changesets.status text NOT NULL DEFAULT 'draft'::text
+kg_changesets.submitted_at timestamp with time zone NULL
+kg_changesets.updated_at timestamp with time zone NOT NULL DEFAULT now()
+kg_changesets.workspace_id text NOT NULL
+kg_comments.author text NOT NULL DEFAULT ''::text
+kg_comments.body text NOT NULL DEFAULT ''::text
+kg_comments.changeset_id text NOT NULL DEFAULT ''::text
+kg_comments.concept_id text NOT NULL
+kg_comments.created_at timestamp with time zone NOT NULL DEFAULT now()
+kg_comments.id text NOT NULL
+kg_comments.parent_id text NOT NULL DEFAULT ''::text
+kg_comments.resolved boolean NOT NULL DEFAULT false
+kg_comments.workspace_id text NOT NULL
+kg_concept_revisions.actor text NOT NULL DEFAULT ''::text
+kg_concept_revisions.changeset_id text NOT NULL DEFAULT ''::text
+kg_concept_revisions.concept_id text NOT NULL
+kg_concept_revisions.created_at timestamp with time zone NOT NULL DEFAULT now()
+kg_concept_revisions.rev bigint NOT NULL
+kg_concept_revisions.snapshot jsonb NOT NULL DEFAULT 'null'::jsonb
+kg_concept_revisions.summary text NOT NULL DEFAULT ''::text
+kg_concept_revisions.workspace_id text NOT NULL
+kg_markets.created_at timestamp with time zone NOT NULL DEFAULT now()
+kg_markets.description text NOT NULL DEFAULT ''::text
+kg_markets.id text NOT NULL
+kg_markets.locales jsonb NOT NULL DEFAULT '[]'::jsonb
+kg_markets.name text NOT NULL
+kg_markets.updated_at timestamp with time zone NOT NULL DEFAULT now()
+kg_markets.workspace_id text NOT NULL
+kg_observations.concept_id text NOT NULL
+kg_observations.created_at timestamp with time zone NOT NULL DEFAULT now()
+kg_observations.created_by text NOT NULL DEFAULT ''::text
+kg_observations.id text NOT NULL
+kg_observations.kind text NOT NULL
+kg_observations.locale text NOT NULL DEFAULT ''::text
+kg_observations.market text NOT NULL DEFAULT ''::text
+kg_observations.note text NOT NULL DEFAULT ''::text
+kg_observations.quote text NOT NULL DEFAULT ''::text
+kg_observations.source text NOT NULL DEFAULT ''::text
+kg_observations.url text NOT NULL DEFAULT ''::text
+kg_observations.workspace_id text NOT NULL
+kg_pilots.changeset_id text NOT NULL
+kg_pilots.created_at timestamp with time zone NOT NULL DEFAULT now()
+kg_pilots.created_by text NOT NULL DEFAULT ''::text
+kg_pilots.project_id text NOT NULL
+kg_pilots.stream text NOT NULL
+kg_pilots.workspace_id text NOT NULL
+knowledge_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+knowledge_schema_migrations.description text NOT NULL
+knowledge_schema_migrations.version integer NOT NULL
+leader_leases.expires_at timestamp with time zone NOT NULL
+leader_leases.holder_id text NOT NULL
+leader_leases.name text NOT NULL
+model_sweep_results.adherence double precision NOT NULL DEFAULT 0
+model_sweep_results.adherence_bare double precision NOT NULL DEFAULT 0
+model_sweep_results.fixture_count integer NOT NULL DEFAULT 0
+model_sweep_results.fixture_digest text NOT NULL
+model_sweep_results.lift double precision NOT NULL DEFAULT 0
+model_sweep_results.locale text NOT NULL
+model_sweep_results.measured_at timestamp with time zone NOT NULL DEFAULT now()
+model_sweep_results.model text NOT NULL
+model_sweep_results.project_id text NOT NULL
+model_sweep_results.tokens_used integer NOT NULL DEFAULT 0
+model_sweep_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+model_sweep_schema_migrations.description text NOT NULL
+model_sweep_schema_migrations.version integer NOT NULL
+notification_preferences.category text NOT NULL
+notification_preferences.channel_desktop boolean NOT NULL DEFAULT false
+notification_preferences.channel_email boolean NOT NULL DEFAULT false
+notification_preferences.channel_push boolean NOT NULL DEFAULT false
+notification_preferences.channel_web boolean NOT NULL DEFAULT true
+notification_preferences.updated_at timestamp with time zone NOT NULL DEFAULT now()
+notification_preferences.user_id text NOT NULL
+notification_preferences.workspace_id text NOT NULL
+notifications.actor_id text NOT NULL DEFAULT ''::text
+notifications.actor_name text NOT NULL DEFAULT ''::text
+notifications.body text NOT NULL DEFAULT ''::text
+notifications.category text NOT NULL DEFAULT ''::text
+notifications.created_at timestamp with time zone NOT NULL DEFAULT now()
+notifications.group_key text NOT NULL DEFAULT ''::text
+notifications.id text NOT NULL
+notifications.link_url text NOT NULL DEFAULT ''::text
+notifications.priority text NOT NULL DEFAULT 'normal'::text
+notifications.project_id text NOT NULL DEFAULT ''::text
+notifications.read boolean NOT NULL DEFAULT false
+notifications.task_id text NOT NULL DEFAULT ''::text
+notifications.title text NOT NULL
+notifications.type text NOT NULL DEFAULT 'general'::text
+notifications.user_id text NOT NULL
+overlays_ext.block_id text NOT NULL
+overlays_ext.kind text NOT NULL
+overlays_ext.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+overlays_ext.project_id text NOT NULL
+overlays_ext.stream text NOT NULL DEFAULT 'main'::text
+overlays_ext.updated_at timestamp with time zone NOT NULL DEFAULT now()
+overlays_ext_p0.block_id text NOT NULL
+overlays_ext_p0.kind text NOT NULL
+overlays_ext_p0.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+overlays_ext_p0.project_id text NOT NULL
+overlays_ext_p0.stream text NOT NULL DEFAULT 'main'::text
+overlays_ext_p0.updated_at timestamp with time zone NOT NULL DEFAULT now()
+overlays_ext_p1.block_id text NOT NULL
+overlays_ext_p1.kind text NOT NULL
+overlays_ext_p1.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+overlays_ext_p1.project_id text NOT NULL
+overlays_ext_p1.stream text NOT NULL DEFAULT 'main'::text
+overlays_ext_p1.updated_at timestamp with time zone NOT NULL DEFAULT now()
+overlays_ext_p2.block_id text NOT NULL
+overlays_ext_p2.kind text NOT NULL
+overlays_ext_p2.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+overlays_ext_p2.project_id text NOT NULL
+overlays_ext_p2.stream text NOT NULL DEFAULT 'main'::text
+overlays_ext_p2.updated_at timestamp with time zone NOT NULL DEFAULT now()
+overlays_ext_p3.block_id text NOT NULL
+overlays_ext_p3.kind text NOT NULL
+overlays_ext_p3.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+overlays_ext_p3.project_id text NOT NULL
+overlays_ext_p3.stream text NOT NULL DEFAULT 'main'::text
+overlays_ext_p3.updated_at timestamp with time zone NOT NULL DEFAULT now()
+overlays_ext_p4.block_id text NOT NULL
+overlays_ext_p4.kind text NOT NULL
+overlays_ext_p4.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+overlays_ext_p4.project_id text NOT NULL
+overlays_ext_p4.stream text NOT NULL DEFAULT 'main'::text
+overlays_ext_p4.updated_at timestamp with time zone NOT NULL DEFAULT now()
+overlays_ext_p5.block_id text NOT NULL
+overlays_ext_p5.kind text NOT NULL
+overlays_ext_p5.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+overlays_ext_p5.project_id text NOT NULL
+overlays_ext_p5.stream text NOT NULL DEFAULT 'main'::text
+overlays_ext_p5.updated_at timestamp with time zone NOT NULL DEFAULT now()
+overlays_ext_p6.block_id text NOT NULL
+overlays_ext_p6.kind text NOT NULL
+overlays_ext_p6.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+overlays_ext_p6.project_id text NOT NULL
+overlays_ext_p6.stream text NOT NULL DEFAULT 'main'::text
+overlays_ext_p6.updated_at timestamp with time zone NOT NULL DEFAULT now()
+overlays_ext_p7.block_id text NOT NULL
+overlays_ext_p7.kind text NOT NULL
+overlays_ext_p7.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+overlays_ext_p7.project_id text NOT NULL
+overlays_ext_p7.stream text NOT NULL DEFAULT 'main'::text
+overlays_ext_p7.updated_at timestamp with time zone NOT NULL DEFAULT now()
+pending_pushes.actor text NOT NULL DEFAULT ''::text
+pending_pushes.created_at timestamp with time zone NOT NULL DEFAULT now()
+pending_pushes.items text NOT NULL DEFAULT ''::text
+pending_pushes.project_id text NOT NULL
+pending_pushes.push_id text NOT NULL
+pending_pushes.ws_slug text NOT NULL DEFAULT ''::text
+platform_config.key text NOT NULL
+platform_config.updated_at timestamp with time zone NOT NULL DEFAULT now()
+platform_config.updated_by text NOT NULL DEFAULT ''::text
+platform_config.value jsonb NOT NULL
+platform_config_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+platform_config_schema_migrations.description text NOT NULL
+platform_config_schema_migrations.version integer NOT NULL
+processed_stripe_events.event_id text NOT NULL
+processed_stripe_events.event_type text NOT NULL
+processed_stripe_events.processed_at timestamp with time zone NOT NULL DEFAULT now()
+project_members.created_at timestamp with time zone NOT NULL DEFAULT now()
+project_members.languages text NOT NULL DEFAULT '[]'::text
+project_members.project_id text NOT NULL
+project_members.role_id text NOT NULL
+project_members.user_id text NOT NULL
+project_members.workspace_id text NOT NULL
+projects.archived boolean NOT NULL DEFAULT false
+projects.archived_at timestamp with time zone NULL
+projects.converge_policy text NOT NULL DEFAULT 'on-push'::text
+projects.created_at timestamp with time zone NOT NULL DEFAULT now()
+projects.dashboard_visibility text NOT NULL DEFAULT 'private'::text
+projects.default_source_language text NOT NULL DEFAULT ''::text
+projects.default_stream text NOT NULL DEFAULT ''::text
+projects.id text NOT NULL
+projects.name text NOT NULL
+projects.properties text NOT NULL DEFAULT '{}'::text
+projects.target_language_mode text NOT NULL DEFAULT 'defined'::text
+projects.target_languages text NOT NULL DEFAULT ''::text
+projects.updated_at timestamp with time zone NOT NULL DEFAULT now()
+projects.workspace_id text NOT NULL DEFAULT ''::text
+proposed_source_changes.block_id text NOT NULL
+proposed_source_changes.created_at timestamp with time zone NOT NULL DEFAULT now()
+proposed_source_changes.decided_at timestamp with time zone NULL
+proposed_source_changes.decided_by text NOT NULL DEFAULT ''::text
+proposed_source_changes.decision_reason text NOT NULL DEFAULT ''::text
+proposed_source_changes.finder_user text NOT NULL DEFAULT ''::text
+proposed_source_changes.found_in_locale text NOT NULL DEFAULT ''::text
+proposed_source_changes.id text NOT NULL
+proposed_source_changes.item_name text NOT NULL DEFAULT ''::text
+proposed_source_changes.kind text NOT NULL DEFAULT 'text-fix'::text
+proposed_source_changes.original_source text NOT NULL DEFAULT ''::text
+proposed_source_changes.project_id text NOT NULL
+proposed_source_changes.proposed_source text NOT NULL DEFAULT ''::text
+proposed_source_changes.rationale text NOT NULL DEFAULT ''::text
+proposed_source_changes.status text NOT NULL DEFAULT 'open'::text
+proposed_source_changes.stream text NOT NULL DEFAULT 'main'::text
+proposed_source_changes.updated_at timestamp with time zone NOT NULL DEFAULT now()
+proposed_source_changes.workspace_id text NOT NULL
+provider_configs.api_key_sealed bytea NULL
+provider_configs.base_url text NOT NULL DEFAULT ''::text
+provider_configs.created_at timestamp with time zone NOT NULL DEFAULT now()
+provider_configs.id text NOT NULL
+provider_configs.model text NOT NULL DEFAULT ''::text
+provider_configs.name text NOT NULL
+provider_configs.type text NOT NULL DEFAULT ''::text
+provider_configs.updated_at timestamp with time zone NOT NULL DEFAULT now()
+provider_configs.workspace_id text NOT NULL
+provider_configs.workspace_slug text NOT NULL DEFAULT ''::text
+quota_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+quota_schema_migrations.description text NOT NULL
+quota_schema_migrations.version integer NOT NULL
+refresh_tokens.consumed_at timestamp with time zone NULL
+refresh_tokens.created_at timestamp with time zone NOT NULL
+refresh_tokens.expires_at timestamp with time zone NOT NULL
+refresh_tokens.family_id text NOT NULL DEFAULT ''::text
+refresh_tokens.id text NOT NULL
+refresh_tokens.token_hash text NOT NULL
+refresh_tokens.user_id text NOT NULL
+rejected_terms.locale text NOT NULL
+rejected_terms.project_id text NOT NULL
+rejected_terms.rejected_at timestamp with time zone NOT NULL DEFAULT now()
+rejected_terms.term_text text NOT NULL
+review_items.assigned_to text NOT NULL DEFAULT ''::text
+review_items.comment text NOT NULL DEFAULT ''::text
+review_items.confidence double precision NOT NULL DEFAULT 0
+review_items.created_at timestamp with time zone NOT NULL DEFAULT now()
+review_items.data text NOT NULL
+review_items.decided_at timestamp with time zone NULL
+review_items.decided_by text NOT NULL DEFAULT ''::text
+review_items.edits text NOT NULL DEFAULT '{}'::text
+review_items.id text NOT NULL
+review_items.locale text NOT NULL DEFAULT ''::text
+review_items.occurrences text NOT NULL DEFAULT '[]'::text
+review_items.project_id text NOT NULL
+review_items.push_id text NOT NULL DEFAULT ''::text
+review_items.status text NOT NULL DEFAULT 'pending'::text
+review_items.type text NOT NULL
+role_templates.created_at timestamp with time zone NOT NULL DEFAULT now()
+role_templates.description text NOT NULL DEFAULT ''::text
+role_templates.display_name text NOT NULL DEFAULT ''::text
+role_templates.id text NOT NULL
+role_templates.is_builtin boolean NOT NULL DEFAULT false
+role_templates.name text NOT NULL
+role_templates.permissions bigint NOT NULL DEFAULT 0
+role_templates.position integer NOT NULL DEFAULT 0
+role_templates.updated_at timestamp with time zone NOT NULL DEFAULT now()
+role_templates.workspace_id text NOT NULL
+runner_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+runner_schema_migrations.description text NOT NULL
+runner_schema_migrations.version integer NOT NULL
+runner_usage.created_at timestamp with time zone NOT NULL DEFAULT now()
+runner_usage.duration_sec real NOT NULL DEFAULT 0
+runner_usage.id bigint NOT NULL DEFAULT nextval('runner_usage_id_seq'::regclass)
+runner_usage.operation text NOT NULL
+runner_usage.project_id text NOT NULL DEFAULT ''::text
+runner_usage.reference_id text NOT NULL DEFAULT ''::text
+runner_usage.workspace_id text NOT NULL
+sod_settings.mode text NOT NULL DEFAULT 'warn'::text
+sod_settings.updated_at timestamp with time zone NOT NULL DEFAULT now()
+sod_settings.workspace_id text NOT NULL
+store_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+store_schema_migrations.description text NOT NULL
+store_schema_migrations.version integer NOT NULL
+stream_members.added_at timestamp with time zone NOT NULL DEFAULT now()
+stream_members.project_id text NOT NULL
+stream_members.stream text NOT NULL
+stream_members.user_id text NOT NULL
+stream_tags.created_at timestamp with time zone NOT NULL DEFAULT now()
+stream_tags.created_by text NOT NULL DEFAULT ''::text
+stream_tags.cursor bigint NOT NULL DEFAULT 0
+stream_tags.id text NOT NULL
+stream_tags.kind text NOT NULL DEFAULT 'custom'::text
+stream_tags.metadata text NOT NULL DEFAULT '{}'::text
+stream_tags.name text NOT NULL
+stream_tags.project_id text NOT NULL
+stream_tags.stream text NOT NULL
+streams.archived boolean NOT NULL DEFAULT false
+streams.base_cursor bigint NOT NULL DEFAULT 0
+streams.created_at timestamp with time zone NOT NULL DEFAULT now()
+streams.created_by text NOT NULL DEFAULT ''::text
+streams.description text NOT NULL DEFAULT ''::text
+streams.locked boolean NOT NULL DEFAULT false
+streams.locked_at timestamp with time zone NULL
+streams.locked_by text NOT NULL DEFAULT ''::text
+streams.name text NOT NULL
+streams.parent text NOT NULL DEFAULT ''::text
+streams.project_id text NOT NULL
+streams.properties text NOT NULL DEFAULT '{}'::text
+streams.visibility text NOT NULL DEFAULT 'public'::text
+subscriptions.cancel_at timestamp with time zone NULL
+subscriptions.created_at timestamp with time zone NOT NULL DEFAULT now()
+subscriptions.current_period_end timestamp with time zone NULL
+subscriptions.current_period_start timestamp with time zone NULL
+subscriptions.id text NOT NULL
+subscriptions.plan text NOT NULL DEFAULT 'free'::text
+subscriptions.seat_count integer NOT NULL DEFAULT 1
+subscriptions.status text NOT NULL DEFAULT 'active'::text
+subscriptions.stripe_customer_id text NULL DEFAULT ''::text
+subscriptions.stripe_subscription_id text NULL
+subscriptions.trial_ends_at timestamp with time zone NULL
+subscriptions.updated_at timestamp with time zone NOT NULL DEFAULT now()
+subscriptions.workspace_id text NOT NULL
+tasks.assignee_id text NOT NULL DEFAULT ''::text
+tasks.completed_at timestamp with time zone NULL
+tasks.completed_by text NOT NULL DEFAULT ''::text
+tasks.created_at timestamp with time zone NOT NULL DEFAULT now()
+tasks.created_by text NOT NULL
+tasks.data jsonb NOT NULL DEFAULT '{}'::jsonb
+tasks.description text NOT NULL DEFAULT ''::text
+tasks.due_at timestamp with time zone NULL
+tasks.id text NOT NULL
+tasks.priority text NOT NULL DEFAULT 'normal'::text
+tasks.project_id text NOT NULL
+tasks.status text NOT NULL DEFAULT 'open'::text
+tasks.stream text NOT NULL DEFAULT ''::text
+tasks.title text NOT NULL
+tasks.type text NOT NULL DEFAULT 'custom'::text
+tasks.updated_at timestamp with time zone NOT NULL DEFAULT now()
+tasks.workspace_id text NOT NULL
+tb_concepts.created_at timestamp with time zone NOT NULL DEFAULT now()
+tb_concepts.definition text NOT NULL DEFAULT ''::text
+tb_concepts.domain text NOT NULL DEFAULT ''::text
+tb_concepts.id text NOT NULL
+tb_concepts.properties text NULL
+tb_concepts.source text NOT NULL DEFAULT 'terminology'::text
+tb_concepts.stream text NOT NULL DEFAULT ''::text
+tb_concepts.updated_at timestamp with time zone NOT NULL DEFAULT now()
+tb_concepts.workspace_id text NOT NULL
+tb_relations.created_at timestamp with time zone NOT NULL DEFAULT now()
+tb_relations.id text NOT NULL
+tb_relations.note text NOT NULL DEFAULT ''::text
+tb_relations.relation text NOT NULL
+tb_relations.source_id text NOT NULL
+tb_relations.stream text NOT NULL DEFAULT ''::text
+tb_relations.tags jsonb NOT NULL DEFAULT '{}'::jsonb
+tb_relations.target_id text NOT NULL
+tb_relations.valid_from timestamp with time zone NULL
+tb_relations.valid_to timestamp with time zone NULL
+tb_relations.workspace_id text NOT NULL
+tb_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+tb_schema_migrations.description text NOT NULL
+tb_schema_migrations.version integer NOT NULL
+tb_terms.competitor_term boolean NOT NULL DEFAULT false
+tb_terms.concept_id text NOT NULL
+tb_terms.gender text NOT NULL DEFAULT ''::text
+tb_terms.id integer NOT NULL DEFAULT nextval('tb_terms_id_seq'::regclass)
+tb_terms.locale text NOT NULL
+tb_terms.note text NOT NULL DEFAULT ''::text
+tb_terms.part_of_speech text NOT NULL DEFAULT ''::text
+tb_terms.search_tsv tsvector NULL
+tb_terms.status text NOT NULL DEFAULT 'approved'::text
+tb_terms.tags jsonb NOT NULL DEFAULT '{}'::jsonb
+tb_terms.text text NOT NULL
+tb_terms.text_lower text NOT NULL
+tb_terms.valid_from timestamp with time zone NULL
+tb_terms.valid_to timestamp with time zone NULL
+tb_terms.workspace_id text NOT NULL
+tm_entries.created_at timestamp with time zone NOT NULL DEFAULT now()
+tm_entries.hint_src_lang text NOT NULL DEFAULT ''::text
+tm_entries.id text NOT NULL
+tm_entries.note text NOT NULL DEFAULT ''::text
+tm_entries.project_id text NOT NULL DEFAULT ''::text
+tm_entries.properties jsonb NOT NULL DEFAULT '{}'::jsonb
+tm_entries.stream text NOT NULL DEFAULT ''::text
+tm_entries.updated_at timestamp with time zone NOT NULL DEFAULT now()
+tm_entries.workspace_id text NOT NULL
+tm_entry_entities.concept_id text NOT NULL DEFAULT ''::text
+tm_entry_entities.entity_type text NOT NULL
+tm_entry_entities.entry_id text NOT NULL
+tm_entry_entities.placeholder_id text NOT NULL
+tm_entry_entities.workspace_id text NOT NULL
+tm_entry_entity_values.end_pos integer NOT NULL DEFAULT 0
+tm_entry_entity_values.entry_id text NOT NULL
+tm_entry_entity_values.locale text NOT NULL
+tm_entry_entity_values.placeholder_id text NOT NULL
+tm_entry_entity_values.start_pos integer NOT NULL DEFAULT 0
+tm_entry_entity_values.text_value text NOT NULL DEFAULT ''::text
+tm_entry_entity_values.workspace_id text NOT NULL
+tm_entry_origins.added_at timestamp with time zone NOT NULL DEFAULT now()
+tm_entry_origins.added_by text NOT NULL DEFAULT ''::text
+tm_entry_origins.entry_id text NOT NULL
+tm_entry_origins.key text NOT NULL DEFAULT ''::text
+tm_entry_origins.ordinal integer NOT NULL
+tm_entry_origins.reference text NOT NULL DEFAULT ''::text
+tm_entry_origins.session_id text NOT NULL DEFAULT ''::text
+tm_entry_origins.source text NOT NULL
+tm_entry_origins.workspace_id text NOT NULL
+tm_import_sessions.admin_lang text NOT NULL DEFAULT ''::text
+tm_import_sessions.data_type text NOT NULL DEFAULT ''::text
+tm_import_sessions.entry_count integer NOT NULL DEFAULT 0
+tm_import_sessions.file_hash text NOT NULL DEFAULT ''::text
+tm_import_sessions.file_key text NOT NULL
+tm_import_sessions.file_size_bytes bigint NOT NULL DEFAULT 0
+tm_import_sessions.id text NOT NULL
+tm_import_sessions.imported_at timestamp with time zone NOT NULL DEFAULT now()
+tm_import_sessions.imported_by text NOT NULL DEFAULT ''::text
+tm_import_sessions.original_encoding text NOT NULL DEFAULT ''::text
+tm_import_sessions.original_format text NOT NULL DEFAULT ''::text
+tm_import_sessions.properties jsonb NOT NULL DEFAULT '{}'::jsonb
+tm_import_sessions.seg_type text NOT NULL DEFAULT ''::text
+tm_import_sessions.src_lang text NOT NULL DEFAULT ''::text
+tm_import_sessions.tool_name text NOT NULL DEFAULT ''::text
+tm_import_sessions.tool_version text NOT NULL DEFAULT ''::text
+tm_import_sessions.workspace_id text NOT NULL
+tm_schema_migrations.applied_at timestamp with time zone NOT NULL DEFAULT now()
+tm_schema_migrations.description text NOT NULL
+tm_schema_migrations.version integer NOT NULL
+tm_variants.coded text NOT NULL
+tm_variants.entry_id text NOT NULL
+tm_variants.general_key text NOT NULL
+tm_variants.locale text NOT NULL
+tm_variants.plain text NOT NULL
+tm_variants.search_tsv tsvector NULL
+tm_variants.struct_key text NOT NULL
+tm_variants.workspace_id text NOT NULL
+translation_jobs.attempts integer NOT NULL DEFAULT 0
+translation_jobs.claim_epoch bigint NOT NULL DEFAULT 0
+translation_jobs.created_at timestamp with time zone NOT NULL DEFAULT now()
+translation_jobs.deferrals integer NOT NULL DEFAULT 0
+translation_jobs.done_blocks integer NOT NULL DEFAULT 0
+translation_jobs.error text NOT NULL DEFAULT ''::text
+translation_jobs.id text NOT NULL
+translation_jobs.item_name text NOT NULL
+translation_jobs.model text NOT NULL DEFAULT ''::text
+translation_jobs.progress integer NOT NULL DEFAULT 0
+translation_jobs.project_id text NOT NULL
+translation_jobs.provider_config_id text NOT NULL DEFAULT ''::text
+translation_jobs.push_id text NOT NULL DEFAULT ''::text
+translation_jobs.status text NOT NULL DEFAULT 'queued'::text
+translation_jobs.step_id text NOT NULL DEFAULT ''::text
+translation_jobs.target_locale text NOT NULL
+translation_jobs.tokens_used integer NOT NULL DEFAULT 0
+translation_jobs.total_blocks integer NOT NULL DEFAULT 0
+translation_jobs.updated_at timestamp with time zone NOT NULL DEFAULT now()
+translation_jobs.via_ai integer NOT NULL DEFAULT 0
+translation_jobs.via_tm integer NOT NULL DEFAULT 0
+translation_jobs.workspace_id text NOT NULL DEFAULT ''::text
+translation_jobs.workspace_slug text NOT NULL
+translations.block_id text NOT NULL
+translations.locale text NOT NULL
+translations.metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+translations.project_id text NOT NULL
+translations.provider text NOT NULL DEFAULT ''::text
+translations.stream text NOT NULL DEFAULT 'main'::text
+translations.target_json jsonb NOT NULL DEFAULT '{}'::jsonb
+translations.text text NOT NULL DEFAULT ''::text
+translations.updated_at timestamp with time zone NOT NULL DEFAULT now()
+translations_p0.block_id text NOT NULL
+translations_p0.locale text NOT NULL
+translations_p0.metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p0.project_id text NOT NULL
+translations_p0.provider text NOT NULL DEFAULT ''::text
+translations_p0.stream text NOT NULL DEFAULT 'main'::text
+translations_p0.target_json jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p0.text text NOT NULL DEFAULT ''::text
+translations_p0.updated_at timestamp with time zone NOT NULL DEFAULT now()
+translations_p1.block_id text NOT NULL
+translations_p1.locale text NOT NULL
+translations_p1.metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p1.project_id text NOT NULL
+translations_p1.provider text NOT NULL DEFAULT ''::text
+translations_p1.stream text NOT NULL DEFAULT 'main'::text
+translations_p1.target_json jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p1.text text NOT NULL DEFAULT ''::text
+translations_p1.updated_at timestamp with time zone NOT NULL DEFAULT now()
+translations_p2.block_id text NOT NULL
+translations_p2.locale text NOT NULL
+translations_p2.metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p2.project_id text NOT NULL
+translations_p2.provider text NOT NULL DEFAULT ''::text
+translations_p2.stream text NOT NULL DEFAULT 'main'::text
+translations_p2.target_json jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p2.text text NOT NULL DEFAULT ''::text
+translations_p2.updated_at timestamp with time zone NOT NULL DEFAULT now()
+translations_p3.block_id text NOT NULL
+translations_p3.locale text NOT NULL
+translations_p3.metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p3.project_id text NOT NULL
+translations_p3.provider text NOT NULL DEFAULT ''::text
+translations_p3.stream text NOT NULL DEFAULT 'main'::text
+translations_p3.target_json jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p3.text text NOT NULL DEFAULT ''::text
+translations_p3.updated_at timestamp with time zone NOT NULL DEFAULT now()
+translations_p4.block_id text NOT NULL
+translations_p4.locale text NOT NULL
+translations_p4.metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p4.project_id text NOT NULL
+translations_p4.provider text NOT NULL DEFAULT ''::text
+translations_p4.stream text NOT NULL DEFAULT 'main'::text
+translations_p4.target_json jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p4.text text NOT NULL DEFAULT ''::text
+translations_p4.updated_at timestamp with time zone NOT NULL DEFAULT now()
+translations_p5.block_id text NOT NULL
+translations_p5.locale text NOT NULL
+translations_p5.metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p5.project_id text NOT NULL
+translations_p5.provider text NOT NULL DEFAULT ''::text
+translations_p5.stream text NOT NULL DEFAULT 'main'::text
+translations_p5.target_json jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p5.text text NOT NULL DEFAULT ''::text
+translations_p5.updated_at timestamp with time zone NOT NULL DEFAULT now()
+translations_p6.block_id text NOT NULL
+translations_p6.locale text NOT NULL
+translations_p6.metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p6.project_id text NOT NULL
+translations_p6.provider text NOT NULL DEFAULT ''::text
+translations_p6.stream text NOT NULL DEFAULT 'main'::text
+translations_p6.target_json jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p6.text text NOT NULL DEFAULT ''::text
+translations_p6.updated_at timestamp with time zone NOT NULL DEFAULT now()
+translations_p7.block_id text NOT NULL
+translations_p7.locale text NOT NULL
+translations_p7.metadata jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p7.project_id text NOT NULL
+translations_p7.provider text NOT NULL DEFAULT ''::text
+translations_p7.stream text NOT NULL DEFAULT 'main'::text
+translations_p7.target_json jsonb NOT NULL DEFAULT '{}'::jsonb
+translations_p7.text text NOT NULL DEFAULT ''::text
+translations_p7.updated_at timestamp with time zone NOT NULL DEFAULT now()
+unclaimed_projects.claim_token text NOT NULL
+unclaimed_projects.created_at timestamp with time zone NOT NULL DEFAULT now()
+unclaimed_projects.default_source_language text NOT NULL
+unclaimed_projects.expires_at timestamp with time zone NOT NULL
+unclaimed_projects.name text NOT NULL
+unclaimed_projects.project_id text NOT NULL
+unclaimed_projects.target_languages text NOT NULL
+users.avatar_url text NOT NULL DEFAULT ''::text
+users.created_at timestamp with time zone NOT NULL DEFAULT now()
+users.email text NOT NULL
+users.id text NOT NULL
+users.locale text NOT NULL DEFAULT ''::text
+users.name text NOT NULL
+users.oidc_sub text NOT NULL DEFAULT ''::text
+users.onboarded_at timestamp with time zone NULL
+version_blocks.block_id text NOT NULL
+version_blocks.content_hash text NOT NULL
+version_blocks.version_id text NOT NULL
+versions.block_count integer NOT NULL DEFAULT 0
+versions.created_at timestamp with time zone NOT NULL DEFAULT now()
+versions.description text NOT NULL DEFAULT ''::text
+versions.id text NOT NULL
+versions.label text NOT NULL
+versions.project_id text NOT NULL
+workspace_invites.code text NOT NULL
+workspace_invites.created_at timestamp with time zone NOT NULL DEFAULT now()
+workspace_invites.created_by text NOT NULL
+workspace_invites.email text NULL
+workspace_invites.expires_at timestamp with time zone NOT NULL
+workspace_invites.id text NOT NULL
+workspace_invites.max_uses integer NOT NULL DEFAULT 1
+workspace_invites.role text NOT NULL DEFAULT 'member'::text
+workspace_invites.use_count integer NOT NULL DEFAULT 0
+workspace_invites.workspace_id text NOT NULL
+workspace_members.joined_at timestamp with time zone NOT NULL DEFAULT now()
+workspace_members.role text NOT NULL DEFAULT 'member'::text
+workspace_members.user_id text NOT NULL
+workspace_members.workspace_id text NOT NULL
+workspace_notes.author_email text NOT NULL
+workspace_notes.content text NOT NULL
+workspace_notes.created_at timestamp with time zone NOT NULL DEFAULT now()
+workspace_notes.id bigint NOT NULL DEFAULT nextval('workspace_notes_id_seq'::regclass)
+workspace_notes.workspace_id text NOT NULL
+workspace_role_overrides.permissions bigint NOT NULL DEFAULT 0
+workspace_role_overrides.role text NOT NULL
+workspace_role_overrides.workspace_id text NOT NULL
+workspace_slug_reservations.created_at timestamp with time zone NOT NULL DEFAULT now()
+workspace_slug_reservations.reserved_until timestamp with time zone NOT NULL
+workspace_slug_reservations.slug text NOT NULL
+workspace_slug_reservations.workspace_id text NOT NULL
+workspaces.brand_voice_profile_id text NOT NULL DEFAULT ''::text
+workspaces.created_at timestamp with time zone NOT NULL DEFAULT now()
+workspaces.dashboard_visibility text NOT NULL DEFAULT 'private'::text
+workspaces.description text NOT NULL DEFAULT ''::text
+workspaces.id text NOT NULL
+workspaces.languages text NOT NULL DEFAULT '[]'::text
+workspaces.logo_url text NOT NULL DEFAULT ''::text
+workspaces.name text NOT NULL
+workspaces.plan text NOT NULL DEFAULT 'free'::text
+workspaces.preferred_model text NOT NULL DEFAULT ''::text
+workspaces.pulse_access_key text NOT NULL DEFAULT ''::text
+workspaces.pulse_term_sources text NOT NULL DEFAULT '{"terminology":true,"brand_vocabulary":false}'::text
+workspaces.slug text NOT NULL
+workspaces.stripe_customer_id text NULL
+workspaces.type text NOT NULL DEFAULT 'team'::text
+workspaces.updated_at timestamp with time zone NOT NULL DEFAULT now()
+
+# constraints: table constraint definition
+activities activities_pkey PRIMARY KEY (id)
+activity_state activity_state_pkey PRIMARY KEY (user_id, workspace_id)
+agent_config agent_config_pkey PRIMARY KEY (workspace_id)
+agent_conversations agent_conversations_pkey PRIMARY KEY (id)
+agent_messages agent_messages_conversation_id_fkey FOREIGN KEY (conversation_id) REFERENCES agent_conversations(id) ON DELETE CASCADE
+agent_messages agent_messages_pkey PRIMARY KEY (id)
+agent_schema_migrations agent_schema_migrations_pkey PRIMARY KEY (version)
+agent_tool_calls agent_tool_calls_message_id_fkey FOREIGN KEY (message_id) REFERENCES agent_messages(id) ON DELETE CASCADE
+agent_tool_calls agent_tool_calls_pkey PRIMARY KEY (id)
+agent_usage agent_usage_pkey PRIMARY KEY (id)
+ai_quotas ai_quotas_pkey PRIMARY KEY (workspace_slug)
+ai_usage ai_usage_pkey PRIMARY KEY (id)
+annotations annotations_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+annotations annotations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+annotations_p0 annotations_p0_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+annotations_p0 annotations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+annotations_p1 annotations_p1_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+annotations_p1 annotations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+annotations_p2 annotations_p2_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+annotations_p2 annotations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+annotations_p3 annotations_p3_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+annotations_p3 annotations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+annotations_p4 annotations_p4_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+annotations_p4 annotations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+annotations_p5 annotations_p5_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+annotations_p5 annotations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+annotations_p6 annotations_p6_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+annotations_p6 annotations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+annotations_p7 annotations_p7_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+annotations_p7 annotations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+api_tokens api_tokens_pkey PRIMARY KEY (id)
+api_tokens api_tokens_token_hash_key UNIQUE (token_hash)
+api_tokens api_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+api_tokens api_tokens_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+asset_variants asset_variants_asset_id_fkey FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+asset_variants asset_variants_pkey PRIMARY KEY (asset_id, locale)
+assets assets_pkey PRIMARY KEY (id)
+assets assets_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+audit_log audit_log_pkey PRIMARY KEY (id)
+auth_schema_migrations auth_schema_migrations_pkey PRIMARY KEY (version)
+automation_history automation_history_pkey PRIMARY KEY (id)
+automation_logs automation_logs_pkey PRIMARY KEY (id)
+automation_rules automation_rules_pkey PRIMARY KEY (id)
+automation_rules automation_rules_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+automation_runs automation_runs_pkey PRIMARY KEY (id)
+automation_runs automation_runs_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+automation_steps automation_steps_pkey PRIMARY KEY (id)
+automation_steps automation_steps_run_id_fkey FOREIGN KEY (run_id) REFERENCES automation_runs(id) ON DELETE CASCADE
+billing_events billing_events_pkey PRIMARY KEY (id)
+billing_schema_migrations billing_schema_migrations_pkey PRIMARY KEY (version)
+block_asset_refs block_asset_refs_pkey PRIMARY KEY (project_id, block_id, asset_id)
+block_history block_history_pkey PRIMARY KEY (id)
+block_notes block_notes_pkey PRIMARY KEY (id)
+blocks blocks_pkey PRIMARY KEY (project_id, id)
+blocks blocks_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+brand_profile_tags brand_profile_tags_pkey PRIMARY KEY (profile_id, name)
+brand_profile_versions brand_profile_versions_pkey PRIMARY KEY (profile_id, version)
+brand_profiles brand_profiles_pkey PRIMARY KEY (id)
+brand_profiles brand_profiles_workspace_id_name_key UNIQUE (workspace_id, name)
+brand_rule_decisions brand_rule_decisions_pkey PRIMARY KEY (profile_id, term)
+brand_scan_jobs brand_scan_jobs_pkey PRIMARY KEY (id)
+brand_scan_schema_migrations brand_scan_schema_migrations_pkey PRIMARY KEY (version)
+brand_schema_migrations brand_schema_migrations_pkey PRIMARY KEY (version)
+brand_voice_corrections brand_voice_corrections_pkey PRIMARY KEY (id)
+brand_voice_scores brand_voice_scores_pkey PRIMARY KEY (id)
+change_log change_log_pkey PRIMARY KEY (seq)
+change_log_archive change_log_archive_pkey PRIMARY KEY (seq)
+collections collections_pkey PRIMARY KEY (project_id, id)
+collections collections_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+connector_configs connector_configs_pkey PRIMARY KEY (workspace_id, id)
+convergence_run_events convergence_run_events_pkey PRIMARY KEY (run_id, seq)
+convergence_run_events convergence_run_events_run_id_fkey FOREIGN KEY (run_id) REFERENCES convergence_runs(id) ON DELETE CASCADE
+convergence_runs convergence_runs_pkey PRIMARY KEY (id)
+convergence_runs convergence_runs_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+credit_allocations credit_allocations_pkey PRIMARY KEY (id)
+credit_allocations credit_allocations_workspace_id_week_start_source_key UNIQUE (workspace_id, week_start, source)
+credit_ledger credit_ledger_pkey PRIMARY KEY (id)
+deny_rules deny_rules_pkey PRIMARY KEY (id)
+deny_rules deny_rules_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+digest_settings digest_settings_pkey PRIMARY KEY (user_id, workspace_id)
+digest_state digest_state_pkey PRIMARY KEY (user_id, workspace_id, frequency)
+dnt_entries dnt_entries_pkey PRIMARY KEY (project_id, text, locale)
+email_change_requests email_change_requests_pkey PRIMARY KEY (id)
+email_change_requests email_change_requests_token_hash_key UNIQUE (token_hash)
+email_change_requests email_change_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+extraction_jobs extraction_jobs_pkey PRIMARY KEY (id)
+extraction_schema_migrations extraction_schema_migrations_pkey PRIMARY KEY (version)
+feature_overrides feature_overrides_pkey PRIMARY KEY (id)
+feature_overrides feature_overrides_workspace_id_feature_key UNIQUE (workspace_id, feature)
+flow_definitions flow_definitions_pkey PRIMARY KEY (project_id, id)
+flow_definitions flow_definitions_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+forge_installations forge_installations_pkey PRIMARY KEY (installation_id)
+group_members group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+group_members group_members_pkey PRIMARY KEY (group_id, user_id)
+group_members group_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+group_role_bindings group_role_bindings_group_id_fkey FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+group_role_bindings group_role_bindings_pkey PRIMARY KEY (id)
+group_role_bindings group_role_bindings_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+groups groups_pkey PRIMARY KEY (id)
+groups groups_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+groups groups_workspace_id_name_key UNIQUE (workspace_id, name)
+items items_pkey PRIMARY KEY (project_id, stream, name)
+items items_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+jobs_schema_migrations jobs_schema_migrations_pkey PRIMARY KEY (version)
+kg_changeset_ops kg_changeset_ops_pkey PRIMARY KEY (workspace_id, changeset_id, seq)
+kg_changeset_reviews kg_changeset_reviews_pkey PRIMARY KEY (workspace_id, changeset_id, reviewer)
+kg_changesets kg_changesets_pkey PRIMARY KEY (workspace_id, id)
+kg_comments kg_comments_pkey PRIMARY KEY (workspace_id, id)
+kg_concept_revisions kg_concept_revisions_pkey PRIMARY KEY (workspace_id, concept_id, rev)
+kg_markets kg_markets_pkey PRIMARY KEY (workspace_id, id)
+kg_observations kg_observations_pkey PRIMARY KEY (workspace_id, id)
+kg_pilots kg_pilots_pkey PRIMARY KEY (workspace_id, changeset_id, project_id, stream)
+knowledge_schema_migrations knowledge_schema_migrations_pkey PRIMARY KEY (version)
+leader_leases leader_leases_pkey PRIMARY KEY (name)
+model_sweep_results model_sweep_results_pkey PRIMARY KEY (project_id, locale, model, fixture_digest)
+model_sweep_schema_migrations model_sweep_schema_migrations_pkey PRIMARY KEY (version)
+notification_preferences notification_preferences_user_id_workspace_id_category_key UNIQUE (user_id, workspace_id, category)
+notifications notifications_pkey PRIMARY KEY (id)
+overlays_ext overlays_ext_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+overlays_ext overlays_ext_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+overlays_ext_p0 overlays_ext_p0_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+overlays_ext_p0 overlays_ext_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+overlays_ext_p1 overlays_ext_p1_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+overlays_ext_p1 overlays_ext_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+overlays_ext_p2 overlays_ext_p2_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+overlays_ext_p2 overlays_ext_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+overlays_ext_p3 overlays_ext_p3_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+overlays_ext_p3 overlays_ext_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+overlays_ext_p4 overlays_ext_p4_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+overlays_ext_p4 overlays_ext_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+overlays_ext_p5 overlays_ext_p5_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+overlays_ext_p5 overlays_ext_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+overlays_ext_p6 overlays_ext_p6_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+overlays_ext_p6 overlays_ext_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+overlays_ext_p7 overlays_ext_p7_pkey PRIMARY KEY (project_id, stream, block_id, kind)
+overlays_ext_p7 overlays_ext_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+pending_pushes pending_pushes_pkey PRIMARY KEY (push_id)
+platform_config platform_config_pkey PRIMARY KEY (key)
+platform_config_schema_migrations platform_config_schema_migrations_pkey PRIMARY KEY (version)
+processed_stripe_events processed_stripe_events_pkey PRIMARY KEY (event_id)
+project_members project_members_pkey PRIMARY KEY (project_id, user_id)
+project_members project_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+projects projects_pkey PRIMARY KEY (id)
+proposed_source_changes proposed_source_changes_pkey PRIMARY KEY (id)
+provider_configs provider_configs_pkey PRIMARY KEY (id)
+quota_schema_migrations quota_schema_migrations_pkey PRIMARY KEY (version)
+refresh_tokens refresh_tokens_pkey PRIMARY KEY (id)
+refresh_tokens refresh_tokens_token_hash_key UNIQUE (token_hash)
+refresh_tokens refresh_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+rejected_terms rejected_terms_pkey PRIMARY KEY (project_id, term_text, locale)
+review_items review_items_pkey PRIMARY KEY (id)
+review_items review_items_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+role_templates role_templates_pkey PRIMARY KEY (workspace_id, id)
+role_templates role_templates_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+role_templates role_templates_workspace_id_name_key UNIQUE (workspace_id, name)
+runner_schema_migrations runner_schema_migrations_pkey PRIMARY KEY (version)
+runner_usage runner_usage_pkey PRIMARY KEY (id)
+sod_settings sod_settings_pkey PRIMARY KEY (workspace_id)
+sod_settings sod_settings_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+store_schema_migrations store_schema_migrations_pkey PRIMARY KEY (version)
+stream_members stream_members_pkey PRIMARY KEY (project_id, stream, user_id)
+stream_members stream_members_project_id_stream_fkey FOREIGN KEY (project_id, stream) REFERENCES streams(project_id, name) ON DELETE CASCADE
+stream_tags stream_tags_pkey PRIMARY KEY (id)
+stream_tags stream_tags_project_id_stream_fkey FOREIGN KEY (project_id, stream) REFERENCES streams(project_id, name) ON DELETE CASCADE
+streams streams_pkey PRIMARY KEY (project_id, name)
+streams streams_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+subscriptions subscriptions_pkey PRIMARY KEY (id)
+subscriptions subscriptions_workspace_id_key UNIQUE (workspace_id)
+tasks tasks_pkey PRIMARY KEY (id)
+tb_concepts tb_concepts_pkey PRIMARY KEY (workspace_id, id)
+tb_relations tb_relations_pkey PRIMARY KEY (workspace_id, id)
+tb_relations tb_relations_workspace_id_source_id_fkey FOREIGN KEY (workspace_id, source_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE
+tb_relations tb_relations_workspace_id_target_id_fkey FOREIGN KEY (workspace_id, target_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE
+tb_schema_migrations tb_schema_migrations_pkey PRIMARY KEY (version)
+tb_terms tb_terms_pkey PRIMARY KEY (id)
+tb_terms tb_terms_workspace_id_concept_id_fkey FOREIGN KEY (workspace_id, concept_id) REFERENCES tb_concepts(workspace_id, id) ON DELETE CASCADE
+tm_entries tm_entries_pkey PRIMARY KEY (workspace_id, id)
+tm_entry_entities tm_entry_entities_pkey PRIMARY KEY (workspace_id, entry_id, placeholder_id)
+tm_entry_entities tm_entry_entities_workspace_id_entry_id_fkey FOREIGN KEY (workspace_id, entry_id) REFERENCES tm_entries(workspace_id, id) ON DELETE CASCADE
+tm_entry_entity_values tm_entry_entity_values_pkey PRIMARY KEY (workspace_id, entry_id, placeholder_id, locale)
+tm_entry_entity_values tm_entry_entity_values_workspace_id_entry_id_placeholder_i_fkey FOREIGN KEY (workspace_id, entry_id, placeholder_id) REFERENCES tm_entry_entities(workspace_id, entry_id, placeholder_id) ON DELETE CASCADE
+tm_entry_origins tm_entry_origins_pkey PRIMARY KEY (workspace_id, entry_id, ordinal)
+tm_entry_origins tm_entry_origins_workspace_id_entry_id_fkey FOREIGN KEY (workspace_id, entry_id) REFERENCES tm_entries(workspace_id, id) ON DELETE CASCADE
+tm_import_sessions tm_import_sessions_pkey PRIMARY KEY (workspace_id, id)
+tm_schema_migrations tm_schema_migrations_pkey PRIMARY KEY (version)
+tm_variants tm_variants_pkey PRIMARY KEY (workspace_id, entry_id, locale)
+tm_variants tm_variants_workspace_id_entry_id_fkey FOREIGN KEY (workspace_id, entry_id) REFERENCES tm_entries(workspace_id, id) ON DELETE CASCADE
+translation_jobs translation_jobs_pkey PRIMARY KEY (id)
+translations translations_pkey PRIMARY KEY (project_id, stream, block_id, locale)
+translations translations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+translations_p0 translations_p0_pkey PRIMARY KEY (project_id, stream, block_id, locale)
+translations_p0 translations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+translations_p1 translations_p1_pkey PRIMARY KEY (project_id, stream, block_id, locale)
+translations_p1 translations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+translations_p2 translations_p2_pkey PRIMARY KEY (project_id, stream, block_id, locale)
+translations_p2 translations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+translations_p3 translations_p3_pkey PRIMARY KEY (project_id, stream, block_id, locale)
+translations_p3 translations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+translations_p4 translations_p4_pkey PRIMARY KEY (project_id, stream, block_id, locale)
+translations_p4 translations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+translations_p5 translations_p5_pkey PRIMARY KEY (project_id, stream, block_id, locale)
+translations_p5 translations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+translations_p6 translations_p6_pkey PRIMARY KEY (project_id, stream, block_id, locale)
+translations_p6 translations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+translations_p7 translations_p7_pkey PRIMARY KEY (project_id, stream, block_id, locale)
+translations_p7 translations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+unclaimed_projects unclaimed_projects_claim_token_key UNIQUE (claim_token)
+unclaimed_projects unclaimed_projects_pkey PRIMARY KEY (project_id)
+users users_email_key UNIQUE (email)
+users users_pkey PRIMARY KEY (id)
+version_blocks version_blocks_pkey PRIMARY KEY (version_id, block_id)
+version_blocks version_blocks_version_id_fkey FOREIGN KEY (version_id) REFERENCES versions(id) ON DELETE CASCADE
+versions versions_pkey PRIMARY KEY (id)
+versions versions_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+workspace_invites workspace_invites_code_key UNIQUE (code)
+workspace_invites workspace_invites_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id)
+workspace_invites workspace_invites_pkey PRIMARY KEY (id)
+workspace_invites workspace_invites_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+workspace_members workspace_members_pkey PRIMARY KEY (workspace_id, user_id)
+workspace_members workspace_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+workspace_members workspace_members_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+workspace_notes workspace_notes_pkey PRIMARY KEY (id)
+workspace_role_overrides workspace_role_overrides_pkey PRIMARY KEY (workspace_id, role)
+workspace_role_overrides workspace_role_overrides_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+workspace_slug_reservations workspace_slug_reservations_pkey PRIMARY KEY (slug)
+workspace_slug_reservations workspace_slug_reservations_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+workspaces workspaces_pkey PRIMARY KEY (id)
+workspaces workspaces_slug_key UNIQUE (slug)
+
+# indexes
+CREATE INDEX annotations_p0_project_id_stream_block_id_idx ON public.annotations_p0 USING btree (project_id, stream, block_id)
+CREATE INDEX annotations_p0_project_id_stream_kind_updated_at_idx ON public.annotations_p0 USING btree (project_id, stream, kind, updated_at DESC)
+CREATE INDEX annotations_p1_project_id_stream_block_id_idx ON public.annotations_p1 USING btree (project_id, stream, block_id)
+CREATE INDEX annotations_p1_project_id_stream_kind_updated_at_idx ON public.annotations_p1 USING btree (project_id, stream, kind, updated_at DESC)
+CREATE INDEX annotations_p2_project_id_stream_block_id_idx ON public.annotations_p2 USING btree (project_id, stream, block_id)
+CREATE INDEX annotations_p2_project_id_stream_kind_updated_at_idx ON public.annotations_p2 USING btree (project_id, stream, kind, updated_at DESC)
+CREATE INDEX annotations_p3_project_id_stream_block_id_idx ON public.annotations_p3 USING btree (project_id, stream, block_id)
+CREATE INDEX annotations_p3_project_id_stream_kind_updated_at_idx ON public.annotations_p3 USING btree (project_id, stream, kind, updated_at DESC)
+CREATE INDEX annotations_p4_project_id_stream_block_id_idx ON public.annotations_p4 USING btree (project_id, stream, block_id)
+CREATE INDEX annotations_p4_project_id_stream_kind_updated_at_idx ON public.annotations_p4 USING btree (project_id, stream, kind, updated_at DESC)
+CREATE INDEX annotations_p5_project_id_stream_block_id_idx ON public.annotations_p5 USING btree (project_id, stream, block_id)
+CREATE INDEX annotations_p5_project_id_stream_kind_updated_at_idx ON public.annotations_p5 USING btree (project_id, stream, kind, updated_at DESC)
+CREATE INDEX annotations_p6_project_id_stream_block_id_idx ON public.annotations_p6 USING btree (project_id, stream, block_id)
+CREATE INDEX annotations_p6_project_id_stream_kind_updated_at_idx ON public.annotations_p6 USING btree (project_id, stream, kind, updated_at DESC)
+CREATE INDEX annotations_p7_project_id_stream_block_id_idx ON public.annotations_p7 USING btree (project_id, stream, block_id)
+CREATE INDEX annotations_p7_project_id_stream_kind_updated_at_idx ON public.annotations_p7 USING btree (project_id, stream, kind, updated_at DESC)
+CREATE INDEX idx_activities_actor ON public.activities USING btree (workspace_id, actor_id, created_at DESC)
+CREATE INDEX idx_activities_project ON public.activities USING btree (workspace_id, project_id, created_at DESC)
+CREATE INDEX idx_activities_workspace ON public.activities USING btree (workspace_id, created_at DESC)
+CREATE INDEX idx_agent_conv_workspace_user ON public.agent_conversations USING btree (workspace_id, user_id)
+CREATE INDEX idx_agent_msg_conv ON public.agent_messages USING btree (conversation_id, created_at)
+CREATE INDEX idx_agent_tc_msg ON public.agent_tool_calls USING btree (message_id)
+CREATE INDEX idx_agent_usage_ws_created ON public.agent_usage USING btree (workspace_id, created_at)
+CREATE INDEX idx_ai_usage_operation ON public.ai_usage USING btree (workspace_slug, operation, created_at)
+CREATE INDEX idx_ai_usage_workspace_id ON public.ai_usage USING btree (workspace_id, created_at)
+CREATE INDEX idx_ai_usage_workspace_period ON public.ai_usage USING btree (workspace_slug, created_at)
+CREATE INDEX idx_annotations_project_block ON ONLY public.annotations USING btree (project_id, stream, block_id)
+CREATE INDEX idx_annotations_project_kind ON ONLY public.annotations USING btree (project_id, stream, kind, updated_at DESC)
+CREATE INDEX idx_api_tokens_user ON public.api_tokens USING btree (user_id)
+CREATE INDEX idx_api_tokens_workspace ON public.api_tokens USING btree (workspace_id)
+CREATE INDEX idx_assets_project_item ON public.assets USING btree (project_id, item_name)
+CREATE INDEX idx_audit_log_actor ON public.audit_log USING btree (actor, created_at DESC)
+CREATE INDEX idx_audit_log_chain ON public.audit_log USING btree (chain_key, id)
+CREATE INDEX idx_audit_log_project ON public.audit_log USING btree (project_id, created_at DESC)
+CREATE INDEX idx_audit_log_type ON public.audit_log USING btree (workspace_id, event_type, created_at DESC)
+CREATE INDEX idx_audit_log_workspace ON public.audit_log USING btree (workspace_id, created_at DESC)
+CREATE INDEX idx_automation_history_project ON public.automation_history USING btree (project_id)
+CREATE INDEX idx_automation_history_rule ON public.automation_history USING btree (rule_id)
+CREATE INDEX idx_automation_logs_run ON public.automation_logs USING btree (run_id, "timestamp")
+CREATE INDEX idx_automation_logs_step ON public.automation_logs USING btree (step_id, "timestamp")
+CREATE INDEX idx_automation_rules_project ON public.automation_rules USING btree (project_id)
+CREATE INDEX idx_automation_runs_project ON public.automation_runs USING btree (project_id, started_at DESC)
+CREATE INDEX idx_automation_steps_run ON public.automation_steps USING btree (run_id)
+CREATE INDEX idx_billing_events_type ON public.billing_events USING btree (event_type, created_at)
+CREATE INDEX idx_block_asset_refs_asset ON public.block_asset_refs USING btree (project_id, asset_id)
+CREATE INDEX idx_block_history_correlation ON public.block_history USING btree (project_id, correlation_id)
+CREATE INDEX idx_block_history_lookup ON public.block_history USING btree (project_id, block_id, locale)
+CREATE INDEX idx_block_history_stream ON public.block_history USING btree (project_id, stream, block_id, locale)
+CREATE INDEX idx_block_notes_lookup ON public.block_notes USING btree (project_id, block_id)
+CREATE INDEX idx_block_notes_stream ON public.block_notes USING btree (project_id, stream, block_id)
+CREATE INDEX idx_blocks_content_hash ON public.blocks USING btree (content_hash)
+CREATE INDEX idx_blocks_item ON public.blocks USING btree (project_id, item_name)
+CREATE INDEX idx_blocks_project ON public.blocks USING btree (project_id)
+CREATE INDEX idx_brand_profiles_workspace ON public.brand_profiles USING btree (workspace_id)
+CREATE INDEX idx_brand_scan_jobs_processing_updated ON public.brand_scan_jobs USING btree (updated_at) WHERE (status = 'processing'::text)
+CREATE INDEX idx_brand_scan_jobs_status ON public.brand_scan_jobs USING btree (status)
+CREATE INDEX idx_brand_scan_jobs_workspace ON public.brand_scan_jobs USING btree (workspace_slug, created_at DESC)
+CREATE INDEX idx_bvc_profile_dim ON public.brand_voice_corrections USING btree (profile_id, dimension)
+CREATE INDEX idx_bvs_profile_score ON public.brand_voice_scores USING btree (profile_id, score)
+CREATE INDEX idx_bvs_project_locale ON public.brand_voice_scores USING btree (project_id, locale)
+CREATE INDEX idx_bvs_project_stream ON public.brand_voice_scores USING btree (project_id, stream)
+CREATE INDEX idx_changelog_archive_project ON public.change_log_archive USING btree (project_id, seq)
+CREATE INDEX idx_changelog_correlation ON public.change_log USING btree (project_id, correlation_id)
+CREATE INDEX idx_changelog_project_locale ON public.change_log USING btree (project_id, locale, seq)
+CREATE INDEX idx_changelog_project_seq ON public.change_log USING btree (project_id, seq)
+CREATE INDEX idx_changelog_stream ON public.change_log USING btree (project_id, stream, seq)
+CREATE INDEX idx_collections_project ON public.collections USING btree (project_id)
+CREATE INDEX idx_connector_configs_ws ON public.connector_configs USING btree (workspace_id)
+CREATE INDEX idx_convergence_runs_project ON public.convergence_runs USING btree (project_id, created_at DESC)
+CREATE INDEX idx_credit_ledger_workspace ON public.credit_ledger USING btree (workspace_id, created_at)
+CREATE INDEX idx_deny_rules_workspace ON public.deny_rules USING btree (workspace_id)
+CREATE INDEX idx_email_change_expires ON public.email_change_requests USING btree (expires_at)
+CREATE INDEX idx_email_change_user ON public.email_change_requests USING btree (user_id)
+CREATE INDEX idx_extraction_jobs_project ON public.extraction_jobs USING btree (project_id)
+CREATE INDEX idx_extraction_jobs_push_id ON public.extraction_jobs USING btree (push_id)
+CREATE INDEX idx_extraction_jobs_status ON public.extraction_jobs USING btree (status)
+CREATE INDEX idx_flow_definitions_project ON public.flow_definitions USING btree (project_id, name)
+CREATE INDEX idx_forge_installations_ws ON public.forge_installations USING btree (workspace_id)
+CREATE INDEX idx_group_bindings_group ON public.group_role_bindings USING btree (group_id)
+CREATE INDEX idx_group_bindings_project ON public.group_role_bindings USING btree (project_id)
+CREATE INDEX idx_group_members_user ON public.group_members USING btree (user_id)
+CREATE INDEX idx_groups_workspace ON public.groups USING btree (workspace_id)
+CREATE INDEX idx_items_collection ON public.items USING btree (project_id, collection_id)
+CREATE INDEX idx_items_project ON public.items USING btree (project_id)
+CREATE INDEX idx_items_project_stream ON public.items USING btree (project_id, stream)
+CREATE INDEX idx_jobs_processing_updated ON public.translation_jobs USING btree (updated_at) WHERE (status = 'processing'::text)
+CREATE INDEX idx_jobs_push_id ON public.translation_jobs USING btree (push_id) WHERE (push_id <> ''::text)
+CREATE INDEX idx_jobs_status ON public.translation_jobs USING btree (status)
+CREATE INDEX idx_jobs_workspace ON public.translation_jobs USING btree (workspace_slug, created_at DESC)
+CREATE INDEX idx_jobs_workspace_id ON public.translation_jobs USING btree (workspace_id) WHERE (workspace_id <> ''::text)
+CREATE INDEX idx_kg_changesets_status ON public.kg_changesets USING btree (workspace_id, status)
+CREATE INDEX idx_kg_comments_changeset ON public.kg_comments USING btree (workspace_id, changeset_id)
+CREATE INDEX idx_kg_comments_concept ON public.kg_comments USING btree (workspace_id, concept_id)
+CREATE INDEX idx_kg_observations_concept ON public.kg_observations USING btree (workspace_id, concept_id)
+CREATE INDEX idx_kg_pilots_stream ON public.kg_pilots USING btree (workspace_id, project_id, stream)
+CREATE INDEX idx_model_sweep_project_locale ON public.model_sweep_results USING btree (project_id, locale, measured_at DESC)
+CREATE INDEX idx_notif_pref_user ON public.notification_preferences USING btree (user_id, workspace_id)
+CREATE INDEX idx_notifications_user ON public.notifications USING btree (user_id, read, created_at DESC)
+CREATE INDEX idx_overlays_ext_project_block ON ONLY public.overlays_ext USING btree (project_id, stream, block_id)
+CREATE INDEX idx_overlays_ext_project_kind ON ONLY public.overlays_ext USING btree (project_id, stream, kind)
+CREATE INDEX idx_project_members_role ON public.project_members USING btree (workspace_id, role_id)
+CREATE INDEX idx_project_members_user ON public.project_members USING btree (user_id, workspace_id)
+CREATE INDEX idx_projects_workspace ON public.projects USING btree (workspace_id)
+CREATE INDEX idx_provider_configs_ws ON public.provider_configs USING btree (workspace_id)
+CREATE INDEX idx_provider_configs_ws_slug ON public.provider_configs USING btree (workspace_slug) WHERE (workspace_slug <> ''::text)
+CREATE INDEX idx_refresh_tokens_family ON public.refresh_tokens USING btree (family_id)
+CREATE INDEX idx_refresh_tokens_user ON public.refresh_tokens USING btree (user_id)
+CREATE INDEX idx_review_items_assigned ON public.review_items USING btree (project_id, assigned_to)
+CREATE INDEX idx_review_items_confidence ON public.review_items USING btree (project_id, confidence)
+CREATE INDEX idx_review_items_project_status ON public.review_items USING btree (project_id, status)
+CREATE INDEX idx_review_items_project_type ON public.review_items USING btree (project_id, type)
+CREATE INDEX idx_runner_usage_workspace ON public.runner_usage USING btree (workspace_id, created_at)
+CREATE INDEX idx_slug_reservations_until ON public.workspace_slug_reservations USING btree (reserved_until)
+CREATE INDEX idx_source_proposals_project_status ON public.proposed_source_changes USING btree (project_id, status)
+CREATE INDEX idx_stream_tags_project_kind ON public.stream_tags USING btree (project_id, kind)
+CREATE INDEX idx_stream_tags_stream ON public.stream_tags USING btree (project_id, stream)
+CREATE INDEX idx_subscriptions_trialing ON public.subscriptions USING btree (trial_ends_at) WHERE (status = 'trialing'::text)
+CREATE INDEX idx_tasks_assignee ON public.tasks USING btree (workspace_id, assignee_id, status)
+CREATE INDEX idx_tasks_project ON public.tasks USING btree (workspace_id, project_id, status)
+CREATE INDEX idx_tasks_workspace ON public.tasks USING btree (workspace_id, status, created_at DESC)
+CREATE INDEX idx_tb_concepts_ws_stream ON public.tb_concepts USING btree (workspace_id, stream)
+CREATE INDEX idx_tb_relations_ws_source ON public.tb_relations USING btree (workspace_id, source_id)
+CREATE INDEX idx_tb_relations_ws_stream ON public.tb_relations USING btree (workspace_id, stream)
+CREATE INDEX idx_tb_relations_ws_target ON public.tb_relations USING btree (workspace_id, target_id)
+CREATE INDEX idx_tb_terms_search_tsv ON public.tb_terms USING gin (search_tsv)
+CREATE INDEX idx_tb_terms_trgm ON public.tb_terms USING gin (text_lower gin_trgm_ops)
+CREATE INDEX idx_tb_terms_ws_concept ON public.tb_terms USING btree (workspace_id, concept_id)
+CREATE INDEX idx_tb_terms_ws_locale ON public.tb_terms USING btree (workspace_id, locale)
+CREATE INDEX idx_tb_terms_ws_text ON public.tb_terms USING btree (workspace_id, text_lower, locale)
+CREATE INDEX idx_tm_entities_concept ON public.tm_entry_entities USING btree (workspace_id, concept_id)
+CREATE INDEX idx_tm_entities_type ON public.tm_entry_entities USING btree (workspace_id, entity_type)
+CREATE INDEX idx_tm_entity_values_text ON public.tm_entry_entity_values USING btree (workspace_id, text_value, locale)
+CREATE INDEX idx_tm_origin_key ON public.tm_entry_origins USING btree (workspace_id, key)
+CREATE INDEX idx_tm_origin_session ON public.tm_entry_origins USING btree (workspace_id, session_id)
+CREATE INDEX idx_tm_origin_source ON public.tm_entry_origins USING btree (workspace_id, source)
+CREATE INDEX idx_tm_sessions_hash ON public.tm_import_sessions USING btree (workspace_id, file_hash)
+CREATE INDEX idx_tm_sessions_time ON public.tm_import_sessions USING btree (workspace_id, imported_at DESC)
+CREATE INDEX idx_tm_var_general_loc ON public.tm_variants USING btree (workspace_id, general_key, locale)
+CREATE INDEX idx_tm_var_plain_loc ON public.tm_variants USING btree (workspace_id, plain, locale)
+CREATE INDEX idx_tm_var_search_tsv ON public.tm_variants USING gin (search_tsv)
+CREATE INDEX idx_tm_var_struct_loc ON public.tm_variants USING btree (workspace_id, struct_key, locale)
+CREATE INDEX idx_tm_var_trgm_general ON public.tm_variants USING gin (general_key gin_trgm_ops)
+CREATE INDEX idx_tm_var_trgm_plain ON public.tm_variants USING gin (plain gin_trgm_ops)
+CREATE INDEX idx_tm_var_trgm_struct ON public.tm_variants USING gin (struct_key gin_trgm_ops)
+CREATE INDEX idx_tm_var_ws_locale ON public.tm_variants USING btree (workspace_id, locale)
+CREATE INDEX idx_tm_ws_project ON public.tm_entries USING btree (workspace_id, project_id)
+CREATE INDEX idx_tm_ws_stream ON public.tm_entries USING btree (workspace_id, stream)
+CREATE INDEX idx_tm_ws_updated ON public.tm_entries USING btree (workspace_id, updated_at DESC)
+CREATE INDEX idx_translations_project_block ON ONLY public.translations USING btree (project_id, stream, block_id)
+CREATE INDEX idx_translations_project_locale ON ONLY public.translations USING btree (project_id, stream, locale, updated_at DESC)
+CREATE INDEX idx_unclaimed_expires ON public.unclaimed_projects USING btree (expires_at)
+CREATE INDEX idx_users_oidc_sub ON public.users USING btree (oidc_sub)
+CREATE INDEX idx_versions_project ON public.versions USING btree (project_id)
+CREATE INDEX overlays_ext_p0_project_id_stream_block_id_idx ON public.overlays_ext_p0 USING btree (project_id, stream, block_id)
+CREATE INDEX overlays_ext_p0_project_id_stream_kind_idx ON public.overlays_ext_p0 USING btree (project_id, stream, kind)
+CREATE INDEX overlays_ext_p1_project_id_stream_block_id_idx ON public.overlays_ext_p1 USING btree (project_id, stream, block_id)
+CREATE INDEX overlays_ext_p1_project_id_stream_kind_idx ON public.overlays_ext_p1 USING btree (project_id, stream, kind)
+CREATE INDEX overlays_ext_p2_project_id_stream_block_id_idx ON public.overlays_ext_p2 USING btree (project_id, stream, block_id)
+CREATE INDEX overlays_ext_p2_project_id_stream_kind_idx ON public.overlays_ext_p2 USING btree (project_id, stream, kind)
+CREATE INDEX overlays_ext_p3_project_id_stream_block_id_idx ON public.overlays_ext_p3 USING btree (project_id, stream, block_id)
+CREATE INDEX overlays_ext_p3_project_id_stream_kind_idx ON public.overlays_ext_p3 USING btree (project_id, stream, kind)
+CREATE INDEX overlays_ext_p4_project_id_stream_block_id_idx ON public.overlays_ext_p4 USING btree (project_id, stream, block_id)
+CREATE INDEX overlays_ext_p4_project_id_stream_kind_idx ON public.overlays_ext_p4 USING btree (project_id, stream, kind)
+CREATE INDEX overlays_ext_p5_project_id_stream_block_id_idx ON public.overlays_ext_p5 USING btree (project_id, stream, block_id)
+CREATE INDEX overlays_ext_p5_project_id_stream_kind_idx ON public.overlays_ext_p5 USING btree (project_id, stream, kind)
+CREATE INDEX overlays_ext_p6_project_id_stream_block_id_idx ON public.overlays_ext_p6 USING btree (project_id, stream, block_id)
+CREATE INDEX overlays_ext_p6_project_id_stream_kind_idx ON public.overlays_ext_p6 USING btree (project_id, stream, kind)
+CREATE INDEX overlays_ext_p7_project_id_stream_block_id_idx ON public.overlays_ext_p7 USING btree (project_id, stream, block_id)
+CREATE INDEX overlays_ext_p7_project_id_stream_kind_idx ON public.overlays_ext_p7 USING btree (project_id, stream, kind)
+CREATE INDEX translations_p0_project_id_stream_block_id_idx ON public.translations_p0 USING btree (project_id, stream, block_id)
+CREATE INDEX translations_p0_project_id_stream_locale_updated_at_idx ON public.translations_p0 USING btree (project_id, stream, locale, updated_at DESC)
+CREATE INDEX translations_p1_project_id_stream_block_id_idx ON public.translations_p1 USING btree (project_id, stream, block_id)
+CREATE INDEX translations_p1_project_id_stream_locale_updated_at_idx ON public.translations_p1 USING btree (project_id, stream, locale, updated_at DESC)
+CREATE INDEX translations_p2_project_id_stream_block_id_idx ON public.translations_p2 USING btree (project_id, stream, block_id)
+CREATE INDEX translations_p2_project_id_stream_locale_updated_at_idx ON public.translations_p2 USING btree (project_id, stream, locale, updated_at DESC)
+CREATE INDEX translations_p3_project_id_stream_block_id_idx ON public.translations_p3 USING btree (project_id, stream, block_id)
+CREATE INDEX translations_p3_project_id_stream_locale_updated_at_idx ON public.translations_p3 USING btree (project_id, stream, locale, updated_at DESC)
+CREATE INDEX translations_p4_project_id_stream_block_id_idx ON public.translations_p4 USING btree (project_id, stream, block_id)
+CREATE INDEX translations_p4_project_id_stream_locale_updated_at_idx ON public.translations_p4 USING btree (project_id, stream, locale, updated_at DESC)
+CREATE INDEX translations_p5_project_id_stream_block_id_idx ON public.translations_p5 USING btree (project_id, stream, block_id)
+CREATE INDEX translations_p5_project_id_stream_locale_updated_at_idx ON public.translations_p5 USING btree (project_id, stream, locale, updated_at DESC)
+CREATE INDEX translations_p6_project_id_stream_block_id_idx ON public.translations_p6 USING btree (project_id, stream, block_id)
+CREATE INDEX translations_p6_project_id_stream_locale_updated_at_idx ON public.translations_p6 USING btree (project_id, stream, locale, updated_at DESC)
+CREATE INDEX translations_p7_project_id_stream_block_id_idx ON public.translations_p7 USING btree (project_id, stream, block_id)
+CREATE INDEX translations_p7_project_id_stream_locale_updated_at_idx ON public.translations_p7 USING btree (project_id, stream, locale, updated_at DESC)
+CREATE UNIQUE INDEX activities_pkey ON public.activities USING btree (id)
+CREATE UNIQUE INDEX activity_state_pkey ON public.activity_state USING btree (user_id, workspace_id)
+CREATE UNIQUE INDEX agent_config_pkey ON public.agent_config USING btree (workspace_id)
+CREATE UNIQUE INDEX agent_conversations_pkey ON public.agent_conversations USING btree (id)
+CREATE UNIQUE INDEX agent_messages_pkey ON public.agent_messages USING btree (id)
+CREATE UNIQUE INDEX agent_schema_migrations_pkey ON public.agent_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX agent_tool_calls_pkey ON public.agent_tool_calls USING btree (id)
+CREATE UNIQUE INDEX agent_usage_pkey ON public.agent_usage USING btree (id)
+CREATE UNIQUE INDEX ai_quotas_pkey ON public.ai_quotas USING btree (workspace_slug)
+CREATE UNIQUE INDEX ai_usage_pkey ON public.ai_usage USING btree (id)
+CREATE UNIQUE INDEX annotations_p0_pkey ON public.annotations_p0 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX annotations_p1_pkey ON public.annotations_p1 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX annotations_p2_pkey ON public.annotations_p2 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX annotations_p3_pkey ON public.annotations_p3 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX annotations_p4_pkey ON public.annotations_p4 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX annotations_p5_pkey ON public.annotations_p5 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX annotations_p6_pkey ON public.annotations_p6 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX annotations_p7_pkey ON public.annotations_p7 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX annotations_pkey ON ONLY public.annotations USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX api_tokens_pkey ON public.api_tokens USING btree (id)
+CREATE UNIQUE INDEX api_tokens_token_hash_key ON public.api_tokens USING btree (token_hash)
+CREATE UNIQUE INDEX asset_variants_pkey ON public.asset_variants USING btree (asset_id, locale)
+CREATE UNIQUE INDEX assets_pkey ON public.assets USING btree (id)
+CREATE UNIQUE INDEX audit_log_pkey ON public.audit_log USING btree (id)
+CREATE UNIQUE INDEX auth_schema_migrations_pkey ON public.auth_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX automation_history_pkey ON public.automation_history USING btree (id)
+CREATE UNIQUE INDEX automation_logs_pkey ON public.automation_logs USING btree (id)
+CREATE UNIQUE INDEX automation_rules_pkey ON public.automation_rules USING btree (id)
+CREATE UNIQUE INDEX automation_runs_pkey ON public.automation_runs USING btree (id)
+CREATE UNIQUE INDEX automation_steps_pkey ON public.automation_steps USING btree (id)
+CREATE UNIQUE INDEX billing_events_pkey ON public.billing_events USING btree (id)
+CREATE UNIQUE INDEX billing_schema_migrations_pkey ON public.billing_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX block_asset_refs_pkey ON public.block_asset_refs USING btree (project_id, block_id, asset_id)
+CREATE UNIQUE INDEX block_history_pkey ON public.block_history USING btree (id)
+CREATE UNIQUE INDEX block_notes_pkey ON public.block_notes USING btree (id)
+CREATE UNIQUE INDEX blocks_pkey ON public.blocks USING btree (project_id, id)
+CREATE UNIQUE INDEX brand_profile_tags_pkey ON public.brand_profile_tags USING btree (profile_id, name)
+CREATE UNIQUE INDEX brand_profile_versions_pkey ON public.brand_profile_versions USING btree (profile_id, version)
+CREATE UNIQUE INDEX brand_profiles_pkey ON public.brand_profiles USING btree (id)
+CREATE UNIQUE INDEX brand_profiles_workspace_id_name_key ON public.brand_profiles USING btree (workspace_id, name)
+CREATE UNIQUE INDEX brand_rule_decisions_pkey ON public.brand_rule_decisions USING btree (profile_id, term)
+CREATE UNIQUE INDEX brand_scan_jobs_pkey ON public.brand_scan_jobs USING btree (id)
+CREATE UNIQUE INDEX brand_scan_schema_migrations_pkey ON public.brand_scan_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX brand_schema_migrations_pkey ON public.brand_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX brand_voice_corrections_pkey ON public.brand_voice_corrections USING btree (id)
+CREATE UNIQUE INDEX brand_voice_scores_pkey ON public.brand_voice_scores USING btree (id)
+CREATE UNIQUE INDEX change_log_archive_pkey ON public.change_log_archive USING btree (seq)
+CREATE UNIQUE INDEX change_log_pkey ON public.change_log USING btree (seq)
+CREATE UNIQUE INDEX collections_pkey ON public.collections USING btree (project_id, id)
+CREATE UNIQUE INDEX connector_configs_pkey ON public.connector_configs USING btree (workspace_id, id)
+CREATE UNIQUE INDEX convergence_run_events_pkey ON public.convergence_run_events USING btree (run_id, seq)
+CREATE UNIQUE INDEX convergence_runs_pkey ON public.convergence_runs USING btree (id)
+CREATE UNIQUE INDEX credit_allocations_pkey ON public.credit_allocations USING btree (id)
+CREATE UNIQUE INDEX credit_allocations_workspace_id_week_start_source_key ON public.credit_allocations USING btree (workspace_id, week_start, source)
+CREATE UNIQUE INDEX credit_ledger_pkey ON public.credit_ledger USING btree (id)
+CREATE UNIQUE INDEX credit_ledger_purchase_ref ON public.credit_ledger USING btree (workspace_id, reference_id) WHERE ((operation = 'purchase'::text) AND (reference_id <> ''::text))
+CREATE UNIQUE INDEX deny_rules_pkey ON public.deny_rules USING btree (id)
+CREATE UNIQUE INDEX digest_settings_pkey ON public.digest_settings USING btree (user_id, workspace_id)
+CREATE UNIQUE INDEX digest_state_pkey ON public.digest_state USING btree (user_id, workspace_id, frequency)
+CREATE UNIQUE INDEX dnt_entries_pkey ON public.dnt_entries USING btree (project_id, text, locale)
+CREATE UNIQUE INDEX email_change_requests_pkey ON public.email_change_requests USING btree (id)
+CREATE UNIQUE INDEX email_change_requests_token_hash_key ON public.email_change_requests USING btree (token_hash)
+CREATE UNIQUE INDEX extraction_jobs_pkey ON public.extraction_jobs USING btree (id)
+CREATE UNIQUE INDEX extraction_schema_migrations_pkey ON public.extraction_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX feature_overrides_pkey ON public.feature_overrides USING btree (id)
+CREATE UNIQUE INDEX feature_overrides_workspace_id_feature_key ON public.feature_overrides USING btree (workspace_id, feature)
+CREATE UNIQUE INDEX flow_definitions_pkey ON public.flow_definitions USING btree (project_id, id)
+CREATE UNIQUE INDEX forge_installations_pkey ON public.forge_installations USING btree (installation_id)
+CREATE UNIQUE INDEX group_members_pkey ON public.group_members USING btree (group_id, user_id)
+CREATE UNIQUE INDEX group_role_bindings_pkey ON public.group_role_bindings USING btree (id)
+CREATE UNIQUE INDEX groups_pkey ON public.groups USING btree (id)
+CREATE UNIQUE INDEX groups_workspace_id_name_key ON public.groups USING btree (workspace_id, name)
+CREATE UNIQUE INDEX idx_assets_blob ON public.assets USING btree (project_id, blob_key) WHERE (stream = 'main'::text)
+CREATE UNIQUE INDEX idx_blocks_source_id ON public.blocks USING btree (project_id, item_name, source_id) WHERE (source_id <> ''::text)
+CREATE UNIQUE INDEX idx_collections_default ON public.collections USING btree (project_id) WHERE (is_default = true)
+CREATE UNIQUE INDEX idx_convergence_runs_one_active ON public.convergence_runs USING btree (project_id) WHERE (state = 'running'::text)
+CREATE UNIQUE INDEX idx_items_id ON public.items USING btree (project_id, stream, id)
+CREATE UNIQUE INDEX idx_provider_configs_ws_name ON public.provider_configs USING btree (workspace_id, name)
+CREATE UNIQUE INDEX idx_stream_tags_unique ON public.stream_tags USING btree (project_id, stream, name)
+CREATE UNIQUE INDEX items_pkey ON public.items USING btree (project_id, stream, name)
+CREATE UNIQUE INDEX jobs_schema_migrations_pkey ON public.jobs_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX kg_changeset_ops_pkey ON public.kg_changeset_ops USING btree (workspace_id, changeset_id, seq)
+CREATE UNIQUE INDEX kg_changeset_reviews_pkey ON public.kg_changeset_reviews USING btree (workspace_id, changeset_id, reviewer)
+CREATE UNIQUE INDEX kg_changesets_pkey ON public.kg_changesets USING btree (workspace_id, id)
+CREATE UNIQUE INDEX kg_comments_pkey ON public.kg_comments USING btree (workspace_id, id)
+CREATE UNIQUE INDEX kg_concept_revisions_pkey ON public.kg_concept_revisions USING btree (workspace_id, concept_id, rev)
+CREATE UNIQUE INDEX kg_markets_pkey ON public.kg_markets USING btree (workspace_id, id)
+CREATE UNIQUE INDEX kg_observations_pkey ON public.kg_observations USING btree (workspace_id, id)
+CREATE UNIQUE INDEX kg_pilots_pkey ON public.kg_pilots USING btree (workspace_id, changeset_id, project_id, stream)
+CREATE UNIQUE INDEX knowledge_schema_migrations_pkey ON public.knowledge_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX leader_leases_pkey ON public.leader_leases USING btree (name)
+CREATE UNIQUE INDEX model_sweep_results_pkey ON public.model_sweep_results USING btree (project_id, locale, model, fixture_digest)
+CREATE UNIQUE INDEX model_sweep_schema_migrations_pkey ON public.model_sweep_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX notification_preferences_user_id_workspace_id_category_key ON public.notification_preferences USING btree (user_id, workspace_id, category)
+CREATE UNIQUE INDEX notifications_pkey ON public.notifications USING btree (id)
+CREATE UNIQUE INDEX overlays_ext_p0_pkey ON public.overlays_ext_p0 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX overlays_ext_p1_pkey ON public.overlays_ext_p1 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX overlays_ext_p2_pkey ON public.overlays_ext_p2 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX overlays_ext_p3_pkey ON public.overlays_ext_p3 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX overlays_ext_p4_pkey ON public.overlays_ext_p4 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX overlays_ext_p5_pkey ON public.overlays_ext_p5 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX overlays_ext_p6_pkey ON public.overlays_ext_p6 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX overlays_ext_p7_pkey ON public.overlays_ext_p7 USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX overlays_ext_pkey ON ONLY public.overlays_ext USING btree (project_id, stream, block_id, kind)
+CREATE UNIQUE INDEX pending_pushes_pkey ON public.pending_pushes USING btree (push_id)
+CREATE UNIQUE INDEX platform_config_pkey ON public.platform_config USING btree (key)
+CREATE UNIQUE INDEX platform_config_schema_migrations_pkey ON public.platform_config_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX processed_stripe_events_pkey ON public.processed_stripe_events USING btree (event_id)
+CREATE UNIQUE INDEX project_members_pkey ON public.project_members USING btree (project_id, user_id)
+CREATE UNIQUE INDEX projects_pkey ON public.projects USING btree (id)
+CREATE UNIQUE INDEX proposed_source_changes_pkey ON public.proposed_source_changes USING btree (id)
+CREATE UNIQUE INDEX provider_configs_pkey ON public.provider_configs USING btree (id)
+CREATE UNIQUE INDEX quota_schema_migrations_pkey ON public.quota_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX refresh_tokens_pkey ON public.refresh_tokens USING btree (id)
+CREATE UNIQUE INDEX refresh_tokens_token_hash_key ON public.refresh_tokens USING btree (token_hash)
+CREATE UNIQUE INDEX rejected_terms_pkey ON public.rejected_terms USING btree (project_id, term_text, locale)
+CREATE UNIQUE INDEX review_items_pkey ON public.review_items USING btree (id)
+CREATE UNIQUE INDEX role_templates_pkey ON public.role_templates USING btree (workspace_id, id)
+CREATE UNIQUE INDEX role_templates_workspace_id_name_key ON public.role_templates USING btree (workspace_id, name)
+CREATE UNIQUE INDEX runner_schema_migrations_pkey ON public.runner_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX runner_usage_pkey ON public.runner_usage USING btree (id)
+CREATE UNIQUE INDEX sod_settings_pkey ON public.sod_settings USING btree (workspace_id)
+CREATE UNIQUE INDEX store_schema_migrations_pkey ON public.store_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX stream_members_pkey ON public.stream_members USING btree (project_id, stream, user_id)
+CREATE UNIQUE INDEX stream_tags_pkey ON public.stream_tags USING btree (id)
+CREATE UNIQUE INDEX streams_pkey ON public.streams USING btree (project_id, name)
+CREATE UNIQUE INDEX subscriptions_pkey ON public.subscriptions USING btree (id)
+CREATE UNIQUE INDEX subscriptions_stripe_customer_id_key ON public.subscriptions USING btree (stripe_customer_id) WHERE ((stripe_customer_id IS NOT NULL) AND (stripe_customer_id <> ''::text))
+CREATE UNIQUE INDEX subscriptions_workspace_id_key ON public.subscriptions USING btree (workspace_id)
+CREATE UNIQUE INDEX tasks_pkey ON public.tasks USING btree (id)
+CREATE UNIQUE INDEX tb_concepts_pkey ON public.tb_concepts USING btree (workspace_id, id)
+CREATE UNIQUE INDEX tb_relations_pkey ON public.tb_relations USING btree (workspace_id, id)
+CREATE UNIQUE INDEX tb_schema_migrations_pkey ON public.tb_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX tb_terms_pkey ON public.tb_terms USING btree (id)
+CREATE UNIQUE INDEX tm_entries_pkey ON public.tm_entries USING btree (workspace_id, id)
+CREATE UNIQUE INDEX tm_entry_entities_pkey ON public.tm_entry_entities USING btree (workspace_id, entry_id, placeholder_id)
+CREATE UNIQUE INDEX tm_entry_entity_values_pkey ON public.tm_entry_entity_values USING btree (workspace_id, entry_id, placeholder_id, locale)
+CREATE UNIQUE INDEX tm_entry_origins_pkey ON public.tm_entry_origins USING btree (workspace_id, entry_id, ordinal)
+CREATE UNIQUE INDEX tm_import_sessions_pkey ON public.tm_import_sessions USING btree (workspace_id, id)
+CREATE UNIQUE INDEX tm_schema_migrations_pkey ON public.tm_schema_migrations USING btree (version)
+CREATE UNIQUE INDEX tm_variants_pkey ON public.tm_variants USING btree (workspace_id, entry_id, locale)
+CREATE UNIQUE INDEX translation_jobs_pkey ON public.translation_jobs USING btree (id)
+CREATE UNIQUE INDEX translations_p0_pkey ON public.translations_p0 USING btree (project_id, stream, block_id, locale)
+CREATE UNIQUE INDEX translations_p1_pkey ON public.translations_p1 USING btree (project_id, stream, block_id, locale)
+CREATE UNIQUE INDEX translations_p2_pkey ON public.translations_p2 USING btree (project_id, stream, block_id, locale)
+CREATE UNIQUE INDEX translations_p3_pkey ON public.translations_p3 USING btree (project_id, stream, block_id, locale)
+CREATE UNIQUE INDEX translations_p4_pkey ON public.translations_p4 USING btree (project_id, stream, block_id, locale)
+CREATE UNIQUE INDEX translations_p5_pkey ON public.translations_p5 USING btree (project_id, stream, block_id, locale)
+CREATE UNIQUE INDEX translations_p6_pkey ON public.translations_p6 USING btree (project_id, stream, block_id, locale)
+CREATE UNIQUE INDEX translations_p7_pkey ON public.translations_p7 USING btree (project_id, stream, block_id, locale)
+CREATE UNIQUE INDEX translations_pkey ON ONLY public.translations USING btree (project_id, stream, block_id, locale)
+CREATE UNIQUE INDEX unclaimed_projects_claim_token_key ON public.unclaimed_projects USING btree (claim_token)
+CREATE UNIQUE INDEX unclaimed_projects_pkey ON public.unclaimed_projects USING btree (project_id)
+CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
+CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)
+CREATE UNIQUE INDEX version_blocks_pkey ON public.version_blocks USING btree (version_id, block_id)
+CREATE UNIQUE INDEX versions_pkey ON public.versions USING btree (id)
+CREATE UNIQUE INDEX workspace_invites_code_key ON public.workspace_invites USING btree (code)
+CREATE UNIQUE INDEX workspace_invites_pkey ON public.workspace_invites USING btree (id)
+CREATE UNIQUE INDEX workspace_members_pkey ON public.workspace_members USING btree (workspace_id, user_id)
+CREATE UNIQUE INDEX workspace_notes_pkey ON public.workspace_notes USING btree (id)
+CREATE UNIQUE INDEX workspace_role_overrides_pkey ON public.workspace_role_overrides USING btree (workspace_id, role)
+CREATE UNIQUE INDEX workspace_slug_reservations_pkey ON public.workspace_slug_reservations USING btree (slug)
+CREATE UNIQUE INDEX workspaces_pkey ON public.workspaces USING btree (id)
+CREATE UNIQUE INDEX workspaces_slug_key ON public.workspaces USING btree (slug)

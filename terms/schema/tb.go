@@ -144,8 +144,12 @@ const pgTermsFuzzyBlock = `
 
 		CREATE INDEX IF NOT EXISTS idx_tb_terms_trgm ON tb_terms USING gin (text_lower gin_trgm_ops);
 
-		ALTER TABLE tb_terms ADD COLUMN search_tsv tsvector;
-		UPDATE tb_terms SET search_tsv = to_tsvector('simple', text_lower);
+		ALTER TABLE tb_terms ADD COLUMN IF NOT EXISTS search_tsv tsvector;
+		-- Backfill rows that predate the column. WHERE-guarded so replaying
+		-- this block over a populated table is a no-op rather than a full
+		-- table rewrite; the trigger below maintains it from here on.
+		UPDATE tb_terms SET search_tsv = to_tsvector('simple', text_lower)
+			WHERE search_tsv IS NULL;
 		CREATE INDEX IF NOT EXISTS idx_tb_terms_search_tsv ON tb_terms USING gin (search_tsv);
 
 		CREATE OR REPLACE FUNCTION tb_terms_search_tsv_update() RETURNS trigger AS $$
@@ -224,6 +228,31 @@ func RenderTermsPostgresV2() string {
 // and the tsvector search column/trigger.
 func RenderTermsPostgresV3() string {
 	return pgTermsFuzzyBlock
+}
+
+// RenderTermsPostgresBaseline renders the whole current Postgres terms schema
+// in one pass: every column present from the start, so nothing is added by a
+// later ALTER.
+//
+// This is what the consolidated tb_schema_migrations baseline applies. The V1–V4
+// renderers above stay because they are the record of how the schema was built,
+// and the semantic-equivalence test in this package compares what they produce
+// against what this renders — a baseline that drifted from the history it folds
+// would otherwise be invisible.
+//
+// It is deliberately assembled from the same descriptors rather than written
+// out as literal SQL: a column added to tbConcepts or tbTerms lands in the
+// baseline and in the SQLite backend together, which is the property that keeps
+// the two backends from drifting.
+func RenderTermsPostgresBaseline() string {
+	o := sq.Opt{IfNotExists: true}
+	return tbConcepts.Create(sq.Postgres, o) +
+		tbConcepts.CreateIndexes(sq.Postgres, o) +
+		tbTerms.Create(sq.Postgres, o) +
+		tbTerms.CreateIndexes(sq.Postgres, o) +
+		tbRelations.Create(sq.Postgres, o) +
+		tbRelations.CreateIndexes(sq.Postgres, o) +
+		pgTermsFuzzyBlock
 }
 
 // RenderTermsPostgresV4 renders the v4 Postgres migration: the source column on

@@ -179,14 +179,16 @@ const ftsTrigramBlock = "\t\tCREATE VIRTUAL TABLE IF NOT EXISTS tm_variant_trigr
 
 // pgFuzzyBlock is the Postgres pg_trgm GIN + tsvector fuzzy infrastructure on
 // tm_variants (the equivalent of the SQLite FTS virtual tables).
+// Every statement is idempotent so the block can sit inside a consolidated
+// baseline that is applied to a database which already has it.
 const pgFuzzyBlock = "\t\tCREATE EXTENSION IF NOT EXISTS pg_trgm;\n" +
-	"\t\tCREATE INDEX idx_tm_var_trgm_plain   ON tm_variants USING gin (plain gin_trgm_ops);\n" +
-	"\t\tCREATE INDEX idx_tm_var_trgm_struct  ON tm_variants USING gin (struct_key gin_trgm_ops);\n" +
-	"\t\tCREATE INDEX idx_tm_var_trgm_general ON tm_variants USING gin (general_key gin_trgm_ops);\n" +
+	"\t\tCREATE INDEX IF NOT EXISTS idx_tm_var_trgm_plain   ON tm_variants USING gin (plain gin_trgm_ops);\n" +
+	"\t\tCREATE INDEX IF NOT EXISTS idx_tm_var_trgm_struct  ON tm_variants USING gin (struct_key gin_trgm_ops);\n" +
+	"\t\tCREATE INDEX IF NOT EXISTS idx_tm_var_trgm_general ON tm_variants USING gin (general_key gin_trgm_ops);\n" +
 	"\n" +
-	"\t\tALTER TABLE tm_variants ADD COLUMN search_tsv tsvector\n" +
+	"\t\tALTER TABLE tm_variants ADD COLUMN IF NOT EXISTS search_tsv tsvector\n" +
 	"\t\t\tGENERATED ALWAYS AS (to_tsvector('simple', plain)) STORED;\n" +
-	"\t\tCREATE INDEX idx_tm_var_search_tsv ON tm_variants USING gin (search_tsv);\n"
+	"\t\tCREATE INDEX IF NOT EXISTS idx_tm_var_search_tsv ON tm_variants USING gin (search_tsv);\n"
 
 // sqliteV1Opt renders the historical v1 SQLite layout: two-tab indentation,
 // IF NOT EXISTS, aligned index names, has_codes/concept_id excluded (added by
@@ -241,6 +243,48 @@ func RenderMemoryPostgresCreate() string {
 	b.WriteString("\n")
 	b.WriteString(memoryEntryEntities.Create(sq.Postgres, o))
 	b.WriteString(memoryEntryEntities.CreateIndexes(sq.Postgres, o, "idx_entities_type"))
+	b.WriteString("\n")
+	b.WriteString(memoryEntryEntityValues.Create(sq.Postgres, o))
+	b.WriteString(memoryEntryEntityValues.CreateIndexes(sq.Postgres, o))
+	b.WriteString("\n")
+	b.WriteString(memoryImportSessions.Create(sq.Postgres, o))
+	b.WriteString(memoryImportSessions.CreateIndexes(sq.Postgres, o))
+	b.WriteString("\n")
+	b.WriteString(memoryEntryOrigins.Create(sq.Postgres, o))
+	b.WriteString(memoryEntryOrigins.CreateIndexes(sq.Postgres, o))
+	return b.String()
+}
+
+// RenderMemoryPostgresBaseline renders the whole current Postgres content
+// memory schema in one pass: every column present from the start, so nothing is
+// added by a later ALTER.
+//
+// This is what the consolidated tm_schema_migrations baseline applies. Two
+// differences from RenderMemoryPostgresCreate are deliberate:
+//
+//   - concept_id is NOT excluded. Historical v5 added it by ALTER; a baseline
+//     creates the table with it.
+//   - has_codes stays excluded. It is a SQLite-only column — no Postgres
+//     migration has ever added it, so including it here would invent a column
+//     production does not have.
+//
+// The leading DROP TABLE statements of historical v4 are deliberately absent.
+// They existed to clear the legacy bilingual tables during that one upgrade,
+// and a baseline is re-applied by design — carrying them would mean every
+// migrate pass silently destroyed the content memory it was meant to preserve.
+func RenderMemoryPostgresBaseline() string {
+	o := sq.Opt{AlignIndexes: true, IfNotExists: true, Exclude: []string{"has_codes"}}
+	var b strings.Builder
+	b.WriteString(memoryEntries.Create(sq.Postgres, o))
+	b.WriteString(memoryEntries.CreateIndexes(sq.Postgres, o, "idx_tm_project", "idx_tm_updated", "idx_tm_stream"))
+	b.WriteString("\n")
+	b.WriteString(memoryVariants.Create(sq.Postgres, o))
+	b.WriteString(memoryVariants.CreateIndexes(sq.Postgres, o))
+	b.WriteString("\n")
+	b.WriteString(pgFuzzyBlock)
+	b.WriteString("\n")
+	b.WriteString(memoryEntryEntities.Create(sq.Postgres, o))
+	b.WriteString(memoryEntryEntities.CreateIndexes(sq.Postgres, o, "idx_entities_type", "idx_entities_concept"))
 	b.WriteString("\n")
 	b.WriteString(memoryEntryEntityValues.Create(sq.Postgres, o))
 	b.WriteString(memoryEntryEntityValues.CreateIndexes(sq.Postgres, o))

@@ -19,10 +19,20 @@ type ExtractionJobStore interface {
 	ClaimExtractionJob(ctx context.Context, id string) (bool, error)
 }
 
-var extractionMigrations = []storage.Migration{
+// ExtractionMigrations is the extraction-jobs schema as a single consolidated
+// baseline.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  create extraction_jobs table
+//
+// Baseline is version 2 — above every number issued, so an existing database
+// applies it once and any drift between its schema and its bookkeeping is
+// repaired. Retired numbers are never reused; the next migration is version 3.
+var ExtractionMigrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "create extraction_jobs table",
+		Version:     2,
+		Description: "extraction jobs baseline (folds 1)",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS extraction_jobs (
 				id             TEXT PRIMARY KEY,
@@ -55,7 +65,7 @@ type extractionJobStore struct {
 
 // NewExtractionJobStore creates a PostgreSQL-backed ExtractionJobStore.
 func NewExtractionJobStore(db *storage.PgDB) (ExtractionJobStore, error) {
-	if err := storage.MigratePostgresNS(db, "extraction_schema_migrations", extractionMigrations); err != nil {
+	if err := storage.MigratePostgresNS(db, "extraction_schema_migrations", ExtractionMigrations); err != nil {
 		return nil, fmt.Errorf("migrate extraction schema: %w", err)
 	}
 	return &extractionJobStore{db: db}, nil

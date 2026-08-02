@@ -91,15 +91,38 @@ type JobStore interface {
 	RevertSweepRequeue(ctx context.Context, id string, staleThreshold time.Duration) error
 }
 
-// jobMigrations defines the PostgreSQL schema for translation jobs.
-var jobMigrations = []storage.Migration{
+// JobMigrations is the translation-jobs schema as a single consolidated
+// baseline.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  translation jobs schema
+//	2  add workspace_id (billing workspace) to translation_jobs
+//	3  translation job retry attempt tracking
+//	4  translation job claim lease (epoch) for double-run protection
+//	5  content memory-first convergence: record the content memory-vs-AI block split per job
+//	6  deferral count for jobs parked on an unavailable dependency
+//
+// Baseline is version 7 — above every number issued, so an existing database
+// applies it once and any drift between its schema and its bookkeeping is
+// repaired. Retired numbers are never reused; the next migration is version 8.
+var JobMigrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "translation jobs schema",
+		Version:     7,
+		Description: "translation jobs baseline (folds 1-6)",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS translation_jobs (
 				id                 TEXT PRIMARY KEY,
 				workspace_slug     TEXT NOT NULL,
+
+				-- The billing workspace id drives per-chunk credit deduction and
+				-- Stripe metering in the worker (Epic 004). It is set from the auth
+				-- context at enqueue, but the worker reconstitutes the job via
+				-- GetJob before translating — so without persisting it,
+				-- job.WorkspaceID is always "" at the worker and platform runs are
+				-- never metered.
+				workspace_id       TEXT NOT NULL DEFAULT '',
+
 				project_id         TEXT NOT NULL,
 				item_name          TEXT NOT NULL,
 				target_locale      TEXT NOT NULL,
@@ -112,6 +135,29 @@ var jobMigrations = []storage.Migration{
 				total_blocks       INTEGER NOT NULL DEFAULT 0,
 				done_blocks        INTEGER NOT NULL DEFAULT 0,
 				tokens_used        INTEGER NOT NULL DEFAULT 0,
+				attempts           INTEGER NOT NULL DEFAULT 0,
+
+				-- A deferral is not a retry: the job was never attempted because
+				-- the dependency's circuit was open, so it must not spend attempts.
+				-- Counting deferrals separately keeps the two budgets independent —
+				-- a job can wait out a long outage and still arrive at the upstream
+				-- with its full retry budget intact — while the cap stops an
+				-- upstream that never returns from cycling jobs indefinitely.
+				deferrals          INTEGER NOT NULL DEFAULT 0,
+
+				-- claim_epoch is the lease generation: ClaimJob bumps it on every
+				-- claim so a worker that gets swept-and-reclaimed can detect (via
+				-- RenewLease) that it no longer owns the job and must stop before
+				-- double-billing the fresh owner's work.
+				claim_epoch        BIGINT NOT NULL DEFAULT 0,
+
+				-- A content memory-first convergence run recycles exact/near-exact
+				-- matches before paying for AI. via_tm/via_ai carry that split so
+				-- the convergence produce emitter can report a truthful
+				-- "content memory N · AI M".
+				via_tm             INTEGER NOT NULL DEFAULT 0,
+				via_ai             INTEGER NOT NULL DEFAULT 0,
+
 				error              TEXT NOT NULL DEFAULT '',
 				created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -119,67 +165,11 @@ var jobMigrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_jobs_workspace ON translation_jobs(workspace_slug, created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_jobs_status ON translation_jobs(status);
 			CREATE INDEX IF NOT EXISTS idx_jobs_push_id ON translation_jobs(push_id) WHERE push_id != '';
-		`,
-	},
-	{
-		Version:     2,
-		Description: "add workspace_id (billing workspace) to translation_jobs",
-		// The billing workspace id is what drives per-chunk credit deduction and
-		// Stripe metering in the worker (Epic 004). It is set from the auth context
-		// at enqueue, but the worker reconstitutes the job via GetJob before
-		// translating — so without persisting it, job.WorkspaceID is always "" at
-		// the worker and platform runs are never metered. Append-only column.
-		SQL: `
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS workspace_id TEXT NOT NULL DEFAULT '';
 			CREATE INDEX IF NOT EXISTS idx_jobs_workspace_id ON translation_jobs(workspace_id) WHERE workspace_id != '';
-		`,
-	},
-	{
-		Version:     3,
-		Description: "translation job retry attempt tracking",
-		SQL: `
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0;
 			-- Partial index over the (status, updated_at) columns the stale-job
 			-- sweeper scans so recovery stays cheap as the jobs table grows.
 			CREATE INDEX IF NOT EXISTS idx_jobs_processing_updated
 				ON translation_jobs(updated_at) WHERE status = 'processing';
-		`,
-	},
-	{
-		Version:     4,
-		Description: "translation job claim lease (epoch) for double-run protection",
-		SQL: `
-			-- claim_epoch is the lease generation: ClaimJob bumps it on every
-			-- claim so a worker that gets swept-and-reclaimed can detect (via
-			-- RenewLease) that it no longer owns the job and must stop before
-			-- double-billing the fresh owner's work.
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS claim_epoch BIGINT NOT NULL DEFAULT 0;
-		`,
-	},
-	{
-		Version:     5,
-		Description: "content memory-first convergence: record the content memory-vs-AI block split per job",
-		// A content memory-first convergence run recycles exact/near-exact matches before
-		// paying for AI. via_tm/via_ai carry that split so the convergence
-		// produce emitter can report a truthful "content memory N · AI M" instead of the old
-		// hard-coded ViaMemory=0. Append-only columns; older rows read as 0/0.
-		SQL: `
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS via_tm INTEGER NOT NULL DEFAULT 0;
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS via_ai INTEGER NOT NULL DEFAULT 0;
-		`,
-	},
-	{
-		Version:     6,
-		Description: "deferral count for jobs parked on an unavailable dependency",
-		// A deferral is not a retry: the job was never attempted because the
-		// dependency's circuit was open, so it must not spend attempts. Counting
-		// deferrals separately keeps the two budgets independent — a job can wait
-		// out a long outage and still arrive at the upstream with its full retry
-		// budget intact — while the cap stops an upstream that never returns from
-		// cycling jobs through the queue indefinitely. Append-only column; older
-		// rows read as 0.
-		SQL: `
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS deferrals INTEGER NOT NULL DEFAULT 0;
 		`,
 	},
 }
@@ -192,7 +182,7 @@ type jobStore struct {
 // NewJobStore creates a PostgreSQL-backed JobStore.
 // It runs migrations to ensure the translation_jobs table exists.
 func NewJobStore(db *storage.PgDB) (JobStore, error) {
-	if err := storage.MigratePostgresNS(db, "jobs_schema_migrations", jobMigrations); err != nil {
+	if err := storage.MigratePostgresNS(db, "jobs_schema_migrations", JobMigrations); err != nil {
 		return nil, fmt.Errorf("migrate job schema: %w", err)
 	}
 	return &jobStore{db: db}, nil

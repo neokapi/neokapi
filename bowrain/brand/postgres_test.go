@@ -1,7 +1,6 @@
 package brand
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -57,24 +56,31 @@ func TestScanProfile_Roundtrip(t *testing.T) {
 	assert.Len(t, profile.Personas, 1)
 }
 
-func TestBrandMigrations_NotEmpty(t *testing.T) {
-	// Version 1 is the launch baseline; post-launch schema changes arrive as
-	// incremental migrations (live databases never re-run the baseline).
-	require.GreaterOrEqual(t, len(brandMigrations), 2)
-	assert.Equal(t, 1, brandMigrations[0].Version)
-	assert.NotEmpty(t, brandMigrations[0].SQL)
-	// The correction-learning loop's schema is part of the baseline.
-	sql := brandMigrations[0].SQL
-	for _, want := range []string{"brand_rule_decisions", "brand_voice_corrections", "brand_profile_versions", "autonomy"} {
+func TestBrandMigrations_SingleBaseline(t *testing.T) {
+	// The brand schema is one consolidated baseline. This test used to assert
+	// the opposite — that personas must NOT be in the baseline, because a live
+	// database would never re-run it and so would never gain the column. That
+	// reasoning held while migrations were bare CREATE/ALTER and a baseline was
+	// applied at most once. The baseline is now idempotent and numbered above
+	// every version ever issued, so a live database DOES re-run it, and
+	// declaring personas in the CREATE is how the column arrives.
+	require.Len(t, Migrations, 1, "the brand schema is a single consolidated baseline")
+	assert.Equal(t, 3, Migrations[0].Version, "baseline sits above versions 1 and 2, which it folds")
+	assert.NotEmpty(t, Migrations[0].SQL)
+
+	sql := Migrations[0].SQL
+
+	// The correction-learning loop's schema, and the personas column folded in
+	// from version 2, are all in the one baseline.
+	for _, want := range []string{
+		"brand_rule_decisions", "brand_voice_corrections", "brand_profile_versions",
+		"autonomy", "personas",
+	} {
 		assert.Contains(t, sql, want)
 	}
-	// Versions are contiguous, and personas arrives via an incremental
-	// migration so pre-personas databases (incl. production) gain the column.
-	var all strings.Builder
-	for i, m := range brandMigrations {
-		assert.Equal(t, i+1, m.Version, "migration versions must be contiguous")
-		all.WriteString(m.SQL)
-	}
-	assert.NotContains(t, brandMigrations[0].SQL, "personas", "personas must not be baseline-only — live DBs would never get it")
-	assert.Contains(t, all.String(), "personas")
+
+	// Idempotent throughout: a baseline that is re-applied must not fail on
+	// objects that already exist.
+	assert.NotContains(t, sql, "CREATE TABLE brand_",
+		"every CREATE TABLE must be IF NOT EXISTS so the baseline can be replayed")
 }

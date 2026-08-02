@@ -10,14 +10,23 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage"
 )
 
-// migrations is the append-only migration list for the platform_config table.
-// Never edit or renumber a shipped migration; add a new one with the next
-// version. Runs under its own tracking namespace so versions never collide with
-// other subsystems sharing the database.
-var migrations = []storage.Migration{
+// Migrations is the platform_config schema as a single consolidated baseline.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  platform_config singleton key/value settings
+//
+// The baseline is version 2, above every number issued, so a database that
+// already recorded 1 applies it once more. That is deliberate: it is what
+// repairs a database whose bookkeeping was emptied while its schema was left
+// standing, which is the state production was in on 2026-08-01. The SQL is
+// idempotent, so the repair costs nothing on a database that is already right.
+//
+// Retired numbers are never reused. The next migration is version 3.
+var Migrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "platform_config singleton key/value settings",
+		Version:     2,
+		Description: "platform_config baseline (folds 1)",
 		SQL: `CREATE TABLE IF NOT EXISTS platform_config (
 			key        TEXT PRIMARY KEY,
 			value      JSONB NOT NULL,
@@ -43,7 +52,7 @@ type Store struct {
 
 // NewStore opens (migrating) the platform_config store.
 func NewStore(db *storage.PgDB) (*Store, error) {
-	if err := storage.MigratePostgresNS(db, "platform_config_schema_migrations", migrations); err != nil {
+	if err := storage.MigratePostgresNS(db, "platform_config_schema_migrations", Migrations); err != nil {
 		return nil, fmt.Errorf("migrate platform_config schema: %w", err)
 	}
 	return &Store{db: db}, nil

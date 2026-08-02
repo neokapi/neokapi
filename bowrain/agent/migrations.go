@@ -2,16 +2,21 @@ package agent
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
-// migrations defines the complete PostgreSQL agent-store schema.
-// Bowrain is not yet in production; there is no migration history to
-// preserve, so we keep a single baseline migration that represents
-// the current design.
-var migrations = []storage.Migration{
+// Migrations is the agent-store schema as a single consolidated baseline.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  agent schema (baseline)
+//
+// Baseline is version 2 — above every number issued, so an existing database
+// applies it once and any drift between its schema and its bookkeeping is
+// repaired. Retired numbers are never reused; the next migration is version 3.
+var Migrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "agent schema (baseline)",
+		Version:     2,
+		Description: "agent baseline (folds 1)",
 		SQL: `
-			CREATE TABLE agent_conversations (
+			CREATE TABLE IF NOT EXISTS agent_conversations (
 				id           TEXT PRIMARY KEY,
 				workspace_id TEXT NOT NULL,
 				user_id      TEXT NOT NULL,
@@ -21,9 +26,9 @@ var migrations = []storage.Migration{
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX idx_agent_conv_workspace_user ON agent_conversations(workspace_id, user_id);
+			CREATE INDEX IF NOT EXISTS idx_agent_conv_workspace_user ON agent_conversations(workspace_id, user_id);
 
-			CREATE TABLE agent_messages (
+			CREATE TABLE IF NOT EXISTS agent_messages (
 				id              TEXT PRIMARY KEY,
 				conversation_id TEXT NOT NULL REFERENCES agent_conversations(id) ON DELETE CASCADE,
 				role            TEXT NOT NULL,
@@ -32,9 +37,9 @@ var migrations = []storage.Migration{
 				output_tokens   INTEGER NOT NULL DEFAULT 0,
 				created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX idx_agent_msg_conv ON agent_messages(conversation_id, created_at);
+			CREATE INDEX IF NOT EXISTS idx_agent_msg_conv ON agent_messages(conversation_id, created_at);
 
-			CREATE TABLE agent_tool_calls (
+			CREATE TABLE IF NOT EXISTS agent_tool_calls (
 				id         TEXT PRIMARY KEY,
 				message_id TEXT NOT NULL REFERENCES agent_messages(id) ON DELETE CASCADE,
 				tool_name  TEXT NOT NULL,
@@ -44,9 +49,9 @@ var migrations = []storage.Migration{
 				duration   BIGINT NOT NULL DEFAULT 0,
 				error      TEXT NOT NULL DEFAULT ''
 			);
-			CREATE INDEX idx_agent_tc_msg ON agent_tool_calls(message_id);
+			CREATE INDEX IF NOT EXISTS idx_agent_tc_msg ON agent_tool_calls(message_id);
 
-			CREATE TABLE agent_config (
+			CREATE TABLE IF NOT EXISTS agent_config (
 				workspace_id      TEXT PRIMARY KEY,
 				enabled           BOOLEAN NOT NULL DEFAULT FALSE,
 				allowed_tools     JSONB NOT NULL DEFAULT '[]',
@@ -56,7 +61,7 @@ var migrations = []storage.Migration{
 				max_concurrent    INTEGER NOT NULL DEFAULT 3
 			);
 
-			CREATE TABLE agent_usage (
+			CREATE TABLE IF NOT EXISTS agent_usage (
 				id              TEXT PRIMARY KEY,
 				workspace_id    TEXT NOT NULL,
 				user_id         TEXT NOT NULL,
@@ -68,7 +73,7 @@ var migrations = []storage.Migration{
 				duration_sec    DOUBLE PRECISION NOT NULL DEFAULT 0,
 				created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX idx_agent_usage_ws_created ON agent_usage(workspace_id, created_at);
+			CREATE INDEX IF NOT EXISTS idx_agent_usage_ws_created ON agent_usage(workspace_id, created_at);
 		`,
 	},
 }

@@ -31,32 +31,42 @@ type PostgresStore struct {
 // NewPostgresStoreFromDB creates a PostgresStore using an existing shared PgDB
 // connection. workspaceID scopes all entries to a specific workspace.
 func NewPostgresStoreFromDB(db *storage.PgDB, workspaceID string) (*PostgresStore, error) {
-	if err := storage.MigratePostgresNS(db, "tm_schema_migrations", memoryMigrationsPg); err != nil {
+	if err := storage.MigratePostgresNS(db, "tm_schema_migrations", Migrations); err != nil {
 		return nil, fmt.Errorf("migrate content memory schema: %w", err)
 	}
 	return &PostgresStore{db: db, workspaceID: workspaceID}, nil
 }
 
-// memoryMigrationsPg holds the evolution of the content memory Postgres schema. The three
-// legacy bilingual migrations (v1-v3) have been dropped — v4 already wipes
-// their tables — so a fresh database applies v4 (the multilingual schema) and
-// v5 directly. The v4/v5 DDL is rendered from the shared schema descriptors
-// (memory/schema), semantically identical to the historical hand-written
-// migrations (statement-set tested in memory/schema).
-var memoryMigrationsPg = []storage.Migration{
+// Migrations is the content memory Postgres schema as a single consolidated
+// baseline, rendered from the shared schema descriptors (memory/schema) — the
+// same source the framework SQLite backend renders from, so the two cannot
+// drift (statement-set tested in memory/schema).
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  bilingual content memory schema      (retired before consolidation)
+//	2  bilingual schema, incremental        (retired before consolidation)
+//	3  bilingual schema, incremental        (retired before consolidation)
+//	4  multilingual content memory schema — variants, entities per locale, import sessions
+//	5  add concept_id to entity mappings for terms cross-reference
+//
+// Versions 1-3 were already gone before this change: v4 dropped their tables
+// outright, so a fresh database never applied them. Their numbers are recorded
+// here because a retired number stays spent — reusing 1 would make a database
+// that still remembers it skip the new work entirely.
+//
+// The DROP TABLE statements that opened v4 are NOT carried into the baseline.
+// They cleared the legacy bilingual tables during that single upgrade; a
+// baseline is designed to be re-applied, so keeping them would mean every
+// migrate pass quietly destroyed the content memory it exists to preserve.
+//
+// Baseline is version 6, above every number issued. Retired numbers are never
+// reused; the next migration is version 7.
+var Migrations = []storage.Migration{
 	{
-		Version:     4,
-		Description: "multilingual content memory schema — variants, entities per locale, import sessions",
-		SQL: `
-		DROP TABLE IF EXISTS tm_entity_mappings CASCADE;
-		DROP TABLE IF EXISTS tm_entry_origins CASCADE;
-		DROP TABLE IF EXISTS tm_entries CASCADE;
-		` + schema.RenderMemoryPostgresCreate(),
-	},
-	{
-		Version:     5,
-		Description: "add concept_id to entity mappings for terms cross-reference",
-		SQL:         schema.RenderMemoryPostgresConceptID(),
+		Version:     6,
+		Description: "content memory baseline (folds 4-5; 1-3 retired earlier)",
+		SQL:         schema.RenderMemoryPostgresBaseline(),
 	},
 }
 
