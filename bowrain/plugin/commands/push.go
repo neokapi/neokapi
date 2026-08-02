@@ -87,7 +87,7 @@ func doPush(ctx context.Context, opts connector.PushOptions, args []string, noBr
 		conn.SetStream(pushStream)
 	}
 
-	pushCtx, brand, err := buildPushContext(ctx, proj, noBrand, opts.DryRun)
+	pushCtx, brand, err := BuildPushContext(ctx, proj, noBrand, opts.DryRun)
 	if err != nil {
 		conn.Close()
 		return nil, nil, err

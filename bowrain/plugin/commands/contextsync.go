@@ -39,8 +39,16 @@ type PushBrandResult struct {
 	Reason  string // set when Action == "skipped"
 }
 
-// buildPushContext resolves the recipe's declared context into the entries a
+// BuildPushContext resolves the recipe's declared context into the entries a
 // push carries, and reports what happened to the governance.
+//
+// Exported because a push arrives by two routes and both must declare the same
+// context. `kapi-bowrain push` runs the cobra command below; `kapi push` is
+// dispatched over the Mode-C daemon RPC and lands in the daemon's Push handler,
+// which has a project and a connector but none of this command's plumbing.
+// Leaving the daemon route without it is what let a push carry 21,894 blocks
+// and reconcile zero collections: no context hash on the wire reads, correctly,
+// as "this push makes no claim about the declared context".
 //
 // noBrand drops the authored voice from every entry and leaves the profile
 // unnamed: the collections and their coordinates still travel — a project's
@@ -54,7 +62,7 @@ type PushBrandResult struct {
 // Returns (nil, nil, nil) when the project is not connected to a server: there
 // is no context to reconcile against, and this is not an error — the same
 // silent skip the terminology push makes.
-func buildPushContext(ctx context.Context, proj *bproject.Project, noBrand, dryRun bool) (*apiclient.PushContext, *PushBrandResult, error) {
+func BuildPushContext(ctx context.Context, proj *bproject.Project, noBrand, dryRun bool) (*apiclient.PushContext, *PushBrandResult, error) {
 	if app == nil || proj == nil || proj.Recipe == nil {
 		return nil, nil, nil
 	}

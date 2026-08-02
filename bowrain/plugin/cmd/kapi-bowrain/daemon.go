@@ -34,11 +34,13 @@ import (
 
 	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/bowrain/plugin/commands"
 	"github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v1"
 	"github.com/neokapi/neokapi/core/registry"
+	cliconfig "github.com/neokapi/neokapi/host/config"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
@@ -60,6 +62,19 @@ func buildDaemonCmd() *cobra.Command {
 }
 
 func runDaemon(cmd *cobra.Command, args []string) error {
+	// Initialize the App exactly as the `command` subtree's PersistentPreRunE
+	// does. The daemon hangs off rootCmd, not off that subtree, so it never ran
+	// this — leaving commands.app nil for the whole daemon lifetime. Anything
+	// reached over RPC that needs the host's resolution ladder (brand voice
+	// profiles, starter packs) silently degraded to "nothing to resolve".
+	app.Config = newBowrainAppConfig()
+	app.RegistryResolver = func() []cliconfig.RegistryEntry { return nil }
+	if err := app.Init(); err != nil {
+		return fmt.Errorf("daemon: init app: %w", err)
+	}
+	cli.ApplyAppInitializers(app)
+	defer app.Shutdown()
+
 	socketPath := defaultSocketPath()
 	// Best-effort cleanup of any stale socket file.
 	_ = os.Remove(socketPath)
@@ -342,6 +357,10 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 	if err != nil {
 		return nil, err
 	}
+	if err := declareContext(ctx, entry, req.GetDryRun()); err != nil {
+		return nil, err
+	}
+
 	res, err := entry.connector.Push(ctx, bowrainconn.PushOptions{
 		Paths:  req.GetPaths(),
 		Force:  req.GetForce(),
@@ -358,6 +377,26 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 		WordCount:    int32(res.WordCount),
 		PushId:       res.PushID,
 	}, nil
+}
+
+// declareContext resolves the recipe's declared context onto the connector
+// before a push, exactly as the cobra push command does.
+//
+// A push arrives by two routes: `kapi-bowrain push` (cobra) and `kapi push`
+// (dispatched here over the Mode-C daemon RPC). Only the first declared its
+// context, so the second sent no context hash — which the server reads,
+// correctly, as "this push makes no claim about the declared context". The
+// result was a push that carried every block and reconciled no collections.
+//
+// noBrand is false: the RPC surface has no --no-brand, so this route always
+// carries the governance it resolves.
+func declareContext(ctx context.Context, entry *projectEntry, dryRun bool) error {
+	pushCtx, _, err := commands.BuildPushContext(ctx, entry.project, false, dryRun)
+	if err != nil {
+		return fmt.Errorf("resolve declared context: %w", err)
+	}
+	entry.connector.SetPushContext(pushCtx)
+	return nil
 }
 
 func (d *daemonService) Pull(ctx context.Context, req *pb.PullRequest) (*pb.PullResponse, error) {

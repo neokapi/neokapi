@@ -83,7 +83,7 @@ func entriesByName(entries []*pb.SyncContextEntry) map[string]*pb.SyncContextEnt
 func TestBuildPushContext_CarriesDeclaredCollections(t *testing.T) {
 	proj := newGovernedProject(t)
 
-	pushCtx, brand, err := buildPushContext(t.Context(), proj, false, false)
+	pushCtx, brand, err := BuildPushContext(t.Context(), proj, false, false)
 	require.NoError(t, err)
 	require.NotNil(t, pushCtx)
 	require.Len(t, pushCtx.Entries, 3, "the bare entry declares no collection")
@@ -119,7 +119,7 @@ func TestBuildPushContext_CarriesTheVoiceAsAuthored(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(proj.Root, "voice.yaml"), []byte(
 		"name: Acme Voice\ntone:\n  formality: neutral\nchannels:\n  docs:\n    tone:\n      formality: formal\n"), 0o644))
 
-	pushCtx, _, err := buildPushContext(t.Context(), proj, false, false)
+	pushCtx, _, err := BuildPushContext(t.Context(), proj, false, false)
 	require.NoError(t, err)
 
 	byName := entriesByName(pushCtx.Entries)
@@ -142,7 +142,7 @@ func TestBuildPushContext_CarriesTheVoiceAsAuthored(t *testing.T) {
 func TestBuildPushContext_NoBrandCarriesStructureOnly(t *testing.T) {
 	proj := newGovernedProject(t)
 
-	pushCtx, brand, err := buildPushContext(t.Context(), proj, true, false)
+	pushCtx, brand, err := BuildPushContext(t.Context(), proj, true, false)
 	require.NoError(t, err)
 	require.Len(t, pushCtx.Entries, 3, "a project's structure is not a brand decision")
 
@@ -167,7 +167,7 @@ func TestBuildPushContext_NoBrandCarriesStructureOnly(t *testing.T) {
 func TestBuildPushContext_DryRunResolvesWithoutSending(t *testing.T) {
 	proj := newGovernedProject(t)
 
-	pushCtx, brand, err := buildPushContext(t.Context(), proj, false, true)
+	pushCtx, brand, err := BuildPushContext(t.Context(), proj, false, true)
 	require.NoError(t, err)
 	require.Len(t, pushCtx.Entries, 3)
 	require.NotNil(t, brand)
@@ -191,7 +191,7 @@ func TestBuildPushContext_NoCollectionsStillMakesAClaim(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	pushCtx, _, err := buildPushContext(t.Context(), proj, false, false)
+	pushCtx, _, err := BuildPushContext(t.Context(), proj, false, false)
 	require.NoError(t, err)
 	require.NotNil(t, pushCtx)
 	assert.Empty(t, pushCtx.Entries)
