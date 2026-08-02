@@ -8,9 +8,18 @@
 # Surfaces. Collection names are <product>-<channel>: the product the content
 # belongs to, then the surface it ships on.
 #
-#   kapi-engine            — generated tool/format metadata → gettext MO
+# The product axis names the two things this repo ships: `neokapi`, the
+# open-source framework and the kapi CLI built on it, and `bowrain`, the
+# platform. The binary is called kapi and the framework is called neokapi, so
+# naming the axis after the binary made the framework's own surfaces read as
+# the CLI's. `kapi` is a channel within neokapi, not a product beside bowrain.
+#
+#   neokapi-cli            — the CLI's own help and output chrome
+#                            (host/i18n/commands.json) → gettext MO catalogs
+#                            embedded in the kapi binary (host/i18n)
+#   neokapi-engine         — generated tool/format metadata → gettext MO
 #                            catalogs embedded in the kapi binary (core/i18n)
-#   kapi-desktop           — KBF catalogs extracted from the React frontend by
+#   neokapi-desktop        — KBF catalogs extracted from the React frontend by
 #                            @neokapi/i18n-react →
 #                            public/translations/<locale>.json
 #   bowrain-app            — the shared bowrain SPA (bowrain/packages/{app,ui}
@@ -19,10 +28,10 @@
 #                            public/translations/<locale>.json
 #   bowrain-ctrl           — the ctrl admin app (bowrain/apps/ctrl)
 #   bowrain-pulse          — the pulse dashboard (bowrain/apps/pulse)
-#   kapi-docs              — the kapi Docusaurus site → web/i18n/<locale>/ tree
+#   neokapi-docs           — the kapi Docusaurus site → web/i18n/<locale>/ tree
 #   bowrain-docs           — the bowrain Docusaurus site (bowrain/web/docs) →
 #                            bowrain/web/docs/i18n/<locale>/ tree
-#   kapi-demos             — harness demo scripts → generated demo.<lang>.yaml
+#   neokapi-demos          — harness demo scripts → generated demo.<lang>.yaml
 #                            sidecars (harness/demos/<id>/, overlaid at load
 #                            time)
 #   bowrain-email          — KBF catalogs extracted from the React Email
@@ -94,20 +103,20 @@ defaults:
 # apart; `channel` is the surface it appears on. Values are slugs — stable
 # identifiers that cross the sync wire, not vocabulary.
 coordinates:
-  product: [kapi, bowrain]
-  channel: [engine, desktop, docs, demos, app, ctrl, pulse, landing, email]
+  product: [neokapi, bowrain]
+  channel: [cli, engine, desktop, docs, demos, app, ctrl, pulse, landing, email]
 
 # Governance bound to a point in that space. A collection matching no profile
 # falls back to defaults.brand_voice below.
 profiles:
-  - when: { product: kapi }
+  - when: { product: neokapi }
     voice: context/brand-voice.yaml
   - when: { product: bowrain }
     voice: context/bowrain-voice.yaml
 
 content:
-  - name: kapi-engine
-    context: { product: kapi, channel: engine }
+  - name: neokapi-engine
+    context: { product: neokapi, channel: engine }
     items:
       - path: core/i18n/builtins/metadata.json
         format:
@@ -119,8 +128,24 @@ content:
             useLeadingSlashOnKeyPath: true
             extractionRules: "(display_name|description|title|label)$"
         target: core/i18n/catalogs/{lang}.mo
-  - name: kapi-desktop
-    context: { product: kapi, channel: desktop }
+  # The CLI's own help and output chrome. It was the one shipped surface the
+  # graph never named: `make l10n-cli` has always produced its catalogs, but
+  # with no collection declaring it, nothing about the text a user reads at the
+  # terminal was governed, searchable, or visible in the workspace.
+  - name: neokapi-cli
+    context: { product: neokapi, channel: cli }
+    items:
+      # Bare `json`, matching `make l10n-cli` exactly — it recycles this file
+      # with `kapi exec recycle host/i18n/commands.json -f json`. The catalog
+      # holds command help (short/long) alongside output chrome, so a narrower
+      # extraction rule would govern some of the text a user reads and not the
+      # rest, and the collection would disagree with the target it produces.
+      - path: host/i18n/commands.json
+        format:
+          name: json
+        target: host/i18n/catalogs/{lang}.mo
+  - name: neokapi-desktop
+    context: { product: neokapi, channel: desktop }
     items:
       - path: apps/kapi-desktop/frontend/i18n/**/*.kbf.json
         target: apps/kapi-desktop/frontend/i18n-{lang}/{filename}
@@ -139,8 +164,8 @@ content:
     items:
       - path: bowrain/apps/pulse/i18n/**/*.kbf.json
         target: bowrain/apps/pulse/i18n-{lang}/{filename}
-  - name: kapi-docs
-    context: { product: kapi, channel: docs }
+  - name: neokapi-docs
+    context: { product: neokapi, channel: docs }
     items:
       - path: web/docs/**/*.md
         format:
@@ -190,8 +215,8 @@ content:
     items:
       - path: bowrain/web/landing/i18n/**/*.kbf.json
         target: bowrain/web/landing/i18n-{lang}/{filename}
-  - name: kapi-demos
-    context: { product: kapi, channel: demos }
+  - name: neokapi-demos
+    context: { product: neokapi, channel: demos }
     items:
       # Narrated demo-video scripts. The English demo.yaml is the master;
       # localized narration is GENERATED into committed demo.<lang>.yaml

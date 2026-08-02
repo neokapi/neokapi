@@ -33,6 +33,8 @@ concurrency:
 
 permissions:
   contents: read
+  # setup-node-ui installs @neokapi scoped packages from npm.pkg.github.com.
+  packages: read
 
 jobs:
   sync:
@@ -56,6 +58,19 @@ jobs:
 
       - name: Build kapi + the kapi-bowrain plugin
         run: make build build-bowrain-plugin
+
+      # Five of the recipe's collections declare i18n/**/*.kbf.json catalogs
+      # that neokapi-i18n extracts from React source. They are build artifacts,
+      # gitignored by design, so a bare push from a clean checkout carried
+      # NOTHING for them — eleven collections declared, six with content, every
+      # night. Extracting first is what makes the sync carry the whole project.
+      #
+      # Source catalogs only (l10n-extract-source, not l10n): a push needs the
+      # source side, and target-language drift must never gate it.
+      - uses: ./.github/actions/setup-node-ui
+
+      - name: Extract the source catalogs a push carries
+        run: make l10n-extract-source
 
       - name: Install the kapi-bowrain plugin for discovery
         # kapi discovers plugins from $KAPI_PLUGINS_DIR/<name>/{binary,manifest.json},
