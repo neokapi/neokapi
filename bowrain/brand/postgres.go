@@ -23,7 +23,7 @@ type PostgresBrandStore struct {
 
 // NewPostgresBrandStore creates a new PostgreSQL-backed brand store.
 func NewPostgresBrandStore(db *storage.PgDB) (*PostgresBrandStore, error) {
-	if err := storage.MigratePostgresNS(db, "brand_schema_migrations", brandMigrations); err != nil {
+	if err := storage.MigratePostgresNS(db, "brand_schema_migrations", Migrations); err != nil {
 		return nil, fmt.Errorf("brand migration: %w", err)
 	}
 	return &PostgresBrandStore{db: db}, nil

@@ -35,7 +35,7 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open store database: %w", err)
 	}
-	if err := storage.MigratePostgresNS(db, "store_schema_migrations", storeMigrations); err != nil {
+	if err := storage.MigratePostgresNS(db, "store_schema_migrations", Migrations); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("migrate store schema: %w", err)
 	}
@@ -44,7 +44,7 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 
 // NewPostgresStoreFromDB wraps an existing PgDB for content store use.
 func NewPostgresStoreFromDB(db *storage.PgDB) (*PostgresStore, error) {
-	if err := storage.MigratePostgresNS(db, "store_schema_migrations", storeMigrations); err != nil {
+	if err := storage.MigratePostgresNS(db, "store_schema_migrations", Migrations); err != nil {
 		return nil, fmt.Errorf("migrate store schema: %w", err)
 	}
 	return &PostgresStore{db: db}, nil

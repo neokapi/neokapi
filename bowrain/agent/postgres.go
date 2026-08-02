@@ -20,7 +20,7 @@ type Store struct {
 
 // NewStore creates a PostgreSQL-backed AgentStore from a shared PgDB.
 func NewStore(pgDB *storage.PgDB) (*Store, error) {
-	if err := storage.MigratePostgresNS(pgDB, "agent_schema_migrations", migrations); err != nil {
+	if err := storage.MigratePostgresNS(pgDB, "agent_schema_migrations", Migrations); err != nil {
 		return nil, fmt.Errorf("migrate agent schema: %w", err)
 	}
 	return &Store{db: pgDB.DB}, nil

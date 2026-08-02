@@ -21,7 +21,7 @@ type PostgresAuthStore struct {
 
 // NewAuthStoreFromDB wraps an existing PgDB for auth use.
 func NewAuthStoreFromDB(db *storage.PgDB) (*PostgresAuthStore, error) {
-	if err := storage.MigratePostgresNS(db, "auth_schema_migrations", authMigrationsPg); err != nil {
+	if err := storage.MigratePostgresNS(db, "auth_schema_migrations", Migrations); err != nil {
 		return nil, fmt.Errorf("migrate auth schema: %w", err)
 	}
 	return &PostgresAuthStore{db: db}, nil

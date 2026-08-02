@@ -81,13 +81,20 @@ func RecommendModel(rows []*ModelSweepResult) *ModelSweepResult {
 	return best
 }
 
-// modelSweepMigrations defines the PostgreSQL schema for sweep measurements.
-// Fresh namespaced ledger (model_sweep_schema_migrations): never renumber or
-// reuse a retired version in this list — append only.
-var modelSweepMigrations = []storage.Migration{
+// ModelSweepMigrations is the sweep-measurement schema as a single consolidated
+// baseline.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  create model_sweep_results table (measured steerability)
+//
+// Baseline is version 2 — above every number issued, so an existing database
+// applies it once and any drift between its schema and its bookkeeping is
+// repaired. Retired numbers are never reused; the next migration is version 3.
+var ModelSweepMigrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "create model_sweep_results table (measured steerability)",
+		Version:     2,
+		Description: "model sweep baseline (folds 1)",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS model_sweep_results (
 				project_id     TEXT NOT NULL,
@@ -118,7 +125,7 @@ type modelSweepStore struct {
 // NewModelSweepStore creates a PostgreSQL-backed ModelSweepStore, running its
 // (namespaced, idempotent) migrations first.
 func NewModelSweepStore(db *storage.PgDB) (ModelSweepStore, error) {
-	if err := storage.MigratePostgresNS(db, "model_sweep_schema_migrations", modelSweepMigrations); err != nil {
+	if err := storage.MigratePostgresNS(db, "model_sweep_schema_migrations", ModelSweepMigrations); err != nil {
 		return nil, fmt.Errorf("migrate model-sweep schema: %w", err)
 	}
 	return &modelSweepStore{db: db}, nil

@@ -16,18 +16,22 @@ func TestPostgresKnowledgeStore_ImplementsInterface(t *testing.T) {
 }
 
 func TestKgMigrations_Baseline(t *testing.T) {
-	// Single clean baseline (pre-launch — no migration history to preserve).
-	require.Len(t, kgMigrations, 1)
-	assert.Equal(t, 1, kgMigrations[0].Version)
-	assert.NotEmpty(t, kgMigrations[0].SQL)
+	// A single consolidated baseline, numbered above the one version this
+	// subsystem ever issued so an existing database applies it once — which is
+	// what repairs a database whose bookkeeping was emptied but whose schema
+	// was left standing.
+	require.Len(t, Migrations, 1)
+	assert.Equal(t, 2, Migrations[0].Version)
+	assert.NotEmpty(t, Migrations[0].SQL)
 
-	sql := kgMigrations[0].SQL
-	// All seven governance tables are part of the baseline.
+	sql := Migrations[0].SQL
+	// All seven governance tables are part of the baseline, and every CREATE is
+	// idempotent so the baseline can be replayed over a database that has them.
 	for _, table := range []string{
 		"kg_markets", "kg_observations", "kg_comments", "kg_concept_revisions",
 		"kg_changesets", "kg_changeset_ops", "kg_changeset_reviews", "kg_pilots",
 	} {
-		assert.Contains(t, sql, "CREATE TABLE "+table, "missing table %s", table)
+		assert.Contains(t, sql, "CREATE TABLE IF NOT EXISTS "+table, "missing table %s", table)
 	}
 	// Workspace-scoped composite primary keys, per the data-model note.
 	for _, pk := range []string{

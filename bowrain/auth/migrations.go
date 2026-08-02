@@ -2,27 +2,54 @@ package auth
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
-// authMigrationsPg defines the complete PostgreSQL auth schema.
-// Bowrain is not yet in production; there is no migration history to
-// preserve, so we keep a single baseline migration that represents
-// the current design.
-var authMigrationsPg = []storage.Migration{
+// Migrations is the complete PostgreSQL auth schema as a single consolidated
+// baseline.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  auth schema (baseline)
+//	2  add onboarded_at + slug reservations + email-change requests (#428 catch-up)
+//	3  groups, deny rules, workspace role overrides, separation-of-duties settings
+//	4  per-workspace preferred AI model (customer model choice)
+//	5  refresh-token reuse detection (family_id + consumed_at)
+//	6  workspace default brand-voice profile (hierarchical resolver base)
+//	7  user locale preference (locale-aware transactional emails)
+//
+// Versions 2, 4 and 6 were catch-ups: PR #428 had already added their columns
+// and tables to the v1 baseline, so they existed only to roll forward
+// databases that applied v1 before it was amended. A baseline creates
+// everything at once, so they leave no trace here beyond this ledger.
+//
+// The v5 backfill (UPDATE refresh_tokens SET family_id = id WHERE family_id =
+// ”) is not carried. It gave each pre-existing token its own singleton family
+// so a legacy token could never trigger a cross-token family wipe; a database
+// built from this baseline has no such tokens, and every token minted since
+// carries a family_id from the code.
+//
+// Baseline is version 8 — above every number issued, so an existing database
+// applies it once and any drift between its schema and its bookkeeping is
+// repaired. Retired numbers are never reused; the next migration is version 9.
+var Migrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "auth schema (baseline)",
+		Version:     8,
+		Description: "auth baseline (folds 1-7)",
 		SQL: `
-			CREATE TABLE users (
+			CREATE TABLE IF NOT EXISTS users (
 				id            TEXT PRIMARY KEY,
 				email         TEXT UNIQUE NOT NULL,
 				name          TEXT NOT NULL,
 				avatar_url    TEXT NOT NULL DEFAULT '',
 				oidc_sub      TEXT NOT NULL DEFAULT '',
 				onboarded_at  TIMESTAMPTZ,
+				-- BCP-47 primary subtag captured from Accept-Language at first
+				-- OIDC sign-in (empty = unknown → English). Drives the
+				-- locale-aware transactional-email send path.
+				locale        TEXT NOT NULL DEFAULT '',
 				created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX idx_users_oidc_sub ON users(oidc_sub);
+			CREATE INDEX IF NOT EXISTS idx_users_oidc_sub ON users(oidc_sub);
 
-			CREATE TABLE workspaces (
+			CREATE TABLE IF NOT EXISTS workspaces (
 				id                   TEXT PRIMARY KEY,
 				name                 TEXT NOT NULL,
 				slug                 TEXT UNIQUE NOT NULL,
@@ -41,7 +68,7 @@ var authMigrationsPg = []storage.Migration{
 				updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
-			CREATE TABLE workspace_members (
+			CREATE TABLE IF NOT EXISTS workspace_members (
 				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
 				user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 				role         TEXT NOT NULL DEFAULT 'member',
@@ -49,7 +76,7 @@ var authMigrationsPg = []storage.Migration{
 				PRIMARY KEY (workspace_id, user_id)
 			);
 
-			CREATE TABLE unclaimed_projects (
+			CREATE TABLE IF NOT EXISTS unclaimed_projects (
 				project_id               TEXT PRIMARY KEY,
 				claim_token              TEXT UNIQUE NOT NULL,
 				name                     TEXT NOT NULL,
@@ -58,9 +85,9 @@ var authMigrationsPg = []storage.Migration{
 				created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				expires_at               TIMESTAMPTZ NOT NULL
 			);
-			CREATE INDEX idx_unclaimed_expires ON unclaimed_projects(expires_at);
+			CREATE INDEX IF NOT EXISTS idx_unclaimed_expires ON unclaimed_projects(expires_at);
 
-			CREATE TABLE workspace_invites (
+			CREATE TABLE IF NOT EXISTS workspace_invites (
 				id           TEXT PRIMARY KEY,
 				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
 				code         TEXT UNIQUE NOT NULL,
@@ -73,16 +100,24 @@ var authMigrationsPg = []storage.Migration{
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
-			CREATE TABLE refresh_tokens (
-				id         TEXT PRIMARY KEY,
-				user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-				token_hash TEXT NOT NULL UNIQUE,
-				expires_at TIMESTAMPTZ NOT NULL,
-				created_at TIMESTAMPTZ NOT NULL
+			-- Rotating refresh tokens with reuse detection. family_id groups a
+			-- rotation chain: initial login opens a family, each rotation mints
+			-- the successor in the same family. consumed_at marks a token as
+			-- already rotated; presenting a consumed token again is the
+			-- signature of a stolen, replayed token and revokes the whole family.
+			CREATE TABLE IF NOT EXISTS refresh_tokens (
+				id          TEXT PRIMARY KEY,
+				user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				token_hash  TEXT NOT NULL UNIQUE,
+				family_id   TEXT NOT NULL DEFAULT '',
+				consumed_at TIMESTAMPTZ,
+				expires_at  TIMESTAMPTZ NOT NULL,
+				created_at  TIMESTAMPTZ NOT NULL
 			);
-			CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
+			CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
+			CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family ON refresh_tokens(family_id);
 
-			CREATE TABLE api_tokens (
+			CREATE TABLE IF NOT EXISTS api_tokens (
 				id           TEXT PRIMARY KEY,
 				user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
@@ -94,10 +129,10 @@ var authMigrationsPg = []storage.Migration{
 				expires_at   TIMESTAMPTZ,
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX idx_api_tokens_workspace ON api_tokens(workspace_id);
-			CREATE INDEX idx_api_tokens_user ON api_tokens(user_id);
+			CREATE INDEX IF NOT EXISTS idx_api_tokens_workspace ON api_tokens(workspace_id);
+			CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id);
 
-			CREATE TABLE role_templates (
+			CREATE TABLE IF NOT EXISTS role_templates (
 				id           TEXT NOT NULL,
 				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
 				name         TEXT NOT NULL,
@@ -112,7 +147,7 @@ var authMigrationsPg = []storage.Migration{
 				UNIQUE (workspace_id, name)
 			);
 
-			CREATE TABLE project_members (
+			CREATE TABLE IF NOT EXISTS project_members (
 				project_id   TEXT NOT NULL,
 				user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 				role_id      TEXT NOT NULL,
@@ -121,55 +156,23 @@ var authMigrationsPg = []storage.Migration{
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, user_id)
 			);
-			CREATE INDEX idx_project_members_user ON project_members(user_id, workspace_id);
-			CREATE INDEX idx_project_members_role ON project_members(workspace_id, role_id);
+			CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id, workspace_id);
+			CREATE INDEX IF NOT EXISTS idx_project_members_role ON project_members(workspace_id, role_id);
 
 			-- Slug rename history: when a workspace is renamed, the old slug is
 			-- reserved for a grace period (default 30d) so it cannot be reused
 			-- for impersonation. Reservations are GC'd after expiry.
-			CREATE TABLE workspace_slug_reservations (
-				slug           TEXT PRIMARY KEY,
-				workspace_id   TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-				reserved_until TIMESTAMPTZ NOT NULL,
-				created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
-			);
-			CREATE INDEX idx_slug_reservations_until ON workspace_slug_reservations(reserved_until);
-
-			-- Email-change requests: a verification token is sent to the new
-			-- address. Confirmation writes the new email through to Keycloak
-			-- via the admin API and updates users.email.
-			CREATE TABLE email_change_requests (
-				id         TEXT PRIMARY KEY,
-				user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-				new_email  TEXT NOT NULL,
-				token_hash TEXT UNIQUE NOT NULL,
-				expires_at TIMESTAMPTZ NOT NULL,
-				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-			);
-			CREATE INDEX idx_email_change_user ON email_change_requests(user_id);
-			CREATE INDEX idx_email_change_expires ON email_change_requests(expires_at);
-		`,
-	},
-	// PR #428 added onboarded_at, workspace_slug_reservations, and
-	// email_change_requests in the v1 baseline. Existing dev DBs already
-	// have v1 applied without these, so roll them forward idempotently.
-	// Issue #430.
-	{
-		Version:     2,
-		Description: "add onboarded_at + slug reservations + email-change requests (#428 catch-up)",
-		SQL: `
-			ALTER TABLE users
-				ADD COLUMN IF NOT EXISTS onboarded_at TIMESTAMPTZ;
-
 			CREATE TABLE IF NOT EXISTS workspace_slug_reservations (
 				slug           TEXT PRIMARY KEY,
 				workspace_id   TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
 				reserved_until TIMESTAMPTZ NOT NULL,
 				created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX IF NOT EXISTS idx_slug_reservations_until
-				ON workspace_slug_reservations(reserved_until);
+			CREATE INDEX IF NOT EXISTS idx_slug_reservations_until ON workspace_slug_reservations(reserved_until);
 
+			-- Email-change requests: a verification token is sent to the new
+			-- address. Confirmation writes the new email through to Keycloak
+			-- via the admin API and updates users.email.
 			CREATE TABLE IF NOT EXISTS email_change_requests (
 				id         TEXT PRIMARY KEY,
 				user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -178,16 +181,9 @@ var authMigrationsPg = []storage.Migration{
 				expires_at TIMESTAMPTZ NOT NULL,
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX IF NOT EXISTS idx_email_change_user
-				ON email_change_requests(user_id);
-			CREATE INDEX IF NOT EXISTS idx_email_change_expires
-				ON email_change_requests(expires_at);
-		`,
-	},
-	{
-		Version:     3,
-		Description: "groups, deny rules, workspace role overrides, separation-of-duties settings",
-		SQL: `
+			CREATE INDEX IF NOT EXISTS idx_email_change_user ON email_change_requests(user_id);
+			CREATE INDEX IF NOT EXISTS idx_email_change_expires ON email_change_requests(expires_at);
+
 			-- Groups (teams): bind a set of users to project roles in bulk.
 			CREATE TABLE IF NOT EXISTS groups (
 				id           TEXT PRIMARY KEY,
@@ -249,53 +245,6 @@ var authMigrationsPg = []storage.Migration{
 				mode         TEXT NOT NULL DEFAULT 'warn',
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-		`,
-	},
-	{
-		Version:     4,
-		Description: "per-workspace preferred AI model (customer model choice)",
-		SQL: `
-			ALTER TABLE workspaces
-				ADD COLUMN IF NOT EXISTS preferred_model TEXT NOT NULL DEFAULT '';
-		`,
-	},
-	// Refresh-token reuse detection (rotating tokens with family revocation).
-	// family_id groups a rotation chain: initial login opens a family, each
-	// rotation mints the successor in the same family. consumed_at marks a token
-	// as already rotated; presenting a consumed token again is the signature of a
-	// stolen, replayed token and revokes the whole family. Backfill each existing
-	// row into its own singleton family so a legacy token can never trigger a
-	// cross-token family wipe.
-	{
-		Version:     5,
-		Description: "refresh-token reuse detection (family_id + consumed_at)",
-		SQL: `
-			ALTER TABLE refresh_tokens
-				ADD COLUMN IF NOT EXISTS family_id   TEXT NOT NULL DEFAULT '',
-				ADD COLUMN IF NOT EXISTS consumed_at TIMESTAMPTZ;
-			UPDATE refresh_tokens SET family_id = id WHERE family_id = '';
-			CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family
-				ON refresh_tokens(family_id);
-		`,
-	},
-	{
-		Version:     6,
-		Description: "workspace default brand-voice profile (hierarchical resolver base)",
-		SQL: `
-			ALTER TABLE workspaces
-				ADD COLUMN IF NOT EXISTS brand_voice_profile_id TEXT NOT NULL DEFAULT '';
-		`,
-	},
-	// User locale preference: BCP-47 primary subtag captured from
-	// Accept-Language at first OIDC sign-in (empty = unknown → English).
-	// Drives the locale-aware transactional-email send path; a web-app
-	// locale switcher can persist here too (epic 017 C/D).
-	{
-		Version:     7,
-		Description: "user locale preference (locale-aware transactional emails)",
-		SQL: `
-			ALTER TABLE users
-				ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

@@ -76,11 +76,20 @@ type BrandScanJobStore interface {
 	ClearBrandScanUploadKeys(ctx context.Context, id string) error
 }
 
-// brandScanMigrations defines the PostgreSQL schema for brand-scan jobs.
-var brandScanMigrations = []storage.Migration{
+// BrandScanMigrations is the brand-scan jobs schema as a single consolidated
+// baseline.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  create brand_scan_jobs table
+//
+// Baseline is version 2 — above every number issued, so an existing database
+// applies it once and any drift between its schema and its bookkeeping is
+// repaired. Retired numbers are never reused; the next migration is version 3.
+var BrandScanMigrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "create brand_scan_jobs table",
+		Version:     2,
+		Description: "brand scan jobs baseline (folds 1)",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS brand_scan_jobs (
 				id             TEXT PRIMARY KEY,
@@ -117,7 +126,7 @@ type brandScanJobStore struct {
 // NewBrandScanJobStore creates a PostgreSQL-backed BrandScanJobStore, running
 // its (namespaced, idempotent) migrations first.
 func NewBrandScanJobStore(db *storage.PgDB) (BrandScanJobStore, error) {
-	if err := storage.MigratePostgresNS(db, "brand_scan_schema_migrations", brandScanMigrations); err != nil {
+	if err := storage.MigratePostgresNS(db, "brand_scan_schema_migrations", BrandScanMigrations); err != nil {
 		return nil, fmt.Errorf("migrate brand-scan schema: %w", err)
 	}
 	return &brandScanJobStore{db: db}, nil

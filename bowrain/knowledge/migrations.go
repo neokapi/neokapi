@@ -2,18 +2,24 @@ package knowledge
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
-// kgMigrations defines the complete knowledge-graph governance schema as a
-// single baseline. The platform is pre-launch with no databases to preserve, so
-// the schema is one clean definition (all seven tables from the data-model note)
-// rather than an incremental migration history. Every workspace-scoped table is
-// keyed by (workspace_id, …); timestamps are TIMESTAMPTZ; snapshot, payload, and
-// locales are JSONB.
-var kgMigrations = []storage.Migration{
+// Migrations is the knowledge-graph governance schema as a single consolidated
+// baseline: one clean definition of all seven tables from the data-model note.
+// Every workspace-scoped table is keyed by (workspace_id, …); timestamps are
+// TIMESTAMPTZ; snapshot, payload, and locales are JSONB.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  knowledge graph governance schema (baseline)
+//
+// Baseline is version 2 — above every number issued, so an existing database
+// applies it once and any drift between its schema and its bookkeeping is
+// repaired. Retired numbers are never reused; the next migration is version 3.
+var Migrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "knowledge graph governance schema (baseline)",
+		Version:     2,
+		Description: "knowledge graph baseline (folds 1)",
 		SQL: `
-			CREATE TABLE kg_markets (
+			CREATE TABLE IF NOT EXISTS kg_markets (
 				workspace_id TEXT NOT NULL,
 				id           TEXT NOT NULL,
 				name         TEXT NOT NULL,
@@ -24,7 +30,7 @@ var kgMigrations = []storage.Migration{
 				PRIMARY KEY (workspace_id, id)
 			);
 
-			CREATE TABLE kg_observations (
+			CREATE TABLE IF NOT EXISTS kg_observations (
 				workspace_id TEXT NOT NULL,
 				id           TEXT NOT NULL,
 				concept_id   TEXT NOT NULL,
@@ -39,9 +45,9 @@ var kgMigrations = []storage.Migration{
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (workspace_id, id)
 			);
-			CREATE INDEX idx_kg_observations_concept ON kg_observations(workspace_id, concept_id);
+			CREATE INDEX IF NOT EXISTS idx_kg_observations_concept ON kg_observations(workspace_id, concept_id);
 
-			CREATE TABLE kg_comments (
+			CREATE TABLE IF NOT EXISTS kg_comments (
 				workspace_id TEXT NOT NULL,
 				id           TEXT NOT NULL,
 				concept_id   TEXT NOT NULL,
@@ -53,10 +59,10 @@ var kgMigrations = []storage.Migration{
 				resolved     BOOLEAN NOT NULL DEFAULT FALSE,
 				PRIMARY KEY (workspace_id, id)
 			);
-			CREATE INDEX idx_kg_comments_concept ON kg_comments(workspace_id, concept_id);
-			CREATE INDEX idx_kg_comments_changeset ON kg_comments(workspace_id, changeset_id);
+			CREATE INDEX IF NOT EXISTS idx_kg_comments_concept ON kg_comments(workspace_id, concept_id);
+			CREATE INDEX IF NOT EXISTS idx_kg_comments_changeset ON kg_comments(workspace_id, changeset_id);
 
-			CREATE TABLE kg_concept_revisions (
+			CREATE TABLE IF NOT EXISTS kg_concept_revisions (
 				workspace_id TEXT NOT NULL,
 				concept_id   TEXT NOT NULL,
 				rev          BIGINT NOT NULL,
@@ -68,7 +74,7 @@ var kgMigrations = []storage.Migration{
 				PRIMARY KEY (workspace_id, concept_id, rev)
 			);
 
-			CREATE TABLE kg_changesets (
+			CREATE TABLE IF NOT EXISTS kg_changesets (
 				workspace_id TEXT NOT NULL,
 				id           TEXT NOT NULL,
 				name         TEXT NOT NULL DEFAULT '',
@@ -82,9 +88,9 @@ var kgMigrations = []storage.Migration{
 				merged_by    TEXT NOT NULL DEFAULT '',
 				PRIMARY KEY (workspace_id, id)
 			);
-			CREATE INDEX idx_kg_changesets_status ON kg_changesets(workspace_id, status);
+			CREATE INDEX IF NOT EXISTS idx_kg_changesets_status ON kg_changesets(workspace_id, status);
 
-			CREATE TABLE kg_changeset_ops (
+			CREATE TABLE IF NOT EXISTS kg_changeset_ops (
 				workspace_id TEXT NOT NULL,
 				changeset_id TEXT NOT NULL,
 				seq          BIGINT NOT NULL,
@@ -96,7 +102,7 @@ var kgMigrations = []storage.Migration{
 				PRIMARY KEY (workspace_id, changeset_id, seq)
 			);
 
-			CREATE TABLE kg_changeset_reviews (
+			CREATE TABLE IF NOT EXISTS kg_changeset_reviews (
 				workspace_id TEXT NOT NULL,
 				changeset_id TEXT NOT NULL,
 				reviewer     TEXT NOT NULL,
@@ -106,7 +112,7 @@ var kgMigrations = []storage.Migration{
 				PRIMARY KEY (workspace_id, changeset_id, reviewer)
 			);
 
-			CREATE TABLE kg_pilots (
+			CREATE TABLE IF NOT EXISTS kg_pilots (
 				workspace_id TEXT NOT NULL,
 				changeset_id TEXT NOT NULL,
 				project_id   TEXT NOT NULL,
@@ -115,7 +121,7 @@ var kgMigrations = []storage.Migration{
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (workspace_id, changeset_id, project_id, stream)
 			);
-			CREATE INDEX idx_kg_pilots_stream ON kg_pilots(workspace_id, project_id, stream);
+			CREATE INDEX IF NOT EXISTS idx_kg_pilots_stream ON kg_pilots(workspace_id, project_id, stream);
 		`,
 	},
 }

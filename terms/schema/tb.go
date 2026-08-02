@@ -159,6 +159,29 @@ const pgTermsFuzzyBlock = `
 			FOR EACH ROW EXECUTE FUNCTION tb_terms_search_tsv_update();
 		`
 
+// pgTermsFuzzyBaselineBlock is pgTermsFuzzyBlock made replayable, for the
+// consolidated baseline.
+//
+// Two statements in the historical block are not idempotent: the ADD COLUMN,
+// and the backfill that rewrites every row. A baseline is applied to databases
+// that may already have both.
+//
+// It is DERIVED from the historical block rather than written out again. The
+// historical renderers are a record of how the schema was built and must keep
+// producing exactly what they always produced — that is what the
+// semantic-equivalence test in this package pins — so the record is left alone
+// and the baseline states its difference from it, in one place, instead of
+// duplicating fifteen lines that would drift.
+var pgTermsFuzzyBaselineBlock = strings.NewReplacer(
+	"ADD COLUMN search_tsv tsvector;",
+	"ADD COLUMN IF NOT EXISTS search_tsv tsvector;",
+
+	// WHERE-guarded so a replay over a populated table is a no-op rather than
+	// a full table rewrite; the trigger maintains the column from here on.
+	"UPDATE tb_terms SET search_tsv = to_tsvector('simple', text_lower);",
+	"UPDATE tb_terms SET search_tsv = to_tsvector('simple', text_lower)\n\t\t\tWHERE search_tsv IS NULL;",
+).Replace(pgTermsFuzzyBlock)
+
 // ── SQLite render (byte-identical to the historical migrations) ──────────────
 
 // RenderTermsSQLiteV1 renders the v1 SQLite terms migration body, byte-identical
@@ -224,6 +247,31 @@ func RenderTermsPostgresV2() string {
 // and the tsvector search column/trigger.
 func RenderTermsPostgresV3() string {
 	return pgTermsFuzzyBlock
+}
+
+// RenderTermsPostgresBaseline renders the whole current Postgres terms schema
+// in one pass: every column present from the start, so nothing is added by a
+// later ALTER.
+//
+// This is what the consolidated tb_schema_migrations baseline applies. The V1–V4
+// renderers above stay because they are the record of how the schema was built,
+// and the semantic-equivalence test in this package compares what they produce
+// against what this renders — a baseline that drifted from the history it folds
+// would otherwise be invisible.
+//
+// It is deliberately assembled from the same descriptors rather than written
+// out as literal SQL: a column added to tbConcepts or tbTerms lands in the
+// baseline and in the SQLite backend together, which is the property that keeps
+// the two backends from drifting.
+func RenderTermsPostgresBaseline() string {
+	o := sq.Opt{IfNotExists: true}
+	return tbConcepts.Create(sq.Postgres, o) +
+		tbConcepts.CreateIndexes(sq.Postgres, o) +
+		tbTerms.Create(sq.Postgres, o) +
+		tbTerms.CreateIndexes(sq.Postgres, o) +
+		tbRelations.Create(sq.Postgres, o) +
+		tbRelations.CreateIndexes(sq.Postgres, o) +
+		pgTermsFuzzyBaselineBlock
 }
 
 // RenderTermsPostgresV4 renders the v4 Postgres migration: the source column on

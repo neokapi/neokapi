@@ -28,7 +28,7 @@ type PostgresKnowledgeStore struct {
 // NewPostgresKnowledgeStore creates a PostgreSQL-backed knowledge store and
 // applies the baseline schema under the knowledge_schema_migrations namespace.
 func NewPostgresKnowledgeStore(db *storage.PgDB) (*PostgresKnowledgeStore, error) {
-	if err := storage.MigratePostgresNS(db, "knowledge_schema_migrations", kgMigrations); err != nil {
+	if err := storage.MigratePostgresNS(db, "knowledge_schema_migrations", Migrations); err != nil {
 		return nil, fmt.Errorf("knowledge migration: %w", err)
 	}
 	return &PostgresKnowledgeStore{db: db}, nil

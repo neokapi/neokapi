@@ -25,39 +25,41 @@ type PostgresStore struct {
 
 // NewPostgresStoreFromDB creates a PostgresStore using an existing shared PgDB connection.
 func NewPostgresStoreFromDB(db *storage.PgDB, workspaceID string) (*PostgresStore, error) {
-	if err := storage.MigratePostgresNS(db, "tb_schema_migrations", tbMigrationsPg); err != nil {
+	if err := storage.MigratePostgresNS(db, "tb_schema_migrations", Migrations); err != nil {
 		return nil, fmt.Errorf("migrate terms schema: %w", err)
 	}
 	return &PostgresStore{db: db, workspaceID: workspaceID}, nil
 }
 
-// tbMigrationsPg is the bowrain Postgres terms schema. Each migration renders
-// from the shared descriptors in terms/schema, the same source the framework
-// SQLite backend renders from, so the two backends cannot drift (semantic
-// equivalence is statement-set tested in terms/schema). Version numbers are
-// preserved so existing databases are untouched; the fuzzy infrastructure
-// (pg_trgm GIN + a tsvector column/trigger) is the Postgres analogue of the
-// SQLite FTS5 trigram virtual table.
-var tbMigrationsPg = []storage.Migration{
+// Migrations is the bowrain Postgres terms schema as a single consolidated
+// baseline. It renders from the shared descriptors in terms/schema, the same
+// source the framework SQLite backend renders from, so the two backends cannot
+// drift (semantic equivalence is statement-set tested in terms/schema). The
+// fuzzy infrastructure (pg_trgm GIN + a tsvector column/trigger) is the Postgres
+// analogue of the SQLite FTS5 trigram virtual table.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  terms schema
+//	2  add stream column to concepts
+//	3  pg_trgm trigram index for fuzzy term matching + tsvector for UI search
+//	4  brand knowledge graph: concept source, term competitor/validity, persisted relations
+//
+// Baseline is version 5, above every number issued, so a database that already
+// recorded 4 applies it once more. This subsystem is why that matters: terms
+// migrates lazily on first workspace access, not at boot, so when its
+// bookkeeping was emptied on 2026-08-01 the replay of version 2 failed with
+// `column "stream" of relation "tb_concepts" already exists` — inside a
+// translation job, which reported only "terms resolution failed" and carried
+// on without enforcement. The baseline is idempotent, so the same replay now
+// repairs the ledger instead of taking enforcement offline.
+//
+// Retired numbers are never reused. The next migration is version 6.
+var Migrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "terms schema",
-		SQL:         tbschema.RenderTermsPostgresV1(),
-	},
-	{
-		Version:     2,
-		Description: "add stream column to concepts",
-		SQL:         tbschema.RenderTermsPostgresV2(),
-	},
-	{
-		Version:     3,
-		Description: "pg_trgm trigram index for fuzzy term matching + tsvector for UI search",
-		SQL:         tbschema.RenderTermsPostgresV3(),
-	},
-	{
-		Version:     4,
-		Description: "brand knowledge graph: concept source, term competitor/validity, persisted relations",
-		SQL:         tbschema.RenderTermsPostgresV4(),
+		Version:     5,
+		Description: "terms baseline (folds 1-4)",
+		SQL:         tbschema.RenderTermsPostgresBaseline(),
 	},
 }
 

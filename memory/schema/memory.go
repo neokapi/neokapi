@@ -188,6 +188,19 @@ const pgFuzzyBlock = "\t\tCREATE EXTENSION IF NOT EXISTS pg_trgm;\n" +
 	"\t\t\tGENERATED ALWAYS AS (to_tsvector('simple', plain)) STORED;\n" +
 	"\t\tCREATE INDEX idx_tm_var_search_tsv ON tm_variants USING gin (search_tsv);\n"
 
+// pgFuzzyBaselineBlock is pgFuzzyBlock made replayable, for the consolidated
+// baseline.
+//
+// DERIVED from the historical block rather than written out again: the
+// historical renderers are a record of how the schema was built and must keep
+// producing exactly what they always produced (pinned by the
+// semantic-equivalence test in this package), so the record is left alone and
+// the baseline states its difference from it in one place.
+var pgFuzzyBaselineBlock = strings.NewReplacer(
+	"CREATE INDEX idx_tm_var_", "CREATE INDEX IF NOT EXISTS idx_tm_var_",
+	"ADD COLUMN search_tsv tsvector", "ADD COLUMN IF NOT EXISTS search_tsv tsvector",
+).Replace(pgFuzzyBlock)
+
 // sqliteV1Opt renders the historical v1 SQLite layout: two-tab indentation,
 // IF NOT EXISTS, aligned index names, has_codes/concept_id excluded (added by
 // later migrations).
@@ -241,6 +254,48 @@ func RenderMemoryPostgresCreate() string {
 	b.WriteString("\n")
 	b.WriteString(memoryEntryEntities.Create(sq.Postgres, o))
 	b.WriteString(memoryEntryEntities.CreateIndexes(sq.Postgres, o, "idx_entities_type"))
+	b.WriteString("\n")
+	b.WriteString(memoryEntryEntityValues.Create(sq.Postgres, o))
+	b.WriteString(memoryEntryEntityValues.CreateIndexes(sq.Postgres, o))
+	b.WriteString("\n")
+	b.WriteString(memoryImportSessions.Create(sq.Postgres, o))
+	b.WriteString(memoryImportSessions.CreateIndexes(sq.Postgres, o))
+	b.WriteString("\n")
+	b.WriteString(memoryEntryOrigins.Create(sq.Postgres, o))
+	b.WriteString(memoryEntryOrigins.CreateIndexes(sq.Postgres, o))
+	return b.String()
+}
+
+// RenderMemoryPostgresBaseline renders the whole current Postgres content
+// memory schema in one pass: every column present from the start, so nothing is
+// added by a later ALTER.
+//
+// This is what the consolidated tm_schema_migrations baseline applies. Two
+// differences from RenderMemoryPostgresCreate are deliberate:
+//
+//   - concept_id is NOT excluded. Historical v5 added it by ALTER; a baseline
+//     creates the table with it.
+//   - has_codes stays excluded. It is a SQLite-only column — no Postgres
+//     migration has ever added it, so including it here would invent a column
+//     production does not have.
+//
+// The leading DROP TABLE statements of historical v4 are deliberately absent.
+// They existed to clear the legacy bilingual tables during that one upgrade,
+// and a baseline is re-applied by design — carrying them would mean every
+// migrate pass silently destroyed the content memory it was meant to preserve.
+func RenderMemoryPostgresBaseline() string {
+	o := sq.Opt{AlignIndexes: true, IfNotExists: true, Exclude: []string{"has_codes"}}
+	var b strings.Builder
+	b.WriteString(memoryEntries.Create(sq.Postgres, o))
+	b.WriteString(memoryEntries.CreateIndexes(sq.Postgres, o, "idx_tm_project", "idx_tm_updated", "idx_tm_stream"))
+	b.WriteString("\n")
+	b.WriteString(memoryVariants.Create(sq.Postgres, o))
+	b.WriteString(memoryVariants.CreateIndexes(sq.Postgres, o))
+	b.WriteString("\n")
+	b.WriteString(pgFuzzyBaselineBlock)
+	b.WriteString("\n")
+	b.WriteString(memoryEntryEntities.Create(sq.Postgres, o))
+	b.WriteString(memoryEntryEntities.CreateIndexes(sq.Postgres, o, "idx_entities_type", "idx_entities_concept"))
 	b.WriteString("\n")
 	b.WriteString(memoryEntryEntityValues.Create(sq.Postgres, o))
 	b.WriteString(memoryEntryEntityValues.CreateIndexes(sq.Postgres, o))

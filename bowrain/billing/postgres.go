@@ -11,20 +11,45 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 )
 
-// Migration ledger — versions 1..6 are live in production; the list is
-// append-only. NEVER reuse a version number, even for a migration that was
-// later found unnecessary: deployed databases record applied versions and
-// silently skip a reused number (see the repo-wide migration-squash
-// postmortem). No versions have been retired from this list.
-var billingMigrations = []storage.Migration{
+// Migrations is the billing schema as a single consolidated baseline.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  create billing tables
+//	2  allow empty stripe_customer_id for non-Stripe subscriptions (trials, admin overrides)
+//	3  track processed Stripe webhook events for idempotent delivery
+//	4  give local trials an end date so they can expire
+//	5  idempotency guard for one-time credit-pack grants
+//	6  document the monthly-credits period model on the allocation columns
+//
+// NEVER reuse a version number, even for a migration later found unnecessary:
+// deployed databases record applied versions and silently skip a reused number
+// (see the repo-wide migration-squash postmortem).
+//
+// Two things v2 did are folded rather than replayed. It dropped the inline
+// UNIQUE on subscriptions.stripe_customer_id and replaced it with a PARTIAL
+// unique index of the same name, so the baseline declares the column without a
+// constraint and creates that index directly. The v4 backfill (dating existing
+// trials from created_at) is not carried: it repaired rows written before
+// trial_ends_at existed, and a database built from this baseline has none.
+//
+// Baseline is version 7 — above every number issued, so an existing database
+// applies it once and any drift between its schema and its bookkeeping is
+// repaired. Retired numbers are never reused; the next migration is version 8.
+var Migrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "create billing tables",
+		Version:     7,
+		Description: "billing baseline (folds 1-6)",
 		SQL: `
-			CREATE TABLE subscriptions (
+			CREATE TABLE IF NOT EXISTS subscriptions (
 				id                     TEXT PRIMARY KEY,
 				workspace_id           TEXT NOT NULL UNIQUE,
-				stripe_customer_id     TEXT NOT NULL UNIQUE,
+				-- Nullable with an empty default, and deliberately NOT UNIQUE
+				-- here: a subscription that never went through Stripe (a local
+				-- trial, an admin override) has no customer id, and many of them
+				-- would collide on ''. Uniqueness is enforced by the partial
+				-- index below, over real customer ids only.
+				stripe_customer_id     TEXT DEFAULT '',
 				stripe_subscription_id TEXT,
 				plan                   TEXT NOT NULL DEFAULT 'free',
 				status                 TEXT NOT NULL DEFAULT 'active',
@@ -32,11 +57,18 @@ var billingMigrations = []storage.Migration{
 				current_period_start   TIMESTAMPTZ,
 				current_period_end     TIMESTAMPTZ,
 				cancel_at              TIMESTAMPTZ,
+				trial_ends_at          TIMESTAMPTZ,
 				created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
+			CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_stripe_customer_id_key
+				ON subscriptions (stripe_customer_id)
+				WHERE stripe_customer_id IS NOT NULL AND stripe_customer_id != '';
+			CREATE INDEX IF NOT EXISTS idx_subscriptions_trialing
+				ON subscriptions (trial_ends_at)
+				WHERE status = 'trialing';
 
-			CREATE TABLE credit_allocations (
+			CREATE TABLE IF NOT EXISTS credit_allocations (
 				id             TEXT PRIMARY KEY,
 				workspace_id   TEXT NOT NULL,
 				credits_total  BIGINT NOT NULL,
@@ -48,7 +80,7 @@ var billingMigrations = []storage.Migration{
 				UNIQUE(workspace_id, week_start, source)
 			);
 
-			CREATE TABLE credit_ledger (
+			CREATE TABLE IF NOT EXISTS credit_ledger (
 				id             BIGSERIAL PRIMARY KEY,
 				workspace_id   TEXT NOT NULL,
 				allocation_id  TEXT,
@@ -58,9 +90,18 @@ var billingMigrations = []storage.Migration{
 				reference_id   TEXT,
 				created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX idx_credit_ledger_workspace ON credit_ledger(workspace_id, created_at);
+			CREATE INDEX IF NOT EXISTS idx_credit_ledger_workspace ON credit_ledger(workspace_id, created_at);
 
-			CREATE TABLE feature_overrides (
+			-- A purchased credit-pack grant must happen exactly once per Stripe
+			-- checkout, even though the webhook can be delivered more than once
+			-- and rolls its event marker back on a partial failure. The Stripe
+			-- session id lands in reference_id; this makes a second grant for the
+			-- same session collide rather than double-credit the workspace.
+			CREATE UNIQUE INDEX IF NOT EXISTS credit_ledger_purchase_ref
+				ON credit_ledger (workspace_id, reference_id)
+				WHERE operation = 'purchase' AND reference_id <> '';
+
+			CREATE TABLE IF NOT EXISTS feature_overrides (
 				id           TEXT PRIMARY KEY,
 				workspace_id TEXT NOT NULL,
 				feature      TEXT NOT NULL,
@@ -72,7 +113,7 @@ var billingMigrations = []storage.Migration{
 				UNIQUE(workspace_id, feature)
 			);
 
-			CREATE TABLE workspace_notes (
+			CREATE TABLE IF NOT EXISTS workspace_notes (
 				id           BIGSERIAL PRIMARY KEY,
 				workspace_id TEXT NOT NULL,
 				author_email TEXT NOT NULL,
@@ -80,87 +121,28 @@ var billingMigrations = []storage.Migration{
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
-			CREATE TABLE billing_events (
+			CREATE TABLE IF NOT EXISTS billing_events (
 				id           BIGSERIAL PRIMARY KEY,
 				workspace_id TEXT NOT NULL,
 				event_type   TEXT NOT NULL,
 				detail       TEXT NOT NULL DEFAULT '',
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX idx_billing_events_type ON billing_events(event_type, created_at);
-		`,
-	},
-	{
-		Version:     2,
-		Description: "allow empty stripe_customer_id for non-Stripe subscriptions (trials, admin overrides)",
-		SQL: `
-			ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS subscriptions_stripe_customer_id_key;
-			ALTER TABLE subscriptions ALTER COLUMN stripe_customer_id DROP NOT NULL;
-			ALTER TABLE subscriptions ALTER COLUMN stripe_customer_id SET DEFAULT '';
-			CREATE UNIQUE INDEX subscriptions_stripe_customer_id_key
-				ON subscriptions (stripe_customer_id)
-				WHERE stripe_customer_id IS NOT NULL AND stripe_customer_id != '';
-		`,
-	},
-	{
-		Version:     3,
-		Description: "track processed Stripe webhook events for idempotent delivery",
-		SQL: `
-			CREATE TABLE processed_stripe_events (
+			CREATE INDEX IF NOT EXISTS idx_billing_events_type ON billing_events(event_type, created_at);
+
+			CREATE TABLE IF NOT EXISTS processed_stripe_events (
 				event_id     TEXT PRIMARY KEY,
 				event_type   TEXT NOT NULL,
 				processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-		`,
-	},
-	{
-		Version:     4,
-		Description: "give local trials an end date so they can expire",
-		SQL: `
-			ALTER TABLE subscriptions ADD COLUMN trial_ends_at TIMESTAMPTZ;
 
-			-- Trials created before this column existed have no deadline and would
-			-- never expire. Date them from their creation so the sweeper picks them
-			-- up on the same 14-day terms they were granted under.
-			UPDATE subscriptions
-			   SET trial_ends_at = created_at + INTERVAL '14 days'
-			 WHERE status = 'trialing' AND trial_ends_at IS NULL;
-
-			CREATE INDEX idx_subscriptions_trialing
-				ON subscriptions (trial_ends_at)
-				WHERE status = 'trialing';
-		`,
-	},
-	{
-		Version:     5,
-		Description: "idempotency guard for one-time credit-pack grants",
-		SQL: `
-			-- A purchased credit-pack grant must happen exactly once per Stripe
-			-- checkout, even though the webhook can be delivered more than once and
-			-- rolls its event marker back on a partial failure. The Stripe session
-			-- id lands in reference_id; this makes a second grant for the same
-			-- session collide rather than double-credit the workspace.
-			CREATE UNIQUE INDEX credit_ledger_purchase_ref
-				ON credit_ledger (workspace_id, reference_id)
-				WHERE operation = 'purchase' AND reference_id <> '';
-		`,
-	},
-	{
-		Version:     6,
-		Description: "document the monthly-credits period model on the allocation columns",
-		SQL: `
-			-- Monthly credits (this migration's epic): plan allocations are now keyed
-			-- on the CALENDAR MONTH (UTC) instead of the calendar week, the Free plan
-			-- has no recurring allowance (replaced by a one-time source='trial' grant
-			-- in the non-expiring sentinel period, like purchased packs), and spend
-			-- cascades plan -> trial -> purchased.
-			--
-			-- Deliberately no data rewrite: renaming week_start/week_end or rewriting
-			-- rows is not a zero-downtime change, and none is needed — current-week
-			-- plan rows from the weekly era stop matching the month-keyed queries
-			-- immediately and simply age out; the workspace receives its month
-			-- allocation on next touch, deduped on the month key by
-			-- UNIQUE(workspace_id, week_start, source).
+			-- Monthly credits: plan allocations are keyed on the CALENDAR MONTH
+			-- (UTC) rather than the calendar week, the Free plan has no recurring
+			-- allowance (replaced by a one-time source='trial' grant in the
+			-- non-expiring sentinel period, like purchased packs), and spend
+			-- cascades plan -> trial -> purchased. The week_* column names are
+			-- historical; renaming them is not a zero-downtime change and buys
+			-- nothing, so the meaning is documented on the columns instead.
 			COMMENT ON COLUMN credit_allocations.week_start IS
 				'Allocation period start (UTC). plan: calendar-month start (calendar-week Monday before the monthly-credits change); trial/purchased: non-expiring sentinel 1970-01-01. Column name is historical.';
 			COMMENT ON COLUMN credit_allocations.week_end IS
@@ -176,7 +158,7 @@ type PgBillingStore struct {
 
 // NewPgBillingStore creates a PostgreSQL-backed BillingStore and runs migrations.
 func NewPgBillingStore(db *storage.PgDB) (*PgBillingStore, error) {
-	if err := storage.MigratePostgresNS(db, "billing_schema_migrations", billingMigrations); err != nil {
+	if err := storage.MigratePostgresNS(db, "billing_schema_migrations", Migrations); err != nil {
 		return nil, fmt.Errorf("migrate billing schema: %w", err)
 	}
 	return &PgBillingStore{db: db}, nil

@@ -22,9 +22,11 @@ import (
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/cmd/internal/boot"
 	"github.com/neokapi/neokapi/bowrain/crypto"
+	"github.com/neokapi/neokapi/bowrain/migrations"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/neokapi/neokapi/bowrain/server"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/version"
 )
 
@@ -93,6 +95,36 @@ func acceptStripeValue(envVar string, valid func(string) bool, want string) stri
 	}
 }
 
+// runMigrateOnly applies every subsystem's schema baseline and exits.
+//
+// It is the middle step of the data reset: phase 1 preserves identity and drops
+// the schema, this rebuilds it, phase 2 puts identity back. Running it as a
+// one-off task rather than waiting on a service restart makes the reset a
+// sequence of steps that each either succeed or fail, instead of a poll loop
+// guessing when the schema has appeared.
+//
+// It is safe to run against a database that is already current: the baselines
+// are idempotent, so this is also the repair path for a database whose
+// bookkeeping was emptied while its schema was left standing.
+func runMigrateOnly(databaseURL string) error {
+	if err := boot.ValidatePostgresURL("BOWRAIN_DATABASE_URL", databaseURL); err != nil {
+		return err
+	}
+
+	db, err := storage.OpenPostgres(databaseURL)
+	if err != nil {
+		return fmt.Errorf("open PostgreSQL: %w", err)
+	}
+	defer db.Close()
+
+	slog.Info("applying schema baselines", "subsystems", len(migrations.All()))
+	if err := migrations.Apply(db, slog.Info); err != nil {
+		return err
+	}
+	slog.Info("schema is current")
+	return nil
+}
+
 func run() error {
 	// Flush buffered Sentry events before the process exits (main calls os.Exit
 	// after run returns, which would skip a main-level defer).
@@ -111,6 +143,8 @@ func run() error {
 	flag.StringVar(&cfg.WebUIDir, "web-ui-dir", cfg.WebUIDir, "Path to built web UI static files")
 	allowInsecureDev := flag.Bool("allow-insecure-dev", false,
 		"Allow starting without BOWRAIN_JWT_SECRET / BOWRAIN_DATABASE_URL, and approve device authorizations without an identity provider (local development only; also BOWRAIN_ALLOW_INSECURE_DEV=1)")
+	migrateOnly := flag.Bool("migrate-only", false,
+		"Apply every subsystem's schema baseline and exit, without serving. Used by the data-reset runbook between dropping the schema and restoring identity.")
 	flag.Parse()
 
 	// Allow environment variable overrides.
@@ -136,6 +170,15 @@ func run() error {
 	}
 	if err := guardSecretsKey(cfg.SecretsKey, cfg.DatabaseURL); err != nil {
 		return err
+	}
+
+	// --migrate-only runs before any of the OIDC, SMTP or Stripe configuration
+	// below, because building a schema needs none of it. That is the point: the
+	// data-reset runbook drops the schema and then has to rebuild it, and a
+	// rebuild that first demanded a working identity provider would couple the
+	// reset to services it has no business depending on.
+	if *migrateOnly {
+		return runMigrateOnly(cfg.DatabaseURL)
 	}
 	if envJWT := os.Getenv("BOWRAIN_JWT_SECRET"); envJWT != "" {
 		cfg.JWTSecret = envJWT

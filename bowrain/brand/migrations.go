@@ -2,16 +2,28 @@ package brand
 
 import "github.com/neokapi/neokapi/bowrain/storage"
 
-// brandMigrations holds the brand-voice schema. Version 1 is the launch
-// baseline; the platform is live now, so every schema change after it MUST be
-// an incremental migration — existing databases only ever run new versions,
-// never a re-run of the baseline.
-var brandMigrations = []storage.Migration{
+// Migrations is the brand-voice schema as a single consolidated baseline.
+//
+// LEDGER — every version this subsystem has ever issued, now folded in:
+//
+//	1  brand voice schema (baseline)
+//	2  author personas on brand profiles
+//
+// The personas column version 2 added by ALTER is declared in the CREATE below.
+//
+// Baseline is version 3 — above every number issued, so an existing database
+// applies it once and any drift between its schema and its bookkeeping is
+// repaired. Because the baseline is idempotent and re-applied by design, the
+// old warning that changes "MUST be incremental, never a re-run of the
+// baseline" no longer holds: a re-run is now the mechanism, not the hazard.
+//
+// Retired numbers are never reused; the next migration is version 4.
+var Migrations = []storage.Migration{
 	{
-		Version:     1,
-		Description: "brand voice schema (baseline)",
+		Version:     3,
+		Description: "brand voice baseline (folds 1-2)",
 		SQL: `
-			CREATE TABLE brand_profiles (
+			CREATE TABLE IF NOT EXISTS brand_profiles (
 				id           TEXT PRIMARY KEY,
 				workspace_id TEXT NOT NULL,
 				name         TEXT NOT NULL,
@@ -23,15 +35,16 @@ var brandMigrations = []storage.Migration{
 				locales      JSONB NOT NULL DEFAULT '{}',
 				channels     JSONB NOT NULL DEFAULT '{}',
 				autonomy     JSONB NOT NULL DEFAULT '{}',
+				personas     JSONB NOT NULL DEFAULT '{}',
 				version      INTEGER NOT NULL DEFAULT 1,
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				created_by   TEXT NOT NULL DEFAULT '',
 				UNIQUE (workspace_id, name)
 			);
-			CREATE INDEX idx_brand_profiles_workspace ON brand_profiles(workspace_id);
+			CREATE INDEX IF NOT EXISTS idx_brand_profiles_workspace ON brand_profiles(workspace_id);
 
-			CREATE TABLE brand_profile_versions (
+			CREATE TABLE IF NOT EXISTS brand_profile_versions (
 				profile_id TEXT NOT NULL,
 				version    INTEGER NOT NULL,
 				snapshot   JSONB NOT NULL,
@@ -41,7 +54,7 @@ var brandMigrations = []storage.Migration{
 				PRIMARY KEY (profile_id, version)
 			);
 
-			CREATE TABLE brand_profile_tags (
+			CREATE TABLE IF NOT EXISTS brand_profile_tags (
 				profile_id TEXT NOT NULL,
 				name       TEXT NOT NULL,
 				version    INTEGER NOT NULL,
@@ -50,7 +63,7 @@ var brandMigrations = []storage.Migration{
 				PRIMARY KEY (profile_id, name)
 			);
 
-			CREATE TABLE brand_voice_scores (
+			CREATE TABLE IF NOT EXISTS brand_voice_scores (
 				id              TEXT PRIMARY KEY,
 				project_id      TEXT NOT NULL,
 				stream          TEXT NOT NULL DEFAULT 'main',
@@ -63,11 +76,11 @@ var brandMigrations = []storage.Migration{
 				findings        JSONB NOT NULL,
 				checked_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX idx_bvs_project_stream ON brand_voice_scores(project_id, stream);
-			CREATE INDEX idx_bvs_profile_score ON brand_voice_scores(profile_id, score);
-			CREATE INDEX idx_bvs_project_locale ON brand_voice_scores(project_id, locale);
+			CREATE INDEX IF NOT EXISTS idx_bvs_project_stream ON brand_voice_scores(project_id, stream);
+			CREATE INDEX IF NOT EXISTS idx_bvs_profile_score ON brand_voice_scores(profile_id, score);
+			CREATE INDEX IF NOT EXISTS idx_bvs_project_locale ON brand_voice_scores(project_id, locale);
 
-			CREATE TABLE brand_voice_corrections (
+			CREATE TABLE IF NOT EXISTS brand_voice_corrections (
 				id             TEXT PRIMARY KEY,
 				profile_id     TEXT NOT NULL,
 				block_id       TEXT NOT NULL,
@@ -78,9 +91,9 @@ var brandMigrations = []storage.Migration{
 				corrected_by   TEXT NOT NULL,
 				corrected_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
-			CREATE INDEX idx_bvc_profile_dim ON brand_voice_corrections(profile_id, dimension);
+			CREATE INDEX IF NOT EXISTS idx_bvc_profile_dim ON brand_voice_corrections(profile_id, dimension);
 
-			CREATE TABLE brand_rule_decisions (
+			CREATE TABLE IF NOT EXISTS brand_rule_decisions (
 				profile_id       TEXT NOT NULL,
 				term             TEXT NOT NULL,
 				replacement      TEXT NOT NULL DEFAULT '',
@@ -94,14 +107,6 @@ var brandMigrations = []storage.Migration{
 				decided_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (profile_id, term)
 			);
-		`,
-	},
-	{
-		Version:     2,
-		Description: "author personas on brand profiles",
-		SQL: `
-			ALTER TABLE brand_profiles
-				ADD COLUMN IF NOT EXISTS personas JSONB NOT NULL DEFAULT '{}';
 		`,
 	},
 }
