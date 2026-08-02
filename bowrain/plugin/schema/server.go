@@ -14,6 +14,7 @@ package schema
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 )
 
@@ -77,28 +78,45 @@ func (s *ServerSpec) ResolvedConverge() ConvergePolicy {
 	return s.Converge
 }
 
-// ServerURL returns the base server URL extracted from the compound URL.
-func (s *ServerSpec) ServerURL() string {
-	if s == nil {
+// ProjectURLEnvVar redirects a bowrain-connected recipe at a different
+// server/workspace/project, without editing the recipe.
+//
+// It exists for dogfooding. A repo whose committed recipe points at production
+// cannot be iterated on locally without editing that recipe, and an edited
+// recipe is one `git commit -a` away from redirecting everyone's pushes. This
+// makes the local run an environment variable instead — the same shape as
+// BOWRAIN_AUTH_TOKEN, which already supplies the credential the same way.
+//
+// It REDIRECTS, it does not CONNECT: a recipe with no server block stays a
+// pure local project however this is set. Arming a project for a server is a
+// decision that belongs in the recipe, in git, where it can be reviewed.
+const ProjectURLEnvVar = "BOWRAIN_PROJECT_URL"
+
+// resolvedURL is the compound project URL in force: the environment override
+// when set and the recipe is already connected, otherwise the recipe's own.
+func (s *ServerSpec) resolvedURL() string {
+	if s == nil || s.URL == "" {
 		return ""
 	}
-	return ParseProjectURL(s.URL).ServerURL
+	if v := strings.TrimSpace(os.Getenv(ProjectURLEnvVar)); v != "" {
+		return v
+	}
+	return s.URL
+}
+
+// ServerURL returns the base server URL extracted from the compound URL.
+func (s *ServerSpec) ServerURL() string {
+	return ParseProjectURL(s.resolvedURL()).ServerURL
 }
 
 // ProjectID returns the project ID extracted from the compound URL.
 func (s *ServerSpec) ProjectID() string {
-	if s == nil {
-		return ""
-	}
-	return ParseProjectURL(s.URL).ProjectID
+	return ParseProjectURL(s.resolvedURL()).ProjectID
 }
 
 // Workspace returns the workspace slug extracted from the compound URL.
 func (s *ServerSpec) Workspace() string {
-	if s == nil {
-		return ""
-	}
-	return ParseProjectURL(s.URL).Workspace
+	return ParseProjectURL(s.resolvedURL()).Workspace
 }
 
 // Validate checks that the server spec is well-formed.
@@ -106,18 +124,21 @@ func (s *ServerSpec) Validate() error {
 	if s == nil || s.URL == "" {
 		return nil
 	}
-	u, err := url.Parse(s.URL)
+	// Validate the URL actually in force, so a malformed override is rejected
+	// here rather than surfacing later as a confusing connection error.
+	raw := s.resolvedURL()
+	u, err := url.Parse(raw)
 	if err != nil {
-		return fmt.Errorf("url: %q is not a valid URL: %w", s.URL, err)
+		return fmt.Errorf("url: %q is not a valid URL: %w", raw, err)
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("url: %q must use http or https", s.URL)
+		return fmt.Errorf("url: %q must use http or https", raw)
 	}
 	if u.Host == "" {
-		return fmt.Errorf("url: %q must include a host", s.URL)
+		return fmt.Errorf("url: %q must include a host", raw)
 	}
-	if info := ParseProjectURL(s.URL); info.ProjectID == "" {
-		return fmt.Errorf("url: %q does not contain a project ID (expected <server>/<workspace>/<project> or <server>/projects/<project>)", s.URL)
+	if info := ParseProjectURL(raw); info.ProjectID == "" {
+		return fmt.Errorf("url: %q does not contain a project ID (expected <server>/<workspace>/<project> or <server>/projects/<project>)", raw)
 	}
 	switch s.Converge {
 	case "", ConvergeOnPush, ConvergeManual:

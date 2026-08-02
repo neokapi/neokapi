@@ -155,6 +155,12 @@ func (c *SyncCache) Save(layout coreproj.Layout) error {
 	return os.WriteFile(SyncCachePathFor(layout), data, 0o644)
 }
 
+// NewEmptySyncCache returns a cache describing nothing yet synced. Callers use
+// it to discard a cache that belongs to a different server or project: what it
+// records — confirmed block hashes, issued stream cursors, the context the
+// server holds — is true of that destination and of no other.
+func NewEmptySyncCache() *SyncCache { return newEmptySyncCache() }
+
 func newEmptySyncCache() *SyncCache {
 	return &SyncCache{
 		Files:         map[string]*FileCache{},

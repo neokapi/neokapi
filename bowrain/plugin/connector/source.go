@@ -116,6 +116,22 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 
 	cache := LoadSyncCache(project.Layout)
 
+	// The cache describes ONE server's view of this project: block hashes the
+	// server confirmed, stream cursors it issued, the context it holds. Pointed
+	// at a different server or project — switching between production and a
+	// local stack, or redirecting with BOWRAIN_PROJECT_URL — none of that
+	// describes the new destination, and reusing it makes the first push
+	// conclude nothing has changed and send nothing at all.
+	//
+	// The cache already recorded which server it belonged to; nothing ever
+	// compared it. Comparing it turns a silently empty push into a full one.
+	if cache.ServerURL != "" &&
+		(config.NormalizeServerURL(cache.ServerURL) != serverURL || cache.ProjectID != projectID) {
+		cache = bproject.NewEmptySyncCache()
+		cache.ServerURL = serverURL
+		cache.ProjectID = projectID
+	}
+
 	var client *apiclient.BowrainClient
 	switch {
 	case cache.ClaimToken != "":
