@@ -179,16 +179,27 @@ const ftsTrigramBlock = "\t\tCREATE VIRTUAL TABLE IF NOT EXISTS tm_variant_trigr
 
 // pgFuzzyBlock is the Postgres pg_trgm GIN + tsvector fuzzy infrastructure on
 // tm_variants (the equivalent of the SQLite FTS virtual tables).
-// Every statement is idempotent so the block can sit inside a consolidated
-// baseline that is applied to a database which already has it.
 const pgFuzzyBlock = "\t\tCREATE EXTENSION IF NOT EXISTS pg_trgm;\n" +
-	"\t\tCREATE INDEX IF NOT EXISTS idx_tm_var_trgm_plain   ON tm_variants USING gin (plain gin_trgm_ops);\n" +
-	"\t\tCREATE INDEX IF NOT EXISTS idx_tm_var_trgm_struct  ON tm_variants USING gin (struct_key gin_trgm_ops);\n" +
-	"\t\tCREATE INDEX IF NOT EXISTS idx_tm_var_trgm_general ON tm_variants USING gin (general_key gin_trgm_ops);\n" +
+	"\t\tCREATE INDEX idx_tm_var_trgm_plain   ON tm_variants USING gin (plain gin_trgm_ops);\n" +
+	"\t\tCREATE INDEX idx_tm_var_trgm_struct  ON tm_variants USING gin (struct_key gin_trgm_ops);\n" +
+	"\t\tCREATE INDEX idx_tm_var_trgm_general ON tm_variants USING gin (general_key gin_trgm_ops);\n" +
 	"\n" +
-	"\t\tALTER TABLE tm_variants ADD COLUMN IF NOT EXISTS search_tsv tsvector\n" +
+	"\t\tALTER TABLE tm_variants ADD COLUMN search_tsv tsvector\n" +
 	"\t\t\tGENERATED ALWAYS AS (to_tsvector('simple', plain)) STORED;\n" +
-	"\t\tCREATE INDEX IF NOT EXISTS idx_tm_var_search_tsv ON tm_variants USING gin (search_tsv);\n"
+	"\t\tCREATE INDEX idx_tm_var_search_tsv ON tm_variants USING gin (search_tsv);\n"
+
+// pgFuzzyBaselineBlock is pgFuzzyBlock made replayable, for the consolidated
+// baseline.
+//
+// DERIVED from the historical block rather than written out again: the
+// historical renderers are a record of how the schema was built and must keep
+// producing exactly what they always produced (pinned by the
+// semantic-equivalence test in this package), so the record is left alone and
+// the baseline states its difference from it in one place.
+var pgFuzzyBaselineBlock = strings.NewReplacer(
+	"CREATE INDEX idx_tm_var_", "CREATE INDEX IF NOT EXISTS idx_tm_var_",
+	"ADD COLUMN search_tsv tsvector", "ADD COLUMN IF NOT EXISTS search_tsv tsvector",
+).Replace(pgFuzzyBlock)
 
 // sqliteV1Opt renders the historical v1 SQLite layout: two-tab indentation,
 // IF NOT EXISTS, aligned index names, has_codes/concept_id excluded (added by
@@ -281,7 +292,7 @@ func RenderMemoryPostgresBaseline() string {
 	b.WriteString(memoryVariants.Create(sq.Postgres, o))
 	b.WriteString(memoryVariants.CreateIndexes(sq.Postgres, o))
 	b.WriteString("\n")
-	b.WriteString(pgFuzzyBlock)
+	b.WriteString(pgFuzzyBaselineBlock)
 	b.WriteString("\n")
 	b.WriteString(memoryEntryEntities.Create(sq.Postgres, o))
 	b.WriteString(memoryEntryEntities.CreateIndexes(sq.Postgres, o, "idx_entities_type", "idx_entities_concept"))

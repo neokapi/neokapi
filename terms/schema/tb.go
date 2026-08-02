@@ -144,12 +144,8 @@ const pgTermsFuzzyBlock = `
 
 		CREATE INDEX IF NOT EXISTS idx_tb_terms_trgm ON tb_terms USING gin (text_lower gin_trgm_ops);
 
-		ALTER TABLE tb_terms ADD COLUMN IF NOT EXISTS search_tsv tsvector;
-		-- Backfill rows that predate the column. WHERE-guarded so replaying
-		-- this block over a populated table is a no-op rather than a full
-		-- table rewrite; the trigger below maintains it from here on.
-		UPDATE tb_terms SET search_tsv = to_tsvector('simple', text_lower)
-			WHERE search_tsv IS NULL;
+		ALTER TABLE tb_terms ADD COLUMN search_tsv tsvector;
+		UPDATE tb_terms SET search_tsv = to_tsvector('simple', text_lower);
 		CREATE INDEX IF NOT EXISTS idx_tb_terms_search_tsv ON tb_terms USING gin (search_tsv);
 
 		CREATE OR REPLACE FUNCTION tb_terms_search_tsv_update() RETURNS trigger AS $$
@@ -162,6 +158,29 @@ const pgTermsFuzzyBlock = `
 		CREATE TRIGGER tb_terms_search_tsv_trigger BEFORE INSERT OR UPDATE ON tb_terms
 			FOR EACH ROW EXECUTE FUNCTION tb_terms_search_tsv_update();
 		`
+
+// pgTermsFuzzyBaselineBlock is pgTermsFuzzyBlock made replayable, for the
+// consolidated baseline.
+//
+// Two statements in the historical block are not idempotent: the ADD COLUMN,
+// and the backfill that rewrites every row. A baseline is applied to databases
+// that may already have both.
+//
+// It is DERIVED from the historical block rather than written out again. The
+// historical renderers are a record of how the schema was built and must keep
+// producing exactly what they always produced — that is what the
+// semantic-equivalence test in this package pins — so the record is left alone
+// and the baseline states its difference from it, in one place, instead of
+// duplicating fifteen lines that would drift.
+var pgTermsFuzzyBaselineBlock = strings.NewReplacer(
+	"ADD COLUMN search_tsv tsvector;",
+	"ADD COLUMN IF NOT EXISTS search_tsv tsvector;",
+
+	// WHERE-guarded so a replay over a populated table is a no-op rather than
+	// a full table rewrite; the trigger maintains the column from here on.
+	"UPDATE tb_terms SET search_tsv = to_tsvector('simple', text_lower);",
+	"UPDATE tb_terms SET search_tsv = to_tsvector('simple', text_lower)\n\t\t\tWHERE search_tsv IS NULL;",
+).Replace(pgTermsFuzzyBlock)
 
 // ── SQLite render (byte-identical to the historical migrations) ──────────────
 
@@ -252,7 +271,7 @@ func RenderTermsPostgresBaseline() string {
 		tbTerms.CreateIndexes(sq.Postgres, o) +
 		tbRelations.Create(sq.Postgres, o) +
 		tbRelations.CreateIndexes(sq.Postgres, o) +
-		pgTermsFuzzyBlock
+		pgTermsFuzzyBaselineBlock
 }
 
 // RenderTermsPostgresV4 renders the v4 Postgres migration: the source column on
