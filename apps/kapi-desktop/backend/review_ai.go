@@ -222,10 +222,14 @@ func fixFindingsInstruction(currentTarget string, findings []string, extra strin
 // store when it still judges the given translation, else nil.
 func (a *App) freshAIReview(op *openProject, key string, loc model.LocaleID, targetText string) *state.AIReview {
 	root := filepath.Dir(op.Path)
-	st, err := state.Open(host.StateFilePath(op.Project, root))
+	st, err := host.OpenProjectState(op.Project, root)
 	if err != nil {
 		return nil
 	}
+	// The working store holds a database handle; this is called per unit while
+	// rendering a review, so leaking one here would exhaust them.
+	defer st.Close()
+
 	us, found := st.Get(state.Key{Unit: key, Variant: model.Variant(loc)})
 	if !found {
 		return nil

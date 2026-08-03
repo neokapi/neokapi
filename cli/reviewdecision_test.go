@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 )
 
@@ -83,12 +83,7 @@ func TestApplyReviewDecision_RejectedReturnsToDraft(t *testing.T) {
 	assert.Equal(t, 0, after.Locales[0].Pct["reviewed"])
 
 	// The note survives in the committed state artifact.
-	data, err := os.ReadFile(filepath.Join(root, ".kapi-state.json"))
-	require.NoError(t, err)
-	var f struct {
-		Units []state.UnitState `json:"units"`
-	}
-	require.NoError(t, json.Unmarshal(data, &f))
+	f := struct{ Units []state.UnitState }{Units: readCommittedUnits(t, root)}
 	require.Len(t, f.Units, 1)
 	assert.Equal(t, "draft", string(f.Units[0].Status))
 	assert.Equal(t, ReviewDecisionRejected, f.Units[0].Decision.ReviewState)
@@ -198,4 +193,15 @@ content:
 	require.NoError(t, err)
 	require.Len(t, rep.Review, 1)
 	assert.Equal(t, "app", rep.Review[0].Collection)
+}
+
+// readCommittedUnits reads the project's committed unit record: JSON Lines
+// sharded by document under the state directory, rather than the single JSON
+// artifact it used to be.
+func readCommittedUnits(t *testing.T, root string) []state.UnitState {
+	t.Helper()
+	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
+	units, err := state.ReadCommitted(layout.UnitsDir())
+	require.NoError(t, err)
+	return units
 }

@@ -2,7 +2,6 @@ package backend
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -195,12 +195,7 @@ func TestRunAIPreReview_AnnotateOnly(t *testing.T) {
 	assert.Equal(t, map[string]int{"greeting": 95, "farewell": 40}, frScores)
 
 	// No decisions were recorded — only annotations.
-	data, err := os.ReadFile(filepath.Join(root, ".kapi-state.json"))
-	require.NoError(t, err)
-	var f struct {
-		Units []state.UnitState `json:"units"`
-	}
-	require.NoError(t, json.Unmarshal(data, &f))
+	f := struct{ Units []state.UnitState }{Units: readCommittedUnits(t, root)}
 	for _, u := range f.Units {
 		assert.Empty(t, u.Decision.ReviewState)
 		assert.Empty(t, u.Status)
@@ -235,12 +230,7 @@ func TestRunAIPreReview_AutoApprove(t *testing.T) {
 
 	// The approval carries the honest ai/<model> identity, and the annotation
 	// rides along on the same record.
-	data, err := os.ReadFile(filepath.Join(root, ".kapi-state.json"))
-	require.NoError(t, err)
-	var f struct {
-		Units []state.UnitState `json:"units"`
-	}
-	require.NoError(t, json.Unmarshal(data, &f))
+	f := struct{ Units []state.UnitState }{Units: readCommittedUnits(t, root)}
 	approved := 0
 	for _, u := range f.Units {
 		if u.Decision.ReviewState == "approved" {
@@ -287,4 +277,15 @@ func TestRunAIPreReview_EmptyScope(t *testing.T) {
 	res, err := app.RunAIPreReview(tab.ID, "fr-FR", PreReviewScope{Collection: "nope"}, PreReviewPolicy{})
 	require.NoError(t, err)
 	assert.Zero(t, res.Reviewed)
+}
+
+// readCommittedUnits reads the project's committed unit record: JSON Lines
+// sharded by document under the state directory, rather than the single JSON
+// artifact it used to be.
+func readCommittedUnits(t *testing.T, root string) []state.UnitState {
+	t.Helper()
+	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
+	units, err := state.ReadCommitted(layout.UnitsDir())
+	require.NoError(t, err)
+	return units
 }

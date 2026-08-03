@@ -214,7 +214,13 @@ func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (r
 	if err != nil {
 		return idx, err
 	}
-	for _, u := range st.All() {
+	defer st.Close()
+
+	all, err := st.All()
+	if err != nil {
+		return idx, err
+	}
+	for _, u := range all {
 		switch u.Status {
 		case model.TargetStatusReviewed, model.TargetStatusSignedOff, model.TargetStatusDraft:
 			idx.byUnit[reviewUnitKey(u.Unit, string(u.Variant.Locale))] = reviewedEntry{

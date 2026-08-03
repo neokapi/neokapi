@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -157,8 +159,7 @@ func TestReview_EditAfterApprovalInvalidatesReview(t *testing.T) {
 	t.Chdir(root)
 
 	writeReviewedCorrection(t, root, "Apple", "Eple") // approve a→Eple
-	assert.FileExists(t, filepath.Join(root, ".kapi-state.json"),
-		"approval exports the committed state artifact")
+	assertCommittedUnits(t, root, 1, "approval commits to the project's unit record")
 	nb, ok := locale(runStatusJSON(t), "nb")
 	require.True(t, ok)
 	assert.Equal(t, 50, nb.Pct["reviewed"], "the approved unit counts as reviewed")
@@ -197,7 +198,7 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 		Kind: kindReview, File: item.File, ID: item.Key, Locale: item.Locale, Status: "reviewed",
 	})
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
-	assert.FileExists(t, filepath.Join(root, ".kapi-state.json"), "approval exports the state artifact")
+	assertCommittedUnits(t, root, 1, "approval commits to the project's unit record")
 
 	nb, ok := locale(runStatusJSON(t), "nb")
 	require.True(t, ok)
@@ -208,4 +209,14 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 		Kind: kindReview, File: item.File, ID: item.Key, Locale: item.Locale, Status: "reviewed",
 	})
 	assert.Equal(t, "skipped", res2.Status)
+}
+
+// assertCommittedUnits reads the committed record — JSON Lines sharded by
+// document under the state directory — and asserts how many units it holds.
+func assertCommittedUnits(t *testing.T, root string, want int, msg string) {
+	t.Helper()
+	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
+	units, err := state.ReadCommitted(layout.UnitsDir())
+	require.NoError(t, err)
+	assert.Len(t, units, want, msg)
 }

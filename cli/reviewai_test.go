@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -59,12 +58,7 @@ func TestApplyReviewDecisionAs_RecordsIdentity(t *testing.T) {
 		ReviewDecisionApproved, "", "agent/claude-code")
 	require.NoError(t, err)
 
-	data, err := os.ReadFile(filepath.Join(root, ".kapi-state.json"))
-	require.NoError(t, err)
-	var f struct {
-		Units []state.UnitState `json:"units"`
-	}
-	require.NoError(t, json.Unmarshal(data, &f))
+	f := struct{ Units []state.UnitState }{Units: readCommittedUnits(t, root)}
 	byUnit := map[string]state.UnitState{}
 	for _, u := range f.Units {
 		byUnit[u.Unit] = u
@@ -228,12 +222,7 @@ func TestRecordAIReviews_SurvivesDecision(t *testing.T) {
 		ReviewDecisionApproved, "", "ai/claude-x")
 	require.NoError(t, err)
 
-	data, err := os.ReadFile(filepath.Join(root, ".kapi-state.json"))
-	require.NoError(t, err)
-	var f struct {
-		Units []state.UnitState `json:"units"`
-	}
-	require.NoError(t, json.Unmarshal(data, &f))
+	f := struct{ Units []state.UnitState }{Units: readCommittedUnits(t, root)}
 	require.Len(t, f.Units, 1)
 	require.NotNil(t, f.Units[0].AIReview, "the annotation rides along with the decision")
 	assert.Equal(t, 97, f.Units[0].AIReview.Score)

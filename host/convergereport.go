@@ -216,6 +216,7 @@ func (a *App) recordDecisionState(proj *project.KapiProject, root, unit string, 
 	if err != nil {
 		return false, err
 	}
+	defer st.Close()
 	k := state.Key{Unit: unit, Variant: model.Variant(locale)}
 	th := targetHash(target)
 	prev, hadPrev := st.Get(k)
@@ -239,8 +240,11 @@ func (a *App) recordDecisionState(proj *project.KapiProject, root, unit string, 
 			next.AIReview = prev.AIReview
 		}
 	}
-	st.Put(next)
-	if err := st.Export(); err != nil {
+	if err := st.Put(next); err != nil {
+		return false, err
+	}
+	// One decision, so the batch is this decision: commit it now.
+	if err := st.Commit(); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -281,6 +285,7 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 	if err != nil {
 		return 0, err
 	}
+	defer st.Close()
 
 	recorded := 0
 	loc := model.LocaleID(locale)
@@ -317,12 +322,15 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 			r := rev
 			us.AIReview = &r
 			us.Updated = rev.At
-			st.Put(us)
+			if err := st.Put(us); err != nil {
+				return recorded, err
+			}
 			recorded++
 		}
 	}
+	// Committed once for the whole batch rather than once per annotation.
 	if recorded > 0 {
-		if err := st.Export(); err != nil {
+		if err := st.Commit(); err != nil {
 			return recorded, err
 		}
 	}
@@ -412,6 +420,7 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 			if serr != nil {
 				return nil, serr
 			}
+			defer st.Close()
 			if us, found := st.Get(state.Key{Unit: ref.Key, Variant: model.Variant(loc)}); found {
 				th := targetHash(info.Target)
 				if !us.Stale(th) {

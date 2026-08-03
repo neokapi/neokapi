@@ -104,7 +104,15 @@ bowrain/web/docs/i18n/nb/
 
 # Dogfood project state for the root kapi.yaml recipe — rebuilt from the
 # committed seeds via `make l10n-seed`.
-/.kapi/
+# The state directory is derived and gitignored — EXCEPT the committed unit
+# record, which is authored decision data: the review ladder, who approved what,
+# and the identity each decision belongs to. It belongs in the change that caused
+# the drift, and a fresh clone must reconcile correctly without a server.
+#
+# Listed as /.kapi/* rather than /.kapi/ because git does not descend into an
+# ignored directory, so a negation inside one never matches.
+/.kapi/*
+!/.kapi/units/
 # A `kapi memory`/`kapi terms` run with no --file/--name defaults to --local,
 # which writes these into the working directory. They are rebuildable state, not
 # source (AD-009/AD-010), so they must never be committed. The names track

@@ -268,3 +268,33 @@ func layoutAtDir(dir string) (Layout, error) {
 		StateDir:   filepath.Join(dir, StateDirName),
 	}, nil
 }
+
+// WorkDirName is the state subdirectory holding the derived working set.
+//
+// Gitignored, and disposable ONCE COMMITTED: the working store is an index over
+// the committed record, so deleting it costs nothing that has been serialized.
+// It is not filed under cache/ because until a decision is committed this holds
+// the only copy of it, and cache means regenerable.
+const WorkDirName = "work"
+
+// WorkDir returns the absolute path of the derived working-set root.
+func (l Layout) WorkDir() string {
+	return filepath.Join(l.StateDir, WorkDirName)
+}
+
+// WorkStorePath returns the working store database.
+func (l Layout) WorkStorePath() string {
+	return filepath.Join(l.WorkDir(), "state.db")
+}
+
+// UnitsDirName holds the committed record — one JSON Lines shard per document.
+//
+// Tracked, unlike everything else under the state directory: this is authored
+// decision data, so it belongs in the review that caused the drift and must
+// survive a fresh clone with no server.
+const UnitsDirName = "units"
+
+// UnitsDir returns the absolute path of the committed unit record.
+func (l Layout) UnitsDir() string {
+	return filepath.Join(l.StateDir, UnitsDirName)
+}
