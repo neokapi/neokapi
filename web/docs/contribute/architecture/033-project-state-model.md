@@ -141,50 +141,15 @@ rather than introducing a new one.
 
 ### Decisions are unit-keyed and content-hash-bound
 
-State is keyed by `(unit identity, variant)`, where variant is locale plus
-optional tone/channel. Each decision additionally records a `targetHash`: the
-content hash of the *specific* translation it blesses. A decision is **stale**
-when the current translation's hash differs from the one recorded, so editing an
-approved translation drops the unit back below *reviewed* on its own.
-
-This is the load-bearing pair. A recycle-style index keyed only by a
-`(source, target)` pair — the shape the old memory-based hack used — structurally
-cannot express staleness, because it has nowhere to record *which* translation a
-decision blessed. Unit-keying plus `targetHash` is what makes an approval unable
-to silently outlive the text it approved.
-
-#### Unit identity is the source content hash
-
-`state.UnitKey(b)` is `ComputeContentHash(b.SourceText())`.
-
-An earlier implementation used the block key — `b.Name` when set, otherwise
-`b.ID` — and `b.ID` is **positional** for unnamed blocks. Measured on the JSON
-reader:
-
-```
-v1:  tu1=Alpha   tu2=Bravo    tu3=Charlie
-v2:  tu1=Alpha   tu2=Charlie          ← tu2 now means different content
-```
-
-An approval recorded against `tu2` therefore survived into a world where `tu2`
-was different text. Nothing shipped wrongly — `targetHash` caught the
-misapplication and the unit read as stale — but "safe" is not "durable": a block
-removed and re-added rejoined its approval only if it happened to land back at
-the same position, and a renamed key lost the approval for text nobody had
-touched.
-
-Hashing the source makes identity follow the words. A block removed and re-added
-anywhere keeps its decisions; renaming a JSON key without changing the words
-keeps them too, which is the honest outcome because nobody re-decided anything.
-Editing the words yields a different unit, and `targetHash` would have caught it
-regardless — the two guards are independent by design.
-
-**The trade, accepted deliberately:** two blocks with identical source text are
-one unit, so approving one approves both. Identical text in the same variant
-should not carry two different translations; where it genuinely must, the
-difference belongs in the `VariantKey` (tone/channel) — the governance point —
-rather than in a positional accident of the file. Per-occurrence review of
-identical text is therefore not expressible, and that is the cost.
+State is keyed by the **unit** — `(unit identity, variant)` where variant is
+locale plus optional tone/channel — not by content. Each decision additionally
+records a `targetHash`: the content hash of the *specific* translation it
+blesses. A decision is **stale** when the current translation's hash differs from
+the one the decision recorded, so editing an approved translation drops the unit
+back below *reviewed* on its own. A content-keyed index (the shape the old
+memory-based hack used) structurally cannot express this — unit-keying plus
+`targetHash` is what
+makes an approval unable to silently outlive the text it approved.
 
 ### Layering — the model in `core/`, the IO with its surface
 

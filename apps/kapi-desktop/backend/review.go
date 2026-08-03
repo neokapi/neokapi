@@ -251,7 +251,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	// decision still judges the current translation.
 	root := filepath.Dir(op.Path)
 	if st, serr := state.Open(host.StateFilePath(op.Project, root)); serr == nil {
-		if us, found := st.Get(state.Key{Unit: state.UnitKey(b), Variant: model.Variant(loc)}); found {
+		if us, found := st.Get(state.Key{Unit: key, Variant: model.Variant(loc)}); found {
 			th := project.HashBytes([]byte(strings.TrimSpace(targetText)))
 			if !us.Stale(th) {
 				if us.Status != "" {
