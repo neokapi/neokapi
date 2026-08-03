@@ -523,12 +523,21 @@ func keyedSide(blocks []diffBlock) bool {
 // names became structural.
 func disambiguatedSide(blocks []diffBlock) bool {
 	for _, b := range blocks {
-		if strings.Contains(b.ID, model.NameOrdinalSeparator) {
+		if strings.Contains(b.ID, model.NameOrdinalSeparator) || sequenceIndexed.MatchString(b.ID) {
 			return true
 		}
 	}
 	return false
 }
+
+// sequenceIndexed matches the "[n]" step key-path formats use for a position in
+// a sequence — `messages.items.[2]` in JSON and YAML.
+//
+// It counts for the same reason the ordinal above does: insert an element and
+// every later index in that sequence shifts, so aligning on these names reports
+// one insertion as a run of changes. A map key is a real address and a sequence
+// index is not, and a key path can contain both.
+var sequenceIndexed = regexp.MustCompile(`\[[0-9]+\]`)
 
 // positionalAutoID matches an alpha prefix followed by digits ("tu12", "d3"),
 // the shape readers use for position-encoding auto-IDs.

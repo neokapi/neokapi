@@ -24,6 +24,14 @@ type dmlParser struct {
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
 	rels          map[string]relationship
+	// path addresses each block by part plus the shape it sits in — see
+	// structural_name.go. shapeStep is the current shape's step, taken from
+	// its <p:cNvPr id> when the part supplies one (PowerPoint keeps those
+	// stable across edits) and from its position in the part otherwise.
+	path      oxmlPath
+	shapeStep string
+	shapeSeq  int
+	paraSeq   int
 
 	// stripEmptyParaProps mirrors okapi's BlockProperties.Default.
 	// getEvents (line 169-171 of okapi/filters/openxml/src/main/java/
@@ -93,6 +101,9 @@ func pptxSlideNum(partPath string) int {
 
 // parsePart streams through a DrawingML XML part, emitting Blocks.
 func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*model.Block)) error {
+	// Root block names at this part before any shape opens — a later
+	// re-rooting would drop the shape scope already pushed.
+	p.path.ensurePart(partPath)
 	d := xml.NewDecoder(bytes.NewReader(data))
 
 	for {
@@ -172,7 +183,38 @@ func (p *dmlParser) captureShapeGeometry(t xml.StartElement) {
 		p.hasOff, p.hasExt = false, false
 	case "sp", "pic", "graphicFrame", "cxnSp":
 		p.hasOff, p.hasExt = false, false
+		p.openShape()
+	case "cNvPr", "docPr":
+		// The shape's own id, which PowerPoint keeps across edits. It beats
+		// the positional step reserved when the shape opened.
+		if id := attrVal(t, "id"); id != "" {
+			p.setShapeID(id)
+		}
 	}
+}
+
+// openShape starts a new shape scope: the step is positional until a
+// <p:cNvPr id> inside it supplies the shape's own key.
+func (p *dmlParser) openShape() {
+	p.path.scopes = nil
+	p.shapeSeq++
+	p.shapeStep = ordinalStep("shape", p.shapeSeq)
+	p.path.pushStep("shape", p.shapeStep)
+	p.paraSeq = 0
+}
+
+// setShapeID replaces the open shape's positional step with its own id.
+func (p *dmlParser) setShapeID(id string) {
+	p.shapeStep = "shape[" + id + "]"
+	p.path.scopes = nil
+	p.path.pushStep("shape", p.shapeStep)
+}
+
+// blockName addresses a paragraph inside the current shape.
+func (p *dmlParser) paragraphName(partPath string) string {
+	p.path.ensurePart(partPath)
+	p.paraSeq++
+	return p.path.name(ordinalStep("p", p.paraSeq))
 }
 
 // attachShapeGeometry sets the block's page geometry from the current shape's
@@ -411,6 +453,7 @@ func (p *dmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 
 	return &model.Block{
 		ID:           id,
+		Name:         p.paragraphName(partPath),
 		Type:         "paragraph",
 		Translatable: true,
 		Source:       b.Runs(),
@@ -468,8 +511,10 @@ func (p *dmlParser) emitDrawingProp(a xml.Attr, partPath string, emitBlock func(
 	if a.Name.Local == "title" {
 		element = "drawing-title"
 	}
+	p.path.ensurePart(partPath)
 	block := &model.Block{
 		ID:           id,
+		Name:         p.path.name("@" + a.Name.Local),
 		Type:         "property",
 		Translatable: false,
 		Source:       []model.Run{{Text: &model.TextRun{Text: a.Value}}},

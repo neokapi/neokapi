@@ -34,11 +34,16 @@ func (p *wmlParser) writeOMathSubSkeleton(raw string, emitBlock func(*model.Bloc
 		prev = sp.End
 	}
 	cursor := 0
-	for _, sp := range spans {
+	// The equation's own address, and each prose span's position within it.
+	// Both are scoped to the paragraph the equation sits in, so prose in
+	// another equation cannot move them.
+	eq := p.path.reserve("oMath")
+	for i, sp := range spans {
 		p.skelText(raw[cursor:sp.Start])
 		*p.blockCounter++
 		id := fmt.Sprintf("tu%d", *p.blockCounter)
 		blk := model.NewBlock(id, sp.Text)
+		blk.Name = p.path.name(eq, ordinalStep("nor", i+1))
 		blk.Type = ommlNorBlockType
 		emitBlock(blk)
 		p.skelRef(id)

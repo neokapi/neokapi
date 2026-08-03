@@ -10,6 +10,7 @@ import (
 	htmlfmt "github.com/neokapi/neokapi/core/formats/html"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/reconcile"
 )
 
 // HTML has two readers — a DOM walk (convert / inspect) and a tokenizer that
@@ -97,9 +98,9 @@ func TestStructuralName_DeletionInAnotherSubtreeDoesNotRename(t *testing.T) {
 			after := htmlNamesByText(t, mode, v2)
 
 			require.Equal(t, "div/p", before["Alpha"])
-			require.Equal(t, "div/p[2]", before["Bravo"])
-			require.Equal(t, "div[2]/p", before["Charlie"])
-			require.Equal(t, "div[2]/p[2]", before["Delta"])
+			require.Equal(t, "div/p#2", before["Bravo"])
+			require.Equal(t, "div#2/p", before["Charlie"])
+			require.Equal(t, "div#2/p#2", before["Delta"])
 
 			assert.Equal(t, before["Charlie"], after["Charlie"],
 				"a paragraph in an untouched subtree must keep its name — the ordinal is scoped to its own parent")
@@ -119,7 +120,7 @@ func TestStructuralName_IdenticalTextGetsDistinctNames(t *testing.T) {
 	for _, mode := range htmlModes() {
 		t.Run(mode.name, func(t *testing.T) {
 			names := htmlNames(t, mode, doc)
-			assert.Equal(t, []string{"div/p", "div/p[2]", "section/p"}, names)
+			assert.Equal(t, []string{"div/p", "div/p#2", "section/p"}, names)
 
 			seen := map[string]bool{}
 			for _, n := range names {
@@ -135,9 +136,10 @@ func TestStructuralName_StableAcrossTwoReads(t *testing.T) {
 
 	for _, mode := range htmlModes() {
 		t.Run(mode.name, func(t *testing.T) {
-			assert.Equal(t, htmlNames(t, mode, doc), htmlNames(t, mode, doc),
+			first, second := htmlNames(t, mode, doc), htmlNames(t, mode, doc)
+			assert.Equal(t, first, second,
 				"two reads of identical bytes must produce identical names")
-			assert.Equal(t, []string{"h1", "div/p", "div/p[2]", "p"}, htmlNames(t, mode, doc))
+			assert.Equal(t, []string{"h1", "div/p", "div/p#2", "p"}, htmlNames(t, mode, doc))
 		})
 	}
 }
@@ -151,7 +153,7 @@ func TestStructuralName_IDAnchorsThePath(t *testing.T) {
 
 	for _, mode := range htmlModes() {
 		t.Run(mode.name, func(t *testing.T) {
-			assert.Equal(t, []string{"nav-id/p", "nav-id/p[2]"}, htmlNames(t, mode, shallow))
+			assert.Equal(t, []string{"nav-id/p", "nav-id/p#2"}, htmlNames(t, mode, shallow))
 			assert.Equal(t, htmlNames(t, mode, shallow), htmlNames(t, mode, buried),
 				"an id anchors the path, so relocating the subtree renames nothing inside it")
 		})
@@ -167,7 +169,7 @@ func TestStructuralName_AttributeBlocksAreAddressed(t *testing.T) {
 		t.Run(mode.name, func(t *testing.T) {
 			names := htmlNames(t, mode, doc)
 			assert.Contains(t, names, "p/img@alt")
-			assert.Contains(t, names, "p/img[2]@alt")
+			assert.Contains(t, names, "p/img#2@alt")
 		})
 	}
 }
@@ -184,4 +186,74 @@ func TestStructuralName_ImplicitWrappersAreNotPartOfThePath(t *testing.T) {
 				"a fragment and the document it expands to must name the paragraph the same")
 		})
 	}
+}
+
+// A block must never be named by its own text. reconcile.Identify folds the name
+// into the CONTEXT hash while the same text is the CONTENT hash, so a
+// self-derived name moves both at once: rewording the block grades it New and it
+// loses the translation and approval it carried. A heading is where this is
+// tempting — its title reads like a natural key — and it is exactly where it is
+// wrong. See core/model/structural.go.
+//
+// This is the end-to-end claim, driven through core/reconcile rather than
+// asserted on the name, because the name is only the mechanism.
+func TestStructuralName_RewordingAHeadingKeepsItsIdentity(t *testing.T) {
+	const v1 = `<html><body><h1>Getting started</h1><p>Body text</p></body></html>`
+	const v2 = `<html><body><h1>Getting started, revised</h1><p>Body text</p></body></html>`
+
+	for _, mode := range htmlModes() {
+		t.Run(mode.name, func(t *testing.T) {
+			// The heading is addressed by its position, not its words.
+			assert.Equal(t, "h1", htmlNamesByText(t, mode, v1)["Getting started"],
+				"a heading named after its own title collapses the two hashes reconcile grades apart")
+
+			v1Blocks := htmlBlocks(t, mode, v1)
+			v1Res := htmlKeys(v1Blocks, nil)
+			prior := htmlUnits(v1Blocks, v1Res)
+
+			v2Res := htmlKeys(htmlBlocks(t, mode, v2), prior)
+
+			assert.Equal(t, v1Res["Getting started"].Key, v2Res["Getting started, revised"].Key,
+				"the heading was rewritten, not replaced — its history must follow it")
+			assert.Equal(t, reconcile.Edited, v2Res["Getting started, revised"].Kind)
+			assert.Equal(t, reconcile.Unchanged, v2Res["Body text"].Kind,
+				"and the paragraph beneath it did not move")
+		})
+	}
+}
+
+const htmlIdentityScope = "page.html"
+
+func htmlBlocks(t *testing.T, mode htmlReaderMode, content string) []*model.Block {
+	t.Helper()
+	ctx := t.Context()
+	reader := mode.newRead(t)
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(content, model.LocaleEnglish)))
+	defer reader.Close()
+
+	var out []*model.Block
+	for _, b := range testutil.CollectBlocks(t, reader.Read(ctx)) {
+		if b.SourceText() != "" {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+func htmlKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcile.Result {
+	out := map[string]reconcile.Result{}
+	for _, r := range reconcile.Blocks(htmlIdentityScope, blocks, prior) {
+		out[r.Block.SourceText()] = r
+	}
+	return out
+}
+
+func htmlUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Unit {
+	var out []reconcile.Unit
+	for _, b := range blocks {
+		u := reconcile.Identify(htmlIdentityScope, b)
+		u.Key = res[b.SourceText()].Key
+		out = append(out, u)
+	}
+	return out
 }

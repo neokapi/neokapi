@@ -49,7 +49,9 @@ func TestIdentity_SameTextDifferentBranches(t *testing.T) {
 
 func TestIdentity_StableAcrossTwoReads(t *testing.T) {
 	const src = "Hello world\n{count, plural, one {# item} other {# items}}\n"
-	assert.Equal(t, identityNames(t, src), identityNames(t, src))
+	first := identityNames(t, src)
+	second := identityNames(t, src)
+	assert.Equal(t, first, second, "two reads of the same bytes must name blocks identically")
 }
 
 // A name must never derive from the block's own text: reconcile grades the name

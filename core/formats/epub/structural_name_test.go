@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/epub"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/reconcile"
 )
 
 // An EPUB block is addressed by spine item plus its position inside that item's
@@ -94,9 +95,9 @@ func TestStructuralName_DeletionInAnotherChapterDoesNotRename(t *testing.T) {
 	before, after := bookNamesByText(t, v1), bookNamesByText(t, v2)
 
 	require.Equal(t, "OEBPS/chapter1.xhtml/p", before["Alpha"])
-	require.Equal(t, "OEBPS/chapter1.xhtml/p[2]", before["Bravo"])
+	require.Equal(t, "OEBPS/chapter1.xhtml/p#2", before["Bravo"])
 	require.Equal(t, "OEBPS/chapter2.xhtml/p", before["Charlie"])
-	require.Equal(t, "OEBPS/chapter2.xhtml/p[2]", before["Delta"])
+	require.Equal(t, "OEBPS/chapter2.xhtml/p#2", before["Delta"])
 
 	assert.Equal(t, before["Charlie"], after["Charlie"],
 		"deleting a paragraph from chapter 1 must not rename anything in chapter 2")
@@ -110,7 +111,7 @@ func TestStructuralName_IdenticalTextGetsDistinctNames(t *testing.T) {
 	names := bookNames(t, data)
 	assert.Equal(t, []string{
 		"OEBPS/chapter1.xhtml/div/p",
-		"OEBPS/chapter1.xhtml/div/p[2]",
+		"OEBPS/chapter1.xhtml/div/p#2",
 		"OEBPS/chapter1.xhtml/p",
 		"OEBPS/chapter2.xhtml/p",
 	}, names)
@@ -124,6 +125,68 @@ func TestStructuralName_IdenticalTextGetsDistinctNames(t *testing.T) {
 
 func TestStructuralName_StableAcrossTwoReads(t *testing.T) {
 	data := makeBook(t, `<h1>Title</h1><div><p>Alpha</p><p>Bravo</p></div>`, `<p>Charlie</p>`)
-	assert.Equal(t, bookNames(t, data), bookNames(t, data),
+	first, second := bookNames(t, data), bookNames(t, data)
+	assert.Equal(t, first, second,
 		"two reads of identical bytes must produce identical names")
+}
+
+// A block must never be named by its own text. reconcile.Identify folds the name
+// into the CONTEXT hash while the same text is the CONTENT hash, so a
+// self-derived name moves both at once: rewording the block grades it New and it
+// loses the translation and approval it carried. A chapter heading is where this
+// is tempting, and exactly where it is wrong. See core/model/structural.go.
+func TestStructuralName_RewordingAHeadingKeepsItsIdentity(t *testing.T) {
+	v1 := makeBook(t, `<h1>Getting started</h1><p>Body text</p>`, `<p>Chapter two</p>`)
+	v2 := makeBook(t, `<h1>Getting started, revised</h1><p>Body text</p>`, `<p>Chapter two</p>`)
+
+	assert.Equal(t, "OEBPS/chapter1.xhtml/h1", bookNamesByText(t, v1)["Getting started"],
+		"a heading named after its own title collapses the two hashes reconcile grades apart")
+
+	v1Blocks := bookBlocks(t, v1)
+	v1Res := bookKeys(v1Blocks, nil)
+	v2Res := bookKeys(bookBlocks(t, v2), bookUnits(v1Blocks, v1Res))
+
+	assert.Equal(t, v1Res["Getting started"].Key, v2Res["Getting started, revised"].Key,
+		"the heading was rewritten, not replaced — its history must follow it")
+	assert.Equal(t, reconcile.Edited, v2Res["Getting started, revised"].Kind)
+	assert.Equal(t, reconcile.Unchanged, v2Res["Body text"].Kind,
+		"and the paragraph beneath it did not move")
+	assert.Equal(t, reconcile.Unchanged, v2Res["Chapter two"].Kind,
+		"nor did anything in the other chapter")
+}
+
+const epubIdentityScope = "book.epub"
+
+func bookBlocks(t *testing.T, data []byte) []*model.Block {
+	t.Helper()
+	ctx := t.Context()
+	reader := epub.NewReader()
+	require.NoError(t, reader.Open(ctx, rawDocFromBytes(data, model.LocaleEnglish)))
+	defer reader.Close()
+
+	var out []*model.Block
+	for _, b := range testutil.CollectBlocks(t, reader.Read(ctx)) {
+		if b.SourceText() != "" {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+func bookKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcile.Result {
+	out := map[string]reconcile.Result{}
+	for _, r := range reconcile.Blocks(epubIdentityScope, blocks, prior) {
+		out[r.Block.SourceText()] = r
+	}
+	return out
+}
+
+func bookUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Unit {
+	var out []reconcile.Unit
+	for _, b := range blocks {
+		u := reconcile.Identify(epubIdentityScope, b)
+		u.Key = res[b.SourceText()].Key
+		out = append(out, u)
+	}
+	return out
 }

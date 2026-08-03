@@ -184,7 +184,9 @@ func TestAsciiDocIdentity_StableAcrossTwoReads(t *testing.T) {
 
 	const input = "= Guide\n\n== Install\n\nAlpha\n\n* One\n* Two\n\n" +
 		"|===\n|H1 |H2\n\n|c1 |c2\n|===\n"
-	assert.Equal(t, adocNames(t, input), adocNames(t, input))
+	first := adocNames(t, input)
+	second := adocNames(t, input)
+	assert.Equal(t, first, second, "two reads of the same bytes must name blocks identically")
 }
 
 // Naming is identity, not a join key: the skeleton round-trip is byte-exact

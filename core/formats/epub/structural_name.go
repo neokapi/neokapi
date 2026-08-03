@@ -17,10 +17,12 @@ import (
 // Naming a block by its item alone — which is what this reader used to do — gave
 // every paragraph of a chapter the same address.
 //
-// Inside a document the step is the element name plus a `[n]` ordinal counted
-// among the same-named children of that element's own parent. The first such
-// child stays unsuffixed, so appending a sibling never renames the one already
-// there, and an edit in one chapter cannot move anything in another.
+// Inside a document the step is the element name plus an occurrence ordinal
+// counted among the same-named children of that element's own parent. The first
+// such child stays unsuffixed, so appending a sibling never renames the one
+// already there, and an edit in one chapter cannot move anything in another.
+// The ordinal is spelled with model.NameOrdinalSeparator, the marker anything
+// aligning on names reads as "this side encodes position".
 
 // xhtmlFrame is one open element of an XHTML document.
 type xhtmlFrame struct {
@@ -56,7 +58,7 @@ func newXHTMLPath(itemPath string) *xhtmlPath { return &xhtmlPath{item: itemPath
 // occurrence so appending a sibling never renames the one already there.
 func ordinalStep(name string, ordinal int) string {
 	if ordinal > 1 {
-		return name + "[" + strconv.Itoa(ordinal) + "]"
+		return name + model.NameOrdinalSeparator + strconv.Itoa(ordinal)
 	}
 	return name
 }

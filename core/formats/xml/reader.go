@@ -729,10 +729,12 @@ func (s *xmlParseState) elemPath() string {
 }
 
 // elemNamePath builds the structural address used as a block's Name: elemPath
-// with a `[n]` ordinal on each step whose parent holds more than one child of
-// that name. The first such child stays unsuffixed, so appending a sibling
+// with an occurrence ordinal on each step whose parent holds more than one child
+// of that name. The first such child stays unsuffixed, so appending a sibling
 // never renames the one already there, and the ordinal is scoped to the parent,
-// so an edit in another subtree cannot shift it. See core/model/structural.go.
+// so an edit in another subtree cannot shift it. The ordinal is spelled with
+// model.NameOrdinalSeparator so anything aligning on names reads it as the
+// position-encoding it is. See core/model/structural.go.
 func (s *xmlParseState) elemNamePath() string {
 	var parts []string
 	for _, f := range s.stack {
@@ -744,7 +746,7 @@ func (s *xmlParseState) elemNamePath() string {
 // pathStep renders one step of an element path.
 func (f *elementFrame) pathStep() string {
 	if f.ordinal > 1 {
-		return f.name + "[" + strconv.Itoa(f.ordinal) + "]"
+		return f.name + model.NameOrdinalSeparator + strconv.Itoa(f.ordinal)
 	}
 	return f.name
 }

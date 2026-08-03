@@ -19,12 +19,15 @@ import (
 // Three rules shape an HTML path:
 //
 //   - An `id` is a natural key the author controls, so it IS the step, and the
-//     path stops climbing there. `#nav/a[2]` survives the whole subtree being
+//     path stops climbing there. `nav-id/a#2` survives the whole subtree being
 //     moved somewhere else in the document.
-//   - Otherwise the step is the tag name, plus a `[n]` ordinal counted among the
-//     SAME-TAGGED children of that element's own parent. The first such child
-//     stays unsuffixed, so appending a sibling never renames the one already
-//     there, and an edit in another subtree cannot shift it.
+//   - Otherwise the step is the tag name, plus an occurrence ordinal counted
+//     among the SAME-TAGGED children of that element's own parent. The first
+//     such child stays unsuffixed, so appending a sibling never renames the one
+//     already there, and an edit in another subtree cannot shift it. The ordinal
+//     is spelled with model.NameOrdinalSeparator because that is the marker
+//     anything aligning on names reads as "this side encodes position" — kdiff
+//     switches from name alignment to content alignment on it.
 //   - `html`, `head` and `body` are dropped. Every document has exactly one of
 //     each, so they discriminate nothing — and dropping them is what lets the
 //     DOM path (which sees the parser's synthesized html/body) and the tokenizer
@@ -50,7 +53,7 @@ const textStepName = "text()"
 // occurrence.
 func ordinalStep(name string, ordinal int) string {
 	if ordinal > 1 {
-		return name + "[" + strconv.Itoa(ordinal) + "]"
+		return name + model.NameOrdinalSeparator + strconv.Itoa(ordinal)
 	}
 	return name
 }

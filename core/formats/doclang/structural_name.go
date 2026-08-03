@@ -13,11 +13,11 @@ import (
 // one paragraph and every name below it moves. See core/model/structural.go.
 //
 // A DocLang address is the chain of enclosing containers — group, list, picture,
-// table — down to the element itself. Each step is the element name plus a `[n]`
-// ordinal counted among the same-named children of its own parent, so the first
-// such child stays unsuffixed and an edit in one container cannot shift anything
-// in another. Table cells skip the ordinal entirely: OTSL gives them a grid
-// address, and `table/row[2]/cell[3]` is a better name than any count.
+// table — down to the element itself. Each step is the element name plus an
+// occurrence ordinal counted among the same-named children of its own parent, so
+// the first such child stays unsuffixed and an edit in one container cannot
+// shift anything in another. A table cell takes the grid address OTSL already
+// gives it: `table/row#2/cell#3` beats any count.
 
 // docFrame is one open container.
 type docFrame struct {
@@ -47,7 +47,7 @@ type docPath struct {
 // occurrence so appending a sibling never renames the one already there.
 func ordinalStep(name string, ordinal int) string {
 	if ordinal > 1 {
-		return name + "[" + strconv.Itoa(ordinal) + "]"
+		return name + model.NameOrdinalSeparator + strconv.Itoa(ordinal)
 	}
 	return name
 }

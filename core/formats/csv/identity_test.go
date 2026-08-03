@@ -78,7 +78,9 @@ func TestCSVIdentity_StableAcrossTwoReads(t *testing.T) {
 	t.Parallel()
 
 	const input = "id,en\ngreeting,Hello\nfarewell,Goodbye\n"
-	assert.Equal(t, namesByText(t, input, nil), namesByText(t, input, nil))
+	first := namesByText(t, input, nil)
+	second := namesByText(t, input, nil)
+	assert.Equal(t, first, second, "two reads of the same bytes must name blocks identically")
 }
 
 // A duplicated key is not an address, so the column is not treated as one: the

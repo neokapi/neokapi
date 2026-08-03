@@ -9,6 +9,7 @@ import (
 	yamlfmt "github.com/neokapi/neokapi/core/formats/yaml"
 	"github.com/neokapi/neokapi/core/internal/testutil"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/reconcile"
 )
 
 // YAML names blocks by key path, and a sequence item by its index WITHIN its own
@@ -90,8 +91,69 @@ func TestStructuralName_IdenticalTextGetsDistinctNames(t *testing.T) {
 
 func TestStructuralName_StableAcrossTwoReads(t *testing.T) {
 	const doc = "app:\n  title: Hello\n  items:\n    - One\n    - Two\nfooter: Bye\n"
-	assert.Equal(t, yamlBlockNames(t, doc), yamlBlockNames(t, doc))
+	first, second := yamlBlockNames(t, doc), yamlBlockNames(t, doc)
+	assert.Equal(t, first, second,
+		"two reads of identical bytes must produce identical names")
 	assert.Equal(t,
 		[]string{"app.title", "app.items.[0]", "app.items.[1]", "footer"},
 		yamlBlockNames(t, doc))
+}
+
+// A block must never be named by its own text. reconcile.Identify folds the name
+// into the CONTEXT hash while the same text is the CONTENT hash, so a
+// self-derived name moves both at once: rewording the block grades it New and it
+// loses the translation and approval it carried. YAML is safe by construction —
+// the name is the KEY and the content is the VALUE — and this pins it, because
+// "use the string as its own name" is a tempting shortcut for a keyed format.
+func TestStructuralName_RewordingAValueKeepsItsIdentity(t *testing.T) {
+	const v1 = "title: Getting started\nbody: Body text\n"
+	const v2 = "title: Getting started, revised\nbody: Body text\n"
+
+	assert.Equal(t, "title", yamlNamesByText(t, v1)["Getting started"],
+		"the key is the name; the value must never be")
+
+	v1Blocks := yamlBlocks(t, v1)
+	v1Res := yamlKeys(v1Blocks, nil)
+	v2Res := yamlKeys(yamlBlocks(t, v2), yamlUnits(v1Blocks, v1Res))
+
+	assert.Equal(t, v1Res["Getting started"].Key, v2Res["Getting started, revised"].Key,
+		"the value was rewritten, not replaced — its history must follow it")
+	assert.Equal(t, reconcile.Edited, v2Res["Getting started, revised"].Kind)
+	assert.Equal(t, reconcile.Unchanged, v2Res["Body text"].Kind)
+}
+
+const yamlIdentityScope = "messages.yaml"
+
+func yamlBlocks(t *testing.T, content string) []*model.Block {
+	t.Helper()
+	ctx := t.Context()
+	reader := yamlfmt.NewReader()
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(content, model.LocaleEnglish)))
+	defer reader.Close()
+
+	var out []*model.Block
+	for _, b := range testutil.CollectBlocks(t, reader.Read(ctx)) {
+		if b.SourceText() != "" {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+func yamlKeys(blocks []*model.Block, prior []reconcile.Unit) map[string]reconcile.Result {
+	out := map[string]reconcile.Result{}
+	for _, r := range reconcile.Blocks(yamlIdentityScope, blocks, prior) {
+		out[r.Block.SourceText()] = r
+	}
+	return out
+}
+
+func yamlUnits(blocks []*model.Block, res map[string]reconcile.Result) []reconcile.Unit {
+	var out []reconcile.Unit
+	for _, b := range blocks {
+		u := reconcile.Identify(yamlIdentityScope, b)
+		u.Key = res[b.SourceText()].Key
+		out = append(out, u)
+	}
+	return out
 }
