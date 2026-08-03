@@ -14,9 +14,9 @@ import (
 )
 
 var (
-	pushForce        bool
-	pushDryRun       bool
-	pushStream       string
+	pushForce  bool
+	pushDryRun bool
+	pushStream string
 )
 
 var pushCmd = &cobra.Command{
