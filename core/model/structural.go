@@ -32,6 +32,15 @@ import (
 //     inventing a counter beside it throws away the best signal in the file.
 //   - Where structure genuinely repeats, disambiguate with an ordinal scoped to
 //     the smallest enclosing structure, so an edit elsewhere cannot shift it.
+//   - NEVER derive a block's own name from its own text. Ancestors' text is
+//     fine and is what makes a path readable — a paragraph under "Setup" is
+//     genuinely addressed by that heading. But a HEADING must not be named by
+//     its own title, because reconcile.Identify folds the name into the context
+//     hash: name a heading after itself and editing it changes both hashes at
+//     once, so the block grades as new and loses the history it should have
+//     kept. Name a heading by its parent trail plus its ordinal among sibling
+//     headings instead. Then rewording it changes content alone and grades as
+//     an edit, which is what it is.
 //
 // Block.ID is a separate thing and is not affected. It is the skeleton join —
 // the reader writes a ref, the writer matches on it — lives inside one
@@ -40,6 +49,15 @@ import (
 // PathSeparator joins structural segments. A path reads like a location because
 // it is one.
 const PathSeparator = "/"
+
+// NameOrdinalSeparator precedes the occurrence ordinal NameBuilder appends when
+// structure alone cannot tell two blocks apart.
+//
+// Exported because its presence is meaningful to readers of a name, not just to
+// the writer of one: a name carrying an ordinal is the reader saying "these two
+// are indistinguishable by structure", so anything that aligns or matches on
+// names must treat that side as positional rather than keyed.
+const NameOrdinalSeparator = "#"
 
 // StructuralPath joins segments into a block name, skipping empty ones so a
 // caller can pass an optional heading trail without branching.

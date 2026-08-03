@@ -94,6 +94,13 @@ type Reader struct {
 	dataCounter  int
 	groupCounter int
 
+	// naming composes each block's structural name (see naming.go). It points
+	// at ownNaming unless an embedding format shared its own through
+	// ShareNaming, which is how MDX keeps one namespace across the several
+	// markdown spans that make up one document.
+	naming    *NamingState
+	ownNaming NamingState
+
 	// nonTranslatableDepth, when >0, marks every Block emitted as
 	// Translatable:false. It is raised while walking a sub-tree whose
 	// content is contextual rather than translatable (e.g. a blockquote
@@ -139,6 +146,20 @@ func NewReader() *Reader {
 		},
 		cfg:   cfg,
 		vocab: vocab,
+	}
+}
+
+// ShareNaming makes this reader compose block names into state instead of its
+// own, and stops it resetting that state at the start of a read.
+//
+// MDX reads one document through several markdown.Readers — one per prose span
+// between the JSX and ESM regions it owns itself. Without a shared state each
+// span would restart the heading trail and the ordinals, so two spans of the
+// same document would both name a paragraph "p" and two blocks would share a
+// context hash. Pass one state for the whole document.
+func (r *Reader) ShareNaming(state *NamingState) {
+	if state != nil {
+		r.naming = state
 	}
 }
 
@@ -212,6 +233,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	r.blockCounter = 0
 	r.dataCounter = 0
 	r.groupCounter = 0
+	if r.naming == nil {
+		r.naming = &r.ownNaming
+	}
+	if r.naming == &r.ownNaming {
+		// A shared state spans several reads by design; our own must not.
+		r.naming.Reset()
+	}
 
 	// Handle YAML front matter.
 	bodyOffset := r.handleFrontMatter(ctx, ch, content)
@@ -464,11 +492,17 @@ func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node 
 			r.emitThematicBreak(ctx, ch, n, source, baseOffset)
 
 		case *ast.List:
+			// A list owns its items' ordinals: adding an item to one list must
+			// not re-address the items of the next.
+			pop := r.naming.Push(scopeList)
 			r.walkNode(ctx, ch, child, source, baseOffset)
+			pop()
 
 		case *ast.Blockquote:
 			if r.cfg.TranslateBlockQuotes() {
+				pop := r.naming.Push(scopeQuote)
 				r.walkNode(ctx, ch, child, source, baseOffset)
+				pop()
 			} else if r.cfg.ExtractNonTranslatableContent() {
 				r.emitBlockquoteAsContent(ctx, ch, child, source, baseOffset)
 			} else {
@@ -618,7 +652,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 		r.blockCounter++
 		blockID := fmt.Sprintf("tu%d", r.blockCounter)
 		block := model.NewBlock(blockID, label)
-		block.Name = fmt.Sprintf("ref-label%d", r.blockCounter)
+		block.Name = r.naming.Name(kindRefLabel)
 		block.Type = "link-reference-label"
 		r.skelRef(blockID)
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
@@ -634,7 +668,7 @@ func (r *Reader) emitLinkReferenceDefinition(ctx context.Context, ch chan<- mode
 		r.blockCounter++
 		blockID := fmt.Sprintf("tu%d", r.blockCounter)
 		block := model.NewBlock(blockID, string(n.Title))
-		block.Name = fmt.Sprintf("ref-title%d", r.blockCounter)
+		block.Name = r.naming.Name(kindRefTitle)
 		block.Type = "link-reference-title"
 		r.skelRef(blockID)
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
@@ -897,7 +931,9 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
 	textContent := r.extractInlineText(n, source)
 	block := model.NewBlock(blockID, textContent)
-	block.Name = fmt.Sprintf("heading%d", r.blockCounter)
+	// The heading opens the section that addresses everything under it, so the
+	// trail advances here, before any of those blocks are named.
+	block.Name = r.naming.Heading(n.Level, textContent)
 	block.Type = "heading"
 	block.Properties["level"] = strconv.Itoa(n.Level)
 	block.SetSemanticRole(model.RoleHeading, n.Level)
@@ -1103,7 +1139,7 @@ func (r *Reader) emitAdmonition(ctx context.Context, ch chan<- model.PartResult,
 		r.blockCounter++
 		blockID := fmt.Sprintf("tu%d", r.blockCounter)
 		block := model.NewBlock(blockID, title)
-		block.Name = fmt.Sprintf("admon-title%d", r.blockCounter)
+		block.Name = r.naming.Name(kindAdmonTitle)
 		block.Type = "admonition-title"
 		r.skelRef(blockID)
 		r.skelText(`"`)
@@ -1119,7 +1155,7 @@ func (r *Reader) emitAdmonition(ctx context.Context, ch chan<- model.PartResult,
 		r.blockCounter++
 		blockID := fmt.Sprintf("tu%d", r.blockCounter)
 		block := model.NewBlock(blockID, keyword)
-		block.Name = fmt.Sprintf("admon-keyword%d", r.blockCounter)
+		block.Name = r.naming.Name(kindAdmonKeyword)
 		block.Type = "admonition-keyword"
 		r.skelRef(blockID)
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
@@ -1156,7 +1192,7 @@ func (r *Reader) emitAdmonition(ctx context.Context, ch chan<- model.PartResult,
 	bodyID := fmt.Sprintf("tu%d", r.blockCounter)
 	bodyText, perLineExcess := r.extractAdmonitionBodyText(n, source, bodyIndent)
 	bodyBlock := model.NewBlock(bodyID, bodyText)
-	bodyBlock.Name = fmt.Sprintf("admon-body%d", r.blockCounter)
+	bodyBlock.Name = r.naming.Name(kindAdmonBody)
 	bodyBlock.Type = "admonition-body"
 	// Convert body text into runs so structural keywords inside the
 	// body — fenced-code language tags (`\`\`\` python`) and nested
@@ -1373,7 +1409,7 @@ func (r *Reader) emitDocusaurusAdmonition(ctx context.Context, ch chan<- model.P
 		r.blockCounter++
 		blockID := fmt.Sprintf("tu%d", r.blockCounter)
 		block := model.NewBlock(blockID, tail)
-		block.Name = fmt.Sprintf("docu-admon-title%d", r.blockCounter)
+		block.Name = r.naming.Name(kindDocuAdmon)
 		block.Type = "docusaurus-admonition-title"
 		r.skelRef(blockID)
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
@@ -1407,7 +1443,7 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
 	textContent := r.extractInlineText(n, source)
 	block := model.NewBlock(blockID, textContent)
-	block.Name = fmt.Sprintf("para%d", r.blockCounter)
+	block.Name = r.naming.Name(kindParagraph)
 	r.addInlineRuns(block, n, source)
 
 	// Multi-line paragraphs (e.g. blockquote bodies, indented
@@ -1493,6 +1529,10 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	// the marker line is dropped to mirror okapi MarkdownFilterWriter,
 	// which strips the bare marker's trailing space on round-trip.
 	if n.FirstChild() == nil {
+		// The item carries no text, but it still occupies its slot in the list:
+		// consume the ordinal so the items after it are addressed by position
+		// rather than by how many neighbours happened to be empty.
+		r.naming.Skip(kindListItem)
 		// Find the marker line: skip any blank lines from the cursor,
 		// then take the next line as the empty marker.
 		i := r.skelCursor
@@ -1526,7 +1566,7 @@ func (r *Reader) emitListItem(ctx context.Context, ch chan<- model.PartResult, n
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
 	textContent := r.extractListItemText(n, source)
 	block := model.NewBlock(blockID, textContent)
-	block.Name = fmt.Sprintf("item%d", r.blockCounter)
+	block.Name = r.naming.Name(kindListItem)
 	block.Type = "list-item"
 	block.SetSemanticRole(model.RoleListItem, 0)
 
@@ -1587,12 +1627,19 @@ func (r *Reader) emitListItemMixed(ctx context.Context, ch chan<- model.PartResu
 		}
 	}
 
+	// Everything nested under the item — a sublist, a code block — is addressed
+	// under the item itself, so editing one item's sublist cannot re-address
+	// another's. The item's own name is the segment, allocated before the
+	// header block is emitted so both agree even when there is no header.
+	itemName := r.naming.Name(kindListItem)
+	defer r.naming.PushName(itemName)()
+
 	if headerNode != nil {
 		r.blockCounter++
 		blockID := fmt.Sprintf("tu%d", r.blockCounter)
 		textContent := r.extractInlineText(headerNode, source)
 		block := model.NewBlock(blockID, textContent)
-		block.Name = fmt.Sprintf("item%d", r.blockCounter)
+		block.Name = itemName
 		block.Type = "list-item"
 		block.SetSemanticRole(model.RoleListItem, 0)
 		r.addInlineRuns(block, headerNode, source)
@@ -1651,10 +1698,14 @@ func (r *Reader) walkSingle(ctx context.Context, ch chan<- model.PartResult, chi
 	case *ast.ThematicBreak:
 		r.emitThematicBreak(ctx, ch, n, source, baseOffset)
 	case *ast.List:
+		pop := r.naming.Push(scopeList)
 		r.walkNode(ctx, ch, child, source, baseOffset)
+		pop()
 	case *ast.Blockquote:
 		if r.cfg.TranslateBlockQuotes() {
+			pop := r.naming.Push(scopeQuote)
 			r.walkNode(ctx, ch, child, source, baseOffset)
+			pop()
 		} else if r.cfg.ExtractNonTranslatableContent() {
 			r.emitBlockquoteAsContent(ctx, ch, child, source, baseOffset)
 		} else {
@@ -1727,7 +1778,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		r.blockCounter++
 		blockID := fmt.Sprintf("tu%d", r.blockCounter)
 		block := model.NewBlock(blockID, content)
-		block.Name = fmt.Sprintf("code%d", r.blockCounter)
+		block.Name = r.naming.Name(kindCode)
 		block.Type = "code-block"
 		// Normalized structure layer (WS1) so cross-format export (e.g. DocLang
 		// <code> + the recommended Linguist language <label>) carries the role
@@ -1752,7 +1803,7 @@ func (r *Reader) emitFencedCodeBlock(ctx context.Context, ch chan<- model.PartRe
 		r.blockCounter++
 		blockID := fmt.Sprintf("tu%d", r.blockCounter)
 		block := model.NewBlock(blockID, content)
-		block.Name = fmt.Sprintf("code%d", r.blockCounter)
+		block.Name = r.naming.Name(kindCode)
 		block.Type = "code-block"
 		block.Translatable = false
 		block.PreserveWhitespace = true
@@ -1825,7 +1876,7 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 			blockContent = strings.ReplaceAll(blockContent, "\n\n", "\n"+prefix+"\n")
 		}
 		block := model.NewBlock(blockID, blockContent)
-		block.Name = fmt.Sprintf("code%d", r.blockCounter)
+		block.Name = r.naming.Name(kindCode)
 		block.Type = "code-block"
 		block.SetSemanticRole(model.RoleCode, 0) // WS1 role (indented code has no language)
 
@@ -1843,7 +1894,7 @@ func (r *Reader) emitIndentedCodeBlock(ctx context.Context, ch chan<- model.Part
 		prefix := string(r.source[absStart:lineStart])
 		blockContent := string(r.source[lineStart:lineEnd])
 		block := model.NewBlock(blockID, blockContent)
-		block.Name = fmt.Sprintf("code%d", r.blockCounter)
+		block.Name = r.naming.Name(kindCode)
 		block.Type = "code-block"
 		block.Translatable = false
 		block.PreserveWhitespace = true
@@ -1891,7 +1942,7 @@ func (r *Reader) emitHTMLBlock(ctx context.Context, ch chan<- model.PartResult, 
 		r.blockCounter++
 		blockID := fmt.Sprintf("tu%d", r.blockCounter)
 		block := model.NewBlock(blockID, content)
-		block.Name = fmt.Sprintf("html%d", r.blockCounter)
+		block.Name = r.naming.Name(kindHTML)
 		block.Type = "html-block"
 
 		r.skelEmitGap(lineStart)
@@ -1909,7 +1960,11 @@ func (r *Reader) emitHTMLBlock(ctx context.Context, ch chan<- model.PartResult, 
 	// HtmlFilter via okf_html@for_markdown.fprm so only inline content is
 	// extracted while tag structure passes through verbatim.
 	r.skelEmitGap(lineStart)
+	// The subfilter emits one block per text run and per translatable
+	// attribute; the HTML block they came out of is what scopes them.
+	pop := r.naming.Push(scopeHTML)
 	r.processHTMLBlockSubfilter(ctx, ch, r.source[lineStart:lineEnd])
+	pop()
 	r.skelCursor = lineEnd
 }
 
@@ -2085,7 +2140,7 @@ func (r *Reader) emitHTMLSubfilterTextBlock(ctx context.Context, ch chan<- model
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
 	decoded := xhtml.UnescapeString(string(text))
 	block := model.NewBlock(blockID, decoded)
-	block.Name = fmt.Sprintf("html%d", r.blockCounter)
+	block.Name = r.naming.Name(kindHTMLText)
 	block.Type = "html-text"
 
 	r.skelRef(blockID)
@@ -2101,7 +2156,7 @@ func (r *Reader) emitMathFormulaBlock(ctx context.Context, ch chan<- model.PartR
 	r.blockCounter++
 	blockID := fmt.Sprintf("tu%d", r.blockCounter)
 	block := model.NewBlock(blockID, body)
-	block.Name = fmt.Sprintf("math%d", r.blockCounter)
+	block.Name = r.naming.Name(kindMath)
 	block.Type = "math"
 	block.Translatable = false
 	block.PreserveWhitespace = true
@@ -2156,7 +2211,7 @@ func (r *Reader) emitHTMLSubfilterTag(ctx context.Context, ch chan<- model.PartR
 			r.blockCounter++
 			blockID := fmt.Sprintf("tu%d", r.blockCounter)
 			block := model.NewBlock(blockID, string(value))
-			block.Name = fmt.Sprintf("html-attr%d", r.blockCounter)
+			block.Name = r.naming.Name(kindHTMLAttr)
 			block.Type = "html-attr"
 			block.Properties["attr"] = name
 			r.skelRef(blockID)
@@ -2228,7 +2283,9 @@ func (r *Reader) emitThematicBreak(ctx context.Context, ch chan<- model.PartResu
 // flag-off path keeps emitting the byte-identical Data part.
 func (r *Reader) emitBlockquoteAsContent(ctx context.Context, ch chan<- model.PartResult, node ast.Node, source []byte, baseOffset int) {
 	r.nonTranslatableDepth++
+	pop := r.naming.Push(scopeQuote)
 	r.walkNode(ctx, ch, node, source, baseOffset)
+	pop()
 	r.nonTranslatableDepth--
 }
 
@@ -2298,6 +2355,10 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 	tableID := fmt.Sprintf("g%d", r.groupCounter)
 	r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: tableID, Name: "table", Type: "table"}})
 
+	// A cell is addressed by its table, its row and its column — the grid IS
+	// the structure — so an edit to one row cannot re-address another's cells.
+	defer r.naming.Push(scopeTable)()
+
 	for row := node.FirstChild(); row != nil; row = row.NextSibling() {
 		if row.Kind() != east.KindTableHeader && row.Kind() != east.KindTableRow {
 			continue
@@ -2319,6 +2380,7 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 		}
 		r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: rowGroup})
 
+		popRow := r.naming.Push(scopeRow)
 		for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
 			if cell.Kind() != east.KindTableCell {
 				continue
@@ -2326,14 +2388,16 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 			r.skelText("| ")
 			cellText := r.extractInlineText(cell, source)
 			if strings.TrimSpace(cellText) == "" {
-				// Empty cell: emit just a space to give an "| |" pair.
+				// Empty cell: emit just a space to give an "| |" pair. It still
+				// holds its column, so it consumes the column's ordinal.
+				r.naming.Skip(kindCell)
 				r.skelText(" ")
 				continue
 			}
 			r.blockCounter++
 			blockID := fmt.Sprintf("tu%d", r.blockCounter)
 			block := model.NewBlock(blockID, cellText)
-			block.Name = fmt.Sprintf("cell%d", r.blockCounter)
+			block.Name = r.naming.Name(kindCell)
 			block.Type = "table-cell"
 			// WS1 role so cross-format writers emit <th>/<td> (or AsciiDoc
 			// header rows) correctly; header cells live in the GFM header row.
@@ -2348,6 +2412,8 @@ func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, node
 			r.skelText(" ")
 			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		}
+		popRow()
+
 		r.skelText("|\n")
 		// Inject the separator immediately after the header row.
 		if isHeaderRow && separatorLine != "" {

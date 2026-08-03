@@ -23,6 +23,47 @@ func setBlockTiming(b *model.Block, timecode string) {
 	}
 }
 
+// cueName is the structural name for a WebVTT cue.
+//
+// A cue may carry an explicit cue identifier — the one piece of identity WebVTT
+// lets an author write down — and where there is one it IS the name. It is
+// author-controlled, it survives retiming, and inventing a counter beside it
+// would throw away the best signal in the file.
+//
+// Where there is none, the name is the cue's START timestamp. The alternative is
+// the cue's position, and the judgement between them goes to the timestamp:
+//
+//   - Position renames every later cue when one is inserted or deleted, which is
+//     what a re-cut does and what the identity contract is meant to survive.
+//   - The timestamp renames a cue when it is retimed, which is what a sync pass
+//     does. That cost is smaller than it looks — a renamed block still matches
+//     on content, which reconcile grades as "moved" and which keeps identity and
+//     translation — and it is largely already paid, because the raw timecode
+//     sits in Block.Properties and is folded into the context hash whichever way
+//     the name goes. Naming by position would lose delete-stability and buy no
+//     protection from retiming.
+//
+// Neither is clean. A cue with no identifier has exactly two coordinates, when
+// it plays and where it sits, and subtitle work routinely moves both at once; a
+// re-cut that also rewords a cue reads as a new cue under any scheme. The honest
+// answer is that WebVTT's own answer is the cue identifier, and a file that
+// writes them gets identity that survives everything here.
+//
+// Only the start time is used. The end time and the cue settings (align, line,
+// region, position) are presentation: extending a cue's dwell time or
+// re-aligning it must not rename it.
+func cueName(nb *model.NameBuilder, identifier, timecode string) string {
+	if id := model.StructuralPath(identifier); id != "" {
+		return nb.Name(id)
+	}
+	if start, _, _, ok := parseVTTTimecode(timecode); ok {
+		return nb.Name(formatVTTTime(start))
+	}
+	// Malformed timing: the raw line, then the builder's ordinal. Positional,
+	// but reached only where the format handed us nothing to name the cue by.
+	return nb.Name(model.StructuralPath(timecode))
+}
+
 // VTT cue timing is carried on a Block as the format-agnostic
 // model.TimingAnnotation (start/end in ms, AD-002); these helpers convert
 // to/from WebVTT's "HH:MM:SS.mmm" wire syntax. So an ASR-produced block (or a

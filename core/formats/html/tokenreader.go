@@ -67,6 +67,22 @@ type tokenReaderState struct {
 	// causing forwardScan to exhaust its scanner and default to
 	// container, mis-classifying TEXTUNIT-typed parents (td/li/dd/…).
 	content []byte
+	// pathStack holds the elements that are still OPEN, so the nested emit
+	// paths (leaf blocks, attribute blocks, raw bodies) can address a block by
+	// where it sits rather than by how many blocks came before it. It is not
+	// the `stack` local in processTokenStream: that one also holds elements
+	// already consumed whole by processLeafBlock, which are no longer
+	// ancestors of anything. rootOrdinals counts document-level steps, where
+	// there is no open element to hold the count. See structural_name.go.
+	pathStack    []pathFrame
+	rootOrdinals map[string]int
+	// leafOrdinals counts inline children within the leaf block currently
+	// being collected; it is scoped to that block and reset with it.
+	leafOrdinals map[string]int
+	// currentStep is the step of the element being processed as a leaf block.
+	// processStartTag reserves it before descending into processLeafBlock,
+	// which runs before the element is pushed onto the stack.
+	currentStep string
 	// consumed is the number of bytes of content already consumed by the
 	// main tokenizer. It is advanced by len(tokenizer.Raw()) after every
 	// Next() call (via next()). golang.org/x/net/html's Raw() returns the
@@ -478,6 +494,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					blockID := s.nextBlockID()
 					s.store.WriteRef(blockID)
 					block := buildBlockWithEntities(blockID, text)
+					block.Name = s.structuralName(s.textStep())
 					block.PreserveWhitespace = true
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 				} else {
@@ -497,6 +514,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					blockID := s.nextBlockID()
 					s.store.WriteRef(blockID)
 					block := buildBlockWithEntities(blockID, body)
+					block.Name = s.structuralName(s.textStep())
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 					s.lastTextBlock = block
 				}
@@ -531,6 +549,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					stack = stack[:len(stack)-1]
 				}
 			}
+			s.popPath(tag)
 
 			// Inline end tag is part of the text-unit; structural end tag
 			// (container close) ends it.
@@ -573,7 +592,10 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 
 			s.extractLangFromToken(raw, tag, attrs, ctx, ch)
 			if !translateNo {
-				s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
+				// A void element reached at container level never goes
+				// through processStartTag, so it reserves its own step here.
+				step := s.reserveStep(tag, getTokenAttr(attrs, "id"))
+				s.extractTokenAttrs(raw, tag, s.structuralName(step), a, attrs, ctx, ch)
 			} else {
 				// translate="no": no translatable attributes are extracted,
 				// but the language declaration is still spliced out as a
@@ -594,6 +616,15 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 		a:           a,
 		translateNo: *translateNo,
 	}
+	// Reserve this element's sibling ordinal here — once, in document order,
+	// before any branch below can emit or descend. The step is stashed on the
+	// state because processLeafBlock runs while the element is not yet an open
+	// ancestor of anything, and still needs to name itself.
+	elemID := getTokenAttr(attrs, "id")
+	step := s.reserveStep(tag, elemID)
+	prevStep := s.currentStep
+	s.currentStep = step
+	defer func() { s.currentStep = prevStep }()
 
 	if tv := getTokenAttr(attrs, "translate"); tv != "" {
 		if tv == "no" {
@@ -641,7 +672,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 		}
 		s.extractLangFromToken(raw, tag, attrs, ctx, ch)
 		if !info.translateNo {
-			s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
+			s.extractTokenAttrs(raw, tag, s.structuralName(s.currentStep), a, attrs, ctx, ch)
 		} else {
 			s.writeStartTagSkeleton(raw, nil, langAttrKeys(attrs))
 		}
@@ -658,7 +689,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 		s.extractLangFromToken(nil, tag, attrs, ctx, ch)
 
 		if !info.translateNo {
-			s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
+			s.extractTokenAttrs(raw, tag, s.structuralName(s.currentStep), a, attrs, ctx, ch)
 		} else {
 			s.writeStartTagSkeleton(raw, nil, langAttrKeys(attrs))
 		}
@@ -677,6 +708,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 
 		if info.translateNo {
 			*stack = append(*stack, info)
+			s.pushPath(tag, a, elemID, step)
 			*translateNo = info.translateNo
 			return
 		}
@@ -703,6 +735,7 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 
 		if hasBlockKids {
 			*stack = append(*stack, info)
+			s.pushPath(tag, a, elemID, step)
 			*translateNo = info.translateNo
 			return
 		}
@@ -716,11 +749,12 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 
 	s.onInlineEvent()
 	if !info.translateNo {
-		s.extractTokenAttrs(raw, tag, a, attrs, ctx, ch)
+		s.extractTokenAttrs(raw, tag, s.structuralName(s.currentStep), a, attrs, ctx, ch)
 	} else {
 		s.writeStartTagSkeleton(raw, nil, langAttrKeys(attrs))
 	}
 	*stack = append(*stack, info)
+	s.pushPath(tag, a, elemID, step)
 	*translateNo = info.translateNo
 }
 
@@ -728,6 +762,13 @@ func (s *tokenReaderState) processStartTag(tokenizer *html.Tokenizer, raw []byte
 // Runs sequence, and emits the block. The start tag raw bytes and closing tag
 // raw bytes go into the skeleton; the fragment content is the block reference.
 func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag string, a atom.Atom, attrs []html.Attribute, preserveWS bool, ctx context.Context, ch chan<- model.PartResult) {
+	// Inline children are ordinaled within this block. Save and restore so a
+	// nested leaf (an implicit close, a deferred start) does not inherit or
+	// clobber the enclosing block's counts.
+	prevLeafOrdinals := s.leafOrdinals
+	s.leafOrdinals = nil
+	defer func() { s.leafOrdinals = prevLeafOrdinals }()
+
 	blockID := s.nextBlockID()
 
 	// Start tag already written to skeleton by extractTokenAttrs.
@@ -789,7 +830,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 			}
 
 			// Extract translatable attributes on inline children.
-			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, childAtom, childAttrs, ctx, ch)
+			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, s.inlineChildName(childTag, childAttrs), childAtom, childAttrs, ctx, ch)
 
 			if nonTranslatableElements[childAtom] {
 				idCounter++
@@ -953,7 +994,7 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 				childAttrs = collectTokenAttrs(tokenizer)
 			}
 
-			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, childAtom, childAttrs, ctx, ch)
+			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, s.inlineChildName(childTag, childAttrs), childAtom, childAttrs, ctx, ch)
 
 			semType := htmlSemanticType(childTag)
 			subType := "html:" + childTag
@@ -1011,7 +1052,7 @@ leafClosed:
 	if !b.IsEmpty() || hasID {
 		block := &model.Block{
 			ID:                 blockID,
-			Name:               blockNameFromToken(tag, attrs),
+			Name:               s.structuralName(s.currentStep),
 			Type:               blockTypeFromTag(tag),
 			Translatable:       true,
 			PreserveWhitespace: preserveWS,
@@ -1091,7 +1132,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 			// Extract translatable attributes on inline children so the
 			// writer can substitute translated values into the placeholder
 			// data via the BLOCK sentinel.
-			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, childAtom, childAttrs, ctx, ch)
+			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, s.inlineChildName(childTag, childAttrs), childAtom, childAttrs, ctx, ch)
 
 			if isInlineAtom(childAtom) || childAtom == 0 {
 				// Unknown elements (atom == 0, e.g. `<exclude>`) are
@@ -1244,7 +1285,7 @@ func (s *tokenReaderState) collectInlineTokens(tokenizer *html.Tokenizer, parent
 				childAttrs = collectTokenAttrs(tokenizer)
 			}
 
-			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, childAtom, childAttrs, ctx, ch)
+			childTransAttrs := s.extractTokenAttrsNoSkeleton(childTag, s.inlineChildName(childTag, childAttrs), childAtom, childAttrs, ctx, ch)
 
 			semType := htmlSemanticType(childTag)
 			subType := "html:" + childTag
@@ -1402,7 +1443,7 @@ func (s *tokenReaderState) emitNonTranslatableContent(tokenizer *html.Tokenizer,
 
 	blockID := s.nextBlockID()
 	block := model.NewBlock(blockID, string(body)) // single verbatim run
-	block.Name = tag
+	block.Name = s.structuralName(s.currentStep)
 	block.Type = tag
 	block.Translatable = false
 	block.PreserveWhitespace = true
@@ -1622,14 +1663,14 @@ func langAttrKeys(attrs []html.Attribute) []string {
 
 // extractTokenAttrs extracts translatable attributes (title, alt, etc.) from a token.
 // If raw is not nil, it writes the tag raw bytes to skeleton (with attr refs as needed).
-func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom, attrs []html.Attribute, ctx context.Context, ch chan<- model.PartResult) {
+func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag, elemName string, a atom.Atom, attrs []html.Attribute, ctx context.Context, ch chan<- model.PartResult) {
 	// Collect which attributes are translatable.
 	var transAttrs []transAttrEntry
 
 	if title := getTokenAttrLastNonEmpty(attrs, "title"); title != "" {
 		id := s.nextBlockID()
 		transAttrs = append(transAttrs, transAttrEntry{"title", title, id})
-		s.emitAttrBlock(id, "title", title, ctx, ch)
+		s.emitAttrBlock(id, elemName, "title", title, ctx, ch)
 	}
 
 	if alt := getTokenAttrLastNonEmpty(attrs, "alt"); alt != "" {
@@ -1641,12 +1682,12 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 		case atom.Img, atom.Area:
 			id := s.nextBlockID()
 			transAttrs = append(transAttrs, transAttrEntry{"alt", alt, id})
-			s.emitAttrBlock(id, "alt", alt, ctx, ch)
+			s.emitAttrBlock(id, elemName, "alt", alt, ctx, ch)
 		case atom.Input:
 			if isTranslatableInputValue(strings.ToLower(getTokenAttr(attrs, "type"))) {
 				id := s.nextBlockID()
 				transAttrs = append(transAttrs, transAttrEntry{"alt", alt, id})
-				s.emitAttrBlock(id, "alt", alt, ctx, ch)
+				s.emitAttrBlock(id, elemName, "alt", alt, ctx, ch)
 			}
 		}
 	}
@@ -1655,7 +1696,7 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 		if a == atom.Option {
 			id := s.nextBlockID()
 			transAttrs = append(transAttrs, transAttrEntry{"label", label, id})
-			s.emitAttrBlock(id, "label", label, ctx, ch)
+			s.emitAttrBlock(id, elemName, "label", label, ctx, ch)
 		}
 	}
 
@@ -1663,7 +1704,7 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 		if a == atom.Input || a == atom.Textarea {
 			id := s.nextBlockID()
 			transAttrs = append(transAttrs, transAttrEntry{"placeholder", ph, id})
-			s.emitAttrBlock(id, "placeholder", ph, ctx, ch)
+			s.emitAttrBlock(id, elemName, "placeholder", ph, ctx, ch)
 		}
 	}
 
@@ -1672,7 +1713,7 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 		if isTranslatableInputValue(inputType) {
 			id := s.nextBlockID()
 			transAttrs = append(transAttrs, transAttrEntry{"value", val, id})
-			s.emitAttrBlock(id, "value", val, ctx, ch)
+			s.emitAttrBlock(id, elemName, "value", val, ctx, ch)
 		}
 	}
 
@@ -1690,7 +1731,7 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 		if emit {
 			id := s.nextBlockID()
 			transAttrs = append(transAttrs, transAttrEntry{"accesskey", ak, id})
-			s.emitAttrBlock(id, "accesskey", ak, ctx, ch)
+			s.emitAttrBlock(id, elemName, "accesskey", ak, ctx, ch)
 		}
 	}
 
@@ -1709,11 +1750,11 @@ func (s *tokenReaderState) extractTokenAttrs(raw []byte, tag string, a atom.Atom
 // block-id markers in place of the attribute values; the writer then substitutes
 // those markers with translated text. Without this rewrite the inline tag would
 // emit its source attribute values verbatim.
-func (s *tokenReaderState) extractTokenAttrsNoSkeleton(tag string, a atom.Atom, attrs []html.Attribute, ctx context.Context, ch chan<- model.PartResult) []transAttrEntry {
+func (s *tokenReaderState) extractTokenAttrsNoSkeleton(tag, elemName string, a atom.Atom, attrs []html.Attribute, ctx context.Context, ch chan<- model.PartResult) []transAttrEntry {
 	var out []transAttrEntry
 	if title := getTokenAttrLastNonEmpty(attrs, "title"); title != "" {
 		id := s.nextBlockID()
-		s.emitAttrBlock(id, "title", title, ctx, ch)
+		s.emitAttrBlock(id, elemName, "title", title, ctx, ch)
 		out = append(out, transAttrEntry{"title", title, id})
 	}
 	if alt := getTokenAttrLastNonEmpty(attrs, "alt"); alt != "" {
@@ -1721,25 +1762,25 @@ func (s *tokenReaderState) extractTokenAttrsNoSkeleton(tag string, a atom.Atom, 
 		switch a {
 		case atom.Img, atom.Area:
 			id := s.nextBlockID()
-			s.emitAttrBlock(id, "alt", alt, ctx, ch)
+			s.emitAttrBlock(id, elemName, "alt", alt, ctx, ch)
 			out = append(out, transAttrEntry{"alt", alt, id})
 		case atom.Input:
 			if isTranslatableInputValue(strings.ToLower(getTokenAttr(attrs, "type"))) {
 				id := s.nextBlockID()
-				s.emitAttrBlock(id, "alt", alt, ctx, ch)
+				s.emitAttrBlock(id, elemName, "alt", alt, ctx, ch)
 				out = append(out, transAttrEntry{"alt", alt, id})
 			}
 		}
 	}
 	if label := getTokenAttrLastNonEmpty(attrs, "label"); label != "" && a == atom.Option {
 		id := s.nextBlockID()
-		s.emitAttrBlock(id, "label", label, ctx, ch)
+		s.emitAttrBlock(id, elemName, "label", label, ctx, ch)
 		out = append(out, transAttrEntry{"label", label, id})
 	}
 	if ph := getTokenAttrLastNonEmpty(attrs, "placeholder"); ph != "" {
 		if a == atom.Input || a == atom.Textarea {
 			id := s.nextBlockID()
-			s.emitAttrBlock(id, "placeholder", ph, ctx, ch)
+			s.emitAttrBlock(id, elemName, "placeholder", ph, ctx, ch)
 			out = append(out, transAttrEntry{"placeholder", ph, id})
 		}
 	}
@@ -1747,7 +1788,7 @@ func (s *tokenReaderState) extractTokenAttrsNoSkeleton(tag string, a atom.Atom, 
 		inputType := strings.ToLower(getTokenAttr(attrs, "type"))
 		if isTranslatableInputValue(inputType) {
 			id := s.nextBlockID()
-			s.emitAttrBlock(id, "value", val, ctx, ch)
+			s.emitAttrBlock(id, elemName, "value", val, ctx, ch)
 			out = append(out, transAttrEntry{"value", val, id})
 		}
 	}
@@ -1763,7 +1804,7 @@ func (s *tokenReaderState) extractTokenAttrsNoSkeleton(tag string, a atom.Atom, 
 		}
 		if emit {
 			id := s.nextBlockID()
-			s.emitAttrBlock(id, "accesskey", ak, ctx, ch)
+			s.emitAttrBlock(id, elemName, "accesskey", ak, ctx, ch)
 			out = append(out, transAttrEntry{"accesskey", ak, id})
 		}
 	}
@@ -1817,9 +1858,10 @@ func rewriteInlineTagWithRefs(raw []byte, transAttrs []transAttrEntry) []byte {
 const blockRefSentinelStart = "\x00BLOCK:"
 const blockRefSentinelEnd = "\x00"
 
-func (s *tokenReaderState) emitAttrBlock(blockID, attrKey, value string, ctx context.Context, ch chan<- model.PartResult) {
+func (s *tokenReaderState) emitAttrBlock(blockID, elemName, attrKey, value string, ctx context.Context, ch chan<- model.PartResult) {
 	block := &model.Block{
 		ID:           blockID,
+		Name:         elemName + "@" + attrKey,
 		Type:         attrKey,
 		Translatable: true,
 		IsReferent:   true,
@@ -2342,13 +2384,6 @@ func blockTypeFromTag(tag string) string {
 		return t
 	}
 	return ""
-}
-
-func blockNameFromToken(tag string, attrs []html.Attribute) string {
-	if id := getTokenAttr(attrs, "id"); id != "" {
-		return id + "-id"
-	}
-	return tag
 }
 
 func extractBlockPropsFromToken(attrs []html.Attribute) map[string]string {

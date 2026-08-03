@@ -123,6 +123,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	dataID := 0
 	var pendingNote string // accumulated comment text for commentsAreNotes
 
+	// A property's key IS its identity — the author controls it, and it does not
+	// move when an entry above it is deleted. One builder per document read; it
+	// only ever appends an ordinal for a key the file genuinely repeats (Java
+	// takes the last such entry, but a reader that silently gave both blocks the
+	// same name would hand two entries one identity). See model.NameBuilder.
+	var names model.NameBuilder
+
 	// Localization-directive state machine. The stack tracks nested
 	// `#_btext` / `#_bskip` blocks (true = extract, false = skip);
 	// nextOverride is set by the single-line `#_text` / `#_skip`
@@ -237,7 +244,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					r.skelPropertyLine(line, blockIDStr)
 				}
 				block := model.NewBlock(blockIDStr, value)
-				block.Name = key
+				nameEntry(block, &names, key)
 				block.Translatable = false
 				block.PreserveWhitespace = true
 				block.SourceLocale = locale
@@ -281,7 +288,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 
 		block := model.NewBlock(blockIDStr, value)
-		block.Name = key
+		nameEntry(block, &names, key)
 		block.Properties["separator"] = sep
 		// Store the raw value bytes for byte-exact skeleton reconstruction,
 		// together with the text they decode to — the writer needs that text to
@@ -316,6 +323,25 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Emit layer end
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// PropKey names the property under which an entry's raw key is recorded when it
+// differs from the block's name — that is, only for a key the file repeats,
+// where the name carries a disambiguating ordinal. The writer emits the key
+// from here, so a duplicated key round-trips as itself rather than as the name
+// that tells the two entries apart.
+const PropKey = "key"
+
+// nameEntry gives a block the structural name a properties file already
+// supplies: its key. The ordinal only appears for a key that genuinely repeats
+// — Java takes the last such entry, but two blocks sharing one name would
+// silently share one identity downstream, so they are told apart here.
+func nameEntry(block *model.Block, names *model.NameBuilder, key string) {
+	name := names.Name(key)
+	block.Name = name
+	if name != key {
+		block.Properties[PropKey] = key
+	}
 }
 
 // logicalLines streams the file's logical lines, joining continuation lines

@@ -82,7 +82,9 @@ func TestReadSimpleVTT(t *testing.T) {
 	assert.Equal(t, "Hello world", blocks[0].SourceText())
 	assert.Equal(t, "Second subtitle", blocks[1].SourceText())
 	assert.Equal(t, "00:00:01.000 --> 00:00:04.000", blocks[0].Properties["timecode"])
-	assert.Equal(t, "subtitle.1", blocks[0].Name)
+	// A cue with no identifier is named by its start timestamp, not its position
+	// — see cueName and identity_test.go.
+	assert.Equal(t, "00:00:01.000", blocks[0].Name)
 }
 
 // okapi: VTTFilterTest#testMergeCaptions

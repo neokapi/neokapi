@@ -133,8 +133,17 @@ type elementFrame struct {
 	// evaluated at flush time after the frame is popped.
 	parentAttrs map[string]string
 	parentName  string
-	isInline    bool
-	isExcluded  bool
+	// ordinal is this element's 1-based position among the same-named
+	// element children of its parent, and childOrdinals counts those
+	// children as they open. Together they make elemPath a structural
+	// address rather than a reading order: an element is named by where it
+	// sits under ITS OWN parent, so an edit in another subtree — or in
+	// another document part entirely — cannot move it. See
+	// core/model/structural.go.
+	ordinal       int
+	childOrdinals map[string]int
+	isInline      bool
+	isExcluded    bool
 	// strongExclude is set when the exclusion comes from an ITS
 	// `translate="no"` attribute. Strong exclusion propagates to every
 	// descendant and drops their text on the floor regardless of
@@ -546,6 +555,10 @@ type xmlParseState struct {
 	spanCounter   int
 	stack         []*elementFrame
 	wsStack       []bool
+	// rootOrdinals counts document-level elements, the one place there is no
+	// parent frame to hold the count. Well-formed XML has a single root, so
+	// this normally stays at one entry.
+	rootOrdinals map[string]int
 
 	// itsResolver, when non-nil, evaluates ITS rules (translateRule,
 	// withinTextRule, locNoteRule, …) against each element. Built
@@ -703,13 +716,48 @@ func (s *xmlParseState) hasStrongExcludeAncestor() bool {
 	return false
 }
 
-// elemPath builds the dot-separated path for the current element stack.
+// elemPath builds the dot-separated path for the current element stack. It
+// names element TYPES, not occurrences, because it is what subfilter patterns
+// and config selectors are matched against — `root.data.value` has to match
+// every `value` under `data`, not just the first.
 func (s *xmlParseState) elemPath() string {
 	var parts []string
 	for _, f := range s.stack {
 		parts = append(parts, f.name)
 	}
 	return strings.Join(parts, ".")
+}
+
+// elemNamePath builds the structural address used as a block's Name: elemPath
+// with a `[n]` ordinal on each step whose parent holds more than one child of
+// that name. The first such child stays unsuffixed, so appending a sibling
+// never renames the one already there, and the ordinal is scoped to the parent,
+// so an edit in another subtree cannot shift it. See core/model/structural.go.
+func (s *xmlParseState) elemNamePath() string {
+	var parts []string
+	for _, f := range s.stack {
+		parts = append(parts, f.pathStep())
+	}
+	return strings.Join(parts, ".")
+}
+
+// pathStep renders one step of an element path.
+func (f *elementFrame) pathStep() string {
+	if f.ordinal > 1 {
+		return f.name + "[" + strconv.Itoa(f.ordinal) + "]"
+	}
+	return f.name
+}
+
+// nextOrdinal reserves the sibling ordinal for a child element named name.
+// Ordinals live on the parent, so they are scoped to the smallest enclosing
+// structure the format has.
+func (f *elementFrame) nextOrdinal(name string) int {
+	if f.childOrdinals == nil {
+		f.childOrdinals = map[string]int{}
+	}
+	f.childOrdinals[name]++
+	return f.childOrdinals[name]
 }
 
 // isTranslatable checks if the given frame's content is translatable.
@@ -743,7 +791,10 @@ func (s *xmlParseState) isTranslatable(frame *elementFrame) bool {
 // about to open inside a text-bearing parent). interimEnd == 0 selects
 // the default behavior: the range ends at the parent's closing tag,
 // located by searching backwards from endTagOffset.
-func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffset, interimEnd int) {
+// namePath is the same location with sibling ordinals (see elemNamePath) and is
+// what becomes the block's structural Name; path stays ordinal-free because
+// subfilter patterns are matched against it.
+func (s *xmlParseState) flushBlock(frame *elementFrame, path, namePath string, endTagOffset, interimEnd int) {
 	if frame == nil || !frame.hasRuns {
 		return
 	}
@@ -801,7 +852,7 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 			// skeleton content range when its rendered runs reproduce the
 			// source verbatim, otherwise the bytes stay in skeleton and
 			// the block is purely informational.
-			s.emitNonTranslatableBlock(frame, path, finalRuns, endTagOffset, interimEnd)
+			s.emitNonTranslatableBlock(frame, namePath, finalRuns, endTagOffset, interimEnd)
 			return
 		}
 		// Flag off: byte-identical prior behavior — emit a contentless
@@ -832,7 +883,7 @@ func (s *xmlParseState) flushBlock(frame *elementFrame, path string, endTagOffse
 		Properties:   make(map[string]string),
 	}
 
-	block.Name = path
+	block.Name = namePath
 
 	// Set block name from ID attribute if available
 	idVal := s.reader.cfg.getIDAttribute(frame.name, frame.attrs)
@@ -1070,7 +1121,7 @@ func (s *xmlParseState) emitTranslatableAttrs(elem xml.StartElement, tokOffset, 
 		s.blockCounter++
 		blockID := "tu" + strconv.Itoa(s.blockCounter)
 		block := model.NewBlock(blockID, attr.Value)
-		block.Name = s.elemPath() + "@" + attrName
+		block.Name = s.elemNamePath() + "@" + attrName
 		block.Type = "attribute"
 		block.IsReferent = true
 		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
@@ -1210,9 +1261,18 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 	// DocBook namespace.
 	var parentAttrs map[string]string
 	var parentName string
+	var ordinal int
 	if len(s.stack) > 0 {
-		parentAttrs = s.stack[len(s.stack)-1].attrs
-		parentName = s.stack[len(s.stack)-1].name
+		parent := s.stack[len(s.stack)-1]
+		parentAttrs = parent.attrs
+		parentName = parent.name
+		ordinal = parent.nextOrdinal(t.Name.Local)
+	} else {
+		if s.rootOrdinals == nil {
+			s.rootOrdinals = map[string]int{}
+		}
+		s.rootOrdinals[t.Name.Local]++
+		ordinal = s.rootOrdinals[t.Name.Local]
 	}
 	elemCtx := elementCtx{
 		local:       t.Name.Local,
@@ -1326,6 +1386,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 		attrs:            attrs,
 		parentAttrs:      parentAttrs,
 		parentName:       parentName,
+		ordinal:          ordinal,
 		isInline:         isInline,
 		isExcluded:       isExcluded || inlineExcluded,
 		strongExclude:    strongExclude,
@@ -1474,8 +1535,7 @@ func (s *xmlParseState) handleStartElement(t xml.StartElement, tokOffset int) {
 			if parent := s.findTextFrame(); parent != nil && parent.hasRuns &&
 				!parent.isExcluded && s.isTranslatable(parent) {
 				if runsHaveNonWhitespaceText(parent.runs) {
-					parentPath := s.elemPath()
-					s.flushBlock(parent, parentPath, 0, tokOffset)
+					s.flushBlock(parent, s.elemPath(), s.elemNamePath(), 0, tokOffset)
 				} else {
 					// No block for purely structural runs (whitespace
 					// between children, a comment's Ph) — but the runs
@@ -1526,8 +1586,9 @@ func (s *xmlParseState) handleEndElement(t xml.EndElement) {
 		return
 	}
 	frame := s.stack[len(s.stack)-1]
-	// Compute the path before popping
+	// Compute the paths before popping
 	path := s.elemPath()
+	namePath := s.elemNamePath()
 	s.stack = s.stack[:len(s.stack)-1]
 
 	// endTagOffset is the byte offset after the end tag
@@ -1573,7 +1634,7 @@ func (s *xmlParseState) handleEndElement(t xml.EndElement) {
 		}
 	} else if !frame.isExcluded {
 		// Flush accumulated text as a block
-		s.flushBlock(frame, path, endTagOffset, 0)
+		s.flushBlock(frame, path, namePath, endTagOffset, 0)
 	} else if frame.preserveWS && frame.hasRuns && !frame.strongExclude &&
 		s.reader.cfg.ExtractNonTranslatableContent() {
 		// Config-excluded code/pre subtree: surface its verbatim text as a
@@ -1581,7 +1642,7 @@ func (s *xmlParseState) handleEndElement(t xml.EndElement) {
 		// when handleCharData kept them (config exclusion + preserveWS, not
 		// ITS translate="no"); flushBlock routes through its !isTranslatable
 		// branch, which emits the content block.
-		s.flushBlock(frame, path, endTagOffset, 0)
+		s.flushBlock(frame, path, namePath, endTagOffset, 0)
 	}
 
 	// When a non-inline child closed inside a text-bearing parent
@@ -1674,10 +1735,9 @@ func (s *xmlParseState) handleCharData(t xml.CharData) {
 	if trimmed == "" {
 		return
 	}
-	path := s.elemPath()
 	s.blockCounter++
 	block := model.NewBlock("tu"+strconv.Itoa(s.blockCounter), trimmed)
-	block.Name = path
+	block.Name = s.elemNamePath()
 	s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 

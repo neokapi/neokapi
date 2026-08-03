@@ -196,6 +196,10 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 
 	blockID := 0
 	dataID := 0
+	// One builder per document read: it hands out an ordinal only where a
+	// malformed catalog repeats a (msgctxt, msgid) pair, which gettext itself
+	// rejects but a reader must survive without giving two entries one identity.
+	var names model.NameBuilder
 
 	for _, entry := range entries {
 		// Header entry: empty msgid
@@ -272,14 +276,14 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 			groupID := fmt.Sprintf("g%d", blockID)
 			gs := &model.GroupStart{
 				ID:   groupID,
-				Name: entry.msgid,
+				Name: entryKey(entry),
 				Type: "plural",
 			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: gs}) {
 				return
 			}
 
-			for _, pf := range r.pluralForms(entry, blockID) {
+			for _, pf := range r.pluralForms(entry, blockID, &names) {
 				block := r.newPluralBlock(entry, pf, targetLocale)
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return
@@ -302,7 +306,7 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 				target = ""
 			}
 			block := model.NewBlock(fmt.Sprintf("tu%d", blockID), source)
-			block.Name = entry.msgid
+			block.Name = names.Name(entryKey(entry))
 			if entry.msgctxt != "" {
 				block.Properties["context"] = entry.msgctxt
 			}
@@ -323,10 +327,52 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 	}
 }
 
+// entryKey is a PO entry's natural key: gettext identifies a message by the
+// pair (msgctxt, msgid), which is exactly what makes the same msgid usable
+// twice under different contexts. It is the block's structural name — an entry
+// keeps it when entries around it are added, deleted or reordered, which a
+// count of entries seen so far would not.
+//
+// Naming a block by its own source text is normally the bug this whole exercise
+// exists to prevent: reconcile folds the name into the CONTEXT hash while the
+// text drives the CONTENT hash, so a name derived from the text moves both at
+// once and an edited block grades New instead of Edited, losing its history
+// (see core/model/structural.go). In bilingual mode a PO msgid IS the source
+// text, so that is exactly what happens here — deliberately:
+//
+//   - In gettext the msgid is the identity, not a rendering of it. Editing a
+//     msgid does not amend a message, it retires one and declares another; that
+//     is why msgmerge cannot carry the translation across except as a fuzzy
+//     guess, and why every catalog in the wild behaves this way. Grading such an
+//     edit as New states what the format states.
+//   - There is no second candidate. msgctxt is optional and, where present, is
+//     a shared bucket ("menu", "button") rather than a per-message key, so
+//     naming by context alone would collide across unrelated entries and fall
+//     back to an ordinal — a positional name, which is the failure this replaces.
+//     The `#:` reference lines are source-code positions and churn faster than
+//     the text does.
+//
+// In MONOLINGUAL mode the trade-off does not arise: the msgstr supplies the
+// source text and the msgid is a pure identifier, so name and content are
+// independent and an edited string grades Edited. TestIdentity_EditedMsgid* pin
+// both behaviours.
+func entryKey(entry *poEntry) string {
+	return model.StructuralPath(entry.msgctxt, entry.msgid)
+}
+
+// pluralFormName scopes a plural entry's forms under the entry's own key. The
+// forms of one entry share a msgid and, from form 1 on, a msgid_plural, so the
+// form index is what tells them apart — and it is the file's own index
+// (msgstr[N]), not a position in the document.
+func pluralFormName(entry *poEntry, idx int) string {
+	return fmt.Sprintf("%s[%d]", entryKey(entry), idx)
+}
+
 // pluralForm describes one plural-form block to emit for a plural entry.
 type pluralForm struct {
 	index    int    // msgstr[N] index
 	id       string // block ID
+	name     string // structural name: the entry key scoped by form index
 	source   string // source text (msgid for index 0, msgid_plural otherwise)
 	formName string // "singular" or "plural" — the plural-form property value
 }
@@ -384,7 +430,7 @@ func msgidRefID(entry *poEntry, blockID int, field fieldType) string {
 	return fmt.Sprintf("tu%d", blockID) + msgidRefSep + "msgid"
 }
 
-func (r *Reader) pluralForms(entry *poEntry, blockID int) []pluralForm {
+func (r *Reader) pluralForms(entry *poEntry, blockID int, names *model.NameBuilder) []pluralForm {
 	n := r.nPlurals
 	if n < 1 {
 		n = defaultNPlurals
@@ -400,6 +446,7 @@ func (r *Reader) pluralForms(entry *poEntry, blockID int) []pluralForm {
 		forms = append(forms, pluralForm{
 			index:    i,
 			id:       pluralBlockID(blockID, i),
+			name:     names.Name(pluralFormName(entry, i)),
 			source:   source,
 			formName: formName,
 		})
@@ -412,7 +459,7 @@ func (r *Reader) pluralForms(entry *poEntry, blockID int) []pluralForm {
 // msgctxt context (when present).
 func (r *Reader) newPluralBlock(entry *poEntry, pf pluralForm, targetLocale model.LocaleID) *model.Block {
 	block := model.NewBlock(pf.id, pf.source)
-	block.Name = pf.source
+	block.Name = pf.name
 	if entry.msgctxt != "" {
 		block.Properties["context"] = entry.msgctxt
 	}
@@ -679,6 +726,10 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 	// Second pass: emit parts and skeleton data.
 	blockID := 0
 	dataID := 0
+	// Names come from the same (msgctxt, msgid) key as the non-skeleton path,
+	// assigned in the same document order, so a file read either way names its
+	// blocks identically.
+	var names model.NameBuilder
 
 	for _, re := range entries {
 		entry := re.entry
@@ -871,14 +922,14 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		// Emit block parts
 		if entry.isPlural {
 			groupID := fmt.Sprintf("g%d", entryBlockID)
-			gs := &model.GroupStart{ID: groupID, Name: entry.msgid, Type: "plural"}
+			gs := &model.GroupStart{ID: groupID, Name: entryKey(entry), Type: "plural"}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: gs}) {
 				return
 			}
 
 			// One block per plural form declared by the header's
 			// nplurals (default 2), matching Okapi's testThreePlurals.
-			for _, pf := range r.pluralForms(entry, entryBlockID) {
+			for _, pf := range r.pluralForms(entry, entryBlockID, &names) {
 				block := r.newPluralBlock(entry, pf, targetLocale)
 				block.Properties[propRawMsgstr] = buildRawMsgstr(pf.index)
 				// The msgid line is form 0's source; the single msgid_plural
@@ -912,7 +963,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				target = ""
 			}
 			block := model.NewBlock(fmt.Sprintf("tu%d", entryBlockID), source)
-			block.Name = entry.msgid
+			block.Name = names.Name(entryKey(entry))
 			if entry.msgctxt != "" {
 				block.Properties["context"] = entry.msgctxt
 			}

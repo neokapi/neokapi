@@ -44,3 +44,37 @@ func TestNameBuilder_EmptyPath(t *testing.T) {
 	assert.Equal(t, "block", b.Name(""))
 	assert.Equal(t, "block#2", b.Name(""))
 }
+
+// A locator says where to find a block, not what it is. Letting one identify a
+// block makes an untouched block report as moved whenever anything above it
+// moves — which is exactly what a locator does by design.
+func TestAdvisoryPropertiesDoNotIdentify(t *testing.T) {
+	base := model.NewBlock("tu1", "Alpha")
+	base.Name, base.Type = "line1", "paragraph"
+
+	moved := model.NewBlock("tu1", "Alpha")
+	moved.Name, moved.Type = "line1", "paragraph"
+	moved.Properties[model.AdvisoryPropertyPrefix+"line"] = "42"
+
+	assert.Equal(t,
+		model.ComputeIdentity(base).ContextHash,
+		model.ComputeIdentity(moved).ContextHash,
+		"an advisory property must not change a block's identity")
+
+	// A structural property still does: a heading that changed level genuinely
+	// sits somewhere else in the document.
+	structural := model.NewBlock("tu1", "Alpha")
+	structural.Name, structural.Type = "line1", "paragraph"
+	structural.Properties["level"] = "2"
+
+	assert.NotEqual(t,
+		model.ComputeIdentity(base).ContextHash,
+		model.ComputeIdentity(structural).ContextHash,
+		"a structural property is part of identity")
+}
+
+func TestIsAdvisoryProperty(t *testing.T) {
+	assert.True(t, model.IsAdvisoryProperty("@line"))
+	assert.False(t, model.IsAdvisoryProperty("line"), "the prefix is what marks it, not the name")
+	assert.False(t, model.IsAdvisoryProperty(""))
+}

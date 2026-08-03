@@ -504,7 +504,30 @@ func keyedSide(blocks []diffBlock) bool {
 		}
 		seen[b.ID] = true
 	}
-	return !positionalSide(blocks)
+	return !positionalSide(blocks) && !disambiguatedSide(blocks)
+}
+
+// disambiguatedSide reports whether any name carries an occurrence ordinal.
+//
+// A structural name earns its ordinal only when structure could not tell two
+// blocks apart — two paragraphs under one heading, two cells in a row (see
+// model.NameBuilder). That suffix is therefore a statement by the reader that
+// these names encode position, and aligning on them would mis-report an
+// insertion as a run of changes: insert a paragraph and every later ordinal in
+// that section shifts by one.
+//
+// It exists because the shape test below cannot see this. A name like
+// "install/p#3" is structural everywhere except the ordinal, so it does not look
+// like the "para3" auto-ID that test was written for — which is exactly how
+// markdown quietly switched from content alignment to id alignment when its
+// names became structural.
+func disambiguatedSide(blocks []diffBlock) bool {
+	for _, b := range blocks {
+		if strings.Contains(b.ID, model.NameOrdinalSeparator) {
+			return true
+		}
+	}
+	return false
 }
 
 // positionalAutoID matches an alpha prefix followed by digits ("tu12", "d3"),

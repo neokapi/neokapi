@@ -26,8 +26,13 @@ func TestReadSimpleSRT(t *testing.T) {
 	assert.Equal(t, "Hello world", blocks[0].SourceText())
 	assert.Equal(t, "Second subtitle", blocks[1].SourceText())
 	assert.Equal(t, "00:00:01,000 --> 00:00:04,000", blocks[0].Properties["timecode"])
-	assert.Equal(t, "1", blocks[0].Properties["sequence"])
-	assert.Equal(t, "subtitle.1", blocks[0].Name)
+	// The entry number rides a Data part (see TestSequenceNumberAsData), not the
+	// block: it is a position in the file that renumbers whenever a cue is
+	// deleted, and Block.Properties is hashed into the block's context identity.
+	assert.NotContains(t, blocks[0].Properties, "sequence")
+	// The name is the cue's start timestamp, not its in-file sequence number,
+	// which every SRT tool renumbers on write — see cueName and identity_test.go.
+	assert.Equal(t, "00:00:01,000", blocks[0].Name)
 }
 
 func TestReadMultiLineSRT(t *testing.T) {

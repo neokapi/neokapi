@@ -281,7 +281,7 @@ func (v *readerVisitor) onData(dataID string, n *html.Node, dataName string, pro
 // ingestion/LLM consumers, skipped by MT. The body is NOT inline-parsed.
 func (v *readerVisitor) onContentBlock(blockID string, n *html.Node, role, body string) {
 	block := model.NewBlock(blockID, body) // single verbatim run
-	block.Name = n.Data
+	block.Name = nodePath(n)
 	block.Type = n.Data
 	block.Translatable = false
 	block.PreserveWhitespace = true
@@ -300,6 +300,7 @@ func (v *readerVisitor) onTextBlock(blockID string, n *html.Node) {
 		text = strings.TrimFunc(text, isHTMLWhitespace)
 	}
 	block := model.NewBlock(blockID, text)
+	block.Name = nodePath(n)
 	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -307,6 +308,7 @@ func (v *readerVisitor) onAttributeBlock(blockID string, n *html.Node, attrKey s
 	value := getAttr(n, attrKey)
 	block := &model.Block{
 		ID:           blockID,
+		Name:         attributePath(n, attrKey),
 		Type:         attrKey,
 		Translatable: true,
 		IsReferent:   true,
@@ -378,8 +380,11 @@ func (v *readerVisitor) onMixedContentBlock(blockID string, parent *html.Node, r
 	}
 
 	block := &model.Block{
-		ID:                 blockID,
-		Name:               v.reader.blockName(parent),
+		ID: blockID,
+		// A mixed-content run is named after the node it starts at, not after
+		// its container: a container holds several runs, so naming them all
+		// after the container would give them one address between them.
+		Name:               nodePath(runStart),
 		Type:               v.reader.blockType(parent),
 		Translatable:       true,
 		PreserveWhitespace: preserveWS,
@@ -759,12 +764,10 @@ func hasAttr(n *html.Node, key string) bool {
 	return false
 }
 
-// blockName returns the block name for an element, incorporating id attribute.
+// blockName returns the block's structural address in the DOM. See
+// structural_name.go for the scheme.
 func (r *Reader) blockName(n *html.Node) string {
-	if id := getAttr(n, "id"); id != "" {
-		return id + "-id"
-	}
-	return n.Data
+	return nodePath(n)
 }
 
 // extractBlockProperties returns properties from the element's attributes.

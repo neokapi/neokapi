@@ -461,7 +461,7 @@ func (r *Reader) readEntry(file *zip.File) ([]byte, error) {
 // is reconstructed/copied unchanged and the round-trip stays byte-exact. The
 // `kind` is recorded under the `epub.context` property for downstream tools.
 func (r *Reader) emitContextBlock(ctx context.Context, ch chan<- model.PartResult,
-	source, text, kind, role string, blockCounter *int) bool {
+	source, name, text, kind, role string, blockCounter *int) bool {
 
 	text = strings.TrimSpace(text)
 	if text == "" {
@@ -469,7 +469,7 @@ func (r *Reader) emitContextBlock(ctx context.Context, ch chan<- model.PartResul
 	}
 	*blockCounter++
 	block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), text)
-	block.Name = source
+	block.Name = name
 	block.Translatable = false
 	block.Properties["epub.source"] = source
 	block.Properties["epub.context"] = kind
@@ -494,9 +494,13 @@ func (r *Reader) emitOPFMetadata(ctx context.Context, ch chan<- model.PartResult
 		{"dc:creator", "", meta.Creator},
 		{"dc:subject", "", meta.Subject},
 	}
+	// A Dublin Core field is a natural key, and it is the name. Repeats — two
+	// creators, several subjects — are ordinaled within their own field, so
+	// adding a subject cannot rename a creator.
 	for _, g := range groups {
-		for _, t := range g.texts {
-			if !r.emitContextBlock(ctx, ch, opfPath, t, g.kind, g.role, blockCounter) {
+		for i, t := range g.texts {
+			name := model.StructuralPath(opfPath, ordinalStep(g.kind, i+1))
+			if !r.emitContextBlock(ctx, ch, opfPath, name, t, g.kind, g.role, blockCounter) {
 				return false
 			}
 		}
@@ -538,6 +542,9 @@ func (r *Reader) emitNCXLabels(ctx context.Context, ch chan<- model.PartResult,
 
 	navLabelDepth := 0
 	inText := false
+	// navLabelSeq scopes a label's ordinal to the navigation document it is
+	// in, so a chapter added to one book file cannot rename labels in another.
+	navLabelSeq := 0
 	var text strings.Builder
 	for {
 		tok, err := dec.Token()
@@ -564,7 +571,9 @@ func (r *Reader) emitNCXLabels(ctx context.Context, ch chan<- model.PartResult,
 			case "text":
 				if inText {
 					inText = false
-					if !r.emitContextBlock(ctx, ch, entry, text.String(), "nav-label", model.RoleTitle, blockCounter) {
+					navLabelSeq++
+					name := model.StructuralPath(entry, ordinalStep("nav-label", navLabelSeq))
+					if !r.emitContextBlock(ctx, ch, entry, name, text.String(), "nav-label", model.RoleTitle, blockCounter) {
 						return false
 					}
 				}
@@ -590,6 +599,7 @@ func (r *Reader) emitNavLabels(ctx context.Context, ch chan<- model.PartResult,
 
 	navDepth := 0
 	inAnchor := false
+	navLabelSeq := 0
 	var text strings.Builder
 	for {
 		tok, err := dec.Token()
@@ -616,7 +626,9 @@ func (r *Reader) emitNavLabels(ctx context.Context, ch chan<- model.PartResult,
 			case "a":
 				if inAnchor {
 					inAnchor = false
-					if !r.emitContextBlock(ctx, ch, entry, text.String(), "nav-label", model.RoleTitle, blockCounter) {
+					navLabelSeq++
+					name := model.StructuralPath(entry, ordinalStep("nav-label", navLabelSeq))
+					if !r.emitContextBlock(ctx, ch, entry, name, text.String(), "nav-label", model.RoleTitle, blockCounter) {
 						return false
 					}
 				}
@@ -642,6 +654,10 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 	var textBuf strings.Builder
 	inBlock := false
 	depth := 0
+
+	// path addresses each block by spine item plus its position in this
+	// document's markup — see structural_name.go.
+	path := newXHTMLPath(itemPath)
 
 	// Pending tokens for skeleton reconstruction within a block
 	var pendingTokens []xml.Token
@@ -719,7 +735,7 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 				*blockCounter++
 				blockID := fmt.Sprintf("tu%d", *blockCounter)
 				block := model.NewBlock(blockID, text)
-				block.Name = itemPath
+				block.Name = path.textRun()
 				block.Properties["entry"] = itemPath
 				format.RecordVerbatimText(block, propXHTMLText, text)
 
@@ -779,7 +795,7 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 	// unexpected block element inside fall back to the exact prior behavior
 	// (serialize every token to skeleton) without ever swallowing a
 	// translatable block.
-	consumeVerbatim := func(start xml.StartElement) {
+	consumeVerbatim := func(start xml.StartElement, step string) {
 		consumed := []xml.Token{xml.CopyToken(start)}
 		opens := []xml.Token{consumed[0]}
 		var body strings.Builder
@@ -851,7 +867,7 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 			*blockCounter++
 			blockID := fmt.Sprintf("tu%d", *blockCounter)
 			block := model.NewBlock(blockID, body.String())
-			block.Name = itemPath
+			block.Name = path.name(step)
 			block.Translatable = false
 			block.PreserveWhitespace = true
 			block.SetSemanticRole(model.RoleCode, 0)
@@ -886,11 +902,12 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 	// non-translatable context blocks (visible to ingestion, skipped by MT).
 	// Surfacing-only: the attributes stay verbatim in the image tag's skeleton,
 	// so the round-trip is unaffected.
-	emitImageAttrs := func(start xml.StartElement) {
+	emitImageAttrs := func(start xml.StartElement, step string) {
 		for _, a := range start.Attr {
 			switch a.Name.Local {
 			case "alt", "title", "aria-label":
-				r.emitContextBlock(ctx, ch, itemPath, a.Value, "img-"+a.Name.Local, "", blockCounter)
+				r.emitContextBlock(ctx, ch, itemPath, path.name(step)+"@"+a.Name.Local,
+					a.Value, "img-"+a.Name.Local, "", blockCounter)
 			}
 		}
 	}
@@ -912,7 +929,7 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 		*blockCounter++
 		blockID := fmt.Sprintf("tu%d", *blockCounter)
 		block := model.NewBlock(blockID, core)
-		block.Name = itemPath
+		block.Name = path.textRun()
 		block.Translatable = false
 		block.Properties["epub.source"] = itemPath
 		block.Properties["epub.context"] = "bare-prose"
@@ -943,22 +960,31 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 		case xml.StartElement:
 			localName := t.Name.Local
 			if blockElements[localName] {
+				// Flush the enclosing element's pending text FIRST, while it
+				// is still the innermost open element — the block being
+				// flushed belongs to it, not to the one now opening.
 				if inBlock && textBuf.Len() > 0 {
 					flushBlock()
 				}
+				path.push(localName, path.reserve(localName))
 				inBlock = true
 				depth++
 				pendingTokens = append(pendingTokens, xml.CopyToken(t))
 			} else if inBlock {
+				path.push(localName, path.reserve(localName))
 				depth++
 				pendingTokens = append(pendingTokens, xml.CopyToken(t))
 			} else if verbatimElements[localName] && r.cfg.ExtractNonTranslatableContent() {
-				consumeVerbatim(t)
+				// The subtree is consumed whole below, so the element never
+				// becomes an ancestor: it takes a step but is not pushed.
+				consumeVerbatim(t, path.reserve(localName))
 			} else {
 				// Skeleton-level element (outside any translatable block).
+				step := path.reserve(localName)
 				if r.cfg.ExtractNonTranslatableContent() && localName == "img" {
-					emitImageAttrs(t)
+					emitImageAttrs(t, step)
 				}
+				path.push(localName, step)
 				containerStack = append(containerStack, localName)
 				writeSkelToken(t)
 			}
@@ -966,16 +992,20 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 			localName := t.Name.Local
 			if blockElements[localName] {
 				pendingTokens = append(pendingTokens, xml.CopyToken(t))
+				// Flush before popping: the block is this element's.
 				flushBlock()
+				path.pop(localName)
 				depth--
 				if depth <= 0 {
 					inBlock = false
 					depth = 0
 				}
 			} else if inBlock {
+				path.pop(localName)
 				depth--
 				pendingTokens = append(pendingTokens, xml.CopyToken(t))
 			} else {
+				path.pop(localName)
 				if len(containerStack) > 0 {
 					containerStack = containerStack[:len(containerStack)-1]
 				}

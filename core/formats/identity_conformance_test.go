@@ -38,9 +38,10 @@ func TestBlockIdentity_SurvivesAnUnrelatedDeletion(t *testing.T) {
 		name   string
 		reader func() format.DataFormatReader
 		v1, v2 string
-		// stable records the measured state. Keyed formats derive identity from
-		// the key, so it survives an edit. Prose formats number positionally and
-		// do not — see TestBlockIdentity_ProseFormatsAreStillPositional.
+		// stable records the measured state. A format is stable when its name
+		// comes from structure the author controls — a key path, a heading
+		// trail — so an unrelated edit cannot move it. What still numbers
+		// positionally is pinned by TestBlockIdentity_ProseFormatsNamePositionally.
 		stable bool
 	}{
 		{
@@ -58,10 +59,17 @@ func TestBlockIdentity_SurvivesAnUnrelatedDeletion(t *testing.T) {
 			v2:     "a: Alpha\nc: Charlie\n",
 		},
 		{
+			// Markdown names blocks by the heading trail they sit under plus
+			// their kind, so the deletion below — a paragraph in ANOTHER
+			// section — cannot re-address Charlie. The ordinal that separates
+			// two paragraphs of ONE section is all that still moves; see
+			// markdown.TestMarkdownNames_ShiftWithinTheSameSection for that
+			// boundary, which is why the edit here crosses a heading.
 			name:   "markdown",
+			stable: true,
 			reader: func() format.DataFormatReader { return markdown.NewReader() },
-			v1:     "Alpha\n\nBravo\n\nCharlie\n",
-			v2:     "Alpha\n\nCharlie\n",
+			v1:     "## Install\n\nAlpha\n\nBravo\n\n## Configure\n\nCharlie\n",
+			v2:     "## Install\n\nAlpha\n\n## Configure\n\nCharlie\n",
 		},
 		{
 			name:   "plaintext",
@@ -129,9 +137,10 @@ func identitiesByText(t *testing.T, r format.DataFormatReader, content string) m
 // Prose formats name blocks by position, and that is left in place.
 //
 // Keyed formats above are stable because their name IS the key. Prose formats
-// have no key, so markdown names by "paraN", plaintext by "lineN", and the same
-// shape appears in html, xml, mdx and resx. Delete a paragraph and every block
-// below it is renamed.
+// have no key, so plaintext names by "lineN", and the same shape appears in
+// html, xml and resx. Delete a paragraph and every block below it is renamed.
+// (Markdown and mdx left this table: they now address a block by the heading
+// trail it sits under — see core/formats/markdown/naming.go.)
 //
 // Making those names content-derived was tried and rejected. It fixes deletion
 // and breaks editing — a reworded paragraph becomes a different block and loses
@@ -155,13 +164,6 @@ func TestBlockIdentity_ProseFormatsNamePositionally(t *testing.T) {
 		wasCharlie string
 		nowCharlie string
 	}{
-		{
-			name:       "markdown",
-			reader:     func() format.DataFormatReader { return markdown.NewReader() },
-			v1:         "Alpha\n\nBravo\n\nCharlie\n",
-			v2:         "Alpha\n\nCharlie\n",
-			wasCharlie: "para3", nowCharlie: "para2",
-		},
 		{
 			name:       "plaintext",
 			reader:     func() format.DataFormatReader { return plaintext.NewReader() },

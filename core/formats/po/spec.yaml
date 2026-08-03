@@ -76,8 +76,10 @@ config:
     default: true
     description: |
       Generate stable text-unit identifiers from the source text.
-      Accepted for parity; the native reader currently uses the
-      msgid value directly as the Block name.
+      Accepted for parity; the native reader names a Block by the
+      gettext key instead — the msgid, prefixed by the msgctxt when
+      the entry declares one, and suffixed with the msgstr[N] index
+      for each form of a plural entry.
     okapi_param: makeID
 
   - key: includeMsgContextInNote

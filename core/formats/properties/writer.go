@@ -235,8 +235,19 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	}
 
 	w.writeLine()
-	_, err := fmt.Fprintf(w.Output, "%s%s%s", block.Name, sep, text)
+	_, err := fmt.Fprintf(w.Output, "%s%s%s", entryKey(block), sep, text)
 	return err
+}
+
+// entryKey returns the key to write for a block. The block's name is the key in
+// every ordinary case; a file that repeats a key gets a disambiguated name and
+// the reader records the raw key separately, so writing the name back would
+// invent a key the file never had. See PropKey.
+func entryKey(block *model.Block) string {
+	if key, ok := block.Properties[PropKey]; ok {
+		return key
+	}
+	return block.Name
 }
 
 func (w *Writer) writeData(part *model.Part) error {

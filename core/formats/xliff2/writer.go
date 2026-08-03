@@ -36,11 +36,16 @@ import (
 // modified.
 type Writer struct {
 	format.BaseFormatWriter
-	cfg            *Config
-	skeletonStore  *format.SkeletonStore
-	sourceLang     model.LocaleID
-	targetLang     model.LocaleID
-	fileID         string
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	sourceLang    model.LocaleID
+	targetLang    model.LocaleID
+	fileID        string
+	// inputFormat is the format the incoming Layer was read from. It separates
+	// an XLIFF round-trip from a conversion out of another format, which is the
+	// only thing that decides where a unit's `name` attribute comes from — see
+	// unitNameAttr.
+	inputFormat    string
 	inputVersion   string
 	inputExtraAttr []xml.Attr
 	fileNotes      []FileNote
@@ -162,6 +167,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 				if layer, ok := part.Resource.(*model.Layer); ok {
 					w.sourceLang = layer.Locale
 					w.fileID = layer.Name
+					w.inputFormat = layer.Format
 					if tl, ok := layer.Properties["target-language"]; ok {
 						w.targetLang = model.LocaleID(tl)
 					}
@@ -1339,13 +1345,34 @@ func (w *Writer) setRootAttrs(root *etree.Element, version string, targetLang mo
 	}
 }
 
+// unitNameAttr returns the `name` attribute to write for a block.
+//
+// For a block that came from XLIFF the answer is the attribute the reader
+// captured, or nothing: the block's Name is its structural address
+// (file/group/unit), which is identity, not a label the document declared, and
+// stamping it back would invent a name attribute on every unit.
+//
+// For a block that came from another format there is no captured attribute, and
+// the block's Name is that format's own key — a properties key, a JSON key path
+// — which is exactly the human label `name` is for. That is the only case where
+// the fallback applies, so a conversion does not throw the source key away.
+func (w *Writer) unitNameAttr(block *model.Block) string {
+	if name, ok := block.Properties[PropUnitName]; ok {
+		return name
+	}
+	if w.inputFormat == "xliff2" {
+		return ""
+	}
+	return block.Name
+}
+
 // appendUnit builds a <unit> element for the given Block and appends it
 // to parent.
 func (w *Writer) appendUnit(parent *etree.Element, block *model.Block, targetLang model.LocaleID) {
 	unitEl := parent.CreateElement("unit")
 	unitEl.CreateAttr("id", block.ID)
-	if block.Name != "" {
-		unitEl.CreateAttr("name", block.Name)
+	if name := w.unitNameAttr(block); name != "" {
+		unitEl.CreateAttr("name", name)
 	}
 	if !block.Translatable {
 		unitEl.CreateAttr("translate", "no")

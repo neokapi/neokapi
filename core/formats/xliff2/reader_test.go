@@ -79,7 +79,10 @@ func TestReadXLIFF2UnitIDs(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
 
 	assert.Equal(t, "u1", blocks[0].ID)
-	assert.Equal(t, "greeting", blocks[0].Name)
+	// The name is the unit's structural address; the `name` attribute is a
+	// label and rides as a property (see PropUnitName).
+	assert.Equal(t, "f1/u1", blocks[0].Name)
+	assert.Equal(t, "greeting", blocks[0].Properties[xliff2.PropUnitName])
 	assert.Equal(t, "u2", blocks[1].ID)
 	assert.Equal(t, "u3", blocks[2].ID)
 }

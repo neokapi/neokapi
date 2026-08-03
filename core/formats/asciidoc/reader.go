@@ -38,14 +38,20 @@ type Reader struct {
 	groupStack   []groupFrame
 	locale       model.LocaleID
 	aborted      bool
+
+	// names and pendingAnchor implement structural naming — see naming.go.
+	names         model.NameBuilder
+	pendingAnchor string
 }
 
-// groupFrame is one open structural group on the reader's stack. level is only
-// meaningful for kind=="section" (the AsciiDoc heading level it opened at).
+// groupFrame is one open structural group on the reader's stack. level and
+// title are only meaningful for kind=="section" (the AsciiDoc heading level it
+// opened at, and the segment that names everything inside it).
 type groupFrame struct {
 	id    string
 	kind  string
 	level int
+	title string
 }
 
 // Ensure Reader implements SkeletonStoreEmitter.
@@ -138,6 +144,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	}
 	r.source = content
 	r.cursor = 0
+	r.names.Reset()
+	r.pendingAnchor = ""
 
 	r.locale = r.Doc.SourceLocale
 	if r.locale.IsEmpty() {
@@ -220,7 +228,10 @@ func (r *Reader) processBlock(ctx context.Context, ch chan<- model.PartResult, l
 
 	switch {
 	case strings.TrimSpace(text) == "":
-		// Blank line — skeleton (flushed lazily by the next gap).
+		// Blank line — skeleton (flushed lazily by the next gap). A block
+		// attribute binds to the block immediately below it, so a blank line
+		// drops any anchor that has not been claimed.
+		r.pendingAnchor = ""
 		return i + 1
 
 	case reCommentDelim.MatchString(text):
@@ -253,6 +264,10 @@ func (r *Reader) processBlock(ctx context.Context, ch chan<- model.PartResult, l
 		// parses with the right column count and header even when each cell is on
 		// its own line (no blank-line row boundary to infer the width from). The
 		// attribute bytes still ride the skeleton for a byte-exact round-trip.
+		if anchor := blockAnchor(text); anchor != "" {
+			// An author-assigned address for the block below — see naming.go.
+			r.pendingAnchor = anchor
+		}
 		if r.cfg.ExtractTableCells && i+1 < len(lines) && reTableDelim.MatchString(lines[i+1].text) {
 			cols, header := parseTableAttrs(text)
 			r.emitData(ctx, ch, "block-attribute", string(r.source[line.start:line.end]))
@@ -264,7 +279,7 @@ func (r *Reader) processBlock(ctx context.Context, ch chan<- model.PartResult, l
 	case isBlockTitle(text):
 		if r.cfg.ExtractBlockTitles {
 			r.emitBlock(ctx, ch, line.start, line.start+1, line.contentEnd,
-				"block-title", "block-title", model.RoleCaption, 0, nil)
+				r.sectionPath("block-title"), "block-title", model.RoleCaption, 0, nil)
 		} else {
 			r.emitData(ctx, ch, "block-title", string(r.source[line.start:line.end]))
 		}
@@ -278,7 +293,7 @@ func (r *Reader) processBlock(ctx context.Context, ch chan<- model.PartResult, l
 		label := text[loc[2]:loc[3]]
 		contentStart := line.start + loc[4]
 		r.emitBlock(ctx, ch, line.start, contentStart, line.contentEnd,
-			"admonition", "admonition", model.RoleParagraph, 0,
+			r.sectionPath("admonition"), "admonition", model.RoleParagraph, 0,
 			map[string]string{"asciidoc.admonition": label})
 		return i + 1
 
@@ -311,9 +326,26 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, li
 	contentStart := line.start + loc[4]
 
 	r.closeSectionsGE(ctx, ch, level)
+
+	// A heading addresses everything under it by its title, but must NOT address
+	// ITSELF that way. Its name is folded into its context hash while its title
+	// is its content hash, so naming it after its own words means rewording it
+	// moves both signals at once and reconcile grades it new — the heading loses
+	// the history it should have kept. Named by position among its siblings
+	// instead, a reworded heading moves content alone and grades as an edit.
+	//
+	// An anchor is the exception and the better answer when the author wrote
+	// one: it is a stable identifier they control, and rewording the title does
+	// not touch it. emitBlock claims the pending anchor for the heading's own
+	// name, so the section segment is read off before that happens.
+	title := string(r.source[contentStart:line.contentEnd])
+	segment := title
+	if r.pendingAnchor != "" {
+		segment = r.pendingAnchor
+	}
 	r.emitBlock(ctx, ch, line.start, contentStart, line.contentEnd,
-		fmt.Sprintf("heading-%d", level), "heading", model.RoleHeading, level, nil)
-	r.openGroup(ctx, ch, "section", "section", level, nil)
+		r.sectionPath(fmt.Sprintf("h%d", level)), "heading", model.RoleHeading, level, nil)
+	r.openSection(ctx, ch, level, segment)
 	return i + 1
 }
 
@@ -331,7 +363,7 @@ func (r *Reader) emitParagraph(ctx context.Context, ch chan<- model.PartResult, 
 	contentStart := lines[start].start
 	contentEnd := lines[i-1].contentEnd
 	r.emitBlock(ctx, ch, contentStart, contentStart, contentEnd,
-		fmt.Sprintf("para%d", r.blockCounter+1), "paragraph", model.RoleParagraph, 0, nil)
+		r.sectionPath("p"), "paragraph", model.RoleParagraph, 0, nil)
 	return i
 }
 
@@ -351,7 +383,7 @@ func (r *Reader) emitIndentedLiteral(ctx context.Context, ch chan<- model.PartRe
 	contentStart := lines[start].start
 	contentEnd := lines[i-1].contentEnd
 	r.emitContentBlock(ctx, ch, contentStart, contentStart, contentEnd,
-		fmt.Sprintf("literal%d", r.blockCounter+1), "literal-paragraph", model.RoleCode, nil)
+		r.sectionPath("literal-paragraph"), "literal-paragraph", model.RoleCode, nil)
 	return i
 }
 
@@ -365,6 +397,9 @@ func (r *Reader) processList(ctx context.Context, ch chan<- model.PartResult, li
 	if i < len(lines) && reOList.MatchString(lines[i].text) {
 		listProps["ordered"] = "true"
 	}
+	// Items are addressed within their own list, so a second list under the same
+	// heading does not renumber the first one's items.
+	listPath := r.names.Name(r.sectionPath("list"))
 	if !r.openGroup(ctx, ch, "list", "list", 0, listProps) {
 		return len(lines)
 	}
@@ -385,7 +420,7 @@ func (r *Reader) processList(ctx context.Context, ch chan<- model.PartResult, li
 		}
 		contentStart := lines[i].start + loc[4]
 		r.emitBlock(ctx, ch, lines[i].start, contentStart, lines[i].contentEnd,
-			fmt.Sprintf("item%d", r.blockCounter+1), "list-item", model.RoleListItem, level, nil)
+			listPath+"/li", "list-item", model.RoleListItem, level, nil)
 		i++
 	}
 	r.closeGroup(ctx, ch)
@@ -442,10 +477,15 @@ func (r *Reader) processTableWith(ctx context.Context, ch chan<- model.PartResul
 		header = true
 	}
 
+	// A cell's address is its table plus its row and column. The table's own path
+	// is claimed once so a second table under the same heading cannot renumber
+	// this one's cells.
+	tablePath := r.names.Name(r.sectionPath("table"))
 	if !r.openGroup(ctx, ch, "table", "table", 0, nil) {
 		return len(lines)
 	}
 	col := 0
+	rowNum := 0
 	rowIsHeader := header
 	rowOpen := false
 	for _, c := range cells {
@@ -473,12 +513,13 @@ func (r *Reader) processTableWith(ctx context.Context, ch chan<- model.PartResul
 			props["rowspan"] = strconv.Itoa(c.rowspan)
 		}
 		r.emitBlock(ctx, ch, c.cStart, c.cStart, c.cEnd,
-			fmt.Sprintf("cell%d", r.blockCounter+1), "table-cell", role, 0, props)
+			fmt.Sprintf("%s/r%dc%d", tablePath, rowNum, col), "table-cell", role, 0, props)
 		col += span
 		if col >= colCount {
 			r.closeGroup(ctx, ch) // table-row
 			rowOpen = false
 			col = 0
+			rowNum++
 			rowIsHeader = false // only the first row may be a header
 		}
 	}
@@ -722,7 +763,7 @@ func (r *Reader) consumeVerbatimContent(ctx context.Context, ch chan<- model.Par
 		return r.consumeDelimited(ctx, ch, lines, i, name, closeRE) // empty body
 	}
 	r.emitContentBlock(ctx, ch, bodyStart, bodyStart, bodyEnd,
-		name, name, model.RoleCode, map[string]string{"asciidoc.fence": fence})
+		r.sectionPath(name), name, model.RoleCode, map[string]string{"asciidoc.fence": fence})
 	return j + 1
 }
 
@@ -737,7 +778,7 @@ func (r *Reader) emitBlock(ctx context.Context, ch chan<- model.PartResult,
 	text := string(r.source[contentStart:contentEnd])
 
 	block := model.NewBlock(id, text)
-	block.Name = name
+	block.Name = r.blockName(name)
 	block.Type = blockType
 	block.SourceLocale = r.locale
 	block.Source = parseInline(text)
@@ -784,7 +825,7 @@ func (r *Reader) emitContentBlock(ctx context.Context, ch chan<- model.PartResul
 	text := string(r.source[contentStart:contentEnd])
 
 	block := model.NewBlock(id, text) // default Source is a single verbatim run
-	block.Name = name
+	block.Name = r.blockName(name)
 	block.Type = blockType
 	block.SourceLocale = r.locale
 	block.Translatable = false

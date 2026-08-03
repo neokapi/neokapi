@@ -116,6 +116,9 @@ type Reader struct {
 	groupCounter int
 	currentPage  int            // 1-based page, advanced by <page_break/>
 	threadFirst  map[int]string // thread_id -> the first block ID that declared it (for RelContinues)
+	// path addresses each block by the containers enclosing it — see
+	// structural_name.go.
+	path docPath
 }
 
 // NewReader creates a new DocLang reader.
@@ -274,6 +277,8 @@ func (r *Reader) parseContainer(ctx context.Context, ch chan<- model.PartResult,
 	r.groupCounter++
 	gid := fmt.Sprintf("g%d", r.groupCounter)
 	name := start.Name.Local
+	r.path.push(name, r.path.reserve(name))
+	defer r.path.pop()
 	props := map[string]string{}
 	if class := attrValue(start, "class"); class != "" {
 		props["class"] = class
@@ -353,6 +358,7 @@ func (r *Reader) parseCheckbox(ctx context.Context, ch chan<- model.PartResult, 
 	}
 	r.blockCounter++
 	b := model.NewRunsBlock(fmt.Sprintf("b%d", r.blockCounter), nil)
+	b.Name = r.path.name(r.path.reserve(start.Name.Local))
 	b.SourceLocale = r.locale()
 	b.Type = "checkbox"
 	b.Translatable = false
@@ -368,6 +374,9 @@ func (r *Reader) parseCheckbox(ctx context.Context, ch chan<- model.PartResult, 
 // and its inline body, emitting one PartBlock with role, geometry, and layer.
 func (r *Reader) parseBlock(ctx context.Context, ch chan<- model.PartResult, dec *xml.Decoder, start xml.StartElement, role string, translatable bool) error {
 	elem := start.Name.Local
+	// Reserve the step here, in document order — the body below is consumed
+	// whole, so this element never becomes an enclosing container.
+	name := r.path.name(r.path.reserve(elem))
 	level := 0
 	if elem == "heading" || elem == "field_heading" {
 		if l := attrValue(start, "level"); l != "" {
@@ -450,6 +459,7 @@ func (r *Reader) parseBlock(ctx context.Context, ch chan<- model.PartResult, dec
 	}
 	r.blockCounter++
 	block := model.NewRunsBlock(fmt.Sprintf("b%d", r.blockCounter), runs)
+	block.Name = name
 	block.SourceLocale = r.locale()
 	block.Type = elem
 	block.Translatable = translatable
@@ -521,6 +531,8 @@ func (r *Reader) parseTable(ctx context.Context, ch chan<- model.PartResult, dec
 
 	r.groupCounter++
 	tid := fmt.Sprintf("g%d", r.groupCounter)
+	r.path.push(start.Name.Local, r.path.reserve(start.Name.Local))
+	defer r.path.pop()
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: tid, Name: start.Name.Local, Type: start.Name.Local}}) {
 		return context.Canceled
 	}
@@ -530,6 +542,7 @@ func (r *Reader) parseTable(ctx context.Context, ch chan<- model.PartResult, dec
 	if caption = strings.TrimSpace(caption); caption != "" && r.cfg.ExtractNonTranslatableContent {
 		r.blockCounter++
 		cb := model.NewBlock(fmt.Sprintf("b%d", r.blockCounter), caption)
+		cb.Name = r.path.name("caption")
 		cb.SourceLocale = r.locale()
 		cb.Type = "caption"
 		cb.Translatable = false
@@ -579,6 +592,12 @@ func (r *Reader) parseTable(ctx context.Context, ch chan<- model.PartResult, dec
 
 			r.blockCounter++
 			b := model.NewBlock(fmt.Sprintf("b%d", r.blockCounter), txt)
+			// OTSL already gives a cell a grid address; it is a better name
+			// than any count, and it moves only when the grid does.
+			b.Name = r.path.name(
+				ordinalStep("row", rr+1),
+				ordinalStep("cell", cc+1),
+			)
 			b.SourceLocale = r.locale()
 			b.Type = "table-cell"
 			role := otslCellTok[t.name]

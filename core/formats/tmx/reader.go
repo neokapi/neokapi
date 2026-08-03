@@ -243,6 +243,11 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 		tuCount        int   // track TU index for skeleton
 	)
 
+	// One builder per document read: the ordinals it hands out on a repeated key
+	// are scoped to this file. See unitName, and nameOrdinals for why this is not
+	// model.NameBuilder.
+	var names nameOrdinals
+
 	for {
 		token, err := decoder.Token()
 		if errors.Is(err, io.EOF) {
@@ -504,6 +509,7 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 					}
 
 					block := r.buildBlock(tuID, currentTU, srcLang, locale)
+					block.Name = unitName(&names, currentTU.id, block.SourceText())
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						currentTU = nil
 						return
@@ -779,6 +785,29 @@ func extractInlineAttrs(attrs []xml.Attr) (id string, spanType string, sourceX s
 	}
 	id = sourceX
 	return
+}
+
+// unitName is the structural name for a TMX translation unit.
+//
+// A TMX file has no structure above `<tu>` and no meaning in the order of its
+// units: it is a set, and reordering it changes nothing about what it says. So
+// there is no structural path to compose — only the unit's own key.
+//
+// `tuid` is that key where a producer wrote one. Where none was written, the
+// name is the source segment, which is what a translation memory matches on
+// anyway and is stable under every edit to the rest of the file. The name it
+// replaces, `tu7`, said only how many units had gone past: deleting one unit
+// renamed every unit after it, and in a memory file — where units are added and
+// dropped constantly — that renamed nearly everything on nearly every write.
+//
+// Two units with the same source and no tuid are indistinguishable by key, and
+// the builder's ordinal separates them. That ordinal counts occurrences of that
+// one key, not units in the document, so an unrelated insertion does not move it.
+func unitName(nb *nameOrdinals, tuid, sourceText string) string {
+	if tuid != "" {
+		return nb.name(model.StructuralPath(tuid))
+	}
+	return nb.name(model.StructuralPath(sourceText))
 }
 
 // buildBlock constructs a model.Block from parsed TU data.

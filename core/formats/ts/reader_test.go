@@ -1292,7 +1292,10 @@ func TestSnippet_ContextNameOnBlock(t *testing.T) {
 	blocks := readTSBlocks(t, snippet)
 	require.NotEmpty(t, blocks)
 	assert.Equal(t, "MyContext", blocks[0].Properties["context"])
-	assert.Equal(t, "MyContext", blocks[0].Name)
+	// The context is the first segment of the block's name, not the whole of it
+	// — naming every message in a context alike left none of them
+	// distinguishable. See messageName and identity_test.go.
+	assert.Equal(t, "MyContext/Text", blocks[0].Name)
 }
 
 // TestReadTestdataFile_Simple verifies reading from testdata file.

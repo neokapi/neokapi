@@ -164,6 +164,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	trgLang := attrValue(root, "trgLang")
 	version := attrValue(root, "version")
 
+	// One builder for the whole document. Unit ids are unique within a <file>
+	// per the spec and the file id opens every path, so the ordinal is reserved
+	// for documents that break that rule.
+	var names model.NameBuilder
+
 	files := root.SelectElements("file")
 	for fileIdx, file := range files {
 		fileID := attrValue(file, "id")
@@ -217,16 +222,49 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		fileTranslate := inheritedTranslate(true, file)
 
 		// Walk file children in order, emitting groups/units.
+		scope := []string{fileID}
 		for _, child := range file.ChildElements() {
 			switch child.Tag {
 			case "group":
-				r.emitGroup(ctx, ch, child, model.LocaleID(trgLang), fileTranslate)
+				r.emitGroup(ctx, ch, child, model.LocaleID(trgLang), fileTranslate, scope, &names)
 			case "unit":
-				r.emitUnit(ctx, ch, child, model.LocaleID(trgLang), fileTranslate)
+				r.emitUnit(ctx, ch, child, model.LocaleID(trgLang), fileTranslate, scope, &names)
 			}
 		}
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+	}
+}
+
+// PropUnitName names the property carrying a unit's `name` attribute.
+//
+// XLIFF 2 gives a unit two attributes: `id`, which is required and unique
+// within its <file>, and `name`, an optional human label. The id is the
+// identity, so it is what the block's Name is built from; the label is format
+// data and rides here, which is also what the writer emits it from.
+const PropUnitName = "unit-name"
+
+// unitName builds a unit's structural name: the enclosing <file> id, every
+// enclosing <group> id, then the unit's own id. XLIFF already states where a
+// unit lives, and that address does not move when a sibling unit is deleted —
+// unlike a count of units seen so far.
+func unitName(names *model.NameBuilder, scope []string, unitID string) string {
+	return names.Name(model.StructuralPath(append(append([]string{}, scope...), unitID)...))
+}
+
+// childScope extends a structural scope by one level, tolerating the anonymous
+// case: <group> may omit its id, and StructuralPath drops the empty segment
+// rather than inventing one.
+func childScope(scope []string, id string) []string {
+	return append(append([]string{}, scope...), id)
+}
+
+// recordUnitNameAttr stashes the unit's `name` attribute so the writer can
+// re-emit it. Absent when the unit declared none, so a nameless unit stays
+// nameless on the way out.
+func recordUnitNameAttr(block *model.Block, name string) {
+	if name != "" {
+		block.Properties[PropUnitName] = name
 	}
 }
 
@@ -235,7 +273,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 // the inheritable translate flag from the enclosing <file>/<group>;
 // this group's own translate attribute, if present, overrides it before
 // being passed to children.
-func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, group *etree.Element, trgLang model.LocaleID, parentTranslate bool) {
+func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, group *etree.Element, trgLang model.LocaleID, parentTranslate bool, scope []string, names *model.NameBuilder) {
 	gs := &model.GroupStart{
 		ID:   attrValue(group, "id"),
 		Name: attrValue(group, "name"),
@@ -244,13 +282,14 @@ func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, grou
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: gs}) {
 		return
 	}
+	inner := childScope(scope, gs.ID)
 	groupTranslate := inheritedTranslate(parentTranslate, group)
 	for _, child := range group.ChildElements() {
 		switch child.Tag {
 		case "group":
-			r.emitGroup(ctx, ch, child, trgLang, groupTranslate)
+			r.emitGroup(ctx, ch, child, trgLang, groupTranslate, inner, names)
 		case "unit":
-			r.emitUnit(ctx, ch, child, trgLang, groupTranslate)
+			r.emitUnit(ctx, ch, child, trgLang, groupTranslate, inner, names)
 		}
 	}
 	r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: gs.ID}})
@@ -260,16 +299,17 @@ func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, grou
 // parentTranslate is the inheritable translate flag from the enclosing
 // <file>/<group>; the unit's own translate attribute (if present)
 // overrides it. Default at the document level is "yes".
-func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit *etree.Element, trgLang model.LocaleID, parentTranslate bool) {
+func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit *etree.Element, trgLang model.LocaleID, parentTranslate bool, scope []string, names *model.NameBuilder) {
 	translatable := inheritedTranslate(parentTranslate, unit)
 
 	block := &model.Block{
 		ID:           attrValue(unit, "id"),
-		Name:         attrValue(unit, "name"),
+		Name:         unitName(names, scope, attrValue(unit, "id")),
 		Translatable: translatable,
 		Properties:   make(map[string]string),
 		Targets:      make(map[model.VariantKey]*model.Target),
 	}
+	recordUnitNameAttr(block, attrValue(unit, "name"))
 
 	// Unit-level <notes>: store as note-N properties (preserves order).
 	if notesEl := unit.SelectElement("notes"); notesEl != nil {
@@ -768,6 +808,11 @@ type xliff2StreamState struct {
 	unitID        string
 	unitName      string
 	unitTranslate string
+	// groupIDs is the open <group> id stack, outer to inner. With the file id
+	// it forms a unit's structural address; see unitName.
+	groupIDs []string
+	// names assigns the structural names for this document.
+	names model.NameBuilder
 	// translateStack is the inheritable XLIFF 2 `translate` flag stack:
 	// one entry per open <file>/<group> from outer to inner. Top of
 	// stack is the effective parent value for the current element.
@@ -894,6 +939,7 @@ func (s *xliff2StreamState) handleStartElement(t xml.StartElement) {
 	case "group":
 		gs := &model.GroupStart{ID: attrValueXML(t, "id"), Name: attrValueXML(t, "name")}
 		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartGroupStart, Resource: gs})
+		s.groupIDs = append(s.groupIDs, gs.ID)
 		groupTranslate := s.parentTranslate()
 		if v := attrValueXML(t, "translate"); v != "" {
 			groupTranslate = !strings.EqualFold(v, "no")
@@ -1012,6 +1058,9 @@ func (s *xliff2StreamState) handleEndElement(t xml.EndElement) {
 		}
 	case "group":
 		s.reader.emit(s.ctx, s.ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{}})
+		if n := len(s.groupIDs); n > 0 {
+			s.groupIDs = s.groupIDs[:n-1]
+		}
 		if n := len(s.translateStack); n > 0 {
 			s.translateStack = s.translateStack[:n-1]
 		}
@@ -1060,11 +1109,12 @@ func (s *xliff2StreamState) emitUnit() {
 	}
 	block := &model.Block{
 		ID:           s.unitID,
-		Name:         s.unitName,
+		Name:         unitName(&s.names, append([]string{s.fileID}, s.groupIDs...), s.unitID),
 		Translatable: translatable,
 		Properties:   make(map[string]string),
 		Targets:      make(map[model.VariantKey]*model.Target),
 	}
+	recordUnitNameAttr(block, s.unitName)
 	for _, st := range s.states {
 		if st != "" {
 			block.Properties["state"] = st
