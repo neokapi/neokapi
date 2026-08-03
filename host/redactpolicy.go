@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -78,12 +79,7 @@ func RedactAtIngest(
 }
 
 func hasDetector(detectors []string, want string) bool {
-	for _, d := range detectors {
-		if d == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(detectors, want)
 }
 
 func ensureVaultDir(vaultPath string) error {
