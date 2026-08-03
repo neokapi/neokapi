@@ -369,6 +369,18 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 	if err != nil {
 		return nil, err
 	}
+
+	// Terminology travels with the push, as it does on the cobra route. It runs
+	// AFTER the content transport for the same reason the cobra route does:
+	// governed edits become a change-set the reviewer reads beside the content
+	// that motivated them.
+	//
+	// A skip is silent by design (no workspace, no local store), but a genuine
+	// failure is not swallowed — terminology quietly not arriving is what this
+	// whole path is being fixed for.
+	if _, cerr := commands.PushProjectConcepts(ctx, entry.project, req.GetDryRun()); cerr != nil {
+		return nil, fmt.Errorf("push terminology: %w", cerr)
+	}
 	return &pb.PushResponse{
 		BlocksPushed: int32(res.BlocksPushed),
 		AssetsPushed: int32(res.AssetsPushed),

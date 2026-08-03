@@ -132,6 +132,35 @@ func (r *PushConceptsResult) changed() bool {
 // snapshot the caller records in the sync cache so a later push can diff against
 // it. When dryRun is set it fetches and counts but writes nothing.
 func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath string, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
+	concepts, kept, err := fetchServerConcepts(ctx, client)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	res := &PullConceptsResult{Relations: len(kept)}
+	for _, c := range concepts {
+		res.Concepts++
+		res.Terms += len(c.Terms)
+	}
+
+	if !dryRun {
+		if err := writeConceptsToTerms(ctx, tbPath, concepts, kept); err != nil {
+			return nil, nil, err
+		}
+	}
+
+	return res, buildBaseline(concepts, kept), nil
+}
+
+// fetchServerConcepts reads the workspace's governed terminology without
+// touching the local store: every concept, plus the typed relations whose
+// endpoints were pulled (the terms store rejects dangling edges).
+//
+// Split out of PullConcepts so a PUSH can ask the same question. Terminology is
+// recipe-owned — the local store is the authority — so the only thing a push
+// needs from the server is what it already holds, to avoid proposing something
+// twice. That is a re-askable fact, not state the client must have persisted.
+func fetchServerConcepts(ctx context.Context, client *apiclient.BowrainClient) ([]terms.Concept, []terms.ConceptRelation, error) {
 	known := map[string]bool{}
 	var (
 		concepts   []terms.Concept
@@ -174,20 +203,7 @@ func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath s
 			kept = append(kept, rel)
 		}
 	}
-
-	res := &PullConceptsResult{Relations: len(kept)}
-	for _, c := range concepts {
-		res.Concepts++
-		res.Terms += len(c.Terms)
-	}
-
-	if !dryRun {
-		if err := writeConceptsToTerms(ctx, tbPath, concepts, kept); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	return res, buildBaseline(concepts, kept), nil
+	return concepts, kept, nil
 }
 
 // writeConceptsToTerms opens (creating the directory if needed) the SQLite
@@ -329,11 +345,28 @@ func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
 // there is no baseline (a pull must run first) or no local terms. When dryRun
 // is set it reports the plan without writing or proposing anything.
 func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath string, baseline *bproject.ConceptBaseline, dryRun bool) (*PushConceptsResult, error) {
-	if baseline == nil {
+	if _, err := os.Stat(tbPath); err != nil {
+		// No local terms store: nothing to push. This is the only condition
+		// that legitimately skips.
 		return nil, nil
 	}
-	if _, err := os.Stat(tbPath); err != nil {
-		return nil, nil
+
+	// An absent baseline used to mean "skip", which is why terminology could
+	// never reach a workspace that had not first been pulled from: a fresh
+	// workspace has nothing to pull, so the pull established no baseline, so
+	// the push skipped — permanently.
+	//
+	// Terminology is RECIPE-OWNED: the local store is the authority. So the
+	// baseline is not a precondition for acting, it is only what stops a push
+	// proposing something the server already has. That is a re-askable fact,
+	// so ask for it. A workspace holding nothing yields an empty baseline, and
+	// every local concept is correctly a create — which is how seeding works.
+	if baseline == nil {
+		serverConcepts, serverRels, err := fetchServerConcepts(ctx, client)
+		if err != nil {
+			return nil, fmt.Errorf("read workspace terminology to seed against: %w", err)
+		}
+		baseline = buildBaseline(serverConcepts, serverRels)
 	}
 
 	tb, err := terms.NewSQLiteStore(tbPath)
@@ -687,15 +720,29 @@ func conceptPull(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pul
 // and diffs the bound terms against the sync-cache baseline. It skips when no
 // baseline has been pulled yet. On a real push it fills in the change-set review
 // URL.
+// PushProjectConcepts reconciles the project's terminology into its workspace.
+//
+// Exported because a push arrives by two routes and terminology must travel on
+// both. `kapi-bowrain push` runs the cobra command, which calls this after the
+// content transport; `kapi push` is dispatched over the Mode-C daemon RPC,
+// which called it nowhere — so terminology never reached a workspace through
+// the verb everyone actually uses. Same shape as the context content type
+// before #1625.
+func PushProjectConcepts(ctx context.Context, proj *bproject.Project, dryRun bool) (*PushConceptsResult, error) {
+	return conceptPush(ctx, proj, dryRun)
+}
+
 func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*PushConceptsResult, error) {
 	client, err := bconn.NewKnowledgeClient(proj)
 	if err != nil {
 		return nil, nil
 	}
+	// No guard on the baseline. It used to return here, which is what kept
+	// terminology out of a workspace that had never been pulled from: a fresh
+	// workspace has nothing to pull, so no baseline was written, so the push
+	// returned — permanently. PushConcepts asks the server for the baseline
+	// when the cache has none, so an absent one now means "seed", not "skip".
 	cache := bproject.LoadSyncCache(proj.Layout)
-	if cache.ConceptBaseline == nil {
-		return nil, nil
-	}
 	tbPath, err := projectTermsPath(proj)
 	if err != nil {
 		return nil, err
