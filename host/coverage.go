@@ -146,7 +146,7 @@ func (r reviewedIndex) entryFor(b *model.Block, locale string) (reviewedEntry, b
 	if r.byUnit == nil {
 		return reviewedEntry{}, false
 	}
-	e, ok := r.byUnit[reviewUnitKey(blockKey(b), locale)]
+	e, ok := r.byUnit[reviewUnitKey(state.UnitKey(b), locale)]
 	if !ok {
 		return reviewedEntry{}, false
 	}
@@ -192,7 +192,7 @@ func (r reviewedIndex) aiReviewFor(b *model.Block, locale string) (aiReviewEntry
 	if r.aiReviews == nil {
 		return aiReviewEntry{}, false
 	}
-	e, ok := r.aiReviews[reviewUnitKey(blockKey(b), locale)]
+	e, ok := r.aiReviews[reviewUnitKey(state.UnitKey(b), locale)]
 	if !ok {
 		return aiReviewEntry{}, false
 	}

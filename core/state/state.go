@@ -103,6 +103,39 @@ type Key struct {
 	Variant model.VariantKey
 }
 
+// UnitKey is the identity a decision is recorded against: the block's CONTENT,
+// not its position or its name.
+//
+// It used to be the block key — b.Name when set, otherwise b.ID — and b.ID is
+// positional for unnamed blocks. Measured on the JSON reader:
+//
+//	v1: tu1=Alpha  tu2=Bravo  tu3=Charlie
+//	v2: tu1=Alpha  tu2=Charlie          ← tu2 now means different content
+//
+// So an approval recorded against tu2 survived into a world where tu2 was
+// something else. TargetHash caught the misapplication (a decision blesses a
+// specific translation hash, so a mismatch reads as stale) — but "safe" is not
+// "durable": a block removed and re-added rejoined its approval only if it
+// happened to land back at the same position.
+//
+// Keying on content makes the decision follow the text. Remove a block, re-add
+// it anywhere in the file, and its approval is still its approval. Rename the
+// JSON key without touching the words and the approval survives, which is the
+// honest outcome — nobody re-decided anything.
+//
+// THE TRADE: two blocks with identical source text share one unit, so
+// approving one approves both. That is deliberate. Identical text in the same
+// variant should not carry two different translations, and where it genuinely
+// must — a term of art that differs by surface — the difference belongs in the
+// VariantKey (tone/channel), which is the governance point, not in a positional
+// accident of the file.
+func UnitKey(b *model.Block) string {
+	if b == nil {
+		return ""
+	}
+	return model.ComputeContentHash(b.SourceText())
+}
+
 // Key returns the unit's identity key.
 func (s UnitState) Key() Key { return Key{Unit: s.Unit, Variant: s.Variant} }
 

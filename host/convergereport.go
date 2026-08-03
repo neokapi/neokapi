@@ -197,7 +197,7 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 			if status != model.TargetStatusDraft && strings.TrimSpace(target) == "" {
 				return false, fmt.Errorf("unit %s has no %s translation to approve", ref.Key, ref.Locale)
 			}
-			return a.recordDecisionState(proj, root, blockKey(b), loc, target, status, decision, note, by)
+			return a.recordDecisionState(proj, root, state.UnitKey(b), loc, target, status, decision, note, by)
 		}
 	}
 	return false, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
@@ -310,9 +310,9 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 			if rev.At == "" {
 				rev.At = nowRFC3339()
 			}
-			k := state.Key{Unit: blockKey(b), Variant: model.Variant(loc)}
+			k := state.Key{Unit: state.UnitKey(b), Variant: model.Variant(loc)}
 			us, _ := st.Get(k)
-			us.Unit = blockKey(b)
+			us.Unit = state.UnitKey(b)
 			us.Variant = model.Variant(loc)
 			r := rev
 			us.AIReview = &r
@@ -412,7 +412,7 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 			if serr != nil {
 				return nil, serr
 			}
-			if us, found := st.Get(state.Key{Unit: ref.Key, Variant: model.Variant(loc)}); found {
+			if us, found := st.Get(state.Key{Unit: state.UnitKey(b), Variant: model.Variant(loc)}); found {
 				th := targetHash(info.Target)
 				if !us.Stale(th) {
 					if us.Status != "" {
