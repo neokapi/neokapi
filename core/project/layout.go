@@ -106,6 +106,30 @@ func (l Layout) CollectionsDir() string {
 // be committed — they live under the gitignored cache root.
 const RedactionDirName = "redaction"
 
+// VaultDirName is the state subdirectory holding withheld originals.
+//
+// Separate from cache/ on purpose. The cache is defined by being disposable —
+// losing it costs CPU. The vault is defined by an EXCLUSION: a named
+// destination must never read it, and losing it means redacted content can
+// never be restored. Filing it under cache/ made it look regenerable, which it
+// is not, and put it one `rm -rf` away from unrecoverable placeholders.
+const VaultDirName = "vault"
+
+// VaultDir returns the absolute path of the withheld-originals root.
+func (l Layout) VaultDir() string {
+	return filepath.Join(l.StateDir, VaultDirName)
+}
+
+// RedactionVaultPath returns the project-scoped redaction vault.
+//
+// Project-scoped rather than per-batch because ingest redaction is continuous:
+// a push redacts whatever it reads, whenever it reads it, and a later restore
+// has no batch id to look under. The per-batch sidecars below remain for the
+// extract → external tool → merge round trip, which genuinely is a batch.
+func (l Layout) RedactionVaultPath() string {
+	return filepath.Join(l.VaultDir(), "redaction.json")
+}
+
 // RedactionSidecarPath returns the absolute path of the redaction vault
 // sidecar for an extraction batch.
 func (l Layout) RedactionSidecarPath(batchID string) string {

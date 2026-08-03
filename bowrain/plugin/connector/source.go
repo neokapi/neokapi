@@ -29,6 +29,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host"
 )
 
 // Project is re-exported so callers can keep typing connector.Project.
@@ -953,6 +954,18 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 	recipe := c.project.Recipe
 	assetsEnabled := recipe.AssetsEnabled()
 
+	// The declared redaction policy applies HERE, where content enters kapi —
+	// before anything hashes, stores or transmits it. Push used to read the
+	// policy nowhere at all, so a project that declared its content sensitive
+	// still sent originals to the server; only `kapi extract` honoured it.
+	//
+	// Redacting at ingest also means the content hashes below are hashes of the
+	// redacted text, which is what the server should be diffing: the vault
+	// stays local, and the server never holds a value it could restore.
+	redactSpec := host.ProjectRedaction(&recipe.KapiProject)
+	vaultPath := c.project.Layout.RedactionVaultPath()
+	srcLocale := recipe.Defaults.SourceLanguage
+
 	// If no specific paths, use content entries to discover files.
 	if len(paths) == 0 {
 		for _, it := range recipe.IterateContent() {
@@ -995,6 +1008,9 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 			if err != nil {
 				continue
 			}
+			if err := host.RedactAtIngest(ctx, blocks, redactSpec, c.project.Root, vaultPath, srcLocale); err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("redact %s: %w", relPath, err)
+			}
 
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
@@ -1016,6 +1032,9 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 			blocks, err := c.readBlocks(ctx, absPath, formatName)
 			if err != nil {
 				continue
+			}
+			if err := host.RedactAtIngest(ctx, blocks, redactSpec, c.project.Root, vaultPath, srcLocale); err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("redact %s: %w", relPath, err)
 			}
 
 			fileHashes := map[string]string{}
