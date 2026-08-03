@@ -126,27 +126,28 @@ func identitiesByText(t *testing.T, r format.DataFormatReader, content string) m
 	return out
 }
 
-// The gap, pinned as a fact rather than left as a comment.
+// Prose formats name blocks by position, and that is left in place.
 //
-// Prose formats have no natural key, so their readers number blocks by position
-// — markdown "paraN", plaintext "lineN", and the same shape in html, xml, mdx
-// and resx. Delete a paragraph and every block after it is renumbered, so a
-// decision recorded about one paragraph names a different one, and content
-// memory stops matching text that never changed.
+// Keyed formats above are stable because their name IS the key. Prose formats
+// have no key, so markdown names by "paraN", plaintext by "lineN", and the same
+// shape appears in html, xml, mdx and resx. Delete a paragraph and every block
+// below it is renamed.
 //
-// This is the dogfood's main exposure, not an edge case: neokapi-docs (277
-// items) and bowrain-docs (110) are markdown — most of the corpus.
+// Making those names content-derived was tried and rejected. It fixes deletion
+// and breaks editing — a reworded paragraph becomes a different block and loses
+// its history — and worse, model.ComputeIdentity builds ContextHash from the
+// name, so deriving the name from content collapses the two hashes into one and
+// destroys the independent signal that identity matching depends on.
 //
-// The fix is identity derived from content plus an occurrence ordinal to
-// disambiguate repeats, so identity moves only when the words move. It has to
-// land with the skeleton refs (reader.go writes WriteRef(id), writer.go joins
-// on blocksByID), which move together in one read/write pass — skeletons are
-// recomputed at the edge, never stored, so there is no stored form to migrate.
+// So the positional name stays, and is read as what it honestly is: a CONTEXT
+// signal. Identity is resolved against it in core/reconcile, which matches a
+// read against the previous one on content and context together. See
+// TestReaders_IdentitySurvivesAnUnrelatedDeletion for the end-to-end claim.
 //
-// This test asserts the CURRENT behaviour so the change is deliberate: when the
-// fix lands, this fails and gets deleted, and the formats move to the stable
-// table above.
-func TestBlockIdentity_ProseFormatsAreStillPositional(t *testing.T) {
+// This test pins the reader behaviour that reconcile is built on: if these names
+// ever stop moving, the context signal has changed and the matching rules need
+// re-examining.
+func TestBlockIdentity_ProseFormatsNamePositionally(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
 		reader     func() format.DataFormatReader
@@ -175,9 +176,9 @@ func TestBlockIdentity_ProseFormatsAreStillPositional(t *testing.T) {
 
 			require.Equal(t, tc.wasCharlie, before["Charlie"])
 			require.Equal(t, tc.nowCharlie, after["Charlie"],
-				"identity still follows position, so an unrelated deletion renames this block")
+				"a prose block's name follows position — this is the context signal reconcile reads")
 			require.NotEqual(t, before["Charlie"], after["Charlie"],
-				"delete this test when identity stops being positional")
+				"names moving is the premise core/reconcile is built on")
 		})
 	}
 }
