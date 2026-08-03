@@ -85,24 +85,56 @@ type Result struct {
 	Kind  Kind
 }
 
+// Identify returns the two hashes reconcile matches on, for one block in one
+// document.
+//
+// scope names the document the block was read from. It exists because a block's
+// name is only unique inside its own file: every markdown document has a
+// "para1" and every plaintext document a "line1". Without it, a paragraph in one
+// file could claim the history of an unrelated paragraph in another, which in a
+// project of a few hundred documents is not an edge case but the common case.
+//
+// Scope binds the CONTEXT hash only. The content hash stays document-free on
+// purpose, so text moved from one file to another is still recognised as the
+// same words and keeps its translation.
+func Identify(scope string, b *model.Block) Unit {
+	props := make(map[string]string, len(b.Properties)+1)
+	for k, v := range b.Properties {
+		props[k] = v
+	}
+	props[scopeProp] = scope
+	return Unit{
+		ContentHash: model.ComputeContentHash(b.SourceText()),
+		ContextHash: model.ComputeContextHash(b.Name, b.Type, props),
+	}
+}
+
+// scopeProp carries the document into the context hash. It is namespaced so it
+// cannot be confused with a property a format actually produced.
+const scopeProp = "\x00reconcile.scope"
+
 // Blocks resolves each block in current to a stable key, in the order given.
+//
+// scope names the document these blocks were read from; see Identify. Callers
+// reconcile one document at a time, but may pass the whole project's prior
+// units, which is what lets content moved between files keep its identity.
 //
 // Matching runs strongest signal first — both hashes, then context alone, then
 // content alone — and each pass consumes the priors it claims. A prior is
 // therefore claimed at most once: two blocks can never resolve to the same key,
 // which is what keeps one block's approval from silently approving another.
-func Blocks(current []*model.Block, prior []Unit) []Result {
+func Blocks(scope string, current []*model.Block, prior []Unit) []Result {
 	pool := newPool(prior)
 	out := make([]Result, len(current))
-	ids := make([]*model.BlockIdentity, len(current))
+	ids := make([]Unit, len(current))
 	for i, b := range current {
-		ids[i] = model.ComputeIdentity(b)
+		ids[i] = Identify(scope, b)
 		out[i] = Result{Block: b}
 	}
 
 	// Strongest signal first, so an exact match is never stolen by a weaker one.
 	// Both passes below run over the blocks left unresolved by the pass above.
-	resolve(out, ids, func(id *model.BlockIdentity) (string, bool) {
+	resolve(out, ids, func(id Unit) (string, bool) {
 		return pool.take(bothKey(id.ContentHash, id.ContextHash))
 	}, Unchanged)
 
@@ -121,11 +153,11 @@ func Blocks(current []*model.Block, prior []Unit) []Result {
 	//
 	// An edit in place is not weakened by this: its words have changed, so it has
 	// no content match to lose, and the context pass below still claims it.
-	resolve(out, ids, func(id *model.BlockIdentity) (string, bool) {
+	resolve(out, ids, func(id Unit) (string, bool) {
 		return pool.take(contentKey(id.ContentHash))
 	}, Moved)
 
-	resolve(out, ids, func(id *model.BlockIdentity) (string, bool) {
+	resolve(out, ids, func(id Unit) (string, bool) {
 		return pool.take(ctxKey(id.ContextHash))
 	}, Edited)
 
@@ -134,7 +166,7 @@ func Blocks(current []*model.Block, prior []Unit) []Result {
 }
 
 // resolve fills in every still-unresolved block that lookup can claim.
-func resolve(out []Result, ids []*model.BlockIdentity, lookup func(*model.BlockIdentity) (string, bool), kind Kind) {
+func resolve(out []Result, ids []Unit, lookup func(Unit) (string, bool), kind Kind) {
 	for i := range out {
 		if out[i].Key != "" {
 			continue
@@ -148,7 +180,7 @@ func resolve(out []Result, ids []*model.BlockIdentity, lookup func(*model.BlockI
 // mint assigns keys to the blocks nothing claimed. Derived from both hashes so
 // a project with no history reconciles to the same keys on a second run, with
 // an ordinal for blocks that are identical in both signals.
-func mint(out []Result, ids []*model.BlockIdentity) {
+func mint(out []Result, ids []Unit) {
 	seen := map[string]int{}
 	for i := range out {
 		if out[i].Key != "" {

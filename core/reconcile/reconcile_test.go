@@ -18,9 +18,14 @@ func blk(name, text string) *model.Block {
 	return b
 }
 
+// doc is the scope these unit tests reconcile within; cross-document behaviour
+// is covered in context_test.go.
+const doc = "doc.md"
+
 func priorOf(key string, b *model.Block) reconcile.Unit {
-	id := model.ComputeIdentity(b)
-	return reconcile.Unit{Key: key, ContentHash: id.ContentHash, ContextHash: id.ContextHash}
+	u := reconcile.Identify(doc, b)
+	u.Key = key
+	return u
 }
 
 // byText indexes results so a test can ask about one block by its words.
@@ -38,7 +43,7 @@ func TestBlocks_Grades(t *testing.T) {
 	prior := []reconcile.Unit{priorOf("u-charlie", original)}
 
 	t.Run("nothing changed", func(t *testing.T) {
-		got := byText(reconcile.Blocks([]*model.Block{blk("para3", "Charlie")}, prior))
+		got := byText(reconcile.Blocks(doc, []*model.Block{blk("para3", "Charlie")}, prior))
 		assert.Equal(t, reconcile.Unchanged, got["Charlie"].Kind)
 		assert.Equal(t, "u-charlie", got["Charlie"].Key)
 	})
@@ -46,7 +51,7 @@ func TestBlocks_Grades(t *testing.T) {
 	// The case a content-only key cannot see. Someone fixed a typo: same block,
 	// new words. Its history has to follow it, and its translation is now stale.
 	t.Run("edited in place", func(t *testing.T) {
-		got := byText(reconcile.Blocks([]*model.Block{blk("para3", "Charlie, revised")}, prior))
+		got := byText(reconcile.Blocks(doc, []*model.Block{blk("para3", "Charlie, revised")}, prior))
 		assert.Equal(t, reconcile.Edited, got["Charlie, revised"].Kind)
 		assert.Equal(t, "u-charlie", got["Charlie, revised"].Key,
 			"an edit must keep the unit's identity, not read as a delete plus an add")
@@ -55,14 +60,14 @@ func TestBlocks_Grades(t *testing.T) {
 	// The case a position-only key cannot see. An earlier paragraph was deleted,
 	// so this block's positional name shifted, but its words are untouched.
 	t.Run("moved", func(t *testing.T) {
-		got := byText(reconcile.Blocks([]*model.Block{blk("para2", "Charlie")}, prior))
+		got := byText(reconcile.Blocks(doc, []*model.Block{blk("para2", "Charlie")}, prior))
 		assert.Equal(t, reconcile.Moved, got["Charlie"].Kind)
 		assert.Equal(t, "u-charlie", got["Charlie"].Key,
 			"an unrelated deletion must not mint a new unit")
 	})
 
 	t.Run("new", func(t *testing.T) {
-		got := byText(reconcile.Blocks([]*model.Block{blk("para9", "Echo")}, prior))
+		got := byText(reconcile.Blocks(doc, []*model.Block{blk("para9", "Echo")}, prior))
 		assert.Equal(t, reconcile.New, got["Echo"].Kind)
 		assert.NotEmpty(t, got["Echo"].Key)
 	})
@@ -75,7 +80,7 @@ func TestBlocks_IdenticalTextStaysTwoUnits(t *testing.T) {
 	first, second := blk("cell1", "Yes"), blk("cell2", "Yes")
 	prior := []reconcile.Unit{priorOf("u-first", first), priorOf("u-second", second)}
 
-	got := reconcile.Blocks([]*model.Block{blk("cell1", "Yes"), blk("cell2", "Yes")}, prior)
+	got := reconcile.Blocks(doc, []*model.Block{blk("cell1", "Yes"), blk("cell2", "Yes")}, prior)
 	require.Len(t, got, 2)
 
 	assert.Equal(t, "u-first", got[0].Key)
@@ -88,7 +93,7 @@ func TestBlocks_IdenticalTextStaysTwoUnits(t *testing.T) {
 func TestBlocks_APriorIsClaimedOnce(t *testing.T) {
 	prior := []reconcile.Unit{priorOf("u-only", blk("para1", "Yes"))}
 
-	got := reconcile.Blocks([]*model.Block{blk("para1", "Yes"), blk("para2", "Yes")}, prior)
+	got := reconcile.Blocks(doc, []*model.Block{blk("para1", "Yes"), blk("para2", "Yes")}, prior)
 	require.Len(t, got, 2)
 
 	assert.Equal(t, "u-only", got[0].Key, "the exact match wins the prior")
@@ -104,12 +109,11 @@ func TestBlocks_SurvivesRemovalAndReturn(t *testing.T) {
 
 	// v2 drops Bravo. Prior units are retained — that is what makes the return
 	// recoverable, and why removal must not purge them.
-	v2 := reconcile.Blocks([]*model.Block{blk("para1", "Alpha")}, prior)
+	v2 := reconcile.Blocks(doc, []*model.Block{blk("para1", "Alpha")}, prior)
 	require.Len(t, v2, 1)
 
 	// v3 restores Bravo further down the file, after new text.
-	v3 := byText(reconcile.Blocks(
-		[]*model.Block{blk("para1", "Alpha"), blk("para2", "Delta"), blk("para3", "Bravo")}, prior))
+	v3 := byText(reconcile.Blocks(doc, []*model.Block{blk("para1", "Alpha"), blk("para2", "Delta"), blk("para3", "Bravo")}, prior))
 
 	assert.Equal(t, "u-bravo", v3["Bravo"].Key, "it returns to its own history")
 	assert.Equal(t, reconcile.Moved, v3["Bravo"].Kind)
@@ -120,8 +124,8 @@ func TestBlocks_SurvivesRemovalAndReturn(t *testing.T) {
 func TestBlocks_MintsDeterministically(t *testing.T) {
 	in := []*model.Block{blk("para1", "Alpha"), blk("para2", "Alpha")}
 
-	first := reconcile.Blocks(in, nil)
-	second := reconcile.Blocks(in, nil)
+	first := reconcile.Blocks(doc, in, nil)
+	second := reconcile.Blocks(doc, in, nil)
 
 	require.Len(t, first, 2)
 	assert.Equal(t, first[0].Key, second[0].Key)
@@ -134,6 +138,6 @@ func TestBlocks_MintsDeterministically(t *testing.T) {
 func TestBlocks_EditedAndMovedIsANewUnit(t *testing.T) {
 	prior := []reconcile.Unit{priorOf("u-charlie", blk("para3", "Charlie"))}
 
-	got := byText(reconcile.Blocks([]*model.Block{blk("para2", "Charlie, revised")}, prior))
+	got := byText(reconcile.Blocks(doc, []*model.Block{blk("para2", "Charlie, revised")}, prior))
 	assert.Equal(t, reconcile.New, got["Charlie, revised"].Kind)
 }
