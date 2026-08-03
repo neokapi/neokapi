@@ -62,6 +62,17 @@ CREATE TABLE IF NOT EXISTS unit_state (
 CREATE INDEX IF NOT EXISTS unit_state_content ON unit_state(content_hash);
 CREATE INDEX IF NOT EXISTS unit_state_context ON unit_state(scope, context_hash);
 CREATE INDEX IF NOT EXISTS unit_state_staged  ON unit_state(staged) WHERE staged = 1;`,
+}, {
+	Version:     2,
+	Description: "document identity",
+	// A document's PATH cannot be derived from the units it holds, and path is
+	// the strongest signal for matching a document, so it is recorded. The key
+	// is stable across a rename; the path is wherever the file lives now.
+	SQL: `
+CREATE TABLE IF NOT EXISTS document (
+    key  TEXT NOT NULL PRIMARY KEY,
+    path TEXT NOT NULL
+);`,
 }}
 
 // OpenWork opens the working store at dbPath, seeding it from the committed
@@ -212,6 +223,37 @@ func scanUnits(rows *sql.Rows) ([]UnitState, error) {
 			return nil, fmt.Errorf("state: parse unit: %w", err)
 		}
 		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// PutDocument records where a document currently lives. The key is its durable
+// identity; the path is only its address, and moves without it.
+func (w *WorkStore) PutDocument(key, path string) error {
+	_, err := w.db.Exec(`
+INSERT INTO document (key, path) VALUES (?, ?)
+ON CONFLICT(key) DO UPDATE SET path = excluded.path`, key, path)
+	if err != nil {
+		return fmt.Errorf("state: put document: %w", err)
+	}
+	return nil
+}
+
+// DocumentPaths returns the known documents as key to current path.
+func (w *WorkStore) DocumentPaths() (map[string]string, error) {
+	rows, err := w.db.Query(`SELECT key, path FROM document ORDER BY key`)
+	if err != nil {
+		return nil, fmt.Errorf("state: list documents: %w", err)
+	}
+	defer rows.Close()
+
+	out := map[string]string{}
+	for rows.Next() {
+		var key, path string
+		if err := rows.Scan(&key, &path); err != nil {
+			return nil, fmt.Errorf("state: scan document: %w", err)
+		}
+		out[key] = path
 	}
 	return out, rows.Err()
 }
