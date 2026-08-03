@@ -1,0 +1,274 @@
+package state
+
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/neokapi/neokapi/core/storage"
+)
+
+// The working store is the staging area between a decision being made and the
+// project's committed record of it.
+//
+// It exists because the committed record is a whole-file serialization, and
+// writing it once per decision is quadratic: every approval re-encoded and
+// rewrote the entire artifact, so a run recording a thousand decisions moved
+// gigabytes to record a few hundred kilobytes of change. Worse, two processes
+// each read the whole file, mutated their own copy and wrote it back, so the
+// second silently discarded the first's decisions — the atomic rename made the
+// loss clean and invisible.
+//
+// So decisions accumulate here, in one transaction-capable place, and are
+// serialized once per run by Commit. That is the design the package
+// documentation always described — a committed serialization as the source of
+// truth, a working store as a derived index over it — and that Pending() was
+// written for.
+//
+// It is deliberately ONE database. Only the working set genuinely needs
+// transactions and hash lookups; the rest of what a project caches is file
+// artifacts and stays files. A second database would buy nothing (both would sit
+// in the same disposable directory) and would cost a second migration ledger.
+
+// WorkStore is a SQLite-backed working set of unit state.
+//
+// Durability note: while a decision is here and not yet committed, this database
+// holds the only copy. It therefore lives beside the derived caches but is not
+// one — and the window is kept short by committing at the end of each command
+// rather than leaving a staging area to accumulate.
+type WorkStore struct {
+	db        *storage.DB
+	committed string // path of the committed serialization this indexes
+}
+
+var workMigrations = []storage.Migration{{
+	Version:     1,
+	Description: "unit working set",
+	SQL: `
+CREATE TABLE IF NOT EXISTS unit_state (
+    unit         TEXT NOT NULL,
+    variant      TEXT NOT NULL,
+    scope        TEXT NOT NULL DEFAULT '',
+    content_hash TEXT NOT NULL DEFAULT '',
+    context_hash TEXT NOT NULL DEFAULT '',
+    payload      TEXT NOT NULL,
+    staged       INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (unit, variant)
+);
+CREATE INDEX IF NOT EXISTS unit_state_content ON unit_state(content_hash);
+CREATE INDEX IF NOT EXISTS unit_state_context ON unit_state(scope, context_hash);
+CREATE INDEX IF NOT EXISTS unit_state_staged  ON unit_state(staged) WHERE staged = 1;`,
+}}
+
+// OpenWork opens the working store at dbPath, seeding it from the committed
+// serialization at committedPath when it holds nothing yet.
+func OpenWork(dbPath, committedPath string) (*WorkStore, error) {
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+		return nil, fmt.Errorf("state: work dir: %w", err)
+	}
+	db, err := storage.Open(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("state: open work store: %w", err)
+	}
+	if err := storage.Migrate(db, "state", workMigrations); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("state: migrate work store: %w", err)
+	}
+	w := &WorkStore{db: db, committed: committedPath}
+
+	empty, err := w.isEmpty()
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
+	if empty {
+		if err := w.seed(); err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
+	return w, nil
+}
+
+func (w *WorkStore) isEmpty() (bool, error) {
+	var n int
+	if err := w.db.QueryRow(`SELECT COUNT(*) FROM unit_state`).Scan(&n); err != nil {
+		return false, fmt.Errorf("state: count units: %w", err)
+	}
+	return n == 0, nil
+}
+
+// seed imports the committed serialization. A working store is derived, so this
+// is a rebuild rather than a migration: deleting the database costs nothing that
+// has already been committed.
+func (w *WorkStore) seed() error {
+	units, err := ReadCommitted(w.committed)
+	if err != nil {
+		return err
+	}
+	for _, u := range units {
+		if err := w.put(u, false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *WorkStore) Close() error { return w.db.Close() }
+
+// Get returns the state recorded for a unit.
+func (w *WorkStore) Get(k Key) (UnitState, bool) {
+	variant, _ := k.Variant.MarshalText()
+	var payload string
+	err := w.db.QueryRow(
+		`SELECT payload FROM unit_state WHERE unit = ? AND variant = ?`,
+		k.Unit, string(variant)).Scan(&payload)
+	if err != nil {
+		return UnitState{}, false
+	}
+	var u UnitState
+	if json.Unmarshal([]byte(payload), &u) != nil {
+		return UnitState{}, false
+	}
+	return u, true
+}
+
+// Put records a unit's state and stages it for the next commit.
+func (w *WorkStore) Put(u UnitState) error { return w.put(u, true) }
+
+func (w *WorkStore) put(u UnitState, staged bool) error {
+	variant, _ := u.Variant.MarshalText()
+	payload, err := json.Marshal(u)
+	if err != nil {
+		return fmt.Errorf("state: marshal unit: %w", err)
+	}
+	flag := 0
+	if staged {
+		flag = 1
+	}
+	_, err = w.db.Exec(`
+INSERT INTO unit_state (unit, variant, scope, content_hash, context_hash, payload, staged)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(unit, variant) DO UPDATE SET
+    scope = excluded.scope, content_hash = excluded.content_hash,
+    context_hash = excluded.context_hash, payload = excluded.payload,
+    staged = MAX(unit_state.staged, excluded.staged)`,
+		u.Unit, string(variant), u.Scope, u.ContentHash, u.ContextHash, string(payload), flag)
+	if err != nil {
+		return fmt.Errorf("state: put unit: %w", err)
+	}
+	return nil
+}
+
+// Delete removes a unit's state.
+func (w *WorkStore) Delete(k Key) error {
+	variant, _ := k.Variant.MarshalText()
+	_, err := w.db.Exec(`DELETE FROM unit_state WHERE unit = ? AND variant = ?`, k.Unit, string(variant))
+	if err != nil {
+		return fmt.Errorf("state: delete unit: %w", err)
+	}
+	return nil
+}
+
+// All returns every recorded state, ordered so the serialization is stable.
+func (w *WorkStore) All() ([]UnitState, error) {
+	rows, err := w.db.Query(`SELECT payload FROM unit_state ORDER BY unit, variant`)
+	if err != nil {
+		return nil, fmt.Errorf("state: list units: %w", err)
+	}
+	defer rows.Close()
+	return scanUnits(rows)
+}
+
+// Priors returns the identity signals for every unit in a document, which is
+// what core/reconcile matches a fresh read against.
+//
+// Scoped to one document because that is how reconcile is called, but content
+// matching stays project-wide: pass the whole project's units when text may have
+// moved between files.
+func (w *WorkStore) Priors(scope string) ([]UnitState, error) {
+	rows, err := w.db.Query(
+		`SELECT payload FROM unit_state WHERE scope = ? ORDER BY unit, variant`, scope)
+	if err != nil {
+		return nil, fmt.Errorf("state: list priors: %w", err)
+	}
+	defer rows.Close()
+	return scanUnits(rows)
+}
+
+func scanUnits(rows *sql.Rows) ([]UnitState, error) {
+	var out []UnitState
+	for rows.Next() {
+		var payload string
+		if err := rows.Scan(&payload); err != nil {
+			return nil, fmt.Errorf("state: scan unit: %w", err)
+		}
+		var u UnitState
+		if err := json.Unmarshal([]byte(payload), &u); err != nil {
+			return nil, fmt.Errorf("state: parse unit: %w", err)
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}
+
+// Pending reports how many decisions are staged and not yet committed — the
+// "you have N uncommitted decisions" signal.
+func (w *WorkStore) Pending() (int, error) {
+	var n int
+	if err := w.db.QueryRow(`SELECT COUNT(*) FROM unit_state WHERE staged = 1`).Scan(&n); err != nil {
+		return 0, fmt.Errorf("state: count staged: %w", err)
+	}
+	return n, nil
+}
+
+// Commit serializes the working set to the project's committed record and clears
+// the staged flag. This is the once-per-run write that replaced the
+// once-per-decision one.
+func (w *WorkStore) Commit() error {
+	n, err := w.Pending()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return nil
+	}
+	units, err := w.All()
+	if err != nil {
+		return err
+	}
+	if err := WriteCommitted(w.committed, units); err != nil {
+		return err
+	}
+	if _, err := w.db.Exec(`UPDATE unit_state SET staged = 0 WHERE staged = 1`); err != nil {
+		return fmt.Errorf("state: clear staged: %w", err)
+	}
+	return nil
+}
+
+// shardOf groups units into one file per document scope, so editing the docs does
+// not rewrite the shard holding the interface strings. Units with no scope yet
+// land in a shared shard rather than being dropped.
+func shardOf(u UnitState) string {
+	if s := strings.TrimSpace(u.Scope); s != "" {
+		return s
+	}
+	return "unscoped"
+}
+
+// sortUnits orders by (unit, variant) so a shard's bytes depend only on its
+// contents — a stable diff, not an accident of map iteration.
+func sortUnits(units []UnitState) {
+	sort.Slice(units, func(i, j int) bool {
+		if units[i].Unit != units[j].Unit {
+			return units[i].Unit < units[j].Unit
+		}
+		ki, _ := units[i].Variant.MarshalText()
+		kj, _ := units[j].Variant.MarshalText()
+		return string(ki) < string(kj)
+	})
+}

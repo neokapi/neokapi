@@ -38,6 +38,22 @@ type UnitState struct {
 	AIReview *AIReview `json:"aiReview,omitempty"`
 	// Updated is when this record last changed (RFC 3339).
 	Updated string `json:"updated,omitempty"`
+
+	// Scope, ContentHash and ContextHash are the identity signals core/reconcile
+	// matches a unit by when a source file is re-read.
+	//
+	// They live here rather than in a separate ledger because there is nothing to
+	// separate: the thing a decision is recorded against and the thing identity
+	// is matched on are the same unit. Keeping them together means a decision and
+	// the evidence for which block it belongs to cannot drift apart, and it is
+	// what lets a block removed in one revision and restored in a later one come
+	// back to its own history instead of being re-translated.
+	//
+	// Scope is the document's resolved key, never its path, so renaming a file
+	// does not disturb the units inside it.
+	Scope       string `json:"scope,omitempty"`
+	ContentHash string `json:"contentHash,omitempty"`
+	ContextHash string `json:"contextHash,omitempty"`
 }
 
 // Decision is the authored workflow decision recorded for a unit.
