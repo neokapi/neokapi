@@ -86,7 +86,7 @@ func TestDaemonPushDeclaresTheRecipeContext(t *testing.T) {
 			"context hash and the server reads that as 'makes no claim'")
 
 	// And the context it declares is the recipe's, not an empty fold.
-	pushCtx, _, err := commands.BuildPushContext(t.Context(), proj, false, false)
+	pushCtx, _, err := commands.BuildPushContext(t.Context(), proj, false)
 	require.NoError(t, err)
 	require.NotNil(t, pushCtx)
 	assert.Len(t, pushCtx.Entries, 2, "one entry per named collection")

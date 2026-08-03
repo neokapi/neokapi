@@ -387,11 +387,8 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 // context, so the second sent no context hash — which the server reads,
 // correctly, as "this push makes no claim about the declared context". The
 // result was a push that carried every block and reconciled no collections.
-//
-// noBrand is false: the RPC surface has no --no-brand, so this route always
-// carries the governance it resolves.
 func declareContext(ctx context.Context, entry *projectEntry, dryRun bool) error {
-	pushCtx, _, err := commands.BuildPushContext(ctx, entry.project, false, dryRun)
+	pushCtx, _, err := commands.BuildPushContext(ctx, entry.project, dryRun)
 	if err != nil {
 		return fmt.Errorf("resolve declared context: %w", err)
 	}

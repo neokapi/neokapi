@@ -83,7 +83,7 @@ func entriesByName(entries []*pb.SyncContextEntry) map[string]*pb.SyncContextEnt
 func TestBuildPushContext_CarriesDeclaredCollections(t *testing.T) {
 	proj := newGovernedProject(t)
 
-	pushCtx, brand, err := BuildPushContext(t.Context(), proj, false, false)
+	pushCtx, brand, err := BuildPushContext(t.Context(), proj, false)
 	require.NoError(t, err)
 	require.NotNil(t, pushCtx)
 	require.Len(t, pushCtx.Entries, 3, "the bare entry declares no collection")
@@ -119,7 +119,7 @@ func TestBuildPushContext_CarriesTheVoiceAsAuthored(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(proj.Root, "voice.yaml"), []byte(
 		"name: Acme Voice\ntone:\n  formality: neutral\nchannels:\n  docs:\n    tone:\n      formality: formal\n"), 0o644))
 
-	pushCtx, _, err := BuildPushContext(t.Context(), proj, false, false)
+	pushCtx, _, err := BuildPushContext(t.Context(), proj, false)
 	require.NoError(t, err)
 
 	byName := entriesByName(pushCtx.Entries)
@@ -136,38 +136,13 @@ func TestBuildPushContext_CarriesTheVoiceAsAuthored(t *testing.T) {
 	assert.Contains(t, carried, "channels", "the overrides travel so the server can apply them itself")
 }
 
-// TestBuildPushContext_NoBrandCarriesStructureOnly pins what --no-brand means
-// now that governance rides inside the push: the collections and their points
-// still travel, and nothing binds a voice.
-func TestBuildPushContext_NoBrandCarriesStructureOnly(t *testing.T) {
-	proj := newGovernedProject(t)
-
-	pushCtx, brand, err := BuildPushContext(t.Context(), proj, true, false)
-	require.NoError(t, err)
-	require.Len(t, pushCtx.Entries, 3, "a project's structure is not a brand decision")
-
-	for _, e := range pushCtx.Entries {
-		assert.Empty(t, e.VoiceProfile, "no voice is bound under --no-brand")
-		assert.Empty(t, e.VoiceProfileJson)
-		assert.Equal(t, bowsync.ContextOwnerRecipe, e.Owner)
-	}
-	assert.Equal(t, map[string]string{"product": "kapi", "channel": "docs"},
-		entriesByName(pushCtx.Entries)["docs"].Coordinates)
-
-	require.NotNil(t, brand)
-	assert.Equal(t, "skipped", brand.Action)
-	assert.Equal(t, "--no-brand", brand.Reason)
-	assert.Equal(t, "Acme Voice", brand.Name,
-		"the skip names the voice it declined to carry rather than saying nothing")
-}
-
 // TestBuildPushContext_DryRunResolvesWithoutSending pins that --dry-run reports
 // the governance it would carry: everything is resolved, nothing is claimed to
 // have happened.
 func TestBuildPushContext_DryRunResolvesWithoutSending(t *testing.T) {
 	proj := newGovernedProject(t)
 
-	pushCtx, brand, err := BuildPushContext(t.Context(), proj, false, true)
+	pushCtx, brand, err := BuildPushContext(t.Context(), proj, true)
 	require.NoError(t, err)
 	require.Len(t, pushCtx.Entries, 3)
 	require.NotNil(t, brand)
@@ -191,7 +166,7 @@ func TestBuildPushContext_NoCollectionsStillMakesAClaim(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	pushCtx, _, err := BuildPushContext(t.Context(), proj, false, false)
+	pushCtx, _, err := BuildPushContext(t.Context(), proj, false)
 	require.NoError(t, err)
 	require.NotNil(t, pushCtx)
 	assert.Empty(t, pushCtx.Entries)

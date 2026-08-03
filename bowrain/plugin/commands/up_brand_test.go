@@ -180,9 +180,25 @@ func TestReportBrandPush_SharesTheRunStream(t *testing.T) {
 		"the shared stream remembers the loss, so the run's own check reports it too")
 }
 
-// TestUpCmdHasNoBrandFlag asserts the up verb mirrors push's --no-brand opt-out.
-func TestUpCmdHasNoBrandFlag(t *testing.T) {
-	f := upCmd.Flags().Lookup("no-brand")
-	require.NotNil(t, f, "kapi up must expose --no-brand, mirroring kapi push")
-	assert.Equal(t, "false", f.DefValue, "brand push is default-on")
+// TestUpAndPushCarryGovernanceUnconditionally replaces the tests that pinned
+// --no-brand on both verbs.
+//
+// The flag is gone. It was a survivor of the era when the brand profile was a
+// separate REST upload made AFTER the content transport — a call that could
+// fail on its own and leave content stored against governance that never
+// landed, so "do not make it" was a reasonable switch. Governance now rides
+// inside the push, and one push is one consistent state.
+//
+// It was also incoherent with how governance is declared: a voice binds to a
+// point in the recipe. Stripping it at transport time meant the same recipe
+// produced different governance depending on how it was pushed, which is the
+// property the context content type exists to remove. If a collection should
+// bind no voice, the recipe should not bind one.
+func TestUpAndPushCarryGovernanceUnconditionally(t *testing.T) {
+	assert.Nil(t, upCmd.Flags().Lookup("no-brand"),
+		"--no-brand is retired: governance is declared in the recipe, not at transport time")
+	assert.Nil(t, pushCmd.Flags().Lookup("no-brand"),
+		"--no-brand is retired on push too")
+	assert.Nil(t, pushCmd.Flags().Lookup("concepts"),
+		"--concepts is retired: terminology travels with every push")
 }

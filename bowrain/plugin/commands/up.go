@@ -22,7 +22,6 @@ import (
 
 var (
 	upLocal   bool
-	upNoBrand bool
 	upTimeout time.Duration
 )
 
@@ -108,7 +107,7 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 	if !app.Quiet {
 		fmt.Fprintln(cmd.ErrOrStderr(), "Pushing produced results to the server...")
 	}
-	pr, conn, err := doPush(cmd.Context(), connector.PushOptions{}, nil, upNoBrand)
+	pr, conn, err := doPush(cmd.Context(), connector.PushOptions{}, nil)
 	if err != nil {
 		return fmt.Errorf("push after local run: %w", err)
 	}
@@ -164,7 +163,7 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	if !app.Quiet && !jsonOut {
 		fmt.Fprintln(stderr, "Pushing local changes...")
 	}
-	pr, conn, err := doPush(ctx, connector.PushOptions{}, nil, upNoBrand)
+	pr, conn, err := doPush(ctx, connector.PushOptions{}, nil)
 	if err != nil {
 		return fmt.Errorf("push: %w", err)
 	}
@@ -352,7 +351,6 @@ func init() {
 	cli.AddProjectFlag(upCmd)
 	cli.AddUpFlags(upCmd)
 	upCmd.Flags().BoolVar(&upLocal, "local", false, "run the loop on this machine instead of the server, then push the results")
-	upCmd.Flags().BoolVar(&upNoBrand, "no-brand", false, "Carry the declared collections without their brand voice governance")
 	upCmd.Flags().DurationVar(&upTimeout, "timeout", 15*time.Minute, "maximum time to wait for a server run to finish before pulling available results")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, a *cli.App) {
 		// Match the built-in `kapi up` flag surface exactly (NewUpCmd adds the

@@ -17,8 +17,6 @@ var (
 	pushForce        bool
 	pushDryRun       bool
 	pushStream       string
-	pushConceptsOnly bool
-	pushNoBrand      bool
 )
 
 var pushCmd = &cobra.Command{
@@ -71,7 +69,7 @@ type PushResult struct {
 // site, so `kapi push` and both `kapi up` venues carry the project's declared
 // structure and governance by construction — there is no push path that moves
 // content while leaving the collections it belongs to behind.
-func doPush(ctx context.Context, opts connector.PushOptions, args []string, noBrand bool) (*PushResult, *bconn.BowrainSourceConnector, error) {
+func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*PushResult, *bconn.BowrainSourceConnector, error) {
 	proj, err := project.FindProject("")
 	if err != nil {
 		return nil, nil, err
@@ -87,7 +85,7 @@ func doPush(ctx context.Context, opts connector.PushOptions, args []string, noBr
 		conn.SetStream(pushStream)
 	}
 
-	pushCtx, brand, err := BuildPushContext(ctx, proj, noBrand, opts.DryRun)
+	pushCtx, brand, err := BuildPushContext(ctx, proj, opts.DryRun)
 	if err != nil {
 		conn.Close()
 		return nil, nil, err
@@ -122,28 +120,6 @@ func doPush(ctx context.Context, opts connector.PushOptions, args []string, noBr
 }
 
 func runPush(cmd *cobra.Command, args []string) error {
-	// --concepts: terminology-only transport. Reconcile local terms edits
-	// against the pulled baseline (direct edits + governed change-set) without
-	// moving any content blocks and without firing push hooks — the mirror of
-	// `kapi pull --concepts`.
-	if pushConceptsOnly {
-		proj, err := project.FindProject("")
-		if err != nil {
-			return err
-		}
-		out := output.PushOutput{DryRun: pushDryRun}
-		if cres, cerr := conceptPush(cmd.Context(), proj, pushDryRun); cerr != nil {
-			return cerr
-		} else if cres != nil {
-			out.ConceptsApplied = cres.ConceptsApplied
-			out.RelationsApplied = cres.RelationsApplied
-			out.ConceptsProposed = cres.ConceptsProposed
-			out.ChangesetID = cres.ChangesetID
-			out.ChangesetURL = cres.ChangesetURL
-		}
-		return output.Print(cmd, out)
-	}
-
 	// Run pre-push automations.
 	if proj := findProjectForAutomations(); proj != nil {
 		if err := runLocalAutomations(cmd, proj, "pre-push"); err != nil {
@@ -154,7 +130,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 	pr, conn, err := doPush(cmd.Context(), connector.PushOptions{
 		Force:  pushForce,
 		DryRun: pushDryRun,
-	}, args, pushNoBrand)
+	}, args)
 	if err != nil {
 		return err
 	}
@@ -236,7 +212,5 @@ func init() {
 	pushCmd.Flags().BoolVar(&pushForce, "force", false, "Re-upload everything, even unchanged blocks")
 	pushCmd.Flags().BoolVar(&pushDryRun, "dry-run", false, "Show what would be uploaded without sending")
 	pushCmd.Flags().StringVar(&pushStream, "stream", "", "Target stream (default: auto-detect from git/CI)")
-	pushCmd.Flags().BoolVar(&pushConceptsOnly, "concepts", false, "Sync only local terminology edits to the workspace (direct edits + governed change-set); no content transport, no hooks")
-	pushCmd.Flags().BoolVar(&pushNoBrand, "no-brand", false, "Carry the declared collections without their brand voice governance")
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(pushCmd) })
 }
