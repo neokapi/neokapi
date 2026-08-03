@@ -69,20 +69,22 @@ func TestContext_SeparatesDocuments(t *testing.T) {
 	assert.NotEqual(t, "u-intro-para1", got[0].Key)
 }
 
-// The corollary: within one document the scope changes nothing, and a file that
-// is renamed does not orphan its contents wholesale... which it does today.
-// Recorded so the cost of scoping by path is explicit rather than discovered.
-func TestContext_ScopeIsPartOfIdentity(t *testing.T) {
-	before := reconcile.Identify("docs/intro.md", blk("para1", "Alpha"))
+// Scope is a document's stable KEY, never its path — which is why renaming a
+// file costs nothing here. Documents resolves that key across a rename; see
+// TestDocuments_RenameLeavesEveryBlockUntouched for the whole walk.
+func TestContext_ScopeIsTheDocumentKeyNotThePath(t *testing.T) {
+	const key = "d-intro"
+
+	before := reconcile.Identify(key, blk("para1", "Alpha"))
 	before.Key = "u-alpha"
 
-	got := reconcile.Blocks("docs/getting-started.md",
-		[]*model.Block{blk("para1", "Alpha")}, []reconcile.Unit{before})
+	// The file moved on disk. Its document key did not, so its blocks do not
+	// notice: no context changed, so this is untouched rather than moved.
+	got := reconcile.Blocks(key, []*model.Block{blk("para1", "Alpha")}, []reconcile.Unit{before})
 
-	// The words are untouched, so content still finds it: a file rename reads as
-	// every block moving, not as the whole file being replaced.
-	assert.Equal(t, "u-alpha", got[0].Key, "content carries identity across a file rename")
-	assert.Equal(t, reconcile.Moved, got[0].Kind)
+	assert.Equal(t, "u-alpha", got[0].Key)
+	assert.Equal(t, reconcile.Unchanged, got[0].Kind,
+		"a rename must not report every block in the file as moved")
 }
 
 // Position shifting is the ordinary case and must not cost identity.
