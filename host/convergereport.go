@@ -212,7 +212,7 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 // already on the unit's record (origin, source status, a fresh AI pre-review
 // annotation) survive the decision write.
 func (a *App) recordDecisionState(proj *project.KapiProject, root, unit string, locale model.LocaleID, target string, status model.TargetStatus, decision, note, by string) (bool, error) {
-	st, err := openProjectState(proj, root)
+	st, err := openProjectState(root)
 	if err != nil {
 		return false, err
 	}
@@ -243,10 +243,9 @@ func (a *App) recordDecisionState(proj *project.KapiProject, root, unit string, 
 	if err := st.Put(next); err != nil {
 		return false, err
 	}
-	// One decision, so the batch is this decision: commit it now.
-	if err := st.Commit(); err != nil {
-		return false, err
-	}
+	// Staged, not committed. A decision is durable the moment it lands in the
+	// working store; making it part of the project's committed record is a
+	// separate, deliberate act — see `kapi commit`.
 	return true, nil
 }
 
@@ -281,7 +280,7 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 		return 0, fmt.Errorf("resolve content: %w", err)
 	}
 
-	st, err := openProjectState(proj, root)
+	st, err := openProjectState(root)
 	if err != nil {
 		return 0, err
 	}
@@ -328,12 +327,7 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 			recorded++
 		}
 	}
-	// Committed once for the whole batch rather than once per annotation.
-	if recorded > 0 {
-		if err := st.Commit(); err != nil {
-			return recorded, err
-		}
-	}
+	// Staged only; `kapi commit` writes the project's committed record.
 	return recorded, nil
 }
 
@@ -416,7 +410,7 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 				Target:     b.TargetText(loc),
 				Status:     unitState(b, ref.Locale),
 			}
-			st, serr := openProjectState(proj, root)
+			st, serr := openProjectState(root)
 			if serr != nil {
 				return nil, serr
 			}

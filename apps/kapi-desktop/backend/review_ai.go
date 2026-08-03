@@ -222,7 +222,7 @@ func fixFindingsInstruction(currentTarget string, findings []string, extra strin
 // store when it still judges the given translation, else nil.
 func (a *App) freshAIReview(op *openProject, key string, loc model.LocaleID, targetText string) *state.AIReview {
 	root := filepath.Dir(op.Path)
-	st, err := host.OpenProjectState(op.Project, root)
+	st, err := host.OpenProjectState(root)
 	if err != nil {
 		return nil
 	}

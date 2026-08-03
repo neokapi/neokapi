@@ -58,7 +58,7 @@ func TestApplyReviewDecisionAs_RecordsIdentity(t *testing.T) {
 		ReviewDecisionApproved, "", "agent/claude-code")
 	require.NoError(t, err)
 
-	f := struct{ Units []state.UnitState }{Units: readCommittedUnits(t, root)}
+	f := struct{ Units []state.UnitState }{Units: commitAndReadUnits(t, root)}
 	byUnit := map[string]state.UnitState{}
 	for _, u := range f.Units {
 		byUnit[u.Unit] = u
@@ -222,7 +222,7 @@ func TestRecordAIReviews_SurvivesDecision(t *testing.T) {
 		ReviewDecisionApproved, "", "ai/claude-x")
 	require.NoError(t, err)
 
-	f := struct{ Units []state.UnitState }{Units: readCommittedUnits(t, root)}
+	f := struct{ Units []state.UnitState }{Units: commitAndReadUnits(t, root)}
 	require.Len(t, f.Units, 1)
 	require.NotNil(t, f.Units[0].AIReview, "the annotation rides along with the decision")
 	assert.Equal(t, 97, f.Units[0].AIReview.Score)

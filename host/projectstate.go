@@ -13,25 +13,6 @@ import (
 // decisions.
 func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
 
-// defaultStateFile named the committed state artifact when it was a single JSON
-// document at the project root. The committed record is now a set of JSON Lines
-// shards under the state directory (project.UnitsDir), so this survives only for
-// projects that bind defaults.state explicitly.
-const defaultStateFile = ".kapi-state.json"
-
-// stateFilePath resolves the committed project-state artifact: defaults.state when
-// bound, else the conventional default, relative to the project root.
-func stateFilePath(proj *project.KapiProject, root string) string {
-	rel := defaultStateFile
-	if proj != nil && strings.TrimSpace(proj.Defaults.State) != "" {
-		rel = proj.Defaults.State
-	}
-	if filepath.IsAbs(rel) {
-		return rel
-	}
-	return filepath.Join(root, rel)
-}
-
 // openProjectState opens the project's working store, seeding it from the
 // committed record when it holds nothing yet.
 //
@@ -41,7 +22,7 @@ func stateFilePath(proj *project.KapiProject, root string) string {
 // decisions must commit after the batch, not inside the loop.
 //
 // The caller closes the returned store.
-func openProjectState(proj *project.KapiProject, root string) (*state.WorkStore, error) {
+func openProjectState(root string) (*state.WorkStore, error) {
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
 	return state.OpenWork(layout.WorkStorePath(), layout.UnitsDir())
 }
@@ -63,6 +44,50 @@ func targetHash(text string) string {
 // changed, which is exactly what happened.
 //
 // The caller closes the returned store.
-func OpenProjectState(proj *project.KapiProject, root string) (*state.WorkStore, error) {
-	return openProjectState(proj, root)
+func OpenProjectState(root string) (*state.WorkStore, error) {
+	return openProjectState(root)
+}
+
+// CommitProjectState writes staged decisions into the project's committed
+// record and reports how many were written.
+//
+// Committing is explicit. A decision is durable the moment it is recorded — the
+// working store is a database, not a buffer — but becoming part of the project's
+// reviewable record is a separate act, the same shape as staging and committing
+// in git. That is what keeps a run of automated decisions from landing in the
+// tracked record before anyone has looked at them.
+func CommitProjectState(root string) (int, error) {
+	st, err := openProjectState(root)
+	if err != nil {
+		return 0, err
+	}
+	defer st.Close()
+
+	n, err := st.Pending()
+	if err != nil {
+		return 0, err
+	}
+	if n == 0 {
+		return 0, nil
+	}
+	if err := st.Commit(); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// PendingDecisions reports how many decisions are staged and not yet committed.
+// An unreadable store is not an error: status stays informational.
+func PendingDecisions(root string) int {
+	st, err := openProjectState(root)
+	if err != nil {
+		return 0
+	}
+	defer st.Close()
+
+	n, err := st.Pending()
+	if err != nil {
+		return 0
+	}
+	return n
 }

@@ -211,10 +211,16 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 	assert.Equal(t, "skipped", res2.Status)
 }
 
-// assertCommittedUnits reads the committed record — JSON Lines sharded by
-// document under the state directory — and asserts how many units it holds.
+// assertCommittedUnits commits the project's staged decisions and asserts how
+// many units the committed record then holds.
+//
+// It commits because recording no longer does: a decision is staged, and
+// `kapi commit` publishes it.
 func assertCommittedUnits(t *testing.T, root string, want int, msg string) {
 	t.Helper()
+	_, err := CommitProjectState(root)
+	require.NoError(t, err)
+
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
 	units, err := state.ReadCommitted(layout.UnitsDir())
 	require.NoError(t, err)

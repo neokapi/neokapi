@@ -30,6 +30,10 @@ type StatusOutput struct {
 	// only when the recipe declares a server: block — the venue of a plain
 	// local project is not ambiguous, so it stays silent.
 	Venue *StatusVenue `json:"venue,omitempty"`
+	// Staged counts decisions recorded but not yet written to the project's
+	// committed record. Omitted when there are none, so a clean project stays
+	// quiet — the same habit as git status.
+	Staged int `json:"staged,omitempty"`
 }
 
 // StatusVenue names the effective convergence venue for a server-connected
@@ -98,7 +102,23 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 	if o.Venue != nil {
 		writeVenueLine(w, *o.Venue)
 	}
+	writeStagedLine(w, o.Staged)
 	return nil
+}
+
+// writeStagedLine reports decisions recorded but not yet committed, and says
+// what to run. Silent when there are none: a clean project should read clean,
+// the same habit as git status.
+func writeStagedLine(w io.Writer, staged int) {
+	if staged <= 0 {
+		return
+	}
+	noun := "decisions"
+	if staged == 1 {
+		noun = "decision"
+	}
+	fmt.Fprintf(w, "\n%d %s staged, not committed — run `kapi commit` to write them to the project record.\n",
+		staged, noun)
 }
 
 // writeCoverageGrid renders the per-locale coverage table. The scope column
@@ -375,6 +395,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		if src.Total > 0 {
 			out.Source = &src
 		}
+		out.Staged = PendingDecisions(root)
 		a.appendServerStatus(cmd, proj, &out)
 		out.Venue = a.statusVenue(proj)
 		a.WarnInertRecipeFields(cmd, proj)

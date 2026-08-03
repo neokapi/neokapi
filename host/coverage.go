@@ -210,7 +210,7 @@ func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (r
 	if root == "" {
 		return idx, nil
 	}
-	st, err := openProjectState(proj, root)
+	st, err := openProjectState(root)
 	if err != nil {
 		return idx, err
 	}
