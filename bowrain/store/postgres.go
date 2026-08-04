@@ -611,34 +611,57 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 	existingBlocks := map[string]existingBlock{}
 	oldTargetText := map[string]map[string]string{} // blockID → variant → prior text, for block_history
 	{
-		var hashQuery string
-		var hashArgs []any
-		if itemName != "" {
-			hashQuery = `SELECT id, content_hash FROM blocks WHERE project_id=$1 AND item_name=$2`
-			hashArgs = []any{projectID, itemName}
-		} else {
-			hashQuery = `SELECT id, content_hash FROM blocks WHERE project_id=$1`
-			hashArgs = []any{projectID}
-		}
-		hashRows, err := tx.QueryContext(ctx, hashQuery, hashArgs...)
-		if err != nil {
-			return fmt.Errorf("batch hash lookup: %w", err)
-		}
+		// Everything below is read back through each incoming block's resolved
+		// row id, so the prefetch is bounded to that id set. The source-id
+		// mapping is final by this point, which is what makes the set
+		// computable up front. It used to load the whole item — or, with no
+		// item scope, the whole project, which fed 75k ids into one IN(...)
+		// and blew Postgres's 65535-bind-parameter limit the first time a
+		// translation job ran against a real corpus.
 		var ids []string
-		for hashRows.Next() {
-			var bid, ch string
-			if err := hashRows.Scan(&bid, &ch); err != nil {
-				hashRows.Close()
-				return fmt.Errorf("scan hash: %w", err)
+		seen := map[string]struct{}{}
+		for _, b := range blocks {
+			rid := b.ID
+			if itemName != "" {
+				if _, isInternal := internalSourceIDs[b.ID]; !isInternal {
+					if mapped, found := existingSourceIDs[convergence.BlockKey(b)]; found {
+						rid = mapped
+					}
+				}
 			}
-			existingBlocks[bid] = existingBlock{contentHash: ch, locales: map[string]struct{}{}}
-			ids = append(ids, bid)
+			if _, dup := seen[rid]; !dup {
+				seen[rid] = struct{}{}
+				ids = append(ids, rid)
+			}
 		}
-		hashRows.Close()
 
-		// Load existing locales per block for target diff.
-		if len(ids) > 0 {
-			localeMap, err := LoadBlockTargetLocales(ctx, tx, "pg", projectID, stream, ids)
+		const prefetchChunk = 5000
+		for start := 0; start < len(ids); start += prefetchChunk {
+			chunk := ids[start:min(start+prefetchChunk, len(ids))]
+
+			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=$1 AND id IN (` +
+				placeholderList("pg", 2, len(chunk)) + `)`
+			hashRows, err := tx.QueryContext(ctx, hashQuery, append([]any{projectID}, anyStrings(chunk)...)...)
+			if err != nil {
+				return fmt.Errorf("batch hash lookup: %w", err)
+			}
+			var present []string
+			for hashRows.Next() {
+				var bid, ch string
+				if err := hashRows.Scan(&bid, &ch); err != nil {
+					hashRows.Close()
+					return fmt.Errorf("scan hash: %w", err)
+				}
+				existingBlocks[bid] = existingBlock{contentHash: ch, locales: map[string]struct{}{}}
+				present = append(present, bid)
+			}
+			hashRows.Close()
+			if len(present) == 0 {
+				continue
+			}
+
+			// Load existing locales per block for target diff.
+			localeMap, err := LoadBlockTargetLocales(ctx, tx, "pg", projectID, stream, present)
 			if err != nil {
 				return fmt.Errorf("batch locale lookup: %w", err)
 			}
@@ -650,16 +673,16 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 					existingBlocks[bid] = eb
 				}
 			}
-		}
 
-		// Capture prior target text for change-history before the upsert
-		// overwrites it.
-		if len(ids) > 0 {
-			ot, otErr := loadOldTargetText(ctx, tx, projectID, stream, ids)
+			// Capture prior target text for change-history before the upsert
+			// overwrites it.
+			ot, otErr := loadOldTargetText(ctx, tx, projectID, stream, present)
 			if otErr != nil {
 				return fmt.Errorf("batch old-target load: %w", otErr)
 			}
-			oldTargetText = ot
+			for bid, variants := range ot {
+				oldTargetText[bid] = variants
+			}
 		}
 	}
 

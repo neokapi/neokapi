@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -524,19 +525,22 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 			return fmt.Errorf("prepare legacy adoption: %w", err)
 		}
 		for _, b := range blocks {
-			if _, mapped := existingSourceIDs[b.ID]; mapped {
+			srcKey := convergence.BlockKey(b)
+			if _, mapped := existingSourceIDs[srcKey]; mapped {
 				continue
 			}
 			if _, isInternal := internalSourceIDs[b.ID]; isInternal {
 				continue // already a row of this item; nothing to adopt
 			}
-			res, err := adopt.ExecContext(ctx, itemName, b.ID, projectID, b.ID)
+			// The row is found by its internal id; the source_id it adopts is
+			// the caller's durable key, not that id.
+			res, err := adopt.ExecContext(ctx, itemName, srcKey, projectID, b.ID)
 			if err != nil {
 				adopt.Close()
 				return fmt.Errorf("adopt legacy block %s: %w", b.ID, err)
 			}
 			if n, _ := res.RowsAffected(); n > 0 {
-				existingSourceIDs[b.ID] = b.ID
+				existingSourceIDs[srcKey] = b.ID
 			}
 		}
 		adopt.Close()
@@ -563,36 +567,63 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 	existingHashes := map[string]string{}
 	existingLocales := map[string]map[string]struct{}{}
 	{
-		var hashQuery string
-		var hashArgs []any
-		if itemName != "" {
-			hashQuery = `SELECT id, content_hash FROM blocks WHERE project_id=? AND item_name=?`
-			hashArgs = []any{projectID, itemName}
-		} else {
-			hashQuery = `SELECT id, content_hash FROM blocks WHERE project_id=?`
-			hashArgs = []any{projectID}
-		}
-		hashRows, err := tx.QueryContext(ctx, hashQuery, hashArgs...)
-		if err != nil {
-			return fmt.Errorf("batch hash lookup: %w", err)
-		}
+		// Bounded to the rows this call touches, mirroring the Postgres store:
+		// everything below is read back through each incoming block's resolved
+		// row id, and the source-id mapping is final by this point. Loading the
+		// whole item — or, with no item scope, the whole project — fed every id
+		// into one IN(...), which SQLite's variable limit does not survive at
+		// corpus scale any better than Postgres's did.
 		var ids []string
-		for hashRows.Next() {
-			var bid, ch string
-			if err := hashRows.Scan(&bid, &ch); err != nil {
-				hashRows.Close()
-				return fmt.Errorf("scan hash: %w", err)
+		seen := map[string]struct{}{}
+		for _, b := range blocks {
+			rid := b.ID
+			if itemName != "" {
+				if _, isInternal := internalSourceIDs[b.ID]; !isInternal {
+					if mapped, found := existingSourceIDs[convergence.BlockKey(b)]; found {
+						rid = mapped
+					}
+				}
 			}
-			existingHashes[bid] = ch
-			ids = append(ids, bid)
-		}
-		hashRows.Close()
-		if err := hashRows.Err(); err != nil {
-			return fmt.Errorf("hash lookup rows: %w", err)
+			if _, dup := seen[rid]; !dup {
+				seen[rid] = struct{}{}
+				ids = append(ids, rid)
+			}
 		}
 
-		if len(ids) > 0 {
-			localeMap, err := bstore.LoadBlockTargetLocales(ctx, tx, "sqlite", projectID, stream, ids)
+		const prefetchChunk = 500 // stay well under SQLite's bind-variable limit
+		for start := 0; start < len(ids); start += prefetchChunk {
+			chunk := ids[start:min(start+prefetchChunk, len(ids))]
+
+			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=? AND id IN (?` +
+				strings.Repeat(",?", len(chunk)-1) + `)`
+			args := make([]any, 0, len(chunk)+1)
+			args = append(args, projectID)
+			for _, id := range chunk {
+				args = append(args, id)
+			}
+			hashRows, err := tx.QueryContext(ctx, hashQuery, args...)
+			if err != nil {
+				return fmt.Errorf("batch hash lookup: %w", err)
+			}
+			var present []string
+			for hashRows.Next() {
+				var bid, ch string
+				if err := hashRows.Scan(&bid, &ch); err != nil {
+					hashRows.Close()
+					return fmt.Errorf("scan hash: %w", err)
+				}
+				existingHashes[bid] = ch
+				present = append(present, bid)
+			}
+			hashRows.Close()
+			if err := hashRows.Err(); err != nil {
+				return fmt.Errorf("hash lookup rows: %w", err)
+			}
+			if len(present) == 0 {
+				continue
+			}
+
+			localeMap, err := bstore.LoadBlockTargetLocales(ctx, tx, "sqlite", projectID, stream, present)
 			if err != nil {
 				return fmt.Errorf("batch locale lookup: %w", err)
 			}
@@ -621,7 +652,15 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 				internalID = b.ID
 				sourceID = existingSource
 			} else {
-				sourceID = b.ID
+				// The caller's DURABLE identity, not its reader id — the same
+				// keying the Postgres store moved to: a reader numbers blocks
+				// as it goes for formats with no natural key, so keying rows
+				// on that id meant deleting one paragraph renumbered every
+				// block below it and each stored row rebound to its
+				// neighbour's text. convergence.BlockKey resolves to the
+				// structural name a reader assigns; the block's own ID still
+				// rides the wire untouched.
+				sourceID = convergence.BlockKey(b)
 				if existingID, found := existingSourceIDs[sourceID]; found {
 					internalID = existingID
 				} else {
