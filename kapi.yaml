@@ -167,9 +167,14 @@ content:
   - name: neokapi-docs
     context: { product: neokapi, channel: docs }
     items:
+      # Docusaurus v3 parses .md as MDX by default (no markdown.format
+      # override in docusaurus.config.ts), and these files use ESM imports and
+      # JSX freely — so the mdx reader is the truthful format. The markdown
+      # reader treated an `import { BlockPreview } …` line as a paragraph of
+      # prose, and the first convergence run translated it.
       - path: web/docs/**/*.md
         format:
-          name: markdown
+          name: mdx
           config:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
@@ -184,9 +189,10 @@ content:
   - name: bowrain-docs
     context: { product: bowrain, channel: docs }
     items:
+      # .md is MDX here for the same reason as the neokapi docs above.
       - path: bowrain/web/docs/docs/**/*.md
         format:
-          name: markdown
+          name: mdx
           config:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
