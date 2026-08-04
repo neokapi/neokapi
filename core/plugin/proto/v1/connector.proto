@@ -125,6 +125,9 @@ message PushResponse {
   int32 chunk_count = 4;
   int32 word_count = 5;
   string push_id = 6;
+  // Blocks actually uploaded after diff negotiation. blocks_pushed counts the
+  // locally-changed candidates; the two disagreeing loudly is the point.
+  int32 blocks_uploaded = 7;
 }
 
 // ---------------------------------------------------------------------------

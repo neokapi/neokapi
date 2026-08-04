@@ -286,7 +286,12 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		chunkBytes := 0
 
 		for _, b := range blocks {
-			if _, ok := neededIDs[b.ID]; !ok {
+			// The needed set answers the diff, and the diff was keyed on the
+			// durable identity — so the lookup must be too. Keyed on b.ID here,
+			// no needed key ever matched a reader id, and a push that had
+			// negotiated 75k missing blocks uploaded zero chunks and reported
+			// success.
+			if _, ok := neededIDs[convergence.BlockKey(b)]; !ok {
 				continue
 			}
 			sb := bowsync.BlockToProto(b, itemName)
@@ -342,6 +347,9 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	}
 	commitResp, err := c.pushCommit(ctx, PushCommitRequest{
 		UploadID: initResp.UploadID,
+		// The server takes the stream from the authorized route path; this
+		// field only matters to a deployment whose commit route carries no ref.
+		Stream:   c.stream,
 		Chunks:   chunks,
 		Items:    itemsJSON,
 		Contexts: contexts,
@@ -351,6 +359,10 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	}
 	if commitResp != nil {
 		commitResp.UndeclaredCollections = initResp.UndeclaredCollections
+		commitResp.ChunkCount = len(chunks)
+		for _, ch := range chunks {
+			commitResp.BlocksUploaded += ch.RecordCount
+		}
 	}
 
 	return commitResp, nil

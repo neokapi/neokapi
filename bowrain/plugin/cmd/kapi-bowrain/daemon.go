@@ -382,12 +382,13 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 		return nil, fmt.Errorf("push terminology: %w", cerr)
 	}
 	return &pb.PushResponse{
-		BlocksPushed: int32(res.BlocksPushed),
-		AssetsPushed: int32(res.AssetsPushed),
-		FilesScanned: int32(res.FilesScanned),
-		ChunkCount:   int32(res.ChunkCount),
-		WordCount:    int32(res.WordCount),
-		PushId:       res.PushID,
+		BlocksPushed:   int32(res.BlocksPushed),
+		BlocksUploaded: int32(res.BlocksUploaded),
+		AssetsPushed:   int32(res.AssetsPushed),
+		FilesScanned:   int32(res.FilesScanned),
+		ChunkCount:     int32(res.ChunkCount),
+		WordCount:      int32(res.WordCount),
+		PushId:         res.PushID,
 	}, nil
 }
 

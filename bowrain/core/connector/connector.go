@@ -135,6 +135,12 @@ type PushResult struct {
 	WordCount    int    // total source words across pushed blocks
 	PushID       string // server-assigned push correlation ID (empty if nothing stored)
 
+	// BlocksUploaded is what actually went on the wire after diff negotiation.
+	// BlocksPushed counts the locally-changed candidates; on a fresh server the
+	// two must agree, and a push that reports thousands of candidates and zero
+	// uploads is a keying bug this field exists to expose.
+	BlocksUploaded int
+
 	// UndeclaredCollections names recipe-owned collections the server holds
 	// that this push no longer declares. Reported so the push can say so, never
 	// deleted — the content grouped under them is still there.

@@ -616,10 +616,14 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	var lastCursor int64
 	pushID := ""
 	var undeclared []string
+	blocksUploaded := 0
+	chunkCount := 0
 	if resp != nil {
 		lastCursor = resp.NewCursor
 		pushID = resp.PushID
 		undeclared = resp.UndeclaredCollections
+		blocksUploaded = resp.BlocksUploaded
+		chunkCount = resp.ChunkCount
 	}
 
 	// Fetch and cache server metadata (best-effort).
@@ -668,6 +672,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 
 	return &bowrainconn.PushResult{
 		BlocksPushed:          totalStored,
+		BlocksUploaded:        blocksUploaded,
+		ChunkCount:            chunkCount,
 		AssetsPushed:          assetsPushed,
 		FilesScanned:          len(hashMap),
 		WordCount:             pushWords,

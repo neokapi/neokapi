@@ -210,6 +210,10 @@ type PushOutput struct {
 	DryRun       bool   `json:"dry_run,omitempty"`
 	UpToDate     bool   `json:"up_to_date,omitempty"`
 
+	// BlocksUploaded is what went on the wire after diff negotiation, as
+	// opposed to BlocksPushed, the locally-changed candidates.
+	BlocksUploaded int `json:"blocks_uploaded,omitempty"`
+
 	// Concept sync (governed terminology reconciled against the pulled baseline).
 	ConceptsApplied  int    `json:"concepts_applied,omitempty"`
 	RelationsApplied int    `json:"concept_relations_applied,omitempty"`
@@ -250,7 +254,7 @@ func (o PushOutput) FormatText(w io.Writer) error {
 	case o.UpToDate:
 		fmt.Fprintln(w, "Already up to date.")
 	default:
-		fmt.Fprintf(w, "Pushed %d blocks, %d words (scanned %d files)\n", o.BlocksPushed, o.WordCount, o.FilesScanned)
+		fmt.Fprintf(w, "Pushed %d blocks (%d uploaded), %d words (scanned %d files)\n", o.BlocksPushed, o.BlocksUploaded, o.WordCount, o.FilesScanned)
 	}
 	o.formatConcepts(w)
 	o.FormatBrand(w)

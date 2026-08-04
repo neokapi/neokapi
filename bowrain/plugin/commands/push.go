@@ -47,12 +47,13 @@ the structure without the governance.`,
 
 // PushResult holds the structured result of a push operation.
 type PushResult struct {
-	BlocksPushed int
-	WordCount    int
-	FilesScanned int
-	PushID       string
-	DryRun       bool
-	UpToDate     bool
+	BlocksPushed   int
+	BlocksUploaded int
+	WordCount      int
+	FilesScanned   int
+	PushID         string
+	DryRun         bool
+	UpToDate       bool
 
 	// Brand reports what the governance carried in the push amounted to. Nil
 	// when the project binds no voice.
@@ -104,6 +105,7 @@ func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*Pu
 
 	pr := &PushResult{
 		BlocksPushed:          result.BlocksPushed,
+		BlocksUploaded:        result.BlocksUploaded,
 		WordCount:             result.WordCount,
 		FilesScanned:          result.FilesScanned,
 		PushID:                result.PushID,
@@ -138,6 +140,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 
 	out := output.PushOutput{
 		BlocksPushed:          pr.BlocksPushed,
+		BlocksUploaded:        pr.BlocksUploaded,
 		WordCount:             pr.WordCount,
 		FilesScanned:          pr.FilesScanned,
 		Stream:                conn.Stream(),
