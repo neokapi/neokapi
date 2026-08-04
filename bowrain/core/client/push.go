@@ -15,6 +15,7 @@ import (
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -202,7 +203,11 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		blockHashes := make(map[string]string, len(blocks))
 		for _, b := range blocks {
 			identity := model.ComputeIdentity(b)
-			blockHashes[b.ID] = identity.ContentHash
+			// Keyed on the DURABLE identity, matching what the server stores as
+			// source_id. Keyed on the reader's id instead, deleting a paragraph
+			// renumbered every block below it and the push reported an untouched
+			// file as wholly changed.
+			blockHashes[convergence.BlockKey(b)] = identity.ContentHash
 		}
 		blockHashesByItem[itemName] = blockHashes
 		itemHashes[itemName] = bowsync.ComputeItemHash(blockHashes)

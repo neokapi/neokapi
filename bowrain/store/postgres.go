@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -564,19 +565,22 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 			return fmt.Errorf("prepare legacy adoption: %w", err)
 		}
 		for _, b := range blocks {
-			if _, mapped := existingSourceIDs[b.ID]; mapped {
+			srcKey := convergence.BlockKey(b)
+			if _, mapped := existingSourceIDs[srcKey]; mapped {
 				continue
 			}
 			if _, isInternal := internalSourceIDs[b.ID]; isInternal {
 				continue // already a row of this item; nothing to adopt
 			}
-			res, err := adopt.ExecContext(ctx, itemName, b.ID, projectID, b.ID)
+			// The row is found by its internal id; the source_id it adopts is
+			// the caller's durable key, not that id.
+			res, err := adopt.ExecContext(ctx, itemName, srcKey, projectID, b.ID)
 			if err != nil {
 				adopt.Close()
 				return fmt.Errorf("adopt legacy block %s: %w", b.ID, err)
 			}
 			if n, _ := res.RowsAffected(); n > 0 {
-				existingSourceIDs[b.ID] = b.ID
+				existingSourceIDs[srcKey] = b.ID
 			}
 		}
 		adopt.Close()
@@ -674,7 +678,18 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 				internalID = b.ID
 				sourceID = existingSource
 			} else {
-				sourceID = b.ID
+				// The caller's DURABLE identity, not its reader id. A reader
+				// numbers blocks as it goes for formats with no natural key, so
+				// keying rows on that id meant deleting one paragraph renumbered
+				// every block below it and each stored row rebound to its
+				// neighbour's text — carrying that row's history, decisions and
+				// translation onto content that was never reviewed.
+				//
+				// convergence.BlockKey resolves to the structural name a reader
+				// assigns (core/model/structural.go), which moves only when the
+				// document's structure does. The block's own ID still rides the
+				// wire untouched, so the round trip is unaffected.
+				sourceID = convergence.BlockKey(b)
 				if existingID, found := existingSourceIDs[sourceID]; found {
 					internalID = existingID
 				} else {

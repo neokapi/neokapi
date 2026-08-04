@@ -24,6 +24,7 @@ import (
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/plugin/schema"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -222,7 +223,7 @@ func (c *BowrainSourceConnector) ListFiles(ctx context.Context, paths []string) 
 		dirty := 0
 		for _, b := range blocks {
 			identity := model.ComputeIdentity(b)
-			cached, found := c.lookupCachedHashForItem(relPath, b.ID)
+			cached, found := c.lookupCachedHashForItem(relPath, convergence.BlockKey(b))
 			if !found || cached != identity.ContentHash {
 				dirty++
 			}
@@ -547,8 +548,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	for itemName, blocks := range blockMap {
 		fileHashes := hashMap[itemName]
 		for _, b := range blocks {
-			hash := fileHashes[b.ID]
-			cachedHash, inCache := c.lookupCachedHashForItem(itemName, b.ID)
+			hash := fileHashes[convergence.BlockKey(b)]
+			cachedHash, inCache := c.lookupCachedHashForItem(itemName, convergence.BlockKey(b))
 			if opts.Force || !inCache || cachedHash != hash {
 				changed = append(changed, itemBlock{itemName: itemName, block: b})
 			}
@@ -1015,7 +1016,7 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
 				identity := model.ComputeIdentity(b)
-				fileHashes[b.ID] = identity.ContentHash
+				fileHashes[convergence.BlockKey(b)] = identity.ContentHash
 			}
 			hashMap[relPath] = fileHashes
 			blockMap[relPath] = blocks
@@ -1040,7 +1041,7 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
 				identity := model.ComputeIdentity(b)
-				fileHashes[b.ID] = identity.ContentHash
+				fileHashes[convergence.BlockKey(b)] = identity.ContentHash
 			}
 			hashMap[relPath] = fileHashes
 			blockMap[relPath] = blocks
