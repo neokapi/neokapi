@@ -26,6 +26,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	16  unit decisions ledger (decisions travel the sync protocol)
 //	17  stream scope for convergence runs
 //	18  source word count computed at write
+//	19  blocks access ladder renamed (open|restricted|published)
 //
 // Versions 3 and 4 were already retired before this change — they ran on live
 // databases and were then folded into the v1 baseline. They are listed because
@@ -36,7 +37,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // Baseline is version 15 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 19.
+// repaired. Retired numbers are never reused; the next migration is version 20.
 var Migrations = []storage.Migration{
 	{
 		Version:     15,
@@ -186,7 +187,7 @@ var Migrations = []storage.Migration{
 				overlays     JSONB NOT NULL DEFAULT '[]'::jsonb,
 				properties   TEXT NOT NULL DEFAULT '{}',
 				owner_id     TEXT NOT NULL DEFAULT '',         -- ABAC: content owner
-				status       TEXT NOT NULL DEFAULT 'draft',    -- ABAC: draft | in_review | published
+				access       TEXT NOT NULL DEFAULT 'open',     -- ABAC: open | restricted | published
 				stored_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, id)
@@ -1040,6 +1041,29 @@ var Migrations = []storage.Migration{
 			-- coverage used to deserialize every block's source runs on every
 			-- call — minutes at corpus scale for numbers the write path knew.
 			ALTER TABLE blocks ADD COLUMN IF NOT EXISTS word_count INTEGER;
+		`,
+	},
+	{
+		Version:     19,
+		Description: "the access ladder stops borrowing the review ladder's words",
+		SQL: `
+			-- blocks.status was ACCESS CONTROL (who may edit), yet it said
+			-- "draft" — the review ladder's bottom rung — and "in_review", one
+			-- letter from "reviewed" on the other side of the same block. The
+			-- column is now access, and its values name the access consequence:
+			-- open (normal perms), restricted (review perms or ownership),
+			-- published (re-opening is privileged). The DO block makes the
+			-- rename idempotent: a fresh database's baseline already creates
+			-- the column under its new name.
+			DO $mig$ BEGIN
+				IF EXISTS (SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'blocks' AND column_name = 'status') THEN
+					ALTER TABLE blocks RENAME COLUMN status TO access;
+				END IF;
+			END $mig$;
+			UPDATE blocks SET access = 'open'       WHERE access = 'draft';
+			UPDATE blocks SET access = 'restricted' WHERE access = 'in_review';
+			ALTER TABLE blocks ALTER COLUMN access SET DEFAULT 'open';
 		`,
 	},
 }
