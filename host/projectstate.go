@@ -2,7 +2,6 @@ package host
 
 import (
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/project"
@@ -31,7 +30,7 @@ func openProjectState(root string) (*state.WorkStore, error) {
 // to the specific text it blessed — so an edit invalidates a stale approval. It
 // trims surrounding whitespace so insignificant reformatting doesn't invalidate.
 func targetHash(text string) string {
-	return project.HashBytes([]byte(strings.TrimSpace(text)))
+	return state.TargetHash(text)
 }
 
 // OpenProjectState opens the project's working store for an embedder (the

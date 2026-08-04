@@ -197,7 +197,12 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 			if status != model.TargetStatusDraft && strings.TrimSpace(target) == "" {
 				return false, fmt.Errorf("unit %s has no %s translation to approve", ref.Key, ref.Locale)
 			}
-			return a.recordDecisionState(proj, root, blockKey(b), loc, target, status, decision, note, by)
+			// The decision's document is the SOURCE path: it is the identity
+			// namespace the unit key lives in — the connector names server
+			// items by it, so it is what lets the decision travel scoped to
+			// the right item. The review queue's display path is the target
+			// file, which no other party names anything by.
+			return a.recordDecisionState(proj, root, relToRoot(root, u.SourcePath), blockKey(b), loc, target, status, decision, note, by)
 		}
 	}
 	return false, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
@@ -211,7 +216,7 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 // touched here: it is the recycle corpus, not the state carrier. Advisory fields
 // already on the unit's record (origin, source status, a fresh AI pre-review
 // annotation) survive the decision write.
-func (a *App) recordDecisionState(proj *project.KapiProject, root, unit string, locale model.LocaleID, target string, status model.TargetStatus, decision, note, by string) (bool, error) {
+func (a *App) recordDecisionState(proj *project.KapiProject, root, file, unit string, locale model.LocaleID, target string, status model.TargetStatus, decision, note, by string) (bool, error) {
 	st, err := openProjectState(root)
 	if err != nil {
 		return false, err
@@ -231,6 +236,13 @@ func (a *App) recordDecisionState(proj *project.KapiProject, root, unit string, 
 		TargetHash: th,
 		Decision:   state.Decision{ReviewState: decision, By: by, At: now, Note: note},
 		Updated:    now,
+		// The document the unit was decided in. Until the reconcile resolver
+		// is wired into the review path, the display path IS the document key;
+		// when resolved keys land, the working store's document map translates
+		// key → path and this field keeps meaning "which document". It is what
+		// lets a decision travel the sync protocol scoped to the item whose
+		// identity namespace the unit key lives in.
+		Scope: file,
 	}
 	if hadPrev {
 		// Advisory state rides along; only the decision itself is replaced.
@@ -436,4 +448,17 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 		}
 	}
 	return nil, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
+}
+
+// relToRoot renders a unit path relative to the project root when possible —
+// the shape the connector names items by. An outside-the-root or already-
+// relative path is kept verbatim.
+func relToRoot(root, p string) string {
+	if p == "" || !filepath.IsAbs(p) {
+		return p
+	}
+	if rel, err := filepath.Rel(root, p); err == nil && !strings.HasPrefix(rel, "..") {
+		return rel
+	}
+	return p
 }

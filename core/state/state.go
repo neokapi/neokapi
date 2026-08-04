@@ -10,7 +10,21 @@
 // it. See strategy/content-cache/project-state-model.md.
 package state
 
-import "github.com/neokapi/neokapi/core/model"
+import (
+	"strings"
+
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
+)
+
+// TargetHash is the content hash a decision blesses: the hash of the trimmed
+// target text. One definition, used by every party that records or verifies a
+// decision — the host when it records, a server when it checks freshness at
+// ingest. A second implementation of this composition is how two ends of a
+// protocol drift.
+func TargetHash(targetText string) string {
+	return project.HashBytes([]byte(strings.TrimSpace(targetText)))
+}
 
 // UnitState is the workflow state of one translatable unit in one locale variant.
 type UnitState struct {
