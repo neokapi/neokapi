@@ -744,6 +744,12 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 				if err := logChange(ctx, tx, projectID, stream, internalID, "source_modified", "", identity.ContentHash); err != nil {
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
+				// The source this unit's approvals were made against no longer
+				// exists, so the approvals no longer apply (use case 2) —
+				// mirrors demoteStaleApprovalsPg exactly.
+				if err := demoteStaleApprovals(ctx, tx, projectID, internalID); err != nil {
+					return err
+				}
 			}
 			// Log target changes — added vs modified based on whether the
 			// variant already had a row in the translations table. The

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 )
 
 // SyncBlock carries the full block model through the sync boundary (Bowrain AD-009 Phase 7).
@@ -174,4 +175,12 @@ type RichPullResponse struct {
 	// the client reads it and leaves the local governance alone, because
 	// kapi.yaml is the authority for it.
 	Contexts []*pb.SyncContextEntry `json:"contexts,omitempty"`
+
+	// Decisions is the project's decision ledger — the latest workflow
+	// decision per (item, unit, variant), with decider identity, time, and
+	// the hash of the translation each decision blesses. Like Contexts it is
+	// not cursor-driven: the ledger is small and the client reconciles it
+	// last-writer-wins into its working store, where `kapi commit` remains
+	// the only door into the git-tracked record.
+	Decisions []store.UnitDecision `json:"decisions,omitempty"`
 }

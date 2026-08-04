@@ -785,6 +785,16 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 				if err := logChange(ctx, tx, projectID, stream, internalID, "source_modified", "", identity.ContentHash); err != nil {
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
+				// The source this unit's approvals were made against no longer
+				// exists, so the approvals no longer apply (use case 2). Demote
+				// the projected status to the presence baseline on EVERY
+				// stream — the source row is stream-global — and log the
+				// demotion per affected target. The decision itself stays in
+				// the ledger: it is a fact about an older text, and history is
+				// what lets a restored text find its approval again.
+				if err := demoteStaleApprovalsPg(ctx, tx, projectID, internalID); err != nil {
+					return err
+				}
 			}
 			for key := range b.Targets {
 				variant := VariantKeyText(key)
@@ -1217,19 +1227,27 @@ func HydrateOverlays(
 		ids = append(ids, sb.Block.ID)
 		byID[sb.Block.ID] = sb
 	}
-	targets, annotations, err := LoadBlockOverlays(ctx, db, dialect, projectID, stream, ids)
-	if err != nil {
-		return fmt.Errorf("hydrate overlays: %w", err)
-	}
-	for id, locs := range targets {
-		if sb := byID[id]; sb != nil {
-			sb.Block.Targets = locs
+	// Chunked: every id lands in one IN(...) placeholder, and a whole-project
+	// hydrate (the review loop, an unscoped GetBlocks) at corpus scale blew
+	// Postgres's 65,535-bind-parameter limit. Same bound as the storeBlocks
+	// prefetch, kept far below the limit for SQLite's sake too.
+	const hydrateChunk = 5000
+	for start := 0; start < len(ids); start += hydrateChunk {
+		chunk := ids[start:min(start+hydrateChunk, len(ids))]
+		targets, annotations, err := LoadBlockOverlays(ctx, db, dialect, projectID, stream, chunk)
+		if err != nil {
+			return fmt.Errorf("hydrate overlays: %w", err)
 		}
-	}
-	for id, anns := range annotations {
-		if sb := byID[id]; sb != nil {
-			for k, v := range anns {
-				sb.Block.SetAnno(k, v)
+		for id, locs := range targets {
+			if sb := byID[id]; sb != nil {
+				sb.Block.Targets = locs
+			}
+		}
+		for id, anns := range annotations {
+			if sb := byID[id]; sb != nil {
+				for k, v := range anns {
+					sb.Block.SetAnno(k, v)
+				}
 			}
 		}
 	}

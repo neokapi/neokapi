@@ -92,7 +92,7 @@ func collectUploadedChunks(t *testing.T, c *BowrainClient, blocksByItem map[stri
 	defer srv.Close()
 
 	c.baseURL = srv.URL
-	_, err := c.Push(context.Background(), blocksByItem, items, nil)
+	_, err := c.Push(context.Background(), blocksByItem, items, nil, nil)
 	require.NoError(t, err)
 
 	for _, body := range bodies {

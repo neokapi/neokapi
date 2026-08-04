@@ -174,6 +174,9 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		// verbatim like Items: this handler validates the transport, the worker
 		// reconciles the content.
 		Contexts json.RawMessage `json:"contexts"`
+		// Decisions is the decisions content type, passed through the same way:
+		// the worker upserts it into the unit_decisions ledger after the chunks.
+		Decisions json.RawMessage `json:"decisions"`
 	}
 	if err := c.Bind(&manifest); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
@@ -361,6 +364,15 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 		Cursor:   cs.NewCursor,
 		HasMore:  cs.HasMore,
 		Contexts: s.pullContextEntries(ctx, projectID, stream),
+	}
+
+	// The decision ledger travels like the declared context: small, always
+	// current, on every page rather than cursor-driven. A store without the
+	// ledger capability simply sends none.
+	if ds, ok := s.ContentStore.(store.DecisionStore); ok {
+		if decisions, derr := ds.ListUnitDecisions(ctx, projectID, stream); derr == nil {
+			resp.Decisions = decisions
+		}
 	}
 
 	if len(cs.Changes) > 0 {

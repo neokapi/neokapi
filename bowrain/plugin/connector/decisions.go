@@ -1,0 +1,143 @@
+package connector
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/host"
+)
+
+// The decisions content type, client half. Push carries the project's
+// COMMITTED decision record (the git-tracked shards `kapi commit` writes — not
+// the staged working set, which is deliberately unpublished work); pull stages
+// the server's ledger into the working store, where `kapi commit` remains the
+// only door into the tracked record. Records reconcile last-writer-wins by
+// their Updated stamp in both directions.
+
+// variantText renders a VariantKey in its wire text form ("nb", "fr;tone=…").
+func variantText(k model.VariantKey) string {
+	b, err := k.MarshalText()
+	if err != nil {
+		return string(k.Locale)
+	}
+	return string(b)
+}
+
+// committedDecisions loads the project's committed decision record and maps it
+// to the wire form. The item each unit is scoped to comes from the unit's
+// document key via the working store's document map when one is recorded, and
+// from the key verbatim otherwise — the review path records display paths as
+// keys until the reconcile resolver is wired in, so the fallback IS the common
+// case today, and both eras satisfy the same rule: "the document the unit was
+// decided in, as the connector names items".
+func (c *BowrainSourceConnector) committedDecisions() ([]platstore.UnitDecision, error) {
+	units, err := state.ReadCommitted(c.project.Layout.UnitsDir())
+	if err != nil {
+		return nil, fmt.Errorf("read committed decisions: %w", err)
+	}
+	if len(units) == 0 {
+		return nil, nil
+	}
+
+	docPaths := map[string]string{}
+	if st, err := host.OpenProjectState(c.project.Root); err == nil {
+		if m, derr := st.DocumentPaths(); derr == nil {
+			docPaths = m
+		}
+		st.Close()
+	}
+
+	out := make([]platstore.UnitDecision, 0, len(units))
+	for _, u := range units {
+		item := u.Scope
+		if p, ok := docPaths[u.Scope]; ok && p != "" {
+			item = p
+		}
+		out = append(out, platstore.UnitDecision{
+			ItemName:    item,
+			Unit:        u.Unit,
+			Variant:     variantText(u.Variant),
+			Status:      string(u.Status),
+			TargetHash:  u.TargetHash,
+			ReviewState: u.Decision.ReviewState,
+			DecidedBy:   u.Decision.By,
+			DecidedAt:   u.Decision.At,
+			Note:        u.Decision.Note,
+			Parked:      u.Decision.Parked,
+			Assignee:    u.Decision.Assignee,
+			Updated:     u.Updated,
+		})
+	}
+	return out, nil
+}
+
+// stagePulledDecisions reconciles the server's decision ledger into the
+// project's working store: a record newer than the local one (by Updated)
+// replaces it; an older or identical one is left alone. Staged, not committed —
+// publishing to the tracked record stays a deliberate act.
+func (c *BowrainSourceConnector) stagePulledDecisions(pulled []platstore.UnitDecision) (int, error) {
+	if len(pulled) == 0 {
+		return 0, nil
+	}
+	st, err := host.OpenProjectState(c.project.Root)
+	if err != nil {
+		return 0, fmt.Errorf("open project state: %w", err)
+	}
+	defer st.Close()
+
+	staged := 0
+	for _, d := range pulled {
+		var variant model.VariantKey
+		if err := variant.UnmarshalText([]byte(d.Variant)); err != nil || variant.Locale == "" {
+			continue
+		}
+		k := state.Key{Unit: d.Unit, Variant: variant}
+		if prev, ok := st.Get(k); ok {
+			if prev.Updated != "" && d.Updated != "" && d.Updated <= prev.Updated {
+				continue // local record is as new or newer — leave it
+			}
+		}
+		next := state.UnitState{
+			Unit:       d.Unit,
+			Variant:    variant,
+			Status:     model.TargetStatus(d.Status),
+			TargetHash: d.TargetHash,
+			Decision: state.Decision{
+				ReviewState: d.ReviewState,
+				By:          d.DecidedBy,
+				At:          d.DecidedAt,
+				Note:        d.Note,
+				Parked:      d.Parked,
+				Assignee:    d.Assignee,
+			},
+			Updated: d.Updated,
+			Scope:   d.ItemName,
+		}
+		if err := st.Put(next); err != nil {
+			return staged, fmt.Errorf("stage decision %s/%s: %w", d.Unit, d.Variant, err)
+		}
+		staged++
+	}
+	return staged, nil
+}
+
+// decisionsHashOf folds the wire decisions into one hash — the value the sync
+// cache compares to decide whether the record must travel. Serialization
+// order is the committed record's own (deterministic), so the hash is stable
+// across runs.
+func decisionsHashOf(decisions []platstore.UnitDecision) string {
+	if len(decisions) == 0 {
+		return ""
+	}
+	h := sha256.New()
+	enc := json.NewEncoder(h)
+	for _, d := range decisions {
+		_ = enc.Encode(d)
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}

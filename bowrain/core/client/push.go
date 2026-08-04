@@ -15,6 +15,7 @@ import (
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -93,6 +94,15 @@ type PushCommitRequest struct {
 	// the manifest rather than in a chunk because it is the shape the uploaded
 	// items are stored into — one push is one consistent state.
 	Contexts []*pb.SyncContextEntry `json:"contexts,omitempty"`
+
+	// Decisions carries the project's committed decision record (core/state):
+	// who approved which unit, when, and the hash of the translation each
+	// decision blesses. A sidecar like Contexts rather than a chunk — the
+	// ledger is small next to content, and it belongs in the same transaction
+	// as the content it judges. The server upserts idempotently, so sending
+	// the full set every push is correct first; a hash fast-path is an
+	// optimization this field's shape does not preclude.
+	Decisions []store.UnitDecision `json:"decisions,omitempty"`
 }
 
 // PushContext is everything the context content type contributes to one push:
@@ -188,7 +198,7 @@ const (
 // longer has) is ever required, the caller must pass the FULL block set so
 // ItemHashes / RootHash become authoritative, and this comment + the
 // deletion-ignoring sites below must be revisited together.
-func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, pushCtx *PushContext) (*SyncPushResponse, error) {
+func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, pushCtx *PushContext, decisions []store.UnitDecision) (*SyncPushResponse, error) {
 	// Guard a nil client: callers build the client from the recipe's server:
 	// block, which is absent until the project is connected. Return a clear
 	// error instead of a nil-pointer panic in projectPrefix/streamPrefix.
@@ -225,10 +235,28 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		return nil, fmt.Errorf("push init: %w", err)
 	}
 	if initResp.Status == "unchanged" {
-		return &SyncPushResponse{
-			PushID:                "unchanged",
-			UndeclaredCollections: initResp.UndeclaredCollections,
-		}, nil
+		// Content and context are already in force — but a caller carrying
+		// decisions still has a record to land, so the push proceeds to an
+		// empty-chunk commit rather than returning here. The caller only
+		// passes decisions when they changed, so the common unchanged push
+		// still takes this exit.
+		if len(decisions) == 0 {
+			return &SyncPushResponse{
+				PushID:                "unchanged",
+				UndeclaredCollections: initResp.UndeclaredCollections,
+			}, nil
+		}
+		commitResp, err := c.pushCommit(ctx, PushCommitRequest{
+			Stream:    c.stream,
+			Decisions: decisions,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("push commit (decisions): %w", err)
+		}
+		if commitResp != nil {
+			commitResp.UndeclaredCollections = initResp.UndeclaredCollections
+		}
+		return commitResp, nil
 	}
 
 	// The context reconcile is skipped when the server already holds this
@@ -349,10 +377,11 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		UploadID: initResp.UploadID,
 		// The server takes the stream from the authorized route path; this
 		// field only matters to a deployment whose commit route carries no ref.
-		Stream:   c.stream,
-		Chunks:   chunks,
-		Items:    itemsJSON,
-		Contexts: contexts,
+		Stream:    c.stream,
+		Chunks:    chunks,
+		Items:     itemsJSON,
+		Contexts:  contexts,
+		Decisions: decisions,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("push commit: %w", err)

@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -9,9 +11,59 @@ import (
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/state"
 )
+
+// recordReviewDecision appends a server-made review to the decision ledger
+// with the decider's identity, the time, and the hash of the translation it
+// blesses. Best-effort by design: the projected status is already written, so
+// a store without the ledger capability (or a failed write, which is logged
+// by the store) must not fail the review the user just made — but the ledger
+// is what makes the review a decision rather than an enum flip, so the write
+// is attempted on every rung change.
+func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, projectID, stream string, sb *platstore.StoredBlock, locale string, status model.TargetStatus, approved bool) {
+	ds, ok := s.ContentStore.(platstore.DecisionStore)
+	if !ok || sb == nil || sb.SourceID == "" {
+		return
+	}
+	// The decider, as readably as the auth store can name them. Falls back to
+	// the opaque user id — an identity, if a terse one.
+	decider, _ := c.Get("user_id").(string)
+	if s.AuthStore != nil && decider != "" {
+		if u, err := s.AuthStore.GetUser(ctx, decider); err == nil && u != nil && u.Email != "" {
+			decider = u.Email
+		}
+	}
+	reviewState := ""
+	switch {
+	case approved && status == model.TargetStatusSignedOff:
+		reviewState = "signed-off"
+	case approved:
+		reviewState = "approved"
+	case status == model.TargetStatusDraft:
+		reviewState = "rejected"
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := ds.UpsertUnitDecisions(ctx, projectID, stream, []platstore.UnitDecision{{
+		ItemName:    sb.ItemName,
+		Unit:        sb.SourceID,
+		Variant:     locale,
+		Status:      string(status),
+		TargetHash:  state.TargetHash(sb.Block.TargetText(model.LocaleID(locale))),
+		ReviewState: reviewState,
+		DecidedBy:   decider,
+		DecidedAt:   now,
+		Updated:     now,
+	}}); err != nil {
+		// Best-effort must still be observed: the projected status is written,
+		// but a ledger that quietly misses reviews is worse than none.
+		slog.WarnContext(ctx, "review decision not recorded in ledger",
+			"project", projectID, "block", sb.SourceID, "locale", locale, "error", err)
+	}
+}
 
 // This file gives the two real-time editor operations that used to travel over
 // the desktop's bespoke gRPC EditorService a REST home on the same routes the
@@ -181,6 +233,13 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 	if err := s.ContentStore.StoreBlocks(ctx, pid, stream, []*model.Block{sb.Block}); err != nil {
 		return serverErr(c, fmt.Errorf("store block: %w", err))
 	}
+
+	// The review is a DECISION, and decisions live in the ledger — with the
+	// decider's identity, the time, and the hash of the translation it
+	// blesses — not only in the projected status the line above wrote. The
+	// ledger is what travels to the client on pull, where the same record
+	// lands in the project's committed state.
+	s.recordReviewDecision(ctx, c, pid, stream, sb, req.TargetLocale, status, req.Reviewed)
 
 	s.emitEditorBlockChange(c, pid, bid, req.ItemName, stream, "updated")
 

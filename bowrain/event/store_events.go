@@ -525,3 +525,26 @@ func (s *EventEmittingStore) ListAssetVariants(ctx context.Context, projectID, a
 
 // Ensure EventEmittingStore implements ContentStore.
 var _ store.ContentStore = (*EventEmittingStore)(nil)
+
+// UpsertUnitDecisions forwards the optional DecisionStore capability to the
+// wrapped store. The wrapper must carry it explicitly: a `store.(DecisionStore)`
+// assertion sees the wrapper's method set, not the inner store's, so without
+// this the capability silently vanished exactly where the server needed it —
+// the editor's review handler — while the worker, holding the raw store, kept
+// it. No event is emitted here; decision events live in block_history.
+func (s *EventEmittingStore) UpsertUnitDecisions(ctx context.Context, projectID, stream string, decisions []store.UnitDecision) (int, error) {
+	ds, ok := s.inner.(store.DecisionStore)
+	if !ok {
+		return 0, fmt.Errorf("content store %T keeps no decision ledger", s.inner)
+	}
+	return ds.UpsertUnitDecisions(ctx, projectID, stream, decisions)
+}
+
+// ListUnitDecisions forwards the optional DecisionStore capability.
+func (s *EventEmittingStore) ListUnitDecisions(ctx context.Context, projectID, stream string) ([]store.UnitDecision, error) {
+	ds, ok := s.inner.(store.DecisionStore)
+	if !ok {
+		return nil, nil
+	}
+	return ds.ListUnitDecisions(ctx, projectID, stream)
+}

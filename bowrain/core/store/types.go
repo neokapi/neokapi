@@ -3,6 +3,7 @@
 package store
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -606,4 +607,51 @@ type CollectionTranslationStats struct {
 	BlockCount     int                      `json:"block_count"`
 	WordCount      int                      `json:"word_count"`
 	Locales        []LocaleTranslationStats `json:"locales"`
+}
+
+// UnitDecision is the server's record of one workflow decision for one unit in
+// one locale variant — the wire form of core/state.UnitState plus the item that
+// scopes the unit's durable identity (the same structural name recurs across
+// items, so an unscoped unit key cannot be joined safely). It records the
+// decision as a FACT — who, when, which rung, and the hash of the translation
+// it blesses. Freshness is derived by whoever reads it, never stored.
+type UnitDecision struct {
+	ProjectID string `json:"project_id,omitempty"`
+	Stream    string `json:"stream,omitempty"`
+	// ItemName is the item whose durable identity namespace Unit lives in.
+	// Empty when the decision arrived for content this store has never held.
+	ItemName string `json:"item"`
+	// Unit is the durable unit identity (convergence.BlockKey — the source_id
+	// a stored row carries).
+	Unit string `json:"unit"`
+	// Variant is the locale (and optional tone/channel) in VariantKey text form.
+	Variant string `json:"variant"`
+	// Status is the target-ladder rung the decision lands the unit on.
+	Status string `json:"status,omitempty"`
+	// TargetHash is the content hash of the translation the decision blesses
+	// (state.TargetHash of the trimmed target text).
+	TargetHash  string `json:"targetHash,omitempty"`
+	ReviewState string `json:"reviewState,omitempty"` // approved | rejected | signed-off
+	DecidedBy   string `json:"by,omitempty"`          // "" human · "ai/<model>" · "agent/<client>" · server identity
+	DecidedAt   string `json:"at,omitempty"`          // RFC 3339
+	Note        string `json:"note,omitempty"`
+	Parked      bool   `json:"parked,omitempty"`
+	Assignee    string `json:"assignee,omitempty"`
+	// Updated orders conflicting records for last-writer-wins reconciliation.
+	Updated string `json:"updated,omitempty"`
+}
+
+// DecisionStore is the optional capability of a content store that keeps the
+// decision ledger (Bowrain side of core/state). Optional — assert for it —
+// so every existing ContentStore fake keeps compiling; both real stores
+// implement it.
+type DecisionStore interface {
+	// UpsertUnitDecisions records decisions idempotently, keyed by
+	// (item, unit, variant): an identical record is a no-op, a changed one
+	// replaces the latest state and appends a history event. Returns how many
+	// records actually changed.
+	UpsertUnitDecisions(ctx context.Context, projectID, stream string, decisions []UnitDecision) (int, error)
+	// ListUnitDecisions returns the project's latest decision per
+	// (item, unit, variant) on a stream.
+	ListUnitDecisions(ctx context.Context, projectID, stream string) ([]UnitDecision, error)
 }

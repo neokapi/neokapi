@@ -23,6 +23,8 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	12  block stand-off overlays column
 //	13  GitHub App installation ownership
 //	14  collection context: coordinates, ownership, and the entry hash
+//	16  unit decisions ledger (decisions travel the sync protocol)
+//	17  stream scope for convergence runs
 //
 // Versions 3 and 4 were already retired before this change — they ran on live
 // databases and were then folded into the v1 baseline. They are listed because
@@ -33,7 +35,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // Baseline is version 15 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 16.
+// repaired. Retired numbers are never reused; the next migration is version 18.
 var Migrations = []storage.Migration{
 	{
 		Version:     15,
@@ -978,6 +980,54 @@ var Migrations = []storage.Migration{
 			--                idempotent: an unchanged hash leaves the row, and
 			--                its updated_at, untouched. Empty until a push
 			--                reconciles the row.
+		`,
+	},
+	{
+		Version:     16,
+		Description: "unit decisions ledger (decisions travel the sync protocol)",
+		SQL: `
+			-- The latest workflow decision per (item, unit, variant) — the
+			-- server side of core/state.UnitState. A decision is a FACT (who,
+			-- when, which rung, the hash of the translation it blesses);
+			-- freshness against current content is derived by readers, never
+			-- stored. History lives in block_history (change_type 'decision');
+			-- this table is the fold of that log, kept because joins and
+			-- projections need current state without replaying events.
+			--
+			-- unit is the durable identity (blocks.source_id), scoped by
+			-- item_name because structural names recur across items. item_name
+			-- may be '' when a decision arrives for content this store has
+			-- never held — stored rather than dropped, so the ledger cannot
+			-- lose what the corpus has not caught up to.
+			CREATE TABLE IF NOT EXISTS unit_decisions (
+				project_id  TEXT NOT NULL,
+				stream      TEXT NOT NULL DEFAULT 'main',
+				item_name   TEXT NOT NULL DEFAULT '',
+				unit        TEXT NOT NULL,
+				variant     TEXT NOT NULL,
+				status      TEXT NOT NULL DEFAULT '',
+				target_hash TEXT NOT NULL DEFAULT '',
+				review_state TEXT NOT NULL DEFAULT '',
+				decided_by  TEXT NOT NULL DEFAULT '',
+				decided_at  TEXT NOT NULL DEFAULT '',
+				note        TEXT NOT NULL DEFAULT '',
+				parked      BOOLEAN NOT NULL DEFAULT FALSE,
+				assignee    TEXT NOT NULL DEFAULT '',
+				updated     TEXT NOT NULL DEFAULT '',
+				updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, item_name, unit, variant)
+			);
+			CREATE INDEX IF NOT EXISTS idx_unit_decisions_project ON unit_decisions(project_id, stream);
+		`,
+	},
+	{
+		Version:     17,
+		Description: "stream scope for convergence runs",
+		SQL: `
+			-- A run's derivation and produce are scoped to one stream (targets
+			-- are per-stream overlays). '' means "main" — pre-stream rows and
+			-- stream-naive starters keep their behavior.
+			ALTER TABLE convergence_runs ADD COLUMN IF NOT EXISTS stream TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

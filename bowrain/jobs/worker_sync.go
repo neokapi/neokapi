@@ -37,6 +37,11 @@ type syncPushManifest struct {
 	// declares. It rides in the manifest so the structure lands in the same
 	// transaction as the items stored into it (see worker_context.go).
 	Contexts json.RawMessage `json:"contexts"`
+	// Decisions is the decisions content type: the client's committed decision
+	// record (core/state), upserted idempotently into the unit_decisions
+	// ledger after the chunks are stored — so decisions arriving with the
+	// content they judge can resolve their rows and project their status.
+	Decisions json.RawMessage `json:"decisions"`
 }
 
 type syncChunkRef struct {
@@ -268,6 +273,35 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		}
 	}
 
+	// The decisions content type ingests AFTER the chunks, so decisions that
+	// arrived with the content they judge can resolve their rows and project
+	// their status. A malformed payload fails the push — decisions are
+	// authored state, and dropping them silently is the exact failure shape
+	// this protocol keeps having to confess. A store without the ledger
+	// capability skips with a log line rather than failing content it can
+	// otherwise apply.
+	if len(manifest.Decisions) > 0 {
+		var decisions []store.UnitDecision
+		if err := json.Unmarshal(manifest.Decisions, &decisions); err != nil {
+			markJobFailed(ctx, deps, job.ID, "invalid decisions payload")
+			return fmt.Errorf("parse manifest decisions: %w", err)
+		}
+		if ds, ok := deps.ContentStore.(store.DecisionStore); ok {
+			applied, derr := ds.UpsertUnitDecisions(ctx, projectID, stream, decisions)
+			if derr != nil {
+				markJobFailed(ctx, deps, job.ID, derr.Error())
+				return derr
+			}
+			if applied > 0 {
+				emitLog(deps, job.StepID, "info",
+					fmt.Sprintf("Recorded %d decision(s) in the ledger", applied), nil)
+			}
+		} else {
+			slog.Warn("decisions arrived but the content store keeps no ledger; skipped",
+				"project_id", projectID, "decisions", len(decisions))
+		}
+	}
+
 	// The stored content just diverged from whatever the diff cache holds, so
 	// drop the project's cached hashes before the job reads as done. Skipping
 	// this is not a staleness nicety: the next push inside the cache TTL is
@@ -318,6 +352,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			ProjectID: projectID,
 			Actor:     manifest.ActorID,
 			Data: map[string]string{
+				"stream":       stream,
 				"items":        strings.Join(allItemNames, ","),
 				"items_sample": strings.Join(sampleItemNames(allItemNames, 3), ","),
 				"files_count":  strconv.Itoa(len(allItemNames)),

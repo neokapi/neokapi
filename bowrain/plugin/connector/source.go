@@ -21,6 +21,7 @@ import (
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/plugin/schema"
@@ -561,6 +562,23 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		pushWords += ib.block.WordCount()
 	}
 
+	// The committed decision record travels with the content it judges. A
+	// malformed record fails the push rather than being skipped: state is
+	// authoritative, and a push that silently dropped it would be the exact
+	// failure shape this protocol keeps re-learning to confess. Hashed against
+	// the sync cache so a decision committed since the last push forces the
+	// push past every "nothing changed" fast path — decisions only travel
+	// when they changed, and a changed record cannot be silently skipped.
+	decisions, derr := c.committedDecisions()
+	if derr != nil {
+		return nil, derr
+	}
+	decisionsHash := decisionsHashOf(decisions)
+	decisionsChanged := decisionsHash != c.cache.DecisionsHash
+	if !decisionsChanged {
+		decisions = nil // unchanged: the server already holds this record
+	}
+
 	if opts.DryRun {
 		return &bowrainconn.PushResult{
 			BlocksPushed: len(changed),
@@ -589,10 +607,12 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		}
 
 		// A recipe change moves no content and still has to reach the server:
-		// a collection added, a coordinate moved, a voice rebound. Falling out
-		// here on "no blocks changed" is what used to leave the declared
-		// structure stranded on the developer's machine.
-		if len(changed) == 0 && !c.PushContextChanged() {
+		// a collection added, a coordinate moved, a voice rebound — and now a
+		// decision committed since the last push. Falling out here on "no
+		// blocks changed" is what used to leave the declared structure (and
+		// would leave the decision record) stranded on the developer's
+		// machine.
+		if len(changed) == 0 && !c.PushContextChanged() && !decisionsChanged {
 			return &bowrainconn.PushResult{FilesScanned: len(hashMap)}, nil
 		}
 	}
@@ -608,7 +628,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 
 	// Push via init → diff → chunk → commit flow, carrying the declared
 	// context so the collections land in the same transaction as the items.
-	resp, err := c.client.Push(ctx, blocksByItem, itemMeta, c.pushContext)
+	resp, err := c.client.Push(ctx, blocksByItem, itemMeta, c.pushContext, decisions)
 	if err != nil {
 		return nil, fmt.Errorf("push: %w", err)
 	}
@@ -665,6 +685,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	if c.pushContext != nil {
 		c.cache.ContextHash = c.pushContext.Hash
 	}
+	// And the decision record it carried, for the same reason.
+	c.cache.DecisionsHash = decisionsHash
 
 	if err := c.cache.Save(c.project.Layout); err != nil {
 		return nil, fmt.Errorf("save sync cache: %w", err)
@@ -792,6 +814,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// Collect all blocks across paginated responses.
 	var allBlocks []apiclient.SyncBlock
 	var contexts []*pb.SyncContextEntry
+	var decisions []platstore.UnitDecision
 
 	for {
 		resp, err := c.client.Pull(ctx, cursor, locales, 1000)
@@ -802,9 +825,13 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 		totalPulled += len(resp.Blocks)
 		allBlocks = append(allBlocks, resp.Blocks...)
 		// The declared context is not cursor-driven — every page carries the
-		// current one — so the last page's is the one to keep.
+		// current one — so the last page's is the one to keep. The decision
+		// ledger travels the same way.
 		if len(resp.Contexts) > 0 {
 			contexts = resp.Contexts
+		}
+		if len(resp.Decisions) > 0 {
+			decisions = resp.Decisions
 		}
 		cursor = resp.Cursor
 
@@ -818,6 +845,14 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 			BlocksPulled: totalPulled,
 			LocalesCount: len(locales),
 		}, nil
+	}
+
+	// Reconcile the server's decision ledger into the working store — staged,
+	// not committed: `kapi commit` remains the only door into the git-tracked
+	// record, so a pull can never publish on anyone's behalf. `kapi status`
+	// reports what arrived and names the command that publishes it.
+	if _, err := c.stagePulledDecisions(decisions); err != nil {
+		return nil, err
 	}
 
 	// Record what the server holds and report what diverges. Nothing here
