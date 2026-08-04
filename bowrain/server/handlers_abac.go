@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
@@ -21,11 +22,11 @@ import (
 //
 // Returns a non-nil error (after writing the 403) when the edit is not allowed.
 func (s *Server) requireEditableStatus(c echo.Context, projectID, blockID, locale string) error {
-	pg, ok := s.ContentStore.(*bstore.PostgresStore)
+	as, ok := s.ContentStore.(platstore.BlockAccessStore)
 	if !ok {
-		return nil // access ABAC only enforced on the PostgreSQL store
+		return nil // access ABAC only enforced on stores that keep the ladder
 	}
-	access, owner, err := pg.GetBlockAccess(c.Request().Context(), projectID, blockID)
+	access, owner, err := as.GetBlockAccess(c.Request().Context(), projectID, blockID)
 	if err != nil {
 		return nil // don't block edits on an access-lookup error
 	}
@@ -60,9 +61,9 @@ type BlockStatusRequest struct {
 //
 // PUT /:ws/:id/blocks/:ref/:bid/status  { "status": "published" }
 func (s *Server) HandleSetBlockStatus(c echo.Context) error {
-	pg, ok := s.ContentStore.(*bstore.PostgresStore)
-	if !ok || pg == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "status workflow requires the PostgreSQL store"})
+	as, ok := s.ContentStore.(platstore.BlockAccessStore)
+	if !ok {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "access ladder requires a store that keeps it"})
 	}
 
 	pid := projectParam(c)
@@ -83,7 +84,7 @@ func (s *Server) HandleSetBlockStatus(c echo.Context) error {
 	// The store already separates the cases — a missing row comes back as
 	// open with a nil error — so an error here is a real fault, and the gate
 	// fails closed on it.
-	cur, _, err := pg.GetBlockAccess(ctx, pid, bid)
+	cur, _, err := as.GetBlockAccess(ctx, pid, bid)
 	if err != nil {
 		return serverErr(c, fmt.Errorf("read block access for the permission gate: %w", err))
 	}
@@ -107,7 +108,7 @@ func (s *Server) HandleSetBlockStatus(c echo.Context) error {
 		// discarded error here disables the four-eyes check rather than
 		// tightening it. The store returns ("", nil) when there genuinely is no
 		// attributed history; anything else is a fault worth refusing on.
-		author, err := pg.GetLastEditor(ctx, pid, bid)
+		author, err := as.GetLastEditor(ctx, pid, bid)
 		if err != nil {
 			return serverErr(c, fmt.Errorf("read last editor for separation of duties: %w", err))
 		}
@@ -117,7 +118,7 @@ func (s *Server) HandleSetBlockStatus(c echo.Context) error {
 		}
 	}
 
-	if err := pg.SetBlockAccess(ctx, pid, bid, req.Status, req.OwnerID); err != nil {
+	if err := as.SetBlockAccess(ctx, pid, bid, req.Status, req.OwnerID); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 

@@ -655,3 +655,21 @@ type DecisionStore interface {
 	// (item, unit, variant) on a stream.
 	ListUnitDecisions(ctx context.Context, projectID, stream string) ([]UnitDecision, error)
 }
+
+// BlockAccessStore is the optional capability behind the block access ladder
+// (ABAC): who may edit, distinct from the review ladder on the target. Assert
+// for it rather than for a concrete store type — a concrete-type assertion
+// dies the moment the store is wrapped, which is exactly how the access
+// endpoint went dead on every deployment that wraps its store in the
+// event-emitting decorator.
+type BlockAccessStore interface {
+	// GetBlockAccess returns a block's access state and owner; a missing
+	// block reports open/empty.
+	GetBlockAccess(ctx context.Context, projectID, blockID string) (access, ownerID string, err error)
+	// SetBlockAccess updates a block's access state and (when non-empty) its
+	// owner.
+	SetBlockAccess(ctx context.Context, projectID, blockID, access, ownerID string) error
+	// GetLastEditor returns the author of the most recent attributed content
+	// change (separation of duties at approval).
+	GetLastEditor(ctx context.Context, projectID, blockID string) (string, error)
+}

@@ -548,3 +548,30 @@ func (s *EventEmittingStore) ListUnitDecisions(ctx context.Context, projectID, s
 	}
 	return ds.ListUnitDecisions(ctx, projectID, stream)
 }
+
+// GetBlockAccess forwards the optional BlockAccessStore capability.
+func (s *EventEmittingStore) GetBlockAccess(ctx context.Context, projectID, blockID string) (string, string, error) {
+	as, ok := s.inner.(store.BlockAccessStore)
+	if !ok {
+		return "", "", fmt.Errorf("content store %T keeps no access ladder", s.inner)
+	}
+	return as.GetBlockAccess(ctx, projectID, blockID)
+}
+
+// SetBlockAccess forwards the optional BlockAccessStore capability.
+func (s *EventEmittingStore) SetBlockAccess(ctx context.Context, projectID, blockID, access, ownerID string) error {
+	as, ok := s.inner.(store.BlockAccessStore)
+	if !ok {
+		return fmt.Errorf("content store %T keeps no access ladder", s.inner)
+	}
+	return as.SetBlockAccess(ctx, projectID, blockID, access, ownerID)
+}
+
+// GetLastEditor forwards the optional BlockAccessStore capability.
+func (s *EventEmittingStore) GetLastEditor(ctx context.Context, projectID, blockID string) (string, error) {
+	as, ok := s.inner.(store.BlockAccessStore)
+	if !ok {
+		return "", fmt.Errorf("content store %T keeps no access ladder", s.inner)
+	}
+	return as.GetLastEditor(ctx, projectID, blockID)
+}

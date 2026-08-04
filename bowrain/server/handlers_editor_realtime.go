@@ -75,6 +75,8 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 	}
 	proj, perr := s.ContentStore.GetProject(ctx, projectID)
 	if perr != nil || proj == nil || proj.DefaultSourceLanguage == "" {
+		slog.WarnContext(ctx, "memory promotion skipped: project unresolved",
+			"project", projectID, "error", perr)
 		return
 	}
 	slug := ""
@@ -84,10 +86,13 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 		}
 	}
 	if slug == "" {
+		slog.WarnContext(ctx, "memory promotion skipped: no workspace slug", "project", projectID)
 		return
 	}
 	tm, terr := s.wsStores.getMemory(slug)
 	if terr != nil {
+		slog.WarnContext(ctx, "memory promotion skipped: workspace memory unavailable",
+			"workspace", slug, "error", terr)
 		return
 	}
 	jobs.PromoteDecisionsToMemory(ctx, s.ContentStore, tm, projectID, stream, proj.DefaultSourceLanguage, []platstore.UnitDecision{{
