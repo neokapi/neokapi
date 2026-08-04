@@ -185,7 +185,7 @@ func (a *App) currentUnitFindings(ctx context.Context, op *openProject, b *model
 		}
 		lines = append(lines, line)
 	}
-	if rev := a.freshAIReview(op, key, loc, b.TargetText(loc)); rev != nil {
+	if rev := a.freshAIReview(ctx, op, key, loc, b.TargetText(loc)); rev != nil {
 		for _, f := range rev.Findings {
 			line := fmt.Sprintf("[%s] %s", f.Severity, f.Message)
 			if f.Suggestion != "" {
@@ -220,9 +220,9 @@ func fixFindingsInstruction(currentTarget string, findings []string, extra strin
 
 // freshAIReview returns the unit's AI pre-review annotation from the state
 // store when it still judges the given translation, else nil.
-func (a *App) freshAIReview(op *openProject, key string, loc model.LocaleID, targetText string) *state.AIReview {
+func (a *App) freshAIReview(ctx context.Context, op *openProject, key string, loc model.LocaleID, targetText string) *state.AIReview {
 	root := filepath.Dir(op.Path)
-	st, err := host.OpenProjectState(root)
+	st, err := host.OpenProjectState(ctx, root)
 	if err != nil {
 		return nil
 	}
@@ -230,7 +230,7 @@ func (a *App) freshAIReview(op *openProject, key string, loc model.LocaleID, tar
 	// rendering a review, so leaking one here would exhaust them.
 	defer st.Close()
 
-	us, found := st.Get(state.Key{Unit: key, Variant: model.Variant(loc)})
+	us, found := st.Get(ctx, state.Key{Unit: key, Variant: model.Variant(loc)})
 	if !found {
 		return nil
 	}

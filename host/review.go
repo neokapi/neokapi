@@ -49,7 +49,7 @@ func (o reviewQueueOutput) FormatText(w io.Writer) error {
 // review queue. It is derived (recomputed from content + the project state store),
 // never tracked.
 func (a *App) computeReviewQueue(ctx context.Context, proj *project.KapiProject, root string, units []VerifyUnit) ([]ReviewItem, error) {
-	reviewed, err := a.loadReviewedCorrections(proj, root)
+	reviewed, err := a.loadReviewedCorrections(ctx, proj, root)
 	if err != nil {
 		return nil, err
 	}

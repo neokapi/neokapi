@@ -32,6 +32,7 @@
 package reconcile
 
 import (
+	"maps"
 	"strconv"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -99,9 +100,7 @@ type Result struct {
 // same words and keeps its translation.
 func Identify(scope string, b *model.Block) Unit {
 	props := make(map[string]string, len(b.Properties)+1)
-	for k, v := range b.Properties {
-		props[k] = v
-	}
+	maps.Copy(props, b.Properties)
 	props[scopeProp] = scope
 	return Unit{
 		ContentHash: model.ComputeContentHash(b.SourceText()),

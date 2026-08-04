@@ -218,7 +218,7 @@ func TestReview_ApplyReviewKindPromotesViaStateStore(t *testing.T) {
 // `kapi commit` publishes it.
 func assertCommittedUnits(t *testing.T, root string, want int, msg string) {
 	t.Helper()
-	_, err := CommitProjectState(root)
+	_, err := CommitProjectState(t.Context(), root)
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}

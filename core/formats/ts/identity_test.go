@@ -165,7 +165,9 @@ func TestTSIdenticalSourcesWithoutCommentGetDistinctNames(t *testing.T) {
 func TestTSNamesAreStableAcrossReads(t *testing.T) {
 	t.Parallel()
 	input := tsDoc("MainWindow", msgAlpha+msgBravo)
-	assert.Equal(t, tsNames(t, input), tsNames(t, input))
+	first := tsNames(t, input)
+	second := tsNames(t, input)
+	assert.Equal(t, first, second)
 }
 
 // A message outside any context still gets a name — just a one-segment one.

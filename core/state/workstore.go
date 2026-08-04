@@ -1,6 +1,7 @@
 package state
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -75,9 +76,14 @@ CREATE TABLE IF NOT EXISTS document (
 );`,
 }}
 
+// The store runs its statements on ctx: a WorkStore is a
+// local SQLite file with no cancellation semantics yet, and the API predates
+// context plumbing — which arrives with the merged-store work rather than as
+// nine call sites of ceremony here.
+
 // OpenWork opens the working store at dbPath, seeding it from the committed
 // serialization at committedPath when it holds nothing yet.
-func OpenWork(dbPath, committedPath string) (*WorkStore, error) {
+func OpenWork(ctx context.Context, dbPath, committedPath string) (*WorkStore, error) {
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		return nil, fmt.Errorf("state: work dir: %w", err)
 	}
@@ -91,13 +97,13 @@ func OpenWork(dbPath, committedPath string) (*WorkStore, error) {
 	}
 	w := &WorkStore{db: db, committed: committedPath}
 
-	empty, err := w.isEmpty()
+	empty, err := w.isEmpty(ctx)
 	if err != nil {
 		db.Close()
 		return nil, err
 	}
 	if empty {
-		if err := w.seed(); err != nil {
+		if err := w.seed(ctx); err != nil {
 			db.Close()
 			return nil, err
 		}
@@ -105,9 +111,9 @@ func OpenWork(dbPath, committedPath string) (*WorkStore, error) {
 	return w, nil
 }
 
-func (w *WorkStore) isEmpty() (bool, error) {
+func (w *WorkStore) isEmpty(ctx context.Context) (bool, error) {
 	var n int
-	if err := w.db.QueryRow(`SELECT COUNT(*) FROM unit_state`).Scan(&n); err != nil {
+	if err := w.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM unit_state`).Scan(&n); err != nil {
 		return false, fmt.Errorf("state: count units: %w", err)
 	}
 	return n == 0, nil
@@ -116,13 +122,13 @@ func (w *WorkStore) isEmpty() (bool, error) {
 // seed imports the committed serialization. A working store is derived, so this
 // is a rebuild rather than a migration: deleting the database costs nothing that
 // has already been committed.
-func (w *WorkStore) seed() error {
+func (w *WorkStore) seed(ctx context.Context) error {
 	units, err := ReadCommitted(w.committed)
 	if err != nil {
 		return err
 	}
 	for _, u := range units {
-		if err := w.put(u, false); err != nil {
+		if err := w.put(ctx, u, false); err != nil {
 			return err
 		}
 	}
@@ -132,10 +138,10 @@ func (w *WorkStore) seed() error {
 func (w *WorkStore) Close() error { return w.db.Close() }
 
 // Get returns the state recorded for a unit.
-func (w *WorkStore) Get(k Key) (UnitState, bool) {
+func (w *WorkStore) Get(ctx context.Context, k Key) (UnitState, bool) {
 	variant, _ := k.Variant.MarshalText()
 	var payload string
-	err := w.db.QueryRow(
+	err := w.db.QueryRowContext(ctx,
 		`SELECT payload FROM unit_state WHERE unit = ? AND variant = ?`,
 		k.Unit, string(variant)).Scan(&payload)
 	if err != nil {
@@ -149,9 +155,9 @@ func (w *WorkStore) Get(k Key) (UnitState, bool) {
 }
 
 // Put records a unit's state and stages it for the next commit.
-func (w *WorkStore) Put(u UnitState) error { return w.put(u, true) }
+func (w *WorkStore) Put(ctx context.Context, u UnitState) error { return w.put(ctx, u, true) }
 
-func (w *WorkStore) put(u UnitState, staged bool) error {
+func (w *WorkStore) put(ctx context.Context, u UnitState, staged bool) error {
 	variant, _ := u.Variant.MarshalText()
 	payload, err := json.Marshal(u)
 	if err != nil {
@@ -161,7 +167,7 @@ func (w *WorkStore) put(u UnitState, staged bool) error {
 	if staged {
 		flag = 1
 	}
-	_, err = w.db.Exec(`
+	_, err = w.db.ExecContext(ctx, `
 INSERT INTO unit_state (unit, variant, scope, content_hash, context_hash, payload, staged)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(unit, variant) DO UPDATE SET
@@ -176,9 +182,9 @@ ON CONFLICT(unit, variant) DO UPDATE SET
 }
 
 // Delete removes a unit's state.
-func (w *WorkStore) Delete(k Key) error {
+func (w *WorkStore) Delete(ctx context.Context, k Key) error {
 	variant, _ := k.Variant.MarshalText()
-	_, err := w.db.Exec(`DELETE FROM unit_state WHERE unit = ? AND variant = ?`, k.Unit, string(variant))
+	_, err := w.db.ExecContext(ctx, `DELETE FROM unit_state WHERE unit = ? AND variant = ?`, k.Unit, string(variant))
 	if err != nil {
 		return fmt.Errorf("state: delete unit: %w", err)
 	}
@@ -186,8 +192,8 @@ func (w *WorkStore) Delete(k Key) error {
 }
 
 // All returns every recorded state, ordered so the serialization is stable.
-func (w *WorkStore) All() ([]UnitState, error) {
-	rows, err := w.db.Query(`SELECT payload FROM unit_state ORDER BY unit, variant`)
+func (w *WorkStore) All(ctx context.Context) ([]UnitState, error) {
+	rows, err := w.db.QueryContext(ctx, `SELECT payload FROM unit_state ORDER BY unit, variant`)
 	if err != nil {
 		return nil, fmt.Errorf("state: list units: %w", err)
 	}
@@ -201,8 +207,8 @@ func (w *WorkStore) All() ([]UnitState, error) {
 // Scoped to one document because that is how reconcile is called, but content
 // matching stays project-wide: pass the whole project's units when text may have
 // moved between files.
-func (w *WorkStore) Priors(scope string) ([]UnitState, error) {
-	rows, err := w.db.Query(
+func (w *WorkStore) Priors(ctx context.Context, scope string) ([]UnitState, error) {
+	rows, err := w.db.QueryContext(ctx,
 		`SELECT payload FROM unit_state WHERE scope = ? ORDER BY unit, variant`, scope)
 	if err != nil {
 		return nil, fmt.Errorf("state: list priors: %w", err)
@@ -229,8 +235,8 @@ func scanUnits(rows *sql.Rows) ([]UnitState, error) {
 
 // PutDocument records where a document currently lives. The key is its durable
 // identity; the path is only its address, and moves without it.
-func (w *WorkStore) PutDocument(key, path string) error {
-	_, err := w.db.Exec(`
+func (w *WorkStore) PutDocument(ctx context.Context, key, path string) error {
+	_, err := w.db.ExecContext(ctx, `
 INSERT INTO document (key, path) VALUES (?, ?)
 ON CONFLICT(key) DO UPDATE SET path = excluded.path`, key, path)
 	if err != nil {
@@ -240,8 +246,8 @@ ON CONFLICT(key) DO UPDATE SET path = excluded.path`, key, path)
 }
 
 // DocumentPaths returns the known documents as key to current path.
-func (w *WorkStore) DocumentPaths() (map[string]string, error) {
-	rows, err := w.db.Query(`SELECT key, path FROM document ORDER BY key`)
+func (w *WorkStore) DocumentPaths(ctx context.Context) (map[string]string, error) {
+	rows, err := w.db.QueryContext(ctx, `SELECT key, path FROM document ORDER BY key`)
 	if err != nil {
 		return nil, fmt.Errorf("state: list documents: %w", err)
 	}
@@ -260,9 +266,9 @@ func (w *WorkStore) DocumentPaths() (map[string]string, error) {
 
 // Pending reports how many decisions are staged and not yet committed — the
 // "you have N uncommitted decisions" signal.
-func (w *WorkStore) Pending() (int, error) {
+func (w *WorkStore) Pending(ctx context.Context) (int, error) {
 	var n int
-	if err := w.db.QueryRow(`SELECT COUNT(*) FROM unit_state WHERE staged = 1`).Scan(&n); err != nil {
+	if err := w.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM unit_state WHERE staged = 1`).Scan(&n); err != nil {
 		return 0, fmt.Errorf("state: count staged: %w", err)
 	}
 	return n, nil
@@ -271,22 +277,22 @@ func (w *WorkStore) Pending() (int, error) {
 // Commit serializes the working set to the project's committed record and clears
 // the staged flag. This is the once-per-run write that replaced the
 // once-per-decision one.
-func (w *WorkStore) Commit() error {
-	n, err := w.Pending()
+func (w *WorkStore) Commit(ctx context.Context) error {
+	n, err := w.Pending(ctx)
 	if err != nil {
 		return err
 	}
 	if n == 0 {
 		return nil
 	}
-	units, err := w.All()
+	units, err := w.All(ctx)
 	if err != nil {
 		return err
 	}
 	if err := WriteCommitted(w.committed, units); err != nil {
 		return err
 	}
-	if _, err := w.db.Exec(`UPDATE unit_state SET staged = 0 WHERE staged = 1`); err != nil {
+	if _, err := w.db.ExecContext(ctx, `UPDATE unit_state SET staged = 0 WHERE staged = 1`); err != nil {
 		return fmt.Errorf("state: clear staged: %w", err)
 	}
 	return nil

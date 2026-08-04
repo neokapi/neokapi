@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -102,12 +103,8 @@ func LoadBlockOverlays(
 			if err != nil {
 				return nil, nil, err
 			}
-			for k, v := range t {
-				targets[k] = v
-			}
-			for k, v := range a {
-				annotations[k] = v
-			}
+			maps.Copy(targets, t)
+			maps.Copy(annotations, a)
 		}
 		return targets, annotations, nil
 	}
@@ -198,9 +195,7 @@ func LoadBlockTargetLocales(
 			if err != nil {
 				return nil, err
 			}
-			for k, v := range part {
-				out[k] = v
-			}
+			maps.Copy(out, part)
 		}
 		return out, nil
 	}
@@ -251,9 +246,7 @@ func LoadBlockTargetStates(
 			if err != nil {
 				return nil, err
 			}
-			for k, v := range part {
-				out[k] = v
-			}
+			maps.Copy(out, part)
 		}
 		return out, nil
 	}

@@ -96,7 +96,9 @@ func TestIdentity_SameTextDifferentUnitIDs(t *testing.T) {
 
 func TestIdentity_StableAcrossTwoReads(t *testing.T) {
 	src := xliffDoc(unitAlpha + unitBravo)
-	assert.Equal(t, identityNames(t, src), identityNames(t, src))
+	first := identityNames(t, src)
+	second := identityNames(t, src)
+	assert.Equal(t, first, second)
 }
 
 // Group nesting is part of the address, and a unit id is only unique within its

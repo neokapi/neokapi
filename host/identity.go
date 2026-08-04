@@ -1,7 +1,8 @@
 package host
 
 import (
-	"fmt"
+	"context"
+	"errors"
 	"sort"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -49,9 +50,9 @@ type ResolvedDocument struct {
 // Identity is written back to the working store so the next read has priors to
 // match against. It is staged, not committed: the caller commits once, at the
 // end of the run.
-func ResolveIdentity(st *state.WorkStore, byPath map[string][]*model.Block) ([]ResolvedDocument, error) {
+func ResolveIdentity(ctx context.Context, st *state.WorkStore, byPath map[string][]*model.Block) ([]ResolvedDocument, error) {
 	if st == nil {
-		return nil, fmt.Errorf("resolve identity: no state store")
+		return nil, errors.New("resolve identity: no state store")
 	}
 
 	// Deterministic order, so two runs over the same tree mint the same keys and
@@ -67,7 +68,7 @@ func ResolveIdentity(st *state.WorkStore, byPath map[string][]*model.Block) ([]R
 		docs = append(docs, reconcile.Document{Path: p, Blocks: byPath[p]})
 	}
 
-	priorDocs, err := documentPriors(st)
+	priorDocs, err := documentPriors(ctx, st)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +77,7 @@ func ResolveIdentity(st *state.WorkStore, byPath map[string][]*model.Block) ([]R
 	// Content matching is project-wide on purpose: text moved from one file to
 	// another keeps its translation, so every document is matched against every
 	// unit the project holds, not just its own.
-	priors, err := unitPriors(st)
+	priors, err := unitPriors(ctx, st)
 	if err != nil {
 		return nil, err
 	}
@@ -86,12 +87,12 @@ func ResolveIdentity(st *state.WorkStore, byPath map[string][]*model.Block) ([]R
 		scope := resolvedDocs[i].Key
 		results := reconcile.Blocks(scope, d.Blocks, priors)
 
-		if err := st.PutDocument(scope, d.Path); err != nil {
+		if err := st.PutDocument(ctx, scope, d.Path); err != nil {
 			return nil, err
 		}
 		rd := ResolvedDocument{Path: d.Path, Scope: scope, Kind: resolvedDocs[i].Kind}
 		for _, r := range results {
-			if err := stageIdentity(st, scope, r); err != nil {
+			if err := stageIdentity(ctx, st, scope, r); err != nil {
 				return nil, err
 			}
 			rd.Blocks = append(rd.Blocks, ResolvedBlock{Block: r.Block, Unit: r.Key, Kind: r.Kind})
@@ -108,11 +109,11 @@ func ResolveIdentity(st *state.WorkStore, byPath map[string][]*model.Block) ([]R
 // but the translation that was approved was approved for different words, so the
 // decision is cleared rather than left looking current. The previous wording
 // stays reachable through the content memory, which is where recycling belongs.
-func stageIdentity(st *state.WorkStore, scope string, r reconcile.Result) error {
+func stageIdentity(ctx context.Context, st *state.WorkStore, scope string, r reconcile.Result) error {
 	id := reconcile.Identify(scope, r.Block)
 	key := state.Key{Unit: r.Key, Variant: model.VariantKey{}}
 
-	u, _ := st.Get(key)
+	u, _ := st.Get(ctx, key)
 	u.Unit = r.Key
 	u.Scope = scope
 	u.ContentHash = id.ContentHash
@@ -125,12 +126,12 @@ func stageIdentity(st *state.WorkStore, scope string, r reconcile.Result) error 
 		u.Status = ""
 		u.AIReview = nil
 	}
-	return st.Put(u)
+	return st.Put(ctx, u)
 }
 
 // unitPriors is every unit the project knows, as reconcile's prior set.
-func unitPriors(st *state.WorkStore) ([]reconcile.Unit, error) {
-	all, err := st.All()
+func unitPriors(ctx context.Context, st *state.WorkStore) ([]reconcile.Unit, error) {
+	all, err := st.All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -153,8 +154,8 @@ func unitPriors(st *state.WorkStore) ([]reconcile.Unit, error) {
 // unit says where its file lives — and path is the strongest signal for matching
 // a document, so a prior without one would fall through to content similarity
 // every time and the ordering that makes a rename cheap would never fire.
-func documentPriors(st *state.WorkStore) ([]reconcile.DocUnit, error) {
-	all, err := st.All()
+func documentPriors(ctx context.Context, st *state.WorkStore) ([]reconcile.DocUnit, error) {
+	all, err := st.All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +173,7 @@ func documentPriors(st *state.WorkStore) ([]reconcile.DocUnit, error) {
 	}
 	sort.Strings(scopes)
 
-	paths, err := st.DocumentPaths()
+	paths, err := st.DocumentPaths(ctx)
 	if err != nil {
 		return nil, err
 	}

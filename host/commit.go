@@ -31,7 +31,7 @@ func (a *App) RunCommit(cmd Command, _ []string) error {
 	}
 	root := filepath.Dir(projectPath)
 
-	n, err := CommitProjectState(root)
+	n, err := CommitProjectState(cmd.Context(), root)
 	if err != nil {
 		return err
 	}

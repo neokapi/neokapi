@@ -125,7 +125,9 @@ func TestVTTNamesAreStableAcrossReads(t *testing.T) {
 	eachVTTWalk(t, func(t *testing.T, names func(*testing.T, string) []string) {
 		const input = "WEBVTT\n\nintro\n00:00:01.000 --> 00:00:04.000\nAlpha\n\n" +
 			"00:00:05.000 --> 00:00:08.000\nBravo\n"
-		assert.Equal(t, names(t, input), names(t, input))
+		first := names(t, input)
+		second := names(t, input)
+		assert.Equal(t, first, second)
 	})
 }
 

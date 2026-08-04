@@ -595,7 +595,9 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		for start := 0; start < len(ids); start += prefetchChunk {
 			chunk := ids[start:min(start+prefetchChunk, len(ids))]
 
-			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=? AND id IN (?` +
+			// The concatenated fragment is ",?,?,…" from a count — never
+			// caller data; values travel as bind parameters below.
+			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=? AND id IN (?` + //nolint:gosec // placeholder list, not data
 				strings.Repeat(",?", len(chunk)-1) + `)`
 			args := make([]any, 0, len(chunk)+1)
 			args = append(args, projectID)

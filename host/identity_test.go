@@ -15,7 +15,7 @@ import (
 func openStore(t *testing.T) *state.WorkStore {
 	t.Helper()
 	dir := t.TempDir()
-	st, err := state.OpenWork(filepath.Join(dir, "work", "state.db"), filepath.Join(dir, "units"))
+	st, err := state.OpenWork(t.Context(), filepath.Join(dir, "work", "state.db"), filepath.Join(dir, "units"))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = st.Close() })
 	return st
@@ -44,14 +44,14 @@ func unitsByText(docs []ResolvedDocument) map[string]ResolvedBlock {
 func TestResolveIdentity_SurvivesAnUnrelatedDeletion(t *testing.T) {
 	st := openStore(t)
 
-	v1, err := ResolveIdentity(st, map[string][]*model.Block{
+	v1, err := ResolveIdentity(t.Context(), st, map[string][]*model.Block{
 		"docs/intro.md": {para("para1", "Alpha"), para("para2", "Bravo"), para("para3", "Charlie")},
 	})
 	require.NoError(t, err)
 	before := unitsByText(v1)
 
 	// Bravo is deleted; the reader renames Charlie from para3 to para2.
-	v2, err := ResolveIdentity(st, map[string][]*model.Block{
+	v2, err := ResolveIdentity(t.Context(), st, map[string][]*model.Block{
 		"docs/intro.md": {para("para1", "Alpha"), para("para2", "Charlie")},
 	})
 	require.NoError(t, err)
@@ -68,10 +68,10 @@ func TestResolveIdentity_RenameCostsNothing(t *testing.T) {
 	st := openStore(t)
 	blocks := []*model.Block{para("para1", "Alpha"), para("para2", "Bravo")}
 
-	v1, err := ResolveIdentity(st, map[string][]*model.Block{"docs/intro.md": blocks})
+	v1, err := ResolveIdentity(t.Context(), st, map[string][]*model.Block{"docs/intro.md": blocks})
 	require.NoError(t, err)
 
-	v2, err := ResolveIdentity(st, map[string][]*model.Block{"docs/getting-started.md": blocks})
+	v2, err := ResolveIdentity(t.Context(), st, map[string][]*model.Block{"docs/getting-started.md": blocks})
 	require.NoError(t, err)
 
 	assert.Equal(t, v1[0].Scope, v2[0].Scope, "the document keeps its identity across a rename")
@@ -87,7 +87,7 @@ func TestResolveIdentity_RenameCostsNothing(t *testing.T) {
 func TestResolveIdentity_DoesNotConfuseDocuments(t *testing.T) {
 	st := openStore(t)
 
-	docs, err := ResolveIdentity(st, map[string][]*model.Block{
+	docs, err := ResolveIdentity(t.Context(), st, map[string][]*model.Block{
 		"docs/intro.md": {para("para1", "Welcome")},
 		"docs/guide.md": {para("para1", "Getting started")},
 	})
@@ -103,7 +103,7 @@ func TestResolveIdentity_DoesNotConfuseDocuments(t *testing.T) {
 func TestResolveIdentity_EditClearsTheDecision(t *testing.T) {
 	st := openStore(t)
 
-	v1, err := ResolveIdentity(st, map[string][]*model.Block{
+	v1, err := ResolveIdentity(t.Context(), st, map[string][]*model.Block{
 		"docs/intro.md": {para("para1", "Alpha")},
 	})
 	require.NoError(t, err)
@@ -111,13 +111,13 @@ func TestResolveIdentity_EditClearsTheDecision(t *testing.T) {
 
 	// Approve it.
 	key := state.Key{Unit: unitKey, Variant: model.VariantKey{}}
-	u, _ := st.Get(key)
+	u, _ := st.Get(t.Context(), key)
 	u.Decision = state.Decision{ReviewState: "approved", By: "someone"}
 	u.TargetHash = "hash-of-the-approved-translation"
-	require.NoError(t, st.Put(u))
+	require.NoError(t, st.Put(t.Context(), u))
 
 	// Reword the source.
-	v2, err := ResolveIdentity(st, map[string][]*model.Block{
+	v2, err := ResolveIdentity(t.Context(), st, map[string][]*model.Block{
 		"docs/intro.md": {para("para1", "Alpha, revised")},
 	})
 	require.NoError(t, err)
@@ -125,7 +125,7 @@ func TestResolveIdentity_EditClearsTheDecision(t *testing.T) {
 	assert.Equal(t, unitKey, v2[0].Blocks[0].Unit, "the unit survives the edit")
 	assert.Equal(t, reconcile.Edited, v2[0].Blocks[0].Kind)
 
-	got, ok := st.Get(key)
+	got, ok := st.Get(t.Context(), key)
 	require.True(t, ok)
 	assert.Empty(t, got.Decision.ReviewState, "an approval of the old words must not survive")
 	assert.Empty(t, got.TargetHash)
@@ -135,12 +135,12 @@ func TestResolveIdentity_EditClearsTheDecision(t *testing.T) {
 func TestResolveIdentity_StagesRatherThanCommits(t *testing.T) {
 	st := openStore(t)
 
-	_, err := ResolveIdentity(st, map[string][]*model.Block{
+	_, err := ResolveIdentity(t.Context(), st, map[string][]*model.Block{
 		"docs/intro.md": {para("para1", "Alpha")},
 	})
 	require.NoError(t, err)
 
-	n, err := st.Pending()
+	n, err := st.Pending(t.Context())
 	require.NoError(t, err)
 	assert.Positive(t, n, "resolution stages; the caller commits once at the end of the run")
 }
@@ -153,9 +153,9 @@ func TestResolveIdentity_IsDeterministic(t *testing.T) {
 		"docs/b.md": {para("para1", "Bravo")},
 	}
 
-	first, err := ResolveIdentity(openStore(t), in)
+	first, err := ResolveIdentity(t.Context(), openStore(t), in)
 	require.NoError(t, err)
-	second, err := ResolveIdentity(openStore(t), in)
+	second, err := ResolveIdentity(t.Context(), openStore(t), in)
 	require.NoError(t, err)
 
 	assert.Equal(t, unitsByText(first)["Alpha"].Unit, unitsByText(second)["Alpha"].Unit)

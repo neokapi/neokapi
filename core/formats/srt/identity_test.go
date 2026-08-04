@@ -72,7 +72,9 @@ func TestNamesAreStableAcrossReads(t *testing.T) {
 	t.Parallel()
 	const input = "1\n00:00:01,000 --> 00:00:04,000\nAlpha\n\n" +
 		"2\n00:00:05,000 --> 00:00:08,000\nBravo\n"
-	assert.Equal(t, srtNames(t, input), srtNames(t, input))
+	first := srtNames(t, input)
+	second := srtNames(t, input)
+	assert.Equal(t, first, second)
 }
 
 // The judgement call, pinned: a retime DOES rename. Timestamps buy stability

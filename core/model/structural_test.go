@@ -11,7 +11,7 @@ import (
 func TestStructuralPath(t *testing.T) {
 	assert.Equal(t, "intro/install/p", model.StructuralPath("intro", "install", "p"))
 	assert.Equal(t, "intro/p", model.StructuralPath("intro", "", "p"), "empty segments drop out")
-	assert.Equal(t, "", model.StructuralPath())
+	assert.Empty(t, model.StructuralPath())
 
 	// A separator inside a segment would forge a level that is not there.
 	assert.Equal(t, "a-b/c", model.StructuralPath("a/b", "c"))

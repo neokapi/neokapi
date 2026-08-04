@@ -158,6 +158,10 @@ func ResolveLayout(start string) (Layout, error) {
 	for {
 		layout, err := layoutAtDir(dir)
 		if err == nil {
+			// Every load path passes here, which is what makes the sweep
+			// reliable: EnsureLayout alone only covered the writing verbs, and
+			// the plugin daemon's read path never called it.
+			sweepRetiredStateFiles(layout)
 			return layout, nil
 		}
 		if !errors.Is(err, errLayoutNotHere) {

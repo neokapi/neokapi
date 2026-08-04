@@ -395,7 +395,7 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 		if src.Total > 0 {
 			out.Source = &src
 		}
-		out.Staged = PendingDecisions(root)
+		out.Staged = PendingDecisions(ctxOrBackground(cmd.Context()), root)
 		a.appendServerStatus(cmd, proj, &out)
 		out.Venue = a.statusVenue(proj)
 		a.WarnInertRecipeFields(cmd, proj)

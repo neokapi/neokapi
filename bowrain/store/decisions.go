@@ -68,7 +68,7 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 	if err != nil {
 		return 0, fmt.Errorf("begin decisions tx: %w", err)
 	}
-	defer tx.Rollback() //nolint:errcheck
+	defer tx.Rollback() //nolint:errcheck // no-op after Commit; the commit error is what matters
 
 	changed := 0
 	now := time.Now().UTC()

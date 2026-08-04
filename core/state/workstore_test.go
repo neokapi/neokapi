@@ -15,7 +15,7 @@ func openWork(t *testing.T) (*state.WorkStore, string) {
 	t.Helper()
 	dir := t.TempDir()
 	committed := filepath.Join(dir, "units")
-	w, err := state.OpenWork(filepath.Join(dir, "work", "state.db"), committed)
+	w, err := state.OpenWork(t.Context(), filepath.Join(dir, "work", "state.db"), committed)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = w.Close() })
 	return w, committed
@@ -37,10 +37,10 @@ func unit(id, scope, text string) state.UnitState {
 func TestWorkStore_StagesUntilCommit(t *testing.T) {
 	w, committed := openWork(t)
 
-	require.NoError(t, w.Put(unit("u1", "d-intro", "Alpha")))
-	require.NoError(t, w.Put(unit("u2", "d-intro", "Bravo")))
+	require.NoError(t, w.Put(t.Context(), unit("u1", "d-intro", "Alpha")))
+	require.NoError(t, w.Put(t.Context(), unit("u2", "d-intro", "Bravo")))
 
-	n, err := w.Pending()
+	n, err := w.Pending(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, 2, n, "both decisions are staged")
 
@@ -48,13 +48,13 @@ func TestWorkStore_StagesUntilCommit(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, onDisk, "nothing is committed until Commit runs")
 
-	require.NoError(t, w.Commit())
+	require.NoError(t, w.Commit(t.Context()))
 
 	onDisk, err = state.ReadCommitted(committed)
 	require.NoError(t, err)
 	assert.Len(t, onDisk, 2)
 
-	n, err = w.Pending()
+	n, err = w.Pending(t.Context())
 	require.NoError(t, err)
 	assert.Zero(t, n, "committing clears the staged flag")
 }
@@ -63,11 +63,11 @@ func TestWorkStore_StagesUntilCommit(t *testing.T) {
 // up as a change in git.
 func TestWorkStore_CommitIsANoOpWhenNothingStaged(t *testing.T) {
 	w, committed := openWork(t)
-	require.NoError(t, w.Put(unit("u1", "d-intro", "Alpha")))
-	require.NoError(t, w.Commit())
+	require.NoError(t, w.Put(t.Context(), unit("u1", "d-intro", "Alpha")))
+	require.NoError(t, w.Commit(t.Context()))
 
 	before := readShardBytes(t, committed, "d-intro.jsonl")
-	require.NoError(t, w.Commit())
+	require.NoError(t, w.Commit(t.Context()))
 	assert.Equal(t, before, readShardBytes(t, committed, "d-intro.jsonl"))
 }
 
@@ -78,24 +78,24 @@ func TestWorkStore_RebuildsFromTheCommittedRecord(t *testing.T) {
 	committed := filepath.Join(dir, "units")
 	dbPath := filepath.Join(dir, "work", "state.db")
 
-	w, err := state.OpenWork(dbPath, committed)
+	w, err := state.OpenWork(t.Context(), dbPath, committed)
 	require.NoError(t, err)
-	require.NoError(t, w.Put(unit("u1", "d-intro", "Alpha")))
-	require.NoError(t, w.Commit())
+	require.NoError(t, w.Put(t.Context(), unit("u1", "d-intro", "Alpha")))
+	require.NoError(t, w.Commit(t.Context()))
 	require.NoError(t, w.Close())
 
 	// Throw the working store away entirely.
 	require.NoError(t, removeAll(dbPath))
 
-	reopened, err := state.OpenWork(dbPath, committed)
+	reopened, err := state.OpenWork(t.Context(), dbPath, committed)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = reopened.Close() })
 
-	got, ok := reopened.Get(state.Key{Unit: "u1", Variant: model.VariantKey{Locale: "nb"}})
+	got, ok := reopened.Get(t.Context(), state.Key{Unit: "u1", Variant: model.VariantKey{Locale: "nb"}})
 	require.True(t, ok, "a committed decision survives losing the working store")
 	assert.Equal(t, "approved", got.Decision.ReviewState)
 
-	n, err := reopened.Pending()
+	n, err := reopened.Pending(t.Context())
 	require.NoError(t, err)
 	assert.Zero(t, n, "a rebuilt store has nothing staged — it is already committed")
 }
@@ -103,10 +103,10 @@ func TestWorkStore_RebuildsFromTheCommittedRecord(t *testing.T) {
 // Identity rides with the decision, so reconcile can read priors back out.
 func TestWorkStore_PriorsAreScopedToTheDocument(t *testing.T) {
 	w, _ := openWork(t)
-	require.NoError(t, w.Put(unit("u1", "d-intro", "Alpha")))
-	require.NoError(t, w.Put(unit("u2", "d-guide", "Bravo")))
+	require.NoError(t, w.Put(t.Context(), unit("u1", "d-intro", "Alpha")))
+	require.NoError(t, w.Put(t.Context(), unit("u2", "d-guide", "Bravo")))
 
-	priors, err := w.Priors("d-intro")
+	priors, err := w.Priors(t.Context(), "d-intro")
 	require.NoError(t, err)
 	require.Len(t, priors, 1)
 	assert.Equal(t, "u1", priors[0].Unit)
@@ -117,9 +117,9 @@ func TestWorkStore_PriorsAreScopedToTheDocument(t *testing.T) {
 // the interface strings.
 func TestWorkStore_ShardsByDocument(t *testing.T) {
 	w, committed := openWork(t)
-	require.NoError(t, w.Put(unit("u1", "d-intro", "Alpha")))
-	require.NoError(t, w.Put(unit("u2", "d-guide", "Bravo")))
-	require.NoError(t, w.Commit())
+	require.NoError(t, w.Put(t.Context(), unit("u1", "d-intro", "Alpha")))
+	require.NoError(t, w.Put(t.Context(), unit("u2", "d-guide", "Bravo")))
+	require.NoError(t, w.Commit(t.Context()))
 
 	assert.FileExists(t, filepath.Join(committed, "d-intro.jsonl"))
 	assert.FileExists(t, filepath.Join(committed, "d-guide.jsonl"))
@@ -128,8 +128,8 @@ func TestWorkStore_ShardsByDocument(t *testing.T) {
 	before := readShardBytes(t, committed, "d-guide.jsonl")
 	u := unit("u1", "d-intro", "Alpha revised")
 	u.Decision.Note = "reworded"
-	require.NoError(t, w.Put(u))
-	require.NoError(t, w.Commit())
+	require.NoError(t, w.Put(t.Context(), u))
+	require.NoError(t, w.Commit(t.Context()))
 
 	assert.Equal(t, before, readShardBytes(t, committed, "d-guide.jsonl"),
 		"an unrelated document's shard must not churn")
@@ -138,8 +138,8 @@ func TestWorkStore_ShardsByDocument(t *testing.T) {
 // A scope key is opaque and must never be able to escape the state directory.
 func TestWorkStore_ScopeCannotEscapeTheStateDirectory(t *testing.T) {
 	w, committed := openWork(t)
-	require.NoError(t, w.Put(unit("u1", "../../etc/passwd", "Alpha")))
-	require.NoError(t, w.Commit())
+	require.NoError(t, w.Put(t.Context(), unit("u1", "../../etc/passwd", "Alpha")))
+	require.NoError(t, w.Commit(t.Context()))
 
 	entries := shardNames(t, committed)
 	require.Len(t, entries, 1)
@@ -150,14 +150,14 @@ func TestWorkStore_ScopeCannotEscapeTheStateDirectory(t *testing.T) {
 // A shard whose units are all gone must not linger claiming them.
 func TestWorkStore_PrunesEmptiedShards(t *testing.T) {
 	w, committed := openWork(t)
-	require.NoError(t, w.Put(unit("u1", "d-intro", "Alpha")))
-	require.NoError(t, w.Put(unit("u2", "d-guide", "Bravo")))
-	require.NoError(t, w.Commit())
+	require.NoError(t, w.Put(t.Context(), unit("u1", "d-intro", "Alpha")))
+	require.NoError(t, w.Put(t.Context(), unit("u2", "d-guide", "Bravo")))
+	require.NoError(t, w.Commit(t.Context()))
 	require.Len(t, shardNames(t, committed), 2)
 
-	require.NoError(t, w.Delete(state.Key{Unit: "u2", Variant: model.VariantKey{Locale: "nb"}}))
-	require.NoError(t, w.Put(unit("u1", "d-intro", "Alpha")))
-	require.NoError(t, w.Commit())
+	require.NoError(t, w.Delete(t.Context(), state.Key{Unit: "u2", Variant: model.VariantKey{Locale: "nb"}}))
+	require.NoError(t, w.Put(t.Context(), unit("u1", "d-intro", "Alpha")))
+	require.NoError(t, w.Commit(t.Context()))
 
 	assert.Equal(t, []string{"d-intro.jsonl"}, shardNames(t, committed))
 }

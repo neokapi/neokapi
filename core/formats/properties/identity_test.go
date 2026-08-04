@@ -79,7 +79,9 @@ func TestIdentity_SameTextDifferentKeys(t *testing.T) {
 
 func TestIdentity_StableAcrossTwoReads(t *testing.T) {
 	const src = "a=Alpha\nb=Bravo\n# note\nc=Charlie\n"
-	assert.Equal(t, readNames(t, src), readNames(t, src))
+	first := readNames(t, src)
+	second := readNames(t, src)
+	assert.Equal(t, first, second)
 }
 
 // A repeated key is malformed — Java's Properties keeps the last one — but the

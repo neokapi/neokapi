@@ -91,7 +91,9 @@ func TestTMXIdenticalSourcesGetDistinctNames(t *testing.T) {
 func TestTMXNamesAreStableAcrossReads(t *testing.T) {
 	t.Parallel()
 	input := tmxDoc(tu("greeting", "Hello", "Bonjour") + tu("", "Goodbye", "Au revoir"))
-	assert.Equal(t, tmxNames(t, input), tmxNames(t, input))
+	first := tmxNames(t, input)
+	second := tmxNames(t, input)
+	assert.Equal(t, first, second)
 }
 
 // A unit whose source carries inline codes is named by its text content, with

@@ -111,7 +111,9 @@ msgstr "Ouvrir"
 }
 
 func TestIdentity_StableAcrossTwoReads(t *testing.T) {
-	assert.Equal(t, identityNames(t, identityCatalog), identityNames(t, identityCatalog))
+	first := identityNames(t, identityCatalog)
+	second := identityNames(t, identityCatalog)
+	assert.Equal(t, first, second)
 }
 
 // The skeleton path is a second, independent parse. A file read for a

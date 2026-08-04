@@ -202,7 +202,7 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 			// items by it, so it is what lets the decision travel scoped to
 			// the right item. The review queue's display path is the target
 			// file, which no other party names anything by.
-			return a.recordDecisionState(proj, root, relToRoot(root, u.SourcePath), blockKey(b), loc, target, status, decision, note, by)
+			return a.recordDecisionState(ctx, proj, root, relToRoot(root, u.SourcePath), blockKey(b), loc, target, status, decision, note, by)
 		}
 	}
 	return false, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
@@ -216,15 +216,15 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 // touched here: it is the recycle corpus, not the state carrier. Advisory fields
 // already on the unit's record (origin, source status, a fresh AI pre-review
 // annotation) survive the decision write.
-func (a *App) recordDecisionState(proj *project.KapiProject, root, file, unit string, locale model.LocaleID, target string, status model.TargetStatus, decision, note, by string) (bool, error) {
-	st, err := openProjectState(root)
+func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, target string, status model.TargetStatus, decision, note, by string) (bool, error) {
+	st, err := openProjectState(ctx, root)
 	if err != nil {
 		return false, err
 	}
 	defer st.Close()
 	k := state.Key{Unit: unit, Variant: model.Variant(locale)}
 	th := targetHash(target)
-	prev, hadPrev := st.Get(k)
+	prev, hadPrev := st.Get(ctx, k)
 	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.Decision.Note == note && prev.Decision.By == by {
 		return false, nil // already at this decision for this exact translation
 	}
@@ -252,7 +252,7 @@ func (a *App) recordDecisionState(proj *project.KapiProject, root, file, unit st
 			next.AIReview = prev.AIReview
 		}
 	}
-	if err := st.Put(next); err != nil {
+	if err := st.Put(ctx, next); err != nil {
 		return false, err
 	}
 	// Staged, not committed. A decision is durable the moment it lands in the
@@ -292,7 +292,7 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 		return 0, fmt.Errorf("resolve content: %w", err)
 	}
 
-	st, err := openProjectState(root)
+	st, err := openProjectState(ctx, root)
 	if err != nil {
 		return 0, err
 	}
@@ -327,13 +327,13 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 				rev.At = nowRFC3339()
 			}
 			k := state.Key{Unit: blockKey(b), Variant: model.Variant(loc)}
-			us, _ := st.Get(k)
+			us, _ := st.Get(ctx, k)
 			us.Unit = blockKey(b)
 			us.Variant = model.Variant(loc)
 			r := rev
 			us.AIReview = &r
 			us.Updated = rev.At
-			if err := st.Put(us); err != nil {
+			if err := st.Put(ctx, us); err != nil {
 				return recorded, err
 			}
 			recorded++
@@ -422,12 +422,12 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 				Target:     b.TargetText(loc),
 				Status:     unitState(b, ref.Locale),
 			}
-			st, serr := openProjectState(root)
+			st, serr := openProjectState(ctx, root)
 			if serr != nil {
 				return nil, serr
 			}
 			defer st.Close()
-			if us, found := st.Get(state.Key{Unit: ref.Key, Variant: model.Variant(loc)}); found {
+			if us, found := st.Get(ctx, state.Key{Unit: ref.Key, Variant: model.Variant(loc)}); found {
 				th := targetHash(info.Target)
 				if !us.Stale(th) {
 					if us.Status != "" {

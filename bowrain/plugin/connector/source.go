@@ -569,7 +569,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	// the sync cache so a decision committed since the last push forces the
 	// push past every "nothing changed" fast path — decisions only travel
 	// when they changed, and a changed record cannot be silently skipped.
-	decisions, derr := c.committedDecisions()
+	decisions, derr := c.committedDecisions(ctx)
 	if derr != nil {
 		return nil, derr
 	}
@@ -851,7 +851,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// not committed: `kapi commit` remains the only door into the git-tracked
 	// record, so a pull can never publish on anyone's behalf. `kapi status`
 	// reports what arrived and names the command that publishes it.
-	if _, err := c.stagePulledDecisions(decisions); err != nil {
+	if _, err := c.stagePulledDecisions(ctx, decisions); err != nil {
 		return nil, err
 	}
 

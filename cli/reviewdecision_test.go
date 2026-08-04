@@ -205,7 +205,7 @@ content:
 // working store at all.
 func commitAndReadUnits(t *testing.T, root string) []state.UnitState {
 	t.Helper()
-	_, err := host.CommitProjectState(root)
+	_, err := host.CommitProjectState(t.Context(), root)
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}

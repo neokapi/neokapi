@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -640,7 +641,9 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 		for start := 0; start < len(ids); start += prefetchChunk {
 			chunk := ids[start:min(start+prefetchChunk, len(ids))]
 
-			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=$1 AND id IN (` +
+			// The concatenated fragment is "$2,$3,…" from a count — never
+			// caller data; values travel as bind parameters below.
+			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=$1 AND id IN (` + //nolint:gosec // placeholder list, not data
 				placeholderList("pg", 2, len(chunk)) + `)`
 			hashRows, err := tx.QueryContext(ctx, hashQuery, append([]any{projectID}, anyStrings(chunk)...)...)
 			if err != nil {
@@ -681,9 +684,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 			if otErr != nil {
 				return fmt.Errorf("batch old-target load: %w", otErr)
 			}
-			for bid, variants := range ot {
-				oldTargetText[bid] = variants
-			}
+			maps.Copy(oldTargetText, ot)
 		}
 	}
 

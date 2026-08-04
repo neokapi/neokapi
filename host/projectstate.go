@@ -1,6 +1,7 @@
 package host
 
 import (
+	"context"
 	"path/filepath"
 	"time"
 
@@ -21,9 +22,9 @@ func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
 // decisions must commit after the batch, not inside the loop.
 //
 // The caller closes the returned store.
-func openProjectState(root string) (*state.WorkStore, error) {
+func openProjectState(ctx context.Context, root string) (*state.WorkStore, error) {
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
-	return state.OpenWork(layout.WorkStorePath(), layout.UnitsDir())
+	return state.OpenWork(ctx, layout.WorkStorePath(), layout.UnitsDir())
 }
 
 // targetHash is the content hash of a translation, used to bind a review decision
@@ -43,8 +44,8 @@ func targetHash(text string) string {
 // changed, which is exactly what happened.
 //
 // The caller closes the returned store.
-func OpenProjectState(root string) (*state.WorkStore, error) {
-	return openProjectState(root)
+func OpenProjectState(ctx context.Context, root string) (*state.WorkStore, error) {
+	return openProjectState(ctx, root)
 }
 
 // CommitProjectState writes staged decisions into the project's committed
@@ -55,21 +56,21 @@ func OpenProjectState(root string) (*state.WorkStore, error) {
 // reviewable record is a separate act, the same shape as staging and committing
 // in git. That is what keeps a run of automated decisions from landing in the
 // tracked record before anyone has looked at them.
-func CommitProjectState(root string) (int, error) {
-	st, err := openProjectState(root)
+func CommitProjectState(ctx context.Context, root string) (int, error) {
+	st, err := openProjectState(ctx, root)
 	if err != nil {
 		return 0, err
 	}
 	defer st.Close()
 
-	n, err := st.Pending()
+	n, err := st.Pending(ctx)
 	if err != nil {
 		return 0, err
 	}
 	if n == 0 {
 		return 0, nil
 	}
-	if err := st.Commit(); err != nil {
+	if err := st.Commit(ctx); err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -77,14 +78,14 @@ func CommitProjectState(root string) (int, error) {
 
 // PendingDecisions reports how many decisions are staged and not yet committed.
 // An unreadable store is not an error: status stays informational.
-func PendingDecisions(root string) int {
-	st, err := openProjectState(root)
+func PendingDecisions(ctx context.Context, root string) int {
+	st, err := openProjectState(ctx, root)
 	if err != nil {
 		return 0
 	}
 	defer st.Close()
 
-	n, err := st.Pending()
+	n, err := st.Pending(ctx)
 	if err != nil {
 		return 0
 	}

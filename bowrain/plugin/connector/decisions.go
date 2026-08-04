@@ -1,6 +1,7 @@
 package connector
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -35,7 +36,7 @@ func variantText(k model.VariantKey) string {
 // keys until the reconcile resolver is wired in, so the fallback IS the common
 // case today, and both eras satisfy the same rule: "the document the unit was
 // decided in, as the connector names items".
-func (c *BowrainSourceConnector) committedDecisions() ([]platstore.UnitDecision, error) {
+func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]platstore.UnitDecision, error) {
 	units, err := state.ReadCommitted(c.project.Layout.UnitsDir())
 	if err != nil {
 		return nil, fmt.Errorf("read committed decisions: %w", err)
@@ -45,8 +46,8 @@ func (c *BowrainSourceConnector) committedDecisions() ([]platstore.UnitDecision,
 	}
 
 	docPaths := map[string]string{}
-	if st, err := host.OpenProjectState(c.project.Root); err == nil {
-		if m, derr := st.DocumentPaths(); derr == nil {
+	if st, err := host.OpenProjectState(ctx, c.project.Root); err == nil {
+		if m, derr := st.DocumentPaths(ctx); derr == nil {
 			docPaths = m
 		}
 		st.Close()
@@ -80,11 +81,11 @@ func (c *BowrainSourceConnector) committedDecisions() ([]platstore.UnitDecision,
 // project's working store: a record newer than the local one (by Updated)
 // replaces it; an older or identical one is left alone. Staged, not committed —
 // publishing to the tracked record stays a deliberate act.
-func (c *BowrainSourceConnector) stagePulledDecisions(pulled []platstore.UnitDecision) (int, error) {
+func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulled []platstore.UnitDecision) (int, error) {
 	if len(pulled) == 0 {
 		return 0, nil
 	}
-	st, err := host.OpenProjectState(c.project.Root)
+	st, err := host.OpenProjectState(ctx, c.project.Root)
 	if err != nil {
 		return 0, fmt.Errorf("open project state: %w", err)
 	}
@@ -97,7 +98,7 @@ func (c *BowrainSourceConnector) stagePulledDecisions(pulled []platstore.UnitDec
 			continue
 		}
 		k := state.Key{Unit: d.Unit, Variant: variant}
-		if prev, ok := st.Get(k); ok {
+		if prev, ok := st.Get(ctx, k); ok {
 			if prev.Updated != "" && d.Updated != "" && d.Updated <= prev.Updated {
 				continue // local record is as new or newer — leave it
 			}
@@ -118,7 +119,7 @@ func (c *BowrainSourceConnector) stagePulledDecisions(pulled []platstore.UnitDec
 			Updated: d.Updated,
 			Scope:   d.ItemName,
 		}
-		if err := st.Put(next); err != nil {
+		if err := st.Put(ctx, next); err != nil {
 			return staged, fmt.Errorf("stage decision %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		staged++
