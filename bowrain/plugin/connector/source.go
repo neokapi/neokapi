@@ -1112,8 +1112,13 @@ func (c *BowrainSourceConnector) detectFormat(absPath string) string {
 		}
 	}
 
-	// Fall back to registry detection by file extension.
-	ext := filepath.Ext(absPath)
+	// Fall back to registry detection by file extension — the framework's
+	// compound-aware Ext, not filepath.Ext. The stdlib helper sees ".json"
+	// where the path says ".kbf.json", so every KBF catalog a recipe left
+	// format-less was read here by the generic JSON reader while the review
+	// path read it with the KBF reader: one item, two identity vocabularies,
+	// and a decision recorded on a KBF unit could never join its server block.
+	ext := format.Ext(absPath)
 	if ext == "" {
 		return ""
 	}

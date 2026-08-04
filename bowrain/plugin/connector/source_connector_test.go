@@ -241,3 +241,41 @@ func TestPush_DryRunAndUpToDate(t *testing.T) {
 	assert.Zero(t, res.BlocksPushed)
 	assert.Equal(t, 1, res.FilesScanned)
 }
+
+// TestDetectFormat_CompoundExtension pins the reader-parity contract for
+// KBF catalogs: a recipe item with no declared format must resolve ".kbf.json"
+// to the KBF reader — the same reader the review path uses — not the generic
+// JSON reader filepath.Ext's ".json" suffix selects. Two readers for one item
+// means two identity vocabularies, and a decision recorded on a KBF unit could
+// never join its server block.
+func TestDetectFormat_CompoundExtension(t *testing.T) {
+	root := t.TempDir()
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	recipe := &bproject.Recipe{
+		KapiProject: coreproj.KapiProject{
+			Defaults: coreproj.Defaults{
+				SourceLanguage:  "en",
+				TargetLanguages: []model.LocaleID{"nb"},
+			},
+			Content: []coreproj.ContentCollection{
+				// No format: — detection must resolve it, exactly as the
+				// dogfood recipe leaves its catalog items.
+				{Path: "i18n/**/*.kbf.json"},
+			},
+		},
+	}
+	proj, err := bproject.InitProject(root, recipe)
+	require.NoError(t, err)
+
+	abs := filepath.Join(root, "i18n", "en.kbf.json")
+	require.NoError(t, os.MkdirAll(filepath.Dir(abs), 0o755))
+	require.NoError(t, os.WriteFile(abs, []byte(`{"kind":"kapi-block-format","blocks":[]}`), 0o644))
+
+	conn := NewLocalConnector(proj, reg)
+	defer conn.Close()
+
+	assert.Equal(t, "kbf", conn.detectFormat(abs),
+		"a compound suffix must out-rank its tail: .kbf.json is the KBF reader, not json")
+}
