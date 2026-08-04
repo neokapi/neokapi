@@ -68,7 +68,6 @@ func SyncBlockOverlays(
 	return nil
 }
 
-
 // overlayChunk bounds one IN(...) list in the loaders below. Every id is one
 // bind parameter, and a whole-project call — GetBlockStats deriving coverage,
 // the review loop hydrating every block — must not gamble on the corpus being
