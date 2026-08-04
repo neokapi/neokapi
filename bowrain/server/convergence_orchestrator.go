@@ -98,6 +98,14 @@ type convergenceOrchestrator struct {
 	tokens map[string]int // runID → AI tokens used
 }
 
+// runStream normalizes a run's stream scope: pre-stream rows carry "".
+func runStream(stream string) string {
+	if stream == "" {
+		return "main"
+	}
+	return stream
+}
+
 func newConvergenceOrchestrator(s *Server) *convergenceOrchestrator {
 	return &convergenceOrchestrator{
 		server:  s,
@@ -213,7 +221,9 @@ func (s *Server) startOnPushRun(ev platev.Event, trigger string) {
 			"reason", "policy is manual", "project", ev.ProjectID, "policy", proj.ConvergePolicy)
 		return // manual: no run
 	}
-	if _, _, err := s.convergence.StartRun(ctx, ev.ProjectID, trigger, nil); err != nil {
+	// The push event names the stream its content landed on; the run it
+	// triggers derives and produces on that same stream.
+	if _, _, err := s.convergence.StartRun(ctx, ev.ProjectID, ev.Data["stream"], trigger, nil); err != nil {
 		slog.Warn("convergence: on-push start failed", "project", ev.ProjectID, "error", err)
 	}
 }
@@ -239,7 +249,9 @@ func (o *convergenceOrchestrator) SweepInterruptedRuns(ctx context.Context) {
 // StartRun starts (or returns the already-running) convergence run for a
 // project. The returned bool reports whether a NEW run was started (false when
 // an existing running run was returned, so the handler can answer 200 vs 201).
-func (o *convergenceOrchestrator) StartRun(ctx context.Context, projectID, trigger string, locales []string) (*bstore.ConvergenceRun, bool, error) {
+// StartRun starts (or joins) a run scoped to one stream. An empty stream means
+// "main" — the pre-stream behavior every existing caller keeps.
+func (o *convergenceOrchestrator) StartRun(ctx context.Context, projectID, stream, trigger string, locales []string) (*bstore.ConvergenceRun, bool, error) {
 	store := o.server.ConvergenceRunStore
 	if store == nil {
 		return nil, false, errors.New("convergence runs not configured")
@@ -254,7 +266,10 @@ func (o *convergenceOrchestrator) StartRun(ctx context.Context, projectID, trigg
 	// The DB's partial unique index is the real guard against a concurrent
 	// push-event + CLI start both passing the check above; the loser's insert
 	// is rejected and it joins the winner's run (F8).
-	run := &bstore.ConvergenceRun{ProjectID: projectID, Trigger: trigger, State: bstore.ConvergenceRunRunning}
+	if stream == "" {
+		stream = "main"
+	}
+	run := &bstore.ConvergenceRun{ProjectID: projectID, Stream: stream, Trigger: trigger, State: bstore.ConvergenceRunRunning}
 	if err := store.CreateRunGuarded(ctx, run); err != nil {
 		if errors.Is(err, bstore.ErrActiveRunExists) {
 			if active, aerr := store.ActiveRun(ctx, projectID); aerr == nil && active != nil {
@@ -306,8 +321,8 @@ func (o *convergenceOrchestrator) Cancel(ctx context.Context, run *bstore.Conver
 // (block-store coverage + job-queue production) and drives the loop.
 func (o *convergenceOrchestrator) drive(ctx context.Context, run *bstore.ConvergenceRun, localeFilter []string) {
 	o.driveWith(ctx, run, convergence.LoopFuncs{
-		Derive:  o.deriveFunc(run.ProjectID, localeFilter),
-		Produce: o.produceFunc(run.ProjectID, run.ID),
+		Derive:  o.deriveFunc(run.ProjectID, run.Stream, localeFilter),
+		Produce: o.produceFunc(run.ProjectID, run.Stream, run.ID),
 	})
 }
 
@@ -554,7 +569,7 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 // failing block demotes its unit below the gate, so a connected `kapi up`
 // parks on failing terminology/length checks exactly like local `up` rather
 // than silently claiming converged.
-func (o *convergenceOrchestrator) deriveFunc(projectID string, localeFilter []string) func(context.Context) (convergence.PassState, error) {
+func (o *convergenceOrchestrator) deriveFunc(projectID, stream string, localeFilter []string) func(context.Context) (convergence.PassState, error) {
 	s := o.server
 	filter := map[string]bool{}
 	for _, l := range localeFilter {
@@ -574,7 +589,7 @@ func (o *convergenceOrchestrator) deriveFunc(projectID string, localeFilter []st
 		if len(proj.TargetLanguages) == 0 {
 			return convergence.PassState{}, errStallNoTargetLocales
 		}
-		stats, err := editorGetDashboardStats(ctx, s.ContentStore, proj, "main")
+		stats, err := editorGetDashboardStats(ctx, s.ContentStore, proj, runStream(stream))
 		if err != nil {
 			return convergence.PassState{}, fmt.Errorf("derive coverage: %w", err)
 		}
@@ -592,7 +607,7 @@ func (o *convergenceOrchestrator) deriveFunc(projectID string, localeFilter []st
 		blocksLoaded := false
 		loadBlocks := func() ([]*platstore.StoredBlock, error) {
 			if !blocksLoaded {
-				blocks, blocksErr = s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: projectID, Stream: "main"})
+				blocks, blocksErr = s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: projectID, Stream: runStream(stream)})
 				blocksLoaded = true
 			}
 			return blocks, blocksErr
@@ -702,7 +717,7 @@ func countFailingBlocks(ctx context.Context, blocks []*platstore.StoredBlock, lo
 // runID scopes the pass's reported AI token usage to the run, so the terminal
 // event can report what the run ACTUALLY spent (grant sizing); it may be empty
 // (tests driving a bare produce), which simply reports no usage.
-func (o *convergenceOrchestrator) produceFunc(projectID, runID string) func(context.Context, string, int, *convergence.Emitter) (int, int, int, error) {
+func (o *convergenceOrchestrator) produceFunc(projectID, stream, runID string) func(context.Context, string, int, *convergence.Emitter) (int, int, int, error) {
 	s := o.server
 	return func(ctx context.Context, locale string, pass int, emit *convergence.Emitter) (int, int, int, error) {
 		// The last poll's token sum is the pass's total (a job's tokens_used is
@@ -718,7 +733,7 @@ func (o *convergenceOrchestrator) produceFunc(projectID, runID string) func(cont
 		if err != nil {
 			return 0, 0, 0, fmt.Errorf("load project: %w", err)
 		}
-		items, err := s.ContentStore.ListItems(ctx, projectID, "main")
+		items, err := s.ContentStore.ListItems(ctx, projectID, runStream(stream))
 		if err != nil {
 			return 0, 0, 0, fmt.Errorf("list items: %w", err)
 		}
@@ -757,7 +772,7 @@ func (o *convergenceOrchestrator) produceFunc(projectID, runID string) func(cont
 		// The orchestrator's derivation (stats, pending work, gates) is
 		// main-scoped throughout, so its produce step stays on main too;
 		// stream-scoped convergence arrives with the orchestrator, not here.
-		jobIDs, err := s.createTranslationJobs(ctx, proj, "main", itemNames, []string{locale}, pushID, o.workspaceSlug(ctx, proj), "")
+		jobIDs, err := s.createTranslationJobs(ctx, proj, runStream(stream), itemNames, []string{locale}, pushID, o.workspaceSlug(ctx, proj), "")
 		if err != nil {
 			return 0, 0, 0, err
 		}
@@ -792,7 +807,7 @@ func (o *convergenceOrchestrator) produceFunc(projectID, runID string) func(cont
 				}
 			}
 			passTokens = tokens
-			translated = o.localeTranslatedBlocks(ctx, proj, locale)
+			translated = o.localeTranslatedBlocks(ctx, proj, stream, locale)
 			// Split the reported Done across content memory/AI. The recorded viaMemory is
 			// authoritative; the remainder is attributed to AI so the counters
 			// stay consistent with Done even while a pass is still in flight.
@@ -834,8 +849,8 @@ func reconcileSplit(total, viaMemory int) (tm, ai int) {
 
 // localeTranslatedBlocks returns the current translated-block count for a
 // locale from the lightweight dashboard stats (0 on error).
-func (o *convergenceOrchestrator) localeTranslatedBlocks(ctx context.Context, proj *platstore.Project, locale string) int {
-	stats, err := editorGetDashboardStats(ctx, o.server.ContentStore, proj, "main")
+func (o *convergenceOrchestrator) localeTranslatedBlocks(ctx context.Context, proj *platstore.Project, stream, locale string) int {
+	stats, err := editorGetDashboardStats(ctx, o.server.ContentStore, proj, runStream(stream))
 	if err != nil {
 		return 0
 	}
@@ -867,7 +882,7 @@ func (o *convergenceOrchestrator) workspaceSlug(ctx context.Context, proj *plats
 func (o *convergenceOrchestrator) createCompletionReviewTasks(ctx context.Context, run *bstore.ConvergenceRun) {
 	items := ""
 	if o.server.ContentStore != nil {
-		if list, err := o.server.ContentStore.ListItems(ctx, run.ProjectID, "main"); err == nil {
+		if list, err := o.server.ContentStore.ListItems(ctx, run.ProjectID, runStream(run.Stream)); err == nil {
 			names := make([]string, 0, len(list))
 			for _, it := range list {
 				names = append(names, it.Name)
@@ -896,7 +911,7 @@ func (o *convergenceOrchestrator) createCompletionReviewTasks(ctx context.Contex
 func (o *convergenceOrchestrator) createSourceReviewTasks(ctx context.Context, run *bstore.ConvergenceRun) {
 	items := ""
 	if o.server.ContentStore != nil {
-		if list, err := o.server.ContentStore.ListItems(ctx, run.ProjectID, "main"); err == nil {
+		if list, err := o.server.ContentStore.ListItems(ctx, run.ProjectID, runStream(run.Stream)); err == nil {
 			names := make([]string, 0, len(list))
 			for _, it := range list {
 				names = append(names, it.Name)

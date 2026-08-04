@@ -251,7 +251,7 @@ func (s *Server) startReviewCompletionRun(ev platev.Event) {
 	}
 	slog.Info("review loop: starting completing convergence run", "project", ev.ProjectID)
 	ctx := context.Background()
-	if _, _, err := s.convergence.StartRun(ctx, ev.ProjectID, "review", nil); err != nil {
+	if _, _, err := s.convergence.StartRun(ctx, ev.ProjectID, ev.Data["stream"], "review", nil); err != nil {
 		slog.Warn("review loop: completing run start failed", "project", ev.ProjectID, "error", err)
 	}
 }
