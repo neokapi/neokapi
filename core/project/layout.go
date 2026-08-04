@@ -215,7 +215,23 @@ func EnsureLayout(layout Layout) error {
 	if err := os.MkdirAll(layout.CacheDir(), 0o755); err != nil {
 		return fmt.Errorf("project: create cache dir: %w", err)
 	}
+	sweepRetiredStateFiles(layout)
 	return nil
+}
+
+// sweepRetiredStateFiles removes the store files the vocabulary sweep renamed
+// out of existence (`tm.db` → `memory.db`, `termbase.db` → `terms.db`). Left
+// in place they were a live footgun: retired names sitting beside the live
+// stores, indistinguishable from state, and nothing declaring which file was
+// authoritative. Both were regenerable projections, so deleting them loses
+// nothing — the same reasoning that made the rename itself cheap. Best-effort:
+// a file that will not delete is not worth failing a project open over.
+func sweepRetiredStateFiles(layout Layout) {
+	for _, retired := range []string{"tm.db", "termbase.db"} {
+		for _, suffix := range []string{"", "-wal", "-shm"} {
+			_ = os.Remove(filepath.Join(layout.StateDir, retired+suffix))
+		}
+	}
 }
 
 // ─── internals ──────────────────────────────────────────────────
