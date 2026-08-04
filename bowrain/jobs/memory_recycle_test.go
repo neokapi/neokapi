@@ -5,6 +5,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,87 +78,66 @@ func TestRecycleBlocks_SkipsAlreadyTranslated(t *testing.T) {
 	assert.Empty(t, res.remainder, "an already-translated block is excluded from both buckets")
 }
 
-// TestSeedMemoryFromBlocks_SeedsAndDeduplicates proves verification (b): ingesting a
-// block that arrives with a target seeds the project content memory, and re-seeding the same
-// pair is idempotent (content-hash keyed IDs upsert, never duplicate).
-func TestSeedMemoryFromBlocks_SeedsAndDeduplicates(t *testing.T) {
+// TestPromoteDecisionsToMemory pins the corpus's one door in: an approval
+// promotes its (source, target) pair, a rejection evicts it, and a decision
+// blessing a translation the store no longer holds moves nothing in either
+// direction. Nil memory and empty source locale are no-ops.
+func TestPromoteDecisionsToMemory(t *testing.T) {
+	deps := newTestWorkerDeps(t)
 	ctx := t.Context()
 	tm := memory.NewInMemoryStore()
 
-	b := model.NewBlock("b1", "Hello")
+	projectID := "promote-project"
+	require.NoError(t, deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Promote"}))
+
+	b := model.NewBlock("greeting", "Hello")
 	b.Targets = map[model.VariantKey]*model.Target{
 		model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
 	}
+	require.NoError(t, deps.ContentStore.StoreBlocksForItem(ctx, projectID, "main", "en.json", []*model.Block{b}))
 
-	n := seedMemoryFromBlocks(ctx, tm, []*model.Block{b}, "proj", "en", "fr", "push", "")
-	assert.Equal(t, 1, n, "one target-carrying block should seed one entry")
-
+	approval := store.UnitDecision{
+		ItemName: "en.json", Unit: "greeting", Variant: "fr",
+		ReviewState: "approved", Status: "reviewed",
+		TargetHash: state.TargetHash("Bonjour"),
+		DecidedBy:  "reviewer@example.com",
+	}
+	promoted, evicted := PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []store.UnitDecision{approval})
+	assert.Equal(t, 1, promoted)
+	assert.Zero(t, evicted)
 	count, err := tm.Count(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 
-	// The seeded pair must now recycle for free.
-	matches, err := tm.Lookup(ctx, model.NewBlock("q", "Hello"), "en", "fr", memory.LookupOptions{MinScore: 1.0, MaxResults: 1})
-	require.NoError(t, err)
-	require.NotEmpty(t, matches)
-	assert.Equal(t, "Bonjour", matches[0].Entry.VariantText("fr"))
-
-	// Re-seeding the identical pair must not duplicate (idempotent upsert).
-	n2 := seedMemoryFromBlocks(ctx, tm, []*model.Block{b}, "proj", "en", "fr", "push", "")
-	assert.Equal(t, 1, n2)
+	// Idempotent: the entry ID is content-derived.
+	promoted, _ = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []store.UnitDecision{approval})
+	assert.Equal(t, 1, promoted, "re-promotion upserts the same row")
 	count, err = tm.Count(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, 1, count, "re-ingesting the same translation must not duplicate the content-memory entry")
-}
+	assert.Equal(t, 1, count)
 
-// TestSeedMemoryFromBlocks_SkipsUntranslated confirms a source-only block seeds
-// nothing (there is no target to learn from).
-func TestSeedMemoryFromBlocks_SkipsUntranslated(t *testing.T) {
-	ctx := t.Context()
-	tm := memory.NewInMemoryStore()
-	n := seedMemoryFromBlocks(ctx, tm, []*model.Block{model.NewBlock("b1", "Hello")}, "proj", "en", "fr", "push", "")
-	assert.Zero(t, n)
-	count, err := tm.Count(ctx)
+	// A stale decision (blesses a different translation) moves nothing.
+	stale := approval
+	stale.TargetHash = state.TargetHash("Salut")
+	promoted, evicted = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []store.UnitDecision{stale})
+	assert.Zero(t, promoted)
+	assert.Zero(t, evicted)
+
+	// A rejection evicts the pair it condemns.
+	rejection := approval
+	rejection.ReviewState = "rejected"
+	rejection.Status = "draft"
+	_, evicted = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "en", []store.UnitDecision{rejection})
+	assert.Equal(t, 1, evicted)
+	count, err = tm.Count(ctx)
 	require.NoError(t, err)
-	assert.Zero(t, count)
-}
+	assert.Zero(t, count, "rejected wording leaves the corpus")
 
-// TestSeedMemoryFromBlockTargets_MultiLocaleFanOut proves the ingest seeding path
-// (verification (b), ingest variant): a pushed block carrying targets in several
-// locales seeds one content-memory entry per (source, target) pair, and a source-only block
-// contributes nothing.
-func TestSeedMemoryFromBlockTargets_MultiLocaleFanOut(t *testing.T) {
-	ctx := t.Context()
-	tm := memory.NewInMemoryStore()
-
-	withTargets := model.NewBlock("b1", "Hello")
-	withTargets.Targets = map[model.VariantKey]*model.Target{
-		model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
-		model.Variant("de"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Hallo"}}}},
-	}
-	sourceOnly := model.NewBlock("b2", "Untranslated")
-
-	seedMemoryFromBlockTargets(ctx, tm, []*model.Block{withTargets, sourceOnly}, "proj", "en")
-
-	count, err := tm.Count(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, 2, count, "one entry per (en→fr) and (en→de) pair; source-only block seeds nothing")
-
-	frMatches, err := tm.Lookup(ctx, model.NewBlock("q", "Hello"), "en", "fr", memory.LookupOptions{MinScore: 1.0, MaxResults: 1})
-	require.NoError(t, err)
-	require.NotEmpty(t, frMatches)
-	assert.Equal(t, "Bonjour", frMatches[0].Entry.VariantText("fr"))
-}
-
-// TestSeedMemoryFromBlockTargets_NilMemoryNoPanic guards the disabled path.
-func TestSeedMemoryFromBlockTargets_NilMemoryNoPanic(t *testing.T) {
-	b := model.NewBlock("b1", "Hello")
-	b.Targets = map[model.VariantKey]*model.Target{
-		model.Variant("fr"): {Runs: []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}}},
-	}
-	// nil content memory and empty source locale must both be no-ops.
-	seedMemoryFromBlockTargets(t.Context(), nil, []*model.Block{b}, "proj", "en")
-	seedMemoryFromBlockTargets(t.Context(), memory.NewInMemoryStore(), []*model.Block{b}, "proj", "")
+	// Disabled paths are no-ops, never panics.
+	p, e := PromoteDecisionsToMemory(ctx, deps.ContentStore, nil, projectID, "main", "en", []store.UnitDecision{approval})
+	assert.Zero(t, p+e)
+	p, e = PromoteDecisionsToMemory(ctx, deps.ContentStore, tm, projectID, "main", "", []store.UnitDecision{approval})
+	assert.Zero(t, p+e)
 }
 
 // TestProjectMemoryMinScore checks the recipe threshold mapping that gates content memory

@@ -4,9 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"log/slog"
 	"strconv"
-	"time"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
@@ -123,61 +121,6 @@ func hasLocaleTarget(b *model.Block, locale model.LocaleID) bool {
 		}
 	}
 	return false
-}
-
-// seedMemoryFromBlocks adds each block's existing target translation for the given
-// locale to the project content memory, so a future convergence recycles it instead of
-// paying AI. It is idempotent: the entry ID is derived from a content hash of
-// the source/target/locale pair, so re-ingesting the same translation upserts
-// the same row rather than duplicating it (Add is an ID-keyed upsert on every
-// backend). Blocks without a usable target for the locale are skipped.
-//
-// origin labels where the seed came from ("push" for pushed targets on ingest,
-// "ai-draft" for a freshly-drafted AI target); ref is an optional provenance
-// reference (job/push id). Returns the number of entries added.
-func seedMemoryFromBlocks(ctx context.Context, tm memory.Store, blocks []*model.Block, projectID string, sourceLocale, targetLocale model.LocaleID, origin, ref string) int {
-	if tm == nil {
-		return 0
-	}
-	added := 0
-	now := time.Now()
-	for _, b := range blocks {
-		if b == nil || !b.Translatable {
-			continue
-		}
-		sourceRuns := b.Source
-		if len(sourceRuns) == 0 || model.RunsText(sourceRuns) == "" {
-			continue
-		}
-		targetRuns := localeTargetRuns(b, targetLocale)
-		if len(targetRuns) == 0 || model.RunsText(targetRuns) == "" {
-			continue
-		}
-		entry := memory.Entry{
-			ID: memoryEntryID(sourceLocale, targetLocale, sourceRuns, targetRuns),
-			Variants: map[model.LocaleID][]model.Run{
-				sourceLocale: cloneRunsForMemory(sourceRuns),
-				targetLocale: cloneRunsForMemory(targetRuns),
-			},
-			HintSrcLang: sourceLocale,
-			ProjectID:   projectID,
-			Origins: []memory.Origin{{
-				Source:    origin,
-				Key:       b.Name,
-				Reference: ref,
-				AddedAt:   now,
-				AddedBy:   "convergence",
-			}},
-			CreatedAt: now,
-			UpdatedAt: now,
-		}
-		if err := tm.Add(ctx, entry); err != nil {
-			slog.WarnContext(ctx, "seed content-memory entry failed", "block", b.ID, "error", err)
-			continue
-		}
-		added++
-	}
-	return added
 }
 
 // localeTargetRuns returns the target runs for a locale (first matching

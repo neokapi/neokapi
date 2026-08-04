@@ -12,6 +12,7 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
@@ -62,7 +63,42 @@ func (s *Server) recordReviewDecision(ctx context.Context, c echo.Context, proje
 		// but a ledger that quietly misses reviews is worse than none.
 		slog.WarnContext(ctx, "review decision not recorded in ledger",
 			"project", projectID, "block", sb.SourceID, "locale", locale, "error", err)
+		return
 	}
+
+	// The corpus follows the decision: an approval promotes its wording into
+	// the workspace content memory, a rejection evicts it — the same single
+	// door the push-ingest path uses (jobs.PromoteDecisionsToMemory), so the
+	// two entry points cannot disagree about what an approval admits.
+	if reviewState == "" {
+		return // a plain un-review is not a corpus verdict
+	}
+	proj, perr := s.ContentStore.GetProject(ctx, projectID)
+	if perr != nil || proj == nil || proj.DefaultSourceLanguage == "" {
+		return
+	}
+	slug := ""
+	if s.AuthStore != nil && proj.WorkspaceID != "" {
+		if ws, werr := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID); werr == nil && ws != nil {
+			slug = ws.Slug
+		}
+	}
+	if slug == "" {
+		return
+	}
+	tm, terr := s.wsStores.getMemory(slug)
+	if terr != nil {
+		return
+	}
+	jobs.PromoteDecisionsToMemory(ctx, s.ContentStore, tm, projectID, stream, proj.DefaultSourceLanguage, []platstore.UnitDecision{{
+		ItemName:    sb.ItemName,
+		Unit:        sb.SourceID,
+		Variant:     locale,
+		Status:      string(status),
+		TargetHash:  state.TargetHash(sb.Block.TargetText(model.LocaleID(locale))),
+		ReviewState: reviewState,
+		DecidedBy:   decider,
+	}})
 }
 
 // This file gives the two real-time editor operations that used to travel over

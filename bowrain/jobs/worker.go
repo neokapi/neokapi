@@ -698,14 +698,11 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		// vocabulary check, zero AI) so the dashboard's on-brand rate is
 		// voice-informed for every drafted block.
 		persistDraftVoiceScores(ctx, deps, job, draftProfile(), blocks, tgtLocale)
-		// Write the AI drafts back to the project content memory (theme A2) so sibling
-		// locales, re-runs, and future pushes recycle instead of re-paying.
-		// Draft origin lets a later review approval upgrade the same entry.
-		if tm != nil {
-			if n := seedMemoryFromBlocks(ctx, tm, blocks, job.ProjectID, srcLocale, tgtLocale, "ai-draft", job.ID); n > 0 {
-				slog.InfoContext(ctx, "seeded content memory from AI drafts", "job_id", job.ID, "entries", n)
-			}
-		}
+		// AI drafts do NOT enter the content memory. The corpus has one door
+		// in — wording a decision approved (PromoteDecisionsToMemory) — so a
+		// guess can never be offered back as approved wording. Draft reuse
+		// within a run is the block store's job: identical source means an
+		// identical content hash, exact-match only, labeled for what it is.
 	}
 
 	return nil

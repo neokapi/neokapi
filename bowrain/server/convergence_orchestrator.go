@@ -340,12 +340,14 @@ func (o *convergenceOrchestrator) runSettleSource(ctx context.Context, run *bsto
 	// minutes — and a run whose current_stage stays empty for that long is
 	// indistinguishable from a dead one. The gate is resolved up front only to
 	// keep an opted-out project event-free, as before.
-	if proj, perr := o.server.ContentStore.GetProject(ctx, run.ProjectID); perr == nil && sourceGateFor(proj) != model.SourceGateNone {
-		emit.Emit(convergence.Event{
-			Type:    convergence.EventLog,
-			Stage:   convergence.StageSettleSource,
-			Message: "Settling source (first run over a large corpus reads and re-stamps every block — this can take a while)…",
-		})
+	if cs := o.server.ContentStore; cs != nil {
+		if proj, perr := cs.GetProject(ctx, run.ProjectID); perr == nil && sourceGateFor(proj) != model.SourceGateNone {
+			emit.Emit(convergence.Event{
+				Type:    convergence.EventLog,
+				Stage:   convergence.StageSettleSource,
+				Message: "Settling source (first run over a large corpus reads and re-stamps every block — this can take a while)…",
+			})
+		}
 	}
 	settleStart := time.Now()
 	res, err := o.settleSource(ctx, run.ProjectID)
