@@ -773,4 +773,14 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE convergence_runs ADD COLUMN stream TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     16,
+		Description: "source word count computed at write, not derived per read",
+		SQL: `
+			-- Mirrors migration 18 in bowrain/store/migrations.go: NULL marks a
+			-- row that predates the column; readers decode its source_json once
+			-- and every rewrite fills the column.
+			ALTER TABLE blocks ADD COLUMN word_count INTEGER;
+		`,
+	},
 }

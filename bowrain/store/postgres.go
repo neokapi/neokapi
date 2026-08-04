@@ -588,12 +588,13 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO blocks (id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, overlays, stored_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+			source_json, properties, overlays, word_count, stored_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		 ON CONFLICT(project_id, id) DO UPDATE SET
 			name=EXCLUDED.name, type=EXCLUDED.type, mime_type=EXCLUDED.mime_type,
 			translatable=EXCLUDED.translatable, content_hash=EXCLUDED.content_hash,
 			context_hash=EXCLUDED.context_hash, source_json=EXCLUDED.source_json,
+			word_count=EXCLUDED.word_count,
 			properties=EXCLUDED.properties, overlays=EXCLUDED.overlays, updated_at=EXCLUDED.updated_at`)
 	if err != nil {
 		return fmt.Errorf("prepare stmt: %w", err)
@@ -754,7 +755,8 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 		_, err = stmt.ExecContext(ctx,
 			internalID, projectID, itemName, sourceID, b.Name, b.Type, b.MimeType, b.Translatable,
 			identity.ContentHash, identity.ContextHash,
-			string(sourceJSON), string(propsJSON), string(overlaysJSON), now, now)
+			string(sourceJSON), string(propsJSON), string(overlaysJSON),
+			storeutil.CountWordsFromSourceJSON(string(sourceJSON)), now, now)
 		if err != nil {
 			return fmt.Errorf("store block %s: %w", internalID, err)
 		}
@@ -922,8 +924,15 @@ func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream str
 		args = append(args, item.Name)
 	}
 
+	// word_count is written at store time; NULL marks a row that predates the
+	// column, and only those rows pay the source_json decode. Deriving
+	// coverage used to deserialize every block's source runs on every call —
+	// at 74,916 blocks, minutes of JSON for numbers the write path already
+	// knew.
 	q := fmt.Sprintf(
-		`SELECT id, item_name, translatable, source_json
+		`SELECT id, item_name, translatable,
+			CASE WHEN word_count IS NULL THEN source_json ELSE '' END,
+			COALESCE(word_count, -1)
 		 FROM blocks WHERE project_id = $1 AND item_name IN (%s)
 		 ORDER BY item_name, id`,
 		strings.Join(placeholders, ","))
@@ -945,12 +954,16 @@ func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream str
 	for rows.Next() {
 		var blockID, itemName, sourceJSON string
 		var translatable bool
-		if err := rows.Scan(&blockID, &itemName, &translatable, &sourceJSON); err != nil {
+		var wordCount int
+		if err := rows.Scan(&blockID, &itemName, &translatable, &sourceJSON, &wordCount); err != nil {
 			return nil, fmt.Errorf("scan block stat: %w", err)
+		}
+		if wordCount < 0 {
+			wordCount = storeutil.CountWordsFromSourceJSON(sourceJSON)
 		}
 		ordered = append(ordered, pending{
 			blockID: blockID, itemName: itemName, translatable: translatable,
-			sourceWords: storeutil.CountWordsFromSourceJSON(sourceJSON),
+			sourceWords: wordCount,
 		})
 		blockIDs = append(blockIDs, blockID)
 	}

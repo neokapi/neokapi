@@ -335,7 +335,24 @@ func (o *convergenceOrchestrator) drive(ctx context.Context, run *bstore.Converg
 // round-trip. A settlement error is non-fatal: the run degrades to the previous
 // (gate-off) behavior rather than failing on a source-check hiccup.
 func (o *convergenceOrchestrator) runSettleSource(ctx context.Context, run *bstore.ConvergenceRun, emit *convergence.Emitter) settleResult {
+	// Announce the phase BEFORE the work: first-run settlement over a large
+	// corpus reads and rewrites every source block, which can take tens of
+	// minutes — and a run whose current_stage stays empty for that long is
+	// indistinguishable from a dead one. The gate is resolved up front only to
+	// keep an opted-out project event-free, as before.
+	if proj, perr := o.server.ContentStore.GetProject(ctx, run.ProjectID); perr == nil && sourceGateFor(proj) != model.SourceGateNone {
+		emit.Emit(convergence.Event{
+			Type:    convergence.EventLog,
+			Stage:   convergence.StageSettleSource,
+			Message: "Settling source (first run over a large corpus reads and re-stamps every block — this can take a while)…",
+		})
+	}
+	settleStart := time.Now()
 	res, err := o.settleSource(ctx, run.ProjectID)
+	if d := time.Since(settleStart); d > 30*time.Second {
+		slog.Info("convergence: source settlement finished", "run", run.ID, "duration", d.Round(time.Second),
+			"total", res.Total, "settled", res.Settled, "blocked", res.BlockedOnSource)
+	}
 	if err != nil {
 		slog.Warn("convergence: source settlement failed; proceeding without gate", "run", run.ID, "error", err)
 		return settleResult{Gate: model.SourceGateNone}

@@ -548,13 +548,14 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO blocks (id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, overlays, stored_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			source_json, properties, overlays, word_count, stored_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(project_id, id) DO UPDATE SET
 			name=excluded.name, type=excluded.type, mime_type=excluded.mime_type,
 			translatable=excluded.translatable, content_hash=excluded.content_hash,
 			context_hash=excluded.context_hash, source_json=excluded.source_json,
-			properties=excluded.properties, overlays=excluded.overlays, updated_at=excluded.updated_at`)
+			properties=excluded.properties, overlays=excluded.overlays,
+			word_count=excluded.word_count, updated_at=excluded.updated_at`)
 	if err != nil {
 		return fmt.Errorf("prepare stmt: %w", err)
 	}
@@ -716,7 +717,8 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		_, err = stmt.ExecContext(ctx,
 			internalID, projectID, itemName, sourceID, b.Name, b.Type, b.MimeType, translatable,
 			identity.ContentHash, identity.ContextHash,
-			string(sourceJSON), string(propsJSON), string(overlaysJSON), now, now)
+			string(sourceJSON), string(propsJSON), string(overlaysJSON),
+			storeutil.CountWordsFromSourceJSON(string(sourceJSON)), now, now)
 		if err != nil {
 			return fmt.Errorf("store block %s: %w", internalID, err)
 		}
@@ -874,8 +876,13 @@ func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream strin
 		args = append(args, item.Name)
 	}
 
+	// word_count is written at store time; NULL marks a row that predates
+	// the column, and only those rows pay the source_json decode — the same
+	// contract as the Postgres store.
 	q := fmt.Sprintf(
-		`SELECT id, item_name, translatable, source_json
+		`SELECT id, item_name, translatable,
+			CASE WHEN word_count IS NULL THEN source_json ELSE '' END,
+			COALESCE(word_count, -1)
 		 FROM blocks WHERE project_id = ? AND item_name IN (%s)
 		 ORDER BY item_name, id`,
 		strings.Join(placeholders, ","))
@@ -896,13 +903,16 @@ func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream strin
 	var blockIDs []string
 	for rows.Next() {
 		var blockID, itemName, sourceJSON string
-		var translatable int
-		if err := rows.Scan(&blockID, &itemName, &translatable, &sourceJSON); err != nil {
+		var translatable, wordCount int
+		if err := rows.Scan(&blockID, &itemName, &translatable, &sourceJSON, &wordCount); err != nil {
 			return nil, fmt.Errorf("scan block stat: %w", err)
+		}
+		if wordCount < 0 {
+			wordCount = storeutil.CountWordsFromSourceJSON(sourceJSON)
 		}
 		ordered = append(ordered, pending{
 			blockID: blockID, itemName: itemName, translatable: translatable == 1,
-			sourceWords: storeutil.CountWordsFromSourceJSON(sourceJSON),
+			sourceWords: wordCount,
 		})
 		blockIDs = append(blockIDs, blockID)
 	}

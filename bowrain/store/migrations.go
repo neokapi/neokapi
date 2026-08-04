@@ -25,6 +25,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	14  collection context: coordinates, ownership, and the entry hash
 //	16  unit decisions ledger (decisions travel the sync protocol)
 //	17  stream scope for convergence runs
+//	18  source word count computed at write
 //
 // Versions 3 and 4 were already retired before this change — they ran on live
 // databases and were then folded into the v1 baseline. They are listed because
@@ -35,7 +36,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // Baseline is version 15 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 18.
+// repaired. Retired numbers are never reused; the next migration is version 19.
 var Migrations = []storage.Migration{
 	{
 		Version:     15,
@@ -1028,6 +1029,17 @@ var Migrations = []storage.Migration{
 			-- are per-stream overlays). '' means "main" — pre-stream rows and
 			-- stream-naive starters keep their behavior.
 			ALTER TABLE convergence_runs ADD COLUMN IF NOT EXISTS stream TEXT NOT NULL DEFAULT '';
+		`,
+	},
+	{
+		Version:     18,
+		Description: "source word count computed at write, not derived per read",
+		SQL: `
+			-- NULL marks a row that predates the column; readers decode its
+			-- source_json once and every rewrite fills the column. Deriving
+			-- coverage used to deserialize every block's source runs on every
+			-- call — minutes at corpus scale for numbers the write path knew.
+			ALTER TABLE blocks ADD COLUMN IF NOT EXISTS word_count INTEGER;
 		`,
 	},
 }
