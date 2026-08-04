@@ -754,7 +754,10 @@ func (o *convergenceOrchestrator) produceFunc(projectID, runID string) func(cont
 		// list): propagate it so driveWith labels the run's stall_reason
 		// (needs_credits) instead of parking with no reason (theme C). Work so
 		// far is untouched — the refusal spawns nothing, it discards nothing.
-		jobIDs, err := s.createTranslationJobs(ctx, proj, itemNames, []string{locale}, pushID, o.workspaceSlug(ctx, proj), "")
+		// The orchestrator's derivation (stats, pending work, gates) is
+		// main-scoped throughout, so its produce step stays on main too;
+		// stream-scoped convergence arrives with the orchestrator, not here.
+		jobIDs, err := s.createTranslationJobs(ctx, proj, "main", itemNames, []string{locale}, pushID, o.workspaceSlug(ctx, proj), "")
 		if err != nil {
 			return 0, 0, 0, err
 		}
