@@ -559,6 +559,15 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	if block.Type == "shared-string" {
 		return nil
 	}
+	// An Excel ListObject's column names (xl/tables/*.xml) are definitions, not
+	// positions: the worksheet's own header-row cells already carry the same
+	// text at a real address. Rendering both appends the header row again as
+	// loose paragraphs after the table — the parts are read after the
+	// worksheets. Still the right extraction unit (a column name is visible in
+	// Excel's filter UI), so this too is generative-path only.
+	if block.Type == "table-column" {
+		return nil
+	}
 	// A drawing's name, alt text and object title are graphic metadata, not
 	// document flow. They are surfaced as their own blocks so an ingestion
 	// consumer and the editor can see them, but rendering each as a paragraph

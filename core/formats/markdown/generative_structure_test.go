@@ -145,3 +145,32 @@ func TestBareListItemFallsBackToBullet(t *testing.T) {
 
 	assert.Equal(t, "- orphan\n", buf.String())
 }
+
+// A spreadsheet carries two kinds of block that are storage rather than
+// document flow: the shared-string table, and an Excel ListObject's column-name
+// definitions. Both restate content the worksheet grid already places at a real
+// address, so rendering them appends the sheet — or its header row — to the
+// output a second time. They remain the right extraction unit for translation;
+// only the generative path skips them.
+func TestStorageBlocksAreNotDocumentFlow(t *testing.T) {
+	for _, tc := range []struct{ name, blockType string }{
+		{"shared string table", "shared-string"},
+		{"ListObject column definition", "table-column"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			block := model.NewBlock("b1", "Category")
+			block.Type = tc.blockType
+
+			w := markdown.NewWriter()
+			var buf bytes.Buffer
+			require.NoError(t, w.SetOutputWriter(&buf))
+			ch := make(chan *model.Part, 1)
+			ch <- &model.Part{Type: model.PartBlock, Resource: block}
+			close(ch)
+			require.NoError(t, w.Write(context.Background(), ch))
+
+			assert.Empty(t, buf.String(),
+				"a %s block must not render as document flow", tc.blockType)
+		})
+	}
+}
