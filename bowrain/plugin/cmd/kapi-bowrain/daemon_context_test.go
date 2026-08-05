@@ -76,7 +76,7 @@ func TestDaemonPushDeclaresTheRecipeContext(t *testing.T) {
 
 	entry := &projectEntry{
 		project:   proj,
-		connector: connector.NewLocalConnector(proj, app.FormatReg),
+		connector: connector.NewLocalConnector(app, proj, app.FormatReg),
 	}
 
 	require.NoError(t, declareContext(t.Context(), entry, false))

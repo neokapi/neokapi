@@ -5,12 +5,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
-	"github.com/neokapi/neokapi/host"
 )
 
 // The decisions content type, client half. Push carries the project's
@@ -19,6 +19,22 @@ import (
 // the server's ledger into the working store, where `kapi commit` remains the
 // only door into the tracked record. Records reconcile last-writer-wins by
 // their Updated stamp in both directions.
+
+// workingStore returns the project's staging area for decisions — the
+// working-set schema of its one store.
+//
+// Not opened here and not closed by the caller: the App owns the handle, one per
+// project root however many times a push or a pull asks for it. The pull's
+// staging loop and the push's document-path lookup used to open and close a
+// working store each; both now write through the handle the surrounding process
+// already holds, which is the only way the in-process write gate can order them
+// against whatever else that process is writing.
+func (c *BowrainSourceConnector) workingStore(ctx context.Context) (*state.WorkStore, error) {
+	if c.app == nil {
+		return nil, errors.New("connector has no host app — decisions cannot reach the project store")
+	}
+	return c.app.OpenProjectState(ctx, c.project.Root)
+}
 
 // variantText renders a VariantKey in its wire text form ("nb", "fr;tone=…").
 func variantText(k model.VariantKey) string {
@@ -46,11 +62,10 @@ func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]plat
 	}
 
 	docPaths := map[string]string{}
-	if st, err := host.OpenProjectState(ctx, c.project.Root); err == nil {
+	if st, err := c.workingStore(ctx); err == nil {
 		if m, derr := st.DocumentPaths(ctx); derr == nil {
 			docPaths = m
 		}
-		st.Close()
 	}
 
 	out := make([]platstore.UnitDecision, 0, len(units))
@@ -85,11 +100,10 @@ func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulle
 	if len(pulled) == 0 {
 		return 0, nil
 	}
-	st, err := host.OpenProjectState(ctx, c.project.Root)
+	st, err := c.workingStore(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("open project state: %w", err)
 	}
-	defer st.Close()
 
 	staged := 0
 	for _, d := range pulled {

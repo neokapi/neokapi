@@ -29,8 +29,8 @@ var pullCmd = &cobra.Command{
 Only changed blocks are transferred. Runs post-pull hooks if configured.
 
 When the project is claimed into a workspace, pull also snapshots the
-workspace's governed concepts and their relations into the project's bound
-terms (.kapi/terms.db) and records a baseline, so a later 'kapi push'
+workspace's governed concepts and their relations into the project's own
+terms and records a baseline, so a later 'kapi push'
 can diff local terminology edits against it and 'kapi check --ship' gates its
 terminology offline against the same governed vocabulary.
 
@@ -65,7 +65,7 @@ func doPull(ctx context.Context, conn *bconn.BowrainSourceConnector, locales []s
 			return nil, err
 		}
 		var connErr error
-		conn, connErr = bconn.NewSourceConnector(proj, app.FormatReg)
+		conn, connErr = bconn.NewSourceConnector(app, proj, app.FormatReg)
 		if connErr != nil {
 			return nil, connErr
 		}
@@ -115,7 +115,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}

@@ -3,9 +3,8 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -127,11 +126,14 @@ func (r *PushConceptsResult) changed() bool {
 // ---------------------------------------------------------------------------
 
 // PullConcepts paginates the workspace concept search, fetches the typed
-// relations touching the pulled concepts, writes them into the SQLite terms
-// at tbPath (refreshing by concept ID), and returns the counts plus a baseline
-// snapshot the caller records in the sync cache so a later push can diff against
-// it. When dryRun is set it fetches and counts but writes nothing.
-func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath string, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
+// relations touching the pulled concepts, writes them into tb (refreshing by
+// concept ID), and returns the counts plus a baseline snapshot the caller
+// records in the sync cache so a later push can diff against it. When dryRun is
+// set it fetches and counts but writes nothing.
+//
+// tb is the project's terms store, handed in rather than opened: it is a schema
+// of the project's one store, and the handle belongs to the caller's App.
+func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *terms.SQLiteStore, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
 	concepts, kept, err := fetchServerConcepts(ctx, client)
 	if err != nil {
 		return nil, nil, err
@@ -144,7 +146,7 @@ func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath s
 	}
 
 	if !dryRun {
-		if err := writeConceptsToTerms(ctx, tbPath, concepts, kept); err != nil {
+		if err := writeConceptsToTerms(ctx, tb, concepts, kept); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -206,20 +208,18 @@ func fetchServerConcepts(ctx context.Context, client *apiclient.BowrainClient) (
 	return concepts, kept, nil
 }
 
-// writeConceptsToTerms opens (creating the directory if needed) the SQLite
-// terms at tbPath and writes every concept then every relation, refreshing
-// any concept already present. Relations are added after all concepts so the
-// terms's referential check (both endpoints must exist) is satisfied.
-func writeConceptsToTerms(ctx context.Context, tbPath string, concepts []terms.Concept, relations []terms.ConceptRelation) error {
-	if err := os.MkdirAll(filepath.Dir(tbPath), 0o755); err != nil {
-		return fmt.Errorf("create terms directory: %w", err)
+// writeConceptsToTerms writes every concept then every relation into the
+// project's terms store, refreshing any concept already present. Relations are
+// added after all concepts so the store's referential check (both endpoints must
+// exist) is satisfied.
+//
+// It neither opens nor closes: the store is a schema of the project's one store
+// and the App owns the pool, so closing it here would take the content memory,
+// the block cache and the working set with it.
+func writeConceptsToTerms(ctx context.Context, tb *terms.SQLiteStore, concepts []terms.Concept, relations []terms.ConceptRelation) error {
+	if tb == nil {
+		return errors.New("write concepts: the project has no terms store")
 	}
-	tb, err := terms.NewSQLiteStore(tbPath)
-	if err != nil {
-		return fmt.Errorf("open terms: %w", err)
-	}
-	defer tb.Close()
-
 	for _, c := range concepts {
 		if err := tb.AddConcept(ctx, c); err != nil {
 			return fmt.Errorf("write concept %s: %w", c.ID, err)
@@ -339,15 +339,20 @@ func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
 // Push
 // ---------------------------------------------------------------------------
 
-// PushConcepts diffs the local terms at tbPath against baseline and pushes
-// the changes: ordinary edits go up directly through the concept endpoints,
-// governed edits are bundled into one submitted change-set. It returns nil when
-// there is no baseline (a pull must run first) or no local terms. When dryRun
-// is set it reports the plan without writing or proposing anything.
-func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath string, baseline *bproject.ConceptBaseline, dryRun bool) (*PushConceptsResult, error) {
-	if _, err := os.Stat(tbPath); err != nil {
-		// No local terms store: nothing to push. This is the only condition
-		// that legitimately skips.
+// PushConcepts diffs the project's terms against baseline and pushes the
+// changes: ordinary edits go up directly through the concept endpoints, governed
+// edits are bundled into one submitted change-set. It returns nil when the
+// project has no terms. When dryRun is set it reports the plan without writing
+// or proposing anything.
+//
+// tb is the project's terms store, handed in rather than opened. A nil store is
+// the one condition that legitimately skips — it is what the caller's HasTerms
+// says when the project's vocabulary is empty, which used to be a stat of
+// `.kapi/terms.db`. The file question stopped distinguishing anything: every
+// subsystem's schema exists from the store's first open, so the store file being
+// there says only that some command ran in this project.
+func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *terms.SQLiteStore, baseline *bproject.ConceptBaseline, dryRun bool) (*PushConceptsResult, error) {
+	if tb == nil {
 		return nil, nil
 	}
 
@@ -368,12 +373,6 @@ func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tbPath s
 		}
 		baseline = buildBaseline(serverConcepts, serverRels)
 	}
-
-	tb, err := terms.NewSQLiteStore(tbPath)
-	if err != nil {
-		return nil, fmt.Errorf("open terms: %w", err)
-	}
-	defer tb.Close()
 
 	local, err := tb.Concepts(ctx)
 	if err != nil {
@@ -701,11 +700,11 @@ func conceptPull(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pul
 	if err != nil {
 		return nil, nil, nil
 	}
-	tbPath, err := projectTermsPath(proj)
+	tb, err := projectTerms(ctx, proj)
 	if err != nil {
 		return nil, nil, err
 	}
-	res, baseline, err := PullConcepts(ctx, client, tbPath, dryRun)
+	res, baseline, err := PullConcepts(ctx, client, tb, dryRun)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -743,11 +742,11 @@ func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pus
 	// returned — permanently. PushConcepts asks the server for the baseline
 	// when the cache has none, so an absent one now means "seed", not "skip".
 	cache := bproject.LoadSyncCache(proj.Layout)
-	tbPath, err := projectTermsPath(proj)
+	tb, err := projectTermsIfAny(ctx, proj)
 	if err != nil {
 		return nil, err
 	}
-	res, err := PushConcepts(ctx, client, tbPath, cache.ConceptBaseline, dryRun)
+	res, err := PushConcepts(ctx, client, tb, cache.ConceptBaseline, dryRun)
 	if err != nil {
 		return nil, err
 	}
@@ -764,18 +763,45 @@ func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pus
 // Helpers
 // ---------------------------------------------------------------------------
 
-// projectTermsPath returns the SQLite terms file a concept pull/push uses.
-// It mirrors the CLI's project-bound resolution: defaults.terms from the
-// recipe (relative to the project root), else the conventional
-// <root>/.kapi/terms.db.
-func projectTermsPath(proj *bproject.Project) (string, error) {
-	if bound := proj.Recipe.Defaults.Terms; bound != "" {
-		if filepath.IsAbs(bound) {
-			return bound, nil
-		}
-		return filepath.Join(proj.Root, bound), nil
+// projectTerms returns the terms store a concept pull/push works against: the
+// project's own, out of its one store.
+//
+// There is no path to resolve any more. The recipe used to be able to bind a
+// terms FILE under `defaults:`, and the fallback was the conventional
+// `.kapi/terms.db`; both are gone. Terminology now lives in the project's store
+// and every term-aware command reads it with no flag and no recipe entry — a
+// profile's `terms:` remains the one place a recipe names a file, and that binds
+// a standalone vocabulary to a region of the context space, not the project's
+// own.
+//
+// The handle belongs to the App: do not close it.
+func projectTerms(ctx context.Context, proj *bproject.Project) (*terms.SQLiteStore, error) {
+	if app == nil {
+		return nil, errors.New("terminology sync has no host app — the project store is unreachable")
 	}
-	return filepath.Join(proj.StateDir(), "terms.db"), nil
+	db, err := app.ProjectDB(ctx, proj.Root)
+	if err != nil {
+		return nil, fmt.Errorf("open project store: %w", err)
+	}
+	return db.Terms(), nil
+}
+
+// projectTermsIfAny returns the project's terms store only when it holds
+// something. A push over an empty vocabulary has nothing to propose, and this is
+// the row question that replaced the stat of `.kapi/terms.db`.
+func projectTermsIfAny(ctx context.Context, proj *bproject.Project) (*terms.SQLiteStore, error) {
+	if app == nil {
+		return nil, errors.New("terminology sync has no host app — the project store is unreachable")
+	}
+	db, err := app.ProjectDB(ctx, proj.Root)
+	if err != nil {
+		return nil, fmt.Errorf("open project store: %w", err)
+	}
+	has, err := db.HasTerms(ctx)
+	if err != nil || !has {
+		return nil, err
+	}
+	return db.Terms(), nil
 }
 
 // changesetURL builds a best-effort link to review a change-set in the web hub
