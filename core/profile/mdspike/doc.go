@@ -22,7 +22,7 @@
 //
 //   - Inheritance. A profile may `extends:` another, so house rules are declared
 //     once instead of copied between profiles (see the drift already visible
-//     between context/brand-voice.yaml and context/bowrain-voice.yaml).
+//     between .kapi/context/brand-voice.yaml and .kapi/context/bowrain-voice.yaml).
 //   - Terms-store sourcing. A profile may derive vocabulary rules from the terms
 //     store by status and domain instead of restating them, so there is one
 //     place where "deprecated" is decided.

@@ -57,7 +57,7 @@ REC="$WORK/p1/kapi.yaml"
 
 echo "kpz-smoke: project run (caches overlays)"
 "$KAPI" run pseudo -p "$REC" -i "$WORK/p1/app.json" -o "$WORK/p1/out1.json" --target-lang fr-FR >/dev/null
-[[ -f "$WORK/p1/.kapi/store.db" ]] || { echo "FAIL: project store not created"; exit 1; }
+[[ -f "$WORK/p1/.kapi/work/store.db" ]] || { echo "FAIL: project store not created"; exit 1; }
 
 echo "kpz-smoke: cached re-run is byte-identical"
 "$KAPI" run pseudo -p "$REC" -i "$WORK/p1/app.json" -o "$WORK/p1/out2.json" --target-lang fr-FR >/dev/null
@@ -71,6 +71,6 @@ diff -q "$WORK/a.kpz" "$WORK/b.kpz" >/dev/null || { echo "FAIL: packs of the sam
 echo "kpz-smoke: pack → unpack into a fresh project"
 mkproject "$WORK/p2"
 "$KAPI" unpack "$WORK/a.kpz" -p "$WORK/p2/kapi.yaml" >/dev/null
-[[ -f "$WORK/p2/.kapi/store.db" ]] || { echo "FAIL: unpack did not rehydrate the project store"; exit 1; }
+[[ -f "$WORK/p2/.kapi/work/store.db" ]] || { echo "FAIL: unpack did not rehydrate the project store"; exit 1; }
 
 echo "kpz-smoke: OK (cached resume byte-identical; pack deterministic; pack/unpack round-trips)"

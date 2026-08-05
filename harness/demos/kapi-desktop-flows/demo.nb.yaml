@@ -81,6 +81,6 @@ narration:
 # Norwegian Bokmål narration is generated, not authored here: `make l10n-demos`
 # TM-recycles this file into the sibling demo.nb.yaml sidecar, which the harness
 # overlays at load time. Fix a translation in the seed
-# (context/memory/demo-narration-nb.memory.json) and regenerate — never edit the sidecar.
-# Terminology follows context/brand-voice.yaml (nb) and context/terms.json
+# (.kapi/context/memory/demo-narration-nb.memory.json) and regenerate — never edit the sidecar.
+# Terminology follows .kapi/context/brand-voice.yaml (nb) and .kapi/context/terms.json
 # (flow → flyt; "pipeline" stays English in nb).

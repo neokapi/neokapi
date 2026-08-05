@@ -34,8 +34,8 @@ vocabulary:
 # neokapi house rules
 
 The prohibitions every neokapi and Bowrain profile inherits. Today these lines
-are copied verbatim into both context/brand-voice.yaml and
-context/bowrain-voice.yaml; here they are declared once and inherited through
+are copied verbatim into both .kapi/context/brand-voice.yaml and
+.kapi/context/bowrain-voice.yaml; here they are declared once and inherited through
 `extends:`.
 
 Nothing brand-specific belongs in this file. A profile that extends it adds its

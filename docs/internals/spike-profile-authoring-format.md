@@ -59,10 +59,10 @@ Worked example in `core/profile/mdspike/testdata/`:
 
 - `house.md` — the four prohibitions and three bans that both committed profiles
   carry verbatim today, declared once.
-- `bowrain-voice.md` — `context/bowrain-voice.yaml` re-expressed, inheriting the
+- `bowrain-voice.md` — `.kapi/context/bowrain-voice.yaml` re-expressed, inheriting the
   house rules instead of copying them.
 - `bowrain-voice-from-terms.md` — the same profile with vocabulary sourced from
-  `context/terms.json` instead of restated.
+  `.kapi/context/terms.json` instead of restated.
 
 ## What the spike proves
 
@@ -70,7 +70,7 @@ Each claim below is a test in `core/profile/mdspike/`, not an assertion.
 
 **The markdown form loses nothing.** `TestMarkdownFormEqualsYAMLForm` asserts
 deep equality of the whole `VoiceProfile` struct against the one
-`context/bowrain-voice.yaml` decodes to — not a chosen subset. The
+`.kapi/context/bowrain-voice.yaml` decodes to — not a chosen subset. The
 paragraph normalization (hard-wrapped lines joined with single spaces) is what
 makes a markdown paragraph and a YAML `>-` scalar compare equal. The assertion
 was verified to fail on a one-word change to the body.
@@ -144,7 +144,7 @@ leaves it alone. A profile has no way to say "acceptable but not preferred".
 `TestCommittedProfileIsMachineRewritten`: `host.applyBrandEntry` does not patch
 the file — it loads it, upserts the rule, and writes the whole struct back with
 `yaml.Marshal` (`host/apply_assets.go:723`). Struct marshalling emits no
-comments, so the header on `context/bowrain-voice.yaml` — the one recording that
+comments, so the header on `.kapi/context/bowrain-voice.yaml` — the one recording that
 the house rules are duplicated because composition does not exist — does not
 survive the first applied rule. This is the finding that decides the
 recommendation.
@@ -176,7 +176,7 @@ recommendation.
 ## Migration cost if adopted
 
 **Profiles that exist: nine files.** Two committed dogfood profiles
-(`context/brand-voice.yaml`, `context/bowrain-voice.yaml`), five embedded starter
+(`.kapi/context/brand-voice.yaml`, `.kapi/context/bowrain-voice.yaml`), five embedded starter
 packs (`core/profile/packs/*.yaml`, `go:embed`ed), two retired harness fixtures.
 Plus an unbounded number of store rows, which no file-format change reaches.
 
@@ -247,7 +247,7 @@ the structure reaches it *as* prose. The frontmatter/body line is a split in who
 decides, not in what the model reads. That is why the pattern descriptions
 stayed in the frontmatter.
 
-**"`PreferredTerms`/`ForbiddenTerms` say the same thing as `context/terms.json`"
+**"`PreferredTerms`/`ForbiddenTerms` say the same thing as `.kapi/context/terms.json`"
 is half right, and the halves point opposite ways.** `ForbiddenTerms` genuinely
 duplicates the store's deprecated and forbidden statuses, and the store is
 strictly richer — it has the replacement, the concept, the locale and the
@@ -267,6 +267,6 @@ side is the whole cost, and the evaluation did not account for it.
 export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig:$PKG_CONFIG_PATH"
 go test -tags fts5 -v ./core/profile/mdspike/     # the spike's own claims, with the measurements logged
 go test -tags fts5 ./core/... ./host/... ./cli/... # unchanged: 124 packages
-kapi brand validate context/brand-voice.yaml       # VALID
-kapi brand validate context/bowrain-voice.yaml     # VALID
+kapi brand validate .kapi/context/brand-voice.yaml       # VALID
+kapi brand validate .kapi/context/bowrain-voice.yaml     # VALID
 ```
