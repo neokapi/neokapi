@@ -486,6 +486,22 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 	return flushCells()
 }
 
+// isDrawingMetadata reports whether a block carries a drawing's non-visual
+// property (its name, accessibility description, or object title) rather than
+// document content. Keyed on the reader's own "element" discriminator, not on
+// the block Type, because "property" also covers genuinely visible text — a VML
+// textpath string, an mc:AlternateContent fallback — and document metadata.
+func isDrawingMetadata(b *model.Block) bool {
+	if b.Type != "property" {
+		return false
+	}
+	switch b.Properties["element"] {
+	case "drawing-name", "drawing-descr", "drawing-title":
+		return true
+	}
+	return false
+}
+
 // isCellBlock reports whether a block carries a table-cell role.
 func isCellBlock(b *model.Block) bool {
 	role := b.SemanticRole()
@@ -541,6 +557,15 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	// whole sheet in the output twice. The blocks are still the right extraction
 	// unit for translation — this skip is generative-path only.
 	if block.Type == "shared-string" {
+		return nil
+	}
+	// A drawing's name, alt text and object title are graphic metadata, not
+	// document flow. They are surfaced as their own blocks so an ingestion
+	// consumer and the editor can see them, but rendering each as a paragraph
+	// turns one image into four stray lines — a name, a filename, and the alt
+	// text twice, once per non-visual-properties element. The alt text reaches
+	// the output through the image run's own attributes instead.
+	if isDrawingMetadata(block) {
 		return nil
 	}
 

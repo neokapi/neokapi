@@ -189,8 +189,12 @@ type wmlParser struct {
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
 	rels          map[string]relationship // hyperlink rels for this part
-	codeFinder    *codeFinder             // regex-based inline code detection
-	styles        *styleMap               // resolved style inheritance (nil if not enabled)
+	// drawingPropText maps a surfaced drawing-property block id to the text it
+	// replaced, so a drawing's alt text stays recoverable after the attribute
+	// value has been substituted with its marker.
+	drawingPropText map[string]string
+	codeFinder      *codeFinder // regex-based inline code detection
+	styles          *styleMap   // resolved style inheritance (nil if not enabled)
 	// roleStyles maps a paragraph styleId to the semantic role it implies
 	// (heading/title), resolved from word/styles.xml (WS2). It is additive
 	// stand-off metadata recorded on each Block via SetSemanticRole — never
@@ -2962,6 +2966,40 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 							}}}
 							emitBlock(blk)
 						}
+						// The same treatment for a paragraph whose only content
+						// is a drawing. An image-only paragraph carries no
+						// translatable text, so it is not a text unit and no
+						// block is emitted — correct for extraction, but it also
+						// means the picture is absent from every cross-format
+						// export, while its name and alt text leak out
+						// separately as loose metadata paragraphs.
+						//
+						// Emit a detached non-translatable RolePicture block
+						// carrying the drawing's placeholder run, whose Attrs
+						// now hold the resolved part name and alt text. Not
+						// skeleton-referenced, so the docx round-trip still
+						// replays the paragraph bytes verbatim; parity forces
+						// the flag off, so the part stream is unchanged there.
+						for _, r := range merged {
+							if !isDrawingSentinel(r.text) || r.data == "" {
+								continue
+							}
+							attrs := p.drawingAttrs(r.data)
+							if attrs[model.AttrSrc] == "" {
+								continue
+							}
+							*p.blockCounter++
+							blk := model.NewBlock(fmt.Sprintf("tu%d", *p.blockCounter), "")
+							blk.Name = p.path.name(p.path.reserve("drawing"))
+							blk.Translatable = false
+							blk.Type = "picture"
+							blk.SetSemanticRole(model.RolePicture, 0)
+							blk.Source = []model.Run{{Ph: &model.PlaceholderRun{
+								ID: "c1", Type: TypeImage, SubType: SubTypeImage,
+								Data: r.data, Attrs: attrs,
+							}}}
+							emitBlock(blk)
+						}
 					}
 					// Field-straddle absorption (fldChar-end-only
 					// paragraph). When the previous paragraph buffered
@@ -4937,6 +4975,58 @@ func (p *wmlParser) hyperlinkAttrs(relID string, extraAttrs []xml.Attr) map[stri
 	return attrs
 }
 
+// drawingAttrs resolves a captured drawing's markup to the canonical run
+// attributes core/projection consumes: model.AttrSrc for the image part and
+// model.AttrAlt for its accessibility text.
+//
+// Like a hyperlink's destination, neither is in the element that names the
+// image. `<a:blip r:embed="rIdN"/>` points at a relationship, and only that
+// lookup yields a part name; the alt text lives in a `descr=` attribute on the
+// drawing's non-visual properties. The drawing's raw markup is captured whole
+// for the skeleton path, so both are read from it here rather than threaded
+// through the walk — the property elements are visited before the blip, so
+// there is no point during parsing where both are in hand.
+//
+// Returns nil when the drawing embeds nothing (a chart, a shape, a linked
+// image), so a placeholder that is not a picture gains no image attributes.
+func (p *wmlParser) drawingAttrs(raw string) map[string]string {
+	attrs := make(map[string]string, 2)
+	if m := blipEmbedRE.FindStringSubmatch(raw); m != nil {
+		if rel, ok := p.rels[m[1]]; ok && rel.Target != "" {
+			attrs[model.AttrSrc] = rel.Target
+		}
+	}
+	if len(attrs) == 0 {
+		return nil
+	}
+	if m := drawingDescrRE.FindStringSubmatch(raw); m != nil {
+		alt := xmlesc.UnescapeAttr(m[1])
+		if ref, ok := strings.CutPrefix(alt, drawingMarkerPropPrefix); ok {
+			alt = p.drawingPropText[strings.TrimSuffix(ref, drawingMarkerSuffix)]
+		}
+		if alt != "" {
+			attrs[model.AttrAlt] = alt
+		}
+	}
+	return attrs
+}
+
+// blipEmbedRE matches the relationship id on `<a:blip r:embed="rIdN"/>`
+// (ECMA-376-1 §20.1.8.13, CT_Blip) — the only link between a drawing and the
+// image part it renders.
+var blipEmbedRE = regexp.MustCompile(`<a:blip\b[^>]*\br:embed="([^"]*)"`)
+
+// drawingDescrRE matches the first `descr=` in a drawing — the accessibility
+// text on its non-visual properties (§20.4.2.5, CT_NonVisualDrawingProps).
+// `<wp:docPr>` precedes the nested `<pic:cNvPr>` and both normally carry the
+// same value, so the first match is the drawing's own alt text.
+//
+// The attribute is matched on its own rather than anchored to the element name:
+// by this point a preceding surfaced attribute has been replaced by a comment
+// marker, and a marker contains `>`, so any element-anchored pattern that walks
+// `[^>]*` to reach `descr=` stops short of it.
+var drawingDescrRE = regexp.MustCompile(`\bdescr="([^"]*)"`)
+
 func (p *wmlParser) wrapHyperlinkRuns(runs []textRun, relID string, extraAttrs []xml.Attr) []textRun {
 	// Build <w:hyperlink> opening tag preserving every captured
 	// attribute. The relID feeds the r:id attribute; the remaining
@@ -5335,10 +5425,11 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 				// text/Markup chunk. See SubTypeImageInline doc.
 				subType = SubTypeImageInline
 			}
-			b.AddPh(fmt.Sprintf("c%d", spanCounter),
+			b.AddPhAttrs(fmt.Sprintf("c%d", spanCounter),
 				TypeImage, subType,
 				data, "", "",
-				false, false, false)
+				false, false, false,
+				p.drawingAttrs(data))
 			continue
 		}
 		if after, ok := strings.CutPrefix(run.text, "\uE10D:"); ok {
@@ -7279,6 +7370,14 @@ func (p *wmlParser) emitDrawingPropMarker(
 	out.WriteString(drawingMarkerSuffix)
 
 	p.path.ensurePart(partPath)
+	// Remember what this marker stands for. By the time the surrounding
+	// <w:drawing> is captured as raw markup, every surfaced attribute has been
+	// replaced by its marker, so the alt text is no longer readable from the
+	// captured bytes — drawingAttrs resolves it back through this map.
+	if p.drawingPropText == nil {
+		p.drawingPropText = map[string]string{}
+	}
+	p.drawingPropText[refID] = value
 	block := &model.Block{
 		ID: refID,
 		// The drawing's own address plus the attribute the text came from, so
