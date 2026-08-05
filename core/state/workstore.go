@@ -197,7 +197,7 @@ func OpenWork(ctx context.Context, dbPath, committedPath string) (*WorkStore, er
 }
 
 // OpenWorkFromDB adopts an already-open database — the project's merged
-// `.kapi/store.db`, where the working set is one schema among the content
+// `.kapi/work/store.db`, where the working set is one schema among the content
 // memory, the terms store and the block cache. Same migrations, same `state`
 // ledger, same seeding from the committed shards; only the file is shared.
 //

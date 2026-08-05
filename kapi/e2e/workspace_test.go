@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,10 +51,10 @@ func TestPackUnpackRoundTrip(t *testing.T) {
 	dir := filepath.Dir(recipe)
 
 	// Run the flow so the project store caches overlays. Every subsystem
-	// shares the one `.kapi/store.db` now (AD-039), so this is the file to
-	// look for — and it sits at the top of the state dir, not under cache/.
+	// shares the one `.kapi/work/store.db` now (AD-039), so this is the file to
+	// look for — and it sits at the top of work/, not under work/cache/.
 	kapi(t, "run", "pseudo", "-p", recipe, "-i", src, "-o", filepath.Join(dir, "out.json"), "--target-lang", "fr-FR")
-	assert.FileExists(t, filepath.Join(dir, ".kapi", "store.db"))
+	assert.FileExists(t, project.LayoutAt(dir).StorePath())
 
 	snap := filepath.Join(dir, "snap.kpz")
 	kapi(t, "pack", "-p", recipe, "-o", snap)
@@ -66,7 +67,7 @@ func TestPackUnpackRoundTrip(t *testing.T) {
 	dir2 := filepath.Dir(recipe2)
 	out := kapi(t, "unpack", snap, "-p", recipe2)
 	assert.Contains(t, out, "Unpacked")
-	assert.FileExists(t, filepath.Join(dir2, ".kapi", "store.db"))
+	assert.FileExists(t, project.LayoutAt(dir2).StorePath())
 }
 
 // TestCachedResumeSkipsWork verifies the invisible resume story: a second

@@ -61,7 +61,7 @@ func explainProjectFixture(t *testing.T, targets []model.LocaleID) (recipe, root
 
 // assertNoRunSideEffects asserts the project tree carries none of the
 // artefacts a real run would produce: no per-locale output files and no
-// project cache (block store / parse cache under .kapi/cache).
+// project cache (block store / parse cache under .kapi/work/cache).
 func assertNoRunSideEffects(t *testing.T, root string, locales ...string) {
 	t.Helper()
 	for _, l := range locales {
@@ -69,14 +69,14 @@ func assertNoRunSideEffects(t *testing.T, root string, locales ...string) {
 		_, err := os.Stat(p)
 		assert.True(t, os.IsNotExist(err), "explain must not write output files, found %s", p)
 	}
-	cache := filepath.Join(root, project.StateDirName, "cache")
+	cache := project.LayoutAt(root).CacheDir()
 	_, err := os.Stat(cache)
 	assert.True(t, os.IsNotExist(err), "explain must not create the project cache (%s)", cache)
 	// Every subsystem shares the one store now, and opening it runs their
 	// migrations — so "must not create the content memory" is the same
 	// assertion as "must not create the store", and only the latter can
 	// still fail.
-	store := filepath.Join(root, project.StateDirName, project.StoreFileName)
+	store := project.LayoutAt(root).StorePath()
 	_, err = os.Stat(store)
 	assert.True(t, os.IsNotExist(err), "explain must not create the project store (%s)", store)
 }

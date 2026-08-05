@@ -24,7 +24,7 @@ targets settled for them — as a SQLite database. Use these commands to
 import/export TMX, look up matches, and manage entries.
 
 Inside a project, no flag means the project's own content memory — a subsystem
-of .kapi/store.db, which is why it is not addressed by path. Use -p to name the
+of .kapi/work/store.db, which is why it is not addressed by path. Use -p to name the
 project explicitly.
 
 Standalone store instead (mutually exclusive):
@@ -51,7 +51,7 @@ Outside a project and with no flag: same as --local (uses ./memory.db).`,
 	for _, cmd := range []*cobra.Command{importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd} {
 		AddResourceFlags(cmd)
 	}
-	// The project's content memory is a subsystem of `.kapi/store.db`, not a
+	// The project's content memory is a subsystem of `.kapi/work/store.db`, not a
 	// file a caller can name — so with no resource flag these resolve the
 	// project, and -p is how you say WHICH, exactly as for every other
 	// project-aware verb. It also matters under KAPI_NO_PROJECT, where the

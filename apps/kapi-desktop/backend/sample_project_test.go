@@ -200,7 +200,7 @@ func TestSampleProjectFilesExist(t *testing.T) {
 		"kapi.yaml",
 		"src/en/store-ui.json",
 		"web/en/getting-started.md",
-		".kapi/store.db",
+		".kapi/work/store.db",
 	} {
 		_, err := os.Stat(filepath.Join(dir, path))
 		assert.NoError(t, err, "missing: %s", path)

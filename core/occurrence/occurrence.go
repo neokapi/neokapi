@@ -40,7 +40,7 @@ import (
 const SourceLocale = blockstore.SourceLocale
 
 // Sources are the two subsystems the query joins. In a project both come off
-// one `.kapi/store.db` handle; standalone stores and the browser build's
+// one `.kapi/work/store.db` handle; standalone stores and the browser build's
 // in-memory backends satisfy the same interfaces.
 type Sources struct {
 	Terms  terms.Terminology

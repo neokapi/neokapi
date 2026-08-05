@@ -3,6 +3,7 @@ package project_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/project"
@@ -147,18 +148,84 @@ func TestLoadState_missingFileReturnsNil(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-// The store sits at the TOP of the state directory, not under cache/: it
-// carries staged decisions, so `rm -rf .kapi/cache` must not take it.
-func TestLayout_StorePathIsNotUnderCache(t *testing.T) {
+func testLayout(t *testing.T) project.Layout {
+	t.Helper()
 	root := t.TempDir()
-	layout := project.Layout{
+	return project.Layout{
 		Root:       root,
 		RecipePath: filepath.Join(root, project.RecipeFileName),
 		StateDir:   filepath.Join(root, project.StateDirName),
 	}
+}
 
-	assert.Equal(t, filepath.Join(layout.StateDir, "store.db"), layout.StorePath())
-	assert.Equal(t, filepath.Join(layout.StateDir, "store.json"), layout.StoreSidecarPath())
-	assert.Equal(t, layout.StateDir, filepath.Dir(layout.StorePath()))
+// The store sits at the TOP of the work directory, not under work/cache/: it
+// carries staged decisions, so `rm -rf .kapi/work/cache` must not take it.
+func TestLayout_StorePathIsNotUnderCache(t *testing.T) {
+	layout := testLayout(t)
+	work := filepath.Join(layout.StateDir, "work")
+
+	assert.Equal(t, filepath.Join(work, "store.db"), layout.StorePath())
+	assert.Equal(t, filepath.Join(work, "store.json"), layout.StoreSidecarPath())
+	assert.Equal(t, work, filepath.Dir(layout.StorePath()))
 	assert.NotEqual(t, layout.CacheDir(), filepath.Dir(layout.StorePath()))
+}
+
+// `.kapi/` splits exactly once: `work/` is machine state, everything else is
+// committed. That is the whole ignore rule, so it is asserted as one property —
+// every derived path sits under work/, and every authored one does not.
+func TestLayout_WorkHoldsEveryDerivedPath(t *testing.T) {
+	layout := testLayout(t)
+	work := layout.WorkDir() + string(filepath.Separator)
+
+	for name, path := range map[string]string{
+		"store":             layout.StorePath(),
+		"store sidecar":     layout.StoreSidecarPath(),
+		"cache":             layout.CacheDir(),
+		"extractions":       layout.ExtractionsDir(),
+		"collections":       layout.CollectionsDir(),
+		"vault":             layout.VaultDir(),
+		"redaction vault":   layout.RedactionVaultPath(),
+		"redaction sidecar": layout.RedactionSidecarPath("b-1"),
+	} {
+		assert.True(t, strings.HasPrefix(path, work), "%s must live under work/: %s", name, path)
+	}
+
+	committed := layout.StateDir + string(filepath.Separator)
+	for name, path := range map[string]string{
+		"context":   layout.ContextDir(),
+		"decisions": layout.DecisionsDir(),
+		"filters":   layout.FiltersPath(),
+	} {
+		assert.True(t, strings.HasPrefix(path, committed), "%s must live under .kapi/: %s", name, path)
+		assert.False(t, strings.HasPrefix(path, work), "%s is committed and must not live under work/: %s", name, path)
+	}
+
+	// The one gitignored path outside work/: personal, user-edited, and named
+	// individually by the ignore file for exactly that reason.
+	assert.Equal(t, filepath.Join(layout.StateDir, "filters.local.json"), layout.LocalFiltersPath())
+}
+
+// The decision record is context, not bookkeeping: it sits with the terms
+// bundle and the memory seeds, in the directory a reviewer reads.
+func TestLayout_DecisionsAreUnderContext(t *testing.T) {
+	layout := testLayout(t)
+	assert.Equal(t, filepath.Join(layout.StateDir, "context"), layout.ContextDir())
+	assert.Equal(t, filepath.Join(layout.ContextDir(), "decisions"), layout.DecisionsDir())
+	assert.Equal(t, filepath.Join(".kapi", "context", "terms.json"), project.RelContextPath("terms.json"))
+}
+
+// EnsureLayout scaffolds both halves, so a fresh project has somewhere to put
+// authored context and somewhere to put derived state before either is written.
+func TestEnsureLayout_createsContextAndWork(t *testing.T) {
+	root := t.TempDir()
+	recipe := filepath.Join(root, "kapi.yaml")
+	require.NoError(t, os.WriteFile(recipe, []byte("name: my-app\n"), 0o644))
+
+	layout, err := project.LayoutFor(recipe)
+	require.NoError(t, err)
+	require.NoError(t, project.EnsureLayout(layout))
+
+	assert.DirExists(t, layout.ContextDir())
+	assert.DirExists(t, layout.CacheDir())
+	assert.DirExists(t, layout.WorkDir())
 }

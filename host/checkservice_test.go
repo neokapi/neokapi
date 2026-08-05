@@ -161,15 +161,34 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 		assert.Equal(t, filepath.Join(root, "brand.yaml"), src)
 	})
 
-	t.Run("convention .kapi/brand.yaml", func(t *testing.T) {
+	t.Run("convention .kapi/context/brand-voice.yaml", func(t *testing.T) {
 		root := t.TempDir()
-		require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(root, project.StateDirName, "brand.yaml"), profileYAML, 0o644))
+		conv := filepath.Join(root, project.RelContextPath(BrandVoiceConventionalName))
+		require.NoError(t, os.MkdirAll(filepath.Dir(conv), 0o755))
+		require.NoError(t, os.WriteFile(conv, profileYAML, 0o644))
 		proj := &project.KapiProject{}
 		_, src, found, err := app.ResolveBrandProfile(ctx, proj, root, BrandResolveOptions{})
 		require.NoError(t, err)
 		require.True(t, found)
-		assert.Equal(t, filepath.Join(root, project.StateDirName, "brand.yaml"), src)
+		assert.Equal(t, conv, src)
+	})
+
+	// The context directory outranks the root, reversing the old order: `.kapi/`
+	// is committed now, so the conventional home and the reviewed home are the
+	// same directory.
+	t.Run("context directory outranks the root", func(t *testing.T) {
+		root := t.TempDir()
+		conv := filepath.Join(root, project.RelContextPath(BrandVoiceConventionalName))
+		require.NoError(t, os.MkdirAll(filepath.Dir(conv), 0o755))
+		require.NoError(t, os.WriteFile(conv, profileYAML, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"),
+			[]byte("id: root\nname: Root Style\n"), 0o644))
+
+		p, src, found, err := app.ResolveBrandProfile(ctx, &project.KapiProject{}, root, BrandResolveOptions{})
+		require.NoError(t, err)
+		require.True(t, found)
+		assert.Equal(t, "House Style", p.Name)
+		assert.Equal(t, conv, src)
 	})
 
 	t.Run("nothing bound", func(t *testing.T) {

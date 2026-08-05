@@ -19,7 +19,7 @@ import (
 //
 // The holder is a pointer so a converge worker can share the parent's — the
 // worker clone is a field-by-field copy, and two copies each opening
-// `.kapi/store.db` would be two connection pools on one SQLite file, which is
+// `.kapi/work/store.db` would be two connection pools on one SQLite file, which is
 // the writer contention the merged store exists to remove.
 type projectStores struct {
 	mu  sync.Mutex
@@ -107,7 +107,7 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 var ErrNoProjectGraph = fmt.Errorf("project graph: %w", storage.ErrNoSQLite)
 
 // ProjectGraph returns the property graph bound to the project's store — the
-// `graph_nodes` / `graph_edges` tables inside `.kapi/store.db`, migrated under
+// `graph_nodes` / `graph_edges` tables inside `.kapi/work/store.db`, migrated under
 // their own `graph` ledger beside the block cache, the terms store, the content
 // memory and the unit working set (AD-039).
 //
@@ -153,7 +153,7 @@ func (a *App) ProjectGraph(ctx context.Context, root string) (*graph.SQLiteGraph
 // when it arrived via `-p` — so the recipe path is deliberately left unset
 // rather than guessed.
 func projectLayoutAt(root string) project.Layout {
-	return project.Layout{Root: root, StateDir: filepath.Join(root, project.StateDirName)}
+	return project.LayoutAt(root)
 }
 
 // ShareProjectStores binds other to the stores this App holds, so the two Apps
@@ -163,7 +163,7 @@ func projectLayoutAt(root string) project.Layout {
 // (convergeWorker pre-seeds the parent's holder), and it exists for the same
 // reason. An embedding host that cannot live with a single App — the desktop
 // builds a fresh one per run so per-run state such as TargetLang stays owned —
-// would otherwise open `.kapi/store.db` once per App. The FIFO write gate is
+// would otherwise open `.kapi/work/store.db` once per App. The FIFO write gate is
 // per pool: two pools on one file cannot order their writers against each
 // other, and the tab-side working-set writes a review loop makes would go back
 // to losing to a run's content-memory writes on SQLite's busy backoff.

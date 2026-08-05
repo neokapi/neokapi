@@ -56,7 +56,7 @@ var migrations = []storage.Migration{
 // schema into it under the `graph` ledger.
 //
 // The store never owns db. Its intended local tenant is a project's merged
-// `.kapi/store.db`, where `graph_nodes` / `graph_edges` sit beside the block
+// `.kapi/work/store.db`, where `graph_nodes` / `graph_edges` sit beside the block
 // cache, the terms store, the content memory and the unit working set — which
 // is the whole point of the single file: an edge from a term to a block is a
 // join, not a cross-database merge. Whoever opened the pool closes it.

@@ -56,7 +56,7 @@ func TestCLIJSONContract(t *testing.T) {
 				Format:   "xliff2",
 				Targets:  []string{"fr", "de"},
 				Sources:  2,
-				Manifest: ".kapi/cache/extractions/0b6be731/manifest.yaml",
+				Manifest: ".kapi/work/cache/extractions/0b6be731/manifest.yaml",
 				Pairs: []output.ExtractPairOutput{
 					{TargetLocale: "fr", Files: 2, Blocks: 10, Leverage: output.LeverageOutput{Exact: 4, Fuzzy: 1, New: 5}},
 					{TargetLocale: "de", Files: 2, Blocks: 10, Leverage: output.LeverageOutput{New: 10}},
@@ -128,7 +128,7 @@ func TestCLIContractText(t *testing.T) {
 		Format:   "xliff2",
 		Targets:  []string{"fr", "de"},
 		Sources:  2,
-		Manifest: ".kapi/cache/extractions/0b6be731/manifest.yaml",
+		Manifest: ".kapi/work/cache/extractions/0b6be731/manifest.yaml",
 		Pairs: []output.ExtractPairOutput{
 			{TargetLocale: "fr", Files: 2, Blocks: 10, Leverage: output.LeverageOutput{Exact: 4, Fuzzy: 1, New: 5}},
 		},
@@ -142,7 +142,7 @@ func TestCLIContractText(t *testing.T) {
 			"\n"+
 			"  LOCALE  FILES  BLOCKS  EXACT  FUZZY  NEW\n"+
 			"  fr      2      10      4      1      5\n"+
-			"\nBatch 0b6be731-3a5c-4a02-9e04-2f79e4c2d1aa complete. Manifest: .kapi/cache/extractions/0b6be731/manifest.yaml\n"+
+			"\nBatch 0b6be731-3a5c-4a02-9e04-2f79e4c2d1aa complete. Manifest: .kapi/work/cache/extractions/0b6be731/manifest.yaml\n"+
 			"Reused 1 unchanged file(s) from a prior batch (no re-parse).\n"+
 			"Aggregate content-memory leverage: exact=4 fuzzy=1 new=15 (total=20)\n",
 		buf.String())

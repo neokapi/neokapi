@@ -72,7 +72,7 @@ func TestUpPlan_MemoryLeverageAndTokenEstimate(t *testing.T) {
 
 // TestUpPlan_NeverCreatesTheProjectStore is the invariant the merged store
 // sharpened. Leverage used to come from a `memory.db` a plan could decline to
-// open; it now comes from `.kapi/store.db`, and OPENING that store creates it —
+// open; it now comes from `.kapi/work/store.db`, and OPENING that store creates it —
 // the handle runs every subsystem's migrations at open.
 //
 // So a plan on a fresh project must reach its answer without opening anything,
@@ -83,7 +83,7 @@ func TestUpPlan_NeverCreatesTheProjectStore(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
-	storePath := filepath.Join(root, project.StateDirName, project.StoreFileName)
+	storePath := project.LayoutAt(root).StorePath()
 	require.NoFileExists(t, storePath, "the fixture starts with no store")
 
 	out, err := runUp(t, a, recipe, "--plan", "--json")

@@ -53,7 +53,7 @@ func variantText(k model.VariantKey) string {
 // case today, and both eras satisfy the same rule: "the document the unit was
 // decided in, as the connector names items".
 func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]platstore.UnitDecision, error) {
-	units, err := state.ReadCommitted(c.project.Layout.UnitsDir())
+	units, err := state.ReadCommitted(c.project.Layout.DecisionsDir())
 	if err != nil {
 		return nil, fmt.Errorf("read committed decisions: %w", err)
 	}

@@ -400,7 +400,7 @@ func TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt(t *testing.T)
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "tok")
 
 	// The App is what reaches the project's store, and it is what closes it:
-	// terminology now lives in `.kapi/store.db`, so pull, push and the connector
+	// terminology now lives in `.kapi/work/store.db`, so pull, push and the connector
 	// all go through the one handle this App memoizes for the root.
 	prev := app
 	app = &cli.App{}

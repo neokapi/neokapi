@@ -8,7 +8,7 @@
 // memory entries, an extraction holding a long purge-and-refill transaction
 // over the block cache, and a status poller reading unit state never contend
 // with one another, because they hold write locks on different files. Merged
-// into `.kapi/store.db` they all queue behind one lock, and `busy_timeout`
+// into `.kapi/work/store.db` they all queue behind one lock, and `busy_timeout`
 // (5s, set by core/storage) is the only thing between that queue and an
 // error.
 //
@@ -120,7 +120,7 @@ type topology string
 const (
 	// topoSplit is today's layout: four files, four independent write locks.
 	topoSplit topology = "split"
-	// topoMerged puts every subsystem in `.kapi/store.db` — the proposal.
+	// topoMerged puts every subsystem in `.kapi/work/store.db` — the proposal.
 	topoMerged topology = "merged"
 	// topoHybrid merges everything except the block cache, on the assumption
 	// that the block cache is the hottest writer. It is the first fallback
@@ -723,7 +723,7 @@ func makeUnitState(i int) state.UnitState {
 
 // projectLayout describes the synthetic project to core/projectdb. The paths
 // are the same ones newStorePaths computes for the merged topologies —
-// `.kapi/store.db` and `.kapi/units` — because project.Layout computes them the
+// `.kapi/work/store.db` and `.kapi/context/decisions` — because project.Layout computes them the
 // same way; the assertion in openRealProject keeps that true.
 func projectLayout(root string) project.Layout {
 	return project.Layout{

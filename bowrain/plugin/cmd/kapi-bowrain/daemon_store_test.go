@@ -26,7 +26,7 @@ func daemonProjectRoot(t *testing.T) string {
 
 // One process, one App, one store handle per project — however many projects the
 // daemon serves and however many RPCs land on each. A connector that opened a
-// store of its own would put a second connection pool on `.kapi/store.db`, and
+// store of its own would put a second connection pool on `.kapi/work/store.db`, and
 // the in-process write gate is per pool: it could not order a push's decision
 // staging against anything else the daemon writes to that project.
 func TestDaemon_OneStoreHandlePerProject(t *testing.T) {

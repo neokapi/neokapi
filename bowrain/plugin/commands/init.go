@@ -667,20 +667,16 @@ func finishInit(cwd string, recipe *project.Recipe) (*output.InitOutput, error) 
 	return out, nil
 }
 
-// writeStateGitignore drops a .gitignore inside the .kapi/ state dir so its
-// regenerable contents are excluded from version control: the cache root, plus
-// the rebuildable SQLite stores (content memory, terms, block store) and
-// their WAL sidecars. These are derived state — rebuilt from committed source
-// (recipe, target catalogs, the .terms.json/.memory.json sources) — never source of truth,
-// so they stay out of git. Committed state (manifest.yaml, flows/) is not
-// matched by these patterns.
+// writeStateGitignore drops core/project's two-line ignore rule inside the
+// `.kapi/` state dir: `work/` for machine state, `filters.local.json` for the
+// one personal file that is not derived. Everything else under there —
+// manifest.yaml, flows/, and the context sources — is authored and committed.
 func writeStateGitignore(proj *project.Project) error {
 	gitignorePath := filepath.Join(proj.StateDir(), ".gitignore")
 	if _, err := os.Stat(gitignorePath); err == nil {
 		return nil
 	}
-	const content = "cache/\n*.db\n*.db-shm\n*.db-wal\n"
-	return os.WriteFile(gitignorePath, []byte(content), 0o644)
+	return os.WriteFile(gitignorePath, []byte(coreproj.StateGitignore), 0o644)
 }
 
 func createExampleFlow(proj *project.Project) error {

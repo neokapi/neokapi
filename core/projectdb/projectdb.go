@@ -1,6 +1,6 @@
 // Package projectdb opens a kapi project's local store.
 //
-// One file — `.kapi/store.db` — holds every local projection the project keeps:
+// One file — `.kapi/work/store.db` — holds every local projection the project keeps:
 // the content memory, the terms store, the block cache and the unit working
 // set. Each subsystem migrates its own schema under its own ledger table
 // (`sievepen_migrations`, `termbase_migrations`, `cache_migrations`, `state`),
@@ -48,7 +48,7 @@
 //
 // Browser build: there is no file-backed SQLite driver, so storage.Open reports
 // storage.ErrNoSQLite and Open degrades — Work() still functions, backed by the
-// JSON sidecar at `.kapi/store.json`, while Memory(), Terms() and Blocks()
+// JSON sidecar at `.kapi/work/store.json`, while Memory(), Terms() and Blocks()
 // return nil. That is not a hole the browser ever falls into: the host injects
 // in-memory content-memory, terms and block backends before any browser code
 // path reaches a project store. The degraded handle exists so the review→approve
@@ -102,8 +102,8 @@ type DB struct {
 }
 
 // Open opens (creating it if absent) the project's store at layout.StorePath()
-// and runs every subsystem's migrations, then sweeps the predecessor four-file
-// layout out of the state directory.
+// and runs every subsystem's migrations, having first folded any earlier state
+// directory forward and then swept the predecessor four-file layout out of it.
 //
 // On a build with no file-backed SQLite driver it returns a degraded handle
 // rather than an error — see the package documentation.
@@ -111,9 +111,12 @@ func Open(ctx context.Context, layout project.Layout) (*DB, error) {
 	if layout.StateDir == "" {
 		return nil, errors.New("projectdb: layout has no state directory")
 	}
-	if err := os.MkdirAll(layout.StateDir, 0o755); err != nil {
-		return nil, fmt.Errorf("projectdb: create state dir: %w", err)
+	if err := os.MkdirAll(layout.WorkDir(), 0o755); err != nil {
+		return nil, fmt.Errorf("projectdb: create work dir: %w", err)
 	}
+	// Before the store opens: the fold moves the committed decision record the
+	// working store seeds from, so it has to land first.
+	foldLayoutForward(layout)
 
 	raw, err := storage.OpenWith(layout.StorePath(), storage.ProjectOptions())
 	if err != nil {
@@ -155,7 +158,7 @@ func (d *DB) bind(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("projectdb: bind block store (autocommit): %w", err)
 	}
-	work, err := state.OpenWorkFromDB(ctx, d.raw, d.layout.UnitsDir())
+	work, err := state.OpenWorkFromDB(ctx, d.raw, d.layout.DecisionsDir())
 	if err != nil {
 		return fmt.Errorf("projectdb: bind working store: %w", err)
 	}
@@ -166,7 +169,7 @@ func (d *DB) bind(ctx context.Context) error {
 // openDegraded builds the browser build's handle: a sidecar-backed working
 // store and nothing else.
 func openDegraded(ctx context.Context, layout project.Layout) (*DB, error) {
-	work, err := state.OpenWorkSidecar(ctx, layout.StoreSidecarPath(), layout.UnitsDir())
+	work, err := state.OpenWorkSidecar(ctx, layout.StoreSidecarPath(), layout.DecisionsDir())
 	if err != nil {
 		return nil, fmt.Errorf("projectdb: open working set sidecar: %w", err)
 	}

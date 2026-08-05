@@ -15,11 +15,11 @@ import (
 )
 
 // ExtractionsDirName is the subdirectory of CacheDir() that holds per-batch
-// extraction state (AD-017). The full path is .kapi/cache/extractions/.
+// extraction state (AD-017). The full path is .kapi/work/cache/extractions/.
 const ExtractionsDirName = "extractions"
 
 // CollectionsDirName is the subdirectory of CacheDir() that holds overlay
-// layers per content collection. The full path is .kapi/cache/collections/.
+// layers per content collection. The full path is .kapi/work/cache/collections/.
 const CollectionsDirName = "collections"
 
 // ExtractionManifestFilename is the manifest filename inside each
@@ -118,7 +118,7 @@ func (s *ExtractionLeverageStats) Add(other ExtractionLeverageStats) {
 }
 
 // ExtractionsRoot returns the directory that holds every extraction batch
-// for the project (.kapi/cache/extractions/).
+// for the project (.kapi/work/cache/extractions/).
 func ExtractionsRoot(layout Layout) string {
 	return layout.ExtractionsDir()
 }
