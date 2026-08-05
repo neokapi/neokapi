@@ -81,11 +81,14 @@ type Options struct {
 	SerializeWrites bool
 }
 
-// projectOptions is what a merged, multi-subsystem store wants: both halves.
+// ProjectOptions is what a merged, multi-subsystem store wants: both halves.
 // They belong together — the gate orders the writers this process controls, and
 // IMMEDIATE keeps the ones it does not (another kapi process on the same file)
 // in a queue SQLite will actually wait in rather than refuse.
-func projectOptions() Options {
+//
+// It is named rather than spelled out at the call site so that the two settings
+// stay one decision. core/projectdb is the caller.
+func ProjectOptions() Options {
 	return Options{ImmediateTx: true, SerializeWrites: true}
 }
 
