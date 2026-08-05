@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: Project state
-description: The committed unit record under .kapi/units — JSON Lines, one shard per document, one line per unit — the working set that stages decisions until kapi commit, and the unit state fields.
+description: The committed unit record under .kapi/context/decisions — JSON Lines, one shard per document, one line per unit — the working set that stages decisions until kapi commit, and the unit state fields.
 keywords:
   [
     project state,
@@ -15,7 +15,7 @@ keywords:
   ]
 ---
 
-# Project state (`.kapi/units/*.jsonl`)
+# Project state (`.kapi/context/decisions/*.jsonl`)
 
 Project state records **workflow decisions about units**: what has been
 reviewed, what was approved and by whom, what status a target has reached. It
@@ -27,8 +27,8 @@ Implemented in Go at
 ## The working set stages, the record commits
 
 A decision is recorded into a **working set** — the unit-state tables of
-[`.kapi/store.db`](/kapi/project-store) — and stays there until `kapi commit`
-materializes it into the committed record under `.kapi/units/`. The model is
+[`.kapi/work/store.db`](/kapi/project-store) — and stays there until `kapi commit`
+materializes it into the committed record under `.kapi/context/decisions/`. The model is
 deliberately the one you already know from git: decisions behave like staged
 changes, and you publish deliberately. `kapi status` reports what is staged, so
 nothing is lost silently.
@@ -48,7 +48,7 @@ The committed record is a directory of JSON Lines files, one per document
 scope, each line a single unit:
 
 ```
-.kapi/units/
+.kapi/context/decisions/
 ├── d-app-messages.jsonl
 └── d-guide-intro.jsonl
 ```
@@ -76,10 +76,12 @@ from escaping the directory.
 
 ## Why the record is committed and the store is not
 
-`.kapi/units/` sits inside `.kapi/`, and `.kapi/.gitignore` is what makes the
-distinction: `store.db` and `cache/` are excluded, `units/` is not. A record of
-who approved what must be reviewable and must survive a clone; the database that
-indexes it is rebuildable and belongs to one machine.
+`.kapi/context/decisions/` sits inside `.kapi/`, which is committed in full; only
+`.kapi/work/` is ignored, and that is where the store and its caches live. A
+record of who approved what must be reviewable and must survive a clone; the
+database that indexes it is rebuildable and belongs to one machine. The record
+sits beside the terms and the content memory it makes claims about, because it is
+one node of the same context graph.
 
 The [overview](/reference/serialization/overview) states the general rule, and
 [the project store](/kapi/project-store) covers the split in full.

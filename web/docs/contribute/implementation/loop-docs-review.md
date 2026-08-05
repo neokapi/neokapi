@@ -124,7 +124,7 @@ Bowrain funnel.
 | `kapi/recipes/pre-translate-from-memory.mdx` (Reuse what you've translated) | Correct | Content-memory recycle = phase-2 engine. Accurate. | No change. Optionally note recycle only ever runs on approved source. |
 | `kapi/recipes/machine-ship-strategy.mdx` (Tier gates per market) | Correct | Per-market target tiers, approver classes. Verified against `gates:` registry. | No change. |
 | `kapi/recipes/memory-and-terms-storage.mdx` (Where translations & terms live) | Correct | `kind:memory` vs `kind:review`, `defaults.memory_source`/`defaults.terms_source`. Accurate. | No change. |
-| `kapi/project-store.mdx` (The project store) | Correct | `.kapi/store.db`, `.kapi/units/`, derived state vs decisions. Accurate. | No change. |
+| `kapi/project-store.mdx` (The project store) | Correct | `.kapi/work/store.db`, `.kapi/context/decisions/`, derived state vs decisions. Accurate. | No change. |
 | `kapi/projects.mdx` (Projects) | Correct | Uses `PipelineDiagram`; loop mechanics accurate. | No change. |
 | `kapi/direct-execution-layer.mdx` (CLI layers) | Correct | Direct / flow / convergence layers; `kapi up` vs `kapi run` vs `kapi exec`. Accurate. | No change. |
 | `kapi/overview.mdx` (Overview) | Correct | "Keep your source right" then "every language caught up" — already source-first in spirit. | No change. |

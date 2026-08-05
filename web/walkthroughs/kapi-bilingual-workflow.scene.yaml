@@ -81,6 +81,6 @@ steps:
     narration: Merge reconciles targets onto the source files with full provenance.
     offline: false
   - comment: 5. kapi memory audit — trace what this merge wrote into the content memory
-  - command: kapi memory audit -p kapi.yaml --batch $(ls .kapi/cache/extractions | head -1) --limit 10
+  - command: kapi memory audit -p kapi.yaml --batch $(ls .kapi/work/cache/extractions | head -1) --limit 10
     narration: Every merge is provenance-tagged — proof of what came from which return.
     offline: false

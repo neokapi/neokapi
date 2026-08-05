@@ -374,10 +374,10 @@ export default function ProjectExplorer({
         portable file — built for ad-hoc, single-file hand-off. Same engine underneath.
       </p>
       <p style={{ fontSize: "0.85rem", opacity: 0.8, marginTop: "0.4rem" }}>
-        The <code>.kapi/store.db</code> store is <strong>regenerable</strong> — delete it and a
+        The <code>.kapi/work/store.db</code> store is <strong>regenerable</strong> — delete it and a
         re-run rebuilds it from what you committed. The one thing it can&rsquo;t rebuild is your{" "}
         <strong>authored decisions</strong>: approving a translation lands in{" "}
-        <code>.kapi/units/</code>, one JSONL shard per document, which you keep in git alongside
+        <code>.kapi/context/decisions/</code>, one JSONL shard per document, which you keep in git alongside
         your sources.
       </p>
 

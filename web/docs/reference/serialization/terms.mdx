@@ -24,7 +24,7 @@ the relations between them.
 Unlike content memory, a terms bundle is normally a **committed, git-tracked
 file**. It is the review surface — the artifact a person reads in a pull
 request when a term changes. The terms tables in the [project
-store](/kapi/project-store) (`.kapi/store.db`) are the gitignored index the
+store](/kapi/project-store) (`.kapi/work/store.db`) are the gitignored index the
 bundle compiles into, not the other way round.
 
 Implemented in Go at
@@ -45,18 +45,19 @@ Implemented in Go at
 When a flow needs a project's terms and the recipe does not bind one
 explicitly, kapi looks for a conventional bundle in this order:
 
-1. `<project-root>/terms.json`
-2. `<project-root>/.kapi/terms.json`
+1. `<project-root>/.kapi/context/terms.json`
+2. `<project-root>/terms.json`
 
-**Root first, and the reason matters.** `.kapi/` is gitignored. A terms bundle kept
-there would never appear in a diff, never be reviewed, and never survive a
-fresh clone — which is the opposite of what a terminology file is for. Putting
-the root location first means the conventional home for committed terms is
-the one that gets reviewed, and the `.kapi/` rung exists only for the case where
-a project genuinely wants a local, uncommitted one.
+**The context graph first.** `.kapi/context/` is where the rest of a project's
+governance lives — the brand voice, the memory seeds, the decision record — and
+terms are one node of that graph rather than a loose file beside it. It is
+committed, so a bundle kept there appears in a diff, gets reviewed, and survives
+a fresh clone. The root rung is for a project that would rather keep its terms at
+the top level; both are committed, so the ordering is about where a reader
+expects to look.
 
 The recipe binding wins over both. Setting `terms_source` in `kapi.yaml`
-names the file explicitly and skips the ladder entirely.
+names the file explicitly and skips the ladder entirely — it binds any path.
 
 ## Content memory has no equivalent ladder — deliberately
 
@@ -124,7 +125,7 @@ Reach for `bundle` whenever the file is staying inside kapi.
 
 ## What is deliberately not in it
 
-- **The compiled SQLite tables.** The terms tables in `.kapi/store.db` are
+- **The compiled SQLite tables.** The terms tables in `.kapi/work/store.db` are
   derived from the bundle and rebuilt on import.
 - **Match state.** Which blocks a term was found in is a check result, not a
   property of the terminology.

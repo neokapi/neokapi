@@ -59,7 +59,7 @@ content:
   - path: "docs/**/*.md"
 ```
 
-Commit the recipe. `kapi init` also writes `.kapi/.gitignore`, which keeps the regenerable parts of the [project store](/kapi/project-store) — `store.db` and `cache/` — out of git while `.kapi/units/`, the committed record of your review decisions, stays in. Every kapi command run anywhere in the tree finds the project by walking up, like git. See the [project file reference](/reference/project-file) for the full schema. When you're ready for AI-backed steps, `kapi models setup` detects what you already have — a Claude Code sign-in, Ollama, or an API key — and confirms it as the default ([Use with Claude](/kapi/get-started/use-with-claude)).
+Commit the recipe **and `.kapi/`** — that directory is your project's context (terms, content memory, brand voice, and the record of your review decisions), and it belongs in review like the rest of your source. `kapi init` writes a two-line ignore rule for the one part that is not: `.kapi/work/`, where the [project store](/kapi/project-store) and its caches are derived, plus `.kapi/filters.local.json` for your personal reader settings. Every kapi command run anywhere in the tree finds the project by walking up, like git. See the [project file reference](/reference/project-file) for the full schema. When you're ready for AI-backed steps, `kapi models setup` detects what you already have — a Claude Code sign-in, Ollama, or an API key — and confirms it as the default ([Use with Claude](/kapi/get-started/use-with-claude)).
 
 </TabItem>
 </Tabs>

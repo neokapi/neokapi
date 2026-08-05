@@ -59,7 +59,7 @@ Kapi doesn't have separate "ad-hoc commands" and "project commands" — it has o
 - **Ad-hoc** = the `file` binding — you name `-i`/`-o`.
 - **In a project**, the default *sink* is the **store** (a *process-only* run); an explicit `-o` forces a file instead.
 
-A process-only run persists only *working* output — target overlays in the block tables of `.kapi/store.db`, pre-merge. It never records a review **decision**: those are authored by `kapi apply` and published by `kapi commit` to `.kapi/units/`, not by a flow's sink. The store rebuilds from what the project commits; the decisions are the authored part. See [the project store](/kapi/project-store).
+A process-only run persists only *working* output — target overlays in the block tables of `.kapi/work/store.db`, pre-merge. It never records a review **decision**: those are authored by `kapi apply` and published by `kapi commit` to `.kapi/context/decisions/`, not by a flow's sink. The store rebuilds from what the project commits; the decisions are the authored part. See [the project store](/kapi/project-store).
 
 `--explain` prints the resolved binding without running:
 
@@ -125,7 +125,7 @@ Source travels as identity + a round-trip skeleton by default; `--with-source` e
 | `terms` | the authoritative terms (`.terms.json`) |
 | `history` | an advisory provenance chain (`--log`) |
 
-Deliberately **not** carried: `.kapi/cache/` (regenerable — parse cache, extractions, collections), credentials (they live in the OS keychain), and server sync tokens. A snapshot is state you could not recompute, never secrets and never derived data. A part with nothing in it is simply absent from the archive.
+Deliberately **not** carried: `.kapi/work/cache/` (regenerable — parse cache, extractions, collections), credentials (they live in the OS keychain), and server sync tokens. A snapshot is state you could not recompute, never secrets and never derived data. A part with nothing in it is simply absent from the archive.
 
 ```bash
 kapi info                        # this project: what a snapshot would capture

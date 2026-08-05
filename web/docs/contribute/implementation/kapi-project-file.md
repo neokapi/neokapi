@@ -216,8 +216,8 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
 ## The project store
 
 The recipe binds sources; the sources are the truth. A project keeps one local
-database, `.kapi/store.db` — a derived index over the committed sources
-(`terms_source`, `memory_source`), the unit-decision record under `.kapi/units/`,
+database, `.kapi/work/store.db` — a derived index over the committed sources
+(`terms_source`, `memory_source`), the unit-decision record under `.kapi/context/decisions/`,
 and the content files themselves — plus the working set of decisions staged since
 the last `kapi commit`. Every subsystem's tables live in that one file: block
 cache, terms store, content memory, working set, and the property graph. See
@@ -391,8 +391,8 @@ defaults:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  terms_source: context/terms.json
-  memory_source: context/memory.json
+  terms_source: .kapi/context/terms.json
+  memory_source: .kapi/context/memory.json
 
 content:
   # Bare entry — single glob, languages inherited from defaults.
