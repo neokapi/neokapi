@@ -61,6 +61,10 @@ type dmlParser struct {
 	extCx      int64
 	extCy      int64
 	groupDepth int
+	// phType is the current shape's placeholder type (<p:ph type>), cleared at
+	// each shape boundary. It is the only signal PresentationML gives for a
+	// paragraph's role — there is no w:pStyle on a slide.
+	phType string
 }
 
 // emuToPt converts English Metric Units (914400 EMU/inch, 12700 EMU/point) to
@@ -183,13 +187,41 @@ func (p *dmlParser) captureShapeGeometry(t xml.StartElement) {
 		p.hasOff, p.hasExt = false, false
 	case "sp", "pic", "graphicFrame", "cxnSp":
 		p.hasOff, p.hasExt = false, false
+		p.phType = ""
 		p.openShape()
+	case "ph":
+		// <p:ph type="title"|"ctrTitle"|"subTitle"|"body"|…> inside
+		// <p:nvSpPr><p:nvPr> — the shape's placeholder role on the slide
+		// layout. PresentationML has no w:pStyle: this element is the only
+		// thing that distinguishes a slide title from body text, so without it
+		// a deck's whole outline is invisible. ECMA-376-1 §19.3.1.36 makes
+		// "body" the default when the attribute is absent.
+		p.phType = attrVal(t, "type")
+		if p.phType == "" {
+			p.phType = "body"
+		}
 	case "cNvPr", "docPr":
 		// The shape's own id, which PowerPoint keeps across edits. It beats
 		// the positional step reserved when the shape opened.
 		if id := attrVal(t, "id"); id != "" {
 			p.setShapeID(id)
 		}
+	}
+}
+
+// placeholderRole maps the current shape's placeholder type to a semantic role
+// and heading level. A deck's outline lives entirely in these: the title
+// placeholder is the slide's heading, the subtitle a level below it. Anything
+// else — body text, a bare text box, a table cell — keeps the paragraph role it
+// already had, so this narrows to the outline and changes nothing else.
+func (p *dmlParser) placeholderRole() (string, int) {
+	switch p.phType {
+	case "ctrTitle", "title":
+		return model.RoleHeading, 1
+	case "subTitle":
+		return model.RoleHeading, 2
+	default:
+		return "", 0
 	}
 }
 
@@ -341,6 +373,9 @@ func (p *dmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 				p.skelWriteString("</a:p>")
 
 				block := p.buildBlock(blockID, merged, partPath)
+				if role, level := p.placeholderRole(); role != "" {
+					block.SetSemanticRole(role, level)
+				}
 				p.attachShapeGeometry(block)
 				applyPPTXPartFacets(block, partPath)
 				emitBlock(block)
