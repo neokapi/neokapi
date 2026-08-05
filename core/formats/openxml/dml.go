@@ -210,15 +210,18 @@ func (p *dmlParser) captureShapeGeometry(t xml.StartElement) {
 }
 
 // placeholderRole maps the current shape's placeholder type to a semantic role
-// and heading level. A deck's outline lives entirely in these: the title
-// placeholder is the slide's heading, the subtitle a level below it. Anything
-// else — body text, a bare text box, a table cell — keeps the paragraph role it
-// already had, so this narrows to the outline and changes nothing else.
+// and heading level. A deck's outline lives entirely in these, and
+// PresentationML distinguishes the deck title from a slide title precisely so a
+// consumer can nest them: ctrTitle (the title slide's title) heads the
+// document, an ordinary slide title heads a section under it, the subtitle
+// sits with the section titles. Anything else — body text, a bare text box, a
+// table cell — keeps the paragraph role it already had, so this narrows to the
+// outline and changes nothing else.
 func (p *dmlParser) placeholderRole() (string, int) {
 	switch p.phType {
-	case "ctrTitle", "title":
+	case "ctrTitle":
 		return model.RoleHeading, 1
-	case "subTitle":
+	case "title", "subTitle":
 		return model.RoleHeading, 2
 	default:
 		return "", 0

@@ -62,15 +62,21 @@ func TestSlideTitlePlaceholderBecomesHeading(t *testing.T) {
 		byText[b.text] = b
 	}
 
-	// The three slide titles.
-	for _, title := range []string{"Welcome to KapiMart", "Getting Started", "Next Steps"} {
+	// The deck title (ctrTitle on the title slide) heads the document.
+	deck, ok := byText["Welcome to KapiMart"]
+	require.True(t, ok, "expected a block for the deck title")
+	assert.Equal(t, model.RoleHeading, deck.role)
+	assert.Equal(t, 1, deck.level, "the deck title is the only level-1 heading")
+
+	// Ordinary slide titles head sections under it.
+	for _, title := range []string{"Getting Started", "Next Steps"} {
 		b, ok := byText[title]
 		require.True(t, ok, "expected a block for %q", title)
 		assert.Equal(t, model.RoleHeading, b.role, "%q is a slide title", title)
-		assert.Equal(t, 1, b.level, "%q should be a level-1 heading", title)
+		assert.Equal(t, 2, b.level, "%q should nest under the deck title", title)
 	}
 
-	// The subtitle sits one level below its title.
+	// The subtitle sits below the deck title, with the section titles.
 	sub, ok := byText["Partner Onboarding Guide"]
 	require.True(t, ok)
 	assert.Equal(t, model.RoleHeading, sub.role)

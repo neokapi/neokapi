@@ -133,3 +133,27 @@ func TestWorksheetTitleRowBecomesCaptionNotHeader(t *testing.T) {
 	assert.True(t, strings.HasPrefix(lines[1], "| ---"),
 		"row after %q should be the delimiter row, got %q", lines[0], lines[1])
 }
+
+// A deck has one deck title and many slide titles, and PresentationML says
+// which is which (ctrTitle vs title). Flattening them all to h1 loses the
+// outline (#1681): the title slide heads the document, each further slide
+// heads a section.
+func TestSlideTitlesNestUnderTheDeckTitle(t *testing.T) {
+	reg := convRegistry()
+	f := convFixture{name: "pptx/deck", path: "../../apps/kapi-desktop/backend/sample/kapimart/marketing/en/onboarding-deck.pptx", format: "openxml"}
+	md, err := convertOnce(reg, loadFixture(t, f.path), f)
+	require.NoError(t, err)
+	out := string(md)
+
+	assert.Contains(t, out, "# Welcome to KapiMart\n", "ctrTitle is the deck's h1")
+	assert.Contains(t, out, "## Getting Started", "a slide title is an h2")
+	assert.Contains(t, out, "## Next Steps", "a slide title is an h2")
+
+	var h1s int
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "# ") {
+			h1s++
+		}
+	}
+	assert.Equal(t, 1, h1s, "exactly one h1: the deck title")
+}
