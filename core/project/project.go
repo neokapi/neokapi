@@ -62,7 +62,7 @@ type KapiProject struct {
 	// the wrong one half the time. The taxonomy is the project's own — product,
 	// channel, market, tenant — and a named collection names the point its
 	// content sits at (ContentCollection.Context). Both empty means the whole
-	// project sits at one point, under defaults.brand_voice / defaults.terms.
+	// project sits at one point, under defaults.brand_voice / defaults.terms_source.
 	// See coordinates.go.
 	Coordinates Coordinates      `yaml:"coordinates,omitempty" json:"coordinates,omitempty"`
 	Profiles    []ProfileBinding `yaml:"profiles,omitempty" json:"profiles,omitempty"`

@@ -367,18 +367,18 @@ export default function ProjectExplorer({
       </div>
 
       <p style={{ fontSize: "0.85rem", opacity: 0.8, marginTop: "0.6rem" }}>
-        A <strong>project</strong> keeps config in a committed <code>.kapi</code> recipe and its
+        A <strong>project</strong> keeps config in a committed <code>kapi.yaml</code> recipe and its
         working state in a <code>.kapi/</code> dir — built for teams and servers. A run is{" "}
         <strong>process-only</strong>: it commits to the project store, then <code>merge</code>{" "}
         writes the files. A <strong>.kpz workspace</strong> folds the same content + work into one
         portable file — built for ad-hoc, single-file hand-off. Same engine underneath.
       </p>
       <p style={{ fontSize: "0.85rem", opacity: 0.8, marginTop: "0.4rem" }}>
-        The <code>.kapi/</code> store is <strong>regenerable</strong> — delete it and a re-run
-        rebuilds it. The one thing it can&rsquo;t rebuild is your{" "}
-        <strong>authored decisions</strong>: approving a translation lands in a committed{" "}
-        <code>.kapi-state.json</code> state store you keep in git, separate from the cache and the
-        content memory.
+        The <code>.kapi/store.db</code> store is <strong>regenerable</strong> — delete it and a
+        re-run rebuilds it from what you committed. The one thing it can&rsquo;t rebuild is your{" "}
+        <strong>authored decisions</strong>: approving a translation lands in{" "}
+        <code>.kapi/units/</code>, one JSONL shard per document, which you keep in git alongside
+        your sources.
       </p>
 
       <GateOverlay

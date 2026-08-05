@@ -60,7 +60,7 @@ steps:
   # committed and seeded as a native .memory.json bundle — see
   # kapi-project-workflow — so this is a one-time migration, not the normal path.
   - comment: 1. Interop — a one-time import of a corporate TMX exported from an external TMS
-  - command: kapi memory import corporate.tmx --file .kapi/memory.db --all-pairs
+  - command: kapi memory import corporate.tmx -p kapi.yaml --all-pairs
     narration: Crossing the boundary from an incumbent TMS. TMX is the interchange tier — lossy, but it is what the outside world speaks. From here on the project's own content memory is native.
     offline: false
   - comment: 2. kapi extract — one XLIFF per target locale, with Memory pre-fill
@@ -81,6 +81,6 @@ steps:
     narration: Merge reconciles targets onto the source files with full provenance.
     offline: false
   - comment: 5. kapi memory audit — trace what this merge wrote into the content memory
-  - command: kapi memory audit --file .kapi/memory.db --batch $(ls .kapi/cache/extractions | head -1) --limit 10
+  - command: kapi memory audit -p kapi.yaml --batch $(ls .kapi/cache/extractions | head -1) --limit 10
     narration: Every merge is provenance-tagged — proof of what came from which return.
     offline: false

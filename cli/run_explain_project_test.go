@@ -72,9 +72,13 @@ func assertNoRunSideEffects(t *testing.T, root string, locales ...string) {
 	cache := filepath.Join(root, project.StateDirName, "cache")
 	_, err := os.Stat(cache)
 	assert.True(t, os.IsNotExist(err), "explain must not create the project cache (%s)", cache)
-	tm := filepath.Join(root, project.StateDirName, "memory.db")
-	_, err = os.Stat(tm)
-	assert.True(t, os.IsNotExist(err), "explain must not create the project content memory (%s)", tm)
+	// Every subsystem shares the one store now, and opening it runs their
+	// migrations — so "must not create the content memory" is the same
+	// assertion as "must not create the store", and only the latter can
+	// still fail.
+	store := filepath.Join(root, project.StateDirName, project.StoreFileName)
+	_, err = os.Stat(store)
+	assert.True(t, os.IsNotExist(err), "explain must not create the project store (%s)", store)
 }
 
 // TestRunProjectFlow_ExplainIsDryRun reproduces #1295: `kapi run
