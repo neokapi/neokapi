@@ -55,11 +55,11 @@ kapi pull --force
 
 ## What Happens
 
-1. **Read sync cursor** from `.kapi/cache/sync-cache.json`
+1. **Read sync cursor** from `.kapi/work/cache/sync-cache.json`
 2. **Query server** via `GET /api/v1/projects/:id/sync/pull?cursor=X&locales=...`
    - Server returns only changes since the cursor (O(changes), not O(total))
    - Paginated: follows `has_more` until all changes are consumed
-3. **Update `.kapi/cache/sync-cache.json`** with new cursor
+3. **Update `.kapi/work/cache/sync-cache.json`** with new cursor
 
 ## Locale Scoping
 

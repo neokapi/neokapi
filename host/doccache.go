@@ -38,7 +38,7 @@ func hashKey(s string) string {
 //     and the document's log + skeleton refs.
 //
 // Invariant: a pure optimization over the files. The index key includes the
-// content hash + config, so a stale entry is never served; delete `.kapi/cache`
+// content hash + config, so a stale entry is never served; delete `.kapi/work/cache`
 // and a re-read reconstructs identical results.
 type docCache struct {
 	DB  *storage.DB

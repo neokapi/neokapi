@@ -243,8 +243,8 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	}
 
 	// Findings — the ChecksPanel checkset scoped to this block.
-	profile := a.resolveProjectBrandProfile(op)
-	dntTerms := a.resolveProjectDNTTerms(op, sourceLang)
+	profile := a.resolveProjectBrandProfile(ctx, op)
+	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 	detail.Findings = a.blockCheckFindings(ctx, b, loc, profile, dntTerms)
 
 	// Recorded decision + provenance from the project state store, when the
@@ -329,8 +329,8 @@ func (a *App) GetReviewQueue(tabID string) ([]host.ReviewItem, error) {
 	defer cancel()
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
-	profile := a.resolveProjectBrandProfile(op)
-	dntTerms := a.resolveProjectDNTTerms(op, sourceLang)
+	profile := a.resolveProjectBrandProfile(ctx, op)
+	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 
 	// Group items by (file, locale) so each pair is read and overlaid once.
 	type scope struct{ file, locale string }

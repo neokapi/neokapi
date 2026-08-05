@@ -220,10 +220,10 @@ through a single command, `kapi apply` (the write sibling of `kapi inspect`):
 | `kind` | What it edits | How it lands |
 |---|---|---|
 | `content` | a block's text in a named `file` | byte-faithful format round-trip, drift- and inline-code guarded |
-| `term` | a term | committed `.terms.json` source → terms import → the terms tables of `.kapi/store.db` |
-| `memory` | a content-memory pair | committed `.memory.json` source → memory import → the memory tables of `.kapi/store.db` |
+| `term` | a term | committed `.terms.json` source → terms import → the terms tables of `.kapi/work/store.db` |
+| `memory` | a content-memory pair | committed `.memory.json` source → memory import → the memory tables of `.kapi/work/store.db` |
 | `brand` | a brand vocabulary rule | committed brand profile YAML → brand-store import ([AD-022](022-brand-voice.md)) |
-| `review` | a unit's review decision | staged in the working set, published to `.kapi/units/` by `kapi commit` ([AD-033](033-project-state-model.md)) |
+| `review` | a unit's review decision | staged in the working set, published to `.kapi/context/decisions/` by `kapi commit` ([AD-033](033-project-state-model.md)) |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load/save |
 
 Two properties make this one verb rather than five:

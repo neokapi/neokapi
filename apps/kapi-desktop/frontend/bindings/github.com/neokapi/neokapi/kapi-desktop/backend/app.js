@@ -1733,7 +1733,7 @@ export function PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang)
  * Two kinds of file arrive here and they part company in what "aside" costs. A
  * STANDALONE store — one the user opened by path, or a named store under
  * `~/.config/kapi` — is one content memory or one terms store, and moving it
- * aside loses exactly that. A PROJECT store is `.kapi/store.db`, where the
+ * aside loses exactly that. A PROJECT store is `.kapi/work/store.db`, where the
  * content memory, terms, block cache and unit working set share one file: moving
  * it aside takes all four. That is the documented trade of merging them, and it
  * is affordable because every one of those is a projection rebuilt from

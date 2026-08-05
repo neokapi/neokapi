@@ -413,7 +413,8 @@ type BrandResolveOptions struct {
 //     defaults.brand_voice (profile_file → YAML, pack → built-in starter pack,
 //     profile → local brand store). profile_file is resolved relative to the
 //     project root.
-//  2. A convention file at <root>/brand.yaml, then <root>/.kapi/brand.yaml.
+//  2. A convention file at <root>/.kapi/context/brand-voice.yaml, then
+//     <root>/brand.yaml.
 //
 // What the recipe binds is *loaded* here and then handed to the framework's one
 // resolution chain (brand.ResolveProfileFromContext) at the collection tier,
@@ -485,11 +486,7 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 		return nil, rc, "", false, err
 	}
 	if !found {
-		// Convention files at the project root.
-		for _, conv := range []string{
-			filepath.Join(root, "brand.yaml"),
-			filepath.Join(root, project.StateDirName, "brand.yaml"),
-		} {
+		for _, conv := range brandProfileConventions(root) {
 			p, lerr := loadProfileFile(conv)
 			if lerr != nil {
 				return nil, rc, "", false, lerr
@@ -501,6 +498,28 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 		}
 	}
 	return profile, rc, src, found, nil
+}
+
+// BrandVoiceConventionalName is the brand voice profile's name when a project
+// keeps a single one at the conventional location, matching kmb/ktb's
+// ConventionalName for the other two context sources.
+const BrandVoiceConventionalName = "brand-voice.yaml"
+
+// brandProfileConventions lists the well-known profile locations, in the order
+// an unbound project is searched.
+//
+// The context directory comes FIRST, and that is a reversal. The root spelling
+// used to lead because `.kapi/` was machine state that git ignored, so a
+// profile kept there would never be reviewed. `.kapi/` is now committed, and
+// `.kapi/context/` is the place its authored sources live — beside the terms
+// bundle and the memory seeds, which is where a reader looks for the voice.
+// The root spelling stays second: it is what `kapi brand new -o brand.yaml`
+// writes, and a project that keeps its profile there is not wrong.
+func brandProfileConventions(root string) []string {
+	return []string{
+		filepath.Join(root, project.RelContextPath(BrandVoiceConventionalName)),
+		filepath.Join(root, "brand.yaml"),
+	}
 }
 
 // loadBoundBrandProfile turns a resolved voice binding into a VoiceProfile.

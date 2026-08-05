@@ -46,7 +46,7 @@ the server during pull. The resolution order is:
 Server metadata is cached locally so subsequent operations don't require a
 network round-trip.
 
-## Sync Cache (`.kapi/cache/sync-cache.json`) Format
+## Sync Cache (`.kapi/work/cache/sync-cache.json`) Format
 
 ```json
 {

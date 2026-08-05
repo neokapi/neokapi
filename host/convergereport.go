@@ -125,7 +125,7 @@ func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, lo
 // translation it judges, so a later edit invalidates a stale decision. The unit
 // is addressed by (file, key, locale) as listed in the review queue; the method
 // re-reads the exact target text before recording. `kapi commit` writes it on
-// into the committed record under `.kapi/units/` — distinct from the
+// into the committed record under `.kapi/context/decisions/` — distinct from the
 // `.memory.json`, which stays the recycle corpus.
 //
 // decision is one of ReviewDecisionApproved (→ reviewed), ReviewDecisionSignedOff

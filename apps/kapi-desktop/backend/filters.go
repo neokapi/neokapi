@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/id"
@@ -155,13 +156,7 @@ func (f ProjectFilter) FilesNarrowed() bool {
 // project-relative path) passes the filter's collection + glob narrowing.
 func (f ProjectFilter) MatchesFile(collection, relative string) bool {
 	if len(f.Collections) > 0 && collection != "" {
-		found := false
-		for _, c := range f.Collections {
-			if c == collection {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(f.Collections, collection)
 		if !found {
 			return false
 		}
@@ -260,7 +255,10 @@ func removeFilterFromFile(path, filterID string) {
 }
 
 // ensureLocalFiltersGitignored makes sure .kapi/.gitignore excludes the personal
-// filters file, matching the convention that the cache/ subdir is ignored.
+// filters file. An absent ignore file is seeded with the whole standard rule —
+// the personal filters line is half of it — rather than with that line alone,
+// so a project the desktop touches first ends up with the same two lines
+// `kapi init` writes.
 func ensureLocalFiltersGitignored(layout project.Layout) error {
 	path := filepath.Join(layout.StateDir, ".gitignore")
 	existing, _ := os.ReadFile(path)
@@ -269,8 +267,9 @@ func ensureLocalFiltersGitignored(layout project.Layout) error {
 		return nil
 	}
 	if content == "" {
-		content = "cache/\n" // seed with the standard ignore
-	} else if !strings.HasSuffix(content, "\n") {
+		return os.WriteFile(path, []byte(project.StateGitignore), 0o644)
+	}
+	if !strings.HasSuffix(content, "\n") {
 		content += "\n"
 	}
 	content += project.LocalFiltersFilename + "\n"

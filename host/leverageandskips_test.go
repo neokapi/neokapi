@@ -88,7 +88,7 @@ func TestComputeProjectPlan_UnopenableStoreFailsThePlan(t *testing.T) {
 
 // TestComputeProjectPlan_AbsentStorePlansAtZeroLeverage is the discriminating
 // control, and it pins the invariant the merged store made sharper: a plan never
-// creates `.kapi/store.db`.
+// creates `.kapi/work/store.db`.
 //
 // Opening the store is what creates it — the handle runs every subsystem's
 // migrations at open — so the guard cannot be "open it and see". Most projects

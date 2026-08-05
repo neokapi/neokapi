@@ -1748,9 +1748,9 @@ func conceptsFromKTB(path string) ([]sqltb.Concept, error) {
 // committed terms bundle, or "" when there is none.
 //
 // An explicit defaults.terms_source binding wins. With none, the well-known
-// locations are searched, mirroring the ladder the brand voice profile already
-// uses (<root>/brand.yaml, then <root>/.kapi/brand.yaml): a project that keeps
-// its glossary at the conventional path needs no recipe entry at all.
+// locations are searched, mirroring the ladder the brand voice profile uses: a
+// project that keeps its glossary at the conventional path needs no recipe
+// entry at all.
 //
 // A collection whose profile binds its own terms has named the vocabulary for
 // that content, and the project-wide committed source then belongs to other
@@ -1803,15 +1803,18 @@ func (a *App) resolveProjectTermsSourcePath(cmd Command, collection string) (str
 // firstExistingTermsBundle returns the first well-known terms bundle present
 // under root, or "" when none is.
 //
-// The repository-root spelling is listed first because the bundle is a
-// committed source: .kapi/ is kapi's state directory and is ignored by git and
-// by kapi's own default ignore set, so a glossary kept there would never be
-// reviewed. It is searched second only so a project that deliberately treats
-// its glossary as local state still resolves.
+// The context directory is searched FIRST, which reverses the old order. The
+// repository-root spelling used to lead because the bundle is a committed
+// source and `.kapi/` was machine state that git ignored — a glossary kept
+// there would never have reached review. `.kapi/` is now committed, and
+// `.kapi/context/` is where its authored sources live, so the conventional home
+// and the reviewed home are the same directory. The root spelling stays
+// second: a project that keeps its glossary beside its content is not wrong,
+// and dropping the rung would silently unbind it.
 func firstExistingTermsBundle(root string) string {
 	for _, candidate := range []string{
+		filepath.Join(root, project.RelContextPath(ktb.ConventionalName)),
 		filepath.Join(root, ktb.ConventionalName),
-		filepath.Join(root, project.StateDirName, ktb.ConventionalName),
 	} {
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate

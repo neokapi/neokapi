@@ -19,21 +19,31 @@ kapi init --name my-app --source-locale en --target-locale fr --target-locale de
 # --framework <preset>  pre-fills content paths; kapi init --list-presets shows them all
 ```
 
-This writes `kapi.yaml` (the recipe, committed), the context sources it binds
-(`context/terms.json`, `context/memory.json` — committed), and a `.kapi/`
-directory. Two things inside `.kapi/` matter to you:
+This writes `kapi.yaml` (the recipe) and a `.kapi/` directory. **`.kapi/` is
+committed** — it is the project's context, not scratch space. Git it like source.
 
-- **`.kapi/units/*.jsonl`** — the unit-decision record, one shard per document.
-  Committed. `kapi commit` publishes review decisions into it; then `git add` it
-  like any other source file.
-- **`.kapi/store.db`** — the local index over the recipe, the context sources,
-  the unit record and the content files. Gitignored. Never read or write it
-  directly and never commit it; go through kapi commands, which are what keep it
-  consistent with the sources.
+- **`.kapi/context/`** — the context graph, all committed: `terms.json`,
+  `memory.json`, `brand-voice.yaml`, and `decisions/*.jsonl`, the unit-decision
+  record (one shard per document). `kapi commit` publishes review decisions into
+  `decisions/`; then `git add` it like any other source file.
+- **`.kapi/work/`** — everything derived, and the only gitignored path.
+  `store.db` is the local index over the recipe, the context sources and the
+  content files. Never read or write it directly and never commit it; go through
+  kapi commands, which are what keep it consistent with the sources.
 
-`rm -rf .kapi/cache` is always safe — everything under it rebuilds on the next
-run. Deleting `.kapi/store.db` is safe too, except for review decisions staged
-since the last `kapi commit`, which live only there: run `kapi commit` first.
+The ignore rule `kapi init` writes is two lines — `/.kapi/work/` and
+`/.kapi/filters.local.json` (a developer's personal reader settings). If you see
+a project ignoring more of `.kapi/` than that, it is stale.
+
+Deleting:
+
+- `rm -rf .kapi/work/cache` is **always** safe — everything under it rebuilds on
+  the next run.
+- `rm -rf .kapi/work` costs two things. Review decisions staged since the last
+  `kapi commit` live only in `store.db` — run `kapi commit` first. And if the
+  project uses redaction, `.kapi/work/vault/` holds the withheld originals, which
+  are local-only by design and rebuild from nothing: merge any batch that is out
+  with a translator before clearing it.
 
 ## What the recipe binds
 
@@ -48,14 +58,15 @@ content:
     target: src/locales/{lang}.json
 defaults:
   brand_voice:
-    profile_file: brand.yaml   # or: profile: <store name> | pack: marketing-blog
-  terms_source: context/terms.json    # the committed terms source
-  memory_source: context/memory.json  # the committed content memory
+    profile_file: .kapi/context/brand-voice.yaml   # or: profile: <store name> | pack: marketing-blog
+  terms_source: .kapi/context/terms.json    # the committed terms source
+  memory_source: .kapi/context/memory.json  # the committed content memory
 ```
 
 - **Brand voice** — bind it under `defaults.brand_voice`, or just keep a
-  `brand.yaml` (or `.kapi/brand.yaml`) in the project; `kapi brand check <file>`,
-  `brand rewrite`, and `brand guide` then resolve it with no flag.
+  `.kapi/context/brand-voice.yaml` (or a `brand.yaml` at the project root); `kapi
+  brand check <file>`, `brand rewrite`, and `brand guide` then resolve it with no
+  flag.
 - **More than one voice in one repo** — declare the axes your content varies
   along under `coordinates:`, bind a voice (and optionally terms) to a region of
   that space under `profiles:`, then place each *named* collection at its point.
@@ -69,10 +80,10 @@ defaults:
 
   profiles:
     - when: {}                       # the base voice
-      voice: context/base-voice.yaml
+      voice: .kapi/context/base-voice.yaml
     - when: { product: platform }
-      voice: context/platform-voice.yaml
-      terms: context/platform-terms.json   # optional; falls back to defaults.terms_source
+      voice: .kapi/context/platform-voice.yaml
+      terms: .kapi/context/platform-terms.json   # optional; falls back to defaults.terms_source
 
   content:
     - name: platform-docs

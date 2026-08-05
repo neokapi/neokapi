@@ -293,7 +293,7 @@ func TestMemoryExport(t *testing.T) {
 // TestMemoryLeverage exercises content-memory leverage via `kapi exec recycle` (the raw
 // registry layer — the porcelain surface folded content memory reuse into `kapi translate`
 // and retired the standalone top-level verb) against an external content memory via --memory. It accepts --memory (and, inside a project, the content memory in
-// `.kapi/store.db`), and — since the
+// `.kapi/work/store.db`), and — since the
 // #700 fix wired SourceLocale from --source-lang — it fills targets from
 // exact content-memory matches: "Settings" and "File upload" (both in project.tmx) are
 // leveraged into their French equivalents in the output.

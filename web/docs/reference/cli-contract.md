@@ -69,7 +69,7 @@ One document per batch: identity (`batch_id`, `manifest`), the extraction inputs
   "format": "xliff2",
   "targets": ["fr", "de"],
   "sources": 2,
-  "manifest": ".kapi/cache/extractions/0b6be731/manifest.yaml",
+  "manifest": ".kapi/work/cache/extractions/0b6be731/manifest.yaml",
   "pairs": [
     {
       "target_locale": "fr",

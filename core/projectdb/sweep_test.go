@@ -14,20 +14,35 @@ import (
 	"github.com/neokapi/neokapi/core/state"
 )
 
-// The predecessor layout, spelled here as the test's own fixture. The names are
-// no longer constants anywhere: core/projectdb keeps private copies precisely so
-// nothing live can reach for one, and a test that borrowed them would assert
-// against the implementation rather than against the disk.
+// The two predecessor layouts, spelled here as the test's own fixtures. The
+// names are no longer constants anywhere: core/projectdb keeps private copies
+// precisely so nothing live can reach for one, and a test that borrowed them
+// would assert against the implementation rather than against the disk.
+func flatCacheDir(layout project.Layout) string {
+	return filepath.Join(layout.StateDir, "cache")
+}
+
+func flatStorePath(layout project.Layout) string {
+	return filepath.Join(layout.StateDir, "store.db")
+}
+
+func flatDecisionsDir(layout project.Layout) string {
+	return filepath.Join(layout.StateDir, "units")
+}
+
+func flatVaultDir(layout project.Layout) string {
+	return filepath.Join(layout.StateDir, "vault")
+}
+
 func oldBlockStorePath(layout project.Layout) string {
-	return filepath.Join(layout.CacheDir(), "blocks.db")
+	return filepath.Join(flatCacheDir(layout), "blocks.db")
 }
 
-func oldWorkDir(layout project.Layout) string {
-	return filepath.Join(layout.StateDir, "work")
-}
-
+// oldWorkStorePath is the four-file layout's working store. Its directory is
+// the one the current layout keeps ALL machine state in, so the file goes and
+// the directory stays — the one asymmetry these tests exist to pin.
 func oldWorkStorePath(layout project.Layout) string {
-	return filepath.Join(oldWorkDir(layout), "state.db")
+	return filepath.Join(layout.WorkDir(), "state.db")
 }
 
 // predecessorFiles lists everything the four-file layout left in a state
@@ -56,8 +71,8 @@ func predecessorFiles(layout project.Layout) []string {
 // already written for real, and is left alone here.
 func writePredecessorLayout(t *testing.T, layout project.Layout) {
 	t.Helper()
-	require.NoError(t, os.MkdirAll(layout.CacheDir(), 0o755))
-	require.NoError(t, os.MkdirAll(oldWorkDir(layout), 0o755))
+	require.NoError(t, os.MkdirAll(flatCacheDir(layout), 0o755))
+	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
 	for _, path := range predecessorFiles(layout) {
 		if _, err := os.Stat(path); err == nil {
 			continue
@@ -71,7 +86,8 @@ func assertPredecessorsGone(t *testing.T, layout project.Layout) {
 	for _, path := range predecessorFiles(layout) {
 		assert.NoFileExists(t, path)
 	}
-	assert.NoDirExists(t, oldWorkDir(layout), "the work directory goes once it is empty")
+	assert.NoDirExists(t, flatCacheDir(layout), "the flat cache root goes whole")
+	assert.DirExists(t, layout.WorkDir(), "the work directory is the live machine-state root, not a leftover")
 }
 
 // A staged decision is the one thing a predecessor working store holds that no
@@ -82,11 +98,11 @@ func TestSweep_CarriesStagedDecisionsForward(t *testing.T) {
 
 	// A committed record the new working store will re-seed from, so the test
 	// can tell a carried decision from a re-derived one.
-	require.NoError(t, state.WriteCommitted(layout.UnitsDir(), []state.UnitState{
+	require.NoError(t, state.WriteCommitted(layout.DecisionsDir(), []state.UnitState{
 		unit("u-committed", "d-intro", "Already committed"),
 	}))
 
-	old, err := state.OpenWork(t.Context(), oldWorkStorePath(layout), layout.UnitsDir())
+	old, err := state.OpenWork(t.Context(), oldWorkStorePath(layout), layout.DecisionsDir())
 	require.NoError(t, err)
 	require.NoError(t, old.Put(t.Context(), unit("u-staged", "d-intro", "Staged, never committed")))
 	pending, err := old.Pending(t.Context())
@@ -119,10 +135,10 @@ func TestSweep_CarriesStagedDecisionsForward(t *testing.T) {
 // stood in for. Same contract: staged decisions come across, the file goes.
 func TestSweep_CarriesStagedDecisionsFromSidecar(t *testing.T) {
 	layout := newLayout(t)
-	require.NoError(t, os.MkdirAll(oldWorkDir(layout), 0o755))
+	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
 
-	sidecar := filepath.Join(oldWorkDir(layout), "state.json")
-	old, err := state.OpenWorkSidecar(t.Context(), sidecar, layout.UnitsDir())
+	sidecar := filepath.Join(layout.WorkDir(), "state.json")
+	old, err := state.OpenWorkSidecar(t.Context(), sidecar, layout.DecisionsDir())
 	require.NoError(t, err)
 	require.NoError(t, old.Put(t.Context(), unit("u-sidecar", "d-intro", "Staged in the browser")))
 	require.NoError(t, old.Close())
@@ -136,7 +152,6 @@ func TestSweep_CarriesStagedDecisionsFromSidecar(t *testing.T) {
 	assert.Equal(t, "u-sidecar", staged[0].Unit)
 
 	assert.NoFileExists(t, sidecar)
-	assert.NoDirExists(t, oldWorkDir(layout))
 }
 
 // No predecessor is the ordinary case, and the common one after the first
@@ -148,7 +163,7 @@ func TestSweep_NoPredecessorIsNoOp(t *testing.T) {
 	pending, err := db.Work().Pending(t.Context())
 	require.NoError(t, err)
 	assert.Zero(t, pending)
-	assert.NoDirExists(t, oldWorkDir(layout))
+	assert.NoFileExists(t, oldWorkStorePath(layout))
 
 	// Re-opening finds nothing to sweep and changes nothing.
 	require.NoError(t, db.Close())
@@ -175,13 +190,12 @@ func TestSweep_RunsOnEveryOpen(t *testing.T) {
 func TestSweep_LeavesUnrecognisedWorkDirContents(t *testing.T) {
 	layout := newLayout(t)
 	writePredecessorLayout(t, layout)
-	stray := filepath.Join(oldWorkDir(layout), "notes.txt")
+	stray := filepath.Join(layout.WorkDir(), "notes.txt")
 	require.NoError(t, os.WriteFile(stray, []byte("mine"), 0o644))
 
 	openStore(t, layout)
 
 	assert.FileExists(t, stray)
-	assert.DirExists(t, oldWorkDir(layout))
 	assert.NoFileExists(t, oldWorkStorePath(layout), "the store this package owns still goes")
 }
 
@@ -190,7 +204,7 @@ func TestSweep_LeavesUnrecognisedWorkDirContents(t *testing.T) {
 // about to be deleted.
 func TestSweep_UnreadablePredecessorDoesNotFailOpen(t *testing.T) {
 	layout := newLayout(t)
-	require.NoError(t, os.MkdirAll(oldWorkDir(layout), 0o755))
+	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
 	require.NoError(t, os.WriteFile(oldWorkStorePath(layout), []byte("this is not a database"), 0o644))
 
 	db, err := projectdb.Open(t.Context(), layout)
@@ -199,4 +213,202 @@ func TestSweep_UnreadablePredecessorDoesNotFailOpen(t *testing.T) {
 
 	require.NotNil(t, db.Work())
 	assert.NoFileExists(t, oldWorkStorePath(layout))
+}
+
+// ─── the flat layout: units, vault and the store hung straight off `.kapi/` ──
+
+// The committed decision record is authored data. It MOVES, byte for byte:
+// a shard that arrived rewritten, or arrived not at all, is review history
+// silently rewritten by a directory rename.
+func TestFold_MovesCommittedDecisionsIntoContext(t *testing.T) {
+	layout := newLayout(t)
+	require.NoError(t, state.WriteCommitted(flatDecisionsDir(layout), []state.UnitState{
+		unit("u-flat", "d-intro", "Committed under the flat layout"),
+	}))
+
+	shards, err := os.ReadDir(flatDecisionsDir(layout))
+	require.NoError(t, err)
+	require.Len(t, shards, 1)
+	before, err := os.ReadFile(filepath.Join(flatDecisionsDir(layout), shards[0].Name()))
+	require.NoError(t, err)
+
+	db := openStore(t, layout)
+
+	after, err := os.ReadFile(filepath.Join(layout.DecisionsDir(), shards[0].Name()))
+	require.NoError(t, err, "the shard landed under .kapi/context/decisions/")
+	assert.Equal(t, before, after, "the committed record moves byte-identical")
+	assert.NoDirExists(t, flatDecisionsDir(layout), "an emptied source directory goes")
+
+	// And it is a record, not just a file: the working store seeded from it,
+	// which is why the fold has to precede the open.
+	_, ok := db.Work().Get(t.Context(), state.Key{Unit: "u-flat", Variant: model.Variant("nb")})
+	assert.True(t, ok, "the moved record seeded the working set on this same open")
+}
+
+// The vault holds the only copy of a withheld original. It moves for the same
+// reason the decision record does, and is the one thing under work/ that kapi
+// never deletes on its own initiative.
+func TestFold_MovesVaultIntoWork(t *testing.T) {
+	layout := newLayout(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(flatVaultDir(layout), "batches"), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(flatVaultDir(layout), "redaction.json"),
+		[]byte(`{"secret":"the original"}`), 0o600))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(flatVaultDir(layout), "batches", "b-1.json"),
+		[]byte(`{"secret":"nested"}`), 0o600))
+
+	openStore(t, layout)
+
+	moved, err := os.ReadFile(layout.RedactionVaultPath())
+	require.NoError(t, err, "the project vault landed under .kapi/work/vault/")
+	assert.JSONEq(t, `{"secret":"the original"}`, string(moved))
+
+	nested, err := os.ReadFile(filepath.Join(layout.VaultDir(), "batches", "b-1.json"))
+	require.NoError(t, err, "a subdirectory of the vault moves whole")
+	assert.JSONEq(t, `{"secret":"nested"}`, string(nested))
+
+	assert.NoDirExists(t, flatVaultDir(layout))
+}
+
+// The per-batch redaction sidecars are the one thing under the cache root that
+// no rerun reproduces: they hold the originals withheld from an extract → merge
+// batch, so a batch still in flight cannot be restored without them. They move
+// out before the cache root is deleted.
+func TestFold_MovesRedactionSidecarsOutOfTheCache(t *testing.T) {
+	layout := newLayout(t)
+	flatRedaction := filepath.Join(flatCacheDir(layout), "redaction")
+	require.NoError(t, os.MkdirAll(flatRedaction, 0o755))
+
+	sidecar := []byte(`{"placeholder":"[[EMAIL_1]]","original":"ada@example.com"}`)
+	require.NoError(t, os.WriteFile(filepath.Join(flatRedaction, "b-inflight.json"), sidecar, 0o600))
+	// Something regenerable in the same cache root, to show the move is
+	// targeted rather than a reprieve for the whole directory.
+	require.NoError(t, os.MkdirAll(filepath.Join(flatCacheDir(layout), "docs"), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(flatCacheDir(layout), "docs", "parsed.json"), []byte("cached"), 0o644))
+
+	openStore(t, layout)
+
+	moved, err := os.ReadFile(layout.RedactionSidecarPath("b-inflight"))
+	require.NoError(t, err, "the batch sidecar landed under .kapi/work/cache/redaction/")
+	assert.Equal(t, sidecar, moved, "the withheld originals move byte-identical")
+
+	assert.NoDirExists(t, flatCacheDir(layout), "the rest of the flat cache still goes")
+}
+
+// A sidecar already at the destination is not overwritten, and the source is
+// not deleted unread — losing an original is the failure this fold exists to
+// avoid, so a collision is left for a person to resolve.
+func TestFold_RedactionSidecarCollisionKeepsBothCopies(t *testing.T) {
+	layout := newLayout(t)
+	flatRedaction := filepath.Join(flatCacheDir(layout), "redaction")
+	require.NoError(t, os.MkdirAll(flatRedaction, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(flatRedaction, "b-1.json"), []byte(`{"original":"the flat copy"}`), 0o600))
+
+	require.NoError(t, os.MkdirAll(filepath.Dir(layout.RedactionSidecarPath("b-1")), 0o755))
+	current := []byte(`{"original":"the current copy"}`)
+	require.NoError(t, os.WriteFile(layout.RedactionSidecarPath("b-1"), current, 0o600))
+
+	openStore(t, layout)
+
+	kept, err := os.ReadFile(layout.RedactionSidecarPath("b-1"))
+	require.NoError(t, err)
+	assert.Equal(t, current, kept, "the destination sidecar is never overwritten")
+	assert.FileExists(t, filepath.Join(flatRedaction, "b-1.json"),
+		"and the source stays, visibly, rather than being deleted unread")
+}
+
+// The flat store and cache are projections under a path nothing reads any
+// more. They go; nothing is carried out of them.
+func TestFold_RetiresFlatStoreAndCache(t *testing.T) {
+	layout := newLayout(t)
+	require.NoError(t, os.MkdirAll(filepath.Join(flatCacheDir(layout), "extractions"), 0o755))
+	for _, path := range []string{
+		flatStorePath(layout),
+		flatStorePath(layout) + "-wal",
+		flatStorePath(layout) + "-shm",
+		filepath.Join(layout.StateDir, "store.json"),
+		filepath.Join(flatCacheDir(layout), "extractions", "b-1.json"),
+	} {
+		require.NoError(t, os.WriteFile(path, []byte("flat"), 0o644))
+	}
+
+	openStore(t, layout)
+
+	for _, path := range []string{
+		flatStorePath(layout),
+		flatStorePath(layout) + "-wal",
+		flatStorePath(layout) + "-shm",
+		filepath.Join(layout.StateDir, "store.json"),
+	} {
+		assert.NoFileExists(t, path)
+	}
+	assert.NoDirExists(t, flatCacheDir(layout))
+	assert.FileExists(t, layout.StorePath(), "the live store is the one under work/")
+}
+
+// The second open must find nothing to do. A fold that ran twice on a project
+// that had already been folded would be a fold that could move live data.
+func TestFold_SecondOpenIsANoOp(t *testing.T) {
+	layout := newLayout(t)
+	require.NoError(t, state.WriteCommitted(flatDecisionsDir(layout), []state.UnitState{
+		unit("u-flat", "d-intro", "Committed under the flat layout"),
+	}))
+	require.NoError(t, os.MkdirAll(flatVaultDir(layout), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(flatVaultDir(layout), "redaction.json"), []byte(`{"a":1}`), 0o600))
+
+	db := openStore(t, layout)
+	require.NoError(t, db.Close())
+
+	shards, err := os.ReadDir(layout.DecisionsDir())
+	require.NoError(t, err)
+	require.Len(t, shards, 1)
+	firstShard, err := os.ReadFile(filepath.Join(layout.DecisionsDir(), shards[0].Name()))
+	require.NoError(t, err)
+	firstVault, err := os.ReadFile(layout.RedactionVaultPath())
+	require.NoError(t, err)
+
+	openStore(t, layout)
+
+	secondShard, err := os.ReadFile(filepath.Join(layout.DecisionsDir(), shards[0].Name()))
+	require.NoError(t, err)
+	secondVault, err := os.ReadFile(layout.RedactionVaultPath())
+	require.NoError(t, err)
+	assert.Equal(t, firstShard, secondShard)
+	assert.Equal(t, firstVault, secondVault)
+	assert.NoDirExists(t, flatDecisionsDir(layout))
+	assert.NoDirExists(t, flatVaultDir(layout))
+}
+
+// A collision is the case where losing something is possible, so it is the case
+// the fold refuses to resolve: the destination wins, the source stays put, and
+// the leftover directory is what tells a person there was a conflict at all.
+func TestFold_CollisionKeepsBothCopies(t *testing.T) {
+	layout := newLayout(t)
+	require.NoError(t, state.WriteCommitted(flatDecisionsDir(layout), []state.UnitState{
+		unit("u-old", "d-intro", "The flat copy"),
+	}))
+	shards, err := os.ReadDir(flatDecisionsDir(layout))
+	require.NoError(t, err)
+	require.Len(t, shards, 1)
+
+	// A shard already at the destination, holding a different decision for the
+	// same document — the shape a half-migrated project would arrive in.
+	require.NoError(t, state.WriteCommitted(layout.DecisionsDir(), []state.UnitState{
+		unit("u-current", "d-intro", "The current copy"),
+	}))
+	occupied := filepath.Join(layout.DecisionsDir(), shards[0].Name())
+	before, err := os.ReadFile(occupied)
+	require.NoError(t, err)
+
+	openStore(t, layout)
+
+	kept, err := os.ReadFile(occupied)
+	require.NoError(t, err)
+	assert.Equal(t, before, kept, "the destination is never overwritten")
+	assert.FileExists(t, filepath.Join(flatDecisionsDir(layout), shards[0].Name()),
+		"and the source stays, visibly, rather than being deleted unread")
 }

@@ -10,36 +10,62 @@ import (
 	"github.com/neokapi/neokapi/core/state"
 )
 
-// sweepPredecessors retires the four-file layout the merged store replaces:
-// `memory.db`, `terms.db`, `cache/blocks.db` with its two stamp sidecars, and
-// `work/state.db` — plus `tm.db` and `termbase.db`, the spellings the
-// vocabulary sweep renamed out of existence one layout earlier.
+// Two generations of state directory are folded forward here, and they are
+// folded by two different rules.
 //
-// Only staged decisions are carried forward. Everything else in those files is
-// a projection of a committed source — the content memory rebuilds from the
-// loop, the terms store compiles from committed sources, the block cache
-// re-extracts, the working set re-seeds from `.kapi/units/` — so a migration
-// would be work spent reproducing what the next command derives anyway. That is
-// the standing preference for resetting over migrating; it holds precisely
-// because these files are not sources of truth.
+// The four-file layout the merged store replaced — `memory.db`, `terms.db`,
+// `cache/blocks.db` with its two stamp sidecars, and `work/state.db`, plus the
+// `tm.db`/`termbase.db` spellings the vocabulary sweep renamed before that — is
+// RETIRED. Only staged decisions are carried out of it. Everything else in those
+// files is a projection of a committed source: the content memory rebuilds from
+// the loop, the terms store compiles from committed sources, the block cache
+// re-extracts, the working set re-seeds from the committed decision record. A
+// migration would be work spent reproducing what the next command derives
+// anyway. That is the standing preference for resetting over migrating, and it
+// holds precisely because these files are not sources of truth.
 //
-// A staged decision is the exception, and the only one: between the decision and
-// the next commit, the working store holds its only copy. So those are read out
-// and put into the merged store before the old file is deleted.
+// The flat layout that followed — everything hanging directly off `.kapi/` — is
+// MOVED, because two of its directories hold things no source reproduces. The
+// committed decision record is authored data; the vault holds the only copies of
+// withheld originals. Those are relocated, never deleted. The rest of that
+// generation (`store.db`, its sidecar, `cache/`) is projection again, and goes
+// the way the four-file layout went.
 //
-// Best-effort throughout. A predecessor file that will not delete is not worth
-// failing a project open over, and the deletions are all idempotent — the sweep
-// costs four stats on every subsequent open and finds nothing.
+// A staged decision is the one exception on the retire side, and the only one:
+// between the decision and the next commit, the working store holds its only
+// copy. So those are read out and put into the merged store before the old file
+// is deleted.
+//
+// Best-effort throughout. A predecessor that will not delete, or a shard that
+// will not move, is not worth failing a project open over — a failed move leaves
+// the data where it was, which is the safe direction. Every fold is idempotent:
+// after the first open they cost a handful of stats and find nothing.
 //
 // The retired names are spelled here rather than read from core/project's
-// layout: they name files no live code path writes any more, so they are this
+// layout: they name paths no live code path writes any more, so they are this
 // package's business alone. Leaving constants for them in the layout would
 // invite a new caller to reach for one.
+
+// foldLayoutForward relocates what the previous layout kept in places the
+// current one no longer reads. Filesystem only, and it runs BEFORE the store
+// opens, because one of the two moves carries the committed decision record the
+// working store seeds itself from — folded afterwards, the first open of an
+// upgraded project would come up with an empty working set.
+func foldLayoutForward(layout project.Layout) {
+	moveDirContents(flatDecisionsDir(layout), layout.DecisionsDir())
+	moveDirContents(flatVaultDir(layout), layout.VaultDir())
+	// Before the cache root is deleted, and that ordering is the whole point.
+	moveDirContents(flatRedactionDir(layout), currentRedactionDir(layout))
+	retireFlatProjections(layout)
+}
+
+// sweepPredecessors carries staged decisions out of the four-file layout's
+// working store and then deletes that layout's databases. Runs after the store
+// is open, because the carry needs somewhere to put what it reads.
 func sweepPredecessors(ctx context.Context, layout project.Layout, into *DB) {
 	carryStagedForward(ctx, layout, into)
 
-	blocks := oldBlockStorePath(layout)
-	remove := []string{blocks, oldWorkStorePath(layout)}
+	remove := []string{oldBlockStorePath(layout), oldWorkStorePath(layout)}
 	for _, name := range oldStateDirDatabases {
 		remove = append(remove, filepath.Join(layout.StateDir, name))
 	}
@@ -48,15 +74,16 @@ func sweepPredecessors(ctx context.Context, layout project.Layout, into *DB) {
 	}
 	// The block store's stamps moved into the store_meta table; its sidecars
 	// are named after the database file that no longer exists.
-	_ = os.Remove(blocks + ".kapiversion")
-	_ = os.Remove(blocks + ".sources.json")
+	_ = os.Remove(oldBlockStorePath(layout) + ".kapiversion")
+	_ = os.Remove(oldBlockStorePath(layout) + ".sources.json")
 	// The browser build's predecessor sidecar, and the partial write its
 	// atomic-rename persist can leave behind.
 	_ = os.Remove(oldWorkSidecarPath(layout))
 	_ = os.Remove(oldWorkSidecarPath(layout) + ".tmp")
-	// Removes the work directory only once it is empty, which is the point:
-	// anything else that ended up in there is not ours to delete.
-	_ = os.Remove(oldWorkDir(layout))
+	// The work directory itself is NOT removed. `.kapi/work/` was the four-file
+	// layout's home for `state.db` and is the current layout's home for
+	// everything machine-local, so the same path means two different things
+	// either side of this sweep — and the live one is the meaning that counts.
 }
 
 // oldStateDirDatabases are the top-level state-directory databases the merged
@@ -66,18 +93,91 @@ func sweepPredecessors(ctx context.Context, layout project.Layout, into *DB) {
 // both generations are listed.
 var oldStateDirDatabases = []string{"memory.db", "terms.db", "tm.db", "termbase.db"}
 
-const oldWorkDirName = "work"
+// flatCacheDir, flatDecisionsDir and flatVaultDir name the flat layout's
+// directories: the generation that hung everything directly off `.kapi/`,
+// before `work/` collected the machine state and `context/` collected the
+// committed sources.
+func flatCacheDir(layout project.Layout) string {
+	return filepath.Join(layout.StateDir, project.CacheDirName)
+}
 
+func flatDecisionsDir(layout project.Layout) string {
+	return filepath.Join(layout.StateDir, "units")
+}
+
+func flatVaultDir(layout project.Layout) string {
+	return filepath.Join(layout.StateDir, project.VaultDirName)
+}
+
+// flatRedactionDir is the per-batch redaction sidecar directory under the flat
+// cache root, and currentRedactionDir is where it lands.
+//
+// This one moves even though it is under a cache, which looks like an exception
+// and is not. The sidecars hold the ORIGINALS withheld from an extract → merge
+// batch, so a batch still in flight cannot be restored without them — the same
+// property that put the project-scoped vault outside cache/ in the first place.
+// "`rm -rf` the cache is free" is a promise about work a rerun reproduces, and
+// it does not stretch to cover a pending batch's only copy of its own inputs.
+//
+// A user who deletes the directory themselves has still made that choice. This
+// fold is not the user, and a layout move is not the moment to make it for them.
+func flatRedactionDir(layout project.Layout) string {
+	return filepath.Join(flatCacheDir(layout), project.RedactionDirName)
+}
+
+func currentRedactionDir(layout project.Layout) string {
+	return filepath.Join(layout.CacheDir(), project.RedactionDirName)
+}
+
+// retireFlatProjections deletes the flat layout's derived state: the store, its
+// browser-build sidecar, and whatever is left of the cache root once the
+// redaction sidecars have been moved out of it by the caller. Every one of them
+// rebuilds from a committed source, and the one thing in the flat store that
+// did not — a staged decision — is not carried across: the fold runs before any
+// store is open, and opening the old one to read it would mean two pools on two
+// schemas that are byte-identical apart from their path. The trade is
+// deliberate and bounded at the decisions staged between two releases a day
+// apart.
+//
+// Callers must fold anything unreproducible out of the cache root first. Today
+// that is exactly one directory; if a second ever appears, it belongs beside the
+// first in foldLayoutForward, not in an exception carved out down here.
+func retireFlatProjections(layout project.Layout) {
+	removeDatabase(filepath.Join(layout.StateDir, project.StoreFileName))
+	sidecar := filepath.Join(layout.StateDir, project.StoreSidecarFileName)
+	_ = os.Remove(sidecar)
+	_ = os.Remove(sidecar + ".tmp")
+
+	// Entry by entry rather than RemoveAll, so a redaction sidecar the move
+	// left behind is not deleted by the cleanup that follows it. Stranding a
+	// withheld original and then removing its directory anyway would make the
+	// careful move upstream worth nothing.
+	entries, err := os.ReadDir(flatCacheDir(layout))
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.Name() == project.RedactionDirName {
+			continue
+		}
+		_ = os.RemoveAll(filepath.Join(flatCacheDir(layout), e.Name()))
+	}
+	// Succeeds only once nothing is left, which is exactly when no sidecar was
+	// stranded.
+	_ = os.Remove(flatCacheDir(layout))
+}
+
+// oldBlockStorePath is the four-file layout's block cache, under the FLAT cache
+// root — the only cache root that layout ever had.
 func oldBlockStorePath(layout project.Layout) string {
-	return filepath.Join(layout.CacheDir(), "blocks.db")
+	return filepath.Join(flatCacheDir(layout), "blocks.db")
 }
 
-func oldWorkDir(layout project.Layout) string {
-	return filepath.Join(layout.StateDir, oldWorkDirName)
-}
-
+// oldWorkStorePath is the four-file layout's working store. It sits in the
+// directory that is now the whole machine-state root, which is why this deletes
+// a file and never its parent.
 func oldWorkStorePath(layout project.Layout) string {
-	return filepath.Join(oldWorkDir(layout), "state.db")
+	return filepath.Join(layout.WorkDir(), "state.db")
 }
 
 // removeDatabase deletes a SQLite database and the WAL sidecars that outlive an
@@ -95,6 +195,38 @@ func removeDatabase(path string) {
 func oldWorkSidecarPath(layout project.Layout) string {
 	db := oldWorkStorePath(layout)
 	return strings.TrimSuffix(db, filepath.Ext(db)) + ".json"
+}
+
+// moveDirContents moves every entry of src into dst and removes src once it is
+// empty. Used for the two directories whose contents no source reproduces.
+//
+// An entry whose destination already exists is left where it is, and so is one
+// whose move fails. Both leave src behind, visibly, with the data still in it —
+// which is the point. This function's job is to lose nothing; a directory that
+// outlives the fold is something a person can look at and resolve, a shard
+// silently overwritten by another is not.
+func moveDirContents(src, dst string) {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return
+	}
+	if len(entries) == 0 {
+		_ = os.Remove(src)
+		return
+	}
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		return
+	}
+	for _, e := range entries {
+		to := filepath.Join(dst, e.Name())
+		if _, err := os.Lstat(to); err == nil {
+			continue
+		}
+		_ = os.Rename(filepath.Join(src, e.Name()), to)
+	}
+	// Succeeds only when every entry moved, which is exactly when src has
+	// nothing left to say.
+	_ = os.Remove(src)
 }
 
 // carryStagedForward moves the decisions staged in a predecessor working store
@@ -128,14 +260,14 @@ func carryStagedForward(ctx context.Context, layout project.Layout, into *DB) {
 // that was not there.
 func openPredecessorWork(ctx context.Context, layout project.Layout) (*state.WorkStore, bool) {
 	if exists(oldWorkStorePath(layout)) {
-		w, err := state.OpenWork(ctx, oldWorkStorePath(layout), layout.UnitsDir())
+		w, err := state.OpenWork(ctx, oldWorkStorePath(layout), layout.DecisionsDir())
 		if err != nil {
 			return nil, false
 		}
 		return w, true
 	}
 	if sidecar := oldWorkSidecarPath(layout); exists(sidecar) {
-		w, err := state.OpenWorkSidecar(ctx, sidecar, layout.UnitsDir())
+		w, err := state.OpenWorkSidecar(ctx, sidecar, layout.DecisionsDir())
 		if err != nil {
 			return nil, false
 		}

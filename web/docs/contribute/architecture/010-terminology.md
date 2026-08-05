@@ -135,30 +135,32 @@ projection, not a two-way sync:
   reviewed in a PR, and versioned with the code. It is plain JSON under a
   compound suffix, so a reviewer reads it in a browser diff and `jq` reads it on
   the command line.
-- the **terms tables inside `.kapi/store.db` are a rebuildable projection** of
-  it ([AD-039](039-local-context-graph-store.md)), gitignored and rebuilt when
+- the **terms tables inside `.kapi/work/store.db` are a rebuildable projection**
+  of it ([AD-039](039-local-context-graph-store.md)), gitignored and rebuilt when
   the committed bundle changes (content-hash guarded). Discard them, rebuild from
   the bundle, lose nothing — **nothing authoritative ever lives only in the
   database**. Committing the binary SQLite would be git-hostile (opaque,
   conflict-prone) and would defeat interchange.
 
-A project that binds nothing still resolves, through a fallback ladder. The
-ordering follows from the bundle being *committed source*, so read it that way
-rather than as an exception to the "state lives in `.kapi/`" rule:
-**`.kapi/` is gitignored** (this repository's own `.gitignore` carries `/.kapi/`,
-and it is inside kapi's default ignore set), so a terms source kept there would never
-be committed, never appear in a diff, and never reach review — which is the one
-thing the terms source exists to do. The repository root therefore comes first:
+A project that binds nothing still resolves, through a fallback ladder:
 
-1. `<root>/terms.json` — the committed terms source.
-2. `<root>/.kapi/terms.json` — second, and only so a project that deliberately
-   treats its terms as local, uncommitted state still resolves.
+1. `<root>/.kapi/context/terms.json` — the conventional home, inside the
+   committed context graph ([AD-008](008-project-model.md)).
+2. `<root>/terms.json` — a project that keeps its terms at the repository root.
 
-An explicit `defaults.terms_source` wins over both. This is the same ladder
-shape the brand-voice profile uses ([AD-022](022-brand-voice.md)). The recipe
-binds only the *source*; the derived database has no recipe key, which is what
-keeps the two from being confused — treating the portable JSON bundle as if it
-were the SQLite store is what puts a terms source under `.kapi/` in the first place.
+An explicit `defaults.terms_source` wins over both, and binds any path. The
+conventional home comes first because that is where the rest of the project's
+context lives — the brand voice, the memory seeds, the decision record — and
+terms are one node of that graph rather than a loose file beside it. Both rungs
+are committed and both reach review, which is the one thing the terms source
+exists to do; the ordering is about where a reader expects to find it, not about
+which one is safe.
+
+This is the same ladder shape the brand-voice profile uses
+([AD-022](022-brand-voice.md)). The recipe binds only the *source*; the derived
+database has no recipe key, which is what keeps the two from being confused —
+treating the portable JSON bundle as if it were the SQLite store is what makes
+someone reach for a path under `.kapi/work/`.
 
 A ladder works here because **a project has exactly one set of terms**. Content
 memory has no equivalent convention, and deliberately so — a project accumulates

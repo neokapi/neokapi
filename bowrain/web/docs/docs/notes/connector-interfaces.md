@@ -39,7 +39,7 @@ type SourceConnector interface {
 }
 ```
 
-One client-side implementation is `BowrainSourceConnector` -- the kapi connector that syncs `.kapi` projects (recipe + state dir) with Bowrain Server via REST API. Server-side connectors (CMS, design tools, git) implement the same interfaces.
+One client-side implementation is `BowrainSourceConnector` -- the kapi connector that syncs `.kapi` projects (recipe + .kapi/) with Bowrain Server via REST API. Server-side connectors (CMS, design tools, git) implement the same interfaces.
 
 ## ConnectorBase (Shared)
 

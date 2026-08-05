@@ -269,16 +269,14 @@ func TestProjectStoreIsOneHandleAndServesConcurrentReaders(t *testing.T) {
 	var wg sync.WaitGroup
 	errs := make(chan error, 24)
 	for range 24 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			sess, err := store.Begin(context.Background())
 			if err != nil {
 				errs <- err
 				return
 			}
 			_ = sess.Close()
-		}()
+		})
 	}
 	wg.Wait()
 	close(errs)

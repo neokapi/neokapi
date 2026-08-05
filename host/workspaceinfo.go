@@ -133,7 +133,7 @@ var archivePartAbsentNotes = map[string]string{
 
 // projectArchiveExcluded names what a snapshot deliberately omits.
 var projectArchiveExcluded = []string{
-	".kapi/cache/ (regenerable: parse cache, extractions, collections)",
+	".kapi/work/cache/ (regenerable: parse cache, extractions, collections)",
 	"credentials (OS keychain, never in an archive)",
 	"server sync tokens",
 }
@@ -184,7 +184,7 @@ func (a *App) RunProjectInfo(cmd Command) error {
 		part("sources", "", countPackableSources(layout), 0),
 	)
 
-	// Three of the parts now live in one file, so each names `.kapi/store.db`
+	// Three of the parts now live in one file, so each names `.kapi/work/store.db`
 	// and only the whole-store size is reportable. Per-part BYTES would be a
 	// fiction — there is no per-schema size in a SQLite file — so the size is
 	// carried once, on the first part, and the counts do the distinguishing.

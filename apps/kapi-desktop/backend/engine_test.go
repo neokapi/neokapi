@@ -30,7 +30,7 @@ func storeProject(t *testing.T, app *App) (*TabInfo, string) {
 
 // The desktop used to build a second host.App for a converge run while a tab
 // held the project's stores open. Two Apps meant two connection pools on one
-// `.kapi/store.db`, and the in-process write gate is per pool: it could order
+// `.kapi/work/store.db`, and the in-process write gate is per pool: it could order
 // neither set of writers against the other, which is the starvation the merged
 // store exists to remove. A run-scoped App now borrows the engine's stores, so
 // the run, the tab and the review loop reach one handle.
@@ -115,7 +115,7 @@ func TestRecoverResource_ProjectStoreReleasesTheHandle(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, db.Raw())
 
-	storePath := filepath.Join(root, project.StateDirName, project.StoreFileName)
+	storePath := project.LayoutAt(root).StorePath()
 	bak, err := app.RecoverResource(storePath)
 	require.NoError(t, err)
 
@@ -148,15 +148,18 @@ func TestRecoverResource_StandaloneStoreMovesOnlyItsOwnFile(t *testing.T) {
 // projectStoreRoot must recognize a project's own store and nothing else: a
 // named store that happens to be called store.db is still standalone.
 func TestProjectStoreRoot(t *testing.T) {
-	root, ok := projectStoreRoot(filepath.Join("/p", project.StateDirName, project.StoreFileName))
+	root, ok := projectStoreRoot(filepath.Join("/p", project.StateDirName, project.WorkDirName, project.StoreFileName))
 	assert.True(t, ok)
 	assert.Equal(t, "/p", root)
 
-	_, ok = projectStoreRoot(filepath.Join("/p", "stores", project.StoreFileName))
-	assert.False(t, ok, "the store must sit in the state directory")
+	_, ok = projectStoreRoot(filepath.Join("/p", project.StateDirName, project.StoreFileName))
+	assert.False(t, ok, "the store sits under work/, not at the top of the state directory")
 
-	_, ok = projectStoreRoot(filepath.Join("/p", project.StateDirName, "corp.db"))
-	assert.False(t, ok, "a differently-named file in .kapi is not the project store")
+	_, ok = projectStoreRoot(filepath.Join("/p", "stores", project.StoreFileName))
+	assert.False(t, ok, "the store must sit in the state directory's work dir")
+
+	_, ok = projectStoreRoot(filepath.Join("/p", project.StateDirName, project.WorkDirName, "corp.db"))
+	assert.False(t, ok, "a differently-named file under work/ is not the project store")
 }
 
 func sampleMemoryEntry() memory.Entry {

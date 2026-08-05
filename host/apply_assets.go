@@ -77,7 +77,7 @@ func (a *App) resolveProjectRoot(cmd Command) (recipePath, root string, err erro
 // ---------------------------------------------------------------------------
 
 // applyTermEntry upserts a glossary term. It edits the committed .terms.json source
-// the recipe binds (creating context/terms.json and binding it when none
+// the recipe binds (creating .kapi/context/terms.json and binding it when none
 // exists), then re-imports the whole .terms.json into the project store's
 // vocabulary so the store reflects the committed source — one write path.
 func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
@@ -135,7 +135,7 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 
 // ensureTermsSourceBinding returns the committed .terms.json source path the
 // recipe binds via defaults.terms_source, creating a default
-// (context/terms.json) and writing the binding into the recipe when none is
+// (.kapi/context/terms.json) and writing the binding into the recipe when none is
 // bound — so future runs are consistent.
 func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
@@ -145,7 +145,7 @@ func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) 
 	if bound := proj.Defaults.TermsSource; bound != "" {
 		return resolveUnder(root, bound), nil
 	}
-	rel := filepath.Join("context", ktb.ConventionalName)
+	rel := project.RelContextPath(ktb.ConventionalName)
 	proj.Defaults.TermsSource = rel
 	// Only the SOURCE is bound. The compiled vocabulary has one destination now
 	// — the project's own store — so there is no second binding to keep pointed
@@ -402,7 +402,7 @@ func (a *App) ensureMemorySourceBinding(recipePath, root string) (string, error)
 				"bind the one that reviewed edits belong in",
 			len(existing), pluralBundles(len(existing)), strings.Join(existing, ", "))
 	}
-	rel := filepath.Join("context", kmb.ConventionalName)
+	rel := project.RelContextPath(kmb.ConventionalName)
 	proj.Defaults.MemorySource = rel
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind tm source: %w", err)
@@ -580,7 +580,7 @@ func memoryEntryID(source string, srcLocale, tgtLocale model.LocaleID) string {
 // ---------------------------------------------------------------------------
 
 // applyBrandEntry adds a vocabulary rule to the committed brand voice profile
-// YAML the recipe binds (creating context/brand-voice.yaml and binding it under
+// YAML the recipe binds (creating .kapi/context/brand-voice.yaml and binding it under
 // defaults.brand_voice.profile_file when none exists), then re-imports the
 // profile into the local brand store so the store reflects the committed source.
 func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
@@ -631,7 +631,7 @@ func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) a
 }
 
 // ensureBrandProfileBinding returns the committed profile YAML path bound via
-// defaults.brand_voice.profile_file, creating context/brand-voice.yaml and binding
+// defaults.brand_voice.profile_file, creating .kapi/context/brand-voice.yaml and binding
 // it when no profile_file is bound. A non-file binding (pack/store profile) is
 // an error: apply edits a committed file, not a starter pack or a store row.
 func (a *App) ensureBrandProfileBinding(recipePath, root string) (string, error) {
@@ -647,7 +647,7 @@ func (a *App) ensureBrandProfileBinding(recipePath, root string) (string, error)
 			return "", errors.New("brand: defaults.brand_voice binds a pack/store profile, not a committed profile_file — bind a profile_file to apply rules")
 		}
 	}
-	rel := filepath.Join("context", "brand-voice.yaml")
+	rel := project.RelContextPath(BrandVoiceConventionalName)
 	proj.Defaults.BrandVoice = &project.BrandVoiceBinding{ProfileFile: rel}
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind brand voice profile: %w", err)

@@ -105,12 +105,12 @@ kapi status --review        # translated units not yet approved: file, id, local
 kapi apply <<<'{"kind":"review","file":"src/locales/fr/app.json","id":"save.label","locale":"fr","status":"reviewed"}'
 ```
 
-Address the unit exactly as the worklist lists it. `status` is `"reviewed"` by default; `"signed-off"` is the optional final rung for contractual or regulated content. The decision lands in the [project store](/kapi/project-store)'s working set; `kapi commit` writes it into the unit record under `.kapi/units/`, which you **commit with your sources** so the decision travels with the project:
+Address the unit exactly as the worklist lists it. `status` is `"reviewed"` by default; `"signed-off"` is the optional final rung for contractual or regulated content. The decision lands in the [project store](/kapi/project-store)'s working set; `kapi commit` writes it into the unit record under `.kapi/context/decisions/`, which you **commit with your sources** so the decision travels with the project:
 
 ```bash
 kapi status                 # what is staged but not yet committed
-kapi commit                 # → .kapi/units/*.jsonl
-git add .kapi/units
+kapi commit                 # → .kapi/context/decisions/*.jsonl
+git add .kapi/context/decisions
 ```
 
 Piping works at scale: `kapi status --review --json` through your own filter into `kapi apply`. A `kind:"memory"` entry is different — it banks a source→target pair for future recycle leverage and does **not** promote a unit to reviewed.

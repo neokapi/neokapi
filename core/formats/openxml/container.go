@@ -563,11 +563,11 @@ func attrFromTag(tag, name string) string {
 		return ""
 	}
 	rest := tag[i+len(name)+3:]
-	end := strings.IndexByte(rest, '"')
-	if end < 0 {
+	before, _, ok := strings.Cut(rest, "\"")
+	if !ok {
 		return ""
 	}
-	return xmlesc.UnescapeAttr(rest[:end])
+	return xmlesc.UnescapeAttr(before)
 }
 
 // buildXLSXParts returns the ordered translatable parts for an XLSX document.

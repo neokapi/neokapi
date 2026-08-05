@@ -213,7 +213,7 @@ func commitAndReadUnits(t *testing.T, root string) []state.UnitState {
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
-	units, err := state.ReadCommitted(layout.UnitsDir())
+	units, err := state.ReadCommitted(layout.DecisionsDir())
 	require.NoError(t, err)
 	return units
 }

@@ -96,7 +96,7 @@ type App struct {
 	//
 	// It is also the OWNER of every project store this process holds. A run needs
 	// its own App — TargetLang and the per-run tool slots are single-occupancy —
-	// but not its own store: two host.Apps opening `.kapi/store.db` would put two
+	// but not its own store: two host.Apps opening `.kapi/work/store.db` would put two
 	// connection pools on one file, and the write gate that keeps a converge run
 	// from starving the review loop's writes is per pool. Every other App the
 	// desktop builds borrows this one's stores (host.ShareProjectStores) and must
@@ -116,7 +116,7 @@ type App struct {
 	// Content-memory and terms handles the frontend addresses by ID. Two kinds
 	// live here: standalone stores the user opened or created by path (owned —
 	// closing the handle closes the file), and a project's own content memory and
-	// terms, which are two schemas inside its `.kapi/store.db` and are therefore
+	// terms, which are two schemas inside its `.kapi/work/store.db` and are therefore
 	// borrowed (see handleStore.Adopt). Closing a borrowed handle drops the ID
 	// only; the store belongs to the engine.
 	memoryHandles *handleStore[*memory.SQLiteStore]
@@ -568,14 +568,14 @@ func (a *App) releaseProjectResources(op *openProject) {
 // to the named stores from.
 //
 // It never CREATES the store: opening a tab is browsing, and browsing must not
-// write. A project with no `.kapi/store.db` is left alone until something that
+// write. A project with no `.kapi/work/store.db` is left alone until something that
 // genuinely has state to keep — an extract, a run, a seeded sample — makes one.
 func (a *App) autoOpenProjectResources(op *openProject) {
 	root, ok := projectRoot(op)
 	if !ok {
 		return
 	}
-	if _, err := os.Stat(filepath.Join(root, project.StateDirName, project.StoreFileName)); err != nil {
+	if _, err := os.Stat(project.LayoutAt(root).StorePath()); err != nil {
 		return
 	}
 	db, err := a.hostEngine().ProjectDB(context.Background(), root)
@@ -877,7 +877,7 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 			}
 			out := make([]IOPort, len(fs))
 			for i, f := range fs {
-				out[i] = IOPort{Type: string(f.Type), Side: f.Side.String(), Optional: f.Optional, Layer: f.Layer}
+				out[i] = IOPort{Type: f.Type, Side: f.Side.String(), Optional: f.Optional, Layer: f.Layer}
 			}
 			return out
 		}

@@ -8,7 +8,7 @@ import (
 
 // NewExtractCmd returns the `kapi extract` command (AD-017, issue #415).
 // Emits one XLIFF 2.x (or PO) file per source → target-locale pair with
-// content memory pre-fill, under .kapi/cache/extractions/<batch-id>/ bookkeeping.
+// content memory pre-fill, under .kapi/work/cache/extractions/<batch-id>/ bookkeeping.
 func NewExtractCmd(a *App, _ ExtractCmdOptions) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "extract",
@@ -18,7 +18,7 @@ func NewExtractCmd(a *App, _ ExtractCmdOptions) *cobra.Command {
 declared in a kapi project, pre-filled from the project's translation
 memory.
 
-Each invocation writes one batch of outputs under .kapi/cache/extractions/<batch-id>/
+Each invocation writes one batch of outputs under .kapi/work/cache/extractions/<batch-id>/
 plus one bilingual file per source → target pair in --out-dir (default "out/").`,
 		Example: `  kapi extract -p kapi.yaml --no-tm
   kapi extract -p kapi.yaml --target-lang fr

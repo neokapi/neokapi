@@ -173,7 +173,7 @@ func TestPackSkipsEmptyPartsOfAnOpenStore(t *testing.T) {
 		require.False(t, has, "%s must start empty", probe.name)
 	}
 	require.NoError(t, db.Close())
-	require.FileExists(t, filepath.Join(root, project.StateDirName, project.StoreFileName),
+	require.FileExists(t, project.LayoutAt(root).StorePath(),
 		"the store file exists — that is precisely why presence cannot be a stat")
 
 	t.Chdir(root)

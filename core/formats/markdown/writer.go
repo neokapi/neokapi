@@ -292,13 +292,6 @@ func renderInlineMarkdown(runs []model.Run) string {
 	return strings.TrimSpace(renderInline(runs, true))
 }
 
-// renderInlineMarkdownRaw is renderInlineMarkdown without the boundary trim and
-// without angle-bracket escaping — for content inside a code span/fence, where a
-// backslash is literal, not an escape.
-func renderInlineMarkdownRaw(runs []model.Run) string {
-	return renderInline(runs, false)
-}
-
 // renderInlineLiteral renders a run stream as literal text with no Markdown
 // markup at all. Inside a fenced code block the content IS the text: emitting
 // the inline vocabulary there wraps it in a second layer of markup, so an

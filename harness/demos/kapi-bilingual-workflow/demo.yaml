@@ -32,7 +32,7 @@ script:
   - comment: kapi merge — apply the returned XLIFFs back onto the source.
   - command: kapi merge -p kapi.yaml -i out/
   - comment: kapi memory audit — trace exactly what this merge wrote into the memory.
-  - command: kapi memory audit -p kapi.yaml --batch $(ls .kapi/cache/extractions | head -1) --limit 10
+  - command: kapi memory audit -p kapi.yaml --batch $(ls .kapi/work/cache/extractions | head -1) --limit 10
   - comment: The catalog is now translated — French, ready to ship.
   - command: cat src/locales/fr-FR/messages.json
 

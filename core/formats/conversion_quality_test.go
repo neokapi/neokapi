@@ -150,7 +150,7 @@ func TestSlideTitlesNestUnderTheDeckTitle(t *testing.T) {
 	assert.Contains(t, out, "## Next Steps", "a slide title is an h2")
 
 	var h1s int
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		if strings.HasPrefix(line, "# ") {
 			h1s++
 		}

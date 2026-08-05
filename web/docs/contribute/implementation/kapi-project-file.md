@@ -87,13 +87,13 @@ coordinates:                      # the taxonomy is the project's own
 
 profiles:
   - when: {}                      # the base: matches every point
-    voice: context/base-voice.yaml
+    voice: .kapi/context/base-voice.yaml
   - when: { product: bowrain }
-    voice: context/bowrain-voice.yaml
-    terms: context/bowrain-terms.json   # optional; falls back to defaults.terms_source
+    voice: .kapi/context/bowrain-voice.yaml
+    terms: .kapi/context/bowrain-terms.json   # optional; falls back to defaults.terms_source
   - when: { product: bowrain, market: de }
-    voice: context/bowrain-de.yaml
-    terms: context/de-terms.json
+    voice: .kapi/context/bowrain-de.yaml
+    terms: .kapi/context/de-terms.json
 
 content:
   - name: docs
@@ -208,16 +208,18 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   source bundles (`.terms.json` / `.memory.json`) the project's terms store and
   content memory are indexed from. `kapi apply` edits the source and reindexes
   it, so the source is written by exactly one path and `git diff` is the review
-  surface. `terms_source` left unset falls back to `<root>/terms.json`, then
-  `<root>/.kapi/terms.json`; `memory_source` has no such fallback, because a
-  project has one terms source but many memory bundles (one per content
-  surface), leaving nothing single for a convention to name.
+  surface. Both keys bind any path; the conventional homes are inside the
+  committed context graph. `terms_source` left unset falls back to
+  `<root>/.kapi/context/terms.json`, then `<root>/terms.json`; `memory_source`
+  has no such fallback, because a project has one terms source but many memory
+  bundles (one per content surface), leaving nothing single for a convention to
+  name.
 
 ## The project store
 
 The recipe binds sources; the sources are the truth. A project keeps one local
-database, `.kapi/store.db` — a derived index over the committed sources
-(`terms_source`, `memory_source`), the unit-decision record under `.kapi/units/`,
+database, `.kapi/work/store.db` — a derived index over the committed sources
+(`terms_source`, `memory_source`), the unit-decision record under `.kapi/context/decisions/`,
 and the content files themselves — plus the working set of decisions staged since
 the last `kapi commit`. Every subsystem's tables live in that one file: block
 cache, terms store, content memory, working set, and the property graph. See
@@ -391,8 +393,8 @@ defaults:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  terms_source: context/terms.json
-  memory_source: context/memory.json
+  terms_source: .kapi/context/terms.json
+  memory_source: .kapi/context/memory.json
 
 content:
   # Bare entry — single glob, languages inherited from defaults.

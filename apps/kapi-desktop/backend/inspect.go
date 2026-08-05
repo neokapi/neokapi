@@ -242,7 +242,7 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 			tb = h
 		}
 	}
-	profile := a.resolveProjectBrandProfile(op)
+	profile := a.resolveProjectBrandProfile(ctx, op)
 
 	for _, b := range blocksFromParts(parts) {
 		if !b.Translatable {

@@ -108,8 +108,8 @@ func TestExtract_MultiTargetWritesOneOutputPerPair(t *testing.T) {
 	assert.Contains(t, strings.Join(names, " "), "en-US-to-fr-FR.xliff")
 	assert.Contains(t, strings.Join(names, " "), "en-US-to-de-DE.xliff")
 
-	// Manifest is written under .kapi/cache/extractions/<batch-id>/.
-	extractionsRoot := filepath.Join(real, project.StateDirName, project.CacheDirName, project.ExtractionsDirName)
+	// Manifest is written under .kapi/work/cache/extractions/<batch-id>/.
+	extractionsRoot := project.LayoutAt(real).ExtractionsDir()
 	batches, err := os.ReadDir(extractionsRoot)
 	require.NoError(t, err)
 	require.Len(t, batches, 1)
@@ -443,7 +443,7 @@ func TestExtract_IncrementalReuse(t *testing.T) {
 }
 
 // seedProjectMemory puts entries into the PROJECT's own store — the content
-// memory extract pre-fills from, which is one schema of `.kapi/store.db` rather
+// memory extract pre-fills from, which is one schema of `.kapi/work/store.db` rather
 // than a file of its own.
 func seedProjectMemory(t *testing.T, root string, entries ...memory.Entry) {
 	t.Helper()

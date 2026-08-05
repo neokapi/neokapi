@@ -149,7 +149,7 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	//
 	// It stats the store rather than opening it and asking, because opening
 	// CREATES it: the handle runs every subsystem's migrations at open. A plan
-	// that left a `.kapi/store.db` behind would be a dry run with a side effect,
+	// that left a `.kapi/work/store.db` behind would be a dry run with a side effect,
 	// and the next `up` would find a store it did not write.
 	var mem memory.ContentMemory
 	if a.MemoryBackend != nil {

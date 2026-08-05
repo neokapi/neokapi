@@ -113,7 +113,7 @@ type FileRunnerConfig struct {
 	Recorder *TraceRecorder
 
 	// Store, when non-nil, is the block store the executor runs the tool
-	// chain against. A persistent store (e.g. a project's .kapi/store.db) makes
+	// chain against. A persistent store (e.g. a project's .kapi/work/store.db) makes
 	// SessionTools cache per-block work as overlays and skip already-done
 	// steps on a later run — the substrate of resumable .kpz workspaces
 	// (AD-025 §5). nil (the default) uses an ephemeral in-memory store, so
@@ -137,7 +137,7 @@ type FileRunnerConfig struct {
 
 // PartCache is the file runner's optional streaming document cache: a parse-once
 // source/sink in front of the file collections. Implemented by the CLI over the
-// project's `.kapi/cache` (rebuildable from the files), it makes kapi parse each
+// project's `.kapi/work/cache` (rebuildable from the files), it makes kapi parse each
 // source once in project mode and hold no whole document in memory. The configKey
 // the runner passes folds in the detected format and the caller's PartCacheKey, so
 // implementations key on (path, configKey) plus a staleness check over the file.
@@ -484,7 +484,7 @@ func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools
 			// quietly lose the source's exact formatting — the same silent
 			// degradation-reported-as-success as #1449. The cache is rebuildable,
 			// so say so rather than shipping a lesser file.
-			return fmt.Errorf("%s: cached parse is unusable: %w (delete the project's .kapi/cache to rebuild it)",
+			return fmt.Errorf("%s: cached parse is unusable: %w (delete the project's .kapi/work/cache to rebuild it)",
 				filepath.Base(inputPath), serr)
 		}
 		if s != nil {

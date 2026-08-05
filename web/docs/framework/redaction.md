@@ -82,7 +82,7 @@ The term list is itself sensitive, so it lives in a dedicated file (keep it
 gitignored) rather than in the committed recipe:
 
 ```yaml
-# .kapi/redaction.yaml
+# redaction.yaml — bind it with defaults.redaction.rules, and gitignore it
 version: v1
 placeholder: "[REDACTED:{category}]"   # {category} and {n} are substituted
 detectors: [rules]
@@ -134,7 +134,7 @@ containing only placeholders and writes the originals to a local vault sidecar;
 `kapi merge` restores them after the translator returns the file.
 
 ```bash
-# Emit redacted XLIFF — originals stay in .kapi/cache/redaction/<batch>.json
+# Emit redacted XLIFF — originals stay in .kapi/work/vault/redaction/<batch>.json
 kapi extract --redact
 
 # ... translator fills in targets, preserving the placeholders ...
@@ -158,7 +158,7 @@ defaults:
   target_languages: [fr, de]
   redaction:
     enabled: true
-    rules: .kapi/redaction.yaml
+    rules: redaction.yaml
     detectors: [rules]
     placeholder: "[REDACTED:{category}]"
 
@@ -174,7 +174,16 @@ content:
 | Workflow | Vault |
 | --- | --- |
 | In-process (`secure-translate`, custom flows) | In memory on the block; removed after restore — never written to output |
-| External (`extract --redact` → `merge`) | `.kapi/cache/redaction/<batch-id>.json` — under the gitignored cache, written private (`0600`) |
+| External (`extract --redact` → `merge`) | `.kapi/work/vault/redaction/<batch-id>.json` — inside the project's one gitignored path, written private (`0600`) |
+
+The vault sits beside the project store under `.kapi/work/`, and deliberately
+*not* under `.kapi/work/cache/`. Everything in the cache is free to delete
+because it rebuilds; a withheld original rebuilds from nothing. It is never
+committed and never synced to a server — that is the guarantee — so the only
+copy is the one on your machine. `rm -rf .kapi/work/cache` stays safe at any
+time; clearing `.kapi/work` wholesale strands any batch you have out with a
+translator, because the merge that would restore the originals has nothing left
+to read.
 
 Restoration matches placeholders back to originals by token where the format
 preserves inline structure (in-process pipelines and XLIFF), and by the unique

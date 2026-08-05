@@ -13,7 +13,7 @@ import (
 // On wasm there is no SQLite driver (see core/storage/driver_wasm.go), so the
 // on-disk cache store is unavailable. New instead returns a process-lifetime,
 // path-keyed in-memory store: re-opening the same path returns the same store,
-// so a project's `.kapi/cache` or a `.kpz` workspace cache "persists" across
+// so a project's `.kapi/work/cache` or a `.kpz` workspace cache "persists" across
 // commands within one wasm session (e.g. the docs lab running
 // extract → transform → merge). Behaviour is identical to the native cache for
 // everything the engine observes — only durability across a process restart is

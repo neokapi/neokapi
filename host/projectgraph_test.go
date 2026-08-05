@@ -66,7 +66,7 @@ func TestProjectGraph_EmptyRootIsAnError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// The graph rides in `.kapi/store.db` under its own `graph` ledger, beside the
+// The graph rides in `.kapi/work/store.db` under its own `graph` ledger, beside the
 // block cache, the terms store, the content memory and the unit working set.
 // Ledger coexistence is the whole premise of the merged store: each subsystem
 // migrates independently, so none of them can replay another's history.

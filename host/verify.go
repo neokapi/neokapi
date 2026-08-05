@@ -1193,7 +1193,7 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName, configK
 //     the index row — so every later read of this (path, config) replayed a SHORT
 //     document as if it were complete. Coverage's denominator is that block count,
 //     so the vanished units simply stopped existing and the locale's percentage
-//     climbed, sticky until the source changed or `.kapi/cache` was deleted. A
+//     climbed, sticky until the source changed or `.kapi/work/cache` was deleted. A
 //     document that cannot be fully recorded is therefore not recorded at all:
 //     Abort, stop recording, and let the next read re-parse the file. This is the
 //     handling core/flow's recordDocument has always had; the asymmetry was the bug.

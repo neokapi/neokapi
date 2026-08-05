@@ -72,7 +72,7 @@ func TestProjectDB_DistinctRootsGetDistinctHandles(t *testing.T) {
 
 // A convergence pass clones the App once per locale and runs them concurrently.
 // Every worker must land on the parent's handle: a worker opening its own would
-// put a second pool on `.kapi/store.db` for the duration of the pass, and the
+// put a second pool on `.kapi/work/store.db` for the duration of the pass, and the
 // per-locale writes would contend with each other through the filesystem instead
 // of through one process's writer.
 //
@@ -197,12 +197,12 @@ func TestProjectDB_OpenSurvivesACancelledCaller(t *testing.T) {
 	db, err := a.ProjectDB(ctx, root)
 	require.NoError(t, err, "a cancelled caller must not leave the project unopenable")
 	require.NotNil(t, db.Raw())
-	assert.FileExists(t, filepath.Join(root, project.StateDirName, project.StoreFileName))
+	assert.FileExists(t, project.LayoutAt(root).StorePath())
 }
 
 // A borrower reaches the owner's handle. An embedding host that must build a
 // second App — the desktop builds one per run so per-run state stays owned —
-// would otherwise put a second connection pool on `.kapi/store.db`, and the
+// would otherwise put a second connection pool on `.kapi/work/store.db`, and the
 // write gate, which is per pool, could no longer order the two sets of writers.
 func TestShareProjectStores_BorrowerReachesTheSameHandle(t *testing.T) {
 	owner := &App{}

@@ -1,8 +1,10 @@
-# Dogfood translation seeds
+# The dogfood context graph
 
-This directory holds the committed inputs for translating neokapi's own
-surfaces with kapi (the root `kapi.yaml` recipe). The `.kapi/` state
-directory is gitignored and rebuilt from these seeds with `make l10n-seed`.
+This directory is the committed context graph of the root `kapi.yaml` recipe —
+the brand voice, terms and reviewed content memory neokapi translates its own
+surfaces with. It is tracked in git, reviewed like any other source, and it is
+the truth. Everything derived from it lives in `.kapi/work/`, which is
+gitignored and rebuilt with `make l10n-seed`.
 
 Seeds are committed in the **native bundle form** — deterministic,
 lossless JSON that preserves entry identity, so a wipe-and-reseed
@@ -12,13 +14,13 @@ disposable review views with `make l10n-review-export` (→ `l10n/review/`,
 gitignored).
 
 - `brand-voice.yaml` — the machine-readable encoding of
-  [docs/internals/brand-communication.md](../docs/internals/brand-communication.md),
+  [docs/internals/brand-communication.md](../../docs/internals/brand-communication.md),
   bound project-wide via `defaults.brand_voice`. Keep the two in sync.
 - `terms.json` — terminology decisions per target locale (currently
   Norwegian Bokmål, `nb`): concept per decision with `en` + `nb` terms,
   domain, definition/usage note, and status. Imported into the project store,
-  `.kapi/store.db`.
-- `tm/<surface>-<lang>.memory.json` — reviewed translations, one file per
+  `.kapi/work/store.db`.
+- `memory/<surface>-<lang>.memory.json` — reviewed translations, one file per
   surface and locale (e.g. `builtins-nb.memory.json`). Imported into
   the same store; every target-locale output is produced from the content memory
   by `recycle`, so generated catalogs only ever contain reviewed strings.
@@ -45,7 +47,7 @@ gitignored).
   `make l10n-landing`) uses `landing-nb.memory.json`.
 
   Seed filenames are their own naming, independent of the collection names in
-  `kapi.yaml`: `l10n-seed` imports every `context/memory/*.memory.json` by
+  `kapi.yaml`: `l10n-seed` imports every `.kapi/context/memory/*.memory.json` by
   glob, and nothing maps a file name to a collection. Several deliberately
   differ — `builtins-nb` seeds the `kapi-engine` collection, and `cli-nb` and
   `libraries-nb` back surfaces that have no collection at all.
@@ -56,7 +58,7 @@ Workflow for a new or changed surface string:
    voice profile and terms are bound project-wide) and merge the pair
    into the surface's seed: import the seed plus the new pairs (any
    supported form, e.g. a small TMX) into a scratch content memory, then
-   `kapi memory export -o context/memory/<surface>-<lang>.memory.json`. Small wording
+   `kapi memory export -o .kapi/context/memory/<surface>-<lang>.memory.json`. Small wording
    fixes can also be edited directly in the `.memory.json` bundle — it is the
    source of truth.
 2. `make l10n-seed` to rebuild the content memory, then the surface target
@@ -142,10 +144,10 @@ never a parallel gettext workflow (no committed `po/` tree, no msgmerge).
 ## What is committed where (and why)
 
 Translation artifacts in git fall into three tiers; everything else is
-gitignored ephemera (`.kapi/` state, extraction batches, `i18n-*/`
+gitignored ephemera (`.kapi/work/`, extraction batches, `i18n-*/`
 intermediates, `l10n/review/`).
 
-1. **Source — human-owned.** The seeds here (`tm/*.memory.json`,
+1. **Source — human-owned.** The seeds here (`memory/*.memory.json`,
    `terms.json`, `brand-voice.yaml`), the Docusaurus theme JSONs under
    `web/i18n/<locale>/`, and the English harness narration in
    `harness/demos/*/demo.yaml`. Tooling may have written the first

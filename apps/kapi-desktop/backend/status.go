@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
@@ -196,7 +195,7 @@ func (a *App) existingProjectStore(op *openProject) (*projectdb.DB, bool) {
 	if !ok {
 		return nil, false
 	}
-	info, err := os.Stat(filepath.Join(root, project.StateDirName, project.StoreFileName))
+	info, err := os.Stat(project.LayoutAt(root).StorePath())
 	if err != nil || info.IsDir() {
 		return nil, false
 	}
