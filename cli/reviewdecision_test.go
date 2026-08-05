@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,7 +9,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/host"
 )
 
 // itemBySource finds the queued review item whose source preview matches.
@@ -83,12 +84,7 @@ func TestApplyReviewDecision_RejectedReturnsToDraft(t *testing.T) {
 	assert.Equal(t, 0, after.Locales[0].Pct["reviewed"])
 
 	// The note survives in the committed state artifact.
-	data, err := os.ReadFile(filepath.Join(root, ".kapi-state.json"))
-	require.NoError(t, err)
-	var f struct {
-		Units []state.UnitState `json:"units"`
-	}
-	require.NoError(t, json.Unmarshal(data, &f))
+	f := struct{ Units []state.UnitState }{Units: commitAndReadUnits(t, root)}
 	require.Len(t, f.Units, 1)
 	assert.Equal(t, "draft", string(f.Units[0].Status))
 	assert.Equal(t, ReviewDecisionRejected, f.Units[0].Decision.ReviewState)
@@ -198,4 +194,22 @@ content:
 	require.NoError(t, err)
 	require.Len(t, rep.Review, 1)
 	assert.Equal(t, "app", rep.Review[0].Collection)
+}
+
+// commitAndReadUnits commits the project's staged decisions and reads the
+// resulting record.
+//
+// Recording no longer writes the committed record: a decision is staged, and
+// `kapi commit` publishes it. So a test that asserts what the record holds has
+// to commit first — which is also what pins that the decision made it into the
+// working store at all.
+func commitAndReadUnits(t *testing.T, root string) []state.UnitState {
+	t.Helper()
+	_, err := host.CommitProjectState(t.Context(), root)
+	require.NoError(t, err)
+
+	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
+	units, err := state.ReadCommitted(layout.UnitsDir())
+	require.NoError(t, err)
+	return units
 }

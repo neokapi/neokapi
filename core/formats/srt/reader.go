@@ -119,6 +119,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResult) {
 	blockCounter := 0
 	dataCounter := 0
+	// One builder per document read: the ordinals it hands out on a repeated key
+	// are scoped to this file.
+	var names model.NameBuilder
 
 	for entry := range r.entries() {
 		// Emit sequence number as Data
@@ -137,9 +140,8 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 		// Emit subtitle text as Block
 		blockCounter++
 		block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), entry.text)
-		block.Name = "subtitle." + entry.sequence
+		block.Name = cueName(&names, entry.timecode)
 		block.Properties["timecode"] = entry.timecode
-		block.Properties["sequence"] = entry.sequence
 		setBlockTiming(block, entry.timecode)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return
@@ -170,6 +172,8 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 	var textLines []textLine
 	blockCounter := 0
 	dataCounter := 0
+	// One builder per document read; see cueName.
+	var names model.NameBuilder
 
 	finishEntry := func() bool {
 		if len(textLines) == 0 {
@@ -207,9 +211,8 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		r.skelText(lastEnding)
 
 		block := model.NewBlock(blockIDStr, sb.String())
-		block.Name = "subtitle." + sequence
+		block.Name = cueName(&names, timecode)
 		block.Properties["timecode"] = timecode
-		block.Properties["sequence"] = sequence
 		setBlockTiming(block, timecode)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return false

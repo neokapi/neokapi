@@ -740,7 +740,10 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 					p.skelWriteEndElement(t)
 
 					block := &model.Block{
-						ID:           blockID,
+						ID: blockID,
+						// A core property is named by its element — dc:title,
+						// cp:keywords — which is the key the format gives it.
+						Name:         model.StructuralPath(append(strings.Split(partPath, "/"), currentElement)...),
 						Type:         "property",
 						Translatable: true,
 						Source:       []model.Run{{Text: &model.TextRun{Text: text}}},

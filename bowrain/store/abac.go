@@ -6,36 +6,59 @@ import (
 	"fmt"
 )
 
-// Block workflow statuses (ABAC attribute on content).
+// Block access states (ABAC attribute on content). This is ACCESS CONTROL —
+// who may edit — not progress: the review ladder
+// (draft → translated → reviewed → signed-off) lives on the per-locale target.
+// The two used to share the word "draft", and "in_review" sat one letter from
+// "reviewed" on the other side of the same block; the values now name the
+// access consequence instead.
 const (
-	BlockStatusDraft     = "draft"
-	BlockStatusInReview  = "in_review"
-	BlockStatusPublished = "published"
+	// BlockAccessOpen: normal permissions apply.
+	BlockAccessOpen = "open"
+	// BlockAccessRestricted: editing requires review permission for the
+	// locale, unless the actor owns the block.
+	BlockAccessRestricted = "restricted"
+	// BlockAccessPublished: re-opening is privileged (manage-project).
+	BlockAccessPublished = "published"
 )
 
-// ValidBlockStatuses is the set of acceptable status values.
-var ValidBlockStatuses = map[string]bool{
-	BlockStatusDraft:     true,
-	BlockStatusInReview:  true,
-	BlockStatusPublished: true,
+// ValidBlockAccess is the set of acceptable access values.
+var ValidBlockAccess = map[string]bool{
+	BlockAccessOpen:       true,
+	BlockAccessRestricted: true,
+	BlockAccessPublished:  true,
 }
 
-// GetBlockStatus returns a block's workflow status and owner. A missing block
-// reports draft/empty (so callers treat unknown content as freely editable).
-func (s *PostgresStore) GetBlockStatus(ctx context.Context, projectID, blockID string) (status, ownerID string, err error) {
+// NormalizeBlockAccess maps the retired vocabulary onto the current one, so a
+// caller still speaking the old ladder is corrected rather than rejected.
+// Unknown values pass through for the validity check to refuse.
+func NormalizeBlockAccess(v string) string {
+	switch v {
+	case "draft":
+		return BlockAccessOpen
+	case "in_review":
+		return BlockAccessRestricted
+	default:
+		return v
+	}
+}
+
+// GetBlockAccess returns a block's access state and owner. A missing block
+// reports open/empty (so callers treat unknown content as freely editable).
+func (s *PostgresStore) GetBlockAccess(ctx context.Context, projectID, blockID string) (access, ownerID string, err error) {
 	err = s.db.QueryRowContext(ctx,
-		`SELECT status, owner_id FROM blocks WHERE project_id = $1 AND id = $2`, projectID, blockID).
-		Scan(&status, &ownerID)
+		`SELECT access, owner_id FROM blocks WHERE project_id = $1 AND id = $2`, projectID, blockID).
+		Scan(&access, &ownerID)
 	if err == sql.ErrNoRows {
-		return BlockStatusDraft, "", nil
+		return BlockAccessOpen, "", nil
 	}
 	if err != nil {
-		return "", "", fmt.Errorf("get block status: %w", err)
+		return "", "", fmt.Errorf("get block access: %w", err)
 	}
-	if status == "" {
-		status = BlockStatusDraft
+	if access == "" {
+		access = BlockAccessOpen
 	}
-	return status, ownerID, nil
+	return access, ownerID, nil
 }
 
 // GetLastEditor returns the author of the most recent content change to a block
@@ -56,22 +79,22 @@ func (s *PostgresStore) GetLastEditor(ctx context.Context, projectID, blockID st
 	return author, nil
 }
 
-// SetBlockStatus updates a block's workflow status and (when non-empty) its
+// SetBlockAccess updates a block's access state and (when non-empty) its
 // owner. Returns an error if the block does not exist.
-func (s *PostgresStore) SetBlockStatus(ctx context.Context, projectID, blockID, status, ownerID string) error {
+func (s *PostgresStore) SetBlockAccess(ctx context.Context, projectID, blockID, access, ownerID string) error {
 	var res sql.Result
 	var err error
 	if ownerID != "" {
 		res, err = s.db.ExecContext(ctx,
-			`UPDATE blocks SET status = $1, owner_id = $2, updated_at = NOW() WHERE project_id = $3 AND id = $4`,
-			status, ownerID, projectID, blockID)
+			`UPDATE blocks SET access = $1, owner_id = $2, updated_at = NOW() WHERE project_id = $3 AND id = $4`,
+			access, ownerID, projectID, blockID)
 	} else {
 		res, err = s.db.ExecContext(ctx,
-			`UPDATE blocks SET status = $1, updated_at = NOW() WHERE project_id = $2 AND id = $3`,
-			status, projectID, blockID)
+			`UPDATE blocks SET access = $1, updated_at = NOW() WHERE project_id = $2 AND id = $3`,
+			access, projectID, blockID)
 	}
 	if err != nil {
-		return fmt.Errorf("set block status: %w", err)
+		return fmt.Errorf("set block access: %w", err)
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
 		return fmt.Errorf("block %s not found", blockID)

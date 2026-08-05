@@ -34,7 +34,7 @@ type ResolvedRef struct {
 func RefResolutionMiddleware(contentStore store.ContentStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			ref := c.Param("ref")
+			ref := unescapeParam(c.Param("ref"))
 			if ref == "" {
 				// No ref param in this route — pass through.
 				return next(c)

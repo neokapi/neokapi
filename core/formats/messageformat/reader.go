@@ -166,6 +166,13 @@ func splitLineEnding(raw string) (content, ending string) {
 // should stop — either the context was cancelled mid-emit or a parse error was
 // already surfaced on the channel.
 func (r *Reader) emitLine(ctx context.Context, ch chan<- model.PartResult, content, lineEnding string, lineNum int, blockCounter, contentCounter *int) bool {
+	// The builder is scoped to this line, not to the document: the line scope
+	// already makes every name unique across lines, so only names repeating
+	// WITHIN one message need an ordinal. Keeping it here also keeps the
+	// reader's memory bounded — a document-wide builder would retain a name per
+	// block and this reader streams (see StreamingReader).
+	var names model.NameBuilder
+
 	if strings.TrimSpace(content) == "" {
 		// Empty line → skeleton text only (a no-op when no skeleton store is
 		// wired), no part emission.
@@ -193,7 +200,8 @@ func (r *Reader) emitLine(ctx context.Context, ch chan<- model.PartResult, conte
 		}
 		for _, lit := range extractLiteralSiblings(pl.nodes) {
 			*contentCounter++
-			block := newContentBlock(fmt.Sprintf("txt%d", *contentCounter), lit, pl.lineNum)
+			name := names.Name(model.StructuralPath(lineScope(pl.lineNum), "frame"))
+			block := newContentBlock(fmt.Sprintf("txt%d", *contentCounter), name, lit, pl.lineNum)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return false
 			}
@@ -213,7 +221,7 @@ func (r *Reader) emitLine(ctx context.Context, ch chan<- model.PartResult, conte
 		r.skelRef(blockID)
 		r.skelText(lineEnding)
 
-		block := r.createBlock(blockID, segments[0], pl)
+		block := r.createBlock(blockID, segments[0], pl, &names)
 		return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}
 
@@ -227,7 +235,7 @@ func (r *Reader) emitLine(ctx context.Context, ch chan<- model.PartResult, conte
 		for _, seg := range segments {
 			*blockCounter++
 			blockID := fmt.Sprintf("tu%d", *blockCounter)
-			block := r.createBlock(blockID, seg, pl)
+			block := r.createBlock(blockID, seg, pl, &names)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return false
 			}
@@ -242,7 +250,7 @@ func (r *Reader) emitLine(ctx context.Context, ch chan<- model.PartResult, conte
 	for _, seg := range segments {
 		*blockCounter++
 		blockID := fmt.Sprintf("tu%d", *blockCounter)
-		block := r.createBlock(blockID, seg, pl)
+		block := r.createBlock(blockID, seg, pl, &names)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return false
 		}
@@ -256,7 +264,7 @@ func (r *Reader) emitLine(ctx context.Context, ch chan<- model.PartResult, conte
 // surrounding spacing stays faithful; being plain prose, it carries no semantic
 // role. Translatable=false keeps it out of the MT payload while remaining
 // visible to ingestion.
-func newContentBlock(id, text string, lineNum int) *model.Block {
+func newContentBlock(id, name, text string, lineNum int) *model.Block {
 	block := &model.Block{
 		ID:                 id,
 		Translatable:       false,
@@ -264,27 +272,39 @@ func newContentBlock(id, text string, lineNum int) *model.Block {
 		Source:             []model.Run{{Text: &model.TextRun{Text: text}}},
 		Targets:            make(map[model.VariantKey]*model.Target),
 		Properties:         make(map[string]string),
-		Name:               fmt.Sprintf("line.%d.frame", lineNum),
+		Name:               name,
 	}
 	block.Properties["line"] = strconv.Itoa(lineNum)
 	return block
 }
 
+// lineScope names the message a block belongs to.
+//
+// A MessageFormat file has no keys: it is one pattern per line, and the line is
+// the only structure the author controls. So unlike PO or properties, this
+// format has no natural key to name blocks by, and the line ordinal stays — the
+// same positional gap the prose formats have (see
+// core/formats/identity_conformance_test.go). What the scope does fix is
+// collision: a branch path like `count.one` repeats on every line that picks on
+// `count`, and naming two blocks alike hands them one identity downstream.
+func lineScope(lineNum int) string {
+	return fmt.Sprintf("line.%d", lineNum)
+}
+
 // createBlock builds a Block from a segment, optionally with inline spans
 // for argument placeholders.
-func (r *Reader) createBlock(id string, seg segment, pl parsedLine) *model.Block {
+func (r *Reader) createBlock(id string, seg segment, pl parsedLine, names *model.NameBuilder) *model.Block {
 	// Find the nodes that correspond to this segment
 	branchNodes := findBranchNodes(pl.nodes, seg.path)
 
+	name := names.Name(model.StructuralPath(lineScope(pl.lineNum), seg.path))
+
 	if branchNodes != nil && nodesHavePlaceholders(branchNodes) {
-		return r.createBlockWithRuns(id, seg, branchNodes)
+		return r.createBlockWithRuns(id, name, seg, branchNodes)
 	}
 
 	block := model.NewBlock(id, seg.text)
-	block.Name = seg.path
-	if seg.path == "" {
-		block.Name = fmt.Sprintf("line.%d", pl.lineNum)
-	}
+	block.Name = name
 	block.Properties["line"] = strconv.Itoa(pl.lineNum)
 	if seg.path != "" {
 		block.Properties["path"] = seg.path
@@ -294,7 +314,7 @@ func (r *Reader) createBlock(id string, seg segment, pl parsedLine) *model.Block
 
 // createBlockWithRuns creates a Block with inline placeholder runs for
 // argument references like {name}, {0,date,short}, and #.
-func (r *Reader) createBlockWithRuns(id string, seg segment, nodes []node) *model.Block {
+func (r *Reader) createBlockWithRuns(id, name string, seg segment, nodes []node) *model.Block {
 	var runs []model.Run
 	spanID := 0
 
@@ -327,7 +347,7 @@ func (r *Reader) createBlockWithRuns(id string, seg segment, nodes []node) *mode
 		Source:       runs,
 		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   make(map[string]string),
-		Name:         seg.path,
+		Name:         name,
 	}
 	if seg.path != "" {
 		block.Properties["path"] = seg.path

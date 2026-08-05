@@ -33,6 +33,11 @@ import (
 type contentSeg struct {
 	text    []byte
 	isChild bool
+	// scope groups consecutive child segments that share an enclosing
+	// structure — the cells of one table row. Every change of value opens a
+	// fresh naming scope, so a cell is addressed by its row and column rather
+	// than by a count across the whole table. Zero means no such structure.
+	scope int
 }
 
 // isASCIISpaceByte reports whether b is ASCII inter-token whitespace.
@@ -147,6 +152,7 @@ func splitTableSegments(region []byte) ([]contentSeg, bool) {
 	}
 
 	i := 0
+	row := 0
 	for i < n {
 		lineStart := i
 		lineEnd := lineEndAt(region, lineStart)
@@ -155,6 +161,7 @@ func splitTableSegments(region []byte) ([]contentSeg, bool) {
 		// The delimiter row (and any all-dash/colon row) carries no prose —
 		// keep it wholly in the skeleton.
 		if !isTableDelimiterRow(line) {
+			row++
 			p := lineStart
 			for p < lineEnd {
 				if region[p] == '|' && !pipeEscaped(region, lineStart, p) {
@@ -176,7 +183,7 @@ func splitTableSegments(region []byte) ([]contentSeg, bool) {
 				}
 				if ce > cs {
 					flushStruct(cs)
-					segs = append(segs, contentSeg{text: region[cs:ce], isChild: true})
+					segs = append(segs, contentSeg{text: region[cs:ce], isChild: true, scope: row})
 					structStart = ce
 				}
 			}
@@ -214,18 +221,31 @@ func pipeEscaped(region []byte, lineStart, p int) bool {
 // to the skeleton as text; child segments are surfaced as Translatable:false
 // content blocks whose verbatim body rides a skeleton ref. Returns false only
 // on context cancellation.
+//
+// scopeKind, when set, names the structure that groups consecutive child
+// segments (a table row); each group opens its own naming scope so a cell is
+// addressed by row and column.
 func (r *Reader) emitContentSegs(ctx context.Context, ch chan<- model.PartResult,
-	segs []contentSeg, role, blockType, namePrefix string, locale model.LocaleID) bool {
+	segs []contentSeg, role, blockType, nameKind, scopeKind string, locale model.LocaleID) bool {
+
+	openScope := 0
+	popScope := func() {}
+	defer func() { popScope() }()
 
 	for _, s := range segs {
 		if !s.isChild {
 			r.skelText(s.text)
 			continue
 		}
+		if scopeKind != "" && s.scope != openScope {
+			popScope()
+			popScope = r.naming.Push(scopeKind)
+			openScope = s.scope
+		}
 		r.blockCounter++
 		id := fmt.Sprintf("tu%d", r.blockCounter)
 		block := model.NewBlock(id, string(s.text)) // single verbatim run
-		block.Name = fmt.Sprintf("%s%d", namePrefix, r.blockCounter)
+		block.Name = r.naming.Name(nameKind)
 		block.Type = blockType
 		block.SourceLocale = locale
 		block.Translatable = false
@@ -248,7 +268,10 @@ func (r *Reader) emitContentSegs(ctx context.Context, ch chan<- model.PartResult
 func (r *Reader) emitJSX(ctx context.Context, ch chan<- model.PartResult, span []byte, locale model.LocaleID) bool {
 	if r.skeletonStore != nil && r.cfg.ExtractNonTranslatableContent() {
 		if segs, ok := splitJSXSegments(span); ok && anyChild(segs) {
-			return r.emitContentSegs(ctx, ch, segs, "", "jsx-text", "jsx-text", locale)
+			// The element is the structure its text children sit in, so it
+			// scopes their ordinals — as a list scopes its items.
+			defer r.naming.Push("jsx")()
+			return r.emitContentSegs(ctx, ch, segs, "", "jsx-text", "text", "", locale)
 		}
 	}
 	r.emitOpaque(ctx, ch, span, "jsx")
@@ -262,7 +285,8 @@ func (r *Reader) emitJSX(ctx context.Context, ch chan<- model.PartResult, span [
 func (r *Reader) emitTable(ctx context.Context, ch chan<- model.PartResult, span []byte, locale model.LocaleID) bool {
 	if r.skeletonStore != nil && r.cfg.ExtractNonTranslatableContent() {
 		if segs, ok := splitTableSegments(span); ok && anyChild(segs) {
-			return r.emitContentSegs(ctx, ch, segs, model.RoleTableCell, "table-cell", "cell", locale)
+			defer r.naming.Push("table")()
+			return r.emitContentSegs(ctx, ch, segs, model.RoleTableCell, "table-cell", "cell", "row", locale)
 		}
 	}
 	r.emitOpaque(ctx, ch, span, "table")

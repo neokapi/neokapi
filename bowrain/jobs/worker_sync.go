@@ -37,6 +37,11 @@ type syncPushManifest struct {
 	// declares. It rides in the manifest so the structure lands in the same
 	// transaction as the items stored into it (see worker_context.go).
 	Contexts json.RawMessage `json:"contexts"`
+	// Decisions is the decisions content type: the client's committed decision
+	// record (core/state), upserted idempotently into the unit_decisions
+	// ledger after the chunks are stored — so decisions arriving with the
+	// content they judge can resolve their rows and project their status.
+	Decisions json.RawMessage `json:"decisions"`
 }
 
 type syncChunkRef struct {
@@ -245,7 +250,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		// Route by content type.
 		switch chunk.ContentType {
 		case "blocks":
-			stored, itemNames, err := processBlockChunk(ctx, deps, &chunk, projectID, stream, itemMetaMap, seedMemory, sourceLocale)
+			stored, itemNames, err := processBlockChunk(ctx, deps, &chunk, projectID, stream, itemMetaMap)
 			if err != nil {
 				markJobFailed(ctx, deps, job.ID, err.Error())
 				return err
@@ -266,6 +271,54 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			markJobFailed(ctx, deps, job.ID, err.Error())
 			return err
 		}
+	}
+
+	// The decisions content type ingests AFTER the chunks, so decisions that
+	// arrived with the content they judge can resolve their rows and project
+	// their status. A malformed payload fails the push — decisions are
+	// authored state, and dropping them silently is the exact failure shape
+	// this protocol keeps having to confess. A store without the ledger
+	// capability skips with a log line rather than failing content it can
+	// otherwise apply.
+	if len(manifest.Decisions) > 0 {
+		var decisions []store.UnitDecision
+		if err := json.Unmarshal(manifest.Decisions, &decisions); err != nil {
+			markJobFailed(ctx, deps, job.ID, "invalid decisions payload")
+			return fmt.Errorf("parse manifest decisions: %w", err)
+		}
+		if ds, ok := deps.ContentStore.(store.DecisionStore); ok {
+			applied, derr := ds.UpsertUnitDecisions(ctx, projectID, stream, decisions)
+			if derr != nil {
+				markJobFailed(ctx, deps, job.ID, derr.Error())
+				return derr
+			}
+			if applied > 0 {
+				emitLog(deps, job.StepID, "info",
+					fmt.Sprintf("Recorded %d decision(s) in the ledger", applied), nil)
+			}
+			// The corpus follows the decisions: approvals promote their
+			// wording into the content memory, rejections evict it. The full
+			// set is passed rather than only the changed records — promotion
+			// is idempotent, and a replay must be able to heal a memory that
+			// was reset independently of the ledger.
+			if promotedN, evictedN := PromoteDecisionsToMemory(ctx, deps.ContentStore, seedMemory,
+				projectID, stream, sourceLocale, decisions); promotedN+evictedN > 0 {
+				emitLog(deps, job.StepID, "info",
+					fmt.Sprintf("Content memory followed the decisions: %d promoted, %d evicted", promotedN, evictedN), nil)
+			}
+		} else {
+			slog.Warn("decisions arrived but the content store keeps no ledger; skipped",
+				"project_id", projectID, "decisions", len(decisions))
+		}
+	}
+
+	// The stored content just diverged from whatever the diff cache holds, so
+	// drop the project's cached hashes before the job reads as done. Skipping
+	// this is not a staleness nicety: the next push inside the cache TTL is
+	// diffed against pre-apply hashes, concludes its changed blocks are already
+	// on the server, and silently uploads nothing.
+	if totalStored > 0 && deps.SyncCache != nil {
+		deps.SyncCache.InvalidateProject(ctx, projectID)
 	}
 
 	// Auto-set project default stream. Convenience, not correctness: the
@@ -309,6 +362,7 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			ProjectID: projectID,
 			Actor:     manifest.ActorID,
 			Data: map[string]string{
+				"stream":       stream,
 				"items":        strings.Join(allItemNames, ","),
 				"items_sample": strings.Join(sampleItemNames(allItemNames, 3), ","),
 				"files_count":  strconv.Itoa(len(allItemNames)),
@@ -359,25 +413,51 @@ func sampleItemNames(names []string, n int) []string {
 
 // processBlockChunk converts SyncBlocks to model.Blocks and stores them.
 // Blocks with ExpectedHash set are checked for optimistic concurrency conflicts.
-//
-// tm (optional) is the project's server content memory: when a stored block arrives with an
-// existing target translation, that pair is seeded into the content memory so a future
-// convergence recycles it instead of paying AI (theme A2, "arrives with
-// translations → recycles for free"). Seeding is idempotent (content-hash keyed
-// entry IDs) and best-effort — a seed failure never fails the push.
-func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChunk, projectID, stream string, itemMetas map[string]*pb.SyncItemMeta, tm memory.Store, sourceLocale model.LocaleID) (int, []string, error) {
-	// Check expected_hash conflict detection (optimistic concurrency).
+func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChunk, projectID, stream string, itemMetas map[string]*pb.SyncItemMeta) (int, []string, error) {
+	// Check expected_hash conflict detection (optimistic concurrency). A block
+	// that came out of this store names its row directly (sb.Id is the stored
+	// row id — what a pull handed the client); one read from a local file
+	// carries its durable identity in sb.Name (source_id, the structural name).
+	// Both joins are checked: matching only the row id went permanently silent
+	// when the store moved to durable keying, and matching only the durable key
+	// would orphan every hash a pull-based editor holds. One stored-block load
+	// per item.
+	type expectedRef struct{ byRowID, byKey, hash string }
+	conflictItems := map[string][]expectedRef{}
 	for _, sb := range chunk.Blocks {
 		if sb.ExpectedHash == "" {
 			continue
 		}
-		existing, err := deps.ContentStore.GetBlock(ctx, projectID, stream, sb.Id)
+		conflictItems[sb.ItemName] = append(conflictItems[sb.ItemName],
+			expectedRef{byRowID: sb.Id, byKey: sb.Name, hash: sb.ExpectedHash})
+	}
+	for itemName, expected := range conflictItems {
+		storedRows, err := deps.ContentStore.GetBlocks(ctx, store.BlockQuery{
+			ProjectID: projectID, Stream: stream, ItemName: itemName,
+		})
 		if err != nil {
-			continue // Block doesn't exist yet — no conflict.
+			continue // Item doesn't exist yet — no conflict.
 		}
-		if existing.ContentHash != sb.ExpectedHash {
-			return 0, nil, fmt.Errorf("conflict on block %s in %s: expected hash %s but current is %s",
-				sb.Id, sb.ItemName, sb.ExpectedHash, existing.ContentHash)
+		byRowID := map[string]string{}
+		byKey := map[string]string{}
+		for _, row := range storedRows {
+			byRowID[row.ID] = row.ContentHash
+			if row.SourceID != "" {
+				byKey[row.SourceID] = row.ContentHash
+			}
+		}
+		for _, exp := range expected {
+			current, found := byRowID[exp.byRowID]
+			if !found && exp.byKey != "" {
+				current, found = byKey[exp.byKey]
+			}
+			if !found {
+				continue // Block doesn't exist yet — no conflict.
+			}
+			if current != exp.hash {
+				return 0, nil, fmt.Errorf("conflict on block %s in %s: expected hash %s but current is %s",
+					exp.byRowID, itemName, exp.hash, current)
+			}
 		}
 	}
 
@@ -428,35 +508,12 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 		}
 		stored += len(blocks)
 
-		// Seed the project content memory from any target translations these blocks arrived
-		// with, so a future convergence recycles them for free (theme A2).
-		seedMemoryFromBlockTargets(ctx, tm, blocks, projectID, sourceLocale)
+		// Pushed targets do NOT seed the content memory. Transport moves
+		// content; it does not approve it. The corpus has one door in —
+		// wording a decision approved (PromoteDecisionsToMemory, below) — so
+		// nothing a push carried can be offered back as approved wording
+		// merely for having traveled.
 	}
 
 	return stored, itemNames, nil
-}
-
-// seedMemoryFromBlockTargets adds every (source, target) pair carried by the blocks
-// to the project content memory, across all target locales present. It is a thin fan-out
-// over seedMemoryFromBlocks (one call per distinct target locale) and is a no-op
-// when tm is nil or no block carries a populated target.
-func seedMemoryFromBlockTargets(ctx context.Context, tm memory.Store, blocks []*model.Block, projectID string, sourceLocale model.LocaleID) {
-	if tm == nil || sourceLocale.IsEmpty() {
-		return
-	}
-	// Collect the distinct target locales carried by these blocks.
-	locales := map[model.LocaleID]struct{}{}
-	for _, b := range blocks {
-		if b == nil {
-			continue
-		}
-		for key := range b.Targets {
-			if key.Locale != "" && key.Locale != sourceLocale {
-				locales[key.Locale] = struct{}{}
-			}
-		}
-	}
-	for loc := range locales {
-		seedMemoryFromBlocks(ctx, tm, blocks, projectID, sourceLocale, loc, "push", "")
-	}
 }

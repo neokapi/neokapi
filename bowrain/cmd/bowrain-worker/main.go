@@ -34,12 +34,14 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage/blobcfg"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	sqltb "github.com/neokapi/neokapi/bowrain/terms"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"
 	fwmemory "github.com/neokapi/neokapi/memory"
 	fwterms "github.com/neokapi/neokapi/terms"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 
 	// Register the AWS Bedrock AI provider ("bedrock") in the aiprovider registry,
@@ -312,6 +314,21 @@ func runWorker(dbURL string) error {
 		} else {
 			translationDeps.EventBus = bus
 			slog.Info("worker event bus configured", "backend", "redis_streams")
+		}
+	}
+
+	// The same Redis holds the server's sync diff cache (Bowrain AD-009). The
+	// worker is the process that changes stored source content, so it carries
+	// the invalidation half of that cache: without it, a push applied here
+	// leaves the server negotiating diffs against pre-apply hashes for the
+	// cache TTL, and the next push's changed blocks are silently skipped.
+	if redisURL != "" {
+		if redisOpts, err := redis.ParseURL(redisURL); err == nil {
+			if pw := os.Getenv("BOWRAIN_REDIS_PASSWORD"); pw != "" {
+				redisOpts.Password = pw
+			}
+			translationDeps.SyncCache = bowsync.NewRedisHashCache(redis.NewClient(redisOpts), 30*time.Minute)
+			slog.Info("worker sync hash cache configured", "backend", "redis")
 		}
 	}
 

@@ -197,7 +197,12 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 			if status != model.TargetStatusDraft && strings.TrimSpace(target) == "" {
 				return false, fmt.Errorf("unit %s has no %s translation to approve", ref.Key, ref.Locale)
 			}
-			return a.recordDecisionState(proj, root, blockKey(b), loc, target, status, decision, note, by)
+			// The decision's document is the SOURCE path: it is the identity
+			// namespace the unit key lives in — the connector names server
+			// items by it, so it is what lets the decision travel scoped to
+			// the right item. The review queue's display path is the target
+			// file, which no other party names anything by.
+			return a.recordDecisionState(ctx, proj, root, relToRoot(root, u.SourcePath), blockKey(b), loc, target, status, decision, note, by)
 		}
 	}
 	return false, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
@@ -211,14 +216,15 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 // touched here: it is the recycle corpus, not the state carrier. Advisory fields
 // already on the unit's record (origin, source status, a fresh AI pre-review
 // annotation) survive the decision write.
-func (a *App) recordDecisionState(proj *project.KapiProject, root, unit string, locale model.LocaleID, target string, status model.TargetStatus, decision, note, by string) (bool, error) {
-	st, err := openProjectState(proj, root)
+func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, target string, status model.TargetStatus, decision, note, by string) (bool, error) {
+	st, err := openProjectState(ctx, root)
 	if err != nil {
 		return false, err
 	}
+	defer st.Close()
 	k := state.Key{Unit: unit, Variant: model.Variant(locale)}
 	th := targetHash(target)
-	prev, hadPrev := st.Get(k)
+	prev, hadPrev := st.Get(ctx, k)
 	if hadPrev && prev.Status == status && prev.TargetHash == th && prev.Decision.Note == note && prev.Decision.By == by {
 		return false, nil // already at this decision for this exact translation
 	}
@@ -230,6 +236,13 @@ func (a *App) recordDecisionState(proj *project.KapiProject, root, unit string, 
 		TargetHash: th,
 		Decision:   state.Decision{ReviewState: decision, By: by, At: now, Note: note},
 		Updated:    now,
+		// The document the unit was decided in. Until the reconcile resolver
+		// is wired into the review path, the display path IS the document key;
+		// when resolved keys land, the working store's document map translates
+		// key → path and this field keeps meaning "which document". It is what
+		// lets a decision travel the sync protocol scoped to the item whose
+		// identity namespace the unit key lives in.
+		Scope: file,
 	}
 	if hadPrev {
 		// Advisory state rides along; only the decision itself is replaced.
@@ -239,10 +252,12 @@ func (a *App) recordDecisionState(proj *project.KapiProject, root, unit string, 
 			next.AIReview = prev.AIReview
 		}
 	}
-	st.Put(next)
-	if err := st.Export(); err != nil {
+	if err := st.Put(ctx, next); err != nil {
 		return false, err
 	}
+	// Staged, not committed. A decision is durable the moment it lands in the
+	// working store; making it part of the project's committed record is a
+	// separate, deliberate act — see `kapi commit`.
 	return true, nil
 }
 
@@ -277,10 +292,11 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 		return 0, fmt.Errorf("resolve content: %w", err)
 	}
 
-	st, err := openProjectState(proj, root)
+	st, err := openProjectState(ctx, root)
 	if err != nil {
 		return 0, err
 	}
+	defer st.Close()
 
 	recorded := 0
 	loc := model.LocaleID(locale)
@@ -311,21 +327,19 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 				rev.At = nowRFC3339()
 			}
 			k := state.Key{Unit: blockKey(b), Variant: model.Variant(loc)}
-			us, _ := st.Get(k)
+			us, _ := st.Get(ctx, k)
 			us.Unit = blockKey(b)
 			us.Variant = model.Variant(loc)
 			r := rev
 			us.AIReview = &r
 			us.Updated = rev.At
-			st.Put(us)
+			if err := st.Put(ctx, us); err != nil {
+				return recorded, err
+			}
 			recorded++
 		}
 	}
-	if recorded > 0 {
-		if err := st.Export(); err != nil {
-			return recorded, err
-		}
-	}
+	// Staged only; `kapi commit` writes the project's committed record.
 	return recorded, nil
 }
 
@@ -408,11 +422,12 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 				Target:     b.TargetText(loc),
 				Status:     unitState(b, ref.Locale),
 			}
-			st, serr := openProjectState(proj, root)
+			st, serr := openProjectState(ctx, root)
 			if serr != nil {
 				return nil, serr
 			}
-			if us, found := st.Get(state.Key{Unit: ref.Key, Variant: model.Variant(loc)}); found {
+			defer st.Close()
+			if us, found := st.Get(ctx, state.Key{Unit: ref.Key, Variant: model.Variant(loc)}); found {
 				th := targetHash(info.Target)
 				if !us.Stale(th) {
 					if us.Status != "" {
@@ -433,4 +448,17 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 		}
 	}
 	return nil, fmt.Errorf("review unit %q (%s) not found in %s", ref.Key, ref.Locale, ref.File)
+}
+
+// relToRoot renders a unit path relative to the project root when possible —
+// the shape the connector names items by. An outside-the-root or already-
+// relative path is kept verbatim.
+func relToRoot(root, p string) string {
+	if p == "" || !filepath.IsAbs(p) {
+		return p
+	}
+	if rel, err := filepath.Rel(root, p); err == nil && !strings.HasPrefix(rel, "..") {
+		return rel
+	}
+	return p
 }

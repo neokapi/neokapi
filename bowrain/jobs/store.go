@@ -102,10 +102,11 @@ type JobStore interface {
 //	4  translation job claim lease (epoch) for double-run protection
 //	5  content memory-first convergence: record the content memory-vs-AI block split per job
 //	6  deferral count for jobs parked on an unavailable dependency
+//	8  stream scope for translation jobs (targets are per-stream overlays)
 //
 // Baseline is version 7 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 8.
+// repaired. Retired numbers are never reused; the next migration is version 9.
 var JobMigrations = []storage.Migration{
 	{
 		Version:     7,
@@ -172,6 +173,13 @@ var JobMigrations = []storage.Migration{
 				ON translation_jobs(updated_at) WHERE status = 'processing';
 		`,
 	},
+	{
+		Version:     8,
+		Description: "stream scope for translation jobs",
+		SQL: `
+			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS stream TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }
 
 // jobStore implements JobStore using PostgreSQL.
@@ -199,11 +207,11 @@ func (s *jobStore) CreateJob(ctx context.Context, job *TranslationJob) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO translation_jobs
 			(id, workspace_slug, project_id, item_name, target_locale, provider_config_id,
-			 model, push_id, step_id, status, progress, total_blocks, done_blocks, tokens_used, error, created_at, updated_at, workspace_id, via_tm, via_ai)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+			 model, push_id, step_id, status, progress, total_blocks, done_blocks, tokens_used, error, created_at, updated_at, workspace_id, via_tm, via_ai, stream)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)`,
 		job.ID, job.WorkspaceSlug, job.ProjectID, job.ItemName, job.TargetLocale,
 		job.ProviderConfigID, job.Model, job.PushID, job.StepID, string(job.Status), job.Progress, job.TotalBlocks,
-		job.DoneBlocks, job.TokensUsed, job.Error, now, now, job.WorkspaceID, job.ViaMemory, job.ViaAI)
+		job.DoneBlocks, job.TokensUsed, job.Error, now, now, job.WorkspaceID, job.ViaMemory, job.ViaAI, job.Stream)
 	if err != nil {
 		return fmt.Errorf("insert job: %w", err)
 	}
@@ -214,7 +222,7 @@ func (s *jobStore) GetJob(ctx context.Context, id string) (*TranslationJob, erro
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, target_locale,
 				provider_config_id, model, push_id, step_id, status, progress, total_blocks, done_blocks,
-				tokens_used, error, created_at, updated_at, workspace_id, via_tm, via_ai
+				tokens_used, error, created_at, updated_at, workspace_id, via_tm, via_ai, stream
 		 FROM translation_jobs WHERE id = $1`, id)
 	return scanJob(row)
 }
@@ -226,7 +234,7 @@ func (s *jobStore) ListJobs(ctx context.Context, workspaceSlug string, limit int
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, target_locale,
 				provider_config_id, model, push_id, step_id, status, progress, total_blocks, done_blocks,
-				tokens_used, error, created_at, updated_at, workspace_id, via_tm, via_ai
+				tokens_used, error, created_at, updated_at, workspace_id, via_tm, via_ai, stream
 		 FROM translation_jobs
 		 WHERE workspace_slug = $1
 		 ORDER BY created_at DESC
@@ -454,7 +462,7 @@ func (s *jobStore) ListJobsByPushID(ctx context.Context, pushID string) ([]*Tran
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, target_locale,
 				provider_config_id, model, push_id, step_id, status, progress, total_blocks, done_blocks,
-				tokens_used, error, created_at, updated_at, workspace_id, via_tm, via_ai
+				tokens_used, error, created_at, updated_at, workspace_id, via_tm, via_ai, stream
 		 FROM translation_jobs
 		 WHERE push_id = $1
 		 ORDER BY created_at ASC`, pushID)
@@ -472,7 +480,7 @@ func scanJob(row *sql.Row) (*TranslationJob, error) {
 	err := row.Scan(
 		&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.TargetLocale,
 		&j.ProviderConfigID, &j.Model, &j.PushID, &j.StepID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
-		&j.TokensUsed, &j.Error, &j.CreatedAt, &j.UpdatedAt, &j.WorkspaceID, &j.ViaMemory, &j.ViaAI)
+		&j.TokensUsed, &j.Error, &j.CreatedAt, &j.UpdatedAt, &j.WorkspaceID, &j.ViaMemory, &j.ViaAI, &j.Stream)
 	if err != nil {
 		return nil, fmt.Errorf("scan job: %w", err)
 	}
@@ -489,7 +497,7 @@ func scanJobs(rows *sql.Rows) ([]*TranslationJob, error) {
 		err := rows.Scan(
 			&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.TargetLocale,
 			&j.ProviderConfigID, &j.Model, &j.PushID, &j.StepID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
-			&j.TokensUsed, &j.Error, &j.CreatedAt, &j.UpdatedAt, &j.WorkspaceID, &j.ViaMemory, &j.ViaAI)
+			&j.TokensUsed, &j.Error, &j.CreatedAt, &j.UpdatedAt, &j.WorkspaceID, &j.ViaMemory, &j.ViaAI, &j.Stream)
 		if err != nil {
 			return nil, fmt.Errorf("scan job row: %w", err)
 		}

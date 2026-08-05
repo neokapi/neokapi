@@ -337,6 +337,10 @@ type wmlParser struct {
 	structStack  []structFrame
 	cellDepth    int
 	groupCounter int
+	// path addresses each block by part plus table/row/cell position — see
+	// structural_name.go. It is maintained regardless of emitPart, because a
+	// block's Name is not optional the way group emission is.
+	path oxmlPath
 	// pendingColSpan is the horizontal cell merge (w:tcPr/w:gridSpan) parsed for
 	// the current cell, applied to its first paragraph (tagged RoleTableCell) so
 	// spanned grids reconstruct aligned. Reset at each cell boundary.
@@ -407,6 +411,14 @@ func (p *wmlParser) nextGroupID() string {
 // parser enters a w:tbl / w:tr / w:tc. Additive — no skeleton bytes, so the
 // byte-exact round-trip is unaffected. No-op when emitPart is unset.
 func (p *wmlParser) openTableStruct(name string) {
+	switch name {
+	case "tbl":
+		p.path.push("table")
+	case "tr":
+		p.path.push("row")
+	case "tc":
+		p.path.push("cell")
+	}
 	if p.emitPart == nil {
 		return
 	}
@@ -452,6 +464,14 @@ func (p *wmlParser) resolveCellVMerge() {
 // depth) when the parser leaves a w:tbl / w:tr / w:tc. Driven from the single
 // main-loop EndElement site, through which every such close flows.
 func (p *wmlParser) closeTableStruct(name string) {
+	switch name {
+	case "tbl":
+		p.path.pop("table")
+	case "tr":
+		p.path.pop("row")
+	case "tc":
+		p.path.pop("cell")
+	}
 	if p.emitPart == nil {
 		return
 	}
@@ -522,6 +542,9 @@ type pendingFieldBlock struct {
 
 // parsePart streams through a WordprocessingML XML part, emitting Blocks.
 func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*model.Block), emitData func()) error {
+	// Root block names at this part before any structure opens — a later
+	// re-rooting would drop the table/row/cell scopes already pushed.
+	p.path.ensurePart(partPath)
 	// When AutomaticallyAcceptRevisions is true, pre-process the bytes
 	// to mirror upstream Okapi's revision-acceptance passes that
 	// happen before the streaming parser sees the document:
@@ -2921,6 +2944,7 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 							}
 							*p.blockCounter++
 							blk := model.NewBlock(fmt.Sprintf("tu%d", *p.blockCounter), "")
+							blk.Name = p.path.name(p.path.reserve("oMath"))
 							blk.Translatable = false
 							blk.Type = "math"
 							blk.SetSemanticRole(model.RoleFormula, 0)
@@ -5070,6 +5094,11 @@ func (p *wmlParser) isHiddenRun(run textRun) bool {
 // Until then this annotation is read-only sidecar data and does not
 // change writer behaviour.
 func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML string, perRunRPrXML []string, perRunSrcRunStart []bool) *model.Block {
+	// The paragraph's address: the part it lives in, the table/row/cell
+	// enclosing it, and its position among the paragraphs of that cell — or of
+	// the part body when it is not in a table. See structural_name.go.
+	p.path.ensurePart(partPath)
+	blockName := p.path.name(p.path.reserve("p"))
 	b := &runBuilder{}
 	spanCounter := 0
 
@@ -5971,6 +6000,7 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 		}
 	}
 
+	block.Name = blockName
 	return block
 }
 
@@ -7195,8 +7225,12 @@ func (p *wmlParser) emitDrawingPropMarker(
 	out.WriteString(refID)
 	out.WriteString(drawingMarkerSuffix)
 
+	p.path.ensurePart(partPath)
 	block := &model.Block{
-		ID:           refID,
+		ID: refID,
+		// The drawing's own address plus the attribute the text came from, so
+		// a shape's name, its alt text and its title are three addresses.
+		Name:         p.path.name(p.path.reserve("drawing"), "@"+element),
 		Type:         "property",
 		Translatable: translatable,
 		Source:       []model.Run{{Text: &model.TextRun{Text: value}}},
@@ -7306,8 +7340,10 @@ func (p *wmlParser) extractBareTextElement(
 					out.WriteString(drawingMarkerTextPrefix)
 					out.WriteString(refID)
 					out.WriteString(drawingMarkerSuffix)
+					p.path.ensurePart(partPath)
 					emitBlock(&model.Block{
 						ID:           refID,
+						Name:         p.path.name(p.path.reserve("alt-content-text")),
 						Type:         "property",
 						Translatable: true,
 						Source:       []model.Run{{Text: &model.TextRun{Text: text.String()}}},

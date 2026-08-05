@@ -217,6 +217,11 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 		"translatorcomment": true,
 	}
 
+	// One builder per document read: the ordinals it hands out on a repeated key
+	// are scoped to this file. See messageName, and nameOrdinals for why this is
+	// not model.NameBuilder.
+	var names nameOrdinals
+
 	var (
 		tsVersion             string
 		tsLanguage            string
@@ -822,7 +827,6 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 					if hasInlineCodes(sourceRuns) {
 						block = &model.Block{
 							ID:           blockID,
-							Name:         contextName,
 							Translatable: translatable,
 							Source:       sourceRuns,
 							Targets:      make(map[model.VariantKey]*model.Target),
@@ -830,9 +834,9 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 						}
 					} else {
 						block = model.NewBlock(blockID, sourceText)
-						block.Name = contextName
 						block.Translatable = translatable
 					}
+					block.Name = messageName(&names, contextName, messageID, sourceText, commentBuilder.String())
 
 					// Store translation type
 					if transType != "" {
@@ -1110,6 +1114,40 @@ func (r *Reader) walkTokens(ctx context.Context, ch chan<- model.PartResult, dec
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// messageName is the structural name for a Qt TS message: where the message sits
+// (its `<context>`) followed by the message's own key.
+//
+// Qt TS has a genuine structural path and a genuine key, so neither half needs
+// inventing. The key is the `id` attribute when the author assigned one;
+// otherwise it is what Qt itself matches messages on — the source text plus the
+// disambiguating `<comment>`. That triple, (context, source, comment), is
+// literally lupdate's merge key: it is how Qt decides that a message in a new
+// .ts file is the same message as one in the old, so it is the most faithful
+// thing a name here can say.
+//
+// It replaces two things that could not work. `contextName` alone — what this
+// reader used to emit — gave every message in a context the same name, so no
+// message was distinguishable from its neighbours and a decision recorded about
+// one could be claimed by another. A running `tu7` would have been worse still:
+// deleting a message renames every message below it.
+//
+// Where an id is present the comment is left out. An id is already unique, and
+// folding the comment in would mean that adding a translator note renames the
+// block.
+//
+// The cost of the source-text fallback is that a source edit changes the name as
+// well as the content, so reconcile sees both signals move and grades the block
+// as new. That matches the format's own semantics — lupdate treats a changed
+// source as a different message and records the previous text in `<oldsource>` —
+// and the `oldsource` property lands in the context hash regardless. A .ts file
+// that assigns message ids avoids it entirely.
+func messageName(nb *nameOrdinals, contextName, messageID, sourceText, comment string) string {
+	if messageID != "" {
+		return nb.name(model.StructuralPath(contextName, messageID))
+	}
+	return nb.name(model.StructuralPath(contextName, sourceText, comment))
 }
 
 // byteElem holds a <byte value="xx"/> element.

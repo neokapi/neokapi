@@ -278,6 +278,13 @@ type SyncPushResponse struct {
 	// declares. Not a server field on the commit response — Push copies it here
 	// so one return value carries the whole push's outcome.
 	UndeclaredCollections []string `json:"-"`
+
+	// BlocksUploaded and ChunkCount are what this push actually put on the
+	// wire after diff negotiation — filled in by Push, not by the server.
+	// Distinct from the caller's changed-block count: a push that carried 75k
+	// candidate blocks and uploaded none is a bug the changed count hides.
+	BlocksUploaded int `json:"-"`
+	ChunkCount     int `json:"-"`
 }
 
 // ChangeEntry represents a single change log entry from the server.

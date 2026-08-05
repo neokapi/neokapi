@@ -150,6 +150,7 @@ func isStructurallyEmptyDMLBlockProperties(raw string) bool {
 // containers, plus chart-specific <c:strCache>/<c:numCache>/<c:txPr>
 // blocks, pass through unchanged.
 func (p *dmlParser) parseChartOrDiagramPart(data []byte, partPath string, emitBlock func(*model.Block)) error {
+	p.path.ensurePart(partPath)
 	d := xml.NewDecoder(bytes.NewReader(data))
 
 	for {

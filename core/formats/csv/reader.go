@@ -36,7 +36,8 @@ type Reader struct {
 	format.BaseFormatReader
 	cfg           *Config
 	skeletonStore *format.SkeletonStore
-	skelBuf       bytes.Buffer // coalesces skeleton text between refs
+	skelBuf       bytes.Buffer      // coalesces skeleton text between refs
+	names         model.NameBuilder // structural block names for one read (see naming.go)
 }
 
 // Ensure Reader implements SkeletonStoreEmitter.
@@ -173,6 +174,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	startRow := 0
 	blockCounter := 0
 	dataCounter := 0
+	r.names.Reset()
 
 	// Determine header row
 	if r.cfg.HasHeader {
@@ -196,6 +198,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			startRow = 1
 		}
 	}
+
+	// Columns that address a row, so a cell is named by its key rather than by
+	// how far down the file it happens to sit (see naming.go).
+	keyCols := r.nameKeyColumns(headers, records, startRow)
 
 	// Emit rows before the data start (other than the header row itself) as
 	// Data parts (preamble). The header row becomes a table-row of header
@@ -250,6 +256,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 		for colIdx, cell := range records[headerRow] {
 			hb := model.NewBlock(fmt.Sprintf("h%d", colIdx), cell)
+			// A header cell's address is the column it labels — the same segment
+			// every cell below it is named by.
+			hb.Name = r.names.Name(model.StructuralPath("header", r.columnName(headers, colIdx)))
 			hb.Type = "table-cell"
 			hb.Translatable = false
 			hb.SetSemanticRole(model.RoleTableHeader, 0)
@@ -275,7 +284,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{ID: rowGroupID, Name: "table-row", Type: "table-row"}}) {
 				return
 			}
-			if block := r.newBilingualBlock(row, rowNum, &blockCounter); block != nil {
+			if block := r.newBilingualBlock(row, rowNum, keyCols, &blockCounter); block != nil {
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return
 				}
@@ -297,6 +306,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			}
 			rowKey = strings.Join(keyParts, ".")
 		}
+		rowAddr := rowAddress(row, keyCols)
 
 		// Build comment from comment columns if configured
 		var rowComment string
@@ -326,7 +336,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			if !r.isTranslatable(colIdx) {
 				dataCounter++
 				id := fmt.Sprintf("d%d", dataCounter)
-				name := fmt.Sprintf("%s.row%d", colName, rowNum)
+				name := r.cellName(rowAddr, colName, rowNum)
 				if r.cfg.ExtractNonTranslatableContent() {
 					// Non-translatable column -> non-translatable content cell
 					// (mirrors the header cells: visible to ingestion, skipped
@@ -374,7 +384,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			}
 
 			block := model.NewBlock(blockID, cellValue)
-			block.Name = fmt.Sprintf("%s.row%d", colName, rowNum)
+			block.Name = r.cellName(rowAddr, colName, rowNum)
 			block.Type = "table-cell"
 			block.SetSemanticRole(model.RoleTableCell, 0)
 			block.Properties["column"] = strconv.Itoa(colIdx)
@@ -425,8 +435,11 @@ func (r *Reader) newPreambleBlock(id, name, content string) *model.Block {
 	return block
 }
 
+// columnName is the structural segment naming one column: its header label, or
+// `colN` when the file has no header row — or a blank one, which addresses no
+// better than the position does.
 func (r *Reader) columnName(headers []string, colIdx int) string {
-	if colIdx < len(headers) {
+	if colIdx < len(headers) && strings.TrimSpace(headers[colIdx]) != "" {
 		return headers[colIdx]
 	}
 	return fmt.Sprintf("col%d", colIdx)
@@ -502,6 +515,8 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 
 	blockCounter := 0
 	dataCounter := 0
+	r.names.Reset()
+	keyCols := r.nameKeyColumns(headers, records, startRow)
 
 	// Process each raw line, matching against parsed records.
 	for rowIdx, rawLine := range rawLines {
@@ -560,7 +575,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		// Bilingual (column-role) mode: the whole row is skeleton except the
 		// target cell, which becomes the ref the writer fills on merge.
 		if r.cfg.BilingualMode() {
-			if !r.emitBilingualRowSkeleton(ctx, ch, row, rawLine, rowNum, &blockCounter) {
+			if !r.emitBilingualRowSkeleton(ctx, ch, row, rawLine, rowNum, keyCols, &blockCounter) {
 				return
 			}
 			r.skelText(rawLine.lineEnding)
@@ -578,6 +593,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			}
 			rowKey = strings.Join(keyParts, ".")
 		}
+		rowAddr := rowAddress(row, keyCols)
 
 		// Build comment from comment columns if configured.
 		var rowComment string
@@ -620,7 +636,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				dataCounter++
 				colName := r.columnName(headers, colIdx)
 				id := fmt.Sprintf("d%d", dataCounter)
-				name := fmt.Sprintf("%s.row%d", colName, rowNum)
+				name := r.cellName(rowAddr, colName, rowNum)
 				if r.cfg.ExtractNonTranslatableContent() {
 					// Surface the cell value as non-translatable content
 					// (mirrors header cells: visible to ingestion, skipped by
@@ -674,7 +690,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			r.skelText(rc.suffix)
 
 			block := model.NewBlock(blockID, cellValue)
-			block.Name = fmt.Sprintf("%s.row%d", colName, rowNum)
+			block.Name = r.cellName(rowAddr, colName, rowNum)
 			block.Properties["column"] = strconv.Itoa(colIdx)
 			block.Properties["row"] = strconv.Itoa(rowNum)
 			if rc.prefix == "\"" {
@@ -700,7 +716,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 // (column-role) mode: source text from the source column, existing target
 // (if any) from the target column, block ID from the key columns when
 // configured. Returns nil when the source cell is empty.
-func (r *Reader) newBilingualBlock(row []string, rowNum int, blockCounter *int) *model.Block {
+func (r *Reader) newBilingualBlock(row []string, rowNum int, keyCols []int, blockCounter *int) *model.Block {
 	src := ""
 	if r.cfg.SourceColumn < len(row) {
 		src = row[r.cfg.SourceColumn]
@@ -735,7 +751,7 @@ func (r *Reader) newBilingualBlock(row []string, rowNum int, blockCounter *int) 
 	}
 
 	block := model.NewBlock(blockID, src)
-	block.Name = fmt.Sprintf("row%d", rowNum)
+	block.Name = r.rowName(rowAddress(row, keyCols), rowNum)
 	block.Properties["row"] = strconv.Itoa(rowNum)
 	block.Properties["column"] = strconv.Itoa(r.cfg.SourceColumn)
 	// Mark that this block's skeleton ref sits in the target column: the
@@ -773,9 +789,9 @@ func (r *Reader) newBilingualBlock(row []string, rowNum int, blockCounter *int) 
 // the skeleton verbatim (the source column is never overwritten on merge);
 // the target cell becomes the skeleton ref the writer fills with the
 // block's target text.
-func (r *Reader) emitBilingualRowSkeleton(ctx context.Context, ch chan<- model.PartResult, row []string, line rawLine, rowNum int, blockCounter *int) bool {
+func (r *Reader) emitBilingualRowSkeleton(ctx context.Context, ch chan<- model.PartResult, row []string, line rawLine, rowNum int, keyCols []int, blockCounter *int) bool {
 	rawCells := splitRawCells(line.text, r.cfg.Separator)
-	block := r.newBilingualBlock(row, rowNum, blockCounter)
+	block := r.newBilingualBlock(row, rowNum, keyCols, blockCounter)
 	if block == nil || r.cfg.TargetColumn >= len(rawCells) {
 		// No source text, or no target cell present to anchor the ref:
 		// keep the whole row as skeleton text.

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -68,6 +69,19 @@ func SyncBlockOverlays(
 	return nil
 }
 
+// overlayChunk bounds one IN(...) list in the loaders below. Every id is one
+// bind parameter, and a whole-project call — GetBlockStats deriving coverage,
+// the review loop hydrating every block — must not gamble on the corpus being
+// smaller than the driver's parameter budget (65,535 on Postgres, far less on
+// SQLite). Third member of this family found at 74,916 blocks; the loaders
+// chunk so no caller has to know.
+func overlayChunk(dialect string) int {
+	if dialect == "sqlite" {
+		return 500
+	}
+	return 5000
+}
+
 // LoadBlockOverlays hydrates a block's Targets + Annotations from the
 // kind-specific tables. Called by GetBlock(s) after the source row
 // is fetched.
@@ -80,6 +94,19 @@ func LoadBlockOverlays(
 ) (map[string]map[model.VariantKey]*model.Target, map[string]map[string]model.Payload, error) {
 	if len(blockIDs) == 0 {
 		return nil, nil, nil
+	}
+	if size := overlayChunk(dialect); len(blockIDs) > size {
+		targets := map[string]map[model.VariantKey]*model.Target{}
+		annotations := map[string]map[string]model.Payload{}
+		for start := 0; start < len(blockIDs); start += size {
+			t, a, err := LoadBlockOverlays(ctx, db, dialect, projectID, stream, blockIDs[start:min(start+size, len(blockIDs))])
+			if err != nil {
+				return nil, nil, err
+			}
+			maps.Copy(targets, t)
+			maps.Copy(annotations, a)
+		}
+		return targets, annotations, nil
 	}
 
 	targets := map[string]map[model.VariantKey]*model.Target{}
@@ -162,6 +189,16 @@ func LoadBlockTargetLocales(
 		return nil, nil
 	}
 	out := map[string][]string{}
+	if size := overlayChunk(dialect); len(blockIDs) > size {
+		for start := 0; start < len(blockIDs); start += size {
+			part, err := LoadBlockTargetLocales(ctx, db, dialect, projectID, stream, blockIDs[start:min(start+size, len(blockIDs))])
+			if err != nil {
+				return nil, err
+			}
+			maps.Copy(out, part)
+		}
+		return out, nil
+	}
 	rows, err := db.QueryContext(ctx, sqlListTranslationLocalesByBlocks(dialect, len(blockIDs)),
 		append([]any{projectID, stream}, anyStrings(blockIDs)...)...,
 	)
@@ -203,6 +240,16 @@ func LoadBlockTargetStates(
 		return nil, nil
 	}
 	out := map[string][]TargetLocaleState{}
+	if size := overlayChunk(dialect); len(blockIDs) > size {
+		for start := 0; start < len(blockIDs); start += size {
+			part, err := LoadBlockTargetStates(ctx, db, dialect, projectID, stream, blockIDs[start:min(start+size, len(blockIDs))])
+			if err != nil {
+				return nil, err
+			}
+			maps.Copy(out, part)
+		}
+		return out, nil
+	}
 	rows, err := db.QueryContext(ctx, sqlListTranslationStatesByBlocks(dialect, len(blockIDs)),
 		append([]any{projectID, stream}, anyStrings(blockIDs)...)...,
 	)

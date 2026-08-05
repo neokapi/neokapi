@@ -1750,7 +1750,7 @@ func TestCSV_BlockProperties(t *testing.T) {
 	require.Len(t, blocks, 2)
 	assert.Equal(t, "0", blocks[0].Properties["column"])
 	assert.Equal(t, "1", blocks[0].Properties["row"])
-	assert.Equal(t, "Col1.row1", blocks[0].Name)
+	assert.Equal(t, "Col1/row1", blocks[0].Name)
 }
 
 func TestCSV_BlockNamesWithoutHeaders(t *testing.T) {
@@ -1762,8 +1762,8 @@ func TestCSV_BlockNamesWithoutHeaders(t *testing.T) {
 	blocks := collectBlocks(parts)
 
 	require.Len(t, blocks, 2)
-	assert.Equal(t, "col0.row1", blocks[0].Name)
-	assert.Equal(t, "col1.row1", blocks[1].Name)
+	assert.Equal(t, "col0/row1", blocks[0].Name)
+	assert.Equal(t, "col1/row1", blocks[1].Name)
 }
 
 // --- Multiple Key Columns ---
@@ -1867,7 +1867,7 @@ func TestCSV_ColumnNamesRowAutoDetect(t *testing.T) {
 	blocks := collectBlocks(parts)
 
 	require.Len(t, blocks, 2)
-	assert.Equal(t, "Name.row1", blocks[0].Name)
+	assert.Equal(t, "Name/row1", blocks[0].Name)
 }
 
 // --- Roundtrip with different delimiters ---

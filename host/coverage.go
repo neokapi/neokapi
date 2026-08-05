@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"errors"
+	"github.com/neokapi/neokapi/core/storage"
 	"math"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -205,16 +206,28 @@ func (r reviewedIndex) aiReviewFor(b *model.Block, locale string) (aiReviewEntry
 // loadReviewedCorrections builds the reviewedIndex from the project state store.
 // An absent store yields an empty index (nothing decided yet) — never an error,
 // so status stays informational.
-func (a *App) loadReviewedCorrections(proj *project.KapiProject, root string) (reviewedIndex, error) {
+func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiProject, root string) (reviewedIndex, error) {
 	idx := reviewedIndex{byUnit: map[string]reviewedEntry{}, aiReviews: map[string]aiReviewEntry{}}
 	if root == "" {
 		return idx, nil
 	}
-	st, err := openProjectState(proj, root)
+	st, err := openProjectState(ctx, root)
+	if err != nil {
+		// The browser build has no file-backed SQLite by design, and status
+		// must still answer there — with no local decisions, which is exactly
+		// what an empty index says. Any other open failure is real.
+		if errors.Is(err, storage.ErrNoSQLite) {
+			return idx, nil
+		}
+		return idx, err
+	}
+	defer st.Close()
+
+	all, err := st.All(ctx)
 	if err != nil {
 		return idx, err
 	}
-	for _, u := range st.All() {
+	for _, u := range all {
 		switch u.Status {
 		case model.TargetStatusReviewed, model.TargetStatusSignedOff, model.TargetStatusDraft:
 			idx.byUnit[reviewUnitKey(u.Unit, string(u.Variant.Locale))] = reviewedEntry{
@@ -260,7 +273,7 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 	if err != nil {
 		return nil, err
 	}
-	reviewed, err := a.loadReviewedCorrections(proj, root)
+	reviewed, err := a.loadReviewedCorrections(ctx, proj, root)
 	if err != nil {
 		return nil, err
 	}

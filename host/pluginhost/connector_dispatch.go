@@ -113,8 +113,8 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		if err != nil {
 			return fmt.Errorf("daemon Push: %w", err)
 		}
-		fmt.Printf("pushed %d blocks (%d words) across %d files; assets: %d; push_id: %s\n",
-			resp.GetBlocksPushed(), resp.GetWordCount(), resp.GetFilesScanned(), resp.GetAssetsPushed(), resp.GetPushId())
+		fmt.Printf("pushed %d blocks (%d words) across %d files; uploaded: %d; assets: %d; push_id: %s\n",
+			resp.GetBlocksPushed(), resp.GetWordCount(), resp.GetFilesScanned(), resp.GetBlocksUploaded(), resp.GetAssetsPushed(), resp.GetPushId())
 		return nil
 
 	case "pull":
@@ -181,7 +181,46 @@ func resolveProjectRoot(args []string) (root string, rest []string, err error) {
 // parseFlags parses what it can from args using flags; unknown flags are
 // silently passed through. Returns the positional remainder.
 func parseFlags(flags *pflag.FlagSet, args []string) []string {
+	// Unknown flags are tolerated because kapi forwards its own global flags
+	// through this dispatcher, and refusing them would break every call.
+	//
+	// But tolerating is not the same as hiding. This route is a THINNER surface
+	// than the plugin's cobra command of the same name: `kapi push` reaches the
+	// daemon RPC, which carries paths, --force and --dry-run and nothing else,
+	// while `kapi-bowrain push` also understands --concepts, --no-brand and
+	// --stream. Swallowing those silently meant `kapi push --concepts` ran an
+	// ordinary content push and reported success, and `--no-brand` carried the
+	// brand anyway — the command did something other than what it was asked,
+	// and said nothing.
+	//
+	// Naming what was dropped is the least this can do until the RPC carries
+	// them. A warning, not a refusal: being wrong about which flags kapi may
+	// legitimately forward must not break the dispatcher.
 	flags.ParseErrorsAllowlist.UnknownFlags = true
+	before := unknownFlagsIn(flags, args)
 	_ = flags.Parse(args)
+	for _, f := range before {
+		fmt.Fprintf(os.Stderr,
+			"warning: %q is not understood by this route and was ignored — "+
+				"the daemon's %s takes paths, --force and --dry-run only\n",
+			f, flags.Name())
+	}
 	return flags.Args()
+}
+
+// unknownFlagsIn reports the flag-looking arguments the given set does not
+// define, so they can be named rather than dropped in silence.
+func unknownFlagsIn(flags *pflag.FlagSet, args []string) []string {
+	var unknown []string
+	for _, a := range args {
+		if !strings.HasPrefix(a, "--") || a == "--" {
+			continue
+		}
+		name, _, _ := strings.Cut(strings.TrimPrefix(a, "--"), "=")
+		if name == "" || flags.Lookup(name) != nil {
+			continue
+		}
+		unknown = append(unknown, "--"+name)
+	}
+	return unknown
 }

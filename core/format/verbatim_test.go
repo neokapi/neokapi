@@ -96,7 +96,34 @@ func TestVerbatimTextProp_DerivesFromTheCaptureName(t *testing.T) {
 	// Per-capture witness names, so one block can hold more than one capture
 	// (po records a msgid and a msgstr) without them colliding.
 	assert.NotEqual(t, format.VerbatimTextProp("raw-msgid"), format.VerbatimTextProp("raw-msgstr"))
-	assert.Equal(t, "raw-msgid.text", format.VerbatimTextProp("raw-msgid"))
+	assert.Equal(t, "@raw-msgid.text", format.VerbatimTextProp("raw-msgid"))
+}
+
+// A verbatim capture is a byte copy of the block's own content. If it were
+// hashed into the block's context, editing the block would move the content and
+// context hashes together and core/reconcile would grade the edit as a new
+// block, dropping the translation and approval the old one carried.
+//
+// This is the same defect as naming a heading after its own title, arriving
+// through a property rather than a name — and it bit the formats with the best
+// natural keys, because those are the ones that use skeleton mode.
+func TestRecordVerbatim_DoesNotEnterTheContextHash(t *testing.T) {
+	plain := model.NewBlock("tu1", "Hello")
+	plain.Name = "greeting"
+
+	captured := model.NewBlock("tu1", "Hello")
+	captured.Name = "greeting"
+	format.RecordVerbatim(captured, "raw-msgid", "msgid \"Hello\"", "Hello")
+
+	assert.Equal(t,
+		model.ComputeIdentity(plain).ContextHash,
+		model.ComputeIdentity(captured).ContextHash,
+		"a capture of the content must not become part of the content's identity")
+
+	// It is still there — carried, just not identifying.
+	got, ok := format.VerbatimFor(captured, "raw-msgid", "Hello")
+	require.True(t, ok, "the capture is still usable for byte-exact output")
+	assert.Equal(t, "msgid \"Hello\"", got)
 }
 
 // The slot-locale seam (#1482). A captured TARGET slot belongs to a locale, and

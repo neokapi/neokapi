@@ -47,6 +47,12 @@ type Reader struct {
 	source       []byte
 	blockCounter int
 	dataCounter  int
+
+	// naming composes structural block names across the WHOLE document. One
+	// state, shared with every delegated markdown span, so the heading trail
+	// carries over a JSX element and two spans cannot both name a paragraph
+	// "p" — see markdown.NamingState.
+	naming markdown.NamingState
 }
 
 // Ensure Reader implements SkeletonStoreEmitter.
@@ -128,6 +134,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 		return fmt.Errorf("mdx: reading: %w", err)
 	}
 	r.source = content
+	r.blockCounter = 0
+	r.dataCounter = 0
+	r.naming.Reset()
 
 	segs := scanSegments(content)
 	for _, seg := range segs {
@@ -234,6 +243,10 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 	}
 
 	mdReader := markdown.NewReader()
+	// One naming state for the whole MDX document: this is one of several spans
+	// of it, and a per-span state would restart the heading trail and hand two
+	// spans the same names.
+	mdReader.ShareNaming(&r.naming)
 	// MDX composes the markdown reader, whose default surfaces code blocks as
 	// non-translatable content. MDX-specific content surfacing (code fences, JSX
 	// text, table cells) is tracked separately (#928); keep the embedded markdown

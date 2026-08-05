@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"maps"
+	"net/url"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -434,17 +435,32 @@ type SaveProviderConfigRequest struct {
 // refParam extracts the ref (stream or tag) from the request.
 // Bowrain AD-011: resource-first ref pattern — ref comes from :ref path param.
 // Falls back to :stream (legacy) and ?stream= query param for backward compat.
+//
+// Path params are unescaped here because Echo hands them over as they appear
+// in the URL. A ref with a slash — every `$auto` stream named after a
+// git branch like fix/thing — MUST arrive percent-encoded to route at all, and
+// taking it raw stored "fix%2Fthing" as a stream name.
 func refParam(c echo.Context) string {
-	if s := c.Param("ref"); s != "" {
+	if s := unescapeParam(c.Param("ref")); s != "" {
 		return s
 	}
-	if s := c.Param("stream"); s != "" {
+	if s := unescapeParam(c.Param("stream")); s != "" {
 		return s
 	}
 	if s := c.QueryParam("stream"); s != "" {
 		return s
 	}
 	return "main"
+}
+
+// unescapeParam decodes a percent-encoded path parameter, returning the raw
+// value when it is not valid percent-encoding (a literal "%" in a name must
+// not make the request unroutable).
+func unescapeParam(s string) string {
+	if u, err := url.PathUnescape(s); err == nil {
+		return u
+	}
+	return s
 }
 
 // streamParam is an alias for refParam (backward compatibility).
@@ -455,10 +471,10 @@ func streamParam(c echo.Context) string {
 // refParamWithProject extracts the ref from the request,
 // falling back to the project's configured default stream before "main".
 func refParamWithProject(c echo.Context, p *store.Project) string {
-	if s := c.Param("ref"); s != "" {
+	if s := unescapeParam(c.Param("ref")); s != "" {
 		return s
 	}
-	if s := c.Param("stream"); s != "" {
+	if s := unescapeParam(c.Param("stream")); s != "" {
 		return s
 	}
 	if s := c.QueryParam("stream"); s != "" {

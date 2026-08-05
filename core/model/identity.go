@@ -31,8 +31,33 @@ func ComputeContentHash(sourceText string) string {
 	return hex.EncodeToString(h[:])
 }
 
+// AdvisoryPropertyPrefix marks a property as carried but not identifying.
+//
+// Most properties are structural — a heading's level, a cell's column — and
+// belong in the context hash: change one and the block genuinely sits somewhere
+// else. But some are DERIVED LOCATORS: the line a block starts on, a byte
+// offset, anything that says "where to find this" rather than "what this is".
+//
+// Those must not identify a block. A locator moves whenever anything above it
+// moves, so folding it into the context hash makes an untouched block report as
+// moved every time a blank line is added somewhere earlier in the file — noise
+// that says a block changed when nothing about it did.
+//
+// So a property whose key starts with this prefix is carried on the block and
+// skipped when hashing. Readers use it for anything they compute rather than
+// read from the document.
+const AdvisoryPropertyPrefix = "@"
+
+// IsAdvisoryProperty reports whether a property is a derived locator rather than
+// part of the block's identity.
+func IsAdvisoryProperty(key string) bool {
+	return strings.HasPrefix(key, AdvisoryPropertyPrefix)
+}
+
 // ComputeContextHash computes a SHA-256 hash of contextual information
-// (block name, type, and sorted properties) to detect structural changes.
+// (block name, type, and identifying properties) to detect structural changes.
+//
+// Advisory properties are excluded — see AdvisoryPropertyPrefix.
 func ComputeContextHash(name, typ string, properties map[string]string) string {
 	h := sha256.New()
 	h.Write([]byte(name))
@@ -43,6 +68,9 @@ func ComputeContextHash(name, typ string, properties map[string]string) string {
 	// Sort keys for deterministic hashing.
 	keys := make([]string, 0, len(properties))
 	for k := range properties {
+		if IsAdvisoryProperty(k) {
+			continue
+		}
 		keys = append(keys, k)
 	}
 	sortStrings(keys)

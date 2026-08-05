@@ -51,6 +51,13 @@ type SyncCache struct {
 	// from the recipe, and losing it costs one redundant reconcile.
 	ContextHash string `json:"context_hash,omitempty"`
 
+	// DecisionsHash is the committed decision record the last push carried
+	// (sha256 over the wire serialization). A push whose content and context
+	// are unchanged but whose decisions differ must still commit — this is
+	// what notices. Same cache discipline as block hashes: keyed to this
+	// destination, rebuilt by re-sending (the server upserts idempotently).
+	DecisionsHash string `json:"decisions_hash,omitempty"`
+
 	// ServerContext records the collections the last pull observed on the
 	// server, keyed by collection name. It is an OBSERVATION, never an
 	// instruction: nothing derived from a recipe-owned entry is applied to
@@ -154,6 +161,12 @@ func (c *SyncCache) Save(layout coreproj.Layout) error {
 	}
 	return os.WriteFile(SyncCachePathFor(layout), data, 0o644)
 }
+
+// NewEmptySyncCache returns a cache describing nothing yet synced. Callers use
+// it to discard a cache that belongs to a different server or project: what it
+// records — confirmed block hashes, issued stream cursors, the context the
+// server holds — is true of that destination and of no other.
+func NewEmptySyncCache() *SyncCache { return newEmptySyncCache() }
 
 func newEmptySyncCache() *SyncCache {
 	return &SyncCache{

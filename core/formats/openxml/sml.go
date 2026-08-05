@@ -21,6 +21,9 @@ type smlParser struct {
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
 	sharedStrings []string // pre-parsed shared string table
+	// tableColumnSeq positions a <tableColumn> that carries no `id` attribute,
+	// counted within the table part it belongs to.
+	tableColumnSeq int
 }
 
 // parsePart routes to the appropriate sub-parser based on the part path.
@@ -282,7 +285,10 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 						p.skelRef(blockID)
 
 						block := &model.Block{
-							ID:           blockID,
+							ID: blockID,
+							// A cell's reference (`B7`) is its address in the
+							// sheet — nothing the reader could compute beats it.
+							Name:         model.StructuralPath(append(strings.Split(partPath, "/"), cellRef)...),
 							Type:         "cell",
 							Translatable: true,
 							Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
@@ -375,7 +381,9 @@ func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, merg
 
 	sheetTag := strings.TrimSuffix(strings.TrimPrefix(partPath, "xl/worksheets/"), ".xml")
 	block := &model.Block{
-		ID:           fmt.Sprintf("cell-%s-%s", sheetTag, cellRef),
+		ID: fmt.Sprintf("cell-%s-%s", sheetTag, cellRef),
+		// The cell reference is the address; nothing computed beats it.
+		Name:         model.StructuralPath(append(strings.Split(partPath, "/"), cellRef)...),
 		Type:         "cell",
 		Translatable: false,
 		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
@@ -399,7 +407,9 @@ func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, merg
 func (p *smlParser) emitLiteralCellAnchor(text, cellRef, partPath string, merges map[string]mergeSpan, emitBlock func(*model.Block)) {
 	sheetTag := strings.TrimSuffix(strings.TrimPrefix(partPath, "xl/worksheets/"), ".xml")
 	block := &model.Block{
-		ID:           fmt.Sprintf("cell-%s-%s", sheetTag, cellRef),
+		ID: fmt.Sprintf("cell-%s-%s", sheetTag, cellRef),
+		// The cell reference is the address; nothing computed beats it.
+		Name:         model.StructuralPath(append(strings.Split(partPath, "/"), cellRef)...),
 		Type:         "cell",
 		Translatable: false,
 		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
@@ -594,7 +604,10 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 	}
 
 	return &model.Block{
-		ID:           id,
+		ID: id,
+		// A shared string is addressed by the index every cell references it
+		// by — the format's own key, and a better name than any count.
+		Name:         model.StructuralPath(append(strings.Split(partPath, "/"), "si["+strconv.Itoa(siIndex)+"]")...),
 		Type:         "shared-string",
 		Translatable: true,
 		Source:       b.Runs(),
@@ -649,12 +662,15 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 	registerNamespaces(t.Attr)
 
 	var nameVal string
+	var colID string
 	nameIdx := -1
 	for i, a := range t.Attr {
+		if a.Name.Local == "id" && a.Name.Space == "" {
+			colID = a.Value
+		}
 		if a.Name.Local == "name" && (a.Name.Space == "" || a.Name.Space == t.Name.Space) {
 			nameVal = a.Value
 			nameIdx = i
-			break
 		}
 	}
 
@@ -666,6 +682,16 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 
 	*p.blockCounter++
 	blockID := fmt.Sprintf("tu%d", *p.blockCounter)
+	// A table column carries its own `id` — the key the sheet references it by.
+	// Without one, fall back to its position among the columns of this part.
+	step := "tableColumn"
+	if colID != "" {
+		step += "[" + colID + "]"
+	} else {
+		p.tableColumnSeq++
+		step = ordinalStep(step, p.tableColumnSeq)
+	}
+	blockName := model.StructuralPath(append(strings.Split(partPath, "/"), step, "@name")...)
 
 	// Write the element with a skeleton ref in place of the name value
 	if p.skeletonStore != nil {
@@ -696,6 +722,7 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 
 				block := &model.Block{
 					ID:           blockID,
+					Name:         blockName,
 					Type:         "table-column",
 					Translatable: true,
 					Source:       []model.Run{{Text: &model.TextRun{Text: nameVal}}},
@@ -715,6 +742,7 @@ func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, em
 
 	block := &model.Block{
 		ID:           blockID,
+		Name:         blockName,
 		Type:         "table-column",
 		Translatable: true,
 		Source:       []model.Run{{Text: &model.TextRun{Text: nameVal}}},

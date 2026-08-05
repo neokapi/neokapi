@@ -82,9 +82,13 @@ features:
     name: Translatable units extracted as Blocks
     description: |
       Each `<unit>` becomes one translatable Block; the `<segment>`'s
-      `<source>` text is the Block's source. Block name comes from
-      `unit/@name` when present, ID from `unit/@id`. Multi-unit files
-      yield Blocks in document order.
+      `<source>` text is the Block's source. Block ID comes from
+      `unit/@id`, and the Block's name is the unit's structural address
+      — the enclosing `file/@id`, every enclosing `group/@id`, then
+      `unit/@id`. The optional `unit/@name` is a label rather than an
+      identity, so it rides on the Block's `unit-name` property and is
+      written back from there. Multi-unit files yield Blocks in
+      document order.
     spec_refs:
       - "XLIFF 2.1 §4.2.2.5 unit (http://docs.oasis-open.org/xliff/xliff-core/v2.1/os/xliff-core-v2.1-os.html#unit)"
     examples:

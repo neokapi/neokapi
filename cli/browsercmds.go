@@ -184,6 +184,10 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 	cmds = append(cmds, NewStatsCmd(a))
 	cmds = append(cmds,
 		NewStatusCmd(a),
+		// `commit` runs in the browser: the working store falls back to a JSON
+		// sidecar when SQLite is absent (core/state/workstore.go), and the
+		// committed shards write through the sandbox filesystem.
+		NewCommitCmd(a),
 		NewCheckCmd(a),
 		NewHookCmd(a),
 		NewInitCmd(a),

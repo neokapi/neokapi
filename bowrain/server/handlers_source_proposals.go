@@ -275,7 +275,7 @@ func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSour
 	if s.convergence == nil {
 		return false, nil
 	}
-	if _, _, rerr := s.convergence.StartRun(context.WithoutCancel(ctx), p.ProjectID, "source-change", nil); rerr != nil {
+	if _, _, rerr := s.convergence.StartRun(context.WithoutCancel(ctx), p.ProjectID, "", "source-change", nil); rerr != nil {
 		// The source change already persisted; a failed run start is not fatal —
 		// the next converge pass (manual or on-push) still picks up the cleared
 		// targets. Log via the caller's response, not a hard failure.

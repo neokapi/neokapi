@@ -320,7 +320,9 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 	// The automation path treats a credit refusal as a silent no-op (it has no
 	// run row to label); the convergence orchestrator inspects the returned
 	// error instead. See createTranslationJobs.
-	jobIDs, _ := s.createTranslationJobs(ctx, proj, itemNames, locales, pushID, wsSlug, stepID)
+	// The automation trigger predates stream scoping and fires for main-line
+	// pushes; jobs it spawns keep writing to main.
+	jobIDs, _ := s.createTranslationJobs(ctx, proj, "main", itemNames, locales, pushID, wsSlug, stepID)
 
 	// Register spawned jobs on the automation step for visibility tracking.
 	//
@@ -351,7 +353,7 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 // orchestrator can label the run's stall_reason instead of parking with no
 // reason (strategy 2026-07-dogfood doc 06, theme C). The automation caller
 // discards the error — a refusal there is a legitimate no-op.
-func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project, itemNames, locales []string, pushID, wsSlug, stepID string) ([]string, error) {
+func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project, stream string, itemNames, locales []string, pushID, wsSlug, stepID string) ([]string, error) {
 	if s.JobStore == nil || s.JobQueue == nil {
 		return nil, nil
 	}
@@ -380,6 +382,7 @@ func (s *Server) createTranslationJobs(ctx context.Context, proj *store.Project,
 				WorkspaceID:      proj.WorkspaceID,
 				ProjectID:        proj.ID,
 				ItemName:         itemName,
+				Stream:           stream,
 				TargetLocale:     locale,
 				ProviderConfigID: "platform",
 				Model:            model,

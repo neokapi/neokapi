@@ -30,7 +30,7 @@ func TestPhase4_ABACStatusGating(t *testing.T) {
 		return do(t, s, http.MethodPut, "/api/v1/test/p-abac/blocks/main/ba/status", token, `{"status":"`+status+`"}`)
 	}
 
-	// Draft: a member (translate) can edit.
+	// Open: a member (translate) can edit.
 	require.Less(t, edit(memberToken, "v1"), 300)
 
 	// Owner publishes the block.
@@ -41,14 +41,18 @@ func TestPhase4_ABACStatusGating(t *testing.T) {
 	// ...but the owner (manage) still can.
 	assert.Less(t, edit(ownerToken, "v2-owner"), 300)
 
-	// In-review: a member without review cannot edit.
-	require.Equal(t, http.StatusOK, setStatus(ownerToken, "in_review"))
+	// Restricted: a member without review cannot edit.
+	require.Equal(t, http.StatusOK, setStatus(ownerToken, "restricted"))
 	assert.Equal(t, http.StatusForbidden, edit(memberToken, "v3"))
 	// The owner (review) can.
 	assert.Less(t, edit(ownerToken, "v3-owner"), 300)
 
-	// A member cannot change workflow status (needs review).
-	assert.Equal(t, http.StatusForbidden, setStatus(memberToken, "draft"))
+	// A member cannot change access state (needs review).
+	assert.Equal(t, http.StatusForbidden, setStatus(memberToken, "open"))
+
+	// The retired vocabulary is normalized, not rejected: "in_review" still
+	// lands as restricted for a caller that has not caught up.
+	require.Equal(t, http.StatusOK, setStatus(ownerToken, "in_review"))
 }
 
 // TestPhase4_SoDBlocksSelfApproval proves separation of duties (block mode)

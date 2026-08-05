@@ -1,8 +1,8 @@
 package host
 
 import (
+	"context"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/project"
@@ -13,41 +13,81 @@ import (
 // decisions.
 func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
 
-// defaultStateFile is the conventional committed state artifact when a project
-// does not bind one via defaults.state. It is git-tracked (committed), distinct
-// from the gitignored .kapi/ working dir.
-const defaultStateFile = ".kapi-state.json"
-
-// stateFilePath resolves the committed project-state artifact: defaults.state when
-// bound, else the conventional default, relative to the project root.
-func stateFilePath(proj *project.KapiProject, root string) string {
-	rel := defaultStateFile
-	if proj != nil && strings.TrimSpace(proj.Defaults.State) != "" {
-		rel = proj.Defaults.State
-	}
-	if filepath.IsAbs(rel) {
-		return rel
-	}
-	return filepath.Join(root, rel)
-}
-
-// openProjectState opens the project's state store, importing the committed
-// artifact into a transient working set. Mutations stay in-transit until Export.
-func openProjectState(proj *project.KapiProject, root string) (*state.FileStore, error) {
-	return state.Open(stateFilePath(proj, root))
+// openProjectState opens the project's working store, seeding it from the
+// committed record when it holds nothing yet.
+//
+// Decisions accumulate in the working store and reach the committed record only
+// on Commit. Callers own that lifecycle: the point of staging is that a run
+// writes once rather than once per decision, so a caller recording many
+// decisions must commit after the batch, not inside the loop.
+//
+// The caller closes the returned store.
+func openProjectState(ctx context.Context, root string) (*state.WorkStore, error) {
+	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
+	return state.OpenWork(ctx, layout.WorkStorePath(), layout.UnitsDir())
 }
 
 // targetHash is the content hash of a translation, used to bind a review decision
 // to the specific text it blessed — so an edit invalidates a stale approval. It
 // trims surrounding whitespace so insignificant reformatting doesn't invalidate.
 func targetHash(text string) string {
-	return project.HashBytes([]byte(strings.TrimSpace(text)))
+	return state.TargetHash(text)
 }
 
-// StateFilePath resolves the committed project-state artifact for an embedder
-// (the desktop) that needs read access to the same store the review decisions
-// land in: defaults.state when bound, else the conventional default, relative
-// to the project root.
-func StateFilePath(proj *project.KapiProject, root string) string {
-	return stateFilePath(proj, root)
+// OpenProjectState opens the project's working store for an embedder (the
+// desktop) that needs access to the same decisions the review commands record.
+//
+// It replaces the old StateFilePath: an embedder cannot resolve a path and read
+// it directly any more, because the committed record is a set of shards and the
+// authoritative view is the working store over them. Handing out a path let the
+// desktop read a different store than the writer used the moment the layout
+// changed, which is exactly what happened.
+//
+// The caller closes the returned store.
+func OpenProjectState(ctx context.Context, root string) (*state.WorkStore, error) {
+	return openProjectState(ctx, root)
+}
+
+// CommitProjectState writes staged decisions into the project's committed
+// record and reports how many were written.
+//
+// Committing is explicit. A decision is durable the moment it is recorded — the
+// working store is a database, not a buffer — but becoming part of the project's
+// reviewable record is a separate act, the same shape as staging and committing
+// in git. That is what keeps a run of automated decisions from landing in the
+// tracked record before anyone has looked at them.
+func CommitProjectState(ctx context.Context, root string) (int, error) {
+	st, err := openProjectState(ctx, root)
+	if err != nil {
+		return 0, err
+	}
+	defer st.Close()
+
+	n, err := st.Pending(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if n == 0 {
+		return 0, nil
+	}
+	if err := st.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// PendingDecisions reports how many decisions are staged and not yet committed.
+// An unreadable store is not an error: status stays informational.
+func PendingDecisions(ctx context.Context, root string) int {
+	st, err := openProjectState(ctx, root)
+	if err != nil {
+		return 0
+	}
+	defer st.Close()
+
+	n, err := st.Pending(ctx)
+	if err != nil {
+		return 0
+	}
+	return n
 }

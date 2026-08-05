@@ -39,7 +39,9 @@ func TestPushUsesCorrectSyncPathsAndChunkHash(t *testing.T) {
 				UploadID: "up1", Status: "diff_computed", NewItems: []string{"locales/en.json"},
 			})
 		case strings.HasSuffix(r.URL.Path, "/push/diff"):
-			_ = json.NewEncoder(w).Encode(PushDiffResponse{Needed: []string{"b1"}, Transport: "proxy"})
+			// Needed echoes the durable identity the diff was keyed on
+			// (convergence.BlockKey — the structural name, not the reader id).
+			_ = json.NewEncoder(w).Encode(PushDiffResponse{Needed: []string{"greeting"}, Transport: "proxy"})
 		case strings.Contains(r.URL.Path, "/push/chunks/"):
 			uploadedChunk, _ = io.ReadAll(r.Body)
 			w.WriteHeader(http.StatusOK)
@@ -63,7 +65,7 @@ func TestPushUsesCorrectSyncPathsAndChunkHash(t *testing.T) {
 	}
 	_, err := c.Push(context.Background(),
 		map[string][]*model.Block{"locales/en.json": {blk}},
-		[]ItemMeta{{Name: "locales/en.json", Format: "json"}}, nil)
+		[]ItemMeta{{Name: "locales/en.json", Format: "json"}}, nil, nil)
 	require.NoError(t, err)
 
 	// Guard #1: no doubled "/sync/", and all sync calls hit the AD-011 prefix.

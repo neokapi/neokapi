@@ -102,6 +102,11 @@ const (
 type startConvergenceRunRequest struct {
 	Trigger string   `json:"trigger"`
 	Locales []string `json:"locales,omitempty"`
+	// Stream scopes the run's derivation and produce. Empty means "main" —
+	// the pre-stream behavior every existing caller keeps. In the body rather
+	// than the route because the runs collection predates ref-scoped routes;
+	// moving it is a route-vocabulary change for another day.
+	Stream string `json:"stream,omitempty"`
 	// Scope is the translation scope the consent picked: all | ready-only | none.
 	// Empty defaults to "all". "none" is transport-only — no run is started.
 	Scope string `json:"scope,omitempty"`
@@ -134,7 +139,7 @@ func (s *Server) HandleStartConvergenceRun(c echo.Context) error {
 	if trigger == "" {
 		trigger = "manual"
 	}
-	run, created, err := s.convergence.StartRun(c.Request().Context(), c.Param("id"), trigger, req.Locales)
+	run, created, err := s.convergence.StartRun(c.Request().Context(), c.Param("id"), req.Stream, trigger, req.Locales)
 	if err != nil {
 		return serverErr(c, err)
 	}

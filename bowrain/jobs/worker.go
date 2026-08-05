@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/resilience/aiguard"
+	diffcache "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	brand "github.com/neokapi/neokapi/core/profile"
@@ -60,6 +61,12 @@ type WorkerDeps struct {
 	}
 	// EventBus publishes events after sync push processing.
 	EventBus platev.EventBus
+	// SyncCache is the server's diff-negotiation hash cache (Bowrain AD-009).
+	// The worker is what changes stored source content, so the worker is what
+	// must invalidate: with nobody invalidating, a second push inside the TTL
+	// was diffed against pre-apply hashes and its changed blocks were silently
+	// skipped. Optional; nil when the deployment runs without Redis.
+	SyncCache diffcache.HashCache
 	// Tracker captures product analytics events (content_pushed). Optional;
 	// nil disables capture. Fire-and-forget — never blocks job processing.
 	Tracker EventTracker
@@ -441,9 +448,17 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		return fmt.Errorf("get project: %w", err)
 	}
 
+	// The job's stream scopes both the read (target overlays hydrate from it)
+	// and the writes below. Empty means "main", so stream-naive callers and
+	// pre-stream rows keep their behavior.
+	jobStream := job.Stream
+	if jobStream == "" {
+		jobStream = "main"
+	}
+
 	storedBlocks, err := deps.ContentStore.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: job.ProjectID,
-		Stream:    "main",
+		Stream:    jobStream,
 		ItemName:  job.ItemName,
 	})
 	if err != nil {
@@ -496,7 +511,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		} else {
 			memoryFilled = res.memoryCount
 			if len(res.filled) > 0 {
-				if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, "main", res.filled); err != nil {
+				if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, jobStream, res.filled); err != nil {
 					return fmt.Errorf("store recycled blocks: %w", err)
 				}
 				emitLog(deps, job.StepID, "info",
@@ -676,21 +691,18 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	// blockstore.PutOverlay is retired along with `blocks.targets_json`.
 	blocks := partsToBlocks(allOutParts)
 	if len(blocks) > 0 {
-		if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, "main", blocks); err != nil {
+		if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, jobStream, blocks); err != nil {
 			return fmt.Errorf("store blocks: %w", err)
 		}
 		// Score the AI drafts against the standing voice profile (deterministic
 		// vocabulary check, zero AI) so the dashboard's on-brand rate is
 		// voice-informed for every drafted block.
 		persistDraftVoiceScores(ctx, deps, job, draftProfile(), blocks, tgtLocale)
-		// Write the AI drafts back to the project content memory (theme A2) so sibling
-		// locales, re-runs, and future pushes recycle instead of re-paying.
-		// Draft origin lets a later review approval upgrade the same entry.
-		if tm != nil {
-			if n := seedMemoryFromBlocks(ctx, tm, blocks, job.ProjectID, srcLocale, tgtLocale, "ai-draft", job.ID); n > 0 {
-				slog.InfoContext(ctx, "seeded content memory from AI drafts", "job_id", job.ID, "entries", n)
-			}
-		}
+		// AI drafts do NOT enter the content memory. The corpus has one door
+		// in — wording a decision approved (PromoteDecisionsToMemory) — so a
+		// guess can never be offered back as approved wording. Draft reuse
+		// within a run is the block store's job: identical source means an
+		// identical content hash, exact-match only, labeled for what it is.
 	}
 
 	return nil

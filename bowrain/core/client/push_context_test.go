@@ -70,7 +70,7 @@ func TestPushCarriesDeclaredContext(t *testing.T) {
 	rec, c := newContextTestServer(t, true, nil)
 
 	pushCtx := NewPushContext(testContextEntries())
-	_, err := c.Push(context.Background(), nil, nil, pushCtx)
+	_, err := c.Push(context.Background(), nil, nil, pushCtx, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, pushCtx.Hash, rec.init.ContextHash)
@@ -95,7 +95,7 @@ func TestPushSkipsContextWhenServerReportsUnchanged(t *testing.T) {
 	rec, c := newContextTestServer(t, false, nil)
 
 	pushCtx := NewPushContext(testContextEntries())
-	_, err := c.Push(context.Background(), nil, nil, pushCtx)
+	_, err := c.Push(context.Background(), nil, nil, pushCtx, nil)
 	require.NoError(t, err)
 
 	assert.Equal(t, pushCtx.Hash, rec.init.ContextHash, "the hash is still negotiated")
@@ -109,7 +109,7 @@ func TestPushSkipsContextWhenServerReportsUnchanged(t *testing.T) {
 func TestPushWithoutContextMakesNoClaim(t *testing.T) {
 	rec, c := newContextTestServer(t, false, nil)
 
-	_, err := c.Push(context.Background(), nil, nil, nil)
+	_, err := c.Push(context.Background(), nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	assert.Empty(t, rec.init.ContextHash)
@@ -124,7 +124,7 @@ func TestPushWithoutContextMakesNoClaim(t *testing.T) {
 func TestPushReportsUndeclaredCollections(t *testing.T) {
 	t.Run("after a full push", func(t *testing.T) {
 		_, c := newContextTestServer(t, true, []string{"marketing"})
-		resp, err := c.Push(context.Background(), nil, nil, NewPushContext(testContextEntries()))
+		resp, err := c.Push(context.Background(), nil, nil, NewPushContext(testContextEntries()), nil)
 		require.NoError(t, err)
 		assert.Equal(t, []string{"marketing"}, resp.UndeclaredCollections)
 	})
@@ -139,7 +139,7 @@ func TestPushReportsUndeclaredCollections(t *testing.T) {
 		defer srv.Close()
 		c := NewClaimTokenClient(srv.URL, "proj1", "tok")
 
-		resp, err := c.Push(context.Background(), nil, nil, NewPushContext(testContextEntries()))
+		resp, err := c.Push(context.Background(), nil, nil, NewPushContext(testContextEntries()), nil)
 		require.NoError(t, err)
 		assert.Equal(t, "unchanged", resp.PushID)
 		assert.Equal(t, []string{"marketing"}, resp.UndeclaredCollections)
@@ -216,7 +216,7 @@ func TestPushCarriesContextAlongsideContent(t *testing.T) {
 	_, err := c.Push(context.Background(),
 		map[string][]*model.Block{"docs/a.json": {blockFor("b1", "Hello")}},
 		[]ItemMeta{{Name: "docs/a.json", Format: "json", Collection: "docs"}},
-		NewPushContext(testContextEntries()))
+		NewPushContext(testContextEntries()), nil)
 	require.NoError(t, err)
 
 	var items []ItemMeta

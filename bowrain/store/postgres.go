@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -564,19 +566,22 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 			return fmt.Errorf("prepare legacy adoption: %w", err)
 		}
 		for _, b := range blocks {
-			if _, mapped := existingSourceIDs[b.ID]; mapped {
+			srcKey := convergence.BlockKey(b)
+			if _, mapped := existingSourceIDs[srcKey]; mapped {
 				continue
 			}
 			if _, isInternal := internalSourceIDs[b.ID]; isInternal {
 				continue // already a row of this item; nothing to adopt
 			}
-			res, err := adopt.ExecContext(ctx, itemName, b.ID, projectID, b.ID)
+			// The row is found by its internal id; the source_id it adopts is
+			// the caller's durable key, not that id.
+			res, err := adopt.ExecContext(ctx, itemName, srcKey, projectID, b.ID)
 			if err != nil {
 				adopt.Close()
 				return fmt.Errorf("adopt legacy block %s: %w", b.ID, err)
 			}
 			if n, _ := res.RowsAffected(); n > 0 {
-				existingSourceIDs[b.ID] = b.ID
+				existingSourceIDs[srcKey] = b.ID
 			}
 		}
 		adopt.Close()
@@ -584,12 +589,13 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO blocks (id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, overlays, stored_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+			source_json, properties, overlays, word_count, stored_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		 ON CONFLICT(project_id, id) DO UPDATE SET
 			name=EXCLUDED.name, type=EXCLUDED.type, mime_type=EXCLUDED.mime_type,
 			translatable=EXCLUDED.translatable, content_hash=EXCLUDED.content_hash,
 			context_hash=EXCLUDED.context_hash, source_json=EXCLUDED.source_json,
+			word_count=EXCLUDED.word_count,
 			properties=EXCLUDED.properties, overlays=EXCLUDED.overlays, updated_at=EXCLUDED.updated_at`)
 	if err != nil {
 		return fmt.Errorf("prepare stmt: %w", err)
@@ -607,34 +613,59 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 	existingBlocks := map[string]existingBlock{}
 	oldTargetText := map[string]map[string]string{} // blockID → variant → prior text, for block_history
 	{
-		var hashQuery string
-		var hashArgs []any
-		if itemName != "" {
-			hashQuery = `SELECT id, content_hash FROM blocks WHERE project_id=$1 AND item_name=$2`
-			hashArgs = []any{projectID, itemName}
-		} else {
-			hashQuery = `SELECT id, content_hash FROM blocks WHERE project_id=$1`
-			hashArgs = []any{projectID}
-		}
-		hashRows, err := tx.QueryContext(ctx, hashQuery, hashArgs...)
-		if err != nil {
-			return fmt.Errorf("batch hash lookup: %w", err)
-		}
+		// Everything below is read back through each incoming block's resolved
+		// row id, so the prefetch is bounded to that id set. The source-id
+		// mapping is final by this point, which is what makes the set
+		// computable up front. It used to load the whole item — or, with no
+		// item scope, the whole project, which fed 75k ids into one IN(...)
+		// and blew Postgres's 65535-bind-parameter limit the first time a
+		// translation job ran against a real corpus.
 		var ids []string
-		for hashRows.Next() {
-			var bid, ch string
-			if err := hashRows.Scan(&bid, &ch); err != nil {
-				hashRows.Close()
-				return fmt.Errorf("scan hash: %w", err)
+		seen := map[string]struct{}{}
+		for _, b := range blocks {
+			rid := b.ID
+			if itemName != "" {
+				if _, isInternal := internalSourceIDs[b.ID]; !isInternal {
+					if mapped, found := existingSourceIDs[convergence.BlockKey(b)]; found {
+						rid = mapped
+					}
+				}
 			}
-			existingBlocks[bid] = existingBlock{contentHash: ch, locales: map[string]struct{}{}}
-			ids = append(ids, bid)
+			if _, dup := seen[rid]; !dup {
+				seen[rid] = struct{}{}
+				ids = append(ids, rid)
+			}
 		}
-		hashRows.Close()
 
-		// Load existing locales per block for target diff.
-		if len(ids) > 0 {
-			localeMap, err := LoadBlockTargetLocales(ctx, tx, "pg", projectID, stream, ids)
+		const prefetchChunk = 5000
+		for start := 0; start < len(ids); start += prefetchChunk {
+			chunk := ids[start:min(start+prefetchChunk, len(ids))]
+
+			// The concatenated fragment is "$2,$3,…" from a count — never
+			// caller data; values travel as bind parameters below.
+			hashQuery := `SELECT id, content_hash FROM blocks WHERE project_id=$1 AND id IN (` + //nolint:gosec // placeholder list, not data
+				placeholderList("pg", 2, len(chunk)) + `)`
+			hashRows, err := tx.QueryContext(ctx, hashQuery, append([]any{projectID}, anyStrings(chunk)...)...)
+			if err != nil {
+				return fmt.Errorf("batch hash lookup: %w", err)
+			}
+			var present []string
+			for hashRows.Next() {
+				var bid, ch string
+				if err := hashRows.Scan(&bid, &ch); err != nil {
+					hashRows.Close()
+					return fmt.Errorf("scan hash: %w", err)
+				}
+				existingBlocks[bid] = existingBlock{contentHash: ch, locales: map[string]struct{}{}}
+				present = append(present, bid)
+			}
+			hashRows.Close()
+			if len(present) == 0 {
+				continue
+			}
+
+			// Load existing locales per block for target diff.
+			localeMap, err := LoadBlockTargetLocales(ctx, tx, "pg", projectID, stream, present)
 			if err != nil {
 				return fmt.Errorf("batch locale lookup: %w", err)
 			}
@@ -646,16 +677,14 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 					existingBlocks[bid] = eb
 				}
 			}
-		}
 
-		// Capture prior target text for change-history before the upsert
-		// overwrites it.
-		if len(ids) > 0 {
-			ot, otErr := loadOldTargetText(ctx, tx, projectID, stream, ids)
+			// Capture prior target text for change-history before the upsert
+			// overwrites it.
+			ot, otErr := loadOldTargetText(ctx, tx, projectID, stream, present)
 			if otErr != nil {
 				return fmt.Errorf("batch old-target load: %w", otErr)
 			}
-			oldTargetText = ot
+			maps.Copy(oldTargetText, ot)
 		}
 	}
 
@@ -674,7 +703,18 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 				internalID = b.ID
 				sourceID = existingSource
 			} else {
-				sourceID = b.ID
+				// The caller's DURABLE identity, not its reader id. A reader
+				// numbers blocks as it goes for formats with no natural key, so
+				// keying rows on that id meant deleting one paragraph renumbered
+				// every block below it and each stored row rebound to its
+				// neighbour's text — carrying that row's history, decisions and
+				// translation onto content that was never reviewed.
+				//
+				// convergence.BlockKey resolves to the structural name a reader
+				// assigns (core/model/structural.go), which moves only when the
+				// document's structure does. The block's own ID still rides the
+				// wire untouched, so the round trip is unaffected.
+				sourceID = convergence.BlockKey(b)
 				if existingID, found := existingSourceIDs[sourceID]; found {
 					internalID = existingID
 				} else {
@@ -716,7 +756,8 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 		_, err = stmt.ExecContext(ctx,
 			internalID, projectID, itemName, sourceID, b.Name, b.Type, b.MimeType, b.Translatable,
 			identity.ContentHash, identity.ContextHash,
-			string(sourceJSON), string(propsJSON), string(overlaysJSON), now, now)
+			string(sourceJSON), string(propsJSON), string(overlaysJSON),
+			storeutil.CountWordsFromSourceJSON(string(sourceJSON)), now, now)
 		if err != nil {
 			return fmt.Errorf("store block %s: %w", internalID, err)
 		}
@@ -746,6 +787,16 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 			if existingHash != identity.ContentHash {
 				if err := logChange(ctx, tx, projectID, stream, internalID, "source_modified", "", identity.ContentHash); err != nil {
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
+				}
+				// The source this unit's approvals were made against no longer
+				// exists, so the approvals no longer apply (use case 2). Demote
+				// the projected status to the presence baseline on EVERY
+				// stream — the source row is stream-global — and log the
+				// demotion per affected target. The decision itself stays in
+				// the ledger: it is a fact about an older text, and history is
+				// what lets a restored text find its approval again.
+				if err := demoteStaleApprovalsPg(ctx, tx, projectID, internalID); err != nil {
+					return err
 				}
 			}
 			for key := range b.Targets {
@@ -874,8 +925,15 @@ func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream str
 		args = append(args, item.Name)
 	}
 
+	// word_count is written at store time; NULL marks a row that predates the
+	// column, and only those rows pay the source_json decode. Deriving
+	// coverage used to deserialize every block's source runs on every call —
+	// at 74,916 blocks, minutes of JSON for numbers the write path already
+	// knew.
 	q := fmt.Sprintf(
-		`SELECT id, item_name, translatable, source_json
+		`SELECT id, item_name, translatable,
+			CASE WHEN word_count IS NULL THEN source_json ELSE '' END,
+			COALESCE(word_count, -1)
 		 FROM blocks WHERE project_id = $1 AND item_name IN (%s)
 		 ORDER BY item_name, id`,
 		strings.Join(placeholders, ","))
@@ -897,12 +955,16 @@ func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream str
 	for rows.Next() {
 		var blockID, itemName, sourceJSON string
 		var translatable bool
-		if err := rows.Scan(&blockID, &itemName, &translatable, &sourceJSON); err != nil {
+		var wordCount int
+		if err := rows.Scan(&blockID, &itemName, &translatable, &sourceJSON, &wordCount); err != nil {
 			return nil, fmt.Errorf("scan block stat: %w", err)
+		}
+		if wordCount < 0 {
+			wordCount = storeutil.CountWordsFromSourceJSON(sourceJSON)
 		}
 		ordered = append(ordered, pending{
 			blockID: blockID, itemName: itemName, translatable: translatable,
-			sourceWords: storeutil.CountWordsFromSourceJSON(sourceJSON),
+			sourceWords: wordCount,
 		})
 		blockIDs = append(blockIDs, blockID)
 	}
@@ -1179,19 +1241,27 @@ func HydrateOverlays(
 		ids = append(ids, sb.Block.ID)
 		byID[sb.Block.ID] = sb
 	}
-	targets, annotations, err := LoadBlockOverlays(ctx, db, dialect, projectID, stream, ids)
-	if err != nil {
-		return fmt.Errorf("hydrate overlays: %w", err)
-	}
-	for id, locs := range targets {
-		if sb := byID[id]; sb != nil {
-			sb.Block.Targets = locs
+	// Chunked: every id lands in one IN(...) placeholder, and a whole-project
+	// hydrate (the review loop, an unscoped GetBlocks) at corpus scale blew
+	// Postgres's 65,535-bind-parameter limit. Same bound as the storeBlocks
+	// prefetch, kept far below the limit for SQLite's sake too.
+	const hydrateChunk = 5000
+	for start := 0; start < len(ids); start += hydrateChunk {
+		chunk := ids[start:min(start+hydrateChunk, len(ids))]
+		targets, annotations, err := LoadBlockOverlays(ctx, db, dialect, projectID, stream, chunk)
+		if err != nil {
+			return fmt.Errorf("hydrate overlays: %w", err)
 		}
-	}
-	for id, anns := range annotations {
-		if sb := byID[id]; sb != nil {
-			for k, v := range anns {
-				sb.Block.SetAnno(k, v)
+		for id, locs := range targets {
+			if sb := byID[id]; sb != nil {
+				sb.Block.Targets = locs
+			}
+		}
+		for id, anns := range annotations {
+			if sb := byID[id]; sb != nil {
+				for k, v := range anns {
+					sb.Block.SetAnno(k, v)
+				}
 			}
 		}
 	}

@@ -14,7 +14,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -92,6 +94,15 @@ type PushCommitRequest struct {
 	// the manifest rather than in a chunk because it is the shape the uploaded
 	// items are stored into — one push is one consistent state.
 	Contexts []*pb.SyncContextEntry `json:"contexts,omitempty"`
+
+	// Decisions carries the project's committed decision record (core/state):
+	// who approved which unit, when, and the hash of the translation each
+	// decision blesses. A sidecar like Contexts rather than a chunk — the
+	// ledger is small next to content, and it belongs in the same transaction
+	// as the content it judges. The server upserts idempotently, so sending
+	// the full set every push is correct first; a hash fast-path is an
+	// optimization this field's shape does not preclude.
+	Decisions []store.UnitDecision `json:"decisions,omitempty"`
 }
 
 // PushContext is everything the context content type contributes to one push:
@@ -187,7 +198,7 @@ const (
 // longer has) is ever required, the caller must pass the FULL block set so
 // ItemHashes / RootHash become authoritative, and this comment + the
 // deletion-ignoring sites below must be revisited together.
-func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, pushCtx *PushContext) (*SyncPushResponse, error) {
+func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, pushCtx *PushContext, decisions []store.UnitDecision) (*SyncPushResponse, error) {
 	// Guard a nil client: callers build the client from the recipe's server:
 	// block, which is absent until the project is connected. Return a clear
 	// error instead of a nil-pointer panic in projectPrefix/streamPrefix.
@@ -202,7 +213,11 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		blockHashes := make(map[string]string, len(blocks))
 		for _, b := range blocks {
 			identity := model.ComputeIdentity(b)
-			blockHashes[b.ID] = identity.ContentHash
+			// Keyed on the DURABLE identity, matching what the server stores as
+			// source_id. Keyed on the reader's id instead, deleting a paragraph
+			// renumbered every block below it and the push reported an untouched
+			// file as wholly changed.
+			blockHashes[convergence.BlockKey(b)] = identity.ContentHash
 		}
 		blockHashesByItem[itemName] = blockHashes
 		itemHashes[itemName] = bowsync.ComputeItemHash(blockHashes)
@@ -220,10 +235,28 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		return nil, fmt.Errorf("push init: %w", err)
 	}
 	if initResp.Status == "unchanged" {
-		return &SyncPushResponse{
-			PushID:                "unchanged",
-			UndeclaredCollections: initResp.UndeclaredCollections,
-		}, nil
+		// Content and context are already in force — but a caller carrying
+		// decisions still has a record to land, so the push proceeds to an
+		// empty-chunk commit rather than returning here. The caller only
+		// passes decisions when they changed, so the common unchanged push
+		// still takes this exit.
+		if len(decisions) == 0 {
+			return &SyncPushResponse{
+				PushID:                "unchanged",
+				UndeclaredCollections: initResp.UndeclaredCollections,
+			}, nil
+		}
+		commitResp, err := c.pushCommit(ctx, PushCommitRequest{
+			Stream:    c.stream,
+			Decisions: decisions,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("push commit (decisions): %w", err)
+		}
+		if commitResp != nil {
+			commitResp.UndeclaredCollections = initResp.UndeclaredCollections
+		}
+		return commitResp, nil
 	}
 
 	// The context reconcile is skipped when the server already holds this
@@ -281,7 +314,12 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		chunkBytes := 0
 
 		for _, b := range blocks {
-			if _, ok := neededIDs[b.ID]; !ok {
+			// The needed set answers the diff, and the diff was keyed on the
+			// durable identity — so the lookup must be too. Keyed on b.ID here,
+			// no needed key ever matched a reader id, and a push that had
+			// negotiated 75k missing blocks uploaded zero chunks and reported
+			// success.
+			if _, ok := neededIDs[convergence.BlockKey(b)]; !ok {
 				continue
 			}
 			sb := bowsync.BlockToProto(b, itemName)
@@ -337,15 +375,23 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	}
 	commitResp, err := c.pushCommit(ctx, PushCommitRequest{
 		UploadID: initResp.UploadID,
-		Chunks:   chunks,
-		Items:    itemsJSON,
-		Contexts: contexts,
+		// The server takes the stream from the authorized route path; this
+		// field only matters to a deployment whose commit route carries no ref.
+		Stream:    c.stream,
+		Chunks:    chunks,
+		Items:     itemsJSON,
+		Contexts:  contexts,
+		Decisions: decisions,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("push commit: %w", err)
 	}
 	if commitResp != nil {
 		commitResp.UndeclaredCollections = initResp.UndeclaredCollections
+		commitResp.ChunkCount = len(chunks)
+		for _, ch := range chunks {
+			commitResp.BlocksUploaded += ch.RecordCount
+		}
 	}
 
 	return commitResp, nil

@@ -256,8 +256,8 @@ func TestDrive_HoldsOnSource(t *testing.T) {
 	require.NoError(t, runStore.CreateRun(t.Context(), run))
 
 	s.convergence.driveWith(t.Context(), run, convergence.LoopFuncs{
-		Derive:  s.convergence.deriveFunc("p", nil),
-		Produce: s.convergence.produceFunc("p", run.ID),
+		Derive:  s.convergence.deriveFunc("p", "main", nil),
+		Produce: s.convergence.produceFunc("p", "main", run.ID),
 	})
 
 	got, err := runStore.GetRun(t.Context(), run.ID)

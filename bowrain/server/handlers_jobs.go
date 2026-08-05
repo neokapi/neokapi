@@ -97,6 +97,7 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 		WorkspaceID:      wsID,
 		ProjectID:        req.ProjectID,
 		ItemName:         req.ItemName,
+		Stream:           refParam(c),
 		TargetLocale:     req.TargetLocale,
 		ProviderConfigID: providerConfigID,
 		Model:            req.Model,
@@ -150,18 +151,34 @@ func (s *Server) HandleCreateProjectTranslationJob(c echo.Context) error {
 		providerConfigID = "platform"
 	}
 
+	ctx := c.Request().Context()
+
+	// Resolve the owning workspace from the path-scoped project. The slug
+	// routes the job's content memory (recycle reads, AI-draft seeding): as a
+	// literal "_anon" it pointed every claimed project's job at the shared
+	// anonymous memory — leverage lost, and wording leaked across tenants. A
+	// genuinely unclaimed project still resolves to no workspace and keeps the
+	// anonymous slug.
+	workspaceSlug := "_anon"
+	if s.ContentStore != nil && s.AuthStore != nil {
+		if proj, err := s.ContentStore.GetProject(ctx, projectID); err == nil && proj != nil && proj.WorkspaceID != "" {
+			if ws, err := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID); err == nil && ws != nil && ws.Slug != "" {
+				workspaceSlug = ws.Slug
+			}
+		}
+	}
+
 	job := &jobs.TranslationJob{
 		ID:               id.New(),
-		WorkspaceSlug:    "_anon",
+		WorkspaceSlug:    workspaceSlug,
 		ProjectID:        projectID,
 		ItemName:         req.ItemName,
+		Stream:           refParam(c),
 		TargetLocale:     req.TargetLocale,
 		ProviderConfigID: providerConfigID,
 		Model:            req.Model,
 		Status:           jobs.StatusQueued,
 	}
-
-	ctx := c.Request().Context()
 	if err := s.JobStore.CreateJob(ctx, job); err != nil {
 		return serverErr(c, err)
 	}

@@ -125,18 +125,13 @@ ok(
   !!queue?.pending?.find((u: any) => u.key === "greeting" && u.locale === "fr" && u.file === "messages.fr.json"),
 );
 
-// ── 3. apply kind:"review": the decision lands in the state store ────────────
+// ── 3. apply kind:"review": the decision is staged in the working store ──────
 // apply has no -p flag — it discovers the project from cwd (/project, above).
+// The decision is staged, not yet committed: in the browser the working set
+// persists as a JSON sidecar through the sandbox FS, so it must survive into
+// the next command exactly as the SQLite working store does natively.
 const s3 = await run(["apply", "review.jsonl"]);
 ok("apply review exits 0 in wasm", s3.code === 0, `code=${s3.code}`);
-const stateRaw = mem.vol.readFile("/project/.kapi-state.json");
-ok("apply wrote the committed state store (.kapi-state.json)", !!stateRaw);
-const state = stateRaw ? JSON.parse(dec.decode(stateRaw)) : {};
-ok("state store kind is kapi-project-state", state.kind === "kapi-project-state", `kind=${state.kind}`);
-ok(
-  "state records the reviewed greeting unit with a targetHash",
-  !!state.units?.find((u: any) => u.unit === "greeting" && u.status === "reviewed" && u.targetHash),
-);
 
 // ── 4. status again: the approval is derived back as reviewed coverage ───────
 const s4 = await run(["status", "-p", P]);
@@ -160,6 +155,30 @@ ok("review queue drops to 2 after approving one unit", queue2?.pending?.length =
 ok(
   "the approved greeting unit is no longer in the queue",
   !queue2?.pending?.find((u: any) => u.key === "greeting"),
+);
+
+// ── 6. commit: the staged decision lands in the committed record ─────────────
+// The committed record is per-document JSONL shards under .kapi/units/ (one
+// line per unit), written through the sandbox FS.
+const s6 = await run(["commit"]);
+ok("commit exits 0 in wasm", s6.code === 0, `code=${s6.code}`);
+let shards: string[] = [];
+try {
+  shards = mem.vol.readdir("/project/.kapi/units").filter((n) => n.endsWith(".jsonl"));
+} catch {
+  /* leave empty */
+}
+ok("commit wrote the committed record (.kapi/units/*.jsonl)", shards.length > 0, `shards=${shards.length}`);
+const committedUnits: any[] = shards.flatMap((n) =>
+  dec
+    .decode(mem.vol.readFile("/project/.kapi/units/" + n))
+    .split("\n")
+    .filter((l) => l.trim() !== "")
+    .map((l) => JSON.parse(l)),
+);
+ok(
+  "committed record holds the reviewed unit with a targetHash",
+  !!committedUnits.find((u: any) => u.status === "reviewed" && u.targetHash),
 );
 
 console.log(failures === 0 ? "\nALL REVIEW SMOKE CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);

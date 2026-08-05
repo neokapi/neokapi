@@ -39,14 +39,16 @@ type PushBrandResult struct {
 	Reason  string // set when Action == "skipped"
 }
 
-// buildPushContext resolves the recipe's declared context into the entries a
+// BuildPushContext resolves the recipe's declared context into the entries a
 // push carries, and reports what happened to the governance.
 //
-// noBrand drops the authored voice from every entry and leaves the profile
-// unnamed: the collections and their coordinates still travel — a project's
-// structure is not a brand decision — but nothing binds a voice. That is what
-// `--no-brand` has always meant, stated in one place instead of by skipping a
-// call.
+// Exported because a push arrives by two routes and both must declare the same
+// context. `kapi-bowrain push` runs the cobra command below; `kapi push` is
+// dispatched over the Mode-C daemon RPC and lands in the daemon's Push handler,
+// which has a project and a connector but none of this command's plumbing.
+// Leaving the daemon route without it is what let a push carry 21,894 blocks
+// and reconcile zero collections: no context hash on the wire reads, correctly,
+// as "this push makes no claim about the declared context".
 //
 // A dry run resolves everything and returns the entries without a caller ever
 // sending them, so `--dry-run` reports the governance it would carry.
@@ -54,7 +56,7 @@ type PushBrandResult struct {
 // Returns (nil, nil, nil) when the project is not connected to a server: there
 // is no context to reconcile against, and this is not an error — the same
 // silent skip the terminology push makes.
-func buildPushContext(ctx context.Context, proj *bproject.Project, noBrand, dryRun bool) (*apiclient.PushContext, *PushBrandResult, error) {
+func BuildPushContext(ctx context.Context, proj *bproject.Project, dryRun bool) (*apiclient.PushContext, *PushBrandResult, error) {
 	if app == nil || proj == nil || proj.Recipe == nil {
 		return nil, nil, nil
 	}
@@ -95,16 +97,10 @@ func buildPushContext(ctx context.Context, proj *bproject.Project, noBrand, dryR
 			entry.Channel = governance.Channel
 		}
 
-		// The name is resolved either way, so --no-brand can report which voice
-		// it declined to carry rather than saying nothing at all. Only the
-		// authored content is withheld.
 		if found && brandResult == nil {
-			brandResult = &PushBrandResult{Name: profile.Name, Action: brandAction(noBrand, dryRun)}
-			if noBrand {
-				brandResult.Reason = "--no-brand"
-			}
+			brandResult = &PushBrandResult{Name: profile.Name, Action: brandAction(dryRun)}
 		}
-		if found && !noBrand {
+		if found {
 			entry.VoiceProfile = profile.Name
 			if !carried[profile.Name] {
 				authored, merr := json.Marshal(profile)
@@ -129,13 +125,9 @@ func buildPushContext(ctx context.Context, proj *bproject.Project, noBrand, dryR
 // created/updated/unchanged distinction to report here, and that is the honest
 // consequence of folding the upsert into the push: the worker decides which of
 // those it was, after the client has gone.
-func brandAction(noBrand, dryRun bool) string {
-	switch {
-	case noBrand:
-		return "skipped"
-	case dryRun:
+func brandAction(dryRun bool) string {
+	if dryRun {
 		return "would-push"
-	default:
-		return "carried"
 	}
+	return "carried"
 }

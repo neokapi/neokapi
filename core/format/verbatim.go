@@ -47,7 +47,25 @@ var pluralFormOrder = []model.PluralForm{
 // VerbatimTextProp names the companion property under which a reader records the
 // text its captured bytes decode to. It is derived from the capture property's
 // own name so a block can hold more than one capture without collision.
-func VerbatimTextProp(prop string) string { return prop + ".text" }
+func VerbatimTextProp(prop string) string { return verbatimKey(prop) + ".text" }
+
+// verbatimKey namespaces a verbatim capture as ADVISORY, so it is carried on the
+// block but never hashed into the block's identity.
+//
+// A verbatim capture is a byte copy of the block's own content — that is its
+// entire purpose. model.ComputeContextHash folds properties in, so without this
+// a capture would put the content into the CONTEXT hash as well, collapsing the
+// two signals core/reconcile grades independently. Editing a block would then
+// move both hashes at once and the block would grade as new, losing the
+// translation and the approval it had.
+//
+// That is the same defect that made naming a heading after its own title wrong,
+// arriving through a side door: not via the name, but via a property. It bit the
+// formats that use skeleton mode — precisely the ones with the best natural keys.
+//
+// Applied inside these helpers rather than at the call sites: readers pass a
+// plain prop name and never see the prefix, so a reader cannot forget it.
+func verbatimKey(prop string) string { return model.AdvisoryPropertyPrefix + prop }
 
 // RecordVerbatim stores raw as the block's captured verbatim bytes for prop,
 // together with text — the text those bytes decode to, which is what makes the
@@ -62,7 +80,7 @@ func RecordVerbatim(block *model.Block, prop, raw, text string) {
 	if block.Properties == nil {
 		block.Properties = make(map[string]string, 2)
 	}
-	block.Properties[prop] = raw
+	block.Properties[verbatimKey(prop)] = raw
 	block.Properties[VerbatimTextProp(prop)] = text
 }
 
@@ -169,7 +187,7 @@ func VerbatimFor(block *model.Block, prop, emitted string) (string, bool) {
 	if block == nil || len(block.Properties) == 0 {
 		return "", false
 	}
-	raw, ok := block.Properties[prop]
+	raw, ok := block.Properties[verbatimKey(prop)]
 	if !ok {
 		return "", false
 	}

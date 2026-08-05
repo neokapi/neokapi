@@ -14,11 +14,17 @@ const (
 
 // TranslationJob represents an async translation request.
 type TranslationJob struct {
-	ID               string    `json:"id"`
-	WorkspaceSlug    string    `json:"workspace_slug"`
-	WorkspaceID      string    `json:"workspace_id,omitempty"` // billing workspace ID (set when created from workspace context)
-	ProjectID        string    `json:"project_id"`
-	ItemName         string    `json:"item_name"`
+	ID            string `json:"id"`
+	WorkspaceSlug string `json:"workspace_slug"`
+	WorkspaceID   string `json:"workspace_id,omitempty"` // billing workspace ID (set when created from workspace context)
+	ProjectID     string `json:"project_id"`
+	ItemName      string `json:"item_name"`
+	// Stream scopes the job's reads and writes (targets are per-stream
+	// overlays). Empty means "main" — the worker defaults it, so an old row
+	// or a stream-naive caller keeps today's behavior. Distinct from the
+	// __sync_push__ convention of carrying the stream in TargetLocale, which
+	// was display-only punning; content-affecting code reads this field.
+	Stream           string    `json:"stream,omitempty"`
 	TargetLocale     string    `json:"target_locale"`
 	ProviderConfigID string    `json:"provider_config_id"`
 	Model            string    `json:"model,omitempty"` // deployment/model name (e.g. "gpt-4o", "gpt-4o-mini")

@@ -17,14 +17,24 @@ type Writer struct {
 	format.BaseFormatWriter
 	separator     rune
 	headers       []string
-	headerByCol   map[int]string          // header cell text keyed by column index
-	preambleRows  [][]string              // rows before the header row
-	blocks        map[string]*model.Block // keyed by "col.row"
-	dataCells     map[string]string       // keyed by "col.row"
+	headerByCol   map[int]string           // header cell text keyed by column index
+	preambleRows  [][]string               // rows before the header row
+	blocks        map[cellRef]*model.Block // grid cells carrying translatable text
+	dataCells     map[cellRef]string       // grid cells carrying non-translatable text
 	maxCol        int
 	maxRow        int
 	skeletonStore *format.SkeletonStore
 }
+
+// cellRef is a cell's position in the rebuilt grid: the row and column the
+// reader recorded on the part.
+//
+// The grid is keyed by position rather than by block name because a name is an
+// identity, not a join key — it follows the row's key column when the table has
+// one (see naming.go), so it cannot be recomputed from a column header and a
+// row ordinal. Row/column properties are what the reader records for exactly
+// this purpose, and they say the same thing under every naming scheme.
+type cellRef struct{ row, col int }
 
 // Ensure Writer implements SkeletonStoreConsumer.
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
@@ -37,8 +47,8 @@ func NewWriter() *Writer {
 		},
 		separator:   ',',
 		headerByCol: make(map[int]string),
-		blocks:      make(map[string]*model.Block),
-		dataCells:   make(map[string]string),
+		blocks:      make(map[cellRef]*model.Block),
+		dataCells:   make(map[cellRef]string),
 	}
 }
 
@@ -50,8 +60,8 @@ func NewTSVWriter() *Writer {
 		},
 		separator:   '\t',
 		headerByCol: make(map[int]string),
-		blocks:      make(map[string]*model.Block),
-		dataCells:   make(map[string]string),
+		blocks:      make(map[cellRef]*model.Block),
+		dataCells:   make(map[cellRef]string),
 	}
 }
 
@@ -195,12 +205,16 @@ func (w *Writer) collectPart(part *model.Part) error {
 		row := 0
 		_, _ = fmt.Sscanf(block.Properties["column"], "%d", &col)
 		_, _ = fmt.Sscanf(block.Properties["row"], "%d", &row)
-		// Header cells carry the column labels and rebuild the header row;
-		// data cells fill the grid keyed by "col.row".
-		if block.SemanticRole() == model.RoleTableHeader || block.Properties["header"] == "true" {
+		// Header cells carry the column labels and rebuild the header row; data
+		// cells fill the grid at their recorded position. A bilingual row block
+		// spans two columns rather than occupying one, so it has no single grid
+		// cell — the byte-exact skeleton path is what reproduces those tables.
+		switch {
+		case block.SemanticRole() == model.RoleTableHeader || block.Properties["header"] == "true":
 			w.headerByCol[col] = w.blockText(block)
-		} else {
-			w.blocks[block.Name] = block
+		case block.Properties["target-cell"] == "true":
+		default:
+			w.blocks[cellRef{row: row, col: col}] = block
 		}
 		if col > w.maxCol {
 			w.maxCol = col
@@ -221,11 +235,11 @@ func (w *Writer) collectPart(part *model.Part) error {
 			}
 		} else {
 			// Store data cell content
-			w.dataCells[data.Name] = data.Properties["content"]
 			col := 0
 			row := 0
 			_, _ = fmt.Sscanf(data.Properties["column"], "%d", &col)
 			_, _ = fmt.Sscanf(data.Properties["row"], "%d", &row)
+			w.dataCells[cellRef{row: row, col: col}] = data.Properties["content"]
 			if col > w.maxCol {
 				w.maxCol = col
 			}
@@ -286,11 +300,7 @@ func (w *Writer) flush() error {
 	for rowNum := 1; rowNum <= w.maxRow; rowNum++ {
 		record := make([]string, numCols)
 		for colIdx := range numCols {
-			colName := fmt.Sprintf("col%d", colIdx)
-			if colIdx < len(w.headers) {
-				colName = w.headers[colIdx]
-			}
-			key := fmt.Sprintf("%s.row%d", colName, rowNum)
+			key := cellRef{row: rowNum, col: colIdx}
 
 			if block, ok := w.blocks[key]; ok {
 				text := block.SourceText()

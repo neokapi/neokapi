@@ -23,12 +23,15 @@ import (
 	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/plugin/schema"
+	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host"
 )
 
 // Project is re-exported so callers can keep typing connector.Project.
@@ -115,6 +118,22 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 	}
 
 	cache := LoadSyncCache(project.Layout)
+
+	// The cache describes ONE server's view of this project: block hashes the
+	// server confirmed, stream cursors it issued, the context it holds. Pointed
+	// at a different server or project — switching between production and a
+	// local stack, or redirecting with BOWRAIN_PROJECT_URL — none of that
+	// describes the new destination, and reusing it makes the first push
+	// conclude nothing has changed and send nothing at all.
+	//
+	// The cache already recorded which server it belonged to; nothing ever
+	// compared it. Comparing it turns a silently empty push into a full one.
+	if cache.ServerURL != "" &&
+		(config.NormalizeServerURL(cache.ServerURL) != serverURL || cache.ProjectID != projectID) {
+		cache = bproject.NewEmptySyncCache()
+		cache.ServerURL = serverURL
+		cache.ProjectID = projectID
+	}
 
 	var client *apiclient.BowrainClient
 	switch {
@@ -205,7 +224,7 @@ func (c *BowrainSourceConnector) ListFiles(ctx context.Context, paths []string) 
 		dirty := 0
 		for _, b := range blocks {
 			identity := model.ComputeIdentity(b)
-			cached, found := c.lookupCachedHashForItem(relPath, b.ID)
+			cached, found := c.lookupCachedHashForItem(relPath, convergence.BlockKey(b))
 			if !found || cached != identity.ContentHash {
 				dirty++
 			}
@@ -530,8 +549,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	for itemName, blocks := range blockMap {
 		fileHashes := hashMap[itemName]
 		for _, b := range blocks {
-			hash := fileHashes[b.ID]
-			cachedHash, inCache := c.lookupCachedHashForItem(itemName, b.ID)
+			hash := fileHashes[convergence.BlockKey(b)]
+			cachedHash, inCache := c.lookupCachedHashForItem(itemName, convergence.BlockKey(b))
 			if opts.Force || !inCache || cachedHash != hash {
 				changed = append(changed, itemBlock{itemName: itemName, block: b})
 			}
@@ -541,6 +560,23 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	pushWords := 0
 	for _, ib := range changed {
 		pushWords += ib.block.WordCount()
+	}
+
+	// The committed decision record travels with the content it judges. A
+	// malformed record fails the push rather than being skipped: state is
+	// authoritative, and a push that silently dropped it would be the exact
+	// failure shape this protocol keeps re-learning to confess. Hashed against
+	// the sync cache so a decision committed since the last push forces the
+	// push past every "nothing changed" fast path — decisions only travel
+	// when they changed, and a changed record cannot be silently skipped.
+	decisions, derr := c.committedDecisions(ctx)
+	if derr != nil {
+		return nil, derr
+	}
+	decisionsHash := decisionsHashOf(decisions)
+	decisionsChanged := decisionsHash != c.cache.DecisionsHash
+	if !decisionsChanged {
+		decisions = nil // unchanged: the server already holds this record
 	}
 
 	if opts.DryRun {
@@ -571,10 +607,12 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		}
 
 		// A recipe change moves no content and still has to reach the server:
-		// a collection added, a coordinate moved, a voice rebound. Falling out
-		// here on "no blocks changed" is what used to leave the declared
-		// structure stranded on the developer's machine.
-		if len(changed) == 0 && !c.PushContextChanged() {
+		// a collection added, a coordinate moved, a voice rebound — and now a
+		// decision committed since the last push. Falling out here on "no
+		// blocks changed" is what used to leave the declared structure (and
+		// would leave the decision record) stranded on the developer's
+		// machine.
+		if len(changed) == 0 && !c.PushContextChanged() && !decisionsChanged {
 			return &bowrainconn.PushResult{FilesScanned: len(hashMap)}, nil
 		}
 	}
@@ -590,7 +628,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 
 	// Push via init → diff → chunk → commit flow, carrying the declared
 	// context so the collections land in the same transaction as the items.
-	resp, err := c.client.Push(ctx, blocksByItem, itemMeta, c.pushContext)
+	resp, err := c.client.Push(ctx, blocksByItem, itemMeta, c.pushContext, decisions)
 	if err != nil {
 		return nil, fmt.Errorf("push: %w", err)
 	}
@@ -598,10 +636,14 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	var lastCursor int64
 	pushID := ""
 	var undeclared []string
+	blocksUploaded := 0
+	chunkCount := 0
 	if resp != nil {
 		lastCursor = resp.NewCursor
 		pushID = resp.PushID
 		undeclared = resp.UndeclaredCollections
+		blocksUploaded = resp.BlocksUploaded
+		chunkCount = resp.ChunkCount
 	}
 
 	// Fetch and cache server metadata (best-effort).
@@ -643,6 +685,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	if c.pushContext != nil {
 		c.cache.ContextHash = c.pushContext.Hash
 	}
+	// And the decision record it carried, for the same reason.
+	c.cache.DecisionsHash = decisionsHash
 
 	if err := c.cache.Save(c.project.Layout); err != nil {
 		return nil, fmt.Errorf("save sync cache: %w", err)
@@ -650,6 +694,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 
 	return &bowrainconn.PushResult{
 		BlocksPushed:          totalStored,
+		BlocksUploaded:        blocksUploaded,
+		ChunkCount:            chunkCount,
 		AssetsPushed:          assetsPushed,
 		FilesScanned:          len(hashMap),
 		WordCount:             pushWords,
@@ -768,6 +814,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// Collect all blocks across paginated responses.
 	var allBlocks []apiclient.SyncBlock
 	var contexts []*pb.SyncContextEntry
+	var decisions []platstore.UnitDecision
 
 	for {
 		resp, err := c.client.Pull(ctx, cursor, locales, 1000)
@@ -778,9 +825,13 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 		totalPulled += len(resp.Blocks)
 		allBlocks = append(allBlocks, resp.Blocks...)
 		// The declared context is not cursor-driven — every page carries the
-		// current one — so the last page's is the one to keep.
+		// current one — so the last page's is the one to keep. The decision
+		// ledger travels the same way.
 		if len(resp.Contexts) > 0 {
 			contexts = resp.Contexts
+		}
+		if len(resp.Decisions) > 0 {
+			decisions = resp.Decisions
 		}
 		cursor = resp.Cursor
 
@@ -794,6 +845,14 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 			BlocksPulled: totalPulled,
 			LocalesCount: len(locales),
 		}, nil
+	}
+
+	// Reconcile the server's decision ledger into the working store — staged,
+	// not committed: `kapi commit` remains the only door into the git-tracked
+	// record, so a pull can never publish on anyone's behalf. `kapi status`
+	// reports what arrived and names the command that publishes it.
+	if _, err := c.stagePulledDecisions(ctx, decisions); err != nil {
+		return nil, err
 	}
 
 	// Record what the server holds and report what diverges. Nothing here
@@ -937,6 +996,18 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 	recipe := c.project.Recipe
 	assetsEnabled := recipe.AssetsEnabled()
 
+	// The declared redaction policy applies HERE, where content enters kapi —
+	// before anything hashes, stores or transmits it. Push used to read the
+	// policy nowhere at all, so a project that declared its content sensitive
+	// still sent originals to the server; only `kapi extract` honoured it.
+	//
+	// Redacting at ingest also means the content hashes below are hashes of the
+	// redacted text, which is what the server should be diffing: the vault
+	// stays local, and the server never holds a value it could restore.
+	redactSpec := host.ProjectRedaction(&recipe.KapiProject)
+	vaultPath := c.project.Layout.RedactionVaultPath()
+	srcLocale := recipe.Defaults.SourceLanguage
+
 	// If no specific paths, use content entries to discover files.
 	if len(paths) == 0 {
 		for _, it := range recipe.IterateContent() {
@@ -979,11 +1050,14 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 			if err != nil {
 				continue
 			}
+			if err := host.RedactAtIngest(ctx, blocks, redactSpec, c.project.Root, vaultPath, srcLocale); err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("redact %s: %w", relPath, err)
+			}
 
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
 				identity := model.ComputeIdentity(b)
-				fileHashes[b.ID] = identity.ContentHash
+				fileHashes[convergence.BlockKey(b)] = identity.ContentHash
 			}
 			hashMap[relPath] = fileHashes
 			blockMap[relPath] = blocks
@@ -1001,11 +1075,14 @@ func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, pa
 			if err != nil {
 				continue
 			}
+			if err := host.RedactAtIngest(ctx, blocks, redactSpec, c.project.Root, vaultPath, srcLocale); err != nil {
+				return nil, nil, nil, nil, fmt.Errorf("redact %s: %w", relPath, err)
+			}
 
 			fileHashes := map[string]string{}
 			for _, b := range blocks {
 				identity := model.ComputeIdentity(b)
-				fileHashes[b.ID] = identity.ContentHash
+				fileHashes[convergence.BlockKey(b)] = identity.ContentHash
 			}
 			hashMap[relPath] = fileHashes
 			blockMap[relPath] = blocks
@@ -1035,8 +1112,13 @@ func (c *BowrainSourceConnector) detectFormat(absPath string) string {
 		}
 	}
 
-	// Fall back to registry detection by file extension.
-	ext := filepath.Ext(absPath)
+	// Fall back to registry detection by file extension — the framework's
+	// compound-aware Ext, not filepath.Ext. The stdlib helper sees ".json"
+	// where the path says ".kbf.json", so every KBF catalog a recipe left
+	// format-less was read here by the generic JSON reader while the review
+	// path read it with the KBF reader: one item, two identity vocabularies,
+	// and a decision recorded on a KBF unit could never join its server block.
+	ext := format.Ext(absPath)
 	if ext == "" {
 		return ""
 	}

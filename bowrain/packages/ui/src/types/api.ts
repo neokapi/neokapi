@@ -432,7 +432,9 @@ export interface AuditQuery {
 }
 
 /** Block workflow status (ABAC). */
-export type BlockWorkflowStatus = "draft" | "in_review" | "published";
+// Access control, not progress: who may edit, while the review ladder lives on
+// the per-locale target. The server normalizes the retired draft/in_review.
+export type BlockWorkflowStatus = "open" | "restricted" | "published";
 
 /** Separation-of-duties mode for a workspace. */
 export type SoDMode = "off" | "warn" | "block";

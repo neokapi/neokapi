@@ -28,6 +28,7 @@ package storage
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -46,6 +47,13 @@ type pathLocks struct {
 	mu sync.Mutex
 	m  map[string]*sync.Mutex
 }
+
+// ErrNoSQLite marks a build with no file-backed SQLite driver at all (the
+// browser build). Callers whose feature is OPTIONAL in the browser — status
+// reading the decision store, for instance — match it with errors.Is and
+// degrade to their empty state instead of failing a command that otherwise
+// works.
+var ErrNoSQLite = errors.New("a file-backed SQLite database is not available in the browser build")
 
 func (p *pathLocks) get(path string) *sync.Mutex {
 	p.mu.Lock()

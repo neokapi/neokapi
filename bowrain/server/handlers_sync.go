@@ -25,6 +25,13 @@ import (
 	"github.com/neokapi/neokapi/core/storage/compression"
 )
 
+// The sync handlers scope to a stream via refParam (editor.go): every sync
+// route — workspace-scoped and flat alike — names the parameter :ref
+// (AD-011). An earlier generation of these handlers read :stream, a name no
+// sync route ever declared, so the lookup came back empty on every request
+// and each handler quietly fell back to "main" — a branch-scoped push landed
+// on the default stream regardless of the URL it arrived on.
+
 // HandleSyncPushInit handles the first step of a push: Merkle tree diff negotiation.
 // POST /sync/push/init
 func (s *Server) HandleSyncPushInit(c echo.Context) error {
@@ -48,12 +55,8 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	// middleware resolved access against c.Param("id"); a client-supplied
 	// project_id is ignored to prevent cross-project access (IDOR).
 	req.ProjectID = c.Param("id")
-	if req.Stream == "" {
-		req.Stream = c.Param("stream")
-	}
-	if req.Stream == "" {
-		req.Stream = "main"
-	}
+	// The path is authorized; a body-supplied stream never overrides it.
+	req.Stream = refParam(c)
 
 	if s.ContentStore == nil {
 		return apiErr(c, http.StatusServiceUnavailable, "content store not configured")
@@ -121,10 +124,7 @@ func (s *Server) HandleSyncPushDiff(c echo.Context) error {
 	}
 
 	projectID := c.Param("id")
-	stream := c.Param("stream")
-	if stream == "" {
-		stream = "main"
-	}
+	stream := refParam(c)
 
 	diffEngine := bowsync.NewDiffEngine(s.ContentStore, s.SyncCache)
 
@@ -174,6 +174,9 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		// verbatim like Items: this handler validates the transport, the worker
 		// reconciles the content.
 		Contexts json.RawMessage `json:"contexts"`
+		// Decisions is the decisions content type, passed through the same way:
+		// the worker upserts it into the unit_decisions ledger after the chunks.
+		Decisions json.RawMessage `json:"decisions"`
 	}
 	if err := c.Bind(&manifest); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
@@ -183,12 +186,8 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 	// authenticated user; a client-supplied project_id / actor_id / workspace
 	// is not trusted (prevents writing into another tenant's project, IDOR).
 	manifest.ProjectID = c.Param("id")
-	if manifest.Stream == "" {
-		manifest.Stream = c.Param("stream")
-	}
-	if manifest.Stream == "" {
-		manifest.Stream = "main"
-	}
+	// The path is authorized; a manifest-supplied stream never overrides it.
+	manifest.Stream = refParam(c)
 	manifest.ActorID, _ = c.Get("user_id").(string)
 	// Resolve the workspace slug from the path-scoped project rather than
 	// trusting the client. Best-effort: the worker tolerates an empty slug.
@@ -257,8 +256,9 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 			WorkspaceSlug: manifest.WorkspaceSlug,
 			ProjectID:     manifest.ProjectID,
 			ItemName:      "__sync_push__",
-			TargetLocale:  manifest.Stream,
-			Model:         ref.Key, // manifest blob key
+			Stream:        manifest.Stream,
+			TargetLocale:  manifest.Stream, // display only; the worker reads the manifest
+			Model:         ref.Key,         // manifest blob key
 			PushID:        pushID,
 			Status:        jobs.StatusQueued,
 		}
@@ -343,10 +343,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 		limit = 1000
 	}
 
-	stream := c.Param("stream")
-	if stream == "" {
-		stream = "main"
-	}
+	stream := refParam(c)
 
 	var locales []string
 	if raw := c.QueryParam("locales"); raw != "" {
@@ -367,6 +364,15 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 		Cursor:   cs.NewCursor,
 		HasMore:  cs.HasMore,
 		Contexts: s.pullContextEntries(ctx, projectID, stream),
+	}
+
+	// The decision ledger travels like the declared context: small, always
+	// current, on every page rather than cursor-driven. A store without the
+	// ledger capability simply sends none.
+	if ds, ok := s.ContentStore.(store.DecisionStore); ok {
+		if decisions, derr := ds.ListUnitDecisions(ctx, projectID, stream); derr == nil {
+			resp.Decisions = decisions
+		}
 	}
 
 	if len(cs.Changes) > 0 {
@@ -528,10 +534,7 @@ func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
 	projectID := c.Param("id")
 	itemName := c.QueryParam("item_name")
 
-	stream := c.Param("stream")
-	if stream == "" {
-		stream = "main"
-	}
+	stream := refParam(c)
 
 	limit := 1000
 	if l := c.QueryParam("limit"); l != "" {

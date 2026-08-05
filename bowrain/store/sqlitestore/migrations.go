@@ -736,4 +736,51 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE collections ADD COLUMN context_hash TEXT NOT NULL DEFAULT '';
 		`,
 	},
+	{
+		Version:     14,
+		Description: "unit decisions ledger (decisions travel the sync protocol)",
+		SQL: `
+			-- Mirrors unit_decisions in bowrain/store/migrations.go (Version
+			-- 16): the latest workflow decision per (item, unit, variant), the
+			-- server-side fold of core/state. One contract, two backends.
+			CREATE TABLE IF NOT EXISTS unit_decisions (
+				project_id   TEXT NOT NULL,
+				stream       TEXT NOT NULL DEFAULT 'main',
+				item_name    TEXT NOT NULL DEFAULT '',
+				unit         TEXT NOT NULL,
+				variant      TEXT NOT NULL,
+				status       TEXT NOT NULL DEFAULT '',
+				target_hash  TEXT NOT NULL DEFAULT '',
+				review_state TEXT NOT NULL DEFAULT '',
+				decided_by   TEXT NOT NULL DEFAULT '',
+				decided_at   TEXT NOT NULL DEFAULT '',
+				note         TEXT NOT NULL DEFAULT '',
+				parked       INTEGER NOT NULL DEFAULT 0,
+				assignee     TEXT NOT NULL DEFAULT '',
+				updated      TEXT NOT NULL DEFAULT '',
+				updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, stream, item_name, unit, variant)
+			);
+			CREATE INDEX IF NOT EXISTS idx_unit_decisions_project ON unit_decisions(project_id, stream);
+		`,
+	},
+	{
+		Version:     15,
+		Description: "stream scope for convergence runs",
+		SQL: `
+			-- Mirrors migration 17 in bowrain/store/migrations.go: a run's
+			-- derivation and produce are scoped to one stream; '' means "main".
+			ALTER TABLE convergence_runs ADD COLUMN stream TEXT NOT NULL DEFAULT '';
+		`,
+	},
+	{
+		Version:     16,
+		Description: "source word count computed at write, not derived per read",
+		SQL: `
+			-- Mirrors migration 18 in bowrain/store/migrations.go: NULL marks a
+			-- row that predates the column; readers decode its source_json once
+			-- and every rewrite fills the column.
+			ALTER TABLE blocks ADD COLUMN word_count INTEGER;
+		`,
+	},
 }

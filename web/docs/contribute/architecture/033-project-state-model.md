@@ -87,26 +87,70 @@ side effect, not where the decision lives.
 
 State has two representations, and conflating them is the trap to avoid:
 
-1. **Source of truth — a committed, diff-friendly serialization.** A text
-   document (`kind: kapi-project-state`, schema-versioned JSON) committed to git:
+1. **Source of truth — a committed, diff-friendly serialization.** JSON Lines
+   under `.kapi/units/`, one shard per document, committed to git:
    mergeable, reviewable in a `git diff`, exchangeable to XLIFF
    (`<target state=…>`, notes, phase/owner — [AD-017](017-bilingual-format-interop.md)),
    carried by a `.kpz` parcel's bilingual profile. This is what a clone or
    checkout restores from.
-2. **Working set — a transient in-memory store** (`core/state.FileStore`), the
-   fast random-access model for a session. **Derived** from #1; rebuilt by
-   `Open`, materialized back by `Export`.
+2. **Working set — a SQLite store** (`core/state.WorkStore`) under
+   `.kapi/work/`, the fast random-access model with transactions and hash
+   lookups. **Derived** from #1; seeded from it when empty, materialized back by
+   `Commit`.
+
+   It was originally specified as an in-memory store, on the reasoning that
+   un-committed decisions are in-transit and losing them is expected. Making it
+   a database changed that for the better: a decision is durable the moment it is
+   recorded, and committing is about *publishing* it rather than about not losing
+   it. That is what lets committing be explicit without inventing a way to lose
+   work. It is a database only as an index — deleting `.kapi/work/` costs nothing
+   already committed.
 
 Committing a binary SQLite as the authoritative store would be git-hostile
 (opaque, conflict-prone) and would defeat exchange, so the durable home is the
 text serialization and any database is only a working index over it. The
-invariant is preserved: discard the working index, re-`Open` from the committed
-file, lose nothing.
+invariant is preserved: discard the working index, reopen from the committed
+record, lose nothing.
+
+**One line per unit, sharded by document**, rather than one JSON array. A single
+indented document meant recording one decision rewrote every byte of the file:
+the diff for a one-word change was the whole project, two branches touching
+unrelated documents conflicted on sight, and a run recording many decisions moved
+orders of magnitude more bytes than it wrote. A line per unit makes a decision a
+one-line diff; a shard per document keeps a documentation edit from churning the
+shard holding the interface strings.
 
 > **Server variant.** In bowrain (server mode) the platform database *is* the
 > authoritative store — git is not in the loop. Same model, different backend:
 > file mode → committed serialization is truth; server mode → the server DB is
 > truth; a desktop working copy mirrors the server.
+
+#### Does the git record survive bowrain?
+
+Yes, and the two are not alternatives competing for the same job. The
+relationship is the one bowrain has generally — git is to bowrain what git is to
+a hosting platform.
+
+The committed record stays because it carries properties a server cannot:
+
+- **kapi runs without bowrain.** The framework is standalone and never imports
+  the platform. If decisions required a server, a plain kapi project could not
+  converge at all.
+- **A decision belongs to the change that caused it.** Source drift happens in a
+  pull request; the state change belongs in that same diff, where a reviewer can
+  see that an edit invalidated twelve approvals. Server state is *now*, not *at
+  this commit*.
+- **A clone at a past commit must converge identically.** State versioned
+  alongside the source gives that; a live database does not.
+- **Local-first is load-bearing elsewhere.** Redaction ([AD-020](020-redaction.md))
+  exists so content can be withheld from any named destination, bowrain included.
+  A design where decisions must round-trip a server contradicts it.
+
+What the server adds is what git is bad at: concurrent review by several people,
+assignment and queues, and a place for decisions made by people who do not have
+the repository checked out. That is coordination *around* the record, not a
+replacement for it — so the server syncs with the committed record rather than
+superseding it, and a project that never connects one loses nothing.
 
 ### State is explicitly transient; export is explicit
 
@@ -114,18 +158,39 @@ Mutations to the working set are **not durable until an explicit `Export`**. Thi
 is deliberately the git/bowrain mental model: decisions are like staged changes
 you commit (or push) on purpose.
 
-- `Put` / `Delete` mutate the transient working set.
-- `Pending()` reports whether un-exported decisions exist — so nothing is lost
-  silently; a `status` surface can report "N un-exported decisions".
-- `Export()` materializes the working set to the durable home in one deliberate,
-  auditable step (one clean diff), rather than churning an auto-commit on every
-  approval.
+- `Put` / `Delete` mutate the working set.
+- `Pending()` reports how many decisions are staged; `kapi status` surfaces it
+  and names the command that publishes them, staying silent when there are none.
+- `Commit()` materializes the working set to the durable home in one deliberate,
+  auditable step, rather than churning a write on every approval. `kapi commit`
+  is the verb.
 
-This sharpens the invariant into two tiers: un-exported decisions are in-transit
-(lose them like uncommitted git changes — expected); exported state is the source
-of truth ("delete the cache, lose nothing" applies here).
+Recording and publishing are different acts. A run of automated approvals should
+not land in the tracked record before anyone has looked at it, and an explicit
+commit is the moment at which someone can.
 
-### The committed location is a binding, not a fixed path
+Because the working set is a database rather than memory, staged decisions
+survive the process. That is a deliberate departure from the git analogy: staged
+work here is not "uncommitted changes you might lose", it is recorded work not
+yet published. The tiers are *staged* and *committed*, not *in-transit* and
+*durable*.
+
+### The committed location is fixed (reversing an earlier decision)
+
+The record lives at `.kapi/units/`, derived from the project layout. `kapi status`
+and `kapi commit` take no path.
+
+This reverses the binding described below, which was never used by any project
+and which the shard layout made awkward: `defaults.state` named a *file*, and the
+record is now a directory whose contents kapi owns and prunes. Pointing that at an
+arbitrary location invites a project to aim it somewhere kapi will delete from.
+
+The need the binding served — getting decisions out of kapi's own layout and into
+an interchange format — is served better by exchange proper (`kapi merge`, XLIFF
+`<target state=…>`, the `.kpz` bilingual profile), which converts rather than
+relocates. What follows is retained for the reasoning; the mechanism is gone.
+
+### The committed location is a binding, not a fixed path (retired)
 
 Because export targets a *binding*, there is no fixed location to hard-code. The
 binding is the unification of the file and server worlds:

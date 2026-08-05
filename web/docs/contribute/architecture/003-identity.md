@@ -106,6 +106,76 @@ tools append `Overlay` layers (targets, annotations, skeletons) keyed by
 `(kind, blockHash)` rather than rewriting blocks. This is the substrate kapi
 flows run against; see [AD-008: Project Model](008-project-model.md).
 
+### Identity across revisions
+
+The two hashes above answer "is this the same content?" at a point in time. An
+iterative project needs a second answer: "is this the same *unit* as last time?"
+A review decision, a translation and a content-memory entry are all recorded
+against a unit, and a source file is re-read after every edit.
+
+Neither hash can answer that alone, and neither can a name:
+
+- **Position** — a reader without a natural key numbers blocks as it goes
+  (`para3`, `line5`, `tu2`). Delete an earlier block and everything below is
+  renamed, so a decision recorded about one paragraph silently names another.
+- **Content** — deriving the name from the text instead breaks the opposite
+  case: fixing a typo renames the block, so it reads as a deletion plus an
+  addition and loses the history it should have kept. It also collapses
+  `ContextHash` into a restatement of `ContentHash`, destroying the independence
+  the pair exists to provide.
+
+Choosing between them only chooses which way identity breaks. So identity is not
+a naming scheme. It is the **output of matching** a read against the previous
+one, the way rename detection works on files — `core/reconcile` keeps both
+signals and grades the pair:
+
+| content | context | meaning | carries over |
+| --- | --- | --- | --- |
+| match | match | untouched | everything |
+| match | differ | moved, or the same text reused elsewhere | identity and history |
+| differ | match | edited in place | identity and history; the target is stale |
+| differ | differ | genuinely new | nothing |
+
+The third row is the one no single key can express. The fourth is honest rather
+than clever: when both signals change nothing links the block to its
+predecessor, and a guess would attach a real decision to the wrong words.
+
+Matching runs strongest signal first and each pass consumes what it claims, so a
+prior unit is claimed at most once — two blocks can never resolve to one key,
+which is what stops approving one from approving another.
+
+**Content is graded before context**, which settles the ambiguous case. Delete a
+paragraph and the one below slides into the vacated slot: its words match the
+old lower block, its position matches the deleted one. Content-first reads that
+as a move, which is what happened; context-first would call it a rewrite and
+then hand the neighbour's history to whatever arrived next.
+
+#### Scope, and why documents have identity too
+
+A block's name is unique only inside its own file — every markdown document has
+a `para1`. Matching on context alone across a project would let a paragraph in
+one file claim the history of an unrelated paragraph in another, so the context
+hash is scoped to the document (`reconcile.Identify(scope, block)`). Content is
+deliberately left unscoped, so a sentence moved between files keeps its
+translation.
+
+That scope is the document's **key, not its path** — otherwise renaming a file
+would rewrite the context of every block inside it at once. Documents are
+therefore matched by the same grading one level up (`reconcile.Documents`), and
+their resolved key is what blocks reconcile within.
+
+The pass order there is **inverted**: for documents, path is graded before
+content, because a path genuinely identifies a document, whereas `para1` does
+not. Renames are recognised by content similarity against the larger document,
+at a `RenameThreshold` of half — enough that a file moved and partly rewritten
+is still itself, but not so little that unrelated files sharing boilerplate
+merge.
+
+Readers are unaffected by any of this. Their positional names remain exactly
+what they were and are consumed as the context signal, which keeps the
+reconciling of format-native IDs into a stable identifier at the layer that
+persists them — as the next section describes.
+
 ### Platform-layer block addressing
 
 > **Platform layer.** The remainder of this section describes how a

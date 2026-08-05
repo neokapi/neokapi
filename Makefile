@@ -1477,6 +1477,25 @@ l10n-bowrain-docs: l10n-seed ## bowrain docs site → bowrain/web/docs/i18n/<lan
 
 l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs l10n-bowrain-app l10n-bowrain-ctrl l10n-bowrain-pulse l10n-emails l10n-landing ## Rebuild every dogfood translation output from the l10n/ seeds
 
+# ── Dogfood source extraction (what a push carries) ─────────────────────────
+# Five of the recipe's collections declare `i18n/**/*.kbf.json` catalogs that
+# neokapi-i18n extracts from React source. They are build artifacts, gitignored
+# by design — so a bare `kapi push` from a clean checkout carries nothing for
+# them, which is exactly what the dogfood sync did nightly: eleven collections
+# declared, six with content.
+#
+# This produces the SOURCE catalogs only. It is deliberately not `l10n`, which
+# also rebuilds every TARGET-language output — a push needs the source side, and
+# target drift must never gate it (CLAUDE.md, "Target-language drift").
+#
+# It is a make target rather than something the recipe declares, because a
+# recipe naming a subprocess is precisely what AD-038 refused: "a recipe is
+# trusted" is the assumption execution trust exists to disprove, and the `exec`
+# format is a deliberate stub for the same reason. Wiring extraction into the
+# recipe means first designing how a recipe earns that right.
+l10n-extract-source: kapi-desktop-extract bowrain-app-extract bowrain-ctrl-extract bowrain-pulse-extract emails-extract landing-extract kapi-i18n-generate kapi-cli-i18n-generate ## Extract every dogfood SOURCE catalog a push carries (no target languages)
+	@echo "✓ source catalogs extracted — `kapi push` now carries every declared collection"
+
 # ── Transactional emails (bowrain/emails → bowrain/mailer) ──────────────────
 # neokapi-i18n extraction over the React Email templates; qps via pseudo, nb via
 # Memory recycle from context/memory/emails-nb.memory.json; compiled catalogs are inlined into
@@ -2350,6 +2369,7 @@ help: ## Show this help
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
         emails-frontend-deps emails-extract emails-pseudo-translate l10n-emails emails-l10n-verify \
         landing-frontend-deps landing-extract landing-pseudo-translate l10n-landing landing-l10n-verify \
+        l10n-extract-source \
         tools setup-remote doctor gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \
         _fw-vet _fw-lint _fw-proto _fw-deps _fw-deps-update

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -137,8 +136,10 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 
 	blockCounter := 0
 	cueIndex := 0
-	styleIndex := 0
 	noteIndex := 0
+	// One builder per document read: the ordinals it hands out on a repeated key
+	// are scoped to this file. See cueName.
+	var names model.NameBuilder
 
 	// Finding A (#928): surface any text after the bare "WEBVTT" signature as a
 	// non-translatable caption content block (visible to ingestion, skipped by
@@ -156,9 +157,8 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 		// content block (gated by ExtractNonTranslatableContent in parseCue, so
 		// isStyle is only ever set when the flag is on).
 		if cue.isStyle {
-			styleIndex++
 			blockCounter++
-			block := newStyleBlock(fmt.Sprintf("tu%d", blockCounter), cue.text, locale, styleIndex)
+			block := newStyleBlock(fmt.Sprintf("tu%d", blockCounter), cue.text, locale, &names)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
@@ -203,13 +203,16 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 		// Emit cue text as Block
 		blockCounter++
 		block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), cue.text)
-		block.Name = fmt.Sprintf("subtitle.%d", cueIndex)
+		block.Name = cueName(&names, cue.identifier, cue.timecode)
 		block.Properties["timecode"] = cue.timecode
 		setBlockTiming(block, cue.timecode)
 		if cue.identifier != "" {
 			block.Properties["cue-id"] = cue.identifier
 		}
-		block.Properties["index"] = strconv.Itoa(cueIndex)
+		// No positional `index` property: nothing reads it, the writer does not
+		// need it, and Block.Properties is hashed into the context signal
+		// (model.ComputeContextHash) — so a reader-invented counter there would
+		// undo the naming above and make every cue after a deletion look changed.
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return
 		}
@@ -232,8 +235,9 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 	dataCounter := 0
 	blockCounter := 0
 	cueIndex := 0
-	styleIndex := 0
 	noteIndex := 0
+	// One builder per document read; see cueName.
+	var names model.NameBuilder
 
 	// Read the WEBVTT header line
 	header := ""
@@ -302,7 +306,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		// extraction off, fall through to the legacy cue path so the output is
 		// byte-identical to before this change.
 		if r.cfg.ExtractNonTranslatableContent() && isStyleHeader(lines[lineIdx].content) {
-			next, ok := r.emitStyleBlockSkeleton(ctx, ch, lines, lineIdx, locale, &blockCounter, &styleIndex)
+			next, ok := r.emitStyleBlockSkeleton(ctx, ch, lines, lineIdx, locale, &blockCounter, &names)
 			if !ok {
 				return
 			}
@@ -394,15 +398,15 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			r.skelText(lines[lastTextIdx].lineEnding)
 		}
 
-		// Emit cue text as Block
+		// Emit cue text as Block. See the simple walk for why there is no
+		// positional `index` property.
 		block := model.NewBlock(blockIDStr, cue.text)
-		block.Name = fmt.Sprintf("subtitle.%d", cueIndex)
+		block.Name = cueName(&names, cue.identifier, cue.timecode)
 		block.Properties["timecode"] = cue.timecode
 		setBlockTiming(block, cue.timecode)
 		if cue.identifier != "" {
 			block.Properties["cue-id"] = cue.identifier
 		}
-		block.Properties["index"] = strconv.Itoa(cueIndex)
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return
 		}
@@ -417,7 +421,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 // whether emission succeeded (false = context cancelled). An empty body (STYLE
 // immediately followed by a blank line / EOF) emits nothing and leaves the
 // keyword in the skeleton.
-func (r *Reader) emitStyleBlockSkeleton(ctx context.Context, ch chan<- model.PartResult, lines []rawLine, lineIdx int, locale model.LocaleID, blockCounter, styleIndex *int) (int, bool) {
+func (r *Reader) emitStyleBlockSkeleton(ctx context.Context, ch chan<- model.PartResult, lines []rawLine, lineIdx int, locale model.LocaleID, blockCounter *int, names *model.NameBuilder) (int, bool) {
 	// STYLE keyword line → skeleton verbatim.
 	r.skelText(lines[lineIdx].raw)
 	lineIdx++
@@ -447,7 +451,6 @@ func (r *Reader) emitStyleBlockSkeleton(ctx context.Context, ch chan<- model.Par
 		}
 	}
 
-	*styleIndex++
 	*blockCounter++
 	blockIDStr := fmt.Sprintf("tu%d", *blockCounter)
 	r.skelRef(blockIDStr)
@@ -456,7 +459,7 @@ func (r *Reader) emitStyleBlockSkeleton(ctx context.Context, ch chan<- model.Par
 	// the ref).
 	r.skelText(lines[bodyStartIdx+len(bodyLines)-1].lineEnding)
 
-	block := newStyleBlock(blockIDStr, bodyBuilder.String(), locale, *styleIndex)
+	block := newStyleBlock(blockIDStr, bodyBuilder.String(), locale, names)
 	return lineIdx, r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -471,9 +474,15 @@ func isStyleHeader(line string) bool {
 // block's embedded CSS body. The CSS is carried as a single verbatim run (no
 // inline parse), whitespace-significant, skipped by MT but visible to
 // ingestion/LLM consumers.
-func newStyleBlock(id, css string, locale model.LocaleID, index int) *model.Block {
+//
+// A STYLE block has no key of its own: WebVTT gives it a keyword and a body and
+// nothing else. It is named "style", and the shared NameBuilder appends an
+// ordinal only for a second one in the same file — which is both rare and the
+// smallest scope available. What it is not is a count that also advances for
+// cues, so a STYLE block cannot shift the name of the cue after it.
+func newStyleBlock(id, css string, locale model.LocaleID, names *model.NameBuilder) *model.Block {
 	block := model.NewBlock(id, css) // default Source is a single verbatim run
-	block.Name = fmt.Sprintf("style.%d", index)
+	block.Name = names.Name("style")
 	block.Type = "style"
 	block.SourceLocale = locale
 	block.Translatable = false

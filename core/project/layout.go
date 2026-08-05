@@ -106,6 +106,30 @@ func (l Layout) CollectionsDir() string {
 // be committed — they live under the gitignored cache root.
 const RedactionDirName = "redaction"
 
+// VaultDirName is the state subdirectory holding withheld originals.
+//
+// Separate from cache/ on purpose. The cache is defined by being disposable —
+// losing it costs CPU. The vault is defined by an EXCLUSION: a named
+// destination must never read it, and losing it means redacted content can
+// never be restored. Filing it under cache/ made it look regenerable, which it
+// is not, and put it one `rm -rf` away from unrecoverable placeholders.
+const VaultDirName = "vault"
+
+// VaultDir returns the absolute path of the withheld-originals root.
+func (l Layout) VaultDir() string {
+	return filepath.Join(l.StateDir, VaultDirName)
+}
+
+// RedactionVaultPath returns the project-scoped redaction vault.
+//
+// Project-scoped rather than per-batch because ingest redaction is continuous:
+// a push redacts whatever it reads, whenever it reads it, and a later restore
+// has no batch id to look under. The per-batch sidecars below remain for the
+// extract → external tool → merge round trip, which genuinely is a batch.
+func (l Layout) RedactionVaultPath() string {
+	return filepath.Join(l.VaultDir(), "redaction.json")
+}
+
 // RedactionSidecarPath returns the absolute path of the redaction vault
 // sidecar for an extraction batch.
 func (l Layout) RedactionSidecarPath(batchID string) string {
@@ -134,6 +158,10 @@ func ResolveLayout(start string) (Layout, error) {
 	for {
 		layout, err := layoutAtDir(dir)
 		if err == nil {
+			// Every load path passes here, which is what makes the sweep
+			// reliable: EnsureLayout alone only covered the writing verbs, and
+			// the plugin daemon's read path never called it.
+			sweepRetiredStateFiles(layout)
 			return layout, nil
 		}
 		if !errors.Is(err, errLayoutNotHere) {
@@ -191,7 +219,23 @@ func EnsureLayout(layout Layout) error {
 	if err := os.MkdirAll(layout.CacheDir(), 0o755); err != nil {
 		return fmt.Errorf("project: create cache dir: %w", err)
 	}
+	sweepRetiredStateFiles(layout)
 	return nil
+}
+
+// sweepRetiredStateFiles removes the store files the vocabulary sweep renamed
+// out of existence (`tm.db` → `memory.db`, `termbase.db` → `terms.db`). Left
+// in place they were a live footgun: retired names sitting beside the live
+// stores, indistinguishable from state, and nothing declaring which file was
+// authoritative. Both were regenerable projections, so deleting them loses
+// nothing — the same reasoning that made the rename itself cheap. Best-effort:
+// a file that will not delete is not worth failing a project open over.
+func sweepRetiredStateFiles(layout Layout) {
+	for _, retired := range []string{"tm.db", "termbase.db"} {
+		for _, suffix := range []string{"", "-wal", "-shm"} {
+			_ = os.Remove(filepath.Join(layout.StateDir, retired+suffix))
+		}
+	}
 }
 
 // ─── internals ──────────────────────────────────────────────────
@@ -243,4 +287,34 @@ func layoutAtDir(dir string) (Layout, error) {
 		RecipePath: filepath.Join(dir, RecipeFileName),
 		StateDir:   filepath.Join(dir, StateDirName),
 	}, nil
+}
+
+// WorkDirName is the state subdirectory holding the derived working set.
+//
+// Gitignored, and disposable ONCE COMMITTED: the working store is an index over
+// the committed record, so deleting it costs nothing that has been serialized.
+// It is not filed under cache/ because until a decision is committed this holds
+// the only copy of it, and cache means regenerable.
+const WorkDirName = "work"
+
+// WorkDir returns the absolute path of the derived working-set root.
+func (l Layout) WorkDir() string {
+	return filepath.Join(l.StateDir, WorkDirName)
+}
+
+// WorkStorePath returns the working store database.
+func (l Layout) WorkStorePath() string {
+	return filepath.Join(l.WorkDir(), "state.db")
+}
+
+// UnitsDirName holds the committed record — one JSON Lines shard per document.
+//
+// Tracked, unlike everything else under the state directory: this is authored
+// decision data, so it belongs in the review that caused the drift and must
+// survive a fresh clone with no server.
+const UnitsDirName = "units"
+
+// UnitsDir returns the absolute path of the committed unit record.
+func (l Layout) UnitsDir() string {
+	return filepath.Join(l.StateDir, UnitsDirName)
 }

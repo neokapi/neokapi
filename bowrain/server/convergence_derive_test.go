@@ -72,7 +72,7 @@ func TestDerive_ConnectorIngestedBlocksArePending(t *testing.T) {
 	s, cs, _, p := newDeriveHarness(t, []model.LocaleID{model.LocaleFrench})
 	seedIngestedBlocks(t, cs, p.ID, 5)
 
-	st, err := s.convergence.deriveFunc(p.ID, nil)(t.Context())
+	st, err := s.convergence.deriveFunc(p.ID, "main", nil)(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, []string{string(model.LocaleFrench)}, st.Pending,
 		"a configured locale with untranslated blocks is pending")
@@ -118,7 +118,7 @@ func TestOrchestrator_IngestedProjectRunsFirstPass(t *testing.T) {
 	}
 
 	s.convergence.driveWith(ctx, run, convergence.LoopFuncs{
-		Derive:  s.convergence.deriveFunc(p.ID, nil),
+		Derive:  s.convergence.deriveFunc(p.ID, "main", nil),
 		Produce: produce,
 	})
 
@@ -156,7 +156,7 @@ func TestOrchestrator_NoTargetLocales_ParksNotUpToDate(t *testing.T) {
 	require.NoError(t, runStore.CreateRun(ctx, run))
 
 	s.convergence.driveWith(ctx, run, convergence.LoopFuncs{
-		Derive: s.convergence.deriveFunc(p.ID, nil),
+		Derive: s.convergence.deriveFunc(p.ID, "main", nil),
 		Produce: func(context.Context, string, int, *convergence.Emitter) (int, int, int, error) {
 			t.Error("Produce must not run for a project with no target locales")
 			return 0, 0, 0, nil
@@ -199,7 +199,7 @@ func TestDerive_ItemScopedProjectUnaffected(t *testing.T) {
 	b2 := model.NewBlock("farewell", "Goodbye")
 	require.NoError(t, cs.StoreBlocksForItem(ctx, p.ID, "main", "app.json", []*model.Block{b1, b2}))
 
-	st, err := s.convergence.deriveFunc(p.ID, nil)(ctx)
+	st, err := s.convergence.deriveFunc(p.ID, "main", nil)(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, []string{string(model.LocaleFrench)}, st.Pending)
 	assert.Equal(t, 2, st.UnitTotals[string(model.LocaleFrench)])

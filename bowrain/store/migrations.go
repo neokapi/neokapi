@@ -23,6 +23,10 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	12  block stand-off overlays column
 //	13  GitHub App installation ownership
 //	14  collection context: coordinates, ownership, and the entry hash
+//	16  unit decisions ledger (decisions travel the sync protocol)
+//	17  stream scope for convergence runs
+//	18  source word count computed at write
+//	19  blocks access ladder renamed (open|restricted|published)
 //
 // Versions 3 and 4 were already retired before this change — they ran on live
 // databases and were then folded into the v1 baseline. They are listed because
@@ -33,7 +37,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // Baseline is version 15 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 16.
+// repaired. Retired numbers are never reused; the next migration is version 20.
 var Migrations = []storage.Migration{
 	{
 		Version:     15,
@@ -183,7 +187,7 @@ var Migrations = []storage.Migration{
 				overlays     JSONB NOT NULL DEFAULT '[]'::jsonb,
 				properties   TEXT NOT NULL DEFAULT '{}',
 				owner_id     TEXT NOT NULL DEFAULT '',         -- ABAC: content owner
-				status       TEXT NOT NULL DEFAULT 'draft',    -- ABAC: draft | in_review | published
+				access       TEXT NOT NULL DEFAULT 'open',     -- ABAC: open | restricted | published
 				stored_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, id)
@@ -978,6 +982,88 @@ var Migrations = []storage.Migration{
 			--                idempotent: an unchanged hash leaves the row, and
 			--                its updated_at, untouched. Empty until a push
 			--                reconciles the row.
+		`,
+	},
+	{
+		Version:     16,
+		Description: "unit decisions ledger (decisions travel the sync protocol)",
+		SQL: `
+			-- The latest workflow decision per (item, unit, variant) — the
+			-- server side of core/state.UnitState. A decision is a FACT (who,
+			-- when, which rung, the hash of the translation it blesses);
+			-- freshness against current content is derived by readers, never
+			-- stored. History lives in block_history (change_type 'decision');
+			-- this table is the fold of that log, kept because joins and
+			-- projections need current state without replaying events.
+			--
+			-- unit is the durable identity (blocks.source_id), scoped by
+			-- item_name because structural names recur across items. item_name
+			-- may be '' when a decision arrives for content this store has
+			-- never held — stored rather than dropped, so the ledger cannot
+			-- lose what the corpus has not caught up to.
+			CREATE TABLE IF NOT EXISTS unit_decisions (
+				project_id  TEXT NOT NULL,
+				stream      TEXT NOT NULL DEFAULT 'main',
+				item_name   TEXT NOT NULL DEFAULT '',
+				unit        TEXT NOT NULL,
+				variant     TEXT NOT NULL,
+				status      TEXT NOT NULL DEFAULT '',
+				target_hash TEXT NOT NULL DEFAULT '',
+				review_state TEXT NOT NULL DEFAULT '',
+				decided_by  TEXT NOT NULL DEFAULT '',
+				decided_at  TEXT NOT NULL DEFAULT '',
+				note        TEXT NOT NULL DEFAULT '',
+				parked      BOOLEAN NOT NULL DEFAULT FALSE,
+				assignee    TEXT NOT NULL DEFAULT '',
+				updated     TEXT NOT NULL DEFAULT '',
+				updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, item_name, unit, variant)
+			);
+			CREATE INDEX IF NOT EXISTS idx_unit_decisions_project ON unit_decisions(project_id, stream);
+		`,
+	},
+	{
+		Version:     17,
+		Description: "stream scope for convergence runs",
+		SQL: `
+			-- A run's derivation and produce are scoped to one stream (targets
+			-- are per-stream overlays). '' means "main" — pre-stream rows and
+			-- stream-naive starters keep their behavior.
+			ALTER TABLE convergence_runs ADD COLUMN IF NOT EXISTS stream TEXT NOT NULL DEFAULT '';
+		`,
+	},
+	{
+		Version:     18,
+		Description: "source word count computed at write, not derived per read",
+		SQL: `
+			-- NULL marks a row that predates the column; readers decode its
+			-- source_json once and every rewrite fills the column. Deriving
+			-- coverage used to deserialize every block's source runs on every
+			-- call — minutes at corpus scale for numbers the write path knew.
+			ALTER TABLE blocks ADD COLUMN IF NOT EXISTS word_count INTEGER;
+		`,
+	},
+	{
+		Version:     19,
+		Description: "the access ladder stops borrowing the review ladder's words",
+		SQL: `
+			-- blocks.status was ACCESS CONTROL (who may edit), yet it said
+			-- "draft" — the review ladder's bottom rung — and "in_review", one
+			-- letter from "reviewed" on the other side of the same block. The
+			-- column is now access, and its values name the access consequence:
+			-- open (normal perms), restricted (review perms or ownership),
+			-- published (re-opening is privileged). The DO block makes the
+			-- rename idempotent: a fresh database's baseline already creates
+			-- the column under its new name.
+			DO $mig$ BEGIN
+				IF EXISTS (SELECT 1 FROM information_schema.columns
+					WHERE table_name = 'blocks' AND column_name = 'status') THEN
+					ALTER TABLE blocks RENAME COLUMN status TO access;
+				END IF;
+			END $mig$;
+			UPDATE blocks SET access = 'open'       WHERE access = 'draft';
+			UPDATE blocks SET access = 'restricted' WHERE access = 'in_review';
+			ALTER TABLE blocks ALTER COLUMN access SET DEFAULT 'open';
 		`,
 	},
 }
