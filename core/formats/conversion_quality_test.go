@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -108,3 +109,27 @@ func TestDocPropertiesStayOutOfMarkdownFlow(t *testing.T) {
 	assert.Contains(t, string(md), "Computer science")
 }
 
+// A worksheet whose first row is a lone title cell above a wider grid is a
+// captioned table, not a table whose header row is the title padded with
+// empty cells (#1680). The title renders as a caption line ahead of the
+// table and the first full row keeps its header job.
+func TestWorksheetTitleRowBecomesCaptionNotHeader(t *testing.T) {
+	reg := convRegistry()
+	f := convFixture{name: "xlsx/titled", path: "../../harness/demos/09-toolbox-find-replace/fixtures/pricing.xlsx", format: "openxml"}
+	md, err := convertOnce(reg, loadFixture(t, f.path), f)
+	require.NoError(t, err)
+	out := string(md)
+
+	assert.NotContains(t, out, "| SalesPilot — plan pricing |",
+		"title row rendered as a table row")
+	assert.Contains(t, out, "**SalesPilot — plan pricing**",
+		"title row should render as a caption ahead of the table")
+	// The real header row keeps its header job: it is immediately followed by
+	// the GFM delimiter row.
+	idx := strings.Index(out, "| Plan | Seats |")
+	require.GreaterOrEqual(t, idx, 0, "header row missing")
+	lines := strings.SplitN(out[idx:], "\n", 3)
+	require.Len(t, lines, 3)
+	assert.True(t, strings.HasPrefix(lines[1], "| ---"),
+		"row after %q should be the delimiter row, got %q", lines[0], lines[1])
+}

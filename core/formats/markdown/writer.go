@@ -425,8 +425,19 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 		if len(pendingCells) == 0 {
 			return nil
 		}
-		rows := w.assembleFlatCells(pendingCells)
+		caption, rows := w.assembleFlatCells(pendingCells)
 		pendingCells = nil
+		if caption != "" {
+			if !w.firstBlock {
+				if _, err := fmt.Fprint(out, "\n\n"); err != nil {
+					return err
+				}
+			}
+			w.firstBlock = false
+			if _, err := fmt.Fprint(out, "**"+caption+"**"); err != nil {
+				return err
+			}
+		}
 		return w.writeTable(rows, out)
 	}
 
@@ -530,9 +541,9 @@ func isCellBlock(b *model.Block) bool {
 // assembleFlatCells groups a run of bare cell blocks into rows on the per-cell
 // row hint (projection.PropFlatRow). Cells with no hint collapse into one row —
 // best-effort, matching projection.flushFlatCells, since row topology is not
-// recoverable from an unhinted block stream.
-func (w *Writer) assembleFlatCells(cells []*model.Block) []mdRow {
-	var rows []mdRow
+// recoverable from an unhinted block stream. A leading lone-cell row above a
+// wider grid is returned as a caption rather than a row.
+func (w *Writer) assembleFlatCells(cells []*model.Block) (caption string, rows []mdRow) {
 	lastKey, started := "", false
 	for _, c := range cells {
 		key, hasHint := c.Properties[projection.PropFlatRow]
@@ -550,13 +561,28 @@ func (w *Writer) assembleFlatCells(cells []*model.Block) []mdRow {
 		text := escapeTableCell(renderInlineMarkdown(w.blockRuns(c)))
 		rows[len(rows)-1].cells = append(rows[len(rows)-1].cells, mdCell{col: col, text: text})
 	}
+	// A lone cell in the first row of a wider grid is the table's title — a
+	// worksheet's "Q3 pricing" line above the real columns — not a row of the
+	// table. Left in place it would be promoted below and become a header row
+	// padded with empty cells, demoting the real header to body. Rendered from
+	// the source block, not the assembled cell, so table escaping does not
+	// apply to what is now a paragraph.
+	if len(rows) > 1 && len(rows[0].cells) == 1 && rows[0].cells[0].text != "" {
+		for _, r := range rows[1:] {
+			if len(r.cells) > 1 {
+				caption = renderInlineMarkdown(w.blockRuns(cells[0]))
+				rows = rows[1:]
+				break
+			}
+		}
+	}
 	// A spreadsheet's first row is its header row far more often than not, and
 	// GFM needs a header row regardless — promoting it beats emitting an empty
 	// one above real data.
 	if len(rows) > 1 {
 		rows[0].header = true
 	}
-	return rows
+	return caption, rows
 }
 
 // writeBlockMarkdown renders one block, role-prefixed, separated from prior
