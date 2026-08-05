@@ -113,7 +113,7 @@ type FileRunnerConfig struct {
 	Recorder *TraceRecorder
 
 	// Store, when non-nil, is the block store the executor runs the tool
-	// chain against. A persistent store (e.g. a workspace's blocks.db) makes
+	// chain against. A persistent store (e.g. a project's .kapi/store.db) makes
 	// SessionTools cache per-block work as overlays and skip already-done
 	// steps on a later run — the substrate of resumable .kpz workspaces
 	// (AD-025 §5). nil (the default) uses an ephemeral in-memory store, so

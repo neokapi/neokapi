@@ -1363,9 +1363,11 @@ L10N_LANGS := nb
 # interchange tier — emit them on demand with l10n-review-export.
 l10n-seed: bin/kapi ## Rebuild .kapi/ terms + content memory from the committed l10n/ seeds
 	@mkdir -p .kapi/cache
-	@# The state filenames stay memory.db / terms.db — that is what the Go code
-	@# opens, and existing projects already have them.
-	@rm -f .kapi/terms.db .kapi/memory.db
+	@# Terms and content memory share the one project store (AD-039), so a
+	@# wipe-and-reseed drops the whole file. That is safe here and only here:
+	@# the dogfood project's decisions live in the committed .kapi/units/
+	@# shards, which this does not touch.
+	@rm -f .kapi/store.db .kapi/store.db-wal .kapi/store.db-shm
 	./bin/kapi terms import context/terms.json
 	@for f in context/memory/*.memory.json; do \
 		[ -e "$$f" ] || continue; \

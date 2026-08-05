@@ -15,8 +15,9 @@
 //
 // Every member is a *native* Kapi-family format, so the package is lossless:
 // unpacking can seed a fresh content memory, terms, and block store and the regenerable
-// caches (blocks.db, sync hashes) rebuild faithfully. The package deliberately
-// excludes regenerable caches and secrets (no blocks.db, no sync-cache claim
+// caches (the parse cache, sync hashes) rebuild faithfully. The package
+// deliberately excludes regenerable caches and secrets (nothing from
+// `.kapi/cache/`, no sync-cache claim
 // tokens). It is the at-rest twin of the over-the-wire sync chunk set: pack =
 // the sync converters writing files instead of protobuf.
 //

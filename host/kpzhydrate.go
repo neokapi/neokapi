@@ -44,7 +44,7 @@ func (t *hydrateTargetsTool) SessionProcess(ctx context.Context, sess blockstore
 				// Absence and failure are different: ErrNotFound is "this block
 				// has no translation yet" (ordinary pending work), anything else
 				// is a store read that failed. Conflating them made a locked or
-				// corrupt blocks.db write the SOURCE text into the target file
+				// corrupt block store write the SOURCE text into the target file
 				// and report the merge applied — the shipped-deliverable form of
 				// #1449. The same distinction absorbStoreTargets now draws, and
 				// the one core/convergence/coverage.go already drew.

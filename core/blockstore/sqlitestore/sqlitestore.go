@@ -23,8 +23,10 @@ import (
 )
 
 // New opens (or creates) a SQLite-backed block store at the given path.
-// Intended use: project-local persistence at `.kapi/cache/blocks.db`, full
-// random access, append-friendly for concurrent overlay writes.
+// Intended use: project-local persistence in the project store,
+// `.kapi/store.db`, where core/projectdb binds it alongside the other
+// subsystems — full random access, append-friendly for concurrent overlay
+// writes.
 //
 // The database schema is internal to this package and versioned by
 // `cache_migrations`. Safe to delete and rebuild from another source

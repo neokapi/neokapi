@@ -38,12 +38,12 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi apply review.jsonl",
       narration:
-        "apply records the decision in the committed state store (.kapi-state.json), bound to the translation's content hash — edit that translation later and the unit drops back below reviewed.",
+        "apply records the decision in the committed decision record under .kapi/units/, bound to the translation's content hash — edit that translation later and the unit drops back below reviewed.",
     },
     {
       command: "kapi status",
       narration:
-        "reviewed coverage climbs to 33% — derived straight back from the committed decision. Commit .kapi-state.json and the approval travels with the project; a {reviewed} gate now sees it.",
+        "reviewed coverage climbs to 33% — derived straight back from the committed decision. Commit .kapi/units/ and the approval travels with the project; a {reviewed} gate now sees it.",
     },
   ],
 };

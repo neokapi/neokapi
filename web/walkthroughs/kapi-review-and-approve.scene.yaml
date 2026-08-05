@@ -5,7 +5,7 @@
 # The review→approve half of the kapi loop. A flow takes each unit as far
 # as a machine can (to *translated*); a person takes the ones that matter to
 # *reviewed*. That decision is the one thing the caches can't rebuild, so it lands
-# in the committed project state store (.kapi-state.json), bound to the
+# in the committed decision record (.kapi/units/), bound to the
 # translation's content hash. The funnel is:
 #
 #   status → status --review → apply (kind:"review") → status
@@ -63,9 +63,9 @@ steps:
     smoke: false
   - comment: Approving a unit is a decision, recorded with the one write verb. review.jsonl blesses the greeting unit's fr translation.
   - command: kapi apply review.jsonl
-    narration: apply records the decision in the committed state store (.kapi-state.json), bound to the translation's content hash — edit that translation later and the unit drops back below reviewed.
+    narration: apply records the decision in the committed decision record under .kapi/units/, bound to the translation's content hash — edit that translation later and the unit drops back below reviewed.
     smoke: false
   - command: kapi status
-    narration: reviewed coverage climbs to 33% — derived straight back from the committed decision. Commit .kapi-state.json and the approval travels with the project; a {reviewed} gate now sees it.
+    narration: reviewed coverage climbs to 33% — derived straight back from the committed decision. Commit .kapi/units/ and the approval travels with the project; a {reviewed} gate now sees it.
     smoke: false
   - comment: The gate is the consequence — `kapi check --ship` exits 3 while a required review is missing, and clears once the decisions land. See the kapi-up-loop walkthrough for the block-then-clear moment end to end.

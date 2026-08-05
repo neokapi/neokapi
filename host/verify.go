@@ -276,7 +276,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		case bound:
 			runTerms = true
 		case sel.explicit:
-			gates = append(gates, unboundGate(gateTerms, "defaults.terms", "--terms"))
+			gates = append(gates, unboundGate(gateTerms, "defaults.terms_source", "--terms"))
 		}
 	}
 

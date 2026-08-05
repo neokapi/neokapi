@@ -25,12 +25,16 @@ A terms store holds approved terminology — concepts and their renderings per
 locale — as a SQLite database. Use these commands to import, export, look up,
 and manage terms.
 
-Resource location (mutually exclusive):
+Inside a project, no flag means the project's own terms — a subsystem of
+.kapi/store.db, which is why it is not addressed by path. Use -p to name the
+project explicitly.
+
+Standalone store instead (mutually exclusive):
   --name <n>      Named terms store in the kapi config dir (terms/<n>.db)
   --local         Terms store in current directory (./terms.db)
   --file <path>   Explicit file path
 
-Default (no flag): same as --local (uses ./terms.db).`,
+Outside a project and with no flag: same as --local (uses ./terms.db).`,
 		Example: `  kapi terms stats
   kapi terms lookup "dashboard" -s en -t fr
   kapi terms import terms.csv -s en -t fr`,
@@ -47,6 +51,14 @@ Default (no flag): same as --local (uses ./terms.db).`,
 	// Shared resource flags for all subcommands (except list).
 	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd} {
 		AddResourceFlags(cmd)
+	}
+	// The project's terms are a subsystem of `.kapi/store.db`, not a file a
+	// caller can name — so with no resource flag these resolve the project,
+	// and -p is how you say WHICH, exactly as for every other project-aware
+	// verb. It also matters under KAPI_NO_PROJECT, where the upward walk is
+	// off and an explicit -p is the only way in.
+	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd} {
+		AddProjectFlag(cmd)
 	}
 
 	tbCmd.AddCommand(importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd, listCmd)

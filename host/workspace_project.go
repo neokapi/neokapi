@@ -77,8 +77,9 @@ func (a *App) RunPack(cmd Command) error {
 		return fmt.Errorf("open project store: %w", err)
 	}
 
-	// Block store (blocks + overlays).
-	if has, herr := db.HasBlocks(ctx); herr != nil {
+	// Block store (blocks + overlays). Either alone is worth packing: a flow
+	// run leaves overlays without caching blocks.
+	if has, herr := db.HasBlockCache(ctx); herr != nil {
 		return fmt.Errorf("read block cache: %w", herr)
 	} else if has {
 		snap, eerr := exporter.Export(ctx, db.BlocksAutocommit())

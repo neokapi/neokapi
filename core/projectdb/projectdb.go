@@ -77,9 +77,10 @@ import (
 // written to it?" — the file-existence signal the four-file layout used no
 // longer distinguishes anything.
 const (
-	memoryTable = "tm_entries"
-	termsTable  = "tb_concepts"
-	blocksTable = "blocks"
+	memoryTable   = "tm_entries"
+	termsTable    = "tb_concepts"
+	blocksTable   = "blocks"
+	overlaysTable = "overlays"
 )
 
 // DB is the project's open store: one connection pool with every subsystem
@@ -227,6 +228,22 @@ func (d *DB) HasTerms(ctx context.Context) (bool, error) {
 // extracted at all.
 func (d *DB) HasBlocks(ctx context.Context) (bool, error) {
 	return d.hasRows(ctx, blocksTable)
+}
+
+// HasBlockCache reports whether the block-cache subsystem holds anything worth
+// carrying — blocks or overlays.
+//
+// It is deliberately wider than HasBlocks. A flow run persists the overlays it
+// produced without caching the blocks it parsed, so a project can hold
+// translated variants and no rows in `blocks`. Under the four-file layout that
+// project still had a `blocks.db` on disk and packed fine; a gate on `blocks`
+// alone silently dropped its work. HasBlocks keeps the narrower "has this been
+// extracted?" meaning its own callers need.
+func (d *DB) HasBlockCache(ctx context.Context) (bool, error) {
+	if has, err := d.hasRows(ctx, blocksTable); err != nil || has {
+		return has, err
+	}
+	return d.hasRows(ctx, overlaysTable)
 }
 
 // hasRows probes a subsystem's primary table for any row. table is always one

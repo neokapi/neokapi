@@ -49,9 +49,11 @@ func TestPackUnpackRoundTrip(t *testing.T) {
 	recipe, src := newProject(t)
 	dir := filepath.Dir(recipe)
 
-	// Run the flow so the project block store caches overlays.
+	// Run the flow so the project store caches overlays. Every subsystem
+	// shares the one `.kapi/store.db` now (AD-039), so this is the file to
+	// look for — and it sits at the top of the state dir, not under cache/.
 	kapi(t, "run", "pseudo", "-p", recipe, "-i", src, "-o", filepath.Join(dir, "out.json"), "--target-lang", "fr-FR")
-	assert.FileExists(t, filepath.Join(dir, ".kapi", "cache", "blocks.db"))
+	assert.FileExists(t, filepath.Join(dir, ".kapi", "store.db"))
 
 	snap := filepath.Join(dir, "snap.kpz")
 	kapi(t, "pack", "-p", recipe, "-o", snap)
@@ -64,7 +66,7 @@ func TestPackUnpackRoundTrip(t *testing.T) {
 	dir2 := filepath.Dir(recipe2)
 	out := kapi(t, "unpack", snap, "-p", recipe2)
 	assert.Contains(t, out, "Unpacked")
-	assert.FileExists(t, filepath.Join(dir2, ".kapi", "cache", "blocks.db"))
+	assert.FileExists(t, filepath.Join(dir2, ".kapi", "store.db"))
 }
 
 // TestCachedResumeSkipsWork verifies the invisible resume story: a second

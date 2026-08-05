@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-05T00:29:25Z",
+  "generatedAt": "2026-08-05T16:59:45Z",
   "commands": [
     {
       "id": "add",
@@ -63,7 +63,7 @@
       ],
       "use": "apply [flags] [CHANGESET]",
       "short": "Apply a typed change-set (content + asset edits) — the one write verb",
-      "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (term, content-memory pair,\nbrand rule, recipe field), or a review decision (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review decision is recorded in the project state store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the decision lands in the project\nstate store (defaults.state, default .kapi-state.json) and is bound to the\ntranslation's content hash, so a later edit drops the unit back below reviewed.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
+      "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (term, content-memory pair,\nbrand rule, recipe field), or a review decision (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review decision is recorded in the project state store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the decision is staged in the\nproject store and is bound to the translation's content hash, so a later edit\ndrops the unit back below reviewed. 'kapi commit' writes it into the committed\nrecord under .kapi/units/.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
       "groupID": "work",
       "flags": [
         {
@@ -3468,7 +3468,7 @@
         },
         {
           "name": "memory",
-          "usage": "named Memory or path to a .db (defaults to the project content memory at .kapi/memory.db)",
+          "usage": "named memory or path to a .db (defaults to the project content memory)",
           "type": "string"
         },
         {
@@ -5838,7 +5838,7 @@
       ],
       "use": "memory",
       "short": "Manage content memory",
-      "long": "Manage content memory.\n\nA content memory stores previously produced content — source segments with the\ntargets settled for them — as a SQLite database. Use these commands to\nimport/export TMX, look up matches, and manage entries.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./memory.db).",
+      "long": "Manage content memory.\n\nA content memory stores previously produced content — source segments with the\ntargets settled for them — as a SQLite database. Use these commands to\nimport/export TMX, look up matches, and manage entries.\n\nInside a project, no flag means the project's own content memory — a subsystem\nof .kapi/store.db, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named content memory in KAPI_HOME (~/.config/kapi/tm/\u003cn\u003e.db)\n  --local         Content memory in current directory (./memory.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./memory.db).",
       "groupID": "assets",
       "examples": [
         "kapi memory stats",
@@ -5884,6 +5884,12 @@
         {
           "name": "name",
           "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
         }
       ],
@@ -5933,6 +5939,12 @@
           "shorthand": "o",
           "usage": "output file (default: stdout)",
           "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         }
       ],
       "offlineCapable": true,
@@ -5980,6 +5992,12 @@
         {
           "name": "name",
           "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
         },
         {
@@ -6123,6 +6141,12 @@
           "type": "string"
         },
         {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
           "name": "source-locale",
           "shorthand": "s",
           "usage": "source locale",
@@ -6173,6 +6197,12 @@
         {
           "name": "name",
           "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
         },
         {
@@ -6325,6 +6355,12 @@
         {
           "name": "name",
           "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
         }
       ],
@@ -7448,7 +7484,7 @@
       ],
       "use": "terms",
       "short": "Manage terminology",
-      "long": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nResource location (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in the kapi config dir (terms/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nDefault (no flag): same as --local (uses ./terms.db).",
+      "long": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nInside a project, no flag means the project's own terms — a subsystem of\n.kapi/store.db, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name \u003cn\u003e      Named terms store in the kapi config dir (terms/\u003cn\u003e.db)\n  --local         Terms store in current directory (./terms.db)\n  --file \u003cpath\u003e   Explicit file path\n\nOutside a project and with no flag: same as --local (uses ./terms.db).",
       "groupID": "assets",
       "examples": [
         "kapi terms stats",
@@ -7499,6 +7535,12 @@
           "name": "output",
           "shorthand": "o",
           "usage": "output file (default: stdout)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
         },
         {
@@ -7570,6 +7612,12 @@
         {
           "name": "name",
           "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
         },
         {
@@ -7645,6 +7693,12 @@
           "type": "string"
         },
         {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        },
+        {
           "name": "source-locale",
           "shorthand": "s",
           "usage": "source locale",
@@ -7661,6 +7715,66 @@
       "examples": [
         "kapi terms lookup \"dashboard\" -s en -t fr",
         "kapi terms lookup \"settings\" -s en -t de --fuzzy"
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "terms.occurrences",
+      "path": [
+        "terms",
+        "occurrences"
+      ],
+      "use": "occurrences [term-or-concept]",
+      "short": "Show where a term is used in the project's content",
+      "long": "Show where a term is used in the project's extracted content.\n\nThe argument is a term as written, or a concept id. A concept is searched for\nunder every term it carries, in every language, so an approved English term is\nfound in the source text and its counterpart in the translated text.\n\nMatching folds case, spans any whitespace between a term's words, and requires a\nword boundary — \"AI\" is not a use of \"again\". Scripts written without word\nseparators are matched without that rule.\n\nThe project must have been extracted: occurrences are read from the block cache\ninside the project store, which `kapi up` and `kapi extract` fill.",
+      "flags": [
+        {
+          "name": "collection",
+          "usage": "only blocks in this collection",
+          "type": "string"
+        },
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "usage": "max occurrences to show",
+          "default": "50",
+          "type": "int"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "locale",
+          "shorthand": "l",
+          "usage": "only text in these locales; 'source' for the source text (default: all)",
+          "default": "[]",
+          "type": "stringSlice"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi terms occurrences \"content memory\"",
+        "kapi terms occurrences c-dashboard --locale nb",
+        "kapi terms occurrences \"log in\" --collection docs --json"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -7695,6 +7809,12 @@
         {
           "name": "name",
           "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
         },
         {
@@ -7741,6 +7861,12 @@
         {
           "name": "name",
           "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
         }
       ],

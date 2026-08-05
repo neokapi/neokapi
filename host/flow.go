@@ -1490,7 +1490,7 @@ type ProjectBindings struct {
 	// injected into translate steps as config["profile"]. nil when unbound.
 	profile *profile.VoiceProfile
 	// glossary is the source→target glossary built from the project terms store
-	// (defaults.terms), injected into term-check steps. nil when unbound.
+	// (defaults.terms_source), injected into term-check steps. nil when unbound.
 	glossary []coretools.GlossaryEntry
 	// ToolPresets holds the project-level tool presets (defaults.tools):
 	// per-tool config defaults merged under each step's own config wherever
@@ -1622,7 +1622,7 @@ func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretool
 
 // ResolveProjectGlossaryFor is ResolveProjectGlossary scoped to one content
 // collection: it reads the terms that collection binds (its own `terms:`, else
-// defaults.terms), so a recipe governing two brands enforces each brand's
+// defaults.terms_source), so a recipe governing two brands enforces each brand's
 // vocabulary over its own content. An empty collection is the project-wide
 // resolution.
 func (a *App) ResolveProjectGlossaryFor(cmd Command, targetLang, collection string) ([]coretools.GlossaryEntry, error) {
@@ -1665,7 +1665,8 @@ func (a *App) ResolveProjectGlossaryFor(cmd Command, targetLang, collection stri
 //
 // Precedence: an explicit --termstore selects a specific store (honour it); else
 // the committed serialization wins; else the working index the recipe binds
-// directly (the legacy defaults.terms-only case, with no serialization).
+// directly (a project whose store holds concepts but binds no committed
+// source — the shape a `kapi terms import` leaves behind).
 //
 // collection scopes the resolution to one content collection's terms binding;
 // empty is the project-wide answer.

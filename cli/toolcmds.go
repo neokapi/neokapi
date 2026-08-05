@@ -160,7 +160,7 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 			parallelBlocks, _ := cmd.Flags().GetInt("parallel-blocks")
 
 			// Tools that require a content memory (e.g. recycle) get a real SQLite
-			// content-memory provider resolved from --memory or the project's .kapi/memory.db,
+			// content-memory provider resolved from --memory or the project store,
 			// opened once and shared across every input file. Without this
 			// the tool's config factory falls back to NullMemoryProvider and
 			// leverages nothing. Mirrors the terms store glossary injection
@@ -317,7 +317,7 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 			case "termbase":
 				cmd.Flags().String("termstore", "", "named terms or path to a terms store (defaults to the project terms store)")
 			case "tm":
-				cmd.Flags().String("memory", "", "named Memory or path to a .db (defaults to the project content memory at .kapi/memory.db)")
+				cmd.Flags().String("memory", "", "named memory or path to a .db (defaults to the project content memory)")
 			}
 		}
 	}

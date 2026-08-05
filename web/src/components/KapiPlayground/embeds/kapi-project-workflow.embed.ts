@@ -33,7 +33,7 @@ const config: WalkthroughEmbedConfig = {
     {
       command: "kapi memory import project.memory.json",
       narration:
-        "memory import loads the committed content-memory bundle into the project content memory (.kapi/memory.db). The flow leverages it before any AI is asked.",
+        "memory import loads the committed content-memory bundle into the project's content memory, inside .kapi/store.db. The flow leverages it before any AI is asked.",
     },
     {
       command: "kapi status",

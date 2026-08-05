@@ -23,12 +23,16 @@ A content memory stores previously produced content — source segments with the
 targets settled for them — as a SQLite database. Use these commands to
 import/export TMX, look up matches, and manage entries.
 
-Resource location (mutually exclusive):
+Inside a project, no flag means the project's own content memory — a subsystem
+of .kapi/store.db, which is why it is not addressed by path. Use -p to name the
+project explicitly.
+
+Standalone store instead (mutually exclusive):
   --name <n>      Named content memory in KAPI_HOME (~/.config/kapi/tm/<n>.db)
   --local         Content memory in current directory (./memory.db)
   --file <path>   Explicit file path
 
-Default (no flag): same as --local (uses ./memory.db).`,
+Outside a project and with no flag: same as --local (uses ./memory.db).`,
 		Example: `  kapi memory stats
   kapi memory lookup "welcome back" -s en -t fr
   kapi memory import corpus.tmx -s en -t fr`,
@@ -46,6 +50,16 @@ Default (no flag): same as --local (uses ./memory.db).`,
 
 	for _, cmd := range []*cobra.Command{importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd} {
 		AddResourceFlags(cmd)
+	}
+	// The project's content memory is a subsystem of `.kapi/store.db`, not a
+	// file a caller can name — so with no resource flag these resolve the
+	// project, and -p is how you say WHICH, exactly as for every other
+	// project-aware verb. It also matters under KAPI_NO_PROJECT, where the
+	// upward walk is off and an explicit -p is the only way in.
+	// import-dir is left out: its -p is already --pattern, and pflag panics at
+	// init on a redefined shorthand rather than failing a test.
+	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, statsCmd, auditCmd} {
+		AddProjectFlag(cmd)
 	}
 
 	memoryCmd.AddCommand(importCmd, importDirCmd, exportCmd, lookupCmd, searchCmd, statsCmd, auditCmd, listCmd, sessionsCmd)
