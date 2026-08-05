@@ -23,9 +23,46 @@ type Layout struct {
 	StateDir string
 }
 
-// StateDirName is the hidden directory that holds kapi's working
-// state (manifest bookkeeping, content memory, terms, and the cache subdir).
+// StateDirName is the ONE kapi-owned directory in a project. It is committed
+// by default and holds the project's authored context alongside a single
+// internal machine-state directory — the git model, where `.git` keeps its
+// index inside itself rather than scattering siblings across the tree.
+//
+// Two lines of `.kapi/.gitignore` describe the whole rule: `work/` and
+// `filters.local.json`. Everything else under here is authored and reviewed.
 const StateDirName = ".kapi"
+
+// WorkDirName is the single machine-state subdirectory of StateDir: the local
+// store, the caches, and the redaction vault. Everything kapi derives or keeps
+// per-machine lives under it, and nothing else does — which is what lets the
+// ignore rule be one line instead of a growing pattern list with negations
+// carved back out of it.
+const WorkDirName = "work"
+
+// ContextDirName is the committed subdirectory of StateDir that holds the
+// project's context graph sources: the terms bundle, the content-memory seeds,
+// the brand voice profile, and the decision record. These are authored data —
+// reviewed in the change that caused the drift, and read on a fresh clone with
+// no server and no store.
+const ContextDirName = "context"
+
+// WorkDir returns the absolute path of the machine-state directory.
+func (l Layout) WorkDir() string {
+	return filepath.Join(l.StateDir, WorkDirName)
+}
+
+// ContextDir returns the absolute path of the committed context directory.
+func (l Layout) ContextDir() string {
+	return filepath.Join(l.StateDir, ContextDirName)
+}
+
+// RelContextPath returns the project-relative path of a conventional context
+// source — what a recipe binding is written as when kapi scaffolds one. Always
+// slash-joined through filepath so the binding matches the paths the loader
+// resolves on the same platform.
+func RelContextPath(name string) string {
+	return filepath.Join(StateDirName, ContextDirName, name)
+}
 
 // StoreFileName is the project's single local store: one SQLite file holding
 // the content memory, the terms store, the block cache and the unit working
@@ -37,9 +74,9 @@ const StateDirName = ".kapi"
 // both — a crash between them left a decision recorded against wording the
 // memory never learned.
 //
-// It sits at the TOP of the state directory, not under cache/, because it
+// It sits at the TOP of the work directory, not under work/cache/, because it
 // carries staged decisions: deleting it costs at most the decisions staged
-// since the last commit, whereas `rm -rf .kapi/cache` must stay free.
+// since the last commit, whereas `rm -rf .kapi/work/cache` must stay free.
 const StoreFileName = "store.db"
 
 // StoreSidecarFileName is the working set's JSON stand-in on builds with no
@@ -49,12 +86,12 @@ const StoreSidecarFileName = "store.json"
 
 // StorePath returns the project's single local store.
 func (l Layout) StorePath() string {
-	return filepath.Join(l.StateDir, StoreFileName)
+	return filepath.Join(l.WorkDir(), StoreFileName)
 }
 
 // StoreSidecarPath returns the browser build's working-set sidecar.
 func (l Layout) StoreSidecarPath() string {
-	return filepath.Join(l.StateDir, StoreSidecarFileName)
+	return filepath.Join(l.WorkDir(), StoreSidecarFileName)
 }
 
 // RecipeFileName is the fixed filename of a kapi project recipe. A plain
@@ -64,11 +101,12 @@ func (l Layout) StoreSidecarPath() string {
 // field, not the filename.
 const RecipeFileName = "kapi.yaml"
 
-// CacheDirName is the subdirectory of StateDir that holds all regenerable
+// CacheDirName is the subdirectory of WorkDir that holds all regenerable
 // caches: the parse cache, extraction intermediates, overlay layers, and any
 // platform-specific caches (e.g. sync caches added by extensions). Authoritative
-// project data lives in the store at the top level of StateDir, so users can
-// blow away the cache without losing translation work.
+// project data lives in the committed context directory, and the store sits
+// above the cache inside work/, so users can blow away the cache without losing
+// translation work.
 const CacheDirName = "cache"
 
 // FiltersFilename / LocalFiltersFilename hold saved content filters (the
@@ -81,7 +119,7 @@ const (
 
 // CacheDir returns the absolute path to the regenerable-cache subdirectory.
 func (l Layout) CacheDir() string {
-	return filepath.Join(l.StateDir, CacheDirName)
+	return filepath.Join(l.WorkDir(), CacheDirName)
 }
 
 // FiltersPath returns the path to the shared (committed) saved-filters file.
@@ -109,18 +147,22 @@ func (l Layout) CollectionsDir() string {
 // be committed — they live under the gitignored cache root.
 const RedactionDirName = "redaction"
 
-// VaultDirName is the state subdirectory holding withheld originals.
+// VaultDirName is the work subdirectory holding withheld originals.
 //
 // Separate from cache/ on purpose. The cache is defined by being disposable —
 // losing it costs CPU. The vault is defined by an EXCLUSION: a named
 // destination must never read it, and losing it means redacted content can
 // never be restored. Filing it under cache/ made it look regenerable, which it
 // is not, and put it one `rm -rf` away from unrecoverable placeholders.
+//
+// It is local-only for the same reason it is not cache: the originals never
+// leave the machine, so it sits under work/ (never committed, never synced) and
+// is the one thing under work/ that is never deleted on kapi's own initiative.
 const VaultDirName = "vault"
 
 // VaultDir returns the absolute path of the withheld-originals root.
 func (l Layout) VaultDir() string {
-	return filepath.Join(l.StateDir, VaultDirName)
+	return filepath.Join(l.WorkDir(), VaultDirName)
 }
 
 // RedactionVaultPath returns the project-scoped redaction vault.
@@ -208,12 +250,15 @@ func LayoutFor(recipePath string) (Layout, error) {
 	}, nil
 }
 
-// EnsureLayout creates the `.kapi/` state directory and its `cache/`
-// subdirectory if they don't exist. Idempotent; safe to call on an
-// existing project.
+// EnsureLayout creates the `.kapi/` state directory and the two subdirectories
+// that give it its shape: the committed `context/` and the ignored
+// `work/cache/`. Idempotent; safe to call on an existing project.
 func EnsureLayout(layout Layout) error {
 	if err := os.MkdirAll(layout.StateDir, 0o755); err != nil {
 		return fmt.Errorf("project: create state dir: %w", err)
+	}
+	if err := os.MkdirAll(layout.ContextDir(), 0o755); err != nil {
+		return fmt.Errorf("project: create context dir: %w", err)
 	}
 	if err := os.MkdirAll(layout.CacheDir(), 0o755); err != nil {
 		return fmt.Errorf("project: create cache dir: %w", err)
@@ -278,14 +323,17 @@ func layoutAtDir(dir string) (Layout, error) {
 	}, nil
 }
 
-// UnitsDirName holds the committed record — one JSON Lines shard per document.
+// DecisionsDirName holds the committed decision record — one JSON Lines shard
+// per document, under the context directory.
 //
-// Tracked, unlike everything else under the state directory: this is authored
-// decision data, so it belongs in the review that caused the drift and must
-// survive a fresh clone with no server.
-const UnitsDirName = "units"
+// It sits beside the terms bundle and the memory seeds rather than off on its
+// own, because it is the same kind of thing: authored context, reviewed in the
+// change that caused the drift, read on a fresh clone with no server. The
+// record is who approved which wording at which content hash; the working set
+// inside the store is only its staging area.
+const DecisionsDirName = "decisions"
 
-// UnitsDir returns the absolute path of the committed unit record.
-func (l Layout) UnitsDir() string {
-	return filepath.Join(l.StateDir, UnitsDirName)
+// DecisionsDir returns the absolute path of the committed decision record.
+func (l Layout) DecisionsDir() string {
+	return filepath.Join(l.ContextDir(), DecisionsDirName)
 }
