@@ -916,8 +916,8 @@ export function GetProjectHandles(tabID) {
 }
 
 /**
- * GetProjectMemoryHandle returns the auto-opened content-memory handle for a project tab,
- * or empty string if the project has no .kapi/memory.db.
+ * GetProjectMemoryHandle returns the auto-opened content-memory handle for a
+ * project tab, or empty string if the project's store holds no content memory.
  * @param {string} tabID
  * @returns {$CancellablePromise<string>}
  */
@@ -953,17 +953,18 @@ export function GetProjectServer(tabID) {
 
 /**
  * GetProjectStatus returns the current per-collection coverage for a project
- * tab, computed from the project's persistent block store
- * (`.kapi/cache/blocks.db`) through the shared coverage engine
- * (convergence.TallyBlockStore + CoverageTally) — the same tally the CLI's
- * `kapi status` feeds from working-tree file reads, so the desktop and the
- * CLI count with one rung semantics. Blocks are addressed by their ID and
+ * tab, computed from the block cache in the project's store through the shared
+ * coverage engine (convergence.TallyBlockStore + CoverageTally) — the same tally
+ * the CLI's `kapi status` feeds from working-tree file reads, so the desktop and
+ * the CLI count with one rung semantics. Blocks are addressed by their ID and
  * translated targets live under `targets/<locale>` overlays (the keys
  * `kapi run` / `kapi merge` write and read).
  * 
- * If the block store does not exist yet (the project has never been
- * extracted), the returned status has HasData=false and zeroed coverage; this
- * is a well-defined "no data yet" state, not an error.
+ * If the project has never been extracted, the returned status has
+ * HasData=false and zeroed coverage; this is a well-defined "no data yet"
+ * state, not an error. It is a row question, not a file one: the store file
+ * exists from the first command that touches any subsystem, so its presence
+ * stopped being evidence that anything was extracted.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.ProjectStatus | null>}
  */
@@ -975,7 +976,7 @@ export function GetProjectStatus(tabID) {
 
 /**
  * GetProjectTermsHandle returns the auto-opened terms handle for a project tab,
- * or empty string if the project has no .kapi/terms.db.
+ * or empty string if the project's store holds no terms.
  * @param {string} tabID
  * @returns {$CancellablePromise<string>}
  */
@@ -1726,6 +1727,23 @@ export function PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang)
 }
 
 /**
+ * RecoverResource moves an unopenable store aside so a fresh one can take its
+ * place, and returns where the old one went. The caller creates the replacement.
+ * 
+ * Two kinds of file arrive here and they part company in what "aside" costs. A
+ * STANDALONE store — one the user opened by path, or a named store under
+ * `~/.config/kapi` — is one content memory or one terms store, and moving it
+ * aside loses exactly that. A PROJECT store is `.kapi/store.db`, where the
+ * content memory, terms, block cache and unit working set share one file: moving
+ * it aside takes all four. That is the documented trade of merging them, and it
+ * is affordable because every one of those is a projection rebuilt from
+ * committed sources — the exception being decisions staged and not yet
+ * committed, which a store this process cannot open was not going to give back
+ * either.
+ * 
+ * A project store also needs the handle released first: renaming a file under an
+ * open pool leaves the pool on the moved inode, and the replacement would be
+ * written by a second one.
  * @param {string} path
  * @returns {$CancellablePromise<string>}
  */
@@ -1893,12 +1911,11 @@ export function RunChecks(tabID, filter) {
 }
 
 /**
- * RunExtract extracts the open project's declared content into the project's
- * persistent block store (`.kapi/cache/blocks.db`), the same store that
- * `kapi run` / `kapi merge` read and write. After it runs, GetProjectStatus
- * coverage reflects the extracted content (every block becomes part of the
- * per-collection denominator; targets remain at zero until a translate flow
- * runs and commits `targets/<locale>` overlays).
+ * RunExtract extracts the open project's declared content into the block cache
+ * in the project's store, the same cache that `kapi run` / `kapi merge` read and
+ * write. After it runs, GetProjectStatus coverage reflects the extracted content
+ * (every block becomes part of the per-collection denominator; targets remain at
+ * zero until a translate flow runs and commits `targets/<locale>` overlays).
  * 
  * It is a thin binding over the shared core extract-into-store path
  * (project.ExtractToBlockStore) — the same implementation the CLI's `kapi up`

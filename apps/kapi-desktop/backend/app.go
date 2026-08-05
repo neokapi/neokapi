@@ -23,7 +23,6 @@ import (
 	// too — command factories, MCP tools, and any cli-registered AI providers —
 	// keeping the desktop's tool and provider lists in sync with the CLI.
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
-	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/flow"
 	fmtschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
@@ -88,13 +87,22 @@ type App struct {
 	// network is touched.
 	aiToolFactory func(name string, cfg map[string]any, targetLang string) (tool.Tool, error)
 
-	// convergence is the shared host.App used to derive convergence reports
-	// (per-locale coverage, ship gates, source readiness, the review queue) — the
-	// same file-based derivation `kapi status` / `kapi check --ship` use, so the desktop
-	// project view shows the same numbers as the CLI. Built lazily so its format
-	// and tool registries register once, not per request.
-	convergence   *host.App
-	convergenceMu sync.Mutex
+	// engine is the desktop's one host.App: the shared runtime used to derive
+	// convergence reports (per-locale coverage, ship gates, source readiness, the
+	// review queue) and to record review decisions — the same derivation `kapi
+	// status` / `kapi check --ship` use, so the desktop project view shows the
+	// same numbers as the CLI. Built lazily so its format and tool registries
+	// register once, not per request.
+	//
+	// It is also the OWNER of every project store this process holds. A run needs
+	// its own App — TargetLang and the per-run tool slots are single-occupancy —
+	// but not its own store: two host.Apps opening `.kapi/store.db` would put two
+	// connection pools on one file, and the write gate that keeps a converge run
+	// from starving the review loop's writes is per pool. Every other App the
+	// desktop builds borrows this one's stores (host.ShareProjectStores) and must
+	// never be Shut down; engineShutdown closes them, once, on the way out.
+	engine   *host.App
+	engineMu sync.Mutex
 
 	// checks is the shared host.App behind RunChecks — the exported bilingual
 	// check pipeline (ReadBlocksForCheck / OverlayTargets / RunCheckTool /
@@ -105,7 +113,12 @@ type App struct {
 	checks   *host.App
 	checksMu sync.Mutex
 
-	// content memory and Terms handles
+	// Content-memory and terms handles the frontend addresses by ID. Two kinds
+	// live here: standalone stores the user opened or created by path (owned —
+	// closing the handle closes the file), and a project's own content memory and
+	// terms, which are two schemas inside its `.kapi/store.db` and are therefore
+	// borrowed (see handleStore.Adopt). Closing a borrowed handle drops the ID
+	// only; the store belongs to the engine.
 	memoryHandles *handleStore[*memory.SQLiteStore]
 	tbHandles     *handleStore[*terms.SQLiteStore]
 
@@ -210,17 +223,13 @@ type openProject struct {
 	Project *project.KapiProject
 	watcher *fileWatcher
 
-	// Project-scoped content memory and terms (auto-opened from .kapi/memory.db and .kapi/terms.db).
+	// Project-scoped content memory and terms: borrowed handles onto the two
+	// schemas of the project's own store, registered so the frontend can address
+	// them by ID like any other. Empty when the project has no store yet, or when
+	// that subsystem holds nothing — the state the pages read as "this project
+	// has none of its own" and fall back to the named stores from.
 	memoryHandle string // handle ID in App.memoryHandles, empty if none
 	tbHandle     string // handle ID in App.tbHandles, empty if none
-
-	// blockStore is the project's .kapi/cache/blocks.db, opened once and reused
-	// across calls. Opening it per call created a fresh connection pool (plus a
-	// migration write) each time, so two concurrent operations on the same file
-	// could trip "database is locked". One shared pool lets SQLite/WAL serialize
-	// internally. Guarded by blockStoreMu; closed in CloseProject.
-	blockStoreMu sync.Mutex
-	blockStore   blockstore.Store
 
 	// missingWarned latches the one-time "recipe missing on disk" log so a
 	// polling surface (the home hero) doesn't spam ERR lines while the tab's
@@ -228,8 +237,8 @@ type openProject struct {
 	missingWarned atomic.Bool
 }
 
-// GetProjectMemoryHandle returns the auto-opened content-memory handle for a project tab,
-// or empty string if the project has no .kapi/memory.db.
+// GetProjectMemoryHandle returns the auto-opened content-memory handle for a
+// project tab, or empty string if the project's store holds no content memory.
 func (a *App) GetProjectMemoryHandle(tabID string) string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -240,7 +249,7 @@ func (a *App) GetProjectMemoryHandle(tabID string) string {
 }
 
 // GetProjectTermsHandle returns the auto-opened terms handle for a project tab,
-// or empty string if the project has no .kapi/terms.db.
+// or empty string if the project's store holds no terms.
 func (a *App) GetProjectTermsHandle(tabID string) string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -297,6 +306,10 @@ func (a *App) ServiceShutdown() error {
 		a.watchCancel()
 	}
 	a.pluginRuntime.Shutdown()
+	// Last: the project stores. The handle stores above may hold borrowed
+	// content-memory and terms handles onto them, and a plugin daemon shutting
+	// down may still be writing through one.
+	a.shutdownEngine()
 	return nil
 }
 
@@ -514,10 +527,15 @@ func (a *App) CloseProject(tabID string) {
 }
 
 // releaseProjectResources quiesces everything a tab holds on its directory —
-// the file watcher, the auto-opened content memory/terms handles, and the shared block
-// store — WITHOUT removing the tab entry. CloseProject uses it on the way out;
-// ResetSampleProject uses it to free the directory before the backup rename,
-// then reloads the same tab in place.
+// the file watcher, the borrowed content memory/terms handles, and the project
+// store itself — WITHOUT removing the tab entry. CloseProject uses it on the way
+// out; ResetSampleProject uses it to free the directory before the backup
+// rename, then reloads the same tab in place.
+//
+// Closing the store is what makes the rename safe. It is one file for the whole
+// project now, so the handle the engine memoizes for this root would otherwise
+// survive the move — keeping a descriptor on the file at its old location and
+// handing that stale handle straight back to the reloaded tab.
 func (a *App) releaseProjectResources(op *openProject) {
 	if op.watcher != nil {
 		op.watcher.Stop()
@@ -531,36 +549,64 @@ func (a *App) releaseProjectResources(op *openProject) {
 		a.tbHandles.Close(op.tbHandle)
 		op.tbHandle = ""
 	}
-	op.blockStoreMu.Lock()
-	if op.blockStore != nil {
-		_ = op.blockStore.Close()
-		op.blockStore = nil
+	if root, ok := projectRoot(op); ok {
+		if err := a.hostEngine().CloseProjectDB(root); err != nil {
+			a.logger.Printf("close project store for %s: %v", root, err)
+		}
 	}
-	op.blockStoreMu.Unlock()
 }
 
-// autoOpenProjectResources checks for convention-based .kapi/memory.db and
-// .kapi/terms.db files relative to the project root and opens them as
-// project-scoped content memory/terms handles.
+// autoOpenProjectResources registers the project's own content memory and terms
+// as tab-scoped handles, when the project has them.
+//
+// Both are schemas inside the one store, so this borrows rather than opens: the
+// handles share the engine's connection pool and closing one must not close it.
+// Presence is a row question — every subsystem's schema exists from the store's
+// first open, so the file says only that some command ran here. A project whose
+// store holds nothing yet gets no handles, which is the state the Memories and
+// Terms pages already read as "this project has none of its own" and fall back
+// to the named stores from.
+//
+// It never CREATES the store: opening a tab is browsing, and browsing must not
+// write. A project with no `.kapi/store.db` is left alone until something that
+// genuinely has state to keep — an extract, a run, a seeded sample — makes one.
 func (a *App) autoOpenProjectResources(op *openProject) {
-	if op.Path == "" {
+	root, ok := projectRoot(op)
+	if !ok {
 		return
 	}
-	basePath := filepath.Dir(op.Path)
-
-	memoryPath := filepath.Join(basePath, ".kapi", "memory.db")
-	if _, err := os.Stat(memoryPath); err == nil {
-		if tm, err := memory.NewSQLiteStore(memoryPath); err == nil {
-			op.memoryHandle = a.memoryHandles.Open(tm)
+	if _, err := os.Stat(filepath.Join(root, project.StateDirName, project.StoreFileName)); err != nil {
+		return
+	}
+	db, err := a.hostEngine().ProjectDB(context.Background(), root)
+	if err != nil {
+		a.logger.Printf("open project store for %s: %v", root, err)
+		return
+	}
+	ctx := context.Background()
+	if has, err := db.HasMemory(ctx); err == nil && has {
+		if tm := db.Memory(); tm != nil {
+			op.memoryHandle = a.memoryHandles.Adopt(tm)
 		}
 	}
-
-	tbPath := filepath.Join(basePath, ".kapi", "terms.db")
-	if _, err := os.Stat(tbPath); err == nil {
-		if tb, err := terms.NewSQLiteStore(tbPath); err == nil {
-			op.tbHandle = a.tbHandles.Open(tb)
+	if has, err := db.HasTerms(ctx); err == nil && has {
+		if tb := db.Terms(); tb != nil {
+			op.tbHandle = a.tbHandles.Adopt(tb)
 		}
 	}
+}
+
+// projectRoot is the directory holding a tab's recipe and its `.kapi/` state
+// folder. False when the tab has no on-disk path yet (an unsaved project).
+func projectRoot(op *openProject) (string, bool) {
+	if op == nil || op.Path == "" {
+		return "", false
+	}
+	layout, err := project.LayoutFor(op.Path)
+	if err != nil {
+		return "", false
+	}
+	return layout.Root, true
 }
 
 // ListTabs returns all open project tabs.

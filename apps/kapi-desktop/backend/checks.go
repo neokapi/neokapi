@@ -255,10 +255,14 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 
 // checksCLI lazily builds the host.App behind RunChecks, sharing the desktop's
 // plugin-wired format and tool registries so plugin-provided formats read
-// exactly as they do everywhere else in the app. Callers must hold checksMu.
+// exactly as they do everywhere else in the app. It owns the document cache a
+// checks run opens, which is why it is a second App rather than the engine —
+// but it borrows the engine's project stores, so a check that resolves
+// terminology or brand governance reads through the same handle everything else
+// does. Callers must hold checksMu.
 func (a *App) checksCLI() *host.App {
 	if a.checks == nil {
-		a.checks = &host.App{FormatReg: a.formatReg, ToolReg: a.toolReg}
+		a.checks = a.borrowEngine(&host.App{FormatReg: a.formatReg, ToolReg: a.toolReg})
 	}
 	return a.checks
 }

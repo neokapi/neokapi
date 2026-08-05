@@ -16,6 +16,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
@@ -62,17 +64,12 @@ func Scaffold(name, targetDir string) error {
 		return fmt.Errorf("write kapi.yaml: %w", err)
 	}
 
-	kapiDir := filepath.Join(targetDir, ".kapi")
-	if err := os.MkdirAll(kapiDir, 0o755); err != nil {
-		return fmt.Errorf("create .kapi dir: %w", err)
-	}
-
-	// Seed content memory and terms.
-	if err := seedTMv2(filepath.Join(kapiDir, "memory.db")); err != nil {
-		return fmt.Errorf("seed content memory: %w", err)
-	}
-	if err := seedTermsv2(filepath.Join(kapiDir, "terms.db")); err != nil {
-		return fmt.Errorf("seed terms: %w", err)
+	// Seed the content memory and terms into the project's own store. Both are
+	// schemas of `.kapi/store.db`, so this is one handle rather than two files —
+	// and the handle must be closed before the caller opens the project, or the
+	// process would hold two connection pools on it.
+	if err := seedStore(targetDir); err != nil {
+		return err
 	}
 
 	// Stamp the sample manifest (.kapi/sample.json) so the desktop can detect an
@@ -88,16 +85,34 @@ func Scaffold(name, targetDir string) error {
 
 var v2Targets = []model.LocaleID{"de", "fr", "ja", "nb", "ar"}
 
-func seedTMv2(dbPath string) error {
+// seedStore opens the sample project's store, seeds the content memory and the
+// terms, and closes it. Opening creates `.kapi/` and the store file, so nothing
+// needs to make the state directory first.
+func seedStore(targetDir string) error {
+	layout := project.Layout{
+		Root:     targetDir,
+		StateDir: filepath.Join(targetDir, project.StateDirName),
+	}
+	db, err := projectdb.Open(context.Background(), layout)
+	if err != nil {
+		return fmt.Errorf("open sample project store: %w", err)
+	}
+	defer db.Close()
+
+	if err := seedTMv2(db.Memory()); err != nil {
+		return fmt.Errorf("seed content memory: %w", err)
+	}
+	if err := seedTermsv2(db.Terms()); err != nil {
+		return fmt.Errorf("seed terms: %w", err)
+	}
+	return nil
+}
+
+func seedTMv2(tm *memory.SQLiteStore) error {
 	tmxData, err := assetsFS.ReadFile("kapimart/memory-seed.tmx")
 	if err != nil {
 		return fmt.Errorf("read TMX: %w", err)
 	}
-	tm, err := memory.NewSQLiteStore(dbPath)
-	if err != nil {
-		return err
-	}
-	defer tm.Close()
 
 	// The TMX already has all target locales on each TU; a single import
 	// creates one multilingual entry per TU with every variant populated.
@@ -119,16 +134,11 @@ func seedTMv2(dbPath string) error {
 	return nil
 }
 
-func seedTermsv2(dbPath string) error {
+func seedTermsv2(tb *terms.SQLiteStore) error {
 	tbData, err := assetsFS.ReadFile("kapimart/termbase-seed.json")
 	if err != nil {
 		return fmt.Errorf("read terms JSON: %w", err)
 	}
-	tb, err := terms.NewSQLiteStore(dbPath)
-	if err != nil {
-		return err
-	}
-	defer tb.Close()
 	if _, err := terms.ImportJSON(context.Background(), tb, bytes.NewReader(tbData)); err != nil {
 		return fmt.Errorf("import terms: %w", err)
 	}
