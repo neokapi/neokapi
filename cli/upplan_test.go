@@ -7,8 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/host/config"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/stretchr/testify/assert"
@@ -19,12 +22,13 @@ import (
 // "Hello, world." source (a.json), leaving b.json's "Goodbye." uncovered.
 func seedPlanMemory(t *testing.T, root string) {
 	t.Helper()
-	memoryPath := filepath.Join(root, ".kapi", "memory.db")
-	tm, err := memory.NewSQLiteStore(memoryPath)
+	db, err := projectdb.Open(t.Context(), project.Layout{
+		Root: root, StateDir: filepath.Join(root, project.StateDirName),
+	})
 	require.NoError(t, err)
-	defer tm.Close()
+	defer func() { require.NoError(t, db.Close()) }()
 	now := time.Now().UTC()
-	require.NoError(t, tm.Add(t.Context(), memory.Entry{
+	require.NoError(t, db.Memory().Add(t.Context(), memory.Entry{
 		ID: "seed-1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en-US": {{Text: &model.TextRun{Text: "Hello, world."}}},
@@ -60,11 +64,38 @@ func TestUpPlan_MemoryLeverageAndTokenEstimate(t *testing.T) {
 	assert.Equal(t, plan.Totals.MissingTarget, s.MissingTarget)
 	assert.NotEmpty(t, plan.Note, "the estimation method is disclosed")
 
-	// Dry run: no targets written, no block store created.
+	// Dry run: no targets written. The store exists here only because the test
+	// seeded it — see TestUpPlan_NeverCreatesTheProjectStore for the invariant.
 	_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", "a.json"))
 	assert.True(t, os.IsNotExist(statErr), "--plan must not write targets")
-	_, statErr = os.Stat(filepath.Join(root, ".kapi", "cache", "blocks.db"))
-	assert.True(t, os.IsNotExist(statErr), "--plan must not create the block store")
+}
+
+// TestUpPlan_NeverCreatesTheProjectStore is the invariant the merged store
+// sharpened. Leverage used to come from a `memory.db` a plan could decline to
+// open; it now comes from `.kapi/store.db`, and OPENING that store creates it —
+// the handle runs every subsystem's migrations at open.
+//
+// So a plan on a fresh project must reach its answer without opening anything,
+// and leave the state directory with no store in it. Otherwise `kapi up --plan`
+// would be a dry run with a side effect, and the next real `up` would find a
+// store it never wrote.
+func TestUpPlan_NeverCreatesTheProjectStore(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+
+	storePath := filepath.Join(root, project.StateDirName, project.StoreFileName)
+	require.NoFileExists(t, storePath, "the fixture starts with no store")
+
+	out, err := runUp(t, a, recipe, "--plan", "--json")
+	require.NoError(t, err, out)
+
+	var plan UpPlanOutput
+	require.NoError(t, json.Unmarshal([]byte(out), &plan))
+	assert.Equal(t, 2, plan.Totals.AIRemaining, "with no store, every missing unit is AI work")
+	assert.Zero(t, plan.Totals.MemoryExact, "no store means no leverage to report")
+
+	assert.NoFileExists(t, storePath, "a plan must never create the project store")
+	assert.NoFileExists(t, storePath+"-wal", "nor a journal for one")
 }
 
 // TestUpPlan_TextTable: the human rendering is a table with a totals row and
@@ -81,8 +112,13 @@ func TestUpPlan_TextTable(t *testing.T) {
 	assert.Contains(t, out, "chars / 4", "the token heuristic is disclosed")
 }
 
-// TestUpPlan_NoWritesToExistingStore: with an existing block store, --plan
-// leaves it byte-for-byte alone (mtime unchanged).
+// TestUpPlan_NoWritesToExistingStore: with an existing project store, --plan
+// leaves its contents alone.
+//
+// The assertion is on CONTENT, not on mtime: opening a SQLite database
+// checkpoints its WAL, so a read-only pass legitimately touches the file. What
+// must not change is what the store holds — no blocks extracted, no entries
+// learned, by a command that only reports.
 func TestUpPlan_NoWritesToExistingStore(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
@@ -90,18 +126,31 @@ func TestUpPlan_NoWritesToExistingStore(t *testing.T) {
 	// Materialize the store via a real up first.
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
-	storePath := filepath.Join(root, ".kapi", "cache", "blocks.db")
-	before, err := os.Stat(storePath)
-	require.NoError(t, err)
+
+	countStore := func() (blocks, entries int) {
+		t.Helper()
+		db := openStore(t, root)
+		sess, serr := db.BlocksAutocommit().Begin(t.Context())
+		require.NoError(t, serr)
+		defer sess.Close()
+		for _, berr := range sess.Blocks(blockstore.BlockFilter{}) {
+			require.NoError(t, berr)
+			blocks++
+		}
+		es, eerr := db.Memory().Entries(t.Context())
+		require.NoError(t, eerr)
+		return blocks, len(es)
+	}
+	blocksBefore, entriesBefore := countStore()
+	require.Positive(t, blocksBefore, "the real up must have extracted something to compare against")
 
 	a2 := processOnlyApp(t)
 	out2, err := runUp(t, a2, recipe, "--plan")
 	require.NoError(t, err, out2)
 
-	after, err := os.Stat(storePath)
-	require.NoError(t, err)
-	assert.Equal(t, before.ModTime(), after.ModTime(), "--plan must not touch the block store")
-	assert.Equal(t, before.Size(), after.Size())
+	blocksAfter, entriesAfter := countStore()
+	assert.Equal(t, blocksBefore, blocksAfter, "--plan must not extract into the block cache")
+	assert.Equal(t, entriesBefore, entriesAfter, "--plan must not write to the content memory")
 }
 
 // TestUpPlan_ConvergedProjectHasNoWork: after a converged up, --plan reports

@@ -314,7 +314,7 @@
           "type": "string"
         },
         "memory": {
-          "description": "path to the content memory (default .kapi/memory.db)",
+          "description": "path to a standalone content memory (default: the project's own store)",
           "type": "string"
         },
         "query": {
@@ -322,7 +322,7 @@
           "type": "string"
         },
         "terms": {
-          "description": "path to the terms store (default .kapi/terms.db)",
+          "description": "path to a standalone terms store (default: the project's own store)",
           "type": "string"
         }
       },

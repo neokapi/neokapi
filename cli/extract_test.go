@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/memory"
@@ -250,17 +251,13 @@ func TestExtract_MemoryExactPrefillFillsTarget(t *testing.T) {
 	writeJSONSource(t, real, "src/locales/en/app.json", `{"k":"Hello"}`)
 
 	// Seed the project content memory with an exact match.
-	memoryPath := filepath.Join(real, project.StateDirName, "memory.db")
-	tm, err := memory.NewSQLiteStore(memoryPath)
-	require.NoError(t, err)
-	require.NoError(t, tm.Add(t.Context(), memory.Entry{
+	seedProjectMemory(t, real, memory.Entry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en-US": {{Text: &model.TextRun{Text: "Hello"}}},
 			"fr-FR": {{Text: &model.TextRun{Text: "Bonjour"}}},
 		},
-	}))
-	require.NoError(t, tm.Close())
+	})
 
 	_, err = runExtractCmd(t, recipe)
 	require.NoError(t, err)
@@ -282,17 +279,13 @@ func TestExtract_NoMemorySkipsPrefill(t *testing.T) {
 	writeJSONSource(t, real, "src/locales/en/app.json", `{"k":"Hello"}`)
 
 	// Seed content memory with a would-be match.
-	memoryPath := filepath.Join(real, project.StateDirName, "memory.db")
-	tm, err := memory.NewSQLiteStore(memoryPath)
-	require.NoError(t, err)
-	require.NoError(t, tm.Add(t.Context(), memory.Entry{
+	seedProjectMemory(t, real, memory.Entry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en-US": {{Text: &model.TextRun{Text: "Hello"}}},
 			"fr-FR": {{Text: &model.TextRun{Text: "Bonjour"}}},
 		},
-	}))
-	require.NoError(t, tm.Close())
+	})
 
 	_, err = runExtractCmd(t, recipe, "--no-tm")
 	require.NoError(t, err)
@@ -447,4 +440,19 @@ func TestExtract_IncrementalReuse(t *testing.T) {
 	out5, err := runExtractCmd(t, recipe, "--out-dir", outDir, "--force")
 	require.NoError(t, err, out5)
 	assert.NotContains(t, out5, "Reused")
+}
+
+// seedProjectMemory puts entries into the PROJECT's own store — the content
+// memory extract pre-fills from, which is one schema of `.kapi/store.db` rather
+// than a file of its own.
+func seedProjectMemory(t *testing.T, root string, entries ...memory.Entry) {
+	t.Helper()
+	db, err := projectdb.Open(t.Context(), project.Layout{
+		Root: root, StateDir: filepath.Join(root, project.StateDirName),
+	})
+	require.NoError(t, err)
+	defer func() { require.NoError(t, db.Close()) }()
+	for _, e := range entries {
+		require.NoError(t, db.Memory().Add(t.Context(), e))
+	}
 }

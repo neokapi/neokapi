@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,10 +92,10 @@ func storeOverlayCount(t *testing.T, recipe, kind string) int {
 	t.Helper()
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
-	store, err := sqlitestore.New(layout.BlockStorePath())
+	db, err := projectdb.Open(t.Context(), layout)
 	require.NoError(t, err)
-	defer store.Close()
-	sess, err := store.Begin(t.Context())
+	defer func() { require.NoError(t, db.Close()) }()
+	sess, err := db.BlocksAutocommit().Begin(t.Context())
 	require.NoError(t, err)
 	defer sess.Close()
 	n := 0

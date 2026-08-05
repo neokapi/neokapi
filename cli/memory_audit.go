@@ -40,11 +40,11 @@ merge do?".
 			}
 			limit, _ := cmd.Flags().GetInt("limit")
 
-			tm, dbPath, err := a.OpenMemorySQLite(cmd)
+			tm, dbPath, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tm.Close()
+			defer releaseMemory()
 
 			rows, err := CollectAuditRows(cmd.Context(), tm, batch, limit)
 			if err != nil {
