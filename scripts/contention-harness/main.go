@@ -35,6 +35,17 @@
 // rather than consulting busy_timeout — so the failure mode the first four
 // modes measure is partly an artefact of the write discipline, not of merging.
 //
+// The seventh mode measures what was actually built:
+//
+//	-mode=projectdb   core/projectdb.Open — the shipped store, its shipped stores
+//
+// It is the acceptance run. Where merged-gated hand-rolls the discipline in this
+// file (a hand-built DSN, shim writers, an explicit permit around each library
+// call), projectdb opens the real handle through storage.ProjectOptions() and
+// drives the real memory, terms, block and working stores over it, with the
+// permit taken inside core/storage where no call site can forget it. If the two
+// modes disagree, the design was measured and the implementation is not it.
+//
 // For each topology it reports, per workload, op counts, errors split into
 // lock contention versus everything else, and the latency distribution.
 //
@@ -69,6 +80,8 @@ import (
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/memory"
@@ -134,17 +147,28 @@ const (
 	// and which is what lets a steady stream of large writes shut out a drip
 	// of small ones.
 	topoMergedGated topology = "merged-gated"
+	// topoProjectDB is the shipped store: core/projectdb.Open, whose handle
+	// comes from storage.OpenWith(path, storage.ProjectOptions()) — the same
+	// two properties merged-gated models by hand, but taken inside
+	// core/storage, where every write a subsystem issues passes through them
+	// whether or not the subsystem knows they exist. The subsystem stores are
+	// the real ones, not this file's shims.
+	topoProjectDB topology = "projectdb"
 )
 
 // shared reports whether the topology opens ONE handle per process for every
 // subsystem, rather than today's pool per subsystem. It implies the merged
 // file layout and IMMEDIATE transactions.
 func (m topology) shared() bool {
-	return m == topoMergedImmediate || m == topoMergedGated
+	return m == topoMergedImmediate || m == topoMergedGated || m == topoProjectDB
 }
 
 // gated reports whether writers in one process queue behind a single permit.
-func (m topology) gated() bool { return m == topoMergedGated }
+func (m topology) gated() bool { return m == topoMergedGated || m == topoProjectDB }
+
+// real reports whether the topology drives core/projectdb rather than this
+// file's model of it.
+func (m topology) real() bool { return m == topoProjectDB }
 
 // ─── Store paths ────────────────────────────────────────────────
 
@@ -175,7 +199,7 @@ func newStorePaths(root string, m topology) storePaths {
 	case topoWorkApart:
 		p.memory, p.terms, p.blocks = merged, merged, merged
 		p.work = filepath.Join(kapi, "work", "state.db")
-	case topoMergedImmediate, topoMergedGated:
+	case topoMergedImmediate, topoMergedGated, topoProjectDB:
 		p.memory, p.terms, p.blocks, p.work = merged, merged, merged, merged
 	default:
 		p.memory = filepath.Join(kapi, "memory.db")
@@ -698,14 +722,50 @@ func makeUnitState(i int) state.UnitState {
 
 // ─── Seeding ────────────────────────────────────────────────────
 
+// ─── The shipped store ──────────────────────────────────────────
+
+// projectLayout describes the synthetic project to core/projectdb. The paths
+// are the same ones newStorePaths computes for the merged topologies —
+// `.kapi/store.db` and `.kapi/units` — because project.Layout computes them the
+// same way; the assertion in openRealProject keeps that true.
+func projectLayout(root string) project.Layout {
+	return project.Layout{
+		Root:       root,
+		RecipePath: filepath.Join(root, project.RecipeFileName),
+		StateDir:   filepath.Join(root, ".kapi"),
+	}
+}
+
+// openRealProject opens the shipped project store and checks that it landed on
+// the file this harness measures. A mismatch would silently measure two
+// different databases against each other.
+func openRealProject(ctx context.Context, root string, p storePaths) (*projectdb.DB, error) {
+	layout := projectLayout(root)
+	if got := layout.StorePath(); got != p.memory {
+		return nil, fmt.Errorf("project store at %s, harness measuring %s", got, p.memory)
+	}
+	db, err := projectdb.Open(ctx, layout)
+	if err != nil {
+		return nil, fmt.Errorf("open project store: %w", err)
+	}
+	if db.Memory() == nil {
+		_ = db.Close()
+		return nil, errors.New("project store opened without a content memory (no SQLite driver?)")
+	}
+	return db, nil
+}
+
 // seed builds the synthetic project. It runs strictly sequentially: every
 // migration ledger is created here, once, so the measured run never pays for
 // a first open and never measures two openers racing to switch a fresh
 // database into WAL mode (a race core/storage already absorbs, and not the
 // question being asked).
-func seed(ctx context.Context, p storePaths, cfg config) error {
+func seed(ctx context.Context, root string, p storePaths, cfg config) error {
 	if err := p.mkdirs(); err != nil {
 		return err
+	}
+	if cfg.mode.real() {
+		return seedProject(ctx, root, p, cfg)
 	}
 	if err := seedBlocks(ctx, p, cfg); err != nil {
 		return err
@@ -714,6 +774,68 @@ func seed(ctx context.Context, p storePaths, cfg config) error {
 		return err
 	}
 	return seedState(ctx, p, cfg)
+}
+
+// seedProject builds the same corpus through the shipped store, so the measured
+// run starts from a database core/projectdb created and migrated.
+func seedProject(ctx context.Context, root string, p storePaths, cfg config) error {
+	db, err := openRealProject(ctx, root, p)
+	if err != nil {
+		return fmt.Errorf("seed: %w", err)
+	}
+	defer db.Close()
+
+	const blockChunk = 5000
+	for start := 0; start < cfg.blocks; start += blockChunk {
+		sess, err := db.Blocks().Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("seed: begin block session: %w", err)
+		}
+		end := min(start+blockChunk, cfg.blocks)
+		for i := start; i < end; i++ {
+			if err := sess.PutBlock(collectionOf(i), makeBlock(i)); err != nil {
+				_ = sess.Rollback()
+				return fmt.Errorf("seed: put block %d: %w", i, err)
+			}
+		}
+		if err := sess.Commit(); err != nil {
+			return fmt.Errorf("seed: commit blocks: %w", err)
+		}
+	}
+
+	mem := db.Memory()
+	const entryChunk = 2000
+	for start := 0; start < cfg.entries; start += entryChunk {
+		end := min(start+entryChunk, cfg.entries)
+		batch := make([]memory.Entry, 0, end-start)
+		for i := start; i < end; i++ {
+			batch = append(batch, makeEntry(i))
+		}
+		if err := mem.BulkAddWithStream(ctx, batch, ""); err != nil {
+			return fmt.Errorf("seed: bulk add entries: %w", err)
+		}
+	}
+	if err := mem.RebuildFuzzyIndex(ctx); err != nil {
+		return fmt.Errorf("seed: rebuild fuzzy index: %w", err)
+	}
+	if err := mem.RebuildSearchIndex(ctx); err != nil {
+		return fmt.Errorf("seed: rebuild search index: %w", err)
+	}
+
+	tb := db.Terms()
+	for i := range cfg.concepts {
+		if err := tb.AddConcept(ctx, makeConcept(i)); err != nil {
+			return fmt.Errorf("seed: add concept %d: %w", i, err)
+		}
+	}
+
+	work := db.Work()
+	for i := range cfg.units {
+		if err := work.Put(ctx, makeUnitState(i)); err != nil {
+			return fmt.Errorf("seed: put unit %d: %w", i, err)
+		}
+	}
+	return work.Commit(ctx)
 }
 
 func seedBlocks(ctx context.Context, p storePaths, cfg config) error {
@@ -770,10 +892,10 @@ func seedMemoryAndTerms(ctx context.Context, p storePaths, cfg config) error {
 	}
 	// The bulk path deliberately skips the FTS5 tables; populating them is
 	// the same set-based rebuild the measured workload re-runs mid-flight.
-	if err := mem.RebuildFuzzyIndex(); err != nil {
+	if err := mem.RebuildFuzzyIndex(ctx); err != nil {
 		return fmt.Errorf("seed: rebuild fuzzy index: %w", err)
 	}
-	if err := mem.RebuildSearchIndex(); err != nil {
+	if err := mem.RebuildSearchIndex(ctx); err != nil {
 		return fmt.Errorf("seed: rebuild search index: %w", err)
 	}
 
@@ -866,11 +988,28 @@ func (ps *parentStores) Close() {
 	}
 }
 
-func openParentStores(ctx context.Context, p storePaths, cfg config) (*parentStores, error) {
+func openParentStores(ctx context.Context, root string, p storePaths, cfg config) (*parentStores, error) {
 	ps := &parentStores{write: func(fn func() error) error { return fn() }}
 	fail := func(err error) (*parentStores, error) {
 		ps.Close()
 		return nil, err
+	}
+
+	// The shipped store needs no `write` wrapper at all: the permit is taken
+	// inside core/storage, by the same BeginTx and ExecContext every subsystem
+	// already calls. That absence is the point of this mode — in merged-gated
+	// the wrapper is what makes the numbers, and here nothing in the harness
+	// is doing anything.
+	if cfg.mode.real() {
+		db, err := openRealProject(ctx, root, p)
+		if err != nil {
+			return fail(fmt.Errorf("process A: %w", err))
+		}
+		ps.closers = append(ps.closers, db.Close)
+		ps.overlays = &storeOverlayWriter{store: db.Blocks()}
+		ps.mem = db.Memory()
+		ps.work = db.Work()
+		return ps, nil
 	}
 
 	if cfg.mode.shared() {
@@ -917,7 +1056,7 @@ func openParentStores(ctx context.Context, p storePaths, cfg config) (*parentSto
 
 // runWorkloads drives every simulated process against a seeded project for
 // cfg.duration and returns what each observed.
-func runWorkloads(ctx context.Context, p storePaths, cfg config) ([]streamStats, error) {
+func runWorkloads(ctx context.Context, root string, p storePaths, cfg config) ([]streamStats, error) {
 	rec := newRecorder()
 	// Create every stream up front so a workload that never completed an
 	// operation still appears in the report as a zero row rather than
@@ -926,7 +1065,7 @@ func runWorkloads(ctx context.Context, p storePaths, cfg config) ([]streamStats,
 		rec.stream(n)
 	}
 
-	ps, err := openParentStores(ctx, p, cfg)
+	ps, err := openParentStores(ctx, root, p, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -1057,10 +1196,11 @@ func convergeSim(ctx context.Context, ps *parentStores, cfg config, rec *recorde
 // single write the content memory ever makes, and under a merged store it
 // holds the same lock every other subsystem needs.
 //
-// Note for whoever reads the latency: RebuildFuzzyIndex and RebuildSearchIndex
-// issue their statements on context.Background() (memory/sqlite.go), so a
-// multi-second rebuild is not cancellable by the caller's context. That is
-// worth fixing independently of this decision.
+// It is also where this harness found a bug rather than a number: both rebuilds
+// used to issue their statements on context.Background(), so a write measured in
+// seconds could not be stopped by the caller that asked for it. They take a ctx
+// now, and it is the run's — which is why a rebuild still in flight at the end
+// of the window is cancelled rather than holding the store past it.
 func memoryRebuildSim(ctx context.Context, ps *parentStores, cfg config, rec *recorder) error {
 	select {
 	case <-ctx.Done():
@@ -1068,10 +1208,10 @@ func memoryRebuildSim(ctx context.Context, ps *parentStores, cfg config, rec *re
 	case <-time.After(cfg.duration / 2):
 	}
 	_ = rec.observe(nW3Fuzzy, func() error {
-		return ps.write(ps.mem.RebuildFuzzyIndex)
+		return ps.write(func() error { return ps.mem.RebuildFuzzyIndex(ctx) })
 	})
 	_ = rec.observe(nW3Search, func() error {
-		return ps.write(ps.mem.RebuildSearchIndex)
+		return ps.write(func() error { return ps.mem.RebuildSearchIndex(ctx) })
 	})
 	return nil
 }
@@ -1117,20 +1257,33 @@ func decisionsSim(ctx context.Context, ps *parentStores, cfg config, rec *record
 // other workloads reading an empty corpus for the rest of the run, measuring
 // contention against a store that no longer resembles the one the decision is
 // about.
-func runExtractChild(ctx context.Context, p storePaths, cfg config) error {
+func runExtractChild(ctx context.Context, root string, p storePaths, cfg config) error {
 	rec := newRecorder()
 	rec.stream(nW2Extract)
 
 	var db *storage.DB
 	var write func(func() error) error
-	if cfg.mode.shared() {
+	switch {
+	case cfg.mode.real():
+		// The shipped store's own handle, and no wrapper: BeginTx below takes
+		// the permit itself and holds it for the whole transaction. The SQL is
+		// the same as every other mode's, so the row stays comparable — the
+		// blockstore.Session interface can only purge the WHOLE cache, which
+		// would leave the other workloads reading an empty corpus.
+		pdb, err := openRealProject(ctx, root, p)
+		if err != nil {
+			return fmt.Errorf("extract child: %w", err)
+		}
+		defer pdb.Close()
+		db, write = pdb.Raw(), func(fn func() error) error { return fn() }
+	case cfg.mode.shared():
 		pdb, err := openProjectDB(p.blocks, cfg.mode)
 		if err != nil {
 			return fmt.Errorf("extract child: open project store: %w", err)
 		}
 		defer pdb.Close()
 		db, write = pdb.db, pdb.write
-	} else {
+	default:
 		plain, err := storage.Open(p.blocks)
 		if err != nil {
 			return fmt.Errorf("extract child: open block store: %w", err)
@@ -1475,13 +1628,14 @@ func main() {
 
 	if childRole != "" {
 		cfg.mode = topology(modeFlag)
-		p := newStorePaths(filepath.Join(cfg.dir, string(cfg.mode)), cfg.mode)
+		root := filepath.Join(cfg.dir, string(cfg.mode))
+		p := newStorePaths(root, cfg.mode)
 		var err error
 		switch childRole {
 		case roleStatus:
 			err = runStatusChild(ctx, p, cfg)
 		case roleExtract:
-			err = runExtractChild(ctx, p, cfg)
+			err = runExtractChild(ctx, root, p, cfg)
 		default:
 			err = fmt.Errorf("unknown child role %q", childRole)
 		}
@@ -1531,13 +1685,13 @@ func measure(ctx context.Context, m topology, cfg config) (result, error) {
 
 	fmt.Printf("\nseeding %s …\n", m)
 	seedStart := time.Now()
-	if err := seed(ctx, p, cfg); err != nil {
+	if err := seed(ctx, root, p, cfg); err != nil {
 		return result{}, err
 	}
 	seedTook := time.Since(seedStart)
 	fmt.Printf("seeded in %.1fs; measuring for %s …\n", seedTook.Seconds(), cfg.duration)
 
-	stats, err := runWorkloads(ctx, p, cfg)
+	stats, err := runWorkloads(ctx, root, p, cfg)
 	if err != nil {
 		return result{}, err
 	}
@@ -1552,13 +1706,14 @@ func parseModes(s string) ([]topology, error) {
 	var out []topology
 	for _, part := range strings.Split(s, ",") {
 		switch m := topology(strings.TrimSpace(part)); m {
-		case topoSplit, topoMerged, topoHybrid, topoWorkApart, topoMergedImmediate, topoMergedGated:
+		case topoSplit, topoMerged, topoHybrid, topoWorkApart,
+			topoMergedImmediate, topoMergedGated, topoProjectDB:
 			out = append(out, m)
 		case "":
 			continue
 		default:
 			return nil, fmt.Errorf("unknown mode %q (want split, merged, hybrid, work-apart, "+
-				"merged-immediate or merged-gated)", part)
+				"merged-immediate, merged-gated or projectdb)", part)
 		}
 	}
 	if len(out) == 0 {
