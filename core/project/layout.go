@@ -232,6 +232,23 @@ func ResolveLayout(start string) (Layout, error) {
 	}
 }
 
+// LayoutAt returns the Layout for a project root without touching the disk —
+// the pure path computation behind the two resolvers below.
+//
+// It exists so that "the store of the project at root" is spelled one way. The
+// hand-rolled `filepath.Join(root, StateDirName, StoreFileName)` was spelled a
+// dozen times across four modules, and every one of them was a place the layout
+// could not move without a compile-clean test failing at run time. Callers that
+// have a recipe path or a working directory want LayoutFor or ResolveLayout;
+// this is for the ones that already know the root.
+func LayoutAt(root string) Layout {
+	return Layout{
+		Root:       root,
+		RecipePath: filepath.Join(root, RecipeFileName),
+		StateDir:   filepath.Join(root, StateDirName),
+	}
+}
+
 // LayoutFor returns the Layout for an explicit recipe path (as passed via
 // -p / --project). The path may be either the recipe file itself or a
 // project directory containing a `kapi.yaml`; in the directory case the

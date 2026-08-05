@@ -153,7 +153,7 @@ func (a *App) ProjectGraph(ctx context.Context, root string) (*graph.SQLiteGraph
 // when it arrived via `-p` — so the recipe path is deliberately left unset
 // rather than guessed.
 func projectLayoutAt(root string) project.Layout {
-	return project.Layout{Root: root, StateDir: filepath.Join(root, project.StateDirName)}
+	return project.LayoutAt(root)
 }
 
 // ShareProjectStores binds other to the stores this App holds, so the two Apps

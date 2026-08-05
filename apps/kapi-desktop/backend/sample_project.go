@@ -175,7 +175,7 @@ func (a *App) resetProjectStore(root string) error {
 	if err := a.hostEngine().CloseProjectDB(root); err != nil {
 		return err
 	}
-	layout := project.Layout{Root: root, StateDir: filepath.Join(root, project.StateDirName)}
+	layout := project.LayoutAt(root)
 	// The WAL and shared-memory sidecars go too: left behind beside a deleted
 	// database they are stale journal for a file that no longer exists.
 	for _, suffix := range []string{"", "-wal", "-shm"} {

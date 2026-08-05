@@ -197,7 +197,7 @@ func TestProjectDB_OpenSurvivesACancelledCaller(t *testing.T) {
 	db, err := a.ProjectDB(ctx, root)
 	require.NoError(t, err, "a cancelled caller must not leave the project unopenable")
 	require.NotNil(t, db.Raw())
-	assert.FileExists(t, filepath.Join(root, project.StateDirName, project.StoreFileName))
+	assert.FileExists(t, project.LayoutAt(root).StorePath())
 }
 
 // A borrower reaches the owner's handle. An embedding host that must build a

@@ -128,7 +128,7 @@ func TestReviewAIAction_Explain(t *testing.T) {
 	// committed shard set under `.kapi/context/decisions/`, so a write shows up
 	// there — the whole-document `.kapi-state.json` this used to stat has not
 	// existed since the store cutover, which made the assertion vacuously true.
-	layout := project.Layout{Root: root, StateDir: filepath.Join(root, project.StateDirName)}
+	layout := project.LayoutAt(root)
 	units, _ := os.ReadDir(layout.DecisionsDir())
 	assert.Empty(t, units, "explain must record no decision")
 }

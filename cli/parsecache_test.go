@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,7 +38,7 @@ ship_gate: { translated: 100 }
 
 func countCacheRows(t *testing.T, root string) int {
 	t.Helper()
-	c, err := OpenDocCache(filepath.Join(root, ".kapi", "cache"))
+	c, err := OpenDocCache(project.LayoutAt(root).CacheDir())
 	require.NoError(t, err)
 	defer c.Close()
 	var n int
@@ -80,7 +81,7 @@ func TestStatus_ParseCacheIncrementalAndRebuildable(t *testing.T) {
 	assert.Equal(t, 67, nb.Pct["translated"], "2 of 3 translated after the edit")
 
 	// Rebuild invariant: delete the cache, re-read → identical result.
-	require.NoError(t, os.RemoveAll(filepath.Join(root, ".kapi", "cache")))
+	require.NoError(t, os.RemoveAll(project.LayoutAt(root).CacheDir()))
 	rebuilt := runStatusJSON(t)
 	a, _ := json.Marshal(afterEdit)
 	b, _ := json.Marshal(rebuilt)

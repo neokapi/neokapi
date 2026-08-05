@@ -76,7 +76,7 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	// 2. The project store's vocabulary was compiled from the source. There is
 	// no second file to point at any more, so the assertion is on the store the
 	// App already holds — the same one every term-aware command reads.
-	require.FileExists(t, filepath.Join(root, project.StateDirName, project.StoreFileName))
+	require.FileExists(t, project.LayoutAt(root).StorePath())
 	db, err := a.ProjectDB(ctx, root)
 	require.NoError(t, err)
 	n, err := db.Terms().Count(ctx)
@@ -128,7 +128,7 @@ func TestApplyMemoryEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	require.Equal(t, project.RelContextPath("memory.json"), proj.Defaults.MemorySource)
 
 	// Compiled into the project store, which now holds the pair.
-	require.FileExists(t, filepath.Join(root, project.StateDirName, project.StoreFileName))
+	require.FileExists(t, project.LayoutAt(root).StorePath())
 	db, err := a.ProjectDB(ctx, root)
 	require.NoError(t, err)
 	got := lookupMemoryTarget(t, ctx, db.Memory(), "Welcome back", "en", "fr")

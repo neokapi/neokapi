@@ -83,7 +83,7 @@ func TestUpPlan_NeverCreatesTheProjectStore(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
-	storePath := filepath.Join(root, project.StateDirName, project.StoreFileName)
+	storePath := project.LayoutAt(root).StorePath()
 	require.NoFileExists(t, storePath, "the fixture starts with no store")
 
 	out, err := runUp(t, a, recipe, "--plan", "--json")

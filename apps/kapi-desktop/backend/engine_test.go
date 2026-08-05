@@ -115,7 +115,7 @@ func TestRecoverResource_ProjectStoreReleasesTheHandle(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, db.Raw())
 
-	storePath := filepath.Join(root, project.StateDirName, project.StoreFileName)
+	storePath := project.LayoutAt(root).StorePath()
 	bak, err := app.RecoverResource(storePath)
 	require.NoError(t, err)
 

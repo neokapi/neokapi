@@ -109,7 +109,7 @@ func TestExtract_MultiTargetWritesOneOutputPerPair(t *testing.T) {
 	assert.Contains(t, strings.Join(names, " "), "en-US-to-de-DE.xliff")
 
 	// Manifest is written under .kapi/work/cache/extractions/<batch-id>/.
-	extractionsRoot := filepath.Join(real, project.StateDirName, project.CacheDirName, project.ExtractionsDirName)
+	extractionsRoot := project.LayoutAt(real).ExtractionsDir()
 	batches, err := os.ReadDir(extractionsRoot)
 	require.NoError(t, err)
 	require.Len(t, batches, 1)

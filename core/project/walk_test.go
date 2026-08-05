@@ -13,7 +13,7 @@ import (
 func TestWalkProjectDir(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "src", "sub"), 0o755))
-	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi", "cache"), 0o755))
+	require.NoError(t, os.MkdirAll(project.LayoutAt(root).CacheDir(), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "node_modules", "pkg"), 0o755))
 	write := func(rel string) {
 		require.NoError(t, os.WriteFile(filepath.Join(root, rel), []byte("x"), 0o644))

@@ -83,9 +83,7 @@ content:
 	// Seed the project store's vocabulary: Save -> Enregistrer (approved).
 	// Bound now means "the store holds a concept", not "a terms file exists" —
 	// every project store has the tables from its first open.
-	db, err := projectdb.Open(t.Context(), project.Layout{
-		Root: root, StateDir: filepath.Join(root, project.StateDirName),
-	})
+	db, err := projectdb.Open(t.Context(), project.LayoutAt(root))
 	require.NoError(t, err)
 	require.NoError(t, db.Terms().AddConcept(t.Context(), terms.Concept{
 		ID: "c1",
@@ -332,7 +330,7 @@ content:
 	// Assert the fallback path is the one under test: no project store exists
 	// yet, so nothing could have been compiled into it. This is the fresh-checkout
 	// shape — the committed source is tracked, the store is not.
-	_, statErr := os.Stat(filepath.Join(root, project.StateDirName, project.StoreFileName))
+	_, statErr := os.Stat(project.LayoutAt(root).StorePath())
 	require.True(t, os.IsNotExist(statErr), "test must exercise the terms_source fallback, not a compiled store")
 
 	return root
@@ -379,7 +377,7 @@ func TestVerify_GlossaryFromTermsSourceWithAnEmptyStorePresent(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, has, "the store must be present and empty — that is the whole point")
 	require.NoError(t, db.Close())
-	require.FileExists(t, filepath.Join(root, project.StateDirName, project.StoreFileName))
+	require.FileExists(t, project.LayoutAt(root).StorePath())
 
 	t.Chdir(root)
 	out, runErr := runVerifyJSON(t)

@@ -575,7 +575,7 @@ func (a *App) autoOpenProjectResources(op *openProject) {
 	if !ok {
 		return
 	}
-	if _, err := os.Stat(filepath.Join(root, project.StateDirName, project.StoreFileName)); err != nil {
+	if _, err := os.Stat(project.LayoutAt(root).StorePath()); err != nil {
 		return
 	}
 	db, err := a.hostEngine().ProjectDB(context.Background(), root)

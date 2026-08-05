@@ -10,12 +10,12 @@ import (
 	coreproj "github.com/neokapi/neokapi/core/project"
 )
 
-// SyncCacheFilename is the file written under <state-dir>/cache/ that tracks
+// SyncCacheFilename is the file written under <state-dir>/work/cache/ that tracks
 // the last known server state for incremental bowrain sync.
 const SyncCacheFilename = "sync-cache.json"
 
 // SyncCache tracks the last known server state for incremental sync. It
-// lives at <state-dir>/cache/sync-cache.json (always gitignored — the file
+// lives at <state-dir>/work/cache/sync-cache.json (always gitignored — the file
 // holds claim tokens and is regenerable from server state).
 type SyncCache struct {
 	ServerURL string                `json:"server_url"`
@@ -149,7 +149,7 @@ func LoadSyncCache(layout coreproj.Layout) *SyncCache {
 	return &cache
 }
 
-// Save persists the sync cache to <state-dir>/cache/sync-cache.json. The
+// Save persists the sync cache to <state-dir>/work/cache/sync-cache.json. The
 // cache directory is created if missing.
 func (c *SyncCache) Save(layout coreproj.Layout) error {
 	if err := os.MkdirAll(layout.CacheDir(), 0o755); err != nil {
