@@ -512,6 +512,15 @@ func isDrawingMetadata(b *model.Block) bool {
 	return false
 }
 
+// isDocMetadata reports whether a block is a document core property — a
+// dc:title, dc:creator, cp:keywords extracted from an OPC package's
+// docProps/core.xml. Keyed on the part path because "property" as a Type also
+// covers visible text (a VML textpath string), and the element names alone
+// (title, subject, …) are too generic to claim across formats.
+func isDocMetadata(b *model.Block) bool {
+	return b.Type == "property" && b.Properties["partPath"] == "docProps/core.xml"
+}
+
 // isCellBlock reports whether a block carries a table-cell role.
 func isCellBlock(b *model.Block) bool {
 	role := b.SemanticRole()
@@ -585,6 +594,14 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	// text twice, once per non-visual-properties element. The alt text reaches
 	// the output through the image run's own attributes instead.
 	if isDrawingMetadata(block) {
+		return nil
+	}
+	// A document's core properties — title, author, keywords, category — are
+	// metadata about the file, not positions in its flow. They are real
+	// translation units (a document title is translated), but rendering them as
+	// paragraphs appends the author's name and keyword list after the last real
+	// paragraph as if the document said them. Generative-path only.
+	if isDocMetadata(block) {
 		return nil
 	}
 
