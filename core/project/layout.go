@@ -27,8 +27,41 @@ type Layout struct {
 // state (manifest bookkeeping, content memory, terms, and the cache subdir).
 const StateDirName = ".kapi"
 
+// StoreFileName is the project's single local store: one SQLite file holding
+// the content memory, the terms store, the block cache and the unit working
+// set, each keeping its own migration ledger (see core/projectdb).
+//
+// One file because the four it replaces could not be written together. An
+// approve-and-promote touches the working set and the content memory in the
+// same breath, and across two databases there is no transaction that covers
+// both — a crash between them left a decision recorded against wording the
+// memory never learned.
+//
+// It sits at the TOP of the state directory, not under cache/, because it
+// carries staged decisions: deleting it costs at most the decisions staged
+// since the last commit, whereas `rm -rf .kapi/cache` must stay free.
+const StoreFileName = "store.db"
+
+// StoreSidecarFileName is the working set's JSON stand-in on builds with no
+// file-backed SQLite driver (the browser build). Same directory, same
+// deletion story; only the encoding differs.
+const StoreSidecarFileName = "store.json"
+
+// StorePath returns the project's single local store.
+func (l Layout) StorePath() string {
+	return filepath.Join(l.StateDir, StoreFileName)
+}
+
+// StoreSidecarPath returns the browser build's working-set sidecar.
+func (l Layout) StoreSidecarPath() string {
+	return filepath.Join(l.StateDir, StoreSidecarFileName)
+}
+
 // MemoryFileName and TermsFileName are the content-memory and terms stores
 // inside StateDir.
+//
+// Both are superseded by StoreFileName and survive only until the host is cut
+// over to the merged store; core/projectdb deletes the files they name.
 //
 // The spellings match the concepts: content memory is `memory.db`, the terms
 // store is `terms.db`. The old `tm.db` / `termbase.db` were the last of the
