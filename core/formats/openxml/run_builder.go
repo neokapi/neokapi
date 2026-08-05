@@ -57,6 +57,14 @@ func (b *runBuilder) Break() {
 // AppendPh emits a PlaceholderRun. The constraint booleans map directly onto
 // RunConstraints (Deletable, Cloneable, Reorderable).
 func (b *runBuilder) AddPh(id, semType, subType, data, equiv, disp string, deletable, cloneable, reorderable bool) {
+	b.AddPhAttrs(id, semType, subType, data, equiv, disp, deletable, cloneable, reorderable, nil)
+}
+
+// AddPhAttrs is AddPh with canonical run attributes (model.AttrSrc,
+// model.AttrAlt, …) attached. Data carries the source markup verbatim and is
+// what the skeleton write path replays; Attrs carry the same facts in the
+// format-neutral vocabulary core/projection consumes.
+func (b *runBuilder) AddPhAttrs(id, semType, subType, data, equiv, disp string, deletable, cloneable, reorderable bool, attrs map[string]string) {
 	b.runs = append(b.runs, model.Run{Ph: &model.PlaceholderRun{
 		ID:      id,
 		Type:    semType,
@@ -64,6 +72,7 @@ func (b *runBuilder) AddPh(id, semType, subType, data, equiv, disp string, delet
 		Data:    data,
 		Equiv:   equiv,
 		Disp:    disp,
+		Attrs:   attrs,
 		Constraints: &model.RunConstraints{
 			Deletable:   deletable,
 			Cloneable:   cloneable,
@@ -75,6 +84,18 @@ func (b *runBuilder) AddPh(id, semType, subType, data, equiv, disp string, delet
 // AppendPcOpen emits the opening half of a paired code mirroring a
 // SpanOpening.
 func (b *runBuilder) AddPcOpen(id, semType, subType, data, equiv, disp string, deletable, cloneable, reorderable bool) {
+	b.AddPcOpenAttrs(id, semType, subType, data, equiv, disp, deletable, cloneable, reorderable, nil)
+}
+
+// AddPcOpenAttrs is AddPcOpen with canonical run attributes (model.AttrHref,
+// model.AttrTitle, …) attached to the opening half.
+//
+// Data carries the source markup verbatim and is what the skeleton write path
+// replays; Attrs carry the same information in the format-neutral vocabulary
+// core/projection consumes. Both are needed: without Data a same-format
+// round-trip loses the element's own attributes, and without Attrs a
+// cross-format export has nothing to build a link out of.
+func (b *runBuilder) AddPcOpenAttrs(id, semType, subType, data, equiv, disp string, deletable, cloneable, reorderable bool, attrs map[string]string) {
 	b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
 		ID:      id,
 		Type:    semType,
@@ -82,6 +103,7 @@ func (b *runBuilder) AddPcOpen(id, semType, subType, data, equiv, disp string, d
 		Data:    data,
 		Equiv:   equiv,
 		Disp:    disp,
+		Attrs:   attrs,
 		Constraints: &model.RunConstraints{
 			Deletable:   deletable,
 			Cloneable:   cloneable,

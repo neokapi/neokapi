@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/safeio"
 )
 
@@ -42,6 +44,10 @@ type containerInfo struct {
 	mainDocumentPart  string   // e.g., "word/document.xml"
 	relationships     map[string][]relationship
 	sharedStrings     []string // XLSX: shared string table (populated during parsing)
+	// sheetNames maps an XLSX worksheet part path to the sheet's display name.
+	// The name is in xl/workbook.xml and the part path is behind a relationship
+	// id, so only joining the two yields "which sheet is this part".
+	sheetNames map[string]string
 }
 
 // relationship represents an OpenXML relationship entry.
@@ -510,6 +516,58 @@ func cleanZipPath(p string) string {
 		}
 	}
 	return strings.Join(out, "/")
+}
+
+// workbookSheet is one <sheet> entry in xl/workbook.xml: the display name a
+// user sees on the tab, and the relationship id that leads to its part.
+var workbookSheetRE = regexp.MustCompile(`<sheet\b[^>]*>`)
+
+// parseSheetNames maps each worksheet part path to its display name by joining
+// xl/workbook.xml's <sheet name= r:id=> entries against the workbook's
+// relationships. Returns nil when the workbook part is absent or unreadable —
+// a sheet with no recoverable name simply gets none.
+func parseSheetNames(zr *zip.Reader, rels map[string][]relationship) map[string]string {
+	f := zipFileByName(zr, "xl/workbook.xml")
+	if f == nil {
+		return nil
+	}
+	data, err := safeio.DefaultZipLimits.ReadEntry(f)
+	if err != nil {
+		return nil
+	}
+	byID := map[string]string{}
+	for _, rel := range rels["xl/_rels/workbook.xml.rels"] {
+		byID[rel.ID] = resolveRelTarget("xl/_rels/workbook.xml.rels", rel.Target)
+	}
+	out := map[string]string{}
+	for _, tag := range workbookSheetRE.FindAllString(string(data), -1) {
+		name := attrFromTag(tag, "name")
+		relID := attrFromTag(tag, "r:id")
+		if name == "" || relID == "" {
+			continue
+		}
+		if part, ok := byID[relID]; ok {
+			out[part] = name
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// attrFromTag reads one attribute value out of a serialized start tag.
+func attrFromTag(tag, name string) string {
+	i := strings.Index(tag, " "+name+`="`)
+	if i < 0 {
+		return ""
+	}
+	rest := tag[i+len(name)+3:]
+	end := strings.IndexByte(rest, '"')
+	if end < 0 {
+		return ""
+	}
+	return xmlesc.UnescapeAttr(rest[:end])
 }
 
 // buildXLSXParts returns the ordered translatable parts for an XLSX document.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/registry"
@@ -179,4 +180,36 @@ func TestConvOutputRejectsMultipleInputs(t *testing.T) {
 	b := writeToolboxFile(t, dir, "b.md", "# B\n")
 	err := app.RunConv(context.Background(), []string{a, b}, "html", "", filepath.Join(dir, "out.html"))
 	require.Error(t, err)
+}
+
+// TestConvTimingReportsPerFile: with ConvTiming set, each converted file gets a
+// self-reported conversion time on stderr in the "in N.NNms" shape a benchmark
+// harness can parse — the in-process cost, excluding binary start-up, which is
+// the figure conversion libraries publish. Off by default: stderr stays silent.
+func TestConvTimingReportsPerFile(t *testing.T) {
+	app := newToolboxApp(t)
+	dir := t.TempDir()
+	a := writeToolboxFile(t, dir, "a.md", "# A\n")
+	b := writeToolboxFile(t, dir, "b.md", "# B\n")
+
+	app.ConvTiming = true
+	stderr, err := captureStderr(t, func() error {
+		_, outErr := captureStdout(t, func() error {
+			return app.RunConv(context.Background(), []string{a, b}, "html", "", "")
+		})
+		return outErr
+	})
+	require.NoError(t, err)
+	re := regexp.MustCompile(`(?m)^kconv: converted .* in \d+\.\d\dms$`)
+	assert.Len(t, re.FindAllString(stderr, -1), 2, "one timing line per file:\n%s", stderr)
+
+	app.ConvTiming = false
+	stderr, err = captureStderr(t, func() error {
+		_, outErr := captureStdout(t, func() error {
+			return app.RunConv(context.Background(), []string{a}, "html", "", "")
+		})
+		return outErr
+	})
+	require.NoError(t, err)
+	assert.Empty(t, stderr, "no timing report unless asked")
 }

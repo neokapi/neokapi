@@ -1094,6 +1094,22 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 				continue
 			}
 		}
+		// Record the as-read text and owning entry on every block the
+		// sub-reader produced, the same witnesses the direct-extraction path
+		// records. The writer splices translated text into the entry's original
+		// bytes by matching on the as-read text; without the witness an edited
+		// block no longer matches anything in those bytes and the edit is
+		// silently dropped. The sub-reader cannot record either — it does not
+		// know it is inside a container.
+		if pr.Part.Type == model.PartBlock {
+			if b, ok := pr.Part.Resource.(*model.Block); ok {
+				format.RecordVerbatimText(b, propXHTMLText, b.SourceText())
+				if b.Properties == nil {
+					b.Properties = make(map[string]string)
+				}
+				b.Properties["entry"] = entryName
+			}
+		}
 		r.emit(ctx, ch, pr.Part)
 	}
 	subReader.Close()

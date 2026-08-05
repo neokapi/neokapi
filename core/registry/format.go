@@ -615,15 +615,40 @@ func (r *FormatRegistry) detectFile(path string, allowedSources []string, overri
 // lazy loading (e.g., starting bridge processes) and retries once.
 func (r *FormatRegistry) NewReader(name FormatID) (format.DataFormatReader, error) {
 	if f := r.findReader(name); f != nil {
-		return f(), nil
+		return withResolver(r, f()), nil
 	}
 	// Trigger lazy loading and retry once.
 	if r.triggerOnMiss() {
 		if f := r.findReader(name); f != nil {
-			return f(), nil
+			return withResolver(r, f()), nil
 		}
 	}
 	return nil, fmt.Errorf("unknown format: %s", name)
+}
+
+// withResolver hands a freshly constructed reader or writer the registry as its
+// [format.SubfilterResolver], so a format that delegates embedded content to
+// another format (EPUB's XHTML chapters, HTML inside a JSON value, ODF's
+// embedded markup) can actually resolve it.
+//
+// The registry is the natural resolver — it implements the interface — but
+// nothing wired it in. [format.SubfilterAware] is satisfied by epub, json, xml
+// and odf and was injected only by tests, so every production read ran with a
+// nil resolver and silently took the delegating reader's fallback path: EPUB
+// chapters lost their heading structure, and any configured subfilter mapping
+// was inert rather than failing loudly.
+//
+// Injecting here rather than at each call site covers ResolveReader and
+// ResolveWriter too, so nested subfilters compose to arbitrary depth — the
+// resolver a delegating reader receives is the same registry it was built from.
+//
+// Writers get the same treatment, so a container can reconstruct an embedded
+// part through the sub-format writer that read it.
+func withResolver[T any](r *FormatRegistry, v T) T {
+	if sa, ok := any(v).(format.SubfilterAware); ok {
+		sa.SetSubfilterResolver(r)
+	}
+	return v
 }
 
 // NewWriter creates a new writer instance for the given format name.
@@ -634,12 +659,12 @@ func (r *FormatRegistry) NewReader(name FormatID) (format.DataFormatReader, erro
 // lazy loading (e.g., starting bridge processes) and retries once.
 func (r *FormatRegistry) NewWriter(name FormatID) (format.DataFormatWriter, error) {
 	if f := r.findWriter(name); f != nil {
-		return f(), nil
+		return withResolver(r, f()), nil
 	}
 	// Trigger lazy loading and retry once.
 	if r.triggerOnMiss() {
 		if f := r.findWriter(name); f != nil {
-			return f(), nil
+			return withResolver(r, f()), nil
 		}
 	}
 	return nil, fmt.Errorf("unknown format writer: %s", name)

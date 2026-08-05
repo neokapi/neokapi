@@ -47,6 +47,23 @@ func captureStdout(t *testing.T, fn func() error) (string, error) {
 	return buf.String(), runErr
 }
 
+// captureStderr runs fn with os.Stderr redirected to a pipe and returns what
+// was written along with fn's return value.
+func captureStderr(t *testing.T, fn func() error) (string, error) {
+	t.Helper()
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	orig := os.Stderr
+	os.Stderr = w
+	runErr := fn()
+	_ = w.Close()
+	os.Stderr = orig
+
+	var buf bytes.Buffer
+	_, _ = buf.ReadFrom(r)
+	return buf.String(), runErr
+}
+
 // ruleCounts tallies a report's diagnostics by their stable rule id — the
 // contract an AI/CI keys off.
 func ruleCounts(r check.Report) map[string]int {

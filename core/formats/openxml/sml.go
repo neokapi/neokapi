@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projection"
 )
 
 // smlParser parses SpreadsheetML XML parts (XLSX worksheets, shared strings).
@@ -21,6 +22,9 @@ type smlParser struct {
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
 	sharedStrings []string // pre-parsed shared string table
+	// sheetNames maps a worksheet part path to its display name, so a grid can
+	// be labelled with the tab a reader would see.
+	sheetNames map[string]string
 	// tableColumnSeq positions a <tableColumn> that carries no `id` attribute,
 	// counted within the table part it belongs to.
 	tableColumnSeq int
@@ -173,6 +177,8 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 	// the streaming pass). Keyed by the range's top-left cell reference.
 	merges := parseMergeCells(data)
 
+	p.emitSheetHeading(partPath, emitBlock)
+
 	var inRow, inCell, inValue bool
 	var cellType, cellRef string
 	var cellText strings.Builder
@@ -305,6 +311,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 						if g := cellGeometry(cellRef, partPath, merges); g != nil {
 							block.SetGeometry(g)
 						}
+						markGridCell(block, cellRef)
 						emitBlock(block)
 					} else {
 						p.skelWriteString("<v>")
@@ -361,6 +368,45 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 	return nil
 }
 
+// emitSheetHeading surfaces a worksheet's display name as a heading ahead of
+// its cells.
+//
+// A workbook is a sequence of sheets, and that boundary is real: without it
+// every sheet's cells arrive as one undifferentiated run and a multi-sheet
+// workbook exports as a single merged table whose rows come from different
+// grids. The heading both names the sheet and, being a non-cell block, ends the
+// preceding sheet's run of cells.
+//
+// The name lives in xl/workbook.xml behind a relationship id, so it is resolved
+// once at open time (parseSheetNames). Emitted as a Translatable:false block
+// gated behind ExtractNonTranslatableContent and carrying no skeleton ref, like
+// the grid anchors it precedes: additive, so extraction, word count and the
+// round-trip are untouched, and the parity runner (which forces the flag off)
+// sees an unchanged part stream. Sheet names have their own translatability
+// switch — TranslateSheetNames, default false, mirroring upstream Okapi's
+// translateExcelSheetNames — and this is deliberately not that.
+func (p *smlParser) emitSheetHeading(partPath string, emitBlock func(*model.Block)) {
+	if p.cfg == nil || !p.cfg.ExtractNonTranslatableContent() {
+		return
+	}
+	name := p.sheetNames[partPath]
+	if name == "" {
+		return
+	}
+	*p.blockCounter++
+	block := &model.Block{
+		ID:           fmt.Sprintf("tu%d", *p.blockCounter),
+		Name:         model.StructuralPath(append(strings.Split(partPath, "/"), "@name")...),
+		Type:         "sheet-name",
+		Translatable: false,
+		Source:       []model.Run{{Text: &model.TextRun{Text: name}}},
+		Targets:      make(map[model.VariantKey]*model.Target),
+		Properties:   map[string]string{"partPath": partPath},
+	}
+	block.SetSemanticRole(model.RoleHeading, 2)
+	emitBlock(block)
+}
+
 // emitSharedCellAnchor surfaces a shared-string worksheet cell as a
 // non-translatable grid anchor. idxText is the cell's <v> body (the index into
 // the shared string table); it is resolved to the actual string so a preview
@@ -397,6 +443,7 @@ func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, merg
 	if g := cellGeometry(cellRef, partPath, merges); g != nil {
 		block.SetGeometry(g)
 	}
+	markGridCell(block, cellRef)
 	emitBlock(block)
 }
 
@@ -419,7 +466,30 @@ func (p *smlParser) emitLiteralCellAnchor(text, cellRef, partPath string, merges
 	if g := cellGeometry(cellRef, partPath, merges); g != nil {
 		block.SetGeometry(g)
 	}
+	markGridCell(block, cellRef)
 	emitBlock(block)
+}
+
+// markGridCell gives a worksheet cell anchor the canonical table-cell role and
+// the row hint the flat-cell projection path groups on.
+//
+// A worksheet has no row *container* to bracket — a row is an addressing fact,
+// not a markup element, and the cells arrive as a flat stream. The geometry was
+// always recorded (address plus merge span), but without a role nothing
+// downstream could see a grid: core/projection assembles tables from cell roles,
+// so every cell fell through as a standalone block and a spreadsheet exported as
+// a run of loose paragraphs. The role plus projection.PropFlatRow is exactly
+// what the flat-cell fallback was built to consume.
+func markGridCell(block *model.Block, cellRef string) {
+	_, row, ok := parseCellRefA1(cellRef)
+	if !ok {
+		return
+	}
+	block.SetSemanticRole(model.RoleTableCell, 0)
+	if block.Properties == nil {
+		block.Properties = make(map[string]string)
+	}
+	block.Properties[projection.PropFlatRow] = strconv.Itoa(row)
 }
 
 // mergeSpan is a merged-cell range's extent in cells (cols × rows), ≥1 each.

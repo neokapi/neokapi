@@ -45,7 +45,12 @@
 // and that is load-bearing rather than incidental — see [Text] for why.
 package xmlesc
 
-import "strings"
+import (
+	"regexp"
+	"strconv"
+	"strings"
+	"unicode/utf8"
+)
 
 // Attr escapes a string for use inside a double-quoted XML attribute value:
 // `&`, `<`, `>` and `"`.
@@ -67,6 +72,45 @@ func Attr(s string) string {
 	s = strings.ReplaceAll(s, `"`, "&quot;")
 	return s
 }
+
+// UnescapeAttr reverses [Attr] for an attribute value read back out of already-
+// serialized markup: the five predefined entities of XML 1.0 §4.6, plus the
+// numeric character references a producer may emit instead.
+//
+// It exists for the narrow case of recovering a value from markup this package
+// (or a document) already wrote, when re-running the XML decoder over the
+// fragment would cost more than it is worth. Anything parsed by encoding/xml is
+// already unescaped and must not be passed through here — doing so would decode
+// a literal `&amp;` in the document down to `&`, which is data loss.
+//
+// `&amp;` is replaced LAST, mirroring Attr replacing it first: otherwise
+// `&amp;lt;` — a document that really contains the text `&lt;` — would decode
+// all the way to `<`.
+func UnescapeAttr(s string) string {
+	if !strings.ContainsRune(s, '&') {
+		return s
+	}
+	s = strings.ReplaceAll(s, "&lt;", "<")
+	s = strings.ReplaceAll(s, "&gt;", ">")
+	s = strings.ReplaceAll(s, "&quot;", `"`)
+	s = strings.ReplaceAll(s, "&apos;", "'")
+	s = numericCharRefRE.ReplaceAllStringFunc(s, func(ref string) string {
+		body := ref[2 : len(ref)-1]
+		base, digits := 10, body
+		if body[0] == 'x' || body[0] == 'X' {
+			base, digits = 16, body[1:]
+		}
+		n, err := strconv.ParseInt(digits, base, 32)
+		if err != nil || !utf8.ValidRune(rune(n)) {
+			return ref
+		}
+		return string(rune(n))
+	})
+	return strings.ReplaceAll(s, "&amp;", "&")
+}
+
+// numericCharRefRE matches a decimal or hexadecimal character reference.
+var numericCharRefRE = regexp.MustCompile(`&#[xX]?[0-9A-Fa-f]+;`)
 
 // Text escapes a string for XML character-data position: `&`, `<` and `>`.
 //

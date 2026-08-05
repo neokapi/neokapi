@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -18,6 +19,98 @@ type Writer struct {
 	cfg           *Config
 	skeletonStore *format.SkeletonStore
 	firstBlock    bool
+	// ctx is the stack of open structural containers on the generative path —
+	// lists and block quotes. A list item's marker (`-` vs `1.`) and a quoted
+	// paragraph's `> ` prefix are properties of the container, not of the block,
+	// so they can only be rendered with the bracket in scope.
+	ctx []blockContext
+	// prevListItem records that the block just written was an item of the
+	// innermost open list, so the next one is separated by a single newline —
+	// a tight list — rather than the blank line every other block pair takes.
+	prevListItem bool
+	// prevQuoteID is the innermost block quote the previous block belonged to.
+	// Two blocks in the SAME quote are separated by a quoted blank line, or
+	// CommonMark reads them as two adjacent quotations rather than one with two
+	// paragraphs.
+	prevQuoteID string
+}
+
+// blockContext is one open structural container on the generative path.
+type blockContext struct {
+	groupID string
+	kind    string // "ordered-list", "list", or "blockquote"
+	counter int    // next ordinal, for an ordered list
+}
+
+// listStartOf returns the first ordinal of an ordered list, honouring an
+// explicit start (HTML's <ol start>) and defaulting to 1.
+func listStartOf(g *model.GroupStart) int {
+	if g.Type != "ordered-list" {
+		return 0
+	}
+	if v, ok := g.Properties["start"]; ok {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 1
+}
+
+// closeContext pops the container with the given group ID, along with anything
+// still open inside it. A malformed stream that ends a group it never started
+// leaves the stack untouched rather than unwinding it.
+func (w *Writer) closeContext(groupID string) {
+	for i := len(w.ctx) - 1; i >= 0; i-- {
+		if w.ctx[i].groupID == groupID {
+			w.ctx = w.ctx[:i]
+			w.prevListItem = false
+			return
+		}
+	}
+}
+
+// innermostQuoteID returns the group ID of the innermost open block quote, or
+// "" when the writer is not inside one.
+func (w *Writer) innermostQuoteID() string {
+	for i := len(w.ctx) - 1; i >= 0; i-- {
+		if w.ctx[i].kind == "blockquote" {
+			return w.ctx[i].groupID
+		}
+	}
+	return ""
+}
+
+// innermostList returns the innermost open list container, or nil when the
+// writer is not inside one.
+func (w *Writer) innermostList() *blockContext {
+	for i := len(w.ctx) - 1; i >= 0; i-- {
+		if k := w.ctx[i].kind; k == "ordered-list" || k == "list" {
+			return &w.ctx[i]
+		}
+	}
+	return nil
+}
+
+// listDepth counts open list containers, which is how far a nested item indents.
+func (w *Writer) listDepth() int {
+	n := 0
+	for _, c := range w.ctx {
+		if c.kind == "ordered-list" || c.kind == "list" {
+			n++
+		}
+	}
+	return n
+}
+
+// quoteDepth counts open blockquote containers.
+func (w *Writer) quoteDepth() int {
+	n := 0
+	for _, c := range w.ctx {
+		if c.kind == "blockquote" {
+			n++
+		}
+	}
+	return n
 }
 
 // Ensure Writer implements SkeletonStoreConsumer.
@@ -96,6 +189,15 @@ done:
 	// groups render as GFM tables; everything else renders block-by-block.
 	if err := w.writeFromEvents(events, tw); err != nil {
 		return err
+	}
+	// A text file ends with a newline. Without one the last block runs into
+	// whatever is appended next, and every diff of the output shows a spurious
+	// "\ No newline at end of file". Only on the generative path — the skeleton
+	// path reproduces the source's own ending, whatever it is.
+	if !w.firstBlock {
+		if _, err := fmt.Fprint(tw, "\n"); err != nil {
+			return err
+		}
 	}
 	return tw.Flush()
 }
@@ -197,6 +299,18 @@ func renderInlineMarkdownRaw(runs []model.Run) string {
 	return renderInline(runs, false)
 }
 
+// renderInlineLiteral renders a run stream as literal text with no Markdown
+// markup at all. Inside a fenced code block the content IS the text: emitting
+// the inline vocabulary there wraps it in a second layer of markup, so an
+// inline-code run inside a fence came out as ```` ```\n`x=1`\n``` ````, and the
+// backticks re-read as content.
+func renderInlineLiteral(runs []model.Run) string {
+	sink := &mdInlineSink{literal: true}
+	projection.WalkInline(runs, sink)
+	sink.flush()
+	return sink.sb.String()
+}
+
 func renderInline(runs []model.Run, escapeAngle bool) string {
 	sink := &mdInlineSink{escapeAngle: escapeAngle}
 	projection.WalkInline(runs, sink)
@@ -213,6 +327,7 @@ type mdInlineSink struct {
 	sb          strings.Builder
 	open        []string // stack of closing delimiters (or "" for dropped tags)
 	escapeAngle bool     // backslash-escape literal '<' (paragraph text, not code)
+	literal     bool     // emit run text only, no markup (fenced code content)
 }
 
 func (s *mdInlineSink) Text(t string) {
@@ -245,6 +360,10 @@ func writeEscapingAngle(sb *strings.Builder, t string) {
 }
 
 func (s *mdInlineSink) Open(r *model.PcOpenRun) {
+	if s.literal {
+		s.open = append(s.open, "")
+		return
+	}
 	switch r.Type {
 	case "link:hyperlink":
 		// [text](href "title") — the link text is the paired content.
@@ -273,6 +392,10 @@ func (s *mdInlineSink) Close(*model.PcCloseRun) {
 }
 
 func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
+	if s.literal {
+		s.sb.WriteString(r.Equiv)
+		return
+	}
 	switch r.Type {
 	case "media:image", "link:image":
 		// Self-closing image (e.g. read from HTML <img>): the alt text lives in
@@ -297,26 +420,169 @@ func (s *mdInlineSink) flush() {
 // Non-table group brackets are transparent — their child blocks render in
 // place exactly as the block-only path did.
 func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
+	var pendingCells []*model.Block
+	flushCells := func() error {
+		if len(pendingCells) == 0 {
+			return nil
+		}
+		caption, rows := w.assembleFlatCells(pendingCells)
+		pendingCells = nil
+		if caption != "" {
+			if !w.firstBlock {
+				if _, err := fmt.Fprint(out, "\n\n"); err != nil {
+					return err
+				}
+			}
+			w.firstBlock = false
+			if _, err := fmt.Fprint(out, "**"+caption+"**"); err != nil {
+				return err
+			}
+		}
+		return w.writeTable(rows, out)
+	}
+
 	for i := 0; i < len(events); i++ {
 		part := events[i]
 		switch part.Type {
 		case model.PartGroupStart:
-			if g, ok := part.Resource.(*model.GroupStart); ok && g.Type == "table" {
+			g, ok := part.Resource.(*model.GroupStart)
+			if !ok {
+				continue
+			}
+			if err := flushCells(); err != nil {
+				return err
+			}
+			switch g.Type {
+			case "table":
 				end, rows := w.collectTable(events, i)
 				if err := w.writeTable(rows, out); err != nil {
 					return err
 				}
 				i = end
+			case "ordered-list", "list", "blockquote":
+				w.ctx = append(w.ctx, blockContext{
+					groupID: g.ID,
+					kind:    g.Type,
+					counter: listStartOf(g),
+				})
+			}
+		case model.PartGroupEnd:
+			if err := flushCells(); err != nil {
+				return err
+			}
+			if g, ok := part.Resource.(*model.GroupEnd); ok {
+				w.closeContext(g.ID)
 			}
 		case model.PartBlock:
-			if block, ok := part.Resource.(*model.Block); ok {
-				if err := w.writeBlockMarkdown(block, out); err != nil {
-					return err
+			block, ok := part.Resource.(*model.Block)
+			if !ok {
+				continue
+			}
+			// A bare table cell outside any table group means the reader knows
+			// each cell's address but has no row container to bracket — a
+			// spreadsheet worksheet. Buffer the run and assemble it as one
+			// table when it ends, the same fallback core/projection applies.
+			if isCellBlock(block) {
+				// Cells from a different source part belong to a different
+				// grid — a workbook's next worksheet. Flush first, or two
+				// sheets merge into one table whose rows come from different
+				// grids and whose columns mean different things.
+				if n := len(pendingCells); n > 0 &&
+					pendingCells[n-1].Properties["partPath"] != block.Properties["partPath"] {
+					if err := flushCells(); err != nil {
+						return err
+					}
 				}
+				pendingCells = append(pendingCells, block)
+				continue
+			}
+			if err := flushCells(); err != nil {
+				return err
+			}
+			if err := w.writeBlockMarkdown(block, out); err != nil {
+				return err
 			}
 		}
 	}
-	return nil
+	return flushCells()
+}
+
+// isDrawingMetadata reports whether a block carries a drawing's non-visual
+// property (its name, accessibility description, or object title) rather than
+// document content. Keyed on the reader's own "element" discriminator, not on
+// the block Type, because "property" also covers genuinely visible text — a VML
+// textpath string, an mc:AlternateContent fallback — and document metadata.
+func isDrawingMetadata(b *model.Block) bool {
+	if b.Type != "property" {
+		return false
+	}
+	switch b.Properties["element"] {
+	case "drawing-name", "drawing-descr", "drawing-title":
+		return true
+	}
+	return false
+}
+
+// isDocMetadata reports whether a block is a document core property — a
+// dc:title, dc:creator, cp:keywords extracted from an OPC package's
+// docProps/core.xml. Keyed on the part path because "property" as a Type also
+// covers visible text (a VML textpath string), and the element names alone
+// (title, subject, …) are too generic to claim across formats.
+func isDocMetadata(b *model.Block) bool {
+	return b.Type == "property" && b.Properties["partPath"] == "docProps/core.xml"
+}
+
+// isCellBlock reports whether a block carries a table-cell role.
+func isCellBlock(b *model.Block) bool {
+	role := b.SemanticRole()
+	return role == model.RoleTableCell || role == model.RoleTableHeader
+}
+
+// assembleFlatCells groups a run of bare cell blocks into rows on the per-cell
+// row hint (projection.PropFlatRow). Cells with no hint collapse into one row —
+// best-effort, matching projection.flushFlatCells, since row topology is not
+// recoverable from an unhinted block stream. A leading lone-cell row above a
+// wider grid is returned as a caption rather than a row.
+func (w *Writer) assembleFlatCells(cells []*model.Block) (caption string, rows []mdRow) {
+	lastKey, started := "", false
+	for _, c := range cells {
+		key, hasHint := c.Properties[projection.PropFlatRow]
+		if !started || (hasHint && key != lastKey) {
+			rows = append(rows, mdRow{})
+			lastKey, started = key, true
+		}
+		col := -1
+		if v, ok := c.Properties["column"]; ok {
+			n := 0
+			if _, err := fmt.Sscanf(v, "%d", &n); err == nil {
+				col = n
+			}
+		}
+		text := escapeTableCell(renderInlineMarkdown(w.blockRuns(c)))
+		rows[len(rows)-1].cells = append(rows[len(rows)-1].cells, mdCell{col: col, text: text})
+	}
+	// A lone cell in the first row of a wider grid is the table's title — a
+	// worksheet's "Q3 pricing" line above the real columns — not a row of the
+	// table. Left in place it would be promoted below and become a header row
+	// padded with empty cells, demoting the real header to body. Rendered from
+	// the source block, not the assembled cell, so table escaping does not
+	// apply to what is now a paragraph.
+	if len(rows) > 1 && len(rows[0].cells) == 1 && rows[0].cells[0].text != "" {
+		for _, r := range rows[1:] {
+			if len(r.cells) > 1 {
+				caption = renderInlineMarkdown(w.blockRuns(cells[0]))
+				rows = rows[1:]
+				break
+			}
+		}
+	}
+	// A spreadsheet's first row is its header row far more often than not, and
+	// GFM needs a header row regardless — promoting it beats emitting an empty
+	// one above real data.
+	if len(rows) > 1 {
+		rows[0].header = true
+	}
+	return caption, rows
 }
 
 // writeBlockMarkdown renders one block, role-prefixed, separated from prior
@@ -330,13 +596,68 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	if block.Type == "omml-nor" {
 		return nil
 	}
+	// A spreadsheet's shared-string table is deduplicated storage, not a
+	// position in the document: every string it holds is emitted again as the
+	// worksheet cell that uses it, carrying an address. Rendering both puts the
+	// whole sheet in the output twice. The blocks are still the right extraction
+	// unit for translation — this skip is generative-path only.
+	if block.Type == "shared-string" {
+		return nil
+	}
+	// An Excel ListObject's column names (xl/tables/*.xml) are definitions, not
+	// positions: the worksheet's own header-row cells already carry the same
+	// text at a real address. Rendering both appends the header row again as
+	// loose paragraphs after the table — the parts are read after the
+	// worksheets. Still the right extraction unit (a column name is visible in
+	// Excel's filter UI), so this too is generative-path only.
+	if block.Type == "table-column" {
+		return nil
+	}
+	// A drawing's name, alt text and object title are graphic metadata, not
+	// document flow. They are surfaced as their own blocks so an ingestion
+	// consumer and the editor can see them, but rendering each as a paragraph
+	// turns one image into four stray lines — a name, a filename, and the alt
+	// text twice, once per non-visual-properties element. The alt text reaches
+	// the output through the image run's own attributes instead.
+	if isDrawingMetadata(block) {
+		return nil
+	}
+	// A document's core properties — title, author, keywords, category — are
+	// metadata about the file, not positions in its flow. They are real
+	// translation units (a document title is translated), but rendering them as
+	// paragraphs appends the author's name and keyword list after the last real
+	// paragraph as if the document said them. Generative-path only.
+	if isDocMetadata(block) {
+		return nil
+	}
+
+	role0 := block.SemanticRole()
+	if role0 == "" {
+		role0 = block.Type
+	}
+	isItem := role0 == model.RoleListItem
+	quoteID := w.innermostQuoteID()
 
 	if !w.firstBlock {
-		if _, err := fmt.Fprint(out, "\n\n"); err != nil {
+		// Consecutive items of one list are a tight list: one newline, not the
+		// blank line every other block pair takes. A blank line between items
+		// makes CommonMark render each `<li>` as its own paragraph, which is a
+		// different document.
+		sep := "\n\n"
+		switch {
+		case isItem && w.prevListItem:
+			sep = "\n"
+		case quoteID != "" && quoteID == w.prevQuoteID:
+			// Blank line INSIDE the quote, not around it.
+			sep = "\n" + strings.TrimRight(strings.Repeat("> ", w.quoteDepth()), " ") + "\n"
+		}
+		if _, err := fmt.Fprint(out, sep); err != nil {
 			return err
 		}
 	}
 	w.firstBlock = false
+	w.prevListItem = isItem
+	w.prevQuoteID = quoteID
 
 	// Structure prefix/suffix, keyed on the normalized semantic role (WS6).
 	// SemanticRole drives clean cross-format export (any source → Markdown);
@@ -353,7 +674,7 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	// rather than emitting text that will not survive (#1603).
 	text := renderInlineMarkdown(w.blockRuns(block))
 	if role == model.RoleCode {
-		text = renderInlineMarkdownRaw(w.blockRuns(block))
+		text = renderInlineLiteral(w.blockRuns(block))
 	}
 
 	var prefix, suffix string
@@ -365,7 +686,21 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 			prefix = strings.Repeat("#", n) + " "
 		}
 	case model.RoleListItem:
+		// The marker belongs to the enclosing list, not the item: an ordered
+		// list numbers its items, an unordered one bullets them, and a nested
+		// list indents. With no list bracket in scope (a reader that emits bare
+		// items, or a single item quoted out of context) a bullet is the safe
+		// reading — it is what the writer has always emitted.
 		prefix = "- "
+		if l := w.innermostList(); l != nil {
+			if l.kind == "ordered-list" {
+				prefix = strconv.Itoa(l.counter) + ". "
+				l.counter++
+			}
+			if d := w.listDepth(); d > 1 {
+				prefix = strings.Repeat("  ", d-1) + prefix
+			}
+		}
 	case model.RoleCode:
 		// Re-emit the fenced code block's info string (language) so the
 		// do-not-translate signal survives cross-format export.
@@ -404,6 +739,19 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 			text = escapeLeadingBlockMarker(text)
 			text = escapeInteriorBlockBars(text)
 		}
+	}
+
+	// A block inside a <blockquote> bracket is quoted regardless of its own
+	// role: the marker goes on every line, including continuation lines, or
+	// the quotation ends after the first one.
+	if q := w.quoteDepth(); q > 0 {
+		marker := strings.Repeat("> ", q)
+		body := prefix + text + suffix
+		lines := strings.Split(body, "\n")
+		for i, ln := range lines {
+			lines[i] = marker + ln
+		}
+		prefix, text, suffix = "", strings.Join(lines, "\n"), ""
 	}
 
 	if _, err := fmt.Fprint(out, prefix, text, suffix); err != nil {

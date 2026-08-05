@@ -25,6 +25,11 @@ type Writer struct {
 	// re-opened from disk, avoiding a full second copy in memory (#608, S2).
 	originalContent []byte
 	sourcePath      string
+	// srcEntries caches the source archive's entry bytes, populated on first
+	// use by sourceEntry. A subfiltered entry is reconstructed by the
+	// sub-format writer, which needs the original bytes to splice translated
+	// text into rather than regenerating the markup from the content model.
+	srcEntries map[string][]byte
 }
 
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
@@ -135,8 +140,20 @@ func isSubfilteredLayer(layer *model.Layer) bool {
 	return ok
 }
 
-// writeChildLayer collects parts until the matching PartLayerEnd and writes them
-// through the appropriate sub-format writer.
+// writeChildLayer collects parts until the matching PartLayerEnd and returns the
+// reconstructed bytes for the entry that layer covers.
+//
+// Reconstruction splices translated text into the entry's *original* bytes
+// (replaceXHTMLText) rather than re-rendering the Part stream through the
+// sub-format writer. The sub-writer only has the content model, so it returns
+// normalized markup — a synthesized doctype, the XML declaration rewritten as a
+// comment, `<title>` duplicated into the body, indentation gone — and an
+// untouched EPUB stops round-tripping byte-for-byte. The splice touches only the
+// character data of the blocks that changed, which is the same guarantee the
+// non-subfiltered path gives.
+//
+// The sub-writer stays as the fallback for an entry with no original bytes,
+// where generating from the content model is the only option and is correct.
 func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts <-chan *model.Part) (string, error) {
 	var childParts []*model.Part
 	for {
@@ -157,6 +174,20 @@ func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts 
 	}
 
 collected:
+	// Preferred path: splice into the entry's original bytes.
+	if orig, ok := w.sourceEntry(layer.Properties["entry"]); ok {
+		childBlocks := make([]*model.Block, 0, len(childParts))
+		for _, p := range childParts {
+			if p.Type != model.PartBlock {
+				continue
+			}
+			if b, ok := p.Resource.(*model.Block); ok {
+				childBlocks = append(childBlocks, b)
+			}
+		}
+		return string(replaceXHTMLText(orig, childBlocks, w.Locale)), nil
+	}
+
 	if w.resolver == nil {
 		return w.fallbackChildText(childParts), nil
 	}
@@ -186,6 +217,38 @@ collected:
 	}
 
 	return buf.String(), nil
+}
+
+// sourceEntry returns the named entry's bytes from the source archive, reading
+// the archive once and caching every entry. Returns false when there is no
+// source, or the archive has no such entry — a generated entry with no original
+// is written by the sub-writer from the content model, which is correct for it.
+func (w *Writer) sourceEntry(name string) ([]byte, bool) {
+	if name == "" || !w.hasSource() {
+		return nil, false
+	}
+	if w.srcEntries == nil {
+		w.srcEntries = make(map[string][]byte)
+		zr, closeSrc, err := w.openSource()
+		if err != nil {
+			return nil, false
+		}
+		defer func() { _ = closeSrc() }()
+		for _, f := range zr.File {
+			if f.FileInfo().IsDir() {
+				continue
+			}
+			// Bounded by the shared zip limits: the writer may re-open the
+			// archive from disk and cannot rely on the reader's validation.
+			data, err := safeio.DefaultZipLimits.ReadEntry(f)
+			if err != nil {
+				continue
+			}
+			w.srcEntries[f.Name] = data
+		}
+	}
+	data, ok := w.srcEntries[name]
+	return data, ok
 }
 
 // fallbackChildText concatenates block source/target texts when no sub-writer is available.

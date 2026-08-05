@@ -252,10 +252,10 @@ type readerVisitor struct {
 	ch     chan<- model.PartResult
 }
 
-func (v *readerVisitor) onContainerStart(groupID, groupType string) {
+func (v *readerVisitor) onContainerStart(groupID, groupType string, props map[string]string) {
 	v.reader.emit(v.ctx, v.ch, &model.Part{
 		Type:     model.PartGroupStart,
-		Resource: &model.GroupStart{ID: groupID, Name: groupType, Type: groupType},
+		Resource: &model.GroupStart{ID: groupID, Name: groupType, Type: groupType, Properties: props},
 	})
 }
 

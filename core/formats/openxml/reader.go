@@ -140,13 +140,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	// For XLSX, pre-parse the shared string table
+	// For XLSX, pre-parse the shared string table and the sheet names.
 	if info.docType == docTypeXLSX {
 		info.sharedStrings, err = parseSharedStrings(zr)
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("openxml: parsing shared strings: %w", err)}
 			return
 		}
+		info.sheetNames = parseSheetNames(zr, info.relationships)
 	}
 
 	// Emit root layer
@@ -362,6 +363,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				blockCounter:  &blockCounter,
 				skeletonStore: r.skeletonStore,
 				sharedStrings: info.sharedStrings,
+				sheetNames:    info.sheetNames,
 			}
 			err = parser.parsePart(partData, partPath, emitBlock)
 			if err != nil {

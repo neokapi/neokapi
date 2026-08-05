@@ -51,6 +51,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		Encoding:   a.Encoding,
 		SourceLang: a.SourceLang,
 		TargetLang: locale,
+		ConvTiming: a.ConvTiming,
 
 		MemoryBackend: a.MemoryBackend,
 		TermsBackend:  a.TermsBackend,
@@ -119,6 +120,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"Encoding":          fieldShared,
 	"SourceLang":        fieldShared,
 	"TargetLang":        fieldOwned, // the whole point: one worker, one locale
+	"ConvTiming":        fieldShared,
 	"MemoryBackend":     fieldShared,
 	"TermsBackend":      fieldShared,
 	"BlocksBackend":     fieldShared,

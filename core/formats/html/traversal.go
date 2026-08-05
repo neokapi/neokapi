@@ -43,25 +43,55 @@ type walkVisitor interface {
 	// from runStart up to (but not including) runEnd.
 	onMixedContentBlock(blockID string, parent *html.Node, runStart, runEnd *html.Node, preserveWS bool)
 
-	// onContainerStart / onContainerEnd bracket a structural container (a table
-	// or a table row) as a Group in the Part stream, so cross-format writers and
-	// core/projection can rebuild the grid from the canonical table/table-row
-	// shape. groupType is "table" or "table-row".
-	onContainerStart(groupID, groupType string)
+	// onContainerStart / onContainerEnd bracket a structural container (a
+	// table, a table row, a list, a block quote) as a Group in the Part stream,
+	// so cross-format writers and core/projection can rebuild the shape from
+	// the canonical grouping rather than from a flat run of blocks. groupType
+	// is one of "table", "table-row", "ordered-list", "list", "blockquote".
+	// props carries container attributes the shape depends on — today an
+	// ordered list's "start" — and is nil when there are none.
+	onContainerStart(groupID, groupType string, props map[string]string)
 	onContainerEnd(groupID string)
 }
 
-// tableContainerGroup maps a table/row container element to its canonical
+// containerGroup maps a structural container element to its canonical
 // projection group type, or returns ("", false) for any other element.
-func tableContainerGroup(a atom.Atom) (string, bool) {
+func containerGroup(a atom.Atom) (string, bool) {
 	switch a {
 	case atom.Table:
 		return "table", true
 	case atom.Tr:
 		return "table-row", true
+	case atom.Ol:
+		// An ordered list's numbering is structure, not decoration: a cross-
+		// format writer has no other way to know these items are a sequence,
+		// and without the bracket every <ol> exports as a bullet list.
+		// core/projection already models it (RenderNode.Ordered on RoleList).
+		return "ordered-list", true
+	case atom.Ul:
+		return "list", true
+	case atom.Blockquote:
+		// A blockquote's paragraphs are ordinary paragraph blocks; only the
+		// bracket says they are quoted. Without it the quotation flattens into
+		// the surrounding prose and becomes indistinguishable from it.
+		return "blockquote", true
 	default:
 		return "", false
 	}
+}
+
+// containerProps returns the container attributes a cross-format writer needs
+// to reproduce the shape. An <ol start="N"> numbers from N, and losing that
+// renumbers the list from 1 — a different document when the list continues one
+// interrupted by other content.
+func containerProps(n *html.Node, groupType string) map[string]string {
+	if groupType != "ordered-list" {
+		return nil
+	}
+	if start := getAttr(n, "start"); start != "" {
+		return map[string]string{"start": start}
+	}
+	return nil
 }
 
 // domWalker traverses a parsed HTML DOM, assigning sequential block/data IDs
@@ -162,9 +192,9 @@ func (w *domWalker) walkElement(n *html.Node, translateNo bool) {
 	// DOM path (convert + inspect/preview); the byte-exact html→html tokenizer
 	// path is separate and unaffected. The cells themselves still emit as
 	// blocks below with their RoleTableCell/RoleTableHeader role.
-	if grp, ok := tableContainerGroup(n.DataAtom); ok {
+	if grp, ok := containerGroup(n.DataAtom); ok {
 		gid := w.nextGroupID()
-		w.visitor.onContainerStart(gid, grp)
+		w.visitor.onContainerStart(gid, grp, containerProps(n, grp))
 		defer w.visitor.onContainerEnd(gid)
 	}
 
