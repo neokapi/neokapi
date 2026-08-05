@@ -8,6 +8,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/host/storage/graph"
 )
 
 // projectStores memoizes the open project stores an App is using: at most one
@@ -21,6 +23,11 @@ import (
 type projectStores struct {
 	mu  sync.Mutex
 	dbs map[string]*projectdb.DB
+	// graphs holds the property-graph handle bound to each store's pool. It is
+	// memoized beside the store rather than inside projectdb because the graph
+	// implementation lives in the host module: core/projectdb is framework code
+	// and the arrow only points the other way.
+	graphs map[string]*graph.SQLiteGraphStore
 }
 
 // ensureProjectStores returns the App's store holder, creating it on first use.
@@ -31,7 +38,10 @@ func (a *App) ensureProjectStores() *projectStores {
 		if a.projectStores != nil {
 			return // pre-seeded from a parent App (converge worker clone)
 		}
-		a.projectStores = &projectStores{dbs: map[string]*projectdb.DB{}}
+		a.projectStores = &projectStores{
+			dbs:    map[string]*projectdb.DB{},
+			graphs: map[string]*graph.SQLiteGraphStore{},
+		}
 	})
 	return a.projectStores
 }
@@ -90,6 +100,53 @@ func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error)
 	return db, nil
 }
 
+// ErrNoProjectGraph reports that this build cannot hold a property graph,
+// because it has no file-backed SQLite driver. It wraps storage.ErrNoSQLite, so
+// a caller that already distinguishes the browser build needs no new check.
+var ErrNoProjectGraph = fmt.Errorf("project graph: %w", storage.ErrNoSQLite)
+
+// ProjectGraph returns the property graph bound to the project's store — the
+// `graph_nodes` / `graph_edges` tables inside `.kapi/store.db`, migrated under
+// their own `graph` ledger beside the block cache, the terms store, the content
+// memory and the unit working set (AD-039).
+//
+// Lifetime matches ProjectDB exactly: one handle per (App, project root), opened
+// on the store's own connection pool, memoized, safe to call concurrently. Do
+// NOT Close it — it never owned the pool, and Shutdown releases the store.
+//
+// The graph relates what the other subsystems hold; it does not duplicate them.
+// Edges key on durable identity (a block's content key, a unit key), never on a
+// reader's positional id, so a re-parse that renumbers a document leaves the
+// graph intact.
+//
+// On a build with no file-backed SQLite driver the store degrades to the JSON
+// sidecar and there are no graph tables: this returns ErrNoProjectGraph.
+func (a *App) ProjectGraph(ctx context.Context, root string) (*graph.SQLiteGraphStore, error) {
+	db, err := a.ProjectDB(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+	if db.Raw() == nil {
+		return nil, ErrNoProjectGraph
+	}
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return nil, fmt.Errorf("project graph: resolve root %q: %w", root, err)
+	}
+	s := a.ensureProjectStores()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if g, ok := s.graphs[abs]; ok {
+		return g, nil
+	}
+	g, err := graph.NewSQLiteGraphStore(db.Raw())
+	if err != nil {
+		return nil, fmt.Errorf("project graph: %w", err)
+	}
+	s.graphs[abs] = g
+	return g, nil
+}
+
 // projectLayoutAt is the layout of the project rooted at an absolute root. Only
 // the state directory matters to the store — the recipe may be named anything
 // when it arrived via `-p` — so the recipe path is deliberately left unset
@@ -107,6 +164,10 @@ func (a *App) closeProjectStores() {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	for root, g := range s.graphs {
+		_ = g.Close() // detaches; the pool belongs to the store below
+		delete(s.graphs, root)
+	}
 	for root, db := range s.dbs {
 		_ = db.Close()
 		delete(s.dbs, root)
