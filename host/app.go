@@ -64,6 +64,12 @@ type App struct {
 	SourceLang string
 	TargetLang string
 
+	// ConvTiming makes kconv report each file's conversion time on stderr —
+	// the in-process cost, so the figure is comparable with what conversion
+	// libraries publish, unlike wall-clocking the process from outside, which
+	// mostly measures binary start-up.
+	ConvTiming bool
+
 	// MemoryBackend, when non-nil, is returned by OpenMemorySQLite instead of
 	// opening a SQLite database. Used by the WASM browser build to inject
 	// a pre-seeded InMemoryStore so the tm / extract commands work without cgo.

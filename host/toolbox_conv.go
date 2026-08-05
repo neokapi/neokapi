@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/structdoc"
@@ -48,7 +49,16 @@ func (a *App) RunConv(ctx context.Context, args []string, toFmt registry.FormatI
 	}
 
 	for _, file := range files {
-		if cerr := a.convertDocument(ctx, file, toFmt, targetLoc, outPath); cerr != nil {
+		start := time.Now()
+		cerr := a.convertDocument(ctx, file, toFmt, targetLoc, outPath)
+		if cerr == nil && a.ConvTiming {
+			// Self-reported so the number excludes process start-up — the
+			// comparable figure for a conversion library. Milliseconds with the
+			// literal "ms" so it is trivially machine-parseable.
+			fmt.Fprintf(os.Stderr, "kconv: converted %s in %.2fms\n",
+				DisplayName(file), float64(time.Since(start).Nanoseconds())/1e6)
+		}
+		if cerr != nil {
 			// Ctrl-C is a global interrupt: stop and let cli.Run map it to exit 130.
 			if errors.Is(cerr, context.Canceled) {
 				return cerr
