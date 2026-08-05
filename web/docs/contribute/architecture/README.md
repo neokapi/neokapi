@@ -48,6 +48,8 @@ pseudocode) are separated into [Implementation Notes](/contribute/implementation
 | AD                          | Title         | Scope                                                                |
 | --------------------------- | ------------- | -------------------------------------------------------------------- |
 | [008](008-project-model.md) | Project Model | `kapi.yaml` recipe, `.kapi/` state, BlockStore interface, ProjectContext |
+| [033](033-project-state-model.md) | Project State Model | unit-decision record under `.kapi/units/`, working set, `kapi commit`, targetHash staleness |
+| [039](039-local-context-graph-store.md) | Local Context Graph Store | `.kapi/store.db` as the one derived database, shared subsystem tables, `graph_nodes`/`graph_edges`, local/server shape convergence |
 
 ## Intelligence
 

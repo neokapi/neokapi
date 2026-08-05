@@ -39,8 +39,7 @@ path can change without changing how a package is read.
 The package is a deterministic zip with a `manifest.json` carrying a per-member
 SHA-256 and a Merkle `rootHash`. It is the **at-rest twin** of the over-the-wire
 sync chunk set (`bowrain/core/proto/sync/v1`, content types
-`blocks / terms / tm / media`, where `tm` is the wire spelling for content
-memory).
+`blocks / terms / memory / media`).
 
 ## Context
 
@@ -61,15 +60,15 @@ equivalent:
 So there was no lossless way to serialize a whole project — to back it up, move
 it between machines, seed a fresh server or an offline desktop working copy, or
 build a deterministic test fixture. Critically, a lossy serialization cannot
-faithfully **regenerate the caches** (`blocks.db`, sync hashes, the redis hash
-cache) the platform builds from this content.
+faithfully **regenerate the derived stores** (the project database, sync hashes,
+the redis hash cache) the platform builds from this content.
 
 A second observation shaped the design: the project layout already separates
-**authoritative state** (the content memory, the terms store, and the manifest at
-the top of `.kapi/`) from
-**regenerable cache** (`cache/blocks.db`, extractions, `sync-cache.json` — "safe
-to delete and rebuild"). The thing worth packaging is the *authoritative
-content*, never the cache or secrets.
+**authoritative content** — the committed sources and the unit-decision record —
+from everything a run derives from them, which is the project's one database
+(`.kapi/store.db`, [AD-039](039-local-context-graph-store.md)) plus the
+free-to-delete `.kapi/cache/`. The thing worth packaging is the *authoritative
+content*, never the derived stores or secrets.
 
 ## Decision
 
@@ -129,13 +128,18 @@ root hash.
   translation industry. These remain the export/handoff path and are **never**
   package members, because they cannot represent neokapi's native fields.
 
-### 4. Pack authoritative content, not caches
+### 4. Pack authoritative content, not derived stores
 
-A `.kpz` bundles the authoritative content; unpacking re-seeds the stores and
-lets the regenerable caches rebuild. It **excludes** regenerable caches
-(`blocks.db`, the sync hash cache) and secrets (the `sync-cache.json` claim
+A `.kpz` bundles the authoritative content; unpacking re-seeds it and lets the
+project database rebuild from there. It **excludes** everything derived (the
+database's tables, the sync hash cache) and secrets (the `sync-cache.json` claim
 token). This makes the package the at-rest equivalent of the sync wire protocol:
 packing is the sync converters writing files instead of protobuf chunks.
+
+Membership is decided **per table, not per file**. Because every subsystem shares
+one database, "does this project have a terms store?" is a question about rows,
+so `pack` carries only the parts that hold something: an empty subsystem
+contributes no member, exactly as an absent one would.
 
 ### 5. A `.kpz` carries working state for hand-off and resume
 
@@ -165,14 +169,15 @@ rather than a step-by-step CLI verb family:
   transform is just the shadow cache making open → work → pack cheap. Day-to-day
   work is the ambient `.kapi` project.)
 - **Cached resume (project).** A project run executes against the project's
-  persistent block store (`core/blockstore` at `.kapi/cache/blocks.db`, wired via
-  `flow.WithBlockStore`). Because the store is append-only and content-addressed —
+  persistent block store (`core/blockstore`, the block tables of `.kapi/store.db`,
+  wired via `flow.WithBlockStore`). Because the store is append-only and
+  content-addressed —
   a tool appends an *overlay* keyed by `(kind, blockHash)` rather than rewriting a
   block — a `SessionTool` caches its per-block result and hydrates from it on a
   later run. Re-running a flow therefore **skips work already done**; the store
   *is* the workspace, resume is just running again.
 - **Project snapshot (`pack` / `unpack`).** For the whole project, `pack` exports
-  the block-store overlays, the authoritative content memory and terms store, the
+  the block-store overlays, the content memory and terms content, the
   source identity + skeletons, and the **full project recipe** (flows, plugins,
   defaults, content — §6) into a portable `.kpz`; `unpack` rehydrates it into
   another machine's `.kapi/` state dir, reconstituting a complete, runnable
@@ -188,8 +193,8 @@ affected work recomputes; and crash safety is automatic, since a crash that did
 not commit an overlay simply leaves it absent and the next run redoes it, with
 nothing to reconcile. An authoritative progress journal is deliberately
 **avoided**: it would be a second source of truth that can drift from the content
-(the dual-state footgun this codebase avoids — `sync-cache.json` and `blocks.db`
-are both explicitly regenerable). A journal cannot survive the content changing
+(the dual-state footgun this codebase avoids — `sync-cache.json` and the block
+tables are both explicitly regenerable). A journal cannot survive the content changing
 underneath it (a re-hashed block silently invalidates a "done" claim), so making
 it correct means re-deriving the content-addressing the store already provides.
 
@@ -251,14 +256,15 @@ path would escape the project root is refused rather than written.
 | plugins (declaration) + `requires` | recipe | recipe | travels (binaries re-resolved via registry) |
 | defaults, content, preset | recipe | recipe | travels |
 | `server:` / `hooks:` / `automations:` (Extras, any scope) | recipe Extras | recipe Extras | travels **inert** |
-| path-valued fields (`defaults.terms`, `terms_source`, `memory_source`, `state`, `redaction.rules`, `brand_voice.profile_file`, content `base` / `target`) | recipe | recipe | travels **contained** |
-| content memory / terms | `memory.db` / `terms.db` (authoritative) | `memory.json` / `terms.json` | travels (lossless) |
-| blocks + targets, annotations, in-progress overlays | `cache/blocks.db` (regenerable) | `blocks/*.kbf.json`, `annotations/*.overlays.jsonl`, `overlays.json` (authoritative) | travels |
+| path-valued fields (`terms_source`, `memory_source`, `redaction.rules`, `brand_voice.profile_file`, content `base` / `target`) | recipe | recipe | travels **contained** |
+| content memory / terms | committed `.memory.json` / `.terms.json` sources | `memory.json` / `terms.json` | travels (lossless) |
+| blocks + targets, annotations, in-progress overlays | block tables of `store.db` (derived) | `blocks/*.kbf.json`, `annotations/*.overlays.jsonl`, `overlays.json` (authoritative) | travels |
+| review decisions | `.kapi/units/*.jsonl` (committed) | bilingual profile ([AD-017](017-bilingual-format-interop.md)) | travels |
 | source identity (path, format, hash) | working tree | `manifest.json` | travels |
 | source skeleton (round-trip template) | `cache/extractions/.../skel-*.bin` | `skeletons/<id>` | travels |
 | raw source bytes | working tree `src/` | `source/<name>` | opt-in (`--with-source`) |
 | secrets (auth tokens, API keys) | OS keychain | — | **never travels** |
-| caches (`blocks.db`, `sync-cache.json`, extractions, collections) | `cache/` | — | regenerated on unpack |
+| derived stores and caches (`store.db`, `sync-cache.json`, extractions, collections) | `.kapi/` | — | regenerated on unpack |
 | plugin binaries | user / system install | — | re-resolved via `requires` / registry |
 | provenance | — | `history.jsonl` (opt-in) | travels (excluded from `rootHash`) |
 

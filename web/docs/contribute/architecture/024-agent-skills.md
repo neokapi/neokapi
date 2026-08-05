@@ -220,18 +220,19 @@ through a single command, `kapi apply` (the write sibling of `kapi inspect`):
 | `kind` | What it edits | How it lands |
 |---|---|---|
 | `content` | a block's text in a named `file` | byte-faithful format round-trip, drift- and inline-code guarded |
-| `term` | a term | committed `.terms.json` source → terms import → the terms store (`.kapi/terms.db`) |
-| `tm` | a content-memory pair | committed `.memory.json` source → memory import → the memory (`.kapi/memory.db`) |
+| `term` | a term | committed `.terms.json` source → terms import → the terms tables of `.kapi/store.db` |
+| `memory` | a content-memory pair | committed `.memory.json` source → memory import → the memory tables of `.kapi/store.db` |
 | `brand` | a brand vocabulary rule | committed brand profile YAML → brand-store import ([AD-022](022-brand-voice.md)) |
+| `review` | a unit's review decision | staged in the working set, published to `.kapi/units/` by `kapi commit` ([AD-033](033-project-state-model.md)) |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load/save |
 
 Two properties make this one verb rather than five:
 
-- **Asset edits write the committed source, then compile the cache.** An asset is
-  edited in the git-tracked artifact the recipe binds (the
+- **Asset edits write the committed source, then compile the projection.** An
+  asset is edited in the git-tracked artifact the recipe binds (the
   `.terms.json`/`.memory.json` bundle,
   the brand YAML, the recipe), and the *existing* importer refreshes the
-  gitignored SQLite cache from it. The backing store is therefore written by
+  gitignored database from it. The backing store is therefore written by
   exactly one path, `git diff` is the uniform review surface for every kind, and
   the operation is idempotent — an entry already in the desired state is a
   no-op, so re-running a partly-applied change-set is safe.
