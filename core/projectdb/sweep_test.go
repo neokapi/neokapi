@@ -271,6 +271,55 @@ func TestFold_MovesVaultIntoWork(t *testing.T) {
 	assert.NoDirExists(t, flatVaultDir(layout))
 }
 
+// The per-batch redaction sidecars are the one thing under the cache root that
+// no rerun reproduces: they hold the originals withheld from an extract → merge
+// batch, so a batch still in flight cannot be restored without them. They move
+// out before the cache root is deleted.
+func TestFold_MovesRedactionSidecarsOutOfTheCache(t *testing.T) {
+	layout := newLayout(t)
+	flatRedaction := filepath.Join(flatCacheDir(layout), "redaction")
+	require.NoError(t, os.MkdirAll(flatRedaction, 0o755))
+
+	sidecar := []byte(`{"placeholder":"[[EMAIL_1]]","original":"ada@example.com"}`)
+	require.NoError(t, os.WriteFile(filepath.Join(flatRedaction, "b-inflight.json"), sidecar, 0o600))
+	// Something regenerable in the same cache root, to show the move is
+	// targeted rather than a reprieve for the whole directory.
+	require.NoError(t, os.MkdirAll(filepath.Join(flatCacheDir(layout), "docs"), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(flatCacheDir(layout), "docs", "parsed.json"), []byte("cached"), 0o644))
+
+	openStore(t, layout)
+
+	moved, err := os.ReadFile(layout.RedactionSidecarPath("b-inflight"))
+	require.NoError(t, err, "the batch sidecar landed under .kapi/work/cache/redaction/")
+	assert.Equal(t, sidecar, moved, "the withheld originals move byte-identical")
+
+	assert.NoDirExists(t, flatCacheDir(layout), "the rest of the flat cache still goes")
+}
+
+// A sidecar already at the destination is not overwritten, and the source is
+// not deleted unread — losing an original is the failure this fold exists to
+// avoid, so a collision is left for a person to resolve.
+func TestFold_RedactionSidecarCollisionKeepsBothCopies(t *testing.T) {
+	layout := newLayout(t)
+	flatRedaction := filepath.Join(flatCacheDir(layout), "redaction")
+	require.NoError(t, os.MkdirAll(flatRedaction, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(flatRedaction, "b-1.json"), []byte(`{"original":"the flat copy"}`), 0o600))
+
+	require.NoError(t, os.MkdirAll(filepath.Dir(layout.RedactionSidecarPath("b-1")), 0o755))
+	current := []byte(`{"original":"the current copy"}`)
+	require.NoError(t, os.WriteFile(layout.RedactionSidecarPath("b-1"), current, 0o600))
+
+	openStore(t, layout)
+
+	kept, err := os.ReadFile(layout.RedactionSidecarPath("b-1"))
+	require.NoError(t, err)
+	assert.Equal(t, current, kept, "the destination sidecar is never overwritten")
+	assert.FileExists(t, filepath.Join(flatRedaction, "b-1.json"),
+		"and the source stays, visibly, rather than being deleted unread")
+}
+
 // The flat store and cache are projections under a path nothing reads any
 // more. They go; nothing is carried out of them.
 func TestFold_RetiresFlatStoreAndCache(t *testing.T) {

@@ -54,6 +54,8 @@ import (
 func foldLayoutForward(layout project.Layout) {
 	moveDirContents(flatDecisionsDir(layout), layout.DecisionsDir())
 	moveDirContents(flatVaultDir(layout), layout.VaultDir())
+	// Before the cache root is deleted, and that ordering is the whole point.
+	moveDirContents(flatRedactionDir(layout), currentRedactionDir(layout))
 	retireFlatProjections(layout)
 }
 
@@ -107,19 +109,62 @@ func flatVaultDir(layout project.Layout) string {
 	return filepath.Join(layout.StateDir, project.VaultDirName)
 }
 
+// flatRedactionDir is the per-batch redaction sidecar directory under the flat
+// cache root, and currentRedactionDir is where it lands.
+//
+// This one moves even though it is under a cache, which looks like an exception
+// and is not. The sidecars hold the ORIGINALS withheld from an extract → merge
+// batch, so a batch still in flight cannot be restored without them — the same
+// property that put the project-scoped vault outside cache/ in the first place.
+// "`rm -rf` the cache is free" is a promise about work a rerun reproduces, and
+// it does not stretch to cover a pending batch's only copy of its own inputs.
+//
+// A user who deletes the directory themselves has still made that choice. This
+// fold is not the user, and a layout move is not the moment to make it for them.
+func flatRedactionDir(layout project.Layout) string {
+	return filepath.Join(flatCacheDir(layout), project.RedactionDirName)
+}
+
+func currentRedactionDir(layout project.Layout) string {
+	return filepath.Join(layout.CacheDir(), project.RedactionDirName)
+}
+
 // retireFlatProjections deletes the flat layout's derived state: the store, its
-// browser-build sidecar, and the cache root. Every one of them rebuilds from a
-// committed source, and the one thing in the flat store that did not — a staged
-// decision — is not carried across: the fold runs before any store is open, and
-// opening the old one to read it would mean two pools on two schemas that are
-// byte-identical apart from their path. The trade is deliberate and bounded at
-// the decisions staged between two releases a day apart.
+// browser-build sidecar, and whatever is left of the cache root once the
+// redaction sidecars have been moved out of it by the caller. Every one of them
+// rebuilds from a committed source, and the one thing in the flat store that
+// did not — a staged decision — is not carried across: the fold runs before any
+// store is open, and opening the old one to read it would mean two pools on two
+// schemas that are byte-identical apart from their path. The trade is
+// deliberate and bounded at the decisions staged between two releases a day
+// apart.
+//
+// Callers must fold anything unreproducible out of the cache root first. Today
+// that is exactly one directory; if a second ever appears, it belongs beside the
+// first in foldLayoutForward, not in an exception carved out down here.
 func retireFlatProjections(layout project.Layout) {
 	removeDatabase(filepath.Join(layout.StateDir, project.StoreFileName))
 	sidecar := filepath.Join(layout.StateDir, project.StoreSidecarFileName)
 	_ = os.Remove(sidecar)
 	_ = os.Remove(sidecar + ".tmp")
-	_ = os.RemoveAll(flatCacheDir(layout))
+
+	// Entry by entry rather than RemoveAll, so a redaction sidecar the move
+	// left behind is not deleted by the cleanup that follows it. Stranding a
+	// withheld original and then removing its directory anyway would make the
+	// careful move upstream worth nothing.
+	entries, err := os.ReadDir(flatCacheDir(layout))
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.Name() == project.RedactionDirName {
+			continue
+		}
+		_ = os.RemoveAll(filepath.Join(flatCacheDir(layout), e.Name()))
+	}
+	// Succeeds only once nothing is left, which is exactly when no sidecar was
+	// stranded.
+	_ = os.Remove(flatCacheDir(layout))
 }
 
 // oldBlockStorePath is the four-file layout's block cache, under the FLAT cache
