@@ -131,9 +131,13 @@ func (k *cacheStore) Close() error {
 
 type cacheSession struct {
 	store *cacheStore
-	tx    *sql.Tx // nil in autocommit mode: statements run on the pool
-	ctx   context.Context
-	done  bool
+	// tx is nil in autocommit mode: statements run on the pool. On a gated
+	// handle it also carries the write permit, taken at Begin and returned at
+	// Commit or Rollback — so a session is the project store's single writer
+	// for its whole life, which is what a purge-and-refill needs anyway.
+	tx   *storage.Tx
+	ctx  context.Context
+	done bool
 }
 
 // q returns the session's statement runner: its transaction, or the shared

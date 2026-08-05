@@ -137,7 +137,7 @@ func (tm *SQLiteStore) AddWithStream(ctx context.Context, entry Entry, stream st
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	if err := tm.addInTx(ctx, tx, entry, stream); err != nil {
+	if err := tm.addInTx(ctx, tx.Tx, entry, stream); err != nil {
 		_ = tx.Rollback()
 		return err
 	}
@@ -163,7 +163,7 @@ func (tm *SQLiteStore) BulkAddWithStream(ctx context.Context, entries []Entry, s
 		return fmt.Errorf("begin tx: %w", err)
 	}
 
-	stmts, err := prepareBulkStmts(ctx, tx)
+	stmts, err := prepareBulkStmts(ctx, tx.Tx)
 	if err != nil {
 		_ = tx.Rollback()
 		return err
