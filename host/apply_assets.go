@@ -931,13 +931,3 @@ func resolveUnder(root, p string) string {
 	}
 	return filepath.Join(root, p)
 }
-
-// loadRecipeForRoot loads the recipe at <root>/<dir>.kapi-style layout via the
-// resolved layout, used when only the root is in hand.
-func (a *App) loadRecipeForRoot(root string) (*project.KapiProject, error) {
-	layout, err := project.ResolveLayout(root)
-	if err != nil {
-		return nil, err
-	}
-	return project.LoadWithOptions(layout.RecipePath, project.LoadOptions{SkipRequiresCheck: true})
-}

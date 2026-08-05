@@ -89,20 +89,23 @@ func TestProjectDB_SharedAcrossConvergeWorkers(t *testing.T) {
 
 	locales := []string{"fr", "de", "nb", "ja", "es", "it", "pt", "nl"}
 	handles := make([]*projectdb.DB, len(locales))
+	errs := make([]error, len(locales))
 	var wg sync.WaitGroup
 	for i, locale := range locales {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			worker := a.convergeWorker(locale, newConvergeTap(locale))
 			db, werr := worker.ProjectDB(context.Background(), root)
-			require.NoError(t, werr)
+			if werr != nil {
+				errs[i] = werr
+				return
+			}
 			handles[i] = db
-		}()
+		})
 	}
 	wg.Wait()
 
 	for i, db := range handles {
+		require.NoError(t, errs[i])
 		assert.Same(t, parent, db, "worker %d (%s) must share the parent's handle", i, locales[i])
 	}
 }
@@ -117,19 +120,24 @@ func TestProjectDB_ConcurrentFirstOpenYieldsOneHandle(t *testing.T) {
 
 	const workers = 8
 	handles := make([]*projectdb.DB, workers)
+	errs := make([]error, workers)
 	var wg sync.WaitGroup
 	for i := range workers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			worker := a.convergeWorker("fr", newConvergeTap("fr"))
 			db, err := worker.ProjectDB(context.Background(), root)
-			require.NoError(t, err)
+			if err != nil {
+				errs[i] = err
+				return
+			}
 			handles[i] = db
-		}()
+		})
 	}
 	wg.Wait()
 
+	for i := range workers {
+		require.NoError(t, errs[i])
+	}
 	for i := 1; i < workers; i++ {
 		assert.Same(t, handles[0], handles[i], "concurrent first opens must settle on one handle")
 	}

@@ -80,7 +80,7 @@ func (a *App) RunFlow(ctx context.Context, cmd Command, flowName string, opts Fl
 				return errKpzTransformOutput
 			}
 			doPack, _ := cmd.Flags().GetBool("pack")
-			return a.transformKpzInPlace(ctx, inputPaths[0], flowName, func() ([]tool.Tool, func(), error) { //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
+			return a.transformKpzInPlace(ctx, inputPaths[0], flowName, func() ([]tool.Tool, func(), error) {
 				return a.buildFlowTools(flowName, inputPaths[0], cmd)
 			}, a.TargetLang, "", doPack)
 		}
@@ -260,7 +260,7 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	}
 
 	// Build tools.
-	flowTools, cleanup, err := a.buildFlowTools(flowName, inputPath, cmd) //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
+	flowTools, cleanup, err := a.buildFlowTools(flowName, inputPath, cmd)
 	if err != nil {
 		return err
 	}
@@ -790,7 +790,7 @@ func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputP
 // events are recorded. Returns trace nodes (nil when recorder is nil).
 func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate, outputBase, registryName string, reader format.DataFormatReader, mergedConfig map[string]any, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
 	// Build fresh tool instances for this file (thread-safe in batch mode).
-	flowTools, cleanup, err := a.buildFlowTools(flowName, inputPath, cmd) //nolint:contextcheck // buildFlowTools resolves project bindings; ctx flows via the Command (CmdContext), not a detached context
+	flowTools, cleanup, err := a.buildFlowTools(flowName, inputPath, cmd)
 	if err != nil {
 		return nil, err
 	}

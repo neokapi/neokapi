@@ -46,13 +46,11 @@ func TestProjectGraph_ConcurrentFirstOpenYieldsOneHandle(t *testing.T) {
 	handles := make([]any, callers)
 	var wg sync.WaitGroup
 	for i := range callers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			g, err := a.ProjectGraph(t.Context(), root)
 			assert.NoError(t, err)
 			handles[i] = g
-		}()
+		})
 	}
 	wg.Wait()
 	for i := 1; i < callers; i++ {

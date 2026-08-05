@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/occurrence"
 )
@@ -88,12 +89,5 @@ func localeLabel(locale string) string {
 }
 
 func joinAll(in []string) string {
-	out := ""
-	for i, s := range in {
-		if i > 0 {
-			out += ", "
-		}
-		out += s
-	}
-	return out
+	return strings.Join(in, ", ")
 }

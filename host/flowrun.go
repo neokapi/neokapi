@@ -265,7 +265,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	// still surfaces.
 	bound := opts.ProjectPath != "" && ctx.Err() == nil
 	if bound {
-		//nolint:contextcheck // ctx flows via the Command (CmdContext), not a detached context
+
 		if err := a.resolveGroupBindings(cmd, proj, opts.ProjectPath, groups); err != nil {
 			return nil, err
 		}

@@ -2,6 +2,7 @@ package host
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -72,7 +73,7 @@ func (a *App) ensureProjectStores() *projectStores {
 // empty root is an error, because "no project" is a decision the caller makes.
 func (a *App) ProjectDB(ctx context.Context, root string) (*projectdb.DB, error) {
 	if root == "" {
-		return nil, fmt.Errorf("project store: no project root")
+		return nil, errors.New("project store: no project root")
 	}
 	abs, err := filepath.Abs(root)
 	if err != nil {

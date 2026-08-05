@@ -144,6 +144,12 @@ linters:
       # store that outlives the triggering call. Same P06 effort retires it.
       - linters: [contextcheck]
         text: "Migrate->Exec"
+      # flow.PartCache.OpenDocument is a framework interface without a ctx
+      # parameter; the CLI's doc-cache lookup behind it is a read-only probe
+      # of local rebuildable SQLite. Threading ctx through the PartCache
+      # contract is the same P06-class storage-layer effort.
+      - linters: [contextcheck]
+        text: "OpenDocument->lookup"
       # memory's FTS5/fuzzy index rebuild is a ctx-less local SQLite
       # maintenance API, so compileMemorySource (which does hold a ctx) trips
       # contextcheck when it calls it.

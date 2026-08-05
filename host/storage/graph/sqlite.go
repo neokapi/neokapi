@@ -411,7 +411,7 @@ func (s *SQLiteGraphStore) ShortestPath(ctx context.Context, fromID, toID string
 }
 
 func (s *SQLiteGraphStore) BulkCreateNodes(ctx context.Context, nodes []*coreg.Node) error {
-	tx, err := s.db.Begin() //nolint:noctx // batch graph operation
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
@@ -442,7 +442,7 @@ func (s *SQLiteGraphStore) BulkCreateNodes(ctx context.Context, nodes []*coreg.N
 }
 
 func (s *SQLiteGraphStore) BulkCreateEdges(ctx context.Context, edges []*coreg.Edge) error {
-	tx, err := s.db.Begin() //nolint:noctx // batch graph operation
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}

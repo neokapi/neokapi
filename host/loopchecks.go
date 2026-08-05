@@ -74,7 +74,7 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, units
 
 	// Glossary per locale, resolved once (opens the terms store).
 	glossaryByLocale := map[string][]coretools.GlossaryEntry{}
-	glossaryFor := func(locale string) ([]coretools.GlossaryEntry, error) { //nolint:contextcheck // ctx flows via the Command (CmdContext), not a detached context
+	glossaryFor := func(locale string) ([]coretools.GlossaryEntry, error) {
 		if g, ok := glossaryByLocale[locale]; ok {
 			return g, nil
 		}

@@ -1,6 +1,7 @@
 package host_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -127,11 +128,11 @@ func TestContextSearchResultRendersUses(t *testing.T) {
 }
 
 func notesJoined(res *host.ContextSearchResult) string {
-	out := ""
+	var b strings.Builder
 	for _, n := range res.Notes {
-		out += n + "\n"
+		b.WriteString(n + "\n")
 	}
-	return out
+	return b.String()
 }
 
 type testWriter struct{ b []byte }
