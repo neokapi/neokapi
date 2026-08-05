@@ -2,24 +2,31 @@
 id: 008-project-model
 sidebar_position: 8
 title: "AD-008: Kapi Project Model"
-description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root and a .kapi/ state directory. The recipe captures workflow defaults; the state directory holds one derived database, the committed unit-decision record, and the regenerable caches."
-keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, state directory, store.db, architecture decision]
+description: "Architecture decision: a kapi project is a folder with a kapi.yaml recipe at its root and a committed .kapi/ directory holding the project's context. Machine state is confined to one internal directory, .kapi/work/, which is the only gitignored path."
+keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, context graph, store.db, architecture decision]
 ---
 
 # AD-008: Kapi Project Model
 
 ## Summary
 
-A kapi project is a folder containing a `kapi.yaml` recipe at its root
-and a sibling `.kapi/` state directory. The recipe captures the user's
-declarative intent — identity, content collections, flows, store selection,
-plus any platform extensions (such as a `server:` block) when a platform layer
-is in use — while `.kapi/` holds working state: one derived database
-(`store.db`, [AD-039](039-local-context-graph-store.md)), the committed
-unit-decision record under `.kapi/units/`, and all regenerable caches under
-`.kapi/cache/`. Review decisions — which a plain target file cannot carry — are
-staged in that database and published to `.kapi/units/` by `kapi commit`. A
-`ProjectContext` resolves the recipe into a runtime configuration, and a
+A kapi project is a folder containing a `kapi.yaml` recipe at its root and a
+sibling `.kapi/` directory. The recipe captures the user's declarative intent —
+identity, content collections, flows, store selection, plus any platform
+extensions (such as a `server:` block) when a platform layer is in use.
+`.kapi/` is the one directory kapi owns, and it is **committed**: it holds the
+project's context — terms, content memory, brand voice, the decision record —
+alongside the manifest, the filter configuration and the file-per-flow
+definitions.
+
+Machine state is confined to one internal directory, `.kapi/work/`, which is
+gitignored. This is the model git itself uses: `.git` is the tool's directory
+and its index lives inside it. One derived database, `.kapi/work/store.db`
+([AD-039](039-local-context-graph-store.md)), holds every subsystem's tables;
+review decisions — which a plain target file cannot carry — are staged there and
+published to `.kapi/context/decisions/` by `kapi commit`.
+
+A `ProjectContext` resolves the recipe into a runtime configuration, and a
 `BlockStore` interface with pluggable providers gives tools random-access storage
 beyond the streaming pipeline.
 
@@ -58,32 +65,39 @@ Ownership zones at the project root:
 
 ```
 my-app/
-├── kapi.yaml               ← RECIPE (user edits; a conventional YAML config file)
-├── context/                ← COMMITTED CONTEXT (authored, reviewed in a PR)
-│   ├── terms.json          ← terms source (defaults.terms_source, AD-010)
-│   └── memory.json         ← content-memory seed (defaults.memory_source, AD-009)
-├── .kapi/                  ← WORKING STATE (kapi maintains)
-│   ├── manifest.yaml       ← bookkeeping: block counts, fingerprints, timestamps
-│   ├── store.db            ← the one local database (AD-039) — derived, gitignored
-│   ├── units/              ← unit-decision record (AD-033) — committed
-│   │   └── <document>.jsonl
-│   ├── flows/              ← optional file-per-flow definitions (authored)
+├── kapi.yaml                   ← RECIPE (user edits; a conventional YAML config file)
+├── .kapi/                      ← COMMITTED (authored, reviewed in a PR)
+│   ├── manifest.yaml           ← bookkeeping: block counts, fingerprints, timestamps
+│   ├── filters.json            ← shared reader/writer configuration
+│   ├── filters.local.json      ← personal overrides — gitignored
+│   ├── flows/                  ← optional file-per-flow definitions (authored)
 │   │   └── <flow>.yaml
-│   └── cache/              ← all regenerable caches under one roof
-│       ├── sync-cache.json ← kapi push/pull state (only with server: block)
-│       ├── extractions/    ← per-extract batch state (AD-017)
-│       │   └── <batch-id>/
-│       │       ├── manifest.yaml         ← source→output pairs, leverage, hashes
-│       │       ├── skel-<src-hash>.bin   ← per-source skeleton for merge
-│       │       └── suggestions.jsonl     ← sub-threshold memory matches
-│       └── collections/    ← overlay layers per collection
-│           └── ui/
-│               ├── targets/{fr,de}.json
-│               ├── annotations/{terms,memory-matches,qa}.json
-│               └── skeletons/
-├── src/                    ← authored sources (user-owned)
+│   ├── context/                ← THE CONTEXT GRAPH
+│   │   ├── terms.json          ← terms source (defaults.terms_source, AD-010)
+│   │   ├── memory.json         ← content-memory seed (defaults.memory_source, AD-009)
+│   │   ├── memory/             ← further seeds, one per content surface
+│   │   │   └── <surface>.memory.json
+│   │   ├── brand-voice.yaml    ← the voice profile (AD-022)
+│   │   └── decisions/          ← the committed decision record (AD-033)
+│   │       └── <document>.jsonl
+│   └── work/                   ← ALL MACHINE STATE — gitignored
+│       ├── store.db            ← the one local database (AD-039)
+│       ├── vault/              ← withheld originals (AD-020) — local-only
+│       └── cache/              ← free to delete, always
+│           ├── sync-cache.json ← kapi push/pull state (only with server: block)
+│           ├── extractions/    ← per-extract batch state (AD-017)
+│           │   └── <batch-id>/
+│           │       ├── manifest.yaml         ← source→output pairs, leverage, hashes
+│           │       ├── skel-<src-hash>.bin   ← per-source skeleton for merge
+│           │       └── suggestions.jsonl     ← sub-threshold memory matches
+│           └── collections/    ← overlay layers per collection
+│               └── ui/
+│                   ├── targets/{fr,de}.json
+│                   ├── annotations/{terms,memory-matches,qa}.json
+│                   └── skeletons/
+├── src/                        ← authored sources (user-owned)
 │   └── **/*.tsx
-└── i18n/                   ← generated translations (format writer output)
+└── i18n/                       ← generated translations (format writer output)
     └── {de,fr}.json
 ```
 
@@ -103,34 +117,62 @@ Ownership:
   `.overlays.jsonl` — so `jq`, GitHub, and syntax highlighting keep working
   while the name stays self-describing. Only `.kpz`, a binary zip nobody
   hand-edits, keeps a dedicated extension.
-- **`context/`** — the committed context, authored and reviewed in a pull
+- **`.kapi/context/`** — the context graph, authored and reviewed in a pull
   request. `terms.json` is the terms source ([AD-010](010-terminology.md)) bound
   by `defaults.terms_source`; unbound, it resolves through the ladder that AD-010
   describes. `memory.json` is a content-memory *seed*
   ([AD-009](009-content-memory.md)) bound by `defaults.memory_source`, and has no
   unbound fallback: a project has one set of terms but *many* memory bundles, one per
-  content surface, so a seed is always named rather than guessed.
-- **`.kapi/units/`** — the committed, git-tracked record of per-unit review
-  decisions (the review ladder: approvals, sign-off, parking) that a plain target
-  file cannot hold — JSON Lines, one shard per document
+  content surface, so a seed is always named rather than guessed. `brand-voice.yaml`
+  is the voice profile ([AD-022](022-brand-voice.md)). Both recipe keys bind any
+  path — these are the conventional homes, not the only ones.
+- **`.kapi/context/decisions/`** — the committed, git-tracked record of per-unit
+  review decisions (the review ladder: approvals, sign-off, parking) that a plain
+  target file cannot hold — JSON Lines, one shard per document
   ([AD-033](033-project-state-model.md)). Written by `kapi commit`, not
   hand-edited, so a decision travels with the project. Distinct from the content
   memory, which is recycle leverage, not a decision carrier. See
   [the project store](/kapi/project-store).
-- **`.kapi/`** — kapi's. One derived database, `store.db`, holds every
-  subsystem's tables — block cache, terms, content memory, the unit-state working
-  set, and the context graph ([AD-039](039-local-context-graph-store.md)). It is
-  gitignored and rebuilt from the committed sources; `.kapi/.gitignore` carries
-  `cache/` and the `*.db*` patterns while `units/` stays tracked. All regenerable
-  caches live under `.kapi/cache/`, which users can blow away without losing
-  anything at all.
+- **`.kapi/work/`** — everything the machine derives, and the only thing kapi
+  keeps out of git. One database, `store.db`, holds every subsystem's tables —
+  block cache, terms, content memory, the unit-state working set, and the context
+  graph ([AD-039](039-local-context-graph-store.md)). Beside it sit the caches and
+  the redaction vault ([AD-020](020-redaction.md)).
 - **`src/**`** — user-authored content. Referenced by the recipe; never moved
 into `.kapi/`.
 - **Writer outputs** (e.g. `i18n/{locale}.json`) — produced by format writers
   the recipe declares. The runtime consumes these; kapi does not.
 
+### One directory, one ignore rule
+
+`.kapi/` is committed and `.kapi/work/` is not, which makes the ignore contract
+two lines with no negation in it:
+
+```gitignore
+/.kapi/work/
+/.kapi/filters.local.json
+```
+
+The second line is the personal filter overlay — a developer's own reader
+settings, which are theirs and not the project's. Nothing else in `.kapi/` is
+ignored, and nothing ignored has to be excepted back in. An earlier layout
+scattered committed and derived paths through the same directory and needed a
+negation to rescue the committed ones, which git only honours if the parent was
+never ignored — a rule that is easy to state and easy to get wrong. Confining
+derivation to one subdirectory removes the question.
+
+What deleting costs, stated exactly:
+
+- `rm -rf .kapi/work/cache` is **always free**. Everything under it is rebuilt on
+  the next run.
+- `rm -rf .kapi/work` costs two things. The decisions staged since the last `kapi
+  commit` live only in `store.db`, and the redaction vault under
+  `.kapi/work/vault/` holds withheld originals that are **local-only and not
+  regenerable** ([AD-020](020-redaction.md)) — deliberately never committed and
+  never synced, so nothing anywhere else has a copy.
+
 The pairing preserves the git-like shape of a committed config file beside a
-tool-managed state directory: `kapi.yaml` alongside `.kapi/`.
+tool-owned directory: `kapi.yaml` alongside `.kapi/`.
 
 ### Recipe schema
 
@@ -336,7 +378,7 @@ timestamps. Users do not hand-edit it. Deleting it is safe — it rebuilds from
 
 ### Extraction manifests
 
-`.kapi/cache/extractions/<batch-id>/manifest.yaml` records each `kapi extract`
+`.kapi/work/cache/extractions/<batch-id>/manifest.yaml` records each `kapi extract`
 run (see [AD-017](017-bilingual-format-interop.md)): the emitted
 source→output pairs, per-file source SHA-256, memory leverage counts, the
 XLIFF / PO version, and skeleton filenames. The batch id is stamped in
@@ -394,7 +436,7 @@ type Capabilities struct {
 | Provider | Backing                              | Use case                                         |
 | -------- | ------------------------------------ | ------------------------------------------------ |
 | `memory` | Go maps                              | ephemeral flows, tests, ad-hoc CLI invocations   |
-| `sqlite` | block tables in `.kapi/store.db`     | default for kapi projects, long-lived local work |
+| `sqlite` | block tables in `.kapi/work/store.db`     | default for kapi projects, long-lived local work |
 
 Tools never open the database directly — they operate on a session. Swapping
 defines the interface. In the browser the block store is a path-keyed in-memory
@@ -623,6 +665,6 @@ its folder (which contains `kapi.yaml`) and operates on it.
 - [AD-013: Kapi CLI](013-kapi-cli.md) — CLI use of projects
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — desktop app use of projects
 - [AD-033: Project State Model](033-project-state-model.md) — the unit-decision record
-- [AD-039: The Local Context Graph Store](039-local-context-graph-store.md) — `.kapi/store.db`
+- [AD-039: The Local Context Graph Store](039-local-context-graph-store.md) — `.kapi/work/store.db`
 - [Flow Steps Format](/contribute/implementation/flow-steps-format) — shared flow syntax
 - [kapi.yaml Project File](/contribute/implementation/kapi-project-file) — schema reference
