@@ -15,6 +15,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/kpz"
 	"github.com/neokapi/neokapi/memory"
 )
@@ -54,9 +55,8 @@ content:
 	// `pack` correctly refuses ("nothing to pack"), which is its own contract
 	// and is asserted separately.
 	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
-	tm, err := memory.NewSQLiteStore(filepath.Join(root, project.StateDirName, "memory.db"))
-	require.NoError(t, err)
-	require.NoError(t, tm.Add(context.Background(), memory.Entry{
+	db := openProjectStore(t, root)
+	require.NoError(t, db.Memory().Add(context.Background(), memory.Entry{
 		ID:          "rt-1",
 		HintSrcLang: "en",
 		Variants: map[model.LocaleID][]model.Run{
@@ -64,8 +64,19 @@ content:
 			"nb": {{Text: &model.TextRun{Text: "Hei"}}},
 		},
 	}))
-	require.NoError(t, tm.Close())
+	require.NoError(t, db.Close())
 	return root
+}
+
+// openProjectStore opens a project's store directly, for tests that seed or
+// inspect it outside an App.
+func openProjectStore(t *testing.T, root string) *projectdb.DB {
+	t.Helper()
+	db, err := projectdb.Open(t.Context(), project.Layout{
+		Root: root, StateDir: filepath.Join(root, project.StateDirName),
+	})
+	require.NoError(t, err)
+	return db
 }
 
 // seedExtraction records an extraction batch for the project's source file, the
@@ -128,6 +139,56 @@ func TestPackRefusesAnEmptyProject(t *testing.T) {
 	err := (&App{SourceLang: "en"}).RunPack(cmd)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nothing to pack")
+}
+
+// TestPackSkipsEmptyPartsOfAnOpenStore is the same contract asked of the state
+// the merged store made ambiguous.
+//
+// Pack used to gate each part on a FILE existing: no `memory.db`, no memory
+// part. Every subsystem's schema now exists from the store's first open, so
+// file presence stopped distinguishing "this project has a content memory" from
+// "this project has a state directory" — and a stat-based gate would pack an
+// empty part for every project that ever ran a command.
+//
+// So the gate is rows. A project whose store is open but empty must pack exactly
+// as one with no store at all: not at all.
+func TestPackSkipsEmptyPartsOfAnOpenStore(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "")
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"),
+		[]byte("version: v1\nname: empty\ndefaults:\n  source_language: en\n"), 0o644))
+
+	// Open the store and write nothing: every table exists, every one is empty.
+	db := openProjectStore(t, root)
+	for _, probe := range []struct {
+		name string
+		has  func(context.Context) (bool, error)
+	}{
+		{"memory", db.HasMemory},
+		{"terms", db.HasTerms},
+		{"blocks", db.HasBlocks},
+	} {
+		has, err := probe.has(t.Context())
+		require.NoError(t, err)
+		require.False(t, has, "%s must start empty", probe.name)
+	}
+	require.NoError(t, db.Close())
+	require.FileExists(t, filepath.Join(root, project.StateDirName, project.StoreFileName),
+		"the store file exists — that is precisely why presence cannot be a stat")
+
+	t.Chdir(root)
+	cmd := NewEnvCommand(context.Background(), "pack")
+	AddProjectFlag(cmd)
+	cmd.Flags().String("output", filepath.Join(t.TempDir(), "s.kpz"), "")
+	cmd.Flags().Bool("log", false, "")
+	cmd.Flags().Bool("with-source", false, "")
+
+	a := &App{SourceLang: "en"}
+	defer a.Shutdown()
+	err := a.RunPack(cmd)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nothing to pack",
+		"an open-but-empty store carries nothing, exactly like no store at all")
 }
 
 // infoCmd builds a Command with the info flag surface and captured IO.
@@ -401,11 +462,10 @@ func partByName(t *testing.T, parts []ProjectArchivePart, name string) ProjectAr
 // depending on row ids or insertion order.
 func tmEntries(t *testing.T, root string) map[string]map[string]string {
 	t.Helper()
-	tm, err := memory.NewSQLiteStore(filepath.Join(root, project.StateDirName, "memory.db"))
-	require.NoError(t, err)
-	defer func() { require.NoError(t, tm.Close()) }()
+	db := openProjectStore(t, root)
+	defer func() { require.NoError(t, db.Close()) }()
 
-	entries, err := tm.Entries(context.Background())
+	entries, err := db.Memory().Entries(context.Background())
 	require.NoError(t, err)
 
 	got := map[string]map[string]string{}

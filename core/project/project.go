@@ -199,12 +199,6 @@ type Defaults struct {
 	// which is a platform-level policy with collection scoping.
 	BrandVoice *BrandVoiceBinding `yaml:"brand_voice,omitempty" json:"brand_voice,omitempty"`
 
-	// Terms binds a glossary/terms as standing project context. When
-	// set, project-scoped term enforcement uses it with no --terms flag.
-	// The path resolves relative to the project root (the recipe's
-	// directory). Empty means no bound terms.
-	Terms string `yaml:"terms,omitempty" json:"terms,omitempty"`
-
 	// TermsSource binds the committed, git-tracked native source artifact
 	// (a .terms.json document) the project terms store is compiled from. This is the
 	// authored, reviewable form: `kapi apply` edits the .terms.json here and then
@@ -217,17 +211,9 @@ type Defaults struct {
 	// MemorySource binds the committed, git-tracked native source artifact (a
 	// .memory.json document) the project content memory is compiled from, the content memory
 	// analogue of TermsSource. `kapi apply` edits the .memory.json here and
-	// re-imports it into the gitignored .kapi/memory.db cache. The path resolves
-	// relative to the project root. Empty means no bound content memory source.
+	// re-imports it into the project store. The path resolves relative to the
+	// project root. Empty means no bound content memory source.
 	MemorySource string `yaml:"memory_source,omitempty" json:"memory_source,omitempty"`
-
-	// State binds the committed, git-tracked project state artifact (a
-	// kapi-project-state JSON document, core/state) — the authoritative carrier of
-	// per-unit workflow decisions (review ladder, approvals, parking) that a plain
-	// target file cannot hold. It is the export *sink* for state in git mode (a
-	// bowrain project pushes state to the server instead). The path resolves
-	// relative to the project root; empty defaults to `.kapi-state.json`.
-	State string `yaml:"state,omitempty" json:"state,omitempty"`
 
 	// Tools holds project-level tool presets: per-tool config defaults applied
 	// wherever the tool runs in a project flow. A flow step's own config
@@ -421,10 +407,6 @@ type MemoryDefaults struct {
 	// FuzzyThreshold is the minimum fuzzy match score (0..100) to pre-fill
 	// the target on extract. Defaults to DefaultFuzzyThreshold when zero.
 	FuzzyThreshold int `yaml:"fuzzy_threshold,omitempty" json:"fuzzy_threshold,omitempty"`
-
-	// Read lists additional read-only content memory files consulted during pre-fill on
-	// extract. Writes always go to the project content memory, never to these.
-	Read []string `yaml:"read,omitempty" json:"read,omitempty"`
 }
 
 // SegmentationDefaults governs the opt-in SRX segmentation overlay (AD-017).

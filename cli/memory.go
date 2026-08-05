@@ -91,11 +91,11 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 				return err
 			}
 
-			tm, dbPath, err := a.OpenMemorySQLite(cmd)
+			tm, dbPath, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tm.Close()
+			defer releaseMemory()
 
 			var count int
 			switch inputFormat {
@@ -114,7 +114,7 @@ without pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV
 			// inserts. Rebuild the search/fuzzy side-tables so imported
 			// entries are visible to `kapi memory search` and fuzzy lookup —
 			// matching what import-dir does after its bulk load.
-			a.RebuildMemorySearchIndexes(tm)
+			a.RebuildMemorySearchIndexes(cmd.Context(), tm)
 
 			if a.Quiet {
 				return nil
@@ -167,11 +167,11 @@ Examples:
 			pattern, _ := cmd.Flags().GetString("pattern")
 			recursive, _ := cmd.Flags().GetBool("recursive")
 
-			tm, dbPath, err := a.OpenMemorySQLite(cmd)
+			tm, dbPath, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tm.Close()
+			defer releaseMemory()
 
 			dir := args[0]
 			info, err := os.Stat(dir)
@@ -217,7 +217,7 @@ Examples:
 			// The bulk path deliberately skips per-row FTS5 inserts —
 			// they're the dominant cost on large corpora — and we restore
 			// text-search + fuzzy-match capability here.
-			a.RebuildMemorySearchIndexes(tm)
+			a.RebuildMemorySearchIndexes(cmd.Context(), tm)
 
 			if a.Quiet {
 				return nil
@@ -269,11 +269,11 @@ plain JSON, so it reviews line by line in a diff. --locales does not apply.`,
 			localesRaw, _ := cmd.Flags().GetString("locales")
 			format, _ := cmd.Flags().GetString("format")
 
-			tm, _, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tm.Close()
+			defer releaseMemory()
 
 			w := os.Stdout
 			if outputPath != "" {
@@ -332,11 +332,11 @@ func newMemoryLookupCmd(a *App) *cobra.Command {
 			minScore, _ := cmd.Flags().GetFloat64("min-score")
 			maxResults, _ := cmd.Flags().GetInt("max-results")
 
-			tm, _, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tm.Close()
+			defer releaseMemory()
 
 			opts := memory.LookupOptions{
 				MinScore:   minScore,
@@ -388,11 +388,11 @@ func newMemorySearchCmd(a *App) *cobra.Command {
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			limit, _ := cmd.Flags().GetInt("limit")
 
-			tm, _, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tm.Close()
+			defer releaseMemory()
 
 			entries, total, err := tm.SearchEntries(cmd.Context(), memory.SearchParams{
 				Query:         args[0],
@@ -451,11 +451,11 @@ func newMemoryStatsCmd(a *App) *cobra.Command {
 		Short:   "Show content memory statistics",
 		Example: "  kapi memory stats\n  kapi memory stats --name my-tm",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tm, dbPath, err := a.OpenMemorySQLite(cmd)
+			tm, dbPath, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tm.Close()
+			defer releaseMemory()
 
 			// With multilingual entries, report per-locale counts instead of
 			// locale pairs. Keep the legacy LocalePairs map populated with
@@ -526,11 +526,11 @@ that added them so you can filter the content memory by import source.`,
 		Use:   "list",
 		Short: "List all import sessions",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tm, _, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tm.Close()
+			defer releaseMemory()
 			sessions, err := tm.ListImportSessions(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("list import sessions: %w", err)
@@ -544,11 +544,11 @@ that added them so you can filter the content memory by import source.`,
 		Short: "Show details for a single import session",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tm, _, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tm.Close()
+			defer releaseMemory()
 			s, ok, err := tm.GetImportSession(cmd.Context(), args[0])
 			if err != nil {
 				return fmt.Errorf("get import session: %w", err)
@@ -565,11 +565,11 @@ that added them so you can filter the content memory by import source.`,
 		Short: "Remove a session record (entries are retained, session_id cleared)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tm, _, err := a.OpenMemorySQLite(cmd)
+			tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tm.Close()
+			defer releaseMemory()
 			if err := tm.DeleteImportSession(cmd.Context(), args[0]); err != nil {
 				return fmt.Errorf("delete session: %w", err)
 			}

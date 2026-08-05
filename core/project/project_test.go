@@ -558,11 +558,8 @@ func TestDefaults_MergeMemorySegmentation_RoundTrip(t *testing.T) {
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
 			Merge:           MergeDefaults{ConflictPolicy: ConflictPolicyExistingWins},
-			Memory: MemoryDefaults{
-				FuzzyThreshold: 80,
-				Read:           []string{"/opt/corporate-en-fr.tmx", "./legacy.tmx"},
-			},
-			Segmentation: SegmentationDefaults{Source: true, SRX: "rules.srx"},
+			Memory:          MemoryDefaults{FuzzyThreshold: 80},
+			Segmentation:    SegmentationDefaults{Source: true, SRX: "rules.srx"},
 		},
 	}
 
@@ -575,7 +572,6 @@ func TestDefaults_MergeMemorySegmentation_RoundTrip(t *testing.T) {
 
 	assert.Equal(t, ConflictPolicyExistingWins, loaded.Defaults.Merge.ConflictPolicy)
 	assert.Equal(t, 80, loaded.Defaults.Memory.FuzzyThreshold)
-	assert.Equal(t, []string{"/opt/corporate-en-fr.tmx", "./legacy.tmx"}, loaded.Defaults.Memory.Read)
 	assert.True(t, loaded.Defaults.Segmentation.Source)
 	assert.Equal(t, "rules.srx", loaded.Defaults.Segmentation.SRX)
 }
@@ -655,8 +651,6 @@ defaults:
     conflict_policy: newest-wins
   memory:
     fuzzy_threshold: 70
-    read:
-      - /shared/corp.tmx
   segmentation:
     source: true
 `
@@ -668,11 +662,10 @@ defaults:
 	require.NoError(t, err)
 	assert.Equal(t, ConflictPolicyNewestWins, loaded.Defaults.Merge.ConflictPolicy)
 	assert.Equal(t, 70, loaded.Defaults.Memory.FuzzyThreshold)
-	assert.Equal(t, []string{"/shared/corp.tmx"}, loaded.Defaults.Memory.Read)
 	assert.True(t, loaded.Defaults.Segmentation.Source)
 }
 
-func TestDefaults_BrandVoiceTerms_Parse(t *testing.T) {
+func TestDefaults_BrandVoice_Parse(t *testing.T) {
 	yamlText := `version: v1
 name: brandy
 defaults:
@@ -680,7 +673,6 @@ defaults:
   target_languages: [fr]
   brand_voice:
     profile_file: brand.yaml
-  terms: glossary.db
 `
 	dir := t.TempDir()
 	path := filepath.Join(dir, "brandy.kapi")
@@ -692,10 +684,9 @@ defaults:
 	assert.Equal(t, "brand.yaml", loaded.Defaults.BrandVoice.ProfileFile)
 	assert.Empty(t, loaded.Defaults.BrandVoice.Profile)
 	assert.Empty(t, loaded.Defaults.BrandVoice.Pack)
-	assert.Equal(t, "glossary.db", loaded.Defaults.Terms)
 }
 
-func TestDefaults_BrandVoiceTerms_RoundTrip(t *testing.T) {
+func TestDefaults_BrandVoice_RoundTrip(t *testing.T) {
 	proj := &KapiProject{
 		Version: "v1",
 		Name:    "Branded",
@@ -703,7 +694,6 @@ func TestDefaults_BrandVoiceTerms_RoundTrip(t *testing.T) {
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr"},
 			BrandVoice:      &BrandVoiceBinding{Profile: "house-style"},
-			Terms:           ".kapi/terms.db",
 		},
 	}
 
@@ -715,7 +705,6 @@ func TestDefaults_BrandVoiceTerms_RoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, loaded.Defaults.BrandVoice)
 	assert.Equal(t, "house-style", loaded.Defaults.BrandVoice.Profile)
-	assert.Equal(t, ".kapi/terms.db", loaded.Defaults.Terms)
 }
 
 func TestBrandVoiceBinding_Validate(t *testing.T) {

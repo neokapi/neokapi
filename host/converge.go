@@ -7,11 +7,11 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/host/output"
 )
 
@@ -471,8 +471,8 @@ func localeUnitTotals(cov []LocaleCoverage) map[string]int {
 }
 
 // syncProjectBlockStore detects block-store drift against the working tree and
-// re-extracts the project's content into the store when any is found: missing
-// store, version-stamped by a different kapi, or source files whose bytes
+// re-extracts the project's content into the store when any is found: nothing
+// extracted yet, stamped by a different kapi, or source files whose bytes
 // drifted from their extract-time stamps. Extraction goes through the shared
 // core path (project.ExtractToBlockStore) — the same implementation behind the
 // desktop's Re-extract — and is a full rebuild of the block set (blocks are a
@@ -484,20 +484,21 @@ func (a *App) syncProjectBlockStore(ctx context.Context, pctx *project.ProjectCo
 	if err != nil {
 		return nil, "", err
 	}
-	storePath := layout.BlockStorePath()
-	drift := project.DetectStoreDrift(storePath, resolved)
+	db, err := a.ProjectDB(ctx, layout.Root)
+	if err != nil {
+		return nil, "", err
+	}
+	drift := db.DetectStoreDrift(ctx, resolved)
 	if !drift.Any() {
 		return nil, "", nil
 	}
-	if err := project.EnsureLayout(layout); err != nil {
-		return nil, "", err
+	store := db.Blocks()
+	if store == nil {
+		return nil, "", fmt.Errorf("extract into the block cache: %w", projectdb.ErrNoStore)
 	}
-	store, err := sqlitestore.New(storePath)
-	if err != nil {
-		return nil, "", fmt.Errorf("open project block store: %w", err)
-	}
-	defer store.Close()
-	stats, err := project.ExtractToBlockStore(ctx, a.FormatReg, pctx, store, storePath, resolved)
+	// Session-transactional, not autocommit: extraction purges the prior block
+	// set and refills it, and a half-applied purge is a project with no blocks.
+	stats, err := project.ExtractToBlockStore(ctx, a.FormatReg, pctx, store, db, resolved)
 	if err != nil {
 		return nil, "", err
 	}
@@ -508,7 +509,7 @@ func (a *App) syncProjectBlockStore(ctx context.Context, pctx *project.ProjectCo
 func describeDrift(d project.StoreDrift) string {
 	switch {
 	case d.StoreMissing:
-		return "no block store yet"
+		return "nothing extracted yet"
 	case d.VersionStale:
 		return "store written by another kapi version"
 	case len(d.Changed) > 0 && len(d.Removed) > 0:

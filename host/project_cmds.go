@@ -157,7 +157,7 @@ func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 # Define content and flows. Each bare content entry maps a source glob to a
 # target; kapi tools read the source content and edit, check, or translate it.
 # The {lang} placeholder in a target fans output out per language. Runtime block
-# state lives in .kapi/cache/blocks.db.
+# state lives in the project store, .kapi/store.db.
 #
 # content:
 #   - path: "src/locales/en/*.json"
@@ -184,8 +184,8 @@ flows: {}
 
 // ScaffoldContentRecipe builds the default content recipe: a project whose job
 // is keeping its source content on brand and on-terminology, with no target
-// languages. It binds a brand voice profile (a built-in starter pack) and the
-// project terms store under defaults: so project-scoped checks need no flags, and
+// languages. It binds a brand voice profile (a built-in starter pack) under
+// defaults: so the project-scoped brand check needs no flags, and
 // ships a `check` flow that scores content with the deterministic
 // brand-vocabulary check. Passing --target-locale or --framework scaffolds a
 // translation project (ScaffoldRecipe) instead.
@@ -198,16 +198,17 @@ func ScaffoldContentRecipe(name, sourceLocale string) []byte {
 	b.WriteString("  source_language: ")
 	b.WriteString(sourceLocale)
 	b.WriteByte('\n')
-	// brand_voice and terms are framework bindings under defaults: — standing
-	// project context for brand and terminology checks. No target_languages: this
-	// project governs its source content, it does not translate it.
+	// brand_voice is a framework binding under defaults: — standing project
+	// context for the brand check. Terminology needs no binding: the vocabulary
+	// lives in the project's own store, which every term-aware command reads
+	// with no flag and no recipe entry. No target_languages: this project
+	// governs its source content, it does not translate it.
 	b.WriteString("  brand_voice:\n")
 	b.WriteString("    pack: professional-b2b\n")
-	b.WriteString("  terms: .kapi/terms.db\n")
 	b.WriteString(`
 # Content project: no target_languages. Point content at the source files to
 # keep on brand, then run 'kapi run check' to score them. Block state lives in
-# .kapi/cache/blocks.db.
+# the project store, .kapi/store.db.
 #
 # content:
 #   - path: "src/**/*.md"

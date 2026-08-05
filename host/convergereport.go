@@ -124,9 +124,9 @@ func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, lo
 // keyed by unit identity + locale and bound to the content hash of the
 // translation it judges, so a later edit invalidates a stale decision. The unit
 // is addressed by (file, key, locale) as listed in the review queue; the method
-// re-reads the exact target text before recording. The decision is exported to
-// the committed state artifact (defaults.state) — distinct from the `.memory.json`,
-// which stays the recycle corpus.
+// re-reads the exact target text before recording. `kapi commit` writes it on
+// into the committed record under `.kapi/units/` — distinct from the
+// `.memory.json`, which stays the recycle corpus.
 //
 // decision is one of ReviewDecisionApproved (→ reviewed), ReviewDecisionSignedOff
 // (→ signed-off), or ReviewDecisionRejected (→ draft: the unit drops out of the
@@ -217,11 +217,10 @@ func (a *App) ApplyReviewDecisionAs(ctx context.Context, projectPath, sourceLang
 // already on the unit's record (origin, source status, a fresh AI pre-review
 // annotation) survive the decision write.
 func (a *App) recordDecisionState(ctx context.Context, proj *project.KapiProject, root, file, unit string, locale model.LocaleID, target string, status model.TargetStatus, decision, note, by string) (bool, error) {
-	st, err := openProjectState(ctx, root)
+	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return false, err
 	}
-	defer st.Close()
 	k := state.Key{Unit: unit, Variant: model.Variant(locale)}
 	th := targetHash(target)
 	prev, hadPrev := st.Get(ctx, k)
@@ -292,11 +291,10 @@ func (a *App) RecordAIReviews(ctx context.Context, projectPath, sourceLang, loca
 		return 0, fmt.Errorf("resolve content: %w", err)
 	}
 
-	st, err := openProjectState(ctx, root)
+	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return 0, err
 	}
-	defer st.Close()
 
 	recorded := 0
 	loc := model.LocaleID(locale)
@@ -422,11 +420,10 @@ func (a *App) ReviewUnit(ctx context.Context, projectPath, sourceLang string, re
 				Target:     b.TargetText(loc),
 				Status:     unitState(b, ref.Locale),
 			}
-			st, serr := openProjectState(ctx, root)
+			st, serr := a.OpenProjectState(ctx, root)
 			if serr != nil {
 				return nil, serr
 			}
-			defer st.Close()
 			if us, found := st.Get(ctx, state.Key{Unit: ref.Key, Variant: model.Variant(loc)}); found {
 				th := targetHash(info.Target)
 				if !us.Stale(th) {

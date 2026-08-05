@@ -1,6 +1,7 @@
 package host
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,7 +10,6 @@ import (
 	"slices"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/kpz"
@@ -107,7 +107,7 @@ func newInterchangeRecipe(sourceLang, targetLang string) *project.KapiProject {
 }
 
 // openProjectBlockStore opens (creating dirs as needed) the active
-// project's persistent block store at .kapi/cache/blocks.db. Returns nil
+// project's block cache, inside the project store. Returns nil
 // when there is no project context or the store can't be opened — callers
 // fall back to the ephemeral in-memory store, so a failure here never
 // breaks a run, it only forgoes overlay caching.
@@ -115,7 +115,7 @@ func newInterchangeRecipe(sourceLang, targetLang string) *project.KapiProject {
 // Wiring this into a project run is what makes re-running a flow skip
 // already-done per-block work (SessionTools hydrate from the cached
 // overlays) — the resume story for projects, with no extra CLI surface.
-func (a *App) openProjectBlockStore() blockstore.Store {
+func (a *App) openProjectBlockStore(ctx context.Context) blockstore.Store {
 	if a.ProjectContext == nil || a.ProjectContext.ProjectDir == "" {
 		return nil
 	}
@@ -123,19 +123,16 @@ func (a *App) openProjectBlockStore() blockstore.Store {
 	if err != nil {
 		return nil
 	}
-	if err := project.EnsureLayout(layout); err != nil {
+	db, err := a.ProjectDB(ctx, layout.Root)
+	if err != nil {
 		return nil
 	}
 	// Autocommit sessions: flow runs open one session per file-run, and a
 	// convergence pass runs locales concurrently — run-long transactions on
-	// one SQLite file would deadlock (see sqlitestore.NewAutocommit).
+	// one database would deadlock (see sqlitestore.NewAutocommit).
 	// Overlays are idempotent per key, so per-write durability is the
 	// intended semantics here.
-	store, err := sqlitestore.NewAutocommit(layout.BlockStorePath())
-	if err != nil {
-		return nil
-	}
-	return store
+	return db.BlocksAutocommit()
 }
 
 // LoadWorkspace reads and validates a .kpz package from disk. It is the single

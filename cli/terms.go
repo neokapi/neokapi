@@ -70,11 +70,11 @@ func newTermsImportCmd(a *App) *cobra.Command {
 				return err
 			}
 
-			tb, dbPath, err := a.OpenTermsSQLite(cmd)
+			tb, dbPath, releaseTerms, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tb.Close()
+			defer releaseTerms()
 
 			f, err := os.Open(args[0])
 			if err != nil {
@@ -155,11 +155,11 @@ func newTermsExportCmd(a *App) *cobra.Command {
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			tbName, _ := cmd.Flags().GetString("export-name")
 
-			tb, dbPath, err := a.OpenTermsSQLite(cmd)
+			tb, dbPath, releaseTerms, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tb.Close()
+			defer releaseTerms()
 
 			w := os.Stdout
 			if outputPath != "" {
@@ -228,11 +228,11 @@ func newTermsLookupCmd(a *App) *cobra.Command {
 			domain, _ := cmd.Flags().GetString("domain")
 			fuzzy, _ := cmd.Flags().GetBool("fuzzy")
 
-			tb, _, err := a.OpenTermsSQLite(cmd)
+			tb, _, releaseTerms, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tb.Close()
+			defer releaseTerms()
 
 			opts := terms.LookupOptions{
 				SourceLocale: model.LocaleID(srcLocale),
@@ -309,11 +309,11 @@ func newTermsSearchCmd(a *App) *cobra.Command {
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			limit, _ := cmd.Flags().GetInt("limit")
 
-			tb, _, err := a.OpenTermsSQLite(cmd)
+			tb, _, releaseTerms, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tb.Close()
+			defer releaseTerms()
 
 			results, total, err := tb.Search(cmd.Context(), args[0], model.LocaleID(srcLocale), model.LocaleID(tgtLocale), 0, limit)
 			if err != nil {
@@ -358,11 +358,11 @@ func newTermsStatsCmd(a *App) *cobra.Command {
 		Short:   "Show terms statistics",
 		Example: "  kapi terms stats\n  kapi terms stats --name product-terms",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tb, dbPath, err := a.OpenTermsSQLite(cmd)
+			tb, dbPath, releaseTerms, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tb.Close()
+			defer releaseTerms()
 
 			concepts, err := tb.Concepts(cmd.Context())
 			if err != nil {

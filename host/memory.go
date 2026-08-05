@@ -13,61 +13,81 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
 )
 
-func (a *App) OpenMemorySQLite(cmd Command) (memory.Store, string, error) {
+// OpenMemorySQLite opens the content memory a `kapi memory` subcommand operates
+// on, and returns it with a label naming where it came from and a release
+// function the caller must defer.
+//
+// The release function exists because the answer is no longer always a file the
+// caller owns: inside a project the store is the App's shared handle, whose
+// pool also carries the terms store, the block cache and the working set, so
+// closing it would take those with it. Standalone stores close as before.
+func (a *App) OpenMemorySQLite(cmd Command) (memory.Store, string, func(), error) {
+	noop := func() {}
 	if a.MemoryBackend != nil {
-		return a.MemoryBackend, "(in-memory)", nil
+		return a.MemoryBackend, "(in-memory)", noop, nil
 	}
-	dbPath, err := a.ResolveMemoryCmdPath(cmd)
+	sel, err := a.ResolveMemoryStore(cmd)
 	if err != nil {
-		return nil, "", err
+		return nil, "", noop, err
 	}
-	tm, err := memory.NewSQLiteStore(dbPath)
+	if sel.InProject() {
+		db, err := a.ProjectDB(CmdContext(cmd), sel.Root)
+		if err != nil {
+			return nil, "", noop, err
+		}
+		tm := db.Memory()
+		if tm == nil {
+			return nil, db.Path(), noop, fmt.Errorf("open content memory: %w", projectdb.ErrNoStore)
+		}
+		return tm, db.Path(), noop, nil
+	}
+	tm, err := memory.NewSQLiteStore(sel.Path)
 	if err != nil {
-		return nil, dbPath, fmt.Errorf("open content memory: %w", err)
+		return nil, sel.Path, noop, fmt.Errorf("open content memory: %w", err)
 	}
-	return tm, dbPath, nil
+	return tm, sel.Path, func() { _ = tm.Close() }, nil
 }
 
-// ResolveMemoryCmdPath picks the SQLite content-memory file a `kapi tm` subcommand operates on.
-// An explicit --name/--file/--local flag always wins. Otherwise, when run inside
-// a .kapi project, it defaults to the project's authoritative content memory
-// (<projectRoot>/.kapi/memory.db) so that `kapi memory lookup`/`import`/`stats` see the
-// same content memory that `kapi extract` pre-fills from and `kapi merge` writes back to —
-// without it, those commands silently hit an empty ./memory.db. Falls back to
-// ./memory.db outside a project. This mirrors ResolveTermsCmdPath.
-func (a *App) ResolveMemoryCmdPath(cmd Command) (string, error) {
+// ResolveMemoryStore picks the content memory a `kapi memory` subcommand
+// operates on. An explicit --name/--file/--local flag always wins and selects a
+// standalone store. Otherwise, inside a project, the project's own store is
+// selected, so `kapi memory lookup`/`import`/`stats` see the same content memory
+// `kapi extract` pre-fills from and `kapi merge` writes back to — without it,
+// those commands silently hit an empty ./memory.db. Outside a project it falls
+// back to ./memory.db. This mirrors ResolveTermsStore.
+func (a *App) ResolveMemoryStore(cmd Command) (StoreSelection, error) {
 	name, _ := cmd.Flags().GetString("name")
 	local, _ := cmd.Flags().GetBool("local")
 	file, _ := cmd.Flags().GetString("file")
-	if name != "" || file != "" || local {
-		return resolveResourcePath(cmd, "memory", "memory.db")
+	if name == "" && file == "" && !local {
+		root, err := a.projectRootFor(cmd)
+		if err != nil {
+			return StoreSelection{}, err
+		}
+		if root != "" {
+			return StoreSelection{Root: root}, nil
+		}
 	}
-	if p, err := a.resolveProjectMemoryPath(cmd); err == nil && p != "" {
-		return p, nil
+	path, err := resolveResourcePath(cmd, "memory", "memory.db")
+	if err != nil {
+		return StoreSelection{}, err
 	}
-	return resolveResourcePath(cmd, "memory", "memory.db")
+	return StoreSelection{Path: path}, nil
 }
 
-// resolveProjectMemoryPath returns the authoritative content memory path for the .kapi project
-// in scope, or "" (with nil error) when no project can be located. Unlike the
-// terms (which can be re-bound via defaults.terms), the project content memory is
-// always the conventional <projectRoot>/.kapi/memory.db — the same file
-// kapi extract and kapi merge use (see cli/extract.go and cli/merge.go).
-func (a *App) resolveProjectMemoryPath(cmd Command) (string, error) {
+// projectRootFor returns the root of the project in scope, or "" when there is
+// none.
+func (a *App) projectRootFor(cmd Command) (string, error) {
 	projectPath, err := ResolveProjectPath(cmd)
-	if err != nil {
+	if err != nil || projectPath == "" {
 		return "", err
 	}
-	if projectPath == "" {
-		return "", nil
-	}
-	root := filepath.Dir(projectPath)
-	return filepath.Join(root, project.StateDirName, "memory.db"), nil
+	return filepath.Dir(projectPath), nil
 }
 
 // MemoryFileFormats names the content-memory file formats, in the order they
@@ -245,21 +265,22 @@ func ImportTMXFile(ctx context.Context, tm memory.Store, path, srcLocale, tgtLoc
 // to `kapi memory search` and fuzzy lookup even though exact lookup still works.
 // RebuildSearchIndex / RebuildFuzzyIndex are SQLite-specific; in-memory
 // backends keep their indexes live and skip this step.
-func (a *App) RebuildMemorySearchIndexes(tm memory.Store) {
+func (a *App) RebuildMemorySearchIndexes(ctx context.Context, tm memory.Store) {
 	sq, ok := tm.(*memory.SQLiteStore)
 	if !ok {
 		return
 	}
+	ctx = ctxOrBackground(ctx)
 	if !a.Quiet {
 		fmt.Fprintln(os.Stderr, "Rebuilding search index...")
 	}
-	if err := sq.RebuildSearchIndex(); err != nil {
+	if err := sq.RebuildSearchIndex(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: rebuild search index: %v\n", err)
 	}
 	if !a.Quiet {
 		fmt.Fprintln(os.Stderr, "Rebuilding fuzzy index...")
 	}
-	if err := sq.RebuildFuzzyIndex(); err != nil {
+	if err := sq.RebuildFuzzyIndex(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: rebuild fuzzy index: %v\n", err)
 	}
 }

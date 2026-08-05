@@ -13,12 +13,12 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/xliff2"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/redaction"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -108,20 +108,20 @@ func (a *App) RunMerge(cmd Command) error {
 	noRestore, _ := cmd.Flags().GetBool("no-restore")
 
 	var tm *memory.SQLiteStore
-	// In the browser/seeded build (a.MemoryBackend set) there is no SQLite driver and
-	// no on-disk project content memory to write back to, so skip content memory write-back silently
-	// rather than surfacing a driver error. The native CLI (MemoryBackend == nil)
-	// opens the project's SQLite content memory as before.
+	// In the browser/seeded build (a.MemoryBackend set) there is no file-backed
+	// SQLite driver and no project content memory to write back to, so skip
+	// write-back silently rather than surfacing a driver error. The native CLI
+	// (MemoryBackend == nil) writes to the project store.
 	if !noMemoryUpdate && a.MemoryBackend == nil {
-		memoryPath := filepath.Join(layout.StateDir, "memory.db")
-		loaded, err := memory.NewSQLiteStore(memoryPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: merge: open project content memory at %s: %v (continuing with --no-tm-update semantics)\n", memoryPath, err)
+		db, derr := a.ProjectDB(CmdContext(cmd), layout.Root)
+		if derr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: merge: open project store: %v (continuing with --no-tm-update semantics)\n", derr)
 		} else {
-			defer loaded.Close()
-			tm = loaded
+			tm = db.Memory()
 		}
 	}
+	// One write for the whole run, not one per merged block — see memoryAbsorber.
+	absorber := a.newMemoryAbsorber(tm)
 
 	policy := proj.Defaults.Merge.ResolvedConflictPolicy()
 
@@ -149,7 +149,7 @@ func (a *App) RunMerge(cmd Command) error {
 			ctx:       ctx,
 			input:     in,
 			policy:    policy,
-			tm:        tm,
+			mem:       absorber,
 			project:   proj,
 			noRestore: noRestore,
 		})
@@ -166,6 +166,12 @@ func (a *App) RunMerge(cmd Command) error {
 			MemoryNew: stats.MemoryNew, MemoryUpdated: stats.MemoryUpdated,
 		})
 		emit(FlowRunEvent{Type: FlowEventFileDone, FilePath: in})
+	}
+
+	// Reported, not fatal: the merged files are the deliverable and they are
+	// already written. Losing the leverage silently is what must not happen.
+	if ferr := absorber.flush(cmd.Context()); ferr != nil {
+		fmt.Fprintf(os.Stderr, "Warning: merge: %v (the merged files were written)\n", ferr)
 	}
 
 	res.Applied, res.Stale, res.Skipped = totals.Applied, totals.Stale, totals.Skipped
@@ -254,11 +260,14 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 	if err := project.EnsureLayout(layout); err != nil {
 		return 0, fmt.Errorf("merge: ensure project layout: %w", err)
 	}
-	store, err := sqlitestore.New(layout.BlockStorePath())
+	db, err := a.ProjectDB(ctx, layout.Root)
 	if err != nil {
-		return 0, fmt.Errorf("merge: open project block store: %w", err)
+		return 0, fmt.Errorf("merge: open project store: %w", err)
 	}
-	defer store.Close()
+	store := db.BlocksAutocommit()
+	if store == nil {
+		return 0, fmt.Errorf("merge: read the block cache: %w", projectdb.ErrNoStore)
+	}
 
 	files, err := pctx.ResolveContent(a.FormatReg)
 	if err != nil {
@@ -276,18 +285,14 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 	}
 
 	var tm *memory.SQLiteStore
-	// Browser/seeded build (a.MemoryBackend set): no SQLite driver / on-disk content
-	// memory — skip write-back silently. The native CLI opens the project's SQLite
-	// content memory as before.
+	// Browser/seeded build (a.MemoryBackend set): no file-backed SQLite driver
+	// and no project content memory — skip write-back silently. The native CLI
+	// writes to the project store.
 	if !noMemoryUpdate && a.MemoryBackend == nil {
-		tmPath := filepath.Join(layout.StateDir, "memory.db")
-		if loaded, lerr := memory.NewSQLiteStore(tmPath); lerr != nil {
-			fmt.Fprintf(os.Stderr, "Warning: merge: open project TM at %s: %v (continuing without TM write-back)\n", tmPath, lerr)
-		} else {
-			defer loaded.Close()
-			tm = loaded
-		}
+		tm = db.Memory()
 	}
+	// One write for the whole pass, not one per materialized block.
+	absorber := a.newMemoryAbsorber(tm)
 
 	written := 0
 	for _, f := range files {
@@ -335,15 +340,15 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 			}
 			written++
 
-			// Absorb the materialized targets into the project TM with merge
+			// Absorb the materialized targets into the project content memory with merge
 			// provenance, mirroring the XLIFF/PO/.kpz merge paths. TM write-back
 			// is best-effort — the localized file is already on disk and is the
 			// deliverable — but a failure is REPORTED rather than dropped: the
 			// TM is how the next run recycles this work, and a silent failure to
 			// record it looks like the translation never happened.
-			if tm != nil {
-				if _, _, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, tm, f.Relative); aerr != nil {
-					fmt.Fprintf(os.Stderr, "Warning: merge: record %s → %s in the project TM: %v (the localized file was written)\n",
+			if absorber != nil {
+				if _, _, aerr := absorbStoreTargets(fileCtx, a.FormatReg, srcFormat, f.Path, pctx.SourceLocale, locale, store, absorber, f.Relative); aerr != nil {
+					fmt.Fprintf(os.Stderr, "Warning: merge: record %s → %s in the project content memory: %v (the target file was written)\n",
 						f.Relative, locale, aerr)
 				}
 			}
@@ -352,13 +357,18 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 		}
 	}
 
+	// Reported, not fatal: the target files are already on disk.
+	if ferr := absorber.flush(ctx); ferr != nil {
+		fmt.Fprintf(os.Stderr, "Warning: merge: %v (the target files were written)\n", ferr)
+	}
+
 	return written, nil
 }
 
 // absorbStoreTargets reads the source blocks, applies the stored
 // `targets/<locale>` overlays, and writes accepted source+target pairs into
 // the project content memory with kapi-merge provenance. Returns (new, updated) counts.
-func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, tm *memory.SQLiteStore, sourceRel string) (int, int, error) {
+func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFormat, sourceAbs string, source, target model.LocaleID, store blockstore.Store, absorber *memoryAbsorber, sourceRel string) (int, int, error) {
 	blocks, _, err := project.ReadSourceBlocks(ctx, reg, srcFormat, sourceAbs, source, target, nil)
 	if err != nil {
 		return 0, 0, err
@@ -394,7 +404,7 @@ func absorbStoreTargets(ctx context.Context, reg *registry.FormatRegistry, srcFo
 		if oaerr := applyTargetOverlay(b, target, o.Payload); oaerr != nil {
 			return newCount, updatedCount, oaerr
 		}
-		n, u, aerr := absorbBlockIntoTM(ctx, tm, b, source, target, "store", sourceRel, sourceAbs)
+		n, u, aerr := absorber.absorb(ctx, b, source, target, "store", sourceRel, sourceAbs)
 		if aerr != nil {
 			return newCount, updatedCount, aerr
 		}
@@ -409,7 +419,7 @@ type mergeTask struct {
 	ctx     *project.ProjectContext
 	input   string
 	policy  string
-	tm      *memory.SQLiteStore
+	mem     *memoryAbsorber
 	project *project.KapiProject
 
 	// noRestore disables restoring redacted originals from the batch vault.
@@ -482,14 +492,14 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 		// failed to open reported `tm_new=0 tm_updated=0`, which reads as
 		// "nothing new to learn" rather than "it was never opened" — so the
 		// leverage is lost for this bundle with no way to tell.
-		tmPath := filepath.Join(layout.StateDir, "memory.db")
-		if loaded, lerr := memory.NewSQLiteStore(tmPath); lerr != nil {
-			fmt.Fprintf(os.Stderr, "Warning: merge: open project content memory at %s: %v (continuing without write-back)\n", tmPath, lerr)
+		if db, derr := a.ProjectDB(CmdContext(cmd), layout.Root); derr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: merge: open project store: %v (continuing without write-back)\n", derr)
 		} else {
-			defer loaded.Close()
-			tm = loaded
+			tm = db.Memory()
 		}
 	}
+	// One write for the whole package, not one per merged block.
+	absorber := a.newMemoryAbsorber(tm)
 
 	// Index the package's target overlays by block id.
 	overlayByID := make(map[string][]byte)
@@ -573,8 +583,8 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 				continue
 			}
 			stats.Applied++
-			if tm != nil {
-				added, updated, aerr := absorbBlockIntoTM(ctx, tm, b, pctx.SourceLocale, targetLocale, "kpz", srcRel, kpzInput)
+			if absorber != nil {
+				added, updated, aerr := absorber.absorb(ctx, b, pctx.SourceLocale, targetLocale, "kpz", srcRel, kpzInput)
 				if aerr != nil && tmErr == nil {
 					tmErr = aerr
 				}
@@ -607,8 +617,11 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 		}
 	}
 
+	if ferr := absorber.flush(ctx); ferr != nil && tmErr == nil {
+		tmErr = ferr
+	}
 	if tmErr != nil {
-		fmt.Fprintf(os.Stderr, "Warning: merge: record %s in the project TM: %v (the merged files were written)\n",
+		fmt.Fprintf(os.Stderr, "Warning: merge: record %s in the project content memory: %v (the merged files were written)\n",
 			filepath.Base(kpzInput), tmErr)
 	}
 	fmt.Fprintf(cmd.OutOrStdout(),
@@ -809,8 +822,8 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 
 		// TM absorb with provenance. Best-effort, but reported: see
 		// absorbBlockIntoTM.
-		if task.tm != nil {
-			added, updated, aerr := absorbBlockIntoTM(ctx, task.tm, srcBlock, task.ctx.SourceLocale, targetLocale, batchID, entry.Source, task.input)
+		if task.mem != nil {
+			added, updated, aerr := task.mem.absorb(ctx, srcBlock, task.ctx.SourceLocale, targetLocale, batchID, entry.Source, task.input)
 			if aerr != nil && tmErr == nil {
 				tmErr = aerr
 			}
@@ -819,7 +832,7 @@ func (a *App) mergeOneXLIFF(ctx context.Context, task mergeTask) (mergeStats, er
 		}
 	}
 	if tmErr != nil {
-		fmt.Fprintf(os.Stderr, "Warning: merge: record %s in the project TM: %v (the merged file was written)\n",
+		fmt.Fprintf(os.Stderr, "Warning: merge: record %s in the project content memory: %v (the merged file was written)\n",
 			filepath.Base(task.input), tmErr)
 	}
 
@@ -936,8 +949,8 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 		srcBlock.SetTargetText(targetLocale, mb.MsgStr)
 		stats.Applied++
 
-		if task.tm != nil {
-			added, updated, aerr := absorbBlockIntoTM(ctx, task.tm, srcBlock, task.ctx.SourceLocale, targetLocale, po.BatchID, entry.Source, task.input)
+		if task.mem != nil {
+			added, updated, aerr := task.mem.absorb(ctx, srcBlock, task.ctx.SourceLocale, targetLocale, po.BatchID, entry.Source, task.input)
 			if aerr != nil && tmErr == nil {
 				tmErr = aerr
 			}
@@ -946,7 +959,7 @@ func (a *App) mergeOnePO(ctx context.Context, task mergeTask) (mergeStats, error
 		}
 	}
 	if tmErr != nil {
-		fmt.Fprintf(os.Stderr, "Warning: merge: record %s in the project TM: %v (the merged file was written)\n",
+		fmt.Fprintf(os.Stderr, "Warning: merge: record %s in the project content memory: %v (the merged file was written)\n",
 			filepath.Base(task.input), tmErr)
 	}
 
@@ -1171,15 +1184,98 @@ func writeMergedSourceWithSkeleton(ctx context.Context, reg *registry.FormatRegi
 // matters once we widen to per-segment.
 //
 // A write failure is RETURNED, not swallowed. It used to be discarded (an
-// errored Add read as "0 new, 0 updated"), so a project TM that had gone
+// errored Add read as "0 new, 0 updated"), so a project content memory that had gone
 // read-only, or run out of disk, absorbed nothing while every merge reported
 // success. Callers treat it as non-fatal — the merged file is the deliverable —
 // but they report it.
-func absorbBlockIntoTM(ctx context.Context, tm *memory.SQLiteStore, block *model.Block, source, target model.LocaleID, batchID, sourceRel, xliffPath string) (newCount, updatedCount int, err error) {
+// memoryAbsorber collects what a merge run teaches the content memory and
+// writes it ONCE, at the end, in a single transaction.
+//
+// Per-block writes were the natural shape when the content memory had a
+// database to itself: N small write transactions on a file nothing else touched.
+// In the merged store they contend with the block cache and the working set for
+// the same writer, and SQLite's deferred write transactions do not queue fairly
+// — a run of hundreds of one-row commits starves whichever writer arrives
+// second. One bulk transaction per run removes the contention rather than
+// tuning it.
+//
+// The trade is the index rebuild. The bulk path deliberately skips per-row FTS5
+// maintenance (it dominates on large corpora), so the search and fuzzy indexes
+// are rebuilt set-wise afterwards — one pass over tm_variants instead of a
+// tokenization per row. That is a whole-table pass for a run that may have
+// learned three entries, which is the cost of not holding the writer for the
+// length of the merge.
+//
+// Not safe for concurrent use: the merge loop is sequential, one file at a time.
+type memoryAbsorber struct {
+	app     *App
+	tm      *memory.SQLiteStore
+	entries []memory.Entry
+	// seen dedupes within a run. Entry ids are content-derived, so one string
+	// merged from two files is one entry, and the bulk path would otherwise
+	// carry it twice.
+	seen map[string]bool
+}
+
+// newMemoryAbsorber returns an absorber over tm, or nil when there is no
+// content memory to write to — every call site already guards on nil, which is
+// the "--no-tm-update, or the store would not open" case.
+func (a *App) newMemoryAbsorber(tm *memory.SQLiteStore) *memoryAbsorber {
+	if tm == nil {
+		return nil
+	}
+	return &memoryAbsorber{app: a, tm: tm, seen: map[string]bool{}}
+}
+
+// absorb stages one merged block. The new/updated split is decided here, while
+// the store still reflects the run's starting state — a read, so it takes no
+// write lock.
+func (m *memoryAbsorber) absorb(ctx context.Context, block *model.Block, source, target model.LocaleID, batchID, sourceRel, xliffPath string) (newCount, updatedCount int, err error) {
+	if m == nil {
+		return 0, 0, nil
+	}
+	entry, ok := mergeMemoryEntry(block, source, target, batchID, sourceRel, xliffPath)
+	if !ok {
+		return 0, 0, nil
+	}
+	if m.seen[entry.ID] {
+		return 0, 0, nil
+	}
+	_, existed, gerr := m.tm.GetEntry(ctx, entry.ID)
+	if gerr != nil {
+		return 0, 0, fmt.Errorf("read content-memory entry %s: %w", entry.ID, gerr)
+	}
+	m.seen[entry.ID] = true
+	m.entries = append(m.entries, entry)
+	if existed {
+		return 0, 1, nil
+	}
+	return 1, 0, nil
+}
+
+// flush writes everything the run learned, then repopulates the search and
+// fuzzy indexes the bulk path skipped. A run that learned nothing writes
+// nothing — including no rebuild.
+func (m *memoryAbsorber) flush(ctx context.Context) error {
+	if m == nil || len(m.entries) == 0 {
+		return nil
+	}
+	if err := m.tm.BulkAddWithStream(ctx, m.entries, ""); err != nil {
+		return fmt.Errorf("record %d content-memory entr%s: %w",
+			len(m.entries), map[bool]string{true: "y", false: "ies"}[len(m.entries) == 1], err)
+	}
+	m.entries, m.seen = nil, map[string]bool{}
+	m.app.RebuildMemorySearchIndexes(ctx, m.tm)
+	return nil
+}
+
+// mergeMemoryEntry builds the content-memory entry a merged block teaches, or
+// reports ok=false when the block carries no translatable pair.
+func mergeMemoryEntry(block *model.Block, source, target model.LocaleID, batchID, sourceRel, xliffPath string) (memory.Entry, bool) {
 	srcText := block.SourceText()
 	tgtText := block.TargetText(target)
 	if srcText == "" || tgtText == "" {
-		return 0, 0, nil
+		return memory.Entry{}, false
 	}
 	// block.Identity can be nil on blocks built by readers that don't
 	// compute content hashes eagerly; fall back to hashing the source
@@ -1213,17 +1309,7 @@ func absorbBlockIntoTM(ctx context.Context, tm *memory.SQLiteStore, block *model
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	_, existed, gerr := tm.GetEntry(ctx, entry.ID)
-	if gerr != nil {
-		return 0, 0, fmt.Errorf("read TM entry %s: %w", entry.ID, gerr)
-	}
-	if aerr := tm.Add(ctx, entry); aerr != nil {
-		return 0, 0, fmt.Errorf("write TM entry %s: %w", entry.ID, aerr)
-	}
-	if existed {
-		return 0, 1, nil
-	}
-	return 1, 0, nil
+	return entry, true
 }
 
 // bilingualReturnExts are the bilingual file extensions a directory argument

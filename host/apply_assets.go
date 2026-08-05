@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	brand "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms"
@@ -72,13 +73,13 @@ func (a *App) resolveProjectRoot(cmd Command) (recipePath, root string, err erro
 }
 
 // ---------------------------------------------------------------------------
-// term → committed .terms.json source → terms import compile into .kapi/terms.db
+// term → committed .terms.json source → terms import compile into the project store
 // ---------------------------------------------------------------------------
 
 // applyTermEntry upserts a glossary term. It edits the committed .terms.json source
 // the recipe binds (creating context/terms.json and binding it when none
-// exists), then re-imports the whole .terms.json into the project terms store (.db)
-// cache so the SQLite store reflects the committed source — one write path.
+// exists), then re-imports the whole .terms.json into the project store's
+// vocabulary so the store reflects the committed source — one write path.
 func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Term}
 
@@ -146,11 +147,9 @@ func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) 
 	}
 	rel := filepath.Join("context", ktb.ConventionalName)
 	proj.Defaults.TermsSource = rel
-	// Bind the compiled cache too, so term enforcement (resolveProjectTermsPath)
-	// reads the .db this source compiles into rather than an unrelated default.
-	if proj.Defaults.Terms == "" {
-		proj.Defaults.Terms = filepath.Join(project.StateDirName, "terms.db")
-	}
+	// Only the SOURCE is bound. The compiled vocabulary has one destination now
+	// — the project's own store — so there is no second binding to keep pointed
+	// at it, and no way for the two to disagree.
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind terms source: %w", err)
 	}
@@ -158,22 +157,18 @@ func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) 
 }
 
 // compileTermsSource re-imports the committed .terms.json into the project
-// terms (.db) cache — the single store-write path. The cache is the recipe's
-// bound terms, else the .kapi/terms.db convention.
+// store's vocabulary tables — the single store-write path. The destination is
+// always the project's own store: a recipe no longer names a compiled cache, so
+// there is nothing to override it with.
 func (a *App) compileTermsSource(ctx context.Context, root, srcPath string) error {
-	dbPath := filepath.Join(root, project.StateDirName, "terms.db")
-	if proj, err := a.loadRecipeForRoot(root); err == nil && proj.Defaults.Terms != "" {
-		dbPath = resolveUnder(root, proj.Defaults.Terms)
-	}
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		return fmt.Errorf("create terms dir: %w", err)
-	}
-
-	tb, err := terms.NewSQLiteStore(dbPath)
+	db, err := a.ProjectDB(ctx, root)
 	if err != nil {
-		return fmt.Errorf("open terms cache: %w", err)
+		return err
 	}
-	defer tb.Close()
+	tb := db.Terms()
+	if tb == nil {
+		return fmt.Errorf("compile terms: %w", projectdb.ErrNoStore)
+	}
 
 	f, err := os.Open(srcPath)
 	if err != nil {
@@ -280,7 +275,7 @@ func conceptID(text string, locale model.LocaleID) string {
 }
 
 // ---------------------------------------------------------------------------
-// tm → committed .memory.json source → tm import compile into .kapi/memory.db
+// memory → committed .memory.json source → import compile into the project store
 // ---------------------------------------------------------------------------
 
 // applyReviewEntry records a review decision in the project STATE store via the
@@ -321,7 +316,7 @@ func (a *App) applyReviewEntry(ctx context.Context, cmd Command, e changeEntry) 
 
 // applyMemoryEntry adds a source→target content memory pair. It edits the committed .memory.json
 // source the recipe binds (creating l10n/memory.json and binding it when none
-// exists), then re-imports the .memory.json into the project content memory (.kapi/memory.db) cache.
+// exists), then re-imports the .memory.json into the project store's content memory.
 func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Source}
 
@@ -447,24 +442,22 @@ func pluralBundles(n int) string {
 	return "bundles"
 }
 
-// compileMemorySource re-imports the committed .memory.json into the project content memory cache
-// (the conventional .kapi/memory.db, the same file kapi extract/merge use).
+// compileMemorySource re-imports the committed .memory.json into the project
+// store's content memory — the same one kapi extract/merge read and write.
 func (a *App) compileMemorySource(ctx context.Context, root, srcPath string) error {
-	dbPath := filepath.Join(root, project.StateDirName, "memory.db")
-	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-		return fmt.Errorf("create tm dir: %w", err)
-	}
-
-	tm, err := memory.NewSQLiteStore(dbPath)
+	db, err := a.ProjectDB(ctx, root)
 	if err != nil {
-		return fmt.Errorf("open tm cache: %w", err)
+		return err
 	}
-	defer tm.Close()
+	tm := db.Memory()
+	if tm == nil {
+		return fmt.Errorf("compile content memory: %w", projectdb.ErrNoStore)
+	}
 
 	if _, err := ImportKMBFile(ctx, tm, srcPath); err != nil {
-		return fmt.Errorf("compile tm: %w", err)
+		return fmt.Errorf("compile content memory: %w", err)
 	}
-	a.RebuildMemorySearchIndexes(tm)
+	a.RebuildMemorySearchIndexes(ctx, tm)
 	return nil
 }
 
@@ -866,17 +859,6 @@ func setRecipeField(proj *project.KapiProject, path string, raw json.RawMessage)
 			return false, nil
 		}
 		proj.Defaults.Encoding = v
-		return true, nil
-
-	case "defaults.terms":
-		var v string
-		if err := decodeRecipeValue(path, raw, &v); err != nil {
-			return false, err
-		}
-		if proj.Defaults.Terms == v {
-			return false, nil
-		}
-		proj.Defaults.Terms = v
 		return true, nil
 
 	case "defaults.terms_source":

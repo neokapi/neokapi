@@ -93,10 +93,11 @@ func TestGroupInputsByBinding(t *testing.T) {
 			Terms: "press-terms.db",
 		},
 		{
-			// A profile binding exactly what the project defaults bind.
+			// A profile binding exactly what the project defaults bind: the
+			// default voice, and no standalone terms — so the project's own
+			// store governs its vocabulary, exactly as at the default point.
 			When:  map[string]string{"product": "house"},
 			Voice: defaultVoice,
-			Terms: "terms.db",
 		},
 	}
 	root := filepath.FromSlash("/repo")
@@ -104,7 +105,7 @@ func TestGroupInputsByBinding(t *testing.T) {
 	newProj := func(content ...project.ContentCollection) *project.KapiProject {
 		return &project.KapiProject{
 			Version:     "v1",
-			Defaults:    project.Defaults{BrandVoice: defaultVoice, Terms: "terms.db"},
+			Defaults:    project.Defaults{BrandVoice: defaultVoice},
 			Coordinates: coords,
 			Profiles:    profiles,
 			Content:     content,

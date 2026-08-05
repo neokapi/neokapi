@@ -141,11 +141,16 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// and more expensive — run than reality warrants, off a figure that looks
 	// authoritative. A wrong number here costs real money.
 	//
-	// The os.Stat guard below already draws the distinction this family needs and
-	// it is load-bearing, not decoration: a plan must not create files, so an
-	// ABSENT store is the legitimate no-leverage case and stays silent. Past the
-	// stat the file exists, so a failure to open it can only mean it exists and
-	// cannot be read — exactly the case that must not read as "no memory".
+	// The os.Stat guard below draws the distinction this family needs and it is
+	// load-bearing, not decoration: a plan must not create the project store, so
+	// an ABSENT store is the legitimate no-leverage case and stays silent. Past
+	// the stat the store exists, so a failure to open it can only mean it exists
+	// and cannot be read — exactly the case that must not read as "no memory".
+	//
+	// It stats the store rather than opening it and asking, because opening
+	// CREATES it: the handle runs every subsystem's migrations at open. A plan
+	// that left a `.kapi/store.db` behind would be a dry run with a side effect,
+	// and the next `up` would find a store it did not write.
 	var mem memory.ContentMemory
 	if a.MemoryBackend != nil {
 		mem = a.MemoryBackend
@@ -154,16 +159,17 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 		if lerr != nil {
 			return UpPlanOutput{}, fmt.Errorf("resolve project layout for %s: %w", projectPath, lerr)
 		}
-		memoryPath := filepath.Join(layout.StateDir, "memory.db")
-		if _, statErr := os.Stat(memoryPath); statErr == nil {
-			loaded, terr := memory.NewSQLiteStore(memoryPath)
-			if terr != nil {
-				return UpPlanOutput{}, fmt.Errorf("open project content memory at %s: %w — the plan's "+
+		if _, statErr := os.Stat(layout.StorePath()); statErr == nil {
+			db, derr := a.ProjectDB(ctx, layout.Root)
+			if derr != nil {
+				return UpPlanOutput{}, fmt.Errorf("open project store at %s: %w — the plan's "+
 					"leverage, token and cost figures are computed against it, so they would understate "+
-					"the work and overstate the spend; fix or remove the store before planning", memoryPath, terr)
+					"the work and overstate the spend; fix or remove the store before planning",
+					layout.StorePath(), derr)
 			}
-			defer loaded.Close()
-			mem = loaded
+			if m := db.Memory(); m != nil {
+				mem = m
+			}
 		}
 	}
 

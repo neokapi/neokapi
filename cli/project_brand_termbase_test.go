@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/terms"
@@ -145,26 +147,36 @@ defaults:
 	assert.Equal(t, "Explicit", profile.Name, "explicit flag must override the project binding")
 }
 
-// seedProjectTerms creates <root>/.kapi/terms.db with one en→fr concept.
+// seedProjectTerms puts one en→fr concept into the PROJECT's own store.
 func seedProjectTerms(t *testing.T, root string) {
 	t.Helper()
-	dbPath := filepath.Join(root, ".kapi", "terms.db")
-	tb, err := terms.NewSQLiteStore(dbPath)
-	require.NoError(t, err)
-	defer tb.Close()
-	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
+	seedTermsStore(t, root, terms.Concept{
 		ID: "c1",
 		Terms: []terms.Term{
 			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
 			{Text: "Enregistrer", Locale: model.LocaleFrench, Status: model.TermPreferred},
 		},
-	}))
+	})
 }
 
-// TestResolveProjectGlossary_FromConventionTerms asserts that with no
-// --termstore flag and no defaults.terms, the convention
-// <root>/.kapi/terms.db is used to build the project glossary.
-func TestResolveProjectGlossary_FromConventionTerms(t *testing.T) {
+// seedTermsStore writes concepts into the project store at root.
+func seedTermsStore(t *testing.T, root string, concepts ...terms.Concept) {
+	t.Helper()
+	db, err := projectdb.Open(t.Context(), project.Layout{
+		Root: root, StateDir: filepath.Join(root, project.StateDirName),
+	})
+	require.NoError(t, err)
+	defer func() { require.NoError(t, db.Close()) }()
+	for _, c := range concepts {
+		require.NoError(t, db.Terms().AddConcept(t.Context(), c))
+	}
+}
+
+// TestResolveProjectGlossary_FromProjectStore asserts that with no --termstore
+// flag and no profile binding, the project's own store builds the vocabulary.
+// That is the whole binding story now: a recipe carries no terms path, so being
+// in a project IS the binding.
+func TestResolveProjectGlossary_FromProjectStore(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
@@ -185,18 +197,25 @@ defaults:
 	assert.Equal(t, "Enregistrer", glossary[0].Target)
 }
 
-// TestResolveProjectGlossary_FromBoundTerms asserts that defaults.terms
-// (relative to the project root) is honored when set.
-func TestResolveProjectGlossary_FromBoundTerms(t *testing.T) {
+// TestResolveProjectGlossary_FromProfileTerms asserts a profile's standalone
+// `terms:` (relative to the project root) is honoured over the project store —
+// the surviving per-point vocabulary binding.
+func TestResolveProjectGlossary_FromProfileTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   source_language: en
   target_languages: [fr]
-  terms: glossary.db
+coordinates:
+  product:
+    - id: press
+profiles:
+  - terms: brand-terms.db
 `)
-	// Bound terms at the project root (not the .kapi convention path).
-	dbPath := filepath.Join(root, "glossary.db")
+	// The project store says one thing; the profile's standalone store says
+	// another, and the profile wins.
+	seedProjectTerms(t, root)
+	dbPath := filepath.Join(root, "brand-terms.db")
 	tb, err := terms.NewSQLiteStore(dbPath)
 	require.NoError(t, err)
 	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{

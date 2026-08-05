@@ -20,8 +20,8 @@ import (
 // thing to keep consistent with it. Both live in `store_meta` now, so a stamp is
 // written by the same transaction that could write the blocks it describes.
 //
-// The file-based functions in core/project stay until the host reads its stamps
-// from here; the sweep deletes the sidecars they name.
+// This is the only implementation: the file-based one is gone and the sweep
+// deletes the sidecars it wrote.
 
 // metaMigrationsTable is this package's own ledger. It records only the
 // store-wide metadata schema — every subsystem keeps its own.

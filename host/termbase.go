@@ -8,43 +8,65 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 )
 
-func (a *App) OpenTermsSQLite(cmd Command) (terms.Terminology, string, error) {
+// OpenTermsSQLite opens the terms store a `kapi terms` subcommand operates on,
+// and returns it with a label naming where it came from and a release function
+// the caller must defer. See OpenMemorySQLite for why the release function
+// exists.
+func (a *App) OpenTermsSQLite(cmd Command) (terms.Terminology, string, func(), error) {
+	noop := func() {}
 	if a.TermsBackend != nil {
-		return a.TermsBackend, "(in-memory)", nil
+		return a.TermsBackend, "(in-memory)", noop, nil
 	}
-	dbPath, err := a.ResolveTermsCmdPath(cmd)
+	sel, err := a.ResolveTermsCmdStore(cmd)
 	if err != nil {
-		return nil, "", err
+		return nil, "", noop, err
 	}
-	tb, err := terms.NewSQLiteStore(dbPath)
+	if sel.InProject() {
+		db, err := a.ProjectDB(CmdContext(cmd), sel.Root)
+		if err != nil {
+			return nil, "", noop, err
+		}
+		tb := db.Terms()
+		if tb == nil {
+			return nil, db.Path(), noop, fmt.Errorf("open terms: %w", projectdb.ErrNoStore)
+		}
+		return tb, db.Path(), noop, nil
+	}
+	tb, err := terms.NewSQLiteStore(sel.Path)
 	if err != nil {
-		return nil, dbPath, fmt.Errorf("open terms: %w", err)
+		return nil, sel.Path, noop, fmt.Errorf("open terms: %w", err)
 	}
-	return tb, dbPath, nil
+	return tb, sel.Path, func() { _ = tb.Close() }, nil
 }
 
-// ResolveTermsCmdPath picks the SQLite terms file a `kapi terms`
-// subcommand operates on. An explicit --name/--file/--local flag always wins.
-// Otherwise, when run inside a .kapi project, it defaults to the project's bound
-// terms (defaults.terms, else <root>/.kapi/terms.db) so that
-// `kapi terms lookup`/`import` see the same glossary that `kapi check --ship` and
-// `kapi term-check` enforce — without it, a lookup inside a project silently
-// hit an empty ./terms.db. Falls back to ./terms.db outside a project.
-func (a *App) ResolveTermsCmdPath(cmd Command) (string, error) {
+// ResolveTermsCmdStore picks the terms store a `kapi terms` subcommand operates
+// on. An explicit --name/--file/--local flag always wins and selects a
+// standalone store; otherwise the project resolution applies (ResolveTermsStore)
+// so `kapi terms lookup`/`import` see the same vocabulary `kapi check --ship`
+// and `kapi term-check` enforce. Outside a project it falls back to ./terms.db.
+func (a *App) ResolveTermsCmdStore(cmd Command) (StoreSelection, error) {
 	name, _ := cmd.Flags().GetString("name")
 	local, _ := cmd.Flags().GetBool("local")
 	file, _ := cmd.Flags().GetString("file")
-	if name != "" || file != "" || local {
-		return resolveResourcePath(cmd, "terms", "terms.db")
+	if name == "" && file == "" && !local {
+		sel, err := a.ResolveTermsStore(cmd, "")
+		if err != nil {
+			return StoreSelection{}, err
+		}
+		if sel.Bound() {
+			return sel, nil
+		}
 	}
-	if p, err := a.resolveProjectTermsPath(cmd, ""); err == nil && p != "" {
-		return p, nil
+	path, err := resolveResourcePath(cmd, "terms", "terms.db")
+	if err != nil {
+		return StoreSelection{}, err
 	}
-	return resolveResourcePath(cmd, "terms", "terms.db")
+	return StoreSelection{Path: path}, nil
 }
 
 // TermsFileFormats names the terms file formats, in the order they are offered

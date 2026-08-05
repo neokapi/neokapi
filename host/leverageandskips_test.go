@@ -8,7 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,9 +21,9 @@ import (
 // authoritative. Costing money on a wrong number is worse than an error.
 //
 // The discrimination this needs was already sitting in the code, unused: the
-// os.Stat guard exists because a plan must not create files, so an ABSENT store
-// is the legitimate no-leverage case. Past the stat, a failure to open can only
-// mean present-but-unreadable.
+// os.Stat guard exists because a plan must not create the project store, so an
+// ABSENT store is the legitimate no-leverage case. Past the stat, a failure to
+// open can only mean present-but-unreadable.
 
 func newPlanProject(t *testing.T) (*App, string) {
 	t.Helper()
@@ -71,10 +71,10 @@ func TestComputeProjectPlan_UnopenableStoreFailsThePlan(t *testing.T) {
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
 
-	// A real seam: a file standing where the SQLite content memory must be, whose bytes are
-	// not a database. No production hook, no test-only branch.
-	memoryPath := filepath.Join(layout.StateDir, "memory.db")
-	require.NoError(t, os.WriteFile(memoryPath, []byte("this is not a sqlite database at all"), 0o644))
+	// A real seam: a file standing where the project store must be, whose bytes
+	// are not a database. No production hook, no test-only branch.
+	storePath := layout.StorePath()
+	require.NoError(t, os.WriteFile(storePath, []byte("this is not a sqlite database at all"), 0o644))
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
@@ -82,31 +82,35 @@ func TestComputeProjectPlan_UnopenableStoreFailsThePlan(t *testing.T) {
 	require.Error(t, perr,
 		"a content memory that cannot be read must not be reported as a project with no leverage — "+
 			"the plan's cost estimate is computed against it")
-	assert.Contains(t, perr.Error(), memoryPath, "the message must name the store")
+	assert.Contains(t, perr.Error(), storePath, "the message must name the store")
 	assert.Contains(t, perr.Error(), "overstate the spend")
 }
 
 // TestComputeProjectPlan_AbsentStorePlansAtZeroLeverage is the discriminating
-// control. Most projects have no memory store on their first plan, and a plan
-// must not create one, so "no store present" is the ordinary case and must stay
-// silent.
-// Without this, "fail whenever tm is nil" would pass the test above.
+// control, and it pins the invariant the merged store made sharper: a plan never
+// creates `.kapi/store.db`.
+//
+// Opening the store is what creates it — the handle runs every subsystem's
+// migrations at open — so the guard cannot be "open it and see". Most projects
+// have no store on their first plan, so "no store present" is the ordinary case,
+// and it must stay silent AND leave the state directory as it found it. Without
+// this, "fail whenever mem is nil" would pass the test above.
 func TestComputeProjectPlan_AbsentStorePlansAtZeroLeverage(t *testing.T) {
 	a, recipe := newPlanProject(t)
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
-	require.NoFileExists(t, filepath.Join(layout.StateDir, "memory.db"))
+	require.NoFileExists(t, layout.StorePath())
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	plan, perr := a.computeProjectPlan(t.Context(), proj, recipe)
-	require.NoError(t, perr, "a project with no memory store yet must still plan")
-	assert.Positive(t, plan.Totals.AIRemaining, "with no memory store every missing unit is AI work")
-	assert.Zero(t, plan.Totals.MemoryExact, "no memory store means no exact-hash leverage")
+	require.NoError(t, perr, "a project with no store yet must still plan")
+	assert.Positive(t, plan.Totals.AIRemaining, "with no content memory every missing unit is AI work")
+	assert.Zero(t, plan.Totals.MemoryExact, "no content memory means no exact-hash leverage")
 
 	// And the plan must not have created the store it declined to open.
-	assert.NoFileExists(t, filepath.Join(layout.StateDir, "memory.db"),
-		"a plan must not create files — that is why the stat guard exists")
+	assert.NoFileExists(t, layout.StorePath(),
+		"a plan must never create the project store — that is why the stat guard exists")
 }
 
 // TestComputeProjectPlan_HealthyStoreStillPlans: a usable store is opened and used.
@@ -115,41 +119,36 @@ func TestComputeProjectPlan_HealthyStoreStillPlans(t *testing.T) {
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
 
-	// A real, empty-but-valid project content memory, created the way kapi creates it.
-	memoryPath := filepath.Join(layout.StateDir, "memory.db")
-	tm, terr := memory.NewSQLiteStore(memoryPath)
-	require.NoError(t, terr)
-	require.NoError(t, tm.Close())
-	require.FileExists(t, memoryPath)
+	// A real, empty-but-valid project store, created the way kapi creates it.
+	db, derr := projectdb.Open(t.Context(), layout)
+	require.NoError(t, derr)
+	require.NoError(t, db.Close())
+	require.FileExists(t, layout.StorePath())
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	_, perr := a.computeProjectPlan(t.Context(), proj, recipe)
-	require.NoError(t, perr, "a readable memory store must plan normally")
+	require.NoError(t, perr, "a readable store must plan normally")
 }
 
-// RunExtractKpz's content-memory and terms opens are the other half of item 2, and they
-// take the opposite decision on purpose: the .kpz packages are still usable
-// without leverage, so a store that will not open is REPORTED and the extract
-// continues — matching the two siblings on the same call in that file
-// (RunExtract, MergeOneKpz), whose convention #1466 established. What was wrong
-// was the silence, not the continuing: a translator saw an empty recycling
-// context and an empty glossary on a project that has both, with nothing to
-// explain it.
+// RunExtractKpz's leverage open is the other half of item 2, and it takes the
+// opposite decision on purpose: the .kpz packages are still usable without
+// leverage, so a store that will not open is REPORTED and the extract continues
+// — matching the two siblings on the same call in that file (RunExtract,
+// MergeOneKpz), whose convention #1466 established. What was wrong was the
+// silence, not the continuing: a translator saw an empty recycling context and
+// no vocabulary on a project that has both, with nothing to explain it.
 func TestRunExtractKpz_UnopenableMemoryAndTermsAreReported(t *testing.T) {
 	a, recipe := newPlanProject(t)
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
 
-	// Real seams: files standing where the SQLite stores must be, whose bytes are
-	// not databases. Both constructors CREATE the file when absent, so a failure
-	// to open can only mean present-but-unreadable — which is exactly why the
-	// absent case cannot be used as the control here and the assertion below is
-	// about the message, not about the extract failing.
-	for _, name := range []string{"memory.db", "terms.db"} {
-		require.NoError(t, os.WriteFile(filepath.Join(layout.StateDir, name),
-			[]byte("not a sqlite database"), 0o644))
-	}
+	// A real seam: a file standing where the project store must be, whose bytes
+	// are not a database. Opening CREATES the store when absent, so a failure to
+	// open can only mean present-but-unreadable — which is exactly why the absent
+	// case cannot be used as the control here, and why the assertion below is
+	// about the message rather than about the extract failing.
+	require.NoError(t, os.WriteFile(layout.StorePath(), []byte("not a sqlite database"), 0o644))
 
 	var stderr bytes.Buffer
 	cmd := NewEnvCommand(t.Context(), "extract")
@@ -160,10 +159,11 @@ func TestRunExtractKpz_UnopenableMemoryAndTermsAreReported(t *testing.T) {
 	require.NoError(t, err, "the packages are still usable without leverage, so the extract continues")
 
 	out := stderr.String()
-	assert.Contains(t, out, "open project content memory at", "the memory failure must be reported, not swallowed")
-	assert.Contains(t, out, "zero recycling leverage",
+	assert.Contains(t, out, "open project store", "the store failure must be reported, not swallowed")
+	assert.Contains(t, out, "zero recycling",
 		"and it must say what the user will see as a result")
-	assert.Contains(t, out, "open project terms at", "the terms failure must be reported too")
+	assert.Contains(t, out, "no vocabulary",
+		"the vocabulary loss must be named too — one store now carries both")
 }
 
 // TestRunExtractKpz_HealthyStoresReportNothing is the control: a project whose

@@ -12,7 +12,6 @@ import (
 	"github.com/leonelquinteros/gotext"
 	"github.com/neokapi/neokapi/core/formats/mo"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/require"
 )
 
@@ -68,19 +67,7 @@ content:
 	targetFile = filepath.Join(root, "locales", "fr", "app.json")
 	require.NoError(t, os.WriteFile(targetFile, []byte(bad), 0o644))
 
-	// Seed the project terms store: Save -> Enregistrer (approved).
-	tbPath := filepath.Join(root, ".kapi", "terms.db")
-	tb, err := terms.NewSQLiteStore(tbPath)
-	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
-		ID: "c1",
-		Terms: []terms.Term{
-			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
-			{Text: "Enregistrer", Locale: model.LocaleFrench, Status: model.TermPreferred},
-		},
-	}))
-	require.NoError(t, tb.Close())
-
+	seedProjectTerms(t, root)
 	return root, targetFile
 }
 

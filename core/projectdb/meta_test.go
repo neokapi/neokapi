@@ -152,9 +152,11 @@ func TestDetectStoreDrift(t *testing.T) {
 	})
 }
 
-// The table-backed stamps and the file sidecars must read the same drift from
-// the same stamps — they share the comparison, and this is what says so.
-func TestDetectStoreDrift_MatchesFileBackedDetection(t *testing.T) {
+// Drift detection reads the stamps out of the table and hands them to the
+// shared comparison — it does not re-implement the comparison. This is what says
+// so: the same stamps and files put through project.CompareSourceStamps directly
+// must produce exactly what the store reports.
+func TestDetectStoreDrift_DelegatesToSharedComparison(t *testing.T) {
 	layout := newLayout(t)
 	db := openStore(t, layout)
 	ctx := t.Context()
@@ -171,15 +173,12 @@ func TestDetectStoreDrift_MatchesFileBackedDetection(t *testing.T) {
 	require.NoError(t, db.StampBlockStoreVersion(ctx))
 	require.NoError(t, db.SaveSourceStamps(ctx, stamps))
 
-	// The predecessor layout: a standalone block store with sidecar stamps.
-	legacyStore := filepath.Join(t.TempDir(), "blocks.db")
-	require.NoError(t, os.WriteFile(legacyStore, []byte("not really sqlite"), 0o644))
-	require.NoError(t, project.StampBlockStoreVersion(legacyStore))
-	require.NoError(t, project.SaveSourceStamps(legacyStore, stamps))
+	wantChanged, wantRemoved := project.CompareSourceStamps(stamps, files)
 
-	fromTable := db.DetectStoreDrift(ctx, files)
-	fromFiles := project.DetectStoreDrift(legacyStore, files)
-	assert.Equal(t, fromFiles.Changed, fromTable.Changed)
-	assert.Equal(t, fromFiles.Removed, fromTable.Removed)
-	assert.Equal(t, fromFiles.VersionStale, fromTable.VersionStale)
+	drift := db.DetectStoreDrift(ctx, files)
+	assert.Equal(t, wantChanged, drift.Changed)
+	assert.Equal(t, wantRemoved, drift.Removed)
+	assert.False(t, drift.VersionStale, "the running binary stamped it a moment ago")
+	assert.False(t, drift.StoreMissing, "a block was written")
+	assert.Equal(t, stamps, db.LoadSourceStamps(ctx), "the stamps round-trip through the table")
 }

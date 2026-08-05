@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -82,9 +81,9 @@ func runProcessOnly(t *testing.T, a *App, recipe, dir, inputPath string) error {
 	t.Helper()
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
-	store, err := sqlitestore.New(layout.BlockStorePath())
+	db, err := a.ProjectDB(t.Context(), layout.Root)
 	require.NoError(t, err)
-	defer store.Close()
+	store := db.BlocksAutocommit()
 
 	pseudo, err := tools.NewPseudoTranslateFromConfig(map[string]any{"target_locale": "fr"}, "fr")
 	require.NoError(t, err)
@@ -208,9 +207,9 @@ func TestProcessOnly_NoProjectRootStillRunsOnRawIDs(t *testing.T) {
 	a, recipe, dir := newProcessOnlyProject(t)
 	layout, err := project.LayoutFor(recipe)
 	require.NoError(t, err)
-	store, err := sqlitestore.New(layout.BlockStorePath())
+	db, err := a.ProjectDB(t.Context(), layout.Root)
 	require.NoError(t, err)
-	defer store.Close()
+	store := db.BlocksAutocommit()
 
 	pseudo, err := tools.NewPseudoTranslateFromConfig(map[string]any{"target_locale": "fr"}, "fr")
 	require.NoError(t, err)
