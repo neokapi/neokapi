@@ -19,8 +19,21 @@ kapi init --name my-app --source-locale en --target-locale fr --target-locale de
 # --framework <preset>  pre-fills content paths; kapi init --list-presets shows them all
 ```
 
-This writes `kapi.yaml` (the recipe, committed) and a `.kapi/` state directory
-(gitignored: the content memory `memory.db`, the terms store `terms.db`, caches).
+This writes `kapi.yaml` (the recipe, committed), the context sources it binds
+(`context/terms.json`, `context/memory.json` — committed), and a `.kapi/`
+directory. Two things inside `.kapi/` matter to you:
+
+- **`.kapi/units/*.jsonl`** — the unit-decision record, one shard per document.
+  Committed. `kapi commit` publishes review decisions into it; then `git add` it
+  like any other source file.
+- **`.kapi/store.db`** — the local index over the recipe, the context sources,
+  the unit record and the content files. Gitignored. Never read or write it
+  directly and never commit it; go through kapi commands, which are what keep it
+  consistent with the sources.
+
+`rm -rf .kapi/cache` is always safe — everything under it rebuilds on the next
+run. Deleting `.kapi/store.db` is safe too, except for review decisions staged
+since the last `kapi commit`, which live only there: run `kapi commit` first.
 
 ## What the recipe binds
 
@@ -36,7 +49,8 @@ content:
 defaults:
   brand_voice:
     profile_file: brand.yaml   # or: profile: <store name> | pack: marketing-blog
-  terms: .kapi/terms.db  # the bound terms store (also the default location)
+  terms_source: context/terms.json    # the committed terms source
+  memory_source: context/memory.json  # the committed content memory
 ```
 
 - **Brand voice** — bind it under `defaults.brand_voice`, or just keep a
@@ -58,7 +72,7 @@ defaults:
       voice: context/base-voice.yaml
     - when: { product: platform }
       voice: context/platform-voice.yaml
-      terms: context/platform-terms.json   # optional; falls back to defaults.terms
+      terms: context/platform-terms.json   # optional; falls back to defaults.terms_source
 
   content:
     - name: platform-docs

@@ -1,11 +1,12 @@
 ---
 sidebar_position: 7
 title: Project state
-description: The .kapi-state.json committed state artifact — the transient working set that is not durable until export, the unit state record, and why the file sits outside the gitignored state directory.
+description: The committed unit record under .kapi/units — JSON Lines, one shard per document, one line per unit — the working set that stages decisions until kapi commit, and the unit state fields.
 keywords:
   [
     project state,
-    .kapi-state.json,
+    kapi/units,
+    jsonl,
     kapi-project-state,
     review,
     decisions,
@@ -14,7 +15,7 @@ keywords:
   ]
 ---
 
-# Project state (`.kapi-state.json`)
+# Project state (`.kapi/units/*.jsonl`)
 
 Project state records **workflow decisions about units**: what has been
 reviewed, what was approved and by whom, what status a target has reached. It
@@ -23,63 +24,75 @@ is the artifact that lets a review survive a fresh clone.
 Implemented in Go at
 [`core/state`](https://github.com/neokapi/neokapi/tree/main/core/state).
 
-## The working set is transient until you export it
+## The working set stages, the record commits
 
-Mutations are **in transit and not durable**. Recording a decision puts it in an
-in-memory working set; nothing reaches disk until an explicit export
-materializes it to its durable home. The model is deliberately the one you
-already know from git: decisions behave like staged changes, and you export
-deliberately — a CI step commits the state file, or `kapi push` sends it to the
-server when the project binds one.
+A decision is recorded into a **working set** — the unit-state tables of
+[`.kapi/store.db`](/kapi/project-store) — and stays there until `kapi commit`
+materializes it into the committed record under `.kapi/units/`. The model is
+deliberately the one you already know from git: decisions behave like staged
+changes, and you publish deliberately. `kapi status` reports what is staged, so
+nothing is lost silently.
 
 The consequences follow from that:
 
-- The working set can be discarded and re-imported from the durable home. Only
-  **un-exported** decisions are lost — exactly like uncommitted changes.
-- `Pending()` reports whether un-exported decisions exist, so they are never
-  lost silently.
-- Export is a no-op when nothing changed since the last import or export, which
-  keeps a CI step from producing an empty commit.
+- The working set is a derived index over the record and can be discarded. Only
+  **uncommitted** decisions are lost — exactly like uncommitted changes.
+- Committing is a no-op when nothing changed, which keeps a CI step from
+  producing an empty commit.
+- A server-backed project has a different sink for the same decisions:
+  `kapi push` sends them to the remote instead of writing shards.
 
-The durable home is a **binding**, not a fixed path: a committed file today, the
-server when the project binds one. The serialization below is the file form.
+## One shard per document
 
-## Why it is not under `.kapi/`
+The committed record is a directory of JSON Lines files, one per document
+scope, each line a single unit:
 
-`.kapi-state.json` sits at the project root — a *sibling* of the `.kapi/` state
-directory, not a file inside it.
-
-That is deliberate, and for the same reason the
-[terms bundle](/reference/serialization/terms) prefers the root: `.kapi/` is
-gitignored. A record of who approved what is precisely the kind of thing that
-must be reviewable and must survive a clone. Putting it inside `.kapi/` would
-make it disappear.
-
-The [overview](/reference/serialization/overview) states the general rule.
-
-The path is configurable in the recipe; `.kapi-state.json` is the default.
-
-## Envelope
-
-```json
-{
-  "schemaVersion": "1.0",
-  "kind": "kapi-project-state",
-  "units": []
-}
+```
+.kapi/units/
+├── d-app-messages.jsonl
+└── d-guide-intro.jsonl
 ```
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `schemaVersion` | string | `MAJOR.MINOR`. |
-| `kind` | string | Always `kapi-project-state`. |
-| `units` | array | Unit state records, written in deterministic order so the file diffs cleanly under git. |
+```json title="one line of a shard"
+{"unit":"k1_…","scope":"d-app-messages","variant":{"locale":"nb"},"status":"reviewed","targetHash":"…","updated":"2026-08-04T09:12:44Z"}
+```
+
+**JSON Lines rather than one document**, because the record is appended to and
+diffed far more often than it is read whole: a line per unit makes recording a
+decision a one-line diff instead of a rewrite of every byte. **Sharded per
+document** for the same reason at a larger grain — editing the documentation
+does not rewrite the shard holding the interface strings, and two branches
+touching unrelated documents do not conflict on sight.
+
+Lines are sorted within a shard, so a file's bytes depend only on its contents.
+A shard whose last unit is gone is pruned rather than left behind claiming units
+that no longer exist. A malformed line is an error: state is authoritative and
+must never be silently discarded.
+
+Shard filenames are *derived* from the document scope, not taken from it. A
+scope is the document's resolved **key**, never its path — so renaming a file
+does not orphan its decisions — and deriving the filename keeps an opaque key
+from escaping the directory.
+
+## Why the record is committed and the store is not
+
+`.kapi/units/` sits inside `.kapi/`, and `.kapi/.gitignore` is what makes the
+distinction: `store.db` and `cache/` are excluded, `units/` is not. A record of
+who approved what must be reviewable and must survive a clone; the database that
+indexes it is rebuildable and belongs to one machine.
+
+The [overview](/reference/serialization/overview) states the general rule, and
+[the project store](/kapi/project-store) covers the split in full.
 
 ## Unit state
 
+Each line carries one unit's state. The record's schema identity is
+`kapi-project-state` at `schemaVersion` `1.0`; a shard is bare JSON Lines, so
+the version rides the single-document serialization of the same records.
+
 | Field | Type | Notes |
 | --- | --- | --- |
-| `unit` | string | Unit identity — the block's content hash, the same key the document cache and overlays address it by. |
+| `unit` | string | Unit identity — the block's content hash, the same key the block tables and overlays address it by. |
 | `variant` | object | The locale, and optional tone/channel, this state applies to. |
 | `status` | string | Target ladder position: draft → translated → reviewed → signed-off. |
 | `sourceStatus` | string | Source ladder position: authored → checked → approved. |
@@ -94,7 +107,7 @@ Two fields carry most of the design:
 **`targetHash` does not duplicate the translation.** It is a hash of the text
 the decision was made about, so editing that text invalidates a stale approval
 rather than silently carrying it forward. The translation itself lives in the
-deliverable; this file only blesses it.
+deliverable; this record only blesses it.
 
 **`aiReview` is advisory and is never a decision.** It informs the review queue
 with a score and findings. Where an AI pre-review justified an automatic
@@ -107,10 +120,12 @@ decision remain distinguishable in the record.
 - **The translations themselves.** Only their hashes. The content lives in the
   deliverable or in a [content bundle](/reference/serialization/content-bundle).
 - **Anything derivable.** Coverage percentages and review queues are computed
-  from this file plus the content, not stored alongside.
-- **Un-exported decisions.** By construction — that is what export is for.
+  from these shards plus the content, not stored alongside.
+- **Uncommitted decisions.** By construction — that is what `kapi commit` is
+  for.
 
 ## See also
 
+- [The project store](/kapi/project-store) — the committed record, the local store, and the cache.
 - [Overview](/reference/serialization/overview) — store, bundle, and committed state.
-- [Terms](/reference/serialization/terms) — the other artifact that sits outside `.kapi/`, for the same reason.
+- [Terms](/reference/serialization/terms) — the other committed artifact a reviewer reads.

@@ -56,7 +56,7 @@ Each store has exactly one native spelling — the bundle — and a project comm
 it:
 
 ```bash
-kapi memory export -o l10n/tm/cli-nb.memory.json
+kapi memory export -o context/memory/cli-nb.memory.json
 kapi terms import seeds/terms.json    # format detected from the extension
 kapi terms export --format bundle -o brand.terms.json   # or name it explicitly
 ```
@@ -74,7 +74,7 @@ travel small is what `zip` and `gzip` are for.
 The suffix, not the location, is what identifies a bundle — a project puts one
 wherever it likes and may keep several. Which bundle a given project uses is set
 by the recipe
-([`defaults.termbase_source` / `defaults.tm_source`](/reference/project-file)) or
+([`defaults.terms_source` / `defaults.memory_source`](/reference/project-file)) or
 by an explicit `-o` path.
 
 ### Where terms live when nothing is bound
@@ -82,15 +82,16 @@ by an explicit `-o` path.
 Your terms bundle belongs at the **repository root**, as `terms.json`. `.kapi/`
 is gitignored, so a terms bundle kept there would never be committed, never show
 up in a diff, and never get reviewed, which defeats the point of keeping
-terminology as source. The bundle is the committed source; `.kapi/termbase.db`
-is the throwaway cache it compiles into. The
+terminology as source. The bundle is the committed source; the terms tables in
+`.kapi/store.db` are the derived index it compiles into. The
 [terms page](/reference/serialization/terms#the-lookup-ladder) specifies the
 ladder.
 
 Content memory has no matching convention: **a project has one terms bundle but
 many content-memory bundles**, typically one per content surface. This
-repository's own dogfood commits a bundle per surface under `l10n/tm/` against a
-single `l10n/terms.json`, so a memory seed is always named rather than guessed.
+repository's own dogfood commits a bundle per surface under `context/memory/`
+against a single `context/terms.json`, so a memory seed is always named rather
+than guessed.
 
 ## The `.kpz` package
 
@@ -136,17 +137,18 @@ Both are *parcels*, not workspaces: day-to-day work happens in the ambient `.kap
 project ([AD-025](/contribute/architecture/025-kbf-package) §7).
 
 Because every member is a native lossless format, the whole package is lossless:
-unpacking can seed a fresh content memory, terms store, and block store, and the
-project's regenerable caches (the block-store cache, sync hashes) rebuild
-faithfully from it. The manifest's per-member SHA-256 and Merkle `rootHash` give
+unpacking can seed a fresh [project store](/kapi/project-store) — content
+memory, terms and blocks alike — and the regenerable caches (parse cache, sync
+hashes) rebuild faithfully from it. The manifest's per-member SHA-256 and Merkle `rootHash` give
 the package — and each member — a stable content identity; unpacking verifies
 both before trusting the contents.
 
 ### What a package deliberately excludes
 
-A `.kpz` packs the **source of truth**, not the regenerable caches. It excludes
-the block-store cache (`blocks.db`) and the sync hash cache, which rebuild on
-demand, and it excludes secrets (the sync claim token). This is what makes the
+A `.kpz` packs the **source of truth**, not the regenerable index. It excludes
+`.kapi/store.db` and everything under `.kapi/cache/`, which rebuild on demand,
+and it excludes secrets (the sync claim token). A part with nothing in it is
+absent rather than empty. This is what makes the
 package the at-rest twin of the sync wire format: packing is the sync converters
 writing files instead of protobuf, and unpacking is the inverse.
 
@@ -176,7 +178,7 @@ where it left off. There are two routes, and neither needs per-step CLI verbs:
   kapi translate work.kpz --target-lang fr                # transform (cache)
   kapi info  work.kpz                                         # dirty?
   kapi pack  work.kpz                                         # eject for sharing
-  kapi merge work.kpz -o l10n/                                # emit → l10n/<lang>/<name>
+  kapi merge work.kpz -o locales/                             # emit → locales/<lang>/<name>
   ```
 
   A small **recipe** (target locales + output layout) travels with the file, so
@@ -186,9 +188,9 @@ where it left off. There are two routes, and neither needs per-step CLI verbs:
 - **Project snapshot (`pack` / `unpack`).** Inside a `.kapi` project the working
   state also includes the project's content memory and terms store. `kapi pack`
   snapshots all of it; `kapi unpack` rehydrates it into another machine's
-  `.kapi/` state dir.
-  Within a project, re-running a flow also reuses the project's persistent cache
-  (`.kapi/cache/blocks.db`), so resume there is simply running again.
+  `.kapi/` directory.
+  Within a project, re-running a flow also reuses the block tables already in
+  `.kapi/store.db`, so resume there is simply running again.
 
   ```bash
   kapi pack   -o snapshot.kpz   # snapshot the project's working state

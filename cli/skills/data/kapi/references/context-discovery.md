@@ -92,7 +92,7 @@ Bind the context in the recipe:
 defaults:
   brand_voice:
     profile_file: brand.yaml   # file binding, so `kapi apply` brand rules land in it
-  terms: .kapi/terms.db   # the bound terms store
+  terms_source: context/terms.json   # the committed terms source
 content:
   - path: "docs/**/*.md"
     format: markdown
@@ -102,7 +102,7 @@ Materialize the terminology seed, now that the project exists:
 
 ```bash
 # preferred: term entries — maintains the committed context/terms.json source
-# and compiles the .kapi/terms.db cache in one verb
+# and reindexes it into .kapi/store.db in one verb
 kapi apply terms.jsonl
 # bulk path for a handed-over term list (csv, tsv, json, tbx, bundle):
 kapi terms import terms.csv -s en -t fr --header
@@ -115,7 +115,7 @@ kapi terms import vocab.csv -s en --monolingual --header
 ```
 
 The `apply` route keeps a committed source of truth; a bulk `terms import`
-writes only the compiled store, so commit the imported term list itself. Then
+writes only the derived index, so commit the imported term list itself. Then
 verify the whole context locally before pushing:
 
 ```bash
@@ -126,7 +126,8 @@ The recipe carries the bindings; the thresholds ride on the check itself: the
 brand gate's score bar is `--min-score` (default 80), not a recipe field, and a
 translation-coverage bar is an optional top-level `ship_gate:` (see
 [translate.md](translate.md)). Commit the context: the recipe, `brand.yaml`, the
-`l10n/` sources, any imported term list. `.kapi/` state stays gitignored.
+sources under `context/`, any imported term list, and `.kapi/units/`.
+`.kapi/store.db` and `.kapi/cache/` stay gitignored.
 
 ## 5. Push to Bowrain
 

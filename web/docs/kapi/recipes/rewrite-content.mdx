@@ -89,7 +89,7 @@ kapi check guide.md --max-chars 500 --forbid "utilize"
 - **Drift guard.** A block whose current `content_hash` no longer matches your entry changed since you inspected it — the edit is marked **stale** and skipped.
 - **Inline-code guard.** An edited `text` that drops, invents, duplicates, or unbalances an `<x id="…"/>` token is **rejected** rather than written back with broken markup.
 
-Either outcome exits on the gate code (`3`), distinct from an operational error — re-inspect the affected blocks and retry with fresh hashes. `apply` is idempotent, and the same change-set can carry asset edits (an approved term, a brand rule — see [Create content](/kapi/recipes/create-content)) or a `kind:"review"` decision ([The kapi loop](/kapi/convergence#review-a-decision-in-the-project-state-store)) — one write verb, different `kind`s.
+Either outcome exits on the gate code (`3`), distinct from an operational error — re-inspect the affected blocks and retry with fresh hashes. `apply` is idempotent, and the same change-set can carry asset edits (an approved term, a brand rule — see [Create content](/kapi/recipes/create-content)) or a `kind:"review"` decision ([The kapi loop](/kapi/convergence#review-a-decision-in-the-unit-record)) — one write verb, different `kind`s.
 
 ## What "faithfully" means
 

@@ -9,8 +9,8 @@ Fetch changes from Bowrain Server. Uses cursor-based incremental sync to
 transfer only blocks that changed since the last pull.
 
 When the project is claimed into a workspace, pull also snapshots the
-workspace's governed concepts and their relations into the project's bound
-terms store (`.kapi/terms.db`) and records a baseline, so a later
+workspace's governed concepts and their relations into the project's terms
+store and records a baseline, so a later
 [`kapi push`](/cli/commands/push) can diff local terminology edits against it
 and [`kapi check --ship --terms`](/cli/use-cases/brand-terminology-ci) gates offline
 against the same governed vocabulary. See

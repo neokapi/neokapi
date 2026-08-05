@@ -100,14 +100,14 @@ rendered as `<x id="…"/>` placeholders, and its `word_count`. Pair it with
 
 Apply a typed change-set — the one write verb, the write leg of the edit loop.
 Content edits land through the byte-faithful round-trip (structure and inline
-codes preserved, drift-guarded by `content_hash`); asset edits (`term`, `tm`,
-`brand`, `recipe`) are written to their committed source artifact and compiled
-into the cache. No AI provider is used.
+codes preserved, drift-guarded by `content_hash`); asset edits (`term`, `memory`,
+`brand`, `recipe`) are written to their committed source artifact and reindexed
+into the project store. No AI provider is used.
 
 **Input:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `changeset` | array | yes | Typed change-set entries (`kind`: `content` / `term` / `tm` / `brand` / `recipe`) |
+| `changeset` | array | yes | Typed change-set entries (`kind`: `content` / `term` / `memory` / `brand` / `recipe`) |
 
 **Output:** `ok` plus the per-block content outcome (`applied` / `skipped` / `stale` / `guard_failed`) and a per-entry `assets` result. `ok` is false when an edit drifted or was rejected, signalling the caller to re-read and retry.
 

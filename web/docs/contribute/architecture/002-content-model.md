@@ -324,7 +324,7 @@ opt-out and is the subject of
 [AD-031: Content-Fidelity Surfacing](031-content-fidelity-surfacing.md).
 
 **Source provenance.** A `Target` records its `Origin` — how the translation was
-produced (`human`/`tm`/`mt`/`ai`, the engine, a reference). A Block's **source**
+produced (`human`/`memory`/`mt`/`ai`, the engine, a reference). A Block's **source**
 carries the same `Origin` when it was *recognized* rather than parsed: an OCR or
 ASR engine, or an LLM, produced the text, so the `Origin` names that engine and
 carries a **confidence**. A block read losslessly from a text format has no

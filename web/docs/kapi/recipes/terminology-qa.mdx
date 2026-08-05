@@ -54,7 +54,7 @@ kapi terms import glossary.csv --name product-terms \
   --format csv --header -s en -t fr                 # once; persists across sessions
 kapi terms lookup "log in" --name product-terms -s en -t fr
 kapi exec term-check messages_fr.json \
-  --source-lang en --target-lang fr --terms product-terms
+  --source-lang en --target-lang fr --termstore product-terms
 ```
 
 The `term-check` tool flags targets that don't use the approved equivalent for a source term — "code secret" where the terms store says "mot de passe" — and exits non-zero on violations, so it doubles as a CI gate. Scale with globs and `-j 4`; keep the terms store current with re-imports (concepts merge) and `kapi terms export` for vendor kits. Flags: [`kapi terms`](/reference/commands/terms), [`kapi exec term-check`](/reference/commands/exec-term-check).
