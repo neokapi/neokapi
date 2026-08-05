@@ -68,7 +68,7 @@ kapi init
 ```
 
 The wizard signs you in and connects the project, writing a `kapi.yaml` recipe
-at the project root and a sibling `.kapi/` state directory. The recipe's
+at the project root and a sibling `.kapi/` directory. The recipe's
 `server:` block is what makes the project connected.
 
 ## Everyday use

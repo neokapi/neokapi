@@ -178,8 +178,10 @@ With no source flag, resolution falls back to the `.kapi` project in scope: the
 voice governing the content collection that claims the file, else the recipe's
 `defaults.brand_voice` (a `BrandVoiceBinding` selecting a profile file, store
 profile, or pack — resolved relative to the project root), then a convention
-file at `<root>/brand.yaml` or `<root>/.kapi/brand.yaml`. This lets `kapi brand
-check DRAFT.md` work flag-free inside a project. Locale and channel overrides
+file at `<root>/.kapi/context/brand-voice.yaml` — the profile's home in the
+committed context graph ([AD-008](008-project-model.md)) — or `<root>/brand.yaml`
+for a project that keeps it at the root. This lets `kapi brand check DRAFT.md`
+work flag-free inside a project. Locale and channel overrides
 apply on top via `--locale`/`--channel`; an explicit `--channel` wins over the
 channel the recipe declares.
 
@@ -200,9 +202,9 @@ coordinates:
 
 profiles:
   - when: {}
-    voice: context/base-voice.yaml
+    voice: .kapi/context/base-voice.yaml
   - when: { product: bowrain }
-    voice: context/bowrain-voice.yaml
+    voice: .kapi/context/bowrain-voice.yaml
 
 content:
   - name: docs

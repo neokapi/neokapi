@@ -61,8 +61,18 @@ backings:
 - An in-process `SecretAnnotation` on the block for single-run flows. It is
   keyed under a name no format writer serializes, and `unredact` deletes it
   after restoring, so it cannot reach an output file.
-- A gitignored JSON **sidecar** (`.kapi/cache/redaction/<batch-id>.json`,
-  written `0600`) for the extract → external-translation → merge roundtrip.
+- A JSON **sidecar** in the project's vault
+  (`.kapi/work/vault/redaction/<batch-id>.json`, written `0600`) for the
+  extract → external-translation → merge roundtrip.
+
+The vault sits beside the store under `.kapi/work/`, the project's one gitignored
+path ([AD-008](008-project-model.md)), and not under `.kapi/work/cache/`. The
+distinction is load-bearing: everything in `cache/` is free to delete because it
+rebuilds, and a withheld original does not rebuild from anything. It was never
+committed, is never synced to a server, and exists on exactly one machine — which
+is the guarantee. So `rm -rf .kapi/work/cache` stays free, while deleting
+`.kapi/work` wholesale strands any batch mid-roundtrip: the merge that would have
+restored the originals has nothing to restore from.
 
 For AI translation the guarantee is *structural*, not advisory: a block with
 inline codes is sent to the model through `RunsPlaceholderText`, which renders
@@ -159,7 +169,7 @@ of the committed recipe:
 defaults:
   redaction:
     enabled: true
-    rules: .kapi/redaction.yaml   # gitignorable
+    rules: redaction.yaml         # binds any path; gitignore it
     detectors: [rules]            # opt in: entities
     placeholder: "[REDACTED:{category}]"
 ```
@@ -180,7 +190,8 @@ unless `--no-restore` is set.
 - **AD-006 (Tool System)** — both tools register with schemas and config
   factories like any other; `secure-translate` is a built-in flow.
 - **AD-008 (Project Model)** — `Redaction` is a first-class `Defaults` /
-  `ContentItem` field; the sidecar lives under the regenerable cache.
+  `ContentItem` field; the vault lives under `.kapi/work/`, the one gitignored
+  path, and is the one thing there that a re-run cannot reconstruct.
 - **AD-011 (AI Providers)** — the `RunsPlaceholderText` placeholder protocol is
   what keeps the original out of the prompt; `entity-extract` feeds the
   optional entities detector.

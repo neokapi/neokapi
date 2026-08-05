@@ -27,7 +27,7 @@ into it (`kapi plugins install bowrain`, or
 `brew install neokapi/tap/bowrain-cli`).
 
 A bowrain project is just a kapi project with a `server:` block on its
-recipe — same `kapi.yaml` recipe file, same `.kapi/` state directory, same
+recipe — same `kapi.yaml` recipe file, same `.kapi/` directory, same
 discovery rules as the framework. Commands walk upward from the current
 working directory looking for a file named `kapi.yaml`, in the same style as
 `git` and `terraform`.
@@ -52,7 +52,7 @@ They need a first-class command surface that:
 The framework's `kapi.yaml` recipe model
 ([AD-framework-008: Kapi Project Model](https://neokapi.github.io/contribute/architecture/008-project-model))
 already provides a portable, gitignore-aware project layout with stateless
-recipe + sibling state directory. Bowrain extends it with a `server:`
+recipe + sibling `.kapi/` directory. Bowrain extends it with a `server:`
 block and a few top-level lifecycle/governance fields.
 
 ## Decision
@@ -193,21 +193,26 @@ push/pull/status to be meaningful.
 
 ```
 my-app/
-├── kapi.yaml           # the recipe (committed) — fixed, conventional filename
-├── context/            # the committed context sources
-│   ├── terms.json      # terms (defaults.terms_source)
-│   └── memory.json     # content memory (defaults.memory_source)
-├── .kapi/
-│   ├── store.db        # the local index (gitignored)
-│   ├── manifest.yaml   # regenerable bookkeeping (gitignored)
-│   ├── units/          # the unit-decision record (committed)
-│   │   └── src-locales-en.jsonl
-│   ├── flows/          # optional file-per-flow definitions (committed)
+├── kapi.yaml               # the recipe (committed) — fixed, conventional filename
+├── .kapi/                  # committed — the project's context
+│   ├── manifest.yaml       # bookkeeping
+│   ├── filters.json        # shared reader/writer configuration
+│   ├── filters.local.json  # personal overrides (gitignored)
+│   ├── flows/              # optional file-per-flow definitions
 │   │   └── pseudo.yaml
-│   └── cache/          # all regenerable caches under one roof (gitignored)
-│       ├── sync-cache.json  # kapi push/pull state (only with server: block)
-│       ├── extractions/
-│       └── collections/
+│   ├── context/            # the context graph
+│   │   ├── terms.json      # terms (defaults.terms_source)
+│   │   ├── memory.json     # content memory (defaults.memory_source)
+│   │   ├── brand-voice.yaml
+│   │   └── decisions/      # the unit-decision record
+│   │       └── src-locales-en.jsonl
+│   └── work/               # gitignored — everything derived
+│       ├── store.db        # the local index
+│       ├── vault/          # withheld redaction originals (local-only)
+│       └── cache/          # free to delete, always
+│           ├── sync-cache.json  # kapi push/pull state (only with server: block)
+│           ├── extractions/
+│           └── collections/
 └── src/
     └── locales/
         ├── en.json
@@ -222,18 +227,20 @@ Ownership:
   YAML syntax highlighting to diffs and previews with no configuration. See
   [AD-framework-008](https://neokapi.github.io/contribute/architecture/008-project-model)
   for the full rationale.
-- **`context/*.json`** — the context sources the recipe binds, hand-edited or
-  written by `kapi apply`, committed. They are the truth for terms and content
-  memory, and `git diff` is the review surface.
-- **`.kapi/units/*.jsonl`** — the unit-decision record, one JSON Lines shard per
+- **`.kapi/context/`** — the context graph, committed: `terms.json`,
+  `memory.json` and the brand-voice profile, hand-edited or written by `kapi
+  apply`. They are the truth for terms and content memory, and `git diff` is the
+  review surface. `.kapi/` as a whole is committed; only `.kapi/work/` is
+  gitignored.
+- **`.kapi/context/decisions/*.jsonl`** — the unit-decision record, one JSON Lines shard per
   document, committed. `kapi commit` publishes staged review decisions into it.
-- **`.kapi/store.db`** — kapi-owned, gitignored. One SQLite file carrying every
+- **`.kapi/work/store.db`** — kapi-owned, gitignored. One SQLite file carrying every
   subsystem's tables (block cache, terms store, content memory, the working set,
   and the project's context graph), derived from the committed sources above and
-  rebuilt from them. It sits at the top of `.kapi/` rather than under `cache/`
+  rebuilt from them. It sits at the top of `.kapi/work/` rather than under `cache/`
   because between a review decision landing and `kapi commit`, its working set
   holds the only copy of that decision.
-- **`.kapi/cache/`** — CLI-owned, gitignored. Everything cheaply regenerable:
+- **`.kapi/work/cache/`** — CLI-owned, gitignored. Everything cheaply regenerable:
   the kapi sync cache, extraction intermediates, overlay layers. Removable at
   any time with no loss.
 - **`.kapi/flows/*.yaml`** — optional file-per-flow definitions, hand-edited,
@@ -335,11 +342,10 @@ policy, not server identity.
 
 ### Sync cache
 
-`.kapi/cache/sync-cache.json` tracks the last known server state for
+`.kapi/work/cache/sync-cache.json` tracks the last known server state for
 incremental sync. Per-file block hashes, per-stream cursors, claim tokens
 for anonymous projects, and cached server metadata. Stored as JSON, always
-gitignored (it lives under `.kapi/cache/` which the user typically
-gitignores wholesale).
+gitignored — it lives under `.kapi/work/`, the project's one ignored path.
 
 Deleting the file is safe — push and pull repopulate it from server state.
 The cache is regenerable.
@@ -361,7 +367,7 @@ from the keychain by `bowrain.auth.LoadAuth()`.
 For CI, the `BOWRAIN_AUTH_TOKEN` environment variable bypasses both the
 file and the keychain (paired with `BOWRAIN_SERVER_URL`).
 
-Anonymous projects use a claim token stored in `.kapi/cache/sync-cache.json`
+Anonymous projects use a claim token stored in `.kapi/work/cache/sync-cache.json`
 (gitignored) rather than the keychain — the token is project-scoped
 rather than user-scoped.
 
@@ -383,7 +389,7 @@ kapi mcp                 # stdio MCP server exposing project tools
 
 `kapi init` writes a `kapi.yaml` recipe, defaulting the recipe's `name:`
 label to the current directory's basename. The recipe lands at the project
-root; the sibling `.kapi/` state dir is created empty (caches populate as
+root; the sibling `.kapi/` directory is created empty (caches populate as
 commands run). No `.bowrain/` directory is ever created.
 
 ## Consequences
@@ -394,8 +400,8 @@ commands run). No `.bowrain/` directory is ever created.
   framework directly — no parallel `Config` struct, no duplicate
   validation, no separate walk-up routine.
 - Users with both kapi and bowrain workflows on a project see one
-  recipe, one state directory, and one keychain prompt for credentials.
-- `.kapi/cache/` consolidates all regenerable state under a single
+  recipe, one project directory, and one keychain prompt for credentials.
+- `.kapi/work/cache/` consolidates all regenerable state under a single
   predictable path that can be safely deleted.
 
 **Negative:**

@@ -16,7 +16,7 @@ import (
 )
 
 // openTermsStore builds an in-memory terms store from the dogfood
-// context/terms.json — the real store this repo governs its own prose with, not
+// .kapi/context/terms.json — the real store this repo governs its own prose with, not
 // a fixture.
 func openTermsStore(t *testing.T) terms.Terminology {
 	t.Helper()

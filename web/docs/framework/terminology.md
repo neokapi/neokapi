@@ -132,7 +132,7 @@ user config directory on Linux, and resolves to
 resolved location.
 
 With no flag inside a project, the terms store is instead a set of tables in the
-project's `.kapi/store.db`, compiled from the committed bundle the recipe binds
+project's `.kapi/work/store.db`, compiled from the committed bundle the recipe binds
 with `defaults.terms_source` — see
 [Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
 

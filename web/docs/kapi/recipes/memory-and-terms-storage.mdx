@@ -3,7 +3,7 @@ id: memory-and-terms-storage
 title: "Where translations & terms live"
 sidebar_label: "Memory & terms storage"
 sidebar_position: 4
-description: "The three places a kapi content memory or terms store can live — a loose file in the current directory, a named store under your config home, or a project's .kapi/store.db — and the flags that select each."
+description: "The three places a kapi content memory or terms store can live — a loose file in the current directory, a named store under your config home, or a project's .kapi/work/store.db — and the flags that select each."
 keywords: [kapi, content memory, terms store, terminology, storage, named resource, project, store.db]
 hide_table_of_contents: true
 ---
@@ -13,7 +13,7 @@ hide_table_of_contents: true
 :::note Better in a project
 `kapi memory` and `kapi terms` run ad-hoc against a loose or named store, but a
 `.kapi` project gives them an authoritative content memory and terms store —
-both inside the project's single `.kapi/store.db` — that the extract/merge
+both inside the project's single `.kapi/work/store.db` — that the extract/merge
 round-trip and term-check already share.
 :::
 
@@ -85,7 +85,7 @@ kapi terms list
 When a command runs inside a [`.kapi` project](/reference/project-file) — and no
 `--name`, `--local`, or `--file` flag is given — `kapi memory` and `kapi terms`
 resolve the project's authoritative stores, both of which live as tables inside
-the project's single database at `<project-root>/.kapi/store.db`. The project is
+the project's single database at `<project-root>/.kapi/work/store.db`. The project is
 found by walking up the directory tree from the current directory, git-style.
 
 Those tables are a projection of what the project commits: the terms bundle the
@@ -121,7 +121,7 @@ through their own `--memory` and `--termstore` flags:
   separators) resolves under the config home; a value with a path separator is
   read as a file path.
 - no flag, inside a project — the project's content memory / terms store in
-  `.kapi/store.db`.
+  `.kapi/work/store.db`.
 
 ```bash
 kapi exec recycle messages.json --target-lang fr --memory corporate-en-fr
@@ -139,7 +139,7 @@ term-derived do-not-translate detection on. It never names a store.
 | --- | --- | --- | --- |
 | Loose file | default, `--local`, `--file <path>` | `./memory.db` / `./terms.db`, or the path you give | a one-off or throwaway store |
 | Named store | `--name <n>` | `~/.config/kapi/memory/<n>.db` / `~/.config/kapi/terms/<n>.db` | a set of terms or a memory reused across directories |
-| Project store | no flag, inside a `.kapi` project | tables in `<root>/.kapi/store.db` | a repository you translate repeatedly |
+| Project store | no flag, inside a `.kapi` project | tables in `<root>/.kapi/work/store.db` | a repository you translate repeatedly |
 
 :::note[Works with Bowrain]
 All three models are local to a machine or a repository. A fourth arrangement is hosted: a Bowrain server holds one workspace-level content memory and terms store shared across projects, people, and agents, and `kapi push` / `kapi pull` connect a `.kapi` project to it. See the [Bowrain documentation](https://bowrain.cloud/docs/).
@@ -151,7 +151,7 @@ The project content memory is a **recycle** corpus — source→target pairs reu
 to pre-fill and leverage future translation. It is *not* where a review decision
 lands. Whether a person has approved or signed off a particular target is a
 workflow decision, held in the [project store](/kapi/project-store)'s working
-set and committed to `.kapi/units/*.jsonl` by `kapi commit`. Approving a unit
+set and committed to `.kapi/context/decisions/*.jsonl` by `kapi commit`. Approving a unit
 (`kapi apply` with `kind:"review"`) writes that record; adding a memory pair
 (`kapi apply` with `kind:"memory"`) is recycle leverage and does **not** promote
 a unit to *reviewed*.

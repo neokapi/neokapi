@@ -163,7 +163,7 @@ constructs the one it wants and hands it to the executor:
   last-writer-wins on commit. Capabilities: RandomAccess + Concurrent + Writable;
   not Persistent.
 - `NewCacheStore(path)` — SQLite-backed store, in a kapi project the block-cache
-  tables of `.kapi/store.db`. The default for kapi projects. Full ACID,
+  tables of `.kapi/work/store.db`. The default for kapi projects. Full ACID,
   persistent across runs.
 - `NewFormatReaderStore(factory)` — wraps a `format.DataFormatReader` factory as
   a read-only store. Useful for ad-hoc CLI flows (`kapi translate -i

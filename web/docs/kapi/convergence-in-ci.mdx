@@ -222,23 +222,23 @@ include:
 - **A gate-only job needs no keys at all** — `check --ship` and `up --plan`
   read the working tree.
 - **Review decisions travel with the repo** — a `reviewed` threshold reads the
-  committed unit record under `.kapi/units/`; commit it in the PR or the runner
+  committed unit record under `.kapi/context/decisions/`; commit it in the PR or the runner
   sees no approvals. A job that makes decisions runs `kapi commit` and commits
   the shards it produces, alongside the translated files. It never commits
-  `.kapi/store.db`.
-- **The cache is rebuildable, and cacheable** — `.kapi/cache` (parse cache,
+  `.kapi/work/store.db`.
+- **The cache is rebuildable, and cacheable** — `.kapi/work/cache` (parse cache,
   extractions) is gitignored and rebuilt on a fresh runner. Restore it across
   runs to skip re-extraction:
 
   ```yaml
   - uses: actions/cache@v5
     with:
-      path: .kapi/cache
+      path: .kapi/work/cache
       key: kapi-cache-${{ hashFiles('kapi.yaml', 'src/locales/en/**') }}
       restore-keys: kapi-cache-
   ```
 
-  **Cache `.kapi/cache` only, never `.kapi/store.db`.** The store can hold
+  **Cache `.kapi/work/cache` only, never `.kapi/work/store.db`.** The store can hold
   decisions staged since the last commit, and restoring a stale copy of those
   onto a fresh checkout is worse than a cold rebuild — which costs only time.
   Server-connected projects skip the cache entirely; the project's context lives

@@ -451,7 +451,7 @@ defaults:
 A machine takes a unit to *translated*; a person takes it to *reviewed*. That
 approval is a workflow **decision** — who signed off on which exact translation —
 so it lands in the [project store](/kapi/project-store)'s working set, and
-`kapi commit` publishes it to the committed unit record under `.kapi/units/`.
+`kapi commit` publishes it to the committed unit record under `.kapi/context/decisions/`.
 Not in the content memory.
 
 `kapi status --review` is the worklist — every translated unit not yet approved,
@@ -475,7 +475,7 @@ shippable.
     { label: "approve", sub: "kapi apply · kind: review", role: "annotate" },
     {
       label: "decision + content hash",
-      sub: ".kapi/units/*.jsonl",
+      sub: ".kapi/context/decisions/*.jsonl",
       role: "io",
       edge: "records hash(translation)",
     },

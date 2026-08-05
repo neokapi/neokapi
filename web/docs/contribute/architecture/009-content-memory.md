@@ -219,7 +219,7 @@ terms store ([AD-010](010-terminology.md)), which is *source*, the memory is
 **state, kept out of git scope** — the same posture as Terraform state:
 
 - its home is a store **outside git**: locally, the memory tables inside the
-  project's one database, `.kapi/store.db` ([AD-039](039-local-context-graph-store.md));
+  project's one database, `.kapi/work/store.db` ([AD-039](039-local-context-graph-store.md));
   in CI, whatever the job restores; and the bowrain platform database for a team
   (the shared, authoritative "remote backend"). One continuum, larger backend.
 - it is **rebuildable**, which makes it softer than Terraform state: the leverage
@@ -242,14 +242,15 @@ SQLite would be git-hostile and defeat interchange in any case; the
 (deterministic, lossless), not as an auto-grown git artifact.
 
 A project accumulates **many** memory bundles, not one — this repository's own
-dogfood commits a bundle per content surface under `context/memory/*.memory.json` — so
-the suffix, not the location, is what identifies a seed. This is why content
-memory has no conventional-location fallback where the terms store does
-([AD-010](010-terminology.md)): a project has exactly one glossary, so
-`<root>/terms.json` has a single obvious answer, while a conventional
-`memory.json` would force a project with a bundle per surface to nominate one of
-them arbitrarily. A seed is named by `defaults.memory_source` or by an explicit
-path; there is nothing sensible to guess.
+dogfood commits a bundle per content surface under
+`.kapi/context/memory/*.memory.json` — so the suffix, not the location, is what
+identifies a seed. This is why content memory has no conventional-location
+fallback where the terms store does ([AD-010](010-terminology.md)): a project has
+exactly one set of terms, so `.kapi/context/terms.json` has a single obvious
+answer, while a conventional `memory.json` would force a project with a bundle
+per surface to nominate one of them arbitrarily. A seed is named by
+`defaults.memory_source` or by an explicit path; there is nothing sensible to
+guess.
 
 > **State, not source.** Contrast the terms store
 > ([AD-010](010-terminology.md)), which is *authored source* committed to git and

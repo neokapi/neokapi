@@ -66,8 +66,8 @@ the redis hash cache) the platform builds from this content.
 A second observation shaped the design: the project layout already separates
 **authoritative content** — the committed sources and the unit-decision record —
 from everything a run derives from them, which is the project's one database
-(`.kapi/store.db`, [AD-039](039-local-context-graph-store.md)) plus the
-free-to-delete `.kapi/cache/`. The thing worth packaging is the *authoritative
+(`.kapi/work/store.db`, [AD-039](039-local-context-graph-store.md)) plus the
+free-to-delete `.kapi/work/cache/`. The thing worth packaging is the *authoritative
 content*, never the derived stores or secrets.
 
 ## Decision
@@ -102,12 +102,11 @@ general-purpose tools do not already give.
 
 The **suffix**, not the location, is what identifies a bundle, because a project
 is not limited to one per store. Terms is the exception that proves it: a project
-has exactly one glossary, so it gets a conventional location
-([AD-010](010-terminology.md)) — `<root>/terms.json`, then
-`<root>/.kapi/terms.json`. Content memory gets none, because a project
-accumulates a bundle per content surface (this repository's own dogfood commits
-one per surface under `context/memory/`) and a fallback would have nothing single to
-name.
+has exactly one set of terms, so it gets a conventional location
+([AD-010](010-terminology.md)) — `<root>/.kapi/context/terms.json`, then
+`<root>/terms.json`. Content memory gets none, because a project accumulates a
+bundle per content surface (this repository's own dogfood commits one per surface
+under `.kapi/context/memory/`) and a fallback would have nothing single to name.
 
 ### 2. The `.kpz` package container
 
@@ -169,7 +168,7 @@ rather than a step-by-step CLI verb family:
   transform is just the shadow cache making open → work → pack cheap. Day-to-day
   work is the ambient `.kapi` project.)
 - **Cached resume (project).** A project run executes against the project's
-  persistent block store (`core/blockstore`, the block tables of `.kapi/store.db`,
+  persistent block store (`core/blockstore`, the block tables of `.kapi/work/store.db`,
   wired via `flow.WithBlockStore`). Because the store is append-only and
   content-addressed —
   a tool appends an *overlay* keyed by `(kind, blockHash)` rather than rewriting a
@@ -180,9 +179,9 @@ rather than a step-by-step CLI verb family:
   the block-store overlays, the content memory and terms content, the
   source identity + skeletons, and the **full project recipe** (flows, plugins,
   defaults, content — §6) into a portable `.kpz`; `unpack` rehydrates it into
-  another machine's `.kapi/` state dir, reconstituting a complete, runnable
-  `kapi.yaml`. A `.kpz` is to the state directory what a git *bundle* is to
-  `.git` — and, because it carries the recipe, a *runnable* one.
+  another machine's `.kapi/` directory, reconstituting a complete, runnable
+  `kapi.yaml`. A `.kpz` is to `.kapi/` what a git *bundle* is to `.git` — and,
+  because it carries the recipe, a *runnable* one.
 
 **Progress is derived from content, not recorded in an authoritative journal.**
 Because the store is content-addressed, "has step X run?" is a pure function of
@@ -259,12 +258,12 @@ path would escape the project root is refused rather than written.
 | path-valued fields (`terms_source`, `memory_source`, `redaction.rules`, `brand_voice.profile_file`, content `base` / `target`) | recipe | recipe | travels **contained** |
 | content memory / terms | committed `.memory.json` / `.terms.json` sources | `memory.json` / `terms.json` | travels (lossless) |
 | blocks + targets, annotations, in-progress overlays | block tables of `store.db` (derived) | `blocks/*.kbf.json`, `annotations/*.overlays.jsonl`, `overlays.json` (authoritative) | travels |
-| review decisions | `.kapi/units/*.jsonl` (committed) | bilingual profile ([AD-017](017-bilingual-format-interop.md)) | travels |
+| review decisions | `.kapi/context/decisions/*.jsonl` (committed) | bilingual profile ([AD-017](017-bilingual-format-interop.md)) | travels |
 | source identity (path, format, hash) | working tree | `manifest.json` | travels |
-| source skeleton (round-trip template) | `cache/extractions/.../skel-*.bin` | `skeletons/<id>` | travels |
+| source skeleton (round-trip template) | `work/cache/extractions/.../skel-*.bin` | `skeletons/<id>` | travels |
 | raw source bytes | working tree `src/` | `source/<name>` | opt-in (`--with-source`) |
 | secrets (auth tokens, API keys) | OS keychain | — | **never travels** |
-| derived stores and caches (`store.db`, `sync-cache.json`, extractions, collections) | `.kapi/` | — | regenerated on unpack |
+| derived stores and caches (`store.db`, `sync-cache.json`, extractions, collections) | `.kapi/work/` | — | regenerated on unpack |
 | plugin binaries | user / system install | — | re-resolved via `requires` / registry |
 | provenance | — | `history.jsonl` (opt-in) | travels (excluded from `rootHash`) |
 

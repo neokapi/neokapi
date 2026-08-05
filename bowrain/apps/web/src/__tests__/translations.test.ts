@@ -45,7 +45,7 @@ describe("compiled translation catalogs", () => {
   it("nb catalog carries the reviewed navigation strings", () => {
     const nb = readCatalog("nb");
     const values = Object.values(nb);
-    // Seeded from context/memory/bowrain-app-nb.memory.json — the sidebar nav is the
+    // Seeded from .kapi/context/memory/bowrain-app-nb.memory.json — the sidebar nav is the
     // high-traffic surface and must stay covered.
     expect(values).toContain("Prosjekter");
     expect(values).toContain("Innstillinger");

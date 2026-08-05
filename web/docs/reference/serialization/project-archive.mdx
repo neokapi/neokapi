@@ -56,7 +56,7 @@ Each store has exactly one native spelling — the bundle — and a project comm
 it:
 
 ```bash
-kapi memory export -o context/memory/cli-nb.memory.json
+kapi memory export -o .kapi/context/memory/cli-nb.memory.json
 kapi terms import seeds/terms.json    # format detected from the extension
 kapi terms export --format bundle -o brand.terms.json   # or name it explicitly
 ```
@@ -83,14 +83,14 @@ Your terms bundle belongs at the **repository root**, as `terms.json`. `.kapi/`
 is gitignored, so a terms bundle kept there would never be committed, never show
 up in a diff, and never get reviewed, which defeats the point of keeping
 terminology as source. The bundle is the committed source; the terms tables in
-`.kapi/store.db` are the derived index it compiles into. The
+`.kapi/work/store.db` are the derived index it compiles into. The
 [terms page](/reference/serialization/terms#the-lookup-ladder) specifies the
 ladder.
 
 Content memory has no matching convention: **a project has one terms bundle but
 many content-memory bundles**, typically one per content surface. This
-repository's own dogfood commits a bundle per surface under `context/memory/`
-against a single `context/terms.json`, so a memory seed is always named rather
+repository's own dogfood commits a bundle per surface under `.kapi/context/memory/`
+against a single `.kapi/context/terms.json`, so a memory seed is always named rather
 than guessed.
 
 ## The `.kpz` package
@@ -146,7 +146,7 @@ both before trusting the contents.
 ### What a package deliberately excludes
 
 A `.kpz` packs the **source of truth**, not the regenerable index. It excludes
-`.kapi/store.db` and everything under `.kapi/cache/`, which rebuild on demand,
+`.kapi/work/store.db` and everything under `.kapi/work/cache/`, which rebuild on demand,
 and it excludes secrets (the sync claim token). A part with nothing in it is
 absent rather than empty. This is what makes the
 package the at-rest twin of the sync wire format: packing is the sync converters
@@ -190,7 +190,7 @@ where it left off. There are two routes, and neither needs per-step CLI verbs:
   snapshots all of it; `kapi unpack` rehydrates it into another machine's
   `.kapi/` directory.
   Within a project, re-running a flow also reuses the block tables already in
-  `.kapi/store.db`, so resume there is simply running again.
+  `.kapi/work/store.db`, so resume there is simply running again.
 
   ```bash
   kapi pack   -o snapshot.kpz   # snapshot the project's working state

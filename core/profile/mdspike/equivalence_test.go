@@ -16,9 +16,9 @@ import (
 // repoRelative paths from this package to the two committed profiles. Named as
 // constants so the spike never grows an absolute path.
 const (
-	bowrainYAML = "../../../context/bowrain-voice.yaml"
-	brandYAML   = "../../../context/brand-voice.yaml"
-	termsJSON   = "../../../context/terms.json"
+	bowrainYAML = "../../../.kapi/context/bowrain-voice.yaml"
+	brandYAML   = "../../../.kapi/context/brand-voice.yaml"
+	termsJSON   = "../../../.kapi/context/terms.json"
 )
 
 func loadYAML(t *testing.T, path string) *profile.VoiceProfile {
@@ -41,7 +41,7 @@ func loadMarkdown(t *testing.T, name string, opts mdspike.Options) *profile.Voic
 // TestMarkdownFormEqualsYAMLForm is the spike's central claim: the same profile
 // authored as markdown-with-frontmatter, inheriting the house rules instead of
 // copying them, decodes to a VoiceProfile that is field-for-field identical to
-// the one context/bowrain-voice.yaml decodes to.
+// the one .kapi/context/bowrain-voice.yaml decodes to.
 //
 // Identical means identical — the assertion is on the whole struct, not on a
 // chosen subset. Nothing about the profile is lost in the move, which is why
@@ -129,14 +129,14 @@ func TestHouseRulesAreDuplicatedToday(t *testing.T) {
 func TestCommittedProfileIsMachineRewritten(t *testing.T) {
 	original, err := os.ReadFile(bowrainYAML)
 	require.NoError(t, err)
-	require.Contains(t, string(original), "duplicated from context/brand-voice.yaml",
+	require.Contains(t, string(original), "duplicated from .kapi/context/brand-voice.yaml",
 		"the committed file explains its own duplication in a comment")
 
 	// The same marshal host.writeProfileYAML performs.
 	rewritten, err := yaml.Marshal(loadYAML(t, bowrainYAML))
 	require.NoError(t, err)
 
-	assert.NotContains(t, string(rewritten), "duplicated from context/brand-voice.yaml",
+	assert.NotContains(t, string(rewritten), "duplicated from .kapi/context/brand-voice.yaml",
 		"an applied rule rewrites the file and drops the comment")
 	assert.NotEqual(t, string(original), string(rewritten))
 }

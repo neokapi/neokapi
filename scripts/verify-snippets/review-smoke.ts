@@ -158,20 +158,20 @@ ok(
 );
 
 // ── 6. commit: the staged decision lands in the committed record ─────────────
-// The committed record is per-document JSONL shards under .kapi/units/ (one
+// The committed record is per-document JSONL shards under .kapi/context/decisions/ (one
 // line per unit), written through the sandbox FS.
 const s6 = await run(["commit"]);
 ok("commit exits 0 in wasm", s6.code === 0, `code=${s6.code}`);
 let shards: string[] = [];
 try {
-  shards = mem.vol.readdir("/project/.kapi/units").filter((n) => n.endsWith(".jsonl"));
+  shards = mem.vol.readdir("/project/.kapi/context/decisions").filter((n) => n.endsWith(".jsonl"));
 } catch {
   /* leave empty */
 }
-ok("commit wrote the committed record (.kapi/units/*.jsonl)", shards.length > 0, `shards=${shards.length}`);
+ok("commit wrote the committed record (.kapi/context/decisions/*.jsonl)", shards.length > 0, `shards=${shards.length}`);
 const committedUnits: any[] = shards.flatMap((n) =>
   dec
-    .decode(mem.vol.readFile("/project/.kapi/units/" + n))
+    .decode(mem.vol.readFile("/project/.kapi/context/decisions/" + n))
     .split("\n")
     .filter((l) => l.trim() !== "")
     .map((l) => JSON.parse(l)),

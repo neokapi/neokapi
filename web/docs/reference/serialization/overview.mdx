@@ -54,11 +54,11 @@ review surface — the files a person reads in a pull request.
 
 ### The rule this produces
 
-Artifacts that must be reviewed are **committed**, and never the database. The
-terms bundle's conventional lookup prefers the project root, resolving
-`<root>/terms.json` before `<root>/.kapi/terms.json`; the unit record lives at
-`.kapi/units/*.jsonl`, which `.kapi/.gitignore` deliberately leaves in while
-excluding `store.db` and `cache/`. Neither would survive a fresh clone, or ever
+Artifacts that must be reviewed are **committed**, and never the database. They
+share one home: `.kapi/context/` holds the terms bundle, the memory seeds, the
+brand voice and the unit record (`decisions/*.jsonl`), and the whole of `.kapi/`
+is committed. Only `.kapi/work/`, where the store and its caches are derived, is
+ignored. Nothing in the review surface would survive a fresh clone, or ever
 appear in a diff, if it were part of the derived store.
 
 **If a person needs to review it, it does not belong in a rebuildable index.**
@@ -73,7 +73,7 @@ appear in a diff, if it were part of the derived store.
 | [Annotation sidecar](/reference/serialization/overlays) | `.overlays.jsonl` | header `annotationType` | Stand-off annotations anchored into runs |
 | [Overlay set](/reference/serialization/overlays) | `.overlays.json` | `kapi-overlay-set` | In-progress workspace overlay layers |
 | [Project archive](/reference/serialization/project-archive) | `.kpz` | `kapi-project`, `kapi-interchange` | A whole project, or one interchange task |
-| [Project state](/reference/serialization/project-state) | `.jsonl` (under `.kapi/units/`) | `kapi-project-state` | Review and workflow decisions |
+| [Project state](/reference/serialization/project-state) | `.jsonl` (under `.kapi/context/decisions/`) | `kapi-project-state` | Review and workflow decisions |
 | [Brand voice](/reference/serialization/brand-voice) | `.yaml` | — | Tone, style, vocabulary, examples |
 
 Not sure which you want? [Choosing a format](/reference/serialization/choosing).
@@ -85,7 +85,7 @@ JSON or JSON Lines, and each portable one keeps a **marker segment ahead of the
 serialization suffix** — `.kbf.json`, `.terms.json`, `.overlays.jsonl`. The unit
 shards are the exception, and the exception proves the rule: they never travel
 alone, their names are derived from document keys, and the directory holding
-them (`.kapi/units/`) already says what they are.
+them (`.kapi/context/decisions/`) already says what they are.
 
 Both halves earn their place. The `.json` tail keeps `jq`, GitHub, editors and
 syntax highlighting treating the file as what it is. The marker segment says
