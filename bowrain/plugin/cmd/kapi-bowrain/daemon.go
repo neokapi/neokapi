@@ -433,9 +433,10 @@ func (d *daemonService) Pull(ctx context.Context, req *pb.PullRequest) (*pb.Pull
 		return nil, err
 	}
 	return &pb.PullResponse{
-		BlocksPulled: int32(res.BlocksPulled),
-		FilesWritten: int32(res.FilesWritten),
-		LocalesCount: int32(res.LocalesCount),
+		BlocksPulled:    int32(res.BlocksPulled),
+		FilesWritten:    int32(res.FilesWritten),
+		LocalesCount:    int32(res.LocalesCount),
+		DecisionsStaged: int32(res.DecisionsStaged),
 	}, nil
 }
 

@@ -153,6 +153,12 @@ type PullResult struct {
 	FilesWritten int
 	LocalesCount int
 
+	// DecisionsStaged is how many server-ledger decisions the pull reconciled
+	// into the working store. Staged, not committed — the pull reports the
+	// count so an arriving decision is never invisible, and `kapi commit`
+	// remains the only door into the tracked record.
+	DecisionsStaged int
+
 	// CollectionsObserved is how many collections the server reported. They are
 	// recorded as observation only — a pull never rewrites the governance the
 	// recipe declares.

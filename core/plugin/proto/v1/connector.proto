@@ -145,6 +145,10 @@ message PullResponse {
   int32 blocks_pulled = 1;
   int32 files_written = 2;
   int32 locales_count = 3;
+  // Server-ledger decisions the pull staged into the working store —
+  // reported so an arriving decision is never invisible; `kapi commit`
+  // publishes them into the tracked record.
+  int32 decisions_staged = 4;
 }
 
 // ---------------------------------------------------------------------------

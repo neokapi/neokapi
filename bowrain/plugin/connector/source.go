@@ -869,7 +869,8 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// not committed: `kapi commit` remains the only door into the git-tracked
 	// record, so a pull can never publish on anyone's behalf. `kapi status`
 	// reports what arrived and names the command that publishes it.
-	if _, err := c.stagePulledDecisions(ctx, decisions); err != nil {
+	decisionsStaged, err := c.stagePulledDecisions(ctx, decisions)
+	if err != nil {
 		return nil, err
 	}
 
@@ -987,6 +988,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 		BlocksPulled:        totalPulled,
 		LocalesCount:        len(locales),
 		FilesWritten:        filesWritten,
+		DecisionsStaged:     decisionsStaged,
 		CollectionsObserved: contextResult.Observed,
 		GovernanceDiverged:  contextResult.Diverged,
 	}, nil
