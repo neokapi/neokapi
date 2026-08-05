@@ -237,11 +237,16 @@ platform/docker/traefik/certs
 # Throwaway kapi config/data/cache home for in-repo (non-dogfood) invocations — see Makefile KAPI_ISO_ENV
 .kapi-iso/
 
+# Synthetic project stores written by scripts/contention-harness (removed on
+# exit unless it is run with -keep)
+.contention-harness/
+
 # Compiled Go tool binaries (built into their module dirs by `go build ./...`)
 /scripts/gen-refs/gen-refs
 /scripts/contract-audit/contract-audit
 /scripts/checkeval/checkeval
 /scripts/contexteval/contexteval
+/scripts/contention-harness/contention-harness
 # Stray build outputs (use `make` targets, which place binaries under bin/ or
 # the wasm demo dir — these default `go build` outputs must never be committed).
 # `go build ./scripts/<tool>` from the REPO ROOT writes ./<tool>, not
