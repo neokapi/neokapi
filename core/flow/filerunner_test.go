@@ -789,7 +789,7 @@ func TestFileRunner_CachedWrite_UnreadableSkeletonFailsTheRun(t *testing.T) {
 
 	require.Error(t, err, "an unusable cached skeleton must fail the run, not degrade the output")
 	assert.Contains(t, err.Error(), "skeleton file vanished")
-	assert.Contains(t, err.Error(), ".kapi/cache", "the message must say how to recover")
+	assert.Contains(t, err.Error(), ".kapi/work/cache", "the message must say how to recover")
 	assert.NoFileExists(t, second, "no degraded file may be left behind")
 }
 

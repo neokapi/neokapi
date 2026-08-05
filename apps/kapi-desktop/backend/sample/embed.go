@@ -65,7 +65,7 @@ func Scaffold(name, targetDir string) error {
 	}
 
 	// Seed the content memory and terms into the project's own store. Both are
-	// schemas of `.kapi/store.db`, so this is one handle rather than two files —
+	// schemas of `.kapi/work/store.db`, so this is one handle rather than two files —
 	// and the handle must be closed before the caller opens the project, or the
 	// process would hold two connection pools on it.
 	if err := seedStore(targetDir); err != nil {

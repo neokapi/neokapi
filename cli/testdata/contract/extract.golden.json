@@ -6,7 +6,7 @@
     "de"
   ],
   "sources": 2,
-  "manifest": ".kapi/cache/extractions/0b6be731/manifest.yaml",
+  "manifest": ".kapi/work/cache/extractions/0b6be731/manifest.yaml",
   "pairs": [
     {
       "target_locale": "fr",

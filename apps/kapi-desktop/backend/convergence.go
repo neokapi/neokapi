@@ -186,7 +186,7 @@ func (a *App) BringUpToDate(tabID string) error {
 // engine therefore cannot race it. What it does NOT own is the project store —
 // it borrows the engine's, so the run, the tab's status panel and the review
 // loop all write through one pool and the in-process write gate can order them.
-// Two pools on `.kapi/store.db` would leave the gate with nothing to gate, and a
+// Two pools on `.kapi/work/store.db` would leave the gate with nothing to gate, and a
 // review decision recorded while a pass was learning wording would go back to
 // losing on SQLite's busy backoff.
 //

@@ -61,7 +61,7 @@ func explainProjectFixture(t *testing.T, targets []model.LocaleID) (recipe, root
 
 // assertNoRunSideEffects asserts the project tree carries none of the
 // artefacts a real run would produce: no per-locale output files and no
-// project cache (block store / parse cache under .kapi/cache).
+// project cache (block store / parse cache under .kapi/work/cache).
 func assertNoRunSideEffects(t *testing.T, root string, locales ...string) {
 	t.Helper()
 	for _, l := range locales {

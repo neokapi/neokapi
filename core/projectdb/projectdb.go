@@ -1,6 +1,6 @@
 // Package projectdb opens a kapi project's local store.
 //
-// One file — `.kapi/store.db` — holds every local projection the project keeps:
+// One file — `.kapi/work/store.db` — holds every local projection the project keeps:
 // the content memory, the terms store, the block cache and the unit working
 // set. Each subsystem migrates its own schema under its own ledger table
 // (`sievepen_migrations`, `termbase_migrations`, `cache_migrations`, `state`),
@@ -48,7 +48,7 @@
 //
 // Browser build: there is no file-backed SQLite driver, so storage.Open reports
 // storage.ErrNoSQLite and Open degrades — Work() still functions, backed by the
-// JSON sidecar at `.kapi/store.json`, while Memory(), Terms() and Blocks()
+// JSON sidecar at `.kapi/work/store.json`, while Memory(), Terms() and Blocks()
 // return nil. That is not a hole the browser ever falls into: the host injects
 // in-memory content-memory, terms and block backends before any browser code
 // path reaches a project store. The degraded handle exists so the review→approve

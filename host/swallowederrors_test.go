@@ -82,7 +82,7 @@ func threeBlockReader() *partsReader {
 // append log used to be followed by a Commit anyway, so the index row claimed a
 // COMPLETE document that was in fact short — and every later read replayed the
 // short version, shrinking coverage's denominator until the source changed or
-// `.kapi/cache` was deleted. A document that cannot be fully recorded must not be
+// `.kapi/work/cache` was deleted. A document that cannot be fully recorded must not be
 // recorded at all.
 func TestStreamIntoRecorder_AddFailureAbortsRatherThanCommitting(t *testing.T) {
 	spy := &recordingSpy{failAddAt: 2}

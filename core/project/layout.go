@@ -39,6 +39,22 @@ const StateDirName = ".kapi"
 // carved back out of it.
 const WorkDirName = "work"
 
+// StateGitignore is the whole ignore rule for a `.kapi/` directory, and it is
+// two lines because the directory splits exactly once.
+//
+// `work/` is machine state: the store, the caches, the vault. `filters.local.json`
+// is the one personal file that is not derived, so it cannot live under work/
+// and has to be named. Everything else — manifest.yaml, flows/, context/ with
+// the terms bundle, the memory seeds, the brand voice and the decision record —
+// is authored and committed.
+//
+// The predecessor listed `cache/` and three `*.db` globs, and still needed a
+// negation in the repository's own ignore file to claw the decision record back
+// out from under them. A rule that has to be un-said is a rule describing the
+// wrong boundary. This one says where the boundary is, and every path method
+// below lands on one side of it or the other.
+const StateGitignore = WorkDirName + "/\n" + LocalFiltersFilename + "\n"
+
 // ContextDirName is the committed subdirectory of StateDir that holds the
 // project's context graph sources: the terms bundle, the content-memory seeds,
 // the brand voice profile, and the decision record. These are authored data —

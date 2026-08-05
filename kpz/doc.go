@@ -17,7 +17,7 @@
 // unpacking can seed a fresh content memory, terms, and block store and the regenerable
 // caches (the parse cache, sync hashes) rebuild faithfully. The package
 // deliberately excludes regenerable caches and secrets (nothing from
-// `.kapi/cache/`, no sync-cache claim
+// `.kapi/work/cache/`, no sync-cache claim
 // tokens). It is the at-rest twin of the over-the-wire sync chunk set: pack =
 // the sync converters writing files instead of protobuf.
 //

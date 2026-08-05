@@ -50,7 +50,7 @@ func TestPackUnpackRoundTrip(t *testing.T) {
 	dir := filepath.Dir(recipe)
 
 	// Run the flow so the project store caches overlays. Every subsystem
-	// shares the one `.kapi/store.db` now (AD-039), so this is the file to
+	// shares the one `.kapi/work/store.db` now (AD-039), so this is the file to
 	// look for — and it sits at the top of the state dir, not under cache/.
 	kapi(t, "run", "pseudo", "-p", recipe, "-i", src, "-o", filepath.Join(dir, "out.json"), "--target-lang", "fr-FR")
 	assert.FileExists(t, filepath.Join(dir, ".kapi", "store.db"))

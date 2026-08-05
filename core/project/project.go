@@ -202,7 +202,7 @@ type Defaults struct {
 	// TermsSource binds the committed, git-tracked native source artifact
 	// (a .terms.json document) the project terms store is compiled from. This is the
 	// authored, reviewable form: `kapi apply` edits the .terms.json here and then
-	// re-imports it into the gitignored terms tables inside `.kapi/store.db`,
+	// re-imports it into the gitignored terms tables inside `.kapi/work/store.db`,
 	// so the store is written by exactly one path and `git diff` is the review
 	// surface. The path resolves relative to the project root. Empty means no
 	// bound source (whatever the store already holds is the only artifact).

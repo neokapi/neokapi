@@ -12,7 +12,7 @@ import (
 //
 // A handle is either owned or borrowed. Owned is the ordinary case: the store
 // opened the resource and Close closes it. Borrowed exists because a project's
-// content memory and terms are two schemas inside its one `.kapi/store.db`,
+// content memory and terms are two schemas inside its one `.kapi/work/store.db`,
 // handed out by a handle that does not own the pool — closing either would take
 // the block cache and the working set with it. Both kinds are addressed
 // identically by the frontend; only teardown differs.

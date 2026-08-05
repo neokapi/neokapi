@@ -279,7 +279,7 @@ func writeTermsSourceProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(root, "context"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName, project.ContextDirName), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
 
@@ -288,7 +288,7 @@ name: verifysrc
 defaults:
   source_language: en
   target_languages: [fr]
-  terms_source: context/terms.json
+  terms_source: .kapi/context/terms.json
 content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
@@ -327,7 +327,7 @@ content:
 	})
 	data, err := ktb.Marshal(file)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(root, "context", "terms.json"), data, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, project.RelContextPath("terms.json")), data, 0o644))
 
 	// Assert the fallback path is the one under test: no project store exists
 	// yet, so nothing could have been compiled into it. This is the fresh-checkout
@@ -457,20 +457,14 @@ content:
 
 // TestVerify_GlossaryFromConventionalLocation covers the well-known-location
 // ladder for terms: with no defaults.terms_source binding, a glossary
-// committed at the conventional path is still found and still gates.
-//
-// The repository root is searched before .kapi/ deliberately. The bundle is
-// committed source, and .kapi/ is ignored by both the repository .gitignore and
-// core/ignore's defaults — so a glossary kept there would never be committed or
-// reviewed. .kapi/ stays as the second rung only so a project that treats its
-// glossary as local state still resolves.
+// committed at either conventional path is still found and still gates.
 func TestVerify_GlossaryFromConventionalLocation(t *testing.T) {
 	tests := []struct {
 		name string
 		rel  string
 	}{
+		{"context directory", project.RelContextPath("terms.json")},
 		{"repository root", "terms.json"},
-		{"state directory", filepath.Join(".kapi", "terms.json")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -484,13 +478,19 @@ func TestVerify_GlossaryFromConventionalLocation(t *testing.T) {
 	}
 }
 
-// TestVerify_ConventionalGlossaryPrefersRoot pins the ordering when both rungs
-// are present: the committed root copy wins over the gitignored state copy.
-func TestVerify_ConventionalGlossaryPrefersRoot(t *testing.T) {
-	root := writeTermsProjectUnbound(t, "terms.json")
+// TestVerify_ConventionalGlossaryPrefersContextDir pins the ordering when both
+// rungs are present, and the order is the reverse of what it once was.
+//
+// The root spelling used to win because `.kapi/` was machine state that git
+// ignored, so a glossary kept there would never have reached review. `.kapi/`
+// is now committed and `.kapi/context/` is where its authored sources live, so
+// the conventional home and the reviewed home are the same directory — and the
+// project that put its bundle there is the one that followed the convention.
+func TestVerify_ConventionalGlossaryPrefersContextDir(t *testing.T) {
+	root := writeTermsProjectUnbound(t, project.RelContextPath("terms.json"))
 
-	// A state-directory glossary that would PASS the gate. If the ladder
-	// preferred .kapi/, the run would come back clean and this test would fail.
+	// A root glossary that would PASS the gate. If the ladder still preferred
+	// the root, the run would come back clean and this test would fail.
 	stray := ktb.FromConcepts([]terms.Concept{{
 		ID: "save",
 		Terms: []terms.Term{
@@ -500,11 +500,10 @@ func TestVerify_ConventionalGlossaryPrefersRoot(t *testing.T) {
 	}})
 	data, err := ktb.Marshal(stray)
 	require.NoError(t, err)
-	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(root, ".kapi", "terms.json"), data, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "terms.json"), data, 0o644))
 
 	t.Chdir(root)
 	_, runErr := runVerifyJSON(t)
 	require.ErrorIs(t, runErr, ErrQualityGate,
-		"the committed root glossary must win over the gitignored state copy")
+		"the context-directory glossary must win over the one at the root")
 }

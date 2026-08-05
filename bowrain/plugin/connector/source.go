@@ -113,7 +113,7 @@ type itemBlock struct {
 // one App per process. It is how the connector reaches the project's store for
 // decision staging, and taking it as a parameter rather than opening one is the
 // whole point: the App memoizes one handle per project root, and a connector
-// that opened its own would be a second connection pool on `.kapi/store.db`.
+// that opened its own would be a second connection pool on `.kapi/work/store.db`.
 func NewSourceConnector(app *host.App, project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
 	recipe := project.Recipe
 	if !recipe.HasServer() {

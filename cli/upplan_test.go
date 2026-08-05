@@ -72,7 +72,7 @@ func TestUpPlan_MemoryLeverageAndTokenEstimate(t *testing.T) {
 
 // TestUpPlan_NeverCreatesTheProjectStore is the invariant the merged store
 // sharpened. Leverage used to come from a `memory.db` a plan could decline to
-// open; it now comes from `.kapi/store.db`, and OPENING that store creates it —
+// open; it now comes from `.kapi/work/store.db`, and OPENING that store creates it —
 // the handle runs every subsystem's migrations at open.
 //
 // So a plan on a fresh project must reach its answer without opening anything,

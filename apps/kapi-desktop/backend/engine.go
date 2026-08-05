@@ -10,7 +10,7 @@ import (
 
 // Store ownership in the desktop.
 //
-// A project keeps one local store, `.kapi/store.db`, holding its content
+// A project keeps one local store, `.kapi/work/store.db`, holding its content
 // memory, terms, block cache and unit working set. The rule the whole
 // arrangement rests on is that ONE connection pool per store file per process
 // exists: the in-process write gate that stops a converge run's content-memory

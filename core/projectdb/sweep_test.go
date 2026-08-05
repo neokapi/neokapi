@@ -215,7 +215,7 @@ func TestSweep_UnreadablePredecessorDoesNotFailOpen(t *testing.T) {
 	assert.NoFileExists(t, oldWorkStorePath(layout))
 }
 
-// ─── the flat layout: `.kapi/units`, `.kapi/vault`, `.kapi/store.db` ─────────
+// ─── the flat layout: units, vault and the store hung straight off `.kapi/` ──
 
 // The committed decision record is authored data. It MOVES, byte for byte:
 // a shard that arrived rewritten, or arrived not at all, is review history

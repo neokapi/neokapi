@@ -160,7 +160,7 @@ var authClaimCmd = &cobra.Command{
 	Long: `Take ownership of a project by providing a claim token.
 
 If no token is given, it is read from the project's sync cache
-(<project>/.kapi/cache/sync-cache.json).
+(<project>/.kapi/work/cache/sync-cache.json).
 Requires authentication (run 'kapi auth login' first).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()

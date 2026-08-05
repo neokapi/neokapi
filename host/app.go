@@ -82,7 +82,7 @@ type App struct {
 	TermsBackend terms.Terminology
 
 	// BlocksBackend, when non-nil, is the project's block cache, in place of
-	// the one inside `.kapi/store.db`. The browser build injects a
+	// the one inside `.kapi/work/store.db`. The browser build injects a
 	// process-lifetime in-memory store, since it has no file-backed SQLite:
 	// what the lab extracts in one command is what the next one searches.
 	BlocksBackend blockstore.Store

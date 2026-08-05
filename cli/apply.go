@@ -35,7 +35,7 @@ entry addressed by its file/id/locale (as 'kapi status --review' lists it), with
 status "reviewed" (default) or "signed-off"; the decision is staged in the
 project store and is bound to the translation's content hash, so a later edit
 drops the unit back below reviewed. 'kapi commit' writes it into the committed
-record under .kapi/units/.
+record under .kapi/context/decisions/.
 
 The change-set is JSONL (one entry per line), read from CHANGESET or, with no
 argument or "-", from standard input. Content entries name their own file, so

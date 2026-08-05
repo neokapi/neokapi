@@ -29,17 +29,18 @@ func TestApplyFrameworkPreset_NeokapiI18nCleanLayout(t *testing.T) {
 	assert.Equal(t, "i18n/brand-voice.yaml", recipe.Defaults.BrandVoice.ProfileFile)
 	assert.Equal(t, "i18n/terms.json", recipe.Defaults.TermsSource)
 
-	// Full init round-trip: the recipe writes, the state dir scaffolds, and the
-	// generated .gitignore keeps rebuildable state (content memory/terms/block stores and
-	// the cache root) out of git.
+	// Full init round-trip: the recipe writes, the state dir scaffolds with its
+	// committed context/ and its ignored work/, and the generated .gitignore is
+	// the two-line rule — no globs, and nothing to negate back out.
 	dir := t.TempDir()
 	proj, err := project.InitProject(dir, recipe)
 	require.NoError(t, err)
 	require.NoError(t, writeStateGitignore(proj))
 
+	assert.DirExists(t, proj.Layout.ContextDir(), "init scaffolds the committed context directory")
+
 	gi, err := os.ReadFile(filepath.Join(proj.StateDir(), ".gitignore"))
 	require.NoError(t, err)
-	for _, want := range []string{"cache/", "*.db"} {
-		assert.Contains(t, string(gi), want, "state .gitignore must exclude regenerable %q", want)
-	}
+	assert.Equal(t, "work/\nfilters.local.json\n", string(gi),
+		"the state .gitignore is exactly the machine-state dir and the personal filters file")
 }
