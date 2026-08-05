@@ -5,7 +5,7 @@ sidebar_position: 1
 
 # kapi init
 
-Initialize a new Bowrain project in the current directory. Creates a `kapi.yaml` recipe at the project root and a sibling `.kapi/` state directory for the block store, sync cache, content memory, and terms store.
+Initialize a new Bowrain project in the current directory. Creates a `kapi.yaml` recipe at the project root and a sibling `.kapi/` directory holding the project's context — terms, content memory, brand voice and review decisions — with everything derived confined to `.kapi/work/`.
 
 ## Usage
 
@@ -56,11 +56,11 @@ kapi init --server https://app.bowrain.cloud --project abc123
 
 ## What Happens
 
-1. Checks that no `kapi.yaml` recipe and no `.kapi/` state directory already exist (fails fast if they do)
+1. Checks that no `kapi.yaml` recipe and no `.kapi/` directory already exist (fails fast if they do)
 2. Writes the `kapi.yaml` recipe at the project root
-3. Creates `.kapi/` state directory with `flows/`, `manifest.yaml`, and an empty `cache/`
+3. Creates the `.kapi/` directory with `flows/`, `context/`, `manifest.yaml`, and an empty `work/cache/`
 4. Adds the example `pseudo` flow at `.kapi/flows/pseudo.yaml`
-5. Adds a `.gitignore` entry to exclude `.kapi/` from version control
+5. Adds the ignore rule for `.kapi/work/` and `.kapi/filters.local.json` — the rest of `.kapi/` is committed
 6. Optionally creates a project on the Bowrain Server and writes the `server:` block to the recipe
 
 After initialization, the directory becomes a Bowrain project. You can run `kapi status`,
@@ -163,22 +163,22 @@ kapi status  # finds kapi.yaml up the tree
 
 ## Version Control
 
-**Commit to git:**
+**Commit to git** — `kapi.yaml` and all of `.kapi/`:
 
 - `kapi.yaml` — the recipe (single source of truth)
-- `context/terms.json`, `context/memory.json` — the context sources the recipe binds
-- `.kapi/units/*.jsonl` — the unit-decision record, published by `kapi commit`
+- `.kapi/context/terms.json`, `.kapi/context/memory.json`, `.kapi/context/brand-voice.yaml` — the context sources the recipe binds
+- `.kapi/context/decisions/*.jsonl` — the unit-decision record, published by `kapi commit`
 - `.kapi/flows/*.yaml` — flow definitions you author
+- `.kapi/manifest.yaml`, `.kapi/filters.json` — bookkeeping and shared reader configuration
 
 **Do NOT commit:**
 
-- `.kapi/store.db` — the local index over the committed sources, rebuilt from them
-- `.kapi/cache/` — sync cache, extraction intermediates
-- `.kapi/manifest.yaml` — regenerable bookkeeping
+- `.kapi/work/` — everything derived: `store.db`, the caches, the redaction vault
+- `.kapi/filters.local.json` — your personal reader overrides
 
 Auth tokens are never written to the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`); non-secret metadata sits in `auth.json` in the bowrain config directory (`~/.config/bowrain` on Linux, `~/Library/Application Support/bowrain` on macOS).
 
-`kapi init` writes a `.kapi/.gitignore` excluding the derived parts (`cache/`, `*.db*`), so the committed record under `.kapi/units/` stays tracked.
+`kapi init` writes a two-line ignore rule — `/.kapi/work/` and `/.kapi/filters.local.json` — so everything else under `.kapi/`, including the committed record under `.kapi/context/decisions/`, stays tracked with no negation to remember.
 
 ## Next Steps
 

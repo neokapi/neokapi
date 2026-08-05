@@ -91,7 +91,7 @@ kapi apply changeset.jsonl
 
 - The **content** entry rewrites the block through the faithful round-trip.
 - The **term** entry upserts the term itself: it is written into the project's
-  committed terms source (`context/terms.json`) and reindexed into the local
+  committed terms source (`.kapi/context/terms.json`) and reindexed into the local
   store. `git diff` shows the one new term; the next `kapi check --ship`
   enforces it.
 

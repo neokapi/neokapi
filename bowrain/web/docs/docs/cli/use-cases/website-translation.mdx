@@ -142,13 +142,13 @@ kapi uses content-addressed blocks for efficient incremental sync — only chang
 
 ## Tips
 
-- **Initialize projects with `kapi init`** to write a `kapi.yaml` recipe and `.kapi/` state directory
+- **Initialize projects with `kapi init`** to write a `kapi.yaml` recipe and a committed `.kapi/` directory
 - **Define custom flows** in `.kapi/flows/` for your specific translation workflow
 - **Use `kapi exec recycle`** to auto-fill translations from content memory
 - **Import terminology** into the project terms store and add `term-lookup` to your flow
 - **Run `kapi pseudo-translate`** first to identify potential UI truncation issues
 - **Use pre-push hooks** to enforce quality gates before pushing to server
-- **Commit `kapi.yaml`** to git; the whole `.kapi/` state directory is gitignored by default
+- **Commit `kapi.yaml` and `.kapi/`** to git — the context graph belongs in review; only `.kapi/work/` is gitignored
 - **Check `kapi status`** before pushing to see what changed
 
 ## Related

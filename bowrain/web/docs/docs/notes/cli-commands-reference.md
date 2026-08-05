@@ -14,7 +14,7 @@ Once the `kapi-bowrain` plugin is installed, every command below runs as
 
 ```
 kapi
-+-- init             # Initialize a new .kapi project (recipe + state dir)
++-- init             # Initialize a new .kapi project (recipe + .kapi/)
 |   +-- --name, --source, --targets, --server, --project, --anonymous, --email, --preset
 +-- config           # The one config verb: recipe keys positionally (name, server.url, …)
 |   +-- get/set/unset/list/path  # per-machine app config; bowrain.* routes to bowrain/bowrain.yaml under the user config dir
@@ -96,7 +96,7 @@ kapi
 4. If `--project` provided: verify auth and connect to existing project, write `server:` block
 5. If authenticated with no flags: create project in personal workspace, write `server:` block
 6. Create `.kapi/flows/` directory with example flows
-7. Add `.kapi/` to `.gitignore`
+7. Add the ignore rule for `.kapi/work/` and `.kapi/filters.local.json` — the rest of `.kapi/` is committed
 
 All paths support `--json` output for CI/CD integration.
 
@@ -115,7 +115,7 @@ All paths support `--json` output for CI/CD integration.
    `ConceptBaseline` in the sync cache so a later `kapi push` can diff local
    terminology edits against it.
 6. Run `post-pull` hooks (if configured)
-7. Update `.kapi/cache/sync-cache.json`
+7. Update `.kapi/work/cache/sync-cache.json`
 
 **Conflict handling:**
 
@@ -129,13 +129,13 @@ All paths support `--json` output for CI/CD integration.
    - If any hook fails, abort push
 3. Read local files via FormatRegistry
 4. Compute block hashes
-5. Compare with `.kapi/cache/sync-cache.json` -> identify changed blocks
+5. Compare with `.kapi/work/cache/sync-cache.json` -> identify changed blocks
 6. Verify auth token (keychain `bowrain-auth:<server-url>` or `BOWRAIN_AUTH_TOKEN`)
 7. Call `POST /api/v1/projects/:id/sync/push`
    - Request body: `{ blocks: [{id, text, name, type, item_name}] }`
    - Response: `{ stored: N, new_cursor: X, push_id: "..." }`
    - Batched at 1000 blocks per request (MaxBlocksPerRequest)
-8. Update `.kapi/cache/sync-cache.json`
+8. Update `.kapi/work/cache/sync-cache.json`
 
 ## REST API Routes
 

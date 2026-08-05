@@ -41,7 +41,7 @@ kapi status
 ### Local State
 
 - **Local blocks**: Total number of translatable blocks found in local files
-- **Pending push**: Blocks that changed locally since last push (based on content hash diff against `.kapi/cache/sync-cache.json`)
+- **Pending push**: Blocks that changed locally since last push (based on content hash diff against `.kapi/work/cache/sync-cache.json`)
 - **Pending pull**: Remote changes available on the server since last pull
 
 ### Server Connection
@@ -59,7 +59,7 @@ kapi status
 
 ### Sync Cache
 
-Status is tracked in `.kapi/cache/sync-cache.json` (auto-gitignored):
+Status is tracked in `.kapi/work/cache/sync-cache.json` (auto-gitignored):
 
 ```json
 {
@@ -87,7 +87,7 @@ until the next sync re-establishes the baseline.
 
 1. **Scan local files** via FormatRegistry (using the recipe's `content:` collections)
 2. **Extract blocks** and compute content hashes
-3. **Diff hashes** against `.kapi/cache/sync-cache.json` -> count changed blocks (pending push)
+3. **Diff hashes** against `.kapi/work/cache/sync-cache.json` -> count changed blocks (pending push)
 4. **Query server** for changes since last sync cursor -> count pending pull (if cursor > 0)
 
 ## Exit Codes

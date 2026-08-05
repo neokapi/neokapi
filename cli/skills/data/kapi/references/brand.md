@@ -13,7 +13,7 @@ YAML (`--profile-file`), or the local store (`--profile`). List options with
 
 **Inside a project, the profile is part of the context — don't pass a flag.** When
 the project binds a brand voice (a `defaults.brand_voice` recipe entry, or a
-`brand.yaml` / `.kapi/brand.yaml` at the project root), run `kapi brand check
+`.kapi/context/brand-voice.yaml` — or a `brand.yaml` at the project root), run `kapi brand check
 <file>` and `kapi brand guide` with **no**
 `--profile`/`--profile-file`/`--pack` — kapi resolves the project's voice. Pass a
 flag only for a one-off outside a project, or to override the bound profile. See
