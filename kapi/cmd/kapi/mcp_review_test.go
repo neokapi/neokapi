@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
@@ -146,7 +147,7 @@ func TestHandleReviewDecision_ApproveRejectSignOff(t *testing.T) {
 	defer committer.Shutdown()
 	_, err = committer.CommitProjectState(t.Context(), root)
 	require.NoError(t, err)
-	units, err := state.ReadCommitted(filepath.Join(root, ".kapi", "units"))
+	units, err := state.ReadCommitted(project.LayoutAt(root).DecisionsDir())
 	require.NoError(t, err)
 	require.Len(t, units, 2)
 	byUnit := map[string]state.UnitState{}
