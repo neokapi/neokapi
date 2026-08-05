@@ -116,6 +116,9 @@ func newInterchangeRecipe(sourceLang, targetLang string) *project.KapiProject {
 // already-done per-block work (SessionTools hydrate from the cached
 // overlays) — the resume story for projects, with no extra CLI surface.
 func (a *App) openProjectBlockStore(ctx context.Context) blockstore.Store {
+	if a.BlocksBackend != nil {
+		return a.BlocksBackend // injected: the browser build has no file-backed store
+	}
 	if a.ProjectContext == nil || a.ProjectContext.ProjectDir == "" {
 		return nil
 	}

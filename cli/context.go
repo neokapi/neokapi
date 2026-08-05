@@ -71,6 +71,10 @@ terminology match and a wording match are not scored on comparable things.`,
 			} else {
 				src.MemoryErr = err
 			}
+			// The project's extracted content, so a term answer can say where
+			// the term actually is. Absent is ordinary — nothing extracted yet
+			// — and the search says so in a note rather than failing.
+			src.Blocks = a.OccurrenceBlocks(cmd)
 
 			res, err := host.SearchContext(cmd.Context(), src, host.ContextSearchRequest{
 				Query:  args[0],

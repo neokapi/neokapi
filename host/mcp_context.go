@@ -72,6 +72,11 @@ func (a *App) handleContextSearch(ctx context.Context, _ *mcp.CallToolRequest, i
 				if in.Memory == "" && db.Memory() != nil {
 					src.Memory = db.Memory()
 				}
+				// The project's extracted content, so an agent told a term is
+				// discouraged learns in the same answer whether anything uses
+				// it. Autocommit: this is a read beside whatever else is
+				// running (see App.OccurrenceBlocks).
+				src.Blocks = db.BlocksAutocommit()
 			}
 		}
 	}
@@ -90,6 +95,10 @@ func (a *App) handleContextSearch(ctx context.Context, _ *mcp.CallToolRequest, i
 		} else {
 			src.MemoryErr = err
 		}
+	}
+
+	if a.BlocksBackend != nil {
+		src.Blocks = a.BlocksBackend // browser build: no file-backed store
 	}
 
 	res, err := SearchContext(ctx, src, ContextSearchRequest{

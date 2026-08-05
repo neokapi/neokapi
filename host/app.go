@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/blockstore"
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
 	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
@@ -73,6 +74,12 @@ type App struct {
 	// inject a pre-seeded InMemoryStore so terms / term-check work
 	// without cgo.
 	TermsBackend terms.Terminology
+
+	// BlocksBackend, when non-nil, is the project's block cache, in place of
+	// the one inside `.kapi/store.db`. The browser build injects a
+	// process-lifetime in-memory store, since it has no file-backed SQLite:
+	// what the lab extracts in one command is what the next one searches.
+	BlocksBackend blockstore.Store
 
 	// Credentials is the shared credential store for AI provider keys.
 	Credentials *credentials.Store
