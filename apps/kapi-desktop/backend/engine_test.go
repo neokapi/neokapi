@@ -148,15 +148,18 @@ func TestRecoverResource_StandaloneStoreMovesOnlyItsOwnFile(t *testing.T) {
 // projectStoreRoot must recognize a project's own store and nothing else: a
 // named store that happens to be called store.db is still standalone.
 func TestProjectStoreRoot(t *testing.T) {
-	root, ok := projectStoreRoot(filepath.Join("/p", project.StateDirName, project.StoreFileName))
+	root, ok := projectStoreRoot(filepath.Join("/p", project.StateDirName, project.WorkDirName, project.StoreFileName))
 	assert.True(t, ok)
 	assert.Equal(t, "/p", root)
 
-	_, ok = projectStoreRoot(filepath.Join("/p", "stores", project.StoreFileName))
-	assert.False(t, ok, "the store must sit in the state directory")
+	_, ok = projectStoreRoot(filepath.Join("/p", project.StateDirName, project.StoreFileName))
+	assert.False(t, ok, "the store sits under work/, not at the top of the state directory")
 
-	_, ok = projectStoreRoot(filepath.Join("/p", project.StateDirName, "corp.db"))
-	assert.False(t, ok, "a differently-named file in .kapi is not the project store")
+	_, ok = projectStoreRoot(filepath.Join("/p", "stores", project.StoreFileName))
+	assert.False(t, ok, "the store must sit in the state directory's work dir")
+
+	_, ok = projectStoreRoot(filepath.Join("/p", project.StateDirName, project.WorkDirName, "corp.db"))
+	assert.False(t, ok, "a differently-named file under work/ is not the project store")
 }
 
 func sampleMemoryEntry() memory.Entry {

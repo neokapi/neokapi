@@ -453,7 +453,11 @@ func projectStoreRoot(path string) (string, bool) {
 	if filepath.Base(path) != project.StoreFileName {
 		return "", false
 	}
-	stateDir := filepath.Dir(path)
+	workDir := filepath.Dir(path)
+	if filepath.Base(workDir) != project.WorkDirName {
+		return "", false
+	}
+	stateDir := filepath.Dir(workDir)
 	if filepath.Base(stateDir) != project.StateDirName {
 		return "", false
 	}

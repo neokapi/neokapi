@@ -210,17 +210,17 @@ func blockedPathHeadline(ope *flow.OutputPathError) string {
 	name := filepath.Base(ope.Path)
 	switch ope.Kind {
 	case flow.OutputPathIsDir:
-		return fmt.Sprintf("A directory occupies %s", name)
+		return "A directory occupies " + name
 	case flow.OutputPathIrregular:
-		return fmt.Sprintf("%s is not a regular file", name)
+		return name + " is not a regular file"
 	case flow.OutputPathParentNotDir:
-		return fmt.Sprintf("%s cannot be created: its folder is blocked", name)
+		return name + " cannot be created: its folder is blocked"
 	case flow.OutputPathPermission:
-		return fmt.Sprintf("No permission to write %s", name)
+		return "No permission to write " + name
 	case flow.OutputPathReadOnly:
-		return fmt.Sprintf("%s is on a read-only filesystem", name)
+		return name + " is on a read-only filesystem"
 	default:
-		return fmt.Sprintf("%s could not be written", name)
+		return name + " could not be written"
 	}
 }
 

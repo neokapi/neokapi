@@ -2,6 +2,7 @@ package backend
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"mime"
 	"os"
@@ -55,7 +56,7 @@ func mediaMimeType(path string) string {
 // emitted by the image/audio/video readers (MediaView.uri in the ContentTree).
 func (a *App) MediaDataURL(path string) (string, error) {
 	if path == "" {
-		return "", fmt.Errorf("media: empty path")
+		return "", errors.New("media: empty path")
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {

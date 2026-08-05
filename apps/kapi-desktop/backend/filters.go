@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/id"
@@ -155,13 +156,7 @@ func (f ProjectFilter) FilesNarrowed() bool {
 // project-relative path) passes the filter's collection + glob narrowing.
 func (f ProjectFilter) MatchesFile(collection, relative string) bool {
 	if len(f.Collections) > 0 && collection != "" {
-		found := false
-		for _, c := range f.Collections {
-			if c == collection {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(f.Collections, collection)
 		if !found {
 			return false
 		}

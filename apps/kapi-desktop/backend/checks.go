@@ -110,7 +110,7 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			profile = p
 		}
 	}
-	dntTerms := a.resolveProjectDNTTerms(op, sourceLang)
+	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 
 	var allFindings []check.Finding
 	files := make([]CheckFileResult, 0, len(resolved))
@@ -284,14 +284,14 @@ func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName, sourceLang
 // root. Best-effort: nil when nothing is bound or resolution fails — the
 // brand vocabulary check is then skipped, matching the CLI's flag-free
 // behavior.
-func (a *App) resolveProjectBrandProfile(op *openProject) *brand.VoiceProfile {
+func (a *App) resolveProjectBrandProfile(ctx context.Context, op *openProject) *brand.VoiceProfile {
 	if op == nil || op.Project == nil || op.Path == "" {
 		return nil
 	}
 	root := filepath.Dir(op.Path)
 	a.checksMu.Lock()
 	defer a.checksMu.Unlock()
-	p, _, ok, err := a.checksCLI().ResolveBrandProfile(context.Background(), op.Project, root, host.BrandResolveOptions{})
+	p, _, ok, err := a.checksCLI().ResolveBrandProfile(ctx, op.Project, root, host.BrandResolveOptions{})
 	if err != nil || !ok {
 		return nil
 	}
@@ -502,7 +502,7 @@ func (a *App) resolveTargetPath(rf project.ResolvedFile, op *openProject, target
 // (the term must survive verbatim); its source-locale term texts are returned.
 // Returns nil when there is no terms or no opted-in concepts — the
 // do-not-translate check is then skipped, matching the CLI's flag-driven default.
-func (a *App) resolveProjectDNTTerms(op *openProject, sourceLang string) []string {
+func (a *App) resolveProjectDNTTerms(ctx context.Context, op *openProject, sourceLang string) []string {
 	if op.tbHandle == "" {
 		return nil
 	}
@@ -513,7 +513,7 @@ func (a *App) resolveProjectDNTTerms(op *openProject, sourceLang string) []strin
 	srcLoc := model.LocaleID(sourceLang)
 	seen := make(map[string]bool)
 	var terms []string
-	concepts, err := tb.Concepts(context.Background())
+	concepts, err := tb.Concepts(ctx)
 	if err != nil {
 		return nil
 	}

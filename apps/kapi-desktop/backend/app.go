@@ -877,7 +877,7 @@ func (a *App) toolInfosFrom(all []registry.ToolInfo) []ToolInfo {
 			}
 			out := make([]IOPort, len(fs))
 			for i, f := range fs {
-				out[i] = IOPort{Type: string(f.Type), Side: f.Side.String(), Optional: f.Optional, Layer: f.Layer}
+				out[i] = IOPort{Type: f.Type, Side: f.Side.String(), Optional: f.Optional, Layer: f.Layer}
 			}
 			return out
 		}

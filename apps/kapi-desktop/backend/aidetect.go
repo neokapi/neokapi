@@ -2,6 +2,7 @@ package backend
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -85,7 +86,7 @@ func (a *App) DetectAIProviders() AIDetectionResult {
 func (a *App) SelectAIProvider(providerID, model string) error {
 	providerID = strings.TrimSpace(providerID)
 	if providerID == "" {
-		return fmt.Errorf("provider id is required")
+		return errors.New("provider id is required")
 	}
 	info, ok := aiprovider.ProviderInfoFor(aiprovider.ProviderID(providerID))
 	if !ok {

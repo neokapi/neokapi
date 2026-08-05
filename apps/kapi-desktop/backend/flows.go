@@ -3,6 +3,7 @@ package backend
 import (
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/neokapi/neokapi/core/format"
 	"os"
@@ -247,7 +248,7 @@ func (a *App) AdoptUserFlowIntoProject(tabID, flowID string) (*AdoptFlowResult, 
 	op.Project.Flows[name] = &flow.StepsSpec{Steps: detail.Steps}
 
 	if op.Path == "" {
-		return nil, fmt.Errorf("project has no file path; save it before adopting flows")
+		return nil, errors.New("project has no file path; save it before adopting flows")
 	}
 	if err := project.Save(op.Path, op.Project); err != nil {
 		// Roll back the in-memory addition so state stays consistent with disk.
