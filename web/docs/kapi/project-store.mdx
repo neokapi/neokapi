@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: The project store
-description: Where a kapi project's work lives — one local database at .kapi/store.db, a free-to-delete cache, and the committed record of decisions, terms and memory. The recipe is config, the store is work, the files are the deliverable.
+description: Where a kapi project's work lives — one local database at .kapi/work/store.db, a free-to-delete cache, and the committed record of decisions, terms and memory. The recipe is config, the store is work, the files are the deliverable.
 keywords: [kapi, project store, store.db, context graph, units, kapi commit, review, coverage, cache, working state, ship state]
 ---
 
@@ -11,12 +11,13 @@ A kapi project has three things, and it helps to keep them straight:
 
 - the **recipe** (`kapi.yaml`) — your *config*: languages, content, flows, defaults;
 - the **files** — your *deliverable*: the source and target files on disk;
-- the **project store** — your *work*: what kapi keeps under `.kapi/` while you
-  build, plus the committed record of the decisions you make along the way.
+- the **project store** — your *work*: what kapi derives under `.kapi/work/`
+  while you build, plus the committed record of the decisions you make along the
+  way.
 
 This page is about the third one. The guiding rule:
 
-> **Files and the committed context are the source of truth. `.kapi/store.db`
+> **Files and the committed context are the source of truth. `.kapi/work/store.db`
 > is a derived index over them — plus the decisions you have staged but not yet
 > committed.**
 
@@ -24,11 +25,11 @@ This page is about the third one. The guiding rule:
 
 | Layer | Lives in | Kind | Lose it? |
 |---|---|---|---|
-| **committed context** | `.kapi/units/*.jsonl`, plus the terms and memory bundles the recipe binds | **authored** — review decisions, approved terms, memory pairs | **committed — keep it in git** |
-| local store | `.kapi/store.db` | **derived index** over the committed context and your content, **plus** the working set of staged decisions | rebuilds — except decisions staged since the last `kapi commit` |
-| cache | `.kapi/cache/` | **derived** — parse cache, extractions, collections, sync cache | rebuilds on next run |
+| **committed context** | `.kapi/context/` — the terms and memory bundles, the brand voice, and `decisions/*.jsonl` | **authored** — review decisions, approved terms, memory pairs | **committed — keep it in git** |
+| local store | `.kapi/work/store.db` | **derived index** over the committed context and your content, **plus** the working set of staged decisions | rebuilds — except decisions staged since the last `kapi commit` |
+| cache | `.kapi/work/cache/` | **derived** — parse cache, extractions, collections, sync cache | rebuilds on next run |
 
-A project keeps **one** local database. `.kapi/store.db` holds every subsystem's
+A project keeps **one** local database. `.kapi/work/store.db` holds every subsystem's
 tables in a single SQLite file, on a single connection, each with its own
 migration ledger: the block cache, the terms store, the content memory, the
 unit-state working set, and the property graph (`graph_nodes` / `graph_edges`)
@@ -36,25 +37,51 @@ that links a term to the blocks that use it, a decision to the unit it blesses,
 and both to their
 [context coordinates](/contribute/implementation/kapi-project-file#context-coordinates).
 
-It sits at the **top** of `.kapi/`, not under `cache/`, and the distinction is
-the whole point: `rm -rf .kapi/cache` is completely free, while `store.db`
-carries the working set. Between a review decision landing and `kapi commit`,
-that working set holds the only copy of the staged decisions. Delete `store.db`
-and you lose at most what you staged since the last commit; everything else is
-rebuilt from the committed context and your files.
+It sits at the **top** of `.kapi/work/`, not under `cache/`, and the distinction
+is the whole point: `rm -rf .kapi/work/cache` is completely free, while
+`store.db` carries the working set. Between a review decision landing and `kapi
+commit`, that working set holds the only copy of the staged decisions. Delete
+`store.db` and you lose at most what you staged since the last commit;
+everything else is rebuilt from the committed context and your files.
 
 The committed side is plain text, and it is what a person reads in a pull
 request:
 
-- `.kapi/units/*.jsonl` — the unit record, one JSON Lines shard per document
+- `.kapi/context/decisions/*.jsonl` — the unit record, one JSON Lines shard per document
   ([serialization](/reference/serialization/project-state));
 - the terms bundle the recipe binds with `defaults.terms_source` (a
   `.terms.json`) and the content-memory bundle it binds with
-  `defaults.memory_source` (a `.memory.json`);
+  `defaults.memory_source` (a `.memory.json`) — conventionally
+  `.kapi/context/terms.json` and `.kapi/context/memory.json`, though both keys
+  bind any path;
+- the brand-voice profile, `.kapi/context/brand-voice.yaml`;
 - the content files themselves.
 
-`.kapi/.gitignore` keeps `store.db` and `cache/` out of git; `.kapi/units/`
-stays committed.
+## What to commit, and what to ignore
+
+`.kapi/` is committed. It is your project's context, and it belongs in review
+like the rest of your source. The one thing kapi keeps out of git is
+`.kapi/work/`, where everything it derives goes — which makes the ignore rule two
+lines, with no exceptions to remember:
+
+```gitignore
+/.kapi/work/
+/.kapi/filters.local.json
+```
+
+The second line is your personal filter overlay: your own reader settings, not
+the project's.
+
+Deleting is worth being precise about:
+
+- **`rm -rf .kapi/work/cache` — always safe.** Everything under it is rebuilt on
+  the next run.
+- **`rm -rf .kapi/work` — costs two things.** Any decision you staged since the
+  last `kapi commit` lives only in `store.db`. And if you use
+  [redaction](/framework/redaction), the vault under `.kapi/work/vault/` holds
+  the withheld originals — deliberately local-only, never committed and never
+  synced, so no copy exists anywhere else. Merge the batches you have in flight
+  before you clear it.
 
 ## One local context graph
 
@@ -87,7 +114,7 @@ Approving a translation is a *decision*, and decisions are explicit, like a git
 commit. When you approve a unit (see [Review](/kapi/convergence#review-a-decision-in-the-unit-record)),
 the decision lands in the working set inside `store.db`. `kapi status` reports
 what is pending, and `kapi commit` materializes the working set into
-`.kapi/units/`, where you commit it with your sources. The decision is bound to
+`.kapi/context/decisions/`, where you commit it with your sources. The decision is bound to
 the **content hash** of the translation it blesses, so editing that translation
 later drops the unit back below *reviewed* — an approval can't silently outlive
 the text it approved.
@@ -96,7 +123,7 @@ the text it approved.
 kapi status --review        # the worklist: units awaiting approval
 kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
 kapi status                 # staged decisions, not yet committed
-kapi commit                 # → .kapi/units/*.jsonl, ready for git
+kapi commit                 # → .kapi/context/decisions/*.jsonl, ready for git
 ```
 
 The same model maps to a server-backed project: instead of committing shards,
@@ -113,7 +140,7 @@ something. Nothing is conjured into existence by the file simply being there.
 
 In the browser, the same model runs without SQLite: the memory and terms
 backends are in-memory, blocks are keyed by path in memory, and the working set
-persists to a JSON sidecar at `.kapi/store.json`.
+persists to a JSON sidecar at `.kapi/work/store.json`.
 
 ## What the store is *not*
 
