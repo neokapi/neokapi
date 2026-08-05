@@ -77,7 +77,7 @@ func runServerStatus(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		// No server configured — return the empty standing rather than error,
 		// so the built-in status degrades gracefully.

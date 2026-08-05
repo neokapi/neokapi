@@ -37,19 +37,6 @@ func (a *App) checkProjectOnDisk(op *openProject) error {
 	return nil
 }
 
-// convergenceCLI lazily builds the shared host.App used to derive convergence
-// reports, so the format/tool registries register once rather than per request.
-func (a *App) convergenceCLI() *host.App {
-	a.convergenceMu.Lock()
-	defer a.convergenceMu.Unlock()
-	if a.convergence == nil {
-		c := &host.App{}
-		c.InitRegistries()
-		a.convergence = c
-	}
-	return a.convergence
-}
-
 // GetConvergence returns the derived convergence report for a project tab: the
 // per-(collection, locale) target coverage and ship-gate standing, the source
 // authoring readiness, and the review queue. It is the same file-based
@@ -70,7 +57,7 @@ func (a *App) GetConvergence(tabID string) (*host.ConvergenceReport, error) {
 		return nil, err
 	}
 	src := string(op.Project.Defaults.SourceLanguage)
-	return a.convergenceCLI().ProjectConvergence(context.Background(), op.Path, src)
+	return a.hostEngine().ProjectConvergence(context.Background(), op.Path, src)
 }
 
 // ConvergePlan is the desktop's pre-flight picture for "Bring up to date": the
@@ -106,7 +93,7 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 		return nil, err
 	}
 	src := string(op.Project.Defaults.SourceLanguage)
-	plan, err := a.convergenceCLI().UpPlan(context.Background(), op.Path, src)
+	plan, err := a.hostEngine().UpPlan(context.Background(), op.Path, src)
 	if err != nil {
 		return nil, err
 	}
@@ -118,18 +105,25 @@ func (a *App) GetConvergePlan(tabID string) (*ConvergePlan, error) {
 	// panel renders as "nothing has drifted" — the wrong number, not an error.
 	// Strictness costs nothing here: UpPlan above resolves the same recipe
 	// through UnitsFromProject and has already hard-failed on it.
-	if storePath, ok := a.projectBlockStorePath(op); ok {
-		pctx := project.NewProjectContext(op.Project, op.Path)
-		resolved, rerr := pctx.ResolveContent(a.formatReg)
-		if rerr != nil {
-			return nil, rerr
-		}
-		drift := project.DetectStoreDrift(storePath, resolved)
-		out.ChangedFiles = len(drift.Changed)
-		out.RemovedFiles = len(drift.Removed)
-		out.StoreMissing = drift.StoreMissing
-		out.VersionStale = drift.VersionStale
+	//
+	// A project with no store yet has drifted from nothing, and reporting that
+	// must not create one: a plan is a dry run, and `kapi up --plan` declines the
+	// same open for the same reason.
+	db, ok := a.existingProjectStore(op)
+	if !ok {
+		out.StoreMissing = true
+		return out, nil
 	}
+	pctx := project.NewProjectContext(op.Project, op.Path)
+	resolved, rerr := pctx.ResolveContent(a.formatReg)
+	if rerr != nil {
+		return nil, rerr
+	}
+	drift := db.DetectStoreDrift(context.Background(), resolved)
+	out.ChangedFiles = len(drift.Changed)
+	out.RemovedFiles = len(drift.Removed)
+	out.StoreMissing = drift.StoreMissing
+	out.VersionStale = drift.VersionStale
 	return out, nil
 }
 
@@ -184,9 +178,19 @@ func (a *App) BringUpToDate(tabID string) error {
 	return nil
 }
 
-// executeConvergeRun drives the shared up engine on a fresh host.App (its own
-// registries + per-run state, so a concurrent GetConvergence on the shared
-// convergence app cannot race) and translates its progress into run events.
+// executeConvergeRun drives the shared up engine on a run-scoped host.App and
+// translates its progress into run events.
+//
+// The App is its own so the per-run state is: TargetLang, the tool slots each
+// locale worker fills, the progress tap. A concurrent GetConvergence on the
+// engine therefore cannot race it. What it does NOT own is the project store —
+// it borrows the engine's, so the run, the tab's status panel and the review
+// loop all write through one pool and the in-process write gate can order them.
+// Two pools on `.kapi/store.db` would leave the gate with nothing to gate, and a
+// review decision recorded while a pass was learning wording would go back to
+// losing on SQLite's busy backoff.
+//
+// Borrowed, therefore never Shut down: the stores belong to the engine.
 func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowName, sourceLang string) {
 	defer func() {
 		a.runState.mu.Lock()
@@ -201,7 +205,7 @@ func (a *App) executeConvergeRun(ctx context.Context, tabID, projectPath, flowNa
 	// registries, exactly like the CLI's Init does — so the built-in default
 	// flow's translate step resolves the configured ai.provider/ai.model and
 	// its saved key with no per-flow pinning.
-	capp := &host.App{Credentials: a.credentials, Config: a.aiConfig}
+	capp := a.borrowEngine(&host.App{Credentials: a.credentials, Config: a.aiConfig})
 	capp.InitRegistries()
 	// The same preprocessor the desktop's own registry carries — one definition,
 	// so a converge run resolves provider/model/credentials identically to a

@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,7 +51,7 @@ func TestConnectorDiff_AllAddedWhenNoCache(t *testing.T) {
 	const content = `{"greeting":"Hello","farewell":"Goodbye"}`
 	proj, reg := newDiffTestProject(t, content)
 
-	conn := NewLocalConnector(proj, reg)
+	conn := NewLocalConnector(&host.App{}, proj, reg)
 	defer conn.Close()
 
 	diff, err := conn.Diff(context.Background(), nil)
@@ -80,7 +81,7 @@ func TestConnectorDiff_NoChangesWhenCacheMatches(t *testing.T) {
 	// Seed the cache to exactly the current scanned state.
 	seedCacheFromScan(t, proj, reg, nil)
 
-	conn := NewLocalConnector(proj, reg)
+	conn := NewLocalConnector(&host.App{}, proj, reg)
 	defer conn.Close()
 
 	diff, err := conn.Diff(context.Background(), nil)
@@ -105,7 +106,7 @@ func TestConnectorDiff_ChangedAndRemoved(t *testing.T) {
 	abs := filepath.Join(proj.Root, "locales", "en.json")
 	require.NoError(t, os.WriteFile(abs, []byte(`{"greeting":"Hi there","farewell":"Goodbye"}`), 0o644))
 
-	conn := NewLocalConnector(proj, reg)
+	conn := NewLocalConnector(&host.App{}, proj, reg)
 	defer conn.Close()
 
 	diff, err := conn.Diff(context.Background(), nil)
@@ -133,7 +134,7 @@ func TestConnectorDiff_ChangedAndRemoved(t *testing.T) {
 func seedCacheFromScan(t *testing.T, proj *bproject.Project, reg *registry.FormatRegistry, extraBlocks map[string]string) {
 	t.Helper()
 
-	conn := NewLocalConnector(proj, reg)
+	conn := NewLocalConnector(&host.App{}, proj, reg)
 	hashMap, _, err := conn.scanLocalBlocks(context.Background(), nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, hashMap, "expected at least one scanned file")

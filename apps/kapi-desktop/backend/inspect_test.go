@@ -10,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +18,7 @@ import (
 
 // setupInspectProject writes a project with one JSON source file (and optionally
 // a translated target file), a convention brand.yaml (forbidden term "utilize"),
-// and a seeded .kapi/terms.db (term "dashboard" → "tableau de bord"). It
+// and seeded project terms (term "dashboard" → "tableau de bord"). It
 // opens the project and returns the tab id and the source file path.
 func setupInspectProject(t *testing.T, app *App, sourceJSON, targetJSON string) (tabID, srcPath string) {
 	t.Helper()
@@ -42,12 +43,14 @@ vocabulary:
 `
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "brand.yaml"), []byte(brandYAML), 0o644))
 
-	// Seed a project terms store so the term annotator has data to match.
-	stateDir := filepath.Join(dir, ".kapi")
-	require.NoError(t, os.MkdirAll(stateDir, 0o755))
-	tb, err := terms.NewSQLiteStore(filepath.Join(stateDir, "terms.db"))
+	// Seed the project's terms so the term annotator has data to match. They live
+	// in the project's one store, and this handle must be closed before the app
+	// opens the project — two handles would be two pools on one file.
+	db, err := projectdb.Open(context.Background(), project.Layout{
+		Root: dir, StateDir: filepath.Join(dir, project.StateDirName),
+	})
 	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
+	require.NoError(t, db.Terms().AddConcept(context.Background(), terms.Concept{
 		ID:     "c1",
 		Domain: "ui",
 		Terms: []terms.Term{
@@ -55,7 +58,7 @@ vocabulary:
 			{Text: "tableau de bord", Locale: model.LocaleID("fr"), Status: model.TermPreferred},
 		},
 	}))
-	require.NoError(t, tb.Close())
+	require.NoError(t, db.Close())
 
 	proj := &project.KapiProject{
 		Version: project.CurrentVersion,

@@ -98,6 +98,64 @@ func projectLayoutAt(root string) project.Layout {
 	return project.Layout{Root: root, StateDir: filepath.Join(root, project.StateDirName)}
 }
 
+// ShareProjectStores binds other to the stores this App holds, so the two Apps
+// reach one *projectdb.DB — and therefore one connection pool — per project.
+//
+// It is the exported form of what a converge worker gets by construction
+// (convergeWorker pre-seeds the parent's holder), and it exists for the same
+// reason. An embedding host that cannot live with a single App — the desktop
+// builds a fresh one per run so per-run state such as TargetLang stays owned —
+// would otherwise open `.kapi/store.db` once per App. The FIFO write gate is
+// per pool: two pools on one file cannot order their writers against each
+// other, and the tab-side working-set writes a review loop makes would go back
+// to losing to a run's content-memory writes on SQLite's busy backoff.
+//
+// Ownership does not move. Shutdown on the RECEIVER closes the stores; the
+// borrower must not be Shut down, exactly as a converge worker must not be,
+// since it would close handles the owner is still handing out. Call this before
+// the borrower opens anything — a borrower that has already built its own
+// holder keeps it.
+func (a *App) ShareProjectStores(other *App) {
+	if other == nil || other == a {
+		return
+	}
+	other.projectStores = a.ensureProjectStores()
+}
+
+// CloseProjectDB closes and forgets the store this App holds for one project,
+// so the next ProjectDB for that root opens a fresh handle.
+//
+// Shutdown is the ordinary way to release stores; this is for a host whose
+// projects come and go inside one process. The desktop closes a tab, or resets
+// a sample project by renaming its directory out from under itself — and an
+// open handle would keep a file descriptor on the moved file and then hand that
+// stale handle to the reopened tab.
+//
+// It is the caller's job to know nothing is using the store: a run in flight
+// holds subsystem handles whose pool this closes. An unknown root is not an
+// error.
+func (a *App) CloseProjectDB(root string) error {
+	if root == "" {
+		return nil
+	}
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return fmt.Errorf("project store: resolve root %q: %w", root, err)
+	}
+	s := a.projectStores
+	if s == nil {
+		return nil
+	}
+	s.mu.Lock()
+	db, ok := s.dbs[abs]
+	delete(s.dbs, abs)
+	s.mu.Unlock()
+	if !ok {
+		return nil
+	}
+	return db.Close()
+}
+
 // closeProjectStores releases every store this App opened. Called by Shutdown;
 // idempotent, so a second call after an early teardown is harmless.
 func (a *App) closeProjectStores() {

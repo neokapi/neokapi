@@ -191,3 +191,78 @@ func TestProjectDB_OpenSurvivesACancelledCaller(t *testing.T) {
 	require.NotNil(t, db.Raw())
 	assert.FileExists(t, filepath.Join(root, project.StateDirName, project.StoreFileName))
 }
+
+// A borrower reaches the owner's handle. An embedding host that must build a
+// second App — the desktop builds one per run so per-run state stays owned —
+// would otherwise put a second connection pool on `.kapi/store.db`, and the
+// write gate, which is per pool, could no longer order the two sets of writers.
+func TestShareProjectStores_BorrowerReachesTheSameHandle(t *testing.T) {
+	owner := &App{}
+	defer owner.Shutdown()
+	root := storeRoot(t)
+
+	borrower := &App{}
+	owner.ShareProjectStores(borrower)
+
+	fromBorrower, err := borrower.ProjectDB(t.Context(), root)
+	require.NoError(t, err)
+	fromOwner, err := owner.ProjectDB(t.Context(), root)
+	require.NoError(t, err)
+	assert.Same(t, fromOwner, fromBorrower, "one handle per project across both Apps")
+
+	// And the direction is symmetric: a store the OWNER opened first is the one
+	// the borrower gets, not merely the other way round.
+	otherRoot := storeRoot(t)
+	first, err := owner.ProjectDB(t.Context(), otherRoot)
+	require.NoError(t, err)
+	second, err := borrower.ProjectDB(t.Context(), otherRoot)
+	require.NoError(t, err)
+	assert.Same(t, first, second)
+}
+
+// Sharing is a no-op in the degenerate cases rather than a panic: a nil
+// borrower, or an App handed to itself.
+func TestShareProjectStores_IgnoresNilAndSelf(t *testing.T) {
+	a := &App{}
+	defer a.Shutdown()
+	a.ShareProjectStores(nil)
+	a.ShareProjectStores(a)
+
+	db, err := a.ProjectDB(t.Context(), storeRoot(t))
+	require.NoError(t, err)
+	assert.NotNil(t, db.Raw())
+}
+
+// Closing one project's store leaves the others alone and lets the next open
+// build a fresh handle. A host whose projects come and go inside one process —
+// the desktop closing a tab, or renaming a sample's directory out from under
+// itself — needs that, or the reopened project gets a handle on the old file.
+func TestCloseProjectDB_ClosesOneAndReopensFresh(t *testing.T) {
+	a := &App{}
+	defer a.Shutdown()
+	rootA, rootB := storeRoot(t), storeRoot(t)
+
+	dbA, err := a.ProjectDB(t.Context(), rootA)
+	require.NoError(t, err)
+	dbB, err := a.ProjectDB(t.Context(), rootB)
+	require.NoError(t, err)
+
+	require.NoError(t, a.CloseProjectDB(rootA))
+	assert.Nil(t, dbA.Raw(), "the closed project's pool is released")
+	assert.NotNil(t, dbB.Raw(), "the other project is untouched")
+
+	reopened, err := a.ProjectDB(t.Context(), rootA)
+	require.NoError(t, err)
+	assert.NotSame(t, dbA, reopened, "the next open builds a fresh handle")
+	assert.NotNil(t, reopened.Raw())
+}
+
+// Closing a project this App never opened — or closing before anything has been
+// opened at all — is not an error. Tab teardown runs on paths that may never
+// have reached a store.
+func TestCloseProjectDB_UnknownRootIsNotAnError(t *testing.T) {
+	a := &App{}
+	defer a.Shutdown()
+	require.NoError(t, a.CloseProjectDB(storeRoot(t)))
+	require.NoError(t, a.CloseProjectDB(""))
+}

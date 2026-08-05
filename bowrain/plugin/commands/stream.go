@@ -85,7 +85,7 @@ func runStreamList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
 	}
-	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func runStreamCreate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
 	}
-	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func runStreamDiff(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
 	}
-	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}
@@ -188,7 +188,7 @@ func runStreamMerge(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
 	}
-	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func runStreamArchive(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
 	}
-	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}
@@ -235,7 +235,7 @@ func runStreamStatus(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
 	}
-	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}

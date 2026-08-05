@@ -249,9 +249,10 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 
 	// Recorded decision + provenance from the project state store, when the
 	// decision still judges the current translation.
+	// The working store is a schema of the project's one store, so this is the
+	// engine's handle, not a second opener — and closing it is not ours to do.
 	root := filepath.Dir(op.Path)
-	if st, serr := host.OpenProjectState(ctx, root); serr == nil {
-		defer st.Close()
+	if st, serr := a.hostEngine().OpenProjectState(ctx, root); serr == nil {
 		if us, found := st.Get(ctx, state.Key{Unit: key, Variant: model.Variant(loc)}); found {
 			th := project.HashBytes([]byte(strings.TrimSpace(targetText)))
 			if !us.Stale(th) {
@@ -386,7 +387,7 @@ func (a *App) applyReviewDecision(tabID, locale, file, key, decision, note strin
 		return errors.New("project has no recipe loaded")
 	}
 	src := string(op.Project.Defaults.SourceLanguage)
-	_, err := a.convergenceCLI().ApplyReviewDecision(context.Background(), op.Path, src,
+	_, err := a.hostEngine().ApplyReviewDecision(context.Background(), op.Path, src,
 		host.ReviewUnitRef{File: file, Key: key, Locale: locale}, decision, note)
 	return err
 }

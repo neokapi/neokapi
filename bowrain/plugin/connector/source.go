@@ -79,6 +79,14 @@ func streamFor(recipe *Recipe) string {
 // BowrainSourceConnector implements bowrainconn.SourceConnector for local bowrain-cli projects.
 // It communicates with a Bowrain server via REST API.
 type BowrainSourceConnector struct {
+	// app is the host whose project stores this connector reads and writes
+	// through. Decisions live in the working-set schema of the project's one
+	// store, and the App is what memoizes a single handle for it — so a
+	// connector must be handed the App the surrounding process already uses,
+	// never open a store of its own. Two pools on one file cannot serialize
+	// their writers in process.
+	app *host.App
+
 	project   *Project
 	client    *apiclient.BowrainClient
 	formatReg *registry.FormatRegistry
@@ -100,7 +108,13 @@ type itemBlock struct {
 }
 
 // NewSourceConnector creates a SourceConnector for the given project.
-func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
+//
+// app is the host the caller already runs under — a command's App, the daemon's
+// one App per process. It is how the connector reaches the project's store for
+// decision staging, and taking it as a parameter rather than opening one is the
+// whole point: the App memoizes one handle per project root, and a connector
+// that opened its own would be a second connection pool on `.kapi/store.db`.
+func NewSourceConnector(app *host.App, project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
 	recipe := project.Recipe
 	if !recipe.HasServer() {
 		return nil, errors.New("no server configuration in the kapi recipe (add a `server:` block)")
@@ -176,6 +190,7 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 	client.SetStream(stream)
 
 	return &BowrainSourceConnector{
+		app:       app,
 		project:   project,
 		client:    client,
 		formatReg: formatReg,
@@ -186,10 +201,13 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 }
 
 // NewLocalConnector creates a BowrainSourceConnector for local-only operations
-// (listing files, scanning blocks) without requiring a server connection.
-func NewLocalConnector(project *Project, formatReg *registry.FormatRegistry) *BowrainSourceConnector {
+// (listing files, scanning blocks) without requiring a server connection. It
+// takes the same App for the same reason: local-only is about the server, not
+// about the project's store.
+func NewLocalConnector(app *host.App, project *Project, formatReg *registry.FormatRegistry) *BowrainSourceConnector {
 	cache := LoadSyncCache(project.Layout)
 	return &BowrainSourceConnector{
+		app:       app,
 		project:   project,
 		formatReg: formatReg,
 		cache:     cache,

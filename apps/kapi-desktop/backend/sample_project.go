@@ -37,11 +37,13 @@ func (a *App) CreateSampleProject(name string) (*TabInfo, error) {
 			return tab, nil
 		}
 		a.logger.Printf("sample %q recipe is stale/unparseable — re-scaffolding", name)
-		// Clear the regenerable state dir first: a memory.db / terms.db left by an
-		// older app version carries an incompatible migration history, so re-seeding
-		// into it fails ("apply migration N: no such table ..."). Removing .kapi lets
-		// Scaffold create fresh DBs; the user's input/ and output/ are preserved.
-		if err := os.RemoveAll(filepath.Join(targetDir, ".kapi")); err != nil {
+		// Drop the store first: one left by an older app version carries an
+		// incompatible migration history, so re-seeding into it fails ("apply
+		// migration N: no such table ..."). Deleting it is enough and costs
+		// nothing — every subsystem in there is a projection of committed sources.
+		// The rest of `.kapi/` stays, so the committed unit record survives; the
+		// user's input/ and output/ were never at risk.
+		if err := a.resetProjectStore(targetDir); err != nil {
 			return nil, fmt.Errorf("reset stale sample state: %w", err)
 		}
 		if err := sample.Scaffold(name, targetDir); err != nil {
@@ -158,6 +160,30 @@ func (a *App) AcknowledgeSampleRevision(tabID string) error {
 		return errors.New("not a sample project")
 	}
 	return sample.SetManifestRevision(dir, sample.CurrentRevision(m.Sample))
+}
+
+// resetProjectStore deletes a project's local store, first releasing the handle
+// this process holds for it — a file removed under an open pool is still open,
+// and the next writer would carry on into an unlinked inode.
+//
+// Deleting the whole store is the documented trade of merging the four files:
+// content memory, terms, block cache and working set go together. It is
+// affordable because every one of them is a projection rebuilt from committed
+// sources — except staged decisions, which are decisions nobody has committed
+// on a sample being re-scaffolded anyway.
+func (a *App) resetProjectStore(root string) error {
+	if err := a.hostEngine().CloseProjectDB(root); err != nil {
+		return err
+	}
+	layout := project.Layout{Root: root, StateDir: filepath.Join(root, project.StateDirName)}
+	// The WAL and shared-memory sidecars go too: left behind beside a deleted
+	// database they are stale journal for a file that no longer exists.
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		if err := os.Remove(layout.StorePath() + suffix); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 // backupSampleDir returns a non-existing sibling backup path for dir, e.g.

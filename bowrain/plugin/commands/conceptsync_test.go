@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -14,10 +13,12 @@ import (
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
+	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
@@ -163,26 +164,38 @@ func decodeBody(r *http.Request) map[string]any {
 	return body
 }
 
-// pullInto runs a concept pull into a fresh temp terms and returns the path
-// and the recorded baseline.
-func pullInto(t *testing.T, srv *httptest.Server) (string, *bproject.ConceptBaseline) {
+// newProjectTerms opens a throwaway project's store and returns its terms
+// schema — the shape a concept pull and push now work against. One handle for
+// the whole test: the store carries every subsystem, so a second opener would be
+// a second connection pool on one file.
+func newProjectTerms(t *testing.T) *terms.SQLiteStore {
+	t.Helper()
+	root := t.TempDir()
+	db, err := projectdb.Open(t.Context(), coreproj.Layout{
+		Root: root, StateDir: filepath.Join(root, coreproj.StateDirName),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	return db.Terms()
+}
+
+// pullInto runs a concept pull into a fresh project's terms and returns the
+// store and the recorded baseline.
+func pullInto(t *testing.T, srv *httptest.Server) (*terms.SQLiteStore, *bproject.ConceptBaseline) {
 	t.Helper()
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	tbPath := filepath.Join(t.TempDir(), "terms.db")
-	res, baseline, err := PullConcepts(context.Background(), client, tbPath, false)
+	tb := newProjectTerms(t)
+	res, baseline, err := PullConcepts(context.Background(), client, tb, false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.NotNil(t, baseline)
-	return tbPath, baseline
+	return tb, baseline
 }
 
-// editConcept opens the terms store, applies mutate to the named concept, and
-// upserts it, simulating a local edit between pull and push.
-func editConcept(t *testing.T, tbPath, conceptID string, mutate func(*terms.Concept)) {
+// editConcept applies mutate to the named concept and upserts it, simulating a
+// local edit between pull and push.
+func editConcept(t *testing.T, tb *terms.SQLiteStore, conceptID string, mutate func(*terms.Concept)) {
 	t.Helper()
-	tb, err := terms.NewSQLiteStore(tbPath)
-	require.NoError(t, err)
-	defer tb.Close()
 	c, ok, err := tb.GetConcept(context.Background(), conceptID)
 	require.NoError(t, err)
 	require.True(t, ok)
@@ -193,9 +206,9 @@ func editConcept(t *testing.T, tbPath, conceptID string, mutate func(*terms.Conc
 func TestPullConceptsWritesTermsAndBaseline(t *testing.T) {
 	srv, _ := conceptSyncServer(t)
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	tbPath := filepath.Join(t.TempDir(), "terms.db")
+	tb := newProjectTerms(t)
 
-	res, baseline, err := PullConcepts(context.Background(), client, tbPath, false)
+	res, baseline, err := PullConcepts(context.Background(), client, tb, false)
 	require.NoError(t, err)
 	assert.Equal(t, 2, res.Concepts)
 	assert.Equal(t, 3, res.Terms)
@@ -207,10 +220,8 @@ func TestPullConceptsWritesTermsAndBaseline(t *testing.T) {
 	require.Contains(t, baseline.Concepts, "c-greeting")
 	assert.Len(t, baseline.Relations, 1)
 
-	// The concepts + relation are queryable in the local terms for offline gating.
-	tb, err := terms.NewSQLiteStore(tbPath)
-	require.NoError(t, err)
-	defer tb.Close()
+	// The concepts + relation are queryable in the project's terms for offline
+	// gating.
 	concepts, err := tb.Concepts(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, concepts, 2)
@@ -223,29 +234,33 @@ func TestPullConceptsWritesTermsAndBaseline(t *testing.T) {
 func TestPullConceptsDryRunWritesNothing(t *testing.T) {
 	srv, _ := conceptSyncServer(t)
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	tbPath := filepath.Join(t.TempDir(), "terms.db")
+	tb := newProjectTerms(t)
 
-	res, baseline, err := PullConcepts(context.Background(), client, tbPath, true)
+	res, baseline, err := PullConcepts(context.Background(), client, tb, true)
 	require.NoError(t, err)
 	assert.Equal(t, 2, res.Concepts)
 	require.NotNil(t, baseline)
 
-	// Dry-run must not create the terms store file.
-	_, statErr := os.Stat(tbPath)
-	assert.True(t, os.IsNotExist(statErr), "dry-run pull must not write the terms store")
+	// Dry-run must write no concept. The old assertion was that the terms FILE
+	// stayed absent, which the merged store cannot answer: every subsystem's
+	// schema exists from the store's first open, so emptiness is the only
+	// evidence that nothing was written.
+	concepts, err := tb.Concepts(context.Background())
+	require.NoError(t, err)
+	assert.Empty(t, concepts, "dry-run pull must not write into the terms store")
 }
 
 func TestPushConceptsOrdinaryEditAppliesDirectly(t *testing.T) {
 	srv, rec := conceptSyncServer(t)
-	tbPath, baseline := pullInto(t, srv)
+	tb, baseline := pullInto(t, srv)
 
 	// Ordinary edit: change a definition.
-	editConcept(t, tbPath, "c-cta", func(c *terms.Concept) {
+	editConcept(t, tb, "c-cta", func(c *terms.Concept) {
 		c.Definition = "Primary call to action."
 	})
 
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tbPath, baseline, false)
+	res, err := PushConcepts(context.Background(), client, tb, baseline, false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -264,10 +279,10 @@ func TestPushConceptsOrdinaryEditAppliesDirectly(t *testing.T) {
 
 func TestPushConceptsGovernedEditProposesChangeSet(t *testing.T) {
 	srv, rec := conceptSyncServer(t)
-	tbPath, baseline := pullInto(t, srv)
+	tb, baseline := pullInto(t, srv)
 
 	// Governed edit: ban a term (approved → forbidden).
-	editConcept(t, tbPath, "c-greeting", func(c *terms.Concept) {
+	editConcept(t, tb, "c-greeting", func(c *terms.Concept) {
 		for i := range c.Terms {
 			if c.Terms[i].Text == "Hi" {
 				c.Terms[i].Status = model.TermForbidden
@@ -276,7 +291,7 @@ func TestPushConceptsGovernedEditProposesChangeSet(t *testing.T) {
 	})
 
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tbPath, baseline, false)
+	res, err := PushConcepts(context.Background(), client, tb, baseline, false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -302,9 +317,9 @@ func TestPushConceptsGovernedEditProposesChangeSet(t *testing.T) {
 
 func TestPushConceptsDryRunNeitherWritesNorProposes(t *testing.T) {
 	srv, rec := conceptSyncServer(t)
-	tbPath, baseline := pullInto(t, srv)
+	tb, baseline := pullInto(t, srv)
 
-	editConcept(t, tbPath, "c-greeting", func(c *terms.Concept) {
+	editConcept(t, tb, "c-greeting", func(c *terms.Concept) {
 		for i := range c.Terms {
 			if c.Terms[i].Text == "Hi" {
 				c.Terms[i].Status = model.TermForbidden
@@ -313,7 +328,7 @@ func TestPushConceptsDryRunNeitherWritesNorProposes(t *testing.T) {
 	})
 
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tbPath, baseline, true)
+	res, err := PushConcepts(context.Background(), client, tb, baseline, true)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -330,11 +345,11 @@ func TestPushConceptsDryRunNeitherWritesNorProposes(t *testing.T) {
 
 func TestPushConceptsUnchangedIsNoop(t *testing.T) {
 	srv, rec := conceptSyncServer(t)
-	tbPath, baseline := pullInto(t, srv)
+	tb, baseline := pullInto(t, srv)
 
 	// No local edit: the push must be a no-op.
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tbPath, baseline, false)
+	res, err := PushConcepts(context.Background(), client, tb, baseline, false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	assert.False(t, res.changed())
@@ -348,21 +363,18 @@ func TestPushConceptsUnchangedIsNoop(t *testing.T) {
 
 func TestPushConceptsNewConceptCreatesDirectly(t *testing.T) {
 	srv, rec := conceptSyncServer(t)
-	tbPath, baseline := pullInto(t, srv)
+	tb, baseline := pullInto(t, srv)
 
 	// A brand-new local concept with only proposed terms → ordinary create.
-	tb, err := terms.NewSQLiteStore(tbPath)
-	require.NoError(t, err)
 	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
 		ID:         "c-new",
 		Domain:     "ui",
 		Definition: "A freshly minted concept.",
 		Terms:      []terms.Term{{Text: "Widget", Locale: "en", Status: model.TermProposed}},
 	}))
-	require.NoError(t, tb.Close())
 
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tbPath, baseline, false)
+	res, err := PushConcepts(context.Background(), client, tb, baseline, false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, 1, res.ConceptsApplied)
@@ -386,6 +398,16 @@ func TestPushConceptsNewConceptCreatesDirectly(t *testing.T) {
 // → conn.Close() → conceptPush sequence against an httptest workspace server.
 func TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt(t *testing.T) {
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "tok")
+
+	// The App is what reaches the project's store, and it is what closes it:
+	// terminology now lives in `.kapi/store.db`, so pull, push and the connector
+	// all go through the one handle this App memoizes for the root.
+	prev := app
+	app = &cli.App{}
+	t.Cleanup(func() {
+		app.Shutdown()
+		app = prev
+	})
 
 	srv, rec := conceptSyncServer(t)
 
@@ -411,7 +433,7 @@ func TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt(t *testing.T)
 	seed.SetStreamCursor("main", 7)
 	require.NoError(t, seed.Save(proj.Layout))
 
-	conn, err := bconn.NewSourceConnector(proj, reg)
+	conn, err := bconn.NewSourceConnector(app, proj, reg)
 	require.NoError(t, err)
 
 	// Reproduce runPull's exact ordering: the block pull saved the cursor (seeded
@@ -439,9 +461,9 @@ func TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt(t *testing.T)
 	// A later push reads that persisted baseline: an ordinary local edit applies
 	// directly, proving the baseline round-tripped to disk and is usable — i.e.
 	// concept push is not inert after a pull.
-	tbPath, err := projectTermsPath(proj)
+	projTerms, err := projectTerms(t.Context(), proj)
 	require.NoError(t, err)
-	editConcept(t, tbPath, "c-cta", func(c *terms.Concept) {
+	editConcept(t, projTerms, "c-cta", func(c *terms.Concept) {
 		c.Definition = "Primary call to action."
 	})
 
@@ -457,12 +479,15 @@ func TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt(t *testing.T)
 	assert.Equal(t, "Primary call to action.", rec.updates["c-cta"]["definition"])
 }
 
-func TestPushConceptsNoBaselineSkips(t *testing.T) {
+// A project with no terminology of its own has nothing to push. That is the one
+// condition that legitimately skips, and it is now a row question the caller
+// asks (HasTerms) rather than a stat of a terms FILE — the file stopped
+// distinguishing anything once every subsystem shared one store.
+func TestPushConceptsWithoutTermsSkips(t *testing.T) {
 	srv, _ := conceptSyncServer(t)
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	tbPath := filepath.Join(t.TempDir(), "terms.db")
 
-	res, err := PushConcepts(context.Background(), client, tbPath, nil, false)
+	res, err := PushConcepts(context.Background(), client, nil, nil, false)
 	require.NoError(t, err)
-	assert.Nil(t, res, "push must skip when there is no pulled baseline")
+	assert.Nil(t, res, "push must skip when the project has no terms")
 }

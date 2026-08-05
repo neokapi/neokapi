@@ -13,7 +13,6 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/host"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -196,7 +195,7 @@ func TestRunAIPreReview_AnnotateOnly(t *testing.T) {
 	assert.Equal(t, map[string]int{"greeting": 95, "farewell": 40}, frScores)
 
 	// No decisions were recorded — only annotations.
-	f := struct{ Units []state.UnitState }{Units: commitAndReadUnits(t, root)}
+	f := struct{ Units []state.UnitState }{Units: commitAndReadUnits(t, app, root)}
 	for _, u := range f.Units {
 		assert.Empty(t, u.Decision.ReviewState)
 		assert.Empty(t, u.Status)
@@ -231,7 +230,7 @@ func TestRunAIPreReview_AutoApprove(t *testing.T) {
 
 	// The approval carries the honest ai/<model> identity, and the annotation
 	// rides along on the same record.
-	f := struct{ Units []state.UnitState }{Units: commitAndReadUnits(t, root)}
+	f := struct{ Units []state.UnitState }{Units: commitAndReadUnits(t, app, root)}
 	approved := 0
 	for _, u := range f.Units {
 		if u.Decision.ReviewState == "approved" {
@@ -287,9 +286,13 @@ func TestRunAIPreReview_EmptyScope(t *testing.T) {
 // `kapi commit` publishes it. So a test that asserts what the record holds has
 // to commit first — which is also what pins that the decision made it into the
 // working store at all.
-func commitAndReadUnits(t *testing.T, root string) []state.UnitState {
+//
+// It commits through the app's own engine. The working store is a schema of the
+// project's one store, so committing from an App of its own would be a second
+// connection pool on the file the app is holding open.
+func commitAndReadUnits(t *testing.T, app *App, root string) []state.UnitState {
 	t.Helper()
-	_, err := host.CommitProjectState(t.Context(), root)
+	_, err := app.hostEngine().CommitProjectState(t.Context(), root)
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}

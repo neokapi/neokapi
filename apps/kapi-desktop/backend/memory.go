@@ -12,6 +12,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -414,13 +415,73 @@ func namedResourceDir(kind string) string {
 
 // --- Recovery ---
 
+// RecoverResource moves an unopenable store aside so a fresh one can take its
+// place, and returns where the old one went. The caller creates the replacement.
+//
+// Two kinds of file arrive here and they part company in what "aside" costs. A
+// STANDALONE store — one the user opened by path, or a named store under
+// `~/.config/kapi` — is one content memory or one terms store, and moving it
+// aside loses exactly that. A PROJECT store is `.kapi/store.db`, where the
+// content memory, terms, block cache and unit working set share one file: moving
+// it aside takes all four. That is the documented trade of merging them, and it
+// is affordable because every one of those is a projection rebuilt from
+// committed sources — the exception being decisions staged and not yet
+// committed, which a store this process cannot open was not going to give back
+// either.
+//
+// A project store also needs the handle released first: renaming a file under an
+// open pool leaves the pool on the moved inode, and the replacement would be
+// written by a second one.
 func (a *App) RecoverResource(path string) (string, error) {
+	if root, ok := projectStoreRoot(path); ok {
+		a.releaseTabsFor(root)
+		if err := a.hostEngine().CloseProjectDB(root); err != nil {
+			return "", fmt.Errorf("release project store %q: %w", path, err)
+		}
+	}
 	bakPath := path + ".bak"
 	_ = os.Remove(bakPath)
 	if err := os.Rename(path, bakPath); err != nil {
 		return "", fmt.Errorf("backup %q: %w", path, err)
 	}
 	return bakPath, nil
+}
+
+// projectStoreRoot reports the project root when path names a project's own
+// store — `<root>/.kapi/store.db` — rather than a standalone one.
+func projectStoreRoot(path string) (string, bool) {
+	if filepath.Base(path) != project.StoreFileName {
+		return "", false
+	}
+	stateDir := filepath.Dir(path)
+	if filepath.Base(stateDir) != project.StateDirName {
+		return "", false
+	}
+	return filepath.Dir(stateDir), true
+}
+
+// releaseTabsFor drops the borrowed content-memory and terms handles of every
+// tab open on a project, so nothing keeps addressing a store that is about to be
+// moved aside.
+func (a *App) releaseTabsFor(root string) {
+	a.mu.RLock()
+	var affected []*openProject
+	for _, op := range a.projects {
+		if opRoot, ok := projectRoot(op); ok && opRoot == root {
+			affected = append(affected, op)
+		}
+	}
+	a.mu.RUnlock()
+	for _, op := range affected {
+		if op.memoryHandle != "" {
+			a.memoryHandles.Close(op.memoryHandle)
+			op.memoryHandle = ""
+		}
+		if op.tbHandle != "" {
+			a.tbHandles.Close(op.tbHandle)
+			op.tbHandle = ""
+		}
+	}
 }
 
 // --- Lifecycle ---

@@ -76,7 +76,7 @@ func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*Pu
 		return nil, nil, err
 	}
 
-	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		return nil, nil, err
 	}
