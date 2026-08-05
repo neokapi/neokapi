@@ -363,3 +363,28 @@ func TestClose_IsIdempotent(t *testing.T) {
 	again := openStore(t, layout)
 	assert.NotNil(t, again.Raw())
 }
+
+// The block cache is two tables, and a flow run writes only the second: it
+// persists the overlays it produced without caching the blocks it parsed. So
+// "has this been extracted?" and "is there anything here worth carrying?" are
+// different questions, and pack must ask the second — under the four-file
+// layout a run-only project still had a blocks.db on disk and packed fine.
+func TestHasBlockCache_TrueForOverlaysAlone(t *testing.T) {
+	db := openStore(t, newLayout(t))
+	ctx := t.Context()
+
+	sess, err := db.Blocks().Begin(ctx)
+	require.NoError(t, err)
+	require.NoError(t, sess.PutOverlay(blockstore.Overlay{
+		Kind: "targets/nb", BlockHash: "p-h2", Payload: []byte(`{"text":"Hei"}`),
+	}))
+	require.NoError(t, sess.Commit())
+
+	blocks, err := db.HasBlocks(ctx)
+	require.NoError(t, err)
+	assert.False(t, blocks, "overlays alone must not read as extracted blocks")
+
+	cache, err := db.HasBlockCache(ctx)
+	require.NoError(t, err)
+	assert.True(t, cache, "overlays alone are still content the block cache holds")
+}
