@@ -72,6 +72,14 @@ type textRun struct {
 	// object, oMath, oMathPara, mc:AlternateContent). Empty for plain
 	// text and zero-data sentinels (tab, break).
 	data string
+	// attrs carries the canonical, format-neutral run attributes
+	// (model.AttrHref, model.AttrTitle, …) for a sentinel whose source
+	// element holds them indirectly — today the hyperlink open sentinel,
+	// whose destination lives in the part's relationships rather than in
+	// the element. Kept alongside `data` (the verbatim markup), not
+	// instead of it: `data` is what the skeleton write path replays,
+	// `attrs` is what core/projection reads.
+	attrs map[string]string
 	// srcRunStart is true when this textRun is the FIRST content
 	// emitted from a fresh source <w:r>. The flag survives mergeRuns
 	// (mergeRuns never crosses sentinels or "\n" line breaks, so the
@@ -4889,6 +4897,46 @@ func (p *wmlParser) parseInlineSDT(d *xml.Decoder, runs *[]textRun, rawStart str
 // added a spurious href that the reference output never carries
 // (830-7.docx, 952-1.docx, 952-2.docx, hyperlink.docx,
 // external_hyperlink.docx, 1341-textbox-with-a-hyperlink.docx).
+// hyperlinkAttrs resolves a parsed `<w:hyperlink>` start element to the
+// canonical run attributes core/projection consumes: model.AttrHref for the
+// destination, model.AttrTitle for w:tooltip.
+//
+// The destination is not in the element. `r:id` names a relationship in the
+// part's .rels, and only that lookup turns it into a URL. wrapHyperlinkRuns
+// preserves the start tag verbatim and deliberately does not synthesise an
+// `href` attribute onto it — upstream Okapi's reference output never carries
+// one, and the skeleton write path replays those bytes. That left the
+// *canonical* layer empty too, so every cross-format export produced `[text]()`
+// with no destination. This fills the canonical layer without touching the
+// markup.
+//
+// An internal jump carries no relationship: `w:anchor` names a bookmark in the
+// same document, which becomes a `#fragment` destination.
+func (p *wmlParser) hyperlinkAttrs(relID string, extraAttrs []xml.Attr) map[string]string {
+	attrs := make(map[string]string, 2)
+	if relID != "" {
+		if rel, ok := p.rels[relID]; ok && rel.Target != "" {
+			attrs[model.AttrHref] = rel.Target
+		}
+	}
+	for _, a := range extraAttrs {
+		switch a.Name.Local {
+		case "anchor":
+			if _, ok := attrs[model.AttrHref]; !ok && a.Value != "" {
+				attrs[model.AttrHref] = "#" + a.Value
+			}
+		case "tooltip":
+			if a.Value != "" {
+				attrs[model.AttrTitle] = a.Value
+			}
+		}
+	}
+	if len(attrs) == 0 {
+		return nil
+	}
+	return attrs
+}
+
 func (p *wmlParser) wrapHyperlinkRuns(runs []textRun, relID string, extraAttrs []xml.Attr) []textRun {
 	// Build <w:hyperlink> opening tag preserving every captured
 	// attribute. The relID feeds the r:id attribute; the remaining
@@ -4912,7 +4960,11 @@ func (p *wmlParser) wrapHyperlinkRuns(runs []textRun, relID string, extraAttrs [
 
 	// Create wrapper with sentinel markers
 	var result []textRun
-	result = append(result, textRun{text: "\uE103:" + data, props: runProps{}}) // hyperlink open sentinel
+	result = append(result, textRun{
+		text:  "\uE103:" + data,
+		props: runProps{},
+		attrs: p.hyperlinkAttrs(relID, extraAttrs),
+	}) // hyperlink open sentinel
 	result = append(result, runs...)
 	result = append(result, textRun{text: "\uE104:" + data, props: runProps{}}) // hyperlink close sentinel
 	return result
@@ -5428,10 +5480,11 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath, commonRPrXML
 			// Hyperlink open
 			data := after
 			spanCounter++
-			b.AddPcOpen(fmt.Sprintf("c%d", spanCounter),
+			b.AddPcOpenAttrs(fmt.Sprintf("c%d", spanCounter),
 				TypeHyperlink, SubTypeHyperlink,
 				data, "", "",
-				true, true, true)
+				true, true, true,
+				run.attrs)
 			continue
 		}
 		if strings.HasPrefix(run.text, "\uE104:") {

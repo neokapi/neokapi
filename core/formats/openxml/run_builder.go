@@ -75,6 +75,18 @@ func (b *runBuilder) AddPh(id, semType, subType, data, equiv, disp string, delet
 // AppendPcOpen emits the opening half of a paired code mirroring a
 // SpanOpening.
 func (b *runBuilder) AddPcOpen(id, semType, subType, data, equiv, disp string, deletable, cloneable, reorderable bool) {
+	b.AddPcOpenAttrs(id, semType, subType, data, equiv, disp, deletable, cloneable, reorderable, nil)
+}
+
+// AddPcOpenAttrs is AddPcOpen with canonical run attributes (model.AttrHref,
+// model.AttrTitle, …) attached to the opening half.
+//
+// Data carries the source markup verbatim and is what the skeleton write path
+// replays; Attrs carry the same information in the format-neutral vocabulary
+// core/projection consumes. Both are needed: without Data a same-format
+// round-trip loses the element's own attributes, and without Attrs a
+// cross-format export has nothing to build a link out of.
+func (b *runBuilder) AddPcOpenAttrs(id, semType, subType, data, equiv, disp string, deletable, cloneable, reorderable bool, attrs map[string]string) {
 	b.runs = append(b.runs, model.Run{PcOpen: &model.PcOpenRun{
 		ID:      id,
 		Type:    semType,
@@ -82,6 +94,7 @@ func (b *runBuilder) AddPcOpen(id, semType, subType, data, equiv, disp string, d
 		Data:    data,
 		Equiv:   equiv,
 		Disp:    disp,
+		Attrs:   attrs,
 		Constraints: &model.RunConstraints{
 			Deletable:   deletable,
 			Cloneable:   cloneable,
