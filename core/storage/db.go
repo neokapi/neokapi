@@ -36,9 +36,60 @@ import (
 )
 
 // DB wraps a sql.DB with shared configuration applied.
+//
+// It shadows the write entry points of the embedded *sql.DB — ExecContext,
+// Exec, BeginTx, Begin — so that a handle opened with Options.SerializeWrites
+// gates every write it issues without any store having to remember to ask. See
+// write.go.
 type DB struct {
 	*sql.DB
 	path string
+
+	// gate is nil unless the handle was opened with Options.SerializeWrites: an
+	// in-process FIFO queue every write transaction on this handle passes
+	// through. See gate.go for what it fixes and what it cannot reach.
+	gate *writeGate
+}
+
+// Options configures how a database handle is opened. The zero value is the
+// long-standing behaviour every standalone store still gets; the project store
+// (core/projectdb) is the caller that sets both fields.
+type Options struct {
+	// ImmediateTx begins every transaction on the handle with BEGIN IMMEDIATE
+	// instead of SQLite's default BEGIN DEFERRED.
+	//
+	// A deferred transaction that reads before it writes takes a read lock and
+	// must later upgrade it. SQLite refuses a contended upgrade IMMEDIATELY —
+	// it returns SQLITE_BUSY without consulting busy_timeout, because waiting
+	// could deadlock two transactions that each hold a read lock and each want
+	// to write. So on a shared file the busy timeout, the one thing standing
+	// between a queue and an error, does not apply to the commonest write shape
+	// there is. IMMEDIATE takes the write lock up front, where the busy handler
+	// does apply and the wait is legal.
+	//
+	// It is opt-in because it is not free: an IMMEDIATE transaction that turns
+	// out to be read-only still serialized against every other writer. Handles
+	// with one writer (a standalone content memory, a named store, a KPZ
+	// overlay) pay that for nothing.
+	ImmediateTx bool
+
+	// SerializeWrites installs the in-process write gate: one FIFO permit that
+	// every write transaction issued through this handle holds for its whole
+	// life. It is what keeps a drip of small writes from being starved by a
+	// stream of large ones — busy_timeout's backoff is not fair, and no amount
+	// of timeout makes it fair. See writeGate.
+	SerializeWrites bool
+}
+
+// ProjectOptions is what a merged, multi-subsystem store wants: both halves.
+// They belong together — the gate orders the writers this process controls, and
+// IMMEDIATE keeps the ones it does not (another kapi process on the same file)
+// in a queue SQLite will actually wait in rather than refuse.
+//
+// It is named rather than spelled out at the call site so that the two settings
+// stay one decision. core/projectdb is the caller.
+func ProjectOptions() Options {
+	return Options{ImmediateTx: true, SerializeWrites: true}
 }
 
 // pathLocks hands out one mutex per database file, so callers that must
@@ -89,7 +140,17 @@ var openLocks pathLocks
 // Open opens a SQLite database at the given path with shared pragmas.
 // Use ":memory:" for in-memory databases (useful for testing).
 // Parent directories must already exist; the file is created on demand.
+//
+// Transactions are SQLite's default (deferred) and writes are ungated, which is
+// what a database with one writer wants. A file several subsystems write
+// concurrently wants OpenWith(path, projectOptions()) instead — see Options.
 func Open(dbPath string) (*DB, error) {
+	return OpenWith(dbPath, Options{})
+}
+
+// OpenWith opens a SQLite database with the shared pragmas and the given write
+// discipline. Open is OpenWith with the zero Options.
+func OpenWith(dbPath string, opts Options) (*DB, error) {
 	// Builds without a SQLite driver (wasm) report why before database/sql can
 	// blame a missing import.
 	if err := driverUnavailable(); err != nil {
@@ -106,7 +167,7 @@ func Open(dbPath string) (*DB, error) {
 	// second short-lived kapi process (e.g. the verify hook) touches the same DB
 	// concurrently, because the per-connection PRAGMA busy_timeout below has not
 	// taken effect yet.
-	db, err := sql.Open(sqliteDriver, sqliteDSN(dbPath))
+	db, err := sql.Open(sqliteDriver, sqliteDSN(dbPath, opts))
 	if err != nil {
 		return nil, fmt.Errorf("open database %s: %w", dbPath, err)
 	}
@@ -126,7 +187,11 @@ func Open(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("apply pragmas: %w", err)
 	}
 
-	return &DB{DB: db, path: dbPath}, nil
+	wrapped := &DB{DB: db, path: dbPath}
+	if opts.SerializeWrites {
+		wrapped.gate = newWriteGate()
+	}
+	return wrapped, nil
 }
 
 // applyPragmasRetry retries applyPragmas while the database reports itself

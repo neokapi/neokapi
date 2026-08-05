@@ -39,8 +39,13 @@ const FTSWordTokenizer = "unicode61"
 // terms DeleteConcept rely on ON DELETE CASCADE, which silently no-ops on any
 // connection where foreign_keys is OFF.
 //
+// Options.ImmediateTx is spelled _txlock=immediate, the one DSN parameter
+// modernc shares verbatim with mattn (it is not a pragma, so it takes no
+// _pragma= wrapper). modernc validates the value and rejects anything but
+// deferred, immediate or exclusive.
+//
 // In-memory DSNs are left untouched.
-func sqliteDSN(dbPath string) string {
+func sqliteDSN(dbPath string, opts Options) string {
 	if isMemoryDSN(dbPath) {
 		return dbPath
 	}
@@ -52,13 +57,16 @@ func sqliteDSN(dbPath string) string {
 	// file-persistent setting that applyPragmas establishes once on first open;
 	// re-asserting it on every pooled connection only invites WAL-switch lock
 	// contention. The remaining pragmas are per-connection and must ride the DSN.
-	params := strings.Join([]string{
+	params := []string{
 		"_pragma=foreign_keys(1)",
 		"_pragma=busy_timeout(5000)",
 		"_pragma=synchronous(NORMAL)",
 		"_pragma=cache_size(-131072)",
 		"_pragma=wal_autocheckpoint(10000)",
 		"_pragma=temp_store(MEMORY)",
-	}, "&")
-	return dbPath + sep + params
+	}
+	if opts.ImmediateTx {
+		params = append(params, "_txlock=immediate")
+	}
+	return dbPath + sep + strings.Join(params, "&")
 }

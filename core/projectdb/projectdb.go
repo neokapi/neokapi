@@ -18,6 +18,34 @@
 // committed sources, which is why the predecessor sweep migrates nothing: it
 // carries the staged decisions forward and deletes the rest (see sweep.go).
 //
+// # Write discipline
+//
+// One file means one write lock, so the handle is opened with
+// storage.ProjectOptions(): BEGIN IMMEDIATE on every transaction, and an
+// in-process FIFO permit every write holds for its whole life. Both halves were
+// measured, not assumed. Without them a converge run's content-memory writes
+// starved the review loop's drip of unit-state writes almost completely — 32
+// operations of 2650 completed, the rest failing SQLITE_BUSY after the five-second
+// timeout, because SQLite's busy backoff has no notion of who has waited longest.
+// With them the in-process busy count is zero and the starved writer runs at
+// roughly nine tenths of what it managed when it had a file to itself.
+//
+// Two consequences worth knowing at the call site:
+//
+//   - A block-store session from Blocks() is ONE transaction over a whole
+//     purge-and-refill, so it holds the permit from Begin to Commit. Every other
+//     writer in the process waits. That is the correct reading of what SQLite
+//     makes it anyway — the store has a single writer for the length of an
+//     extraction — but it does mean a session must be closed, and that a write
+//     issued from the goroutine holding one is a deadlock. It is reported rather
+//     than hung: see storage.ErrWriteGateReentrant.
+//   - The permit orders writers in THIS process. A second kapi process on the
+//     same project still contends at the file level, where IMMEDIATE and
+//     busy_timeout are all there is.
+//
+// Reads are never gated. Under WAL a reader neither blocks a writer nor waits
+// for one, so `kapi status` beside a converge run costs nothing.
+//
 // Browser build: there is no file-backed SQLite driver, so storage.Open reports
 // storage.ErrNoSQLite and Open degrades — Work() still functions, backed by the
 // JSON sidecar at `.kapi/store.json`, while Memory(), Terms() and Blocks()
@@ -86,7 +114,7 @@ func Open(ctx context.Context, layout project.Layout) (*DB, error) {
 		return nil, fmt.Errorf("projectdb: create state dir: %w", err)
 	}
 
-	raw, err := storage.Open(layout.StorePath())
+	raw, err := storage.OpenWith(layout.StorePath(), storage.ProjectOptions())
 	if err != nil {
 		if errors.Is(err, storage.ErrNoSQLite) {
 			return openDegraded(ctx, layout)
