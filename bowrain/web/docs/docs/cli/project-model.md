@@ -5,21 +5,24 @@ title: Project Model
 
 # Bowrain Project Model
 
-A bowrain project is a `.kapi` project with a `server:` block on its recipe. There is one project model shared with the `kapi` CLI: a single `kapi.yaml` recipe file at the project root and a sibling `.kapi/` state directory.
+A bowrain project is a `.kapi` project with a `server:` block on its recipe. There is one project model shared with the `kapi` CLI: a single `kapi.yaml` recipe file at the project root and a sibling `.kapi/` directory.
 
 ## Directory Structure
 
 ```
 my-app/
 ├── kapi.yaml               # the recipe (committed) — fixed, conventional filename
-├── .kapi/                  # state (gitignored)
-│   ├── manifest.yaml       # bookkeeping: block counts, fingerprints
-│   ├── memory.db               # authoritative project content memory
-│   ├── terms.db         # authoritative project terms store
+├── context/                # the committed context sources
+│   ├── terms.json          # terms (bound by defaults.terms_source)
+│   └── memory.json         # content memory (bound by defaults.memory_source)
+├── .kapi/
+│   ├── store.db            # the local index over everything committed (gitignored)
+│   ├── manifest.yaml       # bookkeeping: block counts, fingerprints (gitignored)
+│   ├── units/              # the unit-decision record, one shard per document (committed)
+│   │   └── src-locales-en-messages.jsonl
 │   ├── flows/              # optional file-per-flow definitions (committed)
 │   │   └── pseudo.yaml
-│   └── cache/              # all regenerable caches under one roof
-│       ├── blocks.db        # block store (SQLite)
+│   └── cache/              # all regenerable caches under one roof (gitignored)
 │       ├── sync-cache.json  # kapi push/pull state
 │       ├── extractions/
 │       └── collections/
@@ -31,12 +34,16 @@ my-app/
             └── messages.json
 ```
 
-Three ownership zones at the project root:
+Ownership zones at the project root:
 
 - **`kapi.yaml`** — hand-edited, committed to git. The recipe is the single source of truth for project configuration. Its fixed, conventional filename means every editor and code host (GitHub, GitLab) applies YAML syntax highlighting to diffs and previews with no configuration.
-- **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's cheaply regenerable: the block store, the kapi sync cache, extraction intermediates, overlay layers. Safe to delete at any time.
-- **`.kapi/memory.db`, `.kapi/terms.db`, `.kapi/manifest.yaml`** — kapi-owned, authoritative. The first two are the project's content memory and terms store. Gitignored by default; opt in to commit them when cross-clone reproducibility matters.
+- **`context/*.json`** — the committed context sources the recipe binds: terms and content memory, reviewed through `git diff` like any other source file.
+- **`.kapi/units/*.jsonl`** — the unit-decision record, committed. `kapi commit` publishes staged review decisions into it.
+- **`.kapi/store.db`** — kapi-owned, gitignored. One SQLite file holding every subsystem's tables — block cache, terms store, content memory, the working set of decisions staged since the last `kapi commit`, and the project's context graph. It is an index over the committed sources above and rebuilds from them.
+- **`.kapi/cache/`** — CLI-owned, gitignored. Everything cheaply regenerable: the kapi sync cache, extraction intermediates, overlay layers. Safe to delete at any time.
 - **`.kapi/flows/*.yaml`** — optional file-per-flow definitions, hand-edited, committed. Bowrain reads these in addition to inline `flows:` declared on the recipe.
+
+Local and server converge in shape. Bowrain answers graph questions over one Postgres spanning workspaces, projects and streams; a project answers the same query shapes over `store.db` with those dimensions fixed to one value — so which blocks use a given term, by collection and coordinate, is answerable with no server.
 
 The pairing keeps the git-like shape of a committed config file beside a tool-managed state directory: `kapi.yaml` alongside `.kapi/` at the same root.
 
@@ -137,6 +144,8 @@ brand_voice:
 | `collection`       | string | Default collection name for organizing content           |
 | `exclude`          | list   | Glob patterns to skip during scanning                    |
 | `formats`          | map    | Per-format default presets and config overrides          |
+| `terms_source`     | string | Path to the committed terms source (e.g. `context/terms.json`) |
+| `memory_source`    | string | Path to the committed content memory source (e.g. `context/memory.json`) |
 
 ### `server` block
 
@@ -275,15 +284,19 @@ All commands work from any subdirectory within the project. A directory holds at
 ### Commit to git
 
 - `kapi.yaml` — the recipe (single source of truth for configuration)
+- `context/terms.json`, `context/memory.json` — the context sources the recipe binds
+- `.kapi/units/*.jsonl` — the unit-decision record
 - `.kapi/flows/*.yaml` — file-per-flow definitions, if you use them
 
 ### Do NOT commit
 
-The whole `.kapi/` directory is gitignored by default by `kapi init`:
+`kapi init` writes a `.kapi/.gitignore` covering the derived parts:
 
-- `.kapi/cache/` — block store, sync cache, extraction intermediates
+- `.kapi/store.db` — the local index; rebuilt from the committed sources
+- `.kapi/cache/` — sync cache, extraction intermediates
 - `.kapi/manifest.yaml` — regenerable bookkeeping
-- `.kapi/memory.db`, `.kapi/terms.db` — the content memory and terms store: authoritative but local-only by default; opt in to commit when cross-clone reproducibility matters
+
+Deleting `.kapi/cache/` costs nothing. Deleting `.kapi/store.db` costs at most the review decisions staged since the last `kapi commit` — everything else rebuilds — so run `kapi commit` before you remove it.
 
 ## Initialization
 
@@ -328,9 +341,9 @@ kapi init --server https://app.bowrain.cloud --project abc123
 `kapi init` writes:
 
 1. `kapi.yaml` recipe at the project root (with a `server:` block when a server was supplied)
-2. `.kapi/` state directory
+2. `.kapi/` directory
 3. `.kapi/flows/pseudo.yaml` — an example flow
-4. `.gitignore` updates to exclude `.kapi/`
+4. `.kapi/.gitignore` excluding the derived parts (`cache/`, `*.db*`)
 
 ## Server Connection
 

@@ -85,7 +85,7 @@ When a check flags a term, the durable fix is two changes: correct **this draft*
 kapi apply changeset.jsonl
 ```
 
-The **content** entry rewrites the block through the faithful round-trip, drift-guarded by `content_hash`; the **term** entry is written into the committed terms source the recipe binds with `defaults.terms_source` (a `.terms.json` bundle) and compiled into the project terms store (`.kapi/terms.db`). `git diff` shows the one new term; the next `kapi check` enforces it. `apply` is idempotent, and also accepts `tm`, `brand`, and `recipe` asset kinds — see [Keep source on brand](/kapi/recipes/keep-source-on-brand) for the `brand` entry.
+The **content** entry rewrites the block through the faithful round-trip, drift-guarded by `content_hash`; the **term** entry is written into the committed terms source the recipe binds with `defaults.terms_source` (a `.terms.json` bundle) and compiled into the [project store](/kapi/project-store)'s terms tables. `git diff` shows the one new term; the next `kapi check` enforces it. `apply` is idempotent, and also accepts `memory`, `brand`, and `recipe` asset kinds — see [Keep source on brand](/kapi/recipes/keep-source-on-brand) for the `brand` entry.
 
 ## Next
 

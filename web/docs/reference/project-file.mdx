@@ -61,11 +61,12 @@ defaults:
     - "**/*.generated.json"
   merge:
     conflict_policy: translator-wins
-  tm:
+  memory:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  termbase: terms/product.db
+  terms_source: context/terms.json
+  memory_source: context/memory.json
 ```
 
 ## Fields
@@ -173,14 +174,12 @@ content:
 | `exclude`          | string[]            | Glob patterns skipped during content scanning (e.g. `**/*.generated.json`)                                               |
 | `formats`          | map                 | Per-format `preset`, `config`, and detection `priority` overrides (see [formats](#formats))                              |
 | `merge`            | MergeDefaults       | How `kapi merge` resolves a translator's target against an existing target or content-memory entry (see [merge](#merge)) |
-| `tm`               | MemoryDefaults      | Content-memory pre-fill on `kapi extract` and write-back on `kapi merge` (see [tm](#tm))                                 |
+| `memory`           | MemoryDefaults      | Content-memory pre-fill on `kapi extract` and write-back on `kapi merge` (see [memory](#memory))                         |
 | `segmentation`     | SegmentationDefaults | Opt-in sentence-level segmentation overlay applied on extract (see [segmentation](#segmentation))                       |
 | `redaction`        | RedactionSpec       | Replace sensitive content with protected placeholders before processing and restore it afterwards (see [redaction](#redaction)) |
 | `brand_voice`      | BrandVoiceBinding   | Bind a brand voice profile as standing project context (see [brand_voice](#brand_voice))                                |
-| `termbase`         | string              | Path to a terms store, resolved relative to the project root; used for project-scoped term enforcement with no `--termbase` flag |
-| `termbase_source`  | string              | Committed, git-tracked native source bundle (a `.terms.json`) the project terms store is compiled from; `kapi apply` edits it and re-imports into the gitignored terms cache, so `git diff` is the review surface. Unset, kapi falls back to `<root>/terms.json`, then `<root>/.kapi/terms.json` |
-| `tm_source`        | string              | Committed, git-tracked native source bundle (a `.memory.json`) the project content memory is compiled from — the content-memory analogue of `termbase_source`. It has no conventional-location fallback: a project has one glossary but many memory bundles (one per content surface), so a seed is always named |
-| `state`            | string              | Committed, git-tracked [project state store](/kapi/project-store) (a kapi-project-state JSON document) — the authoritative carrier of per-unit workflow decisions (review ladder, approvals, parking) a plain target file can't hold. Empty defaults to `.kapi-state.json`; a server-backed project pushes state to a remote instead |
+| `terms_source`     | string              | Committed, git-tracked native source bundle (a `.terms.json`) the project's terms are compiled from; `kapi apply` edits it and re-imports into the [project store](/kapi/project-store), so `git diff` is the review surface. Unset, kapi falls back to `<root>/terms.json`, then `<root>/.kapi/terms.json` |
+| `memory_source`    | string              | Committed, git-tracked native source bundle (a `.memory.json`) the project content memory is compiled from — the content-memory analogue of `terms_source`. It has no conventional-location fallback: a project has one approved term list but many memory bundles (one per content surface), so a seed is always named |
 | `flow`             | string              | The project's default flow — the composed flow `kapi up` runs to catch up every locale. A built-in name (e.g. `translate`) or a key in `flows:`. Empty runs the built-in default (recycle → translate) |
 | `jobs`             | int                 | How many target languages one `kapi up` pass runs concurrently. `0` (default) leaves it to the runner (4); `--jobs` overrides per run |
 | `source_gate`      | string              | Source-first convergence level: the source status a block must reach before it is translated (see [source_gate](#defaults-source-gate)) |
@@ -264,12 +263,11 @@ source.
 | ----------------- | ------ | ------------------------------------------------------------------------------------------------------- |
 | `conflict_policy` | string | `translator-wins` (default), `existing-wins`, or `newest-wins`                                          |
 
-#### tm
+#### memory
 
 | Field             | Type     | Description                                                                                            |
 | ----------------- | -------- | ----------------------------------------------------------------------------------------------------- |
 | `fuzzy_threshold` | int      | Minimum fuzzy match score (0–100) to pre-fill the target on extract (default: `75`)                   |
-| `read`            | string[] | Additional read-only content-memory files consulted during pre-fill; writes always go to the project content memory |
 
 #### segmentation
 

@@ -166,17 +166,19 @@ kapi status  # finds kapi.yaml up the tree
 **Commit to git:**
 
 - `kapi.yaml` — the recipe (single source of truth)
+- `context/terms.json`, `context/memory.json` — the context sources the recipe binds
+- `.kapi/units/*.jsonl` — the unit-decision record, published by `kapi commit`
 - `.kapi/flows/*.yaml` — flow definitions you author
 
 **Do NOT commit:**
 
-- `.kapi/cache/` — block store, sync cache, extraction intermediates (auto-gitignored)
+- `.kapi/store.db` — the local index over the committed sources, rebuilt from them
+- `.kapi/cache/` — sync cache, extraction intermediates
 - `.kapi/manifest.yaml` — regenerable bookkeeping
-- `.kapi/memory.db`, `.kapi/terms.db` — the content memory and terms store: local-only by default; opt in to commit when cross-clone reproducibility matters
 
 Auth tokens are never written to the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`); non-secret metadata sits in `auth.json` in the bowrain config directory (`~/.config/bowrain` on Linux, `~/Library/Application Support/bowrain` on macOS).
 
-`kapi init` automatically adds `.kapi/` to `.gitignore`.
+`kapi init` writes a `.kapi/.gitignore` excluding the derived parts (`cache/`, `*.db*`), so the committed record under `.kapi/units/` stays tracked.
 
 ## Next Steps
 

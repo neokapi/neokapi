@@ -2,7 +2,7 @@
 id: review-and-approve
 title: "Review & approve"
 sidebar_label: "Review & approve"
-description: "The human half of the loop: work the review queue in Kapi Desktop — inspect, edit, approve, reject, sign off — or drive the same worklist from the CLI or your assistant. Approvals land in the committed state store and raise the coverage a ship gate measures."
+description: "The human half of the loop: work the review queue in Kapi Desktop — inspect, edit, approve, reject, sign off — or drive the same worklist from the CLI or your assistant. Approvals land in the committed unit record and raise the coverage a ship gate measures."
 hide_table_of_contents: true
 ---
 
@@ -12,7 +12,7 @@ import { PendingMedia, GatedLoopDiagram } from "@neokapi/docs-shared";
 
 # Review & approve
 
-**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces — it brings every unit to *translated* and parks the rest; a person promotes — *reviewed*, then optionally *signed-off*. Each decision lands in the project's committed state store, bound to the content hash of the exact translation it blesses, so an approval can never silently outlive the text it approved. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
+**Goal:** take translations past what a machine can decide. [`kapi up`](/kapi/recipes/translate-content) produces — it brings every unit to *translated* and parks the rest; a person promotes — *reviewed*, then optionally *signed-off*. Each decision lands in the project's committed unit record, bound to the content hash of the exact translation it blesses, so an approval can never silently outlive the text it approved. The model is [the kapi loop](/kapi/convergence); the store is [the project store](/kapi/project-store).
 
 ## Settle the source first
 
@@ -105,23 +105,25 @@ kapi status --review        # translated units not yet approved: file, id, local
 kapi apply <<<'{"kind":"review","file":"src/locales/fr/app.json","id":"save.label","locale":"fr","status":"reviewed"}'
 ```
 
-Address the unit exactly as the worklist lists it. `status` is `"reviewed"` by default; `"signed-off"` is the optional final rung for contractual or regulated content. The decision lands in the state store (`defaults.state`, default `.kapi-state.json`) — **commit it with your sources** so the decision travels with the project:
+Address the unit exactly as the worklist lists it. `status` is `"reviewed"` by default; `"signed-off"` is the optional final rung for contractual or regulated content. The decision lands in the [project store](/kapi/project-store)'s working set; `kapi commit` writes it into the unit record under `.kapi/units/`, which you **commit with your sources** so the decision travels with the project:
 
 ```bash
-git add .kapi-state.json
+kapi status                 # what is staged but not yet committed
+kapi commit                 # → .kapi/units/*.jsonl
+git add .kapi/units
 ```
 
-Piping works at scale: `kapi status --review --json` through your own filter into `kapi apply`. A `kind:"tm"` entry is different — it banks a source→target pair for future recycle leverage and does **not** promote a unit to reviewed.
+Piping works at scale: `kapi status --review --json` through your own filter into `kapi apply`. A `kind:"memory"` entry is different — it banks a source→target pair for future recycle leverage and does **not** promote a unit to reviewed.
 
 </TabItem>
 </Tabs>
 
 :::note[Works with Bowrain]
-This recipe's worklist lives in your checkout and its decisions in the committed state store — one reviewer, one working copy at a time. When several reviewers (or a reviewer alongside an agent) need one shared queue — assignments, live presence, per-block history — that is what connecting the project to a Bowrain server adds. See the [Bowrain documentation](https://bowrain.cloud/docs/).
+This recipe's worklist lives in your checkout and its decisions in the committed unit record — one reviewer, one working copy at a time. When several reviewers (or a reviewer alongside an agent) need one shared queue — assignments, live presence, per-block history — that is what connecting the project to a Bowrain server adds. See the [Bowrain documentation](https://bowrain.cloud/docs/).
 :::
 
 ## Next
 
 - [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) — the `reviewed` thresholds these decisions satisfy.
 - [The kapi loop](/kapi/convergence) — produce / promote / release, kept separate.
-- [The project store](/kapi/project-store) — why the state store is the one committed artifact.
+- [The project store](/kapi/project-store) — why the unit record is the committed half and `store.db` the derived one.

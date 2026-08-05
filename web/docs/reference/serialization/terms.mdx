@@ -23,8 +23,9 @@ the relations between them.
 
 Unlike content memory, a terms bundle is normally a **committed, git-tracked
 file**. It is the review surface — the artifact a person reads in a pull
-request when a term changes. The SQLite store (`.kapi/termbase.db`) is the
-gitignored cache the bundle compiles into, not the other way round.
+request when a term changes. The terms tables in the [project
+store](/kapi/project-store) (`.kapi/store.db`) are the gitignored index the
+bundle compiles into, not the other way round.
 
 Implemented in Go at
 [`terms/ktb`](https://github.com/neokapi/neokapi/tree/main/terms/ktb).
@@ -54,7 +55,7 @@ the root location first means the conventional home for committed terms is
 the one that gets reviewed, and the `.kapi/` rung exists only for the case where
 a project genuinely wants a local, uncommitted one.
 
-The recipe binding wins over both. Setting `termbase_source` in `kapi.yaml`
+The recipe binding wins over both. Setting `terms_source` in `kapi.yaml`
 names the file explicitly and skips the ladder entirely.
 
 ## Content memory has no equivalent ladder — deliberately
@@ -123,8 +124,8 @@ Reach for `bundle` whenever the file is staying inside kapi.
 
 ## What is deliberately not in it
 
-- **The compiled SQLite store.** `.kapi/termbase.db` is derived from the bundle
-  and rebuilt on import.
+- **The compiled SQLite tables.** The terms tables in `.kapi/store.db` are
+  derived from the bundle and rebuilt on import.
 - **Match state.** Which blocks a term was found in is a check result, not a
   property of the terminology.
 

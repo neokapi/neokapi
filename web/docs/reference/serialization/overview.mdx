@@ -31,11 +31,12 @@ family.
 The most useful distinction in this family is not between one format and
 another. It is between three roles a file can play.
 
-**A store is working state.** SQLite databases under the project's `.kapi/`
-directory — the content-memory store (`tm.db`), the terms store
-(`termbase.db`), block and skeleton caches. They are fast, indexed, mutable,
-and **rebuildable**. `.kapi/` is gitignored, so nothing in it is a source of
-truth.
+**A store is working state.** One SQLite database under the project's `.kapi/`
+directory — `store.db`, whose tables hold the content memory, the terms, the
+block cache and the unit-state working set — plus the skeleton and parse caches
+beside it. It is fast, indexed, mutable, and **rebuildable**: a projection of
+what the project commits, never its truth. See
+[the project store](/kapi/project-store).
 
 **A bundle is a portable serialization.** One reviewable, hashable, diff-able
 file carrying the same content losslessly — a
@@ -48,19 +49,19 @@ are what you commit, hand over, or ship.
 **Committed state is an authored or decided record.** A
 [terms bundle](/reference/serialization/terms) kept as the project terminology, a
 [brand voice profile](/reference/serialization/brand-voice), a
-[project state file](/reference/serialization/project-state). These are the
+[project unit record](/reference/serialization/project-state). These are the
 review surface — the files a person reads in a pull request.
 
 ### The rule this produces
 
-Artifacts that must be reviewed live **outside** `.kapi/`, and the conventional
-lookup for them prefers the project root. The terms bundle resolves
-`<root>/terms.json` before `<root>/.kapi/terms.json`; the project state file
-defaults to `.kapi-state.json` at the root — a *sibling* of the state
-directory, not a file inside it. Neither would survive a fresh clone, or ever
-appear in a diff, if it lived in `.kapi/`.
+Artifacts that must be reviewed are **committed**, and never the database. The
+terms bundle's conventional lookup prefers the project root, resolving
+`<root>/terms.json` before `<root>/.kapi/terms.json`; the unit record lives at
+`.kapi/units/*.jsonl`, which `.kapi/.gitignore` deliberately leaves in while
+excluding `store.db` and `cache/`. Neither would survive a fresh clone, or ever
+appear in a diff, if it were part of the derived store.
 
-**If a person needs to review it, it does not belong in the gitignored cache.**
+**If a person needs to review it, it does not belong in a rebuildable index.**
 
 ## The formats
 
@@ -72,7 +73,7 @@ appear in a diff, if it lived in `.kapi/`.
 | [Annotation sidecar](/reference/serialization/overlays) | `.overlays.jsonl` | header `annotationType` | Stand-off annotations anchored into runs |
 | [Overlay set](/reference/serialization/overlays) | `.overlays.json` | `kapi-overlay-set` | In-progress workspace overlay layers |
 | [Project archive](/reference/serialization/project-archive) | `.kpz` | `kapi-project`, `kapi-interchange` | A whole project, or one interchange task |
-| [Project state](/reference/serialization/project-state) | `.kapi-state.json` | `kapi-project-state` | Review and workflow decisions |
+| [Project state](/reference/serialization/project-state) | `.jsonl` (under `.kapi/units/`) | `kapi-project-state` | Review and workflow decisions |
 | [Brand voice](/reference/serialization/brand-voice) | `.yaml` | — | Tone, style, vocabulary, examples |
 
 Not sure which you want? [Choosing a format](/reference/serialization/choosing).
@@ -80,8 +81,11 @@ Not sure which you want? [Choosing a format](/reference/serialization/choosing).
 ## The compound suffix convention
 
 Every one of these files except the project archive and the voice profile is
-JSON or JSON Lines, and each keeps a **marker segment ahead of the
-serialization suffix** — `.kbf.json`, `.terms.json`, `.overlays.jsonl`.
+JSON or JSON Lines, and each portable one keeps a **marker segment ahead of the
+serialization suffix** — `.kbf.json`, `.terms.json`, `.overlays.jsonl`. The unit
+shards are the exception, and the exception proves the rule: they never travel
+alone, their names are derived from document keys, and the directory holding
+them (`.kapi/units/`) already says what they are.
 
 Both halves earn their place. The `.json` tail keeps `jq`, GitHub, editors and
 syntax highlighting treating the file as what it is. The marker segment says

@@ -2,8 +2,8 @@
 id: 033-project-state-model
 sidebar_position: 33
 title: "AD-033: Project State Model"
-description: "Architecture decision: a project's authored workflow decisions — the review ladder, approvals, sign-off, parking — live in a first-class core/state store, distinct from the derived cache and the recycle content memory. The committed, diff-friendly serialization is the source of truth; an in-memory working set is transient until an explicit Export materializes it to a binding (a committed file in git mode, the server in bowrain mode)."
-keywords: [project state, state store, core/state, review, approval, convergence, kapi-state.json, defaults.state, transient, export, targetHash, architecture decision, neokapi]
+description: "Architecture decision: a project's authored workflow decisions — the review ladder, approvals, sign-off, parking — live in a first-class core/state store, distinct from the derived caches and the recycle content memory. The committed, diff-friendly serialization under .kapi/units/ is the source of truth; a working set inside the project's one database stages decisions until kapi commit publishes them."
+keywords: [project state, state store, core/state, review, approval, convergence, kapi/units, working set, staged, commit, targetHash, architecture decision, neokapi]
 ---
 
 # AD-033: Project State Model
@@ -67,18 +67,21 @@ two kinds of state are separated:
 
 | Kind | Examples | Home | Authoritative? |
 |---|---|---|---|
-| Derived | parsed blocks, coverage %, ladder rungs reachable from content | `.kapi/cache/` (block store, doc cache) | no — rebuildable, gitignored |
-| Authored decision | approvals, sign-off, parking, reviewer, notes | the **state store** (`core/state`) | yes — committed |
+| Derived | parsed blocks, coverage %, ladder rungs reachable from content | `.kapi/cache/`, and the derived tables of `.kapi/store.db` | no — rebuildable, gitignored |
+| Authored decision | approvals, sign-off, parking, reviewer, notes | `.kapi/units/` (`core/state`) | yes — committed |
 
-The cache may *mirror* an authored decision in transit, but it never *owns* one.
-Every decision's durable home is the committed state store.
+`.kapi/cache/` may *mirror* an authored decision in transit, but it never *owns*
+one; `rm -rf .kapi/cache` is free. Every decision's durable home is the committed
+record under `.kapi/units/`, and the only window in which a decision exists
+nowhere else is between recording it and `kapi commit` — see the working set
+below.
 
 ### Content memory is recycle, not the state carrier
 
 The `.memory.json` content memory ([AD-009](009-content-memory.md)) is the
 **recycle corpus** — a content-keyed pool of source→target pairs reused to
 pre-fill and leverage future translation. It does **not** record review
-decisions. Adding a pair to the memory (`kapi apply` with `kind:"tm"`) is recycle
+decisions. Adding a pair to the memory (`kapi apply` with `kind:"memory"`) is recycle
 leverage; approving a unit (`kapi apply` with `kind:"review"`) writes the state
 store. An approved pair may *also* land in the memory as leverage, but that is a
 side effect, not where the decision lives.
@@ -93,24 +96,27 @@ State has two representations, and conflating them is the trap to avoid:
    (`<target state=…>`, notes, phase/owner — [AD-017](017-bilingual-format-interop.md)),
    carried by a `.kpz` parcel's bilingual profile. This is what a clone or
    checkout restores from.
-2. **Working set — a SQLite store** (`core/state.WorkStore`) under
-   `.kapi/work/`, the fast random-access model with transactions and hash
-   lookups. **Derived** from #1; seeded from it when empty, materialized back by
-   `Commit`.
+2. **Working set — tables in the project's one database** (`core/state.WorkStore`
+   inside `.kapi/store.db`, [AD-039](039-local-context-graph-store.md)), the fast
+   random-access model with transactions and hash lookups. **Derived** from #1;
+   seeded from it when empty, materialized back by `Commit`.
 
-   It was originally specified as an in-memory store, on the reasoning that
-   un-committed decisions are in-transit and losing them is expected. Making it
-   a database changed that for the better: a decision is durable the moment it is
-   recorded, and committing is about *publishing* it rather than about not losing
-   it. That is what lets committing be explicit without inventing a way to lose
-   work. It is a database only as an index — deleting `.kapi/work/` costs nothing
-   already committed.
+   Being a database rather than memory is what makes a decision durable the
+   moment it is recorded, so committing is about *publishing* it rather than
+   about not losing it. That is what lets committing be explicit without
+   inventing a way to lose work. It is an index in every respect but one:
+   deleting `store.db` costs nothing already committed, and it costs exactly the
+   decisions staged since. That bounded exposure is why `store.db` sits at the
+   top of `.kapi/` and not under `cache/`.
+
+   In the browser, where there is no SQLite, the working set persists to a JSON
+   sidecar, `.kapi/store.json`; the model is unchanged.
 
 Committing a binary SQLite as the authoritative store would be git-hostile
 (opaque, conflict-prone) and would defeat exchange, so the durable home is the
-text serialization and any database is only a working index over it. The
+text serialization and the database is only a working index over it. The
 invariant is preserved: discard the working index, reopen from the committed
-record, lose nothing.
+record, lose nothing beyond what was staged.
 
 **One line per unit, sharded by document**, rather than one JSON array. A single
 indented document meant recording one decision rewrote every byte of the file:
@@ -152,11 +158,11 @@ the repository checked out. That is coordination *around* the record, not a
 replacement for it — so the server syncs with the committed record rather than
 superseding it, and a project that never connects one loses nothing.
 
-### State is explicitly transient; export is explicit
+### Recording is implicit; publishing is explicit
 
-Mutations to the working set are **not durable until an explicit `Export`**. This
-is deliberately the git/bowrain mental model: decisions are like staged changes
-you commit (or push) on purpose.
+Mutations to the working set are **not published until an explicit `Commit`**.
+This is deliberately the git/bowrain mental model: decisions are like staged
+changes you commit (or push) on purpose.
 
 - `Put` / `Delete` mutate the working set.
 - `Pending()` reports how many decisions are staged; `kapi status` surfaces it
@@ -175,34 +181,21 @@ work here is not "uncommitted changes you might lose", it is recorded work not
 yet published. The tiers are *staged* and *committed*, not *in-transit* and
 *durable*.
 
-### The committed location is fixed (reversing an earlier decision)
+### The committed location is fixed
 
 The record lives at `.kapi/units/`, derived from the project layout. `kapi status`
-and `kapi commit` take no path.
+and `kapi commit` take no path, and the recipe binds nothing: the record is a
+directory whose contents kapi owns and prunes, so pointing it at an arbitrary
+location would invite a project to aim it somewhere kapi deletes from.
 
-This reverses the binding described below, which was never used by any project
-and which the shard layout made awkward: `defaults.state` named a *file*, and the
-record is now a directory whose contents kapi owns and prunes. Pointing that at an
-arbitrary location invites a project to aim it somewhere kapi will delete from.
+Getting decisions *out* of kapi's own layout is a job for exchange rather than
+relocation — `kapi merge`, XLIFF `<target state=…>`, the `.kpz` bilingual
+profile — which converts the record into a format a third party can read instead
+of moving it.
 
-The need the binding served — getting decisions out of kapi's own layout and into
-an interchange format — is served better by exchange proper (`kapi merge`, XLIFF
-`<target state=…>`, the `.kpz` bilingual profile), which converts rather than
-relocates. What follows is retained for the reasoning; the mechanism is gone.
-
-### The committed location is a binding, not a fixed path (retired)
-
-Because export targets a *binding*, there is no fixed location to hard-code. The
-binding is the unification of the file and server worlds:
-
-- **git mode** — export writes the committed state file (`defaults.state`,
-  default `.kapi-state.json`, beside the recipe), mirroring how `tm_source` binds
-  the committed `.memory.json`. CI (or the user) commits it.
-- **server mode** — export is `kapi push`; `kapi pull` imports server state into
-  the working set.
-
-Same verbs, different remote. This rides the existing source/sink binding model
-rather than introducing a new one.
+In server mode the same verbs point at a different remote: publishing is
+`kapi push`, and `kapi pull` imports server state into the working set. This
+rides the existing source/sink binding model rather than introducing a new one.
 
 ### Decisions are unit-keyed and content-hash-bound
 
@@ -231,8 +224,8 @@ project model relies on elsewhere.
 
 - **`core/state`** holds `UnitState` (status, sourceStatus, origin, targetHash,
   decision, updated), a `Key`, the `Stale`/`Reviewed` ladder helpers, and a
-  `Store` interface with a committed-file implementation (`FileStore`:
-  `Open`/`Get`/`Put`/`Delete`/`All`/`Pending`/`Export`). The on-disk form is
+  `Store` interface over the sharded committed record
+  (`Open`/`Get`/`Put`/`Delete`/`All`/`Pending`/`Commit`). The on-disk form is
   schema-versioned (`SchemaVersion`, `Kind = "kapi-project-state"`).
 - **Approvals flow through one verb.** `kapi apply` with `kind:"review"` records
   a decision in the state store, addressed by `(file, id, locale)` exactly as
@@ -243,14 +236,17 @@ project model relies on elsewhere.
 - **Exchange and parcels carry state.** The committed serialization maps to XLIFF
   for third-party exchange and rides inside a `.kpz` parcel's bilingual profile
   for hand-off ([AD-017](017-bilingual-format-interop.md)).
-- **The recipe stays clean.** The recipe carries no state; it *binds* the state
-  artifact via `defaults.state`, just as it binds `tm_source` / `termbase_source`
-  ([AD-008](008-project-model.md)).
+- **The recipe stays clean.** The recipe carries no state and binds no derived
+  artifact. It binds *sources* — `defaults.terms_source`,
+  `defaults.memory_source` ([AD-008](008-project-model.md)) — while the decision
+  record and the database that stages it are both fixed by the project layout.
 
 ## See also
 
 - [AD-008: Project Model](008-project-model.md) — the project layout and where
-  `.kapi-state.json` sits among the ownership zones.
+  `.kapi/units/` sits among the ownership zones.
+- [AD-039: The Local Context Graph Store](039-local-context-graph-store.md) —
+  `.kapi/store.db`, which holds the working set alongside every other subsystem.
 - [AD-009: Content memory](009-content-memory.md) — the recycle corpus
   this state store is deliberately *not*.
 - [AD-017: Bilingual Format Interop](017-bilingual-format-interop.md) — XLIFF /

@@ -150,12 +150,13 @@ it for your whole team, all the time" and any "whole team" venue phrasing; any h
 leads with translation.
 
 **Naming:** all prose — framework docs included — says **content memory** (with
-*recycling* as the verb), never "translation memory". The identifiers keep their own
-spelling in code and on the wire: the recipe keys `tm:` / `memory_source:` / `termbase:`,
-the `--memory` and `--terms` flags, and the on-disk `memory.db` / `terms.db`. Prose that
-has to name one describes the concept in the settled vocabulary and quotes the
-identifier in backticks — "the project's content memory (`.kapi/memory.db`)", "the terms
-store (`terms.db`)".
+*recycling* as the verb), never "translation memory". The identifiers carry the same
+vocabulary: the recipe keys `memory:` / `memory_source:` / `terms_source:`, the
+`--memory` and `--termstore` flags, the committed sources `context/memory.json` and
+`context/terms.json`, and the one derived database `.kapi/store.db`. Prose that has to
+name one describes the concept in the settled vocabulary and quotes the identifier in
+backticks — "the project's content memory (`context/memory.json`)", "the terms store,
+indexed into `.kapi/store.db`".
 
 **Headline register:** brand, voice, on-brand, agents, governed review, delivery, the kapi
 loop. Search-keyword vocabulary — "Lokalise alternative", "localization platform",

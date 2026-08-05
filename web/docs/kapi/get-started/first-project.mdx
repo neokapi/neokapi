@@ -42,7 +42,7 @@ Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known 
 [Install the CLI](/kapi/get-started/installation), then from your content directory:
 
 ```bash
-kapi init                      # scaffold kapi.yaml + .kapi/ state (source-only)
+kapi init                      # scaffold kapi.yaml + the .kapi/ store (source-only)
 kapi add "docs/**/*.md"        # declare the content; format auto-detected
 kapi stats                     # blocks, words, characters for what's tracked
 kapi check                     # check the project's content; exit 3 on gate fail
@@ -59,7 +59,7 @@ content:
   - path: "docs/**/*.md"
 ```
 
-Commit the recipe; `.kapi/` is regenerable and belongs in `.gitignore`. Every kapi command run anywhere in the tree finds the project by walking up, like git. See the [project file reference](/reference/project-file) for the full schema. When you're ready for AI-backed steps, `kapi models setup` detects what you already have — a Claude Code sign-in, Ollama, or an API key — and confirms it as the default ([Use with Claude](/kapi/get-started/use-with-claude)).
+Commit the recipe. `kapi init` also writes `.kapi/.gitignore`, which keeps the regenerable parts of the [project store](/kapi/project-store) — `store.db` and `cache/` — out of git while `.kapi/units/`, the committed record of your review decisions, stays in. Every kapi command run anywhere in the tree finds the project by walking up, like git. See the [project file reference](/reference/project-file) for the full schema. When you're ready for AI-backed steps, `kapi models setup` detects what you already have — a Claude Code sign-in, Ollama, or an API key — and confirms it as the default ([Use with Claude](/kapi/get-started/use-with-claude)).
 
 </TabItem>
 </Tabs>
