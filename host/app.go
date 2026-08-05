@@ -162,6 +162,14 @@ type App struct {
 	// DaemonPool call); the daemon pool it holds is torn down by Shutdown.
 	pluginRuntimeOnce sync.Once
 	pluginRuntime     *pluginhost.Runtime
+
+	// projectStores holds the open project stores (ProjectDB): one per project
+	// root, shared by every command and every converge worker under this App,
+	// closed by Shutdown. Built lazily and pre-seeded into worker clones, the
+	// same arrangement pluginRuntime uses and for the same reason — a second
+	// holder means a second connection pool on one SQLite file.
+	projectStoresOnce sync.Once
+	projectStores     *projectStores
 }
 
 // ensurePluginRuntime lazily builds the shared plugin Runtime from the current
@@ -398,6 +406,9 @@ func (a *App) Shutdown() {
 	if a.pluginRuntime != nil {
 		a.pluginRuntime.Shutdown()
 	}
+	// After the plugins: a Mode-C daemon shutting down may still be writing
+	// through a store this App handed it.
+	a.closeProjectStores()
 }
 
 // DaemonPool returns the lazily-constructed Mode-C daemon pool. The
