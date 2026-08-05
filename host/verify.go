@@ -438,25 +438,42 @@ func unboundGate(gate, binding, flag string) verifyGateResult {
 	}
 }
 
-// projectTermsBound reports whether the terminology gate has a terms store to
-// enforce against: a --termstore flag, a defaults.terms binding, the
-// convention .kapi/terms.db, or a committed defaults.terms_source
-// (.terms.json) resolved directly at check time. It mirrors the resolution the gate
-// itself uses (resolveProjectTermsPath / resolveProjectTermsSourcePath),
-// so "bound" means the same thing here and there.
+// projectTermsBound reports whether the terminology gate has a vocabulary to
+// enforce against: a --termstore flag, a profile's standalone `terms:`, a
+// committed defaults.terms_source (.terms.json) resolved directly at check
+// time, or concepts in the project's own store. It mirrors the resolution the
+// gate itself uses (ResolveTermsStore / resolveProjectTermsSourcePath), so
+// "bound" means the same thing here and there.
+//
+// The project store is the case that changed shape: its vocabulary tables exist
+// from the store's first open, so their presence says nothing and "bound" can
+// only mean the store holds a concept. Otherwise every project would report a
+// terminology binding it does not have, and the gate would never be able to say
+// there is nothing to check.
 func (a *App) projectTermsBound(cmd Command) (bool, error) {
-	tbPath, err := a.resolveProjectTermsPath(cmd, "")
+	sel, err := a.ResolveTermsStore(cmd, "")
 	if err != nil {
 		return false, err
 	}
-	if tbPath != "" {
+	if sel.Path != "" {
 		return true, nil
 	}
 	srcPath, err := a.resolveProjectTermsSourcePath(cmd, "")
 	if err != nil {
 		return false, err
 	}
-	return srcPath != "", nil
+	if srcPath != "" {
+		return true, nil
+	}
+	if !sel.InProject() {
+		return false, nil
+	}
+	ctx := CmdContext(cmd)
+	db, err := a.ProjectDB(ctx, sel.Root)
+	if err != nil {
+		return false, err
+	}
+	return db.HasTerms(ctx)
 }
 
 // --- brand gate -------------------------------------------------------------

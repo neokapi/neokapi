@@ -9,12 +9,9 @@ import (
 	"strconv"
 
 	"github.com/neokapi/neokapi/core/blockstore/exporter"
-	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
-	"github.com/neokapi/neokapi/memory"
-	"github.com/neokapi/neokapi/terms"
 )
 
 // `kapi info` reports what `kapi pack` would capture, and what a `.kpz` holds.
@@ -127,7 +124,7 @@ var archivePartNotes = map[string]string{
 var archivePartAbsentNotes = map[string]string{
 	"recipe":   "no recipe in this archive",
 	"sources":  "no extraction manifest — `kapi extract` records source identity + skeletons",
-	"blocks":   "no block store yet — run `kapi extract` or `kapi up`",
+	"blocks":   "nothing extracted yet — run `kapi extract` or `kapi up`",
 	"overlays": "no committed targets yet",
 	"memory":   "no content memory yet — it fills as work is committed",
 	"terms":    "no terms yet — `kapi terms import` seeds one",
@@ -136,7 +133,7 @@ var archivePartAbsentNotes = map[string]string{
 
 // projectArchiveExcluded names what a snapshot deliberately omits.
 var projectArchiveExcluded = []string{
-	".kapi/cache/ (regenerable: block store, extractions, collections)",
+	".kapi/cache/ (regenerable: parse cache, extractions, collections)",
 	"credentials (OS keychain, never in an archive)",
 	"server sync tokens",
 }
@@ -187,24 +184,21 @@ func (a *App) RunProjectInfo(cmd Command) error {
 		part("sources", "", countPackableSources(layout), 0),
 	)
 
-	blocks := layout.BlockStorePath()
-	nBlocks, nOverlays := countBlockStore(ctx, blocks)
+	// Three of the parts now live in one file, so each names `.kapi/store.db`
+	// and only the whole-store size is reportable. Per-part BYTES would be a
+	// fiction — there is no per-schema size in a SQLite file — so the size is
+	// carried once, on the first part, and the counts do the distinguishing.
+	// Presence is a count, which is what it always meant to a reader of this
+	// report: a store with no concepts has no terms to pack.
+	storePath := relativeToCwd(layout.StorePath())
+	storeBytes := fileSize(layout.StorePath())
+	nBlocks, nOverlays, nMemory, nTerms := a.countProjectStore(ctx, layout)
 	out.Parts = append(out.Parts,
-		part("blocks", relativeToCwd(blocks), nBlocks, fileSize(blocks)),
+		part("blocks", storePath, nBlocks, storeBytes),
 		part("overlays", "", nOverlays, 0),
+		part("memory", storePath, nMemory, 0),
+		part("terms", storePath, nTerms, 0),
 	)
-
-	tmPath := filepath.Join(layout.StateDir, "memory.db")
-	out.Parts = append(out.Parts,
-		part("memory", relativeToCwd(tmPath), countTMEntries(ctx, tmPath), fileSize(tmPath)))
-
-	// The state file is terms.db, not terms.db: the *concept* was renamed to
-	// "terms" (#1462) but the file was not, because an existing project already
-	// has terms.db on disk. This site had followed the rename and so always
-	// measured a file that does not exist, reporting the terms store as absent.
-	tbPath := filepath.Join(layout.StateDir, "terms.db")
-	out.Parts = append(out.Parts,
-		part("terms", relativeToCwd(tbPath), countTermConcepts(ctx, tbPath), fileSize(tbPath)))
 
 	return output.Print(cmd, out)
 }
@@ -248,59 +242,38 @@ func countPackableSources(layout project.Layout) int {
 	return len(seen)
 }
 
-// countBlockStore reports how many blocks and overlays a snapshot would carry.
-// It runs the very export `pack` runs, so the two cannot report different
-// numbers for the same store. A missing or unreadable store counts as nothing
-// rather than failing the report — `info` is a diagnostic and must still answer
-// the rest.
-func countBlockStore(ctx context.Context, path string) (blocks, overlays int) {
-	if !fileExists(path) {
-		return 0, 0
+// countProjectStore reports how much of each part a snapshot would carry. The
+// block figures come from the very export `pack` runs, so the two cannot report
+// different numbers for the same store.
+//
+// It does not open a store that is not there: `info` is a diagnostic and
+// creating the project's database to report on it would be a read command with
+// a side effect. An unreadable store counts as nothing rather than failing, so
+// the rest of the report still answers.
+func (a *App) countProjectStore(ctx context.Context, layout project.Layout) (blocks, overlays, entries, concepts int) {
+	if !fileExists(layout.StorePath()) {
+		return 0, 0, 0, 0
 	}
-	store, err := sqlitestore.New(path)
+	db, err := a.ProjectDB(ctx, layout.Root)
 	if err != nil {
-		return 0, 0
+		return 0, 0, 0, 0
 	}
-	snap, err := exporter.Export(ctx, store)
-	_ = store.Close()
-	if err != nil {
-		return 0, 0
+	if store := db.BlocksAutocommit(); store != nil {
+		if snap, eerr := exporter.Export(ctx, store); eerr == nil {
+			blocks, overlays = len(snap.Blocks), len(snap.Overlays)
+		}
 	}
-	return len(snap.Blocks), len(snap.Overlays)
-}
-
-// countTMEntries reports how many content-memory entries a snapshot would carry.
-func countTMEntries(ctx context.Context, path string) int {
-	if !fileExists(path) {
-		return 0
+	if tm := db.Memory(); tm != nil {
+		if es, eerr := tm.Entries(ctx); eerr == nil {
+			entries = len(es)
+		}
 	}
-	tm, err := memory.NewSQLiteStore(path)
-	if err != nil {
-		return 0
+	if tb := db.Terms(); tb != nil {
+		if cs, cerr := tb.Concepts(ctx); cerr == nil {
+			concepts = len(cs)
+		}
 	}
-	defer func() { _ = tm.Close() }()
-	entries, err := tm.Entries(ctx)
-	if err != nil {
-		return 0
-	}
-	return len(entries)
-}
-
-// countTermConcepts reports how many term concepts a snapshot would carry.
-func countTermConcepts(ctx context.Context, path string) int {
-	if !fileExists(path) {
-		return 0
-	}
-	tb, err := terms.NewSQLiteStore(path)
-	if err != nil {
-		return 0
-	}
-	defer func() { _ = tb.Close() }()
-	concepts, err := tb.Concepts(ctx)
-	if err != nil {
-		return 0
-	}
-	return len(concepts)
+	return blocks, overlays, entries, concepts
 }
 
 // ArchiveInfoOutput is the structured result of `kapi info <file.kpz>` on a
