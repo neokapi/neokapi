@@ -14,15 +14,29 @@
 //
 // The harness runs the real stores — core/blockstore/sqlitestore,
 // memory.SQLiteStore, terms.SQLiteStore, core/state.WorkStore — against a
-// synthetic project at dogfood scale, in four topologies:
+// synthetic project at dogfood scale, in six topologies. The first four vary
+// only WHICH FILES the subsystems share, keeping today's write discipline —
+// a connection pool per subsystem and deferred transactions:
 //
 //	-mode=split       the four files of today (the baseline)
 //	-mode=merged      every subsystem opened against one file
 //	-mode=hybrid      everything but the block cache merged
 //	-mode=work-apart  everything but the working store merged
 //
-// and reports, per workload, op counts, errors split into lock contention
-// versus everything else, and the latency distribution.
+// The last two vary the write discipline as well, and are what a merged store
+// would actually ship with — one shared handle per process, in place of a pool
+// per subsystem:
+//
+//	-mode=merged-immediate  one shared handle, BEGIN IMMEDIATE on every write tx
+//	-mode=merged-gated      the above, plus an in-process write gate
+//
+// The distinction matters because a deferred transaction that reads before it
+// writes has to upgrade its lock, and SQLite refuses that upgrade IMMEDIATELY
+// rather than consulting busy_timeout — so the failure mode the first four
+// modes measure is partly an artefact of the write discipline, not of merging.
+//
+// For each topology it reports, per workload, op counts, errors split into
+// lock contention versus everything else, and the latency distribution.
 //
 // Run it as:
 //
@@ -46,6 +60,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -77,6 +92,7 @@ type config struct {
 	convergeJ   int
 	overlayN    int
 	memoryPutN  int
+	memoryOneAt int // of memoryPutN, how many go one-transaction-per-entry
 	extractN    int
 	extractTick time.Duration
 	decisionHz  int
@@ -103,7 +119,32 @@ const (
 	// block cache, and the workload that starves is the drip of small
 	// unit-state writes. This topology keeps that drip on a file of its own.
 	topoWorkApart topology = "work-apart"
+	// topoMergedImmediate is the merged store as it would actually be built:
+	// one shared handle for every subsystem in a process, and every write
+	// transaction begun IMMEDIATE. A deferred transaction takes a read lock
+	// first and must upgrade it to write; SQLite refuses a contended upgrade
+	// without consulting busy_timeout, because waiting could deadlock two
+	// transactions that each hold a read lock. IMMEDIATE takes the write lock
+	// up front, where the busy handler applies and the wait is legal.
+	topoMergedImmediate topology = "merged-immediate"
+	// topoMergedGated adds the in-process write gate: one permit shared by
+	// every writer holding the same handle, taken for the length of a write
+	// transaction. Writers in one process then queue in Go, in FIFO order,
+	// instead of racing into SQLite's busy handler, whose backoff is not fair
+	// and which is what lets a steady stream of large writes shut out a drip
+	// of small ones.
+	topoMergedGated topology = "merged-gated"
 )
+
+// shared reports whether the topology opens ONE handle per process for every
+// subsystem, rather than today's pool per subsystem. It implies the merged
+// file layout and IMMEDIATE transactions.
+func (m topology) shared() bool {
+	return m == topoMergedImmediate || m == topoMergedGated
+}
+
+// gated reports whether writers in one process queue behind a single permit.
+func (m topology) gated() bool { return m == topoMergedGated }
 
 // ─── Store paths ────────────────────────────────────────────────
 
@@ -134,6 +175,8 @@ func newStorePaths(root string, m topology) storePaths {
 	case topoWorkApart:
 		p.memory, p.terms, p.blocks = merged, merged, merged
 		p.work = filepath.Join(kapi, "work", "state.db")
+	case topoMergedImmediate, topoMergedGated:
+		p.memory, p.terms, p.blocks, p.work = merged, merged, merged, merged
 	default:
 		p.memory = filepath.Join(kapi, "memory.db")
 		p.terms = filepath.Join(kapi, "terms.db")
@@ -156,6 +199,251 @@ func (p storePaths) mkdirs() error {
 	}
 	return nil
 }
+
+// ─── The shared handle the merged store would ship with ─────────
+
+// pragmas are what core/storage applies on open. They are repeated here
+// because the immediate-mode handle is built by hand: core/storage owns no
+// _txlock knob, and the instruction is to measure the redesign without
+// changing core/storage to do it.
+var pragmas = []string{
+	"PRAGMA busy_timeout=5000",
+	"PRAGMA journal_mode=WAL",
+	"PRAGMA synchronous=NORMAL",
+	"PRAGMA foreign_keys=ON",
+	"PRAGMA cache_size=-131072",
+	"PRAGMA wal_autocheckpoint=10000",
+	"PRAGMA temp_store=MEMORY",
+}
+
+// openImmediate opens path exactly as storage.Open does, plus
+// _txlock=immediate, so every transaction database/sql begins on this handle
+// is a BEGIN IMMEDIATE. mattn applies underscore-prefixed DSN parameters to
+// every pooled connection as it is established, which is the only way a
+// per-connection setting reaches all of them.
+//
+// The driver is registered by core/storage's blank import; the harness does
+// not import it directly, because which driver core/storage registers is a
+// build-tag decision that belongs to core/storage. The harness is a cgo tool
+// (it is built with fts5), so it requires the cgo driver and says so rather
+// than guessing at another driver's DSN vocabulary.
+func openImmediate(path string) (*storage.DB, error) {
+	const driver = "sqlite3"
+	if !slices.Contains(sql.Drivers(), driver) {
+		return nil, fmt.Errorf("immediate-mode handle needs the %q driver (build with cgo); registered: %v",
+			driver, sql.Drivers())
+	}
+	sep := "?"
+	if strings.Contains(path, "?") {
+		sep = "&"
+	}
+	dsn := path + sep + strings.Join([]string{
+		"_foreign_keys=1",
+		"_busy_timeout=5000",
+		"_synchronous=NORMAL",
+		"_cache_size=-131072",
+		"_txlock=immediate",
+	}, "&")
+	raw, err := sql.Open(driver, dsn)
+	if err != nil {
+		return nil, fmt.Errorf("open %s: %w", path, err)
+	}
+	raw.SetMaxOpenConns(25)
+	raw.SetMaxIdleConns(5)
+	raw.SetConnMaxLifetime(30 * time.Minute)
+	for _, p := range pragmas {
+		if _, err := raw.Exec(p); err != nil { //nolint:noctx // startup pragmas
+			raw.Close()
+			return nil, fmt.Errorf("apply %s: %w", p, err)
+		}
+	}
+	return &storage.DB{DB: raw}, nil
+}
+
+// projectDB is one process's handle on the project store: a single pool every
+// subsystem shares, and — in the gated topology — a single permit every write
+// transaction in the process passes through.
+//
+// The permit is a buffered channel rather than a mutex because Go's channel
+// wait queue is FIFO. That is the property being tested: SQLite's busy handler
+// backs off with no memory of who has been waiting longest, so a writer that
+// wants the lock for two milliseconds can lose to a writer that takes it for
+// two seconds, over and over. A FIFO permit gives the short writer its turn.
+type projectDB struct {
+	db   *storage.DB
+	gate chan struct{}
+}
+
+// openProjectDB opens the shared handle. Gated topologies get the permit.
+func openProjectDB(path string, m topology) (*projectDB, error) {
+	db, err := openImmediate(path)
+	if err != nil {
+		return nil, err
+	}
+	p := &projectDB{db: db}
+	if m.gated() {
+		p.gate = make(chan struct{}, 1)
+	}
+	return p, nil
+}
+
+// write runs fn holding the process's write permit, if there is one. Every
+// write transaction on a shared handle goes through here, including the ones
+// begun inside the store libraries: the permit is taken around the library
+// call, which is exactly the extent of its transaction.
+func (p *projectDB) write(fn func() error) error {
+	if p.gate != nil {
+		p.gate <- struct{}{}
+		defer func() { <-p.gate }()
+	}
+	return fn()
+}
+
+func (p *projectDB) Close() error { return p.db.Close() }
+
+// ─── Store shims over the shared handle ─────────────────────────
+
+// The block store and the working store are constructed from a PATH today
+// (sqlitestore.New, state.OpenWork), so neither can be handed an existing
+// pool the way memory.NewSQLiteStoreFromDB and terms.NewSQLiteStoreFromDB can.
+// These two shims issue the same SQL those packages issue, against the shared
+// handle, so the shared-handle topologies measure the same work. They are the
+// harness's model of the constructor the merged store would grow; if the
+// numbers say merge, that constructor is the change to make.
+
+// overlayWriter writes a batch of overlays in ONE transaction — a converge
+// worker's unit of block-store work.
+type overlayWriter interface {
+	writeBatch(ctx context.Context, overlays []blockstore.Overlay) error
+	Close() error
+}
+
+// storeOverlayWriter is today's path: an autocommit session on a block store
+// with its own pool.
+type storeOverlayWriter struct{ store blockstore.Store }
+
+func (w *storeOverlayWriter) writeBatch(ctx context.Context, overlays []blockstore.Overlay) error {
+	sess, err := w.store.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer sess.Close()
+	for _, o := range overlays {
+		if err := sess.PutOverlay(o); err != nil {
+			return err
+		}
+	}
+	return sess.Commit()
+}
+
+func (w *storeOverlayWriter) Close() error { return w.store.Close() }
+
+// sharedOverlayWriter is the redesign: one IMMEDIATE transaction on the
+// process's shared handle, under the write permit.
+type sharedOverlayWriter struct{ p *projectDB }
+
+func (w *sharedOverlayWriter) writeBatch(ctx context.Context, overlays []blockstore.Overlay) error {
+	return w.p.write(func() error {
+		tx, err := w.p.db.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = tx.Rollback() }()
+		for _, o := range overlays {
+			if o.UpdatedAt == 0 {
+				o.UpdatedAt = time.Now().Unix()
+			}
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO overlays (kind, block_hash, payload, updated_at)
+				VALUES (?, ?, ?, ?)
+				ON CONFLICT(kind, block_hash) DO UPDATE SET
+					payload=excluded.payload,
+					updated_at=excluded.updated_at
+			`, o.Kind, o.BlockHash, o.Payload, o.UpdatedAt); err != nil {
+				return err
+			}
+		}
+		return tx.Commit()
+	})
+}
+
+func (w *sharedOverlayWriter) Close() error { return nil } // the handle is shared
+
+// workWriter is the decision loop's view of the working store.
+type workWriter interface {
+	Put(ctx context.Context, u state.UnitState) error
+	Commit(ctx context.Context) error
+	Close() error
+}
+
+// sharedWork issues state.WorkStore's statements against the shared handle.
+// The serialization it commits to is the package's own (state.WriteCommitted),
+// so the once-per-run write costs what it really costs.
+type sharedWork struct {
+	p         *projectDB
+	committed string
+}
+
+func (w *sharedWork) Put(ctx context.Context, u state.UnitState) error {
+	variant, _ := u.Variant.MarshalText()
+	payload, err := json.Marshal(u)
+	if err != nil {
+		return err
+	}
+	return w.p.write(func() error {
+		_, err := w.p.db.ExecContext(ctx, `
+INSERT INTO unit_state (unit, variant, scope, content_hash, context_hash, payload, staged)
+VALUES (?, ?, ?, ?, ?, ?, 1)
+ON CONFLICT(unit, variant) DO UPDATE SET
+    scope = excluded.scope, content_hash = excluded.content_hash,
+    context_hash = excluded.context_hash, payload = excluded.payload,
+    staged = MAX(unit_state.staged, excluded.staged)`,
+			u.Unit, string(variant), u.Scope, u.ContentHash, u.ContextHash, string(payload))
+		return err
+	})
+}
+
+func (w *sharedWork) Commit(ctx context.Context) error {
+	var pending int
+	if err := w.p.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM unit_state WHERE staged = 1`).Scan(&pending); err != nil {
+		return err
+	}
+	if pending == 0 {
+		return nil
+	}
+	rows, err := w.p.db.QueryContext(ctx, `SELECT payload FROM unit_state ORDER BY unit, variant`)
+	if err != nil {
+		return err
+	}
+	var units []state.UnitState
+	for rows.Next() {
+		var payload string
+		if err := rows.Scan(&payload); err != nil {
+			rows.Close()
+			return err
+		}
+		var u state.UnitState
+		if err := json.Unmarshal([]byte(payload), &u); err != nil {
+			rows.Close()
+			return err
+		}
+		units = append(units, u)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if err := state.WriteCommitted(w.committed, units); err != nil {
+		return err
+	}
+	return w.p.write(func() error {
+		_, err := w.p.db.ExecContext(ctx, `UPDATE unit_state SET staged = 0 WHERE staged = 1`)
+		return err
+	})
+}
+
+func (w *sharedWork) Close() error { return nil } // the handle is shared
 
 // ─── Measurement ────────────────────────────────────────────────
 
@@ -532,7 +820,8 @@ func seedState(ctx context.Context, p storePaths, cfg config) error {
 const (
 	nW1Overlay   = "W1 converge  overlay batch"
 	nW1Memory    = "W1 converge  memory put"
-	nW2Extract   = "W2 extract   purge+refill tx"
+	nW1MemBatch  = "W1 converge  memory put batched"
+	nW2Extract   = "W2 extract   purge+refill tx (child proc)"
 	nW3Fuzzy     = "W3 rebuild   fuzzy index"
 	nW3Search    = "W3 rebuild   search index"
 	nW4Put       = "W4 decisions unit put"
@@ -542,6 +831,90 @@ const (
 	nW5CountBlks = "W5 status    block count (child proc)"
 )
 
+// ─── The simulated processes ────────────────────────────────────
+
+// The workloads are grouped into three OS processes, the same way in every
+// topology so the comparison is like for like:
+//
+//	process A (this one)  W1 converge, W3 the content memory's FTS rebuild,
+//	                      W4 the decision loop — the stages of one kapi run,
+//	                      sharing one handle where the topology shares handles
+//	process B (child)     W2 re-extraction, holding the long transaction
+//	process C (child)     W5 the status poller, read only
+//
+// W2 is a genuinely separate process on purpose. An in-process write gate can
+// only order the writers that hold the same handle; if the long transaction
+// were inside process A the gate would order that too, and the measurement
+// would flatter the design by removing the one writer it cannot control.
+
+// parentStores is process A's access to the project store.
+type parentStores struct {
+	overlays overlayWriter
+	mem      *memory.SQLiteStore
+	// write runs a write transaction under the process's write permit. It is
+	// the identity function in topologies that have no gate, and it is what
+	// wraps the transactions the store libraries begin internally
+	// (memory.Add, the FTS rebuilds), which take no handle from the caller.
+	write   func(func() error) error
+	work    workWriter
+	closers []func() error
+}
+
+func (ps *parentStores) Close() {
+	for i := len(ps.closers) - 1; i >= 0; i-- {
+		_ = ps.closers[i]()
+	}
+}
+
+func openParentStores(ctx context.Context, p storePaths, cfg config) (*parentStores, error) {
+	ps := &parentStores{write: func(fn func() error) error { return fn() }}
+	fail := func(err error) (*parentStores, error) {
+		ps.Close()
+		return nil, err
+	}
+
+	if cfg.mode.shared() {
+		pdb, err := openProjectDB(p.memory, cfg.mode)
+		if err != nil {
+			return fail(fmt.Errorf("process A: open project store: %w", err))
+		}
+		ps.closers = append(ps.closers, pdb.Close)
+		mem, err := memory.NewSQLiteStoreFromDB(pdb.db)
+		if err != nil {
+			return fail(fmt.Errorf("process A: content memory: %w", err))
+		}
+		ps.overlays = &sharedOverlayWriter{p: pdb}
+		ps.mem = mem
+		ps.write = pdb.write
+		ps.work = &sharedWork{p: pdb, committed: p.units}
+		return ps, nil
+	}
+
+	store, err := sqlitestore.NewAutocommit(p.blocks)
+	if err != nil {
+		return fail(fmt.Errorf("process A: open block store: %w", err))
+	}
+	ps.overlays = &storeOverlayWriter{store: store}
+	ps.closers = append(ps.closers, ps.overlays.Close)
+
+	memDB, err := storage.Open(p.memory)
+	if err != nil {
+		return fail(fmt.Errorf("process A: open content memory: %w", err))
+	}
+	ps.closers = append(ps.closers, memDB.Close)
+	if ps.mem, err = memory.NewSQLiteStoreFromDB(memDB); err != nil {
+		return fail(fmt.Errorf("process A: content memory: %w", err))
+	}
+
+	work, err := state.OpenWork(ctx, p.work, p.units)
+	if err != nil {
+		return fail(fmt.Errorf("process A: open work store: %w", err))
+	}
+	ps.work = work
+	ps.closers = append(ps.closers, work.Close)
+	return ps, nil
+}
+
 // runWorkloads drives every simulated process against a seeded project for
 // cfg.duration and returns what each observed.
 func runWorkloads(ctx context.Context, p storePaths, cfg config) ([]streamStats, error) {
@@ -549,27 +922,37 @@ func runWorkloads(ctx context.Context, p storePaths, cfg config) ([]streamStats,
 	// Create every stream up front so a workload that never completed an
 	// operation still appears in the report as a zero row rather than
 	// vanishing.
-	for _, n := range []string{nW1Overlay, nW1Memory, nW2Extract, nW3Fuzzy, nW3Search, nW4Put, nW4Commit} {
+	for _, n := range []string{nW1Overlay, nW1Memory, nW1MemBatch, nW3Fuzzy, nW3Search, nW4Put, nW4Commit} {
 		rec.stream(n)
 	}
+
+	ps, err := openParentStores(ctx, p, cfg)
+	if err != nil {
+		return nil, err
+	}
+	defer ps.Close()
 
 	runCtx, cancel := context.WithTimeout(ctx, cfg.duration)
 	defer cancel()
 
-	child, err := startStatusChild(ctx, p, cfg)
-	if err != nil {
-		return nil, err
+	children := make([]*childHandle, 0, 2)
+	for _, role := range []string{roleExtract, roleStatus} {
+		c, err := startChild(ctx, role, cfg)
+		if err != nil {
+			return nil, err
+		}
+		children = append(children, c)
 	}
 
 	var wg sync.WaitGroup
-	errs := make(chan error, 4)
-	for _, w := range []func(context.Context, storePaths, config, *recorder) error{
-		convergeSim, extractSim, memoryRebuildSim, decisionsSim,
+	errs := make(chan error, 3)
+	for _, w := range []func(context.Context, *parentStores, config, *recorder) error{
+		convergeSim, memoryRebuildSim, decisionsSim,
 	} {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := w(runCtx, p, cfg, rec); err != nil {
+			if err := w(runCtx, ps, cfg, rec); err != nil {
 				errs <- err
 			}
 		}()
@@ -578,11 +961,13 @@ func runWorkloads(ctx context.Context, p storePaths, cfg config) ([]streamStats,
 	close(errs)
 
 	stats := rec.all()
-	childStats, childErr := child.wait()
-	if childErr != nil {
-		return nil, childErr
+	for _, c := range children {
+		childStats, err := c.wait()
+		if err != nil {
+			return nil, err
+		}
+		stats = append(stats, childStats...)
 	}
-	stats = append(stats, childStats...)
 
 	for err := range errs {
 		// A workload that could not even open its stores invalidates the
@@ -593,28 +978,21 @@ func runWorkloads(ctx context.Context, p storePaths, cfg config) ([]streamStats,
 	return stats, nil
 }
 
-// convergeSim is the converge run: one process, J locale workers, each
-// holding an autocommit block-store session (the mode NewAutocommit exists
-// for) while it writes target overlays, and writing content-memory entries
-// as it goes. Both stores are opened once per process, as the executor does.
-func convergeSim(ctx context.Context, p storePaths, cfg config, rec *recorder) error {
-	store, err := sqlitestore.NewAutocommit(p.blocks)
-	if err != nil {
-		return fmt.Errorf("converge: open block store: %w", err)
-	}
-	defer store.Close()
-
-	db, err := storage.Open(p.memory)
-	if err != nil {
-		return fmt.Errorf("converge: open memory: %w", err)
-	}
-	defer db.Close()
-	mem, err := memory.NewSQLiteStoreFromDB(db)
-	if err != nil {
-		return fmt.Errorf("converge: memory store: %w", err)
-	}
-
+// convergeSim is the converge run: J locale workers writing target overlays in
+// batched sessions and content-memory entries as they go.
+//
+// The memory writes are issued two ways on purpose. Half go through Add, one
+// transaction per entry, which is what the executor does today and what costs
+// 14 ms apiece: every Add maintains the FTS5 tables row by row, and FTS5
+// tokenization is the expensive part. The other half go through
+// BulkAddWithStream, one transaction for the batch, which is what a converge
+// worker can trivially do instead — it already has the entries in hand. The
+// two lines in the report are directly comparable: same locale, same entries,
+// same run, half the rows each.
+func convergeSim(ctx context.Context, ps *parentStores, cfg config, rec *recorder) error {
 	locales := []string{"nb", "de", "fr", "ja", "es", "it", "nl", "pt"}
+	half := min(max(cfg.memoryOneAt, 0), cfg.memoryPutN)
+
 	var wg sync.WaitGroup
 	for j := range cfg.convergeJ {
 		wg.Add(1)
@@ -624,37 +1002,47 @@ func convergeSim(ctx context.Context, p storePaths, cfg config, rec *recorder) e
 			kind := "targets/" + locale
 			n := 0
 			for ctx.Err() == nil {
-				_ = rec.observe(nW1Overlay, func() error {
-					sess, err := store.Begin(ctx)
+				overlays := make([]blockstore.Overlay, 0, cfg.overlayN)
+				for k := range cfg.overlayN {
+					idx := (j*1_000_003 + n*cfg.overlayN + k) % cfg.blocks
+					payload, err := json.Marshal(map[string]any{
+						"locale": locale,
+						"target": sourceText(idx),
+						"status": "translated",
+					})
 					if err != nil {
-						return err
+						return
 					}
-					defer sess.Close()
-					for k := range cfg.overlayN {
-						idx := (j*1_000_003 + n*cfg.overlayN + k) % cfg.blocks
-						payload, err := json.Marshal(map[string]any{
-							"locale": locale,
-							"target": sourceText(idx),
-							"status": "translated",
-						})
-						if err != nil {
-							return err
-						}
-						if err := sess.PutOverlay(blockstore.Overlay{
-							Kind: kind, BlockHash: blockHash(idx), Payload: payload,
-						}); err != nil {
-							return err
-						}
-					}
-					return sess.Commit()
+					overlays = append(overlays, blockstore.Overlay{
+						Kind: kind, BlockHash: blockHash(idx), Payload: payload,
+					})
+				}
+				_ = rec.observe(nW1Overlay, func() error {
+					return ps.overlays.writeBatch(ctx, overlays)
 				})
-				for k := range cfg.memoryPutN {
+
+				entry := func(k int) memory.Entry {
 					idx := (j*7919 + n*cfg.memoryPutN + k) % cfg.entries
-					entry := makeEntry(idx)
-					entry.Variants[model.LocaleID(locale)] = []model.Run{
+					e := makeEntry(idx)
+					e.Variants[model.LocaleID(locale)] = []model.Run{
 						model.TextR(fmt.Sprintf("converge %s pass %d for entry %d", locale, n, idx)),
 					}
-					_ = rec.observe(nW1Memory, func() error { return mem.Add(ctx, entry) })
+					return e
+				}
+				for k := range half {
+					e := entry(k)
+					_ = rec.observe(nW1Memory, func() error {
+						return ps.write(func() error { return ps.mem.Add(ctx, e) })
+					})
+				}
+				batch := make([]memory.Entry, 0, cfg.memoryPutN-half)
+				for k := half; k < cfg.memoryPutN; k++ {
+					batch = append(batch, entry(k))
+				}
+				if len(batch) > 0 {
+					_ = rec.observe(nW1MemBatch, func() error {
+						return ps.write(func() error { return ps.mem.BulkAddWithStream(ctx, batch, "") })
+					})
 				}
 				n++
 			}
@@ -664,98 +1052,27 @@ func convergeSim(ctx context.Context, p storePaths, cfg config, rec *recorder) e
 	return nil
 }
 
-// extractSim is re-extraction: one long transaction that purges the blocks of
-// the documents being re-read and refills them, all or nothing. That is the
-// case sqlitestore.New (as opposed to NewAutocommit) exists to serve, and the
-// one that holds the file's write lock for as long as the refill takes.
-//
-// It issues the purge and the refill as the same SQL sqlitestore does, inside
-// one transaction on its own pool, because the purge here is SCOPED to the
-// collections being re-extracted. blockstore.BlockPurger.DeleteBlocks drops
-// every block in the store — correct for a whole-project re-extraction, but it
-// would leave the other workloads reading an empty corpus for the rest of the
-// run, measuring contention against a store that no longer resembles the one
-// the decision is about.
-func extractSim(ctx context.Context, p storePaths, cfg config, rec *recorder) error {
-	db, err := storage.Open(p.blocks)
-	if err != nil {
-		return fmt.Errorf("extract: open block store: %w", err)
-	}
-	defer db.Close()
-
-	ticker := time.NewTicker(cfg.extractTick)
-	defer ticker.Stop()
-	pass := 0
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-ticker.C:
-		}
-		start := pass * cfg.extractN
-		pass++
-		_ = rec.observe(nW2Extract, func() error {
-			tx, err := db.BeginTx(ctx, nil)
-			if err != nil {
-				return err
-			}
-			defer func() { _ = tx.Rollback() }()
-
-			// The collections holding the blocks about to be re-read.
-			seen := map[string]bool{}
-			for i := start; i < start+cfg.extractN; i++ {
-				seen[collectionOf(i%cfg.blocks)] = true
-			}
-			for c := range seen {
-				if _, err := tx.ExecContext(ctx, `DELETE FROM blocks WHERE collection = ?`, c); err != nil {
-					return err
-				}
-			}
-			for i := start; i < start+cfg.extractN; i++ {
-				idx := i % cfg.blocks
-				b := makeBlock(idx)
-				payload, err := json.Marshal(b)
-				if err != nil {
-					return err
-				}
-				if _, err := tx.ExecContext(ctx, `
-					INSERT INTO blocks (hash, collection, translatable, payload)
-					VALUES (?, ?, ?, ?)
-					ON CONFLICT(hash) DO UPDATE SET
-						collection=excluded.collection,
-						translatable=excluded.translatable,
-						payload=excluded.payload
-				`, b.Hash, collectionOf(idx), 1, payload); err != nil {
-					return err
-				}
-			}
-			return tx.Commit()
-		})
-	}
-}
-
 // memoryRebuildSim is the content memory's FTS5 rebuild: DELETE followed by
 // INSERT … SELECT over whole tables, twice, once mid-run. It is the largest
 // single write the content memory ever makes, and under a merged store it
-// holds the same lock the block cache needs.
-func memoryRebuildSim(ctx context.Context, p storePaths, cfg config, rec *recorder) error {
-	db, err := storage.Open(p.memory)
-	if err != nil {
-		return fmt.Errorf("rebuild: open memory: %w", err)
-	}
-	defer db.Close()
-	mem, err := memory.NewSQLiteStoreFromDB(db)
-	if err != nil {
-		return fmt.Errorf("rebuild: memory store: %w", err)
-	}
-
+// holds the same lock every other subsystem needs.
+//
+// Note for whoever reads the latency: RebuildFuzzyIndex and RebuildSearchIndex
+// issue their statements on context.Background() (memory/sqlite.go), so a
+// multi-second rebuild is not cancellable by the caller's context. That is
+// worth fixing independently of this decision.
+func memoryRebuildSim(ctx context.Context, ps *parentStores, cfg config, rec *recorder) error {
 	select {
 	case <-ctx.Done():
 		return nil
 	case <-time.After(cfg.duration / 2):
 	}
-	_ = rec.observe(nW3Fuzzy, mem.RebuildFuzzyIndex)
-	_ = rec.observe(nW3Search, mem.RebuildSearchIndex)
+	_ = rec.observe(nW3Fuzzy, func() error {
+		return ps.write(ps.mem.RebuildFuzzyIndex)
+	})
+	_ = rec.observe(nW3Search, func() error {
+		return ps.write(ps.mem.RebuildSearchIndex)
+	})
 	return nil
 }
 
@@ -763,13 +1080,7 @@ func memoryRebuildSim(ctx context.Context, p storePaths, cfg config, rec *record
 // state writes, and the once-per-run serialization of the working set. It is
 // the workload most exposed to starvation, because each write is small and
 // short and has nothing to amortize a five-second wait against.
-func decisionsSim(ctx context.Context, p storePaths, cfg config, rec *recorder) error {
-	w, err := state.OpenWork(ctx, p.work, p.units)
-	if err != nil {
-		return fmt.Errorf("decisions: open work store: %w", err)
-	}
-	defer w.Close()
-
+func decisionsSim(ctx context.Context, ps *parentStores, cfg config, rec *recorder) error {
 	puts := time.NewTicker(time.Second / time.Duration(cfg.decisionHz))
 	defer puts.Stop()
 	commits := time.NewTicker(cfg.commitTick)
@@ -784,57 +1095,158 @@ func decisionsSim(ctx context.Context, p storePaths, cfg config, rec *recorder) 
 			u := makeUnitState(i % cfg.units)
 			u.Status = model.TargetStatusReviewed
 			i++
-			_ = rec.observe(nW4Put, func() error { return w.Put(ctx, u) })
+			_ = rec.observe(nW4Put, func() error { return ps.work.Put(ctx, u) })
 		case <-commits.C:
-			_ = rec.observe(nW4Commit, func() error { return w.Commit(ctx) })
+			_ = rec.observe(nW4Commit, func() error { return ps.work.Commit(ctx) })
 		}
+	}
+}
+
+// ─── Re-extraction, out of process ──────────────────────────────
+
+// runExtractChild is process B: re-extraction, one long transaction that
+// purges the blocks of the documents being re-read and refills them, all or
+// nothing. That is the case sqlitestore.New (as opposed to NewAutocommit)
+// exists to serve, and the one that holds the file's write lock for as long as
+// the refill takes.
+//
+// It issues the purge and the refill as the same SQL sqlitestore does, in one
+// transaction, because the purge here is SCOPED to the collections being
+// re-extracted. blockstore.BlockPurger.DeleteBlocks drops every block in the
+// store — correct for a whole-project re-extraction, but it would leave the
+// other workloads reading an empty corpus for the rest of the run, measuring
+// contention against a store that no longer resembles the one the decision is
+// about.
+func runExtractChild(ctx context.Context, p storePaths, cfg config) error {
+	rec := newRecorder()
+	rec.stream(nW2Extract)
+
+	var db *storage.DB
+	var write func(func() error) error
+	if cfg.mode.shared() {
+		pdb, err := openProjectDB(p.blocks, cfg.mode)
+		if err != nil {
+			return fmt.Errorf("extract child: open project store: %w", err)
+		}
+		defer pdb.Close()
+		db, write = pdb.db, pdb.write
+	} else {
+		plain, err := storage.Open(p.blocks)
+		if err != nil {
+			return fmt.Errorf("extract child: open block store: %w", err)
+		}
+		defer plain.Close()
+		db, write = plain, func(fn func() error) error { return fn() }
+	}
+
+	runCtx, cancel := context.WithTimeout(ctx, cfg.duration)
+	defer cancel()
+	ticker := time.NewTicker(cfg.extractTick)
+	defer ticker.Stop()
+	pass := 0
+	for {
+		select {
+		case <-runCtx.Done():
+			return emitReport(rec.all())
+		case <-ticker.C:
+		}
+		start := pass * cfg.extractN
+		pass++
+		_ = rec.observe(nW2Extract, func() error {
+			return write(func() error {
+				tx, err := db.BeginTx(runCtx, nil)
+				if err != nil {
+					return err
+				}
+				defer func() { _ = tx.Rollback() }()
+
+				// The collections holding the blocks about to be re-read.
+				seen := map[string]bool{}
+				for i := start; i < start+cfg.extractN; i++ {
+					seen[collectionOf(i%cfg.blocks)] = true
+				}
+				for c := range seen {
+					if _, err := tx.ExecContext(runCtx, `DELETE FROM blocks WHERE collection = ?`, c); err != nil {
+						return err
+					}
+				}
+				for i := start; i < start+cfg.extractN; i++ {
+					idx := i % cfg.blocks
+					b := makeBlock(idx)
+					payload, err := json.Marshal(b)
+					if err != nil {
+						return err
+					}
+					if _, err := tx.ExecContext(runCtx, `
+						INSERT INTO blocks (hash, collection, translatable, payload)
+						VALUES (?, ?, ?, ?)
+						ON CONFLICT(hash) DO UPDATE SET
+							collection=excluded.collection,
+							translatable=excluded.translatable,
+							payload=excluded.payload
+					`, b.Hash, collectionOf(idx), 1, payload); err != nil {
+						return err
+					}
+				}
+				return tx.Commit()
+			})
+		})
 	}
 }
 
 // ─── The status poller, out of process ──────────────────────────
 
-// childHandle is the parent's side of the out-of-process status poller.
+// The two out-of-process roles this binary can re-exec itself into.
+const (
+	roleStatus  = "status"
+	roleExtract = "extract"
+)
+
+// childHandle is the parent's side of one out-of-process workload.
 type childHandle struct {
-	cmd *exec.Cmd
-	out *strings.Builder
+	role string
+	cmd  *exec.Cmd
+	out  *strings.Builder
 }
 
-// startStatusChild re-execs this binary as a reader. A goroutine sharing the
-// parent's pools would exercise SQLite's in-process locking, which is not what
-// a `kapi status` run beside a desktop app and a converge run does: WAL
-// readers in a *different* process take the file's shared lock and read
-// through the shared-memory index, and their open has to negotiate the
-// journal-mode pragma against whoever holds the file. That is the path worth
-// measuring, so it is measured across a real process boundary.
-func startStatusChild(ctx context.Context, p storePaths, cfg config) (*childHandle, error) {
+// startChild re-execs this binary in the given role. Goroutines sharing the
+// parent's pools would exercise SQLite's IN-process locking, which is not what
+// a `kapi status` beside a converge run does, and — more importantly for the
+// gated topology — an in-process write gate can only order writers that hold
+// the same handle. Running the status poller and the long extraction
+// transaction as real processes keeps two writers the gate cannot reach, so
+// the file-level lock is still genuinely contended.
+func startChild(ctx context.Context, role string, cfg config) (*childHandle, error) {
 	exe, err := os.Executable()
 	if err != nil {
-		return nil, fmt.Errorf("locate self for status child: %w", err)
+		return nil, fmt.Errorf("locate self for %s child: %w", role, err)
 	}
 	cmd := exec.CommandContext(ctx, exe,
-		"-child",
+		"-child-role="+role,
 		"-mode="+string(cfg.mode),
 		"-dir="+cfg.dir,
 		"-duration="+cfg.duration.String(),
 		fmt.Sprintf("-status-hz=%d", cfg.statusHz),
 		fmt.Sprintf("-blocks=%d", cfg.blocks),
+		fmt.Sprintf("-extract-blocks=%d", cfg.extractN),
+		"-extract-every="+cfg.extractTick.String(),
 	)
 	var out strings.Builder
 	cmd.Stdout = &out
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("start status child: %w", err)
+		return nil, fmt.Errorf("start %s child: %w", role, err)
 	}
-	return &childHandle{cmd: cmd, out: &out}, nil
+	return &childHandle{role: role, cmd: cmd, out: &out}, nil
 }
 
 func (c *childHandle) wait() ([]streamStats, error) {
 	if err := c.cmd.Wait(); err != nil {
-		return nil, fmt.Errorf("status child: %w (output %q)", err, c.out.String())
+		return nil, fmt.Errorf("%s child: %w (output %q)", c.role, err, c.out.String())
 	}
 	var stats []streamStats
 	if err := json.Unmarshal([]byte(c.out.String()), &stats); err != nil {
-		return nil, fmt.Errorf("status child: parse report: %w (output %q)", err, c.out.String())
+		return nil, fmt.Errorf("%s child: parse report: %w (output %q)", c.role, err, c.out.String())
 	}
 	return stats, nil
 }
@@ -1020,10 +1432,10 @@ func main() {
 	var (
 		cfg       config
 		modeFlag  string
-		childFlag bool
+		childRole string
 	)
-	flag.StringVar(&modeFlag, "mode", "split,merged",
-		"topologies to measure, comma separated: split, merged, hybrid, work-apart")
+	flag.StringVar(&modeFlag, "mode", "split,merged,merged-immediate,merged-gated",
+		"topologies to measure, comma separated: split, merged, hybrid, work-apart, merged-immediate, merged-gated")
 	flag.StringVar(&cfg.dir, "dir", "",
 		"directory holding the synthetic projects (default: .contention-harness beside this source tree)")
 	flag.DurationVar(&cfg.duration, "duration", 60*time.Second, "measured window per topology")
@@ -1033,15 +1445,23 @@ func main() {
 	flag.IntVar(&cfg.units, "units", 75_000, "unit-state rows seeded")
 	flag.IntVar(&cfg.convergeJ, "workers", 4, "concurrent converge locale workers (J)")
 	flag.IntVar(&cfg.overlayN, "overlay-batch", 25, "overlays written per converge session")
-	flag.IntVar(&cfg.memoryPutN, "memory-batch", 10, "memory entries written per converge iteration")
+	flag.IntVar(&cfg.memoryPutN, "memory-batch", 10, "memory entries per converge iteration")
+	flag.IntVar(&cfg.memoryOneAt, "memory-one-at-a-time", -1,
+		"of -memory-batch, how many entries go one transaction per entry (the rest go in one batched "+
+			"transaction); -1 means half and half, 0 means batch everything")
 	flag.IntVar(&cfg.extractN, "extract-blocks", 5_000, "blocks purged and refilled per extraction")
 	flag.DurationVar(&cfg.extractTick, "extract-every", 10*time.Second, "interval between extractions")
 	flag.IntVar(&cfg.decisionHz, "decision-hz", 50, "unit-state writes per second")
 	flag.DurationVar(&cfg.commitTick, "commit-every", 5*time.Second, "interval between working-set commits")
 	flag.IntVar(&cfg.statusHz, "status-hz", 5, "status polls per second (child process)")
 	flag.BoolVar(&cfg.keepData, "keep", false, "keep the synthetic projects instead of deleting them")
-	flag.BoolVar(&childFlag, "child", false, "internal: run as the out-of-process status poller")
+	flag.StringVar(&childRole, "child-role", "",
+		"internal: run as an out-of-process workload (status or extract)")
 	flag.Parse()
+
+	if cfg.memoryOneAt < 0 {
+		cfg.memoryOneAt = cfg.memoryPutN / 2
+	}
 
 	if cfg.dir == "" {
 		wd, err := os.Getwd()
@@ -1053,10 +1473,19 @@ func main() {
 
 	ctx := context.Background()
 
-	if childFlag {
+	if childRole != "" {
 		cfg.mode = topology(modeFlag)
 		p := newStorePaths(filepath.Join(cfg.dir, string(cfg.mode)), cfg.mode)
-		if err := runStatusChild(ctx, p, cfg); err != nil {
+		var err error
+		switch childRole {
+		case roleStatus:
+			err = runStatusChild(ctx, p, cfg)
+		case roleExtract:
+			err = runExtractChild(ctx, p, cfg)
+		default:
+			err = fmt.Errorf("unknown child role %q", childRole)
+		}
+		if err != nil {
 			fail(err)
 		}
 		return
@@ -1123,12 +1552,13 @@ func parseModes(s string) ([]topology, error) {
 	var out []topology
 	for _, part := range strings.Split(s, ",") {
 		switch m := topology(strings.TrimSpace(part)); m {
-		case topoSplit, topoMerged, topoHybrid, topoWorkApart:
+		case topoSplit, topoMerged, topoHybrid, topoWorkApart, topoMergedImmediate, topoMergedGated:
 			out = append(out, m)
 		case "":
 			continue
 		default:
-			return nil, fmt.Errorf("unknown mode %q (want split, merged, hybrid or work-apart)", part)
+			return nil, fmt.Errorf("unknown mode %q (want split, merged, hybrid, work-apart, "+
+				"merged-immediate or merged-gated)", part)
 		}
 	}
 	if len(out) == 0 {
