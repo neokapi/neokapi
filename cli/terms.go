@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -431,7 +432,7 @@ func occurrenceLocales(cmd *cobra.Command) ([]string, error) {
 	for _, l := range raw {
 		l = strings.TrimSpace(l)
 		if l == "" {
-			return nil, fmt.Errorf("--locale: empty locale; use 'source' for the source text")
+			return nil, errors.New("--locale: empty locale; use 'source' for the source text")
 		}
 		if l == "source" {
 			l = occurrence.SourceLocale
