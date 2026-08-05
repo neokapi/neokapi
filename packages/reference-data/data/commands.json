@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-05T00:07:13Z",
+  "generatedAt": "2026-08-05T00:29:25Z",
   "commands": [
     {
       "id": "add",
@@ -916,7 +916,7 @@
         }
       ],
       "offlineCapable": true,
-      "runnableInBrowser": false,
+      "runnableInBrowser": true,
       "demoMode": false
     },
     {

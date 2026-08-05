@@ -52,11 +52,6 @@ type browserGap struct {
 // supported" alone tells a lab user nothing about whether their own machine
 // would behave differently.
 var browserGaps = map[string]browserGap{
-	"commit": {
-		short:  "Write staged decisions into the project's committed record",
-		group:  "work",
-		reason: "the working store holding staged decisions is SQLite, and the browser build has no SQLite driver (core/storage/driver_wasm.go)",
-	},
 	"plugin": {
 		short:  "Install and manage manifest-driven plugins (#438)",
 		group:  "advanced",
@@ -189,7 +184,10 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 	cmds = append(cmds, NewStatsCmd(a))
 	cmds = append(cmds,
 		NewStatusCmd(a),
-		newBrowserGapCmd("commit"),
+		// `commit` runs in the browser: the working store falls back to a JSON
+		// sidecar when SQLite is absent (core/state/workstore.go), and the
+		// committed shards write through the sandbox filesystem.
+		NewCommitCmd(a),
 		NewCheckCmd(a),
 		NewHookCmd(a),
 		NewInitCmd(a),

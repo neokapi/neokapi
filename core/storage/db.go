@@ -27,8 +27,8 @@
 package storage
 
 import (
-	"errors"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"

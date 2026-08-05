@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"sort"
@@ -44,6 +46,89 @@ import (
 type WorkStore struct {
 	db        *storage.DB
 	committed string // path of the committed serialization this indexes
+
+	// mem is the browser fallback: the wasm build has no file-backed SQLite
+	// (storage.ErrNoSQLite), yet the review→approve loop must still work in
+	// the lab. The working set lives in process memory and persists as a JSON
+	// sidecar next to where the database would sit, written through the
+	// sandbox filesystem — a decision recorded by one command must survive
+	// into the next, exactly as the database gives every other build. nil on
+	// every build with a real driver.
+	mem *memWork
+}
+
+// memWork is the JSON-sidecar working set backing the browser build.
+type memWork struct {
+	path  string // the sidecar the set persists to
+	units map[Key]memUnit
+	docs  map[string]string
+}
+
+type memUnit struct {
+	Unit   UnitState `json:"unit"`
+	Staged bool      `json:"staged,omitempty"`
+}
+
+// memFile is the sidecar serialization of the browser working set.
+type memFile struct {
+	Units []memUnit         `json:"units"`
+	Docs  map[string]string `json:"docs,omitempty"`
+}
+
+// load reads the sidecar back into the working set. A missing sidecar is an
+// empty set (the caller seeds from the committed record); a malformed one is an
+// error, because the set may hold decisions no other copy has.
+func (m *memWork) load() (found bool, err error) {
+	data, err := os.ReadFile(m.path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("state: read work set %s: %w", m.path, err)
+	}
+	var f memFile
+	if err := json.Unmarshal(data, &f); err != nil {
+		return false, fmt.Errorf("state: parse work set %s: %w", m.path, err)
+	}
+	for _, mu := range f.Units {
+		m.units[mu.Unit.Key()] = mu
+	}
+	if f.Docs != nil {
+		m.docs = f.Docs
+	}
+	return true, nil
+}
+
+// persist writes the working set to the sidecar. Called after every mutation:
+// while a decision is only here, this file is its only durable copy.
+func (m *memWork) persist() error {
+	f := memFile{Units: make([]memUnit, 0, len(m.units))}
+	for _, mu := range m.units {
+		f.Units = append(f.Units, mu)
+	}
+	sort.Slice(f.Units, func(i, j int) bool {
+		if f.Units[i].Unit.Unit != f.Units[j].Unit.Unit {
+			return f.Units[i].Unit.Unit < f.Units[j].Unit.Unit
+		}
+		ki, _ := f.Units[i].Unit.Variant.MarshalText()
+		kj, _ := f.Units[j].Unit.Variant.MarshalText()
+		return string(ki) < string(kj)
+	})
+	if len(m.docs) > 0 {
+		f.Docs = m.docs
+	}
+	data, err := json.Marshal(f)
+	if err != nil {
+		return fmt.Errorf("state: marshal work set: %w", err)
+	}
+	tmp := m.path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return fmt.Errorf("state: write work set: %w", err)
+	}
+	if err := os.Rename(tmp, m.path); err != nil {
+		return fmt.Errorf("state: rename work set: %w", err)
+	}
+	return nil
 }
 
 var workMigrations = []storage.Migration{{
@@ -89,6 +174,24 @@ func OpenWork(ctx context.Context, dbPath, committedPath string) (*WorkStore, er
 	}
 	db, err := storage.Open(dbPath)
 	if err != nil {
+		if errors.Is(err, storage.ErrNoSQLite) {
+			mem := &memWork{
+				path:  strings.TrimSuffix(dbPath, filepath.Ext(dbPath)) + ".json",
+				units: map[Key]memUnit{},
+				docs:  map[string]string{},
+			}
+			w := &WorkStore{committed: committedPath, mem: mem}
+			found, err := mem.load()
+			if err != nil {
+				return nil, err
+			}
+			if !found {
+				if err := w.seed(ctx); err != nil {
+					return nil, err
+				}
+			}
+			return w, nil
+		}
 		return nil, fmt.Errorf("state: open work store: %w", err)
 	}
 	if err := storage.Migrate(db, "state", workMigrations); err != nil {
@@ -135,10 +238,19 @@ func (w *WorkStore) seed(ctx context.Context) error {
 	return nil
 }
 
-func (w *WorkStore) Close() error { return w.db.Close() }
+func (w *WorkStore) Close() error {
+	if w.mem != nil {
+		return nil
+	}
+	return w.db.Close()
+}
 
 // Get returns the state recorded for a unit.
 func (w *WorkStore) Get(ctx context.Context, k Key) (UnitState, bool) {
+	if w.mem != nil {
+		mu, ok := w.mem.units[k]
+		return mu.Unit, ok
+	}
 	variant, _ := k.Variant.MarshalText()
 	var payload string
 	err := w.db.QueryRowContext(ctx,
@@ -158,6 +270,12 @@ func (w *WorkStore) Get(ctx context.Context, k Key) (UnitState, bool) {
 func (w *WorkStore) Put(ctx context.Context, u UnitState) error { return w.put(ctx, u, true) }
 
 func (w *WorkStore) put(ctx context.Context, u UnitState, staged bool) error {
+	if w.mem != nil {
+		k := u.Key()
+		staged = staged || w.mem.units[k].Staged
+		w.mem.units[k] = memUnit{Unit: u, Staged: staged}
+		return w.mem.persist()
+	}
 	variant, _ := u.Variant.MarshalText()
 	payload, err := json.Marshal(u)
 	if err != nil {
@@ -183,6 +301,13 @@ ON CONFLICT(unit, variant) DO UPDATE SET
 
 // Delete removes a unit's state.
 func (w *WorkStore) Delete(ctx context.Context, k Key) error {
+	if w.mem != nil {
+		if _, ok := w.mem.units[k]; !ok {
+			return nil
+		}
+		delete(w.mem.units, k)
+		return w.mem.persist()
+	}
 	variant, _ := k.Variant.MarshalText()
 	_, err := w.db.ExecContext(ctx, `DELETE FROM unit_state WHERE unit = ? AND variant = ?`, k.Unit, string(variant))
 	if err != nil {
@@ -193,6 +318,14 @@ func (w *WorkStore) Delete(ctx context.Context, k Key) error {
 
 // All returns every recorded state, ordered so the serialization is stable.
 func (w *WorkStore) All(ctx context.Context) ([]UnitState, error) {
+	if w.mem != nil {
+		out := make([]UnitState, 0, len(w.mem.units))
+		for _, mu := range w.mem.units {
+			out = append(out, mu.Unit)
+		}
+		sortUnits(out)
+		return out, nil
+	}
 	rows, err := w.db.QueryContext(ctx, `SELECT payload FROM unit_state ORDER BY unit, variant`)
 	if err != nil {
 		return nil, fmt.Errorf("state: list units: %w", err)
@@ -208,6 +341,16 @@ func (w *WorkStore) All(ctx context.Context) ([]UnitState, error) {
 // matching stays project-wide: pass the whole project's units when text may have
 // moved between files.
 func (w *WorkStore) Priors(ctx context.Context, scope string) ([]UnitState, error) {
+	if w.mem != nil {
+		var out []UnitState
+		for _, mu := range w.mem.units {
+			if mu.Unit.Scope == scope {
+				out = append(out, mu.Unit)
+			}
+		}
+		sortUnits(out)
+		return out, nil
+	}
 	rows, err := w.db.QueryContext(ctx,
 		`SELECT payload FROM unit_state WHERE scope = ? ORDER BY unit, variant`, scope)
 	if err != nil {
@@ -236,6 +379,13 @@ func scanUnits(rows *sql.Rows) ([]UnitState, error) {
 // PutDocument records where a document currently lives. The key is its durable
 // identity; the path is only its address, and moves without it.
 func (w *WorkStore) PutDocument(ctx context.Context, key, path string) error {
+	if w.mem != nil {
+		if w.mem.docs[key] == path {
+			return nil
+		}
+		w.mem.docs[key] = path
+		return w.mem.persist()
+	}
 	_, err := w.db.ExecContext(ctx, `
 INSERT INTO document (key, path) VALUES (?, ?)
 ON CONFLICT(key) DO UPDATE SET path = excluded.path`, key, path)
@@ -247,6 +397,11 @@ ON CONFLICT(key) DO UPDATE SET path = excluded.path`, key, path)
 
 // DocumentPaths returns the known documents as key to current path.
 func (w *WorkStore) DocumentPaths(ctx context.Context) (map[string]string, error) {
+	if w.mem != nil {
+		out := make(map[string]string, len(w.mem.docs))
+		maps.Copy(out, w.mem.docs)
+		return out, nil
+	}
 	rows, err := w.db.QueryContext(ctx, `SELECT key, path FROM document ORDER BY key`)
 	if err != nil {
 		return nil, fmt.Errorf("state: list documents: %w", err)
@@ -267,6 +422,15 @@ func (w *WorkStore) DocumentPaths(ctx context.Context) (map[string]string, error
 // Pending reports how many decisions are staged and not yet committed — the
 // "you have N uncommitted decisions" signal.
 func (w *WorkStore) Pending(ctx context.Context) (int, error) {
+	if w.mem != nil {
+		n := 0
+		for _, mu := range w.mem.units {
+			if mu.Staged {
+				n++
+			}
+		}
+		return n, nil
+	}
 	var n int
 	if err := w.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM unit_state WHERE staged = 1`).Scan(&n); err != nil {
 		return 0, fmt.Errorf("state: count staged: %w", err)
@@ -291,6 +455,13 @@ func (w *WorkStore) Commit(ctx context.Context) error {
 	}
 	if err := WriteCommitted(w.committed, units); err != nil {
 		return err
+	}
+	if w.mem != nil {
+		for k, mu := range w.mem.units {
+			mu.Staged = false
+			w.mem.units[k] = mu
+		}
+		return w.mem.persist()
 	}
 	if _, err := w.db.ExecContext(ctx, `UPDATE unit_state SET staged = 0 WHERE staged = 1`); err != nil {
 		return fmt.Errorf("state: clear staged: %w", err)
