@@ -139,6 +139,11 @@ linters:
       # TODO(P06): thread ctx through storage.runMigrations and drop this rule.
       - linters: [contextcheck]
         text: "MigratePostgresNS->runMigrations"
+      # The local SQLite migration runner (storage.Migrate) is the same
+      # deliberate boundary: one-time DDL that must run to completion on a
+      # store that outlives the triggering call. Same P06 effort retires it.
+      - linters: [contextcheck]
+        text: "Migrate->Exec"
       # memory's FTS5/fuzzy index rebuild is a ctx-less local SQLite
       # maintenance API, so compileMemorySource (which does hold a ctx) trips
       # contextcheck when it calls it.

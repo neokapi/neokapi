@@ -5,6 +5,7 @@ package sqlitestore
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -25,9 +26,7 @@ func textBlock(hash, text string, targets map[string][]model.Run) *blockstore.Bl
 	}
 	if targets != nil {
 		b.Targets = map[string][]model.Run{}
-		for k, v := range targets {
-			b.Targets[k] = v
-		}
+		maps.Copy(b.Targets, targets)
 	}
 	return b
 }

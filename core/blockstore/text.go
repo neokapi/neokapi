@@ -2,6 +2,7 @@ package blockstore
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -65,12 +66,7 @@ func (o TextSearchOptions) wants(locale string) bool {
 	if o.Locales == nil {
 		return true
 	}
-	for _, l := range o.Locales {
-		if l == locale {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(o.Locales, locale)
 }
 
 // TextHit is one block's text in one locale, matched by a text search.

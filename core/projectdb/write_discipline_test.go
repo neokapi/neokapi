@@ -116,9 +116,7 @@ func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 	}
 
 	for w := range fatWriters {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			batch := make([]memory.Entry, 0, 25)
 			for n := 0; ctx.Err() == nil; n++ {
 				batch = batch[:0]
@@ -127,12 +125,10 @@ func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 				}
 				record(mem.BulkAddWithStream(ctx, batch, ""))
 			}
-		}()
+		})
 	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		tick := time.NewTicker(dripEvery)
 		defer tick.Stop()
 		for i := 0; ; i++ {
@@ -152,7 +148,7 @@ func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 				other.Add(1)
 			}
 		}
-	}()
+	})
 	wg.Wait()
 
 	assert.Zero(t, busy.Load(), "a write on the gated handle was refused for the lock")
@@ -190,9 +186,7 @@ func TestWriteGate_ServesWritersInArrivalOrder(t *testing.T) {
 	)
 	for i := range waiters {
 		started := make(chan struct{})
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			close(started)
 			if _, err := raw.ExecContext(context.Background(),
 				`INSERT INTO store_meta (key, value) VALUES (?, ?)
@@ -203,7 +197,7 @@ func TestWriteGate_ServesWritersInArrivalOrder(t *testing.T) {
 			mu.Lock()
 			served = append(served, i)
 			mu.Unlock()
-		}()
+		})
 		<-started
 		time.Sleep(20 * time.Millisecond) // let this one reach the queue before the next
 	}

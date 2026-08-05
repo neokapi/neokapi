@@ -574,7 +574,7 @@ func (s *stream) stats() streamStats {
 	defer s.mu.Unlock()
 	sorted := make([]time.Duration, len(s.samples))
 	copy(sorted, s.samples)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	slices.Sort(sorted)
 	st := streamStats{
 		Name: s.name, Ops: s.ops, Busy: s.busy, Other: s.other, Cancelled: s.cancelled,
 		P50: ms(quantile(sorted, 0.50)),
@@ -592,10 +592,7 @@ func quantile(sorted []time.Duration, q float64) time.Duration {
 	if len(sorted) == 0 {
 		return 0
 	}
-	i := int(math.Ceil(q*float64(len(sorted)))) - 1
-	if i < 0 {
-		i = 0
-	}
+	i := max(int(math.Ceil(q*float64(len(sorted))))-1, 0)
 	if i >= len(sorted) {
 		i = len(sorted) - 1
 	}
@@ -1088,13 +1085,11 @@ func runWorkloads(ctx context.Context, root string, p storePaths, cfg config) ([
 	for _, w := range []func(context.Context, *parentStores, config, *recorder) error{
 		convergeSim, memoryRebuildSim, decisionsSim,
 	} {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			if err := w(runCtx, ps, cfg, rec); err != nil {
 				errs <- err
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	close(errs)
@@ -1134,9 +1129,7 @@ func convergeSim(ctx context.Context, ps *parentStores, cfg config, rec *recorde
 
 	var wg sync.WaitGroup
 	for j := range cfg.convergeJ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			locale := locales[j%len(locales)]
 			kind := "targets/" + locale
 			n := 0
@@ -1185,7 +1178,7 @@ func convergeSim(ctx context.Context, ps *parentStores, cfg config, rec *recorde
 				}
 				n++
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	return nil
@@ -1531,18 +1524,22 @@ func printComparison(results []result) {
 
 	fmt.Printf("\n══ COMPARISON (baseline: %s) ═══════════════════════════════════════════\n", base.mode)
 	header := fmt.Sprintf("%-40s", "workload")
+	var headerSb1534 strings.Builder
 	for _, r := range results {
-		header += fmt.Sprintf(" %11s %9s", string(r.mode)+" p95", string(r.mode)+" busy")
+		headerSb1534.WriteString(fmt.Sprintf(" %11s %9s", string(r.mode)+" p95", string(r.mode)+" busy"))
 	}
+	header += headerSb1534.String()
 	header += "     p95 x"
 	fmt.Println(header)
 	fmt.Println(strings.Repeat("─", len(header)+4))
 	for _, name := range order {
 		row := fmt.Sprintf("%-40s", name)
+		var rowSb1542 strings.Builder
 		for _, r := range results {
 			s := byName[name][r.mode]
-			row += fmt.Sprintf(" %11.2f %9d", s.P95, s.Busy)
+			rowSb1542.WriteString(fmt.Sprintf(" %11.2f %9d", s.P95, s.Busy))
 		}
+		row += rowSb1542.String()
 		b := byName[name][base.mode]
 		last := byName[name][results[len(results)-1].mode]
 		ratio := "     n/a"
@@ -1704,7 +1701,7 @@ func measure(ctx context.Context, m topology, cfg config) (result, error) {
 
 func parseModes(s string) ([]topology, error) {
 	var out []topology
-	for _, part := range strings.Split(s, ",") {
+	for part := range strings.SplitSeq(s, ",") {
 		switch m := topology(strings.TrimSpace(part)); m {
 		case topoSplit, topoMerged, topoHybrid, topoWorkApart,
 			topoMergedImmediate, topoMergedGated, topoProjectDB:

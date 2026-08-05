@@ -29,9 +29,7 @@ func TestWriteGate_ServesInArrivalOrder(t *testing.T) {
 	)
 	for i := range waiters {
 		queued := make(chan struct{})
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			close(queued)
 			// The send blocks a hair after `queued` closes; the stagger below
 			// covers the gap, and this test is about order, not about timing.
@@ -42,7 +40,7 @@ func TestWriteGate_ServesInArrivalOrder(t *testing.T) {
 			served = append(served, i)
 			mu.Unlock()
 			g.release()
-		}()
+		})
 		<-queued
 		time.Sleep(20 * time.Millisecond)
 	}

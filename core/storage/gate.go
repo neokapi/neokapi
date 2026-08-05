@@ -135,11 +135,11 @@ func goID() int64 {
 	if !ok {
 		return 0
 	}
-	end := bytes.IndexByte(line, ' ')
-	if end < 0 {
+	before, _, ok0 := bytes.Cut(line, []byte{' '})
+	if !ok0 {
 		return 0
 	}
-	id, err := strconv.ParseInt(string(line[:end]), 10, 64)
+	id, err := strconv.ParseInt(string(before), 10, 64)
 	if err != nil {
 		return 0
 	}
