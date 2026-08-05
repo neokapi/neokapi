@@ -1,13 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -137,16 +137,16 @@ func TestHandleReviewDecision_ApproveRejectSignOff(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, queue.Total)
 
-	// Identities and the note are committed to the state artifact.
-	data, err := os.ReadFile(filepath.Join(root, ".kapi-state.json"))
+	// Identities and the note reach the committed record via the explicit
+	// commit — decisions stage in the working store, and `kapi commit` is the
+	// only door into the git-tracked shards under .kapi/units/.
+	_, err = host.CommitProjectState(t.Context(), root)
 	require.NoError(t, err)
-	var f struct {
-		Units []state.UnitState `json:"units"`
-	}
-	require.NoError(t, json.Unmarshal(data, &f))
-	require.Len(t, f.Units, 2)
+	units, err := state.ReadCommitted(filepath.Join(root, ".kapi", "units"))
+	require.NoError(t, err)
+	require.Len(t, units, 2)
 	byUnit := map[string]state.UnitState{}
-	for _, u := range f.Units {
+	for _, u := range units {
 		byUnit[u.Unit] = u
 	}
 	assert.Equal(t, "agent/claude-code", byUnit[first.Key].Decision.By)

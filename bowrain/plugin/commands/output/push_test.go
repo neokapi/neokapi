@@ -16,15 +16,16 @@ func TestPushOutput_FormatText_LoopFooter(t *testing.T) {
 		{
 			name: "on-push footer with web destinations",
 			out: PushOutput{
-				BlocksPushed: 12,
-				WordCount:    240,
-				FilesScanned: 3,
-				Converge:     "on-push",
-				ProjectURL:   "https://bowrain.example.com/acme/p/proj123/s/main",
-				ReviewURL:    "https://bowrain.example.com/acme/tasks",
+				BlocksPushed:   12,
+				BlocksUploaded: 12,
+				WordCount:      240,
+				FilesScanned:   3,
+				Converge:       "on-push",
+				ProjectURL:     "https://bowrain.example.com/acme/p/proj123/s/main",
+				ReviewURL:      "https://bowrain.example.com/acme/tasks",
 			},
 			contains: []string{
-				"Pushed 12 blocks, 240 words (scanned 3 files)",
+				"Pushed 12 blocks (12 uploaded), 240 words (scanned 3 files)",
 				"Convergence: on-push — the server now translates, checks, and queues review for this push",
 				"Project: https://bowrain.example.com/acme/p/proj123/s/main",
 				"Review:  https://bowrain.example.com/acme/tasks",

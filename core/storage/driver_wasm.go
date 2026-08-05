@@ -3,7 +3,7 @@
 package storage
 
 import (
-	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -24,8 +24,7 @@ const sqliteDriver = "sqlite"
 // (forgotten import?)`, which reads like a missing blank import in kapi rather
 // than a deliberate property of the browser build.
 func driverUnavailable() error {
-	return errors.New("a file-backed SQLite database is not available in the browser build; " +
-		"the browser runs against the in-memory content memory and terms seeded from the lab fixtures")
+	return fmt.Errorf("%w; the browser runs against the in-memory content memory and terms seeded from the lab fixtures", ErrNoSQLite)
 }
 
 // FTSWordTokenizer is unused on wasm (no SQLite); declared for build parity

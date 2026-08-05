@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T19:11:14Z",
+  "generatedAt": "2026-08-05T00:07:13Z",
   "commands": [
     {
       "id": "add",
@@ -896,6 +896,27 @@
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
+      "demoMode": false
+    },
+    {
+      "id": "commit",
+      "path": [
+        "commit"
+      ],
+      "use": "commit",
+      "short": "Write staged decisions into the project's committed record",
+      "long": "Write decisions recorded since the last commit into the project's committed\nrecord — the JSON Lines shards under the state directory that git tracks.\n\nRecording a decision and publishing it are separate acts. A decision is durable\nthe moment it is made; committing is what puts it in the record a reviewer reads,\nso a run of automated approvals does not land in the tracked record before anyone\nhas looked at it.\n\n'kapi status' reports what is staged.",
+      "groupID": "work",
+      "flags": [
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "offlineCapable": true,
+      "runnableInBrowser": false,
       "demoMode": false
     },
     {

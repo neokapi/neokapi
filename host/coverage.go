@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"errors"
+	"github.com/neokapi/neokapi/core/storage"
 	"math"
 
 	"github.com/neokapi/neokapi/core/check"
@@ -212,6 +213,12 @@ func (a *App) loadReviewedCorrections(ctx context.Context, proj *project.KapiPro
 	}
 	st, err := openProjectState(ctx, root)
 	if err != nil {
+		// The browser build has no file-backed SQLite by design, and status
+		// must still answer there — with no local decisions, which is exactly
+		// what an empty index says. Any other open failure is real.
+		if errors.Is(err, storage.ErrNoSQLite) {
+			return idx, nil
+		}
 		return idx, err
 	}
 	defer st.Close()
