@@ -190,11 +190,11 @@ func (tm *SQLiteStore) BulkAddWithStream(ctx context.Context, entries []Entry, s
 //
 // Until this is called, fuzzy lookups fall back to length-filtered
 // scanning over tm_variants, which is functional but slower on huge Memories.
-func (tm *SQLiteStore) RebuildFuzzyIndex() error {
-	if _, err := tm.db.ExecContext(context.Background(), `DELETE FROM tm_variant_trigram`); err != nil {
+func (tm *SQLiteStore) RebuildFuzzyIndex(ctx context.Context) error {
+	if _, err := tm.db.ExecContext(ctx, `DELETE FROM tm_variant_trigram`); err != nil {
 		return fmt.Errorf("clear fuzzy index: %w", err)
 	}
-	if _, err := tm.db.ExecContext(context.Background(), `INSERT INTO tm_variant_trigram
+	if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_variant_trigram
 		(plain, struct_key, general_key, locale, entry_id)
 		SELECT plain, struct_key, general_key, locale, entry_id FROM tm_variants`); err != nil {
 		return fmt.Errorf("rebuild fuzzy index: %w", err)
@@ -207,11 +207,11 @@ func (tm *SQLiteStore) RebuildFuzzyIndex() error {
 // RebuildFuzzyIndex this is a post-bulk-load step — the bulk path
 // deliberately skips per-row FTS5 inserts because FTS5 ICU
 // tokenization is expensive.
-func (tm *SQLiteStore) RebuildSearchIndex() error {
-	if _, err := tm.db.ExecContext(context.Background(), `DELETE FROM tm_variant_search`); err != nil {
+func (tm *SQLiteStore) RebuildSearchIndex(ctx context.Context) error {
+	if _, err := tm.db.ExecContext(ctx, `DELETE FROM tm_variant_search`); err != nil {
 		return fmt.Errorf("clear search index: %w", err)
 	}
-	if _, err := tm.db.ExecContext(context.Background(), `INSERT INTO tm_variant_search
+	if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_variant_search
 		(text, locale, entry_id)
 		SELECT plain, locale, entry_id FROM tm_variants`); err != nil {
 		return fmt.Errorf("rebuild search index: %w", err)

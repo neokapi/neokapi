@@ -12,7 +12,8 @@ import (
 
 // sweepPredecessors retires the four-file layout the merged store replaces:
 // `memory.db`, `terms.db`, `cache/blocks.db` with its two stamp sidecars, and
-// `work/state.db`.
+// `work/state.db` — plus `tm.db` and `termbase.db`, the spellings the
+// vocabulary sweep renamed out of existence one layout earlier.
 //
 // Only staged decisions are carried forward. Everything else in those files is
 // a projection of a committed source — the content memory rebuilds from the
@@ -29,29 +30,54 @@ import (
 // Best-effort throughout. A predecessor file that will not delete is not worth
 // failing a project open over, and the deletions are all idempotent — the sweep
 // costs four stats on every subsequent open and finds nothing.
+//
+// The retired names are spelled here rather than read from core/project's
+// layout: they name files no live code path writes any more, so they are this
+// package's business alone. Leaving constants for them in the layout would
+// invite a new caller to reach for one.
 func sweepPredecessors(ctx context.Context, layout project.Layout, into *DB) {
 	carryStagedForward(ctx, layout, into)
 
-	remove := []string{
-		filepath.Join(layout.StateDir, project.MemoryFileName),
-		filepath.Join(layout.StateDir, project.TermsFileName),
-		layout.BlockStorePath(),
-		layout.WorkStorePath(),
+	blocks := oldBlockStorePath(layout)
+	remove := []string{blocks, oldWorkStorePath(layout)}
+	for _, name := range oldStateDirDatabases {
+		remove = append(remove, filepath.Join(layout.StateDir, name))
 	}
 	for _, path := range remove {
 		removeDatabase(path)
 	}
 	// The block store's stamps moved into the store_meta table; its sidecars
 	// are named after the database file that no longer exists.
-	_ = os.Remove(project.BlockStoreVersionStampPath(layout.BlockStorePath()))
-	_ = os.Remove(project.BlockStoreSourceStampsPath(layout.BlockStorePath()))
+	_ = os.Remove(blocks + ".kapiversion")
+	_ = os.Remove(blocks + ".sources.json")
 	// The browser build's predecessor sidecar, and the partial write its
 	// atomic-rename persist can leave behind.
 	_ = os.Remove(oldWorkSidecarPath(layout))
 	_ = os.Remove(oldWorkSidecarPath(layout) + ".tmp")
 	// Removes the work directory only once it is empty, which is the point:
 	// anything else that ended up in there is not ours to delete.
-	_ = os.Remove(layout.WorkDir())
+	_ = os.Remove(oldWorkDir(layout))
+}
+
+// oldStateDirDatabases are the top-level state-directory databases the merged
+// store replaces, in both spellings they ever had: `memory.db`/`terms.db` from
+// the four-file layout, and the `tm.db`/`termbase.db` the vocabulary sweep
+// renamed before that. A project skipping a release meets the older pair, so
+// both generations are listed.
+var oldStateDirDatabases = []string{"memory.db", "terms.db", "tm.db", "termbase.db"}
+
+const oldWorkDirName = "work"
+
+func oldBlockStorePath(layout project.Layout) string {
+	return filepath.Join(layout.CacheDir(), "blocks.db")
+}
+
+func oldWorkDir(layout project.Layout) string {
+	return filepath.Join(layout.StateDir, oldWorkDirName)
+}
+
+func oldWorkStorePath(layout project.Layout) string {
+	return filepath.Join(oldWorkDir(layout), "state.db")
 }
 
 // removeDatabase deletes a SQLite database and the WAL sidecars that outlive an
@@ -67,7 +93,7 @@ func removeDatabase(path string) {
 // sidecar on a build with no SQLite driver: beside the database it stood in
 // for, named for it.
 func oldWorkSidecarPath(layout project.Layout) string {
-	db := layout.WorkStorePath()
+	db := oldWorkStorePath(layout)
 	return strings.TrimSuffix(db, filepath.Ext(db)) + ".json"
 }
 
@@ -101,8 +127,8 @@ func carryStagedForward(ctx context.Context, layout project.Layout, into *DB) {
 // behind — the database, or the browser build's sidecar — without creating one
 // that was not there.
 func openPredecessorWork(ctx context.Context, layout project.Layout) (*state.WorkStore, bool) {
-	if exists(layout.WorkStorePath()) {
-		w, err := state.OpenWork(ctx, layout.WorkStorePath(), layout.UnitsDir())
+	if exists(oldWorkStorePath(layout)) {
+		w, err := state.OpenWork(ctx, oldWorkStorePath(layout), layout.UnitsDir())
 		if err != nil {
 			return nil, false
 		}

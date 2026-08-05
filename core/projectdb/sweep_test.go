@@ -14,22 +14,40 @@ import (
 	"github.com/neokapi/neokapi/core/state"
 )
 
+// The predecessor layout, spelled here as the test's own fixture. The names are
+// no longer constants anywhere: core/projectdb keeps private copies precisely so
+// nothing live can reach for one, and a test that borrowed them would assert
+// against the implementation rather than against the disk.
+func oldBlockStorePath(layout project.Layout) string {
+	return filepath.Join(layout.CacheDir(), "blocks.db")
+}
+
+func oldWorkDir(layout project.Layout) string {
+	return filepath.Join(layout.StateDir, "work")
+}
+
+func oldWorkStorePath(layout project.Layout) string {
+	return filepath.Join(oldWorkDir(layout), "state.db")
+}
+
 // predecessorFiles lists everything the four-file layout left in a state
-// directory, as paths relative to it.
+// directory, plus the two spellings the vocabulary sweep retired before it.
 func predecessorFiles(layout project.Layout) []string {
-	blocks := layout.BlockStorePath()
-	return []string{
-		filepath.Join(layout.StateDir, project.MemoryFileName),
-		filepath.Join(layout.StateDir, project.MemoryFileName+"-wal"),
-		filepath.Join(layout.StateDir, project.TermsFileName),
-		filepath.Join(layout.StateDir, project.TermsFileName+"-wal"),
+	blocks := oldBlockStorePath(layout)
+	files := []string{
 		blocks,
 		blocks + "-wal",
-		project.BlockStoreVersionStampPath(blocks),
-		project.BlockStoreSourceStampsPath(blocks),
-		layout.WorkStorePath(),
-		layout.WorkStorePath() + "-wal",
+		blocks + ".kapiversion",
+		blocks + ".sources.json",
+		oldWorkStorePath(layout),
+		oldWorkStorePath(layout) + "-wal",
 	}
+	for _, name := range []string{"memory.db", "terms.db", "tm.db", "termbase.db"} {
+		files = append(files,
+			filepath.Join(layout.StateDir, name),
+			filepath.Join(layout.StateDir, name+"-wal"))
+	}
+	return files
 }
 
 // writePredecessorLayout materialises the four-file layout. The contents do not
@@ -39,7 +57,7 @@ func predecessorFiles(layout project.Layout) []string {
 func writePredecessorLayout(t *testing.T, layout project.Layout) {
 	t.Helper()
 	require.NoError(t, os.MkdirAll(layout.CacheDir(), 0o755))
-	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
+	require.NoError(t, os.MkdirAll(oldWorkDir(layout), 0o755))
 	for _, path := range predecessorFiles(layout) {
 		if _, err := os.Stat(path); err == nil {
 			continue
@@ -53,7 +71,7 @@ func assertPredecessorsGone(t *testing.T, layout project.Layout) {
 	for _, path := range predecessorFiles(layout) {
 		assert.NoFileExists(t, path)
 	}
-	assert.NoDirExists(t, layout.WorkDir(), "the work directory goes once it is empty")
+	assert.NoDirExists(t, oldWorkDir(layout), "the work directory goes once it is empty")
 }
 
 // A staged decision is the one thing a predecessor working store holds that no
@@ -68,7 +86,7 @@ func TestSweep_CarriesStagedDecisionsForward(t *testing.T) {
 		unit("u-committed", "d-intro", "Already committed"),
 	}))
 
-	old, err := state.OpenWork(t.Context(), layout.WorkStorePath(), layout.UnitsDir())
+	old, err := state.OpenWork(t.Context(), oldWorkStorePath(layout), layout.UnitsDir())
 	require.NoError(t, err)
 	require.NoError(t, old.Put(t.Context(), unit("u-staged", "d-intro", "Staged, never committed")))
 	pending, err := old.Pending(t.Context())
@@ -101,9 +119,9 @@ func TestSweep_CarriesStagedDecisionsForward(t *testing.T) {
 // stood in for. Same contract: staged decisions come across, the file goes.
 func TestSweep_CarriesStagedDecisionsFromSidecar(t *testing.T) {
 	layout := newLayout(t)
-	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
+	require.NoError(t, os.MkdirAll(oldWorkDir(layout), 0o755))
 
-	sidecar := filepath.Join(layout.WorkDir(), "state.json")
+	sidecar := filepath.Join(oldWorkDir(layout), "state.json")
 	old, err := state.OpenWorkSidecar(t.Context(), sidecar, layout.UnitsDir())
 	require.NoError(t, err)
 	require.NoError(t, old.Put(t.Context(), unit("u-sidecar", "d-intro", "Staged in the browser")))
@@ -118,7 +136,7 @@ func TestSweep_CarriesStagedDecisionsFromSidecar(t *testing.T) {
 	assert.Equal(t, "u-sidecar", staged[0].Unit)
 
 	assert.NoFileExists(t, sidecar)
-	assert.NoDirExists(t, layout.WorkDir())
+	assert.NoDirExists(t, oldWorkDir(layout))
 }
 
 // No predecessor is the ordinary case, and the common one after the first
@@ -130,7 +148,7 @@ func TestSweep_NoPredecessorIsNoOp(t *testing.T) {
 	pending, err := db.Work().Pending(t.Context())
 	require.NoError(t, err)
 	assert.Zero(t, pending)
-	assert.NoDirExists(t, layout.WorkDir())
+	assert.NoDirExists(t, oldWorkDir(layout))
 
 	// Re-opening finds nothing to sweep and changes nothing.
 	require.NoError(t, db.Close())
@@ -157,14 +175,14 @@ func TestSweep_RunsOnEveryOpen(t *testing.T) {
 func TestSweep_LeavesUnrecognisedWorkDirContents(t *testing.T) {
 	layout := newLayout(t)
 	writePredecessorLayout(t, layout)
-	stray := filepath.Join(layout.WorkDir(), "notes.txt")
+	stray := filepath.Join(oldWorkDir(layout), "notes.txt")
 	require.NoError(t, os.WriteFile(stray, []byte("mine"), 0o644))
 
 	openStore(t, layout)
 
 	assert.FileExists(t, stray)
-	assert.DirExists(t, layout.WorkDir())
-	assert.NoFileExists(t, layout.WorkStorePath(), "the store this package owns still goes")
+	assert.DirExists(t, oldWorkDir(layout))
+	assert.NoFileExists(t, oldWorkStorePath(layout), "the store this package owns still goes")
 }
 
 // A predecessor working store that will not open must not fail the project
@@ -172,13 +190,13 @@ func TestSweep_LeavesUnrecognisedWorkDirContents(t *testing.T) {
 // about to be deleted.
 func TestSweep_UnreadablePredecessorDoesNotFailOpen(t *testing.T) {
 	layout := newLayout(t)
-	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
-	require.NoError(t, os.WriteFile(layout.WorkStorePath(), []byte("this is not a database"), 0o644))
+	require.NoError(t, os.MkdirAll(oldWorkDir(layout), 0o755))
+	require.NoError(t, os.WriteFile(oldWorkStorePath(layout), []byte("this is not a database"), 0o644))
 
 	db, err := projectdb.Open(t.Context(), layout)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
 	require.NotNil(t, db.Work())
-	assert.NoFileExists(t, layout.WorkStorePath())
+	assert.NoFileExists(t, oldWorkStorePath(layout))
 }

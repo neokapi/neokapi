@@ -131,8 +131,9 @@ type ProfileBinding struct {
 	// forms as defaults.brand_voice (a bare path, or profile_file / profile /
 	// pack). nil keeps defaults.brand_voice.
 	Voice *BrandVoiceBinding `yaml:"voice,omitempty" json:"voice,omitempty"`
-	// Terms is the approved vocabulary for the matched content, resolved
-	// relative to the project root. Empty keeps defaults.terms.
+	// Terms is a STANDALONE terms store governing the matched content — a
+	// file the recipe points at, resolved relative to the project root. Empty
+	// is the ordinary case: the project's own store governs.
 	Terms string `yaml:"terms,omitempty" json:"terms,omitempty"`
 }
 
@@ -150,8 +151,9 @@ type ResolvedGovernance struct {
 	// Voice is the matched profile's voice, else defaults.brand_voice. nil
 	// when neither binds one.
 	Voice *BrandVoiceBinding
-	// Terms is the matched profile's terms, else defaults.terms. As written in
-	// the recipe — relative to the project root unless absolute.
+	// Terms is the matched profile's standalone terms store, as written in the
+	// recipe — relative to the project root unless absolute. Empty means the
+	// project's own store governs, which is the ordinary case.
 	Terms string
 	// VoiceField names the recipe key Voice came from (`profiles[1].voice` or
 	// `defaults.brand_voice`), so a profile that cannot be loaded names the
@@ -161,7 +163,7 @@ type ResolvedGovernance struct {
 
 // ResolveGovernance returns the governance in force over the named content
 // collection: the most specific profile matching its coordinates, resolved over
-// defaults.brand_voice / defaults.terms.
+// defaults.brand_voice.
 //
 // An empty or unknown collection name resolves the project's default point, so
 // a caller holding a path no collection claims — an ad-hoc file, a pattern that
@@ -186,7 +188,6 @@ func (p *KapiProject) resolveAt(coords map[string]string, subject string) (*Reso
 	rc := &ResolvedGovernance{
 		Channel:    coords[ChannelAxis],
 		Voice:      p.Defaults.BrandVoice,
-		Terms:      p.Defaults.Terms,
 		VoiceField: defaultVoiceField,
 	}
 	i, prof, err := p.selectProfile(coords, subject)

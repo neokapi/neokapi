@@ -21,7 +21,6 @@ func twoProductProject() *KapiProject {
 		Defaults: Defaults{
 			SourceLanguage: "en",
 			BrandVoice:     &BrandVoiceBinding{ProfileFile: "context/base-voice.yaml"},
-			Terms:          ".kapi/terms.db",
 		},
 		Coordinates: Coordinates{
 			"product": {{ID: "kapi"}, {ID: "bowrain", Concept: "term:9a1c0f42b7"}},
@@ -87,25 +86,24 @@ func TestKapiProject_ResolveGovernance(t *testing.T) {
 		{
 			name:       "empty name sits at the project default point",
 			collection: "",
-			want:       ResolvedGovernance{Voice: base, Terms: ".kapi/terms.db", VoiceField: "defaults.brand_voice"},
+			want:       ResolvedGovernance{Voice: base, VoiceField: "defaults.brand_voice"},
 		},
 		{
 			name:       "unknown name sits at the project default point",
 			collection: "no-such-collection",
-			want:       ResolvedGovernance{Voice: base, Terms: ".kapi/terms.db", VoiceField: "defaults.brand_voice"},
+			want:       ResolvedGovernance{Voice: base, VoiceField: "defaults.brand_voice"},
 		},
 		{
 			name:       "a collection declaring no coordinates inherits",
 			collection: "emails",
-			want:       ResolvedGovernance{Voice: base, Terms: ".kapi/terms.db", VoiceField: "defaults.brand_voice"},
+			want:       ResolvedGovernance{Voice: base, VoiceField: "defaults.brand_voice"},
 		},
 		{
-			name:       "a matched profile binding no terms keeps the project's",
+			name:       "a matched profile binding no terms leaves the project store governing",
 			collection: "docs",
 			want: ResolvedGovernance{
 				Channel:    "docs",
 				Voice:      &BrandVoiceBinding{ProfileFile: "context/kapi-voice.yaml"},
-				Terms:      ".kapi/terms.db",
 				VoiceField: "profiles[0].voice",
 			},
 		},
@@ -152,12 +150,12 @@ func TestKapiProject_ResolveGovernance(t *testing.T) {
 // TestKapiProject_ResolveGovernance_BaseProfile covers the `when: {}` base: it
 // governs every point no profile claims more specifically, and always loses to
 // one that does. It also pins what "wins" means — one profile governs, and what
-// it leaves unbound comes from the project defaults, not from the broader
+// it leaves unbound stays unbound, rather than being inherited from the broader
 // profile it beat.
 func TestKapiProject_ResolveGovernance_BaseProfile(t *testing.T) {
 	proj := &KapiProject{
-		Version:     "v1",
-		Defaults:    Defaults{Terms: "project-terms.json"},
+		Version: "v1",
+
 		Coordinates: Coordinates{"product": {{ID: "kapi"}, {ID: "bowrain"}}},
 		Profiles: []ProfileBinding{
 			{Voice: &BrandVoiceBinding{ProfileFile: "base.yaml"}, Terms: "base-terms.json"},
@@ -185,8 +183,8 @@ func TestKapiProject_ResolveGovernance_BaseProfile(t *testing.T) {
 	platform, err := proj.ResolveGovernance("platform")
 	require.NoError(t, err)
 	assert.Equal(t, "bowrain.yaml", platform.Voice.ProfileFile, "a non-empty match beats the base")
-	assert.Equal(t, "project-terms.json", platform.Terms,
-		"the winning profile binds no terms, so the project defaults apply — profiles select, they do not layer")
+	assert.Empty(t, platform.Terms,
+		"the winning profile binds no terms, so the project's own store governs — profiles select, they do not layer")
 }
 
 // TestKapiProject_ResolveGovernance_NoProfiles covers the project that declares
