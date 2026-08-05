@@ -535,10 +535,10 @@ export class Defaults {
              * TermsSource binds the committed, git-tracked native source artifact
              * (a .terms.json document) the project terms store is compiled from. This is the
              * authored, reviewable form: `kapi apply` edits the .terms.json here and then
-             * re-imports it into the gitignored Terms (.db) cache, so the SQLite
-             * store is written by exactly one path and `git diff` is the review
+             * re-imports it into the gitignored terms tables inside `.kapi/store.db`,
+             * so the store is written by exactly one path and `git diff` is the review
              * surface. The path resolves relative to the project root. Empty means no
-             * bound source (the .db cache, if any, is the only artifact).
+             * bound source (whatever the store already holds is the only artifact).
              * @member
              * @type {string | undefined}
              */
@@ -920,7 +920,7 @@ export class KapiProject {
              * the wrong one half the time. The taxonomy is the project's own — product,
              * channel, market, tenant — and a named collection names the point its
              * content sits at (ContentCollection.Context). Both empty means the whole
-             * project sits at one point, under defaults.brand_voice / defaults.terms.
+             * project sits at one point, under defaults.brand_voice / defaults.terms_source.
              * See coordinates.go.
              * @member
              * @type {Coordinates | undefined}

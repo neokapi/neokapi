@@ -60,10 +60,9 @@ stays committed.
 
 Because the graph tables live beside the block, terms and memory tables, a
 project answers graph questions without a server: which blocks use this term,
-in which collection, at which coordinate. Local and connected projects converge
-in shape — a Bowrain server answers the same query shapes over one Postgres
-spanning workspaces, projects and streams, and a local project answers them
-over `store.db` with those dimensions fixed to a single value. See
+in which collection, at which coordinate. A connected project answers the same
+query shapes server-side across more dimensions; locally they are fixed to a
+single value. See
 [AD-039: The Local Context Graph Store](/contribute/architecture/039-local-context-graph-store).
 
 ## Two stages: working, then ship
