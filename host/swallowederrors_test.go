@@ -258,7 +258,7 @@ func TestAbsorbStoreTargets_NotFoundIsAbsenceNotFailure(t *testing.T) {
 }
 
 // TestHydrateTargets_StoreReadFailureFailsTheRun: the same conflation on the
-// output-writing side. A locked or corrupt blocks.db made the merge write the
+// output-writing side. A locked or corrupt block store made the merge write the
 // SOURCE text into the target file and report it applied — a silently
 // untranslated deliverable.
 func TestHydrateTargets_StoreReadFailureFailsTheRun(t *testing.T) {

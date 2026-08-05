@@ -93,7 +93,7 @@ func WithImmutabilityCheck(enabled bool) ExecutorOption {
 
 // WithBlockStore sets the BlockStore used for SessionTool dispatch.
 // Defaults to blockstore.NewMemoryStore(). Pass a persistent store
-// (e.g. sqlitestore.New for a project's .kapi/cache/blocks.db) to enable
+// (e.g. the block cache inside a project's .kapi/store.db) to enable
 // incremental work across runs.
 func WithBlockStore(store blockstore.Store) ExecutorOption {
 	return func(cfg *ExecutorConfig) {

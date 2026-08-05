@@ -56,7 +56,7 @@ func TestUnitsFromProject_ExpandsPathToken(t *testing.T) {
 // the shared coverage engine agree: the CLI's file-scan derivation
 // (ComputeShipCoverage over working-tree reads) and the desktop status
 // panel's block-store derivation (convergence.TallyBlockStore over
-// `.kapi/cache/blocks.db`) produce identical LocaleCoverage rows — and the
+// the block cache in `.kapi/store.db`) produce identical LocaleCoverage rows — and the
 // same absolute translated counts the desktop renders — for the same
 // underlying data.
 func TestCoverageParity_FileScanVsBlockStore(t *testing.T) {

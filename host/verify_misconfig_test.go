@@ -12,7 +12,8 @@ import (
 )
 
 // writeUnboundProject creates a project that binds neither a brand voice nor a
-// terms (and has no convention brand.yaml / .kapi/terms.db), with a clean
+// terms (and has no convention brand.yaml, no committed terms source, and no
+// concept in its store), with a clean
 // en→fr translation so the QA gate passes. The brand and terminology gates have
 // no binding to run against.
 func writeUnboundProject(t *testing.T) string {
@@ -92,7 +93,8 @@ func TestVerify_ExplicitTermsUnboundFails(t *testing.T) {
 	require.True(t, ok, "the terminology gate must appear as a misconfig failure")
 	assert.False(t, g.Pass)
 	require.NotEmpty(t, g.Findings)
-	assert.Contains(t, g.Findings[0].Message, "defaults.terms")
+	assert.Contains(t, g.Findings[0].Message, "defaults.terms_source",
+		"the suggestion must name a recipe key that exists")
 	require.Len(t, out.Gates, 1)
 }
 
