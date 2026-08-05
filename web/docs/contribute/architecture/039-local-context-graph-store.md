@@ -2,7 +2,7 @@
 id: 039-local-context-graph-store
 sidebar_position: 39
 title: "AD-039: The Local Context Graph Store"
-description: "Architecture decision: a kapi project keeps one local database, .kapi/store.db — the local projection of the project's committed context and the substrate of its context graph. Every subsystem's tables share the file, a property graph relates them, and the same queries answer locally and on the server."
+description: "Architecture decision: a kapi project keeps one local database, .kapi/work/store.db — the local projection of the project's committed context and the substrate of its context graph. Every subsystem's tables share the file, a property graph relates them, and the same queries answer locally and on the server."
 keywords: [store.db, context graph, graph_nodes, graph_edges, project store, local projection, coordinates, durable identity, neokapi, architecture decision]
 ---
 
@@ -10,9 +10,9 @@ keywords: [store.db, context graph, graph_nodes, graph_edges, project store, loc
 
 ## Summary
 
-A kapi project keeps **one** local database: `.kapi/store.db`. It is the local
-**projection** of the project's committed context — never its truth — and the
-substrate of the project's **context graph**.
+A kapi project keeps **one** local database: `.kapi/work/store.db`. It is the
+local **projection** of the project's committed context — never its truth — and
+the substrate of the project's **context graph**.
 
 Every subsystem's tables share that one file: the block cache, the terms store,
 the content memory, the unit-state working set, and a property graph
@@ -43,14 +43,14 @@ platform ([AD-033](033-project-state-model.md)).
 
 ### One file, many subsystems
 
-`.kapi/store.db` holds:
+`.kapi/work/store.db` holds:
 
 | Tables | Subsystem | Derived from |
 | --- | --- | --- |
 | block cache | `core/blockstore` ([AD-008](008-project-model.md)) | the content files |
 | terms | `terms/` ([AD-010](010-terminology.md)) | the committed `.terms.json` |
 | content memory | `memory/` ([AD-009](009-content-memory.md)) | the committed target files plus an optional `.memory.json` seed |
-| unit-state working set | `core/state` ([AD-033](033-project-state-model.md)) | the committed `.kapi/units/*.jsonl` shards |
+| unit-state working set | `core/state` ([AD-033](033-project-state-model.md)) | the committed `.kapi/context/decisions/*.jsonl` shards |
 | `graph_nodes`, `graph_edges` | `host/storage/graph` | the four above |
 
 Each subsystem owns its own schema and its own migration ledger
@@ -62,29 +62,37 @@ coupling: a subsystem still reaches its tables only through its own interface.
 
 `store.db` is an **index**, and every row in it is reconstructible:
 
-- `context/terms.json` — the terms source, bound by `defaults.terms_source`.
-- `context/memory.json` — a content-memory seed, bound by `defaults.memory_source`.
-- `.kapi/units/*.jsonl` — the committed unit-decision record, one shard per
-  document.
+- `.kapi/context/terms.json` — the terms source, bound by `defaults.terms_source`.
+- `.kapi/context/memory.json` — a content-memory seed, bound by
+  `defaults.memory_source`.
+- `.kapi/context/decisions/*.jsonl` — the committed decision record, one shard
+  per document.
 - the content files themselves — source and target.
 
 Delete `store.db` and a re-run rebuilds it from those. Nothing authoritative
-lives only in the database, which is why the database is not committed:
-`.kapi/.gitignore` carries `cache/` and the `*.db*` patterns, while
-`.kapi/units/` stays tracked.
+lives only in the database, which is why it sits under `.kapi/work/` — the one
+gitignored path ([AD-008](008-project-model.md)) — while the sources it is built
+from are committed one directory over.
 
-### It sits at the top of `.kapi/`, not under `cache/`
+### It sits at the top of `work/`, not under `cache/`
 
-`.kapi/cache/` means *free to delete*: parse cache, extraction batches,
+`.kapi/work/cache/` means *free to delete*: parse cache, extraction batches,
 collection overlays, sync cache. `store.db` does not qualify, and by exactly one
 margin. Between a review decision landing and `kapi commit` materializing it to
-`.kapi/units/`, the working set inside `store.db` holds the **only** copy of that
-staged decision.
+`.kapi/context/decisions/`, the working set inside `store.db` holds the **only**
+copy of that staged decision.
 
 So the cost of losing the file is bounded and stated precisely: at most the
 decisions staged since the last commit. Everything else rebuilds. `rm -rf
-.kapi/cache` remains completely free, and keeping the two apart is what lets that
-sentence stay true.
+.kapi/work/cache` remains completely free, and keeping the two apart is what lets
+that sentence stay true.
+
+Deleting `.kapi/work` outright is a wider claim, because the redaction vault
+([AD-020](020-redaction.md)) lives beside the database at `.kapi/work/vault/` and
+holds the withheld originals. Those are local-only by design — never committed,
+never synced — so nothing else has a copy, and losing them is not a rebuild but
+a loss. `work/` groups the derived and the deliberately-local under one ignore
+rule; only `cache/` inside it carries the unconditional promise.
 
 ### Presence is table-level
 
@@ -157,7 +165,7 @@ when the project connects.
 
 There is no SQLite in the browser build. The model is unchanged and the backends
 differ: in-memory content memory and terms, a path-keyed in-memory block store,
-and a working set that persists to a JSON sidecar, `.kapi/store.json`. The same
+and a working set that persists to a JSON sidecar, `.kapi/work/store.json`. The same
 sources rebuild it, and the same graph relations hold.
 
 ## Consequences
@@ -173,7 +181,7 @@ sources rebuild it, and the same graph relations hold.
   database. Standalone stores outside a project keep their own selectors
   (`--termstore`, `--memory`) — those address a file the user owns, which is a
   different thing.
-- **CI caches `.kapi/cache/`, not `store.db`.** The database carries staged
+- **CI caches `.kapi/work/cache/`, not `store.db`.** The database carries staged
   decisions, and a cache key that restores stale decisions is worse than a cold
   rebuild ([Convergence in CI](/kapi/convergence-in-ci)).
 

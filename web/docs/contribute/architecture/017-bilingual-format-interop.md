@@ -18,7 +18,7 @@ neokapi's **native interchange format is the lossless bilingual `.kpz`**
 (for recipients working in kapi or the standalone neokapi review tool);
 **XLIFF 2.x / PO** is the industry-interop tier for third-party CAT
 tools. Block identity is the merge key; segmentation is an opt-in
-overlay. The project's `.kapi/cache/extractions/<id>/` directory
+overlay. The project's `.kapi/work/cache/extractions/<id>/` directory
 is the source of truth for skeleton bookkeeping so the round-trip is
 deterministic and portable via `git`.
 
@@ -43,7 +43,7 @@ Every data exchange kapi touches falls into one of six categories:
 | 3   | **Bilingual exchange** | Out/In                   | **Bilingual `.kpz`** (neokapi-native, lossless — for a kapi-equipped translator/reviewer); **XLIFF 2.x, PO** (industry interop); XLIFF 1.2, Qt TS, XLSX-bilingual, SRT, TTML as format support |
 | 4   | **Content memory**     | In (loop) / Out/In (TMX) | Project content memory (`memory/`), TMX for interop                                                  |
 | 5   | Terminology            | In (loop) / Out/In       | Project terms store (`terms/`), TBX/CSV/JSON                                                         |
-| 6   | Project portability    | Out/In                   | project folder (`kapi.yaml` recipe + `.kapi/` state)                                                 |
+| 6   | Project portability    | Out/In                   | project folder (`kapi.yaml` recipe + committed `.kapi/`)                                                 |
 
 Boundary 3 is the headline gap this AD closes; **boundary 4 is the
 silent one**. The memory exists, TMX ships in and out, but the loop that
@@ -137,7 +137,7 @@ Every project-aware kapi command resolves `-p` in this order:
 1. Explicit `-p <path>` flag
 2. `KAPI_PROJECT` env var
 3. `project.ResolveLayout(cwd)` — git-style upward walk for the
-   `kapi.yaml` recipe + adjacent `.kapi/` state directory
+   `kapi.yaml` recipe + adjacent committed `.kapi/` directory
 4. Fallthrough: one-shot mode (commands that support it) or error
    "not a kapi project" (commands that require one, e.g. `merge`)
 
@@ -216,7 +216,7 @@ method on the `ContentMemory` interface.
 
 ### Skeleton portability (project-state only, v1)
 
-V1 stores skeletons in project state (`.kapi/cache/extractions/<id>/`).
+V1 stores skeletons in project state (`.kapi/work/cache/extractions/<id>/`).
 Merge therefore requires the same `.kapi` project that produced the
 extraction. The emitted XLIFF / PO is clean, CAT-friendly, and small.
 
@@ -228,7 +228,7 @@ forever.
 ### Extraction manifest
 
 Each `kapi extract` run writes a manifest at
-`.kapi/cache/extractions/<batch-id>/manifest.yaml`:
+`.kapi/work/cache/extractions/<batch-id>/manifest.yaml`:
 
 ```yaml
 schemaVersion: 1
@@ -261,7 +261,7 @@ guessing from file name.
 - **PO**: file-header extracted comment `#. kapi-batch: <uuid>`.
 
 Sub-threshold memory matches are written to
-`.kapi/cache/extractions/<batch-id>/suggestions.jsonl` for later analysis
+`.kapi/work/cache/extractions/<batch-id>/suggestions.jsonl` for later analysis
 without touching the emitted target.
 
 ### Memory-in on extract (v1, on by default)
@@ -357,7 +357,7 @@ is absent.
   reader/writer are the carriers; skeleton store is how byte-exact
   roundtrip works.
 - **AD-008 (Project Model)** — extract adds the extraction manifest
-  under `.kapi/cache/extractions/<id>/`. Conflict policy is a new
+  under `.kapi/work/cache/extractions/<id>/`. Conflict policy is a new
   `Defaults.Merge` section. Auto-discovery uses the existing
   `project.ResolveLayout` entry point.
 - **AD-009 (Content memory)** — `Lookup` becomes load-bearing

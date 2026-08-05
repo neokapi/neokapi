@@ -2,7 +2,7 @@
 id: 033-project-state-model
 sidebar_position: 33
 title: "AD-033: Project State Model"
-description: "Architecture decision: a project's authored workflow decisions — the review ladder, approvals, sign-off, parking — live in a first-class core/state store, distinct from the derived caches and the recycle content memory. The committed, diff-friendly serialization under .kapi/units/ is the source of truth; a working set inside the project's one database stages decisions until kapi commit publishes them."
+description: "Architecture decision: a project's authored workflow decisions — the review ladder, approvals, sign-off, parking — live in a first-class core/state store, distinct from the derived caches and the recycle content memory. The committed, diff-friendly serialization under .kapi/context/decisions/ is the source of truth; a working set inside the project's one database stages decisions until kapi commit publishes them."
 keywords: [project state, state store, core/state, review, approval, convergence, kapi/units, working set, staged, commit, targetHash, architecture decision, neokapi]
 ---
 
@@ -15,7 +15,7 @@ homes. The **recipe** is config. The **files** are the deliverable. Between them
 sits the project's **work** — and that work is itself two kinds of thing:
 
 - **Derived state** — parsed content, coverage percentages, the convergence
-  ladder. Rebuildable from the files; it lives in the cache under `.kapi/cache/`
+  ladder. Rebuildable from the files; it lives in the cache under `.kapi/work/cache/`
   and is gitignored. Delete it and a re-run reconstructs identical results.
 - **Authored decisions** — a person approving a translation, signing it off,
   parking a unit, or recording who reviewed what. These are *not* derivable from
@@ -67,14 +67,14 @@ two kinds of state are separated:
 
 | Kind | Examples | Home | Authoritative? |
 |---|---|---|---|
-| Derived | parsed blocks, coverage %, ladder rungs reachable from content | `.kapi/cache/`, and the derived tables of `.kapi/store.db` | no — rebuildable, gitignored |
-| Authored decision | approvals, sign-off, parking, reviewer, notes | `.kapi/units/` (`core/state`) | yes — committed |
+| Derived | parsed blocks, coverage %, ladder rungs reachable from content | `.kapi/work/cache/`, and the derived tables of `.kapi/work/store.db` | no — rebuildable, gitignored |
+| Authored decision | approvals, sign-off, parking, reviewer, notes | `.kapi/context/decisions/` (`core/state`) | yes — committed |
 
-`.kapi/cache/` may *mirror* an authored decision in transit, but it never *owns*
-one; `rm -rf .kapi/cache` is free. Every decision's durable home is the committed
-record under `.kapi/units/`, and the only window in which a decision exists
-nowhere else is between recording it and `kapi commit` — see the working set
-below.
+`.kapi/work/cache/` may *mirror* an authored decision in transit, but it never
+*owns* one; `rm -rf .kapi/work/cache` is free. Every decision's durable home is
+the committed record under `.kapi/context/decisions/`, and the only window in
+which a decision exists nowhere else is between recording it and `kapi commit` —
+see the working set below.
 
 ### Content memory is recycle, not the state carrier
 
@@ -91,13 +91,13 @@ side effect, not where the decision lives.
 State has two representations, and conflating them is the trap to avoid:
 
 1. **Source of truth — a committed, diff-friendly serialization.** JSON Lines
-   under `.kapi/units/`, one shard per document, committed to git:
+   under `.kapi/context/decisions/`, one shard per document, committed to git:
    mergeable, reviewable in a `git diff`, exchangeable to XLIFF
    (`<target state=…>`, notes, phase/owner — [AD-017](017-bilingual-format-interop.md)),
    carried by a `.kpz` parcel's bilingual profile. This is what a clone or
    checkout restores from.
 2. **Working set — tables in the project's one database** (`core/state.WorkStore`
-   inside `.kapi/store.db`, [AD-039](039-local-context-graph-store.md)), the fast
+   inside `.kapi/work/store.db`, [AD-039](039-local-context-graph-store.md)), the fast
    random-access model with transactions and hash lookups. **Derived** from #1;
    seeded from it when empty, materialized back by `Commit`.
 
@@ -107,10 +107,10 @@ State has two representations, and conflating them is the trap to avoid:
    inventing a way to lose work. It is an index in every respect but one:
    deleting `store.db` costs nothing already committed, and it costs exactly the
    decisions staged since. That bounded exposure is why `store.db` sits at the
-   top of `.kapi/` and not under `cache/`.
+   top of `.kapi/work/` and not under `cache/`.
 
    In the browser, where there is no SQLite, the working set persists to a JSON
-   sidecar, `.kapi/store.json`; the model is unchanged.
+   sidecar, `.kapi/work/store.json`; the model is unchanged.
 
 Committing a binary SQLite as the authoritative store would be git-hostile
 (opaque, conflict-prone) and would defeat exchange, so the durable home is the
@@ -183,10 +183,13 @@ yet published. The tiers are *staged* and *committed*, not *in-transit* and
 
 ### The committed location is fixed
 
-The record lives at `.kapi/units/`, derived from the project layout. `kapi status`
-and `kapi commit` take no path, and the recipe binds nothing: the record is a
-directory whose contents kapi owns and prunes, so pointing it at an arbitrary
-location would invite a project to aim it somewhere kapi deletes from.
+The record lives at `.kapi/context/decisions/`, derived from the project layout —
+inside the committed context graph, beside the terms and the content memory it
+makes claims about. `kapi status` and `kapi commit` take no path, and the recipe
+binds nothing: the record is a directory whose contents kapi owns and prunes, so
+pointing it at an arbitrary location would invite a project to aim it somewhere
+kapi deletes from. That is the difference from `terms_source` and
+`memory_source`, which bind any path because a person authors those files.
 
 Getting decisions *out* of kapi's own layout is a job for exchange rather than
 relocation — `kapi merge`, XLIFF `<target state=…>`, the `.kpz` bilingual
@@ -244,9 +247,9 @@ project model relies on elsewhere.
 ## See also
 
 - [AD-008: Project Model](008-project-model.md) — the project layout and where
-  `.kapi/units/` sits among the ownership zones.
+  `.kapi/context/decisions/` sits among the ownership zones.
 - [AD-039: The Local Context Graph Store](039-local-context-graph-store.md) —
-  `.kapi/store.db`, which holds the working set alongside every other subsystem.
+  `.kapi/work/store.db`, which holds the working set alongside every other subsystem.
 - [AD-009: Content memory](009-content-memory.md) — the recycle corpus
   this state store is deliberately *not*.
 - [AD-017: Bilingual Format Interop](017-bilingual-format-interop.md) — XLIFF /
