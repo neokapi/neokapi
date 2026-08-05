@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -18,6 +19,98 @@ type Writer struct {
 	cfg           *Config
 	skeletonStore *format.SkeletonStore
 	firstBlock    bool
+	// ctx is the stack of open structural containers on the generative path —
+	// lists and block quotes. A list item's marker (`-` vs `1.`) and a quoted
+	// paragraph's `> ` prefix are properties of the container, not of the block,
+	// so they can only be rendered with the bracket in scope.
+	ctx []blockContext
+	// prevListItem records that the block just written was an item of the
+	// innermost open list, so the next one is separated by a single newline —
+	// a tight list — rather than the blank line every other block pair takes.
+	prevListItem bool
+	// prevQuoteID is the innermost block quote the previous block belonged to.
+	// Two blocks in the SAME quote are separated by a quoted blank line, or
+	// CommonMark reads them as two adjacent quotations rather than one with two
+	// paragraphs.
+	prevQuoteID string
+}
+
+// blockContext is one open structural container on the generative path.
+type blockContext struct {
+	groupID string
+	kind    string // "ordered-list", "list", or "blockquote"
+	counter int    // next ordinal, for an ordered list
+}
+
+// listStartOf returns the first ordinal of an ordered list, honouring an
+// explicit start (HTML's <ol start>) and defaulting to 1.
+func listStartOf(g *model.GroupStart) int {
+	if g.Type != "ordered-list" {
+		return 0
+	}
+	if v, ok := g.Properties["start"]; ok {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 1
+}
+
+// closeContext pops the container with the given group ID, along with anything
+// still open inside it. A malformed stream that ends a group it never started
+// leaves the stack untouched rather than unwinding it.
+func (w *Writer) closeContext(groupID string) {
+	for i := len(w.ctx) - 1; i >= 0; i-- {
+		if w.ctx[i].groupID == groupID {
+			w.ctx = w.ctx[:i]
+			w.prevListItem = false
+			return
+		}
+	}
+}
+
+// innermostQuoteID returns the group ID of the innermost open block quote, or
+// "" when the writer is not inside one.
+func (w *Writer) innermostQuoteID() string {
+	for i := len(w.ctx) - 1; i >= 0; i-- {
+		if w.ctx[i].kind == "blockquote" {
+			return w.ctx[i].groupID
+		}
+	}
+	return ""
+}
+
+// innermostList returns the innermost open list container, or nil when the
+// writer is not inside one.
+func (w *Writer) innermostList() *blockContext {
+	for i := len(w.ctx) - 1; i >= 0; i-- {
+		if k := w.ctx[i].kind; k == "ordered-list" || k == "list" {
+			return &w.ctx[i]
+		}
+	}
+	return nil
+}
+
+// listDepth counts open list containers, which is how far a nested item indents.
+func (w *Writer) listDepth() int {
+	n := 0
+	for _, c := range w.ctx {
+		if c.kind == "ordered-list" || c.kind == "list" {
+			n++
+		}
+	}
+	return n
+}
+
+// quoteDepth counts open blockquote containers.
+func (w *Writer) quoteDepth() int {
+	n := 0
+	for _, c := range w.ctx {
+		if c.kind == "blockquote" {
+			n++
+		}
+	}
+	return n
 }
 
 // Ensure Writer implements SkeletonStoreConsumer.
@@ -96,6 +189,15 @@ done:
 	// groups render as GFM tables; everything else renders block-by-block.
 	if err := w.writeFromEvents(events, tw); err != nil {
 		return err
+	}
+	// A text file ends with a newline. Without one the last block runs into
+	// whatever is appended next, and every diff of the output shows a spurious
+	// "\ No newline at end of file". Only on the generative path — the skeleton
+	// path reproduces the source's own ending, whatever it is.
+	if !w.firstBlock {
+		if _, err := fmt.Fprint(tw, "\n"); err != nil {
+			return err
+		}
 	}
 	return tw.Flush()
 }
@@ -197,6 +299,18 @@ func renderInlineMarkdownRaw(runs []model.Run) string {
 	return renderInline(runs, false)
 }
 
+// renderInlineLiteral renders a run stream as literal text with no Markdown
+// markup at all. Inside a fenced code block the content IS the text: emitting
+// the inline vocabulary there wraps it in a second layer of markup, so an
+// inline-code run inside a fence came out as ```` ```\n`x=1`\n``` ````, and the
+// backticks re-read as content.
+func renderInlineLiteral(runs []model.Run) string {
+	sink := &mdInlineSink{literal: true}
+	projection.WalkInline(runs, sink)
+	sink.flush()
+	return sink.sb.String()
+}
+
 func renderInline(runs []model.Run, escapeAngle bool) string {
 	sink := &mdInlineSink{escapeAngle: escapeAngle}
 	projection.WalkInline(runs, sink)
@@ -213,6 +327,7 @@ type mdInlineSink struct {
 	sb          strings.Builder
 	open        []string // stack of closing delimiters (or "" for dropped tags)
 	escapeAngle bool     // backslash-escape literal '<' (paragraph text, not code)
+	literal     bool     // emit run text only, no markup (fenced code content)
 }
 
 func (s *mdInlineSink) Text(t string) {
@@ -245,6 +360,10 @@ func writeEscapingAngle(sb *strings.Builder, t string) {
 }
 
 func (s *mdInlineSink) Open(r *model.PcOpenRun) {
+	if s.literal {
+		s.open = append(s.open, "")
+		return
+	}
 	switch r.Type {
 	case "link:hyperlink":
 		// [text](href "title") — the link text is the paired content.
@@ -273,6 +392,10 @@ func (s *mdInlineSink) Close(*model.PcCloseRun) {
 }
 
 func (s *mdInlineSink) Placeholder(r *model.PlaceholderRun) {
+	if s.literal {
+		s.sb.WriteString(r.Equiv)
+		return
+	}
 	switch r.Type {
 	case "media:image", "link:image":
 		// Self-closing image (e.g. read from HTML <img>): the alt text lives in
@@ -301,12 +424,27 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 		part := events[i]
 		switch part.Type {
 		case model.PartGroupStart:
-			if g, ok := part.Resource.(*model.GroupStart); ok && g.Type == "table" {
+			g, ok := part.Resource.(*model.GroupStart)
+			if !ok {
+				continue
+			}
+			switch g.Type {
+			case "table":
 				end, rows := w.collectTable(events, i)
 				if err := w.writeTable(rows, out); err != nil {
 					return err
 				}
 				i = end
+			case "ordered-list", "list", "blockquote":
+				w.ctx = append(w.ctx, blockContext{
+					groupID: g.ID,
+					kind:    g.Type,
+					counter: listStartOf(g),
+				})
+			}
+		case model.PartGroupEnd:
+			if g, ok := part.Resource.(*model.GroupEnd); ok {
+				w.closeContext(g.ID)
 			}
 		case model.PartBlock:
 			if block, ok := part.Resource.(*model.Block); ok {
@@ -331,12 +469,33 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 		return nil
 	}
 
+	role0 := block.SemanticRole()
+	if role0 == "" {
+		role0 = block.Type
+	}
+	isItem := role0 == model.RoleListItem
+	quoteID := w.innermostQuoteID()
+
 	if !w.firstBlock {
-		if _, err := fmt.Fprint(out, "\n\n"); err != nil {
+		// Consecutive items of one list are a tight list: one newline, not the
+		// blank line every other block pair takes. A blank line between items
+		// makes CommonMark render each `<li>` as its own paragraph, which is a
+		// different document.
+		sep := "\n\n"
+		switch {
+		case isItem && w.prevListItem:
+			sep = "\n"
+		case quoteID != "" && quoteID == w.prevQuoteID:
+			// Blank line INSIDE the quote, not around it.
+			sep = "\n" + strings.TrimRight(strings.Repeat("> ", w.quoteDepth()), " ") + "\n"
+		}
+		if _, err := fmt.Fprint(out, sep); err != nil {
 			return err
 		}
 	}
 	w.firstBlock = false
+	w.prevListItem = isItem
+	w.prevQuoteID = quoteID
 
 	// Structure prefix/suffix, keyed on the normalized semantic role (WS6).
 	// SemanticRole drives clean cross-format export (any source → Markdown);
@@ -353,7 +512,7 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	// rather than emitting text that will not survive (#1603).
 	text := renderInlineMarkdown(w.blockRuns(block))
 	if role == model.RoleCode {
-		text = renderInlineMarkdownRaw(w.blockRuns(block))
+		text = renderInlineLiteral(w.blockRuns(block))
 	}
 
 	var prefix, suffix string
@@ -365,7 +524,21 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 			prefix = strings.Repeat("#", n) + " "
 		}
 	case model.RoleListItem:
+		// The marker belongs to the enclosing list, not the item: an ordered
+		// list numbers its items, an unordered one bullets them, and a nested
+		// list indents. With no list bracket in scope (a reader that emits bare
+		// items, or a single item quoted out of context) a bullet is the safe
+		// reading — it is what the writer has always emitted.
 		prefix = "- "
+		if l := w.innermostList(); l != nil {
+			if l.kind == "ordered-list" {
+				prefix = strconv.Itoa(l.counter) + ". "
+				l.counter++
+			}
+			if d := w.listDepth(); d > 1 {
+				prefix = strings.Repeat("  ", d-1) + prefix
+			}
+		}
 	case model.RoleCode:
 		// Re-emit the fenced code block's info string (language) so the
 		// do-not-translate signal survives cross-format export.
@@ -404,6 +577,19 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 			text = escapeLeadingBlockMarker(text)
 			text = escapeInteriorBlockBars(text)
 		}
+	}
+
+	// A block inside a <blockquote> bracket is quoted regardless of its own
+	// role: the marker goes on every line, including continuation lines, or
+	// the quotation ends after the first one.
+	if q := w.quoteDepth(); q > 0 {
+		marker := strings.Repeat("> ", q)
+		body := prefix + text + suffix
+		lines := strings.Split(body, "\n")
+		for i, ln := range lines {
+			lines[i] = marker + ln
+		}
+		prefix, text, suffix = "", strings.Join(lines, "\n"), ""
 	}
 
 	if _, err := fmt.Fprint(out, prefix, text, suffix); err != nil {
