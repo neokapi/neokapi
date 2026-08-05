@@ -48,6 +48,27 @@ func NewAutocommit(path string) (blockstore.Store, error) {
 	return open(path, true)
 }
 
+// NewFromDB adopts an already-open database — the project's merged
+// `.kapi/store.db`, where the block cache is one schema among the content
+// memory, the terms store and the unit working set. The migrations and the
+// `cache_migrations` ledger are the same ones a standalone file gets, which is
+// the whole point of namespaced ledgers: a store opened either way is the same
+// store.
+//
+// The returned Store does NOT own db. Close detaches this handle and leaves the
+// connection pool open, because the merged store's owner closes it exactly
+// once; a subsystem closing a pool three other subsystems are still using is
+// the failure this exists to prevent.
+func NewFromDB(db *storage.DB, autocommit bool) (blockstore.Store, error) {
+	if db == nil {
+		return nil, errors.New("blockstore: adopt cache: nil database")
+	}
+	if err := storage.Migrate(db, "cache_migrations", cacheMigrations); err != nil {
+		return nil, fmt.Errorf("blockstore: migrate cache: %w", err)
+	}
+	return &cacheStore{db: db, autocommit: autocommit}, nil
+}
+
 func open(path string, autocommit bool) (blockstore.Store, error) {
 	db, err := storage.Open(path)
 	if err != nil {
@@ -57,13 +78,16 @@ func open(path string, autocommit bool) (blockstore.Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("blockstore: migrate cache: %w", err)
 	}
-	return &cacheStore{db: db, autocommit: autocommit}, nil
+	return &cacheStore{db: db, autocommit: autocommit, owns: true}, nil
 }
 
 type cacheStore struct {
 	db         *storage.DB
 	autocommit bool
-	mu         sync.Mutex // guards Close; per-operation writes serialize via SQLite WAL
+	// owns records whether Close may close the pool: true for a store that
+	// opened its own file, false for one that adopted a shared database.
+	owns bool
+	mu   sync.Mutex // guards Close; per-operation writes serialize via SQLite WAL
 }
 
 func (k *cacheStore) Capabilities() blockstore.Capabilities {
@@ -95,9 +119,12 @@ func (k *cacheStore) Close() error {
 	if k.db == nil {
 		return nil
 	}
-	err := k.db.Close()
+	db := k.db
 	k.db = nil
-	return err
+	if !k.owns {
+		return nil // adopted database: its owner closes the pool
+	}
+	return db.Close()
 }
 
 // ─── Session ────────────────────────────────────────────────────
