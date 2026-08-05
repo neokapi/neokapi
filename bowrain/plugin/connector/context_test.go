@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -60,7 +61,7 @@ func newContextProject(t *testing.T) *BowrainSourceConnector {
 		require.NoError(t, os.WriteFile(abs, []byte(`{"greeting":"Hello"}`), 0o644))
 	}
 
-	return NewLocalConnector(proj, reg)
+	return NewLocalConnector(&host.App{}, proj, reg)
 }
 
 // TestBuildItemMeta_NamesTheClaimingCollection pins the linkage the context

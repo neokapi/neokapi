@@ -96,7 +96,7 @@ kapi check --ship --json        # structured result for a job summary
 ```
 
 Two things the runner needs: the committed
-[state store](/kapi/project-store) (`.kapi-state.json`) in the checkout —
+[unit record](/kapi/project-store) (`.kapi/units/`) in the checkout —
 `reviewed` thresholds read their decisions from it — and nothing else, since
 gate evaluation makes no provider calls. The workflow wiring is
 [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).

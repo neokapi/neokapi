@@ -2,6 +2,7 @@ package project_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,61 +17,48 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDetectStoreDrift_MissingStore(t *testing.T) {
-	dir := t.TempDir()
-	storePath := filepath.Join(dir, "blocks.db")
-	d := project.DetectStoreDrift(storePath, nil)
-	assert.True(t, d.StoreMissing)
-	assert.True(t, d.Any())
+// recordingStamper is the test's stand-in for the project store. Extraction
+// names the capability it needs (project.BlockStoreStamper) rather than the
+// store that provides it, which is exactly what lets this package test the
+// extraction path without a database — and what lets the store test the stamps
+// without an extraction (core/projectdb).
+type recordingStamper struct {
+	versions int
+	stamps   map[string]project.SourceStamp
+	failWith error
 }
 
-func TestDetectStoreDrift_VersionStamp(t *testing.T) {
-	dir := t.TempDir()
-	storePath := filepath.Join(dir, "blocks.db")
-	require.NoError(t, os.WriteFile(storePath, []byte("db"), 0o644))
+func newStamper() *recordingStamper { return &recordingStamper{} }
 
-	// No stamp → stale.
-	d := project.DetectStoreDrift(storePath, nil)
-	assert.False(t, d.StoreMissing)
-	assert.True(t, d.VersionStale, "missing version stamp ⇒ stale")
-
-	// Current-version stamp → clean.
-	require.NoError(t, project.StampBlockStoreVersion(storePath))
-	d = project.DetectStoreDrift(storePath, nil)
-	assert.False(t, d.VersionStale)
-	assert.False(t, d.Any())
-
-	// Foreign-version stamp → stale.
-	require.NoError(t, os.WriteFile(project.BlockStoreVersionStampPath(storePath), []byte("v0.0.0-other"), 0o644))
-	d = project.DetectStoreDrift(storePath, nil)
-	assert.True(t, d.VersionStale)
+func (s *recordingStamper) StampBlockStoreVersion(context.Context) error {
+	if s.failWith != nil {
+		return s.failWith
+	}
+	s.versions++
+	return nil
 }
 
-func TestBlockStoreStale(t *testing.T) {
-	dir := t.TempDir()
-	storePath := filepath.Join(dir, "blocks.db")
-	assert.True(t, project.BlockStoreStale(storePath), "no stamp ⇒ stale")
-	require.NoError(t, project.StampBlockStoreVersion(storePath))
-	assert.False(t, project.BlockStoreStale(storePath))
-	require.NoError(t, os.WriteFile(project.BlockStoreVersionStampPath(storePath), []byte("some-other-schema"), 0o644))
-	assert.True(t, project.BlockStoreStale(storePath))
+func (s *recordingStamper) SaveSourceStamps(_ context.Context, stamps map[string]project.SourceStamp) error {
+	if s.failWith != nil {
+		return s.failWith
+	}
+	s.stamps = stamps
+	return nil
 }
 
-func TestDetectStoreDrift_SourceFiles(t *testing.T) {
+// CompareSourceStamps is the half of drift detection that does not care where
+// the stamps came from. Both backends share it, so it is pinned here once.
+func TestCompareSourceStamps(t *testing.T) {
 	dir := t.TempDir()
-	storePath := filepath.Join(dir, "blocks.db")
-	require.NoError(t, os.WriteFile(storePath, []byte("db"), 0o644))
-	require.NoError(t, project.StampBlockStoreVersion(storePath))
-
 	src := filepath.Join(dir, "a.json")
 	require.NoError(t, os.WriteFile(src, []byte(`{"k":"v"}`), 0o644))
 	files := []project.ResolvedFile{{Path: src, Relative: "a.json", Format: "json"}}
 
 	// Never stamped → changed.
-	d := project.DetectStoreDrift(storePath, files)
-	assert.Equal(t, []string{"a.json"}, d.Changed, "unstamped source reads as drifted")
+	changed, removed := project.CompareSourceStamps(nil, files)
+	assert.Equal(t, []string{"a.json"}, changed, "unstamped source reads as drifted")
+	assert.Empty(t, removed)
 
-	// Stamp it → clean.
 	info, err := os.Stat(src)
 	require.NoError(t, err)
 	hash, err := project.HashFile(src)
@@ -78,30 +66,42 @@ func TestDetectStoreDrift_SourceFiles(t *testing.T) {
 	stamps := map[string]project.SourceStamp{
 		"a.json": {Hash: hash, Size: info.Size(), MTimeNS: info.ModTime().UnixNano()},
 	}
-	require.NoError(t, project.SaveSourceStamps(storePath, stamps))
-	d = project.DetectStoreDrift(storePath, files)
-	assert.False(t, d.Any(), "stamped, unchanged source ⇒ no drift")
 
-	// Touch without changing bytes → hash confirm keeps it clean.
+	// Stamped and unchanged → clean.
+	changed, removed = project.CompareSourceStamps(stamps, files)
+	assert.Empty(t, changed, "stamped, unchanged source ⇒ no drift")
+	assert.Empty(t, removed)
+
+	// Touch without changing bytes → the hash confirm keeps it clean.
 	future := time.Now().Add(2 * time.Second)
 	require.NoError(t, os.Chtimes(src, future, future))
-	d = project.DetectStoreDrift(storePath, files)
-	assert.Empty(t, d.Changed, "byte-identical touch is not drift (hash confirm)")
+	changed, _ = project.CompareSourceStamps(stamps, files)
+	assert.Empty(t, changed, "byte-identical touch is not drift (hash confirm)")
 
 	// Edit the bytes → changed.
 	require.NoError(t, os.WriteFile(src, []byte(`{"k":"edited"}`), 0o644))
-	d = project.DetectStoreDrift(storePath, files)
-	assert.Equal(t, []string{"a.json"}, d.Changed)
+	changed, _ = project.CompareSourceStamps(stamps, files)
+	assert.Equal(t, []string{"a.json"}, changed)
 
 	// A stamped file that no longer resolves → removed.
-	d = project.DetectStoreDrift(storePath, nil)
-	assert.Equal(t, []string{"a.json"}, d.Removed)
-	assert.True(t, d.Any())
+	changed, removed = project.CompareSourceStamps(stamps, nil)
+	assert.Empty(t, changed)
+	assert.Equal(t, []string{"a.json"}, removed)
 }
 
-func TestExtractToBlockStore_RoundTripAndStamps(t *testing.T) {
-	dir := t.TempDir()
-	real, err := filepath.EvalSymlinks(dir)
+func TestStoreDrift_Any(t *testing.T) {
+	assert.False(t, project.StoreDrift{}.Any())
+	assert.True(t, project.StoreDrift{StoreMissing: true}.Any())
+	assert.True(t, project.StoreDrift{VersionStale: true}.Any())
+	assert.True(t, project.StoreDrift{Changed: []string{"a"}}.Any())
+	assert.True(t, project.StoreDrift{Removed: []string{"a"}}.Any())
+}
+
+// extractFixture scaffolds a one-collection project with the given source files
+// and returns everything ExtractToBlockStore needs.
+func extractFixture(t *testing.T, sources map[string]string) (*registry.FormatRegistry, *project.ProjectContext, []project.ResolvedFile) {
+	t.Helper()
+	real, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
 
 	recipe := filepath.Join(real, "app.kapi")
@@ -118,7 +118,9 @@ func TestExtractToBlockStore_RoundTripAndStamps(t *testing.T) {
 	require.NoError(t, project.Save(recipe, proj))
 	srcDir := filepath.Join(real, "src")
 	require.NoError(t, os.MkdirAll(srcDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.json"), []byte(`{"greeting":"Hello","farewell":"Bye"}`), 0o644))
+	for name, body := range sources {
+		require.NoError(t, os.WriteFile(filepath.Join(srcDir, name), []byte(body), 0o644))
+	}
 
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
@@ -126,14 +128,20 @@ func TestExtractToBlockStore_RoundTripAndStamps(t *testing.T) {
 	pctx := project.NewProjectContext(proj, recipe)
 	files, err := pctx.ResolveContent(reg)
 	require.NoError(t, err)
+	return reg, pctx, files
+}
+
+func TestExtractToBlockStore_RoundTripAndStamps(t *testing.T) {
+	reg, pctx, files := extractFixture(t, map[string]string{
+		"a.json": `{"greeting":"Hello","farewell":"Bye"}`,
+	})
 	require.Len(t, files, 1)
 
-	storePath := filepath.Join(real, ".kapi", "cache", "blocks.db")
-	require.NoError(t, os.MkdirAll(filepath.Dir(storePath), 0o755))
 	store := blockstore.NewMemoryStore()
 	defer store.Close()
+	stamper := newStamper()
 
-	stats, err := project.ExtractToBlockStore(context.Background(), reg, pctx, store, storePath, files)
+	stats, err := project.ExtractToBlockStore(context.Background(), reg, pctx, store, stamper, files)
 	require.NoError(t, err)
 	assert.Equal(t, 1, stats.Files)
 	assert.Equal(t, 2, stats.Blocks)
@@ -153,87 +161,48 @@ func TestExtractToBlockStore_RoundTripAndStamps(t *testing.T) {
 	}
 	assert.Len(t, hashes, 2)
 
-	// Version + source stamps are written; a re-detect reports no drift for
-	// the extracted source even though the memory store has no file (only the
-	// sidecars matter to the file-level checks, so give the store a file).
-	require.NoError(t, os.WriteFile(storePath, []byte("db"), 0o644))
-	d := project.DetectStoreDrift(storePath, files)
-	assert.False(t, d.Any(), "freshly extracted ⇒ no drift: %+v", d)
+	// The store was stamped with the running semantics and with a stamp per
+	// extracted source, so a re-detect over the same tree reads no drift.
+	assert.Equal(t, 1, stamper.versions)
+	require.Contains(t, stamper.stamps, "src/a.json")
+	changed, removed := project.CompareSourceStamps(stamper.stamps, files)
+	assert.Empty(t, changed, "freshly extracted ⇒ no drift")
+	assert.Empty(t, removed)
 }
 
-// TestExtractToBlockStore_ReportsUnwritableStamps covers the failure that used
+// TestExtractToBlockStore_ReportsUnrecordableStamps covers the failure that used
 // to be completely invisible.
 //
 // The version and drift stamps are written best-effort on purpose: the blocks
-// are already committed, so a failed sidecar write must not fail the run. But
+// are already committed, so a failed stamp write must not fail the run. But
 // "best effort" was implemented as `_ = StampBlockStoreVersion(...)` with no
 // report of any kind, and the comment justifying it assumes the NEXT write
-// succeeds. When the cause is permanent — the cache directory read-only here,
-// a full disk or a changed owner in the field — DetectStoreDrift reads the
-// store as stale forever, so every single run re-extracts and re-translates the
-// whole project. The only symptom is that kapi is slow and redoes finished
-// work, with nothing anywhere naming the cause.
+// succeeds. When the cause is permanent — a read-only state directory, a full
+// disk or a changed owner in the field — drift detection reads the store as
+// stale forever, so every single run re-extracts and re-translates the whole
+// project. The only symptom is that kapi is slow and redoes finished work, with
+// nothing anywhere naming the cause.
 //
 // The contract: the extraction still succeeds, and it says what went wrong.
-func TestExtractToBlockStore_ReportsUnwritableStamps(t *testing.T) {
-	dir := t.TempDir()
-	real, err := filepath.EvalSymlinks(dir)
-	require.NoError(t, err)
-
-	recipe := filepath.Join(real, "app.kapi")
-	proj := &project.KapiProject{
-		Version:  "v1",
-		Name:     "StoreSync",
-		Defaults: project.Defaults{SourceLanguage: "en-US"},
-		Content: []project.ContentCollection{{
-			Name:   "ui",
-			Path:   "src/*.json",
-			Format: &project.FormatSpec{Name: "json"},
-		}},
-	}
-	require.NoError(t, project.Save(recipe, proj))
-	srcDir := filepath.Join(real, "src")
-	require.NoError(t, os.MkdirAll(srcDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.json"), []byte(`{"greeting":"Hello"}`), 0o644))
-
-	reg := registry.NewFormatRegistry()
-	formats.RegisterAll(reg)
-
-	pctx := project.NewProjectContext(proj, recipe)
-	files, err := pctx.ResolveContent(reg)
-	require.NoError(t, err)
-	require.Len(t, files, 1)
-
-	cacheDir := filepath.Join(real, ".kapi", "cache")
-	require.NoError(t, os.MkdirAll(cacheDir, 0o755))
-	storePath := filepath.Join(cacheDir, "blocks.db")
-
-	// Make the sidecars unwritable by taking write permission off the
-	// directory they live in. Both stamp writes are os.WriteFile of a NEW
-	// file, so they need the directory bit, not the file bit.
-	require.NoError(t, os.Chmod(cacheDir, 0o555))
-	t.Cleanup(func() { _ = os.Chmod(cacheDir, 0o755) })
-	if f, err := os.Create(filepath.Join(cacheDir, ".probe")); err == nil {
-		_ = f.Close()
-		t.Skip("filesystem ignores directory write permission (running as root?)")
-	}
+func TestExtractToBlockStore_ReportsUnrecordableStamps(t *testing.T) {
+	reg, pctx, files := extractFixture(t, map[string]string{"a.json": `{"greeting":"Hello"}`})
 
 	store := blockstore.NewMemoryStore()
 	defer store.Close()
+	stamper := &recordingStamper{failWith: errors.New("attempt to write a readonly database")}
 
-	stats, err := project.ExtractToBlockStore(context.Background(), reg, pctx, store, storePath, files)
+	stats, err := project.ExtractToBlockStore(context.Background(), reg, pctx, store, stamper, files)
 
-	// The content is safe: unwritable sidecars must not fail the extraction.
+	// The content is safe: unrecordable stamps must not fail the extraction.
 	require.NoError(t, err, "a failed cache hint must not throw away committed blocks")
 	assert.Equal(t, 1, stats.Files)
 	assert.Positive(t, stats.Blocks)
 
-	// ...and the operator is told, once per failed sidecar.
+	// ...and the operator is told, once per failed stamp.
 	require.Len(t, stats.Warnings, 2, "both the version stamp and the drift stamps failed")
 	joined := strings.Join(stats.Warnings, "\n")
-	assert.Contains(t, joined, project.BlockStoreVersionStampPath(storePath),
-		"the warning must name the file that could not be written")
-	assert.Contains(t, joined, project.BlockStoreSourceStampsPath(storePath))
+	assert.Contains(t, joined, "attempt to write a readonly database",
+		"the warning must carry the cause, not just that a write failed")
 	assert.Contains(t, joined, "re-extract on every run",
 		"the warning must say what the consequence is, not just that a write failed")
 }
@@ -242,69 +211,41 @@ func TestExtractToBlockStore_ReportsUnwritableStamps(t *testing.T) {
 // warning channel must stay empty when nothing is wrong, or it becomes noise
 // that operators learn to ignore.
 func TestExtractToBlockStore_NoWarningsOnHealthyRun(t *testing.T) {
-	dir := t.TempDir()
-	real, err := filepath.EvalSymlinks(dir)
-	require.NoError(t, err)
+	reg, pctx, files := extractFixture(t, map[string]string{"a.json": `{"greeting":"Hello"}`})
 
-	recipe := filepath.Join(real, "app.kapi")
-	proj := &project.KapiProject{
-		Version:  "v1",
-		Name:     "StoreSync",
-		Defaults: project.Defaults{SourceLanguage: "en-US"},
-		Content: []project.ContentCollection{{
-			Name:   "ui",
-			Path:   "src/*.json",
-			Format: &project.FormatSpec{Name: "json"},
-		}},
-	}
-	require.NoError(t, project.Save(recipe, proj))
-	srcDir := filepath.Join(real, "src")
-	require.NoError(t, os.MkdirAll(srcDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "a.json"), []byte(`{"greeting":"Hello"}`), 0o644))
-
-	reg := registry.NewFormatRegistry()
-	formats.RegisterAll(reg)
-
-	pctx := project.NewProjectContext(proj, recipe)
-	files, err := pctx.ResolveContent(reg)
-	require.NoError(t, err)
-
-	storePath := filepath.Join(real, ".kapi", "cache", "blocks.db")
-	require.NoError(t, os.MkdirAll(filepath.Dir(storePath), 0o755))
 	store := blockstore.NewMemoryStore()
 	defer store.Close()
 
-	stats, err := project.ExtractToBlockStore(context.Background(), reg, pctx, store, storePath, files)
+	stats, err := project.ExtractToBlockStore(context.Background(), reg, pctx, store, newStamper(), files)
 	require.NoError(t, err)
 	assert.Empty(t, stats.Warnings, "a healthy extraction must report nothing")
 }
 
-func TestExtractToBlockStore_SkipsUnreadable(t *testing.T) {
-	dir := t.TempDir()
-	real, err := filepath.EvalSymlinks(dir)
-	require.NoError(t, err)
-	recipe := filepath.Join(real, "app.kapi")
-	proj := &project.KapiProject{
-		Version:  "v1",
-		Defaults: project.Defaults{SourceLanguage: "en"},
-		Content:  []project.ContentCollection{{Path: "src/*.json", Format: &project.FormatSpec{Name: "json"}}},
-	}
-	require.NoError(t, project.Save(recipe, proj))
-	require.NoError(t, os.MkdirAll(filepath.Join(real, "src"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(real, "src", "ok.json"), []byte(`{"k":"v"}`), 0o644))
+// An extraction with nowhere to record its stamps is refused outright rather
+// than run: every source it wrote would read as drifted on every later run, so
+// the "successful" extraction would be work the project can never bank.
+func TestExtractToBlockStore_RefusesWithoutStamper(t *testing.T) {
+	reg, pctx, files := extractFixture(t, map[string]string{"a.json": `{"greeting":"Hello"}`})
 
-	reg := registry.NewFormatRegistry()
-	formats.RegisterAll(reg)
-	pctx := project.NewProjectContext(proj, recipe)
-	files, err := pctx.ResolveContent(reg)
-	require.NoError(t, err)
-	// Add a file with no detectable format: skipped, not fatal.
-	files = append(files, project.ResolvedFile{Path: filepath.Join(real, "src", "mystery.bin"), Relative: "src/mystery.bin"})
-
-	storePath := filepath.Join(real, "blocks.db")
 	store := blockstore.NewMemoryStore()
 	defer store.Close()
-	stats, err := project.ExtractToBlockStore(context.Background(), reg, pctx, store, storePath, files)
+
+	_, err := project.ExtractToBlockStore(context.Background(), reg, pctx, store, nil, files)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nil stamper")
+}
+
+func TestExtractToBlockStore_SkipsUnreadable(t *testing.T) {
+	reg, pctx, files := extractFixture(t, map[string]string{"ok.json": `{"k":"v"}`})
+	// Add a file with no detectable format: skipped, not fatal.
+	files = append(files, project.ResolvedFile{
+		Path:     filepath.Join(filepath.Dir(files[0].Path), "mystery.bin"),
+		Relative: "src/mystery.bin",
+	})
+
+	store := blockstore.NewMemoryStore()
+	defer store.Close()
+	stats, err := project.ExtractToBlockStore(context.Background(), reg, pctx, store, newStamper(), files)
 	require.NoError(t, err)
 	assert.Equal(t, 1, stats.Files)
 	require.Len(t, stats.Skipped, 1)

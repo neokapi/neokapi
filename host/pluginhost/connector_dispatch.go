@@ -138,6 +138,9 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		}
 		fmt.Printf("pulled %d blocks across %d locales; wrote %d files\n",
 			resp.GetBlocksPulled(), resp.GetLocalesCount(), resp.GetFilesWritten())
+		if n := resp.GetDecisionsStaged(); n > 0 {
+			fmt.Printf("staged %d decision(s) from the server ledger — `kapi commit` publishes them\n", n)
+		}
 		return nil
 	}
 	return fmt.Errorf("unknown source-connector op %q", op)

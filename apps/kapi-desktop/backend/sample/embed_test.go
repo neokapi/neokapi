@@ -7,8 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/memory"
-	"github.com/neokapi/neokapi/terms"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -53,21 +52,23 @@ func TestScaffoldKapiMart(t *testing.T) {
 	_, err = os.Stat(filepath.Join(dir, "output"))
 	require.True(t, os.IsNotExist(err), "KapiMart must not scaffold an output/ dir")
 
-	// content memory should have 200+ entries. Under the multilingual model each TU
-	// becomes a single entry with N variants instead of N entries per TU,
-	// so the total is roughly ~1/5 of the old count.
-	tm, err := memory.NewSQLiteStore(filepath.Join(dir, ".kapi", "memory.db"))
+	// The seed landed in the project's one store; both subsystems come off the
+	// same handle, and closing it releases both.
+	db, err := projectdb.Open(t.Context(), project.Layout{
+		Root: dir, StateDir: filepath.Join(dir, project.StateDirName),
+	})
 	require.NoError(t, err)
-	defer tm.Close()
-	memoryCount, err := tm.Count(t.Context())
+	defer db.Close()
+
+	// The content memory should have 200+ entries. Under the multilingual model
+	// each TU becomes a single entry with N variants instead of N entries per TU,
+	// so the total is roughly ~1/5 of the old count.
+	memoryCount, err := db.Memory().Count(t.Context())
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, memoryCount, 200, "content memory should have at least 200 multilingual entries")
 
 	// Terms should have 100+ concepts.
-	tb, err := terms.NewSQLiteStore(filepath.Join(dir, ".kapi", "terms.db"))
-	require.NoError(t, err)
-	defer tb.Close()
-	tbCount, err := tb.Count(t.Context())
+	tbCount, err := db.Terms().Count(t.Context())
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, tbCount, 100, "terms should have at least 100 concepts")
 }

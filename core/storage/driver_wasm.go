@@ -31,8 +31,9 @@ func driverUnavailable() error {
 // with the cgo / no-cgo drivers so memory and terms compile.
 const FTSWordTokenizer = "unicode61"
 
-// sqliteDSN mirrors the no-cgo DSN form; unused at runtime on wasm.
-func sqliteDSN(dbPath string) string {
+// sqliteDSN mirrors the no-cgo DSN form, Options.ImmediateTx included; unused at
+// runtime on wasm, where Open never gets past driverUnavailable.
+func sqliteDSN(dbPath string, opts Options) string {
 	if isMemoryDSN(dbPath) {
 		return dbPath
 	}
@@ -40,13 +41,16 @@ func sqliteDSN(dbPath string) string {
 	if strings.Contains(dbPath, "?") {
 		sep = "&"
 	}
-	params := strings.Join([]string{
+	params := []string{
 		"_pragma=foreign_keys(1)",
 		"_pragma=busy_timeout(5000)",
 		"_pragma=synchronous(NORMAL)",
 		"_pragma=cache_size(-131072)",
 		"_pragma=wal_autocheckpoint(10000)",
 		"_pragma=temp_store(MEMORY)",
-	}, "&")
-	return dbPath + sep + params
+	}
+	if opts.ImmediateTx {
+		params = append(params, "_txlock=immediate")
+	}
+	return dbPath + sep + strings.Join(params, "&")
 }

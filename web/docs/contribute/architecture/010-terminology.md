@@ -120,13 +120,13 @@ Import and export are standalone functions rather than interface methods:
 A PostgreSQL backend with workspace isolation and terminology streams can be
 supplied by a platform layer behind the same `Terminology` interface.
 
-### Terminology is source; the store is a rebuildable read-cache
+### Terminology is source; the store is a rebuildable projection
 
 Terminology is **authored content, not derived state**: a human decides which
 terms are do-not-translate and what the preferred translation is, and those
 decisions belong in review and version control alongside the recipe and the
 brand-voice profile ([AD-022](022-brand-voice.md)). So the split is source vs.
-cache, not a two-way sync:
+projection, not a two-way sync:
 
 - the committed **`.terms.json` bundle is the source** — a diff-friendly,
   reviewable, mergeable JSON document bound by the recipe's
@@ -135,44 +135,46 @@ cache, not a two-way sync:
   reviewed in a PR, and versioned with the code. It is plain JSON under a
   compound suffix, so a reviewer reads it in a browser diff and `jq` reads it on
   the command line.
-- the **terms store (`.kapi/terms.db`) is a rebuildable read-cache** over it,
-  under the gitignored cache, rebuilt when the committed bundle changes
-  (content-hash guarded). Discard it, rebuild from the bundle, lose nothing —
-  **nothing authoritative ever lives only in the db**. Committing the binary
-  SQLite would be git-hostile (opaque, conflict-prone) and would defeat
-  interchange.
+- the **terms tables inside `.kapi/store.db` are a rebuildable projection** of
+  it ([AD-039](039-local-context-graph-store.md)), gitignored and rebuilt when
+  the committed bundle changes (content-hash guarded). Discard them, rebuild from
+  the bundle, lose nothing — **nothing authoritative ever lives only in the
+  database**. Committing the binary SQLite would be git-hostile (opaque,
+  conflict-prone) and would defeat interchange.
 
 A project that binds nothing still resolves, through a fallback ladder. The
 ordering follows from the bundle being *committed source*, so read it that way
 rather than as an exception to the "state lives in `.kapi/`" rule:
 **`.kapi/` is gitignored** (this repository's own `.gitignore` carries `/.kapi/`,
-and it is inside kapi's default ignore set), so a glossary kept there would never
+and it is inside kapi's default ignore set), so a terms source kept there would never
 be committed, never appear in a diff, and never reach review — which is the one
 thing the terms source exists to do. The repository root therefore comes first:
 
-1. `<root>/terms.json` — the committed glossary.
+1. `<root>/terms.json` — the committed terms source.
 2. `<root>/.kapi/terms.json` — second, and only so a project that deliberately
-   treats its glossary as local, uncommitted state still resolves.
+   treats its terms as local, uncommitted state still resolves.
 
 An explicit `defaults.terms_source` wins over both. This is the same ladder
-shape the brand-voice profile uses ([AD-022](022-brand-voice.md)), and the same
-distinction the recipe draws in its own comments: `termbase_source` is the
-committed glossary, `terms` is the gitignored cache it compiles into. Confusing
-the two — treating the portable JSON *bundle* as if it were the SQLite *store* —
-is what puts a glossary under `.kapi/` in the first place.
+shape the brand-voice profile uses ([AD-022](022-brand-voice.md)). The recipe
+binds only the *source*; the derived database has no recipe key, which is what
+keeps the two from being confused — treating the portable JSON bundle as if it
+were the SQLite store is what puts a terms source under `.kapi/` in the first place.
 
-A ladder works here because **a project has exactly one glossary**. Content
+A ladder works here because **a project has exactly one set of terms**. Content
 memory has no equivalent convention, and deliberately so — a project accumulates
 *many* memory bundles, one per content surface ([AD-009](009-content-memory.md)),
 so there is no single bundle for a fallback to name. That asymmetry is a
 consequence of what each store is, not an omission to be tidied away.
 
 Read-only consumers read the committed bundle directly — the terminology check
-gate decodes it without materializing the cache, which is why it holds on a fresh
-CI checkout where the gitignored `.db` is absent. The cache earns its keep only
-for the heavy indexed lookups (fuzzy, FTS) during translation. **CI reads the
-terms; it never writes them back** — humans author them through git; a pulled new
-bundle just rebuilds the read-cache, so there is nothing to reconcile.
+gate decodes it without materializing any tables, which is why it holds on a
+fresh CI checkout. Presence is table-level, so the gate behaves identically
+whether the project's database is absent, present with empty terms tables, or
+fully populated ([AD-039](039-local-context-graph-store.md)); the tables earn
+their keep only for the heavy indexed lookups (fuzzy, FTS) during translation.
+**CI reads the terms; it never writes them back** — humans author them through
+git; a pulled new bundle just rebuilds the projection, so there is nothing to
+reconcile.
 
 In bowrain (server mode) terminology is managed in the platform database and
 edited through the app; git is not in the loop.
@@ -182,8 +184,8 @@ edited through the app; git is not in the loop.
 > leverage cache kept out of git scope. Terminology is *source*: authored,
 > reviewed, committed. And unlike the project *state* store
 > ([AD-033](033-project-state-model.md)), whose interactive review decisions
-> warrant a deferred `Pending()`/`Export` discipline, the terms source is simply
-> edited-in-place and cached.
+> warrant a deferred `Pending()`/`Commit` discipline, the terms source is simply
+> edited in place and projected.
 
 ### Tiered lookup
 

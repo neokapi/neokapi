@@ -89,7 +89,7 @@ Only the blocks added since the last pass are sent to the LLM; everything alread
 
 ```bash
 kapi exec qa i18n/ --target-lang fr                              # placeholder, code, length, consistency
-kapi exec term-check i18n/ --target-lang fr --terms terms/fr.db   # terminology
+kapi exec term-check i18n/ --target-lang fr --termstore terms/fr.db   # terminology
 ```
 
 `qa` covers:
@@ -125,7 +125,7 @@ For apps with a large product vocabulary, keep terms rendered consistently with 
 
 ```bash
 kapi terms import product-terms.csv -s en -t fr --name product-terms
-kapi exec term-check i18n/ --target-lang fr --terms product-terms
+kapi exec term-check i18n/ --target-lang fr --termstore product-terms
 ```
 
 To feed terminology into the translation step itself rather than only checking it afterward, compose a [flow](/framework/flows) that runs term lookup before `translate` — the matched terms become the prompt's `glossary` section.

@@ -532,24 +532,13 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Terms binds a glossary/terms as standing project context. When
-             * set, project-scoped term enforcement uses it with no --terms flag.
-             * The path resolves relative to the project root (the recipe's
-             * directory). Empty means no bound terms.
-             * @member
-             * @type {string | undefined}
-             */
-            this["terms"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
              * TermsSource binds the committed, git-tracked native source artifact
              * (a .terms.json document) the project terms store is compiled from. This is the
              * authored, reviewable form: `kapi apply` edits the .terms.json here and then
-             * re-imports it into the gitignored Terms (.db) cache, so the SQLite
-             * store is written by exactly one path and `git diff` is the review
+             * re-imports it into the gitignored terms tables inside `.kapi/store.db`,
+             * so the store is written by exactly one path and `git diff` is the review
              * surface. The path resolves relative to the project root. Empty means no
-             * bound source (the .db cache, if any, is the only artifact).
+             * bound source (whatever the store already holds is the only artifact).
              * @member
              * @type {string | undefined}
              */
@@ -560,25 +549,12 @@ export class Defaults {
              * MemorySource binds the committed, git-tracked native source artifact (a
              * .memory.json document) the project content memory is compiled from, the content memory
              * analogue of TermsSource. `kapi apply` edits the .memory.json here and
-             * re-imports it into the gitignored .kapi/memory.db cache. The path resolves
-             * relative to the project root. Empty means no bound content memory source.
+             * re-imports it into the project store. The path resolves relative to the
+             * project root. Empty means no bound content memory source.
              * @member
              * @type {string | undefined}
              */
             this["memory_source"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * State binds the committed, git-tracked project state artifact (a
-             * kapi-project-state JSON document, core/state) — the authoritative carrier of
-             * per-unit workflow decisions (review ladder, approvals, parking) that a plain
-             * target file cannot hold. It is the export *sink* for state in git mode (a
-             * bowrain project pushes state to the server instead). The path resolves
-             * relative to the project root; empty defaults to `.kapi-state.json`.
-             * @member
-             * @type {string | undefined}
-             */
-            this["state"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -626,8 +602,8 @@ export class Defaults {
         const $$createField14_0 = $$createType13;
         const $$createField15_0 = $$createType7;
         const $$createField16_0 = $$createType15;
-        const $$createField21_0 = $$createType17;
-        const $$createField22_0 = $$createType19;
+        const $$createField19_0 = $$createType17;
+        const $$createField20_0 = $$createType19;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField1_0($$parsedSource["target_languages"]);
@@ -654,10 +630,10 @@ export class Defaults {
             $$parsedSource["brand_voice"] = $$createField16_0($$parsedSource["brand_voice"]);
         }
         if ("tools" in $$parsedSource) {
-            $$parsedSource["tools"] = $$createField21_0($$parsedSource["tools"]);
+            $$parsedSource["tools"] = $$createField19_0($$parsedSource["tools"]);
         }
         if ("locales" in $$parsedSource) {
-            $$parsedSource["locales"] = $$createField22_0($$parsedSource["locales"]);
+            $$parsedSource["locales"] = $$createField20_0($$parsedSource["locales"]);
         }
         return new Defaults(/** @type {Partial<Defaults>} */($$parsedSource));
     }
@@ -944,7 +920,7 @@ export class KapiProject {
              * the wrong one half the time. The taxonomy is the project's own — product,
              * channel, market, tenant — and a named collection names the point its
              * content sits at (ContentCollection.Context). Both empty means the whole
-             * project sits at one point, under defaults.brand_voice / defaults.terms.
+             * project sits at one point, under defaults.brand_voice / defaults.terms_source.
              * See coordinates.go.
              * @member
              * @type {Coordinates | undefined}
@@ -1165,15 +1141,6 @@ export class MemoryDefaults {
              */
             this["fuzzy_threshold"] = undefined;
         }
-        if (/** @type {any} */(false)) {
-            /**
-             * Read lists additional read-only content memory files consulted during pre-fill on
-             * extract. Writes always go to the project content memory, never to these.
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["read"] = undefined;
-        }
 
         Object.assign(this, $$source);
     }
@@ -1184,11 +1151,7 @@ export class MemoryDefaults {
      * @returns {MemoryDefaults}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("read" in $$parsedSource) {
-            $$parsedSource["read"] = $$createField1_0($$parsedSource["read"]);
-        }
         return new MemoryDefaults(/** @type {Partial<MemoryDefaults>} */($$parsedSource));
     }
 }
@@ -1414,8 +1377,9 @@ export class ProfileBinding {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Terms is the approved vocabulary for the matched content, resolved
-             * relative to the project root. Empty keeps defaults.terms.
+             * Terms is a STANDALONE terms store governing the matched content — a
+             * file the recipe points at, resolved relative to the project root. Empty
+             * is the ordinary case: the project's own store governs.
              * @member
              * @type {string | undefined}
              */

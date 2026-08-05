@@ -256,9 +256,16 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	}
 	// Without a recipe path there is nothing to resolve bindings from, and an
 	// embedder's own standing context on the App is left alone.
-	bound := opts.ProjectPath != ""
+	//
+	// Cancellation is not a binding failure. Resolution reads the project store,
+	// so a run cancelled before it starts turns every query into
+	// "context canceled" — and this function's contract is that cancellation
+	// ends the run early with a terminal event, never with an error. Checked
+	// here rather than swallowed inside each reader, so a genuine store fault
+	// still surfaces.
+	bound := opts.ProjectPath != "" && ctx.Err() == nil
 	if bound {
-		//nolint:contextcheck // ctx flows via the Command (CmdContext), not a detached context
+
 		if err := a.resolveGroupBindings(cmd, proj, opts.ProjectPath, groups); err != nil {
 			return nil, err
 		}

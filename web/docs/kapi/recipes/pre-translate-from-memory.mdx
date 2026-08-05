@@ -31,7 +31,7 @@ Ask for the leverage pass:
 
 > Import `project.memory.json` into the project's content memory, pre-translate the French catalog from it, and tell me what's left.
 
-The assistant runs `kapi memory import`, then `recycle`, and reports the residue — the blocks with no match — so you decide what goes to a model or a vendor. Approved sentence pairs it encounters along the way can be banked for the future with a `kind:"tm"` change-set entry through `kapi apply`.
+The assistant runs `kapi memory import`, then `recycle`, and reports the residue — the blocks with no match — so you decide what goes to a model or a vendor. Approved sentence pairs it encounters along the way can be banked for the future with a `kind:"memory"` change-set entry through `kapi apply`.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -44,7 +44,7 @@ kapi exec recycle messages_en.json -o step1.json \
   --source-lang en --target-lang fr             # 2. fill exact + fuzzy matches
 kapi pseudo-translate step1.json -o step2.json  # 3. mark what memory missed
 kapi exec term-check step2.json --source-lang en --target-lang fr \
-  --terms product-terms                      # 4. pre-flag terminology drift
+  --termstore product-terms                  # 4. pre-flag terminology drift
 ```
 
 Tune matching with `--fuzzy-threshold` / `--fill-target-threshold` ([how matching works](/framework/content-memory)). To machine-translate the misses instead of pseudo-filling them, swap step 3 for [`kapi translate`](/reference/commands/translate) and keep `term-check` as the guardrail.

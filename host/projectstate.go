@@ -2,10 +2,8 @@ package host
 
 import (
 	"context"
-	"path/filepath"
 	"time"
 
-	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 )
 
@@ -13,18 +11,29 @@ import (
 // decisions.
 func nowRFC3339() string { return time.Now().UTC().Format(time.RFC3339) }
 
-// openProjectState opens the project's working store, seeding it from the
-// committed record when it holds nothing yet.
+// OpenProjectState returns the project's working store — the staging area
+// between a decision being made and the project's committed record of it.
 //
-// Decisions accumulate in the working store and reach the committed record only
-// on Commit. Callers own that lifecycle: the point of staging is that a run
-// writes once rather than once per decision, so a caller recording many
-// decisions must commit after the batch, not inside the loop.
+// It is the working-set schema of the project store (ProjectDB), so the store
+// opens once per project per App and the value returned here is the same one
+// every other caller under that App holds. Close() on it is a no-op: the handle
+// owns the pool. Seeding from the committed record happens at open, once.
 //
-// The caller closes the returned store.
-func openProjectState(ctx context.Context, root string) (*state.WorkStore, error) {
-	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
-	return state.OpenWork(ctx, layout.WorkStorePath(), layout.UnitsDir())
+// Decisions accumulate here and reach the committed record only on Commit.
+// Callers own that lifecycle: the point of staging is that a run writes once
+// rather than once per decision, so a caller recording many decisions must
+// commit after the batch, not inside the loop.
+//
+// It is a method rather than the free function it was, because a working store
+// can no longer be opened on its own: it lives in the project's one database,
+// and a second opener would be a second connection pool on that file — two sets
+// of writers this process could no longer serialize.
+func (a *App) OpenProjectState(ctx context.Context, root string) (*state.WorkStore, error) {
+	db, err := a.ProjectDB(ctx, root)
+	if err != nil {
+		return nil, err
+	}
+	return db.Work(), nil
 }
 
 // targetHash is the content hash of a translation, used to bind a review decision
@@ -32,20 +41,6 @@ func openProjectState(ctx context.Context, root string) (*state.WorkStore, error
 // trims surrounding whitespace so insignificant reformatting doesn't invalidate.
 func targetHash(text string) string {
 	return state.TargetHash(text)
-}
-
-// OpenProjectState opens the project's working store for an embedder (the
-// desktop) that needs access to the same decisions the review commands record.
-//
-// It replaces the old StateFilePath: an embedder cannot resolve a path and read
-// it directly any more, because the committed record is a set of shards and the
-// authoritative view is the working store over them. Handing out a path let the
-// desktop read a different store than the writer used the moment the layout
-// changed, which is exactly what happened.
-//
-// The caller closes the returned store.
-func OpenProjectState(ctx context.Context, root string) (*state.WorkStore, error) {
-	return openProjectState(ctx, root)
 }
 
 // CommitProjectState writes staged decisions into the project's committed
@@ -56,13 +51,11 @@ func OpenProjectState(ctx context.Context, root string) (*state.WorkStore, error
 // reviewable record is a separate act, the same shape as staging and committing
 // in git. That is what keeps a run of automated decisions from landing in the
 // tracked record before anyone has looked at them.
-func CommitProjectState(ctx context.Context, root string) (int, error) {
-	st, err := openProjectState(ctx, root)
+func (a *App) CommitProjectState(ctx context.Context, root string) (int, error) {
+	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return 0, err
 	}
-	defer st.Close()
-
 	n, err := st.Pending(ctx)
 	if err != nil {
 		return 0, err
@@ -78,13 +71,11 @@ func CommitProjectState(ctx context.Context, root string) (int, error) {
 
 // PendingDecisions reports how many decisions are staged and not yet committed.
 // An unreadable store is not an error: status stays informational.
-func PendingDecisions(ctx context.Context, root string) int {
-	st, err := openProjectState(ctx, root)
+func (a *App) PendingDecisions(ctx context.Context, root string) int {
+	st, err := a.OpenProjectState(ctx, root)
 	if err != nil {
 		return 0
 	}
-	defer st.Close()
-
 	n, err := st.Pending(ctx)
 	if err != nil {
 		return 0

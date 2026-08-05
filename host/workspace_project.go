@@ -2,22 +2,21 @@ package host
 
 import (
 	"fmt"
-	"github.com/neokapi/neokapi/core/format"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/format"
+
 	"github.com/neokapi/neokapi/core/blockstore/exporter"
-	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/kpz"
-	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
-	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 )
 
@@ -68,16 +67,24 @@ func (a *App) RunPack(cmd Command) error {
 		fmt.Fprintf(os.Stderr, "Warning: pack: collect sources: %v\n", err)
 	}
 
-	// Block store (blocks + overlays).
-	if blocksPath := layout.BlockStorePath(); fileExists(blocksPath) {
-		store, err := sqlitestore.New(blocksPath)
-		if err != nil {
-			return fmt.Errorf("open block store: %w", err)
-		}
-		snap, err := exporter.Export(ctx, store)
-		_ = store.Close()
-		if err != nil {
-			return fmt.Errorf("export block store: %w", err)
+	// The three stores a snapshot carries all live in the one project store now,
+	// so each part is gated on that subsystem holding ROWS rather than on a file
+	// existing. The schemas exist from the store's first open, which is why file
+	// presence stopped distinguishing "has a content memory" from "has a state
+	// directory" — a stat would have packed an empty part for every project.
+	db, err := a.ProjectDB(ctx, layout.Root)
+	if err != nil {
+		return fmt.Errorf("open project store: %w", err)
+	}
+
+	// Block store (blocks + overlays). Either alone is worth packing: a flow
+	// run leaves overlays without caching blocks.
+	if has, herr := db.HasBlockCache(ctx); herr != nil {
+		return fmt.Errorf("read block cache: %w", herr)
+	} else if has {
+		snap, eerr := exporter.Export(ctx, db.BlocksAutocommit())
+		if eerr != nil {
+			return fmt.Errorf("export block store: %w", eerr)
 		}
 		pkg.Overlays = storeToKpzOverlays(snap.Overlays)
 		if len(snap.Blocks) > 0 {
@@ -86,15 +93,12 @@ func (a *App) RunPack(cmd Command) error {
 	}
 
 	// Authoritative content memory.
-	if memoryPath := filepath.Join(layout.StateDir, "memory.db"); fileExists(memoryPath) {
-		tm, err := memory.NewSQLiteStore(memoryPath)
-		if err != nil {
-			return fmt.Errorf("open project content memory: %w", err)
-		}
-		entries, err := tm.Entries(cmd.Context())
-		_ = tm.Close()
-		if err != nil {
-			return fmt.Errorf("read project content memory: %w", err)
+	if has, herr := db.HasMemory(ctx); herr != nil {
+		return fmt.Errorf("read project content memory: %w", herr)
+	} else if has {
+		entries, eerr := db.Memory().Entries(ctx)
+		if eerr != nil {
+			return fmt.Errorf("read project content memory: %w", eerr)
 		}
 		if len(entries) > 0 {
 			pkg.Memory = kmb.FromModel(entries, nil)
@@ -102,15 +106,12 @@ func (a *App) RunPack(cmd Command) error {
 	}
 
 	// Terms.
-	if tbPath := filepath.Join(layout.StateDir, "terms.db"); fileExists(tbPath) {
-		tb, err := terms.NewSQLiteStore(tbPath)
-		if err != nil {
-			return fmt.Errorf("open project terms store: %w", err)
-		}
-		concepts, err := tb.Concepts(cmd.Context())
-		_ = tb.Close()
-		if err != nil {
-			return fmt.Errorf("read project terms store: %w", err)
+	if has, herr := db.HasTerms(ctx); herr != nil {
+		return fmt.Errorf("read project terms store: %w", herr)
+	} else if has {
+		concepts, cerr := db.Terms().Concepts(ctx)
+		if cerr != nil {
+			return fmt.Errorf("read project terms store: %w", cerr)
 		}
 		if len(concepts) > 0 {
 			pkg.Terms = ktb.FromConcepts(concepts)
@@ -243,48 +244,47 @@ func (a *App) RunUnpack(cmd Command, snapshotPath string) error {
 	}
 	ctx := cmd.Context()
 
+	db, err := a.ProjectDB(ctx, layout.Root)
+	if err != nil {
+		return fmt.Errorf("open project store: %w", err)
+	}
+
 	// Block store.
 	if len(pkg.Overlays) > 0 || len(pkg.Blocks) > 0 {
-		store, err := sqlitestore.New(layout.BlockStorePath())
-		if err != nil {
-			return fmt.Errorf("open block store: %w", err)
+		store := db.Blocks()
+		if store == nil {
+			return fmt.Errorf("restore the block cache: %w", projectdb.ErrNoStore)
 		}
 		snap := &exporter.Snapshot{Overlays: kpzToStoreOverlays(pkg.Overlays), Blocks: kbfToBlocks(pkg.Blocks)}
-		err = exporter.Load(ctx, store, snap)
-		_ = store.Close()
-		if err != nil {
-			return fmt.Errorf("load block store: %w", err)
+		if lerr := exporter.Load(ctx, store, snap); lerr != nil {
+			return fmt.Errorf("load block store: %w", lerr)
 		}
 	}
 
-	// content memory.
+	// Content memory.
 	if pkg.Memory != nil {
-		tm, err := memory.NewSQLiteStore(filepath.Join(layout.StateDir, "memory.db"))
-		if err != nil {
-			return fmt.Errorf("open project content memory: %w", err)
+		tm := db.Memory()
+		if tm == nil {
+			return fmt.Errorf("restore the content memory: %w", projectdb.ErrNoStore)
 		}
 		for _, e := range pkg.Memory.ModelEntries() {
-			if aerr := tm.Add(cmd.Context(), e); aerr != nil {
-				_ = tm.Close()
+			if aerr := tm.Add(ctx, e); aerr != nil {
 				return fmt.Errorf("restore content-memory entry: %w", aerr)
 			}
 		}
-		_ = tm.Close()
 	}
 
 	// Terms.
 	if pkg.Terms != nil {
-		tb, err := terms.NewSQLiteStore(filepath.Join(layout.StateDir, "terms.db"))
-		if err != nil {
-			return fmt.Errorf("open project terms store: %w", err)
+		tb := db.Terms()
+		if tb == nil {
+			return fmt.Errorf("restore the terms store: %w", projectdb.ErrNoStore)
 		}
 		for _, c := range pkg.Terms.Concepts {
-			if aerr := tb.AddConcept(cmd.Context(), c); aerr != nil {
-				_ = tb.Close()
+			if aerr := tb.AddConcept(ctx, c); aerr != nil {
 				return fmt.Errorf("restore concept: %w", aerr)
 			}
 		}
-		_ = tb.Close()
 	}
 
 	// Restore raw source bytes when the snapshot carries them. `pack

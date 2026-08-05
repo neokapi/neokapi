@@ -170,14 +170,14 @@ func (a *App) executeFlowRun(ctx context.Context, op *openProject, flowName stri
 		a.runState.mu.Unlock()
 	}()
 
-	capp := &host.App{
+	capp := a.borrowEngine(&host.App{
 		FormatReg:   a.formatReg,
 		ToolReg:     a.toolReg,
 		SchemaReg:   a.schemaReg,
 		Credentials: a.credentials,
 		Config:      a.aiConfig,
 		Quiet:       true,
-	}
+	})
 	_, err := capp.RunFlowAllLocales(ctx, host.FlowRunOptions{
 		FlowName:      flowName,
 		Spec:          spec,

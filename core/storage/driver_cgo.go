@@ -44,7 +44,13 @@ const FTSWordTokenizer = "icu"
 // write lock and spuriously fail with "database is locked". wal_autocheckpoint
 // and temp_store have no mattn DSN param and stay in applyPragmas; neither
 // affects cascade correctness. In-memory DSNs are left untouched.
-func sqliteDSN(dbPath string) string {
+//
+// Options.ImmediateTx rides the DSN too, as _txlock=immediate, for the same
+// reason: the begin mode is a property of the connection, and mattn reads it
+// once per connection as the pool warms up. There is no per-statement
+// equivalent — issuing `BEGIN IMMEDIATE` by hand would mean bypassing
+// database/sql's transaction bookkeeping entirely.
+func sqliteDSN(dbPath string, opts Options) string {
 	if isMemoryDSN(dbPath) {
 		return dbPath
 	}
@@ -52,11 +58,14 @@ func sqliteDSN(dbPath string) string {
 	if strings.Contains(dbPath, "?") {
 		sep = "&"
 	}
-	params := strings.Join([]string{
+	params := []string{
 		"_foreign_keys=1",
 		"_busy_timeout=5000",
 		"_synchronous=NORMAL",
 		"_cache_size=-131072",
-	}, "&")
-	return dbPath + sep + params
+	}
+	if opts.ImmediateTx {
+		params = append(params, "_txlock=immediate")
+	}
+	return dbPath + sep + strings.Join(params, "&")
 }

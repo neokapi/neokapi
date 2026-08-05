@@ -10,7 +10,6 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/memory"
-	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,7 +63,6 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	require.Equal(t, filepath.Join("context", "terms.json"), proj.Defaults.TermsSource)
-	require.NotEmpty(t, proj.Defaults.Terms, "the compiled cache should be bound too")
 
 	data, err := os.ReadFile(srcPath)
 	require.NoError(t, err)
@@ -75,13 +73,13 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	assert.Equal(t, "sign in", file.Concepts[0].Terms[0].Text)
 	assert.Equal(t, model.TermPreferred, file.Concepts[0].Terms[0].Status)
 
-	// 2. The cache (.kapi/terms.db) was compiled from the source.
-	dbPath := filepath.Join(root, project.StateDirName, "terms.db")
-	require.FileExists(t, dbPath)
-	tb, err := terms.NewSQLiteStore(dbPath)
+	// 2. The project store's vocabulary was compiled from the source. There is
+	// no second file to point at any more, so the assertion is on the store the
+	// App already holds — the same one every term-aware command reads.
+	require.FileExists(t, filepath.Join(root, project.StateDirName, project.StoreFileName))
+	db, err := a.ProjectDB(ctx, root)
 	require.NoError(t, err)
-	t.Cleanup(func() { tb.Close() })
-	n, err := tb.Count(ctx)
+	n, err := db.Terms().Count(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 1, n)
 
@@ -129,13 +127,11 @@ func TestApplyMemoryEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, filepath.Join("context", "memory.json"), proj.Defaults.MemorySource)
 
-	// Cache compiled, contains the pair.
-	dbPath := filepath.Join(root, project.StateDirName, "memory.db")
-	require.FileExists(t, dbPath)
-	tm, err := memory.NewSQLiteStore(dbPath)
+	// Compiled into the project store, which now holds the pair.
+	require.FileExists(t, filepath.Join(root, project.StateDirName, project.StoreFileName))
+	db, err := a.ProjectDB(ctx, root)
 	require.NoError(t, err)
-	t.Cleanup(func() { tm.Close() })
-	got := lookupMemoryTarget(t, ctx, tm, "Welcome back", "en", "fr")
+	got := lookupMemoryTarget(t, ctx, db.Memory(), "Welcome back", "en", "fr")
 	assert.Equal(t, "Bon retour", got)
 
 	// Idempotent.

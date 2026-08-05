@@ -54,6 +54,7 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 
 		MemoryBackend: a.MemoryBackend,
 		TermsBackend:  a.TermsBackend,
+		BlocksBackend: a.BlocksBackend,
 		Credentials:   a.Credentials,
 
 		RegistryResolver: a.RegistryResolver,
@@ -76,6 +77,10 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		// concurrent callers serialize on the parent's Once). The worker's own
 		// fresh Once sees the seed and never builds a second runtime.
 		pluginRuntime: a.ensurePluginRuntime(),
+		// Same arrangement for the project stores, and the same reason: the
+		// locales of one pass read and write one `.kapi/store.db`, so they must
+		// share the pool rather than open one each.
+		projectStores: a.ensureProjectStores(),
 	}
 }
 
@@ -116,6 +121,7 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"TargetLang":        fieldOwned, // the whole point: one worker, one locale
 	"MemoryBackend":     fieldShared,
 	"TermsBackend":      fieldShared,
+	"BlocksBackend":     fieldShared,
 	"Credentials":       fieldShared,
 	"AISetupIOOverride": fieldShared,
 	"AISetupPrompter":   fieldShared, // presentation, and a worker never prompts
@@ -142,9 +148,11 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"docCache":            fieldShared,
 	"translator":          fieldShared,
 	"pluginRuntime":       fieldShared, // pre-seeded, never rebuilt per worker
+	"projectStores":       fieldShared, // pre-seeded: one store per project, not per locale
 	"projectFlowTools":    fieldOwned,  // each worker builds its own tool instances
 	"convergeProgressTap": fieldOwned,  // one tap per locale
 	"pluginRuntimeOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded runtime
+	"projectStoresOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded holder
 	// The parent owns the --explain collector and renders the transcript once.
 	// The LLM recorder is process-wide, so a worker's calls are still captured
 	// into the parent's collector; a worker holding its own would flush a

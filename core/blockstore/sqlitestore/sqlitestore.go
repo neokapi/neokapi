@@ -23,8 +23,10 @@ import (
 )
 
 // New opens (or creates) a SQLite-backed block store at the given path.
-// Intended use: project-local persistence at `.kapi/cache/blocks.db`, full
-// random access, append-friendly for concurrent overlay writes.
+// Intended use: project-local persistence in the project store,
+// `.kapi/store.db`, where core/projectdb binds it alongside the other
+// subsystems — full random access, append-friendly for concurrent overlay
+// writes.
 //
 // The database schema is internal to this package and versioned by
 // `cache_migrations`. Safe to delete and rebuild from another source
@@ -48,6 +50,27 @@ func NewAutocommit(path string) (blockstore.Store, error) {
 	return open(path, true)
 }
 
+// NewFromDB adopts an already-open database — the project's merged
+// `.kapi/store.db`, where the block cache is one schema among the content
+// memory, the terms store and the unit working set. The migrations and the
+// `cache_migrations` ledger are the same ones a standalone file gets, which is
+// the whole point of namespaced ledgers: a store opened either way is the same
+// store.
+//
+// The returned Store does NOT own db. Close detaches this handle and leaves the
+// connection pool open, because the merged store's owner closes it exactly
+// once; a subsystem closing a pool three other subsystems are still using is
+// the failure this exists to prevent.
+func NewFromDB(db *storage.DB, autocommit bool) (blockstore.Store, error) {
+	if db == nil {
+		return nil, errors.New("blockstore: adopt cache: nil database")
+	}
+	if err := storage.Migrate(db, "cache_migrations", cacheMigrations); err != nil {
+		return nil, fmt.Errorf("blockstore: migrate cache: %w", err)
+	}
+	return &cacheStore{db: db, autocommit: autocommit}, nil
+}
+
 func open(path string, autocommit bool) (blockstore.Store, error) {
 	db, err := storage.Open(path)
 	if err != nil {
@@ -57,13 +80,16 @@ func open(path string, autocommit bool) (blockstore.Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("blockstore: migrate cache: %w", err)
 	}
-	return &cacheStore{db: db, autocommit: autocommit}, nil
+	return &cacheStore{db: db, autocommit: autocommit, owns: true}, nil
 }
 
 type cacheStore struct {
 	db         *storage.DB
 	autocommit bool
-	mu         sync.Mutex // guards Close; per-operation writes serialize via SQLite WAL
+	// owns records whether Close may close the pool: true for a store that
+	// opened its own file, false for one that adopted a shared database.
+	owns bool
+	mu   sync.Mutex // guards Close; per-operation writes serialize via SQLite WAL
 }
 
 func (k *cacheStore) Capabilities() blockstore.Capabilities {
@@ -95,18 +121,25 @@ func (k *cacheStore) Close() error {
 	if k.db == nil {
 		return nil
 	}
-	err := k.db.Close()
+	db := k.db
 	k.db = nil
-	return err
+	if !k.owns {
+		return nil // adopted database: its owner closes the pool
+	}
+	return db.Close()
 }
 
 // ─── Session ────────────────────────────────────────────────────
 
 type cacheSession struct {
 	store *cacheStore
-	tx    *sql.Tx // nil in autocommit mode: statements run on the pool
-	ctx   context.Context
-	done  bool
+	// tx is nil in autocommit mode: statements run on the pool. On a gated
+	// handle it also carries the write permit, taken at Begin and returned at
+	// Commit or Rollback — so a session is the project store's single writer
+	// for its whole life, which is what a purge-and-refill needs anyway.
+	tx   *storage.Tx
+	ctx  context.Context
+	done bool
 }
 
 // q returns the session's statement runner: its transaction, or the shared
@@ -203,16 +236,59 @@ func (s *cacheSession) PutBlock(collection string, b *blockstore.Block) error {
 	if err != nil {
 		return fmt.Errorf("blockstore: encode block: %w", err)
 	}
+	// text_indexed goes back to 0: this block's searchable text is now stale,
+	// and the text index reconciles it the next time something searches. The
+	// column costs nothing to write and is the whole of extraction's share of
+	// the index — see textindex.go for why the build is not on this path.
 	_, err = s.q().ExecContext(s.ctx, `
 		INSERT INTO blocks (hash, collection, translatable, payload)
 		VALUES (?, ?, ?, ?)
 		ON CONFLICT(hash) DO UPDATE SET
 			collection=excluded.collection,
 			translatable=excluded.translatable,
-			payload=excluded.payload
+			payload=excluded.payload,
+			text_indexed=0
 	`, b.Hash, collection, boolInt(b.Translatable), payload)
 	if err != nil {
 		return fmt.Errorf("blockstore: put block: %w", err)
+	}
+	return nil
+}
+
+// putBlockTexts reconciles one block's searchable text with what the store
+// holds: a row per locale that carries text, and nothing left over. Called by
+// the index build, never by PutBlock.
+func (s *cacheSession) putBlockTexts(b *blockstore.Block) error {
+	texts := blockstore.BlockTexts(b)
+
+	// Drop rows for locales this block no longer has. Written first so a block
+	// whose text vanished entirely still loses its rows.
+	keep := make([]any, 0, len(texts)+1)
+	keep = append(keep, b.Hash)
+	placeholders := make([]string, 0, len(texts))
+	for _, t := range texts {
+		keep = append(keep, t.Locale)
+		placeholders = append(placeholders, "?")
+	}
+	del := `DELETE FROM block_texts WHERE block_hash = ?`
+	if len(placeholders) > 0 {
+		del += ` AND locale NOT IN (` + strings.Join(placeholders, ",") + `)`
+	}
+	if _, err := s.q().ExecContext(s.ctx, del, keep...); err != nil {
+		return fmt.Errorf("blockstore: prune block text: %w", err)
+	}
+
+	for _, t := range texts {
+		if _, err := s.q().ExecContext(s.ctx, `
+			INSERT INTO block_texts (block_hash, locale, text, text_lower)
+			VALUES (?, ?, ?, ?)
+			ON CONFLICT(block_hash, locale) DO UPDATE SET
+				text=excluded.text,
+				text_lower=excluded.text_lower
+			WHERE block_texts.text IS NOT excluded.text
+		`, b.Hash, t.Locale, t.Text, strings.ToLower(t.Text)); err != nil {
+			return fmt.Errorf("blockstore: put block text: %w", err)
+		}
 	}
 	return nil
 }
@@ -223,6 +299,13 @@ func (s *cacheSession) PutBlock(collection string, b *blockstore.Block) error {
 func (s *cacheSession) DeleteBlocks() error {
 	if s.done {
 		return blockstore.ErrClosed
+	}
+	// The text rows go first and by their own statement, so the FTS index is
+	// maintained by block_texts' own triggers. Cascading them off a trigger on
+	// blocks would nest one trigger inside another over a contentless FTS5
+	// table, where a duplicated 'delete' command corrupts the index.
+	if _, err := s.q().ExecContext(s.ctx, `DELETE FROM block_texts`); err != nil {
+		return fmt.Errorf("blockstore: delete block text: %w", err)
 	}
 	if _, err := s.q().ExecContext(s.ctx, `DELETE FROM blocks`); err != nil {
 		return fmt.Errorf("blockstore: delete blocks: %w", err)
@@ -387,6 +470,52 @@ var cacheMigrations = []storage.Migration{
 				PRIMARY KEY (kind, block_hash)
 			);
 			CREATE INDEX overlays_hash_idx ON overlays (block_hash);
+		`,
+	},
+	{
+		Version:     2,
+		Description: "block text index (FTS5 trigram over source and target text)",
+		SQL: `
+			CREATE TABLE block_texts (
+				block_hash TEXT NOT NULL,
+				locale     TEXT NOT NULL,
+				text       TEXT NOT NULL,
+				text_lower TEXT NOT NULL,
+				PRIMARY KEY (block_hash, locale)
+			);
+
+			-- Contentless FTS5 trigram over block_texts.text_lower, modelled on
+			-- the terms index: the tokenizer is identical across cgo and no-cgo
+			-- builds, so a store written by one binary stays queryable by the
+			-- other.
+			CREATE VIRTUAL TABLE block_texts_trigram USING fts5(
+				text_lower,
+				content='block_texts', content_rowid='rowid',
+				tokenize='trigram'
+			);
+
+			CREATE TRIGGER block_texts_trigram_ai AFTER INSERT ON block_texts BEGIN
+				INSERT INTO block_texts_trigram(rowid, text_lower) VALUES (new.rowid, new.text_lower);
+			END;
+			CREATE TRIGGER block_texts_trigram_ad AFTER DELETE ON block_texts BEGIN
+				INSERT INTO block_texts_trigram(block_texts_trigram, rowid, text_lower)
+				VALUES ('delete', old.rowid, old.text_lower);
+			END;
+			CREATE TRIGGER block_texts_trigram_au AFTER UPDATE ON block_texts BEGIN
+				INSERT INTO block_texts_trigram(block_texts_trigram, rowid, text_lower)
+				VALUES ('delete', old.rowid, old.text_lower);
+				INSERT INTO block_texts_trigram(rowid, text_lower) VALUES (new.rowid, new.text_lower);
+			END;
+
+			-- text_indexed marks a block whose text rows are current. Rows that
+			-- predate this migration are 0, so the first search files them.
+			--
+			-- Deliberately UNINDEXED. A partial index on text_indexed = 0
+			-- would make the staleness probe a seek, but every block write
+			-- would maintain it — a cost on extraction, which writes the whole
+			-- project, to save one scan on a query that runs occasionally. The
+			-- scan stays where it belongs.
+			ALTER TABLE blocks ADD COLUMN text_indexed INTEGER NOT NULL DEFAULT 0;
 		`,
 	},
 }

@@ -29,8 +29,8 @@ var pullCmd = &cobra.Command{
 Only changed blocks are transferred. Runs post-pull hooks if configured.
 
 When the project is claimed into a workspace, pull also snapshots the
-workspace's governed concepts and their relations into the project's bound
-terms (.kapi/terms.db) and records a baseline, so a later 'kapi push'
+workspace's governed concepts and their relations into the project's own
+terms and records a baseline, so a later 'kapi push'
 can diff local terminology edits against it and 'kapi check --ship' gates its
 terminology offline against the same governed vocabulary.
 
@@ -43,11 +43,12 @@ down over the local governance.`,
 
 // PullResult holds the structured result of a pull operation.
 type PullResult struct {
-	BlocksPulled int
-	LocalesCount int
-	FilesWritten int
-	DryRun       bool
-	UpToDate     bool
+	BlocksPulled    int
+	DecisionsStaged int
+	LocalesCount    int
+	FilesWritten    int
+	DryRun          bool
+	UpToDate        bool
 
 	// CollectionsObserved and GovernanceDiverged carry the context content
 	// type's pull half: how many collections the server reported, and which
@@ -65,7 +66,7 @@ func doPull(ctx context.Context, conn *bconn.BowrainSourceConnector, locales []s
 			return nil, err
 		}
 		var connErr error
-		conn, connErr = bconn.NewSourceConnector(proj, app.FormatReg)
+		conn, connErr = bconn.NewSourceConnector(app, proj, app.FormatReg)
 		if connErr != nil {
 			return nil, connErr
 		}
@@ -88,6 +89,7 @@ func doPull(ctx context.Context, conn *bconn.BowrainSourceConnector, locales []s
 
 	pr := &PullResult{
 		BlocksPulled:        result.BlocksPulled,
+		DecisionsStaged:     result.DecisionsStaged,
 		LocalesCount:        result.LocalesCount,
 		FilesWritten:        result.FilesWritten,
 		CollectionsObserved: result.CollectionsObserved,
@@ -95,7 +97,7 @@ func doPull(ctx context.Context, conn *bconn.BowrainSourceConnector, locales []s
 	}
 	if dryRun {
 		pr.DryRun = true
-	} else if result.BlocksPulled == 0 {
+	} else if result.BlocksPulled == 0 && result.DecisionsStaged == 0 {
 		pr.UpToDate = true
 	}
 
@@ -115,7 +117,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		return err
 	}
@@ -153,6 +155,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 
 	out := output.PullOutput{
 		BlocksPulled:        result.BlocksPulled,
+		DecisionsStaged:     result.DecisionsStaged,
 		LocalesCount:        result.LocalesCount,
 		FilesWritten:        result.FilesWritten,
 		Stream:              conn.Stream(),

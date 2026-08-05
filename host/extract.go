@@ -180,15 +180,10 @@ func (a *App) RunExtract(cmd Command) error {
 	if !noMemory {
 		if a.MemoryBackend != nil {
 			tm = a.MemoryBackend
-		} else {
-			memoryPath := filepath.Join(layout.StateDir, "memory.db")
-			loaded, err := memory.NewSQLiteStore(memoryPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: extract: open project content memory at %s: %v (continuing with no content memory)\n", memoryPath, err)
-			} else {
-				defer loaded.Close()
-				tm = loaded
-			}
+		} else if db, derr := a.ProjectDB(cmd.Context(), layout.Root); derr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: extract: open project store: %v (continuing with no content memory)\n", derr)
+		} else if mem := db.Memory(); mem != nil {
+			tm = mem
 		}
 	}
 
@@ -993,43 +988,30 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		return fmt.Errorf("extract: create out dir: %w", err)
 	}
 
-	// Content-memory / terms leverage context. A store that will not open is
-	// REPORTED, never dropped: both constructors CREATE the file when it is
-	// absent, so a failure here can only mean "a store that exists and cannot be
-	// read" (locked, corrupt, an FTS5 tokenizer mismatch between builds, bad
-	// permissions). Swallowing it shipped .kpz packages whose recycling context
-	// was silently empty — the translator sees no matches and no glossary on a
-	// project that has both, and nothing explains why. Reported and continued
-	// rather than fatal, matching the two siblings on the same call in this file
-	// (RunExtract, MergeOneKpz): the packages are still usable, just without
-	// leverage.
+	// Content-memory / terms leverage context, both read from the project store.
+	// A store that will not open is REPORTED, never dropped: the store is
+	// CREATED when it is absent, so a failure here can only mean "a store that
+	// exists and cannot be read" (locked, corrupt, an FTS5 tokenizer mismatch
+	// between builds, bad permissions). Swallowing it shipped .kpz packages
+	// whose recycling context was silently empty — the translator sees no
+	// matches and no vocabulary on a project that has both, and nothing explains
+	// why. Reported and continued rather than fatal, matching the two siblings on
+	// the same call in this file (RunExtract, MergeOneKpz): the packages are
+	// still usable, just without leverage.
 	var mem memory.ContentMemory
-	if !noMemory {
-		if a.MemoryBackend != nil {
-			mem = a.MemoryBackend
-		} else {
-			memoryPath := filepath.Join(layout.StateDir, "memory.db")
-			loaded, lerr := memory.NewSQLiteStore(memoryPath)
-			if lerr != nil {
-				fmt.Fprintf(cmd.ErrOrStderr(), "Warning: extract: open project content memory at %s: %v "+
-					"(continuing with no memory — the packages will report zero recycling leverage)\n", memoryPath, lerr)
-			} else {
-				defer loaded.Close()
-				mem = loaded
-			}
-		}
-	}
-
-	// Terms context (optional): bound terms or the project terms store.
 	var tb terms.Terminology
-	termsPath := filepath.Join(layout.StateDir, "terms.db")
-	tbLoaded, terr := terms.NewSQLiteStore(termsPath)
-	if terr != nil {
-		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: extract: open project terms at %s: %v "+
-			"(continuing with no glossary)\n", termsPath, terr)
-	} else {
-		defer tbLoaded.Close()
-		tb = tbLoaded
+	db, derr := a.ProjectDB(cmd.Context(), layout.Root)
+	if derr != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: extract: open project store: %v "+
+			"(continuing with no leverage — the packages will report zero recycling and no vocabulary)\n", derr)
+	}
+	if !noMemory && a.MemoryBackend != nil {
+		mem = a.MemoryBackend
+	} else if !noMemory && db != nil && db.Memory() != nil {
+		mem = db.Memory()
+	}
+	if db != nil && db.Terms() != nil {
+		tb = db.Terms()
 	}
 
 	written := 0

@@ -72,10 +72,15 @@ All `kapi memory` commands (except `list`) accept these mutually exclusive flags
 | `--file <path>` | Explicit file path            | `--file /shared/memory.db` |
 | _(no flag)_     | Same as `--local`             |                            |
 
-Databases are created on demand if they don't exist. `tm/` and `memory.db` are the
-on-disk names for content memory. `~/.config/kapi` is the user config directory
-on Linux, and resolves to `~/Library/Application Support/kapi` on macOS.
-`kapi config path` prints the resolved location.
+Databases are created on demand if they don't exist. `memory/` and `memory.db`
+are the on-disk names for a named or loose content memory. `~/.config/kapi` is
+the user config directory on Linux, and resolves to
+`~/Library/Application Support/kapi` on macOS. `kapi config path` prints the
+resolved location.
+
+With no flag inside a project, the content memory is instead a set of tables in
+the project's `.kapi/store.db` — see
+[Memory & terms storage](/kapi/recipes/memory-and-terms-storage).
 
 ```bash
 kapi memory import translations.memory.json --name project-memory

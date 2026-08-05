@@ -57,11 +57,11 @@ defaults:
   target_languages: [nb]
   brand_voice:
     profile_file: context/brand-voice.yaml
-  # terms_source is the committed, git-tracked glossary (the review surface
-  # `kapi apply` term-edits write to); terms is the gitignored cache the
-  # source compiles into. Source of truth lives in git, never in the cache.
+  # terms_source is the committed, git-tracked terms document (the review
+  # surface `kapi apply` term-edits write to); it compiles into the project
+  # store (.kapi/store.db), which is derived. Source of truth lives in git,
+  # never in the store.
   terms_source: context/terms.json
-  terms: .kapi/terms.db
   memory:
     fuzzy_threshold: 75
   # YAML surface = the harness demo scripts (the only yaml content items).

@@ -64,15 +64,21 @@ Three things are **not** ours to rename, and must stay factual:
 - **The Okapi Framework** is a localization framework, and the Java bridge wraps
   it. Say so; accurate provenance is not something to sanitize. The Okapi
   terminology mapping (Filter → DataFormat, Step → Tool, …) stays as recorded.
-- **Retained identifiers.** Recipe keys (`tm:`, `memory_source:`, `termbase:`,
-  `terms_source:`, `noTM`), on-disk paths (`memory.db`,
-  `terms.db`, `l10n/`, `~/.config/kapi/termbases/`), `l10n-*` make targets,
-  HTTP routes (`/translation-memory`, `/tm-matches`), proto fields (`tm_hash`,
-  `tm_entries`), migration tables (`sievepen_migrations`, `termbase_migrations`)
-  and analytics ids (`glossary_saved`) all keep their spelling — renaming them
+- **Retained identifiers.** SQL tables and migration bookkeeping (`tm_entries`,
+  `tm_variant_trigram`, `sievepen_migrations`, `termbase_migrations`), `l10n-*`
+  make targets, `l10n/` as a project directory a user chose, HTTP routes
+  (`/translation-memory`, `/tm-matches`), proto fields (`tm_hash`) and analytics
+  ids (`glossary_saved`, `method: "tm"`) all keep their spelling — renaming them
   breaks a wire, disk, or history boundary. Where prose documents one, describe
-  the **new concept** and quote the **old identifier** verbatim: "the project's
-  content memory (recipe key `tm:`)".
+  the **new concept** and quote the identifier verbatim: "the content memory's
+  entry table (`tm_entries`)".
+
+  The names a user actually types or sees on disk are *not* on that list, and
+  match the concepts: recipe keys are `memory:`, `terms_source:` and
+  `memory_source:`; flags are `--memory` and `--termstore`; a project keeps one
+  database at `.kapi/store.db` with its committed sources beside it; named
+  stores live under `<ConfigDir>/terms/`. Finding `tm` or `termbase` in one of
+  those is a leftover, not a boundary.
 
 ## Don't frame the shared engine as translation
 

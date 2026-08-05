@@ -7,12 +7,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 )
 
 // CollectionStatus is the JSON-serialisable summary the UI renders on the
@@ -49,17 +48,18 @@ type ProjectStatus struct {
 }
 
 // GetProjectStatus returns the current per-collection coverage for a project
-// tab, computed from the project's persistent block store
-// (`.kapi/cache/blocks.db`) through the shared coverage engine
-// (convergence.TallyBlockStore + CoverageTally) — the same tally the CLI's
-// `kapi status` feeds from working-tree file reads, so the desktop and the
-// CLI count with one rung semantics. Blocks are addressed by their ID and
+// tab, computed from the block cache in the project's store through the shared
+// coverage engine (convergence.TallyBlockStore + CoverageTally) — the same tally
+// the CLI's `kapi status` feeds from working-tree file reads, so the desktop and
+// the CLI count with one rung semantics. Blocks are addressed by their ID and
 // translated targets live under `targets/<locale>` overlays (the keys
 // `kapi run` / `kapi merge` write and read).
 //
-// If the block store does not exist yet (the project has never been
-// extracted), the returned status has HasData=false and zeroed coverage; this
-// is a well-defined "no data yet" state, not an error.
+// If the project has never been extracted, the returned status has
+// HasData=false and zeroed coverage; this is a well-defined "no data yet"
+// state, not an error. It is a row question, not a file one: the store file
+// exists from the first command that touches any subsystem, so its presence
+// stopped being evidence that anything was extracted.
 func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -94,23 +94,28 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 		collTargets[coll.Name] = targets
 	}
 
-	// No block store → "no data yet" shell with zeroed coverage.
-	storePath, ok := a.projectBlockStorePath(op)
+	// Nothing extracted → "no data yet" shell with zeroed coverage. Asked before
+	// the store is opened where the project has none, so drawing the shell for a
+	// project nobody has run anything on does not create one.
+	ctx := context.Background()
+	db, ok := a.existingProjectStore(op)
 	if !ok {
 		out.Collections = buildEmptyCollections(collOrder, collTargets)
 		return out, nil
 	}
-	if info, serr := os.Stat(storePath); serr != nil || info.IsDir() {
+	if extracted, err := db.HasBlocks(ctx); err != nil || !extracted {
 		out.Collections = buildEmptyCollections(collOrder, collTargets)
 		return out, nil
 	}
 
-	store, err := a.projectBlockStore(op)
-	if err != nil {
-		return nil, fmt.Errorf("open project block store: %w", err)
+	// Autocommit, not the session-transactional store: this is a read beside
+	// whatever else the desktop is doing, and a session that held the write
+	// permit for the length of a status query would stall every writer.
+	store := db.BlocksAutocommit()
+	if store == nil {
+		out.Collections = buildEmptyCollections(collOrder, collTargets)
+		return out, nil
 	}
-
-	ctx := context.Background()
 	sess, err := store.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("open block store session: %w", err)
@@ -118,10 +123,10 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	defer sess.Close()
 
 	out.HasData = true
-	// A store whose schema stamp is missing or doesn't match the running kapi
-	// was produced under different extraction semantics — its counts can be
+	// A block cache whose schema stamp is missing or doesn't match the running
+	// kapi was produced under different extraction semantics — its counts can be
 	// silently wrong, so flag it for re-extraction.
-	out.Stale = blockStoreStale(storePath)
+	out.Stale = db.BlockStoreStale(ctx)
 
 	scopes := make([]convergence.BlockStoreScope, 0, len(collOrder))
 	for _, name := range collOrder {
@@ -181,59 +186,26 @@ func buildEmptyCollections(order []string, targets map[string][]string) []Collec
 	return out
 }
 
-// projectBlockStorePath resolves the project's `.kapi/cache/blocks.db` path
-// from its recipe location. Returns false when the project has no on-disk path.
-func (a *App) projectBlockStorePath(op *openProject) (string, bool) {
-	if op == nil || op.Path == "" {
-		return "", false
-	}
-	layout, err := project.LayoutFor(op.Path)
-	if err != nil {
-		return "", false
-	}
-	return layout.BlockStorePath(), true
-}
-
-// blockStoreVersionStampPath is the sidecar file recording the extraction
-// schema version that last wrote the block store, e.g.
-// `.kapi/cache/blocks.db.kapiversion`. Thin alias over the shared core
-// implementation (core/project owns the stamp mechanism so the CLI's
-// `kapi up` drift check and the desktop agree).
-func blockStoreVersionStampPath(storePath string) string {
-	return project.BlockStoreVersionStampPath(storePath)
-}
-
-// blockStoreStale reports whether the block store at storePath was written
-// under different extraction semantics than the running binary. Callers
-// invoke this only once the store is known to exist. Delegates to the shared
-// core implementation.
-func blockStoreStale(storePath string) bool {
-	return project.BlockStoreStale(storePath)
-}
-
-// projectBlockStore returns the project's block store, opening it once and
-// caching it on the openProject for reuse. Opening (and migrating) a fresh
-// SQLite pool on every call let concurrent operations collide on blocks.db with
-// "database is locked"; a single shared pool lets SQLite/WAL serialize access.
-// The store is closed in CloseProject. Concurrent callers within the process
-// share the one pool; other processes (e.g. the kapi CLI) open their own pool
-// and coordinate via WAL.
-func (a *App) projectBlockStore(op *openProject) (blockstore.Store, error) {
-	storePath, ok := a.projectBlockStorePath(op)
+// existingProjectStore returns the tab's project store only when the project
+// already has one, so a read-only surface never brings a store into being just
+// by rendering. Opening is what creates the file; a status panel or a plan
+// preview that created one would leave the next real command a store it did not
+// write.
+func (a *App) existingProjectStore(op *openProject) (*projectdb.DB, bool) {
+	root, ok := projectRoot(op)
 	if !ok {
-		return nil, errors.New("project has no block store path")
+		return nil, false
 	}
-	op.blockStoreMu.Lock()
-	defer op.blockStoreMu.Unlock()
-	if op.blockStore != nil {
-		return op.blockStore, nil
+	info, err := os.Stat(filepath.Join(root, project.StateDirName, project.StoreFileName))
+	if err != nil || info.IsDir() {
+		return nil, false
 	}
-	store, err := sqlitestore.New(storePath)
+	db, err := a.projectStore(op)
 	if err != nil {
-		return nil, err
+		a.logger.Printf("open project store for %s: %v", root, err)
+		return nil, false
 	}
-	op.blockStore = store
-	return store, nil
+	return db, true
 }
 
 // ExtractResult summarises one extraction request from the UI.
@@ -256,12 +228,11 @@ type ExtractSkip struct {
 	Reason string `json:"reason"`
 }
 
-// RunExtract extracts the open project's declared content into the project's
-// persistent block store (`.kapi/cache/blocks.db`), the same store that
-// `kapi run` / `kapi merge` read and write. After it runs, GetProjectStatus
-// coverage reflects the extracted content (every block becomes part of the
-// per-collection denominator; targets remain at zero until a translate flow
-// runs and commits `targets/<locale>` overlays).
+// RunExtract extracts the open project's declared content into the block cache
+// in the project's store, the same cache that `kapi run` / `kapi merge` read and
+// write. After it runs, GetProjectStatus coverage reflects the extracted content
+// (every block becomes part of the per-collection denominator; targets remain at
+// zero until a translate flow runs and commits `targets/<locale>` overlays).
 //
 // It is a thin binding over the shared core extract-into-store path
 // (project.ExtractToBlockStore) — the same implementation the CLI's `kapi up`
@@ -276,11 +247,6 @@ func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 		return nil, errors.New("project has no recipe loaded")
 	}
 
-	storePath, ok := a.projectBlockStorePath(op)
-	if !ok {
-		return nil, errors.New("project has no file path; save it before extracting")
-	}
-
 	pctx := project.NewProjectContext(op.Project, op.Path)
 	resolved, err := pctx.ResolveContent(a.formatReg)
 	if err != nil {
@@ -290,18 +256,20 @@ func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 		return &ExtractResult{Log: "No source files matched the project's content patterns.\n"}, nil
 	}
 
-	// Ensure the cache dir (.kapi/cache/) exists — sqlitestore.New does not
-	// create parent directories.
-	if err := os.MkdirAll(filepath.Dir(storePath), 0o755); err != nil {
-		return nil, fmt.Errorf("create cache dir: %w", err)
-	}
-
-	store, err := a.projectBlockStore(op)
+	db, err := a.projectStore(op)
 	if err != nil {
-		return nil, fmt.Errorf("open project block store: %w", err)
+		return nil, fmt.Errorf("open project store: %w", err)
+	}
+	// Session-transactional, not autocommit: extraction purges the prior block
+	// set and refills it, and a half-applied purge is a project with no blocks.
+	// The session holds the store's write permit throughout, which is the correct
+	// reading of what SQLite makes it anyway.
+	store := db.Blocks()
+	if store == nil {
+		return nil, fmt.Errorf("extract into the block cache: %w", projectdb.ErrNoStore)
 	}
 
-	stats, err := project.ExtractToBlockStore(context.Background(), a.formatReg, pctx, store, storePath, resolved)
+	stats, err := project.ExtractToBlockStore(context.Background(), a.formatReg, pctx, store, db, resolved)
 	if err != nil {
 		return nil, err
 	}

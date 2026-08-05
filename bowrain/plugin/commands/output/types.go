@@ -150,12 +150,15 @@ func (o InitOutput) FormatText(w io.Writer) error {
 
 // PullOutput represents the result of kapi pull.
 type PullOutput struct {
-	BlocksPulled int    `json:"blocks_pulled"`
-	LocalesCount int    `json:"locales_count"`
-	FilesWritten int    `json:"files_written,omitempty"`
-	Stream       string `json:"stream,omitempty"`
-	DryRun       bool   `json:"dry_run,omitempty"`
-	UpToDate     bool   `json:"up_to_date,omitempty"`
+	BlocksPulled int `json:"blocks_pulled"`
+	LocalesCount int `json:"locales_count"`
+	FilesWritten int `json:"files_written,omitempty"`
+	// DecisionsStaged is how many server-ledger decisions the pull staged
+	// into the working store (kapi commit publishes them).
+	DecisionsStaged int    `json:"decisions_staged,omitempty"`
+	Stream          string `json:"stream,omitempty"`
+	DryRun          bool   `json:"dry_run,omitempty"`
+	UpToDate        bool   `json:"up_to_date,omitempty"`
 
 	// Concept sync (governed terminology pulled into the local terms).
 	ConceptsPulled         int `json:"concepts_pulled,omitempty"`
@@ -183,6 +186,9 @@ func (o PullOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "Pulled %d blocks for %d locales\n", o.BlocksPulled, o.LocalesCount)
 		if o.FilesWritten > 0 {
 			fmt.Fprintf(w, "Updated %d file(s)\n", o.FilesWritten)
+		}
+		if o.DecisionsStaged > 0 {
+			fmt.Fprintf(w, "Staged %d decision(s) from the server ledger — `kapi commit` publishes them\n", o.DecisionsStaged)
 		}
 	}
 	if o.ConceptsPulled > 0 {

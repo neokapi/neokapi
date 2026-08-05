@@ -27,22 +27,35 @@ type Layout struct {
 // state (manifest bookkeeping, content memory, terms, and the cache subdir).
 const StateDirName = ".kapi"
 
-// MemoryFileName and TermsFileName are the content-memory and terms stores
-// inside StateDir.
+// StoreFileName is the project's single local store: one SQLite file holding
+// the content memory, the terms store, the block cache and the unit working
+// set, each keeping its own migration ledger (see core/projectdb).
 //
-// The spellings match the concepts: content memory is `memory.db`, the terms
-// store is `terms.db`. The old `tm.db` / `termbase.db` were the last of the
-// retired vocabulary left in the tree after #1462 (Go identifiers) and #1504
-// (source filenames and the sync protobuf); this finishes that programme.
+// One file because the four it replaces could not be written together. An
+// approve-and-promote touches the working set and the content memory in the
+// same breath, and across two databases there is no transaction that covers
+// both — a crash between them left a decision recorded against wording the
+// memory never learned.
 //
-// Both files are **regenerable state**, which is why renaming them was cheap:
-// the terms store compiles from committed sources and the content memory
-// rebuilds from the loop. Neither is a source of truth, so there is nothing to
-// migrate — a stale file is simply rebuilt under the new name.
-const (
-	MemoryFileName = "memory.db"
-	TermsFileName  = "terms.db"
-)
+// It sits at the TOP of the state directory, not under cache/, because it
+// carries staged decisions: deleting it costs at most the decisions staged
+// since the last commit, whereas `rm -rf .kapi/cache` must stay free.
+const StoreFileName = "store.db"
+
+// StoreSidecarFileName is the working set's JSON stand-in on builds with no
+// file-backed SQLite driver (the browser build). Same directory, same
+// deletion story; only the encoding differs.
+const StoreSidecarFileName = "store.json"
+
+// StorePath returns the project's single local store.
+func (l Layout) StorePath() string {
+	return filepath.Join(l.StateDir, StoreFileName)
+}
+
+// StoreSidecarPath returns the browser build's working-set sidecar.
+func (l Layout) StoreSidecarPath() string {
+	return filepath.Join(l.StateDir, StoreSidecarFileName)
+}
 
 // RecipeFileName is the fixed filename of a kapi project recipe. A plain
 // YAML file, so every editor and code host (GitHub/GitLab previews and
@@ -52,16 +65,11 @@ const (
 const RecipeFileName = "kapi.yaml"
 
 // CacheDirName is the subdirectory of StateDir that holds all regenerable
-// caches: block store, extraction intermediates, overlay layers, and any
-// platform-specific caches (e.g. sync caches added by extensions).
-// Authoritative
-// project data (content memory, terms, manifest) lives at the top level of
-// StateDir so users can blow away the cache without losing translation
-// work.
+// caches: the parse cache, extraction intermediates, overlay layers, and any
+// platform-specific caches (e.g. sync caches added by extensions). Authoritative
+// project data lives in the store at the top level of StateDir, so users can
+// blow away the cache without losing translation work.
 const CacheDirName = "cache"
-
-// BlockStoreFilename is the SQLite block store cache file under CacheDir().
-const BlockStoreFilename = "blocks.db"
 
 // FiltersFilename / LocalFiltersFilename hold saved content filters (the
 // desktop "Active Filter"): the shared set is committed; the local set is
@@ -84,11 +92,6 @@ func (l Layout) FiltersPath() string {
 // LocalFiltersPath returns the path to the personal (gitignored) filters file.
 func (l Layout) LocalFiltersPath() string {
 	return filepath.Join(l.StateDir, LocalFiltersFilename)
-}
-
-// BlockStorePath returns the absolute path of the SQLite block store cache.
-func (l Layout) BlockStorePath() string {
-	return filepath.Join(l.CacheDir(), BlockStoreFilename)
 }
 
 // ExtractionsDir returns the absolute path of the extractions cache root.
@@ -158,10 +161,6 @@ func ResolveLayout(start string) (Layout, error) {
 	for {
 		layout, err := layoutAtDir(dir)
 		if err == nil {
-			// Every load path passes here, which is what makes the sweep
-			// reliable: EnsureLayout alone only covered the writing verbs, and
-			// the plugin daemon's read path never called it.
-			sweepRetiredStateFiles(layout)
 			return layout, nil
 		}
 		if !errors.Is(err, errLayoutNotHere) {
@@ -219,24 +218,14 @@ func EnsureLayout(layout Layout) error {
 	if err := os.MkdirAll(layout.CacheDir(), 0o755); err != nil {
 		return fmt.Errorf("project: create cache dir: %w", err)
 	}
-	sweepRetiredStateFiles(layout)
 	return nil
 }
 
-// sweepRetiredStateFiles removes the store files the vocabulary sweep renamed
-// out of existence (`tm.db` → `memory.db`, `termbase.db` → `terms.db`). Left
-// in place they were a live footgun: retired names sitting beside the live
-// stores, indistinguishable from state, and nothing declaring which file was
-// authoritative. Both were regenerable projections, so deleting them loses
-// nothing — the same reasoning that made the rename itself cheap. Best-effort:
-// a file that will not delete is not worth failing a project open over.
-func sweepRetiredStateFiles(layout Layout) {
-	for _, retired := range []string{"tm.db", "termbase.db"} {
-		for _, suffix := range []string{"", "-wal", "-shm"} {
-			_ = os.Remove(filepath.Join(layout.StateDir, retired+suffix))
-		}
-	}
-}
+// Retired state files are not swept here. Every predecessor of the merged store
+// — the vocabulary-renamed `tm.db`/`termbase.db` as well as the four-file
+// `memory.db`/`terms.db`/`cache/blocks.db`/`work/state.db` — is removed by
+// core/projectdb when the project store opens, so one place decides what a
+// state directory may contain.
 
 // ─── internals ──────────────────────────────────────────────────
 
@@ -287,24 +276,6 @@ func layoutAtDir(dir string) (Layout, error) {
 		RecipePath: filepath.Join(dir, RecipeFileName),
 		StateDir:   filepath.Join(dir, StateDirName),
 	}, nil
-}
-
-// WorkDirName is the state subdirectory holding the derived working set.
-//
-// Gitignored, and disposable ONCE COMMITTED: the working store is an index over
-// the committed record, so deleting it costs nothing that has been serialized.
-// It is not filed under cache/ because until a decision is committed this holds
-// the only copy of it, and cache means regenerable.
-const WorkDirName = "work"
-
-// WorkDir returns the absolute path of the derived working-set root.
-func (l Layout) WorkDir() string {
-	return filepath.Join(l.StateDir, WorkDirName)
-}
-
-// WorkStorePath returns the working store database.
-func (l Layout) WorkStorePath() string {
-	return filepath.Join(l.WorkDir(), "state.db")
 }
 
 // UnitsDirName holds the committed record — one JSON Lines shard per document.

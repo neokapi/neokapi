@@ -2,6 +2,7 @@ package storage
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -45,7 +46,6 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 		defer l.Unlock()
 	}
 
-	//nolint:noctx // startup migration
 	if _, err := db.Exec(fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			version     INTEGER PRIMARY KEY,
@@ -57,7 +57,7 @@ func Migrate(db *DB, tableName string, migrations []Migration) error {
 	}
 
 	var currentVersion int
-	err := db.QueryRow("SELECT COALESCE(MAX(version), 0) FROM " + tableName).Scan(&currentVersion) //nolint:noctx // startup migration
+	err := db.QueryRowContext(context.Background(), "SELECT COALESCE(MAX(version), 0) FROM "+tableName).Scan(&currentVersion)
 	if err != nil {
 		return fmt.Errorf("get current version: %w", err)
 	}
@@ -123,13 +123,13 @@ func applyMigration(db *DB, tableName string, m Migration) error {
 // record, commit. Returns (false, nil) when the migration turned out to be
 // already applied.
 func tryApplyMigration(db *DB, tableName string, m Migration) (bool, error) {
-	tx, err := db.Begin() //nolint:noctx // startup migration
+	tx, err := db.Begin()
 	if err != nil {
 		return false, fmt.Errorf("begin migration %d: %w", m.Version, err)
 	}
 
 	var cur int
-	if err := tx.QueryRow("SELECT COALESCE(MAX(version), 0) FROM " + tableName).Scan(&cur); err != nil { //nolint:noctx // startup migration
+	if err := tx.QueryRowContext(context.Background(), "SELECT COALESCE(MAX(version), 0) FROM "+tableName).Scan(&cur); err != nil {
 		_ = tx.Rollback()
 		return false, fmt.Errorf("re-check version for migration %d: %w", m.Version, err)
 	}
@@ -138,7 +138,7 @@ func tryApplyMigration(db *DB, tableName string, m Migration) (bool, error) {
 		return false, nil
 	}
 
-	if _, err := tx.Exec(m.SQL); err != nil { //nolint:noctx // startup migration
+	if _, err := tx.ExecContext(context.Background(), m.SQL); err != nil {
 		_ = tx.Rollback()
 		if isBusyErr(err) {
 			return false, err // retryable
@@ -146,7 +146,7 @@ func tryApplyMigration(db *DB, tableName string, m Migration) (bool, error) {
 		return false, fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
 	}
 
-	if _, err := tx.Exec( //nolint:noctx // startup migration
+	if _, err := tx.ExecContext(context.Background(),
 		fmt.Sprintf("INSERT INTO %s (version, description) VALUES (?, ?)", tableName),
 		m.Version, m.Description,
 	); err != nil {

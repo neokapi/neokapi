@@ -10,10 +10,10 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -150,15 +150,23 @@ func TestUp_RequiresProject(t *testing.T) {
 	assert.Contains(t, err.Error(), "needs a project")
 }
 
+// openStore opens a project's store directly, for tests inspecting what a run
+// left in it.
+func openStore(t *testing.T, root string) *projectdb.DB {
+	t.Helper()
+	db, err := projectdb.Open(t.Context(), project.Layout{
+		Root: root, StateDir: filepath.Join(root, project.StateDirName),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	return db
+}
+
 // storeBlockTexts reads every translatable block's source text from a
-// project's block store.
+// project's block cache.
 func storeBlockTexts(t *testing.T, root string) []string {
 	t.Helper()
-	storePath := filepath.Join(root, ".kapi", "cache", "blocks.db")
-	store, err := sqlitestore.New(storePath)
-	require.NoError(t, err)
-	defer store.Close()
-	sess, err := store.Begin(context.Background())
+	sess, err := openStore(t, root).BlocksAutocommit().Begin(context.Background())
 	require.NoError(t, err)
 	defer sess.Close()
 	var texts []string
@@ -187,8 +195,8 @@ func TestUp_AutoExtractsOnDrift(t *testing.T) {
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "into the project store", "first up must auto-extract (missing store)")
 
-	storePath := filepath.Join(root, ".kapi", "cache", "blocks.db")
-	assert.False(t, project.BlockStoreStale(storePath), "auto-extract must stamp the store version")
+	assert.False(t, openStore(t, root).BlockStoreStale(t.Context()),
+		"auto-extract must stamp the store version")
 	assert.Contains(t, storeBlockTexts(t, root), "Hello, world.")
 
 	// No drift → the next up does not re-extract.
@@ -218,8 +226,14 @@ func TestUp_NoExtractOptsOut(t *testing.T) {
 	out, err := runUp(t, a, recipe, "--no-extract")
 	require.NoError(t, err, out)
 	assert.NotContains(t, out, "into the project store")
-	_, statErr := os.Stat(project.BlockStoreVersionStampPath(filepath.Join(root, ".kapi", "cache", "blocks.db")))
-	assert.True(t, os.IsNotExist(statErr), "--no-extract must not stamp the store")
+
+	// The stamp is a row now, not a sidecar, so "never stamped" reads as the
+	// store reporting itself stale — the same conclusion, asked of the table.
+	db := openStore(t, root)
+	assert.True(t, db.BlockStoreStale(t.Context()), "--no-extract must not stamp the store")
+	has, herr := db.HasBlocks(t.Context())
+	require.NoError(t, herr)
+	assert.False(t, has, "--no-extract must not extract either")
 }
 
 // TestUp_MaterializePolicyManualByDefault: with the default policy (manual),

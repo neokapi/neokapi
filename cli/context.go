@@ -59,18 +59,22 @@ terminology match and a wording match are not scored on comparable things.`,
 			// create a missing file, so an error here means broken, not absent,
 			// and reporting it as "not bound" would send the caller looking for
 			// a store they already have.
-			if tb, _, err := a.OpenTermsSQLite(cmd); err == nil {
-				defer tb.Close()
+			if tb, _, releaseTerms, err := a.OpenTermsSQLite(cmd); err == nil {
+				defer releaseTerms()
 				src.Terms = tb
 			} else {
 				src.TermsErr = err
 			}
-			if tm, _, err := a.OpenMemorySQLite(cmd); err == nil {
-				defer tm.Close()
+			if tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd); err == nil {
+				defer releaseMemory()
 				src.Memory = tm
 			} else {
 				src.MemoryErr = err
 			}
+			// The project's extracted content, so a term answer can say where
+			// the term actually is. Absent is ordinary — nothing extracted yet
+			// — and the search says so in a note rather than failing.
+			src.Blocks = a.OccurrenceBlocks(cmd)
 
 			res, err := host.SearchContext(cmd.Context(), src, host.ContextSearchRequest{
 				Query:  args[0],

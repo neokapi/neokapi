@@ -2,11 +2,9 @@ package project
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/kbf"
@@ -20,42 +18,14 @@ import (
 // binding over ExtractToBlockStore; the CLI auto-extracts on drift before
 // each `up` pass via DetectStoreDrift + ExtractToBlockStore.
 
-// blockStoreSchemaVersion identifies the block-store extraction semantics:
+// BlockStoreSchemaVersion identifies the block-store extraction semantics:
 // how blocks are read, numbered, keyed (BlockStoreHash), and glob-expanded
 // into the store. Bump it whenever a change makes previously extracted stores
 // wrong (e.g. the historical `**`-glob fix), so they re-extract. Staleness is
 // stamped by THIS version, not the binary version: a CLI and a desktop built
 // from different releases with the same extraction semantics share one cache
 // instead of endlessly invalidating each other's.
-const blockStoreSchemaVersion = "2026-07-05.1"
-
-// BlockStoreVersionStampPath is the sidecar file recording the extraction
-// schema version that last wrote the block store, e.g.
-// `.kapi/cache/blocks.db.kapiversion` (the historical filename is kept so
-// existing stores keep their stamp file).
-func BlockStoreVersionStampPath(storePath string) string {
-	return storePath + ".kapiversion"
-}
-
-// BlockStoreStale reports whether the block store at storePath was written
-// under different extraction semantics than the running binary — true when
-// the stamp is missing/unreadable, or its contents don't match
-// blockStoreSchemaVersion. Callers invoke this only once the store is known
-// to exist (a missing store has nothing to be stale about).
-func BlockStoreStale(storePath string) bool {
-	data, err := os.ReadFile(BlockStoreVersionStampPath(storePath))
-	if err != nil {
-		return true
-	}
-	return strings.TrimSpace(string(data)) != blockStoreSchemaVersion
-}
-
-// StampBlockStoreVersion records the running binary's extraction schema
-// version as the writer of the block store at storePath, so a later binary
-// can tell whether it would have extracted different content.
-func StampBlockStoreVersion(storePath string) error {
-	return os.WriteFile(BlockStoreVersionStampPath(storePath), []byte(blockStoreSchemaVersion), 0o644)
-}
+const BlockStoreSchemaVersion = "2026-07-05.1"
 
 // SourceStamp records the identity of one source file at extract time: its
 // content hash plus the (size, mtime) fast-path pair, so drift detection only
@@ -70,41 +40,10 @@ type SourceStamp struct {
 	MTimeNS int64 `json:"mtimeNs"`
 }
 
-// BlockStoreSourceStampsPath is the sidecar recording, per project-relative
-// source path, the SourceStamp captured by the last extraction, e.g.
-// `.kapi/cache/blocks.db.sources.json`.
-func BlockStoreSourceStampsPath(storePath string) string {
-	return storePath + ".sources.json"
-}
-
-// LoadSourceStamps reads the source-stamp sidecar. A missing or unreadable
-// sidecar yields an empty map — every file then reads as drifted, which is the
-// safe direction (re-extract).
-func LoadSourceStamps(storePath string) map[string]SourceStamp {
-	data, err := os.ReadFile(BlockStoreSourceStampsPath(storePath))
-	if err != nil {
-		return map[string]SourceStamp{}
-	}
-	var stamps map[string]SourceStamp
-	if json.Unmarshal(data, &stamps) != nil || stamps == nil {
-		return map[string]SourceStamp{}
-	}
-	return stamps
-}
-
-// SaveSourceStamps writes the source-stamp sidecar next to the block store.
-func SaveSourceStamps(storePath string, stamps map[string]SourceStamp) error {
-	data, err := json.MarshalIndent(stamps, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(BlockStoreSourceStampsPath(storePath), data, 0o644)
-}
-
 // StoreDrift describes how the block store has fallen behind the working tree.
 type StoreDrift struct {
-	// StoreMissing: the store file does not exist (never extracted, or the
-	// cache was cleared).
+	// StoreMissing: nothing has been extracted yet (a fresh project, or the
+	// block cache was cleared).
 	StoreMissing bool `json:"storeMissing,omitempty"`
 	// VersionStale: the store exists but was written by a different kapi
 	// version (missing or mismatched version stamp), so its content may be
@@ -124,33 +63,23 @@ func (d StoreDrift) Any() bool {
 	return d.StoreMissing || d.VersionStale || len(d.Changed) > 0 || len(d.Removed) > 0
 }
 
-// DetectStoreDrift compares the project's resolved source files against the
-// block store's sidecar stamps and reports what has drifted: a missing store, a
-// version-stamp mismatch, edited/new source files (stat fast path, content-hash
-// confirm), and stamped files that no longer resolve. It is read-only and
-// best-effort: an unreadable file counts as changed (the safe direction).
-func DetectStoreDrift(storePath string, files []ResolvedFile) StoreDrift {
-	var d StoreDrift
-	if info, err := os.Stat(storePath); err != nil || info.IsDir() {
-		d.StoreMissing = true
-		return d
-	}
-	if BlockStoreStale(storePath) {
-		d.VersionStale = true
-	}
-
-	stamps := LoadSourceStamps(storePath)
+// CompareSourceStamps compares resolved source files against their extract-time
+// stamps and reports which drifted and which are stamped but no longer resolve.
+// It is the half of drift detection that does not care where the stamps came
+// from, so this package and the store that holds them (core/projectdb) share one
+// implementation rather than two that agree until they don't.
+func CompareSourceStamps(stamps map[string]SourceStamp, files []ResolvedFile) (changed, removed []string) {
 	seen := make(map[string]bool, len(files))
 	for _, rf := range files {
 		seen[rf.Relative] = true
 		stamp, ok := stamps[rf.Relative]
 		if !ok {
-			d.Changed = append(d.Changed, rf.Relative)
+			changed = append(changed, rf.Relative)
 			continue
 		}
 		info, err := os.Stat(rf.Path)
 		if err != nil {
-			d.Changed = append(d.Changed, rf.Relative)
+			changed = append(changed, rf.Relative)
 			continue
 		}
 		if info.Size() == stamp.Size && info.ModTime().UnixNano() == stamp.MTimeNS {
@@ -158,7 +87,7 @@ func DetectStoreDrift(storePath string, files []ResolvedFile) StoreDrift {
 		}
 		hash, err := HashFile(rf.Path)
 		if err != nil || hash != stamp.Hash {
-			d.Changed = append(d.Changed, rf.Relative)
+			changed = append(changed, rf.Relative)
 		}
 		// Touched but byte-identical: not drift. The refreshed (size, mtime)
 		// pair is re-stamped by the next extraction; until then the hash
@@ -166,10 +95,10 @@ func DetectStoreDrift(storePath string, files []ResolvedFile) StoreDrift {
 	}
 	for rel := range stamps {
 		if !seen[rel] {
-			d.Removed = append(d.Removed, rel)
+			removed = append(removed, rel)
 		}
 	}
-	return d
+	return changed, removed
 }
 
 // ExtractSkip records one file that extraction could not process.
@@ -188,7 +117,7 @@ type ExtractStats struct {
 	// with a short reason. Extraction is best-effort per file.
 	Skipped []ExtractSkip `json:"skipped,omitempty"`
 	// Warnings records faults that did not endanger the extracted content —
-	// today, a failure to write the store's version or drift stamps after the
+	// today, a failure to record the store's version or drift stamps after the
 	// blocks were already committed. Those writes stay best-effort (see
 	// ExtractToBlockStore), but best-effort is not the same as unreportable:
 	// the self-healing story assumes the NEXT write succeeds, and a permanent
@@ -211,6 +140,21 @@ func CollectionLabel(name string) string {
 	return name
 }
 
+// BlockStoreStamper records the bookkeeping an extraction leaves behind: the
+// extraction semantics that wrote the block cache, and what each source file
+// looked like when it did.
+//
+// It is an interface because the stamps live in the project store's `store_meta`
+// table (core/projectdb), and that package imports this one — so extraction can
+// name the capability it needs but never the store that provides it.
+type BlockStoreStamper interface {
+	// StampBlockStoreVersion records BlockStoreSchemaVersion as the writer of
+	// the block cache.
+	StampBlockStoreVersion(ctx context.Context) error
+	// SaveSourceStamps records the per-source, extract-time identity stamps.
+	SaveSourceStamps(ctx context.Context, stamps map[string]SourceStamp) error
+}
+
 // ExtractToBlockStore extracts the given resolved source files into the
 // project's persistent block store — the single extract-into-store path shared
 // by the desktop's Re-extract and the CLI's auto-extract-on-drift.
@@ -227,12 +171,16 @@ func ExtractToBlockStore(
 	reg *registry.FormatRegistry,
 	pctx *ProjectContext,
 	store blockstore.Store,
-	storePath string,
+	stamper BlockStoreStamper,
 	files []ResolvedFile,
 ) (ExtractStats, error) {
 	var stats ExtractStats
 	if pctx == nil {
 		return stats, errors.New("project: extract to block store: nil project context")
+	}
+	if stamper == nil {
+		return stats, errors.New("project: extract to block store: nil stamper — an unstamped store " +
+			"reads as drifted forever, so extraction refuses rather than write one")
 	}
 
 	sess, err := store.Begin(ctx)
@@ -316,20 +264,18 @@ func ExtractToBlockStore(
 	//
 	// Reported rather than silent, though. "It self-heals on the next run"
 	// holds only if the next write succeeds; when the cause is permanent — a
-	// read-only .kapi/cache, a full disk, a changed owner — every run
+	// read-only state directory, a full disk, a changed owner — every run
 	// re-extracts and re-translates the entire project, and the sole symptom is
 	// that kapi is inexplicably slow and re-does finished work forever. That is
 	// precisely the failure nobody diagnoses, because nothing ever said it
 	// happened.
-	if err := StampBlockStoreVersion(storePath); err != nil {
+	if err := stamper.StampBlockStoreVersion(ctx); err != nil {
 		stats.Warnings = append(stats.Warnings, fmt.Sprintf(
-			"could not write the block-store version stamp %s: %v — the store will read as stale and re-extract on every run",
-			BlockStoreVersionStampPath(storePath), err))
+			"could not record the block-store version stamp: %v — the store will read as stale and re-extract on every run", err))
 	}
-	if err := SaveSourceStamps(storePath, stamps); err != nil {
+	if err := stamper.SaveSourceStamps(ctx, stamps); err != nil {
 		stats.Warnings = append(stats.Warnings, fmt.Sprintf(
-			"could not write the source drift stamps %s: %v — every source file will read as drifted and re-extract on every run",
-			BlockStoreSourceStampsPath(storePath), err))
+			"could not record the source drift stamps: %v — every source file will read as drifted and re-extract on every run", err))
 	}
 	return stats, nil
 }

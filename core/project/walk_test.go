@@ -22,7 +22,7 @@ func TestWalkProjectDir(t *testing.T) {
 	write(filepath.Join("src", "en.json"))
 	write(filepath.Join("src", "sub", "deep.md"))
 	write(filepath.Join("src", ".hidden"))
-	write(filepath.Join(".kapi", "cache", "blocks.db"))
+	write(filepath.Join(".kapi", "store.db"))
 	write(filepath.Join("node_modules", "pkg", "index.js"))
 	write("ignored.tmp")
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".kapiignore"),

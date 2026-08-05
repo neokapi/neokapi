@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 	"github.com/stretchr/testify/assert"
@@ -78,18 +80,21 @@ content:
 	targetFile = filepath.Join(root, "locales", "fr", "app.json")
 	require.NoError(t, os.WriteFile(targetFile, []byte(bad), 0o644))
 
-	// Seed the project terms store: Save -> Enregistrer (approved).
-	tbPath := filepath.Join(root, ".kapi", "terms.db")
-	tb, err := terms.NewSQLiteStore(tbPath)
+	// Seed the project store's vocabulary: Save -> Enregistrer (approved).
+	// Bound now means "the store holds a concept", not "a terms file exists" —
+	// every project store has the tables from its first open.
+	db, err := projectdb.Open(t.Context(), project.Layout{
+		Root: root, StateDir: filepath.Join(root, project.StateDirName),
+	})
 	require.NoError(t, err)
-	require.NoError(t, tb.AddConcept(t.Context(), terms.Concept{
+	require.NoError(t, db.Terms().AddConcept(t.Context(), terms.Concept{
 		ID: "c1",
 		Terms: []terms.Term{
 			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
 			{Text: "Enregistrer", Locale: model.LocaleFrench, Status: model.TermPreferred},
 		},
 	}))
-	require.NoError(t, tb.Close())
+	require.NoError(t, db.Close())
 
 	return root, targetFile
 }
@@ -265,8 +270,8 @@ func TestVerify_GateSelection(t *testing.T) {
 }
 
 // writeTermsSourceProject creates a project that binds a committed
-// termbase_source (a .terms.json) but NO compiled .kapi/terms.db, so the check
-// path must resolve the glossary straight from the source. The terms store carries
+// termbase_source (a .terms.json) and whose own store holds no concepts, so the
+// check path must resolve the vocabulary straight from the source. The terms store carries
 // two concepts: a do-not-translate brand term (KapiMart, identical in en/fr) and
 // a translated term (Save -> Enregistrer). The fr target keeps the brand term
 // identical (correct) and mistranslates "Save" as "Sauvegarder" (a terms fail).
@@ -324,17 +329,19 @@ content:
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(root, "context", "terms.json"), data, 0o644))
 
-	// Assert the fallback path is the one under test: no compiled db exists.
-	_, statErr := os.Stat(filepath.Join(root, ".kapi", "terms.db"))
-	require.True(t, os.IsNotExist(statErr), "test must exercise the termbase_source fallback, not a compiled db")
+	// Assert the fallback path is the one under test: no project store exists
+	// yet, so nothing could have been compiled into it. This is the fresh-checkout
+	// shape — the committed source is tracked, the store is not.
+	_, statErr := os.Stat(filepath.Join(root, project.StateDirName, project.StoreFileName))
+	require.True(t, os.IsNotExist(statErr), "test must exercise the terms_source fallback, not a compiled store")
 
 	return root
 }
 
 // TestVerify_GlossaryFromTermsSource asserts the terminology gate resolves
-// the project glossary directly from the committed termbase_source (.terms.json) when
-// the compiled .kapi/terms.db is absent — the common case at check time in
-// CI. The gate must run and fail on the mistranslated "Save".
+// the project vocabulary directly from the committed termbase_source
+// (.terms.json) when the project store holds no concepts — the common case at
+// check time in CI, where the gitignored store does not exist at all. The gate must run and fail on the mistranslated "Save".
 func TestVerify_GlossaryFromTermsSource(t *testing.T) {
 	root := writeTermsSourceProject(t)
 	t.Chdir(root)
@@ -349,6 +356,42 @@ func TestVerify_GlossaryFromTermsSource(t *testing.T) {
 	require.NotEmpty(t, terms.Findings)
 	assert.Contains(t, terms.Findings[0].Message, "Enregistrer",
 		"the finding must name the preferred term resolved from the .terms.json source")
+}
+
+// TestVerify_GlossaryFromTermsSourceWithAnEmptyStorePresent is the case the
+// merged store introduced, and the one a stat-based gate gets wrong.
+//
+// A fresh checkout has the committed `.terms.json` and no store. The first kapi
+// command run there — any command — opens the project store, which CREATES it
+// with every subsystem's tables in place and none of them populated. From that
+// moment a file-presence test says "there is a compiled vocabulary here", and a
+// gate that trusted it would read an empty store and pass a project whose
+// committed terms are being violated.
+//
+// So the rule is: committed source wins while the store's vocabulary tables are
+// empty. Same project, same expected failure, with the store sitting there.
+func TestVerify_GlossaryFromTermsSourceWithAnEmptyStorePresent(t *testing.T) {
+	root := writeTermsSourceProject(t)
+
+	// Exactly what a first command in a fresh checkout leaves behind.
+	db := openProjectStore(t, root)
+	has, err := db.HasTerms(t.Context())
+	require.NoError(t, err)
+	require.False(t, has, "the store must be present and empty — that is the whole point")
+	require.NoError(t, db.Close())
+	require.FileExists(t, filepath.Join(root, project.StateDirName, project.StoreFileName))
+
+	t.Chdir(root)
+	out, runErr := runVerifyJSON(t)
+
+	require.ErrorIs(t, runErr, ErrQualityGate,
+		"an empty store must not shadow the committed source and pass a violating project")
+
+	terms, ok := gateByName(out, gateTerms)
+	require.True(t, ok, "terminology gate must still run")
+	assert.False(t, terms.Pass)
+	require.NotEmpty(t, terms.Findings)
+	assert.Contains(t, terms.Findings[0].Message, "Enregistrer")
 }
 
 // TestVerify_DoNotTranslateNotFlagged asserts that a do-not-translate glossary

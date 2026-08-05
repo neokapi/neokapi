@@ -82,6 +82,13 @@ var sources = map[string]string{
 	"terms.header.domain":     "DOMAIN",
 	"terms.header.definition": "DEFINITION",
 
+	// terms occurrences
+	"occurrences.header.document": "DOCUMENT",
+	"occurrences.header.block":    "BLOCK",
+	"occurrences.header.locale":   "LOCALE",
+	"occurrences.header.term":     "TERM",
+	"occurrences.header.text":     "TEXT",
+
 	// tm lookup, search and stats
 	"tm.header.source":     "SOURCE",
 	"tm.header.target":     "TARGET",

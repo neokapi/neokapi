@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -86,9 +86,9 @@ func TestGetProjectStatusUnknownTab(t *testing.T) {
 // not stale; the "no data yet" shell is never stale (nothing to mismatch).
 func TestGetProjectStatusStaleVersionStamp(t *testing.T) {
 	app := NewApp()
-	tab, root := newCoverageProject(t, app)
+	tab, _ := newCoverageProject(t, app)
 
-	// Before any extract: no store, so not stale.
+	// Before any extract: nothing extracted, so not stale.
 	pre, err := app.GetProjectStatus(tab.ID)
 	require.NoError(t, err)
 	assert.False(t, pre.HasData)
@@ -97,31 +97,37 @@ func TestGetProjectStatusStaleVersionStamp(t *testing.T) {
 	_, err = app.RunExtract(tab.ID)
 	require.NoError(t, err)
 
-	layout, err := project.LayoutFor(filepath.Join(root, "project.kapi"))
+	// The stamp lives in the store's own metadata table now, not in a sidecar
+	// named after a database file — a filename-keyed stamp says nothing once the
+	// block cache is one schema inside a shared store.
+	ctx := context.Background()
+	db, err := app.projectStore(app.getOpenProject(tab.ID))
 	require.NoError(t, err)
-	stamp := blockStoreVersionStampPath(layout.BlockStorePath())
 
 	// Extract wrote the stamp and status reports fresh.
-	_, statErr := os.Stat(stamp)
-	require.NoError(t, statErr, "extract should write the version stamp")
+	stamped, ok, err := db.Meta(ctx, projectdb.MetaBlocksSchemaVersion)
+	require.NoError(t, err)
+	require.True(t, ok, "extract should record the schema version")
+	assert.Equal(t, project.BlockStoreSchemaVersion, stamped)
 	fresh, err := app.GetProjectStatus(tab.ID)
 	require.NoError(t, err)
 	assert.True(t, fresh.HasData)
-	assert.False(t, fresh.Stale, "store stamped by the running version ⇒ not stale")
-
-	// A missing stamp (store predates this feature) ⇒ stale.
-	require.NoError(t, os.Remove(stamp))
-	missing, err := app.GetProjectStatus(tab.ID)
-	require.NoError(t, err)
-	assert.True(t, missing.HasData)
-	assert.True(t, missing.Stale, "missing stamp ⇒ stale")
+	assert.False(t, fresh.Stale, "cache stamped by the running version ⇒ not stale")
 
 	// A stamp from a different kapi version ⇒ stale.
-	require.NoError(t, os.WriteFile(stamp, []byte("v0.0.0-old"), 0o644))
+	require.NoError(t, db.PutMeta(ctx, projectdb.MetaBlocksSchemaVersion, "v0.0.0-old"))
 	old, err := app.GetProjectStatus(tab.ID)
 	require.NoError(t, err)
 	assert.True(t, old.HasData)
 	assert.True(t, old.Stale, "version mismatch ⇒ stale")
+
+	// A missing stamp (a cache written before the stamp existed) ⇒ stale.
+	_, err = db.Raw().ExecContext(ctx, `DELETE FROM store_meta WHERE key = ?`, projectdb.MetaBlocksSchemaVersion)
+	require.NoError(t, err)
+	missing, err := app.GetProjectStatus(tab.ID)
+	require.NoError(t, err)
+	assert.True(t, missing.HasData)
+	assert.True(t, missing.Stale, "missing stamp ⇒ stale")
 }
 
 func TestRunExtractPopulatesStoreAndCoverage(t *testing.T) {
@@ -134,11 +140,17 @@ func TestRunExtractPopulatesStoreAndCoverage(t *testing.T) {
 	assert.Equal(t, 3, res.Blocks, "three JSON values extracted")
 	assert.Empty(t, res.Skipped)
 
-	// The block store file now exists under .kapi/cache/.
+	// The blocks landed in the project's one store. Presence is a row question:
+	// the file exists from the store's first open, so its existence would say
+	// only that some command ran here.
 	layout, err := project.LayoutFor(filepath.Join(root, "project.kapi"))
 	require.NoError(t, err)
-	_, statErr := os.Stat(layout.BlockStorePath())
-	require.NoError(t, statErr, "blocks.db should exist after extract")
+	require.FileExists(t, layout.StorePath())
+	db, err := app.projectStore(app.getOpenProject(tab.ID))
+	require.NoError(t, err)
+	extracted, err := db.HasBlocks(context.Background())
+	require.NoError(t, err)
+	assert.True(t, extracted, "the block cache holds blocks after extract")
 
 	// Status now reports real totals, zero translated.
 	status, err := app.GetProjectStatus(tab.ID)
@@ -153,20 +165,19 @@ func TestRunExtractPopulatesStoreAndCoverage(t *testing.T) {
 
 func TestRunExtractThenCoverageWithTargets(t *testing.T) {
 	app := NewApp()
-	tab, root := newCoverageProject(t, app)
+	tab, _ := newCoverageProject(t, app)
 
 	_, err := app.RunExtract(tab.ID)
 	require.NoError(t, err)
 
-	layout, err := project.LayoutFor(filepath.Join(root, "project.kapi"))
-	require.NoError(t, err)
-
 	// Simulate a translation pass committing two fr-FR target overlays — the
-	// same keys (targets/<locale> by block ID) a real `kapi run` writes.
-	store, err := sqlitestore.New(layout.BlockStorePath())
+	// same keys (targets/<locale> by block ID) a real `kapi run` writes. Through
+	// the app's own handle, not a second pool on the store file: the write gate
+	// that orders this process's writers is per pool.
+	db, err := app.projectStore(app.getOpenProject(tab.ID))
 	require.NoError(t, err)
 	ctx := context.Background()
-	sess, err := store.Begin(ctx)
+	sess, err := db.Blocks().Begin(ctx)
 	require.NoError(t, err)
 
 	var ids []string
@@ -179,7 +190,6 @@ func TestRunExtractThenCoverageWithTargets(t *testing.T) {
 	require.NoError(t, sess.PutOverlay(blockstore.Overlay{Kind: "targets/fr-FR", BlockHash: ids[0], Payload: []byte(`{"text":"Bonjour"}`)}))
 	require.NoError(t, sess.PutOverlay(blockstore.Overlay{Kind: "targets/fr-FR", BlockHash: ids[1], Payload: []byte(`{"text":"Au revoir"}`)}))
 	require.NoError(t, sess.Commit())
-	require.NoError(t, store.Close())
 
 	status, err := app.GetProjectStatus(tab.ID)
 	require.NoError(t, err)
@@ -230,12 +240,13 @@ func TestRunExtractSkipsUnreadableFiles(t *testing.T) {
 	assert.Equal(t, "mystery.zzz", res.Skipped[0].Path)
 }
 
-// The project block store is opened once and reused across calls (rather than a
-// fresh connection pool per call, which let concurrent operations collide on
-// blocks.db with "database is locked"). Verify the cached identity, that the
-// shared pool serves concurrent sessions without error, and that CloseProject
-// releases it.
-func TestProjectBlockStoreCachedAndConcurrent(t *testing.T) {
+// One handle per project, and it serves concurrent readers. A tab-cached block
+// store used to be the desktop's answer to "database is locked" — opening a
+// fresh pool per call let two operations collide on the file. The merged store
+// answers it once, for every subsystem, on the engine: one pool, whose writers
+// this process can order. Verify the identity, the concurrency, and that
+// CloseProject hands the project back.
+func TestProjectStoreIsOneHandleAndServesConcurrentReaders(t *testing.T) {
 	dir := t.TempDir()
 	kapiPath := filepath.Join(dir, "test.kapi")
 	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1", Name: "Test"}))
@@ -245,25 +256,23 @@ func TestProjectBlockStoreCachedAndConcurrent(t *testing.T) {
 	op := app.getOpenProject(tab.ID)
 	require.NotNil(t, op)
 
-	// sqlitestore.New doesn't create parent dirs — ensure .kapi/cache/ exists.
-	storePath, ok := app.projectBlockStorePath(op)
-	require.True(t, ok)
-	require.NoError(t, os.MkdirAll(filepath.Dir(storePath), 0o755))
-
-	s1, err := app.projectBlockStore(op)
+	db1, err := app.projectStore(op)
 	require.NoError(t, err)
-	s2, err := app.projectBlockStore(op)
+	db2, err := app.projectStore(op)
 	require.NoError(t, err)
-	require.True(t, s1 == s2, "projectBlockStore should return the cached instance")
+	require.Same(t, db1, db2, "the project store is memoized per root")
 
-	// Concurrent sessions on the one shared pool must not deadlock or lock.
+	// The autocommit block store is what every read-side surface uses; concurrent
+	// sessions on the one pool must not deadlock or report a locked database.
+	store := db1.BlocksAutocommit()
+	require.NotNil(t, store)
 	var wg sync.WaitGroup
 	errs := make(chan error, 24)
-	for i := 0; i < 24; i++ {
+	for range 24 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			sess, err := s1.Begin(context.Background())
+			sess, err := store.Begin(context.Background())
 			if err != nil {
 				errs <- err
 				return
@@ -277,9 +286,29 @@ func TestProjectBlockStoreCachedAndConcurrent(t *testing.T) {
 		require.NoError(t, e, "concurrent block-store session")
 	}
 
-	// CloseProject releases the cached store.
+	// Closing the tab releases the store, so the directory is free to be moved
+	// and the next open builds a fresh handle rather than one on the old inode.
 	app.CloseProject(tab.ID)
-	op.blockStoreMu.Lock()
-	assert.Nil(t, op.blockStore, "CloseProject should clear the cached block store")
-	op.blockStoreMu.Unlock()
+	assert.Nil(t, db1.Raw(), "CloseProject releases the project store")
+}
+
+// Both surfaces that only look at a project — the status panel and the plan
+// preview — must not bring its store into being. Opening is what creates the
+// file, and a read that created one would leave the next real command a store it
+// never wrote.
+func TestReadOnlySurfacesDoNotCreateTheStore(t *testing.T) {
+	app := NewApp()
+	tab, root := newCoverageProject(t, app)
+
+	status, err := app.GetProjectStatus(tab.ID)
+	require.NoError(t, err)
+	assert.False(t, status.HasData)
+
+	plan, err := app.GetConvergePlan(tab.ID)
+	require.NoError(t, err)
+	assert.True(t, plan.StoreMissing, "a project with no store has drifted from nothing")
+
+	layout, err := project.LayoutFor(filepath.Join(root, "project.kapi"))
+	require.NoError(t, err)
+	assert.NoFileExists(t, layout.StorePath(), "looking at a project must not write to it")
 }

@@ -29,9 +29,9 @@ func newMemoryLeverageTestCmd() *EnvCommand {
 	return cmd
 }
 
-// writeMemoryProject creates a .kapi project with a .kapi/ state dir and returns the
-// project root plus the conventional authoritative content memory path (.kapi/memory.db).
-func writeMemoryProject(t *testing.T) (root, memoryPath string) {
+// writeMemoryProject creates a .kapi project with a .kapi/ state dir and returns
+// the project root.
+func writeMemoryProject(t *testing.T) (root string) {
 	t.Helper()
 	root = t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
@@ -45,73 +45,91 @@ content:
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	return root, filepath.Join(root, ".kapi", "memory.db")
+	return root
 }
 
-// TestResolveMemoryCmdPath_ProjectAware asserts that with no flag inside a project,
-// the tm commands resolve the project's authoritative content memory (.kapi/memory.db) — the
-// same file kapi extract pre-fills from and kapi merge writes back to.
-func TestResolveMemoryCmdPath_ProjectAware(t *testing.T) {
-	root, memoryPath := writeMemoryProject(t)
+// TestResolveMemoryStore_ProjectAware asserts that with no flag inside a project,
+// the memory commands resolve the PROJECT's own store — the same content memory
+// kapi extract pre-fills from and kapi merge writes back to. The selection names
+// the project rather than a path, because the store is no longer a file this
+// command may open for itself.
+func TestResolveMemoryStore_ProjectAware(t *testing.T) {
+	root := writeMemoryProject(t)
 	t.Chdir(root)
 
 	a := &App{}
-	got, err := a.ResolveMemoryCmdPath(newMemoryTestCmd())
+	got, err := a.ResolveMemoryStore(newMemoryTestCmd())
 	require.NoError(t, err)
-	assert.Equal(t, memoryPath, got, "no flag inside a project must resolve .kapi/memory.db, not ./memory.db")
+	assert.True(t, got.InProject(), "no flag inside a project must resolve the project store")
+	assert.Empty(t, got.Path, "the project store is not addressed by path")
+	assertSameDir(t, root, got.Root)
 }
 
-// TestResolveMemoryCmdPath_ExplicitFlagWins asserts that --local and --file override
-// the project content memory (explicit user intent).
-func TestResolveMemoryCmdPath_ExplicitFlagWins(t *testing.T) {
-	root, _ := writeMemoryProject(t)
+// TestResolveMemoryStore_ExplicitFlagWins asserts that --local and --file override
+// the project store (explicit user intent) and select a standalone file.
+func TestResolveMemoryStore_ExplicitFlagWins(t *testing.T) {
+	root := writeMemoryProject(t)
 	t.Chdir(root)
 	a := &App{}
 
 	localCmd := newMemoryTestCmd()
 	require.NoError(t, localCmd.Flags().Set("local", "true"))
-	got, err := a.ResolveMemoryCmdPath(localCmd)
+	got, err := a.ResolveMemoryStore(localCmd)
 	require.NoError(t, err)
-	assert.Equal(t, "memory.db", got, "--local must mean ./memory.db, not the project content memory")
+	assert.False(t, got.InProject(), "--local must not select the project store")
+	assert.Equal(t, "memory.db", got.Path, "--local must mean ./memory.db")
 
 	fileCmd := newMemoryTestCmd()
 	explicit := filepath.Join(root, "custom.db")
 	require.NoError(t, fileCmd.Flags().Set("file", explicit))
-	got, err = a.ResolveMemoryCmdPath(fileCmd)
+	got, err = a.ResolveMemoryStore(fileCmd)
 	require.NoError(t, err)
-	assert.Equal(t, explicit, got, "--file must win over the project content memory")
+	assert.Equal(t, explicit, got.Path, "--file must win over the project store")
 }
 
-// TestResolveMemoryCmdPath_NoProject asserts the fallback to ./memory.db when there is
-// no project to bind.
-func TestResolveMemoryCmdPath_NoProject(t *testing.T) {
+// TestResolveMemoryStore_NoProject asserts the fallback to ./memory.db when there
+// is no project to bind.
+func TestResolveMemoryStore_NoProject(t *testing.T) {
 	t.Chdir(t.TempDir())
 	a := &App{}
-	got, err := a.ResolveMemoryCmdPath(newMemoryTestCmd())
+	got, err := a.ResolveMemoryStore(newMemoryTestCmd())
 	require.NoError(t, err)
-	assert.Equal(t, "memory.db", got, "outside a project, default to ./memory.db")
+	assert.False(t, got.InProject())
+	assert.Equal(t, "memory.db", got.Path, "outside a project, default to ./memory.db")
 }
 
-// TestOpenToolMemory_LeveragesProjectMemory asserts that inside a project the recycle
-// tool command opens .kapi/memory.db and the resolved provider returns the exact
-// match stored there — proving the leverage path is wired (not NullMemoryProvider).
-func TestOpenToolMemory_LeveragesProjectMemory(t *testing.T) {
-	root, memoryPath := writeMemoryProject(t)
-
-	// Seed the project content memory with one en→fr exact match.
-	tm, err := memory.NewSQLiteStore(memoryPath)
+// assertSameDir compares two directory paths through their resolved symlinks,
+// so a t.TempDir() under /var vs /private/var does not read as a mismatch.
+func assertSameDir(t *testing.T, want, got string) {
+	t.Helper()
+	wantReal, err := filepath.EvalSymlinks(want)
 	require.NoError(t, err)
-	require.NoError(t, tm.Add(t.Context(), memory.Entry{
+	gotReal, err := filepath.EvalSymlinks(got)
+	require.NoError(t, err)
+	assert.Equal(t, wantReal, gotReal)
+}
+
+// TestOpenToolMemory_LeveragesProjectMemory asserts that inside a project the
+// recycle tool command reads the project store's content memory and the resolved
+// provider returns the exact match stored there — proving the leverage path is
+// wired (not NullMemoryProvider).
+func TestOpenToolMemory_LeveragesProjectMemory(t *testing.T) {
+	root := writeMemoryProject(t)
+
+	// Seed the project store's content memory with one en→fr exact match.
+	a := &App{}
+	defer a.Shutdown()
+	db, err := a.ProjectDB(t.Context(), root)
+	require.NoError(t, err)
+	require.NoError(t, db.Memory().Add(t.Context(), memory.Entry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
 			"en": {{Text: &model.TextRun{Text: "Welcome back"}}},
 			"fr": {{Text: &model.TextRun{Text: "Bon retour"}}},
 		},
 	}))
-	require.NoError(t, tm.Close())
 
 	t.Chdir(root)
-	a := &App{}
 	provider, cleanup, err := a.OpenToolMemory(newMemoryLeverageTestCmd())
 	require.NoError(t, err)
 	require.NotNil(t, provider, "inside a project the provider must be the project content memory, not nil/Null")

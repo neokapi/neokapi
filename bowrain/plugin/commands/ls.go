@@ -38,12 +38,12 @@ func runServerLs(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	conn, err := bconn.NewSourceConnector(proj, app.FormatReg)
+	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
 		// ListFiles is a local scan against the sync cache — no server
 		// round-trip — so an unauthenticated (or offline) install still
 		// reports sync standing. Same fallback the Mode-C daemon uses.
-		conn = bconn.NewLocalConnector(proj, app.FormatReg)
+		conn = bconn.NewLocalConnector(app, proj, app.FormatReg)
 	}
 	defer conn.Close()
 

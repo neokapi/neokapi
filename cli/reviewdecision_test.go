@@ -205,7 +205,11 @@ content:
 // working store at all.
 func commitAndReadUnits(t *testing.T, root string) []state.UnitState {
 	t.Helper()
-	_, err := host.CommitProjectState(t.Context(), root)
+	// A fresh App: the store is owned per App, and this one exists only to
+	// publish what the App under test staged into the same file.
+	committer := &host.App{}
+	defer committer.Shutdown()
+	_, err := committer.CommitProjectState(t.Context(), root)
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}

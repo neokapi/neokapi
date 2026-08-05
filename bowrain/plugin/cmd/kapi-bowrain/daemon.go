@@ -16,6 +16,12 @@
 //
 // The daemon caches *Project instances by absolute root path so repeated
 // RPCs against the same project reuse the loaded recipe and sync cache.
+//
+// One App serves the whole process. Its ProjectDB accessor already memoizes one
+// store handle per project root, so a daemon serving five projects holds five
+// handles and never two on one file — which is what the store's in-process write
+// gate needs to be able to order a push's decision staging against anything else
+// this process is writing. app.Shutdown (deferred in runDaemon) closes them.
 
 package main
 
@@ -187,17 +193,13 @@ func newDaemonService(_ *grpc.Server) *daemonService {
 		shutdownCh: make(chan struct{}),
 		projects:   map[string]*projectEntry{},
 		lastUsed:   time.Now(),
-		formatReg:  buildFormatRegistry(),
+		// The process App's registry, not one built beside it. runDaemon has
+		// already run Init, so this is the same set of readers and writers the
+		// host kapi process sees — and taking it from the App rather than from a
+		// throwaway one keeps a single object answering "what can this daemon
+		// read", the same way the App answers "which store is this project's".
+		formatReg: app.FormatReg,
 	}
-}
-
-// buildFormatRegistry constructs a fresh FormatRegistry populated with
-// every built-in format. Reuses cli.App.InitRegistries() so the daemon
-// sees the same readers/writers as the host kapi process.
-func buildFormatRegistry() *registry.FormatRegistry {
-	a := &cli.App{}
-	a.InitRegistries()
-	return a.FormatReg
 }
 
 func (d *daemonService) idleSince(now time.Time) time.Duration {
@@ -263,11 +265,11 @@ func (d *daemonService) projectFor(root string) (*projectEntry, error) {
 	}
 
 	formatReg := d.formatReg
-	conn, err := connector.NewSourceConnector(proj, formatReg)
+	conn, err := connector.NewSourceConnector(app, proj, formatReg)
 	if err != nil {
 		// Some calls (ListFiles, Status) don't need the server, so fall
 		// back to a local-only connector.
-		conn = connector.NewLocalConnector(proj, formatReg)
+		conn = connector.NewLocalConnector(app, proj, formatReg)
 	}
 
 	entry := &projectEntry{
@@ -431,9 +433,10 @@ func (d *daemonService) Pull(ctx context.Context, req *pb.PullRequest) (*pb.Pull
 		return nil, err
 	}
 	return &pb.PullResponse{
-		BlocksPulled: int32(res.BlocksPulled),
-		FilesWritten: int32(res.FilesWritten),
-		LocalesCount: int32(res.LocalesCount),
+		BlocksPulled:    int32(res.BlocksPulled),
+		FilesWritten:    int32(res.FilesWritten),
+		LocalesCount:    int32(res.LocalesCount),
+		DecisionsStaged: int32(res.DecisionsStaged),
 	}, nil
 }
 

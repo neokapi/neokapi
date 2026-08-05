@@ -79,7 +79,7 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 	}
 
 	var result ConvergeOutput
-	err = a.RunDefaultFlowConverge(cmd, proj, projectPath, ConvergeOptions{ //nolint:contextcheck // ctx flows via the Command (CmdContext), not a detached context
+	err = a.RunDefaultFlowConverge(cmd, proj, projectPath, ConvergeOptions{
 		UntilGate:   opts.UntilGate,
 		MaxPasses:   maxPasses,
 		noExtract:   opts.NoExtract,

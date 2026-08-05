@@ -28,7 +28,7 @@ Run quality checks directly on source files without any server connection:
 kapi exec qa -i src/locales/en/ --source-lang en
 
 # Check terminology consistency
-kapi exec term-check -i src/locales/en/ --terms terms.tbx
+kapi exec term-check -i src/locales/en/ --termstore terms.tbx
 
 # Validate XML/HTML structure in source strings
 kapi xml-validation -i src/locales/en/

@@ -3,9 +3,11 @@
 package sqlitestore
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/storage"
 )
 
 // On wasm there is no SQLite driver (see core/storage/driver_wasm.go), so the
@@ -41,3 +43,15 @@ func New(path string) (blockstore.Store, error) {
 // an in-memory map with no SQLite transaction and no cross-connection locking,
 // so the autocommit/transactional distinction is moot — it is the same store.
 func NewAutocommit(path string) (blockstore.Store, error) { return New(path) }
+
+// NewFromDB matches the native adopt-a-shared-database constructor so callers
+// of the merged store compile unchanged. It is unreachable on wasm in
+// practice: storage.Open always reports storage.ErrNoSQLite there, so no
+// caller ever holds a *storage.DB to hand over, and core/projectdb takes its
+// degraded path instead. Should one ever appear, it is keyed by path like New.
+func NewFromDB(db *storage.DB, _ bool) (blockstore.Store, error) {
+	if db == nil {
+		return nil, errors.New("blockstore: adopt cache: nil database")
+	}
+	return New(db.Path())
+}

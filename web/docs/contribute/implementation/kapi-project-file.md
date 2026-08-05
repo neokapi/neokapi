@@ -35,10 +35,9 @@ type Defaults struct {
     Concurrency     int              `yaml:"concurrency,omitempty"`
     ParallelBlocks  int              `yaml:"parallel_blocks,omitempty"`
     Encoding        string           `yaml:"encoding,omitempty"`
-    // (also: locale_format, formats, exclude, merge, tm, segmentation,
-    //  redaction, brand_voice, termbase — see core/project/project.go.
-    //  The tm/termbase keys are the retained names for content memory
-    //  and the terms store.)
+    // (also: locale_format, formats, exclude, merge, memory, segmentation,
+    //  redaction, brand_voice, terms_source, memory_source — see
+    //  core/project/project.go.)
 }
 
 // ContentCollection is either a bare entry (path/format/target) or a named
@@ -91,7 +90,7 @@ profiles:
     voice: context/base-voice.yaml
   - when: { product: bowrain }
     voice: context/bowrain-voice.yaml
-    terms: context/bowrain-terms.json   # optional; falls back to defaults.terms
+    terms: context/bowrain-terms.json   # optional; falls back to defaults.terms_source
   - when: { product: bowrain, market: de }
     voice: context/bowrain-de.yaml
     terms: context/de-terms.json
@@ -123,7 +122,7 @@ term would be governance nobody could rely on.
 its `when:` equals the point's coordinate of the same name; among the matches,
 the one with the most keys governs. `when: {}` matches everything and always
 loses to a non-empty match. The winner *selects*, it does not layer: what it
-leaves unbound comes from `defaults.brand_voice` / `defaults.terms`, not from the
+leaves unbound comes from `defaults.brand_voice` / `defaults.terms_source`, not from the
 broader profile it beat. Two profiles matching on the same number of coordinates
 is a **load error** naming both — which voice a piece of content is written in
 is not a map-order question.
@@ -193,10 +192,9 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   translator's target against an existing on-disk target or content-memory entry
   (`translator-wins` default, `existing-wins`, `newest-wins`). See
   [AD-017](/contribute/architecture/017-bilingual-format-interop).
-- `tm` (`MemoryDefaults`) — the project's content memory, under its retained key:
-  `fuzzy_threshold` (pre-fill cutoff on `kapi extract`, default
-  `DefaultFuzzyThreshold` = 75) and `read` (additional read-only memory files
-  consulted during pre-fill; writes always go to the project's own store).
+- `memory` (`MemoryDefaults`) — the project's content memory:
+  `fuzzy_threshold`, the pre-fill cutoff on `kapi extract` (default
+  `DefaultFuzzyThreshold` = 75).
 - `segmentation` (`SegmentationDefaults`) — opt-in SRX sentence segmentation
   overlay on extract (`source`, optional `srx` rules file).
 - `redaction` (`*RedactionSpec`) — replace sensitive content with protected
@@ -206,23 +204,25 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   `profile_file`, `profile`, or `pack`) as standing project context. This is the
   framework binding under `defaults:`, distinct from a platform's top-level
   `brand_voice` extension.
-- `termbase` (string) — path to the project's terms store, under its retained
-  key. Resolved relative to the project root, and used for project-scoped term
-  enforcement with no `--terms` flag.
-- `termbase_source` / `tm_source` (string) — committed, git-tracked native source
-  bundles (`.terms.json` / `.memory.json`) the project's terms store and content
-  memory are
-  compiled from. `kapi apply` edits the source and re-imports into the gitignored
-  `.db` cache, so the SQLite store is written by exactly one path and `git diff`
-  is the review surface. `termbase_source` left unset falls back to
-  `<root>/terms.json`, then `<root>/.kapi/terms.json`; `tm_source` has no such
-  fallback, because a project has one glossary but many memory bundles (one per
-  content surface), leaving nothing single for a convention to name.
-- `state` (string) — committed, git-tracked project state store (a
-  kapi-project-state JSON document, `core/state`): the authoritative carrier of
-  per-unit workflow decisions (review ladder, approvals, parking) that a plain
-  target file cannot hold. It is the export *sink* for state in git mode (a bowrain
-  project pushes state to the server instead); empty defaults to `.kapi-state.json`.
+- `terms_source` / `memory_source` (string) — committed, git-tracked native
+  source bundles (`.terms.json` / `.memory.json`) the project's terms store and
+  content memory are indexed from. `kapi apply` edits the source and reindexes
+  it, so the source is written by exactly one path and `git diff` is the review
+  surface. `terms_source` left unset falls back to `<root>/terms.json`, then
+  `<root>/.kapi/terms.json`; `memory_source` has no such fallback, because a
+  project has one terms source but many memory bundles (one per content
+  surface), leaving nothing single for a convention to name.
+
+## The project store
+
+The recipe binds sources; the sources are the truth. A project keeps one local
+database, `.kapi/store.db` — a derived index over the committed sources
+(`terms_source`, `memory_source`), the unit-decision record under `.kapi/units/`,
+and the content files themselves — plus the working set of decisions staged since
+the last `kapi commit`. Every subsystem's tables live in that one file: block
+cache, terms store, content memory, working set, and the property graph. See
+[AD-039](/contribute/architecture/039-local-context-graph-store) for the store's
+shape, its rebuild guarantees, and how it converges with the server's graph.
 
 ## Platform extensions and the `server:` block
 
@@ -391,7 +391,8 @@ defaults:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  terms: terms/terms.db
+  terms_source: context/terms.json
+  memory_source: context/memory.json
 
 content:
   # Bare entry — single glob, languages inherited from defaults.

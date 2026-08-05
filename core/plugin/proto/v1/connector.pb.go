@@ -631,12 +631,16 @@ func (x *PullRequest) GetDryRun() bool {
 }
 
 type PullResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BlocksPulled  int32                  `protobuf:"varint,1,opt,name=blocks_pulled,json=blocksPulled,proto3" json:"blocks_pulled,omitempty"`
-	FilesWritten  int32                  `protobuf:"varint,2,opt,name=files_written,json=filesWritten,proto3" json:"files_written,omitempty"`
-	LocalesCount  int32                  `protobuf:"varint,3,opt,name=locales_count,json=localesCount,proto3" json:"locales_count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	BlocksPulled int32                  `protobuf:"varint,1,opt,name=blocks_pulled,json=blocksPulled,proto3" json:"blocks_pulled,omitempty"`
+	FilesWritten int32                  `protobuf:"varint,2,opt,name=files_written,json=filesWritten,proto3" json:"files_written,omitempty"`
+	LocalesCount int32                  `protobuf:"varint,3,opt,name=locales_count,json=localesCount,proto3" json:"locales_count,omitempty"`
+	// Server-ledger decisions the pull staged into the working store —
+	// reported so an arriving decision is never invisible; `kapi commit`
+	// publishes them into the tracked record.
+	DecisionsStaged int32 `protobuf:"varint,4,opt,name=decisions_staged,json=decisionsStaged,proto3" json:"decisions_staged,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PullResponse) Reset() {
@@ -686,6 +690,13 @@ func (x *PullResponse) GetFilesWritten() int32 {
 func (x *PullResponse) GetLocalesCount() int32 {
 	if x != nil {
 		return x.LocalesCount
+	}
+	return 0
+}
+
+func (x *PullResponse) GetDecisionsStaged() int32 {
+	if x != nil {
+		return x.DecisionsStaged
 	}
 	return 0
 }
@@ -915,11 +926,12 @@ const file_core_plugin_proto_v1_connector_proto_rawDesc = "" +
 	"\aproject\x18\x01 \x01(\v2\x1d.neokapi.plugin.v1.ProjectRefR\aproject\x12\x18\n" +
 	"\alocales\x18\x02 \x03(\tR\alocales\x12\x14\n" +
 	"\x05force\x18\x03 \x01(\bR\x05force\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"}\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xa8\x01\n" +
 	"\fPullResponse\x12#\n" +
 	"\rblocks_pulled\x18\x01 \x01(\x05R\fblocksPulled\x12#\n" +
 	"\rfiles_written\x18\x02 \x01(\x05R\ffilesWritten\x12#\n" +
-	"\rlocales_count\x18\x03 \x01(\x05R\flocalesCount\"\x0f\n" +
+	"\rlocales_count\x18\x03 \x01(\x05R\flocalesCount\x12)\n" +
+	"\x10decisions_staged\x18\x04 \x01(\x05R\x0fdecisionsStaged\"\x0f\n" +
 	"\rHealthRequest\"Q\n" +
 	"\x0eHealthResponse\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12%\n" +

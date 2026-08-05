@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/occurrence"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -136,6 +138,21 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 			if t.Definition != "" {
 				fmt.Fprintf(w, "  %-24s %s\n", "", t.Definition)
 			}
+			// Where it is used, if anywhere. A discouraged word with no uses
+			// is a settled question; the same word in thirty blocks is work.
+			if t.Uses > 0 {
+				fmt.Fprintf(w, "  %-24s used %d time(s) in %d block(s)\n", "", t.Uses, t.UseBlocks)
+				for _, u := range t.TopUses {
+					where := u.Document
+					if u.BlockID != "" {
+						where += " " + u.BlockID
+					}
+					if u.Locale != "" {
+						where += " [" + u.Locale + "]"
+					}
+					fmt.Fprintf(w, "  %-24s   %s: %s\n", "", strings.TrimSpace(where), u.Snippet)
+				}
+			}
 		}
 	}
 
@@ -185,6 +202,25 @@ type ContextTermHit struct {
 	// is a different instruction from "never use it".
 	ValidFrom string `json:"valid_from,omitempty"`
 	ValidTo   string `json:"valid_to,omitempty"`
+	// Uses is how many times this exact term appears in the project's
+	// extracted content, and UseBlocks in how many blocks. Together they turn
+	// "this word is discouraged" into "this word is discouraged and sits in 34
+	// places", which is the difference between a rule and a job. Zero when no
+	// block cache is bound — see the note the search adds in that case.
+	Uses      int `json:"uses,omitempty"`
+	UseBlocks int `json:"use_blocks,omitempty"`
+	// TopUses are the first few of those uses, enough to see what kind of
+	// content is involved without turning a context answer into a report.
+	// `kapi terms occurrences` is where the full list lives.
+	TopUses []ContextTermUse `json:"top_uses,omitempty"`
+}
+
+// ContextTermUse is one place a term is used, as a context answer shows it.
+type ContextTermUse struct {
+	Document string `json:"document,omitempty"`
+	BlockID  string `json:"block_id,omitempty"`
+	Locale   string `json:"locale,omitempty"`
+	Snippet  string `json:"snippet,omitempty"`
 }
 
 // ContextPrecedentHit is one piece of previously-approved wording.
@@ -208,6 +244,12 @@ type ContextPrecedentHit struct {
 type ContextSearchSources struct {
 	Terms  terms.Terminology
 	Memory memory.Store
+	// Blocks is the project's extracted content. It answers a different kind
+	// of question from the other two — not "what do we know about this word?"
+	// but "where is it?" — and it is bound here rather than asked separately
+	// because the two belong in one answer: a caller told a term is
+	// discouraged needs to know at once whether anything uses it.
+	Blocks blockstore.Store
 	Scope  ContextScope
 	// TermsErr and MemoryErr are set when the caller tried to bind that store
 	// and could not. Unbound and unopenable are different answers to "why is
@@ -275,6 +317,7 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	}
 
 	flagRetiredPrecedent(res.Terms, res.Precedent)
+	res.Notes = append(res.Notes, countTermUses(ctx, src, res.Terms)...)
 
 	if scope == ScopeProject {
 		res.Notes = append(res.Notes,
@@ -282,6 +325,73 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	}
 
 	return res, nil
+}
+
+// contextTopUses is how many places a context answer names per term. A context
+// answer is a briefing, not a report: enough to see what kind of content is
+// involved, and `kapi terms occurrences` for the rest.
+const contextTopUses = 3
+
+// countTermUses fills in where each matched term is actually used, and returns
+// any note the attempt produced.
+//
+// One query per concept, not per hit: a concept's terms are looked up together
+// and the results handed to the hits that asked for them, so a concept with six
+// terms costs one search rather than six.
+func countTermUses(ctx context.Context, src ContextSearchSources, hits []ContextTermHit) []string {
+	if len(hits) == 0 {
+		return nil
+	}
+	if src.Blocks == nil {
+		return []string{"no block cache is bound, so term usage was not counted — run `kapi up` to extract content"}
+	}
+
+	byConcept := map[string][]int{}
+	for i, h := range hits {
+		byConcept[h.ConceptID] = append(byConcept[h.ConceptID], i)
+	}
+
+	var notes []string
+	for conceptID, idx := range byConcept {
+		res, err := occurrence.Find(ctx, occurrence.Sources{Terms: src.Terms, Blocks: src.Blocks},
+			occurrence.Query{Subject: conceptID})
+		if err != nil {
+			// An unknown concept here would mean the terms store changed under
+			// the search; anything else is worth saying once.
+			if !errors.Is(err, occurrence.ErrUnknownSubject) {
+				notes = append(notes, "term usage could not be counted: "+err.Error())
+			}
+			continue
+		}
+		for _, i := range idx {
+			attachUses(&hits[i], res.Occurrences)
+		}
+	}
+	sort.Strings(notes)
+	return notes
+}
+
+// attachUses gives one hit the occurrences of its own term. Matching on the
+// term text keeps a per-language answer per-language: a concept's Norwegian
+// term is used where the Norwegian text uses it, not wherever the concept is.
+func attachUses(hit *ContextTermHit, occurrences []occurrence.Occurrence) {
+	blocks := map[string]bool{}
+	for _, o := range occurrences {
+		if !strings.EqualFold(o.Term, hit.Term) {
+			continue
+		}
+		hit.Uses++
+		blocks[o.BlockHash] = true
+		if len(hit.TopUses) < contextTopUses {
+			hit.TopUses = append(hit.TopUses, ContextTermUse{
+				Document: o.Document,
+				BlockID:  o.BlockID,
+				Locale:   o.Locale,
+				Snippet:  o.Snippet,
+			})
+		}
+	}
+	hit.UseBlocks = len(blocks)
 }
 
 // flagRetiredPrecedent marks prior wording containing a term this same search

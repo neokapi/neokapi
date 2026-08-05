@@ -137,7 +137,7 @@ func (tm *SQLiteStore) AddWithStream(ctx context.Context, entry Entry, stream st
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	if err := tm.addInTx(ctx, tx, entry, stream); err != nil {
+	if err := tm.addInTx(ctx, tx.Tx, entry, stream); err != nil {
 		_ = tx.Rollback()
 		return err
 	}
@@ -151,7 +151,7 @@ func (tm *SQLiteStore) AddWithStream(ctx context.Context, entry Entry, stream st
 // transaction, using prepared statements that are reused across all rows.
 // The FTS5 trigram (fuzzy-candidate) index is NOT populated in the bulk
 // path — for large corpora its n-gram build cost dominates everything
-// else. Call RebuildFuzzyIndex() at the end of the import to repopulate
+// else. Call RebuildFuzzyIndex(ctx) at the end of the import to repopulate
 // it in a single set-based SELECT INTO, which is orders of magnitude
 // faster than row-by-row inserts.
 func (tm *SQLiteStore) BulkAddWithStream(ctx context.Context, entries []Entry, stream string) error {
@@ -163,7 +163,7 @@ func (tm *SQLiteStore) BulkAddWithStream(ctx context.Context, entries []Entry, s
 		return fmt.Errorf("begin tx: %w", err)
 	}
 
-	stmts, err := prepareBulkStmts(ctx, tx)
+	stmts, err := prepareBulkStmts(ctx, tx.Tx)
 	if err != nil {
 		_ = tx.Rollback()
 		return err
@@ -190,11 +190,15 @@ func (tm *SQLiteStore) BulkAddWithStream(ctx context.Context, entries []Entry, s
 //
 // Until this is called, fuzzy lookups fall back to length-filtered
 // scanning over tm_variants, which is functional but slower on huge Memories.
-func (tm *SQLiteStore) RebuildFuzzyIndex() error {
-	if _, err := tm.db.ExecContext(context.Background(), `DELETE FROM tm_variant_trigram`); err != nil {
+//
+// It is the largest single write the content memory makes — seconds over a
+// dogfood-sized corpus, holding the write lock throughout — so ctx is the
+// caller's only way to stop it, and is honoured rather than discarded.
+func (tm *SQLiteStore) RebuildFuzzyIndex(ctx context.Context) error {
+	if _, err := tm.db.ExecContext(ctx, `DELETE FROM tm_variant_trigram`); err != nil {
 		return fmt.Errorf("clear fuzzy index: %w", err)
 	}
-	if _, err := tm.db.ExecContext(context.Background(), `INSERT INTO tm_variant_trigram
+	if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_variant_trigram
 		(plain, struct_key, general_key, locale, entry_id)
 		SELECT plain, struct_key, general_key, locale, entry_id FROM tm_variants`); err != nil {
 		return fmt.Errorf("rebuild fuzzy index: %w", err)
@@ -207,11 +211,13 @@ func (tm *SQLiteStore) RebuildFuzzyIndex() error {
 // RebuildFuzzyIndex this is a post-bulk-load step — the bulk path
 // deliberately skips per-row FTS5 inserts because FTS5 ICU
 // tokenization is expensive.
-func (tm *SQLiteStore) RebuildSearchIndex() error {
-	if _, err := tm.db.ExecContext(context.Background(), `DELETE FROM tm_variant_search`); err != nil {
+//
+// Like RebuildFuzzyIndex it runs for seconds on a large corpus and honours ctx.
+func (tm *SQLiteStore) RebuildSearchIndex(ctx context.Context) error {
+	if _, err := tm.db.ExecContext(ctx, `DELETE FROM tm_variant_search`); err != nil {
 		return fmt.Errorf("clear search index: %w", err)
 	}
-	if _, err := tm.db.ExecContext(context.Background(), `INSERT INTO tm_variant_search
+	if _, err := tm.db.ExecContext(ctx, `INSERT INTO tm_variant_search
 		(text, locale, entry_id)
 		SELECT plain, locale, entry_id FROM tm_variants`); err != nil {
 		return fmt.Errorf("rebuild search index: %w", err)
@@ -223,7 +229,7 @@ func (tm *SQLiteStore) RebuildSearchIndex() error {
 // Each BulkAdd call prepares them once and reuses across all entries.
 // Note: the FTS5 search tables (tm_variant_search, tm_variant_trigram)
 // are deliberately NOT maintained here — see BulkAddWithStream doc
-// comment for rationale. Call RebuildFuzzyIndex() and RebuildSearchIndex()
+// comment for rationale. Call RebuildFuzzyIndex(ctx) and RebuildSearchIndex(ctx)
 // after the bulk import to populate them in one set-based pass.
 type bulkStmts struct {
 	upsertEntry     *sql.Stmt

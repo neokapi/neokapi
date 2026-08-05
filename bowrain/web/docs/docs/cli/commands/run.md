@@ -105,9 +105,9 @@ steps:
       caseSensitive: false
 ```
 
-The terminology step checks against the terms store bound on the recipe
-(`defaults.terms`), not one configured per step; `--terms` overrides it
-for a single run.
+The terminology step checks against the project's terms, compiled from the
+source the recipe binds (`defaults.terms_source`), not one configured per step;
+`--termstore` overrides it for a single run.
 
 Run with:
 

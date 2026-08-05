@@ -194,14 +194,17 @@ push/pull/status to be meaningful.
 ```
 my-app/
 ├── kapi.yaml           # the recipe (committed) — fixed, conventional filename
-├── .kapi/              # state (gitignored)
-│   ├── manifest.yaml
-│   ├── memory.db           # authoritative project content memory
-│   ├── terms.db     # authoritative project terms store
-│   ├── flows/          # optional file-per-flow definitions
+├── context/            # the committed context sources
+│   ├── terms.json      # terms (defaults.terms_source)
+│   └── memory.json     # content memory (defaults.memory_source)
+├── .kapi/
+│   ├── store.db        # the local index (gitignored)
+│   ├── manifest.yaml   # regenerable bookkeeping (gitignored)
+│   ├── units/          # the unit-decision record (committed)
+│   │   └── src-locales-en.jsonl
+│   ├── flows/          # optional file-per-flow definitions (committed)
 │   │   └── pseudo.yaml
-│   └── cache/          # all regenerable caches under one roof
-│       ├── blocks.db        # block store
+│   └── cache/          # all regenerable caches under one roof (gitignored)
 │       ├── sync-cache.json  # kapi push/pull state (only with server: block)
 │       ├── extractions/
 │       └── collections/
@@ -219,13 +222,20 @@ Ownership:
   YAML syntax highlighting to diffs and previews with no configuration. See
   [AD-framework-008](https://neokapi.github.io/contribute/architecture/008-project-model)
   for the full rationale.
-- **`.kapi/cache/`** — CLI-owned, gitignored. Contains everything that's
-  cheaply regenerable: the block store, the kapi sync cache, extraction
-  intermediates, overlay layers.
-- **`.kapi/memory.db`, `.kapi/terms.db`, `.kapi/manifest.yaml`** — kapi-owned,
-  authoritative. The first two are the project's content memory and terms
-  store. Gitignored by default; opt in to commit them when cross-clone
-  reproducibility matters.
+- **`context/*.json`** — the context sources the recipe binds, hand-edited or
+  written by `kapi apply`, committed. They are the truth for terms and content
+  memory, and `git diff` is the review surface.
+- **`.kapi/units/*.jsonl`** — the unit-decision record, one JSON Lines shard per
+  document, committed. `kapi commit` publishes staged review decisions into it.
+- **`.kapi/store.db`** — kapi-owned, gitignored. One SQLite file carrying every
+  subsystem's tables (block cache, terms store, content memory, the working set,
+  and the project's context graph), derived from the committed sources above and
+  rebuilt from them. It sits at the top of `.kapi/` rather than under `cache/`
+  because between a review decision landing and `kapi commit`, its working set
+  holds the only copy of that decision.
+- **`.kapi/cache/`** — CLI-owned, gitignored. Everything cheaply regenerable:
+  the kapi sync cache, extraction intermediates, overlay layers. Removable at
+  any time with no loss.
 - **`.kapi/flows/*.yaml`** — optional file-per-flow definitions, hand-edited,
   committed. Bowrain reads these in addition to inline `flows:` declared
   on the recipe.

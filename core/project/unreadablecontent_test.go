@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -133,24 +133,23 @@ func TestDetectStoreDrift_MissingStampReadsAsChangedForever(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, files, 2)
 
-	store, err := sqlitestore.New(layout.BlockStorePath())
+	db, err := projectdb.Open(t.Context(), layout)
 	require.NoError(t, err)
-	_, err = project.ExtractToBlockStore(t.Context(), contentRegistry(t), pctx, store,
-		layout.BlockStorePath(), files)
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = project.ExtractToBlockStore(t.Context(), contentRegistry(t), pctx, db.Blocks(), db, files)
 	require.NoError(t, err)
-	require.NoError(t, store.Close())
 
 	// Nothing drifted right after a full extraction.
-	require.Empty(t, project.DetectStoreDrift(layout.BlockStorePath(), files).Changed)
+	require.Empty(t, db.DetectStoreDrift(t.Context(), files).Changed)
 
 	// Now drop ONE file's stamp, exactly as the swallowed error used to. The file
 	// itself is untouched, so nothing about it actually changed.
-	stamps := project.LoadSourceStamps(layout.BlockStorePath())
+	stamps := db.LoadSourceStamps(t.Context())
 	require.Len(t, stamps, 2)
 	delete(stamps, files[0].Relative)
-	require.NoError(t, project.SaveSourceStamps(layout.BlockStorePath(), stamps))
+	require.NoError(t, db.SaveSourceStamps(t.Context(), stamps))
 
-	drift := project.DetectStoreDrift(layout.BlockStorePath(), files)
+	drift := db.DetectStoreDrift(t.Context(), files)
 	assert.Contains(t, drift.Changed, files[0].Relative,
 		"a file with no stamp reads as drifted however unchanged it is — and it "+
 			"cannot recover, because the stamp is only written on a successful extract")
@@ -173,15 +172,14 @@ func TestExtractToBlockStore_HealthySourceStampsAndDoesNotDrift(t *testing.T) {
 
 	files, err := pctx.ResolveContent(contentRegistry(t))
 	require.NoError(t, err)
-	store, err := sqlitestore.New(layout.BlockStorePath())
+	db, err := projectdb.Open(t.Context(), layout)
 	require.NoError(t, err)
-	stats, err := project.ExtractToBlockStore(t.Context(), contentRegistry(t), pctx, store,
-		layout.BlockStorePath(), files)
+	t.Cleanup(func() { _ = db.Close() })
+	stats, err := project.ExtractToBlockStore(t.Context(), contentRegistry(t), pctx, db.Blocks(), db, files)
 	require.NoError(t, err)
-	require.NoError(t, store.Close())
 	assert.Equal(t, 1, stats.Files)
 
-	drift := project.DetectStoreDrift(layout.BlockStorePath(), files)
+	drift := db.DetectStoreDrift(t.Context(), files)
 	assert.Empty(t, drift.Changed,
 		"a freshly stamped file must not read as drifted — that is the permanent "+
 			"re-extraction loop the fix removes")

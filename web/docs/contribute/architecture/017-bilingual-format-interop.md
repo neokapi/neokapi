@@ -76,7 +76,7 @@ different questions and must not be unified:
   `content_hash` drift guard and an inline-code fidelity guard, exiting on the gate
   code when an edit is stale or rejected so a fix loop re-inspects. It is the write
   half of the inspect/apply loop and never touches a target locale or absorbs into
-  the memory as a side effect. (Adding a pair via an `apply` entry of kind `tm` is
+  the memory as a side effect. (Adding a pair via an `apply` entry of kind `memory` is
   itself a *reviewed* edit to the committed `.memory.json` source, not the automatic
   merge-time absorb.)
 - `kapi merge` applies a **translator's returned targets** and, by default,
@@ -340,10 +340,8 @@ defaults:
   target_languages: [fr, de, es]
   merge:
     conflict_policy: translator-wins # | existing-wins | newest-wins
-  memory: # content memory (recipe key retained as `tm`)
+  memory:
     fuzzy_threshold: 75 # int 0..100
-    read: # optional read-only memories
-      - /path/to/corporate.tmx
   segmentation:
     source: false # opt-in
     srx: rules.srx # optional SRX override

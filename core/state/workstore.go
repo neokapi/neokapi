@@ -47,6 +47,11 @@ type WorkStore struct {
 	db        *storage.DB
 	committed string // path of the committed serialization this indexes
 
+	// ownsDB records whether Close may close the pool: true when this store
+	// opened its own file, false when it adopted the project's merged store,
+	// whose owner closes it once for all four subsystems.
+	ownsDB bool
+
 	// mem is the browser fallback: the wasm build has no file-backed SQLite
 	// (storage.ErrNoSQLite), yet the review→approve loop must still work in
 	// the lab. The working set lives in process memory and persists as a JSON
@@ -175,22 +180,7 @@ func OpenWork(ctx context.Context, dbPath, committedPath string) (*WorkStore, er
 	db, err := storage.Open(dbPath)
 	if err != nil {
 		if errors.Is(err, storage.ErrNoSQLite) {
-			mem := &memWork{
-				path:  strings.TrimSuffix(dbPath, filepath.Ext(dbPath)) + ".json",
-				units: map[Key]memUnit{},
-				docs:  map[string]string{},
-			}
-			w := &WorkStore{committed: committedPath, mem: mem}
-			found, err := mem.load()
-			if err != nil {
-				return nil, err
-			}
-			if !found {
-				if err := w.seed(ctx); err != nil {
-					return nil, err
-				}
-			}
-			return w, nil
+			return OpenWorkSidecar(ctx, strings.TrimSuffix(dbPath, filepath.Ext(dbPath))+".json", committedPath)
 		}
 		return nil, fmt.Errorf("state: open work store: %w", err)
 	}
@@ -198,20 +188,75 @@ func OpenWork(ctx context.Context, dbPath, committedPath string) (*WorkStore, er
 		db.Close()
 		return nil, fmt.Errorf("state: migrate work store: %w", err)
 	}
-	w := &WorkStore{db: db, committed: committedPath}
-
-	empty, err := w.isEmpty(ctx)
-	if err != nil {
+	w := &WorkStore{db: db, committed: committedPath, ownsDB: true}
+	if err := w.seedIfEmpty(ctx); err != nil {
 		db.Close()
 		return nil, err
 	}
-	if empty {
+	return w, nil
+}
+
+// OpenWorkFromDB adopts an already-open database — the project's merged
+// `.kapi/store.db`, where the working set is one schema among the content
+// memory, the terms store and the block cache. Same migrations, same `state`
+// ledger, same seeding from the committed shards; only the file is shared.
+//
+// It is what makes an approve-and-promote atomic: the decision and the wording
+// the content memory learns from it are now two writes in one transaction on
+// one connection pool, which no arrangement of separate files could offer.
+//
+// The returned store does not own db; its owner closes the pool.
+func OpenWorkFromDB(ctx context.Context, db *storage.DB, committedPath string) (*WorkStore, error) {
+	if db == nil {
+		return nil, errors.New("state: adopt work store: nil database")
+	}
+	if err := storage.Migrate(db, "state", workMigrations); err != nil {
+		return nil, fmt.Errorf("state: migrate work store: %w", err)
+	}
+	w := &WorkStore{db: db, committed: committedPath}
+	if err := w.seedIfEmpty(ctx); err != nil {
+		return nil, err
+	}
+	return w, nil
+}
+
+// OpenWorkSidecar opens the JSON-sidecar working set at sidecarPath — the
+// browser build's working store, and the only form the set takes where there is
+// no file-backed SQLite driver. Callers on a build with a driver reach it only
+// to read a set some earlier browser session wrote.
+func OpenWorkSidecar(ctx context.Context, sidecarPath, committedPath string) (*WorkStore, error) {
+	if err := os.MkdirAll(filepath.Dir(sidecarPath), 0o755); err != nil {
+		return nil, fmt.Errorf("state: work dir: %w", err)
+	}
+	mem := &memWork{
+		path:  sidecarPath,
+		units: map[Key]memUnit{},
+		docs:  map[string]string{},
+	}
+	w := &WorkStore{committed: committedPath, mem: mem}
+	found, err := mem.load()
+	if err != nil {
+		return nil, err
+	}
+	if !found {
 		if err := w.seed(ctx); err != nil {
-			db.Close()
 			return nil, err
 		}
 	}
 	return w, nil
+}
+
+// seedIfEmpty imports the committed record into a working store that holds
+// nothing yet.
+func (w *WorkStore) seedIfEmpty(ctx context.Context) error {
+	empty, err := w.isEmpty(ctx)
+	if err != nil {
+		return err
+	}
+	if !empty {
+		return nil
+	}
+	return w.seed(ctx)
 }
 
 func (w *WorkStore) isEmpty(ctx context.Context) (bool, error) {
@@ -239,7 +284,7 @@ func (w *WorkStore) seed(ctx context.Context) error {
 }
 
 func (w *WorkStore) Close() error {
-	if w.mem != nil {
+	if w.mem != nil || !w.ownsDB {
 		return nil
 	}
 	return w.db.Close()
@@ -329,6 +374,33 @@ func (w *WorkStore) All(ctx context.Context) ([]UnitState, error) {
 	rows, err := w.db.QueryContext(ctx, `SELECT payload FROM unit_state ORDER BY unit, variant`)
 	if err != nil {
 		return nil, fmt.Errorf("state: list units: %w", err)
+	}
+	defer rows.Close()
+	return scanUnits(rows)
+}
+
+// Staged returns the units decided since the last commit — the same set
+// Pending counts, as records rather than a number.
+//
+// It exists so staged decisions can be carried between working stores: they are
+// the one thing a working store holds that the committed record does not, so a
+// store being replaced must hand them over before it is deleted. Everything
+// else re-seeds.
+func (w *WorkStore) Staged(ctx context.Context) ([]UnitState, error) {
+	if w.mem != nil {
+		var out []UnitState
+		for _, mu := range w.mem.units {
+			if mu.Staged {
+				out = append(out, mu.Unit)
+			}
+		}
+		sortUnits(out)
+		return out, nil
+	}
+	rows, err := w.db.QueryContext(ctx,
+		`SELECT payload FROM unit_state WHERE staged = 1 ORDER BY unit, variant`)
+	if err != nil {
+		return nil, fmt.Errorf("state: list staged: %w", err)
 	}
 	defer rows.Close()
 	return scanUnits(rows)

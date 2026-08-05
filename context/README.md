@@ -16,11 +16,11 @@ gitignored).
   bound project-wide via `defaults.brand_voice`. Keep the two in sync.
 - `terms.json` — terminology decisions per target locale (currently
   Norwegian Bokmål, `nb`): concept per decision with `en` + `nb` terms,
-  domain, definition/usage note, and status. Imported into
-  `.kapi/terms.db`.
+  domain, definition/usage note, and status. Imported into the project store,
+  `.kapi/store.db`.
 - `tm/<surface>-<lang>.memory.json` — reviewed translations, one file per
   surface and locale (e.g. `builtins-nb.memory.json`). Imported into
-  `.kapi/memory.db`; every target-locale output is produced from the content memory
+  the same store; every target-locale output is produced from the content memory
   by `recycle`, so generated catalogs only ever contain reviewed strings.
   The docs sites have one seed each: `docs-nb.memory.json` for the kapi site
   (surface `kapi-docs`: `web/docs/**` → `web/i18n/nb/...`, `make l10n-docs`)

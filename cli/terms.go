@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/occurrence"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/spf13/cobra"
@@ -24,12 +26,16 @@ A terms store holds approved terminology — concepts and their renderings per
 locale — as a SQLite database. Use these commands to import, export, look up,
 and manage terms.
 
-Resource location (mutually exclusive):
+Inside a project, no flag means the project's own terms — a subsystem of
+.kapi/store.db, which is why it is not addressed by path. Use -p to name the
+project explicitly.
+
+Standalone store instead (mutually exclusive):
   --name <n>      Named terms store in the kapi config dir (terms/<n>.db)
   --local         Terms store in current directory (./terms.db)
   --file <path>   Explicit file path
 
-Default (no flag): same as --local (uses ./terms.db).`,
+Outside a project and with no flag: same as --local (uses ./terms.db).`,
 		Example: `  kapi terms stats
   kapi terms lookup "dashboard" -s en -t fr
   kapi terms import terms.csv -s en -t fr`,
@@ -39,15 +45,24 @@ Default (no flag): same as --local (uses ./terms.db).`,
 	exportCmd := newTermsExportCmd(a)
 	lookupCmd := newTermsLookupCmd(a)
 	searchCmd := newTermsSearchCmd(a)
+	occurrencesCmd := newTermsOccurrencesCmd(a)
 	statsCmd := newTermsStatsCmd(a)
 	listCmd := newTermsListCmd(a)
 
 	// Shared resource flags for all subcommands (except list).
-	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, statsCmd} {
+	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd} {
 		AddResourceFlags(cmd)
 	}
+	// The project's terms are a subsystem of `.kapi/store.db`, not a file a
+	// caller can name — so with no resource flag these resolve the project,
+	// and -p is how you say WHICH, exactly as for every other project-aware
+	// verb. It also matters under KAPI_NO_PROJECT, where the upward walk is
+	// off and an explicit -p is the only way in.
+	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd} {
+		AddProjectFlag(cmd)
+	}
 
-	tbCmd.AddCommand(importCmd, exportCmd, lookupCmd, searchCmd, statsCmd, listCmd)
+	tbCmd.AddCommand(importCmd, exportCmd, lookupCmd, searchCmd, occurrencesCmd, statsCmd, listCmd)
 	return tbCmd
 }
 
@@ -70,11 +85,11 @@ func newTermsImportCmd(a *App) *cobra.Command {
 				return err
 			}
 
-			tb, dbPath, err := a.OpenTermsSQLite(cmd)
+			tb, dbPath, releaseTerms, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tb.Close()
+			defer releaseTerms()
 
 			f, err := os.Open(args[0])
 			if err != nil {
@@ -155,11 +170,11 @@ func newTermsExportCmd(a *App) *cobra.Command {
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			tbName, _ := cmd.Flags().GetString("export-name")
 
-			tb, dbPath, err := a.OpenTermsSQLite(cmd)
+			tb, dbPath, releaseTerms, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tb.Close()
+			defer releaseTerms()
 
 			w := os.Stdout
 			if outputPath != "" {
@@ -228,11 +243,11 @@ func newTermsLookupCmd(a *App) *cobra.Command {
 			domain, _ := cmd.Flags().GetString("domain")
 			fuzzy, _ := cmd.Flags().GetBool("fuzzy")
 
-			tb, _, err := a.OpenTermsSQLite(cmd)
+			tb, _, releaseTerms, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tb.Close()
+			defer releaseTerms()
 
 			opts := terms.LookupOptions{
 				SourceLocale: model.LocaleID(srcLocale),
@@ -309,11 +324,11 @@ func newTermsSearchCmd(a *App) *cobra.Command {
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			limit, _ := cmd.Flags().GetInt("limit")
 
-			tb, _, err := a.OpenTermsSQLite(cmd)
+			tb, _, releaseTerms, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tb.Close()
+			defer releaseTerms()
 
 			results, total, err := tb.Search(cmd.Context(), args[0], model.LocaleID(srcLocale), model.LocaleID(tgtLocale), 0, limit)
 			if err != nil {
@@ -352,17 +367,92 @@ func newTermsSearchCmd(a *App) *cobra.Command {
 	return cmd
 }
 
+// newTermsOccurrencesCmd answers where a term is actually used, by joining the
+// project's terms against the text of its extracted blocks — one query inside
+// `.kapi/store.db`, with no server and no account.
+func newTermsOccurrencesCmd(a *App) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "occurrences [term-or-concept]",
+		Short: "Show where a term is used in the project's content",
+		Long: `Show where a term is used in the project's extracted content.
+
+The argument is a term as written, or a concept id. A concept is searched for
+under every term it carries, in every language, so an approved English term is
+found in the source text and its counterpart in the translated text.
+
+Matching folds case, spans any whitespace between a term's words, and requires a
+word boundary — "AI" is not a use of "again". Scripts written without word
+separators are matched without that rule.
+
+The project must have been extracted: occurrences are read from the block cache
+inside the project store, which ` + "`kapi up`" + ` and ` + "`kapi extract`" + ` fill.`,
+		Example: `  kapi terms occurrences "content memory"
+  kapi terms occurrences c-dashboard --locale nb
+  kapi terms occurrences "log in" --collection docs --json`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			collection, _ := cmd.Flags().GetString("collection")
+			limit, _ := cmd.Flags().GetInt("limit")
+			locales, err := occurrenceLocales(cmd)
+			if err != nil {
+				return err
+			}
+
+			res, err := a.FindOccurrences(cmd, occurrence.Query{
+				Subject:    args[0],
+				Locales:    locales,
+				Collection: collection,
+				Limit:      limit,
+			})
+			if err != nil {
+				return err
+			}
+			return output.Print(cmd, output.NewTermsOccurrencesOutput(res))
+		},
+	}
+
+	cmd.Flags().StringSliceP("locale", "l", nil,
+		"only text in these locales; 'source' for the source text (default: all)")
+	cmd.Flags().String("collection", "", "only blocks in this collection")
+	cmd.Flags().Int("limit", 50, "max occurrences to show")
+
+	return cmd
+}
+
+// occurrenceLocales turns --locale into the query's locale filter. "source" is
+// spelled out because the source text's own key is the empty string, which is
+// not something a user can type — and "" on the command line is how you ask for
+// no filter at all.
+func occurrenceLocales(cmd *cobra.Command) ([]string, error) {
+	raw, _ := cmd.Flags().GetStringSlice("locale")
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	out := make([]string, 0, len(raw))
+	for _, l := range raw {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			return nil, errors.New("--locale: empty locale; use 'source' for the source text")
+		}
+		if l == "source" {
+			l = occurrence.SourceLocale
+		}
+		out = append(out, l)
+	}
+	return out, nil
+}
+
 func newTermsStatsCmd(a *App) *cobra.Command {
 	return &cobra.Command{
 		Use:     "stats",
 		Short:   "Show terms statistics",
 		Example: "  kapi terms stats\n  kapi terms stats --name product-terms",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			tb, dbPath, err := a.OpenTermsSQLite(cmd)
+			tb, dbPath, releaseTerms, err := a.OpenTermsSQLite(cmd)
 			if err != nil {
 				return err
 			}
-			defer tb.Close()
+			defer releaseTerms()
 
 			concepts, err := tb.Concepts(cmd.Context())
 			if err != nil {

@@ -162,9 +162,9 @@ constructs the one it wants and hands it to the executor:
 - `NewMemoryStore()` — the default when no store is passed. Snapshot-per-session,
   last-writer-wins on commit. Capabilities: RandomAccess + Concurrent + Writable;
   not Persistent.
-- `NewCacheStore(path)` — SQLite-backed store, typically at
-  `.kapi/cache/blocks.db`. The default for kapi projects. Full ACID, persistent
-  across runs.
+- `NewCacheStore(path)` — SQLite-backed store, in a kapi project the block-cache
+  tables of `.kapi/store.db`. The default for kapi projects. Full ACID,
+  persistent across runs.
 - `NewFormatReaderStore(factory)` — wraps a `format.DataFormatReader` factory as
   a read-only store. Useful for ad-hoc CLI flows (`kapi translate -i
   file.xliff`): RandomAccess=true, Writable=false. Its `PutOverlay` returns

@@ -221,14 +221,15 @@ func fixFindingsInstruction(currentTarget string, findings []string, extra strin
 // freshAIReview returns the unit's AI pre-review annotation from the state
 // store when it still judges the given translation, else nil.
 func (a *App) freshAIReview(ctx context.Context, op *openProject, key string, loc model.LocaleID, targetText string) *state.AIReview {
+	// One handle per project, memoized on the engine: this is called per unit
+	// while rendering a review, and under the four-file layout each call opened
+	// and closed a database of its own. Now there is nothing to close — the
+	// working store is a schema of the project's store, and the engine owns it.
 	root := filepath.Dir(op.Path)
-	st, err := host.OpenProjectState(ctx, root)
+	st, err := a.hostEngine().OpenProjectState(ctx, root)
 	if err != nil {
 		return nil
 	}
-	// The working store holds a database handle; this is called per unit while
-	// rendering a review, so leaking one here would exhaust them.
-	defer st.Close()
 
 	us, found := st.Get(ctx, state.Key{Unit: key, Variant: model.Variant(loc)})
 	if !found {
@@ -447,14 +448,14 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 		}
 
 		if len(annotations) > 0 {
-			if _, aerr := a.convergenceCLI().RecordAIReviews(ctx, op.Path, src, k.locale, k.file, annotations); aerr != nil {
+			if _, aerr := a.hostEngine().RecordAIReviews(ctx, op.Path, src, k.locale, k.file, annotations); aerr != nil {
 				return nil, fmt.Errorf("record ai reviews: %w", aerr)
 			}
 		}
 		// Approvals AFTER annotations, so the decision write carries the fresh
 		// annotation along (recordDecisionState preserves it).
 		for _, ap := range approvals {
-			if _, derr := a.convergenceCLI().ApplyReviewDecisionAs(ctx, op.Path, src,
+			if _, derr := a.hostEngine().ApplyReviewDecisionAs(ctx, op.Path, src,
 				host.ReviewUnitRef{File: ap.item.File, Key: ap.item.Key, Locale: ap.item.Locale},
 				host.ReviewDecisionApproved, "", state.AIIdentityPrefix+modelID); derr != nil {
 				return nil, fmt.Errorf("auto-approve %s:%s: %w", ap.item.File, ap.item.Key, derr)

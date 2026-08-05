@@ -4,10 +4,8 @@ import (
 	"context"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"path/filepath"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -35,40 +33,72 @@ func registerContextMCPTools(server *mcp.Server, a *App) {
 
 // contextSearchInput is the MCP input for context_search.
 //
-// The store paths mirror the older per-store tools this replaces: an MCP
-// handler has no cobra Command, so it cannot use the project-resolving openers
-// the CLI does. Both default to the conventional project filenames.
+// The store overrides mirror the older per-store tools this replaces. An MCP
+// handler has no cobra Command, so it resolves the project the way every
+// flagless caller does — KAPI_PROJECT, else the upward walk from cwd — and
+// reads the project's own store. A path here selects a STANDALONE store
+// instead, for an agent pointed at a vocabulary or corpus outside the project.
 type contextSearchInput struct {
 	Query  string `json:"query" jsonschema:"the word or phrase to ask about"`
 	Locale string `json:"locale,omitempty" jsonschema:"narrow results to one language (e.g. en, fr)"`
 	Limit  int    `json:"limit,omitempty" jsonschema:"max results per group (default 10)"`
-	Terms  string `json:"terms,omitempty" jsonschema:"path to the terms store (default .kapi/terms.db)"`
-	Memory string `json:"memory,omitempty" jsonschema:"path to the content memory (default .kapi/memory.db)"`
-	// The default paths spell the retained identifiers, because they name files
-	// that exist on disk today. The vocabulary in the descriptions is the
-	// settled one — "terms store", "content memory" — and the filenames are
-	// quoted verbatim, which is the rule for a retained identifier.
+	Terms  string `json:"terms,omitempty" jsonschema:"path to a standalone terms store (default: the project's own store)"`
+	Memory string `json:"memory,omitempty" jsonschema:"path to a standalone content memory (default: the project's own store)"`
 }
 
 func (a *App) handleContextSearch(ctx context.Context, _ *mcp.CallToolRequest, in contextSearchInput) (*mcp.CallToolResult, *ContextSearchResult, error) {
 	src := ContextSearchSources{Scope: ScopeProject}
 
 	// A store that will not open degrades to a note rather than failing the
-	// call, so the other store still answers. It is never silent, though: these
-	// openers create a missing file, so an error means broken rather than
+	// call, so the other store still answers. It is never silent, though: the
+	// store is created when absent, so an error means broken rather than
 	// absent, and an agent told "nothing is bound" would stop asking instead of
 	// reporting a fault its user can fix.
-	if tb, err := terms.NewSQLiteStore(firstNonEmpty(in.Terms, filepath.Join(project.StateDirName, project.TermsFileName))); err == nil {
-		defer tb.Close()
-		src.Terms = tb
-	} else {
-		src.TermsErr = err
+	if in.Terms == "" || in.Memory == "" {
+		root, err := a.projectRootFor(nil)
+		switch {
+		case err != nil:
+			src.TermsErr, src.MemoryErr = err, err
+		case root == "":
+			// No project in scope: only an explicit path can answer.
+		default:
+			db, derr := a.ProjectDB(ctx, root)
+			if derr != nil {
+				src.TermsErr, src.MemoryErr = derr, derr
+			} else {
+				if in.Terms == "" && db.Terms() != nil {
+					src.Terms = db.Terms()
+				}
+				if in.Memory == "" && db.Memory() != nil {
+					src.Memory = db.Memory()
+				}
+				// The project's extracted content, so an agent told a term is
+				// discouraged learns in the same answer whether anything uses
+				// it. Autocommit: this is a read beside whatever else is
+				// running (see App.OccurrenceBlocks).
+				src.Blocks = db.BlocksAutocommit()
+			}
+		}
 	}
-	if tm, err := memory.NewSQLiteStore(firstNonEmpty(in.Memory, filepath.Join(project.StateDirName, project.MemoryFileName))); err == nil {
-		defer tm.Close()
-		src.Memory = tm
-	} else {
-		src.MemoryErr = err
+	if in.Terms != "" {
+		if tb, err := terms.NewSQLiteStore(in.Terms); err == nil {
+			defer tb.Close()
+			src.Terms, src.TermsErr = tb, nil
+		} else {
+			src.TermsErr = err
+		}
+	}
+	if in.Memory != "" {
+		if tm, err := memory.NewSQLiteStore(in.Memory); err == nil {
+			defer tm.Close()
+			src.Memory, src.MemoryErr = tm, nil
+		} else {
+			src.MemoryErr = err
+		}
+	}
+
+	if a.BlocksBackend != nil {
+		src.Blocks = a.BlocksBackend // browser build: no file-backed store
 	}
 
 	res, err := SearchContext(ctx, src, ContextSearchRequest{

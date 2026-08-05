@@ -24,9 +24,9 @@ interface.
 Content memory is the project's **recycle** corpus: a pool of source→target
 pairs reused to pre-fill and leverage future translation. It is not the carrier
 of workflow **decisions** — whether a person has reviewed or signed off a
-particular target lives in the project **state store**
-([AD-008](008-project-model.md), `defaults.state`), not here. Adding a pair to
-the memory (`kapi apply` with `kind:"tm"`) is recycle leverage; it does not
+particular target lives in the project's unit-decision record
+([AD-033](033-project-state-model.md)), not here. Adding a pair to
+the memory (`kapi apply` with `kind:"memory"`) is recycle leverage; it does not
 promote a unit to *reviewed*.
 
 ## Context
@@ -218,28 +218,28 @@ becomes leverage for the next — not authored, reviewed content. So unlike the
 terms store ([AD-010](010-terminology.md)), which is *source*, the memory is
 **state, kept out of git scope** — the same posture as Terraform state:
 
-- its home is a store **outside git**: `.kapi/cache/` locally, the CI job cache
-  (the `actions/cache` idiom — restore at job start, save at job end) in CI, and
-  the bowrain platform database for a team (the shared, authoritative "remote
-  backend"). One continuum, larger backend.
+- its home is a store **outside git**: locally, the memory tables inside the
+  project's one database, `.kapi/store.db` ([AD-039](039-local-context-graph-store.md));
+  in CI, whatever the job restores; and the bowrain platform database for a team
+  (the shared, authoritative "remote backend"). One continuum, larger backend.
 - it is **rebuildable**, which makes it softer than Terraform state: the leverage
   reconstructs from the committed translations (the per-locale `i18n/{lang}/`
   target catalogs) plus an optional human-curated, **read-only** committed
   `.memory.json` *seed*
-  bound by `defaults.memory_source`. A cold or clobbered cache is a performance hit,
+  bound by `defaults.memory_source`. A cold or clobbered store is a performance hit,
   not data loss.
 - because it is additive and rebuildable it needs **no locking**: it tolerates
   last-write-wins or per-branch cache keys, unlike Terraform state, which must be
   locked because it is irreplaceable.
 
-Consequently **CI never commits the memory**: it restores the store from the
-cache, leverages and accumulates during the run, and saves it back to the cache —
-the translation *output* (`i18n/{lang}/`) is what gets committed to git. This is
-why "a new `.terms.json` arrives while a memory is in play" is not a reconciliation
-problem: no store lives in git to conflict. Committing the binary SQLite would be
-git-hostile and defeat interchange in any case; the `.memory.json` bundle
-remains for explicit human snapshot / seed / transfer (deterministic, lossless),
-not as an auto-grown git artifact.
+Consequently **CI never commits the memory**: it builds the memory tables from
+the committed sources, leverages and accumulates during the run, and discards
+them — the translation *output* (`i18n/{lang}/`) is what gets committed to git.
+This is why "a new `.terms.json` arrives while a memory is in play" is not a
+reconciliation problem: no store lives in git to conflict. Committing the binary
+SQLite would be git-hostile and defeat interchange in any case; the
+`.memory.json` bundle remains for explicit human snapshot / seed / transfer
+(deterministic, lossless), not as an auto-grown git artifact.
 
 A project accumulates **many** memory bundles, not one — this repository's own
 dogfood commits a bundle per content surface under `context/memory/*.memory.json` — so

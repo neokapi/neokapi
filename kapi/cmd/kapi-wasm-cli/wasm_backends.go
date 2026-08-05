@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
@@ -71,4 +72,12 @@ func seedBackends() {
 		fmt.Fprintln(os.Stderr, "wasm: seed terms:", err)
 	}
 	app.TermsBackend = tb
+
+	// The block cache, which has nothing to seed: it is filled by whatever the
+	// lab extracts in this session. A process-lifetime store is what makes that
+	// carry between commands, so `extract` then `terms occurrences` answers in
+	// the browser exactly as it does on a desktop — with a linear scan instead
+	// of an FTS index, which at one lab document is the cheaper of the two
+	// anyway.
+	app.BlocksBackend = blockstore.NewPersistentMemoryStore()
 }

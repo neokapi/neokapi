@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/blockstore/sqlitestore"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
@@ -57,7 +56,7 @@ func TestUnitsFromProject_ExpandsPathToken(t *testing.T) {
 // the shared coverage engine agree: the CLI's file-scan derivation
 // (ComputeShipCoverage over working-tree reads) and the desktop status
 // panel's block-store derivation (convergence.TallyBlockStore over
-// `.kapi/cache/blocks.db`) produce identical LocaleCoverage rows — and the
+// the block cache in `.kapi/store.db`) produce identical LocaleCoverage rows — and the
 // same absolute translated counts the desktop renders — for the same
 // underlying data.
 func TestCoverageParity_FileScanVsBlockStore(t *testing.T) {
@@ -97,16 +96,14 @@ func TestCoverageParity_FileScanVsBlockStore(t *testing.T) {
 
 	// --- block-store side: extract, commit targets/fr overlays for exactly
 	// the units the fr file translates, then tally — the desktop status path.
-	storePath := filepath.Join(root, ".kapi", "cache", "blocks.db")
-	require.NoError(t, os.MkdirAll(filepath.Dir(storePath), 0o755))
-	store, err := sqlitestore.New(storePath)
+	db, err := app.ProjectDB(ctx, root)
 	require.NoError(t, err)
-	defer store.Close()
+	store := db.Blocks()
 
 	pctx := project.NewProjectContext(proj, projPath)
 	resolved, err := pctx.ResolveContent(app.FormatReg)
 	require.NoError(t, err)
-	stats, err := project.ExtractToBlockStore(ctx, app.FormatReg, pctx, store, storePath, resolved)
+	stats, err := project.ExtractToBlockStore(ctx, app.FormatReg, pctx, store, db, resolved)
 	require.NoError(t, err)
 	require.Equal(t, 3, stats.Blocks)
 
