@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/internal/xmlesc"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projection"
 )
 
 // smlParser parses SpreadsheetML XML parts (XLSX worksheets, shared strings).
@@ -305,6 +306,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 						if g := cellGeometry(cellRef, partPath, merges); g != nil {
 							block.SetGeometry(g)
 						}
+						markGridCell(block, cellRef)
 						emitBlock(block)
 					} else {
 						p.skelWriteString("<v>")
@@ -397,6 +399,7 @@ func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, merg
 	if g := cellGeometry(cellRef, partPath, merges); g != nil {
 		block.SetGeometry(g)
 	}
+	markGridCell(block, cellRef)
 	emitBlock(block)
 }
 
@@ -419,7 +422,30 @@ func (p *smlParser) emitLiteralCellAnchor(text, cellRef, partPath string, merges
 	if g := cellGeometry(cellRef, partPath, merges); g != nil {
 		block.SetGeometry(g)
 	}
+	markGridCell(block, cellRef)
 	emitBlock(block)
+}
+
+// markGridCell gives a worksheet cell anchor the canonical table-cell role and
+// the row hint the flat-cell projection path groups on.
+//
+// A worksheet has no row *container* to bracket — a row is an addressing fact,
+// not a markup element, and the cells arrive as a flat stream. The geometry was
+// always recorded (address plus merge span), but without a role nothing
+// downstream could see a grid: core/projection assembles tables from cell roles,
+// so every cell fell through as a standalone block and a spreadsheet exported as
+// a run of loose paragraphs. The role plus projection.PropFlatRow is exactly
+// what the flat-cell fallback was built to consume.
+func markGridCell(block *model.Block, cellRef string) {
+	_, row, ok := parseCellRefA1(cellRef)
+	if !ok {
+		return
+	}
+	block.SetSemanticRole(model.RoleTableCell, 0)
+	if block.Properties == nil {
+		block.Properties = make(map[string]string)
+	}
+	block.Properties[projection.PropFlatRow] = strconv.Itoa(row)
 }
 
 // mergeSpan is a merged-cell range's extent in cells (cols × rows), ≥1 each.

@@ -199,9 +199,16 @@ func flushFlatCells(cells []*RenderNode) *RenderNode {
 	return table
 }
 
-// propFlatRow is the optional per-cell row-index hint a reader may stamp on a
-// flat (un-grouped) table cell so flat-cell assembly can recover rows.
-const propFlatRow = "table.row"
+// PropFlatRow is the optional per-cell row-index hint a reader may stamp on a
+// flat (un-grouped) table cell so flat-cell assembly can recover rows. A reader
+// that knows each cell's address but does not bracket rows (a spreadsheet
+// worksheet, whose rows are an addressing fact rather than a markup container)
+// stamps this instead, and every consumer of the flat-cell path recovers the
+// same grid from it.
+const PropFlatRow = "table.row"
+
+// propFlatRow is the package-internal spelling of PropFlatRow.
+const propFlatRow = PropFlatRow
 
 func isCellRole(role string) bool {
 	return role == model.RoleTableCell || role == model.RoleTableHeader

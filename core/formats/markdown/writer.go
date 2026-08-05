@@ -420,6 +420,16 @@ func (s *mdInlineSink) flush() {
 // Non-table group brackets are transparent — their child blocks render in
 // place exactly as the block-only path did.
 func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
+	var pendingCells []*model.Block
+	flushCells := func() error {
+		if len(pendingCells) == 0 {
+			return nil
+		}
+		rows := w.assembleFlatCells(pendingCells)
+		pendingCells = nil
+		return w.writeTable(rows, out)
+	}
+
 	for i := 0; i < len(events); i++ {
 		part := events[i]
 		switch part.Type {
@@ -427,6 +437,9 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 			g, ok := part.Resource.(*model.GroupStart)
 			if !ok {
 				continue
+			}
+			if err := flushCells(); err != nil {
+				return err
 			}
 			switch g.Type {
 			case "table":
@@ -443,18 +456,72 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 				})
 			}
 		case model.PartGroupEnd:
+			if err := flushCells(); err != nil {
+				return err
+			}
 			if g, ok := part.Resource.(*model.GroupEnd); ok {
 				w.closeContext(g.ID)
 			}
 		case model.PartBlock:
-			if block, ok := part.Resource.(*model.Block); ok {
-				if err := w.writeBlockMarkdown(block, out); err != nil {
-					return err
-				}
+			block, ok := part.Resource.(*model.Block)
+			if !ok {
+				continue
+			}
+			// A bare table cell outside any table group means the reader knows
+			// each cell's address but has no row container to bracket — a
+			// spreadsheet worksheet. Buffer the run and assemble it as one
+			// table when it ends, the same fallback core/projection applies.
+			if isCellBlock(block) {
+				pendingCells = append(pendingCells, block)
+				continue
+			}
+			if err := flushCells(); err != nil {
+				return err
+			}
+			if err := w.writeBlockMarkdown(block, out); err != nil {
+				return err
 			}
 		}
 	}
-	return nil
+	return flushCells()
+}
+
+// isCellBlock reports whether a block carries a table-cell role.
+func isCellBlock(b *model.Block) bool {
+	role := b.SemanticRole()
+	return role == model.RoleTableCell || role == model.RoleTableHeader
+}
+
+// assembleFlatCells groups a run of bare cell blocks into rows on the per-cell
+// row hint (projection.PropFlatRow). Cells with no hint collapse into one row —
+// best-effort, matching projection.flushFlatCells, since row topology is not
+// recoverable from an unhinted block stream.
+func (w *Writer) assembleFlatCells(cells []*model.Block) []mdRow {
+	var rows []mdRow
+	lastKey, started := "", false
+	for _, c := range cells {
+		key, hasHint := c.Properties[projection.PropFlatRow]
+		if !started || (hasHint && key != lastKey) {
+			rows = append(rows, mdRow{})
+			lastKey, started = key, true
+		}
+		col := -1
+		if v, ok := c.Properties["column"]; ok {
+			n := 0
+			if _, err := fmt.Sscanf(v, "%d", &n); err == nil {
+				col = n
+			}
+		}
+		text := escapeTableCell(renderInlineMarkdown(w.blockRuns(c)))
+		rows[len(rows)-1].cells = append(rows[len(rows)-1].cells, mdCell{col: col, text: text})
+	}
+	// A spreadsheet's first row is its header row far more often than not, and
+	// GFM needs a header row regardless — promoting it beats emitting an empty
+	// one above real data.
+	if len(rows) > 1 {
+		rows[0].header = true
+	}
+	return rows
 }
 
 // writeBlockMarkdown renders one block, role-prefixed, separated from prior
@@ -466,6 +533,14 @@ func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
 	// surfaced for docx write-back; their text is already in the formula's LaTeX,
 	// so skip them in cross-format output to avoid duplication.
 	if block.Type == "omml-nor" {
+		return nil
+	}
+	// A spreadsheet's shared-string table is deduplicated storage, not a
+	// position in the document: every string it holds is emitted again as the
+	// worksheet cell that uses it, carrying an address. Rendering both puts the
+	// whole sheet in the output twice. The blocks are still the right extraction
+	// unit for translation — this skip is generative-path only.
+	if block.Type == "shared-string" {
 		return nil
 	}
 
