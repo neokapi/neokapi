@@ -118,3 +118,68 @@ func TestWorksheetProjectsToAGrid(t *testing.T) {
 		assert.NotEmpty(t, row.Children, "every row should hold cells")
 	}
 }
+
+// A workbook is a sequence of sheets and that boundary is real: without it
+// every sheet's cells arrive as one undifferentiated run, and a multi-sheet
+// workbook exports as a single merged table whose rows come from different
+// grids under one sheet's header.
+func TestWorksheetsAreNamedAndSeparated(t *testing.T) {
+	blocks := readXLSXBlocks(t, "testdata/EksempelFiltrering.xlsx")
+
+	var names []string
+	for _, b := range blocks {
+		if b.Type == "sheet-name" {
+			names = append(names, b.SourceText())
+			assert.False(t, b.Translatable,
+				"a sheet-name heading is surfaced for export, not for a translator")
+			assert.Equal(t, model.RoleHeading, b.SemanticRole())
+		}
+	}
+	assert.Equal(t, []string{"Data", "Selektering"}, names,
+		"each worksheet should be labelled with the tab name a reader sees")
+
+	// The heading must precede its own sheet's cells, or it labels the wrong grid.
+	seen := ""
+	byPart := map[string]string{}
+	for _, b := range blocks {
+		part := b.Properties["partPath"]
+		if b.Type == "sheet-name" {
+			seen = b.SourceText()
+			byPart[part] = seen
+			continue
+		}
+		if b.Type == "cell" && part != "" {
+			assert.Equal(t, byPart[part], seen,
+				"cell %s in %s is under heading %q", b.Properties["cell"], part, seen)
+		}
+	}
+}
+
+// Gated like every other additive surfacing: with the flag off the part stream
+// is what the parity runner expects.
+func TestSheetHeadingIsGatedOnNonTranslatableSurfacing(t *testing.T) {
+	data, err := os.ReadFile("testdata/EksempelFiltrering.xlsx")
+	require.NoError(t, err)
+
+	r := NewReader()
+	cfg, ok := r.Config().(*Config)
+	require.True(t, ok)
+	cfg.SetExtractNonTranslatableContent(false)
+
+	ctx := context.Background()
+	require.NoError(t, r.Open(ctx, &model.RawDocument{
+		URI: "wb.xlsx", SourceLocale: model.LocaleEnglish,
+		Reader: io.NopCloser(bytes.NewReader(data)),
+	}))
+	t.Cleanup(func() { _ = r.Close() })
+
+	for pr := range r.Read(ctx) {
+		require.NoError(t, pr.Error)
+		if pr.Part == nil {
+			continue
+		}
+		if b, ok := pr.Part.Resource.(*model.Block); ok {
+			assert.NotEqual(t, "sheet-name", b.Type)
+		}
+	}
+}

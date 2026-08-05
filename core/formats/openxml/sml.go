@@ -22,6 +22,9 @@ type smlParser struct {
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
 	sharedStrings []string // pre-parsed shared string table
+	// sheetNames maps a worksheet part path to its display name, so a grid can
+	// be labelled with the tab a reader would see.
+	sheetNames map[string]string
 	// tableColumnSeq positions a <tableColumn> that carries no `id` attribute,
 	// counted within the table part it belongs to.
 	tableColumnSeq int
@@ -173,6 +176,8 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 	// (<mergeCells> follows <sheetData> in the part, so we cannot learn it during
 	// the streaming pass). Keyed by the range's top-left cell reference.
 	merges := parseMergeCells(data)
+
+	p.emitSheetHeading(partPath, emitBlock)
 
 	var inRow, inCell, inValue bool
 	var cellType, cellRef string
@@ -361,6 +366,45 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 		}
 	}
 	return nil
+}
+
+// emitSheetHeading surfaces a worksheet's display name as a heading ahead of
+// its cells.
+//
+// A workbook is a sequence of sheets, and that boundary is real: without it
+// every sheet's cells arrive as one undifferentiated run and a multi-sheet
+// workbook exports as a single merged table whose rows come from different
+// grids. The heading both names the sheet and, being a non-cell block, ends the
+// preceding sheet's run of cells.
+//
+// The name lives in xl/workbook.xml behind a relationship id, so it is resolved
+// once at open time (parseSheetNames). Emitted as a Translatable:false block
+// gated behind ExtractNonTranslatableContent and carrying no skeleton ref, like
+// the grid anchors it precedes: additive, so extraction, word count and the
+// round-trip are untouched, and the parity runner (which forces the flag off)
+// sees an unchanged part stream. Sheet names have their own translatability
+// switch — TranslateSheetNames, default false, mirroring upstream Okapi's
+// translateExcelSheetNames — and this is deliberately not that.
+func (p *smlParser) emitSheetHeading(partPath string, emitBlock func(*model.Block)) {
+	if p.cfg == nil || !p.cfg.ExtractNonTranslatableContent() {
+		return
+	}
+	name := p.sheetNames[partPath]
+	if name == "" {
+		return
+	}
+	*p.blockCounter++
+	block := &model.Block{
+		ID:           fmt.Sprintf("tu%d", *p.blockCounter),
+		Name:         model.StructuralPath(append(strings.Split(partPath, "/"), "@name")...),
+		Type:         "sheet-name",
+		Translatable: false,
+		Source:       []model.Run{{Text: &model.TextRun{Text: name}}},
+		Targets:      make(map[model.VariantKey]*model.Target),
+		Properties:   map[string]string{"partPath": partPath},
+	}
+	block.SetSemanticRole(model.RoleHeading, 2)
+	emitBlock(block)
 }
 
 // emitSharedCellAnchor surfaces a shared-string worksheet cell as a

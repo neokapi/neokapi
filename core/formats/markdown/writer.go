@@ -472,6 +472,16 @@ func (w *Writer) writeFromEvents(events []*model.Part, out io.Writer) error {
 			// spreadsheet worksheet. Buffer the run and assemble it as one
 			// table when it ends, the same fallback core/projection applies.
 			if isCellBlock(block) {
+				// Cells from a different source part belong to a different
+				// grid — a workbook's next worksheet. Flush first, or two
+				// sheets merge into one table whose rows come from different
+				// grids and whose columns mean different things.
+				if n := len(pendingCells); n > 0 &&
+					pendingCells[n-1].Properties["partPath"] != block.Properties["partPath"] {
+					if err := flushCells(); err != nil {
+						return err
+					}
+				}
 				pendingCells = append(pendingCells, block)
 				continue
 			}

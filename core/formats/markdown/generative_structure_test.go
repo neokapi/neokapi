@@ -11,11 +11,13 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"strings"
 	"testing"
 
 	htmlfmt "github.com/neokapi/neokapi/core/formats/html"
 	"github.com/neokapi/neokapi/core/formats/markdown"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/projection"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -173,4 +175,41 @@ func TestStorageBlocksAreNotDocumentFlow(t *testing.T) {
 				"a %s block must not render as document flow", tc.blockType)
 		})
 	}
+}
+
+// A worksheet has no table container in the source, so the writer assembles a
+// grid from a run of bare cell blocks. That run has to end when the source part
+// changes: two sheets merged into one table put rows from one grid under
+// another grid's header, which is worse than no table at all. The boundary must
+// hold on the part path alone — a workbook whose sheet names cannot be resolved
+// still has sheets.
+func TestCellsFromDifferentPartsFormSeparateTables(t *testing.T) {
+	cell := func(id, part, row, text string) *model.Part {
+		b := model.NewBlock(id, text)
+		b.SetSemanticRole(model.RoleTableCell, 0)
+		b.Properties = map[string]string{"partPath": part, projection.PropFlatRow: row}
+		return &model.Part{Type: model.PartBlock, Resource: b}
+	}
+	parts := []*model.Part{
+		cell("a1", "xl/worksheets/sheet1.xml", "1", "Product"),
+		cell("a2", "xl/worksheets/sheet1.xml", "2", "Honey"),
+		cell("b1", "xl/worksheets/sheet2.xml", "1", "Region"),
+		cell("b2", "xl/worksheets/sheet2.xml", "2", "North"),
+	}
+
+	w := markdown.NewWriter()
+	var buf bytes.Buffer
+	require.NoError(t, w.SetOutputWriter(&buf))
+	ch := make(chan *model.Part, len(parts))
+	for _, p := range parts {
+		ch <- p
+	}
+	close(ch)
+	require.NoError(t, w.Write(context.Background(), ch))
+
+	got := buf.String()
+	assert.Equal(t, 2, strings.Count(got, "| --- |"),
+		"two source parts should produce two tables, got:\n%s", got)
+	assert.NotContains(t, got, "| Product |\n| --- |\n| Honey |\n| Region |",
+		"sheet 2's rows must not continue sheet 1's table")
 }
