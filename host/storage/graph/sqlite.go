@@ -52,8 +52,18 @@ var migrations = []storage.Migration{
 	},
 }
 
-// NewSQLiteGraphStore creates a new SQLite-backed graph store.
+// NewSQLiteGraphStore adopts an already-open database and migrates the graph
+// schema into it under the `graph` ledger.
+//
+// The store never owns db. Its intended local tenant is a project's merged
+// `.kapi/store.db`, where `graph_nodes` / `graph_edges` sit beside the block
+// cache, the terms store, the content memory and the unit working set — which
+// is the whole point of the single file: an edge from a term to a block is a
+// join, not a cross-database merge. Whoever opened the pool closes it.
 func NewSQLiteGraphStore(db *storage.DB) (*SQLiteGraphStore, error) {
+	if db == nil {
+		return nil, errors.New("graph: adopt store: nil database")
+	}
 	if err := storage.Migrate(db, "graph", migrations); err != nil {
 		return nil, fmt.Errorf("graph migration: %w", err)
 	}
@@ -488,8 +498,12 @@ func (s *SQLiteGraphStore) CypherExec(_ context.Context, _ string, _ map[string]
 	return coreg.ErrCypherNotSupported
 }
 
+// Close detaches this handle. It deliberately does NOT close the connection
+// pool: the store adopted a database it does not own, and in the merged project
+// store four other subsystems are still using that pool.
 func (s *SQLiteGraphStore) Close() error {
-	return s.db.Close()
+	s.db = nil
+	return nil
 }
 
 // --- internal helpers ---

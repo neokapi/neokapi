@@ -113,6 +113,34 @@ Edges key on **durable identity** — the content key of a block
 ([AD-003](003-identity.md)), the unit key of a decision — not on a reader's
 positional id, so a re-parse that renumbers a document does not orphan the graph.
 
+**The tables exist and are attached; nothing writes them yet.** `App.ProjectGraph`
+binds the property graph to the project store's own pool, so the `graph` ledger
+migrates beside the other four. The relationships themselves are computed at
+query time and handed back — `occurrence.Occurrence.Edge` is the term↔block edge,
+fully formed — but not persisted. Materializing them waits on the identity
+vocabulary settling: what a block node is called across a re-parse, how a
+coordinate is addressed, and whether a concept node is per-project or
+per-workspace. Edges written under a naming scheme we then change outlive the
+change, which is worse than not writing them.
+
+### Finding a term inside blocks
+
+Term occurrence has to search text that lives inside a JSON payload no SQL can
+read, so the block cache keeps `block_texts`: a row per block per locale — the
+source under the empty locale, each target under its own — with a contentless
+FTS5 trigram index over it.
+
+The index is built **before a search, not during a write**. Maintaining it inside
+every block write was measured first and cost roughly seven times the write:
+extraction writes every block in the project, which is too much to levy for a
+query that may never be asked. A write now only marks the block stale, and the
+first search reconciles exactly what changed. The index narrows and never
+decides — a trigram match is necessary, not sufficient — so matching is done in
+Go, which is also how the browser build answers the same question by scanning.
+
+`kapi terms occurrences` is the surface, and `kapi context search` carries a
+usage count on each term it reports.
+
 ### Local and server converge in shape
 
 Bowrain's Postgres spans workspaces, projects and streams. A local project answers
