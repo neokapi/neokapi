@@ -146,3 +146,19 @@ func TestLoadState_missingFileReturnsNil(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, got)
 }
+
+// The store sits at the TOP of the state directory, not under cache/: it
+// carries staged decisions, so `rm -rf .kapi/cache` must not take it.
+func TestLayout_StorePathIsNotUnderCache(t *testing.T) {
+	root := t.TempDir()
+	layout := project.Layout{
+		Root:       root,
+		RecipePath: filepath.Join(root, project.RecipeFileName),
+		StateDir:   filepath.Join(root, project.StateDirName),
+	}
+
+	assert.Equal(t, filepath.Join(layout.StateDir, "store.db"), layout.StorePath())
+	assert.Equal(t, filepath.Join(layout.StateDir, "store.json"), layout.StoreSidecarPath())
+	assert.Equal(t, layout.StateDir, filepath.Dir(layout.StorePath()))
+	assert.NotEqual(t, layout.CacheDir(), filepath.Dir(layout.StorePath()))
+}

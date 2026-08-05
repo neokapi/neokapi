@@ -20,14 +20,20 @@ import (
 // binding over ExtractToBlockStore; the CLI auto-extracts on drift before
 // each `up` pass via DetectStoreDrift + ExtractToBlockStore.
 
-// blockStoreSchemaVersion identifies the block-store extraction semantics:
+// BlockStoreSchemaVersion identifies the block-store extraction semantics:
 // how blocks are read, numbered, keyed (BlockStoreHash), and glob-expanded
 // into the store. Bump it whenever a change makes previously extracted stores
 // wrong (e.g. the historical `**`-glob fix), so they re-extract. Staleness is
 // stamped by THIS version, not the binary version: a CLI and a desktop built
 // from different releases with the same extraction semantics share one cache
 // instead of endlessly invalidating each other's.
-const blockStoreSchemaVersion = "2026-07-05.1"
+const BlockStoreSchemaVersion = "2026-07-05.1"
+
+// The path-derived stamp sidecars below are superseded by the `store_meta`
+// table in the merged store (core/projectdb): a stamp keyed off a database
+// FILENAME has no meaning once the block cache is one schema inside a shared
+// file. They stay only until the host reads its stamps from the table, and
+// core/projectdb deletes the sidecars they name.
 
 // BlockStoreVersionStampPath is the sidecar file recording the extraction
 // schema version that last wrote the block store, e.g.
@@ -40,21 +46,21 @@ func BlockStoreVersionStampPath(storePath string) string {
 // BlockStoreStale reports whether the block store at storePath was written
 // under different extraction semantics than the running binary — true when
 // the stamp is missing/unreadable, or its contents don't match
-// blockStoreSchemaVersion. Callers invoke this only once the store is known
+// BlockStoreSchemaVersion. Callers invoke this only once the store is known
 // to exist (a missing store has nothing to be stale about).
 func BlockStoreStale(storePath string) bool {
 	data, err := os.ReadFile(BlockStoreVersionStampPath(storePath))
 	if err != nil {
 		return true
 	}
-	return strings.TrimSpace(string(data)) != blockStoreSchemaVersion
+	return strings.TrimSpace(string(data)) != BlockStoreSchemaVersion
 }
 
 // StampBlockStoreVersion records the running binary's extraction schema
 // version as the writer of the block store at storePath, so a later binary
 // can tell whether it would have extracted different content.
 func StampBlockStoreVersion(storePath string) error {
-	return os.WriteFile(BlockStoreVersionStampPath(storePath), []byte(blockStoreSchemaVersion), 0o644)
+	return os.WriteFile(BlockStoreVersionStampPath(storePath), []byte(BlockStoreSchemaVersion), 0o644)
 }
 
 // SourceStamp records the identity of one source file at extract time: its
@@ -139,18 +145,27 @@ func DetectStoreDrift(storePath string, files []ResolvedFile) StoreDrift {
 		d.VersionStale = true
 	}
 
-	stamps := LoadSourceStamps(storePath)
+	d.Changed, d.Removed = CompareSourceStamps(LoadSourceStamps(storePath), files)
+	return d
+}
+
+// CompareSourceStamps compares resolved source files against their extract-time
+// stamps and reports which drifted and which are stamped but no longer resolve.
+// It is the half of drift detection that does not care where the stamps were
+// read from, so the file-sidecar and the table-backed store share one
+// implementation rather than two that agree until they don't.
+func CompareSourceStamps(stamps map[string]SourceStamp, files []ResolvedFile) (changed, removed []string) {
 	seen := make(map[string]bool, len(files))
 	for _, rf := range files {
 		seen[rf.Relative] = true
 		stamp, ok := stamps[rf.Relative]
 		if !ok {
-			d.Changed = append(d.Changed, rf.Relative)
+			changed = append(changed, rf.Relative)
 			continue
 		}
 		info, err := os.Stat(rf.Path)
 		if err != nil {
-			d.Changed = append(d.Changed, rf.Relative)
+			changed = append(changed, rf.Relative)
 			continue
 		}
 		if info.Size() == stamp.Size && info.ModTime().UnixNano() == stamp.MTimeNS {
@@ -158,7 +173,7 @@ func DetectStoreDrift(storePath string, files []ResolvedFile) StoreDrift {
 		}
 		hash, err := HashFile(rf.Path)
 		if err != nil || hash != stamp.Hash {
-			d.Changed = append(d.Changed, rf.Relative)
+			changed = append(changed, rf.Relative)
 		}
 		// Touched but byte-identical: not drift. The refreshed (size, mtime)
 		// pair is re-stamped by the next extraction; until then the hash
@@ -166,10 +181,10 @@ func DetectStoreDrift(storePath string, files []ResolvedFile) StoreDrift {
 	}
 	for rel := range stamps {
 		if !seen[rel] {
-			d.Removed = append(d.Removed, rel)
+			removed = append(removed, rel)
 		}
 	}
-	return d
+	return changed, removed
 }
 
 // ExtractSkip records one file that extraction could not process.
