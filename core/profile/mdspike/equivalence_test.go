@@ -111,7 +111,7 @@ func TestHouseRulesAreDuplicatedToday(t *testing.T) {
 	require.Len(t, shared, 4, "the two committed profiles share four prohibitions verbatim")
 	assert.Len(t, drifted, 1, "and one of the four has already drifted in description")
 	for _, regex := range drifted {
-		t.Logf("drifted prohibition %s:\n  brand-voice.yaml:   %q\n  bowrain-voice.yaml: %q", regex, a[regex], b[regex])
+		t.Logf("drifted prohibition %s:\n  voice.yaml:                  %q\n  profiles/bowrain/voice.yaml: %q", regex, a[regex], b[regex])
 	}
 }
 
