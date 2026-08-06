@@ -38,7 +38,6 @@
 #                            templates (bowrain/emails/src) by
 #                            @neokapi/i18n-react → per-locale template renders
 #                            under bowrain/mailer/templates/<lang>/
-#                            (make l10n-emails)
 #   bowrain-email-subjects — transactional-email subject lines
 #                            (bowrain/mailer/subjects/en.json) →
 #                            subjects/<lang>.json
@@ -46,11 +45,12 @@
 #                            SPA (bowrain/web/landing/src) → committed runtime
 #                            catalogs
 #                            bowrain/web/landing/translations/<lang>.json
-#                            (make l10n-landing)
 #
-# Drive it with the l10n-* Makefile targets. The context graph this project is
-# governed by — brand voice, terms, reviewed content memory — is committed under
-# .kapi/.
+# Drive it with `make l10n`: one kapi pass over this whole recipe, wrapped in the
+# extraction and catalog-compilation stages a recipe may not name itself
+# (AD-038). Adding a collection here needs no Makefile change — see
+# docs/internals/l10n-ci.md. The context graph this project is governed by —
+# brand voice, terms, reviewed content memory — is committed under .kapi/.
 version: v1
 name: neokapi
 defaults:
@@ -130,14 +130,13 @@ content:
             extractionRules: "(display_name|description|title|label)$"
         target: core/i18n/catalogs/{lang}.mo
   # The CLI's own help and output chrome. It was the one shipped surface the
-  # graph never named: `make l10n-cli` has always produced its catalogs, but
-  # with no collection declaring it, nothing about the text a user reads at the
+  # graph never named: its catalogs were always produced, but with no
+  # collection declaring it, nothing about the text a user reads at the
   # terminal was governed, searchable, or visible in the workspace.
   - name: neokapi-cli
     context: { product: neokapi, channel: cli }
     items:
-      # Bare `json`, matching `make l10n-cli` exactly — it recycles this file
-      # with `kapi exec recycle host/i18n/commands.json -f json`. The catalog
+      # Bare `json`: the whole file is recycled as one item. The catalog
       # holds command help (short/long) alongside output chrome, so a narrower
       # extraction rule would govern some of the text a user reads and not the
       # rest, and the collection would disagree with the target it produces.
@@ -226,9 +225,11 @@ content:
     context: { product: neokapi, channel: demos }
     items:
       # Narrated demo-video scripts. The English demo.yaml is the master;
-      # localized narration is GENERATED into committed demo.<lang>.yaml
-      # sidecars (make l10n-demos, content memory-driven) that the harness overlays at
-      # load time. Never hand-edit a sidecar — fix the content memory seed instead
+      # translated narration is GENERATED into committed demo.<lang>.yaml
+      # sidecars (content memory-driven) that the harness overlays at load
+      # time. A sidecar identical to its source carries nothing and is dropped
+      # rather than committed, so a demo has one exactly when its narration has
+      # been translated. Never hand-edit a sidecar — fix the memory seed instead
       # (.kapi/memory/demo-narration-<lang>.memory.json). Translatable keys are
       # selected by defaults.formats.yaml.config.keyPathPatterns above.
       - path: harness/demos/*/demo.yaml
@@ -236,9 +237,10 @@ content:
           name: yaml
         target: harness/demos/{dir}/demo.{lang}.yaml
 flows:
-  # Exact-match content-memory leverage only (no AI, no checks): the deterministic pass
-  # behind `make l10n-demos`. Named tm-recycle so it does not shadow the
-  # built-in `recycle`/`translate` flows (built-ins win in `kapi run`).
+  # Exact-match content-memory leverage only (no AI, no checks): the
+  # deterministic pass behind `make l10n-translate`, run over the whole recipe.
+  # Named tm-recycle so it does not shadow the built-in `recycle`/`translate`
+  # flows (built-ins win in `kapi run`).
   tm-recycle:
     steps:
       - tool: recycle
