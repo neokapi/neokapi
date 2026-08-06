@@ -158,7 +158,7 @@ func TestApplyReviewDecision_UnknownDecision(t *testing.T) {
 	_, err := a.ApplyReviewDecision(context.Background(), filepath.Join(root, "kapi.yaml"), "en",
 		ReviewUnitRef{File: "nb.json", Key: "a", Locale: "nb"}, "meh", "")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown review decision")
+	assert.Contains(t, err.Error(), "unknown review outcome")
 }
 
 func TestApplyReviewDecision_UnitNotFound(t *testing.T) {
@@ -213,7 +213,7 @@ func commitAndReadUnits(t *testing.T, root string) []state.UnitState {
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
-	units, err := state.ReadCommitted(layout.DecisionsDir())
+	units, err := state.ReadCommitted(layout.UnitStateDir())
 	require.NoError(t, err)
 	return units
 }

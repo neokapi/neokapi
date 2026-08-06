@@ -21,7 +21,7 @@ This is the quick path for a one-time job, a script, or a CI step. In the CLI yo
 
 ## Project — a recipe plus a memory
 
-A **project** is a small `kapi.yaml` recipe file (your languages, which files count as content, your flows, your defaults) plus a store that **remembers your work** — translations, terminology, and review decisions, ready to reuse on the next run. Kapi finds the project automatically by walking up the folder tree, the way git finds its repo.
+A **project** is a small `kapi.yaml` recipe file (your languages, which files count as content, your flows, your defaults) plus a store that **remembers your work** — translations, terminology, and where each unit stands in review, ready to reuse on the next run. Kapi finds the project automatically by walking up the folder tree, the way git finds its repo.
 
 > _Translate this whole repo every release, reusing everything translated last time._
 
@@ -59,7 +59,7 @@ Kapi doesn't have separate "ad-hoc commands" and "project commands" — it has o
 - **Ad-hoc** = the `file` binding — you name `-i`/`-o`.
 - **In a project**, the default *sink* is the **store** (a *process-only* run); an explicit `-o` forces a file instead.
 
-A process-only run persists only *working* output — target overlays in the block tables of `.kapi/work/store.db`, pre-merge. It never records a review **decision**: those are authored by `kapi apply` and published by `kapi commit` to `.kapi/context/decisions/`, not by a flow's sink. The store rebuilds from what the project commits; the decisions are the authored part. See [the project store](/kapi/project-store).
+A process-only run persists only *working* output — target overlays in the block tables of `.kapi/work/store.db`, pre-merge. It never records a review **decision**: those are authored by `kapi apply` and published by `kapi commit` to `.kapi/state/`, not by a flow's sink. The store rebuilds from what the project commits; the decisions are the authored part. See [the project store](/kapi/project-store).
 
 `--explain` prints the resolved binding without running:
 

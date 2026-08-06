@@ -28,7 +28,7 @@ a connected project asks bowrain, asked in the same shape with no server present
 
 Context is relational. A term occurs in blocks; blocks belong to collections and
 sit at a [coordinate](022-brand-voice.md#context-is-a-coordinate-space); a
-decision blesses a unit at a content hash; a memory entry recycles into a block.
+a state record blesses a unit at a content hash; a memory entry recycles into a block.
 Retrieval ([AD-037](037-context-retrieval-surface.md)) and governance
 ([AD-022](022-brand-voice.md)) both traverse those relations rather than reading
 one store in isolation.
@@ -50,7 +50,7 @@ platform ([AD-033](033-project-state-model.md)).
 | block cache | `core/blockstore` ([AD-008](008-project-model.md)) | the content files |
 | terms | `terms/` ([AD-010](010-terminology.md)) | the committed `.terms.json` |
 | content memory | `memory/` ([AD-009](009-content-memory.md)) | the committed target files plus an optional `.memory.json` seed |
-| unit-state working set | `core/state` ([AD-033](033-project-state-model.md)) | the committed `.kapi/context/decisions/*.jsonl` shards |
+| unit-state working set | `core/state` ([AD-033](033-project-state-model.md)) | the committed `.kapi/state/*.jsonl` shards |
 | `graph_nodes`, `graph_edges` | `host/storage/graph` | the four above |
 
 Each subsystem owns its own schema and its own migration ledger
@@ -62,10 +62,10 @@ coupling: a subsystem still reaches its tables only through its own interface.
 
 `store.db` is an **index**, and every row in it is reconstructible:
 
-- `.kapi/context/terms.json` — the terms source, bound by `defaults.terms_source`.
-- `.kapi/context/memory.json` — a content-memory seed, bound by
+- `.kapi/terms.json` — the terms source, bound by `defaults.terms_source`.
+- `.kapi/memory/memory.json` — a content-memory seed, bound by
   `defaults.memory_source`.
-- `.kapi/context/decisions/*.jsonl` — the committed decision record, one shard
+- `.kapi/state/*.jsonl` — the committed unit-state record, one shard
   per document.
 - the content files themselves — source and target.
 
@@ -78,12 +78,12 @@ from are committed one directory over.
 
 `.kapi/work/cache/` means *free to delete*: parse cache, extraction batches,
 collection overlays, sync cache. `store.db` does not qualify, and by exactly one
-margin. Between a review decision landing and `kapi commit` materializing it to
-`.kapi/context/decisions/`, the working set inside `store.db` holds the **only**
-copy of that staged decision.
+margin. Between a review landing and `kapi commit` materializing it to
+`.kapi/state/`, the working set inside `store.db` holds the **only**
+copy of that staged state.
 
 So the cost of losing the file is bounded and stated precisely: at most the
-decisions staged since the last commit. Everything else rebuilds. `rm -rf
+unit state staged since the last commit. Everything else rebuilds. `rm -rf
 .kapi/work/cache` remains completely free, and keeping the two apart is what lets
 that sentence stay true.
 
@@ -113,12 +113,12 @@ carry:
 
 - **term ↔ block occurrence** — where a concept is actually used, filterable by
   collection and coordinate;
-- **decision ↔ unit** — which decision blesses which unit, at which target hash;
+- **state ↔ unit** — which record blesses which unit, at which target hash;
 - **coordinates** — the recipe's context axes as nodes, so governance resolution
   and retrieval traverse the same structure rather than re-deriving it.
 
 Edges key on **durable identity** — the content key of a block
-([AD-003](003-identity.md)), the unit key of a decision — not on a reader's
+([AD-003](003-identity.md)), the unit key of a state record — not on a reader's
 positional id, so a re-parse that renumbers a document does not orphan the graph.
 
 **The tables exist and are attached; nothing writes them yet.** `App.ProjectGraph`
@@ -171,7 +171,7 @@ sources rebuild it, and the same graph relations hold.
 ## Consequences
 
 - **One connection per project.** Subsystems open the shared `storage.DB` rather
-  than a file each; a single transaction can span a decision and the graph edges
+  than a file each; a single transaction can span a state record and the graph edges
   it implies.
 - **Cross-subsystem queries are ordinary SQL.** Term coverage per collection,
   the blocks behind a coordinate, the units a term change puts at risk — joins,
@@ -182,7 +182,7 @@ sources rebuild it, and the same graph relations hold.
   (`--termstore`, `--memory`) — those address a file the user owns, which is a
   different thing.
 - **CI caches `.kapi/work/cache/`, not `store.db`.** The database carries staged
-  decisions, and a cache key that restores stale decisions is worse than a cold
+  unit state, and a cache key that restores stale state is worse than a cold
   rebuild ([Convergence in CI](/kapi/convergence-in-ci)).
 
 ## See also
@@ -192,7 +192,7 @@ sources rebuild it, and the same graph relations hold.
 - [AD-009: Content memory](009-content-memory.md) and
   [AD-010: Terminology](010-terminology.md) — the two subsystems whose
   source-versus-projection split this store implements.
-- [AD-033: Project State Model](033-project-state-model.md) — the unit-decision
+- [AD-033: Project State Model](033-project-state-model.md) — the unit-state
   record and the working set inside `store.db`.
 - [AD-037: The context retrieval surface](037-context-retrieval-surface.md) —
   the two primitives these tables answer.

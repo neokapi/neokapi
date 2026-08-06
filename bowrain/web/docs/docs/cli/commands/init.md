@@ -5,7 +5,7 @@ sidebar_position: 1
 
 # kapi init
 
-Initialize a new Bowrain project in the current directory. Creates a `kapi.yaml` recipe at the project root and a sibling `.kapi/` directory holding the project's context — terms, content memory, brand voice and review decisions — with everything derived confined to `.kapi/work/`.
+Initialize a new Bowrain project in the current directory. Creates a `kapi.yaml` recipe at the project root and a sibling `.kapi/` directory holding the project's context — terms, content memory, brand voice and unit state — with everything derived confined to `.kapi/work/`.
 
 ## Usage
 
@@ -58,7 +58,7 @@ kapi init --server https://app.bowrain.cloud --project abc123
 
 1. Checks that no `kapi.yaml` recipe and no `.kapi/` directory already exist (fails fast if they do)
 2. Writes the `kapi.yaml` recipe at the project root
-3. Creates the `.kapi/` directory with `flows/`, `context/`, `manifest.yaml`, and an empty `work/cache/`
+3. Creates the `.kapi/` directory with `flows/`, `memory/`, `state/`, `manifest.yaml`, and an empty `work/cache/`
 4. Adds the example `pseudo` flow at `.kapi/flows/pseudo.yaml`
 5. Adds the ignore rule for `.kapi/work/` and `.kapi/filters.local.json` — the rest of `.kapi/` is committed
 6. Optionally creates a project on the Bowrain Server and writes the `server:` block to the recipe
@@ -166,8 +166,8 @@ kapi status  # finds kapi.yaml up the tree
 **Commit to git** — `kapi.yaml` and all of `.kapi/`:
 
 - `kapi.yaml` — the recipe (single source of truth)
-- `.kapi/context/terms.json`, `.kapi/context/memory.json`, `.kapi/context/brand-voice.yaml` — the context sources the recipe binds
-- `.kapi/context/decisions/*.jsonl` — the unit-decision record, published by `kapi commit`
+- `.kapi/terms.json`, `.kapi/memory/memory.json`, `.kapi/voice.yaml` — the context sources the recipe binds
+- `.kapi/state/*.jsonl` — the unit-state record, published by `kapi commit`
 - `.kapi/flows/*.yaml` — flow definitions you author
 - `.kapi/manifest.yaml`, `.kapi/filters.json` — bookkeeping and shared reader configuration
 
@@ -178,7 +178,7 @@ kapi status  # finds kapi.yaml up the tree
 
 Auth tokens are never written to the project. They live in the OS keychain (keys `bowrain-auth:<server-url>` and `bowrain-refresh:<server-url>`); non-secret metadata sits in `auth.json` in the bowrain config directory (`~/.config/bowrain` on Linux, `~/Library/Application Support/bowrain` on macOS).
 
-`kapi init` writes a two-line ignore rule — `/.kapi/work/` and `/.kapi/filters.local.json` — so everything else under `.kapi/`, including the committed record under `.kapi/context/decisions/`, stays tracked with no negation to remember.
+`kapi init` writes a two-line ignore rule — `/.kapi/work/` and `/.kapi/filters.local.json` — so everything else under `.kapi/`, including the committed record under `.kapi/state/`, stays tracked with no negation to remember.
 
 ## Next Steps
 

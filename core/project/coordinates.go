@@ -3,6 +3,7 @@ package project
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -51,9 +52,11 @@ var slugPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 // what could never be an id.
 var conceptPattern = regexp.MustCompile(`^\S+$`)
 
-// defaultVoiceField names the recipe key a voice came from when no profile
-// bound one.
-const defaultVoiceField = "defaults.brand_voice"
+// DefaultVoiceField names the recipe key a voice came from when no profile
+// bound one. Exported because a caller that wants the profile's conventional
+// file to answer BEFORE the project default has to be able to tell the two
+// apart, and ResolvedGovernance.VoiceField is where that is recorded.
+const DefaultVoiceField = "defaults.brand_voice"
 
 // defaultPointSubject names the point a run sits at when no collection claims
 // its content, for error messages.
@@ -137,6 +140,35 @@ type ProfileBinding struct {
 	Terms string `yaml:"terms,omitempty" json:"terms,omitempty"`
 }
 
+// ConventionalName is the profile's name on disk: the directory under
+// `.kapi/profiles/` holding the files it overrides.
+//
+// It is the `when:` values joined by a hyphen, taken in alphabetical order of
+// their axis names. A single-axis profile — `when: {product: bowrain}`, which
+// is most of them — is therefore just its value, `bowrain`, and the directory
+// reads as the thing it governs. The ordering is alphabetical rather than
+// authored because `when:` is a mapping: YAML gives no stable order to recover,
+// and a directory that renamed itself when someone reordered two lines would be
+// a directory nothing could rely on.
+//
+// The empty `when:` — the profile matching everything — has no conventional
+// directory: its files are the flat default in `.kapi/` itself.
+func (p ProfileBinding) ConventionalName() string {
+	if len(p.When) == 0 {
+		return ""
+	}
+	axes := make([]string, 0, len(p.When))
+	for axis := range p.When {
+		axes = append(axes, axis)
+	}
+	sort.Strings(axes)
+	parts := make([]string, 0, len(axes))
+	for _, axis := range axes {
+		parts = append(parts, p.When[axis])
+	}
+	return strings.Join(parts, "-")
+}
+
 // ResolvedGovernance is the governance in force over one collection's content:
 // the profile that matched its coordinates, resolved into what a run carries.
 //
@@ -159,6 +191,10 @@ type ResolvedGovernance struct {
 	// `defaults.brand_voice`), so a profile that cannot be loaded names the
 	// line to fix.
 	VoiceField string
+	// Profile is the matched profile's conventional name — the directory under
+	// `.kapi/profiles/` a caller looks in for the files that profile overrides.
+	// Empty when no profile matched, which is when the flat default governs.
+	Profile string
 }
 
 // ResolveGovernance returns the governance in force over the named content
@@ -188,7 +224,7 @@ func (p *KapiProject) resolveAt(coords map[string]string, subject string) (*Reso
 	rc := &ResolvedGovernance{
 		Channel:    coords[ChannelAxis],
 		Voice:      p.Defaults.BrandVoice,
-		VoiceField: defaultVoiceField,
+		VoiceField: DefaultVoiceField,
 	}
 	i, prof, err := p.selectProfile(coords, subject)
 	if err != nil {
@@ -197,6 +233,7 @@ func (p *KapiProject) resolveAt(coords map[string]string, subject string) (*Reso
 	if prof == nil {
 		return rc, nil
 	}
+	rc.Profile = prof.ConventionalName()
 	if prof.Voice != nil {
 		rc.Voice, rc.VoiceField = prof.Voice, fmt.Sprintf("profiles[%d].voice", i)
 	}
@@ -360,9 +397,13 @@ func (p *KapiProject) validateProfiles() error {
 		if err := p.validatePoint(fmt.Sprintf("profiles[%d]: when", i), prof.When); err != nil {
 			return err
 		}
-		if prof.Voice == nil && prof.Terms == "" {
-			return fmt.Errorf("profiles[%d]: a profile must bind a voice, terms, or both", i)
-		}
+		// A profile that binds neither is not empty: its directory,
+		// `.kapi/profiles/<name>/`, is the binding, and a project that keeps
+		// its overrides there should not have to restate every one of them in
+		// the recipe. Which means a `when:` alone is a complete profile, and
+		// the load-time check that used to demand a binding cannot be made
+		// here — whether the directory exists is a question for the
+		// filesystem, and this validates the document.
 		if err := prof.Voice.validate(fmt.Sprintf("profiles[%d].voice", i)); err != nil {
 			return err
 		}

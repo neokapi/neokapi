@@ -45,11 +45,11 @@ Implemented in Go at
 When a flow needs a project's terms and the recipe does not bind one
 explicitly, kapi looks for a conventional bundle in this order:
 
-1. `<project-root>/.kapi/context/terms.json`
+1. `<project-root>/.kapi/terms.json`
 2. `<project-root>/terms.json`
 
-**The context graph first.** `.kapi/context/` is where the rest of a project's
-governance lives — the brand voice, the memory seeds, the decision record — and
+**The context graph first.** `.kapi/` is where the rest of a project's
+governance lives — the brand voice, the memory seeds, the unit-state record — and
 terms are one node of that graph rather than a loose file beside it. It is
 committed, so a bundle kept there appears in a diff, gets reviewed, and survives
 a fresh clone. The root rung is for a project that would rather keep its terms at

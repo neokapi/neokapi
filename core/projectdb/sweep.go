@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/project"
@@ -26,13 +27,18 @@ import (
 //
 // The flat layout that followed — everything hanging directly off `.kapi/` — is
 // MOVED, because two of its directories hold things no source reproduces. The
-// committed decision record is authored data; the vault holds the only copies of
-// withheld originals. Those are relocated, never deleted. The rest of that
+// committed unit-state record is authored data; the vault holds the only copies
+// of withheld originals. Those are relocated, never deleted. The rest of that
 // generation (`store.db`, its sidecar, `cache/`) is projection again, and goes
 // the way the four-file layout went.
 //
-// A staged decision is the one exception on the retire side, and the only one:
-// between the decision and the next commit, the working store holds its only
+// The `context/` umbrella after it is MOVED too, and entirely: every committed
+// source it grouped is authored data. It is folded up one level rather than
+// deleted, and the `decisions/` shards inside it land in `state/` under the name
+// the record now has.
+//
+// A staged unit is the one exception on the retire side, and the only one:
+// between a review landing and the next commit, the working store holds its only
 // copy. So those are read out and put into the merged store before the old file
 // is deleted.
 //
@@ -52,11 +58,88 @@ import (
 // working store seeds itself from — folded afterwards, the first open of an
 // upgraded project would come up with an empty working set.
 func foldLayoutForward(layout project.Layout) {
-	moveDirContents(flatDecisionsDir(layout), layout.DecisionsDir())
+	moveDirContents(flatDecisionsDir(layout), layout.UnitStateDir())
 	moveDirContents(flatVaultDir(layout), layout.VaultDir())
 	// Before the cache root is deleted, and that ordering is the whole point.
 	moveDirContents(flatRedactionDir(layout), currentRedactionDir(layout))
 	retireFlatProjections(layout)
+	foldContextUmbrella(layout)
+	foldGovernanceFiles(layout, layout.StateDir)
+}
+
+// umbrellaContextDir is the directory that grouped the committed sources one
+// level below `.kapi/` before they were flattened into it.
+func umbrellaContextDir(layout project.Layout) string {
+	return filepath.Join(layout.StateDir, "context")
+}
+
+// foldContextUmbrella lifts the `context/` generation's committed sources up
+// one level, into the directory that now holds them directly.
+//
+// Everything in there is authored: the terms bundle, the memory bundles, the
+// voice profiles, the unit record, whatever notes a project kept beside them.
+// So this moves and never deletes, entry by entry, and the umbrella itself goes
+// only when the last thing in it has left — a shard that could not move keeps
+// its directory, visibly, with the data still in it.
+//
+// The two subdirectories are folded first and by name, because both are
+// renamed on the way up: `decisions/` becomes the unit-state record, `memory/`
+// keeps its name but has to land inside the state directory's own `memory/`
+// rather than beside it. Everything else is lifted verbatim, minus the three
+// names already handled.
+func foldContextUmbrella(layout project.Layout) {
+	umbrella := umbrellaContextDir(layout)
+	if _, err := os.Stat(umbrella); err != nil {
+		return
+	}
+	moveDirContents(filepath.Join(umbrella, "decisions"), layout.UnitStateDir())
+	moveDirContents(filepath.Join(umbrella, "memory"), layout.MemoryDir())
+	// The single conventional bundle, which becomes the primary inside the
+	// bundle directory rather than a file of its own.
+	moveFile(filepath.Join(umbrella, "memory.json"), filepath.Join(layout.MemoryDir(), "memory.json"))
+	moveDirContents(umbrella, layout.StateDir, "decisions", "memory", "memory.json")
+	foldGovernanceFiles(layout, umbrella)
+	_ = os.Remove(umbrella)
+}
+
+// foldGovernanceFiles moves the voice profiles and per-profile term bundles of
+// a flat directory into the profile tree.
+//
+// `brand-voice.yaml` is the project default and becomes `voice.yaml`, whose
+// scope the directory now states. Anything else spelled `<name>-voice.yaml` or
+// `<name>-terms.json` was a per-profile override distinguished by its filename,
+// because a flat directory left nothing else to distinguish it by; it becomes
+// `profiles/<name>/voice.yaml` or `profiles/<name>/terms.json`.
+//
+// `terms.json` is untouched: no prefix, so it is the project's own vocabulary,
+// and it is already where it belongs.
+//
+// A recipe that bound one of these files by path still names the old location
+// afterwards. That is deliberate and visible — the binding is authored, and
+// rewriting a hand-written recipe to chase a move would reformat a file the
+// project owns. Conventional resolution finds the new locations with no
+// binding at all.
+func foldGovernanceFiles(layout project.Layout, from string) {
+	entries, err := os.ReadDir(from)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		switch {
+		case name == "brand-voice.yaml":
+			moveFile(filepath.Join(from, name), filepath.Join(layout.StateDir, "voice.yaml"))
+		case strings.HasSuffix(name, "-voice.yaml"):
+			profile := strings.TrimSuffix(name, "-voice.yaml")
+			moveFile(filepath.Join(from, name), filepath.Join(layout.ProfileDir(profile), "voice.yaml"))
+		case strings.HasSuffix(name, "-terms.json"):
+			profile := strings.TrimSuffix(name, "-terms.json")
+			moveFile(filepath.Join(from, name), filepath.Join(layout.ProfileDir(profile), "terms.json"))
+		}
+	}
 }
 
 // sweepPredecessors carries staged decisions out of the four-file layout's
@@ -198,14 +281,19 @@ func oldWorkSidecarPath(layout project.Layout) string {
 }
 
 // moveDirContents moves every entry of src into dst and removes src once it is
-// empty. Used for the two directories whose contents no source reproduces.
+// empty. Used for the directories whose contents no source reproduces.
 //
 // An entry whose destination already exists is left where it is, and so is one
 // whose move fails. Both leave src behind, visibly, with the data still in it —
 // which is the point. This function's job is to lose nothing; a directory that
 // outlives the fold is something a person can look at and resolve, a shard
 // silently overwritten by another is not.
-func moveDirContents(src, dst string) {
+//
+// skip names entries this call is not responsible for, because a caller folding
+// a directory in several passes has already dealt with them elsewhere. Skipping
+// leaves them in place, which also keeps src from being removed while they are
+// still in it.
+func moveDirContents(src, dst string, skip ...string) {
 	entries, err := os.ReadDir(src)
 	if err != nil {
 		return
@@ -218,6 +306,9 @@ func moveDirContents(src, dst string) {
 		return
 	}
 	for _, e := range entries {
+		if slices.Contains(skip, e.Name()) {
+			continue
+		}
 		to := filepath.Join(dst, e.Name())
 		if _, err := os.Lstat(to); err == nil {
 			continue
@@ -227,6 +318,22 @@ func moveDirContents(src, dst string) {
 	// Succeeds only when every entry moved, which is exactly when src has
 	// nothing left to say.
 	_ = os.Remove(src)
+}
+
+// moveFile moves one file, creating the destination's parent. Same rules as
+// moveDirContents: an occupied destination keeps both copies, and a failed move
+// leaves the file where it was.
+func moveFile(src, dst string) {
+	if info, err := os.Lstat(src); err != nil || info.IsDir() {
+		return
+	}
+	if _, err := os.Lstat(dst); err == nil {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return
+	}
+	_ = os.Rename(src, dst)
 }
 
 // carryStagedForward moves the decisions staged in a predecessor working store
@@ -260,14 +367,14 @@ func carryStagedForward(ctx context.Context, layout project.Layout, into *DB) {
 // that was not there.
 func openPredecessorWork(ctx context.Context, layout project.Layout) (*state.WorkStore, bool) {
 	if exists(oldWorkStorePath(layout)) {
-		w, err := state.OpenWork(ctx, oldWorkStorePath(layout), layout.DecisionsDir())
+		w, err := state.OpenWork(ctx, oldWorkStorePath(layout), layout.UnitStateDir())
 		if err != nil {
 			return nil, false
 		}
 		return w, true
 	}
 	if sidecar := oldWorkSidecarPath(layout); exists(sidecar) {
-		w, err := state.OpenWorkSidecar(ctx, sidecar, layout.DecisionsDir())
+		w, err := state.OpenWorkSidecar(ctx, sidecar, layout.UnitStateDir())
 		if err != nil {
 			return nil, false
 		}

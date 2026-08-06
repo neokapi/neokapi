@@ -151,7 +151,7 @@ The project content memory is a **recycle** corpus — source→target pairs reu
 to pre-fill and leverage future translation. It is *not* where a review decision
 lands. Whether a person has approved or signed off a particular target is a
 workflow decision, held in the [project store](/kapi/project-store)'s working
-set and committed to `.kapi/context/decisions/*.jsonl` by `kapi commit`. Approving a unit
+set and committed to `.kapi/state/*.jsonl` by `kapi commit`. Approving a unit
 (`kapi apply` with `kind:"review"`) writes that record; adding a memory pair
 (`kapi apply` with `kind:"memory"`) is recycle leverage and does **not** promote
 a unit to *reviewed*.

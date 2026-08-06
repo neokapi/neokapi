@@ -204,7 +204,7 @@ my-app/
 │   │   ├── terms.json      # terms (defaults.terms_source)
 │   │   ├── memory.json     # content memory (defaults.memory_source)
 │   │   ├── brand-voice.yaml
-│   │   └── decisions/      # the unit-decision record
+│   │   └── decisions/      # the unit-state record
 │   │       └── src-locales-en.jsonl
 │   └── work/               # gitignored — everything derived
 │       ├── store.db        # the local index
@@ -227,12 +227,12 @@ Ownership:
   YAML syntax highlighting to diffs and previews with no configuration. See
   [AD-framework-008](https://neokapi.github.io/contribute/architecture/008-project-model)
   for the full rationale.
-- **`.kapi/context/`** — the context graph, committed: `terms.json`,
+- **`.kapi/`** — the context graph, committed: `terms.json`,
   `memory.json` and the brand-voice profile, hand-edited or written by `kapi
   apply`. They are the truth for terms and content memory, and `git diff` is the
   review surface. `.kapi/` as a whole is committed; only `.kapi/work/` is
   gitignored.
-- **`.kapi/context/decisions/*.jsonl`** — the unit-decision record, one JSON Lines shard per
+- **`.kapi/state/*.jsonl`** — the unit-state record, one JSON Lines shard per
   document, committed. `kapi commit` publishes staged review decisions into it.
 - **`.kapi/work/store.db`** — kapi-owned, gitignored. One SQLite file carrying every
   subsystem's tables (block cache, terms store, content memory, the working set,

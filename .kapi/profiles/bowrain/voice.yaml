@@ -3,7 +3,7 @@
 # governed by this register while the kapi surfaces keep theirs.
 #
 # The house rules below (no superlatives, no emoji, no hardcoded counts) are
-# duplicated from .kapi/context/brand-voice.yaml because a profile cannot yet inherit
+# duplicated from .kapi/voice.yaml because a profile cannot yet inherit
 # from another. Keep the two in step until profile composition exists.
 name: bowrain platform
 description: >-

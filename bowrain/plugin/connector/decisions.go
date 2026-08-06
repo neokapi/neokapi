@@ -31,7 +31,7 @@ import (
 // against whatever else that process is writing.
 func (c *BowrainSourceConnector) workingStore(ctx context.Context) (*state.WorkStore, error) {
 	if c.app == nil {
-		return nil, errors.New("connector has no host app — decisions cannot reach the project store")
+		return nil, errors.New("connector has no host app — unit state cannot reach the project store")
 	}
 	return c.app.OpenProjectState(ctx, c.project.Root)
 }
@@ -53,9 +53,9 @@ func variantText(k model.VariantKey) string {
 // case today, and both eras satisfy the same rule: "the document the unit was
 // decided in, as the connector names items".
 func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]platstore.UnitDecision, error) {
-	units, err := state.ReadCommitted(c.project.Layout.DecisionsDir())
+	units, err := state.ReadCommitted(c.project.Layout.UnitStateDir())
 	if err != nil {
-		return nil, fmt.Errorf("read committed decisions: %w", err)
+		return nil, fmt.Errorf("read committed unit state: %w", err)
 	}
 	if len(units) == 0 {
 		return nil, nil
@@ -134,7 +134,7 @@ func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulle
 			Scope:   d.ItemName,
 		}
 		if err := st.Put(ctx, next); err != nil {
-			return staged, fmt.Errorf("stage decision %s/%s: %w", d.Unit, d.Variant, err)
+			return staged, fmt.Errorf("stage unit state %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		staged++
 	}

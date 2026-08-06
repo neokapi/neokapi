@@ -101,7 +101,7 @@ func decisionStatus(decision string) (model.TargetStatus, error) {
 	case ReviewDecisionRejected:
 		return model.TargetStatusDraft, nil
 	default:
-		return "", fmt.Errorf("unknown review decision %q: want %s, %s, or %s",
+		return "", fmt.Errorf("unknown review outcome %q: want %s, %s, or %s",
 			decision, ReviewDecisionApproved, ReviewDecisionRejected, ReviewDecisionSignedOff)
 	}
 }
@@ -125,7 +125,7 @@ func (a *App) ApproveReviewUnit(ctx context.Context, projectPath, sourceLang, lo
 // translation it judges, so a later edit invalidates a stale decision. The unit
 // is addressed by (file, key, locale) as listed in the review queue; the method
 // re-reads the exact target text before recording. `kapi commit` writes it on
-// into the committed record under `.kapi/context/decisions/` — distinct from the
+// into the committed record under `.kapi/state/` — distinct from the
 // `.memory.json`, which stays the recycle corpus.
 //
 // decision is one of ReviewDecisionApproved (→ reviewed), ReviewDecisionSignedOff

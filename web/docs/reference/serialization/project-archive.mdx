@@ -56,7 +56,7 @@ Each store has exactly one native spelling — the bundle — and a project comm
 it:
 
 ```bash
-kapi memory export -o .kapi/context/memory/cli-nb.memory.json
+kapi memory export -o .kapi/memory/cli-nb.memory.json
 kapi terms import seeds/terms.json    # format detected from the extension
 kapi terms export --format bundle -o brand.terms.json   # or name it explicitly
 ```
@@ -89,8 +89,8 @@ ladder.
 
 Content memory has no matching convention: **a project has one terms bundle but
 many content-memory bundles**, typically one per content surface. This
-repository's own dogfood commits a bundle per surface under `.kapi/context/memory/`
-against a single `.kapi/context/terms.json`, so a memory seed is always named rather
+repository's own dogfood commits a bundle per surface under `.kapi/memory/`
+against a single `.kapi/terms.json`, so a memory seed is always named rather
 than guessed.
 
 ## The `.kpz` package

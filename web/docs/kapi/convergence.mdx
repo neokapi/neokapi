@@ -88,8 +88,8 @@ before anything is translated:
 Where state is recorded depends on the carrier. A plain target file (JSON, an
 XLIFF, …) records presence only, so a file-based project reads a present target
 as *translated*. The higher rungs ride a carrier that can hold them: *reviewed*
-comes from an approved decision in the project's
-[unit record](#review-a-decision-in-the-unit-record) (below), and a
+comes from an approval recorded in the project's
+[unit-state record](#review-the-state-record) (below), and a
 `.kbf.json` parcel carries the full status across a hand-off.
 
 ## The gate — coverage thresholds
@@ -124,12 +124,12 @@ a break; a gate is a **release** check you opt into (see below).
 
 ### Approver classes: who counts as a reviewer {#approver-classes}
 
-*Reviewed* and *signed-off* are decision rungs — someone approved this exact
+*Reviewed* and *signed-off* are approval rungs — someone approved this exact
 translation. A threshold's **approver class** (`by`, in the extended form
-`reviewed: { pct: 100, by: human }`) decides whose decisions count toward it.
-The default is `human`: only a decision made by a person, or an agent acting
+`reviewed: { pct: 100, by: human }`) decides whose approvals count toward it.
+The default is `human`: only an approval made by a person, or an agent acting
 for one, satisfies the threshold — and the short form (`reviewed: 80`) always
-means `by: human`. `by: any` also counts autonomous AI approvals — decisions
+means `by: human`. `by: any` also counts autonomous AI approvals — those
 recorded under an `ai/…` identity, such as an AI pre-review that auto-approves
 what it scores clean. An AI-approved unit reads as reviewed in `kapi status`
 (with an `(ai)` qualifier) but does not satisfy a human threshold: an
@@ -446,12 +446,12 @@ defaults:
         redact: { enabled: true }   # German redacts PII; other locales don't
 ```
 
-## Review: a decision in the unit record
+## Review: the state record {#review-the-state-record}
 
 A machine takes a unit to *translated*; a person takes it to *reviewed*. That
-approval is a workflow **decision** — who signed off on which exact translation —
+approval is authored **unit state** — who signed off on which exact translation —
 so it lands in the [project store](/kapi/project-store)'s working set, and
-`kapi commit` publishes it to the committed unit record under `.kapi/context/decisions/`.
+`kapi commit` publishes it to the committed unit-state record under `.kapi/state/`.
 Not in the content memory.
 
 `kapi status --review` is the worklist — every translated unit not yet approved,
@@ -464,7 +464,7 @@ kapi status --review        # the worklist: file, id, locale per pending unit
 kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
 ```
 
-The decision is bound to the **content hash** of the translation it blesses, so
+The record is bound to the **content hash** of the translation it blesses, so
 editing that translation afterwards drops the unit back below *reviewed* — an
 approval can't silently outlive the text it approved. Once recorded, coverage reads
 the unit as *reviewed*, `reviewed%` climbs, and a `{ reviewed: … }` gate flips to
@@ -474,8 +474,8 @@ shippable.
   nodes={[
     { label: "approve", sub: "kapi apply · kind: review", role: "annotate" },
     {
-      label: "decision + content hash",
-      sub: ".kapi/context/decisions/*.jsonl",
+      label: "state record + content hash",
+      sub: ".kapi/state/*.jsonl",
       role: "io",
       edge: "records hash(translation)",
     },
@@ -490,7 +490,7 @@ shippable.
   caption="An approval binds to the content hash of the translation it blesses: edit the text and the unit falls below reviewed until someone approves the new pair."
 />
 
-The shards are committed with your sources, so the decision travels
+The shards are committed with your sources, so the record travels
 with the project (a server-connected project pushes it to the remote instead,
 where parked units enter the team's assignment and review queue).
 
@@ -500,7 +500,7 @@ leverage — it does **not** promote a unit to *reviewed*.
 
 Run the loop yourself — this is the real kapi compiled to WebAssembly, working on
 an in-memory project. `status` shows the translated-but-unreviewed state,
-`status --review` lists the worklist, `apply` records the decision in the
+`status --review` lists the worklist, `apply` records the unit state in the
 project store, and the closing `status` shows *reviewed* climb:
 
 <KapiGuidedEmbed id="kapi-review-and-approve" />

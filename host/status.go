@@ -106,18 +106,18 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// writeStagedLine reports decisions recorded but not yet committed, and says
-// what to run. Silent when there are none: a clean project should read clean,
+// writeStagedLine reports unit state recorded but not yet committed, and says
+// what to run. Silent when there is none: a clean project should read clean,
 // the same habit as git status.
 func writeStagedLine(w io.Writer, staged int) {
 	if staged <= 0 {
 		return
 	}
-	noun := "decisions"
+	noun := "changes"
 	if staged == 1 {
-		noun = "decision"
+		noun = "change"
 	}
-	fmt.Fprintf(w, "\n%d %s staged, not committed — run `kapi commit` to write them to the project record.\n",
+	fmt.Fprintf(w, "\n%d unit-state %s staged, not committed — run `kapi commit` to write them to the project record.\n",
 		staged, noun)
 }
 

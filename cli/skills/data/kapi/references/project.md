@@ -22,10 +22,11 @@ kapi init --name my-app --source-locale en --target-locale fr --target-locale de
 This writes `kapi.yaml` (the recipe) and a `.kapi/` directory. **`.kapi/` is
 committed** — it is the project's context, not scratch space. Git it like source.
 
-- **`.kapi/context/`** — the context graph, all committed: `terms.json`,
-  `memory.json`, `brand-voice.yaml`, and `decisions/*.jsonl`, the unit-decision
-  record (one shard per document). `kapi commit` publishes review decisions into
-  `decisions/`; then `git add` it like any other source file.
+- **`.kapi/`** — the context graph, all committed and flat: `terms.json`,
+  `voice.yaml`, `memory/` (the content-memory bundles, `memory.json` the
+  primary), `profiles/<name>/` (what a profile overrides), and `state/*.jsonl`,
+  the unit-state record (one shard per document). `kapi commit` publishes staged
+  unit state into `state/`; then `git add` it like any other source file.
 - **`.kapi/work/`** — everything derived, and the only gitignored path.
   `store.db` is the local index over the recipe, the context sources and the
   content files. Never read or write it directly and never commit it; go through
@@ -39,7 +40,7 @@ Deleting:
 
 - `rm -rf .kapi/work/cache` is **always** safe — everything under it rebuilds on
   the next run.
-- `rm -rf .kapi/work` costs two things. Review decisions staged since the last
+- `rm -rf .kapi/work` costs two things. Review unit state staged since the last
   `kapi commit` live only in `store.db` — run `kapi commit` first. And if the
   project uses redaction, `.kapi/work/vault/` holds the withheld originals, which
   are local-only by design and rebuild from nothing: merge any batch that is out
@@ -58,13 +59,13 @@ content:
     target: src/locales/{lang}.json
 defaults:
   brand_voice:
-    profile_file: .kapi/context/brand-voice.yaml   # or: profile: <store name> | pack: marketing-blog
-  terms_source: .kapi/context/terms.json    # the committed terms source
-  memory_source: .kapi/context/memory.json  # the committed content memory
+    profile_file: .kapi/voice.yaml   # or: profile: <store name> | pack: marketing-blog
+  terms_source: .kapi/terms.json    # the committed terms source
+  memory_source: .kapi/memory/memory.json  # the committed content memory
 ```
 
 - **Brand voice** — bind it under `defaults.brand_voice`, or just keep a
-  `.kapi/context/brand-voice.yaml` (or a `brand.yaml` at the project root); `kapi
+  `.kapi/voice.yaml` (or a `brand.yaml` at the project root); `kapi
   brand check <file>`, `brand rewrite`, and `brand guide` then resolve it with no
   flag.
 - **More than one voice in one repo** — declare the axes your content varies
@@ -79,11 +80,10 @@ defaults:
     channel: [docs, landing]
 
   profiles:
-    - when: {}                       # the base voice
-      voice: .kapi/context/base-voice.yaml
-    - when: { product: platform }
-      voice: .kapi/context/platform-voice.yaml
-      terms: .kapi/context/platform-terms.json   # optional; falls back to defaults.terms_source
+    - when: {}                       # the base voice: .kapi/voice.yaml
+    - when: { product: platform }    # .kapi/profiles/platform/voice.yaml and
+                                     # terms.json answer by convention; bind
+                                     # `voice:`/`terms:` only to override them
 
   content:
     - name: platform-docs

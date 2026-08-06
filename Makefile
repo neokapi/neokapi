@@ -1352,7 +1352,7 @@ kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-transl
 # These targets ARE the dogfood workflow, so they deliberately run WITHOUT
 # $(KAPI_ISO_ENV): they bind to the repo-root project and its .kapi/ state.
 # Reviewed translations are committed as native .memory.json bundles under
-# .kapi/context/memory/; the
+# .kapi/memory/; the
 # project content memory and terms are rebuilt from those seeds (l10n-seed), then
 # each surface is produced by content-memory leverage, so output only ever
 # contains reviewed strings.
@@ -1362,15 +1362,15 @@ L10N_LANGS := nb
 # deterministic, lossless, and identity-preserving, so wipe-and-reseed
 # reproduces the content memory/terms state exactly. TMX/CSV are the lossy
 # interchange tier — emit them on demand with l10n-review-export.
-l10n-seed: bin/kapi ## Rebuild the project store from the committed .kapi/context/ seeds
+l10n-seed: bin/kapi ## Rebuild the project store from the committed .kapi/ seeds
 	@mkdir -p .kapi/work/cache
 	@# Terms and content memory share the one project store (AD-039), so a
 	@# wipe-and-reseed drops the whole file. That is safe here and only here:
-	@# the dogfood project's decisions live in the committed
-	@# .kapi/context/decisions/ shards, which this does not touch.
+	@# the dogfood project's unit state lives in the committed
+	@# .kapi/state/ shards, which this does not touch.
 	@rm -f .kapi/work/store.db .kapi/work/store.db-wal .kapi/work/store.db-shm
-	./bin/kapi terms import .kapi/context/terms.json
-	@for f in .kapi/context/memory/*.memory.json; do \
+	./bin/kapi terms import .kapi/terms.json
+	@for f in .kapi/memory/*.memory.json; do \
 		[ -e "$$f" ] || continue; \
 		./bin/kapi memory import "$$f"; \
 	done
@@ -1445,7 +1445,7 @@ l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → host/
 # so the yaml keyPathPatterns in kapi.yaml bind (only narration/caption/
 # title/subtitle are translatable — never ids, beats, commands, or timings).
 # Sidecars are generated only for the demos listed here — the ones with
-# reviewed nb narration in the content memory (.kapi/context/memory/demo-narration-nb.memory.json); add a
+# reviewed nb narration in the content memory (.kapi/memory/demo-narration-nb.memory.json); add a
 # demo dir once its narration has been translated.
 L10N_DEMO_DIRS := 05-ai-checks-guardrail 09-toolbox-find-replace \
 	kapi-bilingual-workflow kapi-desktop-config kapi-desktop-content \
@@ -1501,7 +1501,7 @@ l10n-extract-source: kapi-desktop-extract bowrain-app-extract bowrain-ctrl-extra
 
 # ── Transactional emails (bowrain/emails → bowrain/mailer) ──────────────────
 # neokapi-i18n extraction over the React Email templates; qps via pseudo, nb via
-# Memory recycle from .kapi/context/memory/emails-nb.memory.json; compiled catalogs are inlined into
+# Memory recycle from .kapi/memory/emails-nb.memory.json; compiled catalogs are inlined into
 # per-locale template renders (bowrain/mailer/templates/<lang>/*.html) and the
 # subject catalogs (bowrain/mailer/subjects/<lang>.json) — both committed and
 # embedded into the server binary, so they are drift-gated (emails-l10n-verify).

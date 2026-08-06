@@ -13,8 +13,8 @@ reproduces the content memory and terms state exactly (`.memory.json` and
 disposable review views with `make l10n-review-export` (→ `l10n/review/`,
 gitignored).
 
-- `brand-voice.yaml` — the machine-readable encoding of
-  [docs/internals/brand-communication.md](../../docs/internals/brand-communication.md),
+- `voice.yaml` — the machine-readable encoding of
+  [docs/internals/brand-communication.md](../docs/internals/brand-communication.md),
   bound project-wide via `defaults.brand_voice`. Keep the two in sync.
 - `terms.json` — terminology decisions per target locale (currently
   Norwegian Bokmål, `nb`): concept per decision with `en` + `nb` terms,
@@ -47,7 +47,7 @@ gitignored).
   `make l10n-landing`) uses `landing-nb.memory.json`.
 
   Seed filenames are their own naming, independent of the collection names in
-  `kapi.yaml`: `l10n-seed` imports every `.kapi/context/memory/*.memory.json` by
+  `kapi.yaml`: `l10n-seed` imports every `.kapi/memory/*.memory.json` by
   glob, and nothing maps a file name to a collection. Several deliberately
   differ — `builtins-nb` seeds the `kapi-engine` collection, and `cli-nb` and
   `libraries-nb` back surfaces that have no collection at all.
@@ -58,7 +58,7 @@ Workflow for a new or changed surface string:
    voice profile and terms are bound project-wide) and merge the pair
    into the surface's seed: import the seed plus the new pairs (any
    supported form, e.g. a small TMX) into a scratch content memory, then
-   `kapi memory export -o .kapi/context/memory/<surface>-<lang>.memory.json`. Small wording
+   `kapi memory export -o .kapi/memory/<surface>-<lang>.memory.json`. Small wording
    fixes can also be edited directly in the `.memory.json` bundle — it is the
    source of truth.
 2. `make l10n-seed` to rebuild the content memory, then the surface target
@@ -148,7 +148,7 @@ gitignored ephemera (`.kapi/work/`, extraction batches, `i18n-*/`
 intermediates, `l10n/review/`).
 
 1. **Source — human-owned.** The seeds here (`memory/*.memory.json`,
-   `terms.json`, `brand-voice.yaml`), the Docusaurus theme JSONs under
+   `terms.json`, `voice.yaml`), the Docusaurus theme JSONs under
    `web/i18n/<locale>/`, and the English harness narration in
    `harness/demos/*/demo.yaml`. Tooling may have written the first
    draft, but humans own the content; nothing regenerates them.

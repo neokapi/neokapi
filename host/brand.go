@@ -408,13 +408,13 @@ type BrandResolveOptions struct {
 // project — the cobra-free resolution ladder shared by the CLI's flag-free
 // brand/check/verify paths and the Kapi Desktop. Resolution order:
 //
-//  1. The voice governing the collection's point in the context space — the
-//     `voice:` of the profile whose `when:` matches it most closely, else
-//     defaults.brand_voice (profile_file → YAML, pack → built-in starter pack,
-//     profile → local brand store). profile_file is resolved relative to the
-//     project root.
-//  2. A convention file at <root>/.kapi/context/brand-voice.yaml, then
-//     <root>/brand.yaml.
+//  1. The `voice:` of the profile whose `when:` matches the collection's point
+//     most closely (profile_file → YAML, pack → built-in starter pack, profile
+//     → local brand store). profile_file is resolved relative to the project
+//     root.
+//  2. That profile's conventional file, <root>/.kapi/profiles/<name>/voice.yaml.
+//  3. defaults.brand_voice, in the same three forms.
+//  4. A convention file at <root>/.kapi/voice.yaml, then <root>/brand.yaml.
 //
 // What the recipe binds is *loaded* here and then handed to the framework's one
 // resolution chain (brand.ResolveProfileFromContext) at the collection tier,
@@ -481,6 +481,20 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 	if err != nil {
 		return nil, nil, "", false, err
 	}
+	// A profile that binds no `voice:` of its own is answered by its own
+	// directory before the project default is: `.kapi/profiles/<name>/voice.yaml`
+	// is that profile's voice by convention, and a project that keeps its
+	// overrides there should not have to bind every one of them by hand.
+	if rc.Profile != "" && rc.VoiceField == project.DefaultVoiceField {
+		conv := filepath.Join(root, project.RelStatePath(project.ProfilesDirName, rc.Profile, BrandVoiceConventionalName))
+		p, lerr := loadProfileFile(conv)
+		if lerr != nil {
+			return nil, rc, "", false, lerr
+		}
+		if p != nil {
+			return p, rc, conv, true, nil
+		}
+	}
 	profile, src, found, err := a.loadBoundBrandProfile(ctx, rc.Voice, root, storePath, rc.VoiceField)
 	if err != nil {
 		return nil, rc, "", false, err
@@ -500,24 +514,32 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 	return profile, rc, src, found, nil
 }
 
-// BrandVoiceConventionalName is the brand voice profile's name when a project
-// keeps a single one at the conventional location, matching kmb/ktb's
-// ConventionalName for the other two context sources.
-const BrandVoiceConventionalName = "brand-voice.yaml"
+// BrandVoiceConventionalName is the voice profile's filename at a conventional
+// location, matching kmb/ktb's ConventionalName for the other two committed
+// sources.
+//
+// Just `voice.yaml`, because the directory already says whose voice it is:
+// `.kapi/voice.yaml` is the project's, `.kapi/profiles/bowrain/voice.yaml` is
+// that profile's. The `brand-` prefix dated from a flat directory where every
+// file had to carry its own scope in its name; with a directory per profile it
+// only repeated what the path said, and it could not be repeated correctly —
+// a per-profile file would have had to be named for the profile, which is
+// exactly what the directory is for.
+const BrandVoiceConventionalName = "voice.yaml"
 
 // brandProfileConventions lists the well-known profile locations, in the order
 // an unbound project is searched.
 //
-// The context directory comes FIRST, and that is a reversal. The root spelling
-// used to lead because `.kapi/` was machine state that git ignored, so a
-// profile kept there would never be reviewed. `.kapi/` is now committed, and
-// `.kapi/context/` is the place its authored sources live — beside the terms
-// bundle and the memory seeds, which is where a reader looks for the voice.
-// The root spelling stays second: it is what `kapi brand new -o brand.yaml`
-// writes, and a project that keeps its profile there is not wrong.
+// `.kapi/` comes FIRST, and that is a reversal. The root spelling used to lead
+// because `.kapi/` was machine state that git ignored, so a profile kept there
+// would never be reviewed. `.kapi/` is now committed, and it is the place a
+// project's authored sources live — beside the terms bundle and the memory
+// bundles, which is where a reader looks for the voice. The root spelling stays
+// second: it is what `kapi brand new -o brand.yaml` writes, and a project that
+// keeps its profile there is not wrong.
 func brandProfileConventions(root string) []string {
 	return []string{
-		filepath.Join(root, project.RelContextPath(BrandVoiceConventionalName)),
+		filepath.Join(root, project.RelStatePath(BrandVoiceConventionalName)),
 		filepath.Join(root, "brand.yaml"),
 	}
 }

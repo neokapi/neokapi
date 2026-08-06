@@ -192,9 +192,11 @@ func TestLayout_WorkHoldsEveryDerivedPath(t *testing.T) {
 
 	committed := layout.StateDir + string(filepath.Separator)
 	for name, path := range map[string]string{
-		"context":   layout.ContextDir(),
-		"decisions": layout.DecisionsDir(),
-		"filters":   layout.FiltersPath(),
+		"memory":     layout.MemoryDir(),
+		"unit state": layout.UnitStateDir(),
+		"profiles":   layout.ProfilesDir(),
+		"profile":    layout.ProfileDir("bowrain"),
+		"filters":    layout.FiltersPath(),
 	} {
 		assert.True(t, strings.HasPrefix(path, committed), "%s must live under .kapi/: %s", name, path)
 		assert.False(t, strings.HasPrefix(path, work), "%s is committed and must not live under work/: %s", name, path)
@@ -205,18 +207,22 @@ func TestLayout_WorkHoldsEveryDerivedPath(t *testing.T) {
 	assert.Equal(t, filepath.Join(layout.StateDir, "filters.local.json"), layout.LocalFiltersPath())
 }
 
-// The decision record is context, not bookkeeping: it sits with the terms
-// bundle and the memory seeds, in the directory a reviewer reads.
-func TestLayout_DecisionsAreUnderContext(t *testing.T) {
+// The committed sources sit one segment inside `.kapi/`, not two: no umbrella
+// directory groups what is already grouped by being committed at all.
+func TestLayout_CommittedSourcesAreFlat(t *testing.T) {
 	layout := testLayout(t)
-	assert.Equal(t, filepath.Join(layout.StateDir, "context"), layout.ContextDir())
-	assert.Equal(t, filepath.Join(layout.ContextDir(), "decisions"), layout.DecisionsDir())
-	assert.Equal(t, filepath.Join(".kapi", "context", "terms.json"), project.RelContextPath("terms.json"))
+	assert.Equal(t, filepath.Join(layout.StateDir, "state"), layout.UnitStateDir())
+	assert.Equal(t, filepath.Join(layout.StateDir, "memory"), layout.MemoryDir())
+	assert.Equal(t, filepath.Join(layout.StateDir, "profiles"), layout.ProfilesDir())
+	assert.Equal(t, filepath.Join(layout.ProfilesDir(), "bowrain"), layout.ProfileDir("bowrain"))
+	assert.Equal(t, filepath.Join(".kapi", "terms.json"), project.RelStatePath("terms.json"))
+	assert.Equal(t, filepath.Join(".kapi", "memory", "memory.json"),
+		project.RelStatePath(project.MemoryDirName, "memory.json"))
 }
 
 // EnsureLayout scaffolds both halves, so a fresh project has somewhere to put
 // authored context and somewhere to put derived state before either is written.
-func TestEnsureLayout_createsContextAndWork(t *testing.T) {
+func TestEnsureLayout_createsCommittedAndWork(t *testing.T) {
 	root := t.TempDir()
 	recipe := filepath.Join(root, "kapi.yaml")
 	require.NoError(t, os.WriteFile(recipe, []byte("name: my-app\n"), 0o644))
@@ -225,7 +231,8 @@ func TestEnsureLayout_createsContextAndWork(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, project.EnsureLayout(layout))
 
-	assert.DirExists(t, layout.ContextDir())
+	assert.DirExists(t, layout.MemoryDir())
+	assert.DirExists(t, layout.UnitStateDir())
 	assert.DirExists(t, layout.CacheDir())
 	assert.DirExists(t, layout.WorkDir())
 }

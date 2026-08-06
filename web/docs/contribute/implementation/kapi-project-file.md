@@ -87,13 +87,13 @@ coordinates:                      # the taxonomy is the project's own
 
 profiles:
   - when: {}                      # the base: matches every point
-    voice: .kapi/context/base-voice.yaml
+    voice: .kapi/voice.yaml       # the flat default — this profile has no directory
   - when: { product: bowrain }
-    voice: .kapi/context/bowrain-voice.yaml
-    terms: .kapi/context/bowrain-terms.json   # optional; falls back to defaults.terms_source
+    voice: .kapi/profiles/bowrain/voice.yaml   # == the conventional location
+    terms: .kapi/profiles/bowrain/terms.json   # optional; falls back to defaults.terms_source
   - when: { product: bowrain, market: de }
-    voice: .kapi/context/bowrain-de.yaml
-    terms: .kapi/context/de-terms.json
+    voice: .kapi/profiles/de-bowrain/voice.yaml
+    terms: .kapi/profiles/de-bowrain/terms.json
 
 content:
   - name: docs
@@ -210,7 +210,7 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
   it, so the source is written by exactly one path and `git diff` is the review
   surface. Both keys bind any path; the conventional homes are inside the
   committed context graph. `terms_source` left unset falls back to
-  `<root>/.kapi/context/terms.json`, then `<root>/terms.json`; `memory_source`
+  `<root>/.kapi/terms.json`, then `<root>/terms.json`; `memory_source`
   has no such fallback, because a project has one terms source but many memory
   bundles (one per content surface), leaving nothing single for a convention to
   name.
@@ -219,8 +219,8 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
 
 The recipe binds sources; the sources are the truth. A project keeps one local
 database, `.kapi/work/store.db` — a derived index over the committed sources
-(`terms_source`, `memory_source`), the unit-decision record under `.kapi/context/decisions/`,
-and the content files themselves — plus the working set of decisions staged since
+(`terms_source`, `memory_source`), the unit-state record under `.kapi/state/`,
+and the content files themselves — plus the working set of unit state staged since
 the last `kapi commit`. Every subsystem's tables live in that one file: block
 cache, terms store, content memory, working set, and the property graph. See
 [AD-039](/contribute/architecture/039-local-context-graph-store) for the store's
@@ -393,8 +393,8 @@ defaults:
     fuzzy_threshold: 75
   segmentation:
     source: true
-  terms_source: .kapi/context/terms.json
-  memory_source: .kapi/context/memory.json
+  terms_source: .kapi/terms.json
+  memory_source: .kapi/memory/memory.json
 
 content:
   # Bare entry — single glob, languages inherited from defaults.

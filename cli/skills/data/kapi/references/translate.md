@@ -131,7 +131,7 @@ kapi status --review         # translated units awaiting a human
 kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":"nb","status":"reviewed"}'
 ```
 
-The decision lands in the project state store and counts the unit as `reviewed`,
+The unit state lands in the project store and counts the unit as `reviewed`,
 so the next `kapi up` sees it shipped. `kapi check --ship` is the opt-in release
 bar — it runs the project's brand/terminology/QA gates plus the `ship_gate` /
 `source_gate` coverage gates and exits non-zero only when you ask for it; ordinary

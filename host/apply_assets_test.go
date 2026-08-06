@@ -57,12 +57,12 @@ func TestApplyTermEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
 	// 1. The committed .terms.json source was written and bound in the recipe.
-	srcPath := filepath.Join(root, project.RelContextPath("terms.json"))
+	srcPath := filepath.Join(root, project.RelStatePath("terms.json"))
 	require.FileExists(t, srcPath)
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.Equal(t, project.RelContextPath("terms.json"), proj.Defaults.TermsSource)
+	require.Equal(t, project.RelStatePath("terms.json"), proj.Defaults.TermsSource)
 
 	data, err := os.ReadFile(srcPath)
 	require.NoError(t, err)
@@ -120,12 +120,12 @@ func TestApplyMemoryEntry_writesSourceCompilesCacheIdempotent(t *testing.T) {
 	res := a.applyAssetEntry(ctx, cmd, e)
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
-	srcPath := filepath.Join(root, project.RelContextPath("memory.json"))
+	srcPath := filepath.Join(root, project.RelStatePath(project.MemoryDirName, "memory.json"))
 	require.FileExists(t, srcPath)
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.Equal(t, project.RelContextPath("memory.json"), proj.Defaults.MemorySource)
+	require.Equal(t, project.RelStatePath(project.MemoryDirName, "memory.json"), proj.Defaults.MemorySource)
 
 	// Compiled into the project store, which now holds the pair.
 	require.FileExists(t, project.LayoutAt(root).StorePath())
@@ -174,13 +174,13 @@ func TestApplyBrandEntry_writesProfileCompilesStore(t *testing.T) {
 	res := a.applyAssetEntry(ctx, cmd, e)
 	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
 
-	profilePath := filepath.Join(root, project.RelContextPath("brand-voice.yaml"))
+	profilePath := filepath.Join(root, project.RelStatePath("voice.yaml"))
 	require.FileExists(t, profilePath)
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
 	require.NotNil(t, proj.Defaults.BrandVoice)
-	assert.Equal(t, project.RelContextPath("brand-voice.yaml"), proj.Defaults.BrandVoice.ProfileFile)
+	assert.Equal(t, project.RelStatePath("voice.yaml"), proj.Defaults.BrandVoice.ProfileFile)
 
 	// Idempotent re-run.
 	res2 := a.applyAssetEntry(ctx, cmd, e)

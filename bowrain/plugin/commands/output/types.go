@@ -188,7 +188,7 @@ func (o PullOutput) FormatText(w io.Writer) error {
 			fmt.Fprintf(w, "Updated %d file(s)\n", o.FilesWritten)
 		}
 		if o.DecisionsStaged > 0 {
-			fmt.Fprintf(w, "Staged %d decision(s) from the server ledger — `kapi commit` publishes them\n", o.DecisionsStaged)
+			fmt.Fprintf(w, "Staged %d unit-state update(s) from the server ledger — `kapi commit` publishes them\n", o.DecisionsStaged)
 		}
 	}
 	if o.ConceptsPulled > 0 {
