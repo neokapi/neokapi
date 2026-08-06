@@ -301,8 +301,8 @@ func (s *Server) HandleUploadFiles(c echo.Context) error {
 	// whole project read-only; otherwise a project-level upload lands in the
 	// default collection, so gate on that collection's origin.
 	defColl, _ := s.ContentStore.GetDefaultCollection(ctx, pid)
-	if err := s.guardSourceMutation(c, pid, defColl); err != nil {
-		return err
+	if refused, rerr := s.guardSourceMutation(c, pid, defColl); refused {
+		return rerr
 	}
 
 	form, err := c.MultipartForm()
@@ -359,8 +359,8 @@ func (s *Server) HandleRemoveFile(c echo.Context) error {
 	// collection (covers a connector-backed collection) plus the project-level
 	// source-connector signal.
 	itemColl := s.collectionForItem(ctx, pid, stream, fname)
-	if err := s.guardSourceMutation(c, pid, itemColl); err != nil {
-		return err
+	if refused, rerr := s.guardSourceMutation(c, pid, itemColl); refused {
+		return rerr
 	}
 
 	info, err := editorRemoveFile(ctx, s.ContentStore, pid, stream, fname)

@@ -143,19 +143,24 @@ func (s *Server) annotateProjectOrigin(ctx context.Context, workspaceID string, 
 // guardSourceMutation refuses a SOURCE-content mutation (file upload, item
 // delete, direct source-text edit) when the target is connector-sourced —
 // either the whole project is bound to a source connector (signal #1) or the
-// specific collection is connector-backed (signal #2). It returns a ready-to-
-// return HTTP 409 the caller should return directly; a nil return means the
-// mutation is allowed. Review/approve, target edits and configuration are never
-// routed through here — only source content is gated.
-func (s *Server) guardSourceMutation(c echo.Context, projectID string, coll *store.Collection) error {
+// specific collection is connector-backed (signal #2). Review/approve, target
+// edits and configuration are never routed through here — only source content
+// is gated.
+//
+// refused reports that the request has been answered with a 409 and the caller
+// must return immediately. The refusal cannot be carried by err alone: writing
+// the response is what c.JSON reports on, and it returns nil when the write
+// succeeds — a caller keyed on err would refuse in the response and mutate
+// anyway.
+func (s *Server) guardSourceMutation(c echo.Context, projectID string, coll *store.Collection) (refused bool, err error) {
 	ctx := c.Request().Context()
 	workspaceID, _ := c.Get("workspace_id").(string)
 
 	srcConn, projectSourced := s.projectSourceConnector(ctx, workspaceID, projectID)
 	if !projectSourced && !collectionConnected(coll) {
-		return nil
+		return false, nil
 	}
-	return c.JSON(http.StatusConflict, ErrorResponse{
+	return true, c.JSON(http.StatusConflict, ErrorResponse{
 		Error: sourceSyncedMessage(srcConn, projectSourced, coll),
 	})
 }
