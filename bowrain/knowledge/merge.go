@@ -29,6 +29,10 @@ type MergeEvent struct {
 	ProjectID   string    `json:"project_id,omitempty"`
 	Stream      string    `json:"stream,omitempty"`
 	Actor       string    `json:"actor,omitempty"`
+	// OnBehalfOf names the person accountable when Actor is a machine identity
+	// ("agent/<name>"): the owner of the API token the machine used. Empty when
+	// the actor is already a person.
+	OnBehalfOf string `json:"on_behalf_of,omitempty"`
 }
 
 // MergeResult reports the outcome of merging a change-set: the conflicts that

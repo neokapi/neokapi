@@ -2,7 +2,12 @@
 // and authorization primitives for the neokapi platform.
 package auth
 
-import "time"
+import (
+	"errors"
+	"regexp"
+	"strings"
+	"time"
+)
 
 // User represents an authenticated user.
 //
@@ -133,16 +138,88 @@ type UnclaimedProject struct {
 }
 
 // APIToken represents a long-lived, revocable API token for CI/CD and programmatic access.
+//
+// A token always belongs to a person (UserID) — that is who is accountable for
+// what it does and whose membership decides what it may do. AgentName is
+// orthogonal: it names the *machine* that holds the token, so work the machine
+// authors is attributed to the machine rather than to the person whose
+// workspace it runs in. See AuthorIdentity.
 type APIToken struct {
-	ID          string     `json:"id"`
-	UserID      string     `json:"user_id"`
-	WorkspaceID string     `json:"workspace_id"`
-	Name        string     `json:"name"`
+	ID          string `json:"id"`
+	UserID      string `json:"user_id"`
+	WorkspaceID string `json:"workspace_id"`
+	Name        string `json:"name"`
+	// AgentName, when set, marks this as a machine token: a CI runner, a
+	// kapi-action step, an agent-driven kapi. Empty means an ordinary personal
+	// token, which behaves exactly as it always has.
+	AgentName   string     `json:"agent_name,omitempty"`
 	TokenPrefix string     `json:"token_prefix"` // first 8 chars for display
 	Scopes      string     `json:"scopes"`       // JSON array, default '["*"]'
 	LastUsedAt  *time.Time `json:"last_used_at"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
+}
+
+// MachineIdentityPrefix marks an actor that is a machine acting under a
+// workspace API token rather than the person who minted it.
+//
+// It matches the decider vocabulary the framework already writes into state
+// (core/state: "agent/<client>" for an agent acting on a person's behalf,
+// "ai/<model>" for an autonomous AI decision), so an identity read out of a
+// change-set means the same thing as one read out of a unit's decision.
+//
+// The prefix contains "/", which no user ID ever does, so a machine identity
+// can never collide with the identity of a human reviewer. That is the whole
+// mechanism: a change-set a machine proposed has an author nobody can be, and
+// is therefore reviewable by every human in the workspace — including the one
+// whose token the machine used.
+const MachineIdentityPrefix = "agent/"
+
+// IsMachineIdentity reports whether an actor string names a machine principal
+// rather than a user.
+func IsMachineIdentity(actor string) bool {
+	return strings.HasPrefix(actor, MachineIdentityPrefix)
+}
+
+// AuthorIdentity is the identity that work authored under this token is
+// recorded against: the machine for a machine token, the owning user
+// otherwise.
+//
+// Note what this does NOT change: authorization still resolves from UserID's
+// workspace membership. A machine token grants no more than the person who
+// minted it has. Only the authorship record moves.
+func (t *APIToken) AuthorIdentity() string {
+	if t == nil {
+		return ""
+	}
+	if t.AgentName == "" {
+		return t.UserID
+	}
+	return MachineIdentityPrefix + t.AgentName
+}
+
+// ErrInvalidAgentName rejects an agent name that could not be part of a stable,
+// unambiguous identity string.
+var ErrInvalidAgentName = errors.New(
+	"agent name must be 1-64 characters of lowercase letters, digits, '-' or '_', " +
+		"starting and ending with a letter or digit")
+
+// agentNamePattern is deliberately narrow. The name becomes half of an identity
+// that gates review: it must not contain "/" (which would let it impersonate
+// another identity namespace), must not vary by case, and must be readable in
+// an audit trail without quoting.
+var agentNamePattern = regexp.MustCompile(`^[a-z0-9]([a-z0-9_-]{0,62}[a-z0-9])?$`)
+
+// ValidateAgentName checks a proposed machine name. An empty name is valid and
+// means "not a machine token".
+func ValidateAgentName(name string) error {
+	if name == "" {
+		return nil
+	}
+	if !agentNamePattern.MatchString(name) {
+		return ErrInvalidAgentName
+	}
+	return nil
 }
 
 // RoleTemplate defines a named permission bundle within a workspace.

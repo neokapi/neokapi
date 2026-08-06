@@ -396,18 +396,39 @@ func (s *AuthService) CreateInvite(ctx context.Context, workspaceID, createdBy s
 	return inv, nil
 }
 
-// CreateAPIToken generates a new API token for the given user and workspace.
-// Returns the APIToken (with ID populated) and the plaintext token (shown once).
-// scopesJSON is a JSON array of scope strings (e.g. `["*"]`, `["translate:fr,de"]`).
-func (s *AuthService) CreateAPIToken(ctx context.Context, userID, workspaceID, name, scopesJSON string, expiresAt *time.Time) (*platauth.APIToken, string, error) {
-	if userID == "" {
+// APITokenSpec describes a token to mint. It is a struct rather than a
+// parameter list because UserID, WorkspaceID, Name, AgentName and ScopesJSON
+// are five adjacent strings, and adjacent strings get transposed.
+type APITokenSpec struct {
+	// UserID is the person the token belongs to and whose membership decides
+	// what it may do. Required, machine token or not.
+	UserID      string
+	WorkspaceID string
+	Name        string
+	// AgentName, when set, makes this a machine token: work authored under it
+	// is attributed to "agent/<AgentName>" instead of to UserID. Empty leaves
+	// the token an ordinary personal one.
+	AgentName string
+	// ScopesJSON is a JSON array of scope strings (`["*"]`,
+	// `["translate:fr,de"]`). Empty defaults to full access at the store.
+	ScopesJSON string
+	ExpiresAt  *time.Time
+}
+
+// CreateAPIToken generates a new API token from a spec. Returns the APIToken
+// (with ID populated) and the plaintext token (shown once).
+func (s *AuthService) CreateAPIToken(ctx context.Context, spec APITokenSpec) (*platauth.APIToken, string, error) {
+	if spec.UserID == "" {
 		return nil, "", errors.New("user ID is required")
 	}
-	if workspaceID == "" {
+	if spec.WorkspaceID == "" {
 		return nil, "", errors.New("workspace ID is required")
 	}
-	if name == "" {
+	if spec.Name == "" {
 		return nil, "", errors.New("token name is required")
+	}
+	if err := platauth.ValidateAgentName(spec.AgentName); err != nil {
+		return nil, "", err
 	}
 	tokenBytes := make([]byte, 32)
 	if _, err := rand.Read(tokenBytes); err != nil {
@@ -419,12 +440,13 @@ func (s *AuthService) CreateAPIToken(ctx context.Context, userID, workspaceID, n
 	tokenHash := hex.EncodeToString(hash[:])
 
 	token := &platauth.APIToken{
-		UserID:      userID,
-		WorkspaceID: workspaceID,
-		Name:        name,
+		UserID:      spec.UserID,
+		WorkspaceID: spec.WorkspaceID,
+		Name:        spec.Name,
+		AgentName:   spec.AgentName,
 		TokenPrefix: plaintext[:8], // "bwt_" + first 4 hex chars
-		Scopes:      scopesJSON,
-		ExpiresAt:   expiresAt,
+		Scopes:      spec.ScopesJSON,
+		ExpiresAt:   spec.ExpiresAt,
 	}
 
 	if err := s.store.CreateAPIToken(ctx, token, tokenHash); err != nil {

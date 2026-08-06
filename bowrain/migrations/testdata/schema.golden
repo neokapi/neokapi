@@ -126,6 +126,7 @@ annotations_p7.payload jsonb NOT NULL DEFAULT '{}'::jsonb
 annotations_p7.project_id text NOT NULL
 annotations_p7.stream text NOT NULL DEFAULT 'main'::text
 annotations_p7.updated_at timestamp with time zone NOT NULL DEFAULT now()
+api_tokens.agent_name text NOT NULL DEFAULT ''::text
 api_tokens.created_at timestamp with time zone NOT NULL DEFAULT now()
 api_tokens.expires_at timestamp with time zone NULL
 api_tokens.id text NOT NULL

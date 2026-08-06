@@ -143,7 +143,9 @@ func (s *Server) HandleCreateChangeSet(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
-	actor, _ := c.Get("user_id").(string)
+	// The author, which is the machine when the loop pushed this — see
+	// authorIdentity in changeset_governance.go.
+	actor := authorIdentity(c)
 
 	var req CreateChangeSetRequest
 	if err := c.Bind(&req); err != nil {
@@ -164,9 +166,9 @@ func (s *Server) HandleCreateChangeSet(c echo.Context) error {
 		return serverErr(c, err)
 	}
 
-	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
-		changesetEvent(knowledge.EventChangeSetCreated, wsID, cs.ID, actor),
-	})
+	ev := changesetEvent(knowledge.EventChangeSetCreated, wsID, cs.ID, actor)
+	ev.OnBehalfOf = onBehalfOf(c)
+	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{ev})
 	return c.JSON(http.StatusCreated, cs)
 }
 
@@ -269,7 +271,9 @@ func (s *Server) HandleAddChangeSetOp(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
-	actor, _ := c.Get("user_id").(string)
+	// An op is authored by whoever authored the change-set it lands in, so a
+	// machine push records the machine here too.
+	actor := authorIdentity(c)
 
 	cs, resp := s.getChangeSetOr404(c, wsID, c.Param("id"))
 	if cs == nil {

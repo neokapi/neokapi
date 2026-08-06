@@ -72,6 +72,7 @@ func (s *Server) publishKnowledgeEvents(c echo.Context, events []knowledge.Merge
 		// the feed under no workspace at all.
 		put("workspace_slug", c.Param("ws"))
 		put("changeset_id", ev.ChangesetID)
+		put("on_behalf_of", ev.OnBehalfOf)
 		put("concept_id", ev.ConceptID)
 		put("profile_id", ev.ProfileID)
 		put("project_id", ev.ProjectID)

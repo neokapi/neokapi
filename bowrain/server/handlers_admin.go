@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/service"
 )
 
 // ---------------------------------------------------------------------------
@@ -717,9 +718,13 @@ func (s *Server) HandleAdminImpersonate(c echo.Context) error {
 
 	// Create a 1-hour API token.
 	expiresAt := time.Now().Add(1 * time.Hour)
-	token, plaintext, err := s.Services.Auth.CreateAPIToken(
-		ctx, ownerID, wsID, "admin-impersonation", `["*"]`, &expiresAt,
-	)
+	token, plaintext, err := s.Services.Auth.CreateAPIToken(ctx, service.APITokenSpec{
+		UserID:      ownerID,
+		WorkspaceID: wsID,
+		Name:        "admin-impersonation",
+		ScopesJSON:  `["*"]`,
+		ExpiresAt:   &expiresAt,
+	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create token"})
 	}
