@@ -479,14 +479,33 @@ type PushResponse struct {
 	// Blocks actually uploaded after diff negotiation. blocks_pushed counts the
 	// locally-changed candidates; the two disagreeing loudly is the point.
 	BlocksUploaded int32 `protobuf:"varint,7,opt,name=blocks_uploaded,json=blocksUploaded,proto3" json:"blocks_uploaded,omitempty"`
-	// Terminology travels with the push; the fold's outcome is reported so
-	// concepts quietly not arriving is impossible to miss.
+	// The terminology fold. It travels with the push on both routes; these fields
+	// are what it amounted to, so `kapi push` can say that governed edits are now
+	// a change-set awaiting review instead of leaving the user to find out from
+	// the web hub.
 	ConceptsApplied         int32  `protobuf:"varint,8,opt,name=concepts_applied,json=conceptsApplied,proto3" json:"concepts_applied,omitempty"`
 	ConceptRelationsApplied int32  `protobuf:"varint,9,opt,name=concept_relations_applied,json=conceptRelationsApplied,proto3" json:"concept_relations_applied,omitempty"`
 	ConceptsProposed        int32  `protobuf:"varint,10,opt,name=concepts_proposed,json=conceptsProposed,proto3" json:"concepts_proposed,omitempty"`
 	ChangesetUrl            string `protobuf:"bytes,11,opt,name=changeset_url,json=changesetUrl,proto3" json:"changeset_url,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Media assets the push tried and failed to upload, with a bounded sample of
+	// the reasons. Carried separately from assets_pushed because a push whose
+	// every image was refused and a push with no images both report zero pushed.
+	AssetsFailed int32    `protobuf:"varint,12,opt,name=assets_failed,json=assetsFailed,proto3" json:"assets_failed,omitempty"`
+	AssetErrors  []string `protobuf:"bytes,13,rep,name=asset_errors,json=assetErrors,proto3" json:"asset_errors,omitempty"`
+	// What the SERVER did with the upload — "applied", "queued", "unknown" — as
+	// opposed to what the client sent it. The commit is answered with 202 and the
+	// content is stored by a worker afterwards, so "uploaded" is not "stored".
+	// A failed ingest is never reported here: it is an RPC error.
+	Ingest string `protobuf:"bytes,14,opt,name=ingest,proto3" json:"ingest,omitempty"`
+	// The change-set the governed terminology edits are waiting in, alongside the
+	// review URL above.
+	ChangesetId string `protobuf:"bytes,15,opt,name=changeset_id,json=changesetId,proto3" json:"changeset_id,omitempty"`
+	// Set when the content transport succeeded and the terminology fold did not.
+	// It rides on the response rather than replacing it with an RPC error so the
+	// content result is not lost; the dispatcher prints the push, then fails.
+	TerminologyError string `protobuf:"bytes,16,opt,name=terminology_error,json=terminologyError,proto3" json:"terminology_error,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *PushResponse) Reset() {
@@ -596,6 +615,41 @@ func (x *PushResponse) GetChangesetUrl() string {
 	return ""
 }
 
+func (x *PushResponse) GetAssetsFailed() int32 {
+	if x != nil {
+		return x.AssetsFailed
+	}
+	return 0
+}
+
+func (x *PushResponse) GetAssetErrors() []string {
+	if x != nil {
+		return x.AssetErrors
+	}
+	return nil
+}
+
+func (x *PushResponse) GetIngest() string {
+	if x != nil {
+		return x.Ingest
+	}
+	return ""
+}
+
+func (x *PushResponse) GetChangesetId() string {
+	if x != nil {
+		return x.ChangesetId
+	}
+	return ""
+}
+
+func (x *PushResponse) GetTerminologyError() string {
+	if x != nil {
+		return x.TerminologyError
+	}
+	return ""
+}
+
 type PullRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Project       *ProjectRef            `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
@@ -673,8 +727,27 @@ type PullResponse struct {
 	// reported so an arriving decision is never invisible; `kapi commit`
 	// publishes them into the tracked record.
 	DecisionsStaged int32 `protobuf:"varint,4,opt,name=decisions_staged,json=decisionsStaged,proto3" json:"decisions_staged,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Decisions the pull could not stage because their variant did not parse.
+	// Named rather than dropped: the server's cursor is forward-only, so a
+	// decision skipped here is not offered again.
+	DecisionsSkipped int32 `protobuf:"varint,5,opt,name=decisions_skipped,json=decisionsSkipped,proto3" json:"decisions_skipped,omitempty"`
+	// The workspace terminology snapshot this pull took. `kapi pull` over the
+	// daemon used to take none at all — only the plugin's own cobra command did —
+	// so the offline term checks ran against whatever the last cobra pull left.
+	ConceptsPulled         int32 `protobuf:"varint,6,opt,name=concepts_pulled,json=conceptsPulled,proto3" json:"concepts_pulled,omitempty"`
+	ConceptRelationsPulled int32 `protobuf:"varint,7,opt,name=concept_relations_pulled,json=conceptRelationsPulled,proto3" json:"concept_relations_pulled,omitempty"`
+	// The context content type's pull half: how many collections the server
+	// reported, and which recipe-owned ones it governs differently. Observed,
+	// never applied — kapi.yaml stays the authority.
+	CollectionsObserved int32    `protobuf:"varint,8,opt,name=collections_observed,json=collectionsObserved,proto3" json:"collections_observed,omitempty"`
+	GovernanceDiverged  []string `protobuf:"bytes,9,rep,name=governance_diverged,json=governanceDiverged,proto3" json:"governance_diverged,omitempty"`
+	// Set when the content transport succeeded and the terminology fold did not.
+	// Same reason as the push's: the pulled files are already on disk and the
+	// cursor already advanced, so replacing the result with an error would hide
+	// what did arrive.
+	TerminologyError string `protobuf:"bytes,10,opt,name=terminology_error,json=terminologyError,proto3" json:"terminology_error,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *PullResponse) Reset() {
@@ -733,6 +806,48 @@ func (x *PullResponse) GetDecisionsStaged() int32 {
 		return x.DecisionsStaged
 	}
 	return 0
+}
+
+func (x *PullResponse) GetDecisionsSkipped() int32 {
+	if x != nil {
+		return x.DecisionsSkipped
+	}
+	return 0
+}
+
+func (x *PullResponse) GetConceptsPulled() int32 {
+	if x != nil {
+		return x.ConceptsPulled
+	}
+	return 0
+}
+
+func (x *PullResponse) GetConceptRelationsPulled() int32 {
+	if x != nil {
+		return x.ConceptRelationsPulled
+	}
+	return 0
+}
+
+func (x *PullResponse) GetCollectionsObserved() int32 {
+	if x != nil {
+		return x.CollectionsObserved
+	}
+	return 0
+}
+
+func (x *PullResponse) GetGovernanceDiverged() []string {
+	if x != nil {
+		return x.GovernanceDiverged
+	}
+	return nil
+}
+
+func (x *PullResponse) GetTerminologyError() string {
+	if x != nil {
+		return x.TerminologyError
+	}
+	return ""
 }
 
 type HealthRequest struct {
@@ -945,7 +1060,7 @@ const file_core_plugin_proto_v1_connector_proto_rawDesc = "" +
 	"\aproject\x18\x01 \x01(\v2\x1d.neokapi.plugin.v1.ProjectRefR\aproject\x12\x14\n" +
 	"\x05paths\x18\x02 \x03(\tR\x05paths\x12\x14\n" +
 	"\x05force\x18\x03 \x01(\bR\x05force\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xb8\x03\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xe8\x04\n" +
 	"\fPushResponse\x12#\n" +
 	"\rblocks_pushed\x18\x01 \x01(\x05R\fblocksPushed\x12#\n" +
 	"\rassets_pushed\x18\x02 \x01(\x05R\fassetsPushed\x12#\n" +
@@ -960,17 +1075,29 @@ const file_core_plugin_proto_v1_connector_proto_rawDesc = "" +
 	"\x19concept_relations_applied\x18\t \x01(\x05R\x17conceptRelationsApplied\x12+\n" +
 	"\x11concepts_proposed\x18\n" +
 	" \x01(\x05R\x10conceptsProposed\x12#\n" +
-	"\rchangeset_url\x18\v \x01(\tR\fchangesetUrl\"\x8f\x01\n" +
+	"\rchangeset_url\x18\v \x01(\tR\fchangesetUrl\x12#\n" +
+	"\rassets_failed\x18\f \x01(\x05R\fassetsFailed\x12!\n" +
+	"\fasset_errors\x18\r \x03(\tR\vassetErrors\x12\x16\n" +
+	"\x06ingest\x18\x0e \x01(\tR\x06ingest\x12!\n" +
+	"\fchangeset_id\x18\x0f \x01(\tR\vchangesetId\x12+\n" +
+	"\x11terminology_error\x18\x10 \x01(\tR\x10terminologyError\"\x8f\x01\n" +
 	"\vPullRequest\x127\n" +
 	"\aproject\x18\x01 \x01(\v2\x1d.neokapi.plugin.v1.ProjectRefR\aproject\x12\x18\n" +
 	"\alocales\x18\x02 \x03(\tR\alocales\x12\x14\n" +
 	"\x05force\x18\x03 \x01(\bR\x05force\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xa8\x01\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xc9\x03\n" +
 	"\fPullResponse\x12#\n" +
 	"\rblocks_pulled\x18\x01 \x01(\x05R\fblocksPulled\x12#\n" +
 	"\rfiles_written\x18\x02 \x01(\x05R\ffilesWritten\x12#\n" +
 	"\rlocales_count\x18\x03 \x01(\x05R\flocalesCount\x12)\n" +
-	"\x10decisions_staged\x18\x04 \x01(\x05R\x0fdecisionsStaged\"\x0f\n" +
+	"\x10decisions_staged\x18\x04 \x01(\x05R\x0fdecisionsStaged\x12+\n" +
+	"\x11decisions_skipped\x18\x05 \x01(\x05R\x10decisionsSkipped\x12'\n" +
+	"\x0fconcepts_pulled\x18\x06 \x01(\x05R\x0econceptsPulled\x128\n" +
+	"\x18concept_relations_pulled\x18\a \x01(\x05R\x16conceptRelationsPulled\x121\n" +
+	"\x14collections_observed\x18\b \x01(\x05R\x13collectionsObserved\x12/\n" +
+	"\x13governance_diverged\x18\t \x03(\tR\x12governanceDiverged\x12+\n" +
+	"\x11terminology_error\x18\n" +
+	" \x01(\tR\x10terminologyError\"\x0f\n" +
 	"\rHealthRequest\"Q\n" +
 	"\x0eHealthResponse\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12%\n" +

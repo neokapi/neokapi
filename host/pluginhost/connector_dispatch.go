@@ -113,16 +113,12 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		if err != nil {
 			return fmt.Errorf("daemon Push: %w", err)
 		}
-		if n := resp.GetConceptsApplied() + resp.GetConceptsProposed(); n > 0 {
-			fmt.Printf("terminology: %d concept(s) applied, %d relation(s), %d proposed",
-				resp.GetConceptsApplied(), resp.GetConceptRelationsApplied(), resp.GetConceptsProposed())
-			if u := resp.GetChangesetUrl(); u != "" {
-				fmt.Printf(" — review: %s", u)
-			}
-			fmt.Println()
-		}
 		fmt.Printf("pushed %d blocks (%d words) across %d files; uploaded: %d; assets: %d; push_id: %s\n",
 			resp.GetBlocksPushed(), resp.GetWordCount(), resp.GetFilesScanned(), resp.GetBlocksUploaded(), resp.GetAssetsPushed(), resp.GetPushId())
+		printPushExtras(resp)
+		if te := resp.GetTerminologyError(); te != "" {
+			return fmt.Errorf("the content above was pushed; its terminology was not: %s", te)
+		}
 		return nil
 
 	case "pull":
@@ -149,9 +145,64 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		if n := resp.GetDecisionsStaged(); n > 0 {
 			fmt.Printf("staged %d unit-state update(s) from the server ledger — `kapi commit` publishes them\n", n)
 		}
+		printPullExtras(resp)
+		if te := resp.GetTerminologyError(); te != "" {
+			return fmt.Errorf("the content above was pulled; the workspace terminology was not: %s", te)
+		}
 		return nil
 	}
 	return fmt.Errorf("unknown source-connector op %q", op)
+}
+
+// printPushExtras reports the parts of a push that are not blocks: the media
+// that failed, what the server did with the upload, and what the terminology
+// fold amounted to.
+//
+// Every one of these was computed by the daemon and dropped on the floor here.
+// A response field nobody prints is indistinguishable, from where the user
+// stands, from work that never happened — which is how a submitted change-set
+// of governed terminology edits could sit awaiting review with the push that
+// created it reporting only a block count.
+func printPushExtras(resp *pb.PushResponse) {
+	if n := resp.GetAssetsFailed(); n > 0 {
+		fmt.Fprintf(os.Stderr, "warning: %d media asset(s) failed to upload and will be retried by the next push\n", n)
+		for _, e := range resp.GetAssetErrors() {
+			fmt.Fprintf(os.Stderr, "  %s\n", e)
+		}
+	}
+	switch resp.GetIngest() {
+	case "queued":
+		fmt.Println("the server accepted this push and is still applying it — `kapi status` shows when it lands")
+	case "unknown":
+		fmt.Println("the server accepted this push; it could not be asked whether it has been applied yet")
+	}
+	if a, r := resp.GetConceptsApplied(), resp.GetConceptRelationsApplied(); a > 0 || r > 0 {
+		fmt.Printf("applied %d concept edit(s) and %d relation edit(s) directly\n", a, r)
+	}
+	if n := resp.GetConceptsProposed(); n > 0 {
+		fmt.Printf("proposed %d governed terminology edit(s) in change-set %s — they take effect when reviewed\n",
+			n, resp.GetChangesetId())
+		if u := resp.GetChangesetUrl(); u != "" {
+			fmt.Printf("review it at %s\n", u)
+		}
+	}
+}
+
+// printPullExtras reports what a pull carried besides blocks: the terminology
+// snapshot, the collections the server governs differently, and any decision it
+// could not stage.
+func printPullExtras(resp *pb.PullResponse) {
+	if n := resp.GetDecisionsSkipped(); n > 0 {
+		fmt.Fprintf(os.Stderr,
+			"warning: %d server decision(s) could not be read and were not staged; the server does not offer them again\n", n)
+	}
+	if c, r := resp.GetConceptsPulled(), resp.GetConceptRelationsPulled(); c > 0 || r > 0 {
+		fmt.Printf("snapshotted %d concept(s) and %d relation(s) from the workspace terminology\n", c, r)
+	}
+	if d := resp.GetGovernanceDiverged(); len(d) > 0 {
+		fmt.Printf("the server governs these collections differently from this recipe: %s\n", strings.Join(d, ", "))
+		fmt.Println("the recipe still decides locally — reconcile them in kapi.yaml, not by pulling")
+	}
 }
 
 // resolveProjectRoot returns the absolute project root for daemon RPCs.

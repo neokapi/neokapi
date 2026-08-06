@@ -116,9 +116,11 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 	// with the push itself; doPush reports what its governance amounted to.
 	bres := pr.Brand
 	if proj, perr := project.FindProject(""); perr == nil {
-		if _, cerr := conceptPush(cmd.Context(), proj, false); cerr != nil {
+		cres, cerr := conceptPush(cmd.Context(), proj, false)
+		if cerr != nil {
 			return cerr
 		}
+		reportConceptPush(cmd, cres)
 	}
 	syncConvergePolicy(cmd.Context(), conn.Client(), server)
 	if !app.Quiet {
@@ -129,6 +131,32 @@ func pushAfterLocalConverge(cmd *cobra.Command, server *project.ServerSpec) erro
 		}
 	}
 	return reportBrandPush(cmd, nil, bres, flagBool(cmd, "json"))
+}
+
+// reportConceptPush says what the terminology fold inside `kapi up`'s push
+// phase amounted to.
+//
+// `up` ran the fold and discarded its result at both venues. A governed
+// terminology edit — a term banned, a concept retired — became a submitted
+// change-set waiting on a reviewer, and the run reported block counts and a
+// convergence summary with no mention of it. The proposal was real; only the
+// telling was missing.
+func reportConceptPush(cmd *cobra.Command, res *PushConceptsResult) {
+	if res == nil || app.Quiet {
+		return
+	}
+	w := cmd.ErrOrStderr()
+	if res.ConceptsApplied > 0 || res.RelationsApplied > 0 {
+		fmt.Fprintf(w, "Applied %d concept edit(s) and %d relation edit(s) directly.\n",
+			res.ConceptsApplied, res.RelationsApplied)
+	}
+	if res.ConceptsProposed > 0 {
+		fmt.Fprintf(w, "Proposed %d governed terminology edit(s) in change-set %s — they take effect when reviewed.\n",
+			res.ConceptsProposed, res.ChangesetID)
+		if res.ChangesetURL != "" {
+			fmt.Fprintf(w, "Review it at %s\n", res.ChangesetURL)
+		}
+	}
 }
 
 // runServerUp is the server-venue up: push local changes, start (or join) a
@@ -172,9 +200,11 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 	// with the push itself; doPush reports what its governance amounted to.
 	bres := pr.Brand
 	if proj, perr := project.FindProject(""); perr == nil {
-		if _, cerr := conceptPush(ctx, proj, false); cerr != nil {
+		cres, cerr := conceptPush(ctx, proj, false)
+		if cerr != nil {
 			return cerr
 		}
+		reportConceptPush(cmd, cres)
 	}
 	client := conn.Client()
 	if client == nil {

@@ -62,14 +62,24 @@ type StatusServerSection struct {
 	Terminology *StatusTerminology `json:"terminology,omitempty"`
 }
 
-// StatusTerminology is the local snapshot standing of the workspace's
-// governed terminology: when the last concept pull ran and what it carried.
-// nil when no concept pull has ever recorded a baseline — rendered as
-// never-synced so stale local term checks are visible, not silent.
+// StatusTerminology is the standing of the workspace's governed terminology:
+// when the last concept pull ran and what it carried, plus what this project
+// has proposed and not yet had reviewed. nil when neither is known — rendered
+// as never-synced so stale local term checks are visible, not silent.
 type StatusTerminology struct {
 	PulledAt  string `json:"pulled_at"`
 	Concepts  int    `json:"concepts"`
 	Relations int    `json:"relations"`
+
+	// PendingChangesets is how many governed terminology change-sets are
+	// awaiting review, with the newest one's id and review link. A pushed
+	// governed edit lives here until a reviewer merges it, and no pull can
+	// bring it down as a baseline in the meantime — so without this the terms
+	// line reported "never synced" about terminology that had in fact been
+	// sent, received, and was sitting in someone's queue.
+	PendingChangesets int    `json:"pending_changesets,omitempty"`
+	PendingChangeset  string `json:"pending_changeset_id,omitempty"`
+	PendingURL        string `json:"pending_changeset_url,omitempty"`
 }
 
 // StatusActiveRun is one in-flight server convergence run in the status report.
@@ -249,10 +259,38 @@ func writeServerLine(w io.Writer, s StatusServerSection) {
 		fmt.Fprintf(w, " · run %s %s%s", r.ID, r.State, passes)
 	}
 	fmt.Fprintln(w)
-	if t := s.Terminology; t != nil {
-		fmt.Fprintf(w, "terms   synced %s · %d concepts · %d relations\n", t.PulledAt, t.Concepts, t.Relations)
-	} else {
+	writeTermsLine(w, s.Terminology)
+}
+
+// writeTermsLine renders the terminology standing beneath the server line.
+//
+// Three states, not two. "Synced" and "never synced" were the whole vocabulary,
+// and between them sat the state a user is most likely to be in right after a
+// push: governed edits proposed and awaiting review. Those cannot appear in the
+// local baseline — a change-set holds them until a reviewer merges it — so a
+// project that had just sent its terminology upstream was told it had never
+// sent any, which is the report that sends someone to re-do work already
+// queued in front of a colleague.
+func writeTermsLine(w io.Writer, t *StatusTerminology) {
+	switch {
+	case t == nil:
 		fmt.Fprintln(w, "terms   never synced — kapi pull snapshots the workspace terminology for offline checks")
+		return
+	case t.PulledAt != "":
+		fmt.Fprintf(w, "terms   synced %s · %d concepts · %d relations", t.PulledAt, t.Concepts, t.Relations)
+	default:
+		fmt.Fprint(w, "terms   never snapshotted locally")
+	}
+	if t.PendingChangesets > 0 {
+		noun := "change-sets"
+		if t.PendingChangesets == 1 {
+			noun = "change-set"
+		}
+		fmt.Fprintf(w, " · %d %s proposed, awaiting review", t.PendingChangesets, noun)
+	}
+	fmt.Fprintln(w)
+	if t.PendingURL != "" {
+		fmt.Fprintf(w, "        review: %s\n", t.PendingURL)
 	}
 }
 

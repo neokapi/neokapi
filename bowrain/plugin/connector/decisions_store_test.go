@@ -37,7 +37,7 @@ func TestStagePulledDecisions_WritesThroughTheAppsHandle(t *testing.T) {
 	defer a.Shutdown()
 	c := newDecisionsConnector(t, a)
 
-	staged, err := c.stagePulledDecisions(t.Context(), []platstore.UnitDecision{{
+	staged, _, err := c.stagePulledDecisions(t.Context(), []platstore.UnitDecision{{
 		ItemName:    "locales/en.json",
 		Unit:        "greeting",
 		Variant:     "fr",
@@ -74,7 +74,7 @@ func TestStagePulledDecisions_LeavesANewerLocalRecord(t *testing.T) {
 		Updated:  "2026-08-05T12:00:00Z",
 	}))
 
-	staged, err := c.stagePulledDecisions(t.Context(), []platstore.UnitDecision{{
+	staged, _, err := c.stagePulledDecisions(t.Context(), []platstore.UnitDecision{{
 		Unit:        "greeting",
 		Variant:     "fr",
 		ReviewState: "approved",
@@ -88,12 +88,32 @@ func TestStagePulledDecisions_LeavesANewerLocalRecord(t *testing.T) {
 	assert.Equal(t, "rejected", us.Decision.ReviewState)
 }
 
+// A decision whose variant cannot be read is counted, not dropped in silence.
+// The pull that carries it goes on to advance the stream cursor, and the
+// server's ledger is forward-only — so a record skipped here is never offered
+// again, and someone's review and the attribution on it are gone with nothing
+// anywhere saying so.
+func TestStagePulledDecisions_CountsUnreadableVariants(t *testing.T) {
+	a := &host.App{}
+	defer a.Shutdown()
+	c := newDecisionsConnector(t, a)
+
+	staged, skipped, err := c.stagePulledDecisions(t.Context(), []platstore.UnitDecision{
+		{Unit: "greeting", Variant: "fr", ReviewState: "approved", Updated: "2026-08-05T10:00:00Z"},
+		{Unit: "farewell", Variant: "", ReviewState: "approved", Updated: "2026-08-05T10:00:00Z"},
+		{Unit: "welcome", Variant: ";;;not a variant", ReviewState: "approved", Updated: "2026-08-05T10:00:00Z"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, staged)
+	assert.Equal(t, 2, skipped, "the records that could not be read are reported, not silently dropped")
+}
+
 // A connector built without an App cannot reach the project store, and says so
 // rather than silently staging nothing — the failure mode a nil-tolerant lookup
 // would have hidden.
 func TestStagePulledDecisions_WithoutAnAppIsAnError(t *testing.T) {
 	c := newDecisionsConnector(t, nil)
-	_, err := c.stagePulledDecisions(t.Context(), []platstore.UnitDecision{{
+	_, _, err := c.stagePulledDecisions(t.Context(), []platstore.UnitDecision{{
 		Unit: "greeting", Variant: "fr", ReviewState: "approved",
 	}})
 	require.Error(t, err)

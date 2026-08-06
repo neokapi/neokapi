@@ -220,6 +220,20 @@ type PushOutput struct {
 	// opposed to BlocksPushed, the locally-changed candidates.
 	BlocksUploaded int `json:"blocks_uploaded,omitempty"`
 
+	// Media assets carried alongside the blocks. AssetsFailed is reported
+	// separately from AssetsPushed because a push whose every image was refused
+	// and a push with no images at all both report zero pushed, and only one of
+	// them leaves the translated page missing its pictures.
+	AssetsPushed int      `json:"assets_pushed,omitempty"`
+	AssetsFailed int      `json:"assets_failed,omitempty"`
+	AssetErrors  []string `json:"asset_errors,omitempty"`
+
+	// Ingest is what the SERVER did with the upload — applied, queued, or
+	// unknown — as opposed to what the client sent it. The commit is answered
+	// with 202 and the content is stored by a worker afterwards, so "uploaded"
+	// is not "stored" and the report says which one it means.
+	Ingest string `json:"ingest,omitempty"`
+
 	// Concept sync (governed terminology reconciled against the pulled baseline).
 	ConceptsApplied  int    `json:"concepts_applied,omitempty"`
 	RelationsApplied int    `json:"concept_relations_applied,omitempty"`
@@ -262,11 +276,45 @@ func (o PushOutput) FormatText(w io.Writer) error {
 	default:
 		fmt.Fprintf(w, "Pushed %d blocks (%d uploaded), %d words (scanned %d files)\n", o.BlocksPushed, o.BlocksUploaded, o.WordCount, o.FilesScanned)
 	}
+	o.formatAssets(w)
+	o.formatIngest(w)
 	o.formatConcepts(w)
 	o.FormatBrand(w)
 	o.formatUndeclared(w)
 	o.formatLoopStatus(w)
 	return nil
+}
+
+// formatAssets reports the media that travelled with the blocks, and — the
+// point of the line — the media that did not. Each asset upload is best-effort
+// so one refused blob does not abandon the content already stored, but a
+// refusal that leaves no trace is an image the reader will never see and a
+// transcript that says the push succeeded.
+func (o PushOutput) formatAssets(w io.Writer) {
+	if o.AssetsPushed == 0 && o.AssetsFailed == 0 {
+		return
+	}
+	if o.AssetsFailed == 0 {
+		fmt.Fprintf(w, "Uploaded %d media asset(s)\n", o.AssetsPushed)
+		return
+	}
+	fmt.Fprintf(w, "Uploaded %d media asset(s); %d FAILED and will be retried by the next push\n",
+		o.AssetsPushed, o.AssetsFailed)
+	for _, e := range o.AssetErrors {
+		fmt.Fprintf(w, "  %s\n", e)
+	}
+}
+
+// formatIngest says what the server did with the upload, not what the client
+// sent it. Silent on the applied case: a push that landed needs no annotation,
+// and the two states worth a line are the two that mean "not yet stored".
+func (o PushOutput) formatIngest(w io.Writer) {
+	switch o.Ingest {
+	case "queued":
+		fmt.Fprintln(w, "The server accepted this push and is still applying it — `kapi status` shows when it lands")
+	case "unknown":
+		fmt.Fprintln(w, "The server accepted this push; it could not be asked whether it has been applied yet")
+	}
 }
 
 // FormatBrand appends the brand-profile line: what the push did with the

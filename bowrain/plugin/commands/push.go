@@ -55,6 +55,18 @@ type PushResult struct {
 	DryRun         bool
 	UpToDate       bool
 
+	// AssetsPushed/AssetsFailed/AssetErrors carry the media half of the push.
+	// The failures are carried, not folded into the success count, because an
+	// asset that never arrived is content the reader will not see.
+	AssetsPushed int
+	AssetsFailed int
+	AssetErrors  []string
+
+	// Ingest is what the server did with the upload: applied, queued, or
+	// unknown. A failed ingest never reaches here — it is an error from the
+	// connector's Push, which also leaves the sync cache unwritten.
+	Ingest string
+
 	// Brand reports what the governance carried in the push amounted to. Nil
 	// when the project binds no voice.
 	Brand *PushBrandResult
@@ -111,6 +123,10 @@ func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*Pu
 		PushID:                result.PushID,
 		Brand:                 brand,
 		UndeclaredCollections: result.UndeclaredCollections,
+		AssetsPushed:          result.AssetsPushed,
+		AssetsFailed:          result.AssetsFailed,
+		AssetErrors:           result.AssetErrors,
+		Ingest:                result.Ingest,
 	}
 	if opts.DryRun {
 		pr.DryRun = true
@@ -147,6 +163,10 @@ func runPush(cmd *cobra.Command, args []string) error {
 		DryRun:                pr.DryRun,
 		UpToDate:              pr.UpToDate,
 		UndeclaredCollections: pr.UndeclaredCollections,
+		AssetsPushed:          pr.AssetsPushed,
+		AssetsFailed:          pr.AssetsFailed,
+		AssetErrors:           pr.AssetErrors,
+		Ingest:                pr.Ingest,
 	}
 	if pr.Brand != nil {
 		out.BrandProfile = pr.Brand.Name
@@ -158,11 +178,18 @@ func runPush(cmd *cobra.Command, args []string) error {
 	// Fold the workspace's governed terminology into the push: reconcile local
 	// concept/relation edits against the pulled baseline (ordinary edits go up
 	// directly, governed edits become a submitted change-set). Skipped silently
-	// when the project is not workspace-claimed or has no pulled baseline.
+	// only when the project is not claimed into a workspace.
+	//
+	// A terminology failure is carried past the report rather than returned
+	// through it. Returning here threw away the content result: the blocks HAD
+	// been uploaded and stored, and the user was shown only the terminology
+	// error — reading, reasonably, that the whole push failed, and losing the
+	// push id that identifies what did land.
+	var conceptErr error
 	if proj, perr := project.FindProject(""); perr == nil {
-		if cres, cerr := conceptPush(cmd.Context(), proj, pushDryRun); cerr != nil {
-			return cerr
-		} else if cres != nil {
+		cres, cerr := conceptPush(cmd.Context(), proj, pushDryRun)
+		conceptErr = cerr
+		if cres != nil {
 			out.ConceptsApplied = cres.ConceptsApplied
 			out.RelationsApplied = cres.RelationsApplied
 			out.ConceptsProposed = cres.ConceptsProposed
@@ -174,6 +201,9 @@ func runPush(cmd *cobra.Command, args []string) error {
 
 	if err := output.Print(cmd, out); err != nil {
 		return err
+	}
+	if conceptErr != nil {
+		return fmt.Errorf("the content above was pushed; its terminology was not: %w", conceptErr)
 	}
 
 	// Run post-push automations.

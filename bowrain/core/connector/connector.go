@@ -145,7 +145,43 @@ type PushResult struct {
 	// that this push no longer declares. Reported so the push can say so, never
 	// deleted — the content grouped under them is still there.
 	UndeclaredCollections []string
+
+	// AssetsFailed counts media assets this push tried and failed to upload.
+	// Asset upload is best-effort per asset — one unreachable blob must not
+	// abandon the content already stored — but "best-effort" is not
+	// "unreported": an image that never arrived is content the reader will not
+	// see, and AssetsPushed alone cannot distinguish "nothing to send" from
+	// "everything was refused".
+	AssetsFailed int
+
+	// AssetErrors names the first few asset failures, so the count above points
+	// at something actionable rather than only asserting that something broke.
+	AssetErrors []string
+
+	// Ingest reports what the SERVER did with this push, not what the client
+	// sent it. The commit is answered with 202 Accepted and a push id: the
+	// content is applied later by a worker, so a client that stops at the 202
+	// has reported success for work that may still fail — and it has already
+	// recorded the pushed hashes, so the next push sees nothing to send and the
+	// content is stranded. One of:
+	//
+	//	IngestApplied   — the server's ingest job completed.
+	//	IngestQueued    — accepted, not yet confirmed within the wait window.
+	//	IngestUnknown   — the server could not be asked (no job system, older
+	//	                  server, status call failed).
+	//	""              — nothing was sent (dry run, up-to-date).
+	//
+	// An ingest that FAILED is never a field: it is an error from Push, and the
+	// sync cache is left unwritten so the next push sends the content again.
+	Ingest string
 }
+
+// Ingest states reported by PushResult.Ingest.
+const (
+	IngestApplied = "applied"
+	IngestQueued  = "queued"
+	IngestUnknown = "unknown"
+)
 
 // PullResult summarizes the result of a pull operation.
 type PullResult struct {
@@ -158,6 +194,12 @@ type PullResult struct {
 	// count so an arriving decision is never invisible, and `kapi commit`
 	// remains the only door into the tracked record.
 	DecisionsStaged int
+
+	// DecisionsSkipped is how many arriving decisions could not be staged
+	// because their variant did not parse. Reported because the stream cursor
+	// is forward-only: a decision skipped on a pull is never offered again, so
+	// dropping one in silence loses a review and its attribution for good.
+	DecisionsSkipped int
 
 	// CollectionsObserved is how many collections the server reported. They are
 	// recorded as observation only — a pull never rewrites the governance the
