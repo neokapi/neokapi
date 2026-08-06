@@ -372,10 +372,9 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 		changesetEvent(knowledge.EventChangeSetSubmitted, wsID, cs.ID, actor),
 	})
 
-	// Summon the reviewers. Submitting used to end at the event bus, which
-	// reaches the audit chain and nothing a person looks at — so a change-set
-	// pushed from the CLI sat in review with no task, no notification, and no
-	// mail, discoverable only by knowing its id. See changeset_summons.go.
+	// Summon the reviewers. The event bus above reaches the audit chain and
+	// nothing a person looks at, so without this a change-set pushed from the
+	// CLI sits in review discoverable only by its id. See changeset_summons.go.
 	governed, _ := knowledge.ChangeSetIsGoverned(changeSetOpValues(ops))
 	s.summonChangeSetReviewers(c, cs, len(ops), governed)
 
@@ -659,12 +658,11 @@ func (s *Server) HandleChangeSetBlastRadius(c echo.Context) error {
 
 // blastRadiusBudget bounds the blast-radius walk.
 //
-// It is deliberately well inside the 60s an edge proxy typically allows, because
-// the failure it replaces was worse than a slow answer: the walk ran until
-// something upstream gave up, and the client was left with a loading state that
-// never resolved while the database kept being scanned for a reader who had
-// already gone. A bounded walk answers — with a floor and a flag when the
-// workspace is too large to finish — and answers in time to be seen.
+// It is deliberately well inside the 60s an edge proxy typically allows: an
+// unbounded walk leaves the client on a loading state that never resolves while
+// the database is still being scanned for a reader who has gone. A bounded walk
+// answers — with a floor and a flag when the workspace is too large to finish —
+// and answers in time to be seen.
 const blastRadiusBudget = 20 * time.Second
 
 // HandleStartPilot binds a change-set to a project's content stream as a pilot,

@@ -19,9 +19,9 @@ import (
 // TestListTasksIsKeyedByWorkspaceID pins the keying of the workspace task queue.
 //
 // Every server-side task writer keys on the workspace **id** — createSourceProposalTask
-// and the automation review fan-out both pass proj.WorkspaceID. The queue handler
-// read c.Param("ws"), which is the **slug**, so it matched none of them: a workspace
-// with open, system-created review work answered /:ws/tasks with an empty list.
+// and the automation review fan-out both pass proj.WorkspaceID. A queue handler
+// reading c.Param("ws"), the **slug**, matches none of them, and a workspace
+// with open, system-created review work answers /:ws/tasks with an empty list.
 func TestListTasksIsKeyedByWorkspaceID(t *testing.T) {
 	cs, err := sqlitestore.NewSQLiteStore(filepath.Join(t.TempDir(), "tasks.db"))
 	require.NoError(t, err)

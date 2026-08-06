@@ -68,8 +68,8 @@ func (s *Server) publishKnowledgeEvents(c echo.Context, events []knowledge.Merge
 			}
 		}
 		// The activity recorder and the notification dispatcher both key on the
-		// workspace slug, so a knowledge event that carried only the workspace id
-		// landed in the feed under no workspace at all.
+		// workspace slug, so an event carrying only the workspace id lands in
+		// the feed under no workspace at all.
 		put("workspace_slug", c.Param("ws"))
 		put("changeset_id", ev.ChangesetID)
 		put("concept_id", ev.ConceptID)

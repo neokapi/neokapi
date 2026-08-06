@@ -16,9 +16,8 @@ import (
 )
 
 // The blast radius is the most expensive read in the platform: a walk over every
-// stored block in a workspace. It used to have no bound and no way to say it had
-// not finished — so on a 17k-block workspace the request ran until something
-// upstream gave up, and the report it produced was shaped exactly like a clean
+// stored block in a workspace. Unbounded, on a 17k-block workspace it runs until
+// something upstream gives up and produces a report shaped exactly like a clean
 // one. These tests pin the three properties that make it safe: it stops, it says
 // when it stopped early, and it does not pay per block for what varies per item.
 
@@ -80,8 +79,8 @@ func TestEvaluateChangeSet_CancelledContextIsAnError(t *testing.T) {
 
 // TestEvaluateChangeSet_ResolvesEachCollectionOnce pins the cost of the walk.
 // Collections resolve per item, and a project has far more blocks than items, so
-// resolving per block meant two database round-trips for every block in the
-// workspace — 35,000 sequential queries on the workspace that timed out.
+// resolving per block costs two database round-trips for every block in the
+// workspace — 35,000 sequential queries on a 17.5k-block workspace.
 func TestEvaluateChangeSet_ResolvesEachCollectionOnce(t *testing.T) {
 	ctx := context.Background()
 

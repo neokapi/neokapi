@@ -83,11 +83,10 @@ type ChangeSetImpact struct {
 	// Partial reports that the walk stopped before it had seen the whole
 	// workspace, so every count below is a floor and not a total.
 	//
-	// It exists because the alternative is worse than useless: a walk that ran
-	// out of time used to return the same shape as a walk that found nothing,
-	// and "0 blocks affected — safe to merge" is the most dangerous sentence
-	// this report can say when the truth is "we never got to look". A reader
-	// must be able to tell the two apart, so an incomplete walk says so.
+	// Without it a walk that ran out of time has the same shape as a walk that
+	// found nothing, and "0 blocks affected — safe to merge" is the most
+	// dangerous sentence this report can say when the truth is "we never got to
+	// look". A reader must be able to tell the two apart.
 	//
 	// The flag is top-level only, and deliberately: the walk is one sequential
 	// pass over projects, so it does not under-count each project evenly. When
@@ -550,11 +549,10 @@ var errBudgetExhausted = errors.New("blast-radius time budget exhausted")
 // opts. visit errors abort the walk.
 //
 // It returns errBudgetExhausted when opts.Budget runs out, and the request
-// context's error when the caller goes away. Both matter: this walk is the most
-// expensive read in the platform, and it used to have no way to stop. A client
-// that had already given up left it scanning a whole workspace, and a walk that
-// ran past its welcome returned a zero report indistinguishable from a clean
-// one. Whoever stops it, the caller learns that the numbers are not a total.
+// context's error when the caller goes away. Both matter: this is the most
+// expensive read in the platform, so a client that has already given up must
+// not leave it scanning a whole workspace, and whichever way it stops, the
+// caller has to learn that the numbers are not a total.
 func (e *Engine) walkBlocks(
 	ctx context.Context,
 	workspaceID string,
@@ -569,11 +567,10 @@ func (e *Engine) walkBlocks(
 	if opts.Budget > 0 {
 		deadline = time.Now().Add(opts.Budget)
 	}
-	// Collections are resolved per item, and a project has orders of magnitude
-	// more blocks than items — so resolving per block meant two database
-	// round-trips for every block in the workspace. At 17.5k blocks that is 35k
-	// sequential queries, which is where a minute goes. One cache per walk turns
-	// it into two per item.
+	// Collections resolve per item, and a project has orders of magnitude more
+	// blocks than items. Resolving per block costs two database round-trips per
+	// block — 35k sequential queries on a 17.5k-block workspace, which is a
+	// minute of walk. One cache per walk makes it two round-trips per item.
 	cols := newCollectionCache(e)
 
 	for _, p := range projects {

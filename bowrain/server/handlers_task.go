@@ -14,12 +14,11 @@ import (
 // taskWorkspaceID is the value the tasks table is keyed by: the workspace's
 // **id**, resolved by WorkspaceAccessMiddleware from the :ws slug.
 //
-// Every server-side task writer already keys on the id — createSourceProposalTask
-// and the automation fan-out both pass proj.WorkspaceID — so a queue that read
-// c.Param("ws") (the slug) matched none of them, and every system-created task was
-// invisible in /:ws/tasks. That is exactly how a workspace with open review work
-// answered the tasks endpoint with an empty list. The slug is kept only as the
-// fallback for the handful of routes that run without the workspace middleware.
+// Every server-side task writer keys on the id — createSourceProposalTask and
+// the automation fan-out both pass proj.WorkspaceID — so a queue that read
+// c.Param("ws") (the slug) would match none of them and answer /:ws/tasks with
+// an empty list. The slug is kept only as the fallback for the handful of
+// routes that run without the workspace middleware.
 func taskWorkspaceID(c echo.Context) string {
 	if wsID, _ := c.Get("workspace_id").(string); wsID != "" {
 		return wsID

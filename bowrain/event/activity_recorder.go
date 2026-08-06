@@ -180,9 +180,8 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityID = ev.Data["collection_id"]
 		a.Summary = "created collection " + ev.Data["name"]
 
-	// Governed change-sets. The graph's lifecycle was audit-logged and never
-	// shown: a change-set could be submitted, approved and merged without a line
-	// of it reaching the feed people actually read.
+	// Governed change-sets. The graph's lifecycle is audit-logged separately;
+	// these cases are what puts it in the feed people actually read.
 	case knowledge.EventChangeSetSubmitted:
 		a.Type = bstore.ActivityReviewAssigned
 		a.EntityType = "changeset"

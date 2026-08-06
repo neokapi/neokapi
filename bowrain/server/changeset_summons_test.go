@@ -24,10 +24,9 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// These tests pin the summons: submitting a change-set must reach the people who
-// can approve it. Before it existed, a `kapi push` that proposed governed
-// concepts flipped a status, published one bus event nobody was subscribed to
-// for this purpose, and left the reviewer with nothing to find.
+// These tests pin the summons: submitting a change-set must reach the people
+// who can approve it. Without one, a `kapi push` that proposes governed
+// concepts flips a status and leaves the reviewer with nothing to find.
 
 // summonsHarness wires a server with a SQLite task store, a fake knowledge
 // store, a scripted auth store, and a recording mail sender — everything the
@@ -146,9 +145,8 @@ func (h *summonsHarness) openTasks(t *testing.T) []bstore.Task {
 	return res.Tasks
 }
 
-// TestSubmitChangeSetOpensReviewTaskAndMails is the regression the founder hit:
-// a governed change-set arrived by push, and the workspace showed nothing to
-// approve. Submitting must now leave a task in the queue and a mail in every
+// TestSubmitChangeSetOpensReviewTaskAndMails pins what a governed change-set
+// arriving by push must leave behind: a task in the queue and a mail in every
 // eligible reviewer's inbox — and never in the author's, who cannot approve it.
 func TestSubmitChangeSetOpensReviewTaskAndMails(t *testing.T) {
 	h := newSummonsHarness(t)
@@ -261,12 +259,9 @@ func TestReviewRequestMailRespectsPreference(t *testing.T) {
 // against the route the web app actually serves.
 //
 // The assertion reads the route table rather than restating a string. A link
-// that is merely self-consistent is exactly what shipped last time: the CLI
-// built /<ws>/changesets/<id>, which has never been a route, so the one thing
-// pointing at a real change-set was wrong and following it was indistinguishable
-// from nothing having happened. Restating my own belief here would leave the
-// server free to reintroduce that bug through the other door — the summons
-// reaches further than the CLI does, and reaches people who cannot debug a 404.
+// that is merely self-consistent passes while pointing at a route the app does
+// not serve, and following it is indistinguishable from nothing having
+// happened — for a summons that reaches people who cannot debug a 404.
 //
 // bowrain/plugin/commands.TestChangesetURLMatchesTheWebRoute makes the same
 // assertion for the CLI's producer of this path. Both must fail on a rename.

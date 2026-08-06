@@ -16,15 +16,12 @@ import (
 // The summons: how a submitted change-set reaches the people who must review it.
 //
 // Submitting a governed change-set flips a status and publishes
-// changeset.submitted on the event bus. The bus reaches the audit chain and the
-// SSE relay, and stops there — the notification dispatcher's event map has no
-// change-set case, and even if it had one it resolves recipients from
-// ev.ProjectID, which a workspace-scoped change-set does not carry. So a push
-// that proposed governed concepts left no task, no notification, and no mail;
-// the reviewer's only route to it was to already know the change-set's id.
+// changeset.submitted on the event bus, which reaches the audit chain and the
+// SSE relay and stops there: the notification dispatcher resolves recipients
+// from ev.ProjectID, which a workspace-scoped change-set does not carry.
 //
-// This file is the missing half. On submit a change-set opens one review task in
-// the workspace queue, notifies every eligible reviewer, and mails them; on
+// So the summons is computed here. On submit a change-set opens one review task
+// in the workspace queue, notifies every eligible reviewer, and mails them; on
 // approve, reject, abandon, or merge the task closes again.
 //
 // Separation of duties is the reason the reach is computed rather than assumed:

@@ -12,8 +12,8 @@ import (
 // PostgreSQL parses into its TIMESTAMPTZ columns and hands back as time.Time.
 // SQLite has no date type: it keeps the string, and its driver only converts
 // what a column's declared type says is a date. A column declared TEXT therefore
-// comes back as a string and blows up a *time.Time scan — which is how a task
-// queue could be written happily and then fail to read back a single row.
+// comes back as a string and blows up a *time.Time scan, so a table can be
+// written happily and then fail to read back a single row.
 //
 // scanTime accepts both, so a store's read path does not depend on which
 // backend it was handed.
