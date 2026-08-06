@@ -1,61 +1,91 @@
 ---
 title: Dogfood sync — neokapi as bowrain.cloud customer #1
-description: How to activate (and deactivate) the customer-#1 dogfood that syncs neokapi's own multilingual content to Bowrain.
+description: How the nightly convergence of neokapi's own multilingual content against Bowrain is wired, armed, and disarmed.
 ---
 
 # Dogfood sync (customer #1)
 
-neokapi translates its own surfaces with kapi (the root `kapi.yaml` recipe).
-The next step in the dogfood is to become the **first real workspace on
-Bowrain**: push those surfaces to a bowrain-server, let the nb drafts land in
-the governed review queue, and round-trip approved segments back into
-`.kapi/memory/*.memory.json`. This exercises the paid product — the review loop, the
-signup/claim funnel, connectors — on a real, continuously changing corpus
-before any external user touches it (roadmap epic 017-F, decision D2).
+neokapi translates its own surfaces with kapi, through the root `kapi.yaml`
+recipe. Customer #1 is the next step: neokapi as the first real workspace on
+Bowrain, with nb drafts landing in the governed review queue and approved
+wording round-tripping back into the committed content-memory seeds. It
+exercises the paid product — the review loop, the signup and claim funnel, the
+connectors — on a real, continuously changing corpus before any external user
+touches it (roadmap epic 017-F, decision D2).
 
-This is shipped **inert**: an active `server:` block in the repo-root recipe
-would make *every* in-repo kapi invocation bowrain-connected, which the
-isolation contract (see [CLAUDE.md, "Dogfooding kapi"]) does not want by
-default. So the recipe carries a commented `server:` template and
-`.github/workflows/dogfood-sync.yml` is gated off until you arm it.
+## The workflow is deliberately unremarkable
 
-## Sequencing (decision D2)
+`.github/workflows/dogfood-sync.yml` is the workflow the product tells everyone
+else to write, run against the repository that builds the product:
 
-Production `bowrain.cloud` does not exist until epic 002 (AWS prod) lands.
-Dogfood against the local compose stack or `dev.bowrain.cloud` first, then flip
-the recipe's `url:` to production the day epic 002's `cloud-e2e` passes — the
-flip doubles as the production acceptance test.
+```yaml
+- uses: neokapi/setup-kapi@v1
+  with:
+    plugins: bowrain
+    auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
+- run: make l10n-extract
+- uses: neokapi/kapi-action@v1
+  with:
+    command: up
+```
 
-## Activate
+`setup-kapi` installs the **released** CLI and the bowrain plugin from the
+registry rather than building either from the checkout, so a green nightly is
+evidence about the shipped product and not about the working tree.
+`kapi-action` runs the convergence verb and commits what came back.
 
-1. **Sign up through the public funnel** (dogfoods epic 007). Create the
-   `neokapi` workspace, claim the project, and copy its compound project URL
-   (`https://<server>/<workspace>/<project-id>`).
-2. **Uncomment the `server:` block** at the foot of `kapi.yaml` and set
-   `url:` to that compound URL. Commit it. From this point `kapi status` /
-   `kapi push` operate against the server (this is the one in-repo invocation
-   that legitimately binds the root recipe).
-3. **Add the repo secret** `BOWRAIN_AUTH_TOKEN` — from `kapi auth token` after
-   signing in locally, or a workspace CI token.
-4. **Set the repo variable** `DOGFOOD_SYNC_ENABLED = true`. The nightly
-   `Dogfood Sync` workflow (03:00 UTC, or manual `workflow_dispatch`) now runs
-   `kapi up` + `kapi push` and writes a status summary. Use the dispatch
-   `dry_run` input for a plan-only (`kapi up --explain`) pass first.
-5. **Confirm plugin discovery** — the workflow builds and installs the
-   `kapi-bowrain` plugin; verify `kapi plugins list` shows it in the run log
-   (the one step that can't be tested until the server exists).
+The one step a customer would not write is `make l10n-extract`. Five of the
+recipe's collections declare catalogs that the neokapi-i18n extractor produces
+from React source; they are build artifacts, gitignored by design, so a run from
+a clean checkout would carry nothing for them. It extracts the **source** side
+only — the target side is the loop's job, and target-language drift must never
+gate a push. See [the dogfood loop in CI][l10n-ci] for why that step cannot move
+into the recipe.
 
-## Deactivate
+This is the one in-repo kapi invocation that binds the root recipe. Every other
+one isolates itself per the contract in CLAUDE.md, so tests, make targets and
+the video recorders are unaffected by the connection.
 
-Unset `DOGFOOD_SYNC_ENABLED` (or set it to anything but `true`). The workflow
-skips at the job gate — no secret is read and no content moves. Re-comment the
-`server:` block to return the recipe to a pure local project. Fully reversible.
+## Arming and disarming
+
+The workflow is inert until two settings exist, and neither lives in this
+repository's source:
+
+1. **Repo secret `BOWRAIN_AUTH_TOKEN`** — a `bwt_` workspace API token, minted
+   with `kapi auth token create` after signing in. `setup-kapi` exports it as
+   the CLI's auth for the run.
+2. **Repo variable `DOGFOOD_SYNC_ENABLED = true`** — the single gate. Every job
+   is conditioned on it, so until it is set the scheduled run and any manual
+   dispatch evaluate the gate and skip: no secret is read and no content moves.
+
+The recipe's `server:` block names the compound project URL
+(`https://<server>/<workspace>/<project-id>`) and carries `converge: manual`, so
+a push moves content but never auto-starts a server run.
+
+To disarm: unset `DOGFOOD_SYNC_ENABLED` (or set it to anything but `true`).
+Re-comment the `server:` block to return the recipe to a pure local project.
+Fully reversible.
+
+## Why convergence is started deliberately
+
+The first on-push run tried to AI-draft the entire untranslated corpus against
+an empty server content memory — no leverage, everything AI — and stalled on the
+workspace credit allowance. `converge: manual` is the consequence: transport
+stays pure, and the loop is started deliberately, scoped, once the server
+content memory is seeded or a bring-your-own AI key is configured (which burns
+no credits).
+
+The nightly therefore runs `kapi up` against a recipe that will not auto-fan-out
+across an unseeded corpus. Use the workflow's `plan` dispatch input for a dry
+run first: it reports pending work, content-memory leverage and a token estimate
+without writing anything or calling a provider.
 
 ## The loop, once live
 
-`kapi push` sends each surface; `translate-ai` nb output lands as drafts in the
-governed review queue (epic 006); approved segments come back via `kapi pull` →
-`kapi extract/merge` → a refreshed `.kapi/memory/*.memory.json` commit. The nightly job
-keeps the server current; human review closes the loop.
+`kapi up` pushes each surface, converges on the server against the workspace's
+shared content memory and terms, and pulls the produced targets back; nb drafts
+land as review-queue work (epic 006), and approved wording returns to the
+committed seeds through an ordinary commit. The nightly keeps the server
+current; human review closes the loop.
 
-[CLAUDE.md, "Dogfooding kapi"]: the in-repo isolation contract.
+[l10n-ci]: https://github.com/neokapi/neokapi/blob/main/docs/internals/l10n-ci.md

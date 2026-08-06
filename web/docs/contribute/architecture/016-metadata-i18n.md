@@ -172,7 +172,7 @@ many tools) stay isolated.
   Both sides ship `.po`-editable catalogs (via `msgunfmt` / Poedit) or
   the same English-source convention, so translators see one source
   artifact across the stack.
-- **Adding a locale is one `make kapi-i18n-translations` run + commit.**
+- **Adding a locale is one `make l10n` run + commit.**
   No tool registration changes, no schema edits.
 - **Plugins contribute their own catalogs.** The platform does
   not need a centralized plugin-translation database — each plugin

@@ -472,7 +472,7 @@ func TestSendNotification(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // TestRenderAllTemplatesAllLocales renders every template in every embedded
-// locale (en + the localized variant sets produced by `make l10n-emails`)
+// locale (en + the localized variant sets produced by `make l10n`)
 // and asserts the render succeeds with no unexecuted template tokens left
 // in the body or subject. It deliberately does not assert any particular
 // translation text: a source change whose seed hasn't caught up regenerates

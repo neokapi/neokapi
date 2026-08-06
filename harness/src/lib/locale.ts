@@ -2,7 +2,7 @@
  * Locale dimension of the harness — see DemoManifest.locales in src/types.ts.
  *
  * The English narration in demo.yaml is the master; a locale overlay —
- * loaded from the GENERATED demo.<locale>.yaml sidecar (make l10n-demos) —
+ * loaded from the GENERATED demo.<locale>.yaml sidecar (make l10n) —
  * re-voices scenes per locale. The default locale ("en") is fully backwards
  * compatible: no suffixes anywhere, byte-identical behavior to the
  * pre-locale harness. Non-default locales suffix every derived artifact:
@@ -66,7 +66,7 @@ export function localizeManifest(m: DemoManifest, locale: string): DemoManifest 
   const overlay = m.locales?.[locale];
   if (!overlay) {
     throw new Error(
-      `demo ${m.id}: no ${locale} narration overlay — generate the demo.${locale}.yaml sidecar with 'make l10n-demos'`,
+      `demo ${m.id}: no ${locale} narration overlay — generate the demo.${locale}.yaml sidecar with 'make l10n'`,
     );
   }
   const byId = new Map(overlay.narration.map((o) => [o.id, o] as const));

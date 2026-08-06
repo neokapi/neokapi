@@ -92,7 +92,7 @@ export interface DemoManifest {
    * NOT authored in demo.yaml (an inline `locales:` block is rejected at
    * load time). Overlays are populated by loadManifest from GENERATED
    * sidecar files — `demo.<locale>.yaml` next to demo.yaml, produced by the
-   * dogfood l10n pipeline (`make l10n-demos`, content memory-driven; see the
+   * dogfood l10n pipeline (`make l10n`, content memory-driven; see the
    * kapi-demos entry in the root kapi.yaml). Never hand-edit a
    * sidecar: fix the content memory seed
    * (.kapi/memory/demo-narration-<lang>.memory.json) and regenerate.
