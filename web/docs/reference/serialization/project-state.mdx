@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: Project state
-description: The committed unit-state record under .kapi/state/ — JSON Lines, one shard per document, one line per unit — the working set that stages decisions until kapi commit, and the unit state fields.
+description: The committed unit-state record under .kapi/state/ — JSON Lines, one shard per document, one line per unit — the working set that stages changes until kapi commit, and the unit state fields.
 keywords:
   [
     project state,
@@ -9,7 +9,7 @@ keywords:
     jsonl,
     kapi-project-state,
     review,
-    decisions,
+    unit state,
     approval,
     workflow,
   ]
@@ -17,7 +17,7 @@ keywords:
 
 # Project state (`.kapi/state/*.jsonl`)
 
-Project state records **workflow decisions about units**: what has been
+Project state records **where each unit stands**: what has been
 reviewed, what was approved and by whom, what status a target has reached. It
 is the artifact that lets a review survive a fresh clone.
 
@@ -26,20 +26,20 @@ Implemented in Go at
 
 ## The working set stages, the record commits
 
-A decision is recorded into a **working set** — the unit-state tables of
+A change is recorded into a **working set** — the unit-state tables of
 [`.kapi/work/store.db`](/kapi/project-store) — and stays there until `kapi commit`
 materializes it into the committed record under `.kapi/state/`. The model is
-deliberately the one you already know from git: decisions behave like staged
+deliberately the one you already know from git: unit state behaves like staged
 changes, and you publish deliberately. `kapi status` reports what is staged, so
 nothing is lost silently.
 
 The consequences follow from that:
 
 - The working set is a derived index over the record and can be discarded. Only
-  **uncommitted** decisions are lost — exactly like uncommitted changes.
+  **uncommitted** state is lost — exactly like uncommitted changes.
 - Committing is a no-op when nothing changed, which keeps a CI step from
   producing an empty commit.
-- A server-backed project has a different sink for the same decisions:
+- A server-backed project has a different sink for the same record:
   `kapi push` sends them to the remote instead of writing shards.
 
 ## One shard per document
@@ -58,8 +58,8 @@ scope, each line a single unit:
 ```
 
 **JSON Lines rather than one document**, because the record is appended to and
-diffed far more often than it is read whole: a line per unit makes recording a
-decision a one-line diff instead of a rewrite of every byte. **Sharded per
+diffed far more often than it is read whole: a line per unit makes recording an
+approval a one-line diff instead of a rewrite of every byte. **Sharded per
 document** for the same reason at a larger grain — editing the documentation
 does not rewrite the shard holding the interface strings, and two branches
 touching unrelated documents do not conflict on sight.
@@ -71,7 +71,7 @@ must never be silently discarded.
 
 Shard filenames are *derived* from the document scope, not taken from it. A
 scope is the document's resolved **key**, never its path — so renaming a file
-does not orphan its decisions — and deriving the filename keeps an opaque key
+does not orphan its state — and deriving the filename keeps an opaque key
 from escaping the directory.
 
 ## Why the record is committed and the store is not
@@ -107,15 +107,15 @@ the version rides the single-document serialization of the same records.
 Two fields carry most of the design:
 
 **`targetHash` does not duplicate the translation.** It is a hash of the text
-the decision was made about, so editing that text invalidates a stale approval
+the review was made against, so editing that text invalidates a stale approval
 rather than silently carrying it forward. The translation itself lives in the
 deliverable; this record only blesses it.
 
-**`aiReview` is advisory and is never a decision.** It informs the review queue
+**`aiReview` is advisory and never a review outcome.** It informs the review queue
 with a score and findings. Where an AI pre-review justified an automatic
 approval, that approval is recorded separately in `decision`, with `by`
 carrying the `ai/<model>` identity — so a machine judgement and a machine
-decision remain distinguishable in the record.
+approval remain distinguishable in the record.
 
 ## What is deliberately not in it
 

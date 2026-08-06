@@ -87,13 +87,13 @@ coordinates:                      # the taxonomy is the project's own
 
 profiles:
   - when: {}                      # the base: matches every point
-    voice: .kapi/profiles/base/voice.yaml
+    voice: .kapi/voice.yaml       # the flat default — this profile has no directory
   - when: { product: bowrain }
-    voice: .kapi/profiles/bowrain/voice.yaml
+    voice: .kapi/profiles/bowrain/voice.yaml   # == the conventional location
     terms: .kapi/profiles/bowrain/terms.json   # optional; falls back to defaults.terms_source
   - when: { product: bowrain, market: de }
-    voice: .kapi/bowrain-de.yaml
-    terms: .kapi/profiles/de/terms.json
+    voice: .kapi/profiles/de-bowrain/voice.yaml
+    terms: .kapi/profiles/de-bowrain/terms.json
 
 content:
   - name: docs

@@ -202,9 +202,9 @@ coordinates:
 
 profiles:
   - when: {}
-    voice: .kapi/profiles/base/voice.yaml
+    voice: .kapi/voice.yaml
   - when: { product: bowrain }
-    voice: .kapi/profiles/bowrain/voice.yaml
+    # no `voice:` — .kapi/profiles/bowrain/voice.yaml answers by convention
 
 content:
   - name: docs

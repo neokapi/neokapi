@@ -397,9 +397,13 @@ func (p *KapiProject) validateProfiles() error {
 		if err := p.validatePoint(fmt.Sprintf("profiles[%d]: when", i), prof.When); err != nil {
 			return err
 		}
-		if prof.Voice == nil && prof.Terms == "" {
-			return fmt.Errorf("profiles[%d]: a profile must bind a voice, terms, or both", i)
-		}
+		// A profile that binds neither is not empty: its directory,
+		// `.kapi/profiles/<name>/`, is the binding, and a project that keeps
+		// its overrides there should not have to restate every one of them in
+		// the recipe. Which means a `when:` alone is a complete profile, and
+		// the load-time check that used to demand a binding cannot be made
+		// here — whether the directory exists is a question for the
+		// filesystem, and this validates the document.
 		if err := prof.Voice.validate(fmt.Sprintf("profiles[%d].voice", i)); err != nil {
 			return err
 		}

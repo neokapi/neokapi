@@ -438,9 +438,10 @@ func TestValidate_Profiles(t *testing.T) {
 			profiles: []ProfileBinding{{When: map[string]string{"product": "kapi"}, Terms: "kapi-terms.json"}},
 		},
 		{
-			name:     "a profile must bind something",
+			// Its directory under .kapi/profiles/ is the binding, which the
+			// recipe does not have to restate and this validation cannot see.
+			name:     "a profile binding nothing is bound by convention",
 			profiles: []ProfileBinding{{When: map[string]string{"product": "kapi"}}},
-			wantErr:  "profiles[0]: a profile must bind a voice, terms, or both",
 		},
 		{
 			name: "a profile voice takes exactly one source",
@@ -578,6 +579,30 @@ func TestKapiProject_CollectionForPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, proj.CollectionForPath(tt.path))
+		})
+	}
+}
+
+// A profile's name on disk is its `when:` values, in alphabetical order of the
+// axes — because `when:` is a mapping, and a directory that renamed itself when
+// someone reordered two lines would be a directory nothing could rely on.
+func TestProfileBinding_ConventionalName(t *testing.T) {
+	tests := []struct {
+		name string
+		when map[string]string
+		want string
+	}{
+		{"one axis is just its value", map[string]string{"product": "bowrain"}, "bowrain"},
+		{"two axes join alphabetically by axis",
+			map[string]string{"product": "bowrain", "market": "de"}, "de-bowrain"},
+		{"authored order does not matter",
+			map[string]string{"market": "de", "product": "bowrain"}, "de-bowrain"},
+		{"the base profile has no directory", nil, ""},
+		{"an empty when has no directory", map[string]string{}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ProfileBinding{When: tt.when}.ConventionalName())
 		})
 	}
 }

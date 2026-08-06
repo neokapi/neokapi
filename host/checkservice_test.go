@@ -173,6 +173,43 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 		assert.Equal(t, conv, src)
 	})
 
+	// A profile's own directory answers before the project default does — the
+	// recipe binds the point, the filesystem holds what that point overrides.
+	t.Run("a matched profile is answered by its own directory", func(t *testing.T) {
+		root := t.TempDir()
+		conv := filepath.Join(root, project.RelStatePath(BrandVoiceConventionalName))
+		require.NoError(t, os.MkdirAll(filepath.Dir(conv), 0o755))
+		require.NoError(t, os.WriteFile(conv, profileYAML, 0o644))
+
+		profileVoice := filepath.Join(root,
+			project.RelStatePath(project.ProfilesDirName, "bowrain", BrandVoiceConventionalName))
+		require.NoError(t, os.MkdirAll(filepath.Dir(profileVoice), 0o755))
+		require.NoError(t, os.WriteFile(profileVoice, []byte("id: bowrain\nname: Bowrain Style\n"), 0o644))
+
+		proj := &project.KapiProject{
+			Coordinates: project.Coordinates{"product": {{ID: "bowrain"}}},
+			Profiles:    []project.ProfileBinding{{When: map[string]string{"product": "bowrain"}}},
+			Content: []project.ContentCollection{{
+				Name:    "app",
+				Context: map[string]string{"product": "bowrain"},
+				Items:   []project.ContentItem{{Path: "src/*.json"}},
+			}},
+		}
+		proj.Defaults.BrandVoice = &project.BrandVoiceBinding{ProfileFile: ".kapi/voice.yaml"}
+
+		p, src, found, err := app.ResolveBrandProfile(ctx, proj, root, BrandResolveOptions{Collection: "app"})
+		require.NoError(t, err)
+		require.True(t, found)
+		assert.Equal(t, "Bowrain Style", p.Name, "the profile's directory outranks defaults.brand_voice")
+		assert.Equal(t, profileVoice, src)
+
+		// A point no profile claims still gets the project default.
+		p, _, found, err = app.ResolveBrandProfile(ctx, proj, root, BrandResolveOptions{})
+		require.NoError(t, err)
+		require.True(t, found)
+		assert.Equal(t, "House Style", p.Name)
+	})
+
 	// The context directory outranks the root, reversing the old order: `.kapi/`
 	// is committed now, so the conventional home and the reviewed home are the
 	// same directory.
