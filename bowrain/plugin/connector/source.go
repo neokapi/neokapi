@@ -1080,6 +1080,21 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 				absSource := c.project.ResolvePath(itemName)
 				formatName := c.detectFormat(absSource)
 				if formatName == "" {
+					// The server has translations for an item this checkout
+					// cannot read. Skipping was silent, and the cursor advanced
+					// past them anyway — the server's stream is forward-only, so
+					// those translations were never offered again and were gone.
+					//
+					// It is not a rare shape: a machine without the plugin that
+					// provides the format (a colleague without okapi-bridge, a CI
+					// image that ships fewer plugins) reads every Office or IDML
+					// item as format-less and pulls "500 blocks, wrote 0 files"
+					// with a clean exit. Joining the write failures makes it what
+					// it is — a failure that holds the cursor, so the pull retries
+					// once the format can be read.
+					writeErrs = append(writeErrs, fmt.Errorf(
+						"%s (%s): no format is registered for this file — the recipe names none and no plugin claims its extension, so its translations cannot be written",
+						itemName, loc))
 					continue
 				}
 
