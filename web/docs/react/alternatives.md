@@ -21,7 +21,7 @@ The incumbent. Uses developer-authored keys and a `t(key)` / `<Trans>` runtime.
 | Format            | JSON (nested or flat); XLIFF via external conversion | KBF with structural context, placeholders, plural forms |
 | Runtime cost      | Ships the i18next runtime (interpolation, plural resolution, resource store); dict loaded at runtime | Inline mode: zero runtime (~2 kB if you use ICU/plurals); runtime mode: one dict lookup |
 
-Migrating from react-i18next typically means dropping the `t()` / `<Trans>` wrappers and re-running the extract against the bare JSX. Existing translations can be loaded as-is if you key them by the same source text; otherwise it's a one-time re-translation pass through your TM.
+Migrating from react-i18next typically means dropping the `t()` / `<Trans>` wrappers and re-running the extract against the bare JSX. Existing translations can be loaded as-is if you key them by the same source text; otherwise it's a one-time re-translation pass through your content memory.
 
 ## FormatJS (react-intl)
 

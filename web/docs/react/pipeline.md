@@ -172,7 +172,7 @@ kapi pseudo-translate i18n/
 The `.kbf.json` is the exchange format. A translator's workflow might be:
 
 1. Open the `i18n/` archive (or the individual `.kbf.json` files) in their CAT tool.
-2. Translate every block, leveraging their existing TM.
+2. Translate every block, leveraging their existing content memory.
 3. Save back to the same `i18n/`.
 
 The context a block carries (its file and line, its element, the translator note, the inline element tokens) renders as rich context in modern CAT tools.

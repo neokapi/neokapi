@@ -89,7 +89,7 @@ const LazyExplorer = React.lazy(async () => {
               Sample projects (.kapi)
             </h2>
             <p className="kapi-pgx__group-sub">
-              A recipe + content + a seeded TM. Run the offline funnel.
+              A recipe + content + a seeded content memory. Run the offline funnel.
             </p>
             <ul className="kapi-pgx__list">
               {PROJECT_SAMPLES.map((s) => (
