@@ -340,6 +340,16 @@ func (m *summonsAuthStore) GetWorkspace(context.Context, string) (*platauth.Work
 	return m.workspace, nil
 }
 
+// GetWorkspaceBySlug is what the job-failure summons falls back to: the
+// extraction queue's table has no workspace id, so its events carry the slug
+// alone.
+func (m *summonsAuthStore) GetWorkspaceBySlug(_ context.Context, slug string) (*platauth.Workspace, error) {
+	if m.workspace != nil && m.workspace.Slug == slug {
+		return m.workspace, nil
+	}
+	return nil, assertNoUser
+}
+
 // Close satisfies the store lifecycle the server's shutdown walks.
 func (m *summonsAuthStore) Close() error { return nil }
 

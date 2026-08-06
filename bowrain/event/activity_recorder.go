@@ -142,7 +142,8 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 	case platev.EventFlowFailed:
 		a.Type = bstore.ActivityFlowFailed
 		a.EntityType = "flow"
-		a.Summary = "flow failed"
+		a.EntityID = ev.Data["job_id"]
+		a.Summary = flowFailedSummary(ev.Data)
 
 	// Extraction
 	case platev.EventExtractionCompleted:
@@ -239,6 +240,30 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 // blocks", so the activity feed never enumerates every pushed path. When those
 // fields are absent (an older event shape), it falls back to counting the
 // comma-joined "items" list rather than embedding it verbatim.
+// flowFailedSummary is the line the activity feed shows for a failed job.
+//
+// It used to read "flow failed" and nothing more, which was accurate and
+// useless: the feed's whole job is to let someone scan it and know whether to
+// look closer. The event carries the kind, what was being worked on, and the
+// recorded reason, so the summary says all three.
+func flowFailedSummary(data map[string]string) string {
+	kind := data["job_kind"]
+	if kind == "" {
+		kind = "background"
+	}
+	s := kind + " job failed"
+	if item := data["item"]; item != "" {
+		s += ": " + item
+		if locale := data["target_locale"]; locale != "" {
+			s += " → " + locale
+		}
+	}
+	if reason := data["error"]; reason != "" {
+		s += " — " + reason
+	}
+	return s
+}
+
 func pushSummary(data map[string]string) string {
 	files := atoiOr(data["files_count"], -1)
 	if files < 0 {
