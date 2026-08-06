@@ -805,6 +805,8 @@ export {
   formatRelative as brandHubFormatRelative,
   // Concepts section — framework concept UI (R4) on @neokapi/concept-ui.
   ConceptsSection,
+  PendingConceptChanges,
+  usePendingConceptChanges,
   ConceptStorySection,
   ConceptEditDialog,
   createRestConceptSource,
@@ -822,6 +824,7 @@ export {
 export type {
   BrandHubProps,
   ConceptsSectionProps,
+  PendingConceptChangesProps,
   ConceptStorySectionProps,
   ConceptEditDialogProps,
   RestConceptSourceOptions,

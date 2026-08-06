@@ -2,7 +2,7 @@
 // filterable list of concepts; each row reads as "what we call this, per locale"
 // with a status chip. Clicking a row opens that concept's view. There is no
 // global graph here — the graph is a local widget inside the concept view.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Input,
   Select,
@@ -42,6 +42,13 @@ export interface ConceptListProps {
   maxLocaleChips?: number;
   /** When set, scope each row's locale chips to these locales (Active Filter). */
   localeScope?: string[];
+  /**
+   * Replaces the empty state when the list is empty and *no filter is active* —
+   * the true zero-state, where "no concepts match" is the wrong thing to say.
+   * A filtered-to-empty list always keeps the built-in hint, because there the
+   * fix really is to adjust the filters.
+   */
+  emptyState?: ReactNode;
   className?: string;
 }
 
@@ -51,6 +58,7 @@ export function ConceptList({
   initialQuery,
   maxLocaleChips = 4,
   localeScope,
+  emptyState,
   className,
 }: ConceptListProps) {
   const caps = useMemo(() => resolveCapabilities(source), [source]);
@@ -71,6 +79,10 @@ export function ConceptList({
     if (market !== ALL) q.market = market;
     return q;
   }, [debouncedText, status, src, domain, market]);
+
+  // Whether the caller has narrowed the list — an empty result then means "no
+  // match", not "nothing here".
+  const filtered = Object.keys(query).length > 0;
 
   const result = useResource(() => source.listConcepts(query), [source, query]);
   const markets = useResource<Market[]>(
@@ -166,11 +178,15 @@ export function ConceptList({
       {result.loading && !result.data ? (
         <ConceptListSkeleton />
       ) : concepts.length === 0 ? (
-        <EmptyHint
-          icon={<Library />}
-          title="No concepts match"
-          description="Adjust the search or filters to find a concept."
-        />
+        emptyState && !filtered ? (
+          emptyState
+        ) : (
+          <EmptyHint
+            icon={<Library />}
+            title="No concepts match"
+            description="Adjust the search or filters to find a concept."
+          />
+        )
       ) : (
         <ul className="divide-y overflow-hidden rounded-xl border bg-card">
           {concepts.map((c) => (

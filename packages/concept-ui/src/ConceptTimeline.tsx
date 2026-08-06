@@ -122,8 +122,7 @@ export function ConceptTimeline({
 
       {!error && model.derived && model.eventCount > 0 && (
         <p className="mt-4 border-t pt-3 text-[11px] text-muted-foreground">
-          Derived from the local terms — status and relation changes inferred from validity
-          windows.
+          Derived from the local terms — status and relation changes inferred from validity windows.
         </p>
       )}
     </ConceptSection>
