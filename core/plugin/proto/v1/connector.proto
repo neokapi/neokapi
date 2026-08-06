@@ -128,6 +128,12 @@ message PushResponse {
   // Blocks actually uploaded after diff negotiation. blocks_pushed counts the
   // locally-changed candidates; the two disagreeing loudly is the point.
   int32 blocks_uploaded = 7;
+  // Terminology travels with the push; the fold's outcome is reported so
+  // concepts quietly not arriving is impossible to miss.
+  int32 concepts_applied = 8;
+  int32 concept_relations_applied = 9;
+  int32 concepts_proposed = 10;
+  string changeset_url = 11;
 }
 
 // ---------------------------------------------------------------------------

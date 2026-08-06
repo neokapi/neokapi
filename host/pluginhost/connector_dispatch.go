@@ -113,6 +113,14 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 		if err != nil {
 			return fmt.Errorf("daemon Push: %w", err)
 		}
+		if n := resp.GetConceptsApplied() + resp.GetConceptsProposed(); n > 0 {
+			fmt.Printf("terminology: %d concept(s) applied, %d relation(s), %d proposed",
+				resp.GetConceptsApplied(), resp.GetConceptRelationsApplied(), resp.GetConceptsProposed())
+			if u := resp.GetChangesetUrl(); u != "" {
+				fmt.Printf(" — review: %s", u)
+			}
+			fmt.Println()
+		}
 		fmt.Printf("pushed %d blocks (%d words) across %d files; uploaded: %d; assets: %d; push_id: %s\n",
 			resp.GetBlocksPushed(), resp.GetWordCount(), resp.GetFilesScanned(), resp.GetBlocksUploaded(), resp.GetAssetsPushed(), resp.GetPushId())
 		return nil

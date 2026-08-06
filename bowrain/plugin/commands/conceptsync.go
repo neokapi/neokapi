@@ -734,7 +734,13 @@ func PushProjectConcepts(ctx context.Context, proj *bproject.Project, dryRun boo
 func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*PushConceptsResult, error) {
 	client, err := bconn.NewKnowledgeClient(proj)
 	if err != nil {
-		return nil, nil
+		// Not workspace-claimed is the one legitimate silent skip; any other
+		// failure to build the client is terminology quietly not arriving —
+		// the exact failure this path exists to make loud.
+		if errors.Is(err, bconn.ErrNotWorkspaceClaimed) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("terminology client: %w", err)
 	}
 	// No guard on the baseline. It used to return here, which is what kept
 	// terminology out of a workspace that had never been pulled from: a fresh
