@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -255,11 +256,37 @@ func TestReviewRequestMailRespectsPreference(t *testing.T) {
 	assert.True(t, h.srv.wantsTaskEmail(context.Background(), "owner", summonsWSSlug))
 }
 
-// TestChangeSetReviewPath pins the link the summons hands out. The web hub
-// serves /:ws/context/changes/:id — the sub-nav calls the surface "Changes" and
-// the URL names it. A summons pointing at /:ws/changesets/:id 404s.
+// TestChangeSetReviewPath pins the link every summons hands out — the review
+// URL in the request email and the LinkURL on each reviewer's notification —
+// against the route the web app actually serves.
+//
+// The assertion reads the route table rather than restating a string. A link
+// that is merely self-consistent is exactly what shipped last time: the CLI
+// built /<ws>/changesets/<id>, which has never been a route, so the one thing
+// pointing at a real change-set was wrong and following it was indistinguishable
+// from nothing having happened. Restating my own belief here would leave the
+// server free to reintroduce that bug through the other door — the summons
+// reaches further than the CLI does, and reaches people who cannot debug a 404.
+//
+// bowrain/plugin/commands.TestChangesetURLMatchesTheWebRoute makes the same
+// assertion for the CLI's producer of this path. Both must fail on a rename.
 func TestChangeSetReviewPath(t *testing.T) {
 	assert.Equal(t, "/bowrain-hq/context/changes/FCfv5QTy", changeSetReviewPath("bowrain-hq", "FCfv5QTy"))
+
+	// The web app's route table is the authority for that path. Read it: a
+	// rename on the frontend must break this test, not the reviewer's click.
+	routes := filepath.Join("..", "packages", "app", "src", "routes", "index.tsx")
+	src, err := os.ReadFile(routes)
+	require.NoError(t, err,
+		"the web route table is the authority for the summons link; if it moved, point this test at it")
+	// assert.Contains on a whole route table prints the whole route table, and a
+	// test whose failure is forty pages of unrelated TSX is one people learn to
+	// scroll past. Reduce to a bool first so the failure is the sentence.
+	table := string(src)
+	assert.True(t, strings.Contains(table, `path: "changes/$id"`),
+		"%s no longer declares path: \"changes/$id\" — the summons links /<ws>/context/changes/<id>, so that link now 404s for every reviewer it reaches", routes)
+	assert.False(t, strings.Contains(table, `path: "changesets/$id"`),
+		"%s declares path: \"changesets/$id\" — the route the summons wrongly used before; if it is back, changeSetReviewPath must be revisited", routes)
 }
 
 // ---------------------------------------------------------------------------
