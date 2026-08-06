@@ -370,6 +370,14 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
 		changesetEvent(knowledge.EventChangeSetSubmitted, wsID, cs.ID, actor),
 	})
+
+	// Summon the reviewers. Submitting used to end at the event bus, which
+	// reaches the audit chain and nothing a person looks at — so a change-set
+	// pushed from the CLI sat in review with no task, no notification, and no
+	// mail, discoverable only by knowing its id. See changeset_summons.go.
+	governed, _ := knowledge.ChangeSetIsGoverned(changeSetOpValues(ops))
+	s.summonChangeSetReviewers(c, cs, len(ops), governed)
+
 	return s.refreshedChangeSet(c, wsID, cs.ID)
 }
 
@@ -423,6 +431,7 @@ func (s *Server) HandleApproveChangeSet(c echo.Context) error {
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
 		changesetEvent(knowledge.EventChangeSetApproved, wsID, cs.ID, actor),
 	})
+	s.closeChangeSetReviewTasks(ctx, wsID, cs.ID, actor)
 	return s.refreshedChangeSet(c, wsID, cs.ID)
 }
 
@@ -475,6 +484,10 @@ func (s *Server) HandleRejectChangeSet(c echo.Context) error {
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
 		changesetEvent(knowledge.EventChangeSetRejected, wsID, cs.ID, actor),
 	})
+	// A rejection reopens the change-set as a draft, so the review is over even
+	// though the change-set lives on: close the task rather than leave the
+	// reviewer holding work that is back with its author.
+	s.closeChangeSetReviewTasks(ctx, wsID, cs.ID, actor)
 	return s.refreshedChangeSet(c, wsID, cs.ID)
 }
 
@@ -553,6 +566,7 @@ func (s *Server) HandleMergeChangeSet(c echo.Context) error {
 	}
 
 	s.publishKnowledgeEvents(c, res.Events)
+	s.closeChangeSetReviewTasks(ctx, wsID, cs.ID, actor)
 	return c.JSON(http.StatusOK, res)
 }
 
@@ -592,6 +606,7 @@ func (s *Server) HandleAbandonChangeSet(c echo.Context) error {
 
 	pilotEvents = append(pilotEvents, changesetEvent(knowledge.EventChangeSetAbandoned, wsID, cs.ID, actor))
 	s.publishKnowledgeEvents(c, pilotEvents)
+	s.closeChangeSetReviewTasks(ctx, wsID, cs.ID, actor)
 	return s.refreshedChangeSet(c, wsID, cs.ID)
 }
 

@@ -339,7 +339,22 @@ func (d *NotificationDispatcher) DispatchToProject(ctx context.Context, projectI
 		}
 	}
 
+	d.DispatchToUsers(ctx, userIDs, prototype)
+}
+
+// DispatchToUsers creates and pushes one copy of a prototype notification per
+// named user. It is the project-free half of DispatchToProject: a workspace-scoped
+// summons (a governed change-set waiting on its reviewers) has an explicit
+// recipient list and no project to resolve members from, so it names the users
+// directly rather than going through the project target function.
+func (d *NotificationDispatcher) DispatchToUsers(ctx context.Context, userIDs []string, prototype bstore.Notification) {
+	if d.store == nil {
+		return
+	}
 	for _, userID := range userIDs {
+		if userID == "" {
+			continue
+		}
 		n := prototype
 		n.UserID = userID
 		if err := d.store.Create(ctx, &n); err != nil {
