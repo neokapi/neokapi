@@ -4,10 +4,10 @@
 // verdicts render as a small thread.
 //
 // One workspace is exempt: the one with nobody else in it. There the server
-// accepts the author's own verdict and marks it, and this panel says so both
-// before the decision (the note above the buttons) and after it (the badge on
-// the verdict), because an approval nobody else read must not be able to pass
-// for one that someone did.
+// admits the author's own verdict on the `solo_owner` basis, and this panel
+// says so both before the decision (the note above the buttons) and after it
+// (a badge rendered from the recorded basis), because an approval nobody else
+// read must not be able to pass for one that someone did.
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, Card, CardContent, Textarea, cn } from "@neokapi/ui-primitives";
@@ -77,11 +77,11 @@ export function ReviewsPanel({ changeset }: ReviewsPanelProps) {
                       {r.verdict === "approve" ? "approved" : "rejected"} ·{" "}
                       {formatRelative(r.created_at)}
                     </span>
-                    {r.self_approved_solo && (
+                    {r.basis === "solo_owner" && (
                       <Badge
                         variant="outline"
                         className="gap-1 border-warning/40 text-[10px] text-warning"
-                        title="Recorded by the author because the workspace had no other reviewer"
+                        title="Admitted on the sole-owner basis: recorded by the author because the workspace had no other reviewer"
                       >
                         <Shield className="size-3" />
                         Sole reviewer

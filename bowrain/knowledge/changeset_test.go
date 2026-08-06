@@ -215,6 +215,34 @@ func TestValidateStatusTransition(t *testing.T) {
 	}
 }
 
+// TestReviewBasisVocabulary pins the two properties the merge gate leans on:
+// which values are recognized at all, and which of them waive the second pair
+// of eyes. A new basis added without deciding the second question would
+// otherwise inherit an answer by accident.
+func TestReviewBasisVocabulary(t *testing.T) {
+	tests := []struct {
+		basis            ReviewBasis
+		valid            bool
+		admitsSelfReview bool
+	}{
+		{BasisPeer, true, false},
+		{BasisSoloOwner, true, true},
+		{"", false, false},
+		{"quorum", false, false},     // not yet a basis; must not be honored early
+		{"SOLO_OWNER", false, false}, // the vocabulary is case-sensitive
+	}
+
+	for _, tc := range tests {
+		t.Run(string(tc.basis), func(t *testing.T) {
+			assert.Equal(t, tc.valid, tc.basis.IsValid())
+			assert.Equal(t, tc.admitsSelfReview, tc.basis.AdmitsSelfReview())
+		})
+	}
+
+	assert.False(t, BasisPeer.AdmitsSelfReview(),
+		"the default basis must never be the one that waives separation of duties")
+}
+
 func TestCanMerge(t *testing.T) {
 	const author = "alice"
 	const reviewer = "bob"
@@ -243,28 +271,49 @@ func TestCanMerge(t *testing.T) {
 			wantErr:  true,
 		},
 		{
-			name:     "governed approved but only self-approval",
+			// An unset basis is not a permissive one: a self-review whose
+			// authority nobody recorded is refused, not waved through.
+			name:     "governed approved but only self-approval with no basis",
 			cs:       approvedCS,
 			governed: true,
 			reviews:  []ChangeSetReview{{Reviewer: author, Verdict: VerdictApprove}},
 			wantErr:  true,
 		},
 		{
-			// The one self-approval the gate accepts: recorded by the server
-			// when the workspace had nobody else who could review.
-			name:     "governed approved by a marked solo self-approval",
+			// The one self-review the gate accepts today: recorded by the
+			// server when the workspace had nobody else who could review.
+			name:     "governed approved on the solo_owner basis",
 			cs:       approvedCS,
 			governed: true,
-			reviews:  []ChangeSetReview{{Reviewer: author, Verdict: VerdictApprove, SelfApprovedSolo: true}},
+			reviews:  []ChangeSetReview{{Reviewer: author, Verdict: VerdictApprove, Basis: BasisSoloOwner}},
 			wantErr:  false,
 		},
 		{
-			// A rejection is never a merge licence, marked or not.
-			name:     "governed with a marked solo rejection",
+			// A self-review on the ordinary basis is the case separation of
+			// duties exists to refuse.
+			name:     "governed self-approval on the peer basis",
 			cs:       approvedCS,
 			governed: true,
-			reviews:  []ChangeSetReview{{Reviewer: author, Verdict: VerdictReject, SelfApprovedSolo: true}},
+			reviews:  []ChangeSetReview{{Reviewer: author, Verdict: VerdictApprove, Basis: BasisPeer}},
 			wantErr:  true,
+		},
+		{
+			// A rejection is never a merge licence, whatever admitted it.
+			name:     "governed rejection on the solo_owner basis",
+			cs:       approvedCS,
+			governed: true,
+			reviews:  []ChangeSetReview{{Reviewer: author, Verdict: VerdictReject, Basis: BasisSoloOwner}},
+			wantErr:  true,
+		},
+		{
+			// The basis waives the second reviewer, never the first: a
+			// solo_owner basis on someone else's review is simply a peer
+			// review, and still counts.
+			name:     "governed foreign approval on the solo_owner basis",
+			cs:       approvedCS,
+			governed: true,
+			reviews:  []ChangeSetReview{{Reviewer: reviewer, Verdict: VerdictApprove, Basis: BasisSoloOwner}},
+			wantErr:  false,
 		},
 		{
 			// A machine-authored change-set has an author no human equals, so

@@ -228,8 +228,8 @@ func TestSoloReviewerCanApproveOwnChangeSet(t *testing.T) {
 	require.Len(t, reviews, 1)
 	assert.Equal(t, owner, reviews[0].Reviewer)
 	assert.Equal(t, knowledge.VerdictApprove, reviews[0].Verdict)
-	assert.True(t, reviews[0].SelfApprovedSolo,
-		"a self-approval that was allowed must say why it was allowed")
+	assert.Equal(t, knowledge.BasisSoloOwner, reviews[0].Basis,
+		"a self-review that was allowed must record the rule that allowed it")
 
 	// The merge gate reads the same marker, so the change-set is mergeable —
 	// which is the point of allowing the review at all.
@@ -340,8 +340,8 @@ func TestMachineAuthoredChangeSetIsReviewableByTheOwner(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, reviews, 1)
 	assert.Equal(t, owner, reviews[0].Reviewer)
-	assert.False(t, reviews[0].SelfApprovedSolo,
-		"an ordinary review of machine-authored work is not a solo self-approval")
+	assert.Equal(t, knowledge.BasisPeer, reviews[0].Basis,
+		"an ordinary review of machine-authored work is admitted on the peer basis")
 
 	approved, err := h.fake.GetChangeSet(ctx, kgTestWS, created.ID)
 	require.NoError(t, err)

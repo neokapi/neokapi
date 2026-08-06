@@ -197,15 +197,30 @@ attempt: a second eligible reviewer — a new admin, a role override granting
 members review rights — ends the exception immediately, and nothing is cached
 to go stale. It fails closed on an unreadable membership list.
 
-The override is audited rather than silent. The review row carries
-`self_approved_solo`, the audit event carries `self_approved_solo=true`, the
-merge gate accepts that one marked self-approval and no other, and the reviews
-panel labels the verdict "sole reviewer" in the timeline. The merge gate reads
-the stored marker rather than re-deriving eligibility, because what mattered is
-who *could have* reviewed at the time of the verdict: hiring a second reviewer
-does not retroactively unreview a merged change-set, and losing everyone does
-not retroactively excuse a self-approval that was refused when it was
-attempted.
+**Every verdict records the basis it was admitted under.** The review row and
+the audit event carry a `review_basis`: `peer` when someone other than the
+author reviewed, `solo_owner` for the case above. It is a vocabulary rather
+than a flag because the interesting question about a review is not "was this
+one circumstance true" but "on what authority did this count" — so a future
+governance variant (a quorum threshold, a delegated approver) is a new value,
+not another boolean column with undefined precedence against the existing ones.
+
+The basis is what makes the override audited rather than silent. The merge gate
+admits a self-review only when its basis says so (`ReviewBasis.AdmitsSelfReview`,
+today just `solo_owner`), and the reviews panel labels such a verdict "sole
+reviewer" in the timeline. Two properties are deliberate:
+
+- **Self-ness is derived, never stored.** Whether a review is a self-review is
+  `reviewer == created_by`, asked at the moment it matters. Only the basis is
+  persisted, so the stored row and the identities cannot come to disagree.
+- **The basis is read as stored, never re-derived.** What mattered is who
+  *could have* reviewed at the time of the verdict. Hiring a second reviewer
+  does not retroactively unreview a merged change-set, and losing everyone does
+  not retroactively excuse a self-approval that was refused when it was
+  attempted.
+
+An unset or unrecognized basis reads as `peer` — a value the deployment does not
+understand must never be taken to waive separation of duties.
 
 ### The summons
 

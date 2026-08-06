@@ -83,7 +83,7 @@ export const WithSoloApproval: Story = {
           reviewer: "sam",
           verdict: "approve",
           comment: "No one else in the workspace to ask.",
-          self_approved_solo: true,
+          basis: "solo_owner",
           created_at: now,
         },
       ],

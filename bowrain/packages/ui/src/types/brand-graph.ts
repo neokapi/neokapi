@@ -374,6 +374,16 @@ export const CHANGE_SET_STATUSES: ChangeSetStatus[] = [
 /** The outcome a reviewer records (knowledge.ReviewVerdict). */
 export type ReviewVerdict = "approve" | "reject";
 
+/**
+ * The governance rule under which a verdict was admitted
+ * (knowledge.ReviewBasis): `peer` when someone other than the author reviewed,
+ * `solo_owner` when the author was the workspace's owner and its only eligible
+ * reviewer. Server-set. The vocabulary is open — future governance variants
+ * (quorum, delegated, …) join as values rather than as new fields — so treat
+ * an unrecognized basis the way the server does: as no waiver at all.
+ */
+export type ReviewBasis = "peer" | "solo_owner";
+
 /** A named, reviewable draft of graph + voice edits (knowledge.ChangeSet). */
 export interface ChangeSet {
   id: string;
@@ -397,11 +407,10 @@ export interface ChangeSetReview {
   verdict: ReviewVerdict;
   comment?: string;
   /**
-   * The author recorded this verdict on their own change-set because the
-   * workspace had nobody else who could review it. Server-set; the timeline
-   * says so rather than letting it read as an ordinary approval.
+   * The rule this verdict was admitted under. The timeline renders from it, so
+   * a review nobody else read never looks like one that someone did.
    */
-  self_approved_solo?: boolean;
+  basis: ReviewBasis;
   created_at: string;
 }
 
@@ -426,9 +435,11 @@ export interface ChangeSetDetail extends ChangeSet {
   reviews: ChangeSetReview[];
   pilots: Pilot[];
   /**
-   * The viewer authored this change-set and the workspace has nobody else who
-   * could review it, so the server will accept — and mark — their own verdict.
-   * False the moment a second eligible reviewer exists.
+   * The capability signal, not a record: the viewer authored this change-set
+   * and the workspace has nobody else who could review it, so a verdict from
+   * them would be admitted on the `solo_owner` basis. False the moment a
+   * second eligible reviewer exists. What was actually admitted, and under
+   * which rule, is each review's `basis`.
    */
   solo_review: boolean;
 }

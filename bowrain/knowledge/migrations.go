@@ -18,9 +18,8 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 // The subsystem carries exactly one baseline (migrations/schema_test.go
 // enforces it), so a schema change is made by editing the baseline in place and
-// bumping its version. Version 3 added kg_changeset_reviews.self_approved_solo
-// — the marker on a verdict the author recorded because the workspace had no
-// other eligible reviewer.
+// bumping its version. Version 3 added kg_changeset_reviews.review_basis — the
+// rule under which a verdict was admitted.
 var Migrations = []storage.Migration{
 	{
 		Version:     3,
@@ -115,11 +114,12 @@ var Migrations = []storage.Migration{
 				reviewer     TEXT NOT NULL,
 				verdict      TEXT NOT NULL,
 				comment      TEXT NOT NULL DEFAULT '',
-				-- TRUE when the reviewer is also the author and the workspace
-				-- had no other member with review rights. The merge gate reads
-				-- it as the one lawful self-approval; everything else reads it
-				-- as "this was never independently reviewed".
-				self_approved_solo BOOLEAN NOT NULL DEFAULT FALSE,
+				-- The governance rule under which this verdict was admitted:
+				-- 'peer' (someone other than the author reviewed) or
+				-- 'solo_owner' (the author was the workspace's owner and its
+				-- only eligible reviewer). A vocabulary rather than one boolean
+				-- per exception, so a future variant is a new value here.
+				review_basis TEXT NOT NULL DEFAULT 'peer',
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (workspace_id, changeset_id, reviewer)
 			);
@@ -127,7 +127,7 @@ var Migrations = []storage.Migration{
 			-- already has the table, where CREATE ... IF NOT EXISTS is a no-op
 			-- and would leave the new column missing. Both are idempotent.
 			ALTER TABLE kg_changeset_reviews
-				ADD COLUMN IF NOT EXISTS self_approved_solo BOOLEAN NOT NULL DEFAULT FALSE;
+				ADD COLUMN IF NOT EXISTS review_basis TEXT NOT NULL DEFAULT 'peer';
 
 			CREATE TABLE IF NOT EXISTS kg_pilots (
 				workspace_id TEXT NOT NULL,

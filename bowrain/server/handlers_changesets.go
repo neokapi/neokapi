@@ -104,11 +104,13 @@ type ChangeSetDetailResponse struct {
 	Ops      []*knowledge.ChangeSetOp     `json:"ops"`
 	Reviews  []*knowledge.ChangeSetReview `json:"reviews"`
 	Pilots   []*knowledge.Pilot           `json:"pilots"`
-	// SoloReview is true when the caller is this change-set's author and the
-	// workspace has nobody else who could review it — so approving their own
-	// work is, for now, permitted and will be recorded as such. It is computed
-	// per request rather than stored: it is a fact about the workspace right
-	// now, and it stops being true the moment a second reviewer joins.
+	// SoloReview is the capability signal, not a record: true when the caller
+	// is this change-set's author and the workspace has nobody else who could
+	// review it, so a verdict from them would be admitted on the "solo_owner"
+	// basis. It is computed per request rather than stored — it is a fact about
+	// the workspace right now, and it stops being true the moment a second
+	// reviewer joins. What was actually admitted, and under which rule, is on
+	// each review's basis.
 	SoloReview bool `json:"solo_review"`
 }
 
@@ -414,13 +416,15 @@ func (s *Server) HandleRejectChangeSet(c echo.Context) error {
 // override, lifecycle state, the audit event) has to hold identically for both.
 // Keeping one body is what stops them from drifting apart.
 //
-// The separation-of-duties refusal stands as it always has, with one exception:
-// a workspace whose author is also its only member with review rights would
-// otherwise have no way to move a governed change-set at all. There, the owner
-// may record their own verdict, and it is marked self_approved_solo — on the
-// review row, on the audit event, and in the merge gate that later reads it. The
-// exception evaporates the moment a second eligible reviewer exists; nothing is
-// cached, and the check runs on every attempt.
+// Every verdict records the basis it was admitted under. The ordinary one is
+// "peer": someone other than the author reviewed. The separation-of-duties
+// refusal stands as it always has, with one exception — a workspace whose
+// author is also its only member with review rights would otherwise have no way
+// to move a governed change-set at all. There, the owner may record their own
+// verdict, and it carries the basis "solo_owner" on the review row, on the
+// audit event, and in the merge gate that later reads it. The exception
+// evaporates the moment a second eligible reviewer exists; nothing is cached,
+// and the check runs on every attempt.
 func (s *Server) recordChangeSetReview(c echo.Context, verdict knowledge.ReviewVerdict) error {
 	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
 		return err
@@ -437,12 +441,14 @@ func (s *Server) recordChangeSetReview(c echo.Context, verdict knowledge.ReviewV
 		return resp
 	}
 
-	solo := false
+	// Self-ness is derived here and nowhere stored; the basis is what gets
+	// written down.
+	basis := knowledge.BasisPeer
 	if actor != "" && actor == cs.CreatedBy {
 		if !s.soloReviewOverride(ctx, wsID, actor, cs) {
 			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "separation of duties: a change-set's author cannot review their own change-set"})
 		}
-		solo = true
+		basis = knowledge.BasisSoloOwner
 	}
 	if cs.Status != knowledge.ChangeSetInReview {
 		return c.JSON(http.StatusConflict, ErrorResponse{
@@ -464,9 +470,9 @@ func (s *Server) recordChangeSetReview(c echo.Context, verdict knowledge.ReviewV
 		Reviewer:    actor,
 		Verdict:     verdict,
 		Comment:     req.Comment,
-		// Server-set, never bound from the request: a caller cannot ask to be
-		// treated as the sole reviewer.
-		SelfApprovedSolo: solo,
+		// Server-set, never bound from the request: no caller would choose
+		// "peer" for themselves, so the basis has to be decided here.
+		Basis: basis,
 	}
 	if err := s.KnowledgeStore.AddReview(ctx, review); err != nil {
 		return serverErr(c, err)
@@ -481,7 +487,7 @@ func (s *Server) recordChangeSetReview(c echo.Context, verdict knowledge.ReviewV
 	}
 
 	ev := changesetEvent(eventType, wsID, cs.ID, actor)
-	ev.SelfApprovedSolo = solo
+	ev.ReviewBasis = basis
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{ev})
 	// A verdict ends the review either way: close the task rather than leave
 	// the reviewer holding work that is decided or back with its author.

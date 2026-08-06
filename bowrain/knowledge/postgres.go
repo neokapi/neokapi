@@ -754,16 +754,24 @@ func (s *PostgresKnowledgeStore) AddReview(ctx context.Context, r *ChangeSetRevi
 	if r.CreatedAt.IsZero() {
 		r.CreatedAt = time.Now().UTC()
 	}
+	// An unset basis stores as "peer" — the ordinary rule, and the one that
+	// grants nothing. A caller that forgot to set it gets the strict reading
+	// rather than a row the merge gate would have to interpret.
+	basis := r.Basis
+	if !basis.IsValid() {
+		basis = BasisPeer
+	}
+	r.Basis = basis
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO kg_changeset_reviews (workspace_id, changeset_id, reviewer, verdict, comment, self_approved_solo, created_at)
+		`INSERT INTO kg_changeset_reviews (workspace_id, changeset_id, reviewer, verdict, comment, review_basis, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)
 		 ON CONFLICT (workspace_id, changeset_id, reviewer) DO UPDATE SET
 		   verdict = EXCLUDED.verdict,
 		   comment = EXCLUDED.comment,
-		   self_approved_solo = EXCLUDED.self_approved_solo,
+		   review_basis = EXCLUDED.review_basis,
 		   created_at = EXCLUDED.created_at`,
-		r.WorkspaceID, r.ChangesetID, r.Reviewer, string(r.Verdict), r.Comment, r.SelfApprovedSolo, r.CreatedAt)
+		r.WorkspaceID, r.ChangesetID, r.Reviewer, string(r.Verdict), r.Comment, string(basis), r.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("upsert review: %w", err)
 	}
@@ -772,7 +780,7 @@ func (s *PostgresKnowledgeStore) AddReview(ctx context.Context, r *ChangeSetRevi
 
 func (s *PostgresKnowledgeStore) ListReviews(ctx context.Context, workspaceID, changesetID string) ([]*ChangeSetReview, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT workspace_id, changeset_id, reviewer, verdict, comment, self_approved_solo, created_at
+		`SELECT workspace_id, changeset_id, reviewer, verdict, comment, review_basis, created_at
 		 FROM kg_changeset_reviews WHERE workspace_id = $1 AND changeset_id = $2
 		 ORDER BY created_at, reviewer`, workspaceID, changesetID)
 	if err != nil {
@@ -793,8 +801,8 @@ func (s *PostgresKnowledgeStore) ListReviews(ctx context.Context, workspaceID, c
 
 func scanReview(row scanner) (*ChangeSetReview, error) {
 	var r ChangeSetReview
-	var verdict string
-	err := row.Scan(&r.WorkspaceID, &r.ChangesetID, &r.Reviewer, &verdict, &r.Comment, &r.SelfApprovedSolo, &r.CreatedAt)
+	var verdict, basis string
+	err := row.Scan(&r.WorkspaceID, &r.ChangesetID, &r.Reviewer, &verdict, &r.Comment, &basis, &r.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("review not found")
@@ -802,6 +810,12 @@ func scanReview(row scanner) (*ChangeSetReview, error) {
 		return nil, fmt.Errorf("scan review: %w", err)
 	}
 	r.Verdict = ReviewVerdict(verdict)
+	// An unrecognized basis reads as "peer": a value this build does not know
+	// must not be taken to waive separation of duties.
+	r.Basis = ReviewBasis(basis)
+	if !r.Basis.IsValid() {
+		r.Basis = BasisPeer
+	}
 	r.CreatedAt = r.CreatedAt.UTC()
 	return &r, nil
 }

@@ -547,8 +547,8 @@ kg_changeset_ops.workspace_id text NOT NULL
 kg_changeset_reviews.changeset_id text NOT NULL
 kg_changeset_reviews.comment text NOT NULL DEFAULT ''::text
 kg_changeset_reviews.created_at timestamp with time zone NOT NULL DEFAULT now()
+kg_changeset_reviews.review_basis text NOT NULL DEFAULT 'peer'::text
 kg_changeset_reviews.reviewer text NOT NULL
-kg_changeset_reviews.self_approved_solo boolean NOT NULL DEFAULT false
 kg_changeset_reviews.verdict text NOT NULL
 kg_changeset_reviews.workspace_id text NOT NULL
 kg_changesets.created_at timestamp with time zone NOT NULL DEFAULT now()
