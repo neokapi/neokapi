@@ -171,6 +171,42 @@ The pending-approval queue is deliberately simple: a list of proposals, each
 with a human-readable summary, a blast radius, and an approve/reject decision.
 This is the contract a future stakeholder review app consumes (see below).
 
+#### Who the author is, and what happens when there is only one person
+
+Separation of duties assumes two people. Two additions keep it meaningful for
+the workspace that has one, without letting an unreviewed change pass for a
+reviewed one.
+
+**A machine push is authored by the machine.** A workspace API token may carry
+an *agent name*, which makes it a machine token: a CI runner, a `kapi-action`
+step, an agent-driven `kapi`. Change-sets and ops created under it are authored
+by `agent/<name>` — the same decider vocabulary the framework writes into state
+(`agent/<client>` for an agent acting on a person's behalf, `ai/<model>` for an
+autonomous AI decision). Authorization does not move: every permission check
+still resolves from the token owner's membership, so a machine can do no more
+than the person who minted it. What moves is the name on the work, and because
+that name contains a character no user ID has, it is a name no human reviewer
+can equal. The person whose CI proposed the change-set is therefore an ordinary
+eligible reviewer of it, and the audit event carries `on_behalf_of` so the
+accountable human is never more than a field away.
+
+**A sole reviewer may decide their own change-set, on the record.** When the
+author is the workspace owner and no other member holds `manage_brand`, the
+owner may record their own verdict. Both conditions are checked live on every
+attempt: a second eligible reviewer — a new admin, a role override granting
+members review rights — ends the exception immediately, and nothing is cached
+to go stale. It fails closed on an unreadable membership list.
+
+The override is audited rather than silent. The review row carries
+`self_approved_solo`, the audit event carries `self_approved_solo=true`, the
+merge gate accepts that one marked self-approval and no other, and the reviews
+panel labels the verdict "sole reviewer" in the timeline. The merge gate reads
+the stored marker rather than re-deriving eligibility, because what mattered is
+who *could have* reviewed at the time of the verdict: hiring a second reviewer
+does not retroactively unreview a merged change-set, and losing everyone does
+not retroactively excuse a self-approval that was refused when it was
+attempted.
+
 ### The summons
 
 Separation of duties means a submitted change-set is, by construction, work for
