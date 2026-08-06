@@ -240,8 +240,14 @@ func handleExperimentStatus(ctx context.Context, input MCPExperimentStatusInput)
 			// when the truth is "these are the projects examined" — an
 			// assistant naming two projects it never looked past is worse than
 			// one that names none.
+			// Consequence in this surface's voice, cause in the server's
+			// field. PartialReason states only why the walk stopped, so this
+			// sentence must not narrate that too — saying "the scan stopped
+			// early" here and "the scan reached its time budget" inside the
+			// parenthesis is one fact twice, and it crowds out the part the
+			// reader actually needs, which is what the numbers now mean.
 			if impact.Partial {
-				out.BlastRadius.CountsAre = "lower bounds — the server's scan stopped early, and any project it did not reach contributes nothing to these totals"
+				out.BlastRadius.CountsAre = "lower bounds — any project the scan did not reach contributes nothing to these totals"
 				if impact.PartialReason != "" {
 					out.BlastRadius.CountsAre += " (" + impact.PartialReason + ")"
 				}

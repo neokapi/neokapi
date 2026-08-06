@@ -178,7 +178,14 @@ func TestHandleExperimentStatusCarriesPartialBlastRadius(t *testing.T) {
 	srv := blastRadiusServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(apiclient.ChangeSetImpact{
 			TotalBlocks: 17500, AffectedBlocks: 900, Words: 12000,
-			Partial: true, PartialReason: "scan budget exhausted",
+			Partial: true,
+			// Mirrors the server's own wording (bowrain/knowledge —
+			// blastradius.go), which states the CAUSE only, so the composed
+			// sentence below is the one a reader actually gets. The assertions
+			// are on shape rather than on those exact words: a server-side
+			// rewording must not fail this test, only a client that stops
+			// embedding the reason should.
+			PartialReason: "the scan reached this preview's time budget before it had covered the workspace",
 			// A truncated walk still returns the projects it DID reach. They
 			// must not surface as though they were the affected set.
 			Projects: []apiclient.ProjectImpact{
@@ -196,7 +203,8 @@ func TestHandleExperimentStatusCarriesPartialBlastRadius(t *testing.T) {
 	assert.Contains(t, out.BlastRadius.CountsAre, "lower bounds")
 	assert.Contains(t, out.BlastRadius.CountsAre, "did not reach",
 		"the qualification must say that unreached projects contribute nothing, not merely that counts are low")
-	assert.Contains(t, out.BlastRadius.CountsAre, "scan budget exhausted")
+	assert.Contains(t, out.BlastRadius.CountsAre, "time budget",
+		"the server's cause must survive into the sentence, not be replaced by this surface's own account of it")
 
 	// The summary carries no per-project breakdown. Under a partial walk that
 	// list is the projects EXAMINED, not the projects affected — absence from
