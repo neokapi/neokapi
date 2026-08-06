@@ -1,13 +1,8 @@
 name: l10n
 
-# The one place derived multilingual artifacts are regenerated in CI.
-#
-# It replaces five: two inline steps in ci.yml (frontend, kapi-desktop), the
-# emails-landing-l10n job beside them, and the l10n-drift + docs-l10n-drift jobs
-# in reference-data-drift.yml. Each carried its own `contents: write`, its own
-# PR-head checkout dance and its own subset of the same `make l10n` graph; the
-# subsets did not add up to the whole, which is how a surface could go stale
-# between them.
+# The one place derived multilingual artifacts are regenerated in CI. No other
+# workflow may run a subset of `make l10n`: subsets do not add up to the whole,
+# and a surface covered by none of them goes stale unnoticed.
 #
 # What it asserts: every committed derived artifact is exactly what the current
 # source plus the committed context under .kapi/ produce. That is a
@@ -24,9 +19,9 @@ on:
   push:
     branches: [main]
     paths:
-      # The recipe and the committed context it reads. The context is flat by
-      # domain now; .kapi/work/ is the derived store and .kapi/state/ is unit
-      # state, so neither belongs in a regeneration trigger.
+      # The recipe and the committed context it reads, flat by domain.
+      # .kapi/work/ is the derived store and .kapi/state/ is unit state, so
+      # neither belongs in a regeneration trigger.
       - "kapi.yaml"
       - ".kapi/terms.json"
       - ".kapi/voice.yaml"
@@ -67,9 +62,9 @@ on:
     # GitHub Actions does not expand YAML anchors, so this list is duplicated
     # rather than aliased. Keep the two in step.
     paths:
-      # The recipe and the committed context it reads. The context is flat by
-      # domain now; .kapi/work/ is the derived store and .kapi/state/ is unit
-      # state, so neither belongs in a regeneration trigger.
+      # The recipe and the committed context it reads, flat by domain.
+      # .kapi/work/ is the derived store and .kapi/state/ is unit state, so
+      # neither belongs in a regeneration trigger.
       - "kapi.yaml"
       - ".kapi/terms.json"
       - ".kapi/voice.yaml"
@@ -122,9 +117,8 @@ jobs:
     timeout-minutes: 30
     # contents: write is what lets the auto-fix push the regenerated catalogs
     # back to a same-repo PR branch. It is scoped to this job, which runs no
-    # project code beyond the extractors and kapi itself — the reason the gate
-    # moved out of the frontend and desktop jobs, which also run `vp install`
-    # and a full test suite on PR content.
+    # project code beyond the extractors and kapi itself; a job that also runs
+    # `vp install` or a test suite over PR content must not hold this token.
     permissions:
       contents: write
       packages: read

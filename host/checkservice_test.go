@@ -210,9 +210,8 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 		assert.Equal(t, "House Style", p.Name)
 	})
 
-	// The context directory outranks the root, reversing the old order: `.kapi/`
-	// is committed now, so the conventional home and the reviewed home are the
-	// same directory.
+	// The state directory outranks the root: `.kapi/` is committed, so the
+	// conventional home and the reviewed home are the same directory.
 	t.Run("context directory outranks the root", func(t *testing.T) {
 		root := t.TempDir()
 		conv := filepath.Join(root, project.RelStatePath(BrandVoiceConventionalName))

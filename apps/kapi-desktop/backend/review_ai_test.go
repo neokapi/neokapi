@@ -125,9 +125,8 @@ func TestReviewAIAction_Explain(t *testing.T) {
 	assert.Contains(t, res.Explanation, "Salut")
 
 	// Read-only: no state write, no file write. The decision record is the
-	// committed shard set under `.kapi/state/`, so a write shows up
-	// there — the whole-document `.kapi-state.json` this used to stat has not
-	// existed since the store cutover, which made the assertion vacuously true.
+	// committed shard set under `.kapi/state/`, so a write shows up there —
+	// asserting on any other path makes this vacuously true.
 	layout := project.LayoutAt(root)
 	units, _ := os.ReadDir(layout.UnitStateDir())
 	assert.Empty(t, units, "explain must record no decision")

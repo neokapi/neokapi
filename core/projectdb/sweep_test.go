@@ -15,9 +15,9 @@ import (
 )
 
 // The two predecessor layouts, spelled here as the test's own fixtures. The
-// names are no longer constants anywhere: core/projectdb keeps private copies
-// precisely so nothing live can reach for one, and a test that borrowed them
-// would assert against the implementation rather than against the disk.
+// names are constants nowhere — core/projectdb keeps private copies so nothing
+// live can reach for one — and a test that borrowed those would assert against
+// the implementation rather than against the disk.
 func flatCacheDir(layout project.Layout) string {
 	return filepath.Join(layout.StateDir, "cache")
 }
@@ -469,8 +469,8 @@ func TestFold_LiftsContextUmbrella(t *testing.T) {
 	assert.NoDirExists(t, umbrella, "an emptied umbrella goes")
 }
 
-// A voice profile's scope used to live in its filename because the directory
-// could not carry it. Now the directory does.
+// A voice profile's scope is carried by its directory, not by a prefix on its
+// filename, so the fold renames as it moves.
 func TestFold_MovesGovernanceIntoProfiles(t *testing.T) {
 	layout := newLayout(t)
 	umbrella := umbrellaDir(layout)

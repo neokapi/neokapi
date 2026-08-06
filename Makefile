@@ -1259,9 +1259,9 @@ i18n-react-build: ## Build @neokapi/i18n-react (runtime + vite plugin + CLI) int
 #   l10n-translate  every declared collection, every locale      — one kapi run
 #   l10n-compile    catalogs into shippable runtime dictionaries — kapi cannot
 #
-# Stages 1 and 4 survive because a recipe may not name a subprocess (AD-038:
-# "a recipe is trusted" is the assumption execution trust exists to disprove),
-# so the extractors and the catalog compilers stay outside it. Stages 2 and 3
+# The extractors and the catalog compilers stay outside the recipe, because a
+# recipe may not name a subprocess (AD-038: "a recipe is trusted" is the
+# assumption execution trust exists to disprove). Stages 2 and 3
 # are each a single kapi invocation over the whole recipe — there are no
 # per-surface targets, because a per-surface target would be a hand-rolled
 # subset of what the recipe already declares. To iterate on one surface, scope

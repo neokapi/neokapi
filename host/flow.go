@@ -1831,13 +1831,10 @@ func (a *App) resolveProjectTermsSourcePath(cmd Command, collection string) (str
 // firstExistingTermsBundle returns the first well-known terms bundle present
 // under root, or "" when none is.
 //
-// `.kapi/` is searched FIRST, which reverses the old order. The repository-root
-// spelling used to lead because the bundle is a committed source and `.kapi/`
-// was machine state that git ignored — a glossary kept there would never have
-// reached review. `.kapi/` is now committed, and it is where a project's
+// `.kapi/` is searched FIRST: it is committed, and it is where a project's
 // authored sources live, so the conventional home and the reviewed home are the
-// same directory. The root spelling stays second: a project that keeps its
-// glossary beside its content is not wrong, and dropping the rung would
+// same directory. The root spelling stays second because a project that keeps
+// its glossary beside its content is not wrong, and dropping the rung would
 // silently unbind it.
 func firstExistingTermsBundle(root string) string {
 	for _, candidate := range []string{

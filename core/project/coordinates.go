@@ -146,10 +146,10 @@ type ProfileBinding struct {
 // It is the `when:` values joined by a hyphen, taken in alphabetical order of
 // their axis names. A single-axis profile — `when: {product: bowrain}`, which
 // is most of them — is therefore just its value, `bowrain`, and the directory
-// reads as the thing it governs. The ordering is alphabetical rather than
-// authored because `when:` is a mapping: YAML gives no stable order to recover,
-// and a directory that renamed itself when someone reordered two lines would be
-// a directory nothing could rely on.
+// reads as the thing it governs. The ordering must be alphabetical rather than
+// authored: `when:` is a mapping, YAML gives no stable order to recover, and a
+// directory that renamed itself when two lines were reordered is one nothing
+// can rely on.
 //
 // The empty `when:` — the profile matching everything — has no conventional
 // directory: its files are the flat default in `.kapi/` itself.
@@ -400,10 +400,9 @@ func (p *KapiProject) validateProfiles() error {
 		// A profile that binds neither is not empty: its directory,
 		// `.kapi/profiles/<name>/`, is the binding, and a project that keeps
 		// its overrides there should not have to restate every one of them in
-		// the recipe. Which means a `when:` alone is a complete profile, and
-		// the load-time check that used to demand a binding cannot be made
-		// here — whether the directory exists is a question for the
-		// filesystem, and this validates the document.
+		// the recipe. A `when:` alone is therefore a complete profile, and no
+		// check here may demand a binding: whether the directory exists is a
+		// question for the filesystem, and this validates the document.
 		if err := prof.Voice.validate(fmt.Sprintf("profiles[%d].voice", i)); err != nil {
 			return err
 		}

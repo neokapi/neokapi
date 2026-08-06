@@ -477,13 +477,9 @@ func TestVerify_GlossaryFromConventionalLocation(t *testing.T) {
 }
 
 // TestVerify_ConventionalGlossaryPrefersContextDir pins the ordering when both
-// rungs are present, and the order is the reverse of what it once was.
-//
-// The root spelling used to win because `.kapi/` was machine state that git
-// ignored, so a glossary kept there would never have reached review. `.kapi/`
-// is now committed and `.kapi/` is where its authored sources live, so
-// the conventional home and the reviewed home are the same directory — and the
-// project that put its bundle there is the one that followed the convention.
+// rungs are present: `.kapi/` wins. It is committed and it is where a
+// project's authored sources live, so the conventional home and the reviewed
+// home are the same directory.
 func TestVerify_ConventionalGlossaryPrefersContextDir(t *testing.T) {
 	root := writeTermsProjectUnbound(t, project.RelStatePath("terms.json"))
 

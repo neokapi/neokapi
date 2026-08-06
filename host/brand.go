@@ -518,25 +518,19 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 // location, matching kmb/ktb's ConventionalName for the other two committed
 // sources.
 //
-// Just `voice.yaml`, because the directory already says whose voice it is:
-// `.kapi/voice.yaml` is the project's, `.kapi/profiles/bowrain/voice.yaml` is
-// that profile's. The `brand-` prefix dated from a flat directory where every
-// file had to carry its own scope in its name; with a directory per profile it
-// only repeated what the path said, and it could not be repeated correctly —
-// a per-profile file would have had to be named for the profile, which is
-// exactly what the directory is for.
+// Just `voice.yaml`, with no scope prefix, because the directory already says
+// whose voice it is: `.kapi/voice.yaml` is the project's,
+// `.kapi/profiles/bowrain/voice.yaml` is that profile's.
 const BrandVoiceConventionalName = "voice.yaml"
 
 // brandProfileConventions lists the well-known profile locations, in the order
 // an unbound project is searched.
 //
-// `.kapi/` comes FIRST, and that is a reversal. The root spelling used to lead
-// because `.kapi/` was machine state that git ignored, so a profile kept there
-// would never be reviewed. `.kapi/` is now committed, and it is the place a
-// project's authored sources live — beside the terms bundle and the memory
-// bundles, which is where a reader looks for the voice. The root spelling stays
-// second: it is what `kapi brand new -o brand.yaml` writes, and a project that
-// keeps its profile there is not wrong.
+// `.kapi/` comes FIRST: it is committed, and it holds the project's authored
+// sources — the terms bundle and the memory bundles, which is where a reader
+// looks for the voice too. The root spelling stays second because it is what
+// `kapi brand new -o brand.yaml` writes, and a project that keeps its profile
+// there is not wrong.
 func brandProfileConventions(root string) []string {
 	return []string{
 		filepath.Join(root, project.RelStatePath(BrandVoiceConventionalName)),
