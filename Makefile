@@ -1244,130 +1244,133 @@ kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typec
 # in a fresh CI checkout where the bin isn't linked. node-on-dist is environment
 # independent — it only needs the package built (the i18n-react-build prereq).
 NEOKAPI_I18N_CLI := node $(CURDIR)/packages/i18n-react/dist/cli.js
-# Keep these globs in sync with the `extract` script in
-# apps/kapi-desktop/frontend/package.json.
-KAPI_DESKTOP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../../../packages/ui/src/**/*.tsx" --src "../../../packages/flow-editor/src/**/*.tsx" --src "../../../packages/status-views/src/**/*.tsx" --ignore "src/stories/**" --ignore "../../../packages/*/src/stories/**" --ignore "../../../packages/*/src/__tests__/**"
 
 i18n-react-build: ## Build @neokapi/i18n-react (runtime + vite plugin + CLI) into dist/
 	cd packages/i18n-react && vp run build
 
-kapi-desktop-extract: kapi-desktop-frontend-deps i18n-react-build ## Extract translatable blocks to i18n/ (per-file .kbf.json)
-	cd $(KAPI_DESKTOP_DIR)/frontend && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps $(KAPI_DESKTOP_EXTRACT_SRC)
-
-kapi-desktop-pseudo-translate: kapi-desktop-extract bin/kapi ## Pseudo-translate i18n/ → i18n-qps/
-	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(KAPI_DESKTOP_DIR)/frontend/i18n \
-		--target-lang qps \
-		-o $(KAPI_DESKTOP_DIR)/frontend/i18n-qps \
-		-q
-
-kapi-desktop-compile: i18n-react-build ## Compile i18n/ → public/translations/<locale>.json for the neokapi-i18n runtime
-	cd $(KAPI_DESKTOP_DIR)/frontend && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out public/translations
-
-kapi-desktop-translations: kapi-desktop-pseudo-translate kapi-desktop-compile ## Extract → pseudo-translate → compile
-
-kapi-desktop-l10n-verify: kapi-desktop-translations ## CI gate: the desktop qps catalog regenerates byte-identically from source (a stale catalog would leak {=mN} placeholders in pseudo/translated UI)
-	git diff --exit-code $(KAPI_DESKTOP_DIR)/frontend/public/translations/qps.json
-
-# ── Bowrain app UIs (neokapi-i18n) — mirrors the kapi-desktop family ──────────
-# One extraction per surface: bowrain-app (packages/app + packages/ui + the
-# web and desktop shells — they compile from the same i18n/ tree into each
-# shell's public/translations/), bowrain-ctrl and bowrain-pulse (standalone
-# admin apps, own src only; @neokapi/ui strings fall back to English there).
-# The componentMap lives in bowrain/packages/app/neokapi-i18n.config.json and is
-# shared by the extract CLI and every shell's vite transform so hashes match.
-BOWRAIN_APP_DIR := bowrain/packages/app
-BOWRAIN_UI_IGNORES := --ignore "**/*.stories.tsx" --ignore "**/*.test.tsx" --ignore "**/__tests__/**" --ignore "**/stories/**" --ignore "**/demo/**"
-BOWRAIN_APP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../ui/src/**/*.tsx" --src "../../apps/web/src/**/*.tsx" --src "../../apps/bowrain/frontend/src/**/*.tsx" $(BOWRAIN_UI_IGNORES)
-
-bowrain-app-extract: i18n-react-build ## Extract bowrain app+ui+shell strings to bowrain/packages/app/i18n/ (per-file .kbf.json)
-	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(BOWRAIN_APP_EXTRACT_SRC)
-
-bowrain-app-pseudo-translate: bowrain-app-extract bin/kapi ## Pseudo-translate bowrain app i18n/ → i18n-qps/
-	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(BOWRAIN_APP_DIR)/i18n \
-		--target-lang qps \
-		-o $(BOWRAIN_APP_DIR)/i18n-qps \
-		-q
-
-bowrain-app-compile: i18n-react-build ## Compile bowrain app i18n-qps/ → both shells' public/translations/
-	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out ../../apps/web/public/translations
-	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out ../../apps/bowrain/frontend/public/translations
-
-bowrain-app-translations: bowrain-app-pseudo-translate bowrain-app-compile ## Extract → pseudo-translate → compile (bowrain app)
-
-bowrain-app-l10n-verify: bowrain-app-translations ## CI gate: both bowrain app qps catalogs regenerate byte-identically from source
-	git diff --exit-code bowrain/apps/web/public/translations/qps.json bowrain/apps/bowrain/frontend/public/translations/qps.json
-
-bowrain-ctrl-extract: i18n-react-build ## Extract ctrl admin-app strings to bowrain/apps/ctrl/i18n/
-	cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) extract --config ../../packages/app/neokapi-i18n.config.json --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
-
-bowrain-ctrl-pseudo-translate: bowrain-ctrl-extract bin/kapi ## Pseudo-translate ctrl i18n/ → i18n-qps/
-	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/apps/ctrl/i18n \
-		--target-lang qps \
-		-o bowrain/apps/ctrl/i18n-qps \
-		-q
-
-bowrain-ctrl-compile: i18n-react-build ## Compile ctrl i18n-qps/ → public/translations/
-	cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out public/translations
-
-bowrain-ctrl-translations: bowrain-ctrl-pseudo-translate bowrain-ctrl-compile ## Extract → pseudo-translate → compile (ctrl)
-
-bowrain-ctrl-l10n-verify: bowrain-ctrl-translations ## CI gate: the ctrl qps catalog regenerates byte-identically from source
-	git diff --exit-code bowrain/apps/ctrl/public/translations/qps.json
-
-bowrain-pulse-extract: i18n-react-build ## Extract pulse dashboard strings to bowrain/apps/pulse/i18n/
-	cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) extract --config ../../packages/app/neokapi-i18n.config.json --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
-
-bowrain-pulse-pseudo-translate: bowrain-pulse-extract bin/kapi ## Pseudo-translate pulse i18n/ → i18n-qps/
-	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/apps/pulse/i18n \
-		--target-lang qps \
-		-o bowrain/apps/pulse/i18n-qps \
-		-q
-
-bowrain-pulse-compile: i18n-react-build ## Compile pulse i18n-qps/ → public/translations/
-	cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out public/translations
-
-bowrain-pulse-translations: bowrain-pulse-pseudo-translate bowrain-pulse-compile ## Extract → pseudo-translate → compile (pulse)
-
-bowrain-pulse-l10n-verify: bowrain-pulse-translations ## CI gate: the pulse qps catalog regenerates byte-identically from source
-	git diff --exit-code bowrain/apps/pulse/public/translations/qps.json
-
-bowrain-l10n-verify: bowrain-app-l10n-verify bowrain-ctrl-l10n-verify bowrain-pulse-l10n-verify ## CI gate: all bowrain UI qps catalogs are fresh
-
-kapi-i18n-generate: ## Regenerate core/i18n/builtins/metadata.json from Go registries
-	go generate ./core/i18n/...
-
-kapi-i18n-pseudo-translate: kapi-i18n-generate bin/kapi ## Pseudo-translate builtins into core/i18n/catalogs/qps.mo
-	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate core/i18n/builtins/metadata.json \
-		--target-lang qps \
-		-f json \
-		-o core/i18n/catalogs/qps.mo \
-		-q
-
-kapi-i18n-translations: kapi-i18n-pseudo-translate ## Regenerate + pseudo-translate builtin metadata → MO
-
-# ── Dogfood translation (root recipe: kapi.yaml) ─────────────────────────────
-# The `l10n-*` target names are retained spellings; the surface they drive is the
-# repo's own multilingual content.
+# ── Multilingual surfaces (the dogfood loop) ─────────────────────────────────
 #
-# These targets ARE the dogfood workflow, so they deliberately run WITHOUT
-# $(KAPI_ISO_ENV): they bind to the repo-root project and its .kapi/ state.
-# Reviewed translations are committed as native .memory.json bundles under
-# .kapi/memory/; the
-# project content memory and terms are rebuilt from those seeds (l10n-seed), then
-# each surface is produced by content-memory leverage, so output only ever
-# contains reviewed strings.
+# The repo dogfoods kapi through the root kapi.yaml recipe, which declares
+# every surface as a content collection with a `target:` template. Bringing all
+# of them up to date is four stages, and only two are make's business:
+#
+#   l10n-extract    source catalogs out of React and Go source   — kapi cannot
+#   l10n-seed       project store from the committed context     — one kapi run
+#   l10n-translate  every declared collection, every locale      — one kapi run
+#   l10n-compile    catalogs into shippable runtime dictionaries — kapi cannot
+#
+# Stages 1 and 4 survive because a recipe may not name a subprocess (AD-038:
+# "a recipe is trusted" is the assumption execution trust exists to disprove),
+# so the extractors and the catalog compilers stay outside it. Stages 2 and 3
+# are each a single kapi invocation over the whole recipe — there are no
+# per-surface targets, because a per-surface target would be a hand-rolled
+# subset of what the recipe already declares. To iterate on one surface, scope
+# the same command: `kapi run tm-recycle -i <path> --target-lang nb`.
+#
+# `make l10n` runs all four. `make l10n-verify` runs them and fails if any
+# committed derived artifact moved — that is a generated-vs-source gate, never
+# a translation-coverage one: pending target-language work is normal and must
+# never fail a build (CLAUDE.md, "Target-language drift").
+#
+# The `l10n-*` names are retained spellings on a developer-facing internal
+# surface; the concept is the repo's own multilingual content.
+
 L10N_LANGS := nb
 
-# Seeds are committed in the native Kapi-family forms (.memory.json / .terms.json):
-# deterministic, lossless, and identity-preserving, so wipe-and-reseed
-# reproduces the content memory/terms state exactly. TMX/CSV are the lossy
-# interchange tier — emit them on demand with l10n-review-export.
-l10n-seed: bin/kapi ## Rebuild the project store from the committed .kapi/ seeds
+KAPI_DESKTOP_FRONTEND := $(KAPI_DESKTOP_DIR)/frontend
+BOWRAIN_APP_DIR       := bowrain/packages/app
+EMAILS_DIR            := bowrain/emails
+LANDING_DIR           := bowrain/web/landing
+
+# Keep these globs in sync with each package's own `extract` script.
+KAPI_DESKTOP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../../../packages/ui/src/**/*.tsx" --src "../../../packages/flow-editor/src/**/*.tsx" --src "../../../packages/status-views/src/**/*.tsx" --ignore "src/stories/**" --ignore "../../../packages/*/src/stories/**" --ignore "../../../packages/*/src/__tests__/**"
+BOWRAIN_UI_IGNORES       := --ignore "**/*.stories.tsx" --ignore "**/*.test.tsx" --ignore "**/__tests__/**" --ignore "**/stories/**" --ignore "**/demo/**"
+BOWRAIN_APP_EXTRACT_SRC  := --src "src/**/*.{tsx,jsx}" --src "../ui/src/**/*.tsx" --src "../../apps/web/src/**/*.tsx" --src "../../apps/bowrain/frontend/src/**/*.tsx" $(BOWRAIN_UI_IGNORES)
+EMAILS_EXTRACT_SRC       := --src "src/*.tsx" --ignore "src/*.stories.tsx" --ignore "src/storybook-decorator.tsx"
+
+# Every surface whose source catalogs are per-file .kbf.json under <dir>/i18n
+# and whose targets land in <dir>/i18n-<lang>. The pseudo-translation pass and
+# the recipe's collections both key off this shape, so it is one list.
+L10N_KBF_DIRS := $(KAPI_DESKTOP_FRONTEND) $(BOWRAIN_APP_DIR) bowrain/apps/ctrl bowrain/apps/pulse $(EMAILS_DIR) $(LANDING_DIR)
+
+# <surface dir>:<compile output, relative to it>. The bowrain app compiles the
+# one catalog tree into both shells that render it.
+L10N_COMPILE_TARGETS := \
+	$(KAPI_DESKTOP_FRONTEND):public/translations \
+	$(BOWRAIN_APP_DIR):../../apps/web/public/translations \
+	$(BOWRAIN_APP_DIR):../../apps/bowrain/frontend/public/translations \
+	bowrain/apps/ctrl:public/translations \
+	bowrain/apps/pulse:public/translations \
+	$(EMAILS_DIR):translations \
+	$(LANDING_DIR):translations
+
+# Every committed artifact the four stages derive. l10n-verify diffs exactly
+# this set; nothing else in the tree is the gate's business. The last entry is
+# git pathspec magic, left unquoted so l10n-derived-paths can hand the list to
+# a shell script verbatim: no file matches ":(glob)...", so the shell leaves the
+# word alone and git receives the pathspec it expects.
+L10N_DERIVED := \
+	core/i18n/builtins/metadata.json core/i18n/catalogs \
+	host/i18n/commands.json host/i18n/catalogs \
+	$(KAPI_DESKTOP_FRONTEND)/public/translations \
+	bowrain/apps/web/public/translations \
+	bowrain/apps/bowrain/frontend/public/translations \
+	bowrain/apps/ctrl/public/translations \
+	bowrain/apps/pulse/public/translations \
+	$(LANDING_DIR)/translations \
+	bowrain/mailer/templates bowrain/mailer/subjects \
+	:(glob)harness/demos/*/demo.*.yaml
+
+# Stage 1: extract.
+# The source side only. Deliberately never the target side: a push and a build
+# both need the source catalogs, and target drift must never gate either.
+
+kapi-desktop-extract: kapi-desktop-frontend-deps i18n-react-build ## Extract Kapi Desktop UI strings → i18n/ (per-file .kbf.json)
+	cd $(KAPI_DESKTOP_FRONTEND) && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps $(KAPI_DESKTOP_EXTRACT_SRC)
+
+bowrain-app-extract: i18n-react-build ## Extract bowrain app+ui+shell strings → bowrain/packages/app/i18n/
+	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(BOWRAIN_APP_EXTRACT_SRC)
+
+bowrain-ctrl-extract: i18n-react-build ## Extract ctrl admin-app strings → bowrain/apps/ctrl/i18n/
+	cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) extract --config ../../packages/app/neokapi-i18n.config.json --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
+
+bowrain-pulse-extract: i18n-react-build ## Extract pulse dashboard strings → bowrain/apps/pulse/i18n/
+	cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) extract --config ../../packages/app/neokapi-i18n.config.json --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
+
+emails-frontend-deps: ## Install transactional-email template dependencies
+	cd $(EMAILS_DIR) && vp install
+
+emails-extract: emails-frontend-deps i18n-react-build ## Extract transactional-email strings → bowrain/emails/i18n/
+	cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(EMAILS_EXTRACT_SRC)
+
+landing-frontend-deps: ## Install landing page dependencies
+	cd $(LANDING_DIR) && vp install
+
+landing-extract: landing-frontend-deps i18n-react-build ## Extract landing page strings → bowrain/web/landing/i18n/
+	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}"
+
+kapi-i18n-generate: ## Regenerate core/i18n/builtins/metadata.json from the Go registries
+	go generate ./core/i18n/...
+
+kapi-cli-i18n-generate: ## Regenerate host/i18n/commands.json from the cobra command tree
+	cd cli && go generate ./i18ngen/...
+
+l10n-extract: kapi-desktop-extract bowrain-app-extract bowrain-ctrl-extract bowrain-pulse-extract emails-extract landing-extract kapi-i18n-generate kapi-cli-i18n-generate ## Stage 1: every SOURCE catalog the recipe declares (no target languages)
+	@echo "✓ source catalogs extracted — every collection kapi.yaml declares now has content"
+
+# Stage 2: seed.
+# The committed context under .kapi/ is the truth; the project store is its
+# derived projection (AD-039), so a wipe-and-reseed reproduces it exactly.
+# Native .terms.json/.memory.json are used because they are lossless and
+# identity-preserving; TMX/CSV are the lossy interchange tier, emitted on demand
+# by l10n-review-export.
+
+l10n-seed: bin/kapi ## Stage 2: rebuild the project store from the committed .kapi/ context
 	@mkdir -p .kapi/work/cache
 	@# Terms and content memory share the one project store (AD-039), so a
 	@# wipe-and-reseed drops the whole file. That is safe here and only here:
-	@# the dogfood project's unit state lives in the committed
-	@# .kapi/state/ shards, which this does not touch.
+	@# the dogfood project's unit state lives in the committed .kapi/state/
+	@# shards, which this does not touch.
 	@rm -f .kapi/work/store.db .kapi/work/store.db-wal .kapi/work/store.db-shm
 	./bin/kapi terms import .kapi/terms.json
 	@for f in .kapi/memory/*.memory.json; do \
@@ -1379,209 +1382,89 @@ l10n-review-export: l10n-seed ## Emit disposable TMX/CSV review views of the nat
 	@mkdir -p l10n/review
 	./bin/kapi memory export --format tmx -o l10n/review/tm-all.tmx
 	./bin/kapi terms export --format csv -s en -t nb -o l10n/review/terms-en-nb.csv
-	@echo "Review views written to l10n/review/ (gitignored; the .memory.json/.terms.json seeds are the source of truth)"
+	@echo "Review views written to l10n/review/ (gitignored; the .memory.json/.terms.json context is the source of truth)"
 
-l10n-builtins: l10n-seed kapi-i18n-generate ## Builtin tool/format metadata → core/i18n/catalogs/<lang>.mo (content-memory-driven)
+# Stage 3: translate.
+# One kapi run per locale over the WHOLE recipe. With no -i, the flow-run path
+# resolves the project's content patterns and writes each item's output from its
+# own `target:` template, so every collection is covered by construction — add a
+# collection to kapi.yaml and it is translated with no Makefile change.
+#
+# tm-recycle is exact-match content-memory leverage and nothing else: no AI, no
+# provider credentials, no network. Output therefore contains only reviewed
+# strings, and the pass is a deterministic function of source + committed
+# context, which is what makes l10n-verify a legitimate byte gate.
+#
+# The qps pseudo-locale is a separate, isolated pass: it is a runtime-correctness
+# probe (does the UI survive expanded, marked-up text?), not project content, so
+# it is not a target language in the recipe and does not bind the project.
+
+l10n-translate: l10n-extract l10n-seed ## Stage 3: every declared collection, every locale (one kapi run per locale)
 	@for lang in $(L10N_LANGS); do \
-		./bin/kapi exec recycle core/i18n/builtins/metadata.json -f json \
-			--target-lang $$lang -o core/i18n/catalogs/$$lang.mo || exit 1; \
+		./bin/kapi run tm-recycle --target-lang $$lang -q || exit 1; \
 	done
-
-l10n-builtins-check: bin/kapi ## Terminology gate over the builtin metadata translations
-	@for lang in $(L10N_LANGS); do \
-		./bin/kapi exec recycle core/i18n/builtins/metadata.json -f json \
-			--target-lang $$lang -o /tmp/l10n-builtins-$$lang.json -q && \
-		./bin/kapi exec term-check /tmp/l10n-builtins-$$lang.json -f json \
-			--source-lang en --target-lang $$lang || exit 1; \
+	@# A narration sidecar byte-identical to its source carries nothing — the
+	@# harness already falls back to English. Dropping it keeps the committed
+	@# set equal to the demos that actually have reviewed narration, with no
+	@# allowlist for a human to remember to extend.
+	@for f in harness/demos/*/demo.*.yaml; do \
+		[ -e "$$f" ] || continue; \
+		if cmp -s "$$f" "$${f%/*}/demo.yaml"; then rm -f "$$f"; fi; \
 	done
+	@$(MAKE) --no-print-directory l10n-pseudo
 
-l10n-desktop: l10n-seed kapi-desktop-extract ## Kapi Desktop UI strings → public/translations/<lang>.json (content-memory-driven)
-	@for lang in $(L10N_LANGS); do \
-		./bin/kapi exec recycle $(KAPI_DESKTOP_DIR)/frontend/i18n \
-			--target-lang $$lang \
-			-o $(KAPI_DESKTOP_DIR)/frontend/i18n-$$lang || exit 1; \
-		(cd $(KAPI_DESKTOP_DIR)/frontend && vp run compile:$$lang) || exit 1; \
+l10n-pseudo: bin/kapi ## Pseudo-translate every surface into the qps probe locale
+	@for dir in $(L10N_KBF_DIRS); do \
+		$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $$dir/i18n --target-lang qps -o $$dir/i18n-qps -q || exit 1; \
 	done
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate core/i18n/builtins/metadata.json --target-lang qps -f json -o core/i18n/catalogs/qps.mo -q
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/mailer/subjects/en.json --target-lang qps -f json -o bowrain/mailer/subjects/qps.json -q
 
-l10n-bowrain-app: l10n-seed bowrain-app-extract ## Bowrain app UI strings → both shells' public/translations/<lang>.json (content-memory-driven)
-	@for lang in $(L10N_LANGS); do \
-		./bin/kapi exec recycle $(BOWRAIN_APP_DIR)/i18n \
-			--target-lang $$lang \
-			-o $(BOWRAIN_APP_DIR)/i18n-$$lang || exit 1; \
-		(cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out ../../apps/web/public/translations --locale $$lang) || exit 1; \
-		(cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out ../../apps/bowrain/frontend/public/translations --locale $$lang) || exit 1; \
-	done
+# Stage 4: compile.
+# Catalogs are not what the products load: the SPAs and the landing page load
+# compiled runtime dictionaries, and the transactional emails are rendered to
+# per-locale HTML that the server embeds. Both are neokapi-i18n's job.
 
-l10n-bowrain-ctrl: l10n-seed bowrain-ctrl-extract ## ctrl admin-app strings → public/translations/<lang>.json (content-memory-driven)
-	@for lang in $(L10N_LANGS); do \
-		./bin/kapi exec recycle bowrain/apps/ctrl/i18n \
-			--target-lang $$lang \
-			-o bowrain/apps/ctrl/i18n-$$lang || exit 1; \
-		(cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out public/translations --locale $$lang) || exit 1; \
-	done
-
-l10n-bowrain-pulse: l10n-seed bowrain-pulse-extract ## pulse dashboard strings → public/translations/<lang>.json (content-memory-driven)
-	@for lang in $(L10N_LANGS); do \
-		./bin/kapi exec recycle bowrain/apps/pulse/i18n \
-			--target-lang $$lang \
-			-o bowrain/apps/pulse/i18n-$$lang || exit 1; \
-		(cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out public/translations --locale $$lang) || exit 1; \
-	done
-
-kapi-cli-i18n-generate: ## Regenerate host/i18n/commands.json from the cobra command tree
-	cd cli && go generate ./i18ngen/...
-
-l10n-cli: l10n-seed kapi-cli-i18n-generate ## CLI help + output chrome → host/i18n/catalogs/<lang>.mo (content-memory-driven)
-	@for lang in $(L10N_LANGS); do \
-		./bin/kapi exec recycle host/i18n/commands.json -f json \
-			--target-lang $$lang -o host/i18n/catalogs/$$lang.mo || exit 1; \
-	done
-	@echo "Note: rebuild the binary (make build) to embed the refreshed cli catalogs —"
-	@echo "bin/kapi only shows the new translations after a rebuild."
-
-# Demo-video narration sidecars: generated demo.<lang>.yaml next to each
-# demo.yaml (the harness overlays them at load time; EN falls back when a
-# string is still untranslated). Driven through the recipe's tm-recycle flow
-# so the yaml keyPathPatterns in kapi.yaml bind (only narration/caption/
-# title/subtitle are translatable — never ids, beats, commands, or timings).
-# Sidecars are generated only for the demos listed here — the ones with
-# reviewed nb narration in the content memory (.kapi/memory/demo-narration-nb.memory.json); add a
-# demo dir once its narration has been translated.
-L10N_DEMO_DIRS := 05-ai-checks-guardrail 09-toolbox-find-replace \
-	kapi-bilingual-workflow kapi-desktop-config kapi-desktop-content \
-	kapi-desktop-explorer kapi-desktop-flows kapi-desktop-projects
-
-l10n-demos: l10n-seed ## Demo narration → harness/demos/<id>/demo.<lang>.yaml sidecars (content-memory-driven)
-	@for lang in $(L10N_LANGS); do \
-		for d in $(L10N_DEMO_DIRS); do \
-			./bin/kapi run tm-recycle -i harness/demos/$$d/demo.yaml \
-				--target-lang $$lang -o harness/demos/$$d/demo.$$lang.yaml -q || exit 1; \
+l10n-compile: l10n-translate i18n-react-build ## Stage 4: catalogs → runtime dictionaries + rendered email templates
+	@for spec in $(L10N_COMPILE_TARGETS); do \
+		dir=$${spec%%:*}; out=$${spec#*:}; \
+		(cd $$dir && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out $$out) || exit 1; \
+		for lang in $(L10N_LANGS); do \
+			(cd $$dir && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out $$out --locale $$lang) || exit 1; \
 		done; \
-	done
-
-# Docs sites: Memory-recycle the markdown/mdx sources into each site's gitignored
-# i18n/<lang>/ tree (never committed — see CLAUDE.md "Target-language drift
-# must never block the build"; Memory misses fall back to English and the sites
-# build with the tree absent). Scoped to the surface by passing its source
-# files as -i; with no -o, the flow-run path resolves every output from the
-# matching content item's target template in kapi.yaml. Frontmatter keys
-# bind via defaults.formats (the flow-run path reads only the defaults).
-l10n-docs: l10n-seed ## kapi docs site → web/i18n/<lang>/... (Memory-driven, gitignored)
-	@for lang in $(L10N_LANGS); do \
-		./bin/kapi run tm-recycle --target-lang $$lang -q \
-			-i "$$(find web/docs -type f \( -name '*.md' -o -name '*.mdx' \) | sort | paste -sd, -)" || exit 1; \
-	done
-
-l10n-bowrain-docs: l10n-seed ## bowrain docs site → bowrain/web/docs/i18n/<lang>/... (Memory-driven, gitignored)
-	@for lang in $(L10N_LANGS); do \
-		./bin/kapi run tm-recycle --target-lang $$lang -q \
-			-i "$$(find bowrain/web/docs/docs -type f \( -name '*.md' -o -name '*.mdx' \) | sort | paste -sd, -)" || exit 1; \
-	done
-
-l10n: l10n-builtins l10n-desktop l10n-cli l10n-demos l10n-docs l10n-bowrain-docs l10n-bowrain-app l10n-bowrain-ctrl l10n-bowrain-pulse l10n-emails l10n-landing ## Rebuild every dogfood translation output from the l10n/ seeds
-
-# ── Dogfood source extraction (what a push carries) ─────────────────────────
-# Five of the recipe's collections declare `i18n/**/*.kbf.json` catalogs that
-# neokapi-i18n extracts from React source. They are build artifacts, gitignored
-# by design — so a bare `kapi push` from a clean checkout carries nothing for
-# them, which is exactly what the dogfood sync did nightly: eleven collections
-# declared, six with content.
-#
-# This produces the SOURCE catalogs only. It is deliberately not `l10n`, which
-# also rebuilds every TARGET-language output — a push needs the source side, and
-# target drift must never gate it (CLAUDE.md, "Target-language drift").
-#
-# It is a make target rather than something the recipe declares, because a
-# recipe naming a subprocess is precisely what AD-038 refused: "a recipe is
-# trusted" is the assumption execution trust exists to disprove, and the `exec`
-# format is a deliberate stub for the same reason. Wiring extraction into the
-# recipe means first designing how a recipe earns that right.
-l10n-extract-source: kapi-desktop-extract bowrain-app-extract bowrain-ctrl-extract bowrain-pulse-extract emails-extract landing-extract kapi-i18n-generate kapi-cli-i18n-generate ## Extract every dogfood SOURCE catalog a push carries (no target languages)
-	@echo "✓ source catalogs extracted — `kapi push` now carries every declared collection"
-
-# ── Transactional emails (bowrain/emails → bowrain/mailer) ──────────────────
-# neokapi-i18n extraction over the React Email templates; qps via pseudo, nb via
-# Memory recycle from .kapi/memory/emails-nb.memory.json; compiled catalogs are inlined into
-# per-locale template renders (bowrain/mailer/templates/<lang>/*.html) and the
-# subject catalogs (bowrain/mailer/subjects/<lang>.json) — both committed and
-# embedded into the server binary, so they are drift-gated (emails-l10n-verify).
-EMAILS_DIR := bowrain/emails
-KAPI_EMAILS_EXTRACT_SRC := --src "src/*.tsx" --ignore "src/*.stories.tsx" --ignore "src/storybook-decorator.tsx"
-
-emails-frontend-deps: ## Install email template dependencies
-	cd $(EMAILS_DIR) && vp install
-
-emails-extract: emails-frontend-deps i18n-react-build ## Extract translatable email blocks → bowrain/emails/i18n/ (per-file .kbf.json)
-	cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(KAPI_EMAILS_EXTRACT_SRC)
-
-emails-pseudo-translate: emails-extract bin/kapi ## Pseudo-translate email strings + subjects → qps
-	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(EMAILS_DIR)/i18n \
-		--target-lang qps \
-		-o $(EMAILS_DIR)/i18n-qps \
-		-q
-	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/mailer/subjects/en.json \
-		--target-lang qps \
-		-f json \
-		-o bowrain/mailer/subjects/qps.json \
-		-q
-
-l10n-emails: l10n-seed emails-pseudo-translate ## Transactional emails → bowrain/mailer/{templates/<lang>/,subjects/<lang>.json} (content-memory-driven)
-	@for lang in $(L10N_LANGS); do \
-		./bin/kapi exec recycle $(EMAILS_DIR)/i18n \
-			--target-lang $$lang \
-			-o $(EMAILS_DIR)/i18n-$$lang || exit 1; \
-		./bin/kapi exec recycle bowrain/mailer/subjects/en.json -f json \
-			--target-lang $$lang -o bowrain/mailer/subjects/$$lang.json || exit 1; \
-	done
-	cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out translations
-	@for lang in $(L10N_LANGS); do \
-		(cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out translations --locale $$lang) || exit 1; \
 	done
 	cd $(EMAILS_DIR) && vp run build
 
-emails-l10n-verify: l10n-emails ## CI gate: rendered email templates + subject catalogs regenerate byte-identically from source + seeds
-	git diff --exit-code bowrain/mailer/templates bowrain/mailer/subjects
-
-# ── Landing page (bowrain/web/landing) ──────────────────────────────────────
-# neokapi-i18n extraction over the landing SPA; compiled runtime catalogs
-# (translations/{qps,nb}.json) are committed so web-landing.yml can build the
-# nb variant (LOCALE=nb → dist/nb/, inline mode) without a kapi toolchain.
-# Keep the extract glob in sync with the `extract` script in
-# bowrain/web/landing/package.json.
-LANDING_DIR := bowrain/web/landing
-
-landing-frontend-deps: ## Install landing page dependencies
-	cd $(LANDING_DIR) && vp install
-
-landing-extract: landing-frontend-deps i18n-react-build ## Extract translatable landing blocks → bowrain/web/landing/i18n/
-	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}"
-
-landing-pseudo-translate: landing-extract bin/kapi ## Pseudo-translate landing strings → i18n-qps/
-	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $(LANDING_DIR)/i18n \
-		--target-lang qps \
-		-o $(LANDING_DIR)/i18n-qps \
-		-q
-
-l10n-landing: l10n-seed landing-pseudo-translate ## Landing page strings → bowrain/web/landing/translations/<lang>.json (Memory-driven, committed)
-	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out translations
-	@for lang in $(L10N_LANGS); do \
-		./bin/kapi exec recycle $(LANDING_DIR)/i18n \
-			--target-lang $$lang \
-			-o $(LANDING_DIR)/i18n-$$lang || exit 1; \
-		(cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out translations --locale $$lang) || exit 1; \
-	done
-
-landing-l10n-verify: l10n-landing ## CI gate: landing runtime catalogs regenerate byte-identically from source + seeds
-	git diff --exit-code $(LANDING_DIR)/translations
-
-landing-build-nb: ## Build the nb landing variant → bowrain/web/landing/dist/nb (inline mode from committed translations)
+landing-build-nb: ## Build the nb landing variant → bowrain/web/landing/dist/nb (inline mode from the committed catalogs)
 	cd $(LANDING_DIR) && vp run build:nb
 
-# Node-free gate (runs in the go-only l10n-drift CI job); the node-dependent
-# email/landing surfaces have their own gates (emails-l10n-verify,
-# landing-l10n-verify) wired into ci.yml where the node toolchain exists.
-l10n-verify: l10n-builtins l10n-cli l10n-demos ## CI gate: committed l10n artifacts regenerate byte-identically from the seeds
-	git diff --exit-code core/i18n/builtins core/i18n/catalogs host/i18n/commands.json host/i18n/catalogs ':(glob)harness/demos/*/demo.*.yaml'
+# The whole loop, and its one gate.
+
+# The stages chain through their prerequisites (compile → translate → extract),
+# so this is one ordered walk even under `make -j`.
+l10n: l10n-compile ## Bring every multilingual surface up to date (all four stages)
+
+# The only l10n gate. It asserts generated-vs-source consistency: the committed
+# derived artifacts must be exactly what the current source + committed context
+# produce. It says nothing about translation coverage, and must not — an English
+# change that leaves nb behind is pending work, not a build break.
+#
+# A new untracked file under the derived paths counts as drift too: `git diff`
+# alone would miss a catalog for a locale or a surface that did not exist before.
+l10n-derived-paths: ## Print the git pathspecs l10n-verify owns (one source of truth for CI)
+	@echo "$(L10N_DERIVED)"
+
+l10n-verify: l10n ## CI gate: every committed derived artifact regenerates byte-identically
+	git diff --exit-code -- $(L10N_DERIVED)
+	@untracked="$$(git ls-files --others --exclude-standard -- $(L10N_DERIVED))"; \
+	if [ -n "$$untracked" ]; then \
+		echo "l10n-verify: regeneration produced untracked files (commit them):"; \
+		echo "$$untracked" | sed 's/^/  /'; \
+		exit 1; \
+	fi
+	@echo "l10n-verify: every committed derived artifact matches its source"
+
+# ── Frontend packages ────────────────────────────────────────────────────────
 
 flow-editor-deps: ## Install flow-editor dependencies
 	cd packages/flow-editor && vp install
@@ -2311,9 +2194,9 @@ help: ## Show this help
 	@awk '/^# ── / { \
 		gsub(/# ── /, ""); gsub(/ ─+$$/, ""); category = $$0; next \
 	} \
-	/^[a-zA-Z_-]+:.*## / { \
+	/^[a-zA-Z0-9_-]+:.*## / { \
 		match($$0, /## (.*)/); desc = substr($$0, RSTART+3); \
-		match($$0, /^[a-zA-Z_-]+/); target = substr($$0, RSTART, RLENGTH); \
+		match($$0, /^[a-zA-Z0-9_-]+/); target = substr($$0, RSTART, RLENGTH); \
 		targets[++n] = target; descs[n] = desc; cats[n] = category \
 	} \
 	END { \
@@ -2347,15 +2230,10 @@ help: ## Show this help
         kapi-desktop-frontend-test kapi-desktop-frontend-check kapi-desktop-extract \
         kapi-desktop-bindings bowrain-desktop-bindings wails-bindings check-wails-bindings \
         check-kapi-desktop-bindings check-bowrain-desktop-bindings wails3-cli \
-        kapi-desktop-pseudo-translate kapi-desktop-compile kapi-desktop-translations \
-        bowrain-app-extract bowrain-app-pseudo-translate bowrain-app-compile \
-        bowrain-app-translations bowrain-app-l10n-verify \
-        bowrain-ctrl-extract bowrain-ctrl-pseudo-translate bowrain-ctrl-compile \
-        bowrain-ctrl-translations bowrain-ctrl-l10n-verify \
-        bowrain-pulse-extract bowrain-pulse-pseudo-translate bowrain-pulse-compile \
-        bowrain-pulse-translations bowrain-pulse-l10n-verify bowrain-l10n-verify \
-        l10n-bowrain-app l10n-bowrain-ctrl l10n-bowrain-pulse \
-        kapi-i18n-generate kapi-i18n-pseudo-translate kapi-i18n-translations \
+        bowrain-app-extract bowrain-ctrl-extract bowrain-pulse-extract \
+        kapi-i18n-generate kapi-cli-i18n-generate i18n-react-build \
+        l10n l10n-extract l10n-seed l10n-translate l10n-pseudo l10n-compile \
+        l10n-verify l10n-derived-paths l10n-review-export \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
@@ -2370,9 +2248,8 @@ help: ## Show this help
         docs-deps docs-dev docs-wasm docs-build docs-serve docs-verify-snippets \
         kbf-smoke kpz-smoke kpz-wasm-smoke wasm-surface-smoke \
         landing-build landing-build-nb docs-build-prod bowrain-docs-build-prod publish-landing publish-website \
-        emails-frontend-deps emails-extract emails-pseudo-translate l10n-emails emails-l10n-verify \
-        landing-frontend-deps landing-extract landing-pseudo-translate l10n-landing landing-l10n-verify \
-        l10n-extract-source \
+        emails-frontend-deps emails-extract \
+        landing-frontend-deps landing-extract \
         tools setup-remote doctor gha-lint clean \
         _fw-fmt _fw-test _fw-test-fast _fw-test-unit _fw-test-race _fw-test-verbose _fw-test-integration \
         _fw-vet _fw-lint _fw-proto _fw-deps _fw-deps-update
