@@ -418,7 +418,7 @@ func (s *Server) HandleRejectChangeSet(c echo.Context) error {
 //
 // Every verdict records the basis it was admitted under. The ordinary one is
 // "peer": someone other than the author reviewed. The separation-of-duties
-// refusal stands as it always has, with one exception — a workspace whose
+// refusal has exactly one exception — a workspace whose
 // author is also its only member with review rights would otherwise have no way
 // to move a governed change-set at all. There, the owner may record their own
 // verdict, and it carries the basis "solo_owner" on the review row, on the

@@ -300,10 +300,10 @@ func TestHumanAuthorStillBlockedInMultiReviewerWorkspace(t *testing.T) {
 // Machine authorship
 // ---------------------------------------------------------------------------
 
-// TestMachineAuthoredChangeSetIsReviewableByTheOwner is the founder's case: the
-// loop pushed it, so the person whose workspace it is may review it — with no
-// override, and no solo marker, because separation of duties is genuinely
-// satisfied.
+// TestMachineAuthoredChangeSetIsReviewableByTheOwner covers the one-person
+// workspace: the loop pushed it, so the person whose workspace it is may review
+// it — with no override, and no solo marker, because separation of duties is
+// genuinely satisfied.
 func TestMachineAuthoredChangeSetIsReviewableByTheOwner(t *testing.T) {
 	h := newKGHarness(t)
 	ctx := context.Background()
@@ -417,7 +417,7 @@ func TestChangeSetDetailReportsTheSoloState(t *testing.T) {
 }
 
 // TestAuthorIdentityFallsBackToTheUser keeps the ordinary path honest: a session
-// or a personal token authors as the person, exactly as before.
+// or a personal token authors as the person.
 func TestAuthorIdentityFallsBackToTheUser(t *testing.T) {
 	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	c := srv.GetEcho().NewContext(nil, nil)

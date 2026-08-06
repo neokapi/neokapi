@@ -77,8 +77,8 @@ const reviewPermission = platauth.PermManageBrand
 //     for.
 //   - no other member of the workspace holds the review permission. The moment
 //     a second eligible reviewer exists the override is gone — not softened,
-//     not warned about. That is the property the founder's decision turns on,
-//     and it is checked live on every attempt rather than cached.
+//     not warned about — and it is checked live on every attempt rather than
+//     cached.
 //
 // It fails closed. No auth store, an unreadable membership list, an unknown
 // workspace: no override, and the ordinary separation-of-duties refusal stands.

@@ -151,7 +151,7 @@ type APIToken struct {
 	Name        string `json:"name"`
 	// AgentName, when set, marks this as a machine token: a CI runner, a
 	// kapi-action step, an agent-driven kapi. Empty means an ordinary personal
-	// token, which behaves exactly as it always has.
+	// token.
 	AgentName   string     `json:"agent_name,omitempty"`
 	TokenPrefix string     `json:"token_prefix"` // first 8 chars for display
 	Scopes      string     `json:"scopes"`       // JSON array, default '["*"]'

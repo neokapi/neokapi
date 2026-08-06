@@ -61,14 +61,14 @@ func TestValidateAgentName(t *testing.T) {
 	}
 
 	invalid := []string{
-		"Kapi-CI",     // case
-		"ai/gpt",      // another identity namespace
-		"agent/ci",    // the prefix belongs to the code, not the name
-		"-leading",    // must start with a letter or digit
-		"trailing-",   // and end with one
-		"has space",   //
-		"emoji-🚀",     //
-		"ci..ci",      // punctuation outside the allowed set
+		"Kapi-CI",   // case
+		"ai/gpt",    // another identity namespace
+		"agent/ci",  // the prefix belongs to the code, not the name
+		"-leading",  // must start with a letter or digit
+		"trailing-", // and end with one
+		"has space", //
+		"emoji-🚀",   //
+		"ci..ci",    // punctuation outside the allowed set
 		"user-123456789012345678901234567890123456789012345678901234567890123", // 65 chars
 	}
 	for _, name := range invalid {
