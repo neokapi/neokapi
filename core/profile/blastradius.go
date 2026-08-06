@@ -4,7 +4,7 @@ import "fmt"
 
 // EvalBlock is the minimal content unit the blast-radius evaluator scores: a
 // block's identity, the collection it belongs to, and its text. Callers load
-// these from their content store; core/brand stays free of any store dependency.
+// these from their content store; core/profile stays free of any store dependency.
 type EvalBlock struct {
 	BlockID        string
 	CollectionID   string
@@ -128,10 +128,10 @@ func hitKeySet(hits []VocabHit) map[string]Severity {
 
 // findingsFromHits projects hits onto the minimal findings the score needs
 // (category + severity drive the penalty weights).
-func findingsFromHits(hits []VocabHit) []BrandVoiceFinding {
-	fs := make([]BrandVoiceFinding, len(hits))
+func findingsFromHits(hits []VocabHit) []VoiceFinding {
+	fs := make([]VoiceFinding, len(hits))
 	for i, h := range hits {
-		fs[i] = BrandVoiceFinding{Category: string(h.Category), Severity: h.Severity}
+		fs[i] = VoiceFinding{Category: string(h.Category), Severity: h.Severity}
 	}
 	return fs
 }

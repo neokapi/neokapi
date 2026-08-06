@@ -64,7 +64,7 @@ func (a *App) RunUp(ctx context.Context, projectPath, sourceLang string, opts Up
 	// The engine speaks cobra (flags, context, output streams); an embedded
 	// run drives it through a synthetic command bound to this project. The
 	// explicit project flag keeps every downstream resolution (terms,
-	// brand profile) on THIS recipe rather than a cwd-relative discovery.
+	// voice profile) on THIS recipe rather than a cwd-relative discovery.
 	cmd := NewEnvCommand(ctx, "up")
 	AddProjectFlag(cmd)
 	if err := cmd.Flags().Set(projectFlagName, projectPath); err != nil {

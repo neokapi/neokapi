@@ -6,24 +6,24 @@ import (
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// mockProfileResolver implements brand.ProfileResolver for testing.
+// mockProfileResolver implements coreprofile.ProfileResolver for testing.
 type mockProfileResolver struct {
-	profile *brand.VoiceProfile
+	profile *coreprofile.VoiceProfile
 }
 
-func (m *mockProfileResolver) ResolveProfile(_ context.Context, _ brand.ResolveContext) (*brand.VoiceProfile, error) {
+func (m *mockProfileResolver) ResolveProfile(_ context.Context, _ coreprofile.ResolveContext) (*coreprofile.VoiceProfile, error) {
 	return m.profile, nil
 }
 
 // fakeTerminology serves a fixed set of LookupAll matches and is otherwise an inert
-// terms.Terminology. It lets the brand-vocab tool's terms branch run with a
+// terms.Terminology. It lets the voice-vocab tool's terms branch run with a
 // concept-bearing match under full test control, without a SQLite store.
 type fakeTerminology struct {
 	matches []terms.TermMatch
@@ -55,18 +55,18 @@ func (f *fakeTerminology) ListRelations(context.Context, *graph.Scope) ([]terms.
 }
 func (f *fakeTerminology) Close() error { return nil }
 
-func TestBrandVocabCheckForbiddenTerms(t *testing.T) {
+func TestVoiceVocabCheckForbiddenTerms(t *testing.T) {
 	t.Parallel()
-	profile := &brand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID: "test-profile",
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "cheap", Replacement: "affordable", Note: "avoid negative connotation"},
 			},
 		},
 	}
 
-	tool := tools.NewBrandVocabCheckTool(profile, nil)
+	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -82,13 +82,13 @@ func TestBrandVocabCheckForbiddenTerms(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	bvAnn, bvOK := model.AnnoAs[*coreprofile.VoiceAnnotation](resultBlock, "voice")
 	require.True(t, bvOK)
 	findings := bvAnn.Findings
 	require.Len(t, findings, 1)
 
-	assert.Equal(t, string(brand.DimensionVocabulary), findings[0].Category)
-	assert.Equal(t, brand.SeverityMajor, findings[0].Severity)
+	assert.Equal(t, string(coreprofile.DimensionVocabulary), findings[0].Category)
+	assert.Equal(t, coreprofile.SeverityMajor, findings[0].Severity)
 	assert.Contains(t, findings[0].Message, "cheap")
 	assert.Contains(t, findings[0].Suggestion, "affordable")
 	assert.Equal(t, 0, findings[0].Position.StartRun)
@@ -96,17 +96,17 @@ func TestBrandVocabCheckForbiddenTerms(t *testing.T) {
 	assert.Equal(t, 15, findings[0].Position.EndOffset)
 }
 
-func TestBrandVocabCheckCompetitorTerms(t *testing.T) {
+func TestVoiceVocabCheckCompetitorTerms(t *testing.T) {
 	t.Parallel()
-	profile := &brand.VoiceProfile{
-		Vocabulary: brand.VocabularyRules{
-			CompetitorTerms: []brand.TermRule{
+	profile := &coreprofile.VoiceProfile{
+		Vocabulary: coreprofile.VocabularyRules{
+			CompetitorTerms: []coreprofile.TermRule{
 				{Term: "Acme Corp", Replacement: "our platform"},
 			},
 		},
 	}
 
-	tool := tools.NewBrandVocabCheckTool(profile, nil)
+	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -122,27 +122,27 @@ func TestBrandVocabCheckCompetitorTerms(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	bvAnn, bvOK := model.AnnoAs[*coreprofile.VoiceAnnotation](resultBlock, "voice")
 	require.True(t, bvOK)
 	findings := bvAnn.Findings
 	require.Len(t, findings, 1)
 
-	assert.Equal(t, brand.SeverityCritical, findings[0].Severity)
+	assert.Equal(t, coreprofile.SeverityCritical, findings[0].Severity)
 	assert.Contains(t, findings[0].Message, "Competitor term")
 	assert.Contains(t, findings[0].Suggestion, "our platform")
 }
 
-func TestBrandVocabCheckPreferredTermSuggestion(t *testing.T) {
+func TestVoiceVocabCheckPreferredTermSuggestion(t *testing.T) {
 	t.Parallel()
-	profile := &brand.VoiceProfile{
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{
+	profile := &coreprofile.VoiceProfile{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "users", Replacement: "customers"},
 			},
 		},
 	}
 
-	tool := tools.NewBrandVocabCheckTool(profile, nil)
+	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -158,7 +158,7 @@ func TestBrandVocabCheckPreferredTermSuggestion(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	bvAnn, bvOK := model.AnnoAs[*coreprofile.VoiceAnnotation](resultBlock, "voice")
 	require.True(t, bvOK)
 	findings := bvAnn.Findings
 	require.Len(t, findings, 1)
@@ -166,17 +166,17 @@ func TestBrandVocabCheckPreferredTermSuggestion(t *testing.T) {
 	assert.Contains(t, findings[0].Suggestion, "customers")
 }
 
-func TestBrandVocabCheckEmitsConceptIDMetadata(t *testing.T) {
+func TestVoiceVocabCheckEmitsConceptIDMetadata(t *testing.T) {
 	t.Parallel()
-	profile := &brand.VoiceProfile{
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{
+	profile := &coreprofile.VoiceProfile{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "cheap", Replacement: "affordable", ConceptID: "concept-affordable"},
 			},
 		},
 	}
 
-	tool := tools.NewBrandVocabCheckTool(profile, nil)
+	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -189,7 +189,7 @@ func TestBrandVocabCheckEmitsConceptIDMetadata(t *testing.T) {
 	require.NoError(t, tool.Process(ctx, in, out))
 
 	resultBlock := (<-out).Resource.(*model.Block)
-	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	bvAnn, bvOK := model.AnnoAs[*coreprofile.VoiceAnnotation](resultBlock, "voice")
 	require.True(t, bvOK)
 	require.Len(t, bvAnn.Findings, 1)
 
@@ -199,19 +199,19 @@ func TestBrandVocabCheckEmitsConceptIDMetadata(t *testing.T) {
 	assert.Equal(t, "affordable", bvAnn.Findings[0].Metadata["replacement"])
 }
 
-func TestBrandVocabCheckStandaloneOmitsConceptID(t *testing.T) {
+func TestVoiceVocabCheckStandaloneOmitsConceptID(t *testing.T) {
 	t.Parallel()
 	// A standalone profile (no concept on the rule) emits findings without a
 	// concept_id metadata key.
-	profile := &brand.VoiceProfile{
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{
+	profile := &coreprofile.VoiceProfile{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "cheap", Replacement: "affordable"},
 			},
 		},
 	}
 
-	tool := tools.NewBrandVocabCheckTool(profile, nil)
+	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -224,7 +224,7 @@ func TestBrandVocabCheckStandaloneOmitsConceptID(t *testing.T) {
 	require.NoError(t, tool.Process(ctx, in, out))
 
 	resultBlock := (<-out).Resource.(*model.Block)
-	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	bvAnn, bvOK := model.AnnoAs[*coreprofile.VoiceAnnotation](resultBlock, "voice")
 	require.True(t, bvOK)
 	require.Len(t, bvAnn.Findings, 1)
 
@@ -234,9 +234,9 @@ func TestBrandVocabCheckStandaloneOmitsConceptID(t *testing.T) {
 	assert.Equal(t, "affordable", bvAnn.Findings[0].Metadata["replacement"])
 }
 
-func TestBrandVocabCheckTermsConceptID(t *testing.T) {
+func TestVoiceVocabCheckTermsConceptID(t *testing.T) {
 	t.Parallel()
-	// A forbidden brand-vocabulary term found via the terms store carries its
+	// A forbidden voice-vocabulary term found via the terms store carries its
 	// knowledge-graph concept; when the concept holds a preferred term in the
 	// source locale, that surfaces as the structured replacement — symmetric with
 	// the profile path.
@@ -253,7 +253,7 @@ func TestBrandVocabCheckTermsConceptID(t *testing.T) {
 		Position: model.TextRange{Start: 10, End: 15},
 	}}}
 
-	tool := tools.NewBrandVocabCheckTool(nil, tb)
+	tool := tools.NewVoiceVocabCheckTool(nil, tb)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -266,7 +266,7 @@ func TestBrandVocabCheckTermsConceptID(t *testing.T) {
 	require.NoError(t, tool.Process(ctx, in, out))
 
 	resultBlock := (<-out).Resource.(*model.Block)
-	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	bvAnn, bvOK := model.AnnoAs[*coreprofile.VoiceAnnotation](resultBlock, "voice")
 	require.True(t, bvOK)
 	require.Len(t, bvAnn.Findings, 1)
 
@@ -278,7 +278,7 @@ func TestBrandVocabCheckTermsConceptID(t *testing.T) {
 	assert.Contains(t, f.Suggestion, "affordable")
 }
 
-func TestBrandVocabCheckTermsStandaloneConcept(t *testing.T) {
+func TestVoiceVocabCheckTermsStandaloneConcept(t *testing.T) {
 	t.Parallel()
 	// A terms store match whose concept carries no ID (a degenerate / store that does
 	// not populate it) yields a finding without a concept_id key.
@@ -288,7 +288,7 @@ func TestBrandVocabCheckTermsStandaloneConcept(t *testing.T) {
 		Position: model.TextRange{Start: 10, End: 15},
 	}}}
 
-	tool := tools.NewBrandVocabCheckTool(nil, tb)
+	tool := tools.NewVoiceVocabCheckTool(nil, tb)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -298,27 +298,27 @@ func TestBrandVocabCheckTermsStandaloneConcept(t *testing.T) {
 
 	require.NoError(t, tool.Process(ctx, in, out))
 	resultBlock := (<-out).Resource.(*model.Block)
-	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	bvAnn, bvOK := model.AnnoAs[*coreprofile.VoiceAnnotation](resultBlock, "voice")
 	require.True(t, bvOK)
 	require.Len(t, bvAnn.Findings, 1)
 	_, hasConcept := bvAnn.Findings[0].Metadata["concept_id"]
 	assert.False(t, hasConcept, "a concept-less terms match must not carry a concept_id")
 }
 
-func TestBrandVocabCheckNoViolations(t *testing.T) {
+func TestVoiceVocabCheckNoViolations(t *testing.T) {
 	t.Parallel()
-	profile := &brand.VoiceProfile{
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{
+	profile := &coreprofile.VoiceProfile{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "cheap"},
 			},
-			CompetitorTerms: []brand.TermRule{
+			CompetitorTerms: []coreprofile.TermRule{
 				{Term: "Acme Corp"},
 			},
 		},
 	}
 
-	tool := tools.NewBrandVocabCheckTool(profile, nil)
+	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -334,21 +334,21 @@ func TestBrandVocabCheckNoViolations(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	_, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	_, bvOK := model.AnnoAs[*coreprofile.VoiceAnnotation](resultBlock, "voice")
 	assert.False(t, bvOK)
 }
 
-func TestBrandVocabCheckSkipsEmptyText(t *testing.T) {
+func TestVoiceVocabCheckSkipsEmptyText(t *testing.T) {
 	t.Parallel()
-	profile := &brand.VoiceProfile{
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{
+	profile := &coreprofile.VoiceProfile{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "cheap"},
 			},
 		},
 	}
 
-	tool := tools.NewBrandVocabCheckTool(profile, nil)
+	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -363,21 +363,21 @@ func TestBrandVocabCheckSkipsEmptyText(t *testing.T) {
 
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
-	_, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	_, bvOK := model.AnnoAs[*coreprofile.VoiceAnnotation](resultBlock, "voice")
 	assert.False(t, bvOK)
 }
 
-func TestBrandVocabCheckCaseInsensitive(t *testing.T) {
+func TestVoiceVocabCheckCaseInsensitive(t *testing.T) {
 	t.Parallel()
-	profile := &brand.VoiceProfile{
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{
+	profile := &coreprofile.VoiceProfile{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "cheap"},
 			},
 		},
 	}
 
-	tool := tools.NewBrandVocabCheckTool(profile, nil)
+	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -393,28 +393,28 @@ func TestBrandVocabCheckCaseInsensitive(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	bvAnn, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	bvAnn, bvOK := model.AnnoAs[*coreprofile.VoiceAnnotation](resultBlock, "voice")
 	require.True(t, bvOK)
 	findings := bvAnn.Findings
 	require.Len(t, findings, 1)
 	assert.Equal(t, "CHEAP", findings[0].OriginalText)
 }
 
-func TestBrandVocabCheckWithResolver(t *testing.T) {
+func TestVoiceVocabCheckWithResolver(t *testing.T) {
 	t.Parallel()
-	profile := &brand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID: "resolved-vocab",
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "cheap", Replacement: "affordable"},
 			},
 		},
 	}
 
 	resolver := &mockProfileResolver{profile: profile}
-	rc := brand.ResolveContext{ExplicitProfileID: "resolved-vocab"}
+	rc := coreprofile.ResolveContext{ExplicitProfileID: "resolved-vocab"}
 
-	tool := tools.NewBrandVocabCheckToolWithResolver(resolver, rc, nil)
+	tool := tools.NewVoiceVocabCheckToolWithResolver(resolver, rc, nil)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -430,19 +430,19 @@ func TestBrandVocabCheckWithResolver(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	ann, ok := resultBlock.Anno("brand-voice")
+	ann, ok := resultBlock.Anno("voice")
 	require.True(t, ok)
-	bva := ann.(*brand.BrandVoiceAnnotation)
+	bva := ann.(*coreprofile.VoiceAnnotation)
 	assert.Equal(t, "resolved-vocab", bva.ProfileID)
 	assert.Len(t, bva.Findings, 1)
 }
 
-func TestBrandVocabCheckWithResolverNilProfile(t *testing.T) {
+func TestVoiceVocabCheckWithResolverNilProfile(t *testing.T) {
 	t.Parallel()
 	resolver := &mockProfileResolver{profile: nil}
-	rc := brand.ResolveContext{}
+	rc := coreprofile.ResolveContext{}
 
-	tool := tools.NewBrandVocabCheckToolWithResolver(resolver, rc, nil)
+	tool := tools.NewVoiceVocabCheckToolWithResolver(resolver, rc, nil)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -459,22 +459,22 @@ func TestBrandVocabCheckWithResolverNilProfile(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 
 	// No findings — profile was nil so no vocab rules to check.
-	_, bvOK := model.AnnoAs[*brand.BrandVoiceAnnotation](resultBlock, "brand-voice")
+	_, bvOK := model.AnnoAs[*coreprofile.VoiceAnnotation](resultBlock, "voice")
 	assert.False(t, bvOK)
 }
 
-func TestBrandVocabCheckAddsAnnotation(t *testing.T) {
+func TestVoiceVocabCheckAddsAnnotation(t *testing.T) {
 	t.Parallel()
-	profile := &brand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID: "voice-1",
-		Vocabulary: brand.VocabularyRules{
-			ForbiddenTerms: []brand.TermRule{
+		Vocabulary: coreprofile.VocabularyRules{
+			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "stuff"},
 			},
 		},
 	}
 
-	tool := tools.NewBrandVocabCheckTool(profile, nil)
+	tool := tools.NewVoiceVocabCheckTool(profile, nil)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -490,10 +490,10 @@ func TestBrandVocabCheckAddsAnnotation(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	ann, ok := resultBlock.Anno("brand-voice")
+	ann, ok := resultBlock.Anno("voice")
 	require.True(t, ok)
 
-	bva := ann.(*brand.BrandVoiceAnnotation)
+	bva := ann.(*coreprofile.VoiceAnnotation)
 	assert.Equal(t, "voice-1", bva.ProfileID)
 	assert.Less(t, bva.Score, 100)
 	assert.Len(t, bva.Findings, 1)

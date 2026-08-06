@@ -45,7 +45,7 @@ func governedProject(t *testing.T, platformContext map[string]string) (recipe, r
 		Defaults: project.Defaults{
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb"},
-			BrandVoice:      &project.BrandVoiceBinding{ProfileFile: "voice.yaml"},
+			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
 		},
 		Coordinates: project.Coordinates{
 			"product": {{ID: "framework"}, {ID: "platform"}},
@@ -53,7 +53,7 @@ func governedProject(t *testing.T, platformContext map[string]string) (recipe, r
 		},
 		Profiles: []project.ProfileBinding{{
 			When:  map[string]string{"product": "platform"},
-			Voice: &project.BrandVoiceBinding{ProfileFile: "platform-voice.yaml"},
+			Voice: &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
 		}},
 		Content: []project.ContentCollection{
 			{Name: "framework-docs", Items: []project.ContentItem{{Path: "docs/**/*.md"}}},
@@ -76,7 +76,7 @@ func bindingsCmd(t *testing.T, recipe string) Command {
 }
 
 func TestGroupInputsByBinding(t *testing.T) {
-	defaultVoice := &project.BrandVoiceBinding{ProfileFile: "voice.yaml"}
+	defaultVoice := &project.VoiceBinding{ProfileFile: "voice.yaml"}
 	coords := project.Coordinates{
 		"product": {{ID: "platform"}, {ID: "press"}, {ID: "house"}},
 		"channel": {{ID: "docs"}, {ID: "landing"}},
@@ -85,11 +85,11 @@ func TestGroupInputsByBinding(t *testing.T) {
 	profiles := []project.ProfileBinding{
 		{
 			When:  map[string]string{"product": "platform"},
-			Voice: &project.BrandVoiceBinding{ProfileFile: "platform-voice.yaml"},
+			Voice: &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
 		},
 		{
 			When:  map[string]string{"product": "press"},
-			Voice: &project.BrandVoiceBinding{Pack: "marketing-blog"},
+			Voice: &project.VoiceBinding{Pack: "marketing-blog"},
 			Terms: "press-terms.db",
 		},
 		{
@@ -105,7 +105,7 @@ func TestGroupInputsByBinding(t *testing.T) {
 	newProj := func(content ...project.ContentCollection) *project.KapiProject {
 		return &project.KapiProject{
 			Version:     "v1",
-			Defaults:    project.Defaults{BrandVoice: defaultVoice},
+			Defaults:    project.Defaults{Voice: defaultVoice},
 			Coordinates: coords,
 			Profiles:    profiles,
 			Content:     content,
@@ -270,7 +270,7 @@ func TestGroupInputsByBinding(t *testing.T) {
 }
 
 // TestResolveProjectBindings_PerContextVoice is the point of the feature: two
-// collections of one project resolve two different brand voice profiles, and a
+// collections of one project resolve two different voice profiles, and a
 // collection sitting at the project's default point still resolves the
 // project-wide one.
 func TestResolveProjectBindings_PerContextVoice(t *testing.T) {
@@ -351,7 +351,7 @@ func TestRecipeGovernanceEntersTheChain(t *testing.T) {
 	require.Equal(t, "Platform Voice", b.profile.Name, "the collection's coordinates select profile A")
 
 	// A real store holding what the tiers under (and over) the collection name.
-	store, err := openBrandStoreAt(filepath.Join(root, "brand.db"))
+	store, err := openVoiceStoreAt(filepath.Join(root, "brand.db"))
 	require.NoError(t, err)
 	defer store.Close()
 	for _, p := range []*profile.VoiceProfile{

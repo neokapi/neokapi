@@ -65,7 +65,7 @@ func builtInNames(t *testing.T, reg *registry.ToolRegistry) []registry.ToolID {
 // "Settable" is exactly the schema's Properties — the fields FromStruct
 // projected, so `schema:"-"`, interfaces, funcs and channels are already
 // excluded. A tool with no settable fields (span-classify, layer-processor,
-// brand-vocab-check) has nothing a step could configure and needs no factory.
+// voice-vocab-check) has nothing a step could configure and needs no factory.
 func TestEveryConfigurableBuiltInToolHasAConfigFactory(t *testing.T) {
 	reg := builtInRegistry(t)
 	checked := 0
@@ -96,10 +96,10 @@ func TestInternalToolsAreWithheldByDeclarationNotByOmission(t *testing.T) {
 	// Pipeline plumbing (batch, layer-processor, span-classify), tools whose
 	// whole output is consumed by later steps in the same flow and that no writer
 	// serializes (properties-set, tag-protect), and tools whose input the host
-	// resolves rather than the step (brand-vocab-check).
+	// resolves rather than the step (voice-vocab-check).
 	wantInternal := map[registry.ToolID]bool{
 		"batch":             true,
-		"brand-vocab-check": true,
+		"voice-vocab-check": true,
 		"layer-processor":   true,
 		"properties-set":    true,
 		"span-classify":     true,

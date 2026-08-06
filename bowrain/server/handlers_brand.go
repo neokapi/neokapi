@@ -46,8 +46,8 @@ type BrandCheckRequest struct {
 
 // BrandCheckResponse is the response for a brand voice check.
 type BrandCheckResponse struct {
-	Score    coreprofile.BrandComplianceScore `json:"score"`
-	Findings []coreprofile.BrandVoiceFinding  `json:"findings"`
+	Score    coreprofile.ComplianceScore `json:"score"`
+	Findings []coreprofile.VoiceFinding  `json:"findings"`
 }
 
 // StarterPackResponse describes an available starter pack template.

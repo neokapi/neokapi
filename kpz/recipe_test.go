@@ -259,11 +259,11 @@ func TestSanitizeRecipeClearsNonLocalPaths(t *testing.T) {
 				p.Defaults.Redaction = &project.RedactionSpec{Enabled: true, Rules: escape}
 			},
 			func(p *project.KapiProject) string { return p.Defaults.Redaction.Rules }},
-		{"defaults.brand_voice.profile_file",
+		{"defaults.voice.profile_file",
 			func(p *project.KapiProject) {
-				p.Defaults.BrandVoice = &project.BrandVoiceBinding{ProfileFile: escape}
+				p.Defaults.Voice = &project.VoiceBinding{ProfileFile: escape}
 			},
-			func(p *project.KapiProject) string { return p.Defaults.BrandVoice.ProfileFile }},
+			func(p *project.KapiProject) string { return p.Defaults.Voice.ProfileFile }},
 		{"content base",
 			func(p *project.KapiProject) {
 				p.Content = []project.ContentCollection{{Path: "src/**", Base: escape}}
@@ -315,7 +315,7 @@ func TestSanitizeRecipeKeepsOrdinaryPaths(t *testing.T) {
 			TermsSource:  "context/terms.terms.json",
 			MemorySource: "context/memory.memory.json",
 			Redaction:    &project.RedactionSpec{Enabled: true, Rules: "context/redaction.yaml"},
-			BrandVoice:   &project.BrandVoiceBinding{ProfileFile: "context/kapi-voice.yaml"},
+			Voice:        &project.VoiceBinding{ProfileFile: "context/kapi-voice.yaml"},
 		},
 		Content: []project.ContentCollection{{
 			Path:   "docs/**/*.md",

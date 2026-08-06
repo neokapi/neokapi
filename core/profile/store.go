@@ -7,8 +7,8 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// BrandStore defines the interface for brand voice profile storage.
-type BrandStore interface {
+// Store defines the interface for voice profile storage.
+type Store interface {
 	// Profile CRUD
 	CreateProfile(ctx context.Context, profile *VoiceProfile) error
 	GetProfile(ctx context.Context, id string) (*VoiceProfile, error)
@@ -101,22 +101,22 @@ type CandidateRule struct {
 	DecidedAt       *time.Time         `json:"decided_at,omitempty"`
 }
 
-// StoredScore represents a persisted brand compliance score for a block.
+// StoredScore represents a persisted voice compliance score for a block.
 type StoredScore struct {
-	ID             string              `json:"id"`
-	ProjectID      string              `json:"project_id"`
-	Stream         string              `json:"stream"`
-	BlockID        string              `json:"block_id"`
-	ProfileID      string              `json:"profile_id"`
-	ProfileVersion int                 `json:"profile_version"`
-	Locale         model.LocaleID      `json:"locale"`
-	Score          int                 `json:"score"`
-	Dimensions     []DimensionScore    `json:"dimensions"`
-	Findings       []BrandVoiceFinding `json:"findings"`
-	CheckedAt      time.Time           `json:"checked_at"`
+	ID             string           `json:"id"`
+	ProjectID      string           `json:"project_id"`
+	Stream         string           `json:"stream"`
+	BlockID        string           `json:"block_id"`
+	ProfileID      string           `json:"profile_id"`
+	ProfileVersion int              `json:"profile_version"`
+	Locale         model.LocaleID   `json:"locale"`
+	Score          int              `json:"score"`
+	Dimensions     []DimensionScore `json:"dimensions"`
+	Findings       []VoiceFinding   `json:"findings"`
+	CheckedAt      time.Time        `json:"checked_at"`
 }
 
-// Correction records a user correction to a brand voice finding.
+// Correction records a user correction to a voice profile finding.
 type Correction struct {
 	ID            string    `json:"id"`
 	ProfileID     string    `json:"profile_id"`

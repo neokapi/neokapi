@@ -11,7 +11,7 @@ import (
 
 func TestPostgresBrandStore_ImplementsInterface(t *testing.T) {
 	// Compile-time check that PostgresBrandStore satisfies BrandStore.
-	var _ coreprofile.BrandStore = (*PostgresBrandStore)(nil)
+	var _ coreprofile.Store = (*PostgresBrandStore)(nil)
 }
 
 func TestScanProfile_Roundtrip(t *testing.T) {

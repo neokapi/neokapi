@@ -19,11 +19,11 @@ import (
 // ErrEmptyCorpus is returned by InferVoiceProfile when the corpus contains no
 // analyzable text. Callers that treat an empty stream as "nothing to infer
 // from" (rather than a failure) match it with errors.Is.
-var ErrEmptyCorpus = errors.New("brand-voice-infer: empty corpus")
+var ErrEmptyCorpus = errors.New("voice-infer: empty corpus")
 
 // InferOptions configures a voice-profile inference run.
 type InferOptions struct {
-	// ProfileName names the draft profile. Defaults to "Inferred Brand Voice".
+	// ProfileName names the draft profile. Defaults to "Inferred Voice".
 	ProfileName string
 	// Domain is an optional subject-domain hint (e.g. "medical", "developer
 	// tools") woven into the prompt.
@@ -39,7 +39,7 @@ type InferOptions struct {
 // withDefaults returns a copy of the options with zero values filled in.
 func (o InferOptions) withDefaults() InferOptions {
 	if strings.TrimSpace(o.ProfileName) == "" {
-		o.ProfileName = "Inferred Brand Voice"
+		o.ProfileName = "Inferred Voice"
 	}
 	if o.MaxExamples <= 0 {
 		o.MaxExamples = 3
@@ -68,8 +68,8 @@ type DraftEvidence struct {
 	Fields map[string]FieldEvidence `json:"fields"`
 }
 
-// InferVoiceProfile infers a draft brand voice profile from a text corpus
-// using the given LLM provider — the inverse of the brand-voice-check tool,
+// InferVoiceProfile infers a draft voice profile from a text corpus
+// using the given LLM provider — the inverse of the voice-check tool,
 // which scores text against an existing profile. It returns the draft profile
 // (mapped into the canonical profile.VoiceProfile shape) plus a DraftEvidence
 // sidecar carrying the model's per-field confidence and source notes.
@@ -86,7 +86,7 @@ func InferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, cor
 func inferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, corpus string, opts InferOptions) (*profile.VoiceProfile, *DraftEvidence, aiprovider.TokenUsage, error) {
 	var usage aiprovider.TokenUsage
 	if provider == nil {
-		return nil, nil, usage, errors.New("brand-voice-infer: nil provider")
+		return nil, nil, usage, errors.New("voice-infer: nil provider")
 	}
 	corpus = strings.TrimSpace(corpus)
 	if corpus == "" {
@@ -95,27 +95,27 @@ func inferVoiceProfile(ctx context.Context, provider aiprovider.LLMProvider, cor
 	opts = opts.withDefaults()
 	corpus = truncateRunes(corpus, opts.MaxCorpusChars)
 
-	turns := prompt.BrandInfer{Domain: opts.Domain, MaxExamples: opts.MaxExamples}.Turns(corpus)
-	ctx = prompt.WithID(ctx, prompt.IDBrandInfer)
-	resp, err := provider.ChatStructured(ctx, aiprovider.MessagesFromTurns(turns), brandVoiceInferSchema())
+	turns := prompt.VoiceInfer{Domain: opts.Domain, MaxExamples: opts.MaxExamples}.Turns(corpus)
+	ctx = prompt.WithID(ctx, prompt.IDVoiceInfer)
+	resp, err := provider.ChatStructured(ctx, aiprovider.MessagesFromTurns(turns), voiceInferLLMSchema())
 	if err != nil {
-		return nil, nil, usage, fmt.Errorf("brand-voice-infer: %w", err)
+		return nil, nil, usage, fmt.Errorf("voice-infer: %w", err)
 	}
 	usage = resp.Usage
 
 	var result inferLLMResult
 	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
-		return nil, nil, usage, fmt.Errorf("brand-voice-infer: decode structured response: %w", err)
+		return nil, nil, usage, fmt.Errorf("voice-infer: decode structured response: %w", err)
 	}
 
 	draft, evidence := mapInferResult(result, opts)
 	return draft, evidence, usage, nil
 }
 
-// brandVoiceInferSchema returns the JSON schema for structured voice-profile
+// voiceInferLLMSchema returns the JSON schema for structured voice-profile
 // inference output. The shape maps 1:1 into a profile.VoiceProfile subset plus
 // the per-field evidence sidecar.
-func brandVoiceInferSchema() aiprovider.JSONSchema {
+func voiceInferLLMSchema() aiprovider.JSONSchema {
 	pattern := map[string]any{
 		"type": "object",
 		"properties": map[string]any{
@@ -141,7 +141,7 @@ func brandVoiceInferSchema() aiprovider.JSONSchema {
 	}
 	return aiprovider.JSONSchema{
 		Name:        "brand_voice_inference",
-		Description: "Draft brand voice profile inferred from a content corpus, with per-field evidence",
+		Description: "Draft voice profile inferred from a content corpus, with per-field evidence",
 		Strict:      true,
 		Schema: map[string]any{
 			"type": "object",
@@ -274,7 +274,7 @@ type inferEvidenceResult struct {
 func mapInferResult(res inferLLMResult, opts InferOptions) (*profile.VoiceProfile, *DraftEvidence) {
 	draft := &profile.VoiceProfile{
 		Name:        opts.ProfileName,
-		Description: "Draft brand voice profile inferred from a content corpus. Review and adjust before adopting.",
+		Description: "Draft voice profile inferred from a content corpus. Review and adjust before adopting.",
 		Tone: profile.ToneProfile{
 			Personality: res.Tone.Personality,
 			Formality:   res.Tone.Formality,
@@ -375,12 +375,12 @@ func truncateRunes(s string, n int) string {
 // Tool wrapper
 // ---------------------------------------------------------------------------
 
-// BrandVoiceInferTool infers a draft brand voice profile from the content
-// stream — the inverse of BrandVoiceCheckTool. It accumulates every block's
+// VoiceInferTool infers a draft voice profile from the content
+// stream — the inverse of VoiceCheckTool. It accumulates every block's
 // source text as the corpus, passes all parts through unchanged, and runs a
 // single inference when the stream ends. The draft and its evidence sidecar
 // are read from Draft() after the flow completes.
-type BrandVoiceInferTool struct {
+type VoiceInferTool struct {
 	tool.BaseTool
 	usageAccumulator
 	provider aiprovider.LLMProvider
@@ -391,8 +391,8 @@ type BrandVoiceInferTool struct {
 	evidence *DraftEvidence
 }
 
-// BrandVoiceInferConfig holds configuration for the brand voice infer tool.
-type BrandVoiceInferConfig struct {
+// VoiceInferConfig holds configuration for the voice profile infer tool.
+type VoiceInferConfig struct {
 	Provider    string `json:"provider,omitempty"    schema:"title=AI Provider,description=AI provider,default=anthropic,group=provider"`
 	APIKey      string `json:"apiKey,omitempty"      schema:"title=API Key,description=API key for the AI provider,group=provider"`
 	Model       string `json:"model,omitempty"       schema:"title=Model,description=AI model name,group=provider"`
@@ -401,18 +401,18 @@ type BrandVoiceInferConfig struct {
 	MaxExamples int    `json:"maxExamples,omitempty" schema:"title=Max Examples,description=Maximum before/after examples to infer,default=3,min=1"`
 }
 
-func (c *BrandVoiceInferConfig) ToolName() string { return "brand-voice-infer" }
-func (c *BrandVoiceInferConfig) Reset()           {}
-func (c *BrandVoiceInferConfig) Validate() error  { return nil }
+func (c *VoiceInferConfig) ToolName() string { return "voice-infer" }
+func (c *VoiceInferConfig) Reset()           {}
+func (c *VoiceInferConfig) Validate() error  { return nil }
 
-// BrandVoiceInferSchema returns the auto-generated schema for the tool.
-func BrandVoiceInferSchema() *schema.ComponentSchema {
-	s := schema.FromStruct(&BrandVoiceInferConfig{}, schema.ToolMeta{
-		ID:          "brand-voice-infer",
+// VoiceInferSchema returns the auto-generated schema for the tool.
+func VoiceInferSchema() *schema.ComponentSchema {
+	s := schema.FromStruct(&VoiceInferConfig{}, schema.ToolMeta{
+		ID:          "voice-infer",
 		Category:    schema.CategoryAnalysis,
-		DisplayName: "AI Brand Voice Inference",
-		Description: "Infer a draft brand voice profile from a content corpus using an LLM provider",
-		Tags:        []string{"ai-powered", "brand"},
+		DisplayName: "AI Voice Inference",
+		Description: "Infer a draft voice profile from a content corpus using an LLM provider",
+		Tags:        []string{"ai-powered", "voice"},
 		Requires:    []string{schema.RequiresCredentials},
 		Cardinality: schema.Monolingual,
 		SideEffects: []schema.SideEffect{schema.SideEffectAPICall, schema.SideEffectRemoteSourceEgress},
@@ -421,22 +421,22 @@ func BrandVoiceInferSchema() *schema.ComponentSchema {
 	return s
 }
 
-// NewBrandVoiceInferFromConfig creates a brand voice infer tool from a config map.
-func NewBrandVoiceInferFromConfig(config map[string]any, _ string) (tool.Tool, error) {
-	var cfg BrandVoiceInferConfig
+// NewVoiceInferFromConfig creates a voice profile infer tool from a config map.
+func NewVoiceInferFromConfig(config map[string]any, _ string) (tool.Tool, error) {
+	var cfg VoiceInferConfig
 	if err := schema.ApplyConfig(config, &cfg); err != nil {
-		return nil, fmt.Errorf("brand-voice-infer config: %w", err)
+		return nil, fmt.Errorf("voice-infer config: %w", err)
 	}
 	p, err := ProviderFromConfig(cfg.Provider, aiprovider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
 	if err != nil {
 		return nil, err
 	}
-	return NewBrandVoiceInferTool(p, cfg), nil
+	return NewVoiceInferTool(p, cfg), nil
 }
 
-// NewBrandVoiceInferTool creates a new LLM-based brand voice inference tool.
-func NewBrandVoiceInferTool(p aiprovider.LLMProvider, cfg BrandVoiceInferConfig) *BrandVoiceInferTool {
-	t := &BrandVoiceInferTool{
+// NewVoiceInferTool creates a new LLM-based voice profile inference tool.
+func NewVoiceInferTool(p aiprovider.LLMProvider, cfg VoiceInferConfig) *VoiceInferTool {
+	t := &VoiceInferTool{
 		provider: p,
 		opts: InferOptions{
 			ProfileName: cfg.ProfileName,
@@ -444,8 +444,8 @@ func NewBrandVoiceInferTool(p aiprovider.LLMProvider, cfg BrandVoiceInferConfig)
 			MaxExamples: cfg.MaxExamples,
 		},
 	}
-	t.ToolName = "brand-voice-infer"
-	t.ToolDescription = "Infers a draft brand voice profile from content using AI/LLM"
+	t.ToolName = "voice-infer"
+	t.ToolDescription = "Infers a draft voice profile from content using AI/LLM"
 	t.Cfg = &cfg
 	return t
 }
@@ -455,7 +455,7 @@ func NewBrandVoiceInferTool(p aiprovider.LLMProvider, cfg BrandVoiceInferConfig)
 // block source text, then infers once when the input stream ends. An empty
 // stream is not an error — there is simply nothing to infer from and Draft()
 // stays nil.
-func (t *BrandVoiceInferTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
+func (t *VoiceInferTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	// inferVoiceProfile truncates the corpus to MaxCorpusChars runes, so stop
 	// accumulating once the builder is guaranteed to hold at least that many
 	// (a rune is at most 4 bytes, so byte length ≥ 4×cap ⇒ rune count ≥ cap).
@@ -498,7 +498,7 @@ func (t *BrandVoiceInferTool) Process(ctx context.Context, in <-chan *model.Part
 
 // Draft returns the inferred draft profile and its evidence sidecar. Both are
 // nil until Process has completed over a stream containing translatable text.
-func (t *BrandVoiceInferTool) Draft() (*profile.VoiceProfile, *DraftEvidence) {
+func (t *VoiceInferTool) Draft() (*profile.VoiceProfile, *DraftEvidence) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.draft, t.evidence

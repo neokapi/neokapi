@@ -16,7 +16,7 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&a.Lang, "lang", "", "UI locale for tool/format/plugin metadata (BCP-47, e.g. fr); falls back to KAPI_LANG / LC_ALL / LANG")
 
 	// --explain-prompts shows exactly what kapi sends to the LLM on your behalf:
-	// the rendered prompt (including the brand voice and glossary it wove in),
+	// the rendered prompt (including the voice profile and glossary it wove in),
 	// the model, and the reply. Bare flag prints a transcript to stderr;
 	// --explain-prompts=<path> writes the exchanges as JSON. Pair it with
 	// `--provider demo` to preview the prompts with no API key and no spend.

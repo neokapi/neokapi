@@ -16,10 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// verifyBrandYAML binds a brand voice with a critical competitor term, so a
+// verifyVoiceYAML binds a voice profile with a critical competitor term, so a
 // single occurrence in the source drops the compliance score below the default
-// threshold (100 - 25 = 75 < 80) and fails the brand gate.
-const verifyBrandYAML = `name: Verify Brand
+// threshold (100 - 25 = 75 < 80) and fails the voice gate.
+const verifyVoiceYAML = `name: Verify Voice
 vocabulary:
   forbidden_terms:
     - term: utilize
@@ -31,7 +31,7 @@ vocabulary:
       severity: critical
 `
 
-// writeVerifyProject creates a temp project that binds a brand profile and a
+// writeVerifyProject creates a temp project that binds a voice profile and a
 // project terms store, with an English source file and a French target file. The
 // returned root is the project directory; the target file is returned so the
 // test can rewrite it for the passing case.
@@ -52,16 +52,16 @@ name: verify
 defaults:
   source_language: en
   target_languages: [fr]
-  brand_voice:
-    profile_file: brand.yaml
+  voice:
+    profile_file: voice.yaml
 content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"), []byte(verifyBrandYAML), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(verifyVoiceYAML), 0o644))
 
-	// Source: contains the competitor term "Globex" (brand fail) and a
+	// Source: contains the competitor term "Globex" (voice fail) and a
 	// {name} placeholder plus a glossary term "Save".
 	src := `{
   "greeting": "Hello {name}, welcome to Globex!",
@@ -130,7 +130,7 @@ func gateByName(o verifyOutput, name string) (verifyGateResult, bool) {
 	return verifyGateResult{}, false
 }
 
-// TestVerify_FailingProject asserts the failing project produces brand,
+// TestVerify_FailingProject asserts the failing project produces voice,
 // terminology, and qa findings, an overall pass:false, and the quality-gate
 // sentinel (exit 3 via ExitCode).
 func TestVerify_FailingProject(t *testing.T) {
@@ -143,10 +143,10 @@ func TestVerify_FailingProject(t *testing.T) {
 	require.ErrorIs(t, runErr, ErrQualityGate, "must return the quality-gate sentinel")
 	assert.Equal(t, ExitGate, ExitCode(nil, runErr), "quality-gate failure must map to exit 3")
 
-	brand, ok := gateByName(out, gateBrand)
-	require.True(t, ok, "brand gate must be present")
-	assert.False(t, brand.Pass, "brand gate must fail (competitor term Globex)")
-	require.NotEmpty(t, brand.Findings, "brand gate must produce findings")
+	voiceGate, ok := gateByName(out, gateVoice)
+	require.True(t, ok, "voice gate must be present")
+	assert.False(t, voiceGate.Pass, "voice gate must fail (competitor term Globex)")
+	require.NotEmpty(t, voiceGate.Findings, "voice gate must produce findings")
 
 	terms, ok := gateByName(out, gateTerms)
 	require.True(t, ok, "terminology gate must be present")
@@ -189,7 +189,7 @@ func TestVerify_NoFailReportsButExitsZero(t *testing.T) {
 	assert.Positive(t, parsed.Summary.Failed, "findings are still reported")
 }
 
-// TestVerify_PassingAfterFix asserts that fixing the brand, terminology, and
+// TestVerify_PassingAfterFix asserts that fixing the voice, terminology, and
 // placeholder violations makes verify pass with a zero exit code.
 func TestVerify_PassingAfterFix(t *testing.T) {
 	root, targetFile := writeVerifyProject(t)

@@ -11,18 +11,18 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// BrandVocabConfig holds configuration for the brand vocabulary check tool.
-type BrandVocabConfig struct {
-	Profile *profile.VoiceProfile `schema:"description=Brand voice profile containing vocabulary rules"`
+// VoiceVocabConfig holds configuration for the voice vocabulary check tool.
+type VoiceVocabConfig struct {
+	Profile *profile.VoiceProfile `schema:"description=Voice profile containing vocabulary rules"`
 }
 
-func (c *BrandVocabConfig) ToolName() string { return "brand-vocab-check" }
-func (c *BrandVocabConfig) Reset()           {}
-func (c *BrandVocabConfig) Validate() error  { return nil }
+func (c *VoiceVocabConfig) ToolName() string { return "voice-vocab-check" }
+func (c *VoiceVocabConfig) Reset()           {}
+func (c *VoiceVocabConfig) Validate() error  { return nil }
 
-// BrandVocabCheckTool checks text against brand vocabulary rules (preferred/forbidden/competitor terms).
-// This is a rule-based check that runs before the LLM-based brand-voice-check.
-type BrandVocabCheckTool struct {
+// VoiceVocabCheckTool checks text against voice vocabulary rules (preferred/forbidden/competitor terms).
+// This is a rule-based check that runs before the LLM-based voice-check.
+type VoiceVocabCheckTool struct {
 	tool.BaseTool
 	profile     *profile.VoiceProfile
 	terminology terms.Terminology       // optional — if provided, filters by term_source=brand_vocabulary
@@ -31,35 +31,35 @@ type BrandVocabCheckTool struct {
 	resolved    bool                    // true after first resolution attempt
 }
 
-// NewBrandVocabCheckTool creates a new brand vocabulary check tool.
-func NewBrandVocabCheckTool(profile *profile.VoiceProfile, tb terms.Terminology) *BrandVocabCheckTool {
-	t := &BrandVocabCheckTool{
+// NewVoiceVocabCheckTool creates a new voice vocabulary check tool.
+func NewVoiceVocabCheckTool(profile *profile.VoiceProfile, tb terms.Terminology) *VoiceVocabCheckTool {
+	t := &VoiceVocabCheckTool{
 		profile:     profile,
 		terminology: tb,
 	}
-	t.ToolName = "brand-vocab-check"
-	t.ToolDescription = "Checks text against brand vocabulary rules (forbidden, competitor, preferred terms)"
-	t.Cfg = &BrandVocabConfig{Profile: profile}
+	t.ToolName = "voice-vocab-check"
+	t.ToolDescription = "Checks text against voice vocabulary rules (forbidden, competitor, preferred terms)"
+	t.Cfg = &VoiceVocabConfig{Profile: profile}
 	t.Annotate = t.annotateBlock
 	return t
 }
 
-// NewBrandVocabCheckToolWithResolver creates a brand vocabulary check tool that
+// NewVoiceVocabCheckToolWithResolver creates a voice vocabulary check tool that
 // lazily resolves its profile from the organizational context hierarchy.
-func NewBrandVocabCheckToolWithResolver(resolver profile.ProfileResolver, rc profile.ResolveContext, tb terms.Terminology) *BrandVocabCheckTool {
-	t := &BrandVocabCheckTool{
+func NewVoiceVocabCheckToolWithResolver(resolver profile.ProfileResolver, rc profile.ResolveContext, tb terms.Terminology) *VoiceVocabCheckTool {
+	t := &VoiceVocabCheckTool{
 		terminology: tb,
 		resolver:    resolver,
 		rc:          rc,
 	}
-	t.ToolName = "brand-vocab-check"
-	t.ToolDescription = "Checks text against brand vocabulary rules (forbidden, competitor, preferred terms)"
-	t.Cfg = &BrandVocabConfig{}
+	t.ToolName = "voice-vocab-check"
+	t.ToolDescription = "Checks text against voice vocabulary rules (forbidden, competitor, preferred terms)"
+	t.Cfg = &VoiceVocabConfig{}
 	t.Annotate = t.annotateBlock
 	return t
 }
 
-func (t *BrandVocabCheckTool) resolveOnce(ctx context.Context) {
+func (t *VoiceVocabCheckTool) resolveOnce(ctx context.Context) {
 	if t.resolved || t.resolver == nil {
 		return
 	}
@@ -70,7 +70,7 @@ func (t *BrandVocabCheckTool) resolveOnce(ctx context.Context) {
 	}
 }
 
-func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
+func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	t.resolveOnce(v.Context())
 
 	sourceText := v.SourceText()
@@ -88,7 +88,7 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	// the check_vocabulary MCP tool, so none of these paths diverge.
 	findings := profile.HitsToFindings(profile.MatchVocabulary(t.profile, sourceText), sourceText, sourceRuns)
 
-	// If terminology is available, also look up brand vocabulary terms.
+	// If terminology is available, also look up voice vocabulary terms.
 	if t.terminology != nil {
 		matches, err := t.terminology.LookupAll(v.Context(), sourceText, terms.LookupOptions{
 			SourceFilter: []terms.TermSource{terms.TermSourceBrandVocabulary},
@@ -97,10 +97,10 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 			return err
 		}
 		for _, m := range matches {
-			var f profile.BrandVoiceFinding
+			var f profile.VoiceFinding
 			switch {
 			case m.Term.CompetitorTerm:
-				f = profile.BrandVoiceFinding{
+				f = profile.VoiceFinding{
 					Category:     string(profile.DimensionVocabulary),
 					Severity:     profile.SeverityCritical,
 					Message:      fmt.Sprintf("Competitor term %q found in terms", m.Term.Text),
@@ -108,7 +108,7 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 					OriginalText: m.Term.Text,
 				}
 			case m.Term.Status == model.TermForbidden:
-				f = profile.BrandVoiceFinding{
+				f = profile.VoiceFinding{
 					Category:     string(profile.DimensionVocabulary),
 					Severity:     profile.SeverityMajor,
 					Message:      fmt.Sprintf("Forbidden term %q found in terms", m.Term.Text),
@@ -141,13 +141,13 @@ func (t *BrandVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	}
 
 	if len(findings) > 0 {
-		// Add the brand-voice annotation (which carries the findings + score).
+		// Add the voice annotation (which carries the findings + score).
 		score := profile.CalculateScore(findings)
 		profileID := ""
 		if t.profile != nil {
 			profileID = t.profile.ID
 		}
-		v.Annotate("brand-voice", &profile.BrandVoiceAnnotation{
+		v.Annotate("voice", &profile.VoiceAnnotation{
 			ProfileID: profileID,
 			Score:     score.Overall,
 			Findings:  findings,

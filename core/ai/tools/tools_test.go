@@ -146,7 +146,7 @@ func TestAITranslateToolWithGlossary(t *testing.T) {
 	assert.Equal(t, glossary, capturedReq.Glossary)
 }
 
-func TestAITranslateToolInjectsBrandVoice(t *testing.T) {
+func TestAITranslateToolInjectsVoiceProfile(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	var capturedReq aiprovider.TranslateRequest
 	mock.TranslateFunc = func(ctx context.Context, req aiprovider.TranslateRequest) (*aiprovider.TranslateResponse, error) {

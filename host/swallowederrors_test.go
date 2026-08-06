@@ -326,31 +326,31 @@ func TestApplyTargetOverlay_WellFormedPayloadApplies(t *testing.T) {
 	assert.Equal(t, "Pomme", b.TargetText(model.LocaleID("fr")))
 }
 
-// ─── the brand gate (host/verify.go) ─────────────────────────────────────────
+// ─── the voice gate (host/verify.go) ─────────────────────────────────────────
 
-// TestRunBrandVocabOnBlock_MalformedFindingsPropertyIsAnError: the brand gate
+// TestRunVoiceVocabOnBlock_MalformedFindingsPropertyIsAnError: the voice gate
 // scores whatever findings this returns, so folding a decode failure into "no
 // findings" produced an empty set, a perfect score, and `brand: PASS` — the gate
 // silently disabled while CI went green. (The Process-error half now shares
 // RunCheckTool's driver, covered by TestRunCheckTool_ReturnsToolError.)
-func TestRunBrandVocabOnBlock_MalformedFindingsPropertyIsAnError(t *testing.T) {
+func TestRunVoiceVocabOnBlock_MalformedFindingsPropertyIsAnError(t *testing.T) {
 	b := mkBlock("a", "Apple")
 	if b.Properties == nil {
 		b.Properties = map[string]string{}
 	}
-	b.Properties["brand-vocab-findings"] = `[{"severity":`
+	b.Properties["voice-vocab-findings"] = `[{"severity":`
 
-	findings, err := runBrandVocabOnBlock(context.Background(), coretools.NewBrandVocabCheckTool(&profile.VoiceProfile{}, nil), b)
+	findings, err := runVoiceVocabOnBlock(context.Background(), coretools.NewVoiceVocabCheckTool(&profile.VoiceProfile{}, nil), b)
 	require.Error(t, err, "an undecodable findings payload is a fault, not a clean block")
-	assert.Contains(t, err.Error(), "brand vocabulary findings")
+	assert.Contains(t, err.Error(), "voice vocabulary findings")
 	assert.Empty(t, findings)
 }
 
-// TestRunBrandVocabOnBlock_CleanBlockScoresEmpty is the control: a block with
+// TestRunVoiceVocabOnBlock_CleanBlockScoresEmpty is the control: a block with
 // nothing recorded returns no findings and no error.
-func TestRunBrandVocabOnBlock_CleanBlockScoresEmpty(t *testing.T) {
+func TestRunVoiceVocabOnBlock_CleanBlockScoresEmpty(t *testing.T) {
 	b := mkBlock("a", "Apple")
-	findings, err := runBrandVocabOnBlock(context.Background(), coretools.NewBrandVocabCheckTool(&profile.VoiceProfile{}, nil), b)
+	findings, err := runVoiceVocabOnBlock(context.Background(), coretools.NewVoiceVocabCheckTool(&profile.VoiceProfile{}, nil), b)
 	require.NoError(t, err)
 	assert.Empty(t, findings)
 }

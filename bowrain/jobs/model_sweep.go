@@ -324,7 +324,7 @@ func (s sweepArmScore) Rate() float64 {
 //     survive verbatim into the target — read back from the tool's
 //     do-not-translate findings on the unified quality.findings annotation;
 //   - brand vocabulary: brand.MatchVocabulary over the target plus the
-//     profile's on-brand bar (brand.CalculateScore ≥ OnBrandBar) — the same
+//     profile's on-brand bar (brand.CalculateScore ≥ ComplianceBar) — the same
 //     zero-AI matcher behind persistDraftVoiceScores and every HTTP scoring
 //     surface.
 //
@@ -415,7 +415,7 @@ func sweepVoiceAdherent(target string, profile *brand.VoiceProfile) bool {
 	}
 	findings := brand.HitsToFindings(brand.MatchVocabulary(profile, target), target,
 		[]model.Run{{Text: &model.TextRun{Text: target}}})
-	return brand.CalculateScore(findings).Overall >= profile.OnBrandBar()
+	return brand.CalculateScore(findings).Overall >= profile.ComplianceBar()
 }
 
 // resolveSweepContext captures the project's standing brand context for a

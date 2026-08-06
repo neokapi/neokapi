@@ -665,13 +665,13 @@ defaults:
 	assert.True(t, loaded.Defaults.Segmentation.Source)
 }
 
-func TestDefaults_BrandVoice_Parse(t *testing.T) {
+func TestDefaults_Voice_Parse(t *testing.T) {
 	yamlText := `version: v1
 name: brandy
 defaults:
   source_language: en
   target_languages: [fr]
-  brand_voice:
+  voice:
     profile_file: brand.yaml
 `
 	dir := t.TempDir()
@@ -680,20 +680,20 @@ defaults:
 
 	loaded, err := Load(path)
 	require.NoError(t, err)
-	require.NotNil(t, loaded.Defaults.BrandVoice)
-	assert.Equal(t, "brand.yaml", loaded.Defaults.BrandVoice.ProfileFile)
-	assert.Empty(t, loaded.Defaults.BrandVoice.Profile)
-	assert.Empty(t, loaded.Defaults.BrandVoice.Pack)
+	require.NotNil(t, loaded.Defaults.Voice)
+	assert.Equal(t, "brand.yaml", loaded.Defaults.Voice.ProfileFile)
+	assert.Empty(t, loaded.Defaults.Voice.Profile)
+	assert.Empty(t, loaded.Defaults.Voice.Pack)
 }
 
-func TestDefaults_BrandVoice_RoundTrip(t *testing.T) {
+func TestDefaults_Voice_RoundTrip(t *testing.T) {
 	proj := &KapiProject{
 		Version: "v1",
 		Name:    "Branded",
 		Defaults: Defaults{
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr"},
-			BrandVoice:      &BrandVoiceBinding{Profile: "house-style"},
+			Voice:           &VoiceBinding{Profile: "house-style"},
 		},
 	}
 
@@ -703,29 +703,29 @@ func TestDefaults_BrandVoice_RoundTrip(t *testing.T) {
 
 	loaded, err := Load(path)
 	require.NoError(t, err)
-	require.NotNil(t, loaded.Defaults.BrandVoice)
-	assert.Equal(t, "house-style", loaded.Defaults.BrandVoice.Profile)
+	require.NotNil(t, loaded.Defaults.Voice)
+	assert.Equal(t, "house-style", loaded.Defaults.Voice.Profile)
 }
 
-func TestBrandVoiceBinding_Validate(t *testing.T) {
+func TestVoiceBinding_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
-		binding *BrandVoiceBinding
+		binding *VoiceBinding
 		wantErr bool
 	}{
 		{"nil is ok", nil, false},
-		{"profile_file only", &BrandVoiceBinding{ProfileFile: "brand.yaml"}, false},
-		{"profile only", &BrandVoiceBinding{Profile: "house"}, false},
-		{"pack only", &BrandVoiceBinding{Pack: "professional-b2b"}, false},
-		{"none set", &BrandVoiceBinding{}, true},
-		{"two set", &BrandVoiceBinding{ProfileFile: "brand.yaml", Pack: "p"}, true},
+		{"profile_file only", &VoiceBinding{ProfileFile: "brand.yaml"}, false},
+		{"profile only", &VoiceBinding{Profile: "house"}, false},
+		{"pack only", &VoiceBinding{Pack: "professional-b2b"}, false},
+		{"none set", &VoiceBinding{}, true},
+		{"two set", &VoiceBinding{ProfileFile: "brand.yaml", Pack: "p"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.binding.validate("defaults.brand_voice")
+			err := tt.binding.validate("defaults.voice")
 			if tt.wantErr {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), "defaults.brand_voice:",
+				assert.Contains(t, err.Error(), "defaults.voice:",
 					"the message must name the binding at fault")
 			} else {
 				require.NoError(t, err)
@@ -735,7 +735,7 @@ func TestBrandVoiceBinding_Validate(t *testing.T) {
 }
 
 // TestBowrainTopLevelBrandVoice_RoundTrips guards that the framework's
-// `defaults.brand_voice` binding does not regress bowrain's distinct
+// `defaults.voice` binding does not regress bowrain's distinct
 // top-level `brand_voice:` extension. The framework alone (no bowrain
 // extension registered) must round-trip the top-level key verbatim via
 // Extras while still decoding the defaults binding into its typed field.
@@ -745,7 +745,7 @@ name: dual
 defaults:
   source_language: en
   target_languages: [fr]
-  brand_voice:
+  voice:
     pack: professional-b2b
 brand_voice:
   profile: house-style
@@ -759,8 +759,8 @@ brand_voice:
 	require.NoError(t, err)
 
 	// Framework binding under defaults decodes into the typed field.
-	require.NotNil(t, loaded.Defaults.BrandVoice)
-	assert.Equal(t, "professional-b2b", loaded.Defaults.BrandVoice.Pack)
+	require.NotNil(t, loaded.Defaults.Voice)
+	assert.Equal(t, "professional-b2b", loaded.Defaults.Voice.Pack)
 
 	// Bowrain's top-level brand_voice survives in Extras (no extension
 	// registered in the framework test binary).
@@ -779,8 +779,8 @@ brand_voice:
 	require.NoError(t, Save(out, loaded))
 	reloaded, err := Load(out)
 	require.NoError(t, err)
-	require.NotNil(t, reloaded.Defaults.BrandVoice)
-	assert.Equal(t, "professional-b2b", reloaded.Defaults.BrandVoice.Pack)
+	require.NotNil(t, reloaded.Defaults.Voice)
+	assert.Equal(t, "professional-b2b", reloaded.Defaults.Voice.Pack)
 	_, ok = reloaded.Extras["brand_voice"]
 	assert.True(t, ok, "top-level brand_voice should survive round-trip in Extras")
 }

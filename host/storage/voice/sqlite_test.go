@@ -1,4 +1,4 @@
-package brand
+package voice
 
 import (
 	"fmt"
@@ -12,12 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestStore(t *testing.T) *SQLiteBrandStore {
+func newTestStore(t *testing.T) *SQLiteStore {
 	t.Helper()
 	db, err := storage.Open(":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { db.Close() })
-	store, err := NewSQLiteBrandStore(db)
+	store, err := NewSQLiteStore(db)
 	require.NoError(t, err)
 	return store
 }
@@ -27,7 +27,7 @@ func testProfile() *coreprofile.VoiceProfile {
 		ID:          "p1",
 		WorkspaceID: "ws1",
 		Name:        "Friendly Tech",
-		Description: "A friendly tech brand voice",
+		Description: "A friendly tech voice profile",
 		Tone: coreprofile.ToneProfile{
 			Personality: []string{"friendly", "knowledgeable"},
 			Formality:   "neutral",
@@ -146,7 +146,7 @@ func TestScoreStorage(t *testing.T) {
 			{Dimension: coreprofile.DimensionTone, Score: 90, Penalty: 1, Issues: 1},
 			{Dimension: coreprofile.DimensionStyle, Score: 80, Penalty: 5, Issues: 1},
 		},
-		Findings: []coreprofile.BrandVoiceFinding{
+		Findings: []coreprofile.VoiceFinding{
 			{Category: string(coreprofile.DimensionTone), Severity: coreprofile.SeverityMinor, Message: "too informal"},
 		},
 		CheckedAt: time.Now(),

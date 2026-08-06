@@ -15,7 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -37,7 +37,7 @@ type DesktopFinding struct {
 	// Field is which side of the block the offending text lives on:
 	// "source" or "target".
 	Field string `json:"field,omitempty"`
-	// Replacement is the structured fix text (e.g. a brand profile's preferred
+	// Replacement is the structured fix text (e.g. a voice profile's preferred
 	// term). Empty when there is no safe automatic replacement.
 	Replacement string `json:"replacement,omitempty"`
 	// Fixable reports whether the panel may show an "Apply fix" button: a
@@ -60,7 +60,7 @@ type CheckRunResult struct {
 }
 
 // RunChecks runs the project's content checks (placeholder + do-not-translate
-// when a target exists, brand vocabulary on the source when a brand profile is
+// when a target exists, voice vocabulary on the source when a voice profile is
 // bound) over the content files the Active Filter selects (its collections +
 // glob; all when empty), for the filter's target languages — source-side checks
 // run once per file, target-side checks run once per filtered language, and the
@@ -99,14 +99,14 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 	defer a.checksMu.Unlock()
 	capp := a.checksCLI()
 
-	// Resolve standing project context once: a bound brand profile (for the
+	// Resolve standing project context once: a bound voice profile (for the
 	// source-side vocabulary check, via the CLI's full resolution ladder) and
 	// do-not-translate terms (from the bound terms). Both are optional —
 	// when absent the corresponding check is simply skipped, matching the
 	// CLI's flag-free behavior.
-	var profile *brand.VoiceProfile
+	var profile *coreprofile.VoiceProfile
 	if op.Project != nil && root != "" {
-		if p, _, ok, perr := capp.ResolveBrandProfile(ctx, op.Project, root, host.BrandResolveOptions{}); perr == nil && ok {
+		if p, _, ok, perr := capp.ResolveVoiceProfile(ctx, op.Project, root, host.VoiceResolveOptions{}); perr == nil && ok {
 			profile = p
 		}
 	}
@@ -147,13 +147,13 @@ func (a *App) RunChecks(tabID string, filter ProjectFilter) (*CheckRunResult, er
 			// Brand vocabulary — source-side, when a profile is bound. Runs once per
 			// file (independent of how many target languages are checked).
 			if profile != nil {
-				vocab := coretools.NewBrandVocabCheckTool(profile, nil)
+				vocab := coretools.NewVoiceVocabCheckTool(profile, nil)
 				for _, b := range sourceBlocks {
 					if cerr := host.RunCheckTool(ctx, vocab, b); cerr != nil {
-						checkErr = fmt.Errorf("brand vocabulary: %w", cerr)
+						checkErr = fmt.Errorf("voice vocabulary: %w", cerr)
 						break
 					}
-					if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
+					if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
 						for _, f := range ann.Findings {
 							fileFindings = append(fileFindings, toDesktopFinding(f, b, "source"))
 							allFindings = append(allFindings, f)
@@ -277,21 +277,21 @@ func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName, sourceLang
 	return a.checksCLI().ReadBlocksForCheck(ctx, path, fmtName, sourceLang)
 }
 
-// resolveProjectBrandProfile resolves the brand voice profile bound to the
+// resolveProjectVoiceProfile resolves the voice profile bound to the
 // open project through the CLI's full resolution ladder
-// (host.App.ResolveBrandProfile): defaults.brand_voice (profile_file / pack /
-// local brand store) then the convention brand.yaml files at the project
+// (host.App.ResolveVoiceProfile): defaults.voice (profile_file / pack /
+// local voice store) then the convention brand.yaml files at the project
 // root. Best-effort: nil when nothing is bound or resolution fails — the
-// brand vocabulary check is then skipped, matching the CLI's flag-free
+// voice vocabulary check is then skipped, matching the CLI's flag-free
 // behavior.
-func (a *App) resolveProjectBrandProfile(ctx context.Context, op *openProject) *brand.VoiceProfile {
+func (a *App) resolveProjectVoiceProfile(ctx context.Context, op *openProject) *coreprofile.VoiceProfile {
 	if op == nil || op.Project == nil || op.Path == "" {
 		return nil
 	}
 	root := filepath.Dir(op.Path)
 	a.checksMu.Lock()
 	defer a.checksMu.Unlock()
-	p, _, ok, err := a.checksCLI().ResolveBrandProfile(ctx, op.Project, root, host.BrandResolveOptions{})
+	p, _, ok, err := a.checksCLI().ResolveVoiceProfile(ctx, op.Project, root, host.VoiceResolveOptions{})
 	if err != nil || !ok {
 		return nil
 	}

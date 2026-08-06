@@ -10,7 +10,7 @@ import (
 
 func TestPromoteAndSave_VersionsAndEnforces(t *testing.T) {
 	p := &VoiceProfile{ID: "p1", Version: 1}
-	store := &mockBrandStore{profiles: map[string]*VoiceProfile{"p1": p}}
+	store := &mockVoiceStore{profiles: map[string]*VoiceProfile{"p1": p}}
 	ctx := context.Background()
 	rule := SuggestedRule{Term: "utilize", Replacement: "use", CorrectionCount: 3}
 

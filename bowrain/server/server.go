@@ -181,7 +181,7 @@ type Server struct {
 	SessionStore SessionStateStore
 
 	// BrandStore manages brand voice profiles. Nil when not configured.
-	BrandStore coreprofile.BrandStore
+	BrandStore coreprofile.Store
 
 	// KnowledgeStore persists the governance and collaboration layer of the
 	// brand knowledge graph (AD-021): markets, observations, comments, concept

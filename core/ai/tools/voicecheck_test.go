@@ -7,22 +7,22 @@ import (
 
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// mockProfileResolver implements brand.ProfileResolver for testing.
+// mockProfileResolver implements coreprofile.ProfileResolver for testing.
 type mockProfileResolver struct {
-	profile *brand.VoiceProfile
+	profile *coreprofile.VoiceProfile
 }
 
-func (m *mockProfileResolver) ResolveProfile(_ context.Context, _ brand.ResolveContext) (*brand.VoiceProfile, error) {
+func (m *mockProfileResolver) ResolveProfile(_ context.Context, _ coreprofile.ResolveContext) (*coreprofile.VoiceProfile, error) {
 	return m.profile, nil
 }
 
-func TestBrandVoiceCheckToolFindings(t *testing.T) {
+func TestVoiceCheckToolFindings(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		return &aiprovider.ChatResponse{
@@ -31,15 +31,15 @@ func TestBrandVoiceCheckToolFindings(t *testing.T) {
 		}, nil
 	}
 
-	profile := &brand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID: "test-voice",
-		Tone: brand.ToneProfile{
+		Tone: coreprofile.ToneProfile{
 			Personality: []string{"professional", "friendly"},
 			Formality:   "formal",
 		},
 	}
 
-	tool := tools.NewBrandVoiceCheckTool(mock, profile)
+	tool := tools.NewVoiceCheckTool(mock, profile)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -56,28 +56,28 @@ func TestBrandVoiceCheckToolFindings(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 
 	// Check findings.
-	findingsStr := resultBlock.Properties["brand-voice-findings"]
+	findingsStr := resultBlock.Properties["voice-findings"]
 	require.NotEmpty(t, findingsStr)
 
-	var findings []brand.BrandVoiceFinding
+	var findings []coreprofile.VoiceFinding
 	err = json.Unmarshal([]byte(findingsStr), &findings)
 	require.NoError(t, err)
 	require.Len(t, findings, 1)
-	assert.Equal(t, string(brand.DimensionTone), findings[0].Category)
-	assert.Equal(t, brand.SeverityMajor, findings[0].Severity)
+	assert.Equal(t, string(coreprofile.DimensionTone), findings[0].Category)
+	assert.Equal(t, coreprofile.SeverityMajor, findings[0].Severity)
 
 	// Check score.
-	scoreStr := resultBlock.Properties["brand-voice-score"]
+	scoreStr := resultBlock.Properties["voice-score"]
 	require.NotEmpty(t, scoreStr)
 
-	var score brand.BrandComplianceScore
+	var score coreprofile.ComplianceScore
 	err = json.Unmarshal([]byte(scoreStr), &score)
 	require.NoError(t, err)
 	assert.Equal(t, "test-voice", score.ProfileID)
 	assert.Less(t, score.Overall, 100)
 }
 
-func TestBrandVoiceCheckToolPromptConstruction(t *testing.T) {
+func TestVoiceCheckToolPromptConstruction(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	var capturedSystem, capturedUser string
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
@@ -95,20 +95,20 @@ func TestBrandVoiceCheckToolPromptConstruction(t *testing.T) {
 		}, nil
 	}
 
-	profile := &brand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID: "prompt-test",
-		Tone: brand.ToneProfile{
+		Tone: coreprofile.ToneProfile{
 			Personality: []string{"warm", "knowledgeable"},
 			Formality:   "neutral",
 			Emotion:     "warm",
 		},
-		Style: brand.StyleRules{
+		Style: coreprofile.StyleRules{
 			ActiveVoice:    true,
 			SentenceLength: "short",
 			PersonPOV:      "second",
 			Contractions:   "sometimes",
 		},
-		Examples: []brand.VoiceExample{
+		Examples: []coreprofile.VoiceExample{
 			{
 				Before:      "The system will process your request.",
 				After:       "We'll process your request right away.",
@@ -117,7 +117,7 @@ func TestBrandVoiceCheckToolPromptConstruction(t *testing.T) {
 		},
 	}
 
-	tool := tools.NewBrandVoiceCheckTool(mock, profile)
+	tool := tools.NewVoiceCheckTool(mock, profile)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -149,7 +149,7 @@ func TestBrandVoiceCheckToolPromptConstruction(t *testing.T) {
 	assert.True(t, mock.ChatStructuredCalls[0].Schema.Strict)
 }
 
-func TestBrandVoiceCheckToolScoreCalculation(t *testing.T) {
+func TestVoiceCheckToolScoreCalculation(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		return &aiprovider.ChatResponse{
@@ -162,8 +162,8 @@ func TestBrandVoiceCheckToolScoreCalculation(t *testing.T) {
 		}, nil
 	}
 
-	profile := &brand.VoiceProfile{ID: "score-test"}
-	tool := tools.NewBrandVoiceCheckTool(mock, profile)
+	profile := &coreprofile.VoiceProfile{ID: "score-test"}
+	tool := tools.NewVoiceCheckTool(mock, profile)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -179,8 +179,8 @@ func TestBrandVoiceCheckToolScoreCalculation(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	var score brand.BrandComplianceScore
-	err = json.Unmarshal([]byte(resultBlock.Properties["brand-voice-score"]), &score)
+	var score coreprofile.ComplianceScore
+	err = json.Unmarshal([]byte(resultBlock.Properties["voice-score"]), &score)
 	require.NoError(t, err)
 
 	// minor=1, major=5, minor=1 → total penalty = 7 → overall = 93
@@ -189,10 +189,10 @@ func TestBrandVoiceCheckToolScoreCalculation(t *testing.T) {
 	assert.Len(t, score.Findings, 3)
 }
 
-func TestBrandVoiceCheckToolSkipsEmptyText(t *testing.T) {
+func TestVoiceCheckToolSkipsEmptyText(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
-	profile := &brand.VoiceProfile{ID: "skip-test"}
-	tool := tools.NewBrandVoiceCheckTool(mock, profile)
+	profile := &coreprofile.VoiceProfile{ID: "skip-test"}
+	tool := tools.NewVoiceCheckTool(mock, profile)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -209,7 +209,7 @@ func TestBrandVoiceCheckToolSkipsEmptyText(t *testing.T) {
 	assert.Empty(t, mock.ChatStructuredCalls)
 }
 
-func TestBrandVoiceCheckToolAddsAnnotation(t *testing.T) {
+func TestVoiceCheckToolAddsAnnotation(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		return &aiprovider.ChatResponse{
@@ -218,8 +218,8 @@ func TestBrandVoiceCheckToolAddsAnnotation(t *testing.T) {
 		}, nil
 	}
 
-	profile := &brand.VoiceProfile{ID: "ann-test"}
-	tool := tools.NewBrandVoiceCheckTool(mock, profile)
+	profile := &coreprofile.VoiceProfile{ID: "ann-test"}
+	tool := tools.NewVoiceCheckTool(mock, profile)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -235,15 +235,15 @@ func TestBrandVoiceCheckToolAddsAnnotation(t *testing.T) {
 	result := <-out
 	resultBlock := result.Resource.(*model.Block)
 
-	ann, ok := resultBlock.Anno("brand-voice")
+	ann, ok := resultBlock.Anno("voice")
 	require.True(t, ok)
 
-	bva := ann.(*brand.BrandVoiceAnnotation)
+	bva := ann.(*coreprofile.VoiceAnnotation)
 	assert.Equal(t, "ann-test", bva.ProfileID)
 	assert.Len(t, bva.Findings, 1)
 }
 
-func TestBrandVoiceCheckToolWithResolver(t *testing.T) {
+func TestVoiceCheckToolWithResolver(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		return &aiprovider.ChatResponse{
@@ -252,16 +252,16 @@ func TestBrandVoiceCheckToolWithResolver(t *testing.T) {
 		}, nil
 	}
 
-	profile := &brand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID:   "resolved-profile",
 		Name: "Resolved",
-		Tone: brand.ToneProfile{Formality: "formal"},
+		Tone: coreprofile.ToneProfile{Formality: "formal"},
 	}
 
 	resolver := &mockProfileResolver{profile: profile}
-	rc := brand.ResolveContext{ExplicitProfileID: "resolved-profile"}
+	rc := coreprofile.ResolveContext{ExplicitProfileID: "resolved-profile"}
 
-	tool := tools.NewBrandVoiceCheckToolWithResolver(mock, resolver, rc)
+	tool := tools.NewVoiceCheckToolWithResolver(mock, resolver, rc)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -278,13 +278,13 @@ func TestBrandVoiceCheckToolWithResolver(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 
 	// Verify it used the resolved profile.
-	ann, ok := resultBlock.Anno("brand-voice")
+	ann, ok := resultBlock.Anno("voice")
 	require.True(t, ok)
-	bva := ann.(*brand.BrandVoiceAnnotation)
+	bva := ann.(*coreprofile.VoiceAnnotation)
 	assert.Equal(t, "resolved-profile", bva.ProfileID)
 }
 
-func TestBrandVoiceCheckToolWithResolverNilProfile(t *testing.T) {
+func TestVoiceCheckToolWithResolverNilProfile(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		return &aiprovider.ChatResponse{
@@ -295,9 +295,9 @@ func TestBrandVoiceCheckToolWithResolverNilProfile(t *testing.T) {
 
 	// Resolver returns nil profile — tool still processes but with empty context.
 	resolver := &mockProfileResolver{profile: nil}
-	rc := brand.ResolveContext{}
+	rc := coreprofile.ResolveContext{}
 
-	tool := tools.NewBrandVoiceCheckToolWithResolver(mock, resolver, rc)
+	tool := tools.NewVoiceCheckToolWithResolver(mock, resolver, rc)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -314,14 +314,14 @@ func TestBrandVoiceCheckToolWithResolverNilProfile(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 
 	// Tool still processes — profile ID will be empty.
-	var score brand.BrandComplianceScore
-	err = json.Unmarshal([]byte(resultBlock.Properties["brand-voice-score"]), &score)
+	var score coreprofile.ComplianceScore
+	err = json.Unmarshal([]byte(resultBlock.Properties["voice-score"]), &score)
 	require.NoError(t, err)
 	assert.Empty(t, score.ProfileID)
 	assert.Equal(t, 100, score.Overall)
 }
 
-func TestBrandVoiceCheckToolNoFindings(t *testing.T) {
+func TestVoiceCheckToolNoFindings(t *testing.T) {
 	mock := aiprovider.NewMockProvider()
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []aiprovider.Message, schema aiprovider.JSONSchema) (*aiprovider.ChatResponse, error) {
 		return &aiprovider.ChatResponse{
@@ -330,8 +330,8 @@ func TestBrandVoiceCheckToolNoFindings(t *testing.T) {
 		}, nil
 	}
 
-	profile := &brand.VoiceProfile{ID: "clean-test"}
-	tool := tools.NewBrandVoiceCheckTool(mock, profile)
+	profile := &coreprofile.VoiceProfile{ID: "clean-test"}
+	tool := tools.NewVoiceCheckTool(mock, profile)
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -348,11 +348,11 @@ func TestBrandVoiceCheckToolNoFindings(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 
 	// Score should be present and perfect.
-	var score brand.BrandComplianceScore
-	err = json.Unmarshal([]byte(resultBlock.Properties["brand-voice-score"]), &score)
+	var score coreprofile.ComplianceScore
+	err = json.Unmarshal([]byte(resultBlock.Properties["voice-score"]), &score)
 	require.NoError(t, err)
 	assert.Equal(t, 100, score.Overall)
 
 	// No findings property.
-	assert.Empty(t, resultBlock.Properties["brand-voice-findings"])
+	assert.Empty(t, resultBlock.Properties["voice-findings"])
 }

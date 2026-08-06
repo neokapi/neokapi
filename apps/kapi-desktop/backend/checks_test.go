@@ -24,7 +24,7 @@ func setupCheckProject(t *testing.T, app *App, sourceJSON string) (tabID, srcPat
 	srcPath = filepath.Join(srcDir, "en.json")
 	require.NoError(t, os.WriteFile(srcPath, []byte(sourceJSON), 0o644))
 
-	// Convention brand profile at the project root.
+	// Convention voice profile at the project root.
 	brandYAML := `id: house
 name: House Style
 vocabulary:
@@ -51,7 +51,7 @@ vocabulary:
 	return tab.ID, srcPath
 }
 
-func TestRunChecksFindsBrandVocab(t *testing.T) {
+func TestRunChecksFindsVoiceVocab(t *testing.T) {
 	app := NewApp()
 	tabID, _ := setupCheckProject(t, app, `{"greeting":"Please utilize the dashboard"}`)
 

@@ -12,34 +12,34 @@ import (
 	coretools "github.com/neokapi/neokapi/core/tools"
 )
 
-// init registers the offline brand/terminology/content memory tools on the shared `mcp`
-// stdio server. These mirror the cloud bowrain MCP brand tools so non-Claude
+// init registers the offline voice/terminology/content memory tools on the shared `mcp`
+// stdio server. These mirror the cloud bowrain MCP voice tools so non-Claude
 // MCP clients (Cursor, generic) get parity locally. They are hand-authored
-// because they wrap resources (a brand profile, a terms/content-memory file) rather than
+// because they wrap resources (a voice profile, a terms/content-memory file) rather than
 // a single processing tool; the registry's processing tools are exposed
 // generically alongside them (see mcp_tools.go), so the MCP surface now mirrors
 // the CLI rather than being a curated subset of it.
 func init() {
-	RegisterMCPToolFactory(registerBrandMCPTools)
+	RegisterMCPToolFactory(registerVoiceMCPTools)
 }
 
-func registerBrandMCPTools(server *mcp.Server, a *App) {
+func registerVoiceMCPTools(server *mcp.Server, a *App) {
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "brand_check",
-		Description: "Score text against a brand voice profile using deterministic vocabulary rules; returns a 0-100 compliance score and findings",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, in brandCheckInput) (*mcp.CallToolResult, brandCheckMCPOutput, error) {
+		Name:        "voice_check",
+		Description: "Score text against a voice profile using deterministic vocabulary rules; returns a 0-100 compliance score and findings",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, in voiceCheckInput) (*mcp.CallToolResult, voiceCheckMCPOutput, error) {
 		p, err := loadProfileForMCP(in.ProfilePack, in.ProfileFile)
 		if err != nil {
-			return nil, brandCheckMCPOutput{}, err
+			return nil, voiceCheckMCPOutput{}, err
 		}
-		findings, err := RunBlockTool(ctx, coretools.NewBrandVocabCheckTool(p, nil), in.Text)
+		findings, err := RunBlockTool(ctx, coretools.NewVoiceVocabCheckTool(p, nil), in.Text)
 		if err != nil {
-			return nil, brandCheckMCPOutput{}, err
+			return nil, voiceCheckMCPOutput{}, err
 		}
 		score := profile.CalculateScore(findings)
 		score.ProfileID = p.ID
-		return nil, brandCheckMCPOutput{
+		return nil, voiceCheckMCPOutput{
 			Profile:    p.Name,
 			Score:      score.Overall,
 			Dimensions: score.Dimensions,
@@ -48,17 +48,17 @@ func registerBrandMCPTools(server *mcp.Server, a *App) {
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "brand_rewrite",
-		Description: "Rewrite text to comply with a brand voice profile by substituting forbidden/competitor terms (deterministic, offline)",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, in brandCheckInput) (*mcp.CallToolResult, brandRewriteMCPOutput, error) {
+		Name:        "voice_rewrite",
+		Description: "Rewrite text to comply with a voice profile by substituting forbidden/competitor terms (deterministic, offline)",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, in voiceCheckInput) (*mcp.CallToolResult, voiceRewriteMCPOutput, error) {
 		p, err := loadProfileForMCP(in.ProfilePack, in.ProfileFile)
 		if err != nil {
-			return nil, brandRewriteMCPOutput{}, err
+			return nil, voiceRewriteMCPOutput{}, err
 		}
 		rewritten, changes := RuleRewrite(p, in.Text)
-		out := brandRewriteMCPOutput{Profile: p.Name, Original: in.Text, Rewritten: rewritten}
+		out := voiceRewriteMCPOutput{Profile: p.Name, Original: in.Text, Rewritten: rewritten}
 		for _, c := range changes {
-			out.Changes = append(out.Changes, brandChangeMCP{From: c.From, To: c.To, Count: c.Count})
+			out.Changes = append(out.Changes, voiceChangeMCP{From: c.From, To: c.To, Count: c.Count})
 		}
 		return nil, out, nil
 	})
@@ -83,28 +83,28 @@ func loadProfileForMCP(pack, file string) (*profile.VoiceProfile, error) {
 
 // --- MCP input/output types ---
 
-type brandCheckInput struct {
+type voiceCheckInput struct {
 	Text        string `json:"text" jsonschema:"the text to check or rewrite"`
 	ProfilePack string `json:"profile_pack,omitempty" jsonschema:"built-in profile pack name"`
 	ProfileFile string `json:"profile_file,omitempty" jsonschema:"path to a profile YAML"`
 }
 
-type brandCheckMCPOutput struct {
-	Profile    string                      `json:"profile"`
-	Score      int                         `json:"score"`
-	Dimensions []profile.DimensionScore    `json:"dimensions"`
-	Findings   []profile.BrandVoiceFinding `json:"findings"`
+type voiceCheckMCPOutput struct {
+	Profile    string                   `json:"profile"`
+	Score      int                      `json:"score"`
+	Dimensions []profile.DimensionScore `json:"dimensions"`
+	Findings   []profile.VoiceFinding   `json:"findings"`
 }
 
-type brandChangeMCP struct {
+type voiceChangeMCP struct {
 	From  string `json:"from"`
 	To    string `json:"to"`
 	Count int    `json:"count"`
 }
 
-type brandRewriteMCPOutput struct {
+type voiceRewriteMCPOutput struct {
 	Profile   string           `json:"profile"`
 	Original  string           `json:"original"`
 	Rewritten string           `json:"rewritten"`
-	Changes   []brandChangeMCP `json:"changes,omitempty"`
+	Changes   []voiceChangeMCP `json:"changes,omitempty"`
 }

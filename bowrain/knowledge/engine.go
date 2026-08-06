@@ -60,7 +60,7 @@ type ConceptStore interface {
 }
 
 // ProfileStore is the slice of the brand store the engine reads (and the merge
-// path writes) for voice impact. coreprofile.BrandStore satisfies it.
+// path writes) for voice impact. coreprofile.Store satisfies it.
 type ProfileStore interface {
 	// GetProfile returns a voice profile by ID, or a nil profile with a nil
 	// error when it is absent (following the brand store's convention).
@@ -80,7 +80,7 @@ var (
 	_ BlockSource        = (store.ContentStore)(nil)
 	_ CollectionResolver = (store.ContentStore)(nil)
 	_ ConceptStore       = (terms.Store)(nil)
-	_ ProfileStore       = (coreprofile.BrandStore)(nil)
+	_ ProfileStore       = (coreprofile.Store)(nil)
 )
 
 // Engine computes the read-side analytics of the brand knowledge graph: the

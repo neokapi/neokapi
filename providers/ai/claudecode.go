@@ -160,7 +160,7 @@ func (p *ClaudeCodeProvider) invoke(ctx context.Context, messages []Message, sch
 	}
 	if systemPrompt != "" {
 		// The system prompt is document-derived — translation instructions,
-		// brand voice, terms, and surrounding content. On argv it is readable
+		// voice profile, terms, and surrounding content. On argv it is readable
 		// by every process on the machine for the lifetime of the call, which
 		// is why the user prompt already goes over stdin. Hand it over as a
 		// file instead.

@@ -16,7 +16,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
-// PostgresBrandStore implements profile.BrandStore using PostgreSQL.
+// PostgresBrandStore implements profile.Store using PostgreSQL.
 type PostgresBrandStore struct {
 	db *storage.PgDB
 }

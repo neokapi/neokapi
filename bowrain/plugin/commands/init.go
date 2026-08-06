@@ -740,8 +740,8 @@ func applyFrameworkPreset(recipe *project.Recipe, presetName string) error {
 	// Standing project-context bindings the stack declares — a brand voice
 	// profile and a committed native terms source — scaffolded under
 	// defaults: so project-scoped brand and terminology checks need no flags.
-	if fp.BrandVoiceProfile != "" && recipe.Defaults.BrandVoice == nil {
-		recipe.Defaults.BrandVoice = &coreproj.BrandVoiceBinding{ProfileFile: fp.BrandVoiceProfile}
+	if fp.VoiceProfile != "" && recipe.Defaults.Voice == nil {
+		recipe.Defaults.Voice = &coreproj.VoiceBinding{ProfileFile: fp.VoiceProfile}
 	}
 	if fp.TermsSource != "" && recipe.Defaults.TermsSource == "" {
 		recipe.Defaults.TermsSource = fp.TermsSource

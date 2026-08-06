@@ -17,7 +17,7 @@ import * as gate$0 from "../gate/models.js";
 import * as model$0 from "../model/models.js";
 
 /**
- * BrandVoiceBinding binds a brand voice profile — to the project under
+ * VoiceBinding binds a brand voice profile — to the project under
  * `defaults.brand_voice`, or to a region of the context space under a
  * profile's `voice:`. Exactly one source is expected: a standalone profile YAML
  * (ProfileFile, resolved relative to the project root), a profile in the local
@@ -27,10 +27,10 @@ import * as model$0 from "../model/models.js";
  * — which is what a recipe writes when the profile is a file in the project,
  * as it usually is.
  */
-export class BrandVoiceBinding {
+export class VoiceBinding {
     /**
-     * Creates a new BrandVoiceBinding instance.
-     * @param {Partial<BrandVoiceBinding>} [$$source = {}] - The source object to create the BrandVoiceBinding.
+     * Creates a new VoiceBinding instance.
+     * @param {Partial<VoiceBinding>} [$$source = {}] - The source object to create the VoiceBinding.
      */
     constructor($$source = {}) {
         if (/** @type {any} */(false)) {
@@ -63,13 +63,13 @@ export class BrandVoiceBinding {
     }
 
     /**
-     * Creates a new BrandVoiceBinding instance from a string or object.
+     * Creates a new VoiceBinding instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {BrandVoiceBinding}
+     * @returns {VoiceBinding}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new BrandVoiceBinding(/** @type {Partial<BrandVoiceBinding>} */($$parsedSource));
+        return new VoiceBinding(/** @type {Partial<VoiceBinding>} */($$parsedSource));
     }
 }
 
@@ -526,7 +526,7 @@ export class Defaults {
              * bowrain's top-level `brand_voice` extension (decoded from Extras),
              * which is a platform-level policy with collection scoping.
              * @member
-             * @type {BrandVoiceBinding | null | undefined}
+             * @type {VoiceBinding | null | undefined}
              */
             this["brand_voice"] = undefined;
         }
@@ -1371,7 +1371,7 @@ export class ProfileBinding {
              * forms as defaults.brand_voice (a bare path, or profile_file / profile /
              * pack). nil keeps defaults.brand_voice.
              * @member
-             * @type {BrandVoiceBinding | null | undefined}
+             * @type {VoiceBinding | null | undefined}
              */
             this["voice"] = undefined;
         }
@@ -1584,7 +1584,7 @@ const $$createType10 = $Create.Array($Create.Any);
 const $$createType11 = MergeDefaults.createFrom;
 const $$createType12 = MemoryDefaults.createFrom;
 const $$createType13 = SegmentationDefaults.createFrom;
-const $$createType14 = BrandVoiceBinding.createFrom;
+const $$createType14 = VoiceBinding.createFrom;
 const $$createType15 = $Create.Nullable($$createType14);
 const $$createType16 = $Create.Map($Create.Any, $Create.Any);
 const $$createType17 = $Create.Map($Create.Any, $$createType16);

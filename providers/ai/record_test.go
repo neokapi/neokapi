@@ -58,7 +58,7 @@ func TestRecorderCapturesTranslateExactlyOnce(t *testing.T) {
 	assert.NotEmpty(t, ex.Response)
 }
 
-// Direct ChatStructured calls (batch translate, brand voice, entity extraction)
+// Direct ChatStructured calls (batch translate, voice profile, entity extraction)
 // go through the wrapper and must be captured with their output schema.
 func TestRecorderCapturesStructuredCall(t *testing.T) {
 	got := recordAll(t)

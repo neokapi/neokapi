@@ -68,7 +68,7 @@ func TestTranslatedProductNameFailsBothDNTChecks(t *testing.T) {
 	assert.Equal(t, Counts{Scored: 2, Passed: 2}, kindCounts(pass, DimTerminology, "dnt"))
 }
 
-func TestForbiddenVocabularyScoresWithTheRealBrandVocabCheck(t *testing.T) {
+func TestForbiddenVocabularyScoresWithTheRealVoiceVocabCheck(t *testing.T) {
 	fail := scoreOne(t, "de", "users.alerts.perms", "Jeder Nutzer kann seine Schwellenwerte anpassen.")
 	assert.Equal(t, Counts{Scored: 1, Passed: 0}, kindCounts(fail, DimVoice, "vocab"))
 

@@ -13,22 +13,22 @@ import (
 
 // A repository holding two products binds a different voice per collection, so
 // the ad-hoc brand commands must answer for the file in front of them. They
-// resolved defaults.brand_voice whatever the path, which handed back the wrong
+// resolved defaults.voice whatever the path, which handed back the wrong
 // register for half the tree: coordinates governed the flow path and nothing
 // else.
-func TestResolveBrandProfileCmd_UsesTheFilesCollection(t *testing.T) {
+func TestResolveVoiceProfileCmd_UsesTheFilesCollection(t *testing.T) {
 	root := writeTwoProductProject(t)
 	t.Chdir(root)
 
 	a := &App{}
 
-	got, _, err := a.ResolveBrandProfileCmd(brandProbeCmd(a), filepath.Join("mail", "en.json"))
+	got, _, err := a.ResolveVoiceProfileCmd(brandProbeCmd(a), filepath.Join("mail", "en.json"))
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "platform voice", got.Name,
 		"a file in a bowrain-coordinate collection resolves the bowrain profile")
 
-	got, _, err = a.ResolveBrandProfileCmd(brandProbeCmd(a), filepath.Join("engine", "meta.json"))
+	got, _, err = a.ResolveVoiceProfileCmd(brandProbeCmd(a), filepath.Join("engine", "meta.json"))
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "engine voice", got.Name,
@@ -37,25 +37,25 @@ func TestResolveBrandProfileCmd_UsesTheFilesCollection(t *testing.T) {
 
 // A path no collection claims falls back to the project default — the answer
 // this command always gave, and must keep giving.
-func TestResolveBrandProfileCmd_UnclaimedPathKeepsTheDefault(t *testing.T) {
+func TestResolveVoiceProfileCmd_UnclaimedPathKeepsTheDefault(t *testing.T) {
 	root := writeTwoProductProject(t)
 	t.Chdir(root)
 
 	a := &App{}
-	got, _, err := a.ResolveBrandProfileCmd(brandProbeCmd(a), "README.md")
+	got, _, err := a.ResolveVoiceProfileCmd(brandProbeCmd(a), "README.md")
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "default voice", got.Name)
 }
 
-// Passing no path at all is the bare `kapi brand guide` case: the project
+// Passing no path at all is the bare `kapi voice guide` case: the project
 // default, unchanged.
-func TestResolveBrandProfileCmd_NoPathKeepsTheDefault(t *testing.T) {
+func TestResolveVoiceProfileCmd_NoPathKeepsTheDefault(t *testing.T) {
 	root := writeTwoProductProject(t)
 	t.Chdir(root)
 
 	a := &App{}
-	got, _, err := a.ResolveBrandProfileCmd(brandProbeCmd(a))
+	got, _, err := a.ResolveVoiceProfileCmd(brandProbeCmd(a))
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "default voice", got.Name)
@@ -64,7 +64,7 @@ func TestResolveBrandProfileCmd_NoPathKeepsTheDefault(t *testing.T) {
 // brandProbeCmd is a brand command with none of the selector flags set — the
 // flag-free path these tests are about, where resolution falls through to the
 // project.
-func brandProbeCmd(a *App) *cobra.Command { return NewBrandCmd(a) }
+func brandProbeCmd(a *App) *cobra.Command { return NewVoiceCmd(a) }
 
 // writeTwoProductProject builds the shape this exists to serve: one project,
 // two products, a distinct voice per product, and a default for content that
@@ -96,7 +96,7 @@ func writeTwoProductProject(t *testing.T) string {
 defaults:
   source_language: en
   target_languages: [nb]
-  brand_voice:
+  voice:
     profile_file: voices/default.yaml
 coordinates:
   product: [kapi, bowrain]

@@ -206,12 +206,12 @@ func SanitizeRecipe(p *project.KapiProject) (*project.KapiProject, []string) {
 	clone.Defaults.TermsSource = sanitizeRecipePath(p.Defaults.TermsSource, "defaults.terms_source", note)
 	clone.Defaults.MemorySource = sanitizeRecipePath(p.Defaults.MemorySource, "defaults.memory_source", note)
 	clone.Defaults.Redaction = sanitizeRedaction(p.Defaults.Redaction, "defaults.redaction.rules", note)
-	if bv := p.Defaults.BrandVoice; bv != nil {
+	if bv := p.Defaults.Voice; bv != nil {
 		// A pointer field is shared with the caller's recipe, so it is rebuilt
 		// rather than edited, the same rule the maps above follow.
 		c := *bv
-		c.ProfileFile = sanitizeRecipePath(bv.ProfileFile, "defaults.brand_voice.profile_file", note)
-		clone.Defaults.BrandVoice = &c
+		c.ProfileFile = sanitizeRecipePath(bv.ProfileFile, "defaults.voice.profile_file", note)
+		clone.Defaults.Voice = &c
 	}
 
 	clone.Defaults.Tools = sanitizeToolConfig(p.Defaults.Tools, "defaults.tools", note)

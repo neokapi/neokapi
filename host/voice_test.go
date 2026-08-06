@@ -45,7 +45,7 @@ func TestRuleRewrite(t *testing.T) {
 		t.Fatalf("expected 2 changes, got %d: %+v", len(changes), changes)
 	}
 	// Competitor terms apply before forbidden; "utilize" appears twice.
-	var utilize *output.BrandChange
+	var utilize *output.VoiceChange
 	for i := range changes {
 		if changes[i].From == "utilize" {
 			utilize = &changes[i]
@@ -56,8 +56,8 @@ func TestRuleRewrite(t *testing.T) {
 	}
 }
 
-func TestBrandProfileTemplateParses(t *testing.T) {
-	p, err := profile.LoadProfileYAML(strings.NewReader(BrandProfileTemplate))
+func TestVoiceProfileTemplateParses(t *testing.T) {
+	p, err := profile.LoadProfileYAML(strings.NewReader(VoiceProfileTemplate))
 	if err != nil {
 		t.Fatalf("brand new template must parse as a VoiceProfile: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestBrandProfileTemplateParses(t *testing.T) {
 }
 
 func TestRunBlockToolFindings(t *testing.T) {
-	tool := coretools.NewBrandVocabCheckTool(testProfile(), nil)
+	tool := coretools.NewVoiceVocabCheckTool(testProfile(), nil)
 	findings, err := RunBlockTool(t.Context(), tool, "We utilize Globex.")
 	if err != nil {
 		t.Fatalf("RunBlockTool: %v", err)

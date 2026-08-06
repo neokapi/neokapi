@@ -20,7 +20,7 @@ import (
 // interface means only GetProfile is implemented — the resolution path uses
 // nothing else.
 type editorFakeBrandStore struct {
-	coreprofile.BrandStore
+	coreprofile.Store
 	profiles map[string]*coreprofile.VoiceProfile
 }
 

@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ProfileProblem is one structural problem found while validating a brand voice
+// ProfileProblem is one structural problem found while validating a voice profile
 // profile. Field is a dotted path into the profile (e.g.
 // "style.prohibited_patterns[0].regex"); Message explains the problem. Field is
 // empty for whole-profile problems (e.g. an empty document).
@@ -22,7 +22,7 @@ type ProfileProblem struct {
 }
 
 // DecodeProfileStrict decodes a VoiceProfile from a YAML stream and rejects
-// unknown fields, so callers (e.g. `kapi brand validate`) can flag typo'd or
+// unknown fields, so callers (e.g. `kapi voice validate`) can flag typo'd or
 // unsupported keys that the lenient LoadProfileYAML silently ignores. It returns
 // the decoded profile (best-effort, populated with whatever did decode)
 // alongside any decode or unknown-field error. An empty document decodes to a
@@ -62,7 +62,7 @@ var (
 
 // ValidateProfile checks a VoiceProfile for structural problems and returns one
 // ProfileProblem per issue (empty when the profile is structurally sound). It is
-// the semantic half of `kapi brand validate`: the loader catches YAML syntax and
+// the semantic half of `kapi voice validate`: the loader catches YAML syntax and
 // unknown-field errors, ValidateProfile catches missing required fields, invalid
 // enum values, uncompilable regex patterns, and empty term/example entries.
 //

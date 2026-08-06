@@ -170,7 +170,7 @@ defaults:
   target_languages: [de, fr, ja, nb]
   # Brand vocabulary and voice are git-tracked sources under i18n/.
   brand_voice:
-    profile_file: i18n/brand-voice.yaml
+    profile_file: i18n/voice.yaml
   terms_source: i18n/terms.json
 content:
   - path: "i18n/src/**/*.kbf.json"

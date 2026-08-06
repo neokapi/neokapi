@@ -22,7 +22,7 @@ type CSVImportOptions struct {
 	// Monolingual imports a single-locale concept list — one term column plus
 	// an optional definition column — instead of source/target term pairs. Each
 	// row contributes one term in SourceLocale; TargetLocale is ignored. This is
-	// the path for concept or brand-vocabulary lists that have no translation.
+	// the path for concept or voice-vocabulary lists that have no translation.
 	Monolingual bool
 }
 
@@ -153,7 +153,7 @@ func bilingualConcept(row []string, conceptID string, opts CSVImportOptions) (Co
 // monolingualConcept builds a single-locale concept from a CSV row. Layout:
 // term[, definition][, domain][, status][, term_source][, competitor]. The term
 // is placed in opts.SourceLocale; opts.TargetLocale is ignored. This lets a
-// concept or brand-vocabulary list import without a translation pair.
+// concept or voice-vocabulary list import without a translation pair.
 // Returns ok=false when the row lacks a term.
 func monolingualConcept(row []string, conceptID string, opts CSVImportOptions) (Concept, bool) {
 	if len(row) < 1 {

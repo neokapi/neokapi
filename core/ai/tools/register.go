@@ -27,18 +27,18 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	}, AIReviewSchema())
 	reg.SetConfigFactory("review", NewAIReviewFromConfig)
 
-	// AI Brand Voice Check — score/flag text against a brand voice profile.
-	reg.RegisterWithSchema("brand-voice-check", func() tool.Tool {
-		return NewBrandVoiceCheckTool(aiprovider.NewMockProvider(), nil)
-	}, BrandVoiceCheckSchema())
-	reg.SetConfigFactory("brand-voice-check", NewBrandVoiceCheckFromConfig)
+	// AI Voice Check — score/flag text against a voice profile.
+	reg.RegisterWithSchema("voice-check", func() tool.Tool {
+		return NewVoiceCheckTool(aiprovider.NewMockProvider(), nil)
+	}, VoiceCheckSchema())
+	reg.SetConfigFactory("voice-check", NewVoiceCheckFromConfig)
 
-	// AI Brand Voice Infer — draft a voice profile FROM a content corpus (the
-	// inverse of brand-voice-check: onboarding, not compliance).
-	reg.RegisterWithSchema("brand-voice-infer", func() tool.Tool {
-		return NewBrandVoiceInferTool(aiprovider.NewMockProvider(), BrandVoiceInferConfig{})
-	}, BrandVoiceInferSchema())
-	reg.SetConfigFactory("brand-voice-infer", NewBrandVoiceInferFromConfig)
+	// AI Voice Infer — draft a voice profile FROM a content corpus (the
+	// inverse of voice-check: onboarding, not compliance).
+	reg.RegisterWithSchema("voice-infer", func() tool.Tool {
+		return NewVoiceInferTool(aiprovider.NewMockProvider(), VoiceInferConfig{})
+	}, VoiceInferSchema())
+	reg.SetConfigFactory("voice-infer", NewVoiceInferFromConfig)
 
 	// Term Extract — extract candidate terminology from content (the LLM
 	// counterpart to the deterministic term-check).
@@ -63,7 +63,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// resolver in the group def; the remaining single-backend AI tools share
 	// ResolveAIEgressContract.
 	for _, name := range []registry.ToolID{
-		"review", "brand-voice-check", "brand-voice-infer",
+		"review", "voice-check", "voice-infer",
 		"term-extract", "media-refine",
 	} {
 		reg.SetContractResolver(name, ResolveAIEgressContract)

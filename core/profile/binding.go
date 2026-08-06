@@ -6,16 +6,17 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// Well-known property keys for brand voice bindings on Project.Properties,
-// Stream.Properties, and Collection.ConnectorConfig maps.
+// Well-known property keys for voice profile bindings on Project.Properties,
+// Stream.Properties, and Collection.ConnectorConfig maps. The key strings are
+// persisted in platform stores and stay as written.
 const (
 	PropertyProfileID = "brand_voice_profile_id"
 	PropertyChannel   = "brand_voice_channel"
 	PropertyPersona   = "brand_voice_persona"
 )
 
-// BrandVoiceBinding associates a brand voice profile with an organizational scope.
-type BrandVoiceBinding struct {
+// ScopeBinding associates a voice profile with an organizational scope.
+type ScopeBinding struct {
 	ProfileID string `json:"profile_id" yaml:"profile_id"`
 	Channel   string `json:"channel,omitempty" yaml:"channel,omitempty"` // maps to ChannelOverride key
 }
@@ -64,17 +65,17 @@ type ResolveContext struct {
 	Persona string
 }
 
-// ProfileResolver resolves the effective brand voice profile for a given context.
+// ProfileResolver resolves the effective voice profile for a given context.
 type ProfileResolver interface {
 	ResolveProfile(ctx context.Context, rc ResolveContext) (*VoiceProfile, error)
 }
 
-// StoreProfileResolver implements ProfileResolver using a BrandStore.
+// StoreProfileResolver implements ProfileResolver using a Store.
 type StoreProfileResolver struct {
-	Store BrandStore
+	Store Store
 }
 
-// ResolveProfile resolves the most specific brand voice profile from the context
+// ResolveProfile resolves the most specific voice profile from the context
 // hierarchy and applies locale + channel overrides.
 func (r *StoreProfileResolver) ResolveProfile(ctx context.Context, rc ResolveContext) (*VoiceProfile, error) {
 	return ResolveProfileFromContext(ctx, rc, r.Store)

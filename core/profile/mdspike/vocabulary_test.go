@@ -44,7 +44,7 @@ func termTexts(rules []profile.TermRule) []string {
 // TestTermsStoreSourcingChangesCheckBehaviour is the finding the spike exists to
 // make concrete: sourcing the ban list from the terms store is not a
 // refactoring. It adds prohibitions the profile never declared, and text that
-// passes `kapi brand check` today starts failing.
+// passes `kapi voice check` today starts failing.
 //
 // The added bans are the retired spellings CLAUDE.md already forbids in prose,
 // so the change is in the direction the project wants. It is still a change in
@@ -78,7 +78,7 @@ func TestTermsStoreSourcingChangesCheckBehaviour(t *testing.T) {
 	scoreBefore := profile.CalculateScore(profile.HitsToFindings(profile.MatchVocabulary(handAuthored, sample), sample, nil))
 	scoreAfter := profile.CalculateScore(profile.HitsToFindings(hits, sample, nil))
 	t.Logf("sample score: %d before, %d after (on-brand bar %d)",
-		scoreBefore.Overall, scoreAfter.Overall, sourced.OnBrandBar())
+		scoreBefore.Overall, scoreAfter.Overall, sourced.ComplianceBar())
 	assert.Equal(t, 100, scoreBefore.Overall)
 	assert.Less(t, scoreAfter.Overall, scoreBefore.Overall)
 

@@ -59,35 +59,35 @@ vocabulary:
       severity: minor
 `
 
-// TestResolveBrandProfile_FromProjectBinding asserts that with no profile
-// flag, brand resolution falls back to defaults.brand_voice.profile_file in
+// TestResolveVoiceProfile_FromProjectBinding asserts that with no profile
+// flag, brand resolution falls back to defaults.voice.profile_file in
 // the .kapi recipe, resolved relative to the project root.
-func TestResolveBrandProfile_FromProjectBinding(t *testing.T) {
+func TestResolveVoiceProfile_FromProjectBinding(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   source_language: en
   target_languages: [fr]
-  brand_voice:
+  voice:
     profile_file: brand.yaml
 `)
 	require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"), []byte(brandYAML), 0o644))
 	t.Chdir(root)
 
 	a := &App{}
-	cmd := newBrandCheckCmd(a)
+	cmd := newVoiceCheckCmd(a)
 
-	profile, src, err := a.ResolveBrandProfileCmd(cmd)
+	profile, src, err := a.ResolveVoiceProfileCmd(cmd)
 	require.NoError(t, err, "no flag + project binding must resolve, not error")
 	require.NotNil(t, profile)
 	assert.Equal(t, "Project Brand", profile.Name)
 	assert.Equal(t, filepath.Join(root, "brand.yaml"), src)
 }
 
-// TestResolveBrandProfile_FromConventionFile asserts that with no flag and no
+// TestResolveVoiceProfile_FromConventionFile asserts that with no flag and no
 // recipe binding, brand resolution falls back to a brand.yaml convention file
 // at the project root.
-func TestResolveBrandProfile_FromConventionFile(t *testing.T) {
+func TestResolveVoiceProfile_FromConventionFile(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
@@ -98,37 +98,37 @@ defaults:
 	t.Chdir(root)
 
 	a := &App{}
-	cmd := newBrandCheckCmd(a)
+	cmd := newVoiceCheckCmd(a)
 
-	profile, src, err := a.ResolveBrandProfileCmd(cmd)
+	profile, src, err := a.ResolveVoiceProfileCmd(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 	assert.Equal(t, "Project Brand", profile.Name)
 	assert.Equal(t, filepath.Join(root, "brand.yaml"), src)
 }
 
-// TestResolveBrandProfile_NoProjectNoFlag asserts the original "specify a
+// TestResolveVoiceProfile_NoProjectNoFlag asserts the original "specify a
 // profile" error still fires when there is no flag, no project binding, and
 // no convention file.
-func TestResolveBrandProfile_NoProjectNoFlag(t *testing.T) {
+func TestResolveVoiceProfile_NoProjectNoFlag(t *testing.T) {
 	// An empty temp dir with no .kapi recipe anywhere up the tree.
 	t.Chdir(t.TempDir())
 
 	a := &App{}
-	cmd := newBrandCheckCmd(a)
+	cmd := newVoiceCheckCmd(a)
 
-	_, _, err := a.ResolveBrandProfileCmd(cmd)
+	_, _, err := a.ResolveVoiceProfileCmd(cmd)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "specify a profile")
 }
 
-// TestResolveBrandProfile_ExplicitFlagWins asserts that an explicit
+// TestResolveVoiceProfile_ExplicitFlagWins asserts that an explicit
 // --profile-file flag still works unchanged even inside a project.
-func TestResolveBrandProfile_ExplicitFlagWins(t *testing.T) {
+func TestResolveVoiceProfile_ExplicitFlagWins(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
-  brand_voice:
+  voice:
     profile_file: brand.yaml
 `)
 	require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"), []byte(brandYAML), 0o644))
@@ -138,10 +138,10 @@ defaults:
 	t.Chdir(root)
 
 	a := &App{}
-	cmd := newBrandCheckCmd(a)
+	cmd := newVoiceCheckCmd(a)
 	require.NoError(t, cmd.Flags().Set("profile-file", explicit))
 
-	profile, _, err := a.ResolveBrandProfileCmd(cmd)
+	profile, _, err := a.ResolveVoiceProfileCmd(cmd)
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 	assert.Equal(t, "Explicit", profile.Name, "explicit flag must override the project binding")
@@ -188,7 +188,7 @@ defaults:
 
 	a := &App{SourceLang: "en"}
 	// A command without a --termstore flag still resolves the project terms.
-	cmd := newBrandCheckCmd(a)
+	cmd := newVoiceCheckCmd(a)
 
 	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
 	require.NoError(t, err)
@@ -229,7 +229,7 @@ profiles:
 	t.Chdir(root)
 
 	a := &App{SourceLang: "en"}
-	cmd := newBrandCheckCmd(a)
+	cmd := newVoiceCheckCmd(a)
 
 	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
 	require.NoError(t, err)
@@ -293,7 +293,7 @@ defaults:
 func TestResolveProjectGlossary_NoProject(t *testing.T) {
 	t.Chdir(t.TempDir())
 	a := &App{SourceLang: "en"}
-	cmd := newBrandCheckCmd(a)
+	cmd := newVoiceCheckCmd(a)
 	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
 	require.NoError(t, err)
 	assert.Nil(t, glossary)
@@ -315,7 +315,7 @@ defaults:
 
 	a := &App{SourceLang: "en"}
 	a.InitRegistries()
-	cmd := newBrandCheckCmd(a)
+	cmd := newVoiceCheckCmd(a)
 
 	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
 	require.NoError(t, err)

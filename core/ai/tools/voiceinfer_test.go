@@ -117,7 +117,7 @@ func TestInferVoiceProfileTinyCorpus(t *testing.T) {
 	require.NotNil(t, draft)
 	require.NotNil(t, evidence)
 
-	assert.Equal(t, "Inferred Brand Voice", draft.Name) // default name applied
+	assert.Equal(t, "Inferred Voice", draft.Name) // default name applied
 	assert.NotEmpty(t, draft.Tone.Personality)
 	assert.Contains(t, []string{"casual", "neutral", "formal", "technical"}, draft.Tone.Formality)
 	assert.Contains(t, []string{"always", "sometimes", "never"}, draft.Style.Contractions)
@@ -126,9 +126,9 @@ func TestInferVoiceProfileTinyCorpus(t *testing.T) {
 	assert.Greater(t, evidence.Fields["tone"].Confidence, 0.0)
 }
 
-func TestBrandVoiceInferToolProcess(t *testing.T) {
+func TestVoiceInferToolProcess(t *testing.T) {
 	p := newInferDemoProvider()
-	tl := tools.NewBrandVoiceInferTool(p, tools.BrandVoiceInferConfig{ProfileName: "Stream Voice"})
+	tl := tools.NewVoiceInferTool(p, tools.VoiceInferConfig{ProfileName: "Stream Voice"})
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 4)
@@ -167,9 +167,9 @@ func TestBrandVoiceInferToolProcess(t *testing.T) {
 	assert.Positive(t, tl.TotalUsage().TotalTokens())
 }
 
-func TestBrandVoiceInferToolEmptyStream(t *testing.T) {
+func TestVoiceInferToolEmptyStream(t *testing.T) {
 	p := newInferDemoProvider()
-	tl := tools.NewBrandVoiceInferTool(p, tools.BrandVoiceInferConfig{})
+	tl := tools.NewVoiceInferTool(p, tools.VoiceInferConfig{})
 
 	ctx := t.Context()
 	in := make(chan *model.Part)
@@ -185,10 +185,10 @@ func TestBrandVoiceInferToolEmptyStream(t *testing.T) {
 	assert.Nil(t, evidence)
 }
 
-func TestBrandVoiceInferRegistered(t *testing.T) {
-	s := tools.BrandVoiceInferSchema()
+func TestVoiceInferRegistered(t *testing.T) {
+	s := tools.VoiceInferSchema()
 	require.NotNil(t, s)
-	assert.Equal(t, "brand-voice-infer", s.ID)
+	assert.Equal(t, "voice-infer", s.ID)
 	require.NotNil(t, s.ToolMeta)
 	assert.Contains(t, s.ToolMeta.Requires, "credentials")
 	sideEffects := make([]string, 0, len(s.ToolMeta.SideEffects))
@@ -198,10 +198,10 @@ func TestBrandVoiceInferRegistered(t *testing.T) {
 	assert.Contains(t, sideEffects, "api-call")
 
 	// Config factory path constructs the tool with the demo provider.
-	tl, err := tools.NewBrandVoiceInferFromConfig(map[string]any{
+	tl, err := tools.NewVoiceInferFromConfig(map[string]any{
 		"provider":    "demo",
 		"profileName": "Factory Voice",
 	}, "")
 	require.NoError(t, err)
-	assert.Equal(t, "brand-voice-infer", tl.Name())
+	assert.Equal(t, "voice-infer", tl.Name())
 }

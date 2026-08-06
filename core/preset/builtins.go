@@ -34,8 +34,8 @@ func RegisterBuiltins(reg *PresetRegistry) {
 //	i18n/
 //	├── src/               source KBF catalogs (bundler output)
 //	├── de/ fr/ ja/ nb/    per-locale targets (kapi output)
-//	├── terms.json              brand vocabulary (git source)
-//	└── brand-voice.yaml   brand voice profile (git source)
+//	├── terms.json         voice vocabulary (git source)
+//	└── voice.yaml         voice profile (git source)
 //
 // Source lives in i18n/src/ so the source glob (i18n/src/**/*.kbf.json) never matches
 // the per-locale target dirs — the collision that otherwise forces sibling
@@ -50,10 +50,10 @@ func neokapiI18nPreset() *FrameworkPreset {
 		Mappings: []MappingTemplate{
 			{Local: "i18n/src/**/*.kbf.json", Format: "kbf", TargetPath: "i18n/{lang}/{path}.kbf.json"},
 		},
-		Exclude:           []string{"node_modules/**", "dist/**", "build/**"},
-		BrandVoiceProfile: "i18n/brand-voice.yaml",
-		TermsSource:       "i18n/terms.json",
-		Source:            sourceBuiltIn,
+		Exclude:      []string{"node_modules/**", "dist/**", "build/**"},
+		VoiceProfile: "i18n/voice.yaml",
+		TermsSource:  "i18n/terms.json",
+		Source:       sourceBuiltIn,
 	}
 }
 

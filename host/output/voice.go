@@ -9,38 +9,38 @@ import (
 	"github.com/neokapi/neokapi/core/profile"
 )
 
-// BrandGuideOutput is the result of `kapi brand guide`.
-type BrandGuideOutput struct {
+// VoiceGuideOutput is the result of `kapi voice guide`.
+type VoiceGuideOutput struct {
 	Profile string `json:"profile"`
 	Guide   string `json:"guide"`
 }
 
 // FormatText prints the rendered voice guide verbatim.
-func (o BrandGuideOutput) FormatText(w io.Writer) error {
+func (o VoiceGuideOutput) FormatText(w io.Writer) error {
 	_, err := io.WriteString(w, o.Guide)
 	return err
 }
 
-// BrandCheckOutput is the result of `kapi brand check` — a brand compliance
+// VoiceCheckOutput is the result of `kapi voice check` — a voice compliance
 // score plus the findings that produced it.
-type BrandCheckOutput struct {
-	Profile    string                      `json:"profile"`
-	Score      int                         `json:"score"`
-	Passed     bool                        `json:"passed"`
-	MinScore   *int                        `json:"min_score,omitempty"`
-	AIChecked  bool                        `json:"ai_checked"`
-	Dimensions []profile.DimensionScore    `json:"dimensions"`
-	Findings   []profile.BrandVoiceFinding `json:"findings"`
+type VoiceCheckOutput struct {
+	Profile    string                   `json:"profile"`
+	Score      int                      `json:"score"`
+	Passed     bool                     `json:"passed"`
+	MinScore   *int                     `json:"min_score,omitempty"`
+	AIChecked  bool                     `json:"ai_checked"`
+	Dimensions []profile.DimensionScore `json:"dimensions"`
+	Findings   []profile.VoiceFinding   `json:"findings"`
 }
 
 // FormatText renders a compact human-readable scorecard.
-func (o BrandCheckOutput) FormatText(w io.Writer) error {
+func (o VoiceCheckOutput) FormatText(w io.Writer) error {
 	s := Theme(w)
 	status := s.Success.Render("PASS")
 	if !o.Passed {
 		status = s.Error.Render("FAIL")
 	}
-	fmt.Fprintf(w, "Brand voice score: %d/100  [%s]", o.Score, status)
+	fmt.Fprintf(w, "Voice profile score: %d/100  [%s]", o.Score, status)
 	if o.Profile != "" {
 		fmt.Fprintf(w, "  %s", s.Muted.Render("(profile: "+o.Profile+")"))
 	}
@@ -70,23 +70,23 @@ func (o BrandCheckOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// BrandChange records a single term substitution made by `kapi brand rewrite`.
-type BrandChange struct {
+// VoiceChange records a single term substitution made by `kapi voice rewrite`.
+type VoiceChange struct {
 	From  string `json:"from"`
 	To    string `json:"to"`
 	Count int    `json:"count"`
 }
 
-// BrandRewriteOutput is the result of `kapi brand rewrite`.
-type BrandRewriteOutput struct {
+// VoiceRewriteOutput is the result of `kapi voice rewrite`.
+type VoiceRewriteOutput struct {
 	Profile   string        `json:"profile"`
 	Original  string        `json:"original"`
 	Rewritten string        `json:"rewritten"`
-	Changes   []BrandChange `json:"changes"`
+	Changes   []VoiceChange `json:"changes"`
 }
 
 // FormatText prints the rewritten text and a change summary.
-func (o BrandRewriteOutput) FormatText(w io.Writer) error {
+func (o VoiceRewriteOutput) FormatText(w io.Writer) error {
 	fmt.Fprintln(w, o.Rewritten)
 	if len(o.Changes) > 0 {
 		fmt.Fprintf(w, "\n%d change(s):\n", len(o.Changes))
@@ -101,24 +101,24 @@ func (o BrandRewriteOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// BrandProfileSummary is one row in `kapi brand profiles`.
-type BrandProfileSummary struct {
+// VoiceProfileSummary is one row in `kapi voice profiles`.
+type VoiceProfileSummary struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	Source      string `json:"source"` // "store", "pack"
 }
 
-// BrandProfilesOutput is the result of `kapi brand profiles`.
-type BrandProfilesOutput struct {
-	Profiles []BrandProfileSummary `json:"profiles"`
+// VoiceProfilesOutput is the result of `kapi voice profiles`.
+type VoiceProfilesOutput struct {
+	Profiles []VoiceProfileSummary `json:"profiles"`
 	Total    int                   `json:"total"`
 }
 
 // FormatText prints a profile table.
-func (o BrandProfilesOutput) FormatText(w io.Writer) error {
+func (o VoiceProfilesOutput) FormatText(w io.Writer) error {
 	if o.Total == 0 {
-		fmt.Fprintln(w, "No brand voice profiles. Install a starter pack with: kapi brand pack <name>")
+		fmt.Fprintln(w, "No voice profiles. Install a starter pack with: kapi voice pack <name>")
 		return nil
 	}
 	t := NewTable(w).Accent(0).Headers("ID", "SOURCE", "NAME")
@@ -133,11 +133,11 @@ func (o BrandProfilesOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// BrandValidateOutput is the result of `kapi brand validate` — whether a brand
+// VoiceValidateOutput is the result of `kapi voice validate` — whether a brand
 // voice profile YAML is structurally sound, plus the problems that made it
 // invalid. Errors is always present (an empty list when valid) so the JSON
 // shape is stable for CI: {valid, errors:[]}.
-type BrandValidateOutput struct {
+type VoiceValidateOutput struct {
 	Valid   bool                     `json:"valid"`
 	Source  string                   `json:"source,omitempty"`
 	Profile string                   `json:"profile,omitempty"`
@@ -145,7 +145,7 @@ type BrandValidateOutput struct {
 }
 
 // FormatText renders the validation verdict and any problems.
-func (o BrandValidateOutput) FormatText(w io.Writer) error {
+func (o VoiceValidateOutput) FormatText(w io.Writer) error {
 	src := o.Source
 	if src == "" {
 		src = "profile"
@@ -169,8 +169,8 @@ func (o BrandValidateOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// BrandImportOutput is the result of `kapi brand import` / `kapi brand pack`.
-type BrandImportOutput struct {
+// VoiceImportOutput is the result of `kapi voice import` / `kapi voice pack`.
+type VoiceImportOutput struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Action string `json:"action"` // "created" | "updated"
@@ -178,7 +178,7 @@ type BrandImportOutput struct {
 }
 
 // FormatText confirms the import.
-func (o BrandImportOutput) FormatText(w io.Writer) error {
-	fmt.Fprintf(w, "%s brand voice profile %q (id: %s)\n", o.Action, o.Name, o.ID)
+func (o VoiceImportOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "%s voice profile %q (id: %s)\n", o.Action, o.Name, o.ID)
 	return nil
 }

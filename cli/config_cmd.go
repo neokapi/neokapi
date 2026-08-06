@@ -31,7 +31,7 @@ func NewConfigCmd(a *App) *cobra.Command {
 		Long: "Read and write configuration.\n\n" +
 			"App configuration (the global config file, typically ~/.config/kapi/kapi.yaml)\n" +
 			"uses the subcommands. Common keys:\n" +
-			"  ai.provider   default AI provider for translate / qa / brand-voice-check / flows\n" +
+			"  ai.provider   default AI provider for translate / qa / voice-check / flows\n" +
 			"                (e.g. `ollama` to default to a free, on-device local model)\n" +
 			"  ai.model      default model for the AI provider\n\n" +
 			"An explicit --provider/--model flag, inline config, or project recipe " +

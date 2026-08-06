@@ -14,7 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/ai/prompt"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
@@ -33,7 +33,7 @@ type AITranslateTool struct {
 	targetLocale model.LocaleID
 	glossary     map[string]string
 	dnt          []string // do-not-translate terms; masked before the model, restored after
-	voiceGuide   string   // compact brand voice guidance injected into every prompt
+	voiceGuide   string   // compact voice profile guidance injected into every prompt
 	instruction  string   // caller-supplied directive injected into every prompt
 	// profileID and profileVersion identify the context profile whose guidance
 	// went into voiceGuide, stamped onto every target this tool produces. The
@@ -60,7 +60,7 @@ type AITranslateTool struct {
 	blockIndex  atomic.Int32
 	totalBlocks int
 	// configFP fingerprints the output-affecting config (provider, model, locales,
-	// glossary, brand voice). The session overlay cache stores it so a re-run with
+	// glossary, voice profile). The session overlay cache stores it so a re-run with
 	// a changed model/prompt/voice re-translates instead of serving the stale
 	// cached target. See tool.OverlayConfigFingerprint.
 	configFP string
@@ -110,11 +110,11 @@ type AITranslateConfig struct {
 	// It feeds aiConfigFingerprint, so changing it re-translates rather than
 	// serving a cached target produced under different guidance.
 	Instruction string `json:"instruction,omitempty" schema:"title=Instruction,description=Extra guidance for the model while translating (e.g. 'informal register; keep product names in English'),widget=textarea,group=prompt"`
-	// Profile is an optional brand voice profile. When set, its guidance is
+	// Profile is an optional voice profile. When set, its guidance is
 	// injected into the translation prompt so output is on-brand at generation
 	// time. Not serializable via the schema/CLI; supplied programmatically or
-	// via the .kapi brand binding.
-	Profile *brand.VoiceProfile `json:"-" schema:"-"`
+	// via the .kapi voice binding.
+	Profile *coreprofile.VoiceProfile `json:"-" schema:"-"`
 
 	// DNT are do-not-translate terms (product names, trademarks, code
 	// identifiers) that must survive VERBATIM into the target — the enforced
@@ -217,8 +217,8 @@ func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.To
 		onProgress = fn
 		delete(config, "onProgress")
 	}
-	var profile *brand.VoiceProfile
-	if pf, ok := config["profile"].(*brand.VoiceProfile); ok {
+	var profile *coreprofile.VoiceProfile
+	if pf, ok := config["profile"].(*coreprofile.VoiceProfile); ok {
 		profile = pf
 		delete(config, "profile")
 	}
@@ -250,7 +250,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 		targetLocale: cfg.TargetLocale,
 		glossary:     cfg.Glossary,
 		dnt:          sanitizeDNT(cfg.DNT),
-		voiceGuide:   brand.RenderVoiceGuideCompact(cfg.Profile),
+		voiceGuide:   coreprofile.RenderVoiceGuideCompact(cfg.Profile),
 		instruction:  cfg.Instruction,
 		skipMatched:  cfg.SkipMatched,
 		batchSize:    cfg.BatchSize,
@@ -330,7 +330,7 @@ func NewAITranslateTool(p aiprovider.LLMProvider, cfg AITranslateConfig) *AITran
 // result and are excluded.
 //
 // Everything prompt-shaped — the task and constraint wording, the instruction,
-// the brand voice guidance, the glossary, the locales — enters through the
+// the voice profile guidance, the glossary, the locales — enters through the
 // prompt builder's own Fingerprint, hashed from the text it actually renders.
 // Listing those inputs here by hand would mean that rewording a prompt (which
 // changes output) left the fingerprint untouched, and cached targets produced by

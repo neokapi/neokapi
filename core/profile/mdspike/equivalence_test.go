@@ -55,8 +55,8 @@ func TestMarkdownFormEqualsYAMLForm(t *testing.T) {
 }
 
 // TestRenderedGuideIsByteIdentical checks the claim that matters most at
-// runtime. RenderVoiceGuide is what the AI translate prompt, the brand check
-// tool, `kapi brand guide` and the cloud MCP tool all send to the model. If the
+// runtime. RenderVoiceGuide is what the AI translate prompt, the voice check
+// tool, `kapi voice guide` and the cloud MCP tool all send to the model. If the
 // two forms render the same guide, no generation behaviour changes with the
 // authoring format.
 func TestRenderedGuideIsByteIdentical(t *testing.T) {
@@ -68,7 +68,7 @@ func TestRenderedGuideIsByteIdentical(t *testing.T) {
 }
 
 // TestMarkdownFormValidates confirms the markdown form produces a profile the
-// existing validator accepts, so `kapi brand validate` would need no new
+// existing validator accepts, so `kapi voice validate` would need no new
 // semantic rules — only a second decoder in front of the same checks.
 func TestMarkdownFormValidates(t *testing.T) {
 	p := loadMarkdown(t, "bowrain-voice.md", mdspike.Options{})
@@ -117,7 +117,7 @@ func TestHouseRulesAreDuplicatedToday(t *testing.T) {
 
 // TestCommittedProfileIsMachineRewritten is the constraint that decides how far
 // a new authoring format can go. `kapi apply` with a brand add-rule entry does
-// not patch the committed profile — host.applyBrandEntry loads it, upserts the
+// not patch the committed profile — host.applyVoiceEntry loads it, upserts the
 // rule, and writes the whole struct back with yaml.Marshal
 // (host/apply_assets.go:723). Struct marshalling emits no comments, so the
 // header on each committed profile — including the one recording that the house

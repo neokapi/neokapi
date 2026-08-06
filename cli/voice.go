@@ -8,26 +8,26 @@ import (
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	coretools "github.com/neokapi/neokapi/core/tools"
 
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/packs"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
 
-// NewBrandCmd creates the `kapi brand` command group: a text-first, JSON-first
-// surface for keeping AI-generated content on-brand. It works fully offline
-// against a local brand voice profile (a starter pack, a standalone YAML file,
-// or the local SQLite brand store).
-func NewBrandCmd(a *App) *cobra.Command {
+// NewVoiceCmd creates the `kapi voice` command group: a text-first, JSON-first
+// surface for keeping AI-generated content in voice. It works fully offline
+// against a local voice profile (a starter pack, a standalone YAML file, or the
+// local SQLite voice store).
+func NewVoiceCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "brand",
-		Short:   "Keep AI-generated content on brand (voice, tone, terminology)",
+		Use:     "voice",
+		Short:   "Keep AI-generated content in voice (tone, style, terminology)",
 		GroupID: "assets",
-		Long: `Check, rewrite, and govern content against a brand voice profile.
+		Long: `Check, rewrite, and govern content against a voice profile.
 
 Profile source (mutually exclusive):
-  --profile <name>       Profile in the local brand store (see 'kapi brand profiles')
+  --profile <name>       Profile in the local voice store (see 'kapi voice profiles')
   --profile-file <path>  Standalone profile YAML (git-shareable, no store needed)
   --pack <name>          Built-in starter pack (professional-b2b, friendly-dtc,
                          technical-docs, marketing-blog, customer-support)
@@ -37,31 +37,31 @@ omitted or set to "-".`,
 	}
 
 	cmd.AddCommand(
-		newBrandNewCmd(a),
-		newBrandGuideCmd(a),
-		newBrandCheckCmd(a),
-		newBrandRewriteCmd(a),
-		newBrandValidateCmd(a),
-		newBrandProfilesCmd(a),
-		newBrandShowCmd(a),
-		newBrandImportCmd(a),
-		newBrandPackCmd(a),
+		newVoiceNewCmd(a),
+		newVoiceGuideCmd(a),
+		newVoiceCheckCmd(a),
+		newVoiceRewriteCmd(a),
+		newVoiceValidateCmd(a),
+		newVoiceProfilesCmd(a),
+		newVoiceShowCmd(a),
+		newVoiceImportCmd(a),
+		newVoicePackCmd(a),
 	)
 	return cmd
 }
 
-func newBrandGuideCmd(a *App) *cobra.Command {
+func newVoiceGuideCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "guide",
-		Short: "Print the brand voice guide (inject into your assistant's context)",
+		Short: "Print the voice guide (inject into your assistant's context)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profile, _, err := a.ResolveBrandProfileCmd(cmd, args...)
+			profile, _, err := a.ResolveVoiceProfileCmd(cmd, args...)
 			if err != nil {
 				return err
 			}
-			return output.Print(cmd, output.BrandGuideOutput{
+			return output.Print(cmd, output.VoiceGuideOutput{
 				Profile: profile.Name,
-				Guide:   brand.RenderVoiceGuide(profile),
+				Guide:   coreprofile.RenderVoiceGuide(profile),
 			})
 		},
 	}
@@ -70,12 +70,12 @@ func newBrandGuideCmd(a *App) *cobra.Command {
 	return cmd
 }
 
-func newBrandCheckCmd(a *App) *cobra.Command {
+func newVoiceCheckCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "check",
-		Short: "Score text against a brand voice profile",
+		Short: "Score text against a voice profile",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profile, _, err := a.ResolveBrandProfileCmd(cmd, args...)
+			profile, _, err := a.ResolveVoiceProfileCmd(cmd, args...)
 			if err != nil {
 				return err
 			}
@@ -85,10 +85,10 @@ func newBrandCheckCmd(a *App) *cobra.Command {
 			}
 			useAI, _ := cmd.Flags().GetBool("ai")
 
-			var findings []brand.BrandVoiceFinding
+			var findings []coreprofile.VoiceFinding
 
 			// Rule-based vocabulary check always runs (fast, offline).
-			vocab := coretools.NewBrandVocabCheckTool(profile, nil)
+			vocab := coretools.NewVoiceVocabCheckTool(profile, nil)
 			vf, err := RunBlockTool(cmd.Context(), vocab, text)
 			if err != nil {
 				return err
@@ -97,11 +97,11 @@ func newBrandCheckCmd(a *App) *cobra.Command {
 
 			// Optional LLM-based check for tone/style/clarity.
 			if useAI {
-				p, perr := a.BuildBrandProvider(cmd)
+				p, perr := a.BuildVoiceProvider(cmd)
 				if perr != nil {
 					return perr
 				}
-				ai := aitools.NewBrandVoiceCheckTool(p, profile)
+				ai := aitools.NewVoiceCheckTool(p, profile)
 				af, aerr := RunBlockTool(cmd.Context(), ai, text)
 				if aerr != nil {
 					return aerr
@@ -109,10 +109,10 @@ func newBrandCheckCmd(a *App) *cobra.Command {
 				findings = append(findings, af...)
 			}
 
-			score := brand.CalculateScore(findings)
+			score := coreprofile.CalculateScore(findings)
 			score.ProfileID = profile.ID
 
-			out := output.BrandCheckOutput{
+			out := output.VoiceCheckOutput{
 				Profile:    profile.Name,
 				Score:      score.Overall,
 				Passed:     true,
@@ -135,11 +135,11 @@ func newBrandCheckCmd(a *App) *cobra.Command {
 		},
 	}
 	AddProfileFlags(cmd)
-	AddBrandAIFlags(cmd)
+	AddVoiceAIFlags(cmd)
 	// --input-text avoids colliding with the persistent --text bool (output-format)
 	// flag registered by AddPersistentFlags on the root command. The old --text
 	// String flag shadowed the persistent Bool so GetBool("text") silently broke
-	// output-format resolution on all brand subcommands.
+	// output-format resolution on all voice subcommands.
 	cmd.Flags().String("input-text", "", `text to check (use "-" or omit to read stdin)`)
 	cmd.Flags().Int("min-score", 0, "fail (non-zero exit) when the score is below this threshold")
 	// Only --json here (not output.AddFlags) to avoid colliding with --input-text.
@@ -147,21 +147,21 @@ func newBrandCheckCmd(a *App) *cobra.Command {
 	return cmd
 }
 
-func newBrandRewriteCmd(a *App) *cobra.Command {
+func newVoiceRewriteCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rewrite",
 		Short: "Substitute forbidden/competitor terms for their approved wording (offline)",
-		Long: `Rewrite content against a brand voice profile by substituting forbidden and
+		Long: `Rewrite content against a voice profile by substituting forbidden and
 competitor terms with their approved replacements. This is the deterministic,
 offline path — it changes only the terms the profile defines and reports each
 change; it does not call a model.
 
 Text is read from --input-text or stdin and the rewrite is printed. To fix tone,
-style, or phrasing on-brand, rewrite the text yourself with the voice guide as
-context ('kapi brand guide') and apply the edit through 'kapi apply' — kapi does
+style, or phrasing in voice, rewrite the text yourself with the voice guide as
+context ('kapi voice guide') and apply the edit through 'kapi apply' — kapi does
 not send content to a model to rewrite it.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profile, _, err := a.ResolveBrandProfileCmd(cmd, args...)
+			profile, _, err := a.ResolveVoiceProfileCmd(cmd, args...)
 			if err != nil {
 				return err
 			}
@@ -170,7 +170,7 @@ not send content to a model to rewrite it.`,
 				return err
 			}
 			rewritten, changes := RuleRewrite(profile, text)
-			return output.Print(cmd, output.BrandRewriteOutput{
+			return output.Print(cmd, output.VoiceRewriteOutput{
 				Profile:   profile.Name,
 				Original:  text,
 				Rewritten: rewritten,
@@ -186,11 +186,11 @@ not send content to a model to rewrite it.`,
 	return cmd
 }
 
-func newBrandValidateCmd(a *App) *cobra.Command {
+func newVoiceValidateCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "validate <file.yaml|->",
-		Short: "Validate a brand voice profile YAML (structure, enums, regex, terms)",
-		Long: `Validate a brand voice profile YAML and report structural problems.
+		Short: "Validate a voice profile YAML (structure, enums, regex, terms)",
+		Long: `Validate a voice profile YAML and report structural problems.
 
 Pass a file path, or "-" to read the profile from stdin. Validation reports:
 
@@ -213,28 +213,28 @@ the result is {"valid": bool, "errors": [{"field", "message"}]}.`,
 				return err
 			}
 
-			out := output.BrandValidateOutput{
+			out := output.VoiceValidateOutput{
 				Source: ValidateSourceLabel(src),
-				Errors: []brand.ProfileProblem{},
+				Errors: []coreprofile.ProfileProblem{},
 			}
 
 			// 1. Lenient parse catches YAML syntax and type errors. A document
 			// that does not parse cannot be checked further.
-			profile, perr := brand.LoadProfileYAML(bytes.NewReader(data))
+			profile, perr := coreprofile.LoadProfileYAML(bytes.NewReader(data))
 			if perr != nil {
-				out.Errors = append(out.Errors, brand.ProfileProblem{Message: perr.Error()})
+				out.Errors = append(out.Errors, coreprofile.ProfileProblem{Message: perr.Error()})
 				return EmitValidate(cmd, out)
 			}
 			out.Profile = profile.Name
 
 			// 2. Strict parse catches unknown/typo'd fields that the lenient
 			// loader silently ignores.
-			if _, serr := brand.DecodeProfileStrict(bytes.NewReader(data)); serr != nil {
+			if _, serr := coreprofile.DecodeProfileStrict(bytes.NewReader(data)); serr != nil {
 				out.Errors = append(out.Errors, StrictDecodeProblems(serr)...)
 			}
 
 			// 3. Semantic validation (required fields, enums, regex, terms).
-			out.Errors = append(out.Errors, brand.ValidateProfile(profile)...)
+			out.Errors = append(out.Errors, coreprofile.ValidateProfile(profile)...)
 
 			return EmitValidate(cmd, out)
 		},
@@ -243,20 +243,20 @@ the result is {"valid": bool, "errors": [{"field", "message"}]}.`,
 	return cmd
 }
 
-func newBrandProfilesCmd(a *App) *cobra.Command {
+func newVoiceProfilesCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "profiles",
-		Short: "List brand voice profiles (local store + built-in packs)",
+		Short: "List voice profiles (local store + built-in packs)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var summaries []output.BrandProfileSummary
+			var summaries []output.VoiceProfileSummary
 
-			store, _, err := a.OpenBrandStore(cmd)
+			store, _, err := a.OpenVoiceStore(cmd)
 			if err == nil {
 				defer store.Close()
 				profiles, lerr := store.ListProfiles(cmd.Context(), LocalWorkspace)
 				if lerr == nil {
 					for _, p := range profiles {
-						summaries = append(summaries, output.BrandProfileSummary{
+						summaries = append(summaries, output.VoiceProfileSummary{
 							ID: p.ID, Name: p.Name, Description: p.Description, Source: "store",
 						})
 					}
@@ -265,12 +265,12 @@ func newBrandProfilesCmd(a *App) *cobra.Command {
 
 			names, _ := packs.List()
 			for _, n := range names {
-				summaries = append(summaries, output.BrandProfileSummary{
+				summaries = append(summaries, output.VoiceProfileSummary{
 					ID: n, Name: n, Source: "pack",
 				})
 			}
 
-			return output.Print(cmd, output.BrandProfilesOutput{Profiles: summaries, Total: len(summaries)})
+			return output.Print(cmd, output.VoiceProfilesOutput{Profiles: summaries, Total: len(summaries)})
 		},
 	}
 	AddResourceFlags(cmd)
@@ -278,19 +278,19 @@ func newBrandProfilesCmd(a *App) *cobra.Command {
 	return cmd
 }
 
-func newBrandNewCmd(a *App) *cobra.Command {
+func newVoiceNewCmd(a *App) *cobra.Command {
 	var pack, out string
 	cmd := &cobra.Command{
 		Use:   "new",
-		Short: "Scaffold a brand voice profile YAML to fill in (optionally seeded from a starter pack)",
-		Long: `Write a brand voice profile YAML to fill in.
+		Short: "Scaffold a voice profile YAML to fill in (optionally seeded from a starter pack)",
+		Long: `Write a voice profile YAML to fill in.
 
 With no flags, emits a commented template. With --pack, emits an existing
 starter pack as an editable base. An AI assistant can fill this in from what it
 already knows about the product, from sample content, or from a linked website,
-then ` + "`kapi brand import`" + ` it.`,
+then ` + "`kapi voice import`" + ` it.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			data := []byte(BrandProfileTemplate)
+			data := []byte(VoiceProfileTemplate)
 			if pack != "" {
 				p, err := packs.Load(pack)
 				if err != nil {
@@ -301,36 +301,36 @@ then ` + "`kapi brand import`" + ` it.`,
 				if err != nil {
 					return fmt.Errorf("marshal pack %q: %w", pack, err)
 				}
-				data = append([]byte("# Seeded from the "+pack+" starter pack — edit to taste, then `kapi brand import`.\n"), b...)
+				data = append([]byte("# Seeded from the "+pack+" starter pack — edit to taste, then `kapi voice import`.\n"), b...)
 			}
 			if out != "" {
 				if err := os.WriteFile(out, data, 0o644); err != nil {
 					return fmt.Errorf("write %s: %w", out, err)
 				}
-				fmt.Fprintf(cmd.ErrOrStderr(), "Wrote %s — fill it in, then: kapi brand import %s\n", out, out)
+				fmt.Fprintf(cmd.ErrOrStderr(), "Wrote %s — fill it in, then: kapi voice import %s\n", out, out)
 				return nil
 			}
 			_, err := cmd.OutOrStdout().Write(data)
 			return err
 		},
 	}
-	cmd.Flags().StringVar(&pack, "pack", "", "seed from a starter pack (see 'kapi brand profiles')")
+	cmd.Flags().StringVar(&pack, "pack", "", "seed from a starter pack (see 'kapi voice profiles')")
 	cmd.Flags().StringVarP(&out, "out", "o", "", "write to a file instead of stdout")
 	return cmd
 }
 
-func newBrandShowCmd(a *App) *cobra.Command {
+func newVoiceShowCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "show",
-		Short: "Show a brand voice profile as a guide",
+		Short: "Show a voice profile as a guide",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			profile, _, err := a.ResolveBrandProfileCmd(cmd, args...)
+			profile, _, err := a.ResolveVoiceProfileCmd(cmd, args...)
 			if err != nil {
 				return err
 			}
-			return output.Print(cmd, output.BrandGuideOutput{
+			return output.Print(cmd, output.VoiceGuideOutput{
 				Profile: profile.Name,
-				Guide:   brand.RenderVoiceGuide(profile),
+				Guide:   coreprofile.RenderVoiceGuide(profile),
 			})
 		},
 	}
@@ -339,10 +339,10 @@ func newBrandShowCmd(a *App) *cobra.Command {
 	return cmd
 }
 
-func newBrandImportCmd(a *App) *cobra.Command {
+func newVoiceImportCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "import <file.yaml>",
-		Short: "Import a profile YAML into the local brand store",
+		Short: "Import a profile YAML into the local voice store",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f, err := os.Open(args[0])
@@ -350,7 +350,7 @@ func newBrandImportCmd(a *App) *cobra.Command {
 				return fmt.Errorf("open profile: %w", err)
 			}
 			defer f.Close()
-			profile, err := brand.LoadProfileYAML(f)
+			profile, err := coreprofile.LoadProfileYAML(f)
 			if err != nil {
 				return err
 			}
@@ -362,10 +362,10 @@ func newBrandImportCmd(a *App) *cobra.Command {
 	return cmd
 }
 
-func newBrandPackCmd(a *App) *cobra.Command {
+func newVoicePackCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pack <name>",
-		Short: "Install a built-in starter pack into the local brand store",
+		Short: "Install a built-in starter pack into the local voice store",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profile, err := packs.Load(args[0])

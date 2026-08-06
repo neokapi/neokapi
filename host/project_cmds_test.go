@@ -16,7 +16,7 @@ import (
 // build the recipe YAML, then parse it back through the real loader. It proves
 // `kapi init --framework neokapi-i18n` emits a valid recipe carrying the clean
 // nested layout — source under i18n/src/, per-locale targets under i18n/{lang}/,
-// with brand voice + terms source bound under i18n/.
+// with voice profile + terms source bound under i18n/.
 func TestScaffoldRecipe_NeokapiI18nCleanLayout(t *testing.T) {
 	content, err := FrameworkContent(preset.NeokapiI18nPresetName)
 	require.NoError(t, err)
@@ -24,11 +24,11 @@ func TestScaffoldRecipe_NeokapiI18nCleanLayout(t *testing.T) {
 	assert.Equal(t, "i18n/src/**/*.kbf.json", content[0].Path)
 	assert.Equal(t, "i18n/{lang}/{path}.kbf.json", content[0].Target)
 
-	brandVoiceProfile, termsSource := FrameworkBindings(preset.NeokapiI18nPresetName)
-	assert.Equal(t, "i18n/brand-voice.yaml", brandVoiceProfile)
+	voiceProfile, termsSource := FrameworkBindings(preset.NeokapiI18nPresetName)
+	assert.Equal(t, "i18n/voice.yaml", voiceProfile)
 	assert.Equal(t, "i18n/terms.json", termsSource)
 
-	yaml := ScaffoldRecipe("MyApp", "en", []string{"de", "fr", "nb"}, content, brandVoiceProfile, termsSource)
+	yaml := ScaffoldRecipe("MyApp", "en", []string{"de", "fr", "nb"}, content, voiceProfile, termsSource)
 
 	// Parse the emitted recipe through the real loader — it must be valid.
 	dir := t.TempDir()
@@ -42,7 +42,7 @@ func TestScaffoldRecipe_NeokapiI18nCleanLayout(t *testing.T) {
 	assert.Equal(t, "i18n/src/**/*.kbf.json", proj.Content[0].Path)
 	assert.Equal(t, "i18n/{lang}/{path}.kbf.json", proj.Content[0].Target)
 
-	require.NotNil(t, proj.Defaults.BrandVoice)
-	assert.Equal(t, "i18n/brand-voice.yaml", proj.Defaults.BrandVoice.ProfileFile)
+	require.NotNil(t, proj.Defaults.Voice)
+	assert.Equal(t, "i18n/voice.yaml", proj.Defaults.Voice.ProfileFile)
 	assert.Equal(t, "i18n/terms.json", proj.Defaults.TermsSource)
 }

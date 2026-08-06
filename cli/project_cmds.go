@@ -69,7 +69,7 @@ scaffolds plus per-format parsing presets) with --list-presets.`,
 			if err != nil {
 				return err
 			}
-			brandVoiceProfile, termsSource := FrameworkBindings(framework)
+			voiceProfile, termsSource := FrameworkBindings(framework)
 
 			// `kapi init` is idempotent: re-running it (or running it on a
 			// project that already has a recipe) is not an error. This lets
@@ -94,10 +94,10 @@ scaffolds plus per-format parsing presets) with --list-presets.`,
 			} else {
 				// On-brand content is the default. --target-locale or
 				// --framework opts into the translation scaffold; otherwise
-				// scaffold the content project (brand voice + terms + check).
+				// scaffold the content project (voice profile + terms + check).
 				var recipe []byte
 				if len(targetLocale) > 0 || framework != "" {
-					recipe = ScaffoldRecipe(name, sourceLocale, targetLocale, content, brandVoiceProfile, termsSource)
+					recipe = ScaffoldRecipe(name, sourceLocale, targetLocale, content, voiceProfile, termsSource)
 				} else {
 					recipe = ScaffoldContentRecipe(name, sourceLocale)
 				}

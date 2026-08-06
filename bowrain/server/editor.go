@@ -816,7 +816,7 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 // zero value translates bare, exactly as before.
 type editorBrandContext struct {
 	// Brand reads brand voice profiles. Nil translates without brand voice.
-	Brand coreprofile.BrandStore
+	Brand coreprofile.Store
 	// WorkspaceDefault resolves the workspace-level default brand-voice
 	// profile — the base rung of the brandscope resolution ladder. Nil skips
 	// the workspace rung.

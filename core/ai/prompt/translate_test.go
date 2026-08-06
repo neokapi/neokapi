@@ -70,7 +70,7 @@ func TestRenderingIsDeterministic(t *testing.T) {
 	assert.Less(t, strings.Index(sys, "mu"), strings.Index(sys, "zeta"))
 }
 
-// Directives carry instruction, brand voice and glossary into every path.
+// Directives carry instruction, voice profile and glossary into every path.
 func TestDirectivesReachBothSingleAndBatch(t *testing.T) {
 	t.Parallel()
 
@@ -162,7 +162,7 @@ func TestNoDirectivesWhenUnset(t *testing.T) {
 	assert.Empty(t, basic().Directives())
 	sys := basic().Single("x", false)[0].Text
 	assert.NotContains(t, sys, "Glossary")
-	assert.NotContains(t, sys, "Brand voice")
+	assert.NotContains(t, sys, "Voice profile")
 	assert.NotContains(t, sys, "Instruction")
 }
 
@@ -233,7 +233,7 @@ func TestSectionsAreAttributed(t *testing.T) {
 	// Two constraints on a tag-bearing block: the standing placeholder rule, and
 	// the tag rule this block earned.
 	assert.Equal(t, []string{"framework", "framework (block has inline codes)", "framework"}, origins[KindConstraint])
-	assert.Equal(t, []string{"brand voice profile"}, origins[KindVoice])
+	assert.Equal(t, []string{"voice profile"}, origins[KindVoice])
 	assert.Equal(t, []string{"terms (1 term)"}, origins[KindGlossary])
 	assert.Equal(t, []string{"--instruction / recipe"}, origins[KindInstruction])
 

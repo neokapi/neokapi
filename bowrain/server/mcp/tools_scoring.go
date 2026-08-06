@@ -90,7 +90,7 @@ type scoreBrandComplianceInput struct {
 
 // scoreBrandComplianceOutput is the output for the score_brand_compliance tool.
 type scoreBrandComplianceOutput struct {
-	Score coreprofile.BrandComplianceScore `json:"score"`
+	Score coreprofile.ComplianceScore `json:"score"`
 }
 
 func (s *MCPServer) handleScoreBrandCompliance(ctx context.Context, req *mcp.CallToolRequest, input scoreBrandComplianceInput) (*mcp.CallToolResult, scoreBrandComplianceOutput, error) {

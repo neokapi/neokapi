@@ -23,7 +23,7 @@ type Translate struct {
 	// Instruction is a caller-supplied directive applied while translating —
 	// a reviewer's "keep it informal", or the findings a fix pass must resolve.
 	Instruction string
-	// VoiceGuide is brand voice guidance rendered from a VoiceProfile, so output
+	// VoiceGuide is voice profile guidance rendered from a VoiceProfile, so output
 	// is on-brand at generation time rather than only corrected afterwards.
 	VoiceGuide string
 	// Glossary pins the translation of specific terms.
@@ -52,8 +52,8 @@ func (t Translate) steering() []Section {
 	if g := strings.TrimSpace(t.VoiceGuide); g != "" {
 		out = append(out, Section{
 			Kind:    KindVoice,
-			Origin:  "brand voice profile",
-			Heading: "Brand voice (apply when translating):",
+			Origin:  "voice profile",
+			Heading: "Voice profile (apply when translating):",
 			Text:    g,
 		})
 	}

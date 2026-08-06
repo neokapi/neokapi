@@ -9,7 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// ResolveProfileFromContext resolves the most specific brand voice profile
+// ResolveProfileFromContext resolves the most specific voice profile
 // from the organizational hierarchy and applies locale + channel overrides.
 //
 // Resolution order (most specific wins):
@@ -24,7 +24,7 @@ import (
 // differ in which tiers they populate, never in how the tiers are ranked.
 //
 // Returns nil if no profile is bound at any level.
-func ResolveProfileFromContext(ctx context.Context, rc ResolveContext, store BrandStore) (*VoiceProfile, error) {
+func ResolveProfileFromContext(ctx context.Context, rc ResolveContext, store Store) (*VoiceProfile, error) {
 	profile, err := resolveBoundProfile(ctx, rc, store)
 	if err != nil || profile == nil {
 		return nil, err
@@ -39,7 +39,7 @@ func ResolveProfileFromContext(ctx context.Context, rc ResolveContext, store Bra
 // at the most specific tier. A tier binds either a store id, fetched here, or —
 // at the collection tier — a profile the caller has already loaded from a
 // source the store cannot name, such as a profile file or a starter pack.
-func resolveBoundProfile(ctx context.Context, rc ResolveContext, store BrandStore) (*VoiceProfile, error) {
+func resolveBoundProfile(ctx context.Context, rc ResolveContext, store Store) (*VoiceProfile, error) {
 	if rc.ExplicitProfileID != "" {
 		return fetchProfile(ctx, store, rc.ExplicitProfileID)
 	}
@@ -63,9 +63,9 @@ func resolveBoundProfile(ctx context.Context, rc ResolveContext, store BrandStor
 // tier carries an already-loaded profile passes no store; an id with nowhere to
 // resolve it from is a configuration error rather than a silent miss, which
 // would leave the content ungoverned and read as if nothing were bound.
-func fetchProfile(ctx context.Context, store BrandStore, id string) (*VoiceProfile, error) {
+func fetchProfile(ctx context.Context, store Store, id string) (*VoiceProfile, error) {
 	if store == nil {
-		return nil, fmt.Errorf("brand voice profile %q is bound but no brand store was supplied to resolve it", id)
+		return nil, fmt.Errorf("voice profile %q is bound but no voice store was supplied to resolve it", id)
 	}
 	return store.GetProfile(ctx, id)
 }

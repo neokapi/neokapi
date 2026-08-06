@@ -20,7 +20,7 @@ func twoProductProject() *KapiProject {
 		Name:    "Two products",
 		Defaults: Defaults{
 			SourceLanguage: "en",
-			BrandVoice:     &BrandVoiceBinding{ProfileFile: "context/base-voice.yaml"},
+			Voice:          &VoiceBinding{ProfileFile: "context/base-voice.yaml"},
 		},
 		Coordinates: Coordinates{
 			"product": {{ID: "kapi"}, {ID: "bowrain", Concept: "term:9a1c0f42b7"}},
@@ -31,16 +31,16 @@ func twoProductProject() *KapiProject {
 		Profiles: []ProfileBinding{
 			{
 				When:  map[string]string{"product": "kapi"},
-				Voice: &BrandVoiceBinding{ProfileFile: "context/kapi-voice.yaml"},
+				Voice: &VoiceBinding{ProfileFile: "context/kapi-voice.yaml"},
 			},
 			{
 				When:  map[string]string{"product": "bowrain"},
-				Voice: &BrandVoiceBinding{ProfileFile: "context/bowrain-voice.yaml"},
+				Voice: &VoiceBinding{ProfileFile: "context/bowrain-voice.yaml"},
 				Terms: "context/bowrain-terms.json",
 			},
 			{
 				When:  map[string]string{"product": "bowrain", "market": "de"},
-				Voice: &BrandVoiceBinding{ProfileFile: "context/bowrain-de.yaml"},
+				Voice: &VoiceBinding{ProfileFile: "context/bowrain-de.yaml"},
 				Terms: "context/de-terms.json",
 			},
 		},
@@ -76,7 +76,7 @@ func twoProductProject() *KapiProject {
 
 func TestKapiProject_ResolveGovernance(t *testing.T) {
 	proj := twoProductProject()
-	base := proj.Defaults.BrandVoice
+	base := proj.Defaults.Voice
 
 	tests := []struct {
 		name       string
@@ -86,24 +86,24 @@ func TestKapiProject_ResolveGovernance(t *testing.T) {
 		{
 			name:       "empty name sits at the project default point",
 			collection: "",
-			want:       ResolvedGovernance{Voice: base, VoiceField: "defaults.brand_voice"},
+			want:       ResolvedGovernance{Voice: base, VoiceField: "defaults.voice"},
 		},
 		{
 			name:       "unknown name sits at the project default point",
 			collection: "no-such-collection",
-			want:       ResolvedGovernance{Voice: base, VoiceField: "defaults.brand_voice"},
+			want:       ResolvedGovernance{Voice: base, VoiceField: "defaults.voice"},
 		},
 		{
 			name:       "a collection declaring no coordinates inherits",
 			collection: "emails",
-			want:       ResolvedGovernance{Voice: base, VoiceField: "defaults.brand_voice"},
+			want:       ResolvedGovernance{Voice: base, VoiceField: "defaults.voice"},
 		},
 		{
 			name:       "a matched profile binding no terms leaves the project store governing",
 			collection: "docs",
 			want: ResolvedGovernance{
 				Channel:    "docs",
-				Voice:      &BrandVoiceBinding{ProfileFile: "context/kapi-voice.yaml"},
+				Voice:      &VoiceBinding{ProfileFile: "context/kapi-voice.yaml"},
 				VoiceField: "profiles[0].voice",
 				Profile:    "kapi",
 			},
@@ -113,7 +113,7 @@ func TestKapiProject_ResolveGovernance(t *testing.T) {
 			collection: "docs-bowrain",
 			want: ResolvedGovernance{
 				Channel:    "docs",
-				Voice:      &BrandVoiceBinding{ProfileFile: "context/bowrain-voice.yaml"},
+				Voice:      &VoiceBinding{ProfileFile: "context/bowrain-voice.yaml"},
 				Terms:      "context/bowrain-terms.json",
 				VoiceField: "profiles[1].voice",
 				Profile:    "bowrain",
@@ -124,7 +124,7 @@ func TestKapiProject_ResolveGovernance(t *testing.T) {
 			collection: "landing",
 			want: ResolvedGovernance{
 				Channel:    "landing",
-				Voice:      &BrandVoiceBinding{ProfileFile: "context/bowrain-voice.yaml"},
+				Voice:      &VoiceBinding{ProfileFile: "context/bowrain-voice.yaml"},
 				Terms:      "context/bowrain-terms.json",
 				VoiceField: "profiles[1].voice",
 				Profile:    "bowrain",
@@ -135,7 +135,7 @@ func TestKapiProject_ResolveGovernance(t *testing.T) {
 			collection: "landing-de",
 			want: ResolvedGovernance{
 				Channel:    "landing",
-				Voice:      &BrandVoiceBinding{ProfileFile: "context/bowrain-de.yaml"},
+				Voice:      &VoiceBinding{ProfileFile: "context/bowrain-de.yaml"},
 				Terms:      "context/de-terms.json",
 				VoiceField: "profiles[2].voice",
 				Profile:    "de-bowrain",
@@ -162,10 +162,10 @@ func TestKapiProject_ResolveGovernance_BaseProfile(t *testing.T) {
 
 		Coordinates: Coordinates{"product": {{ID: "kapi"}, {ID: "bowrain"}}},
 		Profiles: []ProfileBinding{
-			{Voice: &BrandVoiceBinding{ProfileFile: "base.yaml"}, Terms: "base-terms.json"},
+			{Voice: &VoiceBinding{ProfileFile: "base.yaml"}, Terms: "base-terms.json"},
 			{
 				When:  map[string]string{"product": "bowrain"},
-				Voice: &BrandVoiceBinding{ProfileFile: "bowrain.yaml"},
+				Voice: &VoiceBinding{ProfileFile: "bowrain.yaml"},
 			},
 		},
 		Content: []ContentCollection{
@@ -210,7 +210,7 @@ func TestKapiProject_ResolveGovernance_NoProfiles(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, rc.Voice)
 	assert.Empty(t, rc.Terms)
-	assert.Equal(t, "defaults.brand_voice", rc.VoiceField)
+	assert.Equal(t, "defaults.voice", rc.VoiceField)
 }
 
 // TestValidate_Tie is the ambiguity this model refuses to settle by luck: two
@@ -221,7 +221,7 @@ func TestValidate_Tie(t *testing.T) {
 	proj := twoProductProject()
 	proj.Profiles = append(proj.Profiles, ProfileBinding{
 		When:  map[string]string{"channel": "landing"},
-		Voice: &BrandVoiceBinding{ProfileFile: "context/landing-voice.yaml"},
+		Voice: &VoiceBinding{ProfileFile: "context/landing-voice.yaml"},
 	})
 
 	err := proj.Validate()
@@ -240,7 +240,7 @@ func TestValidate_Tie_AtLoad(t *testing.T) {
 	proj := twoProductProject()
 	proj.Profiles = append(proj.Profiles, ProfileBinding{
 		When:  map[string]string{"channel": "landing"},
-		Voice: &BrandVoiceBinding{ProfileFile: "context/landing-voice.yaml"},
+		Voice: &VoiceBinding{ProfileFile: "context/landing-voice.yaml"},
 	})
 	path := filepath.Join(t.TempDir(), RecipeFileName)
 	// Save does not validate; the failure has to come from Load.
@@ -328,7 +328,7 @@ func TestValidate_Point(t *testing.T) {
 		"channel": {{ID: "docs"}},
 		"tenant":  {},
 	}
-	voice := &BrandVoiceBinding{ProfileFile: "voice.yaml"}
+	voice := &VoiceBinding{ProfileFile: "voice.yaml"}
 
 	tests := []struct {
 		name    string
@@ -430,7 +430,7 @@ func TestValidate_Profiles(t *testing.T) {
 			name: "a profile binding a voice",
 			profiles: []ProfileBinding{{
 				When:  map[string]string{"product": "kapi"},
-				Voice: &BrandVoiceBinding{Pack: "technical-docs"},
+				Voice: &VoiceBinding{Pack: "technical-docs"},
 			}},
 		},
 		{
@@ -446,29 +446,29 @@ func TestValidate_Profiles(t *testing.T) {
 		{
 			name: "a profile voice takes exactly one source",
 			profiles: []ProfileBinding{{
-				Voice: &BrandVoiceBinding{ProfileFile: "voice.yaml", Pack: "technical-docs"},
+				Voice: &VoiceBinding{ProfileFile: "voice.yaml", Pack: "technical-docs"},
 			}},
 			wantErr: "profiles[0].voice: profile_file, profile, and pack are mutually exclusive",
 		},
 		{
 			name:     "a profile voice with no source is rejected",
-			profiles: []ProfileBinding{{Voice: &BrandVoiceBinding{}}},
+			profiles: []ProfileBinding{{Voice: &VoiceBinding{}}},
 			wantErr:  "profiles[0].voice: specify one of profile_file, profile, or pack",
 		},
 		{
 			name: "two profiles cannot claim the same point",
 			profiles: []ProfileBinding{
-				{When: map[string]string{"product": "kapi"}, Voice: &BrandVoiceBinding{ProfileFile: "a.yaml"}},
-				{When: map[string]string{"product": "bowrain"}, Voice: &BrandVoiceBinding{ProfileFile: "b.yaml"}},
-				{When: map[string]string{"product": "kapi"}, Voice: &BrandVoiceBinding{ProfileFile: "c.yaml"}},
+				{When: map[string]string{"product": "kapi"}, Voice: &VoiceBinding{ProfileFile: "a.yaml"}},
+				{When: map[string]string{"product": "bowrain"}, Voice: &VoiceBinding{ProfileFile: "b.yaml"}},
+				{When: map[string]string{"product": "kapi"}, Voice: &VoiceBinding{ProfileFile: "c.yaml"}},
 			},
 			wantErr: "profiles[2]: when {product: kapi} is already bound by profiles[0]; one point cannot have two profiles",
 		},
 		{
 			name: "two base profiles are the same ambiguity",
 			profiles: []ProfileBinding{
-				{Voice: &BrandVoiceBinding{ProfileFile: "a.yaml"}},
-				{Voice: &BrandVoiceBinding{ProfileFile: "b.yaml"}},
+				{Voice: &VoiceBinding{ProfileFile: "a.yaml"}},
+				{Voice: &VoiceBinding{ProfileFile: "b.yaml"}},
 			},
 			wantErr: "profiles[1]: when {} is already bound by profiles[0]",
 		},
@@ -476,7 +476,7 @@ func TestValidate_Profiles(t *testing.T) {
 			name: "a bare entry cannot name a context",
 			profiles: []ProfileBinding{{
 				When:  map[string]string{"product": "kapi"},
-				Voice: &BrandVoiceBinding{Pack: "technical-docs"},
+				Voice: &VoiceBinding{Pack: "technical-docs"},
 			}},
 			content: []ContentCollection{{Path: "a/*.md", Context: map[string]string{"product": "kapi"}}},
 			wantErr: "content[0]: context requires a named collection (add `name:`)",

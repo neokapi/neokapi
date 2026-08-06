@@ -17,7 +17,7 @@ const ReportSchema = "kapi.check/v1"
 
 // Report is the canonical, machine-consumable result of a `kapi check` run — the
 // unit an AI assistant or CI reads, acts on, and re-runs against, the way a test
-// runner reports. It is platform-agnostic (no brand/target/locale types leak in)
+// runner reports. It is platform-agnostic (no voice/target/locale types leak in)
 // so the CLI, the MCP tools, the desktop app, and bowrain all read one shape.
 type Report struct {
 	// Schema is the stable contract id (ReportSchema). Always set.

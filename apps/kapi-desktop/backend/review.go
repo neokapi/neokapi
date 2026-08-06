@@ -14,7 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/state"
 	coretools "github.com/neokapi/neokapi/core/tools"
@@ -54,7 +54,7 @@ type ReviewUnitDetail struct {
 	// no project content memory open).
 	MemoryScore int `json:"tm_score,omitempty"`
 	// Findings are the unit's current check findings (placeholder integrity,
-	// do-not-translate, brand vocabulary — the same checkers the Checks panel
+	// do-not-translate, voice vocabulary — the same checkers the Checks panel
 	// runs, scoped to this one block).
 	Findings []DesktopFinding `json:"findings"`
 	// AIReviewScore/AIReviewModel surface a fresh AI pre-review annotation from
@@ -133,7 +133,7 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 }
 
 // blockCheckFindings runs the registered content checkers over one block for a
-// locale — brand vocabulary on the source when a profile is bound, placeholder
+// locale — voice vocabulary on the source when a profile is bound, placeholder
 // integrity and do-not-translate on the target — the ChecksPanel checkset
 // scoped to a single unit.
 //
@@ -145,7 +145,7 @@ func (a *App) reviewUnitBlocks(ctx context.Context, op *openProject, rf project.
 // integrity was never verified. A synthetic blocking finding is honest at the
 // panel and fail-safe at the gate, and keeps the signature usable from the paths
 // that legitimately continue past one bad unit.
-func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale model.LocaleID, profile *brand.VoiceProfile, dntTerms []string) []DesktopFinding {
+func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale model.LocaleID, profile *coreprofile.VoiceProfile, dntTerms []string) []DesktopFinding {
 	findings := []DesktopFinding{}
 	fail := func(what string, err error) []DesktopFinding {
 		return append(findings, DesktopFinding{
@@ -157,15 +157,15 @@ func (a *App) blockCheckFindings(ctx context.Context, b *model.Block, locale mod
 	}
 
 	if profile != nil {
-		vocab := coretools.NewBrandVocabCheckTool(profile, nil)
+		vocab := coretools.NewVoiceVocabCheckTool(profile, nil)
 		if err := host.RunCheckTool(ctx, vocab, b); err != nil {
-			return fail("brand vocabulary", err)
+			return fail("voice vocabulary", err)
 		}
-		if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
+		if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
 			for _, f := range ann.Findings {
 				findings = append(findings, toDesktopFinding(f, b, "source"))
 			}
-			b.DelAnno("brand-voice")
+			b.DelAnno("voice")
 		}
 	}
 
@@ -243,7 +243,7 @@ func (a *App) GetReviewUnit(tabID, locale, file, key string) (*ReviewUnitDetail,
 	}
 
 	// Findings — the ChecksPanel checkset scoped to this block.
-	profile := a.resolveProjectBrandProfile(ctx, op)
+	profile := a.resolveProjectVoiceProfile(ctx, op)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 	detail.Findings = a.blockCheckFindings(ctx, b, loc, profile, dntTerms)
 
@@ -329,7 +329,7 @@ func (a *App) GetReviewQueue(tabID string) ([]host.ReviewItem, error) {
 	defer cancel()
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
-	profile := a.resolveProjectBrandProfile(ctx, op)
+	profile := a.resolveProjectVoiceProfile(ctx, op)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 
 	// Group items by (file, locale) so each pair is read and overlaid once.

@@ -23,7 +23,7 @@ type StreamBindingStore interface {
 
 // PilotProfileStore is the slice of the brand store the pilot lifecycle needs to
 // materialize and retire a stream-scoped candidate profile: the read+update
-// ProfileStore plus create and delete. coreprofile.BrandStore satisfies it.
+// ProfileStore plus create and delete. coreprofile.Store satisfies it.
 type PilotProfileStore interface {
 	ProfileStore
 	CreateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error
@@ -36,7 +36,7 @@ type PilotProfileStore interface {
 // store is a PilotProfileStore.
 var (
 	_ StreamBindingStore = (store.ContentStore)(nil)
-	_ PilotProfileStore  = (coreprofile.BrandStore)(nil)
+	_ PilotProfileStore  = (coreprofile.Store)(nil)
 )
 
 // pilotShadowPrefix namespaces every row the pilot lifecycle writes to the

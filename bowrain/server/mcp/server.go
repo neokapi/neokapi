@@ -69,7 +69,7 @@ type SandboxResult struct {
 
 // MCPServer wraps the MCP protocol server with brand voice resources and tools.
 type MCPServer struct {
-	brandStore     coreprofile.BrandStore
+	brandStore     coreprofile.Store
 	contentStore   store.ContentStore
 	wsDefault      brandscope.WorkspaceDefault
 	memoryResolver MemoryResolver
@@ -160,13 +160,13 @@ func WithToolRegistry(r *registry.ToolRegistry) Option {
 }
 
 // NewMCPServer creates a new MCP server with brand voice capabilities.
-func NewMCPServer(brandStore coreprofile.BrandStore, cfg Config) (*MCPServer, error) {
+func NewMCPServer(brandStore coreprofile.Store, cfg Config) (*MCPServer, error) {
 	return NewMCPServerWithStore(brandStore, nil, cfg)
 }
 
 // NewMCPServerWithStore creates a new MCP server with brand voice and
 // content/flow/content memory/terms/connector tools for @bravo agent access.
-func NewMCPServerWithStore(brandStore coreprofile.BrandStore, contentStore store.ContentStore, cfg Config, opts ...Option) (*MCPServer, error) {
+func NewMCPServerWithStore(brandStore coreprofile.Store, contentStore store.ContentStore, cfg Config, opts ...Option) (*MCPServer, error) {
 	s := mcp.NewServer(
 		&mcp.Implementation{
 			Name:    "bowrain",

@@ -12,13 +12,13 @@ import (
 // the prior version, so the change is auditable and reversible). It returns the
 // updated profile and whether it changed. This is the server-side step that
 // turns a reviewed suggestion into an enforced, versioned check.
-func PromoteAndSave(ctx context.Context, store BrandStore, profileID string, r SuggestedRule) (*VoiceProfile, bool, error) {
+func PromoteAndSave(ctx context.Context, store Store, profileID string, r SuggestedRule) (*VoiceProfile, bool, error) {
 	p, err := store.GetProfile(ctx, profileID)
 	if err != nil {
 		return nil, false, err
 	}
 	if p == nil {
-		return nil, false, fmt.Errorf("brand: profile %q not found", profileID)
+		return nil, false, fmt.Errorf("voice: profile %q not found", profileID)
 	}
 	if !ApplySuggestedRule(p, r) {
 		return p, false, nil
@@ -100,15 +100,15 @@ func RemoveRule(p *VoiceProfile, term string) bool {
 }
 
 // DemoteAndSave removes a previously promoted rule from a profile and bumps its
-// version. The inverse of PromoteAndSave — a promoted brand rule is no longer
+// version. The inverse of PromoteAndSave — a promoted voice rule is no longer
 // append-only.
-func DemoteAndSave(ctx context.Context, store BrandStore, profileID, term string) (*VoiceProfile, bool, error) {
+func DemoteAndSave(ctx context.Context, store Store, profileID, term string) (*VoiceProfile, bool, error) {
 	p, err := store.GetProfile(ctx, profileID)
 	if err != nil {
 		return nil, false, err
 	}
 	if p == nil {
-		return nil, false, fmt.Errorf("brand: profile %q not found", profileID)
+		return nil, false, fmt.Errorf("voice: profile %q not found", profileID)
 	}
 	if !RemoveRule(p, term) {
 		return p, false, nil

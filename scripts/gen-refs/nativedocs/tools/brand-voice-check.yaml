@@ -1,5 +1,5 @@
 # Native reference doc for the built-in `brand-voice-check` tool.
-# Schema source: core/ai/tools/brandvoice.go (BrandVoiceCheckConfig).
+# Schema source: core/ai/tools/brandvoice.go (VoiceCheckConfig).
 description: Check text against a brand voice profile using an LLM and score brand compliance.
 overview: |
   The **AI Brand Voice Check** tool evaluates each block's source text against a

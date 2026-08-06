@@ -341,7 +341,7 @@ func storeScore(t *testing.T, store *PostgresBrandStore, project, id, locale str
 		Dimensions: []coreprofile.DimensionScore{
 			{Dimension: coreprofile.DimensionVocabulary, Score: 90},
 		},
-		Findings:  []coreprofile.BrandVoiceFinding{},
+		Findings:  []coreprofile.VoiceFinding{},
 		CheckedAt: checkedAt,
 	}))
 }
@@ -420,7 +420,7 @@ func TestPostgresBrandStore_ScoresByStreamAndTrends(t *testing.T) {
 	require.NoError(t, store.StoreScore(ctx, &coreprofile.StoredScore{
 		ID: "d1", ProjectID: proj, Stream: "draft", BlockID: "b", ProfileID: "profile-1",
 		Locale: "fr-FR", Score: 70,
-		Dimensions: []coreprofile.DimensionScore{}, Findings: []coreprofile.BrandVoiceFinding{},
+		Dimensions: []coreprofile.DimensionScore{}, Findings: []coreprofile.VoiceFinding{},
 		CheckedAt: now,
 	}))
 

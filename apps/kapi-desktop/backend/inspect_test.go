@@ -32,7 +32,7 @@ func setupInspectProject(t *testing.T, app *App, sourceJSON, targetJSON string) 
 		require.NoError(t, os.WriteFile(filepath.Join(srcDir, "fr.json"), []byte(targetJSON), 0o644))
 	}
 
-	// Convention brand profile: forbidden term "utilize" → "use".
+	// Convention voice profile: forbidden term "utilize" → "use".
 	brandYAML := `id: house
 name: House Style
 vocabulary:
@@ -146,7 +146,7 @@ func TestInspectFileAnnotatedPopulatesOverlays(t *testing.T) {
 				}
 			case "qa":
 				switch sp.Props["category"] {
-				case "brand-vocabulary":
+				case "voice-vocabulary":
 					if sp.Props["term"] == "utilize" {
 						sawBrand = true
 						assert.Equal(t, "use", sp.Props["replacement"])
@@ -159,7 +159,7 @@ func TestInspectFileAnnotatedPopulatesOverlays(t *testing.T) {
 		}
 	}
 	assert.True(t, sawTerm, "expected a term overlay for the seeded terms term")
-	assert.True(t, sawBrand, "expected a brand-vocabulary overlay for the forbidden term")
+	assert.True(t, sawBrand, "expected a voice-vocabulary overlay for the forbidden term")
 	assert.True(t, sawDoubledWord, "expected a doubled-word QA overlay (\"the the\")")
 }
 

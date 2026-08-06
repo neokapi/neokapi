@@ -129,10 +129,10 @@ func TestRunCheckToolAndFindingsFromBlock(t *testing.T) {
 	assert.False(t, ok)
 }
 
-// TestResolveBrandProfile_Ladder exercises the cobra-free resolution ladder:
+// TestResolveVoiceProfile_Ladder exercises the cobra-free resolution ladder:
 // recipe binding (profile_file) wins, then the convention brand.yaml files,
 // then found=false.
-func TestResolveBrandProfile_Ladder(t *testing.T) {
+func TestResolveVoiceProfile_Ladder(t *testing.T) {
 	app := &App{}
 	ctx := context.Background()
 	profileYAML := []byte("id: house\nname: House Style\n")
@@ -141,9 +141,9 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 		root := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), profileYAML, 0o644))
 		proj := &project.KapiProject{
-			Defaults: project.Defaults{BrandVoice: &project.BrandVoiceBinding{ProfileFile: "voice.yaml"}},
+			Defaults: project.Defaults{Voice: &project.VoiceBinding{ProfileFile: "voice.yaml"}},
 		}
-		p, src, found, err := app.ResolveBrandProfile(ctx, proj, root, BrandResolveOptions{})
+		p, src, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
 		require.NoError(t, err)
 		require.True(t, found)
 		assert.Equal(t, "House Style", p.Name)
@@ -154,7 +154,7 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 		root := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"), profileYAML, 0o644))
 		proj := &project.KapiProject{}
-		p, src, found, err := app.ResolveBrandProfile(ctx, proj, root, BrandResolveOptions{})
+		p, src, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
 		require.NoError(t, err)
 		require.True(t, found)
 		assert.Equal(t, "House Style", p.Name)
@@ -163,11 +163,11 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 
 	t.Run("convention .kapi/voice.yaml", func(t *testing.T) {
 		root := t.TempDir()
-		conv := filepath.Join(root, project.RelStatePath(BrandVoiceConventionalName))
+		conv := filepath.Join(root, project.RelStatePath(VoiceConventionalName))
 		require.NoError(t, os.MkdirAll(filepath.Dir(conv), 0o755))
 		require.NoError(t, os.WriteFile(conv, profileYAML, 0o644))
 		proj := &project.KapiProject{}
-		_, src, found, err := app.ResolveBrandProfile(ctx, proj, root, BrandResolveOptions{})
+		_, src, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
 		require.NoError(t, err)
 		require.True(t, found)
 		assert.Equal(t, conv, src)
@@ -177,12 +177,12 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 	// recipe binds the point, the filesystem holds what that point overrides.
 	t.Run("a matched profile is answered by its own directory", func(t *testing.T) {
 		root := t.TempDir()
-		conv := filepath.Join(root, project.RelStatePath(BrandVoiceConventionalName))
+		conv := filepath.Join(root, project.RelStatePath(VoiceConventionalName))
 		require.NoError(t, os.MkdirAll(filepath.Dir(conv), 0o755))
 		require.NoError(t, os.WriteFile(conv, profileYAML, 0o644))
 
 		profileVoice := filepath.Join(root,
-			project.RelStatePath(project.ProfilesDirName, "bowrain", BrandVoiceConventionalName))
+			project.RelStatePath(project.ProfilesDirName, "bowrain", VoiceConventionalName))
 		require.NoError(t, os.MkdirAll(filepath.Dir(profileVoice), 0o755))
 		require.NoError(t, os.WriteFile(profileVoice, []byte("id: bowrain\nname: Bowrain Style\n"), 0o644))
 
@@ -195,16 +195,16 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 				Items:   []project.ContentItem{{Path: "src/*.json"}},
 			}},
 		}
-		proj.Defaults.BrandVoice = &project.BrandVoiceBinding{ProfileFile: ".kapi/voice.yaml"}
+		proj.Defaults.Voice = &project.VoiceBinding{ProfileFile: ".kapi/voice.yaml"}
 
-		p, src, found, err := app.ResolveBrandProfile(ctx, proj, root, BrandResolveOptions{Collection: "app"})
+		p, src, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{Collection: "app"})
 		require.NoError(t, err)
 		require.True(t, found)
-		assert.Equal(t, "Bowrain Style", p.Name, "the profile's directory outranks defaults.brand_voice")
+		assert.Equal(t, "Bowrain Style", p.Name, "the profile's directory outranks defaults.voice")
 		assert.Equal(t, profileVoice, src)
 
 		// A point no profile claims still gets the project default.
-		p, _, found, err = app.ResolveBrandProfile(ctx, proj, root, BrandResolveOptions{})
+		p, _, found, err = app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
 		require.NoError(t, err)
 		require.True(t, found)
 		assert.Equal(t, "House Style", p.Name)
@@ -214,13 +214,13 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 	// conventional home and the reviewed home are the same directory.
 	t.Run("context directory outranks the root", func(t *testing.T) {
 		root := t.TempDir()
-		conv := filepath.Join(root, project.RelStatePath(BrandVoiceConventionalName))
+		conv := filepath.Join(root, project.RelStatePath(VoiceConventionalName))
 		require.NoError(t, os.MkdirAll(filepath.Dir(conv), 0o755))
 		require.NoError(t, os.WriteFile(conv, profileYAML, 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"),
 			[]byte("id: root\nname: Root Style\n"), 0o644))
 
-		p, src, found, err := app.ResolveBrandProfile(ctx, &project.KapiProject{}, root, BrandResolveOptions{})
+		p, src, found, err := app.ResolveVoiceProfile(ctx, &project.KapiProject{}, root, VoiceResolveOptions{})
 		require.NoError(t, err)
 		require.True(t, found)
 		assert.Equal(t, "House Style", p.Name)
@@ -229,7 +229,7 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 
 	t.Run("nothing bound", func(t *testing.T) {
 		root := t.TempDir()
-		_, _, found, err := app.ResolveBrandProfile(ctx, &project.KapiProject{}, root, BrandResolveOptions{})
+		_, _, found, err := app.ResolveVoiceProfile(ctx, &project.KapiProject{}, root, VoiceResolveOptions{})
 		require.NoError(t, err)
 		assert.False(t, found)
 	})
@@ -237,9 +237,9 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 	t.Run("store binding without a store errors, creating nothing", func(t *testing.T) {
 		root := t.TempDir()
 		proj := &project.KapiProject{
-			Defaults: project.Defaults{BrandVoice: &project.BrandVoiceBinding{Profile: "house"}},
+			Defaults: project.Defaults{Voice: &project.VoiceBinding{Profile: "house"}},
 		}
-		_, _, _, err := app.ResolveBrandProfile(ctx, proj, root, BrandResolveOptions{})
+		_, _, _, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "not found in local store")
 		_, statErr := os.Stat(filepath.Join(root, "brand.db"))

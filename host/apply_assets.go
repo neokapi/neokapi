@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/memory"
@@ -23,7 +23,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// applyAssetEntry lands one asset change (a glossary term, content memory pair, brand rule,
+// applyAssetEntry lands one asset change (a glossary term, content memory pair, voice rule,
 // or recipe field). It implements decision B of the apply design: an asset edit
 // is written into the asset's COMMITTED SOURCE artifact — the git-tracked file
 // the recipe points at — and the EXISTING import/compile then refreshes the
@@ -49,7 +49,7 @@ func (a *App) applyAssetEntry(ctx context.Context, cmd Command, e changeEntry) a
 	case kindMemory:
 		return a.applyMemoryEntry(ctx, cmd, e)
 	case kindBrand:
-		return a.applyBrandEntry(ctx, cmd, e)
+		return a.applyVoiceEntry(ctx, cmd, e)
 	case kindRecipe:
 		return a.applyRecipeEntry(cmd, e)
 	default:
@@ -585,14 +585,14 @@ func memoryEntryID(source string, srcLocale, tgtLocale model.LocaleID) string {
 }
 
 // ---------------------------------------------------------------------------
-// brand → committed brand.yaml (VoiceProfile) → brand store compile
+// brand → committed brand.yaml (VoiceProfile) → voice store compile
 // ---------------------------------------------------------------------------
 
-// applyBrandEntry adds a vocabulary rule to the committed brand voice profile
+// applyVoiceEntry adds a vocabulary rule to the committed voice profile
 // YAML the recipe binds (creating .kapi/voice.yaml and binding it under
-// defaults.brand_voice.profile_file when none exists), then re-imports the
-// profile into the local brand store so the store reflects the committed source.
-func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
+// defaults.voice.profile_file when none exists), then re-imports the
+// profile into the local voice store so the store reflects the committed source.
+func (a *App) applyVoiceEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
 	res := assetResult{Kind: e.Kind, Op: e.Op, Target: e.Term}
 
 	if e.Op != "" && e.Op != "add-rule" {
@@ -610,7 +610,7 @@ func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) a
 		return errResult(res, err.Error())
 	}
 
-	profilePath, err := a.ensureBrandProfileBinding(recipePath, root)
+	profilePath, err := a.ensureVoiceProfileBinding(recipePath, root)
 	if err != nil {
 		return errResult(res, err.Error())
 	}
@@ -620,7 +620,7 @@ func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) a
 		return errResult(res, err.Error())
 	}
 
-	changed := upsertBrandRule(profile, e.List, e.Term, e.Replacement, e.Severity)
+	changed := upsertVoiceRule(profile, e.List, e.Term, e.Replacement, e.Severity)
 	if !changed {
 		res.Status = "skipped"
 		res.Detail = "already present"
@@ -630,7 +630,7 @@ func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) a
 	if err := writeProfileYAML(profilePath, profile); err != nil {
 		return errResult(res, err.Error())
 	}
-	if err := a.compileBrandProfile(ctx, cmd, profilePath); err != nil {
+	if err := a.compileVoiceProfile(ctx, cmd, profilePath); err != nil {
 		return errResult(res, err.Error())
 	}
 
@@ -639,34 +639,34 @@ func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) a
 	return res
 }
 
-// ensureBrandProfileBinding returns the committed profile YAML path bound via
-// defaults.brand_voice.profile_file, creating .kapi/voice.yaml and binding
+// ensureVoiceProfileBinding returns the committed profile YAML path bound via
+// defaults.voice.profile_file, creating .kapi/voice.yaml and binding
 // it when no profile_file is bound. A non-file binding (pack/store profile) is
 // an error: apply edits a committed file, not a starter pack or a store row.
-func (a *App) ensureBrandProfileBinding(recipePath, root string) (string, error) {
+func (a *App) ensureVoiceProfileBinding(recipePath, root string) (string, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
 		return "", fmt.Errorf("load project: %w", err)
 	}
-	if bv := proj.Defaults.BrandVoice; bv != nil {
+	if bv := proj.Defaults.Voice; bv != nil {
 		switch {
 		case bv.ProfileFile != "":
 			return resolveUnder(root, bv.ProfileFile), nil
 		case bv.Pack != "" || bv.Profile != "":
-			return "", errors.New("brand: defaults.brand_voice binds a pack/store profile, not a committed profile_file — bind a profile_file to apply rules")
+			return "", errors.New("brand: defaults.voice binds a pack/store profile, not a committed profile_file — bind a profile_file to apply rules")
 		}
 	}
-	rel := project.RelStatePath(BrandVoiceConventionalName)
-	proj.Defaults.BrandVoice = &project.BrandVoiceBinding{ProfileFile: rel}
+	rel := project.RelStatePath(VoiceConventionalName)
+	proj.Defaults.Voice = &project.VoiceBinding{ProfileFile: rel}
 	if err := project.Save(recipePath, proj); err != nil {
-		return "", fmt.Errorf("bind brand voice profile: %w", err)
+		return "", fmt.Errorf("bind voice profile: %w", err)
 	}
 	return resolveUnder(root, rel), nil
 }
 
 // loadOrInitProfile loads the committed profile YAML, or builds a minimal valid
 // profile (named after the project root) when the file does not exist yet.
-func loadOrInitProfile(path, root string) (*brand.VoiceProfile, error) {
+func loadOrInitProfile(path, root string) (*coreprofile.VoiceProfile, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -674,24 +674,24 @@ func loadOrInitProfile(path, root string) (*brand.VoiceProfile, error) {
 			if name == "" || name == "." || name == string(filepath.Separator) {
 				name = "Brand"
 			}
-			return &brand.VoiceProfile{Name: name}, nil
+			return &coreprofile.VoiceProfile{Name: name}, nil
 		}
-		return nil, fmt.Errorf("open brand profile: %w", err)
+		return nil, fmt.Errorf("open voice profile: %w", err)
 	}
 	defer f.Close()
-	p, err := brand.LoadProfileYAML(f)
+	p, err := coreprofile.LoadProfileYAML(f)
 	if err != nil {
-		return nil, fmt.Errorf("load brand profile: %w", err)
+		return nil, fmt.Errorf("load voice profile: %w", err)
 	}
 	return p, nil
 }
 
-// upsertBrandRule adds a term rule to the named vocabulary list. It is
+// upsertVoiceRule adds a term rule to the named vocabulary list. It is
 // idempotent: a rule with the same term, replacement, and severity already on
 // the list returns changed=false.
-func upsertBrandRule(profile *brand.VoiceProfile, list, term, replacement, severity string) bool {
-	rule := brand.TermRule{Term: term, Replacement: replacement, Severity: severity}
-	target := brandRuleList(profile, list)
+func upsertVoiceRule(profile *coreprofile.VoiceProfile, list, term, replacement, severity string) bool {
+	rule := coreprofile.TermRule{Term: term, Replacement: replacement, Severity: severity}
+	target := voiceRuleList(profile, list)
 	for _, existing := range *target {
 		if existing.Term == term && existing.Replacement == replacement && existing.Severity == severity {
 			return false
@@ -709,8 +709,8 @@ func upsertBrandRule(profile *brand.VoiceProfile, list, term, replacement, sever
 	return true
 }
 
-// brandRuleList returns a pointer to the vocabulary slice named by list.
-func brandRuleList(profile *brand.VoiceProfile, list string) *[]brand.TermRule {
+// voiceRuleList returns a pointer to the vocabulary slice named by list.
+func voiceRuleList(profile *coreprofile.VoiceProfile, list string) *[]coreprofile.TermRule {
 	switch list {
 	case "forbidden":
 		return &profile.Vocabulary.ForbiddenTerms
@@ -722,37 +722,37 @@ func brandRuleList(profile *brand.VoiceProfile, list string) *[]brand.TermRule {
 }
 
 // writeProfileYAML serializes a VoiceProfile to its committed YAML form.
-func writeProfileYAML(path string, profile *brand.VoiceProfile) error {
+func writeProfileYAML(path string, profile *coreprofile.VoiceProfile) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create profile dir: %w", err)
 	}
 	data, err := yaml.Marshal(profile)
 	if err != nil {
-		return fmt.Errorf("marshal brand profile: %w", err)
+		return fmt.Errorf("marshal voice profile: %w", err)
 	}
 	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return fmt.Errorf("write brand profile: %w", err)
+		return fmt.Errorf("write voice profile: %w", err)
 	}
 	return nil
 }
 
-// compileBrandProfile re-imports the committed profile YAML into the local
-// brand store — the existing brand-import path (SaveProfileToStore's
+// compileVoiceProfile re-imports the committed profile YAML into the local
+// voice store — the existing brand-import path (SaveProfileToStore's
 // create/update by id) — so the store reflects the committed source.
-func (a *App) compileBrandProfile(ctx context.Context, cmd Command, profilePath string) error {
+func (a *App) compileVoiceProfile(ctx context.Context, cmd Command, profilePath string) error {
 	f, err := os.Open(profilePath)
 	if err != nil {
-		return fmt.Errorf("open brand profile: %w", err)
+		return fmt.Errorf("open voice profile: %w", err)
 	}
 	defer f.Close()
-	profile, err := brand.LoadProfileYAML(f)
+	profile, err := coreprofile.LoadProfileYAML(f)
 	if err != nil {
-		return fmt.Errorf("load brand profile: %w", err)
+		return fmt.Errorf("load voice profile: %w", err)
 	}
 
-	store, _, err := a.OpenBrandStore(cmd)
+	store, _, err := a.OpenVoiceStore(cmd)
 	if err != nil {
-		return fmt.Errorf("open brand store: %w", err)
+		return fmt.Errorf("open voice store: %w", err)
 	}
 	defer store.Close()
 
@@ -762,12 +762,12 @@ func (a *App) compileBrandProfile(ctx context.Context, cmd Command, profilePath 
 	profile.WorkspaceID = LocalWorkspace
 	if _, gerr := store.GetProfile(ctx, profile.ID); gerr == nil {
 		if uerr := store.UpdateProfile(ctx, profile); uerr != nil {
-			return fmt.Errorf("update brand store: %w", uerr)
+			return fmt.Errorf("update voice store: %w", uerr)
 		}
 		return nil
 	}
 	if cerr := store.CreateProfile(ctx, profile); cerr != nil {
-		return fmt.Errorf("create brand store profile: %w", cerr)
+		return fmt.Errorf("create voice store profile: %w", cerr)
 	}
 	return nil
 }

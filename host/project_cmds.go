@@ -62,10 +62,10 @@ func FrameworkContent(framework string) ([]scaffoldContent, error) {
 }
 
 // FrameworkBindings returns the standing project-context bindings a framework
-// preset declares — a brand voice profile file and a terms store source — for the
+// preset declares — a voice profile file and a terms store source — for the
 // scaffolder to write under defaults:. Both are empty when the framework
 // declares none (or is unknown/empty).
-func FrameworkBindings(framework string) (brandVoiceProfile, termsSource string) {
+func FrameworkBindings(framework string) (voiceProfile, termsSource string) {
 	if framework == "" {
 		return "", ""
 	}
@@ -75,7 +75,7 @@ func FrameworkBindings(framework string) (brandVoiceProfile, termsSource string)
 	if fp == nil {
 		return "", ""
 	}
-	return fp.BrandVoiceProfile, fp.TermsSource
+	return fp.VoiceProfile, fp.TermsSource
 }
 
 // ─── helpers ────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ func RecipeExists(dir string) (bool, error) {
 	return false, err
 }
 
-func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content []scaffoldContent, brandVoiceProfile, termsSource string) []byte {
+func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content []scaffoldContent, voiceProfile, termsSource string) []byte {
 	var b strings.Builder
 	b.WriteString("version: v1\n")
 	b.WriteString("name: ")
@@ -127,12 +127,12 @@ func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 			b.WriteByte('\n')
 		}
 	}
-	// Standing project-context bindings the stack declares — a brand voice
-	// profile and a committed native terms source — so project-scoped brand
-	// and terminology checks need no flags.
-	if brandVoiceProfile != "" {
-		b.WriteString("  brand_voice:\n")
-		fmt.Fprintf(&b, "    profile_file: %s\n", brandVoiceProfile)
+	// Standing project-context bindings the stack declares — a voice profile
+	// and a committed native terms source — so project-scoped voice and
+	// terminology checks need no flags.
+	if voiceProfile != "" {
+		b.WriteString("  voice:\n")
+		fmt.Fprintf(&b, "    profile_file: %s\n", voiceProfile)
 	}
 	if termsSource != "" {
 		fmt.Fprintf(&b, "  terms_source: %s\n", termsSource)
@@ -165,11 +165,11 @@ func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 #     target: "src/locales/{lang}/*.json"
 #
 # flows:
-#   # Monolingual: check source content against brand voice and terminology.
-#   brand-check:
+#   # Monolingual: check source content against the voice profile and terminology.
+#   voice:
 #     steps:
-#       - tool: brand-vocab-check
-#       - tool: brand-voice-check
+#       - tool: voice-vocab-check
+#       - tool: voice-check
 #   # Multilingual: translate the source into each target language.
 #   translate:
 #     steps:
@@ -183,11 +183,11 @@ flows: {}
 }
 
 // ScaffoldContentRecipe builds the default content recipe: a project whose job
-// is keeping its source content on brand and on-terminology, with no target
-// languages. It binds a brand voice profile (a built-in starter pack) under
-// defaults: so the project-scoped brand check needs no flags, and
+// is keeping its source content in voice and on-terminology, with no target
+// languages. It binds a voice profile (a built-in starter pack) under
+// defaults: so the project-scoped voice check needs no flags, and
 // ships a `check` flow that scores content with the deterministic
-// brand-vocabulary check. Passing --target-locale or --framework scaffolds a
+// voice-vocabulary check. Passing --target-locale or --framework scaffolds a
 // translation project (ScaffoldRecipe) instead.
 func ScaffoldContentRecipe(name, sourceLocale string) []byte {
 	var b strings.Builder
@@ -198,35 +198,35 @@ func ScaffoldContentRecipe(name, sourceLocale string) []byte {
 	b.WriteString("  source_language: ")
 	b.WriteString(sourceLocale)
 	b.WriteByte('\n')
-	// brand_voice is a framework binding under defaults: — standing project
-	// context for the brand check. Terminology needs no binding: the vocabulary
-	// lives in the project's own store, which every term-aware command reads
-	// with no flag and no recipe entry. No target_languages: this project
-	// governs its source content, it does not translate it.
-	b.WriteString("  brand_voice:\n")
+	// voice is a framework binding under defaults: — standing project context
+	// for the voice check. Terminology needs no binding: the vocabulary lives
+	// in the project's own store, which every term-aware command reads with no
+	// flag and no recipe entry. No target_languages: this project governs its
+	// source content, it does not translate it.
+	b.WriteString("  voice:\n")
 	b.WriteString("    pack: professional-b2b\n")
 	b.WriteString(`
 # Content project: no target_languages. Point content at the source files to
-# keep on brand, then run 'kapi run check' to score them. Block state lives in
+# keep in voice, then run 'kapi run check' to score them. Block state lives in
 # the project store, .kapi/work/store.db.
 #
 # content:
 #   - path: "src/**/*.md"
 #     format: markdown
 #
-# Swap the starter pack for your own profile: 'kapi brand new -o brand.yaml',
-# fill it in, 'kapi brand import brand.yaml', then set
-# defaults.brand_voice.profile instead of pack.
+# Swap the starter pack for your own profile: 'kapi voice new -o voice.yaml',
+# fill it in, 'kapi voice import voice.yaml', then set
+# defaults.voice.profile instead of pack.
 content: []
 
-# The check flow scores content against brand vocabulary (deterministic,
-# offline) and gates on the result. Add the AI-driven 'brand-voice-check' step
+# The check flow scores content against the voice vocabulary (deterministic,
+# offline) and gates on the result. Add the AI-driven 'voice-check' step
 # for tone and voice scoring (needs an AI provider).
 flows:
   check:
     steps:
-      - tool: brand-vocab-check
-      # - tool: brand-voice-check
+      - tool: voice-vocab-check
+      # - tool: voice-check
 `)
 	return []byte(b.String())
 }

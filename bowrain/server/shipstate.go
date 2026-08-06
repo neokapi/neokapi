@@ -30,7 +30,7 @@ import (
 // omits no mandated preferred/approved rendering; see termGate/blockTermCompliant),
 // AND — where a persisted brand voice score exists for the block+locale (written
 // by the worker's draft scoring, zero AI) — the score meets the scoring profile's
-// minimum bar (VoiceProfile.OnBrandBar). A term-non-compliant block is treated
+// minimum bar (VoiceProfile.ComplianceBar). A term-non-compliant block is treated
 // exactly like a failing check: it counts against the on-brand rate AND, at full
 // coverage, against FailingChecks, so it can never be governed or ai_shippable.
 // Scopes with no voice scores fall back to checks(+terms), and OnBrandBasis says
@@ -39,7 +39,7 @@ import (
 // failing the dashboard. The gate is resolved once per (workspace, locale) by the
 // caller and reused across every block; a nil gate (no terms, no brand store)
 // makes the term half a no-op, keeping the numbers byte-identical to before.
-func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore coreprofile.BrandStore, projectID, stream string, gate *termGate, stats *store.TranslationDashboardStats) error {
+func applyShipStates(ctx context.Context, cs store.ContentStore, brandStore coreprofile.Store, projectID, stream string, gate *termGate, stats *store.TranslationDashboardStats) error {
 	fullyCovered := func(ls store.LocaleTranslationStats) bool {
 		return ls.TotalBlocks > 0 && ls.TranslatedBlocks >= ls.TotalBlocks
 	}
@@ -223,7 +223,7 @@ type scoredBlock struct {
 // Best-effort by design: a nil brand store or a read failure yields an empty
 // map, degrading the on-brand rate to checks-only rather than failing the
 // dashboard.
-func latestVoiceScores(ctx context.Context, brandStore coreprofile.BrandStore, projectID, stream string) map[string]map[string]scoredBlock {
+func latestVoiceScores(ctx context.Context, brandStore coreprofile.Store, projectID, stream string) map[string]map[string]scoredBlock {
 	out := map[string]map[string]scoredBlock{}
 	if brandStore == nil {
 		return out
@@ -243,7 +243,7 @@ func latestVoiceScores(ctx context.Context, brandStore coreprofile.BrandStore, p
 		if err != nil {
 			profile = nil // deleted profile: apply the default bar to its scores
 		}
-		b := profile.OnBrandBar()
+		b := profile.ComplianceBar()
 		bars[profileID] = b
 		return b
 	}

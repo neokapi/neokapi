@@ -22,7 +22,7 @@ const (
 	LabelExactMatch = "EXACT_MATCH" // skos:exactMatch — cross-scheme equivalence
 	LabelCloseMatch = "CLOSE_MATCH" // skos:closeMatch — approximate equivalence
 
-	// Brand voice relationships
+	// Voice profile relationships
 	LabelForbidden  = "FORBIDDEN"  // brand → forbidden term
 	LabelPreferred  = "PREFERRED"  // brand → preferred term
 	LabelCompetitor = "COMPETITOR" // brand → competitor term

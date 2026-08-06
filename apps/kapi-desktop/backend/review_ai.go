@@ -176,7 +176,7 @@ func renderReviewExplanation(res *aitools.ReviewResult) string {
 // any fresh AI-review findings recorded in the state store.
 func (a *App) currentUnitFindings(ctx context.Context, op *openProject, b *model.Block, loc model.LocaleID, sourceLang, key string) []string {
 	var lines []string
-	profile := a.resolveProjectBrandProfile(ctx, op)
+	profile := a.resolveProjectVoiceProfile(ctx, op)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 	for _, f := range a.blockCheckFindings(ctx, b, loc, profile, dntTerms) {
 		line := fmt.Sprintf("[%s] %s", f.Severity, f.Message)
@@ -362,7 +362,7 @@ func (a *App) RunAIPreReview(tabID, locale string, scope PreReviewScope, policy 
 	defer cancel()
 
 	sourceLang := string(project.NewProjectContext(op.Project, op.Path).SourceLocale)
-	profile := a.resolveProjectBrandProfile(ctx, op)
+	profile := a.resolveProjectVoiceProfile(ctx, op)
 	dntTerms := a.resolveProjectDNTTerms(ctx, op, sourceLang)
 	src := string(op.Project.Defaults.SourceLanguage)
 

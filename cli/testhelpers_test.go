@@ -18,7 +18,7 @@ import (
 // Cobra-side copies of test fixtures whose canonical definitions moved to
 // the host package with the runtime/service extraction.
 
-// writeVerifyProject creates a temp project that binds a brand profile and a
+// writeVerifyProject creates a temp project that binds a voice profile and a
 // project terms store, with an English source file and a French target file. The
 // returned root is the project directory; the target file is returned so the
 // test can rewrite it for the passing case.
@@ -39,7 +39,7 @@ name: verify
 defaults:
   source_language: en
   target_languages: [fr]
-  brand_voice:
+  voice:
     profile_file: brand.yaml
 content:
   - path: "locales/en/*.json"
@@ -213,9 +213,9 @@ func captureStdout(t *testing.T, fn func() error) (string, error) {
 	return buf.String(), runErr
 }
 
-// verifyBrandYAML binds a brand voice with a critical competitor term, so a
+// verifyBrandYAML binds a voice profile with a critical competitor term, so a
 // single occurrence in the source drops the compliance score below the default
-// threshold (100 - 25 = 75 < 80) and fails the brand gate.
+// threshold (100 - 25 = 75 < 80) and fails the voice gate.
 const verifyBrandYAML = `name: Verify Brand
 vocabulary:
   forbidden_terms:

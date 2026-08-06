@@ -1,4 +1,4 @@
-package brand
+package voice
 
 import (
 	"context"
@@ -14,19 +14,20 @@ import (
 	"github.com/neokapi/neokapi/core/storage"
 )
 
-// SQLiteBrandStore implements profile.BrandStore using SQLite.
-type SQLiteBrandStore struct {
+// SQLiteStore implements profile.Store using SQLite.
+type SQLiteStore struct {
 	db *storage.DB
 }
 
-// migrations holds the brand voice store's schema. Version 1 is the launch
+// migrations holds the voice profile store's schema. Version 1 is the launch
 // baseline; user machines carry long-lived local databases, so every schema
 // change after it MUST be an incremental migration — existing databases only
-// ever run new versions, never a re-run of the baseline.
+// ever run new versions, never a re-run of the baseline. Table names are the
+// on-disk shape of those databases and stay as written.
 var migrations = []storage.Migration{
 	{
 		Version:     1,
-		Description: "brand voice store schema (baseline)",
+		Description: "voice profile store schema (baseline)",
 		SQL: `
 		CREATE TABLE IF NOT EXISTS brand_profiles (
 			id TEXT PRIMARY KEY,
@@ -109,22 +110,24 @@ var migrations = []storage.Migration{
 	},
 	{
 		Version:     2,
-		Description: "author personas on brand profiles",
+		Description: "author personas on voice profiles",
 		SQL: `
 		ALTER TABLE brand_profiles ADD COLUMN personas TEXT NOT NULL DEFAULT '{}';
 		`,
 	},
 }
 
-// NewSQLiteBrandStore creates a new SQLite-backed brand store.
-func NewSQLiteBrandStore(db *storage.DB) (*SQLiteBrandStore, error) {
+// NewSQLiteStore creates a new SQLite-backed voice profile store.
+func NewSQLiteStore(db *storage.DB) (*SQLiteStore, error) {
+	// The ledger name is "brand": it keys the applied-version bookkeeping in
+	// databases users already carry, and renaming it replays every migration.
 	if err := storage.Migrate(db, "brand", migrations); err != nil {
-		return nil, fmt.Errorf("brand migration: %w", err)
+		return nil, fmt.Errorf("voice store migration: %w", err)
 	}
-	return &SQLiteBrandStore{db: db}, nil
+	return &SQLiteStore{db: db}, nil
 }
 
-func (s *SQLiteBrandStore) CreateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
+func (s *SQLiteStore) CreateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
 	now := time.Now()
 	if profile.CreatedAt.IsZero() {
 		profile.CreatedAt = now
@@ -158,7 +161,7 @@ func (s *SQLiteBrandStore) CreateProfile(ctx context.Context, profile *coreprofi
 	return nil
 }
 
-func (s *SQLiteBrandStore) GetProfile(ctx context.Context, id string) (*coreprofile.VoiceProfile, error) {
+func (s *SQLiteStore) GetProfile(ctx context.Context, id string) (*coreprofile.VoiceProfile, error) {
 	var p coreprofile.VoiceProfile
 	var desc *string
 	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, personasJSON, autonomyJSON string
@@ -216,7 +219,7 @@ func (s *SQLiteBrandStore) GetProfile(ctx context.Context, id string) (*coreprof
 	return &p, nil
 }
 
-func (s *SQLiteBrandStore) UpdateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
+func (s *SQLiteStore) UpdateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
 	// Archive the current state as an immutable ProfileVersion before applying the edit.
 	existing, err := s.GetProfile(ctx, profile.ID)
 	if err != nil {
@@ -259,7 +262,7 @@ func (s *SQLiteBrandStore) UpdateProfile(ctx context.Context, profile *coreprofi
 	return nil
 }
 
-func (s *SQLiteBrandStore) DeleteProfile(ctx context.Context, id string) error {
+func (s *SQLiteStore) DeleteProfile(ctx context.Context, id string) error {
 	result, err := s.db.ExecContext(ctx, `DELETE FROM brand_profiles WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("delete profile: %w", err)
@@ -271,7 +274,7 @@ func (s *SQLiteBrandStore) DeleteProfile(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *SQLiteBrandStore) ListProfiles(ctx context.Context, workspaceID string) ([]*coreprofile.VoiceProfile, error) {
+func (s *SQLiteStore) ListProfiles(ctx context.Context, workspaceID string) ([]*coreprofile.VoiceProfile, error) {
 	// Collect IDs first, then close the cursor before querying individual profiles.
 	// SQLite :memory: databases use a single connection, so a nested query
 	// while rows are open would deadlock.
@@ -304,7 +307,7 @@ func (s *SQLiteBrandStore) ListProfiles(ctx context.Context, workspaceID string)
 	return profiles, nil
 }
 
-func (s *SQLiteBrandStore) StoreScore(ctx context.Context, score *coreprofile.StoredScore) error {
+func (s *SQLiteStore) StoreScore(ctx context.Context, score *coreprofile.StoredScore) error {
 	dims, _ := json.Marshal(score.Dimensions)
 	findings, _ := json.Marshal(score.Findings)
 
@@ -324,7 +327,7 @@ func (s *SQLiteBrandStore) StoreScore(ctx context.Context, score *coreprofile.St
 // GetScores returns the persisted scores for a project, newest first. An empty
 // locale means ALL locales — the project-wide read the score endpoints and the
 // brand rollup use — not "rows stored with an empty locale".
-func (s *SQLiteBrandStore) GetScores(ctx context.Context, projectID string, loc model.LocaleID) ([]*coreprofile.StoredScore, error) {
+func (s *SQLiteStore) GetScores(ctx context.Context, projectID string, loc model.LocaleID) ([]*coreprofile.StoredScore, error) {
 	query := `SELECT id, project_id, stream, block_id, profile_id, locale, score, dimensions, findings, checked_at
 		 FROM brand_voice_scores WHERE project_id = ? AND locale = ? ORDER BY checked_at DESC`
 	args := []any{projectID, string(locale.Normalize(loc))}
@@ -366,7 +369,7 @@ func (s *SQLiteBrandStore) GetScores(ctx context.Context, projectID string, loc 
 	return scores, nil
 }
 
-func (s *SQLiteBrandStore) GetScoreTrends(ctx context.Context, projectID string, days int) ([]*coreprofile.ScoreTrend, error) {
+func (s *SQLiteStore) GetScoreTrends(ctx context.Context, projectID string, days int) ([]*coreprofile.ScoreTrend, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT DATE(checked_at) as date, AVG(score) as avg_score, COUNT(*) as count
 		 FROM brand_voice_scores
@@ -391,7 +394,7 @@ func (s *SQLiteBrandStore) GetScoreTrends(ctx context.Context, projectID string,
 	return trends, nil
 }
 
-func (s *SQLiteBrandStore) StoreCorrection(ctx context.Context, correction *coreprofile.Correction) error {
+func (s *SQLiteStore) StoreCorrection(ctx context.Context, correction *coreprofile.Correction) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO brand_voice_corrections (id, profile_id, block_id, dimension, original_text, corrected_text, finding_id, corrected_by, corrected_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -405,7 +408,7 @@ func (s *SQLiteBrandStore) StoreCorrection(ctx context.Context, correction *core
 	return nil
 }
 
-func (s *SQLiteBrandStore) GetSuggestedRules(ctx context.Context, workspaceID string, minCount int) ([]*coreprofile.SuggestedRule, error) {
+func (s *SQLiteStore) GetSuggestedRules(ctx context.Context, workspaceID string, minCount int) ([]*coreprofile.SuggestedRule, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT c.original_text, c.corrected_text, COUNT(*) as cnt, c.dimension
 		 FROM brand_voice_corrections c
@@ -435,7 +438,7 @@ func (s *SQLiteBrandStore) GetSuggestedRules(ctx context.Context, workspaceID st
 	return rules, nil
 }
 
-func (s *SQLiteBrandStore) RecordRuleDecision(ctx context.Context, d *coreprofile.RuleDecision) error {
+func (s *SQLiteStore) RecordRuleDecision(ctx context.Context, d *coreprofile.RuleDecision) error {
 	auto := 0
 	if d.Auto {
 		auto = 1
@@ -461,7 +464,7 @@ func (s *SQLiteBrandStore) RecordRuleDecision(ctx context.Context, d *coreprofil
 	return nil
 }
 
-func (s *SQLiteBrandStore) GetRuleDecision(ctx context.Context, profileID, term string) (*coreprofile.RuleDecision, error) {
+func (s *SQLiteStore) GetRuleDecision(ctx context.Context, profileID, term string) (*coreprofile.RuleDecision, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at
 		 FROM brand_rule_decisions WHERE profile_id = ? AND term = ? COLLATE NOCASE`, profileID, term)
@@ -475,7 +478,7 @@ func (s *SQLiteBrandStore) GetRuleDecision(ctx context.Context, profileID, term 
 	return d, nil
 }
 
-func (s *SQLiteBrandStore) ListRuleDecisions(ctx context.Context, profileID string) ([]*coreprofile.RuleDecision, error) {
+func (s *SQLiteStore) ListRuleDecisions(ctx context.Context, profileID string) ([]*coreprofile.RuleDecision, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT profile_id, term, replacement, dimension, status, correction_count, promoted_version, auto, decided_by, decided_at
 		 FROM brand_rule_decisions WHERE profile_id = ? ORDER BY decided_at DESC`, profileID)
@@ -519,7 +522,7 @@ func scanRuleDecision(sc scanner) (*coreprofile.RuleDecision, error) {
 	return &d, nil
 }
 
-func (s *SQLiteBrandStore) ListProfileVersions(ctx context.Context, profileID string) ([]*coreprofile.ProfileVersion, error) {
+func (s *SQLiteStore) ListProfileVersions(ctx context.Context, profileID string) ([]*coreprofile.ProfileVersion, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT profile_id, version, snapshot, note, created_by, created_at
 		 FROM brand_profile_versions WHERE profile_id = ? ORDER BY version DESC`, profileID)
@@ -550,7 +553,7 @@ func (s *SQLiteBrandStore) ListProfileVersions(ctx context.Context, profileID st
 	return versions, nil
 }
 
-func (s *SQLiteBrandStore) GetProfileVersion(ctx context.Context, profileID string, version int) (*coreprofile.ProfileVersion, error) {
+func (s *SQLiteStore) GetProfileVersion(ctx context.Context, profileID string, version int) (*coreprofile.ProfileVersion, error) {
 	var v coreprofile.ProfileVersion
 	var snapshotJSON, createdStr string
 	err := s.db.QueryRowContext(ctx,
@@ -572,7 +575,7 @@ func (s *SQLiteBrandStore) GetProfileVersion(ctx context.Context, profileID stri
 	return &v, nil
 }
 
-func (s *SQLiteBrandStore) GetProfileAtTag(ctx context.Context, profileID, tagName string) (*coreprofile.VoiceProfile, error) {
+func (s *SQLiteStore) GetProfileAtTag(ctx context.Context, profileID, tagName string) (*coreprofile.VoiceProfile, error) {
 	var version int
 	err := s.db.QueryRowContext(ctx,
 		`SELECT version FROM brand_profile_tags WHERE profile_id = ? AND name = ?`, profileID, tagName).
@@ -591,7 +594,7 @@ func (s *SQLiteBrandStore) GetProfileAtTag(ctx context.Context, profileID, tagNa
 	return &v.Snapshot, nil
 }
 
-func (s *SQLiteBrandStore) CreateProfileTag(ctx context.Context, tag *coreprofile.ProfileTag) error {
+func (s *SQLiteStore) CreateProfileTag(ctx context.Context, tag *coreprofile.ProfileTag) error {
 	if tag.CreatedAt.IsZero() {
 		tag.CreatedAt = time.Now()
 	}
@@ -606,7 +609,7 @@ func (s *SQLiteBrandStore) CreateProfileTag(ctx context.Context, tag *coreprofil
 	return nil
 }
 
-func (s *SQLiteBrandStore) ListProfileTags(ctx context.Context, profileID string) ([]*coreprofile.ProfileTag, error) {
+func (s *SQLiteStore) ListProfileTags(ctx context.Context, profileID string) ([]*coreprofile.ProfileTag, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT profile_id, name, version, created_by, created_at
 		 FROM brand_profile_tags WHERE profile_id = ? ORDER BY name`, profileID)
@@ -634,7 +637,7 @@ func (s *SQLiteBrandStore) ListProfileTags(ctx context.Context, profileID string
 	return tags, nil
 }
 
-func (s *SQLiteBrandStore) DeleteProfileTag(ctx context.Context, profileID, tagName string) error {
+func (s *SQLiteStore) DeleteProfileTag(ctx context.Context, profileID, tagName string) error {
 	result, err := s.db.ExecContext(ctx,
 		`DELETE FROM brand_profile_tags WHERE profile_id = ? AND name = ?`, profileID, tagName)
 	if err != nil {
@@ -647,7 +650,7 @@ func (s *SQLiteBrandStore) DeleteProfileTag(ctx context.Context, profileID, tagN
 	return nil
 }
 
-func (s *SQLiteBrandStore) GetScoresByStream(ctx context.Context, projectID, stream string) ([]*coreprofile.StoredScore, error) {
+func (s *SQLiteStore) GetScoresByStream(ctx context.Context, projectID, stream string) ([]*coreprofile.StoredScore, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at
 		 FROM brand_voice_scores WHERE project_id = ? AND stream = ? ORDER BY checked_at DESC`, projectID, stream)
@@ -683,7 +686,7 @@ func (s *SQLiteBrandStore) GetScoresByStream(ctx context.Context, projectID, str
 	return scores, nil
 }
 
-func (s *SQLiteBrandStore) Close() error {
+func (s *SQLiteStore) Close() error {
 	return s.db.Close()
 }
 
