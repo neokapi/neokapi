@@ -274,3 +274,6 @@ packaging/.stage/
 
 # Orphaned atomic-write temps (a crashed writer leaves .kapi-out-<rand> behind)
 .kapi-out-*
+
+# Retired extraction extension (renamed .kbf in #1444); stale leftovers only
+*.klf

@@ -1307,8 +1307,9 @@ L10N_COMPILE_TARGETS := \
 # Every committed artifact the four stages derive. l10n-verify diffs exactly
 # this set; nothing else in the tree is the gate's business. The last entry is
 # git pathspec magic, left unquoted so l10n-derived-paths can hand the list to
-# a shell script verbatim: no file matches ":(glob)...", so the shell leaves the
-# word alone and git receives the pathspec it expects.
+# a shell script verbatim. The pathspec is single-quoted where it reaches a
+# shell: bare parentheses are a syntax error to /bin/sh, not a glob it leaves
+# alone.
 L10N_DERIVED := \
 	core/i18n/builtins/metadata.json core/i18n/catalogs \
 	host/i18n/commands.json host/i18n/catalogs \
@@ -1319,7 +1320,7 @@ L10N_DERIVED := \
 	bowrain/apps/pulse/public/translations \
 	$(LANDING_DIR)/translations \
 	bowrain/mailer/templates bowrain/mailer/subjects \
-	:(glob)harness/demos/*/demo.*.yaml
+	':(glob)harness/demos/*/demo.*.yaml'
 
 # Stage 1: extract.
 # The source side only. Deliberately never the target side: a push and a build
@@ -1400,7 +1401,11 @@ l10n-review-export: l10n-seed ## Emit disposable TMX/CSV review views of the nat
 # it is not a target language in the recipe and does not bind the project.
 
 l10n-translate: l10n-extract l10n-seed ## Stage 3: every declared collection, every locale (one kapi run per locale)
+	@# The per-locale intermediate catalogs are wholly derived by this stage.
+	@# Recycle fills blanks rather than overwriting, so a stale intermediate
+	@# from an earlier run would shadow a fresh recycle — wipe first.
 	@for lang in $(L10N_LANGS); do \
+		find . -type d -name "i18n-$$lang" -not -path "./.claude/*" -not -path "*/node_modules/*" -exec rm -rf {} + 2>/dev/null; \
 		./bin/kapi run tm-recycle --target-lang $$lang -q || exit 1; \
 	done
 	@# A narration sidecar byte-identical to its source carries nothing — the
