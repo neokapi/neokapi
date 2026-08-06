@@ -556,6 +556,10 @@ func runWorker(dbURL string) error {
 		// optional — extraction degrades to the plain LLM pass.
 		Platform:         translationDeps.Platform,
 		PlatformResolver: platformResolver,
+		// The same bus the translation worker publishes on, so a failed
+		// extraction reaches the summons by the same route as a failed
+		// translation. Nil without Redis, as it is over there.
+		EventBus: translationDeps.EventBus,
 		LogFunc: func(stepID, level, message string, data map[string]string) {
 			slog.Info("extraction: "+message, "step_id", stepID, "level", level)
 		},
