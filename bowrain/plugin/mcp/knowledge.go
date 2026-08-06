@@ -163,6 +163,15 @@ type MCPBlastRadius struct {
 	// someone deciding whether to approve it, and "affects 900 blocks" read off
 	// a truncated scan is a smaller number than the truth with nothing marking
 	// it as such.
+	//
+	// "Lower bound" understates it, which is why CountsAre says more than the
+	// boolean. The server's walk is one sequential pass — projects, then
+	// streams, then blocks — and the budget aborts it from inside the innermost
+	// loop, so a project it never reached contributes NOTHING: the shortfall is
+	// whole projects missing, not every project counted a little low. This
+	// summary carries no per-project breakdown (deliberately — see the handler),
+	// so there is no list here to mislead; the qualification exists so the
+	// scalars are not read as a survey of the whole workspace.
 	Partial bool `json:"partial,omitempty"`
 	// CountsAre spells the qualification out in words rather than leaving a
 	// bare boolean for a reader to interpret.
@@ -222,8 +231,17 @@ func handleExperimentStatus(ctx context.Context, input MCPExperimentStatusInput)
 				Words:          impact.Words,
 				Partial:        impact.Partial,
 			}
+			// The impact's per-project breakdown (impact.Projects) is
+			// deliberately NOT carried into this summary, and under a partial
+			// walk that omission is load-bearing rather than incidental: the
+			// server's pass is sequential and aborts from the innermost loop,
+			// so projects it never reached are absent from that list entirely.
+			// Rendering it would read as "these are the projects affected"
+			// when the truth is "these are the projects examined" — an
+			// assistant naming two projects it never looked past is worse than
+			// one that names none.
 			if impact.Partial {
-				out.BlastRadius.CountsAre = "lower bounds — the server's scan did not finish"
+				out.BlastRadius.CountsAre = "lower bounds — the server's scan stopped early, and any project it did not reach contributes nothing to these totals"
 				if impact.PartialReason != "" {
 					out.BlastRadius.CountsAre += " (" + impact.PartialReason + ")"
 				}
