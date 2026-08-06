@@ -274,7 +274,11 @@ func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs C
 	impact := t.toImpact()
 	if errors.Is(walkErr, errBudgetExhausted) {
 		impact.Partial = true
-		impact.PartialReason = "the workspace is larger than this preview's time budget; these counts are a floor, not a total"
+		// The reason names the cause only. Each consumer states the consequence
+		// in its own voice — the web panel qualifies its breakdown, the MCP tool
+		// qualifies its totals — so a reason that also spelled out the
+		// consequence would read twice in one sentence wherever it is embedded.
+		impact.PartialReason = "the scan reached this preview's time budget before it had covered the workspace"
 	}
 	return impact, nil
 }
