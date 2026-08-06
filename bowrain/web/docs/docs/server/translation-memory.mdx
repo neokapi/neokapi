@@ -9,9 +9,8 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 The content memory holds pairs of source and target text segments that Bowrain
 reuses across projects to keep translations consistent and avoid re-translating
-what the workspace has already settled. In the engine the store is the
-translation memory (TM); this page uses TM for the mechanism — entries, matches,
-and scores.
+what the workspace has already settled. It is the same store the engine keeps
+locally, held on the server instead — entries, matches, and scores.
 
 The content memory and terminology live on the server, shared across every
 project and translator — searchable and versioned.
@@ -34,7 +33,7 @@ There are two ways to open the content memory browser:
 2. **From the sidebar** — click **Content memory** in the main sidebar to browse
    the workspace-scoped content memory without locale pre-filtering.
 
-## Browsing Entries
+## Browsing entries
 
 The browser displays entries in a paginated table with these columns:
 
@@ -53,7 +52,7 @@ The entry count badge in the header shows the total number of entries matching c
 
 Type in the search box to filter entries by source or target text. The search uses debounced input (300ms delay) to avoid excessive API calls while you type. Results update automatically as you type.
 
-## Filtering by Locale
+## Filtering by locale
 
 Use the locale filter dropdowns to narrow entries:
 
@@ -62,7 +61,7 @@ Use the locale filter dropdowns to narrow entries:
 
 Filters can be combined with text search. Changing a filter resets to page 1.
 
-## Adding Entries
+## Adding entries
 
 1. Click **Add Entry** in the header
 2. Fill in the form:
@@ -72,7 +71,7 @@ Filters can be combined with text search. Changing a filter resets to page 1.
    - **Target locale** — select from available project locales
 3. Click **Add** to save, or **Cancel** to discard
 
-## Editing Entries
+## Editing entries
 
 1. Click **Edit** on an entry row
 2. The target text becomes an inline text input
@@ -81,7 +80,7 @@ Filters can be combined with text search. Changing a filter resets to page 1.
 
 Only the target text can be edited inline. To change the source text or locales, delete the entry and create a new one.
 
-## Deleting Entries
+## Deleting entries
 
 Click **Delete** on an entry row. The entry is removed immediately and the table refreshes.
 
@@ -97,7 +96,8 @@ When there are more than 50 entries, pagination controls appear below the table:
 The content memory also assists translation work outside the browser:
 
 - **Context panel** — the [translation editor](./translation-editor.mdx) shows
-  per-block TM matches with scores and match types, with one-click apply.
+  per-block content-memory matches with scores and match types, with one-click
+  apply.
 - **Bulk recycle** — [Pre-process](./pre-process.md) pre-fills targets from the
   content memory across the whole file; exact and high-confidence fuzzy matches
   land as drafts you can review.
@@ -106,7 +106,7 @@ The content memory also assists translation work outside the browser:
 
 ## Match scores
 
-Each TM match receives a score from 0 to 100% representing how closely the source text matches the stored entry. Matches are color-coded:
+Each match receives a score from 0 to 100% representing how closely the source text matches the stored entry. Matches are color-coded:
 
 - **Green** (100%) — exact match
 - **Yellow** (70–99%) — fuzzy match

@@ -30,7 +30,7 @@ framework's projection helpers in `core/model`:
   `\{PRODUCT\}`) and other inline-code runs as in the structural key. Maximum
   reuse -- entities are interchangeable.
 
-The generalized key is the most powerful: "John works at Acme" and "Alice works at Globex" both generalize to `\{PERSON\} works at \{ORGANIZATION\}` -- an exact match.
+The generalized key reuses the most: "John works at Acme" and "Alice works at Globex" both generalize to `\{PERSON\} works at \{ORGANIZATION\}` -- an exact match.
 
 ## Tiered Matching Pipeline
 

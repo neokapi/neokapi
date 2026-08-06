@@ -21,7 +21,7 @@ The incumbent. Uses developer-authored keys and a `t(key)` / `<Trans>` runtime.
 | Format            | JSON (nested or flat); XLIFF via external conversion | KBF with structural context, placeholders, plural forms |
 | Runtime cost      | Ships the i18next runtime (interpolation, plural resolution, resource store); dict loaded at runtime | Inline mode: zero runtime (~2 kB if you use ICU/plurals); runtime mode: one dict lookup |
 
-Migrating from react-i18next typically means dropping the `t()` / `<Trans>` wrappers and re-running the extract against the bare JSX. Existing translations can be loaded as-is if you key them by the same source text; otherwise it's a one-time re-translation pass through your TM.
+Migrating from react-i18next typically means dropping the `t()` / `<Trans>` wrappers and re-running the extract against the bare JSX. Existing translations can be loaded as-is if you key them by the same source text; otherwise it's a one-time re-translation pass through your content memory.
 
 ## FormatJS (react-intl)
 
@@ -89,7 +89,7 @@ Two properties are worth calling out because they follow from choices the table 
 ## Which to pick
 
 - **You want zero-wrapper ergonomics and your strings mostly live in JSX** → neokapi-i18n.
-- **You want typed message functions with best-in-class tree-shaking** → Paraglide.
+- **You want typed message functions that tree-shake to the messages you use** → Paraglide.
 - **You're deeply invested in ICU-as-source** → FormatJS.
 - **You want explicit, compile-time-checked inline markers with declarative plural/gender** → fbtee.
 - **You have a large existing react-i18next codebase** → stay with react-i18next unless you're doing a rewrite anyway.

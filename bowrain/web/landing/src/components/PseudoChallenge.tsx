@@ -144,7 +144,7 @@ export function PseudoChallenge() {
         </h2>
         <p className="mt-3 text-muted-foreground">
           This is kapi, the open engine under Bowrain, running in your browser. Go from zero to a
-          multilingual-ready pipeline in seconds. Bowrain is what makes the glossary and voice rules
+          multilingual-ready pipeline in seconds. Bowrain is what makes the terms and voice rules
           below shared across your projects, your team, and your agents.
         </p>
       </div>
@@ -157,9 +157,9 @@ export function PseudoChallenge() {
               l: 1 as Level,
               label: t("Go pseudo"),
               icon: Play,
-              desc: t("basic pseudo-localization"),
+              desc: t("basic pseudo-translation"),
             },
-            { l: 2 as Level, label: t("Protect terms"), icon: Shield, desc: t("glossary-aware") },
+            { l: 2 as Level, label: t("Protect terms"), icon: Shield, desc: t("terms-aware") },
             {
               l: 3 as Level,
               label: t("Expand & score"),
@@ -295,14 +295,14 @@ export function PseudoChallenge() {
 
       <div className="mt-6 text-center text-sm text-muted-foreground">
         {level === 1 &&
-          t("Level 1: Basic pseudo-localization. Proves your pipeline handles non-ASCII.")}
+          t("Level 1: Basic pseudo-translation. Proves your pipeline handles non-ASCII.")}
         {level === 2 &&
           t(
-            "Level 2: kapi reads brand terms from your glossary and protects them. On Bowrain, that glossary follows you across every project, teammate, and agent.",
+            "Level 2: kapi reads brand terms from your terms store and protects them. On Bowrain, that terms store follows you across every project, teammate, and agent.",
           )}
         {level === 3 && t("Level 3: Expansion testing reveals UI truncation and layout breaks.")}
         {level === 4 &&
-          t("Level 4: Same pipeline, real language. Glossary and voice rules carry through.")}
+          t("Level 4: Same pipeline, real language. Terms and voice rules carry through.")}
       </div>
     </section>
   );

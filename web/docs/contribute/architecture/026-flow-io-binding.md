@@ -204,7 +204,7 @@ inside the run.
 
 A binding is named by the same small scheme vocabulary (§1) on every surface —
 the CLI, the flow document, and the resource URIs the tool resolver understands:
-the content memory (`tm:`), the terms store (`termbase:`), and segmentation rules
+the content memory (`memory:`), the terms store (`terms:`), and segmentation rules
 (`srx:`), all resolved in `core/flow/resolve.go`. This follows two
 conventions a user already knows: *detect-by-extension with an explicit override*
 (as in format-converting tools) and *scheme-prefixed endpoints* (as in file-sync

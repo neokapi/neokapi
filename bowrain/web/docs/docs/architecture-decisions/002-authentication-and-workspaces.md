@@ -342,8 +342,8 @@ its owning workspace.
   Bearer tokens flow through headers for non-browser clients.
 - Single-use refresh token rotation with server-side hashing makes stolen
   tokens detectable and short-lived.
-- CLI device flow works over SSH and in CI; desktop PKCE gives a seamless
-  browser redirect with OS keyring storage.
+- CLI device flow works over SSH and in CI; desktop PKCE redirects through the
+  browser and stores the result in the OS keyring.
 - The admin realm is fully separated from the customer realm, so admin
   access cannot leak into customer identity and vice versa.
 - An OIDC provider is a deployment dependency.

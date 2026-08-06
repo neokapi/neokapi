@@ -189,24 +189,24 @@ walkthrough-video re-records, which remain open.
 
 **Done (docs: source-first loop follow-ups PR):**
 
-- ✅ **`bowrain/getting-started/the-loop.mdx`** — added the "Source first"
+- **`bowrain/getting-started/the-loop.mdx`** — added the "Source first"
   section (the source-gate / governed-review framing the kapi site omits),
   reusing `GatedLoopDiagram`: settle source → source gate (hold → source
   review) → translate approved source memory-first → target ship-gate.
-- ✅ **`bowrain/.../022-convergence-as-a-service.md`** — added decision *1a.
+- **`bowrain/.../022-convergence-as-a-service.md`** — added decision *1a.
   Settle the source, then translate*: the source-settle pass, the
   `source_not_ready` hold, `blocked_on_source`, and the estimate endpoint;
   reconciled with **AD-014** (the source gate is convergence-enforced, not a
   bypassable automation option) and **AD-013** (`fan-out-after-source-review`
   resumes a held run). One source-gate story across AD-022/014/013.
-- ✅ **`bowrain/server/review.mdx`** — documented the source-review worklist as
+- **`bowrain/server/review.mdx`** — documented the source-review worklist as
   the phase-1 counterpart to target review, tied to the existing `source_review`
   task queue (no new UI invented).
-- ✅ **`kapi/convergence-in-ci.mdx` + `kapi/recipes/translate-content.mdx`** —
+- **`kapi/convergence-in-ci.mdx` + `kapi/recipes/translate-content.mdx`** —
   added the source-hold outcome, Bowrain-free, cross-linking the source-first
   section. (kapi-OSS framing keeps the *hold on push* conceptual; the local CLI
   `kapi up` does not yet source-hold — that is a Bowrain/server behaviour.)
-- ✅ **AD-033 + `reference/project-file.mdx`** — flipped the "source status is
+- **AD-033 + `reference/project-file.mdx`** — flipped the "source status is
   report-only" framing: AD-033 now states the source ladder gates the loop
   symmetrically with the target ladder; the reference documents
   `defaults.source_gate` (the convergence level `checked`/`approved`/`none`) as
@@ -214,13 +214,13 @@ walkthrough-video re-records, which remain open.
 
 **Resolved (2026-07-18):**
 
-- ✅ **`kapi/recipes/review-and-approve.mdx`** — CLI source-gate parity shipped
+- **`kapi/recipes/review-and-approve.mdx`** — CLI source-gate parity shipped
   (neokapi#1325): local `kapi up` now settles + holds on un-ready source
   (`source_not_ready`) via the shared `check.SettleSourceStatus`, default
   `checked` (owner decision), `none` to draft freely. The page documents the
   local source-settle loop (hold → `kapi check --ship` / fix terms·brand·source
   → `kapi apply` → re-run).
-- ✅ **AD-015 / `notes/translation-job-queue.md`** — memory-split caveats dropped
+- **AD-015 / `notes/translation-job-queue.md`** — memory-split caveats dropped
   (neokapi#1323): both now describe the truthful server
   `content memory N · AI M` (`reconcileSplit` + the job-pipeline recycle step).
 
