@@ -491,9 +491,21 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 				item.BlockIndex = meta.BlockIndexJson
 				item.PreviewHTML = meta.PreviewHtml
 				if meta.Collection != "" {
+					// The collection this item belongs to was reconciled before
+					// the chunks were stored, precisely so this lookup finds it.
+					// When it does not, the item is stored UNGROUPED — outside
+					// the collection's coordinates, its voice and its gates —
+					// and the push still reports success. That is governance
+					// quietly not applying, so it is said out loud rather than
+					// inferred later from a gate that never ran.
 					coll, err := deps.ContentStore.GetCollectionByName(ctx, projectID, meta.Collection, stream)
-					if err == nil && coll != nil {
+					switch {
+					case err == nil && coll != nil:
 						item.CollectionID = coll.ID
+					default:
+						slog.Warn("pushed item could not be bound to its collection; it is stored ungrouped and its collection's governance does not apply to it",
+							"project_id", projectID, "stream", stream,
+							"item", itemName, "collection", meta.Collection, "error", err)
 					}
 				}
 			}
