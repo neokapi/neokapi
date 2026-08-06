@@ -456,6 +456,105 @@ func (m *Mailer) renderReviewRequest(locale string, data ReviewRequestData) (str
 	return m.execute(locale, "review-request.html", td)
 }
 
+// JobFailedData holds the dynamic values for the job-failure email — the one
+// message about work that stopped, sent after retries rather than per attempt.
+type JobFailedData struct {
+	// WorkspaceName is the human-readable workspace name.
+	WorkspaceName string
+	// JobKind names the work in prose: "translation", "push", "extraction".
+	JobKind string
+	// Subject is what the job was working on — an item and locale, or a project.
+	Subject string
+	// Reason is the one-line failure the worker recorded, already summarised.
+	Reason string
+	// JobURL is the full URL of the surface where the failure can be inspected.
+	JobURL string
+}
+
+// SendJobFailed renders and sends the job-failure email. Recipients are the
+// person who asked for the work, or the workspace's owners when the platform
+// started it itself.
+func (m *Mailer) SendJobFailed(ctx context.Context, to, locale string, data JobFailedData) error {
+	body, err := m.renderJobFailed(locale, data)
+	if err != nil {
+		return err
+	}
+	subject, err := m.subject(locale, "job-failed", data)
+	if err != nil {
+		return err
+	}
+	return m.Sender.Send(ctx, to, subject, body)
+}
+
+// RenderJobFailed renders the job-failure email template to an HTML string
+// (exposed for tests).
+func (m *Mailer) RenderJobFailed(locale string, data JobFailedData) (string, error) {
+	return m.renderJobFailed(locale, data)
+}
+
+func (m *Mailer) renderJobFailed(locale string, data JobFailedData) (string, error) {
+	td := map[string]string{
+		"WorkspaceName": html.EscapeString(data.WorkspaceName),
+		"JobKind":       html.EscapeString(data.JobKind),
+		"Subject":       html.EscapeString(data.Subject),
+		// The reason is upstream text — a provider's error body reaches this
+		// field verbatim — so escaping it is not a formality.
+		"Reason": html.EscapeString(data.Reason),
+		"JobURL": escapeURL(data.JobURL),
+	}
+	return m.execute(locale, "job-failed.html", td)
+}
+
+// TaskAssignedData holds the dynamic values for the task-assignment email, sent
+// only for tasks marked high or urgent.
+type TaskAssignedData struct {
+	// WorkspaceName is the human-readable workspace name.
+	WorkspaceName string
+	// TaskTitle is the task's title as whoever opened it wrote it.
+	TaskTitle string
+	// TaskDescription is the task's description, or empty when it has none.
+	TaskDescription string
+	// Priority is the task's urgency in prose: "high" or "urgent".
+	Priority string
+	// AssignerName is the display name of whoever assigned the task.
+	AssignerName string
+	// TaskURL is the full URL of the workspace task queue.
+	TaskURL string
+}
+
+// SendTaskAssigned renders and sends the task-assignment email. Routine tasks
+// never reach this: only high and urgent ones are mailed, so the queue's own
+// badge keeps meaning something.
+func (m *Mailer) SendTaskAssigned(ctx context.Context, to, locale string, data TaskAssignedData) error {
+	body, err := m.renderTaskAssigned(locale, data)
+	if err != nil {
+		return err
+	}
+	subject, err := m.subject(locale, "task-assigned", data)
+	if err != nil {
+		return err
+	}
+	return m.Sender.Send(ctx, to, subject, body)
+}
+
+// RenderTaskAssigned renders the task-assignment email template to an HTML
+// string (exposed for tests).
+func (m *Mailer) RenderTaskAssigned(locale string, data TaskAssignedData) (string, error) {
+	return m.renderTaskAssigned(locale, data)
+}
+
+func (m *Mailer) renderTaskAssigned(locale string, data TaskAssignedData) (string, error) {
+	td := map[string]string{
+		"WorkspaceName":   html.EscapeString(data.WorkspaceName),
+		"TaskTitle":       html.EscapeString(data.TaskTitle),
+		"TaskDescription": html.EscapeString(data.TaskDescription),
+		"Priority":        html.EscapeString(data.Priority),
+		"AssignerName":    html.EscapeString(data.AssignerName),
+		"TaskURL":         escapeURL(data.TaskURL),
+	}
+	return m.execute(locale, "task-assigned.html", td)
+}
+
 // NotificationData holds the dynamic values for an immediate notification email.
 type NotificationData struct {
 	// Title is the notification headline.

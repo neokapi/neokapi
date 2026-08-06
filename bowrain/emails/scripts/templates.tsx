@@ -24,6 +24,8 @@ import NotificationEmail from "../src/notification.js";
 import DigestEmail from "../src/digest.js";
 import EmailChangeVerifyEmail from "../src/email-change-verify.js";
 import ReviewRequestEmail from "../src/review-request.js";
+import JobFailedEmail from "../src/job-failed.js";
+import TaskAssignedEmail from "../src/task-assigned.js";
 
 /** Renders every template; returns file name (sans .html) → HTML. */
 export async function renderTemplates(): Promise<Record<string, string>> {
@@ -119,6 +121,29 @@ export async function renderTemplates(): Promise<Record<string, string>> {
       authorName: "{{.AuthorName}}",
       changeCount: "{{.ChangeCount}}",
       reviewURL: "{{.ReviewURL}}",
+    }),
+    { pretty: false },
+  );
+
+  out["job-failed"] = await render(
+    JobFailedEmail({
+      workspaceName: "{{.WorkspaceName}}",
+      jobKind: "{{.JobKind}}",
+      subject: "{{.Subject}}",
+      reason: "{{.Reason}}",
+      jobURL: "{{.JobURL}}",
+    }),
+    { pretty: false },
+  );
+
+  out["task-assigned"] = await render(
+    TaskAssignedEmail({
+      workspaceName: "{{.WorkspaceName}}",
+      taskTitle: "{{.TaskTitle}}",
+      taskDescription: "{{.TaskDescription}}",
+      priority: "{{.Priority}}",
+      assignerName: "{{.AssignerName}}",
+      taskURL: "{{.TaskURL}}",
     }),
     { pretty: false },
   );
