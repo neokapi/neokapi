@@ -23,6 +23,7 @@ import SubscriptionChangedEmail from "../src/subscription-changed.js";
 import NotificationEmail from "../src/notification.js";
 import DigestEmail from "../src/digest.js";
 import EmailChangeVerifyEmail from "../src/email-change-verify.js";
+import ReviewRequestEmail from "../src/review-request.js";
 
 /** Renders every template; returns file name (sans .html) → HTML. */
 export async function renderTemplates(): Promise<Record<string, string>> {
@@ -107,6 +108,17 @@ export async function renderTemplates(): Promise<Record<string, string>> {
       ],
       settingsURL: "{{.SettingsURL}}",
       dashboardURL: "{{.DashboardURL}}",
+    }),
+    { pretty: false },
+  );
+
+  out["review-request"] = await render(
+    ReviewRequestEmail({
+      workspaceName: "{{.WorkspaceName}}",
+      changeSetName: "{{.ChangeSetName}}",
+      authorName: "{{.AuthorName}}",
+      changeCount: "{{.ChangeCount}}",
+      reviewURL: "{{.ReviewURL}}",
     }),
     { pretty: false },
   );

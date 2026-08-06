@@ -409,6 +409,53 @@ func (m *Mailer) renderSubscriptionChanged(locale string, data SubscriptionChang
 	return m.execute(locale, "subscription-changed.html", td)
 }
 
+// ReviewRequestData holds the dynamic values for the review-request email —
+// the summons a governed change-set sends to the people who may approve it.
+type ReviewRequestData struct {
+	// WorkspaceName is the human-readable workspace name.
+	WorkspaceName string
+	// ChangeSetName is the change-set's name, as its author titled it.
+	ChangeSetName string
+	// AuthorName is the display name of whoever proposed the change-set.
+	AuthorName string
+	// ChangeCount is the formatted change count (e.g. "57 changes").
+	ChangeCount string
+	// ReviewURL is the full URL of the change-set's review page.
+	ReviewURL string
+}
+
+// SendReviewRequest renders and sends a review-request email for a submitted
+// change-set. Recipients are the workspace members who may approve it; the
+// author is never one of them (separation of duties).
+func (m *Mailer) SendReviewRequest(ctx context.Context, to, locale string, data ReviewRequestData) error {
+	body, err := m.renderReviewRequest(locale, data)
+	if err != nil {
+		return err
+	}
+	subject, err := m.subject(locale, "review-request", data)
+	if err != nil {
+		return err
+	}
+	return m.Sender.Send(ctx, to, subject, body)
+}
+
+// RenderReviewRequest renders the review-request email template to an HTML
+// string (exposed for tests).
+func (m *Mailer) RenderReviewRequest(locale string, data ReviewRequestData) (string, error) {
+	return m.renderReviewRequest(locale, data)
+}
+
+func (m *Mailer) renderReviewRequest(locale string, data ReviewRequestData) (string, error) {
+	td := map[string]string{
+		"WorkspaceName": html.EscapeString(data.WorkspaceName),
+		"ChangeSetName": html.EscapeString(data.ChangeSetName),
+		"AuthorName":    html.EscapeString(data.AuthorName),
+		"ChangeCount":   html.EscapeString(data.ChangeCount),
+		"ReviewURL":     escapeURL(data.ReviewURL),
+	}
+	return m.execute(locale, "review-request.html", td)
+}
+
 // NotificationData holds the dynamic values for an immediate notification email.
 type NotificationData struct {
 	// Title is the notification headline.
