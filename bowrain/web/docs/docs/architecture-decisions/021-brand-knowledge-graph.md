@@ -33,6 +33,12 @@ overrides it, and can start and stop on a date. See
 [The context graph](/getting-started/the-context-graph) for the reader-facing
 account.
 
+Profiles are how the workspace is entered, not a detail inside it: the hub's
+landing section is one card per profile, and the workspace's own point — where
+content that declares no coordinates sits — is the default profile, labelled
+**Brand**. Brand is a coordinate on the graph, so it is the name of a card
+rather than the name of the surface.
+
 Changes to the graph follow a tiered governance model. Ordinary curation is
 direct and audited. Governed transitions — banning a term, changing a preferred
 term, merging an experiment — travel through a **change-set**: a named,
@@ -41,8 +47,9 @@ content is computed before anyone approves it. A change-set can optionally be
 **piloted** on selected content streams before it merges, so a what-if becomes
 a measured experiment rather than a leap.
 
-The navigator surfaces as a unified **Brand** hub in the web and desktop apps
-(Concepts, Voice, Experiments, Activity, Dashboard). Its Concepts section is a
+The navigator surfaces as a unified **Context** hub in the web and desktop apps,
+entered through Profiles and continuing into Concepts, Voice, Content memory,
+Changes and Activity. Its Concepts section is a
 searchable **concept list** that opens, per concept, a **dashboard** — terms,
 geography, constraints, a local relations widget, a timeline, observations, and
 discussion — not a whole-graph canvas. Governed terminology reaches a project's
@@ -263,12 +270,30 @@ the footprint of a concept before proposing anything.
 
 ### Surfaces
 
-- **Web and desktop** present one **Brand** hub with five sections: Concepts
+- **Web and desktop** present one **Context** hub. Its landing section is
+  **Profiles**: one card per governance profile, showing the point's
+  coordinates, the voice bound to it, the collections sitting there, and the
+  change-sets in review that carry a rule for its voice. The default profile is
+  always present, so a workspace that has pushed nothing still has a page that
+  says what would fill it; a voice the hub holds that no collection binds is
+  listed as bound to no point rather than hidden.
+
+  Profiles are **derived, never stored**. A push declares each collection's
+  coordinates and the voice they resolved to; grouping the collections by point
+  recovers the profiles. The recipe's own `profiles[]` regions never cross the
+  wire — the client resolves them and sends the outcome — so one broad profile
+  governing two points reads in the hub as the two points it governs. Terms are
+  governed per workspace and scoped by market and validity rather than by
+  coordinates, so every profile shares one vocabulary and narrows it through its
+  voice. A **brand scan** carries no coordinates at all: it is reported on the
+  default profile, saying that it covers the workspace.
+
+  Beneath Profiles: Concepts
   (a searchable concept list that opens a per-concept dashboard, with the
   changes waiting on a review named above it — a proposed concept is not in the
   list, so without that the page reads as though nothing had happened), Voice
-  (profiles and the correction loop), Experiments (change-sets, reviews,
-  pilots), Activity (the brand-scoped event timeline), and Dashboard
+  (voice profiles and the correction loop), Content memory, Changes
+  (change-sets, reviews, pilots), Activity (the event timeline), and Dashboard
   (compliance, drift, coverage, pending decisions). There is no whole-graph
   visualization: a concept's relations are read and edited as a **local
   widget** on its dashboard — the concept plus the concepts one hop away, with
@@ -316,6 +341,15 @@ consumes framework types directly.
   abandon; the implementation owns that lifecycle, not the user.
 - Blast radius over a whole workspace is bounded work but not free; it runs
   on demand and reports per-project partial progress rather than blocking.
+- Deriving profiles from collections means the hub sees points, not regions. Two
+  points a single broad profile governs are two cards, and a profile a recipe
+  declares but no collection sits at does not appear at all. Carrying the
+  matched profile's conventional name on the context entry would close both, at
+  the cost of a wire field; until that is worth paying, the surface reports what
+  the workspace actually has content at.
+- A scan is scoped to a workspace and nothing finer, so scan coverage cannot yet
+  be reported per profile. The default profile carries it and says so, rather
+  than a per-point number the data does not support.
 
 ## Future: the stakeholder review app (design only)
 
