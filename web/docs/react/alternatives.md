@@ -89,7 +89,7 @@ Two properties are worth calling out because they follow from choices the table 
 ## Which to pick
 
 - **You want zero-wrapper ergonomics and your strings mostly live in JSX** → neokapi-i18n.
-- **You want typed message functions with best-in-class tree-shaking** → Paraglide.
+- **You want typed message functions that tree-shake to the messages you use** → Paraglide.
 - **You're deeply invested in ICU-as-source** → FormatJS.
 - **You want explicit, compile-time-checked inline markers with declarative plural/gender** → fbtee.
 - **You have a large existing react-i18next codebase** → stay with react-i18next unless you're doing a rewrite anyway.
