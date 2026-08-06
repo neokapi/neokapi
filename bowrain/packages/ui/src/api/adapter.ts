@@ -286,6 +286,12 @@ export interface ApiAdapter {
     name: string,
     expireDays: number,
     scopes?: string[],
+    /**
+     * Names the machine the token is for (a CI runner, an agent-driven kapi).
+     * Work created under it is authored by "agent/<agentName>" rather than by
+     * the person who minted it, which is what leaves them free to review it.
+     */
+    agentName?: string,
   ): Promise<CreateApiTokenResponse>;
   deleteApiToken(workspaceSlug: string, tokenId: string): Promise<void>;
 
