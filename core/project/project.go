@@ -25,7 +25,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
@@ -43,29 +45,44 @@ func sortMissingRequires(s []MissingRequirement) {
 }
 
 // CurrentVersion is the schema version for .kapi files.
-const CurrentVersion = "v1"
+const CurrentVersion = "v2"
+
+// shapeChangeHint names what v2 changed, so a v1 recipe fails with the edits
+// to make rather than a bare version mismatch.
+const shapeChangeHint = "the recipe shape changed: `content:` is now `collections:` " +
+	"(its items under `content:`, with an optional `base:`), `coordinates:` is gone and " +
+	"`profiles:` is a map keyed by profile name declaring its `channels:`, a collection " +
+	"binds one with `channel: profile/channel`, and the `server:` block is now the " +
+	"platform's own key (`bowrain:`)"
+
+// retiredProjectKeys are the top-level keys v2 replaced, mapped to what a
+// recipe should say instead. A v2 recipe still carrying one is a half-finished
+// migration: the key would be captured as an unknown extension and silently
+// carry nothing, so name it rather than accept it.
+var retiredProjectKeys = map[string]string{
+	"content":     "collections",
+	"coordinates": "profiles (each profile declares its channels)",
+}
 
 // KapiProject is the root type for a .kapi project file.
 type KapiProject struct {
-	Version  string                     `yaml:"version" json:"version"`
-	Name     string                     `yaml:"name,omitempty" json:"name"`
-	Plugins  map[string]PluginSpec      `yaml:"plugins,omitempty" json:"plugins,omitempty"`
-	Defaults Defaults                   `yaml:"defaults,omitempty" json:"defaults,omitzero"`
-	Content  []ContentCollection        `yaml:"content,omitempty" json:"content,omitempty"`
-	Preset   string                     `yaml:"preset,omitempty" json:"preset,omitempty"`
-	Flows    map[string]*flow.StepsSpec `yaml:"flows,omitempty" json:"flows,omitempty"`
+	Version     string                     `yaml:"version" json:"version"`
+	Name        string                     `yaml:"name,omitempty" json:"name"`
+	Plugins     map[string]PluginSpec      `yaml:"plugins,omitempty" json:"plugins,omitempty"`
+	Defaults    Defaults                   `yaml:"defaults,omitempty" json:"defaults,omitzero"`
+	Collections []Collection               `yaml:"collections,omitempty" json:"collections,omitempty"`
+	Preset      string                     `yaml:"preset,omitempty" json:"preset,omitempty"`
+	Flows       map[string]*flow.StepsSpec `yaml:"flows,omitempty" json:"flows,omitempty"`
 
-	// Coordinates declares the axes of the context space this project's content
-	// is written for, and Profiles binds governance to regions of it. A project
-	// is not always one voice: a repository holding both a framework and the
-	// platform built on it carries two, and one project-wide binding governs
-	// the wrong one half the time. The taxonomy is the project's own — product,
-	// channel, market, tenant — and a named collection names the point its
-	// content sits at (ContentCollection.Context). Both empty means the whole
-	// project sits at one point, under defaults.voice / defaults.terms_source.
-	// See coordinates.go.
-	Coordinates Coordinates      `yaml:"coordinates,omitempty" json:"coordinates,omitempty"`
-	Profiles    []ProfileBinding `yaml:"profiles,omitempty" json:"profiles,omitempty"`
+	// Profiles binds governance to a product, keyed by the product's name. A
+	// project is not always one voice: a repository holding both a framework
+	// and the platform built on it carries two, and one project-wide binding
+	// governs the wrong one half the time. Each profile declares the channels
+	// its product ships on, and a collection names the point its content sits
+	// at with one `channel:` reference (Collection.Channel). Empty means the
+	// whole project sits at one point, under defaults.voice /
+	// defaults.terms_source. See profiles.go.
+	Profiles map[string]Profile `yaml:"profiles,omitempty" json:"profiles,omitempty"`
 
 	// Ship gates decide when localized content is shippable, as coverage
 	// thresholds over the lifecycle ladder (see core/gate). Three optional,
@@ -490,41 +507,42 @@ func (s *PluginSpec) UnmarshalYAML(node *yaml.Node) error {
 	return nil
 }
 
-// ContentCollection is either a bare content entry or a named collection of items.
+// Collection is either a bare content entry or a named collection of content
+// items.
 //
-// Bare entry (has path, no items):
+// Bare entry (has path, no content):
 //
 //   - path: "src/**/*"
 //     target: "output/{lang}/**/*"
 //
-// Collection (has name and items):
+// Named collection (the ordinary form):
 //
-//   - name: Marketing
-//     target_languages: [fr]
-//     items:
-//   - path: "marketing/*.html"
-//     format: okf_html
-type ContentCollection struct {
-	// Collection fields (long form).
+//   - name: bowrain-docs
+//     channel: bowrain/docs
+//     base: bowrain/web/docs
+//     content:
+//   - path: "docs/**/*.mdx"
+//     target: "i18n/{lang}/{path}.mdx"
+type Collection struct {
 	Name            string           `yaml:"name,omitempty" json:"name,omitempty"`
 	SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty" json:"source_language,omitempty"`
 	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
-	Items           []ContentItem    `yaml:"items,omitempty" json:"items,omitempty"`
+	Content         []ContentItem    `yaml:"content,omitempty" json:"content,omitempty"`
 
-	// Base is the directory a matched source file's path is made relative to
-	// when resolving its target — for {path}/{dir}/{relpath} tokens and the
-	// directory-mirror target form. Empty defaults to the glob's fixed prefix
-	// (the literal part of Path before the first wildcard). Collection-level
-	// Base applies to every item that doesn't set its own.
+	// Base is the directory this collection lives in: every content path,
+	// target and item base below is written relative to it, so a collection
+	// reads as the tree it governs rather than as a repeated prefix. Empty
+	// means the paths are project-relative.
 	Base string `yaml:"base,omitempty" json:"base,omitempty"`
 
-	// Context places this collection's content at a point in the project's
-	// context space: axis → value, over the axes declared under `coordinates:`.
-	// The point selects the profile whose governance — voice, terms — a run
-	// carries over this content. nil means the project's default point governs
-	// it. Named collections only: a point is resolved by collection name, so an
-	// unnamed entry has nothing to resolve.
-	Context map[string]string `yaml:"context,omitempty" json:"context,omitempty"`
+	// Channel places this collection's content at a point in the project's
+	// context space: `profile/channel`, or a bare `channel` when exactly one
+	// profile declares it. The point selects the profile whose governance —
+	// voice, terms — a run carries over this content, and the channel then
+	// selects the matching override inside that voice. Empty means the
+	// project's default point governs it. Named collections only: a point is
+	// resolved by collection name, so an unnamed entry has nothing to resolve.
+	Channel string `yaml:"channel,omitempty" json:"channel,omitempty"`
 
 	// Bare entry fields (short form — promoted from ContentItem).
 	Path   string      `yaml:"path,omitempty" json:"path,omitempty"`
@@ -537,34 +555,57 @@ type ContentCollection struct {
 	Extras map[string]yaml.Node `yaml:",inline" json:"-"`
 }
 
-// IsBareEntry reports whether this is a bare entry (has path, no items).
-func (c *ContentCollection) IsBareEntry() bool {
-	return c.Path != "" && len(c.Items) == 0
+// IsBareEntry reports whether this is a bare entry (has path, no content).
+func (c *Collection) IsBareEntry() bool {
+	return c.Path != "" && len(c.Content) == 0
 }
 
-// EffectiveItems returns the items for this collection. For bare entries, it
-// wraps the promoted fields as a single-item slice (carrying the bare
-// entry's Extras through, so platform-specific per-item fields survive).
-func (c *ContentCollection) EffectiveItems() []ContentItem {
+// EffectiveItems returns the collection's items with Base folded in: every
+// path, target and item base joined onto the collection's base, so every
+// consumer downstream sees project-relative paths and never has to know a base
+// was declared. An item that declares no base of its own keeps none — the
+// target tokens then relativize against the joined pattern's own fixed prefix,
+// which is what makes `base:` a location and not a second relativization root.
+//
+// For bare entries it wraps the promoted fields as a single-item slice
+// (carrying the bare entry's Extras through, so platform-specific per-item
+// fields survive).
+func (c *Collection) EffectiveItems() []ContentItem {
+	var items []ContentItem
 	if c.IsBareEntry() {
-		return []ContentItem{{
+		items = []ContentItem{{
 			Path:   c.Path,
 			Format: c.Format,
 			Target: c.Target,
-			Base:   c.Base,
 			Extras: c.Extras,
 		}}
+	} else {
+		items = make([]ContentItem, len(c.Content))
+		copy(items, c.Content)
 	}
-	// Named collection: items inherit the collection-level Base unless they set
-	// their own, so `base` can be declared once for the whole collection.
-	items := make([]ContentItem, len(c.Items))
-	copy(items, c.Items)
+	if c.Base == "" {
+		return items
+	}
 	for i := range items {
-		if items[i].Base == "" {
-			items[i].Base = c.Base
-		}
+		items[i].Path = JoinBase(c.Base, items[i].Path)
+		items[i].Target = JoinBase(c.Base, items[i].Target)
+		items[i].Base = JoinBase(c.Base, items[i].Base)
 	}
 	return items
+}
+
+// JoinBase prefixes a collection-relative path with the collection's base.
+// An empty path stays empty — an item with no target has no target under a
+// base either — and an absolute path is left alone so the escape check
+// downstream still sees it.
+func JoinBase(base, p string) string {
+	if base == "" || p == "" {
+		return p
+	}
+	if strings.HasPrefix(p, "/") {
+		return p
+	}
+	return strings.TrimSuffix(filepath.ToSlash(base), "/") + "/" + p
 }
 
 // ContentItem is a single content pattern within a collection.
@@ -587,7 +628,7 @@ type ContentItem struct {
 
 // ResolvedSourceLanguage returns the source language for this item, falling
 // back through collection and project defaults.
-func (item *ContentItem) ResolvedSourceLanguage(coll *ContentCollection, defaults Defaults) model.LocaleID {
+func (item *ContentItem) ResolvedSourceLanguage(coll *Collection, defaults Defaults) model.LocaleID {
 	if item.SourceLanguage != "" {
 		return item.SourceLanguage
 	}
@@ -599,7 +640,7 @@ func (item *ContentItem) ResolvedSourceLanguage(coll *ContentCollection, default
 
 // ResolvedTargetLanguages returns the target languages for this item, falling
 // back through collection and project defaults.
-func (item *ContentItem) ResolvedTargetLanguages(coll *ContentCollection, defaults Defaults) []model.LocaleID {
+func (item *ContentItem) ResolvedTargetLanguages(coll *Collection, defaults Defaults) []model.LocaleID {
 	if len(item.TargetLanguages) > 0 {
 		return item.TargetLanguages
 	}
@@ -764,7 +805,12 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 		return errors.New("version is required")
 	}
 	if p.Version != CurrentVersion {
-		return fmt.Errorf("unsupported version %q (expected %q)", p.Version, CurrentVersion)
+		return fmt.Errorf("unsupported version %q (expected %q) — %s", p.Version, CurrentVersion, shapeChangeHint)
+	}
+	for _, key := range sortedKeys(p.Extras) {
+		if replacement, retired := retiredProjectKeys[key]; retired {
+			return fmt.Errorf("%s: is no longer a recipe key — use %s", key, replacement)
+		}
 	}
 	if err := p.Defaults.Merge.validate(); err != nil {
 		return err
@@ -784,28 +830,24 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	if err := p.validateContextSpace(); err != nil {
 		return err
 	}
-	for i, c := range p.Content {
+	for i, c := range p.Collections {
 		if c.IsBareEntry() {
 			if c.Path == "" {
-				return fmt.Errorf("content[%d]: path is required for bare entries", i)
-			}
-			if len(c.Items) > 0 {
-				return fmt.Errorf("content[%d]: bare entry cannot have items", i)
+				return fmt.Errorf("collections[%d]: path is required for bare entries", i)
 			}
 		} else {
-			// Collection form.
 			if c.Path != "" {
-				return fmt.Errorf("content[%d]: collection %q cannot have a path (use items)", i, c.Name)
+				return fmt.Errorf("collections[%d]: collection %q cannot have a path (use content)", i, c.Name)
 			}
-			if len(c.Items) == 0 {
-				return fmt.Errorf("content[%d]: collection %q must have at least one item", i, c.Name)
+			if len(c.Content) == 0 {
+				return fmt.Errorf("collections[%d]: collection %q must have at least one content item", i, c.Name)
 			}
-			for j, item := range c.Items {
+			for j, item := range c.Content {
 				if item.Path == "" {
-					return fmt.Errorf("content[%d].items[%d]: path is required", i, j)
+					return fmt.Errorf("collections[%d].content[%d]: path is required", i, j)
 				}
 				if err := item.Redaction.validate(); err != nil {
-					return fmt.Errorf("content[%d].items[%d]: %w", i, j, err)
+					return fmt.Errorf("collections[%d].content[%d]: %w", i, j, err)
 				}
 			}
 		}
@@ -834,13 +876,13 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	if err := validateExtras(ScopeDefaults, "defaults.", p.Defaults.Extras); err != nil {
 		return err
 	}
-	for i, c := range p.Content {
-		prefix := fmt.Sprintf("content[%d].", i)
+	for i, c := range p.Collections {
+		prefix := fmt.Sprintf("collections[%d].", i)
 		if err := validateExtras(ScopeCollection, prefix, c.Extras); err != nil {
 			return err
 		}
-		for j, item := range c.Items {
-			ip := fmt.Sprintf("content[%d].items[%d].", i, j)
+		for j, item := range c.Content {
+			ip := fmt.Sprintf("collections[%d].content[%d].", i, j)
 			if err := validateExtras(ScopeItem, ip, item.Extras); err != nil {
 				return err
 			}
@@ -946,30 +988,18 @@ func (p *KapiProject) FlowNames() []string {
 // from, so callers can resolve fall-through fields (source/target language,
 // collection name) without duplicating logic.
 type IteratedItem struct {
-	Collection *ContentCollection
+	Collection *Collection
 	Item       ContentItem
 }
 
-// IterateContent yields every ContentItem in the project, walking both bare
-// entries and named collections. The Collection pointer is non-nil for
-// items that came from a named collection so callers can read its Name.
+// IterateContent yields every ContentItem in the project with its collection's
+// base folded in, walking both bare entries and named collections. The
+// Collection pointer is non-nil so callers can read its Name.
 func (p *KapiProject) IterateContent() []IteratedItem {
 	var out []IteratedItem
-	for i := range p.Content {
-		coll := &p.Content[i]
-		if coll.IsBareEntry() {
-			out = append(out, IteratedItem{
-				Collection: coll,
-				Item: ContentItem{
-					Path:   coll.Path,
-					Format: coll.Format,
-					Target: coll.Target,
-					Extras: coll.Extras,
-				},
-			})
-			continue
-		}
-		for _, item := range coll.Items {
+	for i := range p.Collections {
+		coll := &p.Collections[i]
+		for _, item := range coll.EffectiveItems() {
 			out = append(out, IteratedItem{Collection: coll, Item: item})
 		}
 	}

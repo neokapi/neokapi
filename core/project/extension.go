@@ -75,6 +75,13 @@ type Extension struct {
 	// dependency parses fine but the field is inert; hosts surface that
 	// via InertProjectExtras rather than failing the load.
 	DependsOn string
+	// Venue marks this extension as the recipe's binding to a remote
+	// convergence venue. The key it owns carries `url:` and `converge:`, and
+	// its presence in a recipe is what makes a run converge somewhere other
+	// than this machine. The framework reads those two fields and nothing
+	// else — which platform provides the venue, and what its key is called,
+	// stays the platform's business.
+	Venue bool
 }
 
 // The registry state lives in the internal extregistry package so the public
@@ -93,7 +100,7 @@ func RegisterExtension(ext Extension) {
 	if ext.Decoder != nil {
 		decode = ext.Decoder.Decode
 	}
-	if !extregistry.Register(int(ext.Scope), ext.Name, extregistry.Entry{Group: ext.Group, Decode: decode, DependsOn: ext.DependsOn}) {
+	if !extregistry.Register(int(ext.Scope), ext.Name, extregistry.Entry{Group: ext.Group, Decode: decode, DependsOn: ext.DependsOn, Venue: ext.Venue}) {
 		panic(fmt.Sprintf("project: RegisterExtension: duplicate registration for %s/%s", ext.Scope, ext.Name))
 	}
 }
@@ -151,7 +158,7 @@ func extensionFor(scope Scope, name string) (Extension, bool) {
 	if !ok {
 		return Extension{}, false
 	}
-	x := Extension{Name: name, Scope: scope, Group: e.Group, DependsOn: e.DependsOn}
+	x := Extension{Name: name, Scope: scope, Group: e.Group, DependsOn: e.DependsOn, Venue: e.Venue}
 	if e.Decode != nil {
 		x.Decoder = ExtensionDecoderFunc(e.Decode)
 	}

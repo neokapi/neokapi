@@ -76,13 +76,13 @@ func ContentTracks(proj *coreproj.KapiProject, pattern string) bool {
 // (if none matches) adds the pattern to the exclude list. Items nested inside
 // named collections are not touched (they survive as part of the collection).
 func RmPattern(proj *coreproj.KapiProject, root, pattern string) output.RmEntry {
-	for i, c := range proj.Content {
+	for i, c := range proj.Collections {
 		if c.IsBareEntry() && c.Path == pattern {
 			format := ""
 			if c.Format != nil {
 				format = c.Format.Name
 			}
-			proj.Content = append(proj.Content[:i], proj.Content[i+1:]...)
+			proj.Collections = append(proj.Collections[:i], proj.Collections[i+1:]...)
 			return output.RmEntry{Pattern: pattern, Action: "removed", Format: format}
 		}
 	}

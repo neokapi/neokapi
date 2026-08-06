@@ -51,7 +51,7 @@ type PluginHint struct {
 // a second manifest-driven plugin with its own recipe key needs no new code.
 var pluginHints = []PluginHint{{
 	Plugin:    "bowrain",
-	RecipeKey: "server",
+	RecipeKey: "bowrain",
 	Verbs:     []string{"push", "pull", "diff", "auth", "stream", "workspace", "ui"},
 	Formula:   "neokapi/tap/bowrain-cli",
 }}

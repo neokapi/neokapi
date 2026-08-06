@@ -40,7 +40,7 @@ func formatConfigForSource(proj *project.KapiProject, formatName, relSource stri
 	if proj == nil {
 		return nil
 	}
-	for _, coll := range proj.Content {
+	for _, coll := range proj.Collections {
 		for _, item := range coll.EffectiveItems() {
 			if ok, _ := doublestar.Match(item.Path, relSource); ok {
 				itemCopy := item

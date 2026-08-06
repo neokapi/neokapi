@@ -442,13 +442,13 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 }
 
 // appendServerStatus merges the connected-server delta into the status output
-// when the recipe has a server: block and the bowrain plugin is installed. It
-// shells the plugin's `server-status --json` (subprocess dispatch — the cli
-// module never imports bowrain) and folds the result under out.Server. Any
-// failure degrades to a one-line stderr warning and leaves the local report
-// intact: a status command must never fail on a server hiccup.
+// when the recipe binds a convergence venue and the bowrain plugin is
+// installed. It shells the plugin's `server-status --json` (subprocess
+// dispatch — the cli module never imports bowrain) and folds the result under
+// out.Server. Any failure degrades to a one-line stderr warning and leaves the
+// local report intact: a status command must never fail on a server hiccup.
 func (a *App) appendServerStatus(cmd Command, proj *project.KapiProject, out *StatusOutput) {
-	if _, ok := proj.Extras["server"]; !ok {
+	if _, ok := proj.Venue(); !ok {
 		return
 	}
 	if a.PluginHost == nil {
@@ -476,15 +476,15 @@ func (a *App) appendServerStatus(cmd Command, proj *project.KapiProject, out *St
 }
 
 // statusVenue derives the effective convergence venue for the status report.
-// nil for a recipe with no server: block (no ambiguity to report). With a
-// server: block, the venue is "server" when a plugin provides the server-up
-// plumbing `kapi up` dispatches to, otherwise a degraded "local" with a note.
+// nil for a recipe that binds none (no ambiguity to report). With one bound,
+// the venue is "server" when a plugin provides the server-up plumbing `kapi up`
+// dispatches to, otherwise a degraded "local" with a note.
 func (a *App) statusVenue(proj *project.KapiProject) *StatusVenue {
-	spec, ok := serverRecipeSpec(proj)
+	binding, ok := proj.Venue()
 	if !ok {
 		return nil
 	}
-	v := &StatusVenue{ConvergePolicy: spec.Converge}
+	v := &StatusVenue{ConvergePolicy: binding.Converge}
 	if a.PluginHost != nil && a.PluginHost.CommandRoute("server-up") != nil {
 		v.Venue = "server"
 		return v

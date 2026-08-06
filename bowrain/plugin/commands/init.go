@@ -724,14 +724,14 @@ func applyFrameworkPreset(recipe *project.Recipe, presetName string) error {
 
 	// Apply mappings as bare content entries on the recipe.
 	for _, m := range fp.Mappings {
-		entry := coreproj.ContentCollection{
+		entry := coreproj.Collection{
 			Path:   m.Local,
 			Target: m.TargetPath,
 		}
 		if m.Format != "" {
 			entry.Format = &coreproj.FormatSpec{Name: m.Format}
 		}
-		recipe.Content = append(recipe.Content, entry)
+		recipe.Collections = append(recipe.Collections, entry)
 	}
 
 	// Apply exclude patterns.

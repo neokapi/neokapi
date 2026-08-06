@@ -1,18 +1,19 @@
-# Dogfood recipe: neokapi localizes its own surfaces with kapi.
+# Dogfood recipe: neokapi translates its own surfaces with kapi.
 #
 # This is the repo-root project that the upward recipe walk discovers
 # (core/project.ResolveLayout). Every other in-repo kapi invocation must
 # isolate itself per the contract in CLAUDE.md ("Dogfooding kapi") —
 # KAPI_NO_PROJECT=1 et al. — so only the dogfood workflow binds here.
 #
-# Surfaces. Collection names are <product>-<channel>: the product the content
-# belongs to, then the surface it ships on.
+# Surfaces. A collection is named <profile>-<channel>: the product the content
+# belongs to, then the surface it ships on. Both come from `channel:`, which
+# names the point in the context space the collection's content sits at.
 #
-# The product axis names the two things this repo ships: `neokapi`, the
-# open-source framework and the kapi CLI built on it, and `bowrain`, the
-# platform. The binary is called kapi and the framework is called neokapi, so
-# naming the axis after the binary made the framework's own surfaces read as
-# the CLI's. `kapi` is a channel within neokapi, not a product beside bowrain.
+# The profile names the two things this repo ships: `neokapi`, the open-source
+# framework and the kapi CLI built on it, and `bowrain`, the platform. The
+# binary is called kapi and the framework is called neokapi, so naming the
+# profile after the binary made the framework's own surfaces read as the CLI's.
+# `cli` is a channel within neokapi, not a product beside bowrain.
 #
 #   neokapi-cli            — the CLI's own help and output chrome
 #                            (host/i18n/commands.json) → gettext MO catalogs
@@ -51,7 +52,7 @@
 # (AD-038). Adding a collection here needs no Makefile change — see
 # docs/internals/l10n-ci.md. The context graph this project is governed by —
 # voice profile, terms, reviewed content memory — is committed under .kapi/.
-version: v1
+version: v2
 name: neokapi
 defaults:
   source_language: en
@@ -99,27 +100,31 @@ defaults:
     - "bowrain/web/docs/i18n/**"
     - "harness/public/**"
     - "**/testdata/**"
-# The coordinate space this project's content sits in. Two products share one
-# repository and one kapi project, so `product` is what tells their content
-# apart; `channel` is the surface it appears on. Values are slugs — stable
-# identifiers that cross the sync wire, not vocabulary.
-coordinates:
-  product: [neokapi, bowrain]
-  channel: [cli, engine, desktop, docs, demos, app, ctrl, pulse, landing, email]
 
-# Governance bound to a point in that space. A collection matching no profile
-# falls back to defaults.voice below.
+# Governance bound to a product. Two products share one repository and one kapi
+# project, so the profile is what tells their content apart; the channels it
+# declares are the surfaces that product ships on. A collection binding no
+# channel falls back to defaults.voice above.
+#
+# Profile names and channels are slugs — stable identifiers that cross the sync
+# wire as the product and channel coordinates, not vocabulary.
 profiles:
-  - when: { product: neokapi }
+  neokapi:
+    channels: [cli, engine, desktop, docs, demos]
     voice: .kapi/voice.yaml
-  - when: { product: bowrain }
+  bowrain:
+    channels: [app, ctrl, pulse, docs, email, landing]
     voice: .kapi/profiles/bowrain/voice.yaml
 
-content:
+# `docs` is the one channel both products ship, so those two collections qualify
+# it as `<profile>/docs`; every other channel is declared by exactly one profile
+# and the bare name resolves.
+collections:
   - name: neokapi-engine
-    context: { product: neokapi, channel: engine }
-    items:
-      - path: core/i18n/builtins/metadata.json
+    channel: engine
+    base: core/i18n
+    content:
+      - path: builtins/metadata.json
         format:
           name: json
           config:
@@ -128,99 +133,110 @@ content:
             useFullKeyPath: true
             useLeadingSlashOnKeyPath: true
             extractionRules: "(display_name|description|title|label)$"
-        target: core/i18n/catalogs/{lang}.mo
+        target: catalogs/{lang}.mo
   # The CLI's own help and output strings.
   - name: neokapi-cli
-    context: { product: neokapi, channel: cli }
-    items:
+    channel: cli
+    base: host/i18n
+    content:
       # Bare `json`: the whole file is recycled as one item. The catalog
       # holds command help (short/long) alongside output chrome, so a narrower
       # extraction rule would govern some of the text a user reads and not the
       # rest, and the collection would disagree with the target it produces.
-      - path: host/i18n/commands.json
+      - path: commands.json
         format:
           name: json
-        target: host/i18n/catalogs/{lang}.mo
+        target: catalogs/{lang}.mo
   - name: neokapi-desktop
-    context: { product: neokapi, channel: desktop }
-    items:
-      - path: apps/kapi-desktop/frontend/i18n/**/*.kbf.json
-        target: apps/kapi-desktop/frontend/i18n-{lang}/{filename}
+    channel: desktop
+    base: apps/kapi-desktop/frontend
+    content:
+      - path: i18n/**/*.kbf.json
+        target: i18n-{lang}/{filename}
   - name: bowrain-app
-    context: { product: bowrain, channel: app }
-    items:
-      - path: bowrain/packages/app/i18n/**/*.kbf.json
-        target: bowrain/packages/app/i18n-{lang}/{filename}
+    channel: app
+    base: bowrain/packages/app
+    content:
+      - path: i18n/**/*.kbf.json
+        target: i18n-{lang}/{filename}
   - name: bowrain-ctrl
-    context: { product: bowrain, channel: ctrl }
-    items:
-      - path: bowrain/apps/ctrl/i18n/**/*.kbf.json
-        target: bowrain/apps/ctrl/i18n-{lang}/{filename}
+    channel: ctrl
+    base: bowrain/apps/ctrl
+    content:
+      - path: i18n/**/*.kbf.json
+        target: i18n-{lang}/{filename}
   - name: bowrain-pulse
-    context: { product: bowrain, channel: pulse }
-    items:
-      - path: bowrain/apps/pulse/i18n/**/*.kbf.json
-        target: bowrain/apps/pulse/i18n-{lang}/{filename}
+    channel: pulse
+    base: bowrain/apps/pulse
+    content:
+      - path: i18n/**/*.kbf.json
+        target: i18n-{lang}/{filename}
   - name: neokapi-docs
-    context: { product: neokapi, channel: docs }
-    items:
+    channel: neokapi/docs
+    base: web
+    content:
       # Docusaurus v3 parses .md as MDX by default (no markdown.format
       # override in docusaurus.config.ts), and these files use ESM imports and
       # JSX freely — so the mdx reader is the truthful format. The markdown
       # reader treated an `import { BlockPreview } …` line as a paragraph of
       # prose, and the first convergence run translated it.
-      - path: web/docs/**/*.md
+      - path: docs/**/*.md
         format:
           name: mdx
           config:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
-        target: web/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
-      - path: web/docs/**/*.mdx
+        target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
+      - path: docs/**/*.mdx
         format:
           name: mdx
           config:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
-        target: web/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
+        target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
   - name: bowrain-docs
-    context: { product: bowrain, channel: docs }
-    items:
+    channel: bowrain/docs
+    base: bowrain/web/docs
+    content:
       # .md is MDX here for the same reason as the neokapi docs above.
-      - path: bowrain/web/docs/docs/**/*.md
+      - path: docs/**/*.md
         format:
           name: mdx
           config:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
-        target: bowrain/web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
-      - path: bowrain/web/docs/docs/**/*.mdx
+        target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
+      - path: docs/**/*.mdx
         format:
           name: mdx
           config:
             translateFrontMatter: true
             frontMatterKeys: [title, description, sidebar_label]
-        target: bowrain/web/docs/i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
+        target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
   - name: bowrain-email
-    context: { product: bowrain, channel: email }
-    items:
-      - path: bowrain/emails/i18n/**/*.kbf.json
-        target: bowrain/emails/i18n-{lang}/{filename}
+    channel: email
+    base: bowrain/emails
+    content:
+      - path: i18n/**/*.kbf.json
+        target: i18n-{lang}/{filename}
   - name: bowrain-email-subjects
-    context: { product: bowrain, channel: email }
-    items:
-      - path: bowrain/mailer/subjects/en.json
+    channel: email
+    base: bowrain/mailer/subjects
+    content:
+      - path: en.json
         format:
           name: json
-        target: bowrain/mailer/subjects/{lang}.json
+        target: "{lang}.json"
   - name: bowrain-landing
-    context: { product: bowrain, channel: landing }
-    items:
-      - path: bowrain/web/landing/i18n/**/*.kbf.json
-        target: bowrain/web/landing/i18n-{lang}/{filename}
+    channel: landing
+    base: bowrain/web/landing
+    content:
+      - path: i18n/**/*.kbf.json
+        target: i18n-{lang}/{filename}
   - name: neokapi-demos
-    context: { product: neokapi, channel: demos }
-    items:
+    channel: demos
+    base: harness/demos
+    content:
       # Narrated demo-video scripts. The English demo.yaml is the master;
       # translated narration is GENERATED into committed demo.<lang>.yaml
       # sidecars (content memory-driven) that the harness overlays at load
@@ -229,10 +245,10 @@ content:
       # been translated. Never hand-edit a sidecar — fix the memory seed instead
       # (.kapi/memory/demo-narration-<lang>.memory.json). Translatable keys are
       # selected by defaults.formats.yaml.config.keyPathPatterns above.
-      - path: harness/demos/*/demo.yaml
+      - path: "*/demo.yaml"
         format:
           name: yaml
-        target: harness/demos/{dir}/demo.{lang}.yaml
+        target: "{dir}/demo.{lang}.yaml"
 flows:
   # Exact-match content-memory leverage only (no AI, no checks): the
   # deterministic pass behind `make l10n-translate`, run over the whole recipe.
@@ -287,15 +303,16 @@ flows:
 # key is set (BYO burns no credits, DECISIONS L3) — via `kapi up` or the REST
 # convergence endpoint. Transport (kapi push) stays pure either way.
 #
-# This `server:` block makes the recipe bowrain-connected. It is the ONLY in-repo
-# kapi invocation that binds here — every other one isolates via KAPI_NO_PROJECT
-# (CLAUDE.md "Dogfooding kapi"), so tests / make targets / recorders are
-# unaffected. The nightly + manual sync runs in .github/workflows/dogfood-sync.yml
-# (gated on the DOGFOOD_SYNC_ENABLED repo variable, token in BOWRAIN_AUTH_TOKEN).
+# This `bowrain:` block is the platform's own key, and declaring it is what makes
+# the recipe bowrain-connected: kapi reads `url:` and `converge:` through the
+# venue seam and never the key's name. It is the ONLY in-repo kapi invocation
+# that binds here — every other one isolates via KAPI_NO_PROJECT (CLAUDE.md
+# "Dogfooding kapi"), so tests / make targets / recorders are unaffected. The
+# nightly + manual sync runs in .github/workflows/dogfood-sync.yml (gated on the
+# DOGFOOD_SYNC_ENABLED repo variable, token in BOWRAIN_AUTH_TOKEN).
 #
 # To disconnect: re-comment this block and unset DOGFOOD_SYNC_ENABLED. Runbook:
 # web/docs/contribute/implementation/dogfood-sync.md
-server:
+bowrain:
   url: "https://app.bowrain.cloud/bowrain-hq/uek630Q5"   # <server>/<workspace>/<project-id>
-  stream: "$auto"      # auto-detect from git branch / CI (default)
   converge: manual     # push never auto-converges; start the loop deliberately

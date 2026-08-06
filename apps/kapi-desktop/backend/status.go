@@ -75,8 +75,8 @@ func (a *App) GetProjectStatus(tabID string) (*ProjectStatus, error) {
 	// even before any extraction has happened. Keyed by the recipe collection
 	// name; bare entries share the "" bucket (displayed as "(unnamed)").
 	collTargets := make(map[string][]string)
-	collOrder := make([]string, 0, len(op.Project.Content))
-	for _, coll := range op.Project.Content {
+	collOrder := make([]string, 0, len(op.Project.Collections))
+	for _, coll := range op.Project.Collections {
 		targets := make([]string, 0, len(coll.TargetLanguages))
 		for _, loc := range coll.TargetLanguages {
 			targets = append(targets, string(loc))

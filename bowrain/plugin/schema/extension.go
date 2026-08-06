@@ -12,19 +12,26 @@ import (
 // load when no host has registered the bowrain schema.
 const Group = "bowrain"
 
+// VenueKey is the recipe key that connects a project to a bowrain server: the
+// url, the stream and the convergence policy. It is the platform's own name
+// because the block is the platform — the framework finds it through the venue
+// flag on the registration, never by spelling it out.
+const VenueKey = "bowrain"
+
 func init() {
 	coreproj.RegisterExtensionGroup(Group, []coreproj.Extension{
 		// ── Project-level top-level keys ──────────────────────────
-		// Everything except server: itself only acts around the server
+		// `bowrain:` is the connection itself — the venue key kapi reads to
+		// decide where the loop runs. Everything else only acts around that
 		// relationship (hooks/automations fire on push/pull, assets and
 		// brand_voice seed server-side stores), so each declares
-		// DependsOn: "server" — set without it, the field is inert and
+		// DependsOn: VenueKey — set without it, the field is inert and
 		// kapi status/check surface that instead of silently ignoring it.
-		{Name: "server", Scope: coreproj.ScopeProject, Decoder: serverDecoder},
-		{Name: "hooks", Scope: coreproj.ScopeProject, Decoder: hooksDecoder, DependsOn: "server"},
-		{Name: "automations", Scope: coreproj.ScopeProject, Decoder: automationsDecoder, DependsOn: "server"},
-		{Name: "assets", Scope: coreproj.ScopeProject, Decoder: assetsDecoder, DependsOn: "server"},
-		{Name: "brand_voice", Scope: coreproj.ScopeProject, Decoder: brandVoiceDecoder, DependsOn: "server"},
+		{Name: VenueKey, Scope: coreproj.ScopeProject, Decoder: serverDecoder, Venue: true},
+		{Name: "hooks", Scope: coreproj.ScopeProject, Decoder: hooksDecoder, DependsOn: VenueKey},
+		{Name: "automations", Scope: coreproj.ScopeProject, Decoder: automationsDecoder, DependsOn: VenueKey},
+		{Name: "assets", Scope: coreproj.ScopeProject, Decoder: assetsDecoder, DependsOn: VenueKey},
+		{Name: "brand_voice", Scope: coreproj.ScopeProject, Decoder: brandVoiceDecoder, DependsOn: VenueKey},
 
 		// ── Per-item keys ─────────────────────────────────────────
 		{Name: "collection", Scope: coreproj.ScopeItem, Decoder: stringDecoder},
@@ -40,11 +47,11 @@ func init() {
 	})
 }
 
-// serverDecoder validates the top-level `server:` block.
+// serverDecoder validates the top-level `bowrain:` block.
 var serverDecoder = coreproj.ExtensionDecoderFunc(func(n yaml.Node) error {
 	var s ServerSpec
 	if err := n.Decode(&s); err != nil {
-		return fmt.Errorf("decode server: %w", err)
+		return fmt.Errorf("decode %s: %w", VenueKey, err)
 	}
 	return s.Validate()
 })

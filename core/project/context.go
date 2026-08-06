@@ -137,14 +137,14 @@ type ResolvedFile struct {
 // discard the error — an empty result and a failed resolution are different
 // facts.
 func (ctx *ProjectContext) ResolveContent(reg *registry.FormatRegistry) ([]ResolvedFile, error) {
-	if ctx.Project == nil || len(ctx.Project.Content) == 0 {
+	if ctx.Project == nil || len(ctx.Project.Collections) == 0 {
 		return nil, nil
 	}
 
 	ig := ignore.ForProjectDir(ctx.ProjectDir)
 
 	var files []ResolvedFile
-	for _, coll := range ctx.Project.Content {
+	for _, coll := range ctx.Project.Collections {
 		collName := coll.Name
 		for _, item := range coll.EffectiveItems() {
 			if item.Path == "" {

@@ -91,7 +91,7 @@ func FormatProjectURL(serverURL, workspace, projectID string) string {
 type Recipe struct {
 	coreproj.KapiProject `yaml:",inline"`
 
-	Server      *ServerSpec      `yaml:"server,omitempty" json:"server,omitempty"`
+	Server      *ServerSpec      `yaml:"bowrain,omitempty" json:"bowrain,omitempty"`
 	Hooks       HooksSpec        `yaml:"hooks,omitempty" json:"hooks,omitempty"`
 	Automations []AutomationSpec `yaml:"automations,omitempty" json:"automations,omitempty"`
 	Assets      *AssetsSpec      `yaml:"assets,omitempty" json:"assets,omitempty"`
@@ -188,7 +188,7 @@ func (r *Recipe) Validate() error {
 		return err
 	}
 	if err := r.Server.Validate(); err != nil {
-		return fmt.Errorf("server.%w", err)
+		return fmt.Errorf("%s.%w", schema.VenueKey, err)
 	}
 	if err := r.Hooks.Validate(); err != nil {
 		return fmt.Errorf("hooks: %w", err)
@@ -271,7 +271,7 @@ type ContentItemView struct {
 // pairing the parent collection with a ContentItemView that carries the
 // per-item bowrain extensions.
 type IteratedItem struct {
-	Collection *coreproj.ContentCollection
+	Collection *coreproj.Collection
 	Item       ContentItemView
 }
 
@@ -294,11 +294,11 @@ func (r *Recipe) IterateContent() []IteratedItem {
 // ResolvedCollection returns the routing collection for this item,
 // falling back to the parent named collection and then to the recipe's
 // DefaultCollection.
-func (item *ContentItemView) ResolvedCollection(coll *coreproj.ContentCollection, recipe *Recipe) string {
+func (item *ContentItemView) ResolvedCollection(coll *coreproj.Collection, recipe *Recipe) string {
 	if item.Collection != "" {
 		return item.Collection
 	}
-	if coll != nil && coll.Name != "" && len(coll.Items) > 0 {
+	if coll != nil && coll.Name != "" && len(coll.Content) > 0 {
 		return coll.Name
 	}
 	return recipe.DefaultCollection()
@@ -308,7 +308,7 @@ func (item *ContentItemView) ResolvedCollection(coll *coreproj.ContentCollection
 // applying any non-empty bowrain per-item fields via the entry's Extras
 // map. Used by `bowrain add`.
 func (r *Recipe) AddContentItem(path string, format *coreproj.FormatSpec, target string, view ContentItemView) {
-	entry := coreproj.ContentCollection{
+	entry := coreproj.Collection{
 		Path:   path,
 		Format: format,
 		Target: target,
@@ -325,7 +325,7 @@ func (r *Recipe) AddContentItem(path string, format *coreproj.FormatSpec, target
 	if view.AssetMaxSize != "" {
 		setEntryExtra(&entry, "asset_max_size", view.AssetMaxSize)
 	}
-	r.Content = append(r.Content, entry)
+	r.Collections = append(r.Collections, entry)
 }
 
 // ─── extras helpers ─────────────────────────────────────────────────
@@ -353,7 +353,7 @@ func decodeBoolPtrExtra(extras map[string]yaml.Node, key string, target **bool) 
 	}
 }
 
-func setEntryExtra(entry *coreproj.ContentCollection, key string, value any) {
+func setEntryExtra(entry *coreproj.Collection, key string, value any) {
 	if entry.Extras == nil {
 		entry.Extras = map[string]yaml.Node{}
 	}

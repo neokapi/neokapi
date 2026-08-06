@@ -106,8 +106,8 @@ func ExecSurface(p *KapiProject) []ExecSite {
 		sites = append(sites, execSitesInToolConfig(p.Defaults.Locales[loc].Tools, "defaults.locales."+loc+".tools")...)
 	}
 
-	for i, coll := range p.Content {
-		where := fmt.Sprintf("content[%d]", i)
+	for i, coll := range p.Collections {
+		where := fmt.Sprintf("collections[%d]", i)
 		if coll.Format != nil && execClassFormats[coll.Format.Name] {
 			sites = append(sites, ExecSite{
 				Where:  where + ".format",
@@ -117,10 +117,10 @@ func ExecSurface(p *KapiProject) []ExecSite {
 				config: coll.Format.Config,
 			})
 		}
-		for j, item := range coll.Items {
+		for j, item := range coll.Content {
 			if item.Format != nil && execClassFormats[item.Format.Name] {
 				sites = append(sites, ExecSite{
-					Where:  fmt.Sprintf("%s.items[%d].format", where, j),
+					Where:  fmt.Sprintf("%s.content[%d].format", where, j),
 					Kind:   "format",
 					Name:   item.Format.Name,
 					Detail: summariseExecConfig(item.Format.Config),

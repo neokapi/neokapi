@@ -63,47 +63,33 @@ func (a *App) ServerRecipeURL(projectPath string) (hasServer bool, url string) {
 	if err != nil {
 		return false, ""
 	}
-	spec, ok := serverRecipeSpec(proj)
-	return ok, spec.URL
-}
-
-// serverRecipeSpecFields is the venue-relevant subset of the recipe's
-// server: block. The full extension schema is owned by the bowrain plugin;
-// reading the raw extension node keeps the venue decision plugin-free.
-type serverRecipeSpecFields struct {
-	URL      string `yaml:"url"`
-	Converge string `yaml:"converge"`
-}
-
-// serverRecipeSpec decodes the venue-relevant fields of a loaded project's
-// server: block. ok reports whether the block is present at all; decode
-// errors leave the fields empty (best-effort — schema validation happens at
-// project load when the plugin's extension decoder is registered).
-func serverRecipeSpec(proj *project.KapiProject) (spec serverRecipeSpecFields, ok bool) {
-	node, found := proj.Extras["server"]
-	if !found {
-		return spec, false
-	}
-	_ = node.Decode(&spec)
-	return spec, true
+	venue, ok := proj.Venue()
+	return ok, venue.URL
 }
 
 // WarnIfServerRecipeConvergingLocally prints a one-line stderr warning when a
-// recipe declares a server: block but the built-in up (no bowrain plugin) is
-// about to converge it locally: the run spends the user's own AI provider and
-// never pushes, so the server copy would silently go stale. Best-effort: any
-// load error just skips the warning (ExecuteUp reports real load failures).
+// recipe binds a convergence venue but the built-in up (no plugin providing
+// the venue's plumbing) is about to converge it locally: the run spends the
+// user's own AI provider and never pushes, so the server copy would silently
+// go stale. Best-effort: any load error just skips the warning (ExecuteUp
+// reports real load failures).
 func (a *App) WarnIfServerRecipeConvergingLocally(cmd Command, projectPath string) {
 	if a.Quiet {
 		return
 	}
-	if hasServer, _ := a.ServerRecipeURL(projectPath); !hasServer {
+	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
 		return
 	}
-	fmt.Fprintln(cmd.ErrOrStderr(),
-		"warning: this project declares a server: block, but the bowrain plugin is not installed — "+
+	venue, ok := proj.Venue()
+	if !ok {
+		return
+	}
+	fmt.Fprintf(cmd.ErrOrStderr(),
+		"warning: this project declares a %s: block, but the bowrain plugin is not installed — "+
 			"running the loop locally on your own AI provider; results are NOT pushed to the server. "+
-			"Install kapi-bowrain to run `kapi up` on the server (org keys, shared content memory, team review).")
+			"Install kapi-bowrain to run `kapi up` on the server (org keys, shared content memory, team review).\n",
+		venue.Key)
 }
 
 // ExecuteUp is the local-venue `kapi up` execution behind the command: load

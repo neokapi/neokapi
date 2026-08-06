@@ -71,8 +71,8 @@ func BuildPushContext(ctx context.Context, proj *bproject.Project, dryRun bool) 
 	var entries []*pb.SyncContextEntry
 	var brandResult *PushBrandResult
 
-	for i := range kapiProject.Content {
-		coll := &kapiProject.Content[i]
+	for i := range kapiProject.Collections {
+		coll := &kapiProject.Collections[i]
 		if coll.Name == "" {
 			// A bare entry declares no collection, so there is nothing to
 			// reconcile: its files sync ungrouped, governed by the project's
@@ -88,9 +88,13 @@ func BuildPushContext(ctx context.Context, proj *bproject.Project, dryRun bool) 
 			return nil, nil, fmt.Errorf("resolve governance for collection %q: %w", coll.Name, err)
 		}
 
+		ref, refErr := kapiProject.ResolveChannel(coll.Channel)
+		if refErr != nil {
+			return nil, nil, fmt.Errorf("resolve channel for collection %q: %w", coll.Name, refErr)
+		}
 		entry := &pb.SyncContextEntry{
 			Name:        coll.Name,
-			Coordinates: coll.Context,
+			Coordinates: ref.Coordinates(),
 			Owner:       bowsync.ContextOwnerRecipe,
 		}
 		if governance != nil {

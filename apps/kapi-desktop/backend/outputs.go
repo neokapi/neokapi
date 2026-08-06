@@ -47,8 +47,8 @@ func (a *App) ListOutputs(tabID string) (map[string][]OutputFileInfo, error) {
 	defaults := op.Project.Defaults
 
 	out := make(map[string][]OutputFileInfo)
-	for ci := range op.Project.Content {
-		coll := &op.Project.Content[ci]
+	for ci := range op.Project.Collections {
+		coll := &op.Project.Collections[ci]
 		for _, item := range coll.EffectiveItems() {
 			if item.Target == "" || item.Path == "" {
 				continue

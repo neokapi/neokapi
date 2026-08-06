@@ -501,7 +501,7 @@ type SourceConnector struct {
 // SchemaExtension binds a recipe YAML key (at a given scope) to a JSON
 // Schema file shipped in the plugin dir.
 type SchemaExtension struct {
-	// Name is the YAML key at the given scope (e.g., "server").
+	// Name is the YAML key at the given scope (e.g., "bowrain").
 	Name string `json:"name"`
 
 	// Scope is one of "project", "defaults", "collection", "item".
@@ -518,9 +518,15 @@ type SchemaExtension struct {
 
 	// DependsOn optionally names a sibling extras key at the same scope
 	// that must be present for this extension to have any effect (e.g.
-	// bowrain's automations depend on "server"). Hosts surface a set-but-
+	// bowrain's automations depend on "bowrain"). Hosts surface a set-but-
 	// inert field via kapi status/check instead of failing the load.
 	DependsOn string `json:"depends_on,omitempty"`
+
+	// Venue marks this key as the recipe's binding to a remote convergence
+	// venue: it carries `url:` and `converge:`, and kapi reads those two
+	// fields to decide where `kapi up` runs. At most one key across all
+	// installed plugins should claim it.
+	Venue bool `json:"venue,omitempty"`
 }
 
 // DaemonConfig declares Mode-C daemon behavior. Only present for
