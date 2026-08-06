@@ -278,6 +278,13 @@ func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs C
 		// in its own voice — the web panel qualifies its breakdown, the MCP tool
 		// qualifies its totals — so a reason that also spelled out the
 		// consequence would read twice in one sentence wherever it is embedded.
+		//
+		// This string is embedded, never shown bare. The MCP experiment-status
+		// tool composes it into "lower bounds — any project the scan did not
+		// reach contributes nothing to these totals (<this>)", and its test
+		// asserts the composed line still contains "time budget". Reword freely,
+		// but keep the cause nameable in those words or update that assertion —
+		// it is the only place this wording is pinned outside this package.
 		impact.PartialReason = "the scan reached this preview's time budget before it had covered the workspace"
 	}
 	return impact, nil
