@@ -24,7 +24,7 @@ interface.
 Content memory is the project's **recycle** corpus: a pool of source→target
 pairs reused to pre-fill and leverage future translation. It is not the carrier
 of workflow **decisions** — whether a person has reviewed or signed off a
-particular target lives in the project's unit-decision record
+particular target lives in the project's unit-state record
 ([AD-033](033-project-state-model.md)), not here. Adding a pair to
 the memory (`kapi apply` with `kind:"memory"`) is recycle leverage; it does not
 promote a unit to *reviewed*.
@@ -243,10 +243,10 @@ SQLite would be git-hostile and defeat interchange in any case; the
 
 A project accumulates **many** memory bundles, not one — this repository's own
 dogfood commits a bundle per content surface under
-`.kapi/context/memory/*.memory.json` — so the suffix, not the location, is what
+`.kapi/memory/*.memory.json` — so the suffix, not the location, is what
 identifies a seed. This is why content memory has no conventional-location
 fallback where the terms store does ([AD-010](010-terminology.md)): a project has
-exactly one set of terms, so `.kapi/context/terms.json` has a single obvious
+exactly one set of terms, so `.kapi/terms.json` has a single obvious
 answer, while a conventional `memory.json` would force a project with a bundle
 per surface to nominate one of them arbitrarily. A seed is named by
 `defaults.memory_source` or by an explicit path; there is nothing sensible to

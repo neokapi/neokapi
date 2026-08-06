@@ -64,7 +64,7 @@ faithfully **regenerate the derived stores** (the project database, sync hashes,
 the redis hash cache) the platform builds from this content.
 
 A second observation shaped the design: the project layout already separates
-**authoritative content** — the committed sources and the unit-decision record —
+**authoritative content** — the committed sources and the unit-state record —
 from everything a run derives from them, which is the project's one database
 (`.kapi/work/store.db`, [AD-039](039-local-context-graph-store.md)) plus the
 free-to-delete `.kapi/work/cache/`. The thing worth packaging is the *authoritative
@@ -103,10 +103,10 @@ general-purpose tools do not already give.
 The **suffix**, not the location, is what identifies a bundle, because a project
 is not limited to one per store. Terms is the exception that proves it: a project
 has exactly one set of terms, so it gets a conventional location
-([AD-010](010-terminology.md)) — `<root>/.kapi/context/terms.json`, then
+([AD-010](010-terminology.md)) — `<root>/.kapi/terms.json`, then
 `<root>/terms.json`. Content memory gets none, because a project accumulates a
 bundle per content surface (this repository's own dogfood commits one per surface
-under `.kapi/context/memory/`) and a fallback would have nothing single to name.
+under `.kapi/memory/`) and a fallback would have nothing single to name.
 
 ### 2. The `.kpz` package container
 
@@ -258,7 +258,7 @@ path would escape the project root is refused rather than written.
 | path-valued fields (`terms_source`, `memory_source`, `redaction.rules`, `brand_voice.profile_file`, content `base` / `target`) | recipe | recipe | travels **contained** |
 | content memory / terms | committed `.memory.json` / `.terms.json` sources | `memory.json` / `terms.json` | travels (lossless) |
 | blocks + targets, annotations, in-progress overlays | block tables of `store.db` (derived) | `blocks/*.kbf.json`, `annotations/*.overlays.jsonl`, `overlays.json` (authoritative) | travels |
-| review decisions | `.kapi/context/decisions/*.jsonl` (committed) | bilingual profile ([AD-017](017-bilingual-format-interop.md)) | travels |
+| unit state | `.kapi/state/*.jsonl` (committed) | bilingual profile ([AD-017](017-bilingual-format-interop.md)) | travels |
 | source identity (path, format, hash) | working tree | `manifest.json` | travels |
 | source skeleton (round-trip template) | `work/cache/extractions/.../skel-*.bin` | `skeletons/<id>` | travels |
 | raw source bytes | working tree `src/` | `source/<name>` | opt-in (`--with-source`) |

@@ -22,7 +22,7 @@ my-app/
 │   │   ├── terms.json          # terms (bound by defaults.terms_source)
 │   │   ├── memory.json         # content memory (bound by defaults.memory_source)
 │   │   ├── brand-voice.yaml    # the voice profile
-│   │   └── decisions/          # the unit-decision record, one shard per document
+│   │   └── decisions/          # the unit-state record, one shard per document
 │   │       └── src-locales-en-messages.jsonl
 │   └── work/                   # gitignored — everything derived
 │       ├── store.db            # the local index over everything committed
@@ -42,9 +42,9 @@ my-app/
 Ownership zones at the project root:
 
 - **`kapi.yaml`** — hand-edited, committed to git. The recipe is the single source of truth for project configuration. Its fixed, conventional filename means every editor and code host (GitHub, GitLab) applies YAML syntax highlighting to diffs and previews with no configuration.
-- **`.kapi/context/`** — the committed context graph: `terms.json`, `memory.json` and the brand-voice profile, reviewed through `git diff` like any other source file. `.kapi/` is committed in full; only `.kapi/work/` is gitignored.
-- **`.kapi/context/decisions/*.jsonl`** — the unit-decision record, committed. `kapi commit` publishes staged review decisions into it.
-- **`.kapi/work/store.db`** — kapi-owned, gitignored. One SQLite file holding every subsystem's tables — block cache, terms store, content memory, the working set of decisions staged since the last `kapi commit`, and the project's context graph. It is an index over the committed sources above and rebuilds from them.
+- **`.kapi/`** — the committed context graph: `terms.json`, `memory.json` and the brand-voice profile, reviewed through `git diff` like any other source file. `.kapi/` is committed in full; only `.kapi/work/` is gitignored.
+- **`.kapi/state/*.jsonl`** — the unit-state record, committed. `kapi commit` publishes staged review decisions into it.
+- **`.kapi/work/store.db`** — kapi-owned, gitignored. One SQLite file holding every subsystem's tables — block cache, terms store, content memory, the working set of unit state staged since the last `kapi commit`, and the project's context graph. It is an index over the committed sources above and rebuilds from them.
 - **`.kapi/work/cache/`** — CLI-owned, gitignored. Everything cheaply regenerable: the kapi sync cache, extraction intermediates, overlay layers. Safe to delete at any time.
 - **`.kapi/flows/*.yaml`** — optional file-per-flow definitions, hand-edited, committed. Bowrain reads these in addition to inline `flows:` declared on the recipe.
 
@@ -149,8 +149,8 @@ brand_voice:
 | `collection`       | string | Default collection name for organizing content           |
 | `exclude`          | list   | Glob patterns to skip during scanning                    |
 | `formats`          | map    | Per-format default presets and config overrides          |
-| `terms_source`     | string | Path to the committed terms source (e.g. `.kapi/context/terms.json`) |
-| `memory_source`    | string | Path to the committed content memory source (e.g. `.kapi/context/memory.json`) |
+| `terms_source`     | string | Path to the committed terms source (e.g. `.kapi/terms.json`) |
+| `memory_source`    | string | Path to the committed content memory source (e.g. `.kapi/memory/memory.json`) |
 
 ### `server` block
 
@@ -289,8 +289,8 @@ All commands work from any subdirectory within the project. A directory holds at
 ### Commit to git
 
 - `kapi.yaml` — the recipe (single source of truth for configuration)
-- `.kapi/context/terms.json`, `.kapi/context/memory.json`, `.kapi/context/brand-voice.yaml` — the context sources the recipe binds
-- `.kapi/context/decisions/*.jsonl` — the unit-decision record
+- `.kapi/terms.json`, `.kapi/memory/memory.json`, `.kapi/voice.yaml` — the context sources the recipe binds
+- `.kapi/state/*.jsonl` — the unit-state record
 - `.kapi/flows/*.yaml` — file-per-flow definitions, if you use them
 - `.kapi/manifest.yaml`, `.kapi/filters.json` — bookkeeping and shared reader configuration
 
@@ -306,7 +306,7 @@ All commands work from any subdirectory within the project. A directory holds at
 - `.kapi/work/` — everything derived: `store.db`, the caches, and the redaction vault
 - `.kapi/filters.local.json` — your personal reader overrides
 
-Deleting `.kapi/work/cache/` costs nothing. Deleting `.kapi/work/` costs two things: the review decisions staged since the last `kapi commit`, which live only in `store.db` — run `kapi commit` before you remove it — and, if the project uses redaction, the withheld originals in `.kapi/work/vault/`, which are local-only by design and rebuild from nothing.
+Deleting `.kapi/work/cache/` costs nothing. Deleting `.kapi/work/` costs two things: the review unit state staged since the last `kapi commit`, which live only in `store.db` — run `kapi commit` before you remove it — and, if the project uses redaction, the withheld originals in `.kapi/work/vault/`, which are local-only by design and rebuild from nothing.
 
 ## Initialization
 

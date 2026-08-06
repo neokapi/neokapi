@@ -1,7 +1,7 @@
 ---
 sidebar_position: 7
 title: Project state
-description: The committed unit record under .kapi/context/decisions — JSON Lines, one shard per document, one line per unit — the working set that stages decisions until kapi commit, and the unit state fields.
+description: The committed unit-state record under .kapi/state/ — JSON Lines, one shard per document, one line per unit — the working set that stages decisions until kapi commit, and the unit state fields.
 keywords:
   [
     project state,
@@ -15,7 +15,7 @@ keywords:
   ]
 ---
 
-# Project state (`.kapi/context/decisions/*.jsonl`)
+# Project state (`.kapi/state/*.jsonl`)
 
 Project state records **workflow decisions about units**: what has been
 reviewed, what was approved and by whom, what status a target has reached. It
@@ -28,7 +28,7 @@ Implemented in Go at
 
 A decision is recorded into a **working set** — the unit-state tables of
 [`.kapi/work/store.db`](/kapi/project-store) — and stays there until `kapi commit`
-materializes it into the committed record under `.kapi/context/decisions/`. The model is
+materializes it into the committed record under `.kapi/state/`. The model is
 deliberately the one you already know from git: decisions behave like staged
 changes, and you publish deliberately. `kapi status` reports what is staged, so
 nothing is lost silently.
@@ -48,7 +48,7 @@ The committed record is a directory of JSON Lines files, one per document
 scope, each line a single unit:
 
 ```
-.kapi/context/decisions/
+.kapi/state/
 ├── d-app-messages.jsonl
 └── d-guide-intro.jsonl
 ```
@@ -76,7 +76,7 @@ from escaping the directory.
 
 ## Why the record is committed and the store is not
 
-`.kapi/context/decisions/` sits inside `.kapi/`, which is committed in full; only
+`.kapi/state/` sits inside `.kapi/`, which is committed in full; only
 `.kapi/work/` is ignored, and that is where the store and its caches live. A
 record of who approved what must be reviewable and must survive a clone; the
 database that indexes it is rebuildable and belongs to one machine. The record
@@ -123,7 +123,7 @@ decision remain distinguishable in the record.
   deliverable or in a [content bundle](/reference/serialization/content-bundle).
 - **Anything derivable.** Coverage percentages and review queues are computed
   from these shards plus the content, not stored alongside.
-- **Uncommitted decisions.** By construction — that is what `kapi commit` is
+- **Uncommitted state.** By construction — that is what `kapi commit` is
   for.
 
 ## See also

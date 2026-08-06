@@ -377,7 +377,7 @@ export default function ProjectExplorer({
         The <code>.kapi/work/store.db</code> store is <strong>regenerable</strong> — delete it and a
         re-run rebuilds it from what you committed. The one thing it can&rsquo;t rebuild is your{" "}
         <strong>authored decisions</strong>: approving a translation lands in{" "}
-        <code>.kapi/context/decisions/</code>, one JSONL shard per document, which you keep in git alongside
+        <code>.kapi/state/</code>, one JSONL shard per document, which you keep in git alongside
         your sources.
       </p>
 

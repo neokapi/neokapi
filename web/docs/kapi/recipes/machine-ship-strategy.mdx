@@ -24,7 +24,7 @@ it. The gate model is [the kapi loop](/kapi/convergence); the schema is the
 | ----------- | ------------------------------------------------------------- | ------------------------------------------------- |
 | Contractual | A person approves every unit                                   | `{ translated: 100, reviewed: { pct: 100, by: human } }` |
 | Mid-tier    | Everything translated, the important 80% human-reviewed        | `{ translated: 100, reviewed: 80 }`               |
-| Long tail   | Everything translated, AI review decisions count as reviewed   | `{ translated: 100, reviewed: { pct: 100, by: any } }` |
+| Long tail   | Everything translated, AI reviews count as reviewed   | `{ translated: 100, reviewed: { pct: 100, by: any } }` |
 
 ## The recipe
 
@@ -57,7 +57,7 @@ higher bar in every market — a `when: { collections: [Legal] }` rule with a
 `signed-off` threshold outranks the locale rules for that content because it
 is evaluated per (collection, locale) and the most specific rule wins.
 
-The `machine` tier's `by: any` only passes when review decisions exist — pair
+The `machine` tier's `by: any` only passes when reviews exist — pair
 it with an AI review step (the `review` tool in the project's flow, or an AI
 pre-review that auto-approves what it scores clean) so autonomous approvals
 are recorded under an `ai/…` identity for `kapi up` to count. Without any
@@ -96,7 +96,7 @@ kapi check --ship --json        # structured result for a job summary
 ```
 
 Two things the runner needs: the committed
-[unit record](/kapi/project-store) (`.kapi/context/decisions/`) in the checkout —
+[unit-state record](/kapi/project-store) (`.kapi/state/`) in the checkout —
 `reviewed` thresholds read their decisions from it — and nothing else, since
 gate evaluation makes no provider calls. The workflow wiring is
 [Ship gates & CI](/kapi/recipes/ship-gates-and-ci).

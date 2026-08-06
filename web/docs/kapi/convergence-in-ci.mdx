@@ -44,7 +44,7 @@ over what was produced (placeholder integrity, inline tags, do-not-translate
 terms), and a unit with a failing finding counts as *drafted*, not translated,
 so bad output can never lift a language over its gate. What a machine cannot
 decide **parks** for [review](/kapi/recipes/review-and-approve); an approval is
-recorded in the committed unit record, and the next run sees it.
+recorded in the committed unit-state record, and the next run sees it.
 
 Three commands carry the whole model, and they divide the work cleanly:
 
@@ -172,7 +172,7 @@ threaded MR note with the failing gates and findings; the full
 </Tabs>
 
 The [Ship gates & CI](/kapi/recipes/ship-gates-and-ci) recipe walks the
-gate end to end, including the committed unit record that lets a `reviewed`
+gate end to end, including the committed unit-state record that lets a `reviewed`
 threshold pass on a runner.
 
 ## Report the cost of a change on its pull request
@@ -221,8 +221,8 @@ include:
   holds the keys instead, and the job authenticates with a server token.
 - **A gate-only job needs no keys at all** — `check --ship` and `up --plan`
   read the working tree.
-- **Review decisions travel with the repo** — a `reviewed` threshold reads the
-  committed unit record under `.kapi/context/decisions/`; commit it in the PR or the runner
+- **Unit state travels with the repo** — a `reviewed` threshold reads the
+  committed unit-state record under `.kapi/state/`; commit it in the PR or the runner
   sees no approvals. A job that makes decisions runs `kapi commit` and commits
   the shards it produces, alongside the translated files. It never commits
   `.kapi/work/store.db`.
@@ -239,7 +239,7 @@ include:
   ```
 
   **Cache `.kapi/work/cache` only, never `.kapi/work/store.db`.** The store can hold
-  decisions staged since the last commit, and restoring a stale copy of those
+  unit state staged since the last commit, and restoring a stale copy of those
   onto a fresh checkout is worse than a cold rebuild — which costs only time.
   Server-connected projects skip the cache entirely; the project's context lives
   on the server.

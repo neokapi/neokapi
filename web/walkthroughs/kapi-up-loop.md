@@ -42,7 +42,7 @@ awaiting review), list the worklist with `kapi status --review`, watch
 
 ## Closing
 
-Commit `.kapi/context/decisions/` and the decisions travel with the project. On a
+Commit `.kapi/state/` and the decisions travel with the project. On a
 server-connected project the same loop runs on the Bowrain server — `up`
 pushes, streams, and pulls; the review queue is the team's instead of a local
 worklist. The verbs do not change.

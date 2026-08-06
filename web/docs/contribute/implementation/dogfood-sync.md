@@ -9,7 +9,7 @@ neokapi translates its own surfaces with kapi (the root `kapi.yaml` recipe).
 The next step in the dogfood is to become the **first real workspace on
 Bowrain**: push those surfaces to a bowrain-server, let the nb drafts land in
 the governed review queue, and round-trip approved segments back into
-`.kapi/context/memory/*.memory.json`. This exercises the paid product — the review loop, the
+`.kapi/memory/*.memory.json`. This exercises the paid product — the review loop, the
 signup/claim funnel, connectors — on a real, continuously changing corpus
 before any external user touches it (roadmap epic 017-F, decision D2).
 
@@ -55,7 +55,7 @@ skips at the job gate — no secret is read and no content moves. Re-comment the
 
 `kapi push` sends each surface; `translate-ai` nb output lands as drafts in the
 governed review queue (epic 006); approved segments come back via `kapi pull` →
-`kapi extract/merge` → a refreshed `.kapi/context/memory/*.memory.json` commit. The nightly job
+`kapi extract/merge` → a refreshed `.kapi/memory/*.memory.json` commit. The nightly job
 keeps the server current; human review closes the loop.
 
 [CLAUDE.md, "Dogfooding kapi"]: the in-repo isolation contract.

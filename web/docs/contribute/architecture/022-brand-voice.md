@@ -152,7 +152,7 @@ git-owned and authoritative over what the governance *is*; at any moment exactly
 one venue *applies* it — the recipe when the project runs standalone, the
 server's rows when it runs connected. Two live sources would mean a voice that
 depends on where the loop happened to run, and a platform user quietly editing
-over a committed decision.
+over a committed profile.
 
 Until coordinates are synced to the server, a connected project's rows carry no
 coordinates, so a run there governs by `defaults.brand_voice` while a local run
@@ -178,7 +178,7 @@ With no source flag, resolution falls back to the `.kapi` project in scope: the
 voice governing the content collection that claims the file, else the recipe's
 `defaults.brand_voice` (a `BrandVoiceBinding` selecting a profile file, store
 profile, or pack — resolved relative to the project root), then a convention
-file at `<root>/.kapi/context/brand-voice.yaml` — the profile's home in the
+file at `<root>/.kapi/voice.yaml` — the profile's home in the
 committed context graph ([AD-008](008-project-model.md)) — or `<root>/brand.yaml`
 for a project that keeps it at the root. This lets `kapi brand check DRAFT.md`
 work flag-free inside a project. Locale and channel overrides
@@ -202,9 +202,9 @@ coordinates:
 
 profiles:
   - when: {}
-    voice: .kapi/context/base-voice.yaml
+    voice: .kapi/profiles/base/voice.yaml
   - when: { product: bowrain }
-    voice: .kapi/context/bowrain-voice.yaml
+    voice: .kapi/profiles/bowrain/voice.yaml
 
 content:
   - name: docs

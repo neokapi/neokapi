@@ -50,7 +50,7 @@ platform ([AD-033](033-project-state-model.md)).
 | block cache | `core/blockstore` ([AD-008](008-project-model.md)) | the content files |
 | terms | `terms/` ([AD-010](010-terminology.md)) | the committed `.terms.json` |
 | content memory | `memory/` ([AD-009](009-content-memory.md)) | the committed target files plus an optional `.memory.json` seed |
-| unit-state working set | `core/state` ([AD-033](033-project-state-model.md)) | the committed `.kapi/context/decisions/*.jsonl` shards |
+| unit-state working set | `core/state` ([AD-033](033-project-state-model.md)) | the committed `.kapi/state/*.jsonl` shards |
 | `graph_nodes`, `graph_edges` | `host/storage/graph` | the four above |
 
 Each subsystem owns its own schema and its own migration ledger
@@ -62,10 +62,10 @@ coupling: a subsystem still reaches its tables only through its own interface.
 
 `store.db` is an **index**, and every row in it is reconstructible:
 
-- `.kapi/context/terms.json` — the terms source, bound by `defaults.terms_source`.
-- `.kapi/context/memory.json` — a content-memory seed, bound by
+- `.kapi/terms.json` — the terms source, bound by `defaults.terms_source`.
+- `.kapi/memory/memory.json` — a content-memory seed, bound by
   `defaults.memory_source`.
-- `.kapi/context/decisions/*.jsonl` — the committed decision record, one shard
+- `.kapi/state/*.jsonl` — the committed unit-state record, one shard
   per document.
 - the content files themselves — source and target.
 
@@ -79,11 +79,11 @@ from are committed one directory over.
 `.kapi/work/cache/` means *free to delete*: parse cache, extraction batches,
 collection overlays, sync cache. `store.db` does not qualify, and by exactly one
 margin. Between a review decision landing and `kapi commit` materializing it to
-`.kapi/context/decisions/`, the working set inside `store.db` holds the **only**
+`.kapi/state/`, the working set inside `store.db` holds the **only**
 copy of that staged decision.
 
 So the cost of losing the file is bounded and stated precisely: at most the
-decisions staged since the last commit. Everything else rebuilds. `rm -rf
+unit state staged since the last commit. Everything else rebuilds. `rm -rf
 .kapi/work/cache` remains completely free, and keeping the two apart is what lets
 that sentence stay true.
 

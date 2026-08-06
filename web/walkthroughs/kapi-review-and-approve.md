@@ -23,7 +23,7 @@ and where it lands.
 A plain target file records that a translation *exists*, not that someone
 *blessed* it. So an approval can't live in the file, and it isn't derivable from
 anything. It lands in the project's committed **decision record** —
-`.kapi/context/decisions/`, one JSONL shard per document — bound to the content hash of the
+`.kapi/state/`, one JSONL shard per document — bound to the content hash of the
 exact translation it approves. Delete the caches and a re-run rebuilds them; the
 decision record is the one thing it can't, so you commit it with your sources.
 
@@ -35,13 +35,13 @@ Start from an already-translated project. `kapi status` shows `fr` translated
 100%, reviewed 0% — the machine is done, the human review is pending.
 `kapi status --review` is the worklist: every translated unit not yet approved,
 addressed by file / id / locale. `kapi apply review.jsonl` records a
-`kind:"review"` decision in the decision record, content-hash bound. The closing
+`kind:"review"` decision in the unit-state record, content-hash bound. The closing
 `kapi status` shows reviewed coverage climb — derived straight back from the
 committed decision, so a `{ reviewed: … }` gate now counts it.
 
 ## Closing
 
-Commit `.kapi/context/decisions/` and the approval travels with the project — the same
+Commit `.kapi/state/` and the approval travels with the project — the same
 loop a server-backed project runs by pushing its state to a remote instead of
 committing a file. The decision is the carrier; the caches are just speed.
 

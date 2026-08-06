@@ -144,13 +144,13 @@ projection, not a two-way sync:
 
 A project that binds nothing still resolves, through a fallback ladder:
 
-1. `<root>/.kapi/context/terms.json` — the conventional home, inside the
+1. `<root>/.kapi/terms.json` — the conventional home, inside the
    committed context graph ([AD-008](008-project-model.md)).
 2. `<root>/terms.json` — a project that keeps its terms at the repository root.
 
 An explicit `defaults.terms_source` wins over both, and binds any path. The
 conventional home comes first because that is where the rest of the project's
-context lives — the brand voice, the memory seeds, the decision record — and
+context lives — the brand voice, the memory seeds, the unit-state record — and
 terms are one node of that graph rather than a loose file beside it. Both rungs
 are committed and both reach review, which is the one thing the terms source
 exists to do; the ordering is about where a reader expects to find it, not about
@@ -185,7 +185,7 @@ edited through the app; git is not in the loop.
 > ([AD-009](009-content-memory.md)), which is *derived state* — a rebuildable
 > leverage cache kept out of git scope. Terminology is *source*: authored,
 > reviewed, committed. And unlike the project *state* store
-> ([AD-033](033-project-state-model.md)), whose interactive review decisions
+> ([AD-033](033-project-state-model.md)), whose interactive review outcomes
 > warrant a deferred `Pending()`/`Commit` discipline, the terms source is simply
 > edited in place and projected.
 

@@ -30,9 +30,9 @@ A connected project is a kapi project whose recipe declares a `server:` block:
 
 - **`kapi.yaml`** — the recipe (committed): languages, content collections,
   flows, plugins, brand, and the server connection
-- **`.kapi/context/terms.json`, `.kapi/context/memory.json`** — the context sources the recipe
+- **`.kapi/terms.json`, `.kapi/memory/memory.json`** — the context sources the recipe
   binds (committed)
-- **`.kapi/context/decisions/*.jsonl`** — the unit-decision record (committed)
+- **`.kapi/state/*.jsonl`** — the unit-state record (committed)
 - **`.kapi/flows/`** — optional file-per-flow definitions (committed)
 - **`.kapi/work/store.db`** — the local index over all of the above (gitignored,
   rebuilt from them)
