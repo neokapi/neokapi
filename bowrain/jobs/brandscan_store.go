@@ -19,6 +19,10 @@ import (
 type BrandScanJobStore interface {
 	CreateBrandScanJob(ctx context.Context, job *BrandScanJob) error
 	GetBrandScanJob(ctx context.Context, id string) (*BrandScanJob, error)
+	// ListBrandScanJobs returns a workspace's scans, newest first, capped at
+	// limit. A scan carries no project, collection or coordinate, so the
+	// workspace slug is the whole of its scope.
+	ListBrandScanJobs(ctx context.Context, workspaceSlug string, limit int) ([]*BrandScanJob, error)
 	// UpdateBrandScanJobProgress records a progress milestone (0-100) with a
 	// short machine-readable message (e.g. "drafting-voice"). Guarded by the
 	// claim epoch (status 'processing' AND claim_epoch == epoch) so a stale
@@ -189,6 +193,39 @@ func (s *brandScanJobStore) GetBrandScanJob(ctx context.Context, id string) (*Br
 		j.Result = json.RawMessage(result)
 	}
 	return &j, nil
+}
+
+func (s *brandScanJobStore) ListBrandScanJobs(ctx context.Context, workspaceSlug string, limit int) ([]*BrandScanJob, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+brandScanJobColumns+` FROM brand_scan_jobs
+		 WHERE workspace_slug = $1 ORDER BY created_at DESC LIMIT $2`, workspaceSlug, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list brand-scan jobs: %w", err)
+	}
+	defer rows.Close()
+
+	var out []*BrandScanJob
+	for rows.Next() {
+		var j BrandScanJob
+		var status string
+		var request, result []byte
+		if err := rows.Scan(
+			&j.ID, &j.WorkspaceID, &j.WorkspaceSlug, &status, &j.Progress, &j.Message,
+			&request, &result, &j.Error, &j.Attempts, &j.ClaimEpoch, &j.TokensUsed,
+			&j.CreatedAt, &j.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan brand-scan job: %w", err)
+		}
+		j.Status = BrandScanJobStatus(status)
+		j.Request = json.RawMessage(request)
+		if len(result) > 0 {
+			j.Result = json.RawMessage(result)
+		}
+		out = append(out, &j)
+	}
+	return out, rows.Err()
 }
 
 func (s *brandScanJobStore) UpdateBrandScanJobProgress(ctx context.Context, id string, epoch int64, progress int, message string) error {
