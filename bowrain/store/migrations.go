@@ -33,8 +33,8 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // ran on live databases and were then folded into the v1 baseline. They are
 // listed because a retired number stays spent forever: a live database records
 // them as applied, so a new migration reusing 3 or 4 would be silently skipped.
-// That postmortem is why a consolidation numbers its baseline above the whole
-// range rather than restarting at 1.
+// That is why a consolidation numbers its baseline above the whole range
+// rather than restarting at 1.
 //
 // Versions 16-19 were appended after the first consolidation and are now folded
 // in turn, so the rule the drift tests enforce — a consolidated subsystem

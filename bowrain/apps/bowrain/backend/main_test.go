@@ -16,13 +16,12 @@ import (
 // templateStorePath is a content-store database whose schema is already built:
 // the migration chain replayed exactly once, for the whole package.
 //
-// Building that schema is what this suite spends its time on. Under -race the
-// pure-Go SQLite parser is instrumented, so parsing the store's migration SQL
-// costs ~0.4s — per test, since every test opened its own :memory: store and
-// replayed the whole chain. Three quarters of the suite's CPU went into
-// building the same schema a couple of hundred times, and the total crossed the
-// 120s test timeout on CI (a slower machine than a developer's), which is how a
-// suite where no single test is slow, and none hangs, came to fail by timeout.
+// Building that schema is what this suite would otherwise spend its time on.
+// Under -race the pure-Go SQLite parser is instrumented, so parsing the store's
+// migration SQL costs ~0.4s — and a test that opens its own :memory: store pays
+// it again. Across a couple of hundred tests that is three quarters of the
+// suite's CPU, and enough to cross the 120s test timeout on CI while no single
+// test is slow and none hangs.
 //
 // A file-backed template costs one build and a file copy per test. The copy is
 // a fresh database on disk, so tests stay as isolated as they were with
