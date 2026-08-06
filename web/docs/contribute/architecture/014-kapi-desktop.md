@@ -60,7 +60,7 @@ apps/kapi-desktop/
 │   ├── runner.go            # flow execution with event streaming
 │   ├── credentials.go       # OS keychain wrapper
 │   ├── plugins.go           # plugin search, install, update
-│   ├── tm.go / termbase.go  # content-memory and terminology operations
+│   ├── memory.go / termbase.go  # content-memory and terminology operations
 │   └── sample/              # bundled sample project
 ├── frontend/                # React 19 + Vite + TailwindCSS
 │   ├── bindings/            # Wails-generated TypeScript

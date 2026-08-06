@@ -12,7 +12,7 @@ import TabItem from "@theme/TabItem";
 import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed";
 import CsvTable from "@site/src/components/CsvTable";
 
-export const glossaryCsv = `source,target,domain
+export const termsCsv = `source,target,domain
 password,mot de passe,security
 log in,se connecter,ui
 dashboard,tableau de bord,ui
@@ -24,7 +24,7 @@ settings,paramètres,ui`;
 
 kapi keeps terms in a [terms bundle](/reference/serialization/terms) (`terms.json`). To bring in a list your team already maintains elsewhere, import it across the boundary — a spreadsheet exported to CSV, for example:
 
-<CsvTable csv={glossaryCsv} caption="glossary.csv" />
+<CsvTable csv={termsCsv} caption="terms.csv" />
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -50,7 +50,7 @@ The assistant looks up approved terms before it writes (`kapi terms lookup`), ru
 Import once into a named terms store, verify, then check deliveries:
 
 ```bash
-kapi terms import glossary.csv --name product-terms \
+kapi terms import terms.csv --name product-terms \
   --format csv --header -s en -t fr                 # once; persists across sessions
 kapi terms lookup "log in" --name product-terms -s en -t fr
 kapi exec term-check messages_fr.json \

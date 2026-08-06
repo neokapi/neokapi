@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: ksed
-description: ksed applies sed-style substitutions to the translatable text inside any supported format, then writes the document back in the same format with its structure intact.
+description: ksed applies sed-style substitutions to the text inside any supported format, then writes the document back in the same format with its structure intact.
 keywords: [ksed, sed, substitution, replace, docx, json, xliff, multilingual content]
 ---
 
