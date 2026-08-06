@@ -1,15 +1,20 @@
-# Customer #1 dogfood sync — neokapi's own content → bowrain.cloud.
+# Customer #1 dogfood — neokapi's own content, converged on bowrain.cloud.
+#
+# This is the workflow the product tells everyone else to write, run against the
+# repository that builds the product: install the CLI with setup-kapi, run the
+# convergence verb with kapi-action, commit what came back. There is nothing
+# bespoke left in it, and that is the point — a step here that a customer could
+# not copy is a step the product is missing.
 #
 # INERT BY DEFAULT (roadmap epic 017-F, decision D2). Every job is gated on the
-# repo variable DOGFOOD_SYNC_ENABLED == 'true', so until the founder activates
-# it (see web/docs/contribute/implementation/dogfood-sync.md) this workflow is a
+# repo variable DOGFOOD_SYNC_ENABLED == 'true', so until the founder arms it
+# (see web/docs/contribute/implementation/dogfood-sync.md) this workflow is a
 # no-op: scheduled runs and manual dispatches evaluate the gate and skip.
 #
-# Activation checklist:
-#   1. Uncomment + fill the `server:` block in kapi.yaml (compound project URL).
-#   2. Add repo secret  BOWRAIN_AUTH_TOKEN  (from `kapi auth token` after signup).
-#   3. Set   repo variable  DOGFOOD_SYNC_ENABLED = true.
-# Deactivate at any time by unsetting DOGFOOD_SYNC_ENABLED — fully reversible.
+# Arming it needs two settings that are not in this file:
+#   * repo secret   BOWRAIN_AUTH_TOKEN     — a bwt_ workspace API token
+#   * repo variable DOGFOOD_SYNC_ENABLED   — set to 'true'
+# Unset the variable to disarm; no secret is read and no content moves.
 
 name: Dogfood Sync
 
@@ -18,12 +23,8 @@ on:
     - cron: "0 3 * * *" # 03:00 UTC nightly
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: "Plan only (kapi status + push --dry-run), move nothing"
-        type: boolean
-        default: false
-      converge:
-        description: "Also run kapi up (server AI convergence — burns credits). Off by default: the nightly job only transports content."
+      plan:
+        description: "Plan only: report pending work, content-memory leverage and a token estimate, and change nothing"
         type: boolean
         default: false
 
@@ -33,92 +34,54 @@ concurrency:
 
 permissions:
   contents: read
-  # setup-node-ui installs @neokapi scoped packages from npm.pkg.github.com.
-  packages: read
 
 jobs:
-  sync:
+  converge:
     # The single gate. No secret is referenced and no content moves unless the
     # founder has explicitly armed the dogfood by setting this repo variable.
     if: ${{ vars.DOGFOOD_SYNC_ENABLED == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    env:
-      # Real dogfood workflow: this is the ONE in-repo kapi invocation that binds
-      # the root recipe (CLAUDE.md isolation contract) — so no KAPI_NO_PROJECT.
-      BOWRAIN_AUTH_TOKEN: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
+    timeout-minutes: 45
+    permissions:
+      # kapi-action commits what the loop pulled back (approved wording, fresh
+      # target catalogs) to the branch it ran on.
+      contents: write
+      # setup-node-ui installs @neokapi scoped packages from npm.pkg.github.com.
+      packages: read
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up Go
-        uses: actions/setup-go@v7
+      # This is the ONE in-repo kapi invocation that binds the root recipe (the
+      # isolation contract in CLAUDE.md), so nothing here sets KAPI_NO_PROJECT.
+      # setup-kapi installs the released CLI and the bowrain plugin from the
+      # registry — the same path a customer takes — rather than building either
+      # from this checkout, which is what makes the run a test of the product
+      # and not of the working tree.
+      - name: Install kapi and the bowrain plugin
+        uses: neokapi/setup-kapi@v1
         with:
-          go-version-file: go.mod
-          cache: true
+          plugins: bowrain
+          auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
 
-      - name: Build kapi + the kapi-bowrain plugin
-        run: make build build-bowrain-plugin
-
-      # Five of the recipe's collections declare i18n/**/*.kbf.json catalogs
-      # that neokapi-i18n extracts from React source. They are build artifacts,
-      # gitignored by design, so a bare push from a clean checkout carried
-      # NOTHING for them — eleven collections declared, six with content, every
-      # night. Extracting first is what makes the sync carry the whole project.
-      #
-      # Source catalogs only (l10n-extract-source, not l10n): a push needs the
-      # source side, and target-language drift must never gate it.
+      # The one thing kapi cannot do for itself. Five collections declare
+      # i18n/**/*.kbf.json catalogs that the neokapi-i18n extractor produces
+      # from React source; they are build artifacts, gitignored by design, so a
+      # bare run from a clean checkout would carry nothing for them. Stage 1
+      # only (source catalogs) — the target side is the loop's job, and target
+      # drift must never gate a push.
       - uses: ./.github/actions/setup-node-ui
 
-      - name: Extract the source catalogs a push carries
-        run: make l10n-extract-source
+      - name: Extract the source catalogs the loop carries
+        run: make l10n-extract
 
-      - name: Install the kapi-bowrain plugin for discovery
-        # kapi discovers plugins from $KAPI_PLUGINS_DIR/<name>/{binary,manifest.json},
-        # where <name> is the manifest's plugin name ("bowrain"). Stage the built
-        # binary + its manifest under that layout and export the dir for the
-        # subsequent steps (GITHUB_ENV persists it across steps).
-        run: |
-          PLUGDIR="$RUNNER_TEMP/kapi-plugins"
-          mkdir -p "$PLUGDIR/bowrain"
-          cp bin/kapi-bowrain "$PLUGDIR/bowrain/"
-          cp bowrain/plugin/cmd/kapi-bowrain/manifest.json "$PLUGDIR/bowrain/"
-          echo "KAPI_PLUGINS_DIR=$PLUGDIR" >> "$GITHUB_ENV"
-          ./bin/kapi plugins list --plugins-dir "$PLUGDIR" || KAPI_PLUGINS_DIR="$PLUGDIR" ./bin/kapi plugins list
-
-      - name: Guard — recipe must declare a server block
-        run: |
-          if ! grep -qE '^\s*server:' kapi.yaml; then
-            echo "::error::DOGFOOD_SYNC_ENABLED is set but kapi.yaml has no active server: block. Uncomment it (see the recipe footer) before arming the sync." >&2
-            exit 1
-          fi
-
-      - name: kapi status
-        run: ./bin/kapi status
-
-      # Default: transport only (kapi push). converge: manual in the recipe means
-      # a push never auto-starts a server AI run, so the nightly job keeps content
-      # synced without burning credits. Server AI convergence over the ~18.8k-block
-      # corpus is opt-in (the `converge` dispatch input → kapi up) and should only
-      # be run once the server content memory is seeded and/or a BYO AI key is set.
-      - name: kapi push (transport)
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: ./bin/kapi push
-
-      - name: kapi push --dry-run (plan)
-        if: ${{ github.event.inputs.dry_run == 'true' }}
-        run: ./bin/kapi push --dry-run
-
-      - name: kapi up (server convergence — opt-in, burns credits)
-        if: ${{ github.event.inputs.converge == 'true' && github.event.inputs.dry_run != 'true' }}
-        run: ./bin/kapi up
-
-      - name: Summary
-        if: always()
-        run: |
-          {
-            echo "## Dogfood sync"
-            echo ""
-            echo '```'
-            ./bin/kapi status || true
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+      # `kapi up` is the whole loop: the recipe declares the languages, the flow
+      # and the ship gates, and the run pushes, converges on the server against
+      # the workspace's shared content memory and terms, and pulls the results
+      # back. Parked work is normal pending work, so fail-on-parked stays off.
+      - name: kapi up
+        uses: neokapi/kapi-action@v1
+        with:
+          command: up
+          plan: ${{ inputs.plan || 'false' }}
+          commit: true
+          commit-message: "chore(l10n): pull converged content from bowrain"

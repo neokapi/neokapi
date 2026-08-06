@@ -1,0 +1,170 @@
+name: l10n
+
+# The one place derived multilingual artifacts are regenerated in CI.
+#
+# It replaces five: two inline steps in ci.yml (frontend, kapi-desktop), the
+# emails-landing-l10n job beside them, and the l10n-drift + docs-l10n-drift jobs
+# in reference-data-drift.yml. Each carried its own `contents: write`, its own
+# PR-head checkout dance and its own subset of the same `make l10n` graph; the
+# subsets did not add up to the whole, which is how a surface could go stale
+# between them.
+#
+# What it asserts: every committed derived artifact is exactly what the current
+# source plus the committed context under .kapi/ produce. That is a
+# generated-vs-source gate. It is NOT a translation-coverage gate and must never
+# become one — an English change that leaves nb behind is pending work, not a
+# build break (CLAUDE.md, "Target-language drift must never block the build").
+#
+# On a same-repo pull request the drift is committed back rather than failed:
+# regeneration is deterministic, so asking a human to run `make l10n` and push
+# is asking them to be a build step. Fork PRs and pushes to main keep the strict
+# gate. See scripts/l10n-autofix.sh.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # The recipe and the committed context it reads. The context is flat by
+      # domain now; .kapi/work/ is the derived store and .kapi/state/ is unit
+      # state, so neither belongs in a regeneration trigger.
+      - "kapi.yaml"
+      - ".kapi/terms.json"
+      - ".kapi/voice.yaml"
+      - ".kapi/memory/**"
+      - ".kapi/profiles/**"
+      # Sources the extractors read.
+      - "apps/kapi-desktop/frontend/src/**"
+      - "packages/ui/src/**"
+      - "packages/flow-editor/src/**"
+      - "packages/status-views/src/**"
+      - "bowrain/packages/app/src/**"
+      - "bowrain/packages/ui/src/**"
+      - "bowrain/apps/web/src/**"
+      - "bowrain/apps/bowrain/frontend/src/**"
+      - "bowrain/apps/ctrl/src/**"
+      - "bowrain/apps/pulse/src/**"
+      - "bowrain/emails/src/**"
+      - "bowrain/web/landing/src/**"
+      - "bowrain/mailer/subjects/en.json"
+      - "harness/demos/*/demo.yaml"
+      # Go sources behind the two generated inventories (tool/format metadata
+      # and the cobra command tree).
+      - "core/**/*.go"
+      - "providers/**/*.go"
+      - "memory/**/*.go"
+      - "terms/**/*.go"
+      - "cli/**/*.go"
+      - "host/i18n/**"
+      # The extractor and compiler themselves.
+      - "packages/i18n-react/**"
+      - "packages/kapi-format/**"
+      - "pnpm-lock.yaml"
+      # The gate's own machinery.
+      - "Makefile"
+      - "scripts/l10n-autofix.sh"
+      - ".github/workflows/l10n.yml"
+  pull_request:
+    # GitHub Actions does not expand YAML anchors, so this list is duplicated
+    # rather than aliased. Keep the two in step.
+    paths:
+      # The recipe and the committed context it reads. The context is flat by
+      # domain now; .kapi/work/ is the derived store and .kapi/state/ is unit
+      # state, so neither belongs in a regeneration trigger.
+      - "kapi.yaml"
+      - ".kapi/terms.json"
+      - ".kapi/voice.yaml"
+      - ".kapi/memory/**"
+      - ".kapi/profiles/**"
+      # Sources the extractors read.
+      - "apps/kapi-desktop/frontend/src/**"
+      - "packages/ui/src/**"
+      - "packages/flow-editor/src/**"
+      - "packages/status-views/src/**"
+      - "bowrain/packages/app/src/**"
+      - "bowrain/packages/ui/src/**"
+      - "bowrain/apps/web/src/**"
+      - "bowrain/apps/bowrain/frontend/src/**"
+      - "bowrain/apps/ctrl/src/**"
+      - "bowrain/apps/pulse/src/**"
+      - "bowrain/emails/src/**"
+      - "bowrain/web/landing/src/**"
+      - "bowrain/mailer/subjects/en.json"
+      - "harness/demos/*/demo.yaml"
+      # Go sources behind the two generated inventories (tool/format metadata
+      # and the cobra command tree).
+      - "core/**/*.go"
+      - "providers/**/*.go"
+      - "memory/**/*.go"
+      - "terms/**/*.go"
+      - "cli/**/*.go"
+      - "host/i18n/**"
+      # The extractor and compiler themselves.
+      - "packages/i18n-react/**"
+      - "packages/kapi-format/**"
+      - "pnpm-lock.yaml"
+      # The gate's own machinery.
+      - "Makefile"
+      - "scripts/l10n-autofix.sh"
+      - ".github/workflows/l10n.yml"
+
+# Never cancel a push to main; supersede stale PR runs.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  catalogs:
+    name: Derived catalogs are fresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # contents: write is what lets the auto-fix push the regenerated catalogs
+    # back to a same-repo PR branch. It is scoped to this job, which runs no
+    # project code beyond the extractors and kapi itself — the reason the gate
+    # moved out of the frontend and desktop jobs, which also run `vp install`
+    # and a full test suite on PR content.
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Same-repo PRs check out the PR head branch (not the ephemeral merge
+          # ref) so the auto-fix can commit and push to it. Fork PRs and pushes
+          # keep the default checkout ('' = unset).
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref || '' }}
+
+      # Stages 1 and 4 are node (the neokapi-i18n extractor and compiler);
+      # stages 2 and 3 are kapi, which links SQLite with FTS5 and therefore
+      # needs libicu at build time.
+      - uses: ./.github/actions/setup-node-ui
+
+      - uses: ./.github/actions/setup-go-modules
+
+      - name: Install libicu (kapi fts5 build dependency)
+        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+
+      - name: Regenerate every derived artifact (auto-fix on same-repo PRs)
+        env:
+          AUTOFIX_SAME_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+          AUTOFIX_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || '' }}
+        run: bash scripts/l10n-autofix.sh
+
+      # Standing, never gating. `kapi status` reports coverage per collection
+      # and locale; low numbers are pending work by design, so this step reports
+      # and cannot fail the job.
+      - name: Coverage standing (informational — never gates)
+        if: always()
+        run: |
+          {
+            echo "## Multilingual standing"
+            echo ""
+            echo "Coverage is reported, never gated: a source change that outruns"
+            echo "its translations is the normal state this loop exists to absorb."
+            echo ""
+            echo '```'
+            ./bin/kapi status || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
