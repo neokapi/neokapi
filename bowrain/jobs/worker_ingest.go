@@ -53,6 +53,12 @@ func processForgeIngestJob(ctx context.Context, deps *WorkerDeps, job *Translati
 			slog.InfoContext(ctx, "forge ingest: connector removed before ingest ran; dropping job",
 				"job_id", job.ID, "connector", connectorID)
 			_, _ = deps.JobStore.FailJob(ctx, job.ID, epoch, "connector no longer exists")
+			// Announce here rather than by returning an error. The row says
+			// failed, so somebody has to hear about it — but this is a race,
+			// not an outage, and routing it through the loop's failure branch
+			// would file a normal removal in Sentry.
+			job.Status = StatusFailed
+			publishJobFailed(deps.EventBus, job, "connector no longer exists")
 			return nil
 		}
 		return retryOrFailIngest(ctx, deps, job, epoch, fmt.Errorf("load connector config: %w", err))

@@ -972,6 +972,7 @@ tm_variants.workspace_id text NOT NULL
 translation_jobs.attempts integer NOT NULL DEFAULT 0
 translation_jobs.claim_epoch bigint NOT NULL DEFAULT 0
 translation_jobs.created_at timestamp with time zone NOT NULL DEFAULT now()
+translation_jobs.created_by text NOT NULL DEFAULT ''::text
 translation_jobs.deferrals integer NOT NULL DEFAULT 0
 translation_jobs.done_blocks integer NOT NULL DEFAULT 0
 translation_jobs.error text NOT NULL DEFAULT ''::text

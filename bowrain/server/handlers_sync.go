@@ -261,6 +261,10 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 			Model:         ref.Key,         // manifest blob key
 			PushID:        pushID,
 			Status:        jobs.StatusQueued,
+			// The manifest already names the actor for the push-completed
+			// event; the row needs it too, so a push that fails reaches the
+			// person whose `kapi push` is waiting on it.
+			CreatedBy: manifest.ActorID,
 		}
 		if err := s.JobStore.CreateJob(c.Request().Context(), job); err != nil {
 			return apiErr(c, http.StatusInternalServerError, "failed to create push job")
