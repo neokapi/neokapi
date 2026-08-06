@@ -591,14 +591,14 @@ func segmentSpans(b *model.Block) []SegmentSpan {
 
 // mediaView builds the structured view of a Media leaf from its storage handles
 // and metadata (the bytes themselves never ride the tree — HasData just records
-// that inline Data is present).
+// that this process can read them, inline or deferred).
 func mediaView(m *model.Media) *MediaView {
 	return &MediaView{
 		MimeType: m.MimeType,
 		Filename: m.Filename,
 		URI:      m.URI,
 		BlobKey:  m.BlobKey,
-		HasData:  len(m.Data) > 0,
+		HasData:  m.HasContent(),
 		Size:     m.Size,
 	}
 }

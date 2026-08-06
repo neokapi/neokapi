@@ -105,8 +105,13 @@ func resolveMediaBytes(m *model.Media) (data []byte, mimeType string, err error)
 	}
 	mimeType = m.MimeType
 	switch {
-	case len(m.Data) > 0:
-		return m.Data, mimeType, nil
+	case m.HasContent():
+		// Inline bytes, or a deferred slice still backed by its document.
+		data, rerr := m.Bytes()
+		if rerr != nil {
+			return nil, "", fmt.Errorf("aiprovider: read media %q: %w", m.ID, rerr)
+		}
+		return data, mimeType, nil
 	case isLocalPath(m.URI):
 		b, rerr := os.ReadFile(m.URI)
 		if rerr != nil {

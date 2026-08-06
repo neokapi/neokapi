@@ -101,6 +101,23 @@ func fromCachedAnnotations(cm map[string]cachedAnno) map[string]model.Payload {
 	return out
 }
 
+// cacheableMedia returns the Media as the cache must record it. A deferred
+// slice — a package reader's zip-backed media — is materialized into a copy,
+// because the accessor is bound to the document being parsed and would be dead
+// by the time the record is replayed. The copy keeps the live part deferred, so
+// only the caching run pays for the bytes.
+func cacheableMedia(m *model.Media) *model.Media {
+	if m == nil || m.Open == nil || len(m.Data) > 0 {
+		return m
+	}
+	rec := *m
+	rec.Open = nil
+	if data, err := m.Bytes(); err == nil {
+		rec.Data = data
+	}
+	return &rec
+}
+
 func toCachedParts(parts []*model.Part) []cachedPart {
 	out := make([]cachedPart, 0, len(parts))
 	for _, p := range parts {
@@ -116,7 +133,7 @@ func toCachedParts(parts []*model.Part) []cachedPart {
 		case *model.Data:
 			cp.Data = r
 		case *model.Media:
-			cp.Media = r
+			cp.Media = cacheableMedia(r)
 		case *model.GroupStart:
 			cp.GStart = r
 		case *model.GroupEnd:

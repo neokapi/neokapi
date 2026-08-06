@@ -358,16 +358,23 @@ func pseudoConfigFingerprint(cfg *PseudoConfig) string {
 // the image with a clearly-visible watermarked variant (tint + border + band)
 // and pseudo-translates the alt-text. It is best-effort — non-image media, or a
 // transform/decode failure, leaves the part unchanged. Bytes come from the
-// Media's inline Data or, for a URI reference, the source file (read here
-// because pseudo-localization is an explicit pixel transform, distinct from the
-// OCR path that keeps image bytes out of the host).
+// Media's own content — inline or deferred — or, for a URI reference, the
+// source file (read here because pseudo-localization is an explicit pixel
+// transform, distinct from the OCR path that keeps image bytes out of the host).
 func pseudoLocalizeMedia(part *model.Part, cfg *PseudoConfig) {
 	m, ok := part.Resource.(*model.Media)
 	if !ok || m == nil || !isImageMedia(m) {
 		return
 	}
-	data := m.Data
-	if len(data) == 0 && m.URI != "" {
+	var data []byte
+	switch {
+	case m.HasContent():
+		b, err := m.Bytes()
+		if err != nil {
+			return
+		}
+		data = b
+	case m.URI != "":
 		b, err := os.ReadFile(m.URI)
 		if err != nil {
 			return
@@ -381,7 +388,10 @@ func pseudoLocalizeMedia(part *model.Part, cfg *PseudoConfig) {
 	if err != nil {
 		return
 	}
+	// The watermarked image replaces whatever the slice pointed at, so any
+	// deferred accessor into the source document is now stale.
 	m.Data = out
+	m.Open = nil
 	m.MimeType = "image/png"
 	m.Size = int64(len(out))
 	if m.Properties == nil {
