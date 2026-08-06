@@ -5,7 +5,7 @@ sidebar_position: 1
 
 # kapi init
 
-Initialize a new Bowrain project in the current directory. Creates a `kapi.yaml` recipe at the project root and a sibling `.kapi/` directory holding the project's context — terms, content memory, brand voice and review decisions — with everything derived confined to `.kapi/work/`.
+Initialize a new Bowrain project in the current directory. Creates a `kapi.yaml` recipe at the project root and a sibling `.kapi/` directory holding the project's context — terms, content memory, brand voice and unit state — with everything derived confined to `.kapi/work/`.
 
 ## Usage
 
@@ -58,7 +58,7 @@ kapi init --server https://app.bowrain.cloud --project abc123
 
 1. Checks that no `kapi.yaml` recipe and no `.kapi/` directory already exist (fails fast if they do)
 2. Writes the `kapi.yaml` recipe at the project root
-3. Creates the `.kapi/` directory with `flows/`, `context/`, `manifest.yaml`, and an empty `work/cache/`
+3. Creates the `.kapi/` directory with `flows/`, `memory/`, `state/`, `manifest.yaml`, and an empty `work/cache/`
 4. Adds the example `pseudo` flow at `.kapi/flows/pseudo.yaml`
 5. Adds the ignore rule for `.kapi/work/` and `.kapi/filters.local.json` — the rest of `.kapi/` is committed
 6. Optionally creates a project on the Bowrain Server and writes the `server:` block to the recipe

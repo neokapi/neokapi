@@ -18,12 +18,15 @@ my-app/
 │   ├── filters.local.json      # personal overrides (gitignored)
 │   ├── flows/                  # optional file-per-flow definitions
 │   │   └── pseudo.yaml
-│   ├── context/                # the context graph
-│   │   ├── terms.json          # terms (bound by defaults.terms_source)
-│   │   ├── memory.json         # content memory (bound by defaults.memory_source)
-│   │   ├── brand-voice.yaml    # the voice profile
-│   │   └── decisions/          # the unit-state record, one shard per document
-│   │       └── src-locales-en-messages.jsonl
+│   ├── terms.json              # terms (bound by defaults.terms_source)
+│   ├── voice.yaml              # the voice profile
+│   ├── memory/                 # content-memory bundles
+│   │   └── memory.json         # the primary (bound by defaults.memory_source)
+│   ├── profiles/               # per-profile governance overrides
+│   │   └── bowrain/
+│   │       └── voice.yaml
+│   ├── state/                  # the unit-state record, one shard per document
+│   │   └── src-locales-en-messages.jsonl
 │   └── work/                   # gitignored — everything derived
 │       ├── store.db            # the local index over everything committed
 │       ├── vault/              # withheld redaction originals (local-only)
@@ -42,8 +45,8 @@ my-app/
 Ownership zones at the project root:
 
 - **`kapi.yaml`** — hand-edited, committed to git. The recipe is the single source of truth for project configuration. Its fixed, conventional filename means every editor and code host (GitHub, GitLab) applies YAML syntax highlighting to diffs and previews with no configuration.
-- **`.kapi/`** — the committed context graph: `terms.json`, `memory.json` and the brand-voice profile, reviewed through `git diff` like any other source file. `.kapi/` is committed in full; only `.kapi/work/` is gitignored.
-- **`.kapi/state/*.jsonl`** — the unit-state record, committed. `kapi commit` publishes staged review decisions into it.
+- **`.kapi/`** — the committed context graph, flat: `terms.json`, `memory/` and `voice.yaml`, with per-profile overrides under `profiles/<name>/`, reviewed through `git diff` like any other source file. `.kapi/` is committed in full; only `.kapi/work/` is gitignored.
+- **`.kapi/state/*.jsonl`** — the unit-state record, committed. `kapi commit` publishes staged unit state into it.
 - **`.kapi/work/store.db`** — kapi-owned, gitignored. One SQLite file holding every subsystem's tables — block cache, terms store, content memory, the working set of unit state staged since the last `kapi commit`, and the project's context graph. It is an index over the committed sources above and rebuilds from them.
 - **`.kapi/work/cache/`** — CLI-owned, gitignored. Everything cheaply regenerable: the kapi sync cache, extraction intermediates, overlay layers. Safe to delete at any time.
 - **`.kapi/flows/*.yaml`** — optional file-per-flow definitions, hand-edited, committed. Bowrain reads these in addition to inline `flows:` declared on the recipe.

@@ -23,7 +23,7 @@ interface.
 
 Content memory is the project's **recycle** corpus: a pool of source→target
 pairs reused to pre-fill and leverage future translation. It is not the carrier
-of workflow **decisions** — whether a person has reviewed or signed off a
+of **unit state** — whether a person has reviewed or signed off a
 particular target lives in the project's unit-state record
 ([AD-033](033-project-state-model.md)), not here. Adding a pair to
 the memory (`kapi apply` with `kind:"memory"`) is recycle leverage; it does not

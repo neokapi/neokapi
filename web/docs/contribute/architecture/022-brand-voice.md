@@ -228,6 +228,24 @@ nothing about leaves the base voice in place. The axis may also appear in a
 `when:`, and the two roles compose: matching decides which voice, the override
 refines the register within it.
 
+A profile has a home on disk, and the recipe does not have to name it.
+`.kapi/profiles/<name>/` holds what that profile overrides — `voice.yaml`, and
+`terms.json` where the vocabulary differs too — where `<name>` is the `when:`
+values joined by a hyphen, in alphabetical order of their axes (`{product:
+bowrain}` → `bowrain`; `{product: bowrain, market: de}` → `de-bowrain`; the
+empty `when:` has no directory, because its files are the flat default in
+`.kapi/` itself). A profile binding no `voice:`/`terms:` is answered by that
+directory before `defaults.brand_voice` is, so `when:` alone is a complete
+profile.
+
+This is the filesystem mirroring the recipe. A recipe states its default
+governance under `defaults:` and its exceptions under `profiles:`; the default's
+files sit flat and each exception's sit in a directory of its own, so "which
+voice governs bowrain's docs" is answerable by looking. Governance is the only
+thing that splits this way — the content memory and the unit-state record stay
+top-level ([AD-008](008-project-model.md)), because a recycled translation and
+an approval are facts about a unit, true wherever it is governed from.
+
 The profile a point selects is not resolved beside the chain above — it enters
 it at the collection tier, so a step that names its own profile still wins and a
 server-governed project still ranks its bindings the same way.

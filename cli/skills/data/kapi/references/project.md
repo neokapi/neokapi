@@ -22,10 +22,11 @@ kapi init --name my-app --source-locale en --target-locale fr --target-locale de
 This writes `kapi.yaml` (the recipe) and a `.kapi/` directory. **`.kapi/` is
 committed** — it is the project's context, not scratch space. Git it like source.
 
-- **`.kapi/`** — the context graph, all committed: `terms.json`,
-  `memory.json`, `brand-voice.yaml`, and `state/*.jsonl`, the unit-decision
-  record (one shard per document). `kapi commit` publishes review decisions into
-  `decisions/`; then `git add` it like any other source file.
+- **`.kapi/`** — the context graph, all committed and flat: `terms.json`,
+  `voice.yaml`, `memory/` (the content-memory bundles, `memory.json` the
+  primary), `profiles/<name>/` (what a profile overrides), and `state/*.jsonl`,
+  the unit-state record (one shard per document). `kapi commit` publishes staged
+  unit state into `state/`; then `git add` it like any other source file.
 - **`.kapi/work/`** — everything derived, and the only gitignored path.
   `store.db` is the local index over the recipe, the context sources and the
   content files. Never read or write it directly and never commit it; go through
@@ -79,11 +80,10 @@ defaults:
     channel: [docs, landing]
 
   profiles:
-    - when: {}                       # the base voice
-      voice: .kapi/profiles/base/voice.yaml
-    - when: { product: platform }
-      voice: .kapi/profiles/platform/voice.yaml
-      terms: .kapi/profiles/platform/terms.json   # optional; falls back to defaults.terms_source
+    - when: {}                       # the base voice: .kapi/voice.yaml
+    - when: { product: platform }    # .kapi/profiles/platform/voice.yaml and
+                                     # terms.json answer by convention; bind
+                                     # `voice:`/`terms:` only to override them
 
   content:
     - name: platform-docs
