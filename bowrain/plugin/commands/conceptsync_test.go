@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -53,10 +54,21 @@ func TestChangesetURLMatchesTheWebRoute(t *testing.T) {
 	src, err := os.ReadFile(routes)
 	require.NoError(t, err,
 		"the web route table is the authority for the CLI's review link; if it moved, point this test at it")
-	assert.Contains(t, string(src), `path: "changes/$id"`,
-		"the CLI builds /<ws>/context/changes/<id>; the app must still serve it")
-	assert.NotContains(t, string(src), `path: "changesets/$id"`,
-		"nothing serves /changesets/<id> — the link the CLI used to build")
+
+	// Reduce to a bool BEFORE asserting. assert.Contains prints its haystack,
+	// and the haystack here is the whole route table — 33KB of unrelated TSX
+	// inlined as one escaped string, with the sentence explaining the breakage
+	// last. A cross-layer test earns its keep only if whoever trips it can see
+	// in one line what they broke and why it mattered; buried under forty pages
+	// of imports it reads as noise from a package they have never opened.
+	assert.True(t, strings.Contains(string(src), `path: "changes/$id"`),
+		`%s no longer declares path: "changes/$id" — kapi links /<ws>/context/changes/<id> `+
+			`after a push proposes governed terminology, so that link now 404s for everyone it reaches`,
+		routes)
+	assert.False(t, strings.Contains(string(src), `path: "changesets/$id"`),
+		`%s declares path: "changesets/$id" — that was the CLI's old broken link; `+
+			`if the app now serves it, changesetURL should be pointed back at it deliberately, not by accident`,
+		routes)
 }
 
 // recordedOp captures one op appended to a change-set during a push.
