@@ -156,12 +156,29 @@ type MCPBlastRadius struct {
 	NewViolations  int `json:"new_violations"`
 	Resolved       int `json:"resolved"`
 	Words          int `json:"words"`
+
+	// Partial says the server's walk ran out of time before scanning every
+	// block, so the counts are lower bounds. It is carried into the tool output
+	// because the consumer here is an assistant summarising the change for
+	// someone deciding whether to approve it, and "affects 900 blocks" read off
+	// a truncated scan is a smaller number than the truth with nothing marking
+	// it as such.
+	Partial bool `json:"partial,omitempty"`
+	// CountsAre spells the qualification out in words rather than leaving a
+	// bare boolean for a reader to interpret.
+	CountsAre string `json:"counts_are,omitempty"`
 }
 
 type MCPExperimentStatusOutput struct {
 	Experiments []MCPExperimentEntry `json:"experiments,omitempty"`
 	Experiment  *MCPExperimentEntry  `json:"experiment,omitempty"`
 	BlastRadius *MCPBlastRadius      `json:"blast_radius,omitempty"`
+
+	// BlastRadiusError says why the blast radius is absent. Without it, a
+	// failed radius call and a change-set that touches nothing produce the
+	// identical output — no blast_radius field — and the assistant reading it
+	// reports "no impact" for a walk that never completed.
+	BlastRadiusError string `json:"blast_radius_error,omitempty"`
 }
 
 func handleExperimentStatus(ctx context.Context, input MCPExperimentStatusInput) (*mcp.CallToolResult, MCPExperimentStatusOutput, error) {
@@ -185,14 +202,31 @@ func handleExperimentStatus(ctx context.Context, input MCPExperimentStatusInput)
 				CreatedBy: detail.CreatedBy,
 			},
 		}
-		// Blast radius is a best-effort summary alongside the detail.
-		if impact, brErr := client.GetChangesetBlastRadius(ctx, input.ChangesetID); brErr == nil {
+		// Blast radius is a best-effort summary alongside the detail — the
+		// change-set detail is still worth returning without it. But
+		// best-effort is not silent: the failure used to be dropped on the
+		// floor, and an absent blast_radius then meant either "this change
+		// touches nothing" or "we could not find out", with no way to tell
+		// which. The assistant consuming this reports the first reading, which
+		// is the more reassuring one and the wrong one.
+		impact, brErr := client.GetChangesetBlastRadius(ctx, input.ChangesetID)
+		switch {
+		case brErr != nil:
+			out.BlastRadiusError = brErr.Error()
+		default:
 			out.BlastRadius = &MCPBlastRadius{
 				TotalBlocks:    impact.TotalBlocks,
 				AffectedBlocks: impact.AffectedBlocks,
 				NewViolations:  impact.NewViolations,
 				Resolved:       impact.Resolved,
 				Words:          impact.Words,
+				Partial:        impact.Partial,
+			}
+			if impact.Partial {
+				out.BlastRadius.CountsAre = "lower bounds — the server's scan did not finish"
+				if impact.PartialReason != "" {
+					out.BlastRadius.CountsAre += " (" + impact.PartialReason + ")"
+				}
 			}
 		}
 		return nil, out, nil

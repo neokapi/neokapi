@@ -145,6 +145,70 @@ func TestHandleExperimentStatusDetail(t *testing.T) {
 	assert.Equal(t, 7, out.BlastRadius.AffectedBlocks)
 }
 
+// blastRadiusServer serves the change-set detail surface with a blast-radius
+// endpoint the caller controls, so a test can say what the server answers.
+func blastRadiusServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/{ws}/changesets/{id}", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(apiclient.ChangeSetDetail{
+			ChangeSet: apiclient.ChangeSet{ID: r.PathValue("id"), Name: "Retire cockpit", Status: "in_review"},
+			Governed:  true,
+		})
+	})
+	mux.HandleFunc("GET /api/v1/{ws}/changesets/{id}/blast-radius", handler)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// TestHandleExperimentStatusCarriesPartialBlastRadius pins the qualification on
+// a truncated scan. The server's walk has a time budget; when it runs out, the
+// counts it returns are lower bounds, and it says so with "partial". Dropping
+// that on the way through this tool hands an assistant a smaller blast radius
+// than the change really has, with nothing marking it as incomplete — and the
+// assistant is summarising the change for someone deciding whether to approve
+// it.
+func TestHandleExperimentStatusCarriesPartialBlastRadius(t *testing.T) {
+	srv := blastRadiusServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(apiclient.ChangeSetImpact{
+			TotalBlocks: 17500, AffectedBlocks: 900, Words: 12000,
+			Partial: true, PartialReason: "scan budget exhausted",
+		})
+	})
+	setupKnowledgeProject(t, srv)
+
+	_, out, err := handleExperimentStatus(context.Background(), MCPExperimentStatusInput{ChangesetID: "x-1"})
+	require.NoError(t, err)
+	require.NotNil(t, out.BlastRadius)
+	assert.Equal(t, 900, out.BlastRadius.AffectedBlocks)
+	assert.True(t, out.BlastRadius.Partial)
+	assert.Contains(t, out.BlastRadius.CountsAre, "lower bounds")
+	assert.Contains(t, out.BlastRadius.CountsAre, "scan budget exhausted")
+}
+
+// TestHandleExperimentStatusReportsBlastRadiusFailure pins the other half: a
+// blast-radius call that fails must not produce the same output as a change-set
+// that touches nothing. Both used to be a bare absent field, and "no impact" is
+// the reading an assistant takes from it — the reassuring one, and the wrong
+// one.
+func TestHandleExperimentStatusReportsBlastRadiusFailure(t *testing.T) {
+	srv := blastRadiusServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"error":"blast radius walk was cancelled"}`))
+	})
+	setupKnowledgeProject(t, srv)
+
+	_, out, err := handleExperimentStatus(context.Background(), MCPExperimentStatusInput{ChangesetID: "x-1"})
+
+	// The change-set detail is still worth returning; the radius is not silently absent.
+	require.NoError(t, err)
+	require.NotNil(t, out.Experiment)
+	assert.Nil(t, out.BlastRadius)
+	assert.NotEmpty(t, out.BlastRadiusError,
+		"a radius that could not be computed must not read as a change that affects nothing")
+}
+
 func TestHandleConceptSearchRequiresWorkspace(t *testing.T) {
 	srv := knowledgeTestServer(t)
 
