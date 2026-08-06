@@ -13,7 +13,11 @@ const CAPABILITIES = [
     body: t(
       "In-context visual preview for HTML, Markdown, MDX, and JSX; structured block editing for everything else — app strings, XLIFF, subtitles, office documents. Suggestions from memory, term highlights, and QA checks inline.",
     ),
-    detail: [t("Visual preview · 4 formats"), t("Block editing · all formats"), t("Live presence")],
+    detail: [
+      t("Visual preview · web formats"),
+      t("Block editing · all formats"),
+      t("Live presence"),
+    ],
   },
   {
     icon: ClipboardCheck,
@@ -35,9 +39,13 @@ const CAPABILITIES = [
     icon: Database,
     title: t("Terminology & content memory"),
     body: t(
-      "One termbase and one memory for the whole workspace, applied in every draft and every lookup. Import from CSV or JSON; entity-aware matching recycles past work even when names and numbers change.",
+      "One terms store and one content memory for the whole workspace, applied in every draft and every lookup. Import from CSV or JSON; entity-aware matching recycles past work even when names and numbers change.",
     ),
-    detail: [t("Shared termbase & memory"), t("CSV / JSON import"), t("Entity-aware recycling")],
+    detail: [
+      t("Shared terms & content memory"),
+      t("CSV / JSON import"),
+      t("Entity-aware recycling"),
+    ],
   },
   {
     icon: Zap,
