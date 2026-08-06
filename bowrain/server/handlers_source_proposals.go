@@ -284,13 +284,24 @@ func (s *Server) applySourceProposal(ctx context.Context, p *bstore.ProposedSour
 	return true, nil
 }
 
-// createSourceProposalTask surfaces a proposal to a source owner as a
-// source-review task, assigning it to the first project member holding
-// PermEditSource (the same owner-reach fallback create_source_review uses). Data
-// carries the proposal id so the decision path can close the task.
+// createSourceProposalTask surfaces a proposal to the project's source owners
+// as a source-review task: one task, assigned to the first eligible owner so it
+// has a name on it, and a notification to every one of them (sourceOwners —
+// same reach the change-set summons computes, at project scope). Data carries
+// the proposal id so the decision path can close the task.
+//
+// The reviewers whose approvals the change would undo are told too. Approving
+// this proposal clears the block's targets for every locale, so their finished
+// work is reopened by a decision they are not party to; hearing about it is the
+// least the summons owes them.
 func (s *Server) createSourceProposalTask(ctx context.Context, proj *platstore.Project, p *bstore.ProposedSourceChange) {
 	if s.TaskStore == nil {
 		return
+	}
+	owners := s.sourceOwners(ctx, proj)
+	var assignee string
+	if len(owners) > 0 {
+		assignee = owners[0]
 	}
 	task := &bstore.Task{
 		WorkspaceID: proj.WorkspaceID,
@@ -300,7 +311,7 @@ func (s *Server) createSourceProposalTask(ctx context.Context, proj *platstore.P
 		Status:      bstore.TaskStatusOpen,
 		Priority:    bstore.TaskPriorityNormal,
 		Title:       "Review a proposed source change",
-		AssigneeID:  s.firstSourceOwner(ctx, proj),
+		AssigneeID:  assignee,
 		CreatedBy:   "system",
 		Data: map[string]string{
 			"proposal_id": p.ID,
@@ -310,13 +321,13 @@ func (s *Server) createSourceProposalTask(ctx context.Context, proj *platstore.P
 		},
 	}
 	if err := s.TaskStore.Create(ctx, task); err != nil {
+		slog.ErrorContext(ctx, "source-proposal: failed to open the review task; the proposal is recorded with nothing in the queue",
+			"project", proj.ID, "proposal", p.ID, "error", err)
 		return
 	}
-	if task.AssigneeID != "" && s.NotificationDispatcher != nil {
-		s.NotificationDispatcher.DispatchTaskNotification(
-			ctx, task, bstore.NotificationTaskAssigned,
-			"Source change proposed", "A reviewer proposed a change to your source content")
-	}
+	s.notifySourceOwners(ctx, task, owners,
+		"Source change proposed", "A reviewer proposed a change to your source content")
+	s.notifyDemotedApprovers(ctx, task, owners, s.priorApprovers(ctx, p.ProjectID, p.Stream, p.BlockID))
 }
 
 // completeSourceProposalTasks closes the open source-review task(s) linked to a
@@ -348,24 +359,4 @@ func (s *Server) completeSourceProposalTasks(ctx context.Context, p *bstore.Prop
 				"task", t.ID, "proposal", p.ID, "error", err)
 		}
 	}
-}
-
-// firstSourceOwner returns the id of the first project member holding
-// PermEditSource, or "" if none — the owner-reach fallback for routing a source
-// proposal (matching createSourceReviewTask).
-func (s *Server) firstSourceOwner(ctx context.Context, proj *platstore.Project) string {
-	if s.AuthStore == nil {
-		return ""
-	}
-	members, err := s.AuthStore.ListProjectMembers(ctx, proj.ID)
-	if err != nil {
-		return ""
-	}
-	for _, m := range members {
-		rt, err := s.AuthStore.GetRoleTemplate(ctx, proj.WorkspaceID, m.RoleID)
-		if err == nil && rt.Permissions.Has(platauth.PermEditSource) {
-			return m.UserID
-		}
-	}
-	return ""
 }
