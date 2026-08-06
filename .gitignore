@@ -271,3 +271,6 @@ packaging/.stage/
 
 # Operator tool built ad hoc via `go run`/`go build` (bowrain/cmd/stripe-provision)
 /stripe-provision
+
+# Orphaned atomic-write temps (a crashed writer leaves .kapi-out-<rand> behind)
+.kapi-out-*
