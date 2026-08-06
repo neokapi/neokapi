@@ -31,8 +31,8 @@ func NewInitCmd(a *App) *cobra.Command {
 		Long: `Create a new kapi project with a kapi.yaml recipe and an
 adjacent .kapi/ state directory.
 
-By default kapi init scaffolds a content project that keeps your source on
-brand — a brand-voice profile, the project terms store, and a check flow, with no
+By default kapi init scaffolds a content project that keeps your source in
+voice — a voice profile, the project terms store, and a check flow, with no
 target languages. Pass --target-locale (or --framework) to make it a
 translation project instead.
 
