@@ -88,6 +88,15 @@ type ChangeSetImpact struct {
 	// and "0 blocks affected — safe to merge" is the most dangerous sentence
 	// this report can say when the truth is "we never got to look". A reader
 	// must be able to tell the two apart, so an incomplete walk says so.
+	//
+	// The flag is top-level only, and deliberately: the walk is one sequential
+	// pass over projects, so it does not under-count each project evenly. When
+	// it stops, projects it had already passed are complete, the project it was
+	// in is under-counted, and projects it never reached are ABSENT FROM
+	// Projects ENTIRELY — a project only appears once it has a hit. So under
+	// Partial the breakdown is truncated, not merely low, and a missing project
+	// means "not reached", not "unaffected". Present it as a sample, never as
+	// an exhaustive per-project answer.
 	Partial bool `json:"partial,omitempty"`
 	// PartialReason names why the walk stopped (e.g. "time budget exhausted").
 	PartialReason string `json:"partial_reason,omitempty"`
