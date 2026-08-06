@@ -213,11 +213,10 @@ func handleExperimentStatus(ctx context.Context, input MCPExperimentStatusInput)
 		}
 		// Blast radius is a best-effort summary alongside the detail — the
 		// change-set detail is still worth returning without it. But
-		// best-effort is not silent: the failure used to be dropped on the
-		// floor, and an absent blast_radius then meant either "this change
-		// touches nothing" or "we could not find out", with no way to tell
-		// which. The assistant consuming this reports the first reading, which
-		// is the more reassuring one and the wrong one.
+		// best-effort is not silent. A dropped failure makes an absent
+		// blast_radius mean either "this change touches nothing" or "we could
+		// not find out", with no way to tell which — and the assistant
+		// consuming this reports the first reading, the reassuring one.
 		impact, brErr := client.GetChangesetBlastRadius(ctx, input.ChangesetID)
 		switch {
 		case brErr != nil:
@@ -242,10 +241,8 @@ func handleExperimentStatus(ctx context.Context, input MCPExperimentStatusInput)
 			// one that names none.
 			// Consequence in this surface's voice, cause in the server's
 			// field. PartialReason states only why the walk stopped, so this
-			// sentence must not narrate that too — saying "the scan stopped
-			// early" here and "the scan reached its time budget" inside the
-			// parenthesis is one fact twice, and it crowds out the part the
-			// reader actually needs, which is what the numbers now mean.
+			// sentence must not restate that: it says what the numbers mean,
+			// which is the part the reader needs.
 			if impact.Partial {
 				out.BlastRadius.CountsAre = "lower bounds — any project the scan did not reach contributes nothing to these totals"
 				if impact.PartialReason != "" {

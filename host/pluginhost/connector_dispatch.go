@@ -158,11 +158,10 @@ func (g *genericSourceConnectorDispatcher) Dispatch(ctx context.Context, client 
 // that failed, what the server did with the upload, and what the terminology
 // fold amounted to.
 //
-// Every one of these was computed by the daemon and dropped on the floor here.
-// A response field nobody prints is indistinguishable, from where the user
-// stands, from work that never happened — which is how a submitted change-set
-// of governed terminology edits could sit awaiting review with the push that
-// created it reporting only a block count.
+// The daemon computes all of them, and a response field nobody prints is
+// indistinguishable, from where the user stands, from work that never
+// happened: a submitted change-set of governed terminology edits sitting
+// awaiting review, under a push that reported only a block count.
 func printPushExtras(resp *pb.PushResponse) {
 	if n := resp.GetAssetsFailed(); n > 0 {
 		fmt.Fprintf(os.Stderr, "warning: %d media asset(s) failed to upload and will be retried by the next push\n", n)

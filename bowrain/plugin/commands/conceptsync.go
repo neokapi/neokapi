@@ -799,8 +799,8 @@ func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pus
 //     not a misconfiguration to shout about on every push.
 //
 // Everything else — an absent credential, a token minted for another server —
-// is a failure. It used to be swallowed with `return nil, nil`, which is how a
-// push could carry every block and none of the terminology while reporting
+// is a failure and must be returned as one. Swallowed with `return nil, nil`,
+// it lets a push carry every block and none of the terminology while reporting
 // success.
 func knowledgeClient(proj *bproject.Project) (*apiclient.BowrainClient, error) {
 	if bproject.LoadSyncCache(proj.Layout).ClaimToken != "" {
@@ -860,16 +860,12 @@ func projectTermsIfAny(ctx context.Context, proj *bproject.Project) (*terms.SQLi
 // changesetURL builds a best-effort link to review a change-set in the web hub
 // from the recipe's server + workspace.
 //
-// The path is the web app's route, not the REST endpoint's shape. It used to be
-// /<ws>/changesets/<id>, which the app has never served: the only route is
-// /<ws>/context/changes/<id> (contextChangeDetailRoute, "changes/$id" under the
-// "context" parent), and the sub-nav calls the surface Changes.
-//
-// So the one link the CLI handed anyone whose push had just proposed governed
-// terminology went to a 404 — which is a version of the same failure the rest of
-// this file is about. The edits arrived, the change-set existed, a reviewer was
-// waiting on it, and the only thing that pointed at it was wrong. Reported as
-// "nothing happened" by everyone who followed it.
+// The path must be the web app's route, not the REST endpoint's shape: the
+// only route the app serves is /<ws>/context/changes/<id>
+// (contextChangeDetailRoute, "changes/$id" under the "context" parent), and the
+// sub-nav calls the surface Changes. This is the one link the CLI hands a
+// reviewer, so a spelling the app does not serve reads to them as a push that
+// did nothing.
 func changesetURL(proj *bproject.Project, changesetID string) string {
 	server := proj.Recipe.Server.ServerURL()
 	workspace := proj.Recipe.Server.Workspace()

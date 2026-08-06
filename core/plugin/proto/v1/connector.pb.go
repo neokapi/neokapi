@@ -731,9 +731,9 @@ type PullResponse struct {
 	// Named rather than dropped: the server's cursor is forward-only, so a
 	// decision skipped here is not offered again.
 	DecisionsSkipped int32 `protobuf:"varint,5,opt,name=decisions_skipped,json=decisionsSkipped,proto3" json:"decisions_skipped,omitempty"`
-	// The workspace terminology snapshot this pull took. `kapi pull` over the
-	// daemon used to take none at all — only the plugin's own cobra command did —
-	// so the offline term checks ran against whatever the last cobra pull left.
+	// The workspace terminology snapshot this pull took. The daemon path must
+	// take one as the plugin's own cobra command does, or the offline term
+	// checks run against whatever the last cobra pull happened to leave.
 	ConceptsPulled         int32 `protobuf:"varint,6,opt,name=concepts_pulled,json=conceptsPulled,proto3" json:"concepts_pulled,omitempty"`
 	ConceptRelationsPulled int32 `protobuf:"varint,7,opt,name=concept_relations_pulled,json=conceptRelationsPulled,proto3" json:"concept_relations_pulled,omitempty"`
 	// The context content type's pull half: how many collections the server

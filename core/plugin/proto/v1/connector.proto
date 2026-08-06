@@ -185,9 +185,9 @@ message PullResponse {
   // decision skipped here is not offered again.
   int32 decisions_skipped = 5;
 
-  // The workspace terminology snapshot this pull took. `kapi pull` over the
-  // daemon used to take none at all — only the plugin's own cobra command did —
-  // so the offline term checks ran against whatever the last cobra pull left.
+  // The workspace terminology snapshot this pull took. The daemon path must
+  // take one as the plugin's own cobra command does, or the offline term
+  // checks run against whatever the last cobra pull happened to leave.
   int32 concepts_pulled = 6;
   int32 concept_relations_pulled = 7;
 

@@ -96,14 +96,12 @@ func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]plat
 // project's working store: a record newer than the local one (by Updated)
 // replaces it; an older or identical one is left alone. Staged, not committed —
 // publishing to the tracked record stays a deliberate act.
-// It also reports how many records it could NOT stage. A decision whose
-// variant does not parse used to be dropped where it stood: the loop skipped
-// it, the count returned was the successes, and the pull went on to advance
-// the stream cursor — which is forward-only, so the server never offered that
-// record again. Someone's review approval, and the attribution on it, ceased to
-// exist with nothing anywhere saying so. The skip is still not fatal (a variant
-// spelling this client does not understand is a forward-compatibility case, not
-// a corruption), but it is now counted and reported.
+// It also reports how many records it could NOT stage. Skipping a decision
+// whose variant does not parse is not fatal — a variant spelling this client
+// does not understand is a forward-compatibility case, not a corruption — but
+// it must be counted, because the pull advances a forward-only stream cursor
+// and the server never offers that record again. An uncounted skip is a review
+// approval, and its attribution, gone with nothing anywhere saying so.
 func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulled []platstore.UnitDecision) (staged, skipped int, err error) {
 	if len(pulled) == 0 {
 		return 0, 0, nil

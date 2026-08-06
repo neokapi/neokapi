@@ -8,11 +8,11 @@ import (
 )
 
 // TestTermsLineReportsAwaitingReview holds the terms line to the three states
-// terminology can actually be in. The middle one is the one it used to lack: a
-// governed edit that has been pushed lives in a change-set until a reviewer
-// merges it, and no pull can bring it down as a baseline in the meantime — so
-// the line reported "never synced" about terminology that had been sent,
-// received, and queued.
+// terminology can actually be in. The middle one is the one a two-state line
+// misses: a governed edit that has been pushed lives in a change-set until a
+// reviewer merges it, and no pull can bring it down as a baseline meanwhile, so
+// "never synced" would be said of terminology already sent, received and
+// queued.
 func TestTermsLineReportsAwaitingReview(t *testing.T) {
 	tests := []struct {
 		name     string

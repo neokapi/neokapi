@@ -218,9 +218,8 @@ func TestHandleExperimentStatusCarriesPartialBlastRadius(t *testing.T) {
 
 // TestHandleExperimentStatusReportsBlastRadiusFailure pins the other half: a
 // blast-radius call that fails must not produce the same output as a change-set
-// that touches nothing. Both used to be a bare absent field, and "no impact" is
-// the reading an assistant takes from it — the reassuring one, and the wrong
-// one.
+// that touches nothing. A bare absent field for both reads to an assistant as
+// "no impact" — the reassuring reading, and the wrong one.
 func TestHandleExperimentStatusReportsBlastRadiusFailure(t *testing.T) {
 	srv := blastRadiusServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

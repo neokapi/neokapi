@@ -819,12 +819,12 @@ func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID strin
 // pushAssets uploads changed media assets to the server.
 // For each asset: checks cache → requests upload URL → uploads blob → registers metadata.
 //
-// It returns what landed, what did not, and why. Each asset stays best-effort —
+// It returns what landed, what did not, and why. Each asset is best-effort —
 // one refused blob must not abandon the blocks already stored — but a refusal
-// used to leave no trace at all: the count returned was successes only, so a
-// push whose every image failed reported the same "assets: 0" as a push with no
-// images, and the reader of the translated page found the pictures missing with
-// nothing in the transcript to explain it.
+// must leave a trace. Counting successes only makes a push whose every image
+// failed report the same "assets: 0" as a push with no images, and the reader
+// of the translated page finds the pictures missing with nothing in the
+// transcript to explain it.
 func (c *BowrainSourceConnector) pushAssets(
 	ctx context.Context,
 	mediaHashMap map[string]map[string]string,

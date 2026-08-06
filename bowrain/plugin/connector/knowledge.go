@@ -12,12 +12,12 @@ import (
 // workspace, so there is no knowledge graph for it to sync with. It marks the
 // one legitimate silent skip for terminology sync.
 //
-// It exists to separate that skip from every failure. The callers in the
-// terminology fold used to treat ANY error here as "nothing to do" —
-// `return nil, nil` — which meant an expired keychain token, or a token issued
-// for a different server, silently turned every `kapi push` into a content-only
-// push. The terms never travelled, nothing said so, and `kapi status` went on
-// reporting the last successful snapshot.
+// It exists to separate that skip from every failure. A caller in the
+// terminology fold that treats ANY error here as "nothing to do" —
+// `return nil, nil` — turns an expired keychain token, or a token issued for a
+// different server, into a silently content-only `kapi push`: the terms never
+// travel, nothing says so, and `kapi status` goes on reporting the last
+// successful snapshot.
 var ErrNotWorkspaceClaimed = errors.New("project is not claimed into a workspace")
 
 // NewKnowledgeClient builds a workspace-scoped Bowrain REST client for reading
