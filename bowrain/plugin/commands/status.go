@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/neokapi/neokapi/bowrain/core/project"
@@ -38,15 +39,34 @@ type serverStatusJSON struct {
 	Terminology *terminologyJSON `json:"terminology,omitempty"`
 }
 
-// terminologyJSON is the local snapshot standing of the workspace's governed
-// terminology — the concept baseline a pull records into the sync cache.
-// Absent when no concept pull has ever run; the built-in status renders that
-// as never-synced.
+// terminologyJSON is the standing of the workspace's governed terminology: the
+// local snapshot a pull records into the sync cache, plus what this project has
+// proposed and not yet had reviewed.
+//
+// The snapshot half is absent when no concept pull has ever run, and the
+// built-in status renders that as never-synced. That was the whole of the
+// terms line, and it read wrong in the one case that matters most: a push had
+// just submitted a change-set of governed edits, the pull that would refresh
+// the baseline cannot run until it is reviewed, and status therefore reported
+// "never synced" about a project whose terminology was in flight. Awaiting
+// review is not the same as never sent.
 type terminologyJSON struct {
 	PulledAt  string `json:"pulled_at"`
 	Concepts  int    `json:"concepts"`
 	Relations int    `json:"relations"`
+
+	// PendingChangesets is how many change-sets this workspace holds awaiting
+	// review, with the newest one's id and a link. Read from the server, so it
+	// is omitted (not zero) when the server could not be asked.
+	PendingChangesets int    `json:"pending_changesets,omitempty"`
+	PendingChangeset  string `json:"pending_changeset_id,omitempty"`
+	PendingURL        string `json:"pending_changeset_url,omitempty"`
 }
+
+// changesetInReview is the server's status for a submitted change-set awaiting
+// review (knowledge.ChangeSetInReview). A persisted status value, so it is
+// spelled here exactly as the server stores it.
+const changesetInReview = "in_review"
 
 type activeRunJSON struct {
 	ID     string `json:"id"`
@@ -76,6 +96,10 @@ func runServerStatus(cmd *cobra.Command, _ []string) error {
 			Relations: len(b.Relations),
 		}
 	}
+	// And what this workspace has proposed and not had reviewed. This half does
+	// cost a round-trip, and is best-effort for that reason: a server that
+	// cannot be reached leaves the local snapshot standing exactly as before.
+	addPendingChangesets(ctx, proj, &out)
 
 	conn, err := bconn.NewSourceConnector(app, proj, app.FormatReg)
 	if err != nil {
@@ -109,6 +133,37 @@ func runServerStatus(cmd *cobra.Command, _ []string) error {
 }
 
 const timeRFC3339 = "2006-01-02T15:04:05Z07:00"
+
+// addPendingChangesets fills in the terminology awaiting review.
+//
+// It is what makes the terms line able to say "proposed, awaiting review"
+// rather than "never synced". The two are easy to confuse from the client's
+// side, because they look identical in the sync cache: a governed edit becomes
+// a change-set, the change-set holds it until a reviewer merges it, and until
+// then no pull can bring it back down as a baseline. The distinction only
+// exists on the server, so the client has to ask.
+//
+// Best-effort throughout: an unreachable server, an unclaimed project, or a
+// server too old for the endpoint leaves the local snapshot standing as it was.
+// Status must report what it can from a laptop on a train.
+func addPendingChangesets(ctx context.Context, proj *project.Project, out *serverStatusJSON) {
+	client, err := knowledgeClient(proj)
+	if err != nil || client == nil {
+		return
+	}
+	sets, err := client.ListChangesets(ctx, changesetInReview)
+	if err != nil || len(sets) == 0 {
+		return
+	}
+	if out.Terminology == nil {
+		out.Terminology = &terminologyJSON{}
+	}
+	out.Terminology.PendingChangesets = len(sets)
+	// Newest first, per the endpoint's contract — the head is the one a user
+	// who just pushed is looking for.
+	out.Terminology.PendingChangeset = sets[0].ID
+	out.Terminology.PendingURL = changesetURL(proj, sets[0].ID)
+}
 
 func init() {
 	cli.RegisterCommandFactory(func(parent *cobra.Command, _ *cli.App) { parent.AddCommand(serverStatusCmd) })

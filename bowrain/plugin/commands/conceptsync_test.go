@@ -6,7 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -24,6 +26,50 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TestChangesetURLMatchesTheWebRoute pins the review link the CLI hands out
+// against the route the web app actually serves.
+//
+// It built /<ws>/changesets/<id>, which has never been a route: the app serves
+// /<ws>/context/changes/<id>. Every push that proposed governed terminology
+// therefore ended by printing a 404 — the change-set was real and a reviewer
+// was waiting on it, and the only thing pointing at it was wrong, so following
+// the link was indistinguishable from nothing having happened.
+//
+// The assertion reads the route table rather than restating a string, because a
+// link that is merely self-consistent is exactly what shipped last time.
+func TestChangesetURLMatchesTheWebRoute(t *testing.T) {
+	proj := &bproject.Project{
+		Recipe: &bproject.Recipe{
+			Server: &bproject.ServerSpec{URL: "https://bowrain.cloud/acme/proj123/"},
+		},
+	}
+
+	got := changesetURL(proj, "cs-42")
+	assert.Equal(t, "https://bowrain.cloud/acme/context/changes/cs-42", got)
+
+	// The web app's route table is the authority for that path. Read it: a
+	// rename on the frontend must break this test, not the founder's click.
+	routes := filepath.Join("..", "..", "packages", "app", "src", "routes", "index.tsx")
+	src, err := os.ReadFile(routes)
+	require.NoError(t, err,
+		"the web route table is the authority for the CLI's review link; if it moved, point this test at it")
+
+	// Reduce to a bool BEFORE asserting. assert.Contains prints its haystack,
+	// and the haystack here is the whole route table — 33KB of unrelated TSX
+	// inlined as one escaped string, with the sentence explaining the breakage
+	// last. A cross-layer test earns its keep only if whoever trips it can see
+	// in one line what they broke and why it mattered; buried under forty pages
+	// of imports it reads as noise from a package they have never opened.
+	assert.True(t, strings.Contains(string(src), `path: "changes/$id"`),
+		`%s no longer declares path: "changes/$id" — kapi links /<ws>/context/changes/<id> `+
+			`after a push proposes governed terminology, so that link now 404s for everyone it reaches`,
+		routes)
+	assert.False(t, strings.Contains(string(src), `path: "changesets/$id"`),
+		`%s declares path: "changesets/$id" — that was the CLI's old broken link; `+
+			`if the app now serves it, changesetURL should be pointed back at it deliberately, not by accident`,
+		routes)
+}
 
 // recordedOp captures one op appended to a change-set during a push.
 type recordedOp struct {

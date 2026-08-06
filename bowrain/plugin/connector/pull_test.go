@@ -210,6 +210,44 @@ func TestSetConceptBaseline_PersistsThroughCloseWithPullState(t *testing.T) {
 	assert.Len(t, reloaded.ConceptBaseline.Relations, 1)
 }
 
+// TestPull_UnreadableFormatHoldsTheCursor pins the other way a translation
+// could be lost without a word: the server has targets for an item whose format
+// this checkout cannot read — no recipe entry names one and no installed plugin
+// claims the extension. That skip was a bare `continue`, so the pull wrote
+// nothing for the item, advanced the cursor past it, and exited cleanly with
+// "pulled N blocks, wrote 0 files". The stream is forward-only, so the
+// translations were never offered again.
+//
+// It is the ordinary shape of a machine missing a format plugin, not an exotic
+// one, and the honest outcome is the same as any other unwritable target: hold
+// the cursor and say so, so the pull works once the format can be read.
+func TestPull_UnreadableFormatHoldsTheCursor(t *testing.T) {
+	const startCursor = int64(5)
+	const serverCursor = int64(42)
+	targetLangs := []string{"fr"}
+
+	srv := pullTestServer(t, "proj123", targetLangs, serverCursor)
+	conn := newPullTestConnector(t, srv, targetLangs, startCursor)
+	defer conn.Close()
+
+	// Strip the recipe's format binding and give the item an extension no
+	// reader claims, so detectFormat finds nothing — exactly what a checkout
+	// without the plugin for this format sees.
+	conn.project.Recipe.Content = nil
+	conn.formatReg = registry.NewFormatRegistry()
+
+	res, err := conn.Pull(context.Background(), bowrainconn.PullOptions{})
+
+	require.Error(t, err)
+	assert.Nil(t, res)
+	assert.Contains(t, err.Error(), "no format is registered")
+	assert.Contains(t, err.Error(), "cursor not advanced")
+
+	reloaded := bproject.LoadSyncCache(conn.project.Layout)
+	assert.Equal(t, startCursor, reloaded.GetStreamCursor("main"),
+		"the cursor must not advance past translations that could not be written")
+}
+
 // TestPull_AllWritesSucceedAdvancesCursor is the happy-path counterpart: when
 // every target file writes cleanly, the cursor advances to the server cursor and
 // is saved, and Pull returns the written-file count.

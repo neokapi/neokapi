@@ -96,19 +96,25 @@ func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]plat
 // project's working store: a record newer than the local one (by Updated)
 // replaces it; an older or identical one is left alone. Staged, not committed —
 // publishing to the tracked record stays a deliberate act.
-func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulled []platstore.UnitDecision) (int, error) {
+// It also reports how many records it could NOT stage. Skipping a decision
+// whose variant does not parse is not fatal — a variant spelling this client
+// does not understand is a forward-compatibility case, not a corruption — but
+// it must be counted, because the pull advances a forward-only stream cursor
+// and the server never offers that record again. An uncounted skip is a review
+// approval, and its attribution, gone with nothing anywhere saying so.
+func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulled []platstore.UnitDecision) (staged, skipped int, err error) {
 	if len(pulled) == 0 {
-		return 0, nil
+		return 0, 0, nil
 	}
 	st, err := c.workingStore(ctx)
 	if err != nil {
-		return 0, fmt.Errorf("open project state: %w", err)
+		return 0, 0, fmt.Errorf("open project state: %w", err)
 	}
 
-	staged := 0
 	for _, d := range pulled {
 		var variant model.VariantKey
 		if err := variant.UnmarshalText([]byte(d.Variant)); err != nil || variant.Locale == "" {
+			skipped++
 			continue
 		}
 		k := state.Key{Unit: d.Unit, Variant: variant}
@@ -134,11 +140,11 @@ func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulle
 			Scope:   d.ItemName,
 		}
 		if err := st.Put(ctx, next); err != nil {
-			return staged, fmt.Errorf("stage unit state %s/%s: %w", d.Unit, d.Variant, err)
+			return staged, skipped, fmt.Errorf("stage unit state %s/%s: %w", d.Unit, d.Variant, err)
 		}
 		staged++
 	}
-	return staged, nil
+	return staged, skipped, nil
 }
 
 // decisionsHashOf folds the wire decisions into one hash — the value the sync

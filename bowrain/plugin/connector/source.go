@@ -668,9 +668,18 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	c.fetchAndCacheMetadata(ctx)
 
 	// Push assets (Bowrain AD-007): upload changed media to blob storage.
-	assetsPushed := 0
+	assets := &assetPushResult{}
 	if c.client != nil && len(mediaMap) > 0 {
-		assetsPushed = c.pushAssets(ctx, mediaHashMap, mediaMap, opts.Force)
+		assets = c.pushAssets(ctx, mediaHashMap, mediaMap, opts.Force)
+	}
+
+	// Confirm the server actually applied the push before recording that it
+	// holds this content. The commit answers 202 and hands the work to a
+	// worker; a failed ingest with the cache already written is content the
+	// next push will conclude is present and never send again.
+	ingest, ierr := c.confirmIngest(ctx, pushID)
+	if ierr != nil {
+		return nil, ierr
 	}
 
 	// Update cache with per-file hashes.
@@ -682,7 +691,11 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		}
 		maps.Copy(fc.Blocks, fileHashes)
 	}
-	// Update cache with per-file asset hashes.
+	// Update cache with per-file asset hashes — except for the assets that
+	// failed to upload. Recording those would tell the next push they are
+	// already on the server, and the retry it would otherwise perform is the
+	// only thing standing between a transient blob-store error and an image
+	// that is permanently absent from the translated page.
 	for itemName, assetHashes := range mediaHashMap {
 		fc, ok := c.cache.Files[itemName]
 		if !ok {
@@ -692,7 +705,13 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		if fc.Assets == nil {
 			fc.Assets = map[string]string{}
 		}
-		maps.Copy(fc.Assets, assetHashes)
+		failedForItem := assets.FailedIDs[itemName]
+		for assetID, blobKey := range assetHashes {
+			if failedForItem[assetID] {
+				continue
+			}
+			fc.Assets[assetID] = blobKey
+		}
 	}
 	c.cache.SetStreamCursor(c.stream, lastCursor)
 	c.cache.LastSync = time.Now().UTC()
@@ -714,23 +733,119 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		BlocksPushed:          totalStored,
 		BlocksUploaded:        blocksUploaded,
 		ChunkCount:            chunkCount,
-		AssetsPushed:          assetsPushed,
+		AssetsPushed:          assets.Pushed,
+		AssetsFailed:          assets.Failed,
+		AssetErrors:           assets.Errors,
 		FilesScanned:          len(hashMap),
 		WordCount:             pushWords,
 		PushID:                pushID,
 		UndeclaredCollections: undeclared,
+		Ingest:                ingest,
 	}, nil
+}
+
+// ingestConfirmWindow bounds how long a push waits for the server to say what
+// it did with the upload. Kept short: the wait is a confirmation, not a
+// dependency — an ingest still queued when it elapses is reported as queued,
+// not treated as a failure.
+const ingestConfirmWindow = 6 * time.Second
+
+// confirmIngest asks the server what became of a committed push.
+//
+// The commit endpoint returns 202 Accepted with a push id and enqueues a worker
+// job; every other content type in this push (blocks, context, decisions) is
+// applied there, not in the request. So the 202 says "received", and only the
+// job says "stored". A client that reported the 202 as success — as this one
+// did — told the user their content had landed at the exact moment it might
+// still be rejected for a bad chunk hash, an unsupported content type, or a
+// conflicting block, and then wrote the sync cache saying the server holds it.
+// The next push diffs against that cache, finds nothing to send, and the
+// content is stranded until someone runs --force.
+//
+// The aggregate status is safe to read this way because the ingest job is the
+// FIRST job created for a push id: convergence fans out translation jobs under
+// the same id only after the push-completed event, which the ingest job emits
+// on success. So `failed > 0 && completed == 0` is the ingest itself failing,
+// and any completed job means the ingest landed.
+//
+// Being unable to ask is not a failure. A server with no job system, one too
+// old for the endpoint, or a status call that errors leaves the push reported
+// as unknown rather than refused — the alternative is refusing pushes that
+// worked.
+func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID string) (string, error) {
+	// "unchanged" is the init fast path's sentinel: nothing was committed, so
+	// there is no job and nothing to confirm.
+	if c.client == nil || pushID == "" || pushID == "unchanged" {
+		return "", nil
+	}
+
+	deadline := time.Now().Add(ingestConfirmWindow)
+	interval := 150 * time.Millisecond
+	for {
+		st, err := c.client.PushStatus(ctx, pushID)
+		if err != nil {
+			return bowrainconn.IngestUnknown, nil //nolint:nilerr // an unaskable server is unknown, not failed
+		}
+		switch {
+		case st.Failed > 0 && st.Completed == 0:
+			return "", fmt.Errorf(
+				"push %s was accepted but the server failed to apply it (%d job(s) failed); "+
+					"the local sync record was left untouched so the next push sends this content again",
+				pushID, st.Failed)
+		case st.Completed > 0:
+			return bowrainconn.IngestApplied, nil
+		case st.Total == 0:
+			// No job exists for this push id. Either the deployment runs no
+			// worker or the job has not been recorded yet; keep waiting, and
+			// report it as unconfirmed if it never appears.
+		}
+		if time.Now().After(deadline) {
+			if st.Total == 0 {
+				return bowrainconn.IngestUnknown, nil
+			}
+			return bowrainconn.IngestQueued, nil
+		}
+		select {
+		case <-ctx.Done():
+			return bowrainconn.IngestUnknown, nil
+		case <-time.After(interval):
+		}
+		if interval < time.Second {
+			interval *= 2
+		}
+	}
 }
 
 // pushAssets uploads changed media assets to the server.
 // For each asset: checks cache → requests upload URL → uploads blob → registers metadata.
+//
+// It returns what landed, what did not, and why. Each asset is best-effort —
+// one refused blob must not abandon the blocks already stored — but a refusal
+// must leave a trace. Counting successes only makes a push whose every image
+// failed report the same "assets: 0" as a push with no images, and the reader
+// of the translated page finds the pictures missing with nothing in the
+// transcript to explain it.
 func (c *BowrainSourceConnector) pushAssets(
 	ctx context.Context,
 	mediaHashMap map[string]map[string]string,
 	mediaMap map[string][]*model.Media,
 	force bool,
-) int {
-	pushed := 0
+) *assetPushResult {
+	res := &assetPushResult{FailedIDs: map[string]map[string]bool{}}
+	// note records one asset failure, keeping a bounded sample of the reasons
+	// and remembering which asset it was so the cache does not record it as
+	// synced — a hash written for a blob that never arrived is the same silent
+	// loss one level down: the next push finds it unchanged and never retries.
+	note := func(itemName, assetID string, err error) {
+		res.Failed++
+		if res.FailedIDs[itemName] == nil {
+			res.FailedIDs[itemName] = map[string]bool{}
+		}
+		res.FailedIDs[itemName][assetID] = true
+		if len(res.Errors) < maxAssetErrorsReported {
+			res.Errors = append(res.Errors, fmt.Sprintf("%s: %s: %v", itemName, assetID, err))
+		}
+	}
 	for itemName, mediaList := range mediaMap {
 		cachedAssets := map[string]string{}
 		if fc, ok := c.cache.Files[itemName]; ok && fc.Assets != nil {
@@ -748,7 +863,8 @@ func (c *BowrainSourceConnector) pushAssets(
 			// Request upload URL (dedup check).
 			urlResp, err := c.client.GetAssetUploadURL(ctx, m.BlobKey, m.MimeType, m.Size)
 			if err != nil {
-				continue // best-effort
+				note(itemName, m.ID, fmt.Errorf("request upload URL: %w", err))
+				continue // best-effort, per asset
 			}
 
 			// If blob doesn't exist yet and we have a SAS URL, upload directly.
@@ -759,7 +875,8 @@ func (c *BowrainSourceConnector) pushAssets(
 			if !urlResp.Exists && urlResp.UploadURL != "" {
 				// Direct upload to blob storage via SAS URL.
 				if err := uploadToSASURL(ctx, urlResp.UploadURL, m.Data, m.MimeType); err != nil {
-					continue // best-effort
+					note(itemName, m.ID, fmt.Errorf("upload blob: %w", err))
+					continue // best-effort, per asset
 				}
 			}
 
@@ -775,13 +892,30 @@ func (c *BowrainSourceConnector) pushAssets(
 				Properties: m.Properties,
 			})
 			if err != nil {
-				continue // best-effort
+				note(itemName, m.ID, fmt.Errorf("register asset: %w", err))
+				continue // best-effort, per asset
 			}
-			pushed++
+			res.Pushed++
 		}
 	}
-	return pushed
+	return res
 }
+
+// assetPushResult is what an asset push amounted to: how many blobs landed, how
+// many were refused, a bounded sample of the reasons, and which assets failed
+// per item so their hashes are kept out of the sync cache.
+type assetPushResult struct {
+	Pushed    int
+	Failed    int
+	Errors    []string
+	FailedIDs map[string]map[string]bool // itemName → assetID → failed
+}
+
+// maxAssetErrorsReported bounds how many asset failures are named. The count is
+// exact; the reasons are a sample, because a project whose blob store is down
+// fails every asset and a wall of identical errors reports nothing the first
+// three do not.
+const maxAssetErrorsReported = 3
 
 // uploadToSASURL uploads data directly to a pre-signed Azure SAS URL.
 func uploadToSASURL(ctx context.Context, sasURL string, data []byte, contentType string) error {
@@ -869,7 +1003,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// not committed: `kapi commit` remains the only door into the git-tracked
 	// record, so a pull can never publish on anyone's behalf. `kapi status`
 	// reports what arrived and names the command that publishes it.
-	decisionsStaged, err := c.stagePulledDecisions(ctx, decisions)
+	decisionsStaged, decisionsSkipped, err := c.stagePulledDecisions(ctx, decisions)
 	if err != nil {
 		return nil, err
 	}
@@ -946,6 +1080,21 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 				absSource := c.project.ResolvePath(itemName)
 				formatName := c.detectFormat(absSource)
 				if formatName == "" {
+					// The server has translations for an item this checkout
+					// cannot read. Skipping was silent, and the cursor advanced
+					// past them anyway — the server's stream is forward-only, so
+					// those translations were never offered again and were gone.
+					//
+					// It is not a rare shape: a machine without the plugin that
+					// provides the format (a colleague without okapi-bridge, a CI
+					// image that ships fewer plugins) reads every Office or IDML
+					// item as format-less and pulls "500 blocks, wrote 0 files"
+					// with a clean exit. Joining the write failures makes it what
+					// it is — a failure that holds the cursor, so the pull retries
+					// once the format can be read.
+					writeErrs = append(writeErrs, fmt.Errorf(
+						"%s (%s): no format is registered for this file — the recipe names none and no plugin claims its extension, so its translations cannot be written",
+						itemName, loc))
 					continue
 				}
 
@@ -989,6 +1138,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 		LocalesCount:        len(locales),
 		FilesWritten:        filesWritten,
 		DecisionsStaged:     decisionsStaged,
+		DecisionsSkipped:    decisionsSkipped,
 		CollectionsObserved: contextResult.Observed,
 		GovernanceDiverged:  contextResult.Diverged,
 	}, nil

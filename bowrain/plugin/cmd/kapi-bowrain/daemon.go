@@ -372,6 +372,19 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 		return nil, err
 	}
 
+	resp := &pb.PushResponse{
+		BlocksPushed:   int32(res.BlocksPushed),
+		BlocksUploaded: int32(res.BlocksUploaded),
+		AssetsPushed:   int32(res.AssetsPushed),
+		AssetsFailed:   int32(res.AssetsFailed),
+		AssetErrors:    res.AssetErrors,
+		FilesScanned:   int32(res.FilesScanned),
+		ChunkCount:     int32(res.ChunkCount),
+		WordCount:      int32(res.WordCount),
+		PushId:         res.PushID,
+		Ingest:         res.Ingest,
+	}
+
 	// Terminology travels with the push, as it does on the cobra route. It runs
 	// AFTER the content transport for the same reason the cobra route does:
 	// governed edits become a change-set the reviewer reads beside the content
@@ -380,23 +393,26 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 	// A skip is silent by design (no workspace, no local store), but a genuine
 	// failure is not swallowed — terminology quietly not arriving is what this
 	// whole path is being fixed for.
+	//
+	// Its RESULT travels too. Running it and discarding what it returned was
+	// only half the fix: the fold reconciled the terms, submitted a change-set
+	// for the governed edits, and `kapi push` printed a line about blocks — so
+	// the user learned that a ban on a term was awaiting review only by opening
+	// the web hub, if they thought to.
+	//
+	// A failure rides on the response rather than replacing it. Returning an
+	// RPC error here threw the content result away, and a push whose blocks
+	// were stored reported as a total failure.
 	cres, cerr := commands.PushProjectConcepts(ctx, entry.project, req.GetDryRun())
 	if cerr != nil {
-		return nil, fmt.Errorf("push terminology: %w", cerr)
-	}
-	resp := &pb.PushResponse{
-		BlocksPushed:   int32(res.BlocksPushed),
-		BlocksUploaded: int32(res.BlocksUploaded),
-		AssetsPushed:   int32(res.AssetsPushed),
-		FilesScanned:   int32(res.FilesScanned),
-		ChunkCount:     int32(res.ChunkCount),
-		WordCount:      int32(res.WordCount),
-		PushId:         res.PushID,
+		resp.TerminologyError = cerr.Error()
+		return resp, nil
 	}
 	if cres != nil {
 		resp.ConceptsApplied = int32(cres.ConceptsApplied)
 		resp.ConceptRelationsApplied = int32(cres.RelationsApplied)
 		resp.ConceptsProposed = int32(cres.ConceptsProposed)
+		resp.ChangesetId = cres.ChangesetID
 		resp.ChangesetUrl = cres.ChangesetURL
 	}
 	return resp, nil
@@ -440,12 +456,40 @@ func (d *daemonService) Pull(ctx context.Context, req *pb.PullRequest) (*pb.Pull
 	if err != nil {
 		return nil, err
 	}
-	return &pb.PullResponse{
-		BlocksPulled:    int32(res.BlocksPulled),
-		FilesWritten:    int32(res.FilesWritten),
-		LocalesCount:    int32(res.LocalesCount),
-		DecisionsStaged: int32(res.DecisionsStaged),
-	}, nil
+	resp := &pb.PullResponse{
+		BlocksPulled:        int32(res.BlocksPulled),
+		FilesWritten:        int32(res.FilesWritten),
+		LocalesCount:        int32(res.LocalesCount),
+		DecisionsStaged:     int32(res.DecisionsStaged),
+		DecisionsSkipped:    int32(res.DecisionsSkipped),
+		CollectionsObserved: int32(res.CollectionsObserved),
+		GovernanceDiverged:  res.GovernanceDiverged,
+	}
+
+	// Terminology travels with the pull, as it does on the cobra route — the
+	// mirror of the push fold, and missing here for the same reason it was
+	// missing there: `kapi-bowrain pull` ran it, `kapi pull` (this RPC) did not.
+	// The consequence was quieter than the push's and lasted longer: no concept
+	// baseline was ever recorded, so `kapi check --ship` gated terminology
+	// against an empty local vocabulary and `kapi status` reported "terms never
+	// synced" no matter how often the user pulled.
+	//
+	// The baseline is handed to the connector rather than written here, so the
+	// connector's single Close() persists it with the block-sync state instead
+	// of being clobbered by it.
+	cres, baseline, cerr := commands.PullProjectConcepts(ctx, entry.project, req.GetDryRun())
+	if cerr != nil {
+		resp.TerminologyError = cerr.Error()
+		return resp, nil
+	}
+	if baseline != nil {
+		entry.connector.SetConceptBaseline(baseline)
+	}
+	if cres != nil {
+		resp.ConceptsPulled = int32(cres.Concepts)
+		resp.ConceptRelationsPulled = int32(cres.Relations)
+	}
+	return resp, nil
 }
 
 // ─────────────────────────────────────────────────────────────────────

@@ -145,6 +145,98 @@ func TestHandleExperimentStatusDetail(t *testing.T) {
 	assert.Equal(t, 7, out.BlastRadius.AffectedBlocks)
 }
 
+// blastRadiusServer serves the change-set detail surface with a blast-radius
+// endpoint the caller controls, so a test can say what the server answers.
+func blastRadiusServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/{ws}/changesets/{id}", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(apiclient.ChangeSetDetail{
+			ChangeSet: apiclient.ChangeSet{ID: r.PathValue("id"), Name: "Retire cockpit", Status: "in_review"},
+			Governed:  true,
+		})
+	})
+	mux.HandleFunc("GET /api/v1/{ws}/changesets/{id}/blast-radius", handler)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// TestHandleExperimentStatusCarriesPartialBlastRadius pins the qualification on
+// a truncated scan. The server's walk has a time budget; when it runs out, the
+// counts it returns are lower bounds, and it says so with "partial". Dropping
+// that on the way through this tool hands an assistant a smaller blast radius
+// than the change really has, with nothing marking it as incomplete — and the
+// assistant is summarising the change for someone deciding whether to approve
+// it.
+//
+// "Lower bound" is itself too gentle, which the wording has to carry: the walk
+// is one sequential pass aborted from its innermost loop, so a project it never
+// reached contributes nothing at all. The shortfall is whole projects missing,
+// not every project counted slightly low.
+func TestHandleExperimentStatusCarriesPartialBlastRadius(t *testing.T) {
+	srv := blastRadiusServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(apiclient.ChangeSetImpact{
+			TotalBlocks: 17500, AffectedBlocks: 900, Words: 12000,
+			Partial: true,
+			// Mirrors the server's own wording (bowrain/knowledge —
+			// blastradius.go), which states the CAUSE only, so the composed
+			// sentence below is the one a reader actually gets. The assertions
+			// are on shape rather than on those exact words: a server-side
+			// rewording must not fail this test, only a client that stops
+			// embedding the reason should.
+			PartialReason: "the scan reached this preview's time budget before it had covered the workspace",
+			// A truncated walk still returns the projects it DID reach. They
+			// must not surface as though they were the affected set.
+			Projects: []apiclient.ProjectImpact{
+				{ProjectID: "p-docs", ProjectName: "Docs", AffectedBlocks: 900},
+			},
+		})
+	})
+	setupKnowledgeProject(t, srv)
+
+	_, out, err := handleExperimentStatus(context.Background(), MCPExperimentStatusInput{ChangesetID: "x-1"})
+	require.NoError(t, err)
+	require.NotNil(t, out.BlastRadius)
+	assert.Equal(t, 900, out.BlastRadius.AffectedBlocks)
+	assert.True(t, out.BlastRadius.Partial)
+	assert.Contains(t, out.BlastRadius.CountsAre, "lower bounds")
+	assert.Contains(t, out.BlastRadius.CountsAre, "did not reach",
+		"the qualification must say that unreached projects contribute nothing, not merely that counts are low")
+	assert.Contains(t, out.BlastRadius.CountsAre, "time budget",
+		"the server's cause must survive into the sentence, not be replaced by this surface's own account of it")
+
+	// The summary carries no per-project breakdown. Under a partial walk that
+	// list is the projects EXAMINED, not the projects affected — absence from
+	// it means "not reached". Serialising it would let an assistant name two
+	// projects it never looked past.
+	blob, merr := json.Marshal(out.BlastRadius)
+	require.NoError(t, merr)
+	assert.NotContains(t, string(blob), "p-docs")
+	assert.NotContains(t, string(blob), "projects")
+}
+
+// TestHandleExperimentStatusReportsBlastRadiusFailure pins the other half: a
+// blast-radius call that fails must not produce the same output as a change-set
+// that touches nothing. A bare absent field for both reads to an assistant as
+// "no impact" — the reassuring reading, and the wrong one.
+func TestHandleExperimentStatusReportsBlastRadiusFailure(t *testing.T) {
+	srv := blastRadiusServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"error":"blast radius walk was cancelled"}`))
+	})
+	setupKnowledgeProject(t, srv)
+
+	_, out, err := handleExperimentStatus(context.Background(), MCPExperimentStatusInput{ChangesetID: "x-1"})
+
+	// The change-set detail is still worth returning; the radius is not silently absent.
+	require.NoError(t, err)
+	require.NotNil(t, out.Experiment)
+	assert.Nil(t, out.BlastRadius)
+	assert.NotEmpty(t, out.BlastRadiusError,
+		"a radius that could not be computed must not read as a change that affects nothing")
+}
+
 func TestHandleConceptSearchRequiresWorkspace(t *testing.T) {
 	srv := knowledgeTestServer(t)
 

@@ -128,12 +128,36 @@ message PushResponse {
   // Blocks actually uploaded after diff negotiation. blocks_pushed counts the
   // locally-changed candidates; the two disagreeing loudly is the point.
   int32 blocks_uploaded = 7;
-  // Terminology travels with the push; the fold's outcome is reported so
-  // concepts quietly not arriving is impossible to miss.
+
+  // The terminology fold. It travels with the push on both routes; these fields
+  // are what it amounted to, so `kapi push` can say that governed edits are now
+  // a change-set awaiting review instead of leaving the user to find out from
+  // the web hub.
   int32 concepts_applied = 8;
   int32 concept_relations_applied = 9;
   int32 concepts_proposed = 10;
   string changeset_url = 11;
+
+  // Media assets the push tried and failed to upload, with a bounded sample of
+  // the reasons. Carried separately from assets_pushed because a push whose
+  // every image was refused and a push with no images both report zero pushed.
+  int32 assets_failed = 12;
+  repeated string asset_errors = 13;
+
+  // What the SERVER did with the upload — "applied", "queued", "unknown" — as
+  // opposed to what the client sent it. The commit is answered with 202 and the
+  // content is stored by a worker afterwards, so "uploaded" is not "stored".
+  // A failed ingest is never reported here: it is an RPC error.
+  string ingest = 14;
+
+  // The change-set the governed terminology edits are waiting in, alongside the
+  // review URL above.
+  string changeset_id = 15;
+
+  // Set when the content transport succeeded and the terminology fold did not.
+  // It rides on the response rather than replacing it with an RPC error so the
+  // content result is not lost; the dispatcher prints the push, then fails.
+  string terminology_error = 16;
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +179,29 @@ message PullResponse {
   // reported so an arriving decision is never invisible; `kapi commit`
   // publishes them into the tracked record.
   int32 decisions_staged = 4;
+
+  // Decisions the pull could not stage because their variant did not parse.
+  // Named rather than dropped: the server's cursor is forward-only, so a
+  // decision skipped here is not offered again.
+  int32 decisions_skipped = 5;
+
+  // The workspace terminology snapshot this pull took. The daemon path must
+  // take one as the plugin's own cobra command does, or the offline term
+  // checks run against whatever the last cobra pull happened to leave.
+  int32 concepts_pulled = 6;
+  int32 concept_relations_pulled = 7;
+
+  // The context content type's pull half: how many collections the server
+  // reported, and which recipe-owned ones it governs differently. Observed,
+  // never applied — kapi.yaml stays the authority.
+  int32 collections_observed = 8;
+  repeated string governance_diverged = 9;
+
+  // Set when the content transport succeeded and the terminology fold did not.
+  // Same reason as the push's: the pulled files are already on disk and the
+  // cursor already advanced, so replacing the result with an error would hide
+  // what did arrive.
+  string terminology_error = 10;
 }
 
 // ---------------------------------------------------------------------------

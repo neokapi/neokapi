@@ -184,6 +184,16 @@ type ChangeSetImpact struct {
 	Words          int             `json:"words"`
 	Projects       []ProjectImpact `json:"projects"`
 	Samples        []BlockSample   `json:"samples"`
+
+	// Partial reports that the walk did not finish — it exhausted its time
+	// budget before scanning every block — so every count above is a LOWER
+	// BOUND, not a total. A caller that renders them as totals is reporting a
+	// smaller blast radius than the change actually has, which is the reading
+	// that gets a governed change approved on the strength of a number nobody
+	// said was incomplete.
+	Partial bool `json:"partial,omitempty"`
+	// PartialReason says why it stopped, for a caller that shows the user.
+	PartialReason string `json:"partial_reason,omitempty"`
 }
 
 // ProjectImpact is the per-project slice of a ChangeSetImpact.

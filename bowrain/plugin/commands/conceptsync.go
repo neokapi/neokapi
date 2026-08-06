@@ -696,8 +696,11 @@ func diffRelations(local []terms.ConceptRelation, baseline *bproject.ConceptBase
 // re-saves its own copy, which never carried the baseline). Returning the
 // baseline keeps the connector the single writer of the cache.
 func conceptPull(ctx context.Context, proj *bproject.Project, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
-	client, err := bconn.NewKnowledgeClient(proj)
+	client, err := knowledgeClient(proj)
 	if err != nil {
+		return nil, nil, err
+	}
+	if client == nil {
 		return nil, nil, nil
 	}
 	tb, err := projectTerms(ctx, proj)
@@ -731,16 +734,28 @@ func PushProjectConcepts(ctx context.Context, proj *bproject.Project, dryRun boo
 	return conceptPush(ctx, proj, dryRun)
 }
 
+// PullProjectConcepts snapshots the workspace's terminology into the project.
+//
+// Exported for the same reason as its push counterpart, and it was missing for
+// longer: a pull arrives by two routes, and only `kapi-bowrain pull` folded the
+// terminology in. `kapi pull` — the verb everyone runs — took no snapshot, so
+// no baseline was ever recorded from it, and every downstream reader of that
+// baseline (the offline terminology gate, `kapi status`'s terms line, the
+// push's diff) behaved as though the workspace had never been pulled from.
+//
+// The caller must hand the returned baseline to the connector via
+// SetConceptBaseline so the connector's single Close() persists it.
+func PullProjectConcepts(ctx context.Context, proj *bproject.Project, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
+	return conceptPull(ctx, proj, dryRun)
+}
+
 func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*PushConceptsResult, error) {
-	client, err := bconn.NewKnowledgeClient(proj)
+	client, err := knowledgeClient(proj)
 	if err != nil {
-		// Not workspace-claimed is the one legitimate silent skip; any other
-		// failure to build the client is terminology quietly not arriving —
-		// the exact failure this path exists to make loud.
-		if errors.Is(err, bconn.ErrNotWorkspaceClaimed) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("terminology client: %w", err)
+		return nil, err
+	}
+	if client == nil {
+		return nil, nil
 	}
 	// No guard on the baseline. It used to return here, which is what kept
 	// terminology out of a workspace that had never been pulled from: a fresh
@@ -768,6 +783,38 @@ func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pus
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// knowledgeClient builds the workspace knowledge client for a terminology
+// fold, returning (nil, nil) for the conditions under which there is genuinely
+// nothing to sync with, and an error for every condition under which there is
+// something and we could not reach it.
+//
+// The two legitimate skips:
+//
+//   - The project is not claimed into a workspace (ErrNotWorkspaceClaimed). There is no
+//     workspace graph; the recipe is the whole of its terminology.
+//   - The project syncs by claim token. The graph is workspace-scoped and a
+//     claim token addresses one project, so a CI job pushing with a claim token
+//     structurally cannot read it — this is documented in NewKnowledgeClient,
+//     not a misconfiguration to shout about on every push.
+//
+// Everything else — an absent credential, a token minted for another server —
+// is a failure and must be returned as one. Swallowed with `return nil, nil`,
+// it lets a push carry every block and none of the terminology while reporting
+// success.
+func knowledgeClient(proj *bproject.Project) (*apiclient.BowrainClient, error) {
+	if bproject.LoadSyncCache(proj.Layout).ClaimToken != "" {
+		return nil, nil
+	}
+	client, err := bconn.NewKnowledgeClient(proj)
+	switch {
+	case errors.Is(err, bconn.ErrNotWorkspaceClaimed):
+		return nil, nil
+	case err != nil:
+		return nil, fmt.Errorf("workspace terminology sync: %w", err)
+	}
+	return client, nil
+}
 
 // projectTerms returns the terms store a concept pull/push works against: the
 // project's own, out of its one store.
@@ -812,13 +859,20 @@ func projectTermsIfAny(ctx context.Context, proj *bproject.Project) (*terms.SQLi
 
 // changesetURL builds a best-effort link to review a change-set in the web hub
 // from the recipe's server + workspace.
+//
+// The path must be the web app's route, not the REST endpoint's shape: the
+// only route the app serves is /<ws>/context/changes/<id>
+// (contextChangeDetailRoute, "changes/$id" under the "context" parent), and the
+// sub-nav calls the surface Changes. This is the one link the CLI hands a
+// reviewer, so a spelling the app does not serve reads to them as a push that
+// did nothing.
 func changesetURL(proj *bproject.Project, changesetID string) string {
 	server := proj.Recipe.Server.ServerURL()
 	workspace := proj.Recipe.Server.Workspace()
 	if server == "" || workspace == "" {
 		return ""
 	}
-	return fmt.Sprintf("%s/%s/changesets/%s", strings.TrimRight(server, "/"), workspace, changesetID)
+	return fmt.Sprintf("%s/%s/context/changes/%s", strings.TrimRight(server, "/"), workspace, changesetID)
 }
 
 // newOp marshals an op payload into the change-set op input. The payloads are
