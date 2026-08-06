@@ -859,13 +859,24 @@ func projectTermsIfAny(ctx context.Context, proj *bproject.Project) (*terms.SQLi
 
 // changesetURL builds a best-effort link to review a change-set in the web hub
 // from the recipe's server + workspace.
+//
+// The path is the web app's route, not the REST endpoint's shape. It used to be
+// /<ws>/changesets/<id>, which the app has never served: the only route is
+// /<ws>/context/changes/<id> (contextChangeDetailRoute, "changes/$id" under the
+// "context" parent), and the sub-nav calls the surface Changes.
+//
+// So the one link the CLI handed anyone whose push had just proposed governed
+// terminology went to a 404 — which is a version of the same failure the rest of
+// this file is about. The edits arrived, the change-set existed, a reviewer was
+// waiting on it, and the only thing that pointed at it was wrong. Reported as
+// "nothing happened" by everyone who followed it.
 func changesetURL(proj *bproject.Project, changesetID string) string {
 	server := proj.Recipe.Server.ServerURL()
 	workspace := proj.Recipe.Server.Workspace()
 	if server == "" || workspace == "" {
 		return ""
 	}
-	return fmt.Sprintf("%s/%s/changesets/%s", strings.TrimRight(server, "/"), workspace, changesetID)
+	return fmt.Sprintf("%s/%s/context/changes/%s", strings.TrimRight(server, "/"), workspace, changesetID)
 }
 
 // newOp marshals an op payload into the change-set op input. The payloads are

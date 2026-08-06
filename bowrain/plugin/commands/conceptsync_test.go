@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -24,6 +25,39 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TestChangesetURLMatchesTheWebRoute pins the review link the CLI hands out
+// against the route the web app actually serves.
+//
+// It built /<ws>/changesets/<id>, which has never been a route: the app serves
+// /<ws>/context/changes/<id>. Every push that proposed governed terminology
+// therefore ended by printing a 404 — the change-set was real and a reviewer
+// was waiting on it, and the only thing pointing at it was wrong, so following
+// the link was indistinguishable from nothing having happened.
+//
+// The assertion reads the route table rather than restating a string, because a
+// link that is merely self-consistent is exactly what shipped last time.
+func TestChangesetURLMatchesTheWebRoute(t *testing.T) {
+	proj := &bproject.Project{
+		Recipe: &bproject.Recipe{
+			Server: &bproject.ServerSpec{URL: "https://bowrain.cloud/acme/proj123/"},
+		},
+	}
+
+	got := changesetURL(proj, "cs-42")
+	assert.Equal(t, "https://bowrain.cloud/acme/context/changes/cs-42", got)
+
+	// The web app's route table is the authority for that path. Read it: a
+	// rename on the frontend must break this test, not the founder's click.
+	routes := filepath.Join("..", "..", "packages", "app", "src", "routes", "index.tsx")
+	src, err := os.ReadFile(routes)
+	require.NoError(t, err,
+		"the web route table is the authority for the CLI's review link; if it moved, point this test at it")
+	assert.Contains(t, string(src), `path: "changes/$id"`,
+		"the CLI builds /<ws>/context/changes/<id>; the app must still serve it")
+	assert.NotContains(t, string(src), `path: "changesets/$id"`,
+		"nothing serves /changesets/<id> — the link the CLI used to build")
+}
 
 // recordedOp captures one op appended to a change-set during a push.
 type recordedOp struct {
