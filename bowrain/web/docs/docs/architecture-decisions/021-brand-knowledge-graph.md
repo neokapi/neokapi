@@ -134,7 +134,8 @@ vocabulary: create or update concepts, add or remove terms, change a term's
 status, add or remove relations, add or remove concept-backed voice rules. Ops
 accumulate in a draft; nothing touches the live graph until merge. A change-set
 moves through `draft → in_review → approved → merged`, or is `abandoned`; every
-transition is audited and notified.
+transition is audited, lands in the activity feed, and — on submit — summons the
+reviewers who can act on it (see [The summons](#the-summons)).
 
 Two capabilities make a change-set an experiment rather than paperwork:
 
@@ -170,6 +171,38 @@ The pending-approval queue is deliberately simple: a list of proposals, each
 with a human-readable summary, a blast radius, and an approve/reject decision.
 This is the contract a future stakeholder review app consumes (see below).
 
+### The summons
+
+Separation of duties means a submitted change-set is, by construction, work for
+someone who did not ask for it. So submitting does not merely record a state: it
+reaches the people who can approve it, over every channel the workspace has.
+
+Eligibility is computed from the same permission the approve and reject gates
+check — the workspace members holding `manage_brand`, minus the author. The reach
+can therefore never disagree with the gate, and a summons that reached only the
+author would be a summons to nobody.
+
+On submit, a change-set:
+
+- opens one **review task** (`review_terms`) in the workspace queue, assigned to
+  an eligible reviewer, or unassigned when there is none, so the work is visible
+  either way. Approve, reject, abandon and merge close it again.
+- creates a **notification** for every eligible reviewer, delivered live over the
+  existing web socket.
+- sends a **review-request email** to each of them. Governed review is task work,
+  so it routes on the `task` notification category, which ships with email
+  enabled: send-on-submit is the default, and a reviewer who wants no mail turns
+  the category off in notification preferences.
+- records an **activity** entry, alongside the audit-chain entry every knowledge
+  event already produced.
+
+Sending is best-effort. The change-set is already in review by the time the
+summons runs, so a task store that refuses an insert or an unconfigured mailer is
+logged against the change-set and never turned into a failed submit.
+
+The link every channel hands out is the change-set's review page,
+`/:workspace/context/changes/:id`.
+
 ### Blast radius as a first-class query
 
 Beyond change-sets, every concept exposes *where it is used*: occurrences of
@@ -180,7 +213,9 @@ the footprint of a concept before proposing anything.
 ### Surfaces
 
 - **Web and desktop** present one **Brand** hub with five sections: Concepts
-  (a searchable concept list that opens a per-concept dashboard), Voice
+  (a searchable concept list that opens a per-concept dashboard, with the
+  changes waiting on a review named above it — a proposed concept is not in the
+  list, so without that the page reads as though nothing had happened), Voice
   (profiles and the correction loop), Experiments (change-sets, reviews,
   pilots), Activity (the brand-scoped event timeline), and Dashboard
   (compliance, drift, coverage, pending decisions). There is no whole-graph
