@@ -16,10 +16,9 @@ import (
 )
 
 // These tests pin the other half of the summons: a job that fails must reach
-// the person waiting on it. Before this, flow.failed was published by nothing
-// and consumed by nobody, so a translation that exhausted its retries left a row
-// with status='failed' and told no one — indistinguishable, from outside, from a
-// job that was still running.
+// the person waiting on it. Unsummoned, a translation that exhausts its retries
+// leaves a row with status='failed' and tells no one — indistinguishable, from
+// outside, from a job that is still running.
 
 // jobFailureHarness wires everything the summons touches — a SQLite
 // notification and preference store, a scripted auth store, a recording mail
@@ -174,7 +173,7 @@ func TestJobFailureSummonsAgainForADifferentJob(t *testing.T) {
 }
 
 // Notify-only: turning the automation category's email channel off leaves the
-// in-app notification and stops the mail. This is the escape hatch the founder's
+// in-app notification and stops the mail. It is the escape hatch the
 // "email by default" rule is paired with.
 func TestJobFailureEmailHonoursThePreference(t *testing.T) {
 	h := newJobFailureHarness(t)

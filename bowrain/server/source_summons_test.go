@@ -21,9 +21,8 @@ import (
 )
 
 // These tests pin the source-review summons: a source change that needs a
-// decision must reach everyone entitled to make it, and nobody who is not.
-// Before this, both venues that open a source-review task took the FIRST
-// project member whose role carried PermEditSource and told only them.
+// decision must reach everyone entitled to make it, and nobody who is not —
+// not the FIRST project member whose role carries PermEditSource.
 
 const (
 	srcWSID    = "ws-source"

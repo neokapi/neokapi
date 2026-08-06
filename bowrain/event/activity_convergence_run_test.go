@@ -9,10 +9,10 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
-// A finished convergence run is the loop's own headline, and the feed never
-// carried it: the recorder had no case for convergence.run.completed, and the
-// orchestrator's frame named only the project, so a mapped event would still
-// have landed under no workspace.
+// A finished convergence run is the loop's own headline in the feed. It takes
+// both a recorder case for convergence.run.completed and a workspace on the
+// event: the orchestrator's frame names only the project, so a mapped event
+// with no workspace lands under none.
 
 func TestMapEventToActivity_ConvergenceRunCompleted(t *testing.T) {
 	r := &ActivityRecorder{}
