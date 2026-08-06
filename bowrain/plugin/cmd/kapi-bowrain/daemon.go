@@ -380,10 +380,11 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 	// A skip is silent by design (no workspace, no local store), but a genuine
 	// failure is not swallowed — terminology quietly not arriving is what this
 	// whole path is being fixed for.
-	if _, cerr := commands.PushProjectConcepts(ctx, entry.project, req.GetDryRun()); cerr != nil {
+	cres, cerr := commands.PushProjectConcepts(ctx, entry.project, req.GetDryRun())
+	if cerr != nil {
 		return nil, fmt.Errorf("push terminology: %w", cerr)
 	}
-	return &pb.PushResponse{
+	resp := &pb.PushResponse{
 		BlocksPushed:   int32(res.BlocksPushed),
 		BlocksUploaded: int32(res.BlocksUploaded),
 		AssetsPushed:   int32(res.AssetsPushed),
@@ -391,7 +392,14 @@ func (d *daemonService) Push(ctx context.Context, req *pb.PushRequest) (*pb.Push
 		ChunkCount:     int32(res.ChunkCount),
 		WordCount:      int32(res.WordCount),
 		PushId:         res.PushID,
-	}, nil
+	}
+	if cres != nil {
+		resp.ConceptsApplied = int32(cres.ConceptsApplied)
+		resp.ConceptRelationsApplied = int32(cres.RelationsApplied)
+		resp.ConceptsProposed = int32(cres.ConceptsProposed)
+		resp.ChangesetUrl = cres.ChangesetURL
+	}
+	return resp, nil
 }
 
 // declareContext resolves the recipe's declared context onto the connector

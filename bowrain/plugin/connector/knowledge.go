@@ -17,10 +17,14 @@ import (
 // not under a project, so a claim-token-only project cannot read it. It also
 // requires a bearer token, resolved exactly like push/pull — the OS keychain
 // after `kapi auth login`, or BOWRAIN_AUTH_TOKEN in CI (config.LoadAuth).
+// ErrNotWorkspaceClaimed marks the one legitimate silent skip for terminology
+// sync: a project with no server binding has no workspace to sync with.
+var ErrNotWorkspaceClaimed = errors.New("no server configuration in the kapi recipe (add a `server:` block)")
+
 func NewKnowledgeClient(project *Project) (*apiclient.BowrainClient, error) {
 	recipe := project.Recipe
 	if !recipe.HasServer() {
-		return nil, errors.New("no server configuration in the kapi recipe (add a `server:` block)")
+		return nil, ErrNotWorkspaceClaimed
 	}
 
 	serverURL := config.NormalizeServerURL(recipe.Server.ServerURL())

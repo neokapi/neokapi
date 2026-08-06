@@ -479,8 +479,14 @@ type PushResponse struct {
 	// Blocks actually uploaded after diff negotiation. blocks_pushed counts the
 	// locally-changed candidates; the two disagreeing loudly is the point.
 	BlocksUploaded int32 `protobuf:"varint,7,opt,name=blocks_uploaded,json=blocksUploaded,proto3" json:"blocks_uploaded,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Terminology travels with the push; the fold's outcome is reported so
+	// concepts quietly not arriving is impossible to miss.
+	ConceptsApplied         int32  `protobuf:"varint,8,opt,name=concepts_applied,json=conceptsApplied,proto3" json:"concepts_applied,omitempty"`
+	ConceptRelationsApplied int32  `protobuf:"varint,9,opt,name=concept_relations_applied,json=conceptRelationsApplied,proto3" json:"concept_relations_applied,omitempty"`
+	ConceptsProposed        int32  `protobuf:"varint,10,opt,name=concepts_proposed,json=conceptsProposed,proto3" json:"concepts_proposed,omitempty"`
+	ChangesetUrl            string `protobuf:"bytes,11,opt,name=changeset_url,json=changesetUrl,proto3" json:"changeset_url,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *PushResponse) Reset() {
@@ -560,6 +566,34 @@ func (x *PushResponse) GetBlocksUploaded() int32 {
 		return x.BlocksUploaded
 	}
 	return 0
+}
+
+func (x *PushResponse) GetConceptsApplied() int32 {
+	if x != nil {
+		return x.ConceptsApplied
+	}
+	return 0
+}
+
+func (x *PushResponse) GetConceptRelationsApplied() int32 {
+	if x != nil {
+		return x.ConceptRelationsApplied
+	}
+	return 0
+}
+
+func (x *PushResponse) GetConceptsProposed() int32 {
+	if x != nil {
+		return x.ConceptsProposed
+	}
+	return 0
+}
+
+func (x *PushResponse) GetChangesetUrl() string {
+	if x != nil {
+		return x.ChangesetUrl
+	}
+	return ""
 }
 
 type PullRequest struct {
@@ -911,7 +945,7 @@ const file_core_plugin_proto_v1_connector_proto_rawDesc = "" +
 	"\aproject\x18\x01 \x01(\v2\x1d.neokapi.plugin.v1.ProjectRefR\aproject\x12\x14\n" +
 	"\x05paths\x18\x02 \x03(\tR\x05paths\x12\x14\n" +
 	"\x05force\x18\x03 \x01(\bR\x05force\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xff\x01\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xb8\x03\n" +
 	"\fPushResponse\x12#\n" +
 	"\rblocks_pushed\x18\x01 \x01(\x05R\fblocksPushed\x12#\n" +
 	"\rassets_pushed\x18\x02 \x01(\x05R\fassetsPushed\x12#\n" +
@@ -921,7 +955,12 @@ const file_core_plugin_proto_v1_connector_proto_rawDesc = "" +
 	"\n" +
 	"word_count\x18\x05 \x01(\x05R\twordCount\x12\x17\n" +
 	"\apush_id\x18\x06 \x01(\tR\x06pushId\x12'\n" +
-	"\x0fblocks_uploaded\x18\a \x01(\x05R\x0eblocksUploaded\"\x8f\x01\n" +
+	"\x0fblocks_uploaded\x18\a \x01(\x05R\x0eblocksUploaded\x12)\n" +
+	"\x10concepts_applied\x18\b \x01(\x05R\x0fconceptsApplied\x12:\n" +
+	"\x19concept_relations_applied\x18\t \x01(\x05R\x17conceptRelationsApplied\x12+\n" +
+	"\x11concepts_proposed\x18\n" +
+	" \x01(\x05R\x10conceptsProposed\x12#\n" +
+	"\rchangeset_url\x18\v \x01(\tR\fchangesetUrl\"\x8f\x01\n" +
 	"\vPullRequest\x127\n" +
 	"\aproject\x18\x01 \x01(\v2\x1d.neokapi.plugin.v1.ProjectRefR\aproject\x12\x18\n" +
 	"\alocales\x18\x02 \x03(\tR\alocales\x12\x14\n" +
