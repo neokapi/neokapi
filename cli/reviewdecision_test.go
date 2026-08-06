@@ -158,7 +158,7 @@ func TestApplyReviewDecision_UnknownDecision(t *testing.T) {
 	_, err := a.ApplyReviewDecision(context.Background(), filepath.Join(root, "kapi.yaml"), "en",
 		ReviewUnitRef{File: "nb.json", Key: "a", Locale: "nb"}, "meh", "")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown review decision")
+	assert.Contains(t, err.Error(), "unknown review outcome")
 }
 
 func TestApplyReviewDecision_UnitNotFound(t *testing.T) {
