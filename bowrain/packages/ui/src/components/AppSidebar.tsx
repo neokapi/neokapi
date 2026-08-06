@@ -31,6 +31,7 @@ import {
   CreditCard,
   Shield,
   Lock,
+  Layers,
   Network,
   FlaskConical,
   Activity,
@@ -187,6 +188,11 @@ export const viewLabel = (id: string): string | undefined =>
 /** Sub-navigation items for views that have secondary menus. Exported for AppShell. */
 export const subNavConfig = (): Record<string, SubNavItem[]> => ({
   context: [
+    // Profiles first, and the section's landing: a workspace's context is a set
+    // of points — product, channel, market — before it is a set of concepts, and
+    // everything below is read at one of them. "Brand" is the default point's
+    // label here, not the name of the surface.
+    { id: "profiles", label: t("Profiles"), icon: <Layers /> },
     { id: "concepts", label: t("Concepts"), icon: <Network /> },
     { id: "voice", label: t("Voice"), icon: <Palette /> },
     { id: "memory", label: t("Content memory"), icon: <Brain /> },

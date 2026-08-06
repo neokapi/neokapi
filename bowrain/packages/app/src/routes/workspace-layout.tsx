@@ -302,20 +302,21 @@ export function WorkspaceLayout() {
   const effectiveView =
     activeView === "auditlog" || activeView === "bin" ? ("settings" as const) : activeView;
 
-  // Derive Context hub sub-nav from URL (Concepts · Voice · Content memory ·
-  // Changes · Activity). Concept-story and change-detail pages keep their
-  // section highlighted; bare /context falls back to Concepts (the landing
-  // section). /context/dashboard is deliberately absent: it resolves to the
-  // Insights view, so it never reaches this branch.
+  // Derive Context hub sub-nav from URL (Profiles · Concepts · Voice · Content
+  // memory · Changes · Activity). Profile-detail, concept-story and
+  // change-detail pages keep their section highlighted; bare /context falls
+  // back to Profiles (the landing section). /context/dashboard is deliberately
+  // absent: it resolves to the Insights view, so it never reaches this branch.
   const contextSubNav = useMemo(() => {
     if (activeView !== "context") return undefined;
     const contextPath = `/${workspaceSlug}/context`;
     const rest = pathname.slice(contextPath.length).replace(/^\//, "");
+    if (rest.startsWith("concepts")) return "concepts";
     if (rest.startsWith("voice")) return "voice";
     if (rest.startsWith("memory")) return "memory";
     if (rest.startsWith("changes")) return "changes";
     if (rest.startsWith("activity")) return "activity";
-    return "concepts";
+    return "profiles";
   }, [activeView, pathname, workspaceSlug]);
 
   // Derive the insights sub-nav from the URL. Without this the section had no

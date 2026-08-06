@@ -119,7 +119,7 @@ export function LocaleCoveragePanel({ limit = 8 }: { limit?: number }) {
       {isLoading ? (
         <Skeleton className="h-32 w-full" />
       ) : coverage.length === 0 ? (
-        <EmptyState title="No localized terms yet" className="py-6" />
+        <EmptyState title="No terms in target languages yet" className="py-6" />
       ) : (
         <ul className="space-y-2.5">
           {coverage.map((row) => (

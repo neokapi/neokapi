@@ -9,7 +9,7 @@ import {
 import type { VoiceProfile } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
-export function ContextProfilesRoute() {
+export function ContextVoiceProfilesRoute() {
   const navigate = useNavigate();
   const { workspace } = useParams({ strict: false });
   const { activeWorkspace, brandScanAvailable } = useRouteContext({

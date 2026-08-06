@@ -51,6 +51,7 @@ describe("route tree", () => {
     );
     // One path per Context sub-nav section, so a renamed nav item that lost its
     // route shows up here rather than as a dead click.
+    expect(childPaths).toContain("profiles");
     expect(childPaths).toContain("concepts");
     expect(childPaths).toContain("voice");
     expect(childPaths).toContain("memory");

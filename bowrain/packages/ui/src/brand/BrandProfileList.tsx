@@ -69,9 +69,9 @@ export function BrandProfileList({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Brand Voice Profiles</h1>
+        <h1 className="text-lg font-semibold">Voice profiles</h1>
         <Button size="sm" onClick={onCreate}>
-          <Plus className="w-3.5 h-3.5 mr-1.5" /> New Profile
+          <Plus className="w-3.5 h-3.5 mr-1.5" /> New profile
         </Button>
       </div>
 
@@ -93,8 +93,8 @@ export function BrandProfileList({
           <div className="text-center space-y-4 max-w-md">
             <p className="text-sm text-muted-foreground">
               {onScanBrand
-                ? "No brand voice profiles yet. Scan your existing material to draft one, or define it by hand."
-                : "No brand voice profiles yet. Define one by hand, or draft one locally with the kapi Agent Skill."}
+                ? "No voice profiles yet. A profile binds one under profiles[].voice: in a recipe. Scan your existing material to draft one, or define it by hand."
+                : "No voice profiles yet. A profile binds one under profiles[].voice: in a recipe. Define one by hand, or draft one locally with the kapi Agent Skill."}
             </p>
             <div className="flex items-center justify-center gap-3">
               {onScanBrand && (
@@ -103,13 +103,13 @@ export function BrandProfileList({
                 </Button>
               )}
               <Button variant={onScanBrand ? "outline" : "default"} onClick={onCreate}>
-                <Plus className="w-3.5 h-3.5 mr-1.5" /> New Profile
+                <Plus className="w-3.5 h-3.5 mr-1.5" /> New profile
               </Button>
             </div>
             {onScanBrand && (
               <p className="text-xs text-muted-foreground">
                 Paste text, add links, or drop your marketing files — the scan drafts a voice
-                profile and glossary for your review.
+                profile and candidate terms for your review.
               </p>
             )}
           </div>
@@ -150,7 +150,7 @@ export function BrandProfileList({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Profile</DialogTitle>
+            <DialogTitle>Delete profile</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Are you sure you want to delete &ldquo;{deleteTarget?.name}&rdquo;? This action cannot

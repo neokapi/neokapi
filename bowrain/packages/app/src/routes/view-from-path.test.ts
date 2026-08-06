@@ -21,6 +21,8 @@ describe("viewFromPath", () => {
 
   it("returns 'context' for context hub routes", () => {
     expect(viewFromPath("/acme/context", "acme")).toBe("context");
+    expect(viewFromPath("/acme/context/profiles", "acme")).toBe("context");
+    expect(viewFromPath("/acme/context/profiles/channel~docs", "acme")).toBe("context");
     expect(viewFromPath("/acme/context/concepts", "acme")).toBe("context");
     expect(viewFromPath("/acme/context/concepts/c-1", "acme")).toBe("context");
     expect(viewFromPath("/acme/context/voice", "acme")).toBe("context");

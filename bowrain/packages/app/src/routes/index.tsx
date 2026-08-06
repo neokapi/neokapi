@@ -499,11 +499,12 @@ const translationDashboardRoute = createRoute({
 });
 
 // ── Context hub (AD-021) ─────────────────────────────────────────────────────
-// One workspace surface with five sections: Concepts (graph + list + per-concept
-// story), Voice (profiles + correction loop), Content memory, Changes
-// (change-sets), and Activity. The old standalone Terms is absorbed into
-// Concepts, and Content memory is re-homed here from its own top-level route.
-// Dashboard also hangs off this section, but the sidebar files it under Insights.
+// One workspace surface entered through its governance profiles — the points
+// content sits at — with Concepts (graph + list + per-concept story), Voice
+// (profiles + correction loop), Content memory, Changes (change-sets) and
+// Activity beneath them. The old standalone Terms is absorbed into Concepts, and
+// Content memory is re-homed here from its own top-level route. Dashboard also
+// hangs off this section, but the sidebar files it under Insights.
 
 const contextRoute = createRoute({
   getParentRoute: () => workspaceRoute,
@@ -511,17 +512,38 @@ const contextRoute = createRoute({
   component: Outlet,
 });
 
-// /context → /context/concepts (Concepts is the hub's landing section).
+// /context → /context/profiles. Profiles is the hub's landing section: a
+// workspace's context is a set of points before it is a set of concepts.
 const contextIndexRoute = createRoute({
   getParentRoute: () => contextRoute,
   path: "/",
   beforeLoad: ({ params }) => {
     throw redirect({
-      to: "/$workspace/context/concepts",
+      to: "/$workspace/context/profiles",
       params: { workspace: params.workspace },
       replace: true,
     });
   },
+});
+
+const contextProfilesRoute = createRoute({
+  getParentRoute: () => contextRoute,
+  path: "profiles",
+  pendingComponent: DashboardSkeleton,
+  component: lazyRouteComponent(
+    () => import("./workspace/context-governance-profiles"),
+    "ContextGovernanceProfilesRoute",
+  ),
+});
+
+const contextProfileDetailRoute = createRoute({
+  getParentRoute: () => contextRoute,
+  path: "profiles/$slug",
+  pendingComponent: DashboardSkeleton,
+  component: lazyRouteComponent(
+    () => import("./workspace/context-profile-detail"),
+    "ContextProfileDetailRoute",
+  ),
 });
 
 const contextConceptsRoute = createRoute({
@@ -622,8 +644,8 @@ const contextVoiceIndexRoute = createRoute({
   path: "/",
   pendingComponent: BrandProfilesSkeleton,
   component: lazyRouteComponent(
-    () => import("./workspace/context-profiles"),
-    "ContextProfilesRoute",
+    () => import("./workspace/context-voice-profiles"),
+    "ContextVoiceProfilesRoute",
   ),
 });
 
@@ -865,6 +887,8 @@ const routeTree = rootRoute.addChildren([
     translationDashboardRoute,
     contextRoute.addChildren([
       contextIndexRoute,
+      contextProfilesRoute,
+      contextProfileDetailRoute,
       contextConceptsRoute,
       contextConceptStoryRoute,
       contextChangesRoute,
