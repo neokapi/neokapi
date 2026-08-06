@@ -158,7 +158,7 @@ Remotion into light + dark `.webm`. Two things are easy to get wrong:
 
 - **Narration sidecars are generated.** `demo.<lang>.yaml` files come from the
   dogfood recipe (`make l10n-demos`, drift-gated by `l10n-verify`). Fold fixes
-  into `.kapi/context/memory/demo-narration-<lang>.memory.json` and regenerate —
+  into `.kapi/memory/demo-narration-<lang>.memory.json` and regenerate —
   never edit a sidecar or author inline translations.
 - **Assets are not in git and not in GitHub releases.** They live only on the
   S3 + CloudFront CDN (`$DOCS_CDN_URL`) and are referenced by URL via

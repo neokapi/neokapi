@@ -125,9 +125,9 @@ ok(
   !!queue?.pending?.find((u: any) => u.key === "greeting" && u.locale === "fr" && u.file === "messages.fr.json"),
 );
 
-// ── 3. apply kind:"review": the decision is staged in the working store ──────
+// ── 3. apply kind:"review": the unit state is staged in the working store ──────
 // apply has no -p flag — it discovers the project from cwd (/project, above).
-// The decision is staged, not yet committed: in the browser the working set
+// The state record is staged, not yet committed: in the browser the working set
 // persists as a JSON sidecar through the sandbox FS, so it must survive into
 // the next command exactly as the SQLite working store does natively.
 const s3 = await run(["apply", "review.jsonl"]);
@@ -157,21 +157,21 @@ ok(
   !queue2?.pending?.find((u: any) => u.key === "greeting"),
 );
 
-// ── 6. commit: the staged decision lands in the committed record ─────────────
-// The committed record is per-document JSONL shards under .kapi/context/decisions/ (one
+// ── 6. commit: the staged unit state lands in the committed record ─────────────
+// The committed record is per-document JSONL shards under .kapi/state/ (one
 // line per unit), written through the sandbox FS.
 const s6 = await run(["commit"]);
 ok("commit exits 0 in wasm", s6.code === 0, `code=${s6.code}`);
 let shards: string[] = [];
 try {
-  shards = mem.vol.readdir("/project/.kapi/context/decisions").filter((n) => n.endsWith(".jsonl"));
+  shards = mem.vol.readdir("/project/.kapi/state/").filter((n) => n.endsWith(".jsonl"));
 } catch {
   /* leave empty */
 }
-ok("commit wrote the committed record (.kapi/context/decisions/*.jsonl)", shards.length > 0, `shards=${shards.length}`);
+ok("commit wrote the committed record (.kapi/state/*.jsonl)", shards.length > 0, `shards=${shards.length}`);
 const committedUnits: any[] = shards.flatMap((n) =>
   dec
-    .decode(mem.vol.readFile("/project/.kapi/context/decisions/" + n))
+    .decode(mem.vol.readFile("/project/.kapi/state/" + n))
     .split("\n")
     .filter((l) => l.trim() !== "")
     .map((l) => JSON.parse(l)),

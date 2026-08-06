@@ -50,19 +50,19 @@
 #
 # Drive it with the l10n-* Makefile targets. The context graph this project is
 # governed by — brand voice, terms, reviewed content memory — is committed under
-# .kapi/context/.
+# .kapi/.
 version: v1
 name: neokapi
 defaults:
   source_language: en
   target_languages: [nb]
   brand_voice:
-    profile_file: .kapi/context/brand-voice.yaml
+    profile_file: .kapi/voice.yaml
   # terms_source is the committed, git-tracked terms document (the review
   # surface `kapi apply` term-edits write to); it compiles into the project
   # store (.kapi/work/store.db), which is derived. Source of truth lives in git,
   # never in the store.
-  terms_source: .kapi/context/terms.json
+  terms_source: .kapi/terms.json
   memory:
     fuzzy_threshold: 75
   # YAML surface = the harness demo scripts (the only yaml content items).
@@ -111,9 +111,9 @@ coordinates:
 # falls back to defaults.brand_voice below.
 profiles:
   - when: { product: neokapi }
-    voice: .kapi/context/brand-voice.yaml
+    voice: .kapi/voice.yaml
   - when: { product: bowrain }
-    voice: .kapi/context/bowrain-voice.yaml
+    voice: .kapi/profiles/bowrain/voice.yaml
 
 content:
   - name: neokapi-engine
@@ -229,7 +229,7 @@ content:
       # localized narration is GENERATED into committed demo.<lang>.yaml
       # sidecars (make l10n-demos, content memory-driven) that the harness overlays at
       # load time. Never hand-edit a sidecar — fix the content memory seed instead
-      # (.kapi/context/memory/demo-narration-<lang>.memory.json). Translatable keys are
+      # (.kapi/memory/demo-narration-<lang>.memory.json). Translatable keys are
       # selected by defaults.formats.yaml.config.keyPathPatterns above.
       - path: harness/demos/*/demo.yaml
         format:
@@ -246,7 +246,7 @@ flows:
           fillTarget: true
           fillTargetThreshold: 100
   # content memory-driven translation: reviewed translations live in the project content memory
-  # (seeded from .kapi/context/memory/*.memory.json); exact matches fill the target, terminology
+  # (seeded from .kapi/memory/*.memory.json); exact matches fill the target, terminology
   # compliance is checked against the project terms.
   translate:
     steps:
@@ -278,7 +278,7 @@ flows:
 #
 # neokapi is the first real workspace on Bowrain. `kapi push` sends every surface
 # above to the project below; nb drafts land in the governed review queue and
-# approved segments round-trip back into .kapi/context/memory/*.memory.json.
+# approved segments round-trip back into .kapi/memory/*.memory.json.
 #
 # converge: manual — a push moves content but does NOT auto-start a server AI
 # convergence run. The first on-push run (2026-07-17) tried to AI-draft the whole

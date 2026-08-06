@@ -110,14 +110,14 @@ captions (and title/subtitle) onto the English master by scene `id`; sidecar
 entries still identical to the English text are content memory misses (pending
 translation) and simply fall back to English. Never hand-edit a sidecar or
 author an inline `locales:` block (the loader rejects it) — corrections go
-into the content memory seed `.kapi/context/memory/demo-narration-<lang>.memory.json`, then
+into the content memory seed `.kapi/memory/demo-narration-<lang>.memory.json`, then
 regenerate.
 Freshness is CI-gated by `make l10n-verify`.
 
 Scenes without a translated override fall back to English — except for
 published demos (`publishAs`), where the narrate stage requires full coverage
 so a shipped video never mixes languages. Translations follow
-`.kapi/context/brand-voice.yaml` (nb override) and the project terms.
+`.kapi/voice.yaml` (nb override) and the project terms.
 
 Select the locale with `--locale=<bcp47>` (or `HARNESS_LOCALE`) on the
 narrate/render/publish stages. The default (`en`) keeps today's unsuffixed
