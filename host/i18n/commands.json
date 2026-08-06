@@ -8,42 +8,8 @@
         },
         "apply": {
           "example": "  kapi inspect report.docx --jsonl | edit-the-text | kapi apply\n  kapi apply changeset.jsonl\n  kapi apply changeset.jsonl --diff\n  kapi status --review --json | approve-units | kapi apply\n  kapi apply changeset.jsonl --in-place=.bak",
-          "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (term, content-memory pair,\nbrand rule, recipe field), or a review outcome (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review outcome is recorded as unit state in the project store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the unit state is staged in the\nproject store and is bound to the translation's content hash, so a later edit\ndrops the unit back below reviewed. 'kapi commit' writes it into the committed\nrecord under .kapi/state/.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
+          "long": "Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is\none reviewed change — a content edit, an asset edit (term, content-memory pair,\nvoice rule, recipe field), or a review outcome (kind:\"review\"). Content edits\nland through the same byte-faithful round-trip the engine's writers use (structure and\ninline codes preserved), drift-guarded by content_hash; asset edits are written\ninto their committed source artifact and the existing import compiles them into\nthe cache; a review outcome is recorded as unit state in the project store.\n\nA content memory pair (kind:\"memory\") is recycle leverage for future translation — it does not\npromote a unit to reviewed. To approve a translated unit, use a kind:\"review\"\nentry addressed by its file/id/locale (as 'kapi status --review' lists it), with\nstatus \"reviewed\" (default) or \"signed-off\"; the unit state is staged in the\nproject store and is bound to the translation's content hash, so a later edit\ndrops the unit back below reviewed. 'kapi commit' writes it into the committed\nrecord under .kapi/state/.\n\nThe change-set is JSONL (one entry per line), read from CHANGESET or, with no\nargument or \"-\", from standard input. Content entries name their own file, so\napply writes those files in place; --diff previews the content changes and\nwrites nothing. No AI provider is required.",
           "short": "Apply a typed change-set (content + asset edits) — the one write verb"
-        },
-        "brand": {
-          "check": {
-            "short": "Score text against a brand voice profile"
-          },
-          "guide": {
-            "short": "Print the brand voice guide (inject into your assistant's context)"
-          },
-          "import": {
-            "short": "Import a profile YAML into the local brand store"
-          },
-          "long": "Check, rewrite, and govern content against a brand voice profile.\n\nProfile source (mutually exclusive):\n  --profile \u003cname\u003e       Profile in the local brand store (see 'kapi brand profiles')\n  --profile-file \u003cpath\u003e  Standalone profile YAML (git-shareable, no store needed)\n  --pack \u003cname\u003e          Built-in starter pack (professional-b2b, friendly-dtc,\n                         technical-docs, marketing-blog, customer-support)\n\nText input for check/rewrite is read from --text, or from stdin when --text is\nomitted or set to \"-\".",
-          "new": {
-            "long": "Write a brand voice profile YAML to fill in.\n\nWith no flags, emits a commented template. With --pack, emits an existing\nstarter pack as an editable base. An AI assistant can fill this in from what it\nalready knows about the product, from sample content, or from a linked website,\nthen `kapi brand import` it.",
-            "short": "Scaffold a brand voice profile YAML to fill in (optionally seeded from a starter pack)"
-          },
-          "pack": {
-            "short": "Install a built-in starter pack into the local brand store"
-          },
-          "profiles": {
-            "short": "List brand voice profiles (local store + built-in packs)"
-          },
-          "rewrite": {
-            "long": "Rewrite content against a brand voice profile by substituting forbidden and\ncompetitor terms with their approved replacements. This is the deterministic,\noffline path — it changes only the terms the profile defines and reports each\nchange; it does not call a model.\n\nText is read from --input-text or stdin and the rewrite is printed. To fix tone,\nstyle, or phrasing on-brand, rewrite the text yourself with the voice guide as\ncontext ('kapi brand guide') and apply the edit through 'kapi apply' — kapi does\nnot send content to a model to rewrite it.",
-            "short": "Substitute forbidden/competitor terms for their approved wording (offline)"
-          },
-          "short": "Keep AI-generated content on brand (voice, tone, terminology)",
-          "show": {
-            "short": "Show a brand voice profile as a guide"
-          },
-          "validate": {
-            "long": "Validate a brand voice profile YAML and report structural problems.\n\nPass a file path, or \"-\" to read the profile from stdin. Validation reports:\n\n  - YAML syntax or type errors that stop the profile from parsing\n  - unknown fields (typo'd or unsupported keys)\n  - missing required fields (only 'name' is required)\n  - invalid enum values (tone formality/emotion/humor, style sentence_length/\n    person_pov/contractions, example category, rule severity)\n  - regex in style prohibited_patterns/required_patterns that does not compile\n  - vocabulary term rules with an empty term\n\nExit codes: 0 when the profile is valid, 1 when it has any problem. With --json\nthe result is {\"valid\": bool, \"errors\": [{\"field\", \"message\"}]}.",
-            "short": "Validate a brand voice profile YAML (structure, enums, regex, terms)"
-          }
         },
         "check": {
           "long": "Run content checks over one or more files and return structured findings\nplus a pass/fail, gating on severity — the content-first counterpart to a test\nrunner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces/words, stray whitespace), length limits (--max-chars/\n--max-words), forbidden/required patterns (--forbid/--require), and brand\nvocabulary when a profile is bound (--profile/--pack/--profile-file).\n\nBilingual checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target \u003cfile\u003e --target-lang \u003clang\u003e to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (\u003ccheck\u003e.\u003ccategory\u003e) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --output-format json|yaml emits the kapi.check/v1\nReport.\n\nPositional paths accept glob patterns and directories, expanded by kapi itself —\nquote the pattern and `**` recurses identically in every shell. Inside a .kapi\nproject, check with no file arguments checks the project's declared content;\nnaming files narrows it to those.\n\nProject gate mode (--ship): it runs the\nproject's bound quality gates (brand, terminology, QA) plus its ship/source\ncoverage gates over the project's content, and exits non-zero when any gate is\nunmet — the pre-release bar. Target drift never blocks an ordinary build (see\n'kapi status'); --ship is the explicit, opt-in enforcement point. With no file\narguments it inspects the project's content x target languages; pass files to\ngate just those.\n\nExit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits\n0 (report mode) for a fix-loop.",
@@ -65,7 +31,7 @@
           "list": {
             "short": "List every configured value, including plugin namespaces"
           },
-          "long": "Read and write configuration.\n\nApp configuration (the global config file, typically ~/.config/kapi/kapi.yaml)\nuses the subcommands. Common keys:\n  ai.provider   default AI provider for translate / qa / brand-voice-check / flows\n                (e.g. `ollama` to default to a free, on-device local model)\n  ai.model      default model for the AI provider\n\nAn explicit --provider/--model flag, inline config, or project recipe default always overrides these.\n\nInstalled plugins claim their own key namespaces, reached through the same\nsubcommands (e.g. `kapi config set bowrain.server.url https://…`); there is no\nseparate per-plugin config command. `kapi config list` shows every namespace.\n\nProject recipe fields use the positional form: with one argument the key is\nprinted, with two it is set and the recipe saved. Core keys: name,\nsource_language, preset. Dotted keys edit a registered recipe block\n(e.g. server.url, server.stream on a connected project).",
+          "long": "Read and write configuration.\n\nApp configuration (the global config file, typically ~/.config/kapi/kapi.yaml)\nuses the subcommands. Common keys:\n  ai.provider   default AI provider for translate / qa / voice-check / flows\n                (e.g. `ollama` to default to a free, on-device local model)\n  ai.model      default model for the AI provider\n\nAn explicit --provider/--model flag, inline config, or project recipe default always overrides these.\n\nInstalled plugins claim their own key namespaces, reached through the same\nsubcommands (e.g. `kapi config set bowrain.server.url https://…`); there is no\nseparate per-plugin config command. `kapi config list` shows every namespace.\n\nProject recipe fields use the positional form: with one argument the key is\nprinted, with two it is set and the recipe saved. Core keys: name,\nsource_language, preset. Dotted keys edit a registered recipe block\n(e.g. server.url, server.stream on a connected project).",
           "path": {
             "short": "Print the config file path (of kapi, or of a plugin namespace)"
           },
@@ -111,13 +77,6 @@
           "short": "Serve the content engine as a local gRPC API"
         },
         "exec": {
-          "brand-voice-check": {
-            "example": "  kapi brand-voice-check messages.json --target-lang fr\n  kapi brand-voice-check app.xliff --target-lang de",
-            "short": "Check text against a brand voice profile using an LLM provider"
-          },
-          "brand-voice-infer": {
-            "short": "Infer a draft brand voice profile from a content corpus using an LLM provider"
-          },
           "case-transform": {
             "example": "  kapi case-transform messages.json --mode upper\n  kapi case-transform messages.json --mode lower",
             "short": "Case Transform"
@@ -201,6 +160,13 @@
           },
           "unredact": {
             "short": "Restore original values into redacted content after processing"
+          },
+          "voice-check": {
+            "example": "  kapi voice-check messages.json --target-lang fr\n  kapi voice-check app.xliff --target-lang de",
+            "short": "Check text against a voice profile using an LLM provider"
+          },
+          "voice-infer": {
+            "short": "Infer a draft voice profile from a content corpus using an LLM provider"
           },
           "whitespace-correct": {
             "short": "Whitespace Correct"
@@ -544,6 +510,40 @@
         "version": {
           "example": "  kapi version",
           "short": "Show version information"
+        },
+        "voice": {
+          "check": {
+            "short": "Score text against a voice profile"
+          },
+          "guide": {
+            "short": "Print the voice guide (inject into your assistant's context)"
+          },
+          "import": {
+            "short": "Import a profile YAML into the local voice store"
+          },
+          "long": "Check, rewrite, and govern content against a voice profile.\n\nProfile source (mutually exclusive):\n  --profile \u003cname\u003e       Profile in the local voice store (see 'kapi voice profiles')\n  --profile-file \u003cpath\u003e  Standalone profile YAML (git-shareable, no store needed)\n  --pack \u003cname\u003e          Built-in starter pack (professional-b2b, friendly-dtc,\n                         technical-docs, marketing-blog, customer-support)\n\nText input for check/rewrite is read from --text, or from stdin when --text is\nomitted or set to \"-\".",
+          "new": {
+            "long": "Write a voice profile YAML to fill in.\n\nWith no flags, emits a commented template. With --pack, emits an existing\nstarter pack as an editable base. An AI assistant can fill this in from what it\nalready knows about the product, from sample content, or from a linked website,\nthen `kapi voice import` it.",
+            "short": "Scaffold a voice profile YAML to fill in (optionally seeded from a starter pack)"
+          },
+          "pack": {
+            "short": "Install a built-in starter pack into the local voice store"
+          },
+          "profiles": {
+            "short": "List voice profiles (local store + built-in packs)"
+          },
+          "rewrite": {
+            "long": "Rewrite content against a voice profile by substituting forbidden and\ncompetitor terms with their approved replacements. This is the deterministic,\noffline path — it changes only the terms the profile defines and reports each\nchange; it does not call a model.\n\nText is read from --input-text or stdin and the rewrite is printed. To fix tone,\nstyle, or phrasing in voice, rewrite the text yourself with the voice guide as\ncontext ('kapi voice guide') and apply the edit through 'kapi apply' — kapi does\nnot send content to a model to rewrite it.",
+            "short": "Substitute forbidden/competitor terms for their approved wording (offline)"
+          },
+          "short": "Keep AI-generated content in voice (tone, style, terminology)",
+          "show": {
+            "short": "Show a voice profile as a guide"
+          },
+          "validate": {
+            "long": "Validate a voice profile YAML and report structural problems.\n\nPass a file path, or \"-\" to read the profile from stdin. Validation reports:\n\n  - YAML syntax or type errors that stop the profile from parsing\n  - unknown fields (typo'd or unsupported keys)\n  - missing required fields (only 'name' is required)\n  - invalid enum values (tone formality/emotion/humor, style sentence_length/\n    person_pov/contractions, example category, rule severity)\n  - regex in style prohibited_patterns/required_patterns that does not compile\n  - vocabulary term rules with an empty term\n\nExit codes: 0 when the profile is valid, 1 when it has any problem. With --json\nthe result is {\"valid\": bool, \"errors\": [{\"field\", \"message\"}]}.",
+            "short": "Validate a voice profile YAML (structure, enums, regex, terms)"
+          }
         }
       }
     },

@@ -77,7 +77,7 @@ configuration change; the surrounding steps are unchanged.
 Every prompt kapi sends is built in `core/ai/prompt/`, composed from framework
 rules (return only the translation; preserve placeholders and inline tags) plus
 the steering your project declares — an instruction, a
-[brand voice profile](/framework/checks/brand-voice), and a
+[voice profile](/framework/checks/voice), and a
 [terms store](/framework/terminology). The prompt is the same for every provider;
 only the transport differs.
 

@@ -12,13 +12,13 @@ import { PhaseFlow } from "@neokapi/docs-shared";
 # The kapi loop in CI
 
 Source content changes on every merge, and everything derived from it — its
-translations, its brand and terminology conformance — falls behind. That drift
+translations, its voice and terminology conformance — falls behind. That drift
 is the normal state of a shipping project, not an error. Running
 [the kapi loop](/kapi/convergence) in CI keeps every language caught up from
 the pipeline that produces the drift: close what a machine can close, deliver
 it as a reviewable pull request, and enforce the release bar on merges —
 content quality treated like any other test. This covers the source language
-too: the ship gate includes the source gates (brand, terminology) alongside
+too: the ship gate includes the source gates (voice, terminology) alongside
 translation coverage and QA.
 
 <PhaseFlow
@@ -39,7 +39,7 @@ translation coverage and QA.
 Inside a pass, for every language behind its gate, the default flow does three
 things in order: **reuse** — exact translation-memory matches fill first, for
 free; **translate** — the configured AI provider fills what remains, with the
-project's terminology and brand context; **check** — deterministic checks run
+project's terminology and voice context; **check** — deterministic checks run
 over what was produced (placeholder integrity, inline tags, do-not-translate
 terms), and a unit with a failing finding counts as *drafted*, not translated,
 so bad output can never lift a language over its gate. What a machine cannot
@@ -129,7 +129,7 @@ jobs via dotenv.
 
 ## Gate merges on content quality
 
-`kapi check --ship` runs the project's bound quality gates — brand,
+`kapi check --ship` runs the project's bound quality gates — voice,
 terminology, QA — plus its ship/source coverage gates, and exits `3` when any
 gate is unmet. Machine-produced translations fail quietly: a dropped
 placeholder, a competitor's term, wording that drifts off the approved

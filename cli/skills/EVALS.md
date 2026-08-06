@@ -45,9 +45,9 @@ catalogs; the app is not booted, so in-locale *rendering* is not verified here
 |---|--------|------|-----------|-----------|
 | 1 | "What does slide 3 of `pitch.pptx` say?" | read/edit (binary) | yes | yes — read via `kcat` |
 | 2 | "Make the intro of `report.docx` more concise — keep the formatting." | edit | yes | yes — `ksed`, formatting preserved |
-| 3 | "Check `README.md` against our brand voice and fix what's off." | brand | yes | yes — `kapi brand check` gate |
+| 3 | "Check `README.md` against our voice profile and fix what's off." | brand | yes | yes — `kapi voice check` gate |
 | 4 | "Find every 'utilize' across `docs/` and change it to 'use'." (`docs/` **must** hold at least one opaque file — a `.docx`/`.json` — or the skill correctly won't fire; see above) | edit / toolbox | yes | yes — replaced across `.docx`+`.json`+`.md` |
-| 5 | "Set up a brand voice for us from our landing page." | brand create | yes | yes — `brand.yaml` + `brand check --min-score` |
+| 5 | "Set up a voice profile for us from our landing page." | brand create | yes | yes — `voice.yaml` + `voice check --min-score` |
 | 6 | "Translate `announcement.docx` into Japanese." | translate | yes | yes — round-trip → `kapi check` |
 | 7 | "Localize `src/locales/en.json` into fr and de using our glossary." | translate | yes | partial — fr/de translated + checked, but the fixture shipped **no terms**, so the term dimension wasn't exercised (fixture gap, not a skill miss) |
 | 8 | "Get `report.docx` ready for a translation vendor in French." | translate (interchange) | yes | yes — `pack`/extract → merge, content memory seeded (~45 turns; exploratory) |
@@ -76,8 +76,8 @@ catch up (`kapi up`), then surface the review queue (`kapi status --review`) —
 
 Scenario 16 is context discovery. Its local leg completes in the
 sandbox with no server: "completed" there means the context files exist
-(`brand.yaml`, the recipe binding it, a committed term seed) and
-`kapi brand check` passes on a repo sample. The push leg
+(`voice.yaml`, the recipe binding it, a committed term seed) and
+`kapi voice check` passes on a repo sample. The push leg
 (`kapi init --server … --anonymous` → claim URL → `kapi push`) needs a
 sandboxed bowrain-server plus the kapi-bowrain plugin in the sandbox's plugin
 dir, so score it separately or stop the scenario at the hand-off message.

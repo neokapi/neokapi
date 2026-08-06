@@ -1266,15 +1266,15 @@ export function InspectFile(tabID, filePath) {
  *   - term overlays (type "term") from the project's auto-opened terms
  *     (LookupAll over each block's source text), carrying the matched surface
  *     form, its preferred target translation and domain;
- *   - brand-vocabulary overlays (type "qa", props.category="brand-vocabulary")
- *     from the project's resolved brand profile (resolveProjectVoiceProfile via
- *     brand.MatchVocabulary);
+ *   - voice-vocabulary overlays (type "qa", props.category="voice-vocabulary")
+ *     from the project's resolved voice profile (resolveProjectVoiceProfile via
+ *     coreprofile.MatchVocabulary);
  *   - rule-based QA overlays (type "qa") from the shared source-only shape rules
  *     (double spaces, doubled words — check.HygieneOverlay).
  * 
  * These mirror the overlay shapes the docs "Anatomy" explorer produces in
  * kapi/cmd/kapi-wasm-cli/lab_annotate.go, but use the project's real resources
- * rather than a seeded in-memory terms / brand profile. DocumentViewer's
+ * rather than a seeded in-memory terms / voice profile. DocumentViewer's
  * annotations toggle highlights them on the rendered document.
  * @param {string} tabID
  * @param {string} filePath
@@ -1888,7 +1888,7 @@ export function RunAIPreReview(tabID, locale, scope, policy) {
 
 /**
  * RunChecks runs the project's content checks (placeholder + do-not-translate
- * when a target exists, brand vocabulary on the source when a brand profile is
+ * when a target exists, voice vocabulary on the source when a voice profile is
  * bound) over the content files the Active Filter selects (its collections +
  * glob; all when empty), for the filter's target languages — source-side checks
  * run once per file, target-side checks run once per filtered language, and the

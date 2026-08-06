@@ -16,7 +16,7 @@ checks do not make generation deterministic; they make it accountable.
 
 Every checker — a deterministic rule, a small ML model, or an LLM judge — emits
 the same record, so one scoring, annotation, and review path serves terminology,
-do-not-translate, placeholder integrity, register, and brand voice alike.
+do-not-translate, placeholder integrity, register, and voice profile alike.
 
 ```go
 // core/check

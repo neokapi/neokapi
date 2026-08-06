@@ -169,7 +169,7 @@ defaults:
   source_language: en
   target_languages: [de, fr, ja, nb]
   # Brand vocabulary and voice are git-tracked sources under i18n/.
-  brand_voice:
+  voice:
     profile_file: i18n/voice.yaml
   terms_source: i18n/terms.json
 content:
@@ -182,8 +182,8 @@ content:
 i18n/
 ├── src/                    source KBF catalogs (from `neokapi-i18n extract`)
 ├── de/ fr/ ja/ nb/         per-locale targets (from kapi)
-├── terms.json     brand vocabulary (git source)
-└── brand-voice.yaml        brand voice profile (git source)
+├── terms.json     voice vocabulary (git source)
+└── brand-voice.yaml        voice profile (git source)
 ```
 
 Content memory and pseudo-locale output are rebuildable state, so they live

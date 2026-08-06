@@ -1,7 +1,7 @@
 version: v1
 name: lumen
 defaults:
-  brand_voice:
-    profile_file: brand.yaml
+  voice:
+    profile_file: voice.yaml
 content: []
 flows: {}

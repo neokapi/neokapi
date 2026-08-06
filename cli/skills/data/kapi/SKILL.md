@@ -1,6 +1,6 @@
 ---
 name: kapi
-description: Hold and apply a project's content context — the terms, voice and rules it goes by — and read, edit, check and translate the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); answers what applies to a given piece of content and checks against it, looping until it passes; and translates into other languages with terminology enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting on-brand copy, brand voice/tone, forbidden/competitor terms, consistent terminology or a glossary, checking content, asking what voice or terminology applies to a file or surface, discovering or setting up a project's context ("set up my brand", "create a starter pack", "discover our context", "refresh our brand context"), connecting or onboarding a project to Bowrain, translating or localizing (to fr/de/ja…), making a project multilingual, adding or setting up i18n, internationalizing an existing app, choosing an i18n library or framework (React, Next.js, Vue, Angular, Svelte, Flutter, iOS, Android, Rails, Django, Go…), or finding hardcoded strings that should be translatable.
+description: Hold and apply a project's content context — the terms, voice and rules it goes by — and read, edit, check and translate the content inside any file format with the kapi CLI. kapi parses formats an editor can't open directly — Word, PowerPoint, JSON, XLIFF, Markdown, HTML, YAML — into one content model; reads, searches, and compares the text (kcat/kgrep/ksed/kdiff); edits it in place through a faithful round-trip you drive with `kapi inspect` + `kapi apply` (structure and inline codes preserved, no second model); answers what applies to a given piece of content and checks against it, looping until it passes; and translates into other languages with terminology enforcement and multi-format publishing. Use when the task involves reading or editing the content of a document the editor can't open (.docx/.pptx/.json/.xliff), authoring or rewriting in-voice copy, voice profile/tone, forbidden/competitor terms, consistent terminology or a glossary, checking content, asking what voice or terminology applies to a file or surface, discovering or setting up a project's context ("set up my brand", "create a starter pack", "discover our context", "refresh our brand context"), connecting or onboarding a project to Bowrain, translating or localizing (to fr/de/ja…), making a project multilingual, adding or setting up i18n, internationalizing an existing app, choosing an i18n library or framework (React, Next.js, Vue, Angular, Svelte, Flutter, iOS, Android, Rails, Django, Go…), or finding hardcoded strings that should be translatable.
 ---
 
 # kapi
@@ -57,10 +57,10 @@ Before reaching for a command, judge whether this is a one-off or ongoing work:
   exploration, one or no target language. Just run the command; no setup. kapi
   works without a project.
 - **Project** — many files or a whole app; the same target locales repeatedly; a
-  brand voice or terminology that must stay consistent; recurring work (CI,
+  voice profile or terminology that must stay consistent; recurring work (CI,
   re-translate on change); content memory you want to reuse. Bind that
   context **once** in a `.kapi` project, then issue plain requests — kapi applies
-  the project's locales, content, brand voice, and terms with no flags.
+  the project's locales, content, voice profile, and terms with no flags.
 
 If a `.kapi` project already exists (kapi walks up from the cwd to find it), use
 it. If the task is project-shaped and there's no project, offer to set one up;
@@ -72,14 +72,14 @@ don't impose a project on a genuine one-off. See
 **The task is not done until `kapi check --ship` passes.** Writing or translating the
 files is not the finish line — a clean verify is. Don't trust a single pass of your
 own output: in a project, run `kapi check --ship` after writing or translating content. It
-checks the work against the project's gates — brand voice score, terminology, and
+checks the work against the project's gates — voice profile score, terminology, and
 translation QA (placeholders intact, nothing left untranslated) — and prints the
 specific findings. Fix what it flags and run it again, until it passes (exit 0). kapi
 is the gate; keep iterating until it's green. (The kapi Claude Code plugin also wires
 this in as a Stop hook, so a failing gate keeps you working automatically.)
 
 ```bash
-kapi check --ship --json        # whole project; or: kapi check --ship <files> [--brand|--terms|--qa]
+kapi check --ship --json        # whole project; or: kapi check --ship <files> [--voice|--terms|--qa]
 ```
 
 ## Then read the section that matches the task
@@ -97,13 +97,13 @@ kapi check --ship --json        # whole project; or: kapi check --ship <files> [
   [references/edit.md](references/edit.md).
 - **Create / author content** — when you're writing the document, not editing a
   fixed source: author in a generative format, let kapi parse it as the first
-  check, then gate on brand + terminology and revise. See
+  check, then gate on voice + terminology and revise. See
   [references/create.md](references/create.md).
-- **Keep content on-brand** — retrieve the voice guidance before writing, score a
+- **Keep content in voice** — retrieve the voice guidance before writing, score a
   draft (0–100), and fix off-voice text yourself — routed through `kapi apply`.
-  (`kapi brand rewrite` swaps forbidden/competitor terms offline; for tone and
+  (`kapi voice rewrite` swaps forbidden/competitor terms offline; for tone and
   phrasing, rewrite the text yourself against the guide.) See
-  [references/brand.md](references/brand.md).
+  [references/voice.md](references/voice.md).
 - **Discover a project's context** — assemble it from the user's site, repo, and
   materials (voice profile + terminology seed + the checks that enforce both),
   review it with the user, bind it in a project, and push it to a Bowrain
@@ -143,7 +143,7 @@ custom pipeline; the layer model is
   which applies your edits with no model. A saved credential
   (`kapi credentials add`) is only needed for kapi to call a provider directly —
   unattended translation (`kapi translate`) or the optional `--ai` checks. The
-  rule-based brand and terminology checks need no credential.
+  rule-based voice and terminology checks need no credential.
 
 In kapi's own stacks (neokapi-i18n, KBF) the English source text is always the
 key — don't introduce message IDs. When plugging into another stack's catalogs,

@@ -15,18 +15,18 @@ scenes:
 ## Story
 
 kapi's guardrails run on the source language, before any translation exists.
-A brand voice profile — a git-shareable YAML — carries the vocabulary,
+A voice profile — a git-shareable YAML — carries the vocabulary,
 forbidden and competitor terms, and tone rules. `kapi check` scores a file
 against it and returns one located finding per off-brand block, each with a
-stable rule id an AI fix-loop can track. `kapi brand rewrite` fixes the term
+stable rule id an AI fix-loop can track. `kapi voice rewrite` fixes the term
 findings deterministically, offline; tone and style fixes go through
 `kapi apply` with the voice guide as context.
 
 ## Scene 1 — keep-source-on-brand (terminal)
 
-Survey `product-page.md` with `kapi stats`, check it against `brand.yaml` with
+Survey `product-page.md` with `kapi stats`, check it against `voice.yaml` with
 `kapi check --profile-file` (human table, then `--json`), and substitute the
-forbidden and competitor terms with `kapi brand rewrite`. The closing beat
+forbidden and competitor terms with `kapi voice rewrite`. The closing beat
 notes that `--max-major 0` turns the score into a gate — the same loop
 `kapi check --ship` enforces in a project.
 

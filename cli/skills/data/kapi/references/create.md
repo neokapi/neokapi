@@ -2,7 +2,7 @@
 
 When you are **authoring new content** — there is no frozen source file to edit,
 you are writing the document — kapi is still the checker. You write; kapi parses
-what you wrote, holds it to the brand voice and terminology, and tells you what
+what you wrote, holds it to the voice profile and terminology, and tells you what
 to fix. No model provider is involved; the loop is just you and kapi.
 
 This is the **author → parse → check** loop. It is the create-side counterpart of
@@ -39,13 +39,13 @@ kapi inspect draft.md --jsonl
 If a block is missing, merged, or carries text you didn't intend, fix the source
 and parse again.
 
-## 3. Gate on brand and terminology
+## 3. Gate on voice and terminology
 
 Run the content rules. For a one-off file, `kapi check`; in a project,
-`kapi check --ship` runs every bound gate (brand voice, terminology, QA) together:
+`kapi check --ship` runs every bound gate (voice profile, terminology, QA) together:
 
 ```bash
-kapi check draft.md --profile-file brand.yaml --json   # one-off
+kapi check draft.md --profile-file voice.yaml --json   # one-off
 kapi check --ship --json                                       # in a project
 ```
 
@@ -54,7 +54,7 @@ block — its location, the rule, and a suggested fix. Load the voice guide and 
 approved wording **before** writing so the first draft is already close:
 
 ```bash
-kapi brand guide                       # the voice to follow (no flag inside a project)
+kapi voice guide                       # the voice to follow (no flag inside a project)
 kapi terms lookup "dashboard" -t en  # the approved term
 ```
 
@@ -95,9 +95,9 @@ kapi apply changeset.jsonl
   store. `git diff` shows the one new term; the next `kapi check --ship`
   enforces it.
 
-The asset kinds `kapi apply` accepts — `term`, `memory`, `brand`, `recipe` — and
-their fields are summarized in [edit.md](edit.md); the brand-vocabulary case is
-detailed in [brand.md](brand.md). Asset entries require a `.kapi` project (the
+The asset kinds `kapi apply` accepts — `term`, `memory`, `voice`, `recipe` — and
+their fields are summarized in [edit.md](edit.md); the voice-vocabulary case is
+detailed in [voice.md](voice.md). Asset entries require a `.kapi` project (the
 committed source and recipe live there).
 
 After applying, run `kapi check --ship` (or `kapi check`) once more to confirm the

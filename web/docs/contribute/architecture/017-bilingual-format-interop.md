@@ -72,7 +72,7 @@ edits onto source files using the block hash to address blocks), but they answer
 different questions and must not be unified:
 
 - `kapi apply` lands a **human/assistant-reviewed** change-set — a content fix, or
-  an asset edit (term, memory pair, brand rule, recipe field) — with a
+  an asset edit (term, memory pair, voice rule, recipe field) — with a
   `content_hash` drift guard and an inline-code fidelity guard, exiting on the gate
   code when an edit is stale or rejected so a fix loop re-inspects. It is the write
   half of the inspect/apply loop and never touches a target locale or absorbs into

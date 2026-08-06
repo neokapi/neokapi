@@ -2,7 +2,7 @@
 id: 024-agent-skills
 sidebar_position: 24
 title: "AD-024: Agent Skills"
-description: "Architecture decision: kapi ships an Agent Skill (a SKILL.md router with progressive-disclosure reference files) whose source lives in the monorepo, in lockstep with the CLI surface, and is distributed to AI coding assistants as a Claude Code plugin through the neokapi-plugins marketplace — teaching the assistant to drive the kapi CLI for editing, brand, terminology, and translation."
+description: "Architecture decision: kapi ships an Agent Skill (a SKILL.md router with progressive-disclosure reference files) whose source lives in the monorepo, in lockstep with the CLI surface, and is distributed to AI coding assistants as a Claude Code plugin through the neokapi-plugins marketplace — teaching the assistant to drive the kapi CLI for editing, voice, terminology, and translation."
 keywords: [agent skills, SKILL.md, Claude, .claude/skills, progressive disclosure, AI assistant, CLI, architecture decision, neokapi]
 ---
 
@@ -21,11 +21,11 @@ documents; it is distributed to assistants as a **Claude Code plugin** through
 the `neokapi-plugins` marketplace — there is no `kapi skills` CLI command and the
 binary does not carry the skill. The skills drive the kapi CLI directly (not the
 MCP server), and rely on the CLI's exit-code contract ([AD-013](013-kapi-cli.md))
-to distinguish a failed quality/brand gate from an operational error.
+to distinguish a failed quality/voice gate from an operational error.
 
 The default Claude + kapi model is symmetric across writing, editing, and
 translating: **the assistant produces the content; kapi supplies the context
-(brand guide, terms), enforces a faithful format round-trip, drift-checks the
+(voice guide, terms), enforces a faithful format round-trip, drift-checks the
 result, and is the checker — no second model is called.** Two first-class loops
 realize this: an **edit** loop for existing content (`kapi inspect` → assistant
 edits → `kapi apply`) and a **create** loop for content authored from scratch
@@ -37,7 +37,7 @@ fallback only.
 
 neokapi's positioning is to plug into an AI assistant so the assistant's output
 stays on-brand and ships in other languages. The assistant already writes the
-prose and the code; kapi supplies the guardrails (brand voice, terminology) and
+prose and the code; kapi supplies the guardrails (voice profile, terminology) and
 the format round-tripping. The connective tissue is an Agent Skill: a unit of
 instruction that tells the assistant *when* to reach for kapi and *which*
 command to run, without bloating its base context.
@@ -165,7 +165,7 @@ separate lifecycle mechanism that is validated but not executed (#1255); see
 ### kapi-* and bowrain-* skills
 
 The skill set is split by which surface a skill drives. **kapi-\*** skills drive
-the local, offline `kapi` CLI — brand checks, terminology, translation,
+the local, offline `kapi` CLI — voice checks, terminology, translation,
 internationalization, and the format-aware toolbox. **bowrain-\*** skills drive
 the governed Bowrain platform (project sync, automation). The framework module
 owns and embeds the kapi side; a bowrain skill is contributed by the bowrain
@@ -173,12 +173,12 @@ plugin, so the platform's how-tos ship with the platform rather than with the
 open framework.
 
 In the framework today the embedded set is a single `kapi` skill whose router
-covers editing, creating, brand, terminology, translation, i18n, the toolbox,
+covers editing, creating, voice, terminology, translation, i18n, the toolbox,
 and a project model, with one reference file per concern — `edit.md` (the read →
 edit → write → verify loop), `create.md` (the author → parse → check loop),
-`brand.md`, `translate.md` (translation and terminology), `i18n.md`,
+`voice.md`, `translate.md` (translation and terminology), `i18n.md`,
 `project.md`, `context-discovery.md`, and `toolbox.md`. Terminology folds into the
-brand and translate references rather than a standalone file. The i18n
+voice and translate references rather than a standalone file. The i18n
 concern is itself a small tree: `references/i18n.md` routes by detected stack
 into per-ecosystem playbooks under `references/i18n/`, driven by a
 machine-readable framework registry (`references/i18n/frameworks.yaml`) that
@@ -207,7 +207,7 @@ separate model) applied to editing and creation.
 - **Create new content.** When there is no frozen source, the assistant authors a
   **generative** format (one whose writer can produce a document from the content
   model alone) and uses `kapi inspect` / `kapi stats` to parse it back as the
-  first check, then `kapi check` / `kapi check --ship` as the brand-and-terminology
+  first check, then `kapi check` / `kapi check --ship` as the voice-and-terminology
   gate, revising until green. Binary formats (`.docx`, `.pptx`) are editable but
   not generative — authored elsewhere, edited in place.
 
@@ -222,7 +222,7 @@ through a single command, `kapi apply` (the write sibling of `kapi inspect`):
 | `content` | a block's text in a named `file` | byte-faithful format round-trip, drift- and inline-code guarded |
 | `term` | a term | committed `.terms.json` source → terms import → the terms tables of `.kapi/work/store.db` |
 | `memory` | a content-memory pair | committed `.memory.json` source → memory import → the memory tables of `.kapi/work/store.db` |
-| `brand` | a brand vocabulary rule | committed brand profile YAML → brand-store import ([AD-022](022-brand-voice.md)) |
+| `voice` | a voice vocabulary rule | committed voice profile YAML → voice-store import ([AD-022](022-voice-profile.md)) |
 | `review` | a unit's review outcome | staged in the working set, published to `.kapi/state/` by `kapi commit` ([AD-033](033-project-state-model.md)) |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load/save |
 
@@ -231,7 +231,7 @@ Two properties make this one verb rather than five:
 - **Asset edits write the committed source, then compile the projection.** An
   asset is edited in the git-tracked artifact the recipe binds (the
   `.terms.json`/`.memory.json` bundle,
-  the brand YAML, the recipe), and the *existing* importer refreshes the
+  the voice YAML, the recipe), and the *existing* importer refreshes the
   gitignored database from it. The backing store is therefore written by
   exactly one path, `git diff` is the uniform review surface for every kind, and
   the operation is idempotent — an entry already in the desired state is a
@@ -245,14 +245,14 @@ Two properties make this one verb rather than five:
   re-inspects and retries.
 
 `kapi apply` is the one write verb. It lands content edits, asset edits (a `term`
-or `brand` rule), or a mix of both, and spans several files. kapi never sends
+or `voice` rule), or a mix of both, and spans several files. kapi never sends
 content to a model to rewrite it: the assistant rewrites the text and `kapi apply`
-round-trips it back. A mixed change-set — a content fix and the `term` or `brand`
+round-trips it back. A mixed change-set — a content fix and the `term` or `voice`
 rule that justifies it — lands atomically, so the draft and the rule that governs
 future drafts move together.
 
 The MCP server exposes the same loop for non-CLI agents: `extract_content` (read
-leg) and `apply_edits` (the typed change-set, [AD-022](022-brand-voice.md)).
+leg) and `apply_edits` (the typed change-set, [AD-022](022-voice-profile.md)).
 
 ### Format editability is declarative
 
@@ -269,9 +269,9 @@ are resolved declaratively, without loading a plugin.
 ### CLI, not MCP
 
 The skills drive kapi through its **CLI**, not the MCP server. The CLI is the
-richer surface (it has the LLM-backed brand check, the credential store, the
+richer surface (it has the LLM-backed voice check, the credential store, the
 project resolution, the full toolbox), and an AI coding assistant already runs
-shell commands. The MCP brand / terminology / content-memory tools ([AD-022](022-brand-voice.md),
+shell commands. The MCP voice / terminology / content-memory tools ([AD-022](022-voice-profile.md),
 [AD-013](013-kapi-cli.md)) exist for parity with non-CLI agents (Cursor,
 generic MCP clients); the bundled skills themselves use the CLI.
 
@@ -279,8 +279,8 @@ generic MCP clients); the bundled skills themselves use the CLI.
 
 Because a skill issues CLI commands, it relies on the command exit code to
 decide what to do next. The CLI exit-code contract ([AD-013](013-kapi-cli.md))
-gives skills and CI a distinct signal for a failed quality/brand gate: a command
-like `kapi brand check --min-score` returns the `ErrQualityGate` sentinel, which
+gives skills and CI a distinct signal for a failed quality/voice gate: a command
+like `kapi voice check --min-score` returns the `ErrQualityGate` sentinel, which
 maps to a dedicated gate exit code distinct from the generic operational-error
 code. A skill (or a CI step) can therefore branch — "the draft scored below the
 threshold, rewrite it" versus "the command itself failed" — without parsing
@@ -313,7 +313,7 @@ output. The grep-style `ErrSilentExit` used by the toolbox
 
 - [AD-013: Kapi CLI](013-kapi-cli.md) — the command surface the skills drive and
   the exit-code contract they consume
-- [AD-022: Brand Voice](022-brand-voice.md) — the brand commands a skill invokes,
+- [AD-022: Voice](022-voice-profile.md) — the voice commands a skill invokes,
   including the `--min-score` gate
 - [AD-023: Toolbox Utilities](023-toolbox-utilities.md) — the toolbox a skill
   drives and its grep-style exit codes; `kapi apply` is the deliberate,

@@ -52,7 +52,7 @@ actually shipped, verified against code:
   (`core/project` `Defaults.SourceGate`, a level string `checked` default /
   `approved` / `none` opt-out / `authored`) is enforced by server convergence:
   `bowrain/server/source_settle.go` settles the source (source-QA + readiness
-  stamp; terminology/brand extensible) and `convergence_orchestrator.go` holds
+  stamp; terminology/voice extensible) and `convergence_orchestrator.go` holds
   any below-gate block. **Nuance for the docs:** enforcement is **server-side**.
   The *local* CLI `kapi up` (`host/converge.go`) is still `recycle → translate`
   with no source-settle stage, and `computeSourceReadiness` (`host/coverage.go`)
@@ -118,7 +118,7 @@ Bowrain funnel.
 | `kapi/convergence.mdx` (The kapi loop) | Updated | Had both ladders and named `source_gate`, but framed the source as merely "the first half" — it did **not** show the source gate *holding* the fan-out, i.e. the source-first shape. | **Done in this PR:** added the [Source first](/kapi/convergence#source-first) section with `GatedLoopDiagram` (visual ship-gates + held branches). Kept at model level; no Bowrain funnel. |
 | `kapi/convergence-in-ci.mdx` (The kapi loop in CI) | **Done** | Stated the ship gate "includes the source gates" but had no source-first *hold* framing. | **Done in the follow-up PR:** added a "Source first: settle before you fan out" note — `kapi check --ship` enforces `source_gate`, and the loop holds under it (`source_not_ready`). Bowrain-free; links to the model. |
 | `kapi/recipes/ship-gates-and-ci.mdx` (Ship gates & CI) | Correct | `kapi check --ship`, exit-non-zero, `ship_gates:` all verified. Source gate mentioned in passing. | Cross-link the source-first section for the "why settle first" rationale. Low priority. |
-| `kapi/recipes/keep-source-on-brand.mdx` (Keep source on brand) | Correct | The source-settle recipe (brand check/rewrite, source QA) — the phase-1 tools. Does not connect to the gate/hold. | Add a closing cross-link: settling source is *phase 1* of the loop → the source ship-gate. Low priority. |
+| `kapi/recipes/keep-source-on-brand.mdx` (Keep source on brand) | Correct | The source-settle recipe (voice check/rewrite, source QA) — the phase-1 tools. Does not connect to the gate/hold. | Add a closing cross-link: settling source is *phase 1* of the loop → the source ship-gate. Low priority. |
 | `kapi/recipes/translate-content.mdx` (Translate with your AI) | **Done** | No mention that the source must be settled first. | **Done in the follow-up PR:** added one line + link to source-first (source below `source_gate` holds `source_not_ready`, fixed once not once per locale). |
 | `kapi/recipes/review-and-approve.mdx` (Review & approve) | Correct | Target-language review only (`kapi status --review`, `kapi apply kind:review`). | **Done (neokapi#1325):** CLI source-gate parity landed; the page documents the local source-settle loop (hold on `source_not_ready` → settle → re-run). |
 | `kapi/recipes/pre-translate-from-memory.mdx` (Reuse what you've translated) | Correct | Content-memory recycle = phase-2 engine. Accurate. | No change. Optionally note recycle only ever runs on approved source. |
@@ -149,7 +149,7 @@ loop pages.
 | `architecture-decisions/022-convergence-as-a-service.md` (AD-022) | **Done** | Predated source-first: no source-settle phase, no `source_not_ready` stall. | **Done in the follow-up PR:** added decision *1a* (settle → gate → translate approved source), `source_not_ready` + `blocked_on_source` on the run entity, and the estimate endpoint. |
 | `architecture-decisions/014-translator-workflow.md` (AD-014) | **Done** | Documented the source-review gate as an *optional*/bypassed automation option. | **Done in the follow-up PR:** reconciled with AD-022 — the source gate is convergence-enforced (one story); `TaskSourceReview` is the human half of the `source_not_ready` hold. |
 | `architecture-decisions/013-automation-engine.md` (AD-013) | **Done** | `fan-out-after-source-review` default rule; defers to AD-014. | **Done in the follow-up PR:** reframed the rule as "resume a held run"; the on-push note now describes the source-first hold. |
-| `architecture-decisions/015-server-ai-operations.md` (AD-015) | Correct | Translation jobs, extraction, brand voice. | **Done (neokapi#1323):** the produce/worker description now includes the memory-first recycle step and truthful `ViaMemory`/`ViaAI` split. |
+| `architecture-decisions/015-server-ai-operations.md` (AD-015) | Correct | Translation jobs, extraction, voice profile. | **Done (neokapi#1323):** the produce/worker description now includes the memory-first recycle step and truthful `ViaMemory`/`ViaAI` split. |
 | `notes/translator-workflow.md` | Accurate | Implementation detail for AD-014 (events, tasks, tracker). | No change; update alongside AD-022 reconciliation. |
 | `notes/translation-job-queue.md` | Correct | Job model, quotas, worker algorithm. | **Done (neokapi#1323):** the memory-first split section reflects `recycleBlocks` + `reconcileSplit`. |
 
@@ -218,7 +218,7 @@ walkthrough-video re-records, which remain open.
   (neokapi#1325): local `kapi up` now settles + holds on un-ready source
   (`source_not_ready`) via the shared `check.SettleSourceStatus`, default
   `checked` (owner decision), `none` to draft freely. The page documents the
-  local source-settle loop (hold → `kapi check --ship` / fix terms·brand·source
+  local source-settle loop (hold → `kapi check --ship` / fix terms·voice·source
   → `kapi apply` → re-run).
 - **AD-015 / `notes/translation-job-queue.md`** — memory-split caveats dropped
   (neokapi#1323): both now describe the truthful server

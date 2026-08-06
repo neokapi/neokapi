@@ -138,7 +138,7 @@ func (a *App) checkProjectSources(cmd Command) ([]string, error) {
 // verify engine (RunVerify/computeVerify), which the Stop hook also drives, so a
 // release gate and the hook evaluate a project identically. Flag defaults that
 // differ between the file checkset and the project gates are mapped here: an
-// untouched --min-score means the brand-gate threshold (DefaultVoiceMinScore),
+// untouched --min-score means the voice-gate threshold (DefaultVoiceMinScore),
 // and an untouched --source-lang defers to the project's source_language.
 func (a *App) runShipCheck(cmd Command, args []string) error {
 	if !cmd.Flags().Changed("min-score") {
@@ -420,7 +420,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 			if ann, ok := model.AnnoAs[*profile.VoiceAnnotation](b, "voice"); ok {
 				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
 				for _, f := range ann.Findings {
-					diags = append(diags, check.DiagnosticFrom(f, "brand", loc))
+					diags = append(diags, check.DiagnosticFrom(f, "voice", loc))
 				}
 			}
 		}

@@ -19,7 +19,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 Open your project and switch to the **Checks** view.
 
-1. **Run the checkset.** Kapi runs the project's bound rules — hygiene, length, patterns, and brand vocabulary when a profile is bound — over the tracked content.
+1. **Run the checkset.** Kapi runs the project's bound rules — hygiene, length, patterns, and voice vocabulary when a profile is bound — over the tracked content.
 2. **Read the findings.** Each finding names its rule, severity, and the exact block; click through to see the flagged text in context.
 3. **Fix and re-run.** Edit the source, re-run, and watch the findings clear. The same gate result the CLI reports is what the panel shows.
 
@@ -67,7 +67,7 @@ kapi check blog-post.md --profile-file brand/voice.yaml
 }
 ```
 
-Field-by-field, the Report is documented in [Checks](/framework/checks); the flags in the [`check` reference](/reference/commands/brand-check).
+Field-by-field, the Report is documented in [Checks](/framework/checks); the flags in the [`check` reference](/reference/commands/voice-check).
 
 **Exit codes are the gate:** `0` pass, `3` gate failed, `1` operational error — so `kapi check` drops straight into CI. `--strict` fails on any critical or major finding; `--lenient` and `--no-fail` loosen it for report-only sweeps. `--validate report|strict` folds reader structure/encoding findings into the same Report.
 

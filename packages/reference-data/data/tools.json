@@ -1,287 +1,7 @@
 {
-  "generatedAt": "2026-08-06T09:51:36Z",
+  "generatedAt": "2026-08-06T21:04:14Z",
   "kind": "tool",
   "entries": [
-    {
-      "id": "brand-voice-check",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "AI Brand Voice Check",
-      "description": "Check text against a brand voice profile using an LLM and score brand compliance.",
-      "category": "quality",
-      "tags": [
-        "ai-powered",
-        "brand"
-      ],
-      "requires": [
-        "credentials"
-      ],
-      "cardinality": "monolingual",
-      "produces": [
-        "brand-voice@target"
-      ],
-      "sideEffects": [
-        "api-call",
-        "remote-source-egress"
-      ],
-      "schema": {
-        "$id": "brand-voice-check",
-        "title": "AI Brand Voice Check",
-        "description": "Check text against a brand voice profile using an LLM provider",
-        "type": "object",
-        "toolMeta": {
-          "id": "brand-voice-check",
-          "category": "quality",
-          "displayName": "AI Brand Voice Check",
-          "description": "Check text against a brand voice profile using an LLM provider",
-          "tags": [
-            "ai-powered",
-            "brand"
-          ],
-          "requires": [
-            "credentials"
-          ],
-          "cardinality": "monolingual",
-          "produces": [
-            {
-              "type": "brand-voice",
-              "side": "target"
-            }
-          ],
-          "sideEffects": [
-            "api-call",
-            "remote-source-egress"
-          ],
-          "defaultParallelBlocks": 5
-        },
-        "ui:groups": [
-          {
-            "id": "provider",
-            "label": "Provider",
-            "fields": [
-              "provider",
-              "apiKey",
-              "model"
-            ]
-          }
-        ],
-        "properties": {
-          "apiKey": {
-            "type": "string",
-            "title": "API Key",
-            "description": "API key for the AI provider"
-          },
-          "model": {
-            "type": "string",
-            "title": "Model",
-            "description": "AI model name"
-          },
-          "profileId": {
-            "type": "string",
-            "title": "Profile ID",
-            "description": "Brand voice profile to resolve from the store"
-          },
-          "provider": {
-            "type": "string",
-            "title": "AI Provider",
-            "description": "AI provider",
-            "default": "anthropic",
-            "options": [
-              {
-                "value": "anthropic",
-                "label": "Anthropic"
-              },
-              {
-                "value": "openai",
-                "label": "OpenAI"
-              },
-              {
-                "value": "gemini",
-                "label": "Gemini"
-              },
-              {
-                "value": "azureopenai",
-                "label": "Azure OpenAI"
-              },
-              {
-                "value": "claude-code",
-                "label": "Claude Code"
-              },
-              {
-                "value": "ollama",
-                "label": "Ollama"
-              },
-              {
-                "value": "demo",
-                "label": "Demo (illustrative)"
-              }
-            ]
-          }
-        }
-      },
-      "doc": {
-        "overview": "The **AI Brand Voice Check** tool evaluates each block's source text against a\nbrand voice profile using a configured LLM provider. The model returns\nfindings across voice dimensions — tone, style, clarity, and brand compliance —\neach with a severity, message, and suggestion. The tool computes an overall\nbrand-compliance score, records the score and any findings on the block's\nproperties, and attaches a brand-voice annotation to the block. Blocks with\nempty source text are skipped.\n\nProvider credentials are required, since the tool makes an external API call per\nblock. The voice profile that defines the brand's guidelines is supplied by a\nprofile identifier resolved from the store, or programmatically by the host\n(for example the brand command or a project's brand binding). This is the\nLLM-based companion to the rule-based brand vocabulary check.\n",
-        "parameters": {
-          "apiKey": {
-            "description": "API key for the AI provider.",
-            "help": "Credential for the selected provider. Local providers such as Ollama may not\nrequire a key. Prefer the credential store or environment over committing\nkeys to a recipe.\n",
-            "values": "string"
-          },
-          "model": {
-            "description": "The model name to request from the provider.",
-            "help": "The provider-specific model identifier. When omitted, the provider's default\nmodel is used.\n",
-            "values": "string"
-          },
-          "profileId": {
-            "description": "Brand voice profile to resolve from the store.",
-            "help": "The identifier of the voice profile whose guidelines the text is checked\nagainst. The profile may instead be supplied programmatically by the host,\nin which case this field is not needed.\n",
-            "values": "string"
-          },
-          "provider": {
-            "description": "The LLM provider backend to use.",
-            "help": "Selects which model backend performs the brand voice check.\n",
-            "values": "`anthropic` (default), `openai`, `gemini`, `azureopenai`, `ollama` (local, no key)"
-          }
-        },
-        "limitations": [
-          "Requires AI provider credentials; makes an external API call per block.",
-          "Without a resolved voice profile, the prompt has no brand guidelines to check against.",
-          "Evaluates source text; findings are model output and reflect the chosen model's judgement."
-        ],
-        "processingNotes": [
-          "Operates on blocks; blocks with empty source text are skipped.",
-          "Blocks are processed in parallel by default for throughput.",
-          "A brand-voice score and findings are stored on the block, and a brand-voice annotation is attached."
-        ],
-        "examples": [
-          {
-            "title": "Check against a stored profile",
-            "description": "Resolve a named brand voice profile and evaluate text against it.",
-            "config": "provider: anthropic\nprofileId: acme-marketing\n"
-          }
-        ]
-      }
-    },
-    {
-      "id": "brand-voice-infer",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "AI Brand Voice Inference",
-      "description": "Infer a draft brand voice profile from a content corpus using an LLM provider",
-      "category": "analysis",
-      "tags": [
-        "ai-powered",
-        "brand"
-      ],
-      "requires": [
-        "credentials"
-      ],
-      "cardinality": "monolingual",
-      "sideEffects": [
-        "api-call",
-        "remote-source-egress"
-      ],
-      "schema": {
-        "$id": "brand-voice-infer",
-        "title": "AI Brand Voice Inference",
-        "description": "Infer a draft brand voice profile from a content corpus using an LLM provider",
-        "type": "object",
-        "toolMeta": {
-          "id": "brand-voice-infer",
-          "category": "analysis",
-          "displayName": "AI Brand Voice Inference",
-          "description": "Infer a draft brand voice profile from a content corpus using an LLM provider",
-          "tags": [
-            "ai-powered",
-            "brand"
-          ],
-          "requires": [
-            "credentials"
-          ],
-          "cardinality": "monolingual",
-          "sideEffects": [
-            "api-call",
-            "remote-source-egress"
-          ]
-        },
-        "ui:groups": [
-          {
-            "id": "provider",
-            "label": "Provider",
-            "fields": [
-              "provider",
-              "apiKey",
-              "model"
-            ]
-          }
-        ],
-        "properties": {
-          "apiKey": {
-            "type": "string",
-            "title": "API Key",
-            "description": "API key for the AI provider"
-          },
-          "domain": {
-            "type": "string",
-            "title": "Domain",
-            "description": "Subject domain hint for the analysis (e.g. medical legal technology)"
-          },
-          "maxExamples": {
-            "type": "integer",
-            "title": "Max Examples",
-            "description": "Maximum before/after examples to infer",
-            "default": 3,
-            "minimum": 1
-          },
-          "model": {
-            "type": "string",
-            "title": "Model",
-            "description": "AI model name"
-          },
-          "profileName": {
-            "type": "string",
-            "title": "Profile Name",
-            "description": "Name for the inferred draft profile"
-          },
-          "provider": {
-            "type": "string",
-            "title": "AI Provider",
-            "description": "AI provider",
-            "default": "anthropic",
-            "options": [
-              {
-                "value": "anthropic",
-                "label": "Anthropic"
-              },
-              {
-                "value": "openai",
-                "label": "OpenAI"
-              },
-              {
-                "value": "gemini",
-                "label": "Gemini"
-              },
-              {
-                "value": "azureopenai",
-                "label": "Azure OpenAI"
-              },
-              {
-                "value": "claude-code",
-                "label": "Claude Code"
-              },
-              {
-                "value": "ollama",
-                "label": "Ollama"
-              },
-              {
-                "value": "demo",
-                "label": "Demo (illustrative)"
-              }
-            ]
-          }
-        }
-      }
-    },
     {
       "id": "entity-extract",
       "source": "built-in",
@@ -736,6 +456,244 @@
       }
     },
     {
+      "id": "voice-check",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "AI Voice Check",
+      "description": "Check text against a voice profile using an LLM provider",
+      "category": "quality",
+      "tags": [
+        "ai-powered",
+        "voice"
+      ],
+      "requires": [
+        "credentials"
+      ],
+      "cardinality": "monolingual",
+      "produces": [
+        "voice@target"
+      ],
+      "sideEffects": [
+        "api-call",
+        "remote-source-egress"
+      ],
+      "schema": {
+        "$id": "voice-check",
+        "title": "AI Voice Check",
+        "description": "Check text against a voice profile using an LLM provider",
+        "type": "object",
+        "toolMeta": {
+          "id": "voice-check",
+          "category": "quality",
+          "displayName": "AI Voice Check",
+          "description": "Check text against a voice profile using an LLM provider",
+          "tags": [
+            "ai-powered",
+            "voice"
+          ],
+          "requires": [
+            "credentials"
+          ],
+          "cardinality": "monolingual",
+          "produces": [
+            {
+              "type": "voice",
+              "side": "target"
+            }
+          ],
+          "sideEffects": [
+            "api-call",
+            "remote-source-egress"
+          ],
+          "defaultParallelBlocks": 5
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "provider",
+              "apiKey",
+              "model"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the AI provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "AI model name"
+          },
+          "profileId": {
+            "type": "string",
+            "title": "Profile ID",
+            "description": "Voice profile to resolve from the store"
+          },
+          "provider": {
+            "type": "string",
+            "title": "AI Provider",
+            "description": "AI provider",
+            "default": "anthropic",
+            "options": [
+              {
+                "value": "anthropic",
+                "label": "Anthropic"
+              },
+              {
+                "value": "openai",
+                "label": "OpenAI"
+              },
+              {
+                "value": "gemini",
+                "label": "Gemini"
+              },
+              {
+                "value": "azureopenai",
+                "label": "Azure OpenAI"
+              },
+              {
+                "value": "claude-code",
+                "label": "Claude Code"
+              },
+              {
+                "value": "ollama",
+                "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "voice-infer",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "AI Voice Inference",
+      "description": "Infer a draft voice profile from a content corpus using an LLM provider",
+      "category": "analysis",
+      "tags": [
+        "ai-powered",
+        "voice"
+      ],
+      "requires": [
+        "credentials"
+      ],
+      "cardinality": "monolingual",
+      "sideEffects": [
+        "api-call",
+        "remote-source-egress"
+      ],
+      "schema": {
+        "$id": "voice-infer",
+        "title": "AI Voice Inference",
+        "description": "Infer a draft voice profile from a content corpus using an LLM provider",
+        "type": "object",
+        "toolMeta": {
+          "id": "voice-infer",
+          "category": "analysis",
+          "displayName": "AI Voice Inference",
+          "description": "Infer a draft voice profile from a content corpus using an LLM provider",
+          "tags": [
+            "ai-powered",
+            "voice"
+          ],
+          "requires": [
+            "credentials"
+          ],
+          "cardinality": "monolingual",
+          "sideEffects": [
+            "api-call",
+            "remote-source-egress"
+          ]
+        },
+        "ui:groups": [
+          {
+            "id": "provider",
+            "label": "Provider",
+            "fields": [
+              "provider",
+              "apiKey",
+              "model"
+            ]
+          }
+        ],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "title": "API Key",
+            "description": "API key for the AI provider"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain",
+            "description": "Subject domain hint for the analysis (e.g. medical legal technology)"
+          },
+          "maxExamples": {
+            "type": "integer",
+            "title": "Max Examples",
+            "description": "Maximum before/after examples to infer",
+            "default": 3,
+            "minimum": 1
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "AI model name"
+          },
+          "profileName": {
+            "type": "string",
+            "title": "Profile Name",
+            "description": "Name for the inferred draft profile"
+          },
+          "provider": {
+            "type": "string",
+            "title": "AI Provider",
+            "description": "AI provider",
+            "default": "anthropic",
+            "options": [
+              {
+                "value": "anthropic",
+                "label": "Anthropic"
+              },
+              {
+                "value": "openai",
+                "label": "OpenAI"
+              },
+              {
+                "value": "gemini",
+                "label": "Gemini"
+              },
+              {
+                "value": "azureopenai",
+                "label": "Azure OpenAI"
+              },
+              {
+                "value": "claude-code",
+                "label": "Claude Code"
+              },
+              {
+                "value": "ollama",
+                "label": "Ollama"
+              },
+              {
+                "value": "demo",
+                "label": "Demo (illustrative)"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
       "id": "batch",
       "source": "built-in",
       "kind": "tool",
@@ -791,70 +749,6 @@
             "title": "Collect blocks in groups of 50",
             "description": "Buffer 50 blocks per handoff for a bulk-friendly downstream tool.",
             "config": "size: 50\n"
-          }
-        ]
-      }
-    },
-    {
-      "id": "brand-vocab-check",
-      "source": "built-in",
-      "kind": "tool",
-      "displayName": "Brand Vocabulary Check",
-      "description": "Flag forbidden, competitor, and preferred-term violations from a brand voice profile.",
-      "category": "quality",
-      "requires": [
-        "target-language"
-      ],
-      "cardinality": "bilingual",
-      "consumes": [
-        "target@target"
-      ],
-      "produces": [
-        "brand-voice@target"
-      ],
-      "schema": {
-        "title": "",
-        "type": "",
-        "toolMeta": {
-          "id": "brand-vocab-check",
-          "category": "quality",
-          "displayName": "Brand Vocabulary Check",
-          "requires": [
-            "target-language"
-          ],
-          "cardinality": "bilingual",
-          "consumes": [
-            {
-              "type": "target",
-              "side": "target"
-            }
-          ],
-          "produces": [
-            {
-              "type": "brand-voice",
-              "side": "target"
-            }
-          ],
-          "internal": true
-        }
-      },
-      "doc": {
-        "overview": "The **Brand Vocabulary Check** tool scans each block's source text for\nvocabulary violations defined by a brand voice profile. Forbidden terms are\nflagged at major severity, competitor terms at critical severity, and where a\nforbidden term has a preferred replacement, the finding includes that\nsuggestion. When a terms store is provided, the tool also looks up brand-vocabulary\nterms in it, flagging competitor and forbidden entries it finds. Matches are\ncase-insensitive.\n\nFindings are recorded on the block's properties and an overall brand-voice score\nis attached as an annotation. This is a rule-based check that needs no LLM\ncredentials, and it is designed to run before the LLM-based brand voice check.\nThe voice profile and terms are supplied programmatically rather than as\nschema parameters; the profile can also be resolved lazily from an\norganizational context hierarchy.\n",
-        "limitations": [
-          "The voice profile and terms are configured programmatically; they are not exposed as schema parameters.",
-          "Term matching is case-insensitive substring matching; it does not account for inflection or morphology.",
-          "Evaluates source text."
-        ],
-        "processingNotes": [
-          "Operates on blocks; blocks with empty source text are skipped.",
-          "Without a resolved profile or terms, no findings are produced.",
-          "Findings are stored on the block and a brand-voice annotation with an overall score is attached."
-        ],
-        "examples": [
-          {
-            "title": "Add to a flow",
-            "description": "The voice profile and terms are supplied programmatically; reference the tool with an empty configuration.",
-            "config": "{}\n"
           }
         ]
       }
@@ -4517,6 +4411,49 @@
           "Reads the in-process secret annotation by default, or a sidecar vault in external mode.",
           "Removes the secret annotation after restoring, so sensitive originals never reach the writer."
         ]
+      }
+    },
+    {
+      "id": "voice-vocab-check",
+      "source": "built-in",
+      "kind": "tool",
+      "displayName": "Voice Vocabulary Check",
+      "category": "quality",
+      "requires": [
+        "target-language"
+      ],
+      "cardinality": "bilingual",
+      "consumes": [
+        "target@target"
+      ],
+      "produces": [
+        "voice@target"
+      ],
+      "schema": {
+        "title": "",
+        "type": "",
+        "toolMeta": {
+          "id": "voice-vocab-check",
+          "category": "quality",
+          "displayName": "Voice Vocabulary Check",
+          "requires": [
+            "target-language"
+          ],
+          "cardinality": "bilingual",
+          "consumes": [
+            {
+              "type": "target",
+              "side": "target"
+            }
+          ],
+          "produces": [
+            {
+              "type": "voice",
+              "side": "target"
+            }
+          ],
+          "internal": true
+        }
       }
     },
     {

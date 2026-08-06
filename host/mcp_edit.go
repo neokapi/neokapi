@@ -66,7 +66,7 @@ func (a *App) applyEditsMCP(ctx context.Context, in applyEditsInput) (*mcp.CallT
 				fileOrder = append(fileOrder, e.File)
 			}
 			byFile[e.File] = append(byFile[e.File], e)
-		case kindTerm, kindMemory, kindBrand, kindRecipe:
+		case kindTerm, kindMemory, kindVoice, kindRecipe:
 			out.Assets = append(out.Assets, a.applyAssetEntry(ctx, cmd, e))
 		case "":
 			return nil, applyEditsMCPOutput{}, errors.New("change-set entry has no \"kind\"")

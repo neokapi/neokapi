@@ -42,20 +42,20 @@ Three artifacts, all plain files the user can review before anything binds:
 - **Voice profile** — scaffold, fill, validate:
 
   ```bash
-  kapi brand new -o brand.yaml                       # commented template
-  kapi brand new --pack friendly-dtc -o brand.yaml   # or seed from the closest built-in pack
-  kapi brand validate brand.yaml                     # exit 0 = schema-valid
+  kapi voice new -o voice.yaml                       # commented template
+  kapi voice new --pack friendly-dtc -o voice.yaml   # or seed from the closest built-in pack
+  kapi voice validate voice.yaml                     # exit 0 = schema-valid
   ```
 
   The drafting craft — what to infer from which signal, how concrete to be,
-  weak→strong `examples` — is [brand.md → Create a profile](brand.md); follow
+  weak→strong `examples` — is [voice.md → Create a profile](voice.md); follow
   it, don't improvise a schema.
 
 - **Terminology seed** — draft the term list as a table you can show the user:
   term, status (`preferred`, `admitted`, `deprecated`, `forbidden`, or
   `proposed`), replacement for retired terms, and known translations. It
   materializes in step 4; competitor names and banned phrasing belong in
-  `brand.yaml`'s vocabulary lists instead (see [brand.md](brand.md)).
+  `voice.yaml`'s vocabulary lists instead (see [voice.md](voice.md)).
 
 - **Content mapping** — which files the gates will watch: the `content:` paths
   and formats, with `target:` patterns where translations already exist. Those
@@ -64,17 +64,17 @@ Three artifacts, all plain files the user can review before anything binds:
 
 ## 3. Review with the user
 
-Render, score, iterate — the loop is [brand.md](brand.md)'s:
+Render, score, iterate — the loop is [voice.md](voice.md)'s:
 
 ```bash
-kapi brand guide --profile-file brand.yaml                    # the rendered guide
-kapi brand check README.md --profile-file brand.yaml --json   # score one of their own files
+kapi voice guide --profile-file voice.yaml                    # the rendered guide
+kapi voice check README.md --profile-file voice.yaml --json   # score one of their own files
 ```
 
 Show the guide, the score and findings on their own text, and the term list.
 Get explicit sign-off on the forbidden/competitor lists and every
 `deprecated`/`forbidden` term — these will gate their builds. Fold feedback
-into `brand.yaml` and re-render until the user agrees. Never invent competitors
+into `voice.yaml` and re-render until the user agrees. Never invent competitors
 or bans the user didn't confirm.
 
 ## 4. Bind
@@ -82,7 +82,7 @@ or bans the user didn't confirm.
 Create the project (or adopt the existing recipe — `kapi init` is idempotent):
 
 ```bash
-kapi init --name my-app                                        # content project: brand + terms + check flow
+kapi init --name my-app                                        # content project: voice + terms + check flow
 kapi init --name my-app --target-locale fr --target-locale de  # translation project
 ```
 
@@ -90,8 +90,8 @@ Bind the context in the recipe:
 
 ```yaml
 defaults:
-  brand_voice:
-    profile_file: brand.yaml   # file binding, so `kapi apply` brand rules land in it
+  voice:
+    profile_file: voice.yaml   # file binding, so `kapi apply` voice rules land in it
   terms_source: .kapi/terms.json   # the committed terms source
 content:
   - path: "docs/**/*.md"
@@ -119,14 +119,14 @@ writes only the derived index, so commit the imported term list itself. Then
 verify the whole context locally before pushing:
 
 ```bash
-kapi check --ship --json     # brand + terminology (+ QA) gates — all green
+kapi check --ship --json     # voice + terminology (+ QA) gates — all green
 ```
 
 The recipe carries the bindings; the thresholds ride on the check itself: the
-brand gate's score bar is `--min-score` (default 80), not a recipe field, and a
+voice gate's score bar is `--min-score` (default 80), not a recipe field, and a
 translation-coverage bar is an optional top-level `ship_gate:` (see
 [translate.md](translate.md)). Commit the context: the recipe and all of
-`.kapi/` — the brand voice, the sources under `.kapi/`, any imported term
+`.kapi/` — the voice profile, the sources under `.kapi/`, any imported term
 list, and `.kapi/state/`. Only `.kapi/work/` stays gitignored.
 
 ## 5. Push to Bowrain
@@ -183,7 +183,7 @@ kapi push --concepts    # reconcile the local terms into the server's terminolog
 created on first push, a no-op when unchanged, a new server-side version when
 it changed — server-side edits are archived in the version history, never
 overwritten, and rules the server promoted from corrections are kept.
-`--no-brand` skips it. `brand.yaml` still travels in git, and
+`--no-brand` skips it. `voice.yaml` still travels in git, and
 `kapi check --ship` enforces it wherever the repo is checked out (dev
 machines, CI).
 
@@ -191,7 +191,7 @@ machines, CI).
 
 End by telling the user, concretely:
 
-- **What exists** — `kapi.yaml`, `brand.yaml`, the committed terms source,
+- **What exists** — `kapi.yaml`, `voice.yaml`, the committed terms source,
   the content mapping, and (if pushed) the server project.
 - **The URLs** — the claim URL while unclaimed; the project and review URLs
   once claimed.
@@ -213,11 +213,11 @@ Fetch the new material as in step 1 above, then read what the context currently
 says:
 
 ```bash
-kapi brand guide                            # the bound profile, rendered (no flag in a project)
+kapi voice guide                            # the bound profile, rendered (no flag in a project)
 kapi terms export --format json          # every concept; or --format csv -s en -t fr for one pair
 ```
 
-`brand.yaml` itself is the profile baseline — read it directly for the exact
+`voice.yaml` itself is the profile baseline — read it directly for the exact
 vocabulary lists.
 
 ## 2. Propose a change-set
@@ -228,13 +228,13 @@ entries — additions, retirements, replacements in one reviewable set:
 ```jsonl
 {"kind":"term","op":"upsert","term":"workspace","locale":"en","status":"preferred"}
 {"kind":"term","op":"upsert","term":"team space","locale":"en","status":"deprecated","replacement":"workspace"}
-{"kind":"brand","op":"add-rule","list":"competitor","term":"Globex","replacement":"our platform","severity":"major"}
+{"kind":"voice","op":"add-rule","list":"competitor","term":"Globex","replacement":"our platform","severity":"major"}
 ```
 
-These are the same `term` and `brand` entry kinds `kapi apply` always takes —
-shapes in [edit.md → mixed change-sets](edit.md) and [brand.md](brand.md).
+These are the same `term` and `voice` entry kinds `kapi apply` always takes —
+shapes in [edit.md → mixed change-sets](edit.md) and [voice.md](voice.md).
 Tone, style, and `examples` changes have no entry kind: propose them as an edit
-to `brand.yaml` and show the diff.
+to `voice.yaml` and show the diff.
 
 Present the change-set as adds / retires / replaces, each with its evidence
 (where the new term appeared, what the old one conflicts with). Apply only what
@@ -243,8 +243,8 @@ the user approves; drop the rest.
 ## 3. Apply, verify, push
 
 ```bash
-kapi apply changeset.jsonl       # terms + brand rules land atomically
-kapi brand validate brand.yaml   # if you edited the profile directly
+kapi apply changeset.jsonl       # terms + voice rules land atomically
+kapi voice validate voice.yaml   # if you edited the profile directly
 kapi check --ship --json         # the refreshed gates — green
 kapi push --concepts             # reconcile terminology with the server hub
 ```

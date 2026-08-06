@@ -1,12 +1,13 @@
 ---
 sidebar_position: 8
-title: Brand voice profile
-description: The brand voice profile — a YAML document describing tone, style, vocabulary and worked examples, its three-rung resolution ladder, and the locale, channel and persona overrides.
+title: Voice profile
+description: The voice profile — a YAML document describing tone, style, vocabulary and worked examples, its three-rung resolution ladder, and the locale, channel and persona overrides.
 keywords:
   [
-    brand voice,
     voice profile,
-    brand.yaml,
+    voice profile,
+    voice profile,
+    voice.yaml,
     tone,
     style,
     vocabulary,
@@ -15,17 +16,17 @@ keywords:
   ]
 ---
 
-# Brand voice profile
+# Voice profile
 
 A voice profile describes how a project's content should sound: its tone, its
 style rules, the vocabulary it prefers and forbids, and worked examples of the
-voice being got right and wrong. Brand checks score content against it, and
+voice being got right and wrong. Voice checks score content against it, and
 generation steps are steered by it.
 
 It is the one serialization in this family that is **YAML rather than JSON**.
 
 Implemented in Go at
-[`core/brand`](https://github.com/neokapi/neokapi/tree/main/core/brand).
+[`core/profile`](https://github.com/neokapi/neokapi/tree/main/core/profile).
 
 ## Why YAML
 
@@ -45,14 +46,14 @@ form, not the only form.
 When a command needs a profile and no `--profile`, `--profile-file`, or
 `--pack` flag is given, kapi resolves one in this order:
 
-1. **The recipe binding** — `defaults.brand_voice` in `kapi.yaml`, which may
-   name a `profile_file`, a `pack`, or a profile in the local brand store.
+1. **The recipe binding** — `defaults.voice` in `kapi.yaml`, which may
+   name a `profile_file`, a `pack`, or a profile in the local voice store.
 2. `<project-root>/.kapi/voice.yaml` — the profile's home in the
    committed context graph, beside the terms and the content memory.
-3. `<project-root>/brand.yaml`
+3. `<project-root>/voice.yaml`, then `<project-root>/brand.yaml`
 
 The binding wins. Rungs 2 and 3 are conventions that make
-`kapi brand check DRAFT.md` work flag-free inside a project, not the primary
+`kapi voice check DRAFT.md` work flag-free inside a project, not the primary
 mechanism — a project that has bound a profile never reaches them.
 
 `--profile`, `--profile-file`, and `--pack` are mutually exclusive; passing
@@ -73,7 +74,7 @@ more than one is an error rather than a silent precedence.
 | `channels` | map | Per-channel overrides. |
 | `personas` | map | Per-persona overrides. |
 | `autonomy` | object | How far automated steps may act on the profile. |
-| `min_score` | int | The on-brand bar, 0–100. |
+| `min_score` | int | The compliance bar, 0–100. |
 | `version`, `version_note` | int, string | Profile revision and a note describing it. |
 | `created_at`, `updated_at`, `created_by` | — | Provenance. |
 | `workspace_id` | string | Set when the profile came from a workspace. |
@@ -89,10 +90,10 @@ document per variant.
 Resolution applies the requested locale, channel, and persona to produce one
 effective profile; the file itself stays the single authored source.
 
-### The on-brand bar
+### The compliance bar
 
-`min_score` is the minimum brand-compliance score a block must reach to count
-as on-brand in roll-ups. When a profile does not set one, the default applies:
+`min_score` is the minimum voice-compliance score a block must reach to count
+as compliant in roll-ups. When a profile does not set one, the default applies:
 a bar calibrated so that a single critical vocabulary hit already drops a block
 below it, while a handful of minor issues does not.
 
@@ -103,7 +104,7 @@ historical scores stay comparable.
 
 - **Scores and findings.** Those are check results computed against the
   profile, stored with the content or the run — never written back here.
-- **The compiled brand store.** `brand.db` is derived; the profile is the
+- **The compiled voice store.** `brand.db` is derived; the profile is the
   source.
 - **Locale-specific *content*.** Overrides adjust voice, not copy. Translated
   strings belong in the deliverable.

@@ -2,7 +2,7 @@
 
 Translate content, enforce terminology, and round-trip the result back into its
 original format with the local `kapi` CLI. For ongoing work, bind the locales,
-brand voice, and terms in a project first — see [project.md](project.md).
+voice profile, and terms in a project first — see [project.md](project.md).
 
 ## First decide: one-off file, or a project?
 
@@ -35,7 +35,7 @@ kapi merge -i out/*.xliff                       # XLIFF/PO come via -i (repeatab
 kapi check --ship --json                              # the gate: brand + terminology + QA in one shot (prefer this)
 kapi exec term-check ./locales/fr.json --target-lang fr   # file is POSITIONAL; there is no --source/--target
 kapi terms lookup "board" -t fr              # approved wording; terms uses -s/-t, not --*-lang
-kapi brand guide                                # the voice to follow (no flag inside a project)
+kapi voice guide                                # the voice to follow (no flag inside a project)
 ```
 
 Inside a project, prefer `kapi check --ship` over running `term-check`/QA by hand — it
@@ -46,7 +46,7 @@ runs every bound gate together and pairs source↔target for you.
 Translate the content yourself — don't reach for a provider — but route the
 translation **through kapi** so the guardrails actually apply. Don't read the source
 file, translate it in your head, and write the target file directly: that quietly
-skips terminology, placeholder and format integrity, and the brand voice — the very
+skips terminology, placeholder and format integrity, and the voice profile — the very
 things kapi exists to enforce, and the things a human reviewer will later hold you to.
 Instead, let kapi pull out the text and the rules, do the translating, and let kapi
 write it back. (Inside a project, the kapi Claude Code plugin enforces this with a
@@ -55,11 +55,11 @@ change through the round-trip below, or edit the source.)
 
 ```bash
 kapi extract --target-lang fr        # bilingual file with source + empty targets (out/*.xliff)
-kapi brand guide                     # the voice to follow (no flag inside a project)
+kapi voice guide                     # the voice to follow (no flag inside a project)
 kapi terms lookup "<term>" -t fr  # the approved wording
 ```
 
-Fill each unit's `<target>` following the brand guide and the approved terminology,
+Fill each unit's `<target>` following the voice guide and the approved terminology,
 preserving placeholders; reuse any targets prefilled from content memory. Then merge
 it back, and treat the task as unfinished until kapi confirms the result:
 
@@ -133,7 +133,7 @@ kapi apply <<<'{"kind":"review","file":"src/nb.json","id":"save.label","locale":
 
 The unit state lands in the project store and counts the unit as `reviewed`,
 so the next `kapi up` sees it shipped. `kapi check --ship` is the opt-in release
-bar — it runs the project's brand/terminology/QA gates plus the `ship_gate` /
+bar — it runs the project's voice/terminology/QA gates plus the `ship_gate` /
 `source_gate` coverage gates and exits non-zero only when you ask for it; ordinary
 target drift never blocks.
 
@@ -177,6 +177,6 @@ shadow a shared extension (e.g. `.strings`, `.xml`, `.resx`); pass
 
 1. Confirm the format reads **and** writes (`kapi formats list`); for write-limited
    formats (e.g. PDF is read-only), extract to a bilingual format instead.
-2. Bind a brand profile + terms so output is on-brand and consistent.
+2. Bind a voice profile + terms so output is on-brand and consistent.
 3. Pre-flight with `kapi pseudo-translate <file> --target-lang qps` to surface
    hardcoded or untranslated strings before real translation.

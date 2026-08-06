@@ -28,7 +28,7 @@ const (
 	kindContent changeKind = "content"
 	kindTerm    changeKind = "term"
 	kindMemory  changeKind = "memory"
-	kindBrand   changeKind = "brand"
+	kindVoice   changeKind = "voice"
 	kindRecipe  changeKind = "recipe"
 	kindReview  changeKind = "review"
 )
@@ -130,7 +130,7 @@ func (a *App) RunApply(cmd Command, path string, diff bool, backupSuffix string,
 				fileOrder = append(fileOrder, e.File)
 			}
 			byFile[e.File] = append(byFile[e.File], e)
-		case kindTerm, kindMemory, kindBrand, kindRecipe:
+		case kindTerm, kindMemory, kindVoice, kindRecipe:
 			res := a.applyAssetEntry(ctx, cmd, e)
 			out.Assets = append(out.Assets, res)
 		case kindReview:

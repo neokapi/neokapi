@@ -1,8 +1,8 @@
 ---
 sidebar_position: 0
 title: Checks
-description: Checks are tests for AI output — read-only verifiers that inspect content against rules and return one machine-readable Report (pass, score, gate, located findings) without modifying it. A content-first checkset (hygiene, length, patterns, brand) plus opt-in bilingual checks, all one family.
-keywords: [checks, content verification, tests for AI, findings, QA, brand voice, terminology, gate, CI]
+description: Checks are tests for AI output — read-only verifiers that inspect content against rules and return one machine-readable Report (pass, score, gate, located findings) without modifying it. A content-first checkset (hygiene, length, patterns, voice) plus opt-in bilingual checks, all one family.
+keywords: [checks, content verification, tests for AI, findings, QA, voice profile, terminology, gate, CI]
 ---
 
 # Checks
@@ -10,13 +10,13 @@ keywords: [checks, content verification, tests for AI, findings, QA, brand voice
 A **check** reads content, inspects it against a set of rules, and **reports
 findings without modifying it**. neokapi runs every kind of verification through
 one engine: deterministic QA rules, terminology enforcement, placeholder and
-do-not-translate integrity, and [brand voice](/framework/checks/brand-voice) are
+do-not-translate integrity, and [voice profile](/framework/checks/voice) are
 not separate systems — they are check families that share one model.
 
 In the CLI, checks run in `kapi check` (and, project-wide, `kapi check
 --ship`), and inside `kapi up`'s loop — each pass runs the project's bound
 checks over what was produced. `kapi exec` runs a single check tool (`qa`,
-`term-check`, `brand-voice-check`) on its own. See
+`term-check`, `voice-check`) on its own. See
 [Understanding the CLI layers](/kapi/direct-execution-layer).
 
 ## Checks are tests for AI output
@@ -27,7 +27,7 @@ off-brand term, a doubled word. `kapi check` runs a **content-first** checkset
 over any file — no translation needed — and returns one stable, machine-readable
 [`kapi.check/v1` Report](#the-report): `pass`, a 0–100 score, a severity gate,
 and a finding per **stable rule id** (`length.max-chars-exceeded`,
-`hygiene.doubled-word`, `brand.vocabulary`, …) anchored to the exact **block**.
+`hygiene.doubled-word`, `voice.vocabulary`, …) anchored to the exact **block**.
 It **exits non-zero when the gate fails**, so a regression is caught in CI — or
 inside an AI assistant's fix-loop — the same way a failing test is. The assistant
 drafts, the checks tell it which block and which rule broke, it fixes that block
@@ -93,8 +93,8 @@ checkset):
   `--max-words`).
 - **Patterns** — regex that must not appear (`--forbid`) or must appear
   (`--require`) in the content.
-- **Brand vocabulary** — forbidden/competitor/preferred-term rules from a bound
-  [brand voice](/framework/checks/brand-voice) profile; plus an optional
+- **Voice vocabulary** — forbidden/competitor/preferred-term rules from a bound
+  [voice profile](/framework/checks/voice) profile; plus an optional
   LLM-judged style/voice check.
 
 **Bilingual checks** (opt-in, with `--target` — a translated target

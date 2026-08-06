@@ -3,8 +3,8 @@ name: taskly
 defaults:
   source_language: en
   target_languages: [fr]
-  brand_voice:
-    profile_file: brand.yaml
+  voice:
+    profile_file: voice.yaml
   terms: .kapi/terms.db
 content:
   - path: src/en.json

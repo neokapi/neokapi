@@ -26,16 +26,16 @@ export const OVERLAY_TYPES: readonly OverlayType[] = ["segmentation", "term", "e
 /**
  * Block-scoped annotation keys. Source: core/model Anno* constants.
  */
-export type AnnotationType = "note" | "alt-translation" | "tm-match" | "word-count" | "char-count" | "seg-count" | "comparison" | "scoping-report" | "repetition" | "brand-voice" | "entity-mapping" | "term-enforcement";
-export const ANNOTATION_TYPES: readonly AnnotationType[] = ["note", "alt-translation", "tm-match", "word-count", "char-count", "seg-count", "comparison", "scoping-report", "repetition", "brand-voice", "entity-mapping", "term-enforcement"];
+export type AnnotationType = "note" | "alt-translation" | "tm-match" | "word-count" | "char-count" | "seg-count" | "comparison" | "scoping-report" | "repetition" | "voice" | "entity-mapping" | "term-enforcement";
+export const ANNOTATION_TYPES: readonly AnnotationType[] = ["note", "alt-translation", "tm-match", "word-count", "char-count", "seg-count", "comparison", "scoping-report", "repetition", "voice", "entity-mapping", "term-enforcement"];
 
 /**
  * Every IO-contract port-type string a tool may consume or produce: an
  * overlay type, an annotation key, a pseudo-port (source/target), or the
  * redaction secret. The flow editor keys per-type presentation off this.
  */
-export type PortType = "segmentation" | "term" | "entity" | "qa" | "alignment" | "term-candidate" | "note" | "alt-translation" | "tm-match" | "word-count" | "char-count" | "seg-count" | "comparison" | "scoping-report" | "repetition" | "brand-voice" | "entity-mapping" | "term-enforcement" | "source" | "target" | "redaction.secret";
-export const PORT_TYPES: readonly PortType[] = ["segmentation", "term", "entity", "qa", "alignment", "term-candidate", "note", "alt-translation", "tm-match", "word-count", "char-count", "seg-count", "comparison", "scoping-report", "repetition", "brand-voice", "entity-mapping", "term-enforcement", "source", "target", "redaction.secret"];
+export type PortType = "segmentation" | "term" | "entity" | "qa" | "alignment" | "term-candidate" | "note" | "alt-translation" | "tm-match" | "word-count" | "char-count" | "seg-count" | "comparison" | "scoping-report" | "repetition" | "voice" | "entity-mapping" | "term-enforcement" | "source" | "target" | "redaction.secret";
+export const PORT_TYPES: readonly PortType[] = ["segmentation", "term", "entity", "qa", "alignment", "term-candidate", "note", "alt-translation", "tm-match", "word-count", "char-count", "seg-count", "comparison", "scoping-report", "repetition", "voice", "entity-mapping", "term-enforcement", "source", "target", "redaction.secret"];
 
 /**
  * One entry of a tool's IO contract: a typed stand-off output the tool

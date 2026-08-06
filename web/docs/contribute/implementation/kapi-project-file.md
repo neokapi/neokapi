@@ -36,7 +36,7 @@ type Defaults struct {
     ParallelBlocks  int              `yaml:"parallel_blocks,omitempty"`
     Encoding        string           `yaml:"encoding,omitempty"`
     // (also: locale_format, formats, exclude, merge, memory, segmentation,
-    //  redaction, brand_voice, terms_source, memory_source — see
+    //  redaction, voice, terms_source, memory_source — see
     //  core/project/project.go.)
 }
 
@@ -122,14 +122,14 @@ term would be governance nobody could rely on.
 its `when:` equals the point's coordinate of the same name; among the matches,
 the one with the most keys governs. `when: {}` matches everything and always
 loses to a non-empty match. The winner *selects*, it does not layer: what it
-leaves unbound comes from `defaults.brand_voice` / `defaults.terms_source`, not from the
+leaves unbound comes from `defaults.voice` / `defaults.terms_source`, not from the
 broader profile it beat. Two profiles matching on the same number of coordinates
 is a **load error** naming both — which voice a piece of content is written in
 is not a map-order question.
 
 `channel` is the one well-known axis. After a profile is selected, the point's
 channel selects the override *inside* that profile's voice
-(`profile.VoiceProfile.Channels`, [AD-022](/contribute/architecture/022-brand-voice)),
+(`profile.VoiceProfile.Channels`, [AD-022](/contribute/architecture/022-voice-profile)),
 so a landing-page register is authored once beside the voice it varies rather
 than duplicated into a voice file per product-and-channel pair. A channel the
 profile declares no override for is not an error — the base voice applies. The
@@ -148,7 +148,7 @@ alongside this one — the input to profile resolution, not the recipe's answer.
 That is the recipe half, and it is an **authoring** half: the voice it names is
 loaded by the host and then handed to `profile.ResolveProfileFromContext` as
 `CollectionProfile` — the collection tier of the framework's single precedence
-chain ([AD-022](/contribute/architecture/022-brand-voice)) — so an explicit
+chain ([AD-022](/contribute/architecture/022-voice-profile)) — so an explicit
 per-call profile still outranks the recipe and a project governed from the
 server ranks its bindings identically. The point's channel goes in beside it as
 `CollectionConfig[PropertyChannel]`, and `ResolveProfile` applies the override.
@@ -158,7 +158,7 @@ One venue applies the recipe at a time. A project that declares coordinates
 warned at run time (`host.WarnUnsyncedCoordinates`, called by `kapi run`,
 `kapi up` and `RunFlowAllLocales`) that coordinate governance applies to local
 runs only until it is synced: the server has no coordinate rows yet and governs
-by `defaults.brand_voice`. The run proceeds — this is a caveat, not a fault.
+by `defaults.voice`. The run proceeds — this is a caveat, not a fault.
 
 A run resolves its governance per collection and executes once per distinct
 resolution: `groupInputsByBinding` (host) partitions the input set, and each
@@ -200,7 +200,7 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
 - `redaction` (`*RedactionSpec`) — replace sensitive content with protected
   placeholders before processing and restore it afterwards. Overridable per
   `ContentItem.Redaction`.
-- `brand_voice` (`*BrandVoiceBinding`) — bind a brand voice profile (one of
+- `voice` (`*VoiceBinding`) — bind a voice profile (one of
   `profile_file`, `profile`, or `pack`) as standing project context. This is the
   framework binding under `defaults:`, distinct from a platform's top-level
   `brand_voice` extension.
@@ -259,11 +259,11 @@ model and `server:` schema.
   may carry a whitespace-free `concept` reference.
 - Every `profiles[]` entry must bind a `voice`, `terms`, or both; its `when:` is
   checked like a `context:`; its `voice` is shape-checked exactly like
-  `defaults.brand_voice` (one of `profile_file`, `profile`, `pack`, or a bare
+  `defaults.voice` (one of `profile_file`, `profile`, `pack`, or a bare
   path); no two entries may claim the same point, and no two may match one
   collection with equal specificity.
 - `defaults.merge.conflict_policy`, `defaults.memory.fuzzy_threshold` (0..100),
-  `defaults.redaction.detectors`, and `defaults.brand_voice` are each
+  `defaults.redaction.detectors`, and `defaults.voice` are each
   shape-checked.
 - Each flow must have at least one step
 - Each step must have a non-empty `tool` field (unless it uses `parallel`)

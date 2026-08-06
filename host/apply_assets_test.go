@@ -163,7 +163,7 @@ func TestApplyVoiceEntry_writesProfileCompilesStore(t *testing.T) {
 	ctx := context.Background()
 
 	e := changeEntry{
-		Kind:        kindBrand,
+		Kind:        kindVoice,
 		Op:          "add-rule",
 		List:        "forbidden",
 		Term:        "utilize",

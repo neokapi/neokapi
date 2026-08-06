@@ -49,7 +49,7 @@ function qa(text: string, side: string, rule: string): OverlayView {
 }
 function brand(text: string, side = "source"): OverlayView {
   // Brand-voice violations ride on the `qa` overlay type, distinguished by
-  // props.category="brand-vocabulary" (see preview/overlayHighlight.ts).
+  // props.category="voice-vocabulary" (see preview/overlayHighlight.ts).
   return {
     type: "qa",
     side,
@@ -58,7 +58,7 @@ function brand(text: string, side = "source"): OverlayView {
         id: "b-" + text,
         range: zero(),
         text,
-        props: { category: "brand-vocabulary", rule: "preferred-term", severity: "warning" },
+        props: { category: "voice-vocabulary", rule: "preferred-term", severity: "warning" },
       },
     ],
   };

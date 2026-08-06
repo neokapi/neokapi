@@ -101,13 +101,13 @@ rendered as `<x id="…"/>` placeholders, and its `word_count`. Pair it with
 Apply a typed change-set — the one write verb, the write leg of the edit loop.
 Content edits land through the byte-faithful round-trip (structure and inline
 codes preserved, drift-guarded by `content_hash`); asset edits (`term`, `memory`,
-`brand`, `recipe`) are written to their committed source artifact and reindexed
+`voice`, `recipe`) are written to their committed source artifact and reindexed
 into the project store. No AI provider is used.
 
 **Input:**
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `changeset` | array | yes | Typed change-set entries (`kind`: `content` / `term` / `memory` / `brand` / `recipe`) |
+| `changeset` | array | yes | Typed change-set entries (`kind`: `content` / `term` / `memory` / `voice` / `recipe`) |
 
 **Output:** `ok` plus the per-block content outcome (`applied` / `skipped` / `stale` / `guard_failed`) and a per-entry `assets` result. `ok` is false when an edit drifted or was rejected, signalling the caller to re-read and retry.
 
@@ -225,17 +225,17 @@ see the generated [Tool Reference](/reference/tools/translate)):
 }
 ```
 
-## Brand, terminology, and content-memory tools
+## Voice, terminology, and content-memory tools
 
-The host runtime (`host/mcp_brand.go`) registers a further set of offline tools
+The host runtime (`host/mcp_voice.go`) registers a further set of offline tools
 on the same `mcp` stdio server via `RegisterMCPToolFactory`, so any binary built
 on the shared base (including kapi) exposes them, and non-Claude MCP clients get
-local parity with the brand tools. All run offline against local files and
+local parity with the voice tools. All run offline against local files and
 SQLite stores.
 
-### `brand_check`
+### `voice_check`
 
-Score text against a brand voice profile using deterministic vocabulary
+Score text against a voice profile using deterministic vocabulary
 rules; returns a 0–100 compliance score and findings.
 
 **Input:**
@@ -253,12 +253,12 @@ rules; returns a 0–100 compliance score and findings.
 | `dimensions` | array | Per-dimension scores |
 | `findings` | array | Vocabulary findings |
 
-### `brand_rewrite`
+### `voice_rewrite`
 
-Rewrite text to comply with a brand voice profile by substituting
+Rewrite text to comply with a voice profile by substituting
 forbidden/competitor terms (deterministic, offline).
 
-**Input:** same as `brand_check`.
+**Input:** same as `voice_check`.
 
 **Output:**
 | Field | Type | Description |
@@ -268,16 +268,16 @@ forbidden/competitor terms (deterministic, offline).
 | `rewritten` | string | Rewritten text |
 | `changes` | array | `{from, to, count}` substitutions made |
 
-## Retired: `brand_guide`, `term_lookup`, `tm_search`
+## Retired: `voice_guide`, `term_lookup`, `tm_search`
 
 All three are replaced by **`context_search`** (AD-037). They were
 asset-shaped — one call per store — which forced a caller to know where an
 answer lived before it could ask, and returned partial answers that read as
-whole ones: `brand_guide` rendered a profile's own vocabulary while the
+whole ones: `voice_guide` rendered a profile's own vocabulary while the
 project's terms store went unread.
 
 `context_search` asks the question once and answers from every store the
 project binds, grouped by kind, and says what it could not reach.
 
-`kapi brand guide` remains as a CLI verb: a human asking to see a profile
+`kapi voice guide` remains as a CLI verb: a human asking to see a profile
 rendered is a reasonable thing to type.

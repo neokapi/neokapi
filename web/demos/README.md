@@ -13,7 +13,7 @@ self-contained directory; `run.sh` regenerates its artifacts against the real
 
 | Cell | Shows | Delta |
 |---|---|---|
-| [`brand-rewrite-marketing`](./brand-rewrite-marketing/) | A generic marketing draft scores **70/100** on brand compliance; `kapi brand rewrite` lifts it to **95/100**. | **+25** |
+| [`brand-rewrite-marketing`](./brand-rewrite-marketing/) | A generic marketing draft scores **70/100** on voice compliance; `kapi voice rewrite` lifts it to **95/100**. | **+25** |
 
 ## Run a cell
 
@@ -22,7 +22,7 @@ make build                                   # build ./bin/kapi
 KAPI=./bin/kapi web/demos/brand-rewrite-marketing/run.sh
 ```
 
-Cells are **deterministic** (rule-based brand checks/rewrites, pseudo-translation)
+Cells are **deterministic** (rule-based voice checks/rewrites, pseudo-translation)
 so the gallery always builds and the numbers are stable — no LLM or network
 required. Cells that opt into `--ai` document the credential they need.
 

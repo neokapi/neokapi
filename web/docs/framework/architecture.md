@@ -74,7 +74,7 @@ neokapi/
 │   │   └── …                        # one package each (reader.go, writer.go, config.go)
 │   ├── ai/                          # AI pipeline tools, NER, prompt assembly
 │   ├── mt/                          # Machine-translation pipeline tools
-│   ├── brand/                       # Brand voice profiles, scoring, starter packs
+│   ├── profile/                     # Voice profiles, scoring, starter packs
 │   ├── tools/                       # Utility tools (wordcount, pseudo, segmentation, …)
 │   ├── storage/                     # Shared SQLite infrastructure (Open, Migrate)
 │   ├── project/                     # kapi.yaml recipe format (Load, Save, Validate)

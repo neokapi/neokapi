@@ -48,7 +48,7 @@ func (a *App) applyAssetEntry(ctx context.Context, cmd Command, e changeEntry) a
 		return a.applyTermEntry(ctx, cmd, e)
 	case kindMemory:
 		return a.applyMemoryEntry(ctx, cmd, e)
-	case kindBrand:
+	case kindVoice:
 		return a.applyVoiceEntry(ctx, cmd, e)
 	case kindRecipe:
 		return a.applyRecipeEntry(cmd, e)

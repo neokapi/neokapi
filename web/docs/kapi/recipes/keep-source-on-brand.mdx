@@ -1,6 +1,6 @@
 ---
 title: "Keep your source content on brand"
-description: "Check source content against a brand voice profile and rewrite what fails — so what goes to translation or production is already on-brand."
+description: "Check source content against a voice profile and rewrite what fails — so what goes to translation or production is already on-brand."
 hide_table_of_contents: true
 ---
 
@@ -10,10 +10,10 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Keep your source content on brand
 
-**Goal:** flag forbidden, competitor, and off-preferred terms in your _source_ content and rewrite what fails — so what goes to translation (or production) is already on-brand. This is source governance, before any translation. The profile format lives in [Brand voice](/framework/checks/brand-voice); setting one up takes [ten minutes](/kapi/recipes/brand-guide-in-10-minutes).
+**Goal:** flag forbidden, competitor, and off-preferred terms in your _source_ content and rewrite what fails — so what goes to translation (or production) is already on-brand. This is source governance, before any translation. The profile format lives in [Voice profile](/framework/checks/voice); setting one up takes [ten minutes](/kapi/recipes/brand-guide-in-10-minutes).
 
 <PendingMedia kind="video" scene="web/walkthroughs/kapi-keep-source-on-brand.scene.yaml">
-  Authoring a brand-voice profile, running the check on a source page, reading
+  Authoring a voice profile, running the check on a source page, reading
   the score and located findings, and rewriting the off-brand blocks until the
   gate passes.
 </PendingMedia>
@@ -21,7 +21,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
 
-With a brand profile bound in the project (Project Settings), the **Checks** view enforces it over everything the project tracks:
+With a voice profile bound in the project (Project Settings), the **Checks** view enforces it over everything the project tracks:
 
 1. **Run the checks.** Brand vocabulary findings appear alongside hygiene and length — each named by rule, located to a block, with the suggested wording.
 2. **Fix at the block.** Open the flagged file, correct the wording, re-run; the score climbs as findings clear.
@@ -32,9 +32,9 @@ With a brand profile bound in the project (Project Settings), the **Checks** vie
 
 Ask for the sweep:
 
-> Check `blog/` against our brand voice and fix anything off-brand.
+> Check `blog/` against our voice profile and fix anything off-brand.
 
-The assistant loads the voice first (`kapi brand guide`, injected into its context so it rewrites on-voice, not just rule-compliant), runs `check_file`, rewrites each flagged block, and lands the edits with `apply_edits` — structure intact, no second model. When a term recurs, it proposes a `brand` change-set entry that adds the vocabulary rule to your committed profile; `git diff` is the review surface. It re-checks until the gate is green.
+The assistant loads the voice first (`kapi voice guide`, injected into its context so it rewrites on-voice, not just rule-compliant), runs `check_file`, rewrites each flagged block, and lands the edits with `apply_edits` — structure intact, no second model. When a term recurs, it proposes a `brand` change-set entry that adds the vocabulary rule to your committed profile; `git diff` is the review surface. It re-checks until the gate is green.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -57,11 +57,11 @@ kapi apply edits.jsonl               # write through the faithful round-trip
 kapi check blog-post.md --profile-file brand/voice.yaml
 ```
 
-An edit whose content hash drifted, or that would corrupt an inline code, is left unchanged and reported — see [Edit content](/kapi/recipes/rewrite-content). For deterministic term substitution with no assistant (vocabulary only, not tone), `kapi brand rewrite --profile-file brand/voice.yaml` reads stdin or `--input-text` and reports each change. To also add the missing rule while fixing the draft, ship both in one change-set:
+An edit whose content hash drifted, or that would corrupt an inline code, is left unchanged and reported — see [Edit content](/kapi/recipes/rewrite-content). For deterministic term substitution with no assistant (vocabulary only, not tone), `kapi voice rewrite --profile-file brand/voice.yaml` reads stdin or `--input-text` and reports each change. To also add the missing rule while fixing the draft, ship both in one change-set:
 
 ```jsonl
 {"kind":"content","file":"blog-post.md","id":"paragraph-0","content_hash":"b74d19…","text":"Today we use our infrastructure..."}
-{"kind":"brand","op":"add-rule","list":"forbidden","term":"leverage","replacement":"use","severity":"minor"}
+{"kind":"voice","op":"add-rule","list":"forbidden","term":"leverage","replacement":"use","severity":"minor"}
 ```
 
 The `brand` entry lands in the committed profile YAML the recipe binds and compiles into the local store, so the next check enforces it (requires a `.kapi` project).
@@ -71,7 +71,7 @@ The `brand` entry lands in the committed profile YAML the recipe binds and compi
 
 ## In a project
 
-Bind the profile once (`defaults.brand_voice.profile_file`) and every surface picks it up — the Checks view, the assistant's loop, bare `kapi check`, and the [ship gate](/kapi/recipes/ship-gates-and-ci)'s brand gate. When translating, a bound voice is also injected into the translation prompt, so target-language output starts on-brand.
+Bind the profile once (`defaults.voice.profile_file`) and every surface picks it up — the Checks view, the assistant's loop, bare `kapi check`, and the [ship gate](/kapi/recipes/ship-gates-and-ci)'s voice gate. When translating, a bound voice is also injected into the translation prompt, so target-language output starts on-brand.
 
 ## Next
 

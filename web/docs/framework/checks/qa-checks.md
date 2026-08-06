@@ -103,7 +103,7 @@ Both kinds of check use the [Block annotation system](/framework/content-model)
 rather than rewriting text. Rule-based findings are recorded in block properties;
 LLM findings are attached as an annotation. This is the same shared channel that
 [memory matches](/framework/content-memory),
-[terminology](/framework/terminology), and [brand-voice](/framework/checks/brand-voice)
+[terminology](/framework/terminology), and [voice](/framework/checks/voice)
 results use, so a single downstream consumer — a report, an editor view, a CI
 gate — can read every kind of finding from one place.
 

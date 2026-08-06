@@ -1,14 +1,14 @@
 # Use a kapi project for standing context
 
 A `.kapi` project binds the things that don't change between requests — source and
-target locales, which files are content, the brand voice, and the terms store — so
+target locales, which files are content, the voice profile, and the terms store — so
 that ordinary requests need no flags. kapi finds the project by walking up from the
 current directory, like git.
 
 ## When to set one up
 
 Set up a project when the work is ongoing: many files or a whole app, the same
-target locales repeatedly, a brand voice or terminology to keep consistent, recurring
+target locales repeatedly, a voice profile or terminology to keep consistent, recurring
 runs (CI, re-translate on change), or content memory to reuse. For a true
 one-off, skip it and run the command directly.
 
@@ -58,15 +58,15 @@ content:
     format: json
     target: src/locales/{lang}.json
 defaults:
-  brand_voice:
+  voice:
     profile_file: .kapi/voice.yaml   # or: profile: <store name> | pack: marketing-blog
   terms_source: .kapi/terms.json    # the committed terms source
   memory_source: .kapi/memory/memory.json  # the committed content memory
 ```
 
-- **Brand voice** — bind it under `defaults.brand_voice`, or just keep a
-  `.kapi/voice.yaml` (or a `brand.yaml` at the project root); `kapi
-  brand check <file>`, `brand rewrite`, and `brand guide` then resolve it with no
+- **Voice profile** — bind it under `defaults.voice`, or just keep a
+  `.kapi/voice.yaml` (or a `voice.yaml` at the project root); `kapi
+  voice check <file>`, `voice rewrite`, and `voice guide` then resolve it with no
   flag.
 - **More than one voice in one repo** — declare the axes your content varies
   along under `coordinates:`, bind a voice (and optionally terms) to a region of
@@ -107,7 +107,7 @@ defaults:
   The recipe is the authoring surface for governance, and one venue applies it
   at a time. A project that declares coordinates and also has a `server:` block
   warns on every run that coordinate governance applies to local runs only until
-  it is synced — the server governs by `defaults.brand_voice` until then.
+  it is synced — the server governs by `defaults.voice` until then.
 - **Terms** — import terms into the project terms store
   (`kapi terms import terms.csv -s en -t fr`); `kapi exec term-check <file>` and
   the translation flow then enforce it with no `--termstore` flag.
@@ -123,11 +123,11 @@ and format stay enforced:
 
 ```bash
 kapi extract --target-lang fr        # writes out/<name>.en-to-fr.xliff (source + empty targets)
-kapi brand guide                     # the voice to follow (project-bound)
+kapi voice guide                     # the voice to follow (project-bound)
 kapi terms lookup "<term>" -t fr  # the approved wording
 ```
 
-Fill the `<target>` of each unit in the bilingual file, following the brand guide
+Fill the `<target>` of each unit in the bilingual file, following the voice guide
 and the approved terminology, and preserving placeholders; reuse any targets kapi
 pre-filled from content memory. Then:
 
@@ -138,7 +138,7 @@ kapi merge -i out/*.xliff            # writes translations into the target files
 ## Verify, and fix until it passes
 
 Treat your output as a draft until kapi passes it. `kapi check --ship` runs the project's
-gates together — brand voice score, terminology against the bound terms store, and
+gates together — voice profile score, terminology against the bound terms store, and
 translation QA (placeholders preserved, nothing left untranslated) — and reports
 the exact findings:
 
@@ -153,5 +153,5 @@ the build. Read the findings, fix them, and run it again — loop until it passe
 gate that makes the result trustworthy regardless of how you produced it.
 
 For unattended runs (CI, no assistant), `kapi translate` / `kapi run translate-qa`
-call a configured provider instead — the project's brand voice and terms still apply,
+call a configured provider instead — the project's voice profile and terms still apply,
 and `kapi check --ship` is the same gate in the pipeline.

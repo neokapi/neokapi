@@ -18,7 +18,7 @@ import TabItem from "@theme/TabItem";
 
 The sweep itself is agent- or CLI-driven; Desktop is where you verify it:
 
-1. **Before:** bind the rule that motivates the sweep — a forbidden term, a required phrasing — in the project's brand profile, so the **Checks** view shows exactly which blocks are affected and how many.
+1. **Before:** bind the rule that motivates the sweep — a forbidden term, a required phrasing — in the project's voice profile, so the **Checks** view shows exactly which blocks are affected and how many.
 2. **After:** re-run the Checks view to confirm the count is zero, and spot-check the edited files in the preview — structure, styles, and placeholders intact.
 
 For translated content, an edited source drops affected units back to *pending*; **Bring up to date** re-translates just those, and the [Review queue](/kapi/recipes/review-and-approve) picks up anything that parks.
@@ -37,7 +37,7 @@ The assistant runs the loop at scale:
 3. `kapi apply` lands the change-set; any block whose hash drifted since the read is left unchanged and reported, so a concurrent edit can't be clobbered.
 4. `kapi check --forbid "Acme Sync"` proves completion — exit 0 means the sweep is actually done, not probably done.
 
-Make the retired term a permanent [brand vocabulary rule](/kapi/recipes/keep-source-on-brand) in the same change-set, and the old name can never quietly return.
+Make the retired term a permanent [voice vocabulary rule](/kapi/recipes/keep-source-on-brand) in the same change-set, and the old name can never quietly return.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -53,7 +53,7 @@ kapi apply edits.jsonl --in-place=.bak   # land it, keeping backups
 kapi check docs/**/*.md --forbid "Acme Sync"   # prove it's done
 ```
 
-For pure vocabulary substitution with zero judgment involved, `kapi brand rewrite` does it deterministically from a profile — no agent, no model. The change-set shape and the round-trip guards are in [Edit content](/kapi/recipes/rewrite-content).
+For pure vocabulary substitution with zero judgment involved, `kapi voice rewrite` does it deterministically from a profile — no agent, no model. The change-set shape and the round-trip guards are in [Edit content](/kapi/recipes/rewrite-content).
 
 </TabItem>
 </Tabs>

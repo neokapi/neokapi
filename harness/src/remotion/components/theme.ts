@@ -98,7 +98,7 @@ export const theme = new Proxy({} as Theme, {
   get: (_t, key: string) => (activeTheme as Record<string, string>)[key],
 }) as Theme;
 
-/** kapi brand orange-ish used sparingly for accents/marks. */
+/** kapi voice orange-ish used sparingly for accents/marks. */
 export const KAPI = "#ff7a45";
 /** Bowrain brand indigo (matches the landing/docs --color-brand-500). */
 export const BOWRAIN = "#6366f1";

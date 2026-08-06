@@ -1,6 +1,6 @@
-# Keep content on-brand
+# Keep content in voice
 
-Score and fix content against a brand voice profile with the local `kapi` CLI —
+Score and fix content against a voice profile with the local `kapi` CLI —
 offline, no account. One loop: load the voice guide before writing, score a
 draft, fix what drifts.
 
@@ -8,13 +8,13 @@ draft, fix what drifts.
 
 A profile comes from any of: a built-in pack (`--pack`), a git-shareable
 YAML (`--profile-file`), or the local store (`--profile`). List options with
-`kapi brand profiles`. Packs: `professional-b2b`, `friendly-dtc`,
+`kapi voice profiles`. Packs: `professional-b2b`, `friendly-dtc`,
 `technical-docs`, `marketing-blog`, `customer-support`.
 
 **Inside a project, the profile is part of the context — don't pass a flag.** When
-the project binds a brand voice (a `defaults.brand_voice` recipe entry, or a
-`.kapi/voice.yaml` — or a `brand.yaml` at the project root), run `kapi brand check
-<file>` and `kapi brand guide` with **no**
+the project binds a voice profile (a `defaults.voice` recipe entry, or a
+`.kapi/voice.yaml` — or a `voice.yaml` at the project root), run `kapi voice check
+<file>` and `kapi voice guide` with **no**
 `--profile`/`--profile-file`/`--pack` — kapi resolves the project's voice. Pass a
 flag only for a one-off outside a project, or to override the bound profile. See
 [project.md](project.md).
@@ -25,11 +25,11 @@ If the user has no profile yet, draft one for them — you (the assistant) do th
 analysis; the CLI gives you the schema and stores the result.
 
 ```bash
-kapi brand new -o brand.yaml                         # commented template to fill in
-kapi brand new --pack marketing-blog -o brand.yaml   # or start from a close pack
+kapi voice new -o voice.yaml                         # commented template to fill in
+kapi voice new --pack marketing-blog -o voice.yaml   # or start from a close pack
 ```
 
-Fill in `brand.yaml` from whatever signal is available:
+Fill in `voice.yaml` from whatever signal is available:
 
 - **What you already know** about the product/company from this conversation or
   the repo (README, marketing copy, existing UI strings) — infer personality,
@@ -46,9 +46,9 @@ terms with replacements, and 2–3 before/after examples beat a long abstract
 description. Then save and verify:
 
 ```bash
-kapi brand import brand.yaml                 # into the local store
-kapi brand guide --profile-file brand.yaml   # confirm it renders as intended
-echo "We utilize synergies." | kapi brand check --profile-file brand.yaml --json
+kapi voice import voice.yaml                 # into the local store
+kapi voice guide --profile-file voice.yaml   # confirm it renders as intended
+echo "We utilize synergies." | kapi voice check --profile-file voice.yaml --json
 ```
 
 Show the user the rendered guide and a check on one of their own samples, then
@@ -57,7 +57,7 @@ refine the YAML from their feedback.
 ## 1. Load the guide before writing
 
 ```bash
-kapi brand guide --pack marketing-blog
+kapi voice guide --pack marketing-blog
 ```
 
 Apply the tone, style, and preferred terms; never use the forbidden or competitor
@@ -68,7 +68,7 @@ terms (use the listed replacements). Then draft, and check the result.
 Pipe text via stdin (or `--text "..."`); always pass `--json`:
 
 ```bash
-echo "$DRAFT" | kapi brand check --pack marketing-blog --text - --json
+echo "$DRAFT" | kapi voice check --pack marketing-blog --text - --json
 ```
 
 Returns a 0–100 `score` and `findings` (each with `severity`, `original_text`,
@@ -79,13 +79,13 @@ Returns a 0–100 `score` and `findings` (each with `severity`, `original_text`,
 
 Rewrite the off-voice text on-brand **yourself**, route the change through kapi's
 write verb, then re-check. kapi does not send content to a model to rewrite it:
-`kapi brand rewrite` only substitutes forbidden/competitor terms with their
+`kapi voice rewrite` only substitutes forbidden/competitor terms with their
 approved replacements, deterministically and offline — it won't fix tone, style,
 or phrasing. For those, rewrite the text yourself with the voice guide as
 context. Load it first:
 
 ```bash
-kapi brand guide                       # the voice to follow — your context
+kapi voice guide                       # the voice to follow — your context
 kapi terms lookup "<term>" -t en     # the approved wording for a flagged term
 ```
 
@@ -116,28 +116,28 @@ land together, atomically:
 
 ```jsonl
 {"kind":"content","file":"blog-post.md","id":"p2","content_hash":"b74d…","text":"We use our infrastructure."}
-{"kind":"brand","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use","severity":"minor"}
+{"kind":"voice","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use","severity":"minor"}
 ```
 
 ```bash
 kapi apply changeset.jsonl
 ```
 
-The `brand` entry is written into the project's committed brand voice profile
-YAML (the `defaults.brand_voice.profile_file` the recipe binds), and the existing
-import compiles it into the local brand store. `git diff` shows the one new rule;
-the next `kapi brand check` / `kapi check --ship` enforces it. `list` is `forbidden`,
+The `voice` entry is written into the project's committed voice profile
+YAML (the `defaults.voice.profile_file` the recipe binds), and the existing
+import compiles it into the local voice store. `git diff` shows the one new rule;
+the next `kapi voice check` / `kapi check --ship` enforces it. `list` is `forbidden`,
 `competitor`, or `preferred`; the entry requires a `.kapi` project. (Add an
 approved term instead with a `term` entry — see [create.md](create.md).)
 
 ### Offline term substitution
 
-`kapi brand rewrite` swaps forbidden and competitor terms for their approved
+`kapi voice rewrite` swaps forbidden and competitor terms for their approved
 replacements — deterministic, offline, no model. It reads text from
 `--input-text` or stdin and prints the rewrite, reporting each `change`:
 
 ```bash
-echo "$DRAFT" | kapi brand rewrite --pack marketing-blog --input-text - --json
+echo "$DRAFT" | kapi voice rewrite --pack marketing-blog --input-text - --json
 ```
 
 It only changes the terms the profile defines; it won't fix tone, style, or
@@ -150,7 +150,7 @@ and apply through `kapi apply`.
 error) when the score is below the threshold, while still printing the JSON:
 
 ```bash
-kapi brand check RELEASE.md --pack professional-b2b --min-score 90 --json
+kapi voice check RELEASE.md --pack professional-b2b --min-score 90 --json
 ```
 
 To translate the on-brand result into other languages, bind the same profile and

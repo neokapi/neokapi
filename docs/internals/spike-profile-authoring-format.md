@@ -6,7 +6,7 @@ or as markdown with frontmatter in the shape of an agent skill file?
 
 Nothing here is wired into a command. The code lives in `core/profile/mdspike/`
 and is imported by nothing outside its own tests. Both committed profiles still
-load through `profile.LoadProfileYAML` and still pass `kapi brand validate`.
+load through `profile.LoadProfileYAML` and still pass `kapi voice validate`.
 
 Branch: `spike/profile-authoring-format`.
 
@@ -28,7 +28,7 @@ rules and markdown is the right shape for the prose, and today's file is mostly
 rules.** The prose that is trapped in folded scalars is real — it is what a
 non-engineer reviews and it diffs as a whole block rather than per line — but
 that is a review-ergonomics complaint, and it does not on its own justify a
-second decoder, a second writer, and a second thing `kapi brand new` can emit.
+second decoder, a second writer, and a second thing `kapi voice new` can emit.
 
 The two defects that actually bite are composition and duplication. Neither
 needs markdown. `extends:` and `from_terms:` are YAML keys; the spike bundled
@@ -77,8 +77,8 @@ was verified to fail on a one-word change to the body.
 
 **Nothing reaching the model changes.** `TestRenderedGuideIsByteIdentical`:
 `RenderVoiceGuide` and `RenderVoiceGuideCompact` produce byte-identical output
-from both forms. Those four consumers — the AI translate prompt, the brand check
-tool, `kapi brand guide`, the cloud MCP `get_voice_guide` — see no difference.
+from both forms. Those four consumers — the AI translate prompt, the voice check
+tool, `kapi voice guide`, the cloud MCP `get_voice_guide` — see no difference.
 
 **The duplication is real and has already drifted.**
 `TestHouseRulesAreDuplicatedToday` reads the two committed profiles and finds
@@ -165,7 +165,7 @@ recommendation.
   read side.
 - **Composition is only two levels deep** (house → brand). House → brand →
   channel was not built.
-- **Composition does not survive the store.** `BrandStore.CreateProfile` takes a
+- **Composition does not survive the store.** `Store.CreateProfile` takes a
   resolved `*VoiceProfile`; `compileBrandProfile` would flatten the inheritance
   on import. The file layer and the store layer would disagree about where a
   rule came from.
@@ -181,9 +181,9 @@ packs (`core/profile/packs/*.yaml`, `go:embed`ed), two retired harness fixtures.
 Plus an unbounded number of store rows, which no file-format change reaches.
 
 **Code that would move.** `LoadProfileYAML` has eight non-test call sites
-(`core/profile/packs/embed.go`, `host/apply_assets.go` ×2, `host/mcp_brand.go`,
-`host/brand.go` ×2, `cli/brand.go` ×2) plus `DecodeProfileStrict` in
-`cli/brand.go`. Adding a second decoder in front of the same
+(`core/profile/packs/embed.go`, `host/apply_assets.go` ×2, `host/mcp_voice.go`,
+`host/voice.go` ×2, `cli/voice.go` ×2) plus `DecodeProfileStrict` in
+`cli/voice.go`. Adding a second decoder in front of the same
 `ValidateProfile` is cheap — `TestMarkdownFormValidates` shows the semantic
 validator needs no new rules. The expensive pieces:
 
@@ -191,7 +191,7 @@ validator needs no new rules. The expensive pieces:
   writer must *patch the frontmatter in place*. Marshalling the resolved profile
   back would inline every inherited house rule into the child and silently undo
   the composition, and would flatten the body prose the author wrote.
-- `host.BrandProfileTemplate` — the commented YAML `kapi brand new` emits.
+- `host.VoiceProfileTemplate` — the commented YAML `kapi voice new` emits.
 - Two authoring surfaces would then disagree. The Bowrain web editor
   (`bowrain/packages/ui/src/brand/BrandProfileEditor.tsx`, `BrandProfileWizard.tsx`)
   edits store rows through the JSON shape and never sees a file. A file-format
@@ -233,7 +233,7 @@ strongly, and the codebase already has the better version of it.**
 `VoiceProfile`, severities included, and it is safe — because the output is a
 *draft* carrying `DraftEvidence` (per-field confidence and corpus rationale),
 and because `core/profile/promote.go`, `blastradius.go` and
-`BrandStore.RecordRuleDecision` make promotion a recorded human decision. The
+`Store.RecordRuleDecision` make promotion a recorded human decision. The
 invariant is not "AI must not generate structure". It is **structure enters
 through a recorded decision, never through a regeneration** — regeneration is
 not idempotent-safe, a recorded decision is durable. That invariant is
@@ -267,6 +267,6 @@ side is the whole cost, and the evaluation did not account for it.
 export PKG_CONFIG_PATH="$(brew --prefix icu4c)/lib/pkgconfig:$PKG_CONFIG_PATH"
 go test -tags fts5 -v ./core/profile/mdspike/     # the spike's own claims, with the measurements logged
 go test -tags fts5 ./core/... ./host/... ./cli/... # unchanged: 124 packages
-kapi brand validate .kapi/voice.yaml       # VALID
-kapi brand validate .kapi/profiles/bowrain/voice.yaml     # VALID
+kapi voice validate .kapi/voice.yaml       # VALID
+kapi voice validate .kapi/profiles/bowrain/voice.yaml     # VALID
 ```

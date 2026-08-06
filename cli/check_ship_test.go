@@ -23,7 +23,7 @@ func TestCheckShip_AbsorbsVerify(t *testing.T) {
 	})
 
 	require.ErrorIs(t, runErr, ErrQualityGate, "unmet gates exit non-zero (exit 3)")
-	assert.Contains(t, out, "brand", "voice gate runs (Globex drops the score below the default 80)")
+	assert.Contains(t, out, "voice", "voice gate runs (Globex drops the score below the default 80)")
 	assert.Contains(t, out, "terminology", "terminology gate runs against the project terms store")
 	assert.Contains(t, out, "qa", "QA gate runs over the target files")
 	assert.Contains(t, out, "FAIL")

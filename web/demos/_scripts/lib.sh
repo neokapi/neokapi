@@ -6,13 +6,13 @@ set -euo pipefail
 
 KAPI="${KAPI:-kapi}"
 
-# brand_score_text TEXT PACK  → BrandComplianceScore JSON on stdout
+# brand_score_text TEXT PACK  → ComplianceScore JSON on stdout
 brand_score_text() {
-  printf '%s' "$1" | "$KAPI" brand check --pack "$2" --text - --json 2>/dev/null
+  printf '%s' "$1" | "$KAPI" voice check --pack "$2" --text - --json 2>/dev/null
 }
 
-# brand_rewrite_text TEXT PACK  → rewrite result JSON on stdout
-brand_rewrite_text() {
+# voice_rewrite_text TEXT PACK  → rewrite result JSON on stdout
+voice_rewrite_text() {
   printf '%s' "$1" | "$KAPI" brand rewrite --pack "$2" --text - --json 2>/dev/null
 }
 

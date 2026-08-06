@@ -143,7 +143,7 @@ The contract is expressed over **`IOPort`s** — typed stand-off layers of a Blo
 ([AD-002](002-content-model.md)) — not over coarse part-type names: `Consumes`
 lists the ports a tool reads upstream and `Produces` the ports it writes. An
 `IOPort`'s `Type` names an overlay type (`term`, `qa`, …), a block-annotation
-type (`brand-voice`, …), or a pseudo-port (`PortTarget` / `PortSource`); its
+type (`voice`, …), or a pseudo-port (`PortTarget` / `PortSource`); its
 `Side` says which side it pertains to; and `Optional` marks a consumed port as
 degradable (graceful degradation) rather than required.
 
@@ -284,7 +284,7 @@ const (
     AnnoAltTranslation = "alt-translation"
     AnnoMemoryMatch        = "tm-match"
     AnnoWordCount      = "word-count"
-    // …char-count, seg-count, comparison, repetition, brand-voice, …
+    // …char-count, seg-count, comparison, repetition, voice, …
 )
 ```
 
@@ -293,7 +293,7 @@ committed Target) and `PortSource` (`"source"`, a rewritten source) — which na
 produced/consumed outputs that participate in data-flow validation but are not
 stored as stand-off layers.
 
-Every checker — terminology, do-not-translate, placeholder, QA, brand
+Every checker — terminology, do-not-translate, placeholder, QA, voice
 voice — writes the same `qa` overlay (a `core/check.FindingsAnnotation` payload
 carrying a `[]check.Finding` plus a rolled-up score), so one scoring,
 annotation, and governance path serves them all.
@@ -434,8 +434,8 @@ Schema-driven features:
   `ListProjectTools` split: inside a kapi project only the tools the project
   declares are advertised (with the project's target language as the default);
   ad-hoc (no project resolved), the full set is exposed. Resource-wrapping
-  helpers (brand profile, terms, content memory) stay hand-authored in
-  `host/mcp_brand.go`.
+  helpers (voice profile, terms, content memory) stay hand-authored in
+  `host/mcp_voice.go`.
 
 AI tool schemas include provider fields (Provider, APIKey, Model with enum
 support for provider selection), so AI-tool CLI flags are generated the
@@ -602,7 +602,7 @@ All built-in tools register via `RegisterAll()` in `core/tools/register.go`.
 | `qa`                     | Rule-based quality checks (missing translations, whitespace, numbers, span constraints) |
 | `dnt-check`              | Flag do-not-translate spans that were translated in the target (alias `dnt`)            |
 | `placeholder-check`      | Verify placeholders/variables are preserved between source and target                   |
-| `brand-vocab-check`      | Check target text against brand vocabulary / preferred-term rules                       |
+| `voice-vocab-check`      | Check target text against voice vocabulary / preferred-term rules                       |
 | `term-check`             | Verify terminology usage in translations against the terms store                        |
 | `xml-validation`         | Validate XML well-formedness of block text                                              |
 

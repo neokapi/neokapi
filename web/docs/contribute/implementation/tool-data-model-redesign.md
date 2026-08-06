@@ -84,7 +84,7 @@ position field.
 `Block.Properties map[string]string` is reserved for opaque, non-interpretive
 metadata — connector keys (`cms-path`), format round-trip hints. Every
 analytic or interpretive result a tool produces — `word-count`, `tm-match`
-scores, brand-vocab findings, repetition status — is an overlay or an
+scores, voice-vocab findings, repetition status — is an overlay or an
 annotation, never a property. Keeping interpretive results off `Properties`
 removes any contradiction between what a tool declares it `Produces` and where it
 actually writes, and lets the IO contract (below) name a single source of truth
@@ -123,7 +123,7 @@ type ToolMeta struct {
 ```
 
 An `IOPort.Type` names an overlay type (`OverlayTerm`, `OverlayQA`, …), a
-block-annotation key (`AnnoBrandVoice`, …), or a **pseudo-port** —
+block-annotation key (`AnnoVoice`, …), or a **pseudo-port** —
 `schema.PortTarget` (`"target"`, the committed Target) or `schema.PortSource`
 (`"source"`, a rewritten source) — which participate in data-flow validation but
 are not stored as stand-off layers. The `schema.Port[T ~string](t, side)` helper

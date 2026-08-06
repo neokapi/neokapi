@@ -1,24 +1,24 @@
 ---
 sidebar_position: 3
-title: Brand voice
-description: Brand voice is one checkset over neokapi's content-verification engine — a machine-readable profile of tone, style, and vocabulary whose findings annotate Blocks like every other check.
-keywords: [brand voice, content checks, writing style, terminology, MCP, AI assistant]
+title: Voice profiles
+description: The voice profile is one checkset over neokapi's content-verification engine — a machine-readable profile of tone, style, and vocabulary whose findings annotate Blocks like every other check.
+keywords: [voice profile, voice profile, content checks, writing style, terminology, MCP, AI assistant]
 ---
 
 import { PipelineDiagram } from "@neokapi/docs-shared";
 
-# Brand voice
+# Voice profiles
 
 Where [terminology](/framework/terminology) ensures you use the right words,
-brand voice describes how you say them — the personality, formality, and
-writing patterns that make content recognizable. neokapi captures a brand voice
+a voice profile describes how you say them — the personality, formality, and
+writing patterns that make content recognizable. neokapi captures a voice
 as a machine-readable profile and runs it as **one checkset over the same
 [content-verification engine](/framework/checks)** that powers terminology,
 do-not-translate, and placeholder integrity: every checker emits the same
-findings into the same `Block` annotation, so brand voice is one check among
-many, not a separate system. The Go library lives in `core/brand/`.
+findings into the same `Block` annotation, so voice is one check among
+many, not a separate system. The Go library lives in `core/profile/`.
 
-Used this way, brand voice keeps an AI assistant on-voice the way a test keeps
+Used this way, a voice profile keeps an AI assistant on-voice the way a test keeps
 code correct: load the profile into context (or expose it over
 [MCP](/reference/mcp)) so generated copy is on-voice from the first draft, then
 **check** anything that drifts and carry the same voice through every
@@ -26,24 +26,24 @@ translation. The findings — the specific terms and rules that broke — are th
 substance; the 0–100 roll-up is a convenience, honest only when calibrated
 against a labeled set.
 
-## Brand voice with the CLI
+## Voice profiles with the CLI
 
-The `kapi brand` command group works against a profile from a built-in starter
-pack (`--pack`), the local brand store (`--profile`), or a standalone
+The `kapi voice` command group works against a profile from a built-in starter
+pack (`--pack`), the local voice store (`--profile`), or a standalone
 git-shareable YAML file (`--profile-file`):
 
 ```bash
 # Print the rendered guide (paste into an assistant, or pipe to a file)
-kapi brand guide --pack friendly-dtc
+kapi voice guide --pack friendly-dtc
 
 # Score text: file argument, --input-text, or stdin. --min-score gates CI (exit 3).
-kapi brand check --profile-file brand.yaml --min-score 80 release-notes.md
+kapi voice check --profile-file voice.yaml --min-score 80 release-notes.md
 
 # Rewrite off-voice content (add --ai for tone/style as well as vocabulary)
-kapi brand rewrite --profile-file brand.yaml --input-text "Leverage our solution"
+kapi voice rewrite --profile-file voice.yaml --input-text "Leverage our solution"
 
 # Manage profiles in the local store
-kapi brand profiles
+kapi voice profiles
 ```
 
 Both `check` and `rewrite` run a fast, offline rule-based vocabulary pass by
@@ -97,7 +97,7 @@ overrides merge individual fields.
 ## Compliance scoring
 
 Compliance is scored 0–100 across five dimensions — Tone, Style, Vocabulary,
-Clarity, and overall Brand compliance. Each finding reduces the score by its
+Clarity, and overall voice compliance. Each finding reduces the score by its
 severity weight:
 
 | Severity   | Weight | Example                   |
@@ -116,29 +116,29 @@ examples to customize.
 
 ## Pipeline integration
 
-The `brand-voice-check` tool runs in the pipeline alongside other tools:
+The `voice-check` tool runs in the pipeline alongside other tools:
 
 <PipelineDiagram
   stages={[
     { label: "recycle", role: "translate" },
     { label: "term-lookup", role: "annotate" },
     { label: "translate", sub: "LLM", role: "translate" },
-    { label: "brand-voice-check", sub: "LLM", role: "qa" },
+    { label: "voice-check", sub: "LLM", role: "qa" },
     { label: "qa", sub: "LLM", role: "qa" },
   ]}
 />
 
 It uses an LLM to analyze content against the profile and attaches compliance
 scores and findings to each Block as annotations. The faster, rule-based
-`brand-vocab-check` tool checks forbidden and competitor terms without LLM
-calls. Brand vocabulary also flows through ordinary terminology tools —
+`voice-vocab-check` tool checks forbidden and competitor terms without LLM
+calls. Voice vocabulary also flows through ordinary terminology tools —
 preferred terms surface in `term-lookup`, forbidden/competitor terms trigger
-`term-enforce` violations — so brand guardrails and terminology share one
+`term-enforce` violations — so voice guardrails and terminology share one
 enforcement path.
 
 ## MCP integration
 
-AI agents reach brand voice checking through the `kapi mcp` server:
+AI agents reach voice checking through the `kapi mcp` server:
 
 ```json
 {
@@ -151,18 +151,18 @@ AI agents reach brand voice checking through the `kapi mcp` server:
 }
 ```
 
-Agents can score content for brand compliance with the `brand_check` MCP tool,
-fetch the brand guide with `brand_guide`, and rewrite off-brand copy with
-`brand_rewrite`. Server deployments
+Agents can score content for voice compliance with the `voice_check` MCP tool,
+fetch the guide with `voice_guide`, and rewrite off-voice copy with
+`voice_rewrite`. Server deployments
 can expose an HTTP MCP endpoint so agents consume profiles and scoring without a
 local CLI process.
 
 ## Go library
 
-### BrandStore
+### Store
 
 ```go
-type BrandStore interface {
+type Store interface {
     CreateProfile(ctx context.Context, profile *VoiceProfile) error
     GetProfile(ctx context.Context, id string) (*VoiceProfile, error)
     UpdateProfile(ctx context.Context, profile *VoiceProfile) error
@@ -181,10 +181,10 @@ type BrandStore interface {
 ```
 
 `StoredScore`, `ScoreTrend`, and the other unqualified types are declared in the
-`brand` package; `model.LocaleID` is the BCP-47 locale type from
+`profile` package; `model.LocaleID` is the BCP-47 locale type from
 `github.com/neokapi/neokapi/core/model`.
 
-The framework ships a SQLite backend (`cli/storage/brand/sqlite.go`) built on
+The framework ships a SQLite backend (`host/storage/voice/sqlite.go`) built on
 the shared `core/storage` migration system, with JSON columns for the complex
 tone/style/vocabulary fields. The interface is designed for extension — server
 deployments can add a workspace-scoped PostgreSQL backend.
@@ -194,16 +194,16 @@ deployments can add a workspace-scoped PostgreSQL backend.
 ```go
 import "github.com/neokapi/neokapi/core/profile"
 
-findings := []brand.BrandVoiceFinding{
-    {Dimension: brand.DimensionVocabulary, Severity: brand.SeverityMajor,
+findings := []profile.VoiceFinding{
+    {Dimension: profile.DimensionVocabulary, Severity: profile.SeverityMajor,
         Message: "Forbidden term: leverage", Suggestion: "use"},
-    {Dimension: brand.DimensionTone, Severity: brand.SeverityMinor,
+    {Dimension: profile.DimensionTone, Severity: profile.SeverityMinor,
         Message: "Tone is too formal for this profile"},
 }
-score := brand.CalculateScore(findings) // score.Overall = 94 (100 - 5 - 1)
+score := profile.CalculateScore(findings) // score.Overall = 94 (100 - 5 - 1)
 
 // ResolveProfile applies locale then channel overrides to a base profile
-resolved := brand.ResolveProfile(base, "ja", "")
+resolved := profile.ResolveProfile(base, "ja", "")
 ```
 
 ### Pipeline tools
@@ -216,11 +216,11 @@ import (
 )
 
 // LLM-based: structured findings scored via CalculateScore, attached as a
-// BrandVoiceAnnotation plus brand-voice-score / brand-voice-findings properties
-checkTool := aitool.NewBrandVoiceCheckTool(llmProvider, profile)
+// VoiceAnnotation plus voice-score / voice-findings properties
+checkTool := aitool.NewVoiceCheckTool(llmProvider, profile)
 
 // Rule-based: fast forbidden/competitor-term enforcement, no LLM calls
-vocabTool := tools.NewBrandVocabCheckTool(profile, terminology)
+vocabTool := tools.NewVoiceVocabCheckTool(profile, terminology)
 ```
 
 ### Starter packs
@@ -234,26 +234,26 @@ all, _ := packs.LoadAll()
 ```
 
 Packs are YAML files embedded via `go:embed`; each returns a
-`*brand.VoiceProfile` ready to use or customize.
+`*profile.VoiceProfile` ready to use or customize.
 
 ### Content model integration
 
-`BrandVoiceAnnotation` is a registered payload (`brand-voice`) stored as a
+`VoiceAnnotation` is a registered payload (`voice`) stored as a
 block-scoped **annotation** ([AD-002](/contribute/architecture/002-content-model)),
 the counterpart to positional overlays like `term` and `entity`. It is reached
 through the block's `Anno`/`SetAnno` helpers and registered for wire/store
 rehydration via `model.RegisterPayload`:
 
 ```go
-type BrandVoiceAnnotation struct {
+type VoiceAnnotation struct {
     ProfileID string              `json:"profile_id"`
     Score     int                 `json:"score"` // 0-100 overall
-    Findings  []BrandVoiceFinding `json:"findings"`
+    Findings  []VoiceFinding `json:"findings"`
     Position  model.RunRange      `json:"position"`
 }
 
-func (a *BrandVoiceAnnotation) AnnotationType() string { return "brand-voice" }
+func (a *VoiceAnnotation) AnnotationType() string { return "voice" }
 ```
 
 Profiles serialize as both JSON and YAML, so they can be authored by hand or
-constructed programmatically as a `*brand.VoiceProfile`.
+constructed programmatically as a `*profile.VoiceProfile`.

@@ -2,7 +2,7 @@
 id: create-content
 title: "Create content with kapi as the checker"
 sidebar_label: "Create content"
-description: "Author content from scratch with kapi as the checker — parse it back as the first check, gate it on brand voice and terminology, and revise, landing the content fix and the rule behind it in one change-set."
+description: "Author content from scratch with kapi as the checker — parse it back as the first check, gate it on voice profile and terminology, and revise, landing the content fix and the rule behind it in one change-set."
 hide_table_of_contents: true
 ---
 
@@ -12,7 +12,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Create content with kapi as the checker
 
-**Goal:** when you are **authoring** new content — there is no frozen source to edit, you are writing the document — use kapi as the checker. You write; kapi parses what you wrote, holds it to the brand voice and terminology, and tells you what to fix. No AI provider is involved. This is the **author → parse → check** loop — the create-side counterpart of [Edit content](/kapi/recipes/rewrite-content), where the source is fixed and you edit existing blocks.
+**Goal:** when you are **authoring** new content — there is no frozen source to edit, you are writing the document — use kapi as the checker. You write; kapi parses what you wrote, holds it to the voice profile and terminology, and tells you what to fix. No AI provider is involved. This is the **author → parse → check** loop — the create-side counterpart of [Edit content](/kapi/recipes/rewrite-content), where the source is fixed and you edit existing blocks.
 
 <PendingMedia
   kind="video"
@@ -40,7 +40,7 @@ With [kapi connected](/kapi/get-started/use-with-claude), the assistant is the a
 
 > Draft a release-notes page for the export feature — on brand, using our approved terms.
 
-It loads the voice and wording first (`kapi brand guide`, `kapi terms lookup`) so the first draft is already close, then loops `check_file` → revise until the gate is green. When a check flags a new term, it proposes the [close-the-loop change-set](#close-the-loop-fix-the-content-and-the-rule-together) — the content fix and the term rule in one `apply`.
+It loads the voice and wording first (`kapi voice guide`, `kapi terms lookup`) so the first draft is already close, then loops `check_file` → revise until the gate is green. When a check flags a new term, it proposes the [close-the-loop change-set](#close-the-loop-fix-the-content-and-the-rule-together) — the content fix and the term rule in one `apply`.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -56,14 +56,14 @@ Binary office formats (`.docx`, `.pptx`, `.xlsx`) are editable but not generativ
 ```bash
 kapi stats draft.md --json                            # size and structure survey
 kapi inspect draft.md --jsonl                         # block by block, as a reader sees it
-kapi check draft.md --profile-file brand.yaml         # one-off; exit 0 pass, 3 gate failed
+kapi check draft.md --profile-file voice.yaml         # one-off; exit 0 pass, 3 gate failed
 kapi check --ship                                     # in a project: every bound gate
 ```
 
 Load the voice and approved wording **before** writing so the first draft is already close:
 
 ```bash
-kapi brand guide                          # the voice to follow (no flag inside a project)
+kapi voice guide                          # the voice to follow (no flag inside a project)
 kapi terms lookup "dashboard" -t en    # the approved term
 ```
 
@@ -90,5 +90,5 @@ The **content** entry rewrites the block through the faithful round-trip, drift-
 ## Next
 
 - [Edit content](/kapi/recipes/rewrite-content) — the edit-existing loop and the full `content`-entry shape with its guards.
-- [Keep source on brand](/kapi/recipes/keep-source-on-brand) — the brand check and the vocabulary-rule entry.
+- [Keep source on brand](/kapi/recipes/keep-source-on-brand) — the voice check and the vocabulary-rule entry.
 - [Checks](/framework/checks) — the `kapi.check/v1` report model and the gate exit codes.

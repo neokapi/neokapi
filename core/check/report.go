@@ -60,10 +60,10 @@ type Summary struct {
 // (so the AI knows exactly which block to revise).
 type Diagnostic struct {
 	// Rule is the stable id "<check>.<category>" (e.g. "length.max-chars-exceeded",
-	// "structure.xml-well-formedness", "brand.vocabulary"). The dedupe/track key.
+	// "structure.xml-well-formedness", "voice.vocabulary"). The dedupe/track key.
 	Rule string `json:"rule"`
 	// Check is the producing check family (length|pattern|chars|structure|
-	// hygiene|brand|voice and the target-gated l10n families).
+	// hygiene|voice and the target-gated l10n families).
 	Check string `json:"check"`
 	// Severity drives the gate and the score penalty (MQM weights 25/5/1/0).
 	Severity Severity `json:"severity"`

@@ -127,54 +127,6 @@
     }
   },
   {
-    "name": "brand_check",
-    "input_schema": {
-      "additionalProperties": false,
-      "properties": {
-        "profile_file": {
-          "description": "path to a profile YAML",
-          "type": "string"
-        },
-        "profile_pack": {
-          "description": "built-in profile pack name",
-          "type": "string"
-        },
-        "text": {
-          "description": "the text to check or rewrite",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "type": "object"
-    }
-  },
-  {
-    "name": "brand_rewrite",
-    "input_schema": {
-      "additionalProperties": false,
-      "properties": {
-        "profile_file": {
-          "description": "path to a profile YAML",
-          "type": "string"
-        },
-        "profile_pack": {
-          "description": "built-in profile pack name",
-          "type": "string"
-        },
-        "text": {
-          "description": "the text to check or rewrite",
-          "type": "string"
-        }
-      },
-      "required": [
-        "text"
-      ],
-      "type": "object"
-    }
-  },
-  {
     "name": "check_file",
     "input_schema": {
       "additionalProperties": false,
@@ -212,7 +164,7 @@
           "type": "integer"
         },
         "profile_file": {
-          "description": "path to a brand voice profile YAML",
+          "description": "path to a voice profile YAML",
           "type": "string"
         },
         "profile_pack": {
@@ -272,7 +224,7 @@
           "type": "integer"
         },
         "profile_file": {
-          "description": "path to a brand voice profile YAML",
+          "description": "path to a voice profile YAML",
           "type": "string"
         },
         "profile_pack": {
@@ -938,6 +890,54 @@
           "type": "string"
         }
       },
+      "type": "object"
+    }
+  },
+  {
+    "name": "voice_check",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "profile_file": {
+          "description": "path to a profile YAML",
+          "type": "string"
+        },
+        "profile_pack": {
+          "description": "built-in profile pack name",
+          "type": "string"
+        },
+        "text": {
+          "description": "the text to check or rewrite",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "voice_rewrite",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "profile_file": {
+          "description": "path to a profile YAML",
+          "type": "string"
+        },
+        "profile_pack": {
+          "description": "built-in profile pack name",
+          "type": "string"
+        },
+        "text": {
+          "description": "the text to check or rewrite",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
       "type": "object"
     }
   }

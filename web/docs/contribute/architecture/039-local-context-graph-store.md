@@ -27,10 +27,10 @@ a connected project asks bowrain, asked in the same shape with no server present
 ## Context
 
 Context is relational. A term occurs in blocks; blocks belong to collections and
-sit at a [coordinate](022-brand-voice.md#context-is-a-coordinate-space); a
+sit at a [coordinate](022-voice-profile.md#context-is-a-coordinate-space); a
 a state record blesses a unit at a content hash; a memory entry recycles into a block.
 Retrieval ([AD-037](037-context-retrieval-surface.md)) and governance
-([AD-022](022-brand-voice.md)) both traverse those relations rather than reading
+([AD-022](022-voice-profile.md)) both traverse those relations rather than reading
 one store in isolation.
 
 Bowrain answers such questions over a single Postgres spanning workspaces,

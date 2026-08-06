@@ -6,7 +6,7 @@ Claude Code plugin, captures the transcript, screenshots the artifacts kapi prod
 generates a voice-over, and composes everything into an MP4 with [Remotion](https://remotion.dev).
 
 Nothing here is mocked: the Claude sessions are live, the kapi commands run for real
-(translating with Gemini, checking brand voice, importing terms…), and the
+(translating with Gemini, checking voice profile, importing terms…), and the
 before/after artifacts are screenshots of kapi's actual output.
 
 ## What it produces
@@ -34,7 +34,7 @@ with a continuous British-English narration track explaining the story.
 | 9 | `09-toolbox-find-replace`         | The toolbox (kcat/kgrep/ksed) — a **scripted shell** demo, no Claude |
 
 Between them the demos exercise the task sections of the kapi skill —
-`references/localize.md`, `references/i18n.md`, `references/brand.md`,
+`references/localize.md`, `references/i18n.md`, `references/voice.md`,
 `references/toolbox.md` — plus the MCP tool surface.
 
 ### Scripted shell demos (no Claude)

@@ -1,35 +1,35 @@
 ---
-id: 022-brand-voice
+id: 022-voice-profile
 sidebar_position: 22
-title: "AD-022: Brand Voice"
-description: "Architecture decision: a brand voice subsystem with portable VoiceProfile YAML, built-in starter packs, a deterministic vocabulary check and an LLM-based voice check, a kapi brand command tree, and an offline MCP surface — keeping AI-generated content on-brand."
-keywords: [brand voice, voice profile, brand check, brand rewrite, vocabulary, tone, MCP, starter packs, architecture decision, neokapi]
+title: "AD-022: Voice Profiles"
+description: "Architecture decision: a voice-profile subsystem with portable VoiceProfile YAML, built-in starter packs, a deterministic vocabulary check and an LLM-based voice check, a kapi voice command tree, and an offline MCP surface — keeping AI-generated content in voice."
+keywords: [voice profile, voice profile, voice check, voice rewrite, vocabulary, tone, MCP, starter packs, architecture decision, neokapi]
 ---
 
-# AD-022: Brand Voice
+# AD-022: Voice Profiles
 
 ## Summary
 
-The brand voice subsystem keeps AI-generated and translated content on-brand.
-Its core type, `brand.VoiceProfile`, is a portable YAML document describing
+The voice-profile subsystem keeps AI-generated and translated content in
+voice. Its core type, `profile.VoiceProfile`, is a portable YAML document describing
 tone, style, vocabulary rules, examples, and locale/channel overrides. Two
 registered tools evaluate text against a profile: a deterministic, offline
-`brand-vocab-check` (rule-based vocabulary) and an LLM-based `brand-voice-check`
+`voice-vocab-check` (rule-based vocabulary) and an LLM-based `voice-check`
 (tone/style/clarity). Findings carry a severity and a run-anchored position and
-roll up into an MQM-inspired 0–100 compliance score. The `kapi brand` command
+roll up into an MQM-inspired 0–100 compliance score. The `kapi voice` command
 tree (`new`, `guide`, `check`, `rewrite`, `profiles`, `show`, `import`, `pack`)
 exposes this as a text-first, JSON-first surface that works fully offline
-against a starter pack, a standalone YAML file, the local SQLite brand store, or
-a profile bound to a `.kapi` project. A small MCP surface (`brand_guide`,
-`brand_check`, `brand_rewrite`) mirrors the deterministic path for AI agents.
+against a starter pack, a standalone YAML file, the local SQLite voice store, or
+a profile bound to a `.kapi` project. A small MCP surface (`voice_check`,
+`voice_rewrite`) mirrors the deterministic path for AI agents.
 
 ## Context
 
 neokapi's positioning is to plug into an AI assistant and keep its output
 on-brand and consistent before publishing it in other languages and formats. A
-brand voice is the natural unit of that guardrail: a reusable description of how
-a brand wants to sound, against which a draft can be scored and rewritten. The
-subsystem must satisfy several constraints:
+voice profile is the natural unit of that guardrail: a reusable description of
+how a product wants to sound, against which a draft can be scored and
+rewritten. The subsystem must satisfy several constraints:
 
 - **Portable and git-shareable.** A profile is a YAML document a team can commit
   and review, with no backing store required — the same way a `kapi.yaml` recipe is
@@ -38,7 +38,7 @@ subsystem must satisfy several constraints:
   competitor, and preferred terms; regex patterns) is deterministic and needs no
   network. An LLM check for the subjective dimensions (tone, style, clarity) is
   opt-in and credential-gated.
-- **Composable with the rest of the engine.** Brand evaluation runs as
+- **Composable with the rest of the engine.** Voice evaluation runs as
   registered tools ([AD-006](006-tool-system.md)) so it composes into flows,
   reuses the schema/config machinery, and writes findings as block annotations
   that other tools and the UI can read.
@@ -46,16 +46,16 @@ subsystem must satisfy several constraints:
   MCP server for agents, and the bundled Agent Skill ([AD-024](024-agent-skills.md)).
 
 [AD-010](010-terminology.md) handles terminology consistency at the concept
-level; brand voice is the broader, prose-level guardrail. The two intersect at
+level; a voice profile is the broader, prose-level guardrail. The two intersect at
 vocabulary rules, which the vocab check can optionally cross-reference against a
 terms store.
 
 ## Decision
 
-### Data model — `core/brand`
+### Data model — `core/profile`
 
 `VoiceProfile` is the canonical type. It is loaded from YAML by
-`brand.LoadProfileYAML`, the single loader used by standalone files, the
+`profile.LoadProfileYAML`, the single loader used by standalone files, the
 embedded starter packs, and the SQLite store. Its shape:
 
 - **`ToneProfile`** — personality adjectives, formality, emotion, humor, and
@@ -74,47 +74,47 @@ update, named `ProfileTag` references) for stores that track history.
 
 ### Findings and scoring
 
-A finding is a `brand.BrandVoiceFinding`, which is a type alias to
+A finding is a `profile.VoiceFinding`, which is a type alias to
 `check.Finding` from the framework's content-verification core (`core/check`).
-The struct carries a free-form `Category string` — a brand finding sets it to a
-brand dimension (tone, style, vocabulary, clarity, brand_compliance), modeled by
-the brand-local `Dimension` type — a `Severity` (neutral, minor, major,
+The struct carries a free-form `Category string` — a voice finding sets it to a
+voice dimension (tone, style, vocabulary, clarity, brand_compliance), modeled by
+the package-local `Dimension` type — a `Severity` (neutral, minor, major,
 critical), a human message, an optional suggestion, the original text, optional
 metadata, and a **`Position model.RunRange`** — so a finding is anchored to the
 runs it concerns, the same run-range model used for overlays and redaction
 ([AD-002](002-content-model.md)). `Severity` and `SeverityWeight` are
 re-exported from `core/check`. Tools attach findings to a block as a
-`BrandVoiceAnnotation` (annotation type `brand-voice`), which also carries the
+`VoiceAnnotation` (annotation type `voice`), which also carries the
 profile id, the overall score, and its own `Position`.
 
 This finding/severity/scoring path is shared across all checkers (terminology,
-do-not-translate, placeholder, register, brand), not bespoke to brand voice —
-brand voice is one checkset over the generic core, with `BrandComplianceScore`
+do-not-translate, placeholder, register, voice), not bespoke to voice —
+voice is one checkset over the generic core, with `ComplianceScore`
 providing a dimension-shaped presentation of the generic `check.Score`.
 
-`brand.CalculateScore` rolls findings up using the MQM-inspired penalty weights
+`profile.CalculateScore` rolls findings up using the MQM-inspired penalty weights
 defined in `core/check.SeverityWeight` — neutral 0, minor 1, major 5,
 critical 25 — per dimension. Each dimension starts at 100 and is reduced by its
 penalty (clamped to 0); the overall score is 100 minus the total penalty. The
 dimensions are fixed (tone, style, vocabulary, clarity, brand_compliance), so a
-`BrandComplianceScore` always has a consistent shape.
+`ComplianceScore` always has a consistent shape.
 
 ### The two tools
 
-Brand evaluation is implemented as two registered tools so it composes into
+Voice evaluation is implemented as two registered tools so it composes into
 flows and shares the tool schema/config machinery
 ([AD-006](006-tool-system.md)):
 
-- **`brand-vocab-check`** (`core/tools`) — deterministic and offline. It scans
+- **`voice-vocab-check`** (`core/tools`) — deterministic and offline. It scans
   source text for forbidden, competitor, and preferred-term violations and
   regex pattern hits, emitting findings with positions. It optionally takes a
-  terms store to filter by brand vocabulary. It is an `Annotate` tool (read-only;
+  terms store to filter by voice vocabulary. It is an `Annotate` tool (read-only;
   writes the annotation, not the content). This is the fast first pass.
-- **`brand-voice-check`** (`core/ai/tools`) — LLM-backed. It asks an AI provider
+- **`voice-check`** (`core/ai/tools`) — LLM-backed. It asks an AI provider
   ([AD-011](011-ai-providers.md)) to score the subjective dimensions (tone,
   style, clarity) against the rendered voice guide, returning findings. It
   declares `RequiresCredentials` and an API-call side effect, produces the
-  `quality.brand-voice` annotation, and runs with bounded per-block parallelism.
+  `voice` annotation, and runs with bounded per-block parallelism.
 
 Both resolve their profile eagerly (supplied programmatically) or lazily through
 a `ProfileResolver` against an organizational context hierarchy, so a host can
@@ -155,7 +155,7 @@ depends on where the loop happened to run, and a platform user quietly editing
 over a committed profile.
 
 Until coordinates are synced to the server, a connected project's rows carry no
-coordinates, so a run there governs by `defaults.brand_voice` while a local run
+coordinates, so a run there governs by `defaults.voice` while a local run
 governs by the point. That divergence is real and is reported rather than
 hidden: a run over a project that declares `coordinates:`/`profiles:` *and*
 carries a `server:` block prints
@@ -163,12 +163,12 @@ carries a `server:` block prints
 embedded flow runner). It warns and proceeds — a recipe field that is not yet
 readable at the other venue is not a reason to refuse the run.
 
-### Profile sources and the `kapi brand` command tree
+### Profile sources and the `kapi voice` command tree
 
-`NewBrandCmd` (`cli/brand.go`) builds the `kapi brand` group. A profile is
+`NewVoiceCmd` (`cli/voice.go`) builds the `kapi voice` group. A profile is
 resolved from one of three mutually exclusive sources:
 
-- `--profile <name>` — a profile in the local SQLite brand store (opened with
+- `--profile <name>` — a profile in the local SQLite voice store (opened with
   the standard `--name`/`--local`/`--file` resource flags, mirroring the terms
   store and the content memory);
 - `--profile-file <path>` — a standalone, git-shareable profile YAML;
@@ -176,11 +176,11 @@ resolved from one of three mutually exclusive sources:
 
 With no source flag, resolution falls back to the `.kapi` project in scope: the
 voice governing the content collection that claims the file, else the recipe's
-`defaults.brand_voice` (a `BrandVoiceBinding` selecting a profile file, store
+`defaults.voice` (a `VoiceBinding` selecting a profile file, store
 profile, or pack — resolved relative to the project root), then a convention
 file at `<root>/.kapi/voice.yaml` — the profile's home in the
-committed context graph ([AD-008](008-project-model.md)) — or `<root>/brand.yaml`
-for a project that keeps it at the root. This lets `kapi brand check DRAFT.md`
+committed context graph ([AD-008](008-project-model.md)) — or `<root>/voice.yaml`
+for a project that keeps it at the root. This lets `kapi voice check DRAFT.md`
 work flag-free inside a project. Locale and channel overrides
 apply on top via `--locale`/`--channel`; an explicit `--channel` wins over the
 channel the recipe declares.
@@ -235,7 +235,7 @@ values joined by a hyphen, in alphabetical order of their axes (`{product:
 bowrain}` → `bowrain`; `{product: bowrain, market: de}` → `de-bowrain`; the
 empty `when:` has no directory, because its files are the flat default in
 `.kapi/` itself). A profile binding no `voice:`/`terms:` is answered by that
-directory before `defaults.brand_voice` is, so `when:` alone is a complete
+directory before `defaults.voice` is, so `when:` alone is a complete
 profile.
 
 This is the filesystem mirroring the recipe. A recipe states its default
@@ -277,8 +277,8 @@ operational error.
 
 ### Fixing off-voice content: rewrite it yourself, apply through `kapi apply`
 
-kapi does not send content to a model to rewrite it. An on-brand fix is
-caller-supplied: the assistant loads the voice guide (`kapi brand guide`) and the
+kapi does not send content to a model to rewrite it. An in-voice fix is
+caller-supplied: the assistant loads the voice guide (`kapi voice guide`) and the
 approved wording (`kapi terms lookup`) as context, rewrites the off-voice text
 itself, and applies the result through the one write verb, `kapi apply`. The
 edits land through the byte-faithful round-trip with **no AI provider**
@@ -286,27 +286,27 @@ edits land through the byte-faithful round-trip with **no AI provider**
 block is drift-guarded by its `content_hash`, and an edit that would corrupt
 markup is rejected.
 
-`kapi brand rewrite` is a separate, deterministic helper: it substitutes
+`kapi voice rewrite` is a separate, deterministic helper: it substitutes
 forbidden and competitor terms for their approved replacements by rule, offline,
 reading text from `--input-text` or stdin. It does not call a model and does not
 touch tone, style, or phrasing — those are the caller's to rewrite.
 
-### Brand-vocabulary edits as a change-set entry
+### Voice-vocabulary edits as a change-set entry
 
 Fixing a recurring off-voice term at the *source* — adding a vocabulary rule so
-every future draft is checked against it — is a `brand` entry in the same
+every future draft is checked against it — is a `voice` entry in the same
 `kapi apply` change-set, alongside the content fix it justifies (one reviewed
 change = one typed entry, [AD-024](024-agent-skills.md)):
 
 ```json
-{"kind":"brand","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use","severity":"minor"}
+{"kind":"voice","op":"add-rule","list":"forbidden","term":"utilize","replacement":"use","severity":"minor"}
 ```
 
 The entry adds a `TermRule` to the named vocabulary list (`forbidden`,
-`competitor`, or `preferred`) of the **committed** brand voice profile YAML the
-recipe binds (`defaults.brand_voice.profile_file`, created and bound if none
-exists), then re-imports that profile into the local brand store via the existing
-`brand.LoadProfileYAML` path. The committed YAML is the single source of truth and
+`competitor`, or `preferred`) of the **committed** voice profile YAML the
+recipe binds (`defaults.voice.profile_file`, created and bound if none
+exists), then re-imports that profile into the local voice store via the existing
+`profile.LoadProfileYAML` path. The committed YAML is the single source of truth and
 `git diff` is the review surface; the store is a compiled cache, written by the
 one importer. The operation is idempotent — a rule already present with the same
 term, replacement, and severity is a no-op. A binding that points at a starter
@@ -315,29 +315,28 @@ committed file, not a pack or a store row.
 
 ### Built-in starter packs
 
-The framework embeds a small set of starter packs (`core/brand/packs`, embedded
+The framework embeds a small set of starter packs (`core/profile/packs`, embedded
 via `//go:embed *.yaml`): `professional-b2b`, `friendly-dtc`, `technical-docs`,
 `marketing-blog`, and `customer-support`. Each is a complete `VoiceProfile`
-YAML, loaded through the same `brand.LoadProfileYAML` path as any other profile,
-so packs are an on-ramp, not a special case — `kapi brand new --pack <name>`
+YAML, loaded through the same `profile.LoadProfileYAML` path as any other profile,
+so packs are an on-ramp, not a special case — `kapi voice new --pack <name>`
 emits one as an editable base.
 
 ### MCP surface
 
-`cli/mcp_brand.go` registers offline brand tools on the shared `kapi mcp` stdio
+`host/mcp_voice.go` registers offline voice tools on the shared `kapi mcp` stdio
 server ([AD-013](013-kapi-cli.md)) so non-CLI agents get parity:
 
-- `brand_guide` — render a voice guide from a pack or profile YAML;
-- `brand_check` — score text using the deterministic vocabulary rules;
-- `brand_rewrite` — substitute forbidden/competitor terms (deterministic).
+- `voice_check` — score text using the deterministic vocabulary rules;
+- `voice_rewrite` — substitute forbidden/competitor terms (deterministic).
 
-These are hand-authored because each wraps a *resource* — a brand profile, a
-terms store, or a content-memory file — rather than a single processing tool. The same file
-also exposes `term_lookup` and `tm_search` so an agent can enforce terminology
-and reuse prior translations alongside the brand checks.
+These are hand-authored because each wraps a *resource* — a voice profile, a
+terms store, or a content-memory file — rather than a single processing tool.
+The rendered guide is reached through `context_search` / `context://`
+([AD-037](037-context-retrieval-surface.md)) rather than a tool of its own.
 
 The registry's processing tools are exposed over MCP **generically** rather than
-curated by hand ([AD-006](006-tool-system.md), `cli/mcp_tools.go`): each
+curated by hand ([AD-006](006-tool-system.md), `host/mcp_tools.go`): each
 CLI-visible tool becomes an MCP tool whose input schema is projected straight
 from the tool's own schema plus a `text` field. The set is **scoped by mode**,
 mirroring the desktop's `ListTools` vs `ListProjectTools` split — in a kapi
@@ -348,7 +347,7 @@ it.
 
 ## Consequences
 
-- A brand voice is a portable YAML document that works with or without a store,
+- A voice profile is a portable YAML document that works with or without a store,
   reviewable in git and reusable across the CLI, MCP, flows, and skills.
 - The deterministic vocabulary check gives an instant, offline, reproducible
   signal; the LLM check is a clearly bounded, credential-gated opt-in for the
@@ -363,15 +362,15 @@ it.
 
 - [AD-002: Content Model](002-content-model.md) — `RunRange` positions and
   block annotations
-- [AD-006: Tool System](006-tool-system.md) — `brand-vocab-check` and
-  `brand-voice-check` as registered tools
-- [AD-008: Kapi Project Model](008-project-model.md) — `defaults.brand_voice`
+- [AD-006: Tool System](006-tool-system.md) — `voice-vocab-check` and
+  `voice-check` as registered tools
+- [AD-008: Kapi Project Model](008-project-model.md) — `defaults.voice`
   binding in a `kapi.yaml` recipe
 - [AD-010: Terminology](010-terminology.md) — concept-level terminology
-  consistency that brand vocabulary intersects
+  consistency that voice vocabulary intersects
 - [AD-011: AI Providers](011-ai-providers.md) — the LLM provider behind the AI
-  brand check
-- [AD-013: Kapi CLI](013-kapi-cli.md) — the `kapi brand` command tree, the MCP
+  voice check
+- [AD-013: Kapi CLI](013-kapi-cli.md) — the `kapi voice` command tree, the MCP
   server, and the gate exit code
 - [AD-024: Agent Skills](024-agent-skills.md) — the bundled skill that drives
-  the brand commands
+  the voice commands

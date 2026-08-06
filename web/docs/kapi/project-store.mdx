@@ -25,7 +25,7 @@ This page is about the third one. The guiding rule:
 
 | Layer | Lives in | Kind | Lose it? |
 |---|---|---|---|
-| **committed context** | `.kapi/` — the terms and memory bundles, the brand voice, and `state/*.jsonl` | **authored** — unit state, approved terms, memory pairs | **committed — keep it in git** |
+| **committed context** | `.kapi/` — the terms and memory bundles, the voice profile, and `state/*.jsonl` | **authored** — unit state, approved terms, memory pairs | **committed — keep it in git** |
 | local store | `.kapi/work/store.db` | **derived index** over the committed context and your content, **plus** the working set of staged unit state | rebuilds — except unit state staged since the last `kapi commit` |
 | cache | `.kapi/work/cache/` | **derived** — parse cache, extractions, collections, sync cache | rebuilds on next run |
 
@@ -54,7 +54,7 @@ request:
   `defaults.memory_source` (a `.memory.json`) — conventionally
   `.kapi/terms.json` and `.kapi/memory/memory.json`, though both keys
   bind any path;
-- the brand-voice profile, `.kapi/voice.yaml`;
+- the voice profile, `.kapi/voice.yaml`;
 - the content files themselves.
 
 ## What to commit, and what to ignore

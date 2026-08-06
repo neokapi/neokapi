@@ -50,13 +50,13 @@
 # extraction and catalog-compilation stages a recipe may not name itself
 # (AD-038). Adding a collection here needs no Makefile change — see
 # docs/internals/l10n-ci.md. The context graph this project is governed by —
-# brand voice, terms, reviewed content memory — is committed under .kapi/.
+# voice profile, terms, reviewed content memory — is committed under .kapi/.
 version: v1
 name: neokapi
 defaults:
   source_language: en
   target_languages: [nb]
-  brand_voice:
+  voice:
     profile_file: .kapi/voice.yaml
   # terms_source is the committed, git-tracked terms document (the review
   # surface `kapi apply` term-edits write to); it compiles into the project
@@ -108,7 +108,7 @@ coordinates:
   channel: [cli, engine, desktop, docs, demos, app, ctrl, pulse, landing, email]
 
 # Governance bound to a point in that space. A collection matching no profile
-# falls back to defaults.brand_voice below.
+# falls back to defaults.voice below.
 profiles:
   - when: { product: neokapi }
     voice: .kapi/voice.yaml
@@ -255,7 +255,7 @@ flows:
           fillTargetThreshold: 100
       - tool: term-check
   # AI translation for new/changed strings: content memory first, then translate for
-  # the misses (brand voice + terms are bound project-wide), then checks.
+  # the misses (voice profile + terms are bound project-wide), then checks.
   # Requires provider credentials (keychain or ANTHROPIC_API_KEY).
   translate-ai:
     steps:
