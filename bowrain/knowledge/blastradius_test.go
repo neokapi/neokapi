@@ -28,6 +28,10 @@ type fakeBlockSource struct {
 	blocks   map[string][]*store.StoredBlock // projectID|stream → blocks
 	items    map[string]*store.Item          // projectID|stream|itemName → item
 	cols     map[string]*store.Collection    // projectID|collectionID → collection
+
+	// itemLookups counts GetItem calls, so a test can pin that collection
+	// resolution costs one lookup per item rather than one per block.
+	itemLookups int
 }
 
 func newFakeBlockSource() *fakeBlockSource {
@@ -80,6 +84,7 @@ func (f *fakeBlockSource) GetBlocks(_ context.Context, q store.BlockQuery) ([]*s
 }
 
 func (f *fakeBlockSource) GetItem(_ context.Context, projectID, stream, itemName string) (*store.Item, error) {
+	f.itemLookups++
 	return f.items[projectID+"|"+stream+"|"+itemName], nil
 }
 

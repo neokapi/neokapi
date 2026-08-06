@@ -2,8 +2,10 @@ package knowledge
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
@@ -39,6 +41,13 @@ type EvalOptions struct {
 	// MaxSamples caps the number of sample blocks collected (0 →
 	// DefaultMaxSamples).
 	MaxSamples int
+
+	// Budget bounds how long the block walk may run. When it is exhausted the
+	// walk stops and the report is marked Partial rather than erroring — a floor
+	// on a workspace too large to finish is worth having, provided it says so.
+	// Zero means no budget; the walk then runs to completion or until the
+	// request's own context is cancelled.
+	Budget time.Duration
 }
 
 func (o EvalOptions) maxSamples() int {
@@ -70,6 +79,18 @@ type ChangeSetImpact struct {
 	Words          int             `json:"words"`           // source words of affected rows (effort proxy)
 	Projects       []ProjectImpact `json:"projects"`
 	Samples        []BlockSample   `json:"samples"`
+
+	// Partial reports that the walk stopped before it had seen the whole
+	// workspace, so every count below is a floor and not a total.
+	//
+	// It exists because the alternative is worse than useless: a walk that ran
+	// out of time used to return the same shape as a walk that found nothing,
+	// and "0 blocks affected — safe to merge" is the most dangerous sentence
+	// this report can say when the truth is "we never got to look". A reader
+	// must be able to tell the two apart, so an incomplete walk says so.
+	Partial bool `json:"partial,omitempty"`
+	// PartialReason names why the walk stopped (e.g. "time budget exhausted").
+	PartialReason string `json:"partial_reason,omitempty"`
 }
 
 // ProjectImpact is the per-project slice of a ChangeSetImpact.
@@ -237,11 +258,16 @@ func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs C
 		})
 		return nil
 	})
-	if walkErr != nil {
+	if walkErr != nil && !errors.Is(walkErr, errBudgetExhausted) {
 		return nil, walkErr
 	}
 
-	return t.toImpact(), nil
+	impact := t.toImpact()
+	if errors.Is(walkErr, errBudgetExhausted) {
+		impact.Partial = true
+		impact.PartialReason = "the workspace is larger than this preview's time budget; these counts are a floor, not a total"
+	}
+	return impact, nil
 }
 
 // profilePair pairs a baseline voice profile with the candidate the change-set's
@@ -482,6 +508,8 @@ func (e *Engine) ConceptUsage(ctx context.Context, workspaceID, conceptID string
 		return nil
 	})
 	if walkErr != nil {
+		// Concept usage has no partial shape to report into, so an exhausted
+		// budget is an error here rather than a silent floor.
 		return nil, walkErr
 	}
 
@@ -492,10 +520,21 @@ func (e *Engine) ConceptUsage(ctx context.Context, workspaceID, conceptID string
 // Block walk (shared by EvaluateChangeSet and ConceptUsage)
 // ---------------------------------------------------------------------------
 
+// errBudgetExhausted stops a walk that has run out of its time budget. It never
+// escapes walkBlocks: the caller turns it into a Partial report.
+var errBudgetExhausted = errors.New("blast-radius time budget exhausted")
+
 // walkBlocks visits every (project, stream, block, locale) evaluation unit in
 // the workspace with non-empty text, resolving each block's collection. It
 // always walks each project's "main" stream and adds the pilot streams named in
 // opts. visit errors abort the walk.
+//
+// It returns errBudgetExhausted when opts.Budget runs out, and the request
+// context's error when the caller goes away. Both matter: this walk is the most
+// expensive read in the platform, and it used to have no way to stop. A client
+// that had already given up left it scanning a whole workspace, and a walk that
+// ran past its welcome returned a zero report indistinguishable from a clean
+// one. Whoever stops it, the caller learns that the numbers are not a total.
 func (e *Engine) walkBlocks(
 	ctx context.Context,
 	workspaceID string,
@@ -506,6 +545,17 @@ func (e *Engine) walkBlocks(
 	if err != nil {
 		return fmt.Errorf("list projects: %w", err)
 	}
+	var deadline time.Time
+	if opts.Budget > 0 {
+		deadline = time.Now().Add(opts.Budget)
+	}
+	// Collections are resolved per item, and a project has orders of magnitude
+	// more blocks than items — so resolving per block meant two database
+	// round-trips for every block in the workspace. At 17.5k blocks that is 35k
+	// sequential queries, which is where a minute goes. One cache per walk turns
+	// it into two per item.
+	cols := newCollectionCache(e)
+
 	for _, p := range projects {
 		if workspaceID != "" && p.WorkspaceID != workspaceID {
 			continue
@@ -519,7 +569,13 @@ func (e *Engine) walkBlocks(
 				if b == nil || b.Block == nil {
 					continue
 				}
-				colID, colName := e.resolveCollection(ctx, p.ID, stream, b)
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+				if !deadline.IsZero() && time.Now().After(deadline) {
+					return errBudgetExhausted
+				}
+				colID, colName := cols.resolve(ctx, p.ID, stream, b)
 				for _, locale := range evalLocales(opts, b, p) {
 					text := b.Text(locale)
 					if isBlank(text) {
@@ -533,6 +589,30 @@ func (e *Engine) walkBlocks(
 		}
 	}
 	return nil
+}
+
+// collectionCache memoizes collection resolution for the length of one walk.
+// Keyed by (project, stream, item), which is what resolveCollection actually
+// varies on — the block only contributes its item name.
+type collectionCache struct {
+	engine *Engine
+	seen   map[string]collectionRef
+}
+
+type collectionRef struct{ id, name string }
+
+func newCollectionCache(e *Engine) *collectionCache {
+	return &collectionCache{engine: e, seen: map[string]collectionRef{}}
+}
+
+func (c *collectionCache) resolve(ctx context.Context, projectID, stream string, b *store.StoredBlock) (id, name string) {
+	key := projectID + "\x00" + stream + "\x00" + b.ItemName
+	if ref, ok := c.seen[key]; ok {
+		return ref.id, ref.name
+	}
+	rid, rname := c.engine.resolveCollection(ctx, projectID, stream, b)
+	c.seen[key] = collectionRef{id: rid, name: rname}
+	return rid, rname
 }
 
 // resolveStreams returns the streams to walk for a project: "main" always, plus

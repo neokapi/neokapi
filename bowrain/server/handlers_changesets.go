@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -644,12 +645,27 @@ func (s *Server) HandleChangeSetBlastRadius(c echo.Context) error {
 
 	impact, err := engine.EvaluateChangeSet(ctx, wsID, *cs, changeSetOpValues(opPtrs), knowledge.EvalOptions{
 		PilotStreams: pilotStreams(pilots),
+		Budget:       blastRadiusBudget,
 	})
 	if err != nil {
 		return serverErr(c, err)
 	}
+	if impact.Partial {
+		slog.WarnContext(ctx, "blast radius returned partial: the walk did not finish inside its budget",
+			"workspace_id", wsID, "change_set_id", cs.ID, "scanned", impact.TotalBlocks)
+	}
 	return c.JSON(http.StatusOK, impact)
 }
+
+// blastRadiusBudget bounds the blast-radius walk.
+//
+// It is deliberately well inside the 60s an edge proxy typically allows, because
+// the failure it replaces was worse than a slow answer: the walk ran until
+// something upstream gave up, and the client was left with a loading state that
+// never resolved while the database kept being scanned for a reader who had
+// already gone. A bounded walk answers — with a floor and a flag when the
+// workspace is too large to finish — and answers in time to be seen.
+const blastRadiusBudget = 20 * time.Second
 
 // HandleStartPilot binds a change-set to a project's content stream as a pilot,
 // so real content and real checks resolve through the draft before it merges.

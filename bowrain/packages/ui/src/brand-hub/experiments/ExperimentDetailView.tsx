@@ -192,14 +192,19 @@ function lifecycleHint(cs: ChangeSetDetail): string {
 // ── Blast radius (the hero) ──────────────────────────────────────────────────
 
 function BlastRadiusSection({ changesetId }: { changesetId: string }) {
-  const { data, isLoading } = useChangesetBlastRadius(changesetId);
+  const { data, isLoading, error, refetch } = useChangesetBlastRadius(changesetId);
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-2">
         <Network className="size-4 text-muted-foreground" />
         <h2 className="text-sm font-medium">Blast radius</h2>
       </div>
-      <BlastRadiusPanel impact={data} isLoading={isLoading} />
+      <BlastRadiusPanel
+        impact={data}
+        isLoading={isLoading}
+        error={error}
+        onRetry={() => void refetch()}
+      />
     </section>
   );
 }
