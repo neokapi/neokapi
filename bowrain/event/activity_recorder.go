@@ -9,6 +9,7 @@ import (
 	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/bowrain/knowledge"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
@@ -178,6 +179,30 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityType = "collection"
 		a.EntityID = ev.Data["collection_id"]
 		a.Summary = "created collection " + ev.Data["name"]
+
+	// Governed change-sets. The graph's lifecycle was audit-logged and never
+	// shown: a change-set could be submitted, approved and merged without a line
+	// of it reaching the feed people actually read.
+	case knowledge.EventChangeSetSubmitted:
+		a.Type = bstore.ActivityReviewAssigned
+		a.EntityType = "changeset"
+		a.EntityID = ev.Data["changeset_id"]
+		a.Summary = "submitted a change for review"
+	case knowledge.EventChangeSetApproved:
+		a.Type = bstore.ActivityReviewDecided
+		a.EntityType = "changeset"
+		a.EntityID = ev.Data["changeset_id"]
+		a.Summary = "approved a change"
+	case knowledge.EventChangeSetRejected:
+		a.Type = bstore.ActivityReviewDecided
+		a.EntityType = "changeset"
+		a.EntityID = ev.Data["changeset_id"]
+		a.Summary = "rejected a change"
+	case knowledge.EventChangeSetMerged:
+		a.Type = bstore.ActivityReviewDecided
+		a.EntityType = "changeset"
+		a.EntityID = ev.Data["changeset_id"]
+		a.Summary = "merged a change into the workspace terms"
 
 	// Connector sync
 	case platev.EventSyncCompleted:
