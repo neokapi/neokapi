@@ -365,8 +365,8 @@ export class Defaults {
              *   ""         — unset; the runner applies the default gate (`checked`).
              *   "authored" — the presence baseline (any non-empty source qualifies).
              *   "checked"  — the DEFAULT: source cleared its automated terminology,
-             *                brand, and source-QA checks (no human bottleneck).
-             *   "approved" — a human/agent signed off the source (brand-critical or
+             *                voice, and source-QA checks (no human bottleneck).
+             *   "approved" — a human/agent signed off the source (voice-critical or
              *                regulated projects).
              *   "none"     — the deliberate opt-out: no gate, raw MT / fan-out on push
              *                exactly as before source-first. You have to choose it.
