@@ -210,12 +210,10 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityType = "connector"
 		a.Summary = "connector sync completed"
 
-	// Convergence runs — the loop itself. Every terminal run announced its
-	// outcome on the bus and none of it reached the feed: the surface people
-	// read to answer "did the loop run, and what came of it" showed pushes and
-	// individual blocks but never the run that produced them. Mapped for every
-	// terminal state, because a failed or parked run is exactly the one worth
-	// scanning for; the summary carries the real outcome word.
+	// Convergence runs — the loop itself, and what the feed is read to answer
+	// "did the loop run, and what came of it" with. Mapped for every terminal
+	// state, because a failed or parked run is the one worth scanning for; the
+	// summary carries the real outcome word.
 	case platev.EventConvergenceRunCompleted:
 		a.Type = bstore.ActivityFlowCompleted
 		if ev.Data["state"] == "failed" {
@@ -235,10 +233,10 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 
 // flowFailedSummary is the line the activity feed shows for a failed job.
 //
-// It used to read "flow failed" and nothing more, which was accurate and
-// useless: the feed's whole job is to let someone scan it and know whether to
-// look closer. The event carries the kind, what was being worked on, and the
-// recorded reason, so the summary says all three.
+// A bare "flow failed" is accurate and useless: the feed's whole job is to let
+// someone scan it and know whether to look closer. The event carries the kind,
+// what was being worked on, and the recorded reason, so the summary says all
+// three.
 func flowFailedSummary(data map[string]string) string {
 	kind := data["job_kind"]
 	if kind == "" {

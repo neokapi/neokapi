@@ -18,11 +18,11 @@ import (
 // A job that fails is the one outcome nobody discovers on their own. A failed
 // review is visible in a queue; a failed job looks exactly like a job that is
 // still running, and the difference only shows up as content that never arrived.
-// So the founder's rule is full summons by default — in-app, activity, and mail
-// — with the per-category preference the way out for anyone who wants the badge
-// and nothing else.
+// So the rule is full summons by default — in-app, activity, and mail — with
+// the per-category preference the way out for anyone who wants the badge and
+// nothing else.
 //
-// This runs off flow.failed, which the workers now publish (see
+// This runs off flow.failed, which the workers publish (see
 // bowrain/jobs/job_failed_event.go). It deliberately does not run through the
 // notification dispatcher's generic event map: that map resolves recipients from
 // ev.ProjectID and fans out to every member of the project, which for a failure
@@ -193,8 +193,8 @@ func (s *Server) alreadyToldAboutJob(ctx context.Context, userID, groupKey strin
 // mailJobFailure sends the job-failure email to each recipient who has not
 // turned automation email off for this workspace.
 //
-// Mail-on-failure is the default the founder asked for, which is why this does
-// not consult the notification dispatcher's high-priority email path: that one
+// Mail-on-failure is the default, which is why this does not consult the
+// notification dispatcher's high-priority email path: that one
 // sends the generic notification template and ignores the preference entirely.
 // Here the dedicated template goes out, and a recipient who wants the badge
 // without the mail turns the automation category's email channel off.

@@ -10,20 +10,17 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 )
 
-// A failed job used to end at the row that recorded it.
+// The publisher of flow.failed (AD-013), without which a failed job ends at the
+// row that recorded it: the notification dispatcher and the activity recorder
+// both have a case for the event, and both are unreachable until something
+// emits it. A translation that exhausts its retries, a push whose manifest will
+// not parse, or an extraction that dies on the first block otherwise leaves a
+// row with status='failed' and an error string, visible only to whoever thinks
+// to look.
 //
-// flow.failed has been on the bus since AD-013 and nothing published it — the
-// notification dispatcher and the activity recorder both have a case for it,
-// and both were unreachable. So a translation that exhausted its retries, a
-// push whose manifest would not parse, or an extraction that died on the first
-// block left a row with status='failed' and an error string, visible to anyone
-// who thought to look, and to nobody who did not. The user's push simply never
-// finished.
-//
-// This file is the emitter those consumers were waiting for. It publishes once
-// per terminal failure: the worker loop calls it from the branch that has
-// already ruled out both retry and deferral, so a job that will be tried again
-// says nothing and only the last word travels.
+// It publishes once per TERMINAL failure: the worker loop calls it from the
+// branch that has already ruled out both retry and deferral, so a job that will
+// be tried again says nothing and only the last word travels.
 //
 // The event carries workspace_slug as well as the workspace id, because the
 // consumers key on the slug — the activity recorder writes it as the activity's

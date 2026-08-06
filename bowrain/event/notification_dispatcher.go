@@ -364,8 +364,8 @@ func (d *NotificationDispatcher) DispatchTaskNotification(ctx context.Context, t
 //
 // Routine assignments stay in-app and on the badge. A queue that mails on every
 // item teaches its readers to ignore it, and then the urgent one arrives looking
-// like all the others; the founder's line is that mail is for the ones that
-// cannot wait for someone to open the queue.
+// like all the others. Mail is for the ones that cannot wait for someone to
+// open the queue.
 func (d *NotificationDispatcher) mailTaskAssignment(ctx context.Context, task *bstore.Task) {
 	if d.taskMailer == nil || task == nil || task.AssigneeID == "" {
 		return

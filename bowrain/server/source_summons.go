@@ -15,12 +15,11 @@ import (
 //
 // Both venues that open a source-review task — a reviewer's proposed source
 // change (handlers_source_proposals.go) and a run held below the source gate
-// (createSourceReviewTask, driven by the convergence orchestrator) — used to
-// resolve their recipient by walking the project's members and taking the FIRST
-// whose role carried PermEditSource. One person was told. Everyone else equally
-// entitled to settle the source never heard, and if that one person was away
-// the source sat unsettled with the run parked behind it and no second name to
-// escalate to.
+// (createSourceReviewTask, driven by the convergence orchestrator) — must reach
+// every entitled member, not the first one found. Telling only one leaves
+// everybody else equally entitled to settle the source unaware, and if that one
+// person is away the source sits unsettled with the run parked behind it and no
+// second name to escalate to.
 //
 // sourceOwners is the source-side counterpart of changeSetReviewers: EVERY
 // member whose effective permissions for the project include PermEditSource,
