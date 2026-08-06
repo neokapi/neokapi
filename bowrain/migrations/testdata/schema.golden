@@ -266,6 +266,7 @@ block_notes.id text NOT NULL
 block_notes.project_id text NOT NULL
 block_notes.stream text NOT NULL DEFAULT 'main'::text
 block_notes.text text NOT NULL
+blocks.access text NOT NULL DEFAULT 'open'::text
 blocks.content_hash text NOT NULL DEFAULT ''::text
 blocks.context_hash text NOT NULL DEFAULT ''::text
 blocks.id text NOT NULL
@@ -278,11 +279,11 @@ blocks.project_id text NOT NULL
 blocks.properties text NOT NULL DEFAULT '{}'::text
 blocks.source_id text NOT NULL DEFAULT ''::text
 blocks.source_json text NOT NULL DEFAULT '[]'::text
-blocks.status text NOT NULL DEFAULT 'draft'::text
 blocks.stored_at timestamp with time zone NOT NULL DEFAULT now()
 blocks.translatable boolean NOT NULL DEFAULT true
 blocks.type text NOT NULL DEFAULT ''::text
 blocks.updated_at timestamp with time zone NOT NULL DEFAULT now()
+blocks.word_count integer NULL
 brand_profile_tags.created_at timestamp with time zone NOT NULL DEFAULT now()
 brand_profile_tags.created_by text NOT NULL DEFAULT ''::text
 brand_profile_tags.name text NOT NULL
@@ -419,6 +420,7 @@ convergence_runs.project_id text NOT NULL
 convergence_runs.stall_reason text NOT NULL DEFAULT ''::text
 convergence_runs.standing text NOT NULL DEFAULT '{}'::text
 convergence_runs.state text NOT NULL DEFAULT 'running'::text
+convergence_runs.stream text NOT NULL DEFAULT ''::text
 convergence_runs.trigger text NOT NULL DEFAULT 'manual'::text
 credit_allocations.created_at timestamp with time zone NOT NULL DEFAULT now()
 credit_allocations.credits_total bigint NOT NULL
@@ -982,6 +984,7 @@ translation_jobs.provider_config_id text NOT NULL DEFAULT ''::text
 translation_jobs.push_id text NOT NULL DEFAULT ''::text
 translation_jobs.status text NOT NULL DEFAULT 'queued'::text
 translation_jobs.step_id text NOT NULL DEFAULT ''::text
+translation_jobs.stream text NOT NULL DEFAULT ''::text
 translation_jobs.target_locale text NOT NULL
 translation_jobs.tokens_used integer NOT NULL DEFAULT 0
 translation_jobs.total_blocks integer NOT NULL DEFAULT 0
@@ -1078,6 +1081,21 @@ unclaimed_projects.expires_at timestamp with time zone NOT NULL
 unclaimed_projects.name text NOT NULL
 unclaimed_projects.project_id text NOT NULL
 unclaimed_projects.target_languages text NOT NULL
+unit_decisions.assignee text NOT NULL DEFAULT ''::text
+unit_decisions.decided_at text NOT NULL DEFAULT ''::text
+unit_decisions.decided_by text NOT NULL DEFAULT ''::text
+unit_decisions.item_name text NOT NULL DEFAULT ''::text
+unit_decisions.note text NOT NULL DEFAULT ''::text
+unit_decisions.parked boolean NOT NULL DEFAULT false
+unit_decisions.project_id text NOT NULL
+unit_decisions.review_state text NOT NULL DEFAULT ''::text
+unit_decisions.status text NOT NULL DEFAULT ''::text
+unit_decisions.stream text NOT NULL DEFAULT 'main'::text
+unit_decisions.target_hash text NOT NULL DEFAULT ''::text
+unit_decisions.unit text NOT NULL
+unit_decisions.updated text NOT NULL DEFAULT ''::text
+unit_decisions.updated_at timestamp with time zone NOT NULL DEFAULT now()
+unit_decisions.variant text NOT NULL
 users.avatar_url text NOT NULL DEFAULT ''::text
 users.created_at timestamp with time zone NOT NULL DEFAULT now()
 users.email text NOT NULL
@@ -1347,6 +1365,7 @@ translations_p7 translations_p7_pkey PRIMARY KEY (project_id, stream, block_id, 
 translations_p7 translations_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 unclaimed_projects unclaimed_projects_claim_token_key UNIQUE (claim_token)
 unclaimed_projects unclaimed_projects_pkey PRIMARY KEY (project_id)
+unit_decisions unit_decisions_pkey PRIMARY KEY (project_id, stream, item_name, unit, variant)
 users users_email_key UNIQUE (email)
 users users_pkey PRIMARY KEY (id)
 version_blocks version_blocks_pkey PRIMARY KEY (version_id, block_id)
@@ -1520,6 +1539,7 @@ CREATE INDEX idx_tm_ws_updated ON public.tm_entries USING btree (workspace_id, u
 CREATE INDEX idx_translations_project_block ON ONLY public.translations USING btree (project_id, stream, block_id)
 CREATE INDEX idx_translations_project_locale ON ONLY public.translations USING btree (project_id, stream, locale, updated_at DESC)
 CREATE INDEX idx_unclaimed_expires ON public.unclaimed_projects USING btree (expires_at)
+CREATE INDEX idx_unit_decisions_project ON public.unit_decisions USING btree (project_id, stream)
 CREATE INDEX idx_users_oidc_sub ON public.users USING btree (oidc_sub)
 CREATE INDEX idx_versions_project ON public.versions USING btree (project_id)
 CREATE INDEX overlays_ext_p0_project_id_stream_block_id_idx ON public.overlays_ext_p0 USING btree (project_id, stream, block_id)
@@ -1707,6 +1727,7 @@ CREATE UNIQUE INDEX translations_p7_pkey ON public.translations_p7 USING btree (
 CREATE UNIQUE INDEX translations_pkey ON ONLY public.translations USING btree (project_id, stream, block_id, locale)
 CREATE UNIQUE INDEX unclaimed_projects_claim_token_key ON public.unclaimed_projects USING btree (claim_token)
 CREATE UNIQUE INDEX unclaimed_projects_pkey ON public.unclaimed_projects USING btree (project_id)
+CREATE UNIQUE INDEX unit_decisions_pkey ON public.unit_decisions USING btree (project_id, stream, item_name, unit, variant)
 CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)
 CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)
 CREATE UNIQUE INDEX version_blocks_pkey ON public.version_blocks USING btree (version_id, block_id)
