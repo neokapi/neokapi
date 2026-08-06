@@ -2,7 +2,7 @@
 id: 023-toolbox-utilities
 sidebar_position: 23
 title: "AD-023: Toolbox Utilities"
-description: "Architecture decision: kcat, kgrep, ksed and kdiff are format-aware reimaginings of cat/grep/sed/diff, and kconv converts between formats. They operate on the translatable text of any supported format, ship as busybox-style multi-call symlinks to the kapi binary, project documents to block text, and follow a grep-style exit-code contract."
+description: "Architecture decision: kcat, kgrep, ksed and kdiff are format-aware reimaginings of cat/grep/sed/diff, and kconv converts between formats. They operate on the text inside any supported format, ship as busybox-style multi-call symlinks to the kapi binary, project documents to block text, and follow a grep-style exit-code contract."
 keywords: [toolbox, kcat, kgrep, ksed, kdiff, kconv, busybox, multi-call, block projection, format conversion, block alignment, exit codes, format-aware, architecture decision, neokapi]
 ---
 
@@ -12,7 +12,7 @@ keywords: [toolbox, kcat, kgrep, ksed, kdiff, kconv, busybox, multi-call, block 
 
 `kcat`, `kgrep`, `ksed`, and `kdiff` are format-aware reimaginings of the classic
 Unix text utilities — `cat`, `grep`, `sed`, `diff` — that operate on the
-**translatable text** of any format kapi understands (Word `.docx`, JSON
+**text inside** any format kapi understands (Word `.docx`, JSON
 catalogs, XLIFF, Markdown, …) rather than on raw bytes. They reuse kapi's
 reader/writer pipeline, so `kgrep` searches the prose inside a `.docx`, `ksed`
 rewrites it and saves the document back faithfully, and `kdiff` reports which

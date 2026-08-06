@@ -1,7 +1,7 @@
 ---
 sidebar_position: 2
 title: kgrep
-description: kgrep searches the translatable text inside any supported format for a regular expression, skipping markup and structure. It mirrors grep's options and exit status.
+description: kgrep searches the text inside any supported format for a regular expression, skipping markup and structure. It mirrors grep's options and exit status.
 keywords: [kgrep, grep, search, regex, docx, json, xliff, multilingual content]
 ---
 

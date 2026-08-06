@@ -1,7 +1,7 @@
 ---
 sidebar_position: 6
 title: kdiff
-description: kdiff compares the translatable text of two files block by block, regardless of format — a reflowed Word document or a reordered JSON catalog shows only the prose that actually changed, not byte-level noise.
+description: kdiff compares the text of two files block by block, regardless of format — a reflowed Word document or a reordered JSON catalog shows only the prose that actually changed, not byte-level noise.
 keywords: [kdiff, diff, compare, changeset, coverage, docx, json, xliff, multilingual content]
 ---
 
@@ -24,7 +24,7 @@ of `-` reads standard input.
 
 ### Revision diff — two files
 
-What translatable content changed between two versions of a document.
+What text changed between two versions of a document.
 
 ```bash
 # What changed between two catalog versions
