@@ -233,13 +233,6 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 	return a
 }
 
-// pushSummary builds a compact, human-readable summary for a completed push.
-//
-// It prefers the structured counts the sync worker now emits
-// ("files_count"/"blocks_count") and renders e.g. "pushed 474 files · 20,345
-// blocks", so the activity feed never enumerates every pushed path. When those
-// fields are absent (an older event shape), it falls back to counting the
-// comma-joined "items" list rather than embedding it verbatim.
 // flowFailedSummary is the line the activity feed shows for a failed job.
 //
 // It used to read "flow failed" and nothing more, which was accurate and
@@ -264,6 +257,13 @@ func flowFailedSummary(data map[string]string) string {
 	return s
 }
 
+// pushSummary builds a compact, human-readable summary for a completed push.
+//
+// It prefers the structured counts the sync worker now emits
+// ("files_count"/"blocks_count") and renders e.g. "pushed 474 files · 20,345
+// blocks", so the activity feed never enumerates every pushed path. When those
+// fields are absent (an older event shape), it falls back to counting the
+// comma-joined "items" list rather than embedding it verbatim.
 func pushSummary(data map[string]string) string {
 	files := atoiOr(data["files_count"], -1)
 	if files < 0 {
