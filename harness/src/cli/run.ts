@@ -161,7 +161,7 @@ async function main() {
   for (const m of manifests) {
     if (only.includes("narrate")) {
       // A non-default locale narrates only demos with a generated
-      // demo.<locale>.yaml sidecar overlay (make l10n-demos), so a broad
+      // demo.<locale>.yaml sidecar overlay (make l10n), so a broad
       // selection (`published`) doesn't abort on the un-translated ones.
       // Translated published demos still hard-fail on partial coverage
       // inside narrateDemo (localizeManifest).

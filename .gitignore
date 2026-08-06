@@ -52,7 +52,7 @@ dist/
 *.tsbuildinfo
 **/public/version.json
 
-# Extraction artifacts — regenerated via `make kapi-desktop-translations`.
+# Extraction artifacts — regenerated via `make l10n`.
 # The per-locale runtime dictionaries under public/translations/ are
 # committed so the app ships with translations; the intermediate
 # per-file .kbf.json extract output is ephemeral and gitignored.
@@ -72,7 +72,7 @@ bowrain/apps/pulse/i18n/
 bowrain/apps/pulse/i18n-qps/
 bowrain/apps/pulse/i18n-nb/
 
-# Same policy for the transactional emails (make l10n-emails): the committed
+# Same policy for the transactional emails (make l10n): the committed
 # artifacts are the rendered per-locale templates under
 # bowrain/mailer/templates/ and subject catalogs under bowrain/mailer/subjects/;
 # the KBF extraction, per-locale intermediates, compiled catalogs, and the
@@ -83,7 +83,7 @@ bowrain/emails/i18n-nb/
 bowrain/emails/translations/
 bowrain/emails/.render/
 
-# Landing page (make l10n-landing): the compiled runtime catalogs under
+# Landing page (make l10n): the compiled runtime catalogs under
 # bowrain/web/landing/translations/ are committed (web-landing.yml builds the
 # nb variant from them); the KBF extraction intermediates are ephemeral.
 bowrain/web/landing/i18n/
@@ -98,7 +98,7 @@ bowrain/web/landing/i18n-nb/
 web/i18n/nb/
 # Same policy for the bowrain docs site: the bowrain-docs surface of the root
 # recipe generates bowrain/web/docs/i18n/<locale>/ from bowrain/web/docs/docs/**
-# (make l10n-bowrain-docs). Build artefact, never committed; the nb locale
+# (make l10n). Build artefact, never committed; the nb locale
 # falls back to English until regenerated.
 bowrain/web/docs/i18n/nb/
 

@@ -7,7 +7,7 @@
 //
 // Localization: templates/*.html is the English (source-locale) set;
 // templates/<locale>/*.html holds a localized variant set produced by the
-// dogfood l10n pipeline (make l10n-emails — neokapi-i18n extraction over
+// dogfood l10n pipeline (make l10n — neokapi-i18n extraction over
 // bowrain/emails/src, content memory-driven recycle, per-locale re-render). Subjects
 // live in subjects/<locale>.json (subjects/en.json is the source; the
 // others are generated the same way). Every Send*/Render* method takes the

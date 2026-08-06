@@ -157,9 +157,12 @@ driven against real infrastructure, screencast, TTS-narrated, rendered with
 Remotion into light + dark `.webm`. Two things are easy to get wrong:
 
 - **Narration sidecars are generated.** `demo.<lang>.yaml` files come from the
-  dogfood recipe (`make l10n-demos`, drift-gated by `l10n-verify`). Fold fixes
-  into `.kapi/memory/demo-narration-<lang>.memory.json` and regenerate —
-  never edit a sidecar or author inline translations.
+  dogfood recipe (`make l10n`, drift-gated by `l10n-verify`). Fold fixes into
+  `.kapi/memory/demo-narration-<lang>.memory.json` and regenerate — never edit a
+  sidecar or author inline translations. A sidecar identical to its source is
+  dropped rather than committed, so a demo gets one exactly when its narration
+  has been translated. See [the dogfood loop in
+  CI](docs/internals/l10n-ci.md).
 - **Assets are not in git and not in GitHub releases.** They live only on the
   S3 + CloudFront CDN (`$DOCS_CDN_URL`) and are referenced by URL via
   `ThemedVideo` / `ThemedImage`; docs CI references them rather than recording.
@@ -238,8 +241,9 @@ and flow name against the code before publishing.
 - **Contributor guides** — `web/docs/contribute/`: `formats.md`,
   `tool-authoring.md`, `flow-authoring.md`, `plugins.md`, `testing.md`,
   `interfaces.md`. These are published: they document how to extend neokapi.
-- **Repo internals** — `docs/internals/`: format ops, testing strategy, i18n
-  toil, docs-asset runbooks, brand communication, workspace paths. Unpublished
+- **Repo internals** — `docs/internals/`: format ops, testing strategy, the
+  dogfood loop in CI ([l10n-ci.md](docs/internals/l10n-ci.md)), the i18n Toil
+  Index, docs-asset runbooks, brand communication, workspace paths. Unpublished
   by design — contributor machine setup and working notes, not product
   documentation.
 - **kapi agent skill** — `cli/skills/data/kapi/` (`SKILL.md` + `references/`),

@@ -10,13 +10,13 @@ const LOCALE_SIDECAR_RE = /^demo\.([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,8})*)\.yaml$/;
 /**
  * Load the generated demo.<locale>.yaml sidecars for a demo into locale
  * overlays (see DemoManifest.locales). A sidecar is a full localized copy of
- * demo.yaml produced by the dogfood l10n pipeline (`make l10n-demos`); only
+ * demo.yaml produced by the dogfood l10n pipeline (`make l10n`); only
  * the localized narration fields are lifted into the overlay:
  *
  *  - a scene whose text is still identical to the English master is a content memory
  *    miss (pending translation) and is skipped — EN fallback, not an error;
  *  - a scene id the master no longer has is source drift: warn and skip, so
- *    a stale sidecar never blocks loading (regenerate via `make l10n-demos`);
+ *    a stale sidecar never blocks loading (regenerate via `make l10n`);
  *  - title/subtitle ride along when the sidecar carries a translation.
  */
 function loadLocaleSidecars(id: string, m: DemoManifest): Record<string, DemoLocaleOverlay> | undefined {
@@ -34,7 +34,7 @@ function loadLocaleSidecars(id: string, m: DemoManifest): Record<string, DemoLoc
       if (!s?.id || !s.text?.trim()) continue;
       const master = m.narration.find((n) => n.id === s.id);
       if (!master) {
-        console.warn(`demo ${id}: ${entry} carries scene "${s.id}" which demo.yaml no longer has — regenerate via 'make l10n-demos'`);
+        console.warn(`demo ${id}: ${entry} carries scene "${s.id}" which demo.yaml no longer has — regenerate via 'make l10n'`);
         continue;
       }
       if (s.text === master.text) continue; // untranslated (Memory miss) — EN fallback
@@ -99,7 +99,7 @@ export function loadManifest(id: string): DemoManifest {
   // overlays load from demo.<locale>.yaml sidecars instead.
   if (m.locales) {
     throw new Error(
-      `demo ${id}: inline "locales:" blocks are no longer supported — localized narration lives in generated demo.<lang>.yaml sidecars (make l10n-demos). Fold the translations into .kapi/memory/demo-narration-<lang>.memory.json and delete the block.`,
+      `demo ${id}: inline "locales:" blocks are no longer supported — localized narration lives in generated demo.<lang>.yaml sidecars (make l10n). Fold the translations into .kapi/memory/demo-narration-<lang>.memory.json and delete the block.`,
     );
   }
   m.locales = loadLocaleSidecars(id, m);

@@ -1,26 +1,35 @@
 #!/usr/bin/env bash
-# l10n-autofix.sh — self-healing wrapper around the deterministic l10n regen
-# targets that back the `make *-l10n-verify` CI gates.
+# l10n-autofix.sh — regenerate every derived multilingual artifact and, on a
+# same-repo pull request, commit the result instead of failing the build.
 #
-# Usage:
-#   scripts/l10n-autofix.sh [--dry-run] <make-target>... -- <pathspec>...
+# Usage: scripts/l10n-autofix.sh [--dry-run]
 #
-# Runs `make <make-target>...` and compares the owned <pathspec>s against the
-# committed state — the same paths the corresponding *-l10n-verify target
-# diffs. Then:
+# There is nothing to configure. `make l10n` regenerates the four stages and
+# `make l10n-derived-paths` names exactly what they own, so this script and the
+# Makefile cannot disagree about the gated set — which is the whole reason the
+# path list is not repeated here.
 #
-#   * no drift                 → exit 0 quietly.
-#   * drift on a same-repo PR  → commit exactly the owned paths as
+# Drift in these artifacts is never a judgement call: every one of them is a
+# deterministic function of committed source plus the committed context under
+# .kapi/. So:
+#
+#   * no drift                → exit 0 quietly.
+#   * drift on a same-repo PR → commit exactly the owned paths as
 #     github-actions[bot], push to the PR head branch, annotate, exit 0.
 #     Regeneration is deterministic, so the next run of this gate (on the bot
 #     commit) finds no drift — the loop terminates after one commit. The push
 #     uses GITHUB_TOKEN, which does NOT trigger new workflow runs; the checks
 #     on the current run's SHA are authoritative.
-#   * drift anywhere else      → print the drift and fail, exactly like
-#     `make *-l10n-verify` today (fork PRs have no push rights; pushes to
-#     main keep the strict safety net; local runs stay strict for humans).
+#   * drift anywhere else     → print it and fail, exactly like `make
+#     l10n-verify` (fork PRs have no push rights; pushes to main keep the
+#     strict safety net; local runs stay strict for humans).
 #
-# Context is passed in via environment (wired in the workflows):
+# This gate is about generated-vs-source consistency and nothing else. It says
+# nothing about how much of a target language is translated, and must not: an
+# English change that leaves nb behind is pending work, not a build break
+# (CLAUDE.md, "Target-language drift must never block the build").
+#
+# Context is passed in via environment (wired in .github/workflows/l10n.yml):
 #   GITHUB_EVENT_NAME   "pull_request" enables the auto-fix path
 #   AUTOFIX_SAME_REPO   "true" iff the PR head repo == the base repo
 #   AUTOFIX_HEAD_REF    the PR head branch to push to
@@ -28,53 +37,29 @@
 #
 # --dry-run performs the regen + stage + commit but skips the actual push
 # (prints the push command instead) — used for local testing of the wiring.
-#
-# The Makefile *-l10n-verify targets are untouched: `make X-l10n-verify`
-# keeps working locally as the strict gate for humans.
 set -euo pipefail
 
 dry_run=0
-targets=()
-
-usage() {
-  echo "usage: $0 [--dry-run] <make-target>... -- <pathspec>..." >&2
-  exit 2
-}
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --dry-run)
-      dry_run=1
-      shift
-      ;;
-    --)
-      shift
-      break
-      ;;
-    -*)
-      usage
-      ;;
-    *)
-      targets+=("$1")
-      shift
-      ;;
-  esac
-done
-paths=("$@")
-
-if [[ ${#targets[@]} -eq 0 || ${#paths[@]} -eq 0 ]]; then
-  usage
-fi
+case "${1:-}" in
+  --dry-run) dry_run=1 ;;
+  "") ;;
+  *) echo "usage: $0 [--dry-run]" >&2; exit 2 ;;
+esac
 
 # make targets and the gate pathspecs are repo-root relative.
 repo_root=$(git rev-parse --show-toplevel)
 cd "$repo_root"
 
-echo "Regenerating l10n outputs: make ${targets[*]}"
-make "${targets[@]}"
+echo "Regenerating every derived multilingual artifact: make l10n"
+make l10n
 
-# Drift = a tracked file under the owned paths changed (what the verify
-# targets diff), or regeneration produced a new non-ignored file there.
+# The pathspec list comes from the Makefile so there is one source of truth.
+# The trailing entry is git pathspec magic (":(glob)…"); it survives word
+# splitting because no file matches it, so the shell leaves the word alone.
+read -ra paths < <(make -s l10n-derived-paths)
+
+# Drift = a tracked file under the owned paths changed, or regeneration
+# produced a new non-ignored file there.
 drift=0
 if ! git diff --quiet -- "${paths[@]}"; then
   drift=1
@@ -85,7 +70,7 @@ if [[ -n "$untracked" ]]; then
 fi
 
 if [[ $drift -eq 0 ]]; then
-  echo "l10n outputs are fresh; nothing to do."
+  echo "Derived multilingual artifacts are fresh; nothing to do."
   exit 0
 fi
 
@@ -108,22 +93,22 @@ if [[ "$event" == "pull_request" && "$same_repo" == "true" && -n "$head_ref" ]];
     -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
     commit --quiet \
     -m "chore(l10n): regenerate generated catalogs" \
-    -m "Auto-committed by the ${GITHUB_WORKFLOW:-l10n-autofix} workflow (make ${targets[*]})."
+    -m "Auto-committed by the ${GITHUB_WORKFLOW:-l10n} workflow (make l10n)."
   if [[ $dry_run -eq 1 ]]; then
     echo "[dry-run] skipping push: git push origin HEAD:refs/heads/${head_ref}"
   else
     git push origin "HEAD:refs/heads/${head_ref}"
   fi
-  echo "::notice::Stale l10n catalogs regenerated and committed to '${head_ref}'. The bot commit was pushed with GITHUB_TOKEN and does not re-trigger workflows — the checks on this run's SHA are authoritative."
+  echo "::notice::Stale catalogs regenerated and committed to '${head_ref}'. The bot commit was pushed with GITHUB_TOKEN and does not re-trigger workflows — the checks on this run's SHA are authoritative."
   exit 0
 fi
 
-# Fork PR, push to main, or a local run: strict gate (today's behavior).
-echo "l10n drift detected under the gated paths:"
+# Fork PR, push to main, or a local run: strict gate.
+echo "Drift detected under the gated paths:"
 git --no-pager diff --stat -- "${paths[@]}"
 if [[ -n "$untracked" ]]; then
   echo "New untracked generated files:"
   printf '  %s\n' "$untracked"
 fi
-echo "::error::Generated l10n catalogs are stale. Run 'make ${targets[*]}' locally and commit the regenerated files. (Auto-fix only runs on same-repo pull requests; this context has no push rights or is a push to main, where the gate stays strict.)"
+echo "::error::Generated catalogs are stale. Run 'make l10n' locally and commit the regenerated files. (Auto-fix only runs on same-repo pull requests; this context has no push rights or is a push to main, where the gate stays strict.)"
 exit 1

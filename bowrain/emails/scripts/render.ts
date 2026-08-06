@@ -4,7 +4,7 @@
  *
  * English (the source locale) renders straight from src/ into
  * ../../mailer/templates/*.html. For every compiled catalog found in
- * translations/<locale>.json (produced by `make l10n-emails`: neokapi-i18n
+ * translations/<locale>.json (produced by `make l10n`: neokapi-i18n
  * extraction → kapi pseudo-translate / content memory recycle → neokapi-i18n compile),
  * the template module is re-bundled with the @neokapi/i18n-react esbuild
  * plugin in inline mode — which bakes that locale's strings into the JSX —
@@ -13,7 +13,7 @@
  * falling back to English.
  *
  * Run:  vp run build   (from bowrain/emails/)
- * Make: make email-build (en only) / make l10n-emails (all locales)
+ * Make: make email-build (en only) / make l10n (all locales)
  */
 
 import { build } from "esbuild";

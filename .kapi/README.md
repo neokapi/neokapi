@@ -25,26 +25,24 @@ gitignored).
   the same store; every target-locale output is produced from the content memory
   by `recycle`, so generated catalogs only ever contain reviewed strings.
   The docs sites have one seed each: `docs-nb.memory.json` for the kapi site
-  (surface `kapi-docs`: `web/docs/**` → `web/i18n/nb/...`, `make l10n-docs`)
-  and `bowrain-docs-nb.memory.json` for the bowrain site (surface
-  `bowrain-docs`: `bowrain/web/docs/docs/**` →
-  `bowrain/web/docs/i18n/nb/...`, `make l10n-bowrain-docs`); the
-  terms store is shared. The bowrain UIs have one seed per surface —
-  `bowrain-app-nb.memory.json` (surface `bowrain-app`: the shared SPA in
-  `bowrain/packages/{app,ui}` + web/desktop shells,
-  `make l10n-bowrain-app`), `bowrain-ctrl-nb.memory.json` and
-  `bowrain-pulse-nb.memory.json` (`make l10n-bowrain-{ctrl,pulse}`) — compiled
-  into each shell's committed `public/translations/nb.json`.
-  `libraries-nb.memory.json` covers the shared frontend libraries
-  (`packages/ui`, `packages/flow-editor`) whose strings reach the desktop
-  app through the `kapi-desktop` extraction — it has no Make target of
-  its own; `l10n-desktop` leverages it. The transactional emails
-  (surfaces `bowrain-email` + `bowrain-email-subjects`: `bowrain/emails/src`
-  templates and `bowrain/mailer/subjects/en.json` → per-locale renders under
-  `bowrain/mailer/`, `make l10n-emails`) use `emails-nb.memory.json`; the
-  bowrain landing page (surface `bowrain-landing`: `bowrain/web/landing/src` →
-  committed `bowrain/web/landing/translations/<lang>.json`,
-  `make l10n-landing`) uses `landing-nb.memory.json`.
+  (collection `neokapi-docs`: `web/docs/**` → `web/i18n/nb/...`) and
+  `bowrain-docs-nb.memory.json` for the bowrain site (collection
+  `bowrain-docs`: `bowrain/web/docs/docs/**` → `bowrain/web/docs/i18n/nb/...`);
+  the terms store is shared. The bowrain UIs have one seed per surface —
+  `bowrain-app-nb.memory.json` (the shared SPA in `bowrain/packages/{app,ui}`
+  plus the web and desktop shells), `bowrain-ctrl-nb.memory.json` and
+  `bowrain-pulse-nb.memory.json` — compiled into each shell's committed
+  `public/translations/nb.json`. `libraries-nb.memory.json` covers the shared
+  frontend libraries (`packages/ui`, `packages/flow-editor`) whose strings
+  reach the desktop app through the `neokapi-desktop` extraction; it backs no
+  collection of its own. The transactional emails (collections
+  `bowrain-email` + `bowrain-email-subjects`) use `emails-nb.memory.json`, and
+  the landing page (`bowrain-landing`) uses `landing-nb.memory.json`.
+
+  No seed names a Makefile target, because none of them needs one: `make l10n`
+  runs one kapi pass over the whole recipe, so every collection is covered by
+  construction. See
+  [docs/internals/l10n-ci.md](../docs/internals/l10n-ci.md).
 
   Seed filenames are their own naming, independent of the collection names in
   `kapi.yaml`: `l10n-seed` imports every `.kapi/memory/*.memory.json` by
@@ -61,10 +59,11 @@ Workflow for a new or changed surface string:
    `kapi memory export -o .kapi/memory/<surface>-<lang>.memory.json`. Small wording
    fixes can also be edited directly in the `.memory.json` bundle — it is the
    source of truth.
-2. `make l10n-seed` to rebuild the content memory, then the surface target
-   (e.g. `make l10n-builtins`, or `make l10n` for everything).
-3. `make l10n-builtins-check` runs the terminology gate
-   (`kapi exec term-check`) over the result.
+2. `make l10n` to rebuild the store from the seeds and regenerate every
+   surface from it. To iterate on one surface without the full pass, scope the
+   same command the loop runs: `kapi run tm-recycle -i <path> --target-lang nb`.
+3. `kapi check` runs the bound terminology and brand-voice checks over the
+   result.
 
 Review happens in the seeds — they are the human-owned artifact. For a
 reviewer-friendly view, `make l10n-review-export` writes TMX/CSV renderings
@@ -156,31 +155,21 @@ intermediates, `l10n/review/`).
 2. **Committed-generated — machine-owned, drift-gated.** The embedded MO
    catalogs, `commands.json`/`metadata.json` inventories, the frontend
    runtime catalogs (`public/translations/<locale>.json`), the demo
-   narration sidecars (`harness/demos/*/demo.<lang>.yaml`, from
-   `make l10n-demos`), the rendered email templates + subject catalogs
-   (`bowrain/mailer/templates/<lang>/*.html`,
-   `bowrain/mailer/subjects/<lang>.json`, from `make l10n-emails` —
-   `go:embed`ed into the server), and the landing runtime catalogs
-   (`bowrain/web/landing/translations/<lang>.json`, from
-   `make l10n-landing` — the web-landing workflow builds the nb variant
-   from them without a kapi toolchain). Committed because `go:embed`
-   needs them at build time (regenerating needs a built kapi — a
-   bootstrap cycle) and the apps ship them as static assets.
-   `make l10n-verify` (CI: the l10n-drift job) fails on any byte drift
-   from the seeds; the node-dependent email/landing surfaces are gated
-   by `make emails-l10n-verify` / `make landing-l10n-verify` (CI: the
-   emails-landing-l10n job). Never hand-edit.
+   narration sidecars (`harness/demos/*/demo.<lang>.yaml`), the rendered email
+   templates and subject catalogs (`go:embed`ed into the server), and the
+   landing runtime catalogs (the web-landing workflow builds the nb variant
+   from them without a kapi toolchain). Committed because `go:embed` needs
+   them at build time (regenerating needs a built kapi — a bootstrap cycle)
+   and the apps ship them as static assets. `make l10n-verify` regenerates
+   all of it and fails on any byte drift; in CI that is the `l10n` workflow,
+   which on a same-repo pull request commits the regeneration back instead of
+   failing. Never hand-edit.
 3. **Materialized targets — generated, never committed.** The translated
-   docs pages under `web/i18n/<locale>/.../current/` (kapi docs site,
-   `make l10n-docs`) and `bowrain/web/docs/i18n/<locale>/.../current/`
-   (bowrain docs site, `make l10n-bowrain-docs`). Derived from source +
-   content memory; gitignored build artefacts, because committing them made every
-   source-doc edit go stale and hard-fail the nb build (see CLAUDE.md
-   "Target-language drift must never block the build"). Content memory misses fall
-   back to English, and both Docusaurus sites build with the tree absent.
-   Corrections land in the seeds, never in the pages. The docs gate (the
-   `docs-l10n-drift` job in `reference-data-drift.yml`) re-materializes
-   both surfaces twice and fails only if the runs are not byte-identical
-   (or on a hard error, e.g. a corrupted seed failing import); it also
-   writes a per-surface nb coverage summary to the job summary, which
-   never gates — drift is pending work, not an error.
+   docs pages for both Docusaurus sites. Derived from source + content memory;
+   gitignored build artefacts, because committing them made every source-doc
+   edit go stale and hard-fail the nb build (see CLAUDE.md "Target-language
+   drift must never block the build"). Content memory misses fall back to
+   English, and both sites build with the tree absent. Corrections land in the
+   seeds, never in the pages. Nothing gates them: coverage is reported to the
+   `l10n` workflow's job summary and never fails it, because pending target
+   work is the normal state, not an error.

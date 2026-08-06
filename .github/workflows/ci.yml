@@ -47,7 +47,6 @@ jobs:
       kapi_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_desktop }}
       bowrain_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_desktop }}
       i18n_react: ${{ github.event_name == 'push' || steps.filter.outputs.i18n_react }}
-      l10n_surfaces: ${{ github.event_name == 'push' || steps.filter.outputs.l10n_surfaces }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       plugins: ${{ github.event_name == 'push' || steps.filter.outputs.plugins }}
       # Every operand is compared to 'true' on purpose. GitHub's `||` returns
@@ -124,7 +123,6 @@ jobs:
           check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/' "${js_deps[@]}"
           check_paths bowrain_desktop '^bowrain/apps/bowrain/' '^bowrain/packages/ui/' "${js_deps[@]}"
           check_paths i18n_react '^packages/(kapi-format|i18n-react)/' "${js_deps[@]}"
-          check_paths l10n_surfaces '^bowrain/emails/' '^bowrain/web/landing/' '^bowrain/mailer/' '^l10n/' '^packages/(kapi-format|i18n-react)/' '^kapi\.yaml$' "${js_deps[@]}"
           check_paths workflows '^\.github/workflows/'
           check_paths plugins  '^plugins/'
 
@@ -138,19 +136,14 @@ jobs:
     # api type the desktop WailsApiAdapter must implement — is caught pre-merge
     # instead of surfacing only on the post-merge full run.
     if: github.event_name == 'pull_request' || needs.changes.outputs.frontend == 'true'
-    # contents: write lets the l10n auto-fix push regenerated catalogs back to
-    # same-repo PR branches; packages: read is required by setup-node-ui
-    # (@neokapi scoped packages on npm.pkg.github.com).
+    # packages: read is required by setup-node-ui (@neokapi scoped packages on
+    # npm.pkg.github.com). The derived-catalog gate lives in l10n.yml, so this
+    # job needs no write access to the repository.
     permissions:
-      contents: write
+      contents: read
       packages: read
     steps:
       - uses: actions/checkout@v7
-        with:
-          # Same-repo PRs check out the PR head branch (not the ephemeral
-          # merge ref) so the l10n auto-fix below can commit + push to it.
-          # Fork PRs and pushes keep the default checkout ('' = unset).
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref || '' }}
       - uses: ./.github/actions/setup-node-ui
 
       # The committed lockfile must be exactly what the pinned pnpm produces.
@@ -166,51 +159,19 @@ jobs:
       - name: Check + test + build the bowrain web frontends
         run: make ci-frontend
 
-      # The bowrain UI l10n gates need bin/kapi (pseudo-translate), so Go is
-      # set up after the pure-node checks — mirrors the kapi-desktop job.
-      - name: Set up Go
-        uses: actions/setup-go@v7
-        with:
-          go-version: "1.26.0"
-
-      # Regenerate the bowrain app/ctrl/pulse pseudo catalogs from source
-      # (the regen prerequisites of bowrain-l10n-verify). Regeneration is
-      # deterministic toil, so on same-repo PRs drift self-heals: the script
-      # commits the regenerated catalogs back to the PR branch and passes
-      # (a rerun on the bot commit finds no diff, so this cannot loop). The
-      # bot push uses GITHUB_TOKEN, which does NOT re-trigger workflows —
-      # this run's checks are authoritative for the pushed SHA. Fork PRs and
-      # pushes to main keep the strict fail-on-drift gate
-      # (`make bowrain-l10n-verify` stays the local command for humans).
-      - name: Bowrain UI l10n catalogs are fresh (auto-fix on same-repo PRs)
-        env:
-          AUTOFIX_SAME_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
-          AUTOFIX_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || '' }}
-        run: |
-          bash scripts/l10n-autofix.sh \
-            bowrain-app-translations bowrain-ctrl-translations bowrain-pulse-translations -- \
-            bowrain/apps/web/public/translations/qps.json \
-            bowrain/apps/bowrain/frontend/public/translations/qps.json \
-            bowrain/apps/ctrl/public/translations/qps.json \
-            bowrain/apps/pulse/public/translations/qps.json
-
   # ── Kapi Desktop frontend ───────────────────────────────────────────────
   kapi-desktop:
     name: Kapi Desktop
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.kapi_desktop == 'true'
-    # contents: write lets the l10n auto-fix push regenerated catalogs back to
-    # same-repo PR branches; packages: read is required by setup-node-ui.
+    # packages: read is required by setup-node-ui. The derived-catalog gate
+    # lives in l10n.yml, so this job needs no write access to the repository.
     permissions:
-      contents: write
+      contents: read
       packages: read
     steps:
       - uses: actions/checkout@v7
-        with:
-          # Same-repo PRs check out the PR head branch so the l10n auto-fix
-          # below can commit + push to it (see the frontend job).
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref || '' }}
       - uses: ./.github/actions/setup-node-ui
 
       # Job body lives in `make ci-kapi-desktop-frontend` (single source of
@@ -249,72 +210,6 @@ jobs:
 
       - name: Kapi Desktop Wails bindings are fresh
         run: make check-kapi-desktop-bindings
-
-      # Regenerate the pseudo-translation catalog from source (the regen
-      # prerequisite of kapi-desktop-l10n-verify). A stale catalog leaks raw
-      # {=mN} element markers into the pseudo/translated UI, but regeneration
-      # is deterministic toil — so on same-repo PRs the script commits the
-      # regenerated catalog back to the PR branch and passes (a rerun on the
-      # bot commit finds no diff; the GITHUB_TOKEN push does not re-trigger
-      # workflows, so this run's checks are authoritative). Fork PRs and
-      # pushes to main keep the strict fail-on-drift gate
-      # (`make kapi-desktop-l10n-verify` stays the local command for humans).
-      - name: Kapi Desktop l10n catalog is fresh (auto-fix on same-repo PRs)
-        env:
-          AUTOFIX_SAME_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
-          AUTOFIX_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || '' }}
-        run: |
-          bash scripts/l10n-autofix.sh kapi-desktop-translations -- \
-            apps/kapi-desktop/frontend/public/translations/qps.json
-
-  # ── Emails + landing dogfood l10n gate ───────────────────────────────────
-  # Mirrors kapi-desktop-l10n-verify for the two node-dependent dogfood
-  # surfaces the go-only l10n-drift job cannot cover: regenerates the email
-  # extraction → qps pseudo + nb content memory-recycle → compiled catalogs → per-locale
-  # template renders (bowrain/mailer/templates, subjects) and the landing
-  # runtime catalogs (bowrain/web/landing/translations), and fails on any
-  # byte drift from the committed artifacts. A stale catalog would ship
-  # wrong/old strings in the qps/nb emails and landing variant.
-  emails-landing-l10n:
-    name: Emails + Landing l10n
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.l10n_surfaces == 'true'
-    # contents: write lets the l10n auto-fix push regenerated catalogs back to
-    # same-repo PR branches; packages: read is required by setup-node-ui.
-    permissions:
-      contents: write
-      packages: read
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          # Same-repo PRs check out the PR head branch so the l10n auto-fix
-          # below can commit + push to it (see the frontend job).
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref || '' }}
-      - uses: ./.github/actions/setup-node-ui
-
-      - uses: ./.github/actions/setup-go-modules
-
-      - name: Install libicu (kapi fts5 build dependency)
-        run: sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
-
-      # Regenerate both node-dependent l10n surfaces (the regen prerequisites
-      # of emails-l10n-verify and landing-l10n-verify). Deterministic regen
-      # toil self-heals on same-repo PRs: one bot commit with exactly the
-      # regenerated files is pushed back to the PR branch and the step passes
-      # (a rerun on the bot commit finds no diff; the GITHUB_TOKEN push does
-      # not re-trigger workflows, so this run's checks are authoritative).
-      # Fork PRs and pushes to main keep the strict fail-on-drift gates
-      # (`make emails-l10n-verify landing-l10n-verify` locally).
-      - name: Email + landing l10n catalogs are fresh (auto-fix on same-repo PRs)
-        env:
-          AUTOFIX_SAME_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
-          AUTOFIX_HEAD_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || '' }}
-        run: |
-          bash scripts/l10n-autofix.sh l10n-emails l10n-landing -- \
-            bowrain/mailer/templates \
-            bowrain/mailer/subjects \
-            bowrain/web/landing/translations
 
   # ── Bowrain Desktop (Wails app: frontend vitest + Go backend) ────────────
   bowrain-desktop:

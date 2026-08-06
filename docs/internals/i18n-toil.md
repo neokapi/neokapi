@@ -1,5 +1,9 @@
 # i18n Toil Index — Axes, Grades & Audit
 
+> This grades **other people's** frameworks. For how this repository keeps its
+> own multilingual surfaces current, see [the dogfood loop in
+> CI](l10n-ci.md).
+
 This is the rubric behind kapi's i18n framework advice: a measure of the
 **ongoing maintenance cost** an i18n stack imposes on a team — not the setup
 cost, the recurring one. It is the contract that the `kapi` Agent Skill's i18n
