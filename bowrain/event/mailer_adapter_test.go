@@ -45,10 +45,12 @@ func (r *recordingSender) count() int {
 	return len(r.msgs)
 }
 
-// mockAuthStore implements bauth.AuthStore with only GetUser functional.
+// mockAuthStore implements bauth.AuthStore with only GetUser and GetWorkspace
+// functional.
 type mockAuthStore struct {
 	bauth.AuthStore // embed to satisfy the interface; unused methods panic
 	users           map[string]*platauth.User
+	workspace       *platauth.Workspace
 	err             error
 }
 
@@ -65,6 +67,15 @@ func (m *mockAuthStore) GetUser(_ context.Context, id string) (*platauth.User, e
 		return nil, errors.New("user not found")
 	}
 	return u, nil
+}
+
+// GetWorkspace answers with whatever the test set, so a workspace with no name
+// falls back to the slug the way the adapter intends.
+func (m *mockAuthStore) GetWorkspace(context.Context, string) (*platauth.Workspace, error) {
+	if m.workspace == nil {
+		return nil, errors.New("workspace not found")
+	}
+	return m.workspace, nil
 }
 
 func (m *mockAuthStore) Close() error { return nil }
@@ -87,7 +98,7 @@ func TestMailerAdapter_SendImmediate(t *testing.T) {
 		Name:  "Alice",
 	}
 
-	adapter := NewMailerAdapter(m, store)
+	adapter := NewMailerAdapter(m, store, "https://app.example.test")
 
 	notification := &bstore.Notification{
 		UserID:   "user-1",
@@ -122,7 +133,7 @@ func TestMailerAdapter_SendImmediate_NoEmail(t *testing.T) {
 		Name:  "NoEmail User",
 	}
 
-	adapter := NewMailerAdapter(m, store)
+	adapter := NewMailerAdapter(m, store, "https://app.example.test")
 
 	notification := &bstore.Notification{
 		UserID:   "user-1",
@@ -144,7 +155,7 @@ func TestMailerAdapter_SendImmediate_UserNotFound(t *testing.T) {
 	store := newMockAuthStore()
 	// No users added — GetUser will return "user not found".
 
-	adapter := NewMailerAdapter(m, store)
+	adapter := NewMailerAdapter(m, store, "https://app.example.test")
 
 	notification := &bstore.Notification{
 		UserID:   "user-unknown",
@@ -184,7 +195,7 @@ func TestMailerAdapter_ActionLabel(t *testing.T) {
 				CreatedAt: time.Now(),
 			}
 
-			adapter := NewMailerAdapter(m, store)
+			adapter := NewMailerAdapter(m, store, "https://app.example.test")
 
 			notification := &bstore.Notification{
 				UserID:   "user-1",
