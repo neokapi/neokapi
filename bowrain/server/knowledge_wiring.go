@@ -73,6 +73,9 @@ func (s *Server) publishKnowledgeEvents(c echo.Context, events []knowledge.Merge
 		put("workspace_slug", c.Param("ws"))
 		put("changeset_id", ev.ChangesetID)
 		put("on_behalf_of", ev.OnBehalfOf)
+		if ev.SelfApprovedSolo {
+			data["self_approved_solo"] = "true"
+		}
 		put("concept_id", ev.ConceptID)
 		put("profile_id", ev.ProfileID)
 		put("project_id", ev.ProjectID)

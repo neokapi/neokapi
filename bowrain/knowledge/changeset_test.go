@@ -250,6 +250,32 @@ func TestCanMerge(t *testing.T) {
 			wantErr:  true,
 		},
 		{
+			// The one self-approval the gate accepts: recorded by the server
+			// when the workspace had nobody else who could review.
+			name:     "governed approved by a marked solo self-approval",
+			cs:       approvedCS,
+			governed: true,
+			reviews:  []ChangeSetReview{{Reviewer: author, Verdict: VerdictApprove, SelfApprovedSolo: true}},
+			wantErr:  false,
+		},
+		{
+			// A rejection is never a merge licence, marked or not.
+			name:     "governed with a marked solo rejection",
+			cs:       approvedCS,
+			governed: true,
+			reviews:  []ChangeSetReview{{Reviewer: author, Verdict: VerdictReject, SelfApprovedSolo: true}},
+			wantErr:  true,
+		},
+		{
+			// A machine-authored change-set has an author no human equals, so
+			// the workspace's owner approving it is an ordinary foreign review.
+			name:     "governed machine-authored approved by a person",
+			cs:       ChangeSet{Status: ChangeSetApproved, CreatedBy: "agent/kapi-ci"},
+			governed: true,
+			reviews:  []ChangeSetReview{{Reviewer: author, Verdict: VerdictApprove}},
+			wantErr:  false,
+		},
+		{
 			name:     "governed approved but only foreign reject",
 			cs:       approvedCS,
 			governed: true,

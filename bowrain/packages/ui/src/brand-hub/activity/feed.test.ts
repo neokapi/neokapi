@@ -46,6 +46,7 @@ describe("buildFeed", () => {
     const detail: ChangeSetDetail = {
       ...changeset("cs-1", { name: "Prefer Paiement" }),
       governed: true,
+      solo_review: false,
       ops: [],
       reviews: [
         {
@@ -97,6 +98,7 @@ describe("buildFeed", () => {
     const detail: ChangeSetDetail = {
       ...changeset("cs-1", {}),
       governed: false,
+      solo_review: false,
       ops: [],
       reviews: [
         {

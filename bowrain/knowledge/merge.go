@@ -33,6 +33,11 @@ type MergeEvent struct {
 	// ("agent/<name>"): the owner of the API token the machine used. Empty when
 	// the actor is already a person.
 	OnBehalfOf string `json:"on_behalf_of,omitempty"`
+	// SelfApprovedSolo marks an approve/reject the author recorded on their own
+	// change-set because the workspace had no other eligible reviewer. It rides
+	// on the event so the audit chain records the override at the moment it was
+	// exercised, not only in the review row.
+	SelfApprovedSolo bool `json:"self_approved_solo,omitempty"`
 }
 
 // MergeResult reports the outcome of merging a change-set: the conflicts that

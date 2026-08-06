@@ -210,7 +210,18 @@ type ChangeSetReview struct {
 	Reviewer    string        `json:"reviewer"`
 	Verdict     ReviewVerdict `json:"verdict"`
 	Comment     string        `json:"comment,omitempty"`
-	CreatedAt   time.Time     `json:"created_at"`
+	// SelfApprovedSolo marks a verdict the author recorded on their own
+	// change-set because the workspace had no other eligible reviewer. It is
+	// the sole exception to separation of duties, and it is written down
+	// rather than inferred: a reader of the review thread, the audit trail, or
+	// the merge gate can tell an ordinary approval from an unreviewed one
+	// without reconstructing who was a member on that day.
+	//
+	// The server sets it; it is never accepted from a request body. A workspace
+	// that gains a second eligible reviewer stops producing new ones, and the
+	// ones already recorded stay true about the moment they were made.
+	SelfApprovedSolo bool      `json:"self_approved_solo,omitempty"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 // Pilot binds a change-set to a content stream so real content and real checks

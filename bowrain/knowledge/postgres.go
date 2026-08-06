@@ -756,13 +756,14 @@ func (s *PostgresKnowledgeStore) AddReview(ctx context.Context, r *ChangeSetRevi
 	}
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO kg_changeset_reviews (workspace_id, changeset_id, reviewer, verdict, comment, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6)
+		`INSERT INTO kg_changeset_reviews (workspace_id, changeset_id, reviewer, verdict, comment, self_approved_solo, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)
 		 ON CONFLICT (workspace_id, changeset_id, reviewer) DO UPDATE SET
 		   verdict = EXCLUDED.verdict,
 		   comment = EXCLUDED.comment,
+		   self_approved_solo = EXCLUDED.self_approved_solo,
 		   created_at = EXCLUDED.created_at`,
-		r.WorkspaceID, r.ChangesetID, r.Reviewer, string(r.Verdict), r.Comment, r.CreatedAt)
+		r.WorkspaceID, r.ChangesetID, r.Reviewer, string(r.Verdict), r.Comment, r.SelfApprovedSolo, r.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("upsert review: %w", err)
 	}
@@ -771,7 +772,7 @@ func (s *PostgresKnowledgeStore) AddReview(ctx context.Context, r *ChangeSetRevi
 
 func (s *PostgresKnowledgeStore) ListReviews(ctx context.Context, workspaceID, changesetID string) ([]*ChangeSetReview, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT workspace_id, changeset_id, reviewer, verdict, comment, created_at
+		`SELECT workspace_id, changeset_id, reviewer, verdict, comment, self_approved_solo, created_at
 		 FROM kg_changeset_reviews WHERE workspace_id = $1 AND changeset_id = $2
 		 ORDER BY created_at, reviewer`, workspaceID, changesetID)
 	if err != nil {
@@ -793,7 +794,7 @@ func (s *PostgresKnowledgeStore) ListReviews(ctx context.Context, workspaceID, c
 func scanReview(row scanner) (*ChangeSetReview, error) {
 	var r ChangeSetReview
 	var verdict string
-	err := row.Scan(&r.WorkspaceID, &r.ChangesetID, &r.Reviewer, &verdict, &r.Comment, &r.CreatedAt)
+	err := row.Scan(&r.WorkspaceID, &r.ChangesetID, &r.Reviewer, &verdict, &r.Comment, &r.SelfApprovedSolo, &r.CreatedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("review not found")

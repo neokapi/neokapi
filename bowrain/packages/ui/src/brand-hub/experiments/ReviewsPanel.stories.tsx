@@ -20,6 +20,7 @@ const changeset: ChangeSetDetail = {
   ops: [],
   reviews: [],
   pilots: [],
+  solo_review: false,
 };
 
 function user(id: string): User {
@@ -57,5 +58,36 @@ export const AsReviewer: Story = {
 /** The author cannot approve their own experiment (separation of duties). */
 export const AsAuthor: Story = {
   args: { changeset },
+  decorators: [withUser("sam"), pad],
+};
+
+/**
+ * The author is the workspace's only reviewer, so the server will accept their
+ * verdict — and record that nobody else read it.
+ */
+export const AsSoleReviewer: Story = {
+  args: { changeset: { ...changeset, solo_review: true } },
+  decorators: [withUser("sam"), pad],
+};
+
+/** A verdict already recorded under the override says so in the thread. */
+export const WithSoloApproval: Story = {
+  args: {
+    changeset: {
+      ...changeset,
+      status: "approved",
+      reviews: [
+        {
+          workspace_id: "ws-1",
+          changeset_id: "cs-1",
+          reviewer: "sam",
+          verdict: "approve",
+          comment: "No one else in the workspace to ask.",
+          self_approved_solo: true,
+          created_at: now,
+        },
+      ],
+    },
+  },
   decorators: [withUser("sam"), pad],
 };

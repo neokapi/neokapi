@@ -104,6 +104,12 @@ type ChangeSetDetailResponse struct {
 	Ops      []*knowledge.ChangeSetOp     `json:"ops"`
 	Reviews  []*knowledge.ChangeSetReview `json:"reviews"`
 	Pilots   []*knowledge.Pilot           `json:"pilots"`
+	// SoloReview is true when the caller is this change-set's author and the
+	// workspace has nobody else who could review it — so approving their own
+	// work is, for now, permitted and will be recorded as such. It is computed
+	// per request rather than stored: it is a fact about the workspace right
+	// now, and it stops being true the moment a second reviewer joins.
+	SoloReview bool `json:"solo_review"`
 }
 
 // ---------------------------------------------------------------------------
@@ -210,12 +216,14 @@ func (s *Server) HandleGetChangeSet(c echo.Context) error {
 	if pilots == nil {
 		pilots = []*knowledge.Pilot{}
 	}
+	viewer, _ := c.Get("user_id").(string)
 	return c.JSON(http.StatusOK, ChangeSetDetailResponse{
-		ChangeSet: cs,
-		Governed:  governed,
-		Ops:       opPtrs,
-		Reviews:   reviews,
-		Pilots:    pilots,
+		ChangeSet:  cs,
+		Governed:   governed,
+		Ops:        opPtrs,
+		Reviews:    reviews,
+		Pilots:     pilots,
+		SoloReview: s.soloReviewOverride(ctx, wsID, viewer, cs),
 	})
 }
 
@@ -387,8 +395,33 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 
 // HandleApproveChangeSet records an approval and moves an in-review change-set to
 // approved. Separation of duties: the approver must not be the change-set's
-// author.
+// author, unless they are the workspace's sole eligible reviewer — see
+// recordChangeSetReview.
 func (s *Server) HandleApproveChangeSet(c echo.Context) error {
+	return s.recordChangeSetReview(c, knowledge.VerdictApprove)
+}
+
+// HandleRejectChangeSet records a rejection and reopens an in-review change-set
+// as a draft. Separation of duties: the reviewer must not be the author, unless
+// they are the workspace's sole eligible reviewer — see recordChangeSetReview.
+func (s *Server) HandleRejectChangeSet(c echo.Context) error {
+	return s.recordChangeSetReview(c, knowledge.VerdictReject)
+}
+
+// recordChangeSetReview is the shared body of approve and reject. They differ in
+// exactly two ways — the verdict recorded and the status the change-set lands in
+// — and every rule around them (permission, separation of duties, the solo
+// override, lifecycle state, the audit event) has to hold identically for both.
+// Keeping one body is what stops them from drifting apart.
+//
+// The separation-of-duties refusal stands as it always has, with one exception:
+// a workspace whose author is also its only member with review rights would
+// otherwise have no way to move a governed change-set at all. There, the owner
+// may record their own verdict, and it is marked self_approved_solo — on the
+// review row, on the audit event, and in the merge gate that later reads it. The
+// exception evaporates the moment a second eligible reviewer exists; nothing is
+// cached, and the check runs on every attempt.
+func (s *Server) recordChangeSetReview(c echo.Context, verdict knowledge.ReviewVerdict) error {
 	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
 		return err
 	}
@@ -403,11 +436,18 @@ func (s *Server) HandleApproveChangeSet(c echo.Context) error {
 	if cs == nil {
 		return resp
 	}
+
+	solo := false
 	if actor != "" && actor == cs.CreatedBy {
-		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "separation of duties: a change-set's author cannot review their own change-set"})
+		if !s.soloReviewOverride(ctx, wsID, actor, cs) {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "separation of duties: a change-set's author cannot review their own change-set"})
+		}
+		solo = true
 	}
 	if cs.Status != knowledge.ChangeSetInReview {
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: fmt.Sprintf("only an in-review change-set can be approved (status %q)", cs.Status)})
+		return c.JSON(http.StatusConflict, ErrorResponse{
+			Error: fmt.Sprintf("only an in-review change-set can be %s (status %q)", reviewPastTense(verdict), cs.Status),
+		})
 	}
 
 	var req ReviewRequest
@@ -422,77 +462,39 @@ func (s *Server) HandleApproveChangeSet(c echo.Context) error {
 		WorkspaceID: wsID,
 		ChangesetID: cs.ID,
 		Reviewer:    actor,
-		Verdict:     knowledge.VerdictApprove,
+		Verdict:     verdict,
 		Comment:     req.Comment,
+		// Server-set, never bound from the request: a caller cannot ask to be
+		// treated as the sole reviewer.
+		SelfApprovedSolo: solo,
 	}
 	if err := s.KnowledgeStore.AddReview(ctx, review); err != nil {
 		return serverErr(c, err)
 	}
-	if err := s.KnowledgeStore.SetChangeSetStatus(ctx, wsID, cs.ID, knowledge.ChangeSetApproved); err != nil {
+
+	status, eventType := knowledge.ChangeSetApproved, knowledge.EventChangeSetApproved
+	if verdict == knowledge.VerdictReject {
+		status, eventType = knowledge.ChangeSetDraft, knowledge.EventChangeSetRejected
+	}
+	if err := s.KnowledgeStore.SetChangeSetStatus(ctx, wsID, cs.ID, status); err != nil {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
 	}
 
-	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
-		changesetEvent(knowledge.EventChangeSetApproved, wsID, cs.ID, actor),
-	})
+	ev := changesetEvent(eventType, wsID, cs.ID, actor)
+	ev.SelfApprovedSolo = solo
+	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{ev})
+	// A verdict ends the review either way: close the task rather than leave
+	// the reviewer holding work that is decided or back with its author.
 	s.closeChangeSetReviewTasks(ctx, wsID, cs.ID, actor)
 	return s.refreshedChangeSet(c, wsID, cs.ID)
 }
 
-// HandleRejectChangeSet records a rejection and reopens an in-review change-set
-// as a draft. Separation of duties: the reviewer must not be the author.
-func (s *Server) HandleRejectChangeSet(c echo.Context) error {
-	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
-		return err
+// reviewPastTense renders a verdict for the lifecycle-conflict message.
+func reviewPastTense(v knowledge.ReviewVerdict) string {
+	if v == knowledge.VerdictReject {
+		return "rejected"
 	}
-	if s.KnowledgeStore == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
-	}
-	wsID, _ := c.Get("workspace_id").(string)
-	actor, _ := c.Get("user_id").(string)
-	ctx := c.Request().Context()
-
-	cs, resp := s.getChangeSetOr404(c, wsID, c.Param("id"))
-	if cs == nil {
-		return resp
-	}
-	if actor != "" && actor == cs.CreatedBy {
-		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "separation of duties: a change-set's author cannot review their own change-set"})
-	}
-	if cs.Status != knowledge.ChangeSetInReview {
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: fmt.Sprintf("only an in-review change-set can be rejected (status %q)", cs.Status)})
-	}
-
-	var req ReviewRequest
-	// The comment is optional, and Echo binds an empty body without error — so
-	// checking this cannot break a caller who sent nothing. What it stops is a
-	// body that was sent and did not parse silently becoming an empty comment
-	// on a governed approval, which is a record of a review nobody wrote.
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-	review := &knowledge.ChangeSetReview{
-		WorkspaceID: wsID,
-		ChangesetID: cs.ID,
-		Reviewer:    actor,
-		Verdict:     knowledge.VerdictReject,
-		Comment:     req.Comment,
-	}
-	if err := s.KnowledgeStore.AddReview(ctx, review); err != nil {
-		return serverErr(c, err)
-	}
-	if err := s.KnowledgeStore.SetChangeSetStatus(ctx, wsID, cs.ID, knowledge.ChangeSetDraft); err != nil {
-		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
-	}
-
-	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
-		changesetEvent(knowledge.EventChangeSetRejected, wsID, cs.ID, actor),
-	})
-	// A rejection reopens the change-set as a draft, so the review is over even
-	// though the change-set lives on: close the task rather than leave the
-	// reviewer holding work that is back with its author.
-	s.closeChangeSetReviewTasks(ctx, wsID, cs.ID, actor)
-	return s.refreshedChangeSet(c, wsID, cs.ID)
+	return "approved"
 }
 
 // HandleMergeChangeSet merges a change-set into the workspace graph and brand

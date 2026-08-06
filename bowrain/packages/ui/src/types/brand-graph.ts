@@ -396,6 +396,12 @@ export interface ChangeSetReview {
   reviewer: string;
   verdict: ReviewVerdict;
   comment?: string;
+  /**
+   * The author recorded this verdict on their own change-set because the
+   * workspace had nobody else who could review it. Server-set; the timeline
+   * says so rather than letting it read as an ordinary approval.
+   */
+  self_approved_solo?: boolean;
   created_at: string;
 }
 
@@ -419,6 +425,12 @@ export interface ChangeSetDetail extends ChangeSet {
   ops: ChangeSetOp[];
   reviews: ChangeSetReview[];
   pilots: Pilot[];
+  /**
+   * The viewer authored this change-set and the workspace has nobody else who
+   * could review it, so the server will accept — and mark — their own verdict.
+   * False the moment a second eligible reviewer exists.
+   */
+  solo_review: boolean;
 }
 
 // ---------------------------------------------------------------------------

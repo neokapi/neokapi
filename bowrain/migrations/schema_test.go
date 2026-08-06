@@ -112,12 +112,13 @@ func TestBaselineVersionsSitAboveRetiredOnes(t *testing.T) {
 	// Store and jobs sit above the rest because they were consolidated twice:
 	// migrations appended after the first fold (store 16-19, jobs 8) were
 	// themselves folded, and every number they spent stays spent. A baseline
-	// edited in place spends its old number too: auth 8 was a baseline before
-	// api_tokens.agent_name was folded into it.
+	// edited in place spends its old number too: auth 8 and knowledge 2 were
+	// baselines before the machine author identity and the solo self-approval
+	// marker were folded into them.
 	highestEverIssued := map[string]int{
 		"store": 19, "auth": 8, "jobs": 8, "quota": 3, "runner": 1,
 		"extraction": 1, "brand_scan": 1, "model_sweep": 1, "brand": 2,
-		"knowledge": 1, "agent": 1, "billing": 6, "platform_config": 1,
+		"knowledge": 2, "agent": 1, "billing": 6, "platform_config": 1,
 		"terms": 4, "memory": 5,
 	}
 

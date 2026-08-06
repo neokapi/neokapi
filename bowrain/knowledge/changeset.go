@@ -423,16 +423,28 @@ func ValidateStatusTransition(from, to ChangeSetStatus) error {
 // CanMerge reports whether a change-set may be merged given its governed
 // classification and its reviews. A governed change-set must be approved and
 // carry at least one approve verdict from a reviewer other than its author
-// (separation of duties) — self-approval never satisfies the gate. An ordinary
-// change-set may merge while it is still a draft or once approved. A nil return
-// means merge is permitted; otherwise the error explains why not.
+// (separation of duties). An ordinary change-set may merge while it is still a
+// draft or once approved. A nil return means merge is permitted; otherwise the
+// error explains why not.
+//
+// The one self-approval this gate accepts is a review already marked
+// SelfApprovedSolo — recorded by the server only when the workspace had no
+// other member with review rights, and only for the workspace owner. It is
+// accepted here rather than re-derived because the fact that mattered is who
+// could have reviewed *at the time of the verdict*; a workspace that later
+// hires a second reviewer has not retroactively made the merged change-set
+// unreviewable, and one that later loses everyone has not retroactively excused
+// an ordinary self-approval that was refused when it was attempted.
 func CanMerge(cs ChangeSet, governed bool, reviews []ChangeSetReview) error {
 	if governed {
 		if cs.Status != ChangeSetApproved {
 			return fmt.Errorf("governed change-set must be approved before merge (status %q)", cs.Status)
 		}
 		for _, r := range reviews {
-			if r.Verdict == VerdictApprove && r.Reviewer != cs.CreatedBy {
+			if r.Verdict != VerdictApprove {
+				continue
+			}
+			if r.Reviewer != cs.CreatedBy || r.SelfApprovedSolo {
 				return nil
 			}
 		}
