@@ -30,14 +30,15 @@ func TestApplyFrameworkPreset_NeokapiI18nCleanLayout(t *testing.T) {
 	assert.Equal(t, "i18n/terms.json", recipe.Defaults.TermsSource)
 
 	// Full init round-trip: the recipe writes, the state dir scaffolds with its
-	// committed context/ and its ignored work/, and the generated .gitignore is
-	// the two-line rule — no globs, and nothing to negate back out.
+	// committed memory/ and state/ and its ignored work/, and the generated
+	// .gitignore is the two-line rule — no globs, nothing to negate back out.
 	dir := t.TempDir()
 	proj, err := project.InitProject(dir, recipe)
 	require.NoError(t, err)
 	require.NoError(t, writeStateGitignore(proj))
 
-	assert.DirExists(t, proj.Layout.ContextDir(), "init scaffolds the committed context directory")
+	assert.DirExists(t, proj.Layout.MemoryDir(), "init scaffolds the committed memory bundles")
+	assert.DirExists(t, proj.Layout.UnitStateDir(), "init scaffolds the committed unit-state record")
 
 	gi, err := os.ReadFile(filepath.Join(proj.StateDir(), ".gitignore"))
 	require.NoError(t, err)
