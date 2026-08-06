@@ -106,6 +106,11 @@ var messages = map[string]string{
 	"installation not found":                          "That GitHub installation is not connected to this workspace. Install the app from this workspace to connect it.",
 	"the GitHub setup link is no longer valid":        "This GitHub setup link has expired. Start the install again from this workspace.",
 
+	// Workspace resolution. A lookup that could not be completed is not the
+	// same as a workspace that is not there, and the sentence says so: the
+	// client is told to retry rather than told its workspace is gone.
+	"workspace_lookup_failed": "The workspace could not be looked up just now. This is temporary — try again.",
+
 	// Server components not configured.
 	"auth not configured":          "Authentication is not configured on this server.",
 	"store not configured":         "The server's data store is not configured.",

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/apierror"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -291,15 +292,35 @@ func WorkspaceAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
 				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "no such endpoint"})
 			}
 
+			// A lookup that FAILED and a workspace that is genuinely ABSENT are
+			// different answers and must not share a status. Collapsing them
+			// meant a database under contention — a one-off audit transaction
+			// holding a lock for a minute — answered a perfectly valid request
+			// with "workspace not found", and the client, told its workspace did
+			// not exist, had no reason to retry the request that succeeded in
+			// 25ms once the lock cleared. Only a clean no-rows is a 404; an
+			// error is a 503 carrying the request's reference id, so the log
+			// line that names the real cause can be found from the client's
+			// report.
 			ctx := c.Request().Context()
 			w, err := authStore.GetWorkspaceBySlug(ctx, wsSlug)
-			if err != nil {
+			switch {
+			case errors.Is(err, sql.ErrNoRows):
 				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "workspace not found"})
+			case err != nil:
+				return workspaceLookupUnavailable(c, "resolve workspace", wsSlug, err)
 			}
 
+			// Membership carries the same distinction, and gets it more wrong:
+			// a failed lookup rendered as "not a member of this workspace" is
+			// the server asserting something about the caller's standing that it
+			// did not manage to find out.
 			m, err := authStore.GetMembership(ctx, w.ID, userID)
-			if err != nil {
+			switch {
+			case errors.Is(err, sql.ErrNoRows):
 				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "not a member of this workspace"})
+			case err != nil:
+				return workspaceLookupUnavailable(c, "resolve workspace membership", wsSlug, err)
 			}
 
 			// Store workspace ID, plan, and user role on context for downstream handlers.
@@ -311,6 +332,25 @@ func WorkspaceAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
 		}
 	}
 }
+
+// workspaceLookupUnavailable renders a workspace-resolution failure as a 503
+// with the request's reference id, and logs the cause server-side.
+//
+// It is deliberately not a 404 and not a 403: nothing was learned about the
+// workspace or the caller's membership of it, so the honest answer is "ask
+// again", not a statement about existence or standing. The client sees the
+// generic envelope; the operator sees the slug and the driver's own words
+// against the same reference the client can quote.
+func workspaceLookupUnavailable(c echo.Context, op, wsSlug string, err error) error {
+	slog.Error("workspace resolution failed",
+		"op", op, "workspace_slug", wsSlug,
+		"reference", apierror.RequestID(c), "error", err)
+	return apiErr(c, http.StatusServiceUnavailable, codeWorkspaceLookupFailed)
+}
+
+// codeWorkspaceLookupFailed is the stable code for a workspace or membership
+// lookup that could not be completed.
+const codeWorkspaceLookupFailed = "workspace_lookup_failed"
 
 // MonthlyAllocationMiddleware lazily ensures the workspace's credit rows exist.
 // It reads the plan from context (set by WorkspaceAccessMiddleware) and, for
