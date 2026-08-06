@@ -1,6 +1,8 @@
 package backend
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,6 +12,22 @@ import (
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/terms"
 )
+
+// templateStorePath is a content-store database whose schema is already built:
+// the migration chain replayed exactly once, for the whole package.
+//
+// Building that schema is what this suite spends its time on. Under -race the
+// pure-Go SQLite parser is instrumented, so parsing the store's migration SQL
+// costs ~0.4s — per test, since every test opened its own :memory: store and
+// replayed the whole chain. Three quarters of the suite's CPU went into
+// building the same schema a couple of hundred times, and the total crossed the
+// 120s test timeout on CI (a slower machine than a developer's), which is how a
+// suite where no single test is slow, and none hangs, came to fail by timeout.
+//
+// A file-backed template costs one build and a file copy per test. The copy is
+// a fresh database on disk, so tests stay as isolated as they were with
+// :memory: — and closer to how the app opens its store in production.
+var templateStorePath string
 
 func TestMain(m *testing.M) {
 	// Replace the OS keychain with an in-memory mock for the whole package, so
@@ -35,24 +53,47 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	os.Setenv("KAPI_PLUGIN_DIR", dir)
+
+	templateDir, err := os.MkdirTemp("", "bowrain-test-store-template")
+	if err != nil {
+		panic(err)
+	}
+	templateStorePath = filepath.Join(templateDir, "store.db")
+	template, err := sqlitestore.NewSQLiteStore(templateStorePath)
+	if err != nil {
+		panic(fmt.Errorf("build template content store: %w", err))
+	}
+	// Closing checkpoints the WAL back into the main file, so the template is
+	// one self-contained file for newTestApp to copy.
+	if err := template.Close(); err != nil {
+		panic(fmt.Errorf("close template content store: %w", err))
+	}
+
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.RemoveAll(authDir)
+	os.RemoveAll(templateDir)
 	os.Exit(code)
 }
 
-// newTestApp creates a Bowrain backend with an in-memory SQLite store
-// and no shared content memory/TB state. Each call returns a fully isolated App
-// suitable for a single test.
+// newTestApp creates a Bowrain backend with its own SQLite store and no shared
+// content memory/TB state. Each call returns a fully isolated App suitable for a
+// single test.
 func newTestApp(t *testing.T) *App {
 	t.Helper()
-	cs, err := sqlitestore.NewSQLiteStore(":memory:")
+	// Use a temp directory for the store, the content memory and TB so tests
+	// don't share state.
+	tmpDir := t.TempDir()
+
+	storePath := filepath.Join(tmpDir, "store.db")
+	copyFile(t, templateStorePath, storePath)
+	// The schema is already in the copy, so this opens and finds its migration
+	// bookkeeping current rather than replaying the chain.
+	cs, err := sqlitestore.NewSQLiteStore(storePath)
 	if err != nil {
-		t.Fatalf("create in-memory store: %v", err)
+		t.Fatalf("open test store: %v", err)
 	}
 	app := newAppWithStore(cs)
-	// Use a temp directory for the content memory and TB so tests don't share state.
-	tmpDir := t.TempDir()
 	app.memoryPath = filepath.Join(tmpDir, "test.db")
 	tb, err := terms.NewSQLiteStore(filepath.Join(tmpDir, "test-tb.db"))
 	if err != nil {
@@ -65,4 +106,27 @@ func newTestApp(t *testing.T) *App {
 		}
 	})
 	return app
+}
+
+// copyFile duplicates the template database into a test's own directory.
+func copyFile(t *testing.T, src, dst string) {
+	t.Helper()
+
+	in, err := os.Open(src)
+	if err != nil {
+		t.Fatalf("open template store: %v", err)
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		t.Fatalf("create test store: %v", err)
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		t.Fatalf("copy template store: %v", err)
+	}
+	if err := out.Close(); err != nil {
+		t.Fatalf("close test store: %v", err)
+	}
 }
