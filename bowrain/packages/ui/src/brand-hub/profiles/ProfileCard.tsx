@@ -20,6 +20,7 @@ export function ProfileCard({ profile, onSelect, className }: ProfileCardProps) 
   const projects = new Set(profile.collections.map((c) => c.project_name));
   const named = profile.collections.slice(0, NAMED_COLLECTIONS);
   const rest = profile.collections.length - named.length;
+  const unbound = !profile.declared && !profile.is_default;
 
   return (
     <Card
@@ -48,6 +49,7 @@ export function ProfileCard({ profile, onSelect, className }: ProfileCardProps) 
               Where content that declares no coordinates sits.
             </p>
           )}
+          {unbound && <p className="text-xs text-muted-foreground">Bound to no point.</p>}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {profile.is_default && <Badge variant="outline">Default</Badge>}
@@ -80,7 +82,7 @@ export function ProfileCard({ profile, onSelect, className }: ProfileCardProps) 
           <Folder className="size-3.5 shrink-0 text-muted-foreground" />
           {profile.collections.length === 0 ? (
             <span className="text-muted-foreground">
-              {profile.declared ? "No content yet" : "Nothing pushed here yet"}
+              {unbound ? "Governs nothing" : "No content here yet"}
             </span>
           ) : (
             <span className="truncate text-muted-foreground">
