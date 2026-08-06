@@ -164,6 +164,7 @@ import type {
   Pilot,
   StartPilotRequest,
 } from "../types/brand-graph";
+import type { ContextProfilesResponse } from "../types/context-profiles";
 
 /**
  * ApiAdapter abstracts the communication layer so that the same
@@ -989,6 +990,13 @@ export interface ApiAdapter {
     projectId: string,
     opts?: { recentDays?: number; minScore?: number; dropPoints?: number },
   ): Promise<DriftResult>;
+  /**
+   * The workspace's governance profiles: every point its content occupies in
+   * the context space, with the voice and collections at each. Derived
+   * server-side from what pushes declared; nothing here is separately stored.
+   */
+  listContextProfiles(workspaceSlug: string): Promise<ContextProfilesResponse>;
+
   listStarterPacks(): Promise<{ name: string; description: string }[]>;
   createProfileFromStarter(
     workspaceSlug: string,

@@ -38,6 +38,10 @@ func changesetsPath(ws string) string {
 	return "/api/v1/" + url.PathEscape(ws) + "/changesets"
 }
 
+func contextProfilesPath(ws string) string {
+	return "/api/v1/" + url.PathEscape(ws) + "/profiles"
+}
+
 func changesetPath(ws, changesetID string) string {
 	return changesetsPath(ws) + "/" + url.PathEscape(changesetID)
 }
@@ -289,6 +293,12 @@ type ReviewArgs struct {
 type StartPilotArgs struct {
 	ProjectID string `json:"project_id"`
 	Stream    string `json:"stream"`
+}
+
+// ListContextProfiles returns the workspace's governance profiles — the points
+// its content occupies and what governs each.
+func (a *App) ListContextProfiles(workspaceSlug string) (json.RawMessage, error) {
+	return a.govRaw(http.MethodGet, contextProfilesPath(workspaceSlug), nil)
 }
 
 // ListChangesets returns the workspace change-sets, optionally filtered by status.

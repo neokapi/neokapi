@@ -1,7 +1,9 @@
-// The unified Brand hub (AD-021): a workspace's brand language as a knowledge
-// graph, surfaced across five sections — Concepts, Voice, Experiments, Activity,
-// and Dashboard. The shell frames each section; the section views are fully
-// functional against the real concept/changeset/graph hooks.
+// The Context hub (AD-021): a workspace's content context as a knowledge graph,
+// entered through its governance profiles — the points content sits at — and
+// surfaced across Concepts, Voice, Content memory, Changes and Activity. The
+// shell frames each section; the section views run against the real
+// profile/concept/changeset/graph hooks.
+export * from "./profiles";
 export * from "./shell";
 export * from "./concepts";
 export * from "./experiments";

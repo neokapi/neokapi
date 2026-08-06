@@ -135,6 +135,7 @@ import type {
   BrandScanUploadResult,
   BrandScanJob,
   BrandScanCheckResult,
+  ContextProfilesResponse,
 } from "@neokapi/ui";
 
 import { codedToRuns } from "./codedToRuns";
@@ -1227,6 +1228,9 @@ export class WailsApiAdapter implements ApiAdapter {
   // --- Brand Voice (proxied to the server's REST governance endpoints) ---
   async listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]> {
     return Backend.ListBrandProfiles(workspaceSlug) as Promise<VoiceProfile[]>;
+  }
+  async listContextProfiles(workspaceSlug: string): Promise<ContextProfilesResponse> {
+    return Backend.ListContextProfiles(workspaceSlug) as Promise<ContextProfilesResponse>;
   }
   async getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile> {
     return Backend.GetBrandProfile(workspaceSlug, profileId) as Promise<VoiceProfile>;

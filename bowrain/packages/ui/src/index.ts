@@ -791,10 +791,21 @@ export {
   useAddPilot,
   useRemovePilot,
 } from "./hooks/useChangesetsApi";
-// Brand hub (AD-021) — the unified Concepts/Voice/Experiments/Activity/Dashboard
-// surface (shell + section views) built on the concept/graph/change-set hooks.
+// Context hub (AD-021) — the governance profiles a workspace's content sits
+// under, and the Concepts/Voice/Changes/Activity/Dashboard sections beneath
+// them, built on the profile/concept/graph/change-set hooks.
 export {
   BrandHub,
+  // Profiles section — the hub's landing: one card per coordinate point.
+  ProfilesView,
+  ProfilesSkeleton,
+  ProfileDetailView,
+  ProfileDetailSkeleton,
+  ProfileCard,
+  CoordinateReadout,
+  CoordinateLine,
+  useContextProfiles,
+  useContextProfile,
   TermStatusBadge,
   ChangeSetStatusBadge,
   changeSetStatusLabel,
@@ -823,6 +834,9 @@ export {
 } from "./brand-hub";
 export type {
   BrandHubProps,
+  ProfilesViewProps,
+  ProfileDetailViewProps,
+  ProfileCardProps,
   ConceptsSectionProps,
   PendingConceptChangesProps,
   ConceptStorySectionProps,
@@ -899,6 +913,16 @@ export type {
   ListConceptsParams,
   RelationScope,
 } from "./types/brand-graph";
+
+// Governance profiles — the shape of GET /:ws/profiles.
+export type {
+  ContextProfile,
+  ContextProfileVoice,
+  ContextProfileCollection,
+  ContextProfileTerms,
+  ContextProfileScan,
+  ContextProfilesResponse,
+} from "./types/context-profiles";
 
 // Bravo (@bravo agent) — assistant-ui powered components
 export {
