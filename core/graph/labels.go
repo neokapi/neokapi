@@ -23,9 +23,9 @@ const (
 	LabelCloseMatch = "CLOSE_MATCH" // skos:closeMatch — approximate equivalence
 
 	// Voice profile relationships
-	LabelForbidden  = "FORBIDDEN"  // brand → forbidden term
-	LabelPreferred  = "PREFERRED"  // brand → preferred term
-	LabelCompetitor = "COMPETITOR" // brand → competitor term
+	LabelForbidden  = "FORBIDDEN"  // voice profile → forbidden term
+	LabelPreferred  = "PREFERRED"  // voice profile → preferred term
+	LabelCompetitor = "COMPETITOR" // voice profile → competitor term
 )
 
 // InverseLabel returns the inverse of a directional label, or empty string if symmetric.
