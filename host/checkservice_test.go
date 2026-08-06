@@ -161,9 +161,9 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 		assert.Equal(t, filepath.Join(root, "brand.yaml"), src)
 	})
 
-	t.Run("convention .kapi/context/brand-voice.yaml", func(t *testing.T) {
+	t.Run("convention .kapi/voice.yaml", func(t *testing.T) {
 		root := t.TempDir()
-		conv := filepath.Join(root, project.RelContextPath(BrandVoiceConventionalName))
+		conv := filepath.Join(root, project.RelStatePath(BrandVoiceConventionalName))
 		require.NoError(t, os.MkdirAll(filepath.Dir(conv), 0o755))
 		require.NoError(t, os.WriteFile(conv, profileYAML, 0o644))
 		proj := &project.KapiProject{}
@@ -178,7 +178,7 @@ func TestResolveBrandProfile_Ladder(t *testing.T) {
 	// same directory.
 	t.Run("context directory outranks the root", func(t *testing.T) {
 		root := t.TempDir()
-		conv := filepath.Join(root, project.RelContextPath(BrandVoiceConventionalName))
+		conv := filepath.Join(root, project.RelStatePath(BrandVoiceConventionalName))
 		require.NoError(t, os.MkdirAll(filepath.Dir(conv), 0o755))
 		require.NoError(t, os.WriteFile(conv, profileYAML, 0o644))
 		require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"),

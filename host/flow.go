@@ -1564,7 +1564,9 @@ func ToolRequires(s *schema.ComponentSchema, req string) bool {
 //     root. This is the one place a recipe still names a terms FILE: it binds a
 //     vocabulary to a region of the context space, and there is nothing on the
 //     wire for it, so it stays a local path.
-//  3. The project's own store.
+//  3. That profile's conventional override, `.kapi/profiles/<name>/terms.json`,
+//     when the file exists — the same binding without the line in the recipe.
+//  4. The project's own store.
 //
 // An empty collection resolves the project-wide binding, which is what every
 // caller outside a partitioned flow run wants.
@@ -1599,13 +1601,39 @@ func (a *App) ResolveTermsStore(cmd Command, collection string) (StoreSelection,
 	if rerr != nil {
 		return StoreSelection{}, rerr
 	}
+	if bound := governedTermsPath(root, rc); bound != "" {
+		return StoreSelection{Path: bound}, nil
+	}
+	return StoreSelection{Root: root}, nil
+}
+
+// governedTermsPath returns the terms bundle a resolved governance points at,
+// absolute, or "" when the project's own terms govern.
+//
+// Two rungs. The matched profile's explicit `terms:` wins, as written in the
+// recipe. Failing that, a profile is answered by its own directory:
+// `.kapi/profiles/<name>/terms.json` is that profile's vocabulary by
+// convention, and only when the file is actually there — an absent override is
+// the ordinary case, and it has to fall through to the project's own terms
+// rather than resolve to a path nothing wrote.
+func governedTermsPath(root string, rc *project.ResolvedGovernance) string {
+	if rc == nil {
+		return ""
+	}
 	if bound := rc.Terms; bound != "" {
 		if !filepath.IsAbs(bound) {
 			bound = filepath.Join(root, bound)
 		}
-		return StoreSelection{Path: bound}, nil
+		return bound
 	}
-	return StoreSelection{Root: root}, nil
+	if rc.Profile == "" {
+		return ""
+	}
+	conv := filepath.Join(root, project.RelStatePath(project.ProfilesDirName, rc.Profile, ktb.ConventionalName))
+	if _, err := os.Stat(conv); err == nil {
+		return conv
+	}
+	return ""
 }
 
 // ResolveProjectGlossary builds a source→target glossary from the project's
@@ -1774,7 +1802,7 @@ func (a *App) resolveProjectTermsSourcePath(cmd Command, collection string) (str
 		if rerr != nil {
 			return "", rerr
 		}
-		if rc.Terms != "" {
+		if governedTermsPath(root, rc) != "" {
 			return "", nil
 		}
 	}
@@ -1803,17 +1831,17 @@ func (a *App) resolveProjectTermsSourcePath(cmd Command, collection string) (str
 // firstExistingTermsBundle returns the first well-known terms bundle present
 // under root, or "" when none is.
 //
-// The context directory is searched FIRST, which reverses the old order. The
-// repository-root spelling used to lead because the bundle is a committed
-// source and `.kapi/` was machine state that git ignored — a glossary kept
-// there would never have reached review. `.kapi/` is now committed, and
-// `.kapi/context/` is where its authored sources live, so the conventional home
-// and the reviewed home are the same directory. The root spelling stays
-// second: a project that keeps its glossary beside its content is not wrong,
-// and dropping the rung would silently unbind it.
+// `.kapi/` is searched FIRST, which reverses the old order. The repository-root
+// spelling used to lead because the bundle is a committed source and `.kapi/`
+// was machine state that git ignored — a glossary kept there would never have
+// reached review. `.kapi/` is now committed, and it is where a project's
+// authored sources live, so the conventional home and the reviewed home are the
+// same directory. The root spelling stays second: a project that keeps its
+// glossary beside its content is not wrong, and dropping the rung would
+// silently unbind it.
 func firstExistingTermsBundle(root string) string {
 	for _, candidate := range []string{
-		filepath.Join(root, project.RelContextPath(ktb.ConventionalName)),
+		filepath.Join(root, project.RelStatePath(ktb.ConventionalName)),
 		filepath.Join(root, ktb.ConventionalName),
 	} {
 		if _, err := os.Stat(candidate); err == nil {

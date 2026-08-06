@@ -277,7 +277,7 @@ func writeTermsSourceProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName, project.ContextDirName), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, project.StateDirName), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
 
@@ -286,7 +286,7 @@ name: verifysrc
 defaults:
   source_language: en
   target_languages: [fr]
-  terms_source: .kapi/context/terms.json
+  terms_source: .kapi/terms.json
 content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
@@ -325,7 +325,7 @@ content:
 	})
 	data, err := ktb.Marshal(file)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(root, project.RelContextPath("terms.json")), data, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, project.RelStatePath("terms.json")), data, 0o644))
 
 	// Assert the fallback path is the one under test: no project store exists
 	// yet, so nothing could have been compiled into it. This is the fresh-checkout
@@ -461,7 +461,7 @@ func TestVerify_GlossaryFromConventionalLocation(t *testing.T) {
 		name string
 		rel  string
 	}{
-		{"context directory", project.RelContextPath("terms.json")},
+		{"context directory", project.RelStatePath("terms.json")},
 		{"repository root", "terms.json"},
 	}
 	for _, tt := range tests {
@@ -481,11 +481,11 @@ func TestVerify_GlossaryFromConventionalLocation(t *testing.T) {
 //
 // The root spelling used to win because `.kapi/` was machine state that git
 // ignored, so a glossary kept there would never have reached review. `.kapi/`
-// is now committed and `.kapi/context/` is where its authored sources live, so
+// is now committed and `.kapi/` is where its authored sources live, so
 // the conventional home and the reviewed home are the same directory — and the
 // project that put its bundle there is the one that followed the convention.
 func TestVerify_ConventionalGlossaryPrefersContextDir(t *testing.T) {
-	root := writeTermsProjectUnbound(t, project.RelContextPath("terms.json"))
+	root := writeTermsProjectUnbound(t, project.RelStatePath("terms.json"))
 
 	// A root glossary that would PASS the gate. If the ladder still preferred
 	// the root, the run would come back clean and this test would fail.

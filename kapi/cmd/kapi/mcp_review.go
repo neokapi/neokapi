@@ -35,14 +35,14 @@ func registerReviewTools(server *mcp.Server, a *cli.App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "review_unit",
-		Description: "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded decision (with identity), and any fresh AI pre-review score/findings. The read leg before approve_unit / reject_unit / sign_off_unit.",
+		Description: "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and any fresh AI pre-review score/findings. The read leg before approve_unit / reject_unit / sign_off_unit.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ReviewUnitInput) (*mcp.CallToolResult, ReviewUnitOutput, error) {
 		return handleReviewUnit(ctx, a, input)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "approve_unit",
-		Description: "Approve one review-queue unit (→ reviewed). The decision is recorded in the project state store, bound to the current translation's content hash, with identity \"agent/<client>\".",
+		Description: "Approve one review-queue unit (→ reviewed). The unit state is recorded in the project store, bound to the current translation's content hash, with identity \"agent/<client>\".",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ReviewDecisionInput) (*mcp.CallToolResult, ReviewDecisionOutput, error) {
 		return handleReviewDecision(ctx, a, input, cli.ReviewDecisionApproved, agentIdentity(req))
 	})

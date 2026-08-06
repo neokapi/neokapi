@@ -158,7 +158,7 @@ func (d *DB) bind(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("projectdb: bind block store (autocommit): %w", err)
 	}
-	work, err := state.OpenWorkFromDB(ctx, d.raw, d.layout.DecisionsDir())
+	work, err := state.OpenWorkFromDB(ctx, d.raw, d.layout.UnitStateDir())
 	if err != nil {
 		return fmt.Errorf("projectdb: bind working store: %w", err)
 	}
@@ -169,7 +169,7 @@ func (d *DB) bind(ctx context.Context) error {
 // openDegraded builds the browser build's handle: a sidecar-backed working
 // store and nothing else.
 func openDegraded(ctx context.Context, layout project.Layout) (*DB, error) {
-	work, err := state.OpenWorkSidecar(ctx, layout.StoreSidecarPath(), layout.DecisionsDir())
+	work, err := state.OpenWorkSidecar(ctx, layout.StoreSidecarPath(), layout.UnitStateDir())
 	if err != nil {
 		return nil, fmt.Errorf("projectdb: open working set sidecar: %w", err)
 	}

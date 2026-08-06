@@ -140,14 +140,14 @@ func TestHandleReviewDecision_ApproveRejectSignOff(t *testing.T) {
 
 	// Identities and the note reach the committed record via the explicit
 	// commit — decisions stage in the working store, and `kapi commit` is the
-	// only door into the git-tracked shards under .kapi/context/decisions/.
+	// only door into the git-tracked shards under .kapi/state/.
 	// A fresh App: the project store is owned per App, and this one exists only
 	// to publish what the App under test staged into the same file.
 	committer := &host.App{}
 	defer committer.Shutdown()
 	_, err = committer.CommitProjectState(t.Context(), root)
 	require.NoError(t, err)
-	units, err := state.ReadCommitted(project.LayoutAt(root).DecisionsDir())
+	units, err := state.ReadCommitted(project.LayoutAt(root).UnitStateDir())
 	require.NoError(t, err)
 	require.Len(t, units, 2)
 	byUnit := map[string]state.UnitState{}

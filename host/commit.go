@@ -43,17 +43,17 @@ func (a *App) RunCommit(cmd Command, _ []string) error {
 	}
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
-	rel, relErr := filepath.Rel(root, layout.DecisionsDir())
+	rel, relErr := filepath.Rel(root, layout.UnitStateDir())
 	if relErr != nil {
-		rel = layout.DecisionsDir()
+		rel = layout.UnitStateDir()
 	}
-	fmt.Fprintf(out, "Committed %s to %s\n", pluralDecisions(n), rel)
+	fmt.Fprintf(out, "Committed %s to %s\n", pluralUnitStateChanges(n), rel)
 	return nil
 }
 
-func pluralDecisions(n int) string {
+func pluralUnitStateChanges(n int) string {
 	if n == 1 {
-		return "1 decision"
+		return "1 unit-state change"
 	}
-	return fmt.Sprintf("%d decisions", n)
+	return fmt.Sprintf("%d unit-state changes", n)
 }

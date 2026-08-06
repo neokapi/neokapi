@@ -222,7 +222,7 @@ func assertCommittedUnits(t *testing.T, root string, want int, msg string) {
 	require.NoError(t, err)
 
 	layout := project.Layout{StateDir: filepath.Join(root, project.StateDirName)}
-	units, err := state.ReadCommitted(layout.DecisionsDir())
+	units, err := state.ReadCommitted(layout.UnitStateDir())
 	require.NoError(t, err)
 	assert.Len(t, units, want, msg)
 }

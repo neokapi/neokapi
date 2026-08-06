@@ -723,7 +723,7 @@ func makeUnitState(i int) state.UnitState {
 
 // projectLayout describes the synthetic project to core/projectdb. The paths
 // are the same ones newStorePaths computes for the merged topologies —
-// `.kapi/work/store.db` and `.kapi/context/decisions` — because project.Layout computes them the
+// `.kapi/work/store.db` and `.kapi/state/` — because project.Layout computes them the
 // same way; the assertion in openRealProject keeps that true.
 func projectLayout(root string) project.Layout {
 	return project.Layout{

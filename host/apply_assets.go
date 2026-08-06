@@ -77,7 +77,7 @@ func (a *App) resolveProjectRoot(cmd Command) (recipePath, root string, err erro
 // ---------------------------------------------------------------------------
 
 // applyTermEntry upserts a glossary term. It edits the committed .terms.json source
-// the recipe binds (creating .kapi/context/terms.json and binding it when none
+// the recipe binds (creating .kapi/terms.json and binding it when none
 // exists), then re-imports the whole .terms.json into the project store's
 // vocabulary so the store reflects the committed source — one write path.
 func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
@@ -135,7 +135,7 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 
 // ensureTermsSourceBinding returns the committed .terms.json source path the
 // recipe binds via defaults.terms_source, creating a default
-// (.kapi/context/terms.json) and writing the binding into the recipe when none is
+// (.kapi/terms.json) and writing the binding into the recipe when none is
 // bound — so future runs are consistent.
 func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
@@ -145,7 +145,7 @@ func (a *App) ensureTermsSourceBinding(recipePath, root string) (string, error) 
 	if bound := proj.Defaults.TermsSource; bound != "" {
 		return resolveUnder(root, bound), nil
 	}
-	rel := project.RelContextPath(ktb.ConventionalName)
+	rel := project.RelStatePath(ktb.ConventionalName)
 	proj.Defaults.TermsSource = rel
 	// Only the SOURCE is bound. The compiled vocabulary has one destination now
 	// — the project's own store — so there is no second binding to keep pointed
@@ -380,14 +380,16 @@ func (a *App) applyMemoryEntry(ctx context.Context, cmd Command, e changeEntry) 
 }
 
 // ensureMemorySourceBinding returns the committed bundle path bound via
-// defaults.memory_source, scaffolding and binding l10n/memory.json when none is
-// bound and the project holds no bundles yet.
+// defaults.memory_source, scaffolding and binding `.kapi/memory/memory.json`
+// when none is bound and the project holds no bundles yet.
 //
 // A project may keep many content-memory bundles — this repository commits one
-// per content surface — and nothing in an unbound recipe says which of them
-// reviewed edits belong in. Picking one silently would write approved content
-// into the wrong surface, so an unbound project that already has bundles is an
-// error naming the candidates rather than a guess.
+// per content surface, all of them under `.kapi/memory/` — and nothing in an
+// unbound recipe says which of them reviewed edits belong in. Picking one
+// silently would write approved content into the wrong surface, so an unbound
+// project that already has bundles is an error naming the candidates rather
+// than a guess. The conventional primary is only the name a project gets when
+// it has no bundle at all yet.
 func (a *App) ensureMemorySourceBinding(recipePath, root string) (string, error) {
 	proj, err := project.LoadWithOptions(recipePath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {
@@ -402,7 +404,7 @@ func (a *App) ensureMemorySourceBinding(recipePath, root string) (string, error)
 				"bind the one that reviewed edits belong in",
 			len(existing), pluralBundles(len(existing)), strings.Join(existing, ", "))
 	}
-	rel := project.RelContextPath(kmb.ConventionalName)
+	rel := project.RelStatePath(project.MemoryDirName, kmb.ConventionalName)
 	proj.Defaults.MemorySource = rel
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind tm source: %w", err)
@@ -411,15 +413,23 @@ func (a *App) ensureMemorySourceBinding(recipePath, root string) (string, error)
 }
 
 // findMemoryBundles returns the project-relative paths of every content-memory
-// bundle committed under root, skipping kapi's own state directory.
+// bundle committed under root.
+//
+// `.kapi/` is walked like any other directory, because `.kapi/memory/` is where
+// a project's bundles live: skipping it — which the layout before the flattening
+// did, when `.kapi/` was reached for as a whole — hid the very bundles the
+// binding conflict is about. Only `.kapi/work/` is excluded, along with `.git`
+// and `node_modules`: a bundle staged in a cache is not a committed source and
+// must never win the binding.
 func findMemoryBundles(root string) []string {
+	work := project.LayoutAt(root).WorkDir()
 	var out []string
 	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil //nolint:nilerr // an unreadable subtree is not a binding conflict
 		}
 		if d.IsDir() {
-			if d.Name() == project.StateDirName || d.Name() == ".git" || d.Name() == "node_modules" {
+			if path == work || d.Name() == ".git" || d.Name() == "node_modules" {
 				return filepath.SkipDir
 			}
 			return nil
@@ -580,7 +590,7 @@ func memoryEntryID(source string, srcLocale, tgtLocale model.LocaleID) string {
 // ---------------------------------------------------------------------------
 
 // applyBrandEntry adds a vocabulary rule to the committed brand voice profile
-// YAML the recipe binds (creating .kapi/context/brand-voice.yaml and binding it under
+// YAML the recipe binds (creating .kapi/voice.yaml and binding it under
 // defaults.brand_voice.profile_file when none exists), then re-imports the
 // profile into the local brand store so the store reflects the committed source.
 func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) assetResult {
@@ -631,7 +641,7 @@ func (a *App) applyBrandEntry(ctx context.Context, cmd Command, e changeEntry) a
 }
 
 // ensureBrandProfileBinding returns the committed profile YAML path bound via
-// defaults.brand_voice.profile_file, creating .kapi/context/brand-voice.yaml and binding
+// defaults.brand_voice.profile_file, creating .kapi/voice.yaml and binding
 // it when no profile_file is bound. A non-file binding (pack/store profile) is
 // an error: apply edits a committed file, not a starter pack or a store row.
 func (a *App) ensureBrandProfileBinding(recipePath, root string) (string, error) {
@@ -647,7 +657,7 @@ func (a *App) ensureBrandProfileBinding(recipePath, root string) (string, error)
 			return "", errors.New("brand: defaults.brand_voice binds a pack/store profile, not a committed profile_file — bind a profile_file to apply rules")
 		}
 	}
-	rel := project.RelContextPath(BrandVoiceConventionalName)
+	rel := project.RelStatePath(BrandVoiceConventionalName)
 	proj.Defaults.BrandVoice = &project.BrandVoiceBinding{ProfileFile: rel}
 	if err := project.Save(recipePath, proj); err != nil {
 		return "", fmt.Errorf("bind brand voice profile: %w", err)

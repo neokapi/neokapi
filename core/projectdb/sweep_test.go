@@ -98,11 +98,11 @@ func TestSweep_CarriesStagedDecisionsForward(t *testing.T) {
 
 	// A committed record the new working store will re-seed from, so the test
 	// can tell a carried decision from a re-derived one.
-	require.NoError(t, state.WriteCommitted(layout.DecisionsDir(), []state.UnitState{
+	require.NoError(t, state.WriteCommitted(layout.UnitStateDir(), []state.UnitState{
 		unit("u-committed", "d-intro", "Already committed"),
 	}))
 
-	old, err := state.OpenWork(t.Context(), oldWorkStorePath(layout), layout.DecisionsDir())
+	old, err := state.OpenWork(t.Context(), oldWorkStorePath(layout), layout.UnitStateDir())
 	require.NoError(t, err)
 	require.NoError(t, old.Put(t.Context(), unit("u-staged", "d-intro", "Staged, never committed")))
 	pending, err := old.Pending(t.Context())
@@ -138,7 +138,7 @@ func TestSweep_CarriesStagedDecisionsFromSidecar(t *testing.T) {
 	require.NoError(t, os.MkdirAll(layout.WorkDir(), 0o755))
 
 	sidecar := filepath.Join(layout.WorkDir(), "state.json")
-	old, err := state.OpenWorkSidecar(t.Context(), sidecar, layout.DecisionsDir())
+	old, err := state.OpenWorkSidecar(t.Context(), sidecar, layout.UnitStateDir())
 	require.NoError(t, err)
 	require.NoError(t, old.Put(t.Context(), unit("u-sidecar", "d-intro", "Staged in the browser")))
 	require.NoError(t, old.Close())
@@ -220,7 +220,7 @@ func TestSweep_UnreadablePredecessorDoesNotFailOpen(t *testing.T) {
 // The committed decision record is authored data. It MOVES, byte for byte:
 // a shard that arrived rewritten, or arrived not at all, is review history
 // silently rewritten by a directory rename.
-func TestFold_MovesCommittedDecisionsIntoContext(t *testing.T) {
+func TestFold_MovesCommittedRecordIntoUnitState(t *testing.T) {
 	layout := newLayout(t)
 	require.NoError(t, state.WriteCommitted(flatDecisionsDir(layout), []state.UnitState{
 		unit("u-flat", "d-intro", "Committed under the flat layout"),
@@ -234,8 +234,8 @@ func TestFold_MovesCommittedDecisionsIntoContext(t *testing.T) {
 
 	db := openStore(t, layout)
 
-	after, err := os.ReadFile(filepath.Join(layout.DecisionsDir(), shards[0].Name()))
-	require.NoError(t, err, "the shard landed under .kapi/context/decisions/")
+	after, err := os.ReadFile(filepath.Join(layout.UnitStateDir(), shards[0].Name()))
+	require.NoError(t, err, "the shard landed under .kapi/state/")
 	assert.Equal(t, before, after, "the committed record moves byte-identical")
 	assert.NoDirExists(t, flatDecisionsDir(layout), "an emptied source directory goes")
 
@@ -363,17 +363,17 @@ func TestFold_SecondOpenIsANoOp(t *testing.T) {
 	db := openStore(t, layout)
 	require.NoError(t, db.Close())
 
-	shards, err := os.ReadDir(layout.DecisionsDir())
+	shards, err := os.ReadDir(layout.UnitStateDir())
 	require.NoError(t, err)
 	require.Len(t, shards, 1)
-	firstShard, err := os.ReadFile(filepath.Join(layout.DecisionsDir(), shards[0].Name()))
+	firstShard, err := os.ReadFile(filepath.Join(layout.UnitStateDir(), shards[0].Name()))
 	require.NoError(t, err)
 	firstVault, err := os.ReadFile(layout.RedactionVaultPath())
 	require.NoError(t, err)
 
 	openStore(t, layout)
 
-	secondShard, err := os.ReadFile(filepath.Join(layout.DecisionsDir(), shards[0].Name()))
+	secondShard, err := os.ReadFile(filepath.Join(layout.UnitStateDir(), shards[0].Name()))
 	require.NoError(t, err)
 	secondVault, err := os.ReadFile(layout.RedactionVaultPath())
 	require.NoError(t, err)
@@ -397,10 +397,10 @@ func TestFold_CollisionKeepsBothCopies(t *testing.T) {
 
 	// A shard already at the destination, holding a different decision for the
 	// same document — the shape a half-migrated project would arrive in.
-	require.NoError(t, state.WriteCommitted(layout.DecisionsDir(), []state.UnitState{
+	require.NoError(t, state.WriteCommitted(layout.UnitStateDir(), []state.UnitState{
 		unit("u-current", "d-intro", "The current copy"),
 	}))
-	occupied := filepath.Join(layout.DecisionsDir(), shards[0].Name())
+	occupied := filepath.Join(layout.UnitStateDir(), shards[0].Name())
 	before, err := os.ReadFile(occupied)
 	require.NoError(t, err)
 
@@ -411,4 +411,148 @@ func TestFold_CollisionKeepsBothCopies(t *testing.T) {
 	assert.Equal(t, before, kept, "the destination is never overwritten")
 	assert.FileExists(t, filepath.Join(flatDecisionsDir(layout), shards[0].Name()),
 		"and the source stays, visibly, rather than being deleted unread")
+}
+
+// ─── the `context/` umbrella: committed sources one level too deep ───────────
+
+// umbrellaDir is the generation that grouped the committed sources under
+// `.kapi/context/`, spelled here as the test's own fixture for the same reason
+// the flat names are.
+func umbrellaDir(layout project.Layout) string {
+	return filepath.Join(layout.StateDir, "context")
+}
+
+func writeUnder(t *testing.T, path, content string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+}
+
+func readString(t *testing.T, path string) string {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	require.NoError(t, err)
+	return string(b)
+}
+
+// Every committed source the umbrella held comes up one level, under the name
+// the flattened layout gives it.
+func TestFold_LiftsContextUmbrella(t *testing.T) {
+	layout := newLayout(t)
+	umbrella := umbrellaDir(layout)
+
+	writeUnder(t, filepath.Join(umbrella, "terms.json"), `{"concepts":[]}`)
+	writeUnder(t, filepath.Join(umbrella, "memory.json"), `{"entries":["primary"]}`)
+	writeUnder(t, filepath.Join(umbrella, "memory", "docs-nb.memory.json"), `{"entries":["docs"]}`)
+	writeUnder(t, filepath.Join(umbrella, "README.md"), "notes a project kept\n")
+	require.NoError(t, state.WriteCommitted(filepath.Join(umbrella, "decisions"), []state.UnitState{
+		unit("u-umbrella", "d-intro", "Committed under the umbrella"),
+	}))
+
+	db := openStore(t, layout)
+
+	assert.Equal(t, `{"concepts":[]}`, readString(t, filepath.Join(layout.StateDir, "terms.json")))
+	assert.Equal(t, `{"entries":["primary"]}`,
+		readString(t, filepath.Join(layout.MemoryDir(), "memory.json")),
+		"the single conventional bundle becomes the primary inside memory/")
+	assert.Equal(t, `{"entries":["docs"]}`,
+		readString(t, filepath.Join(layout.MemoryDir(), "docs-nb.memory.json")))
+	assert.Equal(t, "notes a project kept\n", readString(t, filepath.Join(layout.StateDir, "README.md")),
+		"a file the fold has no rule for is lifted verbatim, not left behind")
+
+	shards, err := os.ReadDir(layout.UnitStateDir())
+	require.NoError(t, err)
+	require.Len(t, shards, 1)
+	_, ok := db.Work().Get(t.Context(), state.Key{Unit: "u-umbrella", Variant: model.Variant("nb")})
+	assert.True(t, ok, "the lifted record seeded the working set on this same open")
+
+	assert.NoDirExists(t, umbrella, "an emptied umbrella goes")
+}
+
+// A voice profile's scope used to live in its filename because the directory
+// could not carry it. Now the directory does.
+func TestFold_MovesGovernanceIntoProfiles(t *testing.T) {
+	layout := newLayout(t)
+	umbrella := umbrellaDir(layout)
+
+	writeUnder(t, filepath.Join(umbrella, "brand-voice.yaml"), "name: Default\n")
+	writeUnder(t, filepath.Join(umbrella, "bowrain-voice.yaml"), "name: Bowrain\n")
+	writeUnder(t, filepath.Join(umbrella, "bowrain-terms.json"), `{"concepts":["bowrain"]}`)
+	writeUnder(t, filepath.Join(umbrella, "terms.json"), `{"concepts":["default"]}`)
+
+	openStore(t, layout)
+
+	assert.Equal(t, "name: Default\n", readString(t, filepath.Join(layout.StateDir, "voice.yaml")),
+		"the project default drops the prefix the directory now states")
+	assert.Equal(t, "name: Bowrain\n",
+		readString(t, filepath.Join(layout.ProfileDir("bowrain"), "voice.yaml")))
+	assert.Equal(t, `{"concepts":["bowrain"]}`,
+		readString(t, filepath.Join(layout.ProfileDir("bowrain"), "terms.json")))
+	assert.Equal(t, `{"concepts":["default"]}`,
+		readString(t, filepath.Join(layout.StateDir, "terms.json")),
+		"an unprefixed terms bundle is the project's own and stays flat")
+}
+
+// The same governance rename applies to a project that already flattened its
+// umbrella but still names its profiles in its filenames.
+func TestFold_MovesGovernanceFromFlatStateDir(t *testing.T) {
+	layout := newLayout(t)
+	writeUnder(t, filepath.Join(layout.StateDir, "brand-voice.yaml"), "name: Default\n")
+	writeUnder(t, filepath.Join(layout.StateDir, "bowrain-voice.yaml"), "name: Bowrain\n")
+
+	openStore(t, layout)
+
+	assert.Equal(t, "name: Default\n", readString(t, filepath.Join(layout.StateDir, "voice.yaml")))
+	assert.Equal(t, "name: Bowrain\n",
+		readString(t, filepath.Join(layout.ProfileDir("bowrain"), "voice.yaml")))
+	assert.NoFileExists(t, filepath.Join(layout.StateDir, "brand-voice.yaml"))
+}
+
+// The umbrella fold loses nothing on a collision either: the destination wins
+// and the source stays where a person can see it.
+func TestFold_ContextUmbrellaCollisionKeepsBothCopies(t *testing.T) {
+	layout := newLayout(t)
+	umbrella := umbrellaDir(layout)
+	writeUnder(t, filepath.Join(umbrella, "terms.json"), `{"concepts":["umbrella"]}`)
+	writeUnder(t, filepath.Join(umbrella, "memory.json"), `{"entries":["umbrella"]}`)
+	writeUnder(t, filepath.Join(layout.StateDir, "terms.json"), `{"concepts":["flat"]}`)
+	writeUnder(t, filepath.Join(layout.MemoryDir(), "memory.json"), `{"entries":["flat"]}`)
+
+	openStore(t, layout)
+
+	assert.Equal(t, `{"concepts":["flat"]}`, readString(t, filepath.Join(layout.StateDir, "terms.json")))
+	assert.Equal(t, `{"entries":["flat"]}`, readString(t, filepath.Join(layout.MemoryDir(), "memory.json")))
+	assert.Equal(t, `{"concepts":["umbrella"]}`, readString(t, filepath.Join(umbrella, "terms.json")),
+		"the source stays, visibly, rather than being deleted unread")
+	assert.Equal(t, `{"entries":["umbrella"]}`, readString(t, filepath.Join(umbrella, "memory.json")))
+	assert.DirExists(t, umbrella, "and its directory outlives the fold, which is how a person notices")
+}
+
+// Idempotent: a second open finds nothing to do and changes nothing.
+func TestFold_ContextUmbrellaSecondOpenIsANoOp(t *testing.T) {
+	layout := newLayout(t)
+	umbrella := umbrellaDir(layout)
+	writeUnder(t, filepath.Join(umbrella, "terms.json"), `{"concepts":[]}`)
+	writeUnder(t, filepath.Join(umbrella, "bowrain-voice.yaml"), "name: Bowrain\n")
+
+	db := openStore(t, layout)
+	require.NoError(t, db.Close())
+	first := readString(t, filepath.Join(layout.ProfileDir("bowrain"), "voice.yaml"))
+
+	openStore(t, layout)
+
+	assert.Equal(t, first, readString(t, filepath.Join(layout.ProfileDir("bowrain"), "voice.yaml")))
+	assert.Equal(t, `{"concepts":[]}`, readString(t, filepath.Join(layout.StateDir, "terms.json")))
+	assert.NoDirExists(t, umbrella)
+}
+
+// A project that never had an umbrella is untouched by the fold that lifts one.
+func TestFold_NoContextUmbrellaIsANoOp(t *testing.T) {
+	layout := newLayout(t)
+	writeUnder(t, filepath.Join(layout.StateDir, "terms.json"), `{"concepts":[]}`)
+
+	openStore(t, layout)
+
+	assert.Equal(t, `{"concepts":[]}`, readString(t, filepath.Join(layout.StateDir, "terms.json")))
+	assert.NoDirExists(t, umbrellaDir(layout))
 }

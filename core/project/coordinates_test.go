@@ -105,6 +105,7 @@ func TestKapiProject_ResolveGovernance(t *testing.T) {
 				Channel:    "docs",
 				Voice:      &BrandVoiceBinding{ProfileFile: "context/kapi-voice.yaml"},
 				VoiceField: "profiles[0].voice",
+				Profile:    "kapi",
 			},
 		},
 		{
@@ -115,6 +116,7 @@ func TestKapiProject_ResolveGovernance(t *testing.T) {
 				Voice:      &BrandVoiceBinding{ProfileFile: "context/bowrain-voice.yaml"},
 				Terms:      "context/bowrain-terms.json",
 				VoiceField: "profiles[1].voice",
+				Profile:    "bowrain",
 			},
 		},
 		{
@@ -125,6 +127,7 @@ func TestKapiProject_ResolveGovernance(t *testing.T) {
 				Voice:      &BrandVoiceBinding{ProfileFile: "context/bowrain-voice.yaml"},
 				Terms:      "context/bowrain-terms.json",
 				VoiceField: "profiles[1].voice",
+				Profile:    "bowrain",
 			},
 		},
 		{
@@ -135,6 +138,7 @@ func TestKapiProject_ResolveGovernance(t *testing.T) {
 				Voice:      &BrandVoiceBinding{ProfileFile: "context/bowrain-de.yaml"},
 				Terms:      "context/de-terms.json",
 				VoiceField: "profiles[2].voice",
+				Profile:    "de-bowrain",
 			},
 		},
 	}
