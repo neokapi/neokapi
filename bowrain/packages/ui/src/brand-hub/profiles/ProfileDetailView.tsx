@@ -114,7 +114,7 @@ export function ProfileDetailView({
           ) : (
             <p className="text-sm text-muted-foreground">
               No voice bound. Name one under profiles[].voice: in the recipe that declares this
-              point, or set defaults.brand_voice: for the project.
+              point, or give the project a default voice.
             </p>
           )}
         </Section>
