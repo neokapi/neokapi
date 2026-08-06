@@ -11,6 +11,7 @@ import {
   AppSidebar,
   type AppSidebarProps,
   type SubNavItem,
+  NavCount,
   subNavConfig,
   viewLabel,
 } from "./AppSidebar";
@@ -59,12 +60,14 @@ function SecondaryPanel({
   activeId,
   onSelect,
   open,
+  counts,
 }: {
   title: string;
   items: SubNavItem[];
   activeId?: string;
   onSelect: (id: string) => void;
   open: boolean;
+  counts?: Record<string, number>;
 }) {
   return (
     <div
@@ -102,6 +105,7 @@ function SecondaryPanel({
                 >
                   <span className="[&_svg]:size-4 shrink-0">{item.icon}</span>
                   <span>{item.label}</span>
+                  <NavCount count={counts?.[item.id]} />
                 </button>
               </li>
             ))}
@@ -163,6 +167,7 @@ export function AppShell<V extends string = string>({
                 activeId={activeSubNav}
                 onSelect={onSubNavChange}
                 open={showSecondary}
+                counts={sidebarProps.subNavCounts}
               />
             )}
             <div

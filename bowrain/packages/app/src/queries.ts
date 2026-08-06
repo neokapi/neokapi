@@ -90,6 +90,20 @@ export const myTasksQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
     refetchInterval: 60_000,
   });
 
+/**
+ * The change-sets waiting on a review. The nav wears this count so a workspace
+ * says it has governed work waiting before anyone opens the page it is waiting
+ * on. The key matches the one @neokapi/ui's useChangesets uses, so a lifecycle
+ * mutation invalidates both at once.
+ */
+export const pendingChangesetsQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
+  queryOptions({
+    queryKey: ["changesets", workspaceSlug, "in_review"],
+    queryFn: () => api.listChangesets(workspaceSlug, "in_review"),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
 /** Page size for the dashboard's per-file table (server-sorted, lazy-loaded). */
 export const DASHBOARD_ITEM_PAGE_SIZE = 100;
 

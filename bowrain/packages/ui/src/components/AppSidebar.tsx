@@ -66,6 +66,24 @@ export interface SubNavItem {
   icon: React.ReactNode;
 }
 
+/**
+ * NavCount is the count pill a nav entry wears when work is waiting behind it —
+ * the same quiet primary-tinted pill the governance inbox uses for its queue
+ * length, so a count means the same thing wherever it appears. Nothing renders
+ * at zero: a badge that is always there stops being a signal.
+ */
+export function NavCount({ count }: { count?: number }) {
+  if (!count || count <= 0) return null;
+  return (
+    <span
+      className="ml-auto shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-primary"
+      aria-label={`${count} waiting`}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
 export type ProjectView = "dashboard" | "automations" | "runs" | "connectors";
@@ -115,6 +133,12 @@ export interface AppSidebarProps<V extends string = string> {
    * item like the @bravo settings entry). Filtered out of the rendered sub-nav.
    */
   hiddenSubNavIds?: string[];
+  /**
+   * Counts of work waiting behind a sub-nav entry, keyed by item id. A non-zero
+   * count renders as a pill on that entry — the nav is where someone looks to
+   * find out there is anything to do at all. Zero and absent both render nothing.
+   */
+  subNavCounts?: Record<string, number>;
 }
 
 // ---------------------------------------------------------------------------
@@ -350,6 +374,7 @@ function MobileNav<V extends string>({
   activeSubNav,
   onSubNavChange,
   hiddenSubNavIds,
+  subNavCounts,
 }: {
   activeView: V;
   onViewChange: (view: V) => void;
@@ -358,6 +383,7 @@ function MobileNav<V extends string>({
   activeSubNav?: string;
   onSubNavChange?: (id: string) => void;
   hiddenSubNavIds?: string[];
+  subNavCounts?: Record<string, number>;
 }) {
   const { setOpenMobile } = useSidebar();
   const mainItems = [...workspaceNavItems(), ...extraNavItems];
@@ -522,6 +548,7 @@ function MobileNav<V extends string>({
                     >
                       {item.icon}
                       <span>{item.label}</span>
+                      <NavCount count={subNavCounts?.[item.id]} />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -550,6 +577,7 @@ export function AppSidebar<V extends string = string>({
   activeSubNav,
   onSubNavChange,
   hiddenSubNavIds,
+  subNavCounts,
   // Consumed but not passed to Sidebar DOM
   user: _user,
   onSignOut: _onSignOut,
@@ -589,6 +617,7 @@ export function AppSidebar<V extends string = string>({
             activeSubNav={activeSubNav}
             onSubNavChange={onSubNavChange}
             hiddenSubNavIds={hiddenSubNavIds}
+            subNavCounts={subNavCounts}
           />
         </SidebarContent>
       </Sidebar>
