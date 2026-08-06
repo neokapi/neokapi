@@ -746,6 +746,12 @@ func NewServer(cfg Config) *Server {
 		if s.DigestStore != nil {
 			s.NotificationDispatcher.SetDigestStore(s.DigestStore)
 		}
+
+		// A failed job summons the person waiting on it. Separate from the
+		// dispatcher's generic event map on purpose: that map fans out to every
+		// member of the job's project, and a failure goes to whoever asked for
+		// the work. See job_failure_summons.go.
+		s.subscribeJobFailures()
 	}
 
 	// Wire up digest workers (Bowrain AD-014).

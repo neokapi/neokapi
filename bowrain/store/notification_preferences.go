@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 )
 
 // NotificationCategory groups notification types for preference management.
@@ -111,6 +112,34 @@ func (s *PreferenceStore) Get(ctx context.Context, userID, workspaceID string, c
 		}
 	}
 	return &NotificationPreference{UserID: userID, WorkspaceID: workspaceID, Category: category, Web: true, Desktop: true}, nil
+}
+
+// Lookup returns the preference the user actually stored for a category, and
+// whether they stored one at all.
+//
+// Get and List cannot answer that: both fold DefaultPreferences in, so a user
+// who has never opened notification preferences is indistinguishable from one
+// who deliberately turned a channel off. That distinction is the whole of
+// "on by default, off if you say so" — a caller whose default differs from the
+// category's (a job failure mails, while the rest of the automation category
+// does not) needs to honour a stored "no" without inheriting a default "no".
+func (s *PreferenceStore) Lookup(ctx context.Context, userID, workspaceID string, category NotificationCategory) (*NotificationPreference, bool, error) {
+	var p NotificationPreference
+	var cat string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT user_id, workspace_id, category, channel_web, channel_email, channel_push, channel_desktop
+		 FROM notification_preferences
+		 WHERE user_id = $1 AND workspace_id = $2 AND category = $3`,
+		userID, workspaceID, string(category)).Scan(
+		&p.UserID, &p.WorkspaceID, &cat, &p.Web, &p.Email, &p.Push, &p.Desktop)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	p.Category = NotificationCategory(cat)
+	return &p, true, nil
 }
 
 // Upsert saves a notification preference, creating or updating as needed.

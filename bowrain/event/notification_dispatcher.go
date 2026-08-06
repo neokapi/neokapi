@@ -152,12 +152,12 @@ func (d *NotificationDispatcher) mapEventToNotification(ev platev.Event) *bstore
 	}
 
 	switch ev.Type {
-	case platev.EventFlowFailed:
-		n.Type = bstore.NotificationFlowFailed
-		n.Title = "Flow failed"
-		n.Body = "A processing flow failed in your project"
-		n.Category = string(bstore.CategoryAutomation)
-
+	// flow.failed is deliberately absent. It has a dedicated consumer —
+	// server.subscribeJobFailures — because the recipients are not the ones this
+	// function's caller resolves: it takes every member of ev.ProjectID, and a
+	// failed job goes to the person who asked for the work, falling back to the
+	// workspace's owners. Handling it here as well would summon the whole
+	// project alongside them, twice.
 	case platev.EventQualityGateFail:
 		n.Type = bstore.NotificationGateFailed
 		n.Title = "Quality gate failed"
