@@ -11,13 +11,29 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
+// taskWorkspaceID is the value the tasks table is keyed by: the workspace's
+// **id**, resolved by WorkspaceAccessMiddleware from the :ws slug.
+//
+// Every server-side task writer already keys on the id — createSourceProposalTask
+// and the automation fan-out both pass proj.WorkspaceID — so a queue that read
+// c.Param("ws") (the slug) matched none of them, and every system-created task was
+// invisible in /:ws/tasks. That is exactly how a workspace with open review work
+// answered the tasks endpoint with an empty list. The slug is kept only as the
+// fallback for the handful of routes that run without the workspace middleware.
+func taskWorkspaceID(c echo.Context) string {
+	if wsID, _ := c.Get("workspace_id").(string); wsID != "" {
+		return wsID
+	}
+	return c.Param("ws")
+}
+
 // HandleListTasks returns tasks for a workspace, optionally filtered.
 func (s *Server) HandleListTasks(c echo.Context) error {
 	if s.TaskStore == nil {
 		return c.JSON(http.StatusOK, map[string]any{"tasks": []any{}, "next_cursor": ""})
 	}
 
-	ws := c.Param("ws")
+	ws := taskWorkspaceID(c)
 	ctx := c.Request().Context()
 
 	// "me" resolves to the authenticated user (mirroring the review queue's
@@ -68,7 +84,7 @@ func (s *Server) HandleCreateTask(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "tasks not configured"})
 	}
 
-	ws := c.Param("ws")
+	ws := taskWorkspaceID(c)
 	userID, _ := c.Get("user_id").(string)
 
 	var req struct {

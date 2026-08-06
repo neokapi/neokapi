@@ -326,13 +326,13 @@ func (s *TaskStore) Delete(ctx context.Context, taskID string) error {
 func scanTask(row scanner) (*Task, error) {
 	var t Task
 	var typ, status, priority, dataJSON string
-	var dueAt, completedAt sql.NullTime
+	var dueAt, completedAt, createdAt, updatedAt scanTime
 
 	err := row.Scan(
 		&t.ID, &t.WorkspaceID, &t.ProjectID, &t.Stream,
 		&typ, &status, &priority,
 		&t.Title, &t.Description, &t.AssigneeID, &t.CreatedBy, &t.CompletedBy,
-		&dataJSON, &dueAt, &t.CreatedAt, &t.UpdatedAt, &completedAt,
+		&dataJSON, &dueAt, &createdAt, &updatedAt, &completedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -341,6 +341,8 @@ func scanTask(row scanner) (*Task, error) {
 	t.Type = TaskType(typ)
 	t.Status = TaskStatus(status)
 	t.Priority = TaskPriority(priority)
+	t.CreatedAt = createdAt.Time
+	t.UpdatedAt = updatedAt.Time
 
 	if dueAt.Valid {
 		d := dueAt.Time.UTC()
