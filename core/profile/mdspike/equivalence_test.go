@@ -17,7 +17,7 @@ import (
 // constants so the spike never grows an absolute path.
 const (
 	bowrainYAML = "../../../.kapi/profiles/bowrain/voice.yaml"
-	brandYAML   = "../../../.kapi/voice.yaml"
+	voiceYAML   = "../../../.kapi/voice.yaml"
 	termsJSON   = "../../../.kapi/terms.json"
 )
 
@@ -84,7 +84,7 @@ func TestMarkdownFormValidates(t *testing.T) {
 // not the regex, to the model, so the two profiles already give the model
 // different instructions for the same prohibition.
 func TestHouseRulesAreDuplicatedToday(t *testing.T) {
-	brand := loadYAML(t, brandYAML)
+	brand := loadYAML(t, voiceYAML)
 	bowrain := loadYAML(t, bowrainYAML)
 
 	byRegex := func(p *profile.VoiceProfile) map[string]string {

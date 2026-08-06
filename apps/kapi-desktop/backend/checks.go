@@ -280,7 +280,7 @@ func (a *App) readBlocksForChecks(ctx context.Context, path, fmtName, sourceLang
 // resolveProjectVoiceProfile resolves the voice profile bound to the
 // open project through the CLI's full resolution ladder
 // (host.App.ResolveVoiceProfile): defaults.voice (profile_file / pack /
-// local voice store) then the convention brand.yaml files at the project
+// local voice store) then the convention voice.yaml files at the project
 // root. Best-effort: nil when nothing is bound or resolution fails — the
 // voice vocabulary check is then skipped, matching the CLI's flag-free
 // behavior.

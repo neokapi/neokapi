@@ -414,8 +414,7 @@ type VoiceResolveOptions struct {
 //     root.
 //  2. That profile's conventional file, <root>/.kapi/profiles/<name>/voice.yaml.
 //  3. defaults.voice, in the same three forms.
-//  4. A convention file at <root>/.kapi/voice.yaml, then <root>/voice.yaml,
-//     then <root>/brand.yaml.
+//  4. A convention file at <root>/.kapi/voice.yaml, then <root>/voice.yaml.
 //
 // What the recipe binds is *loaded* here and then handed to the framework's one
 // resolution chain (coreprofile.ResolveProfileFromContext) at the collection tier,
@@ -534,8 +533,7 @@ const VoiceConventionalName = "voice.yaml"
 func voiceProfileConventions(root string) []string {
 	return []string{
 		filepath.Join(root, project.RelStatePath(VoiceConventionalName)),
-		filepath.Join(root, "voice.yaml"),
-		filepath.Join(root, "brand.yaml"),
+		filepath.Join(root, VoiceConventionalName),
 	}
 }
 

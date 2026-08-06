@@ -130,7 +130,7 @@ func TestRunCheckToolAndFindingsFromBlock(t *testing.T) {
 }
 
 // TestResolveVoiceProfile_Ladder exercises the cobra-free resolution ladder:
-// recipe binding (profile_file) wins, then the convention brand.yaml files,
+// recipe binding (profile_file) wins, then the convention voice.yaml files,
 // then found=false.
 func TestResolveVoiceProfile_Ladder(t *testing.T) {
 	app := &App{}
@@ -150,15 +150,15 @@ func TestResolveVoiceProfile_Ladder(t *testing.T) {
 		assert.Equal(t, filepath.Join(root, "voice.yaml"), src)
 	})
 
-	t.Run("convention brand.yaml", func(t *testing.T) {
+	t.Run("convention voice.yaml", func(t *testing.T) {
 		root := t.TempDir()
-		require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"), profileYAML, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), profileYAML, 0o644))
 		proj := &project.KapiProject{}
 		p, src, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{})
 		require.NoError(t, err)
 		require.True(t, found)
 		assert.Equal(t, "House Style", p.Name)
-		assert.Equal(t, filepath.Join(root, "brand.yaml"), src)
+		assert.Equal(t, filepath.Join(root, "voice.yaml"), src)
 	})
 
 	t.Run("convention .kapi/voice.yaml", func(t *testing.T) {
@@ -217,7 +217,7 @@ func TestResolveVoiceProfile_Ladder(t *testing.T) {
 		conv := filepath.Join(root, project.RelStatePath(VoiceConventionalName))
 		require.NoError(t, os.MkdirAll(filepath.Dir(conv), 0o755))
 		require.NoError(t, os.WriteFile(conv, profileYAML, 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"),
+		require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"),
 			[]byte("id: root\nname: Root Style\n"), 0o644))
 
 		p, src, found, err := app.ResolveVoiceProfile(ctx, &project.KapiProject{}, root, VoiceResolveOptions{})

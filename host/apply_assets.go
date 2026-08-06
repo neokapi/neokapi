@@ -585,7 +585,7 @@ func memoryEntryID(source string, srcLocale, tgtLocale model.LocaleID) string {
 }
 
 // ---------------------------------------------------------------------------
-// brand → committed brand.yaml (VoiceProfile) → voice store compile
+// voice → committed voice.yaml (VoiceProfile) → voice store compile
 // ---------------------------------------------------------------------------
 
 // applyVoiceEntry adds a vocabulary rule to the committed voice profile

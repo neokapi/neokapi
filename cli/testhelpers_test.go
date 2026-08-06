@@ -40,13 +40,13 @@ defaults:
   source_language: en
   target_languages: [fr]
   voice:
-    profile_file: brand.yaml
+    profile_file: voice.yaml
 content:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(recipe), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"), []byte(verifyBrandYAML), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(verifyBrandYAML), 0o644))
 
 	// Source: contains the competitor term "Globex" (brand fail) and a
 	// {name} placeholder plus a glossary term "Save".

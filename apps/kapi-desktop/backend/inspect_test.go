@@ -17,7 +17,7 @@ import (
 )
 
 // setupInspectProject writes a project with one JSON source file (and optionally
-// a translated target file), a convention brand.yaml (forbidden term "utilize"),
+// a translated target file), a convention voice.yaml (forbidden term "utilize"),
 // and seeded project terms (term "dashboard" → "tableau de bord"). It
 // opens the project and returns the tab id and the source file path.
 func setupInspectProject(t *testing.T, app *App, sourceJSON, targetJSON string) (tabID, srcPath string) {
@@ -33,7 +33,7 @@ func setupInspectProject(t *testing.T, app *App, sourceJSON, targetJSON string) 
 	}
 
 	// Convention voice profile: forbidden term "utilize" → "use".
-	brandYAML := `id: house
+	voiceYAML := `id: house
 name: House Style
 vocabulary:
   forbidden_terms:
@@ -41,7 +41,7 @@ vocabulary:
       replacement: use
       severity: major
 `
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "brand.yaml"), []byte(brandYAML), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "voice.yaml"), []byte(voiceYAML), 0o644))
 
 	// Seed the project's terms so the term annotator has data to match. They live
 	// in the project's one store, and this handle must be closed before the app

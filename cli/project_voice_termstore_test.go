@@ -49,9 +49,9 @@ func writeProjectRecipe(t *testing.T, recipe string) string {
 	return dir
 }
 
-// brandYAML is a minimal VoiceProfile with a forbidden term, written as a
+// voiceYAML is a minimal VoiceProfile with a forbidden term, written as a
 // project convention/binding file.
-const brandYAML = `name: Project Brand
+const voiceYAML = `name: Project Brand
 vocabulary:
   forbidden_terms:
     - term: utilize
@@ -69,9 +69,9 @@ defaults:
   source_language: en
   target_languages: [fr]
   voice:
-    profile_file: brand.yaml
+    profile_file: voice.yaml
 `)
-	require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"), []byte(brandYAML), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(voiceYAML), 0o644))
 	t.Chdir(root)
 
 	a := &App{}
@@ -81,11 +81,11 @@ defaults:
 	require.NoError(t, err, "no flag + project binding must resolve, not error")
 	require.NotNil(t, profile)
 	assert.Equal(t, "Project Brand", profile.Name)
-	assert.Equal(t, filepath.Join(root, "brand.yaml"), src)
+	assert.Equal(t, filepath.Join(root, "voice.yaml"), src)
 }
 
 // TestResolveVoiceProfile_FromConventionFile asserts that with no flag and no
-// recipe binding, brand resolution falls back to a brand.yaml convention file
+// recipe binding, brand resolution falls back to a voice.yaml convention file
 // at the project root.
 func TestResolveVoiceProfile_FromConventionFile(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
@@ -94,7 +94,7 @@ defaults:
   source_language: en
   target_languages: [fr]
 `)
-	require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"), []byte(brandYAML), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(voiceYAML), 0o644))
 	t.Chdir(root)
 
 	a := &App{}
@@ -104,7 +104,7 @@ defaults:
 	require.NoError(t, err)
 	require.NotNil(t, profile)
 	assert.Equal(t, "Project Brand", profile.Name)
-	assert.Equal(t, filepath.Join(root, "brand.yaml"), src)
+	assert.Equal(t, filepath.Join(root, "voice.yaml"), src)
 }
 
 // TestResolveVoiceProfile_NoProjectNoFlag asserts the original "specify a
@@ -129,9 +129,9 @@ func TestResolveVoiceProfile_ExplicitFlagWins(t *testing.T) {
 name: proj
 defaults:
   voice:
-    profile_file: brand.yaml
+    profile_file: voice.yaml
 `)
-	require.NoError(t, os.WriteFile(filepath.Join(root, "brand.yaml"), []byte(brandYAML), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(voiceYAML), 0o644))
 
 	explicit := filepath.Join(root, "explicit.yaml")
 	require.NoError(t, os.WriteFile(explicit, []byte("name: Explicit\n"), 0o644))

@@ -1507,7 +1507,7 @@ type ProjectBindings struct {
 // resolveProjectBindings resolves the standing brand-voice + glossary context
 // for one content collection of a project flow run — the governance at the
 // collection's point in the context space. The voice comes from the profile
-// matching that point, else defaults.voice, else a convention brand.yaml,
+// matching that point, else defaults.voice, else a convention voice.yaml,
 // with the point's channel selecting the override inside it; the glossary comes
 // from that profile's standalone terms, else the project's own store.
 // Returns nil when the project carries neither, so ad-hoc behavior is

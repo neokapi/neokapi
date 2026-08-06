@@ -672,7 +672,7 @@ defaults:
   source_language: en
   target_languages: [fr]
   voice:
-    profile_file: brand.yaml
+    profile_file: voice.yaml
 `
 	dir := t.TempDir()
 	path := filepath.Join(dir, "brandy.kapi")
@@ -681,7 +681,7 @@ defaults:
 	loaded, err := Load(path)
 	require.NoError(t, err)
 	require.NotNil(t, loaded.Defaults.Voice)
-	assert.Equal(t, "brand.yaml", loaded.Defaults.Voice.ProfileFile)
+	assert.Equal(t, "voice.yaml", loaded.Defaults.Voice.ProfileFile)
 	assert.Empty(t, loaded.Defaults.Voice.Profile)
 	assert.Empty(t, loaded.Defaults.Voice.Pack)
 }
@@ -714,11 +714,11 @@ func TestVoiceBinding_Validate(t *testing.T) {
 		wantErr bool
 	}{
 		{"nil is ok", nil, false},
-		{"profile_file only", &VoiceBinding{ProfileFile: "brand.yaml"}, false},
+		{"profile_file only", &VoiceBinding{ProfileFile: "voice.yaml"}, false},
 		{"profile only", &VoiceBinding{Profile: "house"}, false},
 		{"pack only", &VoiceBinding{Pack: "professional-b2b"}, false},
 		{"none set", &VoiceBinding{}, true},
-		{"two set", &VoiceBinding{ProfileFile: "brand.yaml", Pack: "p"}, true},
+		{"two set", &VoiceBinding{ProfileFile: "voice.yaml", Pack: "p"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
