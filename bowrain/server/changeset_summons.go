@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 
@@ -144,8 +145,8 @@ func (s *Server) openChangeSetReviewTask(ctx context.Context, cs *knowledge.Chan
 		CreatedBy:   cs.CreatedBy,
 		Data: map[string]string{
 			"changeset_id": cs.ID,
-			"op_count":     fmt.Sprint(opCount),
-			"governed":     fmt.Sprint(governed),
+			"op_count":     strconv.Itoa(opCount),
+			"governed":     strconv.FormatBool(governed),
 		},
 	}
 	if err := s.TaskStore.Create(ctx, task); err != nil {
