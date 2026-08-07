@@ -21,7 +21,7 @@ import type { ConceptSummary, Market, TermSource, TermStatus } from "./types";
 import { TERM_STATUSES } from "./types";
 import { primaryName, TERM_STATUS_LABEL } from "./concept-meta";
 import { termsByLocale } from "./grouping";
-import { StatusChip, LocalePill, EmptyHint } from "./atoms";
+import { StatusChip, LocalePill, EmptyHint, ErrorHint } from "./atoms";
 import { useResource } from "./useResource";
 import { useDebounced } from "./useDebounced";
 
@@ -177,6 +177,8 @@ export function ConceptList({
 
       {result.loading && !result.data ? (
         <ConceptListSkeleton />
+      ) : result.error && !result.data ? (
+        <ErrorHint title="Could not load concepts" description={result.error.message} />
       ) : concepts.length === 0 ? (
         emptyState && !filtered ? (
           emptyState

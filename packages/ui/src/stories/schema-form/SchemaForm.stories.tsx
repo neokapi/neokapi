@@ -162,7 +162,7 @@ const conditionalSchema: ComponentSchema = {
     },
     memoryPath: {
       type: "string",
-      title: "content memory File Path",
+      title: "Content Memory File Path",
       description: "Path to content memory file",
       "ui:widget": "path",
       "ui:enabled": { field: "useMemory", eq: true },

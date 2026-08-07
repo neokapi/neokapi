@@ -123,7 +123,7 @@ module.exports = {
 ### 2. Extract translatable content
 
 ```bash
-vp neokapi-i18n extract
+npx neokapi-i18n extract
 ```
 
 This scans your `src/` directory and produces one `.kbf.json` file per
@@ -166,7 +166,7 @@ translators can open in any editor.
 ### 4. Compile to the runtime dictionary
 
 ```bash
-vpx neokapi-i18n compile i18n/ --out public/translations
+npx neokapi-i18n compile i18n/ --out public/translations
 ```
 
 Produces one `<locale>.json` file per target locale with the
@@ -899,10 +899,10 @@ pay nothing for the import.
 
 ## CLI
 
-Run via `vp run` or `vpx neokapi-i18n`:
+Run via `npx neokapi-i18n` once `@neokapi/i18n-react` is installed:
 
 ```bash
-vpx neokapi-i18n extract [options]
+npx neokapi-i18n extract [options]
 
 Options:
   --src <glob>            Source files to scan (default: "src/**/*.{tsx,jsx}")
@@ -917,7 +917,7 @@ Options:
   --source-locale <bcp>   Source locale (default: "en")
   --target-locale <bcp>   Declared target locale (repeat for multiple)
 
-vpx neokapi-i18n compile <input> [options]
+npx neokapi-i18n compile <input> [options]
 
 Options:
   --locale <bcp>          Compile only this locale (repeat for multiple).
@@ -925,7 +925,7 @@ Options:
                           and in manifest.project.targetLocales.
   --out <dir>             Output directory (default: "public/translations")
 
-vpx neokapi-i18n explain <file-or-glob>... [--extracted]
+npx neokapi-i18n explain <file-or-glob>... [--extracted]
 
   Prints every element's W3C ITS classification, why it was or wasn't
   extracted (promotion, translate="no", block-level children, …), and
@@ -940,25 +940,25 @@ translate, content memory matching, QA, review — goes through the `kapi` CLI.
 ### Two output modes for extract
 
 - **Default: per-file KBF under `--out`.**
-  `vp neokapi-i18n extract` writes one `.kbf.json` per source file into
+  `npx neokapi-i18n extract` writes one `.kbf.json` per source file into
   `./i18n/` (override with `--out <dir>`). Human-readable,
   git-diffable, inspectable with `cat` or `jq`. Every kapi CLI
   command reads this layout directly.
 
 - **`--stream`: NDJSON block records on stdout.**
-  `vp neokapi-i18n extract --stream` reads NUL-separated paths from
+  `npx neokapi-i18n extract --stream` reads NUL-separated paths from
   stdin and writes one JSON block record per line to stdout. The
   wire form a `.kapi` project uses when it declares
-  `format: { name: exec, config: { command: "vp neokapi-i18n extract --stream" } }`.
+  `format: { name: exec, config: { command: "npx neokapi-i18n extract --stream" } }`.
 
 Both modes share the SWC walker — same hashes, same block content.
 `--stream` is just the inlined-pipe form of the default.
 
 ### Compile accepts three inputs
 
-- `vp neokapi-i18n compile i18n/` — a directory of `.kbf.json` files.
-- `vp neokapi-i18n compile i18n/src/App.kbf.json` — a single `.kbf.json` file.
-- `vp neokapi-i18n compile -` — NDJSON block records on stdin.
+- `npx neokapi-i18n compile i18n/` — a directory of `.kbf.json` files.
+- `npx neokapi-i18n compile i18n/src/App.kbf.json` — a single `.kbf.json` file.
+- `npx neokapi-i18n compile -` — NDJSON block records on stdin.
 
 Pick whichever is convenient at the hand-off point.
 
@@ -969,13 +969,13 @@ issues, and hardcoded strings:
 
 ```bash
 # 1. Extract to i18n/ as per-file .kbf.json
-vp neokapi-i18n extract --target-locale qps
+npx neokapi-i18n extract --target-locale qps
 
 # 2. Pseudo-translate in place — every .kbf.json gains a qps target
 kapi pseudo-translate i18n/ --target-lang qps
 
 # 3. Compile to public/translations/qps.json
-vp neokapi-i18n compile i18n/
+npx neokapi-i18n compile i18n/
 
 # 4. Build or dev with the pseudo-locale
 LOCALE=qps npm run dev   # (or set the locale via your UI language picker)

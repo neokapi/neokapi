@@ -1,11 +1,12 @@
 // Cookieless PostHog analytics for the landing page.
 //
-// Same contract as the docs sites' shared module (packages/docs-shared/src/
-// analytics.ts — duplicated here because the landing is a Vite app outside the
-// Docusaurus toolchain): memory-only persistence, no cookies or localStorage,
-// DNT respected, autocapture off, EU ingestion by default. Key-gated: without
-// VITE_POSTHOG_KEY (local dev, fork builds, PR previews) nothing initializes
-// and posthog-js is never even loaded.
+// The capture contract lives in @neokapi/docs-shared (memory-only persistence,
+// no cookies or localStorage, DNT respected, autocapture off, EU ingestion by
+// default, key-gated so keyless builds load zero analytics code). The shared
+// module queues events fired before the async posthog-js import resolves, so a
+// signup click in the first few hundred milliseconds is captured rather than
+// dropped. Imported from the module path (not the package index) so the landing
+// bundle never pulls the docs diagram components or their CSS.
 //
 // Events: one $pageview (single-page site) and signup/app CTA clicks.
 //
@@ -14,40 +15,27 @@
 // utm_source) via a delegated document listener, so campaign attribution
 // survives the hop to the app even when analytics never initializes.
 
-import type { PostHog } from "posthog-js";
+import {
+  initDocsAnalytics,
+  captureDocsEvent,
+  captureDocsPageview,
+} from "@neokapi/docs-shared/analytics.ts";
 
 const KEY = import.meta.env.VITE_POSTHOG_KEY;
 const HOST = import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com";
 const APP_HOST = "app.bowrain.cloud";
 
-let ph: PostHog | null = null;
-
 export function initAnalytics(): void {
   installSignupLinkForwarding();
-  if (!KEY) return;
   const environment = import.meta.env.BASE_URL.includes("/prs/") ? "preview" : "prod";
-  void import("posthog-js").then(({ default: posthog }) => {
-    posthog.init(KEY, {
-      api_host: HOST,
-      // Cookieless mode: state lives in memory for the tab's lifetime only.
-      persistence: "memory",
-      respect_dnt: true,
-      autocapture: false,
-      capture_pageview: false,
-      capture_pageleave: false,
-      disable_session_recording: true,
-      disable_surveys: true,
-    });
-    // Mandatory taxonomy properties on every event (in-memory only).
-    posthog.register({ surface: "landing", environment });
-    posthog.capture("$pageview");
-    ph = posthog;
-  });
+  initDocsAnalytics({ key: KEY, host: HOST, surface: "landing", environment });
+  captureDocsPageview();
 }
 
 // Rewrites app.bowrain.cloud anchors on click to carry the visitor's inbound
 // utm_* query parameters (UTM survival). Always on; the analytics capture at
-// the end is a no-op unless PostHog initialized.
+// the end is a no-op unless PostHog initialized, and is queued if the click
+// lands before posthog-js has loaded.
 function installSignupLinkForwarding(): void {
   document.addEventListener(
     "click",
@@ -71,7 +59,7 @@ function installSignupLinkForwarding(): void {
         url.searchParams.set("utm_source", "bowrain-landing");
       }
       if (anchor.href !== url.toString()) anchor.href = url.toString();
-      ph?.capture("signup_cta_clicked", {
+      captureDocsEvent("signup_cta_clicked", {
         href: url.toString(),
         section: anchor.closest("section[id]")?.id ?? null,
       });

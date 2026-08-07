@@ -393,7 +393,7 @@ function ConvergeLocaleRowView({ row }: { row: ConvergenceLocaleRow }) {
       </span>
       {(row.viaMemory > 0 || row.viaAI > 0) && (
         <span className="shrink-0 text-[11px] text-muted-foreground">
-          {t("content memory {tm} · AI {ai}", { tm: row.viaMemory, ai: row.viaAI })}
+          {t("Memory {mem} · AI {ai}", { mem: row.viaMemory, ai: row.viaAI })}
         </span>
       )}
       {row.localeState && (
