@@ -7,6 +7,7 @@ import (
 
 	"github.com/neokapi/neokapi/cli"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
@@ -319,6 +320,97 @@ func TestHandleRunFlowWithProjectDefaults(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "pseudo-translate", out.FlowName)
+}
+
+// TestHandleRunFlowProjectDefinedFlow verifies a flow declared in the project
+// recipe (not a built-in) is reachable and runs over MCP — the built-in-only
+// loop the porcelain used to hand-roll could not reach it.
+func TestHandleRunFlowProjectDefinedFlow(t *testing.T) {
+	a := testApp()
+	ctx := t.Context()
+
+	dir := t.TempDir()
+	inputDir := filepath.Join(dir, "input")
+	require.NoError(t, os.MkdirAll(inputDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(inputDir, "test.json"),
+		[]byte(`{"greeting": "Hello World"}`),
+		0o644,
+	))
+
+	proj := &project.KapiProject{
+		Version: project.CurrentVersion,
+		Defaults: project.Defaults{
+			SourceLanguage:  "en-US",
+			TargetLanguages: []model.LocaleID{"qps"},
+		},
+		Collections: []project.Collection{{Path: "input/*.json"}},
+		Flows: map[string]*flow.StepsSpec{
+			"pseudo": {Steps: []flow.FlowStep{{Tool: "pseudo-translate"}}},
+		},
+	}
+	kapiPath := filepath.Join(dir, project.RecipeFileName)
+	require.NoError(t, project.Save(kapiPath, proj))
+
+	tmpDir := t.TempDir()
+	outputPath := filepath.Join(tmpDir, "out.json")
+
+	_, out, err := handleRunFlow(ctx, a, RunFlowInput{
+		FlowName:   "pseudo",
+		Project:    kapiPath,
+		OutputPath: outputPath,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "pseudo", out.FlowName)
+	assert.NotEmpty(t, out.InputPath)
+
+	content, err := os.ReadFile(outputPath)
+	require.NoError(t, err)
+	assert.NotEmpty(t, content)
+}
+
+// TestHandleRunFlowPlacementRefused verifies the AD-006 transformer placement
+// gate runs on MCP flow runs: a project flow that rewrites source after a
+// target-producing step is refused, not silently executed. This is the
+// redaction-safety hole the porcelain's private tool-building loop left open.
+func TestHandleRunFlowPlacementRefused(t *testing.T) {
+	a := testApp()
+	ctx := t.Context()
+
+	dir := t.TempDir()
+	inputDir := filepath.Join(dir, "input")
+	require.NoError(t, os.MkdirAll(inputDir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(inputDir, "test.json"),
+		[]byte(`{"greeting": "Hello World"}`),
+		0o644,
+	))
+
+	proj := &project.KapiProject{
+		Version: project.CurrentVersion,
+		Defaults: project.Defaults{
+			SourceLanguage:  "en-US",
+			TargetLanguages: []model.LocaleID{"qps"},
+		},
+		Collections: []project.Collection{{Path: "input/*.json"}},
+		Flows: map[string]*flow.StepsSpec{
+			// redact rewrites source; placing it after translate — which produces
+			// targets and egresses source to a remote sink — is exactly what the
+			// gate must reject.
+			"leaky": {Steps: []flow.FlowStep{{Tool: "translate"}, {Tool: "redact"}}},
+		},
+	}
+	kapiPath := filepath.Join(dir, project.RecipeFileName)
+	require.NoError(t, project.Save(kapiPath, proj))
+
+	_, _, err := handleRunFlow(ctx, a, RunFlowInput{
+		FlowName:   "leaky",
+		Project:    kapiPath,
+		TargetLang: "qps",
+		Path:       filepath.Join(inputDir, "test.json"),
+	})
+	require.Error(t, err, "MCP run of a placement-violating flow must be refused")
+	assert.Contains(t, err.Error(), "transformer")
 }
 
 func TestHandleExtractContentWithProject(t *testing.T) {

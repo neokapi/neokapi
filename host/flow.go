@@ -1151,6 +1151,20 @@ func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool
 	return builtTools, cleanup, nil
 }
 
+// BuildFlowTools assembles the tool chain for a built-in flow for one
+// (source, target) pass. It runs the same data-flow validation, AD-006
+// placement gate, per-node config merge and standing bindings as a CLI flow
+// run — the reason an embedding surface (the MCP run_flow porcelain) must route
+// through it rather than reimplement the loop. The returned cleanup releases
+// resources the assembly opened (e.g. SQLite content memory handles) and must
+// run after the pass.
+func (a *App) BuildFlowTools(flowName, inputPath, src, tgt string, cmd ...Command) ([]tool.Tool, func(), error) {
+	savedSrc, savedTgt := a.SourceLang, a.TargetLang
+	a.SourceLang, a.TargetLang = src, tgt
+	defer func() { a.SourceLang, a.TargetLang = savedSrc, savedTgt }()
+	return a.buildFlowTools(flowName, inputPath, cmd...)
+}
+
 // checkFlowPlacement runs the AD-006 transformer placement pass over a flow
 // definition: error-severity diagnostics reject the flow (the unconditional
 // build gate beside ValidateDataFlow), warnings are printed to stderr.

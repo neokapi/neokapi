@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"os"
 	"path/filepath"
 
@@ -339,26 +338,14 @@ func handleRunFlowWithProject(ctx context.Context, a *cli.App, input RunFlowInpu
 	// Resolve flow: check project flows first, then built-in.
 	flowName := input.FlowName
 	if spec := proj.Flow(flowName); spec != nil {
-		// Project flow — build tools from steps.
-		config := map[string]any{
-			"source_locale": sourceLang,
-			"target_locale": targetLang,
+		// Project flow — assemble the tool chain through the host so the
+		// AD-006 placement gate, per-step config resolution and project
+		// bindings all apply, exactly as they do on the CLI.
+		flowTools, cleanup, err := a.BuildProjectFlowTools(ctx, flowName, spec, pctx, input.Project, sourceLang, targetLang)
+		if err != nil {
+			return nil, RunFlowOutput{}, err
 		}
-		var flowTools []tool.Tool
-		for _, step := range spec.Steps {
-			// Merge step config with defaults.
-			merged := config
-			if len(step.Config) > 0 {
-				merged = make(map[string]any)
-				maps.Copy(merged, config)
-				maps.Copy(merged, step.Config)
-			}
-			t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(step.Tool), merged, targetLang)
-			if err != nil {
-				return nil, RunFlowOutput{}, fmt.Errorf("create tool %q: %w", step.Tool, err)
-			}
-			flowTools = append(flowTools, t)
-		}
+		defer cleanup()
 		// Use the first input file (from flag or content resolution).
 		inputPath := input.Path
 		if inputPath == "" {
@@ -538,12 +525,16 @@ func createReader(a *cli.App, fmtName string) (format.DataFormatReader, error) {
 	return reader, nil
 }
 
-// executeFlow runs a named flow on a file and writes the result.
+// executeFlow runs a built-in flow on a file and writes the result. The tool
+// chain is assembled by the host so the AD-006 placement gate, data-flow
+// validation and per-node config all apply — the reason this no longer hand-
+// rolls the loop.
 func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLang, targetLang, outputPath string, pctx *project.ProjectContext) (string, error) {
-	flowTools, err := buildFlowTools(a, flowName, sourceLang, targetLang)
+	flowTools, cleanup, err := a.BuildFlowTools(flowName, inputPath, sourceLang, targetLang)
 	if err != nil {
 		return "", err
 	}
+	defer cleanup()
 	return executeFlowWithTools(ctx, a, flowName, inputPath, sourceLang, targetLang, outputPath, flowTools, pctx)
 }
 
@@ -583,54 +574,4 @@ func executeFlowWithTools(ctx context.Context, a *cli.App, flowName, inputPath, 
 	}
 
 	return outputPath, nil
-}
-
-// buildFlowTools creates the tool chain for a named flow using the built-in
-// flow registry and tool command definitions.
-func buildFlowTools(a *cli.App, flowName, sourceLang, targetLang string) ([]tool.Tool, error) {
-	// Look up the flow definition.
-	var flowDef *flow.FlowDefinition
-	for _, def := range flowdef.BuiltInFlows() {
-		if def.ID == flowName {
-			d := def
-			flowDef = &d
-			break
-		}
-	}
-	if flowDef == nil {
-		return nil, fmt.Errorf("unknown flow: %q", flowName)
-	}
-
-	// Extract tool nodes sorted by position.
-	type tn struct {
-		name string
-		x    float64
-	}
-	var toolNodes []tn
-	for _, n := range flowDef.Nodes {
-		if n.Type == flow.NodeTool {
-			toolNodes = append(toolNodes, tn{name: n.Name, x: n.Position.X})
-		}
-	}
-	// Sort by X position.
-	for i := 1; i < len(toolNodes); i++ {
-		for j := i; j > 0 && toolNodes[j].x < toolNodes[j-1].x; j-- {
-			toolNodes[j], toolNodes[j-1] = toolNodes[j-1], toolNodes[j]
-		}
-	}
-
-	config := map[string]any{
-		"source_locale": sourceLang,
-		"target_locale": targetLang,
-	}
-
-	var tools []tool.Tool
-	for _, node := range toolNodes {
-		t, err := a.ToolReg.NewToolWithConfig(registry.ToolID(node.name), config, targetLang)
-		if err != nil {
-			return nil, fmt.Errorf("tool %q: %w", node.name, err)
-		}
-		tools = append(tools, t)
-	}
-	return tools, nil
 }

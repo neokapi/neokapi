@@ -537,3 +537,32 @@ func (a *App) buildProjectFlowTools(cmd Command, flowName string, spec *flow.Ste
 	}
 	return tools, cleanup, nil
 }
+
+// BuildProjectFlowTools assembles the placement-gated tool chain for one
+// (source, target) pass of a project flow spec, scoped to the given project
+// context. It owns the synthetic command and resource context the assembly
+// needs, so an embedding surface (the MCP run_flow porcelain) gets the same
+// AD-006 gate and binding resolution as the CLI without reproducing them. The
+// returned cleanup releases resources the assembly opened and must run after
+// the pass.
+func (a *App) BuildProjectFlowTools(ctx context.Context, flowName string, spec *flow.StepsSpec, pctx *project.ProjectContext, projectPath, src, tgt string) ([]tool.Tool, func(), error) {
+	cmd := NewEnvCommand(ctx, "mcp-flow")
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	AddProjectFlag(cmd)
+	if projectPath != "" {
+		if err := cmd.Flags().Set(projectFlagName, projectPath); err != nil {
+			return nil, nil, err
+		}
+	}
+	savedPctx := a.ProjectContext
+	savedSrc, savedTgt := a.SourceLang, a.TargetLang
+	a.ProjectContext = pctx
+	a.SourceLang, a.TargetLang = src, tgt
+	defer func() {
+		a.ProjectContext = savedPctx
+		a.SourceLang, a.TargetLang = savedSrc, savedTgt
+	}()
+	rCtx := &flow.ResourceContext{ProjectDir: pctx.ProjectDir, SourceLocale: src, TargetLocale: tgt}
+	return a.buildProjectFlowTools(cmd, flowName, spec, rCtx, nil)
+}
