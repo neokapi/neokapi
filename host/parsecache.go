@@ -127,7 +127,7 @@ func toCachedParts(parts []*model.Part) []cachedPart {
 		cp := cachedPart{Type: p.Type}
 		switch r := p.Resource.(type) {
 		case *model.Block:
-			cp.Block = &cachedBlock{Block: r, Annotations: toCachedAnnotations(r.Annotations)}
+			cp.Block = &cachedBlock{Block: r, Annotations: toCachedAnnotations(r.AnnoMap())}
 		case *model.Layer:
 			cp.Layer = &cachedLayer{Layer: r, Annotations: toCachedAnnotations(r.Annotations)}
 		case *model.Data:
@@ -157,7 +157,12 @@ func fromCachedParts(cps []cachedPart) []*model.Part {
 		switch cp.Type {
 		case model.PartBlock:
 			if cp.Block != nil && cp.Block.Block != nil {
-				cp.Block.Block.Annotations = fromCachedAnnotations(cp.Block.Annotations)
+				// Through the setter, so an annotation the Block holds in a
+				// field rather than the map lands where it belongs.
+				cp.Block.Block.Annotations = nil
+				for k, v := range fromCachedAnnotations(cp.Block.Annotations) {
+					cp.Block.Block.SetAnno(k, v)
+				}
 				res = cp.Block.Block
 			}
 		case model.PartLayerStart, model.PartLayerEnd:
