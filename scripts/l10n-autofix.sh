@@ -81,8 +81,12 @@ head_ref="${AUTOFIX_HEAD_REF:-}"
 if [[ "$event" == "pull_request" && "$same_repo" == "true" && -n "$head_ref" ]]; then
   # Same-repo PR: self-heal. Stage ONLY the owned paths — never the rest of
   # the working tree — so an unexpected unrelated change can never ride along
-  # in the bot commit.
-  git add -- "${paths[@]}"
+  # in the bot commit. `git add` (unlike diff and ls-files) fatals on a
+  # pathspec that matches nothing, so it gets the resolved file lists rather
+  # than the raw pathspecs.
+  { git diff --name-only -z -- "${paths[@]}"
+    git ls-files --others --exclude-standard -z -- "${paths[@]}"
+  } | git add --pathspec-from-file=- --pathspec-file-nul
   if git diff --cached --quiet; then
     echo "Drift was not stageable under the owned paths; treating as fresh."
     exit 0
