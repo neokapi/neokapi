@@ -57,7 +57,7 @@ func TestAPITokenAuthorIdentity(t *testing.T) {
 func TestValidateAgentName(t *testing.T) {
 	valid := []string{"", "ci", "kapi-ci", "github_actions", "a", "a1", "nightly-sweep-2"}
 	for _, name := range valid {
-		assert.NoError(t, ValidateAgentName(name), "expected %q to be accepted", name)
+		require.NoError(t, ValidateAgentName(name), "expected %q to be accepted", name)
 	}
 
 	invalid := []string{
