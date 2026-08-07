@@ -9,12 +9,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// This is the parity guard for the kapi↔bowrain sync PULL wire (the JSON
-// projection: StoredBlock → SyncBlock JSON → model.Block). It round-trips the
-// shared kitchen-sink fixture and asserts the JSON pull path carries the same
-// content the proto push path does — overlays, skeleton parts, provenance, and
-// the new source-locale / is-referent fields included — so a term/entity/
-// segmentation marked in kapi survives the pull, not just the push.
+// This is the parity guard for the kapi↔bowrain sync JSON converter
+// (model.Block → SyncBlock JSON → model.Block). It round-trips the shared
+// kitchen-sink fixture and asserts the converter carries the same content the
+// proto push path does — overlays, skeleton parts, provenance, and the
+// source-locale / is-referent fields included — so a term/entity/segmentation
+// marked in kapi survives the projection.
+//
+// Scope note: this exercises the CONVERTER in memory, not an end-to-end pull.
+// A real pull reads a StoredBlock, and the content store has no skeleton column
+// (skeleton is a connector-edge artifact that does not persist), so a pulled
+// block's Skeleton is always empty regardless of what the converter can carry.
+// The assertion below therefore pins converter fidelity, not store fidelity.
 //
 // See web/docs/contribute/implementation/content-parity.md.
 
@@ -23,9 +29,9 @@ func TestSyncBlockJSONKitchenSinkRoundTrip(t *testing.T) {
 
 	wire := BlockToSyncBlock(orig, "kitchen.json")
 
-	// The overlay + skeleton blobs must actually be populated on the wire.
-	require.NotEmpty(t, wire.Overlays, "overlays must ride the JSON pull wire")
-	require.NotEmpty(t, wire.Skeleton, "skeleton must ride the JSON pull wire")
+	// The overlay + skeleton blobs must survive the converter losslessly.
+	require.NotEmpty(t, wire.Overlays, "overlays must survive the JSON converter")
+	require.NotEmpty(t, wire.Skeleton, "skeleton must survive the JSON converter")
 	assert.Equal(t, string(model.LocaleEnglish), wire.SourceLocale, "source locale rides the wire")
 	assert.True(t, wire.IsReferent, "is-referent rides the wire")
 

@@ -708,7 +708,14 @@ func (s *PgBillingStore) GrantCredits(ctx context.Context, workspaceID string, a
 	// within the weekly→monthly transition month) must dedupe on the month key,
 	// not stack — DO NOTHING. Non-expiring buckets share one sentinel-keyed row
 	// per source, so repeated grants there ACCUMULATE.
+	//
+	// The ledger row must name the allocation that actually holds the credits and
+	// carry that allocation's running balance. On the accumulating branch a
+	// conflict updates a pre-existing row, so the id generated here is never
+	// inserted and the true balance is the accumulated total, not this grant's
+	// amount; RETURNING hands back both.
 	var inserted bool
+	var balanceAfter int64
 	if source == SourcePlan {
 		res, err := tx.ExecContext(ctx,
 			`INSERT INTO credit_allocations (id, workspace_id, credits_total, credits_used, week_start, week_end, source)
@@ -723,23 +730,29 @@ func (s *PgBillingStore) GrantCredits(ctx context.Context, workspaceID string, a
 			return fmt.Errorf("grant credits rows affected: %w", err)
 		}
 		inserted = n > 0
+		// A fresh plan row holds exactly this grant with nothing drawn against it.
+		balanceAfter = amount
 	} else {
-		if _, err := tx.ExecContext(ctx,
+		var total, used int64
+		if err := tx.QueryRowContext(ctx,
 			`INSERT INTO credit_allocations (id, workspace_id, credits_total, credits_used, week_start, week_end, source)
 			 VALUES ($1, $2, $3, 0, $4, $5, $6)
 			 ON CONFLICT (workspace_id, week_start, source) DO UPDATE SET
-				credits_total = credit_allocations.credits_total + EXCLUDED.credits_total`,
-			allocID, workspaceID, amount, ps, pe, source); err != nil {
+				credits_total = credit_allocations.credits_total + EXCLUDED.credits_total
+			 RETURNING id, credits_total, credits_used`,
+			allocID, workspaceID, amount, ps, pe, source).
+			Scan(&allocID, &total, &used); err != nil {
 			return fmt.Errorf("grant credits: %w", err)
 		}
 		inserted = true
+		balanceAfter = total - used
 	}
 
 	if inserted {
 		if _, err := tx.ExecContext(ctx,
 			`INSERT INTO credit_ledger (workspace_id, allocation_id, amount, balance_after, operation, reference_id)
 			 VALUES ($1, $2, $3, $4, $5, '')`,
-			workspaceID, allocID, amount, amount, "grant"); err != nil {
+			workspaceID, allocID, amount, balanceAfter, "grant"); err != nil {
 			return fmt.Errorf("insert ledger entry: %w", err)
 		}
 	}

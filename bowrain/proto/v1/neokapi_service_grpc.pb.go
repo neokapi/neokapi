@@ -25,8 +25,6 @@ const (
 	NeokapiService_CreateProject_FullMethodName = "/neokapi.server.v1.NeokapiService/CreateProject"
 	NeokapiService_GetProject_FullMethodName    = "/neokapi.server.v1.NeokapiService/GetProject"
 	NeokapiService_ListProjects_FullMethodName  = "/neokapi.server.v1.NeokapiService/ListProjects"
-	NeokapiService_StoreBlocks_FullMethodName   = "/neokapi.server.v1.NeokapiService/StoreBlocks"
-	NeokapiService_StreamBlocks_FullMethodName  = "/neokapi.server.v1.NeokapiService/StreamBlocks"
 	NeokapiService_CreateVersion_FullMethodName = "/neokapi.server.v1.NeokapiService/CreateVersion"
 	NeokapiService_ListVersions_FullMethodName  = "/neokapi.server.v1.NeokapiService/ListVersions"
 	NeokapiService_PullContent_FullMethodName   = "/neokapi.server.v1.NeokapiService/PullContent"
@@ -45,9 +43,6 @@ type NeokapiServiceClient interface {
 	CreateProject(ctx context.Context, in *CreateProjectRequest, opts ...grpc.CallOption) (*ProjectResponse, error)
 	GetProject(ctx context.Context, in *GetProjectRequest, opts ...grpc.CallOption) (*ProjectResponse, error)
 	ListProjects(ctx context.Context, in *ListProjectsRequest, opts ...grpc.CallOption) (*ListProjectsResponse, error)
-	// Block operations
-	StoreBlocks(ctx context.Context, in *StoreBlocksRequest, opts ...grpc.CallOption) (*StoreBlocksResponse, error)
-	StreamBlocks(ctx context.Context, in *StreamBlocksRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[BlockResponse], error)
 	// Version management
 	CreateVersion(ctx context.Context, in *CreateVersionRequest, opts ...grpc.CallOption) (*VersionResponse, error)
 	ListVersions(ctx context.Context, in *ListVersionsRequest, opts ...grpc.CallOption) (*ListVersionsResponse, error)
@@ -98,35 +93,6 @@ func (c *neokapiServiceClient) ListProjects(ctx context.Context, in *ListProject
 	return out, nil
 }
 
-func (c *neokapiServiceClient) StoreBlocks(ctx context.Context, in *StoreBlocksRequest, opts ...grpc.CallOption) (*StoreBlocksResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(StoreBlocksResponse)
-	err := c.cc.Invoke(ctx, NeokapiService_StoreBlocks_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *neokapiServiceClient) StreamBlocks(ctx context.Context, in *StreamBlocksRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[BlockResponse], error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &NeokapiService_ServiceDesc.Streams[0], NeokapiService_StreamBlocks_FullMethodName, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &grpc.GenericClientStream[StreamBlocksRequest, BlockResponse]{ClientStream: stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type NeokapiService_StreamBlocksClient = grpc.ServerStreamingClient[BlockResponse]
-
 func (c *neokapiServiceClient) CreateVersion(ctx context.Context, in *CreateVersionRequest, opts ...grpc.CallOption) (*VersionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(VersionResponse)
@@ -169,7 +135,7 @@ func (c *neokapiServiceClient) PushContent(ctx context.Context, in *PushContentR
 
 func (c *neokapiServiceClient) ExecuteFlow(ctx context.Context, in *ExecuteFlowRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[FlowProgressResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &NeokapiService_ServiceDesc.Streams[1], NeokapiService_ExecuteFlow_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &NeokapiService_ServiceDesc.Streams[0], NeokapiService_ExecuteFlow_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +154,7 @@ type NeokapiService_ExecuteFlowClient = grpc.ServerStreamingClient[FlowProgressR
 
 func (c *neokapiServiceClient) Subscribe(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[EventResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &NeokapiService_ServiceDesc.Streams[2], NeokapiService_Subscribe_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &NeokapiService_ServiceDesc.Streams[1], NeokapiService_Subscribe_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -215,9 +181,6 @@ type NeokapiServiceServer interface {
 	CreateProject(context.Context, *CreateProjectRequest) (*ProjectResponse, error)
 	GetProject(context.Context, *GetProjectRequest) (*ProjectResponse, error)
 	ListProjects(context.Context, *ListProjectsRequest) (*ListProjectsResponse, error)
-	// Block operations
-	StoreBlocks(context.Context, *StoreBlocksRequest) (*StoreBlocksResponse, error)
-	StreamBlocks(*StreamBlocksRequest, grpc.ServerStreamingServer[BlockResponse]) error
 	// Version management
 	CreateVersion(context.Context, *CreateVersionRequest) (*VersionResponse, error)
 	ListVersions(context.Context, *ListVersionsRequest) (*ListVersionsResponse, error)
@@ -246,12 +209,6 @@ func (UnimplementedNeokapiServiceServer) GetProject(context.Context, *GetProject
 }
 func (UnimplementedNeokapiServiceServer) ListProjects(context.Context, *ListProjectsRequest) (*ListProjectsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListProjects not implemented")
-}
-func (UnimplementedNeokapiServiceServer) StoreBlocks(context.Context, *StoreBlocksRequest) (*StoreBlocksResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method StoreBlocks not implemented")
-}
-func (UnimplementedNeokapiServiceServer) StreamBlocks(*StreamBlocksRequest, grpc.ServerStreamingServer[BlockResponse]) error {
-	return status.Error(codes.Unimplemented, "method StreamBlocks not implemented")
 }
 func (UnimplementedNeokapiServiceServer) CreateVersion(context.Context, *CreateVersionRequest) (*VersionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateVersion not implemented")
@@ -345,35 +302,6 @@ func _NeokapiService_ListProjects_Handler(srv interface{}, ctx context.Context, 
 	}
 	return interceptor(ctx, in, info, handler)
 }
-
-func _NeokapiService_StoreBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StoreBlocksRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(NeokapiServiceServer).StoreBlocks(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: NeokapiService_StoreBlocks_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(NeokapiServiceServer).StoreBlocks(ctx, req.(*StoreBlocksRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _NeokapiService_StreamBlocks_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(StreamBlocksRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(NeokapiServiceServer).StreamBlocks(m, &grpc.GenericServerStream[StreamBlocksRequest, BlockResponse]{ServerStream: stream})
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type NeokapiService_StreamBlocksServer = grpc.ServerStreamingServer[BlockResponse]
 
 func _NeokapiService_CreateVersion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateVersionRequest)
@@ -489,10 +417,6 @@ var NeokapiService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _NeokapiService_ListProjects_Handler,
 		},
 		{
-			MethodName: "StoreBlocks",
-			Handler:    _NeokapiService_StoreBlocks_Handler,
-		},
-		{
 			MethodName: "CreateVersion",
 			Handler:    _NeokapiService_CreateVersion_Handler,
 		},
@@ -510,11 +434,6 @@ var NeokapiService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "StreamBlocks",
-			Handler:       _NeokapiService_StreamBlocks_Handler,
-			ServerStreams: true,
-		},
 		{
 			StreamName:    "ExecuteFlow",
 			Handler:       _NeokapiService_ExecuteFlow_Handler,

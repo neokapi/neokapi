@@ -48,9 +48,22 @@ func TestBaselineVersionsSitAboveRetiredOnes(t *testing.T) {
 			require.True(t, known, "subsystem %q is not in the retired-version ledger; add it", s.Name)
 			require.NotEmpty(t, s.Migrations, "subsystem %q has no migrations", s.Name)
 
-			assert.Len(t, s.Migrations, 1, "a consolidated subsystem carries exactly one baseline")
-			assert.Greater(t, s.Migrations[0].Version, prior,
-				"baseline version must sit above every version %q ever issued (%d)", s.Name, prior)
+			// The invariant is about the version NUMBERS, not the count. Every
+			// migration a subsystem carries must sit above every version it
+			// retired, and later migrations must keep climbing — so a running
+			// max seeded with the highest retired version, which each migration
+			// must strictly exceed, catches both a reused number and a
+			// non-increasing one. Asserting a single baseline instead would fail
+			// the first time a real migration is appended after the fold — the
+			// ordinary, sanctioned way the schema evolves — and so mask the reuse
+			// it exists to catch.
+			last := prior
+			for _, m := range s.Migrations {
+				assert.Greater(t, m.Version, last,
+					"%q version %d must exceed both every retired version and the prior migration (%d); a reused or non-increasing number drifts silently",
+					s.Name, m.Version, last)
+				last = m.Version
+			}
 		})
 	}
 }

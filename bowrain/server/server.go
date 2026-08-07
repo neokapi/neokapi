@@ -1271,6 +1271,13 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// Bowrain AD-011: /api/v1/projects/:id/sync/:ref/*
 		if s.AuthStore != nil {
 			syncRateLimit := RateLimitSyncPush(10, 3)
+			// Chunk uploads need their own, more generous per-project bucket: one
+			// push streams many 2 MiB chunks, so the commit cap would throttle a
+			// legitimate large push. Without any cap an authenticated client can
+			// upload chunks that are never committed (no manifest ⇒ the worker's
+			// sweep never sees them) and grow blob storage unbounded; this bounds
+			// the rate. The durable backstop is a bucket TTL in bowrain-infra.
+			chunkRateLimit := RateLimitSyncPush(600, 120)
 			flatSyncGroup := v1.Group("/projects/:id/sync/:ref")
 			flatSyncGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 			// Resolve permissions (claim-token grant, project membership, or the
@@ -1283,7 +1290,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			flatSyncGroup.POST("/push/init", s.HandleSyncPushInit)
 			flatSyncGroup.POST("/push/diff", s.HandleSyncPushDiff)
 			flatSyncGroup.POST("/push/commit", s.HandleSyncPushCommit, syncRateLimit)
-			flatSyncGroup.PUT("/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
+			flatSyncGroup.PUT("/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload, chunkRateLimit)
 
 			// Flat project-scoped convergence + settings for unclaimed projects:
 			// /api/v1/projects/:id/convergence/... and /projects/:id/settings.
@@ -1778,6 +1785,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// -----------------------------------------------------------------------
 
 	syncRateLimit := RateLimitSyncPush(10, 3) // 10 pushes/min, burst of 3
+	// Chunk uploads stream many 2 MiB blobs per push, so they draw on their own
+	// more generous per-project bucket (see the flat sync group above).
+	chunkRateLimit := RateLimitSyncPush(600, 120)
 
 	// Items — Bowrain AD-011: /:ws/:id/items/:ref
 	g.GET("/:id/items/:ref", s.HandleGetFileBlocks) // list items
@@ -1838,7 +1848,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/:id/sync/:ref/push/init", s.HandleSyncPushInit)
 	g.POST("/:id/sync/:ref/push/diff", s.HandleSyncPushDiff)
 	g.POST("/:id/sync/:ref/push/commit", s.HandleSyncPushCommit, syncRateLimit)
-	g.PUT("/:id/sync/:ref/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
+	g.PUT("/:id/sync/:ref/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload, chunkRateLimit)
 	g.POST("/:id/sync/:ref/translate", s.HandleCreateProjectTranslationJob)
 
 	// PostHog locale-demand connector — /:ws/:id/connectors/posthog

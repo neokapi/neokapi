@@ -92,8 +92,6 @@ service NeokapiService {
   rpc CreateProject(CreateProjectRequest) returns (ProjectResponse);
   rpc GetProject(GetProjectRequest) returns (ProjectResponse);
   rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
-  rpc StoreBlocks(StoreBlocksRequest) returns (StoreBlocksResponse);
-  rpc StreamBlocks(StreamBlocksRequest) returns (stream BlockResponse);
   rpc CreateVersion(CreateVersionRequest) returns (VersionResponse);
   rpc ListVersions(ListVersionsRequest) returns (ListVersionsResponse);
   rpc PullContent(PullContentRequest) returns (PullContentResponse);
@@ -105,11 +103,14 @@ service NeokapiService {
 
 ### Streaming
 
-Three RPCs use server-side streaming:
+Two RPCs use server-side streaming:
 
-- **StreamBlocks**: Streams all blocks matching a query
 - **ExecuteFlow**: Streams progress updates during flow execution
 - **Subscribe**: Streams events matching the subscription filter
+
+Block content does not travel this service. It moves over the canonical
+`neokapi.content.v1` sync wire (`bowrain/core/proto/sync/v1/sync.proto`), which
+carries runs, overlays, segmentation and source-locale losslessly.
 
 ### Client Example
 
@@ -126,16 +127,17 @@ conn, err := grpc.NewClient("bowrain.example.com:443",
 
 client := serverv1.NewNeokapiServiceClient(conn)
 
-// Stream blocks
-stream, _ := client.StreamBlocks(ctx, &serverv1.StreamBlocksRequest{
-    ProjectId: "proj-1",
+// Stream flow-execution progress
+stream, _ := client.ExecuteFlow(ctx, &serverv1.ExecuteFlowRequest{
+    ProjectId:  "proj-1",
+    FlowConfig: "name: qa\ntools:\n  - case-transform",
 })
 for {
     resp, err := stream.Recv()
     if err == io.EOF {
         break
     }
-    fmt.Println(resp.Block.Source)
+    fmt.Println(resp.Stage, resp.Message)
 }
 ```
 
