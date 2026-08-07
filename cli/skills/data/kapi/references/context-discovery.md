@@ -57,7 +57,7 @@ Three artifacts, all plain files the user can review before anything binds:
   materializes in step 4; competitor names and banned phrasing belong in
   `voice.yaml`'s vocabulary lists instead (see [voice.md](voice.md)).
 
-- **Content mapping** — which files the gates will watch: the `content:` paths
+- **Content mapping** — which files the gates will watch: the `collections:` paths
   and formats, with `target:` patterns where translations already exist. Those
   existing translations need no import step — the loop recycles them as content memory
   leverage, and `kapi push` carries them as block targets.
@@ -93,7 +93,7 @@ defaults:
   voice:
     profile_file: voice.yaml   # file binding, so `kapi apply` voice rules land in it
   terms_source: .kapi/terms.json   # the committed terms source
-content:
+collections:
   - path: "docs/**/*.md"
     format: markdown
 ```
@@ -132,7 +132,7 @@ list, and `.kapi/state/`. Only `.kapi/work/` stays gitignored.
 ## 5. Push to Bowrain
 
 Bowrain commands come from the `kapi-bowrain` plugin. Once the recipe declares
-a `server:` block, running one of its verbs without the plugin installed offers
+a `bowrain:` block, running one of its verbs without the plugin installed offers
 the install rather than failing — on a terminal it prompts, and `--yes` accepts
 without asking. To install it up front instead:
 
@@ -142,7 +142,7 @@ kapi plugin install bowrain             # from the plugin registry
 brew install neokapi/tap/bowrain-cli    # or via Homebrew
 ```
 
-Connect — `kapi init --server` adds the `server:` block to the existing recipe
+Connect — `kapi init --server` adds the `bowrain:` block to the existing recipe
 (idempotent; an already-connected project is a no-op):
 
 ```bash

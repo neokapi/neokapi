@@ -13,12 +13,12 @@ import (
 )
 
 // twoCollectionFixture writes a project with two named content collections —
-// one file each — and the `pseudo` flow. When platformContext is non-nil the
+// one file each — and the `pseudo` flow. When platformChannel is non-empty the
 // platform collection sits at its own point in the context space, which is the
-// "one repo, two products" recipe; nil leaves both collections at the project's
-// default point.
+// "one repo, two products" recipe; empty leaves both collections at the
+// project's default point.
 // Returns the recipe path, the two source files (framework first), and the root.
-func twoCollectionFixture(t *testing.T, platformContext map[string]string) (recipe string, sources []string, root string) {
+func twoCollectionFixture(t *testing.T, platformChannel string) (recipe string, sources []string, root string) {
 	t.Helper()
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
@@ -28,36 +28,34 @@ func twoCollectionFixture(t *testing.T, platformContext map[string]string) (reci
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "platform-voice.yaml"),
 		[]byte("id: platform\nname: Platform Voice\n"), 0o644))
 
-	platform := project.ContentCollection{
+	platform := project.Collection{
 		Name: "platform",
-		Items: []project.ContentItem{{
+		Content: []project.ContentItem{{
 			Path:   "platform/en/*.json",
 			Format: &project.FormatSpec{Name: "json"},
 			Target: "platform/{lang}/*.json",
 		}},
 	}
-	platform.Context = platformContext
+	platform.Channel = platformChannel
 
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "TwoBrands",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
 			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
 		},
-		Coordinates: project.Coordinates{
-			"product": {{ID: "framework"}, {ID: "platform"}},
-			"channel": {{ID: "app"}, {ID: "docs"}},
+		Profiles: map[string]project.Profile{
+			"platform": {
+				Channels: []project.Channel{{ID: "app"}, {ID: "docs"}},
+				Voice:    &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
+			},
 		},
-		Profiles: []project.ProfileBinding{{
-			When:  map[string]string{"product": "platform"},
-			Voice: &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
-		}},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{
 				Name: "framework",
-				Items: []project.ContentItem{{
+				Content: []project.ContentItem{{
 					Path:   "framework/en/*.json",
 					Format: &project.FormatSpec{Name: "json"},
 					Target: "framework/{lang}/*.json",
@@ -89,7 +87,7 @@ func twoCollectionFixture(t *testing.T, platformContext map[string]string) (reci
 // collection. The run count is the observable.
 func TestRunFlowAllLocales_UngovernedCollectionsRunOnce(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, sources, root := twoCollectionFixture(t, nil)
+	recipe, sources, root := twoCollectionFixture(t, "")
 
 	rec := &recordingSink{}
 	res, err := a.RunFlowAllLocales(t.Context(), FlowRunOptions{
@@ -119,7 +117,7 @@ func TestRunFlowAllLocales_UngovernedCollectionsRunOnce(t *testing.T) {
 // processed exactly once.
 func TestRunFlowAllLocales_GovernedCollectionSplitsTheRun(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, sources, root := twoCollectionFixture(t, map[string]string{"product": "platform", "channel": "app"})
+	recipe, sources, root := twoCollectionFixture(t, "platform/app")
 
 	rec := &recordingSink{}
 	res, err := a.RunFlowAllLocales(t.Context(), FlowRunOptions{

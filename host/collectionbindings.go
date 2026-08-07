@@ -36,15 +36,15 @@ type bindingGroup struct {
 // target). Paths outside the project root, and paths no content pattern claims,
 // sit at the project's default point.
 //
-// Grouping is by what the coordinates *resolve to*, not by the coordinates
-// themselves: every collection resolving to the same voice, terms and channel —
-// two markets governed by one profile, say — stays in one group and shares one
-// tool chain. When no collection declares a point at all, the whole input set is
-// one group naming no collection, which resolves the project-wide bindings
+// Grouping is by what the channel reference *resolves to*, not by the reference
+// itself: every collection resolving to the same voice, terms and channel — two
+// collections on one profile's channel, say — stays in one group and shares one
+// tool chain. When no collection declares a channel at all, the whole input set
+// is one group naming no collection, which resolves the project-wide bindings
 // exactly as an ungrouped run always did.
 //
-// The error is an ambiguous recipe (project.ResolveGovernance); a recipe that
-// loaded cleanly cannot produce one.
+// The error is an unresolvable channel reference (project.ResolveGovernance); a
+// recipe that loaded cleanly cannot produce one.
 func groupInputsByBinding(proj *project.KapiProject, projectDir string, inputPaths []string) ([]bindingGroup, error) {
 	whole := []bindingGroup{{Inputs: inputPaths}}
 	if proj == nil || projectDir == "" || len(inputPaths) == 0 || !hasCollectionContext(proj) {
@@ -90,8 +90,8 @@ func groupInputsByBinding(proj *project.KapiProject, projectDir string, inputPat
 // in the context space. Nothing to split on when none does — the answer that
 // keeps an ordinary recipe on its single, ungrouped run.
 func hasCollectionContext(proj *project.KapiProject) bool {
-	for i := range proj.Content {
-		if len(proj.Content[i].Context) > 0 {
+	for i := range proj.Collections {
+		if proj.Collections[i].Channel != "" {
 			return true
 		}
 	}
@@ -101,12 +101,12 @@ func hasCollectionContext(proj *project.KapiProject) bool {
 // bindingKey is the identity of resolved governance: two collections with equal
 // keys are governed identically and belong in one group.
 //
-// The key is what the coordinates resolve to — the voice, the terms, and the
-// channel — not the coordinates that selected them. Channel counts because it
+// The key is what the channel reference resolves to — the voice, the terms, and
+// the channel — not the reference that selected them. Channel counts because it
 // selects an override inside the profile, so one voice on two channels is two
-// voices in practice. The rest of the coordinates do not: two points sharing a
-// profile produce the same run, and keying on the labels would split it for
-// nothing.
+// voices in practice. The profile name does not: two collections on one
+// profile's channel produce the same run, and keying on the label would split it
+// for nothing.
 func bindingKey(rc *project.ResolvedGovernance) string {
 	var b strings.Builder
 	b.WriteString(rc.Channel)

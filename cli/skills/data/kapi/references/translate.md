@@ -116,7 +116,7 @@ a machine can't finish *parks* (reported, exit 0), so neither blocks you. Use
 expose the same loop and dry run to an assistant. `kapi run <flow>` is only for a
 *custom* one-off pipeline (one named flow, one pass) — not the daily loop.
 
-In a server-connected project (recipe has a `server:` block), `kapi up` runs on
+In a server-connected project (recipe has a `bowrain:` block), `kapi up` runs on
 the Bowrain server by default and streams progress back; `kapi up --local`
 runs the loop on this machine and pushes the results. `kapi push` / `kapi pull` are
 **transport only** — they move project state and never translate. There is no

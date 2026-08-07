@@ -172,7 +172,7 @@ defaults:
   voice:
     profile_file: i18n/voice.yaml
   terms_source: i18n/terms.json
-content:
+collections:
   - path: "i18n/src/**/*.kbf.json"
     format: kbf
     target: "i18n/{lang}/{path}.kbf.json"

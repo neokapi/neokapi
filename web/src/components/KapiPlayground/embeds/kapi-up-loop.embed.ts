@@ -11,7 +11,7 @@ const config: WalkthroughEmbedConfig = {
     {
       path: "kapi.yaml",
       content:
-        'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\n  flow: tm-recycle\n  materialize: on-converge\nship_gate: { translated: 100, reviewed: 100 }\ncontent:\n  - path: messages.json\n    target: "messages.{lang}.json"\nflows:\n  tm-recycle:\n    steps:\n      - tool: recycle\n',
+        'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\n  flow: tm-recycle\n  materialize: on-converge\nship_gate: { translated: 100, reviewed: 100 }\ncollections:\n  - path: messages.json\n    target: "messages.{lang}.json"\nflows:\n  tm-recycle:\n    steps:\n      - tool: recycle\n',
     },
     {
       path: "messages.json",

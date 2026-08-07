@@ -49,14 +49,14 @@ func TestLs_MalformedPatternFailsNamingTheCollection(t *testing.T) {
 name: LsGlob
 defaults:
   source_language: en-US
-content:
+collections:
   - name: Docs
-    items:
+    content:
       - path: docs/*.json
         format:
           name: json
   - name: Store
-    items:
+    content:
       - path: "store/[a-.json"
 `)
 	_, err := runLs(t, a, recipe)
@@ -74,14 +74,14 @@ func TestLs_PatternMatchingNothingStillLists(t *testing.T) {
 name: LsGlob
 defaults:
   source_language: en-US
-content:
+collections:
   - name: Docs
-    items:
+    content:
       - path: docs/*.json
         format:
           name: json
   - name: NotWrittenYet
-    items:
+    content:
       - path: locales/**/*.json
 `)
 	out, err := runLs(t, a, recipe)

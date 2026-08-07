@@ -26,7 +26,7 @@ the gate enforces exactly what the hub shows.
 ## Prerequisites
 
 - The project is claimed into a workspace (its `kapi.yaml` recipe carries a
-  [`server:` block](/cli/project-model)).
+  [`bowrain:` block](/cli/project-model)).
 - The project has run `kapi pull` at least once, so its terms store holds the
   governed concepts.
 - The runner is authenticated. In CI, set `BOWRAIN_AUTH_TOKEN`; locally, run

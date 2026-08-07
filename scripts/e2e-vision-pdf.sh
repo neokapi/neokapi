@@ -38,7 +38,7 @@ name: vision-pdf-e2e
 defaults:
   source_language: en
   target_languages: [qps]
-content:
+collections:
   - path: doc.pdf
     format:
       name: pdf

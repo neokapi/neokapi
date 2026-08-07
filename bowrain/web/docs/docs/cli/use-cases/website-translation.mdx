@@ -40,7 +40,7 @@ defaults:
   source_language: en-US
   target_languages: [fr-FR, de-DE, ja-JP]
 
-content:
+collections:
   - path: content/**/*.md
     format: markdown
     target: i18n/{lang}/{path}/{filename}
@@ -84,7 +84,7 @@ kapi tools and flows are composable pipelines that run on your local files:
 - **`kapi exec qa`**: Rule-based quality checks (whitespace, punctuation, placeholders)
 - **`kapi run <flow>`**: Execute a composed or custom multi-tool flow
 
-Tools and flows automatically process all files matching your recipe's `content:` collections.
+Tools and flows automatically process all files matching your recipe's `collections:`.
 
 ## Step 3: Review in Bowrain (Optional)
 

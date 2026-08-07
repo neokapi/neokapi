@@ -328,9 +328,9 @@ func TestSchemaExt_ItemScopeValidation(t *testing.T) {
 	good := &project.KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
 version: v1
-content:
+collections:
   - name: ui
-    items:
+    content:
       - path: src/foo.json
         max_size: "10MB"
 `), good))
@@ -340,15 +340,15 @@ content:
 	bad := &project.KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
 version: v1
-content:
+collections:
   - name: ui
-    items:
+    content:
       - path: src/foo.json
         max_size: "ten megabytes"
 `), bad))
 	err := bad.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "content[0].items[0].max_size:")
+	assert.Contains(t, err.Error(), "collections[0].content[0].max_size:")
 }
 
 // TestSchemaExt_IdempotentSameGroup verifies that when an extension is
@@ -419,4 +419,83 @@ func TestSchemaExt_DifferentGroupWarns(t *testing.T) {
 	assert.Contains(t, joined, "already registered")
 	assert.Contains(t, joined, "other") // names the existing group
 	assert.Contains(t, joined, "server")
+}
+
+// TestSchemaExt_VenueReachesTheRegistry closes the seam that lets kapi know a
+// recipe is connected without linking, or naming, any platform: the manifest
+// declares which of its keys IS the venue, and the framework asks the registry
+// rather than looking for a key by name.
+func TestSchemaExt_VenueReachesTheRegistry(t *testing.T) {
+	schemaExtMu.Lock()
+	defer schemaExtMu.Unlock()
+
+	projecttest.ResetExtensions()
+	defer projecttest.ResetExtensions()
+
+	_, found := project.VenueKey()
+	require.False(t, found, "a binary with no platform discovered has no venue key")
+
+	host, cw := makeVenuePlugin(t)
+	pluginhost.RegisterSchemaExtensions(host, cw.add)
+
+	key, found := project.VenueKey()
+	require.True(t, found, "warnings: %s", cw.joined())
+	assert.Equal(t, "bowrain", key)
+	assert.True(t, project.IsVenueKey("bowrain"))
+	assert.False(t, project.IsVenueKey("server"))
+
+	p := &project.KapiProject{}
+	require.NoError(t, yaml.Unmarshal([]byte(`
+version: v1
+bowrain:
+  url: https://app.example/acme/demo
+  converge: manual
+`), p))
+	require.NoError(t, p.Validate())
+
+	binding, connected := p.Venue()
+	require.True(t, connected)
+	assert.Equal(t, "bowrain", binding.Key)
+	assert.Equal(t, "https://app.example/acme/demo", binding.URL)
+	assert.Equal(t, "manual", binding.Converge)
+}
+
+// makeVenuePlugin lays out a plugin whose manifest marks its recipe key as the
+// convergence venue, with no JSON Schema — the venue flag is manifest metadata,
+// independent of how the block is validated.
+func makeVenuePlugin(t *testing.T) (*pluginhost.Host, *capturedWarn) {
+	t.Helper()
+	tmp := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(tmp, "venue"), 0o755))
+	manifestBody := `{
+  "manifest_version": "1",
+  "plugin": "venue",
+  "version": "0.1.0",
+  "binary": "kapi-venue",
+  "capabilities": {
+    "schema_extensions": [
+      {
+        "name": "bowrain",
+        "scope": "project",
+        "group": "bowrain",
+        "venue": true
+      }
+    ]
+  }
+}`
+	require.NoError(t, os.WriteFile(filepath.Join(tmp, "venue", "manifest.json"), []byte(manifestBody), 0o644))
+
+	plugins := pluginhost.Discover(pluginhost.DiscoverOptions{
+		EnvPluginsDir: tmp,
+		HomeDir:       "/nonexistent",
+		SystemDirs:    []string{},
+	})
+	require.Len(t, plugins, 1)
+	require.True(t, plugins[0].Manifest.Capabilities.SchemaExtensions[0].Venue,
+		"the manifest must carry the venue flag through discovery")
+
+	cw := &capturedWarn{}
+	h := pluginhost.NewHost(plugins, cw.add)
+	require.NotNil(t, h)
+	return h, cw
 }

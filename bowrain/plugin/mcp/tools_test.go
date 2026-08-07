@@ -36,7 +36,7 @@ func TestHandleProjectConfig(t *testing.T) {
 				SourceLanguage:  "en",
 				TargetLanguages: []model.LocaleID{"fr", "de"},
 			},
-			Content: []coreproj.ContentCollection{
+			Collections: []coreproj.Collection{
 				{Path: "locales/*.json", Format: jsonFormat()},
 			},
 		},
@@ -96,7 +96,7 @@ func TestHandleProjectLsFast(t *testing.T) {
 			Defaults: coreproj.Defaults{
 				SourceLanguage: "en",
 			},
-			Content: []coreproj.ContentCollection{
+			Collections: []coreproj.Collection{
 				{Path: "locales/*.json", Format: jsonFormat()},
 			},
 		},
@@ -124,7 +124,7 @@ func TestHandleProjectLsPathFilter(t *testing.T) {
 			Defaults: coreproj.Defaults{
 				SourceLanguage: "en",
 			},
-			Content: []coreproj.ContentCollection{
+			Collections: []coreproj.Collection{
 				{Path: "locales/*.json", Format: jsonFormat()},
 				{Path: "other/*.json", Format: jsonFormat()},
 			},

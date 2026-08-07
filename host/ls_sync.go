@@ -9,14 +9,14 @@ import (
 )
 
 // MergeServerLs folds per-file sync standing into the ls listing when the
-// recipe has a server: block and a plugin provides the hidden server-ls
+// recipe binds a convergence venue and a plugin provides the hidden server-ls
 // plumbing. It shells `server-ls --json [paths...]` (subprocess dispatch —
 // the cli module never imports bowrain) and sets each entry's Dirty count.
 // Any failure degrades to a one-line stderr warning and leaves the local
 // listing intact: ls must never fail on a server hiccup. Mirrors
 // appendServerStatus under `kapi status`.
 func (a *App) MergeServerLs(cmd Command, proj *project.KapiProject, out *output.LsOutput, paths []string) {
-	if _, ok := proj.Extras["server"]; !ok {
+	if _, ok := proj.Venue(); !ok {
 		return
 	}
 	if a.PluginHost == nil {

@@ -96,7 +96,7 @@ The bowrain CLI resolves the active stream through a priority chain:
 ```
 1. --stream flag           (explicit per-command)
 2. BOWRAIN_STREAM env var  (CI/CD override)
-3. server.stream on recipe (project default)
+3. stream: on the recipe   (project default)
 4. $auto detection         (git branch / CI heuristics)
 5. "main"                  (ultimate fallback)
 ```
@@ -128,7 +128,7 @@ merge refs (`123/merge`) are not used — `GITHUB_HEAD_REF` is preferred.
 
 ### Config
 
-The `stream` field on the `server:` block of the recipe:
+The `stream` field on the `bowrain:` block of the recipe:
 
 ```yaml
 version: v1
@@ -138,7 +138,7 @@ defaults:
   source_language: en
   target_languages: [fr, de]
 
-server:
+bowrain:
   url: https://bowrain.example.com/my-team/abc123
   # Stream determines which content stream to sync with.
   # Default: $auto (detect from git branch / CI environment)
@@ -146,7 +146,7 @@ server:
   stream: $auto
 ```
 
-When `server.stream` is empty or `$auto`, detection runs on every push and pull.
+When the recipe's `stream:` is empty or `$auto`, detection runs on every push and pull.
 When set to a specific name (e.g. `v2.0`), that stream is always used
 regardless of the current git branch — useful for CI pipelines that build
 a single release line.

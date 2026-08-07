@@ -188,7 +188,7 @@ name: demo
 defaults:
   source_language: en
   target_languages: [fr]
-content:
+collections:
   - path: ${opts.content}
     format: ${opts.format}
     target: "${opts.target}"

@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/host"
@@ -96,7 +97,7 @@ func TestPluginHintMatchesManifestVerbs(t *testing.T) {
 	require.True(t, ok, "kapi must carry a plugin hint for bowrain")
 	assert.ElementsMatch(t, want, hint.Verbs,
 		"host.pluginHints for bowrain has drifted from manifest.json — update the table in host/missingplugin.go")
-	assert.Equal(t, "server", hint.RecipeKey,
+	assert.Equal(t, schema.VenueKey, hint.RecipeKey,
 		"the hint's recipe key must be the top-level block this plugin's schema extension owns")
 
 	// Every declared schema extension group belongs to this plugin, so the

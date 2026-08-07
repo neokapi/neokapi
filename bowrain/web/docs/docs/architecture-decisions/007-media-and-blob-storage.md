@@ -438,7 +438,7 @@ incremental sync mechanism.
 Asset sync is opt-out, not opt-in:
 
 ```yaml
-content:
+collections:
   - path: docs/**/*.docx
     format: openxml
     assets: true           # sync embedded assets (default: true)
@@ -454,7 +454,7 @@ assets:
 ```
 
 Resolution order: `assets.enabled: false` globally, then
-`content[].assets: false` per entry, then exclude patterns, then size
+`collections[].assets: false` per entry, then exclude patterns, then size
 limits.
 
 ## Consequences

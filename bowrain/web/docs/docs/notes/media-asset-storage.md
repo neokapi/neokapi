@@ -277,7 +277,7 @@ GET /api/v1/projects/:id/sync/pull?cursor=X&locales=fr
 
 ```yaml
 # kapi.yaml recipe
-content:
+collections:
   - path: docs/**/*.docx
     format: openxml
     assets: true # default: true for formats that support PartMedia
@@ -296,9 +296,9 @@ assets:
 **Resolution order for asset inclusion:**
 
 1. `assets.enabled: false` → skip all assets globally
-2. `content[].assets: false` → skip assets for this content entry
+2. `collections[].assets: false` → skip assets for this content entry
 3. `assets.exclude` patterns → skip matching filenames
-4. `content[].asset_max_size` or `assets.max_size` → skip oversized assets
+4. `collections[].asset_max_size` or `assets.max_size` → skip oversized assets
 
 ## Sync Cache Extension
 

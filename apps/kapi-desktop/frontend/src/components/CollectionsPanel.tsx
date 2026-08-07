@@ -41,7 +41,7 @@ import {
 } from "@neokapi/ui-primitives";
 import type {
   KapiProject,
-  ContentCollection,
+  Collection,
   ContentItem,
   FormatSpec,
   FlowSpec,
@@ -210,7 +210,7 @@ function globExtension(pattern: string): string | undefined {
  * collection name, or "(unnamed)" for a bare entry / a name-less collection.
  * Mirrors `collectionLabel` in the Go backend (status.go).
  */
-function statusLabelOf(coll: ContentCollection): string {
+function statusLabelOf(coll: Collection): string {
   if (isBareEntry(coll)) return "(unnamed)";
   return coll.name && coll.name.length > 0 ? coll.name : "(unnamed)";
 }
@@ -569,7 +569,7 @@ export function CollectionsPanel({
   // and which are in edit mode (config editor over the files). Keyed by index.
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [editing, setEditing] = useState<Set<number>>(new Set());
-  // Collections ticked for a batch run (keyed by index into project.content).
+  // Collections ticked for a batch run (keyed by index into project.collections).
   const [selected, setSelected] = useState<Set<number>>(new Set());
   // The "Advanced" disclosure (collapsed by default): manual run pickers and
   // the Re-extract override live behind it — Bring up to date is the primary
@@ -591,7 +591,7 @@ export function CollectionsPanel({
     entry: string;
   } | null>(null);
 
-  const content = project.content ?? [];
+  const collections = project.collections ?? [];
   const flowNames = Object.keys(flows ?? {});
 
   const hasPreloadedData = !!(propFormats && propBasePath);
@@ -717,12 +717,12 @@ export function CollectionsPanel({
   // Scan files + load coverage on mount and whenever the collection set changes.
   useEffect(() => {
     void rescanFiles();
-  }, [rescanFiles, content.length]);
+  }, [rescanFiles, collections.length]);
 
   useEffect(() => {
     refreshStatus();
     refreshConvergence();
-  }, [refreshStatus, refreshConvergence, project.content]);
+  }, [refreshStatus, refreshConvergence, project.collections]);
 
   // Validate the project's flows so the run menus can disable broken ones.
   useEffect(() => {
@@ -767,22 +767,22 @@ export function CollectionsPanel({
   }, [tabID, hasPreloadedData, refreshStatus, refreshConvergence, rescanFiles, showError]);
 
   // --- Project update helpers ---
-  const updateContent = (newContent: ContentCollection[]) => {
-    onUpdate({ ...project, content: newContent });
+  const updateCollections = (newCollections: Collection[]) => {
+    onUpdate({ ...project, collections: newCollections });
   };
 
   const handleAddCollection = () => {
-    updateContent([...content, { name: "New Collection", items: [{ path: "" }] }]);
+    updateCollections([...collections, { name: "New Collection", content: [{ path: "" }] }]);
   };
 
-  const handleUpdateCollection = (index: number, coll: ContentCollection) => {
-    const updated = [...content];
+  const handleUpdateCollection = (index: number, coll: Collection) => {
+    const updated = [...collections];
     updated[index] = coll;
-    updateContent(updated);
+    updateCollections(updated);
   };
 
   const handleDeleteCollection = (index: number) => {
-    updateContent(content.filter((_, i) => i !== index));
+    updateCollections(collections.filter((_, i) => i !== index));
   };
 
   const handleAddFiles = async () => {
@@ -835,17 +835,17 @@ export function CollectionsPanel({
   // collections it hides so a visible "show all" affordance keeps anything from
   // vanishing without explanation. Filtering by collection name; an empty
   // collection dimension shows all. Indices are preserved so editing still
-  // targets the right project.content entry.
+  // targets the right project.collections entry.
   const filterCollections = activeFilter?.collections ?? [];
   const collectionVisible = useCallback(
-    (coll: ContentCollection) =>
+    (coll: Collection) =>
       filterCollections.length === 0 || filterCollections.includes(statusLabelOf(coll)),
     [filterCollections],
   );
-  const visibleContent = content
+  const visibleCollections = collections
     .map((coll, ci) => ({ coll, ci }))
     .filter(({ coll }) => collectionVisible(coll));
-  const hiddenCount = content.length - visibleContent.length;
+  const hiddenCount = collections.length - visibleCollections.length;
   const filterActive = filterEnabled && !!activeFilter;
 
   // ── Per-collection stats (block counts + coverage), keyed by status label ──
@@ -856,7 +856,7 @@ export function CollectionsPanel({
   }, [status]);
 
   // ── Project-wide coverage strip (over the visible collections) ─────────────
-  const visibleStatuses = visibleContent
+  const visibleStatuses = visibleCollections
     .map(({ coll }) => statusByLabel.get(statusLabelOf(coll)))
     .filter((c): c is CollectionStatus => !!c);
   const totalBlocks = visibleStatuses.reduce((s, c) => s + c.blockCount, 0);
@@ -1051,15 +1051,15 @@ export function CollectionsPanel({
   const openCard = (ci: number) => setExpanded((prev) => new Set(prev).add(ci));
 
   // The glob patterns a content entry declares, and the matched files for them.
-  const patternsOf = (coll: ContentCollection) =>
-    isBareEntry(coll) ? [coll.path ?? ""] : (coll.items ?? []).map((i) => i.path);
-  const filesForEntry = (coll: ContentCollection) => {
+  const patternsOf = (coll: Collection) =>
+    isBareEntry(coll) ? [coll.path ?? ""] : (coll.content ?? []).map((i) => i.path);
+  const filesForEntry = (coll: Collection) => {
     const pats = new Set(patternsOf(coll).filter(Boolean));
     return matches.filter((m) => pats.has(m.pattern));
   };
 
   // The editor body for a collection card (name, language overrides, patterns).
-  const collectionEditor = (coll: ContentCollection, ci: number) => {
+  const collectionEditor = (coll: Collection, ci: number) => {
     if (isBareEntry(coll)) {
       const item: ContentItem = { path: coll.path ?? "", format: coll.format, target: coll.target };
       return renderItemEditor(
@@ -1127,14 +1127,14 @@ export function CollectionsPanel({
         <div>
           <Label className="mb-1 block text-xs text-muted-foreground">Patterns</Label>
           <div className="space-y-2">
-            {(coll.items ?? []).map((item, ii) => (
+            {(coll.content ?? []).map((item, ii) => (
               <div key={ii} className="group/item relative rounded-md border border-border p-3">
                 <div className="absolute right-2 top-2 opacity-0 group-hover/item:opacity-100">
                   <ConfirmDeleteButton
                     onDelete={() => {
-                      const newItems = (coll.items ?? []).filter((_, j) => j !== ii);
+                      const newItems = (coll.content ?? []).filter((_, j) => j !== ii);
                       if (newItems.length === 0) handleDeleteCollection(ci);
-                      else handleUpdateCollection(ci, { ...coll, items: newItems });
+                      else handleUpdateCollection(ci, { ...coll, content: newItems });
                     }}
                     mode="icon"
                   />
@@ -1142,9 +1142,9 @@ export function CollectionsPanel({
                 {renderItemEditor(
                   item,
                   (updated) => {
-                    const newItems = [...(coll.items ?? [])];
+                    const newItems = [...(coll.content ?? [])];
                     newItems[ii] = updated;
-                    handleUpdateCollection(ci, { ...coll, items: newItems });
+                    handleUpdateCollection(ci, { ...coll, content: newItems });
                   },
                   `coll-${ci}-${ii}`,
                 )}
@@ -1156,7 +1156,7 @@ export function CollectionsPanel({
               onClick={() =>
                 handleUpdateCollection(ci, {
                   ...coll,
-                  items: [...(coll.items ?? []), { path: "" }],
+                  content: [...(coll.content ?? []), { path: "" }],
                 })
               }
               className="text-muted-foreground"
@@ -1455,12 +1455,12 @@ export function CollectionsPanel({
   // disclosure is open (the manual run surface); the union of the selected
   // collections' matched files is the run scope.
   const selectable = advancedOpen && !!onRunFlow && flowNames.length > 0;
-  const visibleIndices = visibleContent.map((v) => v.ci);
+  const visibleIndices = visibleCollections.map((v) => v.ci);
   const allVisibleSelected =
     visibleIndices.length > 0 && visibleIndices.every((i) => selected.has(i));
   const selectedPaths = Array.from(
     new Set(
-      visibleContent
+      visibleCollections
         .filter((v) => selected.has(v.ci))
         .flatMap(({ coll }) => filesForEntry(coll).map((m) => m.path)),
     ),
@@ -1507,7 +1507,7 @@ export function CollectionsPanel({
   const columnLangs = filterLanguages(
     Array.from(
       new Set(
-        visibleContent.flatMap(({ coll }) =>
+        visibleCollections.flatMap(({ coll }) =>
           (coll.target_languages ?? project.defaults?.target_languages ?? []).map(String),
         ),
       ),
@@ -1525,7 +1525,7 @@ export function CollectionsPanel({
     return m;
   }, [convergence]);
   const hasGates = covScope.size > 0;
-  const scopeCov = (coll: ContentCollection, lang: string): LocaleCoverage | undefined => {
+  const scopeCov = (coll: Collection, lang: string): LocaleCoverage | undefined => {
     const name = isBareEntry(coll) ? "" : (coll.name ?? "");
     return covScope.get(`${name} ${lang}`) ?? covScope.get(` ${lang}`);
   };
@@ -1543,7 +1543,7 @@ export function CollectionsPanel({
   // Collection → its cake/Layers colour, keyed the way convergence reports it
   // (collection "" for bare entries), so the hover breakdown matches the donut.
   const collColorByName = new Map<string, string>();
-  visibleContent.forEach(({ coll }, idx) =>
+  visibleCollections.forEach(({ coll }, idx) =>
     collColorByName.set(coll.name ?? "", collectionColor(idx)),
   );
   const timelineItems: TimelineItem[] | null = hasGates
@@ -1585,7 +1585,7 @@ export function CollectionsPanel({
   // Per-(collection, language) translated coverage %, or null when the
   // collection doesn't target that language / nothing extracted. Used as the
   // fallback view before any convergence (ship-gate) data is available.
-  const covPct = (coll: ContentCollection, lang: string): number | null => {
+  const covPct = (coll: Collection, lang: string): number | null => {
     const cs = statusByLabel.get(statusLabelOf(coll));
     if (!cs || cs.blockCount === 0 || !cs.targetLanguages.includes(lang)) return null;
     return Math.round(((cs.coverage?.[lang] ?? 0) / cs.blockCount) * 100);
@@ -1593,7 +1593,7 @@ export function CollectionsPanel({
   // One coverage cell: a ship-gate rung (Shippable / In review / Draft / —) with
   // the translated % as a secondary figure once convergence is available; the
   // translated-only bar/tile before then.
-  const langCell = (coll: ContentCollection, lang: string) => {
+  const langCell = (coll: Collection, lang: string) => {
     if (hasGates) {
       const r = rungFor(scopeCov(coll, lang));
       if (r.key === "none") {
@@ -1670,7 +1670,7 @@ export function CollectionsPanel({
     );
   };
   // Cake slices: one per displayed collection with blocks, coloured by position.
-  const cake = visibleContent.map(({ coll }, idx) => ({
+  const cake = visibleCollections.map(({ coll }, idx) => ({
     name: statusLabelOf(coll),
     value: statusByLabel.get(statusLabelOf(coll))?.blockCount ?? 0,
     fill: collectionColor(idx),
@@ -1851,7 +1851,7 @@ export function CollectionsPanel({
 
       {/* Colour-coded "cake": block distribution per collection (slices match
           the row dots below) + project-wide coverage per language. */}
-      {content.length > 0 &&
+      {collections.length > 0 &&
         (hasData ? (
           <Card className="mb-3 p-4">
             <div className="grid gap-6 sm:grid-cols-[auto_1fr] sm:items-center">
@@ -1942,7 +1942,7 @@ export function CollectionsPanel({
         ))}
 
       {/* Archive collections get the translation-state panel (unchanged). */}
-      {content.some((c) => c.archive) && (
+      {collections.some((c) => c.archive) && (
         <div className="mb-4">
           <TranslationStatusPanel tabID={tabID} />
         </div>
@@ -1979,7 +1979,7 @@ export function CollectionsPanel({
           dragging ? "border-primary bg-primary/5" : "border-transparent"
         }`}
       >
-        {content.length === 0 && unmatchedFiles.length === 0 ? (
+        {collections.length === 0 && unmatchedFiles.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Upload size={24} className="mb-3 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">
@@ -1989,7 +1989,7 @@ export function CollectionsPanel({
         ) : (
           <div className="overflow-hidden rounded-lg border border-border">
             {/* Column header — shares the row grid so everything lines up. */}
-            {visibleContent.length > 0 && (
+            {visibleCollections.length > 0 && (
               <div
                 className="grid items-center gap-x-3 border-b border-border bg-muted/30 px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
                 style={{ gridTemplateColumns: gridCols }}
@@ -2011,7 +2011,7 @@ export function CollectionsPanel({
               </div>
             )}
 
-            {visibleContent.map(({ coll, ci }, idx) => {
+            {visibleCollections.map(({ coll, ci }, idx) => {
               const isEditing = editing.has(ci);
               const isOpen = expanded.has(ci);
               const files = filesForEntry(coll);

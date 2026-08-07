@@ -3,6 +3,7 @@ package backend
 import (
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -10,7 +11,7 @@ import (
 )
 
 // serverExtra builds the yaml.Node the framework stores under a recipe's
-// unknown `server:` key (the bowrain schema extension), so the venue binding
+// `bowrain:` venue key (the bowrain schema extension), so the venue binding
 // can be exercised without a full project load.
 func serverExtra(t *testing.T, body string) yaml.Node {
 	t.Helper()
@@ -27,7 +28,7 @@ func venueApp(proj *project.KapiProject) *App {
 func TestGetProjectServer_Connected(t *testing.T) {
 	proj := &project.KapiProject{
 		Extras: map[string]yaml.Node{
-			"server": serverExtra(t, "url: https://bowrain.example.com/my-team/abc123\nstream: main\n"),
+			schema.VenueKey: serverExtra(t, "url: https://bowrain.example.com/my-team/abc123\nstream: main\n"),
 		},
 	}
 	got, err := venueApp(proj).GetProjectServer("t")
@@ -41,7 +42,7 @@ func TestGetProjectServer_Connected(t *testing.T) {
 func TestGetProjectServer_DirectProjectURL(t *testing.T) {
 	proj := &project.KapiProject{
 		Extras: map[string]yaml.Node{
-			"server": serverExtra(t, "url: https://bowrain.example.com/projects/abc123\n"),
+			schema.VenueKey: serverExtra(t, "url: https://bowrain.example.com/projects/abc123\n"),
 		},
 	}
 	got, err := venueApp(proj).GetProjectServer("t")
@@ -50,7 +51,7 @@ func TestGetProjectServer_DirectProjectURL(t *testing.T) {
 	assert.Equal(t, "bowrain.example.com", got.Host)
 }
 
-func TestGetProjectServer_NoServerBlock(t *testing.T) {
+func TestGetProjectServer_NoVenueBlock(t *testing.T) {
 	got, err := venueApp(&project.KapiProject{}).GetProjectServer("t")
 	require.NoError(t, err)
 	assert.False(t, got.Connected)
@@ -59,7 +60,7 @@ func TestGetProjectServer_NoServerBlock(t *testing.T) {
 
 func TestGetProjectServer_EmptyURL(t *testing.T) {
 	proj := &project.KapiProject{
-		Extras: map[string]yaml.Node{"server": serverExtra(t, "stream: main\n")},
+		Extras: map[string]yaml.Node{schema.VenueKey: serverExtra(t, "stream: main\n")},
 	}
 	got, err := venueApp(proj).GetProjectServer("t")
 	require.NoError(t, err)

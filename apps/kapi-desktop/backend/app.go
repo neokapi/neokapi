@@ -1227,19 +1227,19 @@ func (a *App) ApplyPreset(tabID, presetName string) (*project.KapiProject, error
 	}
 
 	// Apply mappings as content entries (bare entries).
-	var entries []project.ContentCollection
+	var entries []project.Collection
 	for _, m := range fp.Mappings {
 		var fmtSpec *project.FormatSpec
 		if m.Format != "" {
 			fmtSpec = &project.FormatSpec{Name: m.Format}
 		}
-		entries = append(entries, project.ContentCollection{
+		entries = append(entries, project.Collection{
 			Path:   m.Local,
 			Format: fmtSpec,
 			Target: m.TargetPath,
 		})
 	}
-	op.Project.Content = entries
+	op.Project.Collections = entries
 	op.Project.Preset = presetName
 
 	return op.Project, nil

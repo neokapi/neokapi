@@ -19,7 +19,7 @@ import (
 
 // newServerProject scaffolds a project whose recipe carries the given server
 // block, with one JSON content entry on disk.
-func newServerProject(t *testing.T, server *bproject.ServerSpec, content []coreproj.ContentCollection) (*bproject.Project, *registry.FormatRegistry) {
+func newServerProject(t *testing.T, server *bproject.ServerSpec, content []coreproj.Collection) (*bproject.Project, *registry.FormatRegistry) {
 	t.Helper()
 	root := t.TempDir()
 
@@ -27,7 +27,7 @@ func newServerProject(t *testing.T, server *bproject.ServerSpec, content []corep
 	formats.RegisterAll(reg)
 
 	if content == nil {
-		content = []coreproj.ContentCollection{
+		content = []coreproj.Collection{
 			{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
 		}
 	}
@@ -37,7 +37,7 @@ func newServerProject(t *testing.T, server *bproject.ServerSpec, content []corep
 				SourceLanguage:  "en",
 				TargetLanguages: []model.LocaleID{"fr"},
 			},
-			Content: content,
+			Collections: content,
 		},
 		Server: server,
 	}
@@ -125,14 +125,14 @@ func TestListFiles_ContentIteration(t *testing.T) {
 func TestResolveTargetPath(t *testing.T) {
 	tests := []struct {
 		name    string
-		content []coreproj.ContentCollection
+		content []coreproj.Collection
 		item    string
 		locale  string
 		want    string
 	}{
 		{
 			name: "default replaces source locale segment",
-			content: []coreproj.ContentCollection{
+			content: []coreproj.Collection{
 				{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
 			},
 			item:   "locales/en.json",
@@ -141,7 +141,7 @@ func TestResolveTargetPath(t *testing.T) {
 		},
 		{
 			name: "lang placeholder pattern",
-			content: []coreproj.ContentCollection{
+			content: []coreproj.Collection{
 				{Path: "src/{lang}/**/*.json", Target: "src/{lang}/**/*.json", Format: &coreproj.FormatSpec{Name: "json"}},
 			},
 			item:   "src/en/foo/bar.json",
@@ -150,7 +150,7 @@ func TestResolveTargetPath(t *testing.T) {
 		},
 		{
 			name: "legacy locale path filename placeholders",
-			content: []coreproj.ContentCollection{
+			content: []coreproj.Collection{
 				{Path: "locales/en.json", Target: "out/{locale}/{path}/{filename}", Format: &coreproj.FormatSpec{Name: "json"}},
 			},
 			item:   "locales/en.json",
@@ -171,7 +171,7 @@ func TestResolveTargetPath(t *testing.T) {
 						SourceLanguage:  "en",
 						TargetLanguages: []model.LocaleID{"fr"},
 					},
-					Content: tt.content,
+					Collections: tt.content,
 				},
 			}
 			proj, err := bproject.InitProject(root, recipe)
@@ -260,7 +260,7 @@ func TestDetectFormat_CompoundExtension(t *testing.T) {
 				SourceLanguage:  "en",
 				TargetLanguages: []model.LocaleID{"nb"},
 			},
-			Content: []coreproj.ContentCollection{
+			Collections: []coreproj.Collection{
 				// No format: — detection must resolve it, exactly as the
 				// dogfood recipe leaves its catalog items.
 				{Path: "i18n/**/*.kbf.json"},

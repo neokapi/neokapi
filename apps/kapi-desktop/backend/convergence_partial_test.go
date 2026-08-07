@@ -47,16 +47,16 @@ func newPartialFailureProject(t *testing.T, app *App) (*TabInfo, string) {
 		[]byte(`{"greeting":"Bonjour","farewell":"Au revoir"}`), 0o644))
 
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "PartialConverge",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR", "de-DE"},
 			Flow:            "pseudo",
 		},
-		Content: []project.ContentCollection{{
-			Name:  "App",
-			Items: []project.ContentItem{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
+		Collections: []project.Collection{{
+			Name:    "App",
+			Content: []project.ContentItem{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
 		}},
 		Flows: map[string]*flow.StepsSpec{
 			// An unknown provider fails at tool assembly — no network, no

@@ -30,12 +30,12 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 				"json":     {Config: map[string]any{"indent": 2}},
 			},
 		},
-		Content: []ContentCollection{
+		Collections: []Collection{
 			{Path: "src/locales/en/*.json", Format: &FormatSpec{Name: "json"}, Target: "src/locales/{lang}/*.json"},
 			{
 				Name:            "Marketing",
 				TargetLanguages: []model.LocaleID{"fr-FR"},
-				Items: []ContentItem{
+				Content: []ContentItem{
 					{Path: "marketing/**/*.html", Format: &FormatSpec{Name: "okf_html", Preset: "lenient"}, Target: "marketing/{lang}/**/*.html"},
 					{Path: "marketing/**/*.json", Target: "marketing/{lang}/**/*.json"},
 				},
@@ -81,24 +81,24 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 	assert.Equal(t, 200, loaded.Plugins["okapi"].FormatPriority)
 
 	// Content.
-	require.Len(t, loaded.Content, 2)
+	require.Len(t, loaded.Collections, 2)
 
 	// Bare entry.
-	bare := loaded.Content[0]
+	bare := loaded.Collections[0]
 	assert.True(t, bare.IsBareEntry())
 	assert.Equal(t, "src/locales/en/*.json", bare.Path)
 	assert.Equal(t, "json", bare.Format.Name)
 	assert.Equal(t, "src/locales/{lang}/*.json", bare.Target)
 
 	// Collection.
-	coll := loaded.Content[1]
+	coll := loaded.Collections[1]
 	assert.False(t, coll.IsBareEntry())
 	assert.Equal(t, "Marketing", coll.Name)
 	assert.Equal(t, []model.LocaleID{"fr-FR"}, coll.TargetLanguages)
-	require.Len(t, coll.Items, 2)
-	assert.Equal(t, "marketing/**/*.html", coll.Items[0].Path)
-	assert.Equal(t, "okf_html", coll.Items[0].Format.Name)
-	assert.Equal(t, "lenient", coll.Items[0].Format.Preset)
+	require.Len(t, coll.Content, 2)
+	assert.Equal(t, "marketing/**/*.html", coll.Content[0].Path)
+	assert.Equal(t, "okf_html", coll.Content[0].Format.Name)
+	assert.Equal(t, "lenient", coll.Content[0].Format.Preset)
 
 	// Flows.
 	assert.Equal(t, "nextjs", loaded.Preset)
@@ -124,13 +124,13 @@ plugins:
   okapi: "^1.47.0"
   my-tool:
     version: "^2.0.0"
-content:
+collections:
   - path: "messages/*.json"
     format: json
   - name: Docs
     source_language: zh-CN
     target_languages: [en-US]
-    items:
+    content:
       - path: "docs/*.html"
         format:
           name: okf_html
@@ -171,20 +171,20 @@ flows:
 	assert.Equal(t, "^2.0.0", proj.Plugins["my-tool"].Version)
 
 	// Content — bare entry with short format.
-	require.Len(t, proj.Content, 2)
-	assert.True(t, proj.Content[0].IsBareEntry())
-	assert.Equal(t, "json", proj.Content[0].Format.Name)
+	require.Len(t, proj.Collections, 2)
+	assert.True(t, proj.Collections[0].IsBareEntry())
+	assert.Equal(t, "json", proj.Collections[0].Format.Name)
 
 	// Content — collection with long format.
-	coll := proj.Content[1]
+	coll := proj.Collections[1]
 	assert.False(t, coll.IsBareEntry())
 	assert.Equal(t, "Docs", coll.Name)
 	assert.Equal(t, model.LocaleID("zh-CN"), coll.SourceLanguage)
 	assert.Equal(t, []model.LocaleID{"en-US"}, coll.TargetLanguages)
-	require.Len(t, coll.Items, 1)
-	assert.Equal(t, "okf_html", coll.Items[0].Format.Name)
-	assert.Equal(t, "lenient", coll.Items[0].Format.Preset)
-	assert.Equal(t, true, coll.Items[0].Format.Config["preserveWhitespace"])
+	require.Len(t, coll.Content, 1)
+	assert.Equal(t, "okf_html", coll.Content[0].Format.Name)
+	assert.Equal(t, "lenient", coll.Content[0].Format.Preset)
+	assert.Equal(t, true, coll.Content[0].Format.Config["preserveWhitespace"])
 
 	// Flows.
 	spec := proj.Flow("pseudo")
@@ -240,17 +240,17 @@ func TestPluginSpecUnmarshal(t *testing.T) {
 	}
 }
 
-func TestContentCollectionBareVsCollection(t *testing.T) {
+func TestCollectionBareVsNamed(t *testing.T) {
 	yamlContent := `
 - path: "src/**/*"
   target: "output/{lang}/**/*"
 - name: Marketing
   target_languages: [fr-FR]
-  items:
+  content:
     - path: "marketing/*.html"
       format: okf_html
 `
-	var content []ContentCollection
+	var content []Collection
 	require.NoError(t, yaml.Unmarshal([]byte(yamlContent), &content))
 	require.Len(t, content, 2)
 
@@ -269,28 +269,28 @@ func TestContentCollectionBareVsCollection(t *testing.T) {
 	assert.Equal(t, "marketing/*.html", items[0].Path)
 }
 
-func TestContentCollectionExecFormat(t *testing.T) {
+func TestCollectionExecFormat(t *testing.T) {
 	yamlContent := `
 - name: ui
-  items:
+  content:
     - path: "src/**/*.tsx"
       format:
         name: exec
         config:
           command: "vp neokapi-i18n extract --stream"
 `
-	var content []ContentCollection
+	var content []Collection
 	require.NoError(t, yaml.Unmarshal([]byte(yamlContent), &content))
 	require.Len(t, content, 1)
-	require.Len(t, content[0].Items, 1)
-	require.NotNil(t, content[0].Items[0].Format)
-	assert.Equal(t, "exec", content[0].Items[0].Format.Name)
+	require.Len(t, content[0].Content, 1)
+	require.NotNil(t, content[0].Content[0].Format)
+	assert.Equal(t, "exec", content[0].Content[0].Format.Name)
 	assert.Equal(t, "vp neokapi-i18n extract --stream",
-		content[0].Items[0].Format.Config["command"])
+		content[0].Content[0].Format.Config["command"])
 
 	out, err := yaml.Marshal(content)
 	require.NoError(t, err)
-	var back []ContentCollection
+	var back []Collection
 	require.NoError(t, yaml.Unmarshal(out, &back))
 	assert.Equal(t, content, back, "exec format spec round-trips cleanly")
 }
@@ -301,7 +301,7 @@ func TestLanguageResolution(t *testing.T) {
 		TargetLanguages: []model.LocaleID{"fr-FR", "de-DE", "ja-JP"},
 	}
 
-	coll := &ContentCollection{
+	coll := &Collection{
 		Name:            "China",
 		SourceLanguage:  "zh-CN",
 		TargetLanguages: []model.LocaleID{"en-US"},
@@ -356,24 +356,24 @@ func TestValidation(t *testing.T) {
 			wantErr: "unsupported version",
 		},
 		{
-			name: "collection without items",
+			name: "collection without content",
 			proj: KapiProject{
 				Version: "v1",
-				Content: []ContentCollection{
+				Collections: []Collection{
 					{Name: "Empty"},
 				},
 			},
-			wantErr: `collection "Empty" must have at least one item`,
+			wantErr: `collection "Empty" must have at least one content item`,
 		},
 		{
 			name: "collection item without path",
 			proj: KapiProject{
 				Version: "v1",
-				Content: []ContentCollection{
-					{Name: "Bad", Items: []ContentItem{{}}},
+				Collections: []Collection{
+					{Name: "Bad", Content: []ContentItem{{}}},
 				},
 			},
-			wantErr: "content[0].items[0]: path is required",
+			wantErr: "collections[0].content[0]: path is required",
 		},
 		{
 			name: "flow without steps",
@@ -403,7 +403,7 @@ func TestValidation(t *testing.T) {
 			name: "valid bare entry",
 			proj: KapiProject{
 				Version: "v1",
-				Content: []ContentCollection{
+				Collections: []Collection{
 					{Path: "src/**/*"},
 				},
 			},
@@ -412,8 +412,8 @@ func TestValidation(t *testing.T) {
 			name: "valid collection",
 			proj: KapiProject{
 				Version: "v1",
-				Content: []ContentCollection{
-					{Name: "Docs", Items: []ContentItem{{Path: "docs/*.md"}}},
+				Collections: []Collection{
+					{Name: "Docs", Content: []ContentItem{{Path: "docs/*.md"}}},
 				},
 			},
 		},
@@ -523,7 +523,7 @@ func TestParallelSteps(t *testing.T) {
 
 func TestEffectiveItems(t *testing.T) {
 	t.Run("bare entry wraps as single item", func(t *testing.T) {
-		c := &ContentCollection{
+		c := &Collection{
 			Path:   "src/**/*",
 			Format: &FormatSpec{Name: "json"},
 			Target: "output/{lang}/**/*",
@@ -536,9 +536,9 @@ func TestEffectiveItems(t *testing.T) {
 	})
 
 	t.Run("collection returns items directly", func(t *testing.T) {
-		c := &ContentCollection{
+		c := &Collection{
 			Name: "Test",
-			Items: []ContentItem{
+			Content: []ContentItem{
 				{Path: "a/*"},
 				{Path: "b/*"},
 			},
@@ -783,4 +783,74 @@ brand_voice:
 	assert.Equal(t, "professional-b2b", reloaded.Defaults.Voice.Pack)
 	_, ok = reloaded.Extras["brand_voice"]
 	assert.True(t, ok, "top-level brand_voice should survive round-trip in Extras")
+}
+
+// TestResolveGovernance_ProfileSelectsNotLayers pins what a matched profile
+// does: it selects, it does not layer. One binding no voice keeps the project
+// default, and one binding no terms leaves the project's own store governing —
+// while still naming the profile, because its directory under `.kapi/profiles/`
+// is a binding the recipe does not restate.
+func TestResolveGovernance_ProfileSelectsNotLayers(t *testing.T) {
+	proj := &KapiProject{
+		Version:  "v1",
+		Defaults: Defaults{Voice: &VoiceBinding{ProfileFile: "base.yaml"}},
+		Profiles: map[string]Profile{
+			"bowrain": {Channels: []Channel{{ID: "app"}}},
+		},
+		Collections: []Collection{
+			{Name: "plain", Content: []ContentItem{{Path: "a/*.md"}}},
+			{Name: "platform", Channel: "bowrain/app", Content: []ContentItem{{Path: "b/*.md"}}},
+		},
+	}
+	require.NoError(t, proj.Validate())
+
+	plain, err := proj.ResolveGovernance("plain")
+	require.NoError(t, err)
+	assert.Empty(t, plain.Profile)
+	assert.Equal(t, "base.yaml", plain.Voice.ProfileFile)
+
+	platform, err := proj.ResolveGovernance("platform")
+	require.NoError(t, err)
+	assert.Equal(t, "bowrain", platform.Profile)
+	assert.Equal(t, "base.yaml", platform.Voice.ProfileFile)
+	assert.Equal(t, DefaultVoiceField, platform.VoiceField)
+	assert.Empty(t, platform.Terms)
+}
+
+// TestResolveGovernance_NoDefaults covers the project that binds no governance
+// at all: a point resolves to nothing rather than to something borrowed.
+func TestResolveGovernance_NoDefaults(t *testing.T) {
+	proj := &KapiProject{
+		Version:  "v1",
+		Profiles: map[string]Profile{"kapi": {Channels: []Channel{{ID: "docs"}}}},
+		Collections: []Collection{{
+			Name:    "docs",
+			Channel: "kapi/docs",
+			Content: []ContentItem{{Path: "a/*.md"}},
+		}},
+	}
+	require.NoError(t, proj.Validate())
+
+	rc, err := proj.ResolveGovernance("docs")
+	require.NoError(t, err)
+	assert.Nil(t, rc.Voice)
+	assert.Empty(t, rc.Terms)
+	assert.Equal(t, DefaultVoiceField, rc.VoiceField)
+}
+
+// TestBindsTermsByProfile_VoiceOnly is the negative side of the venue warning:
+// a voice travels to a connected server on the context content type, so binding
+// one per profile is not what makes a run resolve differently by venue. Only
+// `terms:` — a local path with nothing on the wire — does.
+func TestBindsTermsByProfile_VoiceOnly(t *testing.T) {
+	bare := &KapiProject{Version: "v1"}
+	assert.False(t, bare.HasContextSpace())
+	assert.False(t, bare.BindsTermsByProfile())
+
+	voiceOnly := &KapiProject{
+		Version:  "v1",
+		Profiles: map[string]Profile{"kapi": {Voice: &VoiceBinding{Pack: "technical-docs"}}},
+	}
+	assert.True(t, voiceOnly.HasContextSpace())
+	assert.False(t, voiceOnly.BindsTermsByProfile())
 }

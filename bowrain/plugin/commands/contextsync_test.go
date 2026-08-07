@@ -35,29 +35,28 @@ func newGovernedProject(t *testing.T) *bproject.Project {
 				SourceLanguage:  "en",
 				TargetLanguages: []model.LocaleID{"fr"},
 			},
-			Coordinates: coreproj.Coordinates{
-				"product": {{ID: "kapi"}, {ID: "bowrain"}},
-				"channel": {{ID: "docs"}, {ID: "email"}},
+			Profiles: map[string]coreproj.Profile{
+				"kapi": {
+					Channels: []coreproj.Channel{{ID: "docs"}, {ID: "email"}},
+					Voice:    &coreproj.VoiceBinding{ProfileFile: "acme-voice.yaml"},
+				},
+				"bowrain": {Channels: []coreproj.Channel{{ID: "partners"}}},
 			},
-			Profiles: []coreproj.ProfileBinding{{
-				When:  map[string]string{"product": "kapi"},
-				Voice: &coreproj.VoiceBinding{ProfileFile: "acme-voice.yaml"},
-			}},
-			Content: []coreproj.ContentCollection{
+			Collections: []coreproj.Collection{
 				{
 					Name:    "docs",
-					Context: map[string]string{"product": "kapi", "channel": "docs"},
-					Items:   []coreproj.ContentItem{{Path: "docs/**/*.json"}},
+					Channel: "kapi/docs",
+					Content: []coreproj.ContentItem{{Path: "docs/**/*.json"}},
 				},
 				{
 					Name:    "mail",
-					Context: map[string]string{"product": "kapi", "channel": "email"},
-					Items:   []coreproj.ContentItem{{Path: "mail/**/*.json"}},
+					Channel: "kapi/email",
+					Content: []coreproj.ContentItem{{Path: "mail/**/*.json"}},
 				},
 				{
 					Name:    "partner",
-					Context: map[string]string{"product": "bowrain"},
-					Items:   []coreproj.ContentItem{{Path: "partner/**/*.json"}},
+					Channel: "bowrain/partners",
+					Content: []coreproj.ContentItem{{Path: "partner/**/*.json"}},
 				},
 				{Path: "loose/*.json"},
 			},
@@ -99,10 +98,10 @@ func TestBuildPushContext_CarriesDeclaredCollections(t *testing.T) {
 
 	assert.Equal(t, "email", byName["mail"].Channel)
 	assert.Equal(t, "Acme Voice", byName["mail"].VoiceProfile,
-		"the same profile governs every point its `when:` matches")
+		"a profile governs every channel its product ships on")
 
 	assert.Empty(t, byName["partner"].VoiceProfile,
-		"a point no profile matches binds no voice")
+		"a profile that binds no voice binds none for its collections")
 
 	require.NotNil(t, brand)
 	assert.Equal(t, "Acme Voice", brand.Name)
@@ -160,8 +159,8 @@ func TestBuildPushContext_NoCollectionsStillMakesAClaim(t *testing.T) {
 
 	proj, err := bproject.InitProject(t.TempDir(), &bproject.Recipe{
 		KapiProject: coreproj.KapiProject{
-			Defaults: coreproj.Defaults{SourceLanguage: "en"},
-			Content:  []coreproj.ContentCollection{{Path: "loose/*.json"}},
+			Defaults:    coreproj.Defaults{SourceLanguage: "en"},
+			Collections: []coreproj.Collection{{Path: "loose/*.json"}},
 		},
 	})
 	require.NoError(t, err)

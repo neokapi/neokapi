@@ -24,9 +24,9 @@ name: rev
 defaults:
   source_language: en
   target_languages: [nb]
-content:
+collections:
   - name: app
-    items:
+    content:
       - path: en.json
         target: "{lang}.json"
 ship_gate: { translated: 100, reviewed: 100 }

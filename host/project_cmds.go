@@ -139,9 +139,9 @@ func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 	}
 
 	if len(content) > 0 {
-		// Bare-entry content form: each entry maps a source glob to a target
+		// Bare-entry collection form: each entry maps a source glob to a target
 		// glob via the {lang} placeholder. The format is the short (scalar) form.
-		b.WriteString("\ncontent:\n")
+		b.WriteString("\ncollections:\n")
 		for _, c := range content {
 			fmt.Fprintf(&b, "  - path: %q\n", c.Path)
 			fmt.Fprintf(&b, "    format: %s\n", c.Format)
@@ -154,15 +154,33 @@ func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 	}
 
 	b.WriteString(`
-# Define content and flows. Each bare content entry maps a source glob to a
-# target; kapi tools read the source content and edit, check, or translate it.
+# Define collections and flows. Each bare collection entry maps a source glob to
+# a target; kapi tools read the source content and edit, check, or translate it.
 # The {lang} placeholder in a target fans output out per language. Runtime block
 # state lives in the project store, .kapi/work/store.db.
 #
-# content:
+# collections:
 #   - path: "src/locales/en/*.json"
 #     format: json
 #     target: "src/locales/{lang}/*.json"
+#
+# A named collection binds the point in the context space its content sits at,
+# and its base: is the directory it lives in — every path and target below is
+# written relative to that base and joined onto it:
+#
+# profiles:
+#   acme:
+#     channels: [docs]
+#     voice: .kapi/profiles/acme/voice.yaml
+#
+# collections:
+#   - name: acme-docs
+#     channel: docs
+#     base: web
+#     content:
+#       - path: "docs/**/*.md"          # web/docs/**/*.md
+#         format: markdown
+#         target: "i18n/{lang}/{path}.md"   # web/i18n/{lang}/{path}.md
 #
 # flows:
 #   # Monolingual: check source content against the voice profile and terminology.
@@ -175,8 +193,8 @@ func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content [
 #     steps:
 #       - tool: translate
 #
-# Tip: 'kapi init --framework <stack>' pre-fills content for a known stack.
-content: []
+# Tip: 'kapi init --framework <stack>' pre-fills collections for a known stack.
+collections: []
 flows: {}
 `)
 	return []byte(b.String())
@@ -206,18 +224,18 @@ func ScaffoldContentRecipe(name, sourceLocale string) []byte {
 	b.WriteString("  voice:\n")
 	b.WriteString("    pack: professional-b2b\n")
 	b.WriteString(`
-# Content project: no target_languages. Point content at the source files to
-# keep in voice, then run 'kapi run check' to score them. Block state lives in
-# the project store, .kapi/work/store.db.
+# Content project: no target_languages. Point collections at the source files
+# to keep in voice, then run 'kapi run check' to score them. Block state lives
+# in the project store, .kapi/work/store.db.
 #
-# content:
+# collections:
 #   - path: "src/**/*.md"
 #     format: markdown
 #
 # Swap the starter pack for your own profile: 'kapi voice new -o voice.yaml',
 # fill it in, 'kapi voice import voice.yaml', then set
 # defaults.voice.profile instead of pack.
-content: []
+collections: []
 
 # The check flow scores content against the voice vocabulary (deterministic,
 # offline) and gates on the result. Add the AI-driven 'voice-check' step

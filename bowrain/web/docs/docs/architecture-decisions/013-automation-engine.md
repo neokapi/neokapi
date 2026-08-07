@@ -95,7 +95,7 @@ source-review task) when the source is below the project's `source_gate`,
 and otherwise translates, checks, parks, and creates the per-locale review
 tasks its parked units need. `source.review.completed` is what releases a
 held run — hence the `fan-out-after-source-review` rule. Projects opt out
-per push by setting the policy to `manual` (`server.converge` in the
+per push by setting the policy to `manual` (`bowrain.converge` in the
 recipe, mirrored to the server); they opt out of the source gate itself
 with `source_gate: none`.
 

@@ -67,8 +67,8 @@ func formatNameOf(spec *coreproj.FormatSpec) string {
 	return spec.Name
 }
 
-// streamFor returns the recipe's configured stream name (server.stream),
-// or "" when the recipe has no server block.
+// streamFor returns the recipe's configured stream name (bowrain.stream),
+// or "" when the recipe has no bowrain block.
 func streamFor(recipe *Recipe) string {
 	if recipe == nil || recipe.Server == nil {
 		return ""
@@ -117,7 +117,7 @@ type itemBlock struct {
 func NewSourceConnector(app *host.App, project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
 	recipe := project.Recipe
 	if !recipe.HasServer() {
-		return nil, errors.New("no server configuration in the kapi recipe (add a `server:` block)")
+		return nil, fmt.Errorf("no server configuration in the kapi recipe (add a `%s:` block)", schema.VenueKey)
 	}
 
 	serverURL := config.NormalizeServerURL(recipe.Server.ServerURL())
@@ -125,10 +125,10 @@ func NewSourceConnector(app *host.App, project *Project, formatReg *registry.For
 	workspace := recipe.Server.Workspace()
 
 	if serverURL == "" {
-		return nil, errors.New("server URL not configured in the recipe's `server:` block")
+		return nil, fmt.Errorf("server URL not configured in the recipe's `%s:` block", schema.VenueKey)
 	}
 	if projectID == "" {
-		return nil, errors.New("server project ID not configured in the recipe's `server:` block")
+		return nil, fmt.Errorf("server project ID not configured in the recipe's `%s:` block", schema.VenueKey)
 	}
 
 	cache := LoadSyncCache(project.Layout)

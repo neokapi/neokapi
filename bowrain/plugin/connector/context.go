@@ -95,19 +95,23 @@ func (c *BowrainSourceConnector) recipeDivergesFrom(e *pb.SyncContextEntry) bool
 	if declared == nil {
 		return false
 	}
-	if !maps.Equal(normalizeCoordinates(declared.Context), normalizeCoordinates(e.Coordinates)) {
+	ref, err := c.project.Recipe.ResolveChannel(declared.Channel)
+	if err != nil {
+		return false
+	}
+	if !maps.Equal(normalizeCoordinates(ref.Coordinates()), normalizeCoordinates(e.Coordinates)) {
 		return true
 	}
-	return declared.Context[coreproj.ChannelAxis] != e.Channel
+	return ref.Channel != e.Channel
 }
 
 // declaredCollection finds the recipe's collection of that name, or nil.
-func (c *BowrainSourceConnector) declaredCollection(name string) *coreproj.ContentCollection {
+func (c *BowrainSourceConnector) declaredCollection(name string) *coreproj.Collection {
 	if c.project == nil || c.project.Recipe == nil {
 		return nil
 	}
-	for i := range c.project.Recipe.Content {
-		if coll := &c.project.Recipe.Content[i]; coll.Name == name {
+	for i := range c.project.Recipe.Collections {
+		if coll := &c.project.Recipe.Collections[i]; coll.Name == name {
 			return coll
 		}
 	}

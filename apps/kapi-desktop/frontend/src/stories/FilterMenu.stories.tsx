@@ -9,10 +9,10 @@ const project: KapiProject = {
     source_language: "en-US",
     target_languages: ["fr-FR", "de-DE", "ja-JP", "nb-NO"],
   },
-  content: [
-    { name: "Website", items: [{ path: "docs/**/*.md" }] },
-    { name: "Online Store", items: [{ path: "store/*.json" }] },
-    { name: "Contracts", items: [{ path: "contracts/*.docx" }] },
+  collections: [
+    { name: "Website", content: [{ path: "docs/**/*.md" }] },
+    { name: "Online Store", content: [{ path: "store/*.json" }] },
+    { name: "Contracts", content: [{ path: "contracts/*.docx" }] },
   ],
 };
 

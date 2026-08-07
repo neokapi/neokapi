@@ -51,8 +51,8 @@ func RecipeConfigGet(projectPath, key string) (string, error) {
 }
 
 // RecipeConfigSet writes one recipe key and saves the recipe. Extension
-// blocks are created on first set (e.g. setting server.url on a recipe with
-// no server: block); the registered extension decoder, when present,
+// blocks are created on first set (e.g. setting bowrain.url on a recipe that
+// binds no venue yet); the registered extension decoder, when present,
 // validates the new value before anything is written.
 func RecipeConfigSet(projectPath, key, value string) error {
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})

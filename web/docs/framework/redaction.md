@@ -162,11 +162,11 @@ defaults:
     detectors: [rules]
     placeholder: "[REDACTED:{category}]"
 
-content:
+collections:
   - path: "src/locales/*.json"
     format: json
     redaction:
-      enabled: false      # skip redaction for this collection
+      enabled: false      # skip redaction for this entry
 ```
 
 ## Where the originals live

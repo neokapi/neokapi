@@ -20,12 +20,12 @@ Set these under **Settings → CI/CD → Variables**:
 |---|---|
 | `BOWRAIN_AUTH_TOKEN` | Server auth token, minted with `kapi auth token create` — mark it **masked** |
 | `GITLAB_API_TOKEN` | Project access token with **api** scope — opens and updates the MR, posts MR notes |
-| `BOWRAIN_SERVER_URL` | **Self-hosted only.** The hosted service (`https://app.bowrain.cloud`) is the built-in default, and project commands read the server from the checked-out recipe's `server:` block |
+| `BOWRAIN_SERVER_URL` | **Self-hosted only.** The hosted service (`https://app.bowrain.cloud`) is the built-in default, and project commands read the server from the checked-out recipe's `bowrain:` block |
 
-On a connected project (a recipe with a `server:` block), `kapi up` runs the
+On a connected project (a recipe with a `bowrain:` block), `kapi up` runs the
 loop on the **server**: the organization's AI keys, shared translation
 memory, and terminology live there, so the job carries no AI keys of its own.
-Only a local-venue run — a project with no `server:` block, or
+Only a local-venue run — a project with no `bowrain:` block, or
 `kapi up --local` — needs a provider key such as `ANTHROPIC_API_KEY` in the
 job. See [CI authentication](/cli/ci/overview#authenticating-a-runner).
 

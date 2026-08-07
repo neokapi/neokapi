@@ -1026,7 +1026,7 @@ func findManifestEntry(m *project.ExtractionManifest, sourceRel string, target m
 // recipe's declared format when available.
 func detectSourceFormat(reg *registry.FormatRegistry, ctx *project.ProjectContext, rel, abs string) string {
 	if ctx != nil && ctx.Project != nil {
-		for _, coll := range ctx.Project.Content {
+		for _, coll := range ctx.Project.Collections {
 			for _, item := range coll.EffectiveItems() {
 				if item.Format == nil || item.Format.Name == "" {
 					continue
@@ -1065,7 +1065,7 @@ func resolveMergeOutputPath(entry *project.ExtractionFile, proj *project.KapiPro
 	// target template supports {lang}, {path}, {filename}, {basename}, and the
 	// legacy bare `*` — see project.ResolveTargetPath.
 	if proj != nil {
-		for _, coll := range proj.Content {
+		for _, coll := range proj.Collections {
 			for _, item := range coll.EffectiveItems() {
 				ok, _ := doublestar.Match(item.Path, entry.Source)
 				if !ok {

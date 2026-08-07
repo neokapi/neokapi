@@ -31,8 +31,8 @@ mkproject() {
 version: "v1"
 name: demo
 defaults:
-  source_locale: en
-  target_locales: [fr-FR]
+  source_language: en
+  target_languages: [fr-FR]
 flows:
   pseudo:
     steps:

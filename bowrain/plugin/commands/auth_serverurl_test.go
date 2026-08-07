@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// The recipe's server.url is a compound project URL —
+// The recipe's bowrain.url is a compound project URL —
 // <server>/<workspace>/<project-id> — and the device flow appends
 // "/api/v1/auth/device/start" to whatever this resolves to. Keeping the path
 // produced a POST to /<workspace>/<project>/api/v1/auth/device/start, which

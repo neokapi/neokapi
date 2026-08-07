@@ -45,14 +45,14 @@ func convergeFixture(t *testing.T, targets []model.LocaleID, shipGate gate.Gate)
 
 	recipe = filepath.Join(real, "app.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "ConvergeTest",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: targets,
 			Flow:            "pseudo",
 		},
-		Content: []project.ContentCollection{{
+		Collections: []project.Collection{{
 			Path:   "src/locales/en/*.json",
 			Format: &project.FormatSpec{Name: "json"},
 			Target: "src/locales/{lang}/*.json",

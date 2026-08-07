@@ -27,7 +27,7 @@ export interface TranslationStatusPanelProps {
 
 /**
  * Renders the translation-state panel for a kapi project: one
- * section per ContentCollection, with target locales and (once the
+ * section per Collection, with target locales and (once the
  * blockstore session wiring lands in kapi-desktop) per-locale
  * coverage bars. Currently driven by the recipe's declared target
  * languages only — coverage data becomes available after the

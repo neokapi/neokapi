@@ -11,7 +11,7 @@ const config: WalkthroughEmbedConfig = {
     {
       path: "kapi.yaml",
       content:
-        'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\ncontent:\n  - path: messages.json\n    target: "messages.{lang}.json"\n',
+        'version: v1\nname: demo\ndefaults:\n  source_language: en\n  target_languages: [fr]\ncollections:\n  - path: messages.json\n    target: "messages.{lang}.json"\n',
     },
     {
       path: "messages.fr.json",

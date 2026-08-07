@@ -21,13 +21,13 @@ func TestListOutputs(t *testing.T) {
 
 	kapiPath := filepath.Join(dir, "test.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Test",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR", "de-DE"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			// Directory-mirror target: output path mirrors the source under the
 			// per-language root (no wildcard, no double extension).
 			{Path: "input/*.json", Target: "output/{lang}", Format: &project.FormatSpec{Name: "json"}},
@@ -73,10 +73,10 @@ func TestListOutputsDiscoversUndeclaredLang(t *testing.T) {
 
 	kapiPath := filepath.Join(dir, "test.kapi")
 	proj := &project.KapiProject{
-		Version:  "v1",
+		Version:  project.CurrentVersion,
 		Name:     "Test",
 		Defaults: project.Defaults{SourceLanguage: "en-US", TargetLanguages: []model.LocaleID{"fr-FR"}},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Path: "input/*.json", Target: "output/{lang}/*.json", Format: &project.FormatSpec{Name: "json"}},
 		},
 	}
@@ -107,10 +107,10 @@ func TestListOutputsNoTarget(t *testing.T) {
 
 	kapiPath := filepath.Join(dir, "test.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Test",
 		// No target template → no outputs to resolve.
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Path: "input/*.json", Format: &project.FormatSpec{Name: "json"}},
 		},
 	}
@@ -127,7 +127,7 @@ func TestListOutputsNoTarget(t *testing.T) {
 func TestInspectOutputRejectsTraversal(t *testing.T) {
 	dir := t.TempDir()
 	kapiPath := filepath.Join(dir, "test.kapi")
-	proj := &project.KapiProject{Version: "v1", Name: "Test"}
+	proj := &project.KapiProject{Version: project.CurrentVersion, Name: "Test"}
 	require.NoError(t, project.Save(kapiPath, proj))
 
 	app := NewApp()

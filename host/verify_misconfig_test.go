@@ -28,7 +28,7 @@ name: unbound
 defaults:
   source_language: en
   target_languages: [fr]
-content:
+collections:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
@@ -170,7 +170,7 @@ defaults:
   target_languages: [fr]
   voice:
     profile_file: voice.yaml
-content:
+collections:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `

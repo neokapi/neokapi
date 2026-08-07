@@ -67,6 +67,7 @@ func RegisterSchemaExtensions(host *Host, onWarn func(msg string)) {
 			Group:     group,
 			Decoder:   decoder,
 			DependsOn: reg.Extension.DependsOn,
+			Venue:     reg.Extension.Venue,
 		}
 
 		// Belt-and-suspenders: registration isn't synchronized against a

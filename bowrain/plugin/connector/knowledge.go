@@ -6,6 +6,7 @@ import (
 
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
+	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 )
 
 // ErrNotWorkspaceClaimed reports that a project is not claimed into a
@@ -35,7 +36,7 @@ var ErrNotWorkspaceClaimed = errors.New("project is not claimed into a workspace
 func NewKnowledgeClient(project *Project) (*apiclient.BowrainClient, error) {
 	recipe := project.Recipe
 	if !recipe.HasServer() {
-		return nil, fmt.Errorf("%w: no server configuration in the kapi recipe (add a `server:` block)", ErrNotWorkspaceClaimed)
+		return nil, fmt.Errorf("%w: no server configuration in the kapi recipe (add a `%s:` block)", ErrNotWorkspaceClaimed, schema.VenueKey)
 	}
 
 	serverURL := config.NormalizeServerURL(recipe.Server.ServerURL())
@@ -43,7 +44,7 @@ func NewKnowledgeClient(project *Project) (*apiclient.BowrainClient, error) {
 	workspace := recipe.Server.Workspace()
 
 	if serverURL == "" {
-		return nil, fmt.Errorf("%w: server URL not configured in the recipe's `server:` block", ErrNotWorkspaceClaimed)
+		return nil, fmt.Errorf("%w: server URL not configured in the recipe's `%s:` block", ErrNotWorkspaceClaimed, schema.VenueKey)
 	}
 	if workspace == "" {
 		return nil, fmt.Errorf("%w: the brand knowledge graph is workspace-scoped — claim this project into a workspace (kapi auth claim) so its recipe URL is <server>/<workspace>/<project>", ErrNotWorkspaceClaimed)

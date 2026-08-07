@@ -61,7 +61,7 @@ kapi init --server https://app.bowrain.cloud --project abc123
 3. Creates the `.kapi/` directory with `flows/`, `memory/`, `state/`, `manifest.yaml`, and an empty `work/cache/`
 4. Adds the example `pseudo` flow at `.kapi/flows/pseudo.yaml`
 5. Adds the ignore rule for `.kapi/work/` and `.kapi/filters.local.json` — the rest of `.kapi/` is committed
-6. Optionally creates a project on the Bowrain Server and writes the `server:` block to the recipe
+6. Optionally creates a project on the Bowrain Server and writes the `bowrain:` block to the recipe
 
 After initialization, the directory becomes a Bowrain project. You can run `kapi status`,
 `kapi translate`, `kapi run <flow>`, and other commands from anywhere within the project tree.
@@ -114,14 +114,14 @@ defaults:
   source_language: en
   target_languages: [fr, de, ja]
 
-content:
+collections:
   - path: src/locales/**/*.json
     format: json
   - path: content/*.md
     format: markdown
 
 # Optional: connect to Bowrain Server (compound URL)
-server:
+bowrain:
   url: https://app.bowrain.cloud/my-team/abc123
   stream: $auto
 
@@ -143,7 +143,7 @@ The server URL is resolved from (first match wins):
 4. Existing auth state (from `kapi auth login`)
 5. The hosted service (`https://app.bowrain.cloud`) — used only when init
    contacts a server (sign-in, `--anonymous`, `--email`, `--project`); a plain
-   init with nothing configured writes a recipe with no `server:` block
+   init with nothing configured writes a recipe with no `bowrain:` block
 
 Set it once globally with:
 
@@ -187,4 +187,4 @@ After initialization:
 1. **Edit content collections** in `kapi.yaml` to match your file structure
 2. **Create flows** in `.kapi/flows/` for your translation workflows
 3. **Run tools and flows**: `kapi tools`, `kapi flows`, `kapi translate`, `kapi run <flow-name>`
-4. **Connect to server**: `kapi pull` and `kapi push` (if `server:` block is set)
+4. **Connect to server**: `kapi pull` and `kapi push` (if `bowrain:` block is set)

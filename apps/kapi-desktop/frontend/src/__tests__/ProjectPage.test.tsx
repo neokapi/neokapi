@@ -10,7 +10,7 @@ describe("ProjectPage", () => {
       source_language: "en-US",
       target_languages: ["fr-FR", "de-DE"],
     },
-    content: [{ path: "src/locales/*.json", format: { name: "json" } }],
+    collections: [{ path: "src/locales/*.json", format: { name: "json" } }],
     flows: {
       translate: { steps: [{ tool: "translate" }] },
     },

@@ -64,7 +64,7 @@ kapi push --force
 
 ## What Happens
 
-1. **Read local files** via FormatRegistry (using the recipe's `content:` collections)
+1. **Read local files** via FormatRegistry (using the recipe's `collections:`)
 2. **Extract blocks** from each file (streaming Parts -> Blocks)
 3. **Compute block hashes** using `BlockIdentity` (SHA-256)
 4. **Compare with `.kapi/work/cache/sync-cache.json`** to identify changed blocks

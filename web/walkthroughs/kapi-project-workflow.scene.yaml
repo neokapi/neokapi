@@ -108,7 +108,7 @@ files:
         source_language: en
         target_languages: [fr]
         flow: tm-recycle
-      content:
+      collections:
         - path: messages.json
           target: "messages.{lang}.json"
       flows:

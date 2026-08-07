@@ -25,7 +25,7 @@ defaults:
   source_language: en
   target_languages: [nb]
   memory_source: memory.json
-content:
+collections:
   - path: en.json
     target: "{lang}.json"
 ship_gate: { translated: 100, reviewed: 50 }

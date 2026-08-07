@@ -30,7 +30,9 @@ const project: KapiProject = {
   version: "v1",
   name: "Demo",
   defaults: { source_language: "en-US", target_languages: ["fr-FR"] },
-  content: [{ name: "Website", items: [{ path: "docs/**/*.md", format: { name: "markdown" } }] }],
+  collections: [
+    { name: "Website", content: [{ path: "docs/**/*.md", format: { name: "markdown" } }] },
+  ],
   flows: { translate: { steps: [{ tool: "translate" }] } },
 };
 

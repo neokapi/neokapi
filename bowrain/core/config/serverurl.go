@@ -8,7 +8,7 @@ import (
 // DefaultServerURL is the hosted Bowrain instance, used when a command that
 // contacts a server has no URL configured anywhere (flag, env var, config
 // file, stored login). Self-hosted deployments set BOWRAIN_SERVER_URL or pass
-// --server; project commands read the recipe's server: block and never need
+// --server; project commands read the recipe's bowrain: block and never need
 // this default.
 const DefaultServerURL = "https://app.bowrain.cloud"
 

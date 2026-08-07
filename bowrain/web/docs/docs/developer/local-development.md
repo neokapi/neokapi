@@ -137,7 +137,7 @@ cat fr.json                     # translated catalog
 ```
 
 `kapi init` scaffolds the project; when `--server` is given, the bowrain plugin
-*contributes* the server connection — it writes the `server:` block and stores a
+*contributes* the server connection — it writes the `bowrain:` block and stores a
 claim token (`--anonymous`), or creates the project under your account when you
 are signed in (`kapi auth login`), or attaches to an existing one with
 `--project <id>`. It is idempotent: running `kapi init --server …` inside an

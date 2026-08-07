@@ -43,11 +43,11 @@ func TestProjectItemTargetPath(t *testing.T) {
 	proj := &project.KapiProject{
 		Version:  "v1",
 		Defaults: project.Defaults{SourceLanguage: "en-US", TargetLanguages: []model.LocaleID{"fr"}},
-		Content: []project.ContentCollection{
-			{Name: "Docs", Base: "input/docs", Items: []project.ContentItem{
+		Collections: []project.Collection{
+			{Name: "Docs", Content: []project.ContentItem{
 				{Path: "input/docs/**/*.md", Target: "output/{lang}/docs"}, // directory-mirror
 			}},
-			{Name: "Store", Items: []project.ContentItem{
+			{Name: "Store", Content: []project.ContentItem{
 				{Path: "input/store/*.json", Target: "output/{lang}/store/*.json"}, // legacy *.ext
 			}},
 		},

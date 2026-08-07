@@ -212,7 +212,7 @@ Requires authentication (run 'kapi auth login' first).`,
 			return fmt.Errorf("decode claim response: %w", err)
 		}
 
-		// Update the recipe's `server.url` to point at the workspace project.
+		// Update the recipe's `bowrain.url` to point at the workspace project.
 		proj, err := project.FindProject("")
 		if err == nil && proj.Recipe.HasServer() {
 			proj.Recipe.Server.URL = project.FormatProjectURL(
@@ -258,7 +258,7 @@ func resolveServerURLFrom(explicit string) string {
 	cfg := newBowrainAppConfig()
 	_ = cfg.Load()
 	if u := cfg.GetString("server.url"); u != "" {
-		// The recipe's server.url is a compound project URL —
+		// The configured server URL is a compound project URL —
 		// <server>/<workspace>/<project-id> — so reduce it to the origin before
 		// anything appends an API path. Normalizing alone keeps the path, and
 		// POSTing to /<workspace>/<project>/api/v1/... lands outside the CDN's

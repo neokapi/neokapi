@@ -148,8 +148,8 @@ func init() {
 	cli.LocalizeCommandHelp(rootCmd, cli.HelpTranslator())
 
 	// A verb kapi does not have may belong to a plugin this project needs but
-	// does not have installed (`kapi push` in a project whose recipe declares
-	// `server:`). Offer the install inline instead of failing with cobra's
+	// does not have installed (`kapi push` in a project whose recipe binds a
+	// convergence venue). Offer the install inline instead of failing with cobra's
 	// bare "unknown command". Registered last: it only ever runs on the error
 	// path, after the whole tree — built-ins, plugin commands, contributions —
 	// has failed to match.

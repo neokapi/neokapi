@@ -13,7 +13,7 @@ import (
 
 // TestAddRm_LocalRecipeEditing verifies the core `kapi add`/`kapi rm` commands
 // edit the local .kapi recipe's content collections / exclude list, and — the
-// key boundary property — preserve a platform `server:` block (unknown to the
+// key boundary property — preserve a platform `bowrain:` block (unknown to the
 // framework, round-tripped via Extras) across the save.
 func TestAddRm_LocalRecipeEditing(t *testing.T) {
 	a := processOnlyApp(t)
@@ -29,9 +29,9 @@ defaults:
   source_language: en-US
   target_languages:
     - fr-FR
-server:
+bowrain:
   url: https://example.test
-content:
+collections:
   - path: existing/*.json
     format:
       name: json
@@ -60,23 +60,23 @@ content:
 	assert.Contains(t, out, "Already tracked")
 
 	// The recipe now tracks the new pattern with the detected format, AND the
-	// platform server: block survived the save (Extras round-trip).
+	// platform bowrain: block survived the save (Extras round-trip).
 	raw, err := os.ReadFile(recipe)
 	require.NoError(t, err)
 	s := string(raw)
 	assert.Contains(t, s, "src/**/*.html")
 	assert.Contains(t, s, "html") // detected format recorded
-	assert.Contains(t, s, "server:")
+	assert.Contains(t, s, "bowrain:")
 	assert.Contains(t, s, "https://example.test")
 
-	// rm: a tracked bare entry removes the mapping; server: still preserved.
+	// rm: a tracked bare entry removes the mapping; bowrain: still preserved.
 	out, err = run(NewRmCmd(a), "src/**/*.html")
 	require.NoError(t, err)
 	assert.Contains(t, out, "Removed")
 	raw, err = os.ReadFile(recipe)
 	require.NoError(t, err)
 	assert.NotContains(t, string(raw), "src/**/*.html")
-	assert.Contains(t, string(raw), "server:")
+	assert.Contains(t, string(raw), "bowrain:")
 
 	// rm: a non-tracked pattern is added to the exclude list.
 	out, err = run(NewRmCmd(a), "legacy/*.md")
@@ -97,7 +97,7 @@ content:
 // TestCoreKapi_RefusesRecipeRequiringUnregisteredPlugin proves the boundary
 // gate from the core side: a recipe that declares `requires: bowrain` (as a
 // server-connected project does) is refused by plain kapi, where the bowrain
-// extension is not registered — so a server: project does not silently work
+// extension is not registered — so a bowrain: project does not silently work
 // without the plugin.
 func TestCoreKapi_RefusesRecipeRequiringUnregisteredPlugin(t *testing.T) {
 	a := processOnlyApp(t)
@@ -109,7 +109,7 @@ func TestCoreKapi_RefusesRecipeRequiringUnregisteredPlugin(t *testing.T) {
 name: NeedsBowrain
 requires:
   bowrain: "*"
-server:
+bowrain:
   url: https://example.test
 `
 	require.NoError(t, os.WriteFile(recipe, []byte(yaml), 0o644))
@@ -136,7 +136,7 @@ func TestLs_ListsTrackedFiles(t *testing.T) {
 name: LsTest
 defaults:
   source_language: en-US
-content:
+collections:
   - path: src/*.json
     format:
       name: json

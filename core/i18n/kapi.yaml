@@ -2,9 +2,9 @@ version: v1
 name: kapi-builtins-i18n
 defaults:
   source_language: en
-content:
+collections:
   - name: builtin-manifest
-    items:
+    content:
       - path: builtins/manifest.json
         format:
           name: json
@@ -16,7 +16,7 @@ content:
             extractionRules: "(display_name|description|title|label)$"
         target: "kbf/{lang}/manifest.kbf.json"
   - name: builtin-schemas
-    items:
+    content:
       - path: builtins/schemas/*.json
         format:
           name: json

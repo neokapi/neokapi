@@ -182,7 +182,7 @@ func TestResolveContent_BasicGlob(t *testing.T) {
 
 	proj := &KapiProject{
 		Version: CurrentVersion,
-		Content: []ContentCollection{
+		Collections: []Collection{
 			{Path: "input/*.json"},
 		},
 	}
@@ -210,16 +210,16 @@ func TestResolveContent_NamedCollection(t *testing.T) {
 
 	proj := &KapiProject{
 		Version: CurrentVersion,
-		Content: []ContentCollection{
+		Collections: []Collection{
 			{
 				Name: "Docs",
-				Items: []ContentItem{
+				Content: []ContentItem{
 					{Path: "docs/*.md"},
 				},
 			},
 			{
 				Name: "Store",
-				Items: []ContentItem{
+				Content: []ContentItem{
 					{Path: "store/*.json"},
 				},
 			},
@@ -248,7 +248,7 @@ func TestResolveContent_ExplicitFormat(t *testing.T) {
 
 	proj := &KapiProject{
 		Version: CurrentVersion,
-		Content: []ContentCollection{
+		Collections: []Collection{
 			{
 				Path:   "input/*.json",
 				Format: &FormatSpec{Name: "okf_json"},
@@ -268,7 +268,7 @@ func TestResolveContent_RejectsParentTraversal(t *testing.T) {
 	dir := t.TempDir()
 	proj := &KapiProject{
 		Version: CurrentVersion,
-		Content: []ContentCollection{
+		Collections: []Collection{
 			{Path: "../escape/*.json"},
 		},
 	}
@@ -283,7 +283,7 @@ func TestResolveContent_RejectsAbsolutePaths(t *testing.T) {
 	dir := t.TempDir()
 	proj := &KapiProject{
 		Version: CurrentVersion,
-		Content: []ContentCollection{
+		Collections: []Collection{
 			{Path: "/etc/passwd"},
 		},
 	}
@@ -319,7 +319,7 @@ func TestResolveContent_PluginScopedDetection(t *testing.T) {
 	// Project without okapi-bridge plugin.
 	proj := &KapiProject{
 		Version: CurrentVersion,
-		Content: []ContentCollection{
+		Collections: []Collection{
 			{Path: "input/*.html"},
 		},
 	}

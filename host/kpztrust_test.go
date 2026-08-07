@@ -94,8 +94,8 @@ func TestResolveMergeOutputPathRefusesEscapingSource(t *testing.T) {
 func TestResolveMergeOutputPathKeepsAnAbsoluteRecipeTarget(t *testing.T) {
 	root := t.TempDir()
 	outside := filepath.Join(t.TempDir(), "published")
-	proj := &project.KapiProject{Content: []project.ContentCollection{{
-		Items: []project.ContentItem{{Path: "src/en.json", Target: outside + "/{lang}.json"}},
+	proj := &project.KapiProject{Collections: []project.Collection{{
+		Content: []project.ContentItem{{Path: "src/en.json", Target: outside + "/{lang}.json"}},
 	}}}
 
 	got, err := resolveMergeOutputPath(&project.ExtractionFile{Source: "src/en.json"}, proj, root, "nb")

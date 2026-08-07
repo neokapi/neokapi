@@ -198,19 +198,25 @@ defaults:
 }
 
 // TestResolveProjectGlossary_FromProfileTerms asserts a profile's standalone
-// `terms:` (relative to the project root) is honoured over the project store —
-// the surviving per-point vocabulary binding.
+// `terms:` (relative to the project root) governs a collection whose channel
+// resolves to that profile, over the project's own store. Vocabulary is bound
+// per point through the collection: resolution scoped to no collection sits at
+// the default point and reads the project store instead.
 func TestResolveProjectGlossary_FromProfileTerms(t *testing.T) {
 	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   source_language: en
   target_languages: [fr]
-coordinates:
-  product:
-    - id: press
 profiles:
-  - terms: brand-terms.db
+  press:
+    channels: [docs]
+    terms: brand-terms.db
+collections:
+  - name: press-docs
+    channel: press/docs
+    path: "en/*.json"
+    target: "{lang}/*.json"
 `)
 	// The project store says one thing; the profile's standalone store says
 	// another, and the profile wins.
@@ -231,7 +237,7 @@ profiles:
 	a := &App{SourceLang: "en"}
 	cmd := newVoiceCheckCmd(a)
 
-	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
+	glossary, err := a.ResolveProjectGlossaryFor(cmd, "fr", "press-docs")
 	require.NoError(t, err)
 	require.Len(t, glossary, 1)
 	assert.Equal(t, "Cancel", glossary[0].Source)

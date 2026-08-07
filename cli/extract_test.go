@@ -47,7 +47,7 @@ func extractProjectFixture(t *testing.T, dir string, targetLanguages []model.Loc
 	t.Helper()
 	recipe := filepath.Join(dir, "app.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "ExtractTest",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
@@ -56,7 +56,7 @@ func extractProjectFixture(t *testing.T, dir string, targetLanguages []model.Loc
 				FuzzyThreshold: 75,
 			},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{
 				Path:   "src/locales/en/*.json",
 				Format: &project.FormatSpec{Name: "json"},
@@ -316,22 +316,22 @@ func TestExtract_OnlyFiltersByCollectionName(t *testing.T) {
 	require.NoError(t, err)
 	recipe := filepath.Join(real, "app.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Two",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{
 				Name: "web",
-				Items: []project.ContentItem{
+				Content: []project.ContentItem{
 					{Path: "web/*.json", Format: &project.FormatSpec{Name: "json"}},
 				},
 			},
 			{
 				Name: "mobile",
-				Items: []project.ContentItem{
+				Content: []project.ContentItem{
 					{Path: "mobile/*.json", Format: &project.FormatSpec{Name: "json"}},
 				},
 			},
@@ -368,14 +368,14 @@ func TestExtract_SegmentationSplitsSourceIntoMultipleSegments(t *testing.T) {
 
 	recipe := filepath.Join(real, "app.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "SegmentationOn",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
 			Segmentation:    project.SegmentationDefaults{Source: true},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{
 				Path:   "src/locales/en/*.json",
 				Format: &project.FormatSpec{Name: "json"},

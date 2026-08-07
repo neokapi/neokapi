@@ -85,7 +85,7 @@ func TestResolveInputs_ProjectContentBeatsStdin(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "src", "en.json"), `{"greeting":"Hello"}`)
 	writeFile(t, filepath.Join(dir, "kapi.yaml"),
-		"version: v1\nname: inputs\ndefaults:\n  source_language: en\ncontent:\n  - name: app\n    items:\n      - path: src/**/*.json\n")
+		"version: v1\nname: inputs\ndefaults:\n  source_language: en\ncollections:\n  - name: app\n    content:\n      - path: src/**/*.json\n")
 	t.Chdir(dir)
 	withPipedStdin(t)
 
@@ -103,7 +103,7 @@ func TestResolveInputs_QuietSuppressesTheNotice(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, filepath.Join(dir, "src", "en.json"), `{"greeting":"Hello"}`)
 	writeFile(t, filepath.Join(dir, "kapi.yaml"),
-		"version: v1\nname: inputs\ndefaults:\n  source_language: en\ncontent:\n  - name: app\n    items:\n      - path: src/**/*.json\n")
+		"version: v1\nname: inputs\ndefaults:\n  source_language: en\ncollections:\n  - name: app\n    content:\n      - path: src/**/*.json\n")
 	t.Chdir(dir)
 
 	cmd, stderr := envCmd(t)

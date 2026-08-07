@@ -22,7 +22,7 @@ export const WithContent: Story = {
         source_language: "en-US",
         target_languages: ["fr-FR", "de-DE", "ja-JP"],
       },
-      content: [
+      collections: [
         {
           path: "src/i18n/en/*.json",
           format: { name: "json" },
@@ -30,7 +30,7 @@ export const WithContent: Story = {
         },
         {
           name: "Documentation",
-          items: [{ path: "docs/en/**/*.md", format: { name: "markdown" } }],
+          content: [{ path: "docs/en/**/*.md", format: { name: "markdown" } }],
         },
       ],
       preset: "nextjs",

@@ -13,7 +13,8 @@ keywords: [kapi project, kapi.yaml, .kapi, YAML recipe, project model, context g
 A kapi project is a folder containing a `kapi.yaml` recipe at its root and a
 sibling `.kapi/` directory. The recipe captures the user's declarative intent —
 identity, content collections, flows, store selection, plus any platform
-extensions (such as a `server:` block) when a platform layer is in use.
+extensions (such as a binding to a convergence venue) when a platform layer is
+in use.
 `.kapi/` is the one directory kapi owns, and it is **committed**: it holds the
 project's context — terms, content memory, voice profile, the unit-state record —
 alongside the manifest, the filter configuration and the file-per-flow
@@ -87,7 +88,7 @@ my-app/
 │       ├── store.db            ← the one local database (AD-039)
 │       ├── vault/              ← withheld originals (AD-020) — local-only
 │       └── cache/              ← free to delete, always
-│           ├── sync-cache.json ← kapi push/pull state (only with server: block)
+│           ├── sync-cache.json ← kapi push/pull state (only when a venue is bound)
 │           ├── extractions/    ← per-extract batch state (AD-017)
 │           │   └── <batch-id>/
 │           │       ├── manifest.yaml         ← source→output pairs, leverage, hashes
@@ -133,11 +134,11 @@ Ownership:
   ([AD-022](022-voice-profile.md)). All three recipe keys bind any path — these are
   the conventional homes, not the only ones.
 - **`.kapi/profiles/<profile>/`** — what a profile overrides, and nothing else.
-  Governance binds to a region of the context space
-  ([AD-022](022-voice-profile.md)), so the flat files are the project default and
-  a profile's differences sit in a directory named for it. A profile that binds
-  no `voice:`/`terms:` of its own is answered by its directory before the
-  default is. Only governance splits this way: the content memory and the state
+  Governance binds to a product ([AD-022](022-voice-profile.md)), so the flat
+  files are the project default and a profile's differences sit in a directory
+  named for it — the directory name *is* the profile's key under `profiles:`. A
+  profile that binds no `voice:`/`terms:` of its own is answered by its directory
+  before the default is. Only governance splits this way: the content memory and the state
   record stay top-level, because a recycled translation and an approval are
   facts about a unit, true wherever it is governed from.
 - **`.kapi/state/`** — the committed, git-tracked record of per-unit **state**:
@@ -197,9 +198,15 @@ The recipe is a YAML document parsed into `core/project.KapiProject`:
 version: v1
 name: My App
 
-content:
+profiles:
+  acme:
+    channels: [app]
+    voice: .kapi/voice.yaml
+
+collections:
   - name: ui
-    items:
+    channel: bowrain/app
+    content:
       - path: "src/**/*.{tsx,jsx}"
         format:
           name: exec
@@ -275,9 +282,14 @@ discovery is unambiguous; an explicit `-p <path>` still overrides it.
 Each content item's `path` is a [doublestar](https://github.com/bmatcuk/doublestar)
 glob — `**` matches across directories and `{a,b,c}` matches alternatives, so a
 single glob (`input/store/*.{json,yaml,html}` or `input/**/*`) covers a directory
-of mixed content with the format auto-detected per file. The optional `base`
-(set per item, or once on a collection and inherited) is the directory a matched
-file's path is made relative to; it defaults to the glob's fixed prefix.
+of mixed content with the format auto-detected per file.
+
+A collection's `base` is the directory it lives in: every `path`, `target` and
+item `base` below it is written relative to that directory and joined onto it, so
+a collection reads as the tree it governs rather than as a prefix repeated on
+every line. An item's own `base` is the narrower thing — the directory a matched
+file's path is made relative to, which drives the path tokens below. It defaults
+to the glob's fixed prefix.
 
 `target` is a path template expanded per file and language. The common case is
 **directory-mirror**: when the target names a directory (it ends with `/`, or its
@@ -288,10 +300,55 @@ is reproduced under it, so `target: output/{lang}` mirrors the tree —
 `{ext}`) reshape the path explicitly. The resolver is `core/project.ResolveTargetPath`;
 the full token reference lives in the [project file reference](/reference/project-file#source-and-target-paths).
 
+### The context space
+
+Content is written for a point in a two-axis space: the **product** it belongs
+to and the **channel** it ships on. Neither axis is a taxonomy a recipe invents
+— the space is structural. A key under `profiles:` *is* the product-axis value,
+and the channels that profile declares *are* the channel-axis values it can
+carry:
+
+```yaml
+profiles:
+  neokapi:
+    channels: [cli, docs]
+    voice: .kapi/voice.yaml
+  bowrain:
+    channels: [app, docs]
+    voice: .kapi/profiles/bowrain/voice.yaml
+
+collections:
+  - name: bowrain-app
+    channel: bowrain/app
+  - name: neokapi-docs
+    channel: neokapi/docs    # both declare `docs` — qualify it
+```
+
+One repository can ship more than one product, and a project-wide voice binding
+governs the wrong one half the time. The profile is what tells their content
+apart; the channel then refines it, selecting the matching override inside that
+profile's voice ([AD-022](022-voice-profile.md)). A channel the profile declares
+no override for is not an error — the base voice applies. A collection binding
+no channel is governed by `defaults.voice` and the project's own terms.
+
+A `channel:` is always written `profile/channel` — the product owns the
+surface, and the binding reads as one. A bare channel name is a load error that
+spells out the qualified form(s), so the fix is a copy-paste.
+
+Profile names and channels are slugs — stable machine identifiers, never
+translated. Each may *carry* a concept reference for display, but resolution
+never looks at it: concepts are designed to be renamed and deprecated as
+vocabulary is revised, and governance that moved when someone edited a term
+would be governance nobody could rely on.
+
+The two resolved values are what travel on the sync wire as the content's
+coordinates, so a server resolves the same voice for the same content that a
+local run does.
+
 ### Recipe extension mechanism
 
 The framework recipe (`KapiProject`) carries an `Extras map[string]yaml.Node`
-field with `yaml:",inline"` on `KapiProject`, `Defaults`, `ContentCollection`,
+field with `yaml:",inline"` on `KapiProject`, `Defaults`, `Collection`,
 and `ContentItem`. Unknown top-level YAML keys are captured as raw nodes;
 platform layers declare their own typed schema and decode
 from `Extras` at load time. The framework knows nothing about platform-
@@ -301,7 +358,7 @@ A platform package registers schemas at `init()`:
 
 ```go
 coreproj.RegisterExtensionGroup("myplugin", []coreproj.Extension{
-    {Name: "server", Scope: coreproj.ScopeProject, Decoder: serverDecoder},
+    {Name: "myplugin", Scope: coreproj.ScopeProject, Decoder: venueDecoder, Venue: true},
     {Name: "hooks", Scope: coreproj.ScopeProject, Decoder: hooksDecoder},
     // ...
 })
@@ -323,7 +380,7 @@ been registered:
 version: v1
 requires:
   myplugin: "*"
-server:
+myplugin:
   url: https://platform.example.com/team/proj
 ```
 
@@ -339,16 +396,17 @@ a worked example — live in
 
 The framework has no built-in notion of a server, sync, or connection — those
 are not recipe fields. A platform builds a "connected project" on top of the
-generic mechanism above: it registers a `ScopeProject` extension (say,
-`server:`) and gates it with `requires:`, so a recipe carrying the key is
-meaningful only when that plugin is installed.
+generic mechanism above: it registers a `ScopeProject` extension under its own
+name and gates it with `requires:`, so a recipe carrying the key is meaningful
+only when that plugin is installed.
 
 ```yaml
 version: v1
 requires:
   myplugin: "*"
-server:
+myplugin:
   url: https://platform.example.com/my-team/abc123
+  converge: manual
 ```
 
 A recipe with no such key is a pure local project; kapi tools that don't
@@ -356,9 +414,19 @@ recognize the key tolerate it and round-trip it verbatim. The key's schema, the
 commands that act on it, and any credential handling are the platform's concern,
 documented in that platform's own docs — not here.
 
+One thing the framework does need from that key: whether the project converges
+somewhere other than this machine. It asks the registry rather than looking for
+a name. An extension registered with `Venue: true` claims that role — a plugin
+manifest declares it as `"venue": true` on a schema extension — and the
+framework then reads exactly two fields out of the block, `url:` and
+`converge:`, through `KapiProject.Venue()`. Which platform provides the venue,
+and what its key is called, stays the platform's business: `kapi` links no
+platform, and a recipe key it cannot name is a key it cannot grow an opinion
+about. An unregistered key of the same name reports no venue and no opinion.
+
 ### Content collections
 
-A `ContentCollection` lists the source patterns kapi extracts from and the
+A `Collection` lists the source patterns kapi extracts from and the
 format reader used for each. Extracted blocks flow through the project's
 flow executor; persistent block state (hashes, per-locale targets,
 annotations) lives in the project's block store.
@@ -367,12 +435,14 @@ For subprocess-based extractors (JSX via neokapi-i18n, bespoke DSL walkers), the
 format is `exec`:
 
 ```yaml
-items:
-  - path: "src/**/*.tsx"
-    format:
-      name: exec
-      config:
-        command: "vp neokapi-i18n extract --stream"
+collections:
+  - name: ui
+    content:
+      - path: "src/**/*.tsx"
+        format:
+          name: exec
+          config:
+            command: "vp neokapi-i18n extract --stream"
 ```
 
 Kapi runs the declared command once per collection with every matched file

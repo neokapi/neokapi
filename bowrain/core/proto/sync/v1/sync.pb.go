@@ -1433,11 +1433,12 @@ func (x *SyncMedia) GetContentHash() string {
 // declares a new one and leaves the old reported-but-undeclared.
 type SyncContextEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Name is the collection name from `content[].name`. Non-empty: an unnamed
-	// bare entry declares no collection and is not carried here.
+	// Name is the collection name from `collections[].name`. Non-empty: an
+	// unnamed bare entry declares no collection and is not carried here.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// Coordinates is the collection's `context:` — axis → value over the axes
-	// the recipe declares under `coordinates:`. Slugs, never concept references.
+	// Coordinates is the point the collection's `channel:` resolves to — the
+	// profile on the product axis and the channel it names. Slugs, never concept
+	// references.
 	Coordinates map[string]string `protobuf:"bytes,2,rep,name=coordinates,proto3" json:"coordinates,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Channel is the collection's value on the one axis the framework reads for
 	// itself (core/project.ChannelAxis), resolved by the client. It selects the

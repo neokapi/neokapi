@@ -40,7 +40,7 @@ name: tm
 defaults:
   source_language: en
   target_languages: [fr]
-content:
+collections:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `

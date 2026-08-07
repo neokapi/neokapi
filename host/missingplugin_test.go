@@ -15,10 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// serverRecipe returns the Extras override standing in for a recipe whose
-// top-level `server:` block survived because the bowrain plugin is absent.
-func serverRecipe() map[string]any {
-	return map[string]any{"server": map[string]any{"url": "https://example.test/acme/demo"}}
+// venueRecipe returns the Extras override standing in for a recipe whose
+// top-level `bowrain:` block survived because the bowrain plugin is absent.
+func venueRecipe() map[string]any {
+	return map[string]any{"bowrain": map[string]any{"url": "https://example.test/acme/demo"}}
 }
 
 // newMissingPluginCmd returns a synthetic command and cuts the test off from
@@ -46,20 +46,20 @@ func TestResolveMissingPluginCommand_NonInteractiveExplainsAndExitsUsage(t *test
 	handled, err := app.ResolveMissingPluginCommand(newMissingPluginCmd(t), "push", nil, host.MissingPluginOptions{
 		Out:          &out,
 		IsTTYFn:      func() bool { return false },
-		RecipeExtras: serverRecipe(),
+		RecipeExtras: venueRecipe(),
 		InstallFn: func(context.Context, pluginhost.InstallOptions) (*pluginhost.InstallResult, error) {
 			t.Fatal("must not install without a TTY or --yes")
 			return nil, nil
 		},
 	})
 
-	require.True(t, handled, "a bowrain verb in a server-backed project must be handled")
+	require.True(t, handled, "a bowrain verb in a venue-backed project must be handled")
 	require.Error(t, err)
 	assert.Equal(t, host.ExitUsage, host.ExitCode(nil, err),
 		"a missing plugin is a usage problem, distinct from an operational error")
 	assert.Contains(t, err.Error(), "kapi plugin install bowrain")
 	assert.Contains(t, err.Error(), "brew install neokapi/tap/bowrain-cli")
-	assert.Contains(t, err.Error(), "`server:`", "the message must name the recipe key that implies the plugin")
+	assert.Contains(t, err.Error(), "`bowrain:`", "the message must name the recipe key that implies the plugin")
 	assert.Empty(t, out.String(), "non-interactive guidance travels as the error, not as side-channel output")
 }
 
@@ -71,7 +71,7 @@ func TestResolveMissingPluginCommand_QuietIsNonInteractiveEvenOnATTY(t *testing.
 		Out:          &out,
 		In:           strings.NewReader("y\n"),
 		IsTTYFn:      func() bool { return true },
-		RecipeExtras: serverRecipe(),
+		RecipeExtras: venueRecipe(),
 		InstallFn: func(context.Context, pluginhost.InstallOptions) (*pluginhost.InstallResult, error) {
 			t.Fatal("--quiet must not prompt or install")
 			return nil, nil
@@ -95,7 +95,7 @@ func TestResolveMissingPluginCommand_PromptAcceptInstallsAndRunsVerb(t *testing.
 		Out:          &out,
 		In:           strings.NewReader("\n"), // bare Enter accepts the [Y/n] default
 		IsTTYFn:      func() bool { return true },
-		RecipeExtras: serverRecipe(),
+		RecipeExtras: venueRecipe(),
 		InstallFn: func(_ context.Context, opts pluginhost.InstallOptions) (*pluginhost.InstallResult, error) {
 			installed = opts.PluginName
 			return &pluginhost.InstallResult{PluginName: opts.PluginName, Version: "1.2.0", InstallDir: "/tmp/bowrain"}, nil
@@ -123,7 +123,7 @@ func TestResolveMissingPluginCommand_AssumeYesSkipsPrompt(t *testing.T) {
 	handled, err := app.ResolveMissingPluginCommand(newMissingPluginCmd(t), "pull", nil, host.MissingPluginOptions{
 		Out:          &out,
 		IsTTYFn:      func() bool { return false }, // --yes works headless, e.g. in CI
-		RecipeExtras: serverRecipe(),
+		RecipeExtras: venueRecipe(),
 		InstallFn: func(_ context.Context, opts pluginhost.InstallOptions) (*pluginhost.InstallResult, error) {
 			return &pluginhost.InstallResult{PluginName: opts.PluginName, Version: "1.2.0", InstallDir: "/tmp/bowrain"}, nil
 		},
@@ -162,7 +162,7 @@ func TestResolveMissingPluginCommand_RecoversFlagsFromArgv(t *testing.T) {
 				Out:          &out,
 				In:           strings.NewReader("y\n"),
 				IsTTYFn:      func() bool { return true },
-				RecipeExtras: serverRecipe(),
+				RecipeExtras: venueRecipe(),
 				InstallFn: func(_ context.Context, opts pluginhost.InstallOptions) (*pluginhost.InstallResult, error) {
 					return &pluginhost.InstallResult{PluginName: opts.PluginName, Version: "1.2.0", InstallDir: "/tmp/bowrain"}, nil
 				},
@@ -187,7 +187,7 @@ func TestResolveMissingPluginCommand_DeclinedPromptExitsUsage(t *testing.T) {
 		Out:          &out,
 		In:           strings.NewReader("n\n"),
 		IsTTYFn:      func() bool { return true },
-		RecipeExtras: serverRecipe(),
+		RecipeExtras: venueRecipe(),
 		InstallFn: func(context.Context, pluginhost.InstallOptions) (*pluginhost.InstallResult, error) {
 			t.Fatal("declining must not install")
 			return nil, nil
@@ -207,7 +207,7 @@ func TestResolveMissingPluginCommand_InstallFailureSurfaces(t *testing.T) {
 	handled, err := app.ResolveMissingPluginCommand(newMissingPluginCmd(t), "push", nil, host.MissingPluginOptions{
 		Out:          &out,
 		IsTTYFn:      func() bool { return false },
-		RecipeExtras: serverRecipe(),
+		RecipeExtras: venueRecipe(),
 		InstallFn: func(context.Context, pluginhost.InstallOptions) (*pluginhost.InstallResult, error) {
 			return nil, errors.New("registry unreachable")
 		},
@@ -222,32 +222,32 @@ func TestResolveMissingPluginCommand_UnrelatedVerbIsNotHandled(t *testing.T) {
 
 	handled, err := app.ResolveMissingPluginCommand(newMissingPluginCmd(t), "psh", nil, host.MissingPluginOptions{
 		IsTTYFn:      func() bool { return true },
-		RecipeExtras: serverRecipe(),
+		RecipeExtras: venueRecipe(),
 	})
 
 	assert.False(t, handled, "a typo must keep cobra's error and its did-you-mean suggestions")
 	assert.NoError(t, err)
 }
 
-func TestResolveMissingPluginCommand_RecipeWithoutServerBlockIsNotHandled(t *testing.T) {
+func TestResolveMissingPluginCommand_RecipeWithoutVenueBlockIsNotHandled(t *testing.T) {
 	app := &host.App{}
 
 	handled, err := app.ResolveMissingPluginCommand(newMissingPluginCmd(t), "push", nil, host.MissingPluginOptions{
 		IsTTYFn:      func() bool { return true },
-		RecipeExtras: map[string]any{}, // a recipe, but no server: block
+		RecipeExtras: map[string]any{}, // a recipe, but no bowrain: block
 	})
 
-	assert.False(t, handled, "without a server: block there is nothing to push to — cobra's error stands")
+	assert.False(t, handled, "without a bowrain: block there is nothing to push to — cobra's error stands")
 	assert.NoError(t, err)
 }
 
 // A recipe on disk is the real path: kapi resolves it by walking upward from
 // the cwd, and a plugin-owned key survives in Extras because the plugin that
 // would decode it is absent.
-func TestResolveMissingPluginCommand_DetectsServerBlockFromRecipeOnDisk(t *testing.T) {
+func TestResolveMissingPluginCommand_DetectsVenueBlockFromRecipeOnDisk(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "kapi.yaml"), []byte(
-		"version: v1\ndefaults:\n  source_language: en-US\n  target_languages: [fr-FR]\nserver:\n  url: https://example.test/acme/demo\n"), 0o644))
+		"version: v1\ndefaults:\n  source_language: en-US\n  target_languages: [fr-FR]\nbowrain:\n  url: https://example.test/acme/demo\n"), 0o644))
 
 	cwd, err := os.Getwd()
 	require.NoError(t, err)
@@ -260,7 +260,7 @@ func TestResolveMissingPluginCommand_DetectsServerBlockFromRecipeOnDisk(t *testi
 		IsTTYFn: func() bool { return false },
 	})
 
-	require.True(t, handled, "the server: block must be detected from the recipe on disk")
+	require.True(t, handled, "the bowrain: block must be detected from the recipe on disk")
 	require.Error(t, err)
 	assert.Equal(t, host.ExitUsage, host.ExitCode(nil, err))
 }
@@ -286,7 +286,7 @@ func TestPluginHintForVerb(t *testing.T) {
 	h, ok := host.PluginHintForVerb("push")
 	require.True(t, ok)
 	assert.Equal(t, "bowrain", h.Plugin)
-	assert.Equal(t, "server", h.RecipeKey)
+	assert.Equal(t, "bowrain", h.RecipeKey)
 
 	_, ok = host.PluginHintForVerb("extract")
 	assert.False(t, ok, "built-in verbs must never resolve to a plugin hint")

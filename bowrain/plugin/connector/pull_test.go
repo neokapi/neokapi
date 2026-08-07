@@ -93,7 +93,7 @@ func newPullTestConnector(t *testing.T, srv *httptest.Server, targetLangs []stri
 				SourceLanguage:  "en",
 				TargetLanguages: langs,
 			},
-			Content: []coreproj.ContentCollection{
+			Collections: []coreproj.Collection{
 				{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
 			},
 		},
@@ -233,7 +233,7 @@ func TestPull_UnreadableFormatHoldsTheCursor(t *testing.T) {
 	// Strip the recipe's format binding and give the item an extension no
 	// reader claims, so detectFormat finds nothing — exactly what a checkout
 	// without the plugin for this format sees.
-	conn.project.Recipe.Content = nil
+	conn.project.Recipe.Collections = nil
 	conn.formatReg = registry.NewFormatRegistry()
 
 	res, err := conn.Pull(context.Background(), bowrainconn.PullOptions{})

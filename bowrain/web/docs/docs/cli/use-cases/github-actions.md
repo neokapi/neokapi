@@ -211,7 +211,7 @@ enforcement point.
 ## Example: Push source on Push to Main
 
 Send source changes to Bowrain Cloud when they land on `main`. Push is pure
-transport; with `server.converge: on-push` the server catches the project up on its own clock.
+transport; with `bowrain.converge: on-push` the server catches the project up on its own clock.
 Use `kapi up` instead of `kapi push` if you want CI to watch the run and commit
 the results back:
 

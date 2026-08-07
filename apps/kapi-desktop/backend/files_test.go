@@ -35,9 +35,9 @@ func TestMatchContentFindsFiles(t *testing.T) {
 
 	kapiPath := filepath.Join(dir, "test.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Test",
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Path: "locales/*.json", Format: &project.FormatSpec{Name: "json"}},
 		},
 	}
@@ -61,9 +61,9 @@ func TestMatchContentRejectsParentTraversal(t *testing.T) {
 	dir := t.TempDir()
 	kapiPath := filepath.Join(dir, "test.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Test",
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Path: "../etc/passwd"},
 			{Path: "foo/../../secret"},
 		},
@@ -82,9 +82,9 @@ func TestMatchContentRejectsAbsolutePaths(t *testing.T) {
 	dir := t.TempDir()
 	kapiPath := filepath.Join(dir, "test.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Test",
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Path: "/etc/passwd"},
 		},
 	}
@@ -101,7 +101,7 @@ func TestMatchContentRejectsAbsolutePaths(t *testing.T) {
 func TestGetBasePathDefault(t *testing.T) {
 	dir := t.TempDir()
 	kapiPath := filepath.Join(dir, "test.kapi")
-	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1", Name: "Test"}))
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: project.CurrentVersion, Name: "Test"}))
 
 	app := NewApp()
 	tab := openTestProjectFile(t, app, kapiPath)
@@ -125,7 +125,7 @@ func TestValidateContentPath(t *testing.T) {
 func TestIsEmptyProject(t *testing.T) {
 	dir := t.TempDir()
 	kapiPath := filepath.Join(dir, "kapi.yaml")
-	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: project.CurrentVersion}))
 
 	app := NewApp()
 	tab := openTestProjectFile(t, app, kapiPath)
@@ -144,7 +144,7 @@ func TestListProjectFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("hi"), 0o644))
 
 	kapiPath := filepath.Join(dir, "kapi.yaml")
-	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: project.CurrentVersion}))
 
 	app := NewApp()
 	tab := openTestProjectFile(t, app, kapiPath)
@@ -171,7 +171,7 @@ func TestKapiIgnoreExcludesFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, ".kapiignore"), []byte("*.tmp\nbuild/\n"), 0o644))
 
 	kapiPath := filepath.Join(dir, "kapi.yaml")
-	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: project.CurrentVersion}))
 
 	app := NewApp()
 	tab := openTestProjectFile(t, app, kapiPath)
@@ -194,8 +194,8 @@ func TestMatchContentRespectsKapiIgnore(t *testing.T) {
 
 	kapiPath := filepath.Join(dir, "kapi.yaml")
 	proj := &project.KapiProject{
-		Version: "v1",
-		Content: []project.ContentCollection{{Path: "*.json"}},
+		Version:     project.CurrentVersion,
+		Collections: []project.Collection{{Path: "*.json"}},
 	}
 	require.NoError(t, project.Save(kapiPath, proj))
 
@@ -214,7 +214,7 @@ func TestApplyTemplateInputOutput(t *testing.T) {
 	app := NewApp()
 	dir := t.TempDir()
 	kapiPath := filepath.Join(dir, "kapi.yaml")
-	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: project.CurrentVersion}))
 
 	tab := openTestProjectFile(t, app, kapiPath)
 
@@ -228,30 +228,30 @@ func TestApplyTemplateInputOutput(t *testing.T) {
 
 	// Content pattern should be set.
 	proj := app.GetProject(tab.ID)
-	require.Len(t, proj.Content, 1)
-	assert.Equal(t, "input/*", proj.Content[0].Path)
-	assert.Equal(t, "output/{lang}/*", proj.Content[0].Target)
+	require.Len(t, proj.Collections, 1)
+	assert.Equal(t, "input/*", proj.Collections[0].Path)
+	assert.Equal(t, "output/{lang}/*", proj.Collections[0].Target)
 }
 
 func TestApplyTemplateEmpty(t *testing.T) {
 	app := NewApp()
 	dir := t.TempDir()
 	kapiPath := filepath.Join(dir, "kapi.yaml")
-	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: project.CurrentVersion}))
 
 	tab := openTestProjectFile(t, app, kapiPath)
 
 	require.NoError(t, app.ApplyTemplate(tab.ID, "empty"))
 
 	proj := app.GetProject(tab.ID)
-	assert.Empty(t, proj.Content)
+	assert.Empty(t, proj.Collections)
 }
 
 func TestCopyFileToProject(t *testing.T) {
 	app := NewApp()
 	dir := t.TempDir()
 	kapiPath := filepath.Join(dir, "kapi.yaml")
-	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: project.CurrentVersion}))
 
 	tab := openTestProjectFile(t, app, kapiPath)
 

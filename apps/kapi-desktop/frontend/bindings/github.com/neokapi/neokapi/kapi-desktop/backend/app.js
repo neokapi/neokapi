@@ -940,8 +940,10 @@ export function GetProjectPath(tabID) {
  * the local engine regardless; this only lets the home surfaces disclose that
  * `kapi up` on a connected project canonically runs on the server.
  * 
- * A tab with no recipe, or a recipe without a `server:` block, returns a
- * not-connected result (never an error) so the badge simply stays hidden.
+ * A tab with no recipe, or a recipe without a venue block, returns a
+ * not-connected result (never an error) so the badge simply stays hidden. A
+ * malformed block reads as not connected too — the recipe editor / validation
+ * path is where a bad block is reported, not the venue badge.
  * @param {string} tabID
  * @returns {$CancellablePromise<$models.ProjectServer | null>}
  */

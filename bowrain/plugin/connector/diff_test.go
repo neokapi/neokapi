@@ -32,7 +32,7 @@ func newDiffTestProject(t *testing.T, jsonContent string) (*bproject.Project, *r
 				SourceLanguage:  "en",
 				TargetLanguages: []model.LocaleID{"fr"},
 			},
-			Content: []coreproj.ContentCollection{
+			Collections: []coreproj.Collection{
 				{Path: "locales/en.json", Format: &coreproj.FormatSpec{Name: "json"}},
 			},
 		},

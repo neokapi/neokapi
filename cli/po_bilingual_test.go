@@ -157,14 +157,14 @@ func TestExtract_POFormatErrorsWhenSegmentationOn(t *testing.T) {
 	require.NoError(t, err)
 	recipe := filepath.Join(real, "app.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "POSeg",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
 			Segmentation:    project.SegmentationDefaults{Source: true},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Path: "src/locales/en/*.json", Format: &project.FormatSpec{Name: "json"}},
 		},
 	}

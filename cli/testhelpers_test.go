@@ -41,7 +41,7 @@ defaults:
   target_languages: [fr]
   voice:
     profile_file: voice.yaml
-content:
+collections:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
@@ -84,7 +84,7 @@ name: status
 defaults:
   source_language: en
   target_languages: [nb, ja]
-content:
+collections:
   - path: en.json
     target: "{lang}.json"
 ship_gates:
@@ -136,7 +136,7 @@ defaults:
   source_language: en
   target_languages: [nb]
   memory_source: memory.json
-content:
+collections:
   - path: en.json
     target: "{lang}.json"
 ship_gate: { translated: 100, reviewed: 50 }

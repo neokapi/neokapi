@@ -52,7 +52,7 @@ export function BrandMCPGuide({
 }: BrandMCPGuideProps) {
   // The MCP server is `kapi mcp` (stdio) with the kapi-bowrain plugin installed.
   // The editor launches it as a subprocess; it discovers the workspace's .kapi
-  // recipe (server: block) by upward walk and authenticates from the keychain
+  // recipe (bowrain: block) by upward walk and authenticates from the keychain
   // written by `kapi auth login`. No env vars are needed for the interactive path.
   const mcpServer = { command: "kapi", args: ["mcp"] };
 

@@ -29,7 +29,7 @@ func TestExecSurfaceEmptyForOrdinaryRecipes(t *testing.T) {
 defaults:
   source_language: en
   target_languages: [nb, de]
-content:
+collections:
   - path: docs/**/*.md
 flows:
   default:
@@ -49,7 +49,7 @@ defaults:
           entities: true
 `,
 		"named format": `version: v1
-content:
+collections:
   - path: app/**/*.json
     format:
       name: i18next
@@ -96,13 +96,13 @@ defaults:
       tools:
         script:
           scriptFile: ./hook.js
-content:
+collections:
   - path: a/**
     format:
       name: exec
       config:
         command: /bin/cat
-    items:
+    content:
       - path: b.txt
         format:
           name: exec
@@ -118,8 +118,8 @@ content:
 		"flows.default.source_transforms[0]",
 		"defaults.tools.external-command",
 		"defaults.locales.nb.tools.script",
-		"content[0].format",
-		"content[0].items[0].format",
+		"collections[0].format",
+		"collections[0].content[0].format",
 	}, where)
 }
 

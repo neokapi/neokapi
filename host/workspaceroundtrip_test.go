@@ -37,9 +37,9 @@ name: archive-demo
 defaults:
   source_language: en
   target_languages: [nb, de]
-content:
+collections:
   - name: app
-    items:
+    content:
       - path: src/en.json
         target: "src/{lang}.json"
 `

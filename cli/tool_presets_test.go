@@ -64,7 +64,7 @@ func presetProjectFixture(t *testing.T) (recipe, srcAbs, root string) {
 
 	recipe = filepath.Join(real, "app.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "PresetTest",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
@@ -73,7 +73,7 @@ func presetProjectFixture(t *testing.T) (recipe, srcAbs, root string) {
 				"pseudo-translate": {"prefix": "«PRESET» "},
 			},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{
 				Path:   "src/locales/en/*.json",
 				Format: &project.FormatSpec{Name: "json"},

@@ -39,11 +39,11 @@
       {"name": "project_push",   "description": "Push local changes to Bowrain Server"}
     ],
     "schema_extensions": [
-      {"name": "server",       "scope": "project", "group": "bowrain"},
-      {"name": "hooks",        "scope": "project", "group": "bowrain", "depends_on": "server"},
-      {"name": "automations",  "scope": "project", "group": "bowrain", "depends_on": "server"},
-      {"name": "assets",       "scope": "project", "group": "bowrain", "depends_on": "server"},
-      {"name": "brand_voice",  "scope": "project", "group": "bowrain", "depends_on": "server"},
+      {"name": "bowrain",      "scope": "project", "group": "bowrain", "venue": true},
+      {"name": "hooks",        "scope": "project", "group": "bowrain", "depends_on": "bowrain"},
+      {"name": "automations",  "scope": "project", "group": "bowrain", "depends_on": "bowrain"},
+      {"name": "assets",       "scope": "project", "group": "bowrain", "depends_on": "bowrain"},
+      {"name": "brand_voice",  "scope": "project", "group": "bowrain", "depends_on": "bowrain"},
       {"name": "collection",   "scope": "item",    "group": "bowrain"}
     ],
     "source_connectors": [
@@ -53,7 +53,7 @@
       {
         "prefix": "bowrain",
         "app": "bowrain",
-        "description": "Per-machine Bowrain defaults (the project's own server: block lives in the recipe)",
+        "description": "Per-machine Bowrain defaults (the project's own bowrain: block lives in the recipe)",
         "keys": [
           {"key": "server.url", "description": "Default Bowrain server URL offered by `kapi init`"}
         ]

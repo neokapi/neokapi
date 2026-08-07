@@ -920,7 +920,7 @@ func (a *App) projectItemTargetPath(inputPath, lang string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	for _, coll := range a.ProjectContext.Project.Content {
+	for _, coll := range a.ProjectContext.Project.Collections {
 		for _, item := range coll.EffectiveItems() {
 			if item.Path == "" || item.Target == "" {
 				continue

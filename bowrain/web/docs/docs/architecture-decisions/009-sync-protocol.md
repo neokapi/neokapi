@@ -256,23 +256,24 @@ the canonical content-model schema rather than redefining it; see
 
 ### Context is a content type
 
-A project declares where its content sits and what governs it. Under
-`coordinates:` a recipe names its own axes — product, channel, market, tenant,
-whatever the taxonomy is. Each named content collection names the point its
-content sits at, and `profiles:` binds governance to a region of that space,
-the most specific match winning. This is the framework's model; see
+A project declares where its content sits and what governs it. The space has two
+axes — the product the content belongs to and the channel it ships on — and it
+is structural: a key under `profiles:` is a product, the channels that profile
+declares are the channels that product ships on, and each named content
+collection names its point with one `channel:` reference. This is the
+framework's model; see
 [the kapi project file](https://neokapi.github.io/contribute/implementation/kapi-project-file).
 
 What travels is not that model but its outcome. **The client resolves it and
 sends the result**: one flat entry per declared content collection, carrying the
 collection's coordinates, the governance those coordinates resolved to, and the
-voice profile itself. Axes and profile bindings are never sent.
+voice profile itself. The profile declarations themselves are never sent.
 
 That is the decisive property. `core/project.ResolveGovernance` is the one
 resolver — the same code path a local `kapi` run uses to decide which voice
 governs a collection — and its answer is what the server stores. Sending the
-axes and the bindings instead would put a second resolver on the server, and two
-implementations of a precedence rule diverge: the same content would be governed
+declarations instead would put a second resolver on the server, and two
+implementations of a resolution rule diverge: the same content would be governed
 by one voice locally and another in the workspace, with neither obviously wrong.
 The server stores a resolved point; it does not re-derive one.
 
@@ -288,17 +289,18 @@ message SyncContextEntry {
 }
 ```
 
-- `name` is the collection name from `content[].name`. A bare entry that
+- `name` is the collection name from `collections[].name`. A bare entry that
   declares no collection is not carried: its files sync ungrouped, governed by
   the project's default point.
-- `coordinates` is the collection's `context:` — axis to value over the axes the
-  recipe declares. Values are slugs, never concept references. A concept is
-  designed to be renamed and deprecated as vocabulary is revised, and governance
-  that moved when someone edited a term would be governance nobody could rely
-  on. A value may carry a concept for display; matching never reads it, and
-  nothing on this wire resolves one into the other.
-- `channel` is the collection's value on the one axis the framework reads for
-  itself (`core/project.ChannelAxis`), resolved by the client. It selects the
+- `coordinates` is the collection's `channel:` resolved into the two axes —
+  `product` carrying the profile name and `channel` carrying the channel within
+  it (`core/project.ProductAxis` / `ChannelAxis`). Values are slugs, never
+  concept references. A concept is designed to be renamed and deprecated as
+  vocabulary is revised, and governance that moved when someone edited a term
+  would be governance nobody could rely on. A profile or a channel may carry a
+  concept for display; resolution never reads it, and nothing on this wire
+  resolves one into the other.
+- `channel` is the collection's channel, resolved by the client. It selects the
   matching override inside the voice profile.
 - `voice_profile` is the *name* of the governing profile — the linkage key the
   workspace brand hub upserts by. Empty when the collection's point binds no

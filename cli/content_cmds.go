@@ -60,11 +60,11 @@ from the extension unless --format is given.
 				if gerr != nil {
 					return fmt.Errorf("pattern %q cannot be expanded, so it would track nothing — fix it before adding it: %w", pattern, gerr)
 				}
-				entry := coreproj.ContentCollection{Path: pattern}
+				entry := coreproj.Collection{Path: pattern}
 				if fmtName != "" {
 					entry.Format = &coreproj.FormatSpec{Name: fmtName}
 				}
-				proj.Content = append(proj.Content, entry)
+				proj.Collections = append(proj.Collections, entry)
 				result.Added = append(result.Added, output.AddEntry{Pattern: pattern, Format: fmtName, Files: len(matches)})
 			}
 			if err := coreproj.Save(recipePath, proj); err != nil {
@@ -91,7 +91,7 @@ func NewLsCmd(a *App) *cobra.Command {
 		Long: `List the files matched by the project's content collections (honoring the
 exclude list). With --stats, also show per-file block and word counts.
 
-In a server-connected project (a recipe with a server: block, with the
+In a server-connected project (a recipe with a bowrain: block, with the
 bowrain plugin installed) a SYNC column reports each file's pending-push
 standing ("2 to push" / "synced"), derived from the sync cache.
 

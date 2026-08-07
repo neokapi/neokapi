@@ -177,7 +177,7 @@ func (a *App) ApplyTemplate(tabID, template string) error {
 			return fmt.Errorf("create output dir: %w", err)
 		}
 		// Add content pattern.
-		op.Project.Content = append(op.Project.Content, project.ContentCollection{
+		op.Project.Collections = append(op.Project.Collections, project.Collection{
 			Path:   "input/*",
 			Target: "output/{lang}/*",
 		})

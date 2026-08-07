@@ -5,8 +5,7 @@ defaults:
   target_languages: [fr]
   voice:
     profile_file: voice.yaml
-  terms: .kapi/terms.db
-content:
+collections:
   - path: src/en.json
     format: json
     target: src/{lang}.json

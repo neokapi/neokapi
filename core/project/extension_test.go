@@ -229,9 +229,9 @@ func TestValidate_ItemScopeDecoder(t *testing.T) {
 	p := &KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
 version: v1
-content:
+collections:
   - name: ui
-    items:
+    content:
       - path: src/foo.json
         max_size: "10MB"
 `), p))
@@ -242,16 +242,16 @@ content:
 	bad := &KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
 version: v1
-content:
+collections:
   - name: ui
-    items:
+    content:
       - path: src/foo.json
         max_size: [a, b, c]
 `), bad))
 
 	err := bad.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "content[0].items[0].max_size:")
+	assert.Contains(t, err.Error(), "collections[0].content[0].max_size:")
 }
 
 // InertProjectExtras reports extras whose DependsOn sibling is missing —

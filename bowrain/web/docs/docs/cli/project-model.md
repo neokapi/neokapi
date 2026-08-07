@@ -5,7 +5,7 @@ title: Project Model
 
 # Bowrain Project Model
 
-A bowrain project is a `.kapi` project with a `server:` block on its recipe. There is one project model shared with the `kapi` CLI: a single `kapi.yaml` recipe file at the project root and a sibling `.kapi/` directory.
+A bowrain project is a `.kapi` project with a `bowrain:` block on its recipe. There is one project model shared with the `kapi` CLI: a single `kapi.yaml` recipe file at the project root and a sibling `.kapi/` directory.
 
 ## Directory Structure
 
@@ -57,7 +57,7 @@ The pairing keeps the git-like shape of a committed config file beside a tool-ow
 
 ## Recipe schema
 
-The recipe is a YAML document. Bowrain projects layer a `server:` block (and optional top-level `hooks`, `automations`, `assets`, `brand_voice`) onto the framework's `KapiProject` schema.
+The recipe is a YAML document. Bowrain projects layer a `bowrain:` block (and optional top-level `hooks`, `automations`, `assets`, `brand_voice`) onto the framework's `KapiProject` schema.
 
 ```yaml
 version: v1
@@ -71,7 +71,7 @@ defaults:
     - "**/*.test.json"
     - "node_modules/**"
 
-content:
+collections:
   - path: src/locales/**/*.json
     format: json
   - path: content/docs/**/*.md
@@ -91,18 +91,18 @@ flows:
       - tool: pseudo-translate
         config: { method: extended }
 
-# A server: block depends on the bowrain plugin. init declares the requirement
-# so a plain kapi binary (without the plugin) fails fast instead of silently
-# ignoring the connection.
+# The bowrain: block depends on the bowrain plugin. init declares the
+# requirement so a plain kapi binary (without the plugin) fails fast instead of
+# silently ignoring the connection.
 requires:
   bowrain: "*"
 
 # Optional bowrain-server connection — presence enables push/pull and makes the
 # server the default venue for `kapi up`.
-server:
+bowrain:
   url: https://app.bowrain.cloud/my-team/abc123
   stream: $auto              # auto-detect from git branch / CI
-  converge: on-push          # on-push (default) | manual | schedule
+  converge: on-push          # on-push (default) | manual
 
 # Top-level lifecycle policy:
 hooks:
@@ -133,11 +133,12 @@ brand_voice:
 | `version`      | string         | Schema version (currently `v1`)                                        |
 | `name`         | string         | Project display name                                                   |
 | `defaults`     | object         | Project-wide language and execution defaults                           |
-| `content`      | list           | Content collections (see [Content Collections](#content-collections))  |
+| `collections`  | list           | Content collections (see [Content Collections](#content-collections))  |
+| `profiles`     | map            | Governance bound per product, keyed by profile name (see [Profiles and channels](#profiles-and-channels)) |
 | `plugins`      | map            | Plugin dependencies as `name: version-constraint` (e.g. map form)      |
-| `requires`     | map            | Plugin name → version constraint that gates loading; a `server:` block adds `bowrain` so a plain kapi binary refuses the recipe |
+| `requires`     | map            | Plugin name → version constraint that gates loading; a `bowrain:` block adds `bowrain` so a plain kapi binary refuses the recipe |
 | `flows`        | map            | Inline flow definitions (file-per-flow under `.kapi/flows/` also work) |
-| `server`       | object         | Optional bowrain-server connection coordinates                         |
+| `bowrain`      | object         | Optional bowrain-server connection coordinates                         |
 | `hooks`        | map            | Flows that run at lifecycle points (`pre-push`, `post-pull`, ...)      |
 | `automations`  | list           | Local automation rules (see [Automations](#automations))               |
 | `assets`       | object         | Asset (image/binary) policy                                            |
@@ -155,24 +156,25 @@ brand_voice:
 | `terms_source`     | string | Path to the committed terms source (e.g. `.kapi/terms.json`) |
 | `memory_source`    | string | Path to the committed content memory source (e.g. `.kapi/memory/memory.json`) |
 
-### `server` block
+### `bowrain` block
 
-Only the connection coordinates sit under `server:`:
+Only the connection coordinates sit under `bowrain:`:
 
-| Field    | Description                                                                  |
-| -------- | ---------------------------------------------------------------------------- |
-| `url`    | Compound URL: `<server>/<workspace>/<project-id>` or `<server>/projects/<id>` |
-| `stream` | Server-side stream to sync against; `$auto` auto-detects from CI / git branch |
+| Field      | Description                                                                  |
+| ---------- | ---------------------------------------------------------------------------- |
+| `url`      | Compound URL: `<server>/<workspace>/<project-id>` or `<server>/projects/<id>` |
+| `stream`   | Server-side stream to sync against; `$auto` auto-detects from CI / git branch |
+| `converge` | Server-side convergence policy: `on-push` (default) or `manual`              |
 
-Lifecycle (`hooks`, `automations`) and content/governance (`assets`, `brand_voice`) live at the **top level** of the recipe, not under `server:` — they describe project-owned policy, not server identity.
+Lifecycle (`hooks`, `automations`) and content/governance (`assets`, `brand_voice`) live at the **top level** of the recipe, not under `bowrain:` — they describe project-owned policy, not server identity.
 
-The framework has no built-in notion of a server: `server:` (and `hooks:`, `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `server:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [AD-framework-008: Project model — recipe extension mechanism](https://neokapi.github.io/contribute/architecture/008-project-model).
+The framework has no built-in notion of a server: `bowrain:` (and `hooks:`, `automations:`, `assets:`, `brand_voice:`) are bowrain **recipe extensions** decoded only when the `kapi-bowrain` plugin is installed (the framework round-trips them verbatim otherwise). The key is the platform's own name because the block *is* the platform: kapi finds it through a venue flag on the plugin's schema registration and reads only `url:` and `converge:`, never spelling the key out. So `kapi init` / `kapi init-connect` (and `kapi config server.url …`) declare `requires: { bowrain: "*" }` whenever they write a `bowrain:` block. A plain `kapi` binary without the plugin then refuses the recipe with an actionable "requires the bowrain plugin" error rather than silently ignoring the connection. See [AD-framework-008: Project model — recipe extension mechanism](https://neokapi.github.io/contribute/architecture/008-project-model).
 
 ## Content Collections
 
-Each entry under `content:` is a content collection. Bare entries are single-pattern collections; named collections group multiple items together.
+Each entry under `collections:` is a content collection. Bare entries are single-pattern collections; named collections group multiple items together.
 
-You can edit `content:` by hand, or with the core `kapi` commands (no bowrain plugin required — they only touch the local recipe):
+You can edit `collections:` by hand, or with the core `kapi` commands (no bowrain plugin required — they only touch the local recipe):
 
 ```bash
 kapi add "src/**/*.json"                 # append a content pattern (format auto-detected)
@@ -185,7 +187,7 @@ kapi ls --stats                          # …with per-file block and word count
 `add`/`rm`/`ls` are framework commands; sync state (changed-vs-server) is [`kapi status`](/cli/commands/status).
 
 ```yaml
-content:
+collections:
   # Bare entry — single source pattern
   - path: src/locales/**/*.json
     format: json
@@ -201,38 +203,83 @@ content:
     source_language: en-GB
     collection: legacy
 
-  # Named collection with nested items
+  # Named collection — its items live under content:, relative to base:
   - name: ui
-    items:
-      - path: "src/**/*.tsx"
+    channel: app
+    base: src
+    content:
+      - path: "**/*.tsx"
         format:
           name: exec
           config:
             command: "vp neokapi-i18n extract --stream"
-      - path: "src/i18n/en/*.json"
+      - path: "i18n/en/*.json"
         format: json
 ```
 
-### Content collection fields
+### Collection fields
+
+| Field              | Type            | Description                                                                |
+| ------------------ | --------------- | -------------------------------------------------------------------------- |
+| `name`             | string          | Collection name; required to bind a `channel:`                             |
+| `base`             | string          | The directory this collection lives in — every `path`, `target` and item `base` below is written relative to it |
+| `channel`          | string          | The point in the context space this content sits at: `profile/channel`, or a bare `channel` (see [Profiles and channels](#profiles-and-channels)) |
+| `content`          | list            | The collection's content items                                             |
+| `collection`       | string          | Collection routing override                                                |
+| `source_language`  | string          | Source language override                                                   |
+| `target_languages` | list            | Target language override                                                   |
+
+### Content item fields
 
 | Field              | Type            | Description                                                                |
 | ------------------ | --------------- | -------------------------------------------------------------------------- |
 | `path`             | string          | Glob pattern for source files (supports `{lang}` placeholder)              |
 | `format`           | string / object | File format ID (e.g. `json`, `html`) or object with `name`/`config`/`preset` |
 | `target`           | string          | Output path pattern for target files (supports `{lang}` and `{path}`)      |
-| `base`             | string          | Path prefix to strip when reporting files                                  |
+| `base`             | string          | Directory a matched file's path is made relative to for target-token expansion; defaults to the glob's fixed prefix |
 | `collection`       | string          | Collection routing override for this entry                                 |
 | `source_language`  | string          | Source language override for this entry                                    |
 | `target_languages` | list            | Target language override for this entry                                    |
 | `assets`           | object          | Per-entry asset policy override                                            |
 | `asset_max_size`   | string          | Per-entry asset max size override                                          |
 
+A bare entry carries `path`, `format` and `target` directly on the collection and has no `content:` list.
+
+## Profiles and channels
+
+Content is written for a point in a two-axis space: the **product** it belongs to and the **channel** it ships on. The space is structural — a key under `profiles:` is a product, the channels that profile declares are the channels that product ships on, and a named collection names its point with one `channel:` reference.
+
+```yaml
+profiles:
+  acme:
+    channels: [app, docs]
+    voice: .kapi/voice.yaml
+  acme-labs:
+    channels: [app]
+    voice: .kapi/profiles/acme-labs/voice.yaml
+    terms: .kapi/profiles/acme-labs/terms.json
+
+collections:
+  - name: acme-docs
+    channel: docs        # only acme declares it — the bare form resolves
+    content:
+      - path: docs/**/*.md
+  - name: labs-app
+    channel: acme-labs/app   # both declare `app` — qualify it
+    content:
+      - path: labs/src/i18n/**/*.kbf.json
+```
+
+The profile name is also the directory under `.kapi/profiles/<name>/` holding what that profile overrides. Profile names and channels are slugs — lowercase letters, digits and hyphens — stable identifiers that cross the sync wire as the content's product and channel coordinates, never vocabulary. A bare `channel:` two profiles declare is a load error naming both qualified spellings; a collection binding no channel is governed by `defaults.voice` and the project's own terms.
+
+A profile's `terms:` is the one binding that does not cross to the server, which governs terminology from the workspace vocabulary instead. A connected project that binds terms per profile warns on every run that the binding applies to local runs only.
+
 ### Format object form
 
 When you need to configure a format (apply a preset, pass options, run a subprocess extractor) use the object form:
 
 ```yaml
-content:
+collections:
   - path: "src/**/*.tsx"
     format:
       name: exec
@@ -325,7 +372,7 @@ In interactive mode (default when stdin is a terminal), `kapi init` presents a g
 For non-interactive usage (e.g. CI/CD), use flags:
 
 ```bash
-# Local-only project (no server: block written)
+# Local-only project (no bowrain: block written)
 kapi init --source en --targets fr,de,ja
 
 # Connect to a server (anonymous claim)
@@ -353,17 +400,17 @@ kapi init --server https://app.bowrain.cloud --project abc123
 
 `kapi init` writes:
 
-1. `kapi.yaml` recipe at the project root (with a `server:` block when a server was supplied)
+1. `kapi.yaml` recipe at the project root (with a `bowrain:` block when a server was supplied)
 2. `.kapi/` directory
 3. `.kapi/flows/pseudo.yaml` — an example flow
 4. a two-line ignore rule — `/.kapi/work/` and `/.kapi/filters.local.json`
 
 ## Server Connection
 
-The `server.url` field is a compound URL that encodes the server address, workspace, and project ID:
+The block's `url` field is a compound URL that encodes the server address, workspace, and project ID:
 
 ```yaml
-server:
+bowrain:
   # Workspace project
   url: https://app.bowrain.cloud/my-team/abc123
 
@@ -383,7 +430,7 @@ kapi status  # Show sync state (pending push/pull)
 
 The active server URL is resolved from (first match wins):
 
-1. `server.url` field on the recipe
+1. `url:` under the recipe's `bowrain:` block
 2. `--server` flag
 3. `BOWRAIN_SERVER_URL` environment variable / `server.url` in the per-machine [bowrain config](/cli/commands/config)
 4. Existing auth state (from `kapi auth login`)

@@ -202,10 +202,10 @@ name: MyApp
 defaults:
   source_language: en
   target_languages: [fr, de, ja]
-content:
+collections:
   - name: ui
     # Block state lives in the project cache (gitignored, regenerable).
-    items:
+    content:
       - path: "src/**/*.tsx"
         format:
           name: exec

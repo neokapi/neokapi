@@ -224,12 +224,12 @@ func SanitizeRecipe(p *project.KapiProject) (*project.KapiProject, []string) {
 		clone.Defaults.Locales = locales
 	}
 
-	if len(p.Content) > 0 {
-		content := make([]project.ContentCollection, len(p.Content))
-		for i, coll := range p.Content {
-			content[i] = sanitizeContent(coll, i, note)
+	if len(p.Collections) > 0 {
+		collections := make([]project.Collection, len(p.Collections))
+		for i, coll := range p.Collections {
+			collections[i] = sanitizeContent(coll, i, note)
 		}
-		clone.Content = content
+		clone.Collections = collections
 	}
 
 	if meta := RecipeWorkspaceMeta(&clone); meta.Out != "" && !IsLocalOutTemplate(meta.Out) {
@@ -284,7 +284,7 @@ func sanitizeToolConfig(in map[string]map[string]any, where string, note func(st
 }
 
 // sanitizeExtras drops the side-effecting keys from one Extras map. prefix
-// names the scope in the report ("", "defaults.", "content[0].") so a recipient
+// names the scope in the report ("", "defaults.", "collections[0].") so a recipient
 // can tell which block lost what. A nil or empty map stays nil.
 func sanitizeExtras(in map[string]yaml.Node, prefix string, note func(string, ...any)) map[string]yaml.Node {
 	if len(in) == 0 {
@@ -336,8 +336,8 @@ func sanitizeRedaction(in *project.RedactionSpec, where string, note func(string
 // and its items, and contains the paths that decide where merge reads and
 // writes. The content globs themselves are left alone: they are resolved
 // against an os.DirFS rooted at the project, which cannot express a climb.
-func sanitizeContent(coll project.ContentCollection, index int, note func(string, ...any)) project.ContentCollection {
-	where := fmt.Sprintf("content[%d]", index)
+func sanitizeContent(coll project.Collection, index int, note func(string, ...any)) project.Collection {
+	where := fmt.Sprintf("collections[%d]", index)
 	if coll.Format != nil && execClassFormats[coll.Format.Name] {
 		note("the %q format on content %q", coll.Format.Name, coll.Path)
 		coll.Format = nil
@@ -346,10 +346,10 @@ func sanitizeContent(coll project.ContentCollection, index int, note func(string
 	coll.Target = sanitizeRecipePath(coll.Target, where+".target", note)
 	coll.Extras = sanitizeExtras(coll.Extras, where+".", note)
 
-	if len(coll.Items) > 0 {
-		items := make([]project.ContentItem, len(coll.Items))
-		for i, item := range coll.Items {
-			iw := fmt.Sprintf("%s.items[%d]", where, i)
+	if len(coll.Content) > 0 {
+		items := make([]project.ContentItem, len(coll.Content))
+		for i, item := range coll.Content {
+			iw := fmt.Sprintf("%s.content[%d]", where, i)
 			if item.Format != nil && execClassFormats[item.Format.Name] {
 				note("the %q format on content %q", item.Format.Name, item.Path)
 				item.Format = nil
@@ -360,7 +360,7 @@ func sanitizeContent(coll project.ContentCollection, index int, note func(string
 			item.Extras = sanitizeExtras(item.Extras, iw+".", note)
 			items[i] = item
 		}
-		coll.Items = items
+		coll.Content = items
 	}
 	return coll
 }

@@ -18,6 +18,7 @@ type Entry struct {
 	Group     string
 	Decode    func(node yaml.Node) error
 	DependsOn string
+	Venue     bool
 }
 
 type key struct {

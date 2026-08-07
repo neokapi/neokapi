@@ -19,14 +19,14 @@ func TestSetServerURL_DeclaresBowrainRequirement(t *testing.T) {
 	require.NotNil(t, r.Server)
 	assert.Equal(t, "https://example.test/p/123", r.Server.URL)
 	require.NotNil(t, r.Requires)
-	assert.Equal(t, "*", r.Requires[schema.Group], "server: must declare the bowrain plugin requirement")
+	assert.Equal(t, "*", r.Requires[schema.Group], schema.VenueKey+": must declare the bowrain plugin requirement")
 }
 
 func TestSetServerURL_EmptyURLIsNoOp(t *testing.T) {
 	r := &project.Recipe{}
 	setServerURL(r, "")
 	assert.Nil(t, r.Server)
-	assert.Empty(t, r.Requires[schema.Group], "no server: → no bowrain requirement")
+	assert.Empty(t, r.Requires[schema.Group], "no "+schema.VenueKey+": → no bowrain requirement")
 }
 
 func TestRequireBowrain_PreservesExistingRequiresAndIsIdempotent(t *testing.T) {

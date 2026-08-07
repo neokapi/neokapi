@@ -39,7 +39,7 @@ embed:
           flow: tm-recycle
           materialize: on-converge
         ship_gate: { translated: 100, reviewed: 100 }
-        content:
+        collections:
           - path: messages.json
             target: "messages.{lang}.json"
         flows:
@@ -156,7 +156,7 @@ files:
         flow: tm-recycle
         materialize: on-converge
       ship_gate: { translated: 100, reviewed: 100 }
-      content:
+      collections:
         - path: messages.json
           target: "messages.{lang}.json"
       flows:

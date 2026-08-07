@@ -85,7 +85,7 @@ mem.vol.mkdirp("/proj/.kapi");
 mem.vol.writeFile("/proj/app.json", enc.encode('{"g":"Hello"}'));
 mem.vol.writeFile(
   "/proj/demo.kapi",
-  enc.encode("version: \"v1\"\nname: d\ndefaults:\n  source_locale: en\n  target_locales: [qps]\nflows:\n  pseudo:\n    steps:\n      - tool: pseudo-translate\n"),
+  enc.encode("version: \"v1\"\nname: d\ndefaults:\n  source_language: en\n  target_languages: [qps]\nflows:\n  pseudo:\n    steps:\n      - tool: pseudo-translate\n"),
 );
 ok("project run", await run("run", "pseudo", "-p", "/proj/demo.kapi", "-i", "/proj/app.json", "-o", "/proj/out.json", "--target-lang", "qps"));
 const projOut = dec.decode(mem.vol.readFile("/proj/out.json"));

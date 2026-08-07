@@ -51,7 +51,7 @@ The server URL is determined from (first match wins):
   3. Existing auth state (from kapi auth login)
   4. The hosted service (https://app.bowrain.cloud) — used only when init
      contacts a server (sign-in, --anonymous, --email, --project); a plain
-     init with nothing configured writes a recipe with no server: block
+     init with nothing configured writes a recipe with no bowrain: block
 
 Use --anonymous to create a project without signing in.
 Use --email to create a project and email a link to claim it.`,
@@ -724,14 +724,14 @@ func applyFrameworkPreset(recipe *project.Recipe, presetName string) error {
 
 	// Apply mappings as bare content entries on the recipe.
 	for _, m := range fp.Mappings {
-		entry := coreproj.ContentCollection{
+		entry := coreproj.Collection{
 			Path:   m.Local,
 			Target: m.TargetPath,
 		}
 		if m.Format != "" {
 			entry.Format = &coreproj.FormatSpec{Name: m.Format}
 		}
-		recipe.Content = append(recipe.Content, entry)
+		recipe.Collections = append(recipe.Collections, entry)
 	}
 
 	// Apply exclude patterns.

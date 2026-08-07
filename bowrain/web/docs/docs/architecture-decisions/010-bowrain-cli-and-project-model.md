@@ -13,7 +13,7 @@ Bowrain ships as a **manifest-driven kapi plugin**, not as part of the
 `kapi bowrain …` group, the `server-up`/`server-status` plumbing behind the
 built-in `up`/`status`, …), the source connector that implements push/pull against
 bowrain-server, the bowrain MCP tools, and the recipe-schema decoders that
-validate `server:`/`hooks:`/`automations:` all live in `bowrain/plugin/`
+validate `bowrain:`/`hooks:`/`automations:` all live in `bowrain/plugin/`
 and compile into a standalone plugin binary, `kapi-bowrain` (built from
 `bowrain/plugin/cmd/kapi-bowrain/`).
 
@@ -26,7 +26,7 @@ There is one user-facing CLI, `kapi`, and bowrain is something you install
 into it (`kapi plugins install bowrain`, or
 `brew install neokapi/tap/bowrain-cli`).
 
-A bowrain project is just a kapi project with a `server:` block on its
+A bowrain project is just a kapi project with a `bowrain:` block on its
 recipe — same `kapi.yaml` recipe file, same `.kapi/` directory, same
 discovery rules as the framework. Commands walk upward from the current
 working directory looking for a file named `kapi.yaml`, in the same style as
@@ -52,7 +52,7 @@ They need a first-class command surface that:
 The framework's `kapi.yaml` recipe model
 ([AD-framework-008: Kapi Project Model](https://neokapi.github.io/contribute/architecture/008-project-model))
 already provides a portable, gitignore-aware project layout with stateless
-recipe + sibling `.kapi/` directory. Bowrain extends it with a `server:`
+recipe + sibling `.kapi/` directory. Bowrain extends it with a `bowrain:`
 block and a few top-level lifecycle/governance fields.
 
 ## Decision
@@ -157,14 +157,14 @@ These commands separate three concerns. **Transport** is `push` and `pull`:
 pure data movement that makes the local checkout and the server replica
 consistent (Merkle diff, conflicts, terminology hand-off), never producing
 translations. **Convergence** is `up`: the built-in owns the verb in every
-install and resolves the venue itself — when the recipe declares `server:`
+install and resolves the venue itself — when the recipe declares `bowrain:`
 and the plugin is installed, `kapi up` prints the resolved venue and
 dispatches the run to the hidden `server-up` plumbing, which pushes drift,
 converges on the server (org keys, shared assets), streams progress back
 live, and pulls the results down; `kapi up --local` runs the loop on this
 machine and pushes the results. **Venue** — where `up`'s compute executes —
-is therefore a property of the project (`server:` presence plus the
-`server.converge` policy below), not a separate verb. There is no `sync`
+is therefore a property of the project (`bowrain:` presence plus the
+`bowrain.converge` policy below), not a separate verb. There is no `sync`
 verb: pushing and then waiting for the server to translate is exactly what
 `kapi up` expresses in a connected project.
 
@@ -185,8 +185,8 @@ loads, but `kapi push`/`kapi pull` are unavailable and a recipe that
 declares `requires: [bowrain]` fails validation.
 
 All bowrain server-sync commands require a `.kapi` project whose `kapi.yaml`
-recipe declares a `server:` block. Discovery is identical to kapi: walk upward
-looking for a `kapi.yaml` recipe; the recipe must declare `server:` for
+recipe declares a `bowrain:` block. Discovery is identical to kapi: walk upward
+looking for a `kapi.yaml` recipe; the recipe must declare `bowrain:` for
 push/pull/status to be meaningful.
 
 ### Project layout
@@ -210,7 +210,7 @@ my-app/
 │       ├── store.db        # the local index
 │       ├── vault/          # withheld redaction originals (local-only)
 │       └── cache/          # free to delete, always
-│           ├── sync-cache.json  # kapi push/pull state (only with server: block)
+│           ├── sync-cache.json  # kapi push/pull state (only when a venue is bound)
 │           ├── extractions/
 │           └── collections/
 └── src/
@@ -261,7 +261,7 @@ defaults:
     - "**/*.test.json"
     - "node_modules/**"
 
-content:
+collections:
   - path: src/locales/**/*.json
     format: json
   - path: content/docs/**/*.md
@@ -283,7 +283,7 @@ flows:
 
 # Optional bowrain-server connection — presence enables push/pull and makes
 # the server the default venue for `kapi up`.
-server:
+bowrain:
   url: https://bowrain.example.com/my-team/abc123
   stream: $auto             # auto-detect from git branch / CI
   converge: on-push         # on-push (default) | manual
@@ -314,9 +314,9 @@ The recipe schema is owned by the framework. Field shape, validation,
 loading, saving, and walk-up discovery all live in `core/project`. Bowrain
 imports them; it does not redefine them.
 
-### `server:` block
+### `bowrain:` block
 
-Only the connection coordinates sit under `server:`:
+Only the connection coordinates sit under `bowrain:`:
 
 - **`url`** — compound URL encoding `<server>/<workspace>/<project-id>` for
   workspace projects, or `<server>/projects/<project-id>` for direct
@@ -374,7 +374,7 @@ rather than user-scoped.
 ### Workflow
 
 ```bash
-kapi init                # create kapi.yaml + .kapi/, populate server: block
+kapi init                # create kapi.yaml + .kapi/, populate bowrain: block
 kapi auth login          # OAuth login → tokens to keychain, metadata to the bowrain config dir
 kapi status              # show standing: coverage, gates, and what's pending push / pull
 kapi push [--dry-run]    # transport: scan local files, diff against cache, upload changed blocks
@@ -410,14 +410,14 @@ commands run). No `.bowrain/` directory is ever created.
   (plugin registries, per-flow config maps, `LocalFormatPreset.Description`)
   are deferred or dropped. Future work re-adds them as framework recipe
   fields when needed.
-- A directory holds at most one `kapi.yaml`, so the recipe with its `server:`
+- A directory holds at most one `kapi.yaml`, so the recipe with its `bowrain:`
   block is unambiguous by construction — discovery never has to choose between
   competing recipes.
 
 ## Related
 
 - [AD-framework-007: Plugin System](https://neokapi.github.io/contribute/architecture/007-plugin-system) — the manifest discovery and A/B/C dispatch model that loads `kapi-bowrain`
-- [AD-framework-008: Kapi Project Model](https://neokapi.github.io/contribute/architecture/008-project-model) — the recipe schema this AD layers `server:` onto
+- [AD-framework-008: Kapi Project Model](https://neokapi.github.io/contribute/architecture/008-project-model) — the recipe schema this AD layers `bowrain:` onto
 - [AD-009: Sync Protocol](009-sync-protocol) — the on-the-wire contract used by push/pull
 - [AD-011: REST API](011-rest-api) — the bowrain-server endpoints consumed by the source connector
 - [AD-013: Automation Engine](013-automation-engine) — server-side automation paired with local `hooks` / `automations`

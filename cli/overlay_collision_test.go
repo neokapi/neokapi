@@ -31,10 +31,10 @@ func TestOverlayKey_NoCollisionAcrossFiles(t *testing.T) {
 
 	recipe := filepath.Join(root, project.RecipeFileName)
 	proj := &project.KapiProject{
-		Version:  "v1",
+		Version:  project.CurrentVersion,
 		Name:     "OverlayCollision",
 		Defaults: project.Defaults{SourceLanguage: "en-US", TargetLanguages: []model.LocaleID{"fr-FR"}},
-		Content: []project.ContentCollection{{
+		Collections: []project.Collection{{
 			Path:   "src/locales/en/*.json",
 			Format: &project.FormatSpec{Name: "json"},
 			Target: "src/locales/{lang}/*.json",

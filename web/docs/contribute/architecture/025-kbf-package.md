@@ -218,7 +218,7 @@ and nothing environment-specific. One principle decides membership:
 > from `rootHash`, as the workspace recipe already is). Secrets never travel —
 > they live in the OS keychain, never in a recipe. Caches are regenerated on
 > unpack. A `.kpz` has no runtime, so any side-effecting recipe (`hooks`,
-> `automations`, a `server:` binding) travels **inert** and re-activates only when
+> `automations`, a `bowrain:` binding) travels **inert** and re-activates only when
 > unpacked into a project, with explicit re-auth and opt-in re-arming.
 
 **Intent travels as the whole recipe.** A `.kpz` embeds the project recipe
@@ -254,7 +254,7 @@ path would escape the project root is refused rather than written.
 | flows | `flows:` + `.kapi/flows/` | recipe `flows` | **travels** |
 | plugins (declaration) + `requires` | recipe | recipe | travels (binaries re-resolved via registry) |
 | defaults, content, preset | recipe | recipe | travels |
-| `server:` / `hooks:` / `automations:` (Extras, any scope) | recipe Extras | recipe Extras | travels **inert** |
+| `bowrain:` / `hooks:` / `automations:` (Extras, any scope) | recipe Extras | recipe Extras | travels **inert** |
 | path-valued fields (`terms_source`, `memory_source`, `redaction.rules`, `voice.profile_file`, content `base` / `target`) | recipe | recipe | travels **contained** |
 | content memory / terms | committed `.memory.json` / `.terms.json` sources | `memory.json` / `terms.json` | travels (lossless) |
 | blocks + targets, annotations, in-progress overlays | block tables of `store.db` (derived) | `blocks/*.kbf.json`, `annotations/*.overlays.jsonl`, `overlays.json` (authoritative) | travels |

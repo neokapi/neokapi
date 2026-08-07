@@ -44,7 +44,7 @@ func newSourceGateProjectWith(t *testing.T, gate, sourceJSON string) (*App, *Env
 			Flow:            "translate",
 			SourceGate:      gate,
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Name: "docs", Path: "src/en.json", Target: "src/{lang}.json"},
 		},
 		Flows: map[string]*flow.StepsSpec{

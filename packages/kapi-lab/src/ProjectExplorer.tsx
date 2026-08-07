@@ -75,7 +75,7 @@ name: demo
 defaults:
   source_language: en
   target_languages: [${TARGETS.join(", ")}]
-content:
+collections:
   - path: ${sample.filename}
     format: ${formatFor(sample.filename)}
     target: "${targetGlob(sample.filename)}"

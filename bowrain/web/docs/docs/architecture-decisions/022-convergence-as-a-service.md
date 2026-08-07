@@ -127,7 +127,7 @@ the caller being able to tell them apart.
 
 ### 3. Trigger policy
 
-When the server converges is an explicit per-project policy, `server.converge`
+When the server converges is an explicit per-project policy, `bowrain.converge`
 ([AD-010](010-bowrain-cli-and-project-model.md)):
 
 - `on-push` (default for connected projects) — every push starts a run of the
@@ -148,7 +148,7 @@ or reacting to a run outcome (a `run-parked` notification, a webhook
 ### 4. Relation to transport and to the review queue
 
 - **Transport stays pure.** `push` moves content and nothing else;
-  server-side convergence is the `server.converge` policy, not a property of
+  server-side convergence is the `bowrain.converge` policy, not a property of
   `push`. `kapi up` on a connected project is, mechanically, push (transport) →
   start/attach a run → stream → pull (transport), with `--local` inverting the
   order (converge on the machine, then push results, so the server is never left
@@ -165,7 +165,7 @@ or reacting to a run outcome (a `run-parked` notification, a webhook
 The open-source `kapi` binary carries zero server code. The server venue arrives
 only through the installed `kapi-bowrain` plugin, which declares the `up` verb in
 its manifest — so kapi dispatches `kapi up` to the plugin (a manifest command
-overrides the built-in of the same name). The plugin's `up` detects the `server:`
+overrides the built-in of the same name). The plugin's `up` detects the `bowrain:`
 block, starts (or attaches to) the server run, subscribes to its SSE stream, and
 re-emits the convergence event protocol onto the shared renderer. No
 new plugin transport is needed beyond the established subprocess dispatch
@@ -196,7 +196,7 @@ new plugin transport is needed beyond the established subprocess dispatch
 ## Related
 
 - [AD-framework-033: Project State Model](https://neokapi.github.io/contribute/architecture/033-project-state-model) — the derived state, ladders, gates, and parking the loop reconciles toward
-- [AD-010: Bowrain CLI and Project Model](010-bowrain-cli-and-project-model.md) — transport vs convergence vs venue; the `server.converge` policy; plugin dispatch
+- [AD-010: Bowrain CLI and Project Model](010-bowrain-cli-and-project-model.md) — transport vs convergence vs venue; the `bowrain.converge` policy; plugin dispatch
 - [AD-009: Sync Protocol](009-sync-protocol.md) — the wire contract that `push`/`pull` use for transport
 - [AD-013: Automation Engine](013-automation-engine.md) — the rule/run/SSE machinery the convergence run builds on
 - [AD-015: Server-Side AI Operations](015-server-ai-operations.md) — the translation job queue the engine uses as its produce step

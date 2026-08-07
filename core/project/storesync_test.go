@@ -109,7 +109,7 @@ func extractFixture(t *testing.T, sources map[string]string) (*registry.FormatRe
 		Version:  "v1",
 		Name:     "StoreSync",
 		Defaults: project.Defaults{SourceLanguage: "en-US"},
-		Content: []project.ContentCollection{{
+		Collections: []project.Collection{{
 			Name:   "ui",
 			Path:   "src/*.json",
 			Format: &project.FormatSpec{Name: "json"},

@@ -44,7 +44,7 @@ protocols specific to bowrain) live in [Implementation Notes](/notes/index).
 | ----------------------------------------- | ---------------- | ------------------------------------------------------ |
 | [008](008-connector-system.md)            | Connector System | IntegrationConnector, categories, registry            |
 | [009](009-sync-protocol.md)               | Sync Protocol    | Desired-state reconciliation, content types incl. context, ownership in the payload |
-| [010](010-bowrain-cli-and-project-model.md) | Bowrain CLI      | `.kapi` projects with `server:` block, hooks, MCP     |
+| [010](010-bowrain-cli-and-project-model.md) | Bowrain CLI      | `.kapi` projects with `bowrain:` block, hooks, MCP     |
 | [011](011-rest-api.md)                    | REST API         | Slug-based hierarchy, route taxonomy                   |
 
 ## Events & Automation
@@ -54,7 +54,7 @@ protocols specific to bowrain) live in [Implementation Notes](/notes/index).
 | [012](012-distributed-event-bus.md)            | Distributed Event Bus    | Redis Streams (ElastiCache in prod)                       |
 | [013](013-automation-engine.md)                | Automation Engine        | Rules, quality gates, run visibility, SSE                 |
 | [014](014-translator-workflow.md)              | Translator Workflow      | Tasks, activities, notifications, source review           |
-| [022](022-convergence-as-a-service.md)         | Convergence as a Service | Server-side `kapi up` runs, SSE event stream, `server.converge` policy, automation collapse |
+| [022](022-convergence-as-a-service.md)         | Convergence as a Service | Server-side `kapi up` runs, SSE event stream, `bowrain.converge` policy, automation collapse |
 
 ## Intelligence
 

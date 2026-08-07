@@ -31,15 +31,15 @@ func newReviewProject(t *testing.T, app *App) (*TabInfo, string) {
 		[]byte(`{"greeting":"Hallo","farewell":"Tschüss"}`), 0o644))
 
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Review",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR", "de-DE"},
 		},
-		Content: []project.ContentCollection{{
-			Name:  "App",
-			Items: []project.ContentItem{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
+		Collections: []project.Collection{{
+			Name:    "App",
+			Content: []project.ContentItem{{Path: "locales/en.json", Target: "locales/{lang}.json"}},
 		}},
 		ShipGate: gate.Gate{"translated": {Pct: 100}, "reviewed": {Pct: 50}},
 	}

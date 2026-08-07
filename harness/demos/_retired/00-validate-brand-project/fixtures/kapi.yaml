@@ -3,5 +3,5 @@ name: lumen
 defaults:
   voice:
     profile_file: voice.yaml
-content: []
+collections: []
 flows: {}

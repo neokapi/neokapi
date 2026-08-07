@@ -57,7 +57,7 @@ func newBlockedTargetProject(t *testing.T, targetTemplate string) (*App, *EnvCom
 			Flow:            "translate",
 			SourceGate:      string(model.SourceGateNone),
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Name: "app", Path: "src/en.json", Target: targetTemplate},
 		},
 		Flows: map[string]*flow.StepsSpec{

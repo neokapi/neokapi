@@ -147,7 +147,7 @@ function FilterEditorDialog({
   const [languages, setLanguages] = useState<string[]>(filter.languages ?? []);
   const [shared, setShared] = useState(!!filter.shared);
 
-  const collectionNames = (project.content ?? [])
+  const collectionNames = (project.collections ?? [])
     .map((c) => c.name)
     .filter((n): n is string => !!n);
   const allLanguages = project.defaults?.target_languages ?? [];

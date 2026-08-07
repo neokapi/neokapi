@@ -92,9 +92,9 @@ kapi
 
 1. Check if `kapi.yaml` or `.kapi/` already exists (error if so)
 2. Write `kapi.yaml` recipe with defaults or provided flags
-3. If `--anonymous` or `--email`: create anonymous project on server, write `server:` block
-4. If `--project` provided: verify auth and connect to existing project, write `server:` block
-5. If authenticated with no flags: create project in personal workspace, write `server:` block
+3. If `--anonymous` or `--email`: create anonymous project on server, write `bowrain:` block
+4. If `--project` provided: verify auth and connect to existing project, write `bowrain:` block
+5. If authenticated with no flags: create project in personal workspace, write `bowrain:` block
 6. Create `.kapi/flows/` directory with example flows
 7. Add the ignore rule for `.kapi/work/` and `.kapi/filters.local.json` — the rest of `.kapi/` is committed
 

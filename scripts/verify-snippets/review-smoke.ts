@@ -51,7 +51,7 @@ name: demo
 defaults:
   source_language: en
   target_languages: [fr]
-content:
+collections:
   - path: messages.json
     target: "messages.{lang}.json"
 `;

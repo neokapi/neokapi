@@ -118,13 +118,13 @@ func TestListOutputs_MalformedPatternFails(t *testing.T) {
 
 	kapiPath := filepath.Join(dir, "test.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Test",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Path: "input/*.json", Target: "output/{lang}", Format: &project.FormatSpec{Name: "json"}},
 			{Path: "store/[a-.json", Target: "output/{lang}", Format: &project.FormatSpec{Name: "json"}},
 		},
@@ -149,13 +149,13 @@ func TestListOutputs_PatternMatchingNothingIsNotAnError(t *testing.T) {
 
 	kapiPath := filepath.Join(dir, "test.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Test",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Path: "input/*.json", Target: "output/{lang}", Format: &project.FormatSpec{Name: "json"}},
 			{Path: "not-written-yet/**/*.json", Target: "output/{lang}", Format: &project.FormatSpec{Name: "json"}},
 		},

@@ -22,15 +22,15 @@ export function Surfaces() {
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            A profile is a named set of <span className="prism-text">coordinates.</span>
+            A profile is a product and <span className="prism-text">the channels it ships on.</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Who it is for, where it appears, in what register, for which market, and from when until
-            when. A profile bundles those five and gives them a name — developer reference, end-user
-            help, regulated disclosure. Coordinates are declared where they are cheapest to declare
-            and inherited from there: a folder carries a profile for everything inside it, a file
-            can override its folder, and a passage can override its file. Nobody tags a paragraph
-            unless a paragraph is genuinely the exception.
+            The profile carries the voice and the vocabulary for everything that product publishes;
+            the channel then refines it — developer reference reads differently from end-user help,
+            which reads differently again from a regulated disclosure. Both are declared where they
+            are cheapest to declare: a collection of content names one channel, and everything
+            inside it is governed from there. Nobody tags a paragraph unless a paragraph is
+            genuinely the exception.
           </p>
         </div>
 

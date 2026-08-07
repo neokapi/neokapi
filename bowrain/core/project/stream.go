@@ -12,7 +12,7 @@ import (
 //
 //  1. flagValue (e.g. --stream)
 //  2. BOWRAIN_STREAM environment variable
-//  3. configStream (recipe's server.stream field), unless empty or $auto
+//  3. configStream (recipe's bowrain.stream field), unless empty or $auto
 //  4. CI / git branch auto-detection
 //  5. "main" fallback
 func ResolveStream(flagValue string, configStream string) string {

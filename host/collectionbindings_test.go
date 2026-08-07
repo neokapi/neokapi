@@ -25,11 +25,11 @@ channels:
       formality: casual
 `
 
-// governedProject writes a recipe declaring a two-product context space, a
-// profile governing one of them, and the voice YAMLs they bind. platformContext
-// is the point the platform collection declares; nil leaves that collection at
+// governedProject writes a recipe declaring two products, a profile governing
+// one of them, and the voice YAMLs they bind. platformChannel is the channel
+// reference the platform collection declares; empty leaves that collection at
 // the project's default point. Returns the recipe path and root.
-func governedProject(t *testing.T, platformContext map[string]string) (recipe, root string) {
+func governedProject(t *testing.T, platformChannel string) (recipe, root string) {
 	t.Helper()
 	dir, err := filepath.EvalSymlinks(t.TempDir())
 	require.NoError(t, err)
@@ -47,17 +47,16 @@ func governedProject(t *testing.T, platformContext map[string]string) (recipe, r
 			TargetLanguages: []model.LocaleID{"nb"},
 			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
 		},
-		Coordinates: project.Coordinates{
-			"product": {{ID: "framework"}, {ID: "platform"}},
-			"channel": {{ID: "docs"}, {ID: "landing"}},
+		Profiles: map[string]project.Profile{
+			"framework": {Channels: []project.Channel{{ID: "docs"}}},
+			"platform": {
+				Channels: []project.Channel{{ID: "docs"}, {ID: "landing"}},
+				Voice:    &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
+			},
 		},
-		Profiles: []project.ProfileBinding{{
-			When:  map[string]string{"product": "platform"},
-			Voice: &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
-		}},
-		Content: []project.ContentCollection{
-			{Name: "framework-docs", Items: []project.ContentItem{{Path: "docs/**/*.md"}}},
-			{Name: "platform-docs", Context: platformContext, Items: []project.ContentItem{{Path: "platform/**/*.md"}}},
+		Collections: []project.Collection{
+			{Name: "framework-docs", Content: []project.ContentItem{{Path: "docs/**/*.md"}}},
+			{Name: "platform-docs", Channel: platformChannel, Content: []project.ContentItem{{Path: "platform/**/*.md"}}},
 		},
 	}
 	recipe = filepath.Join(dir, project.RecipeFileName)
@@ -77,38 +76,32 @@ func bindingsCmd(t *testing.T, recipe string) Command {
 
 func TestGroupInputsByBinding(t *testing.T) {
 	defaultVoice := &project.VoiceBinding{ProfileFile: "voice.yaml"}
-	coords := project.Coordinates{
-		"product": {{ID: "platform"}, {ID: "press"}, {ID: "house"}},
-		"channel": {{ID: "docs"}, {ID: "landing"}},
-		"market":  {{ID: "us"}, {ID: "de"}},
-	}
-	profiles := []project.ProfileBinding{
-		{
-			When:  map[string]string{"product": "platform"},
-			Voice: &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
+	profiles := map[string]project.Profile{
+		"platform": {
+			Channels: []project.Channel{{ID: "docs"}, {ID: "landing"}, {ID: "notes"}},
+			Voice:    &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
 		},
-		{
-			When:  map[string]string{"product": "press"},
-			Voice: &project.VoiceBinding{Pack: "marketing-blog"},
-			Terms: "press-terms.db",
+		"press": {
+			Channels: []project.Channel{{ID: "news"}},
+			Voice:    &project.VoiceBinding{Pack: "marketing-blog"},
+			Terms:    "press-terms.db",
 		},
-		{
-			// A profile binding exactly what the project defaults bind: the
-			// default voice, and no standalone terms — so the project's own
-			// store governs its vocabulary, exactly as at the default point.
-			When:  map[string]string{"product": "house"},
-			Voice: defaultVoice,
+		// A profile binding exactly what the project defaults bind: the default
+		// voice, and no standalone terms — so the project's own store governs
+		// its vocabulary, exactly as at the default point.
+		"house": {
+			Channels: []project.Channel{{ID: "home"}},
+			Voice:    defaultVoice,
 		},
 	}
 	root := filepath.FromSlash("/repo")
 
-	newProj := func(content ...project.ContentCollection) *project.KapiProject {
+	newProj := func(collections ...project.Collection) *project.KapiProject {
 		return &project.KapiProject{
 			Version:     "v1",
 			Defaults:    project.Defaults{Voice: defaultVoice},
-			Coordinates: coords,
 			Profiles:    profiles,
-			Content:     content,
+			Collections: collections,
 		}
 	}
 	abs := func(rel ...string) []string {
@@ -126,10 +119,10 @@ func TestGroupInputsByBinding(t *testing.T) {
 		want   []bindingGroup
 	}{
 		{
-			name: "no collection names a context: one ungrouped run",
+			name: "no collection names a channel: one ungrouped run",
 			proj: newProj(
-				project.ContentCollection{Name: "docs", Items: []project.ContentItem{{Path: "docs/**/*.md"}}},
-				project.ContentCollection{Name: "app", Items: []project.ContentItem{{Path: "app/**/*.json"}}},
+				project.Collection{Name: "docs", Content: []project.ContentItem{{Path: "docs/**/*.md"}}},
+				project.Collection{Name: "app", Content: []project.ContentItem{{Path: "app/**/*.json"}}},
 			),
 			inputs: abs("docs/a.md", "app/b.json"),
 			want:   []bindingGroup{{Collection: "", Inputs: abs("docs/a.md", "app/b.json")}},
@@ -137,11 +130,11 @@ func TestGroupInputsByBinding(t *testing.T) {
 		{
 			name: "two products: one group each, in input order",
 			proj: newProj(
-				project.ContentCollection{Name: "docs", Items: []project.ContentItem{{Path: "docs/**/*.md"}}},
-				project.ContentCollection{
+				project.Collection{Name: "docs", Content: []project.ContentItem{{Path: "docs/**/*.md"}}},
+				project.Collection{
 					Name:    "platform",
-					Context: map[string]string{"product": "platform"},
-					Items:   []project.ContentItem{{Path: "platform/**/*.md"}},
+					Channel: "platform/docs",
+					Content: []project.ContentItem{{Path: "platform/**/*.md"}},
 				},
 			),
 			inputs: abs("docs/a.md", "platform/b.md", "docs/c.md"),
@@ -153,49 +146,49 @@ func TestGroupInputsByBinding(t *testing.T) {
 		{
 			name: "collections at the same point share one group",
 			proj: newProj(
-				project.ContentCollection{
+				project.Collection{
 					Name:    "platform-docs",
-					Context: map[string]string{"product": "platform", "channel": "docs"},
-					Items:   []project.ContentItem{{Path: "docs/**/*.md"}},
+					Channel: "platform/docs",
+					Content: []project.ContentItem{{Path: "docs/**/*.md"}},
 				},
-				project.ContentCollection{
-					Name:    "platform-notes",
-					Context: map[string]string{"product": "platform", "channel": "docs"},
-					Items:   []project.ContentItem{{Path: "notes/**/*.md"}},
+				project.Collection{
+					Name:    "platform-more-docs",
+					Channel: "platform/docs",
+					Content: []project.ContentItem{{Path: "more-docs/**/*.md"}},
 				},
 			),
-			inputs: abs("docs/a.md", "notes/b.md"),
-			want:   []bindingGroup{{Collection: "platform-docs", Inputs: abs("docs/a.md", "notes/b.md")}},
+			inputs: abs("docs/a.md", "more-docs/b.md"),
+			want:   []bindingGroup{{Collection: "platform-docs", Inputs: abs("docs/a.md", "more-docs/b.md")}},
 		},
 		{
-			name: "two points governed by one profile share one group",
+			name: "two collections at one point share one group",
 			proj: newProj(
-				project.ContentCollection{
-					Name:    "platform-us",
-					Context: map[string]string{"product": "platform", "market": "us"},
-					Items:   []project.ContentItem{{Path: "us/**/*.md"}},
+				project.Collection{
+					Name:    "platform-notes",
+					Channel: "platform/notes",
+					Content: []project.ContentItem{{Path: "notes/**/*.md"}},
 				},
-				project.ContentCollection{
-					Name:    "platform-de",
-					Context: map[string]string{"product": "platform", "market": "de"},
-					Items:   []project.ContentItem{{Path: "de/**/*.md"}},
+				project.Collection{
+					Name:    "platform-notes-more",
+					Channel: "platform/notes",
+					Content: []project.ContentItem{{Path: "more-notes/**/*.md"}},
 				},
 			),
-			inputs: abs("us/a.md", "de/b.md"),
-			want:   []bindingGroup{{Collection: "platform-us", Inputs: abs("us/a.md", "de/b.md")}},
+			inputs: abs("notes/a.md", "more-notes/b.md"),
+			want:   []bindingGroup{{Collection: "platform-notes", Inputs: abs("notes/a.md", "more-notes/b.md")}},
 		},
 		{
 			name: "same profile, different channel: different governance, different groups",
 			proj: newProj(
-				project.ContentCollection{
+				project.Collection{
 					Name:    "platform-docs",
-					Context: map[string]string{"product": "platform", "channel": "docs"},
-					Items:   []project.ContentItem{{Path: "docs/**/*.md"}},
+					Channel: "platform/docs",
+					Content: []project.ContentItem{{Path: "docs/**/*.md"}},
 				},
-				project.ContentCollection{
+				project.Collection{
 					Name:    "platform-landing",
-					Context: map[string]string{"product": "platform", "channel": "landing"},
-					Items:   []project.ContentItem{{Path: "landing/**/*.md"}},
+					Channel: "platform/landing",
+					Content: []project.ContentItem{{Path: "landing/**/*.md"}},
 				},
 			),
 			inputs: abs("docs/a.md", "landing/b.md"),
@@ -205,23 +198,32 @@ func TestGroupInputsByBinding(t *testing.T) {
 			},
 		},
 		{
-			name: "a point that resolves to the defaults resolves as the defaults",
-			proj: newProj(project.ContentCollection{
-				Name:    "docs",
-				Context: map[string]string{"product": "house"},
-				Items:   []project.ContentItem{{Path: "docs/**/*.md"}},
-			}),
-			inputs: abs("docs/a.md"),
-			want:   []bindingGroup{{Collection: "", Inputs: abs("docs/a.md")}},
+			// The house profile binds exactly what the project defaults bind, so
+			// only the channel tells the two apart — and it is enough, because
+			// the channel selects an override inside that voice.
+			name: "a channel still splits when its profile binds the defaults",
+			proj: newProj(
+				project.Collection{Name: "app", Content: []project.ContentItem{{Path: "app/**/*.json"}}},
+				project.Collection{
+					Name:    "docs",
+					Channel: "house/home",
+					Content: []project.ContentItem{{Path: "docs/**/*.md"}},
+				},
+			),
+			inputs: abs("app/a.json", "docs/b.md"),
+			want: []bindingGroup{
+				{Collection: "", Inputs: abs("app/a.json")},
+				{Collection: "docs", Inputs: abs("docs/b.md")},
+			},
 		},
 		{
 			name: "a profile with its own terms splits too",
 			proj: newProj(
-				project.ContentCollection{Name: "docs", Items: []project.ContentItem{{Path: "docs/**/*.md"}}},
-				project.ContentCollection{
+				project.Collection{Name: "docs", Content: []project.ContentItem{{Path: "docs/**/*.md"}}},
+				project.Collection{
 					Name:    "press",
-					Context: map[string]string{"product": "press"},
-					Items:   []project.ContentItem{{Path: "press/**/*.md"}},
+					Channel: "press/news",
+					Content: []project.ContentItem{{Path: "press/**/*.md"}},
 				},
 			),
 			inputs: abs("docs/a.md", "press/b.md"),
@@ -233,10 +235,10 @@ func TestGroupInputsByBinding(t *testing.T) {
 		{
 			name: "unclaimed and outside-the-root paths sit at the default point",
 			proj: newProj(
-				project.ContentCollection{
+				project.Collection{
 					Name:    "platform",
-					Context: map[string]string{"product": "platform"},
-					Items:   []project.ContentItem{{Path: "platform/**/*.md"}},
+					Channel: "platform/docs",
+					Content: []project.ContentItem{{Path: "platform/**/*.md"}},
 				},
 			),
 			inputs: append(abs("scripts/build.sh", "platform/b.md"), filepath.FromSlash("/elsewhere/c.md")),
@@ -269,12 +271,12 @@ func TestGroupInputsByBinding(t *testing.T) {
 	}
 }
 
-// TestResolveProjectBindings_PerContextVoice is the point of the feature: two
+// TestResolveProjectBindings_PerChannelVoice is the point of the feature: two
 // collections of one project resolve two different voice profiles, and a
 // collection sitting at the project's default point still resolves the
 // project-wide one.
-func TestResolveProjectBindings_PerContextVoice(t *testing.T) {
-	recipe, _ := governedProject(t, map[string]string{"product": "platform"})
+func TestResolveProjectBindings_PerChannelVoice(t *testing.T) {
+	recipe, _ := governedProject(t, "platform/docs")
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	require.NoError(t, err)
 
@@ -291,7 +293,7 @@ func TestResolveProjectBindings_PerContextVoice(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, framework.profile)
 	assert.Equal(t, "House Style", framework.profile.Name,
-		"a collection that names no context keeps the project voice")
+		"a collection that names no channel keeps the project voice")
 
 	platform, err := a.resolveProjectBindings(cmd, proj, recipe, "platform-docs")
 	require.NoError(t, err)
@@ -311,7 +313,7 @@ func TestResolveProjectBindings_PerContextVoice(t *testing.T) {
 // A flow step naming its own profile keeps it; the recipe fills the gap when it
 // does not.
 func TestResolveProjectBindings_ExplicitProfileWinsOverTheRecipe(t *testing.T) {
-	recipe, _ := governedProject(t, map[string]string{"product": "platform"})
+	recipe, _ := governedProject(t, "platform/docs")
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	require.NoError(t, err)
 
@@ -320,7 +322,7 @@ func TestResolveProjectBindings_ExplicitProfileWinsOverTheRecipe(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, b)
 	require.NotNil(t, b.profile)
-	require.Equal(t, "Platform Voice", b.profile.Name, "the collection's coordinates select profile A")
+	require.Equal(t, "Platform Voice", b.profile.Name, "the collection's channel selects the platform profile")
 
 	bound := a.applyBindings(b, "translate", nil, map[string]any{})
 	assert.Equal(t, b.profile, bound["profile"],
@@ -333,13 +335,13 @@ func TestResolveProjectBindings_ExplicitProfileWinsOverTheRecipe(t *testing.T) {
 }
 
 // TestRecipeGovernanceEntersTheChain is the unification: the profile a
-// collection's coordinates select is not resolved beside the framework's
+// collection's channel selects is not resolved beside the framework's
 // precedence chain, it *is* the chain's collection tier. So it outranks the
 // bindings a server-governed project carries on its stream, project and
 // workspace rows, and is outranked by an explicit per-call profile — one
 // ordering, whichever surface the project is governed from.
 func TestRecipeGovernanceEntersTheChain(t *testing.T) {
-	recipe, root := governedProject(t, map[string]string{"product": "platform"})
+	recipe, root := governedProject(t, "platform/docs")
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	require.NoError(t, err)
 
@@ -348,7 +350,7 @@ func TestRecipeGovernanceEntersTheChain(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, b)
 	require.NotNil(t, b.profile)
-	require.Equal(t, "Platform Voice", b.profile.Name, "the collection's coordinates select profile A")
+	require.Equal(t, "Platform Voice", b.profile.Name, "the collection's channel selects the platform profile")
 
 	// A real store holding what the tiers under (and over) the collection name.
 	store, err := openVoiceStoreAt(filepath.Join(root, "brand.db"))
@@ -373,7 +375,7 @@ func TestRecipeGovernanceEntersTheChain(t *testing.T) {
 	got, err := profile.ResolveProfileFromContext(t.Context(), rc, store)
 	require.NoError(t, err)
 	assert.Equal(t, "Platform Voice", got.Name,
-		"the recipe's coordinate governs over stream, project and workspace bindings")
+		"the recipe's channel governs over stream, project and workspace bindings")
 
 	rc.ExplicitProfileID = "explicit-voice"
 	got, err = profile.ResolveProfileFromContext(t.Context(), rc, store)
@@ -396,7 +398,7 @@ func TestResolveProjectBindings_ChannelSelectsTheOverride(t *testing.T) {
 
 	landing, lRecipe := resolveAtChannel(t, a, "landing")
 	assert.Equal(t, "casual", landing.Tone.Formality,
-		"the profile's landing override must be applied at the landing coordinate")
+		"the profile's landing override must be applied at the landing channel")
 
 	assert.NotEqual(t, dRecipe, lRecipe, "each subcase builds its own recipe")
 }
@@ -405,7 +407,7 @@ func TestResolveProjectBindings_ChannelSelectsTheOverride(t *testing.T) {
 // collection placed at (platform, channel). Returns the profile and the recipe.
 func resolveAtChannel(t *testing.T, a *App, channel string) (*profile.VoiceProfile, string) {
 	t.Helper()
-	recipe, _ := governedProject(t, map[string]string{"product": "platform", "channel": channel})
+	recipe, _ := governedProject(t, "platform/"+channel)
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	require.NoError(t, err)
 
@@ -417,10 +419,10 @@ func resolveAtChannel(t *testing.T, a *App, channel string) (*profile.VoiceProfi
 }
 
 // TestResolveGroupBindings_SingleRunWhenUngoverned is the regression guard: a
-// project where no collection names a context must resolve its bindings once —
+// project where no collection names a channel must resolve its bindings once —
 // one group, one tool chain, the run it has always been.
 func TestResolveGroupBindings_SingleRunWhenUngoverned(t *testing.T) {
-	recipe, root := governedProject(t, nil)
+	recipe, root := governedProject(t, "")
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	require.NoError(t, err)
 
@@ -430,7 +432,7 @@ func TestResolveGroupBindings_SingleRunWhenUngoverned(t *testing.T) {
 	}
 	groups, err := groupInputsByBinding(proj, root, inputs)
 	require.NoError(t, err)
-	require.Len(t, groups, 1, "no context anywhere must not split the run")
+	require.Len(t, groups, 1, "no channel anywhere must not split the run")
 	assert.Empty(t, groups[0].Collection, "the single group resolves the project-wide bindings")
 	assert.Equal(t, inputs, groups[0].Inputs)
 
@@ -439,9 +441,9 @@ func TestResolveGroupBindings_SingleRunWhenUngoverned(t *testing.T) {
 	require.NotNil(t, groups[0].bindings)
 	assert.Equal(t, "House Style", groups[0].bindings.profile.Name)
 
-	// And with a context, the same inputs split into two — so the assertion
+	// And with a channel, the same inputs split into two — so the assertion
 	// above is about the recipe, not about grouping being inert.
-	governed, gRoot := governedProject(t, map[string]string{"product": "platform"})
+	governed, gRoot := governedProject(t, "platform/docs")
 	gProj, err := project.LoadWithOptions(governed, project.LoadOptions{SkipRequiresCheck: true})
 	require.NoError(t, err)
 	gGroups, err := groupInputsByBinding(gProj, gRoot, []string{
