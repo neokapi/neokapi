@@ -160,6 +160,10 @@ func (d *WorkerDeps) queueLabel() string {
 // a crashed worker and swept out from under itself.
 const jobHeartbeatInterval = 2 * time.Minute
 
+// translationProgressChunk is how many blocks a translation bills, persists and
+// reports progress for at a time. It is also the unit a retry resumes on.
+const translationProgressChunk = 50
+
 // errLeaseLost signals that the worker lost ownership of a job mid-run: the
 // stale-job sweeper reset it to 'queued' and a fresh worker re-claimed it
 // (bumping claim_epoch). The abandoned worker returns this to stop translating,
@@ -577,7 +581,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 
 	// Process blocks in progress-reporting chunks. The tool handles
 	// internal batching + concurrency; we chunk for progress updates.
-	const progressChunk = 50
+	const progressChunk = translationProgressChunk
 	var allOutParts []*model.Part
 	totalTokensUsed := 0
 	prevUsage := translateTool.TotalUsage()

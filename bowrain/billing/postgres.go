@@ -21,6 +21,13 @@ import (
 //	4  give local trials an end date so they can expire
 //	5  idempotency guard for one-time credit-pack grants
 //	6  document the monthly-credits period model on the allocation columns
+//	7  billing baseline (folded 1-6)
+//
+// The subsystem carries exactly one baseline (migrations/schema_test.go
+// enforces it), so a schema change is made by editing the baseline in place and
+// bumping its version. Version 8 makes a referenced deduction idempotent: it
+// repairs the ledger rows a retry duplicated, refunds them, and adds the unique
+// index that stops the next one.
 //
 // NEVER reuse a version number, even for a migration later found unnecessary:
 // deployed databases record applied versions and silently skip a reused number
@@ -33,13 +40,13 @@ import (
 // trials from created_at) is not carried: it repaired rows written before
 // trial_ends_at existed, and a database built from this baseline has none.
 //
-// Baseline is version 7 — above every number issued, so an existing database
+// Baseline is version 8 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 8.
+// repaired. Retired numbers are never reused; the next migration is version 9.
 var Migrations = []storage.Migration{
 	{
-		Version:     7,
-		Description: "billing baseline (folds 1-6)",
+		Version:     8,
+		Description: "billing baseline (folds 1-7) + idempotent referenced deductions",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS subscriptions (
 				id                     TEXT PRIMARY KEY,
@@ -100,6 +107,40 @@ var Migrations = []storage.Migration{
 			CREATE UNIQUE INDEX IF NOT EXISTS credit_ledger_purchase_ref
 				ON credit_ledger (workspace_id, reference_id)
 				WHERE operation = 'purchase' AND reference_id <> '';
+
+			-- Metered work is charged against a reference the caller can
+			-- reproduce (a job id and its chunk offset, a message id), so a
+			-- redelivered job must not pay twice for a chunk it already paid
+			-- for. Surplus rows are the charges a retry already made: everything
+			-- past the first entry for one (workspace, operation, reference,
+			-- allocation). Deleting them and giving the credits back is both the
+			-- repair and what lets the index below be created on a database that
+			-- already double-charged. Only debits qualify — a positive amount is
+			-- a grant, and grants carry no reference.
+			WITH surplus AS (
+				SELECT id, allocation_id, amount FROM (
+					SELECT id, allocation_id, amount,
+					       row_number() OVER (
+					           PARTITION BY workspace_id, operation, reference_id, allocation_id
+					           ORDER BY id
+					       ) AS seq
+					FROM credit_ledger
+					WHERE COALESCE(reference_id, '') <> '' AND amount < 0
+				) ranked WHERE seq > 1
+			), refund AS (
+				SELECT allocation_id, SUM(amount) AS delta FROM surplus
+				WHERE allocation_id IS NOT NULL GROUP BY allocation_id
+			), restored AS (
+				UPDATE credit_allocations a
+				SET credits_used = GREATEST(a.credits_used + r.delta, 0)
+				FROM refund r WHERE a.id = r.allocation_id
+				RETURNING a.id
+			)
+			DELETE FROM credit_ledger WHERE id IN (SELECT id FROM surplus);
+
+			CREATE UNIQUE INDEX IF NOT EXISTS credit_ledger_usage_ref
+				ON credit_ledger (workspace_id, operation, reference_id, allocation_id)
+				WHERE reference_id <> '';
 
 			CREATE TABLE IF NOT EXISTS feature_overrides (
 				id           TEXT PRIMARY KEY,
@@ -384,6 +425,14 @@ func (a allocationRow) avail() int64 {
 // is exhausted is recorded against the plan bucket (or the first non-expiring
 // bucket that exists) so the debt is never lost. One immutable ledger entry is
 // written per bucket touched.
+//
+// A non-empty refID makes the charge idempotent: the same (workspace,
+// operation, reference) is applied once, however many times it arrives. Every
+// metered path is at-least-once — a job requeued after a provider error
+// restarts from its first chunk, a redelivered queue message re-runs the whole
+// worker — so without this a late failure bills the customer again for work
+// already paid for, and the balance it drives negative blocks the workspace's
+// next job.
 func (s *PgBillingStore) DeductCredits(ctx context.Context, workspaceID string, amount int64, op string, refID string) error {
 	if amount <= 0 {
 		return nil
@@ -424,6 +473,26 @@ func (s *PgBillingStore) DeductCredits(ctx context.Context, workspaceID string, 
 	}
 	if !plan.found && !trial.found && !purchased.found {
 		return fmt.Errorf("deduct credits: no allocation for workspace %s", workspaceID)
+	}
+
+	// A referenced charge is applied at most once, whichever buckets it lands
+	// in. The unique index alone would miss the case where the cascade picks a
+	// DIFFERENT allocation the second time — a month rollover between a job's
+	// two attempts is enough — so the reference is checked as a whole. It is
+	// safe to read here and not before: the locks above serialize every
+	// deduction for this workspace, so a concurrent duplicate has either
+	// committed its rows or has not started.
+	if refID != "" {
+		var charged bool
+		if err := tx.QueryRowContext(ctx,
+			`SELECT EXISTS(SELECT 1 FROM credit_ledger
+			 WHERE workspace_id = $1 AND operation = $2 AND reference_id = $3)`,
+			workspaceID, op, refID).Scan(&charged); err != nil {
+			return fmt.Errorf("check existing deduction: %w", err)
+		}
+		if charged {
+			return tx.Commit()
+		}
 	}
 
 	// Cascade the charge across the buckets in spend order, then record any
@@ -479,17 +548,31 @@ func lockAllocation(ctx context.Context, tx *sql.Tx, query string, args ...any) 
 
 // applyDeduction adds delta to a bucket's credits_used and appends the matching
 // (debit) ledger entry, within the caller's transaction.
+//
+// The ledger row goes first, and the bucket is charged only if that row is new.
+// A referenced deduction that already has its entry for this bucket conflicts
+// on credit_ledger_usage_ref and takes no credits, so the guard lives where the
+// money is written rather than in each caller that might forget it.
 func (s *PgBillingStore) applyDeduction(ctx context.Context, tx *sql.Tx, workspaceID string, bucket allocationRow, delta int64, op, refID string) error {
 	newUsed := bucket.used + delta
+
+	var ledgerID int64
+	err := tx.QueryRowContext(ctx,
+		`INSERT INTO credit_ledger (workspace_id, allocation_id, amount, balance_after, operation, reference_id)
+		 VALUES ($1, $2, $3, $4, $5, $6)
+		 ON CONFLICT DO NOTHING
+		 RETURNING id`,
+		workspaceID, bucket.id, -delta, bucket.total-newUsed, op, refID).Scan(&ledgerID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("insert ledger entry: %w", err)
+	}
+
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE credit_allocations SET credits_used = $1 WHERE id = $2`, newUsed, bucket.id); err != nil {
 		return fmt.Errorf("update allocation: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx,
-		`INSERT INTO credit_ledger (workspace_id, allocation_id, amount, balance_after, operation, reference_id)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		workspaceID, bucket.id, -delta, bucket.total-newUsed, op, refID); err != nil {
-		return fmt.Errorf("insert ledger entry: %w", err)
 	}
 	return nil
 }

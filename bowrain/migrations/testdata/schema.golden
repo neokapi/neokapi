@@ -1633,6 +1633,7 @@ CREATE UNIQUE INDEX credit_allocations_pkey ON public.credit_allocations USING b
 CREATE UNIQUE INDEX credit_allocations_workspace_id_week_start_source_key ON public.credit_allocations USING btree (workspace_id, week_start, source)
 CREATE UNIQUE INDEX credit_ledger_pkey ON public.credit_ledger USING btree (id)
 CREATE UNIQUE INDEX credit_ledger_purchase_ref ON public.credit_ledger USING btree (workspace_id, reference_id) WHERE ((operation = 'purchase'::text) AND (reference_id <> ''::text))
+CREATE UNIQUE INDEX credit_ledger_usage_ref ON public.credit_ledger USING btree (workspace_id, operation, reference_id, allocation_id) WHERE (reference_id <> ''::text)
 CREATE UNIQUE INDEX deny_rules_pkey ON public.deny_rules USING btree (id)
 CREATE UNIQUE INDEX digest_settings_pkey ON public.digest_settings USING btree (user_id, workspace_id)
 CREATE UNIQUE INDEX digest_state_pkey ON public.digest_state USING btree (user_id, workspace_id, frequency)
