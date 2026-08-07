@@ -146,16 +146,12 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 		return fmt.Errorf("open %s: %w", DisplayName(path), err)
 	}
 
-	var parts []*model.Part
-	for res := range reader.Read(ctx) {
-		if res.Error != nil {
-			return res.Error
-		}
-		if res.Part != nil {
-			parts = append(parts, res.Part)
-		}
-	}
-
+	// The writer is configured before the read, not after, so the Part stream
+	// can go straight from one to the other. Collecting it first — which is all
+	// this used to do, only to replay the slice into the channel below — held
+	// the whole document for no reason, and did it a second time inside a writer
+	// that was already collecting. See #1710: neither buffer is visible while
+	// the other one exists.
 	if outPath != "" {
 		if err := writer.SetOutput(outPath); err != nil {
 			return err
@@ -174,13 +170,44 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	writer.SetEncoding(a.Encoding)
 	writer.SetLocale(targetLoc)
 
-	ch := make(chan *model.Part, len(parts)+1)
-	for _, p := range parts {
-		ch <- p
+	// readCtx lets a writer that stops early stop the reader with it, rather
+	// than leaving it blocked on a send nobody will receive.
+	readCtx, cancelRead := context.WithCancel(ctx)
+	defer cancelRead()
+
+	ch := make(chan *model.Part, 64)
+	readErrCh := make(chan error, 1)
+	go func() {
+		defer close(ch)
+		var rerr error
+		for res := range reader.Read(readCtx) {
+			if res.Error != nil {
+				rerr = res.Error
+				cancelRead()
+				continue // keep draining so the reader can close its channel
+			}
+			if res.Part == nil {
+				continue
+			}
+			select {
+			case ch <- res.Part:
+			case <-readCtx.Done():
+			}
+		}
+		readErrCh <- rerr
+	}()
+
+	werr := writer.Write(ctx, ch)
+	cancelRead()
+	for range ch { //nolint:revive // drain, so the forwarder finishes if the writer stopped early
 	}
-	close(ch)
-	if err := writer.Write(ctx, ch); err != nil {
-		return fmt.Errorf("write %s: %w", DisplayName(path), err)
+	// The read error wins: a writer handed a truncated stream usually fails
+	// with something less informative than whatever stopped the reader.
+	if readErr := <-readErrCh; readErr != nil {
+		return readErr
+	}
+	if werr != nil {
+		return fmt.Errorf("write %s: %w", DisplayName(path), werr)
 	}
 	if err := writer.Close(); err != nil {
 		return fmt.Errorf("close %s: %w", DisplayName(path), err)

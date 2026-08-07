@@ -57,10 +57,17 @@ func (w *Writer) SetOriginalContent(content []byte) {
 
 // Write consumes Parts from a channel and writes reconstructed HTML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
-	// Collect all blocks keyed by ID (for the skeleton/reparse modes) plus an
-	// ordered event stream of blocks and group brackets (for the semantic
-	// block-only mode), and capture source locale.
-	blocks := make(map[string]*model.Block)
+	// Collect an ordered event stream of blocks and group brackets (for the
+	// semantic block-only mode) and capture source locale. The by-ID index is
+	// built only for the modes that look blocks up in it — the skeleton and
+	// reparse paths, both decidable here. The cross-format path renders the
+	// stream in order and never asks, so on a spreadsheet the index would be an
+	// entry per cell that nothing reads.
+	byID := w.skeletonStore != nil || w.originalContent != nil || w.sourcePath != ""
+	var blocks map[string]*model.Block
+	if byID {
+		blocks = make(map[string]*model.Block)
+	}
 	var events []*model.Part
 	var sourceLocale model.LocaleID
 	for {
@@ -73,7 +80,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 			switch part.Type {
 			case model.PartBlock:
-				if b, ok := part.Resource.(*model.Block); ok {
+				if b, ok := part.Resource.(*model.Block); ok && blocks != nil {
 					blocks[b.ID] = b
 				}
 				events = append(events, part)

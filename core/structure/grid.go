@@ -78,6 +78,7 @@ func SpreadsheetGridToTables(parts []*model.Part, groupCounter *int) []*model.Pa
 	// between its layer markers) with table groups; drop the now-redundant
 	// shared-string source blocks; pass everything else through in order.
 	out := make([]*model.Part, 0, len(parts))
+	dropBracket := tableBracketFilter()
 	var run []*model.Block
 	flush := func() {
 		if len(run) == 0 {
@@ -93,6 +94,8 @@ func SpreadsheetGridToTables(parts []*model.Part, groupCounter *int) []*model.Pa
 			run = append(run, b)
 		case b != nil && isRedundantForGrid(b, claimed):
 			// Represented in the grid already — drop.
+		case dropBracket(p):
+			// Already bracketed by the reader; this pass rebuilds it.
 		default:
 			flush()
 			out = append(out, p)
@@ -105,6 +108,37 @@ func SpreadsheetGridToTables(parts []*model.Part, groupCounter *int) []*model.Pa
 func isGridCell(b *model.Block) bool {
 	_, ok := gridCellOf(b)
 	return ok
+}
+
+// tableBracketFilter drops the table and table-row groups a reader already
+// emitted around its cells, matching each end to the start that opened it so no
+// other group is disturbed.
+//
+// A reader brackets its rows so a streaming writer can render the grid a row at
+// a time. This pass rebuilds the same structure from geometry, and does more
+// with it — splitting disjoint regions, carrying merge spans — so where both
+// run, this one owns the result and the incoming brackets go.
+func tableBracketFilter() func(*model.Part) bool {
+	open := map[string]bool{}
+	return func(p *model.Part) bool {
+		switch p.Type {
+		case model.PartGroupStart:
+			g, ok := p.Resource.(*model.GroupStart)
+			if !ok || (g.Type != "table" && g.Type != "table-row") {
+				return false
+			}
+			open[g.ID] = true
+			return true
+		case model.PartGroupEnd:
+			g, ok := p.Resource.(*model.GroupEnd)
+			if !ok || !open[g.ID] {
+				return false
+			}
+			delete(open, g.ID)
+			return true
+		}
+		return false
+	}
 }
 
 // isRedundantForGrid reports whether a non-grid block merely duplicates content

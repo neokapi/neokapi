@@ -349,6 +349,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				skeletonStore: r.skeletonStore,
 				sharedStrings: info.sharedStrings,
 				sheetNames:    info.sheetNames,
+				// Surface worksheet topology (table/table-row Groups) so
+				// cross-format writers and core/projection rebuild the grid
+				// from the stream instead of buffering it to rediscover.
+				emitPart: func(part *model.Part) { r.emit(ctx, ch, part) },
 			}
 			err = parser.parsePart(partData, partPath, emitBlock)
 			if err != nil {
