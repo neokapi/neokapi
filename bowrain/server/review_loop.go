@@ -231,11 +231,16 @@ func (s *Server) subscribeReviewCompletion() {
 	if s.EventBus == nil || s.convergence == nil {
 		return
 	}
-	s.EventBus.SubscribeGroup(reviewCompletionGroup, func(ev platev.Event) {
+	//
+	// The handler always acknowledges: the run it starts is already
+	// replay-collapsing, and a redelivery would at worst start another
+	// already-converged one.
+	s.EventBus.SubscribeGroup(reviewCompletionGroup, func(ev platev.Event) error {
 		if ev.Type != platev.EventReviewCompleted {
-			return // group handlers see every event; only review completions matter here
+			return nil // group handlers see every event; only review completions matter here
 		}
 		s.startReviewCompletionRun(ev)
+		return nil
 	})
 }
 

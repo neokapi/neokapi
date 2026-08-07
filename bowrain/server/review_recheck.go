@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"slices"
 	"strings"
@@ -94,10 +96,14 @@ func (s *Server) subscribeReviewRecheck() {
 
 // handleReviewRecheckEvent type-dispatches a governance event to the right
 // re-check. Group handlers see every event; only the concept and brand-rule
-// changes below do anything. The work runs synchronously so the consumer group
-// acknowledges the event only after the re-check completes (durability): a crash
-// mid-re-check redelivers rather than stranding the un-re-checked translations.
-func (s *Server) handleReviewRecheckEvent(ev platev.Event) {
+// changes below do anything.
+//
+// The work runs synchronously and its failure is reported, so the consumer
+// group acknowledges the event only once the re-check has actually run: neither
+// a crash nor a store that refused mid-re-check strands the translations a
+// governed change has invalidated. Redelivery is safe because a target already
+// demoted is below reviewed, and the re-check only touches approved ones.
+func (s *Server) handleReviewRecheckEvent(ev platev.Event) error {
 	ctx := context.Background()
 	switch ev.Type {
 	case knowledge.EventConceptCreated, knowledge.EventConceptUpdated, knowledge.EventConceptTermStatusChanged:
@@ -108,9 +114,9 @@ func (s *Server) handleReviewRecheckEvent(ev platev.Event) {
 		// all three are handled the same way (re-check the concept's forbidden terms).
 		conceptID := ev.Data["concept_id"]
 		if ev.WorkspaceID == "" || conceptID == "" {
-			return
+			return nil
 		}
-		s.recheckConceptViolations(ctx, ev.WorkspaceID, conceptID, ev.Actor)
+		return s.recheckConceptViolations(ctx, ev.WorkspaceID, conceptID, ev.Actor)
 	case EventBrandVoiceRulePromoted, EventBrandVoiceRuleAutoPromoted:
 		// Brand rule events stash the workspace id on ProjectID and the promoted
 		// term on Data["term"] (publishBrandRuleEvent); WorkspaceID wins if a future
@@ -123,10 +129,11 @@ func (s *Server) handleReviewRecheckEvent(ev platev.Event) {
 		}
 		term := ev.Data["term"]
 		if wsID == "" || strings.TrimSpace(term) == "" {
-			return
+			return nil
 		}
-		s.recheckRuleViolations(ctx, wsID, ev.Data["profile_id"], term, ev.Actor)
+		return s.recheckRuleViolations(ctx, wsID, ev.Data["profile_id"], term, ev.Actor)
 	}
+	return nil
 }
 
 // recheckConceptViolations re-checks every existing reviewed/signed-off target in
@@ -136,15 +143,21 @@ func (s *Server) handleReviewRecheckEvent(ev platev.Event) {
 // target whose source uses the concept (RV-F). It reuses the concept where-used
 // machinery's approach (a single-concept in-memory terms + LookupAll, exactly
 // as knowledge.Engine.ConceptUsage) as the violation oracle.
-func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, actor string) {
+func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, actor string) error {
 	tb, err := s.workspaceTermsByID(ctx, wsID)
 	if err != nil || tb == nil {
 		slog.WarnContext(ctx, "review recheck: workspace terms unavailable", "workspace", wsID, "error", err)
-		return
+		if err == nil {
+			err = fmt.Errorf("no terms store for workspace %s", wsID)
+		}
+		return err
 	}
 	concept, ok, err := tb.GetConcept(ctx, conceptID)
-	if err != nil || !ok {
-		return
+	if err != nil {
+		return fmt.Errorf("read concept %s: %w", conceptID, err)
+	}
+	if !ok {
+		return nil // deleted between the event and this read; nothing to check against
 	}
 	// A concept a target can violate carries either a forbidden/competitor term
 	// (violated by PRESENCE) or a preferred/approved term (a mandated rendering,
@@ -154,13 +167,13 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 	hasForbidden := conceptHasForbiddenTerm(concept)
 	hasMandated := conceptHasMandatedTerm(concept)
 	if !hasForbidden && !hasMandated {
-		return
+		return nil
 	}
 	// Single-concept terms so LookupAll matches only this concept's terms — the
 	// same isolation ConceptUsage uses behind GET /concepts/:cid/blast-radius.
 	cTB := terms.NewInMemoryStore()
 	if err := cTB.AddConcept(ctx, concept); err != nil {
-		return
+		return fmt.Errorf("build single-concept terms: %w", err)
 	}
 	// A target violates the concept when it is NOT term-compliant against a
 	// terms holding only this concept — the SAME predicate the dashboard
@@ -173,7 +186,7 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 	violates := func(sb *platstore.StoredBlock, srcLoc, tgtLoc model.LocaleID) bool {
 		return !blockTermCompliant(ctx, sb.Block, srcLoc, tgtLoc, cTB, nil)
 	}
-	s.recheckWorkspaceTargets(ctx, wsID, "concept:"+conceptID, violates, actor)
+	return s.recheckWorkspaceTargets(ctx, wsID, "concept:"+conceptID, violates, actor)
 }
 
 // recheckRuleViolations re-checks existing reviewed/signed-off targets against a
@@ -181,17 +194,20 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 // target that only tripped an OLDER rule is not swept up. It reuses the canonical
 // brand-vocabulary matcher (core/profile.MatchVocabulary — the single source the
 // voice-vocab-check tool and the blast radius both call) as the oracle.
-func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, term, actor string) {
+func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, term, actor string) error {
 	if s.BrandStore == nil || profileID == "" {
-		return
+		return nil
 	}
 	profile, err := s.BrandStore.GetProfile(ctx, profileID)
-	if err != nil || profile == nil {
-		return
+	if err != nil {
+		return fmt.Errorf("read voice profile %s: %w", profileID, err)
+	}
+	if profile == nil {
+		return nil
 	}
 	lowerTerm := strings.ToLower(strings.TrimSpace(term))
 	if lowerTerm == "" {
-		return
+		return nil
 	}
 	violates := func(sb *platstore.StoredBlock, _, tgtLoc model.LocaleID) bool {
 		for _, hit := range coreprofile.MatchVocabulary(profile, sb.Block.TargetText(tgtLoc)) {
@@ -201,7 +217,7 @@ func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, ter
 		}
 		return false
 	}
-	s.recheckWorkspaceTargets(ctx, wsID, "rule:"+profileID+":"+lowerTerm, violates, actor)
+	return s.recheckWorkspaceTargets(ctx, wsID, "rule:"+profileID+":"+lowerTerm, violates, actor)
 }
 
 // recheckWorkspaceTargets walks the governed projects of one workspace and
@@ -209,15 +225,19 @@ func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, ter
 // The scan is bounded to each project's "main" stream (the same bound the
 // dashboard ship-state pass and ConceptUsage's default walk apply); non-governed
 // projects are skipped because they have no review queue to pull work back into.
-func (s *Server) recheckWorkspaceTargets(ctx context.Context, wsID, reason string, violates recheckOracle, actor string) {
+func (s *Server) recheckWorkspaceTargets(ctx context.Context, wsID, reason string, violates recheckOracle, actor string) error {
 	if s.ContentStore == nil {
-		return
+		return nil
 	}
 	projects, err := s.ContentStore.ListProjects(ctx)
 	if err != nil {
 		slog.WarnContext(ctx, "review recheck: list projects failed", "reason", reason, "error", err)
-		return
+		return fmt.Errorf("list projects: %w", err)
 	}
+	// Every project is attempted even when one fails, and the failures travel
+	// together: a redelivery re-checks the whole workspace, and the projects
+	// that already succeeded find nothing left to demote.
+	var failed []error
 	for _, proj := range projects {
 		if proj == nil || proj.WorkspaceID != wsID {
 			continue
@@ -225,19 +245,22 @@ func (s *Server) recheckWorkspaceTargets(ctx context.Context, wsID, reason strin
 		if !workflowReviewEnabled(proj) {
 			continue
 		}
-		s.recheckProjectTargets(ctx, proj, reason, violates, actor)
+		if err := s.recheckProjectTargets(ctx, proj, reason, violates, actor); err != nil {
+			failed = append(failed, err)
+		}
 	}
+	return errors.Join(failed...)
 }
 
 // recheckProjectTargets re-checks one project's reviewed/signed-off targets,
 // demotes the failures to draft, persists them, and re-queues the affected
 // locales for review. A conforming target is never touched (no needless churn),
 // and a project with no failure produces no store write, no task, and no event.
-func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Project, reason string, violates recheckOracle, actor string) {
+func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Project, reason string, violates recheckOracle, actor string) error {
 	blocks, err := s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: proj.ID, Stream: "main"})
 	if err != nil {
 		slog.WarnContext(ctx, "review recheck: load blocks failed", "project", proj.ID, "error", err)
-		return
+		return fmt.Errorf("load blocks for %s: %w", proj.ID, err)
 	}
 
 	changed := map[string]*platstore.StoredBlock{} // deduped by block id — one store write per block
@@ -273,7 +296,7 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 		}
 	}
 	if len(changed) == 0 {
-		return
+		return nil
 	}
 
 	toStore := make([]*model.Block, 0, len(changed))
@@ -282,7 +305,7 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 	}
 	if err := s.ContentStore.StoreBlocks(ctx, proj.ID, "main", toStore); err != nil {
 		slog.WarnContext(ctx, "review recheck: store demoted blocks failed", "project", proj.ID, "error", err)
-		return
+		return fmt.Errorf("store demoted blocks for %s: %w", proj.ID, err)
 	}
 	s.invalidateDashboardCache(proj.WorkspaceID, proj.ID)
 	for _, sb := range changed {
@@ -299,6 +322,7 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 	// human-routing "for you" projection on top.
 	ev := platev.Event{ProjectID: proj.ID, Data: map[string]string{"mode": "review"}}
 	s.createReviewTasksForLocales(ctx, proj, locales, event.AutomationAction{Config: map[string]string{"mode": "review"}}, ev, "")
+	return nil
 }
 
 // workspaceTermsByID resolves the workspace terms from a workspace ID. The

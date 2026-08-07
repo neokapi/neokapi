@@ -28,6 +28,12 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	17  stream scope for convergence runs
 //	18  source word count computed at write
 //	19  blocks access ladder renamed (open|restricted|published)
+//	20  the second consolidated baseline (folded 1-19)
+//
+// The subsystem carries exactly one baseline (migrations/schema_test.go
+// enforces it), so a schema change is made by editing the baseline in place and
+// bumping its version. Version 21 keys the audit log on the bus event it
+// records, so a redelivered append lands once.
 //
 // Versions 3 and 4 were already retired before the first consolidation — they
 // ran on live databases and were then folded into the v1 baseline. They are
@@ -46,13 +52,13 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // statement serve an empty database and a database that already ran 15-19
 // alike.
 //
-// Baseline is version 20 — above every number issued, so an existing database
+// Baseline is version 21 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 21.
+// repaired. Retired numbers are never reused; the next migration is version 22.
 var Migrations = []storage.Migration{
 	{
-		Version:     20,
-		Description: "content store baseline (folds 1-19)",
+		Version:     21,
+		Description: "content store baseline (folds 1-20) + audit event key",
 		SQL: `
 			-- Projects
 			CREATE TABLE IF NOT EXISTS projects (
@@ -538,9 +544,21 @@ var Migrations = []storage.Migration{
 				actor_name TEXT NOT NULL DEFAULT '',
 				task_id    TEXT NOT NULL DEFAULT '',
 				priority   TEXT NOT NULL DEFAULT 'normal',
+
+				-- The bus event this notification came from. One user hears
+				-- about one event once: a redelivery — which every deploy
+				-- rollover produces — must not put a second row in the inbox
+				-- and a second email in the mailbox.
+				source_event_id TEXT NOT NULL DEFAULT '',
+
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 			CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, read, created_at DESC);
+			-- Serves a database that already has notifications, where the
+			-- CREATE above is a no-op.
+			ALTER TABLE notifications ADD COLUMN IF NOT EXISTS source_event_id TEXT NOT NULL DEFAULT '';
+			CREATE UNIQUE INDEX IF NOT EXISTS notifications_user_source_event
+				ON notifications(user_id, source_event_id) WHERE source_event_id <> '';
 
 			CREATE TABLE IF NOT EXISTS notification_preferences (
 				user_id         TEXT NOT NULL,
@@ -558,6 +576,12 @@ var Migrations = []storage.Migration{
 			-- Activities
 			CREATE TABLE IF NOT EXISTS activities (
 				id           TEXT PRIMARY KEY,
+
+				-- The bus event this entry came from, so a redelivered event
+				-- files one line rather than a second copy of it. '' for the
+				-- entries written directly rather than from an event.
+				event_id     TEXT NOT NULL DEFAULT '',
+
 				workspace_id TEXT NOT NULL,
 				project_id   TEXT NOT NULL DEFAULT '',
 				stream       TEXT NOT NULL DEFAULT '',
@@ -573,6 +597,11 @@ var Migrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_activities_workspace ON activities(workspace_id, created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_activities_project ON activities(workspace_id, project_id, created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_activities_actor ON activities(workspace_id, actor_id, created_at DESC);
+			-- Serves a database that already has activities, where the CREATE
+			-- above is a no-op.
+			ALTER TABLE activities ADD COLUMN IF NOT EXISTS event_id TEXT NOT NULL DEFAULT '';
+			CREATE UNIQUE INDEX IF NOT EXISTS activities_event_id
+				ON activities(event_id) WHERE event_id <> '';
 
 			-- Tasks
 			CREATE TABLE IF NOT EXISTS tasks (
@@ -624,6 +653,14 @@ var Migrations = []storage.Migration{
 			-- nullable so workspace-scoped (non-project) events are recorded.
 			CREATE TABLE IF NOT EXISTS audit_log (
 				id            BIGSERIAL PRIMARY KEY,
+
+				-- The bus event this row records. A failed append leaves its
+				-- event pending for redelivery, and the reclaim sweep re-runs
+				-- handlers whose consumer died after finishing — so the append
+				-- has to be keyed on something the event carries, or recovery
+				-- would trade a lost record for a doubled one.
+				event_id      TEXT NOT NULL DEFAULT '',
+
 				chain_key     TEXT NOT NULL DEFAULT 'system', -- chain partition (workspace/project/system)
 				project_id    TEXT,
 				workspace_id  TEXT NOT NULL DEFAULT '',
@@ -649,6 +686,11 @@ var Migrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_audit_log_type ON audit_log(workspace_id, event_type, created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_audit_log_actor ON audit_log(actor, created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_audit_log_chain ON audit_log(chain_key, id);
+			-- Serves a database that already has audit_log, where the CREATE
+			-- above is a no-op.
+			ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS event_id TEXT NOT NULL DEFAULT '';
+			CREATE UNIQUE INDEX IF NOT EXISTS audit_log_event_id
+				ON audit_log(event_id) WHERE event_id <> '';
 
 			-- Append-only enforcement: block UPDATE always, and block DELETE
 			-- unless a session explicitly opts in (used only by the retention

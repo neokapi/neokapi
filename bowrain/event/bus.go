@@ -6,6 +6,7 @@ import (
 	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/core/id"
 )
 
@@ -14,6 +15,15 @@ var _ platev.EventBus = (*ChannelEventBus)(nil)
 
 // ChannelEventBus is an in-process, channel-based EventBus implementation.
 // Each subscriber gets its own goroutine and buffered channel.
+//
+// It is not durable, and it is the default for a self-hosted single instance.
+// A subscriber that falls further behind than its buffer loses events outright:
+// there is no pending list to reclaim from and no position to resume from, so a
+// restart loses whatever was still in the channels. Every drop is counted
+// (observe.EventsDroppedTotal) and logged, because the counter is the only
+// evidence it happened. A deployment that must not lose events — audit trails,
+// convergence triggers, delivery — runs the Redis bus, where a consumer group
+// keeps its position across restarts and an unacknowledged entry is redelivered.
 type ChannelEventBus struct {
 	mu          sync.RWMutex
 	subscribers map[string]*subscriber
@@ -54,6 +64,7 @@ func (b *ChannelEventBus) Publish(ev platev.Event) {
 			select {
 			case s.ch <- ev:
 			default:
+				observe.EventsDroppedTotal.WithLabelValues(string(ev.Type)).Inc()
 				slog.Warn("event bus dropping event: channel full", "event_id", ev.ID, "event_type", ev.Type, "subscriber_id", s.sub.ID)
 			}
 		}
@@ -74,11 +85,21 @@ func (b *ChannelEventBus) Subscribe(eventType platev.EventType, handler platev.E
 // SubscribeGroup registers a handler with a named consumer group.
 // For ChannelEventBus, group is stored but all subscribers still receive all events
 // (no competing consumer semantics in-process).
-func (b *ChannelEventBus) SubscribeGroup(group string, handler platev.EventHandler) *platev.Subscription {
+//
+// A handler error is logged and nothing more: this bus holds no pending list,
+// so there is nowhere to redeliver from. That is the durability difference
+// between the in-process default and Redis, and it is why an instance that must
+// not lose events runs the Redis bus.
+func (b *ChannelEventBus) SubscribeGroup(group string, handler platev.GroupHandler) *platev.Subscription {
 	sub := &platev.Subscription{
-		ID:      id.New(),
-		Group:   group,
-		Handler: handler,
+		ID:    id.New(),
+		Group: group,
+		Handler: func(ev platev.Event) {
+			if err := handler(ev); err != nil {
+				slog.Warn("event bus dropping event: group handler failed with no redelivery available",
+					"group", group, "event_id", ev.ID, "event_type", ev.Type, "error", err)
+			}
+		},
 	}
 	b.addSubscriber(sub)
 	return sub

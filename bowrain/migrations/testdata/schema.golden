@@ -5,6 +5,7 @@ activities.created_at timestamp with time zone NOT NULL DEFAULT now()
 activities.data jsonb NOT NULL DEFAULT '{}'::jsonb
 activities.entity_id text NOT NULL DEFAULT ''::text
 activities.entity_type text NOT NULL DEFAULT ''::text
+activities.event_id text NOT NULL DEFAULT ''::text
 activities.id text NOT NULL
 activities.project_id text NOT NULL DEFAULT ''::text
 activities.stream text NOT NULL DEFAULT ''::text
@@ -169,6 +170,7 @@ audit_log.chain_key text NOT NULL DEFAULT 'system'::text
 audit_log.created_at timestamp with time zone NOT NULL DEFAULT now()
 audit_log.data jsonb NOT NULL DEFAULT '{}'::jsonb
 audit_log.effect text NOT NULL DEFAULT ''::text
+audit_log.event_id text NOT NULL DEFAULT ''::text
 audit_log.event_type text NOT NULL
 audit_log.hash text NOT NULL DEFAULT ''::text
 audit_log.id bigint NOT NULL DEFAULT nextval('audit_log_id_seq'::regclass)
@@ -469,6 +471,8 @@ email_change_requests.id text NOT NULL
 email_change_requests.new_email text NOT NULL
 email_change_requests.token_hash text NOT NULL
 email_change_requests.user_id text NOT NULL
+extraction_jobs.attempts integer NOT NULL DEFAULT 0
+extraction_jobs.claim_epoch bigint NOT NULL DEFAULT 0
 extraction_jobs.created_at timestamp with time zone NOT NULL DEFAULT now()
 extraction_jobs.done_blocks integer NOT NULL DEFAULT 0
 extraction_jobs.error text NOT NULL DEFAULT ''::text
@@ -642,6 +646,7 @@ notifications.link_url text NOT NULL DEFAULT ''::text
 notifications.priority text NOT NULL DEFAULT 'normal'::text
 notifications.project_id text NOT NULL DEFAULT ''::text
 notifications.read boolean NOT NULL DEFAULT false
+notifications.source_event_id text NOT NULL DEFAULT ''::text
 notifications.task_id text NOT NULL DEFAULT ''::text
 notifications.title text NOT NULL
 notifications.type text NOT NULL DEFAULT 'general'::text
@@ -1464,6 +1469,7 @@ CREATE INDEX idx_credit_ledger_workspace ON public.credit_ledger USING btree (wo
 CREATE INDEX idx_deny_rules_workspace ON public.deny_rules USING btree (workspace_id)
 CREATE INDEX idx_email_change_expires ON public.email_change_requests USING btree (expires_at)
 CREATE INDEX idx_email_change_user ON public.email_change_requests USING btree (user_id)
+CREATE INDEX idx_extraction_jobs_processing_updated ON public.extraction_jobs USING btree (updated_at) WHERE (status = 'processing'::text)
 CREATE INDEX idx_extraction_jobs_project ON public.extraction_jobs USING btree (project_id)
 CREATE INDEX idx_extraction_jobs_push_id ON public.extraction_jobs USING btree (push_id)
 CREATE INDEX idx_extraction_jobs_status ON public.extraction_jobs USING btree (status)
@@ -1577,6 +1583,7 @@ CREATE INDEX translations_p6_project_id_stream_block_id_idx ON public.translatio
 CREATE INDEX translations_p6_project_id_stream_locale_updated_at_idx ON public.translations_p6 USING btree (project_id, stream, locale, updated_at DESC)
 CREATE INDEX translations_p7_project_id_stream_block_id_idx ON public.translations_p7 USING btree (project_id, stream, block_id)
 CREATE INDEX translations_p7_project_id_stream_locale_updated_at_idx ON public.translations_p7 USING btree (project_id, stream, locale, updated_at DESC)
+CREATE UNIQUE INDEX activities_event_id ON public.activities USING btree (event_id) WHERE (event_id <> ''::text)
 CREATE UNIQUE INDEX activities_pkey ON public.activities USING btree (id)
 CREATE UNIQUE INDEX activity_state_pkey ON public.activity_state USING btree (user_id, workspace_id)
 CREATE UNIQUE INDEX agent_config_pkey ON public.agent_config USING btree (workspace_id)
@@ -1600,6 +1607,7 @@ CREATE UNIQUE INDEX api_tokens_pkey ON public.api_tokens USING btree (id)
 CREATE UNIQUE INDEX api_tokens_token_hash_key ON public.api_tokens USING btree (token_hash)
 CREATE UNIQUE INDEX asset_variants_pkey ON public.asset_variants USING btree (asset_id, locale)
 CREATE UNIQUE INDEX assets_pkey ON public.assets USING btree (id)
+CREATE UNIQUE INDEX audit_log_event_id ON public.audit_log USING btree (event_id) WHERE (event_id <> ''::text)
 CREATE UNIQUE INDEX audit_log_pkey ON public.audit_log USING btree (id)
 CREATE UNIQUE INDEX auth_schema_migrations_pkey ON public.auth_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX automation_history_pkey ON public.automation_history USING btree (id)
@@ -1633,6 +1641,7 @@ CREATE UNIQUE INDEX credit_allocations_pkey ON public.credit_allocations USING b
 CREATE UNIQUE INDEX credit_allocations_workspace_id_week_start_source_key ON public.credit_allocations USING btree (workspace_id, week_start, source)
 CREATE UNIQUE INDEX credit_ledger_pkey ON public.credit_ledger USING btree (id)
 CREATE UNIQUE INDEX credit_ledger_purchase_ref ON public.credit_ledger USING btree (workspace_id, reference_id) WHERE ((operation = 'purchase'::text) AND (reference_id <> ''::text))
+CREATE UNIQUE INDEX credit_ledger_usage_ref ON public.credit_ledger USING btree (workspace_id, operation, reference_id, allocation_id) WHERE (reference_id <> ''::text)
 CREATE UNIQUE INDEX deny_rules_pkey ON public.deny_rules USING btree (id)
 CREATE UNIQUE INDEX digest_settings_pkey ON public.digest_settings USING btree (user_id, workspace_id)
 CREATE UNIQUE INDEX digest_state_pkey ON public.digest_state USING btree (user_id, workspace_id, frequency)
@@ -1672,6 +1681,7 @@ CREATE UNIQUE INDEX model_sweep_results_pkey ON public.model_sweep_results USING
 CREATE UNIQUE INDEX model_sweep_schema_migrations_pkey ON public.model_sweep_schema_migrations USING btree (version)
 CREATE UNIQUE INDEX notification_preferences_user_id_workspace_id_category_key ON public.notification_preferences USING btree (user_id, workspace_id, category)
 CREATE UNIQUE INDEX notifications_pkey ON public.notifications USING btree (id)
+CREATE UNIQUE INDEX notifications_user_source_event ON public.notifications USING btree (user_id, source_event_id) WHERE (source_event_id <> ''::text)
 CREATE UNIQUE INDEX overlays_ext_p0_pkey ON public.overlays_ext_p0 USING btree (project_id, stream, block_id, kind)
 CREATE UNIQUE INDEX overlays_ext_p1_pkey ON public.overlays_ext_p1 USING btree (project_id, stream, block_id, kind)
 CREATE UNIQUE INDEX overlays_ext_p2_pkey ON public.overlays_ext_p2 USING btree (project_id, stream, block_id, kind)

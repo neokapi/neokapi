@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/formats"
@@ -24,6 +25,7 @@ import (
 type brandScanFixture struct {
 	deps *BrandScanWorkerDeps
 	logs *brandScanLogCapture
+	db   *storage.PgDB
 }
 
 type brandScanLogCapture struct {
@@ -66,7 +68,17 @@ func newBrandScanFixture(t *testing.T) *brandScanFixture {
 			LogFunc:   logs.log,
 		},
 		logs: logs,
+		db:   db,
 	}
+}
+
+// requeueJob puts a finished scan back in the queue, which is what a retry or a
+// redelivered queue message leaves behind.
+func (f *brandScanFixture) requeueJob(t *testing.T, jobID string) {
+	t.Helper()
+	_, err := f.db.ExecContext(t.Context(),
+		`UPDATE brand_scan_jobs SET status = 'queued' WHERE id = $1`, jobID)
+	require.NoError(t, err)
 }
 
 func (f *brandScanFixture) seedJob(t *testing.T, wsID string, req BrandScanRequest) *BrandScanJob {

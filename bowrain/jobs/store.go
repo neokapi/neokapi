@@ -28,12 +28,26 @@ type JobStore interface {
 	// fresh owner's counts.
 	UpdateJobMemorySplit(ctx context.Context, id string, epoch int64, viaMemory, viaAI int) error
 	UpdateJobStatus(ctx context.Context, id string, status JobStatus, errMsg string) error
+	// CancelJob stops a job a person asked to stop. It applies only to a job
+	// still queued or processing — a completed job cannot be cancelled after
+	// the fact, and reporting it failed would be a lie the push aggregation
+	// then repeats — and it bumps claim_epoch, which is what makes the
+	// cancellation reach a worker: the running worker's next RenewLease
+	// reports !owner and it abandons at the chunk boundary without writing
+	// 'completed' back over the cancellation. Returns false when the job was
+	// already terminal.
+	CancelJob(ctx context.Context, id, reason string) (cancelled bool, err error)
 	// FailJob marks the job failed with errMsg — but only while the caller
 	// still holds the lease (status 'processing' AND claim_epoch == epoch), so
 	// a stale worker's permanent error cannot overwrite a fresh owner's
 	// completed run. Returns owner=false when the lease was lost, in which
 	// case nothing was written.
 	FailJob(ctx context.Context, id string, epoch int64, errMsg string) (owner bool, err error)
+	// CompleteJob marks the job completed under the same lease guard as
+	// FailJob. A worker whose lease was taken — by the sweeper's re-claim, or
+	// by a cancellation — must not report success for a run somebody else now
+	// owns or a person asked to stop.
+	CompleteJob(ctx context.Context, id string, epoch int64) (owner bool, err error)
 	DeleteJob(ctx context.Context, id string) error
 	ListJobsByPushID(ctx context.Context, pushID string) ([]*TranslationJob, error)
 	// ClaimJob atomically transitions a job from queued to processing and bumps
@@ -75,19 +89,20 @@ type JobStore interface {
 	// the fresh owner's in-flight job. A job no longer in 'processing' yields
 	// (false, nil).
 	DeferJob(ctx context.Context, id string, epoch int64, maxDeferrals int, errMsg string) (deferred bool, err error)
-	// SweepStaleProcessing recovers jobs stuck in 'processing' longer than
-	// olderThan (a worker crashed after ClaimJob). Jobs with retry budget left
-	// are reset to 'queued' — their IDs are returned so the caller can
-	// re-enqueue them — and jobs out of budget are marked 'failed'. Returns the
-	// requeued IDs and the count of failed jobs.
+	// SweepStaleProcessing recovers jobs that have gone quiet for longer than
+	// olderThan: stuck in 'processing' because a worker crashed after ClaimJob,
+	// or stranded in 'queued' because the enqueue that should have followed the
+	// row failed. Jobs with retry budget left are reset to 'queued' — their IDs
+	// are returned so the caller can re-enqueue them — and jobs out of budget
+	// are marked 'failed'. Returns the requeued IDs and the count of failed jobs.
 	SweepStaleProcessing(ctx context.Context, olderThan time.Duration, maxAttempts int) (requeued []string, failed int, err error)
 	// RevertSweepRequeue rolls a job that SweepStaleProcessing flipped to
 	// 'queued' back to 'processing' when the caller's follow-up Enqueue failed,
-	// leaving the row with no live broker message. Since nothing scans 'queued'
-	// orphans, such a row would be stranded forever; reverting it to 'processing'
+	// leaving the row with no live broker message. Reverting it to 'processing'
 	// with a STALE updated_at (older than staleThreshold) — and undoing the sweep's
-	// attempts increment — lets the NEXT sweep re-select and re-enqueue it. Guarded
-	// by status='queued' so it never disturbs a job a worker has since claimed.
+	// attempts increment — lets the NEXT sweep re-select and re-enqueue it without
+	// having spent budget on a delivery that never happened. Guarded by
+	// status='queued' so it never disturbs a job a worker has since claimed.
 	RevertSweepRequeue(ctx context.Context, id string, staleThreshold time.Duration) error
 }
 
@@ -104,21 +119,26 @@ type JobStore interface {
 //	6  deferral count for jobs parked on an unavailable dependency
 //	7  the first consolidated baseline (folded 1-6)
 //	8  stream scope for translation jobs (targets are per-stream overlays)
+//	9  the second consolidated baseline (folded 1-8), then created_by beside it
 //
-// Version 8 was appended after the first consolidation and is now folded in
-// turn, so the rule the drift tests enforce — a consolidated subsystem carries
-// exactly one baseline — holds again. Folding is editing the CREATE statement,
-// never appending an ALTER beside it: stream is a column of translation_jobs,
-// declared where the table is declared, so one statement serves an empty
-// database and a database that already ran 7 and 8 alike.
+// The subsystem carries exactly one baseline (migrations/schema_test.go
+// enforces it), so a schema change is made by editing the baseline in place and
+// bumping its version. Version 10 adds created_by — who asked for the job.
 //
-// Baseline is version 9 — above every number issued, so an existing database
+// Every column the baseline gained after a database could already hold
+// translation_jobs is declared twice: once in the CREATE, which serves an empty
+// database, and once as an ALTER ... ADD COLUMN IF NOT EXISTS, which serves a
+// database where CREATE ... IF NOT EXISTS is a no-op and would otherwise leave
+// the column missing. Both are idempotent, both land the same column, and
+// neither is a second baseline.
+//
+// Baseline is version 10 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 10.
+// repaired. Retired numbers are never reused; the next migration is version 11.
 var JobMigrations = []storage.Migration{
 	{
-		Version:     9,
-		Description: "translation jobs baseline (folds 1-8)",
+		Version:     10,
+		Description: "translation jobs baseline (folds 1-9)",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS translation_jobs (
 				id                 TEXT PRIMARY KEY,
@@ -174,10 +194,16 @@ var JobMigrations = []storage.Migration{
 				via_tm             INTEGER NOT NULL DEFAULT 0,
 				via_ai             INTEGER NOT NULL DEFAULT 0,
 
+				-- The authenticated caller at enqueue, empty for platform-initiated
+				-- jobs; failure summons routes on it.
+				created_by         TEXT NOT NULL DEFAULT '',
+
 				error              TEXT NOT NULL DEFAULT '',
 				created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
+			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS stream TEXT NOT NULL DEFAULT '';
+			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT '';
 			CREATE INDEX IF NOT EXISTS idx_jobs_workspace ON translation_jobs(workspace_slug, created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_jobs_status ON translation_jobs(status);
 			CREATE INDEX IF NOT EXISTS idx_jobs_push_id ON translation_jobs(push_id) WHERE push_id != '';
@@ -186,22 +212,6 @@ var JobMigrations = []storage.Migration{
 			-- sweeper scans so recovery stays cheap as the jobs table grows.
 			CREATE INDEX IF NOT EXISTS idx_jobs_processing_updated
 				ON translation_jobs(updated_at) WHERE status = 'processing';
-		`,
-	},
-	{
-		Version:     8,
-		Description: "stream scope for translation jobs",
-		SQL: `
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS stream TEXT NOT NULL DEFAULT '';
-		`,
-	},
-	{
-		Version:     9,
-		Description: "record who asked for a job",
-		SQL: `
-			-- created_by is the authenticated caller at enqueue, empty for
-			-- platform-initiated jobs; failure summons routes on it.
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }
@@ -391,10 +401,15 @@ func (s *jobStore) SweepStaleProcessing(ctx context.Context, olderThan time.Dura
 	cutoff := time.Now().UTC().Add(-olderThan)
 
 	// Phase 1: requeue stalled jobs that still have retry budget.
+	// A stranded 'queued' row is swept alongside a stalled 'processing' one.
+	// Nothing else covers it: an enqueue that failed after the row was written
+	// — the create handler's rollback, or the sweep's own re-enqueue — leaves a
+	// job nobody will ever deliver. Re-enqueueing one that IS merely waiting is
+	// harmless, because ClaimJob admits exactly one worker.
 	rows, err := s.db.QueryContext(ctx,
 		`UPDATE translation_jobs
 		 SET status = 'queued', attempts = attempts + 1, updated_at = NOW()
-		 WHERE status = 'processing' AND updated_at < $1 AND attempts + 1 < $2
+		 WHERE status IN ('processing', 'queued') AND updated_at < $1 AND attempts + 1 < $2
 		 RETURNING id`,
 		cutoff, maxAttempts)
 	if err != nil {
@@ -420,8 +435,8 @@ func (s *jobStore) SweepStaleProcessing(ctx context.Context, olderThan time.Dura
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE translation_jobs
 		 SET status = 'failed', attempts = attempts + 1,
-		     error = 'stalled in processing; exceeded max attempts', updated_at = NOW()
-		 WHERE status = 'processing' AND updated_at < $1 AND attempts + 1 >= $2`,
+		     error = 'stalled before completion; exceeded max attempts', updated_at = NOW()
+		 WHERE status IN ('processing', 'queued') AND updated_at < $1 AND attempts + 1 >= $2`,
 		cutoff, maxAttempts)
 	if err != nil {
 		return requeued, 0, fmt.Errorf("sweep fail exhausted jobs: %w", err)
@@ -458,6 +473,31 @@ func (s *jobStore) UpdateJobStatus(ctx context.Context, id string, status JobSta
 		return fmt.Errorf("update job status: %w", err)
 	}
 	return nil
+}
+
+func (s *jobStore) CompleteJob(ctx context.Context, id string, epoch int64) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs
+		 SET status = 'completed', error = '', updated_at = NOW()
+		 WHERE id = $1 AND status = 'processing' AND claim_epoch = $2`, id, epoch)
+	if err != nil {
+		return false, fmt.Errorf("complete job: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
+
+func (s *jobStore) CancelJob(ctx context.Context, id, reason string) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs
+		 SET status = 'failed', error = $1, claim_epoch = claim_epoch + 1, updated_at = NOW()
+		 WHERE id = $2 AND status IN ('queued', 'processing')`,
+		reason, id)
+	if err != nil {
+		return false, fmt.Errorf("cancel job: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
 }
 
 func (s *jobStore) FailJob(ctx context.Context, id string, epoch int64, errMsg string) (bool, error) {

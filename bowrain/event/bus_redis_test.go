@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"log/slog"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -22,6 +23,18 @@ import (
 // production, per the no-mocks rule.
 func startRedis(t *testing.T) string {
 	t.Helper()
+	// An already-running Redis opts in, the way pgtest's
+	// BOWRAIN_TEST_POSTGRES_URL does, so these run on a machine with no
+	// container runtime. Each test flushes it, since they share one instance
+	// where a container per test would isolate them.
+	if url := os.Getenv("BOWRAIN_TEST_REDIS_URL"); url != "" {
+		opts, err := redis.ParseURL(url)
+		require.NoError(t, err)
+		client := redis.NewClient(opts)
+		require.NoError(t, client.FlushAll(context.Background()).Err())
+		require.NoError(t, client.Close())
+		return url
+	}
 	if testing.Short() {
 		t.Skip("skipping Redis container test in -short mode")
 	}
@@ -121,7 +134,7 @@ func TestRedisTwoFanoutSubscribersBothReceive(t *testing.T) {
 func TestRedisGroupDelivers(t *testing.T) {
 	bus := newRedisBus(t)
 	got := make(chan platev.Event, 8)
-	bus.SubscribeGroup("recorder", func(ev platev.Event) { got <- ev })
+	bus.SubscribeGroup("recorder", func(ev platev.Event) error { got <- ev; return nil })
 
 	for range 3 {
 		bus.Publish(platev.Event{Type: "test.g"})
@@ -147,7 +160,7 @@ func TestRedisGroupResumesAfterDowntime(t *testing.T) {
 	// (deploy rollover: the old process exits).
 	gen1 := newRedisBusAt(t, url)
 	got1 := make(chan platev.Event, 8)
-	gen1.SubscribeGroup("rollover", func(ev platev.Event) { got1 <- ev })
+	gen1.SubscribeGroup("rollover", func(ev platev.Event) error { got1 <- ev; return nil })
 	publisher.Publish(platev.Event{Type: "test.before"})
 	assert.Equal(t, platev.EventType("test.before"), waitEvent(t, got1, 5*time.Second).Type)
 	gen1.Close()
@@ -160,7 +173,7 @@ func TestRedisGroupResumesAfterDowntime(t *testing.T) {
 	// the already-acknowledged one is NOT redelivered.
 	gen2 := newRedisBusAt(t, url)
 	got2 := make(chan platev.Event, 8)
-	gen2.SubscribeGroup("rollover", func(ev platev.Event) { got2 <- ev })
+	gen2.SubscribeGroup("rollover", func(ev platev.Event) error { got2 <- ev; return nil })
 	ev := waitEvent(t, got2, 5*time.Second)
 	assert.Equal(t, platev.EventType("test.during"), ev.Type,
 		"the event published during subscriber downtime must be delivered on rejoin")
@@ -276,7 +289,7 @@ func TestRedisGroupReclaimsStrandedPendingAfterCrash(t *testing.T) {
 	// Consumer B: same group, fresh consumer ID, short reclaim settings.
 	sweeper := newReclaimBusAt(t, url, 150*time.Millisecond, 250*time.Millisecond)
 	got := make(chan platev.Event, 8)
-	sweeper.SubscribeGroup("crash", func(ev platev.Event) { got <- ev })
+	sweeper.SubscribeGroup("crash", func(ev platev.Event) error { got <- ev; return nil })
 
 	ev := waitEvent(t, got, 10*time.Second)
 	assert.Equal(t, platev.EventType("test.stranded"), ev.Type,

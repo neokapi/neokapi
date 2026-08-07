@@ -86,20 +86,25 @@ func (t *PushCompletionTracker) Close() {
 	}
 }
 
-func (t *PushCompletionTracker) handlePush(ev platev.Event) {
+// handlePush registers a push for completion tracking. It always acknowledges:
+// registration is keyed on the push id and cannot fail, and an instance that
+// misses the event picks the push up from the database on its next poll
+// (ingestFromDB) — which is also how a push that arrived on another instance is
+// discovered.
+func (t *PushCompletionTracker) handlePush(ev platev.Event) error {
 	if ev.Type != platev.EventPushCompleted {
-		return // only interested in push events
+		return nil // only interested in push events
 	}
 	pushID := ev.Data["push_id"]
 	if pushID == "" {
-		return
+		return nil
 	}
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	if _, exists := t.pending[pushID]; exists {
-		return // already tracking
+		return nil // already tracking
 	}
 
 	t.pending[pushID] = &pendingPush{
@@ -109,6 +114,7 @@ func (t *PushCompletionTracker) handlePush(ev platev.Event) {
 		actor:        ev.Actor,
 		registeredAt: time.Now(),
 	}
+	return nil
 }
 
 func (t *PushCompletionTracker) pollLoop() {

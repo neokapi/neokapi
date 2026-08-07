@@ -57,13 +57,14 @@ type frameCollector struct {
 	frames []platev.Event
 }
 
-func (f *frameCollector) observe(ev platev.Event) {
+func (f *frameCollector) observe(ev platev.Event) error {
 	if ev.Type != platev.EventConvergenceRunCompleted {
-		return
+		return nil
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.frames = append(f.frames, ev)
+	return nil
 }
 
 func (f *frameCollector) await(t *testing.T) platev.Event {

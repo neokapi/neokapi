@@ -5,6 +5,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
@@ -19,6 +20,7 @@ type billingWorkerFixture struct {
 	billing   *billing.PgBillingStore
 	quota     *QuotaStoreDB
 	projectID string
+	db        *storage.PgDB
 }
 
 func newBillingWorkerFixture(t *testing.T) *billingWorkerFixture {
@@ -59,7 +61,18 @@ func newBillingWorkerFixture(t *testing.T) *billingWorkerFixture {
 		billing:   bs,
 		quota:     qs,
 		projectID: projectID,
+		db:        db,
 	}
+}
+
+// budget reads a job's attempt and deferral counters, which the job model does
+// not carry — they are bookkeeping, not state a caller acts on.
+func (f *billingWorkerFixture) budget(t *testing.T, jobID string) (attempts, deferrals int) {
+	t.Helper()
+	require.NoError(t, f.db.QueryRowContext(t.Context(),
+		`SELECT attempts, deferrals FROM translation_jobs WHERE id = $1`, jobID).
+		Scan(&attempts, &deferrals))
+	return attempts, deferrals
 }
 
 func (f *billingWorkerFixture) runJob(t *testing.T, job *TranslationJob) {

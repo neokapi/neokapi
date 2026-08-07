@@ -352,15 +352,20 @@ func (s *Server) subscribeForgeDelivery() {
 	if s.EventBus == nil || s.Services == nil || s.Services.Connector == nil || s.ConnectorConfigStore == nil {
 		return
 	}
-	s.EventBus.SubscribeGroup(forgeDeliveryGroup, func(ev platev.Event) {
+	//
+	// The handler always acknowledges: the delivery it starts outlives the
+	// dispatch, so its outcome is not the handler's to report, and the publish
+	// it performs is already replay-safe.
+	s.EventBus.SubscribeGroup(forgeDeliveryGroup, func(ev platev.Event) error {
 		if ev.Type != platev.EventConvergenceRunCompleted {
-			return // group handlers see every event; only run completions matter here
+			return nil // group handlers see every event; only run completions matter here
 		}
 		state := ev.Data["state"]
 		if state != bstore.ConvergenceRunConverged && state != bstore.ConvergenceRunParked {
-			return
+			return nil
 		}
 		go s.deliverToForges(context.WithoutCancel(context.Background()), ev)
+		return nil
 	})
 }
 

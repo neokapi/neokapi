@@ -36,18 +36,26 @@ func (r *ActivityRecorder) Close() {
 	}
 }
 
-func (r *ActivityRecorder) handleEvent(ev platev.Event) {
+// handleEvent files one activity, and reports whether it landed.
+//
+// The feed is the surface people read to answer what happened, so a write that
+// failed is worth redelivering. The entry is keyed on the event id, so the
+// second delivery of an event already filed is a no-op.
+func (r *ActivityRecorder) handleEvent(ev platev.Event) error {
 	a := r.mapEventToActivity(ev)
 	if a == nil {
-		return
+		return nil
 	}
+	a.EventID = ev.ID
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := r.store.Create(ctx, a); err != nil {
 		slog.Warn("activity recorder failed to persist activity", "event_id", ev.ID, "event_type", ev.Type, "error", err)
+		return err
 	}
+	return nil
 }
 
 func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity {

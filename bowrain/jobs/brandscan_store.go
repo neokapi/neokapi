@@ -362,10 +362,15 @@ func (s *brandScanJobStore) SweepStaleProcessing(ctx context.Context, olderThan 
 	cutoff := time.Now().UTC().Add(-olderThan)
 
 	// Phase 1: requeue stalled jobs that still have retry budget.
+	// A stranded 'queued' row is swept alongside a stalled 'processing' one.
+	// Nothing else covers it: an enqueue that failed after the row was written
+	// — the create handler's rollback, or the sweep's own re-enqueue — leaves a
+	// job nobody will ever deliver. Re-enqueueing one that IS merely waiting is
+	// harmless, because ClaimJob admits exactly one worker.
 	rows, err := s.db.QueryContext(ctx,
 		`UPDATE brand_scan_jobs
 		 SET status = 'queued', attempts = attempts + 1, updated_at = NOW()
-		 WHERE status = 'processing' AND updated_at < $1 AND attempts + 1 < $2
+		 WHERE status IN ('processing', 'queued') AND updated_at < $1 AND attempts + 1 < $2
 		 RETURNING id`,
 		cutoff, maxAttempts)
 	if err != nil {
@@ -390,8 +395,8 @@ func (s *brandScanJobStore) SweepStaleProcessing(ctx context.Context, olderThan 
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE brand_scan_jobs
 		 SET status = 'failed', attempts = attempts + 1,
-		     error = 'stalled in processing; exceeded max attempts', updated_at = NOW()
-		 WHERE status = 'processing' AND updated_at < $1 AND attempts + 1 >= $2`,
+		     error = 'stalled before completion; exceeded max attempts', updated_at = NOW()
+		 WHERE status IN ('processing', 'queued') AND updated_at < $1 AND attempts + 1 >= $2`,
 		cutoff, maxAttempts)
 	if err != nil {
 		return requeued, 0, fmt.Errorf("sweep fail exhausted brand-scan jobs: %w", err)

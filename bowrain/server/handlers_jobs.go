@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -114,8 +115,14 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 	}
 
 	if err := s.JobQueue.Enqueue(ctx, job.ID); err != nil {
-		// Roll back the job record.
-		_ = s.JobStore.DeleteJob(ctx, job.ID)
+		// Roll back the job record. A rollback that itself fails leaves a
+		// 'queued' row with no message behind it, so it is logged loudly rather
+		// than discarded — the stale-job sweeper covers such a row, but the
+		// operator should know the broker refused a write.
+		if delErr := s.JobStore.DeleteJob(ctx, job.ID); delErr != nil {
+			slog.ErrorContext(ctx, "enqueue failed and its rollback failed; job row left for the sweeper",
+				"job_id", job.ID, "enqueue_error", err, "rollback_error", delErr)
+		}
 		return serverErr(c, fmt.Errorf("enqueue failed: %w", err))
 	}
 
@@ -284,9 +291,12 @@ func (s *Server) HandleDeleteJob(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "job not found"})
 	}
 
-	// Atomically cancel only if still cancellable.
-	// UpdateJobStatus is a no-op if the job already completed.
-	if err := s.JobStore.UpdateJobStatus(ctx, id, jobs.StatusFailed, "cancelled by user"); err != nil {
+	// Cancel only what is still cancellable, and take the lease away from
+	// whoever holds it so a running worker stops rather than writing
+	// 'completed' back over the cancellation. A job that finished between the
+	// read above and this write keeps its result: 204 either way, because the
+	// caller asked for the job to stop and it has.
+	if _, err := s.JobStore.CancelJob(ctx, id, "cancelled by user"); err != nil {
 		return serverErr(c, err)
 	}
 

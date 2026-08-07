@@ -48,10 +48,11 @@ func TestSubscribeGroupReceivesAllTypes(t *testing.T) {
 
 	var mu sync.Mutex
 	var types []platev.EventType
-	bus.SubscribeGroup("group-a", func(e platev.Event) {
+	bus.SubscribeGroup("group-a", func(e platev.Event) error {
 		mu.Lock()
 		types = append(types, e.Type)
 		mu.Unlock()
+		return nil
 	})
 
 	bus.Publish(platev.Event{Type: platev.EventBlockCreated})

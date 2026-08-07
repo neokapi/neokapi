@@ -348,8 +348,7 @@ subsequently *changes*, so a fresh Team subscription may never produce an
 started for, and the subscription events re-derive the same plan from the
 price's `bowrain_plan` metadata.
 
-Two webhook robustness rules follow from Stripe's delivery semantics — both
-protect money, not just tidiness:
+Three delivery rules follow, and all three protect money rather than tidiness:
 
 - **The pack grant is idempotent on the checkout session id.** Stripe delivers
   webhooks at-least-once, and this handler rolls its processed-event marker back
@@ -360,6 +359,18 @@ protect money, not just tidiness:
   (`GrantPurchasedCredits`), with a unique index on the purchase ledger row —
   a duplicate delivery is a no-op, a concurrent one collides rather than
   double-credits.
+- **A referenced deduction is idempotent.** The queues are at-least-once
+  everywhere, not only at Stripe's edge: a translation job requeued after a
+  provider error restarts from its first chunk, and a redelivered queue message
+  re-runs the whole worker. Every metered call therefore carries a reference the
+  caller can reproduce — `<job id>:<chunk offset>` for a translation, `<job
+  id>:infer` / `:terms` for a brand scan, the message id for an agent turn — and
+  `DeductCredits` applies one reference once. It checks inside the transaction
+  that already holds the allocation buckets locked, and each ledger insert is
+  `ON CONFLICT DO NOTHING` against the unique index above, with the
+  `credits_used` bump skipped on a conflict. Both are needed: the index cannot
+  see a replay that cascades into a *different* allocation, which a month
+  rollover between two attempts produces.
 - **`canceled` is terminal.** Stripe does not guarantee event ordering, so a
   stale `subscription.updated` (status active) can be delivered *after* the
   `subscription.deleted` that canceled it. A blind upsert would resurrect the
@@ -429,9 +440,15 @@ CREATE TABLE credit_ledger (
     amount        BIGINT NOT NULL,         -- negative = debit, positive = credit
     balance_after BIGINT NOT NULL,
     operation     TEXT NOT NULL,            -- 'ai_translation' | 'bravo_message' | ...
-    reference_id  TEXT,                     -- job_id, conversation_id, etc.
+    reference_id  TEXT,                     -- job_id:chunk, conversation_id, etc.
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- A referenced charge is applied at most once, whichever buckets it cascades
+-- into. Every metered path is at-least-once.
+CREATE UNIQUE INDEX credit_ledger_usage_ref
+    ON credit_ledger (workspace_id, operation, reference_id, allocation_id)
+    WHERE reference_id <> '';
 
 ALTER TABLE workspaces ADD COLUMN plan TEXT NOT NULL DEFAULT 'free';
 ALTER TABLE workspaces ADD COLUMN stripe_customer_id TEXT;

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -83,11 +84,17 @@ func NewSIEMExporter(bus platev.EventBus, sink SIEMSink) *SIEMExporter {
 	return e
 }
 
-func (e *SIEMExporter) enqueue(ev platev.Event) {
+// enqueue hands the event to the forwarding worker, and reports a full queue as
+// a failure so the event stays pending rather than being dropped. Back-pressure
+// on the group is the right answer to a sink that cannot keep up: the alternative
+// is an export stream with holes in it and no record of where they are.
+func (e *SIEMExporter) enqueue(ev platev.Event) error {
 	select {
 	case e.queue <- ev:
+		return nil
 	default:
-		slog.Warn("siem-exporter: queue full, dropping event", "event_id", ev.ID, "event_type", ev.Type)
+		slog.Warn("siem-exporter: queue full, leaving event pending", "event_id", ev.ID, "event_type", ev.Type)
+		return errors.New("siem export queue is full")
 	}
 }
 

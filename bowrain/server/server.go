@@ -277,6 +277,11 @@ type Server struct {
 	// change. Always initialized.
 	changeRelay *event.ChangeRelay
 
+	// actions counts the automation actions running in the background, so
+	// Shutdown can wait for them instead of pulling their stores out from
+	// under them.
+	actions sync.WaitGroup
+
 	// SyncCache is the optional Redis hash cache for sync diff engine (Bowrain AD-009).
 	SyncCache bowsync.HashCache
 
@@ -2009,6 +2014,10 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	// Phase 2: stop background workers. These are safe to call on nil receivers
 	// because each worker's Close checks internal state.
 	slog.Info("shutdown phase 2: stopping background workers")
+	// Automation actions first: they write through the stores the workers
+	// below and the phases after this one are about to close, and each is
+	// already bounded by its own timeout.
+	s.awaitActions(ctx)
 	if s.DailyDigestWorker != nil {
 		s.DailyDigestWorker.Close()
 	}

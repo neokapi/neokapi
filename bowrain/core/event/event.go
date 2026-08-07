@@ -203,8 +203,24 @@ type Event struct {
 	UserAgent    string            `json:"user_agent,omitempty"`    // client user-agent
 }
 
-// EventHandler processes an event.
+// EventHandler processes an event. Fan-out delivery is best-effort — a
+// subscriber reading the tail has nothing to redeliver from — so it reports
+// nothing.
 type EventHandler func(Event)
+
+// GroupHandler processes one event delivered to a consumer group, and says
+// whether the delivery is finished.
+//
+// A nil return acknowledges the event. A non-nil return leaves it pending, so a
+// durable bus redelivers it — which is the only reason a group differs from a
+// tail read. Return an error exactly when the side effect MUST happen and did
+// not; a handler that returns an error for work it merely chose not to do turns
+// its consumer group into a redelivery loop.
+//
+// Redelivery means every side effect behind an error return needs an
+// idempotency key: the delivery that failed may have half-happened, and the
+// reclaim sweep re-runs handlers whose original consumer died after finishing.
+type GroupHandler func(Event) error
 
 // Subscription represents an active event subscription.
 type Subscription struct {
@@ -220,9 +236,11 @@ type EventBus interface {
 	Subscribe(eventType EventType, handler EventHandler) *Subscription
 	SubscribeAll(handler EventHandler) *Subscription
 	// SubscribeGroup subscribes with a named consumer group. In distributed
-	// buses, only one instance in the group receives each event. Falls back
-	// to SubscribeAll for in-process buses.
-	SubscribeGroup(group string, handler EventHandler) *Subscription
+	// buses, only one instance in the group receives each event, the group's
+	// position survives restarts, and a handler that returns an error leaves
+	// the event pending for redelivery. Falls back to SubscribeAll for
+	// in-process buses, which have nothing to redeliver from.
+	SubscribeGroup(group string, handler GroupHandler) *Subscription
 	Unsubscribe(sub *Subscription)
 	Close()
 }

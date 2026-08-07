@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -150,20 +151,27 @@ func (b *Breaker) State() State {
 	return translateState(cb.State())
 }
 
-// retryAfter estimates the time until the circuit next admits a probe.
+// retryAfter estimates the time until the circuit next admits a probe, jittered
+// over 1.0–1.5× that estimate.
+//
+// Every job parked during one outage computes nearly the same remaining
+// cooldown, so without jitter they all come back at the same instant and the
+// half-open probe — which admits one call — rejects the rest, parking them
+// again in lockstep. The spread is one-sided: never earlier than the circuit
+// would admit, only later.
 func (b *Breaker) retryAfter() time.Duration {
 	b.mu.RLock()
 	openedAt, cooldown := b.openedAt, b.settings.Cooldown
 	b.mu.RUnlock()
 
-	if openedAt.IsZero() {
-		return cooldown
+	base := cooldown
+	if !openedAt.IsZero() {
+		base = cooldown - b.clock().Sub(openedAt)
 	}
-	remaining := cooldown - b.clock().Sub(openedAt)
-	if remaining < time.Second {
-		return time.Second
+	if base < time.Second {
+		base = time.Second
 	}
-	return remaining
+	return base + time.Duration(rand.Int64N(int64(base)/2+1))
 }
 
 // Do runs fn under the breaker.

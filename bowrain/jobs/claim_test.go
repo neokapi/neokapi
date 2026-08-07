@@ -82,11 +82,12 @@ func TestClaimExtractionJob_OnlyOneWins(t *testing.T) {
 	}
 	require.NoError(t, store.CreateExtractionJob(ctx, job))
 
-	ok1, err := store.ClaimExtractionJob(ctx, job.ID)
+	ok1, epoch1, err := store.ClaimExtractionJob(ctx, job.ID)
 	require.NoError(t, err)
 	assert.True(t, ok1)
+	assert.Positive(t, epoch1, "the winner holds a lease")
 
-	ok2, err := store.ClaimExtractionJob(ctx, job.ID)
+	ok2, _, err := store.ClaimExtractionJob(ctx, job.ID)
 	require.NoError(t, err)
 	assert.False(t, ok2)
 }

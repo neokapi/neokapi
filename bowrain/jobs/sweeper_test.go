@@ -180,7 +180,7 @@ func TestSweepStaleProcessing_RequeuesAndFails(t *testing.T) {
 	gotC, err := store.GetJob(ctx, jobC.ID)
 	require.NoError(t, err)
 	assert.Equal(t, StatusFailed, gotC.Status)
-	assert.Contains(t, gotC.Error, "stalled in processing")
+	assert.Contains(t, gotC.Error, "stalled before completion")
 }
 
 // TestClaimJob_LeaseEpochInvalidatesAbandonedWorker proves the double-run guard

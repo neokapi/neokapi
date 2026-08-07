@@ -783,4 +783,18 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE blocks ADD COLUMN word_count INTEGER;
 		`,
 	},
+	{
+		Version:     17,
+		Description: "a redelivered event files one line and tells one person once",
+		SQL: `
+			-- Mirrors the Postgres baseline: the event a row came from is what
+			-- makes a second delivery of it a no-op rather than a duplicate.
+			ALTER TABLE notifications ADD COLUMN source_event_id TEXT NOT NULL DEFAULT '';
+			CREATE UNIQUE INDEX notifications_user_source_event
+				ON notifications(user_id, source_event_id) WHERE source_event_id <> '';
+			ALTER TABLE activities ADD COLUMN event_id TEXT NOT NULL DEFAULT '';
+			CREATE UNIQUE INDEX activities_event_id
+				ON activities(event_id) WHERE event_id <> '';
+		`,
+	},
 }
