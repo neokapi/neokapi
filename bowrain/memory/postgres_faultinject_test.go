@@ -37,7 +37,7 @@ func TestLoadEntriesByIDs_VariantsQueryFailureSurfaces(t *testing.T) {
 
 	// Break the variants read only — tm_entries is untouched — so the failure is
 	// isolated to the variants query the old code swallowed.
-	_, err = db.Exec(`ALTER TABLE tm_variants RENAME COLUMN coded TO coded_broken`)
+	_, err = db.ExecContext(ctx, `ALTER TABLE tm_variants RENAME COLUMN coded TO coded_broken`)
 	require.NoError(t, err)
 
 	_, _, err = tm.GetEntry(ctx, "e1")

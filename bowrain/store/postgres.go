@@ -486,10 +486,10 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 	// stream. Dropping them stops a later re-push of the same block id from
 	// resurrecting stale targets onto new source text.
 	for _, table := range []string{"translations", "annotations", "overlays_ext", "block_history"} {
-		if _, err := tx.ExecContext(ctx,
-			`DELETE FROM `+table+` WHERE project_id=$1 AND stream=$2
-			 AND block_id IN (SELECT id FROM blocks WHERE project_id=$1 AND item_name=$3)`,
-			projectID, stream, itemName); err != nil {
+		//nolint:gosec // table is a fixed literal from the loop above, never user input
+		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND stream=$2
+			 AND block_id IN (SELECT id FROM blocks WHERE project_id=$1 AND item_name=$3)`
+		if _, err := tx.ExecContext(ctx, q, projectID, stream, itemName); err != nil {
 			return fmt.Errorf("delete %s for item %q: %w", table, itemName, err)
 		}
 	}
@@ -1048,8 +1048,9 @@ func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, stream, bloc
 	// A block is shared across streams and removed project-wide, so its overlays
 	// go with it in every stream — otherwise a re-push of the id resurrects them.
 	for _, table := range []string{"translations", "annotations", "overlays_ext", "block_history"} {
-		if _, err := tx.ExecContext(ctx,
-			`DELETE FROM `+table+` WHERE project_id=$1 AND block_id=$2`, projectID, blockID); err != nil {
+		//nolint:gosec // table is a fixed literal from the loop above, never user input
+		q := `DELETE FROM ` + table + ` WHERE project_id=$1 AND block_id=$2`
+		if _, err := tx.ExecContext(ctx, q, projectID, blockID); err != nil {
 			return fmt.Errorf("delete %s for block %s: %w", table, blockID, err)
 		}
 	}
