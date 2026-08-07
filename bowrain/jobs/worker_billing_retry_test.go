@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
+	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,6 +33,13 @@ func (s *flakyLeaseStore) RenewLease(ctx context.Context, id string, epoch int64
 		return false, errors.New("connection reset by peer")
 	}
 	return s.JobStore.RenewLease(ctx, id, epoch)
+}
+
+// renewals counts lease reads, one per chunk the run reached.
+func (s *flakyLeaseStore) renewals() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.calls
 }
 
 // seedChunkedItem writes enough blocks to span several progress chunks, so the
@@ -123,6 +131,74 @@ func TestWorkerBilling_RetryAfterPartialRunChargesOnce(t *testing.T) {
 
 	assert.Equal(t, oneRun, f.spent(t, retried, grant),
 		"a job that failed late and retried costs one job")
+}
+
+// TestWorkerTranslate_RetryResumesWhereItStopped is the work half of the same
+// story. The ledger guard makes a redone chunk free; resuming makes it undone.
+// The finished chunks are already in the overlay table, so the retry has only
+// the remainder to translate — and the provider is asked for it once.
+func TestWorkerTranslate_RetryResumesWhereItStopped(t *testing.T) {
+	f := newBillingWorkerFixture(t)
+	ctx := t.Context()
+	const (
+		grant   = int64(5_000_000)
+		wsID    = "ws-resume"
+		chunks  = 3
+		nBlocks = chunks * translationProgressChunk
+	)
+	f.seedChunkedItem(t, "resume.json", nBlocks)
+	require.NoError(t, f.billing.GrantCredits(ctx, wsID, grant, billing.SourcePlan))
+
+	flaky := &flakyLeaseStore{JobStore: f.deps.JobStore, failAt: 2}
+	f.deps.JobStore = flaky
+	job := f.chunkedJob("job-resume", wsID, "resume.json")
+	require.NoError(t, f.deps.JobStore.CreateJob(ctx, job))
+	claimed, epoch, err := f.deps.JobStore.ClaimJob(ctx, job.ID)
+	require.NoError(t, err)
+	require.True(t, claimed)
+	require.Error(t, executeTranslationWithDeps(ctx, f.deps, job, epoch))
+
+	stopped, err := f.deps.JobStore.GetJob(ctx, job.ID)
+	require.NoError(t, err)
+	require.Equal(t, translationProgressChunk, stopped.DoneBlocks,
+		"the chunk that completed is recorded as done")
+	require.Equal(t, translationProgressChunk, countTranslated(t, f, "fr"),
+		"and its translations are already persisted")
+
+	requeued, err := f.deps.JobStore.RetryOrFail(ctx, job.ID, epoch, 3, "connection reset by peer")
+	require.NoError(t, err)
+	require.True(t, requeued)
+	flaky.failAt = 0
+	retry, err := f.deps.JobStore.GetJob(ctx, job.ID)
+	require.NoError(t, err)
+	claimed, epoch, err = f.deps.JobStore.ClaimJob(ctx, job.ID)
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	before := flaky.renewals()
+	require.NoError(t, executeTranslationWithDeps(ctx, f.deps, retry, epoch))
+
+	assert.Equal(t, chunks-1, flaky.renewals()-before,
+		"the retry works the remaining chunks and no more")
+	assert.Equal(t, nBlocks, countTranslated(t, f, "fr"), "every block ends up translated")
+}
+
+// countTranslated counts the project's blocks carrying a target for a locale.
+func countTranslated(t *testing.T, f *billingWorkerFixture, locale model.LocaleID) int {
+	t.Helper()
+	blocks, err := f.deps.ContentStore.GetBlocks(t.Context(), store.BlockQuery{
+		ProjectID: f.projectID,
+		Stream:    "main",
+		ItemName:  "resume.json",
+	})
+	require.NoError(t, err)
+	n := 0
+	for _, b := range blocks {
+		if b.Block.Target(locale) != nil {
+			n++
+		}
+	}
+	return n
 }
 
 // TestWorkerBilling_RedeliveredJobChargesOnce covers the other at-least-once

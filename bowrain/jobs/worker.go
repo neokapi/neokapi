@@ -552,9 +552,26 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		return nil
 	}
 
+	// Where this attempt starts. Chunks persist as they complete, so an attempt
+	// that died partway left finished translations behind and a done_blocks that
+	// says how many — resuming there is what stops a retry from paying to
+	// translate them again. Only a remainder of the same size can be resumed
+	// into: the blocks are ordered by id and the recycle pass reshapes the
+	// slice, so a different total means the offsets no longer name the same
+	// blocks, and the attempt starts over rather than guess.
+	resumeFrom := 0
+	if job.DoneBlocks > 0 && job.DoneBlocks < totalBlocks && job.TotalBlocks == totalBlocks {
+		resumeFrom = job.DoneBlocks - job.DoneBlocks%translationProgressChunk
+	}
+	if resumeFrom > 0 {
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Resuming at block %d of %d", resumeFrom+1, totalBlocks),
+			map[string]string{"done": strconv.Itoa(resumeFrom), "total": strconv.Itoa(totalBlocks)})
+	}
+
 	// Reset the progress denominator to the AI remainder so a run that recycled
 	// most of its blocks doesn't look stuck at N/original.
-	if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, epoch, 0, totalBlocks); err != nil {
+	if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, epoch, resumeFrom, totalBlocks); err != nil {
 		return fmt.Errorf("reset total blocks: %w", err)
 	}
 
@@ -582,11 +599,10 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	// Process blocks in progress-reporting chunks. The tool handles
 	// internal batching + concurrency; we chunk for progress updates.
 	const progressChunk = translationProgressChunk
-	var allOutParts []*model.Part
 	totalTokensUsed := 0
 	prevUsage := translateTool.TotalUsage()
 
-	for i := 0; i < totalBlocks; i += progressChunk {
+	for i := resumeFrom; i < totalBlocks; i += progressChunk {
 		end := min(i+progressChunk, totalBlocks)
 		chunk := storedBlocks[i:end]
 
@@ -600,7 +616,6 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		if err != nil {
 			return fmt.Errorf("translate chunk %d-%d: %w", i, end, err)
 		}
-		allOutParts = append(allOutParts, outParts...)
 
 		// Lease gate: only bill + persist this chunk while we still own the job.
 		// If a (possibly slow) chunk let the sweeper resurrect the job and a
@@ -665,6 +680,29 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 				fmt.Sprintf("%s:%d", job.ID, i))
 		}
 
+		// Store this chunk's translations before its progress is recorded, so
+		// done_blocks never claims more than the overlay table holds and a
+		// resumed attempt cannot skip a block it never wrote. Targets land in
+		// the `translations` overlay table via StoreBlocks — no separate overlay
+		// write is needed: `ContentStore.StoreBlocks` extracts
+		// `block.Targets[locale]` and upserts to the translations table
+		// directly.
+		blocks := partsToBlocks(outParts)
+		if len(blocks) > 0 {
+			if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, jobStream, blocks); err != nil {
+				return fmt.Errorf("store blocks: %w", err)
+			}
+			// Score the AI drafts against the standing voice profile (deterministic
+			// vocabulary check, zero AI) so the dashboard's on-brand rate is
+			// voice-informed for every drafted block.
+			persistDraftVoiceScores(ctx, deps, job, draftProfile(), blocks, tgtLocale)
+			// AI drafts do NOT enter the content memory. The corpus has one door
+			// in — wording a decision approved (PromoteDecisionsToMemory) — so a
+			// guess can never be offered back as approved wording. Draft reuse
+			// within a run is the block store's job: identical source means an
+			// identical content hash, exact-match only, labeled for what it is.
+		}
+
 		// Update progress.
 		if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, epoch, end, totalBlocks); err != nil {
 			slog.WarnContext(ctx, "update progress failed", "job_id", job.ID, "error", err)
@@ -679,40 +717,6 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 
 	// Update total token usage on the job.
 	job.TokensUsed = totalTokensUsed
-
-	// Final ownership check before persisting: if the lease was lost after the
-	// last chunk gate, do not write the translations — the fresh owner will, and
-	// overwriting its output (or marking the job completed) would corrupt the
-	// resurrected run.
-	owner, lerr := deps.JobStore.RenewLease(ctx, job.ID, epoch)
-	if lerr != nil {
-		return fmt.Errorf("renew lease: %w", lerr)
-	}
-	if !owner {
-		return errLeaseLost
-	}
-
-	// Store translated blocks. Targets land in the `translations`
-	// overlay table via StoreBlocks (#405) — no separate overlay
-	// write is needed: `ContentStore.StoreBlocks` now extracts
-	// `block.Targets[locale]` and upserts to the translations table
-	// directly. The former #404 dual-write against
-	// blockstore.PutOverlay is retired along with `blocks.targets_json`.
-	blocks := partsToBlocks(allOutParts)
-	if len(blocks) > 0 {
-		if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, jobStream, blocks); err != nil {
-			return fmt.Errorf("store blocks: %w", err)
-		}
-		// Score the AI drafts against the standing voice profile (deterministic
-		// vocabulary check, zero AI) so the dashboard's on-brand rate is
-		// voice-informed for every drafted block.
-		persistDraftVoiceScores(ctx, deps, job, draftProfile(), blocks, tgtLocale)
-		// AI drafts do NOT enter the content memory. The corpus has one door
-		// in — wording a decision approved (PromoteDecisionsToMemory) — so a
-		// guess can never be offered back as approved wording. Draft reuse
-		// within a run is the block store's job: identical source means an
-		// identical content hash, exact-match only, labeled for what it is.
-	}
 
 	return nil
 }
