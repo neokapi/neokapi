@@ -135,30 +135,20 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 }
 
 // Write consumes Parts from a channel and writes reconstructed Markdown.
+//
+// The skeleton path collects, because it renders in skeleton order rather than
+// stream order. The generative path does not have to: a table whose width its
+// reader declared up front is rendered a row at a time as the rows arrive, so a
+// spreadsheet with a million cells costs one row of memory instead of a million
+// blocks. Everything else still accumulates — those documents are small, and
+// the buffered path is the one the fixtures pin.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
-	blocksByID := make(map[string]*model.Block)
+	var blocksByID map[string]*model.Block
+	if w.skeletonStore != nil {
+		blocksByID = make(map[string]*model.Block)
+	}
 	var events []*model.Part // blocks + group brackets, in stream order
 
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case part, ok := <-parts:
-			if !ok {
-				goto done
-			}
-			switch part.Type {
-			case model.PartBlock:
-				if block, ok := part.Resource.(*model.Block); ok {
-					blocksByID[block.ID] = block
-					events = append(events, part)
-				}
-			case model.PartGroupStart, model.PartGroupEnd:
-				events = append(events, part)
-			}
-		}
-	}
-done:
 	// Wrap the output writer with a per-line trim that mirrors upstream
 	// Okapi's MarkdownFilterWriter.trimNonEssentialTrailingSpaces (see
 	// MarkdownFilterWriter.java:103-122): on each line break, if the
@@ -177,6 +167,62 @@ done:
 	tw := newTrailSpaceTrimmer(w.Output)
 	defer func() { _ = tw.Flush() }()
 
+	var st *streamTable
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				goto done
+			}
+			// A table already being streamed consumes everything up to its own
+			// GroupEnd.
+			if st != nil {
+				finished, err := st.consume(part)
+				if err != nil {
+					return err
+				}
+				if finished {
+					st = nil
+				}
+				continue
+			}
+			if blocksByID == nil && isStreamableTable(part) {
+				// Render what came before, then stream the table rather than
+				// collecting it. Nothing after it needs these events.
+				if err := w.writeFromEvents(events, tw); err != nil {
+					return err
+				}
+				events = nil
+				st = w.newStreamTable(part, tw)
+				continue
+			}
+			switch part.Type {
+			case model.PartBlock:
+				if block, ok := part.Resource.(*model.Block); ok {
+					if blocksByID != nil {
+						blocksByID[block.ID] = block
+					} else if rendersNothing(block) {
+						// Nothing downstream renders it, so there is no reason
+						// to hold it until the render skips it. A spreadsheet's
+						// shared-string table is 157k of these.
+						continue
+					}
+					events = append(events, part)
+				}
+			case model.PartGroupStart, model.PartGroupEnd:
+				events = append(events, part)
+			}
+		}
+	}
+done:
+	if st != nil {
+		if err := st.finish(); err != nil {
+			return err
+		}
+	}
 	// Mode 1: Skeleton store (byte-exact, streaming-friendly).
 	if w.skeletonStore != nil {
 		if err := w.writeFromSkeleton(w.skeletonStore, blocksByID, tw); err != nil {
@@ -583,27 +629,8 @@ func (w *Writer) assembleFlatCells(cells []*model.Block) (caption string, rows [
 // type, not its source-format Data, so the same Markdown results whatever the
 // source format.
 func (w *Writer) writeBlockMarkdown(block *model.Block, out io.Writer) error {
-	// "omml-nor" blocks are the translatable prose spans of an OpenXML equation,
-	// surfaced for docx write-back; their text is already in the formula's LaTeX,
-	// so skip them in cross-format output to avoid duplication.
-	if block.Type == "omml-nor" {
-		return nil
-	}
-	// A spreadsheet's shared-string table is deduplicated storage, not a
-	// position in the document: every string it holds is emitted again as the
-	// worksheet cell that uses it, carrying an address. Rendering both puts the
-	// whole sheet in the output twice. The blocks are still the right extraction
-	// unit for translation — this skip is generative-path only.
-	if block.Type == "shared-string" {
-		return nil
-	}
-	// An Excel ListObject's column names (xl/tables/*.xml) are definitions, not
-	// positions: the worksheet's own header-row cells already carry the same
-	// text at a real address. Rendering both appends the header row again as
-	// loose paragraphs after the table — the parts are read after the
-	// worksheets. Still the right extraction unit (a column name is visible in
-	// Excel's filter UI), so this too is generative-path only.
-	if block.Type == "table-column" {
+
+	if rendersNothing(block) {
 		return nil
 	}
 	// A drawing's name, alt text and object title are graphic metadata, not

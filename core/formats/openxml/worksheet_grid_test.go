@@ -1,6 +1,7 @@
 package openxml
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
 	"io"
@@ -14,16 +15,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A worksheet has no row container to bracket — a row is an addressing fact,
-// not a markup element — so cells arrive as a flat stream. The reader records
-// each cell's geometry, but without a table-cell role nothing downstream saw a
-// grid: core/projection assembles tables from cell roles, so every cell fell
-// through as a standalone block and a spreadsheet exported as loose paragraphs.
+// A worksheet is a table and its rows are its rows, so the reader brackets them
+// (table / table-row Groups) rather than stamping each cell with a row hint and
+// leaving every consumer to rebuild the topology by buffering the whole grid —
+// the un-normalized shape core/projection.flushFlatCells exists to salvage.
 //
-// These pin the role and the row hint the flat-cell path groups on.
+// These pin the brackets, the declared width that lets a consumer commit to a
+// column count before writing its first row, and the flat fallback that
+// survives for readers which do not bracket.
 
-// readXLSXBlocks reads a .xlsx fixture and returns its blocks in stream order.
-func readXLSXBlocks(t *testing.T, path string) []*model.Block {
+// readXLSXParts reads a .xlsx fixture and returns its full part stream.
+func readXLSXParts(t *testing.T, path string) []*model.Part {
 	t.Helper()
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -37,13 +39,22 @@ func readXLSXBlocks(t *testing.T, path string) []*model.Block {
 	}))
 	t.Cleanup(func() { _ = r.Close() })
 
-	var blocks []*model.Block
+	var parts []*model.Part
 	for pr := range r.Read(ctx) {
 		require.NoError(t, pr.Error)
-		if pr.Part == nil {
-			continue
+		if pr.Part != nil {
+			parts = append(parts, pr.Part)
 		}
-		if b, ok := pr.Part.Resource.(*model.Block); ok {
+	}
+	return parts
+}
+
+// readXLSXBlocks reads a .xlsx fixture and returns its blocks in stream order.
+func readXLSXBlocks(t *testing.T, path string) []*model.Block {
+	t.Helper()
+	var blocks []*model.Block
+	for _, p := range readXLSXParts(t, path) {
+		if b, ok := p.Resource.(*model.Block); ok {
 			blocks = append(blocks, b)
 		}
 	}
@@ -61,54 +72,107 @@ func TestWorksheetCellsCarryTableCellRole(t *testing.T) {
 		cells++
 		assert.Equal(t, model.RoleTableCell, b.SemanticRole(),
 			"cell %s should carry the canonical table-cell role", b.Properties["cell"])
-		assert.NotEmpty(t, b.Properties[projection.PropFlatRow],
-			"cell %s should carry the row hint flat-cell assembly groups on", b.Properties["cell"])
+		assert.Empty(t, b.Properties[projection.PropFlatRow],
+			"cell %s should not also carry a row hint — the bracket is the topology",
+			b.Properties["cell"])
 	}
 	require.NotZero(t, cells, "fixture should contain worksheet cells")
 }
 
-// The row hint has to be the cell's actual row, or the grid reassembles wrong.
-func TestWorksheetRowHintMatchesTheCellAddress(t *testing.T) {
-	blocks := readXLSXBlocks(t, "testdata/EksempelFiltrering.xlsx")
+// Every cell inside one table-row bracket must come from one sheet row, or the
+// grid reassembles wrong.
+func TestWorksheetRowsBracketTheirCells(t *testing.T) {
+	parts := readXLSXParts(t, "testdata/EksempelFiltrering.xlsx")
 
-	checked := 0
-	for _, b := range blocks {
-		ref := b.Properties["cell"]
-		if b.Type != "cell" || ref == "" {
-			continue
+	rows, inRow, rowNum := 0, false, -1
+	for _, p := range parts {
+		switch p.Type {
+		case model.PartGroupStart:
+			if g, ok := p.Resource.(*model.GroupStart); ok && g.Type == "table-row" {
+				inRow, rowNum, rows = true, -1, rows+1
+			}
+		case model.PartGroupEnd:
+			inRow = false
+		case model.PartBlock:
+			b, ok := p.Resource.(*model.Block)
+			if !ok || b.Type != "cell" {
+				continue
+			}
+			require.True(t, inRow, "cell %s is outside any row bracket", b.Properties["cell"])
+			_, row, ok := parseCellRefA1(b.Properties["cell"])
+			require.True(t, ok, "unparseable cell reference %q", b.Properties["cell"])
+			if rowNum < 0 {
+				rowNum = row
+			}
+			assert.Equal(t, rowNum, row, "one bracket should hold one sheet row")
 		}
-		_, row, ok := parseCellRefA1(ref)
-		require.True(t, ok, "unparseable cell reference %q", ref)
-		assert.Equal(t, strconv.Itoa(row), b.Properties[projection.PropFlatRow],
-			"cell %s row hint should match its address", ref)
-		checked++
 	}
-	require.NotZero(t, checked)
+	require.Greater(t, rows, 1, "a multi-row sheet should emit a bracket per row")
+}
+
+// The width travels with the table so a writer that must commit to a column
+// count before its first row does not have to see the last cell first.
+func TestWorksheetTableDeclaresItsWidth(t *testing.T) {
+	parts := readXLSXParts(t, "testdata/EksempelFiltrering.xlsx")
+
+	widest, declared := 0, -1
+	inRow, cells := false, 0
+	for _, p := range parts {
+		switch p.Type {
+		case model.PartGroupStart:
+			g, ok := p.Resource.(*model.GroupStart)
+			if !ok {
+				continue
+			}
+			switch g.Type {
+			case "table":
+				n, err := strconv.Atoi(g.Properties["columns"])
+				require.NoError(t, err, "a table group should declare its column count")
+				if declared < 0 {
+					declared = n
+				}
+			case "table-row":
+				inRow, cells = true, 0
+			}
+		case model.PartGroupEnd:
+			if inRow && cells > widest {
+				widest = cells
+			}
+			inRow = false
+		case model.PartBlock:
+			if b, ok := p.Resource.(*model.Block); ok && b.Type == "cell" && inRow {
+				cells++
+			}
+		}
+	}
+	require.Positive(t, declared, "no table group found")
+	assert.GreaterOrEqual(t, declared, widest,
+		"the declared width must cover the widest row, or a row would be truncated")
 }
 
 // Cells of one row must project into one row, and distinct rows into distinct
-// rows — the property the whole fix exists to deliver.
+// rows — the property the whole grid shape exists to deliver.
 func TestWorksheetProjectsToAGrid(t *testing.T) {
-	blocks := readXLSXBlocks(t, "testdata/EksempelFiltrering.xlsx")
-
-	parts := make([]*model.Part, 0, len(blocks))
-	for _, b := range blocks {
-		if b.Type != "cell" {
-			continue
-		}
-		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: b})
-	}
+	parts := readXLSXParts(t, "testdata/EksempelFiltrering.xlsx")
 	require.NotEmpty(t, parts)
 
 	root := projection.ProjectStream(parts)
 
 	var table *projection.RenderNode
-	for _, c := range root.Children {
-		if c.Role == model.RoleTable {
-			table = c
-			break
+	var find func(n *projection.RenderNode)
+	find = func(n *projection.RenderNode) {
+		if table != nil {
+			return
+		}
+		for _, c := range n.Children {
+			if c.Role == model.RoleTable {
+				table = c
+				return
+			}
+			find(c)
 		}
 	}
+	find(root)
 	require.NotNil(t, table, "worksheet cells should project to a table")
 	require.Greater(t, len(table.Children), 1,
 		"a multi-row sheet should project to multiple rows, not one flat row")
@@ -117,6 +181,53 @@ func TestWorksheetProjectsToAGrid(t *testing.T) {
 		assert.Equal(t, projection.RoleTableRow, row.Role)
 		assert.NotEmpty(t, row.Children, "every row should hold cells")
 	}
+}
+
+// A reader that cannot bracket rows still stamps the hint, so the flat-cell
+// fallback in core/projection keeps working. The sml parser brackets only when
+// the reader wired an emitter for structure parts.
+func TestUnbracketedCellsKeepTheRowHint(t *testing.T) {
+	data, err := os.ReadFile("testdata/EksempelFiltrering.xlsx")
+	require.NoError(t, err)
+
+	blockCounter := 0
+	cfg := &Config{}
+	cfg.Reset()
+	p := &smlParser{cfg: cfg, blockCounter: &blockCounter}
+
+	sheet := xlsxPart(t, data, "xl/worksheets/sheet1.xml")
+	var cells int
+	require.NoError(t, p.parseWorksheet(sheet, "xl/worksheets/sheet1.xml", func(b *model.Block) {
+		if b.Type != "cell" {
+			return
+		}
+		cells++
+		_, row, ok := parseCellRefA1(b.Properties["cell"])
+		require.True(t, ok)
+		assert.Equal(t, strconv.Itoa(row), b.Properties[projection.PropFlatRow],
+			"an unbracketed cell should carry the row hint the fallback groups on")
+	}))
+	require.NotZero(t, cells)
+}
+
+// xlsxPart returns one entry of a .xlsx by name.
+func xlsxPart(t *testing.T, data []byte, name string) []byte {
+	t.Helper()
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	require.NoError(t, err)
+	for _, f := range zr.File {
+		if f.Name != name {
+			continue
+		}
+		rc, err := f.Open()
+		require.NoError(t, err)
+		defer rc.Close()
+		b, err := io.ReadAll(rc)
+		require.NoError(t, err)
+		return b
+	}
+	t.Fatalf("%s not found in fixture", name)
+	return nil
 }
 
 // A workbook is a sequence of sheets and that boundary is real: without it

@@ -28,6 +28,38 @@ type smlParser struct {
 	// tableColumnSeq positions a <tableColumn> that carries no `id` attribute,
 	// counted within the table part it belongs to.
 	tableColumnSeq int
+	// emitPart, when set, emits a Part directly to the reader's output channel,
+	// which is how a worksheet's table/table-row groups reach it — they are
+	// structure, not blocks. Additive and skeleton-free, so the byte-exact
+	// round-trip is unaffected. Groups are skipped entirely when unset.
+	emitPart func(*model.Part)
+	// groupCounter names the emitted groups.
+	groupCounter int
+}
+
+func (p *smlParser) nextGroupID() string {
+	p.groupCounter++
+	return fmt.Sprintf("sg%d", p.groupCounter)
+}
+
+// openGroup emits a GroupStart and returns its ID; closeGroup ends it. Both are
+// no-ops when the reader did not wire emitPart.
+func (p *smlParser) openGroup(kind string, props map[string]string) string {
+	if p.emitPart == nil {
+		return ""
+	}
+	id := p.nextGroupID()
+	p.emitPart(&model.Part{Type: model.PartGroupStart, Resource: &model.GroupStart{
+		ID: id, Name: kind, Type: kind, Properties: props,
+	}})
+	return id
+}
+
+func (p *smlParser) closeGroup(id string) {
+	if p.emitPart == nil || id == "" {
+		return
+	}
+	p.emitPart(&model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{ID: id}})
 }
 
 // parsePart routes to the appropriate sub-parser based on the part path.
@@ -179,6 +211,22 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 
 	p.emitSheetHeading(partPath, emitBlock)
 
+	// A worksheet is a table, and its rows are its rows. Bracketing them is what
+	// lets a consumer render the grid one row at a time; without the brackets
+	// the topology is only recoverable by buffering every cell and rebuilding it
+	// (core/projection.flushFlatCells says as much). The width travels on the
+	// group so a writer that must commit to a column count before its first row
+	// — GFM puts the delimiter row second — does not have to see the last cell
+	// first.
+	tableID := ""
+	if p.emitPart != nil {
+		tableID = p.openGroup("table", map[string]string{
+			"columns": strconv.Itoa(sheetWidth(data)),
+		})
+		defer func() { p.closeGroup(tableID) }()
+	}
+	rowID := ""
+
 	var inRow, inCell, inValue bool
 	var cellType, cellRef string
 	var cellText strings.Builder
@@ -268,6 +316,19 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 					text := cellText.String()
 					translatable := false
 
+					// The row bracket opens on the row's first surfaced cell,
+					// not on <row>: Excel writes rows carrying only styling, and
+					// an empty bracket would put an empty row in every
+					// consumer's grid. Both kinds of cell open it — an
+					// inline-string cell is translatable and emitted directly,
+					// a shared-string or literal one is surfaced as an anchor,
+					// and a sheet made of either is still a grid.
+					openRow := func() {
+						if rowID == "" {
+							rowID = p.openGroup("table-row", nil)
+						}
+					}
+
 					switch cellType {
 					case "s":
 						// Shared string references are handled in sharedStrings.xml.
@@ -286,6 +347,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 					}
 
 					if translatable && strings.TrimSpace(text) != "" {
+						openRow()
 						*p.blockCounter++
 						blockID := fmt.Sprintf("tu%d", *p.blockCounter)
 						p.skelRef(blockID)
@@ -298,7 +360,6 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 							Type:         "cell",
 							Translatable: true,
 							Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
-							Targets:      make(map[model.VariantKey]*model.Target),
 							Properties:   map[string]string{"partPath": partPath, "cell": cellRef},
 						}
 						// Intrinsic cell-grid geometry (WS2): a literal/inline-string
@@ -311,7 +372,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 						if g := cellGeometry(cellRef, partPath, merges); g != nil {
 							block.SetGeometry(g)
 						}
-						markGridCell(block, cellRef)
+						markGridCell(block, cellRef, p.emitPart != nil)
 						emitBlock(block)
 					} else {
 						p.skelWriteString("<v>")
@@ -328,8 +389,10 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 						if cellRef != "" && p.cfg != nil && p.cfg.ExtractNonTranslatableContent() {
 							switch {
 							case cellType == "s":
+								openRow()
 								p.emitSharedCellAnchor(text, cellRef, partPath, merges, emitBlock)
 							case strings.TrimSpace(text) != "":
+								openRow()
 								p.emitLiteralCellAnchor(text, cellRef, partPath, merges, emitBlock)
 							}
 						}
@@ -347,6 +410,8 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 			case "row":
 				inRow = false
 				p.skelWriteEndElement(t)
+				p.closeGroup(rowID)
+				rowID = ""
 
 			default:
 				if !inCell {
@@ -433,7 +498,6 @@ func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, merg
 		Type:         "cell",
 		Translatable: false,
 		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
-		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties: map[string]string{
 			"partPath": partPath,
 			"cell":     cellRef,
@@ -443,7 +507,7 @@ func (p *smlParser) emitSharedCellAnchor(idxText, cellRef, partPath string, merg
 	if g := cellGeometry(cellRef, partPath, merges); g != nil {
 		block.SetGeometry(g)
 	}
-	markGridCell(block, cellRef)
+	markGridCell(block, cellRef, p.emitPart != nil)
 	emitBlock(block)
 }
 
@@ -460,13 +524,12 @@ func (p *smlParser) emitLiteralCellAnchor(text, cellRef, partPath string, merges
 		Type:         "cell",
 		Translatable: false,
 		Source:       []model.Run{{Text: &model.TextRun{Text: text}}},
-		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties:   map[string]string{"partPath": partPath, "cell": cellRef},
 	}
 	if g := cellGeometry(cellRef, partPath, merges); g != nil {
 		block.SetGeometry(g)
 	}
-	markGridCell(block, cellRef)
+	markGridCell(block, cellRef, p.emitPart != nil)
 	emitBlock(block)
 }
 
@@ -480,16 +543,80 @@ func (p *smlParser) emitLiteralCellAnchor(text, cellRef, partPath string, merges
 // so every cell fell through as a standalone block and a spreadsheet exported as
 // a run of loose paragraphs. The role plus projection.PropFlatRow is exactly
 // what the flat-cell fallback was built to consume.
-func markGridCell(block *model.Block, cellRef string) {
+func markGridCell(block *model.Block, cellRef string, bracketed bool) {
 	_, row, ok := parseCellRefA1(cellRef)
 	if !ok {
 		return
 	}
 	block.SetSemanticRole(model.RoleTableCell, 0)
+	if bracketed {
+		// The row bracket carries the topology. A per-cell row hint would be
+		// the same fact stored a second time, on every cell — and on a
+		// spreadsheet that is an entry in a Go map per cell, which costs more
+		// than the text it accompanies.
+		return
+	}
 	if block.Properties == nil {
 		block.Properties = make(map[string]string)
 	}
 	block.Properties[projection.PropFlatRow] = strconv.Itoa(row)
+}
+
+// rowOpenTag and cellOpenTag find a worksheet's `<row …>` and `<c …>` starts.
+var rowOpenTag = []byte("<row")
+var cellOpenTag = []byte("<c")
+
+// sheetWidth reports the widest row a worksheet has, in populated cells.
+//
+// A consumer that must commit to a column count before writing its first row —
+// GFM puts the delimiter row second — otherwise has to buffer the whole grid to
+// discover it. This is that number, measured rather than declared: `<dimension>`
+// is optional and Excel leaves it stale often enough that trusting it would mean
+// silently truncating a row. The scan allocates nothing and runs over bytes that
+// are already in memory, so it costs a fraction of the parse it precedes.
+//
+// Populated cells per row, not the maximum column index, because that is what
+// the grid's consumers count: a worksheet omits empty cells rather than
+// emitting blanks, and a sparse row renders as its cells in sequence. (Placing
+// each cell at its true column would be more faithful to the sheet and is worth
+// doing, but it is a change to output rather than to memory — see #1711.)
+func sheetWidth(data []byte) int {
+	widest, inRow := 0, 0
+	for i := 0; i < len(data); {
+		next := bytes.IndexByte(data[i:], '<')
+		if next < 0 {
+			break
+		}
+		i += next
+		switch {
+		case bytes.HasPrefix(data[i:], rowOpenTag):
+			inRow = 0
+		case bytes.HasPrefix(data[i:], []byte("</row")):
+			if inRow > widest {
+				widest = inRow
+			}
+		case bytes.HasPrefix(data[i:], cellOpenTag) && isTagBoundary(data, i+len(cellOpenTag)):
+			inRow++
+		}
+		i++
+	}
+	if inRow > widest { // a final row whose close tag the scan never saw
+		widest = inRow
+	}
+	return widest
+}
+
+// isTagBoundary reports whether position i ends an element name rather than
+// continuing it, so `<c ` and `<c/>` count while `<cols>` does not.
+func isTagBoundary(data []byte, i int) bool {
+	if i >= len(data) {
+		return false
+	}
+	switch data[i] {
+	case ' ', '\t', '\r', '\n', '/', '>':
+		return true
+	}
+	return false
 }
 
 // mergeSpan is a merged-cell range's extent in cells (cols × rows), ≥1 each.
@@ -681,7 +808,6 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 		Type:         "shared-string",
 		Translatable: true,
 		Source:       b.Runs(),
-		Targets:      make(map[model.VariantKey]*model.Target),
 		Properties: map[string]string{
 			"partPath": partPath,
 			"siIndex":  strconv.Itoa(siIndex),
