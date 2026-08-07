@@ -72,8 +72,7 @@ func TestEvaluateChangeSet_CancelledContextIsAnError(t *testing.T) {
 	cancel()
 
 	imp, err := e.EvaluateChangeSet(ctx, "ws", ChangeSet{}, nil, EvalOptions{})
-	require.Error(t, err)
-	assert.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, err, context.Canceled)
 	assert.Nil(t, imp)
 }
 
