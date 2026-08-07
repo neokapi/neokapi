@@ -1,0 +1,83 @@
+package format
+
+import (
+	"fmt"
+
+	"github.com/neokapi/neokapi/core/internal/xmlesc"
+	"github.com/neokapi/neokapi/core/model"
+)
+
+// UnrepresentableValueError reports a block whose text a format cannot
+// serialize, naming both the block and the offending character.
+//
+// It exists because the alternatives are worse. Stripping the character loses
+// content the pipeline was asked to carry; emitting it produces a document that
+// will not reopen, which surfaces arbitrarily far downstream — a merge, a
+// re-extraction, or a customer's editor. A character outside a format's
+// representable set reaches a writer only because a tool put it there, so the
+// honest response is to name the block and stop.
+type UnrepresentableValueError struct {
+	// Format is the writer's format id.
+	Format string
+	// BlockID and BlockName identify the content that carries the character.
+	BlockID   string
+	BlockName string
+	// Locale is the variant being written, empty when writing the source.
+	Locale model.LocaleID
+	// Err is the format-level reason, e.g. *xmlesc.UnrepresentableCharError.
+	Err error
+}
+
+func (e *UnrepresentableValueError) Error() string {
+	where := e.BlockID
+	if e.BlockName != "" {
+		where = fmt.Sprintf("%s (%s)", e.BlockID, e.BlockName)
+	}
+	if !e.Locale.IsEmpty() {
+		where = fmt.Sprintf("%s [%s]", where, e.Locale)
+	}
+	return fmt.Sprintf("%s writer: block %s: %v", e.Format, where, e.Err)
+}
+
+func (e *UnrepresentableValueError) Unwrap() error { return e.Err }
+
+// CheckXMLText returns an *UnrepresentableValueError when the markup a writer is
+// about to emit for block carries a character XML 1.0 cannot represent.
+//
+// It is called on the rendered string rather than on the block's runs:
+// escaping neither introduces nor removes control characters, and the rendered
+// form also covers inline-code data a tool may have edited.
+func CheckXMLText(formatName string, locale model.LocaleID, block *model.Block, rendered string) error {
+	err := xmlesc.CheckText(rendered)
+	if err == nil {
+		return nil
+	}
+	e := &UnrepresentableValueError{Format: formatName, Locale: locale, Err: err}
+	if block != nil {
+		e.BlockID = block.ID
+		e.BlockName = block.Name
+	}
+	return e
+}
+
+// CheckXMLBlock is CheckXMLText over every text a writer could emit for a
+// block: its source and each target variant. It suits a writer that serializes
+// a block through several call sites, where one check at the block boundary
+// covers them all.
+func CheckXMLBlock(formatName string, block *model.Block) error {
+	if block == nil {
+		return nil
+	}
+	if err := CheckXMLText(formatName, "", block, model.RenderRunsWithData(block.Source)); err != nil {
+		return err
+	}
+	for key, target := range block.Targets {
+		if target == nil {
+			continue
+		}
+		if err := CheckXMLText(formatName, key.Locale, block, model.RenderRunsWithData(target.Runs)); err != nil {
+			return err
+		}
+	}
+	return nil
+}

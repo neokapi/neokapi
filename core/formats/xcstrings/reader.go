@@ -419,6 +419,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("xcstrings: reading: %w", err)}
 		return
 	}
+	bom, content := format.SplitBOM(content)
+	r.skelText(string(bom))
 
 	cat, err := parseCatalog(content)
 	if err != nil {

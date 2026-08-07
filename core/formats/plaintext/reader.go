@@ -151,6 +151,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// ToUTF8 strips the mark along with the encoding it announces; the skeleton
+	// carries it back so write-back stays byte-exact.
+	if bom, _ := format.SplitBOM(raw); len(bom) > 0 {
+		r.skelText(string(bom))
+	}
+
 	switch {
 	case r.cfg.SpliceLines:
 		r.readSpliced(ctx, ch, string(utf8Bytes))

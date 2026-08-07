@@ -499,23 +499,14 @@ func (tb *SQLiteStore) searchFTS5(ctx context.Context, query string, sourceLocal
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := scanConceptIDs(rows)
+	if err != nil {
 		return nil, 0, err
 	}
 
-	var concepts []Concept
-	for _, id := range ids {
-		if c, err := tb.scanConcept(ctx, id); err == nil {
-			concepts = append(concepts, c)
-		}
+	concepts, err := tb.loadConcepts(ctx, ids)
+	if err != nil {
+		return nil, 0, err
 	}
 	return concepts, total, nil
 }
@@ -555,23 +546,14 @@ func (tb *SQLiteStore) searchLike(ctx context.Context, query string, sourceLocal
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := scanConceptIDs(rows)
+	if err != nil {
 		return nil, total, err
 	}
 
-	var concepts []Concept
-	for _, id := range ids {
-		if c, err := tb.scanConcept(ctx, id); err == nil {
-			concepts = append(concepts, c)
-		}
+	concepts, err := tb.loadConcepts(ctx, ids)
+	if err != nil {
+		return nil, total, err
 	}
 	return concepts, total, nil
 }
@@ -636,23 +618,14 @@ func (tb *SQLiteStore) searchFTS5ForStream(ctx context.Context, query string, so
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := scanConceptIDs(rows)
+	if err != nil {
 		return nil, 0, err
 	}
 
-	var concepts []Concept
-	for _, id := range ids {
-		if c, err := tb.scanConcept(ctx, id); err == nil {
-			concepts = append(concepts, c)
-		}
+	concepts, err := tb.loadConcepts(ctx, ids)
+	if err != nil {
+		return nil, 0, err
 	}
 	return concepts, total, nil
 }
@@ -709,23 +682,14 @@ func (tb *SQLiteStore) searchLikeForStream(ctx context.Context, query string, so
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := scanConceptIDs(rows)
+	if err != nil {
 		return nil, total, err
 	}
 
-	var concepts []Concept
-	for _, id := range ids {
-		if c, err := tb.scanConcept(ctx, id); err == nil {
-			concepts = append(concepts, c)
-		}
+	concepts, err := tb.loadConcepts(ctx, ids)
+	if err != nil {
+		return nil, total, err
 	}
 	return concepts, total, nil
 }
@@ -739,7 +703,9 @@ func (tb *SQLiteStore) Count(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-// Concepts returns all concepts.
+// Concepts returns all concepts. Callers that write the result out — TBX
+// export, JSON/CSV import diffing, concept sync — depend on it being all of
+// them or an error, never a silently short list.
 func (tb *SQLiteStore) Concepts(ctx context.Context) ([]Concept, error) {
 	rows, err := tb.db.QueryContext(ctx, "SELECT id FROM tb_concepts ORDER BY id")
 	if err != nil {
@@ -747,25 +713,11 @@ func (tb *SQLiteStore) Concepts(ctx context.Context) ([]Concept, error) {
 	}
 	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			continue
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := scanConceptIDs(rows)
+	if err != nil {
 		return nil, err
 	}
-
-	var concepts []Concept
-	for _, id := range ids {
-		if c, err := tb.scanConcept(ctx, id); err == nil {
-			concepts = append(concepts, c)
-		}
-	}
-	return concepts, nil
+	return tb.loadConcepts(ctx, ids)
 }
 
 // LocaleStat holds the term count for a single locale.
@@ -787,7 +739,7 @@ func (tb *SQLiteStore) LocaleStats(ctx context.Context) ([]LocaleStat, error) {
 	for rows.Next() {
 		var s LocaleStat
 		if err := rows.Scan(&s.Locale, &s.Count); err != nil {
-			continue
+			return nil, fmt.Errorf("scan locale stat: %w", err)
 		}
 		stats = append(stats, s)
 	}
@@ -813,7 +765,7 @@ func (tb *SQLiteStore) ActivityStats(ctx context.Context) ([]ActivityStat, error
 	for rows.Next() {
 		var s ActivityStat
 		if err := rows.Scan(&s.Date, &s.Count); err != nil {
-			continue
+			return nil, fmt.Errorf("scan activity stat: %w", err)
 		}
 		stats = append(stats, s)
 	}
@@ -830,6 +782,38 @@ func (tb *SQLiteStore) Close() error {
 
 // --- internal helpers ---
 
+// scanConceptIDs collects a single-column result set of concept IDs.
+func scanConceptIDs(rows *sql.Rows) ([]string, error) {
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan concept id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// loadConcepts materializes the given IDs in order. A concept that cannot be
+// read fails the whole load: the callers turn the result into an export file or
+// a sync payload, where a missing concept is indistinguishable from a deleted
+// one.
+func (tb *SQLiteStore) loadConcepts(ctx context.Context, ids []string) ([]Concept, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	concepts := make([]Concept, 0, len(ids))
+	for _, id := range ids {
+		c, err := tb.scanConcept(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		concepts = append(concepts, c)
+	}
+	return concepts, nil
+}
+
 func (tb *SQLiteStore) scanConcept(ctx context.Context, id string) (Concept, error) {
 	var c Concept
 	var propsJSON *string
@@ -840,7 +824,7 @@ func (tb *SQLiteStore) scanConcept(ctx context.Context, id string) (Concept, err
 		FROM tb_concepts WHERE id = ?
 	`, id).Scan(&c.ID, &c.ProjectID, &c.Domain, &c.Definition, &propsJSON, &source, &createdStr, &updatedStr)
 	if err != nil {
-		return Concept{}, err
+		return Concept{}, fmt.Errorf("concept %s: %w", id, err)
 	}
 
 	c.Source = TermSource(source)
@@ -872,7 +856,7 @@ func (tb *SQLiteStore) scanConcept(ctx context.Context, id string) (Concept, err
 		var competitorInt int
 		var validFrom, validTo sql.NullString
 		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &competitorInt, &validFrom, &validTo, &tags); err != nil {
-			continue
+			return c, fmt.Errorf("concept %s: scan term: %w", id, err)
 		}
 		t.Locale = model.LocaleID(locale)
 		t.Status = model.TermStatus(status)
@@ -881,7 +865,7 @@ func (tb *SQLiteStore) scanConcept(ctx context.Context, id string) (Concept, err
 		c.Terms = append(c.Terms, t)
 	}
 	if err := rows.Err(); err != nil {
-		return c, fmt.Errorf("iterate terms: %w", err)
+		return c, fmt.Errorf("concept %s: iterate terms: %w", id, err)
 	}
 
 	return c, nil

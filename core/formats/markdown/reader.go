@@ -227,8 +227,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	if err != nil {
 		return fmt.Errorf("markdown: reading: %w", err)
 	}
+	bom, content := format.SplitBOM(content)
 	r.source = content
 	r.skelCursor = 0
+	r.skelText(string(bom))
 
 	r.blockCounter = 0
 	r.dataCounter = 0

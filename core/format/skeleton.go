@@ -136,7 +136,17 @@ func (s *SkeletonStore) SetOriginFormat(name string) { s.originFormat = name }
 // but want to avoid the writer's skeleton path when the reader produced
 // nothing — typically a partial implementation that satisfies
 // SkeletonStoreEmitter without actually emitting.
-func (s *SkeletonStore) EntriesWritten() int { return s.entries }
+// In streaming mode the counter is incremented by the reader's goroutine while
+// the writer's goroutine may be asking, so the read takes the same lock the
+// increment does.
+func (s *SkeletonStore) EntriesWritten() int {
+	if s.stream == nil {
+		return s.entries
+	}
+	s.stream.mu.Lock()
+	defer s.stream.mu.Unlock()
+	return s.entries
+}
 
 // Bytes returns a copy of the serialized skeleton stream written so far. It
 // flushes pending writes first, so it is valid to call right after the last

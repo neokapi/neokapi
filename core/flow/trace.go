@@ -154,8 +154,12 @@ func (r *TraceRecorder) Record(eventType TraceEventType, nodeID string, partID s
 
 // SnapshotPart captures a snapshot of a Part. When phase is "initial", the
 // snapshot is stored as the initial state. Otherwise, phase is treated as the
-// nodeID and stored in AfterNode.
+// nodeID and stored in AfterNode. A Part without a Resource has no identity to
+// key the snapshot by and is ignored.
 func (r *TraceRecorder) SnapshotPart(part *model.Part, nodeID string, phase string) {
+	if part == nil || part.Resource == nil {
+		return
+	}
 	snap := snapshotFromPart(part)
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -421,18 +425,6 @@ func (t *TracingTool) SetConfig(c tool.ToolConfig) error { return t.inner.SetCon
 
 // Process intercepts Parts flowing through the inner tool, recording
 // enter events on input and exit events (with snapshots) on output.
-//
-// Channel ownership: the executor creates channels and closes the output
-// channel after Process returns. BaseTool.Process does NOT close its output
-// channel — it simply returns when input is exhausted. Therefore:
-//  1. We close tracedOut after inner.Process returns so the output interceptor terminates.
-//  2. We do NOT close out — the executor handles that.
-//
-// The input interceptor must not block forever if the inner tool stops
-// reading early (mid-stream error or context cancellation): its forwarding
-// send selects on ctx.Done() and a stop channel that is closed once
-// inner.Process returns. Both interceptor goroutines are joined before
-// Process returns so neither leaks on the happy path or the cancel/error path.
 func (t *TracingTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	return t.trace(ctx, in, out, func(innerIn <-chan *model.Part, innerOut chan<- *model.Part) error {
 		return t.inner.Process(ctx, innerIn, innerOut)
@@ -455,62 +447,24 @@ func (t *TracingTool) SessionProcess(ctx context.Context, sess blockstore.Sessio
 // trace runs run() with trace-recording channels spliced around the inner
 // tool's in/out.
 func (t *TracingTool) trace(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part, run func(<-chan *model.Part, chan<- *model.Part) error) error {
-	tracedIn := make(chan *model.Part, cap(in))
-	tracedOut := make(chan *model.Part, cap(out))
+	return interceptTool(ctx, in, out, t.recordEnter, t.recordExit, run)
+}
 
-	// stop is closed once the inner tool returns, signalling the input
-	// interceptor to abandon any pending forward and exit.
-	stop := make(chan struct{})
+// recordEnter records a Part arriving at the node.
+func (t *TracingTool) recordEnter(part *model.Part) {
+	if part == nil || part.Resource == nil {
+		return
+	}
+	t.recorder.Record(TraceEnter, t.nodeID, part.Resource.ResourceID(), nil)
+}
 
-	var interceptors sync.WaitGroup
-	interceptors.Add(2)
-
-	// Input interceptor: record enter events, then forward to inner tool.
-	go func() {
-		defer interceptors.Done()
-		defer close(tracedIn)
-		for part := range in {
-			id := part.Resource.ResourceID()
-			t.recorder.Record(TraceEnter, t.nodeID, id, nil)
-			select {
-			case tracedIn <- part:
-			case <-ctx.Done():
-				return
-			case <-stop:
-				return
-			}
-		}
-	}()
-
-	// Output interceptor: record exit events and snapshots, then forward.
-	go func() {
-		defer interceptors.Done()
-		for part := range tracedOut {
-			id := part.Resource.ResourceID()
-			t.recorder.SnapshotPart(part, t.nodeID, t.nodeID)
-			t.recorder.Record(TraceExit, t.nodeID, id, nil)
-			select {
-			case out <- part:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	// Run the inner tool. BaseTool.Process returns when input is exhausted
-	// but does not close its output channel.
-	err := run(tracedIn, tracedOut)
-
-	// Signal the input interceptor to stop forwarding (the inner tool is no
-	// longer reading tracedIn) and close tracedOut so the output interceptor
-	// goroutine terminates.
-	close(stop)
-	close(tracedOut)
-
-	// Join both interceptors so neither goroutine outlives Process.
-	interceptors.Wait()
-
-	return err
+// recordExit snapshots a Part leaving the node and records its exit.
+func (t *TracingTool) recordExit(part *model.Part) {
+	if part == nil || part.Resource == nil {
+		return
+	}
+	t.recorder.SnapshotPart(part, t.nodeID, t.nodeID)
+	t.recorder.Record(TraceExit, t.nodeID, part.Resource.ResourceID(), nil)
 }
 
 // Verify TracingTool implements tool.Tool at compile time.

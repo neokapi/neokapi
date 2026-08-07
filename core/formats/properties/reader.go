@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"iter"
 	"strings"
 	"unicode/utf8"
@@ -21,6 +22,7 @@ type Reader struct {
 	cfg           *Config
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer // coalesces skeleton text between refs
+	body          io.Reader    // document bytes past any byte-order mark
 }
 
 // Ensure Reader implements SkeletonStoreEmitter and StreamingReader.
@@ -118,6 +120,17 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 		return
 	}
+
+	// Bound the streamed read with the shared safeio byte budget so an
+	// unbounded/oversized stream fails with a typed error (identical limit
+	// across CLI/server/WASM — see core/safeio).
+	bom, body, err := format.SplitBOMReader(safeio.DefaultBudget().Reader(r.Doc.Reader))
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("properties: reading: %w", err)}
+		return
+	}
+	r.body = body
+	r.skelText(bom)
 
 	blockID := 0
 	dataID := 0
@@ -352,10 +365,7 @@ func nameEntry(block *model.Block, names *model.NameBuilder, key string) {
 // for skeleton reconstruction.
 func (r *Reader) logicalLines() iter.Seq[logicalLine] {
 	return func(yield func(logicalLine) bool) {
-		// Bound the streamed read with the shared safeio byte budget so an
-		// unbounded/oversized stream fails with a typed error (identical limit
-		// across CLI/server/WASM — see core/safeio).
-		br := bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader))
+		br := bufio.NewReader(r.body)
 		var continuation strings.Builder
 		var contRawLines []string
 		var contLineEndings []string

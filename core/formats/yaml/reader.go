@@ -131,6 +131,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("yaml: reading: %w", err)}
 		return
 	}
+	bom, content := format.SplitBOM(content)
+	r.skelBytes(bom)
 
 	// Detect the source's dominant line-ending convention so the writer
 	// can re-emit re-encoded (translated) multi-line scalars with the

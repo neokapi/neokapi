@@ -1046,6 +1046,9 @@ func readInnerXML(decoder *xml.Decoder) (string, int) {
 func xmlEscapeText(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "<", "&lt;")
+	// XML 1.0 §2.11 rewrites a literal CR to LF on the next read, so only the
+	// character reference survives.
+	s = strings.ReplaceAll(s, "\r", "&#13;")
 	// Only escape `>` after `]]` to avoid the CDATA-end sequence.
 	if strings.Contains(s, "]]>") {
 		s = strings.ReplaceAll(s, "]]>", "]]&gt;")

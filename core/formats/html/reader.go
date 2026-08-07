@@ -212,10 +212,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("html: reading: %w", err)}
 		return
 	}
+	bom, content := format.SplitBOM(content)
 
 	if r.skeletonStore != nil {
 		// Tokenizer path: streaming, no DOM.
 		state := newTokenReaderState(r, r.skeletonStore)
+		if len(bom) > 0 {
+			r.skeletonStore.WriteText(bom)
+		}
 		state.run(content, ctx, ch)
 	} else {
 		// DOM path: existing behavior.

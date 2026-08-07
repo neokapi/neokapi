@@ -435,6 +435,9 @@ func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
 				text = b.String()
 			}
 
+			if err := format.CheckXMLText("ts", targetLocale, block, text); err != nil {
+				return err
+			}
 			if _, err := io.WriteString(w.Output, text); err != nil {
 				return err
 			}
@@ -635,6 +638,9 @@ func (w *Writer) flush() error {
 }
 
 func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) error {
+	if err := format.CheckXMLBlock("ts", block); err != nil {
+		return err
+	}
 	// Build <message> opening tag
 	var msgTag strings.Builder
 	msgTag.WriteString("    <message")
@@ -944,6 +950,10 @@ func xmlEscape(s string) string {
 // below for `<numerusform>` which DOES escape.)
 func xmlEscapeRune(r rune) string {
 	switch r {
+	case '\r':
+		// XML 1.0 §2.11 rewrites a literal CR to LF on the next read, so only
+		// the character reference survives.
+		return "&#13;"
 	case '&':
 		return "&amp;"
 	case '<':

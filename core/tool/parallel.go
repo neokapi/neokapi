@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 	"sync"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -222,5 +223,24 @@ func (p *ParallelBlockTool) Process(ctx context.Context, in <-chan *model.Part, 
 	return dispatchErr
 }
 
-// Verify ParallelBlockTool implements Tool at compile time.
-var _ Tool = (*ParallelBlockTool)(nil)
+// SessionProcess hands the session to the inner tool.
+//
+// The wrapper has to declare the method for the executor's type assertion to
+// see a SessionTool at all: a wrapper that only implements Tool silently
+// downgrades whatever it wraps to the sessionless path, and a tool whose
+// persistent overlay cache lives in the session then rebuilds it on every run
+// with nothing logged. The fan-out below applies to a *BaseTool inner, which is
+// not a SessionTool, so no parallelism is given up here.
+func (p *ParallelBlockTool) SessionProcess(ctx context.Context, sess blockstore.Session, in <-chan *model.Part, out chan<- *model.Part) error {
+	st, ok := p.inner.(SessionTool)
+	if !ok {
+		return p.Process(ctx, in, out)
+	}
+	return st.SessionProcess(ctx, sess, in, out)
+}
+
+// Verify ParallelBlockTool implements Tool and SessionTool at compile time.
+var (
+	_ Tool        = (*ParallelBlockTool)(nil)
+	_ SessionTool = (*ParallelBlockTool)(nil)
+)

@@ -2,7 +2,6 @@ package flow
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 
 	"github.com/neokapi/neokapi/core/blockstore"
@@ -99,16 +98,6 @@ func (m *MetricsTool) SetConfig(c tool.ToolConfig) error { return m.inner.SetCon
 
 // Process intercepts parts flowing through the inner tool, incrementing
 // PartsIn on input and PartsOut on output.
-//
-// Channel ownership follows the same pattern as TracingTool.Process:
-// create intermediate channels, close after inner.Process returns,
-// WaitGroup to wait for both interceptors to drain.
-//
-// The input interceptor must not block forever if the inner tool stops
-// reading early (mid-stream error or context cancellation): its forwarding
-// send selects on ctx.Done() and a stop channel that is closed once
-// inner.Process returns. Both interceptor goroutines are joined before
-// Process returns so neither leaks on the happy path or the cancel/error path.
 func (m *MetricsTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	return m.intercept(ctx, in, out, func(innerIn <-chan *model.Part, innerOut chan<- *model.Part) error {
 		return m.inner.Process(ctx, innerIn, innerOut)
@@ -132,58 +121,10 @@ func (m *MetricsTool) SessionProcess(ctx context.Context, sess blockstore.Sessio
 // intercept runs run() with metrics-counting channels spliced around the
 // inner tool's in/out.
 func (m *MetricsTool) intercept(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part, run func(<-chan *model.Part, chan<- *model.Part) error) error {
-	metricsIn := make(chan *model.Part, cap(in))
-	metricsOut := make(chan *model.Part, cap(out))
-
-	// stop is closed once the inner tool returns, signalling the input
-	// interceptor to abandon any pending forward and exit.
-	stop := make(chan struct{})
-
-	var interceptors sync.WaitGroup
-	interceptors.Add(2)
-
-	// Input interceptor: count parts entering, forward to inner.
-	go func() {
-		defer interceptors.Done()
-		defer close(metricsIn)
-		for part := range in {
-			m.metrics.PartsIn.Add(1)
-			select {
-			case metricsIn <- part:
-			case <-ctx.Done():
-				return
-			case <-stop:
-				return
-			}
-		}
-	}()
-
-	// Output interceptor: count parts exiting, forward to caller.
-	go func() {
-		defer interceptors.Done()
-		for part := range metricsOut {
-			m.metrics.PartsOut.Add(1)
-			select {
-			case out <- part:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	// Run the inner tool.
-	err := run(metricsIn, metricsOut)
-
-	// Signal the input interceptor to stop forwarding (the inner tool is no
-	// longer reading metricsIn) and close metricsOut so the output
-	// interceptor terminates.
-	close(stop)
-	close(metricsOut)
-
-	// Join both interceptors so neither goroutine outlives Process.
-	interceptors.Wait()
-
-	return err
+	return interceptTool(ctx, in, out,
+		func(*model.Part) { m.metrics.PartsIn.Add(1) },
+		func(*model.Part) { m.metrics.PartsOut.Add(1) },
+		run)
 }
 
 // Verify MetricsTool implements tool.Tool and tool.SessionTool at compile time.

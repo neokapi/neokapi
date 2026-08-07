@@ -384,6 +384,17 @@ func (s *syncSession) Close() error {
 
 var _ blockstore.Session = (*syncSession)(nil)
 
+// recoverToolPanic converts a panic inside a tool goroutine into an error on
+// *err. Every tool runs on its own errgroup goroutine, and errgroup does not
+// recover panics — an unrecovered panic there crashes the whole process, since
+// no recover middleware up the caller's stack can catch a panic on another
+// goroutine. Callers wrap the result with the tool's name.
+func recoverToolPanic(err *error) {
+	if r := recover(); r != nil {
+		*err = fmt.Errorf("panicked: %v\n%s", r, debug.Stack())
+	}
+}
+
 // runTool dispatches a tool invocation through the right contract —
 // SessionTool.SessionProcess when the tool opts in AND the store is
 // persistent, otherwise the plain streaming Tool.Process.
@@ -403,17 +414,7 @@ func runTool(
 	in <-chan *model.Part,
 	out chan<- *model.Part,
 ) (err error) {
-	// Each tool runs in its own errgroup goroutine, and errgroup does not
-	// recover panics — an unrecovered panic here would crash the whole
-	// process (no recover middleware up the caller's stack can catch a
-	// panic on another goroutine). Convert it into an error so the
-	// errgroup fails the flow cleanly; both callers wrap it with the
-	// tool's name.
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("panicked: %v\n%s", r, debug.Stack())
-		}
-	}()
+	defer recoverToolPanic(&err)
 	if st, ok := t.(tool.SessionTool); ok && session.Capabilities().Persistent {
 		return st.SessionProcess(ctx, session, in, out)
 	}
