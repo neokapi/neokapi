@@ -142,6 +142,45 @@ subscribers — the SSE/gRPC change relays and the platform-config cache
 refresh — stay on fan-out `Subscribe`/`SubscribeAll`: every instance must
 react, and a missed event is healed by the next read or reconnect.
 
+### The group handler's verdict
+
+A group handler is `func(Event) error`, and the acknowledgement follows its
+return. Nil acknowledges; an error leaves the entry pending, where the
+companion `XAUTOCLAIM` sweep finds it once the consumer has been idle past
+the threshold. That is the only reason a group differs from a tail read:
+without it, a handler that could not do its work had its event acknowledged
+anyway, and the event was gone.
+
+Two rules follow, and each consumer states which side of them it is on:
+
+- **Return an error only when the side effect must happen and did not.** A
+  handler that reports failure for work it merely chose not to do turns its
+  group into a redelivery loop. The audit logger, the activity recorder, the
+  notification dispatcher, the graph syncer and the review re-check report
+  theirs. The convergence, forge-delivery, review-completion, automation,
+  failure-summons, push-tracking and progress consumers acknowledge: their
+  work is re-derived on the next event, collapsed by a run guard, or is a
+  notice nobody should receive twice.
+- **Every side effect behind an error return needs an idempotency key.**
+  Redelivery is not hypothetical — the reclaim sweep re-runs handlers whose
+  original consumer died *after* finishing — so the durable writes are keyed
+  on the event that produced them: `audit_log.event_id`,
+  `activities.event_id`, and `notifications (user_id, source_event_id)`,
+  each behind a unique index and an `ON CONFLICT DO NOTHING`.
+
+Two exceptions are deliberate. An entry that does not decode is acknowledged,
+because it never will and would otherwise arrive forever. And a handler still
+running is not redelivered to itself: the sweep claims to the same consumer id
+as the read loop, so a handler slower than the min-idle threshold is
+indistinguishable from a dead one — an in-flight set makes the reclaim a no-op
+rather than a second concurrent dispatch.
+
+`ChannelEventBus` has no pending list, so a handler error there is logged and
+nothing more, and a subscriber that falls behind its buffer loses events
+outright (counted as `bowrain_events_dropped_total`). That is the durability
+difference between the in-process default and Redis, and the reason a
+deployment that must not lose events runs Redis.
+
 ### No leader election
 
 Any bowrain-server or bowrain-worker replica can consume from any

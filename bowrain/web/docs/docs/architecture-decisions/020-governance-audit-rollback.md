@@ -139,6 +139,15 @@ single sanctioned exception is the retention pruner, which opts into deletion
 for its own transaction via a session flag the trigger checks. Tampering with
 the table by any other path is blocked at the database.
 
+**Delivery.** A failed append is not a gap the chain can reveal: each row links
+to the previous *surviving* row, so a chain with a record missing verifies
+exactly as cleanly as one with nothing missing. The logger therefore reports its
+failures rather than logging them, and the durable bus acknowledges a group
+event only when its handler returns nil — so a database blip during a
+`member.role_changed` costs a delay, not the record. Redelivery is safe because
+the append is keyed: `audit_log.event_id` carries the bus event and a unique
+index makes the second delivery of one event a no-op.
+
 **Verification.** `VerifyChain` walks one chain in insertion order, recomputes
 each row's hash, and confirms the `prev_hash` links are intact; a mismatch
 reports the first broken row and the reason (a tampered row, or an insertion /
