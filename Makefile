@@ -1307,9 +1307,13 @@ L10N_COMPILE_TARGETS := \
 # Every committed artifact the four stages derive. l10n-verify diffs exactly
 # this set; nothing else in the tree is the gate's business. The last entry is
 # git pathspec magic, left unquoted so l10n-derived-paths can hand the list to
-# a shell script verbatim. The pathspec is single-quoted where it reaches a
-# shell: bare parentheses are a syntax error to /bin/sh, not a glob it leaves
-# alone.
+# Two contexts consume these paths and need opposite quoting. A Make recipe
+# is a /bin/sh command string, where bare parentheses are a syntax error —
+# the glob pathspec must be single-quoted there (L10N_SIDECAR_SPEC_SH).
+# l10n-derived-paths feeds a script that builds an argv array, where quote
+# characters would reach git literally — it gets the bare form.
+L10N_SIDECAR_SPEC    := :(glob)harness/demos/*/demo.*.yaml
+L10N_SIDECAR_SPEC_SH := ':(glob)harness/demos/*/demo.*.yaml'
 L10N_DERIVED := \
 	core/i18n/builtins/metadata.json core/i18n/catalogs \
 	host/i18n/commands.json host/i18n/catalogs \
@@ -1319,8 +1323,7 @@ L10N_DERIVED := \
 	bowrain/apps/ctrl/public/translations \
 	bowrain/apps/pulse/public/translations \
 	$(LANDING_DIR)/translations \
-	bowrain/mailer/templates bowrain/mailer/subjects \
-	':(glob)harness/demos/*/demo.*.yaml'
+	bowrain/mailer/templates bowrain/mailer/subjects
 
 # Stage 1: extract.
 # The source side only. Deliberately never the target side: a push and a build
@@ -1457,15 +1460,15 @@ l10n: l10n-compile ## Bring every multilingual surface up to date (all four stag
 # A new untracked file under the derived paths counts as drift too: `git diff`
 # alone would miss a catalog for a locale or a surface that did not exist before.
 l10n-derived-paths: ## Print the git pathspecs l10n-verify owns (one source of truth for CI)
-	@echo "$(L10N_DERIVED)"
+	@echo "$(L10N_DERIVED) $(L10N_SIDECAR_SPEC)"
 
 l10n-verify: l10n ## CI gate: every committed derived artifact regenerates byte-identically
 	@# The sidecar glob may match zero tracked files (the drop rule removes
 	@# byte-identical sidecars); git treats an unmatched pathspec as fatal,
 	@# so diff only what exists.
-	@tracked="$$(git ls-files -- $(L10N_DERIVED))"; \
+	@tracked="$$(git ls-files -- $(L10N_DERIVED) $(L10N_SIDECAR_SPEC_SH))"; \
 	if [ -n "$$tracked" ]; then git diff --exit-code -- $$tracked; fi
-	@untracked="$$(git ls-files --others --exclude-standard -- $(L10N_DERIVED))"; \
+	@untracked="$$(git ls-files --others --exclude-standard -- $(L10N_DERIVED) $(L10N_SIDECAR_SPEC_SH))"; \
 	if [ -n "$$untracked" ]; then \
 		echo "l10n-verify: regeneration produced untracked files (commit them):"; \
 		echo "$$untracked" | sed 's/^/  /'; \
