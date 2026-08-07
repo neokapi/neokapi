@@ -1370,11 +1370,18 @@ func (c *BowrainSourceConnector) readBlocks(ctx context.Context, filePath, forma
 }
 
 // readBlocksAndMedia reads a file and extracts both blocks and media using the format reader.
+//
+// The media it returns outlive this call — a push scans every changed file
+// before uploading any asset — so a deferred slice is materialized here rather
+// than left pointing into a document that is about to close. That is the one
+// consumer that genuinely wants the bytes; everything else on the read path
+// keeps them in the container.
 func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePath, formatName string) ([]*model.Block, []*model.Media, error) {
 	reader, err := c.formatReg.NewReader(registry.FormatID(formatName))
 	if err != nil {
 		return nil, nil, fmt.Errorf("create reader for %s: %w", formatName, err)
 	}
+	defer reader.Close()
 
 	// Enable media extraction if the format supports it.
 	if cfg := reader.Config(); cfg != nil {
@@ -1385,15 +1392,20 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 	if err != nil {
 		return nil, nil, fmt.Errorf("open file %s: %w", filePath, err)
 	}
+	defer f.Close()
 
 	doc := &model.RawDocument{
 		URI:      filePath,
 		FormatID: formatName,
 		Reader:   f,
 	}
+	// A package format reads its entries straight out of the file handle
+	// instead of buffering the container.
+	if info, serr := f.Stat(); serr == nil {
+		doc.ReaderAt, doc.Size = f, info.Size()
+	}
 
 	if err := reader.Open(ctx, doc); err != nil {
-		f.Close()
 		return nil, nil, fmt.Errorf("open document %s: %w", filePath, err)
 	}
 
@@ -1411,6 +1423,9 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 			}
 		case model.PartMedia:
 			if m, ok := pr.Part.Resource.(*model.Media); ok {
+				if merr := m.Materialize(); merr != nil {
+					continue // best-effort: skip an asset we cannot read
+				}
 				media = append(media, m)
 			}
 		}

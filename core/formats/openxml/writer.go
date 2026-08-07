@@ -944,6 +944,12 @@ type Writer struct {
 	skeletonStore   *format.SkeletonStore
 	originalContent []byte
 
+	// sourcePath is the original package on disk. When set, Write re-opens it
+	// rather than reconstructing from originalContent, so the source archive is
+	// never a second resident copy of the file (#608, S2 — the ODF/EPUB
+	// writers do the same).
+	sourcePath string
+
 	// sourceLocale records the input/source locale supplied to the writer
 	// (defaults to "en" — okapi's LocaleId.EMPTY default for OpenXMLFilter).
 	// Used by retargetSkeletonLang to decide whether a SkeletonLang entry's
@@ -988,15 +994,16 @@ func (w *Writer) SetMediaReplacement(zipPath string, media *model.Media) {
 
 // openMediaReplacement resolves a media reference to a reader, streaming from
 // its on-disk path (URI, optionally file://-prefixed) when present and falling
-// back to inline Data for small assets. The caller closes the reader.
+// back to the slice's own content — inline bytes, or a deferred accessor into
+// the document it came from. The caller closes the reader.
 func openMediaReplacement(m *model.Media) (io.ReadCloser, error) {
 	if path := strings.TrimPrefix(m.URI, "file://"); path != "" {
 		return os.Open(path)
 	}
-	if len(m.Data) > 0 {
-		return io.NopCloser(bytes.NewReader(m.Data)), nil
+	if m.HasContent() {
+		return m.Content()
 	}
-	return nil, errors.New("openxml: media replacement has no content (no URI or Data)")
+	return nil, errors.New("openxml: media replacement has no content (no URI or data)")
 }
 
 // writeMediaReplacement streams a locale-variant media reference into the output
@@ -1043,6 +1050,13 @@ func (w *Writer) SetOriginalContent(content []byte) {
 	w.originalContent = content
 }
 
+// SetSourcePath records the path to the original package so Write can re-open
+// it from disk instead of holding a full in-memory copy. When set it takes
+// precedence over SetOriginalContent — matching the ODF and EPUB writers.
+func (w *Writer) SetSourcePath(path string) {
+	w.sourcePath = path
+}
+
 // SetSourceLocale records the source/input locale. Used by
 // retargetSkeletonLang (mirrors okapi's GenericSkeletonWriter behavior at
 // lines 808-816 of okapi/core/src/main/java/net/sf/okapi/common/skeleton/
@@ -1050,6 +1064,27 @@ func (w *Writer) SetOriginalContent(content []byte) {
 // attributes from inputLoc to outputLoc when sameLanguageAs(inputLoc) holds).
 func (w *Writer) SetSourceLocale(locale model.LocaleID) {
 	w.sourceLocale = locale
+}
+
+// openOriginal opens the original package for reconstruction, from the source
+// path when one was recorded and from the held bytes otherwise. The returned
+// func releases the file handle and is always safe to call.
+func (w *Writer) openOriginal() (*zip.Reader, func(), error) {
+	if w.sourcePath != "" {
+		zrc, err := zip.OpenReader(w.sourcePath)
+		if err != nil {
+			return nil, func() {}, fmt.Errorf("openxml: open source %q: %w", w.sourcePath, err)
+		}
+		return &zrc.Reader, func() { zrc.Close() }, nil
+	}
+	if w.originalContent == nil {
+		return nil, func() {}, errors.New("openxml: writer requires original content for reconstruction")
+	}
+	zr, err := zip.NewReader(bytes.NewReader(w.originalContent), int64(len(w.originalContent)))
+	if err != nil {
+		return nil, func() {}, fmt.Errorf("openxml: invalid original ZIP: %w", err)
+	}
+	return zr, func() {}, nil
 }
 
 // Write consumes Parts and writes the reconstructed OpenXML document.
@@ -1066,15 +1101,13 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	w.blocks = blocks
 	defer func() { w.blocks = nil }()
 
-	if w.originalContent == nil {
-		return errors.New("openxml: writer requires original content for reconstruction")
-	}
-
-	// Open original ZIP
-	origZR, err := zip.NewReader(bytes.NewReader(w.originalContent), int64(len(w.originalContent)))
+	// Resolve the source archive: prefer re-opening from the path (no second
+	// in-memory copy) and fall back to held bytes.
+	origZR, closeOrig, err := w.openOriginal()
 	if err != nil {
-		return fmt.Errorf("openxml: invalid original ZIP: %w", err)
+		return err
 	}
+	defer closeOrig()
 
 	// Parse container
 	info, err := parseContainer(origZR, w.cfg)
@@ -1540,7 +1573,22 @@ func (w *Writer) reparseSkeleton(ctx context.Context, blocks map[string]*model.B
 		URI:          "openxml-reparse",
 		SourceLocale: sourceLocale,
 		Encoding:     "UTF-8",
-		Reader:       io.NopCloser(bytes.NewReader(w.originalContent)),
+	}
+	// Reparse from the file when the writer has a path, so the reparse reads
+	// the package in place instead of streaming a held copy of it.
+	if w.sourcePath != "" {
+		f, ferr := os.Open(w.sourcePath)
+		if ferr != nil {
+			store.Close()
+			return nil, nil, fmt.Errorf("openxml: reparsing the original package: %w", ferr)
+		}
+		defer f.Close()
+		doc.Reader = f
+		if info, serr := f.Stat(); serr == nil {
+			doc.ReaderAt, doc.Size = f, info.Size()
+		}
+	} else {
+		doc.Reader = io.NopCloser(bytes.NewReader(w.originalContent))
 	}
 	if err := r.Open(ctx, doc); err != nil {
 		store.Close()

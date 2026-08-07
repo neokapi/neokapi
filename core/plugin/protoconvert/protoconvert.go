@@ -822,14 +822,25 @@ func ProtoToGroupEnd(msg *pb.GroupEndMessage) *model.GroupEnd {
 // ────────────────────────────────────────────────────────────────────────────
 
 // MediaToProto converts a model.Media to a proto MediaMessage.
+//
+// A deferred slice is materialized here: [model.Media.Open] is a process-local
+// accessor, so the bytes must be on the wire or the receiving process gets an
+// empty asset. A slice whose accessor fails travels without Data, which is the
+// same shape as a media reference that never carried bytes.
 func MediaToProto(m *model.Media) *pb.MediaMessage {
 	if m == nil {
 		return nil
 	}
+	data := m.Data
+	if len(data) == 0 && m.Open != nil {
+		if b, err := m.Bytes(); err == nil {
+			data = b
+		}
+	}
 	return &pb.MediaMessage{
 		Id:         m.ID,
 		MimeType:   m.MimeType,
-		Data:       m.Data,
+		Data:       data,
 		Uri:        m.URI,
 		AltText:    m.AltText,
 		Properties: m.Properties,

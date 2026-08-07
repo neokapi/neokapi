@@ -190,54 +190,75 @@ const (
 	odfTypePresentation            // ODP
 )
 
+// openArchive opens the document as a ZIP, ready for random-access entry
+// reads. When the caller gave us random access (a file handle) the container is
+// read in place — no copy at all. Otherwise the bytes are spilled to a temp
+// file rather than buffered: a ZIP needs random access either way, and disk is
+// the cheaper place to hold a package whose bulk is embedded media.
+//
+// The returned func releases whatever was held and is always safe to call; the
+// temp file itself is removed by Close.
+func (r *Reader) openArchive() (*zip.Reader, func(), error) {
+	noop := func() {}
+
+	if ra, size, ok := r.Doc.RandomAccess(); ok {
+		if err := safeio.DefaultBudget().CheckSize(size); err != nil {
+			return nil, noop, fmt.Errorf("odf: %w", err)
+		}
+		zr, err := zip.NewReader(ra, size)
+		if err != nil {
+			return nil, noop, fmt.Errorf("odf: not a valid ZIP archive: %w", err)
+		}
+		if err := safeio.DefaultZipLimits.CheckReader(zr); err != nil {
+			return nil, noop, fmt.Errorf("odf: %w", err)
+		}
+		return zr, noop, nil
+	}
+
+	tmpFile, err := os.CreateTemp("", "neokapi-odf-*.zip")
+	if err != nil {
+		return nil, noop, fmt.Errorf("odf: creating temp file: %w", err)
+	}
+	r.tmpFile = tmpFile.Name()
+	closeTmp := func() { tmpFile.Close() }
+
+	if _, err := io.Copy(tmpFile, safeio.DefaultBudget().Reader(r.Doc.Reader)); err != nil {
+		closeTmp()
+		return nil, noop, fmt.Errorf("odf: writing temp file: %w", err)
+	}
+	size, err := tmpFile.Seek(0, io.SeekEnd)
+	if err != nil {
+		closeTmp()
+		return nil, noop, fmt.Errorf("odf: seeking temp file: %w", err)
+	}
+	if _, err := tmpFile.Seek(0, io.SeekStart); err != nil {
+		closeTmp()
+		return nil, noop, fmt.Errorf("odf: seeking temp file: %w", err)
+	}
+	zr, err := zip.NewReader(tmpFile, size)
+	if err != nil {
+		closeTmp()
+		return nil, noop, fmt.Errorf("odf: not a valid ZIP archive: %w", err)
+	}
+	if err := safeio.DefaultZipLimits.CheckReader(zr); err != nil {
+		closeTmp()
+		return nil, noop, fmt.Errorf("odf: %w", err)
+	}
+	return zr, closeTmp, nil
+}
+
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
 		locale = model.LocaleEnglish
 	}
 
-	// Write content to a temp file (ZIP requires random access)
-	tmpFile, err := os.CreateTemp("", "neokapi-odf-*.zip")
+	zr, closeArchive, err := r.openArchive()
 	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("odf: creating temp file: %w", err)}
+		ch <- model.PartResult{Error: err}
 		return
 	}
-	r.tmpFile = tmpFile.Name()
-
-	if _, err := io.Copy(tmpFile, r.Doc.Reader); err != nil {
-		tmpFile.Close()
-		ch <- model.PartResult{Error: fmt.Errorf("odf: writing temp file: %w", err)}
-		return
-	}
-
-	// Get size and rewind
-	size, err := tmpFile.Seek(0, io.SeekEnd)
-	if err != nil {
-		tmpFile.Close()
-		ch <- model.PartResult{Error: fmt.Errorf("odf: seeking temp file: %w", err)}
-		return
-	}
-	if _, err := tmpFile.Seek(0, io.SeekStart); err != nil {
-		tmpFile.Close()
-		ch <- model.PartResult{Error: fmt.Errorf("odf: seeking temp file: %w", err)}
-		return
-	}
-
-	// Open as ZIP from temp file
-	zr, err := zip.NewReader(tmpFile, size)
-	if err != nil {
-		tmpFile.Close()
-		ch <- model.PartResult{Error: fmt.Errorf("odf: not a valid ZIP archive: %w", err)}
-		return
-	}
-
-	// Validate the archive against the shared safeio budget before reading any
-	// part; per-entry reads are additionally bounded in readZipFile.
-	if err := safeio.DefaultZipLimits.CheckReader(zr); err != nil {
-		tmpFile.Close()
-		ch <- model.PartResult{Error: fmt.Errorf("odf: %w", err)}
-		return
-	}
+	defer closeArchive()
 
 	// Detect document type from mimetype file
 	docType := detectODFType(zr)
@@ -253,7 +274,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		Properties: map[string]string{"docType": docTypeString(docType)},
 	}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: rootLayer}) {
-		tmpFile.Close()
 		return
 	}
 
@@ -265,7 +285,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		contentData, err := readZipFile(contentXML)
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("odf: reading content.xml: %w", err)}
-			tmpFile.Close()
 			return
 		}
 
@@ -306,7 +325,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		metaData, err := readZipFile(metaXML)
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("odf: reading meta.xml: %w", err)}
-			tmpFile.Close()
 			return
 		}
 		r.skelPartStart("meta.xml")
@@ -320,7 +338,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		stylesData, err := readZipFile(stylesXML)
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("odf: reading styles.xml: %w", err)}
-			tmpFile.Close()
 			return
 		}
 
@@ -354,7 +371,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// End root layer
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: rootLayer})
-	tmpFile.Close()
 }
 
 // odfParser handles skeleton state during ODF XML parsing.

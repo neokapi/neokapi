@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/core/container"
@@ -111,6 +110,14 @@ func readContent(ctx context.Context, path string) ([]byte, error) {
 // only genuinely unidentifiable input falls back to plain text. This is the one
 // place the toolbox decides a format, so both files and stdin share it.
 func (a *App) ResolveFormatName(path string, content []byte) string {
+	return a.resolveFormatFrom(path, bytes.NewReader(content))
+}
+
+// resolveFormatFrom is ResolveFormatName over a seekable stream rather than a
+// buffer. The detector reads a prefix and seeks back, so an open file resolves
+// its format without being read into memory — which is the whole point for a
+// package format, where the buffer would be the file.
+func (a *App) resolveFormatFrom(path string, content io.ReadSeeker) string {
 	if a.FormatFlag != "" {
 		return preset.ParseFormatRef(a.FormatFlag).RegistryName()
 	}
@@ -119,7 +126,7 @@ func (a *App) ResolveFormatName(path string, content []byte) string {
 	if detectPath == StdinName {
 		detectPath = ""
 	}
-	if name, err := a.FormatReg.Detector().Detect(detectPath, bytes.NewReader(content), ""); err == nil && name != "" {
+	if name, err := a.FormatReg.Detector().Detect(detectPath, content, ""); err == nil && name != "" {
 		return name
 	}
 	return FallbackFormat
@@ -132,11 +139,17 @@ func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, 
 	if loc, ok := parseEntryLocator(path); ok {
 		return a.streamEntryBlocks(ctx, loc, fn)
 	}
-	content, err := readContent(ctx, path)
+	src, err := openDocSource(ctx, path)
 	if err != nil {
 		return "", err
 	}
-	fmtName := a.ResolveFormatName(path, content)
+	defer src.Close()
+
+	sniff, err := src.seeker()
+	if err != nil {
+		return "", err
+	}
+	fmtName := a.resolveFormatFrom(path, sniff)
 	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
 	if err != nil {
 		return fmtName, fmt.Errorf("no reader for format %q: %w", fmtName, err)
@@ -147,7 +160,9 @@ func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, 
 		URI:          DisplayName(path),
 		SourceLocale: model.LocaleID(a.SourceLang),
 		Encoding:     a.Encoding,
-		Reader:       io.NopCloser(bytes.NewReader(content)),
+	}
+	if err := src.rawDocument(doc); err != nil {
+		return fmtName, err
 	}
 	if err := reader.Open(ctx, doc); err != nil {
 		return fmtName, fmt.Errorf("open %s: %w", DisplayName(path), err)
@@ -190,11 +205,17 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 	if inPlace && (path == "" || path == StdinName) {
 		return errors.New("in-place editing requires a file argument")
 	}
-	content, err := readContent(ctx, path)
+	src, err := openDocSource(ctx, path)
 	if err != nil {
 		return err
 	}
-	fmtName := a.ResolveFormatName(path, content)
+	defer src.Close()
+
+	sniff, err := src.seeker()
+	if err != nil {
+		return err
+	}
+	fmtName := a.resolveFormatFrom(path, sniff)
 
 	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
 	if err != nil {
@@ -223,7 +244,10 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 		URI:          DisplayName(path),
 		SourceLocale: model.LocaleID(a.SourceLang),
 		Encoding:     a.Encoding,
-		Reader:       io.NopCloser(bytes.NewReader(content)),
+	}
+	if err := src.rawDocument(doc); err != nil {
+		reader.Close()
+		return err
 	}
 	if err := reader.Open(ctx, doc); err != nil {
 		reader.Close()
@@ -254,6 +278,13 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 	reader.Close()
 
 	if inPlace {
+		// In place, the original must be held in memory: SetOutput truncates
+		// the file the writer would otherwise re-read for its skeleton, so a
+		// source-path binding here would hand the writer an empty document.
+		content, berr := src.bytes()
+		if berr != nil {
+			return berr
+		}
 		if backupSuffix != "" {
 			if err := os.WriteFile(path+backupSuffix, content, 0o644); err != nil {
 				return fmt.Errorf("write backup: %w", err)
@@ -262,17 +293,17 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 		if err := writer.SetOutput(path); err != nil {
 			return err
 		}
-		if sps, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(path) {
-			sps.SetSourcePath(path)
-		} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
+		if ocs, ok := writer.(format.OriginalContentSetter); ok {
 			ocs.SetOriginalContent(content)
 		}
 	} else {
 		if err := writer.SetOutputWriter(out); err != nil {
 			return err
 		}
-		if ocs, ok := writer.(format.OriginalContentSetter); ok {
-			ocs.SetOriginalContent(content)
+		// Writing elsewhere leaves the input intact, so a package writer can
+		// re-read it from disk rather than take a second copy of it.
+		if err := bindWriterSource(writer, path, "", src); err != nil {
+			return err
 		}
 	}
 	writer.SetEncoding(a.Encoding)

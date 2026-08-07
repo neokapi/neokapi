@@ -29,6 +29,13 @@ import (
 type budgetedSource struct {
 	io.Reader
 	closer io.Closer
+
+	// readerAt and size, when set, are the random-access view of the same
+	// bytes — the file handle behind the stream. openReader hands them to the
+	// RawDocument so a container format reads its entries in place instead of
+	// buffering the archive (see model.RawDocument.ReaderAt).
+	readerAt io.ReaderAt
+	size     int64
 }
 
 func (b *budgetedSource) Close() error {
@@ -41,20 +48,30 @@ func (b *budgetedSource) Close() error {
 // openBudgetedFile opens path as a streaming, budget-bounded io.ReadCloser. The
 // reader pulls bytes lazily, so a streaming format never holds the whole file in
 // memory; a whole-document format still io.ReadAll-s it, but only once (no
-// separate up-front os.ReadFile buffer).
+// separate up-front os.ReadFile buffer). A container format takes neither copy:
+// it reads entries through the random-access view carried alongside.
 func openBudgetedFile(path string) (io.ReadCloser, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	return &budgetedSource{Reader: safeio.DefaultBudget().Reader(f), closer: f}, nil
+	src := &budgetedSource{Reader: safeio.DefaultBudget().Reader(f), closer: f}
+	if info, serr := f.Stat(); serr == nil {
+		src.readerAt, src.size = f, info.Size()
+	}
+	return src, nil
 }
 
 // budgetedBytes wraps an in-memory source with the same byte budget, for the
 // buffered path where a writer needs the original bytes (OpenXML/AsciiDoc) and
-// the source is read once and shared with the reader.
+// the source is read once and shared with the reader. The bytes are already
+// resident, so they double as the random-access view.
 func budgetedBytes(content []byte) io.ReadCloser {
-	return &budgetedSource{Reader: safeio.DefaultBudget().Reader(bytes.NewReader(content))}
+	return &budgetedSource{
+		Reader:   safeio.DefaultBudget().Reader(bytes.NewReader(content)),
+		readerAt: bytes.NewReader(content),
+		size:     int64(len(content)),
+	}
 }
 
 // structuralExportWriters are the document writers that render the canonical
@@ -295,6 +312,9 @@ func (r *FileRunner) openReader(ctx context.Context, reader format.DataFormatRea
 		TargetLocale: model.LocaleID(targetLang),
 		Encoding:     r.cfg.Encoding,
 		Reader:       source,
+	}
+	if bs, ok := source.(*budgetedSource); ok && bs.readerAt != nil {
+		doc.ReaderAt, doc.Size = bs.readerAt, bs.size
 	}
 	if err := reader.Open(ctx, doc); err != nil {
 		reader.Close()

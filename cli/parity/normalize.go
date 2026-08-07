@@ -66,7 +66,9 @@ func Canonicalize(parts []*model.Part) []CanonicalPart {
 		case model.PartMedia:
 			if md, ok := p.Resource.(*model.Media); ok {
 				c.MediaMime = md.MimeType
-				c.MediaSize = len(md.Data)
+				// Size, not len(Data): a package reader's media is deferred,
+				// so the byte count lives in the metadata, not in a buffer.
+				c.MediaSize = int(md.Size)
 			}
 		}
 		out = append(out, c)

@@ -83,6 +83,21 @@ func TestBudgetReader(t *testing.T) {
 	assert.Equal(t, "123", string(got))
 }
 
+// TestBudgetCheckSize covers the random-access twin of Reader: a source whose
+// length is known up front is bounded by comparison, and must trip on exactly
+// the same sizes a streamed read would.
+func TestBudgetCheckSize(t *testing.T) {
+	t.Parallel()
+	b := safeio.DefaultBudget().WithMaxBytes(4)
+
+	require.NoError(t, b.CheckSize(0))
+	require.NoError(t, b.CheckSize(4), "a source of exactly max bytes is within budget")
+	require.ErrorIs(t, b.CheckSize(5), safeio.ErrByteBudget)
+
+	// A zero cap disables the check, matching Reader.
+	require.NoError(t, safeio.DefaultBudget().WithMaxBytes(0).CheckSize(1<<40))
+}
+
 func TestLimitedWriter(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

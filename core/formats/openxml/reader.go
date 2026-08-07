@@ -107,29 +107,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		locale = model.LocaleEnglish
 	}
 
-	// Read all content into memory (ZIP requires random access), bounded by
-	// the shared safeio byte budget so an unbounded/oversized container fails
-	// with a typed error before any zip parsing (the zip limits below only
-	// guard the entries, not this container read).
-	data, err := io.ReadAll(safeio.DefaultBudget().Reader(r.Doc.Reader))
+	// Entries are read straight out of the container — from the file handle
+	// when the caller gave us one, otherwise from a single buffered copy. Both
+	// the container size and the zip limits (entry count, declared sizes,
+	// inflate ratio) are checked before any entry is read; per-entry reads are
+	// additionally bounded in readZipFile.
+	zr, err := format.OpenZipDocument(r.Doc, "openxml")
 	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("openxml: reading: %w", err)}
-		return
-	}
-
-	// Open as ZIP
-	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("openxml: not a valid ZIP archive: %w", err)}
-		return
-	}
-
-	// Validate the archive against the shared safeio budget (entry count +
-	// declared per-entry/total uncompressed sizes + inflate-ratio) before
-	// reading any part, so a zip bomb or oversized container is rejected up
-	// front. Per-entry reads are additionally bounded in readZipFile.
-	if err := safeio.DefaultZipLimits.CheckReader(zr); err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("openxml: %w", err)}
+		ch <- model.PartResult{Error: err}
 		return
 	}
 
@@ -488,6 +473,15 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 
 // emitMediaParts scans the ZIP for embedded media files (word/media/*, ppt/media/*)
 // and emits PartMedia parts with content-addressed blob keys.
+//
+// The bytes stay in the container: each part carries a deferred accessor that
+// re-opens its zip entry, not a materialized blob. Embedded media is what makes
+// a real .docx large — images and fonts are already compressed and store close
+// to 1:1 — and most consumers never want it, so holding every asset for the
+// duration of the run to serve the few that do was the single largest resident
+// copy in a package read. The content-addressed key still travels with the
+// part, computed by streaming the entry through the digest and discarding the
+// bytes, so asset dedup does not have to materialize anything either.
 func (r *Reader) emitMediaParts(ctx context.Context, ch chan<- model.PartResult, zr *zip.Reader, info *containerInfo) {
 	// Determine media directory based on document type.
 	var mediaPrefixes []string
@@ -512,22 +506,20 @@ func (r *Reader) emitMediaParts(ctx context.Context, ch chan<- model.PartResult,
 			continue
 		}
 
-		data, err := readZipFile(f)
+		blobKey, size, err := digestZipFile(f)
 		if err != nil {
 			continue // best-effort: skip unreadable media
 		}
 
-		blobKey := computeBlobKey(data)
 		filename := f.Name[strings.LastIndex(f.Name, "/")+1:]
-		mimeType := detectMediaMIME(filename)
 
 		media := &model.Media{
 			ID:       "media:" + f.Name,
-			MimeType: mimeType,
-			Data:     data,
+			MimeType: detectMediaMIME(filename),
 			BlobKey:  blobKey,
 			Filename: filename,
-			Size:     int64(len(data)),
+			Size:     size,
+			Open:     func() (io.ReadCloser, error) { return safeio.DefaultZipLimits.OpenEntry(f) },
 			Properties: map[string]string{
 				"zipPath": f.Name,
 			},
@@ -539,10 +531,22 @@ func (r *Reader) emitMediaParts(ctx context.Context, ch chan<- model.PartResult,
 	}
 }
 
-// computeBlobKey returns the SHA-256 hex digest of data.
-func computeBlobKey(data []byte) string {
-	h := sha256.Sum256(data)
-	return hex.EncodeToString(h[:])
+// digestZipFile streams a zip entry through SHA-256 and reports its
+// content-addressed key and uncompressed size without retaining the bytes. The
+// declared header size is not trusted for the size (a lying header is the whole
+// point of the safeio entry guard), so both come from the actual stream.
+func digestZipFile(f *zip.File) (blobKey string, size int64, err error) {
+	rc, err := safeio.DefaultZipLimits.OpenEntry(f)
+	if err != nil {
+		return "", 0, err
+	}
+	defer rc.Close()
+	h := sha256.New()
+	n, err := io.Copy(h, rc)
+	if err != nil {
+		return "", 0, err
+	}
+	return hex.EncodeToString(h.Sum(nil)), n, nil
 }
 
 // detectMediaMIME infers MIME type from filename extension.

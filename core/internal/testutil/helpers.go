@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"io"
+	"os"
 	"strings"
 	"testing"
 
@@ -26,6 +27,26 @@ func RawDocFromReader(r io.Reader, uri string, sourceLocale model.LocaleID) *mod
 		SourceLocale: sourceLocale,
 		Encoding:     "UTF-8",
 		Reader:       io.NopCloser(r),
+	}
+}
+
+// RawDocFromFile opens path and creates a RawDocument with both a stream and a
+// random-access view over it, the shape a container reader needs to parse a
+// package in place instead of buffering it. The handle closes with the test.
+func RawDocFromFile(t *testing.T, path string, sourceLocale model.LocaleID) *model.RawDocument {
+	t.Helper()
+	f, err := os.Open(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { f.Close() })
+	info, err := f.Stat()
+	require.NoError(t, err)
+	return &model.RawDocument{
+		URI:          path,
+		SourceLocale: sourceLocale,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(f),
+		ReaderAt:     f,
+		Size:         info.Size(),
 	}
 }
 

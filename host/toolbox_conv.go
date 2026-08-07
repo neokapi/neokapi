@@ -1,11 +1,9 @@
 package host
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -83,11 +81,17 @@ func (a *App) RunConv(ctx context.Context, args []string, toFmt registry.FormatI
 // for a same-format conversion; for a cross-format one they would be foreign to
 // the writer, so it reconstructs from the content model + structural layer.
 func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.FormatID, targetLoc model.LocaleID, outPath string) error {
-	content, err := readContent(ctx, path)
+	src, err := openDocSource(ctx, path)
 	if err != nil {
 		return err
 	}
-	inFmt := a.ResolveFormatName(path, content)
+	defer src.Close()
+
+	sniff, err := src.seeker()
+	if err != nil {
+		return err
+	}
+	inFmt := a.resolveFormatFrom(path, sniff)
 
 	reader, err := a.FormatReg.NewReader(registry.FormatID(inFmt))
 	if err != nil {
@@ -134,7 +138,9 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 		URI:          DisplayName(path),
 		SourceLocale: model.LocaleID(a.SourceLang),
 		Encoding:     a.Encoding,
-		Reader:       io.NopCloser(bytes.NewReader(content)),
+	}
+	if err := src.rawDocument(doc); err != nil {
+		return err
 	}
 	if err := reader.Open(ctx, doc); err != nil {
 		return fmt.Errorf("open %s: %w", DisplayName(path), err)
@@ -154,21 +160,15 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 		if err := writer.SetOutput(outPath); err != nil {
 			return err
 		}
-		if sameFormat {
-			if sps, ok := writer.(format.SourcePathSetter); ok && filepath.IsAbs(path) {
-				sps.SetSourcePath(path)
-			} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
-				ocs.SetOriginalContent(content)
-			}
-		}
-	} else {
-		if err := writer.SetOutputWriter(os.Stdout); err != nil {
+	} else if err := writer.SetOutputWriter(os.Stdout); err != nil {
+		return err
+	}
+	// Only a same-format round-trip consumes the original: a cross-format
+	// target reconstructs from the content model, and handing it foreign bytes
+	// would materialize the input for nothing.
+	if sameFormat {
+		if err := bindWriterSource(writer, path, outPath, src); err != nil {
 			return err
-		}
-		if sameFormat {
-			if ocs, ok := writer.(format.OriginalContentSetter); ok {
-				ocs.SetOriginalContent(content)
-			}
 		}
 	}
 	writer.SetEncoding(a.Encoding)

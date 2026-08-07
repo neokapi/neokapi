@@ -71,12 +71,20 @@ func (r *Reader) Signature() format.FormatSignature {
 }
 
 // Open opens a RawDocument for reading.
-// Content is written to a temp file instead of holding the entire ZIP in memory.
+//
+// A document that offers random access (a file handle) is read where it lies.
+// Otherwise its bytes are spilled to a temp file rather than buffered: a ZIP
+// needs random access either way, and disk is the cheaper place to hold a
+// package whose bulk is embedded media.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
 		return errors.New("epub: nil document or reader")
 	}
 	r.Doc = doc
+
+	if _, _, ok := doc.RandomAccess(); ok {
+		return nil
+	}
 
 	// Write content to a temp file so zip.OpenReader can use it
 	f, err := os.CreateTemp("", "neokapi-epub-*.zip")
@@ -185,6 +193,39 @@ const (
 // match anything (#1482). See format.VerbatimText.
 const propXHTMLText = "epub.xhtml"
 
+// openArchive opens the document's ZIP: in place over the caller's random
+// access when Open found some, otherwise from the temp file Open spilled it to.
+// The returned func releases the archive and is always safe to call.
+func (r *Reader) openArchive() (*zip.Reader, func(), error) {
+	noop := func() {}
+
+	var zr *zip.Reader
+	closeArchive := noop
+	if ra, size, ok := r.Doc.RandomAccess(); ok {
+		if err := safeio.DefaultBudget().CheckSize(size); err != nil {
+			return nil, noop, fmt.Errorf("epub: %w", err)
+		}
+		var err error
+		if zr, err = zip.NewReader(ra, size); err != nil {
+			return nil, noop, fmt.Errorf("epub: opening zip: %w", err)
+		}
+	} else {
+		zrc, err := zip.OpenReader(r.tmpFile)
+		if err != nil {
+			return nil, noop, fmt.Errorf("epub: opening zip: %w", err)
+		}
+		zr, closeArchive = &zrc.Reader, func() { zrc.Close() }
+	}
+
+	// Validate the archive against the shared safeio budget before reading any
+	// entry; per-entry reads are additionally bounded in readEntry.
+	if err := safeio.DefaultZipLimits.CheckReader(zr); err != nil {
+		closeArchive()
+		return nil, noop, fmt.Errorf("epub: %w", err)
+	}
+	return zr, closeArchive, nil
+}
+
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
@@ -203,19 +244,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	zr, err := zip.OpenReader(r.tmpFile)
+	zr, closeArchive, err := r.openArchive()
 	if err != nil {
-		r.emitError(ch, fmt.Errorf("epub: opening zip: %w", err))
+		r.emitError(ch, err)
 		return
 	}
-	defer zr.Close()
-
-	// Validate the archive against the shared safeio budget before reading any
-	// entry; per-entry reads are additionally bounded in readEntry.
-	if err := safeio.DefaultZipLimits.CheckReader(&zr.Reader); err != nil {
-		r.emitError(ch, fmt.Errorf("epub: %w", err))
-		return
-	}
+	defer closeArchive()
 
 	// Build file map
 	fileMap := make(map[string]*zip.File)

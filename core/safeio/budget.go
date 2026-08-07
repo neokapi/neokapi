@@ -85,6 +85,18 @@ func (b Budget) Reader(r io.Reader) *LimitedReader { return NewLimitedReader(r, 
 // [LimitError].
 func (b Budget) Writer(w io.Writer) *LimitedWriter { return NewLimitedWriter(w, b.MaxBytes) }
 
+// CheckSize applies the byte budget to an already-known size, returning the
+// same typed [LimitError] a [Budget.Reader] would. It is the random-access twin
+// of Reader: a source whose length is known up front (a file handle, a mapped
+// region) is bounded by one comparison instead of by streaming it through a
+// counter — which would defeat the point of not buffering it.
+func (b Budget) CheckSize(n int64) error {
+	if b.MaxBytes <= 0 || n <= b.MaxBytes {
+		return nil
+	}
+	return newLimitError(ErrByteBudget, b.MaxBytes, n, "")
+}
+
 // DepthGuard returns a depth guard bounded by b.MaxDepth.
 func (b Budget) DepthGuard() *DepthGuard { return NewDepthGuard(b.MaxDepth) }
 
