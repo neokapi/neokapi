@@ -3,8 +3,10 @@
   "credits-warning": "▒ Ýöüŕ ÀÎ çŕéđîţš àŕé ŕüññîñĝ ļöŵ — {{.WorkspaceName}} ▒",
   "email-change-verify": "▒ Çöñƒîŕḿ ýöüŕ ñéŵ Ƃöŵŕàîñ éḿàîļ ▒",
   "invite": "▒ Ýöü'ṽé ƃééñ îñṽîţéđ ţö ĵöîñ {{.WorkspaceName}} öñ Ƃöŵŕàîñ ▒",
+  "job-failed": "▒ À {{.JobKind}} ĵöƃ đîđ ñöţ ƒîñîšĥ — {{.WorkspaceName}} ▒",
   "notification": "▒ {{.Title}} — Ƃöŵŕàîñ ▒",
   "payment-failed": "▒ Þàýḿéñţ ƒàîļéđ ƒöŕ ýöüŕ šüƃšçŕîþţîöñ — {{.WorkspaceName}} ▒",
   "review-request": "▒ Ŵàîţîñĝ ƒöŕ ýöüŕ ŕéṽîéŵ: {{.ChangeSetName}} — {{.WorkspaceName}} ▒",
-  "subscription-changed": "▒ Ýöüŕ šüƃšçŕîþţîöñ ĥàš ƃééñ üþđàţéđ — {{.WorkspaceName}} ▒"
+  "subscription-changed": "▒ Ýöüŕ šüƃšçŕîþţîöñ ĥàš ƃééñ üþđàţéđ — {{.WorkspaceName}} ▒",
+  "task-assigned": "▒ {{.Priority}}: {{.TaskTitle}} — {{.WorkspaceName}} ▒"
 }
