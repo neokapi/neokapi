@@ -1,28 +1,28 @@
 # Native reference doc for the built-in `term-check` tool.
-# Schema source: core/tools/termcheck.go (TermCheckConfig — glossary set programmatically).
+# Schema source: core/tools/termcheck.go (TermCheckConfig — term pairs set programmatically).
 description: Verify that required target terms appear when their source terms are present.
 overview: |
-  The **Terminology Check** tool checks each translation against a glossary of
+  The **Terminology Check** tool checks each translation against a set of
   source/target term pairs. For every entry, if the source term occurs in the
   block's source text, the tool verifies that the required target term occurs in
   the translation; when it does not, the block is flagged and the missing
   expectations are recorded on its properties. A target locale is required, and a
-  terms or glossary supplies the term pairs.
+  terms store supplies the term pairs.
 
-  The glossary is supplied programmatically rather than as a schema field, so the
-  tool is typically wired up by the host application or a project that binds a
-  terms. The only schema-level option controls whether term matching respects
-  letter case.
+  The term pairs are supplied programmatically rather than as a schema field, so
+  the tool is typically wired up by the host application or a project that binds
+  a terms store. The only schema-level option controls whether term matching
+  respects letter case.
 parameters:
   caseSensitive:
     description: Whether term matching is case-sensitive.
     help: |
       When enabled, source and target terms must match exactly, including letter
-      case. When disabled, matching is case-insensitive, so a glossary term
-      matches regardless of how it is capitalised in the text.
+      case. When disabled, matching is case-insensitive, so a term matches
+      regardless of how it is capitalised in the text.
     values: "`true` / `false` (default `false`)"
 limitations:
-  - The glossary of term pairs is configured programmatically; it is not exposed as a schema parameter.
+  - The set of term pairs is configured programmatically; it is not exposed as a schema parameter.
   - Matching is substring-based; it does not account for inflection or morphology.
   - Requires a configured target locale and a terms store; blocks without a translation are skipped.
 processingNotes:
@@ -30,6 +30,6 @@ processingNotes:
   - Only entries whose source term is present in the block's source are checked.
 examples:
   - title: Case-insensitive term matching
-    description: Match glossary terms regardless of capitalisation.
+    description: Match terms regardless of capitalisation.
     config: |
       caseSensitive: false

@@ -105,13 +105,13 @@ kapi extract -p kapi.yaml --only mobile
 kapi extract -p kapi.yaml --pattern 'src/**/*.json'
 kapi extract -p kapi.yaml --xliff-version 2.0
 kapi extract -p kapi.yaml --format po
-kapi extract -p kapi.yaml --no-tm
+kapi extract -p kapi.yaml --no-memory
 
 kapi merge   -p kapi.yaml -i out/myapp-en-to-fr.xliff
 kapi merge   -p kapi.yaml -i file1.xliff -i file2.xliff -i file3.po
 kapi merge   -p kapi.yaml -i 'vendor-return/*.xliff'
 kapi merge   -p kapi.yaml -i vendor-return/
-kapi merge   -p kapi.yaml -i ... --no-tm-update
+kapi merge   -p kapi.yaml -i ... --no-memory-update
 ```
 
 ### Multi-target in one pass
@@ -277,7 +277,7 @@ without touching the emitted target.
   surfaces as untranslated for a human to decide.
 - Sub-threshold matches → `suggestions.jsonl`, not inlined.
 
-Disable with `--no-tm`. Additional read-only memories can be declared in
+Disable with `--no-memory`. Additional read-only memories can be declared in
 the recipe via `tm.read: [path, …]` and are consulted alongside the
 project's own memory during pre-fill.
 
@@ -291,7 +291,7 @@ content memory. Entries carry provenance:
 - `Origin.Key = <source-file-path>`
 - Block-hash and originating XLIFF filename as properties
 
-Disable with `--no-tm-update`. Combined with memory-in on the next
+Disable with `--no-memory-update`. Combined with memory-in on the next
 extract, this is what makes the memory a *memory* — without the
 write-back, leverage decays to zero.
 

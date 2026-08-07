@@ -12,7 +12,7 @@ import (
 func (c *Config) Schema() *schema.FormatSchema {
 	return &schema.FormatSchema{
 		Title:       "i18next JSON",
-		Description: "Configuration for the i18next / react-i18next JSON localization format",
+		Description: "Configuration for the i18next / react-i18next JSON resource format",
 		Type:        "object",
 		FormatMeta: schema.FormatMeta{
 			ID: formatID,

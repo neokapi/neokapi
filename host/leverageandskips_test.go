@@ -229,7 +229,7 @@ func TestExpandGlobArg_OrdinaryGlobReportsNoSkips(t *testing.T) {
 // lives in the cli module, so a host-level test wires the same flag set by hand.
 func addKpzExtractFlags(cmd *EnvCommand, recipe string) {
 	AddProjectFlag(cmd)
-	cmd.Flags().Bool("no-tm", false, "")
+	cmd.Flags().Bool("no-memory", false, "")
 	cmd.Flags().String("only", "", "")
 	cmd.Flags().String("pattern", "", "")
 	cmd.Flags().String("out-dir", "out", "")

@@ -13,7 +13,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewFormatsCmd creates the formats command group (list, info, schema).
+// NewFormatsCmd creates the formats command group: the bare command lists the
+// formats, with `info` and `schema` subcommands for one of them.
 func NewFormatsCmd(a *App) *cobra.Command {
 	var fmtMime, fmtExt string
 

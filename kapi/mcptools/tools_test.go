@@ -1,4 +1,4 @@
-package main
+package mcptools
 
 import (
 	"os"
@@ -79,7 +79,7 @@ func TestHandleExtractContent(t *testing.T) {
 	ctx := t.Context()
 
 	// Use the JSON testdata fixture.
-	fixturePath := filepath.Join("..", "..", "..", "core", "formats", "json", "testdata", "simple.json")
+	fixturePath := filepath.Join("..", "..", "core", "formats", "json", "testdata", "simple.json")
 	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
 		t.Skip("test fixture not found:", fixturePath)
 	}
@@ -139,7 +139,7 @@ func TestHandlePseudoTranslate(t *testing.T) {
 	a := testApp()
 	ctx := t.Context()
 
-	fixturePath := filepath.Join("..", "..", "..", "core", "formats", "json", "testdata", "simple.json")
+	fixturePath := filepath.Join("..", "..", "core", "formats", "json", "testdata", "simple.json")
 	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
 		t.Skip("test fixture not found:", fixturePath)
 	}
@@ -167,7 +167,7 @@ func TestHandleRunFlow(t *testing.T) {
 	a := testApp()
 	ctx := t.Context()
 
-	fixturePath := filepath.Join("..", "..", "..", "core", "formats", "json", "testdata", "simple.json")
+	fixturePath := filepath.Join("..", "..", "core", "formats", "json", "testdata", "simple.json")
 	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
 		t.Skip("test fixture not found:", fixturePath)
 	}
@@ -224,7 +224,7 @@ func TestHandleRunFlowUnknown(t *testing.T) {
 	a := testApp()
 	ctx := t.Context()
 
-	fixturePath := filepath.Join("..", "..", "..", "core", "formats", "json", "testdata", "simple.json")
+	fixturePath := filepath.Join("..", "..", "core", "formats", "json", "testdata", "simple.json")
 	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {
 		t.Skip("test fixture not found:", fixturePath)
 	}

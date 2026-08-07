@@ -105,7 +105,7 @@ func TestMerge_RoundTripAppliesTranslatorTarget(t *testing.T) {
 	editXLIFFTarget(t, xliffPath, "Bonjour")
 
 	// Merge.
-	mergeOut, err := runMergeCmd(t, recipe, "-i", xliffPath, "--no-tm-update")
+	mergeOut, err := runMergeCmd(t, recipe, "-i", xliffPath, "--no-memory-update")
 	require.NoError(t, err, "merge stdout: %s", mergeOut)
 
 	// The translated output should land at src/locales/fr-FR/app.json
@@ -164,7 +164,7 @@ func TestMerge_MultipleInputsInOnePass(t *testing.T) {
 	editXLIFFTarget(t, deFile, "Hallo")
 
 	// Merge both in one invocation.
-	out, err := runMergeCmd(t, recipe, "-i", frFile, "-i", deFile, "--no-tm-update")
+	out, err := runMergeCmd(t, recipe, "-i", frFile, "-i", deFile, "--no-memory-update")
 	require.NoError(t, err, "merge stdout: %s", out)
 
 	frContent, err := os.ReadFile(filepath.Join(real, "src", "locales", "fr-FR", "app.json"))
@@ -194,7 +194,7 @@ func TestMerge_StaleSourceIsSkippedNotApplied(t *testing.T) {
 	// from the XLIFF's <source>. This is the per-block stale case.
 	writeJSONSource(t, real, "src/locales/en/app.json", `{"k":"Hello world"}`)
 
-	out, err := runMergeCmd(t, recipe, "-i", xliffPath, "--no-tm-update")
+	out, err := runMergeCmd(t, recipe, "-i", xliffPath, "--no-memory-update")
 	require.NoError(t, err, "merge stdout: %s", out)
 	assert.Contains(t, out, "stale=1")
 
@@ -255,7 +255,7 @@ func TestMerge_ConflictPolicyExistingWins(t *testing.T) {
 	// block.Targets[locale], which is empty for a fresh source. A future
 	// improvement can consult the on-disk translated file directly.
 	// For now we simply assert the command succeeds with the policy set.
-	out, err := runMergeCmd(t, recipe, "-i", xliffPath, "--no-tm-update")
+	out, err := runMergeCmd(t, recipe, "-i", xliffPath, "--no-memory-update")
 	require.NoError(t, err, "merge stdout: %s", out)
 	assert.Contains(t, out, "existing-wins")
 }

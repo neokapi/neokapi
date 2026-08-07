@@ -140,7 +140,7 @@ func TestMerge_POFormatRoundTrip(t *testing.T) {
 	require.NoError(t, os.WriteFile(poPath, []byte(edited), 0o644))
 
 	// Merge.
-	mergeOut, err := runMergeCmd(t, recipe, "-i", poPath, "--no-tm-update")
+	mergeOut, err := runMergeCmd(t, recipe, "-i", poPath, "--no-memory-update")
 	require.NoError(t, err, "merge stdout: %s", mergeOut)
 
 	// Target file at src/locales/fr-FR/app.json.

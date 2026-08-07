@@ -717,8 +717,9 @@ deliberate trade-off:
   streaming; zero allocation per tool for pass-through Part types.
 - **Simplicity** — tools read and write fields on the same Block. No
   immutable builders, lenses, or patch application.
-- **Proven pattern** — the Okapi Framework, a Java localization framework, uses
-  the same mutable-event model across thousands of production workflows.
+- **Proven pattern** — the Okapi Framework, the Java content and translation
+  framework neokapi reimagines, uses the same mutable-event model across
+  thousands of production workflows.
 
 Document-level immutability is achieved by external storage layers that
 version entire Block states. Within a single pipeline execution, mutable

@@ -43,7 +43,7 @@ You can read (convert **from**) any supported format. You can write (convert
 - **Documents** — Markdown, HTML, DocLang, AsciiDoc, plain text
 - **Data & catalogs** — JSON, YAML, and the resource-string formats
 
-Run `kapi formats list` for the full set, or try the
+Run `kapi formats` for the full set, or try the
 [Conversion Lab](/lab/convert) to convert in your browser.
 
 **Not conversion targets:**

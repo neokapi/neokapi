@@ -128,7 +128,7 @@ func (a *App) RunExtract(cmd Command) error {
 		return fmt.Errorf("extract: unsupported --xliff-version %q (expected %v)", xliffVersion, xliff2.SupportedXLIFFVersions)
 	}
 
-	noMemory, _ := cmd.Flags().GetBool("no-tm")
+	noMemory := BoolFlagAny(cmd, "no-memory", "no-tm")
 	only, _ := cmd.Flags().GetString("only")
 	pattern, _ := cmd.Flags().GetString("pattern")
 
@@ -955,7 +955,7 @@ func (a *App) RunExtractKpz(cmd Command) error {
 		return err
 	}
 
-	noMemory, _ := cmd.Flags().GetBool("no-tm")
+	noMemory := BoolFlagAny(cmd, "no-memory", "no-tm")
 	only, _ := cmd.Flags().GetString("only")
 	pattern, _ := cmd.Flags().GetString("pattern")
 

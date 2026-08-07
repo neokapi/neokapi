@@ -223,7 +223,7 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 	}
 	writer, err := a.FormatReg.NewWriter(registry.FormatID(fmtName))
 	if err != nil {
-		return fmt.Errorf("%q is not editable (no writer) — read it with kcat; see editable formats with `kapi formats list`", fmtName)
+		return fmt.Errorf("%q is not editable (no writer) — read it with kcat; see editable formats with `kapi formats`", fmtName)
 	}
 
 	// Wire skeleton store when both sides support it (byte-for-byte round-trip).

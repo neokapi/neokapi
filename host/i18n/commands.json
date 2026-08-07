@@ -176,8 +176,8 @@
           }
         },
         "extract": {
-          "example": "  kapi extract -p kapi.yaml --no-tm\n  kapi extract -p kapi.yaml --target-lang fr\n  kapi extract -p kapi.yaml --target-lang fr,de,es\n  kapi extract src/*.json -o work.kpz --target-lang fr,qps   # ad-hoc .kpz workspace",
-          "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a kapi project, pre-filled from the project's translation\nmemory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
+          "example": "  kapi extract -p kapi.yaml --no-memory\n  kapi extract -p kapi.yaml --target-lang fr\n  kapi extract -p kapi.yaml --target-lang fr,de,es\n  kapi extract src/*.json -o work.kpz --target-lang fr,qps   # ad-hoc .kpz workspace",
+          "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
           "short": "Emit a bilingual file for a translator — native .kpz or XLIFF/PO"
         },
         "flows": {
@@ -302,7 +302,7 @@
           }
         },
         "merge": {
-          "example": "  kapi merge                     # materialize target-language files from the project store\n  kapi merge -i out/app.en-to-fr.xliff\n  kapi merge -i file1.xliff -i file2.xliff\n  kapi merge -i vendor-return/ --no-tm-update\n  kapi merge work.kpz -o out/    # emit target-language files from a .kpz workspace",
+          "example": "  kapi merge                     # materialize target-language files from the project store\n  kapi merge -i out/app.en-to-fr.xliff\n  kapi merge -i file1.xliff -i file2.xliff\n  kapi merge -i vendor-return/ --no-memory-update\n  kapi merge work.kpz -o out/    # emit target-language files from a .kpz workspace",
           "long": "Materialize target-language files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the target-language files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets/\u003clocale\u003e overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\ntarget-language file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level \u003cnote\u003e, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently.",
           "short": "Apply a returned bilingual file (.kpz/XLIFF/PO) back onto the project source"
         },

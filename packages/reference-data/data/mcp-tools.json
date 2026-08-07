@@ -1,0 +1,2014 @@
+{
+  "generatedAt": "2026-08-07T13:24:53Z",
+  "tools": [
+    {
+      "name": "apply_edits",
+      "description": "Apply a typed change-set — the one write verb. Content edits land through the byte-faithful round-trip (structure and inline codes preserved, drift-guarded by content_hash); asset edits (terms entry, content memory pair, voice rule, recipe field) are written to their committed source and compiled into the cache. No AI provider is used.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "changeset",
+          "type": "array",
+          "required": true,
+          "description": "the typed change-set entries to apply"
+        }
+      ]
+    },
+    {
+      "name": "approve_unit",
+      "description": "Approve one review-queue unit (→ reviewed). The unit state is recorded in the project store, bound to the current translation's content hash, with identity \"agent/\u003cclient\u003e\".",
+      "surface": "default",
+      "params": [
+        {
+          "name": "file",
+          "type": "string",
+          "required": true,
+          "description": "Target file path, as listed by review_queue"
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "required": true,
+          "description": "Unit key, as listed by review_queue"
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "required": true,
+          "description": "Target locale, as listed by review_queue"
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Reviewer note (the reason, for reject_unit)"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "Path to the .kapi project file (default: the ambient project)"
+        }
+      ]
+    },
+    {
+      "name": "case-transform",
+      "description": "Case Transform",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "applySource",
+          "type": "boolean",
+          "required": false,
+          "description": "Apply to source text"
+        },
+        {
+          "name": "applyTarget",
+          "type": "boolean",
+          "required": false,
+          "description": "Apply to target text"
+        },
+        {
+          "name": "mode",
+          "type": "string",
+          "required": false,
+          "description": "Case transformation mode"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "check_file",
+      "description": "Verify the content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) against the content checkset and return a kapi.check/v1 Report with per-block locations. The check counterpart to rewrite_file: author → check_file → fix the flagged block (optionally via rewrite_file) → re-check until pass. Pass target/target_lang to also run bilingual localization checks.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "file",
+          "type": "string",
+          "required": true,
+          "description": "path to the file whose content should be checked"
+        },
+        {
+          "name": "dnt",
+          "type": "array",
+          "required": false,
+          "description": "do-not-translate terms that must survive verbatim into the target"
+        },
+        {
+          "name": "forbid",
+          "type": "array",
+          "required": false,
+          "description": "regex that must NOT appear in the content"
+        },
+        {
+          "name": "max_chars",
+          "type": "integer",
+          "required": false,
+          "description": "flag content longer than this many characters (0 = off)"
+        },
+        {
+          "name": "max_words",
+          "type": "integer",
+          "required": false,
+          "description": "flag content with more than this many words (0 = off)"
+        },
+        {
+          "name": "profile_file",
+          "type": "string",
+          "required": false,
+          "description": "path to a voice profile YAML"
+        },
+        {
+          "name": "profile_pack",
+          "type": "string",
+          "required": false,
+          "description": "built-in profile pack to check vocabulary against"
+        },
+        {
+          "name": "require",
+          "type": "array",
+          "required": false,
+          "description": "regex that MUST appear in the content"
+        },
+        {
+          "name": "target",
+          "type": "string",
+          "required": false,
+          "description": "translated target file to check against the source (enables the bilingual source-against-target checks)"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "locale of the target file (e.g. de)"
+        },
+        {
+          "name": "validate",
+          "type": "string",
+          "required": false,
+          "description": "reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the report; strict also fails on a Major+ structure/encoding problem). Default off."
+        }
+      ]
+    },
+    {
+      "name": "check_text",
+      "description": "Verify a text snippet against the content checkset (text hygiene, length limits, forbidden/required patterns, and voice vocabulary when a profile is given) and return a kapi.check/v1 Report: pass, a 0-100 score, the gate, and a finding per stable rule id. Use it to check content you authored, then fix and re-check until it passes.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "the text to verify"
+        },
+        {
+          "name": "forbid",
+          "type": "array",
+          "required": false,
+          "description": "regex that must NOT appear in the content"
+        },
+        {
+          "name": "max_chars",
+          "type": "integer",
+          "required": false,
+          "description": "flag content longer than this many characters (0 = off)"
+        },
+        {
+          "name": "max_words",
+          "type": "integer",
+          "required": false,
+          "description": "flag content with more than this many words (0 = off)"
+        },
+        {
+          "name": "profile_file",
+          "type": "string",
+          "required": false,
+          "description": "path to a voice profile YAML"
+        },
+        {
+          "name": "profile_pack",
+          "type": "string",
+          "required": false,
+          "description": "built-in profile pack to check vocabulary against (e.g. marketing-blog)"
+        },
+        {
+          "name": "require",
+          "type": "array",
+          "required": false,
+          "description": "regex that MUST appear in the content"
+        }
+      ]
+    },
+    {
+      "name": "context_search",
+      "description": "Ask what this project's content context says about a word or phrase — what it is called here, whether it is discouraged and what to say instead, and wording the project has already approved. One question across every store the project binds; you do not need to know which one holds the answer. Ask BEFORE writing: learning the same fact from a failing check afterwards is the expensive route. Results are grouped by kind, and say what could not be reached.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "query",
+          "type": "string",
+          "required": true,
+          "description": "the word or phrase to ask about"
+        },
+        {
+          "name": "limit",
+          "type": "integer",
+          "required": false,
+          "description": "max results per group (default 10)"
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "required": false,
+          "description": "narrow results to one language (e.g. en, fr)"
+        },
+        {
+          "name": "memory",
+          "type": "string",
+          "required": false,
+          "description": "path to a standalone content memory (default: the project's own store)"
+        },
+        {
+          "name": "terms",
+          "type": "string",
+          "required": false,
+          "description": "path to a standalone terms store (default: the project's own store)"
+        }
+      ]
+    },
+    {
+      "name": "create-target",
+      "description": "Create Target",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "copySource",
+          "type": "boolean",
+          "required": false,
+          "description": "Copy the source runs into the new target"
+        },
+        {
+          "name": "createOnNonTranslatable",
+          "type": "boolean",
+          "required": false,
+          "description": "Create a target even for non-translatable text units"
+        },
+        {
+          "name": "overwrite",
+          "type": "boolean",
+          "required": false,
+          "description": "Overwrite the existing target if one already exists"
+        },
+        {
+          "name": "targetLocale",
+          "type": "string",
+          "required": false,
+          "description": "Target locale to create"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "detect_format",
+      "description": "Detect the file format from a file path based on its extension",
+      "surface": "default",
+      "params": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "description": "File path to detect format from"
+        }
+      ]
+    },
+    {
+      "name": "diff-leverage",
+      "description": "Diff Leverage",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "caseSensitive",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether comparison is case-sensitive"
+        },
+        {
+          "name": "fuzzyMatch",
+          "type": "boolean",
+          "required": false,
+          "description": "Enable fuzzy matching for similar texts"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "dnt-check",
+      "description": "Do-Not-Translate Check",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "caseInsensitive",
+          "type": "boolean",
+          "required": false,
+          "description": "Accept a case-folded match in the target instead of requiring exact case"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        },
+        {
+          "name": "terms",
+          "type": "array",
+          "required": false,
+          "description": "Strings that must survive verbatim into the target (product names"
+        }
+      ]
+    },
+    {
+      "name": "encoding-detect",
+      "description": "Encoding Detect",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "entity-extract",
+      "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "required": false,
+          "description": "API key for the AI provider"
+        },
+        {
+          "name": "batchConcurrency",
+          "type": "integer",
+          "required": false,
+          "description": "Number of concurrent batch calls (0 or 1 = sequential)"
+        },
+        {
+          "name": "batchSize",
+          "type": "integer",
+          "required": false,
+          "description": "Number of blocks per LLM call (0 or 1 = one block per call)"
+        },
+        {
+          "name": "engine",
+          "type": "string",
+          "required": false,
+          "description": "llm (AI provider; default) / ner (local on-device model — nothing leaves the machine) / hybrid (both)"
+        },
+        {
+          "name": "knownTerms",
+          "type": "array",
+          "required": false,
+          "description": "Terms to exclude from extraction (already in the terms store)"
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "required": false,
+          "description": "Locale of the source content"
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "required": false,
+          "description": "AI model name"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "required": false,
+          "description": "AI provider"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "extract_content",
+      "description": "Parse a file into translatable content blocks — each block's id, content_hash, source text (inline codes rendered as \u003cx id=\"…\"/\u003e placeholders), and word count. The read leg of the edit loop: edit a block's text keeping the placeholders, then send it back via apply_edits (or kapi apply).",
+      "surface": "default",
+      "params": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "description": "File path to extract content from"
+        },
+        {
+          "name": "format",
+          "type": "string",
+          "required": false,
+          "description": "Override format detection"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "Path to .kapi project file for scoped format detection"
+        },
+        {
+          "name": "source_lang",
+          "type": "string",
+          "required": false,
+          "description": "Source language (default: en)"
+        }
+      ]
+    },
+    {
+      "name": "inline-codes-remove",
+      "description": "Inline Codes Remove",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "applySource",
+          "type": "boolean",
+          "required": false,
+          "description": "Apply to the source text"
+        },
+        {
+          "name": "applyTarget",
+          "type": "boolean",
+          "required": false,
+          "description": "Apply to the target text"
+        },
+        {
+          "name": "includeNonTranslatable",
+          "type": "boolean",
+          "required": false,
+          "description": "Apply the removal action even to text units marked as non-translatable"
+        },
+        {
+          "name": "replaceWithSpace",
+          "type": "boolean",
+          "required": false,
+          "description": "Replace line-break inline codes with spaces instead of removing them entirely"
+        },
+        {
+          "name": "targetLocale",
+          "type": "string",
+          "required": false,
+          "description": "Target locale for processing"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "list_flows",
+      "description": "List all available processing flows",
+      "surface": "all-flows"
+    },
+    {
+      "name": "list_formats",
+      "description": "List all supported file formats with their extensions, MIME types, and read/write capabilities",
+      "surface": "all-tools"
+    },
+    {
+      "name": "list_tools",
+      "description": "List all available processing tools",
+      "surface": "all-tools"
+    },
+    {
+      "name": "media-refine",
+      "description": "Re-read low-confidence OCR/ASR lines with a configurable multimodal LLM",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "required": false,
+          "description": "API key for the AI provider"
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "required": false,
+          "description": "Multimodal model name"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "required": false,
+          "description": "Multimodal AI provider"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        },
+        {
+          "name": "threshold",
+          "type": "number",
+          "required": false,
+          "description": "Re-read extracted lines whose confidence is below this"
+        }
+      ]
+    },
+    {
+      "name": "placeholder-check",
+      "description": "Placeholder Check",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "flagExtra",
+          "type": "boolean",
+          "required": false,
+          "description": "Report placeholders present in the target but absent from the source"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "pseudo-translate",
+      "description": "Pseudo Translate",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "expansionPercent",
+          "type": "integer",
+          "required": false,
+          "description": "Extra padding percentage added to simulate translation expansion (0 = no padding)"
+        },
+        {
+          "name": "prefix",
+          "type": "string",
+          "required": false,
+          "description": "Characters prepended before each translated block"
+        },
+        {
+          "name": "suffix",
+          "type": "string",
+          "required": false,
+          "description": "Characters appended after each translated block"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "pseudo_translate",
+      "description": "Pseudo-translate a file to test how the UI holds expanded text",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "path",
+          "type": "string",
+          "required": true,
+          "description": "File path to pseudo-translate"
+        },
+        {
+          "name": "output_path",
+          "type": "string",
+          "required": false,
+          "description": "Output file path (default: auto-generated)"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "Target language (default: qps)"
+        }
+      ]
+    },
+    {
+      "name": "qa",
+      "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "absoluteMaxCharLength",
+          "type": "integer",
+          "required": false,
+          "description": "Maximum number of characters allowed in any target segment"
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "required": false,
+          "description": "API key for the AI provider"
+        },
+        {
+          "name": "charset",
+          "type": "string",
+          "required": false,
+          "description": "Name of the character set encoding to check against (e.g. ISO-8859-1)"
+        },
+        {
+          "name": "checkAbsoluteMaxCharLength",
+          "type": "boolean",
+          "required": false,
+          "description": "Flag target segments that exceed an absolute character count limit"
+        },
+        {
+          "name": "checkCharset",
+          "type": "boolean",
+          "required": false,
+          "description": "Warn if a target character is not included in the specified character set encoding"
+        },
+        {
+          "name": "checkCodeDifference",
+          "type": "boolean",
+          "required": false,
+          "description": "Verify that target segments have the same inline codes as source segments"
+        },
+        {
+          "name": "checkCorruptedCharacters",
+          "type": "boolean",
+          "required": false,
+          "description": "Check for patterns indicating encoding corruption (mojibake"
+        },
+        {
+          "name": "checkDoubleSpaces",
+          "type": "boolean",
+          "required": false,
+          "description": "Check for double spaces in target text"
+        },
+        {
+          "name": "checkDoubledWord",
+          "type": "boolean",
+          "required": false,
+          "description": "Check for consecutive repeated words in target text"
+        },
+        {
+          "name": "checkEmptySource",
+          "type": "boolean",
+          "required": false,
+          "description": "Check for non-empty target when source is empty"
+        },
+        {
+          "name": "checkEmptyTarget",
+          "type": "boolean",
+          "required": false,
+          "description": "Check for empty target when source has content"
+        },
+        {
+          "name": "checkLeadingWhitespace",
+          "type": "boolean",
+          "required": false,
+          "description": "Check for leading whitespace mismatches between source and target"
+        },
+        {
+          "name": "checkMaxCharLength",
+          "type": "boolean",
+          "required": false,
+          "description": "Flag targets longer than a percentage of source character length"
+        },
+        {
+          "name": "checkMaxWords",
+          "type": "boolean",
+          "required": false,
+          "description": "Flag target segments that exceed an absolute word count limit"
+        },
+        {
+          "name": "checkMinCharLength",
+          "type": "boolean",
+          "required": false,
+          "description": "Flag targets shorter than a percentage of source character length"
+        },
+        {
+          "name": "checkPatterns",
+          "type": "boolean",
+          "required": false,
+          "description": "Verify that source patterns have expected corresponding content in the target"
+        },
+        {
+          "name": "checkSourceInconsistency",
+          "type": "boolean",
+          "required": false,
+          "description": "Flag when different source texts share the same translation"
+        },
+        {
+          "name": "checkSpanConstraints",
+          "type": "boolean",
+          "required": false,
+          "description": "Check non-deletable and non-cloneable span constraint violations"
+        },
+        {
+          "name": "checkTargetInconsistency",
+          "type": "boolean",
+          "required": false,
+          "description": "Flag when the same source text is translated differently across the run"
+        },
+        {
+          "name": "checkTargetSameAsSource",
+          "type": "boolean",
+          "required": false,
+          "description": "Check when target text is identical to source text"
+        },
+        {
+          "name": "checkTerminology",
+          "type": "boolean",
+          "required": false,
+          "description": "Enable terminology checks"
+        },
+        {
+          "name": "checkTrailingWhitespace",
+          "type": "boolean",
+          "required": false,
+          "description": "Check for trailing whitespace mismatches between source and target"
+        },
+        {
+          "name": "checks",
+          "type": "array",
+          "required": false,
+          "description": "Quality checks to perform (e.g. terminology fluency accuracy consistency)"
+        },
+        {
+          "name": "consistencyCaseSensitive",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether consistency comparison is case-sensitive"
+        },
+        {
+          "name": "doubledWordExceptions",
+          "type": "string",
+          "required": false,
+          "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)"
+        },
+        {
+          "name": "forbiddenChars",
+          "type": "string",
+          "required": false,
+          "description": "Characters that must not appear in target text (e.g. {}[])"
+        },
+        {
+          "name": "maxCharLengthAbove",
+          "type": "integer",
+          "required": false,
+          "description": "Maximum allowed percentage of source length for long text"
+        },
+        {
+          "name": "maxCharLengthBelow",
+          "type": "integer",
+          "required": false,
+          "description": "Maximum allowed percentage of source length for short text"
+        },
+        {
+          "name": "maxCharLengthBreak",
+          "type": "integer",
+          "required": false,
+          "description": "Character count above which text is considered long for the maximum length check"
+        },
+        {
+          "name": "maxWords",
+          "type": "integer",
+          "required": false,
+          "description": "Maximum number of words allowed in any target segment"
+        },
+        {
+          "name": "minCharLengthAbove",
+          "type": "integer",
+          "required": false,
+          "description": "Minimum required percentage of source length for long text"
+        },
+        {
+          "name": "minCharLengthBelow",
+          "type": "integer",
+          "required": false,
+          "description": "Minimum required percentage of source length for short text"
+        },
+        {
+          "name": "minCharLengthBreak",
+          "type": "integer",
+          "required": false,
+          "description": "Character count above which text is considered long for the minimum length check"
+        },
+        {
+          "name": "mode",
+          "type": "string",
+          "required": false,
+          "description": "How to check quality: deterministic local rules, or an AI provider's review"
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "required": false,
+          "description": "AI model name"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "required": false,
+          "description": "AI provider"
+        },
+        {
+          "name": "requiredChars",
+          "type": "string",
+          "required": false,
+          "description": "Characters that must appear in target if present in source (e.g. punctuation)"
+        },
+        {
+          "name": "strictCodeOrder",
+          "type": "boolean",
+          "required": false,
+          "description": "Flag differences when codes appear in a different order between source and target"
+        },
+        {
+          "name": "targetSameAsSourceWithCodes",
+          "type": "boolean",
+          "required": false,
+          "description": "Include inline codes when comparing source and target for identity"
+        },
+        {
+          "name": "targetSameAsSourceWithNumbers",
+          "type": "boolean",
+          "required": false,
+          "description": "Include number-only segments in same-as-source comparison"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "recycle",
+      "description": "Recycle",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "downgradeIdenticalBestMatches",
+          "type": "boolean",
+          "required": false,
+          "description": "Reduce score by 1%% when multiple identical exact matches are returned"
+        },
+        {
+          "name": "fillIfTargetIsEmpty",
+          "type": "boolean",
+          "required": false,
+          "description": "Fill the target only when it has no existing content"
+        },
+        {
+          "name": "fillTarget",
+          "type": "boolean",
+          "required": false,
+          "description": "Copy the best translation candidate into the target content"
+        },
+        {
+          "name": "fillTargetThreshold",
+          "type": "integer",
+          "required": false,
+          "description": "Minimum match score required to fill the target"
+        },
+        {
+          "name": "fuzzyThreshold",
+          "type": "integer",
+          "required": false,
+          "description": "Minimum score for fuzzy matches (0-100)"
+        },
+        {
+          "name": "makeTmx",
+          "type": "boolean",
+          "required": false,
+          "description": "Create a TMX file with all leveraged matches"
+        },
+        {
+          "name": "noQueryThreshold",
+          "type": "integer",
+          "required": false,
+          "description": "Skip content-memory query if existing candidate scores at or above this value (101 = always query)"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        },
+        {
+          "name": "tmxPath",
+          "type": "string",
+          "required": false,
+          "description": "File path for the generated TMX document"
+        }
+      ]
+    },
+    {
+      "name": "redact",
+      "description": "Replace sensitive spans with protected placeholders before processing",
+      "surface": "default",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "detectors",
+          "type": "array",
+          "required": false,
+          "description": "Detection backends to run: rules and/or entities"
+        },
+        {
+          "name": "entityTypes",
+          "type": "array",
+          "required": false,
+          "description": "Entity categories to redact: person"
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": false,
+          "description": "Visible stand-in template; supports {category} and {n}"
+        },
+        {
+          "name": "rulesPath",
+          "type": "string",
+          "required": false,
+          "description": "Path to a redaction rules YAML file"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "reject_unit",
+      "description": "Reject one review-queue unit (→ draft, back to the work queue) with a note explaining why. Recorded with identity \"agent/\u003cclient\u003e\"; retranslating the unit re-enters it in review.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "file",
+          "type": "string",
+          "required": true,
+          "description": "Target file path, as listed by review_queue"
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "required": true,
+          "description": "Unit key, as listed by review_queue"
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "required": true,
+          "description": "Target locale, as listed by review_queue"
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Reviewer note (the reason, for reject_unit)"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "Path to the .kapi project file (default: the ambient project)"
+        }
+      ]
+    },
+    {
+      "name": "remove-target",
+      "description": "Remove Target",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "filterByIDs",
+          "type": "boolean",
+          "required": false,
+          "description": "When true filter text units by ID; when false filter by target locale"
+        },
+        {
+          "name": "removeBlockIfEmpty",
+          "type": "boolean",
+          "required": false,
+          "description": "Remove the text unit entirely if it has no remaining targets after removal"
+        },
+        {
+          "name": "targetLocale",
+          "type": "string",
+          "required": false,
+          "description": "Target locale to remove (if empty all targets are removed)"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        },
+        {
+          "name": "textUnitIDs",
+          "type": "string",
+          "required": false,
+          "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
+        }
+      ]
+    },
+    {
+      "name": "review",
+      "description": "Review translations with scoring using an LLM provider",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "required": false,
+          "description": "API key for the AI provider"
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "required": false,
+          "description": "AI model name"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "required": false,
+          "description": "AI provider"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "review_queue",
+      "description": "List the translation review queue: every translated unit not yet approved, addressed by (file, key, locale). Filter with locale and/or collection. Read-only — derived from the content files and the project state store; units annotated by an AI pre-review carry their score.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "collection",
+          "type": "string",
+          "required": false,
+          "description": "Only list units in this content collection"
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "required": false,
+          "description": "Only list units for this target locale"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "Path to the .kapi project file (default: the ambient project)"
+        }
+      ]
+    },
+    {
+      "name": "review_unit",
+      "description": "Fetch one review-queue unit's full picture: source and target text, ladder status, the last recorded state (with identity), and any fresh AI pre-review score/findings. The read leg before approve_unit / reject_unit / sign_off_unit.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "file",
+          "type": "string",
+          "required": true,
+          "description": "Target file path, as listed by review_queue"
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "required": true,
+          "description": "Unit key, as listed by review_queue"
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "required": true,
+          "description": "Target locale, as listed by review_queue"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "Path to the .kapi project file (default: the ambient project)"
+        }
+      ]
+    },
+    {
+      "name": "run_flow",
+      "description": "Execute a processing flow (e.g. pseudo-translate, qa) on a file",
+      "surface": "all-flows",
+      "params": [
+        {
+          "name": "flow_name",
+          "type": "string",
+          "required": true,
+          "description": "Name of the flow to run (e.g. pseudo-translate or qa)"
+        },
+        {
+          "name": "output_path",
+          "type": "string",
+          "required": false,
+          "description": "Output file path (default: auto-generated)"
+        },
+        {
+          "name": "path",
+          "type": "string",
+          "required": false,
+          "description": "Input file path (optional when project has content patterns)"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "Path to a .kapi project file for project-scoped execution"
+        },
+        {
+          "name": "source_lang",
+          "type": "string",
+          "required": false,
+          "description": "Source language (default: en)"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "Target language"
+        }
+      ]
+    },
+    {
+      "name": "search-replace",
+      "description": "Search and Replace",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "dotAll",
+          "type": "boolean",
+          "required": false,
+          "description": "Make the period character match every character including line-feed"
+        },
+        {
+          "name": "ignoreCase",
+          "type": "boolean",
+          "required": false,
+          "description": "Ignore case when matching search patterns"
+        },
+        {
+          "name": "multiLine",
+          "type": "boolean",
+          "required": false,
+          "description": "Make ^ and $ match at the beginning and end of each line"
+        },
+        {
+          "name": "regEx",
+          "type": "boolean",
+          "required": false,
+          "description": "Enable regular expression mode for all search patterns"
+        },
+        {
+          "name": "replaceAll",
+          "type": "boolean",
+          "required": false,
+          "description": "Replace all matches instead of only the first"
+        },
+        {
+          "name": "source",
+          "type": "boolean",
+          "required": false,
+          "description": "Perform search and replace on source content"
+        },
+        {
+          "name": "target",
+          "type": "boolean",
+          "required": false,
+          "description": "Perform search and replace on target content"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "segmentation",
+      "description": "Split source text into sentence or chunk segments (stand-off overlay)",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "credential",
+          "type": "string",
+          "required": false,
+          "description": "Stored credential name"
+        },
+        {
+          "name": "engine",
+          "type": "string",
+          "required": false,
+          "description": "Which segmenter to use; the default needs no configuration"
+        },
+        {
+          "name": "instruction",
+          "type": "string",
+          "required": false,
+          "description": "Optional guidance for how to chunk"
+        },
+        {
+          "name": "layer",
+          "type": "string",
+          "required": false,
+          "description": "Segmentation overlay layer name; empty uses the engine's natural layer"
+        },
+        {
+          "name": "maxChunkRunes",
+          "type": "integer",
+          "required": false,
+          "description": "Soft upper bound on chunk size in characters (0 = model default)"
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "required": false,
+          "description": "Model name"
+        },
+        {
+          "name": "overwriteSegmentation",
+          "type": "boolean",
+          "required": false,
+          "description": "Re-segment already-segmented blocks replacing previous segmentation"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "required": false,
+          "description": "AI provider id (anthropic"
+        },
+        {
+          "name": "renumberCodes",
+          "type": "boolean",
+          "required": false,
+          "description": "Renumber inline code IDs when materializing segments to a bilingual format"
+        },
+        {
+          "name": "rulesPath",
+          "type": "string",
+          "required": false,
+          "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)"
+        },
+        {
+          "name": "segmentSource",
+          "type": "boolean",
+          "required": false,
+          "description": "Segment the source text"
+        },
+        {
+          "name": "segmentTarget",
+          "type": "boolean",
+          "required": false,
+          "description": "Segment existing target text"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        },
+        {
+          "name": "treatIsolatedCodesAsWhitespace",
+          "type": "boolean",
+          "required": false,
+          "description": "Treat isolated inline codes as whitespace during segmentation"
+        },
+        {
+          "name": "trimLeadingWhitespace",
+          "type": "boolean",
+          "required": false,
+          "description": "Exclude leading whitespace from each segment span"
+        },
+        {
+          "name": "trimTrailingWhitespace",
+          "type": "boolean",
+          "required": false,
+          "description": "Exclude trailing whitespace from each segment span"
+        }
+      ]
+    },
+    {
+      "name": "sign_off_unit",
+      "description": "Sign off one review-queue unit (→ signed-off, the top ladder rung). Recorded with identity \"agent/\u003cclient\u003e\".",
+      "surface": "default",
+      "params": [
+        {
+          "name": "file",
+          "type": "string",
+          "required": true,
+          "description": "Target file path, as listed by review_queue"
+        },
+        {
+          "name": "key",
+          "type": "string",
+          "required": true,
+          "description": "Unit key, as listed by review_queue"
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "required": true,
+          "description": "Target locale, as listed by review_queue"
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Reviewer note (the reason, for reject_unit)"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "Path to the .kapi project file (default: the ambient project)"
+        }
+      ]
+    },
+    {
+      "name": "source-gate",
+      "description": "Source Gate",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "gate",
+          "type": "string",
+          "required": false,
+          "description": "Minimum source-authoring status a block must reach before its translations are produced"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "stats",
+      "description": "Size files before processing them: per-file and total content metrics — blocks (translatable and not), words, characters (with and without spaces, plus the unique-character inventory), segments when available, and a by-role breakdown. Works on any supported format (Word, PowerPoint, JSON, XLIFF, Markdown, HTML, …) and returns the same JSON `kapi stats --json` emits.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "files",
+          "type": "array",
+          "required": true,
+          "description": "paths of the files to summarize"
+        },
+        {
+          "name": "format",
+          "type": "string",
+          "required": false,
+          "description": "input format override applied to every file (default: auto-detect by extension/content)"
+        }
+      ]
+    },
+    {
+      "name": "term-check",
+      "description": "Terminology Check",
+      "surface": "default",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "caseSensitive",
+          "type": "boolean",
+          "required": false,
+          "description": "Whether term matching is case-sensitive"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "term-extract",
+      "description": "Extract candidate terminology from content using an LLM provider",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "required": false,
+          "description": "API key for the AI provider"
+        },
+        {
+          "name": "domain",
+          "type": "string",
+          "required": false,
+          "description": "Subject domain for terminology extraction (e.g. medical legal technology)"
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "required": false,
+          "description": "AI model name"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "required": false,
+          "description": "AI provider"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "translate",
+      "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
+      "surface": "default",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "required": false,
+          "description": "API key for the AI provider"
+        },
+        {
+          "name": "batchConcurrency",
+          "type": "integer",
+          "required": false,
+          "description": "Number of concurrent batch calls (0 or 1 = sequential)"
+        },
+        {
+          "name": "batching",
+          "type": "string",
+          "required": false,
+          "description": "How many blocks share one LLM call"
+        },
+        {
+          "name": "context",
+          "type": "string",
+          "required": false,
+          "description": "What the model is told about a block besides the block itself"
+        },
+        {
+          "name": "contextWindow",
+          "type": "integer",
+          "required": false,
+          "description": "Blocks either side to send as reference (with context: neighbours)"
+        },
+        {
+          "name": "engine",
+          "type": "string",
+          "required": false,
+          "description": "Translation engine: an AI model or a machine-translation provider"
+        },
+        {
+          "name": "instruction",
+          "type": "string",
+          "required": false,
+          "description": "Extra guidance for the model while translating (e.g. 'informal register; keep product names in English')"
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "required": false,
+          "description": "AI model name"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "required": false,
+          "description": "AI provider"
+        },
+        {
+          "name": "skipMatched",
+          "type": "boolean",
+          "required": false,
+          "description": "Skip blocks that already have a target translation"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "unredact",
+      "description": "Restore original values into redacted content after processing",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "up",
+      "description": "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the default flow (content memory reuse then AI translate) over every target language — concurrently per language — loop until every gated scope is shippable or parks for a human, and run the project's bound checks each pass. Never fails on pending target work: parked units are reported, not thrown. Returns the structured result (per-locale standing, parked scopes, materialized files). Use up_plan first to see the pending work and token estimate.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "jobs",
+          "type": "integer",
+          "required": false,
+          "description": "how many languages to catch up concurrently per pass (0 = project default, else 4)"
+        },
+        {
+          "name": "materialize",
+          "type": "boolean",
+          "required": false,
+          "description": "after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy)"
+        },
+        {
+          "name": "no_checks",
+          "type": "boolean",
+          "required": false,
+          "description": "skip the project's bound checks inside the loop (failing units then count as translated)"
+        },
+        {
+          "name": "passes",
+          "type": "integer",
+          "required": false,
+          "description": "maximum reconciliation passes (0 = loop until up to date or parked; 1 = single pass)"
+        },
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "path to the kapi.yaml recipe (default: discovered upward from the working directory, like git)"
+        }
+      ]
+    },
+    {
+      "name": "up_plan",
+      "description": "Dry-run the catch-up work for a kapi project: per (collection, locale), the units missing a target, exact-content-memory leverage, the remaining AI work, and a rough token estimate. No provider calls, nothing written. The pre-flight for the up tool.",
+      "surface": "default",
+      "params": [
+        {
+          "name": "project",
+          "type": "string",
+          "required": false,
+          "description": "path to the kapi.yaml recipe (default: discovered upward from the working directory, like git)"
+        }
+      ]
+    },
+    {
+      "name": "voice-check",
+      "description": "Check text against a voice profile using an LLM provider",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "required": false,
+          "description": "API key for the AI provider"
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "required": false,
+          "description": "AI model name"
+        },
+        {
+          "name": "profileId",
+          "type": "string",
+          "required": false,
+          "description": "Voice profile to resolve from the store"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "required": false,
+          "description": "AI provider"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "voice-infer",
+      "description": "Infer a draft voice profile from a content corpus using an LLM provider",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "apiKey",
+          "type": "string",
+          "required": false,
+          "description": "API key for the AI provider"
+        },
+        {
+          "name": "domain",
+          "type": "string",
+          "required": false,
+          "description": "Subject domain hint for the analysis (e.g. medical legal technology)"
+        },
+        {
+          "name": "maxExamples",
+          "type": "integer",
+          "required": false,
+          "description": "Maximum before/after examples to infer"
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "required": false,
+          "description": "AI model name"
+        },
+        {
+          "name": "profileName",
+          "type": "string",
+          "required": false,
+          "description": "Name for the inferred draft profile"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "required": false,
+          "description": "AI provider"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        }
+      ]
+    },
+    {
+      "name": "voice_check",
+      "description": "Score text against a voice profile using deterministic vocabulary rules; returns a 0-100 compliance score and findings",
+      "surface": "default",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "the text to check or rewrite"
+        },
+        {
+          "name": "profile_file",
+          "type": "string",
+          "required": false,
+          "description": "path to a profile YAML"
+        },
+        {
+          "name": "profile_pack",
+          "type": "string",
+          "required": false,
+          "description": "built-in profile pack name"
+        }
+      ]
+    },
+    {
+      "name": "voice_rewrite",
+      "description": "Rewrite text to comply with a voice profile by substituting forbidden/competitor terms (deterministic, offline)",
+      "surface": "default",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "the text to check or rewrite"
+        },
+        {
+          "name": "profile_file",
+          "type": "string",
+          "required": false,
+          "description": "path to a profile YAML"
+        },
+        {
+          "name": "profile_pack",
+          "type": "string",
+          "required": false,
+          "description": "built-in profile pack name"
+        }
+      ]
+    },
+    {
+      "name": "whitespace-correct",
+      "description": "Whitespace Correct",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "correctComma",
+          "type": "boolean",
+          "required": false,
+          "description": "Correct whitespace after commas"
+        },
+        {
+          "name": "correctExclamation",
+          "type": "boolean",
+          "required": false,
+          "description": "Correct whitespace after exclamation marks"
+        },
+        {
+          "name": "correctFullStop",
+          "type": "boolean",
+          "required": false,
+          "description": "Correct whitespace after full stops (periods)"
+        },
+        {
+          "name": "correctQuestion",
+          "type": "boolean",
+          "required": false,
+          "description": "Correct whitespace after question marks"
+        },
+        {
+          "name": "includeHorizontalWS",
+          "type": "boolean",
+          "required": false,
+          "description": "Include horizontal tab characters in corrections"
+        },
+        {
+          "name": "includeVerticalWS",
+          "type": "boolean",
+          "required": false,
+          "description": "Include vertical whitespace (line feeds and carriage returns) in corrections"
+        },
+        {
+          "name": "matchSourceWhitespace",
+          "type": "boolean",
+          "required": false,
+          "description": "Copy source leading/trailing whitespace to target"
+        },
+        {
+          "name": "normalizeSpaces",
+          "type": "boolean",
+          "required": false,
+          "description": "Collapse multiple spaces to a single space"
+        },
+        {
+          "name": "removeZeroWidthChars",
+          "type": "boolean",
+          "required": false,
+          "description": "Remove zero-width spaces and joiners"
+        },
+        {
+          "name": "targetLocale",
+          "type": "string",
+          "required": false,
+          "description": "Target locale for processing"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        },
+        {
+          "name": "trimLeading",
+          "type": "boolean",
+          "required": false,
+          "description": "Remove leading whitespace from target text"
+        },
+        {
+          "name": "trimTrailing",
+          "type": "boolean",
+          "required": false,
+          "description": "Remove trailing whitespace from target text"
+        }
+      ]
+    },
+    {
+      "name": "xml-validation",
+      "description": "XML Validation",
+      "surface": "all-tools",
+      "params": [
+        {
+          "name": "text",
+          "type": "string",
+          "required": true,
+          "description": "The content (text) to run the tool over."
+        },
+        {
+          "name": "checkSource",
+          "type": "boolean",
+          "required": false,
+          "description": "Validate source text for XML well-formedness"
+        },
+        {
+          "name": "checkTarget",
+          "type": "boolean",
+          "required": false,
+          "description": "Validate target text for XML well-formedness"
+        },
+        {
+          "name": "locale",
+          "type": "string",
+          "required": false,
+          "description": "Target locale for validation"
+        },
+        {
+          "name": "target_lang",
+          "type": "string",
+          "required": false,
+          "description": "BCP-47 target language (e.g. fr, de). Defaults to the project's target when run inside a project."
+        },
+        {
+          "name": "wrapRoot",
+          "type": "boolean",
+          "required": false,
+          "description": "Wrap text in a root element before validating"
+        }
+      ]
+    }
+  ]
+}

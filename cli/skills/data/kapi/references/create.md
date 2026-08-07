@@ -17,7 +17,7 @@ HTML, JSON, YAML, and the other **generative** formats. Confirm a target format
 is generative before authoring into it:
 
 ```bash
-kapi formats list --json | jq -r '.formats[] | select(.generative) | .name'
+kapi formats --json | jq -r '.formats[] | select(.generative) | .name'
 ```
 
 **Binary office formats (`.docx`, `.pptx`, `.xlsx`) cannot be authored from

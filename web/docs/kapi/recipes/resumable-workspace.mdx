@@ -37,12 +37,12 @@ The lifecycle is four verbs over one file:
 
 ```bash
 kapi extract src/**/*.json -o work.kpz \
-  --target-lang fr,qps --out 'l10n/{lang}/{name}.{ext}'   # ingest + record config
+  --target-lang fr,qps --out 'locales/{lang}/{name}.{ext}' # ingest + record config
 kapi translate work.kpz --target-lang fr                  # transform in place
 kapi pseudo-translate work.kpz --target-lang qps          # …work accumulates
 kapi info work.kpz                                        # documents, locales, dirty?
 kapi pack work.kpz                                        # eject the cache → the shareable file
-kapi merge work.kpz -o l10n/                              # emit the finished files
+kapi merge work.kpz -o locales/                           # emit the finished files
 ```
 
 What's happening underneath:

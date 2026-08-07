@@ -9,6 +9,7 @@ import gapsJson from "../data/reference-gaps.json";
 import commandsJson from "../data/commands.json";
 import promptsJson from "../data/prompts.json";
 import modelsJson from "../data/models.json";
+import mcpToolsJson from "../data/mcp-tools.json";
 import type {
   ReferenceDataset,
   ReferenceEntry,
@@ -16,6 +17,7 @@ import type {
   CommandDataset,
   PromptDataset,
   ModelDataset,
+  MCPDataset,
 } from "./types";
 
 export * from "./types";
@@ -30,6 +32,9 @@ export const prompts = promptsJson as unknown as PromptDataset;
 
 /** The curated catalog of models kapi supports, with their neokapi lifecycle. */
 export const models = modelsJson as unknown as ModelDataset;
+
+/** The tools a live `kapi mcp` server answers to, per exposed surface. */
+export const mcpTools = mcpToolsJson as unknown as MCPDataset;
 
 /** All formats and tools in one array. */
 export function allEntries(): ReferenceEntry[] {

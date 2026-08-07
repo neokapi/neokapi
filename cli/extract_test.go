@@ -287,7 +287,7 @@ func TestExtract_NoMemorySkipsPrefill(t *testing.T) {
 		},
 	})
 
-	_, err = runExtractCmd(t, recipe, "--no-tm")
+	_, err = runExtractCmd(t, recipe, "--no-memory")
 	require.NoError(t, err)
 
 	entries, err := os.ReadDir(filepath.Join(real, "out"))

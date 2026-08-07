@@ -1,9 +1,9 @@
 # Native reference doc for the built-in `applestrings` format.
 # Schema source: core/formats/applestrings/config.go (Config) + schema.go.
-# Legacy Apple localization; .xcstrings (see xcstrings) is the modern successor.
-description: Extract and update translations in legacy Apple .strings and .stringsdict localization files.
+# Legacy Apple string resources; .xcstrings (see xcstrings) is the modern successor.
+description: Extract and update translations in legacy Apple .strings and .stringsdict resource files.
 overview: |
-  The **Apple Strings** format reads both legacy Apple localization file
+  The **Apple Strings** format reads both legacy Apple string-resource file
   types in one format: the line-based `.strings` key/value tables and the
   `.stringsdict` plist-XML plural dictionaries (locale by `.lproj` directory).
 

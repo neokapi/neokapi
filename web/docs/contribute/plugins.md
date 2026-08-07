@@ -101,7 +101,7 @@ capability type.
   with LRU eviction. Format and tool capabilities register into the standard
   `FormatRegistry` / `ToolRegistry` and are indistinguishable from native ones at
   the API level. The Okapi bridge is the canonical Mode-C plugin — see
-  [Okapi Bridge](/contribute/java-bridge).
+  [Standard plugins](#standard-plugins).
 
 The host-side runtime — discovery, dispatch, the daemon pool, the registry
 client, and signature verification — lives in
@@ -168,7 +168,14 @@ without `--unsafe`.
   re-licensing `kapi`: installed via its own Homebrew formula, which drops its
   binary into `share/kapi/plugins/<plugin>/`.
 - **okapi-bridge** — a JVM-backed Mode-C daemon exposing the Okapi Framework's
-  filter library to neokapi. See [Okapi Bridge](/contribute/java-bridge).
+  Java filter library to neokapi, developed in its own repository,
+  [neokapi/okapi-bridge](https://github.com/neokapi/okapi-bridge). It is not part
+  of the product surface. Its role is keeping the plugin protocol honest: it is
+  the reference implementation of a third-party kapi plugin in a non-Go language,
+  and its CI runs the
+  [conformance suite](/contribute/implementation/plugin-protocol-v1#conformance-suite)
+  against released kapi versions. Any plugin repository can verify itself against
+  the contract the same way.
 - **On-device ML sidecars** — cgo plugins that run native ML in their own
   subprocess so the heavy stack (onnxruntime, whisper.cpp, PDFium, ffmpeg) never
   enters the portable `kapi` binary: `kapi-sat` (segmentation), `kapi-vision`
@@ -218,4 +225,4 @@ leaves downloaded model caches and configuration alone.
 
 - [AD-007: Plugin System](/contribute/architecture/007-plugin-system) — full design rationale and the registry/signing model
 - [Plugin model note](/contribute/implementation/plugin-model) — the in-process registry contract a plugin binary uses to wire features into `cli.App`
-- [Okapi Bridge](/contribute/java-bridge) — the canonical Mode-C bridge plugin
+- [Plugin protocol v1](/contribute/implementation/plugin-protocol-v1) — the language-neutral specification an out-of-tree plugin repository builds and verifies against

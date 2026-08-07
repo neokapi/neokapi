@@ -5,12 +5,11 @@
 displayName: XLIFF 2.x
 description: Read and write OASIS XLIFF 2.0, 2.1, and 2.2 bilingual exchange documents.
 overview: |
-  XLIFF 2.x is the modern OASIS Localization Interchange File Format. It
-  replaces the 1.2 element soup with an explicit `<unit>`/`<segment>`
-  structure, file-scoped notes, a small set of inline tag elements
-  (`ph`, `pc`, `sc`/`ec`, `mrk`), and per-segment translation states. The
-  reader accepts the 2.0, 2.1, and 2.2 namespaces as one compatible
-  family.
+  XLIFF 2.x is the modern OASIS XML interchange standard for bilingual
+  content. It replaces the 1.2 element soup with an explicit
+  `<unit>`/`<segment>` structure, file-scoped notes, a small set of inline tag
+  elements (`ph`, `pc`, `sc`/`ec`, `mrk`), and per-segment translation states.
+  The reader accepts the 2.0, 2.1, and 2.2 namespaces as one compatible family.
 
   The reader emits one block per translatable unit and preserves inline
   markup as raw inner XML so unmodified content round-trips byte-for-byte.

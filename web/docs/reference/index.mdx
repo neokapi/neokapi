@@ -13,8 +13,9 @@ keywords: [neokapi reference, commands, formats, tools, project file, KBF, MCP, 
 Generated, authoritative documentation for everything the framework exposes —
 commands, formats, tools, the project file, and the exchange format — derived
 directly from the code and the format and tool schemas. This page lists every
-reference and dashboard in one place; the same set is mirrored in the navbar's
-**Reference** menu.
+reference and dashboard in one place. The navbar's **Reference** menu carries the
+reader-facing references; the project-status dashboards below are measurements of
+the suites rather than a reader concept, so they live in the sidebar instead.
 
 ## Interactive references
 
@@ -53,6 +54,12 @@ These dashboards are generated from the test and benchmark suites:
 - [Benchmarks](/pseudobench) — performance measurements.
 - [ML benchmark](/ml-benchmark) — measurements for the in-process ML models.
 - [Check eval](/check-eval) — evaluation of the verification checks.
+- [Context eval](/context-eval) — whether models follow the context kapi injects
+  (terms, voice profile, instruction), measured as the lift in adherence with the
+  context over adherence without it, per model and per dimension.
+- [Batch eval](/batch-eval) — what batching costs: cost per thousand words,
+  throughput, and structural integrity against the number of blocks packed into
+  one model call.
 
 :::note
 

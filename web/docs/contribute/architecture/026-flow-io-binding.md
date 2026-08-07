@@ -220,7 +220,7 @@ intent, then auto-detection. `kapi run --explain` prints the resolved
 bound by detection — its extension or kind decides it (`.kpz` → the workspace
 store, `.xliff` / `.po` → interchange, a plain document → `file`, a directory
 inside a project → the project store). A `scheme:` locator forces the binding and
-removes any ambiguity: `-o store:` is the block store, while `-o l10n/` is a
+removes any ambiguity: `-o store:` is the block store, while `-o locales/` is a
 directory of files. `file:` forces a path that would otherwise read as a scheme.
 Each example shows the resolved `source → sink`:
 
@@ -232,7 +232,7 @@ kapi run translate -i work.kpz --pack            # store(work.kpz) → store, th
 kapi run translate -i store: -o xliff:hand.xliff # store           → interchange(hand.xliff)
 kapi run qa  -i a.json -o none             # file(a.json)    → none         (analysis; report only)
 kapi extract src/*.json -o work.kpz              # file(glob)      → store(work.kpz)
-kapi merge -o l10n/{lang}/{name}.{ext}           # store           → file(template)
+kapi merge -o locales/{lang}/{name}.{ext}        # store           → file(template)
 ```
 
 `extract`, `merge`, and `pack` are named presets for the bindings their names

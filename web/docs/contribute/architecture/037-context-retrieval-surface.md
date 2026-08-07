@@ -106,23 +106,41 @@ The by-location primitive renders as **prose for a model** (`text/markdown`) or
 type, so this is a property of the resource rather than a second entry point;
 the CLI expresses it as `--json`.
 
-This is what dissolves `voice_guide`. It conflated three concerns — voice only,
-by name only, markdown only — into one narrow point. Once content is the whole
-context, addressing covers by-name, and rendering is a property, nothing is left
-over.
+This is what dissolves the `voice_guide` tool. It conflated three concerns —
+voice only, by name only, markdown only — into one narrow point. Once content is
+the whole context, addressing covers by-name, and rendering is a property,
+nothing is left over.
 
 ### What folds in
 
-| Retired from the retrieval surface | Folds into |
+The fold is on the **MCP surface**. An agent gets the two primitives and no
+per-store retrieval tool:
+
+| Gone from the agent surface | Folds into |
 | --- | --- |
-| `voice_guide`, `voice show` | `kapi context` / `context://` |
-| `term_lookup`, `terms lookup`, `terms search` | `kapi context search` / `context_search` |
-| `tm_search`, `memory lookup`, `memory search` | `kapi context search` / `context_search` |
+| `voice_guide` | the by-location primitive |
+| `term_lookup` | `context_search` |
+| `tm_search` | `context_search` |
+
+The kapi MCP server exposes no voice-guide, term-lookup or memory-search tool,
+and `host/mcp_tools_curation_test.go` guards the surface so a curated registry
+tool cannot re-shadow the primitives.
+
+**The CLI keeps its per-store verbs.** `kapi voice guide` and `kapi voice show`
+render a resolved profile as a guide; `kapi terms lookup` / `terms search` and
+`kapi memory lookup` / `memory search` query one store directly. They answer a
+narrower question than `kapi context` — *what does this store hold* rather than
+*what applies here* — which is a reasonable thing to ask of a store you opened on
+purpose. What changes is what an agent is taught: the skill drives `kapi context
+search`, so the narrow verbs stay available to a person without becoming the
+model an assistant learns.
 
 **Management verbs are not retrieval and do not fold.** `terms import/export/
 stats`, `memory import/export/audit/sessions`, `voice new/validate/import/pack`
 stay exactly as they are — they operate on a store deliberately, which is a
-different act from asking a question.
+different act from asking a question. The same holds for the voice tools an agent
+does get: `voice_check` and `voice_rewrite` judge or change a piece of text, so
+neither is a retrieval question.
 
 ### Content memory is recycled, not searched
 

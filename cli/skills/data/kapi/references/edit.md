@@ -97,11 +97,11 @@ re-run until the gate is green (exit 0).
 
 ## Which formats can I edit?
 
-`kapi formats list` reports an **Edit** column and the JSON adds `editable` and
+`kapi formats` reports an **Edit** column and the JSON adds `editable` and
 `round_trip`:
 
 ```bash
-kapi formats list --json | jq -r '.formats[] | select(.editable) | .name'
+kapi formats --json | jq -r '.formats[] | select(.editable) | .name'
 ```
 
 A format is **editable** when it has both a reader and a writer and is not a

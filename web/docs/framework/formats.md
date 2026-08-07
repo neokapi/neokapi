@@ -144,7 +144,7 @@ translatable — see [kconv](/toolbox/kconv) and
 [Plugins](/contribute/plugins) can register additional readers and writers
 alongside the built-in set — the `kapi-pdfium` plugin adds the PDF reader, for
 example. Once installed, a plugin's formats participate in detection, `kapi
-formats list`, and flows exactly like the built-in ones.
+formats`, and flows exactly like the built-in ones.
 
 ## Format Detection
 

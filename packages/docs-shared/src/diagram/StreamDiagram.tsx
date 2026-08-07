@@ -43,6 +43,8 @@ export interface StreamDiagramProps {
   caption?: string;
   /** Send a Part travelling down the spine. Default false. */
   animated?: boolean;
+  /** Accessible name, for a spine that is not a Part stream. */
+  ariaLabel?: string;
 }
 
 const ROW_H = 30;
@@ -67,6 +69,7 @@ export function StreamDiagram({
   items,
   caption,
   animated = false,
+  ariaLabel,
 }: StreamDiagramProps): React.ReactElement {
   const titleH = title ? 24 : 4;
   const rowY = (i: number) => titleH + TOP + i * ROW_H;
@@ -83,7 +86,7 @@ export function StreamDiagram({
             viewBox={`0 0 ${totalW} ${totalH}`}
             xmlns="http://www.w3.org/2000/svg"
             role="img"
-            aria-label={`Stream: ${items.map((it) => it.kind).join(", ")}`}
+            aria-label={ariaLabel ?? `Stream: ${items.map((it) => it.kind).join(", ")}`}
           >
             {title && (
               <text x={SPINE_X - 6} y={16} fontSize={11} className="kdx-mono">

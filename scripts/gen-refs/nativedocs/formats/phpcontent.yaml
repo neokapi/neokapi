@@ -1,11 +1,11 @@
 # Native reference doc for the built-in `phpcontent` format.
 # Schema source: core/formats/phpcontent/config.go (Config + Schema()).
 # Mirrors the Okapi okf_phpcontent filter.
-description: Extract translatable text from PHP source files, optionally scoped by inline localization directives.
+description: Extract translatable text from PHP source files, optionally scoped by inline extraction directives.
 overview: |
   The **PHP Content** format reads PHP source files and extracts the
   translatable text they contain — the text outside PHP code, and text within
-  regions marked by localization directives. It is intended for PHP templates
+  regions marked by extraction directives. It is intended for PHP templates
   and content files where prose is interleaved with code.
 
   Extraction can be scoped with `//okapi:` directives embedded as comments in
@@ -14,7 +14,7 @@ overview: |
   directive-controlled regions is also extracted.
 parameters:
   useDirectives:
-    description: Honor inline localization directives.
+    description: Honor inline extraction directives.
     help: |
       When enabled (the default), `//okapi:` directives in the PHP source —
       `skip` and `text` — control which regions of the file are extracted.

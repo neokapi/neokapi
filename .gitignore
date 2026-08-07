@@ -258,6 +258,7 @@ platform/docker/traefik/certs
 /bowrain/bowrain
 /checkeval
 /contexteval
+/gen-refs
 /kapi-wasm
 /kapi/kapi-wasm-cli
 

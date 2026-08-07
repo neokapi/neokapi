@@ -10,7 +10,7 @@ scenes:
     fixtures:
       - bilingual-project
     smoke_contract:
-      - kapi extract -p kapi.yaml --no-tm
+      - kapi extract -p kapi.yaml --no-memory
 ---
 
 ## Story

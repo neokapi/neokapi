@@ -6,7 +6,8 @@ overview: |
   The **Java Properties** format reads `.properties` resource bundles,
   extracts the value of each entry as a translatable block, and writes the
   translations back while preserving keys, comments, and layout. It is the
-  standard format for Java application and library localization.
+  standard format for translatable resources in Java applications and
+  libraries.
 
   Each line is a `key=value` (or `key:value`) entry; comment lines begin with
   `#` or `!`. By default every value is extracted. You can restrict extraction

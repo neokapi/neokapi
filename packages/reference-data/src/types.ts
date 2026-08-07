@@ -269,3 +269,37 @@ export interface ModelDataset {
   note: string;
   models: ModelEntry[];
 }
+
+// ── MCP reference ───────────────────────────────────────────────────────────
+
+/**
+ * Which `kapi mcp` surface exposes a tool: the curated default an assistant
+ * gets on connect, or the sets `--all-tools` / `--all-flows` add.
+ */
+export type MCPSurface = "default" | "all-tools" | "all-flows";
+
+/** One top-level property of an MCP tool's input schema. */
+export interface MCPParam {
+  name: string;
+  type: string;
+  required: boolean;
+  description?: string;
+}
+
+/** One tool as an MCP client sees it on `tools/list`. */
+export interface MCPTool {
+  name: string;
+  description: string;
+  surface: MCPSurface;
+  params?: MCPParam[];
+}
+
+/**
+ * The generated MCP reference: the tools a live `kapi mcp` server answers to,
+ * collected over an in-memory transport so the published table is the
+ * registration source rendered rather than a hand copy of it.
+ */
+export interface MCPDataset {
+  generatedAt: string;
+  tools: MCPTool[];
+}

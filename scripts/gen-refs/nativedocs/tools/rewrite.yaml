@@ -56,7 +56,7 @@ examples:
     description: Rewrite every block to be shorter while keeping meaning.
     config: |
       instruction: make it more concise
-  - title: Localise spelling with a named model
+  - title: Convert to UK spelling with a named model
     description: Switch to UK spelling using a specific provider/model.
     config: |
       instruction: use UK spelling

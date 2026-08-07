@@ -24,6 +24,8 @@ export { AxisFamiliesDiagram } from "./AxisFamiliesDiagram";
 export type { AxisFamiliesDiagramProps, AxisFamily } from "./AxisFamiliesDiagram";
 export { CycleDiagram } from "./CycleDiagram";
 export type { CycleDiagramProps, CycleStep } from "./CycleDiagram";
+export { TypeDiagram } from "./TypeDiagram";
+export type { TypeDiagramProps, TypeBox, TypeField, TypeEdge } from "./TypeDiagram";
 export { GatedLoopDiagram } from "./GatedLoopDiagram";
 export type {
   GatedLoopDiagramProps,

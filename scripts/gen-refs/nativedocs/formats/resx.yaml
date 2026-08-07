@@ -5,8 +5,9 @@
 description: Extract and update translatable strings in Microsoft .NET RESX 2.0 and .resw resource files.
 overview: |
   The **.NET RESX** format reads Microsoft ResX 2.0 resource files and their
-  string-only `.resw` variant — the standard localization container for .NET
-  applications (locale by satellite filename, e.g. `Strings.fr.resx`).
+  string-only `.resw` variant — the standard container for translatable
+  resources in .NET applications (locale by satellite filename, e.g.
+  `Strings.fr.resx`).
 
   String `<data>` entries become translatable blocks: the `name` attribute is
   the block name, `<value>` is the source, a sibling `<comment>` becomes a

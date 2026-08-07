@@ -48,7 +48,7 @@ It loads the voice and wording first (`kapi voice guide`, `kapi terms lookup`) s
 Author in a **generative** format — one kapi can produce from content alone (Markdown, HTML, JSON, YAML, …):
 
 ```bash
-kapi formats list --json | jq -r '.formats[] | select(.generative) | .name'
+kapi formats --json | jq -r '.formats[] | select(.generative) | .name'
 ```
 
 Binary office formats (`.docx`, `.pptx`, `.xlsx`) are editable but not generative — start from an existing file and [edit it in place](/kapi/recipes/rewrite-content) instead. Parse the draft back as the first verification that it is well-formed and says what you intend, then gate it:
