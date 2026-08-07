@@ -32,7 +32,7 @@ func writeArchiveProject(t *testing.T) string {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
 
-	recipe := `version: v2
+	recipe := `version: v1
 name: archive-demo
 defaults:
   source_language: en
@@ -127,7 +127,7 @@ func TestPackRefusesAnEmptyProject(t *testing.T) {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"),
-		[]byte("version: v2\nname: empty\ndefaults:\n  source_language: en\n"), 0o644))
+		[]byte("version: v1\nname: empty\ndefaults:\n  source_language: en\n"), 0o644))
 	t.Chdir(root)
 
 	cmd := NewEnvCommand(context.Background(), "pack")
@@ -156,7 +156,7 @@ func TestPackSkipsEmptyPartsOfAnOpenStore(t *testing.T) {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"),
-		[]byte("version: v2\nname: empty\ndefaults:\n  source_language: en\n"), 0o644))
+		[]byte("version: v1\nname: empty\ndefaults:\n  source_language: en\n"), 0o644))
 
 	// Open the store and write nothing: every table exists, every one is empty.
 	db := openProjectStore(t, root)

@@ -134,7 +134,7 @@ func TestToolFromStep_BuiltinTool(t *testing.T) {
 
 func TestKapiProjectYAMLRoundtrip(t *testing.T) {
 	// Write a realistic .kapi file and verify it roundtrips through YAML.
-	yamlContent := `version: v2
+	yamlContent := `version: v1
 name: Acme App Localization
 plugins:
   okapi:

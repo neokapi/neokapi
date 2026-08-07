@@ -24,8 +24,8 @@ func parseRecipe(t *testing.T, body string) *KapiProject {
 // project.
 func TestExecSurfaceEmptyForOrdinaryRecipes(t *testing.T) {
 	cases := map[string]string{
-		"bare": "version: v2\n",
-		"content and flows": `version: v2
+		"bare": "version: v1\n",
+		"content and flows": `version: v1
 defaults:
   source_language: en
   target_languages: [nb, de]
@@ -37,7 +37,7 @@ flows:
       - tool: translate
       - tool: term-check
 `,
-		"tool presets": `version: v2
+		"tool presets": `version: v1
 defaults:
   tools:
     translate:
@@ -48,7 +48,7 @@ defaults:
         redact:
           entities: true
 `,
-		"named format": `version: v2
+		"named format": `version: v1
 collections:
   - path: app/**/*.json
     format:
@@ -69,7 +69,7 @@ collections:
 // branch, the retired source_transforms stage, a per-locale tool preset, and a
 // format binding on a single content item.
 func TestExecSurfaceFindsEveryArm(t *testing.T) {
-	sites := ExecSurface(parseRecipe(t, `version: v2
+	sites := ExecSurface(parseRecipe(t, `version: v1
 flows:
   default:
     steps:
@@ -127,7 +127,7 @@ collections:
 // person can judge the argv rather than the tool's name, so the summary has to
 // carry it.
 func TestExecSurfaceDetailNamesWhatWouldRun(t *testing.T) {
-	sites := ExecSurface(parseRecipe(t, `version: v2
+	sites := ExecSurface(parseRecipe(t, `version: v1
 flows:
   default:
     steps:
@@ -176,7 +176,7 @@ func TestExecSurfaceDetailIsClipped(t *testing.T) {
 // decision depends on. Editing the parts of a recipe people edit daily must
 // keep a decision valid; editing what would run must invalidate it.
 func TestExecSurfaceDigestTracksTheArgvNotTheRecipe(t *testing.T) {
-	const base = `version: v2
+	const base = `version: v1
 defaults:
   target_languages: [nb]
 flows:
@@ -203,7 +203,7 @@ flows:
 	})
 
 	t.Run("unchanged by config key order", func(t *testing.T) {
-		assert.Equal(t, baseDigest, digestOf(`version: v2
+		assert.Equal(t, baseDigest, digestOf(`version: v1
 defaults:
   target_languages: [nb]
 flows:

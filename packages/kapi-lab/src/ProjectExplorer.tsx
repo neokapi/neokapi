@@ -70,7 +70,7 @@ export function targetGlob(filename: string): string {
 // and every declared flow. This is the config-as-code a `kapi init` scaffolds
 // and you edit once.
 export function recipeFor(sample: WorkspaceSample): string {
-  return `version: v2
+  return `version: v1
 name: demo
 defaults:
   source_language: en

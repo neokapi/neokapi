@@ -27,7 +27,7 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 const project = {
-  version: "v2",
+  version: "v1",
   name: "Demo",
   defaults: { target_languages: ["fr-FR"], flow: "translate" },
   flows: { translate: { steps: [{ tool: "translate" }] } },

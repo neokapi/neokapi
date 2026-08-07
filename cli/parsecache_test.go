@@ -18,7 +18,7 @@ func writeCacheProject(t *testing.T) string {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
-	recipe := `version: v2
+	recipe := `version: v1
 name: cache
 defaults:
   source_language: en

@@ -245,7 +245,7 @@ A `kapi.yaml` recipe declares plugin dependencies as a map of plugin
 name to semver constraint:
 
 ```yaml
-version: v2
+version: v1
 name: my-app
 requires:
   myplugin: "^1.0"

@@ -27,7 +27,7 @@ import { ErrorProvider } from "../components/ErrorBanner";
 import type { KapiProject, ProjectStatus } from "../types/api";
 
 const project: KapiProject = {
-  version: "v2",
+  version: "v1",
   name: "Demo",
   defaults: { source_language: "en-US", target_languages: ["fr-FR"] },
   collections: [

@@ -60,7 +60,7 @@ The pairing keeps the git-like shape of a committed config file beside a tool-ow
 The recipe is a YAML document. Bowrain projects layer a `bowrain:` block (and optional top-level `hooks`, `automations`, `assets`, `brand_voice`) onto the framework's `KapiProject` schema.
 
 ```yaml
-version: v2
+version: v1
 name: My App
 
 defaults:
@@ -130,7 +130,7 @@ brand_voice:
 
 | Field          | Type           | Description                                                            |
 | -------------- | -------------- | ---------------------------------------------------------------------- |
-| `version`      | string         | Schema version (currently `v2`)                                        |
+| `version`      | string         | Schema version (currently `v1`)                                        |
 | `name`         | string         | Project display name                                                   |
 | `defaults`     | object         | Project-wide language and execution defaults                           |
 | `collections`  | list           | Content collections (see [Content Collections](#content-collections))  |

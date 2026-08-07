@@ -45,20 +45,11 @@ func sortMissingRequires(s []MissingRequirement) {
 }
 
 // CurrentVersion is the schema version for .kapi files.
-const CurrentVersion = "v2"
+const CurrentVersion = "v1"
 
-// shapeChangeHint names what v2 changed, so a v1 recipe fails with the edits
-// to make rather than a bare version mismatch.
-const shapeChangeHint = "the recipe shape changed: `content:` is now `collections:` " +
-	"(its items under `content:`, with an optional `base:`), `coordinates:` is gone and " +
-	"`profiles:` is a map keyed by profile name declaring its `channels:`, a collection " +
-	"binds one with `channel: profile/channel`, and the `server:` block is now the " +
-	"platform's own key (`bowrain:`)"
-
-// retiredProjectKeys are the top-level keys v2 replaced, mapped to what a
-// recipe should say instead. A v2 recipe still carrying one is a half-finished
-// migration: the key would be captured as an unknown extension and silently
-// carry nothing, so name it rather than accept it.
+// retiredProjectKeys are top-level keys the recipe does not have, mapped to
+// what a recipe should say instead. Left unnamed, such a key would be captured
+// as an unknown extension and silently carry nothing.
 var retiredProjectKeys = map[string]string{
 	"content":     "collections",
 	"coordinates": "profiles (each profile declares its channels)",
@@ -805,7 +796,7 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 		return errors.New("version is required")
 	}
 	if p.Version != CurrentVersion {
-		return fmt.Errorf("unsupported version %q (expected %q) — %s", p.Version, CurrentVersion, shapeChangeHint)
+		return fmt.Errorf("unsupported version %q (expected %q)", p.Version, CurrentVersion)
 	}
 	for _, key := range sortedKeys(p.Extras) {
 		if replacement, retired := retiredProjectKeys[key]; retired {

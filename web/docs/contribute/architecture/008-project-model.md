@@ -195,7 +195,7 @@ The recipe is a YAML document parsed into `core/project.KapiProject`:
 
 ```yaml
 # kapi.yaml
-version: v2
+version: v1
 name: My App
 
 profiles:
@@ -261,7 +261,7 @@ detection makes the upstream `entity` port required exactly as an inline
 config would. The flow editor badges preset-backed steps and shows the
 inherited values with override indicators in the step's config panel.
 
-Required fields: `version: v2` (must equal the current schema version) and, for
+Required fields: `version: v1` (must equal the current schema version) and, for
 each content item, a non-empty `path`. Every flow contains at least one step
 with a non-empty `tool` (unless the step uses `parallel`, in which case the
 parallel branches carry the tools). `name` is the project's human label — since
@@ -379,7 +379,7 @@ also accepted). Validation fails when no extension under the named group has
 been registered:
 
 ```yaml
-version: v2
+version: v1
 requires:
   myplugin: "*"
 myplugin:
@@ -403,7 +403,7 @@ name and gates it with `requires:`, so a recipe carrying the key is meaningful
 only when that plugin is installed.
 
 ```yaml
-version: v2
+version: v1
 requires:
   myplugin: "*"
 myplugin:

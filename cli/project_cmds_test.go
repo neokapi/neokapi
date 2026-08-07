@@ -163,7 +163,7 @@ func TestInitCmd_idempotentOnExistingRecipe(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
 	// Pre-create the recipe file under the fixed name init uses (kapi.yaml).
-	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RecipeFileName), []byte("version: v2\nname: existing\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RecipeFileName), []byte("version: v1\nname: existing\n"), 0o644))
 
 	cmd := NewInitCmd(app)
 	cmd.SetArgs([]string{"--dir", dir, "--name", "existing"})

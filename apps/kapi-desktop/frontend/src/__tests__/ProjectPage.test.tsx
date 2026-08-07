@@ -4,7 +4,7 @@ import { ProjectPage } from "../components/ProjectPage";
 
 describe("ProjectPage", () => {
   const project = {
-    version: "v2",
+    version: "v1",
     name: "Test Project",
     defaults: {
       source_language: "en-US",

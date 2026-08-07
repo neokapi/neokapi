@@ -109,7 +109,7 @@ func RecipeExists(dir string) (bool, error) {
 
 func ScaffoldRecipe(name, sourceLocale string, targetLocales []string, content []scaffoldContent, voiceProfile, termsSource string) []byte {
 	var b strings.Builder
-	b.WriteString("version: v2\n")
+	b.WriteString("version: v1\n")
 	b.WriteString("name: ")
 	b.WriteString(name)
 	// Source/target locales live under `defaults:` — the schema the loader
@@ -209,7 +209,7 @@ flows: {}
 // translation project (ScaffoldRecipe) instead.
 func ScaffoldContentRecipe(name, sourceLocale string) []byte {
 	var b strings.Builder
-	b.WriteString("version: v2\n")
+	b.WriteString("version: v1\n")
 	b.WriteString("name: ")
 	b.WriteString(name)
 	b.WriteString("\ndefaults:\n")

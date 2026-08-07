@@ -36,7 +36,7 @@ func TestRegisterExtension_RoundTrip(t *testing.T) {
 
 	p := &KapiProject{Version: CurrentVersion}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 server:
   url: https://example.com/team/proj
 `), p))
@@ -69,7 +69,7 @@ func TestValidate_ExtensionDecoderError(t *testing.T) {
 
 	p := &KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 server: {}
 `), p))
 
@@ -84,7 +84,7 @@ func TestValidate_UnknownKeyRoundTrips(t *testing.T) {
 
 	p := &KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 future_thing:
   some: value
 `), p))
@@ -141,7 +141,7 @@ func TestValidate_RequiresInvalidConstraint(t *testing.T) {
 func TestRequiresMap_RejectsBareListForm(t *testing.T) {
 	p := &KapiProject{}
 	err := yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 requires: [bowrain, okapi-bridge]
 `), p)
 	require.Error(t, err)
@@ -159,7 +159,7 @@ func TestRequiresMap_AcceptsMapForm(t *testing.T) {
 
 	p := &KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 requires:
   bowrain: "^1.0"
   okapi-bridge: ">=1.47.0"
@@ -228,7 +228,7 @@ func TestValidate_ItemScopeDecoder(t *testing.T) {
 
 	p := &KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 collections:
   - name: ui
     content:
@@ -241,7 +241,7 @@ collections:
 	// Now make it bad — sequence where string expected.
 	bad := &KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 collections:
   - name: ui
     content:
@@ -278,7 +278,7 @@ func TestInertProjectExtras(t *testing.T) {
 	// Dependency missing → both dependent fields report, sorted; the
 	// dependency-free extension and the unknown key stay silent.
 	p := load(t, `
-version: v2
+version: v1
 name: t
 hooks:
   pre-push: [echo]
@@ -293,7 +293,7 @@ some_future_key: 1
 
 	// Dependency present → nothing to report.
 	p = load(t, `
-version: v2
+version: v1
 name: t
 server:
   url: https://x.example/w/p

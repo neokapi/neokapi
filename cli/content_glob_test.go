@@ -45,7 +45,7 @@ func runLs(t *testing.T, a *App, recipe string, args ...string) (string, error) 
 // collections, exit 0 — the broken pattern invisible.
 func TestLs_MalformedPatternFailsNamingTheCollection(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe := writeGlobRecipe(t, `version: v2
+	recipe := writeGlobRecipe(t, `version: v1
 name: LsGlob
 defaults:
   source_language: en-US
@@ -70,7 +70,7 @@ collections:
 // matches nothing yet must still list the rest with exit 0.
 func TestLs_PatternMatchingNothingStillLists(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe := writeGlobRecipe(t, `version: v2
+	recipe := writeGlobRecipe(t, `version: v1
 name: LsGlob
 defaults:
   source_language: en-US
@@ -96,7 +96,7 @@ collections:
 // unusable pattern into the recipe.
 func TestAdd_RefusesAMalformedPattern(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe := writeGlobRecipe(t, `version: v2
+	recipe := writeGlobRecipe(t, `version: v1
 name: AddGlob
 defaults:
   source_language: en-US
@@ -119,7 +119,7 @@ defaults:
 // well-formed pattern with no matches must still be added.
 func TestAdd_AcceptsAPatternThatMatchesNothingYet(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe := writeGlobRecipe(t, `version: v2
+	recipe := writeGlobRecipe(t, `version: v1
 name: AddGlob
 defaults:
   source_language: en-US

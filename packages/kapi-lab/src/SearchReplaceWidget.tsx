@@ -28,7 +28,7 @@ export interface SearchReplaceWidgetProps {
 export function buildSearchReplaceRecipe(find: string, replace: string, regex: boolean): string {
   const pair = { search: find, replace, isRegex: regex };
   return [
-    "version: v2",
+    "version: v1",
     "name: Lab",
     "defaults:",
     "  source_language: en",

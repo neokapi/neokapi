@@ -15,7 +15,7 @@ afterEach(cleanup);
 describe("buildSearchReplaceRecipe", () => {
   it("emits a one-step lab flow carrying the pair as JSON in the config", () => {
     const recipe = buildSearchReplaceRecipe("color", "colour", false);
-    expect(recipe).toContain("version: v2");
+    expect(recipe).toContain("version: v1");
     expect(recipe).toContain("  lab:");
     expect(recipe).toContain("    steps:");
     expect(recipe).toContain("      - tool: search-replace");

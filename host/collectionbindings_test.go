@@ -40,7 +40,7 @@ func governedProject(t *testing.T, platformChannel string) (recipe, root string)
 		[]byte(platformVoiceYAML), 0o644))
 
 	proj := &project.KapiProject{
-		Version: "v2",
+		Version: "v1",
 		Name:    "Governed",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en",
@@ -98,7 +98,7 @@ func TestGroupInputsByBinding(t *testing.T) {
 
 	newProj := func(collections ...project.Collection) *project.KapiProject {
 		return &project.KapiProject{
-			Version:     "v2",
+			Version:     "v1",
 			Defaults:    project.Defaults{Voice: defaultVoice},
 			Profiles:    profiles,
 			Collections: collections,

@@ -23,7 +23,7 @@ func TestRecipeConfig_GetSet(t *testing.T) {
 
 	root := t.TempDir()
 	recipe := filepath.Join(root, "kapi.yaml")
-	require.NoError(t, os.WriteFile(recipe, []byte(`version: v2
+	require.NoError(t, os.WriteFile(recipe, []byte(`version: v1
 name: app
 defaults:
   source_language: en

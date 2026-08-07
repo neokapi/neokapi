@@ -183,7 +183,7 @@ export const XLSX_B64 =
 
 /** The committed YAML recipe for a project sample. */
 function recipeYaml(opts: { content: string; format: string; target: string }): string {
-  return `version: v2
+  return `version: v1
 name: demo
 defaults:
   source_language: en

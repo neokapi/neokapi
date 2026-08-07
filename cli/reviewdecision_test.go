@@ -174,7 +174,7 @@ func TestApplyReviewDecision_UnitNotFound(t *testing.T) {
 func TestReviewQueue_CarriesCollection(t *testing.T) {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	recipe := `version: v2
+	recipe := `version: v1
 name: rev
 defaults:
   source_language: en

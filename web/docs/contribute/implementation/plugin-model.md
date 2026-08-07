@@ -175,7 +175,7 @@ func init() {
 ### Recipe
 
 ```yaml
-version: v2
+version: v1
 name: my-app
 requires:
   gitlab: "*"

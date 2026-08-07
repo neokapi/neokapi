@@ -197,7 +197,7 @@ Both keep everything under one `i18n/` directory. Because the source lives under
 If you already use a [`kapi.yaml` project file](/contribute/architecture/008-project-model) to define your workflow, declare each archive-backed collection with an `exec` format pointing at neokapi-i18n (or any other extractor):
 
 ```yaml title="kapi.yaml"
-version: v2
+version: v1
 name: MyApp
 defaults:
   source_language: en

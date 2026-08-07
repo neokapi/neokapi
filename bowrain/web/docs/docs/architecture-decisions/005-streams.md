@@ -131,7 +131,7 @@ merge refs (`123/merge`) are not used — `GITHUB_HEAD_REF` is preferred.
 The `stream` field on the `bowrain:` block of the recipe:
 
 ```yaml
-version: v2
+version: v1
 name: my-app
 
 defaults:

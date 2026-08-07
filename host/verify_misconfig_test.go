@@ -23,7 +23,7 @@ func writeUnboundProject(t *testing.T) string {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
 
-	recipe := `version: v2
+	recipe := `version: v1
 name: unbound
 defaults:
   source_language: en
@@ -163,7 +163,7 @@ func writeCleanVoiceProject(t *testing.T) string {
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 
-	recipe := `version: v2
+	recipe := `version: v1
 name: clean
 defaults:
   source_language: en

@@ -30,7 +30,7 @@ seed:
 files:
   - path: kapi.yaml
     content: |
-      version: v2
+      version: v1
       name: demo
       defaults:
         source_language: en

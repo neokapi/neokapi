@@ -23,7 +23,7 @@ func TestAddRm_LocalRecipeEditing(t *testing.T) {
 	require.NoError(t, err)
 	recipe := filepath.Join(real, "app.kapi")
 
-	const initial = `version: v2
+	const initial = `version: v1
 name: AddRmTest
 defaults:
   source_language: en-US
@@ -105,7 +105,7 @@ func TestCoreKapi_RefusesRecipeRequiringUnregisteredPlugin(t *testing.T) {
 	real, err := filepath.EvalSymlinks(dir)
 	require.NoError(t, err)
 	recipe := filepath.Join(real, "app.kapi")
-	const yaml = `version: v2
+	const yaml = `version: v1
 name: NeedsBowrain
 requires:
   bowrain: "*"
@@ -132,7 +132,7 @@ func TestLs_ListsTrackedFiles(t *testing.T) {
 	require.NoError(t, err)
 	recipe := filepath.Join(real, "app.kapi")
 
-	const yaml = `version: v2
+	const yaml = `version: v1
 name: LsTest
 defaults:
   source_language: en-US

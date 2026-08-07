@@ -14,7 +14,7 @@ import (
 
 func TestLoadSaveRoundtrip(t *testing.T) {
 	proj := &KapiProject{
-		Version: "v2",
+		Version: "v1",
 		Name:    "My App",
 		Plugins: map[string]PluginSpec{
 			"okapi": {FrameworkVersion: "^1.47.0", FormatPriority: 200},
@@ -65,7 +65,7 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 	loaded, err := Load(path)
 	require.NoError(t, err)
 
-	assert.Equal(t, "v2", loaded.Version)
+	assert.Equal(t, "v1", loaded.Version)
 	assert.Equal(t, "My App", loaded.Name)
 	assert.Equal(t, model.LocaleID("en-US"), loaded.Defaults.SourceLanguage)
 	assert.Equal(t, []model.LocaleID{"fr-FR", "de-DE"}, loaded.Defaults.TargetLanguages)
@@ -109,7 +109,7 @@ func TestLoadSaveRoundtrip(t *testing.T) {
 }
 
 func TestLoadFromYAML(t *testing.T) {
-	yamlContent := `version: v2
+	yamlContent := `version: v1
 name: Test Project
 defaults:
   source_language: en
@@ -358,7 +358,7 @@ func TestValidation(t *testing.T) {
 		{
 			name: "collection without content",
 			proj: KapiProject{
-				Version: "v2",
+				Version: "v1",
 				Collections: []Collection{
 					{Name: "Empty"},
 				},
@@ -368,7 +368,7 @@ func TestValidation(t *testing.T) {
 		{
 			name: "collection item without path",
 			proj: KapiProject{
-				Version: "v2",
+				Version: "v1",
 				Collections: []Collection{
 					{Name: "Bad", Content: []ContentItem{{}}},
 				},
@@ -378,7 +378,7 @@ func TestValidation(t *testing.T) {
 		{
 			name: "flow without steps",
 			proj: KapiProject{
-				Version: "v2",
+				Version: "v1",
 				Flows: map[string]*flow.StepsSpec{
 					"empty": {Steps: nil},
 				},
@@ -388,7 +388,7 @@ func TestValidation(t *testing.T) {
 		{
 			name: "flow step without tool",
 			proj: KapiProject{
-				Version: "v2",
+				Version: "v1",
 				Flows: map[string]*flow.StepsSpec{
 					"bad": {Steps: []flow.FlowStep{{}}},
 				},
@@ -397,12 +397,12 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			name: "valid minimal project",
-			proj: KapiProject{Version: "v2"},
+			proj: KapiProject{Version: "v1"},
 		},
 		{
 			name: "valid bare entry",
 			proj: KapiProject{
-				Version: "v2",
+				Version: "v1",
 				Collections: []Collection{
 					{Path: "src/**/*"},
 				},
@@ -411,7 +411,7 @@ func TestValidation(t *testing.T) {
 		{
 			name: "valid collection",
 			proj: KapiProject{
-				Version: "v2",
+				Version: "v1",
 				Collections: []Collection{
 					{Name: "Docs", Content: []ContentItem{{Path: "docs/*.md"}}},
 				},
@@ -420,7 +420,7 @@ func TestValidation(t *testing.T) {
 		{
 			name: "valid with flows",
 			proj: KapiProject{
-				Version: "v2",
+				Version: "v1",
 				Flows: map[string]*flow.StepsSpec{
 					"translate": {Steps: []flow.FlowStep{{Tool: "translate"}}},
 				},
@@ -443,7 +443,7 @@ func TestValidation(t *testing.T) {
 
 func TestGetFlow(t *testing.T) {
 	proj := &KapiProject{
-		Version: "v2",
+		Version: "v1",
 		Flows: map[string]*flow.StepsSpec{
 			"translate": {Steps: []flow.FlowStep{{Tool: "translate"}}},
 		},
@@ -455,7 +455,7 @@ func TestGetFlow(t *testing.T) {
 
 func TestFlowNames(t *testing.T) {
 	proj := &KapiProject{
-		Version: "v2",
+		Version: "v1",
 		Flows: map[string]*flow.StepsSpec{
 			"a": {Steps: []flow.FlowStep{{Tool: "x"}}},
 			"b": {Steps: []flow.FlowStep{{Tool: "y"}}},
@@ -469,7 +469,7 @@ func TestFlowNames(t *testing.T) {
 }
 
 func TestFlowNamesEmpty(t *testing.T) {
-	proj := &KapiProject{Version: "v2"}
+	proj := &KapiProject{Version: "v1"}
 	assert.Empty(t, proj.FlowNames())
 }
 
@@ -500,7 +500,7 @@ func TestLoadInvalidYAML(t *testing.T) {
 
 func TestParallelSteps(t *testing.T) {
 	proj := &KapiProject{
-		Version: "v2",
+		Version: "v1",
 		Flows: map[string]*flow.StepsSpec{
 			"parallel-qa": {
 				Steps: []flow.FlowStep{
@@ -552,7 +552,7 @@ func TestEffectiveItems(t *testing.T) {
 
 func TestDefaults_MergeMemorySegmentation_RoundTrip(t *testing.T) {
 	proj := &KapiProject{
-		Version: "v2",
+		Version: "v1",
 		Name:    "Interop",
 		Defaults: Defaults{
 			SourceLanguage:  "en-US",
@@ -602,7 +602,7 @@ func TestValidate_MergeConflictPolicy(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			proj := &KapiProject{Version: "v2", Defaults: Defaults{Merge: MergeDefaults{ConflictPolicy: tc.policy}}}
+			proj := &KapiProject{Version: "v1", Defaults: Defaults{Merge: MergeDefaults{ConflictPolicy: tc.policy}}}
 			err := proj.Validate()
 			if tc.wantErr {
 				require.Error(t, err)
@@ -629,7 +629,7 @@ func TestValidate_MemoryFuzzyThreshold(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			proj := &KapiProject{Version: "v2", Defaults: Defaults{Memory: MemoryDefaults{FuzzyThreshold: tc.threshold}}}
+			proj := &KapiProject{Version: "v1", Defaults: Defaults{Memory: MemoryDefaults{FuzzyThreshold: tc.threshold}}}
 			err := proj.Validate()
 			if tc.wantErr {
 				require.Error(t, err)
@@ -642,7 +642,7 @@ func TestValidate_MemoryFuzzyThreshold(t *testing.T) {
 }
 
 func TestLoad_YAMLInteropSections(t *testing.T) {
-	yamlText := `version: v2
+	yamlText := `version: v1
 name: YAML Interop
 defaults:
   source_language: en
@@ -666,7 +666,7 @@ defaults:
 }
 
 func TestDefaults_Voice_Parse(t *testing.T) {
-	yamlText := `version: v2
+	yamlText := `version: v1
 name: brandy
 defaults:
   source_language: en
@@ -688,7 +688,7 @@ defaults:
 
 func TestDefaults_Voice_RoundTrip(t *testing.T) {
 	proj := &KapiProject{
-		Version: "v2",
+		Version: "v1",
 		Name:    "Branded",
 		Defaults: Defaults{
 			SourceLanguage:  "en",
@@ -740,7 +740,7 @@ func TestVoiceBinding_Validate(t *testing.T) {
 // extension registered) must round-trip the top-level key verbatim via
 // Extras while still decoding the defaults binding into its typed field.
 func TestBowrainTopLevelBrandVoice_RoundTrips(t *testing.T) {
-	yamlText := `version: v2
+	yamlText := `version: v1
 name: dual
 defaults:
   source_language: en
@@ -792,7 +792,7 @@ brand_voice:
 // is a binding the recipe does not restate.
 func TestResolveGovernance_ProfileSelectsNotLayers(t *testing.T) {
 	proj := &KapiProject{
-		Version:  "v2",
+		Version:  "v1",
 		Defaults: Defaults{Voice: &VoiceBinding{ProfileFile: "base.yaml"}},
 		Profiles: map[string]Profile{
 			"bowrain": {Channels: []Channel{{ID: "app"}}},
@@ -821,7 +821,7 @@ func TestResolveGovernance_ProfileSelectsNotLayers(t *testing.T) {
 // at all: a point resolves to nothing rather than to something borrowed.
 func TestResolveGovernance_NoDefaults(t *testing.T) {
 	proj := &KapiProject{
-		Version:  "v2",
+		Version:  "v1",
 		Profiles: map[string]Profile{"kapi": {Channels: []Channel{{ID: "docs"}}}},
 		Collections: []Collection{{
 			Name:    "docs",
@@ -843,12 +843,12 @@ func TestResolveGovernance_NoDefaults(t *testing.T) {
 // one per profile is not what makes a run resolve differently by venue. Only
 // `terms:` — a local path with nothing on the wire — does.
 func TestBindsTermsByProfile_VoiceOnly(t *testing.T) {
-	bare := &KapiProject{Version: "v2"}
+	bare := &KapiProject{Version: "v1"}
 	assert.False(t, bare.HasContextSpace())
 	assert.False(t, bare.BindsTermsByProfile())
 
 	voiceOnly := &KapiProject{
-		Version:  "v2",
+		Version:  "v1",
 		Profiles: map[string]Profile{"kapi": {Voice: &VoiceBinding{Pack: "technical-docs"}}},
 	}
 	assert.True(t, voiceOnly.HasContextSpace())

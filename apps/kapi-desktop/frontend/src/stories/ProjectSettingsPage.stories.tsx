@@ -38,7 +38,7 @@ type Story = StoryObj<typeof ProjectSettingsPage>;
 export const WithPlugins: Story = {
   args: {
     project: {
-      version: "v2",
+      version: "v1",
       name: "Acme App",
       plugins: {
         okapi: { framework_version: "^1.47.0", format_priority: 200 },
@@ -61,7 +61,7 @@ export const WithPlugins: Story = {
 export const MissingPlugin: Story = {
   args: {
     project: {
-      version: "v2",
+      version: "v1",
       name: "Missing Deps",
       plugins: {
         okapi: { framework_version: "^1.47.0" },
@@ -78,7 +78,7 @@ export const MissingPlugin: Story = {
 export const Minimal: Story = {
   args: {
     project: {
-      version: "v2",
+      version: "v1",
       name: "New Project",
       defaults: {
         source_language: "en",
@@ -91,7 +91,7 @@ export const NoPluginsInstalled: Story = {
   args: {
     installedPlugins: [],
     project: {
-      version: "v2",
+      version: "v1",
       name: "Fresh Install",
       defaults: {
         source_language: "en-US",

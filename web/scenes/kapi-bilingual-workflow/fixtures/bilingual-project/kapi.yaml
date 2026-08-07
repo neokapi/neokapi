@@ -1,4 +1,4 @@
-version: v2
+version: v1
 name: Bilingual Demo
 defaults:
   source_language: en-US

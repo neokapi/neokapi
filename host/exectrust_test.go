@@ -23,7 +23,7 @@ func isolateTrust(t *testing.T) {
 	t.Setenv("KAPI_TRUST_EXEC", "")
 }
 
-const execStepRecipe = `version: v2
+const execStepRecipe = `version: v1
 flows:
   default:
     steps:

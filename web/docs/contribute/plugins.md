@@ -113,7 +113,7 @@ A `kapi.yaml` recipe declares the plugins it needs as a map of name → semver
 constraint:
 
 ```yaml
-version: v2
+version: v1
 name: my-app
 requires:
   myplugin: "^1.0"

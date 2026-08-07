@@ -1,4 +1,4 @@
-version: v2
+version: v1
 name: kapi-builtins-i18n
 defaults:
   source_language: en

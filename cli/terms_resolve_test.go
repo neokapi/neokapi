@@ -25,7 +25,7 @@ func writeTermsProject(t *testing.T) (root string) {
 	t.Helper()
 	root = t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
-	recipe := `version: v2
+	recipe := `version: v1
 name: tb
 defaults:
   source_language: en
@@ -47,7 +47,7 @@ func writeProfileTermsProject(t *testing.T) (root, boundPath string) {
 	t.Helper()
 	root = t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
-	recipe := `version: v2
+	recipe := `version: v1
 name: tb
 defaults:
   source_language: en

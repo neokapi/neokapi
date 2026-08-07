@@ -167,7 +167,7 @@ func TestNewAppConfigIgnoresTheWorkingDirectory(t *testing.T) {
 	cwdDir := t.TempDir()
 	require.NoError(t, os.WriteFile(
 		filepath.Join(cwdDir, "kapi.yaml"),
-		[]byte("version: v2\nname: a-recipe-not-app-config\nlanguage: cwd-lang\n"), 0o644))
+		[]byte("version: v1\nname: a-recipe-not-app-config\nlanguage: cwd-lang\n"), 0o644))
 	t.Chdir(cwdDir)
 
 	t.Setenv("KAPI_CONFIG_DIR", isoDir)
@@ -194,7 +194,7 @@ func TestAppConfigRoundTripsAStoredDefault(t *testing.T) {
 	// Stand inside a project — the case that used to lose the value.
 	projDir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(projDir, "kapi.yaml"),
-		[]byte("version: v2\nname: proj\n"), 0o644))
+		[]byte("version: v1\nname: proj\n"), 0o644))
 	t.Chdir(projDir)
 
 	cfg := NewAppConfig()

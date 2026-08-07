@@ -63,7 +63,7 @@ vocabulary:
 // flag, brand resolution falls back to defaults.voice.profile_file in
 // the .kapi recipe, resolved relative to the project root.
 func TestResolveVoiceProfile_FromProjectBinding(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v2
+	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   source_language: en
@@ -88,7 +88,7 @@ defaults:
 // recipe binding, brand resolution falls back to a voice.yaml convention file
 // at the project root.
 func TestResolveVoiceProfile_FromConventionFile(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v2
+	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   source_language: en
@@ -125,7 +125,7 @@ func TestResolveVoiceProfile_NoProjectNoFlag(t *testing.T) {
 // TestResolveVoiceProfile_ExplicitFlagWins asserts that an explicit
 // --profile-file flag still works unchanged even inside a project.
 func TestResolveVoiceProfile_ExplicitFlagWins(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v2
+	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   voice:
@@ -177,7 +177,7 @@ func seedTermsStore(t *testing.T, root string, concepts ...terms.Concept) {
 // That is the whole binding story now: a recipe carries no terms path, so being
 // in a project IS the binding.
 func TestResolveProjectGlossary_FromProjectStore(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v2
+	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   source_language: en
@@ -203,7 +203,7 @@ defaults:
 // per point through the collection: resolution scoped to no collection sits at
 // the default point and reads the project store instead.
 func TestResolveProjectGlossary_FromProfileTerms(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v2
+	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   source_language: en
@@ -253,7 +253,7 @@ collections:
 // the real command surface registers the flag, and the resolver honours it over
 // the project binding.
 func TestTermstoreFlagIsRegisteredAndRead(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v2
+	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   source_language: en
@@ -310,7 +310,7 @@ func TestResolveProjectGlossary_NoProject(t *testing.T) {
 // the tool flag the violation. This mirrors what the term-check command's
 // newTool closure does inside a project.
 func TestTermCheck_EnforcesProjectGlossary(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v2
+	root := writeProjectRecipe(t, `version: v1
 name: proj
 defaults:
   source_language: en

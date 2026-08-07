@@ -49,7 +49,7 @@ Deleting:
 ## What the recipe binds
 
 ```yaml
-version: v2
+version: v1
 name: my-app
 defaults:
   source_language: en

@@ -106,7 +106,7 @@ func extractFixture(t *testing.T, sources map[string]string) (*registry.FormatRe
 
 	recipe := filepath.Join(real, "app.kapi")
 	proj := &project.KapiProject{
-		Version:  "v2",
+		Version:  "v1",
 		Name:     "StoreSync",
 		Defaults: project.Defaults{SourceLanguage: "en-US"},
 		Collections: []project.Collection{{
@@ -264,7 +264,7 @@ func TestMaterializePolicy(t *testing.T) {
 	assert.Equal(t, project.MaterializeOnConverge, d.ResolvedMaterialize())
 
 	// Validation rejects unknown values.
-	p := &project.KapiProject{Version: "v2", Defaults: project.Defaults{Materialize: "sometimes"}}
+	p := &project.KapiProject{Version: "v1", Defaults: project.Defaults{Materialize: "sometimes"}}
 	err := p.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "defaults.materialize")

@@ -41,7 +41,7 @@ func TestExpandAdhocOutputTemplate(t *testing.T) {
 func TestProjectItemTargetPath(t *testing.T) {
 	root := t.TempDir()
 	proj := &project.KapiProject{
-		Version:  "v2",
+		Version:  "v1",
 		Defaults: project.Defaults{SourceLanguage: "en-US", TargetLanguages: []model.LocaleID{"fr"}},
 		Collections: []project.Collection{
 			{Name: "Docs", Content: []project.ContentItem{

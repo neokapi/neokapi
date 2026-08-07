@@ -16,7 +16,7 @@ type Story = StoryObj<typeof ProjectPage>;
 export const WithContent: Story = {
   args: {
     project: {
-      version: "v2",
+      version: "v1",
       name: "Acme App Localization",
       defaults: {
         source_language: "en-US",
@@ -53,7 +53,7 @@ export const WithContent: Story = {
 export const Minimal: Story = {
   args: {
     project: {
-      version: "v2",
+      version: "v1",
       name: "New Project",
       defaults: {
         source_language: "en",
@@ -66,7 +66,7 @@ export const Minimal: Story = {
 export const WithFlowsOnly: Story = {
   args: {
     project: {
-      version: "v2",
+      version: "v1",
       name: "QA Pipeline",
       defaults: {
         source_language: "en-US",

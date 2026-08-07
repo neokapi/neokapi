@@ -182,7 +182,7 @@ func TestBoolDecoder_RejectsString(t *testing.T) {
 
 func TestRecipeValidate_SurfacesServerDecoderError(t *testing.T) {
 	src := `
-version: v2
+version: v1
 bowrain:
   url: "not a url"
 `
@@ -197,7 +197,7 @@ bowrain:
 
 func TestRecipeValidate_SurfacesPerItemDecoderError(t *testing.T) {
 	src := `
-version: v2
+version: v1
 collections:
   - name: ui
     content:
@@ -214,7 +214,7 @@ collections:
 
 func TestRecipeValidate_AcceptsValidBowrainRecipe(t *testing.T) {
 	src := `
-version: v2
+version: v1
 name: my-app
 defaults:
   source_language: en-US
@@ -259,7 +259,7 @@ func TestRecipeValidate_RequiresBowrainGroupPasses(t *testing.T) {
 	// The group is registered by this package's init(), so a recipe
 	// declaring `requires: { bowrain: "*" }` should validate.
 	src := `
-version: v2
+version: v1
 requires:
   bowrain: "*"
 `
@@ -270,7 +270,7 @@ requires:
 
 func TestRecipeValidate_BareListRejected(t *testing.T) {
 	src := `
-version: v2
+version: v1
 requires: [bowrain]
 `
 	var p coreproj.KapiProject

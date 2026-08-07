@@ -15,7 +15,7 @@ import (
 
 func TestLoadRecipe_RoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	src := `version: v2
+	src := `version: v1
 name: my-app
 defaults:
   source_language: en-US
@@ -108,7 +108,7 @@ func TestSaveRecipe_RoundTripPreservesBowrainFields(t *testing.T) {
 func TestLoadRecipe_RejectsInvalidServerURL(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bad.kapi")
-	require.NoError(t, os.WriteFile(path, []byte(`version: v2
+	require.NoError(t, os.WriteFile(path, []byte(`version: v1
 bowrain:
   url: "not a url"
 `), 0o644))
@@ -145,7 +145,7 @@ func TestRecipe_AssetsEnabled_DefaultsTrue(t *testing.T) {
 func TestRecipe_DefaultCollection_FromExtras(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.kapi")
-	require.NoError(t, os.WriteFile(path, []byte(`version: v2
+	require.NoError(t, os.WriteFile(path, []byte(`version: v1
 defaults:
   source_language: en-US
   collection: ui-strings
@@ -182,7 +182,7 @@ func TestFindRecipe_WalksUpward(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "deep", "nested"), 0o755))
 	recipePath := filepath.Join(root, coreproj.RecipeFileName)
-	require.NoError(t, os.WriteFile(recipePath, []byte(`version: v2
+	require.NoError(t, os.WriteFile(recipePath, []byte(`version: v1
 name: myapp
 `), 0o644))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
@@ -227,7 +227,7 @@ func TestFrameworkLoad_PreservesUnknownExtras(t *testing.T) {
 	// of arbitrary future-tomorrow keys is the framework loader's job.)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.kapi")
-	src := `version: v2
+	src := `version: v1
 name: my-app
 bowrain:
   url: https://bowrain.example.com/team/proj

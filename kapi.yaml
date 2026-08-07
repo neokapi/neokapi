@@ -52,7 +52,7 @@
 # (AD-038). Adding a collection here needs no Makefile change — see
 # docs/internals/l10n-ci.md. The context graph this project is governed by —
 # voice profile, terms, reviewed content memory — is committed under .kapi/.
-version: v2
+version: v1
 name: neokapi
 defaults:
   source_language: en

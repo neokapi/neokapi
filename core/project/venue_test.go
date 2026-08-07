@@ -25,7 +25,7 @@ func registerVenue(t *testing.T, key string) {
 func TestKapiProject_Venue(t *testing.T) {
 	registerVenue(t, "acme")
 
-	const src = `version: v2
+	const src = `version: v1
 acme:
   url: "https://acme.example/ws/proj"
   converge: manual
@@ -46,14 +46,14 @@ func TestKapiProject_Venue_Absent(t *testing.T) {
 
 	t.Run("a recipe binding none reports none", func(t *testing.T) {
 		var p KapiProject
-		require.NoError(t, yaml.Unmarshal([]byte("version: v2\n"), &p))
+		require.NoError(t, yaml.Unmarshal([]byte("version: v1\n"), &p))
 		_, ok := p.Venue()
 		assert.False(t, ok)
 	})
 
 	t.Run("an unregistered key of the same shape is not a venue", func(t *testing.T) {
 		var p KapiProject
-		require.NoError(t, yaml.Unmarshal([]byte("version: v2\nsomeoneelse:\n  url: https://x.test\n"), &p))
+		require.NoError(t, yaml.Unmarshal([]byte("version: v1\nsomeoneelse:\n  url: https://x.test\n"), &p))
 		_, ok := p.Venue()
 		assert.False(t, ok, "a key no extension claims carries no framework meaning")
 	})
@@ -82,7 +82,7 @@ func TestKapiProject_InertProjectExtras_DependsOnVenue(t *testing.T) {
 	registerVenue(t, "acme")
 
 	var p KapiProject
-	require.NoError(t, yaml.Unmarshal([]byte("version: v2\nautomations: []\n"), &p))
+	require.NoError(t, yaml.Unmarshal([]byte("version: v1\nautomations: []\n"), &p))
 	require.NoError(t, p.Validate())
 
 	inert := p.InertProjectExtras()

@@ -92,7 +92,7 @@ func writeTwoProductProject(t *testing.T) string {
 	write("mail/en.json", `{"b":"two"}`)
 	write("README.md", "# claimed by no collection\n")
 
-	write("kapi.yaml", `version: v2
+	write("kapi.yaml", `version: v1
 defaults:
   source_language: en
   target_languages: [nb]

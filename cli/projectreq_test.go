@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const requiresRecipe = `version: v2
+const requiresRecipe = `version: v1
 requires:
   bowrain: "^1.0"
 `
@@ -47,7 +47,7 @@ func TestLoadProjectInteractive_NoRequires_Loads(t *testing.T) {
 	defer projecttest.ResetExtensions()
 	isolatePluginRoots(t)
 
-	path := writeRecipe(t, "version: v2\n")
+	path := writeRecipe(t, "version: v1\n")
 	app := &App{}
 	proj, err := app.LoadProjectInteractive(context.Background(), path, LoadProjectInteractiveOptions{
 		IsTTYFn: func() bool { return false },
@@ -279,7 +279,7 @@ func TestConfirmDefaultNo_RequiresAnExplicitYes(t *testing.T) {
 
 // execRecipe names a step that runs a command, which is what arms the trust
 // gate. Nothing in this repository's own recipes does.
-const execRecipe = `version: v2
+const execRecipe = `version: v1
 flows:
   default:
     steps:
@@ -555,7 +555,7 @@ func TestLoadProjectInteractive_OrdinaryRecipe_NeverPrompts(t *testing.T) {
 	isolatePluginRoots(t)
 	isolateTrustRecord(t)
 
-	path := writeRecipe(t, `version: v2
+	path := writeRecipe(t, `version: v1
 defaults:
   source_language: en
   target_languages: [nb]

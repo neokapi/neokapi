@@ -122,7 +122,7 @@ func TestSchemaExt_ValidPayloadPasses(t *testing.T) {
 
 	p := &project.KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 server:
   url: https://example.com/team/proj
   team: acme
@@ -147,7 +147,7 @@ func TestSchemaExt_MissingRequiredFieldFails(t *testing.T) {
 
 	p := &project.KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 server:
   url: https://example.com/team/proj
 `), p))
@@ -175,7 +175,7 @@ func TestSchemaExt_WrongTypeFails(t *testing.T) {
 
 	p := &project.KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 server:
   url: https://example.com/team/proj
   team: acme
@@ -205,7 +205,7 @@ func TestSchemaExt_AdditionalPropertiesRejected(t *testing.T) {
 
 	p := &project.KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 server:
   url: https://example.com/team/proj
   team: acme
@@ -241,7 +241,7 @@ func TestSchemaExt_BadSchemaFallsBack(t *testing.T) {
 	// fallback decoder is structural-only.
 	p := &project.KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 server:
   url: https://example.com/team/proj
   team: acme
@@ -268,7 +268,7 @@ func TestSchemaExt_MissingSchemaFileFallsBack(t *testing.T) {
 
 	p := &project.KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 server:
   url: https://example.com/team/proj
   team: acme
@@ -327,7 +327,7 @@ func TestSchemaExt_ItemScopeValidation(t *testing.T) {
 	// Valid item-scope value.
 	good := &project.KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 collections:
   - name: ui
     content:
@@ -339,7 +339,7 @@ collections:
 	// Invalid item-scope value (does not match the pattern).
 	bad := &project.KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 collections:
   - name: ui
     content:
@@ -384,7 +384,7 @@ func TestSchemaExt_IdempotentSameGroup(t *testing.T) {
 	// Schema would accept is still rejected by the sentinel decoder.
 	p := &project.KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 server:
   url: https://example.com/team/proj
   team: acme
@@ -446,7 +446,7 @@ func TestSchemaExt_VenueReachesTheRegistry(t *testing.T) {
 
 	p := &project.KapiProject{}
 	require.NoError(t, yaml.Unmarshal([]byte(`
-version: v2
+version: v1
 bowrain:
   url: https://app.example/acme/demo
   converge: manual

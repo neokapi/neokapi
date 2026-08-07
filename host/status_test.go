@@ -19,7 +19,7 @@ func writeStatusProject(t *testing.T) string {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
 
-	recipe := `version: v2
+	recipe := `version: v1
 name: status
 defaults:
   source_language: en
@@ -51,7 +51,7 @@ func writeCollectionProject(t *testing.T) string {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "docs"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "ui"), 0o755))
 
-	recipe := `version: v2
+	recipe := `version: v1
 name: coll
 defaults:
   source_language: en
@@ -104,7 +104,7 @@ func writeSourceGateProject(t *testing.T, sourceGate string) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	recipe := `version: v2
+	recipe := `version: v1
 name: src
 defaults:
   source_language: en
@@ -193,7 +193,7 @@ func findGate(out verifyOutput, name string) (verifyGateResult, bool) {
 func TestStatus_UnreadableTargetFallsBackToPresence(t *testing.T) {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	recipe := `version: v2
+	recipe := `version: v1
 name: mo
 defaults:
   source_language: en
@@ -268,7 +268,7 @@ func writeVerifiedGateProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	recipe := `version: v2
+	recipe := `version: v1
 name: verified
 defaults:
   source_language: en

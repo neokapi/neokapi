@@ -40,7 +40,7 @@ func newProject(t *testing.T) (string, string) {
 	require.NoError(t, os.WriteFile(src, []byte(wsSource), 0o644))
 	recipe := filepath.Join(dir, "kapi.yaml")
 	require.NoError(t, os.WriteFile(recipe, []byte(
-		"version: \"v2\"\nname: demo\ndefaults:\n  source_locale: en\n  target_locales: [fr-FR]\nflows:\n  pseudo:\n    steps:\n      - tool: pseudo-translate\n"), 0o644))
+		"version: \"v1\"\nname: demo\ndefaults:\n  source_locale: en\n  target_locales: [fr-FR]\nflows:\n  pseudo:\n    steps:\n      - tool: pseudo-translate\n"), 0o644))
 	return recipe, src
 }
 

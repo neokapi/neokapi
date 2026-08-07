@@ -272,10 +272,9 @@ model.
 
 ## Validation Rules
 
-- `version` is required, must be `"v2"`. A recipe on the previous version fails
-  with the shape changes to make rather than a bare version mismatch, and a
-  top-level key v2 replaced (`content:`, `coordinates:`) is rejected by name
-  rather than silently captured as an unknown extension.
+- `version` is required, must be `"v1"`. A top-level key the recipe does not
+  have (`content:`, `coordinates:`) is rejected by name rather than silently
+  captured as an unknown extension.
 - For each `collections[]` entry:
   - Bare entry — `path` is required and `content` must be empty.
   - Named collection — `path` must be empty (use `content`) and `content` must be
@@ -394,14 +393,14 @@ Kapi Desktop at `apps/kapi-desktop/`:
 ### Minimal
 
 ```yaml
-version: v2
+version: v1
 name: Quick Translate
 ```
 
 ### Full
 
 ```yaml
-version: v2
+version: v1
 name: Acme App
 
 defaults:

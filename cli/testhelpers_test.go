@@ -34,7 +34,7 @@ func writeVerifyProject(t *testing.T) (root, targetFile string) {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
 
-	recipe := `version: v2
+	recipe := `version: v1
 name: verify
 defaults:
   source_language: en
@@ -79,7 +79,7 @@ func writeStatusProject(t *testing.T) string {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
 
-	recipe := `version: v2
+	recipe := `version: v1
 name: status
 defaults:
   source_language: en
@@ -130,7 +130,7 @@ func writeReviewProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	recipe := `version: v2
+	recipe := `version: v1
 name: rev
 defaults:
   source_language: en

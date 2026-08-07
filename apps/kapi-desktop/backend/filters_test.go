@@ -13,7 +13,7 @@ func filtersTestApp(t *testing.T) (*App, string) {
 	t.Helper()
 	dir := t.TempDir()
 	recipe := filepath.Join(dir, "proj.kapi")
-	require.NoError(t, os.WriteFile(recipe, []byte("version: v2\nname: proj\n"), 0o644))
+	require.NoError(t, os.WriteFile(recipe, []byte("version: v1\nname: proj\n"), 0o644))
 	app := &App{projects: map[string]*openProject{"t": {Path: recipe}}}
 	return app, dir
 }

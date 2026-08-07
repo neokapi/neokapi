@@ -247,7 +247,7 @@ func TestResolveMissingPluginCommand_RecipeWithoutVenueBlockIsNotHandled(t *test
 func TestResolveMissingPluginCommand_DetectsVenueBlockFromRecipeOnDisk(t *testing.T) {
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "kapi.yaml"), []byte(
-		"version: v2\ndefaults:\n  source_language: en-US\n  target_languages: [fr-FR]\nbowrain:\n  url: https://example.test/acme/demo\n"), 0o644))
+		"version: v1\ndefaults:\n  source_language: en-US\n  target_languages: [fr-FR]\nbowrain:\n  url: https://example.test/acme/demo\n"), 0o644))
 
 	cwd, err := os.Getwd()
 	require.NoError(t, err)

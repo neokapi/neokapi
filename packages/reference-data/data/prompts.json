@@ -1,6 +1,6 @@
 {
   "generatedAt": "2026-08-06T22:10:58Z",
-  "version": "v2",
+  "version": "v1",
   "prompts": [
     {
       "id": "translate.single",

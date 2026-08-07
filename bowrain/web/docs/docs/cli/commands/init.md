@@ -107,7 +107,7 @@ kapi init --anonymous --name "My App" --source en --json
 current directory name and is the only place that name lives:
 
 ```yaml
-version: v2
+version: v1
 name: my-app
 
 defaults:

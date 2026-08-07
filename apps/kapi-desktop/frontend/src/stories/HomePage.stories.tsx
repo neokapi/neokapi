@@ -42,7 +42,7 @@ export const Default: Story = {
   args: {
     displayName: "Acme App Localization",
     project: {
-      version: "v2",
+      version: "v1",
       name: "Acme App Localization",
       defaults: {
         source_language: "en",
@@ -79,7 +79,7 @@ export const NoFlows: Story = {
   args: {
     displayName: "Starter Project",
     project: {
-      version: "v2",
+      version: "v1",
       name: "Starter Project",
       defaults: {
         source_language: "en",
@@ -97,7 +97,7 @@ export const WithCoverage: Story = {
     ...Default.args,
     displayName: "KapiMart",
     project: {
-      version: "v2",
+      version: "v1",
       name: "KapiMart",
       defaults: {
         source_language: "en",
@@ -284,7 +284,7 @@ export const ThreeLanguages: Story = {
     ...Default.args,
     displayName: "Acme App Localization",
     project: {
-      version: "v2",
+      version: "v1",
       name: "Acme App Localization",
       defaults: { source_language: "en", target_languages: ["fr", "de", "ja"] },
       collections: [

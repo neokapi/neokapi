@@ -250,7 +250,7 @@ Ownership:
 ### Recipe with server connection
 
 ```yaml
-version: v2
+version: v1
 name: My App
 
 defaults:

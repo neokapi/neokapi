@@ -32,7 +32,7 @@ import { ErrorProvider } from "../components/ErrorBanner";
 import type { KapiProject, OutputFileInfo } from "../types/api";
 
 const project: KapiProject = {
-  version: "v2",
+  version: "v1",
   name: "Demo",
   defaults: { source_language: "en-US", target_languages: ["de", "fr"] },
   collections: [

@@ -69,14 +69,14 @@ func TestWarnUnsyncedCoordinates(t *testing.T) {
 		{
 			name: "connected and binding terms by profile: warn",
 			proj: &project.KapiProject{
-				Version: "v2", Profiles: termsProfiles, Extras: venueExtras(t),
+				Version: "v1", Profiles: termsProfiles, Extras: venueExtras(t),
 			},
 			want: true,
 		},
 		{
 			name: "a profile that declares no channels warns too",
 			proj: &project.KapiProject{
-				Version:  "v2",
+				Version:  "v1",
 				Profiles: map[string]project.Profile{"kapi": {Terms: "terms/all.json"}},
 				Extras:   venueExtras(t),
 			},
@@ -85,21 +85,21 @@ func TestWarnUnsyncedCoordinates(t *testing.T) {
 		{
 			name: "connected and binding only a voice: the context content type carries it, nothing to warn about",
 			proj: &project.KapiProject{
-				Version: "v2", Profiles: voiceProfiles, Extras: venueExtras(t),
+				Version: "v1", Profiles: voiceProfiles, Extras: venueExtras(t),
 			},
 		},
 		{
 			name: "standalone: the recipe is the only venue, nothing to warn about",
-			proj: &project.KapiProject{Version: "v2", Profiles: termsProfiles},
+			proj: &project.KapiProject{Version: "v1", Profiles: termsProfiles},
 		},
 		{
 			name: "connected but ungoverned: no profiles to diverge over",
-			proj: &project.KapiProject{Version: "v2", Extras: venueExtras(t)},
+			proj: &project.KapiProject{Version: "v1", Extras: venueExtras(t)},
 		},
 		{
 			name: "quiet suppresses it like every other run warning",
 			proj: &project.KapiProject{
-				Version: "v2", Profiles: termsProfiles, Extras: venueExtras(t),
+				Version: "v1", Profiles: termsProfiles, Extras: venueExtras(t),
 			},
 			quiet: true,
 		},
@@ -129,7 +129,7 @@ func TestWarnUnsyncedCoordinates_UnregisteredVenue(t *testing.T) {
 	t.Cleanup(projecttest.ResetExtensions)
 
 	proj := &project.KapiProject{
-		Version: "v2",
+		Version: "v1",
 		Profiles: map[string]project.Profile{
 			"kapi": {Terms: "terms/kapi.json"},
 		},

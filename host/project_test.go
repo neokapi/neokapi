@@ -34,7 +34,7 @@ func newTestCmd() *EnvCommand {
 func writeProject(t *testing.T, dir, name string) string {
 	t.Helper()
 	recipe := filepath.Join(dir, project.RecipeFileName)
-	proj := &project.KapiProject{Version: "v2", Name: name}
+	proj := &project.KapiProject{Version: "v1", Name: name}
 	require.NoError(t, project.Save(recipe, proj))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, project.StateDirName), 0o755))
 	return recipe

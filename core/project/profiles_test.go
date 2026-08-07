@@ -10,7 +10,7 @@ import (
 
 // twoProductRecipe is the shape this repository itself carries: two profiles,
 // one channel (`docs`) shared by both, the rest unique to one.
-const twoProductRecipe = `version: v2
+const twoProductRecipe = `version: v1
 name: two-products
 defaults:
   source_language: en
@@ -173,32 +173,32 @@ func TestKapiProject_ValidateContextSpace(t *testing.T) {
 	}{
 		{
 			"an unresolvable channel fails the load",
-			"version: v2\nprofiles:\n  a:\n    channels: [x]\ncollections:\n  - name: c\n    channel: y\n    content:\n      - path: a.md\n",
+			"version: v1\nprofiles:\n  a:\n    channels: [x]\ncollections:\n  - name: c\n    channel: y\n    content:\n      - path: a.md\n",
 			`channel "y" is not declared by any profile`,
 		},
 		{
 			"an ambiguous channel fails the load",
-			"version: v2\nprofiles:\n  a:\n    channels: [x]\n  b:\n    channels: [x]\ncollections:\n  - name: c\n    channel: x\n    content:\n      - path: a.md\n",
+			"version: v1\nprofiles:\n  a:\n    channels: [x]\n  b:\n    channels: [x]\ncollections:\n  - name: c\n    channel: x\n    content:\n      - path: a.md\n",
 			"qualify it as one of: a/x, b/x",
 		},
 		{
 			"a channel needs a named collection",
-			"version: v2\nprofiles:\n  a:\n    channels: [x]\ncollections:\n  - channel: x\n    path: a.md\n",
+			"version: v1\nprofiles:\n  a:\n    channels: [x]\ncollections:\n  - channel: x\n    path: a.md\n",
 			"channel requires a named collection",
 		},
 		{
 			"a profile name must be a slug",
-			"version: v2\nprofiles:\n  Not A Slug:\n    channels: [x]\n",
+			"version: v1\nprofiles:\n  Not A Slug:\n    channels: [x]\n",
 			"is not a slug",
 		},
 		{
 			"a channel must be a slug",
-			"version: v2\nprofiles:\n  a:\n    channels: [\"Not A Slug\"]\n",
+			"version: v1\nprofiles:\n  a:\n    channels: [\"Not A Slug\"]\n",
 			"is not a slug",
 		},
 		{
 			"a channel declared twice is a mistake",
-			"version: v2\nprofiles:\n  a:\n    channels: [x, x]\n",
+			"version: v1\nprofiles:\n  a:\n    channels: [x, x]\n",
 			`channel "x" is declared twice`,
 		},
 	}
@@ -214,7 +214,7 @@ func TestKapiProject_ValidateContextSpace(t *testing.T) {
 }
 
 func TestChannel_RoundTrip(t *testing.T) {
-	const src = `version: v2
+	const src = `version: v1
 profiles:
   a:
     concept: term:9a1c0f42b7

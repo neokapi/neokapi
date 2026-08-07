@@ -28,7 +28,7 @@ mkproject() {
   mkdir -p "$dir/.kapi"
   printf '{"greeting":"Hello world","farewell":"Goodbye now","cta":"Sign up today"}' > "$dir/app.json"
   cat > "$dir/kapi.yaml" <<'EOF'
-version: "v2"
+version: "v1"
 name: demo
 defaults:
   source_language: en

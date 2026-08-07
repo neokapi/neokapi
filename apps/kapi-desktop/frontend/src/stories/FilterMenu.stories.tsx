@@ -3,7 +3,7 @@ import { FilterMenu } from "../components/FilterMenu";
 import type { KapiProject } from "../types/api";
 
 const project: KapiProject = {
-  version: "v2",
+  version: "v1",
   name: "Acme App",
   defaults: {
     source_language: "en-US",

@@ -56,7 +56,7 @@ function AppInner() {
   const tm = useTabManager();
   const { hasActive: hasRunningFlow } = useJobFeed();
 
-  const emptyProject: KapiProject = { version: "v2", name: "" };
+  const emptyProject: KapiProject = { version: "v1", name: "" };
   const history = useProjectHistory(
     tm.activeTab?.project ?? emptyProject,
     tm.activeTabID,

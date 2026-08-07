@@ -10,7 +10,7 @@ import (
 
 func TestRedactionSpec_Validate(t *testing.T) {
 	p := &KapiProject{
-		Version:  "v2",
+		Version:  "v1",
 		Name:     "app",
 		Defaults: Defaults{Redaction: &RedactionSpec{Enabled: true, Rules: ".kapi/redaction.yaml", Detectors: []string{"rules", "entities"}}},
 	}
@@ -22,7 +22,7 @@ func TestRedactionSpec_Validate(t *testing.T) {
 
 func TestRedactionSpec_YAMLRoundtrip(t *testing.T) {
 	const doc = `
-version: v2
+version: v1
 name: app
 defaults:
   source_language: en

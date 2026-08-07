@@ -47,7 +47,7 @@ func writeVerifyProject(t *testing.T) (root, targetFile string) {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
 
-	recipe := `version: v2
+	recipe := `version: v1
 name: verify
 defaults:
   source_language: en
@@ -281,7 +281,7 @@ func writeTermsSourceProject(t *testing.T) string {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
 
-	recipe := `version: v2
+	recipe := `version: v1
 name: verifysrc
 defaults:
   source_language: en
@@ -419,7 +419,7 @@ func writeTermsProjectUnbound(t *testing.T, rel string) string {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
 
-	recipe := `version: v2
+	recipe := `version: v1
 name: verifyconv
 defaults:
   source_language: en

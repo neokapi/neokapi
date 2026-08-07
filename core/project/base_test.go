@@ -29,7 +29,7 @@ func TestJoinBase(t *testing.T) {
 }
 
 func TestCollection_EffectiveItems_FoldsBase(t *testing.T) {
-	const src = `version: v2
+	const src = `version: v1
 collections:
   - name: docs
     base: bowrain/web/docs
@@ -62,7 +62,7 @@ collections:
 // writing the prefix once produces exactly the paths that spelling it out on
 // every line does.
 func TestCollection_BaseTargetsMatchUnbased(t *testing.T) {
-	const based = `version: v2
+	const based = `version: v1
 collections:
   - name: docs
     base: web
@@ -70,7 +70,7 @@ collections:
       - path: docs/**/*.md
         target: i18n/{lang}/current/{path}.md
 `
-	const spelledOut = `version: v2
+	const spelledOut = `version: v1
 collections:
   - name: docs
     content:
@@ -94,7 +94,7 @@ collections:
 }
 
 func TestCollection_EffectiveItems_BareEntry(t *testing.T) {
-	const src = `version: v2
+	const src = `version: v1
 collections:
   - path: "src/**/*.json"
     target: "out/{lang}/{relpath}"
@@ -111,7 +111,7 @@ collections:
 }
 
 func TestKapiProject_IterateContent_FoldsBase(t *testing.T) {
-	const src = `version: v2
+	const src = `version: v1
 collections:
   - name: docs
     base: web
@@ -138,18 +138,18 @@ func TestKapiProject_RetiredKeys(t *testing.T) {
 		wantSub string
 	}{
 		{
-			"a v1 recipe names the edits to make",
-			"version: v1\ncollections: []\n",
-			"`content:` is now `collections:`",
+			"an unknown version is rejected",
+			"version: v7\ncollections: []\n",
+			`unsupported version "v7"`,
 		},
 		{
-			"a stray content: block is a half-finished migration",
-			"version: v2\ncontent:\n  - path: a.md\n",
+			"a stray content: key is rejected by name",
+			"version: v1\ncontent:\n  - path: a.md\n",
 			"content: is no longer a recipe key — use collections",
 		},
 		{
 			"a stray coordinates: block names what replaced it",
-			"version: v2\ncoordinates:\n  product: [a]\n",
+			"version: v1\ncoordinates:\n  product: [a]\n",
 			"coordinates: is no longer a recipe key — use profiles",
 		},
 	}

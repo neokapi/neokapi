@@ -163,7 +163,7 @@ Source living under `i18n/src/` (not flat under `i18n/`) is what lets the source
 glob stay clear of the generated targets — no sibling `i18n-<lang>/` trees:
 
 ```yaml title="kapi.yaml"
-version: v2
+version: v1
 name: MyApp
 defaults:
   source_language: en
