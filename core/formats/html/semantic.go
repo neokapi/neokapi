@@ -115,6 +115,27 @@ func (w *Writer) writeSemantic(events []*model.Part, sourceLocale model.LocaleID
 	}
 
 	st := &semanticState{}
+	if err := w.writeSemanticEvents(st, events); err != nil {
+		return err
+	}
+	// Close any still-open auto list and containers (defensive — well-formed
+	// input balances its groups).
+	if err := w.closeAutoList(st); err != nil {
+		return err
+	}
+	for range st.stack {
+		if err := w.closeSemGroup(st); err != nil {
+			return err
+		}
+	}
+	return w.closeDocument()
+}
+
+// writeSemanticEvents renders a run of events into an already-open document. It
+// is separate from writeSemantic so the streaming path can render the events
+// that precede a table without also opening and closing the document around
+// them.
+func (w *Writer) writeSemanticEvents(st *semanticState, events []*model.Part) error {
 	for i := 0; i < len(events); i++ {
 		part := events[i]
 		switch part.Type {
@@ -151,17 +172,7 @@ func (w *Writer) writeSemantic(events []*model.Part, sourceLocale model.LocaleID
 			}
 		}
 	}
-	// Close any still-open auto list and containers (defensive — well-formed
-	// input balances its groups).
-	if err := w.closeAutoList(st); err != nil {
-		return err
-	}
-	for range st.stack {
-		if err := w.closeSemGroup(st); err != nil {
-			return err
-		}
-	}
-	return w.closeDocument()
+	return nil
 }
 
 // openDocument writes the HTML5 document scaffold up to (and including) the

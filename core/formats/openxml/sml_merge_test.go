@@ -14,13 +14,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseMergeCells(t *testing.T) {
-	data := []byte(`<worksheet><sheetData/><mergeCells count="2">` +
-		`<mergeCell ref="A1:C1"/><mergeCell ref="B3:B5"/></mergeCells></worksheet>`)
-	m := parseMergeCells(data)
+// The scan pass reads a worksheet once for the two facts document order cannot
+// give the parse: the merged spans (<mergeCells> follows <sheetData>) and the
+// grid's width (the last cell settles it).
+func TestScanWorksheet(t *testing.T) {
+	data := `<worksheet><sheetData>` +
+		`<row r="1"><c r="A1"/><c r="C1"/></row>` +
+		`<row r="3"><c r="B3"/><c r="E3"/></row>` +
+		`</sheetData><mergeCells count="2">` +
+		`<mergeCell ref="A1:C1"/><mergeCell ref="B3:B5"/></mergeCells></worksheet>`
+
+	m, width := scanWorksheet(strings.NewReader(data))
 	require.Len(t, m, 2)
 	assert.Equal(t, mergeSpan{cols: 3, rows: 1}, m["A1"], "A1:C1 spans 3 cols")
 	assert.Equal(t, mergeSpan{cols: 1, rows: 3}, m["B3"], "B3:B5 spans 3 rows")
+	assert.Equal(t, 5, width, "the furthest cell is E, so the grid is 5 columns wide")
 }
 
 // rezipWithMergedHeader rebuilds the fixture xlsx, injecting a <mergeCells>
