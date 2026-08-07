@@ -95,4 +95,20 @@ var (
 		},
 		[]string{"queue", "dependency"},
 	)
+
+	// EventsDroppedTotal counts events the in-process bus threw away because a
+	// subscriber's buffer was full. It has no pending list and no redelivery,
+	// so a drop here is permanent — this series is the only evidence it
+	// happened, and a non-zero rate is the signal that the deployment has
+	// outgrown the in-process bus and needs Redis.
+	// PromQL: rate(bowrain_events_dropped_total[5m])
+	EventsDroppedTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: "bowrain",
+			Subsystem: "events",
+			Name:      "dropped_total",
+			Help:      "Events dropped by the in-process event bus because a subscriber's buffer was full.",
+		},
+		[]string{"event_type"},
+	)
 )

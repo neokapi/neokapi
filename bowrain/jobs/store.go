@@ -89,19 +89,20 @@ type JobStore interface {
 	// the fresh owner's in-flight job. A job no longer in 'processing' yields
 	// (false, nil).
 	DeferJob(ctx context.Context, id string, epoch int64, maxDeferrals int, errMsg string) (deferred bool, err error)
-	// SweepStaleProcessing recovers jobs stuck in 'processing' longer than
-	// olderThan (a worker crashed after ClaimJob). Jobs with retry budget left
-	// are reset to 'queued' — their IDs are returned so the caller can
-	// re-enqueue them — and jobs out of budget are marked 'failed'. Returns the
-	// requeued IDs and the count of failed jobs.
+	// SweepStaleProcessing recovers jobs that have gone quiet for longer than
+	// olderThan: stuck in 'processing' because a worker crashed after ClaimJob,
+	// or stranded in 'queued' because the enqueue that should have followed the
+	// row failed. Jobs with retry budget left are reset to 'queued' — their IDs
+	// are returned so the caller can re-enqueue them — and jobs out of budget
+	// are marked 'failed'. Returns the requeued IDs and the count of failed jobs.
 	SweepStaleProcessing(ctx context.Context, olderThan time.Duration, maxAttempts int) (requeued []string, failed int, err error)
 	// RevertSweepRequeue rolls a job that SweepStaleProcessing flipped to
 	// 'queued' back to 'processing' when the caller's follow-up Enqueue failed,
-	// leaving the row with no live broker message. Since nothing scans 'queued'
-	// orphans, such a row would be stranded forever; reverting it to 'processing'
+	// leaving the row with no live broker message. Reverting it to 'processing'
 	// with a STALE updated_at (older than staleThreshold) — and undoing the sweep's
-	// attempts increment — lets the NEXT sweep re-select and re-enqueue it. Guarded
-	// by status='queued' so it never disturbs a job a worker has since claimed.
+	// attempts increment — lets the NEXT sweep re-select and re-enqueue it without
+	// having spent budget on a delivery that never happened. Guarded by
+	// status='queued' so it never disturbs a job a worker has since claimed.
 	RevertSweepRequeue(ctx context.Context, id string, staleThreshold time.Duration) error
 }
 
@@ -400,10 +401,15 @@ func (s *jobStore) SweepStaleProcessing(ctx context.Context, olderThan time.Dura
 	cutoff := time.Now().UTC().Add(-olderThan)
 
 	// Phase 1: requeue stalled jobs that still have retry budget.
+	// A stranded 'queued' row is swept alongside a stalled 'processing' one.
+	// Nothing else covers it: an enqueue that failed after the row was written
+	// — the create handler's rollback, or the sweep's own re-enqueue — leaves a
+	// job nobody will ever deliver. Re-enqueueing one that IS merely waiting is
+	// harmless, because ClaimJob admits exactly one worker.
 	rows, err := s.db.QueryContext(ctx,
 		`UPDATE translation_jobs
 		 SET status = 'queued', attempts = attempts + 1, updated_at = NOW()
-		 WHERE status = 'processing' AND updated_at < $1 AND attempts + 1 < $2
+		 WHERE status IN ('processing', 'queued') AND updated_at < $1 AND attempts + 1 < $2
 		 RETURNING id`,
 		cutoff, maxAttempts)
 	if err != nil {
@@ -429,8 +435,8 @@ func (s *jobStore) SweepStaleProcessing(ctx context.Context, olderThan time.Dura
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE translation_jobs
 		 SET status = 'failed', attempts = attempts + 1,
-		     error = 'stalled in processing; exceeded max attempts', updated_at = NOW()
-		 WHERE status = 'processing' AND updated_at < $1 AND attempts + 1 >= $2`,
+		     error = 'stalled before completion; exceeded max attempts', updated_at = NOW()
+		 WHERE status IN ('processing', 'queued') AND updated_at < $1 AND attempts + 1 >= $2`,
 		cutoff, maxAttempts)
 	if err != nil {
 		return requeued, 0, fmt.Errorf("sweep fail exhausted jobs: %w", err)

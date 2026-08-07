@@ -125,6 +125,44 @@ func (s *Server) executeAutomationAction(action event.AutomationAction, ev plate
 	return err
 }
 
+// runAction starts one automation action in the background, under the server's
+// wait group and behind a recover.
+//
+// Nothing above these goroutines can recover for them: they are started from an
+// event-bus callback, so a panic in an action — a nil store, a malformed
+// payload — takes the whole server down, not the automation. And they must be
+// waited on: an action that outlives Shutdown writes into stores that are
+// closing under it.
+func (s *Server) runAction(name string, cancel context.CancelFunc, fn func()) {
+	s.actions.Add(1)
+	go func() {
+		defer s.actions.Done()
+		defer cancel()
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("recovered panic in automation action", "action", name, "panic", r)
+			}
+		}()
+		fn()
+	}()
+}
+
+// awaitActions blocks until every running automation action has finished, or
+// until ctx says the shutdown budget is spent. Actions that outrun the budget
+// are named, so a slow one is diagnosable rather than merely late.
+func (s *Server) awaitActions(ctx context.Context) {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.actions.Wait()
+	}()
+	select {
+	case <-done:
+	case <-ctx.Done():
+		slog.Warn("shutdown: automation actions still running when the budget ran out")
+	}
+}
+
 func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event, stepID string) error {
 	// Automation actions run in background goroutines and must not inherit
 	// the triggering event's cancellation. Use a fresh context with a timeout
@@ -141,10 +179,9 @@ func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event,
 			return nil
 		}
 		itemNames := strings.Split(items, ",")
-		go func() {
-			defer cancel()
+		s.runAction(action.Type, cancel, func() {
 			s.triggerAutoTranslate(actionCtx, ev.ProjectID, itemNames, nil, pushID, wsSlug, stepID)
-		}()
+		})
 
 	case "auto_extract":
 		items := ev.Data["items"]
@@ -155,10 +192,9 @@ func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event,
 			return nil
 		}
 		itemNames := strings.Split(items, ",")
-		go func() {
-			defer cancel()
+		s.runAction(action.Type, cancel, func() {
 			s.triggerAutoExtract(actionCtx, ev.ProjectID, itemNames, pushID, wsSlug, stepID)
-		}()
+		})
 
 	case "notify":
 		cancel()
@@ -172,28 +208,24 @@ func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event,
 			return nil
 		}
 		locales := strings.Split(newLocales, ",")
-		go func() {
-			defer cancel()
+		s.runAction(action.Type, cancel, func() {
 			s.triggerAutoTranslateNewLocales(actionCtx, ev.ProjectID, locales, wsSlug)
-		}()
+		})
 
 	case "create_review_tasks":
-		go func() {
-			defer cancel()
+		s.runAction(action.Type, cancel, func() {
 			s.createReviewTasks(actionCtx, action, ev, stepID)
-		}()
+		})
 
 	case "create_source_review":
-		go func() {
-			defer cancel()
+		s.runAction(action.Type, cancel, func() {
 			s.createSourceReviewTask(actionCtx, action, ev, stepID)
-		}()
+		})
 
 	case "write_overlay":
-		go func() {
-			defer cancel()
+		s.runAction(action.Type, cancel, func() {
 			s.executeWriteOverlay(actionCtx, action, ev, stepID)
-		}()
+		})
 
 	default:
 		cancel()

@@ -244,10 +244,15 @@ func (s *extractionJobStore) SweepStaleProcessing(ctx context.Context, olderThan
 	}
 	cutoff := time.Now().UTC().Add(-olderThan)
 
+	// A stranded 'queued' row is swept alongside a stalled 'processing' one.
+	// Nothing else covers it: an enqueue that failed after the row was written
+	// — the create handler's rollback, or the sweep's own re-enqueue — leaves a
+	// job nobody will ever deliver. Re-enqueueing one that IS merely waiting is
+	// harmless, because ClaimJob admits exactly one worker.
 	rows, err := s.db.QueryContext(ctx,
 		`UPDATE extraction_jobs
 		 SET status = 'queued', attempts = attempts + 1, updated_at = NOW()
-		 WHERE status = 'processing' AND updated_at < $1 AND attempts + 1 < $2
+		 WHERE status IN ('processing', 'queued') AND updated_at < $1 AND attempts + 1 < $2
 		 RETURNING id`,
 		cutoff, maxAttempts)
 	if err != nil {
@@ -271,8 +276,8 @@ func (s *extractionJobStore) SweepStaleProcessing(ctx context.Context, olderThan
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE extraction_jobs
 		 SET status = 'failed', attempts = attempts + 1,
-		     error = 'stalled in processing; exceeded max attempts', updated_at = NOW()
-		 WHERE status = 'processing' AND updated_at < $1 AND attempts + 1 >= $2`,
+		     error = 'stalled before completion; exceeded max attempts', updated_at = NOW()
+		 WHERE status IN ('processing', 'queued') AND updated_at < $1 AND attempts + 1 >= $2`,
 		cutoff, maxAttempts)
 	if err != nil {
 		return requeued, 0, fmt.Errorf("sweep fail exhausted extraction jobs: %w", err)

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -114,8 +115,14 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 	}
 
 	if err := s.JobQueue.Enqueue(ctx, job.ID); err != nil {
-		// Roll back the job record.
-		_ = s.JobStore.DeleteJob(ctx, job.ID)
+		// Roll back the job record. A rollback that itself fails leaves a
+		// 'queued' row with no message behind it, so it is logged loudly rather
+		// than discarded — the stale-job sweeper covers such a row, but the
+		// operator should know the broker refused a write.
+		if delErr := s.JobStore.DeleteJob(ctx, job.ID); delErr != nil {
+			slog.ErrorContext(ctx, "enqueue failed and its rollback failed; job row left for the sweeper",
+				"job_id", job.ID, "enqueue_error", err, "rollback_error", delErr)
+		}
 		return serverErr(c, fmt.Errorf("enqueue failed: %w", err))
 	}
 

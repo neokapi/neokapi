@@ -38,6 +38,25 @@ type AgentContainer struct {
 	WorkspaceID    string
 	UserID         string
 	CreatedAt      time.Time
+
+	// LastUsedAt is when a conversation last reached this container. The idle
+	// sweep measures from here, not from CreatedAt — measuring from creation
+	// makes the "idle timeout" a maximum lifetime, and stops a container in the
+	// middle of an active conversation.
+	LastUsedAt time.Time
+}
+
+// touch records that a conversation just reached this container. The caller
+// holds the pool lock.
+func (c *AgentContainer) touch() { c.LastUsedAt = time.Now() }
+
+// idleSince reports when the container was last used, falling back to its
+// creation for one spawned before it was ever acquired.
+func (c *AgentContainer) idleSince() time.Time {
+	if c.LastUsedAt.IsZero() {
+		return c.CreatedAt
+	}
+	return c.LastUsedAt
 }
 
 // ContainerRuntime abstracts the container orchestration backend
@@ -131,6 +150,9 @@ func (p *AgentPool) Acquire(ctx context.Context, cfg ContainerConfig) (*AgentCon
 		// Health-check the existing container.
 		healthy, err := p.runtime.Health(ctx, c.ID)
 		if err == nil && healthy {
+			p.mu.Lock()
+			c.touch()
+			p.mu.Unlock()
 			return c, nil
 		}
 		// Unhealthy — remove and respawn.
@@ -198,6 +220,7 @@ func (p *AgentPool) Acquire(ctx context.Context, cfg ContainerConfig) (*AgentCon
 		p.mu.Unlock()
 		return nil, fmt.Errorf("spawn agent container: %w", err)
 	}
+	container.touch()
 	p.containers[cfg.ConversationID] = container
 	p.mu.Unlock()
 
@@ -248,7 +271,7 @@ func (p *AgentPool) CleanupIdle(ctx context.Context) int {
 	var idle []*AgentContainer
 	now := time.Now()
 	for convID, c := range p.containers {
-		if now.Sub(c.CreatedAt) > p.idleTimeout {
+		if now.Sub(c.idleSince()) > p.idleTimeout {
 			idle = append(idle, c)
 			delete(p.containers, convID)
 		}

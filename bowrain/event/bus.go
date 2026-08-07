@@ -6,6 +6,7 @@ import (
 	"time"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/core/id"
 )
 
@@ -14,6 +15,15 @@ var _ platev.EventBus = (*ChannelEventBus)(nil)
 
 // ChannelEventBus is an in-process, channel-based EventBus implementation.
 // Each subscriber gets its own goroutine and buffered channel.
+//
+// It is not durable, and it is the default for a self-hosted single instance.
+// A subscriber that falls further behind than its buffer loses events outright:
+// there is no pending list to reclaim from and no position to resume from, so a
+// restart loses whatever was still in the channels. Every drop is counted
+// (observe.EventsDroppedTotal) and logged, because the counter is the only
+// evidence it happened. A deployment that must not lose events — audit trails,
+// convergence triggers, delivery — runs the Redis bus, where a consumer group
+// keeps its position across restarts and an unacknowledged entry is redelivered.
 type ChannelEventBus struct {
 	mu          sync.RWMutex
 	subscribers map[string]*subscriber
@@ -54,6 +64,7 @@ func (b *ChannelEventBus) Publish(ev platev.Event) {
 			select {
 			case s.ch <- ev:
 			default:
+				observe.EventsDroppedTotal.WithLabelValues(string(ev.Type)).Inc()
 				slog.Warn("event bus dropping event: channel full", "event_id", ev.ID, "event_type", ev.Type, "subscriber_id", s.sub.ID)
 			}
 		}
