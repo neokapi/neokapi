@@ -189,7 +189,7 @@ workspace group.
 | `settings_saved` | a workspace settings section persists a change (general/pulse visibility, governance SoD mode, role overrides) | `section` (`general` / `governance`) |
 | `member_invite_sent` | an invite is created in the members settings | `role` |
 | `locale_added` | a language is added in the workspace language settings | `locale` |
-| `brand_voice_saved` | a brand-voice profile create/update persists | `mode` (`created` / `updated`) |
+| `brand_voice_saved` | a voice profile create/update persists | `mode` (`created` / `updated`) |
 | `glossary_saved` | a concept term status change persists in the Brand · Concepts edit dialog | `status`, `locale` |
 | `locale_demand_connect_clicked` | the "Connect PostHog" / "Fix connection" affordance is clicked on the locale-demand page (AD-018 demand path) | `reconnect` |
 | `convergence_estimate_viewed` | the run-now consent dialog opens and the source-readiness-first pre-flight estimate is shown, before any run starts (epic 019) — the web-only impression complement of the server's `convergence_estimate_computed` | `source_held` (bool — any source blocks held on the gate), `covers_all_ai` (bool — balance covers the AI remainder), `estimated_credits_bucket` (credit bucket — what the AI remainder would cost), `ai_units_bucket` (count bucket — units left for paid AI after content-memory reuse), `tm_leverage_pct_bucket` (percent band — the content memory's share of the pending work). The three buckets size the new-workspace grant — see [Sizing the new-workspace grant](#sizing-the-new-workspace-grant) |

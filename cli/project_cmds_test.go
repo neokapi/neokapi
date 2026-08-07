@@ -54,21 +54,21 @@ func TestInitCmd_scaffoldsProject(t *testing.T) {
 
 	// Default init scaffolds an on-brand content project: source language set,
 	// no target languages, a brand-voice pack bound under defaults:, and a check
-	// flow on the deterministic brand-vocabulary check. Terminology needs no
+	// flow on the deterministic voice-vocabulary check. Terminology needs no
 	// binding — the vocabulary lives in the project's own store.
 	p, err := project.Load(recipe)
 	require.NoError(t, err)
 	assert.Equal(t, "en", string(p.Defaults.SourceLanguage))
 	assert.Empty(t, p.Defaults.TargetLanguages)
 
-	require.NotNil(t, p.Defaults.BrandVoice)
-	assert.Equal(t, "professional-b2b", p.Defaults.BrandVoice.Pack)
+	require.NotNil(t, p.Defaults.Voice)
+	assert.Equal(t, "professional-b2b", p.Defaults.Voice.Pack)
 
 	require.Contains(t, p.Flows, "check")
 	require.NotNil(t, p.Flows["check"])
 	steps := p.Flows["check"].Steps
 	require.NotEmpty(t, steps)
-	assert.Equal(t, "brand-vocab-check", steps[0].Tool)
+	assert.Equal(t, "voice-vocab-check", steps[0].Tool)
 }
 
 func TestInitCmd_translationScaffold(t *testing.T) {
@@ -95,7 +95,7 @@ func TestInitCmd_translationScaffold(t *testing.T) {
 		targets = append(targets, string(l))
 	}
 	assert.Contains(t, targets, "fr")
-	assert.Nil(t, p.Defaults.BrandVoice)
+	assert.Nil(t, p.Defaults.Voice)
 }
 
 func TestInitCmd_framework(t *testing.T) {
@@ -134,15 +134,15 @@ func TestInitCmd_frameworkNeokapiI18nScaffoldsCleanLayout(t *testing.T) {
 	require.NoError(t, cmd.Execute())
 
 	// The recipe is written and encodes the clean nested i18n/{lang} layout:
-	// source in i18n/src/, per-locale targets in i18n/{lang}/, and brand voice +
+	// source in i18n/src/, per-locale targets in i18n/{lang}/, and voice profile +
 	// terms under i18n/ — no sibling i18n-<lang>/ sprawl.
 	recipe, err := project.Load(filepath.Join(dir, project.RecipeFileName))
 	require.NoError(t, err)
 	require.Len(t, recipe.Content, 1)
 	assert.Equal(t, "i18n/src/**/*.kbf.json", recipe.Content[0].Path)
 	assert.Equal(t, "i18n/{lang}/{path}.kbf.json", recipe.Content[0].Target)
-	require.NotNil(t, recipe.Defaults.BrandVoice)
-	assert.Equal(t, "i18n/brand-voice.yaml", recipe.Defaults.BrandVoice.ProfileFile)
+	require.NotNil(t, recipe.Defaults.Voice)
+	assert.Equal(t, "i18n/voice.yaml", recipe.Defaults.Voice.ProfileFile)
 	assert.Equal(t, "i18n/terms.json", recipe.Defaults.TermsSource)
 }
 

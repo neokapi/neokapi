@@ -45,9 +45,9 @@ subset of what the CLI offered:
 
 | CLI | MCP | |
 | --- | --- | --- |
-| `kapi brand guide` | `brand_guide` | both |
-| `kapi brand show` | — | CLI only (and a duplicate of `brand guide`) |
-| `kapi brand profiles` | — | CLI only |
+| `kapi voice guide` | `voice_guide` | both |
+| `kapi voice show` | — | CLI only (and a duplicate of `voice guide`) |
+| `kapi voice profiles` | — | CLI only |
 | `kapi terms lookup` | `term_lookup` | both |
 | `kapi terms search` | — | CLI only |
 | `kapi memory lookup` | — | CLI only |
@@ -67,7 +67,7 @@ A caller does not have a store in mind. It has a question:
 
 Asset-shaped retrieval forces the caller to already know the answer's location
 before asking, which inverts that. Worse, it returns **partial answers that read
-as whole ones**: `brand_guide` renders a profile's own `PreferredTerms` /
+as whole ones**: `voice_guide` renders a profile's own `PreferredTerms` /
 `ForbiddenTerms`, so its output visibly contains terminology — while the
 project's **terms store**, a separate source reaching the engine by a separate
 path, went unread. A caller that writes against that output has terminology it
@@ -81,7 +81,7 @@ Retrieval is addressed **by location** or **by content**, never by store.
 
 **By location** answers *what applies here*: the profile in force, its rendered
 guidance, the terms that apply, and any scoped rules. It resolves through
-`core/brand.ResolveContext` (workspace → project → stream → collection) and, as
+`core/profile.ResolveContext` (workspace → project → stream → collection) and, as
 the coordinate work lands, file and passage overrides beneath it.
 
 **By content** answers *what do we know about this*: one query, every store the
@@ -106,7 +106,7 @@ The by-location primitive renders as **prose for a model** (`text/markdown`) or
 type, so this is a property of the resource rather than a second entry point;
 the CLI expresses it as `--json`.
 
-This is what dissolves `brand_guide`. It conflated three concerns — voice only,
+This is what dissolves `voice_guide`. It conflated three concerns — voice only,
 by name only, markdown only — into one narrow point. Once content is the whole
 context, addressing covers by-name, and rendering is a property, nothing is left
 over.
@@ -115,12 +115,12 @@ over.
 
 | Retired from the retrieval surface | Folds into |
 | --- | --- |
-| `brand_guide`, `brand show` | `kapi context` / `context://` |
+| `voice_guide`, `voice show` | `kapi context` / `context://` |
 | `term_lookup`, `terms lookup`, `terms search` | `kapi context search` / `context_search` |
 | `tm_search`, `memory lookup`, `memory search` | `kapi context search` / `context_search` |
 
 **Management verbs are not retrieval and do not fold.** `terms import/export/
-stats`, `memory import/export/audit/sessions`, `brand new/validate/import/pack`
+stats`, `memory import/export/audit/sessions`, `voice new/validate/import/pack`
 stay exactly as they are — they operate on a store deliberately, which is a
 different act from asking a question.
 
@@ -173,7 +173,7 @@ registry tool regardless.
 - **Callers stop needing a map of the stores.** The question is the interface;
   where the answer lives is ours to change.
 - **Partial answers stop reading as whole ones** — the failure that made
-  `brand_guide` actively misleading rather than merely narrow.
+  `voice_guide` actively misleading rather than merely narrow.
 - **A new registry tool no longer becomes an agent tool by accident.** Exposure
   is a decision with a name attached.
 - **The by-location primitive ships shallower than it will end.** Until file and

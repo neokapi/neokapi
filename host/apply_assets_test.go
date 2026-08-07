@@ -17,7 +17,7 @@ import (
 
 // newApplyAssetProject writes a minimal .kapi recipe + state dir under dir and
 // returns the recipe path. It chdirs into dir so apply's project auto-discovery
-// (and the cwd-relative brand store) resolve against the test project.
+// (and the cwd-relative voice store) resolve against the test project.
 func newApplyAssetProject(t *testing.T) (a *App, cmd *EnvCommand, root, recipe string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -158,12 +158,12 @@ func TestApplyMemoryEntry_reviewStatus(t *testing.T) {
 	assert.Contains(t, res2.Detail, "status")
 }
 
-func TestApplyBrandEntry_writesProfileCompilesStore(t *testing.T) {
+func TestApplyVoiceEntry_writesProfileCompilesStore(t *testing.T) {
 	a, cmd, root, recipe := newApplyAssetProject(t)
 	ctx := context.Background()
 
 	e := changeEntry{
-		Kind:        kindBrand,
+		Kind:        kindVoice,
 		Op:          "add-rule",
 		List:        "forbidden",
 		Term:        "utilize",
@@ -179,8 +179,8 @@ func TestApplyBrandEntry_writesProfileCompilesStore(t *testing.T) {
 
 	proj, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.NotNil(t, proj.Defaults.BrandVoice)
-	assert.Equal(t, project.RelStatePath("voice.yaml"), proj.Defaults.BrandVoice.ProfileFile)
+	require.NotNil(t, proj.Defaults.Voice)
+	assert.Equal(t, project.RelStatePath("voice.yaml"), proj.Defaults.Voice.ProfileFile)
 
 	// Idempotent re-run.
 	res2 := a.applyAssetEntry(ctx, cmd, e)

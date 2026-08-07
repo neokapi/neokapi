@@ -94,7 +94,7 @@ func emitVocabularies() string {
 		model.AnnoNote, model.AnnoAltTranslation, model.AnnoMemoryMatch,
 		model.AnnoWordCount, model.AnnoCharCount, model.AnnoSegCount,
 		model.AnnoComparison, model.AnnoScopingReport, model.AnnoRepetition,
-		model.AnnoBrandVoice, model.AnnoEntityMapping, model.AnnoTermEnforce,
+		model.AnnoVoice, model.AnnoEntityMapping, model.AnnoTermEnforce,
 	}
 	pseudoAndSecurity := []string{schema.PortSource, schema.PortTarget, redaction.SecretAnnotationKey}
 

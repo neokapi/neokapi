@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBrandVoiceEvaluation_JSONRoundTrip(t *testing.T) {
-	eval := BrandVoiceEvaluation{
+func TestVoiceEvaluation_JSONRoundTrip(t *testing.T) {
+	eval := VoiceEvaluation{
 		Stream:          "experiment",
 		BaselineStream:  "main",
 		StreamProfile:   "profile-new",
@@ -69,10 +69,10 @@ func TestBrandVoiceEvaluation_JSONRoundTrip(t *testing.T) {
 				CollectionID: "col-1",
 				SourceText:   "Welcome to our platform",
 				TargetText:   "Bienvenue sur notre plateforme",
-				Finding: BrandVoiceFinding{
+				Finding: VoiceFinding{
 					Category:   string(DimensionTone),
 					Severity:   SeverityMajor,
-					Message:    "Too informal for formal brand voice",
+					Message:    "Too informal for formal voice profile",
 					Suggestion: "Use a more professional greeting",
 				},
 				IsNew: true,
@@ -83,7 +83,7 @@ func TestBrandVoiceEvaluation_JSONRoundTrip(t *testing.T) {
 	data, err := json.Marshal(eval)
 	require.NoError(t, err)
 
-	var decoded BrandVoiceEvaluation
+	var decoded VoiceEvaluation
 	err = json.Unmarshal(data, &decoded)
 	require.NoError(t, err)
 

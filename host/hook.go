@@ -332,7 +332,7 @@ func preEditDenyReason(root, targetAbs, sourceAbs, locale string) string {
 			"overwrites it on the next `kapi merge`, so editing it by hand is discarded and "+
 			"never passes through kapi's terminology, placeholder, and brand-voice gates.\n\n"+
 			"Don't edit the target directly. To revise the %s translation, route it through kapi: "+
-			"`kapi extract --target-lang %s` → fill the targets (follow `kapi brand guide` and the "+
+			"`kapi extract --target-lang %s` → fill the targets (follow `kapi voice guide` and the "+
 			"glossary, keep placeholders intact) → `kapi merge -i out/*.xliff` → `kapi check --ship`. "+
 			"To change the meaning for every language, edit the source %s instead and re-run the round-trip.",
 		target, source, locale, locale, locale, source,

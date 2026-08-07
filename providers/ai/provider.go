@@ -65,7 +65,7 @@ type Message struct {
 	Role  string        `json:"role"` // RoleSystem, RoleUser, RoleAssistant
 	Parts []ContentPart `json:"parts"`
 	// Sections attributes the message's text to what produced each piece of it
-	// (framework rule, brand voice profile, terms, the source block). Set when
+	// (framework rule, voice profile, terms, the source block). Set when
 	// the message came from a prompt builder; --explain renders it so a prompt can
 	// be traced back to its origins. Providers ignore it — they send Parts.
 	Sections []prompt.Section `json:"sections,omitempty"`
@@ -114,7 +114,7 @@ type TranslateRequest struct {
 	TargetLocale   model.LocaleID    `json:"target_locale"`
 	Glossary       map[string]string `json:"glossary,omitempty"`
 	Format         string            `json:"format,omitempty"` // e.g., "html", "plain"
-	// VoiceGuide is brand voice guidance (rendered from a VoiceProfile) that the
+	// VoiceGuide is voice profile guidance (rendered from a VoiceProfile) that the
 	// model should apply while translating, so output is on-brand at generation
 	// time rather than only checked afterwards. Empty when no profile is bound.
 	VoiceGuide string `json:"voice_guide,omitempty"`
@@ -554,7 +554,7 @@ func (c *Config) Validate() error {
 // It records the exchange itself: a provider's Translate calls that provider's
 // own Chat, which bypasses the recording wrapper, so this is the only point that
 // sees the call. (The wrapper still records direct Chat/ChatStructured calls —
-// batch translation, brand voice, entity extraction — and the two cannot
+// batch translation, voice profile, entity extraction — and the two cannot
 // double-count, because the Chat reached from here is the unwrapped inner one.)
 func standardTranslate(
 	ctx context.Context,

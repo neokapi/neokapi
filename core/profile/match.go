@@ -18,9 +18,9 @@ const (
 	VocabCompetitor
 )
 
-// VocabHit is one brand-vocabulary match in a piece of text: which rule matched,
+// VocabHit is one voice-vocabulary match in a piece of text: which rule matched,
 // at what byte range, and at what severity. It is the shared output of the
-// vocabulary matcher, consumed both by the brand-vocab check tool (which maps
+// vocabulary matcher, consumed both by the voice-vocab check tool (which maps
 // the byte range onto run-anchored positions for the streaming pipeline) and by
 // the blast-radius evaluator (which only needs the counts and severities).
 type VocabHit struct {
@@ -41,7 +41,7 @@ type VocabHit struct {
 // to major severity and competitor terms to critical; a rule's own Severity, when
 // set, overrides the default. A nil profile yields no hits.
 //
-// This is the single source of brand-vocabulary matching: the check tool and the
+// This is the single source of voice-vocabulary matching: the check tool and the
 // blast-radius evaluator both call it so they can never diverge.
 func MatchVocabulary(p *VoiceProfile, text string) []VocabHit {
 	if p == nil {
@@ -83,7 +83,7 @@ func MatchVocabulary(p *VoiceProfile, text string) []VocabHit {
 	return hits
 }
 
-// HitsToFindings maps vocabulary hits onto brand findings: the presentation
+// HitsToFindings maps vocabulary hits onto voice findings: the presentation
 // message, the structured replacement and concept_id metadata, the offending
 // snippet, and the run-anchored position. text is the searched string the hits
 // index into (hit.Start/hit.End are byte offsets into it); runs are the source
@@ -92,13 +92,13 @@ func MatchVocabulary(p *VoiceProfile, text string) []VocabHit {
 // zero). It is the single hit→finding mapping shared by the streaming pipeline
 // tool, the /check endpoint, and the check_vocabulary MCP tool, so none of them
 // diverge on matching semantics, message wording, or concept propagation.
-func HitsToFindings(hits []VocabHit, text string, runs []model.Run) []BrandVoiceFinding {
+func HitsToFindings(hits []VocabHit, text string, runs []model.Run) []VoiceFinding {
 	if len(hits) == 0 {
 		return nil
 	}
-	findings := make([]BrandVoiceFinding, 0, len(hits))
+	findings := make([]VoiceFinding, 0, len(hits))
 	for _, hit := range hits {
-		f := BrandVoiceFinding{
+		f := VoiceFinding{
 			Category:     string(hit.Category),
 			Severity:     hit.Severity,
 			OriginalText: text[hit.Start:hit.End],

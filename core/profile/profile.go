@@ -12,7 +12,7 @@ import (
 
 // LoadProfileYAML decodes a VoiceProfile from a YAML stream. This is the canonical
 // loader for standalone, git-shareable `profile.yaml` files and for the embedded
-// starter packs, so a brand profile works with or without a backing store.
+// starter packs, so a voice profile works with or without a backing store.
 func LoadProfileYAML(r io.Reader) (*VoiceProfile, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -25,7 +25,7 @@ func LoadProfileYAML(r io.Reader) (*VoiceProfile, error) {
 	return &p, nil
 }
 
-// VoiceProfile defines a brand voice configuration with tone, style, and vocabulary rules.
+// VoiceProfile defines a voice profile configuration with tone, style, and vocabulary rules.
 type VoiceProfile struct {
 	ID          string                            `json:"id" yaml:"id,omitempty"`
 	Name        string                            `json:"name" yaml:"name"`
@@ -39,9 +39,9 @@ type VoiceProfile struct {
 	Personas    map[string]PersonaOverride        `json:"personas,omitempty" yaml:"personas,omitempty"`
 	WorkspaceID string                            `json:"workspace_id" yaml:"workspace_id,omitempty"`
 	Autonomy    AutonomyConfig                    `json:"autonomy,omitzero" yaml:"autonomy,omitempty"`
-	// MinScore is the minimum brand-compliance score (0–100) a block must reach
+	// MinScore is the minimum voice-compliance score (0–100) a block must reach
 	// to count as on-brand in roll-ups (e.g. the dashboard's on-brand rate). 0
-	// (unset) uses DefaultMinScore; see OnBrandBar.
+	// (unset) uses DefaultMinScore; see ComplianceBar.
 	MinScore    int       `json:"min_score,omitempty" yaml:"min_score,omitempty"`
 	Version     int       `json:"version" yaml:"version,omitempty"`
 	VersionNote string    `json:"version_note,omitempty" yaml:"version_note,omitempty"`
@@ -55,11 +55,11 @@ type VoiceProfile struct {
 // block below it, while a handful of minor issues does not.
 const DefaultMinScore = 80
 
-// OnBrandBar returns the profile's effective minimum on-brand score: MinScore
+// ComplianceBar returns the profile's effective minimum on-brand score: MinScore
 // when set (capped at 100), DefaultMinScore otherwise. A nil profile also
 // answers the default, so roll-ups can apply one bar to persisted scores whose
 // profile is no longer readable.
-func (p *VoiceProfile) OnBrandBar() int {
+func (p *VoiceProfile) ComplianceBar() int {
 	if p == nil || p.MinScore <= 0 {
 		return DefaultMinScore
 	}
@@ -168,7 +168,7 @@ type TermRule struct {
 	ConceptID string `json:"concept_id,omitempty" yaml:"concept_id,omitempty"`
 }
 
-// VoiceExample shows a before/after transformation for brand voice.
+// VoiceExample shows a before/after transformation for voice profile.
 type VoiceExample struct {
 	Before      string `json:"before" yaml:"before"`
 	After       string `json:"after" yaml:"after"`

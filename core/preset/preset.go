@@ -21,10 +21,10 @@ type FrameworkPreset struct {
 	Flows         map[string]map[string]any // flow -> config defaults
 	Source        string                    // "built-in" or plugin name
 
-	// BrandVoiceProfile, when non-empty, is scaffolded as
-	// defaults.brand_voice.profile_file — a project-local brand voice profile
-	// the stack conventionally commits (e.g. i18n/brand-voice.yaml).
-	BrandVoiceProfile string
+	// VoiceProfile, when non-empty, is scaffolded as
+	// defaults.voice.profile_file — a project-local voice profile
+	// the stack conventionally commits (e.g. i18n/voice.yaml).
+	VoiceProfile string
 	// TermsSource, when non-empty, is scaffolded as defaults.terms_source
 	// — the committed, git-tracked native terms the project compiles its
 	// glossary from (e.g. i18n/terms.json).

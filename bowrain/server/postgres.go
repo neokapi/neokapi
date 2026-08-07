@@ -30,7 +30,7 @@ type pgStores struct {
 	BrandScan      jobs.BrandScanJobStore
 	Quota          jobs.QuotaStore
 	Sweep          jobs.ModelSweepStore
-	Brand          coreprofile.BrandStore
+	Brand          coreprofile.Store
 	Knowledge      knowledge.Store
 	GraphStore     coreg.GraphStore
 	Agent          platagent.AgentStore

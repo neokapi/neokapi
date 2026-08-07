@@ -211,7 +211,7 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 		}}}
 
 		// The alt text as a translatable caption Block linked to the image. It
-		// flows through the normal Block translation path (TM, AI, brand voice,
+		// flows through the normal Block translation path (TM, AI, voice profile,
 		// sessions) like any other content; the writer folds the localized target
 		// back into a per-locale sidecar.
 		if altText != "" {

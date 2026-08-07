@@ -53,7 +53,7 @@ A `Concept` groups terms across locales, each with context:
 
 ```go
 // TermSource indicates whether a concept comes from traditional
-// terminology or brand vocabulary.
+// terminology or voice vocabulary.
 type TermSource string
 
 const (
@@ -125,7 +125,7 @@ supplied by a platform layer behind the same `Terminology` interface.
 Terminology is **authored content, not derived state**: a human decides which
 terms are do-not-translate and what the preferred translation is, and those
 decisions belong in review and version control alongside the recipe and the
-brand-voice profile ([AD-022](022-brand-voice.md)). So the split is source vs.
+voice profile ([AD-022](022-voice-profile.md)). So the split is source vs.
 projection, not a two-way sync:
 
 - the committed **`.terms.json` bundle is the source** — a diff-friendly,
@@ -150,14 +150,14 @@ A project that binds nothing still resolves, through a fallback ladder:
 
 An explicit `defaults.terms_source` wins over both, and binds any path. The
 conventional home comes first because that is where the rest of the project's
-context lives — the brand voice, the memory seeds, the unit-state record — and
+context lives — the voice profile, the memory seeds, the unit-state record — and
 terms are one node of that graph rather than a loose file beside it. Both rungs
 are committed and both reach review, which is the one thing the terms source
 exists to do; the ordering is about where a reader expects to find it, not about
 which one is safe.
 
-This is the same ladder shape the brand-voice profile uses
-([AD-022](022-brand-voice.md)). The recipe binds only the *source*; the derived
+This is the same ladder shape the voice profile uses
+([AD-022](022-voice-profile.md)). The recipe binds only the *source*; the derived
 database has no recipe key, which is what keeps the two from being confused —
 treating the portable JSON bundle as if it were the SQLite store is what makes
 someone reach for a path under `.kapi/work/`.
@@ -292,10 +292,10 @@ platform built on it.
 ### Competitor terms
 
 Terms carry a `CompetitorTerm` boolean flag marking competitor brand
-terms. The `brand-vocab-check` tool surfaces competitor terms found in
-source text as critical-severity brand-voice findings (and forbidden terms
-as major-severity), supporting brand voice governance using the store's
-brand-vocabulary term source.
+terms. The `voice-vocab-check` tool surfaces competitor terms found in
+source text as critical-severity voice findings (and forbidden terms
+as major-severity), supporting voice profile governance using the store's
+voice-vocabulary term source.
 
 ### Pipeline tools
 
@@ -308,7 +308,7 @@ The framework ships built-in terminology tools as ordinary pipeline stages:
   an acceptable target-locale translation (preferred/approved by default,
   configurable via `CheckStatuses`) is present in the target text; flags
   blocks where the expected translation is missing. Forbidden-, deprecated-,
-  and competitor-term detection is handled by `brand-vocab-check`, which
+  and competitor-term detection is handled by `voice-vocab-check`, which
   scans source text — not `term-enforce`.
 - **`term-extract`** (AI-assisted enrich) — LLM extraction of candidate
   terms with `status: proposed`. Uses a provider from
@@ -350,8 +350,8 @@ relations, term status, and context fields.
   generalization — a single annotation pass serves multiple consumers.
 - Concept relations give UIs a graph substrate for browsing terminology
   without requiring a separate graph database in the framework.
-- `CompetitorTerm` gives the framework a minimal hook for brand guardrails
-  without depending on the full brand module.
+- `CompetitorTerm` gives the framework a minimal hook for voice guardrails
+  without depending on the full voice module.
 - The same storage backends as content memory (in-memory, SQLite) keep the CLI
   dependency footprint small and cross-compilation simple.
 

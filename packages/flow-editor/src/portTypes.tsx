@@ -242,7 +242,7 @@ const PORT_TYPES: Record<PortType, PortTypeDef> = {
       return t("Candidate translations from content memory/MT/AI.");
     },
   },
-  "brand-voice": {
+  voice: {
     get label() {
       return t("Brand voice", "port type");
     },

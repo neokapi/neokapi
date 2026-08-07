@@ -16,25 +16,25 @@ import (
 // Each renders provider-neutral Turns from typed sections, so --explain-prompts
 // attributes every block to what produced it.
 
-// BrandCheck scores text against a brand voice profile.
-type BrandCheck struct {
+// VoiceCheck scores text against a voice profile.
+type VoiceCheck struct {
 	// VoiceGuide is the rendered voice profile (profile.RenderVoiceGuide).
 	VoiceGuide string
 }
 
-func (p BrandCheck) Turns(text string) []Turn {
+func (p VoiceCheck) Turns(text string) []Turn {
 	system := []Section{{
 		Kind:   KindTask,
 		Origin: "framework",
-		Text: "You are a brand voice compliance checker. Analyze the user's text against the brand voice " +
-			"guidelines and report any issues with tone, style, clarity, or brand compliance. " +
+		Text: "You are a voice profile compliance checker. Analyze the user's text against the voice profile " +
+			"guidelines and report any issues with tone, style, clarity, or voice compliance. " +
 			"Return an empty findings array if the text fully complies.",
 	}}
 	if g := strings.TrimSpace(p.VoiceGuide); g != "" {
 		system = append(system, Section{
 			Kind:    KindVoice,
-			Origin:  "brand voice profile",
-			Heading: "Brand voice guidelines:",
+			Origin:  "voice profile",
+			Heading: "Voice profile guidelines:",
 			Text:    g,
 		})
 	}
@@ -44,17 +44,17 @@ func (p BrandCheck) Turns(text string) []Turn {
 	}
 }
 
-// BrandInfer drafts a brand voice profile from a corpus of existing content.
-type BrandInfer struct {
+// VoiceInfer drafts a voice profile from a corpus of existing content.
+type VoiceInfer struct {
 	// Domain is an optional subject-domain hint ("medical", "developer tools").
 	Domain string
 	// MaxExamples caps the before/after pairs requested.
 	MaxExamples int
 }
 
-func (p BrandInfer) Turns(corpus string) []Turn {
+func (p VoiceInfer) Turns(corpus string) []Turn {
 	var b strings.Builder
-	b.WriteString("You are a brand voice analyst. Study the corpus below and infer a draft brand voice profile. ")
+	b.WriteString("You are a voice profile analyst. Study the corpus below and infer a draft voice profile. ")
 	b.WriteString("Ground every rule in evidence from the text; do not invent rules the corpus does not support.\n\n")
 	b.WriteString("Report:\n")
 	b.WriteString("- tone: personality traits, formality (casual|neutral|formal|technical), emotion, humor (none|light|frequent), and short guidelines\n")
@@ -431,16 +431,16 @@ func Catalog() []CatalogEntry {
 			Turns:   tr.Batch(BatchSegments([]string{"<block 1>", "<block 2>"})),
 		},
 		{
-			ID:      IDBrandCheck,
-			Tool:    "brand-voice-check",
-			Summary: "Score text against a brand voice profile and report tone, style and compliance issues.",
-			Turns:   BrandCheck{VoiceGuide: "<your brand voice profile>"}.Turns(sampleSource),
+			ID:      IDVoiceCheck,
+			Tool:    "voice-check",
+			Summary: "Score text against a voice profile and report tone, style and compliance issues.",
+			Turns:   VoiceCheck{VoiceGuide: "<your voice profile>"}.Turns(sampleSource),
 		},
 		{
-			ID:      IDBrandInfer,
-			Tool:    "brand-voice-infer",
-			Summary: "Draft a brand voice profile from a corpus of your existing content.",
-			Turns:   BrandInfer{MaxExamples: 3}.Turns("<your content corpus>"),
+			ID:      IDVoiceInfer,
+			Tool:    "voice-infer",
+			Summary: "Draft a voice profile from a corpus of your existing content.",
+			Turns:   VoiceInfer{MaxExamples: 3}.Turns("<your content corpus>"),
 		},
 		{
 			ID:      IDQualityCheck,

@@ -44,7 +44,7 @@ func twoCollectionFixture(t *testing.T, platformContext map[string]string) (reci
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
-			BrandVoice:      &project.BrandVoiceBinding{ProfileFile: "voice.yaml"},
+			Voice:           &project.VoiceBinding{ProfileFile: "voice.yaml"},
 		},
 		Coordinates: project.Coordinates{
 			"product": {{ID: "framework"}, {ID: "platform"}},
@@ -52,7 +52,7 @@ func twoCollectionFixture(t *testing.T, platformContext map[string]string) (reci
 		},
 		Profiles: []project.ProfileBinding{{
 			When:  map[string]string{"product": "platform"},
-			Voice: &project.BrandVoiceBinding{ProfileFile: "platform-voice.yaml"},
+			Voice: &project.VoiceBinding{ProfileFile: "platform-voice.yaml"},
 		}},
 		Content: []project.ContentCollection{
 			{

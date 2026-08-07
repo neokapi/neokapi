@@ -177,7 +177,7 @@ content:
 | `memory`           | MemoryDefaults      | Content-memory pre-fill on `kapi extract` and write-back on `kapi merge` (see [memory](#memory))                         |
 | `segmentation`     | SegmentationDefaults | Opt-in sentence-level segmentation overlay applied on extract (see [segmentation](#segmentation))                       |
 | `redaction`        | RedactionSpec       | Replace sensitive content with protected placeholders before processing and restore it afterwards (see [redaction](#redaction)) |
-| `brand_voice`      | BrandVoiceBinding   | Bind a brand voice profile as standing project context (see [brand_voice](#brand_voice))                                |
+| `brand_voice`      | VoiceBinding   | Bind a voice profile as standing project context (see [brand_voice](#brand_voice))                                |
 | `terms_source`     | string              | Committed, git-tracked native source bundle (a `.terms.json`) the project's terms are compiled from; `kapi apply` edits it and re-imports into the [project store](/kapi/project-store), so `git diff` is the review surface. Binds any path. Unset, kapi falls back to `<root>/.kapi/terms.json` — the conventional home in the committed context graph — then `<root>/terms.json` |
 | `memory_source`    | string              | Committed, git-tracked native source bundle (a `.memory.json`) the project content memory is compiled from — the content-memory analogue of `terms_source`. It has no conventional-location fallback: a project has one approved term list but many memory bundles (one per content surface), so a seed is always named |
 | `flow`             | string              | The project's default flow — the composed flow `kapi up` runs to catch up every locale. A built-in name (e.g. `translate`) or a key in `flows:`. Empty runs the built-in default (recycle → translate) |
@@ -289,12 +289,12 @@ The sensitive term list lives in a separate rules file referenced by `rules` (so
 
 #### brand_voice
 
-Bind a brand voice profile under `defaults.brand_voice`. Exactly one source is expected.
+Bind a voice profile under `defaults.voice`. Exactly one source is expected.
 
 | Field          | Type   | Description                                                             |
 | -------------- | ------ | ----------------------------------------------------------------------- |
 | `profile_file` | string | Path to a standalone profile YAML, resolved relative to the project root |
-| `profile`      | string | Name of a profile in the local brand store                              |
+| `profile`      | string | Name of a profile in the local voice store                              |
 | `pack`         | string | Name of a built-in starter pack                                         |
 
 ### Flow Steps

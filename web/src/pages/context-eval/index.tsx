@@ -4,7 +4,7 @@ import Layout from "@theme/Layout";
 import history from "./_contexteval.json";
 
 // The context-eval dashboard. kapi's value proposition is injecting context —
-// terminology, a brand voice guide, an instruction — to steer model output. This
+// terminology, a voice guide, an instruction — to steer model output. This
 // page measures whether that context is actually followed, per model, as a
 // differential: the same engineered corpus translated with and without the
 // context, both passes scored by kapi's own check tools. Regenerate with
@@ -693,7 +693,7 @@ export default function ContextEval(): ReactElement {
   return (
     <Layout
       title="Context eval"
-      description="Whether models actually follow the context kapi injects — terms, brand voice, instruction — measured as lift: adherence with the context minus adherence without it, per model, per dimension, tracked over time."
+      description="Whether models actually follow the context kapi injects — terms, voice profile, instruction — measured as lift: adherence with the context minus adherence without it, per model, per dimension, tracked over time."
     >
       <main style={{ maxWidth: 940, margin: "0 auto", padding: "2.5rem 1.25rem 4rem" }}>
         <h1>Context eval</h1>
@@ -711,7 +711,7 @@ export default function ContextEval(): ReactElement {
           twice through the production pipeline — once <em>bare</em> (no context) and once{" "}
           <em>steered</em> (terms + voice profile + instruction, injected exactly as production
           injects them) — and both passes are scored with kapi&rsquo;s own deterministic check tools
-          (term-check, dnt-check, brand-vocab-check, pattern-check). Two numbers fall out per
+          (term-check, dnt-check, voice-vocab-check, pattern-check). Two numbers fall out per
           dimension: <strong>absolute adherence</strong> (did the steered output satisfy the
           requirement) and <strong>lift</strong> (steered minus bare — how much the context moved
           the model). Lift is the decision-relevant one: a model with high absolute adherence but

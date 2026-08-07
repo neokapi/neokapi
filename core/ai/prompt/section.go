@@ -13,7 +13,7 @@ import (
 //     (return only the translation; reproduce every tag). A user who overrides
 //     these gets broken round-trips, so they are not a configuration surface.
 //   - the project owns Instruction, Voice and Glossary — the steering that makes
-//     output *yours*. These are declared in the recipe, the brand profile and the
+//     output *yours*. These are declared in the recipe, the voice profile and the
 //     terms, and they are the supported way to change what the model does.
 //   - the document owns Content. It is data, never instruction.
 //
@@ -30,7 +30,7 @@ const (
 	KindConstraint Kind = "constraint"
 	// KindInstruction is the caller's steering (--instruction, recipe).
 	KindInstruction Kind = "instruction"
-	// KindVoice is brand voice guidance rendered from a VoiceProfile.
+	// KindVoice is voice profile guidance rendered from a VoiceProfile.
 	KindVoice Kind = "voice"
 	// KindGlossary pins terminology from the terms store.
 	KindGlossary Kind = "glossary"
@@ -46,7 +46,7 @@ const (
 type Section struct {
 	Kind Kind
 	// Origin says where the section came from, in the user's terms — "framework",
-	// "--instruction", "brand voice profile", "terms (12 terms)". It is shown
+	// "--instruction", "voice profile", "terms (12 terms)". It is shown
 	// by --explain so a prompt can be traced back to the thing that produced it.
 	Origin string
 	// Heading, when set, is rendered above Text so the model sees a labelled

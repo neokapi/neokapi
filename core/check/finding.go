@@ -6,7 +6,7 @@
 // run-range they apply to. Every checker — deterministic rule, small ML model,
 // or LLM judge — emits the same Finding, so one scoring, annotation, and
 // governance path serves terminology, do-not-translate, placeholder integrity,
-// register, and brand voice alike.
+// register, and voice profile alike.
 package check
 
 import "github.com/neokapi/neokapi/core/model"

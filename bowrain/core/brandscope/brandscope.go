@@ -76,7 +76,7 @@ type WorkspaceDefault interface {
 // Store-read failures for a scope are non-fatal: that rung is simply skipped,
 // so a missing stream or an unreadable collection degrades to the next-broader
 // binding rather than failing the check.
-func Resolve(ctx context.Context, cs ScopeStore, wd WorkspaceDefault, bs brand.BrandStore, sc Scope) (*brand.VoiceProfile, error) {
+func Resolve(ctx context.Context, cs ScopeStore, wd WorkspaceDefault, bs brand.Store, sc Scope) (*brand.VoiceProfile, error) {
 	rc := brand.ResolveContext{
 		ExplicitProfileID: sc.ExplicitProfileID,
 		Locale:            sc.Locale,

@@ -9,7 +9,7 @@ signal: high
 summary: >-
   A generic AI draft for a marketing blog drifts off-voice — wordy filler ("in
   order to", "at the end of the day", "thought leader"). kapi rewrites it to the
-  marketing-blog voice and the brand compliance score jumps.
+  marketing-blog voice and the voice compliance score jumps.
 expect:
   without_overall_max: 99
   with_overall_min: 95

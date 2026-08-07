@@ -238,7 +238,7 @@ fields because they differ in shape and lifecycle:
   them. See AD-006.
 - **Annotations** are *block-scoped*: a keyed map of typed payloads describing
   the block as a whole — alt-translations, notes, analysis results
-  (word/char/segment counts, comparison, repetition, brand-voice), format
+  (word/char/segment counts, comparison, repetition, voice), format
   round-trip state, and the block's **anchor** and **role** facets (`structure`,
   `geometry`, `timing` — see [Anchoring across media](#anchoring-across-media-and-source-provenance)).
   A source rewrite does not invalidate them.

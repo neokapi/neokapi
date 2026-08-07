@@ -40,7 +40,7 @@ func TestRenderVoiceGuideDeterministic(t *testing.T) {
 		}
 	}
 	for _, want := range []string{
-		"# Brand Voice Guide: Acme Voice",
+		"# Voice Guide: Acme Voice",
 		"- Personality: friendly, direct",
 		"- Use active voice",
 		"~~utilize~~ → use **use**",

@@ -15,7 +15,7 @@ import (
 //	kapi check guide.md                              # default content checkset
 //	kapi check 'web/**/*.md'                         # glob, expanded in-process
 //	kapi check api.json --max-chars 60 --forbid TODO # length + forbidden-pattern
-//	kapi check post.md --pack marketing-blog         # + brand vocabulary
+//	kapi check post.md --pack marketing-blog         # + voice vocabulary
 //	kapi check api.json --target api.de.json --target-lang de  # + bilingual checks
 //
 // The checks are content-level (the translatable units). Document-level
@@ -74,13 +74,13 @@ Exit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits
 	f.Int("max-words", 0, "flag content with more than this many words (0 = off)")
 	f.StringSlice("forbid", nil, "regex that must NOT appear in the content (repeatable)")
 	f.StringSlice("require", nil, "regex that MUST appear in the content (repeatable)")
-	f.String("profile", "", "brand profile name from the local store")
-	f.String("profile-file", "", "path to a brand profile YAML")
+	f.String("profile", "", "voice profile name from the local store")
+	f.String("profile-file", "", "path to a voice profile YAML")
 	f.String("pack", "", "built-in brand starter pack")
 	f.Int("max-critical", 0, "fail if critical findings exceed this count")
 	f.Int("max-major", -1, "fail if major findings exceed this count (-1 = no limit)")
 	f.Int("max-minor", -1, "fail if minor findings exceed this count (-1 = no limit)")
-	f.Int("min-score", 0, "fail if the roll-up score is below this (0 = no score gate); with --ship: the brand-gate compliance threshold (default "+strconv.Itoa(DefaultBrandMinScore)+")")
+	f.Int("min-score", 0, "fail if the roll-up score is below this (0 = no score gate); with --ship: the brand-gate compliance threshold (default "+strconv.Itoa(DefaultVoiceMinScore)+")")
 	f.Bool("strict", false, "strict gate: fail on any critical or major finding")
 	f.Bool("lenient", false, "report only: never fail the gate (still prints findings)")
 	f.Bool("no-fail", false, "exit 0 even when the gate fails (fix-loop mode)")

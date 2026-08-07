@@ -312,7 +312,7 @@ func TestSQLiteTerms_TermSourceField(t *testing.T) {
 		},
 	}))
 
-	// Add a brand vocabulary concept.
+	// Add a voice vocabulary concept.
 	require.NoError(t, tb.AddConcept(context.Background(), terms.Concept{
 		ID:     "brand-1",
 		Domain: "brand",

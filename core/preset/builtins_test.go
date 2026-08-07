@@ -45,7 +45,7 @@ func TestNeokapiI18nPresetUsesKBF(t *testing.T) {
 
 // TestNeokapiI18nPresetCleanNestedLayout pins the clean nested convention: the
 // source glob is confined to i18n/src/, the target nests per-locale under
-// i18n/{lang}/, and the stack binds a project-local brand voice profile and
+// i18n/{lang}/, and the stack binds a project-local voice profile and
 // terms source under i18n/.
 func TestNeokapiI18nPresetCleanNestedLayout(t *testing.T) {
 	p := neokapiI18nPreset()
@@ -56,8 +56,8 @@ func TestNeokapiI18nPresetCleanNestedLayout(t *testing.T) {
 	if m.TargetPath != "i18n/{lang}/{path}.kbf.json" {
 		t.Errorf("target template = %q, want i18n/{lang}/{path}.kbf.json", m.TargetPath)
 	}
-	if p.BrandVoiceProfile != "i18n/brand-voice.yaml" {
-		t.Errorf("brand voice profile = %q, want i18n/brand-voice.yaml", p.BrandVoiceProfile)
+	if p.VoiceProfile != "i18n/voice.yaml" {
+		t.Errorf("voice profile = %q, want i18n/voice.yaml", p.VoiceProfile)
 	}
 	if p.TermsSource != "i18n/terms.json" {
 		t.Errorf("terms source = %q, want i18n/terms.json", p.TermsSource)

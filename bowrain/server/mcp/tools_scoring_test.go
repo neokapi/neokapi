@@ -111,7 +111,7 @@ func TestScoreBrandCompliance_NoProfileAnywhere(t *testing.T) {
 }
 
 // findingForTerm reports whether any finding was raised for the given term.
-func findingForTerm(findings []coreprofile.BrandVoiceFinding, term string) bool {
+func findingForTerm(findings []coreprofile.VoiceFinding, term string) bool {
 	for _, f := range findings {
 		if f.OriginalText == term {
 			return true

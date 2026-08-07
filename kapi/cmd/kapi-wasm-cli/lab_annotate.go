@@ -23,14 +23,14 @@ import (
 
 // labInspectAnnotated reads a file through the kapi format reader exactly like
 // labInspect, then runs a small pipeline of read-only annotators over the parsed
-// blocks so they gain stand-off overlays — terminology, brand vocabulary and
+// blocks so they gain stand-off overlays — terminology, voice vocabulary and
 // rule-based QA — before serializing the content tree. Where plain labInspect
 // only parses, this surfaces the engine's interpretations so the docs "Anatomy"
 // explorer can highlight vocabulary terms and QA findings on a rendered document.
 //
 // The annotators are deterministic and offline: term overlays come from the
 // seeded in-memory terms (LookupAll over the source text), brand overlays
-// from profile.MatchVocabulary against the seeded brand profile (wasm_backends.go),
+// from profile.MatchVocabulary against the seeded voice profile (wasm_backends.go),
 // and QA overlays from the shared source-only shape rules (double spaces, doubled
 // words — check.HygieneOverlay).
 // Each is a source-anchored overlay (Variant nil) carrying its matched span text
@@ -249,7 +249,7 @@ func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Ov
 // brandOverlay builds an OverlayQA over the source runs from the seeded brand
 // profile (profile.MatchVocabulary). Brand findings ride on the QA overlay type
 // (the model's fixed overlay enum has no dedicated brand type) and are tagged
-// with category="brand-vocabulary" plus the matched term, severity and any
+// with category="voice-vocabulary" plus the matched term, severity and any
 // preferred replacement. Returns nil when nothing matches.
 func brandOverlay(runs []model.Run, source string) *model.Overlay {
 	hits := profile.MatchVocabulary(brandProfile, source)
@@ -259,7 +259,7 @@ func brandOverlay(runs []model.Run, source string) *model.Overlay {
 	spans := make([]model.Span, 0, len(hits))
 	for _, h := range hits {
 		props := map[string]string{
-			"category": "brand-vocabulary",
+			"category": "voice-vocabulary",
 			"severity": string(h.Severity),
 			"term":     h.Term,
 		}

@@ -14,7 +14,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host"
@@ -43,15 +43,15 @@ func (a *App) InspectFile(tabID, filePath string) (string, error) {
 //   - term overlays (type "term") from the project's auto-opened terms
 //     (LookupAll over each block's source text), carrying the matched surface
 //     form, its preferred target translation and domain;
-//   - brand-vocabulary overlays (type "qa", props.category="brand-vocabulary")
-//     from the project's resolved brand profile (resolveProjectBrandProfile via
-//     brand.MatchVocabulary);
+//   - voice-vocabulary overlays (type "qa", props.category="voice-vocabulary")
+//     from the project's resolved voice profile (resolveProjectVoiceProfile via
+//     coreprofile.MatchVocabulary);
 //   - rule-based QA overlays (type "qa") from the shared source-only shape rules
 //     (double spaces, doubled words — check.HygieneOverlay).
 //
 // These mirror the overlay shapes the docs "Anatomy" explorer produces in
 // kapi/cmd/kapi-wasm-cli/lab_annotate.go, but use the project's real resources
-// rather than a seeded in-memory terms / brand profile. DocumentViewer's
+// rather than a seeded in-memory terms / voice profile. DocumentViewer's
 // annotations toggle highlights them on the rendered document.
 func (a *App) InspectFileAnnotated(tabID, filePath string) (string, error) {
 	return a.inspect(tabID, filePath, true)
@@ -219,8 +219,8 @@ func blocksFromParts(parts []*model.Part) []*model.Block {
 
 // annotateParts walks the part stream and writes source-anchored stand-off
 // overlays onto every translatable Block, in place, using the project's real
-// resources: its terms store (term overlays), its brand profile
-// (brand-vocabulary QA overlays) and the shared source-only shape rules
+// resources: its terms store (term overlays), its voice profile
+// (voice-vocabulary QA overlays) and the shared source-only shape rules
 // (check.HygieneOverlay). It mirrors
 // the wasm "Anatomy" annotator (kapi/cmd/kapi-wasm-cli/lab_annotate.go) so the
 // content tree's `overlays` view is populated identically, but sources its term
@@ -242,7 +242,7 @@ func (a *App) annotateParts(ctx context.Context, op *openProject, parts []*model
 			tb = h
 		}
 	}
-	profile := a.resolveProjectBrandProfile(ctx, op)
+	profile := a.resolveProjectVoiceProfile(ctx, op)
 
 	for _, b := range blocksFromParts(parts) {
 		if !b.Translatable {
@@ -314,24 +314,24 @@ func termOverlay(ctx context.Context, tb terms.Terminology, runs []model.Run, so
 }
 
 // brandOverlay builds an OverlayQA over the source runs from the project's brand
-// profile (brand.MatchVocabulary). Brand findings ride on the QA overlay type
+// profile (coreprofile.MatchVocabulary). Brand findings ride on the QA overlay type
 // (the model's overlay enum has no dedicated brand type) tagged with
-// category="brand-vocabulary" plus the matched term, severity, kind and any
+// category="voice-vocabulary" plus the matched term, severity, kind and any
 // preferred replacement. Returns nil when nothing matches.
-func brandOverlay(profile *brand.VoiceProfile, runs []model.Run, source string) *model.Overlay {
-	hits := brand.MatchVocabulary(profile, source)
+func brandOverlay(profile *coreprofile.VoiceProfile, runs []model.Run, source string) *model.Overlay {
+	hits := coreprofile.MatchVocabulary(profile, source)
 	if len(hits) == 0 {
 		return nil
 	}
 	spans := make([]model.Span, 0, len(hits))
 	for _, h := range hits {
 		props := map[string]string{
-			"category": "brand-vocabulary",
+			"category": "voice-vocabulary",
 			"severity": string(h.Severity),
 			"term":     h.Term,
 		}
 		switch h.Kind {
-		case brand.VocabCompetitor:
+		case coreprofile.VocabCompetitor:
 			props["kind"] = "competitor"
 			props["message"] = fmt.Sprintf("Competitor term %q found", h.Term)
 		default:

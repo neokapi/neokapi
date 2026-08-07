@@ -17,7 +17,7 @@ import (
 // interface means only GetProfile is implemented — the resolution path uses
 // nothing else.
 type fakeBrandStore struct {
-	brand.BrandStore
+	brand.Store
 	profiles map[string]*brand.VoiceProfile
 }
 

@@ -14,7 +14,7 @@ import (
 
 // Scoring reuses the framework's own check tools rather than reimplementing
 // them: term-check for glossary mandates, dnt-check for verbatim survival,
-// brand-vocab-check for forbidden-term hits, pattern-check for the regex-shaped
+// voice-vocab-check for forbidden-term hits, pattern-check for the regex-shaped
 // rules. That is deliberate and load-bearing — a model that "games" this eval
 // is a model that satisfies the checks kapi actually ships, and a check tool
 // the eval exercises cannot silently rot. It also means the eval inherits the
@@ -190,7 +190,7 @@ func runDNTCheck(ctx context.Context, chk Check, b *model.Block, loc model.Local
 	return false, after[len(after)-1].Message, nil
 }
 
-// runVocabCheck drives the real brand-vocab-check tool over the translation,
+// runVocabCheck drives the real voice-vocab-check tool over the translation,
 // judging by the exact profile the steered pass injected (corpus.Ctx.Profile) —
 // the scorer and the injection hold one rulebook by construction. The tool
 // reads a block's source text (it is an authoring-side check), so the
@@ -202,11 +202,11 @@ func runDNTCheck(ctx context.Context, chk Check, b *model.Block, loc model.Local
 func runVocabCheck(ctx context.Context, corpus TestCorpus, f Fixture, got string) (bool, string, error) {
 	scratch := model.NewBlock("scored-translation", got)
 	scratch.Translatable = true
-	t := coretools.NewBrandVocabCheckTool(corpus.Ctx.Profile, nil)
+	t := coretools.NewVoiceVocabCheckTool(corpus.Ctx.Profile, nil)
 	if _, err := t.ApplyContext(ctx, &model.Part{Type: model.PartBlock, Resource: scratch}); err != nil {
 		return false, "", err
 	}
-	ann, ok := model.AnnoAs[*profile.BrandVoiceAnnotation](scratch, "brand-voice")
+	ann, ok := model.AnnoAs[*profile.VoiceAnnotation](scratch, "voice")
 	if !ok {
 		return true, "", nil
 	}

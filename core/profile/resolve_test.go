@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mockBrandStore is a minimal BrandStore for testing profile resolution.
-type mockBrandStore struct {
+// mockVoiceStore is a minimal BrandStore for testing profile resolution.
+type mockVoiceStore struct {
 	profiles map[string]*VoiceProfile
 }
 
-func (m *mockBrandStore) GetProfile(_ context.Context, id string) (*VoiceProfile, error) {
+func (m *mockVoiceStore) GetProfile(_ context.Context, id string) (*VoiceProfile, error) {
 	p, ok := m.profiles[id]
 	if !ok {
 		return nil, fmt.Errorf("profile not found: %s", id)
@@ -23,48 +23,48 @@ func (m *mockBrandStore) GetProfile(_ context.Context, id string) (*VoiceProfile
 	return p, nil
 }
 
-func (m *mockBrandStore) CreateProfile(context.Context, *VoiceProfile) error { return nil }
-func (m *mockBrandStore) UpdateProfile(context.Context, *VoiceProfile) error { return nil }
-func (m *mockBrandStore) DeleteProfile(context.Context, string) error        { return nil }
-func (m *mockBrandStore) ListProfiles(context.Context, string) ([]*VoiceProfile, error) {
+func (m *mockVoiceStore) CreateProfile(context.Context, *VoiceProfile) error { return nil }
+func (m *mockVoiceStore) UpdateProfile(context.Context, *VoiceProfile) error { return nil }
+func (m *mockVoiceStore) DeleteProfile(context.Context, string) error        { return nil }
+func (m *mockVoiceStore) ListProfiles(context.Context, string) ([]*VoiceProfile, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) ListProfileVersions(context.Context, string) ([]*ProfileVersion, error) {
+func (m *mockVoiceStore) ListProfileVersions(context.Context, string) ([]*ProfileVersion, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) GetProfileVersion(context.Context, string, int) (*ProfileVersion, error) {
+func (m *mockVoiceStore) GetProfileVersion(context.Context, string, int) (*ProfileVersion, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) GetProfileAtTag(context.Context, string, string) (*VoiceProfile, error) {
+func (m *mockVoiceStore) GetProfileAtTag(context.Context, string, string) (*VoiceProfile, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) CreateProfileTag(context.Context, *ProfileTag) error { return nil }
-func (m *mockBrandStore) ListProfileTags(context.Context, string) ([]*ProfileTag, error) {
+func (m *mockVoiceStore) CreateProfileTag(context.Context, *ProfileTag) error { return nil }
+func (m *mockVoiceStore) ListProfileTags(context.Context, string) ([]*ProfileTag, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) DeleteProfileTag(context.Context, string, string) error { return nil }
-func (m *mockBrandStore) StoreScore(context.Context, *StoredScore) error         { return nil }
-func (m *mockBrandStore) GetScores(context.Context, string, model.LocaleID) ([]*StoredScore, error) {
+func (m *mockVoiceStore) DeleteProfileTag(context.Context, string, string) error { return nil }
+func (m *mockVoiceStore) StoreScore(context.Context, *StoredScore) error         { return nil }
+func (m *mockVoiceStore) GetScores(context.Context, string, model.LocaleID) ([]*StoredScore, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) GetScoreTrends(context.Context, string, int) ([]*ScoreTrend, error) {
+func (m *mockVoiceStore) GetScoreTrends(context.Context, string, int) ([]*ScoreTrend, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) GetScoresByStream(context.Context, string, string) ([]*StoredScore, error) {
+func (m *mockVoiceStore) GetScoresByStream(context.Context, string, string) ([]*StoredScore, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) StoreCorrection(context.Context, *Correction) error      { return nil }
-func (m *mockBrandStore) RecordRuleDecision(context.Context, *RuleDecision) error { return nil }
-func (m *mockBrandStore) GetRuleDecision(context.Context, string, string) (*RuleDecision, error) {
+func (m *mockVoiceStore) StoreCorrection(context.Context, *Correction) error      { return nil }
+func (m *mockVoiceStore) RecordRuleDecision(context.Context, *RuleDecision) error { return nil }
+func (m *mockVoiceStore) GetRuleDecision(context.Context, string, string) (*RuleDecision, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) ListRuleDecisions(context.Context, string) ([]*RuleDecision, error) {
+func (m *mockVoiceStore) ListRuleDecisions(context.Context, string) ([]*RuleDecision, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) GetSuggestedRules(context.Context, string, int) ([]*SuggestedRule, error) {
+func (m *mockVoiceStore) GetSuggestedRules(context.Context, string, int) ([]*SuggestedRule, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) Close() error { return nil }
+func (m *mockVoiceStore) Close() error { return nil }
 
 func TestResolveProfile_Nil(t *testing.T) {
 	assert.Nil(t, ResolveProfile(nil, "en", "web", ""))
@@ -220,7 +220,7 @@ func TestResolveProfile_LocaleNormalization(t *testing.T) {
 	}
 }
 
-// personaTestProfile is a brand profile with a forbidden term, a channel
+// personaTestProfile is a voice profile with a forbidden term, a channel
 // override, and two personas: one that layers tone/style/vocab cleanly, and one
 // that tries to re-allow the brand-forbidden term via a Preferred rule.
 func personaTestProfile() *VoiceProfile {
@@ -333,7 +333,7 @@ func TestResolveProfile_PersonaDoesNotMutateSource(t *testing.T) {
 }
 
 func TestResolveProfileFromContext(t *testing.T) {
-	store := &mockBrandStore{
+	store := &mockVoiceStore{
 		profiles: map[string]*VoiceProfile{
 			"ws-default": {ID: "ws-default", Name: "Workspace Default", Tone: ToneProfile{Formality: "formal"}},
 			"proj-voice": {ID: "proj-voice", Name: "Project Voice", Tone: ToneProfile{Formality: "neutral"}},
@@ -520,11 +520,11 @@ func TestResolveProfileFromContext_NoStore(t *testing.T) {
 		ResolveContext{WorkspaceProfileID: "ws-default"}, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"ws-default"`)
-	assert.Contains(t, err.Error(), "no brand store")
+	assert.Contains(t, err.Error(), "no voice store")
 }
 
 func TestStoreProfileResolver(t *testing.T) {
-	store := &mockBrandStore{
+	store := &mockVoiceStore{
 		profiles: map[string]*VoiceProfile{
 			"test-id": {ID: "test-id", Name: "Test"},
 		},

@@ -22,7 +22,7 @@ const ollamaKeepAlive = "10m"
 
 // DefaultOllamaModel is the model kapi pulls and uses for local translation when
 // the caller names none. llama3.2:3b is the strongest small local model for
-// kapi's constrained-translation path (exact glossary + brand voice + verbatim
+// kapi's constrained-translation path (exact glossary + voice profile + verbatim
 // inline placeholders + translation-only output) at ~90 tok/s on Metal.
 const DefaultOllamaModel = "llama3.2:3b"
 

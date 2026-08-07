@@ -13,7 +13,7 @@ demos:
     reader: native
     signal: high
     status: done
-    delta: 25 # brand compliance 70 → 95
+    delta: 25 # voice compliance 70 → 95
 
   # ── Planned cells (fan out one agent per row) ──────────────────────────────
   - {

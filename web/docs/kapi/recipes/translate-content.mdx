@@ -39,7 +39,7 @@ With [kapi connected](/kapi/get-started/use-with-claude), ask:
 
 > Translate `src/locales/en.json` into French and German, keep the placeholders intact, and fix anything QA flags.
 
-The assistant routes the work **through kapi** so the guardrails apply — approved terms from the terms store, brand voice in the prompt, placeholder integrity checked after. In a project it simply runs `kapi up` and reads `kapi status` for what parked; for a single document it translates block by block and lands the result through the faithful round-trip. Either way it finishes by checking, and fixes what the gate flags before telling you it's done.
+The assistant routes the work **through kapi** so the guardrails apply — approved terms from the terms store, voice profile in the prompt, placeholder integrity checked after. In a project it simply runs `kapi up` and reads `kapi status` for what parked; for a single document it translates block by block and lands the result through the faithful round-trip. Either way it finishes by checking, and fixes what the gate flags before telling you it's done.
 
 </TabItem>
 <TabItem value="cli" label="CLI">

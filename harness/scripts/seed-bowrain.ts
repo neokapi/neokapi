@@ -228,14 +228,14 @@ async function ensureBrandProfile(ws: string, token: string, name: string): Prom
   );
   const match = existing.find((p) => p.name === name);
   if (match) {
-    console.log(`  · brand profile "${name}" exists`);
+    console.log(`  · voice profile "${name}" exists`);
     return match.id;
   }
   const p = await jpost<BrandProfile>(
     `/${ws}/brand-profiles`,
     {
       name,
-      description: "Acme's brand voice — clear, direct, no jargon.",
+      description: "Acme's voice profile — clear, direct, no jargon.",
       tone: {
         personality: ["clear", "direct"],
         formality: "neutral",
@@ -245,7 +245,7 @@ async function ensureBrandProfile(ws: string, token: string, name: string): Prom
     },
     token,
   );
-  console.log(`  · created brand profile "${name}"`);
+  console.log(`  · created voice profile "${name}"`);
   return p.id;
 }
 
@@ -451,7 +451,7 @@ async function main(): Promise<void> {
   // Bob joins (collaboration walk).
   const joined = await ensureMember(ws, aliceToken, bobToken);
 
-  // Brand profile + Project 2 "Marketing Site" (the correction-loop dropdown
+  // Voice profile + Project 2 "Marketing Site" (the correction-loop dropdown
   // needs a SECOND project) + off-brand content + correction stream.
   const profileId = await ensureBrandProfile(ws, aliceToken, "Acme Voice");
   const marketingId = await ensureProject(ws, aliceToken, "Marketing Site", "en", ["fr", "de"]);

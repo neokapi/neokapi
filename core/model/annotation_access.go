@@ -23,7 +23,7 @@ const (
 	AnnoComparison     = "comparison"
 	AnnoScopingReport  = "scoping-report"
 	AnnoRepetition     = "repetition"
-	AnnoBrandVoice     = "brand-voice"
+	AnnoVoice          = "voice"
 	AnnoEntityMapping  = "entity-mapping"
 	AnnoTermEnforce    = "term-enforcement"
 )

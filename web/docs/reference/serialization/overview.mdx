@@ -48,7 +48,7 @@ are what you commit, hand over, or ship.
 
 **Committed state is an authored or decided record.** A
 [terms bundle](/reference/serialization/terms) kept as the project terminology, a
-[brand voice profile](/reference/serialization/brand-voice), a
+[voice profile](/reference/serialization/voice-profile), a
 [project unit-state record](/reference/serialization/project-state). These are the
 review surface — the files a person reads in a pull request.
 
@@ -56,7 +56,7 @@ review surface — the files a person reads in a pull request.
 
 Artifacts that must be reviewed are **committed**, and never the database. They
 share one home: `.kapi/` holds the terms bundle, the memory seeds, the
-brand voice and the unit-state record (`state/*.jsonl`), and the whole of `.kapi/`
+voice profile and the unit-state record (`state/*.jsonl`), and the whole of `.kapi/`
 is committed. Only `.kapi/work/`, where the store and its caches are derived, is
 ignored. Nothing in the review surface would survive a fresh clone, or ever
 appear in a diff, if it were part of the derived store.
@@ -74,7 +74,7 @@ appear in a diff, if it were part of the derived store.
 | [Overlay set](/reference/serialization/overlays) | `.overlays.json` | `kapi-overlay-set` | In-progress workspace overlay layers |
 | [Project archive](/reference/serialization/project-archive) | `.kpz` | `kapi-project`, `kapi-interchange` | A whole project, or one interchange task |
 | [Project state](/reference/serialization/project-state) | `.jsonl` (under `.kapi/state/`) | `kapi-project-state` | Review and workflow decisions |
-| [Brand voice](/reference/serialization/brand-voice) | `.yaml` | — | Tone, style, vocabulary, examples |
+| [Voice profile](/reference/serialization/voice-profile) | `.yaml` | — | Tone, style, vocabulary, examples |
 
 Not sure which you want? [Choosing a format](/reference/serialization/choosing).
 

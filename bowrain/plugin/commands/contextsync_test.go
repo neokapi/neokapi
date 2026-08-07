@@ -26,7 +26,7 @@ func newGovernedProject(t *testing.T) *bproject.Project {
 	t.Cleanup(func() { app = prev })
 
 	root := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(root, "voice.yaml"), []byte(
+	require.NoError(t, os.WriteFile(filepath.Join(root, "acme-voice.yaml"), []byte(
 		"name: Acme Voice\ndescription: How Acme sounds.\ntone:\n  formality: neutral\n"), 0o644))
 
 	recipe := &bproject.Recipe{
@@ -41,7 +41,7 @@ func newGovernedProject(t *testing.T) *bproject.Project {
 			},
 			Profiles: []coreproj.ProfileBinding{{
 				When:  map[string]string{"product": "kapi"},
-				Voice: &coreproj.BrandVoiceBinding{ProfileFile: "voice.yaml"},
+				Voice: &coreproj.VoiceBinding{ProfileFile: "acme-voice.yaml"},
 			}},
 			Content: []coreproj.ContentCollection{
 				{
@@ -116,7 +116,7 @@ func TestBuildPushContext_CarriesDeclaredCollections(t *testing.T) {
 // to be resolved last.
 func TestBuildPushContext_CarriesTheVoiceAsAuthored(t *testing.T) {
 	proj := newGovernedProject(t)
-	require.NoError(t, os.WriteFile(filepath.Join(proj.Root, "voice.yaml"), []byte(
+	require.NoError(t, os.WriteFile(filepath.Join(proj.Root, "acme-voice.yaml"), []byte(
 		"name: Acme Voice\ntone:\n  formality: neutral\nchannels:\n  docs:\n    tone:\n      formality: formal\n"), 0o644))
 
 	pushCtx, _, err := BuildPushContext(t.Context(), proj, false)

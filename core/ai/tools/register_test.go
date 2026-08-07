@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRegisterAllRegistersBrandAndTerminology(t *testing.T) {
+func TestRegisterAllRegistersVoiceAndTerminology(t *testing.T) {
 	reg := registry.NewToolRegistry()
 	tools.RegisterAll(reg)
 
-	for _, name := range []string{"translate", "qa", "review", "brand-voice-check", "term-extract"} {
+	for _, name := range []string{"translate", "qa", "review", "voice-check", "term-extract"} {
 		assert.Truef(t, reg.Has(registry.ToolID(name)), "tool %q should be registered", name)
 	}
 }
@@ -68,11 +68,11 @@ func TestQADispatch(t *testing.T) {
 	require.NotNil(t, llm)
 }
 
-func TestBrandVoiceCheckFromConfig(t *testing.T) {
+func TestVoiceCheckFromConfig(t *testing.T) {
 	reg := registry.NewToolRegistry()
 	tools.RegisterAll(reg)
 
-	tl, err := reg.NewToolWithConfig("brand-voice-check", map[string]any{"provider": "anthropic", "apiKey": "test"}, "")
+	tl, err := reg.NewToolWithConfig("voice-check", map[string]any{"provider": "anthropic", "apiKey": "test"}, "")
 	require.NoError(t, err)
 	require.NotNil(t, tl)
 }

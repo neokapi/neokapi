@@ -1,13 +1,13 @@
 ---
 sidebar_position: 16
 title: Prompts
-description: What the engine sends to a language model on your behalf — how a prompt is composed from framework rules, your brand voice, and your terminology; how to see the exact text with --explain-prompts; and how to steer it without replacing it.
+description: What the engine sends to a language model on your behalf — how a prompt is composed from framework rules, your voice profile, and your terminology; how to see the exact text with --explain-prompts; and how to steer it without replacing it.
 keywords:
   [
     prompt,
     LLM,
     explain,
-    brand voice,
+    voice profile,
     terminology,
     instruction,
     determinism,
@@ -120,7 +120,7 @@ that have **different owners**, and the distinction is the whole design:
       role: "translate",
       steps: [
         "instruction — from --instruction or the recipe",
-        "brand voice — from your voice profile",
+        "voice profile — from your voice profile",
         "glossary — from your terms store",
       ],
     },
@@ -143,9 +143,9 @@ placeholder or mangles an inline tag cannot be written back into the source
 file — it breaks the round-trip that makes kapi useful at all. These rules are
 not a configuration surface, and there is no flag to remove them.
 
-**Your project owns the steering.** The instruction, the brand voice and the
+**Your project owns the steering.** The instruction, the voice profile and the
 pinned terms are what make the output _yours_ rather than merely correct. They are
-declared in the recipe, the [brand voice profile](/framework/checks/brand-voice)
+declared in the recipe, the [voice profile](/framework/checks/voice)
 and the [terms store](/framework/terminology) — never typed into a prompt.
 
 **Your document owns the content — and the context.** The source text is the
@@ -162,7 +162,7 @@ sections — not to replace the prompt.
 | ------------------------------------- | ------------------------------------------------------ |
 | A one-off directive for this run      | `--instruction "informal register"`                    |
 | A standing directive for the project  | `defaults.tools.translate.instruction` in the recipe   |
-| Consistent tone and phrasing          | A [brand voice profile](/framework/checks/brand-voice) |
+| Consistent tone and phrasing          | A [voice profile](/framework/checks/voice) |
 | Specific terms translated a fixed way | A [terms store](/framework/terminology)                |
 | The model to know what a string *is*  | `--context key` (default) or `--context neighbours`    |
 
@@ -170,7 +170,7 @@ sections — not to replace the prompt.
 defaults:
   source_language: en
   target_languages: [fr, de]
-  brand_voice:
+  voice:
     profile_file: .kapi/voice.yaml
   terms_source: .kapi/terms.json
   tools:
@@ -228,7 +228,7 @@ machine detail is ever interpolated.
 
 This is not tidiness. kapi caches translations, and the cache key is derived
 **from the text the prompt actually renders**. Change your instruction, your
-brand voice, your terms, or the prompt itself, and the fingerprint moves, so
+voice profile, your terms, or the prompt itself, and the fingerprint moves, so
 the affected strings are re-translated instead of served from a cache that a
 different prompt produced. Change nothing, and nothing is re-bought.
 
@@ -339,8 +339,8 @@ Every LLM call kapi makes carries a prompt id, so it can be named in
 | -------------------- | ---------------------------------------- |
 | `translate.single`   | `translate`, one block at a time         |
 | `translate.batch`    | `translate`, several blocks in one call  |
-| `brand.check`        | `brand-voice-check`                      |
-| `brand.infer`        | `brand-voice-infer` (drafting a profile) |
+| `voice.check`        | `voice-check`                      |
+| `voice.infer`        | `voice-infer` (drafting a profile) |
 | `quality.check`      | `qa`, in AI mode                         |
 | `review`             | `review`                                 |
 | `term.extract`       | `term-extract`                           |

@@ -13,7 +13,7 @@ export type ContentTab = NonNullable<DocumentViewerProps["defaultTab"]>;
 export interface ContentInspectSpec {
   /**
    * Read-only annotators to run before building the tree, so their overlays show
-   * (segmentation boundaries, term matches, QA + brand findings). Omitted = a
+   * (segmentation boundaries, term matches, QA + voice findings). Omitted = a
    * plain structural inspect (anatomy only).
    */
   annotate?: AnnotateOptions;

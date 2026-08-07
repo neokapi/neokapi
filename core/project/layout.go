@@ -44,7 +44,7 @@ const WorkDirName = "work"
 // `work/` is machine state: the store, the caches, the vault. `filters.local.json`
 // is the one personal file that is not derived, so it cannot live under work/
 // and has to be named. Everything else — manifest.yaml, flows/, the terms
-// bundle, the memory bundles, the brand voice and the unit-state record — is
+// bundle, the memory bundles, the voice profile and the unit-state record — is
 // authored and committed.
 //
 // Every path method below has to land on one side of that boundary or the

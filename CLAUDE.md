@@ -195,11 +195,22 @@ that bite most often:
   and #1504 began. Do not reintroduce `tm`/`termbase` as an identifier — if you
   find one, it is a leftover.
 
+  **Voice is the mechanism; brand is one use of it.** The context type is the
+  **voice profile**: the recipe key is `defaults.voice`, the command family is
+  `kapi voice`, the check gate is `--voice`, the tools are `voice-vocab-check` /
+  `voice-check` / `voice-infer`, the annotation type is `voice`, and the store
+  package is `host/storage/voice`. *Brand voice* stays only where the prose
+  describes the common use case, never as the name of the mechanism. What stays
+  behind the rename boundary: the `manage_brand` permission id, the `brand_*`
+  tables and columns, the sync wire's brand fields, analytics event ids, the
+  `brand` migration-ledger table, the on-disk `brand.db` / `brands/` store
+  names, and bowrain's own top-level `brand_voice:` platform extension.
+
   **The terms-store selector is `--termstore`, not `--terms`.** `--tm` became
   `--memory` (#1520), but `--termbase` became `--termstore` (#1505) rather than
   `--terms`, because `--terms` was already taken — it is the boolean gate on
   `kapi exec dnt-check`. The asymmetry is deliberate,
-  `cli/project_brand_termbase_test.go` guards it, and a vocabulary sweep that
+  `cli/project_voice_termstore_test.go` guards it, and a vocabulary sweep that
   "corrects" `--termstore` to `--terms` is a regression. That is precisely how
   `kapi/e2e` drifted: #1462 rewrote the flag inside a suite no PR runs, and the
   nightly said so for a fortnight with nobody listening.

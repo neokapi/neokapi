@@ -43,10 +43,10 @@ expect:                  # the delta gate — a cell must show a real difference
 ## Reproducibility
 
 - `run.sh` regenerates everything from `fixtures/` using the real `kapi` binary.
-- Committed cells are **deterministic**: rule-based brand checks/rewrites and
+- Committed cells are **deterministic**: rule-based voice checks/rewrites and
   pseudo-translation need no LLM and no network, so the gallery always builds and
   the delta is stable. Cells that opt into `--ai` document the credential they need.
-- The numbers in `scorecard.json` come from real `kapi brand check --json` output —
+- The numbers in `scorecard.json` come from real `kapi voice check --json` output —
   the same scorer the product ships.
 
 ## Readers

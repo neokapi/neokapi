@@ -9,8 +9,8 @@ import "context"
 const (
 	IDTranslateSingle = "translate.single"
 	IDTranslateBatch  = "translate.batch"
-	IDBrandCheck      = "brand.check"
-	IDBrandInfer      = "brand.infer"
+	IDVoiceCheck      = "voice.check"
+	IDVoiceInfer      = "voice.infer"
 	IDEntityExtract   = "entity.extract"
 	IDTermExtract     = "term.extract"
 	IDQualityCheck    = "quality.check"
@@ -33,8 +33,8 @@ func IDs() []string {
 	return []string{
 		IDTranslateSingle,
 		IDTranslateBatch,
-		IDBrandCheck,
-		IDBrandInfer,
+		IDVoiceCheck,
+		IDVoiceInfer,
 		IDQualityCheck,
 		IDReview,
 		IDTermExtract,

@@ -17,7 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -27,16 +27,16 @@ import (
 
 // Gate names for the project gates (`kapi check --ship`).
 const (
-	gateBrand  = "brand"
+	gateVoice  = "voice"
 	gateTerms  = "terminology"
 	gateQA     = "qa"
 	gateShip   = "ship"
 	gateSource = "source"
 )
 
-// DefaultBrandMinScore is the brand compliance score below which the brand
+// DefaultVoiceMinScore is the voice compliance score below which the voice
 // gate fails when the user does not override it with --min-score.
-const DefaultBrandMinScore = 80
+const DefaultVoiceMinScore = 80
 
 // verifyFinding is a single actionable problem found by one of the verify
 // gates. The shape is shared by the human and JSON renderers and is the unit
@@ -144,10 +144,10 @@ func severityCell(s *output.Styles, sev string) string {
 // is set, every gate runs (explicit is false). When at least one gate flag is
 // set, only the named gates run and explicit is true — which turns a gate whose
 // project binding is missing from a silent skip into a reported failure, so a CI
-// user who wrote `--brand`/`--terms` learns the gate is misconfigured rather
+// user who wrote `--voice`/`--terms` learns the gate is misconfigured rather
 // than seeing a false pass.
 type gateSelection struct {
-	brand    bool
+	voice    bool
 	terms    bool
 	qa       bool
 	explicit bool
@@ -166,13 +166,13 @@ func CmdContext(cmd Command) context.Context {
 }
 
 func resolveGateSelection(cmd Command) gateSelection {
-	b, _ := cmd.Flags().GetBool("brand")
+	b, _ := cmd.Flags().GetBool("voice")
 	t, _ := cmd.Flags().GetBool("terms")
 	q, _ := cmd.Flags().GetBool("qa")
 	if !b && !t && !q {
-		return gateSelection{brand: true, terms: true, qa: true, explicit: false}
+		return gateSelection{voice: true, terms: true, qa: true, explicit: false}
 	}
-	return gateSelection{brand: b, terms: t, qa: q, explicit: true}
+	return gateSelection{voice: b, terms: t, qa: q, explicit: true}
 }
 
 // RunVerify orchestrates the verify gates, emits the structured result, and
@@ -246,9 +246,9 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 
 	var gates []verifyGateResult
 
-	// --- brand gate -------------------------------------------------------
-	if sel.brand {
-		gate, err := a.verifyBrand(cmd, proj, root, args)
+	// --- voice gate -------------------------------------------------------
+	if sel.voice {
+		gate, err := a.verifyVoice(cmd, proj, root, args)
 		if err != nil {
 			return verifyOutput{}, err
 		}
@@ -256,9 +256,9 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		case gate != nil:
 			gates = append(gates, *gate)
 		case sel.explicit:
-			// --brand was requested but the project binds no brand voice. Fail
+			// --voice was requested but the project binds no voice profile. Fail
 			// loudly rather than skip, so the misconfiguration is visible.
-			gates = append(gates, unboundGate(gateBrand, "defaults.brand_voice", "--brand"))
+			gates = append(gates, unboundGate(gateVoice, "defaults.voice", "--voice"))
 		}
 	}
 
@@ -352,7 +352,7 @@ func (a *App) verifySourceGate(ctx context.Context, proj *project.KapiProject, u
 			Gate:       gateSource,
 			Severity:   "error",
 			Message:    fmt.Sprintf("source %s readiness %d%% is below the required %d%%", sf.State, int(sf.Actual), sf.Required),
-			Suggestion: "run the source checks (e.g. brand/terminology) and resolve findings, or relax the source gate",
+			Suggestion: "run the source checks (e.g. voice/terminology) and resolve findings, or relax the source gate",
 		})
 	}
 	return g, nil
@@ -421,7 +421,7 @@ func buildVerifyOutput(gates []verifyGateResult) verifyOutput {
 }
 
 // unboundGate returns a failing gate result for a gate the user explicitly
-// requested (e.g. --brand) whose required project binding is missing. Surfacing
+// requested (e.g. --voice) whose required project binding is missing. Surfacing
 // it as a failure — rather than silently skipping — means a CI user learns the
 // gate is misconfigured instead of seeing a false pass. The verdict is a normal
 // gate failure, so --no-fail still downgrades it to report-only (exit 0).
@@ -476,14 +476,14 @@ func (a *App) projectTermsBound(cmd Command) (bool, error) {
 	return db.HasTerms(ctx)
 }
 
-// --- brand gate -------------------------------------------------------------
+// --- voice gate -------------------------------------------------------------
 
-// verifyBrand scores the source-language content against the project's bound
-// brand voice profile. Returns nil (no gate) when the project binds no brand
-// voice — the gate only runs when there is something to check. Reuses the
-// brand check path (NewBrandVocabCheckTool + CalculateScore).
-func (a *App) verifyBrand(cmd Command, proj *project.KapiProject, root string, args []string) (*verifyGateResult, error) {
-	profile, _, found, err := a.resolveProjectBrandProfile(cmd, "", "", "")
+// verifyVoice scores the source-language content against the project's bound
+// voice profile. Returns nil (no gate) when the project binds no voice
+// profile — the gate only runs when there is something to check. Reuses the
+// voice check path (NewVoiceVocabCheckTool + CalculateScore).
+func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, args []string) (*verifyGateResult, error) {
+	profile, _, found, err := a.resolveProjectVoiceProfile(cmd, "", "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -494,81 +494,81 @@ func (a *App) verifyBrand(cmd Command, proj *project.KapiProject, root string, a
 	minScore, _ := cmd.Flags().GetInt("min-score")
 
 	// Source files to score: explicit args, else the project's source content.
-	files, err := a.brandSourceFiles(proj, root, args)
+	files, err := a.voiceSourceFiles(proj, root, args)
 	if err != nil {
 		return nil, err
 	}
 
-	gate := verifyGateResult{Gate: gateBrand, Pass: true, Findings: []verifyFinding{}}
+	gate := verifyGateResult{Gate: gateVoice, Pass: true, Findings: []verifyFinding{}}
 	ctx := CmdContext(cmd)
 
-	var allFindings []brand.BrandVoiceFinding
+	var allFindings []coreprofile.VoiceFinding
 	for _, f := range files {
 		blocks, rerr := a.readBlocks(ctx, f, a.SourceLang)
 		if rerr != nil {
-			return nil, fmt.Errorf("brand: read %s: %w", f, rerr)
+			return nil, fmt.Errorf("voice: read %s: %w", f, rerr)
 		}
-		vocab := coretools.NewBrandVocabCheckTool(profile, nil)
+		vocab := coretools.NewVoiceVocabCheckTool(profile, nil)
 		for _, b := range blocks {
-			findings, verr := runBrandVocabOnBlock(ctx, vocab, b)
+			findings, verr := runVoiceVocabOnBlock(ctx, vocab, b)
 			if verr != nil {
-				return nil, fmt.Errorf("brand: %s: %w", f, verr)
+				return nil, fmt.Errorf("voice: %s: %w", f, verr)
 			}
 			for _, fd := range findings {
-				gate.Findings = append(gate.Findings, brandFindingToVerify(f, fd))
+				gate.Findings = append(gate.Findings, voiceFindingToVerify(f, fd))
 			}
 			allFindings = append(allFindings, findings...)
 		}
 	}
 
-	score := brand.CalculateScore(allFindings)
+	score := coreprofile.CalculateScore(allFindings)
 	if score.Overall < minScore {
 		gate.Pass = false
 		// Lead with a summary finding so the assistant sees the score gap
 		// even when individual term findings are sparse.
 		gate.Findings = append([]verifyFinding{{
-			Gate:     gateBrand,
+			Gate:     gateVoice,
 			Severity: "error",
-			Message:  fmt.Sprintf("brand compliance score %d is below the required minimum %d", score.Overall, minScore),
+			Message:  fmt.Sprintf("voice compliance score %d is below the required minimum %d", score.Overall, minScore),
 		}}, gate.Findings...)
 	}
 	return &gate, nil
 }
 
-// runBrandVocabOnBlock runs the brand vocab check tool over a single block and
+// runVoiceVocabOnBlock runs the voice vocabulary check tool over a single block and
 // returns the findings it recorded on the block's annotation/properties.
 //
 // Both failure modes are RETURNED rather than folded into "no findings". The
-// caller feeds these into brand.CalculateScore, so a checker that errored on
+// caller feeds these into coreprofile.CalculateScore, so a checker that errored on
 // every block used to produce an empty finding set, a perfect score, and
-// `brand: PASS` — the brand gate silently disabled while CI went green. It
+// `voice: PASS` — the voice gate silently disabled while CI went green. It
 // shares RunCheckTool's driver rather than re-deriving it, so the two cannot
 // drift on error handling again.
-func runBrandVocabOnBlock(ctx context.Context, vocab *coretools.BrandVocabCheckTool, b *model.Block) ([]brand.BrandVoiceFinding, error) {
+func runVoiceVocabOnBlock(ctx context.Context, vocab *coretools.VoiceVocabCheckTool, b *model.Block) ([]coreprofile.VoiceFinding, error) {
 	if err := RunCheckTool(ctx, vocab, b); err != nil {
 		return nil, err
 	}
-	if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
+	if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
 		return ann.Findings, nil
 	}
-	if raw := b.Properties["brand-vocab-findings"]; raw != "" {
-		var fs []brand.BrandVoiceFinding
+	if raw := b.Properties["voice-vocab-findings"]; raw != "" {
+		var fs []coreprofile.VoiceFinding
 		if err := json.Unmarshal([]byte(raw), &fs); err != nil {
-			return nil, fmt.Errorf("decode brand vocabulary findings for %q: %w", blockKey(b), err)
+			return nil, fmt.Errorf("decode voice vocabulary findings for %q: %w", blockKey(b), err)
 		}
 		return fs, nil
 	}
 	return nil, nil
 }
 
-func brandFindingToVerify(file string, f brand.BrandVoiceFinding) verifyFinding {
+func voiceFindingToVerify(file string, f coreprofile.VoiceFinding) verifyFinding {
 	sev := "warning"
 	switch f.Severity {
-	case brand.SeverityMajor, brand.SeverityCritical:
+	case coreprofile.SeverityMajor, coreprofile.SeverityCritical:
 		sev = "error"
 	}
 	return verifyFinding{
-		Gate:       gateBrand,
+		Gate:       gateVoice,
 		File:       file,
 		Severity:   sev,
 		Message:    f.Message,
@@ -576,8 +576,8 @@ func brandFindingToVerify(file string, f brand.BrandVoiceFinding) verifyFinding 
 	}
 }
 
-// brandSourceFiles returns the source files the brand gate should score.
-func (a *App) brandSourceFiles(proj *project.KapiProject, root string, args []string) ([]string, error) {
+// voiceSourceFiles returns the source files the voice gate should score.
+func (a *App) voiceSourceFiles(proj *project.KapiProject, root string, args []string) ([]string, error) {
 	if len(args) > 0 {
 		return resolveFiles(args)
 	}
@@ -1353,10 +1353,10 @@ func sortFindings(fs []verifyFinding) {
 // stay identical everywhere.
 func AddVerifyFlags(cmd Command) {
 	cmd.Flags().String("source-lang", "", "source language (overrides the project's source_language)")
-	cmd.Flags().Bool("brand", false, "run only the brand gate (combine with --terms/--qa to select several)")
+	cmd.Flags().Bool("voice", false, "run only the voice gate (combine with --terms/--qa to select several)")
 	cmd.Flags().Bool("terms", false, "run only the terminology gate")
 	cmd.Flags().Bool("qa", false, "run only the QA gate")
-	cmd.Flags().Int("min-score", DefaultBrandMinScore, "brand compliance score below which the brand gate fails")
+	cmd.Flags().Int("min-score", DefaultVoiceMinScore, "voice compliance score below which the voice gate fails")
 	cmd.Flags().String("locale", "", "scope terminology and QA to a single target locale (e.g. fr)")
 	cmd.Flags().String("termstore", "", "named terms or path to a terms store (defaults to the project terms store)")
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")

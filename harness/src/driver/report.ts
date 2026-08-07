@@ -64,7 +64,7 @@ function renderBrand(data: any): string {
     .join("");
   return SHELL(
     "Brand check",
-    `<h1>Brand voice check</h1><div class="sub">kapi brand check · deterministic, offline</div>
+    `<h1>Voice profile check</h1><div class="sub">kapi voice check · deterministic, offline</div>
      <div class="card"><div class="row">
        <div class="gauge" style="background:conic-gradient(${gaugeColor(score)} ${score * 3.6}deg, rgba(255,255,255,0.08) 0)">
          <div class="gauge" style="width:108px;height:108px;background:#0c1020;flex-direction:column">

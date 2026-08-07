@@ -200,11 +200,11 @@ func TestSourceReadiness_CleanSourceIsChecked(t *testing.T) {
 	assert.Equal(t, model.SourceStatusChecked, got)
 }
 
-func TestSourceReadiness_BrandFindingStaysAuthored(t *testing.T) {
+func TestSourceReadiness_VoiceFindingStaysAuthored(t *testing.T) {
 	t.Parallel()
 	got := runReadiness(t, "", func(b *model.Block) {
-		b.SetAnno("brand-voice", &profile.BrandVoiceAnnotation{
-			Findings: []profile.BrandVoiceFinding{{
+		b.SetAnno("voice", &profile.VoiceAnnotation{
+			Findings: []profile.VoiceFinding{{
 				Category: "vocabulary",
 				Severity: check.SeverityCritical,
 				Message:  "competitor term",
@@ -231,8 +231,8 @@ func TestSourceReadiness_UnifiedFindingStaysAuthored(t *testing.T) {
 func TestSourceReadiness_MinorFindingToleratedByDefault(t *testing.T) {
 	t.Parallel()
 	got := runReadiness(t, "", func(b *model.Block) {
-		b.SetAnno("brand-voice", &profile.BrandVoiceAnnotation{
-			Findings: []profile.BrandVoiceFinding{{
+		b.SetAnno("voice", &profile.VoiceAnnotation{
+			Findings: []profile.VoiceFinding{{
 				Category: "style",
 				Severity: check.SeverityMinor,
 				Message:  "soft preference",
@@ -245,8 +245,8 @@ func TestSourceReadiness_MinorFindingToleratedByDefault(t *testing.T) {
 func TestSourceReadiness_MinorFindingBlocksWhenStrict(t *testing.T) {
 	t.Parallel()
 	got := runReadiness(t, "minor", func(b *model.Block) {
-		b.SetAnno("brand-voice", &profile.BrandVoiceAnnotation{
-			Findings: []profile.BrandVoiceFinding{{
+		b.SetAnno("voice", &profile.VoiceAnnotation{
+			Findings: []profile.VoiceFinding{{
 				Category: "style",
 				Severity: check.SeverityMinor,
 				Message:  "soft preference",
@@ -268,8 +268,8 @@ func TestSourceReadiness_BlockingFindingRegressesApproval(t *testing.T) {
 	t.Parallel()
 	got := runReadiness(t, "", func(b *model.Block) {
 		b.SourceStatus = model.SourceStatusApproved
-		b.SetAnno("brand-voice", &profile.BrandVoiceAnnotation{
-			Findings: []profile.BrandVoiceFinding{{
+		b.SetAnno("voice", &profile.VoiceAnnotation{
+			Findings: []profile.VoiceFinding{{
 				Severity: check.SeverityCritical,
 				Message:  "forbidden term",
 			}},

@@ -186,10 +186,10 @@ graph.LabelReplacedBy  // "REPLACED_BY"  — superseded → replacement
 graph.LabelExactMatch  // "EXACT_MATCH" — cross-scheme equivalence
 graph.LabelCloseMatch  // "CLOSE_MATCH" — approximate equivalence
 
-// Brand voice
-graph.LabelForbidden   // "FORBIDDEN"  — brand → forbidden term
-graph.LabelPreferred   // "PREFERRED"  — brand → preferred term
-graph.LabelCompetitor  // "COMPETITOR" — brand → competitor term
+// Voice profile
+graph.LabelForbidden   // "FORBIDDEN"  — voice → forbidden term
+graph.LabelPreferred   // "PREFERRED"  — voice → preferred term
+graph.LabelCompetitor  // "COMPETITOR" — voice → competitor term
 ```
 
 `InverseLabel()` returns the inverse of directional labels (e.g., `BROADER` -> `NARROWER`).

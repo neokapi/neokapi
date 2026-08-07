@@ -165,12 +165,12 @@ Because a directory holds at most one `kapi.yaml`, discovery is unambiguous —
 there is no ambiguous-layout case to resolve with an explicit `--project`. The
 resolution helper (`AddProjectFlag` / `ResolveProjectPath`) lives in
 `cli/project.go` once and is reused by the project-aware commands — `run`,
-`extract`, `merge`, `brand`, and `check` — plus any future project-aware
+`extract`, `merge`, `voice`, and `check` — plus any future project-aware
 command.
 
 :::warning `-p` means `--project` only on project-aware commands
 The `-p` shorthand binds to `--project` **only** on the project-aware
-commands listed above (`run`, `extract`, `merge`, `brand`, `check`),
+commands listed above (`run`, `extract`, `merge`, `voice`, `check`),
 where `AddProjectFlag` registers it. On ad-hoc tool commands (such as
 `kapi translate` or `kapi pseudo-translate`), there is no `--project`
 flag — the same `-p` shorthand is already taken by `--progress` (the
@@ -228,7 +228,7 @@ Commands without a `TextFormatter` fall back to formatted JSON.
 | 0    | Success (`ExitOK`)                                                      |
 | 1    | Operational error (`ExitError`) — the default for a failed command      |
 | 2    | Usage / toolbox trouble (`ExitUsage`) — e.g. `kgrep`/`ksed`/`kcat`/`kdiff` on a bad pattern or unreadable file (grep/diff convention) |
-| 3    | Quality/brand gate failed (`ExitGate`) — distinct from an error, so CI and skills can tell a sub-threshold gate from a crash |
+| 3    | Quality/voice gate failed (`ExitGate`) — distinct from an error, so CI and skills can tell a sub-threshold gate from a crash |
 | 130  | Interrupted (`ExitSignal`) — 128 + SIGINT                               |
 
 Commands map errors to codes through `cli.ExitCode`; a command can request a

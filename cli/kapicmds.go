@@ -78,7 +78,7 @@ func KapiCommandSet(a *App) []*cobra.Command {
 		NewContextCmd(a),
 		NewTermsCmd(a),
 		NewMemoryCmd(a),
-		NewBrandCmd(a),
+		NewVoiceCmd(a),
 		NewCredentialsCmd(a),
 		NewConfigCmd(a),
 		NewTelemetryCmd(a),

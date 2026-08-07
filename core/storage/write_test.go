@@ -133,7 +133,7 @@ func TestGatedDB_RollbackAfterCommitReleasesOnce(t *testing.T) {
 }
 
 // TestUngatedOpen_IsUnchanged: every standalone store — a named content memory,
-// a KPZ overlay, the brand database — still opens with SQLite's own discipline
+// a KPZ overlay, the voice store — still opens with SQLite's own discipline
 // and no queue.
 func TestUngatedOpen_IsUnchanged(t *testing.T) {
 	db, err := storage.Open(filepath.Join(t.TempDir(), "plain.db"))

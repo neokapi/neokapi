@@ -220,15 +220,15 @@ ok(
 );
 const check = await run("check", "/project/article.md", "--no-fail");
 ok("`kapi check` runs the default checkset", check.code === 0, check.out.trim().slice(0, 160));
-const brand = await run("brand", "guide", "--pack", "technical-docs");
-ok("`kapi brand guide --pack` works offline", brand.code === 0, brand.out.trim().slice(0, 160));
+const brand = await run("voice", "guide", "--pack", "technical-docs");
+ok("`kapi voice guide --pack` works offline", brand.code === 0, brand.out.trim().slice(0, 160));
 
 // Installing a profile writes to the SQLite brand store, which the browser has
 // no driver for. The failure must say so rather than blame a missing Go import
 // ("unknown driver \"sqlite\" (forgotten import?)").
-const brandStore = await run("brand", "pack", "technical-docs");
+const brandStore = await run("voice", "pack", "technical-docs");
 ok(
-  "`kapi brand pack` reports the missing SQLite driver honestly",
+  "`kapi voice pack` reports the missing SQLite driver honestly",
   brandStore.code !== 0 && /not available in the browser build/.test(brandStore.out),
   brandStore.out.trim().slice(0, 240),
 );

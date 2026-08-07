@@ -10,7 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// TermSource indicates whether a concept comes from traditional terminology or brand vocabulary.
+// TermSource indicates whether a concept comes from traditional terminology or voice vocabulary.
 type TermSource string
 
 const (

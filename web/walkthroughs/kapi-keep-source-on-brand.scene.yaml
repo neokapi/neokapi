@@ -7,15 +7,15 @@
 # harness.
 #
 # Surface note (2026-07): `kapi check` carries the file-against-profile check
-# (--profile-file); `kapi brand check` reads text from --input-text/stdin and
-# scores it. `kapi brand rewrite` is the deterministic, offline term
+# (--profile-file); `kapi voice check` reads text from --input-text/stdin and
+# scores it. `kapi voice rewrite` is the deterministic, offline term
 # substitution — kapi does not send content to a model to rewrite it; tone and
 # style fixes go through `kapi apply` with the voice guide as context.
-# The former seed fixtures (product-page.md, brand.yaml) were not in the
+# The former seed fixtures (product-page.md, voice.yaml) were not in the
 # playground kit, so both are inline files now.
 #
 # Wasm note: `kapi stats` runs in the browser embed; `kapi check` and the
-# `kapi brand` group are not wired into the wasm build, so those steps are
+# `kapi voice` group are not wired into the wasm build, so those steps are
 # offline: false (tape + narration only).
 
 id: kapi-keep-source-on-brand
@@ -24,7 +24,7 @@ mode: interactive
 
 seed: []
 files:
-  - path: brand.yaml
+  - path: voice.yaml
     content: |
       name: Lumen Notes
       description: Plain, direct product voice for Lumen Notes pages.
@@ -73,21 +73,21 @@ steps:
     narration: >-
       A content-metrics overview — blocks, words, and a by-role breakdown —
       so you know the shape of what you are about to check.
-  - comment: Check the source against the brand voice profile
-  - command: kapi check product-page.md --profile-file brand.yaml
+  - comment: Check the source against the voice profile
+  - command: kapi check product-page.md --profile-file voice.yaml
     narration: >-
       The profile carries the vocabulary, forbidden terms, and tone rules.
       The check returns a score and one located finding per off-brand block.
     offline: false
   - comment: Read the report — each finding names the rule it violated and where
-  - command: kapi check product-page.md --profile-file brand.yaml --json
+  - command: kapi check product-page.md --profile-file voice.yaml --json
     narration: >-
       The same report as machine-readable JSON. The stable rule id is the key
       an AI fix-loop tracks across iterations; --max-major 0 turns the score
       into a gate.
     offline: false
   - comment: Fix the terms deterministically — no model involved
-  - command: kapi brand rewrite --profile-file brand.yaml --input-text "Unlike NoteCorp, you can utilize Lumen Notes offline."
+  - command: kapi voice rewrite --profile-file voice.yaml --input-text "Unlike NoteCorp, you can utilize Lumen Notes offline."
     narration: >-
       brand rewrite substitutes forbidden and competitor terms for their
       approved replacements, offline, and reports each change. Tone and style

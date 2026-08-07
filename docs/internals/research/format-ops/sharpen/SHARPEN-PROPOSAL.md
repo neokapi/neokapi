@@ -323,7 +323,7 @@ spatial:
    allowlist exception for plugin-provided formats whose G/authority is declared in
    `structure.yaml`, otherwise the axis's best example is invisible. (Tangential
    cleanup in the same pass: delint the hardcoded "49 real formats" counts —
-   actual is 51 — at `lib.mjs:85`, rubric `:57,:667`; they violate the brand rule
+   actual is 51 — at `lib.mjs:85`, rubric `:57,:667`; they violate the voice rule
    against code-controlled counts.)
 
 6. **`na` semantics on a depth ladder.** — Confirm the implementation decision in

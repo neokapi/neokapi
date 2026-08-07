@@ -39,7 +39,7 @@ type Concept struct {
 ```
 
 `TermSource` distinguishes traditional terminology
-(`TermSourceTerminology`) from brand vocabulary (`TermSourceBrandVocabulary`),
+(`TermSourceTerminology`) from voice vocabulary (`TermSourceBrandVocabulary`),
 so the two populations can share one terms store while staying filterable.
 
 Progressive disclosure: CSV import auto-creates Concepts with a single preferred Term per locale -- no extra complexity required.

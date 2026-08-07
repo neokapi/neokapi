@@ -1,7 +1,7 @@
 # The dogfood context graph
 
 This directory is the committed context graph of the root `kapi.yaml` recipe —
-the brand voice, terms and reviewed content memory neokapi translates its own
+the voice profile, terms and reviewed content memory neokapi translates its own
 surfaces with. It is tracked in git, reviewed like any other source, and it is
 the truth. Everything derived from it lives in `.kapi/work/`, which is
 gitignored and rebuilt with `make l10n-seed`.
@@ -15,7 +15,7 @@ gitignored).
 
 - `voice.yaml` — the machine-readable encoding of
   [docs/internals/brand-communication.md](../docs/internals/brand-communication.md),
-  bound project-wide via `defaults.brand_voice`. Keep the two in sync.
+  bound project-wide via `defaults.voice`. Keep the two in sync.
 - `terms.json` — terminology decisions per target locale (currently
   Norwegian Bokmål, `nb`): concept per decision with `en` + `nb` terms,
   domain, definition/usage note, and status. Imported into the project store,
@@ -52,8 +52,8 @@ gitignored).
 
 Workflow for a new or changed surface string:
 
-1. Translate it (human, or `kapi translate` with credentials — the brand
-   voice profile and terms are bound project-wide) and merge the pair
+1. Translate it (human, or `kapi translate` with credentials — the voice
+   profile and terms are bound project-wide) and merge the pair
    into the surface's seed: import the seed plus the new pairs (any
    supported form, e.g. a small TMX) into a scratch content memory, then
    `kapi memory export -o .kapi/memory/<surface>-<lang>.memory.json`. Small wording
@@ -62,7 +62,7 @@ Workflow for a new or changed surface string:
 2. `make l10n` to rebuild the store from the seeds and regenerate every
    surface from it. To iterate on one surface without the full pass, scope the
    same command the loop runs: `kapi run tm-recycle -i <path> --target-lang nb`.
-3. `kapi check` runs the bound terminology and brand-voice checks over the
+3. `kapi check` runs the bound terminology and voice checks over the
    result.
 
 Review happens in the seeds — they are the human-owned artifact. For a

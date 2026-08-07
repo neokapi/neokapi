@@ -111,7 +111,7 @@ func main() {
 	// Register the mt-translate tool so it is enumerated by NewToolCommands(). Its
 	// engine is resolved per run (browser Translator API where available, else the
 	// keyless demo provider — see registerMT). The AI tools (translate, qa,
-	// brand-voice-check, …) are already registered by InitRegistries; the demo
+	// voice-check, …) are already registered by InitRegistries; the demo
 	// provider is forced for them per command run via forceDemoProviders.
 	registerMT(app.ToolReg)
 	// On-device NER (entity-extract engine "ner"): bridge to a JS-loaded

@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
 )
@@ -71,14 +71,14 @@ func LoadCorrectionsCorpus(path string) (CorrectionsCorpus, error) {
 	return c, nil
 }
 
-// brandVocabFlags reports whether the brand-vocabulary check raises any finding
+// brandVocabFlags reports whether the voice-vocabulary check raises any finding
 // on text under the profile — the real checker the loop's promoted rules feed.
-func brandVocabFlags(profile *brand.VoiceProfile, text string) bool {
+func brandVocabFlags(profile *coreprofile.VoiceProfile, text string) bool {
 	b := &model.Block{ID: "c", Translatable: true, Source: []model.Run{{Text: &model.TextRun{Text: text}}}}
-	if err := coretools.NewBrandVocabCheckTool(profile, nil).Annotate(tool.NewBlockView(b)); err != nil {
+	if err := coretools.NewVoiceVocabCheckTool(profile, nil).Annotate(tool.NewBlockView(b)); err != nil {
 		return false
 	}
-	if ann, ok := model.AnnoAs[*brand.BrandVoiceAnnotation](b, "brand-voice"); ok {
+	if ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](b, "voice"); ok {
 		return len(ann.Findings) > 0
 	}
 	return false
@@ -86,7 +86,7 @@ func brandVocabFlags(profile *brand.VoiceProfile, text string) bool {
 
 // EvaluateCorrections runs the loop end-to-end over the simulated stream: it
 // aggregates the corrections, promotes those at or above MinCount into a profile
-// through the real promotion path (brand.ApplySuggestedRule), then checks that
+// through the real promotion path (coreprofile.ApplySuggestedRule), then checks that
 // each promoted rule FLAGS its original (the mistake the team kept correcting)
 // and does NOT flag the corrected fix — and that a below-threshold correction is
 // left un-enforced. This is the corrections-as-ground-truth measure of the loop.
@@ -95,12 +95,12 @@ func EvaluateCorrections(corpus CorrectionsCorpus) CorrectionsReport {
 
 	// Promote the above-threshold corrections into a profile — exactly what the
 	// server's PromoteAndSave does, minus persistence.
-	profile := &brand.VoiceProfile{Name: "corrections-eval"}
+	profile := &coreprofile.VoiceProfile{Name: "corrections-eval"}
 	for _, c := range corpus.Corrections {
 		if c.Count >= corpus.MinCount {
-			brand.ApplySuggestedRule(profile, brand.SuggestedRule{
+			coreprofile.ApplySuggestedRule(profile, coreprofile.SuggestedRule{
 				Term: c.Term, Replacement: c.Replacement,
-				CorrectionCount: c.Count, Dimension: brand.Dimension(c.Dimension),
+				CorrectionCount: c.Count, Dimension: coreprofile.Dimension(c.Dimension),
 			})
 		}
 	}

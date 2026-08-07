@@ -255,7 +255,7 @@ path would escape the project root is refused rather than written.
 | plugins (declaration) + `requires` | recipe | recipe | travels (binaries re-resolved via registry) |
 | defaults, content, preset | recipe | recipe | travels |
 | `server:` / `hooks:` / `automations:` (Extras, any scope) | recipe Extras | recipe Extras | travels **inert** |
-| path-valued fields (`terms_source`, `memory_source`, `redaction.rules`, `brand_voice.profile_file`, content `base` / `target`) | recipe | recipe | travels **contained** |
+| path-valued fields (`terms_source`, `memory_source`, `redaction.rules`, `voice.profile_file`, content `base` / `target`) | recipe | recipe | travels **contained** |
 | content memory / terms | committed `.memory.json` / `.terms.json` sources | `memory.json` / `terms.json` | travels (lossless) |
 | blocks + targets, annotations, in-progress overlays | block tables of `store.db` (derived) | `blocks/*.kbf.json`, `annotations/*.overlays.jsonl`, `overlays.json` (authoritative) | travels |
 | unit state | `.kapi/state/*.jsonl` (committed) | bilingual profile ([AD-017](017-bilingual-format-interop.md)) | travels |
@@ -275,7 +275,7 @@ exec-class steps and formats, the per-tool config that would arm them, the
 side-effecting `Extras` at every scope they can be registered at, and any
 path-valued field that climbs out of the project or starts at the root — the
 terms, terms-source, memory-source and state bindings, the redaction rules file,
-the brand-voice profile file, and each content entry's `base` and `target`.
+the voice profile file, and each content entry's `base` and `target`.
 
 The asymmetry is the point. A project's **own** recipe may name an absolute
 destination — publishing outside the tree is a thing its owner is entitled to

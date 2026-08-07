@@ -32,7 +32,7 @@ const DemoNotice = "demo mode: illustrative output from a built-in stub — not 
 // It is NOT a translation engine. It applies a small built-in lexicon for
 // common UI words and a deterministic, visibly-marked transform for everything
 // else, so the result is plausible-looking but obviously a stub. Quality-style
-// schemas (QA, brand voice) deliberately return empty/neutral results rather
+// schemas (QA, voice profile) deliberately return empty/neutral results rather
 // than inventing findings.
 type DemoProvider struct {
 	config Config
@@ -90,11 +90,11 @@ func (p *DemoProvider) Chat(ctx context.Context, messages []Message) (*ChatRespo
 // ChatStructured returns JSON conforming to the requested schema. The batch
 // translation schema (emitted by translate) is honoured by parsing the
 // numbered prompt and translating each segment. The brand-voice inference
-// schema (emitted by brand-voice-infer) is honoured by deterministic surface
+// schema (emitted by voice-infer) is honoured by deterministic surface
 // heuristics over the corpus embedded in the prompt — a generative onboarding
 // draft, clearly marked as illustrative. All other schemas get a neutral,
 // schema-valid response (empty arrays / zero values) so that QA and
-// brand-voice check tools run without fabricating findings.
+// voice check tools run without fabricating findings.
 func (p *DemoProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
 	noticeOnce()
 	userTurn := lastUserMessage(messages)
@@ -104,7 +104,7 @@ func (p *DemoProvider) ChatStructured(ctx context.Context, messages []Message, s
 	case "batch_translations":
 		content = demoBatchTranslations(userTurn, demoTargetLocale(ctx))
 	case "brand_voice_inference":
-		content = demoBrandVoiceInference(userTurn)
+		content = demoVoiceInference(userTurn)
 	default:
 		content = neutralSchemaJSON(schema)
 	}
@@ -387,15 +387,15 @@ var demoCapStopwords = map[string]bool{
 	"Here": true, "Then": true, "Now": true, "Get": true, "Try": true,
 }
 
-// demoBrandVoiceInference derives an illustrative draft brand voice profile
+// demoVoiceInference derives an illustrative draft voice profile
 // from the corpus embedded in an inference prompt (the text after the
-// "Corpus:" delimiter line that brand-voice-infer emits), using deterministic
+// "Corpus:" delimiter line that voice-infer emits), using deterministic
 // surface heuristics: contraction, exclamation, pronoun, passive-voice, and
 // sentence-length counts, plus recurring capitalized terms. Like the demo
 // translator it is honest about being a stub — the guidelines and every
 // evidence note carry the ⟦demo⟧ marker. Returns JSON matching the
 // brand_voice_inference schema.
-func demoBrandVoiceInference(userTurn string) string {
+func demoVoiceInference(userTurn string) string {
 	corpus := userTurn
 	if idx := strings.LastIndex(userTurn, prompt.CorpusDelimiter); idx >= 0 {
 		corpus = userTurn[idx+len(prompt.CorpusDelimiter):]

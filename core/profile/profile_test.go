@@ -15,7 +15,7 @@ func TestVoiceProfile_JSONRoundTrip(t *testing.T) {
 	profile := VoiceProfile{
 		ID:          "prof-1",
 		Name:        "Brand Guidelines",
-		Description: "Main brand voice",
+		Description: "Main voice profile",
 		Tone: ToneProfile{
 			Personality: []string{"friendly", "knowledgeable"},
 			Formality:   "neutral",
@@ -111,11 +111,11 @@ func firstKey(m map[string]string) string {
 	return ""
 }
 
-func TestVoiceProfile_OnBrandBar(t *testing.T) {
+func TestVoiceProfile_ComplianceBar(t *testing.T) {
 	var nilProfile *VoiceProfile
-	assert.Equal(t, DefaultMinScore, nilProfile.OnBrandBar(), "nil profile answers the default bar")
-	assert.Equal(t, DefaultMinScore, (&VoiceProfile{}).OnBrandBar(), "unset MinScore answers the default bar")
-	assert.Equal(t, 90, (&VoiceProfile{MinScore: 90}).OnBrandBar())
-	assert.Equal(t, 100, (&VoiceProfile{MinScore: 150}).OnBrandBar(), "the bar is capped at 100")
-	assert.Equal(t, DefaultMinScore, (&VoiceProfile{MinScore: -5}).OnBrandBar(), "a negative bar falls back to the default")
+	assert.Equal(t, DefaultMinScore, nilProfile.ComplianceBar(), "nil profile answers the default bar")
+	assert.Equal(t, DefaultMinScore, (&VoiceProfile{}).ComplianceBar(), "unset MinScore answers the default bar")
+	assert.Equal(t, 90, (&VoiceProfile{MinScore: 90}).ComplianceBar())
+	assert.Equal(t, 100, (&VoiceProfile{MinScore: 150}).ComplianceBar(), "the bar is capped at 100")
+	assert.Equal(t, DefaultMinScore, (&VoiceProfile{MinScore: -5}).ComplianceBar(), "a negative bar falls back to the default")
 }

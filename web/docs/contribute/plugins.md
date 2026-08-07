@@ -169,7 +169,7 @@ without `--unsafe`.
   (OCR/layout), `kapi-asr` (speech-to-text), `kapi-av` (audio/video), and
   `kapi-pdfium` (PDF).
 
-For on-device **LLM** text generation (translation, chat, QA, brand-voice), kapi
+For on-device **LLM** text generation (translation, chat, QA, voice), kapi
 drives a local [Ollama](https://ollama.com) runtime rather than bundling an
 inference engine: Ollama already runs GGUF models on the GPU (Metal/CUDA) and is
 managed through `kapi models ollama` and `--provider ollama` — a free, private

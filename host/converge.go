@@ -239,7 +239,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	a.WarnUnsyncedCoordinates(cmd.ErrOrStderr(), proj)
 
 	// The flow run inside a pass is per collection: the source set splits into
-	// one group per distinct (brand voice, terms) binding, and a worker runs the
+	// one group per distinct (voice profile, terms) binding, and a worker runs the
 	// flow once per group. A recipe where no collection overrides either yields
 	// one group holding every source, bound to the project-wide resolution
 	// already made above — one flow run per locale, as convergence has always

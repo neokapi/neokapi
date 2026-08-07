@@ -85,7 +85,7 @@ type FlowRunOptions struct {
 	Project *project.KapiProject
 	// ProjectPath is the recipe path. It anchors the project context (content
 	// targets, format config) and binds resource resolution (project content memory,
-	// terms, brand profile) to this recipe rather than a cwd discovery.
+	// terms, voice profile) to this recipe rather than a cwd discovery.
 	ProjectPath string
 	// InputPaths are the source files to process. Required.
 	InputPaths []string
@@ -213,7 +213,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	// The tool builders speak cobra (flag lookups, project discovery); an
 	// embedded run drives them through a synthetic command bound to this
 	// recipe — the RunUp pattern — so resource resolution (project content memory,
-	// terms, brand profile) binds to THIS project, never a cwd walk.
+	// terms, voice profile) binds to THIS project, never a cwd walk.
 	cmd := NewEnvCommand(ctx, "flow-run")
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
@@ -246,7 +246,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	a.WarnUnsyncedCoordinates(os.Stderr, proj)
 
 	// Governance is per collection: the input set splits into one group per
-	// distinct (brand voice, terms) binding, and each group runs the flow with
+	// distinct (voice profile, terms) binding, and each group runs the flow with
 	// its own bindings and its own tool chain. A recipe where no collection
 	// overrides anything yields exactly one group holding every input, so the
 	// pass structure, the event stream and the tool assembly are unchanged.

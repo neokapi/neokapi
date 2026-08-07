@@ -5,7 +5,7 @@
 // of corrections that aggregate into candidate rules on the review page.
 //
 // Idempotent-ish: re-running creates a fresh, uniquely-slugged workspace and
-// prints its slug + the brand profile id + a session token to stdout as JSON,
+// prints its slug + the voice profile id + a session token to stdout as JSON,
 // which the recorder consumes (BOWRAIN_SESSION_TOKEN + the route params).
 //
 //   node harness/scripts/seed-correction-loop.mjs            # uses http://localhost:8080
@@ -59,11 +59,11 @@ async function main() {
   const ws = await jpost("/workspaces", { name: `Brand Loop ${stamp}`, slug });
   const wsSlug = ws.slug || slug;
 
-  // A brand profile. Its vocabulary starts minimal — the candidates the demo
+  // A voice profile. Its vocabulary starts minimal — the candidates the demo
   // promotes come from the correction stream below, not the seed profile.
   const profile = await jpost(`/${wsSlug}/brand-profiles`, {
     name: "Acme Voice",
-    description: "Acme's brand voice — clear, direct, no jargon.",
+    description: "Acme's voice profile — clear, direct, no jargon.",
     tone: { personality: ["clear", "direct"], formality: "neutral", emotion: "warm", humor: "light" },
   });
   const profileId = profile.id;

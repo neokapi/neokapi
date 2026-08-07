@@ -74,7 +74,7 @@ the same byte-for-byte write-back holds at the monolingual and the multilingual 
 are distinct capabilities in code — rewrite is a `Transform` over `SourceView`, translate a
 `Produce` over `VariantView`, AD-006 — so never write "translate is just rewrite with a
 target"; write "the same write-back holds whether you rewrite the source or produce a
-target".) Brand voice is **one check in this checkset, not a separate system**.
+target".) Voice profile is **one check in this checkset, not a separate system**.
 
 ## The moat (state it honestly)
 

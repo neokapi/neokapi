@@ -5,7 +5,7 @@ import (
 	"sort"
 )
 
-// DriftConfig configures brand-compliance drift detection. A workspace sets a
+// DriftConfig configures voice-compliance drift detection. A workspace sets a
 // floor, a drop tolerance, or both; either condition firing counts as drift.
 type DriftConfig struct {
 	RecentDays int // size of the "recent" window in days (<=0 → 7)
@@ -36,7 +36,7 @@ type DriftResult struct {
 
 // AnalyzeDrift splits a project's daily score trend into a recent window and a
 // preceding baseline window, computes the count-weighted average score of each,
-// and reports whether aggregate brand compliance has drifted — either by falling
+// and reports whether aggregate voice compliance has drifted — either by falling
 // below an absolute floor or by dropping materially from its baseline. It is the
 // detection kernel behind the brand.voice.drift alert; trends come from the
 // store and can be in any date order.

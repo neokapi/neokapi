@@ -65,9 +65,9 @@ type (
 )
 
 const (
-	BrandProfileTemplate     = host.BrandProfileTemplate
+	VoiceProfileTemplate     = host.VoiceProfileTemplate
 	ConvergeMaxPassesDefault = host.ConvergeMaxPassesDefault
-	DefaultBrandMinScore     = host.DefaultBrandMinScore
+	DefaultVoiceMinScore     = host.DefaultVoiceMinScore
 	DefaultVoiceSimilarity   = host.DefaultVoiceSimilarity
 	ExitError                = host.ExitError
 	ExitGate                 = host.ExitGate
@@ -95,7 +95,7 @@ const (
 
 // Function and variable re-exports.
 var (
-	AddBrandAIFlags              = host.AddBrandAIFlags
+	AddVoiceAIFlags              = host.AddVoiceAIFlags
 	AddProfileFlags              = host.AddProfileFlags
 	AddProgressFlag              = host.AddProgressFlag
 	AddProjectFlag               = host.AddProjectFlag

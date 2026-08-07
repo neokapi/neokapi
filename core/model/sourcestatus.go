@@ -3,7 +3,7 @@ package model
 // SourceStatus is the authoring lifecycle state of a Block's source content —
 // the source-side counterpart of TargetStatus. Where a Target progresses
 // draft → translated → reviewed → signed-off, a source progresses
-// authored → checked → approved: written, then cleared of brand/terminology
+// authored → checked → approved: written, then cleared of voice/terminology
 // findings, then signed off by a human. It is what keeps the author "in check"
 // — the source equivalent of translation review.
 type SourceStatus string
@@ -14,7 +14,7 @@ const (
 	SourceStatusNew SourceStatus = ""
 	// SourceStatusAuthored — source content exists (the presence baseline).
 	SourceStatusAuthored SourceStatus = "authored"
-	// SourceStatusChecked — source cleared its brand/terminology checks.
+	// SourceStatusChecked — source cleared its voice/terminology checks.
 	SourceStatusChecked SourceStatus = "checked"
 	// SourceStatusApproved — source signed off by a human/agent.
 	SourceStatusApproved SourceStatus = "approved"
@@ -70,7 +70,7 @@ const (
 	// passes. (Effectively a no-op gate, provided for completeness/symmetry.)
 	SourceGateAuthored SourceGateLevel = "authored"
 	// SourceGateChecked is the DEFAULT: the source must clear its automated
-	// terminology + brand + source-QA checks (no human bottleneck).
+	// terminology + voice + source-QA checks (no human bottleneck).
 	SourceGateChecked SourceGateLevel = "checked"
 	// SourceGateApproved requires a human/agent source sign-off — for
 	// brand-critical or regulated projects.

@@ -6,10 +6,10 @@ import (
 	"strings"
 )
 
-// RenderVoiceGuide produces a markdown-formatted brand voice guide optimized for
+// RenderVoiceGuide produces a markdown-formatted voice guide optimized for
 // LLM consumption. It is the single source of truth for turning a VoiceProfile
 // into prompt text — used by the AI translate prompt (so generation is on-brand),
-// the brand-voice check tool, the local `kapi brand guide` command, and the
+// the voice check tool, the local `kapi voice guide` command, and the
 // bowrain cloud MCP `get_voice_guide` tool.
 //
 // Output is deterministic: slices render in their declared order and map-derived
@@ -21,7 +21,7 @@ func RenderVoiceGuide(p *VoiceProfile) string {
 		return ""
 	}
 
-	fmt.Fprintf(&b, "# Brand Voice Guide: %s\n\n", p.Name)
+	fmt.Fprintf(&b, "# Voice Guide: %s\n\n", p.Name)
 	if p.Description != "" {
 		fmt.Fprintf(&b, "%s\n\n", p.Description)
 	}
@@ -154,7 +154,7 @@ func RenderVoiceGuideCompact(p *VoiceProfile) string {
 
 	var b strings.Builder
 	if len(parts) > 0 {
-		fmt.Fprintf(&b, "Brand voice — %s.", strings.Join(parts, "; "))
+		fmt.Fprintf(&b, "Voice profile — %s.", strings.Join(parts, "; "))
 	}
 
 	if g := strings.TrimSpace(p.Tone.Guidelines); g != "" {

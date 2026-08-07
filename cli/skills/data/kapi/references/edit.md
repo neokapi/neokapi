@@ -89,7 +89,7 @@ A written file is not the finish line — a clean check is. In a project, run
 
 ```bash
 kapi check report.docx --json     # one-off: deterministic content rules
-kapi check --ship --json                 # in a project: brand + terminology + QA gates
+kapi check --ship --json                 # in a project: voice + terminology + QA gates
 ```
 
 Read the findings, fix the flagged blocks through another `apply` pass, and
@@ -119,7 +119,7 @@ create new content, author in a generative format — see [create.md](create.md)
 ## Mixed change-sets
 
 A `content` edit and the asset change that justifies it (a `term` entry, a
-`brand` rule) can land **atomically in one `kapi apply`** — every reviewed
+`voice` rule) can land **atomically in one `kapi apply`** — every reviewed
 change, content or asset, is one typed entry routed through the single write
 verb. See [create.md → close the loop](create.md) for the asset entry shapes;
-for the brand-vocabulary case specifically, [brand.md](brand.md).
+for the voice-vocabulary case specifically, [voice.md](voice.md).

@@ -10,13 +10,13 @@ import KapiGuidedEmbed from "@site/src/components/KapiPlayground/KapiGuidedEmbed
 
 # The kapi loop
 
-Your source content changed. Its translations, its terminology, its brand
+Your source content changed. Its translations, its terminology, its voice
 conformance are now behind — and that is normal, not an error. Kapi treats
 catching up as the everyday state of a shipping project, and gives it one
 verb: **`kapi up`**.
 
 `kapi up` runs **the kapi loop**, and the loop has two halves with a gate
-between them. First get the source right — the brand and terminology checks on
+between them. First get the source right — the voice and terminology checks on
 what you wrote — and hold there until it clears its bar. Only then get every
 language caught up to it: reuse what you've translated before, AI-translate the
 rest, check everything produced. Settling the source first is deliberate: every
@@ -79,7 +79,7 @@ before anything is translated:
 <AxisLadderDiagram
   rungs={[
     { grade: "1", name: "authored", gloss: "source content exists" },
-    { grade: "2", name: "checked", gloss: "clears its brand & terminology checks" },
+    { grade: "2", name: "checked", gloss: "clears its voice & terminology checks" },
     { grade: "3", name: "approved", gloss: "a person signed off on the source" },
   ]}
   caption="Source authoring readiness — the source-side counterpart."
@@ -171,7 +171,7 @@ is ready.
       kind: "phase",
       role: "source",
       label: "settle source",
-      steps: ["term-check + protect", "brand-check", "source QA"],
+      steps: ["term-check + protect", "voice check", "source QA"],
     },
     {
       kind: "gate",
@@ -199,7 +199,7 @@ is ready.
 Read the loop left to right:
 
 1. **Settle the source.** Check terminology and mark the terms that must not be
-   translated, check brand voice, run source QA. This lifts source units up the
+   translated, check voice profile, run source QA. This lifts source units up the
    authoring ladder (*authored → checked → approved*).
 2. **Hold at the source ship-gate.** The optional `source_gate` (for example,
    `{ checked: 100 }`) is the source-side counterpart of `ship_gate`. Source
@@ -235,7 +235,7 @@ kapi status
 ```
 
 `kapi check --ship` is the enforcing counterpart — the pre-release bar. It runs
-the project's bound quality gates (brand, terminology, QA) together with the ship
+the project's bound quality gates (voice, terminology, QA) together with the ship
 and source coverage gates over the project's content, and exits non-zero when any
 gate is unmet (for a release tag or a `main` check). Target drift never blocks an
 ordinary build; `--ship` is the explicit, opt-in enforcement point. (A bare

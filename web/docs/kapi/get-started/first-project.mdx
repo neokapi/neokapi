@@ -10,7 +10,7 @@ import { PendingMedia } from "@neokapi/docs-shared";
 
 # Your first project
 
-A project is a committed recipe (`kapi.yaml`) plus a store that remembers your work — approvals, content memory, terminology. Set it up once and every surface works the same project: the desktop app, your AI assistant, and the CLI. A new project starts source-only (checks, brand, terminology); [add languages](/kapi/get-started/add-languages) when you want them.
+A project is a committed recipe (`kapi.yaml`) plus a store that remembers your work — approvals, content memory, terminology. Set it up once and every surface works the same project: the desktop app, your AI assistant, and the CLI. A new project starts source-only (checks, voice, terminology); [add languages](/kapi/get-started/add-languages) when you want them.
 
 <Tabs groupId="surface" queryString>
 <TabItem value="desktop" label="Desktop" default>
@@ -34,7 +34,7 @@ With the [Kapi skill or MCP server](/kapi/get-started/use-with-claude) connected
 
 > Set kapi up for this project.
 
-Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known i18n layout), adds the content patterns it finds, drafts a brand profile from your existing copy, and proposes terms for you to approve. The result is committed: a recipe, a brand profile, and a terms source. From there your prompts stay short — "check this is on brand" needs no flags, because the recipe carries them.
+Claude detects the stack, runs `kapi init` (with `--preset <stack>` for a known i18n layout), adds the content patterns it finds, drafts a voice profile from your existing copy, and proposes terms for you to approve. The result is committed: a recipe, a voice profile, and a terms source. From there your prompts stay short — "check this is on brand" needs no flags, because the recipe carries them.
 
 </TabItem>
 <TabItem value="cli" label="CLI">
@@ -59,7 +59,7 @@ content:
   - path: "docs/**/*.md"
 ```
 
-Commit the recipe **and `.kapi/`** — that directory is your project's context (terms, content memory, brand voice, and the record of where each unit stands in review), and it belongs in review like the rest of your source. `kapi init` writes a two-line ignore rule for the one part that is not: `.kapi/work/`, where the [project store](/kapi/project-store) and its caches are derived, plus `.kapi/filters.local.json` for your personal reader settings. Every kapi command run anywhere in the tree finds the project by walking up, like git. See the [project file reference](/reference/project-file) for the full schema. When you're ready for AI-backed steps, `kapi models setup` detects what you already have — a Claude Code sign-in, Ollama, or an API key — and confirms it as the default ([Use with Claude](/kapi/get-started/use-with-claude)).
+Commit the recipe **and `.kapi/`** — that directory is your project's context (terms, content memory, voice profile, and the record of where each unit stands in review), and it belongs in review like the rest of your source. `kapi init` writes a two-line ignore rule for the one part that is not: `.kapi/work/`, where the [project store](/kapi/project-store) and its caches are derived, plus `.kapi/filters.local.json` for your personal reader settings. Every kapi command run anywhere in the tree finds the project by walking up, like git. See the [project file reference](/reference/project-file) for the full schema. When you're ready for AI-backed steps, `kapi models setup` detects what you already have — a Claude Code sign-in, Ollama, or an API key — and confirms it as the default ([Use with Claude](/kapi/get-started/use-with-claude)).
 
 </TabItem>
 </Tabs>

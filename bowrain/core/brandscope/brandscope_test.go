@@ -48,8 +48,8 @@ func (f fakeWorkspaceDefault) WorkspaceBrandProfileID(_ context.Context, _ strin
 
 // fakeBrandStore resolves profiles by ID from a fixed set.
 type fakeBrandStore struct {
-	profile.BrandStore // embed so we only implement GetProfile
-	profiles           map[string]*profile.VoiceProfile
+	profile.Store // embed so we only implement GetProfile
+	profiles      map[string]*profile.VoiceProfile
 }
 
 func (f *fakeBrandStore) GetProfile(_ context.Context, id string) (*profile.VoiceProfile, error) {

@@ -55,7 +55,7 @@ func TestKapiCommandSet_PorcelainLayout(t *testing.T) {
 	// Porcelain grouping: Work and Assets hold the everyday verbs.
 	for name, group := range map[string]string{
 		"init": "work", "add": "work", "status": "work", "apply": "work", "check": "work",
-		"memory": "assets", "terms": "assets", "brand": "assets", "models": "assets", "credentials": "assets",
+		"memory": "assets", "terms": "assets", "voice": "assets", "models": "assets", "credentials": "assets",
 		"run": "advanced", "flows": "advanced", "extract": "advanced", "merge": "advanced",
 	} {
 		c := byName[name]

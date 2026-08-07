@@ -195,7 +195,7 @@ core/
     preset/           Built-in preset definitions
     schema/           JSON-schema generation for tool/component parameters
     segment/          Segmentation primitives and masking
-    brand/            Brand-voice model
+    profile/          Voice-profile model
     graph/            Graph data structures
     i18n/             Per-locale component schemas and backend metadata
     its/              W3C ITS metadata

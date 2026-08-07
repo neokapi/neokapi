@@ -32,7 +32,7 @@ func TestWarnUnsyncedCoordinates(t *testing.T) {
 	coordinated := project.Coordinates{"product": {{ID: "kapi"}}}
 	voiceProfiles := []project.ProfileBinding{{
 		When:  map[string]string{"product": "kapi"},
-		Voice: &project.BrandVoiceBinding{ProfileFile: "voice.yaml"},
+		Voice: &project.VoiceBinding{ProfileFile: "voice.yaml"},
 	}}
 	termsProfiles := []project.ProfileBinding{{
 		When:  map[string]string{"product": "kapi"},
@@ -122,11 +122,11 @@ func TestKapiProject_GovernsByCoordinates(t *testing.T) {
 func TestKapiProject_BindsTermsByCoordinates(t *testing.T) {
 	assert.False(t, (&project.KapiProject{Version: "v1"}).BindsTermsByCoordinates())
 	assert.False(t, (&project.KapiProject{
-		Profiles: []project.ProfileBinding{{Voice: &project.BrandVoiceBinding{ProfileFile: "voice.yaml"}}},
+		Profiles: []project.ProfileBinding{{Voice: &project.VoiceBinding{ProfileFile: "voice.yaml"}}},
 	}).BindsTermsByCoordinates(), "a voice binding travels with the push")
 	assert.True(t, (&project.KapiProject{
 		Profiles: []project.ProfileBinding{
-			{Voice: &project.BrandVoiceBinding{ProfileFile: "voice.yaml"}},
+			{Voice: &project.VoiceBinding{ProfileFile: "voice.yaml"}},
 			{Terms: "terms.json"},
 		},
 	}).BindsTermsByCoordinates(), "one terms binding anywhere is enough")

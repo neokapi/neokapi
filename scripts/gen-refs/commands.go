@@ -24,9 +24,9 @@ var offlineOverride = map[string]bool{
 	// Network / AI / MT — require API keys + outbound TLS. (qa is offline by
 	// default — rule-based — so it is left to the heuristic rather than
 	// force-marked here; with --provider it needs network at run time.)
-	"translate":          false,
-	"brand-voice-check":  false,
-	"brand-voice-review": false,
+	"translate":    false,
+	"voice-check":  false,
+	"voice-review": false,
 	// Credentials — require the OS keychain (cgo, subprocess).
 	"credentials":        false,
 	"credentials.add":    false,
@@ -50,10 +50,10 @@ var offlineOverride = map[string]bool{
 	"update": false,
 	// MCP server — requires a running process.
 	"mcp": false,
-	// Brand voice — check and rewrite reach an AI provider; the rest of the
+	// Voice profile — check and rewrite reach an AI provider; the rest of the
 	// group (guide, show, profiles, validate, new, import, pack) is local.
-	"brand.check":   false,
-	"brand.rewrite": false,
+	"voice.check":   false,
+	"voice.rewrite": false,
 
 	// The porcelain flow verbs carry the shared provider flag set
 	// (--credential/--provider/--model), which the heuristic below reads as

@@ -71,7 +71,7 @@ An image's accessible text is translated as content, not as a Media field. When 
 the `Media` (`AltText`, for display) **and** emits it as a translatable caption
 `Block` linked to the image (`RoleCaption` + a `caption-of` relation to the Media
 ID). That block flows through the ordinary block path — content memory, AI
-translate, brand voice, sessions, batching — with no special tool support, and
+translate, voice profile, sessions, batching — with no special tool support, and
 gets per-locale `Targets` like any other block. The image writer folds the
 translated target (or the source text, as a round-trip fallback) back into a
 per-locale `<output>.alt.txt` sidecar beside the written image. Modeling alt-text

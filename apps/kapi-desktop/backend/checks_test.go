@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// setupCheckProject writes a project with one JSON content file, a brand.yaml
+// setupCheckProject writes a project with one JSON content file, a voice.yaml
 // convention profile (forbidden term "utilize" → "use"), and opens it. Returns
 // the tab ID and the absolute path of the source JSON file.
 func setupCheckProject(t *testing.T, app *App, sourceJSON string) (tabID, srcPath string) {
@@ -24,8 +24,8 @@ func setupCheckProject(t *testing.T, app *App, sourceJSON string) (tabID, srcPat
 	srcPath = filepath.Join(srcDir, "en.json")
 	require.NoError(t, os.WriteFile(srcPath, []byte(sourceJSON), 0o644))
 
-	// Convention brand profile at the project root.
-	brandYAML := `id: house
+	// Convention voice profile at the project root.
+	voiceYAML := `id: house
 name: House Style
 vocabulary:
   forbidden_terms:
@@ -33,7 +33,7 @@ vocabulary:
       replacement: use
       severity: major
 `
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "brand.yaml"), []byte(brandYAML), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "voice.yaml"), []byte(voiceYAML), 0o644))
 
 	proj := &project.KapiProject{
 		Version:  project.CurrentVersion,
@@ -51,7 +51,7 @@ vocabulary:
 	return tab.ID, srcPath
 }
 
-func TestRunChecksFindsBrandVocab(t *testing.T) {
+func TestRunChecksFindsVoiceVocab(t *testing.T) {
 	app := NewApp()
 	tabID, _ := setupCheckProject(t, app, `{"greeting":"Please utilize the dashboard"}`)
 

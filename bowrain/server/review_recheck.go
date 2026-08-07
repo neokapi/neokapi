@@ -180,7 +180,7 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 // newly promoted forbidden brand rule, scoped to the promoted term so an existing
 // target that only tripped an OLDER rule is not swept up. It reuses the canonical
 // brand-vocabulary matcher (core/profile.MatchVocabulary — the single source the
-// brand-vocab-check tool and the blast radius both call) as the oracle.
+// voice-vocab-check tool and the blast radius both call) as the oracle.
 func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, term, actor string) {
 	if s.BrandStore == nil || profileID == "" {
 		return

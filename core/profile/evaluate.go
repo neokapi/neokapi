@@ -2,9 +2,9 @@ package profile
 
 import "github.com/neokapi/neokapi/core/model"
 
-// BrandVoiceEvaluation captures the results of comparing brand voice profiles
+// VoiceEvaluation captures the results of comparing voice profiles
 // against content across two streams or profile versions.
-type BrandVoiceEvaluation struct {
+type VoiceEvaluation struct {
 	Stream          string `json:"stream"`
 	BaselineStream  string `json:"baseline_stream"`
 	StreamProfile   string `json:"stream_profile"`
@@ -57,18 +57,18 @@ type DimensionComparison struct {
 	Delta       float64 `json:"delta"`
 }
 
-// EvaluationFinding is a single brand voice finding with content context.
+// EvaluationFinding is a single voice profile finding with content context.
 type EvaluationFinding struct {
-	BlockID      string            `json:"block_id"`
-	ItemName     string            `json:"item_name"`
-	CollectionID string            `json:"collection_id"`
-	SourceText   string            `json:"source_text"` // first 200 chars
-	TargetText   string            `json:"target_text"` // first 200 chars (if locale specified)
-	Finding      BrandVoiceFinding `json:"finding"`
-	IsNew        bool              `json:"is_new"` // true if finding doesn't exist under baseline profile
+	BlockID      string       `json:"block_id"`
+	ItemName     string       `json:"item_name"`
+	CollectionID string       `json:"collection_id"`
+	SourceText   string       `json:"source_text"` // first 200 chars
+	TargetText   string       `json:"target_text"` // first 200 chars (if locale specified)
+	Finding      VoiceFinding `json:"finding"`
+	IsNew        bool         `json:"is_new"` // true if finding doesn't exist under baseline profile
 }
 
-// EvaluateRequest holds parameters for a brand voice evaluation.
+// EvaluateRequest holds parameters for a voice profile evaluation.
 type EvaluateRequest struct {
 	Stream             string         `json:"stream"`
 	BaselineStream     string         `json:"baseline_stream"`

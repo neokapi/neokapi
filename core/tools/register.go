@@ -249,17 +249,17 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		toolMeta("external-command", "External Command", schema.CategoryTextProcessing,
 			withTags("configurable"), withWritesOutput(), withCardinality(schema.Monolingual))))
 
-	// brand-vocab-check's input is a brand voice profile the host resolves from
-	// the project/brand pack, never from step config — hence no schema properties
+	// voice-vocab-check's input is a voice profile the host resolves from
+	// the project/starter pack, never from step config — hence no schema properties
 	// and no config factory. A recipe names it as a step (`kapi init` scaffolds
 	// exactly that); the standalone command is `kapi check --profile`.
-	reg.RegisterWithSchema("brand-vocab-check", func() tool.Tool {
-		return NewBrandVocabCheckTool(nil, nil)
+	reg.RegisterWithSchema("voice-vocab-check", func() tool.Tool {
+		return NewVoiceVocabCheckTool(nil, nil)
 	}, &schema.ComponentSchema{ToolMeta: &schema.ToolMeta{
-		ID: "brand-vocab-check", DisplayName: "Brand Vocabulary Check", Category: schema.CategoryQuality,
+		ID: "voice-vocab-check", DisplayName: "Voice Vocabulary Check", Category: schema.CategoryQuality,
 		Cardinality: schema.Bilingual,
 		Consumes:    []schema.IOPort{{Type: schema.PortTarget, Side: model.SideTarget}},
-		Produces:    []schema.IOPort{{Type: model.AnnoBrandVoice, Side: model.SideTarget}},
+		Produces:    []schema.IOPort{{Type: model.AnnoVoice, Side: model.SideTarget}},
 		Requires:    []string{"target-language"},
 		Internal:    true,
 	}})

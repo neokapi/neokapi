@@ -85,8 +85,8 @@ var ToolExamples = map[string]string{
   kapi qa app.xliff --target-lang de --json`,
 	"term-check": `  kapi term-check app.xliff --source-lang en --target-lang fr
   kapi term-check messages.json --source-lang en --target-lang fr`,
-	"brand-vocab-check": `  kapi brand-vocab-check app.xliff --target-lang fr
-  kapi brand-vocab-check messages.json --target-lang de`,
+	"voice-vocab-check": `  kapi voice-vocab-check app.xliff --target-lang fr
+  kapi voice-vocab-check messages.json --target-lang de`,
 
 	// ── Translation ─────────────────────────────────────────────────────
 	"pseudo-translate": `  kapi pseudo-translate messages.json -o messages.pseudo.json
@@ -108,8 +108,8 @@ var ToolExamples = map[string]string{
 	// ── AI Quality ───────────────────────────────────────────────────────
 	"review": `  kapi review app.xliff --target-lang fr
   kapi review messages.json --target-lang de`,
-	"brand-voice-check": `  kapi brand-voice-check messages.json --target-lang fr
-  kapi brand-voice-check app.xliff --target-lang de`,
+	"voice-check": `  kapi voice-check messages.json --target-lang fr
+  kapi voice-check app.xliff --target-lang de`,
 
 	// ── AI Analysis ───────────────────────────────────────────────────────
 	"term-extract": `  kapi term-extract messages.json

@@ -13,7 +13,7 @@ const (
 	QACheck         registry.ToolID = "qa"
 	TermCheck       registry.ToolID = "term-check"
 	XMLValidation   registry.ToolID = "xml-validation"
-	BrandVocabCheck registry.ToolID = "brand-vocab-check"
+	VoiceVocabCheck registry.ToolID = "voice-vocab-check"
 
 	// Transform
 	PseudoTranslate   registry.ToolID = "pseudo-translate"

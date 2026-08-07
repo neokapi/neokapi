@@ -145,7 +145,7 @@ the source of truth. Specifics that have bitten us:
   (not `core/memory`, not `cli/storage/memory`); LLM/MT backends are
   `providers/ai` (package `aiprovider`) and `providers/mt` (package
   `mtprovider`); pipeline tools are `core/ai/tools`, `core/mt/tools`; brand
-  voice is `core/brand`.
+  voice is `core/profile`.
 - **Built-in flows** include `translate`, `translate-qa`, `pseudo-translate`,
   and `qa`. `kapi run translate` runs the built-in single-step translate flow;
   a project file can define additional named flows.
@@ -204,5 +204,5 @@ the source of truth. Specifics that have bitten us:
 8. Build is clean — `tsc` and the site build pass with no new warnings.
 
 > If machine enforcement is wanted later, this guideline can also be encoded as
-> a `core/brand` VoiceProfile (tone/style/vocabulary rules + examples) and run
-> through the `brand-voice-check` / `brand-vocab-check` tools.
+> a `core/profile` VoiceProfile (tone/style/vocabulary rules + examples) and run
+> through the `voice-check` / `voice-vocab-check` tools.

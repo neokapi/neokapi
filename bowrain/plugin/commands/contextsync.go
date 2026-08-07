@@ -80,7 +80,7 @@ func BuildPushContext(ctx context.Context, proj *bproject.Project, dryRun bool) 
 			continue
 		}
 
-		profile, governance, _, found, err := app.LoadCollectionVoice(ctx, kapiProject, proj.Root, host.BrandResolveOptions{
+		profile, governance, _, found, err := app.LoadCollectionVoice(ctx, kapiProject, proj.Root, host.VoiceResolveOptions{
 			Collection: coll.Name,
 			StorePath:  storePath,
 		})

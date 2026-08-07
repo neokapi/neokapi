@@ -1009,7 +1009,7 @@ func expandOutputTemplate(tmpl, name, lang, ext, dir string) string {
 //
 // inputPath is the file the chain will process. A built-in flow builds fresh
 // tools per file, so the path is what tells the standing bindings which content
-// collection governs this run — the brand voice and terms of the collection the
+// collection governs this run — the voice profile and terms of the collection the
 // file belongs to, not necessarily the project-wide ones. Empty when there is no
 // single file in view; the bindings are then the project-wide ones.
 func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool.Tool, func(), error) {
@@ -1083,7 +1083,7 @@ func (a *App) buildFlowTools(flowName, inputPath string, cmd ...Command) ([]tool
 	}
 
 	// The standing context a built-in flow runs under. Project-defined flows get
-	// this via toolFromStep; built-in flows used to get only the brand voice
+	// this via toolFromStep; built-in flows used to get only the voice profile
 	// profile, so `kapi translate` inside a project silently ignored
 	// defaults.tools and never sent the project's terminology, while `kapi up` —
 	// the same tools, the project path — honored both. One recipe, two behaviours,
@@ -1486,7 +1486,7 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 // ProjectBindings holds the standing brand-voice + glossary context resolved
 // from a .kapi project, applied to project-flow steps that can honor them.
 type ProjectBindings struct {
-	// profile is the resolved brand voice profile (defaults.brand_voice),
+	// profile is the resolved voice profile (defaults.voice),
 	// injected into translate steps as config["profile"]. nil when unbound.
 	profile *profile.VoiceProfile
 	// glossary is the source→target glossary built from the project terms store
@@ -1507,7 +1507,7 @@ type ProjectBindings struct {
 // resolveProjectBindings resolves the standing brand-voice + glossary context
 // for one content collection of a project flow run — the governance at the
 // collection's point in the context space. The voice comes from the profile
-// matching that point, else defaults.brand_voice, else a convention brand.yaml,
+// matching that point, else defaults.voice, else a convention voice.yaml,
 // with the point's channel selecting the override inside it; the glossary comes
 // from that profile's standalone terms, else the project's own store.
 // Returns nil when the project carries neither, so ad-hoc behavior is
@@ -1523,7 +1523,7 @@ func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, pro
 	if err != nil {
 		return nil, err
 	}
-	profile, _, _, err := a.ResolveBrandProfile(CmdContext(cmd), proj, root, BrandResolveOptions{
+	profile, _, _, err := a.ResolveVoiceProfile(CmdContext(cmd), proj, root, VoiceResolveOptions{
 		StorePath:  storePath,
 		Collection: collection,
 	})
@@ -1776,7 +1776,7 @@ func conceptsFromKTB(path string) ([]sqltb.Concept, error) {
 // committed terms bundle, or "" when there is none.
 //
 // An explicit defaults.terms_source binding wins. With none, the well-known
-// locations are searched, mirroring the ladder the brand voice profile uses: a
+// locations are searched, mirroring the ladder the voice profile uses: a
 // project that keeps its glossary at the conventional path needs no recipe
 // entry at all.
 //
@@ -2033,7 +2033,7 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 		config = next
 	}
 
-	// Brand voice → translate steps (translate / its "translate" alias).
+	// Voice profile → translate steps (translate / its "translate" alias).
 	if b.profile != nil && isTranslateTool(toolName, s) {
 		if _, ok := config["profile"]; !ok {
 			clone()
@@ -2056,7 +2056,7 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 	// project's terminology never reached it. A project with a terms store had its
 	// terminology *checked* after the fact by term-check, yet never *enforced at
 	// generation*: the model was simply never told the terms store. Wired here the way
-	// brand voice is above (not by adding Terms to translate's Requires, which
+	// voice profile is above (not by adding Terms to translate's Requires, which
 	// gates nothing else and would imply a terms store is mandatory).
 	//
 	// The two tools want the same key in different shapes — term-check takes the
@@ -2100,7 +2100,7 @@ func MergeToolPreset(preset, config map[string]any) map[string]any {
 }
 
 // isTranslateTool reports whether a step's tool is the translate tool, which
-// accepts a brand voice profile via config["profile"].
+// accepts a voice profile via config["profile"].
 func isTranslateTool(toolName string, s *schema.ComponentSchema) bool {
 	if toolName == "translate" {
 		return true

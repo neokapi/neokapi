@@ -24,7 +24,7 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "check_text",
 		Description: "Verify a text snippet against the content checkset (text hygiene, length limits, " +
-			"forbidden/required patterns, and brand vocabulary when a profile is given) and return a " +
+			"forbidden/required patterns, and voice vocabulary when a profile is given) and return a " +
 			"kapi.check/v1 Report: pass, a 0-100 score, the gate, and a finding per stable rule id. Use it to " +
 			"check content you authored, then fix and re-check until it passes.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in checkTextInput) (*mcp.CallToolResult, check.Report, error) {
@@ -50,7 +50,7 @@ type checkTextInput struct {
 	Forbid      []string `json:"forbid,omitempty" jsonschema:"regex that must NOT appear in the content"`
 	Require     []string `json:"require,omitempty" jsonschema:"regex that MUST appear in the content"`
 	ProfilePack string   `json:"profile_pack,omitempty" jsonschema:"built-in profile pack to check vocabulary against (e.g. marketing-blog)"`
-	ProfileFile string   `json:"profile_file,omitempty" jsonschema:"path to a brand voice profile YAML"`
+	ProfileFile string   `json:"profile_file,omitempty" jsonschema:"path to a voice profile YAML"`
 }
 
 // checkFileInput is the input to the check_file MCP tool.
@@ -61,7 +61,7 @@ type checkFileInput struct {
 	Forbid      []string `json:"forbid,omitempty" jsonschema:"regex that must NOT appear in the content"`
 	Require     []string `json:"require,omitempty" jsonschema:"regex that MUST appear in the content"`
 	ProfilePack string   `json:"profile_pack,omitempty" jsonschema:"built-in profile pack to check vocabulary against"`
-	ProfileFile string   `json:"profile_file,omitempty" jsonschema:"path to a brand voice profile YAML"`
+	ProfileFile string   `json:"profile_file,omitempty" jsonschema:"path to a voice profile YAML"`
 	Target      string   `json:"target,omitempty" jsonschema:"translated target file to check against the source (enables bilingual l10n checks)"`
 	TargetLang  string   `json:"target_lang,omitempty" jsonschema:"locale of the target file (e.g. de)"`
 	DNT         []string `json:"dnt,omitempty" jsonschema:"do-not-translate terms that must survive verbatim into the target"`
@@ -143,7 +143,7 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 }
 
 // mcpCheckOptions resolves the shared content-check options for the MCP tools,
-// loading a brand profile from a pack/file when one is named.
+// loading a voice profile from a pack/file when one is named.
 func (a *App) mcpCheckOptions(maxChars, maxWords int, forbid, require []string, pack, file string) (checkRunOptions, error) {
 	opts := checkRunOptions{maxChars: maxChars, maxWords: maxWords, forbid: forbid, require: require}
 	if pack != "" || file != "" {

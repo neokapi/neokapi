@@ -1,115 +1,5 @@
 {
   "tools": {
-    "brand-voice-check": {
-      "displayName": "AI Brand Voice Check",
-      "description": "Check text against a brand voice profile using an LLM provider",
-      "category": "quality",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the AI provider"
-        },
-        "model": {
-          "title": "Model",
-          "description": "AI model name"
-        },
-        "profileId": {
-          "title": "Profile ID",
-          "description": "Brand voice profile to resolve from the store"
-        },
-        "provider": {
-          "title": "AI Provider",
-          "description": "AI provider",
-          "options": {
-            "anthropic": {
-              "label": "Anthropic"
-            },
-            "azureopenai": {
-              "label": "Azure OpenAI"
-            },
-            "claude-code": {
-              "label": "Claude Code"
-            },
-            "demo": {
-              "label": "Demo (illustrative)"
-            },
-            "gemini": {
-              "label": "Gemini"
-            },
-            "ollama": {
-              "label": "Ollama"
-            },
-            "openai": {
-              "label": "OpenAI"
-            }
-          }
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "Provider"
-        }
-      }
-    },
-    "brand-voice-infer": {
-      "displayName": "AI Brand Voice Inference",
-      "description": "Infer a draft brand voice profile from a content corpus using an LLM provider",
-      "category": "analysis",
-      "properties": {
-        "apiKey": {
-          "title": "API Key",
-          "description": "API key for the AI provider"
-        },
-        "domain": {
-          "title": "Domain",
-          "description": "Subject domain hint for the analysis (e.g. medical legal technology)"
-        },
-        "maxExamples": {
-          "title": "Max Examples",
-          "description": "Maximum before/after examples to infer"
-        },
-        "model": {
-          "title": "Model",
-          "description": "AI model name"
-        },
-        "profileName": {
-          "title": "Profile Name",
-          "description": "Name for the inferred draft profile"
-        },
-        "provider": {
-          "title": "AI Provider",
-          "description": "AI provider",
-          "options": {
-            "anthropic": {
-              "label": "Anthropic"
-            },
-            "azureopenai": {
-              "label": "Azure OpenAI"
-            },
-            "claude-code": {
-              "label": "Claude Code"
-            },
-            "demo": {
-              "label": "Demo (illustrative)"
-            },
-            "gemini": {
-              "label": "Gemini"
-            },
-            "ollama": {
-              "label": "Ollama"
-            },
-            "openai": {
-              "label": "OpenAI"
-            }
-          }
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "Provider"
-        }
-      }
-    },
     "case-transform": {
       "displayName": "Case Transform",
       "category": "text-processing",
@@ -1140,6 +1030,116 @@
       "displayName": "Unredact",
       "description": "Restore original values into redacted content after processing",
       "category": "text-processing"
+    },
+    "voice-check": {
+      "displayName": "AI Voice Check",
+      "description": "Check text against a voice profile using an LLM provider",
+      "category": "quality",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "profileId": {
+          "title": "Profile ID",
+          "description": "Voice profile to resolve from the store"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
+    "voice-infer": {
+      "displayName": "AI Voice Inference",
+      "description": "Infer a draft voice profile from a content corpus using an LLM provider",
+      "category": "analysis",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "domain": {
+          "title": "Domain",
+          "description": "Subject domain hint for the analysis (e.g. medical legal technology)"
+        },
+        "maxExamples": {
+          "title": "Max Examples",
+          "description": "Maximum before/after examples to infer"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "profileName": {
+          "title": "Profile Name",
+          "description": "Name for the inferred draft profile"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
     },
     "whitespace-correct": {
       "displayName": "Whitespace Correct",

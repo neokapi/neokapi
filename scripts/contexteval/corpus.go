@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
-	brand "github.com/neokapi/neokapi/core/profile"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 )
 
 // The corpus is engineered so that a *naive* translation violates the injected
@@ -20,7 +20,7 @@ import (
 //     ("dashboard" → the anglicism, where the glossary mandates "Leitstand");
 //   - a product name that reads like a common noun ("Compass"), which a model
 //     will translate unless told not to;
-//   - casual English that tempts an informal register where the brand voice is
+//   - casual English that tempts an informal register where the voice profile is
 //     formal, and contractions where the brand forbids them;
 //   - rule-shaped instructions the source actively violates ("no exclamation
 //     marks" on a source that ends in one).
@@ -45,7 +45,7 @@ const (
 	// DimTerminology is carried by the glossary (term mandates and the identity
 	// pins that keep do-not-translate names verbatim).
 	DimTerminology = "terminology"
-	// DimVoice is carried by the brand voice profile, injected in production
+	// DimVoice is carried by the voice profile, injected in production
 	// via profile.RenderVoiceGuideCompact: tone (personality, formality, humor,
 	// guidelines), style (contractions, sentence length, prohibited patterns),
 	// and forbidden-term rules.
@@ -59,7 +59,7 @@ const (
 //
 //   - Term: the real term-check tool (mandated target term must appear);
 //   - DNT: the real dnt-check tool (term must survive verbatim);
-//   - VocabClean: the real brand-vocab-check tool over the translation
+//   - VocabClean: the real voice-vocab-check tool over the translation
 //     (no unexcused forbidden/competitor hits);
 //   - MustMatch / MustNotMatch: the real pattern-check tool (either or both).
 type Check struct {
@@ -110,11 +110,11 @@ type Context struct {
 	Glossary map[string]string
 	// DNT lists the names that must survive verbatim — what dnt-check enforces.
 	DNT []string
-	// Profile is the synthetic brand voice. What
+	// Profile is the synthetic voice profile. What
 	// profile.RenderVoiceGuideCompact renders reaches the model — every populated
 	// tone/style constraint plus forbidden-term rules — so every voice fixture
 	// tests exactly that surface.
-	Profile *brand.VoiceProfile
+	Profile *coreprofile.VoiceProfile
 	// Instruction is the free-form steering string.
 	Instruction string
 }
@@ -232,7 +232,7 @@ func (c TestCorpus) Digest() string {
 	fmt.Fprintf(h, "dnt:%s\x00", strings.Join(c.Ctx.DNT, ","))
 	// The rendered guide, not the profile struct: what the model sees is what
 	// the experiment is.
-	fmt.Fprintf(h, "voice:%s\x00", brand.RenderVoiceGuideCompact(c.Ctx.Profile))
+	fmt.Fprintf(h, "voice:%s\x00", coreprofile.RenderVoiceGuideCompact(c.Ctx.Profile))
 	fmt.Fprintf(h, "instruction:%s\x00", c.Ctx.Instruction)
 	return hex.EncodeToString(h.Sum(nil))[:12]
 }
@@ -290,17 +290,17 @@ func contextFor(target string) Context {
 	instruction := "Never use exclamation marks. Write numbers as digits, never as words. " +
 		"Keep any text wrapped in backticks exactly as it appears in the source."
 
-	profile := &brand.VoiceProfile{
+	profile := &coreprofile.VoiceProfile{
 		ID:          "northsea-voice",
 		Name:        "Northsea",
-		Description: "Synthetic brand voice for the context eval — engineered for trap density, resembling no real customer.",
-		Tone: brand.ToneProfile{
+		Description: "Synthetic voice profile for the context eval — engineered for trap density, resembling no real customer.",
+		Tone: coreprofile.ToneProfile{
 			Personality: []string{"precise", "calm"},
 			Formality:   "formal",
 			Emotion:     "neutral",
 			Humor:       "none",
 		},
-		Style: brand.StyleRules{
+		Style: coreprofile.StyleRules{
 			ActiveVoice:  true,
 			Contractions: "never",
 			PersonPOV:    "second",
@@ -326,7 +326,7 @@ func contextFor(target string) Context {
 		// scores swap adherence ("was the mandated replacement used"), which
 		// needs a declared replacement to check against. (The compact guide now
 		// renders bare bans too; scoring them would need a different check.)
-		profile.Vocabulary.ForbiddenTerms = []brand.TermRule{
+		profile.Vocabulary.ForbiddenTerms = []coreprofile.TermRule{
 			{Term: "einfach", Replacement: "direkt", Note: "filler minimizer"},
 			{Term: "Nutzer", Replacement: "Benutzer"},
 			{Term: "App", Replacement: "Anwendung"},
@@ -348,7 +348,7 @@ func contextFor(target string) Context {
 			"Compass":   "Compass",
 			"tidectl":   "tidectl",
 		}
-		profile.Vocabulary.ForbiddenTerms = []brand.TermRule{
+		profile.Vocabulary.ForbiddenTerms = []coreprofile.TermRule{
 			{Term: "simplement", Replacement: "directement", Note: "filler minimizer"},
 			{Term: "bateau", Replacement: "navire"},
 		}
@@ -360,7 +360,7 @@ func contextFor(target string) Context {
 			"Compass":   "Compass",
 			"tidectl":   "tidectl",
 		}
-		profile.Vocabulary.ForbiddenTerms = []brand.TermRule{
+		profile.Vocabulary.ForbiddenTerms = []coreprofile.TermRule{
 			{Term: "leverage", Replacement: "use"},
 			{Term: "seamless", Replacement: "unified"},
 		}
@@ -383,7 +383,7 @@ func contextFor(target string) Context {
 			"Compass":   "Compass",
 			"tidectl":   "tidectl",
 		}
-		profile.Vocabulary.ForbiddenTerms = []brand.TermRule{
+		profile.Vocabulary.ForbiddenTerms = []coreprofile.TermRule{
 			{Term: "båt", Replacement: "farkost", Note: "casual register"},
 			{Term: "sømløs", Replacement: "helhetlig"},
 		}

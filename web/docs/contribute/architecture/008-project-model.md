@@ -15,7 +15,7 @@ sibling `.kapi/` directory. The recipe captures the user's declarative intent �
 identity, content collections, flows, store selection, plus any platform
 extensions (such as a `server:` block) when a platform layer is in use.
 `.kapi/` is the one directory kapi owns, and it is **committed**: it holds the
-project's context — terms, content memory, brand voice, the unit-state record —
+project's context — terms, content memory, voice profile, the unit-state record —
 alongside the manifest, the filter configuration and the file-per-flow
 definitions.
 
@@ -130,11 +130,11 @@ Ownership:
   `defaults.memory_source`; there is no unbound fallback, because a project has
   one set of terms but *many* memory bundles, one per content surface, so a
   bundle is always named rather than guessed. `voice.yaml` is the voice profile
-  ([AD-022](022-brand-voice.md)). All three recipe keys bind any path — these are
+  ([AD-022](022-voice-profile.md)). All three recipe keys bind any path — these are
   the conventional homes, not the only ones.
 - **`.kapi/profiles/<profile>/`** — what a profile overrides, and nothing else.
   Governance binds to a region of the context space
-  ([AD-022](022-brand-voice.md)), so the flat files are the project default and
+  ([AD-022](022-voice-profile.md)), so the flat files are the project default and
   a profile's differences sit in a directory named for it. A profile that binds
   no `voice:`/`terms:` of its own is answered by its directory before the
   default is. Only governance splits this way: the content memory and the state

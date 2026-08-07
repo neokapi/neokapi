@@ -56,7 +56,7 @@ var conceptPattern = regexp.MustCompile(`^\S+$`)
 // bound one. Exported because a caller that wants the profile's conventional
 // file to answer BEFORE the project default has to be able to tell the two
 // apart, and ResolvedGovernance.VoiceField is where that is recorded.
-const DefaultVoiceField = "defaults.brand_voice"
+const DefaultVoiceField = "defaults.voice"
 
 // defaultPointSubject names the point a run sits at when no collection claims
 // its content, for error messages.
@@ -131,9 +131,9 @@ type ProfileBinding struct {
 	// When is the coordinate match. Empty matches every point.
 	When map[string]string `yaml:"when,omitempty" json:"when,omitempty"`
 	// Voice is the voice profile governing the matched content, in the same
-	// forms as defaults.brand_voice (a bare path, or profile_file / profile /
-	// pack). nil keeps defaults.brand_voice.
-	Voice *BrandVoiceBinding `yaml:"voice,omitempty" json:"voice,omitempty"`
+	// forms as defaults.voice (a bare path, or profile_file / profile /
+	// pack). nil keeps defaults.voice.
+	Voice *VoiceBinding `yaml:"voice,omitempty" json:"voice,omitempty"`
 	// Terms is a STANDALONE terms store governing the matched content — a
 	// file the recipe points at, resolved relative to the project root. Empty
 	// is the ordinary case: the project's own store governs.
@@ -180,15 +180,15 @@ type ResolvedGovernance struct {
 	// Channel is the collection's value on ChannelAxis, empty when it names
 	// none.
 	Channel string
-	// Voice is the matched profile's voice, else defaults.brand_voice. nil
+	// Voice is the matched profile's voice, else defaults.voice. nil
 	// when neither binds one.
-	Voice *BrandVoiceBinding
+	Voice *VoiceBinding
 	// Terms is the matched profile's standalone terms store, as written in the
 	// recipe — relative to the project root unless absolute. Empty means the
 	// project's own store governs, which is the ordinary case.
 	Terms string
 	// VoiceField names the recipe key Voice came from (`profiles[1].voice` or
-	// `defaults.brand_voice`), so a profile that cannot be loaded names the
+	// `defaults.voice`), so a profile that cannot be loaded names the
 	// line to fix.
 	VoiceField string
 	// Profile is the matched profile's conventional name — the directory under
@@ -199,7 +199,7 @@ type ResolvedGovernance struct {
 
 // ResolveGovernance returns the governance in force over the named content
 // collection: the most specific profile matching its coordinates, resolved over
-// defaults.brand_voice.
+// defaults.voice.
 //
 // An empty or unknown collection name resolves the project's default point, so
 // a caller holding a path no collection claims — an ad-hoc file, a pattern that
@@ -223,7 +223,7 @@ func (p *KapiProject) ResolveGovernance(collection string) (*ResolvedGovernance,
 func (p *KapiProject) resolveAt(coords map[string]string, subject string) (*ResolvedGovernance, error) {
 	rc := &ResolvedGovernance{
 		Channel:    coords[ChannelAxis],
-		Voice:      p.Defaults.BrandVoice,
+		Voice:      p.Defaults.Voice,
 		VoiceField: DefaultVoiceField,
 	}
 	i, prof, err := p.selectProfile(coords, subject)

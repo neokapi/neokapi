@@ -59,7 +59,7 @@ pseudocode) are separated into [Implementation Notes](/contribute/implementation
 | [010](010-terminology.md)        | Terminology        | Concept model, Terminology, tiered lookup                        |
 | [011](011-ai-providers.md)       | AI Providers       | LLMProvider, streaming, batching, worker pool                 |
 | [012](012-mt-providers.md)       | MT Providers       | MTProvider interface, built-in backends                       |
-| [022](022-brand-voice.md)        | Brand Voice        | VoiceProfile, starter packs, vocab/voice checks, scoring, command + MCP surface |
+| [022](022-voice-profile.md)        | Voice        | VoiceProfile, starter packs, vocab/voice checks, scoring, command + MCP surface |
 
 ## Applications
 

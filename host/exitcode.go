@@ -13,11 +13,11 @@ const (
 	ExitOK     = 0
 	ExitError  = 1
 	ExitUsage  = 2
-	ExitGate   = 3   // a quality/brand gate failed (distinct from operational error)
+	ExitGate   = 3   // a quality/voice gate failed (distinct from operational error)
 	ExitSignal = 130 // 128 + SIGINT(2)
 )
 
-// ErrQualityGate signals that a quality/brand gate (e.g. `kapi brand check
+// ErrQualityGate signals that a quality/voice gate (e.g. `kapi voice check
 // --min-score`) failed. Commands return it so skills and CI can distinguish a
 // failed gate (ExitGate) from an operational error (ExitError). Output is still
 // written normally before the command returns this sentinel.
@@ -67,7 +67,7 @@ func SignalContext(parent context.Context) (context.Context, context.CancelFunc)
 
 // ExitCode determines the appropriate exit code for the given error.
 // It returns ExitSignal for context cancellation (Ctrl-C), ExitGate for a
-// failed quality/brand gate, an explicit code for errors tagged via
+// failed quality/voice gate, an explicit code for errors tagged via
 // WithExitCode (e.g. the toolbox utilities mapping operational trouble to
 // ExitUsage), and ExitError for all other errors.
 func ExitCode(_ Command, err error) int {
@@ -80,7 +80,7 @@ func ExitCode(_ Command, err error) int {
 		return ExitSignal
 	}
 
-	// Quality/brand gate failure gets a distinct code.
+	// Quality/voice gate failure gets a distinct code.
 	if errors.Is(err, ErrQualityGate) {
 		return ExitGate
 	}

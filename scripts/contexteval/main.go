@@ -1,5 +1,5 @@
 // Command contexteval measures how well a model uses the context kapi injects —
-// the glossary, the brand voice profile, and the instruction — rather than how
+// the glossary, the voice profile, and the instruction — rather than how
 // well it translates. The two are different questions: a capable model may pick
 // the right register unprompted, and that earns our brand guide no credit.
 //
@@ -13,7 +13,7 @@
 //     section).
 //
 // Both passes are scored with the framework's own check tools (term-check,
-// dnt-check, brand-vocab-check, pattern-check) against expectations the corpus
+// dnt-check, voice-vocab-check, pattern-check) against expectations the corpus
 // declares per fixture. Two numbers fall out per dimension — absolute adherence
 // (did the steered output satisfy the requirement) and lift (steered minus
 // bare: how much the context actually moved the model). Lift is the number that

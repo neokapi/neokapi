@@ -22,7 +22,7 @@ import (
 //   - PRESENCE: the target CONTAINS a forbidden or competitor term — drawn from
 //     the terms store (LookupAll, the same matcher the concept blast radius and RV-E
 //     use) AND from the brand profile's vocabulary (core/profile.MatchVocabulary,
-//     the single brand-vocab matcher the brand-vocab-check tool and blast radius
+//     the single brand-vocab matcher the voice-vocab-check tool and blast radius
 //     call).
 //   - ABSENCE: the source uses a concept that MANDATES a preferred/approved
 //     rendering for the target locale, yet the target OMITS it — the term-check /

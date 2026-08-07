@@ -96,7 +96,7 @@ func (a *App) RunCheck(cmd Command, args []string) error {
 
 // checkProjectSources resolves what a bare `kapi check` checks: every source
 // file the project declares as content. It is the same resolution the ship gate
-// and the brand gate use (projectSourceFiles), so "check my content" means the
+// and the voice gate use (projectSourceFiles), so "check my content" means the
 // same set of files whichever bar you hold it to.
 //
 // Outside a project there is nothing to expand to, so the file requirement
@@ -138,11 +138,11 @@ func (a *App) checkProjectSources(cmd Command) ([]string, error) {
 // verify engine (RunVerify/computeVerify), which the Stop hook also drives, so a
 // release gate and the hook evaluate a project identically. Flag defaults that
 // differ between the file checkset and the project gates are mapped here: an
-// untouched --min-score means the brand-gate threshold (DefaultBrandMinScore),
+// untouched --min-score means the voice-gate threshold (DefaultVoiceMinScore),
 // and an untouched --source-lang defers to the project's source_language.
 func (a *App) runShipCheck(cmd Command, args []string) error {
 	if !cmd.Flags().Changed("min-score") {
-		_ = cmd.Flags().Set("min-score", strconv.Itoa(DefaultBrandMinScore))
+		_ = cmd.Flags().Set("min-score", strconv.Itoa(DefaultVoiceMinScore))
 	}
 	if !cmd.Flags().Changed("source-lang") {
 		// computeVerify treats "" as "use the project's source_language"; the
@@ -412,15 +412,15 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 
 	// Brand vocabulary — separate annotation; runs when a profile is bound.
 	if opts.profile != nil {
-		vocab := coretools.NewBrandVocabCheckTool(opts.profile, nil)
+		vocab := coretools.NewVoiceVocabCheckTool(opts.profile, nil)
 		for _, b := range blocks {
 			if err := RunCheckTool(ctx, vocab, b); err != nil {
-				return nil, fmt.Errorf("brand vocabulary check %s: %w", DisplayName(file), err)
+				return nil, fmt.Errorf("voice vocabulary check %s: %w", DisplayName(file), err)
 			}
-			if ann, ok := model.AnnoAs[*profile.BrandVoiceAnnotation](b, "brand-voice"); ok {
+			if ann, ok := model.AnnoAs[*profile.VoiceAnnotation](b, "voice"); ok {
 				loc := check.Location{File: DisplayName(file), Block: blockKey(b)}
 				for _, f := range ann.Findings {
-					diags = append(diags, check.DiagnosticFrom(f, "brand", loc))
+					diags = append(diags, check.DiagnosticFrom(f, "voice", loc))
 				}
 			}
 		}
@@ -430,7 +430,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	if opts.voice {
 		refs := voiceExamples(opts.profile)
 		if len(refs) == 0 {
-			return nil, errors.New("--voice needs a brand profile with examples (--profile/--pack/--profile-file)")
+			return nil, errors.New("--voice needs a voice profile with examples (--profile/--pack/--profile-file)")
 		}
 		t, closeT, derr := dialVoicePlugin(ctx)
 		if derr != nil {
@@ -548,8 +548,8 @@ func (a *App) resolveCheckProfile(cmd Command) (*profile.VoiceProfile, error) {
 	file, _ := cmd.Flags().GetString("profile-file")
 	pack, _ := cmd.Flags().GetString("pack")
 	if name == "" && file == "" && pack == "" {
-		return nil, nil // a brand profile is optional for `kapi check`
+		return nil, nil // a voice profile is optional for `kapi check`
 	}
-	p, _, err := a.ResolveBrandProfileCmd(cmd)
+	p, _, err := a.ResolveVoiceProfileCmd(cmd)
 	return p, err
 }

@@ -23,7 +23,7 @@ func NewApplyCmd(a *App) *cobra.Command {
 		GroupID: "work",
 		Long: `Apply a typed change-set: the write sibling of 'kapi inspect'. Each entry is
 one reviewed change — a content edit, an asset edit (term, content-memory pair,
-brand rule, recipe field), or a review outcome (kind:"review"). Content edits
+voice rule, recipe field), or a review outcome (kind:"review"). Content edits
 land through the same byte-faithful round-trip the engine's writers use (structure and
 inline codes preserved), drift-guarded by content_hash; asset edits are written
 into their committed source artifact and the existing import compiles them into

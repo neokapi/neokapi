@@ -9,7 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// ResolveProfileFromContext resolves the most specific brand voice profile
+// ResolveProfileFromContext resolves the most specific voice profile
 // from the organizational hierarchy and applies locale + channel overrides.
 //
 // Resolution order (most specific wins):
@@ -24,7 +24,7 @@ import (
 // differ in which tiers they populate, never in how the tiers are ranked.
 //
 // Returns nil if no profile is bound at any level.
-func ResolveProfileFromContext(ctx context.Context, rc ResolveContext, store BrandStore) (*VoiceProfile, error) {
+func ResolveProfileFromContext(ctx context.Context, rc ResolveContext, store Store) (*VoiceProfile, error) {
 	profile, err := resolveBoundProfile(ctx, rc, store)
 	if err != nil || profile == nil {
 		return nil, err
@@ -39,7 +39,7 @@ func ResolveProfileFromContext(ctx context.Context, rc ResolveContext, store Bra
 // at the most specific tier. A tier binds either a store id, fetched here, or —
 // at the collection tier — a profile the caller has already loaded from a
 // source the store cannot name, such as a profile file or a starter pack.
-func resolveBoundProfile(ctx context.Context, rc ResolveContext, store BrandStore) (*VoiceProfile, error) {
+func resolveBoundProfile(ctx context.Context, rc ResolveContext, store Store) (*VoiceProfile, error) {
 	if rc.ExplicitProfileID != "" {
 		return fetchProfile(ctx, store, rc.ExplicitProfileID)
 	}
@@ -63,9 +63,9 @@ func resolveBoundProfile(ctx context.Context, rc ResolveContext, store BrandStor
 // tier carries an already-loaded profile passes no store; an id with nowhere to
 // resolve it from is a configuration error rather than a silent miss, which
 // would leave the content ungoverned and read as if nothing were bound.
-func fetchProfile(ctx context.Context, store BrandStore, id string) (*VoiceProfile, error) {
+func fetchProfile(ctx context.Context, store Store, id string) (*VoiceProfile, error) {
 	if store == nil {
-		return nil, fmt.Errorf("brand voice profile %q is bound but no brand store was supplied to resolve it", id)
+		return nil, fmt.Errorf("voice profile %q is bound but no voice store was supplied to resolve it", id)
 	}
 	return store.GetProfile(ctx, id)
 }
@@ -106,9 +106,9 @@ func resolvePersona(rc ResolveContext) string {
 // ResolveProfile returns the most specific profile configuration for a given
 // scope. It layers, in order, locale → channel → persona overrides on the base
 // profile. Persona is applied last, so an author persona's tone/style win over
-// a channel's, while its vocabulary deltas stay bounded by the brand's
+// a channel's, while its vocabulary deltas stay bounded by the profile's
 // guardrails (see PersonaOverride): Avoided terms tighten the forbidden set and
-// a Preferred term the brand already forbids is dropped, never re-allowed.
+// a Preferred term the profile already forbids is dropped, never re-allowed.
 func ResolveProfile(profile *VoiceProfile, loc model.LocaleID, channel, persona string) *VoiceProfile {
 	if profile == nil {
 		return nil
@@ -152,11 +152,11 @@ func ResolveProfile(profile *VoiceProfile, loc model.LocaleID, channel, persona 
 		}
 	}
 
-	// Apply persona override last, inside the brand's guardrails. Tone/Style
+	// Apply persona override last, inside the profile's guardrails. Tone/Style
 	// replace what a channel set (persona wins over channel). Vocabulary deltas
 	// can only tighten: Avoided terms extend the forbidden set, and a Preferred
-	// term the brand already forbids is dropped so a persona can never re-allow
-	// a brand-prohibited word.
+	// term the profile already forbids is dropped so a persona can never re-allow
+	// a profile-prohibited word.
 	if persona != "" {
 		if override, ok := profile.Personas[persona]; ok {
 			if override.Tone != nil {
@@ -199,7 +199,7 @@ func appendTermRules(base []TermRule, extra ...TermRule) []TermRule {
 
 // vocabularyForbids reports whether the vocabulary rules already forbid term —
 // as a forbidden term or a competitor term — compared case-insensitively. It is
-// the guardrail that stops a persona re-allowing a brand-forbidden word through
+// the guardrail that stops a persona re-allowing a profile-forbidden word through
 // a Preferred rule.
 func vocabularyForbids(v VocabularyRules, term string) bool {
 	want := strings.ToLower(strings.TrimSpace(term))

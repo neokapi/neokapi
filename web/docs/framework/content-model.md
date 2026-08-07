@@ -194,7 +194,7 @@ The built-in stand-off types:
 | Annotation     | `seg-count`         | whole block | segment-count analysis result                     |
 | Annotation     | `comparison`        | whole block | source/target comparison result                   |
 | Annotation     | `repetition`        | whole block | repetition / leverage analysis                    |
-| Annotation     | `brand-voice`       | whole block | brand-voice check result                          |
+| Annotation     | `voice`       | whole block | voice check result                          |
 
 Both overlay span `Value`s and annotation values are typed payloads registered
 with one payload registry (`RegisterPayload` / `NewPayload`) keyed by type name,
@@ -286,7 +286,7 @@ back with only the changed text differing.
 Translation is the most visible thing the content model carries, but it is not a
 requirement. A block's `Targets` map can stay empty for the whole run — the model
 works the same way when the only locale in play is the source. This is the path a
-brand or terminology pass takes: read a file, check the source content, edit it in
+voice or terminology pass takes: read a file, check the source content, edit it in
 place, and write the original back with only the edited text changed.
 
 Take a Markdown file with one off-brand sentence. The reader produces blocks whose
@@ -299,7 +299,7 @@ Block "intro"
 ```
 
 A [check](/framework/checks) reads each block's `SourceText()`, compares it
-against a brand-voice profile or the project [terms store](/framework/terminology),
+against a voice profile or the project [terms store](/framework/terminology),
 and records each problem as a stand-off `qa` overlay anchored to the offending
 runs — it annotates, it does not rewrite (see
 [the immutability model](/framework/tools)):

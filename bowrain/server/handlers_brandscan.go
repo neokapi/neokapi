@@ -288,7 +288,7 @@ func (s *Server) HandleCheckBrandDraft(c echo.Context) error {
 	runs := []model.Run{{Text: &model.TextRun{Text: req.Text}}}
 	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(req.Profile, req.Text), req.Text, runs)
 	if findings == nil {
-		findings = []coreprofile.BrandVoiceFinding{}
+		findings = []coreprofile.VoiceFinding{}
 	}
 	score := coreprofile.CalculateScore(findings)
 

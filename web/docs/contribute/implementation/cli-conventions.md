@@ -108,7 +108,7 @@ namesakes' contract.
 | `plugin …` | positional name | — | text·json·yaml | — | 1; doctor 1 unhealthy |
 | `models …` | positional model | — | text·json·yaml | — | 1 |
 | `memory …` / `terms …` | positional / `--name`,`--local`,`--file` | `import-dir` walks | text·json·yaml | resource flags | 1 |
-| `brand …` | positional / `--input-text` / stdin | — | text·json·yaml | profile flags | 3 min-score |
+| `voice …` | positional / `--input-text` / stdin | — | text·json·yaml | profile flags | 3 min-score |
 | `credentials …` | positional name | — | text·json·yaml | — | 1 |
 | `config …` | positional key/value | — | text·json·yaml | positional form: required | 1 |
 | `version` / `update` / `telemetry` / `completion` | — | — | text·json·yaml | — | 1 |

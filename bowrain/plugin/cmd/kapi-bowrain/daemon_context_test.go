@@ -55,7 +55,7 @@ func TestDaemonPushDeclaresTheRecipeContext(t *testing.T) {
 			},
 			Profiles: []coreproj.ProfileBinding{{
 				When:  map[string]string{"product": "kapi"},
-				Voice: &coreproj.BrandVoiceBinding{ProfileFile: "voice.yaml"},
+				Voice: &coreproj.VoiceBinding{ProfileFile: "voice.yaml"},
 			}},
 			Content: []coreproj.ContentCollection{
 				{

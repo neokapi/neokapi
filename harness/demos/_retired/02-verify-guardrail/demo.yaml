@@ -6,12 +6,12 @@ aspects:
   - verify loop
   - terminology
   - placeholder QA
-  - brand voice
+  - voice profile
 needsAi: false
 model: sonnet
 captureTimeoutSec: 360
 
-# Real git-tracked project with a bound brand voice + glossary. Natural English
+# Real git-tracked project with a bound voice profile + glossary. Natural English
 # keys (the source text is the key). The French file is behind: one English
 # string has no translation yet, and two existing entries are wrong — "Boards"
 # wasn't translated to the team's glossary term, and a greeting lost its
@@ -60,13 +60,13 @@ narration:
     kind: terminal
     text: >
       Following the kapi skill, Claude doesn't hand-edit the file. It asks kapi which strings
-      need translating, looks up the project's glossary and brand voice, and translates against
+      need translating, looks up the project's glossary and voice profile, and translates against
       them — then lets kapi write the results back into the JSON.
     caption: "Claude translates through kapi — extract, glossary, merge"
   - id: verify
     kind: terminal
     text: >
-      Then it runs kapi check --ship: brand voice, terminology, and placeholders, all in one gate.
+      Then it runs kapi check --ship: voice profile, terminology, and placeholders, all in one gate.
       Because it translated against the project's rules, every check comes back green — and
       only then does it call the work done.
     caption: "kapi check --ship — brand, terminology, placeholders: all green"

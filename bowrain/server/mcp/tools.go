@@ -42,8 +42,8 @@ type checkVocabularyInput struct {
 
 // checkVocabularyOutput is the output for the check_vocabulary tool.
 type checkVocabularyOutput struct {
-	Findings []coreprofile.BrandVoiceFinding  `json:"findings"`
-	Score    coreprofile.BrandComplianceScore `json:"score"`
+	Findings []coreprofile.VoiceFinding  `json:"findings"`
+	Score    coreprofile.ComplianceScore `json:"score"`
 }
 
 func (s *MCPServer) handleCheckVocabulary(ctx context.Context, req *mcp.CallToolRequest, input checkVocabularyInput) (*mcp.CallToolResult, checkVocabularyOutput, error) {

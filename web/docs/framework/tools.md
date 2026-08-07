@@ -18,7 +18,7 @@ channel.
 
 Because every tool speaks the same channel contract, tools compose freely. A
 translation run is one chain — leverage from memory, look up terminology,
-translate the remainder, check quality; a monolingual brand pass is another —
+translate the remainder, check quality; a monolingual voice pass is another —
 check the source, rewrite the off-voice runs, check again. Each tool handles the
 Parts it cares about and passes the rest through untouched. The category of work a
 tool does is not fixed by the framework; the same interface backs analysis,
@@ -200,7 +200,7 @@ system](/framework/content-model) rather than rewriting text: the `recycle` tool
 attaches candidate memory matches, a QA tool attaches findings, and downstream tools
 or an editor read those annotations. This shared annotation channel is how
 [content memory](/framework/content-memory),
-[terminology](/framework/terminology), and [brand voice](/framework/checks/brand-voice)
+[terminology](/framework/terminology), and [voice profile](/framework/checks/voice)
 results all reach the same consumer without colliding.
 
 ## Configuration and schemas

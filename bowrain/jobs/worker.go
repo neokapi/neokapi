@@ -86,7 +86,7 @@ type WorkerDeps struct {
 	// BrandStore reads brand voice profiles so a translation job carries the
 	// project's brand voice into the AI prompt — parity with the CLI flow's
 	// brand binding. Optional; nil translates without brand voice.
-	BrandStore brand.BrandStore
+	BrandStore brand.Store
 	// WorkspaceDefault resolves the workspace-level default brand-voice
 	// profile — the base rung of the brandscope resolution ladder that a
 	// project/stream/collection binding overrides. Optional; nil skips the

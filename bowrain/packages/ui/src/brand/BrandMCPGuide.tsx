@@ -211,11 +211,11 @@ export function BrandMCPGuide({
                 desc: "Report brand knowledge-graph change-sets and blast radius",
               },
               {
-                name: "brand_check",
+                name: "voice_check",
                 desc: "Score text against a brand voice profile (0–100 + findings)",
               },
               {
-                name: "brand_rewrite",
+                name: "voice_rewrite",
                 desc: "Rewrite off-brand copy by substituting forbidden/competitor terms",
               },
               { name: "term_lookup", desc: "Look up approved terminology in the terms store" },

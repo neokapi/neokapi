@@ -3,7 +3,7 @@
 // A .kapi file is a self-contained YAML document that captures a content
 // workflow recipe: the content to process, the languages and variants, the
 // flows and tool configs to run over it, and the plugin requirements. The same
-// recipe shape drives a monolingual brand-voice and terminology check over
+// recipe shape drives a monolingual voice and terminology check over
 // source content and a multilingual translate-and-QA round-trip alike. Users
 // can save .kapi files anywhere, have multiple per directory, and share them
 // via git or email.
@@ -62,7 +62,7 @@ type KapiProject struct {
 	// the wrong one half the time. The taxonomy is the project's own — product,
 	// channel, market, tenant — and a named collection names the point its
 	// content sits at (ContentCollection.Context). Both empty means the whole
-	// project sits at one point, under defaults.brand_voice / defaults.terms_source.
+	// project sits at one point, under defaults.voice / defaults.terms_source.
 	// See coordinates.go.
 	Coordinates Coordinates      `yaml:"coordinates,omitempty" json:"coordinates,omitempty"`
 	Profiles    []ProfileBinding `yaml:"profiles,omitempty" json:"profiles,omitempty"`
@@ -145,7 +145,7 @@ type Defaults struct {
 
 	// SourceGate is the source-first convergence gate: the SourceStatus a
 	// source block must reach before its translations are produced. Source-first
-	// convergence settles the source (terminology + brand + source-QA) and gates
+	// convergence settles the source (terminology + voice + source-QA) and gates
 	// the fan-out on it, so an unsettled, off-brand, un-term-checked source is
 	// never translated into N locales only to be redone when it changes
 	// (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
@@ -154,8 +154,8 @@ type Defaults struct {
 	//   ""         — unset; the runner applies the default gate (`checked`).
 	//   "authored" — the presence baseline (any non-empty source qualifies).
 	//   "checked"  — the DEFAULT: source cleared its automated terminology,
-	//                brand, and source-QA checks (no human bottleneck).
-	//   "approved" — a human/agent signed off the source (brand-critical or
+	//                voice, and source-QA checks (no human bottleneck).
+	//   "approved" — a human/agent signed off the source (voice-critical or
 	//                regulated projects).
 	//   "none"     — the deliberate opt-out: no gate, raw MT / fan-out on push
 	//                exactly as before source-first. You have to choose it.
@@ -189,15 +189,15 @@ type Defaults struct {
 	// no redaction.
 	Redaction *RedactionSpec `yaml:"redaction,omitempty" json:"redaction,omitempty"`
 
-	// BrandVoice binds a brand voice profile as standing project context.
-	// When set, project-scoped commands (brand check/rewrite/guide and
-	// project translation flows) honor it with no profile flag. nil means
-	// no bound brand voice.
+	// Voice binds a voice profile as standing project context. When set,
+	// project-scoped commands (voice check/rewrite/guide and project
+	// translation flows) honor it with no profile flag. nil means no bound
+	// voice profile.
 	//
 	// This is the framework binding under `defaults:`. It is distinct from
 	// bowrain's top-level `brand_voice` extension (decoded from Extras),
 	// which is a platform-level policy with collection scoping.
-	BrandVoice *BrandVoiceBinding `yaml:"brand_voice,omitempty" json:"brand_voice,omitempty"`
+	Voice *VoiceBinding `yaml:"voice,omitempty" json:"voice,omitempty"`
 
 	// TermsSource binds the committed, git-tracked native source artifact
 	// (a .terms.json document) the project terms store is compiled from. This is the
@@ -246,20 +246,20 @@ type LocaleDefaults struct {
 	Tools map[string]map[string]any `yaml:"tools,omitempty" json:"tools,omitempty"`
 }
 
-// BrandVoiceBinding binds a brand voice profile — to the project under
-// `defaults.brand_voice`, or to a region of the context space under a
-// profile's `voice:`. Exactly one source is expected: a standalone profile YAML
-// (ProfileFile, resolved relative to the project root), a profile in the local
-// brand store (Profile), or a built-in starter pack (Pack).
+// VoiceBinding binds a voice profile — to the project under `defaults.voice`,
+// or to a region of the context space under a profile's `voice:`. Exactly one
+// source is expected: a standalone profile YAML (ProfileFile, resolved relative
+// to the project root), a profile in the local voice store (Profile), or a
+// built-in starter pack (Pack).
 //
 // The short form is the profile file itself — `voice: context/kapi-voice.yaml`
 // — which is what a recipe writes when the profile is a file in the project,
 // as it usually is.
-type BrandVoiceBinding struct {
+type VoiceBinding struct {
 	// ProfileFile is the path to a standalone profile YAML, resolved
 	// relative to the project root.
 	ProfileFile string `yaml:"profile_file,omitempty" json:"profile_file,omitempty"`
-	// Profile names a profile in the local brand store.
+	// Profile names a profile in the local voice store.
 	Profile string `yaml:"profile,omitempty" json:"profile,omitempty"`
 	// Pack names a built-in starter pack.
 	Pack string `yaml:"pack,omitempty" json:"pack,omitempty"`
@@ -267,34 +267,34 @@ type BrandVoiceBinding struct {
 
 // UnmarshalYAML accepts both forms: a scalar is the profile file, a mapping is
 // the full binding.
-func (b *BrandVoiceBinding) UnmarshalYAML(node *yaml.Node) error {
+func (b *VoiceBinding) UnmarshalYAML(node *yaml.Node) error {
 	if node.Kind == yaml.ScalarNode {
 		b.ProfileFile = node.Value
 		return nil
 	}
-	type brandVoiceBindingAlias BrandVoiceBinding
-	var alias brandVoiceBindingAlias
+	type voiceBindingAlias VoiceBinding
+	var alias voiceBindingAlias
 	if err := node.Decode(&alias); err != nil {
 		return err
 	}
-	*b = BrandVoiceBinding(alias)
+	*b = VoiceBinding(alias)
 	return nil
 }
 
 // MarshalYAML writes back the form the binding was authored in, so saving a
 // recipe does not expand a plain profile path into a mapping.
-func (b BrandVoiceBinding) MarshalYAML() (any, error) {
+func (b VoiceBinding) MarshalYAML() (any, error) {
 	if b.Profile == "" && b.Pack == "" {
 		return b.ProfileFile, nil
 	}
-	type brandVoiceBindingAlias BrandVoiceBinding
-	return brandVoiceBindingAlias(b), nil
+	type voiceBindingAlias VoiceBinding
+	return voiceBindingAlias(b), nil
 }
 
-// validate checks that exactly one brand-voice source is set. field names the
-// recipe key being validated (`defaults.brand_voice`, or a profile's own
-// `profiles[i].voice`), so the message points at the binding at fault.
-func (b *BrandVoiceBinding) validate(field string) error {
+// validate checks that exactly one voice source is set. field names the recipe
+// key being validated (`defaults.voice`, or a profile's own `profiles[i].voice`),
+// so the message points at the binding at fault.
+func (b *VoiceBinding) validate(field string) error {
 	if b == nil {
 		return nil
 	}
@@ -778,7 +778,7 @@ func (p *KapiProject) validate(opts LoadOptions) error {
 	if err := p.Defaults.Redaction.validate(); err != nil {
 		return err
 	}
-	if err := p.Defaults.BrandVoice.validate("defaults.brand_voice"); err != nil {
+	if err := p.Defaults.Voice.validate("defaults.voice"); err != nil {
 		return err
 	}
 	if err := p.validateContextSpace(); err != nil {

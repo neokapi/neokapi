@@ -20,7 +20,7 @@ import (
 //
 // It is deliberately provider-free: the automated `checked` gate is satisfied by
 // deterministic checks, so settling an un-ready corpus never itself burns AI
-// credits. Deeper LLM-backed source brand-checking layers on top later, not in
+// credits. Deeper LLM-backed source voice-checking layers on top later, not in
 // front of the gate.
 func SettleSourceStatus(ctx context.Context, b *model.Block) {
 	if b == nil || !b.Translatable {
@@ -44,7 +44,7 @@ func SettleSourceStatus(ctx context.Context, b *model.Block) {
 }
 
 // SeverityLister lets annotations outside the unified quality.findings shape
-// (e.g. the brand-voice annotation) expose their finding severities to the
+// (e.g. the voice annotation) expose their finding severities to the
 // source-readiness gate without this package importing them.
 type SeverityLister interface {
 	FindingSeverities() []Severity
@@ -72,7 +72,7 @@ func NewSourceReadinessTool(blockSeverity string) (*tool.BaseTool, error) {
 	}
 	t := &tool.BaseTool{
 		ToolName:        "source-check",
-		ToolDescription: "Marks source content checked once it clears its brand/terminology checks",
+		ToolDescription: "Marks source content checked once it clears its voice/terminology checks",
 	}
 	t.Annotate = func(v tool.BlockView) error {
 		// The emptiness guard is the shared run-aware presence predicate, so a

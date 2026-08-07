@@ -17,63 +17,6 @@ import * as gate$0 from "../gate/models.js";
 import * as model$0 from "../model/models.js";
 
 /**
- * BrandVoiceBinding binds a brand voice profile — to the project under
- * `defaults.brand_voice`, or to a region of the context space under a
- * profile's `voice:`. Exactly one source is expected: a standalone profile YAML
- * (ProfileFile, resolved relative to the project root), a profile in the local
- * brand store (Profile), or a built-in starter pack (Pack).
- * 
- * The short form is the profile file itself — `voice: context/kapi-voice.yaml`
- * — which is what a recipe writes when the profile is a file in the project,
- * as it usually is.
- */
-export class BrandVoiceBinding {
-    /**
-     * Creates a new BrandVoiceBinding instance.
-     * @param {Partial<BrandVoiceBinding>} [$$source = {}] - The source object to create the BrandVoiceBinding.
-     */
-    constructor($$source = {}) {
-        if (/** @type {any} */(false)) {
-            /**
-             * ProfileFile is the path to a standalone profile YAML, resolved
-             * relative to the project root.
-             * @member
-             * @type {string | undefined}
-             */
-            this["profile_file"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Profile names a profile in the local brand store.
-             * @member
-             * @type {string | undefined}
-             */
-            this["profile"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * Pack names a built-in starter pack.
-             * @member
-             * @type {string | undefined}
-             */
-            this["pack"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new BrandVoiceBinding instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {BrandVoiceBinding}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new BrandVoiceBinding(/** @type {Partial<BrandVoiceBinding>} */($$parsedSource));
-    }
-}
-
-/**
  * ContentCollection is either a bare content entry or a named collection of items.
  * 
  * Bare entry (has path, no items):
@@ -413,7 +356,7 @@ export class Defaults {
             /**
              * SourceGate is the source-first convergence gate: the SourceStatus a
              * source block must reach before its translations are produced. Source-first
-             * convergence settles the source (terminology + brand + source-QA) and gates
+             * convergence settles the source (terminology + voice + source-QA) and gates
              * the fan-out on it, so an unsettled, off-brand, un-term-checked source is
              * never translated into N locales only to be redone when it changes
              * (strategy 2026-07-dogfood doc 07 / roadmap epic 019).
@@ -422,8 +365,8 @@ export class Defaults {
              *   ""         — unset; the runner applies the default gate (`checked`).
              *   "authored" — the presence baseline (any non-empty source qualifies).
              *   "checked"  — the DEFAULT: source cleared its automated terminology,
-             *                brand, and source-QA checks (no human bottleneck).
-             *   "approved" — a human/agent signed off the source (brand-critical or
+             *                voice, and source-QA checks (no human bottleneck).
+             *   "approved" — a human/agent signed off the source (voice-critical or
              *                regulated projects).
              *   "none"     — the deliberate opt-out: no gate, raw MT / fan-out on push
              *                exactly as before source-first. You have to choose it.
@@ -517,18 +460,18 @@ export class Defaults {
         }
         if (/** @type {any} */(false)) {
             /**
-             * BrandVoice binds a brand voice profile as standing project context.
-             * When set, project-scoped commands (brand check/rewrite/guide and
-             * project translation flows) honor it with no profile flag. nil means
-             * no bound brand voice.
+             * Voice binds a voice profile as standing project context. When set,
+             * project-scoped commands (voice check/rewrite/guide and project
+             * translation flows) honor it with no profile flag. nil means no bound
+             * voice profile.
              * 
              * This is the framework binding under `defaults:`. It is distinct from
              * bowrain's top-level `brand_voice` extension (decoded from Extras),
              * which is a platform-level policy with collection scoping.
              * @member
-             * @type {BrandVoiceBinding | null | undefined}
+             * @type {VoiceBinding | null | undefined}
              */
-            this["brand_voice"] = undefined;
+            this["voice"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -626,8 +569,8 @@ export class Defaults {
         if ("redaction" in $$parsedSource) {
             $$parsedSource["redaction"] = $$createField15_0($$parsedSource["redaction"]);
         }
-        if ("brand_voice" in $$parsedSource) {
-            $$parsedSource["brand_voice"] = $$createField16_0($$parsedSource["brand_voice"]);
+        if ("voice" in $$parsedSource) {
+            $$parsedSource["voice"] = $$createField16_0($$parsedSource["voice"]);
         }
         if ("tools" in $$parsedSource) {
             $$parsedSource["tools"] = $$createField19_0($$parsedSource["tools"]);
@@ -920,7 +863,7 @@ export class KapiProject {
              * the wrong one half the time. The taxonomy is the project's own — product,
              * channel, market, tenant — and a named collection names the point its
              * content sits at (ContentCollection.Context). Both empty means the whole
-             * project sits at one point, under defaults.brand_voice / defaults.terms_source.
+             * project sits at one point, under defaults.voice / defaults.terms_source.
              * See coordinates.go.
              * @member
              * @type {Coordinates | undefined}
@@ -1368,10 +1311,10 @@ export class ProfileBinding {
         if (/** @type {any} */(false)) {
             /**
              * Voice is the voice profile governing the matched content, in the same
-             * forms as defaults.brand_voice (a bare path, or profile_file / profile /
-             * pack). nil keeps defaults.brand_voice.
+             * forms as defaults.voice (a bare path, or profile_file / profile /
+             * pack). nil keeps defaults.voice.
              * @member
-             * @type {BrandVoiceBinding | null | undefined}
+             * @type {VoiceBinding | null | undefined}
              */
             this["voice"] = undefined;
         }
@@ -1569,6 +1512,63 @@ export class ShipGateRule {
     }
 }
 
+/**
+ * VoiceBinding binds a voice profile — to the project under `defaults.voice`,
+ * or to a region of the context space under a profile's `voice:`. Exactly one
+ * source is expected: a standalone profile YAML (ProfileFile, resolved relative
+ * to the project root), a profile in the local voice store (Profile), or a
+ * built-in starter pack (Pack).
+ * 
+ * The short form is the profile file itself — `voice: context/kapi-voice.yaml`
+ * — which is what a recipe writes when the profile is a file in the project,
+ * as it usually is.
+ */
+export class VoiceBinding {
+    /**
+     * Creates a new VoiceBinding instance.
+     * @param {Partial<VoiceBinding>} [$$source = {}] - The source object to create the VoiceBinding.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * ProfileFile is the path to a standalone profile YAML, resolved
+             * relative to the project root.
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile_file"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Profile names a profile in the local voice store.
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Pack names a built-in starter pack.
+             * @member
+             * @type {string | undefined}
+             */
+            this["pack"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new VoiceBinding instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {VoiceBinding}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new VoiceBinding(/** @type {Partial<VoiceBinding>} */($$parsedSource));
+    }
+}
+
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
 const $$createType1 = ContentItem.createFrom;
@@ -1584,7 +1584,7 @@ const $$createType10 = $Create.Array($Create.Any);
 const $$createType11 = MergeDefaults.createFrom;
 const $$createType12 = MemoryDefaults.createFrom;
 const $$createType13 = SegmentationDefaults.createFrom;
-const $$createType14 = BrandVoiceBinding.createFrom;
+const $$createType14 = VoiceBinding.createFrom;
 const $$createType15 = $Create.Nullable($$createType14);
 const $$createType16 = $Create.Map($Create.Any, $Create.Any);
 const $$createType17 = $Create.Map($Create.Any, $$createType16);

@@ -17,9 +17,9 @@ import (
 	"github.com/neokapi/neokapi/terms"
 )
 
-// brandProfile is the small, deterministic brand voice profile seeded for the
+// brandProfile is the small, deterministic voice profile seeded for the
 // browser build. labInspectAnnotated runs profile.MatchVocabulary against it so
-// the docs "Anatomy" explorer can show brand-vocabulary overlays without any
+// the docs "Anatomy" explorer can show voice-vocabulary overlays without any
 // network or store. Forbidden terms suggest a preferred replacement; the
 // competitor term has no replacement. Kept tiny and stable so the rendered
 // overlays are reproducible.
