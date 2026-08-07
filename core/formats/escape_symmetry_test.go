@@ -82,14 +82,21 @@ func escapeSweepFormats() []escapeSweepEntry {
 			},
 		},
 		{
-			id:      "html",
-			source:  "<html><body><p>Hello</p></body></html>\n",
-			rejects: func(r rune) bool { return r == 0 },
+			id:     "html",
+			source: "<html><body><p>Hello</p></body></html>\n",
 			skip: map[rune]string{
 				'\t': "HTML collapses whitespace in normal flow",
 				'\n': "HTML collapses whitespace in normal flow",
 				'\f': "HTML collapses whitespace in normal flow",
 				'\r': "HTML collapses whitespace in normal flow",
+				// A parser discards a NUL character token (HTML5 §13.2.6.4.7)
+				// and `&#0;` is a parse error, so the character is not
+				// representable. Refusing the write is not yet the right
+				// response: until the declared encoding selects a codec
+				// (#1714) a UTF-16 document reaches the writer as text full of
+				// NUL bytes, and rejecting it would fail a file that reads
+				// today.
+				0: "a parser discards a NUL character token; see #1714",
 			},
 		},
 		{id: "csv", source: "id,text\n1,Hello\n"},

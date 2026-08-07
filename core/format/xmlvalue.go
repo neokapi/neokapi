@@ -60,23 +60,52 @@ func CheckXMLText(formatName string, locale model.LocaleID, block *model.Block, 
 	return e
 }
 
-// CheckXMLBlock is CheckXMLText over every text a writer could emit for a
-// block: its source and each target variant. It suits a writer that serializes
-// a block through several call sites, where one check at the block boundary
-// covers them all.
+// CheckXMLBlock is CheckXMLText over a block's text runs — its source and each
+// target variant. It suits a writer that serializes a block through several
+// call sites, where one check at the block boundary covers them all.
+//
+// Inline-code data is deliberately out of scope. A reader may carry private
+// sentinels there — tmx wraps `<sub>` markup in U+0001/U+0002, html replaces a
+// translatable attribute value with a U+0000-delimited reference — which the
+// writer resolves on the way out, so they never reach the file. Text runs hold
+// what a tool wrote, which is what this check is about.
 func CheckXMLBlock(formatName string, block *model.Block) error {
 	if block == nil {
 		return nil
 	}
-	if err := CheckXMLText(formatName, "", block, model.RenderRunsWithData(block.Source)); err != nil {
+	if err := checkXMLRuns(formatName, "", block, block.Source); err != nil {
 		return err
 	}
 	for key, target := range block.Targets {
 		if target == nil {
 			continue
 		}
-		if err := CheckXMLText(formatName, key.Locale, block, model.RenderRunsWithData(target.Runs)); err != nil {
+		if err := checkXMLRuns(formatName, key.Locale, block, target.Runs); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func checkXMLRuns(formatName string, locale model.LocaleID, block *model.Block, runs []model.Run) error {
+	for _, r := range runs {
+		switch r.Kind() {
+		case model.RunKindText:
+			if err := CheckXMLText(formatName, locale, block, r.Text.Text); err != nil {
+				return err
+			}
+		case model.RunKindPlural:
+			for _, form := range r.Plural.Forms {
+				if err := checkXMLRuns(formatName, locale, block, form); err != nil {
+					return err
+				}
+			}
+		case model.RunKindSelect:
+			for _, form := range r.Select.Cases {
+				if err := checkXMLRuns(formatName, locale, block, form); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
