@@ -105,10 +105,19 @@ func WithMaxOutputTokens(ctx context.Context, n int) context.Context {
 	return context.WithValue(ctx, maxTokensKey{}, n)
 }
 
+// MaxOutputTokensFrom reports the per-request output budget carried by ctx, if
+// the caller set one. A provider outside this package — a plugin backend — reads
+// its request budget here; without it, such a provider can only ever send its own
+// fixed default and truncates the calls kapi sized deliberately.
+func MaxOutputTokensFrom(ctx context.Context) (n int, ok bool) {
+	n, ok = ctx.Value(maxTokensKey{}).(int)
+	return n, ok && n > 0
+}
+
 // maxOutputTokensFrom returns the per-request budget, or fallback when the
 // caller set none. The result is clamped to the model's ceiling by the provider.
 func maxOutputTokensFrom(ctx context.Context, fallback int) int {
-	if n, ok := ctx.Value(maxTokensKey{}).(int); ok && n > 0 {
+	if n, ok := MaxOutputTokensFrom(ctx); ok {
 		return n
 	}
 	return fallback

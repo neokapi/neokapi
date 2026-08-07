@@ -100,7 +100,7 @@ func (p *OllamaProvider) chat(ctx context.Context, messages []Message, format an
 	}
 	defer httpResp.Body.Close()
 
-	respBody, err := io.ReadAll(httpResp.Body)
+	respBody, err := readCappedBody(httpResp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("ollama: read response: %w", err)
 	}
@@ -131,7 +131,7 @@ func (p *OllamaProvider) stream(ctx context.Context, messages []Message, format 
 	defer httpResp.Body.Close()
 
 	if httpResp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(httpResp.Body)
+		body, _ := readCappedBody(httpResp.Body)
 		return nil, p.statusError(httpResp.StatusCode, body)
 	}
 

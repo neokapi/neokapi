@@ -6,9 +6,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/core/httputil"
 )
 
 func TestOllamaManagerVersion(t *testing.T) {
@@ -109,6 +112,71 @@ func TestOllamaManagerPullReportsServerError(t *testing.T) {
 	err := m.Pull(context.Background(), "nope:1b", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "file does not exist")
+}
+
+// A pull streams for as long as the download takes — minutes on any real model.
+// Client.Timeout bounds the whole exchange including the body, so the management
+// client's cannot apply here; the pull runs on a client with no timeout of its
+// own and is bounded by the caller's context.
+func TestOllamaManagerPullIsNotBoundedByTheManagementTimeout(t *testing.T) {
+	assert.Equal(t, httputil.DefaultTimeout, NewOllamaManager("").client.Timeout,
+		"the management endpoints keep a short timeout")
+	assert.Zero(t, NewOllamaManager("").pullClient.Timeout,
+		"a multi-gigabyte download has no wall-clock cap of its own")
+
+	// A server that streams frames further apart than the management timeout
+	// would allow. The pull completes only because it does not use that client.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		enc := json.NewEncoder(w)
+		flusher, _ := w.(http.Flusher)
+		for _, status := range []string{"pulling manifest", "downloading", "success"} {
+			_ = enc.Encode(map[string]any{"status": status})
+			if flusher != nil {
+				flusher.Flush()
+			}
+			select {
+			case <-time.After(20 * time.Millisecond):
+			case <-r.Context().Done():
+				return
+			}
+		}
+	}))
+	defer srv.Close()
+
+	m := NewOllamaManager(srv.URL)
+	m.client.Timeout = 10 * time.Millisecond
+
+	var statuses []string
+	err := m.Pull(context.Background(), "llama3.2:3b", func(p PullProgress) {
+		statuses = append(statuses, p.Status)
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"pulling manifest", "downloading", "success"}, statuses)
+}
+
+// No timeout does not mean no bound: the caller's context still stops a pull.
+func TestOllamaManagerPullHonoursContextCancellation(t *testing.T) {
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"status": "downloading"})
+		if flusher, ok := w.(http.Flusher); ok {
+			flusher.Flush()
+		}
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	defer srv.Close()
+	defer close(release)
+
+	m := NewOllamaManager(srv.URL)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	err := m.Pull(ctx, "llama3.2:3b", nil)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 func TestOllamaManagerEnsureModelSkipsWhenPresent(t *testing.T) {

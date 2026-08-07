@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -125,7 +124,7 @@ func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*Ch
 	}
 	defer httpResp.Body.Close()
 
-	respBody, err := io.ReadAll(httpResp.Body)
+	respBody, err := readCappedBody(httpResp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("azureopenai: read response: %w", err)
 	}
@@ -145,9 +144,10 @@ func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*Ch
 	}
 
 	return &ChatResponse{
-		Content: apiResp.Choices[0].Message.Content,
-		Model:   apiResp.Model,
-		Usage:   apiResp.Usage.toTokenUsage(),
+		Content:   apiResp.Choices[0].Message.Content,
+		Model:     apiResp.Model,
+		Usage:     apiResp.Usage.toTokenUsage(),
+		Truncated: apiResp.truncated(),
 	}, nil
 }
 
@@ -205,7 +205,7 @@ func (p *AzureOpenAIProvider) ChatStructured(ctx context.Context, messages []Mes
 	}
 	defer httpResp.Body.Close()
 
-	respBody, err := io.ReadAll(httpResp.Body)
+	respBody, err := readCappedBody(httpResp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("azureopenai: read response: %w", err)
 	}
@@ -224,9 +224,10 @@ func (p *AzureOpenAIProvider) ChatStructured(ctx context.Context, messages []Mes
 	}
 
 	return &ChatResponse{
-		Content: apiResp.Choices[0].Message.Content,
-		Model:   apiResp.Model,
-		Usage:   apiResp.Usage.toTokenUsage(),
+		Content:   apiResp.Choices[0].Message.Content,
+		Model:     apiResp.Model,
+		Usage:     apiResp.Usage.toTokenUsage(),
+		Truncated: apiResp.truncated(),
 	}, nil
 }
 

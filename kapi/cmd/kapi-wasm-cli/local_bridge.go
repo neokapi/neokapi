@@ -82,6 +82,7 @@ func (p *localBrowserProvider) Translate(ctx context.Context, req aiprovider.Tra
 		Confidence:  0.7,
 		Model:       resp.Model,
 		Usage:       resp.Usage,
+		Truncated:   resp.Truncated,
 	}, nil
 }
 

@@ -664,7 +664,8 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 	maskedSource, dntRestoreMap := dntMask(sourceText, t.dnt)
 
 	// Plain text translation.
-	resp, err := t.translateBlock(v.Context(), aiprovider.TranslateRequest{
+	ctx := aiprovider.WithMaxOutputTokens(v.Context(), blockOutputBudget(maskedSource))
+	resp, err := t.translateBlock(ctx, aiprovider.TranslateRequest{
 		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
@@ -687,7 +688,27 @@ func (t *AITranslateTool) translate(v tool.VariantView) error {
 
 // translateBlock translates text using streaming when available (for live
 // thinking progress), falling back to the standard Translate method.
+//
+// A reply cut off at the model's output cap is refused here rather than returned:
+// a fragment of a translation is indistinguishable from a translation once it is
+// committed as the target, and every caller of this function commits what it gets
+// back. The block is already alone in its call with a budget sized for it, so
+// there is no smaller request left to make — the run stops and says so.
 func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.TranslateRequest) (*aiprovider.TranslateResponse, error) {
+	resp, err := t.translateBlockRaw(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Truncated {
+		return nil, fmt.Errorf("%w: this block alone exceeds what %s can emit in one reply",
+			aiprovider.ErrOutputTruncated, t.provider.Name())
+	}
+	return resp, nil
+}
+
+// translateBlockRaw performs the call, over the streaming API when one is
+// available (for live thinking progress) and the plain Translate otherwise.
+func (t *AITranslateTool) translateBlockRaw(ctx context.Context, req aiprovider.TranslateRequest) (*aiprovider.TranslateResponse, error) {
 	if t.streaming == nil || t.onProgress == nil {
 		return t.provider.Translate(ctx, req)
 	}
@@ -713,6 +734,7 @@ func (t *AITranslateTool) translateBlock(ctx context.Context, req aiprovider.Tra
 		Confidence:  0.85,
 		Model:       resp.Model,
 		Usage:       resp.Usage,
+		Truncated:   resp.Truncated,
 	}, nil
 }
 
@@ -733,7 +755,8 @@ func (t *AITranslateTool) translateWithInlineCodes(v tool.VariantView, sourceRun
 	// carries the tag rule into the prompt. (This path used to pass a fully
 	// built instruction as Source, which standardTranslate then wrapped in a
 	// second instruction — so the model was handed a prompt to translate.)
-	resp, err := t.translateBlock(v.Context(), aiprovider.TranslateRequest{
+	ctx := aiprovider.WithMaxOutputTokens(v.Context(), blockOutputBudget(maskedSource))
+	resp, err := t.translateBlock(ctx, aiprovider.TranslateRequest{
 		Source:         maskedSource,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
@@ -957,7 +980,8 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 
 // splitAndRetry halves a batch that the model could not answer in one reply and
 // translates each half. Recursion bottoms out at a single block, which takes the
-// per-block path and can no longer be too large for the model to answer.
+// per-block path with a budget sized for that block alone; a block still too
+// large there fails the run rather than committing a fragment.
 func (t *AITranslateTool) splitAndRetry(ctx context.Context, entries []blockEntry) error {
 	mid := len(entries) / 2
 	if err := t.translateBatch(ctx, entries[:mid]); err != nil {

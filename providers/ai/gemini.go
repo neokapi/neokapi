@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -258,7 +257,7 @@ func (p *GeminiProvider) doStreamRequest(ctx context.Context, body geminiRequest
 	defer httpResp.Body.Close()
 
 	if httpResp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(httpResp.Body)
+		respBody, _ := readCappedBody(httpResp.Body)
 		return nil, fmt.Errorf("gemini: API error %d: %s", httpResp.StatusCode, string(respBody))
 	}
 
@@ -267,6 +266,11 @@ func (p *GeminiProvider) doStreamRequest(ctx context.Context, body geminiRequest
 		contentBuf strings.Builder
 		modelVer   string
 		usage      TokenUsage
+		// finishReason is the last non-empty one seen. A stream reports it on the
+		// final chunk, and MAX_TOKENS there means the accumulated content is a
+		// fragment — the same fact the blocking path reads off the response, and
+		// the only thing that distinguishes a cut-off reply from a complete one.
+		finishReason string
 	)
 
 	scanner := bufio.NewScanner(httpResp.Body)
@@ -294,6 +298,9 @@ func (p *GeminiProvider) doStreamRequest(ctx context.Context, body geminiRequest
 		}
 
 		for _, cand := range chunk.Candidates {
+			if cand.FinishReason != "" {
+				finishReason = cand.FinishReason
+			}
 			for _, part := range cand.Content.Parts {
 				if part.Thought {
 					onEvent(ChatStreamEvent{
@@ -322,9 +329,10 @@ func (p *GeminiProvider) doStreamRequest(ctx context.Context, body geminiRequest
 	})
 
 	return &ChatResponse{
-		Content: contentBuf.String(),
-		Model:   modelVer,
-		Usage:   usage,
+		Content:   contentBuf.String(),
+		Model:     modelVer,
+		Usage:     usage,
+		Truncated: finishReason == geminiFinishMaxTokens,
 	}, nil
 }
 
@@ -357,7 +365,7 @@ func (p *GeminiProvider) doRequest(ctx context.Context, body geminiRequest) (*ge
 	}
 	defer httpResp.Body.Close()
 
-	respBody, err := io.ReadAll(httpResp.Body)
+	respBody, err := readCappedBody(httpResp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("gemini: read response: %w", err)
 	}
@@ -538,11 +546,15 @@ type geminiCandidate struct {
 	FinishReason string        `json:"finishReason"`
 }
 
+// geminiFinishMaxTokens is the finishReason Gemini reports for a reply cut off
+// by maxOutputTokens, on both the blocking and the streaming endpoint.
+const geminiFinishMaxTokens = "MAX_TOKENS"
+
 // truncated reports a reply cut off by maxOutputTokens. Gemini is the easiest
 // provider to truncate silently: its own default output cap is far below the
 // model's ceiling, so a batch that fits the model can still overflow the default.
 func (r *geminiResponse) truncated() bool {
-	return len(r.Candidates) > 0 && r.Candidates[0].FinishReason == "MAX_TOKENS"
+	return len(r.Candidates) > 0 && r.Candidates[0].FinishReason == geminiFinishMaxTokens
 }
 
 type geminiUsageMetadata struct {

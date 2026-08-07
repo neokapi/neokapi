@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -457,18 +458,67 @@ func (t *AIEntityExtractTool) extractWithLLM(ctx context.Context, entries []extr
 	}.Turns(blocks)
 
 	ctx = prompt.WithID(ctx, prompt.IDEntityExtract)
+	// Ask for what this batch could need. Extraction echoes spans of its input
+	// back with a label each, so the input's own token count is a generous bound
+	// on the reply; without a budget the batch runs under the provider's fixed
+	// default and a long batch is cut off.
+	ctx = aiprovider.WithMaxOutputTokens(ctx, extractOutputBudget(entries))
+
 	resp, err := t.llm.ChatStructured(ctx, aiprovider.MessagesFromTurns(turns), extractionSchema())
 	if err != nil {
+		if errors.Is(err, aiprovider.ErrOutputTruncated) && len(entries) > 1 {
+			return t.extractSplitAndRetry(ctx, entries)
+		}
 		return nil, err
 	}
 	t.addUsage(resp.Usage)
 
+	// A reply stopped at the cap is a JSON fragment. It is our batch that was too
+	// big, not the model's formatting that was wrong — halve it and ask again,
+	// exactly as batch translation does.
+	if resp.Truncated && len(entries) > 1 {
+		return t.extractSplitAndRetry(ctx, entries)
+	}
+
 	var result llmExtractionResult
 	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
+		if resp.Truncated {
+			return nil, fmt.Errorf("%w: this block alone exceeds what %s can emit in one reply",
+				aiprovider.ErrOutputTruncated, t.llm.Name())
+		}
 		return nil, fmt.Errorf("unmarshal extraction result: %w", err)
 	}
 
 	return &result, nil
+}
+
+// extractSplitAndRetry halves a batch the model could not answer in one reply and
+// merges the two halves' results. Recursion bottoms out at a single block, whose
+// reply can no longer be shrunk by batching.
+func (t *AIEntityExtractTool) extractSplitAndRetry(ctx context.Context, entries []extractionEntry) (*llmExtractionResult, error) {
+	mid := len(entries) / 2
+	first, err := t.extractWithLLM(ctx, entries[:mid])
+	if err != nil {
+		return nil, err
+	}
+	second, err := t.extractWithLLM(ctx, entries[mid:])
+	if err != nil {
+		return nil, err
+	}
+	return &llmExtractionResult{Blocks: append(first.Blocks, second.Blocks...)}, nil
+}
+
+// extractOutputBudget is the cap to request for one extraction batch's reply:
+// the entities of a block are drawn from its own text, plus the JSON scaffolding
+// each block's result carries, plus a floor for a batch of very short strings.
+// Like blockOutputBudget it only raises the cap — never below what a provider's
+// own default would have allowed.
+func extractOutputBudget(entries []extractionEntry) int {
+	need := MinOutputBudgetTokens
+	for _, e := range entries {
+		need += estimateTokens(e.text) + estimateTokens(e.blockID) + ReplyItemOverheadTokens
+	}
+	return max(need, aiprovider.ConservativeMaxOutputTokens)
 }
 
 // ---------------------------------------------------------------------------

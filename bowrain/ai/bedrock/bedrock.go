@@ -144,6 +144,7 @@ func (p *Provider) Translate(ctx context.Context, req aiprovider.TranslateReques
 		Confidence:  0.85,
 		Model:       resp.Model,
 		Usage:       resp.Usage,
+		Truncated:   resp.Truncated,
 	}, nil
 }
 

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -115,7 +114,7 @@ func (p *AnthropicProvider) post(ctx context.Context, body anthropicRequest) (*a
 	}
 	defer httpResp.Body.Close()
 
-	respBody, err := io.ReadAll(httpResp.Body)
+	respBody, err := readCappedBody(httpResp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("anthropic: read response: %w", err)
 	}

@@ -94,6 +94,39 @@ which is why a flat 100% integrity line hides it until the tokens are looked at.
 600-block batch costs 2.4× the tokens and 6× the wall-clock of the same corpus at
 N=256.
 
+### A truncated reply is a signal, never a target
+
+A model that stops at its output cap has produced the *beginning* of an answer.
+Under a JSON schema that is invalid JSON and fails loudly. In free text — the
+single-block path — it is a shorter translation, which is to say it is
+indistinguishable from a translation, and committing it corrupts the document with
+nothing to notice.
+
+So truncation is carried, not inferred. Every provider reads its API's finish
+signal (`finish_reason: "length"`, `stop_reason: "max_tokens"`,
+`finishReason: "MAX_TOKENS"`) on every method it implements — blocking and
+streaming, free-text and structured — and reports it as `ChatResponse.Truncated`,
+or as `ErrOutputTruncated` where the reply shape leaves nothing to return.
+`TranslateResponse` carries the same field, because the translate path never sees
+the `ChatResponse`.
+
+Two responses, because there are two situations:
+
+- **A batch** was kapi's choice, so its consequences are kapi's to absorb:
+  `splitAndRetry` halves it and asks again, down to a single block.
+- **A single block** already has a call to itself and a budget sized for it. There
+  is no smaller request left to make, so the run stops and says so. Failing a run
+  is recoverable; a plausible-looking half-translation stamped as a draft is not.
+
+The budget follows the packer. `packBlocks` isolates a block into a batch of one
+exactly when its estimated output alone exceeds the call budget — so the blocks
+that reach the single-block path are the ones already known to be large, and that
+path derives its own `max_tokens` the same way a batch does (`blockOutputBudget`)
+rather than falling back to a provider's constructor default. That derivation only
+ever *raises* the cap: a reasoning model draws its thoughts from the same
+allowance as its answer, so sizing a short block's request down to what its words
+need would be a new way to truncate one.
+
 ### The payload is id-keyed JSON
 
 The reply is mapped back by **segment id**, not by position, and kapi accepts only
