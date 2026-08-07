@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -27,11 +26,7 @@ func (s *Server) HandleListActivities(c echo.Context) error {
 		Cursor:      c.QueryParam("cursor"),
 	}
 
-	if l := c.QueryParam("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			q.Limit = parsed
-		}
-	}
+	q.Limit, _ = pageParams(c, 0, maxListPageSize)
 
 	result, err := s.ActivityStore.List(ctx, q)
 	if err != nil {

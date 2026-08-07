@@ -688,11 +688,13 @@ func editorRemoveFile(ctx context.Context, cs store.ContentStore, projectID, str
 }
 
 // editorGetBlocks returns blocks for a specific item, formatted for the API.
-func editorGetBlocks(ctx context.Context, cs store.ContentStore, projectID, stream, itemName string, targetLocales []string) ([]BlockInfoResponse, error) {
+func editorGetBlocks(ctx context.Context, cs store.ContentStore, projectID, stream, itemName string, targetLocales []string, limit, offset int) ([]BlockInfoResponse, error) {
 	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: projectID,
 		Stream:    stream,
 		ItemName:  itemName,
+		Limit:     limit,
+		Offset:    offset,
 	})
 	if err != nil {
 		return nil, err

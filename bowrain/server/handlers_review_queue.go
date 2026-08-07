@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/analytics"
@@ -37,11 +36,7 @@ func (s *Server) HandleListReviewQueue(c echo.Context) error {
 		q.AssignedTo = assignedTo
 	}
 
-	if limit := c.QueryParam("limit"); limit != "" {
-		if l, err := strconv.Atoi(limit); err == nil && l > 0 {
-			q.Limit = l
-		}
-	}
+	q.Limit, _ = pageParams(c, 0, maxListPageSize)
 
 	result, err := s.ReviewQueueStore.ListItems(c.Request().Context(), q)
 	if err != nil {

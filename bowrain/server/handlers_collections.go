@@ -2,8 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"maps"
 	"net/http"
 	"sort"
@@ -342,22 +340,9 @@ func (s *Server) HandleUploadToCollection(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "multipart form required"})
 	}
 
-	files := make(map[string][]byte)
-	for _, fh := range form.File["files"] {
-		f, err := fh.Open()
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("open %q: %s", fh.Filename, err)})
-		}
-		data, err := io.ReadAll(f)
-		f.Close()
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("read %q: %s", fh.Filename, err)})
-		}
-		files[fh.Filename] = data
-	}
-
-	if len(files) == 0 {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "no files uploaded"})
+	files, answered, err := readMultipartUploads(c, form)
+	if answered {
+		return err
 	}
 
 	info, err := editorAddFilesToCollection(ctx, s.ContentStore, s.FormatRegistry, pid, streamParam(c), cid, files)

@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/labstack/echo/v4"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -16,18 +15,7 @@ func (s *Server) HandleListAutomationRuns(c echo.Context) error {
 
 	projectID := c.Param("id")
 	status := c.QueryParam("status")
-	limit := 20
-	offset := 0
-	if l := c.QueryParam("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-		}
-	}
-	if o := c.QueryParam("offset"); o != "" {
-		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
-			offset = parsed
-		}
-	}
+	limit, offset := pageParams(c, 20, maxListPageSize)
 
 	runs, err := s.AutomationRunStore.ListRuns(c.Request().Context(), projectID, status, limit, offset)
 	if err != nil {
@@ -90,12 +78,7 @@ func (s *Server) HandleListStepLogs(c echo.Context) error {
 	}
 
 	stepID := c.Param("stepId")
-	limit := 100
-	if l := c.QueryParam("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-		}
-	}
+	limit, _ := pageParams(c, 100, maxListPageSize)
 
 	logs, err := s.AutomationRunStore.ListLogs(c.Request().Context(), stepID, limit)
 	if err != nil {
