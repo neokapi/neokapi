@@ -225,7 +225,7 @@ profiles:
     channels: [app]
 collections:
   - name: app-strings
-    channel: app
+    channel: my-app/app
     base: src
     content:
       - path: locales/**/*.json
