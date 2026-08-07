@@ -134,9 +134,7 @@ func (s *Server) executeAutomationAction(action event.AutomationAction, ev plate
 // waited on: an action that outlives Shutdown writes into stores that are
 // closing under it.
 func (s *Server) runAction(name string, cancel context.CancelFunc, fn func()) {
-	s.actions.Add(1)
-	go func() {
-		defer s.actions.Done()
+	s.actions.Go(func() {
 		defer cancel()
 		defer func() {
 			if r := recover(); r != nil {
@@ -144,7 +142,7 @@ func (s *Server) runAction(name string, cancel context.CancelFunc, fn func()) {
 			}
 		}()
 		fn()
-	}()
+	})
 }
 
 // awaitActions blocks until every running automation action has finished, or

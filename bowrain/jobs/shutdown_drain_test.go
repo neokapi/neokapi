@@ -35,7 +35,7 @@ func TestDrainableJobContext_EndsWhenTheGraceDoes(t *testing.T) {
 	cancelParent()
 	select {
 	case <-ctx.Done():
-		assert.ErrorIs(t, ctx.Err(), context.Canceled)
+		require.ErrorIs(t, ctx.Err(), context.Canceled)
 	case <-time.After(5 * time.Second):
 		t.Fatal("the grace never expired")
 	}

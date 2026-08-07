@@ -135,11 +135,9 @@ func TestPgDeduct_ConcurrentDuplicatesChargeOnce(t *testing.T) {
 	var wg sync.WaitGroup
 	errs := make([]error, racers)
 	for i := range racers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			errs[i] = store.DeductCredits(ctx, ws, 20_000, "ai_translation", "job-d:0")
-		}()
+		})
 	}
 	wg.Wait()
 	for _, err := range errs {
