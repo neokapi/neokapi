@@ -4,9 +4,15 @@
 // Utility
 export { cn } from "./lib/utils";
 export { PortalThemeProvider, usePortalThemeClass } from "./lib/portal-theme";
+// Relative-time and byte-size formatters — the single reachable copies. Every
+// surface that shows "2h ago" or "13.4 KB" imports these rather than growing
+// its own; see components/resource-browser/utils.ts and preview/download.ts.
+export { relativeTime, formatSize } from "./components/resource-browser/utils";
+export { formatBytes } from "./components/preview/download";
 
 // Hooks
 export { useIsMobile } from "./hooks/use-mobile";
+export { useDebounced } from "./hooks/use-debounced";
 
 // Writing direction — locale → `dir`/`lang`, plus the bidi-isolation predicate.
 // Every surface that renders source or target text should derive `dir` from the
