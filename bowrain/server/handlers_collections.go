@@ -247,6 +247,9 @@ func (s *Server) HandleUpdateCollection(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
+	if refused, rerr := guardRecipeOwned(c, coll); refused {
+		return rerr
+	}
 
 	var req CreateCollectionRequest
 	if err := c.Bind(&req); err != nil {
@@ -286,8 +289,17 @@ func (s *Server) HandleDeleteCollection(c echo.Context) error {
 
 	pid := projectParam(c)
 	cid := c.Param("cid")
+	ctx := c.Request().Context()
 
-	if err := s.ContentStore.DeleteCollection(c.Request().Context(), pid, cid); err != nil {
+	// A collection the store cannot find is left to DeleteCollection to report,
+	// so a missing id still answers the way it always has.
+	if coll, err := s.ContentStore.GetCollection(ctx, pid, cid); err == nil {
+		if refused, rerr := guardRecipeOwned(c, coll); refused {
+			return rerr
+		}
+	}
+
+	if err := s.ContentStore.DeleteCollection(ctx, pid, cid); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
@@ -316,8 +328,13 @@ func (s *Server) HandleUploadToCollection(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
-	if err := s.guardSourceMutation(c, pid, coll); err != nil {
-		return err
+	// Ownership first: for a recipe-owned collection the recipe is the more
+	// precise authority to name, whatever the project's connector binding says.
+	if refused, rerr := guardRecipeOwned(c, coll); refused {
+		return rerr
+	}
+	if refused, rerr := s.guardSourceMutation(c, pid, coll); refused {
+		return rerr
 	}
 
 	form, err := c.MultipartForm()

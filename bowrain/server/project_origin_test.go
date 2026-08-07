@@ -227,6 +227,12 @@ func TestSourceGate_ConnectedCollectionBlocksUploadAndRollsUpHybrid(t *testing.T
 	require.NoError(t, srv.HandleUploadToCollection(c))
 	assert.Equal(t, http.StatusConflict, rec.Code, rec.Body.String())
 
+	// Nothing landed: the refusal stops the handler, it does not merely answer
+	// 409 while the upload proceeds behind it.
+	refusedItems, err := cs.ListItems(t.Context(), proj.ID, "main")
+	require.NoError(t, err)
+	assert.Empty(t, refusedItems)
+
 	// Upload to the managed default collection → 200.
 	body2, ct2 := multipartFiles(t, map[string]string{"app.json": `{"a":"b"}`})
 	rec2 := httptest.NewRecorder()
