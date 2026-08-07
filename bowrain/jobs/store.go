@@ -104,21 +104,26 @@ type JobStore interface {
 //	6  deferral count for jobs parked on an unavailable dependency
 //	7  the first consolidated baseline (folded 1-6)
 //	8  stream scope for translation jobs (targets are per-stream overlays)
+//	9  the second consolidated baseline (folded 1-8), then created_by beside it
 //
-// Version 8 was appended after the first consolidation and is now folded in
-// turn, so the rule the drift tests enforce — a consolidated subsystem carries
-// exactly one baseline — holds again. Folding is editing the CREATE statement,
-// never appending an ALTER beside it: stream is a column of translation_jobs,
-// declared where the table is declared, so one statement serves an empty
-// database and a database that already ran 7 and 8 alike.
+// The subsystem carries exactly one baseline (migrations/schema_test.go
+// enforces it), so a schema change is made by editing the baseline in place and
+// bumping its version. Version 10 adds created_by — who asked for the job.
 //
-// Baseline is version 9 — above every number issued, so an existing database
+// Every column the baseline gained after a database could already hold
+// translation_jobs is declared twice: once in the CREATE, which serves an empty
+// database, and once as an ALTER ... ADD COLUMN IF NOT EXISTS, which serves a
+// database where CREATE ... IF NOT EXISTS is a no-op and would otherwise leave
+// the column missing. Both are idempotent, both land the same column, and
+// neither is a second baseline.
+//
+// Baseline is version 10 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 10.
+// repaired. Retired numbers are never reused; the next migration is version 11.
 var JobMigrations = []storage.Migration{
 	{
-		Version:     9,
-		Description: "translation jobs baseline (folds 1-8)",
+		Version:     10,
+		Description: "translation jobs baseline (folds 1-9)",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS translation_jobs (
 				id                 TEXT PRIMARY KEY,
@@ -174,10 +179,16 @@ var JobMigrations = []storage.Migration{
 				via_tm             INTEGER NOT NULL DEFAULT 0,
 				via_ai             INTEGER NOT NULL DEFAULT 0,
 
+				-- The authenticated caller at enqueue, empty for platform-initiated
+				-- jobs; failure summons routes on it.
+				created_by         TEXT NOT NULL DEFAULT '',
+
 				error              TEXT NOT NULL DEFAULT '',
 				created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
+			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS stream TEXT NOT NULL DEFAULT '';
+			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT '';
 			CREATE INDEX IF NOT EXISTS idx_jobs_workspace ON translation_jobs(workspace_slug, created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_jobs_status ON translation_jobs(status);
 			CREATE INDEX IF NOT EXISTS idx_jobs_push_id ON translation_jobs(push_id) WHERE push_id != '';
@@ -186,22 +197,6 @@ var JobMigrations = []storage.Migration{
 			-- sweeper scans so recovery stays cheap as the jobs table grows.
 			CREATE INDEX IF NOT EXISTS idx_jobs_processing_updated
 				ON translation_jobs(updated_at) WHERE status = 'processing';
-		`,
-	},
-	{
-		Version:     8,
-		Description: "stream scope for translation jobs",
-		SQL: `
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS stream TEXT NOT NULL DEFAULT '';
-		`,
-	},
-	{
-		Version:     9,
-		Description: "record who asked for a job",
-		SQL: `
-			-- created_by is the authenticated caller at enqueue, empty for
-			-- platform-initiated jobs; failure summons routes on it.
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

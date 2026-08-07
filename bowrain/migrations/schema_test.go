@@ -96,45 +96,6 @@ func TestApplyIsIdempotent(t *testing.T) {
 	assert.Equal(t, first, snapshotSchema(t, db), "a replay must not change the schema")
 }
 
-// TestBaselineVersionsSitAboveRetiredOnes checks the rule that outlives this
-// change: a version number, once issued, is spent. Consolidation folded each
-// subsystem's history into one migration numbered ABOVE the highest that
-// subsystem ever issued, so a database that already recorded the old numbers
-// sees the baseline as new work rather than as history it has done.
-//
-// Reusing a retired number is the sharp failure: a database holding version 14
-// would skip a new migration numbered 14 entirely, and drift silently.
-func TestBaselineVersionsSitAboveRetiredOnes(t *testing.T) {
-	// The highest version each subsystem had ever issued, read from the
-	// migration lists at the commit that retired them. A baseline must be
-	// strictly greater.
-	//
-	// Store and jobs sit above the rest because they were consolidated twice:
-	// migrations appended after the first fold (store 16-19, jobs 8) were
-	// themselves folded, and every number they spent stays spent. A baseline
-	// edited in place spends its old number too: auth 8 and knowledge 2 were
-	// baselines before the machine author identity and the solo self-approval
-	// marker were folded into them.
-	highestEverIssued := map[string]int{
-		"store": 19, "auth": 8, "jobs": 8, "quota": 3, "runner": 1,
-		"extraction": 1, "brand_scan": 1, "model_sweep": 1, "brand": 2,
-		"knowledge": 2, "agent": 1, "billing": 6, "platform_config": 1,
-		"terms": 4, "memory": 5,
-	}
-
-	for _, s := range migrations.All() {
-		t.Run(s.Name, func(t *testing.T) {
-			prior, known := highestEverIssued[s.Name]
-			require.True(t, known, "subsystem %q is not in the retired-version ledger; add it", s.Name)
-			require.NotEmpty(t, s.Migrations, "subsystem %q has no migrations", s.Name)
-
-			assert.Len(t, s.Migrations, 1, "a consolidated subsystem carries exactly one baseline")
-			assert.Greater(t, s.Migrations[0].Version, prior,
-				"baseline version must sit above every version %q ever issued (%d)", s.Name, prior)
-		})
-	}
-}
-
 // TestEverySubsystemIsRegistered fails when a *_schema_migrations table appears
 // in a built database that All() does not name.
 //

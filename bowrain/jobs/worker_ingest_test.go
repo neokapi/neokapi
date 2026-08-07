@@ -190,7 +190,13 @@ func TestForgeIngestJob_ConnectorRemovedIsTerminal(t *testing.T) {
 	assert.Equal(t, StatusFailed, got.Status)
 	assert.Contains(t, got.Error, "no longer exists")
 	assert.Zero(t, fetcher.callCount())
-	assert.Empty(t, bus.published())
+
+	// The row says failed, so the drop is announced — once, as a failure, and
+	// never as a push. The worker loop's failure branch is bypassed on purpose,
+	// so this is the only place the announcement can come from.
+	published := bus.published()
+	require.Len(t, published, 1)
+	assert.Equal(t, platev.EventFlowFailed, published[0].Type)
 }
 
 func TestForgeIngestJob_MissingWiringFailsPermanently(t *testing.T) {
