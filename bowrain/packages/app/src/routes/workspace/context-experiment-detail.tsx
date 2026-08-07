@@ -23,6 +23,12 @@ export function ExperimentDetailRoute() {
           params: { workspace: workspace ?? "" },
         })
       }
+      onOpenChangeset={(nextId) =>
+        void navigate({
+          to: "/$workspace/context/changes/$id",
+          params: { workspace: workspace ?? "", id: nextId },
+        })
+      }
     />
   );
 }

@@ -360,7 +360,13 @@ export type AddChangeSetOpRequest =
 // ---------------------------------------------------------------------------
 
 /** The lifecycle state of a change-set (knowledge.ChangeSetStatus). */
-export type ChangeSetStatus = "draft" | "in_review" | "approved" | "merged" | "abandoned";
+export type ChangeSetStatus =
+  | "draft"
+  | "in_review"
+  | "approved"
+  | "merged"
+  | "abandoned"
+  | "superseded";
 
 /** All change-set statuses, in lifecycle order. */
 export const CHANGE_SET_STATUSES: ChangeSetStatus[] = [
@@ -369,6 +375,7 @@ export const CHANGE_SET_STATUSES: ChangeSetStatus[] = [
   "approved",
   "merged",
   "abandoned",
+  "superseded",
 ];
 
 /** The outcome a reviewer records (knowledge.ReviewVerdict). */
@@ -391,6 +398,10 @@ export interface ChangeSet {
   name: string;
   description?: string;
   status: ChangeSetStatus;
+  /** Automated-proposal origin ("kapi-push/concepts"); one open change-set per origin. */
+  origin?: string;
+  /** The successor's id, set exactly when status is "superseded". */
+  superseded_by?: string;
   created_by: string;
   created_at: string;
   updated_at: string;

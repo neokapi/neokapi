@@ -62,6 +62,12 @@ type ScopeAction = "read" | "translate" | "review" | "manage";
 const SCOPE_ACTIONS: { value: ScopeAction; label: string; description: string }[] = [
   { value: "read", label: "Read", description: "View content only" },
   { value: "translate", label: "Translate", description: "View and translate content" },
+  {
+    value: "contribute",
+    label: "Contribute",
+    description:
+      "Push, pull, translate, and propose terminology — cannot review or approve. Made for CI",
+  },
   { value: "review", label: "Review", description: "View, translate, and review" },
   { value: "manage", label: "Manage", description: "All except project & member management" },
 ];

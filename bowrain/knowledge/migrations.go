@@ -12,18 +12,18 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	1  knowledge graph governance schema (baseline)
 //	2  knowledge graph baseline (folded 1)
 //
-// Baseline is version 3 — above every number issued, so an existing database
+// Baseline is version 4 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 4.
+// repaired. Retired numbers are never reused; the next migration is version 5.
 //
 // The subsystem carries exactly one baseline (migrations/schema_test.go
 // enforces it), so a schema change is made by editing the baseline in place and
-// bumping its version. Version 3 added kg_changeset_reviews.review_basis — the
-// rule under which a verdict was admitted.
+// bumping its version. Version 4 added kg_changesets.origin/superseded_by —
+// one open change-set per automated origin.
 var Migrations = []storage.Migration{
 	{
-		Version:     3,
-		Description: "knowledge graph baseline (folds 1-2) + solo self-approval marker",
+		Version:     4,
+		Description: "knowledge graph baseline (folds 1-3) + change-set origin and supersession",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS kg_markets (
 				workspace_id TEXT NOT NULL,
@@ -86,6 +86,8 @@ var Migrations = []storage.Migration{
 				name         TEXT NOT NULL DEFAULT '',
 				description  TEXT NOT NULL DEFAULT '',
 				status       TEXT NOT NULL DEFAULT 'draft',
+				origin        TEXT NOT NULL DEFAULT '',
+				superseded_by TEXT NOT NULL DEFAULT '',
 				created_by   TEXT NOT NULL DEFAULT '',
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -95,6 +97,10 @@ var Migrations = []storage.Migration{
 				PRIMARY KEY (workspace_id, id)
 			);
 			CREATE INDEX IF NOT EXISTS idx_kg_changesets_status ON kg_changesets(workspace_id, status);
+			ALTER TABLE kg_changesets ADD COLUMN IF NOT EXISTS origin        TEXT NOT NULL DEFAULT '';
+			ALTER TABLE kg_changesets ADD COLUMN IF NOT EXISTS superseded_by TEXT NOT NULL DEFAULT '';
+			CREATE INDEX IF NOT EXISTS idx_kg_changesets_origin
+				ON kg_changesets(workspace_id, origin) WHERE origin != '' AND status IN ('draft', 'in_review');
 
 			CREATE TABLE IF NOT EXISTS kg_changeset_ops (
 				workspace_id TEXT NOT NULL,

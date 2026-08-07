@@ -107,13 +107,16 @@ const (
 	ChangeSetApproved  ChangeSetStatus = "approved"
 	ChangeSetMerged    ChangeSetStatus = "merged"
 	ChangeSetAbandoned ChangeSetStatus = "abandoned"
+	// ChangeSetSuperseded is terminal: a newer change-set from the same origin
+	// replaced this one before it was decided.
+	ChangeSetSuperseded ChangeSetStatus = "superseded"
 )
 
 // IsValid reports whether s is one of the known change-set statuses.
 func (s ChangeSetStatus) IsValid() bool {
 	switch s {
 	case ChangeSetDraft, ChangeSetInReview, ChangeSetApproved,
-		ChangeSetMerged, ChangeSetAbandoned:
+		ChangeSetMerged, ChangeSetAbandoned, ChangeSetSuperseded:
 		return true
 	default:
 		return false
@@ -223,12 +226,20 @@ type ChangeSet struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description,omitempty"`
 	Status      ChangeSetStatus `json:"status"`
-	CreatedBy   string          `json:"created_by"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	SubmittedAt *time.Time      `json:"submitted_at,omitempty"`
-	MergedAt    *time.Time      `json:"merged_at,omitempty"`
-	MergedBy    string          `json:"merged_by,omitempty"`
+	// Origin identifies the automated producer that proposes this change-set
+	// ("kapi-push/concepts"). One open change-set exists per origin: submitting
+	// a new one supersedes the open one, and identical ops are idempotent.
+	// Empty for change-sets a person drafts by hand.
+	Origin string `json:"origin,omitempty"`
+	// SupersededBy is the id of the change-set that replaced this one; set
+	// exactly when Status is superseded.
+	SupersededBy string     `json:"superseded_by,omitempty"`
+	CreatedBy    string     `json:"created_by"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	SubmittedAt  *time.Time `json:"submitted_at,omitempty"`
+	MergedAt     *time.Time `json:"merged_at,omitempty"`
+	MergedBy     string     `json:"merged_by,omitempty"`
 }
 
 // ChangeSetOp is a single ordered operation within a change-set. Seq orders ops

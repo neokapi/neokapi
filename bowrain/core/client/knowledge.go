@@ -111,17 +111,22 @@ type GraphViz struct {
 // voice vocabulary, mirroring the server's knowledge.ChangeSet. Status moves
 // through draft → in_review → approved → merged, or abandoned.
 type ChangeSet struct {
-	ID          string     `json:"id"`
-	WorkspaceID string     `json:"workspace_id"`
-	Name        string     `json:"name"`
-	Description string     `json:"description,omitempty"`
-	Status      string     `json:"status"`
-	CreatedBy   string     `json:"created_by"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
-	SubmittedAt *time.Time `json:"submitted_at,omitempty"`
-	MergedAt    *time.Time `json:"merged_at,omitempty"`
-	MergedBy    string     `json:"merged_by,omitempty"`
+	ID          string `json:"id"`
+	WorkspaceID string `json:"workspace_id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Status      string `json:"status"`
+	// Origin marks an automated proposal; one open change-set exists per
+	// origin (submit supersedes). SupersededBy names the successor when
+	// Status is "superseded".
+	Origin       string     `json:"origin,omitempty"`
+	SupersededBy string     `json:"superseded_by,omitempty"`
+	CreatedBy    string     `json:"created_by"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+	SubmittedAt  *time.Time `json:"submitted_at,omitempty"`
+	MergedAt     *time.Time `json:"merged_at,omitempty"`
+	MergedBy     string     `json:"merged_by,omitempty"`
 }
 
 // ChangeSetOp is one ordered operation within a change-set, mirroring the
@@ -454,6 +459,7 @@ type ChangeSetOpInput struct {
 type createChangeSetBody struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+	Origin      string `json:"origin,omitempty"`
 }
 
 // CreateConcept creates a concept through ordinary curation and returns the
@@ -499,10 +505,12 @@ func (c *BowrainClient) RemoveRelation(ctx context.Context, sourceID, relationID
 }
 
 // CreateChangeset opens a new draft change-set and returns its header (POST
-// /api/v1/:ws/changesets).
-func (c *BowrainClient) CreateChangeset(ctx context.Context, name, description string) (*ChangeSet, error) {
+// /api/v1/:ws/changesets). A non-empty origin marks an automated proposal:
+// the origin admits one open change-set, and submitting a new one supersedes
+// it (identical ops are idempotent — submit returns the open change-set).
+func (c *BowrainClient) CreateChangeset(ctx context.Context, name, description, origin string) (*ChangeSet, error) {
 	var out ChangeSet
-	body := createChangeSetBody{Name: name, Description: description}
+	body := createChangeSetBody{Name: name, Description: description, Origin: origin}
 	if err := c.knowledgeWrite(ctx, http.MethodPost, "/changesets", body, &out); err != nil {
 		return nil, err
 	}

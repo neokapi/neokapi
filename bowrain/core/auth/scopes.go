@@ -14,9 +14,14 @@ const (
 	ScopeAll       ScopeAction = "*"
 	ScopeRead      ScopeAction = "read"
 	ScopeTranslate ScopeAction = "translate"
-	ScopeReview    ScopeAction = "review"
-	ScopeManage    ScopeAction = "manage"
-	ScopeAdmin     ScopeAction = "admin"
+	// ScopeContribute is the machine's share of the convergence loop: push and
+	// pull content, seed memory, run flows, and PROPOSE governed terminology —
+	// without the permissions that decide a review (review, manage_brand). A
+	// CI token on this scope structurally cannot approve what it proposed.
+	ScopeContribute ScopeAction = "contribute"
+	ScopeReview     ScopeAction = "review"
+	ScopeManage     ScopeAction = "manage"
+	ScopeAdmin      ScopeAction = "admin"
 )
 
 // ResolvedScope is the result of parsing a single scope string.
@@ -42,6 +47,9 @@ func actionPermissions(action ScopeAction) Permission {
 		return PermViewContent
 	case ScopeTranslate:
 		return PermViewContent | PermTranslate
+	case ScopeContribute:
+		return PermViewContent | PermTranslate | PermManageFiles |
+			PermManageMemory | PermManageTerms | PermRunFlows
 	case ScopeReview:
 		return PermViewContent | PermTranslate | PermReview
 	case ScopeManage:
@@ -63,6 +71,7 @@ func actionPermissions(action ScopeAction) Permission {
 //	"read"                             → PermViewContent
 //	"translate"                        → PermViewContent | PermTranslate
 //	"translate:fr,de"                  → + language constraint
+//	"contribute"                       → + files, memory, terms, flows (no review powers)
 //	"review"                           → PermViewContent | PermTranslate | PermReview
 //	"manage"                           → all except PermManageProject and PermManageMembers
 //	"admin"                            → all permissions

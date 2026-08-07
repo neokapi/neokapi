@@ -29,6 +29,9 @@ const (
 	EventChangeSetRejected  EventType = "changeset.rejected"
 	EventChangeSetMerged    EventType = "changeset.merged"
 	EventChangeSetAbandoned EventType = "changeset.abandoned"
+	// EventChangeSetSuperseded: a newer change-set from the same origin
+	// replaced this one before it was decided.
+	EventChangeSetSuperseded EventType = "changeset.superseded"
 
 	// Pilots.
 	EventPilotStarted EventType = "pilot.started"

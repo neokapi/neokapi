@@ -112,8 +112,16 @@ type PushConceptsResult struct {
 	ConceptsProposed int
 	ChangesetID      string
 	ChangesetURL     string
-	DryRun           bool
+	// ChangesetUnchanged: the proposed ops were identical to the change-set
+	// already in review, so ChangesetID names that one and nothing new was
+	// created.
+	ChangesetUnchanged bool
+	DryRun             bool
 }
+
+// conceptPushOrigin is the origin every kapi-push concept change-set carries;
+// the server admits one open change-set per origin.
+const conceptPushOrigin = "kapi-push/concepts"
 
 // changed reports whether the push had any concept-related work — used by the
 // caller to decide whether to surface a concept summary at all.
@@ -464,7 +472,10 @@ func (p pushPlan) apply(ctx context.Context, client *apiclient.BowrainClient, na
 	}
 
 	if len(p.governed) > 0 {
-		cs, err := client.CreateChangeset(ctx, name, desc)
+		// The origin admits one open change-set on the server: a re-push with
+		// identical ops is idempotent (submit returns the open change-set),
+		// and changed ops supersede it — drafts never pile up per push.
+		cs, err := client.CreateChangeset(ctx, name, desc, conceptPushOrigin)
 		if err != nil {
 			return res, fmt.Errorf("create change-set: %w", err)
 		}
@@ -473,11 +484,13 @@ func (p pushPlan) apply(ctx context.Context, client *apiclient.BowrainClient, na
 				return res, fmt.Errorf("append change-set op %q: %w", op.Op, err)
 			}
 		}
-		if _, err := client.SubmitChangeset(ctx, cs.ID); err != nil {
+		submitted, err := client.SubmitChangeset(ctx, cs.ID)
+		if err != nil {
 			return res, fmt.Errorf("submit change-set %s: %w", cs.ID, err)
 		}
 		res.ConceptsProposed = len(p.governed)
-		res.ChangesetID = cs.ID
+		res.ChangesetID = submitted.ID
+		res.ChangesetUnchanged = submitted.ID != cs.ID
 	}
 
 	return res, nil

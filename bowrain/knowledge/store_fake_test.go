@@ -246,6 +246,39 @@ func (s *memStore) SetChangeSetStatus(_ context.Context, ws, id string, to Chang
 	return nil
 }
 
+func (s *memStore) ListOpenChangeSetsByOrigin(_ context.Context, ws, origin string) ([]*ChangeSet, error) {
+	if origin == "" {
+		return nil, nil
+	}
+	var out []*ChangeSet
+	for _, cs := range s.changesets {
+		if cs.WorkspaceID != ws || cs.Origin != origin {
+			continue
+		}
+		if cs.Status != ChangeSetDraft && cs.Status != ChangeSetInReview {
+			continue
+		}
+		cp := *cs
+		out = append(out, &cp)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.Before(out[j].CreatedAt) })
+	return out, nil
+}
+
+func (s *memStore) SupersedeChangeSet(_ context.Context, ws, id, successorID string) error {
+	cs, ok := s.changesets[csKey(ws, id)]
+	if !ok {
+		return fmt.Errorf("change-set %s not found", id)
+	}
+	if err := ValidateStatusTransition(cs.Status, ChangeSetSuperseded); err != nil {
+		return err
+	}
+	cs.Status = ChangeSetSuperseded
+	cs.SupersededBy = successorID
+	cs.UpdatedAt = time.Now().UTC()
+	return nil
+}
+
 func (s *memStore) SetMergeResult(_ context.Context, ws, id, mergedBy string, mergedAt time.Time) error {
 	cs, ok := s.changesets[csKey(ws, id)]
 	if !ok {

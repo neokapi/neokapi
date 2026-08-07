@@ -1,6 +1,7 @@
 package knowledge
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -380,14 +381,16 @@ func ChangeSetIsGoverned(ops []ChangeSetOp) (bool, error) {
 // approved → in_review re-opens for more review.
 var allowedChangeSetTransitions = map[ChangeSetStatus]map[ChangeSetStatus]struct{}{
 	ChangeSetDraft: {
-		ChangeSetInReview:  {},
-		ChangeSetMerged:    {},
-		ChangeSetAbandoned: {},
+		ChangeSetInReview:   {},
+		ChangeSetMerged:     {},
+		ChangeSetAbandoned:  {},
+		ChangeSetSuperseded: {},
 	},
 	ChangeSetInReview: {
-		ChangeSetApproved:  {},
-		ChangeSetDraft:     {},
-		ChangeSetAbandoned: {},
+		ChangeSetApproved:   {},
+		ChangeSetDraft:      {},
+		ChangeSetAbandoned:  {},
+		ChangeSetSuperseded: {},
 	},
 	ChangeSetApproved: {
 		ChangeSetMerged:    {},
@@ -535,4 +538,43 @@ func conceptIDOf(op ChangeSetOp) string {
 		}
 	}
 	return ""
+}
+
+// SameOps reports whether two op sequences propose the same edits: same
+// length, op types in order, and semantically equal payloads (JSON compared
+// through a canonical re-marshal, so key order and whitespace don't count).
+// Seq and BaseRev are ignored — they say when an op was authored, not what it
+// does.
+func SameOps(a, b []*ChangeSetOp) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Op != b[i].Op {
+			return false
+		}
+		if !canonicalJSONEqual(a[i].Payload, b[i].Payload) {
+			return false
+		}
+	}
+	return true
+}
+
+func canonicalJSONEqual(a, b json.RawMessage) bool {
+	var av, bv any
+	if err := json.Unmarshal(a, &av); err != nil {
+		return bytes.Equal(a, b)
+	}
+	if err := json.Unmarshal(b, &bv); err != nil {
+		return false
+	}
+	ac, err := json.Marshal(av)
+	if err != nil {
+		return false
+	}
+	bc, err := json.Marshal(bv)
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(ac, bc)
 }

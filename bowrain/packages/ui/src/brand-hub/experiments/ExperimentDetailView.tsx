@@ -39,9 +39,15 @@ import { governedOpCount } from "./ops";
 export interface ExperimentDetailViewProps {
   changesetId: string;
   onBack: () => void;
+  /** Navigate to another change-set — the superseded banner links its successor. */
+  onOpenChangeset?: (id: string) => void;
 }
 
-export function ExperimentDetailView({ changesetId, onBack }: ExperimentDetailViewProps) {
+export function ExperimentDetailView({
+  changesetId,
+  onBack,
+  onOpenChangeset,
+}: ExperimentDetailViewProps) {
   const { data: cs, isLoading } = useChangeset(changesetId);
   const { nameOf } = useUserDisplayNames();
 
@@ -90,6 +96,16 @@ export function ExperimentDetailView({ changesetId, onBack }: ExperimentDetailVi
               <Lock className="size-3" />
               Governed
             </Badge>
+          )}
+          {cs.status === "superseded" && cs.superseded_by && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 gap-1 px-2 text-[11px]"
+              onClick={() => onOpenChangeset?.(cs.superseded_by ?? "")}
+            >
+              Superseded by a newer proposal — open it
+            </Button>
           )}
           <span>by {nameOf(cs.created_by)}</span>
           <span aria-hidden>·</span>
