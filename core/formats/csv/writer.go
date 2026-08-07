@@ -143,9 +143,12 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 				if block.Properties["target-cell"] == "true" {
 					text = w.targetCellText(block)
 				}
-				// Re-escape double quotes for cells that were originally quoted.
+				// Re-escape double quotes for cells that were originally quoted:
+				// the skeleton already carries the surrounding delimiters.
 				if block.Properties["quoted"] == "true" {
 					text = strings.ReplaceAll(text, "\"", "\"\"")
+				} else {
+					text = w.quoteIfStructural(text)
 				}
 				if _, err := io.WriteString(w.Output, text); err != nil {
 					return err
@@ -154,6 +157,25 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 		}
 	}
 	return nil
+}
+
+// quoteIfStructural wraps a cell whose text carries the field delimiter or a
+// line break in RFC 4180 quotes, doubling any embedded quote.
+//
+// It applies to cells the source left unquoted, which is where a modified value
+// breaks the grid: written raw, a delimiter splits one cell into two and a line
+// break splits one row into two, re-keying every cell after it. A bare `"` is
+// left alone — it round-trips in an unquoted field, and quoting it would move
+// the bytes of a cell nothing edited.
+func (w *Writer) quoteIfStructural(text string) string {
+	sep := w.separator
+	if sep == 0 {
+		sep = ','
+	}
+	if !strings.ContainsRune(text, sep) && !strings.ContainsAny(text, "\r\n") {
+		return text
+	}
+	return "\"" + strings.ReplaceAll(text, "\"", "\"\"") + "\""
 }
 
 // targetCellText returns the text for a bilingual-mode target cell: the

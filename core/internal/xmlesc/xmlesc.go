@@ -46,11 +46,75 @@
 package xmlesc
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 )
+
+// ValidChar reports whether r is one of the characters an XML 1.0 document may
+// contain (§2.2 Char): tab, line feed, carriage return, and everything from
+// U+0020 up, excluding the surrogate range and the two non-characters U+FFFE
+// and U+FFFF.
+//
+// The excluded characters have no escape and no character reference. XML 1.0
+// §4.1 restricts a numeric character reference to the same Char production, so
+// `&#7;` is as invalid as a raw U+0007 — a document carrying either cannot be
+// parsed back.
+func ValidChar(r rune) bool {
+	switch {
+	case r == 0x09, r == 0x0A, r == 0x0D:
+		return true
+	case r >= 0x20 && r <= 0xD7FF:
+		return true
+	case r >= 0xE000 && r <= 0xFFFD:
+		return true
+	case r >= 0x10000 && r <= 0x10FFFF:
+		return true
+	default:
+		return false
+	}
+}
+
+// UnrepresentableCharError names a character that no XML 1.0 document can
+// carry, together with where in the value it sits.
+//
+// It is returned rather than escaped or stripped on purpose. A character
+// outside the Char production reaches a writer only because a tool put it
+// there, which is upstream breakage; silently dropping it loses content, and
+// emitting it produces a file that will not reopen. Callers wrap this with the
+// block identity so the report names the content, not just the byte.
+type UnrepresentableCharError struct {
+	// Rune is the offending character.
+	Rune rune
+	// Index is its byte offset within the value.
+	Index int
+}
+
+func (e *UnrepresentableCharError) Error() string {
+	return fmt.Sprintf("U+%04X at byte %d cannot be represented in XML — XML 1.0 has no escape and no character reference for it", e.Rune, e.Index)
+}
+
+// CheckText returns an *UnrepresentableCharError for the first character of s
+// that XML 1.0 cannot carry, or nil when every character is representable.
+//
+// Bytes that are not valid UTF-8 pass through: the escapers in this package
+// copy them untouched rather than rewriting them to U+FFFD, and a check that
+// rejected them would turn a byte-preserving path into a lossy one.
+func CheckText(s string) error {
+	for i, r := range s {
+		if r == utf8.RuneError {
+			// Either a real U+FFFD (valid) or an undecodable byte, which the
+			// escapers carry through as-is.
+			continue
+		}
+		if !ValidChar(r) {
+			return &UnrepresentableCharError{Rune: r, Index: i}
+		}
+	}
+	return nil
+}
 
 // Attr escapes a string for use inside a double-quoted XML attribute value:
 // `&`, `<`, `>` and `"`.

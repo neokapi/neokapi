@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"sync"
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/format"
@@ -339,11 +340,14 @@ func (r *FileRunner) readParts(ctx context.Context, reader format.DataFormatRead
 			reader.Close()
 			return nil, fmt.Errorf("read %q: %w", filepath.Base(inputPath), result.Error)
 		}
+		if result.Part == nil {
+			continue
+		}
 		parts = append(parts, result.Part)
 		// Record the reader-stage trace: an initial snapshot (so per-tool
 		// TracingTool snapshots have a set to attach to) plus a reader-exit
 		// event as the Part heads into the pipeline.
-		if r.cfg.Recorder != nil && result.Part != nil && result.Part.Resource != nil {
+		if r.cfg.Recorder != nil && result.Part.Resource != nil {
 			id := result.Part.Resource.ResourceID()
 			r.cfg.Recorder.SnapshotPart(result.Part, "reader", "initial")
 			r.cfg.Recorder.Record(TraceExit, "reader", id, nil)
@@ -512,8 +516,12 @@ func (r *FileRunner) cachedFileWrite(ctx context.Context, flowName string, tools
 			consumer.SetSkeletonStore(skel)
 		}
 	}
-	feed := func(fctx context.Context, inCh chan<- *model.Part, errOut *error) {
-		*errOut = doc.Feed(fctx, inCh)
+	// The cached document is closed by this function's own defer, so the feed
+	// owns nothing beyond the replay itself.
+	feed := &partFeed{
+		feed: func(fctx context.Context, inCh chan<- *model.Part, errOut *error) {
+			*errOut = doc.Feed(fctx, inCh)
+		},
 	}
 	return r.runPipelineToWriter(ctx, flowName, tools, feed, outputPath, targetLang, writer, skel, "", nil)
 }
@@ -736,38 +744,6 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 		// errCacheUnavailable → the reader was left open; fall through to live.
 	}
 
-	// Wire skeleton store if both support it AND reader and writer are the
-	// SAME format. A skeleton holds opaque, format-specific bytes (e.g. the
-	// WordprocessingML XML fragments an openxml reader captures); feeding it to
-	// a different writer would dump that foreign markup verbatim. For a
-	// cross-format conversion (e.g. report.docx → report.md) we deliberately
-	// leave the skeleton unwired so the writer reconstructs output from the
-	// content model + the structural layer (SemanticRole/role-driven semantic
-	// export, WS6) rather than the source's byte skeleton.
-	//
-	// When both the reader and writer declare streaming capability, the skeleton
-	// is a concurrent (channel-backed) store so a streaming round-trip stays
-	// bounded-memory; otherwise the file-backed store (the writer buffers the
-	// block map). Output is byte-identical either way.
-	//
-	// A store that cannot be created fails the run. It used to be discarded, so
-	// the writer silently re-serialized the document from the content model and
-	// reported success — the same class of silent degradation writeMergedSource-
-	// WithSkeleton refuses for a skeleton that will not open (#1449).
-	var skeletonStore *format.SkeletonStore
-	if sameFormat {
-		if isStreamingPair(reader, writer) {
-			skeletonStore = format.NewWiredStreamingSkeleton(reader, writer)
-		} else {
-			store, storeErr := format.NewWiredSkeleton(reader, writer)
-			if storeErr != nil {
-				reader.Close()
-				return fmt.Errorf("cannot process %s: %w", filepath.Base(inputPath), storeErr)
-			}
-			skeletonStore = store
-		}
-	}
-
 	// Decide how the writer gets the original source (same-format only; a
 	// cross-format writer reconstructs from the content model). A SourcePathSetter
 	// reads the file itself by path; an OriginalContentSetter-only writer
@@ -782,22 +758,48 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 			content, rerr := os.ReadFile(inputPath)
 			if rerr != nil {
 				reader.Close()
-				if skeletonStore != nil {
-					skeletonStore.Close()
-				}
 				return fmt.Errorf("read %q: %w", filepath.Base(inputPath), rerr)
 			}
 			preReadContent = content
 		}
 	}
 
+	// One decision drives the rest of this run: whether the reader feeds the
+	// executor concurrently with the writer.
+	streaming := streamingFeed(reader, preReadContent)
+
+	// Wire skeleton store if both support it AND reader and writer are the
+	// SAME format. A skeleton holds opaque, format-specific bytes (e.g. the
+	// WordprocessingML XML fragments an openxml reader captures); feeding it to
+	// a different writer would dump that foreign markup verbatim. For a
+	// cross-format conversion (e.g. report.docx → report.md) we deliberately
+	// leave the skeleton unwired so the writer reconstructs output from the
+	// content model + the structural layer (SemanticRole/role-driven semantic
+	// export, WS6) rather than the source's byte skeleton.
+	//
+	// The concurrent (channel-backed) store keeps a streaming round-trip
+	// bounded-memory; the file-backed store serves every other run (the writer
+	// buffers the block map). Output is byte-identical either way.
+	//
+	// A store that cannot be created fails the run rather than falling back:
+	// without it the writer re-serializes the document from the content model
+	// and reports success, losing the structure the reader could not model.
+	var skeletonStore *format.SkeletonStore
+	if sameFormat {
+		store, storeErr := wireSkeleton(reader, writer, streaming)
+		if storeErr != nil {
+			reader.Close()
+			return fmt.Errorf("cannot process %s: %w", filepath.Base(inputPath), storeErr)
+		}
+		skeletonStore = store
+	}
+
 	// Streaming path: a StreamingReader feeds the executor directly, concurrently
 	// with the writer, so neither the input nor the Part stream is buffered. This
 	// never co-occurs with the structural-grid case (spreadsheet sources are not
-	// StreamingReaders) nor with preReadContent (OpenXML/AsciiDoc are not
-	// StreamingReaders), so those buffered-only concerns are excluded by
+	// StreamingReaders), so that buffered-only concern is excluded by
 	// construction.
-	if format.IsStreamingReader(reader) && preReadContent == nil {
+	if streaming {
 		source, oerr := openBudgetedFile(inputPath)
 		if oerr != nil {
 			reader.Close()
@@ -812,10 +814,7 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 			}
 			return err
 		}
-		feed := func(feedCtx context.Context, inCh chan<- *model.Part, errOut *error) {
-			r.feedReader(ctx, feedCtx, reader, skeletonStore, inCh, errOut)
-		}
-		return r.runPipelineToWriter(ctx, flowName, tools, feed, outputPath, targetLang, writer, skeletonStore, srcPath, preReadContent)
+		return r.runPipelineToWriter(ctx, flowName, tools, r.readerFeeder(ctx, reader, skeletonStore), outputPath, targetLang, writer, skeletonStore, srcPath, preReadContent)
 	}
 
 	// Buffered path (non-streaming readers): read every Part up front, exactly as
@@ -854,26 +853,89 @@ func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName strin
 	return r.runPipelineToWriter(ctx, flowName, tools, sliceFeeder(parts), outputPath, targetLang, writer, skeletonStore, srcPath, preReadContent)
 }
 
-// sliceFeeder returns a feeder that streams a pre-read Part slice into the
-// executor and closes the input channel — the buffered (non-streaming) feed.
-func sliceFeeder(parts []*model.Part) func(context.Context, chan<- *model.Part, *error) {
-	return func(feedCtx context.Context, inCh chan<- *model.Part, _ *error) {
-		defer close(inCh)
-		for _, p := range parts {
-			select {
-			case inCh <- p:
-			case <-feedCtx.Done():
-				return
-			}
+// partFeed supplies a pipeline's Part stream and owns whatever produces it — an
+// open reader, a cached document handle. Feed closes inCh, reports a read error
+// through errOut, and releases those resources as it finishes. Abort releases
+// the same resources for a run that ends before the pipeline starts (a rejected
+// destination, an output file that cannot be created), where Feed's own cleanup
+// would never run. Exactly one of the two takes effect, so callers defer Abort
+// unconditionally.
+type partFeed struct {
+	feed    func(feedCtx context.Context, inCh chan<- *model.Part, errOut *error)
+	release func()
+	once    sync.Once
+}
+
+// Feed streams the Parts into inCh and closes it.
+func (f *partFeed) Feed(feedCtx context.Context, inCh chan<- *model.Part, errOut *error) {
+	f.once.Do(func() { f.feed(feedCtx, inCh, errOut) })
+}
+
+// Abort releases the feed's resources without reading.
+func (f *partFeed) Abort() {
+	f.once.Do(func() {
+		if f.release != nil {
+			f.release()
 		}
+	})
+}
+
+// sliceFeeder returns a feed that streams a pre-read Part slice into the
+// executor and closes the input channel — the buffered (non-streaming) feed.
+// The reader it came from is already closed, so there is nothing to release.
+func sliceFeeder(parts []*model.Part) *partFeed {
+	return &partFeed{
+		feed: func(feedCtx context.Context, inCh chan<- *model.Part, _ *error) {
+			defer close(inCh)
+			for _, p := range parts {
+				select {
+				case inCh <- p:
+				case <-feedCtx.Done():
+					return
+				}
+			}
+		},
 	}
 }
 
-// isStreamingPair reports whether both the reader and writer declare streaming
-// capability, so the file-run path can wire a concurrent skeleton store and run
-// a bounded-memory round-trip.
-func isStreamingPair(reader format.DataFormatReader, writer format.DataFormatWriter) bool {
-	return format.IsStreamingReader(reader) && format.IsStreamingWriter(writer)
+// readerFeeder returns the streaming feed: the reader runs concurrently with the
+// executor and writer (feedReader). The reader is opened before the pipeline is
+// built, so the feed owns closing it — a run rejected before the pipeline starts
+// must not strand the open file behind it.
+func (r *FileRunner) readerFeeder(ctx context.Context, reader format.DataFormatReader, skel *format.SkeletonStore) *partFeed {
+	return &partFeed{
+		feed: func(feedCtx context.Context, inCh chan<- *model.Part, errOut *error) {
+			r.feedReader(ctx, feedCtx, reader, skel, inCh, errOut)
+		},
+		release: func() {
+			if skel != nil {
+				skel.CloseWrite()
+			}
+			reader.Close()
+		},
+	}
+}
+
+// streamingFeed reports whether the run feeds the reader concurrently with the
+// writer: the reader streams its input, and no writer forced the source to be
+// materialized up front. It is the single predicate behind both halves of the
+// streaming decision — the feed AND the skeleton backing — because pairing a
+// channel-backed skeleton store with a buffered feed deadlocks: the store blocks
+// the writer inside Next() until the reader's feeder calls CloseWrite, which
+// only the concurrent protocol reaches.
+func streamingFeed(reader format.DataFormatReader, preReadContent []byte) bool {
+	return format.IsStreamingReader(reader) && preReadContent == nil
+}
+
+// wireSkeleton creates and wires the skeleton store for a same-format pair.
+// streaming must be streamingFeed's answer for this same run: the concurrent
+// store is only safe when the reader in fact feeds concurrently, and the writer
+// declares it can consume a skeleton interleaved with the Part stream.
+func wireSkeleton(reader format.DataFormatReader, writer format.DataFormatWriter, streaming bool) (*format.SkeletonStore, error) {
+	if streaming && format.IsStreamingWriter(writer) {
+		return format.NewWiredStreamingSkeleton(reader, writer), nil
+	}
+	return format.NewWiredSkeleton(reader, writer)
 }
 
 // RunSkeletonReconstruct runs the tool chain when the raw source is absent but
@@ -950,7 +1012,11 @@ func partsFromSkeleton(skelBytes []byte) ([]*model.Part, error) {
 // and does NOT finalize the output — the caller owns those, so it can wrap the
 // run in atomic temp-file/rename (runPipelineToWriter) or write straight to an
 // in-memory/stream sink (RunStream). label names the destination for errors.
-func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools []tool.Tool, feed func(context.Context, chan<- *model.Part, *error), targetLang string, writer format.DataFormatWriter, sourcePath string, inputContent []byte, label string) error {
+func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools []tool.Tool, feed *partFeed, targetLang string, writer format.DataFormatWriter, sourcePath string, inputContent []byte, label string) error {
+	// A run that never reaches the feed (an unbuildable flow) still has to
+	// release what the feed owns; once the feed has run this is a no-op.
+	defer feed.Abort()
+
 	fb := NewFlow(flowName)
 	for _, t := range tools {
 		fb.AddTool(t)
@@ -1010,7 +1076,7 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 			}
 		}()
 		// feed closes inCh itself so the writer/skeleton see EOF.
-		feed(feedCtx, inCh, &feedErr)
+		feed.Feed(feedCtx, inCh, &feedErr)
 	}()
 
 	// The writer drains outCh (every DataFormatWriter loops
@@ -1072,10 +1138,15 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 // the reader concurrently (feedReader). When skeletonStore is non-nil it is
 // closed before returning. sourcePath/inputContent are handed to the writer only
 // when non-empty (same-format runs); skeleton-reconstructed runs pass them empty.
-func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, tools []tool.Tool, feed func(context.Context, chan<- *model.Part, *error), outputPath, targetLang string, writer format.DataFormatWriter, skeletonStore *format.SkeletonStore, sourcePath string, inputContent []byte) error {
+func (r *FileRunner) runPipelineToWriter(ctx context.Context, flowName string, tools []tool.Tool, feed *partFeed, outputPath, targetLang string, writer format.DataFormatWriter, skeletonStore *format.SkeletonStore, sourcePath string, inputContent []byte) error {
 	if skeletonStore != nil {
 		defer skeletonStore.Close()
 	}
+	// Every destination check below can reject the run before the pipeline
+	// starts, which is exactly when the feed's own cleanup never happens — a
+	// streaming feed holds the open reader until then. Once the feed has run
+	// this is a no-op.
+	defer feed.Abort()
 	label := filepath.Base(outputPath)
 	outputDir := filepath.Dir(outputPath)
 
@@ -1186,24 +1257,6 @@ func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []too
 		}
 	}
 
-	// Same format in and out (a container round-trips each entry), so wire a
-	// skeleton exactly as the file path does — streaming when both ends opt in,
-	// and failing the entry rather than repacking a reconstruction of it.
-	var skeletonStore *format.SkeletonStore
-	if isStreamingPair(reader, writer) {
-		skeletonStore = format.NewWiredStreamingSkeleton(reader, writer)
-	} else {
-		store, skelErr := format.NewWiredSkeleton(reader, writer)
-		if skelErr != nil {
-			reader.Close()
-			return fmt.Errorf("cannot process %s: %w", srcURI, skelErr)
-		}
-		skeletonStore = store
-	}
-	if skeletonStore != nil {
-		defer skeletonStore.Close()
-	}
-
 	// A writer that needs the original bytes (OpenXML/AsciiDoc) is not a
 	// StreamingReader's writer, so it only co-occurs with the buffered path;
 	// materialise the source once and share it with the reader.
@@ -1219,22 +1272,33 @@ func (r *FileRunner) RunStream(ctx context.Context, flowName string, tools []too
 		}
 	}
 
+	// Same format in and out (a container round-trips each entry), so wire a
+	// skeleton exactly as the file path does — from the same streaming decision
+	// that picks the feed, and failing the entry rather than repacking a
+	// reconstruction of it.
+	streaming := streamingFeed(reader, preReadContent)
+	skeletonStore, skelErr := wireSkeleton(reader, writer, streaming)
+	if skelErr != nil {
+		reader.Close()
+		return fmt.Errorf("cannot process %s: %w", srcURI, skelErr)
+	}
+	if skeletonStore != nil {
+		defer skeletonStore.Close()
+	}
+
 	if err := writer.SetOutputWriter(out); err != nil {
 		reader.Close()
 		return fmt.Errorf("set output: %w", err)
 	}
 
 	label := filepath.Base(srcURI)
-	if format.IsStreamingReader(reader) && preReadContent == nil {
+	if streaming {
 		// Streaming inner format: feed the reader directly from the source
 		// stream — the entry is never buffered whole.
 		if err := r.openReader(ctx, reader, &budgetedSource{Reader: safeio.DefaultBudget().Reader(in)}, srcURI, targetLang); err != nil {
 			return err
 		}
-		feed := func(feedCtx context.Context, inCh chan<- *model.Part, errOut *error) {
-			r.feedReader(ctx, feedCtx, reader, skeletonStore, inCh, errOut)
-		}
-		if err := r.runExecuteWrite(ctx, flowName, tools, feed, targetLang, writer, "", preReadContent, label); err != nil {
+		if err := r.runExecuteWrite(ctx, flowName, tools, r.readerFeeder(ctx, reader, skeletonStore), targetLang, writer, "", preReadContent, label); err != nil {
 			return err
 		}
 		return writer.Close()

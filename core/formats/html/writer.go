@@ -617,12 +617,75 @@ func (w *Writer) getBlockText(block *model.Block) string {
 
 // renderTargetRuns reconstructs the full text from a block's target
 // runs, splicing inline-code Data back into the output.
+//
+// TextRun content is escaped, inline-code Data is not. The reader models every
+// markup construct — tags and character references alike — as a code run
+// carrying its source bytes, so what remains in a TextRun is plain text: a `&`
+// or `<` there came from a tool, and writing it raw would be read back as
+// markup. The source path deliberately skips the escape so an untouched block
+// replays its original bytes.
 func (w *Writer) renderTargetRuns(block *model.Block, locale model.LocaleID) string {
 	runs := block.TargetRuns(locale)
 	if len(runs) == 0 {
 		return w.renderSourceRuns(block)
 	}
-	return model.RenderRunsWithData(runs)
+	var b strings.Builder
+	renderRunsEscapingText(&b, runs)
+	return b.String()
+}
+
+// renderRunsEscapingText mirrors model.RenderRunsWithData with `&` and `<`
+// escaped in text position.
+//
+// `>` stays literal: it is legal in HTML character data, and the reader leaves
+// a source `>` in a TextRun, so escaping it would change the bytes of content
+// nothing edited.
+func renderRunsEscapingText(b *strings.Builder, runs []model.Run) {
+	for _, r := range runs {
+		switch r.Kind() {
+		case model.RunKindText:
+			writeEscapedHTMLText(b, r.Text.Text)
+		case model.RunKindPh:
+			b.WriteString(r.Ph.Data)
+		case model.RunKindPcOpen:
+			b.WriteString(r.PcOpen.Data)
+		case model.RunKindPcClose:
+			b.WriteString(r.PcClose.Data)
+		case model.RunKindSub:
+			b.WriteString(r.Sub.Ref)
+		case model.RunKindPlural:
+			if form, ok := r.Plural.Forms[model.PluralOther]; ok {
+				renderRunsEscapingText(b, form)
+				continue
+			}
+			for _, form := range r.Plural.Forms {
+				renderRunsEscapingText(b, form)
+				break
+			}
+		case model.RunKindSelect:
+			if form, ok := r.Select.Cases["other"]; ok {
+				renderRunsEscapingText(b, form)
+				continue
+			}
+			for _, form := range r.Select.Cases {
+				renderRunsEscapingText(b, form)
+				break
+			}
+		}
+	}
+}
+
+func writeEscapedHTMLText(b *strings.Builder, s string) {
+	for i := range len(s) {
+		switch s[i] {
+		case '&':
+			b.WriteString("&amp;")
+		case '<':
+			b.WriteString("&lt;")
+		default:
+			b.WriteByte(s[i])
+		}
+	}
 }
 
 func (w *Writer) renderSourceRuns(block *model.Block) string {

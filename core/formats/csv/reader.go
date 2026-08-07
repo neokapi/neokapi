@@ -148,12 +148,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	bom, body := format.SplitBOM(content)
+
 	if r.skeletonStore != nil {
-		r.readContentSkeleton(ctx, ch, layer, string(content))
+		r.skelText(string(bom))
+		r.readContentSkeleton(ctx, ch, layer, string(body))
 		return
 	}
 
-	csvReader := csv.NewReader(strings.NewReader(string(content)))
+	csvReader := csv.NewReader(strings.NewReader(string(body)))
 	csvReader.Comma = r.cfg.Separator
 	csvReader.LazyQuotes = true
 	csvReader.FieldsPerRecord = -1 // allow variable number of fields per row

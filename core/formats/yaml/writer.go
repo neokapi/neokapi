@@ -144,6 +144,14 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 // also threaded through; empty indent falls back to a compact 2-space
 // default suitable for fresh emission.
 func encodeYAMLScalarWithIndicatorIndent(text, style, indicator, indent string) string {
+	// A plain, single-quoted, literal or folded scalar can only carry the
+	// characters of YAML 1.2's printable production. Anything else has to be
+	// written as a double-quoted scalar with an escape, whatever style the
+	// source used — the alternative is emitting a raw control byte, which
+	// yaml.v3 (and every other parser) rejects on the way back in.
+	if needsDoubleQuoting(text) {
+		return encodeDoubleQuoted(text)
+	}
 	switch style {
 	case "double-quoted":
 		return encodeDoubleQuoted(text)
@@ -154,13 +162,70 @@ func encodeYAMLScalarWithIndicatorIndent(text, style, indicator, indent string) 
 	case "folded":
 		return encodeFoldedBlockWithIndicatorIndent(text, indicator, indent)
 	default:
-		// Plain scalar — if the text contains special characters, fall back
-		// to the original style (plain).
+		if !plainScalarSafe(text) {
+			return encodeDoubleQuoted(text)
+		}
 		return encodePlain(text)
 	}
 }
 
-// encodeDoubleQuoted encodes a string as a YAML double-quoted scalar.
+// plainScalarSafe reports whether s can be emitted as a plain scalar and read
+// back as itself.
+//
+// A plain scalar has no delimiters, so the value's own bytes decide where it
+// ends and what it means: a line break ends it, leading or trailing space is
+// stripped, ` #` starts a comment, `: ` reads as a mapping, and a leading
+// indicator character opens a different node type. A translated value hits all
+// of these — the source scalar was plain because the ORIGINAL text was safe,
+// which says nothing about the replacement.
+func plainScalarSafe(s string) bool {
+	if s == "" {
+		return false
+	}
+	if strings.ContainsAny(s, "\n\r") {
+		return false
+	}
+	if strings.TrimSpace(s) != s {
+		return false
+	}
+	if strings.ContainsAny(s, ",[]{}") {
+		return false
+	}
+	if strings.Contains(s, ": ") || strings.HasSuffix(s, ":") {
+		return false
+	}
+	if strings.Contains(s, " #") {
+		return false
+	}
+	return !strings.ContainsRune("-?:#&*!|>'\"%@`", rune(s[0]))
+}
+
+// needsDoubleQuoting reports whether s carries a character no plain,
+// single-quoted or block scalar can hold: the C0 controls other than tab and
+// line feed, DEL, and the C1 controls. Only a double-quoted scalar can escape
+// those.
+//
+// Tab and line feed are excluded because every style carries them — tab
+// literally, line feed as the style's own line structure. NEL (U+0085) is
+// included even though YAML 1.2 §5.1 lists it as printable: yaml.v3 folds it
+// as a line break, so a value carrying it literally comes back split.
+func needsDoubleQuoting(s string) bool {
+	for _, r := range s {
+		switch {
+		case r == '\t' || r == '\n':
+		case r < 0x20, r == 0x7F:
+			return true
+		case r >= 0x80 && r <= 0x9F:
+			return true
+		}
+	}
+	return false
+}
+
+// encodeDoubleQuoted encodes a string as a YAML double-quoted scalar, escaping
+// every character the production does not admit literally (YAML 1.2 §7.3.1).
+// Characters with a named escape get it; the rest take the `\xNN` / `\uNNNN`
+// numeric forms.
 func encodeDoubleQuoted(s string) string {
 	var b strings.Builder
 	b.WriteByte('"')
@@ -170,18 +235,35 @@ func encodeDoubleQuoted(s string) string {
 			b.WriteString(`\"`)
 		case '\\':
 			b.WriteString(`\\`)
-		case '\n':
-			b.WriteString(`\n`)
-		case '\t':
-			b.WriteString(`\t`)
-		case '\r':
-			b.WriteString(`\r`)
-		case '\b':
-			b.WriteString(`\b`)
 		case '\x00':
 			b.WriteString(`\0`)
+		case '\a':
+			b.WriteString(`\a`)
+		case '\b':
+			b.WriteString(`\b`)
+		case '\t':
+			b.WriteString(`\t`)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\v':
+			b.WriteString(`\v`)
+		case '\f':
+			b.WriteString(`\f`)
+		case '\r':
+			b.WriteString(`\r`)
+		case '\x1b':
+			b.WriteString(`\e`)
+		case 0x85:
+			b.WriteString(`\N`)
 		default:
-			b.WriteRune(r)
+			switch {
+			case r < 0x20 || r == 0x7F:
+				fmt.Fprintf(&b, `\x%02x`, r)
+			case r >= 0x80 && r <= 0x9F:
+				fmt.Fprintf(&b, `\x%02x`, r)
+			default:
+				b.WriteRune(r)
+			}
 		}
 	}
 	b.WriteByte('"')

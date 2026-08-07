@@ -290,6 +290,9 @@ func (w *Writer) writeFromSkeleton() (retErr error) {
 				continue
 			}
 			block := w.blocks[blockIdx]
+			if err := format.CheckXMLBlock("xliff", block); err != nil {
+				return err
+			}
 			elemType := refSuffix
 
 			var text string
@@ -787,6 +790,9 @@ func (w *Writer) flush() (retErr error) {
 		block, ok := part.Resource.(*model.Block)
 		if !ok {
 			continue
+		}
+		if err := format.CheckXMLBlock("xliff", block); err != nil {
+			return err
 		}
 
 		fmt.Fprintf(ew, `      <trans-unit id="%s"`, xmlesc.Attr(block.ID))

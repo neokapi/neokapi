@@ -180,6 +180,14 @@ func (b *BatchExecutor) Execute(ctx context.Context, toolFactories []ToolFactory
 	return results, nil
 }
 
+// processRecovered runs a tool's streaming Process with the panic recovery
+// every tool goroutine needs. The batch path has no session, so it invokes
+// Process directly rather than going through runTool.
+func processRecovered(ctx context.Context, t tool.Tool, in <-chan *model.Part, out chan<- *model.Part) (err error) {
+	defer recoverToolPanic(&err)
+	return t.Process(ctx, in, out)
+}
+
 // processFile creates a tool chain from factories and processes a single file.
 func (b *BatchExecutor) processFile(ctx context.Context, toolFactories []ToolFactory, file BatchFile) ([]*model.Part, error) {
 	if len(toolFactories) == 0 {
@@ -213,7 +221,7 @@ func (b *BatchExecutor) processFile(ctx context.Context, toolFactories []ToolFac
 
 		g.Go(func() error {
 			defer close(outCh)
-			if err := t.Process(ctx, inCh, outCh); err != nil {
+			if err := processRecovered(ctx, t, inCh, outCh); err != nil {
 				return fmt.Errorf("tool %s: %w", t.Name(), err)
 			}
 			return nil

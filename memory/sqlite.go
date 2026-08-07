@@ -43,7 +43,22 @@ var (
 // normalized match keys per variant for tiered lookup.
 type SQLiteStore struct {
 	db *storage.DB
+
+	fuzzyMu    sync.Mutex
+	fuzzyIndex fuzzyIndexState
 }
+
+// fuzzyIndexState is what the store knows about tm_variant_trigram, the FTS5
+// side-table the fuzzy tier queries for candidates. The bulk write path
+// deliberately leaves it unpopulated, so an empty MATCH result does not mean
+// "no match" — the store has to know which it is before it can trust one.
+type fuzzyIndexState int
+
+const (
+	fuzzyIndexUnknown fuzzyIndexState = iota
+	fuzzyIndexReady
+	fuzzyIndexStale
+)
 
 // Compile-time checks that SQLiteStore satisfies the content memory interfaces.
 var (
@@ -179,6 +194,7 @@ func (tm *SQLiteStore) BulkAddWithStream(ctx context.Context, entries []Entry, s
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit: %w", err)
 	}
+	tm.setFuzzyIndexState(fuzzyIndexStale)
 	return nil
 }
 
@@ -203,6 +219,7 @@ func (tm *SQLiteStore) RebuildFuzzyIndex(ctx context.Context) error {
 		SELECT plain, struct_key, general_key, locale, entry_id FROM tm_variants`); err != nil {
 		return fmt.Errorf("rebuild fuzzy index: %w", err)
 	}
+	tm.setFuzzyIndexState(fuzzyIndexReady)
 	return nil
 }
 
@@ -223,6 +240,57 @@ func (tm *SQLiteStore) RebuildSearchIndex(ctx context.Context) error {
 		return fmt.Errorf("rebuild search index: %w", err)
 	}
 	return nil
+}
+
+func (tm *SQLiteStore) setFuzzyIndexState(state fuzzyIndexState) {
+	tm.fuzzyMu.Lock()
+	tm.fuzzyIndex = state
+	tm.fuzzyMu.Unlock()
+}
+
+// fuzzyIndexUsable reports whether tm_variant_trigram covers all of
+// tm_variants, and so whether an empty MATCH result can be believed. The
+// verdict is resolved once per store and then carried by the write paths that
+// change it.
+func (tm *SQLiteStore) fuzzyIndexUsable(ctx context.Context) bool {
+	tm.fuzzyMu.Lock()
+	defer tm.fuzzyMu.Unlock()
+	switch tm.fuzzyIndex {
+	case fuzzyIndexReady:
+		return true
+	case fuzzyIndexStale:
+		return false
+	}
+	state, err := tm.probeFuzzyIndex(ctx)
+	if err != nil {
+		// Leave the verdict unresolved so a cancelled or busy probe is not
+		// cached; the scan path this returns to reports the real error.
+		return false
+	}
+	tm.fuzzyIndex = state
+	return state == fuzzyIndexReady
+}
+
+// probeFuzzyIndex decides the state of a store this process has not written to,
+// which is how a content memory bulk-imported by an earlier run presents
+// itself: variants on disk, an index that was never rebuilt.
+func (tm *SQLiteStore) probeFuzzyIndex(ctx context.Context) (fuzzyIndexState, error) {
+	var hasVariants, hasIndex bool
+	if err := tm.db.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM tm_variants)`).Scan(&hasVariants); err != nil {
+		return fuzzyIndexUnknown, fmt.Errorf("probe variants: %w", err)
+	}
+	if !hasVariants {
+		return fuzzyIndexReady, nil
+	}
+	if err := tm.db.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM tm_variant_trigram)`).Scan(&hasIndex); err != nil {
+		return fuzzyIndexUnknown, fmt.Errorf("probe fuzzy index: %w", err)
+	}
+	if !hasIndex {
+		return fuzzyIndexStale, nil
+	}
+	return fuzzyIndexReady, nil
 }
 
 // bulkStmts holds the set of prepared statements used by BulkAddWithStream.
@@ -746,37 +814,26 @@ func (tm *SQLiteStore) queryExactVariant(ctx context.Context, column, key string
 // by source locale, using trigram MATCH where available and falling back to
 // length-filtered scanning.
 func (tm *SQLiteStore) queryFuzzyCandidates(ctx context.Context, plainKey, structKey, generalKey string, sourceLocale model.LocaleID, opts LookupOptions) ([]Entry, error) {
-	if entries, err := tm.queryTrigramCandidates(ctx, plainKey, structKey, generalKey, sourceLocale, opts); err == nil {
-		return entries, nil
+	if tm.fuzzyIndexUsable(ctx) {
+		if entries, err := tm.queryTrigramCandidates(ctx, plainKey, structKey, generalKey, sourceLocale, opts); err == nil {
+			return entries, nil
+		}
 	}
 	return tm.queryLengthFiltered(ctx, plainKey, sourceLocale, opts)
 }
 
 func (tm *SQLiteStore) queryTrigramCandidates(ctx context.Context, plainKey, structKey, generalKey string, sourceLocale model.LocaleID, opts LookupOptions) ([]Entry, error) {
-	// FTS5 MATCH on the trigram table returns candidate rows with entry_id
-	// unindexed column that we project out.
-	q := `
-		SELECT DISTINCT entry_id FROM tm_variant_trigram
-		WHERE tm_variant_trigram MATCH ? AND locale = ?
-		LIMIT 200
-	`
 	var ids []string
 	for _, key := range []string{plainKey, structKey, generalKey} {
 		tq := BuildTrigramQuery(key)
 		if tq == "" {
 			continue
 		}
-		rows, err := tm.db.QueryContext(ctx, q, tq, string(sourceLocale))
+		keyIDs, err := tm.trigramMatchIDs(ctx, tq, sourceLocale)
 		if err != nil {
-			return nil, fmt.Errorf("trigram query: %w", err)
+			return nil, err
 		}
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err == nil {
-				ids = append(ids, id)
-			}
-		}
-		rows.Close()
+		ids = append(ids, keyIDs...)
 	}
 	ids = uniqueStrings(ids)
 	if len(ids) == 0 {
@@ -787,6 +844,21 @@ func (tm *SQLiteStore) queryTrigramCandidates(ctx context.Context, plainKey, str
 		return nil, err
 	}
 	return tm.filterByProject(entries, opts), nil
+}
+
+// trigramMatchIDs runs one FTS5 MATCH against the trigram table, whose entry_id
+// is an unindexed column projected back out.
+func (tm *SQLiteStore) trigramMatchIDs(ctx context.Context, match string, sourceLocale model.LocaleID) ([]string, error) {
+	rows, err := tm.db.QueryContext(ctx, `
+		SELECT DISTINCT entry_id FROM tm_variant_trigram
+		WHERE tm_variant_trigram MATCH ? AND locale = ?
+		LIMIT 200
+	`, match, string(sourceLocale))
+	if err != nil {
+		return nil, fmt.Errorf("trigram query: %w", err)
+	}
+	defer rows.Close()
+	return scanIDs(rows)
 }
 
 func (tm *SQLiteStore) queryLengthFiltered(ctx context.Context, plainKey string, sourceLocale model.LocaleID, opts LookupOptions) ([]Entry, error) {
@@ -981,12 +1053,17 @@ func (tm *SQLiteStore) scanEntriesWithChildren(ctx context.Context, rows interfa
 		for varRows.Next() {
 			var eid, loc, coded string
 			if err := varRows.Scan(&eid, &loc, &coded); err != nil {
-				continue
+				varRows.Close()
+				return nil, fmt.Errorf("scan variant: %w", err)
 			}
 			runs := decodeVariantRuns(coded)
 			if idx, ok := byID[eid]; ok {
 				entries[idx].Variants[model.LocaleID(loc)] = runs
 			}
+		}
+		if err := varRows.Err(); err != nil {
+			varRows.Close()
+			return nil, fmt.Errorf("iterate variants: %w", err)
 		}
 		varRows.Close()
 	}
@@ -1016,7 +1093,8 @@ func (tm *SQLiteStore) scanEntriesWithChildren(ctx context.Context, rows interfa
 			var loc, textVal *string
 			var startPos, endPos *int
 			if err := entRows.Scan(&eid, &pid, &etype, &conceptID, &loc, &textVal, &startPos, &endPos); err != nil {
-				continue
+				entRows.Close()
+				return nil, fmt.Errorf("scan entity mapping: %w", err)
 			}
 			idx, ok := byID[eid]
 			if !ok {
@@ -1048,6 +1126,10 @@ func (tm *SQLiteStore) scanEntriesWithChildren(ctx context.Context, rows interfa
 				entries[idx].Entities[emIdx].Values[model.LocaleID(*loc)] = val
 			}
 		}
+		if err := entRows.Err(); err != nil {
+			entRows.Close()
+			return nil, fmt.Errorf("iterate entity mappings: %w", err)
+		}
 		entRows.Close()
 	}
 
@@ -1064,7 +1146,8 @@ func (tm *SQLiteStore) scanEntriesWithChildren(ctx context.Context, rows interfa
 			var o Origin
 			var addedAtStr string
 			if err := originRows.Scan(&eid, &o.Source, &o.Key, &o.Reference, &addedAtStr, &o.AddedBy, &o.SessionID); err != nil {
-				continue
+				originRows.Close()
+				return nil, fmt.Errorf("scan origin: %w", err)
 			}
 			var perr error
 			if o.AddedAt, perr = parseStoredTime(addedAtStr); perr != nil {
@@ -1074,6 +1157,10 @@ func (tm *SQLiteStore) scanEntriesWithChildren(ctx context.Context, rows interfa
 			if idx, ok := byID[eid]; ok {
 				entries[idx].Origins = append(entries[idx].Origins, o)
 			}
+		}
+		if err := originRows.Err(); err != nil {
+			originRows.Close()
+			return nil, fmt.Errorf("iterate origins: %w", err)
 		}
 		originRows.Close()
 	}
@@ -1416,14 +1503,20 @@ func (tm *SQLiteStore) FacetStatsFiltered(ctx context.Context, params SearchPara
 			recordErr(fmt.Errorf("locale facets: %w", err))
 			return
 		}
+		defer rows.Close()
 		var locales []LocaleFacet
 		for rows.Next() {
 			var lf LocaleFacet
-			if err := rows.Scan(&lf.Locale, &lf.Count); err == nil {
-				locales = append(locales, lf)
+			if err := rows.Scan(&lf.Locale, &lf.Count); err != nil {
+				recordErr(fmt.Errorf("scan locale facet: %w", err))
+				return
 			}
+			locales = append(locales, lf)
 		}
-		rows.Close()
+		if err := rows.Err(); err != nil {
+			recordErr(fmt.Errorf("locale facets: %w", err))
+			return
+		}
 		data.Locales = locales
 	})
 
@@ -1435,14 +1528,20 @@ func (tm *SQLiteStore) FacetStatsFiltered(ctx context.Context, params SearchPara
 			recordErr(fmt.Errorf("project facets: %w", err))
 			return
 		}
+		defer rows.Close()
 		var projects []ProjectFacet
 		for rows.Next() {
 			var pf ProjectFacet
-			if err := rows.Scan(&pf.ProjectID, &pf.Count); err == nil {
-				projects = append(projects, pf)
+			if err := rows.Scan(&pf.ProjectID, &pf.Count); err != nil {
+				recordErr(fmt.Errorf("scan project facet: %w", err))
+				return
 			}
+			projects = append(projects, pf)
 		}
-		rows.Close()
+		if err := rows.Err(); err != nil {
+			recordErr(fmt.Errorf("project facets: %w", err))
+			return
+		}
 		data.Projects = projects
 	})
 
@@ -1458,14 +1557,20 @@ func (tm *SQLiteStore) FacetStatsFiltered(ctx context.Context, params SearchPara
 			recordErr(fmt.Errorf("entity type facets: %w", err))
 			return
 		}
+		defer rows.Close()
 		var types []EntityTypeFacet
 		for rows.Next() {
 			var ef EntityTypeFacet
-			if err := rows.Scan(&ef.Type, &ef.Count); err == nil {
-				types = append(types, ef)
+			if err := rows.Scan(&ef.Type, &ef.Count); err != nil {
+				recordErr(fmt.Errorf("scan entity type facet: %w", err))
+				return
 			}
+			types = append(types, ef)
 		}
-		rows.Close()
+		if err := rows.Err(); err != nil {
+			recordErr(fmt.Errorf("entity type facets: %w", err))
+			return
+		}
 		data.EntityTypes = types
 	})
 
@@ -1482,20 +1587,26 @@ func (tm *SQLiteStore) FacetStatsFiltered(ctx context.Context, params SearchPara
 			recordErr(fmt.Errorf("import session facets: %w", err))
 			return
 		}
+		defer rows.Close()
 		var sessions []ImportSessionFacet
 		for rows.Next() {
 			var sf ImportSessionFacet
 			var importedAtStr string
-			if err := rows.Scan(&sf.SessionID, &sf.FileKey, &sf.ToolName, &importedAtStr, &sf.Count); err == nil {
-				var perr error
-				if sf.ImportedAt, perr = parseStoredTime(importedAtStr); perr != nil {
-					recordErr(fmt.Errorf("import session facet %s: parse imported_at: %w", sf.SessionID, perr))
-					continue
-				}
-				sessions = append(sessions, sf)
+			if err := rows.Scan(&sf.SessionID, &sf.FileKey, &sf.ToolName, &importedAtStr, &sf.Count); err != nil {
+				recordErr(fmt.Errorf("scan import session facet: %w", err))
+				return
 			}
+			var perr error
+			if sf.ImportedAt, perr = parseStoredTime(importedAtStr); perr != nil {
+				recordErr(fmt.Errorf("import session facet %s: parse imported_at: %w", sf.SessionID, perr))
+				return
+			}
+			sessions = append(sessions, sf)
 		}
-		rows.Close()
+		if err := rows.Err(); err != nil {
+			recordErr(fmt.Errorf("import session facets: %w", err))
+			return
+		}
 		data.ImportSessions = sessions
 	})
 
@@ -1563,9 +1674,10 @@ func (tm *SQLiteStore) LocaleStats(ctx context.Context) ([]LocaleFacet, error) {
 	var out []LocaleFacet
 	for rows.Next() {
 		var lf LocaleFacet
-		if err := rows.Scan(&lf.Locale, &lf.Count); err == nil {
-			out = append(out, lf)
+		if err := rows.Scan(&lf.Locale, &lf.Count); err != nil {
+			return nil, fmt.Errorf("scan locale stat: %w", err)
 		}
+		out = append(out, lf)
 	}
 	return out, rows.Err()
 }
@@ -1582,9 +1694,10 @@ func (tm *SQLiteStore) ActivityStats(ctx context.Context) ([]ActivityStat, error
 	var out []ActivityStat
 	for rows.Next() {
 		var s ActivityStat
-		if err := rows.Scan(&s.Date, &s.Count); err == nil {
-			out = append(out, s)
+		if err := rows.Scan(&s.Date, &s.Count); err != nil {
+			return nil, fmt.Errorf("scan activity stat: %w", err)
 		}
+		out = append(out, s)
 	}
 	return out, rows.Err()
 }

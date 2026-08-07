@@ -254,6 +254,12 @@ func (w *Writer) replaySkeleton(blockAt func(int) *model.Block) error {
 			if block == nil {
 				continue
 			}
+			// Checked once per block rather than per <seg>: the target TUVs
+			// spliced in by flushPendingTUVs come from the same block and
+			// reach the output through a path with no error return.
+			if err := format.CheckXMLBlock("tmx", block); err != nil {
+				return err
+			}
 			if tuIdx != curTU {
 				curTU = tuIdx
 				emittedLangs = map[string]bool{}
@@ -467,6 +473,10 @@ func xmlEscapeString(s string) string {
 	var buf strings.Builder
 	for _, r := range s {
 		switch r {
+		case '\r':
+			// XML 1.0 §2.11 rewrites a literal CR to LF on the next read, so
+			// only the character reference survives.
+			buf.WriteString("&#13;")
 		case '&':
 			buf.WriteString("&amp;")
 		case '<':
@@ -577,6 +587,9 @@ func (w *Writer) flush() error {
 	}
 
 	for _, block := range w.blocks {
+		if err := format.CheckXMLBlock("tmx", block); err != nil {
+			return err
+		}
 		tu := xmlTU{
 			TUid: block.ID,
 		}

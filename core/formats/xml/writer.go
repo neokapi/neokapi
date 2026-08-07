@@ -84,6 +84,9 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 					continue
 				}
 				text := w.blockText(block)
+				if err := format.CheckXMLText("xml", w.Locale, block, text); err != nil {
+					return err
+				}
 				if _, err := fmt.Fprint(w.Output, text); err != nil {
 					return err
 				}
@@ -258,6 +261,9 @@ func (w *Writer) replaySkeleton(blockFor func(string) *model.Block, blocks map[s
 			first = false
 			if block := blockFor(string(entry.Data)); block != nil {
 				text := w.renderBlockXML(block, blocks)
+				if err := format.CheckXMLText("xml", w.Locale, block, text); err != nil {
+					return err
+				}
 				if _, err := io.WriteString(w.Output, text); err != nil {
 					return err
 				}

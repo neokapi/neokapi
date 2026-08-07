@@ -155,6 +155,11 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			switch part.Type {
 			case model.PartBlock:
 				if block, ok := part.Resource.(*model.Block); ok {
+					// Checked on arrival: the DOM-patching, generation and
+					// skeleton paths all serialize from w.items.
+					if err := format.CheckXMLBlock("xliff2", block); err != nil {
+						return err
+					}
 					w.items = append(w.items, writerItem{kind: itemBlock, block: block})
 				}
 			case model.PartGroupStart:
@@ -244,7 +249,7 @@ func (w *Writer) writeFromSkeleton() error {
 					text = block.SourceText()
 				}
 			}
-			if _, err := io.WriteString(w.Output, xmlesc.Text(text)); err != nil {
+			if err := writeBytesCREscape(w.Output, []byte(xmlesc.Text(text))); err != nil {
 				return err
 			}
 		}

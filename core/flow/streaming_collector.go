@@ -3,6 +3,7 @@ package flow
 import (
 	"context"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -45,27 +46,29 @@ func (t *TappingTool) SetConfig(c tool.ToolConfig) error { return t.inner.SetCon
 // Process intercepts the output of the inner tool, calling Observe on each Part
 // before forwarding it to the output channel.
 func (t *TappingTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
-	tappedOut := make(chan *model.Part, cap(out))
-
-	// Run the inner tool writing to our interceptor channel.
-	errCh := make(chan error, 1)
-	go func() {
-		errCh <- t.inner.Process(ctx, in, tappedOut)
-		close(tappedOut)
-	}()
-
-	// Observe and forward each Part.
-	for part := range tappedOut {
-		t.collector.Observe(part)
-		select {
-		case out <- part:
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-
-	return <-errCh
+	return interceptTool(ctx, in, out, nil, t.collector.Observe,
+		func(innerIn <-chan *model.Part, innerOut chan<- *model.Part) error {
+			return t.inner.Process(ctx, innerIn, innerOut)
+		})
 }
 
-// Verify TappingTool implements tool.Tool at compile time.
-var _ tool.Tool = (*TappingTool)(nil)
+// SessionProcess forwards the session contract to the wrapped tool when it is a
+// SessionTool, while still observing parts — so persistent overlay caching
+// survives the tapping wrapper (without this, a wrapped SessionTool silently
+// loses its cache, defeating resumable runs).
+func (t *TappingTool) SessionProcess(ctx context.Context, sess blockstore.Session, in <-chan *model.Part, out chan<- *model.Part) error {
+	st, ok := t.inner.(tool.SessionTool)
+	if !ok {
+		return t.Process(ctx, in, out)
+	}
+	return interceptTool(ctx, in, out, nil, t.collector.Observe,
+		func(innerIn <-chan *model.Part, innerOut chan<- *model.Part) error {
+			return st.SessionProcess(ctx, sess, innerIn, innerOut)
+		})
+}
+
+// Verify TappingTool implements tool.Tool and tool.SessionTool at compile time.
+var (
+	_ tool.Tool        = (*TappingTool)(nil)
+	_ tool.SessionTool = (*TappingTool)(nil)
+)

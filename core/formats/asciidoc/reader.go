@@ -142,8 +142,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	if err != nil {
 		return fmt.Errorf("asciidoc: reading: %w", err)
 	}
+	bom, content := format.SplitBOM(content)
 	r.source = content
 	r.cursor = 0
+	r.skelText(string(bom))
 	r.names.Reset()
 	r.pendingAnchor = ""
 

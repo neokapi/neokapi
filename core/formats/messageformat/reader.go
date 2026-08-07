@@ -121,7 +121,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	// limit across CLI/server/WASM — see core/safeio). Unlike a bufio.Scanner,
 	// ReadString imposes no per-line token cap, so an over-long single line is
 	// read (up to the byte budget) rather than rejected.
-	br := bufio.NewReader(safeio.DefaultBudget().Reader(r.Doc.Reader))
+	bom, body, err := format.SplitBOMReader(safeio.DefaultBudget().Reader(r.Doc.Reader))
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("messageformat: reading: %w", err)}
+		return
+	}
+	r.skelText(bom)
+	br := bufio.NewReader(body)
 	blockCounter := 0
 	contentCounter := 0
 	lineNum := 0

@@ -133,7 +133,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	if err != nil {
 		return fmt.Errorf("mdx: reading: %w", err)
 	}
+	bom, content := format.SplitBOM(content)
 	r.source = content
+	r.skelText(bom)
 	r.blockCounter = 0
 	r.dataCounter = 0
 	r.naming.Reset()
