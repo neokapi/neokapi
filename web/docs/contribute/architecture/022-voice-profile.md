@@ -209,7 +209,7 @@ collections:
   - name: neokapi-docs
     channel: neokapi/docs   # both products ship `docs` — qualify it
   - name: bowrain-landing
-    channel: landing        # only bowrain declares it — the bare form resolves
+    channel: bowrain/landing
 ```
 
 There is no taxonomy to invent and none to keep in step with the collections
@@ -225,10 +225,8 @@ therefore authored once, in the voice it varies, and a channel the profile says
 nothing about leaves the base voice in place, which is the right answer for a
 voice that reads the same everywhere.
 
-A bare `channel:` resolves when exactly one profile declares it. Two profiles
-declaring the same channel makes it ambiguous, and that is a load error naming
-both qualified spellings — which voice a piece of content is written in is not
-something to decide by map order.
+A `channel:` is always written `profile/channel`; a bare channel name is a
+load error that spells out the qualified form(s).
 
 A profile has a home on disk, and the recipe does not have to name it.
 `.kapi/profiles/<name>/` holds what that profile overrides — `voice.yaml`, and

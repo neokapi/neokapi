@@ -79,10 +79,10 @@ defaults:
           - subtitle
           - narration.*.text
           - narration.*.caption
-    # Docs frontmatter: same reason as yaml above — the flow-run path behind
-    # l10n-docs / l10n-bowrain-docs binds reader config from defaults.formats
-    # only, so the frontmatter keys must live here too (the per-item config
-    # below covers extract/up/merge, which overlay these defaults per item).
+    # Docs frontmatter, declared once for every consumer: the flow-run path
+    # binds reader config from defaults.formats, and extract/up/merge overlay
+    # these same defaults per item (keyed by the item's effective format, so a
+    # `.md` item overridden to the mdx reader still picks up `mdx:` here).
     markdown:
       config:
         translateFrontMatter: true
@@ -116,12 +116,11 @@ profiles:
     channels: [app, ctrl, pulse, docs, email, landing]
     voice: .kapi/profiles/bowrain/voice.yaml
 
-# `docs` is the one channel both products ship, so those two collections qualify
-# it as `<profile>/docs`; every other channel is declared by exactly one profile
-# and the bare name resolves.
+# A channel is always bound as `<profile>/<channel>`: the product owns the
+# surface, and the binding reads as one.
 collections:
   - name: neokapi-engine
-    channel: engine
+    channel: neokapi/engine
     base: core/i18n
     content:
       - path: builtins/metadata.json
@@ -136,7 +135,7 @@ collections:
         target: catalogs/{lang}.mo
   # The CLI's own help and output strings.
   - name: neokapi-cli
-    channel: cli
+    channel: neokapi/cli
     base: host/i18n
     content:
       # Bare `json`: the whole file is recycled as one item. The catalog
@@ -148,25 +147,25 @@ collections:
           name: json
         target: catalogs/{lang}.mo
   - name: neokapi-desktop
-    channel: desktop
+    channel: neokapi/desktop
     base: apps/kapi-desktop/frontend
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
   - name: bowrain-app
-    channel: app
+    channel: bowrain/app
     base: bowrain/packages/app
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
   - name: bowrain-ctrl
-    channel: ctrl
+    channel: bowrain/ctrl
     base: bowrain/apps/ctrl
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
   - name: bowrain-pulse
-    channel: pulse
+    channel: bowrain/pulse
     base: bowrain/apps/pulse
     content:
       - path: i18n/**/*.kbf.json
@@ -183,16 +182,8 @@ collections:
       - path: docs/**/*.md
         format:
           name: mdx
-          config:
-            translateFrontMatter: true
-            frontMatterKeys: [title, description, sidebar_label]
         target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
       - path: docs/**/*.mdx
-        format:
-          name: mdx
-          config:
-            translateFrontMatter: true
-            frontMatterKeys: [title, description, sidebar_label]
         target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
   - name: bowrain-docs
     channel: bowrain/docs
@@ -202,25 +193,17 @@ collections:
       - path: docs/**/*.md
         format:
           name: mdx
-          config:
-            translateFrontMatter: true
-            frontMatterKeys: [title, description, sidebar_label]
         target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.md
       - path: docs/**/*.mdx
-        format:
-          name: mdx
-          config:
-            translateFrontMatter: true
-            frontMatterKeys: [title, description, sidebar_label]
         target: i18n/{lang}/docusaurus-plugin-content-docs/current/{path}.mdx
   - name: bowrain-email
-    channel: email
+    channel: bowrain/email
     base: bowrain/emails
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
   - name: bowrain-email-subjects
-    channel: email
+    channel: bowrain/email
     base: bowrain/mailer/subjects
     content:
       - path: en.json
@@ -228,13 +211,13 @@ collections:
           name: json
         target: "{lang}.json"
   - name: bowrain-landing
-    channel: landing
+    channel: bowrain/landing
     base: bowrain/web/landing
     content:
       - path: i18n/**/*.kbf.json
         target: i18n-{lang}/{filename}
   - name: neokapi-demos
-    channel: demos
+    channel: neokapi/demos
     base: harness/demos
     content:
       # Narrated demo-video scripts. The English demo.yaml is the master;

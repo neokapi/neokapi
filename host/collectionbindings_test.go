@@ -161,15 +161,15 @@ func TestGroupInputsByBinding(t *testing.T) {
 			want:   []bindingGroup{{Collection: "platform-docs", Inputs: abs("docs/a.md", "more-docs/b.md")}},
 		},
 		{
-			name: "the bare and qualified spellings of one point share one group",
+			name: "two collections at one point share one group",
 			proj: newProj(
 				project.Collection{
 					Name:    "platform-notes",
-					Channel: "notes",
+					Channel: "platform/notes",
 					Content: []project.ContentItem{{Path: "notes/**/*.md"}},
 				},
 				project.Collection{
-					Name:    "platform-notes-qualified",
+					Name:    "platform-notes-more",
 					Channel: "platform/notes",
 					Content: []project.ContentItem{{Path: "more-notes/**/*.md"}},
 				},
@@ -206,7 +206,7 @@ func TestGroupInputsByBinding(t *testing.T) {
 				project.Collection{Name: "app", Content: []project.ContentItem{{Path: "app/**/*.json"}}},
 				project.Collection{
 					Name:    "docs",
-					Channel: "home",
+					Channel: "house/home",
 					Content: []project.ContentItem{{Path: "docs/**/*.md"}},
 				},
 			),
@@ -222,7 +222,7 @@ func TestGroupInputsByBinding(t *testing.T) {
 				project.Collection{Name: "docs", Content: []project.ContentItem{{Path: "docs/**/*.md"}}},
 				project.Collection{
 					Name:    "press",
-					Channel: "news",
+					Channel: "press/news",
 					Content: []project.ContentItem{{Path: "press/**/*.md"}},
 				},
 			),

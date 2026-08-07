@@ -799,7 +799,7 @@ func TestResolveGovernance_ProfileSelectsNotLayers(t *testing.T) {
 		},
 		Collections: []Collection{
 			{Name: "plain", Content: []ContentItem{{Path: "a/*.md"}}},
-			{Name: "platform", Channel: "app", Content: []ContentItem{{Path: "b/*.md"}}},
+			{Name: "platform", Channel: "bowrain/app", Content: []ContentItem{{Path: "b/*.md"}}},
 		},
 	}
 	require.NoError(t, proj.Validate())
@@ -825,7 +825,7 @@ func TestResolveGovernance_NoDefaults(t *testing.T) {
 		Profiles: map[string]Profile{"kapi": {Channels: []Channel{{ID: "docs"}}}},
 		Collections: []Collection{{
 			Name:    "docs",
-			Channel: "docs",
+			Channel: "kapi/docs",
 			Content: []ContentItem{{Path: "a/*.md"}},
 		}},
 	}

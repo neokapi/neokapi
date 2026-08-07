@@ -192,7 +192,7 @@ func TestResolveVoiceProfile_Ladder(t *testing.T) {
 			},
 			Collections: []project.Collection{{
 				Name:    "app",
-				Channel: "app",
+				Channel: "bowrain/app",
 				Content: []project.ContentItem{{Path: "src/*.json"}},
 			}},
 		}

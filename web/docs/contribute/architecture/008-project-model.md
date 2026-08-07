@@ -205,7 +205,7 @@ profiles:
 
 collections:
   - name: ui
-    channel: app
+    channel: bowrain/app
     content:
       - path: "src/**/*.{tsx,jsx}"
         format:
@@ -319,7 +319,7 @@ profiles:
 
 collections:
   - name: bowrain-app
-    channel: app             # only bowrain declares it — the bare form resolves
+    channel: bowrain/app
   - name: neokapi-docs
     channel: neokapi/docs    # both declare `docs` — qualify it
 ```
@@ -331,11 +331,9 @@ profile's voice ([AD-022](022-voice-profile.md)). A channel the profile declares
 no override for is not an error — the base voice applies. A collection binding
 no channel is governed by `defaults.voice` and the project's own terms.
 
-A bare `channel:` is valid when exactly one profile declares it, which is the
-common case and the one worth writing short. Two profiles declaring the same
-channel makes the bare form ambiguous, and that is a load error naming both
-qualified spellings rather than a silent pick: which voice a piece of content is
-written in is not something to decide by map order.
+A `channel:` is always written `profile/channel` — the product owns the
+surface, and the binding reads as one. A bare channel name is a load error that
+spells out the qualified form(s), so the fix is a copy-paste.
 
 Profile names and channels are slugs — stable machine identifiers, never
 translated. Each may *carry* a concept reference for display, but resolution

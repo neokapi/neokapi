@@ -85,11 +85,11 @@ collections:
 
   collections:
     - name: platform-docs
-      channel: platform/docs         # both products ship `docs` — qualify it
+      channel: platform/docs
       content:
         - path: platform/docs/**/*.md
     - name: platform-landing
-      channel: landing               # only platform declares it — bare resolves
+      channel: platform/landing
       content:
         - path: platform/web/pages/*.tsx
   ```

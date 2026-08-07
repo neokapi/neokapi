@@ -217,7 +217,7 @@ include:
   `ANTHROPIC_API_KEY`) as a CI secret. A subscription sign-in is bound to your
   user and its usage window; see
   [Let kapi run Claude](/kapi/get-started/use-with-claude#let-kapi-run-claude).
-  In a server-connected project (a recipe with a `bowrain:` block) the server
+  In a server-connected project (a recipe that declares a server venue) the server
   holds the keys instead, and the job authenticates with a server token.
 - **A gate-only job needs no keys at all** — `check --ship` and `up --plan`
   read the working tree.

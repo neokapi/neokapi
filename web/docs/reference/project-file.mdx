@@ -108,7 +108,7 @@ collections:
 
   # Named collection: a name, the directory it lives in, its items.
   - name: docs
-    channel: docs
+    channel: sdk/docs
     base: web
     content:
       - path: "docs/**/*.mdx"
@@ -119,7 +119,7 @@ collections:
 | ------------------ | --------------- | -------------------------------------------------------------------------------------------------------- |
 | `name`             | string          | Collection name. Required to bind a `channel:`, and what a ship-gate rule's `collections:` selector matches |
 | `base`             | string          | The directory this collection lives in; every `path`, `target` and item `base` below is written relative to it |
-| `channel`          | string          | The point in the context space this collection's content sits at — `profile/channel`, or a bare `channel` (see [Profiles and channels](#profiles-and-channels)) |
+| `channel`          | string          | The point in the context space this collection's content sits at — always `profile/channel` (see [Profiles and channels](#profiles-and-channels)) |
 | `content`          | ContentItem[]   | The collection's content items                                                                            |
 | `source_language`  | string          | Overrides `defaults.source_language` for this collection                                                  |
 | `target_languages` | string[]        | Overrides `defaults.target_languages` for this collection                                                 |
@@ -225,10 +225,10 @@ at with one `channel:` reference.
 
 ```yaml
 profiles:
-  bowrain:
+  console:
     channels: [app, docs]
-    voice: .kapi/profiles/bowrain/voice.yaml
-  neokapi:
+    voice: .kapi/profiles/console/voice.yaml
+  sdk:
     channels:
       - id: docs
         concept: term:9a1c0f42b7
@@ -236,12 +236,12 @@ profiles:
     voice: .kapi/voice.yaml
 
 collections:
-  - name: bowrain-app
-    channel: app # only bowrain declares it — the bare form resolves
+  - name: console-app
+    channel: console/app
     content:
-      - path: "bowrain/packages/app/i18n/**/*.kbf.json"
-  - name: neokapi-docs
-    channel: neokapi/docs # both products ship `docs`, so qualify it
+      - path: "console/i18n/**/*.kbf.json"
+  - name: sdk-docs
+    channel: sdk/docs
     content:
       - path: "web/docs/**/*.mdx"
 ```
@@ -263,10 +263,10 @@ starting with a letter or digit. They are machine identifiers — stable, never
 translated, comparable byte for byte — which is why a profile or a channel may
 *carry* a concept for display but resolution never looks at it.
 
-A collection's `channel:` is written `profile/channel`, or bare when exactly one
-profile declares that channel. Two profiles declaring the same channel makes the
-bare form ambiguous, and that is a load error naming both qualified spellings
-rather than a silent pick. Binding a channel requires a named collection. A
+A collection's `channel:` is always written `profile/channel` — the product owns
+the surface, and the binding reads as one. A bare channel name is a load error
+that spells out the qualified form(s). Binding a channel requires a named
+collection. A
 collection that binds none is governed by the project default point —
 `defaults.voice` and the project's own terms.
 

@@ -407,12 +407,12 @@ surface:
 
 In a **file-only** project the loop runs locally — this is the whole story
 for the open-source `kapi` binary, which carries no server code. In a
-**server-connected** project — a recipe with a `bowrain:` block — the same
+**server-connected** project — a recipe that declares a server venue — the same
 `kapi up` runs on the server by default: it pushes the drift, the server runs
 the loop on the org's keys and shared assets, progress streams back live into
 the same terminal view, results pull down, and parked units land in the *team's*
 review queue. The run's event stream is identical in either venue, and the venue
-itself is never implicit: whenever a `bowrain:` block makes the choice ambiguous,
+itself is never implicit: whenever a declared venue makes the choice ambiguous,
 `kapi up` prints the resolved venue as its first line, and `kapi status` reports
 the effective venue and `server.converge` policy alongside the coverage grid.
 `kapi up --local` overrides the venue for one run, running the loop on your
@@ -426,7 +426,7 @@ explicit, per-project policy the way `git push` triggering CI is a repository
 policy, not a property of `git`.
 
 :::note
-The server venue — the `bowrain:` block, `kapi push`/`pull`/`up --local`, the
+The server venue — the platform's recipe block, `kapi push`/`pull`/`up --local`, the
 continuous catch-up policy, and the server-side Runs surface — is provided by
 the connected platform, not the open-source `kapi` binary. See the platform
 documentation for setting up a connected project and *convergence as a service*.

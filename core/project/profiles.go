@@ -171,12 +171,9 @@ func (r ChannelRef) String() string {
 // ResolveChannel resolves one `channel:` reference against the declared
 // profiles.
 //
-// The qualified form `profile/channel` names both. The bare form `channel` is
-// valid when exactly one profile declares it — the common case, and the one
-// worth writing short. Two profiles declaring the same channel makes the bare
-// form ambiguous, and that is an error naming both qualified spellings rather
-// than a silent pick: which voice a piece of content is written in is not
-// something to decide by map order.
+// A reference is always the qualified `profile/channel` — a channel is a
+// surface OF a product, and the binding reads as one. A bare channel name is
+// an error that spells out the qualified form(s), so the fix is a copy-paste.
 //
 // An empty ref resolves to the default point.
 func (p *KapiProject) ResolveChannel(ref string) (ChannelRef, error) {
@@ -184,40 +181,33 @@ func (p *KapiProject) ResolveChannel(ref string) (ChannelRef, error) {
 	if ref == "" {
 		return ChannelRef{}, nil
 	}
-	if profile, channel, qualified := strings.Cut(ref, "/"); qualified {
-		if strings.Contains(channel, "/") {
-			return ChannelRef{}, fmt.Errorf("channel %q has too many parts (want `channel` or `profile/channel`)", ref)
+	profile, channel, qualified := strings.Cut(ref, "/")
+	if !qualified {
+		var owners []string
+		for _, name := range sortedKeys(p.Profiles) {
+			if declaresChannel(p.Profiles[name].Channels, ref) {
+				owners = append(owners, name+"/"+ref)
+			}
 		}
-		prof, ok := p.Profiles[profile]
-		if !ok {
-			return ChannelRef{}, fmt.Errorf("channel %q names profile %q, which profiles: does not declare (declared: %s)",
-				ref, profile, p.declaredProfiles())
+		if len(owners) > 0 {
+			return ChannelRef{}, fmt.Errorf("channel %q must name its profile — write %s", ref, strings.Join(owners, " or "))
 		}
-		if !declaresChannel(prof.Channels, channel) {
-			return ChannelRef{}, fmt.Errorf("channel %q is not declared by profile %q (declared: %s)",
-				ref, profile, renderChannels(prof.Channels))
-		}
-		return ChannelRef{Profile: profile, Channel: channel}, nil
+		return ChannelRef{}, fmt.Errorf("channel %q must be `profile/channel`, and no profile declares %q (declared: %s)",
+			ref, ref, p.declaredChannels())
 	}
-	var owners []string
-	for _, name := range sortedKeys(p.Profiles) {
-		if declaresChannel(p.Profiles[name].Channels, ref) {
-			owners = append(owners, name)
-		}
+	if strings.Contains(channel, "/") {
+		return ChannelRef{}, fmt.Errorf("channel %q has too many parts (want `profile/channel`)", ref)
 	}
-	switch len(owners) {
-	case 1:
-		return ChannelRef{Profile: owners[0], Channel: ref}, nil
-	case 0:
-		return ChannelRef{}, fmt.Errorf("channel %q is not declared by any profile (declared: %s)", ref, p.declaredChannels())
-	default:
-		qualified := make([]string, 0, len(owners))
-		for _, o := range owners {
-			qualified = append(qualified, o+"/"+ref)
-		}
-		return ChannelRef{}, fmt.Errorf("channel %q is declared by %d profiles; qualify it as one of: %s",
-			ref, len(owners), strings.Join(qualified, ", "))
+	prof, ok := p.Profiles[profile]
+	if !ok {
+		return ChannelRef{}, fmt.Errorf("channel %q names profile %q, which profiles: does not declare (declared: %s)",
+			ref, profile, p.declaredProfiles())
 	}
+	if !declaresChannel(prof.Channels, channel) {
+		return ChannelRef{}, fmt.Errorf("channel %q is not declared by profile %q (declared: %s)",
+			ref, profile, renderChannels(prof.Channels))
+	}
+	return ChannelRef{Profile: profile, Channel: channel}, nil
 }
 
 // ResolvedGovernance is the governance in force over one collection's content:

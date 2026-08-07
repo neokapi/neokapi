@@ -27,7 +27,7 @@ profiles:
     terms: .kapi/profiles/bowrain/terms.json
 collections:
   - name: neokapi-cli
-    channel: cli
+    channel: neokapi/cli
     content:
       - path: host/i18n/commands.json
   - name: bowrain-docs
@@ -68,9 +68,8 @@ func TestKapiProject_ResolveChannel(t *testing.T) {
 		want ChannelRef
 	}{
 		{"the empty ref is the default point", "", ChannelRef{}},
-		{"a bare channel one profile declares", "cli", ChannelRef{Profile: "neokapi", Channel: "cli"}},
-		{"a bare channel the other declares", "app", ChannelRef{Profile: "bowrain", Channel: "app"}},
 		{"a qualified ref names both", "bowrain/docs", ChannelRef{Profile: "bowrain", Channel: "docs"}},
+		{"a qualified ref on the other profile", "neokapi/cli", ChannelRef{Profile: "neokapi", Channel: "cli"}},
 		{"the other side of the shared channel", "neokapi/docs", ChannelRef{Profile: "neokapi", Channel: "docs"}},
 	}
 	for _, tt := range tests {
@@ -91,14 +90,19 @@ func TestKapiProject_ResolveChannel_Errors(t *testing.T) {
 		wantSub []string
 	}{
 		{
-			"a channel two profiles declare is ambiguous",
-			"docs",
-			[]string{"declared by 2 profiles", "bowrain/docs", "neokapi/docs"},
+			"a bare channel spells out the qualified form",
+			"cli",
+			[]string{"must name its profile", "neokapi/cli"},
 		},
 		{
-			"a channel nothing declares names what is declared",
+			"a bare channel two profiles declare spells out both",
+			"docs",
+			[]string{"must name its profile", "bowrain/docs", "neokapi/docs"},
+		},
+		{
+			"a bare channel nothing declares names what is declared",
 			"landing",
-			[]string{"not declared by any profile", "bowrain/app", "neokapi/cli"},
+			[]string{"must be `profile/channel`", "bowrain/app", "neokapi/cli"},
 		},
 		{
 			"an unknown profile names the declared profiles",
@@ -173,13 +177,13 @@ func TestKapiProject_ValidateContextSpace(t *testing.T) {
 	}{
 		{
 			"an unresolvable channel fails the load",
-			"version: v1\nprofiles:\n  a:\n    channels: [x]\ncollections:\n  - name: c\n    channel: y\n    content:\n      - path: a.md\n",
-			`channel "y" is not declared by any profile`,
+			"version: v1\nprofiles:\n  a:\n    channels: [x]\ncollections:\n  - name: c\n    channel: a/y\n    content:\n      - path: a.md\n",
+			`channel "a/y" is not declared by profile "a"`,
 		},
 		{
-			"an ambiguous channel fails the load",
+			"a bare channel fails the load spelling out the fix",
 			"version: v1\nprofiles:\n  a:\n    channels: [x]\n  b:\n    channels: [x]\ncollections:\n  - name: c\n    channel: x\n    content:\n      - path: a.md\n",
-			"qualify it as one of: a/x, b/x",
+			"must name its profile — write a/x or b/x",
 		},
 		{
 			"a channel needs a named collection",

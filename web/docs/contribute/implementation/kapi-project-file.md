@@ -47,7 +47,7 @@ type Collection struct {
     TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty"`
     Content         []ContentItem    `yaml:"content,omitempty"`
     Base            string           `yaml:"base,omitempty"`    // the directory this collection lives in
-    Channel         string           `yaml:"channel,omitempty"` // `profile/channel` or a bare channel (named collections only)
+    Channel         string           `yaml:"channel,omitempty"` // `profile/channel` (named collections only)
     // Bare-entry fields (short form):
     Path   string      `yaml:"path,omitempty"`   // doublestar glob for source files
     Format *FormatSpec `yaml:"format,omitempty"` // format ID; auto-detect per file if empty
@@ -106,7 +106,7 @@ profiles:
 
 collections:
   - name: bowrain-app
-    channel: app                               # only bowrain declares it
+    channel: bowrain/app
   - name: neokapi-docs
     channel: neokapi/docs                      # both declare `docs` — qualify it
 ```
@@ -125,10 +125,8 @@ and governance that moved when someone edited a term would be governance nobody
 could rely on.
 
 **Resolution is by declaration, not by matching.** `KapiProject.ResolveChannel`
-reads one `channel:` reference: the qualified form `profile/channel` names both;
-the bare form `channel` is valid when exactly one profile declares it. Two
-profiles declaring the same channel makes the bare form ambiguous, and that is
-an error naming both qualified spellings rather than a silent pick. The result
+reads one `channel:` reference, always the qualified `profile/channel`. A bare
+channel name is an error that spells out the qualified form(s). The result
 is a `ChannelRef{Profile, Channel}`, whose zero value is the project's default
 point.
 
@@ -183,7 +181,7 @@ Every failure is caught at load, because a silent fall-back would translate that
 content in a plausible-looking wrong voice: a non-slug profile name or channel, a
 channel declared twice by one profile, a profile voice binding that names no
 source or more than one, a malformed concept reference, a channel reference
-naming an undeclared profile or channel, and the ambiguous bare reference above.
+naming an undeclared profile or channel, and any bare (unqualified) reference.
 Bare entries cannot carry a channel at all: resolution is by collection name, so
 a point on an unnamed entry could never be read.
 
@@ -279,8 +277,8 @@ model.
   - Bare entry — `path` is required and `content` must be empty.
   - Named collection — `path` must be empty (use `content`) and `content` must be
     non-empty; each item requires a non-empty `path`.
-  - `channel` requires a `name`, and must resolve against the declared profiles:
-    unambiguously bare, or qualified `profile/channel`.
+  - `channel` requires a `name`, and must resolve against the declared profiles
+    as qualified `profile/channel`.
 - Every `profiles:` key is a slug, and so is every channel it declares; a channel
   is declared at most once per profile. A profile's `voice` is shape-checked
   exactly like `defaults.voice` (one of `profile_file`, `profile`, `pack`, or a
@@ -435,7 +433,7 @@ collections:
   # names the directory it lives in. Paths and targets below are relative to it:
   # marketing/en/docs/api.md → marketing/fr/docs/api.md.
   - name: Marketing
-    channel: marketing
+    channel: console/marketing
     target_languages: [fr, de]
     base: marketing
     content:
