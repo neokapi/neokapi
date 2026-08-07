@@ -11,46 +11,31 @@ import (
 	"github.com/neokapi/neokapi/core/state"
 )
 
-// Two generations of state directory are folded forward here, and they are
-// folded by two different rules.
+// Predecessor state directories are folded forward here, by two rules.
 //
-// The four-file layout the merged store replaced — `memory.db`, `terms.db`,
-// `cache/blocks.db` with its two stamp sidecars, and `work/state.db`, plus the
-// `tm.db`/`termbase.db` spellings the vocabulary sweep renamed before that — is
-// RETIRED. Only staged decisions are carried out of it. Everything else in those
-// files is a projection of a committed source: the content memory rebuilds from
-// the loop, the terms store compiles from committed sources, the block cache
-// re-extracts, the working set re-seeds from the committed decision record. A
-// migration would be work spent reproducing what the next command derives
-// anyway. That is the standing preference for resetting over migrating, and it
-// holds precisely because these files are not sources of truth.
+// RETIRED — deleted, not migrated: the four-file layout's `memory.db`,
+// `terms.db`, `cache/blocks.db` with its two stamp sidecars and
+// `work/state.db` (plus the earlier `tm.db`/`termbase.db` spellings), and the
+// flat layout's `store.db`, its sidecar and `cache/`. Every one of them is a
+// projection of a committed source, so the next command derives it again.
 //
-// The flat layout that followed — everything hanging directly off `.kapi/` — is
-// MOVED, because two of its directories hold things no source reproduces. The
-// committed unit-state record is authored data; the vault holds the only copies
-// of withheld originals. Those are relocated, never deleted. The rest of that
-// generation (`store.db`, its sidecar, `cache/`) is projection again, and goes
-// the way the four-file layout went.
+// MOVED — relocated, never deleted: whatever no source reproduces. The
+// committed unit-state record and the vault's withheld originals, and every
+// committed source under the `context/` umbrella, whose `decisions/` shards
+// land in `state/` under the name the record now has.
 //
-// The `context/` umbrella after it is MOVED too, and entirely: every committed
-// source it grouped is authored data. It is folded up one level rather than
-// deleted, and the `decisions/` shards inside it land in `state/` under the name
-// the record now has.
-//
-// A staged unit is the one exception on the retire side, and the only one:
-// between a review landing and the next commit, the working store holds its only
-// copy. So those are read out and put into the merged store before the old file
-// is deleted.
+// A staged unit is the one exception on the retire side: between a review
+// landing and the next commit the working store holds its only copy, so those
+// are read out into the merged store before the old file is deleted.
 //
 // Best-effort throughout. A predecessor that will not delete, or a shard that
-// will not move, is not worth failing a project open over — a failed move leaves
-// the data where it was, which is the safe direction. Every fold is idempotent:
-// after the first open they cost a handful of stats and find nothing.
+// will not move, must not fail a project open; a failed move leaves the data
+// where it was. Every fold is idempotent: after the first open they cost a
+// handful of stats and find nothing.
 //
 // The retired names are spelled here rather than read from core/project's
-// layout: they name paths no live code path writes any more, so they are this
-// package's business alone. Leaving constants for them in the layout would
-// invite a new caller to reach for one.
+// layout, because no live code path writes them — a constant in the layout
+// would invite a new caller to reach for one.
 
 // foldLayoutForward relocates what the previous layout kept in places the
 // current one no longer reads. Filesystem only, and it runs BEFORE the store
@@ -67,8 +52,8 @@ func foldLayoutForward(layout project.Layout) {
 	foldGovernanceFiles(layout, layout.StateDir)
 }
 
-// umbrellaContextDir is the directory that grouped the committed sources one
-// level below `.kapi/` before they were flattened into it.
+// umbrellaContextDir is the retired directory that grouped the committed
+// sources one level below `.kapi/`.
 func umbrellaContextDir(layout project.Layout) string {
 	return filepath.Join(layout.StateDir, "context")
 }
@@ -76,17 +61,16 @@ func umbrellaContextDir(layout project.Layout) string {
 // foldContextUmbrella lifts the `context/` generation's committed sources up
 // one level, into the directory that now holds them directly.
 //
-// Everything in there is authored: the terms bundle, the memory bundles, the
-// voice profiles, the unit record, whatever notes a project kept beside them.
-// So this moves and never deletes, entry by entry, and the umbrella itself goes
-// only when the last thing in it has left — a shard that could not move keeps
-// its directory, visibly, with the data still in it.
+// Everything in there is authored — terms bundle, memory bundles, voice
+// profiles, unit record, whatever notes a project kept beside them — so this
+// moves and never deletes, entry by entry. The umbrella itself goes only once
+// the last entry has left.
 //
 // The two subdirectories are folded first and by name, because both are
-// renamed on the way up: `decisions/` becomes the unit-state record, `memory/`
-// keeps its name but has to land inside the state directory's own `memory/`
-// rather than beside it. Everything else is lifted verbatim, minus the three
-// names already handled.
+// renamed on the way up: `decisions/` becomes the unit-state record, and
+// `memory/` has to land inside the state directory's own `memory/` rather than
+// beside it. Everything else is lifted verbatim, minus the three names already
+// handled.
 func foldContextUmbrella(layout project.Layout) {
 	umbrella := umbrellaContextDir(layout)
 	if _, err := os.Stat(umbrella); err != nil {
@@ -106,19 +90,14 @@ func foldContextUmbrella(layout project.Layout) {
 // a flat directory into the profile tree.
 //
 // `brand-voice.yaml` is the project default and becomes `voice.yaml`, whose
-// scope the directory now states. Anything else spelled `<name>-voice.yaml` or
-// `<name>-terms.json` was a per-profile override distinguished by its filename,
-// because a flat directory left nothing else to distinguish it by; it becomes
-// `profiles/<name>/voice.yaml` or `profiles/<name>/terms.json`.
-//
-// `terms.json` is untouched: no prefix, so it is the project's own vocabulary,
-// and it is already where it belongs.
+// scope the directory now states. A `<name>-voice.yaml` or `<name>-terms.json`
+// is a per-profile override named by prefix, and becomes
+// `profiles/<name>/voice.yaml` or `profiles/<name>/terms.json`. Unprefixed
+// `terms.json` is the project's own vocabulary and is left where it is.
 //
 // A recipe that bound one of these files by path still names the old location
-// afterwards. That is deliberate and visible — the binding is authored, and
-// rewriting a hand-written recipe to chase a move would reformat a file the
-// project owns. Conventional resolution finds the new locations with no
-// binding at all.
+// afterwards: authored bindings are not rewritten to chase a move.
+// Conventional resolution finds the new locations with no binding at all.
 func foldGovernanceFiles(layout project.Layout, from string) {
 	entries, err := os.ReadDir(from)
 	if err != nil {
@@ -163,23 +142,19 @@ func sweepPredecessors(ctx context.Context, layout project.Layout, into *DB) {
 	// atomic-rename persist can leave behind.
 	_ = os.Remove(oldWorkSidecarPath(layout))
 	_ = os.Remove(oldWorkSidecarPath(layout) + ".tmp")
-	// The work directory itself is NOT removed. `.kapi/work/` was the four-file
-	// layout's home for `state.db` and is the current layout's home for
-	// everything machine-local, so the same path means two different things
-	// either side of this sweep — and the live one is the meaning that counts.
+	// The work directory itself is NOT removed: `.kapi/work/` held only
+	// `state.db` in the four-file layout, but is the current layout's home for
+	// everything machine-local.
 }
 
 // oldStateDirDatabases are the top-level state-directory databases the merged
-// store replaces, in both spellings they ever had: `memory.db`/`terms.db` from
-// the four-file layout, and the `tm.db`/`termbase.db` the vocabulary sweep
-// renamed before that. A project skipping a release meets the older pair, so
-// both generations are listed.
+// store replaces. Both spellings are listed — `memory.db`/`terms.db` and the
+// earlier `tm.db`/`termbase.db` — because a project skipping a release meets
+// the older pair.
 var oldStateDirDatabases = []string{"memory.db", "terms.db", "tm.db", "termbase.db"}
 
 // flatCacheDir, flatDecisionsDir and flatVaultDir name the flat layout's
-// directories: the generation that hung everything directly off `.kapi/`,
-// before `work/` collected the machine state and `context/` collected the
-// committed sources.
+// directories — the generation that hung everything directly off `.kapi/`.
 func flatCacheDir(layout project.Layout) string {
 	return filepath.Join(layout.StateDir, project.CacheDirName)
 }
@@ -195,15 +170,11 @@ func flatVaultDir(layout project.Layout) string {
 // flatRedactionDir is the per-batch redaction sidecar directory under the flat
 // cache root, and currentRedactionDir is where it lands.
 //
-// This one moves even though it is under a cache, which looks like an exception
-// and is not. The sidecars hold the ORIGINALS withheld from an extract → merge
-// batch, so a batch still in flight cannot be restored without them — the same
-// property that put the project-scoped vault outside cache/ in the first place.
-// "`rm -rf` the cache is free" is a promise about work a rerun reproduces, and
-// it does not stretch to cover a pending batch's only copy of its own inputs.
-//
-// A user who deletes the directory themselves has still made that choice. This
-// fold is not the user, and a layout move is not the moment to make it for them.
+// These move rather than being deleted with the rest of the cache: the sidecars
+// hold the ORIGINALS withheld from an extract → merge batch, so a batch still
+// in flight cannot be restored without them. "Deleting the cache is free" is a
+// promise about work a rerun reproduces, and a pending batch's only copy of its
+// own inputs is not that.
 func flatRedactionDir(layout project.Layout) string {
 	return filepath.Join(flatCacheDir(layout), project.RedactionDirName)
 }
@@ -215,16 +186,14 @@ func currentRedactionDir(layout project.Layout) string {
 // retireFlatProjections deletes the flat layout's derived state: the store, its
 // browser-build sidecar, and whatever is left of the cache root once the
 // redaction sidecars have been moved out of it by the caller. Every one of them
-// rebuilds from a committed source, and the one thing in the flat store that
-// did not — a staged decision — is not carried across: the fold runs before any
-// store is open, and opening the old one to read it would mean two pools on two
-// schemas that are byte-identical apart from their path. The trade is
-// deliberate and bounded at the decisions staged between two releases a day
-// apart.
+// rebuilds from a committed source. A decision staged in the flat store does
+// not, and is not carried across: this runs before any store is open, and
+// opening the old one to read it would mean two pools on two schemas that are
+// byte-identical apart from their path.
 //
-// Callers must fold anything unreproducible out of the cache root first. Today
-// that is exactly one directory; if a second ever appears, it belongs beside the
-// first in foldLayoutForward, not in an exception carved out down here.
+// Callers must fold anything unreproducible out of the cache root first; a new
+// such directory belongs beside the existing one in foldLayoutForward, not in
+// an exception carved out here.
 func retireFlatProjections(layout project.Layout) {
 	removeDatabase(filepath.Join(layout.StateDir, project.StoreFileName))
 	sidecar := filepath.Join(layout.StateDir, project.StoreSidecarFileName)
@@ -232,9 +201,7 @@ func retireFlatProjections(layout project.Layout) {
 	_ = os.Remove(sidecar + ".tmp")
 
 	// Entry by entry rather than RemoveAll, so a redaction sidecar the move
-	// left behind is not deleted by the cleanup that follows it. Stranding a
-	// withheld original and then removing its directory anyway would make the
-	// careful move upstream worth nothing.
+	// left behind is not deleted by the cleanup that follows it.
 	entries, err := os.ReadDir(flatCacheDir(layout))
 	if err != nil {
 		return
@@ -250,8 +217,8 @@ func retireFlatProjections(layout project.Layout) {
 	_ = os.Remove(flatCacheDir(layout))
 }
 
-// oldBlockStorePath is the four-file layout's block cache, under the FLAT cache
-// root — the only cache root that layout ever had.
+// oldBlockStorePath is the four-file layout's block cache, under the flat cache
+// root.
 func oldBlockStorePath(layout project.Layout) string {
 	return filepath.Join(flatCacheDir(layout), "blocks.db")
 }
@@ -284,15 +251,12 @@ func oldWorkSidecarPath(layout project.Layout) string {
 // empty. Used for the directories whose contents no source reproduces.
 //
 // An entry whose destination already exists is left where it is, and so is one
-// whose move fails. Both leave src behind, visibly, with the data still in it —
-// which is the point. This function's job is to lose nothing; a directory that
-// outlives the fold is something a person can look at and resolve, a shard
-// silently overwritten by another is not.
+// whose move fails. Both leave src behind with the data still in it, which is
+// resolvable by hand; a shard silently overwritten by another is not.
 //
-// skip names entries this call is not responsible for, because a caller folding
-// a directory in several passes has already dealt with them elsewhere. Skipping
-// leaves them in place, which also keeps src from being removed while they are
-// still in it.
+// skip names entries a caller folding a directory in several passes has
+// already dealt with elsewhere. They stay in place, and keep src from being
+// removed while they are still in it.
 func moveDirContents(src, dst string, skip ...string) {
 	entries, err := os.ReadDir(src)
 	if err != nil {
@@ -338,9 +302,7 @@ func moveFile(src, dst string) {
 
 // carryStagedForward moves the decisions staged in a predecessor working store
 // into the merged one. Silent on failure by design: the alternative is refusing
-// to open a project because a file that is about to be deleted would not read,
-// and the decisions at stake are staged ones — the same set an interrupted
-// command loses today.
+// to open a project because a file that is about to be deleted would not read.
 func carryStagedForward(ctx context.Context, layout project.Layout, into *DB) {
 	if into == nil || into.work == nil {
 		return

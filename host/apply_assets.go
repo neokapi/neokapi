@@ -416,8 +416,7 @@ func (a *App) ensureMemorySourceBinding(recipePath, root string) (string, error)
 // bundle committed under root.
 //
 // `.kapi/` is walked like any other directory, because `.kapi/memory/` is where
-// a project's bundles live: skipping it — which the layout before the flattening
-// did, when `.kapi/` was reached for as a whole — hid the very bundles the
+// a project's bundles live and skipping it would hide the very bundles the
 // binding conflict is about. Only `.kapi/work/` is excluded, along with `.git`
 // and `node_modules`: a bundle staged in a cache is not a committed source and
 // must never win the binding.

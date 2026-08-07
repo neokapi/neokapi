@@ -129,10 +129,7 @@ content:
             useLeadingSlashOnKeyPath: true
             extractionRules: "(display_name|description|title|label)$"
         target: core/i18n/catalogs/{lang}.mo
-  # The CLI's own help and output chrome. It was the one shipped surface the
-  # graph never named: its catalogs were always produced, but with no
-  # collection declaring it, nothing about the text a user reads at the
-  # terminal was governed, searchable, or visible in the workspace.
+  # The CLI's own help and output strings.
   - name: neokapi-cli
     context: { product: neokapi, channel: cli }
     items:

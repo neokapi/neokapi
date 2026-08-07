@@ -2,9 +2,9 @@
 #
 # This is the workflow the product tells everyone else to write, run against the
 # repository that builds the product: install the CLI with setup-kapi, run the
-# convergence verb with kapi-action, commit what came back. There is nothing
-# bespoke left in it, and that is the point — a step here that a customer could
-# not copy is a step the product is missing.
+# convergence verb with kapi-action, commit what came back. Nothing in it is
+# bespoke: a step here that a customer could not copy is a step the product is
+# missing.
 #
 # INERT BY DEFAULT (roadmap epic 017-F, decision D2). Every job is gated on the
 # repo variable DOGFOOD_SYNC_ENABLED == 'true', so until the founder arms it
@@ -54,9 +54,8 @@ jobs:
       # This is the ONE in-repo kapi invocation that binds the root recipe (the
       # isolation contract in CLAUDE.md), so nothing here sets KAPI_NO_PROJECT.
       # setup-kapi installs the released CLI and the bowrain plugin from the
-      # registry — the same path a customer takes — rather than building either
-      # from this checkout, which is what makes the run a test of the product
-      # and not of the working tree.
+      # registry — the same path a customer takes. Neither is built from this
+      # checkout, so the run tests the product rather than the working tree.
       - name: Install kapi and the bowrain plugin
         uses: neokapi/setup-kapi@v1
         with:

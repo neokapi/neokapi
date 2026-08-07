@@ -111,10 +111,9 @@ bowrain/web/docs/i18n/nb/
 # seeds, the brand voice, and the decision record, which belongs in the change
 # that caused the drift and must reconcile on a fresh clone with no server.
 #
-# This used to be `/.kapi/*` with `!/.kapi/units/` clawed back out, spelled with
-# the star because git does not descend into an ignored directory and a negation
-# inside one never matches. Neither the star nor the negation is needed once the
-# derived state is all in one subdirectory.
+# Two plain paths, no `/.kapi/*` star and no negation clawing anything back:
+# git does not descend into an ignored directory, so a negation inside one
+# never matches.
 /.kapi/work/
 /.kapi/filters.local.json
 # A `kapi memory`/`kapi terms` run with no --file/--name defaults to --local,

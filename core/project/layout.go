@@ -34,9 +34,8 @@ const StateDirName = ".kapi"
 
 // WorkDirName is the single machine-state subdirectory of StateDir: the local
 // store, the caches, and the redaction vault. Everything kapi derives or keeps
-// per-machine lives under it, and nothing else does — which is what lets the
-// ignore rule be one line instead of a growing pattern list with negations
-// carved back out of it.
+// per-machine lives under it, and nothing else does, which is what keeps the
+// ignore rule to one line.
 const WorkDirName = "work"
 
 // StateGitignore is the whole ignore rule for a `.kapi/` directory, and it is
@@ -48,11 +47,9 @@ const WorkDirName = "work"
 // bundle, the memory bundles, the brand voice and the unit-state record — is
 // authored and committed.
 //
-// The predecessor listed `cache/` and three `*.db` globs, and still needed a
-// negation in the repository's own ignore file to claw the state record back
-// out from under them. A rule that has to be un-said is a rule describing the
-// wrong boundary. This one says where the boundary is, and every path method
-// below lands on one side of it or the other.
+// Every path method below has to land on one side of that boundary or the
+// other; a new one that needs an ignore pattern of its own is in the wrong
+// place.
 const StateGitignore = WorkDirName + "/\n" + LocalFiltersFilename + "\n"
 
 // WorkDir returns the absolute path of the machine-state directory.
@@ -66,9 +63,8 @@ func (l Layout) WorkDir() string {
 // loader resolves on the same platform.
 //
 // The committed sources sit directly in `.kapi/`, one segment from the root of
-// the directory that holds them. An intermediate `context/` used to group them,
-// which grouped nothing: everything committed under `.kapi/` is context, so the
-// segment appeared in every binding and distinguished none of them.
+// the directory that holds them — there is no intermediate grouping segment,
+// because everything committed under `.kapi/` is context.
 func RelStatePath(parts ...string) string {
 	return filepath.Join(append([]string{StateDirName}, parts...)...)
 }
@@ -81,8 +77,7 @@ func RelStatePath(parts ...string) string {
 // under `defaults:` and its exceptions under `profiles:`; the default's files
 // therefore sit flat in `.kapi/` and each profile's sit in a directory of its
 // own. Governance binds to a point in the context space, and this directory is
-// that point's home on disk — so "which voice governs bowrain's docs" is a
-// question answerable by looking, not only by resolving.
+// that point's home on disk.
 //
 // Only the differences belong here. A profile that does not override the
 // vocabulary keeps no `terms.json`, and resolution falls through to the flat
@@ -290,12 +285,12 @@ func ResolveLayout(start string) (Layout, error) {
 // LayoutAt returns the Layout for a project root without touching the disk —
 // the pure path computation behind the two resolvers below.
 //
-// It exists so that "the store of the project at root" is spelled one way. The
-// hand-rolled `filepath.Join(root, StateDirName, StoreFileName)` was spelled a
-// dozen times across four modules, and every one of them was a place the layout
-// could not move without a compile-clean test failing at run time. Callers that
-// have a recipe path or a working directory want LayoutFor or ResolveLayout;
-// this is for the ones that already know the root.
+// It exists so that "the store of the project at root" is spelled one way, and
+// not hand-rolled as `filepath.Join(root, StateDirName, StoreFileName)` in
+// every module — a spelling the layout cannot move without breaking at run
+// time in a package that still compiles. Callers that have a recipe path or a
+// working directory want LayoutFor or ResolveLayout; this is for the ones that
+// already know the root.
 func LayoutAt(root string) Layout {
 	return Layout{
 		Root:       root,
