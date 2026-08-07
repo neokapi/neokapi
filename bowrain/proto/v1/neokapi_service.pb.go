@@ -308,322 +308,6 @@ func (x *ListProjectsResponse) GetProjects() []*ProjectResponse {
 	return nil
 }
 
-type BlockMessage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
-	Source        string                 `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
-	Targets       map[string]string      `protobuf:"bytes,5,rep,name=targets,proto3" json:"targets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	ContentHash   string                 `protobuf:"bytes,6,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
-	ContextHash   string                 `protobuf:"bytes,7,opt,name=context_hash,json=contextHash,proto3" json:"context_hash,omitempty"`
-	Properties    map[string]string      `protobuf:"bytes,8,rep,name=properties,proto3" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BlockMessage) Reset() {
-	*x = BlockMessage{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BlockMessage) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BlockMessage) ProtoMessage() {}
-
-func (x *BlockMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BlockMessage.ProtoReflect.Descriptor instead.
-func (*BlockMessage) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *BlockMessage) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *BlockMessage) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *BlockMessage) GetType() string {
-	if x != nil {
-		return x.Type
-	}
-	return ""
-}
-
-func (x *BlockMessage) GetSource() string {
-	if x != nil {
-		return x.Source
-	}
-	return ""
-}
-
-func (x *BlockMessage) GetTargets() map[string]string {
-	if x != nil {
-		return x.Targets
-	}
-	return nil
-}
-
-func (x *BlockMessage) GetContentHash() string {
-	if x != nil {
-		return x.ContentHash
-	}
-	return ""
-}
-
-func (x *BlockMessage) GetContextHash() string {
-	if x != nil {
-		return x.ContextHash
-	}
-	return ""
-}
-
-func (x *BlockMessage) GetProperties() map[string]string {
-	if x != nil {
-		return x.Properties
-	}
-	return nil
-}
-
-type StoreBlocksRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	Blocks        []*BlockMessage        `protobuf:"bytes,2,rep,name=blocks,proto3" json:"blocks,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StoreBlocksRequest) Reset() {
-	*x = StoreBlocksRequest{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StoreBlocksRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StoreBlocksRequest) ProtoMessage() {}
-
-func (x *StoreBlocksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StoreBlocksRequest.ProtoReflect.Descriptor instead.
-func (*StoreBlocksRequest) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *StoreBlocksRequest) GetProjectId() string {
-	if x != nil {
-		return x.ProjectId
-	}
-	return ""
-}
-
-func (x *StoreBlocksRequest) GetBlocks() []*BlockMessage {
-	if x != nil {
-		return x.Blocks
-	}
-	return nil
-}
-
-type StoreBlocksResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	StoredCount   int32                  `protobuf:"varint,1,opt,name=stored_count,json=storedCount,proto3" json:"stored_count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StoreBlocksResponse) Reset() {
-	*x = StoreBlocksResponse{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StoreBlocksResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StoreBlocksResponse) ProtoMessage() {}
-
-func (x *StoreBlocksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StoreBlocksResponse.ProtoReflect.Descriptor instead.
-func (*StoreBlocksResponse) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *StoreBlocksResponse) GetStoredCount() int32 {
-	if x != nil {
-		return x.StoredCount
-	}
-	return 0
-}
-
-type StreamBlocksRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	BlockIds      []string               `protobuf:"bytes,2,rep,name=block_ids,json=blockIds,proto3" json:"block_ids,omitempty"` // Empty means all blocks
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StreamBlocksRequest) Reset() {
-	*x = StreamBlocksRequest{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StreamBlocksRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StreamBlocksRequest) ProtoMessage() {}
-
-func (x *StreamBlocksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use StreamBlocksRequest.ProtoReflect.Descriptor instead.
-func (*StreamBlocksRequest) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *StreamBlocksRequest) GetProjectId() string {
-	if x != nil {
-		return x.ProjectId
-	}
-	return ""
-}
-
-func (x *StreamBlocksRequest) GetBlockIds() []string {
-	if x != nil {
-		return x.BlockIds
-	}
-	return nil
-}
-
-type BlockResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Block         *BlockMessage          `protobuf:"bytes,1,opt,name=block,proto3" json:"block,omitempty"`
-	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
-	StoredAt      string                 `protobuf:"bytes,3,opt,name=stored_at,json=storedAt,proto3" json:"stored_at,omitempty"`
-	UpdatedAt     string                 `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BlockResponse) Reset() {
-	*x = BlockResponse{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BlockResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BlockResponse) ProtoMessage() {}
-
-func (x *BlockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BlockResponse.ProtoReflect.Descriptor instead.
-func (*BlockResponse) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *BlockResponse) GetBlock() *BlockMessage {
-	if x != nil {
-		return x.Block
-	}
-	return nil
-}
-
-func (x *BlockResponse) GetProjectId() string {
-	if x != nil {
-		return x.ProjectId
-	}
-	return ""
-}
-
-func (x *BlockResponse) GetStoredAt() string {
-	if x != nil {
-		return x.StoredAt
-	}
-	return ""
-}
-
-func (x *BlockResponse) GetUpdatedAt() string {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return ""
-}
-
 type CreateVersionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProjectId     string                 `protobuf:"bytes,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
@@ -635,7 +319,7 @@ type CreateVersionRequest struct {
 
 func (x *CreateVersionRequest) Reset() {
 	*x = CreateVersionRequest{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[10]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -647,7 +331,7 @@ func (x *CreateVersionRequest) String() string {
 func (*CreateVersionRequest) ProtoMessage() {}
 
 func (x *CreateVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[10]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -660,7 +344,7 @@ func (x *CreateVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateVersionRequest.ProtoReflect.Descriptor instead.
 func (*CreateVersionRequest) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{10}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateVersionRequest) GetProjectId() string {
@@ -698,7 +382,7 @@ type VersionResponse struct {
 
 func (x *VersionResponse) Reset() {
 	*x = VersionResponse{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[11]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -710,7 +394,7 @@ func (x *VersionResponse) String() string {
 func (*VersionResponse) ProtoMessage() {}
 
 func (x *VersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[11]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -723,7 +407,7 @@ func (x *VersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VersionResponse.ProtoReflect.Descriptor instead.
 func (*VersionResponse) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{11}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *VersionResponse) GetId() string {
@@ -777,7 +461,7 @@ type ListVersionsRequest struct {
 
 func (x *ListVersionsRequest) Reset() {
 	*x = ListVersionsRequest{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[12]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -789,7 +473,7 @@ func (x *ListVersionsRequest) String() string {
 func (*ListVersionsRequest) ProtoMessage() {}
 
 func (x *ListVersionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[12]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -802,7 +486,7 @@ func (x *ListVersionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListVersionsRequest.ProtoReflect.Descriptor instead.
 func (*ListVersionsRequest) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{12}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListVersionsRequest) GetProjectId() string {
@@ -821,7 +505,7 @@ type ListVersionsResponse struct {
 
 func (x *ListVersionsResponse) Reset() {
 	*x = ListVersionsResponse{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[13]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -833,7 +517,7 @@ func (x *ListVersionsResponse) String() string {
 func (*ListVersionsResponse) ProtoMessage() {}
 
 func (x *ListVersionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[13]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -846,7 +530,7 @@ func (x *ListVersionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListVersionsResponse.ProtoReflect.Descriptor instead.
 func (*ListVersionsResponse) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{13}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListVersionsResponse) GetVersions() []*VersionResponse {
@@ -867,7 +551,7 @@ type PullContentRequest struct {
 
 func (x *PullContentRequest) Reset() {
 	*x = PullContentRequest{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[14]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -879,7 +563,7 @@ func (x *PullContentRequest) String() string {
 func (*PullContentRequest) ProtoMessage() {}
 
 func (x *PullContentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[14]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -892,7 +576,7 @@ func (x *PullContentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullContentRequest.ProtoReflect.Descriptor instead.
 func (*PullContentRequest) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{14}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PullContentRequest) GetConnectorId() string {
@@ -925,7 +609,7 @@ type PullContentResponse struct {
 
 func (x *PullContentResponse) Reset() {
 	*x = PullContentResponse{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[15]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -937,7 +621,7 @@ func (x *PullContentResponse) String() string {
 func (*PullContentResponse) ProtoMessage() {}
 
 func (x *PullContentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[15]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -950,7 +634,7 @@ func (x *PullContentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullContentResponse.ProtoReflect.Descriptor instead.
 func (*PullContentResponse) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{15}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PullContentResponse) GetBlockCount() int32 {
@@ -971,7 +655,7 @@ type PushContentRequest struct {
 
 func (x *PushContentRequest) Reset() {
 	*x = PushContentRequest{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[16]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -983,7 +667,7 @@ func (x *PushContentRequest) String() string {
 func (*PushContentRequest) ProtoMessage() {}
 
 func (x *PushContentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[16]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -996,7 +680,7 @@ func (x *PushContentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushContentRequest.ProtoReflect.Descriptor instead.
 func (*PushContentRequest) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{16}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PushContentRequest) GetConnectorId() string {
@@ -1029,7 +713,7 @@ type PushContentResponse struct {
 
 func (x *PushContentResponse) Reset() {
 	*x = PushContentResponse{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[17]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1041,7 +725,7 @@ func (x *PushContentResponse) String() string {
 func (*PushContentResponse) ProtoMessage() {}
 
 func (x *PushContentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[17]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1054,7 +738,7 @@ func (x *PushContentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushContentResponse.ProtoReflect.Descriptor instead.
 func (*PushContentResponse) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{17}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *PushContentResponse) GetPushedCount() int32 {
@@ -1074,7 +758,7 @@ type ExecuteFlowRequest struct {
 
 func (x *ExecuteFlowRequest) Reset() {
 	*x = ExecuteFlowRequest{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[18]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1086,7 +770,7 @@ func (x *ExecuteFlowRequest) String() string {
 func (*ExecuteFlowRequest) ProtoMessage() {}
 
 func (x *ExecuteFlowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[18]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1099,7 +783,7 @@ func (x *ExecuteFlowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteFlowRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteFlowRequest) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{18}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ExecuteFlowRequest) GetFlowConfig() string {
@@ -1129,7 +813,7 @@ type FlowProgressResponse struct {
 
 func (x *FlowProgressResponse) Reset() {
 	*x = FlowProgressResponse{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[19]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1141,7 +825,7 @@ func (x *FlowProgressResponse) String() string {
 func (*FlowProgressResponse) ProtoMessage() {}
 
 func (x *FlowProgressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[19]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1154,7 +838,7 @@ func (x *FlowProgressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlowProgressResponse.ProtoReflect.Descriptor instead.
 func (*FlowProgressResponse) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{19}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *FlowProgressResponse) GetStage() string {
@@ -1201,7 +885,7 @@ type SubscribeRequest struct {
 
 func (x *SubscribeRequest) Reset() {
 	*x = SubscribeRequest{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[20]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1213,7 +897,7 @@ func (x *SubscribeRequest) String() string {
 func (*SubscribeRequest) ProtoMessage() {}
 
 func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[20]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1226,7 +910,7 @@ func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeRequest) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{20}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SubscribeRequest) GetEventTypes() []string {
@@ -1251,7 +935,7 @@ type EventResponse struct {
 
 func (x *EventResponse) Reset() {
 	*x = EventResponse{}
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[21]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1263,7 +947,7 @@ func (x *EventResponse) String() string {
 func (*EventResponse) ProtoMessage() {}
 
 func (x *EventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_v1_neokapi_service_proto_msgTypes[21]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1276,7 +960,7 @@ func (x *EventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EventResponse.ProtoReflect.Descriptor instead.
 func (*EventResponse) Descriptor() ([]byte, []int) {
-	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{21}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *EventResponse) GetId() string {
@@ -1363,41 +1047,7 @@ const file_proto_v1_neokapi_service_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"V\n" +
 	"\x14ListProjectsResponse\x12>\n" +
-	"\bprojects\x18\x01 \x03(\v2\".neokapi.server.v1.ProjectResponseR\bprojects\"\xb8\x03\n" +
-	"\fBlockMessage\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
-	"\x04type\x18\x03 \x01(\tR\x04type\x12\x16\n" +
-	"\x06source\x18\x04 \x01(\tR\x06source\x12F\n" +
-	"\atargets\x18\x05 \x03(\v2,.neokapi.server.v1.BlockMessage.TargetsEntryR\atargets\x12!\n" +
-	"\fcontent_hash\x18\x06 \x01(\tR\vcontentHash\x12!\n" +
-	"\fcontext_hash\x18\a \x01(\tR\vcontextHash\x12O\n" +
-	"\n" +
-	"properties\x18\b \x03(\v2/.neokapi.server.v1.BlockMessage.PropertiesEntryR\n" +
-	"properties\x1a:\n" +
-	"\fTargetsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a=\n" +
-	"\x0fPropertiesEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"l\n" +
-	"\x12StoreBlocksRequest\x12\x1d\n" +
-	"\n" +
-	"project_id\x18\x01 \x01(\tR\tprojectId\x127\n" +
-	"\x06blocks\x18\x02 \x03(\v2\x1f.neokapi.server.v1.BlockMessageR\x06blocks\"8\n" +
-	"\x13StoreBlocksResponse\x12!\n" +
-	"\fstored_count\x18\x01 \x01(\x05R\vstoredCount\"Q\n" +
-	"\x13StreamBlocksRequest\x12\x1d\n" +
-	"\n" +
-	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
-	"\tblock_ids\x18\x02 \x03(\tR\bblockIds\"\xa1\x01\n" +
-	"\rBlockResponse\x125\n" +
-	"\x05block\x18\x01 \x01(\v2\x1f.neokapi.server.v1.BlockMessageR\x05block\x12\x1d\n" +
-	"\n" +
-	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x1b\n" +
-	"\tstored_at\x18\x03 \x01(\tR\bstoredAt\x12\x1d\n" +
-	"\n" +
-	"updated_at\x18\x04 \x01(\tR\tupdatedAt\"m\n" +
+	"\bprojects\x18\x01 \x03(\v2\".neokapi.server.v1.ProjectResponseR\bprojects\"m\n" +
 	"\x14CreateVersionRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x14\n" +
@@ -1458,14 +1108,12 @@ const file_proto_v1_neokapi_service_proto_rawDesc = "" +
 	"\bmetadata\x18\a \x03(\v2..neokapi.server.v1.EventResponse.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\x93\b\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\xd9\x06\n" +
 	"\x0eNeokapiService\x12\\\n" +
 	"\rCreateProject\x12'.neokapi.server.v1.CreateProjectRequest\x1a\".neokapi.server.v1.ProjectResponse\x12V\n" +
 	"\n" +
 	"GetProject\x12$.neokapi.server.v1.GetProjectRequest\x1a\".neokapi.server.v1.ProjectResponse\x12_\n" +
 	"\fListProjects\x12&.neokapi.server.v1.ListProjectsRequest\x1a'.neokapi.server.v1.ListProjectsResponse\x12\\\n" +
-	"\vStoreBlocks\x12%.neokapi.server.v1.StoreBlocksRequest\x1a&.neokapi.server.v1.StoreBlocksResponse\x12Z\n" +
-	"\fStreamBlocks\x12&.neokapi.server.v1.StreamBlocksRequest\x1a .neokapi.server.v1.BlockResponse0\x01\x12\\\n" +
 	"\rCreateVersion\x12'.neokapi.server.v1.CreateVersionRequest\x1a\".neokapi.server.v1.VersionResponse\x12_\n" +
 	"\fListVersions\x12&.neokapi.server.v1.ListVersionsRequest\x1a'.neokapi.server.v1.ListVersionsResponse\x12\\\n" +
 	"\vPullContent\x12%.neokapi.server.v1.PullContentRequest\x1a&.neokapi.server.v1.PullContentResponse\x12\\\n" +
@@ -1485,73 +1133,58 @@ func file_proto_v1_neokapi_service_proto_rawDescGZIP() []byte {
 	return file_proto_v1_neokapi_service_proto_rawDescData
 }
 
-var file_proto_v1_neokapi_service_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_proto_v1_neokapi_service_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_proto_v1_neokapi_service_proto_goTypes = []any{
 	(*CreateProjectRequest)(nil), // 0: neokapi.server.v1.CreateProjectRequest
 	(*GetProjectRequest)(nil),    // 1: neokapi.server.v1.GetProjectRequest
 	(*ListProjectsRequest)(nil),  // 2: neokapi.server.v1.ListProjectsRequest
 	(*ProjectResponse)(nil),      // 3: neokapi.server.v1.ProjectResponse
 	(*ListProjectsResponse)(nil), // 4: neokapi.server.v1.ListProjectsResponse
-	(*BlockMessage)(nil),         // 5: neokapi.server.v1.BlockMessage
-	(*StoreBlocksRequest)(nil),   // 6: neokapi.server.v1.StoreBlocksRequest
-	(*StoreBlocksResponse)(nil),  // 7: neokapi.server.v1.StoreBlocksResponse
-	(*StreamBlocksRequest)(nil),  // 8: neokapi.server.v1.StreamBlocksRequest
-	(*BlockResponse)(nil),        // 9: neokapi.server.v1.BlockResponse
-	(*CreateVersionRequest)(nil), // 10: neokapi.server.v1.CreateVersionRequest
-	(*VersionResponse)(nil),      // 11: neokapi.server.v1.VersionResponse
-	(*ListVersionsRequest)(nil),  // 12: neokapi.server.v1.ListVersionsRequest
-	(*ListVersionsResponse)(nil), // 13: neokapi.server.v1.ListVersionsResponse
-	(*PullContentRequest)(nil),   // 14: neokapi.server.v1.PullContentRequest
-	(*PullContentResponse)(nil),  // 15: neokapi.server.v1.PullContentResponse
-	(*PushContentRequest)(nil),   // 16: neokapi.server.v1.PushContentRequest
-	(*PushContentResponse)(nil),  // 17: neokapi.server.v1.PushContentResponse
-	(*ExecuteFlowRequest)(nil),   // 18: neokapi.server.v1.ExecuteFlowRequest
-	(*FlowProgressResponse)(nil), // 19: neokapi.server.v1.FlowProgressResponse
-	(*SubscribeRequest)(nil),     // 20: neokapi.server.v1.SubscribeRequest
-	(*EventResponse)(nil),        // 21: neokapi.server.v1.EventResponse
-	nil,                          // 22: neokapi.server.v1.CreateProjectRequest.PropertiesEntry
-	nil,                          // 23: neokapi.server.v1.ProjectResponse.PropertiesEntry
-	nil,                          // 24: neokapi.server.v1.BlockMessage.TargetsEntry
-	nil,                          // 25: neokapi.server.v1.BlockMessage.PropertiesEntry
-	nil,                          // 26: neokapi.server.v1.EventResponse.MetadataEntry
+	(*CreateVersionRequest)(nil), // 5: neokapi.server.v1.CreateVersionRequest
+	(*VersionResponse)(nil),      // 6: neokapi.server.v1.VersionResponse
+	(*ListVersionsRequest)(nil),  // 7: neokapi.server.v1.ListVersionsRequest
+	(*ListVersionsResponse)(nil), // 8: neokapi.server.v1.ListVersionsResponse
+	(*PullContentRequest)(nil),   // 9: neokapi.server.v1.PullContentRequest
+	(*PullContentResponse)(nil),  // 10: neokapi.server.v1.PullContentResponse
+	(*PushContentRequest)(nil),   // 11: neokapi.server.v1.PushContentRequest
+	(*PushContentResponse)(nil),  // 12: neokapi.server.v1.PushContentResponse
+	(*ExecuteFlowRequest)(nil),   // 13: neokapi.server.v1.ExecuteFlowRequest
+	(*FlowProgressResponse)(nil), // 14: neokapi.server.v1.FlowProgressResponse
+	(*SubscribeRequest)(nil),     // 15: neokapi.server.v1.SubscribeRequest
+	(*EventResponse)(nil),        // 16: neokapi.server.v1.EventResponse
+	nil,                          // 17: neokapi.server.v1.CreateProjectRequest.PropertiesEntry
+	nil,                          // 18: neokapi.server.v1.ProjectResponse.PropertiesEntry
+	nil,                          // 19: neokapi.server.v1.EventResponse.MetadataEntry
 }
 var file_proto_v1_neokapi_service_proto_depIdxs = []int32{
-	22, // 0: neokapi.server.v1.CreateProjectRequest.properties:type_name -> neokapi.server.v1.CreateProjectRequest.PropertiesEntry
-	23, // 1: neokapi.server.v1.ProjectResponse.properties:type_name -> neokapi.server.v1.ProjectResponse.PropertiesEntry
+	17, // 0: neokapi.server.v1.CreateProjectRequest.properties:type_name -> neokapi.server.v1.CreateProjectRequest.PropertiesEntry
+	18, // 1: neokapi.server.v1.ProjectResponse.properties:type_name -> neokapi.server.v1.ProjectResponse.PropertiesEntry
 	3,  // 2: neokapi.server.v1.ListProjectsResponse.projects:type_name -> neokapi.server.v1.ProjectResponse
-	24, // 3: neokapi.server.v1.BlockMessage.targets:type_name -> neokapi.server.v1.BlockMessage.TargetsEntry
-	25, // 4: neokapi.server.v1.BlockMessage.properties:type_name -> neokapi.server.v1.BlockMessage.PropertiesEntry
-	5,  // 5: neokapi.server.v1.StoreBlocksRequest.blocks:type_name -> neokapi.server.v1.BlockMessage
-	5,  // 6: neokapi.server.v1.BlockResponse.block:type_name -> neokapi.server.v1.BlockMessage
-	11, // 7: neokapi.server.v1.ListVersionsResponse.versions:type_name -> neokapi.server.v1.VersionResponse
-	26, // 8: neokapi.server.v1.EventResponse.metadata:type_name -> neokapi.server.v1.EventResponse.MetadataEntry
-	0,  // 9: neokapi.server.v1.NeokapiService.CreateProject:input_type -> neokapi.server.v1.CreateProjectRequest
-	1,  // 10: neokapi.server.v1.NeokapiService.GetProject:input_type -> neokapi.server.v1.GetProjectRequest
-	2,  // 11: neokapi.server.v1.NeokapiService.ListProjects:input_type -> neokapi.server.v1.ListProjectsRequest
-	6,  // 12: neokapi.server.v1.NeokapiService.StoreBlocks:input_type -> neokapi.server.v1.StoreBlocksRequest
-	8,  // 13: neokapi.server.v1.NeokapiService.StreamBlocks:input_type -> neokapi.server.v1.StreamBlocksRequest
-	10, // 14: neokapi.server.v1.NeokapiService.CreateVersion:input_type -> neokapi.server.v1.CreateVersionRequest
-	12, // 15: neokapi.server.v1.NeokapiService.ListVersions:input_type -> neokapi.server.v1.ListVersionsRequest
-	14, // 16: neokapi.server.v1.NeokapiService.PullContent:input_type -> neokapi.server.v1.PullContentRequest
-	16, // 17: neokapi.server.v1.NeokapiService.PushContent:input_type -> neokapi.server.v1.PushContentRequest
-	18, // 18: neokapi.server.v1.NeokapiService.ExecuteFlow:input_type -> neokapi.server.v1.ExecuteFlowRequest
-	20, // 19: neokapi.server.v1.NeokapiService.Subscribe:input_type -> neokapi.server.v1.SubscribeRequest
-	3,  // 20: neokapi.server.v1.NeokapiService.CreateProject:output_type -> neokapi.server.v1.ProjectResponse
-	3,  // 21: neokapi.server.v1.NeokapiService.GetProject:output_type -> neokapi.server.v1.ProjectResponse
-	4,  // 22: neokapi.server.v1.NeokapiService.ListProjects:output_type -> neokapi.server.v1.ListProjectsResponse
-	7,  // 23: neokapi.server.v1.NeokapiService.StoreBlocks:output_type -> neokapi.server.v1.StoreBlocksResponse
-	9,  // 24: neokapi.server.v1.NeokapiService.StreamBlocks:output_type -> neokapi.server.v1.BlockResponse
-	11, // 25: neokapi.server.v1.NeokapiService.CreateVersion:output_type -> neokapi.server.v1.VersionResponse
-	13, // 26: neokapi.server.v1.NeokapiService.ListVersions:output_type -> neokapi.server.v1.ListVersionsResponse
-	15, // 27: neokapi.server.v1.NeokapiService.PullContent:output_type -> neokapi.server.v1.PullContentResponse
-	17, // 28: neokapi.server.v1.NeokapiService.PushContent:output_type -> neokapi.server.v1.PushContentResponse
-	19, // 29: neokapi.server.v1.NeokapiService.ExecuteFlow:output_type -> neokapi.server.v1.FlowProgressResponse
-	21, // 30: neokapi.server.v1.NeokapiService.Subscribe:output_type -> neokapi.server.v1.EventResponse
-	20, // [20:31] is the sub-list for method output_type
-	9,  // [9:20] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	6,  // 3: neokapi.server.v1.ListVersionsResponse.versions:type_name -> neokapi.server.v1.VersionResponse
+	19, // 4: neokapi.server.v1.EventResponse.metadata:type_name -> neokapi.server.v1.EventResponse.MetadataEntry
+	0,  // 5: neokapi.server.v1.NeokapiService.CreateProject:input_type -> neokapi.server.v1.CreateProjectRequest
+	1,  // 6: neokapi.server.v1.NeokapiService.GetProject:input_type -> neokapi.server.v1.GetProjectRequest
+	2,  // 7: neokapi.server.v1.NeokapiService.ListProjects:input_type -> neokapi.server.v1.ListProjectsRequest
+	5,  // 8: neokapi.server.v1.NeokapiService.CreateVersion:input_type -> neokapi.server.v1.CreateVersionRequest
+	7,  // 9: neokapi.server.v1.NeokapiService.ListVersions:input_type -> neokapi.server.v1.ListVersionsRequest
+	9,  // 10: neokapi.server.v1.NeokapiService.PullContent:input_type -> neokapi.server.v1.PullContentRequest
+	11, // 11: neokapi.server.v1.NeokapiService.PushContent:input_type -> neokapi.server.v1.PushContentRequest
+	13, // 12: neokapi.server.v1.NeokapiService.ExecuteFlow:input_type -> neokapi.server.v1.ExecuteFlowRequest
+	15, // 13: neokapi.server.v1.NeokapiService.Subscribe:input_type -> neokapi.server.v1.SubscribeRequest
+	3,  // 14: neokapi.server.v1.NeokapiService.CreateProject:output_type -> neokapi.server.v1.ProjectResponse
+	3,  // 15: neokapi.server.v1.NeokapiService.GetProject:output_type -> neokapi.server.v1.ProjectResponse
+	4,  // 16: neokapi.server.v1.NeokapiService.ListProjects:output_type -> neokapi.server.v1.ListProjectsResponse
+	6,  // 17: neokapi.server.v1.NeokapiService.CreateVersion:output_type -> neokapi.server.v1.VersionResponse
+	8,  // 18: neokapi.server.v1.NeokapiService.ListVersions:output_type -> neokapi.server.v1.ListVersionsResponse
+	10, // 19: neokapi.server.v1.NeokapiService.PullContent:output_type -> neokapi.server.v1.PullContentResponse
+	12, // 20: neokapi.server.v1.NeokapiService.PushContent:output_type -> neokapi.server.v1.PushContentResponse
+	14, // 21: neokapi.server.v1.NeokapiService.ExecuteFlow:output_type -> neokapi.server.v1.FlowProgressResponse
+	16, // 22: neokapi.server.v1.NeokapiService.Subscribe:output_type -> neokapi.server.v1.EventResponse
+	14, // [14:23] is the sub-list for method output_type
+	5,  // [5:14] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_proto_v1_neokapi_service_proto_init() }
@@ -1565,7 +1198,7 @@ func file_proto_v1_neokapi_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_v1_neokapi_service_proto_rawDesc), len(file_proto_v1_neokapi_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   27,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

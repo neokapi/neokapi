@@ -341,12 +341,22 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 		return fmt.Errorf("mark sync push job completed: %w", err)
 	}
 
-	// Clean up the manifest. Failing to delete it orphans a blob rather than
-	// losing content, so it does not fail the job — but unobserved orphans
-	// accumulate, and nobody goes looking for a blob they were never told about.
+	// Reclaim the manifest and every chunk blob it referenced. Ingested content
+	// now lives in the store, so the staging blobs are spent; without this sweep
+	// they are never reclaimed (only the manifest was, before), and an
+	// authenticated client grows blob storage without bound at 2 MiB/chunk. A
+	// failed delete orphans a blob rather than losing content, so it warns
+	// rather than failing the job. The bucket-lifecycle backstop (a TTL rule on
+	// the staging prefix) lives in bowrain-infra.
 	if err := deps.BlobStore.Delete(ctx, manifestKey); err != nil {
 		slog.Warn("could not delete sync push manifest blob",
 			"job_id", job.ID, "manifest_key", manifestKey, "error", err)
+	}
+	for _, chunkRef := range manifest.Chunks {
+		if err := deps.BlobStore.Delete(ctx, chunkRef.Hash); err != nil {
+			slog.Warn("could not delete sync push chunk blob",
+				"job_id", job.ID, "chunk_hash", chunkRef.Hash, "error", err)
+		}
 	}
 
 	// Publish EventPushCompleted.

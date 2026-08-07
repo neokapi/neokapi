@@ -14,9 +14,8 @@ service NeokapiService {
   rpc GetProject(GetProjectRequest) returns (ProjectResponse);
   rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
 
-  // Block operations
-  rpc StoreBlocks(StoreBlocksRequest) returns (StoreBlocksResponse);
-  rpc StreamBlocks(StreamBlocksRequest) returns (stream BlockResponse);
+  // Content travels the canonical neokapi.content.v1 wire (sync.proto). This
+  // service deliberately carries no block/content messages of its own.
 
   // Version management
   rpc CreateVersion(CreateVersionRequest) returns (VersionResponse);
@@ -60,40 +59,6 @@ message ProjectResponse {
 
 message ListProjectsResponse {
   repeated ProjectResponse projects = 1;
-}
-
-// --- Block messages ---
-
-message BlockMessage {
-  string id = 1;
-  string name = 2;
-  string type = 3;
-  string source = 4;
-  map<string, string> targets = 5;
-  string content_hash = 6;
-  string context_hash = 7;
-  map<string, string> properties = 8;
-}
-
-message StoreBlocksRequest {
-  string project_id = 1;
-  repeated BlockMessage blocks = 2;
-}
-
-message StoreBlocksResponse {
-  int32 stored_count = 1;
-}
-
-message StreamBlocksRequest {
-  string project_id = 1;
-  repeated string block_ids = 2;  // Empty means all blocks
-}
-
-message BlockResponse {
-  BlockMessage block = 1;
-  string project_id = 2;
-  string stored_at = 3;
-  string updated_at = 4;
 }
 
 // --- Version messages ---

@@ -323,12 +323,19 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 				continue
 			}
 			sb := bowsync.BlockToProto(b, itemName)
+			// Skeleton is format scaffolding that belongs at the connector edge,
+			// not durably in the content store — the standing invariant keeps it
+			// off the default push wire. The proto field stays reserved for the
+			// future opt-in (backlog 014); until that exists, the default push
+			// drops it so skeleton bytes never land in the staging chunk blobs.
+			// The converter still round-trips it losslessly for the parity guard.
+			sb.SkeletonJson = nil
 			// Estimate the boundary from the block's full marshaled proto size
-			// (source + targets + annotations + skeleton + runs), not from
-			// SourceText alone. Seal the current chunk *before* appending a block
-			// that would push the marshaled size over the safe threshold, so the
-			// chunk never exceeds the proxy upload's 2 MiB cap (#27). A single
-			// block larger than the threshold still rides in its own chunk.
+			// (source + targets + annotations + runs), not from SourceText alone.
+			// Seal the current chunk *before* appending a block that would push the
+			// marshaled size over the safe threshold, so the chunk never exceeds
+			// the proxy upload's 2 MiB cap (#27). A single block larger than the
+			// threshold still rides in its own chunk.
 			sbSize := proto.Size(sb)
 			if len(chunkBlocks) > 0 && chunkBytes+sbSize > maxChunkMarshaledBytes {
 				ref, err := c.uploadChunk(ctx, initResp.UploadID, chunkIndex, "blocks", chunkBlocks, transport)

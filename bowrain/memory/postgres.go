@@ -441,21 +441,32 @@ func (tm *PostgresStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]
 		`SELECT entry_id, locale, coded FROM tm_variants
 		 WHERE workspace_id = $1 AND entry_id IN (`+inClause+`) ORDER BY entry_id, locale`,
 		args...)
-	if err == nil {
-		for varRows.Next() {
-			var eid, loc, coded string
-			if err := varRows.Scan(&eid, &loc, &coded); err != nil {
-				continue
-			}
-			var runs []model.Run
-			if err := json.Unmarshal([]byte(coded), &runs); err == nil {
-				if idx, ok := byID[eid]; ok {
-					entries[idx].Variants[model.LocaleID(loc)] = runs
-				}
-			}
-		}
-		varRows.Close()
+	// A transient failure reading variants must surface as an error, not as an
+	// entry with no translation — the caller reads an empty variant map as "not
+	// in memory" and re-translates, discarding an approved target.
+	if err != nil {
+		return nil, fmt.Errorf("load variants: %w", err)
 	}
+	for varRows.Next() {
+		var eid, loc, coded string
+		if err := varRows.Scan(&eid, &loc, &coded); err != nil {
+			varRows.Close()
+			return nil, fmt.Errorf("scan variant: %w", err)
+		}
+		var runs []model.Run
+		if err := json.Unmarshal([]byte(coded), &runs); err != nil {
+			varRows.Close()
+			return nil, fmt.Errorf("unmarshal variant runs for entry %s: %w", eid, err)
+		}
+		if idx, ok := byID[eid]; ok {
+			entries[idx].Variants[model.LocaleID(loc)] = runs
+		}
+	}
+	if err := varRows.Err(); err != nil {
+		varRows.Close()
+		return nil, fmt.Errorf("variant rows: %w", err)
+	}
+	varRows.Close()
 
 	// Entities joined with values.
 	entRows, err := tm.db.QueryContext(ctx, `
@@ -468,7 +479,10 @@ func (tm *PostgresStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]
 		WHERE e.workspace_id = $1 AND e.entry_id IN (`+inClause+`)
 		ORDER BY e.entry_id, e.placeholder_id, v.locale
 	`, args...)
-	if err == nil {
+	if err != nil {
+		return nil, fmt.Errorf("load entities: %w", err)
+	}
+	{
 		type entKey struct {
 			entryIdx int
 			pid      string
@@ -479,7 +493,8 @@ func (tm *PostgresStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]
 			var loc, textVal sql.NullString
 			var startPos, endPos sql.NullInt64
 			if err := entRows.Scan(&eid, &pid, &etype, &conceptID, &loc, &textVal, &startPos, &endPos); err != nil {
-				continue
+				entRows.Close()
+				return nil, fmt.Errorf("scan entity: %w", err)
 			}
 			idx, ok := byID[eid]
 			if !ok {
@@ -505,6 +520,10 @@ func (tm *PostgresStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]
 				}
 			}
 		}
+		if err := entRows.Err(); err != nil {
+			entRows.Close()
+			return nil, fmt.Errorf("entity rows: %w", err)
+		}
 		entRows.Close()
 	}
 
@@ -514,19 +533,25 @@ func (tm *PostgresStore) loadEntriesByIDs(ctx context.Context, ids []string) ([]
 		FROM tm_entry_origins WHERE workspace_id = $1 AND entry_id IN (`+inClause+`)
 		ORDER BY entry_id, ordinal
 	`, args...)
-	if err == nil {
-		for originRows.Next() {
-			var eid string
-			var o fw.Origin
-			if err := originRows.Scan(&eid, &o.Source, &o.Key, &o.Reference, &o.AddedAt, &o.AddedBy, &o.SessionID); err != nil {
-				continue
-			}
-			if idx, ok := byID[eid]; ok {
-				entries[idx].Origins = append(entries[idx].Origins, o)
-			}
-		}
-		originRows.Close()
+	if err != nil {
+		return nil, fmt.Errorf("load origins: %w", err)
 	}
+	for originRows.Next() {
+		var eid string
+		var o fw.Origin
+		if err := originRows.Scan(&eid, &o.Source, &o.Key, &o.Reference, &o.AddedAt, &o.AddedBy, &o.SessionID); err != nil {
+			originRows.Close()
+			return nil, fmt.Errorf("scan origin: %w", err)
+		}
+		if idx, ok := byID[eid]; ok {
+			entries[idx].Origins = append(entries[idx].Origins, o)
+		}
+	}
+	if err := originRows.Err(); err != nil {
+		originRows.Close()
+		return nil, fmt.Errorf("origin rows: %w", err)
+	}
+	originRows.Close()
 
 	return entries, nil
 }
@@ -774,47 +799,67 @@ func (tm *PostgresStore) FacetStatsFiltered(ctx context.Context, params fw.Searc
 		INNER JOIN tm_entries e ON e.workspace_id = v.workspace_id AND e.id = v.entry_id
 		WHERE ` + where + `
 		GROUP BY v.locale ORDER BY COUNT(DISTINCT v.entry_id) DESC`
-	if rows, err := tm.db.QueryContext(ctx, localeQ, args...); err == nil {
-		for rows.Next() {
-			var lf fw.LocaleFacet
-			if err := rows.Scan(&lf.Locale, &lf.Count); err == nil {
-				data.Locales = append(data.Locales, lf)
-			}
-		}
-		rows.Close()
-	} else {
+	// Each facet loop propagates its scan and iteration errors: a truncated read
+	// otherwise renders as an undercount that reads as real data.
+	localeRows, err := tm.db.QueryContext(ctx, localeQ, args...)
+	if err != nil {
 		return data, fmt.Errorf("facet locales: %w", err)
 	}
+	for localeRows.Next() {
+		var lf fw.LocaleFacet
+		if err := localeRows.Scan(&lf.Locale, &lf.Count); err != nil {
+			localeRows.Close()
+			return data, fmt.Errorf("scan facet locale: %w", err)
+		}
+		data.Locales = append(data.Locales, lf)
+	}
+	if err := localeRows.Err(); err != nil {
+		localeRows.Close()
+		return data, fmt.Errorf("facet locales: %w", err)
+	}
+	localeRows.Close()
 
 	projQ := `SELECT e.project_id, COUNT(*) FROM tm_entries e WHERE ` + where + ` GROUP BY e.project_id ORDER BY COUNT(*) DESC`
-	if rows, err := tm.db.QueryContext(ctx, projQ, args...); err == nil {
-		for rows.Next() {
-			var pf fw.ProjectFacet
-			if err := rows.Scan(&pf.ProjectID, &pf.Count); err == nil {
-				data.Projects = append(data.Projects, pf)
-			}
-		}
-		rows.Close()
-	} else {
+	projRows, err := tm.db.QueryContext(ctx, projQ, args...)
+	if err != nil {
 		return data, fmt.Errorf("facet projects: %w", err)
 	}
+	for projRows.Next() {
+		var pf fw.ProjectFacet
+		if err := projRows.Scan(&pf.ProjectID, &pf.Count); err != nil {
+			projRows.Close()
+			return data, fmt.Errorf("scan facet project: %w", err)
+		}
+		data.Projects = append(data.Projects, pf)
+	}
+	if err := projRows.Err(); err != nil {
+		projRows.Close()
+		return data, fmt.Errorf("facet projects: %w", err)
+	}
+	projRows.Close()
 
 	etQ := `SELECT ent.entity_type, COUNT(DISTINCT ent.entry_id)
 		FROM tm_entry_entities ent
 		INNER JOIN tm_entries e ON e.workspace_id = ent.workspace_id AND e.id = ent.entry_id
 		WHERE ` + where + `
 		GROUP BY ent.entity_type ORDER BY COUNT(DISTINCT ent.entry_id) DESC`
-	if rows, err := tm.db.QueryContext(ctx, etQ, args...); err == nil {
-		for rows.Next() {
-			var ef fw.EntityTypeFacet
-			if err := rows.Scan(&ef.Type, &ef.Count); err == nil {
-				data.EntityTypes = append(data.EntityTypes, ef)
-			}
-		}
-		rows.Close()
-	} else {
+	etRows, err := tm.db.QueryContext(ctx, etQ, args...)
+	if err != nil {
 		return data, fmt.Errorf("facet entity types: %w", err)
 	}
+	for etRows.Next() {
+		var ef fw.EntityTypeFacet
+		if err := etRows.Scan(&ef.Type, &ef.Count); err != nil {
+			etRows.Close()
+			return data, fmt.Errorf("scan facet entity type: %w", err)
+		}
+		data.EntityTypes = append(data.EntityTypes, ef)
+	}
+	if err := etRows.Err(); err != nil {
+		etRows.Close()
+		return data, fmt.Errorf("facet entity types: %w", err)
+	}
+	etRows.Close()
 
 	sessQ := `SELECT s.id, s.file_key, s.tool_name, s.imported_at, COUNT(DISTINCT o.entry_id)
 		FROM tm_import_sessions s
@@ -823,17 +868,23 @@ func (tm *PostgresStore) FacetStatsFiltered(ctx context.Context, params fw.Searc
 		WHERE ` + where + `
 		GROUP BY s.id, s.file_key, s.tool_name, s.imported_at
 		ORDER BY COUNT(DISTINCT o.entry_id) DESC`
-	if rows, err := tm.db.QueryContext(ctx, sessQ, args...); err == nil {
-		for rows.Next() {
-			var sf fw.ImportSessionFacet
-			if err := rows.Scan(&sf.SessionID, &sf.FileKey, &sf.ToolName, &sf.ImportedAt, &sf.Count); err == nil {
-				data.ImportSessions = append(data.ImportSessions, sf)
-			}
-		}
-		rows.Close()
-	} else {
+	sessRows, err := tm.db.QueryContext(ctx, sessQ, args...)
+	if err != nil {
 		return data, fmt.Errorf("facet import sessions: %w", err)
 	}
+	for sessRows.Next() {
+		var sf fw.ImportSessionFacet
+		if err := sessRows.Scan(&sf.SessionID, &sf.FileKey, &sf.ToolName, &sf.ImportedAt, &sf.Count); err != nil {
+			sessRows.Close()
+			return data, fmt.Errorf("scan facet import session: %w", err)
+		}
+		data.ImportSessions = append(data.ImportSessions, sf)
+	}
+	if err := sessRows.Err(); err != nil {
+		sessRows.Close()
+		return data, fmt.Errorf("facet import sessions: %w", err)
+	}
+	sessRows.Close()
 
 	codeQ := `SELECT
 		COUNT(DISTINCT CASE WHEN EXISTS (

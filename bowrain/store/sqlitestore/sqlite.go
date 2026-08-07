@@ -411,13 +411,7 @@ func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, stream, itemNam
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Delete blocks belonging to this item.
-	_, err = tx.ExecContext(ctx, `DELETE FROM blocks WHERE project_id=? AND item_name=?`, projectID, itemName)
-	if err != nil {
-		return fmt.Errorf("delete item blocks: %w", err)
-	}
-
-	// Delete the item itself.
+	// Remove this stream's item row first; its absence is the not-found signal.
 	res, err := tx.ExecContext(ctx, `DELETE FROM items WHERE project_id=? AND stream=? AND name=?`, projectID, stream, itemName)
 	if err != nil {
 		return fmt.Errorf("delete item: %w", err)
@@ -425,6 +419,34 @@ func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, stream, itemNam
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		return fmt.Errorf("item %q not found in project %s", itemName, projectID)
+	}
+
+	// Overlays are per-stream, so this stream's rows for the item's blocks are
+	// orphaned now even though the shared block rows may survive for another
+	// stream. Dropping them stops a later re-push of the same block id from
+	// resurrecting stale targets onto new source text.
+	for _, table := range []string{"translations", "annotations", "overlays_ext", "block_history"} {
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM `+table+` WHERE project_id=? AND stream=?
+			 AND block_id IN (SELECT id FROM blocks WHERE project_id=? AND item_name=?)`,
+			projectID, stream, projectID, itemName); err != nil {
+			return fmt.Errorf("delete %s for item %q: %w", table, itemName, err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM unit_decisions WHERE project_id=? AND stream=? AND item_name=?`,
+		projectID, stream, itemName); err != nil {
+		return fmt.Errorf("delete unit decisions for item %q: %w", itemName, err)
+	}
+
+	// Block rows are shared across streams (CreateStream copies items, not
+	// blocks), so reclaim them only when no other stream still references this
+	// item name — this stream's row is already gone.
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM blocks WHERE project_id=? AND item_name=?
+		 AND NOT EXISTS (SELECT 1 FROM items WHERE project_id=? AND name=?)`,
+		projectID, itemName, projectID, itemName); err != nil {
+		return fmt.Errorf("delete item blocks: %w", err)
 	}
 
 	return tx.Commit()
@@ -947,13 +969,37 @@ func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, stream, blockI
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	res, err := tx.ExecContext(ctx, `DELETE FROM blocks WHERE project_id=? AND id=?`, projectID, blockID)
+	// The decision ledger keys on the block's unit identity (source_id), not its
+	// id, so read the scope before the row is gone.
+	var itemName, sourceID string
+	err = tx.QueryRowContext(ctx,
+		`SELECT item_name, source_id FROM blocks WHERE project_id=? AND id=?`,
+		projectID, blockID).Scan(&itemName, &sourceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("block %s not found in project %s", blockID, projectID)
+	}
 	if err != nil {
+		return fmt.Errorf("look up block %s: %w", blockID, err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM blocks WHERE project_id=? AND id=?`, projectID, blockID); err != nil {
 		return fmt.Errorf("delete block: %w", err)
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("block %s not found in project %s", blockID, projectID)
+
+	// A block is shared across streams and removed project-wide, so its overlays
+	// go with it in every stream — otherwise a re-push of the id resurrects them.
+	for _, table := range []string{"translations", "annotations", "overlays_ext", "block_history"} {
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM `+table+` WHERE project_id=? AND block_id=?`, projectID, blockID); err != nil {
+			return fmt.Errorf("delete %s for block %s: %w", table, blockID, err)
+		}
+	}
+	if sourceID != "" {
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM unit_decisions WHERE project_id=? AND item_name=? AND unit=?`,
+			projectID, itemName, sourceID); err != nil {
+			return fmt.Errorf("delete unit decisions for block %s: %w", blockID, err)
+		}
 	}
 
 	if err := logChange(ctx, tx, projectID, stream, blockID, "source_removed", "", ""); err != nil {
@@ -1084,6 +1130,12 @@ func (s *SQLiteStore) Diff(ctx context.Context, fromVersionID, toVersionID strin
 		}
 		fromBlocks[id] = hash
 	}
+	// A truncated read here would drop "from" blocks and mislabel them as
+	// removed in the diff below.
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("from blocks rows: %w", err)
+	}
 	rows.Close()
 
 	// Get blocks in "to" version.
@@ -1100,6 +1152,10 @@ func (s *SQLiteStore) Diff(ctx context.Context, fromVersionID, toVersionID strin
 			return nil, err
 		}
 		toBlocks[id] = hash
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("to blocks rows: %w", err)
 	}
 	rows.Close()
 

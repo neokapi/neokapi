@@ -471,11 +471,7 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	_, err = tx.ExecContext(ctx, `DELETE FROM blocks WHERE project_id=$1 AND item_name=$2`, projectID, itemName)
-	if err != nil {
-		return fmt.Errorf("delete item blocks: %w", err)
-	}
-
+	// Remove this stream's item row first; its absence is the not-found signal.
 	res, err := tx.ExecContext(ctx, `DELETE FROM items WHERE project_id=$1 AND stream=$2 AND name=$3`, projectID, stream, itemName)
 	if err != nil {
 		return fmt.Errorf("delete item: %w", err)
@@ -483,6 +479,34 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		return fmt.Errorf("item %q not found in project %s", itemName, projectID)
+	}
+
+	// Overlays are per-stream, so this stream's rows for the item's blocks are
+	// orphaned now even though the shared block rows may survive for another
+	// stream. Dropping them stops a later re-push of the same block id from
+	// resurrecting stale targets onto new source text.
+	for _, table := range []string{"translations", "annotations", "overlays_ext", "block_history"} {
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM `+table+` WHERE project_id=$1 AND stream=$2
+			 AND block_id IN (SELECT id FROM blocks WHERE project_id=$1 AND item_name=$3)`,
+			projectID, stream, itemName); err != nil {
+			return fmt.Errorf("delete %s for item %q: %w", table, itemName, err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM unit_decisions WHERE project_id=$1 AND stream=$2 AND item_name=$3`,
+		projectID, stream, itemName); err != nil {
+		return fmt.Errorf("delete unit decisions for item %q: %w", itemName, err)
+	}
+
+	// Block rows are shared across streams (CreateStream copies items, not
+	// blocks), so reclaim them only when no other stream still references this
+	// item name — this stream's row is already gone.
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM blocks WHERE project_id=$1 AND item_name=$2
+		 AND NOT EXISTS (SELECT 1 FROM items WHERE project_id=$1 AND name=$2)`,
+		projectID, itemName); err != nil {
+		return fmt.Errorf("delete item blocks: %w", err)
 	}
 
 	return tx.Commit()
@@ -658,6 +682,13 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 				}
 				existingBlocks[bid] = existingBlock{contentHash: ch, locales: map[string]struct{}{}}
 				present = append(present, bid)
+			}
+			// A truncated read here silently drops existing blocks from the
+			// prefetch, so they get relabeled source_added — losing approvals and
+			// target history on a source change.
+			if err := hashRows.Err(); err != nil {
+				hashRows.Close()
+				return fmt.Errorf("batch hash lookup rows: %w", err)
 			}
 			hashRows.Close()
 			if len(present) == 0 {
@@ -997,13 +1028,37 @@ func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, stream, bloc
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	res, err := tx.ExecContext(ctx, `DELETE FROM blocks WHERE project_id=$1 AND id=$2`, projectID, blockID)
+	// The decision ledger keys on the block's unit identity (source_id), not its
+	// id, so read the scope before the row is gone.
+	var itemName, sourceID string
+	err = tx.QueryRowContext(ctx,
+		`SELECT item_name, source_id FROM blocks WHERE project_id=$1 AND id=$2`,
+		projectID, blockID).Scan(&itemName, &sourceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("block %s not found in project %s", blockID, projectID)
+	}
 	if err != nil {
+		return fmt.Errorf("look up block %s: %w", blockID, err)
+	}
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM blocks WHERE project_id=$1 AND id=$2`, projectID, blockID); err != nil {
 		return fmt.Errorf("delete block: %w", err)
 	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("block %s not found in project %s", blockID, projectID)
+
+	// A block is shared across streams and removed project-wide, so its overlays
+	// go with it in every stream — otherwise a re-push of the id resurrects them.
+	for _, table := range []string{"translations", "annotations", "overlays_ext", "block_history"} {
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM `+table+` WHERE project_id=$1 AND block_id=$2`, projectID, blockID); err != nil {
+			return fmt.Errorf("delete %s for block %s: %w", table, blockID, err)
+		}
+	}
+	if sourceID != "" {
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM unit_decisions WHERE project_id=$1 AND item_name=$2 AND unit=$3`,
+			projectID, itemName, sourceID); err != nil {
+			return fmt.Errorf("delete unit decisions for block %s: %w", blockID, err)
+		}
 	}
 
 	if err := logChange(ctx, tx, projectID, stream, blockID, "source_removed", "", ""); err != nil {

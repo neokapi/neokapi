@@ -130,58 +130,6 @@ func (g *GRPCServer) ListProjects(ctx context.Context, _ *pb.ListProjectsRequest
 	return resp, nil
 }
 
-func (g *GRPCServer) StoreBlocks(ctx context.Context, req *pb.StoreBlocksRequest) (*pb.StoreBlocksResponse, error) {
-	if _, err := g.authorizeProject(ctx, req.ProjectId); err != nil {
-		return nil, err
-	}
-
-	var blocks []*model.Block
-	for _, bm := range req.Blocks {
-		b := model.NewBlock(bm.Id, bm.Source)
-		b.Name = bm.Name
-		b.Type = bm.Type
-		for locale, text := range bm.Targets {
-			b.SetTargetText(model.LocaleID(locale), text)
-		}
-		b.Properties = bm.Properties
-		blocks = append(blocks, b)
-	}
-
-	if err := g.srv.Services.Project.StoreBlocks(ctx, req.ProjectId, blocks); err != nil {
-		return nil, status.Errorf(codes.Internal, "store blocks: %v", err)
-	}
-	return &pb.StoreBlocksResponse{StoredCount: int32(len(blocks))}, nil
-}
-
-func (g *GRPCServer) StreamBlocks(req *pb.StreamBlocksRequest, stream pb.NeokapiService_StreamBlocksServer) error {
-	if _, err := g.authorizeProject(grpcCtx(stream), req.ProjectId); err != nil {
-		return err
-	}
-
-	query := store.BlockQuery{ProjectID: req.ProjectId}
-	if len(req.BlockIds) > 0 {
-		query.IDs = req.BlockIds
-	}
-
-	blocks, err := g.srv.Services.Project.GetBlocks(grpcCtx(stream), query)
-	if err != nil {
-		return status.Errorf(codes.Internal, "get blocks: %v", err)
-	}
-
-	for _, sb := range blocks {
-		resp := &pb.BlockResponse{
-			Block:     blockToProto(sb.Block),
-			ProjectId: sb.ProjectID,
-			StoredAt:  sb.StoredAt.Format(time.RFC3339),
-			UpdatedAt: sb.UpdatedAt.Format(time.RFC3339),
-		}
-		if err := stream.Send(resp); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (g *GRPCServer) CreateVersion(ctx context.Context, req *pb.CreateVersionRequest) (*pb.VersionResponse, error) {
 	if _, err := g.authorizeProject(ctx, req.ProjectId); err != nil {
 		return nil, err
@@ -474,27 +422,6 @@ func projectToProto(p *store.Project) *pb.ProjectResponse {
 	}
 }
 
-func blockToProto(b *model.Block) *pb.BlockMessage {
-	targets := make(map[string]string, len(b.Targets))
-	for _, locale := range b.TargetLocales() {
-		targets[string(locale)] = b.TargetText(locale)
-	}
-
-	bm := &pb.BlockMessage{
-		Id:         b.ID,
-		Name:       b.Name,
-		Type:       b.Type,
-		Source:     b.SourceText(),
-		Targets:    targets,
-		Properties: b.Properties,
-	}
-	if b.Identity != nil {
-		bm.ContentHash = b.Identity.ContentHash
-		bm.ContextHash = b.Identity.ContextHash
-	}
-	return bm
-}
-
 func versionToProto(v *store.Version) *pb.VersionResponse {
 	return &pb.VersionResponse{
 		Id:          v.ID,
@@ -504,11 +431,6 @@ func versionToProto(v *store.Version) *pb.VersionResponse {
 		BlockCount:  int32(v.BlockCount),
 		CreatedAt:   v.CreatedAt.Format(time.RFC3339),
 	}
-}
-
-// grpcCtx extracts context from a gRPC server stream.
-func grpcCtx(stream interface{ Context() context.Context }) context.Context {
-	return stream.Context()
 }
 
 // Ensure GRPCServer implements the interface.

@@ -466,17 +466,19 @@ func (tb *PostgresStore) pgSearchTrgm(ctx context.Context, query string, sourceL
 	}
 	defer rows.Close()
 
-	var concepts []fw.Concept
+	var ids []string
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
-			continue
+			return nil, 0, fmt.Errorf("scan concept id: %w", err)
 		}
-		if c, err := tb.scanConcept(ctx, id); err == nil {
-			concepts = append(concepts, c)
-		}
+		ids = append(ids, id)
 	}
 	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	concepts, err := tb.scanConcepts(ctx, ids)
+	if err != nil {
 		return nil, 0, err
 	}
 	return concepts, total, nil
@@ -533,11 +535,9 @@ func (tb *PostgresStore) pgSearchLike(ctx context.Context, query string, sourceL
 		return nil, total, fmt.Errorf("iterate concepts: %w", err)
 	}
 
-	var concepts []fw.Concept
-	for _, id := range ids {
-		if c, err := tb.scanConcept(ctx, id); err == nil {
-			concepts = append(concepts, c)
-		}
+	concepts, err := tb.scanConcepts(ctx, ids)
+	if err != nil {
+		return nil, total, err
 	}
 	return concepts, total, nil
 }
@@ -628,11 +628,9 @@ func (tb *PostgresStore) pgSearchTrgmForStream(ctx context.Context, query string
 		return nil, 0, err
 	}
 
-	var concepts []fw.Concept
-	for _, id := range ids {
-		if c, err := tb.scanConcept(ctx, id); err == nil {
-			concepts = append(concepts, c)
-		}
+	concepts, err := tb.scanConcepts(ctx, ids)
+	if err != nil {
+		return nil, total, err
 	}
 	return concepts, total, nil
 }
@@ -710,11 +708,9 @@ func (tb *PostgresStore) pgSearchLikeForStream(ctx context.Context, query string
 		return nil, total, fmt.Errorf("iterate concepts: %w", err)
 	}
 
-	var concepts []fw.Concept
-	for _, id := range ids {
-		if c, err := tb.scanConcept(ctx, id); err == nil {
-			concepts = append(concepts, c)
-		}
+	concepts, err := tb.scanConcepts(ctx, ids)
+	if err != nil {
+		return nil, total, err
 	}
 	return concepts, total, nil
 }
@@ -748,11 +744,9 @@ func (tb *PostgresStore) Concepts(ctx context.Context) ([]fw.Concept, error) {
 		return nil, fmt.Errorf("iterate concepts: %w", err)
 	}
 
-	var concepts []fw.Concept
-	for _, id := range ids {
-		if c, err := tb.scanConcept(ctx, id); err == nil {
-			concepts = append(concepts, c)
-		}
+	concepts, err := tb.scanConcepts(ctx, ids)
+	if err != nil {
+		return nil, err
 	}
 	return concepts, nil
 }
@@ -763,6 +757,93 @@ func (tb *PostgresStore) Close() error {
 }
 
 // --- internal helpers ---
+
+// scanConcepts hydrates several concepts and all their terms in two queries
+// rather than the 1+2N round trips a per-id scanConcept loop runs — the term
+// check hydrates the whole store on every request. The result preserves the
+// caller's id order and drops ids with no concept row. A concept whose
+// properties JSON is corrupt is an error, not a silently dropped row.
+func (tb *PostgresStore) scanConcepts(ctx context.Context, ids []string) ([]fw.Concept, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	// $1 is workspace; $2..$N are the ids.
+	placeholders := make([]string, len(ids))
+	args := make([]any, 0, len(ids)+1)
+	args = append(args, tb.workspaceID)
+	for i, id := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args = append(args, id)
+	}
+	inClause := strings.Join(placeholders, ",")
+
+	conceptRows, err := tb.db.QueryContext(ctx, `
+		SELECT id, domain, definition, properties, source, created_at, updated_at
+		FROM tb_concepts WHERE workspace_id = $1 AND id IN (`+inClause+`)`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("load concepts: %w", err)
+	}
+	defer conceptRows.Close()
+
+	byID := make(map[string]*fw.Concept, len(ids))
+	for conceptRows.Next() {
+		var c fw.Concept
+		var propsJSON *string
+		var source string
+		if err := conceptRows.Scan(&c.ID, &c.Domain, &c.Definition, &propsJSON, &source, &c.CreatedAt, &c.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan concept: %w", err)
+		}
+		c.Source = fw.TermSource(source)
+		if propsJSON != nil && *propsJSON != "" {
+			if err := json.Unmarshal([]byte(*propsJSON), &c.Properties); err != nil {
+				return nil, fmt.Errorf("concept %s: unmarshal properties: %w", c.ID, err)
+			}
+		}
+		byID[c.ID] = &c
+	}
+	if err := conceptRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate concepts: %w", err)
+	}
+
+	termRows, err := tb.db.QueryContext(ctx, `
+		SELECT concept_id, text, locale, status, part_of_speech, gender, note, competitor_term, valid_from, valid_to, tags
+		FROM tb_terms WHERE workspace_id = $1 AND concept_id IN (`+inClause+`)
+		ORDER BY concept_id, text`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("load terms: %w", err)
+	}
+	defer termRows.Close()
+
+	for termRows.Next() {
+		var conceptID string
+		var t fw.Term
+		var locale, status, tags string
+		var validFrom, validTo sql.NullTime
+		if err := termRows.Scan(&conceptID, &t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &t.CompetitorTerm, &validFrom, &validTo, &tags); err != nil {
+			return nil, fmt.Errorf("scan term: %w", err)
+		}
+		c, ok := byID[conceptID]
+		if !ok {
+			continue
+		}
+		t.Locale = model.LocaleID(locale)
+		t.Status = model.TermStatus(status)
+		t.Validity = pgValidityFromColumns(validFrom, validTo, tags)
+		c.Terms = append(c.Terms, t)
+	}
+	if err := termRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate terms: %w", err)
+	}
+
+	concepts := make([]fw.Concept, 0, len(ids))
+	for _, id := range ids {
+		if c, ok := byID[id]; ok {
+			concepts = append(concepts, *c)
+		}
+	}
+	return concepts, nil
+}
 
 func (tb *PostgresStore) scanConcept(ctx context.Context, id string) (fw.Concept, error) {
 	var c fw.Concept
@@ -839,7 +920,7 @@ func (tb *PostgresStore) queryExactTerms(ctx context.Context, sourceText string,
 	}
 	defer rows.Close()
 
-	return pgScanTermCandidates(rows), nil
+	return pgScanTermCandidates(rows)
 }
 
 func (tb *PostgresStore) queryNormalizedTerms(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
@@ -853,7 +934,7 @@ func (tb *PostgresStore) queryNormalizedTerms(ctx context.Context, normalizedSou
 	}
 	defer rows.Close()
 
-	return pgScanTermCandidates(rows), nil
+	return pgScanTermCandidates(rows)
 }
 
 // queryFuzzyTerms returns the raw fuzzy candidate pool: the pg_trgm pre-filter,
@@ -885,7 +966,7 @@ func (tb *PostgresStore) queryFuzzyTrigramCandidates(ctx context.Context, normal
 	}
 	defer rows.Close()
 
-	return pgScanTermCandidates(rows), nil
+	return pgScanTermCandidates(rows)
 }
 
 func (tb *PostgresStore) queryFuzzyFullScan(ctx context.Context, normalizedSource string, opts fw.LookupOptions) ([]fw.TermCandidate, error) {
@@ -902,7 +983,7 @@ func (tb *PostgresStore) queryFuzzyFullScan(ctx context.Context, normalizedSourc
 	}
 	defer rows.Close()
 
-	return pgScanTermCandidates(rows), nil
+	return pgScanTermCandidates(rows)
 }
 
 func (tb *PostgresStore) queryTermsByLocale(ctx context.Context, locale model.LocaleID, domains []string, statusFilter []model.TermStatus) ([]fw.LocaleTerm, error) {
@@ -982,15 +1063,20 @@ func (r pgScanTermRow) validity() *graph.Validity {
 // pgScanTermCandidates scans the shared 10-column term projection into raw
 // candidates. Validity is reconstructed here; the shared fw.LookupTiered
 // applies the scope/status/score filters and hydrates the owning concept.
+//
+// It reports scan and iteration errors: a truncated candidate set is a term
+// silently not matching, which lets a term/DNT check pass over violating
+// content, so the rows interface must expose Err() and callers must propagate.
 func pgScanTermCandidates(rows interface {
 	Next() bool
 	Scan(...any) error
-}) []fw.TermCandidate {
+	Err() error
+}) ([]fw.TermCandidate, error) {
 	var out []fw.TermCandidate
 	for rows.Next() {
 		var r pgScanTermRow
 		if err := rows.Scan(&r.conceptID, &r.text, &r.locale, &r.status, &r.pos, &r.gender, &r.note, &r.validFrom, &r.validTo, &r.tags); err != nil {
-			continue
+			return nil, fmt.Errorf("scan term candidate: %w", err)
 		}
 		out = append(out, fw.TermCandidate{
 			ConceptID: r.conceptID,
@@ -1005,7 +1091,10 @@ func pgScanTermCandidates(rows interface {
 			},
 		})
 	}
-	return out
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate term candidates: %w", err)
+	}
+	return out, nil
 }
 
 func nullableString(b []byte) *string {

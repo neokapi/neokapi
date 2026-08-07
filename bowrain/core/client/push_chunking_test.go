@@ -204,3 +204,29 @@ func TestPushChunkRecordCountCap(t *testing.T) {
 	}
 	assert.Equal(t, blockCount, total)
 }
+
+// TestPushDropsSkeletonFromWire is the finding-2b guard: skeleton is format
+// scaffolding that belongs at the connector edge, not durably in the content
+// store, so it must not ride the default push wire — otherwise its bytes land
+// in the staging chunk blobs. Every uploaded SyncBlock's skeleton must be empty
+// even though the source block carries one.
+func TestPushDropsSkeletonFromWire(t *testing.T) {
+	b := blockWithHeavyPayload("b1", 4096)
+	require.NotNil(t, b.Skeleton, "fixture must carry a skeleton for this guard to mean anything")
+
+	blocksByItem := map[string][]*model.Block{"locales/en.json": {b}}
+	items := []ItemMeta{{Name: "locales/en.json", Format: "json"}}
+
+	c := NewClaimTokenClient("placeholder", "proj1", "tok")
+	_, chunks := collectUploadedChunks(t, c, blocksByItem, items)
+
+	require.NotEmpty(t, chunks)
+	sawBlock := false
+	for _, chunk := range chunks {
+		for _, sb := range chunk.Blocks {
+			sawBlock = true
+			assert.Empty(t, sb.SkeletonJson, "skeleton must not ride the default push wire")
+		}
+	}
+	require.True(t, sawBlock, "the block must have been uploaded")
+}

@@ -61,6 +61,22 @@ func setupGRPCWithServer(t *testing.T) (pb.NeokapiServiceClient, *Server) {
 	return pb.NewNeokapiServiceClient(conn), srv
 }
 
+// seedBlocks stores blocks straight through the content store — the path the
+// deleted StoreBlocks RPC used to wrap. Content reaches the store over the
+// canonical neokapi.content.v1 sync wire now, not this service.
+func seedBlocks(t *testing.T, srv *Server, projectID string, blocks ...*model.Block) {
+	t.Helper()
+	require.NoError(t, srv.Services.Project.StoreBlocks(t.Context(), projectID, blocks))
+}
+
+func testBlock(id, source string, targets map[string]string) *model.Block {
+	b := model.NewBlock(id, source)
+	for locale, text := range targets {
+		b.SetTargetText(model.LocaleID(locale), text)
+	}
+	return b
+}
+
 func TestGRPCProjectCRUD(t *testing.T) {
 	client := setupGRPC(t)
 	ctx := t.Context()
@@ -88,8 +104,8 @@ func TestGRPCProjectCRUD(t *testing.T) {
 	assert.Len(t, list.Projects, 1)
 }
 
-func TestGRPCBlocksAndVersions(t *testing.T) {
-	client := setupGRPC(t)
+func TestGRPCVersions(t *testing.T) {
+	client, srv := setupGRPCWithServer(t)
 	ctx := t.Context()
 
 	// Create project first.
@@ -100,31 +116,10 @@ func TestGRPCBlocksAndVersions(t *testing.T) {
 	require.NoError(t, err)
 	projectID := proj.Id
 
-	// Store blocks.
-	storeResp, err := client.StoreBlocks(ctx, &pb.StoreBlocksRequest{
-		ProjectId: projectID,
-		Blocks: []*pb.BlockMessage{
-			{Id: "b1", Source: "Hello", Targets: map[string]string{"fr": "Bonjour"}},
-			{Id: "b2", Source: "World"},
-		},
-	})
-	require.NoError(t, err)
-	assert.Equal(t, int32(2), storeResp.StoredCount)
-
-	// Stream blocks.
-	stream, err := client.StreamBlocks(ctx, &pb.StreamBlocksRequest{ProjectId: projectID})
-	require.NoError(t, err)
-
-	var blocks []*pb.BlockResponse
-	for {
-		resp, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		require.NoError(t, err)
-		blocks = append(blocks, resp)
-	}
-	assert.Len(t, blocks, 2)
+	seedBlocks(t, srv, projectID,
+		testBlock("b1", "Hello", map[string]string{"fr": "Bonjour"}),
+		testBlock("b2", "World", nil),
+	)
 
 	// Create version.
 	ver, err := client.CreateVersion(ctx, &pb.CreateVersionRequest{
@@ -143,7 +138,7 @@ func TestGRPCBlocksAndVersions(t *testing.T) {
 }
 
 func TestGRPCFlowExecution(t *testing.T) {
-	client := setupGRPC(t)
+	client, srv := setupGRPCWithServer(t)
 	ctx := t.Context()
 
 	// Create a project with blocks first.
@@ -153,13 +148,7 @@ func TestGRPCFlowExecution(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = client.StoreBlocks(ctx, &pb.StoreBlocksRequest{
-		ProjectId: proj.Id,
-		Blocks: []*pb.BlockMessage{
-			{Id: "b1", Source: "Hello world"},
-		},
-	})
-	require.NoError(t, err)
+	seedBlocks(t, srv, proj.Id, testBlock("b1", "Hello world", nil))
 
 	// Execute a flow with the case-transform tool.
 	stream, err := client.ExecuteFlow(ctx, &pb.ExecuteFlowRequest{
@@ -242,11 +231,7 @@ func TestGRPCFlowExecutionReportsToolFailure(t *testing.T) {
 				Name: "Failing Flow", SourceLocale: "en",
 			})
 			require.NoError(t, err)
-			_, err = client.StoreBlocks(ctx, &pb.StoreBlocksRequest{
-				ProjectId: proj.Id,
-				Blocks:    []*pb.BlockMessage{{Id: "b1", Source: "Hello world"}},
-			})
-			require.NoError(t, err)
+			seedBlocks(t, srv, proj.Id, testBlock("b1", "Hello world", nil))
 
 			stream, err := client.ExecuteFlow(ctx, &pb.ExecuteFlowRequest{
 				FlowConfig: "name: failing-flow\ntools:\n  - " + tc.tool.name,
@@ -283,21 +268,17 @@ func TestGRPCFlowExecutionReportsToolFailure(t *testing.T) {
 // The success path still reports the counts, and now reports them as fields
 // rather than only inside the prose message.
 func TestGRPCFlowExecutionReportsCounts(t *testing.T) {
-	client := setupGRPC(t)
+	client, srv := setupGRPCWithServer(t)
 	ctx := t.Context()
 
 	proj, err := client.CreateProject(ctx, &pb.CreateProjectRequest{
 		Name: "Counting Flow", SourceLocale: "en",
 	})
 	require.NoError(t, err)
-	_, err = client.StoreBlocks(ctx, &pb.StoreBlocksRequest{
-		ProjectId: proj.Id,
-		Blocks: []*pb.BlockMessage{
-			{Id: "b1", Source: "one"},
-			{Id: "b2", Source: "two"},
-		},
-	})
-	require.NoError(t, err)
+	seedBlocks(t, srv, proj.Id,
+		testBlock("b1", "one", nil),
+		testBlock("b2", "two", nil),
+	)
 
 	stream, err := client.ExecuteFlow(ctx, &pb.ExecuteFlowRequest{
 		FlowConfig: "name: counting\ntools:\n  - case-transform",
