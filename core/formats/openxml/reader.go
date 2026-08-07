@@ -202,10 +202,18 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			continue
 		}
 
-		partData, err := readZipFile(zf)
-		if err != nil {
-			ch <- model.PartResult{Error: fmt.Errorf("openxml: reading %s: %w", partPath, err)}
-			return
+		// A worksheet is read from its entry rather than buffered: it is the
+		// largest part a spreadsheet has, and it is the only one no consumer
+		// needs a second look at after the parse.
+		streamSheet := info.docType == docTypeXLSX && isWorksheetPartPath(partPath)
+		var partData []byte
+		if !streamSheet {
+			var rerr error
+			partData, rerr = readZipFile(zf)
+			if rerr != nil {
+				ch <- model.PartResult{Error: fmt.Errorf("openxml: reading %s: %w", partPath, rerr)}
+				return
+			}
 		}
 
 		// Emit child layer for this XML part
@@ -354,7 +362,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				// from the stream instead of buffering it to rediscover.
 				emitPart: func(part *model.Part) { r.emit(ctx, ch, part) },
 			}
-			err = parser.parsePart(partData, partPath, emitBlock)
+			if streamSheet {
+				err = parser.parseWorksheetStream(
+					func() (io.ReadCloser, error) { return safeio.DefaultZipLimits.OpenEntry(zf) },
+					partPath, emitBlock)
+			} else {
+				err = parser.parsePart(partData, partPath, emitBlock)
+			}
 			if err != nil {
 				ch <- model.PartResult{Error: err}
 				return
@@ -908,4 +922,10 @@ func lastIndex(s string, sep byte) int {
 		}
 	}
 	return -1
+}
+
+// isWorksheetPartPath reports whether a part is a spreadsheet worksheet, the one
+// part large enough to be worth reading from its entry rather than buffering.
+func isWorksheetPartPath(partPath string) bool {
+	return strings.Contains(partPath, "worksheets/")
 }

@@ -16,7 +16,13 @@ import (
 // Writer implements DataFormatWriter for HTML files.
 type Writer struct {
 	format.BaseFormatWriter
-	sourcePath      string
+	sourcePath string
+	// streamed records that the generative path already opened the document to
+	// stream a table, so the events after it render into that document rather
+	// than starting a second one. semState is that document's open-container
+	// stack, shared across the chunks.
+	streamed        bool
+	semState        *semanticState
 	originalContent []byte
 	skeletonStore   *format.SkeletonStore
 	cfg             *Config
@@ -70,6 +76,11 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 	var events []*model.Part
 	var sourceLocale model.LocaleID
+	// A declared-width table on the generative path is streamed rather than
+	// collected: the semantic writer emits tags in stream order anyway, so a
+	// worksheet with a million cells need cost one row rather than a million
+	// blocks. st is non-nil only while such a table is open.
+	var st *semanticStream
 	for {
 		select {
 		case <-ctx.Done():
@@ -77,6 +88,24 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		case part, ok := <-parts:
 			if !ok {
 				goto done
+			}
+			if st != nil {
+				finished, serr := st.consume(part)
+				if serr != nil {
+					return serr
+				}
+				if finished {
+					st = nil
+				}
+				continue
+			}
+			if !byID && isStreamableTable(part) {
+				var serr error
+				if st, serr = w.beginStreamedTable(events, sourceLocale, part); serr != nil {
+					return serr
+				}
+				events = nil
+				continue
 			}
 			switch part.Type {
 			case model.PartBlock:
@@ -94,6 +123,21 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		}
 	}
 done:
+	if st != nil {
+		// The stream ended inside a table; close what it opened.
+		if err := st.finish(); err != nil {
+			return err
+		}
+		return w.closeDocument()
+	}
+	if w.streamed {
+		// A table was streamed earlier, so the document is already open and
+		// everything after it has been written in order.
+		if err := w.writeSemanticRest(events); err != nil {
+			return err
+		}
+		return w.closeDocument()
+	}
 
 	// A lang rewrite is needed when a target locale is set and differs from
 	// the document's declared source locale.

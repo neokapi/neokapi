@@ -200,14 +200,69 @@ func (p *smlParser) parseSMLRunProps(d *xml.Decoder) runProps {
 	return props
 }
 
-// parseWorksheet parses a worksheet XML file and emits blocks for string cells.
+// parseWorksheet parses a buffered worksheet XML part.
 func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(*model.Block)) error {
-	d := xml.NewDecoder(bytes.NewReader(data))
+	merges, width := scanWorksheet(bytes.NewReader(data))
+	return p.parseWorksheetFrom(xml.NewDecoder(bytes.NewReader(data)), merges, width, partPath, emitBlock)
+}
 
-	// Pre-scan merged-cell ranges so a cell's grid geometry can record its span
-	// (<mergeCells> follows <sheetData> in the part, so we cannot learn it during
-	// the streaming pass). Keyed by the range's top-left cell reference.
-	merges := parseMergeCells(data)
+// parseWorksheetStream parses a worksheet straight from its zip entry, which
+// open re-opens for each of the two passes the part needs.
+//
+// A worksheet is the largest part in a spreadsheet — tens of megabytes
+// uncompressed is ordinary — and buffering it was the last thing in the reader
+// whose cost scaled with the document. Two passes cost one extra decompression;
+// holding it cost the whole part for the length of the parse.
+func (p *smlParser) parseWorksheetStream(open func() (io.ReadCloser, error), partPath string, emitBlock func(*model.Block)) error {
+	scan, err := open()
+	if err != nil {
+		return err
+	}
+	merges, width := scanWorksheet(scan)
+	if cerr := scan.Close(); cerr != nil {
+		return cerr
+	}
+
+	parse, err := open()
+	if err != nil {
+		return err
+	}
+	defer parse.Close()
+	return p.parseWorksheetFrom(xml.NewDecoder(parse), merges, width, partPath, emitBlock)
+}
+
+// scanWorksheet reads a worksheet once for the two facts the parse pass needs
+// up front but cannot learn in document order: each merged range's extent
+// (<mergeCells> follows <sheetData>) and the grid's width (the last cell settles
+// it). Nothing per cell is retained.
+func scanWorksheet(r io.Reader) (map[string]mergeSpan, int) {
+	merges := map[string]mergeSpan{}
+	width := 0
+	d := xml.NewDecoder(r)
+	for {
+		tok, err := d.Token()
+		if err != nil {
+			return merges, width
+		}
+		se, ok := tok.(xml.StartElement)
+		if !ok {
+			continue
+		}
+		switch se.Name.Local {
+		case "c":
+			if col, _, ok := parseCellRefA1(attrVal(se, "r")); ok && col >= width {
+				width = col + 1
+			}
+		case "mergeCell":
+			addMergeSpan(merges, attrVal(se, "ref"))
+		}
+	}
+}
+
+// parseWorksheetFrom emits blocks for a worksheet's cells, given the merged
+// spans and grid width its scan pass established.
+func (p *smlParser) parseWorksheetFrom(d *xml.Decoder, merges map[string]mergeSpan, width int,
+	partPath string, emitBlock func(*model.Block)) error {
 
 	p.emitSheetHeading(partPath, emitBlock)
 
@@ -221,7 +276,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 	tableID := ""
 	if p.emitPart != nil {
 		tableID = p.openGroup("table", map[string]string{
-			"columns": strconv.Itoa(sheetWidth(data)),
+			"columns": strconv.Itoa(width),
 		})
 		defer func() { p.closeGroup(tableID) }()
 	}
@@ -544,79 +599,25 @@ func (p *smlParser) emitLiteralCellAnchor(text, cellRef, partPath string, merges
 // a run of loose paragraphs. The role plus projection.PropFlatRow is exactly
 // what the flat-cell fallback was built to consume.
 func markGridCell(block *model.Block, cellRef string, bracketed bool) {
-	_, row, ok := parseCellRefA1(cellRef)
+	col, row, ok := parseCellRefA1(cellRef)
 	if !ok {
 		return
 	}
 	block.SetSemanticRole(model.RoleTableCell, 0)
-	if bracketed {
-		// The row bracket carries the topology. A per-cell row hint would be
-		// the same fact stored a second time, on every cell — and on a
-		// spreadsheet that is an entry in a Go map per cell, which costs more
-		// than the text it accompanies.
-		return
-	}
 	if block.Properties == nil {
 		block.Properties = make(map[string]string)
 	}
+	// A worksheet omits empty cells rather than writing blanks, so a row that
+	// skips columns arrives as fewer cells than the grid is wide. Without the
+	// address, consumers place those cells in sequence and the values land
+	// under the wrong headings — the column is what keeps a sparse row aligned.
+	block.Properties["column"] = strconv.Itoa(col)
+	if bracketed {
+		// The row bracket carries the topology. A per-cell row hint would be
+		// the same fact stored a second time, on every cell.
+		return
+	}
 	block.Properties[projection.PropFlatRow] = strconv.Itoa(row)
-}
-
-// rowOpenTag and cellOpenTag find a worksheet's `<row …>` and `<c …>` starts.
-var rowOpenTag = []byte("<row")
-var cellOpenTag = []byte("<c")
-
-// sheetWidth reports the widest row a worksheet has, in populated cells.
-//
-// A consumer that must commit to a column count before writing its first row —
-// GFM puts the delimiter row second — otherwise has to buffer the whole grid to
-// discover it. This is that number, measured rather than declared: `<dimension>`
-// is optional and Excel leaves it stale often enough that trusting it would mean
-// silently truncating a row. The scan allocates nothing and runs over bytes that
-// are already in memory, so it costs a fraction of the parse it precedes.
-//
-// Populated cells per row, not the maximum column index, because that is what
-// the grid's consumers count: a worksheet omits empty cells rather than
-// emitting blanks, and a sparse row renders as its cells in sequence. (Placing
-// each cell at its true column would be more faithful to the sheet and is worth
-// doing, but it is a change to output rather than to memory — see #1711.)
-func sheetWidth(data []byte) int {
-	widest, inRow := 0, 0
-	for i := 0; i < len(data); {
-		next := bytes.IndexByte(data[i:], '<')
-		if next < 0 {
-			break
-		}
-		i += next
-		switch {
-		case bytes.HasPrefix(data[i:], rowOpenTag):
-			inRow = 0
-		case bytes.HasPrefix(data[i:], []byte("</row")):
-			if inRow > widest {
-				widest = inRow
-			}
-		case bytes.HasPrefix(data[i:], cellOpenTag) && isTagBoundary(data, i+len(cellOpenTag)):
-			inRow++
-		}
-		i++
-	}
-	if inRow > widest { // a final row whose close tag the scan never saw
-		widest = inRow
-	}
-	return widest
-}
-
-// isTagBoundary reports whether position i ends an element name rather than
-// continuing it, so `<c ` and `<c/>` count while `<cols>` does not.
-func isTagBoundary(data []byte, i int) bool {
-	if i >= len(data) {
-		return false
-	}
-	switch data[i] {
-	case ' ', '\t', '\r', '\n', '/', '>':
-		return true
-	}
-	return false
 }
 
 // mergeSpan is a merged-cell range's extent in cells (cols × rows), ≥1 each.
@@ -648,38 +649,21 @@ func cellGeometry(cellRef, partPath string, merges map[string]mergeSpan) *model.
 // parseMergeCells scans a worksheet part for <mergeCell ref="A1:B2"/> ranges and
 // returns each range's extent keyed by its top-left cell reference. Malformed
 // refs are skipped.
-func parseMergeCells(data []byte) map[string]mergeSpan {
-	out := map[string]mergeSpan{}
-	d := xml.NewDecoder(bytes.NewReader(data))
-	for {
-		tok, err := d.Token()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return out
-		}
-		se, ok := tok.(xml.StartElement)
-		if !ok || se.Name.Local != "mergeCell" {
-			continue
-		}
-		ref := attrVal(se, "ref")
-		lo, hi, ok := strings.Cut(ref, ":")
-		if !ok {
-			continue
-		}
-		c0, r0, ok0 := parseCellRefA1(lo)
-		c1, r1, ok1 := parseCellRefA1(hi)
-		if !ok0 || !ok1 {
-			continue
-		}
-		cols, rows := c1-c0+1, r1-r0+1
-		if cols < 1 || rows < 1 {
-			continue
-		}
-		out[lo] = mergeSpan{cols: cols, rows: rows}
+func addMergeSpan(out map[string]mergeSpan, ref string) {
+	lo, hi, ok := strings.Cut(ref, ":")
+	if !ok {
+		return
 	}
-	return out
+	c0, r0, ok0 := parseCellRefA1(lo)
+	c1, r1, ok1 := parseCellRefA1(hi)
+	if !ok0 || !ok1 {
+		return
+	}
+	cols, rows := c1-c0+1, r1-r0+1
+	if cols < 1 || rows < 1 {
+		return
+	}
+	out[lo] = mergeSpan{cols: cols, rows: rows}
 }
 
 // parseCellRefA1 parses an A1-style cell reference ("A1", "AB12") into a
