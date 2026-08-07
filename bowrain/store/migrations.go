@@ -3,7 +3,7 @@ package store
 import "github.com/neokapi/neokapi/bowrain/storage"
 
 // Migrations is the complete PostgreSQL content store schema as a single
-// consolidated baseline. It is the largest of the fifteen ledgers: sixty-eight
+// consolidated baseline. It is the largest of the fifteen ledgers: sixty-nine
 // tables, including the hash-partitioned blocks, translations, annotations and
 // overlays_ext families.
 //
@@ -23,25 +23,36 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	12  block stand-off overlays column
 //	13  GitHub App installation ownership
 //	14  collection context: coordinates, ownership, and the entry hash
+//	15  the first consolidated baseline (folded 1-14)
 //	16  unit decisions ledger (decisions travel the sync protocol)
 //	17  stream scope for convergence runs
 //	18  source word count computed at write
 //	19  blocks access ladder renamed (open|restricted|published)
 //
-// Versions 3 and 4 were already retired before this change — they ran on live
-// databases and were then folded into the v1 baseline. They are listed because
-// a retired number stays spent forever: a live database records them as
-// applied, so a new migration reusing 3 or 4 would be silently skipped. That
-// postmortem is why this consolidation numbers its baseline above the whole
-// range rather than restarting at 1.
+// Versions 3 and 4 were already retired before the first consolidation — they
+// ran on live databases and were then folded into the v1 baseline. They are
+// listed because a retired number stays spent forever: a live database records
+// them as applied, so a new migration reusing 3 or 4 would be silently skipped.
+// That is why a consolidation numbers its baseline above the whole range
+// rather than restarting at 1.
 //
-// Baseline is version 15 — above every number issued, so an existing database
+// Versions 16-19 were appended after the first consolidation and are now folded
+// in turn, so the rule the drift tests enforce — a consolidated subsystem
+// carries exactly one baseline — holds again. Folding is editing the CREATE
+// statements, never appending an ALTER beside them: 17's stream and 18's
+// word_count are columns of their tables' CREATE, 19's rename is the access
+// column the blocks CREATE already declares, and 16's ledger is a
+// CREATE TABLE IF NOT EXISTS like every other table here. That is what lets one
+// statement serve an empty database and a database that already ran 15-19
+// alike.
+//
+// Baseline is version 20 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 20.
+// repaired. Retired numbers are never reused; the next migration is version 21.
 var Migrations = []storage.Migration{
 	{
-		Version:     15,
-		Description: "content store baseline (folds 1-14)",
+		Version:     20,
+		Description: "content store baseline (folds 1-19)",
 		SQL: `
 			-- Projects
 			CREATE TABLE IF NOT EXISTS projects (
@@ -185,9 +196,22 @@ var Migrations = []storage.Migration{
 				-- JSON array (the model's own JSON, each span's typed Value in a
 				-- {"type","data"} envelope, mirroring the annotations payload).
 				overlays     JSONB NOT NULL DEFAULT '[]'::jsonb,
+				-- Source words, counted where the words are written. NULL marks a
+				-- row written before the column existed; readers decode its
+				-- source_json once and every rewrite fills the column in. Deriving
+				-- coverage used to deserialize every block's source runs on every
+				-- call — minutes at corpus scale, for numbers the write path
+				-- already knew.
+				word_count   INTEGER,
 				properties   TEXT NOT NULL DEFAULT '{}',
 				owner_id     TEXT NOT NULL DEFAULT '',         -- ABAC: content owner
-				access       TEXT NOT NULL DEFAULT 'open',     -- ABAC: open | restricted | published
+				-- ABAC, and its values name the access consequence rather than
+				-- borrowing the review ladder's words: open (normal perms),
+				-- restricted (review perms or ownership), published (re-opening is
+				-- privileged). The column was called status and read 'draft' /
+				-- 'in_review' — one letter from 'reviewed' on the other side of the
+				-- same block — until version 19 renamed it.
+				access       TEXT NOT NULL DEFAULT 'open',
 				stored_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, id)
@@ -416,6 +440,10 @@ var Migrations = []storage.Migration{
 				id             TEXT PRIMARY KEY,
 				project_id     TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
 				trigger        TEXT NOT NULL DEFAULT 'manual',      -- cli | push | manual
+				-- A run's derivation and produce are scoped to one stream (targets
+				-- are per-stream overlays). '' means "main", so pre-stream rows and
+				-- stream-naive starters keep their behavior.
+				stream         TEXT NOT NULL DEFAULT '',
 				state          TEXT NOT NULL DEFAULT 'running',     -- running | converged | parked | canceled | failed
 				passes         INT NOT NULL DEFAULT 0,
 				standing       TEXT NOT NULL DEFAULT '{}',          -- per-locale standing rollup (JSON)
@@ -982,12 +1010,8 @@ var Migrations = []storage.Migration{
 			--                idempotent: an unchanged hash leaves the row, and
 			--                its updated_at, untouched. Empty until a push
 			--                reconciles the row.
-		`,
-	},
-	{
-		Version:     16,
-		Description: "unit decisions ledger (decisions travel the sync protocol)",
-		SQL: `
+
+			-- ---- folded from version 16: unit decisions ledger (decisions travel the sync protocol) ----
 			-- The latest workflow decision per (item, unit, variant) — the
 			-- server side of core/state.UnitState. A decision is a FACT (who,
 			-- when, which rung, the hash of the translation it blesses);
@@ -1020,50 +1044,24 @@ var Migrations = []storage.Migration{
 				PRIMARY KEY (project_id, stream, item_name, unit, variant)
 			);
 			CREATE INDEX IF NOT EXISTS idx_unit_decisions_project ON unit_decisions(project_id, stream);
-		`,
-	},
-	{
-		Version:     17,
-		Description: "stream scope for convergence runs",
-		SQL: `
-			-- A run's derivation and produce are scoped to one stream (targets
-			-- are per-stream overlays). '' means "main" — pre-stream rows and
-			-- stream-naive starters keep their behavior.
-			ALTER TABLE convergence_runs ADD COLUMN IF NOT EXISTS stream TEXT NOT NULL DEFAULT '';
-		`,
-	},
-	{
-		Version:     18,
-		Description: "source word count computed at write, not derived per read",
-		SQL: `
-			-- NULL marks a row that predates the column; readers decode its
-			-- source_json once and every rewrite fills the column. Deriving
-			-- coverage used to deserialize every block's source runs on every
-			-- call — minutes at corpus scale for numbers the write path knew.
-			ALTER TABLE blocks ADD COLUMN IF NOT EXISTS word_count INTEGER;
-		`,
-	},
-	{
-		Version:     19,
-		Description: "the access ladder stops borrowing the review ladder's words",
-		SQL: `
-			-- blocks.status was ACCESS CONTROL (who may edit), yet it said
-			-- "draft" — the review ladder's bottom rung — and "in_review", one
-			-- letter from "reviewed" on the other side of the same block. The
-			-- column is now access, and its values name the access consequence:
-			-- open (normal perms), restricted (review perms or ownership),
-			-- published (re-opening is privileged). The DO block makes the
-			-- rename idempotent: a fresh database's baseline already creates
-			-- the column under its new name.
-			DO $mig$ BEGIN
-				IF EXISTS (SELECT 1 FROM information_schema.columns
-					WHERE table_name = 'blocks' AND column_name = 'status') THEN
-					ALTER TABLE blocks RENAME COLUMN status TO access;
-				END IF;
-			END $mig$;
-			UPDATE blocks SET access = 'open'       WHERE access = 'draft';
-			UPDATE blocks SET access = 'restricted' WHERE access = 'in_review';
-			ALTER TABLE blocks ALTER COLUMN access SET DEFAULT 'open';
+
+			-- ---- folded from version 17: stream scope for convergence runs ----
+			-- convergence_runs.stream, declared in that table's CREATE above. A
+			-- run's derivation and produce are scoped to one stream, because
+			-- targets are per-stream overlays.
+
+			-- ---- folded from version 18: source word count computed at write, not derived per read ----
+			-- blocks.word_count, declared in that table's CREATE above. It is the
+			-- one nullable column in blocks: NULL is "written before the column
+			-- existed", which is what tells a reader to decode source_json and
+			-- fill it in.
+
+			-- ---- folded from version 19: the access ladder stops borrowing the review ladder's words ----
+			-- blocks.access, declared in that table's CREATE above under its own
+			-- name. Version 19 renamed the column from status and rewrote its
+			-- values (draft → open, in_review → restricted); a database built
+			-- from this baseline never has the old name to rename, which is why
+			-- the fold is a column declaration rather than a guarded ALTER.
 		`,
 	},
 }

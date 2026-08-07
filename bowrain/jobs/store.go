@@ -102,15 +102,23 @@ type JobStore interface {
 //	4  translation job claim lease (epoch) for double-run protection
 //	5  content memory-first convergence: record the content memory-vs-AI block split per job
 //	6  deferral count for jobs parked on an unavailable dependency
+//	7  the first consolidated baseline (folded 1-6)
 //	8  stream scope for translation jobs (targets are per-stream overlays)
 //
-// Baseline is version 7 — above every number issued, so an existing database
+// Version 8 was appended after the first consolidation and is now folded in
+// turn, so the rule the drift tests enforce — a consolidated subsystem carries
+// exactly one baseline — holds again. Folding is editing the CREATE statement,
+// never appending an ALTER beside it: stream is a column of translation_jobs,
+// declared where the table is declared, so one statement serves an empty
+// database and a database that already ran 7 and 8 alike.
+//
+// Baseline is version 9 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 9.
+// repaired. Retired numbers are never reused; the next migration is version 10.
 var JobMigrations = []storage.Migration{
 	{
-		Version:     7,
-		Description: "translation jobs baseline (folds 1-6)",
+		Version:     9,
+		Description: "translation jobs baseline (folds 1-8)",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS translation_jobs (
 				id                 TEXT PRIMARY KEY,
@@ -125,6 +133,13 @@ var JobMigrations = []storage.Migration{
 				workspace_id       TEXT NOT NULL DEFAULT '',
 
 				project_id         TEXT NOT NULL,
+
+				-- The stream the job's targets belong to; targets are per-stream
+				-- overlays, so a job that does not name one writes where the
+				-- pusher did not look. '' means "main", so pre-stream rows and
+				-- stream-naive enqueues keep their behavior.
+				stream             TEXT NOT NULL DEFAULT '',
+
 				item_name          TEXT NOT NULL,
 				target_locale      TEXT NOT NULL,
 				provider_config_id TEXT NOT NULL DEFAULT '',
@@ -171,13 +186,6 @@ var JobMigrations = []storage.Migration{
 			-- sweeper scans so recovery stays cheap as the jobs table grows.
 			CREATE INDEX IF NOT EXISTS idx_jobs_processing_updated
 				ON translation_jobs(updated_at) WHERE status = 'processing';
-		`,
-	},
-	{
-		Version:     8,
-		Description: "stream scope for translation jobs",
-		SQL: `
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS stream TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }

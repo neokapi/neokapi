@@ -105,11 +105,15 @@ func TestApplyIsIdempotent(t *testing.T) {
 // Reusing a retired number is the sharp failure: a database holding version 14
 // would skip a new migration numbered 14 entirely, and drift silently.
 func TestBaselineVersionsSitAboveRetiredOnes(t *testing.T) {
-	// The highest version each subsystem had ever issued before consolidation,
-	// read from the migration lists at the commit that introduced the
-	// baselines. A baseline must be strictly greater.
+	// The highest version each subsystem had ever issued, read from the
+	// migration lists at the commit that retired them. A baseline must be
+	// strictly greater.
+	//
+	// Store and jobs sit above the rest because they were consolidated twice:
+	// migrations appended after the first fold (store 16-19, jobs 8) were
+	// themselves folded, and every number they spent stays spent.
 	highestEverIssued := map[string]int{
-		"store": 14, "auth": 7, "jobs": 6, "quota": 3, "runner": 1,
+		"store": 19, "auth": 7, "jobs": 8, "quota": 3, "runner": 1,
 		"extraction": 1, "brand_scan": 1, "model_sweep": 1, "brand": 2,
 		"knowledge": 1, "agent": 1, "billing": 6, "platform_config": 1,
 		"terms": 4, "memory": 5,
