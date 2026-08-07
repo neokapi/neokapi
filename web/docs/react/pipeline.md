@@ -197,15 +197,15 @@ Both keep everything under one `i18n/` directory. Because the source lives under
 If you already use a [`kapi.yaml` project file](/contribute/architecture/008-project-model) to define your workflow, declare each archive-backed collection with an `exec` format pointing at neokapi-i18n (or any other extractor):
 
 ```yaml title="kapi.yaml"
-version: v1
+version: v2
 name: MyApp
 defaults:
   source_language: en
   target_languages: [fr, de, ja]
-content:
+collections:
   - name: ui
     # Block state lives in the project cache (gitignored, regenerable).
-    items:
+    content:
       - path: "src/**/*.tsx"
         format:
           name: exec

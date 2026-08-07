@@ -33,14 +33,14 @@ kapi word-count content/**/*.md
 Example `my-website.kapi`:
 
 ```yaml
-version: v1
+version: v2
 name: Website Translation
 
 defaults:
   source_language: en-US
   target_languages: [fr-FR, de-DE, ja-JP]
 
-content:
+collections:
   - path: content/**/*.md
     format: markdown
     target: i18n/{lang}/{path}/{filename}

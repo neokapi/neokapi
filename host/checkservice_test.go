@@ -46,9 +46,9 @@ func TestReadBlocksForCheck_UsesDocumentCache(t *testing.T) {
 	root := t.TempDir()
 	// A project layout so WithDocumentCache can open the cache dir.
 	proj := &project.KapiProject{
-		Version:  project.CurrentVersion,
-		Defaults: project.Defaults{SourceLanguage: "en"},
-		Content:  []project.ContentCollection{{Path: "en.json"}},
+		Version:     project.CurrentVersion,
+		Defaults:    project.Defaults{SourceLanguage: "en"},
+		Collections: []project.Collection{{Path: "en.json"}},
 	}
 	require.NoError(t, project.Save(filepath.Join(root, project.RecipeFileName), proj))
 	path := filepath.Join(root, "en.json")
@@ -187,12 +187,13 @@ func TestResolveVoiceProfile_Ladder(t *testing.T) {
 		require.NoError(t, os.WriteFile(profileVoice, []byte("id: bowrain\nname: Bowrain Style\n"), 0o644))
 
 		proj := &project.KapiProject{
-			Coordinates: project.Coordinates{"product": {{ID: "bowrain"}}},
-			Profiles:    []project.ProfileBinding{{When: map[string]string{"product": "bowrain"}}},
-			Content: []project.ContentCollection{{
+			Profiles: map[string]project.Profile{
+				"bowrain": {Channels: []project.Channel{{ID: "app"}}},
+			},
+			Collections: []project.Collection{{
 				Name:    "app",
-				Context: map[string]string{"product": "bowrain"},
-				Items:   []project.ContentItem{{Path: "src/*.json"}},
+				Channel: "app",
+				Content: []project.ContentItem{{Path: "src/*.json"}},
 			}},
 		}
 		proj.Defaults.Voice = &project.VoiceBinding{ProfileFile: ".kapi/voice.yaml"}

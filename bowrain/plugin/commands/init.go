@@ -51,7 +51,7 @@ The server URL is determined from (first match wins):
   3. Existing auth state (from kapi auth login)
   4. The hosted service (https://app.bowrain.cloud) — used only when init
      contacts a server (sign-in, --anonymous, --email, --project); a plain
-     init with nothing configured writes a recipe with no server: block
+     init with nothing configured writes a recipe with no bowrain: block
 
 Use --anonymous to create a project without signing in.
 Use --email to create a project and email a link to claim it.`,

@@ -156,16 +156,18 @@ func TestCreateSampleProjectInvalidName(t *testing.T) {
 }
 
 // A sample left on disk by an older app version may carry a recipe that no
-// longer parses (legacy top-level languages, list-form `plugins:`). Opening it
-// must recover by re-scaffolding rather than failing (issue #4 follow-up).
+// longer parses (v1 schema, legacy top-level languages, list-form `plugins:`).
+// Opening it must recover by re-scaffolding rather than failing (issue #4
+// follow-up).
 func TestCreateSampleProjectRecoversStaleRecipe(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("KAPI_HOME_DIR", home)
 
 	targetDir := filepath.Join(home, "KapiProjects", sample.DisplayName["kapimart"])
 	require.NoError(t, os.MkdirAll(targetDir, 0o755))
-	// Legacy schema: top-level languages + list-form plugins (the exact shape
-	// that triggered "cannot unmarshal !!seq into map[string]project.PluginSpec").
+	// Legacy schema: v1 version, top-level languages, `content:` in place of
+	// `collections:`, and list-form plugins (the exact shape that triggered
+	// "cannot unmarshal !!seq into map[string]project.PluginSpec").
 	stale := "version: v1\nname: KapiMart\nsource_language: en-US\ntarget_languages:\n  - fr-FR\nplugins:\n  - okapi-bridge\ncontent:\n  - path: \"input/*.json\"\n    format: okf_json\n"
 	kapiPath := filepath.Join(targetDir, "kapi.yaml")
 	require.NoError(t, os.WriteFile(kapiPath, []byte(stale), 0o644))

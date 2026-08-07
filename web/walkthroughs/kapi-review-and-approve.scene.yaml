@@ -30,12 +30,12 @@ seed:
 files:
   - path: kapi.yaml
     content: |
-      version: v1
+      version: v2
       name: demo
       defaults:
         source_language: en
         target_languages: [fr]
-      content:
+      collections:
         - path: messages.json
           target: "messages.{lang}.json"
   - path: messages.fr.json

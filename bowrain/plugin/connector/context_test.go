@@ -34,19 +34,18 @@ func newContextProject(t *testing.T) *BowrainSourceConnector {
 				SourceLanguage:  "en",
 				TargetLanguages: []model.LocaleID{"fr"},
 			},
-			Coordinates: coreproj.Coordinates{
-				"product": {{ID: "kapi"}},
-				"channel": {{ID: "docs"}},
+			Profiles: map[string]coreproj.Profile{
+				"kapi": {Channels: []coreproj.Channel{{ID: "docs"}}},
 			},
-			Content: []coreproj.ContentCollection{
+			Collections: []coreproj.Collection{
 				{
 					Name:    "docs",
-					Context: map[string]string{"product": "kapi", "channel": "docs"},
-					Items:   []coreproj.ContentItem{{Path: "docs/**/*.json", Format: &coreproj.FormatSpec{Name: "json"}}},
+					Channel: "kapi/docs",
+					Content: []coreproj.ContentItem{{Path: "docs/**/*.json", Format: &coreproj.FormatSpec{Name: "json"}}},
 				},
 				{
-					Name:  "marketing",
-					Items: []coreproj.ContentItem{{Path: "marketing/**/*.json", Format: &coreproj.FormatSpec{Name: "json"}}},
+					Name:    "marketing",
+					Content: []coreproj.ContentItem{{Path: "marketing/**/*.json", Format: &coreproj.FormatSpec{Name: "json"}}},
 				},
 				{Path: "loose/*.json", Format: &coreproj.FormatSpec{Name: "json"}},
 			},
@@ -122,8 +121,7 @@ func TestApplyPulledContext_RecipeOwnedGovernanceIsNotApplied(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, before.Channel, after.Channel,
 		"a pull must not move the channel a local run resolves")
-	assert.Equal(t, map[string]string{"product": "kapi", "channel": "docs"},
-		conn.project.Recipe.Content[0].Context,
+	assert.Equal(t, "kapi/docs", conn.project.Recipe.Collections[0].Channel,
 		"a pull must not rewrite the recipe's declared point")
 
 	// What it did do is record the observation, which is what lets the

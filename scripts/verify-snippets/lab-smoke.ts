@@ -78,7 +78,7 @@ if (withAfter) {
 }
 
 // ── 3. recipe-based custom flow → trace (the ToolLab / FlowBuilder path) ─────
-const RECIPE = `version: v1
+const RECIPE = `version: v2
 name: Lab
 defaults:
   source_language: en
@@ -101,7 +101,7 @@ ok("recipe trace has part snapshots", Object.keys(rtrace.parts ?? {}).length > 0
 // A credential-requiring tool (translate) inside a recipe flow must be
 // coerced to the deterministic demo provider — otherwise it hits the real
 // network (api.anthropic.com), which is unreachable in the browser/Node.
-const AI_RECIPE = `version: v1
+const AI_RECIPE = `version: v2
 name: Lab
 defaults:
   source_language: en
@@ -121,7 +121,7 @@ ok("ai flow trace has part snapshots", Object.keys(aitrace.parts ?? {}).length >
 
 // ── 5. the script tool runs user JS in WASM (goja) — the Script Lab path ──────
 // JS uses single quotes so it sits cleanly inside a double-quoted YAML scalar.
-const SCRIPT_RECIPE = `version: v1
+const SCRIPT_RECIPE = `version: v2
 name: Lab
 defaults:
   source_language: en
@@ -161,7 +161,7 @@ ok("html round-trip keeps self-closing spacing", /<meta charset="utf-8" \/>/.tes
 ok("html round-trip rewrites lang + keeps inline tag", htmlOut.includes('lang="qps"') && htmlOut.includes("<strong>"));
 
 // ── 7. script tool function form (process(part)) runs in WASM ────────────────
-const FN_RECIPE = `version: v1
+const FN_RECIPE = `version: v2
 name: Lab
 defaults:
   source_language: en

@@ -38,7 +38,7 @@ vocabulary:
 	proj := &project.KapiProject{
 		Version:  project.CurrentVersion,
 		Defaults: project.Defaults{SourceLanguage: "en"},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Path: "locales/en.json", Target: "locales/{lang}.json"},
 		},
 	}
@@ -161,9 +161,9 @@ func setupMarkupBlock(t *testing.T, app *App) markupFixture {
 	require.NoError(t, os.WriteFile(path, []byte(`<html><body><p>Please <b>utilize</b> it</p></body></html>`), 0o644))
 
 	proj := &project.KapiProject{
-		Version:  project.CurrentVersion,
-		Defaults: project.Defaults{SourceLanguage: "en"},
-		Content:  []project.ContentCollection{{Path: "page.html"}},
+		Version:     project.CurrentVersion,
+		Defaults:    project.Defaults{SourceLanguage: "en"},
+		Collections: []project.Collection{{Path: "page.html"}},
 	}
 	projPath := filepath.Join(dir, "proj.kapi")
 	require.NoError(t, project.Save(projPath, proj))
@@ -248,8 +248,8 @@ func TestResolveTargetPathMatchesRunner(t *testing.T) {
 				Project: &project.KapiProject{
 					Version:  project.CurrentVersion,
 					Defaults: project.Defaults{SourceLanguage: "en"},
-					Content: []project.ContentCollection{
-						{Path: tc.itemPath, Base: tc.base, Target: tc.target},
+					Collections: []project.Collection{
+						{Path: tc.itemPath, Target: tc.target},
 					},
 				},
 			}

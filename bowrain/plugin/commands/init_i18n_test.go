@@ -19,11 +19,11 @@ func TestApplyFrameworkPreset_NeokapiI18nCleanLayout(t *testing.T) {
 	recipe := &project.Recipe{}
 	require.NoError(t, applyFrameworkPreset(recipe, "neokapi-i18n"))
 
-	require.Len(t, recipe.Content, 1)
-	assert.Equal(t, "i18n/src/**/*.kbf.json", recipe.Content[0].Path)
-	assert.Equal(t, "i18n/{lang}/{path}.kbf.json", recipe.Content[0].Target)
-	require.NotNil(t, recipe.Content[0].Format)
-	assert.Equal(t, "kbf", recipe.Content[0].Format.Name)
+	require.Len(t, recipe.Collections, 1)
+	assert.Equal(t, "i18n/src/**/*.kbf.json", recipe.Collections[0].Path)
+	assert.Equal(t, "i18n/{lang}/{path}.kbf.json", recipe.Collections[0].Target)
+	require.NotNil(t, recipe.Collections[0].Format)
+	assert.Equal(t, "kbf", recipe.Collections[0].Format.Name)
 
 	require.NotNil(t, recipe.Defaults.Voice)
 	assert.Equal(t, "i18n/voice.yaml", recipe.Defaults.Voice.ProfileFile)

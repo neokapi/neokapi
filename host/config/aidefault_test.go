@@ -69,7 +69,7 @@ func TestSetAndResolveRoundTripInsideAProject(t *testing.T) {
 
 	proj := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(proj, "kapi.yaml"), []byte(
-		"version: v1\nname: shadowing-recipe\ndefaults:\n  source_language: en\n"), 0o644))
+		"version: v2\nname: shadowing-recipe\ndefaults:\n  source_language: en\n"), 0o644))
 	t.Chdir(proj)
 
 	cfg := NewAppConfig()
@@ -182,7 +182,7 @@ func TestProjectRecipeIsNeverAppConfig(t *testing.T) {
 
 	proj := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(proj, "kapi.yaml"), []byte(
-		"version: v1\nname: not-app-config\nai:\n    provider: anthropic\n"), 0o644))
+		"version: v2\nname: not-app-config\nai:\n    provider: anthropic\n"), 0o644))
 	t.Chdir(proj)
 
 	cfg := NewAppConfig()
@@ -202,7 +202,7 @@ func TestResolvedDefaultReachesToolConfig(t *testing.T) {
 
 	proj := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(proj, "kapi.yaml"),
-		[]byte("version: v1\nname: p\n"), 0o644))
+		[]byte("version: v2\nname: p\n"), 0o644))
 	t.Chdir(proj)
 
 	cfg := NewAppConfig()

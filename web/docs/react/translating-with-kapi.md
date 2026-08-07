@@ -163,7 +163,7 @@ Source living under `i18n/src/` (not flat under `i18n/`) is what lets the source
 glob stay clear of the generated targets — no sibling `i18n-<lang>/` trees:
 
 ```yaml title="kapi.yaml"
-version: v1
+version: v2
 name: MyApp
 defaults:
   source_language: en
@@ -172,7 +172,7 @@ defaults:
   voice:
     profile_file: i18n/voice.yaml
   terms_source: i18n/terms.json
-content:
+collections:
   - path: "i18n/src/**/*.kbf.json"
     format: kbf
     target: "i18n/{lang}/{path}.kbf.json"

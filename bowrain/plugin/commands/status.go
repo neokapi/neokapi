@@ -13,7 +13,7 @@ import (
 // serverStatusCmd is the plumbing behind the built-in `kapi status` server
 // section: it emits the project's sync standing and in-flight convergence runs
 // as JSON on stdout. The built-in status command shells out to this
-// (`kapi-bowrain command server-status --json`) when the recipe has a server:
+// (`kapi-bowrain command server-status --json`) when the recipe has a bowrain:
 // block and merges the result under a "server" section — one standing report
 // across the transport and convergence layers.
 //

@@ -31,7 +31,7 @@ embed:
   files:
     - path: kapi.yaml
       content: |
-        version: v1
+        version: v2
         name: demo
         defaults:
           source_language: en
@@ -39,7 +39,7 @@ embed:
           flow: tm-recycle
           materialize: on-converge
         ship_gate: { translated: 100, reviewed: 100 }
-        content:
+        collections:
           - path: messages.json
             target: "messages.{lang}.json"
         flows:
@@ -148,7 +148,7 @@ files:
       }
   - path: kapi.yaml
     content: |
-      version: v1
+      version: v2
       name: demo
       defaults:
         source_language: en
@@ -156,7 +156,7 @@ files:
         flow: tm-recycle
         materialize: on-converge
       ship_gate: { translated: 100, reviewed: 100 }
-      content:
+      collections:
         - path: messages.json
           target: "messages.{lang}.json"
       flows:

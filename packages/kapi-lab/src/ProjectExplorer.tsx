@@ -70,12 +70,12 @@ export function targetGlob(filename: string): string {
 // and every declared flow. This is the config-as-code a `kapi init` scaffolds
 // and you edit once.
 export function recipeFor(sample: WorkspaceSample): string {
-  return `version: v1
+  return `version: v2
 name: demo
 defaults:
   source_language: en
   target_languages: [${TARGETS.join(", ")}]
-content:
+collections:
   - path: ${sample.filename}
     format: ${formatFor(sample.filename)}
     target: "${targetGlob(sample.filename)}"

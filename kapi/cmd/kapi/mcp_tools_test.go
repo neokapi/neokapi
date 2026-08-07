@@ -253,12 +253,12 @@ func TestHandleRunFlowWithProject(t *testing.T) {
 	))
 
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"qps"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Path: "input/*.json"},
 		},
 	}
@@ -299,7 +299,7 @@ func TestHandleRunFlowWithProjectDefaults(t *testing.T) {
 
 	// Project provides target language — no need to pass in input.
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"qps"},
@@ -336,7 +336,7 @@ func TestHandleExtractContentWithProject(t *testing.T) {
 	))
 
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		// No plugins — should use built-in "json" format, not "okf_json".
 	}
 	kapiPath := filepath.Join(dir, project.RecipeFileName)

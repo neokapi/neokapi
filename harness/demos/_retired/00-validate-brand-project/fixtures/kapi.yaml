@@ -1,7 +1,7 @@
-version: v1
+version: v2
 name: lumen
 defaults:
   voice:
     profile_file: voice.yaml
-content: []
+collections: []
 flows: {}

@@ -49,24 +49,22 @@ func TestDaemonPushDeclaresTheRecipeContext(t *testing.T) {
 				SourceLanguage:  "en",
 				TargetLanguages: []model.LocaleID{"nb"},
 			},
-			Coordinates: coreproj.Coordinates{
-				"product": {{ID: "kapi"}},
-				"channel": {{ID: "docs"}, {ID: "app"}},
+			Profiles: map[string]coreproj.Profile{
+				"kapi": {
+					Channels: []coreproj.Channel{{ID: "docs"}, {ID: "app"}},
+					Voice:    &coreproj.VoiceBinding{ProfileFile: "voice.yaml"},
+				},
 			},
-			Profiles: []coreproj.ProfileBinding{{
-				When:  map[string]string{"product": "kapi"},
-				Voice: &coreproj.VoiceBinding{ProfileFile: "voice.yaml"},
-			}},
-			Content: []coreproj.ContentCollection{
+			Collections: []coreproj.Collection{
 				{
 					Name:    "kapi-docs",
-					Context: map[string]string{"product": "kapi", "channel": "docs"},
-					Items:   []coreproj.ContentItem{{Path: "docs/**/*.json"}},
+					Channel: "kapi/docs",
+					Content: []coreproj.ContentItem{{Path: "docs/**/*.json"}},
 				},
 				{
 					Name:    "kapi-app",
-					Context: map[string]string{"product": "kapi", "channel": "app"},
-					Items:   []coreproj.ContentItem{{Path: "app/**/*.json"}},
+					Channel: "kapi/app",
+					Content: []coreproj.ContentItem{{Path: "app/**/*.json"}},
 				},
 			},
 		},

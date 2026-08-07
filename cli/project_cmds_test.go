@@ -113,9 +113,9 @@ func TestInitCmd_framework(t *testing.T) {
 	// The scaffolded recipe must parse and carry the framework's content mapping.
 	p, err := project.Load(recipe)
 	require.NoError(t, err)
-	require.Len(t, p.Content, 1)
+	require.Len(t, p.Collections, 1)
 
-	items := p.Content[0].EffectiveItems()
+	items := p.Collections[0].EffectiveItems()
 	require.Len(t, items, 1)
 	assert.Equal(t, "lib/l10n/app_en.arb", items[0].Path)
 	require.NotNil(t, items[0].Format)
@@ -138,9 +138,9 @@ func TestInitCmd_frameworkNeokapiI18nScaffoldsCleanLayout(t *testing.T) {
 	// terms under i18n/ — no sibling i18n-<lang>/ sprawl.
 	recipe, err := project.Load(filepath.Join(dir, project.RecipeFileName))
 	require.NoError(t, err)
-	require.Len(t, recipe.Content, 1)
-	assert.Equal(t, "i18n/src/**/*.kbf.json", recipe.Content[0].Path)
-	assert.Equal(t, "i18n/{lang}/{path}.kbf.json", recipe.Content[0].Target)
+	require.Len(t, recipe.Collections, 1)
+	assert.Equal(t, "i18n/src/**/*.kbf.json", recipe.Collections[0].Path)
+	assert.Equal(t, "i18n/{lang}/{path}.kbf.json", recipe.Collections[0].Target)
 	require.NotNil(t, recipe.Defaults.Voice)
 	assert.Equal(t, "i18n/voice.yaml", recipe.Defaults.Voice.ProfileFile)
 	assert.Equal(t, "i18n/terms.json", recipe.Defaults.TermsSource)
@@ -163,7 +163,7 @@ func TestInitCmd_idempotentOnExistingRecipe(t *testing.T) {
 	app := newAppForTest(t)
 	dir := t.TempDir()
 	// Pre-create the recipe file under the fixed name init uses (kapi.yaml).
-	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RecipeFileName), []byte("version: v1\nname: existing\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, project.RecipeFileName), []byte("version: v2\nname: existing\n"), 0o644))
 
 	cmd := NewInitCmd(app)
 	cmd.SetArgs([]string{"--dir", dir, "--name", "existing"})

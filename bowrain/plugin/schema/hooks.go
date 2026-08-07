@@ -1,6 +1,9 @@
 package schema
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // Hook trigger names. Hooks run synchronously around lifecycle operations.
 const (
@@ -59,7 +62,7 @@ func (a AutomationSpec) IsEnabled() bool {
 // Validate checks that this automation rule is well-formed.
 func (a AutomationSpec) Validate() error {
 	if a.Name == "" {
-		return fmt.Errorf("name is required")
+		return errors.New("name is required")
 	}
 	if err := ValidateHookTrigger(a.Trigger); err != nil {
 		return fmt.Errorf("trigger: %w", err)

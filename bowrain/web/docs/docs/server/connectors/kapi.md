@@ -69,7 +69,7 @@ kapi init
 
 The wizard signs you in and connects the project, writing a `kapi.yaml` recipe
 at the project root and a sibling `.kapi/` directory. The recipe's
-`server:` block is what makes the project connected.
+`bowrain:` block is what makes the project connected.
 
 ## Everyday use
 
@@ -109,7 +109,7 @@ exit-code contract.
 
 kapi owns the local files and the project configuration. The `kapi.yaml` recipe
 — content collections, flows, plugins, languages, brand — is authored and
-versioned in the repository with everything else, including the `server:` block
+versioned in the repository with everything else, including the `bowrain:` block
 that names the workspace. Bowrain never writes it.
 
 The reverse also holds: Bowrain's own clients do not source projects from a

@@ -33,12 +33,12 @@ cp "$FIXTURE_PDF" "$PROJ/doc.pdf"
 # The pdfium plugin renders each page and emits the raster + raw blocks; the host
 # vision decorator runs the layout model and emits structured blocks.
 cat > "$PROJ/kapi.yaml" <<'YAML'
-version: v1
+version: v2
 name: vision-pdf-e2e
 defaults:
   source_language: en
   target_languages: [qps]
-content:
+collections:
   - path: doc.pdf
     format:
       name: pdf

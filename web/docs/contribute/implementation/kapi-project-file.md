@@ -1,8 +1,8 @@
 ---
 sidebar_position: 7
 title: kapi.yaml Project File Format
-description: Implementation note for AD-008 — the KapiProject YAML schema, ContentCollection/ContentItem and Defaults struct layouts, how extension extras are decoded, and how the kapi.yaml recipe is loaded, validated, and saved.
-keywords: [kapi project file, kapi.yaml, KapiProject, YAML schema, ContentCollection, ContentItem, Defaults, project model, implementation note]
+description: Implementation note for AD-008 — the KapiProject YAML schema, Collection/ContentItem and Defaults struct layouts, how extension extras are decoded, and how the kapi.yaml recipe is loaded, validated, and saved.
+keywords: [kapi project file, kapi.yaml, KapiProject, YAML schema, Collection, ContentItem, Defaults, project model, implementation note]
 ---
 
 # kapi.yaml Project File Format
@@ -15,17 +15,16 @@ The `kapi.yaml` recipe is a YAML document parsed by `core/project.KapiProject`:
 
 ```go
 type KapiProject struct {
-    Version  string                     `yaml:"version"`
-    Name     string                     `yaml:"name,omitempty"`
-    Plugins  map[string]PluginSpec      `yaml:"plugins,omitempty"`  // name → spec (scalar = version short form)
-    Defaults Defaults                   `yaml:"defaults,omitempty"` // project-wide defaults (locales live here)
-    Content  []ContentCollection        `yaml:"content,omitempty"`
-    Preset   string                     `yaml:"preset,omitempty"`
-    Flows    map[string]*flow.StepsSpec `yaml:"flows,omitempty"`
-    Coordinates Coordinates             `yaml:"coordinates,omitempty"` // axis → declared values (see Context coordinates)
-    Profiles    []ProfileBinding        `yaml:"profiles,omitempty"`    // governance bound to a coordinate match
-    Requires RequiresMap                `yaml:"requires,omitempty"` // plugin name → semver constraint
-    Extras   map[string]yaml.Node       `yaml:",inline"`            // unknown keys (platform extensions)
+    Version     string                     `yaml:"version"`
+    Name        string                     `yaml:"name,omitempty"`
+    Plugins     map[string]PluginSpec      `yaml:"plugins,omitempty"`  // name → spec (scalar = version short form)
+    Defaults    Defaults                   `yaml:"defaults,omitempty"` // project-wide defaults (locales live here)
+    Collections []Collection               `yaml:"collections,omitempty"`
+    Preset      string                     `yaml:"preset,omitempty"`
+    Flows       map[string]*flow.StepsSpec `yaml:"flows,omitempty"`
+    Profiles    map[string]Profile         `yaml:"profiles,omitempty"` // profile name → governance (see The context space)
+    Requires    RequiresMap                `yaml:"requires,omitempty"` // plugin name → semver constraint
+    Extras      map[string]yaml.Node       `yaml:",inline"`            // unknown keys (platform extensions)
 }
 
 // Defaults holds project-wide processing defaults — including locales.
@@ -40,106 +39,111 @@ type Defaults struct {
     //  core/project/project.go.)
 }
 
-// ContentCollection is either a bare entry (path/format/target) or a named
-// collection (name + items), and can carry its own source/target languages.
-type ContentCollection struct {
+// Collection is either a bare entry (path/format/target) or a named collection
+// (name + content), and can carry its own source/target languages.
+type Collection struct {
     Name            string           `yaml:"name,omitempty"`
     SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty"`
     TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty"`
-    Items           []ContentItem    `yaml:"items,omitempty"`
-    Base            string           `yaml:"base,omitempty"`   // dir items' paths are made relative to; items inherit it
-    Context         map[string]string `yaml:"context,omitempty"` // the point this content sits at (named collections only)
+    Content         []ContentItem    `yaml:"content,omitempty"`
+    Base            string           `yaml:"base,omitempty"`    // the directory this collection lives in
+    Channel         string           `yaml:"channel,omitempty"` // `profile/channel` or a bare channel (named collections only)
     // Bare-entry fields (short form):
     Path   string      `yaml:"path,omitempty"`   // doublestar glob for source files
     Format *FormatSpec `yaml:"format,omitempty"` // format ID; auto-detect per file if empty
     Target string      `yaml:"target,omitempty"` // output path template (tokens below)
 }
-// ContentItem additionally carries its own `base` (yaml:"base,omitempty"),
-// falling back to the collection's Base when empty.
+// ContentItem additionally carries its own `base` (yaml:"base,omitempty"), the
+// directory its matched paths are made relative to for target-token expansion.
 ```
 
 Flow definitions reuse `core/flow.StepsSpec` and `core/flow.FlowStep` (see [flow-steps-format](./flow-steps-format.md)).
 
 ## Content model
 
-`Content` is a list of `ContentCollection` values. Each entry is one of two
-shapes, distinguished by `ContentCollection.IsBareEntry()`:
+`Collections` is a list of `Collection` values. Each entry is one of two
+shapes, distinguished by `Collection.IsBareEntry()`:
 
-- **Bare entry** — has a `path` and no `items`. The `path`, `format`, and
+- **Bare entry** — has a `path` and no `content`. The `path`, `format`, and
   `target` fields are promoted onto the collection directly. Use this for a
   single glob with no grouping.
-- **Named collection** — has a `name` and a non-empty `items` list of
+- **Named collection** — has a `name` and a non-empty `content` list of
   `ContentItem`, and may set its own `source_language` / `target_languages`.
   Use this to group related patterns and scope languages per group.
 
-### Context coordinates
+### Where a collection lives
 
-Content is written for a point in a **context space** the project defines. A
-recipe declares its axes under `coordinates:`, binds governance to regions of
-that space under `profiles:`, and each named collection names its point once:
+`Collection.Base` is the directory the collection lives in. `EffectiveItems`
+folds it in: every item's `Path`, `Target` and own `Base` is joined onto it
+(`JoinBase`), so every consumer downstream sees project-relative paths and never
+has to know a base was declared. An absolute path is left alone, so the escape
+check downstream still sees it; an empty one stays empty.
+
+An item that declares no `Base` of its own keeps none — the target tokens then
+relativize against the joined pattern's own fixed prefix. That is what makes
+`base:` a *location* rather than a second relativization root.
+
+### The context space
+
+Content is written for a point in a two-axis space: the PRODUCT it belongs to
+and the CHANNEL it ships on. The space is **structural** rather than declared —
+a key under `profiles:` is a product, the channels that profile lists are the
+channels that product ships on, and a named collection names the point its
+content sits at with one `channel:` reference:
 
 ```yaml
-coordinates:                      # the taxonomy is the project's own
-  product: [kapi, bowrain]
-  channel: [docs, landing, app, email]
-  market:  [us, de]
-  tenant:  []                     # an open axis: declared, values not enumerated
-
 profiles:
-  - when: {}                      # the base: matches every point
-    voice: .kapi/voice.yaml       # the flat default — this profile has no directory
-  - when: { product: bowrain }
+  neokapi:
+    channels: [cli, docs]
+    voice: .kapi/voice.yaml                    # the framework's own voice
+  bowrain:
+    channels:
+      - id: docs
+        concept: term:9a1c0f42b7               # display only; never resolved
+      - app
     voice: .kapi/profiles/bowrain/voice.yaml   # == the conventional location
-    terms: .kapi/profiles/bowrain/terms.json   # optional; falls back to defaults.terms_source
-  - when: { product: bowrain, market: de }
-    voice: .kapi/profiles/de-bowrain/voice.yaml
-    terms: .kapi/profiles/de-bowrain/terms.json
+    terms: .kapi/profiles/bowrain/terms.json   # optional; falls back to the project store
 
-content:
-  - name: docs
-    context: { product: kapi, channel: docs }
-  - name: landing
-    context: { product: bowrain, channel: landing }
+collections:
+  - name: bowrain-app
+    channel: app                               # only bowrain declares it
+  - name: neokapi-docs
+    channel: neokapi/docs                      # both declare `docs` — qualify it
 ```
 
-Axis names and values are **slugs** (`^[a-z0-9][a-z0-9-]*$`): stable machine
-identifiers, never translated. A value may carry a concept for display —
+The map key under `profiles:` is the profile's name: the product-axis value its
+collections carry, and the directory under `.kapi/profiles/<name>/` holding the
+files it overrides. A profile that binds neither a voice nor a vocabulary is
+still a profile — that directory is the binding, and a project keeping its
+overrides there should not have to restate every one of them in the recipe.
 
-```yaml
-coordinates:
-  product:
-    - id: bowrain
-      concept: term:9a1c0f42b7
-    - id: kapi
-```
+Profile names and channels are **slugs** (`^[a-z0-9][a-z0-9-]*$`): stable
+machine identifiers, never translated, comparable byte for byte. A profile and a
+channel may each *carry* a concept for display, but resolution never looks at
+it: concepts are designed to be renamed and deprecated as vocabulary is revised,
+and governance that moved when someone edited a term would be governance nobody
+could rely on.
 
-— but the concept takes no part in matching or identity, and a coordinate value
-must never *be* a concept reference. Concepts are designed to be renamed and
-deprecated as vocabulary is revised; governance that moved when someone edited a
-term would be governance nobody could rely on.
+**Resolution is by declaration, not by matching.** `KapiProject.ResolveChannel`
+reads one `channel:` reference: the qualified form `profile/channel` names both;
+the bare form `channel` is valid when exactly one profile declares it. Two
+profiles declaring the same channel makes the bare form ambiguous, and that is
+an error naming both qualified spellings rather than a silent pick. The result
+is a `ChannelRef{Profile, Channel}`, whose zero value is the project's default
+point.
 
-**Selection is most-specific-match-wins.** A profile matches when every key in
-its `when:` equals the point's coordinate of the same name; among the matches,
-the one with the most keys governs. `when: {}` matches everything and always
-loses to a non-empty match. The winner *selects*, it does not layer: what it
-leaves unbound comes from `defaults.voice` / `defaults.terms_source`, not from the
-broader profile it beat. Two profiles matching on the same number of coordinates
-is a **load error** naming both — which voice a piece of content is written in
-is not a map-order question.
+After a profile is selected, the collection's channel selects the override
+*inside* that profile's voice (`profile.VoiceProfile.Channels`,
+[AD-022](/contribute/architecture/022-voice-profile)), so a landing-page register
+is authored once beside the voice it varies rather than duplicated into a voice
+file per product-and-channel pair. A channel the profile declares no override
+for is not an error — the base voice applies, which is the right answer for a
+voice that reads the same everywhere.
 
-`channel` is the one well-known axis. After a profile is selected, the point's
-channel selects the override *inside* that profile's voice
-(`profile.VoiceProfile.Channels`, [AD-022](/contribute/architecture/022-voice-profile)),
-so a landing-page register is authored once beside the voice it varies rather
-than duplicated into a voice file per product-and-channel pair. A channel the
-profile declares no override for is not an error — the base voice applies. The
-axis may also appear in a `when:`; both apply, matching choosing the voice and
-the override refining the register within it.
-
-`KapiProject.ResolveGovernance(collection)` resolves a point into a
-`ResolvedGovernance` (channel, voice binding, terms, and the recipe key the
-voice came from), falling back to the project defaults for an empty or unknown
-collection name, and for a collection that declares no point;
+`KapiProject.ResolveGovernance(collection)` resolves a collection name into a
+`ResolvedGovernance` (channel, voice binding, terms, the profile's name, and the
+recipe key the voice came from), falling back to the project defaults for an
+empty or unknown collection name, and for a collection that binds no channel;
 `CollectionForPath(relPath)` names the collection that claims a file, by the
 same first-match glob rule as target resolution. The name keeps its distance
 from `profile.ResolveContext`, which is a different thing in a package used
@@ -153,34 +157,42 @@ per-call profile still outranks the recipe and a project governed from the
 server ranks its bindings identically. The point's channel goes in beside it as
 `CollectionConfig[PropertyChannel]`, and `ResolveProfile` applies the override.
 
-One venue applies the recipe at a time. A project that declares coordinates
-(`KapiProject.GovernsByCoordinates`) and also carries a `server:` block is
-warned at run time (`host.WarnUnsyncedCoordinates`, called by `kapi run`,
-`kapi up` and `RunFlowAllLocales`) that coordinate governance applies to local
-runs only until it is synced: the server has no coordinate rows yet and governs
-by `defaults.voice`. The run proceeds — this is a caveat, not a fault.
+`ChannelRef.Coordinates()` renders the point as the two axes that travel on the
+sync wire — `project.ProductAxis` (`"product"`) carrying the profile name and
+`project.ChannelAxis` (`"channel"`) carrying the channel — and the default point
+renders as nil. A push carries every declared collection, its point and the
+voice governing it, so both venues resolve the same voice for the same content.
+
+What does not cross is a profile's `terms:`. That is a path into the local
+project, and a path means nothing to a server that governs terminology from the
+workspace vocabulary. A recipe that binds terms per profile
+(`KapiProject.BindsTermsByProfile`) and also binds a venue is warned at run time
+(`host.WarnUnsyncedCoordinates`, called by `kapi run`, `kapi up` and
+`RunFlowAllLocales`) that the binding applies to local runs only. The run
+proceeds — this is a caveat, not a fault.
 
 A run resolves its governance per collection and executes once per distinct
 resolution: `groupInputsByBinding` (host) partitions the input set, and each
 group gets its own bindings and its own tool chain — the chain is built before
 any content is seen, so a per-file switch is not possible. Grouping keys on what
-the coordinates *resolve to*, not on the coordinates themselves, so two markets
-governed by one profile share a group, and a recipe where no collection declares
-a point produces exactly one group: the single, unsplit run.
+the points *resolve to*, not on the points themselves, so two collections
+governed by one profile share a group, and a recipe where no collection binds a
+channel produces exactly one group: the single, unsplit run.
 
 Every failure is caught at load, because a silent fall-back would translate that
-content in a plausible-looking wrong voice: an axis absent from `coordinates:`,
-a value the axis does not declare (unless the axis is open), a non-slug value, a
-profile binding nothing, two profiles claiming one point, and the ambiguous
-match above. Bare entries cannot carry a context at all: resolution is by
-collection name, so a point on an unnamed entry could never be read.
+content in a plausible-looking wrong voice: a non-slug profile name or channel, a
+channel declared twice by one profile, a profile voice binding that names no
+source or more than one, a malformed concept reference, a channel reference
+naming an undeclared profile or channel, and the ambiguous bare reference above.
+Bare entries cannot carry a channel at all: resolution is by collection name, so
+a point on an unnamed entry could never be read.
 
 `KapiProject.IterateContent` walks both shapes uniformly, yielding each
-`ContentItem` paired with its parent collection so callers can resolve
-fall-through fields. Language resolution falls through item → collection →
-project defaults via `ContentItem.ResolvedSourceLanguage` /
+`ContentItem` — base already folded in — paired with its parent collection so
+callers can resolve fall-through fields. Language resolution falls through item →
+collection → project defaults via `ContentItem.ResolvedSourceLanguage` /
 `ResolvedTargetLanguages`. A bare entry's promoted fields are wrapped as a
-single-item slice by `ContentCollection.EffectiveItems`, carrying its `Extras`
+single-item slice by `Collection.EffectiveItems`, carrying its `Extras`
 through so platform per-item fields survive.
 
 ## Defaults-scoped settings
@@ -226,42 +238,55 @@ cache, terms store, content memory, working set, and the property graph. See
 [AD-039](/contribute/architecture/039-local-context-graph-store) for the store's
 shape, its rebuild guarantees, and how it converges with the server's graph.
 
-## Platform extensions and the `server:` block
+## Platform extensions and the venue
 
 The framework knows nothing about platform-specific keys. Unknown top-level YAML
 keys land in `Extras map[string]yaml.Node` (with `yaml:",inline"`) on
-`KapiProject`, `Defaults`, `ContentCollection`, and `ContentItem`. Platform
+`KapiProject`, `Defaults`, `Collection`, and `ContentItem`. Platform
 layers decode their own typed schema from these maps via `GetExtra` and
 re-encode on `SetExtra`; round-tripping a recipe through the framework alone
 preserves the keys verbatim.
 
-A vendor may use this to add their own recipe keys — for example, a `server:`
-block (and `hooks`, `automations`, `assets`, `brand_voice` policy). A recipe
-with no such extension is a pure local project. The kapi CLI tolerates unknown
-blocks but ignores them; the owning plugin decodes them from `Extras`.
-`requires:` (a map of plugin name → semver constraint) gates loading: a recipe
-declaring `requires: { myplugin: "^1.0" }` refuses to load in a binary that has
-not registered the `myplugin` extension. See
+A vendor may use this to add their own recipe keys — bowrain's are `bowrain:`
+(and `hooks`, `automations`, `assets`, `brand_voice` policy). A recipe with no
+such extension is a pure local project. The kapi CLI tolerates unknown blocks
+but ignores them; the owning plugin decodes them from `Extras`. `requires:` (a
+map of plugin name → semver constraint) gates loading: a recipe declaring
+`requires: { myplugin: "^1.0" }` refuses to load in a binary that has not
+registered the `myplugin` extension.
+
+One of those keys may be the project's **convergence venue** — a server that
+holds the content memory, runs the loop on org keys, and carries a review queue.
+The framework's interest in it is exactly two fields, `url:` and `converge:`, so
+it asks the registry which extension *is* the venue rather than looking for a key
+by name: an `Extension` registered with `Venue: true` claims that role, and a
+plugin manifest declares it as `"venue": true` on a schema extension.
+`KapiProject.Venue()` returns the `VenueBinding{Key, URL, Converge}` of the
+first registered venue extension the recipe carries, `VenueKey()` names the
+registered venue key with no recipe in hand (so a message about an absent block
+can still name the block to add), and `IsVenueKey(name)` tests one key. An
+unregistered key of the same name — a recipe loaded by a binary without the
+platform — reports no venue and no opinion. See
 [AD-008](/contribute/architecture/008-project-model) for the full extension
-model and `server:` schema.
+model.
 
 ## Validation Rules
 
-- `version` is required, must be `"v1"`
-- For each `content[]` entry:
-  - Bare entry — `path` is required and `items` must be empty.
-  - Named collection — `path` must be empty (use `items`) and `items` must be
+- `version` is required, must be `"v2"`. A recipe on the previous version fails
+  with the shape changes to make rather than a bare version mismatch, and a
+  top-level key v2 replaced (`content:`, `coordinates:`) is rejected by name
+  rather than silently captured as an unknown extension.
+- For each `collections[]` entry:
+  - Bare entry — `path` is required and `content` must be empty.
+  - Named collection — `path` must be empty (use `content`) and `content` must be
     non-empty; each item requires a non-empty `path`.
-  - `context` requires a `name`; every axis it names must be declared under
-    `coordinates:`, and every value must be one the axis declares (any slug, on
-    an open axis).
-- `coordinates:` axis names and values are slugs; a value is declared once and
-  may carry a whitespace-free `concept` reference.
-- Every `profiles[]` entry must bind a `voice`, `terms`, or both; its `when:` is
-  checked like a `context:`; its `voice` is shape-checked exactly like
-  `defaults.voice` (one of `profile_file`, `profile`, `pack`, or a bare
-  path); no two entries may claim the same point, and no two may match one
-  collection with equal specificity.
+  - `channel` requires a `name`, and must resolve against the declared profiles:
+    unambiguously bare, or qualified `profile/channel`.
+- Every `profiles:` key is a slug, and so is every channel it declares; a channel
+  is declared at most once per profile. A profile's `voice` is shape-checked
+  exactly like `defaults.voice` (one of `profile_file`, `profile`, `pack`, or a
+  bare path), and a `concept` on the profile or on a channel must be
+  whitespace-free.
 - `defaults.merge.conflict_policy`, `defaults.memory.fuzzy_threshold` (0..100),
   `defaults.redaction.detectors`, and `defaults.voice` are each
   shape-checked.
@@ -288,11 +313,11 @@ require it.
   directory)
 - `target` is expanded per source file and target language by
   `core/project.ResolveTargetPath(itemPath, base, target, source, lang)`:
-  - `base` is the directory the source path is made relative to. When empty it
+  - `base` here is the item's own base — the directory the source path is made
+    relative to — after the collection's `base` has been folded in. When empty it
     defaults to `GlobFixedPrefix(path)` — the literal prefix of the glob before
     the first `*`/`?`/`[`/`{` (so `input/docs/*.md` mirrors just filenames while
-    `input/**/*.md`, or an explicit `base`, mirrors the subtree). On a named
-    collection, an item inherits the collection's `base` when it sets none.
+    `input/**/*.md`, or an explicit `base`, mirrors the subtree).
   - Tokens: `{lang}`, `{relpath}` (rel path with extension), `{path}` (rel path
     without extension), `{dir}`, `{filename}`, `{name}` (alias `{basename}`),
     `{ext}`; a bare `*` is shorthand for `{name}`. `{lang}` is handled by
@@ -346,8 +371,8 @@ With `-p`:
   `flows` map (and finally the plugin fallback)
 - `defaults.source_language` and `defaults.target_languages[0]` provide
   defaults (CLI flags override)
-- For single-file flows, `--input` selects the file. The project's `content`
-  collections describe which files `kapi extract` / `kapi merge` operate on
+- For single-file flows, `--input` selects the file. The project's
+  `collections` describe which files `kapi extract` / `kapi merge` operate on
   across the project
 
 ## Desktop Integration
@@ -369,14 +394,14 @@ Kapi Desktop at `apps/kapi-desktop/`:
 ### Minimal
 
 ```yaml
-version: v1
+version: v2
 name: Quick Translate
 ```
 
 ### Full
 
 ```yaml
-version: v1
+version: v2
 name: Acme App
 
 defaults:
@@ -396,17 +421,25 @@ defaults:
   terms_source: .kapi/terms.json
   memory_source: .kapi/memory/memory.json
 
-content:
+profiles:
+  acme:
+    channels: [app, marketing]
+    voice: .kapi/voice.yaml
+
+collections:
   # Bare entry — single glob, languages inherited from defaults.
   # Directory-mirror target: src/i18n/en/app.json → src/i18n/{lang}/app.json.
   - path: "src/i18n/en/*.json"
     target: "src/i18n/{lang}"
 
-  # Named collection — groups patterns, scopes languages, and shares a base.
+  # Named collection — groups patterns, scopes languages, binds a channel, and
+  # names the directory it lives in. Paths and targets below are relative to it:
+  # marketing/en/docs/api.md → marketing/fr/docs/api.md.
   - name: Marketing
+    channel: marketing
     target_languages: [fr, de]
-    base: en
-    items:
+    base: marketing
+    content:
       - path: "en/docs/**/*.md"
         target: "{lang}/docs"
       - path: "en/site/**/*.html"

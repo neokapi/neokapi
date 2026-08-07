@@ -28,7 +28,7 @@ func decode(t *testing.T, src string) yaml.Node {
 	t.Helper()
 	var n yaml.Node
 	require.NoError(t, yaml.Unmarshal([]byte(src), &n))
-	require.Greater(t, len(n.Content), 0, "expected non-empty document")
+	require.NotEmpty(t, n.Content, "expected non-empty document")
 	return *n.Content[0]
 }
 
@@ -182,8 +182,8 @@ func TestBoolDecoder_RejectsString(t *testing.T) {
 
 func TestRecipeValidate_SurfacesServerDecoderError(t *testing.T) {
 	src := `
-version: v1
-server:
+version: v2
+bowrain:
   url: "not a url"
 `
 	var p coreproj.KapiProject
@@ -191,16 +191,16 @@ server:
 
 	err := p.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "server:")
+	assert.Contains(t, err.Error(), VenueKey+":")
 	assert.Contains(t, err.Error(), "url")
 }
 
 func TestRecipeValidate_SurfacesPerItemDecoderError(t *testing.T) {
 	src := `
-version: v1
-content:
+version: v2
+collections:
   - name: ui
-    items:
+    content:
       - path: src/foo.json
         asset_max_size: [bad, sequence]
 `
@@ -209,25 +209,31 @@ content:
 
 	err := p.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "content[0].items[0].asset_max_size")
+	assert.Contains(t, err.Error(), "collections[0].content[0].asset_max_size")
 }
 
 func TestRecipeValidate_AcceptsValidBowrainRecipe(t *testing.T) {
 	src := `
-version: v1
+version: v2
 name: my-app
 defaults:
   source_language: en-US
   target_languages: [fr-FR, de-DE]
   collection: ui-strings
-content:
-  - path: src/locales/**/*.json
-    format: json
-    base: src/
-    collection: app-strings
+profiles:
+  my-app:
+    channels: [app]
+collections:
+  - name: app-strings
+    channel: app
+    base: src
+    content:
+      - path: locales/**/*.json
+        format: json
+        collection: app-strings
 plugins:
   okapi-bridge: "^1.47.0"
-server:
+bowrain:
   url: https://bowrain.example.com/my-team/abc123
   stream: $auto
 hooks:
@@ -253,7 +259,7 @@ func TestRecipeValidate_RequiresBowrainGroupPasses(t *testing.T) {
 	// The group is registered by this package's init(), so a recipe
 	// declaring `requires: { bowrain: "*" }` should validate.
 	src := `
-version: v1
+version: v2
 requires:
   bowrain: "*"
 `
@@ -264,7 +270,7 @@ requires:
 
 func TestRecipeValidate_BareListRejected(t *testing.T) {
 	src := `
-version: v1
+version: v2
 requires: [bowrain]
 `
 	var p coreproj.KapiProject

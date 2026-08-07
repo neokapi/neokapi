@@ -23,6 +23,6 @@ describe("projectScopeLines", () => {
   });
 
   it("is empty when the recipe has no defaults block", () => {
-    expect(projectScopeLines("version: v1\nflows:\n  lab:\n").size).toBe(0);
+    expect(projectScopeLines("version: v2\nflows:\n  lab:\n").size).toBe(0);
   });
 });

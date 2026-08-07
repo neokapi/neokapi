@@ -55,7 +55,7 @@ type LsEntry struct {
 	Words  int    `json:"words,omitempty"`  // only with --stats
 	// Dirty is the count of blocks changed locally since the last sync,
 	// merged from the connected server's plumbing. nil when the project
-	// has no server: block (or the plumbing is unavailable).
+	// binds no convergence venue (or the plumbing is unavailable).
 	Dirty *int `json:"dirty,omitempty"`
 }
 

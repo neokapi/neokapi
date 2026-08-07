@@ -49,65 +49,64 @@ Deleting:
 ## What the recipe binds
 
 ```yaml
-version: v1
+version: v2
 name: my-app
-source_language: en
-target_languages: [fr, de]
-content:
-  - path: src/locales/en.json
-    format: json
-    target: src/locales/{lang}.json
 defaults:
+  source_language: en
+  target_languages: [fr, de]
   voice:
     profile_file: .kapi/voice.yaml   # or: profile: <store name> | pack: marketing-blog
   terms_source: .kapi/terms.json    # the committed terms source
   memory_source: .kapi/memory/memory.json  # the committed content memory
+collections:
+  - path: src/locales/en.json
+    format: json
+    target: src/locales/{lang}.json
 ```
 
 - **Voice profile** — bind it under `defaults.voice`, or just keep a
   `.kapi/voice.yaml` (or a `voice.yaml` at the project root); `kapi
   voice check <file>`, `voice rewrite`, and `voice guide` then resolve it with no
   flag.
-- **More than one voice in one repo** — declare the axes your content varies
-  along under `coordinates:`, bind a voice (and optionally terms) to a region of
-  that space under `profiles:`, then place each *named* collection at its point.
-  Runs split per distinct resolution, so each region's content is translated and
-  checked under its own voice and vocabulary:
+- **More than one voice in one repo** — declare one profile per product under
+  `profiles:`, list the channels that product ships on, and bind each *named*
+  collection to one of them with `channel:`. Runs split per distinct resolution,
+  so each product's content is translated and checked under its own voice and
+  vocabulary:
 
   ```yaml
-  coordinates:                       # your taxonomy: product, client, market, …
-    product: [framework, platform]
-    channel: [docs, landing]
-
   profiles:
-    - when: {}                       # the base voice: .kapi/voice.yaml
-    - when: { product: platform }    # .kapi/profiles/platform/voice.yaml and
-                                     # terms.json answer by convention; bind
+    framework:
+      channels: [docs]
+      voice: .kapi/voice.yaml
+    platform:                        # .kapi/profiles/platform/voice.yaml and
+      channels: [docs, landing]      # terms.json answer by convention; bind
                                      # `voice:`/`terms:` only to override them
 
-  content:
+  collections:
     - name: platform-docs
-      context: { product: platform, channel: docs }
-      items:
+      channel: platform/docs         # both products ship `docs` — qualify it
+      content:
         - path: platform/docs/**/*.md
     - name: platform-landing
-      context: { product: platform, channel: landing }
-      items:
+      channel: landing               # only platform declares it — bare resolves
+      content:
         - path: platform/web/pages/*.tsx
   ```
 
-  Axis names and values are slugs. Of the profiles matching a point, the one
-  matching on the most coordinates wins; an explicit `--profile` still beats
-  them all. `channel` additionally picks the override inside the selected
-  profile's voice, so a landing register lives beside the voice it varies rather
-  than in a second file. An undeclared axis or value, and two profiles matching
-  one collection equally well, both fail the load — kapi will not quietly
-  translate that content in the wrong voice.
+  Profile names and channels are slugs. The profile name is also the directory
+  under `.kapi/profiles/<name>/`. An explicit `--profile` still beats the recipe.
+  The channel additionally picks the override inside the selected profile's
+  voice, so a landing register lives beside the voice it varies rather than in a
+  second file. A channel no profile declares, and a bare channel two profiles
+  declare, both fail the load — kapi will not quietly translate that content in
+  the wrong voice.
 
-  The recipe is the authoring surface for governance, and one venue applies it
-  at a time. A project that declares coordinates and also has a `server:` block
-  warns on every run that coordinate governance applies to local runs only until
-  it is synced — the server governs by `defaults.voice` until then.
+  The recipe is the authoring surface for governance. A push carries every
+  collection, its point and the governing voice, so a connected project resolves
+  the same voice on the server. A profile's `terms:` is the exception — it names
+  a local path, so a project binding terms per profile and also bound to a server
+  warns on every run that the binding applies to local runs only.
 - **Terms** — import terms into the project terms store
   (`kapi terms import terms.csv -s en -t fr`); `kapi exec term-check <file>` and
   the translation flow then enforce it with no `--termstore` flag.

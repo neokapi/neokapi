@@ -95,8 +95,7 @@ func (l Layout) ProfilesDir() string {
 }
 
 // ProfileDir returns the absolute path of one profile's override directory.
-// The name is the profile's conventional name — see
-// ProfileBinding.ConventionalName.
+// The name is the profile's key under `profiles:`.
 func (l Layout) ProfileDir(name string) string {
 	return filepath.Join(l.ProfilesDir(), name)
 }

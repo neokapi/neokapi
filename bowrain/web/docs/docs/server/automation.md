@@ -105,15 +105,15 @@ If `qa` finds issues and `fail_on_error` is `true`, the push is aborted.
 ### Catching up on every push
 
 Catching the project up on push is not an automation — it is the project's
-`server.converge` policy. With the default `on-push`, the server runs a full
+`bowrain.converge` policy. With the default `on-push`, the server runs a full
 pass (reuse, drafting, QA, terms, gates, parking) after every push, recorded as
 a run anyone can watch:
 
 ```yaml
 # kapi.yaml
-server:
+bowrain:
   url: https://bowrain.example.com/my-team/abc123
-  converge: on-push        # on-push (default) | manual | schedule
+  converge: on-push        # on-push (default) | manual
 ```
 
 `kapi push` from CI just pushes; the server catches the project up on its own clock; `kapi up`

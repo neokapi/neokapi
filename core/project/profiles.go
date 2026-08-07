@@ -61,10 +61,6 @@ var conceptPattern = regexp.MustCompile(`^\S+$`)
 // apart, and ResolvedGovernance.VoiceField is where that is recorded.
 const DefaultVoiceField = "defaults.voice"
 
-// defaultPointSubject names the point a run sits at when no collection claims
-// its content, for error messages.
-const defaultPointSubject = "the project default point"
-
 // Profile binds governance to one product, and declares the channels that
 // product ships on.
 //

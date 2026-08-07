@@ -35,7 +35,7 @@ func resolveContentProject(t *testing.T, pattern string) (*project.ProjectContex
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Name: "app", Path: pattern, Target: "out/{lang}.json"},
 		},
 	}

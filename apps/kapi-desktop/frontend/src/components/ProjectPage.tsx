@@ -166,8 +166,8 @@ export function ProjectPage({
           </CardHeader>
           <CardContent className="px-4">
             <div className="space-y-1 text-sm">
-              {project.content?.length ? (
-                project.content.map((coll, i) => {
+              {project.collections?.length ? (
+                project.collections.map((coll, i) => {
                   if (isBareEntry(coll)) {
                     return (
                       <div key={i} className="truncate text-muted-foreground">

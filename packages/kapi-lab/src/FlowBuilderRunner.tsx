@@ -112,7 +112,7 @@ export function buildRecipe(
   spec: FlowSpec,
   presets?: Record<string, Record<string, unknown>>,
 ): string {
-  const lines: string[] = ["version: v1", "name: Lab", "defaults:", "  source_language: en"];
+  const lines: string[] = ["version: v2", "name: Lab", "defaults:", "  source_language: en"];
 
   if (presets && Object.keys(presets).length > 0) {
     lines.push("  tools:");

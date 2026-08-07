@@ -38,9 +38,9 @@ func TestScaffoldRecipe_NeokapiI18nCleanLayout(t *testing.T) {
 	proj, err := project.Load(recipePath)
 	require.NoError(t, err, "scaffolded recipe must load + validate:\n%s", yaml)
 
-	require.Len(t, proj.Content, 1)
-	assert.Equal(t, "i18n/src/**/*.kbf.json", proj.Content[0].Path)
-	assert.Equal(t, "i18n/{lang}/{path}.kbf.json", proj.Content[0].Target)
+	require.Len(t, proj.Collections, 1)
+	assert.Equal(t, "i18n/src/**/*.kbf.json", proj.Collections[0].Path)
+	assert.Equal(t, "i18n/{lang}/{path}.kbf.json", proj.Collections[0].Target)
 
 	require.NotNil(t, proj.Defaults.Voice)
 	assert.Equal(t, "i18n/voice.yaml", proj.Defaults.Voice.ProfileFile)

@@ -284,7 +284,7 @@ func sanitizeToolConfig(in map[string]map[string]any, where string, note func(st
 }
 
 // sanitizeExtras drops the side-effecting keys from one Extras map. prefix
-// names the scope in the report ("", "defaults.", "content[0].") so a recipient
+// names the scope in the report ("", "defaults.", "collections[0].") so a recipient
 // can tell which block lost what. A nil or empty map stays nil.
 func sanitizeExtras(in map[string]yaml.Node, prefix string, note func(string, ...any)) map[string]yaml.Node {
 	if len(in) == 0 {

@@ -66,7 +66,7 @@ vocabulary:
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{model.LocaleID("fr")},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Path: "locales/en.json", Target: "locales/{lang}.json"},
 		},
 	}

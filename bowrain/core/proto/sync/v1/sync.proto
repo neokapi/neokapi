@@ -346,12 +346,13 @@ message SyncMedia {
 // a collection in the recipe therefore does not rename it on the server — it
 // declares a new one and leaves the old reported-but-undeclared.
 message SyncContextEntry {
-  // Name is the collection name from `content[].name`. Non-empty: an unnamed
-  // bare entry declares no collection and is not carried here.
+  // Name is the collection name from `collections[].name`. Non-empty: an
+  // unnamed bare entry declares no collection and is not carried here.
   string name = 1;
 
-  // Coordinates is the collection's `context:` — axis → value over the axes
-  // the recipe declares under `coordinates:`. Slugs, never concept references.
+  // Coordinates is the point the collection's `channel:` resolves to — the
+  // profile on the product axis and the channel it names. Slugs, never concept
+  // references.
   map<string, string> coordinates = 2;
 
   // Channel is the collection's value on the one axis the framework reads for

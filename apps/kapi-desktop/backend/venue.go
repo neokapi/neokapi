@@ -8,16 +8,17 @@ import (
 )
 
 // ProjectServer describes where a project's `kapi up` runs. A project whose
-// recipe declares a `server:` block is Bowrain-connected: the canonical run
+// recipe declares a `bowrain:` block is Bowrain-connected: the canonical run
 // executes on the server. The desktop still runs the local engine for "Bring
 // up to date", so the UI discloses the venue honestly rather than implying a
 // remote run happened.
 //
-// The field is decoded from the recipe's `server` extras key (the bowrain
-// schema extension) without taking on any AGPL bowrain dependency — schema is
-// the Apache-2.0 recipe vocabulary the desktop already blank-imports.
+// The venue is read through KapiProject.Venue, which finds the block by the
+// registered extension's venue flag rather than by key name — no AGPL bowrain
+// dependency, since schema is the Apache-2.0 recipe vocabulary the desktop
+// already imports.
 type ProjectServer struct {
-	// Connected reports whether the recipe carries a `server:` block with a URL.
+	// Connected reports whether the recipe carries a `bowrain:` block with a URL.
 	Connected bool `json:"connected"`
 	// URL is the compound project URL exactly as written in the recipe.
 	URL string `json:"url,omitempty"`
@@ -32,8 +33,10 @@ type ProjectServer struct {
 // the local engine regardless; this only lets the home surfaces disclose that
 // `kapi up` on a connected project canonically runs on the server.
 //
-// A tab with no recipe, or a recipe without a `server:` block, returns a
-// not-connected result (never an error) so the badge simply stays hidden.
+// A tab with no recipe, or a recipe without a venue block, returns a
+// not-connected result (never an error) so the badge simply stays hidden. A
+// malformed block reads as not connected too — the recipe editor / validation
+// path is where a bad block is reported, not the venue badge.
 func (a *App) GetProjectServer(tabID string) (*ProjectServer, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -42,28 +45,18 @@ func (a *App) GetProjectServer(tabID string) (*ProjectServer, error) {
 	if op.Project == nil {
 		return &ProjectServer{}, nil
 	}
-	node, ok := op.Project.Extras["server"]
-	if !ok {
+	venue, ok := op.Project.Venue()
+	if !ok || venue.URL == "" {
 		return &ProjectServer{}, nil
 	}
-	var spec schema.ServerSpec
-	if err := node.Decode(&spec); err != nil {
-		// A malformed server block is surfaced quietly as "not connected" — the
-		// recipe editor / validation path is where a bad block is reported, not
-		// the venue badge.
-		return &ProjectServer{}, nil
-	}
-	if spec.URL == "" {
-		return &ProjectServer{}, nil
-	}
-	info := schema.ParseProjectURL(spec.URL)
+	info := schema.ParseProjectURL(venue.URL)
 	host := info.ServerURL
 	if i := strings.Index(host, "://"); i >= 0 {
 		host = host[i+3:] // strip the scheme for the compact badge label
 	}
 	return &ProjectServer{
 		Connected: true,
-		URL:       spec.URL,
+		URL:       venue.URL,
 		Host:      host,
 		ServerURL: info.ServerURL,
 	}, nil

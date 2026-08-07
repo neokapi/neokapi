@@ -1,4 +1,4 @@
-version: v1
+version: v2
 name: KapiMart
 defaults:
   source_language: en
@@ -8,31 +8,32 @@ defaults:
     - ja
     - nb
     - ar
-content:
+collections:
   # Natural per-area layout: each area keeps its source under <area>/en/, and
   # localized files land beside it under sibling locale dirs (<area>/{lang}/) —
-  # e.g. web/en/getting-started.md → web/de/getting-started.md. Format is
-  # auto-detected per file.
+  # e.g. web/en/getting-started.md → web/de/getting-started.md. The collection's
+  # base is the area directory, so its paths and targets are written relative to
+  # it. Format is auto-detected per file.
   - name: Website
-    base: web/en
-    items:
-      - path: "web/en/**/*.md"
-        target: "web/{lang}"
+    base: web
+    content:
+      - path: "en/**/*.md"
+        target: "{lang}"
   - name: Online Store
-    base: src/en
-    items:
-      - path: "src/en/*.{json,yaml,properties,html}"
-        target: "src/{lang}"
+    base: src
+    content:
+      - path: "en/*.{json,yaml,properties,html}"
+        target: "{lang}"
   - name: Contracts
-    base: legal/en
-    items:
-      - path: "legal/en/*.{docx,xlsx}"
-        target: "legal/{lang}"
+    base: legal
+    content:
+      - path: "en/*.{docx,xlsx}"
+        target: "{lang}"
   - name: Templates
-    base: marketing/en
-    items:
-      - path: "marketing/en/*.{pptx,docx}"
-        target: "marketing/{lang}"
+    base: marketing
+    content:
+      - path: "en/*.{pptx,docx}"
+        target: "{lang}"
 flows:
   translate:
     steps:

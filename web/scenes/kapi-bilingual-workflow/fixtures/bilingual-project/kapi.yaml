@@ -1,4 +1,4 @@
-version: v1
+version: v2
 name: Bilingual Demo
 defaults:
   source_language: en-US
@@ -7,7 +7,7 @@ defaults:
     conflict_policy: translator-wins
   memory:
     fuzzy_threshold: 75
-content:
+collections:
   - path: src/locales/en/*.json
     format: json
     target: src/locales/{lang}/*.json

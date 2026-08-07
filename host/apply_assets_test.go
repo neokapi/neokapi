@@ -23,7 +23,7 @@ func newApplyAssetProject(t *testing.T) (a *App, cmd *EnvCommand, root, recipe s
 	dir := t.TempDir()
 	recipe = filepath.Join(dir, project.RecipeFileName)
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: "v2",
 		Name:    "ApplyAssetTest",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en",

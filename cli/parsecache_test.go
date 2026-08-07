@@ -18,12 +18,12 @@ func writeCacheProject(t *testing.T) string {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
-	recipe := `version: v1
+	recipe := `version: v2
 name: cache
 defaults:
   source_language: en
   target_languages: [nb]
-content:
+collections:
   - path: en.json
     target: "{lang}.json"
 ship_gate: { translated: 100 }

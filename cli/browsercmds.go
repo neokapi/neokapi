@@ -160,7 +160,7 @@ func BrowserCommandSet(a *App) []*cobra.Command {
 
 	// Porcelain. `up` converges the project by running its flows over local
 	// files; in the browser that is the in-memory filesystem, and a recipe with
-	// a server: block simply has no plugin to dispatch to, so it stays local.
+	// a bound venue simply has no plugin to dispatch to, so it stays local.
 	cmds = append(cmds, NewUpCmd(a))
 	cmds = append(cmds, NewTranslateCmd(a), NewPseudoTranslateCmd(a))
 

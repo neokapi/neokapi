@@ -14,21 +14,23 @@ The recipe schema is specified once, in
 Three parts of it are what the sync protocol reads, and they are the ones worth
 naming here:
 
-- **`content[]`** — the content collections. A named collection (`name:` plus
-  `items:`) is what becomes a `SyncContextEntry` and what an item's
+- **`collections[]`** — the content collections. A named collection (`name:` plus
+  `content:`) is what becomes a `SyncContextEntry` and what an item's
   `collection` field points at; a bare entry (a promoted `path:` with no name)
   declares no collection and syncs ungrouped.
-- **`coordinates:` and `profiles:`** — the project's context space and the
-  governance bound to regions of it. Neither travels the wire: the client
-  resolves them and sends the resolved point per collection. See [Context
+- **`profiles:`** — the project's context space and the governance bound to it.
+  A key under `profiles:` is a product and the channels it declares are the
+  channels that product ships on; a collection's `channel:` names the point its
+  content sits at. The declarations do not travel the wire: the client resolves
+  them and sends the resolved point per collection. See [Context
   sync](#context-sync).
-- **`server:`** — the connection. `server.url` is a compound URL encoding
+- **`bowrain:`** — the connection. `url` is a compound URL encoding
   server, workspace, and project id, parsed on demand by `ParseProjectURL()`;
-  `server.stream` names the content stream, defaulting to `$auto` (detected
+  `stream` names the content stream, defaulting to `$auto` (detected
   from the git branch or the CI environment). Claim tokens for anonymous
   projects live in the sync cache, never in the recipe.
 
-Bowrain adds `server:`, `hooks:`, `automations:`, `assets:` and `brand_voice:`
+Bowrain adds `bowrain:`, `hooks:`, `automations:`, `assets:` and `brand_voice:`
 as top-level keys. The framework loader captures them as unknowns in
 `KapiProject.Extras`; the bowrain loader decodes them into typed fields on
 `Recipe`. Both loaders round-trip the same file, which is what keeps the
@@ -236,9 +238,9 @@ resolved for that point, and which side owns it. See
 [AD-009](/architecture-decisions/009-sync-protocol) for why it is a content
 type rather than a side call.
 
-**Axes and profile bindings do not travel.** The recipe's `coordinates:` and
-`profiles:` are read by `core/project.ResolveGovernance` on the client, and what
-goes on the wire is the resolved answer. One resolver, one precedence model —
+**Profile declarations do not travel.** The recipe's `profiles:` and each
+collection's `channel:` are read by `core/project.ResolveGovernance` on the
+client, and what goes on the wire is the resolved answer. One resolver, one precedence model —
 the alternative puts a second implementation on the server, and two
 implementations of a precedence rule diverge.
 

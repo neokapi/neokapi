@@ -16,10 +16,10 @@ Like git, `kapi` walks up the directory tree from where you run it and uses the 
 ## Format
 
 ```yaml
-version: v1
+version: v2
 name: My App
 
-content:
+collections:
   - path: "src/locales/en/*.json"
     target: "src/locales/{lang}" # mirror each matched file under the per-language dir
 
@@ -75,14 +75,15 @@ defaults:
 
 | Field     | Type   | Description                    |
 | --------- | ------ | ------------------------------ |
-| `version` | string | Schema version, must be `"v1"` |
+| `version` | string | Schema version, must be `"v2"` |
 | `name`    | string | Project display name           |
 
 ### Optional
 
 | Field      | Type           | Description                                                                                                  |
 | ---------- | -------------- | ----------------------------------------------------------------------------------------------------------- |
-| `content`  | ContentEntry[] | File patterns to process (see [ContentEntry](#contententry))                                                |
+| `collections` | Collection[] | The content this project governs (see [Collections](#collections))                                          |
+| `profiles` | map            | Governance bound per product, keyed by profile name (see [Profiles and channels](#profiles-and-channels))    |
 | `preset`   | string         | A framework preset name (see [`kapi init`](/reference/commands/init) `--list-presets`) (e.g., `nextjs`, `react-intl`) applied to formats    |
 | `plugins`  | map            | Plugin requirements keyed by name (e.g., `okapi: "^1.47.0"`)                                                 |
 | `requires` | map            | Plugin name → semver constraint that gates loading; the recipe refuses to load without a registered plugin  |
@@ -93,17 +94,74 @@ defaults:
 | `gates`    | map            | Named gate registry a `ship_gates` rule can reference by name (see [Ship gates](#ship-gates))               |
 | `source_gate` | Gate        | Coverage gate over the source authoring ladder (see [source_gate](#source_gate))                            |
 
-### ContentEntry
+### Collections
 
-| Field    | Type   | Description                                                                                   |
-| -------- | ------ | -------------------------------------------------------------------------------------------- |
-| `path`   | string | Glob pattern for source files (required)                                                      |
-| `base`   | string | Directory a matched file's path is made relative to; defaults to the glob's fixed prefix      |
-| `format` | string | Format ID; auto-detected per file if omitted                                                  |
-| `target` | string | Output path template (see [Source and target paths](#source-and-target-paths))               |
+`collections` is a list. Each entry is either a **bare entry** — one glob and its
+target, written inline — or a **named collection**, which groups content items
+under a name and can bind them to a point in the project's context space.
 
-In a named collection, `base` may be set once on the collection and is inherited
-by every item that does not set its own.
+```yaml
+collections:
+  # Bare entry: a pattern and where it lands.
+  - path: "src/locales/en/*.json"
+    target: "src/locales/{lang}"
+
+  # Named collection: a name, the directory it lives in, its items.
+  - name: docs
+    channel: docs
+    base: web
+    content:
+      - path: "docs/**/*.mdx"
+        target: "i18n/{lang}/{path}.mdx"
+```
+
+| Field              | Type            | Description                                                                                              |
+| ------------------ | --------------- | -------------------------------------------------------------------------------------------------------- |
+| `name`             | string          | Collection name. Required to bind a `channel:`, and what a ship-gate rule's `collections:` selector matches |
+| `base`             | string          | The directory this collection lives in; every `path`, `target` and item `base` below is written relative to it |
+| `channel`          | string          | The point in the context space this collection's content sits at — `profile/channel`, or a bare `channel` (see [Profiles and channels](#profiles-and-channels)) |
+| `content`          | ContentItem[]   | The collection's content items                                                                            |
+| `source_language`  | string          | Overrides `defaults.source_language` for this collection                                                  |
+| `target_languages` | string[]        | Overrides `defaults.target_languages` for this collection                                                 |
+| `path`             | string          | Bare entries only: the glob, written instead of `content:`                                                |
+| `format`           | string or map   | Bare entries only                                                                                         |
+| `target`           | string          | Bare entries only                                                                                          |
+
+A named collection needs at least one item under `content:` and cannot also
+carry a `path:`; a bare entry needs a `path:`.
+
+#### ContentItem
+
+| Field              | Type          | Description                                                                              |
+| ------------------ | ------------- | ----------------------------------------------------------------------------------------- |
+| `path`             | string        | Glob pattern for source files, relative to the collection's `base` (required)             |
+| `base`             | string        | Directory a matched file's path is made relative to; defaults to the glob's fixed prefix  |
+| `format`           | string or map | Format ID; auto-detected per file if omitted                                              |
+| `target`           | string        | Output path template (see [Source and target paths](#source-and-target-paths))            |
+| `source_language`  | string        | Overrides the collection's and the project's source language                              |
+| `target_languages` | string[]      | Overrides the collection's and the project's target languages                             |
+| `redaction`        | RedactionSpec | Overrides `defaults.redaction` for this item                                              |
+
+#### base
+
+A collection's `base` is **where the collection lives**. Every `path`, `target`
+and item `base` beneath it is written relative to that directory and joined onto
+it, so a collection reads as the tree it governs rather than as a prefix repeated
+on every line:
+
+```yaml
+collections:
+  - name: docs
+    base: web
+    content:
+      - path: "docs/**/*.mdx" # → web/docs/**/*.mdx
+        target: "i18n/{lang}/{path}.mdx" # → web/i18n/{lang}/{path}.mdx
+```
+
+An item's own `base` is the separate, narrower thing: the directory a matched
+file's path is made relative to, which drives the `{relpath}` / `{path}` /
+`{dir}` tokens. An item that declares none keeps none — the tokens then
+relativize against the joined pattern's own fixed prefix.
 
 ### Source and target paths
 
@@ -113,8 +171,9 @@ the listed alternatives (e.g. `input/store/*.{json,yaml,html}`). One glob can
 therefore cover a whole directory of mixed content; the format is auto-detected
 per file unless you pin `format`. Patterns resolve relative to the project root.
 
-`base` is the directory a matched file's path is made relative to. It defaults to
-the glob's *fixed prefix* — the literal part of `path` before the first wildcard
+The `base` in play here is the item's own — the directory a matched file's path
+is made relative to, after any collection `base` has been folded in. It defaults
+to the glob's *fixed prefix* — the literal part of `path` before the first wildcard
 (`input/docs/` for `input/docs/**/*.md`). The relative path drives the `{relpath}`
 / `{path}` / `{dir}` tokens and how much of the source tree a directory-mirror
 target reproduces.
@@ -142,22 +201,78 @@ output/{lang}` reproduces the source tree under each per-language root —
 doubled extension:
 
 ```yaml
-content:
-  - name: Docs
-    base: input
-    items:
-      - path: "input/**/*.md"
-        target: "output/{lang}"
+collections:
+  - path: "input/**/*.md"
+    target: "output/{lang}"
 ```
 
 **Token template (the explicit form).** When you need to reshape the layout, name
 the tokens:
 
 ```yaml
-content:
+collections:
   - path: "src/locales/en/*.json"
     target: "src/locales/{lang}/{name}.{ext}" # api.json → src/locales/fr/api.json
 ```
+
+### Profiles and channels
+
+Content is written for a point in a two-axis space: the **product** it belongs to
+and the **channel** it ships on. The space is structural rather than declared — a
+key under `profiles:` is a product, the channels that profile lists are the
+channels that product ships on, and a collection names the point its content sits
+at with one `channel:` reference.
+
+```yaml
+profiles:
+  bowrain:
+    channels: [app, docs]
+    voice: .kapi/profiles/bowrain/voice.yaml
+  neokapi:
+    channels:
+      - id: docs
+        concept: term:9a1c0f42b7
+      - cli
+    voice: .kapi/voice.yaml
+
+collections:
+  - name: bowrain-app
+    channel: app # only bowrain declares it — the bare form resolves
+    content:
+      - path: "bowrain/packages/app/i18n/**/*.kbf.json"
+  - name: neokapi-docs
+    channel: neokapi/docs # both products ship `docs`, so qualify it
+    content:
+      - path: "web/docs/**/*.mdx"
+```
+
+| Field      | Type              | Description                                                                                       |
+| ---------- | ----------------- | -------------------------------------------------------------------------------------------------- |
+| `channels` | Channel[]         | The surfaces this product ships on. A slug, or `{id, concept}` in long form                        |
+| `voice`    | VoiceBinding      | The voice profile governing this product's content, in the same forms as `defaults.voice`. Unset keeps `defaults.voice` |
+| `terms`    | string            | A standalone terms store governing this product's content, resolved relative to the project root. Unset, the project's own store governs |
+| `concept`  | string            | The concept that names this product, for display. Carried and shape-checked, never resolved during matching |
+
+The map key is the profile's name: the product-axis value its collections carry,
+and the directory under `.kapi/profiles/<name>/` holding the files it overrides.
+A profile that binds neither a voice nor a vocabulary is still a profile — the
+directory is the binding.
+
+Profile names and channels are slugs: lowercase letters, digits and hyphens,
+starting with a letter or digit. They are machine identifiers — stable, never
+translated, comparable byte for byte — which is why a profile or a channel may
+*carry* a concept for display but resolution never looks at it.
+
+A collection's `channel:` is written `profile/channel`, or bare when exactly one
+profile declares that channel. Two profiles declaring the same channel makes the
+bare form ambiguous, and that is a load error naming both qualified spellings
+rather than a silent pick. Binding a channel requires a named collection. A
+collection that binds none is governed by the project default point —
+`defaults.voice` and the project's own terms.
+
+On a connected project, the resolved product and channel travel to the server as
+the content's coordinates, so both venues resolve the same voice for the same
+content.
 
 ### Defaults
 
@@ -177,7 +292,7 @@ content:
 | `memory`           | MemoryDefaults      | Content-memory pre-fill on `kapi extract` and write-back on `kapi merge` (see [memory](#memory))                         |
 | `segmentation`     | SegmentationDefaults | Opt-in sentence-level segmentation overlay applied on extract (see [segmentation](#segmentation))                       |
 | `redaction`        | RedactionSpec       | Replace sensitive content with protected placeholders before processing and restore it afterwards (see [redaction](#redaction)) |
-| `brand_voice`      | VoiceBinding   | Bind a voice profile as standing project context (see [brand_voice](#brand_voice))                                |
+| `voice`            | VoiceBinding        | Bind a voice profile as standing project context (see [voice](#voice)). A profile's own `voice:` overrides it for that product's content |
 | `terms_source`     | string              | Committed, git-tracked native source bundle (a `.terms.json`) the project's terms are compiled from; `kapi apply` edits it and re-imports into the [project store](/kapi/project-store), so `git diff` is the review surface. Binds any path. Unset, kapi falls back to `<root>/.kapi/terms.json` — the conventional home in the committed context graph — then `<root>/terms.json` |
 | `memory_source`    | string              | Committed, git-tracked native source bundle (a `.memory.json`) the project content memory is compiled from — the content-memory analogue of `terms_source`. It has no conventional-location fallback: a project has one approved term list but many memory bundles (one per content surface), so a seed is always named |
 | `flow`             | string              | The project's default flow — the composed flow `kapi up` runs to catch up every locale. A built-in name (e.g. `translate`) or a key in `flows:`. Empty runs the built-in default (recycle → translate) |
@@ -244,10 +359,9 @@ defaults:
     okf_json:
       config:
         useFullKeyPath: true
-content:
+collections:
   - name: Source Files
-    base: input
-    items:
+    content:
       - path: "input/*" # every file; engine auto-detected, two pinned above
         target: "output/{lang}"
 ```
@@ -287,9 +401,11 @@ The sensitive term list lives in a separate rules file referenced by `rules` (so
 | `detectors`   | string[] | Detection backends: `rules` and/or `entities`                            |
 | `placeholder` | string   | Override the visible stand-in template, e.g. `[REDACTED:{category}]`     |
 
-#### brand_voice
+#### voice
 
-Bind a voice profile under `defaults.voice`. Exactly one source is expected.
+Bind a voice profile under `defaults.voice`. Exactly one source is expected. The
+short form is the profile file itself — `voice: .kapi/voice.yaml` — which is what
+a recipe writes when the profile is a file in the project, as it usually is.
 
 | Field          | Type   | Description                                                             |
 | -------------- | ------ | ----------------------------------------------------------------------- |
@@ -471,5 +587,5 @@ kapi translate -i file.json --target-lang fr
 ## See also
 
 - [AD-008: Project model](/contribute/architecture/008-project-model) — the architectural decision behind the `kapi.yaml` recipe and its extension mechanism.
-- [kapi.yaml Project File Format](/contribute/implementation/kapi-project-file) — the implementation note: the `KapiProject`, `Defaults`, and `ContentCollection` struct layouts, the named-collection content shape, validation rules, and how platform extensions decode unknown keys.
+- [kapi.yaml Project File Format](/contribute/implementation/kapi-project-file) — the implementation note: the `KapiProject`, `Defaults`, `Collection` and `Profile` struct layouts, the named-collection content shape, validation rules, and how platform extensions decode unknown keys.
 - [Flow Steps Format](/contribute/implementation/flow-steps-format) — the full step specification used by `flows`.

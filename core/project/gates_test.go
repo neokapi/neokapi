@@ -18,7 +18,7 @@ func loadProject(t *testing.T, src string) *KapiProject {
 
 func TestShipGate_SingleMap(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 ship_gate: { translated: 100, reviewed: 100 }
 `)
@@ -34,7 +34,7 @@ ship_gate: { translated: 100, reviewed: 100 }
 
 func TestShipGates_RuleList_MostSpecificWins(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 ship_gates:
   - when: { collections: [docs] }
@@ -63,7 +63,7 @@ ship_gates:
 
 func TestShipGates_NamedRegistryReference(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 gates:
   machine: { translated: 100, reviewed: 0 }
@@ -83,7 +83,7 @@ ship_gates:
 
 func TestShipGates_UnknownRegistryName(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 ship_gates:
   - gate: missing
@@ -95,7 +95,7 @@ ship_gates:
 
 func TestShipGates_InvalidStateRejected(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 ship_gate: { bogus: 100 }
 `)
@@ -106,7 +106,7 @@ ship_gate: { bogus: 100 }
 
 func TestShipGates_AbsentIsEmpty(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 `)
 	assert.False(t, p.HasShipGates())
@@ -117,7 +117,7 @@ name: app
 }
 
 func TestShipGates_RoundTrip(t *testing.T) {
-	src := `version: v1
+	src := `version: v2
 name: app
 gates:
     machine: {translated: 100, reviewed: 0}
@@ -141,7 +141,7 @@ ship_gates:
 
 func TestShipGate_ApproverClassExtendedForm(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 gates:
   ship: { translated: 100, reviewed: { pct: 100, by: human } }
@@ -166,7 +166,7 @@ ship_gates:
 
 func TestShipGate_UnknownApproverClassRejected(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 ship_gate: { reviewed: { pct: 100, by: robot } }
 `)
@@ -179,7 +179,7 @@ ship_gate: { reviewed: { pct: 100, by: robot } }
 
 func TestVerifiedGate_SingleMap(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 verified_gate: { reviewed: 100 }
 `)
@@ -194,7 +194,7 @@ verified_gate: { reviewed: 100 }
 
 func TestVerifiedGates_RuleList_MostSpecificWins(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 verified_gates:
   - when: { locales: [ja] }
@@ -213,7 +213,7 @@ verified_gates:
 
 func TestVerifiedGates_NamedRegistryReference(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 gates:
   human: { reviewed: { pct: 100, by: human } }
@@ -230,7 +230,7 @@ verified_gates:
 
 func TestVerifiedGates_UnknownRegistryName(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 verified_gates:
   - gate: missing
@@ -243,7 +243,7 @@ verified_gates:
 
 func TestVerifiedGates_InvalidStateRejected(t *testing.T) {
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 verified_gate: { bogus: 100 }
 `)
@@ -256,7 +256,7 @@ func TestVerifiedGates_AbsentIsEmpty(t *testing.T) {
 	// The default: no verified gate configured → nothing resolves a verified
 	// gate → nothing is verified. Ship-gate resolution is untouched.
 	p := loadProject(t, `
-version: v1
+version: v2
 name: app
 ship_gate: { translated: 100 }
 `)
@@ -275,7 +275,7 @@ ship_gate: { translated: 100 }
 }
 
 func TestVerifiedGates_RoundTrip(t *testing.T) {
-	src := `version: v1
+	src := `version: v2
 name: app
 verified_gates:
     - when: {locales: [ja]}

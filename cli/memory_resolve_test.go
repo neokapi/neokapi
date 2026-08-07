@@ -35,12 +35,12 @@ func writeMemoryProject(t *testing.T) (root string) {
 	t.Helper()
 	root = t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
-	recipe := `version: v1
+	recipe := `version: v2
 name: tm
 defaults:
   source_language: en
   target_languages: [fr]
-content:
+collections:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `

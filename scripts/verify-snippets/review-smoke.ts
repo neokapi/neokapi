@@ -46,12 +46,12 @@ await ready;
 
 // A project whose single content file is already fully translated into fr — flat
 // target path (no subdirectory) so it seeds cleanly into the in-memory volume.
-const RECIPE = `version: v1
+const RECIPE = `version: v2
 name: demo
 defaults:
   source_language: en
   target_languages: [fr]
-content:
+collections:
   - path: messages.json
     target: "messages.{lang}.json"
 `;

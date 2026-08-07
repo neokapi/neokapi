@@ -20,7 +20,7 @@ func storeProject(t *testing.T, app *App) (*TabInfo, string) {
 	t.Helper()
 	root := t.TempDir()
 	path := filepath.Join(root, project.RecipeFileName)
-	require.NoError(t, project.Save(path, &project.KapiProject{Version: "v1", Name: "Engine"}))
+	require.NoError(t, project.Save(path, &project.KapiProject{Version: project.CurrentVersion, Name: "Engine"}))
 
 	tab, err := app.OpenProject(path)
 	require.NoError(t, err)

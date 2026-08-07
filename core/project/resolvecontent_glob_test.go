@@ -37,10 +37,10 @@ func TestResolveContent_MalformedPatternFailsNamingTheCollection(t *testing.T) {
 
 	proj := &KapiProject{
 		Version: CurrentVersion,
-		Content: []ContentCollection{
-			{Name: "Docs", Items: []ContentItem{{Path: "docs/*.md"}}},
+		Collections: []Collection{
+			{Name: "Docs", Content: []ContentItem{{Path: "docs/*.md"}}},
 			// Unclosed character class — a plausible hand-edit typo.
-			{Name: "Store", Items: []ContentItem{{Path: "store/[a-.json"}}},
+			{Name: "Store", Content: []ContentItem{{Path: "store/[a-.json"}}},
 		},
 	}
 	ctx := NewProjectContext(proj, filepath.Join(dir, "kapi.yaml"))
@@ -64,8 +64,8 @@ func TestResolveContent_BareEntryMalformedPatternFails(t *testing.T) {
 	registerBuiltIn(reg, "json", ".json")
 
 	proj := &KapiProject{
-		Version: CurrentVersion,
-		Content: []ContentCollection{{Path: "store/{a"}},
+		Version:     CurrentVersion,
+		Collections: []Collection{{Path: "store/{a"}},
 	}
 	ctx := NewProjectContext(proj, filepath.Join(dir, "kapi.yaml"))
 
@@ -90,9 +90,9 @@ func TestResolveContent_PatternMatchingNothingIsNotAnError(t *testing.T) {
 
 	proj := &KapiProject{
 		Version: CurrentVersion,
-		Content: []ContentCollection{
-			{Name: "Docs", Items: []ContentItem{{Path: "docs/*.md"}}},
-			{Name: "Empty", Items: []ContentItem{{Path: "not-written-yet/**/*.json"}}},
+		Collections: []Collection{
+			{Name: "Docs", Content: []ContentItem{{Path: "docs/*.md"}}},
+			{Name: "Empty", Content: []ContentItem{{Path: "not-written-yet/**/*.json"}}},
 		},
 	}
 	ctx := NewProjectContext(proj, filepath.Join(dir, "kapi.yaml"))
@@ -114,9 +114,9 @@ func TestResolveContent_ExcludedToEmptyIsNotAnError(t *testing.T) {
 	registerBuiltIn(reg, "json", ".json")
 
 	proj := &KapiProject{
-		Version:  CurrentVersion,
-		Defaults: Defaults{Exclude: []string{"store/**"}},
-		Content:  []ContentCollection{{Name: "Store", Items: []ContentItem{{Path: "store/*.json"}}}},
+		Version:     CurrentVersion,
+		Defaults:    Defaults{Exclude: []string{"store/**"}},
+		Collections: []Collection{{Name: "Store", Content: []ContentItem{{Path: "store/*.json"}}}},
 	}
 	ctx := NewProjectContext(proj, filepath.Join(dir, "kapi.yaml"))
 

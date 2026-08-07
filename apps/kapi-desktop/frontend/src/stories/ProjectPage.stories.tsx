@@ -16,13 +16,13 @@ type Story = StoryObj<typeof ProjectPage>;
 export const WithContent: Story = {
   args: {
     project: {
-      version: "v1",
+      version: "v2",
       name: "Acme App Localization",
       defaults: {
         source_language: "en-US",
         target_languages: ["fr-FR", "de-DE", "ja-JP"],
       },
-      content: [
+      collections: [
         {
           path: "src/i18n/en/*.json",
           format: { name: "json" },
@@ -30,7 +30,7 @@ export const WithContent: Story = {
         },
         {
           name: "Documentation",
-          items: [{ path: "docs/en/**/*.md", format: { name: "markdown" } }],
+          content: [{ path: "docs/en/**/*.md", format: { name: "markdown" } }],
         },
       ],
       preset: "nextjs",
@@ -53,7 +53,7 @@ export const WithContent: Story = {
 export const Minimal: Story = {
   args: {
     project: {
-      version: "v1",
+      version: "v2",
       name: "New Project",
       defaults: {
         source_language: "en",
@@ -66,7 +66,7 @@ export const Minimal: Story = {
 export const WithFlowsOnly: Story = {
   args: {
     project: {
-      version: "v1",
+      version: "v2",
       name: "QA Pipeline",
       defaults: {
         source_language: "en-US",

@@ -113,7 +113,7 @@ A `kapi.yaml` recipe declares the plugins it needs as a map of name → semver
 constraint:
 
 ```yaml
-version: v1
+version: v2
 name: my-app
 requires:
   myplugin: "^1.0"
@@ -125,12 +125,18 @@ offers to install it and retries; in CI it prints an actionable error pointing a
 `kapi plugin install`.
 
 A recipe can also imply a plugin without naming it: declaring a top-level key
-that a plugin's `schema_extensions` own (`server:`, from the platform plugin) is
+that a plugin's `schema_extensions` own (`bowrain:`, from the platform plugin) is
 the declaration. Typing one of that plugin's verbs without it installed gets the
 same offer rather than an unknown-command error — prompt on a terminal, install
 under `--yes`, then run the verb; both install routes plus exit code 2 in CI or
 under `--quiet`. A mistyped verb is left alone, keeping cobra's suggestions. See
 [AD-007](/contribute/architecture/007-plugin-system#missing-plugin-verbs).
+
+A `schema_extensions` entry may also set `"venue": true`, marking its key as the
+recipe's binding to a remote convergence venue. kapi reads `url:` and
+`converge:` out of that block to decide where `kapi up` runs, and finds the
+block by the flag rather than by the key's name. See
+[AD-007](/contribute/architecture/007-plugin-system#the-venue-extension).
 
 ## Lifecycle commands
 

@@ -42,7 +42,7 @@ export const Default: Story = {
   args: {
     displayName: "Acme App Localization",
     project: {
-      version: "v1",
+      version: "v2",
       name: "Acme App Localization",
       defaults: {
         source_language: "en",
@@ -52,10 +52,10 @@ export const Default: Story = {
         okapi: { framework_version: "^1.47.0", format_priority: 200 },
       },
       preset: "nextjs",
-      content: [
+      collections: [
         {
           name: "Website",
-          items: [{ path: "docs/en/**/*.md", format: { name: "markdown" } }],
+          content: [{ path: "docs/en/**/*.md", format: { name: "markdown" } }],
         },
         {
           path: "src/i18n/en/*.json",
@@ -79,13 +79,13 @@ export const NoFlows: Story = {
   args: {
     displayName: "Starter Project",
     project: {
-      version: "v1",
+      version: "v2",
       name: "Starter Project",
       defaults: {
         source_language: "en",
         target_languages: ["fr"],
       },
-      content: [{ path: "src/locales/en.json", format: { name: "json" } }],
+      collections: [{ path: "src/locales/en.json", format: { name: "json" } }],
     },
   },
 };
@@ -97,32 +97,32 @@ export const WithCoverage: Story = {
     ...Default.args,
     displayName: "KapiMart",
     project: {
-      version: "v1",
+      version: "v2",
       name: "KapiMart",
       defaults: {
         source_language: "en",
         target_languages: ["de", "fr", "ja", "nb", "ar"],
       },
-      content: [
+      collections: [
         {
           name: "Website",
           base: "web/en",
-          items: [{ path: "web/en/**/*.md", target: "web/{lang}", format: { name: "markdown" } }],
+          content: [{ path: "web/en/**/*.md", target: "web/{lang}", format: { name: "markdown" } }],
         },
         {
           name: "Online Store",
           base: "src/en",
-          items: [{ path: "src/en/*.{json,yaml,properties,html}", target: "src/{lang}" }],
+          content: [{ path: "src/en/*.{json,yaml,properties,html}", target: "src/{lang}" }],
         },
         {
           name: "Contracts",
           base: "legal/en",
-          items: [{ path: "legal/en/*.{docx,xlsx}", target: "legal/{lang}" }],
+          content: [{ path: "legal/en/*.{docx,xlsx}", target: "legal/{lang}" }],
         },
         {
           name: "Templates",
           base: "marketing/en",
-          items: [{ path: "marketing/en/*.{pptx,docx}", target: "marketing/{lang}" }],
+          content: [{ path: "marketing/en/*.{pptx,docx}", target: "marketing/{lang}" }],
         },
       ],
       flows: {
@@ -284,13 +284,13 @@ export const ThreeLanguages: Story = {
     ...Default.args,
     displayName: "Acme App Localization",
     project: {
-      version: "v1",
+      version: "v2",
       name: "Acme App Localization",
       defaults: { source_language: "en", target_languages: ["fr", "de", "ja"] },
-      content: [
-        { name: "Website", items: [{ path: "docs/**/*.md", format: { name: "markdown" } }] },
-        { name: "UI Strings", items: [{ path: "src/i18n/en/*.json" }] },
-        { name: "Emails", items: [{ path: "emails/**/*.html" }] },
+      collections: [
+        { name: "Website", content: [{ path: "docs/**/*.md", format: { name: "markdown" } }] },
+        { name: "UI Strings", content: [{ path: "src/i18n/en/*.json" }] },
+        { name: "Emails", content: [{ path: "emails/**/*.html" }] },
       ],
       flows: { translate: { steps: [{ tool: "translate" }] } },
     },

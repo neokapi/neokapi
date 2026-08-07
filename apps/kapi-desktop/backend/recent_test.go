@@ -14,7 +14,7 @@ func createTempKapi(t *testing.T, name string) string {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, name+".kapi")
-	require.NoError(t, os.WriteFile(path, []byte("version: v1\nname: "+name), 0o644))
+	require.NoError(t, os.WriteFile(path, []byte("version: v2\nname: "+name), 0o644))
 	return path
 }
 

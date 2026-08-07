@@ -41,13 +41,13 @@ func processOnlyProjectFixture(t *testing.T, targets []model.LocaleID) (recipe, 
 
 	recipe = filepath.Join(real, project.RecipeFileName)
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "ProcessOnlyTest",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: targets,
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{
 				Path:   "src/locales/en/*.json",
 				Format: &project.FormatSpec{Name: "json"},

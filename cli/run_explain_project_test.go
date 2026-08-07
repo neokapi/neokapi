@@ -25,13 +25,13 @@ func explainProjectFixture(t *testing.T, targets []model.LocaleID) (recipe, root
 
 	recipe = filepath.Join(real, "app.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "ExplainTest",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: targets,
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{
 				Path:   "src/locales/en/*.json",
 				Format: &project.FormatSpec{Name: "json"},

@@ -3972,14 +3972,15 @@ export class ProjectHandles {
 
 /**
  * ProjectServer describes where a project's `kapi up` runs. A project whose
- * recipe declares a `server:` block is Bowrain-connected: the canonical run
+ * recipe declares a `bowrain:` block is Bowrain-connected: the canonical run
  * executes on the server. The desktop still runs the local engine for "Bring
  * up to date", so the UI discloses the venue honestly rather than implying a
  * remote run happened.
  * 
- * The field is decoded from the recipe's `server` extras key (the bowrain
- * schema extension) without taking on any AGPL bowrain dependency — schema is
- * the Apache-2.0 recipe vocabulary the desktop already blank-imports.
+ * The venue is read through KapiProject.Venue, which finds the block by the
+ * registered extension's venue flag rather than by key name — no AGPL bowrain
+ * dependency, since schema is the Apache-2.0 recipe vocabulary the desktop
+ * already imports.
  */
 export class ProjectServer {
     /**
@@ -3989,7 +3990,7 @@ export class ProjectServer {
     constructor($$source = {}) {
         if (!("connected" in $$source)) {
             /**
-             * Connected reports whether the recipe carries a `server:` block with a URL.
+             * Connected reports whether the recipe carries a `bowrain:` block with a URL.
              * @member
              * @type {boolean}
              */

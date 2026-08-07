@@ -41,7 +41,8 @@ The claims below were checked against source. Confirmed unless noted.
 - **Recipe keys** `defaults.flow`, `defaults.jobs`, `defaults.memory_source`,
   `defaults.terms_source`,
   `defaults.locales.<lang>.tools`, `ship_gate`/`ship_gates`/`gates`,
-  `source_gate`, `server:` — all present (`core/project/project.go`).
+  `source_gate`, the venue block (`bowrain:`) — all present
+  (`core/project/project.go`).
 
 **Update (2026-07-18): epic 019 build phases are all merged to main
 (#1311/#1312/#1317/#1319).** The items below were the "to build" gaps at review

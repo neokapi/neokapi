@@ -10,13 +10,13 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 const project: KapiProject = {
-  version: "v1",
+  version: "v2",
   name: "Demo",
   defaults: { source_language: "en-US", target_languages: ["fr-FR", "de-DE"] },
-  content: [
+  collections: [
     {
       name: "ui-strings",
-      items: [{ path: "src/locales/en.json", format: { name: "json" } }],
+      content: [{ path: "src/locales/en.json", format: { name: "json" } }],
     },
   ],
 };

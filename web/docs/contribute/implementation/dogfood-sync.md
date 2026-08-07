@@ -58,12 +58,12 @@ repository's source:
    is conditioned on it, so until it is set the scheduled run and any manual
    dispatch evaluate the gate and skip: no secret is read and no content moves.
 
-The recipe's `server:` block names the compound project URL
+The recipe's `bowrain:` block names the compound project URL
 (`https://<server>/<workspace>/<project-id>`) and carries `converge: manual`, so
 a push moves content but never auto-starts a server run.
 
 To disarm: unset `DOGFOOD_SYNC_ENABLED` (or set it to anything but `true`).
-Re-comment the `server:` block to return the recipe to a pure local project.
+Re-comment the `bowrain:` block to return the recipe to a pure local project.
 Fully reversible.
 
 ## Why convergence is started deliberately

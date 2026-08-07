@@ -57,7 +57,7 @@ Producing, promoting, and releasing stay separate. Each role has a home:
 />
 
 - **A run produces.** A server-side flow over connector content, a push under
-  the `server.converge` policy, or a developer's `kapi up` — each drives every
+  the `bowrain.converge` policy, or a developer's `kapi up` — each drives every
   unit as far up its lifecycle as a flow can take it unaided.
 - **Review promotes.** What a run parks appears in the project's
   [Review surface](/server/review), where a person (or several — decisions are
@@ -158,7 +158,7 @@ Three starters, one server-side run — each suits a different way of working:
     },
     {
       title: "A push policy",
-      sub: "server.converge: on-push",
+      sub: "bowrain.converge: on-push",
       role: "qa",
       steps: ["a push arrives", "the server catches up", "results wait for pull"],
     },
@@ -179,8 +179,8 @@ Three starters, one server-side run — each suits a different way of working:
   [repository connector](/server/connectors/github) turns a push webhook into a
   run and delivers the results as a pull request, with no pipeline in the
   repository at all.
-- **From a push policy.** With `server.converge: on-push` on the recipe's
-  `server:` block, every push triggers a server-side run — the project stays
+- **From a push policy.** With `bowrain.converge: on-push` on the recipe's
+  `bowrain:` block, every push triggers a server-side run — the project stays
   continuously current without anyone running a command. The policy is explicit
   and per-project, the way `git push` triggering CI is a repository policy. See
   [Automation](/server/automation).
@@ -205,7 +205,7 @@ Every surface reads the same derived state:
   app, and an in-flight run can be canceled.
 - **In the terminal**, [`kapi status`](/cli/commands/status) shows the
   per-language coverage grid, the server standing, and the effective venue and
-  `server.converge` policy.
+  `bowrain.converge` policy.
 - **In the review queue**, parked units are the worklist: a run reports them as
   awaiting a person and still exits zero. Parked work is pending review, not an
   error.

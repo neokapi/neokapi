@@ -28,11 +28,11 @@ mkproject() {
   mkdir -p "$dir/.kapi"
   printf '{"greeting":"Hello world","farewell":"Goodbye now","cta":"Sign up today"}' > "$dir/app.json"
   cat > "$dir/kapi.yaml" <<'EOF'
-version: "v1"
+version: "v2"
 name: demo
 defaults:
-  source_locale: en
-  target_locales: [fr-FR]
+  source_language: en
+  target_languages: [fr-FR]
 flows:
   pseudo:
     steps:

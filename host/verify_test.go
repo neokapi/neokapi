@@ -47,14 +47,14 @@ func writeVerifyProject(t *testing.T) (root, targetFile string) {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
 
-	recipe := `version: v1
+	recipe := `version: v2
 name: verify
 defaults:
   source_language: en
   target_languages: [fr]
   voice:
     profile_file: voice.yaml
-content:
+collections:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
@@ -281,13 +281,13 @@ func writeTermsSourceProject(t *testing.T) string {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
 
-	recipe := `version: v1
+	recipe := `version: v2
 name: verifysrc
 defaults:
   source_language: en
   target_languages: [fr]
   terms_source: .kapi/terms.json
-content:
+collections:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
@@ -419,12 +419,12 @@ func writeTermsProjectUnbound(t *testing.T, rel string) string {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
 
-	recipe := `version: v1
+	recipe := `version: v2
 name: verifyconv
 defaults:
   source_language: en
   target_languages: [fr]
-content:
+collections:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `

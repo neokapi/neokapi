@@ -20,13 +20,13 @@ func mergeProjectFixture(t *testing.T, dir string) string {
 	t.Helper()
 	recipe := filepath.Join(dir, "app.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "MergeTest",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{
 				Path:   "src/locales/en/*.json",
 				Format: &project.FormatSpec{Name: "json"},
@@ -122,13 +122,13 @@ func TestMerge_MultipleInputsInOnePass(t *testing.T) {
 	require.NoError(t, err)
 	recipe := filepath.Join(real, "app.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "MultiInput",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR", "de-DE"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{
 				Path:   "src/locales/en/*.json",
 				Format: &project.FormatSpec{Name: "json"},
@@ -214,14 +214,14 @@ func TestMerge_ConflictPolicyExistingWins(t *testing.T) {
 	require.NoError(t, err)
 	recipe := filepath.Join(real, "app.kapi")
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "ExistingWins",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR"},
 			Merge:           project.MergeDefaults{ConflictPolicy: project.ConflictPolicyExistingWins},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{
 				Path:   "src/locales/en/*.json",
 				Format: &project.FormatSpec{Name: "json"},

@@ -53,7 +53,7 @@
       {
         "prefix": "bowrain",
         "app": "bowrain",
-        "description": "Per-machine Bowrain defaults (the project's own server: block lives in the recipe)",
+        "description": "Per-machine Bowrain defaults (the project's own bowrain: block lives in the recipe)",
         "keys": [
           {"key": "server.url", "description": "Default Bowrain server URL offered by `kapi init`"}
         ]

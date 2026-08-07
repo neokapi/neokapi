@@ -24,12 +24,12 @@ func parseRecipe(t *testing.T, body string) *KapiProject {
 // project.
 func TestExecSurfaceEmptyForOrdinaryRecipes(t *testing.T) {
 	cases := map[string]string{
-		"bare": "version: v1\n",
-		"content and flows": `version: v1
+		"bare": "version: v2\n",
+		"content and flows": `version: v2
 defaults:
   source_language: en
   target_languages: [nb, de]
-content:
+collections:
   - path: docs/**/*.md
 flows:
   default:
@@ -37,7 +37,7 @@ flows:
       - tool: translate
       - tool: term-check
 `,
-		"tool presets": `version: v1
+		"tool presets": `version: v2
 defaults:
   tools:
     translate:
@@ -48,8 +48,8 @@ defaults:
         redact:
           entities: true
 `,
-		"named format": `version: v1
-content:
+		"named format": `version: v2
+collections:
   - path: app/**/*.json
     format:
       name: i18next
@@ -69,7 +69,7 @@ content:
 // branch, the retired source_transforms stage, a per-locale tool preset, and a
 // format binding on a single content item.
 func TestExecSurfaceFindsEveryArm(t *testing.T) {
-	sites := ExecSurface(parseRecipe(t, `version: v1
+	sites := ExecSurface(parseRecipe(t, `version: v2
 flows:
   default:
     steps:
@@ -96,13 +96,13 @@ defaults:
       tools:
         script:
           scriptFile: ./hook.js
-content:
+collections:
   - path: a/**
     format:
       name: exec
       config:
         command: /bin/cat
-    items:
+    content:
       - path: b.txt
         format:
           name: exec
@@ -118,8 +118,8 @@ content:
 		"flows.default.source_transforms[0]",
 		"defaults.tools.external-command",
 		"defaults.locales.nb.tools.script",
-		"content[0].format",
-		"content[0].items[0].format",
+		"collections[0].format",
+		"collections[0].content[0].format",
 	}, where)
 }
 
@@ -127,7 +127,7 @@ content:
 // person can judge the argv rather than the tool's name, so the summary has to
 // carry it.
 func TestExecSurfaceDetailNamesWhatWouldRun(t *testing.T) {
-	sites := ExecSurface(parseRecipe(t, `version: v1
+	sites := ExecSurface(parseRecipe(t, `version: v2
 flows:
   default:
     steps:
@@ -176,7 +176,7 @@ func TestExecSurfaceDetailIsClipped(t *testing.T) {
 // decision depends on. Editing the parts of a recipe people edit daily must
 // keep a decision valid; editing what would run must invalidate it.
 func TestExecSurfaceDigestTracksTheArgvNotTheRecipe(t *testing.T) {
-	const base = `version: v1
+	const base = `version: v2
 defaults:
   target_languages: [nb]
 flows:
@@ -203,7 +203,7 @@ flows:
 	})
 
 	t.Run("unchanged by config key order", func(t *testing.T) {
-		assert.Equal(t, baseDigest, digestOf(`version: v1
+		assert.Equal(t, baseDigest, digestOf(`version: v2
 defaults:
   target_languages: [nb]
 flows:

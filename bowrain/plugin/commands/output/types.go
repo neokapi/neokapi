@@ -5,6 +5,8 @@ import (
 	"io"
 	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 )
 
 // StatusOutput represents sync status.
@@ -37,7 +39,7 @@ func (s StatusOutput) FormatText(w io.Writer) error {
 
 	if s.Project.Server == "" {
 		fmt.Fprintln(w, "\nNot connected to a server.")
-		fmt.Fprintln(w, "  Run 'kapi init' with a server, or add a `server:` block to the recipe.")
+		fmt.Fprintf(w, "  Run 'kapi init' with a server, or add a `%s:` block to the recipe.\n", schema.VenueKey)
 		return nil
 	}
 

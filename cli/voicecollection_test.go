@@ -14,8 +14,8 @@ import (
 // A repository holding two products binds a different voice per collection, so
 // the ad-hoc brand commands must answer for the file in front of them. They
 // resolved defaults.voice whatever the path, which handed back the wrong
-// register for half the tree: coordinates governed the flow path and nothing
-// else.
+// register for half the tree: the context space governed the flow path and
+// nothing else.
 func TestResolveVoiceProfileCmd_UsesTheFilesCollection(t *testing.T) {
 	root := writeTwoProductProject(t)
 	t.Chdir(root)
@@ -26,13 +26,13 @@ func TestResolveVoiceProfileCmd_UsesTheFilesCollection(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "platform voice", got.Name,
-		"a file in a bowrain-coordinate collection resolves the bowrain profile")
+		"a file in a bowrain-channel collection resolves the bowrain profile")
 
 	got, _, err = a.ResolveVoiceProfileCmd(brandProbeCmd(a), filepath.Join("engine", "meta.json"))
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "engine voice", got.Name,
-		"a file in a kapi-coordinate collection resolves the kapi profile")
+		"a file in a kapi-channel collection resolves the kapi profile")
 }
 
 // A path no collection claims falls back to the project default — the answer
@@ -92,29 +92,28 @@ func writeTwoProductProject(t *testing.T) string {
 	write("mail/en.json", `{"b":"two"}`)
 	write("README.md", "# claimed by no collection\n")
 
-	write("kapi.yaml", `version: v1
+	write("kapi.yaml", `version: v2
 defaults:
   source_language: en
   target_languages: [nb]
   voice:
     profile_file: voices/default.yaml
-coordinates:
-  product: [kapi, bowrain]
-  channel: [engine, email]
 profiles:
-  - when: { product: kapi }
+  kapi:
+    channels: [engine]
     voice: voices/engine.yaml
-  - when: { product: bowrain }
+  bowrain:
+    channels: [email]
     voice: voices/platform.yaml
-content:
+collections:
   - name: kapi-engine
-    context: { product: kapi, channel: engine }
-    items:
+    channel: kapi/engine
+    content:
       - path: engine/**/*.json
         target: engine/{lang}/{filename}
   - name: bowrain-email
-    context: { product: bowrain, channel: email }
-    items:
+    channel: bowrain/email
+    content:
       - path: mail/**/*.json
         target: mail/{lang}/{filename}
 `)

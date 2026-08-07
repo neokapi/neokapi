@@ -26,7 +26,7 @@ there is no separate `bowrain` binary. Every command below is invoked as `kapi
 
 ## The project model
 
-A connected project is a kapi project whose recipe declares a `server:` block:
+A connected project is a kapi project whose recipe declares a `bowrain:` block:
 
 - **`kapi.yaml`** — the recipe (committed): languages, content collections,
   flows, plugins, brand, and the server connection

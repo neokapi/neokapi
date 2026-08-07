@@ -245,7 +245,7 @@ A `kapi.yaml` recipe declares plugin dependencies as a map of plugin
 name to semver constraint:
 
 ```yaml
-version: v1
+version: v2
 name: my-app
 requires:
   myplugin: "^1.0"
@@ -258,10 +258,28 @@ in CI it prints an actionable error pointing at `kapi plugin install`.
 The bare-list form (`requires: [myplugin]`) is rejected with an
 actionable migration hint.
 
+### The venue extension
+
+A `schema_extensions` entry may set `"venue": true`. That marks the key as the
+recipe's binding to a remote convergence venue — a server that holds the content
+memory, runs the loop on org keys, and carries a review queue — and it is how
+kapi finds the binding without knowing the key's name. The framework reads
+exactly two fields out of the block, `url:` and `converge:`, to decide where
+`kapi up` runs; everything else under it is the plugin's own schema. At most one
+key across all installed plugins should claim the flag. bowrain's is `bowrain:`:
+
+```json
+{"name": "bowrain", "scope": "project", "group": "bowrain", "venue": true}
+```
+
+`kapi` links no platform, and a recipe key it cannot name is a key it cannot
+grow an opinion about — so an unregistered key of the same name, in a binary
+without the plugin, reports no venue and no opinion.
+
 ### Missing-plugin verbs
 
 A recipe need not spell out `requires:` to imply a plugin. Declaring a
-top-level key that a plugin's `schema_extensions` own — `server:`, owned by the
+top-level key that a plugin's `schema_extensions` own — `bowrain:`, owned by the
 platform plugin — is itself the declaration, and the key survives untouched in
 the recipe when the plugin that would decode it is absent.
 
@@ -368,12 +386,12 @@ A plugin can declare recipe schema keys it owns:
 ```json
 {
   "schema_extensions": [
-    { "name": "server", "scope": "project", "json_schema": "schemas/server.json" }
+    { "name": "myplugin", "scope": "project", "json_schema": "schemas/myplugin.json" }
   ]
 }
 ```
 
-At plugin-register time, kapi loads `<plugin-dir>/schemas/server.json`,
+At plugin-register time, kapi loads `<plugin-dir>/schemas/myplugin.json`,
 compiles it via `github.com/google/jsonschema-go`, and registers an
 extension decoder with `core/project`. When a recipe is loaded, the
 decoder validates the YAML payload against the compiled schema.

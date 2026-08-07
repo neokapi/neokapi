@@ -19,12 +19,12 @@ func writeStatusProject(t *testing.T) string {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
 
-	recipe := `version: v1
+	recipe := `version: v2
 name: status
 defaults:
   source_language: en
   target_languages: [nb, ja]
-content:
+collections:
   - path: en.json
     target: "{lang}.json"
 ship_gates:
@@ -51,18 +51,18 @@ func writeCollectionProject(t *testing.T) string {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "docs"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "ui"), 0o755))
 
-	recipe := `version: v1
+	recipe := `version: v2
 name: coll
 defaults:
   source_language: en
   target_languages: [nb]
-content:
+collections:
   - name: docs
-    items:
+    content:
       - path: docs/a.md
         target: "{lang}/docs/a.md"
   - name: ui
-    items:
+    content:
       - path: ui/b.json
         target: "{lang}/ui/b.json"
 ship_gates:
@@ -104,12 +104,12 @@ func writeSourceGateProject(t *testing.T, sourceGate string) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	recipe := `version: v1
+	recipe := `version: v2
 name: src
 defaults:
   source_language: en
   target_languages: [nb]
-content:
+collections:
   - path: en.json
     target: "{lang}.json"
 ` + sourceGate + "\n"
@@ -193,12 +193,12 @@ func findGate(out verifyOutput, name string) (verifyGateResult, bool) {
 func TestStatus_UnreadableTargetFallsBackToPresence(t *testing.T) {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	recipe := `version: v1
+	recipe := `version: v2
 name: mo
 defaults:
   source_language: en
   target_languages: [nb]
-content:
+collections:
   - path: en.json
     target: "{lang}.mo"
 `
@@ -268,12 +268,12 @@ func writeVerifiedGateProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	recipe := `version: v1
+	recipe := `version: v2
 name: verified
 defaults:
   source_language: en
   target_languages: [nb, de]
-content:
+collections:
   - path: en.json
     target: "{lang}.json"
 ship_gate: { translated: 0 }
@@ -408,16 +408,18 @@ func TestStatus_NeverFails(t *testing.T) {
 	assert.NoError(t, err, "status must never return a non-nil error for drift")
 }
 
-// A recipe with a server: block reports the effective convergence venue —
+// A recipe with a venue block reports the effective convergence venue —
 // degraded to local (with a note) when no plugin provides the server-up
 // plumbing. A plain local recipe reports no venue at all: nothing ambiguous.
 func TestStatus_VenueLine(t *testing.T) {
+	registerVenue(t)
+
 	root := writeStatusProject(t)
 	recipePath := filepath.Join(root, "kapi.yaml")
 	recipe, err := os.ReadFile(recipePath)
 	require.NoError(t, err)
-	withServer := string(recipe) + "\nserver:\n  url: https://bowrain.example/acme/demo\n  converge: on-push\n"
-	require.NoError(t, os.WriteFile(recipePath, []byte(withServer), 0o644))
+	withVenue := string(recipe) + "\nbowrain:\n  url: https://bowrain.example/acme/demo\n  converge: on-push\n"
+	require.NoError(t, os.WriteFile(recipePath, []byte(withVenue), 0o644))
 
 	t.Chdir(root)
 	a := &App{}
@@ -431,7 +433,7 @@ func TestStatus_VenueLine(t *testing.T) {
 
 	var got StatusOutput
 	require.NoError(t, json.Unmarshal([]byte(out), &got))
-	require.NotNil(t, got.Venue, "a server: recipe must report its venue")
+	require.NotNil(t, got.Venue, "a venue-bound recipe must report its venue")
 	assert.Equal(t, "local", got.Venue.Venue, "without the server-up plumbing the venue degrades to local")
 	assert.Equal(t, "on-push", got.Venue.ConvergePolicy)
 	assert.Contains(t, got.Venue.Note, "plugin not installed")

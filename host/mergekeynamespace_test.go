@@ -58,7 +58,7 @@ func newProcessOnlyProject(t *testing.T) (*App, string, string) {
 			TargetLanguages: []model.LocaleID{"fr"},
 			SourceGate:      string(model.SourceGateNone),
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Name: "app", Path: "src/en.json", Target: "src/{lang}.json"},
 		},
 	}

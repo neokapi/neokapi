@@ -27,10 +27,12 @@ import { ErrorProvider } from "../components/ErrorBanner";
 import type { KapiProject, ProjectStatus } from "../types/api";
 
 const project: KapiProject = {
-  version: "v1",
+  version: "v2",
   name: "Demo",
   defaults: { source_language: "en-US", target_languages: ["fr-FR"] },
-  content: [{ name: "Website", items: [{ path: "docs/**/*.md", format: { name: "markdown" } }] }],
+  collections: [
+    { name: "Website", content: [{ path: "docs/**/*.md", format: { name: "markdown" } }] },
+  ],
   flows: { translate: { steps: [{ tool: "translate" }] } },
 };
 

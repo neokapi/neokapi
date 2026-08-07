@@ -47,7 +47,7 @@ kapi status
 ### Server Connection
 
 - Requires a `server.url` field on the recipe (the compound URL encodes the project ID)
-- If the `server:` block is missing, shows a message directing you to add one
+- If the `bowrain:` block is missing, shows a message directing you to add one
 
 ### Terminology and Venue
 
@@ -55,7 +55,7 @@ kapi status
   into the local terms store (concept/relation counts), or `never synced` when
   no concept pull has run — refresh it with `kapi pull --concepts`
 - **venue**: where `kapi up` would run the kapi loop (`server` or
-  `local`) and the recipe's `server.converge` policy
+  `local`) and the recipe's `bowrain.converge` policy
 
 ### Sync Cache
 
@@ -85,7 +85,7 @@ until the next sync re-establishes the baseline.
 
 `kapi status` performs:
 
-1. **Scan local files** via FormatRegistry (using the recipe's `content:` collections)
+1. **Scan local files** via FormatRegistry (using the recipe's `collections:`)
 2. **Extract blocks** and compute content hashes
 3. **Diff hashes** against `.kapi/work/cache/sync-cache.json` -> count changed blocks (pending push)
 4. **Query server** for changes since last sync cursor -> count pending pull (if cursor > 0)

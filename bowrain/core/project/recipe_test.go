@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	_ "github.com/neokapi/neokapi/bowrain/plugin/schema" // ensure decoders are registered
+	"github.com/neokapi/neokapi/bowrain/plugin/schema" // ensure decoders are registered
 
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
@@ -15,17 +15,17 @@ import (
 
 func TestLoadRecipe_RoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	src := `version: v1
+	src := `version: v2
 name: my-app
 defaults:
   source_language: en-US
   target_languages:
     - fr-FR
     - de-DE
-content:
+collections:
   - path: src/locales/**/*.json
     format: json
-server:
+bowrain:
   url: https://bowrain.example.com/team/proj
   stream: $auto
 hooks:
@@ -50,11 +50,11 @@ brand_voice:
 	require.NoError(t, err)
 
 	// Embedded framework fields decode normally.
-	assert.Equal(t, "v1", r.Version)
+	assert.Equal(t, coreproj.CurrentVersion, r.Version)
 	assert.Equal(t, "my-app", r.Name)
 	assert.Equal(t, "en-US", string(r.Defaults.SourceLanguage))
-	require.Len(t, r.Content, 1)
-	assert.Equal(t, "src/locales/**/*.json", r.Content[0].Path)
+	require.Len(t, r.Collections, 1)
+	assert.Equal(t, "src/locales/**/*.json", r.Collections[0].Path)
 
 	// Bowrain extension fields decode into typed slots.
 	require.NotNil(t, r.Server)
@@ -108,14 +108,14 @@ func TestSaveRecipe_RoundTripPreservesBowrainFields(t *testing.T) {
 func TestLoadRecipe_RejectsInvalidServerURL(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bad.kapi")
-	require.NoError(t, os.WriteFile(path, []byte(`version: v1
-server:
+	require.NoError(t, os.WriteFile(path, []byte(`version: v2
+bowrain:
   url: "not a url"
 `), 0o644))
 
 	_, err := LoadRecipe(path)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "server")
+	assert.Contains(t, err.Error(), schema.VenueKey)
 	assert.Contains(t, err.Error(), "url")
 }
 
@@ -145,7 +145,7 @@ func TestRecipe_AssetsEnabled_DefaultsTrue(t *testing.T) {
 func TestRecipe_DefaultCollection_FromExtras(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.kapi")
-	require.NoError(t, os.WriteFile(path, []byte(`version: v1
+	require.NoError(t, os.WriteFile(path, []byte(`version: v2
 defaults:
   source_language: en-US
   collection: ui-strings
@@ -182,7 +182,7 @@ func TestFindRecipe_WalksUpward(t *testing.T) {
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "deep", "nested"), 0o755))
 	recipePath := filepath.Join(root, coreproj.RecipeFileName)
-	require.NoError(t, os.WriteFile(recipePath, []byte(`version: v1
+	require.NoError(t, os.WriteFile(recipePath, []byte(`version: v2
 name: myapp
 `), 0o644))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, ".kapi"), 0o755))
@@ -227,9 +227,9 @@ func TestFrameworkLoad_PreservesUnknownExtras(t *testing.T) {
 	// of arbitrary future-tomorrow keys is the framework loader's job.)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.kapi")
-	src := `version: v1
+	src := `version: v2
 name: my-app
-server:
+bowrain:
   url: https://bowrain.example.com/team/proj
 some_future_thing:
   alpha: 1
@@ -242,8 +242,8 @@ some_future_thing:
 	require.NotNil(t, p.Extras)
 	_, present := p.Extras["some_future_thing"]
 	assert.True(t, present, "unknown key must be captured in framework Extras")
-	_, hasServer := p.Extras["server"]
-	assert.True(t, hasServer, "bowrain extension keys captured in framework Extras")
+	_, hasVenue := p.Extras[schema.VenueKey]
+	assert.True(t, hasVenue, "bowrain extension keys captured in framework Extras")
 
 	// Save and reload — the unknown key must survive.
 	out := filepath.Join(dir, "out.kapi")
@@ -253,5 +253,5 @@ some_future_thing:
 	require.NoError(t, err)
 	assert.True(t, strings.Contains(string(raw), "some_future_thing"), "saved YAML must contain unknown key")
 	assert.True(t, strings.Contains(string(raw), "alpha"), "nested fields preserved")
-	assert.True(t, strings.Contains(string(raw), "server"), "bowrain extension preserved")
+	assert.True(t, strings.Contains(string(raw), schema.VenueKey+":"), "bowrain extension preserved")
 }

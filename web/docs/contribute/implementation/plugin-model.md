@@ -37,10 +37,12 @@ type ExtensionDecoder interface {
 type Scope int  // ScopeProject | ScopeDefaults | ScopeCollection | ScopeItem
 
 type Extension struct {
-    Name    string
-    Scope   Scope
-    Group   string
-    Decoder ExtensionDecoder
+    Name      string
+    Scope     Scope
+    Group     string
+    Decoder   ExtensionDecoder
+    DependsOn string
+    Venue     bool
 }
 
 func RegisterExtension(ext Extension)
@@ -50,9 +52,9 @@ func HasExtensionGroup(group string) bool
 
 `Scope` decides which `Extras` map a key is matched against:
 
-- `ScopeProject` — top-level keys on the recipe (e.g. `server:`, `hooks:`)
+- `ScopeProject` — top-level keys on the recipe (e.g. `bowrain:`, `hooks:`)
 - `ScopeDefaults` — keys nested under `defaults:`
-- `ScopeCollection` — keys on a `ContentCollection` (named-collection wrapper or bare entry)
+- `ScopeCollection` — keys on a `Collection` (named-collection wrapper or bare entry)
 - `ScopeItem` — keys on a `ContentItem` (per-item fields)
 
 Re-registering the same `(Scope, Name)` pair panics — competing init functions are almost always a bug. Pure-name matches across scopes don't conflict (`collection` at `ScopeItem` and `ScopeDefaults` are distinct).
@@ -60,6 +62,10 @@ Re-registering the same `(Scope, Name)` pair panics — competing init functions
 `Group` lets a recipe declare `requires: { gitlab: "*" }` and have validation fail when no extension under that group has been registered. Use this when a recipe is meaningless without that plugin's behavior — `gitlab-push` won't work without the gitlab plugin installed, so a recipe using the `gitlab:` block typically declares `requires: { gitlab: "*" }`. The map form is mandatory: each entry maps a plugin name to a semver constraint, with `"*"` meaning any version. The bare-list form (`requires: [gitlab]`) is rejected with an actionable error.
 
 `HasExtensionGroup` is consulted by `KapiProject.Validate()` to enforce `requires:`. Plugins typically don't need to call it directly.
+
+`DependsOn` names a sibling key at the same scope that must be present for this one to have any effect — bowrain's `hooks:`/`automations:` depend on `bowrain:`. A recipe that sets the dependent key without its dependency parses fine; the host reports the field as inert rather than failing the load.
+
+`Venue: true` marks the key as the recipe's binding to a remote convergence venue. The framework reads `url:` and `converge:` out of it through `KapiProject.Venue()` and asks the registry which extension holds the flag rather than looking for a key by name — `kapi` links no platform, and a key it cannot name is a key it cannot grow an opinion about. `VenueKey()` answers the same question with no recipe in hand, so a message about an absent block can still name the block to add. At most one key across all installed plugins should claim it.
 
 ### Forward compatibility
 
@@ -169,14 +175,14 @@ func init() {
 ### Recipe
 
 ```yaml
-version: v1
+version: v2
 name: my-app
 requires:
   gitlab: "*"
 gitlab:
   url: https://gitlab.example.com/team/project
   branch: main
-content:
+collections:
   - path: src/locales/**/*.json
     format: json
 ```

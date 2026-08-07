@@ -9,7 +9,7 @@ export interface KapiProject {
   name: string;
   plugins?: Record<string, PluginSpec>;
   defaults?: ProjectDefaults;
-  content?: ContentCollection[];
+  collections?: Collection[];
   preset?: string;
   flows?: Record<string, FlowSpec>;
 }
@@ -39,22 +39,29 @@ export interface FormatDefaults {
 }
 
 /**
- * A content collection is either a bare entry (has path, no items) or a
- * named collection (has name and items).
+ * A collection is either a bare entry (has path, no content) or a named
+ * collection (has name and content).
  */
-export interface ContentCollection {
+export interface Collection {
   // Collection fields (long form).
   name?: string;
   source_language?: string;
   target_languages?: string[];
-  items?: ContentItem[];
+  content?: ContentItem[];
+
+  /** Directory this collection lives in: a prefix joined onto every content
+   * path, target and item base below it. */
+  base?: string;
+
+  /** The point in the project's context space this collection's content sits
+   * at: `profile/channel`, or a bare `channel` when exactly one profile
+   * declares it. */
+  channel?: string;
 
   // Bare entry fields (short form — promoted from ContentItem).
   path?: string;
   format?: FormatSpec;
   target?: string;
-  /** Directory the source path is made relative to for target resolution. */
-  base?: string;
 
   // Optional archived-state marker; gates the Translation-state section in
   // the CollectionsPanel (absent on most collections).
@@ -684,7 +691,7 @@ export type { ConvergenceEvent as ConvergeEvent } from "@neokapi/status-views";
 
 /**
  * Where a project's `kapi up` runs (backend ProjectServer). A recipe with a
- * `server:` block is Bowrain-connected — the canonical run executes on the
+ * `bowrain:` block is Bowrain-connected — the canonical run executes on the
  * server; the desktop still runs the local engine, so the UI discloses the
  * venue rather than implying a remote run.
  */
@@ -783,17 +790,36 @@ export type ProjectView =
 // Union for convenience
 export type View = AdhocView | ProjectView;
 
-// --- Helper functions for content collections ---
+// --- Helper functions for collections ---
 
-/** Check if a content collection is a bare entry (has path, no items). */
-export function isBareEntry(c: ContentCollection): boolean {
-  return !!c.path && (!c.items || c.items.length === 0);
+/** Check if a collection is a bare entry (has path, no content). */
+export function isBareEntry(c: Collection): boolean {
+  return !!c.path && (!c.content || c.content.length === 0);
 }
 
-/** Get effective items for a collection (wraps bare entries as single-item array). */
-export function effectiveItems(c: ContentCollection): ContentItem[] {
-  if (isBareEntry(c)) {
-    return [{ path: c.path!, format: c.format, target: c.target }];
-  }
-  return c.items ?? [];
+/**
+ * Get effective items for a collection: bare entries wrap as a single-item
+ * array, and the collection's base is folded into every path, target and item
+ * base, so callers see project-relative paths. Mirrors Go's
+ * Collection.EffectiveItems.
+ */
+export function effectiveItems(c: Collection): ContentItem[] {
+  const items: ContentItem[] = isBareEntry(c)
+    ? [{ path: c.path!, format: c.format, target: c.target }]
+    : (c.content ?? []);
+  const base = c.base;
+  if (!base) return items;
+  return items.map((item) => ({
+    ...item,
+    path: joinBase(base, item.path),
+    target: item.target ? joinBase(base, item.target) : item.target,
+    base: item.base ? joinBase(base, item.base) : item.base,
+  }));
+}
+
+/** Prefix a collection-relative path with the collection's base. Mirrors Go's
+ * project.JoinBase: an empty or absolute path is left alone. */
+function joinBase(base: string, p: string): string {
+  if (!p || p.startsWith("/")) return p;
+  return base.replace(/\/+$/, "") + "/" + p;
 }

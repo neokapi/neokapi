@@ -171,7 +171,7 @@ function buildProjectFile(
   const block = configBlock(values, schema);
   const configSection = block ? `\n      config:\n${block}` : "";
   return [
-    "version: v1",
+    "version: v2",
     `name: ref-${entry.id}`,
     "flows:",
     `  my-flow:`,

@@ -23,7 +23,7 @@ func TestLocalePresets_AppliedPerLocale(t *testing.T) {
 	require.NoError(t, err)
 
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "LocalePresets",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
@@ -38,7 +38,7 @@ func TestLocalePresets_AppliedPerLocale(t *testing.T) {
 				}},
 			},
 		},
-		Content: []project.ContentCollection{{
+		Collections: []project.Collection{{
 			Path:   "en.json",
 			Format: &project.FormatSpec{Name: "json"},
 			Target: "{lang}.json",

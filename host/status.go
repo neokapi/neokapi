@@ -22,13 +22,13 @@ type StatusOutput struct {
 	Source  *SourceCoverage  `json:"source,omitempty"`
 	Locales []LocaleCoverage `json:"locales"`
 	// Server is the connected-server delta, contributed by the bowrain plugin's
-	// server-status plumbing when the recipe has a server: block. Absent for a
-	// pure local project. The cli module stays platform-neutral: it is populated
-	// by shelling the plugin, never by importing bowrain.
+	// server-status plumbing when the recipe binds a convergence venue. Absent
+	// for a pure local project. The cli module stays platform-neutral: it is
+	// populated by shelling the plugin, never by importing bowrain.
 	Server *StatusServerSection `json:"server,omitempty"`
 	// Venue reports where `kapi up` would run the convergence loop. Present
-	// only when the recipe declares a server: block — the venue of a plain
-	// local project is not ambiguous, so it stays silent.
+	// only when the recipe binds one — the venue of a plain local project is
+	// not ambiguous, so it stays silent.
 	Venue *StatusVenue `json:"venue,omitempty"`
 	// Staged counts decisions recorded but not yet written to the project's
 	// committed record. Omitted when there are none, so a clean project stays

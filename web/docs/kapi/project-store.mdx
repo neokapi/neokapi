@@ -35,7 +35,7 @@ migration ledger: the block cache, the terms store, the content memory, the
 unit-state working set, and the property graph (`graph_nodes` / `graph_edges`)
 that links a term to the blocks that use it, a state record to the unit it blesses,
 and both to their
-[context coordinates](/contribute/implementation/kapi-project-file#context-coordinates).
+[context coordinates](/contribute/implementation/kapi-project-file#the-context-space).
 
 It sits at the **top** of `.kapi/work/`, not under `cache/`, and the distinction
 is the whole point: `rm -rf .kapi/work/cache` is completely free, while

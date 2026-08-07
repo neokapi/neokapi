@@ -19,14 +19,14 @@ func writeMCPReviewProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "1")
 	root := t.TempDir()
-	recipe := `version: v1
+	recipe := `version: v2
 name: rev
 defaults:
   source_language: en
   target_languages: [nb]
-content:
+collections:
   - name: app
-    items:
+    content:
       - path: en.json
         target: "{lang}.json"
 ship_gate: { translated: 100, reviewed: 100 }

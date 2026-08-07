@@ -32,10 +32,12 @@ import { ErrorProvider } from "../components/ErrorBanner";
 import type { KapiProject, OutputFileInfo } from "../types/api";
 
 const project: KapiProject = {
-  version: "v1",
+  version: "v2",
   name: "Demo",
   defaults: { source_language: "en-US", target_languages: ["de", "fr"] },
-  content: [{ name: "Website", items: [{ path: "src/en-US/*.txt", target: "src/{lang}/*.txt" }] }],
+  collections: [
+    { name: "Website", content: [{ path: "src/en-US/*.txt", target: "src/{lang}/*.txt" }] },
+  ],
 };
 
 function out(lang: string, relative: string, exists = true): OutputFileInfo {

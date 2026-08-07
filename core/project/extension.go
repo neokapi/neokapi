@@ -29,7 +29,7 @@ const (
 	ScopeProject Scope = iota
 	// ScopeDefaults is the Extras map on Defaults.
 	ScopeDefaults
-	// ScopeCollection is the Extras map on a ContentCollection.
+	// ScopeCollection is the Extras map on a Collection.
 	ScopeCollection
 	// ScopeItem is the Extras map on a ContentItem.
 	ScopeItem
@@ -70,7 +70,7 @@ type Extension struct {
 	Decoder ExtensionDecoder
 	// DependsOn optionally names a sibling extras key at the same scope
 	// that must be present for this extension to have any effect (e.g.
-	// bowrain's hooks/automations depend on "server" — they only run
+	// bowrain's hooks/automations depend on "bowrain" — they only run
 	// around push/pull). A recipe that sets this key without its
 	// dependency parses fine but the field is inert; hosts surface that
 	// via InertProjectExtras rather than failing the load.
@@ -171,7 +171,7 @@ func extensionFor(scope Scope, name string) (Extension, bool) {
 type InertExtra struct {
 	// Name is the inert extras key (e.g. "automations").
 	Name string
-	// DependsOn is the missing sibling key it needs (e.g. "server").
+	// DependsOn is the missing sibling key it needs (e.g. "bowrain").
 	DependsOn string
 }
 

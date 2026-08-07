@@ -187,7 +187,7 @@ export function useTabManager() {
         const tab = await api.newProject(name, sourceLang, [], savePath);
         if (tab) {
           const proj = await api.getProject(tab.id);
-          await addTab(tab, proj ?? { version: "v1", name: tab.name });
+          await addTab(tab, proj ?? { version: "v2", name: tab.name });
         }
         setShowNewProjectForm(false);
       } catch (err) {
@@ -268,7 +268,7 @@ export function useTabManager() {
             if (!tab) continue;
             const proj = await api.getProject(tab.id);
             if (cancelled) return;
-            await addTab(tab, proj ?? { version: "v1", name: tab.name });
+            await addTab(tab, proj ?? { version: "v2", name: tab.name });
             openedByPath.set(path, tab.id);
           } catch {
             // Skip projects that no longer open (moved/deleted recipe).

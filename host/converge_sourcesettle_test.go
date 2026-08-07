@@ -55,7 +55,7 @@ func newSourceSettleProject(t *testing.T, sourceGate string) (*App, *EnvCommand,
 			Flow:            "translate",
 			SourceGate:      sourceGate,
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Name: "app", Path: "src/en.json", Target: "src/{lang}.json"},
 		},
 		Flows: map[string]*flow.StepsSpec{

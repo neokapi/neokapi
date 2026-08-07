@@ -42,7 +42,7 @@ var upCmd = &cobra.Command{
 flow over all content across every target language, looping until every gated
 scope ships or is parked for a human.
 
-In a server-connected project (a recipe with a server: block) the loop runs on
+In a server-connected project (a recipe with a bowrain: block) the loop runs on
 the Bowrain server by default — on the org's keys, against the org's Memory and
 terminology — and this command pushes local changes, streams the server run's
 live progress, and pulls the produced targets when the run finishes. Parked
@@ -55,7 +55,7 @@ workspace brand hub by name; --no-brand skips the profile).
   --local   run the loop on this machine instead, then push the results so the
             server stays up to date.
 
-Without a server: block the command is the local loop, identical to kapi up in
+Without a bowrain: block the command is the local loop, identical to kapi up in
 the open-source binary.
 
 --plan is always computed locally against the working tree (no server call): it

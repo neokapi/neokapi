@@ -63,7 +63,7 @@ vocabulary:
 // flag, brand resolution falls back to defaults.voice.profile_file in
 // the .kapi recipe, resolved relative to the project root.
 func TestResolveVoiceProfile_FromProjectBinding(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v1
+	root := writeProjectRecipe(t, `version: v2
 name: proj
 defaults:
   source_language: en
@@ -88,7 +88,7 @@ defaults:
 // recipe binding, brand resolution falls back to a voice.yaml convention file
 // at the project root.
 func TestResolveVoiceProfile_FromConventionFile(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v1
+	root := writeProjectRecipe(t, `version: v2
 name: proj
 defaults:
   source_language: en
@@ -125,7 +125,7 @@ func TestResolveVoiceProfile_NoProjectNoFlag(t *testing.T) {
 // TestResolveVoiceProfile_ExplicitFlagWins asserts that an explicit
 // --profile-file flag still works unchanged even inside a project.
 func TestResolveVoiceProfile_ExplicitFlagWins(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v1
+	root := writeProjectRecipe(t, `version: v2
 name: proj
 defaults:
   voice:
@@ -177,7 +177,7 @@ func seedTermsStore(t *testing.T, root string, concepts ...terms.Concept) {
 // That is the whole binding story now: a recipe carries no terms path, so being
 // in a project IS the binding.
 func TestResolveProjectGlossary_FromProjectStore(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v1
+	root := writeProjectRecipe(t, `version: v2
 name: proj
 defaults:
   source_language: en
@@ -198,19 +198,25 @@ defaults:
 }
 
 // TestResolveProjectGlossary_FromProfileTerms asserts a profile's standalone
-// `terms:` (relative to the project root) is honoured over the project store —
-// the surviving per-point vocabulary binding.
+// `terms:` (relative to the project root) governs a collection whose channel
+// resolves to that profile, over the project's own store. Vocabulary is bound
+// per point through the collection: resolution scoped to no collection sits at
+// the default point and reads the project store instead.
 func TestResolveProjectGlossary_FromProfileTerms(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v1
+	root := writeProjectRecipe(t, `version: v2
 name: proj
 defaults:
   source_language: en
   target_languages: [fr]
-coordinates:
-  product:
-    - id: press
 profiles:
-  - terms: brand-terms.db
+  press:
+    channels: [docs]
+    terms: brand-terms.db
+collections:
+  - name: press-docs
+    channel: press/docs
+    path: "en/*.json"
+    target: "{lang}/*.json"
 `)
 	// The project store says one thing; the profile's standalone store says
 	// another, and the profile wins.
@@ -231,7 +237,7 @@ profiles:
 	a := &App{SourceLang: "en"}
 	cmd := newVoiceCheckCmd(a)
 
-	glossary, err := a.ResolveProjectGlossary(cmd, "fr")
+	glossary, err := a.ResolveProjectGlossaryFor(cmd, "fr", "press-docs")
 	require.NoError(t, err)
 	require.Len(t, glossary, 1)
 	assert.Equal(t, "Cancel", glossary[0].Source)
@@ -247,7 +253,7 @@ profiles:
 // the real command surface registers the flag, and the resolver honours it over
 // the project binding.
 func TestTermstoreFlagIsRegisteredAndRead(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v1
+	root := writeProjectRecipe(t, `version: v2
 name: proj
 defaults:
   source_language: en
@@ -304,7 +310,7 @@ func TestResolveProjectGlossary_NoProject(t *testing.T) {
 // the tool flag the violation. This mirrors what the term-check command's
 // newTool closure does inside a project.
 func TestTermCheck_EnforcesProjectGlossary(t *testing.T) {
-	root := writeProjectRecipe(t, `version: v1
+	root := writeProjectRecipe(t, `version: v2
 name: proj
 defaults:
   source_language: en

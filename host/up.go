@@ -55,9 +55,9 @@ func AddUpFlags(cmd Command) {
 	cmd.Flags().Bool("json", false, "output the structured result as JSON")
 }
 
-// ServerRecipeURL reports whether the recipe at projectPath declares a
-// server: block, and the declared URL when parsable. Best-effort: a load or
-// decode error reports no server — ExecuteUp surfaces real load failures.
+// ServerRecipeURL reports whether the recipe at projectPath binds a
+// convergence venue, and the declared URL when parsable. Best-effort: a load
+// or decode error reports none — ExecuteUp surfaces real load failures.
 func (a *App) ServerRecipeURL(projectPath string) (hasServer bool, url string) {
 	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
 	if err != nil {

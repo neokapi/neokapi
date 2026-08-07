@@ -27,7 +27,7 @@ a connected project asks bowrain, asked in the same shape with no server present
 ## Context
 
 Context is relational. A term occurs in blocks; blocks belong to collections and
-sit at a [coordinate](022-voice-profile.md#context-is-a-coordinate-space); a
+sit at a [point in the context space](022-voice-profile.md#context-is-a-two-axis-space); a
 a state record blesses a unit at a content hash; a memory entry recycles into a block.
 Retrieval ([AD-037](037-context-retrieval-surface.md)) and governance
 ([AD-022](022-voice-profile.md)) both traverse those relations rather than reading

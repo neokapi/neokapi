@@ -29,7 +29,7 @@ func TestRunFromProject_LoadsDefaults(t *testing.T) {
 	projPath := filepath.Join(dir, "test.kapi")
 
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Test",
 		Defaults: project.Defaults{
 			SourceLanguage:  "ja-JP",
@@ -66,7 +66,7 @@ func TestRunFromProject_CLIFlagsOverride(t *testing.T) {
 	projPath := filepath.Join(dir, "test.kapi")
 
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Test",
 		Defaults: project.Defaults{
 			SourceLanguage:  "ja-JP",
@@ -101,7 +101,7 @@ func TestRunFromProject_FlowNotFound(t *testing.T) {
 	projPath := filepath.Join(dir, "test.kapi")
 
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Test",
 	}
 	require.NoError(t, project.Save(projPath, proj))
@@ -134,7 +134,7 @@ func TestToolFromStep_BuiltinTool(t *testing.T) {
 
 func TestKapiProjectYAMLRoundtrip(t *testing.T) {
 	// Write a realistic .kapi file and verify it roundtrips through YAML.
-	yamlContent := `version: v1
+	yamlContent := `version: v2
 name: Acme App Localization
 plugins:
   okapi:
@@ -152,12 +152,12 @@ defaults:
   formats:
     okf_html:
       preset: strict-extraction
-content:
+collections:
   - path: src/i18n/en/*.json
     format: json
     target: src/i18n/{lang}/*.json
   - name: Documentation
-    items:
+    content:
       - path: docs/en/**/*.md
         format: markdown
 preset: nextjs
@@ -188,7 +188,7 @@ flows:
 	assert.Equal(t, "Acme App Localization", proj.Name)
 	assert.Equal(t, model.LocaleID("en-US"), proj.Defaults.SourceLanguage)
 	assert.Len(t, proj.Defaults.TargetLanguages, 3)
-	assert.Len(t, proj.Content, 2)
+	assert.Len(t, proj.Collections, 2)
 	assert.Equal(t, "nextjs", proj.Preset)
 
 	// Plugins.

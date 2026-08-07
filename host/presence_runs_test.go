@@ -99,7 +99,7 @@ func presenceFixture(t *testing.T) (root string, proj *project.KapiProject) {
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Name: "c", Path: "src/en.kbf.json", Target: "src/{lang}.kbf.json"},
 		},
 	}
@@ -154,7 +154,7 @@ func TestLoopChecks_PlaceholderOnlyTargetIsCheckable(t *testing.T) {
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"nb"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Name: "c", Path: "src/en.kbf.json", Target: "src/{lang}.kbf.json"},
 		},
 	}

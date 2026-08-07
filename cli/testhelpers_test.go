@@ -34,14 +34,14 @@ func writeVerifyProject(t *testing.T) (root, targetFile string) {
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "en"), 0o755))
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "locales", "fr"), 0o755))
 
-	recipe := `version: v1
+	recipe := `version: v2
 name: verify
 defaults:
   source_language: en
   target_languages: [fr]
   voice:
     profile_file: voice.yaml
-content:
+collections:
   - path: "locales/en/*.json"
     target: "locales/{lang}/*.json"
 `
@@ -79,12 +79,12 @@ func writeStatusProject(t *testing.T) string {
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
 
-	recipe := `version: v1
+	recipe := `version: v2
 name: status
 defaults:
   source_language: en
   target_languages: [nb, ja]
-content:
+collections:
   - path: en.json
     target: "{lang}.json"
 ship_gates:
@@ -130,13 +130,13 @@ func writeReviewProject(t *testing.T) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	recipe := `version: v1
+	recipe := `version: v2
 name: rev
 defaults:
   source_language: en
   target_languages: [nb]
   memory_source: memory.json
-content:
+collections:
   - path: en.json
     target: "{lang}.json"
 ship_gate: { translated: 100, reviewed: 50 }

@@ -72,7 +72,7 @@ describe("buildRecipe", () => {
     const scenario = LAB_SCENARIOS.find((s) => s.id === "build-your-own")!;
     const recipe = buildRecipe({ steps: scenario.steps });
     // Structural checks.
-    expect(recipe).toContain("version: v1");
+    expect(recipe).toContain("version: v2");
     expect(recipe).toContain("flows:");
     expect(recipe).toContain("  lab:");
     expect(recipe).not.toContain("source_transforms:");

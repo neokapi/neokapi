@@ -61,7 +61,7 @@ func TestRecipe_CoversAllRegisteredProjectExtensions(t *testing.T) {
 // grows validation rules.
 func TestRecipeValidate_FanOutPerExtensionBlock(t *testing.T) {
 	probes := map[string]func(*Recipe){
-		"server": func(r *Recipe) {
+		schema.VenueKey: func(r *Recipe) {
 			r.Server = &ServerSpec{URL: "ftp://bowrain.example.com/team/proj"}
 		},
 		"hooks": func(r *Recipe) {

@@ -217,7 +217,7 @@ include:
   `ANTHROPIC_API_KEY`) as a CI secret. A subscription sign-in is bound to your
   user and its usage window; see
   [Let kapi run Claude](/kapi/get-started/use-with-claude#let-kapi-run-claude).
-  In a server-connected project (a recipe with a `server:` block) the server
+  In a server-connected project (a recipe with a `bowrain:` block) the server
   holds the keys instead, and the job authenticates with a server token.
 - **A gate-only job needs no keys at all** — `check --ship` and `up --plan`
   read the working tree.
@@ -245,7 +245,7 @@ include:
   on the server.
 
 :::note[Works with Bowrain]
-Everything on this page runs the loop inside your own CI. A project whose recipe declares a `server:` block runs the same loop on a Bowrain server instead — `kapi up` pushes, the server catches every locale up against the workspace's shared memory and terminology, and the run streams back — with review handled in the Bowrain web app rather than in your checkout. See the [Bowrain documentation](https://bowrain.cloud/docs/).
+Everything on this page runs the loop inside your own CI. A project whose recipe declares a `bowrain:` block runs the same loop on a Bowrain server instead — `kapi up` pushes, the server catches every locale up against the workspace's shared memory and terminology, and the run streams back — with review handled in the Bowrain web app rather than in your checkout. See the [Bowrain documentation](https://bowrain.cloud/docs/).
 :::
 
 ## Next

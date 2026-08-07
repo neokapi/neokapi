@@ -34,7 +34,7 @@ func TestUnitsFromProject_ExpandsPathToken(t *testing.T) {
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Name: "c", Path: "i18n/**/*.kbf.json", Target: "i18n-{lang}/{path}.kbf.json"},
 		},
 	}
@@ -74,7 +74,7 @@ func TestCoverageParity_FileScanVsBlockStore(t *testing.T) {
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{Name: "docs", Path: "src/en.json", Target: "src/{lang}.json"},
 		},
 		ShipGate: gate.Gate{"translated": {Pct: 100}},

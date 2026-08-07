@@ -54,7 +54,7 @@ describe("RunnerPage", () => {
   // must fire once per run request (parent gates it via autoRun), never per
   // mount — otherwise each remount relaunches and duplicates the job.
   const autoRunProject = {
-    version: "v1",
+    version: "v2",
     name: "Demo",
     defaults: { target_languages: ["fr-FR"] },
   };
@@ -82,7 +82,7 @@ describe("RunnerPage", () => {
 
   it("pre-populates target language from project defaults (manual path)", () => {
     const project = {
-      version: "v1",
+      version: "v2",
       name: "Demo",
       defaults: { target_languages: ["fr-FR", "de-DE"] },
     };

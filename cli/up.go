@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -19,11 +20,11 @@ import (
 // looping ON by default.
 //
 // up owns the verb in every install (the no-shadowing rule). The venue is
-// resolved here: when the recipe declares a server: block and a plugin
+// resolved here: when the recipe binds a convergence venue and a plugin
 // provides the hidden `server-up` plumbing (kapi-bowrain), the run is
 // dispatched there — push, converge on the server, stream progress, pull
 // results. Otherwise the loop runs locally via ExecuteUp. The resolved venue
-// is printed up front whenever a server: block makes the choice ambiguous.
+// is printed up front whenever a bound venue makes the choice ambiguous.
 func NewUpCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "up",
@@ -57,14 +58,14 @@ are written from the project store: 'defaults.materialize: on-converge' (or
 the --materialize flag) writes them for every locale whose gated scopes are
 all shippable; the default ('manual') leaves that to 'kapi merge'.
 
-Venue: in a server-connected project (a recipe with a server: block, with the
+Venue: in a server-connected project (a recipe with a bowrain: block, with the
 bowrain plugin installed) the loop runs on the Bowrain server by default — on
 the org's keys, against the org's shared Memory and terminology — and this command
 pushes local changes, streams the server run's live progress, and pulls the
 produced targets. --local keeps the loop on this machine and then pushes the
 results so the server never goes stale; --server fails rather than falling
-back to a local run. The resolved venue is printed first whenever a server:
-block is present. Without a server: block, up is purely local.
+back to a local run. The resolved venue is printed first whenever the recipe
+connects to a server. Without that block, up is purely local.
 
 --plan is a dry run in every venue: instead of running anything, up reports
 the pending work per (collection, locale) — units missing a target, exact Memory
@@ -108,14 +109,14 @@ gates (e.g. before a release tag).
 
 // runUpWithVenue resolves where the convergence loop runs and executes it.
 //
-// The server venue engages when the recipe declares a server: block AND an
+// The server venue engages when the recipe binds a convergence venue AND an
 // installed plugin provides the hidden `server-up` plumbing command. --local
 // still dispatches to the plumbing (the plugin converges locally, then pushes
 // so the server copy never goes stale). --plan never dispatches: the server
 // runs the same loop, so the local plan against the working tree is the
 // honest preview. Without the plumbing, the loop runs locally — with the
-// existing stale-server warning when a server: block is present, or an error
-// under --server.
+// existing stale-server warning when a venue is bound, or an error under
+// --server.
 func runUpWithVenue(a *App, cmd *cobra.Command, projectPath string) error {
 	hasServer, serverURL := a.ServerRecipeURL(projectPath)
 	plan := BoolFlag(cmd, "plan")
@@ -133,7 +134,7 @@ func runUpWithVenue(a *App, cmd *cobra.Command, projectPath string) error {
 	if forceServer {
 		switch {
 		case !hasServer:
-			return errors.New("--server needs a recipe with a server: block — run 'kapi init --server <url>' to connect this project")
+			return fmt.Errorf("--server needs a recipe connected to a bowrain server%s — run 'kapi init --server <url>' to connect this project", venueBlockHint())
 		case route == nil:
 			return errors.New("--server needs the server venue plumbing, which no installed plugin provides — install the bowrain plugin (kapi plugin install bowrain)")
 		}
@@ -150,8 +151,19 @@ func runUpWithVenue(a *App, cmd *cobra.Command, projectPath string) error {
 	return a.ExecuteUp(cmd, projectPath)
 }
 
+// venueBlockHint names the recipe block a user would add to connect a project,
+// as the registered venue extension spells it. A binary linking no platform has
+// no key to name and gets no hint — the next case tells it to install the
+// plugin, which is the honest first step there.
+func venueBlockHint() string {
+	if key, ok := project.VenueKey(); ok {
+		return fmt.Sprintf(" (a `%s:` block)", key)
+	}
+	return ""
+}
+
 // printUpVenue names the resolved venue on stderr before the run starts.
-// Printed only when a server: block makes the venue ambiguous — a plain
+// Printed only when a bound venue makes the choice ambiguous — a plain
 // local project gets no banner. Suppressed under --quiet and --json (the
 // NDJSON stream is the machine surface; agents read the plan/events).
 func printUpVenue(a *App, cmd *cobra.Command, local bool, serverURL string) {

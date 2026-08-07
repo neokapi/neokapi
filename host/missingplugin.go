@@ -21,7 +21,7 @@ import (
 // the installed plugin. This table exists for the one moment when there is no
 // manifest to read: the user typed a verb kapi does not have, and kapi has to
 // decide whether that is a typo or a missing plugin. Without it, `kapi push`
-// in a project whose recipe declares `server:` fails with cobra's bare
+// in a project whose recipe declares `bowrain:` fails with cobra's bare
 // `unknown command "push"`, which names neither the cause nor the fix.
 //
 // The contents are pinned to the plugin's real manifest by a drift test in the

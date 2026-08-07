@@ -31,16 +31,16 @@ func newCoverageProject(t *testing.T, app *App) (*TabInfo, string) {
 	))
 
 	proj := &project.KapiProject{
-		Version: "v1",
+		Version: project.CurrentVersion,
 		Name:    "Coverage",
 		Defaults: project.Defaults{
 			SourceLanguage:  "en-US",
 			TargetLanguages: []model.LocaleID{"fr-FR", "de-DE"},
 		},
-		Content: []project.ContentCollection{
+		Collections: []project.Collection{
 			{
 				Name: "App",
-				Items: []project.ContentItem{
+				Content: []project.ContentItem{
 					{Path: "locales/en.json", Target: "locales/{lang}.json"},
 				},
 			},
@@ -216,11 +216,11 @@ func TestRunExtractSkipsUnreadableFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, "mystery.zzz"), []byte("???"), 0o644))
 
 	proj := &project.KapiProject{
-		Version:  "v1",
+		Version:  project.CurrentVersion,
 		Name:     "Skip",
 		Defaults: project.Defaults{SourceLanguage: "en-US", TargetLanguages: []model.LocaleID{"fr-FR"}},
-		Content: []project.ContentCollection{
-			{Name: "C", Items: []project.ContentItem{
+		Collections: []project.Collection{
+			{Name: "C", Content: []project.ContentItem{
 				{Path: "ok.json"},
 				{Path: "mystery.zzz"},
 			}},
@@ -249,7 +249,7 @@ func TestRunExtractSkipsUnreadableFiles(t *testing.T) {
 func TestProjectStoreIsOneHandleAndServesConcurrentReaders(t *testing.T) {
 	dir := t.TempDir()
 	kapiPath := filepath.Join(dir, "test.kapi")
-	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1", Name: "Test"}))
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: project.CurrentVersion, Name: "Test"}))
 
 	app := NewApp()
 	tab := openTestProjectFile(t, app, kapiPath)

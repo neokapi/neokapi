@@ -91,7 +91,7 @@ func NewLsCmd(a *App) *cobra.Command {
 		Long: `List the files matched by the project's content collections (honoring the
 exclude list). With --stats, also show per-file block and word counts.
 
-In a server-connected project (a recipe with a server: block, with the
+In a server-connected project (a recipe with a bowrain: block, with the
 bowrain plugin installed) a SYNC column reports each file's pending-push
 standing ("2 to push" / "synced"), derived from the sync cache.
 

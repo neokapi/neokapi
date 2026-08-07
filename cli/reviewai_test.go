@@ -18,12 +18,12 @@ func writeReviewProjectWithGate(t *testing.T, gateYAML string) string {
 	t.Helper()
 	t.Setenv("KAPI_NO_PROJECT", "")
 	root := t.TempDir()
-	recipe := `version: v1
+	recipe := `version: v2
 name: rev
 defaults:
   source_language: en
   target_languages: [nb]
-content:
+collections:
   - path: en.json
     target: "{lang}.json"
 ship_gate: ` + gateYAML + `

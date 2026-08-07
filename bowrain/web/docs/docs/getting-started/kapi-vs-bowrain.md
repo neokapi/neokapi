@@ -30,7 +30,7 @@ kapi appears in two roles here, and they are worth keeping apart:
 
 **kapi owns the local files and the project configuration.** The `kapi.yaml`
 recipe — content collections, flows, plugins, languages, brand, and the
-`server:` block — is authored and versioned in the repository with everything
+`bowrain:` block — is authored and versioned in the repository with everything
 else. Bowrain never writes it.
 
 **Bowrain's local footprint is cache and speed only, never a source of truth.**

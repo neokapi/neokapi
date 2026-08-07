@@ -34,8 +34,9 @@ func init() {
 		{Name: "brand_voice", Scope: coreproj.ScopeProject, Decoder: brandVoiceDecoder, DependsOn: VenueKey},
 
 		// ── Per-item keys ─────────────────────────────────────────
+		// No `base` here: it is a framework field on ContentItem, so the key
+		// is decoded into the struct and never reaches Extras.
 		{Name: "collection", Scope: coreproj.ScopeItem, Decoder: stringDecoder},
-		{Name: "base", Scope: coreproj.ScopeItem, Decoder: stringDecoder},
 		{Name: "assets", Scope: coreproj.ScopeItem, Decoder: boolDecoder},
 		{Name: "asset_max_size", Scope: coreproj.ScopeItem, Decoder: stringDecoder},
 

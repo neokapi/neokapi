@@ -64,7 +64,7 @@ func TestOpenSaveProject(t *testing.T) {
 	path := dir + "/test.kapi"
 
 	proj := &project.KapiProject{
-		Version:  "v1",
+		Version:  project.CurrentVersion,
 		Name:     "Roundtrip Test",
 		Defaults: project.Defaults{SourceLanguage: "en"},
 		Flows: map[string]*flow.StepsSpec{

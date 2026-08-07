@@ -102,13 +102,13 @@ files:
       }
   - path: kapi.yaml
     content: |
-      version: v1
+      version: v2
       name: demo
       defaults:
         source_language: en
         target_languages: [fr]
         flow: tm-recycle
-      content:
+      collections:
         - path: messages.json
           target: "messages.{lang}.json"
       flows:

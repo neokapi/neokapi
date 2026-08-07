@@ -66,7 +66,7 @@ Output format and color come from the shared global flags:
 
 1. Resolve the project by walking up from the current directory to the `kapi.yaml`
    recipe (run `kapi init` first if none is found).
-2. Read local files via the format registry, respecting the recipe's `content:`
+2. Read local files via the format registry, respecting the recipe's `collections:`
    collections.
 3. Compare block-level content against the local sync cache to compute added,
    changed, and removed blocks.

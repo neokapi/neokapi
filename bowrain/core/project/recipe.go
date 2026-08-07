@@ -257,12 +257,12 @@ func (r *Recipe) SetDefaultCollection(name string) error {
 }
 
 // ContentItemView pairs a framework ContentItem with bowrain-specific
-// per-item extension fields decoded from the item's Extras map.
+// per-item extension fields decoded from the item's Extras map. Base is the
+// embedded framework field — bowrain does not extend it.
 type ContentItemView struct {
 	coreproj.ContentItem
 
 	Collection   string
-	Base         string
 	Assets       *bool
 	AssetMaxSize string
 }
@@ -283,7 +283,6 @@ func (r *Recipe) IterateContent() []IteratedItem {
 	for _, it := range base {
 		view := ContentItemView{ContentItem: it.Item}
 		decodeStringExtra(it.Item.Extras, "collection", &view.Collection)
-		decodeStringExtra(it.Item.Extras, "base", &view.Base)
 		decodeBoolPtrExtra(it.Item.Extras, "assets", &view.Assets)
 		decodeStringExtra(it.Item.Extras, "asset_max_size", &view.AssetMaxSize)
 		out = append(out, IteratedItem{Collection: it.Collection, Item: view})
@@ -304,20 +303,18 @@ func (item *ContentItemView) ResolvedCollection(coll *coreproj.Collection, recip
 	return recipe.DefaultCollection()
 }
 
-// AddContentItem appends a bare-entry ContentCollection to the recipe,
-// applying any non-empty bowrain per-item fields via the entry's Extras
-// map. Used by `bowrain add`.
+// AddContentItem appends a bare-entry collection to the recipe, applying any
+// non-empty bowrain per-item fields via the entry's Extras map. Base is a
+// framework field, so it is set directly. Used by `bowrain add`.
 func (r *Recipe) AddContentItem(path string, format *coreproj.FormatSpec, target string, view ContentItemView) {
 	entry := coreproj.Collection{
 		Path:   path,
 		Format: format,
 		Target: target,
+		Base:   view.Base,
 	}
 	if view.Collection != "" {
 		setEntryExtra(&entry, "collection", view.Collection)
-	}
-	if view.Base != "" {
-		setEntryExtra(&entry, "base", view.Base)
 	}
 	if view.Assets != nil {
 		setEntryExtra(&entry, "assets", *view.Assets)
