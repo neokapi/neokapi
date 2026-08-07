@@ -46,6 +46,7 @@ describe("buildFeed", () => {
     const detail: ChangeSetDetail = {
       ...changeset("cs-1", { name: "Prefer Paiement" }),
       governed: true,
+      solo_review: false,
       ops: [],
       reviews: [
         {
@@ -53,6 +54,7 @@ describe("buildFeed", () => {
           changeset_id: "cs-1",
           reviewer: "alex",
           verdict: "approve",
+          basis: "peer",
           created_at: "2026-06-02T12:00:00Z",
         },
       ],
@@ -97,6 +99,7 @@ describe("buildFeed", () => {
     const detail: ChangeSetDetail = {
       ...changeset("cs-1", {}),
       governed: false,
+      solo_review: false,
       ops: [],
       reviews: [
         {
@@ -104,6 +107,7 @@ describe("buildFeed", () => {
           changeset_id: "cs-1",
           reviewer: "alex",
           verdict: "approve",
+          basis: "peer",
           created_at: "2026-06-02T12:00:00Z",
         },
       ],

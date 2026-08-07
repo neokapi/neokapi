@@ -139,6 +139,12 @@ export interface ApiToken {
   user_id: string;
   workspace_id: string;
   name: string;
+  /**
+   * The machine this token is for, when it is a machine token. Work created
+   * under it is authored by "agent/<agent_name>" rather than by user_id.
+   * Absent on an ordinary personal token.
+   */
+  agent_name?: string;
   token_prefix: string;
   scopes: string;
   last_used_at: string | null;
@@ -150,6 +156,7 @@ export interface ApiToken {
 export interface CreateApiTokenResponse {
   id: string;
   name: string;
+  agent_name?: string;
   token_prefix: string;
   token: string;
   scopes: string;

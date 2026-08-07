@@ -158,6 +158,22 @@ the token's scopes and intersects them with the resolved project
 permissions. When the request is not token-authenticated (e.g. a browser
 session cookie), the middleware is a no-op.
 
+#### Machine identity is authorship, not authority
+
+A token may additionally carry `api_tokens.agent_name`, which makes it a
+**machine token**: a CI runner, a `kapi-action` step, an agent-driven `kapi`.
+This changes nothing in the envelope above. Permissions still resolve from the
+token owner's membership and are still narrowed by the token's scopes, so a
+machine can do no more than the person who minted it — the layering principle
+is untouched.
+
+What it changes is *authorship*. Work created on the request is recorded
+against `agent/<agent_name>` rather than the owner's user ID, and events carry
+`on_behalf_of` naming the owner. The consequence is a governance one, not an
+access one: a governed change-set the machine proposes has an author no human
+equals, so separation of duties lets the owner review it (see
+[AD-021](021-brand-knowledge-graph.md)).
+
 ### Layer 3: Session Grants
 
 Session grants provide just-in-time, ephemeral permission scoping for

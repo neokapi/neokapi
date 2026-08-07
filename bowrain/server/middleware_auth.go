@@ -178,6 +178,12 @@ func handleAPIToken(c echo.Context, next echo.HandlerFunc, token string, authSto
 	c.Set("name", user.Name)
 	c.Set("api_token_id", apiToken.ID)
 	c.Set("api_token_scopes", apiToken.Scopes)
+	// A machine token authors as the machine. user_id stays the token's owner,
+	// because that is who is accountable and whose membership resolves the
+	// permissions — only authorship moves. See authorIdentity.
+	if apiToken.AgentName != "" {
+		c.Set("author_identity", apiToken.AuthorIdentity())
+	}
 	// Propagate actor into the request context for event attribution.
 	ctx = platev.WithActor(ctx, user.ID, user.Name)
 	ctx = platev.WithRequestMeta(ctx, requestMeta(c))

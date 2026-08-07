@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
+	"github.com/neokapi/neokapi/bowrain/service"
 )
 
 // CreateTokenRequest is the request body for creating an API token.
@@ -15,6 +16,12 @@ type CreateTokenRequest struct {
 	Name       string   `json:"name"`
 	ExpireDays int      `json:"expire_days,omitempty"` // 0 = no expiration
 	Scopes     []string `json:"scopes,omitempty"`      // e.g. ["*"], ["read"], ["translate:fr,de"]
+	// AgentName names the machine this token is for — a CI runner, a
+	// kapi-action step, an agent-driven kapi. Setting it makes the token a
+	// machine token: change-sets pushed under it are authored by
+	// "agent/<AgentName>", so the person who minted it can review them.
+	// Omitting it leaves the token an ordinary personal one.
+	AgentName string `json:"agent_name,omitempty"`
 }
 
 // CreateTokenResponse is returned after creating a token. The plaintext
@@ -22,6 +29,7 @@ type CreateTokenRequest struct {
 type CreateTokenResponse struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
+	AgentName   string     `json:"agent_name,omitempty"`
 	TokenPrefix string     `json:"token_prefix"`
 	Token       string     `json:"token"` // plaintext, shown once
 	Scopes      string     `json:"scopes"`
@@ -41,6 +49,9 @@ func (s *Server) HandleCreateToken(c echo.Context) error {
 	}
 	if req.Name == "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name is required"})
+	}
+	if err := platauth.ValidateAgentName(req.AgentName); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
 	userID, _ := c.Get("user_id").(string)
@@ -66,21 +77,35 @@ func (s *Server) HandleCreateToken(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	token, plaintext, err := s.Services.Auth.CreateAPIToken(ctx, userID, workspaceID, req.Name, scopesJSON, expiresAt)
+	token, plaintext, err := s.Services.Auth.CreateAPIToken(ctx, service.APITokenSpec{
+		UserID:      userID,
+		WorkspaceID: workspaceID,
+		Name:        req.Name,
+		AgentName:   req.AgentName,
+		ScopesJSON:  scopesJSON,
+		ExpiresAt:   expiresAt,
+	})
 	if err != nil {
 		return serverErr(c, err)
+	}
+	auditData := map[string]string{"name": token.Name, "scopes": token.Scopes}
+	if token.AgentName != "" {
+		// The identity, not the bare name: this is the string that will appear
+		// as the author of every change-set the machine proposes.
+		auditData["author_identity"] = token.AuthorIdentity()
 	}
 	s.emitAudit(c, auditEvent{
 		Type:         platev.EventTokenCreated,
 		WorkspaceID:  workspaceID,
 		ResourceType: "api_token",
 		ResourceID:   token.ID,
-		Data:         map[string]string{"name": token.Name, "scopes": token.Scopes},
+		Data:         auditData,
 	})
 
 	return c.JSON(http.StatusCreated, CreateTokenResponse{
 		ID:          token.ID,
 		Name:        token.Name,
+		AgentName:   token.AgentName,
 		TokenPrefix: token.TokenPrefix,
 		Token:       plaintext,
 		Scopes:      token.Scopes,

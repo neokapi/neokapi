@@ -423,16 +423,35 @@ func ValidateStatusTransition(from, to ChangeSetStatus) error {
 // CanMerge reports whether a change-set may be merged given its governed
 // classification and its reviews. A governed change-set must be approved and
 // carry at least one approve verdict from a reviewer other than its author
-// (separation of duties) — self-approval never satisfies the gate. An ordinary
-// change-set may merge while it is still a draft or once approved. A nil return
-// means merge is permitted; otherwise the error explains why not.
+// (separation of duties). An ordinary change-set may merge while it is still a
+// draft or once approved. A nil return means merge is permitted; otherwise the
+// error explains why not.
+//
+// A self-review satisfies the gate only when its recorded basis admits one —
+// today that means "solo_owner", recorded by the server when the author was the
+// workspace's owner and no other member held review rights. The gate asks the
+// basis rather than testing a flag, so a future governance variant that also
+// waives the second pair of eyes joins by naming itself in
+// ReviewBasis.AdmitsSelfReview and changes nothing here.
+//
+// Self-ness is derived (Reviewer == CreatedBy), never read from the row, so the
+// stored basis and the identities can never contradict each other. The basis is
+// read as stored rather than re-derived because what mattered is who *could*
+// have reviewed at the time of the verdict: a workspace that later hires a
+// second reviewer has not retroactively made a merged change-set unreviewable,
+// and one that later loses everyone has not retroactively excused a
+// self-approval that was refused when it was attempted.
 func CanMerge(cs ChangeSet, governed bool, reviews []ChangeSetReview) error {
 	if governed {
 		if cs.Status != ChangeSetApproved {
 			return fmt.Errorf("governed change-set must be approved before merge (status %q)", cs.Status)
 		}
 		for _, r := range reviews {
-			if r.Verdict == VerdictApprove && r.Reviewer != cs.CreatedBy {
+			if r.Verdict != VerdictApprove {
+				continue
+			}
+			isSelfReview := r.Reviewer == cs.CreatedBy
+			if !isSelfReview || r.Basis.AdmitsSelfReview() {
 				return nil
 			}
 		}

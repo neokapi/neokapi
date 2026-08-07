@@ -14,6 +14,7 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //	5  refresh-token reuse detection (family_id + consumed_at)
 //	6  workspace default brand-voice profile (hierarchical resolver base)
 //	7  user locale preference (locale-aware transactional emails)
+//	8  auth baseline (folded 1-7)
 //
 // Versions 2, 4 and 6 were catch-ups: PR #428 had already added their columns
 // and tables to the v1 baseline, so they existed only to roll forward
@@ -26,13 +27,19 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // built from this baseline has no such tokens, and every token minted since
 // carries a family_id from the code.
 //
-// Baseline is version 8 — above every number issued, so an existing database
+// Baseline is version 9 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 9.
+// repaired. Retired numbers are never reused; the next migration is version 10.
+//
+// The subsystem carries exactly one baseline (migrations/schema_test.go
+// enforces it), so a schema change is made by editing the baseline in place and
+// bumping its version. Version 9 added api_tokens.agent_name — the machine
+// author identity a governed change-set is attributed to when a CI runner or an
+// agent-driven kapi proposed it.
 var Migrations = []storage.Migration{
 	{
-		Version:     8,
-		Description: "auth baseline (folds 1-7)",
+		Version:     9,
+		Description: "auth baseline (folds 1-8) + api token machine identity",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS users (
 				id            TEXT PRIMARY KEY,
@@ -122,6 +129,13 @@ var Migrations = []storage.Migration{
 				user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
 				name         TEXT NOT NULL,
+				-- The machine that holds this token, when it is a machine token:
+				-- a CI runner, a kapi-action step, an agent-driven kapi. Work
+				-- authored under it is attributed to "agent/<agent_name>" rather
+				-- than to user_id, so the person whose token it is stays an
+				-- eligible reviewer of what the machine proposes. '' = an
+				-- ordinary personal token.
+				agent_name   TEXT NOT NULL DEFAULT '',
 				token_hash   TEXT UNIQUE NOT NULL,
 				token_prefix TEXT NOT NULL,
 				scopes       TEXT NOT NULL DEFAULT '["*"]',
@@ -129,6 +143,11 @@ var Migrations = []storage.Migration{
 				expires_at   TIMESTAMPTZ,
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
+			-- The CREATE above serves an empty database; this serves one that
+			-- already has api_tokens, where CREATE ... IF NOT EXISTS is a no-op
+			-- and would leave the new column missing. Both are idempotent, both
+			-- land the same column, and neither is a second baseline.
+			ALTER TABLE api_tokens ADD COLUMN IF NOT EXISTS agent_name TEXT NOT NULL DEFAULT '';
 			CREATE INDEX IF NOT EXISTS idx_api_tokens_workspace ON api_tokens(workspace_id);
 			CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens(user_id);
 

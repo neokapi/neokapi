@@ -52,6 +52,51 @@ func (v ReviewVerdict) IsValid() bool {
 	return v == VerdictApprove || v == VerdictReject
 }
 
+// ReviewBasis names the governance rule under which a verdict was admitted.
+//
+// It is a vocabulary rather than a flag because the interesting question about
+// a review is not "was this one particular circumstance true" but "on what
+// authority did this count". Every governance variant that answers that
+// differently — a quorum threshold, a delegated approver, a break-glass
+// override — is a new value here, not a new column; the alternative is a row
+// that accumulates one boolean per exception ever granted, where the reader has
+// to know the precedence between them.
+type ReviewBasis string
+
+const (
+	// BasisPeer is the ordinary rule: someone other than the author reviewed.
+	// It is the default, and the only basis a self-review can never carry.
+	BasisPeer ReviewBasis = "peer"
+
+	// BasisSoloOwner admits a verdict the author recorded on their own
+	// change-set because they were the workspace's owner and no other member
+	// held review rights at that moment.
+	BasisSoloOwner ReviewBasis = "solo_owner"
+)
+
+// IsValid reports whether b is one of the known bases. The empty string is not
+// valid: a review whose basis nothing set is a review whose authority nobody
+// recorded, and the merge gate must not have to guess which rule it meant.
+func (b ReviewBasis) IsValid() bool {
+	switch b {
+	case BasisPeer, BasisSoloOwner:
+		return true
+	default:
+		return false
+	}
+}
+
+// AdmitsSelfReview reports whether this basis is one under which a change-set's
+// own author may be its reviewer.
+//
+// The merge gate asks this rather than testing a flag, so a future basis that
+// also waives the second pair of eyes is added in one place. Self-ness itself
+// is never stored — it is derived from Reviewer == CreatedBy at the moment it
+// is asked — so the two can never disagree.
+func (b ReviewBasis) AdmitsSelfReview() bool {
+	return b == BasisSoloOwner
+}
+
 // ChangeSetStatus is the lifecycle state of a change-set. merged and abandoned
 // are terminal. See ValidateStatusTransition for the allowed edges.
 type ChangeSetStatus string
@@ -210,7 +255,20 @@ type ChangeSetReview struct {
 	Reviewer    string        `json:"reviewer"`
 	Verdict     ReviewVerdict `json:"verdict"`
 	Comment     string        `json:"comment,omitempty"`
-	CreatedAt   time.Time     `json:"created_at"`
+	// Basis is the rule under which this verdict was admitted — "peer" for an
+	// ordinary review by someone else, "solo_owner" for one the author recorded
+	// because they were the workspace's only eligible reviewer.
+	//
+	// It is written down rather than inferred because it records a circumstance
+	// that no longer exists by the time anyone reads it: who *could* have
+	// reviewed at that moment. A reader of the review thread, the audit trail
+	// or the merge gate can tell an independently reviewed change from an
+	// unreviewed one without reconstructing the membership list of that day.
+	//
+	// The server sets it; it is never accepted from a request body, or no
+	// caller would ever choose "peer".
+	Basis     ReviewBasis `json:"basis"`
+	CreatedAt time.Time   `json:"created_at"`
 }
 
 // Pilot binds a change-set to a content stream so real content and real checks

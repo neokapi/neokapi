@@ -10,14 +10,20 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 // LEDGER — every version this subsystem has ever issued, now folded in:
 //
 //	1  knowledge graph governance schema (baseline)
+//	2  knowledge graph baseline (folded 1)
 //
-// Baseline is version 2 — above every number issued, so an existing database
+// Baseline is version 3 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 3.
+// repaired. Retired numbers are never reused; the next migration is version 4.
+//
+// The subsystem carries exactly one baseline (migrations/schema_test.go
+// enforces it), so a schema change is made by editing the baseline in place and
+// bumping its version. Version 3 added kg_changeset_reviews.review_basis — the
+// rule under which a verdict was admitted.
 var Migrations = []storage.Migration{
 	{
-		Version:     2,
-		Description: "knowledge graph baseline (folds 1)",
+		Version:     3,
+		Description: "knowledge graph baseline (folds 1-2) + solo self-approval marker",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS kg_markets (
 				workspace_id TEXT NOT NULL,
@@ -108,9 +114,20 @@ var Migrations = []storage.Migration{
 				reviewer     TEXT NOT NULL,
 				verdict      TEXT NOT NULL,
 				comment      TEXT NOT NULL DEFAULT '',
+				-- The governance rule under which this verdict was admitted:
+				-- 'peer' (someone other than the author reviewed) or
+				-- 'solo_owner' (the author was the workspace's owner and its
+				-- only eligible reviewer). A vocabulary rather than one boolean
+				-- per exception, so a future variant is a new value here.
+				review_basis TEXT NOT NULL DEFAULT 'peer',
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (workspace_id, changeset_id, reviewer)
 			);
+			-- The CREATE above serves an empty database; this serves one that
+			-- already has the table, where CREATE ... IF NOT EXISTS is a no-op
+			-- and would leave the new column missing. Both are idempotent.
+			ALTER TABLE kg_changeset_reviews
+				ADD COLUMN IF NOT EXISTS review_basis TEXT NOT NULL DEFAULT 'peer';
 
 			CREATE TABLE IF NOT EXISTS kg_pilots (
 				workspace_id TEXT NOT NULL,

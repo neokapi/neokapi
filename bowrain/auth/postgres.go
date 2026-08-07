@@ -601,10 +601,13 @@ func (s *PostgresAuthStore) CreateAPIToken(ctx context.Context, token *platauth.
 	if token.Scopes == "" {
 		token.Scopes = `["*"]`
 	}
+	if err := platauth.ValidateAgentName(token.AgentName); err != nil {
+		return err
+	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO api_tokens (id, user_id, workspace_id, name, token_hash, token_prefix, scopes, expires_at, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		token.ID, token.UserID, token.WorkspaceID, token.Name, tokenHash,
+		`INSERT INTO api_tokens (id, user_id, workspace_id, name, agent_name, token_hash, token_prefix, scopes, expires_at, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		token.ID, token.UserID, token.WorkspaceID, token.Name, token.AgentName, tokenHash,
 		token.TokenPrefix, token.Scopes, token.ExpiresAt, token.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("insert api token: %w", err)
@@ -615,9 +618,9 @@ func (s *PostgresAuthStore) CreateAPIToken(ctx context.Context, token *platauth.
 func (s *PostgresAuthStore) GetAPITokenByHash(ctx context.Context, tokenHash string) (*platauth.APIToken, error) {
 	var tok platauth.APIToken
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, user_id, workspace_id, name, token_prefix, scopes, last_used_at, expires_at, created_at
+		`SELECT id, user_id, workspace_id, name, agent_name, token_prefix, scopes, last_used_at, expires_at, created_at
 		 FROM api_tokens WHERE token_hash = $1`, tokenHash).
-		Scan(&tok.ID, &tok.UserID, &tok.WorkspaceID, &tok.Name, &tok.TokenPrefix,
+		Scan(&tok.ID, &tok.UserID, &tok.WorkspaceID, &tok.Name, &tok.AgentName, &tok.TokenPrefix,
 			&tok.Scopes, &tok.LastUsedAt, &tok.ExpiresAt, &tok.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("get api token: %w", err)
@@ -627,7 +630,7 @@ func (s *PostgresAuthStore) GetAPITokenByHash(ctx context.Context, tokenHash str
 
 func (s *PostgresAuthStore) ListAPITokens(ctx context.Context, workspaceID string) ([]*platauth.APIToken, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, user_id, workspace_id, name, token_prefix, scopes, last_used_at, expires_at, created_at
+		`SELECT id, user_id, workspace_id, name, agent_name, token_prefix, scopes, last_used_at, expires_at, created_at
 		 FROM api_tokens WHERE workspace_id = $1
 		 ORDER BY created_at DESC`, workspaceID)
 	if err != nil {
@@ -638,7 +641,7 @@ func (s *PostgresAuthStore) ListAPITokens(ctx context.Context, workspaceID strin
 	result := make([]*platauth.APIToken, 0)
 	for rows.Next() {
 		var tok platauth.APIToken
-		if err := rows.Scan(&tok.ID, &tok.UserID, &tok.WorkspaceID, &tok.Name, &tok.TokenPrefix,
+		if err := rows.Scan(&tok.ID, &tok.UserID, &tok.WorkspaceID, &tok.Name, &tok.AgentName, &tok.TokenPrefix,
 			&tok.Scopes, &tok.LastUsedAt, &tok.ExpiresAt, &tok.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan api token: %w", err)
 		}

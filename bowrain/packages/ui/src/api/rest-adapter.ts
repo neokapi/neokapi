@@ -771,10 +771,14 @@ export class RestApiAdapter implements ApiAdapter {
     name: string,
     expireDays: number,
     scopes?: string[],
+    agentName?: string,
   ): Promise<CreateApiTokenResponse> {
     const body: Record<string, unknown> = { name, expire_days: expireDays };
     if (scopes && scopes.length > 0) {
       body.scopes = scopes;
+    }
+    if (agentName) {
+      body.agent_name = agentName;
     }
     return this.fetchJSON(`/api/v1/${workspaceSlug}/tokens`, {
       method: "POST",

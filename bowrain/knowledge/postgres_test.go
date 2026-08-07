@@ -16,12 +16,14 @@ func TestPostgresKnowledgeStore_ImplementsInterface(t *testing.T) {
 }
 
 func TestKgMigrations_Baseline(t *testing.T) {
-	// A single consolidated baseline, numbered above the one version this
+	// A single consolidated baseline, numbered above every version this
 	// subsystem ever issued so an existing database applies it once — which is
 	// what repairs a database whose bookkeeping was emptied but whose schema
-	// was left standing.
+	// was left standing. Version 3 folded in version 2 and added the solo
+	// self-approval marker; a schema change edits the baseline and bumps it,
+	// never appends a second migration.
 	require.Len(t, Migrations, 1)
-	assert.Equal(t, 2, Migrations[0].Version)
+	assert.Equal(t, 3, Migrations[0].Version)
 	assert.NotEmpty(t, Migrations[0].SQL)
 
 	sql := Migrations[0].SQL

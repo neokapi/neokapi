@@ -115,6 +115,10 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const [copied, setCopied] = useState(false);
   const [deleteTokenId, setDeleteTokenId] = useState<string | null>(null);
 
+  // Machine identity: names the runner or agent this token is for. Empty means
+  // an ordinary personal token, which is what most tokens are.
+  const [agentName, setAgentName] = useState("");
+
   // Scope selection state
   const [scopeMode, setScopeMode] = useState<"full" | "custom">("full");
   const [selectedAction, setSelectedAction] = useState<ScopeAction>("translate");
@@ -178,7 +182,13 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
     try {
       const days = getExpireDays();
       const scopes = getScopes();
-      const resp = await api.createApiToken(workspace.slug, name.trim(), days, scopes);
+      const resp = await api.createApiToken(
+        workspace.slug,
+        name.trim(),
+        days,
+        scopes,
+        agentName.trim() || undefined,
+      );
       setCreatedToken(resp);
       setTokens((prev) => [
         {
@@ -186,6 +196,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
           user_id: "",
           workspace_id: "",
           name: resp.name,
+          agent_name: resp.agent_name,
           token_prefix: resp.token_prefix,
           scopes: resp.scopes,
           last_used_at: null,
@@ -222,6 +233,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const handleDialogChange = (open: boolean) => {
     if (!open) {
       setName("");
+      setAgentName("");
       setExpiryPreset("30");
       setCustomDate(addDays(30));
       setScopeMode("full");
@@ -317,7 +329,17 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                       key={t.id}
                       className={`border-b border-border/50 transition-colors hover:bg-accent/50 ${expired ? "opacity-50" : ""}`}
                     >
-                      <td className="px-4 py-2.5 text-sm font-medium">{t.name}</td>
+                      <td className="px-4 py-2.5 text-sm font-medium">
+                        {t.name}
+                        {t.agent_name && (
+                          <span
+                            className="ml-2 font-mono text-xs font-normal text-muted-foreground"
+                            title="Work pushed with this token is authored by this machine, not by the person who minted it"
+                          >
+                            agent/{t.agent_name}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground">
                         {t.token_prefix}...
                       </td>
@@ -418,6 +440,33 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                     e.key === "Enter" && handleCreate()
                   }
                 />
+              </div>
+              <div>
+                <Label className="text-muted-foreground">Machine identity (optional)</Label>
+                <Input
+                  value={agentName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setAgentName(e.target.value)
+                  }
+                  placeholder="e.g. kapi-ci"
+                  className="mt-1 font-mono"
+                  data-testid="token-agent-name-input"
+                />
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  {agentName.trim() ? (
+                    <>
+                      Change-sets pushed with this token will be authored by{" "}
+                      <span className="font-mono">agent/{agentName.trim()}</span> — so you can
+                      review them.
+                    </>
+                  ) : (
+                    <>
+                      Name the runner or agent that will hold this token, and its work is authored
+                      by the machine instead of by you — which leaves you free to review it. Leave
+                      empty for a personal token.
+                    </>
+                  )}
+                </p>
               </div>
               <div>
                 <Label className="text-muted-foreground">Expiration</Label>
