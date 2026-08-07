@@ -1,115 +1,5 @@
 {
   "tools": {
-    "brand-voice-check": {
-      "displayName": "▒ ÀÎ Ƃŕàñđ Ṽöîçé Çĥéçķ ▒",
-      "description": "▒ Çĥéçķ ţéẋţ àĝàîñšţ à ƃŕàñđ ṽöîçé þŕöƒîļé üšîñĝ àñ ĻĻḾ þŕöṽîđéŕ ▒",
-      "category": "▒ ǫüàļîţý ▒",
-      "properties": {
-        "apiKey": {
-          "title": "▒ ÀÞÎ Ķéý ▒",
-          "description": "▒ ÀÞÎ ķéý ƒöŕ ţĥé ÀÎ þŕöṽîđéŕ ▒"
-        },
-        "model": {
-          "title": "▒ Ḿöđéļ ▒",
-          "description": "▒ ÀÎ ḿöđéļ ñàḿé ▒"
-        },
-        "profileId": {
-          "title": "▒ Þŕöƒîļé ÎĐ ▒",
-          "description": "▒ Ƃŕàñđ ṽöîçé þŕöƒîļé ţö ŕéšöļṽé ƒŕöḿ ţĥé šţöŕé ▒"
-        },
-        "provider": {
-          "title": "▒ ÀÎ Þŕöṽîđéŕ ▒",
-          "description": "▒ ÀÎ þŕöṽîđéŕ ▒",
-          "options": {
-            "anthropic": {
-              "label": "▒ Àñţĥŕöþîç ▒"
-            },
-            "azureopenai": {
-              "label": "▒ Àžüŕé ÖþéñÀÎ ▒"
-            },
-            "claude-code": {
-              "label": "▒ Çļàüđé Çöđé ▒"
-            },
-            "demo": {
-              "label": "▒ Đéḿö (îļļüšţŕàţîṽé) ▒"
-            },
-            "gemini": {
-              "label": "▒ Ĝéḿîñî ▒"
-            },
-            "ollama": {
-              "label": "▒ Öļļàḿà ▒"
-            },
-            "openai": {
-              "label": "▒ ÖþéñÀÎ ▒"
-            }
-          }
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "▒ Þŕöṽîđéŕ ▒"
-        }
-      }
-    },
-    "brand-voice-infer": {
-      "displayName": "▒ ÀÎ Ƃŕàñđ Ṽöîçé Îñƒéŕéñçé ▒",
-      "description": "▒ Îñƒéŕ à đŕàƒţ ƃŕàñđ ṽöîçé þŕöƒîļé ƒŕöḿ à çöñţéñţ çöŕþüš üšîñĝ àñ ĻĻḾ þŕöṽîđéŕ ▒",
-      "category": "▒ àñàļýšîš ▒",
-      "properties": {
-        "apiKey": {
-          "title": "▒ ÀÞÎ Ķéý ▒",
-          "description": "▒ ÀÞÎ ķéý ƒöŕ ţĥé ÀÎ þŕöṽîđéŕ ▒"
-        },
-        "domain": {
-          "title": "▒ Đöḿàîñ ▒",
-          "description": "▒ Šüƃĵéçţ đöḿàîñ ĥîñţ ƒöŕ ţĥé àñàļýšîš (é.ĝ. ḿéđîçàļ ļéĝàļ ţéçĥñöļöĝý) ▒"
-        },
-        "maxExamples": {
-          "title": "▒ Ḿàẋ Éẋàḿþļéš ▒",
-          "description": "▒ Ḿàẋîḿüḿ ƃéƒöŕé\/àƒţéŕ éẋàḿþļéš ţö îñƒéŕ ▒"
-        },
-        "model": {
-          "title": "▒ Ḿöđéļ ▒",
-          "description": "▒ ÀÎ ḿöđéļ ñàḿé ▒"
-        },
-        "profileName": {
-          "title": "▒ Þŕöƒîļé Ñàḿé ▒",
-          "description": "▒ Ñàḿé ƒöŕ ţĥé îñƒéŕŕéđ đŕàƒţ þŕöƒîļé ▒"
-        },
-        "provider": {
-          "title": "▒ ÀÎ Þŕöṽîđéŕ ▒",
-          "description": "▒ ÀÎ þŕöṽîđéŕ ▒",
-          "options": {
-            "anthropic": {
-              "label": "▒ Àñţĥŕöþîç ▒"
-            },
-            "azureopenai": {
-              "label": "▒ Àžüŕé ÖþéñÀÎ ▒"
-            },
-            "claude-code": {
-              "label": "▒ Çļàüđé Çöđé ▒"
-            },
-            "demo": {
-              "label": "▒ Đéḿö (îļļüšţŕàţîṽé) ▒"
-            },
-            "gemini": {
-              "label": "▒ Ĝéḿîñî ▒"
-            },
-            "ollama": {
-              "label": "▒ Öļļàḿà ▒"
-            },
-            "openai": {
-              "label": "▒ ÖþéñÀÎ ▒"
-            }
-          }
-        }
-      },
-      "groups": {
-        "provider": {
-          "label": "▒ Þŕöṽîđéŕ ▒"
-        }
-      }
-    },
     "case-transform": {
       "displayName": "▒ Çàšé Ţŕàñšƒöŕḿ ▒",
       "category": "▒ ţéẋţ-þŕöçéššîñĝ ▒",
@@ -1140,6 +1030,116 @@
       "displayName": "▒ Üñŕéđàçţ ▒",
       "description": "▒ Ŕéšţöŕé öŕîĝîñàļ ṽàļüéš îñţö ŕéđàçţéđ çöñţéñţ àƒţéŕ þŕöçéššîñĝ ▒",
       "category": "▒ ţéẋţ-þŕöçéššîñĝ ▒"
+    },
+    "voice-check": {
+      "displayName": "▒ ÀÎ Ṽöîçé Çĥéçķ ▒",
+      "description": "▒ Çĥéçķ ţéẋţ àĝàîñšţ à ṽöîçé þŕöƒîļé üšîñĝ àñ ĻĻḾ þŕöṽîđéŕ ▒",
+      "category": "▒ ǫüàļîţý ▒",
+      "properties": {
+        "apiKey": {
+          "title": "▒ ÀÞÎ Ķéý ▒",
+          "description": "▒ ÀÞÎ ķéý ƒöŕ ţĥé ÀÎ þŕöṽîđéŕ ▒"
+        },
+        "model": {
+          "title": "▒ Ḿöđéļ ▒",
+          "description": "▒ ÀÎ ḿöđéļ ñàḿé ▒"
+        },
+        "profileId": {
+          "title": "▒ Þŕöƒîļé ÎĐ ▒",
+          "description": "▒ Ṽöîçé þŕöƒîļé ţö ŕéšöļṽé ƒŕöḿ ţĥé šţöŕé ▒"
+        },
+        "provider": {
+          "title": "▒ ÀÎ Þŕöṽîđéŕ ▒",
+          "description": "▒ ÀÎ þŕöṽîđéŕ ▒",
+          "options": {
+            "anthropic": {
+              "label": "▒ Àñţĥŕöþîç ▒"
+            },
+            "azureopenai": {
+              "label": "▒ Àžüŕé ÖþéñÀÎ ▒"
+            },
+            "claude-code": {
+              "label": "▒ Çļàüđé Çöđé ▒"
+            },
+            "demo": {
+              "label": "▒ Đéḿö (îļļüšţŕàţîṽé) ▒"
+            },
+            "gemini": {
+              "label": "▒ Ĝéḿîñî ▒"
+            },
+            "ollama": {
+              "label": "▒ Öļļàḿà ▒"
+            },
+            "openai": {
+              "label": "▒ ÖþéñÀÎ ▒"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "▒ Þŕöṽîđéŕ ▒"
+        }
+      }
+    },
+    "voice-infer": {
+      "displayName": "▒ ÀÎ Ṽöîçé Îñƒéŕéñçé ▒",
+      "description": "▒ Îñƒéŕ à đŕàƒţ ṽöîçé þŕöƒîļé ƒŕöḿ à çöñţéñţ çöŕþüš üšîñĝ àñ ĻĻḾ þŕöṽîđéŕ ▒",
+      "category": "▒ àñàļýšîš ▒",
+      "properties": {
+        "apiKey": {
+          "title": "▒ ÀÞÎ Ķéý ▒",
+          "description": "▒ ÀÞÎ ķéý ƒöŕ ţĥé ÀÎ þŕöṽîđéŕ ▒"
+        },
+        "domain": {
+          "title": "▒ Đöḿàîñ ▒",
+          "description": "▒ Šüƃĵéçţ đöḿàîñ ĥîñţ ƒöŕ ţĥé àñàļýšîš (é.ĝ. ḿéđîçàļ ļéĝàļ ţéçĥñöļöĝý) ▒"
+        },
+        "maxExamples": {
+          "title": "▒ Ḿàẋ Éẋàḿþļéš ▒",
+          "description": "▒ Ḿàẋîḿüḿ ƃéƒöŕé\/àƒţéŕ éẋàḿþļéš ţö îñƒéŕ ▒"
+        },
+        "model": {
+          "title": "▒ Ḿöđéļ ▒",
+          "description": "▒ ÀÎ ḿöđéļ ñàḿé ▒"
+        },
+        "profileName": {
+          "title": "▒ Þŕöƒîļé Ñàḿé ▒",
+          "description": "▒ Ñàḿé ƒöŕ ţĥé îñƒéŕŕéđ đŕàƒţ þŕöƒîļé ▒"
+        },
+        "provider": {
+          "title": "▒ ÀÎ Þŕöṽîđéŕ ▒",
+          "description": "▒ ÀÎ þŕöṽîđéŕ ▒",
+          "options": {
+            "anthropic": {
+              "label": "▒ Àñţĥŕöþîç ▒"
+            },
+            "azureopenai": {
+              "label": "▒ Àžüŕé ÖþéñÀÎ ▒"
+            },
+            "claude-code": {
+              "label": "▒ Çļàüđé Çöđé ▒"
+            },
+            "demo": {
+              "label": "▒ Đéḿö (îļļüšţŕàţîṽé) ▒"
+            },
+            "gemini": {
+              "label": "▒ Ĝéḿîñî ▒"
+            },
+            "ollama": {
+              "label": "▒ Öļļàḿà ▒"
+            },
+            "openai": {
+              "label": "▒ ÖþéñÀÎ ▒"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "▒ Þŕöṽîđéŕ ▒"
+        }
+      }
     },
     "whitespace-correct": {
       "displayName": "▒ Ŵĥîţéšþàçé Çöŕŕéçţ ▒",
