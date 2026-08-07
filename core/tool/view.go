@@ -275,7 +275,7 @@ func (v *blockView) AppendAltUnder(key string, a *model.AltTranslation) {
 // Annotations and Properties return snapshots (per the BlockReader contract):
 // handing the tool the live map would open an unchecked mutation channel past
 // Annotate/SetProperty, the sanctioned write paths.
-func (v *blockView) Annotations() map[string]model.Payload { return maps.Clone(v.b.Annotations) }
+func (v *blockView) Annotations() map[string]model.Payload { return maps.Clone(v.b.AnnoMap()) }
 func (v *blockView) Annotate(key string, a model.Payload)  { v.b.SetAnno(key, a) }
 func (v *blockView) RemoveAnnotation(key string)           { v.b.DelAnno(key) }
 func (v *blockView) Properties() map[string]string         { return maps.Clone(v.b.Properties) }

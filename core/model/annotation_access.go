@@ -31,13 +31,39 @@ const (
 // --- Block-scoped annotation access ---
 
 // Anno returns the block annotation stored under key, or (nil, false).
+//
+// A promoted key reads its field first and falls through to the map when the
+// field is empty, so a payload of an unexpected type stored under that key —
+// which SetAnno routes to the map — is still found.
 func (b *Block) Anno(key string) (Payload, bool) {
+	switch {
+	case key == AnnoStructure && b.structure != nil:
+		return b.structure, true
+	case key == AnnoGeometry && b.geometry != nil:
+		return b.geometry, true
+	}
 	v, ok := b.Annotations[key]
 	return v, ok
 }
 
 // SetAnno stores v as the block annotation under key (upserting).
+//
+// A payload under one of the promoted keys goes to its field; anything else,
+// including a value of the wrong type under a promoted key, goes to the map, so
+// a caller storing something unexpected still gets it back.
 func (b *Block) SetAnno(key string, v Payload) {
+	switch key {
+	case AnnoStructure:
+		if s, ok := v.(*StructureAnnotation); ok {
+			b.structure = s
+			return
+		}
+	case AnnoGeometry:
+		if g, ok := v.(*GeometryAnnotation); ok {
+			b.geometry = g
+			return
+		}
+	}
 	if b.Annotations == nil {
 		b.Annotations = make(map[string]Payload)
 	}
@@ -45,19 +71,51 @@ func (b *Block) SetAnno(key string, v Payload) {
 }
 
 // DelAnno removes the block annotation stored under key.
-func (b *Block) DelAnno(key string) { delete(b.Annotations, key) }
+func (b *Block) DelAnno(key string) {
+	switch key {
+	case AnnoStructure:
+		b.structure = nil
+	case AnnoGeometry:
+		b.geometry = nil
+	}
+	delete(b.Annotations, key)
+}
 
-// AnnoMap returns the block's annotation map for ranging and length checks.
-// The returned map is the block's own LIVE storage (the exported Annotations
-// field), not a copy — writing to it writes to the block. Use SetAnno/DelAnno
-// as the mutation path, and prefer Annos for read-only iteration so a read
-// never turns into an accidental write.
-func (b *Block) AnnoMap() map[string]Payload { return b.Annotations }
+// AnnoMap returns the block's annotations as one map, for ranging and length
+// checks. It is a snapshot, not the block's storage: writing to it does not
+// write to the block. Use SetAnno/DelAnno to mutate, and prefer Annos for
+// read-only iteration, which allocates nothing.
+func (b *Block) AnnoMap() map[string]Payload {
+	if b.structure == nil && b.geometry == nil {
+		return b.Annotations
+	}
+	out := make(map[string]Payload, len(b.Annotations)+2)
+	maps.Copy(out, b.Annotations)
+	if b.structure != nil {
+		out[AnnoStructure] = b.structure
+	}
+	if b.geometry != nil {
+		out[AnnoGeometry] = b.geometry
+	}
+	return out
+}
 
 // Annos yields the block's annotations for read-only iteration, without
-// handing out the underlying map.
+// handing out or building a map.
 func (b *Block) Annos() iter.Seq2[string, Payload] {
-	return maps.All(b.Annotations)
+	return func(yield func(string, Payload) bool) {
+		if b.structure != nil && !yield(AnnoStructure, b.structure) {
+			return
+		}
+		if b.geometry != nil && !yield(AnnoGeometry, b.geometry) {
+			return
+		}
+		for k, v := range b.Annotations {
+			if !yield(k, v) {
+				return
+			}
+		}
+	}
 }
 
 // AltTranslations returns the block's alternative-translation candidates (the
@@ -112,7 +170,7 @@ func (b *Block) appendAlt(key string, a *AltTranslation) {
 // ok only when the annotation exists and has that concrete type.
 func AnnoAs[T any](b *Block, key string) (T, bool) {
 	var zero T
-	v, ok := b.Annotations[key]
+	v, ok := b.Anno(key)
 	if !ok {
 		return zero, false
 	}

@@ -304,9 +304,9 @@ func serializeBlock(b *model.Block) *frameworkToolOutput {
 			out.Overlays = raw
 		}
 	}
-	if len(b.Annotations) > 0 {
-		out.Annotations = make(map[string]json.RawMessage, len(b.Annotations))
-		for k, v := range b.Annotations {
+	if am := b.AnnoMap(); len(am) > 0 {
+		out.Annotations = make(map[string]json.RawMessage, len(am))
+		for k, v := range am {
 			if raw, err := json.Marshal(v); err == nil {
 				out.Annotations[k] = raw
 			}

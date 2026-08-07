@@ -50,6 +50,22 @@ type Block struct {
 	DisplayHint        *DisplayHint   // UI rendering guidance
 	PreserveWhitespace bool           // Whether whitespace is significant in this block
 	IsReferent         bool           // Whether this block is referenced by a skeleton
+
+	// structure and geometry are annotations by contract and fields by
+	// storage. Every accessor — Anno, SetAnno, DelAnno, Annos, AnnoMap,
+	// AnnoAs — presents them exactly as if they sat in Annotations, so the
+	// wire, the stores and every consumer see no difference.
+	//
+	// They are held here because they are the two annotations that are set on
+	// nearly every structured block rather than occasionally: a role on any
+	// block a format gives structure to, a position on any block that comes
+	// from a grid or a page. A map entry costs around 285 bytes, so a
+	// spreadsheet of a million cells was paying a quarter of a gigabyte to
+	// store one enum and four small integers per cell. Nothing else in the
+	// annotation vocabulary is common enough to be worth taking out of the
+	// map, and the map stays for all of it.
+	structure *StructureAnnotation
+	geometry  *GeometryAnnotation
 }
 
 // ResourceID returns the Block's unique identifier.
