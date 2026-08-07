@@ -135,10 +135,16 @@ func (s *NotificationStore) List(ctx context.Context, userID string, limit int, 
 	for rows.Next() {
 		var n Notification
 		var typ string
-		if err := rows.Scan(&n.ID, &n.UserID, &typ, &n.Title, &n.Body, &n.ProjectID, &n.LinkURL, &n.Read, &n.CreatedAt, &n.Category, &n.GroupKey, &n.ActorID, &n.ActorName, &n.TaskID, &n.Priority); err != nil {
+		// created_at is written as RFC3339 text. PostgreSQL parses that into its
+		// TIMESTAMPTZ column; SQLite keeps it a string, so a *time.Time scan fails
+		// against the schema the tests use — notifications could be written happily
+		// and never read back. scanTime accepts both.
+		var createdAt scanTime
+		if err := rows.Scan(&n.ID, &n.UserID, &typ, &n.Title, &n.Body, &n.ProjectID, &n.LinkURL, &n.Read, &createdAt, &n.Category, &n.GroupKey, &n.ActorID, &n.ActorName, &n.TaskID, &n.Priority); err != nil {
 			return nil, err
 		}
 		n.Type = NotificationType(typ)
+		n.CreatedAt = createdAt.Time
 		notifications = append(notifications, n)
 	}
 	return notifications, rows.Err()
@@ -178,6 +184,31 @@ func (s *NotificationStore) MarkReadByGroupKey(ctx context.Context, groupKey str
 	return err
 }
 
+// ExistsByGroupKey reports whether the user already holds a notification under
+// the given group key, read or not.
+//
+// This is what makes "tell them once" survive a restart and a second instance.
+// A summons that deduplicated in memory would mail again after every deploy,
+// and twice over on a two-instance deployment; the group key is already the
+// column that ties a notification to the thing it is about, so asking the table
+// is both durable and cluster-wide. It is a check-then-insert rather than a
+// unique constraint, so two events racing inside the same millisecond can still
+// produce two rows — a far cheaper failure than a schema that refuses the
+// second notification anyone ever groups.
+func (s *NotificationStore) ExistsByGroupKey(ctx context.Context, userID, groupKey string) (bool, error) {
+	if userID == "" || groupKey == "" {
+		return false, nil
+	}
+	var exists bool
+	err := s.db.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM notifications WHERE user_id = $1 AND group_key = $2)`,
+		userID, groupKey).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
 // ListUnreadSince returns unread notifications for a user created after the given time.
 func (s *NotificationStore) ListUnreadSince(ctx context.Context, userID string, since time.Time) ([]Notification, error) {
 	query := `SELECT id, user_id, type, title, body, project_id, link_url, read, created_at, category, group_key, actor_id, actor_name, task_id, priority
@@ -192,10 +223,16 @@ func (s *NotificationStore) ListUnreadSince(ctx context.Context, userID string, 
 	for rows.Next() {
 		var n Notification
 		var typ string
-		if err := rows.Scan(&n.ID, &n.UserID, &typ, &n.Title, &n.Body, &n.ProjectID, &n.LinkURL, &n.Read, &n.CreatedAt, &n.Category, &n.GroupKey, &n.ActorID, &n.ActorName, &n.TaskID, &n.Priority); err != nil {
+		// created_at is written as RFC3339 text. PostgreSQL parses that into its
+		// TIMESTAMPTZ column; SQLite keeps it a string, so a *time.Time scan fails
+		// against the schema the tests use — notifications could be written happily
+		// and never read back. scanTime accepts both.
+		var createdAt scanTime
+		if err := rows.Scan(&n.ID, &n.UserID, &typ, &n.Title, &n.Body, &n.ProjectID, &n.LinkURL, &n.Read, &createdAt, &n.Category, &n.GroupKey, &n.ActorID, &n.ActorName, &n.TaskID, &n.Priority); err != nil {
 			return nil, err
 		}
 		n.Type = NotificationType(typ)
+		n.CreatedAt = createdAt.Time
 		notifications = append(notifications, n)
 	}
 	return notifications, rows.Err()

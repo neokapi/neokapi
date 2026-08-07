@@ -91,6 +91,7 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 		return c.JSON(http.StatusPaymentRequired, errInsufficientCredits)
 	}
 
+	requester, _ := c.Get("user_id").(string)
 	job := &jobs.TranslationJob{
 		ID:               id.New(),
 		WorkspaceSlug:    ws,
@@ -104,6 +105,8 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 		BatchSize:        req.BatchSize,
 		Concurrency:      req.Concurrency,
 		Status:           jobs.StatusQueued,
+		// Whoever asked is who hears about it if it fails.
+		CreatedBy: requester,
 	}
 
 	if err := s.JobStore.CreateJob(ctx, job); err != nil {
@@ -168,6 +171,7 @@ func (s *Server) HandleCreateProjectTranslationJob(c echo.Context) error {
 		}
 	}
 
+	requester, _ := c.Get("user_id").(string)
 	job := &jobs.TranslationJob{
 		ID:               id.New(),
 		WorkspaceSlug:    workspaceSlug,
@@ -178,6 +182,7 @@ func (s *Server) HandleCreateProjectTranslationJob(c echo.Context) error {
 		ProviderConfigID: providerConfigID,
 		Model:            req.Model,
 		Status:           jobs.StatusQueued,
+		CreatedBy:        requester,
 	}
 	if err := s.JobStore.CreateJob(ctx, job); err != nil {
 		return serverErr(c, err)

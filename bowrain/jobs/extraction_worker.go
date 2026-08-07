@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	bstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/core/ai/ner"
@@ -36,6 +37,10 @@ type ExtractionWorkerDeps struct {
 	Platform           *PlatformProviderConfig                                     // optional; nil disables platform provider
 	PlatformResolver   PlatformResolver                                            // optional; consulted at job time for runtime config changes (overrides Platform)
 	LogFunc            func(stepID, level, message string, data map[string]string) // optional (Bowrain AD-013)
+	// EventBus publishes flow.failed when an extraction job fails, so the
+	// failure reaches the people waiting on it rather than only the job row.
+	// Optional; nil records the failure and summons nobody.
+	EventBus platev.EventBus
 }
 
 // ReviewQueueCreator creates review queue items from extraction results.
@@ -111,6 +116,9 @@ func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID
 		emitExtractionLog(deps, job.StepID, "error",
 			"Extraction failed: "+err.Error(),
 			map[string]string{"item": job.ItemName})
+		// Extraction has no retry budget, so this failure is the only one this
+		// job will ever have: publishing here is publishing once.
+		publishExtractionJobFailed(deps.EventBus, job, err.Error())
 		return err
 	}
 

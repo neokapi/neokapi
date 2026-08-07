@@ -142,7 +142,8 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 	case platev.EventFlowFailed:
 		a.Type = bstore.ActivityFlowFailed
 		a.EntityType = "flow"
-		a.Summary = "flow failed"
+		a.EntityID = ev.Data["job_id"]
+		a.Summary = flowFailedSummary(ev.Data)
 
 	// Extraction
 	case platev.EventExtractionCompleted:
@@ -209,12 +210,49 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityType = "connector"
 		a.Summary = "connector sync completed"
 
+	// Convergence runs — the loop itself, and what the feed is read to answer
+	// "did the loop run, and what came of it" with. Mapped for every terminal
+	// state, because a failed or parked run is the one worth scanning for; the
+	// summary carries the real outcome word.
+	case platev.EventConvergenceRunCompleted:
+		a.Type = bstore.ActivityFlowCompleted
+		if ev.Data["state"] == "failed" {
+			a.Type = bstore.ActivityFlowFailed
+		}
+		a.EntityType = "run"
+		a.EntityID = ev.Data["run_id"]
+		a.Summary = convergenceRunSummary(ev.Data)
+
 	default:
 		// Skip events we don't map to activities.
 		return nil
 	}
 
 	return a
+}
+
+// flowFailedSummary is the line the activity feed shows for a failed job.
+//
+// A bare "flow failed" is accurate and useless: the feed's whole job is to let
+// someone scan it and know whether to look closer. The event carries the kind,
+// what was being worked on, and the recorded reason, so the summary says all
+// three.
+func flowFailedSummary(data map[string]string) string {
+	kind := data["job_kind"]
+	if kind == "" {
+		kind = "background"
+	}
+	s := kind + " job failed"
+	if item := data["item"]; item != "" {
+		s += ": " + item
+		if locale := data["target_locale"]; locale != "" {
+			s += " → " + locale
+		}
+	}
+	if reason := data["error"]; reason != "" {
+		s += " — " + reason
+	}
+	return s
 }
 
 // pushSummary builds a compact, human-readable summary for a completed push.
@@ -282,6 +320,36 @@ func groupThousands(n int) string {
 		b.WriteString(s[i : i+3])
 	}
 	return neg + b.String()
+}
+
+// convergenceRunSummary is the feed line for a finished convergence run.
+//
+// It says what the run did, not merely that it ended: the outcome word the run
+// row records (converged | parked | failed | canceled), the machine-readable
+// stall reason when one parked it, and the run's magnitude folded out of its
+// per-locale standing. It never enumerates the locales — the event's data
+// carries the list for a drill-down, the summary carries the count.
+func convergenceRunSummary(data map[string]string) string {
+	state := data["state"]
+	if state == "" {
+		state = "finished"
+	}
+	s := "convergence run " + state
+	if reason := data["stall_reason"]; reason != "" {
+		s += " (" + reason + ")"
+	}
+
+	var detail []string
+	if locales := atoiOr(data["locales_count"], 0); locales > 0 {
+		detail = append(detail, pluralCount(locales, "language"))
+	}
+	if produced := atoiOr(data["produced_count"], -1); produced >= 0 {
+		detail = append(detail, pluralCount(produced, "translation")+" produced")
+	}
+	if len(detail) > 0 {
+		s += " — " + strings.Join(detail, " · ")
+	}
+	return s
 }
 
 // atoiOr parses s as an int, returning def when s is empty or invalid.

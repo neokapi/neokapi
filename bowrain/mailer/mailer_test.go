@@ -528,6 +528,25 @@ func TestRenderAllTemplatesAllLocales(t *testing.T) {
 				ExpiresIn: "24 hours",
 			})
 		},
+		"review-request": func(l string) error {
+			return m.SendReviewRequest(t.Context(), "to@example.com", l, mailer.ReviewRequestData{
+				WorkspaceName: "Acme", ChangeSetName: "Governed concepts", AuthorName: "Dana",
+				ChangeCount: "57 changes", ReviewURL: "https://example.com/acme/context/changes/x",
+			})
+		},
+		"job-failed": func(l string) error {
+			return m.SendJobFailed(t.Context(), "to@example.com", l, mailer.JobFailedData{
+				WorkspaceName: "Acme", JobKind: "translation", Subject: "en.json → nb",
+				Reason: "openai: API error 401: invalid api key",
+				JobURL: "https://example.com/acme/p/p1/s/main/runs",
+			})
+		},
+		"task-assigned": func(l string) error {
+			return m.SendTaskAssigned(t.Context(), "to@example.com", l, mailer.TaskAssignedData{
+				WorkspaceName: "Acme", TaskTitle: "Fix terminology", TaskDescription: "Three terms",
+				Priority: "urgent", AssignerName: "Dana", TaskURL: "https://example.com/acme/tasks",
+			})
+		},
 	}
 
 	// "" exercises the empty-locale (unknown-user) fallback; "nb-NO"

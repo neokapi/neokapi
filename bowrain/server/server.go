@@ -737,15 +737,36 @@ func NewServer(cfg Config) *Server {
 		s.NotificationDispatcher = event.NewNotificationDispatcher(
 			s.EventBus, s.NotificationStore, s.PreferenceStore, s, targetFn)
 
-		// Wire immediate email delivery for high-priority notifications.
+		// Wire immediate email delivery for high-priority notifications, and
+		// the assignment email for tasks marked high or urgent.
 		if s.Mailer != nil && s.AuthStore != nil {
-			s.NotificationDispatcher.SetMailer(event.NewMailerAdapter(s.Mailer, s.AuthStore))
+			s.NotificationDispatcher.SetMailer(
+				event.NewMailerAdapter(s.Mailer, s.AuthStore, cfg.AppPublicURL))
+			// Tasks are keyed by workspace id and notification preferences by
+			// slug, so the assignment email needs the lookup between them.
+			s.NotificationDispatcher.SetWorkspaceSlugResolver(
+				func(ctx context.Context, workspaceID string) (string, error) {
+					ws, err := s.AuthStore.GetWorkspace(ctx, workspaceID)
+					if err != nil {
+						return "", err
+					}
+					if ws == nil {
+						return "", nil
+					}
+					return ws.Slug, nil
+				})
 		}
 
 		// Wire quiet hours enforcement for push/email suppression.
 		if s.DigestStore != nil {
 			s.NotificationDispatcher.SetDigestStore(s.DigestStore)
 		}
+
+		// A failed job summons the person waiting on it. Separate from the
+		// dispatcher's generic event map on purpose: that map fans out to every
+		// member of the job's project, and a failure goes to whoever asked for
+		// the work. See job_failure_summons.go.
+		s.subscribeJobFailures()
 	}
 
 	// Wire up digest workers (Bowrain AD-014).

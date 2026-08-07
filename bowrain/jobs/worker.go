@@ -275,6 +275,11 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 			// with the job ID so it resolves from the client-visible reference.
 			observe.CaptureError(processErr, jobID, map[string]string{"kind": "job", "job_id": jobID})
 			observe.ObserveJob(queueLabel, "failed", jobStart)
+			// …and tell the people waiting on it. This is the one branch that
+			// has ruled out both retry and deferral, so it fires once per job
+			// rather than once per attempt — the difference between a summons
+			// and a burst of mail on a flaky provider.
+			announceJobFailure(jobCtx, deps, jobID, processErr)
 		} else {
 			observe.ObserveJob(queueLabel, "success", jobStart)
 		}

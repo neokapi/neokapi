@@ -701,19 +701,18 @@ func (s *Server) createSourceReviewTask(ctx context.Context, action event.Automa
 		return
 	}
 
+	// Who the summons reaches. A rule that names a reviewer routes to exactly
+	// that person; otherwise it reaches every member entitled to edit the
+	// source (sourceOwners), with the first of them carrying the assignment.
+	// A run held below the source gate is blocked until somebody settles the
+	// source, so telling one arbitrary member and nobody else made the hold
+	// depend on that member being available.
 	reviewer := action.Config["reviewer"]
-
-	// Fall back to first project member with PermEditSource.
-	if reviewer == "" && s.AuthStore != nil {
-		members, err := s.AuthStore.ListProjectMembers(ctx, proj.ID)
-		if err == nil {
-			for _, m := range members {
-				rt, err := s.AuthStore.GetRoleTemplate(ctx, proj.WorkspaceID, m.RoleID)
-				if err == nil && rt.Permissions.Has(platauth.PermEditSource) {
-					reviewer = m.UserID
-					break
-				}
-			}
+	owners := []string{reviewer}
+	if reviewer == "" {
+		owners = s.sourceOwners(ctx, proj)
+		if len(owners) > 0 {
+			reviewer = owners[0]
 		}
 	}
 
@@ -735,13 +734,10 @@ func (s *Server) createSourceReviewTask(ctx context.Context, action event.Automa
 		return
 	}
 
-	if reviewer != "" && s.NotificationDispatcher != nil {
-		s.NotificationDispatcher.DispatchTaskNotification(
-			ctx, task, bstore.NotificationTaskAssigned,
-			"Source review needed",
-			"New content needs source review before translation fan-out.",
-		)
-	}
+	s.notifySourceOwners(ctx, task, owners,
+		"Source review needed",
+		"New content needs source review before translation fan-out.",
+	)
 
 	if stepID != "" && s.AutomationRunStore != nil {
 		_ = s.AutomationRunStore.RegisterStepTasks(ctx, stepID, []string{task.ID})

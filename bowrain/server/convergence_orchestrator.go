@@ -558,11 +558,21 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 		o.createCompletionReviewTasks(context.WithoutCancel(ctx), run)
 	}
 
-	// Announce the terminal state on the bus: the forge delivery tier (and any
-	// future subscriber) reacts to finished runs without polling the run store.
-	// Published for every terminal state — subscribers filter; a canceled or
-	// failed run must be as observable as a converged one.
+	// Announce the terminal state on the bus: the forge delivery tier, the
+	// activity recorder, and any future subscriber react to finished runs
+	// without polling the run store. Published for every terminal state —
+	// subscribers filter; a canceled or failed run must be as observable as a
+	// converged one.
+	//
+	// The frame carries the workspace and the run's outcome, not just its id.
+	// The activity recorder files every entry under the workspace SLUG, so an
+	// event that named only the project landed in the feed under no workspace
+	// at all — the same omission the knowledge events had (publishKnowledgeEvents)
+	// — and the standing counts are what let the feed line say what the run did
+	// rather than merely that it ended.
 	if o.server.EventBus != nil {
+		wsID := o.projectWorkspaceID(context.WithoutCancel(ctx), run.ProjectID)
+		locales, produced := runOutcomeCounts(run)
 		o.server.EventBus.Publish(platev.Event{
 			ID:        id.New(),
 			Type:      platev.EventConvergenceRunCompleted,
@@ -570,10 +580,15 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 			ProjectID: run.ProjectID,
 			Timestamp: time.Now().UTC(),
 			Data: map[string]string{
-				"run_id":       run.ID,
-				"state":        run.State,
-				"passes":       strconv.Itoa(run.Passes),
-				"stall_reason": run.StallReason,
+				"run_id":         run.ID,
+				"state":          run.State,
+				"passes":         strconv.Itoa(run.Passes),
+				"stall_reason":   run.StallReason,
+				"workspace_id":   wsID,
+				"workspace_slug": o.workspaceSlugFor(context.WithoutCancel(ctx), wsID),
+				"locales":        strings.Join(locales, ","),
+				"locales_count":  strconv.Itoa(len(locales)),
+				"produced_count": strconv.Itoa(produced),
 			},
 		})
 	}
@@ -1148,6 +1163,34 @@ func (o *convergenceOrchestrator) projectWorkspaceID(ctx context.Context, projec
 		return proj.WorkspaceID
 	}
 	return ""
+}
+
+// workspaceSlugFor resolves a workspace id to the slug the activity feed and
+// the notification preferences are keyed on. Empty when unresolvable — which
+// only costs the entry its workspace filter, never the entry itself, because
+// the recorder falls back to the workspace id.
+func (o *convergenceOrchestrator) workspaceSlugFor(ctx context.Context, workspaceID string) string {
+	if workspaceID == "" || o.server.AuthStore == nil {
+		return ""
+	}
+	ws, err := o.server.AuthStore.GetWorkspace(ctx, workspaceID)
+	if err != nil || ws == nil {
+		return ""
+	}
+	return ws.Slug
+}
+
+// runOutcomeCounts folds a terminal run's per-locale standing into what the
+// activity feed reports: the locales the run worked, in run order, and how many
+// translations it produced across them.
+func runOutcomeCounts(run *bstore.ConvergenceRun) (locales []string, produced int) {
+	for _, ls := range run.Standing {
+		if ls.Locale != "" {
+			locales = append(locales, ls.Locale)
+		}
+		produced += ls.Produced
+	}
+	return locales, produced
 }
 
 // convergenceDistinctID picks the PostHog distinct-id for a run's system events

@@ -23,6 +23,26 @@ type DigestEmailer interface {
 	SendImmediate(ctx context.Context, userID string, notification *bstore.Notification) error
 }
 
+// TaskAssignmentEmailer sends the dedicated task-assignment email.
+//
+// Separate from DigestEmailer because it is a different message, not a
+// different priority of the same one: SendImmediate renders the generic
+// notification template from a title and a body, while an assignment has a task
+// behind it — a description, an assigner, a queue to open. The dispatcher
+// decides whether to send; the implementation resolves the recipient, the
+// workspace, and the link.
+type TaskAssignmentEmailer interface {
+	SendTaskAssigned(ctx context.Context, userID string, task *bstore.Task, workspaceSlug string) error
+}
+
+// WorkspaceSlugResolver maps a workspace id to its slug.
+//
+// The two are not interchangeable and the split is load-bearing: tasks are keyed
+// by workspace id, notification preferences by slug (that is what the
+// preferences API writes). A preference check that passed a task's WorkspaceID
+// straight through would match no stored row and silently read as "default".
+type WorkspaceSlugResolver func(ctx context.Context, workspaceID string) (string, error)
+
 // NotificationDispatcher bridges events to user-targeted notifications
 // with preference-aware routing.
 type NotificationDispatcher struct {
@@ -33,6 +53,8 @@ type NotificationDispatcher struct {
 	sender      NotificationSender
 	targetFn    NotificationTarget
 	mailer      DigestEmailer
+	taskMailer  TaskAssignmentEmailer
+	slugFn      WorkspaceSlugResolver
 	sub         *platev.Subscription
 }
 
@@ -62,9 +84,23 @@ func (d *NotificationDispatcher) Close() {
 	}
 }
 
-// SetMailer sets the mailer for immediate email delivery of high-priority notifications.
+// SetMailer sets the mailer for immediate email delivery of high-priority
+// notifications. A mailer that can also send the dedicated task-assignment
+// template is picked up here, so the two travel together and a test that
+// supplies a bare DigestEmailer keeps working.
 func (d *NotificationDispatcher) SetMailer(m DigestEmailer) {
 	d.mailer = m
+	if tm, ok := m.(TaskAssignmentEmailer); ok {
+		d.taskMailer = tm
+	}
+}
+
+// SetWorkspaceSlugResolver wires the id→slug lookup the task-assignment email
+// needs to read a preference and build a link. Without it, assignment email is
+// off: mailing on a preference that could not be read would take the choice
+// away from the person it belongs to.
+func (d *NotificationDispatcher) SetWorkspaceSlugResolver(fn WorkspaceSlugResolver) {
+	d.slugFn = fn
 }
 
 // SetDigestStore sets the digest store for quiet hours lookups.
@@ -152,12 +188,12 @@ func (d *NotificationDispatcher) mapEventToNotification(ev platev.Event) *bstore
 	}
 
 	switch ev.Type {
-	case platev.EventFlowFailed:
-		n.Type = bstore.NotificationFlowFailed
-		n.Title = "Flow failed"
-		n.Body = "A processing flow failed in your project"
-		n.Category = string(bstore.CategoryAutomation)
-
+	// flow.failed is deliberately absent. It has a dedicated consumer —
+	// server.subscribeJobFailures — because the recipients are not the ones this
+	// function's caller resolves: it takes every member of ev.ProjectID, and a
+	// failed job goes to the person who asked for the work, falling back to the
+	// workspace's owners. Handling it here as well would summon the whole
+	// project alongside them, twice.
 	case platev.EventQualityGateFail:
 		n.Type = bstore.NotificationGateFailed
 		n.Title = "Quality gate failed"
@@ -318,6 +354,62 @@ func (d *NotificationDispatcher) DispatchTaskNotification(ctx context.Context, t
 
 	if d.sender != nil {
 		d.sender.NotifyUser(task.AssigneeID, n)
+	}
+
+	d.mailTaskAssignment(ctx, task)
+}
+
+// mailTaskAssignment sends the assignment email — but only for a task marked
+// high or urgent.
+//
+// Routine assignments stay in-app and on the badge. A queue that mails on every
+// item teaches its readers to ignore it, and then the urgent one arrives looking
+// like all the others. Mail is for the ones that cannot wait for someone to
+// open the queue.
+func (d *NotificationDispatcher) mailTaskAssignment(ctx context.Context, task *bstore.Task) {
+	if d.taskMailer == nil || task == nil || task.AssigneeID == "" {
+		return
+	}
+	if !taskWarrantsEmail(task) {
+		return
+	}
+	if d.slugFn == nil {
+		return
+	}
+	slug, err := d.slugFn(ctx, task.WorkspaceID)
+	if err != nil || slug == "" {
+		slog.Warn("task assignment email skipped: cannot resolve the workspace slug",
+			"task", task.ID, "workspace_id", task.WorkspaceID, "error", err)
+		return
+	}
+	if d.prefStore != nil {
+		pref, err := d.prefStore.Get(ctx, task.AssigneeID, slug, bstore.CategoryTask)
+		if err == nil && pref != nil && !pref.Email {
+			return
+		}
+	}
+	if err := d.taskMailer.SendTaskAssigned(ctx, task.AssigneeID, task, slug); err != nil {
+		slog.Warn("task assignment email failed", "task", task.ID, "user_id", task.AssigneeID, "error", err)
+	}
+}
+
+// taskWarrantsEmail decides whether one task assignment is worth a mail.
+//
+// High and urgent qualify. A change-set review task never does, whatever its
+// priority: the change-set summons already sends that reviewer the dedicated
+// review-request email, which says more about the change than a generic
+// assignment can, and two messages about one change-set is one too many. The
+// guard reads the change-set id the summons writes onto the task rather than the
+// task's type, so a terms-review task opened by any other route still mails.
+func taskWarrantsEmail(task *bstore.Task) bool {
+	if task.Data["changeset_id"] != "" {
+		return false
+	}
+	switch task.Priority {
+	case bstore.TaskPriorityHigh, bstore.TaskPriorityUrgent:
+		return true
+	default:
+		return false
 	}
 }
 
