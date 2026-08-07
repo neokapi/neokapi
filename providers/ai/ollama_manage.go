@@ -22,6 +22,11 @@ import (
 type OllamaManager struct {
 	baseURL string
 	client  *http.Client
+	// pullClient carries the one request that streams for minutes. Client.Timeout
+	// bounds the whole exchange, body included, so the management client's 30s
+	// would abort a real model download partway through reading progress frames;
+	// the caller's context is the deadline that applies to a pull.
+	pullClient *http.Client
 }
 
 // DefaultOllamaBaseURL is the address Ollama listens on out of the box.
@@ -33,9 +38,12 @@ func NewOllamaManager(baseURL string) *OllamaManager {
 	if baseURL == "" {
 		baseURL = DefaultOllamaBaseURL
 	}
+	pull := httputil.NewResilientClient()
+	pull.Timeout = 0
 	return &OllamaManager{
-		baseURL: strings.TrimRight(baseURL, "/"),
-		client:  httputil.NewResilientClient(),
+		baseURL:    strings.TrimRight(baseURL, "/"),
+		client:     httputil.NewResilientClient(),
+		pullClient: pull,
 	}
 }
 
@@ -93,7 +101,7 @@ func (m *OllamaManager) Version(ctx context.Context) (string, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := readCappedBody(resp.Body)
 		return "", fmt.Errorf("ollama: version check failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	var v struct {
@@ -124,7 +132,7 @@ func (m *OllamaManager) List(ctx context.Context) ([]OllamaModelInfo, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := readCappedBody(resp.Body)
 		return nil, fmt.Errorf("ollama: list models failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	var out struct {
@@ -158,7 +166,8 @@ func (m *OllamaManager) Has(ctx context.Context, name string) (bool, error) {
 
 // Pull installs a model, invoking onProgress (if non-nil) for each progress
 // frame Ollama streams. It returns when the pull completes or fails. onProgress
-// must not block.
+// must not block. A multi-gigabyte download is bounded by ctx alone — see
+// pullClient.
 func (m *OllamaManager) Pull(ctx context.Context, name string, onProgress func(PullProgress)) error {
 	body, err := json.Marshal(map[string]any{"name": name, "stream": true})
 	if err != nil {
@@ -170,13 +179,13 @@ func (m *OllamaManager) Pull(ctx context.Context, name string, onProgress func(P
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := m.client.Do(req)
+	resp, err := m.pullClient.Do(req)
 	if err != nil {
 		return ollamaUnreachableError(m.baseURL, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readCappedBody(resp.Body)
 		return fmt.Errorf("ollama: pull %q failed (%d): %s", name, resp.StatusCode, strings.TrimSpace(string(b)))
 	}
 
@@ -226,7 +235,7 @@ func (m *OllamaManager) Delete(ctx context.Context, name string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := readCappedBody(resp.Body)
 		msg := strings.TrimSpace(string(b))
 		if resp.StatusCode == http.StatusNotFound {
 			return ollamaModelNotInstalledError(name, "")

@@ -198,6 +198,12 @@ type TranslateResponse struct {
 	Confidence  float64    `json:"confidence"`
 	Model       string     `json:"model"`
 	Usage       TokenUsage `json:"usage"`
+	// Truncated reports that the model stopped at its output cap, so Translation
+	// is the beginning of a translation rather than a translation. It carries the
+	// same signal ChatResponse.Truncated does, because a caller that commits the
+	// fragment as a finished target corrupts the document silently — the text
+	// looks like a translation, just a shorter one.
+	Truncated bool `json:"truncated,omitempty"`
 }
 
 // ChatResponse contains the chat result.
@@ -578,5 +584,6 @@ func standardTranslate(
 		Confidence:  confidence,
 		Model:       resp.Model,
 		Usage:       resp.Usage,
+		Truncated:   resp.Truncated,
 	}, nil
 }

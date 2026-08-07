@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/neokapi/neokapi/core/httputil"
@@ -79,7 +78,7 @@ func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 	}
 	defer httpResp.Body.Close()
 
-	respBody, err := io.ReadAll(httpResp.Body)
+	respBody, err := readCappedBody(httpResp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("openai: read response: %w", err)
 	}
@@ -147,7 +146,7 @@ func (p *OpenAIProvider) ChatStructured(ctx context.Context, messages []Message,
 	}
 	defer httpResp.Body.Close()
 
-	respBody, err := io.ReadAll(httpResp.Body)
+	respBody, err := readCappedBody(httpResp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("openai: read response: %w", err)
 	}

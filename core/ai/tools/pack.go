@@ -150,6 +150,26 @@ func batchOutputBudget(segments []prompt.BatchSegment) int {
 	return need
 }
 
+// blockOutputBudget is batchOutputBudget for a single block translated on its
+// own: the same doubling for a longer target and the same floor, minus the JSON
+// scaffolding a bare-text reply does not carry.
+//
+// The single-block path needs a budget of its own precisely because of how a
+// block gets there. packBlocks isolates a block into a batch of one when its
+// estimated output exceeds the whole call budget — so the blocks that reach this
+// path are the ones already known to be large, and letting them fall back to a
+// provider's own default truncates exactly the work that needed more room.
+//
+// It only ever raises the cap. ConservativeMaxOutputTokens is the floor because
+// it is what every built-in provider configures as its default max_tokens, and a
+// budget that tightened around a short block would be a new way to truncate one:
+// a reasoning model draws its thoughts from the same allowance as its answer, so
+// the tokens a short translation needs are not the tokens it must be allowed.
+func blockOutputBudget(text string) int {
+	need := MinOutputBudgetTokens + estimateTokens(text)*2
+	return max(need, aiprovider.ConservativeMaxOutputTokens)
+}
+
 // outputBudget reports the token budget for one call to p: a fraction of what
 // the model can emit on a blocking request.
 func outputBudget(p aiprovider.LLMProvider) int {

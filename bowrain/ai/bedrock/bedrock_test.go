@@ -307,6 +307,25 @@ func TestChatWireTruncated(t *testing.T) {
 	assert.True(t, resp.Truncated, "max_tokens stop reason must surface as Truncated")
 }
 
+// Translate reproduces the framework's standardTranslate glue rather than
+// calling it, so the truncation flag has to be carried here too — a translation
+// cut off at the cap must not reach the caller looking finished.
+func TestTranslateWireCarriesTruncated(t *testing.T) {
+	p := newTestProvider(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{
+			"output":{"message":{"role":"assistant","content":[{"text":"Bonjour le mon"}]}},
+			"stopReason":"max_tokens",
+			"usage":{"inputTokens":5,"outputTokens":5,"totalTokens":10}
+		}`)
+	})
+	resp, err := p.Translate(context.Background(), aiprovider.TranslateRequest{
+		Source: "Hello world", SourceLanguage: "en", TargetLocale: "fr",
+	})
+	require.NoError(t, err)
+	assert.True(t, resp.Truncated, "a translation cut off at the cap must say so")
+	assert.Equal(t, "Bonjour le mon", resp.Translation)
+}
+
 func TestChatStructuredWire(t *testing.T) {
 	p := newTestProvider(t, func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, `{
