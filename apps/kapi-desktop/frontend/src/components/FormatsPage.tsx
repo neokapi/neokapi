@@ -513,7 +513,7 @@ function FormatDetail({
     <div className="p-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="ghost" size="icon-xs" onClick={onBack}>
+        <Button variant="ghost" size="icon-xs" onClick={onBack} aria-label={t("Back to formats")}>
           <ArrowLeft size={16} />
         </Button>
         <FileText size={20} className="text-primary" />
@@ -877,6 +877,8 @@ function PartRow({ part }: { part: FormatPartInfo }) {
             variant="ghost"
             size="icon-xs"
             onClick={() => setExpanded((v) => !v)}
+            aria-label={t("Toggle details")}
+            aria-expanded={expanded}
             className="h-5 w-5"
           >
             {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}

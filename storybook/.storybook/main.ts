@@ -5,6 +5,8 @@ const config = createMainConfig(
     stories: [
       "../../packages/ui/src/**/*.stories.@(ts|tsx)",
       "../../packages/flow-editor/src/**/*.stories.@(ts|tsx)",
+      "../../packages/editor-grid/src/**/*.stories.@(ts|tsx)",
+      "../../packages/status-views/src/**/*.stories.@(ts|tsx)",
       "../../packages/concept-ui/src/**/*.stories.@(ts|tsx)",
       "../../packages/kapi-lab/src/**/*.stories.@(ts|tsx)",
       "../../packages/docs-shared/src/**/*.stories.@(ts|tsx)",

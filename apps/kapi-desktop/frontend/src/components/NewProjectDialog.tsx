@@ -55,11 +55,12 @@ export function NewProjectDialog({ onCreate, onCancel, shortenHome }: NewProject
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <Label className="mb-1 block text-xs text-muted-foreground">
+            <Label htmlFor="new-project-name" className="mb-1 block text-xs text-muted-foreground">
               {customPath ? t("Location") : t("Name")}
             </Label>
             <div className="flex items-center gap-1.5">
               <Input
+                id="new-project-name"
                 type="text"
                 value={customPath || name}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,10 +132,15 @@ export function NewProjectDialog({ onCreate, onCancel, shortenHome }: NewProject
             )}
           </div>
           <div>
-            <Label className="mb-1 block text-xs text-muted-foreground">
+            <Label
+              id="new-project-source-lang-label"
+              className="mb-1 block text-xs text-muted-foreground"
+            >
               {t("Source language")}
             </Label>
             <LocaleSelect
+              id="new-project-source-lang"
+              aria-labelledby="new-project-source-lang-label"
               value={sourceLang}
               onChange={setSourceLang}
               locales={locales}

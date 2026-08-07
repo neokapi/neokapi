@@ -132,13 +132,12 @@ const ACCENTED: Record<string, string> = {
 };
 
 // "Wobbly" = letters that still read as their English source but
-// look visibly bent off the upright baseline. The previous version
-// cycled three italic variants — every letter slanted the same way,
-// which defeats the point. Unicode has no reverse-italic Latin
-// block, so true left-slant is unavailable; the next best thing is
-// a cycle that mixes slant-right with no-slant and with ornate
+// look visibly bent off the upright baseline. Unicode has no
+// reverse-italic Latin block, so true left-slant is unavailable; the
+// cycle instead mixes slant-right with no-slant and with ornate
 // hand-drawn forms so adjacent letters sit at visibly different
-// angles and weights.
+// angles and weights (a uniform slant would read as plain italic,
+// which the eye stops noticing).
 //
 // Cycle (letter index mod 3):
 //   0 → Mathematical Italic      — uniform ~12° right slant

@@ -64,6 +64,11 @@ export function ProjectDashboardRoute() {
   // queries (same keys — cache hits, no extra requests, no extra polling).
   // The brand rollup is the one additional fetch on this surface; it shares
   // the brand dashboard's key and is skipped entirely on first run.
+  //
+  // These are non-suspense enrichments: a failure leaves `data` undefined and
+  // the dependent card simply doesn't render. Silent absence is intended here —
+  // only the primary projects query above is suspense-backed and errors into
+  // the route boundary; the loop-status cards are secondary.
   const { data: activitiesData } = useQuery({
     ...activitiesQueryOptions(adapter, ws),
     enabled: hasProjects,

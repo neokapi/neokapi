@@ -31,7 +31,10 @@ vp install -D @neokapi/i18n-react-lint
     "neokapi-i18n/t-literal-first-arg": "error",
     "neokapi-i18n/t-no-concat": "error",
     "neokapi-i18n/no-concat-in-translatable-attr": "error",
+    "neokapi-i18n/no-ternary-in-translatable-attr": "error",
+    "neokapi-i18n/no-ternary-literals-in-jsx-child": "error",
     "neokapi-i18n/no-string-literal-jsx-expr": "warn",
+    "neokapi-i18n/prefer-t-for-label-expr": "warn",
   },
 }
 ```
@@ -61,13 +64,16 @@ Also available: `recommendedStrict` (turns everything on as `error`, including
 
 ## Rules
 
-| Rule                             | In `recommended` | Description                                        |
-| -------------------------------- | ---------------- | -------------------------------------------------- |
-| `t-literal-first-arg`            | `error`          | `t()` first argument must be a string literal      |
-| `t-no-concat`                    | `error`          | No string concat / template interpolation in `t()` |
-| `no-concat-in-translatable-attr` | `error`          | No concat in `alt` / `title` / `aria-label` / …    |
-| `no-string-literal-jsx-expr`     | `warn`           | `<p>{'Hello'}</p>` should be `<p>Hello</p>`        |
-| `prefer-t-for-label-props`       | off              | Suggest `t()` for label strings in data arrays     |
+| Rule                               | In `recommended` | Description                                        |
+| ---------------------------------- | ---------------- | -------------------------------------------------- |
+| `t-literal-first-arg`              | `error`          | `t()` first argument must be a string literal      |
+| `t-no-concat`                      | `error`          | No string concat / template interpolation in `t()` |
+| `no-concat-in-translatable-attr`   | `error`          | No concat in `alt` / `title` / `aria-label` / …    |
+| `no-ternary-in-translatable-attr`  | `error`          | No ternary in `alt` / `title` / `aria-label` / …   |
+| `no-ternary-literals-in-jsx-child` | `error`          | No string-literal ternary branches as JSX children |
+| `no-string-literal-jsx-expr`       | `warn`           | `<p>{'Hello'}</p>` should be `<p>Hello</p>`        |
+| `prefer-t-for-label-expr`          | `warn`           | Suggest `t()` for label expressions                |
+| `prefer-t-for-label-props`         | off              | Suggest `t()` for label strings in data arrays     |
 
 See the [full documentation](../../web/docs/react/linting.md) for
 examples, FP notes, and the planned follow-up rules (type-info-aware,

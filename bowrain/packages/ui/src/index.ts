@@ -310,8 +310,6 @@ export { ProjectFormDialog } from "./components/ProjectFormDialog";
 export type { ProjectFormDialogProps, ProjectFormData } from "./components/ProjectFormDialog";
 export { AuditLogView } from "./components/AuditLogView";
 export type { AuditLogViewProps } from "./components/AuditLogView";
-export { BlockHistoryPanel } from "./components/BlockHistoryPanel";
-export type { BlockHistoryPanelProps } from "./components/BlockHistoryPanel";
 export { GovernanceSettings } from "./components/GovernanceSettings";
 export { ActivityFeed } from "./components/ActivityFeed";
 export type { ActivityFeedProps } from "./components/ActivityFeed";

@@ -26,6 +26,7 @@ import {
   TranslationDashboardSkeleton,
   ActivityFeedSkeleton,
   TaskBoardSkeleton,
+  ErrorNotice,
 } from "@neokapi/ui";
 import { searchInstallationId, searchSetupAction, searchSetupState } from "./installation-id";
 import {
@@ -940,12 +941,24 @@ const routeTree = rootRoute.addChildren([
 // (Wails webview) passes a hash history so route changes and refreshes never
 // hit the asset server (which would 404 on a deep path). Omitted on the web,
 // where createRouter defaults to browser history.
+// Branded fallback for any route that throws in a loader or on render and does
+// not set its own errorComponent — matching the loading polish already wired
+// via the skeleton pending components. `reset` re-attempts the failed boundary.
+function RouteErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center p-6">
+      <ErrorNotice error={error} onRetry={reset} className="max-w-lg" />
+    </div>
+  );
+}
+
 export function createBowrainRouter(context: RouterContext, opts?: { history?: RouterHistory }) {
   return createRouter({
     routeTree,
     context,
     defaultPendingMinMs: 0,
     defaultPendingMs: 100,
+    defaultErrorComponent: RouteErrorComponent,
     ...(opts?.history ? { history: opts.history } : {}),
   });
 }

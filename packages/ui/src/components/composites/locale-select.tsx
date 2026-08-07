@@ -59,6 +59,10 @@ export interface LocaleSelectProps {
   disabled?: boolean;
   /** Compact mode — trigger shows only the colored LocalePill, no display name. */
   compact?: boolean;
+  /** id for the combobox trigger, so a `htmlFor` label can target it. */
+  id?: string;
+  /** id of the element labelling this control (associates a `<Label>`). */
+  "aria-labelledby"?: string;
 }
 
 /** Single-locale selector with search. */
@@ -70,6 +74,8 @@ export function LocaleSelect({
   className,
   disabled,
   compact = false,
+  id,
+  "aria-labelledby": ariaLabelledby,
 }: LocaleSelectProps) {
   const [open, setOpen] = useState(false);
 
@@ -79,6 +85,8 @@ export function LocaleSelect({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
+          aria-labelledby={ariaLabelledby}
           variant="outline"
           role="combobox"
           aria-expanded={open}
