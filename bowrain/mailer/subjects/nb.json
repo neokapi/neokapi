@@ -5,5 +5,6 @@
   "invite": "You've been invited to join {{.WorkspaceName}} on Bowrain",
   "notification": "{{.Title}} — Bowrain",
   "payment-failed": "Payment failed for your subscription — {{.WorkspaceName}}",
+  "review-request": "Waiting for your review: {{.ChangeSetName}} — {{.WorkspaceName}}",
   "subscription-changed": "Your subscription has been updated — {{.WorkspaceName}}"
 }

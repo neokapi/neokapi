@@ -165,6 +165,12 @@ export function useChangesetBlastRadius(changesetId: string, enabled = true) {
     queryFn: () => api.getChangesetBlastRadius(ws, changesetId),
     enabled: enabled && !!ws && !!changesetId,
     staleTime: 30_000,
+    // This is the slowest read in the platform — a walk over every stored block
+    // in the workspace. The default retry schedule turns one slow request into
+    // four, which is how a panel ends up loading for minutes and reads as never
+    // resolving. One retry, then say so.
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 

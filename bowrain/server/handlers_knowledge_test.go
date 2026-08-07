@@ -554,6 +554,7 @@ func TestKnowledgeStoreUnavailable(t *testing.T) {
 
 type fakeKnowledgeStore struct {
 	changesets   map[string]*knowledge.ChangeSet
+	ops          map[string][]*knowledge.ChangeSetOp
 	reviews      map[string][]*knowledge.ChangeSetReview
 	markets      map[string]*knowledge.Market
 	observations map[string]*knowledge.Observation
@@ -564,6 +565,7 @@ type fakeKnowledgeStore struct {
 func newFakeKnowledgeStore() *fakeKnowledgeStore {
 	return &fakeKnowledgeStore{
 		changesets:   map[string]*knowledge.ChangeSet{},
+		ops:          map[string][]*knowledge.ChangeSetOp{},
 		reviews:      map[string][]*knowledge.ChangeSetReview{},
 		markets:      map[string]*knowledge.Market{},
 		observations: map[string]*knowledge.Observation{},
@@ -825,12 +827,32 @@ func (f *fakeKnowledgeStore) SetMergeResult(_ context.Context, ws, id, mergedBy 
 
 // --- Change-set ops --------------------------------------------------------
 
-func (f *fakeKnowledgeStore) AppendOp(context.Context, *knowledge.ChangeSetOp) error { return nil }
+// AppendOp stores the op against its change-set. Ops are real state here, not a
+// stub, because everything the submit path decides — whether the change-set is
+// empty, whether it is governed, how many changes the summons announces — is
+// read back out of ListOps.
+func (f *fakeKnowledgeStore) AppendOp(_ context.Context, op *knowledge.ChangeSetOp) error {
+	k := fakeKey(op.WorkspaceID, op.ChangesetID)
+	op.Seq = int64(len(f.ops[k]) + 1)
+	stored := *op
+	f.ops[k] = append(f.ops[k], &stored)
+	return nil
+}
 
-func (f *fakeKnowledgeStore) RemoveOp(context.Context, string, string, int64) error { return nil }
+func (f *fakeKnowledgeStore) RemoveOp(_ context.Context, ws, changesetID string, seq int64) error {
+	k := fakeKey(ws, changesetID)
+	kept := make([]*knowledge.ChangeSetOp, 0, len(f.ops[k]))
+	for _, op := range f.ops[k] {
+		if op.Seq != seq {
+			kept = append(kept, op)
+		}
+	}
+	f.ops[k] = kept
+	return nil
+}
 
-func (f *fakeKnowledgeStore) ListOps(context.Context, string, string) ([]*knowledge.ChangeSetOp, error) {
-	return nil, nil
+func (f *fakeKnowledgeStore) ListOps(_ context.Context, ws, changesetID string) ([]*knowledge.ChangeSetOp, error) {
+	return f.ops[fakeKey(ws, changesetID)], nil
 }
 
 // --- Reviews ---------------------------------------------------------------

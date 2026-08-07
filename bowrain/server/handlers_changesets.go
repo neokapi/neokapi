@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -370,6 +371,13 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
 		changesetEvent(knowledge.EventChangeSetSubmitted, wsID, cs.ID, actor),
 	})
+
+	// Summon the reviewers. The event bus above reaches the audit chain and
+	// nothing a person looks at, so without this a change-set pushed from the
+	// CLI sits in review discoverable only by its id. See changeset_summons.go.
+	governed, _ := knowledge.ChangeSetIsGoverned(changeSetOpValues(ops))
+	s.summonChangeSetReviewers(c, cs, len(ops), governed)
+
 	return s.refreshedChangeSet(c, wsID, cs.ID)
 }
 
@@ -423,6 +431,7 @@ func (s *Server) HandleApproveChangeSet(c echo.Context) error {
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
 		changesetEvent(knowledge.EventChangeSetApproved, wsID, cs.ID, actor),
 	})
+	s.closeChangeSetReviewTasks(ctx, wsID, cs.ID, actor)
 	return s.refreshedChangeSet(c, wsID, cs.ID)
 }
 
@@ -475,6 +484,10 @@ func (s *Server) HandleRejectChangeSet(c echo.Context) error {
 	s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
 		changesetEvent(knowledge.EventChangeSetRejected, wsID, cs.ID, actor),
 	})
+	// A rejection reopens the change-set as a draft, so the review is over even
+	// though the change-set lives on: close the task rather than leave the
+	// reviewer holding work that is back with its author.
+	s.closeChangeSetReviewTasks(ctx, wsID, cs.ID, actor)
 	return s.refreshedChangeSet(c, wsID, cs.ID)
 }
 
@@ -553,6 +566,7 @@ func (s *Server) HandleMergeChangeSet(c echo.Context) error {
 	}
 
 	s.publishKnowledgeEvents(c, res.Events)
+	s.closeChangeSetReviewTasks(ctx, wsID, cs.ID, actor)
 	return c.JSON(http.StatusOK, res)
 }
 
@@ -592,6 +606,7 @@ func (s *Server) HandleAbandonChangeSet(c echo.Context) error {
 
 	pilotEvents = append(pilotEvents, changesetEvent(knowledge.EventChangeSetAbandoned, wsID, cs.ID, actor))
 	s.publishKnowledgeEvents(c, pilotEvents)
+	s.closeChangeSetReviewTasks(ctx, wsID, cs.ID, actor)
 	return s.refreshedChangeSet(c, wsID, cs.ID)
 }
 
@@ -629,12 +644,26 @@ func (s *Server) HandleChangeSetBlastRadius(c echo.Context) error {
 
 	impact, err := engine.EvaluateChangeSet(ctx, wsID, *cs, changeSetOpValues(opPtrs), knowledge.EvalOptions{
 		PilotStreams: pilotStreams(pilots),
+		Budget:       blastRadiusBudget,
 	})
 	if err != nil {
 		return serverErr(c, err)
 	}
+	if impact.Partial {
+		slog.WarnContext(ctx, "blast radius returned partial: the walk did not finish inside its budget",
+			"workspace_id", wsID, "change_set_id", cs.ID, "scanned", impact.TotalBlocks)
+	}
 	return c.JSON(http.StatusOK, impact)
 }
+
+// blastRadiusBudget bounds the blast-radius walk.
+//
+// It is deliberately well inside the 60s an edge proxy typically allows: an
+// unbounded walk leaves the client on a loading state that never resolves while
+// the database is still being scanned for a reader who has gone. A bounded walk
+// answers — with a floor and a flag when the workspace is too large to finish —
+// and answers in time to be seen.
+const blastRadiusBudget = 20 * time.Second
 
 // HandleStartPilot binds a change-set to a project's content stream as a pilot,
 // so real content and real checks resolve through the draft before it merges.

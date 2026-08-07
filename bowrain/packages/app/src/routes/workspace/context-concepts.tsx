@@ -22,6 +22,12 @@ export function ConceptsRoute() {
           params: { workspace: workspace ?? "", cid },
         })
       }
+      onOpenChangeSet={(id) =>
+        void navigate({
+          to: "/$workspace/context/changes/$id",
+          params: { workspace: workspace ?? "", id },
+        })
+      }
     />
   );
 }

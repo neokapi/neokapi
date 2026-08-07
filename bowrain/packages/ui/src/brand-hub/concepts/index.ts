@@ -3,6 +3,8 @@
 // the workspace ApiAdapter with bowrain's full feature set + governed editing.
 export { ConceptsSection } from "./ConceptsSection";
 export type { ConceptsSectionProps } from "./ConceptsSection";
+export { PendingConceptChanges, usePendingConceptChanges } from "./PendingConceptChanges";
+export type { PendingConceptChangesProps } from "./PendingConceptChanges";
 export { ConceptStorySection } from "./ConceptStorySection";
 export type { ConceptStorySectionProps } from "./ConceptStorySection";
 export { ConceptEditDialog } from "./ConceptEditDialog";

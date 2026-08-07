@@ -18,6 +18,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 import { AlertTriangle, CircleCheck, FileText, Clock, Layers } from "../../components/icons";
+import { ErrorNotice } from "../../errors";
 import type { ChangeSetImpact, BlockSample } from "../../types/brand-graph";
 import {
   byLocale,
@@ -38,6 +39,15 @@ const chartConfig: ChartConfig = {
 export interface BlastRadiusPanelProps {
   impact?: ChangeSetImpact;
   isLoading?: boolean;
+  /**
+   * The error the impact query failed with, if any. A blast radius over a large
+   * workspace is the slowest read in the platform, and without this the panel
+   * had no state between "loading" and "here are the numbers" — so a request
+   * that never came back left a skeleton on screen forever.
+   */
+  error?: unknown;
+  /** Re-run the impact query. Renders a retry action on the error state. */
+  onRetry?: () => void;
   /** A short caption shown above the chart (e.g. "Live preview"). */
   caption?: string;
   /** Hide the sample-blocks list (e.g. in the compact merge confirmation). */
@@ -48,10 +58,24 @@ export interface BlastRadiusPanelProps {
 export function BlastRadiusPanel({
   impact,
   isLoading,
+  error,
+  onRetry,
   caption,
   hideSamples,
   className,
 }: BlastRadiusPanelProps) {
+  if (error) {
+    return (
+      <ErrorNotice
+        error={error}
+        title="Couldn't measure the blast radius"
+        hint="The workspace may be too large to scan in one request. Try again, or merge on the change list alone."
+        variant="panel"
+        onRetry={onRetry}
+        className={className}
+      />
+    );
+  }
   if (isLoading) {
     return (
       <div className={cn("space-y-4", className)}>
@@ -69,9 +93,24 @@ export function BlastRadiusPanel({
   }
 
   const empty = impact.affected_blocks === 0 && impact.total_blocks > 0;
+  // Nothing was scanned. Not the same as nothing affected, and saying "no
+  // measurable impact" here would be a claim the report cannot support.
+  const scannedNothing = impact.total_blocks === 0;
+
+  if (scannedNothing) {
+    return (
+      <div className={cn("space-y-4", className)}>
+        <p className="rounded-lg border border-dashed bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+          No stored content was scanned, so this draft's reach is unknown. It measures against
+          content already pushed to the workspace.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("space-y-5", className)}>
+      {impact.partial && <PartialNotice reason={impact.partial_reason} />}
       <Hero impact={impact} caption={caption} />
       <StatRow impact={impact} />
       {empty ? (
@@ -80,9 +119,34 @@ export function BlastRadiusPanel({
           measurable impact on published content.
         </p>
       ) : (
-        <BreakdownChart impact={impact} />
+        <BreakdownChart impact={impact} partial={impact.partial} />
       )}
       {!hideSamples && (impact.samples?.length ?? 0) > 0 && <Samples samples={impact.samples} />}
+    </div>
+  );
+}
+
+/**
+ * PartialNotice fronts an unfinished walk. A reader deciding whether to merge has
+ * to know before reading the numbers — "0 blocks affected" and "0 blocks affected
+ * so far" support opposite decisions.
+ *
+ * The wording is careful about *how* the numbers are wrong. "A floor, not a
+ * total" invites the reading that every project counted a little low, which is
+ * not what happens: the walk is one sequential pass, so a project it never
+ * reached contributes nothing at all and does not appear below. Absent means
+ * unexamined, not unaffected.
+ */
+function PartialNotice({ reason }: { reason?: string }) {
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-sm">
+      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+      <p className="text-muted-foreground">
+        <span className="font-medium text-foreground">Partial measurement.</span> The scan did not
+        cover the whole workspace, so anything it did not reach counts as nothing here — including
+        projects missing from the breakdown below.
+        {reason ? ` (${reason})` : null}
+      </p>
     </div>
   );
 }
@@ -187,7 +251,7 @@ function Stat({
 
 type Dimension = "project" | "locale";
 
-function BreakdownChart({ impact }: { impact: ChangeSetImpact }) {
+function BreakdownChart({ impact, partial }: { impact: ChangeSetImpact; partial?: boolean }) {
   const [dim, setDim] = useState<Dimension>("project");
   const locales = useMemo(() => byLocale(impact), [impact]);
   const projects = useMemo(() => byProject(impact), [impact]);
@@ -198,7 +262,9 @@ function BreakdownChart({ impact }: { impact: ChangeSetImpact }) {
     <Card>
       <CardContent className="space-y-3 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-medium">Where it lands</h3>
+          <h3 className="text-sm font-medium">
+            {partial ? "Where it lands, so far" : "Where it lands"}
+          </h3>
           <Tabs value={dim} onValueChange={(v) => setDim(v as Dimension)}>
             <TabsList className="h-7">
               <TabsTrigger value="project" className="text-xs">
@@ -282,6 +348,13 @@ function BreakdownChart({ impact }: { impact: ChangeSetImpact }) {
               </BarChart>
             </ChartContainer>
             <Legend />
+            {partial && (
+              <p className="text-xs text-muted-foreground">
+                Only the {dim === "project" ? "projects" : "locales"} the scan reached appear here.
+                Others were not examined, so their absence is not a sign that the draft leaves them
+                alone.
+              </p>
+            )}
           </>
         )}
       </CardContent>

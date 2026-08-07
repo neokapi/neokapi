@@ -481,6 +481,13 @@ export interface ChangeSetImpact {
   words: number;
   projects: ProjectImpact[];
   samples: BlockSample[];
+  /**
+   * The walk stopped before it had seen the whole workspace, so every count
+   * above is a floor and not a total. Present only when true.
+   */
+  partial?: boolean;
+  /** Why the walk stopped. */
+  partial_reason?: string;
 }
 
 /** The per-(stream, locale) leaf of a concept usage report (knowledge.LocaleUsage). */

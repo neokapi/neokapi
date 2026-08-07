@@ -39,7 +39,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
 import { subNavTarget } from "./sub-nav-targets";
 import { viewFromPath, type WorkspaceView } from "./view-from-path";
-import { activitiesQueryOptions, myTasksQueryOptions } from "../queries";
+import {
+  activitiesQueryOptions,
+  myTasksQueryOptions,
+  pendingChangesetsQueryOptions,
+} from "../queries";
 import { useWorkspaceEvents } from "../hooks/useWorkspaceEvents";
 import { useDesktopFreshness } from "../hooks/useDesktopFreshness";
 import { useConnectivity } from "../hooks/useConnectivity";
@@ -235,6 +239,14 @@ export function WorkspaceLayout() {
   const queryClient = useQueryClient();
   const adapter = useApi();
   const platform = usePlatform();
+
+  // Governed changes waiting on a review. The Context sub-nav wears the count so
+  // a workspace says it has something to approve before anyone opens the page it
+  // is waiting on — the summons the founder never got.
+  const { data: pendingChangesets } = useQuery({
+    ...pendingChangesetsQueryOptions(adapter, workspaceSlug ?? ""),
+    enabled: !!workspaceSlug,
+  });
 
   // Data from route beforeLoad — already fetched, no loading state needed.
   const { serverMode, user, workspaces, activeWorkspace } = useRouteContext({
@@ -677,6 +689,7 @@ export function WorkspaceLayout() {
               activeView={effectiveView}
               onViewChange={handleViewChange}
               hiddenSubNavIds={bravoEnabled ? undefined : ["bravo"]}
+              subNavCounts={{ changes: pendingChangesets?.length ?? 0 }}
               user={user}
               onSignOut={serverMode === "server" ? handleSignOut : undefined}
               collapsed={sidebarCollapsed}
