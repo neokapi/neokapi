@@ -745,15 +745,15 @@ importers:
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.3.0
         version: 5.3.0
+      '@neokapi/docs-shared':
+        specifier: '*'
+        version: link:../../../packages/docs-shared
       '@neokapi/i18n-react':
         specifier: '*'
         version: link:../../../packages/i18n-react
       lucide-react:
         specifier: ^1.27.0
         version: 1.28.0(react@19.2.8)
-      posthog-js:
-        specifier: ^1.407.3
-        version: 1.409.3
       react:
         specifier: ^19.2.8
         version: 19.2.8

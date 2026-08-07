@@ -103,7 +103,7 @@ export const DirectoryType: Story = {
   render: () => (
     <StatefulPicker
       value=""
-      label="content memory Directory"
+      label="Content Memory Directory"
       resourceKind="memory"
       pathType="directory"
       resources={sampleMemories}

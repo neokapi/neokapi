@@ -62,4 +62,41 @@ describe("TabBar", () => {
     await userEvent.type(input, "New Name{Enter}");
     expect(onRename).toHaveBeenCalledWith("1", "New Name");
   });
+
+  it("exposes a tablist with tab roles and roving tabindex", () => {
+    render(<TabBar tabs={tabs} activeTabID="2" {...defaultProps} />);
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
+    const tabEls = screen.getAllByRole("tab");
+    expect(tabEls).toHaveLength(2);
+    // Only the active tab is in the tab order.
+    expect(tabEls[0]).toHaveAttribute("tabindex", "-1");
+    expect(tabEls[1]).toHaveAttribute("tabindex", "0");
+    expect(tabEls[1]).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("selects the focused tab on Enter", async () => {
+    const onSelect = vi.fn();
+    render(<TabBar tabs={tabs} activeTabID="1" {...defaultProps} onSelect={onSelect} />);
+    const tabEls = screen.getAllByRole("tab");
+    tabEls[1].focus();
+    await userEvent.keyboard("{Enter}");
+    expect(onSelect).toHaveBeenCalledWith("2");
+  });
+
+  it("moves selection with the arrow keys", async () => {
+    const onSelect = vi.fn();
+    render(<TabBar tabs={tabs} activeTabID="1" {...defaultProps} onSelect={onSelect} />);
+    const tabEls = screen.getAllByRole("tab");
+    tabEls[0].focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(onSelect).toHaveBeenCalledWith("2");
+  });
+
+  it("enters edit mode on F2", async () => {
+    render(<TabBar tabs={tabs} activeTabID="1" {...defaultProps} />);
+    const tabEls = screen.getAllByRole("tab");
+    tabEls[0].focus();
+    await userEvent.keyboard("{F2}");
+    expect(screen.getByLabelText("Rename project")).toBeInTheDocument();
+  });
 });

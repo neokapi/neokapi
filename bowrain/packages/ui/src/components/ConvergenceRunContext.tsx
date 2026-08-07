@@ -78,7 +78,7 @@ function positionLine(run: ConvergenceRun, live: boolean): string {
   return line;
 }
 
-/** Memory/AI totals across the run's locale standing (truthful "content memory N · AI M"). */
+/** Memory/AI totals across the run's locale standing (truthful "Memory N · AI M"). */
 function memoryAiSummary(run: ConvergenceRun): string | null {
   const locales = run.locales ?? [];
   let tm = 0;

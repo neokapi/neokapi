@@ -56,7 +56,7 @@ describe("ConvergeRunView — live locale rows", () => {
     const fr = container.querySelector('[data-locale="fr-FR"]')!;
     expect(fr.getAttribute("data-state")).toBe("done");
     expect(within(fr as HTMLElement).getByText("20/20")).toBeInTheDocument();
-    expect(within(fr as HTMLElement).getByText("content memory 12 · AI 8")).toBeInTheDocument();
+    expect(within(fr as HTMLElement).getByText("Memory 12 · AI 8")).toBeInTheDocument();
 
     const de = container.querySelector('[data-locale="de-DE"]')!;
     expect(de.getAttribute("data-state")).toBe("running");

@@ -17,11 +17,11 @@
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",
+    "@neokapi/docs-shared": "*",
     "@neokapi/i18n-react": "*",
     "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "lucide-react": "^1.27.0",
-    "posthog-js": "^1.407.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },

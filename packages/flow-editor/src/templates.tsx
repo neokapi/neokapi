@@ -53,7 +53,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
   {
     id: "tm-translate",
     get name() {
-      return t("content memory Leverage + Translate", "flow template name");
+      return t("Content-Memory Leverage + Translate", "flow template name");
     },
     get description() {
       return t("Leverage content memory first, then AI-translate unmatched segments.");
@@ -66,7 +66,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
         {
           tool: "recycle",
           get label() {
-            return t("content memory Leverage", "flow step label");
+            return t("Content-Memory Leverage", "flow step label");
           },
         },
         {
@@ -169,7 +169,7 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
         {
           tool: "recycle",
           get label() {
-            return t("content memory Leverage", "flow step label");
+            return t("Content-Memory Leverage", "flow step label");
           },
         },
         {

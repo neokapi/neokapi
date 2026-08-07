@@ -23,6 +23,13 @@ function source(): ConceptDataSource {
   } as unknown as ConceptDataSource;
 }
 
+function failingSource(): ConceptDataSource {
+  return {
+    listConcepts: () => Promise.reject(new Error("network down")),
+    getConcept: () => Promise.resolve(concept),
+  } as unknown as ConceptDataSource;
+}
+
 describe("ConceptList localeScope", () => {
   it("shows only the scoped locales' term chips", async () => {
     const { findByText, queryByText } = render(
@@ -35,5 +42,15 @@ describe("ConceptList localeScope", () => {
   it("shows every locale when unscoped", async () => {
     const { findByText } = render(<ConceptList source={source()} onOpen={() => {}} />);
     expect(await findByText("Caisse")).toBeTruthy();
+  });
+});
+
+describe("ConceptList error state", () => {
+  it("surfaces a failed fetch instead of reading as no concepts", async () => {
+    const { findByText, queryByText } = render(
+      <ConceptList source={failingSource()} onOpen={() => {}} />,
+    );
+    expect(await findByText("Could not load concepts")).toBeTruthy();
+    expect(queryByText("No concepts match")).toBeNull();
   });
 });
