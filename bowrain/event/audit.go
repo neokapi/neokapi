@@ -113,7 +113,14 @@ func marshalOrEmpty(m map[string]string) string {
 	return string(b)
 }
 
-func (a *AuditLogger) handleEvent(ev platev.Event) {
+// handleEvent appends one event to the trail, and reports whether it landed.
+//
+// The error return is what keeps the trail complete. An append that fails is
+// not written anywhere else, and because each row links to the previous
+// SURVIVING row, a silently dropped record leaves a chain that still verifies —
+// a gap no verification can find. Returning the error leaves the event pending
+// so a later delivery writes it.
+func (a *AuditLogger) handleEvent(ev platev.Event) error {
 	dataJSON, err := json.Marshal(ev.Data)
 	if err != nil || len(ev.Data) == 0 {
 		dataJSON = []byte("{}")
@@ -128,12 +135,19 @@ func (a *AuditLogger) handleEvent(ev platev.Event) {
 
 	if err := a.insertChained(ctx, ev, chainKey, string(dataJSON), beforeJSON, afterJSON); err != nil {
 		slog.Warn("audit logger failed to persist event", "event_id", ev.ID, "event_type", ev.Type, "error", err)
+		return err
 	}
+	return nil
 }
 
 // insertChained writes one audit row, linking it to the previous row in the same
 // chain via a SHA-256 hash chain. A per-chain advisory lock serializes writers
 // so the chain stays consistent under concurrency.
+//
+// The insert is keyed on the event id, so a redelivered event does not append a
+// second row for the same fact — which would break the chain's meaning as much
+// as a missing one. A conflicted insert commits as a no-op: the row is already
+// there, linked to whatever preceded it then.
 func (a *AuditLogger) insertChained(ctx context.Context, ev platev.Event, chainKey, dataJSON, beforeJSON, afterJSON string) error {
 	tx, err := a.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -158,12 +172,13 @@ func (a *AuditLogger) insertChained(ctx context.Context, ev platev.Event, chainK
 
 	_, err = tx.ExecContext(ctx,
 		`INSERT INTO audit_log
-			(chain_key, project_id, workspace_id, event_type, actor, source,
+			(event_id, chain_key, project_id, workspace_id, event_type, actor, source,
 			 resource_type, resource_id, effect, data, before_state, after_state,
 			 request_id, ip, user_agent, causation_id, prev_hash, hash, created_at)
-		 VALUES ($1, NULLIF($2,''), $3, $4, $5, $6, $7, $8, $9, $10,
-			 NULLIF($11,'')::jsonb, NULLIF($12,'')::jsonb, $13, $14, $15, $16, $17, $18, $19)`,
-		chainKey, ev.ProjectID, ev.WorkspaceID, string(ev.Type), ev.Actor, ev.Source,
+		 VALUES ($1, $2, NULLIF($3,''), $4, $5, $6, $7, $8, $9, $10, $11,
+			 NULLIF($12,'')::jsonb, NULLIF($13,'')::jsonb, $14, $15, $16, $17, $18, $19, $20)
+		 ON CONFLICT DO NOTHING`,
+		ev.ID, chainKey, ev.ProjectID, ev.WorkspaceID, string(ev.Type), ev.Actor, ev.Source,
 		ev.ResourceType, ev.ResourceID, ev.Effect, dataJSON, beforeJSON, afterJSON,
 		ev.RequestID, ev.IP, ev.UserAgent, ev.CausationID, prevHash, hash, ev.Timestamp)
 	if err != nil {

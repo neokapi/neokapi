@@ -74,11 +74,21 @@ func (b *ChannelEventBus) Subscribe(eventType platev.EventType, handler platev.E
 // SubscribeGroup registers a handler with a named consumer group.
 // For ChannelEventBus, group is stored but all subscribers still receive all events
 // (no competing consumer semantics in-process).
-func (b *ChannelEventBus) SubscribeGroup(group string, handler platev.EventHandler) *platev.Subscription {
+//
+// A handler error is logged and nothing more: this bus holds no pending list,
+// so there is nowhere to redeliver from. That is the durability difference
+// between the in-process default and Redis, and it is why an instance that must
+// not lose events runs the Redis bus.
+func (b *ChannelEventBus) SubscribeGroup(group string, handler platev.GroupHandler) *platev.Subscription {
 	sub := &platev.Subscription{
-		ID:      id.New(),
-		Group:   group,
-		Handler: handler,
+		ID:    id.New(),
+		Group: group,
+		Handler: func(ev platev.Event) {
+			if err := handler(ev); err != nil {
+				slog.Warn("event bus dropping event: group handler failed with no redelivery available",
+					"group", group, "event_id", ev.ID, "event_type", ev.Type, "error", err)
+			}
+		},
 	}
 	b.addSubscriber(sub)
 	return sub

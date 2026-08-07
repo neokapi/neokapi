@@ -78,6 +78,12 @@ type Notification struct {
 	ActorName string `json:"actor_name,omitempty"` // display name of actor
 	TaskID    string `json:"task_id,omitempty"`    // linked task
 	Priority  string `json:"priority,omitempty"`   // "normal" or "high"
+
+	// SourceEventID is the bus event this notification came from, when it came
+	// from one. One user hears about one event once, however many times the
+	// event is delivered. '' for the notifications raised directly (a mention,
+	// a deadline, a task assignment), which have no event behind them.
+	SourceEventID string `json:"source_event_id,omitempty"`
 }
 
 // NotificationStore persists user notifications.
@@ -90,8 +96,13 @@ func NewNotificationStore(db *sql.DB) *NotificationStore {
 	return &NotificationStore{db: db}
 }
 
-// Create inserts a new notification.
-func (s *NotificationStore) Create(ctx context.Context, n *Notification) error {
+// Create inserts a new notification, reporting whether it is new.
+//
+// created=false means this user already has this notification: the source event
+// was delivered again, which the queues do on every deploy rollover and on
+// every reclaim of a stranded entry. The caller uses it to skip the push and
+// the email that go with a first telling.
+func (s *NotificationStore) Create(ctx context.Context, n *Notification) (created bool, err error) {
 	if n.ID == "" {
 		n.ID = id.New()
 	}
@@ -99,13 +110,21 @@ func (s *NotificationStore) Create(ctx context.Context, n *Notification) error {
 		n.CreatedAt = time.Now().UTC()
 	}
 
-	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO notifications (id, user_id, type, title, body, project_id, link_url, read, created_at, category, group_key, actor_id, actor_name, task_id, priority)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+	res, err := s.db.ExecContext(ctx,
+		`INSERT INTO notifications (id, user_id, type, title, body, project_id, link_url, read, created_at, category, group_key, actor_id, actor_name, task_id, priority, source_event_id)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		 ON CONFLICT DO NOTHING`,
 		n.ID, n.UserID, string(n.Type), n.Title, n.Body,
 		n.ProjectID, n.LinkURL, false, n.CreatedAt.UTC().Format(time.RFC3339Nano),
-		n.Category, n.GroupKey, n.ActorID, n.ActorName, n.TaskID, n.Priority)
-	return err
+		n.Category, n.GroupKey, n.ActorID, n.ActorName, n.TaskID, n.Priority, n.SourceEventID)
+	if err != nil {
+		return false, err
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	return rows > 0, nil
 }
 
 // List returns notifications for a user, newest first.

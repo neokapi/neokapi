@@ -41,17 +41,22 @@ func jobFailureGroupKey(jobID string) string { return "job-failed:" + jobID }
 // SubscribeGroup, not Subscribe: on a multi-instance deployment exactly one
 // instance should act on each failure. The group name is its own, separate from
 // the dispatcher's, so both consumers see every event.
+//
+// The handler always acknowledges. The summons is best-effort by design — the
+// job has already failed, and a store that refuses an insert must not become a
+// second failure — and every miss is logged against the job.
 func (s *Server) subscribeJobFailures() {
 	if s.EventBus == nil {
 		return
 	}
-	s.EventBus.SubscribeGroup("job-failure-summons", func(ev platev.Event) {
+	s.EventBus.SubscribeGroup("job-failure-summons", func(ev platev.Event) error {
 		if ev.Type != platev.EventFlowFailed {
-			return
+			return nil
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		s.summonOnJobFailure(ctx, ev)
+		return nil
 	})
 }
 

@@ -58,7 +58,7 @@ func (b *recordingBus) Subscribe(platev.EventType, platev.EventHandler) *platev.
 	return nil
 }
 func (b *recordingBus) SubscribeAll(platev.EventHandler) *platev.Subscription           { return nil }
-func (b *recordingBus) SubscribeGroup(string, platev.EventHandler) *platev.Subscription { return nil }
+func (b *recordingBus) SubscribeGroup(string, platev.GroupHandler) *platev.Subscription { return nil }
 func (b *recordingBus) Unsubscribe(*platev.Subscription)                                {}
 func (b *recordingBus) Close()                                                          {}
 

@@ -70,7 +70,10 @@ const (
 
 // Activity is an immutable record of something that happened.
 type Activity struct {
-	ID          string            `json:"id"`
+	ID string `json:"id"`
+	// EventID is the bus event this entry records, when it came from one. It
+	// makes a redelivered event file one line rather than a second copy.
+	EventID     string            `json:"event_id,omitempty"`
 	WorkspaceID string            `json:"workspace_id"`
 	ProjectID   string            `json:"project_id,omitempty"`
 	Stream      string            `json:"stream,omitempty"`
@@ -130,10 +133,11 @@ func (s *ActivityStore) Create(ctx context.Context, a *Activity) error {
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO activities (id, workspace_id, project_id, stream, actor_id, actor_name,
+		`INSERT INTO activities (id, event_id, workspace_id, project_id, stream, actor_id, actor_name,
 		 type, entity_type, entity_id, summary, data, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-		a.ID, a.WorkspaceID, a.ProjectID, a.Stream, a.ActorID, a.ActorName,
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		 ON CONFLICT DO NOTHING`,
+		a.ID, a.EventID, a.WorkspaceID, a.ProjectID, a.Stream, a.ActorID, a.ActorName,
 		string(a.Type), a.EntityType, a.EntityID, a.Summary,
 		string(dataJSON), a.CreatedAt.UTC().Format(time.RFC3339))
 	return err

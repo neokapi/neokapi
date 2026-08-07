@@ -120,14 +120,23 @@ func (d *NotificationDispatcher) isQuietHours(ctx context.Context, userID, works
 	return d.digestStore.IsInQuietHours(ds, time.Now().UTC())
 }
 
-func (d *NotificationDispatcher) handleEvent(ev platev.Event) {
+// handleEvent turns one event into a notification per target user, and reports
+// whether the inbox rows landed.
+//
+// Every delivery is keyed on the event, so the redelivery this error return
+// enables — and the ones a deploy rollover produces anyway — writes one inbox
+// row per user and sends one email. A row that was already there suppresses
+// both the push and the mail: the person has been told, and being told twice
+// about one thing is how an inbox stops being read.
+func (d *NotificationDispatcher) handleEvent(ev platev.Event) error {
 	// Auto-mute resolved issues.
 	d.handleAutoMute(ev)
 
 	n := d.mapEventToNotification(ev)
 	if n == nil {
-		return
+		return nil
 	}
+	n.SourceEventID = ev.ID
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -139,11 +148,12 @@ func (d *NotificationDispatcher) handleEvent(ev platev.Event) {
 		userIDs, err = d.targetFn(ctx, ev.ProjectID, ev.Actor)
 		if err != nil {
 			slog.Warn("notification dispatcher failed to resolve targets for project", "id", ev.ProjectID, "error", err)
-			return
+			return err
 		}
 	}
 
 	// Create a notification for each target user.
+	var failed error
 	for _, userID := range userIDs {
 		notification := *n
 		notification.UserID = userID
@@ -156,9 +166,14 @@ func (d *NotificationDispatcher) handleEvent(ev platev.Event) {
 			}
 		}
 
-		if err := d.store.Create(ctx, &notification); err != nil {
+		created, err := d.store.Create(ctx, &notification)
+		if err != nil {
 			slog.Warn("notification dispatcher failed to persist notification for user", "id", userID, "error", err)
+			failed = err
 			continue
+		}
+		if !created {
+			continue // This user has already been told about this event.
 		}
 
 		// During quiet hours, suppress push and email for non-urgent notifications.
@@ -177,6 +192,7 @@ func (d *NotificationDispatcher) handleEvent(ev platev.Event) {
 			}
 		}
 	}
+	return failed
 }
 
 func (d *NotificationDispatcher) mapEventToNotification(ev platev.Event) *bstore.Notification {
@@ -284,7 +300,7 @@ func (d *NotificationDispatcher) DispatchMention(ctx context.Context, mentionedU
 		Priority:  "normal",
 	}
 
-	if err := d.store.Create(ctx, n); err != nil {
+	if _, err := d.store.Create(ctx, n); err != nil {
 		slog.Warn("failed to create mention notification for user", "id", mentionedUserID, "error", err)
 		return
 	}
@@ -312,7 +328,7 @@ func (d *NotificationDispatcher) DispatchDeadlineApproaching(ctx context.Context
 		Priority:  "high",
 	}
 
-	if err := d.store.Create(ctx, n); err != nil {
+	if _, err := d.store.Create(ctx, n); err != nil {
 		slog.Warn("failed to create deadline notification for user", "id", task.AssigneeID, "error", err)
 		return
 	}
@@ -347,7 +363,7 @@ func (d *NotificationDispatcher) DispatchTaskNotification(ctx context.Context, t
 		Priority:  string(task.Priority),
 	}
 
-	if err := d.store.Create(ctx, n); err != nil {
+	if _, err := d.store.Create(ctx, n); err != nil {
 		slog.Warn("failed to create task notification for user", "id", task.AssigneeID, "error", err)
 		return
 	}
@@ -449,7 +465,7 @@ func (d *NotificationDispatcher) DispatchToUsers(ctx context.Context, userIDs []
 		}
 		n := prototype
 		n.UserID = userID
-		if err := d.store.Create(ctx, &n); err != nil {
+		if _, err := d.store.Create(ctx, &n); err != nil {
 			slog.Warn("failed to create notification for user", "id", userID, "error", err)
 			continue
 		}

@@ -58,10 +58,10 @@ func (b *countingEventBus) SubscribeAll(handler platev.EventHandler) *platev.Sub
 	return b.newSub("", handler)
 }
 
-func (b *countingEventBus) SubscribeGroup(_ string, handler platev.EventHandler) *platev.Subscription {
+func (b *countingEventBus) SubscribeGroup(_ string, handler platev.GroupHandler) *platev.Subscription {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.newSub("", handler)
+	return b.newSub("", func(ev platev.Event) { _ = handler(ev) })
 }
 
 func (b *countingEventBus) Unsubscribe(sub *platev.Subscription) {

@@ -13,6 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// createNotification drops the created verdict for the tests that only care
+// that the insert succeeded.
+func createNotification(ctx context.Context, ns *bstore.NotificationStore, n *bstore.Notification) error {
+	_, err := ns.Create(ctx, n)
+	return err
+}
+
 type mockSender struct {
 	mu            sync.Mutex
 	notifications []*bstore.Notification
@@ -38,7 +45,14 @@ func newTestNotifStore(t *testing.T) *bstore.NotificationStore {
 	return bstore.NewNotificationStore(db.DB)
 }
 
-func TestNotificationDispatcher_FlowFailed(t *testing.T) {
+// TestNotificationDispatcher_FansOutToProjectMembers: a mapped event becomes
+// one notification per resolved target, persisted and pushed.
+//
+// The event is a quality-gate failure rather than a flow failure: a failed job
+// has its own consumer (server.subscribeJobFailures), which routes to the
+// person who asked for the work and the workspace's owners instead of summoning
+// the whole project alongside them.
+func TestNotificationDispatcher_FansOutToProjectMembers(t *testing.T) {
 	bus := NewChannelEventBus()
 	defer bus.Close()
 
@@ -53,7 +67,7 @@ func TestNotificationDispatcher_FlowFailed(t *testing.T) {
 	defer d.Close()
 
 	bus.Publish(platev.Event{
-		Type:      platev.EventFlowFailed,
+		Type:      platev.EventQualityGateFail,
 		ProjectID: "proj-1",
 		Actor:     "system",
 		Data:      map[string]string{"actor_name": "System", "workspace_slug": "ws-1"},
@@ -67,7 +81,7 @@ func TestNotificationDispatcher_FlowFailed(t *testing.T) {
 	notifs, err := notifStore.List(t.Context(), "user-1", 10, false)
 	require.NoError(t, err)
 	require.Len(t, notifs, 1)
-	assert.Equal(t, bstore.NotificationFlowFailed, notifs[0].Type)
+	assert.Equal(t, bstore.NotificationGateFailed, notifs[0].Type)
 }
 
 func TestNotificationDispatcher_ExcludesActor(t *testing.T) {
@@ -160,7 +174,7 @@ func TestNotificationDispatcher_PreferencesOptOut(t *testing.T) {
 	defer d.Close()
 
 	bus.Publish(platev.Event{
-		Type:      platev.EventFlowFailed,
+		Type:      platev.EventExtractionCompleted, // an automation-category event
 		ProjectID: "proj-1",
 		Data:      map[string]string{"workspace_slug": "ws-1"},
 	})
@@ -341,7 +355,7 @@ func TestNotificationDispatcher_AutoMuteOnGatePass(t *testing.T) {
 		GroupKey: "terminology:fr-FR",
 		Priority: "high",
 	}
-	require.NoError(t, notifStore.Create(ctx, failedNotif))
+	require.NoError(t, createNotification(ctx, notifStore, failedNotif))
 
 	// Verify it's unread.
 	unread, err := notifStore.UnreadCount(ctx, "user-1")

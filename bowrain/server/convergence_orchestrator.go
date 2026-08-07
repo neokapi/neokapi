@@ -175,7 +175,12 @@ func (s *Server) subscribeConvergeOnPush() {
 	// audit/notifications/automations group consumers). Two SubscribeGroup
 	// calls with the same name would be competing consumers splitting the
 	// stream between them, not two filtered feeds.
-	s.EventBus.SubscribeGroup(convergeOnPushGroup, func(ev platev.Event) {
+	//
+	// The handler always acknowledges. Everything it can fail at is logged and
+	// re-derivable — a run that could not start over already-converged state
+	// would find nothing pending anyway — and a redelivery is a second attempt
+	// at the same run, which StartRun's active-run guard collapses.
+	s.EventBus.SubscribeGroup(convergeOnPushGroup, func(ev platev.Event) error {
 		switch ev.Type {
 		case platev.EventPushCompleted:
 			// A completed push starts a run for on-push projects.
@@ -188,10 +193,11 @@ func (s *Server) subscribeConvergeOnPush() {
 			// set; a run re-derives coverage and produces the new locale like
 			// any other pending one.
 			if ev.Data["new_locales"] == "" {
-				return // only a locale addition warrants a run
+				return nil // only a locale addition warrants a run
 			}
 			s.startOnPushRun(ev, "push")
 		}
+		return nil
 	})
 }
 

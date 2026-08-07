@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,6 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// createNotification drops the created verdict for the tests that only care
+// that the insert succeeded. The verdict itself is pinned in
+// notification_idempotency_test.go.
+func createNotification(ctx context.Context, ns *NotificationStore, n *Notification) error {
+	_, err := ns.Create(ctx, n)
+	return err
+}
 
 func newTestNotificationStore(t *testing.T) *NotificationStore {
 	t.Helper()
@@ -21,19 +30,19 @@ func TestNotificationStore_CreateAndList(t *testing.T) {
 	ns := newTestNotificationStore(t)
 	ctx := t.Context()
 
-	require.NoError(t, ns.Create(ctx, &Notification{
+	require.NoError(t, createNotification(ctx, ns, &Notification{
 		UserID:    "user-1",
 		Type:      NotificationReviewAssigned,
 		Title:     "Review assigned",
 		Body:      "You have 5 new items to review",
 		ProjectID: "proj-1",
 	}))
-	require.NoError(t, ns.Create(ctx, &Notification{
+	require.NoError(t, createNotification(ctx, ns, &Notification{
 		UserID: "user-1",
 		Type:   NotificationExtractionDone,
 		Title:  "Extraction complete",
 	}))
-	require.NoError(t, ns.Create(ctx, &Notification{
+	require.NoError(t, createNotification(ctx, ns, &Notification{
 		UserID: "user-2",
 		Type:   NotificationGeneral,
 		Title:  "Hello",
@@ -58,10 +67,10 @@ func TestNotificationStore_UnreadCount(t *testing.T) {
 	ns := newTestNotificationStore(t)
 	ctx := t.Context()
 
-	require.NoError(t, ns.Create(ctx, &Notification{
+	require.NoError(t, createNotification(ctx, ns, &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "A",
 	}))
-	require.NoError(t, ns.Create(ctx, &Notification{
+	require.NoError(t, createNotification(ctx, ns, &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "B",
 	}))
 
@@ -77,7 +86,7 @@ func TestNotificationStore_MarkRead(t *testing.T) {
 	n := &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "Test",
 	}
-	require.NoError(t, ns.Create(ctx, n))
+	require.NoError(t, createNotification(ctx, ns, n))
 
 	require.NoError(t, ns.MarkRead(ctx, n.ID, "user-1"))
 
@@ -102,7 +111,7 @@ func TestNotificationStore_MarkAllRead(t *testing.T) {
 	ctx := t.Context()
 
 	for range 5 {
-		require.NoError(t, ns.Create(ctx, &Notification{
+		require.NoError(t, createNotification(ctx, ns, &Notification{
 			UserID: "user-1", Type: NotificationGeneral, Title: "N",
 		}))
 	}
@@ -121,7 +130,7 @@ func TestNotificationStore_Delete(t *testing.T) {
 	n := &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "Delete me",
 	}
-	require.NoError(t, ns.Create(ctx, n))
+	require.NoError(t, createNotification(ctx, ns, n))
 
 	require.NoError(t, ns.Delete(ctx, n.ID, "user-1"))
 
@@ -136,7 +145,7 @@ func TestNotificationStore_MarkReadByGroupKey(t *testing.T) {
 
 	// Create three notifications with the same group key.
 	for _, title := range []string{"A", "B", "C"} {
-		require.NoError(t, ns.Create(ctx, &Notification{
+		require.NoError(t, createNotification(ctx, ns, &Notification{
 			UserID:   "user-1",
 			Type:     NotificationGeneral,
 			Title:    title,
@@ -144,7 +153,7 @@ func TestNotificationStore_MarkReadByGroupKey(t *testing.T) {
 		}))
 	}
 	// Create one with a different group key.
-	require.NoError(t, ns.Create(ctx, &Notification{
+	require.NoError(t, createNotification(ctx, ns, &Notification{
 		UserID:   "user-1",
 		Type:     NotificationGeneral,
 		Title:    "D",
@@ -169,7 +178,7 @@ func TestNotificationStore_MarkReadByGroupKey_EmptyKey(t *testing.T) {
 	ns := newTestNotificationStore(t)
 	ctx := t.Context()
 
-	require.NoError(t, ns.Create(ctx, &Notification{
+	require.NoError(t, createNotification(ctx, ns, &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "A",
 	}))
 
@@ -191,13 +200,13 @@ func TestNotificationStore_ListUnreadSince(t *testing.T) {
 	t3 := t0.Add(3 * time.Hour)
 
 	// Create notifications at different times.
-	require.NoError(t, ns.Create(ctx, &Notification{
+	require.NoError(t, createNotification(ctx, ns, &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "Old", CreatedAt: t1,
 	}))
-	require.NoError(t, ns.Create(ctx, &Notification{
+	require.NoError(t, createNotification(ctx, ns, &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "Mid", CreatedAt: t2,
 	}))
-	require.NoError(t, ns.Create(ctx, &Notification{
+	require.NoError(t, createNotification(ctx, ns, &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "New", CreatedAt: t3,
 	}))
 
@@ -224,8 +233,8 @@ func TestNotificationStore_ListUnreadSince_SkipsRead(t *testing.T) {
 		UserID: "user-1", Type: NotificationGeneral, Title: "Read",
 		CreatedAt: t0.Add(1 * time.Hour),
 	}
-	require.NoError(t, ns.Create(ctx, n1))
-	require.NoError(t, ns.Create(ctx, &Notification{
+	require.NoError(t, createNotification(ctx, ns, n1))
+	require.NoError(t, createNotification(ctx, ns, &Notification{
 		UserID: "user-1", Type: NotificationGeneral, Title: "Unread",
 		CreatedAt: t0.Add(2 * time.Hour),
 	}))

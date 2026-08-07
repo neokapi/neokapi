@@ -57,23 +57,32 @@ func (pt *ProgressTracker) Close() {
 	}
 }
 
-func (pt *ProgressTracker) handleEvent(ev platev.Event) {
+// handleEvent re-derives the project's coverage and announces any milestone it
+// has crossed. It always acknowledges.
+//
+// Nothing here is a record: the milestone is a function of the block stats at
+// the time of reading, so a later event re-derives whatever this delivery
+// missed, and a redelivery would announce a milestone already announced —
+// deduplicated only by an in-memory set that a restart forgets. Redelivering is
+// the wrong trade for a congratulation.
+func (pt *ProgressTracker) handleEvent(ev platev.Event) error {
 	// Only check progress after batch operations that change translation state.
 	switch ev.Type {
 	case platev.EventPushCompleted, platev.EventFlowCompleted:
 		// These are batch operations worth checking.
 	default:
-		return
+		return nil
 	}
 
 	if ev.ProjectID == "" {
-		return
+		return nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	pt.checkProject(ctx, ev)
+	return nil
 }
 
 func (pt *ProgressTracker) checkProject(ctx context.Context, ev platev.Event) {

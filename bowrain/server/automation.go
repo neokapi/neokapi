@@ -436,7 +436,7 @@ func (s *Server) executeNotifyAction(action event.AutomationAction, ev platev.Ev
 		Body:      body,
 		ProjectID: ev.ProjectID,
 	}
-	if err := s.NotificationStore.Create(ctx, n); err == nil {
+	if created, err := s.NotificationStore.Create(ctx, n); err == nil && created {
 		s.NotifyUser(userID, n)
 	}
 }

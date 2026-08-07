@@ -105,14 +105,20 @@ func (e *AutomationEngine) Close() {
 	}
 }
 
-func (e *AutomationEngine) handleEvent(event platev.Event) {
+// handleEvent runs every rule the event matches. It always acknowledges.
+//
+// An executor failure is the executor's to record — it owns the run row that
+// says what was attempted and how it ended. Redelivering the event would start
+// the matched actions again from the top, including the ones that succeeded, so
+// a webhook that half-fired would fire again.
+func (e *AutomationEngine) handleEvent(event platev.Event) error {
 	if e.paused.Load() {
-		return
+		return nil
 	}
 
 	// Check causation chain depth.
 	if depth := chainDepth(event.CausationID); depth >= e.maxChainDepth {
-		return // Prevent infinite loops.
+		return nil // Prevent infinite loops.
 	}
 
 	e.mu.RLock()
@@ -134,6 +140,7 @@ func (e *AutomationEngine) handleEvent(event platev.Event) {
 			}
 		}
 	}
+	return nil
 }
 
 func matchConditions(conditions []AutomationCondition, event platev.Event) bool {

@@ -32,10 +32,10 @@ func TestBaselineVersionsSitAboveRetiredOnes(t *testing.T) {
 	// themselves folded, and every number they spent stays spent. A baseline
 	// edited in place spends its old number too: auth 8 and knowledge 2 were
 	// baselines before the machine author identity and the solo self-approval
-	// marker were folded into them, jobs 9 before created_by was, and billing 7
-	// before the deduction idempotency index was.
+	// marker were folded into them, store 20 before the audit event key, jobs 9
+	// before created_by, and billing 7 before the deduction idempotency index.
 	highestEverIssued := map[string]int{
-		"store": 19, "auth": 8, "jobs": 9, "quota": 3, "runner": 1,
+		"store": 20, "auth": 8, "jobs": 9, "quota": 3, "runner": 1,
 		"extraction": 1, "brand_scan": 1, "model_sweep": 1, "brand": 2,
 		"knowledge": 2, "agent": 1, "billing": 7, "platform_config": 1,
 		"terms": 4, "memory": 5,

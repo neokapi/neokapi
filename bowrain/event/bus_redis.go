@@ -48,6 +48,14 @@ type RedisEventBus struct {
 	mu     sync.Mutex
 	subs   map[string]*redisEventSub
 	closed bool
+
+	// Entries this process is handling right now, keyed "group\x00id". The
+	// reclaim sweep claims to the SAME consumer as the read loop, so without
+	// this a handler slower than the min-idle threshold has its own entry
+	// claimed out from under it and dispatched a second time, in-process,
+	// concurrently with the first.
+	inflightMu sync.Mutex
+	inflight   map[string]struct{}
 }
 
 type redisEventSub struct {
@@ -98,7 +106,25 @@ func NewRedisEventBus(redisURL, password string) (*RedisEventBus, error) {
 		reclaimInterval: defaultReclaimInterval,
 		reclaimMinIdle:  defaultReclaimMinIdle,
 		subs:            make(map[string]*redisEventSub),
+		inflight:        make(map[string]struct{}),
 	}, nil
+}
+
+// claimInflight marks one entry as being handled here, reporting false when it
+// already is. The release func clears it.
+func (b *RedisEventBus) claimInflight(group, msgID string) (release func(), ok bool) {
+	key := group + "\x00" + msgID
+	b.inflightMu.Lock()
+	defer b.inflightMu.Unlock()
+	if _, busy := b.inflight[key]; busy {
+		return nil, false
+	}
+	b.inflight[key] = struct{}{}
+	return func() {
+		b.inflightMu.Lock()
+		delete(b.inflight, key)
+		b.inflightMu.Unlock()
+	}, true
 }
 
 // Publish appends the event to the stream. The MAXLEN cap keeps Redis bounded;
@@ -192,7 +218,7 @@ func (b *RedisEventBus) runFanout(ctx context.Context, rs *redisEventSub, lastID
 				if eventType != "" && ev.Type != eventType {
 					continue
 				}
-				dispatchEvent(handler, ev)
+				dispatchFanout(handler, ev)
 			}
 		}
 	}
@@ -201,13 +227,13 @@ func (b *RedisEventBus) runFanout(ctx context.Context, rs *redisEventSub, lastID
 // SubscribeGroup joins a Redis Streams consumer group: one member of the group
 // handles each event (competing consumers), and the group resumes from its last
 // acknowledged position after a restart.
-func (b *RedisEventBus) SubscribeGroup(group string, handler platev.EventHandler) *platev.Subscription {
+func (b *RedisEventBus) SubscribeGroup(group string, handler platev.GroupHandler) *platev.Subscription {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.closed {
 		return nil
 	}
-	sub := &platev.Subscription{ID: id.New(), Group: group, Handler: handler}
+	sub := &platev.Subscription{ID: id.New(), Group: group}
 
 	// Create the group at the current head (idempotent). BUSYGROUP means it
 	// already exists — keep its persisted position rather than resetting it.
@@ -225,7 +251,7 @@ func (b *RedisEventBus) SubscribeGroup(group string, handler platev.EventHandler
 	return sub
 }
 
-func (b *RedisEventBus) runGroup(ctx context.Context, rs *redisEventSub, group string, handler platev.EventHandler) {
+func (b *RedisEventBus) runGroup(ctx context.Context, rs *redisEventSub, group string, handler platev.GroupHandler) {
 	defer close(rs.done)
 
 	// Companion PEL-reclaim sweep: XREADGROUP with ">" only ever sees
@@ -272,18 +298,34 @@ func (b *RedisEventBus) runGroup(ctx context.Context, rs *redisEventSub, group s
 
 // handleGroupMessage decodes, dispatches, and acknowledges one group-delivered
 // entry — the shared path for fresh XREADGROUP reads and XAUTOCLAIM reclaims.
-func (b *RedisEventBus) handleGroupMessage(ctx context.Context, group string, handler platev.EventHandler, msg redis.XMessage) {
-	if ev, ok := decodeEvent(msg); ok {
-		dispatchEvent(handler, ev)
+//
+// The ack is the handler's verdict. An entry whose handler failed stays in this
+// consumer's pending list, where the reclaim sweep finds it once the consumer
+// has been idle past the threshold — so a database blip during an audit append
+// costs a delay rather than the record. A malformed entry is the exception: it
+// will never decode, so acking it is the only way it stops arriving.
+func (b *RedisEventBus) handleGroupMessage(ctx context.Context, group string, handler platev.GroupHandler, msg redis.XMessage) {
+	release, free := b.claimInflight(group, msg.ID)
+	if !free {
+		return // this process is already handling it
 	}
-	// Ack unconditionally: a malformed entry must not be redelivered
-	// forever. Detach from ctx so a shutdown mid-batch still acks.
+	defer release()
+
+	ev, ok := decodeEvent(msg)
+	if ok {
+		if err := dispatchEvent(handler, ev); err != nil {
+			slog.Warn("redis-event-bus: group handler failed; entry stays pending for redelivery",
+				"group", group, "id", msg.ID, "event_type", ev.Type, "error", err)
+			return
+		}
+	}
+	// Detach from ctx so a shutdown mid-batch still acks.
 	b.client.XAck(context.WithoutCancel(ctx), b.stream, group, msg.ID)
 }
 
 // runGroupReclaim periodically sweeps the group's pending-entries list for
 // entries stranded by a crashed consumer and redispatches them here.
-func (b *RedisEventBus) runGroupReclaim(ctx context.Context, group string, handler platev.EventHandler) {
+func (b *RedisEventBus) runGroupReclaim(ctx context.Context, group string, handler platev.GroupHandler) {
 	ticker := time.NewTicker(b.reclaimInterval)
 	defer ticker.Stop()
 	for {
@@ -301,13 +343,18 @@ func (b *RedisEventBus) runGroupReclaim(ctx context.Context, group string, handl
 // beyond the min-idle threshold to this consumer and dispatching them through
 // the normal handler + ack path.
 //
-// Idempotency: group consumers are replay-safe by design (the same argument
-// that makes the durable consumer groups safe across deploy rollovers — #28,
-// #1364): audit appends are keyed, notifications/automations/convergence
-// triggers re-derive state. A reclaimed entry whose original consumer did
-// finish the handler but died before XACK is therefore at worst an extra
-// idempotent pass, never corruption.
-func (b *RedisEventBus) reclaimStranded(ctx context.Context, group string, handler platev.EventHandler) {
+// It claims to the same consumer as the read loop, so it can and does claim
+// entries this process is still working on — a handler slower than the min-idle
+// threshold is indistinguishable, from the PEL, from a dead one. The in-flight
+// set is what keeps that from becoming a second concurrent dispatch.
+//
+// Idempotency: a reclaimed entry is redelivered to a handler that may already
+// have run it to completion — its original consumer could have died between the
+// side effect and the XACK. Every group handler is therefore keyed on something
+// the event carries (the audit log and the notification inbox on the event id,
+// convergence and automation triggers on the run they would start), so a second
+// pass is a no-op rather than a duplicate.
+func (b *RedisEventBus) reclaimStranded(ctx context.Context, group string, handler platev.GroupHandler) {
 	start := "0-0"
 	claimed := 0
 	for claimed < reclaimSweepMax {
@@ -420,7 +467,22 @@ func decodeEvent(msg redis.XMessage) (platev.Event, bool) {
 	return ev, true
 }
 
-func dispatchEvent(handler platev.EventHandler, ev platev.Event) {
+// dispatchEvent runs a group handler, turning a panic into an error so the
+// entry stays pending rather than being acknowledged by a handler that never
+// finished.
+func dispatchEvent(handler platev.GroupHandler, ev platev.Event) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("redis-event-bus: recovered panic in event handler", "event_type", ev.Type, "panic", r)
+			err = fmt.Errorf("event handler panicked: %v", r)
+		}
+	}()
+	return handler(ev)
+}
+
+// dispatchFanout runs a fan-out handler. A tail read has no pending list, so a
+// panic is contained and the read moves on.
+func dispatchFanout(handler platev.EventHandler, ev platev.Event) {
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("redis-event-bus: recovered panic in event handler", "event_type", ev.Type, "panic", r)
