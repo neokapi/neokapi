@@ -32,14 +32,6 @@ func SplitBOM(data []byte) (bom, rest []byte) {
 	return nil, data
 }
 
-// TrimBOM returns data without a leading UTF-8 byte-order mark. Use it where
-// the mark has no skeleton to be carried in, for instance when a reader hands
-// the bytes to a parser that reconstructs its own output.
-func TrimBOM(data []byte) []byte {
-	_, rest := SplitBOM(data)
-	return rest
-}
-
 // SplitBOMReader is [SplitBOM] for a reader a format consumes incrementally: it
 // consumes a leading UTF-8 byte-order mark and returns it alongside a reader
 // positioned on the first content byte.
@@ -59,12 +51,4 @@ func SplitBOMReader(rd io.Reader) (bom string, rest io.Reader, err error) {
 		return UTF8BOM, br, nil
 	}
 	return "", br, nil
-}
-
-// TrimBOMString is [TrimBOM] for a string value.
-func TrimBOMString(s string) string {
-	if len(s) >= len(UTF8BOM) && s[:len(UTF8BOM)] == UTF8BOM {
-		return s[len(UTF8BOM):]
-	}
-	return s
 }

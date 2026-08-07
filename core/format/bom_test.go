@@ -32,8 +32,6 @@ func TestSplitBOM(t *testing.T) {
 			require.Equal(t, tc.wantBOM, string(bom))
 			require.Equal(t, tc.wantRes, string(rest))
 			require.Equal(t, tc.in, string(bom)+string(rest), "the split must lose no bytes")
-			require.Equal(t, tc.wantRes, string(format.TrimBOM([]byte(tc.in))))
-			require.Equal(t, tc.wantRes, format.TrimBOMString(tc.in))
 		})
 	}
 }
