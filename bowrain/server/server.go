@@ -1600,6 +1600,11 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/connectors/:id/fetch", s.HandleFetch)
 	g.POST("/connectors/:id/publish", s.HandlePublish)
 
+	// Governance profiles — the points the workspace's content occupies in the
+	// context space, aggregated read-only from collections, voices and
+	// vocabulary: /:ws/profiles
+	g.GET("/profiles", s.HandleListContextProfiles)
+
 	// Brand profiles — Bowrain AD-011: /:ws/brand-profiles
 	g.GET("/brand-profiles", s.HandleListBrandProfiles)
 	g.POST("/brand-profiles", s.HandleCreateBrandProfile)

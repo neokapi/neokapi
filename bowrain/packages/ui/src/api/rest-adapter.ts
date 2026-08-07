@@ -176,6 +176,7 @@ import type {
   Pilot,
   StartPilotRequest,
 } from "../types/brand-graph";
+import type { ContextProfilesResponse } from "../types/context-profiles";
 
 /**
  * Encode a value for use as a single URL path segment, preserving the colon.
@@ -2372,6 +2373,10 @@ export class RestApiAdapter implements ApiAdapter {
 
   async listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]> {
     return this.fetchJSON(this.brandEp(workspaceSlug));
+  }
+
+  async listContextProfiles(workspaceSlug: string): Promise<ContextProfilesResponse> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/profiles`);
   }
 
   async getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile> {

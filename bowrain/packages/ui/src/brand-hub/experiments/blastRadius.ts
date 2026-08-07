@@ -91,8 +91,8 @@ export function formatPercent(ratio: number): string {
   return `${Math.round(pct)}%`;
 }
 
-// Effort proxy: assume careful localized review/re-translation runs at roughly
-// 500 words per hour. This is a planning hint, not a quote.
+// Effort proxy: assume careful per-language review and re-translation runs at
+// roughly 500 words per hour. This is a planning hint, not a quote.
 const WORDS_PER_HOUR = 500;
 
 /** Estimated review effort in hours for a word count (a planning proxy). */

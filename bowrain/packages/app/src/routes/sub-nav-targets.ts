@@ -11,7 +11,8 @@
  * `subNavTargetsAreComplete` in sub-nav-targets.test.ts holds the two in step.
  */
 export const subNavTargets = {
-  // Context hub — the graph you author and govern.
+  // Context hub — the points you govern, and the graph you author at them.
+  profiles: "/$workspace/context/profiles",
   concepts: "/$workspace/context/concepts",
   voice: "/$workspace/context/voice",
   memory: "/$workspace/context/memory",

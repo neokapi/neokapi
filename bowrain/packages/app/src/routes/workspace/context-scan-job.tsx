@@ -75,7 +75,7 @@ export function ContextScanJobRoute() {
           <p className="text-sm text-muted-foreground mt-1">
             Every field shows the model&rsquo;s confidence and the evidence it rests on. Adjust
             anything, test it on sample copy, then approve to create the profile and the selected
-            glossary terms.
+            terms.
           </p>
         </div>
         <BrandScanReview

@@ -894,6 +894,16 @@ export function ListContentItems(connectorID) {
 }
 
 /**
+ * ListContextProfiles returns the workspace's governance profiles — the points
+ * its content occupies and what governs each.
+ * @param {string} workspaceSlug
+ * @returns {$CancellablePromise<json$0.RawMessage>}
+ */
+export function ListContextProfiles(workspaceSlug) {
+    return $Call.ByID(375557869, workspaceSlug);
+}
+
+/**
  * ListFlowDefinitions returns the project's flows (built-in + project-stored)
  * from the server. When offline, only the built-in flows are returned.
  * @param {string} projectID

@@ -294,7 +294,7 @@ describe("BrandProfileList", () => {
     // empty state must not advertise the hosted scan.
     expect(
       screen.getByText(
-        "No brand voice profiles yet. Define one by hand, or draft one locally with the kapi Agent Skill.",
+        "No voice profiles yet. A profile binds one under profiles[].voice: in a recipe. Define one by hand, or draft one locally with the kapi Agent Skill.",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText("Scan your brand")).not.toBeInTheDocument();
@@ -323,11 +323,11 @@ describe("BrandProfileList", () => {
     expect(screen.queryByText("Marketing Copy")).toBeNull();
   });
 
-  it("calls onCreate when New Profile is clicked", async () => {
+  it("calls onCreate when New profile is clicked", async () => {
     const user = userEvent.setup();
     const onCreate = vi.fn();
     renderList([makeProfile()], { onCreate });
-    await user.click(screen.getByText("New Profile"));
+    await user.click(screen.getByText("New profile"));
     expect(onCreate).toHaveBeenCalled();
   });
 });
