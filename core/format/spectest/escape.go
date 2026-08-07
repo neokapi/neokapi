@@ -3,7 +3,6 @@ package spectest
 import (
 	"fmt"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -84,9 +83,6 @@ type ModifyProbe struct {
 	// Skip names characters the probed position cannot carry, mapped to the
 	// reason. A skipped case is reported, never silently dropped.
 	Skip map[rune]string
-	// Wrap builds the injected value around the corpus character. The default
-	// surrounds it with ASCII letters so a writer cannot pass by trimming.
-	Wrap func(r rune) string
 }
 
 // Run executes the probe over the whole corpus as one subtest per character.
@@ -105,7 +101,9 @@ func (p ModifyProbe) Run(t *testing.T) {
 
 func (p ModifyProbe) runCase(t *testing.T, c EscapeCase) {
 	t.Helper()
-	want := p.value(c.R)
+	// The character is surrounded by ASCII letters so a writer cannot pass the
+	// probe by trimming the value.
+	want := "Ax" + string(c.R) + "zB"
 
 	reader := p.NewReader()
 	writer := p.NewWriter()
@@ -184,16 +182,4 @@ func (p ModifyProbe) runCase(t *testing.T, c EscapeCase) {
 	}
 	t.Fatalf("%s: U+%04X did not survive the round-trip\nwant a block reading %q\ngot  %q\noutput: %q",
 		p.Format, c.R, want, got, string(out))
-}
-
-// value returns the text written into every translatable block for one case.
-func (p ModifyProbe) value(r rune) string {
-	if p.Wrap != nil {
-		return p.Wrap(r)
-	}
-	var b strings.Builder
-	b.WriteString("Ax")
-	b.WriteRune(r)
-	b.WriteString("zB")
-	return b.String()
 }

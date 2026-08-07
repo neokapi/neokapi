@@ -41,12 +41,12 @@ func (e *UnrepresentableValueError) Error() string {
 
 func (e *UnrepresentableValueError) Unwrap() error { return e.Err }
 
-// CheckXMLText returns an *UnrepresentableValueError when the markup a writer is
-// about to emit for block carries a character XML 1.0 cannot represent.
+// CheckXMLText returns an *UnrepresentableValueError when text a writer is about
+// to emit for block carries a character XML 1.0 cannot represent.
 //
-// It is called on the rendered string rather than on the block's runs:
-// escaping neither introduces nor removes control characters, and the rendered
-// form also covers inline-code data a tool may have edited.
+// A caller passes either a fully rendered fragment — escaping neither
+// introduces nor removes control characters, so the check reads the same either
+// way — or one text run at a time, which is what [CheckXMLBlock] does.
 func CheckXMLText(formatName string, locale model.LocaleID, block *model.Block, rendered string) error {
 	err := xmlesc.CheckText(rendered)
 	if err == nil {
