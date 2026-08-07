@@ -83,3 +83,13 @@ type Store interface {
 type BulkAdder interface {
 	BulkAddWithStream(ctx context.Context, entries []Entry, stream string) error
 }
+
+// SearchIndexRebuilder is an optional capability implemented by backends whose
+// bulk-add path skips the per-row search/fuzzy side-tables (the SQLite store).
+// The importer detects it and repopulates both indexes set-wise after a bulk
+// load, so imported entries are visible to search and fuzzy lookup. In-memory
+// backends keep their indexes live and do not implement it.
+type SearchIndexRebuilder interface {
+	RebuildSearchIndex(ctx context.Context) error
+	RebuildFuzzyIndex(ctx context.Context) error
+}

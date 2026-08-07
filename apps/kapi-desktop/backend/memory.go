@@ -2,8 +2,10 @@ package backend
 
 import (
 	"cmp"
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -837,7 +839,7 @@ func (a *App) ImportTMXDialog(handle string) (*ImportResult, error) {
 	}
 
 	path, err := a.app.Dialog.OpenFile().
-		AddFilter("TMX Files", "*.tmx").
+		AddFilter("TMX Files", "*.tmx;*.tmx.gz").
 		AddFilter("All Files", "*").
 		PromptForSingleSelection()
 	if err != nil {
@@ -853,7 +855,21 @@ func (a *App) ImportTMXDialog(handle string) (*ImportResult, error) {
 	}
 	defer f.Close()
 
-	sid, count, err := memory.ImportTMXSession(context.Background(), tm, f, memory.ImportTMXOptions{
+	// Match the CLI importer: a gzipped .tmx.gz is transparently decompressed.
+	var reader io.Reader = f
+	if strings.HasSuffix(strings.ToLower(path), ".gz") {
+		gz, err := gzip.NewReader(f)
+		if err != nil {
+			return nil, fmt.Errorf("gunzip TMX: %w", err)
+		}
+		defer gz.Close()
+		reader = gz
+	}
+
+	// ImportTMXSession rebuilds the search + fuzzy side-tables after the bulk
+	// load, so the imported entries are immediately visible to search and
+	// fuzzy lookup — the desktop no longer has to remember to do it.
+	sid, count, err := memory.ImportTMXSession(context.Background(), tm, reader, memory.ImportTMXOptions{
 		OriginKey:     filepath.Base(path),
 		OriginAddedBy: "tmx-import",
 	})

@@ -248,6 +248,11 @@ func ImportTMXFile(ctx context.Context, tm memory.Store, path, srcLocale, tgtLoc
 		WarnFunc: func(msg string) {
 			fmt.Fprintf(os.Stderr, "warning: %s\n", msg)
 		},
+		// The CLI rebuilds the search/fuzzy side-tables itself — once, after the
+		// whole batch (import-dir) or the single file — via
+		// RebuildMemorySearchIndexes. Defer the per-session rebuild so a
+		// directory import of thousands of files does not rebuild N times.
+		SkipIndexRebuild: true,
 	}
 
 	if allPairs {
