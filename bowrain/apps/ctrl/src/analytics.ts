@@ -1,10 +1,12 @@
 // PostHog analytics for the ctrl admin panel (roadmap epic 018, workstream C).
 //
-// Mirrors bowrain/apps/web/src/posthog.ts: key-gated init (keyless builds are
-// silent no-ops), EU ingestion by default. Unlike the web app, autocapture
-// stays off — ctrl emits explicit admin-action events plus route-pattern
-// pageviews only, and events never carry PII beyond workspace/user ids.
+// Key-gated init (keyless builds are silent no-ops), EU ingestion by default.
+// Unlike the web app, autocapture stays off — ctrl emits explicit admin-action
+// events plus route-pattern pageviews only, and events never carry PII beyond
+// workspace/user ids. The {surface, environment} taxonomy is registered by the
+// shared initPostHogSurface helper.
 import posthog from "posthog-js";
+import { initPostHogSurface } from "@neokapi/ui";
 
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
 const POSTHOG_HOST = (import.meta.env.VITE_POSTHOG_HOST as string) || "https://eu.i.posthog.com";
@@ -12,18 +14,20 @@ const POSTHOG_HOST = (import.meta.env.VITE_POSTHOG_HOST as string) || "https://e
 let initialized = false;
 
 export function initAnalytics() {
-  if (initialized || !POSTHOG_KEY) return;
-  posthog.init(POSTHOG_KEY, {
-    api_host: POSTHOG_HOST,
-    // Pageviews are fired explicitly on router resolution with the matched
-    // route pattern (see main.tsx), not on document load.
-    capture_pageview: false,
-    capture_pageleave: true,
-    autocapture: false,
+  if (initialized) return;
+  initialized = initPostHogSurface(posthog, {
+    surface: "ctrl",
+    environment: import.meta.env.MODE,
+    key: POSTHOG_KEY,
+    host: POSTHOG_HOST,
+    init: {
+      // Pageviews are fired explicitly on router resolution with the matched
+      // route pattern (see main.tsx), not on document load.
+      capture_pageview: false,
+      capture_pageleave: true,
+      autocapture: false,
+    },
   });
-  // Mandatory taxonomy property discriminating this surface on every event.
-  posthog.register({ surface: "ctrl" });
-  initialized = true;
 }
 
 /** Capture an explicit event. No-op when no key is configured. */

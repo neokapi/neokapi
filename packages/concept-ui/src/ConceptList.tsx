@@ -13,6 +13,7 @@ import {
   Skeleton,
   Badge,
   cn,
+  useDebounced,
 } from "@neokapi/ui-primitives";
 import { Search, Library } from "lucide-react";
 import type { ConceptDataSource, ConceptQuery } from "./adapter";
@@ -23,7 +24,6 @@ import { primaryName, TERM_STATUS_LABEL } from "./concept-meta";
 import { termsByLocale } from "./grouping";
 import { StatusChip, LocalePill, EmptyHint, ErrorHint } from "./atoms";
 import { useResource } from "./useResource";
-import { useDebounced } from "./useDebounced";
 
 const ALL = "all";
 

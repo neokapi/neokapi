@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
   cn,
+  useDebounced,
 } from "@neokapi/ui-primitives";
 import {
   ArrowLeft,
@@ -51,7 +52,6 @@ import type { RelationItem } from "./grouping";
 import { buildRelationView, neighbourIds } from "./relations-group";
 import type { RelationView } from "./relations-group";
 import { useResource } from "./useResource";
-import { useDebounced } from "./useDebounced";
 
 export interface RelationsPanelProps extends ConceptSectionProps {
   /** Neighbours per lane past which the lane collapses by default. */

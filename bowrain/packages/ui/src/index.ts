@@ -141,6 +141,9 @@ export * from "./components/icons";
 // Shared error display: parseAppError + ErrorNotice + JSON highlighting.
 export * from "./errors";
 
+// Shared PostHog surface init — registers the {surface, environment} taxonomy.
+export { initPostHogSurface, type PostHogSurfaceOptions } from "./analytics/posthog-surface";
+
 // Honest render-cap footer for capped lists.
 export { ListCapRow, type ListCapRowProps } from "./components/ListCapRow";
 
