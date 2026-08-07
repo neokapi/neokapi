@@ -43,7 +43,7 @@ func TestProfilePointSlug(t *testing.T) {
 // The point's name follows core/project.ProfileBinding.ConventionalName, so a
 // project's `.kapi/profiles/<name>/` directory and this label read the same.
 func TestProfilePointName(t *testing.T) {
-	assert.Equal(t, "", profilePointName(nil))
+	assert.Empty(t, profilePointName(nil))
 	assert.Equal(t, "bowrain", profilePointName(map[string]string{"product": "bowrain"}))
 	assert.Equal(t, "de-bowrain", profilePointName(map[string]string{"product": "bowrain", "market": "de"}))
 	assert.Equal(t, "de-bowrain", profilePointName(map[string]string{"market": "de", "product": "bowrain"}))

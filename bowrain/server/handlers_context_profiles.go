@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"sort"
 	"strings"
@@ -354,9 +355,7 @@ func cloneCoordinates(coords map[string]string) map[string]string {
 		return nil
 	}
 	out := make(map[string]string, len(coords))
-	for k, v := range coords {
-		out[k] = v
-	}
+	maps.Copy(out, coords)
 	return out
 }
 
