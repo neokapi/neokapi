@@ -471,6 +471,8 @@ email_change_requests.id text NOT NULL
 email_change_requests.new_email text NOT NULL
 email_change_requests.token_hash text NOT NULL
 email_change_requests.user_id text NOT NULL
+extraction_jobs.attempts integer NOT NULL DEFAULT 0
+extraction_jobs.claim_epoch bigint NOT NULL DEFAULT 0
 extraction_jobs.created_at timestamp with time zone NOT NULL DEFAULT now()
 extraction_jobs.done_blocks integer NOT NULL DEFAULT 0
 extraction_jobs.error text NOT NULL DEFAULT ''::text
@@ -1467,6 +1469,7 @@ CREATE INDEX idx_credit_ledger_workspace ON public.credit_ledger USING btree (wo
 CREATE INDEX idx_deny_rules_workspace ON public.deny_rules USING btree (workspace_id)
 CREATE INDEX idx_email_change_expires ON public.email_change_requests USING btree (expires_at)
 CREATE INDEX idx_email_change_user ON public.email_change_requests USING btree (user_id)
+CREATE INDEX idx_extraction_jobs_processing_updated ON public.extraction_jobs USING btree (updated_at) WHERE (status = 'processing'::text)
 CREATE INDEX idx_extraction_jobs_project ON public.extraction_jobs USING btree (project_id)
 CREATE INDEX idx_extraction_jobs_push_id ON public.extraction_jobs USING btree (push_id)
 CREATE INDEX idx_extraction_jobs_status ON public.extraction_jobs USING btree (status)

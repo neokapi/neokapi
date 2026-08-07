@@ -85,12 +85,12 @@ func extractionStoreTests(t *testing.T, store ExtractionJobStore) {
 		}
 		require.NoError(t, store.CreateExtractionJob(ctx, job))
 
-		claimed, err := store.ClaimExtractionJob(ctx, job.ID)
+		claimed, _, err := store.ClaimExtractionJob(ctx, job.ID)
 		require.NoError(t, err)
 		assert.True(t, claimed)
 
 		// Second claim should fail.
-		claimed, err = store.ClaimExtractionJob(ctx, job.ID)
+		claimed, _, err = store.ClaimExtractionJob(ctx, job.ID)
 		require.NoError(t, err)
 		assert.False(t, claimed)
 	})

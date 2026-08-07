@@ -569,6 +569,17 @@ func runWorker(dbURL string) error {
 		return jobs.RunExtractionWorker(ctx, extractionDeps)
 	})
 
+	// Extraction stale-job sweeper: the same crash backstop the translation and
+	// brand-scan workers have. Without it an extraction job whose worker died
+	// between claim and completion sits in 'processing' with nothing scanning
+	// for it, and the push it belongs to reports in-progress until the
+	// completion tracker's timeout.
+	extractionSweeper := jobs.NewStaleJobSweeper(pgES, extractionQueue, 0, 0, 0)
+	g.Go(func() error {
+		slog.Info("starting extraction stale-job sweeper")
+		return extractionSweeper.Run(ctx)
+	})
+
 	// Brand-scan worker (AI brand onboarding, epic 016). Scans run on the
 	// platform provider only and deduct credits via the same billing hooks as
 	// translation, so the wiring mirrors translationDeps: nil hooks (no

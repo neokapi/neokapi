@@ -284,9 +284,12 @@ func (s *Server) HandleDeleteJob(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "job not found"})
 	}
 
-	// Atomically cancel only if still cancellable.
-	// UpdateJobStatus is a no-op if the job already completed.
-	if err := s.JobStore.UpdateJobStatus(ctx, id, jobs.StatusFailed, "cancelled by user"); err != nil {
+	// Cancel only what is still cancellable, and take the lease away from
+	// whoever holds it so a running worker stops rather than writing
+	// 'completed' back over the cancellation. A job that finished between the
+	// read above and this write keeps its result: 204 either way, because the
+	// caller asked for the job to stop and it has.
+	if _, err := s.JobStore.CancelJob(ctx, id, "cancelled by user"); err != nil {
 		return serverErr(c, err)
 	}
 

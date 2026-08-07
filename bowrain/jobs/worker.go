@@ -77,6 +77,11 @@ type WorkerDeps struct {
 	// unavailable dependency before it is failed. Zero uses
 	// defaultMaxJobDeferrals.
 	MaxJobDeferrals int
+	// DrainGrace bounds how long a job already running when shutdown is
+	// signalled may keep running. Zero uses defaultDrainGrace. It must stay
+	// under the orchestrator's stop timeout, or the task is killed mid-job and
+	// the grace buys nothing.
+	DrainGrace time.Duration
 	// MemoryResolver returns the project's server content memory for a workspace, so a
 	// convergence translation job can recycle exact/near-exact matches before
 	// paying for AI (content memory-first convergence). Optional; when nil the job falls
@@ -145,6 +150,14 @@ func (d *WorkerDeps) maxJobDeferrals() int {
 	return defaultMaxJobDeferrals
 }
 
+// drainGrace returns the configured shutdown grace or the default.
+func (d *WorkerDeps) drainGrace() time.Duration {
+	if d.DrainGrace > 0 {
+		return d.DrainGrace
+	}
+	return defaultDrainGrace
+}
+
 // queueLabel is this worker's bounded metric label.
 func (d *WorkerDeps) queueLabel() string {
 	if d.QueueName == "" {
@@ -163,6 +176,44 @@ const jobHeartbeatInterval = 2 * time.Minute
 // translationProgressChunk is how many blocks a translation bills, persists and
 // reports progress for at a time. It is also the unit a retry resumes on.
 const translationProgressChunk = 50
+
+// defaultDrainGrace is how long a job in flight when SIGTERM arrives may keep
+// running. It sits just under the orchestrator's stop timeout, so the job
+// either finishes or is parked deliberately — rather than being killed with
+// the task and left for the fifteen-minute stale sweeper on another instance.
+const defaultDrainGrace = 25 * time.Second
+
+// drainableJobContext detaches a job body from the shutdown signal, then bounds
+// how long it may outlive it.
+//
+// Deriving the job's context from the signal context is what made every deploy
+// freeze the work in flight: the provider call came back context.Canceled —
+// deliberately permanent, so not retried — the failure write went to the same
+// dead context, and the queue message was deleted anyway. The stop func
+// releases the watchdog and cancels, and blocks until it has exited.
+func drainableJobContext(parent context.Context, grace time.Duration) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(context.WithoutCancel(parent))
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		select {
+		case <-ctx.Done():
+			return
+		case <-parent.Done():
+		}
+		t := time.NewTimer(grace)
+		defer t.Stop()
+		select {
+		case <-ctx.Done():
+		case <-t.C:
+			cancel()
+		}
+	}()
+	return ctx, func() {
+		cancel()
+		<-done
+	}
+}
 
 // errLeaseLost signals that the worker lost ownership of a job mid-run: the
 // stale-job sweeper reset it to 'queued' and a fresh worker re-claimed it
@@ -211,10 +262,20 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 			continue
 		}
 
+		// The loop's context gates Dequeue and nothing else. A job already in
+		// flight runs on its own context, detached from the shutdown signal and
+		// bounded by the drain grace, so SIGTERM lets it finish rather than
+		// failing it with context.Canceled and leaving the row for the
+		// fifteen-minute sweeper on another instance.
+		//
 		// Seed the job ID as the correlation ID so every log line emitted while
 		// processing this job carries request_id=<jobID> — the same ID a user
 		// sees for the job/run — and any Sentry capture is tagged with it.
-		jobCtx := observe.WithRequestID(ctx, jobID)
+		runCtx, stopDrain := drainableJobContext(ctx, deps.drainGrace())
+		jobCtx := observe.WithRequestID(runCtx, jobID)
+		// Bookkeeping outlives the shutdown signal too: the row, the broker
+		// message and the summons must agree even as the process goes away.
+		postCtx := observe.WithRequestID(context.WithoutCancel(ctx), jobID)
 
 		queueLabel := deps.QueueName
 		if queueLabel == "" {
@@ -224,6 +285,7 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 		observe.JobsInFlight.WithLabelValues(queueLabel).Inc()
 		processErr := processJobWithDeps(jobCtx, deps, jobID)
 		observe.JobsInFlight.WithLabelValues(queueLabel).Dec()
+		stopDrain()
 		if processErr != nil {
 			var de *deferredError
 			if errors.As(processErr, &de) {
@@ -234,12 +296,12 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 				// not turn into a queue-spinning hot loop. Same fresh-message
 				// rationale as the transient path: never trust nack() to
 				// reproduce a delivery whose visibility may already have lapsed.
-				if eqErr := enqueueAfter(ctx, deps.Queue, jobID, de.retryAfter); eqErr != nil {
-					slog.WarnContext(jobCtx, "job deferred; re-enqueue failed, nacking instead",
+				if eqErr := enqueueAfter(postCtx, deps.Queue, jobID, de.retryAfter); eqErr != nil {
+					slog.WarnContext(postCtx, "job deferred; re-enqueue failed, nacking instead",
 						"job_id", jobID, "dependency", de.dependency, "enqueue_error", eqErr)
 					nack()
 				} else {
-					slog.InfoContext(jobCtx, "job deferred until dependency recovers",
+					slog.InfoContext(postCtx, "job deferred until dependency recovers",
 						"job_id", jobID, "dependency", de.dependency,
 						"retry_after", de.retryAfter.Round(time.Second).String())
 					ack()
@@ -263,18 +325,18 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 				// a stray concurrent redelivery. Fall back to nack() only if the
 				// fresh enqueue fails, so the broker can still redeliver if it
 				// happens to hold the message.
-				if eqErr := deps.Queue.Enqueue(ctx, jobID); eqErr != nil {
-					slog.WarnContext(jobCtx, "job transient failure; re-enqueue failed, nacking instead",
+				if eqErr := deps.Queue.Enqueue(postCtx, jobID); eqErr != nil {
+					slog.WarnContext(postCtx, "job transient failure; re-enqueue failed, nacking instead",
 						"job_id", jobID, "error", processErr, "enqueue_error", eqErr)
 					nack()
 				} else {
-					slog.WarnContext(jobCtx, "job transient failure; re-enqueued fresh message for retry",
+					slog.WarnContext(postCtx, "job transient failure; re-enqueued fresh message for retry",
 						"job_id", jobID, "error", processErr)
 					ack()
 				}
 				continue
 			}
-			slog.ErrorContext(jobCtx, "job failed", "job_id", jobID, "error", processErr)
+			slog.ErrorContext(postCtx, "job failed", "job_id", jobID, "error", processErr)
 			// Permanent failure (or exhausted retries): report to Sentry, tagged
 			// with the job ID so it resolves from the client-visible reference.
 			observe.CaptureError(processErr, jobID, map[string]string{"kind": "job", "job_id": jobID})
@@ -283,7 +345,7 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 			// has ruled out both retry and deferral, so it fires once per job
 			// rather than once per attempt — the difference between a summons
 			// and a burst of mail on a flaky provider.
-			announceJobFailure(jobCtx, deps, jobID, processErr)
+			announceJobFailure(postCtx, deps, jobID, processErr)
 		} else {
 			observe.ObserveJob(queueLabel, "success", jobStart)
 		}
@@ -366,6 +428,15 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 				"job_id", jobID)
 			return nil
 		}
+		// The drain grace ran out before the job finished. The provider call
+		// comes back context.Canceled, which is permanent everywhere else — but
+		// here it says only that this process is going away, which is nothing
+		// the job did. Park it exactly like a dependency outage: back to
+		// 'queued' without spending an attempt, re-enqueued as a fresh message,
+		// and resumed by the next worker at the chunk it reached.
+		if ctx.Err() != nil {
+			return deferInterruptedJob(ctx, deps, job, epoch)
+		}
 		// Dependency known-down: the breaker rejected the call, so nothing was
 		// attempted upstream. Park the job instead of retrying it — waiting is
 		// the honest cost of an outage, and spending the retry budget on calls
@@ -424,9 +495,18 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		return err
 	}
 
-	// Mark as completed.
-	if err := deps.JobStore.UpdateJobStatus(ctx, jobID, StatusCompleted, ""); err != nil {
+	// Mark as completed — under the lease, like every other terminal write. A
+	// worker whose lease was taken must not report success: the sweeper's fresh
+	// owner is still running the job, and a cancellation is a decision this
+	// write would quietly undo.
+	owner, err := deps.JobStore.CompleteJob(ctx, jobID, epoch)
+	if err != nil {
 		return fmt.Errorf("set completed: %w", err)
+	}
+	if !owner {
+		slog.InfoContext(ctx, "job lease lost before completion; leaving the row as it stands",
+			"job_id", jobID)
+		return nil
 	}
 
 	emitLog(deps, job.StepID, "info",
@@ -436,6 +516,33 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 			"blocks": strconv.Itoa(job.DoneBlocks), "tokens": strconv.Itoa(job.TokensUsed)})
 
 	return nil
+}
+
+// deferInterruptedJob parks a job whose worker was told to stop mid-run. The
+// bookkeeping runs on a context detached from the one that carried the
+// cancellation, because that one can no longer write.
+func deferInterruptedJob(ctx context.Context, deps *WorkerDeps, job *TranslationJob, epoch int64) error {
+	book := context.WithoutCancel(ctx)
+	cause := errors.New("worker shutting down; job parked for the next worker")
+	deferred, derr := deps.JobStore.DeferJob(book, job.ID, epoch, deps.maxJobDeferrals(),
+		"deferred: "+cause.Error())
+	if derr != nil {
+		slog.WarnContext(book, "shutdown defer bookkeeping failed", "job_id", job.ID, "error", derr)
+	}
+	if !deferred {
+		// Out of deferral budget — DeferJob marked the job failed.
+		emitLog(deps, job.StepID, "error",
+			"Repeatedly interrupted by worker restarts; giving up on this job.",
+			map[string]string{"item": job.ItemName, "locale": job.TargetLocale})
+		return cause
+	}
+	observe.JobsDeferredTotal.WithLabelValues(deps.queueLabel(), "worker-shutdown").Inc()
+	slog.InfoContext(book, "job parked by worker shutdown; re-enqueued for the next worker",
+		"job_id", job.ID, "done_blocks", job.DoneBlocks, "total_blocks", job.TotalBlocks)
+	emitLog(deps, job.StepID, "warn",
+		"Paused by a worker restart; this job is queued and will resume automatically.",
+		map[string]string{"item": job.ItemName, "locale": job.TargetLocale})
+	return &deferredError{err: cause, dependency: "worker-shutdown"}
 }
 
 func emitLog(deps *WorkerDeps, stepID, level, message string, data map[string]string) {

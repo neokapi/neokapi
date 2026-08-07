@@ -34,6 +34,12 @@ func (s *stubJobStore) UpdateJobMemorySplit(ctx context.Context, id string, epoc
 func (s *stubJobStore) UpdateJobStatus(ctx context.Context, id string, status jobs.JobStatus, errMsg string) error {
 	return nil
 }
+func (s *stubJobStore) CancelJob(ctx context.Context, id, reason string) (bool, error) {
+	return true, nil
+}
+func (s *stubJobStore) CompleteJob(ctx context.Context, id string, epoch int64) (bool, error) {
+	return true, nil
+}
 func (s *stubJobStore) FailJob(ctx context.Context, id string, epoch int64, errMsg string) (bool, error) {
 	return true, nil
 }
@@ -96,8 +102,23 @@ func (s *stubExtractionStore) UpdateExtractionJobStatus(ctx context.Context, id 
 func (s *stubExtractionStore) UpdateExtractionJobProgress(ctx context.Context, id string, doneBlocks, totalBlocks, itemsCreated int) error {
 	return nil
 }
-func (s *stubExtractionStore) ClaimExtractionJob(ctx context.Context, id string) (bool, error) {
+func (s *stubExtractionStore) ClaimExtractionJob(ctx context.Context, id string) (bool, int64, error) {
+	return true, 1, nil
+}
+func (s *stubExtractionStore) RenewLease(ctx context.Context, id string, epoch int64) (bool, error) {
 	return true, nil
+}
+func (s *stubExtractionStore) RetryOrFail(ctx context.Context, id string, epoch int64, maxAttempts int, errMsg string) (bool, error) {
+	return false, nil
+}
+func (s *stubExtractionStore) FailExtractionJob(ctx context.Context, id string, epoch int64, errMsg string) (bool, error) {
+	return true, nil
+}
+func (s *stubExtractionStore) SweepStaleProcessing(ctx context.Context, olderThan time.Duration, maxAttempts int) ([]string, int, error) {
+	return nil, 0, nil
+}
+func (s *stubExtractionStore) RevertSweepRequeue(ctx context.Context, id string, staleThreshold time.Duration) error {
+	return nil
 }
 func (s *stubExtractionStore) ListByPushID(ctx context.Context, pushID string) ([]*jobs.ExtractionJob, error) {
 	return s.jobs[pushID], nil

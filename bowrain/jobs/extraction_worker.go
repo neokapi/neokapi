@@ -41,6 +41,28 @@ type ExtractionWorkerDeps struct {
 	// failure reaches the people waiting on it rather than only the job row.
 	// Optional; nil records the failure and summons nobody.
 	EventBus platev.EventBus
+	// MaxJobAttempts bounds transient-failure retries before a job is failed.
+	// Zero uses defaultMaxJobAttempts.
+	MaxJobAttempts int
+	// DrainGrace bounds how long a job already running when shutdown is
+	// signalled may keep running. Zero uses defaultDrainGrace.
+	DrainGrace time.Duration
+}
+
+// maxJobAttempts returns the configured retry budget or the default.
+func (d *ExtractionWorkerDeps) maxJobAttempts() int {
+	if d.MaxJobAttempts > 0 {
+		return d.MaxJobAttempts
+	}
+	return defaultMaxJobAttempts
+}
+
+// drainGrace returns the configured shutdown grace or the default.
+func (d *ExtractionWorkerDeps) drainGrace() time.Duration {
+	if d.DrainGrace > 0 {
+		return d.DrainGrace
+	}
+	return defaultDrainGrace
 }
 
 // ReviewQueueCreator creates review queue items from extraction results.
@@ -63,6 +85,12 @@ type ReviewQueueItem struct {
 }
 
 // RunExtractionWorker runs the extraction worker loop. It blocks until ctx is cancelled.
+//
+// The ack/nack branches mirror the translation loop's, because the failure
+// modes are the same: a provider 503 used to strand the job in 'processing'
+// forever — nack discarded, ack unconditional, no attempts column and no
+// sweeper — and the push-completion tracker then reported the push as in
+// progress until its thirty-minute timeout.
 func RunExtractionWorker(ctx context.Context, deps *ExtractionWorkerDeps) error {
 	slog.Info("extraction worker started")
 	defer slog.Info("extraction worker stopped")
@@ -74,7 +102,7 @@ func RunExtractionWorker(ctx context.Context, deps *ExtractionWorkerDeps) error 
 		default:
 		}
 
-		jobID, ack, _, err := deps.Queue.Dequeue(ctx)
+		jobID, ack, nack, err := deps.Queue.Dequeue(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -84,7 +112,31 @@ func RunExtractionWorker(ctx context.Context, deps *ExtractionWorkerDeps) error 
 			continue
 		}
 
-		if processErr := processExtractionJob(ctx, deps, jobID); processErr != nil {
+		// The loop's context gates Dequeue; the job body runs detached from
+		// the shutdown signal and bounded by the drain grace.
+		runCtx, stopDrain := drainableJobContext(ctx, deps.drainGrace())
+		processErr := processExtractionJob(runCtx, deps, jobID)
+		stopDrain()
+		postCtx := context.WithoutCancel(ctx)
+
+		if processErr != nil {
+			var te *transientError
+			if errors.As(processErr, &te) {
+				// The row is back in 'queued'. Publish a FRESH message rather
+				// than trusting nack() to reproduce a delivery whose visibility
+				// may already have lapsed; ClaimExtractionJob dedups a stray
+				// concurrent redelivery.
+				if eqErr := deps.Queue.Enqueue(postCtx, jobID); eqErr != nil {
+					slog.Warn("extraction transient failure; re-enqueue failed, nacking instead",
+						"job_id", jobID, "error", processErr, "enqueue_error", eqErr)
+					nack()
+				} else {
+					slog.Warn("extraction transient failure; re-enqueued fresh message for retry",
+						"job_id", jobID, "error", processErr)
+					ack()
+				}
+				continue
+			}
 			slog.Error("extraction job failed", "job_id", jobID, "error", processErr)
 		}
 		ack()
@@ -92,8 +144,8 @@ func RunExtractionWorker(ctx context.Context, deps *ExtractionWorkerDeps) error 
 }
 
 func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID string) error {
-	// Atomically claim the job (queued → processing).
-	claimed, err := deps.ExtractionJobStore.ClaimExtractionJob(ctx, jobID)
+	// Atomically claim the job (queued → processing) and take the lease.
+	claimed, epoch, err := deps.ExtractionJobStore.ClaimExtractionJob(ctx, jobID)
 	if err != nil {
 		return fmt.Errorf("claim extraction job: %w", err)
 	}
@@ -107,17 +159,57 @@ func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID
 		return fmt.Errorf("load extraction job: %w", err)
 	}
 
+	// Lease heartbeat: a long extraction must not be swept out from under
+	// itself while it is making progress.
+	stopHeartbeat := startLeaseHeartbeat(ctx, deps.ExtractionJobStore, jobID, epoch)
+	defer stopHeartbeat()
+
 	emitExtractionLog(deps, job.StepID, "info",
 		"Extracting entities from "+job.ItemName,
 		map[string]string{"item": job.ItemName, "locale": job.Locale})
 
 	if err := executeExtraction(ctx, deps, job); err != nil {
-		_ = deps.ExtractionJobStore.UpdateExtractionJobStatus(ctx, jobID, ExtractionStatusFailed, err.Error())
+		// Shutdown reached the job before it finished: nothing the job did, so
+		// put it back rather than failing it. Bookkeeping runs detached,
+		// because the context that carried the cancellation cannot write.
+		if ctx.Err() != nil {
+			book := context.WithoutCancel(ctx)
+			if _, rerr := deps.ExtractionJobStore.RetryOrFail(book, jobID, epoch, deps.maxJobAttempts(),
+				"interrupted by worker shutdown"); rerr != nil {
+				slog.Warn("extraction shutdown bookkeeping failed", "job_id", jobID, "error", rerr)
+			}
+			return &transientError{err: err}
+		}
+		if isTransientError(err) {
+			retry, rerr := deps.ExtractionJobStore.RetryOrFail(ctx, jobID, epoch, deps.maxJobAttempts(), err.Error())
+			if rerr != nil {
+				slog.Warn("extraction retry bookkeeping failed", "job_id", jobID, "error", rerr)
+			}
+			if retry {
+				emitExtractionLog(deps, job.StepID, "warn",
+					"Transient error, retrying: "+err.Error(),
+					map[string]string{"item": job.ItemName})
+				return &transientError{err: err}
+			}
+			// Retry budget exhausted — RetryOrFail marked the job failed.
+			emitExtractionLog(deps, job.StepID, "error",
+				"Extraction failed after retries: "+err.Error(),
+				map[string]string{"item": job.ItemName})
+			publishExtractionJobFailed(deps.EventBus, job, err.Error())
+			return err
+		}
+		owner, ferr := deps.ExtractionJobStore.FailExtractionJob(ctx, jobID, epoch, err.Error())
+		if ferr != nil {
+			slog.Warn("extraction failure bookkeeping failed", "job_id", jobID, "error", ferr)
+		} else if !owner {
+			slog.Info("extraction lease lost; leaving fresh owner's run untouched", "job_id", jobID)
+			return nil
+		}
 		emitExtractionLog(deps, job.StepID, "error",
 			"Extraction failed: "+err.Error(),
 			map[string]string{"item": job.ItemName})
-		// Extraction has no retry budget, so this failure is the only one this
-		// job will ever have: publishing here is publishing once.
+		// The permanent branch has ruled out retry, so this failure is the only
+		// one this job will ever have: publishing here is publishing once.
 		publishExtractionJobFailed(deps.EventBus, job, err.Error())
 		return err
 	}

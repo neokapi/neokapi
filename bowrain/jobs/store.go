@@ -28,12 +28,26 @@ type JobStore interface {
 	// fresh owner's counts.
 	UpdateJobMemorySplit(ctx context.Context, id string, epoch int64, viaMemory, viaAI int) error
 	UpdateJobStatus(ctx context.Context, id string, status JobStatus, errMsg string) error
+	// CancelJob stops a job a person asked to stop. It applies only to a job
+	// still queued or processing — a completed job cannot be cancelled after
+	// the fact, and reporting it failed would be a lie the push aggregation
+	// then repeats — and it bumps claim_epoch, which is what makes the
+	// cancellation reach a worker: the running worker's next RenewLease
+	// reports !owner and it abandons at the chunk boundary without writing
+	// 'completed' back over the cancellation. Returns false when the job was
+	// already terminal.
+	CancelJob(ctx context.Context, id, reason string) (cancelled bool, err error)
 	// FailJob marks the job failed with errMsg — but only while the caller
 	// still holds the lease (status 'processing' AND claim_epoch == epoch), so
 	// a stale worker's permanent error cannot overwrite a fresh owner's
 	// completed run. Returns owner=false when the lease was lost, in which
 	// case nothing was written.
 	FailJob(ctx context.Context, id string, epoch int64, errMsg string) (owner bool, err error)
+	// CompleteJob marks the job completed under the same lease guard as
+	// FailJob. A worker whose lease was taken — by the sweeper's re-claim, or
+	// by a cancellation — must not report success for a run somebody else now
+	// owns or a person asked to stop.
+	CompleteJob(ctx context.Context, id string, epoch int64) (owner bool, err error)
 	DeleteJob(ctx context.Context, id string) error
 	ListJobsByPushID(ctx context.Context, pushID string) ([]*TranslationJob, error)
 	// ClaimJob atomically transitions a job from queued to processing and bumps
@@ -453,6 +467,31 @@ func (s *jobStore) UpdateJobStatus(ctx context.Context, id string, status JobSta
 		return fmt.Errorf("update job status: %w", err)
 	}
 	return nil
+}
+
+func (s *jobStore) CompleteJob(ctx context.Context, id string, epoch int64) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs
+		 SET status = 'completed', error = '', updated_at = NOW()
+		 WHERE id = $1 AND status = 'processing' AND claim_epoch = $2`, id, epoch)
+	if err != nil {
+		return false, fmt.Errorf("complete job: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
+
+func (s *jobStore) CancelJob(ctx context.Context, id, reason string) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs
+		 SET status = 'failed', error = $1, claim_epoch = claim_epoch + 1, updated_at = NOW()
+		 WHERE id = $2 AND status IN ('queued', 'processing')`,
+		reason, id)
+	if err != nil {
+		return false, fmt.Errorf("cancel job: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
 }
 
 func (s *jobStore) FailJob(ctx context.Context, id string, epoch int64, errMsg string) (bool, error) {
