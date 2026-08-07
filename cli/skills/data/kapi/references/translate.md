@@ -151,7 +151,7 @@ terms store also feeds the translation step.
 ## Publish (format round-trip)
 
 ```bash
-kapi formats list --json                 # what reads and writes
+kapi formats --json                 # what reads and writes
 kapi stats ./report.docx --json          # translatable word/segment count
 ```
 
@@ -175,7 +175,7 @@ shadow a shared extension (e.g. `.strings`, `.xml`, `.resx`); pass
 
 ## How to apply
 
-1. Confirm the format reads **and** writes (`kapi formats list`); for write-limited
+1. Confirm the format reads **and** writes (`kapi formats`); for write-limited
    formats (e.g. PDF is read-only), extract to a bilingual format instead.
 2. Bind a voice profile + terms so output is on-brand and consistent.
 3. Pre-flight with `kapi pseudo-translate <file> --target-lang qps` to surface

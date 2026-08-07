@@ -104,7 +104,7 @@ func (a *App) RunMerge(cmd Command) error {
 		return errors.New("merge: no input files matched — check -i paths and globs")
 	}
 
-	noMemoryUpdate, _ := cmd.Flags().GetBool("no-tm-update")
+	noMemoryUpdate := BoolFlagAny(cmd, "no-memory-update", "no-tm-update")
 	noRestore, _ := cmd.Flags().GetBool("no-restore")
 
 	var tm *memory.SQLiteStore
@@ -115,7 +115,7 @@ func (a *App) RunMerge(cmd Command) error {
 	if !noMemoryUpdate && a.MemoryBackend == nil {
 		db, derr := a.ProjectDB(CmdContext(cmd), layout.Root)
 		if derr != nil {
-			fmt.Fprintf(os.Stderr, "Warning: merge: open project store: %v (continuing with --no-tm-update semantics)\n", derr)
+			fmt.Fprintf(os.Stderr, "Warning: merge: open project store: %v (continuing with --no-memory-update semantics)\n", derr)
 		} else {
 			tm = db.Memory()
 		}
@@ -224,7 +224,7 @@ func (a *App) MergeFromProjectStore(cmd Command) error {
 	if len(locales) == 0 {
 		return errors.New("merge: project declares no target languages (defaults.target_languages)")
 	}
-	noMemoryUpdate, _ := cmd.Flags().GetBool("no-tm-update")
+	noMemoryUpdate := BoolFlagAny(cmd, "no-memory-update", "no-tm-update")
 
 	// In JSON mode the per-file "Merged X → Y" lines are suppressed (stdout
 	// carries only the result document); text mode streams them live as before.
@@ -487,7 +487,7 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 	policy := proj.Defaults.Merge.ResolvedConflictPolicy()
 
 	var tm *memory.SQLiteStore
-	if !BoolFlag(cmd, "no-tm-update") {
+	if !BoolFlagAny(cmd, "no-memory-update", "no-tm-update") {
 		// Warned, like the two sibling merge paths above: a content memory that
 		// failed to open reported `tm_new=0 tm_updated=0`, which reads as
 		// "nothing new to learn" rather than "it was never opened" — so the
@@ -634,6 +634,17 @@ func (a *App) MergeOneKpz(cmd Command, kpzInput string) error {
 func BoolFlag(cmd Command, name string) bool {
 	v, _ := cmd.Flags().GetBool(name)
 	return v
+}
+
+// BoolFlagAny reports whether any of the named bool flags is set. It reads a
+// flag that carries an accepted-but-hidden alias alongside its current name.
+func BoolFlagAny(cmd Command, names ...string) bool {
+	for _, name := range names {
+		if v, err := cmd.Flags().GetBool(name); err == nil && v {
+			return true
+		}
+	}
+	return false
 }
 
 // mergeOne handles a single returning XLIFF / PO file.
@@ -1219,7 +1230,7 @@ type memoryAbsorber struct {
 
 // newMemoryAbsorber returns an absorber over tm, or nil when there is no
 // content memory to write to — every call site already guards on nil, which is
-// the "--no-tm-update, or the store would not open" case.
+// the "--no-memory-update, or the store would not open" case.
 func (a *App) newMemoryAbsorber(tm *memory.SQLiteStore) *memoryAbsorber {
 	if tm == nil {
 		return nil

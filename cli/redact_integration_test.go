@@ -32,7 +32,7 @@ func TestExtractRedact_MergeRestores(t *testing.T) {
 		"version: v1\nrules:\n  - term: \"Mr Bean\"\n    category: person\n"), 0o644))
 
 	// Extract with redaction.
-	out, err := runExtractCmd(t, recipe, "--redact-rules", rulesPath, "--no-tm")
+	out, err := runExtractCmd(t, recipe, "--redact-rules", rulesPath, "--no-memory")
 	require.NoError(t, err, "extract stdout: %s", out)
 
 	// The emitted XLIFF must NOT contain the secret, but must carry the
@@ -64,7 +64,7 @@ func TestExtractRedact_MergeRestores(t *testing.T) {
 	editXLIFFTarget(t, xliffPath, targetInner)
 
 	// Merge — should restore "Mr Bean" from the vault into the merged target.
-	mergeOut, err := runMergeCmd(t, recipe, "-i", xliffPath, "--no-tm-update")
+	mergeOut, err := runMergeCmd(t, recipe, "-i", xliffPath, "--no-memory-update")
 	require.NoError(t, err, "merge stdout: %s", mergeOut)
 
 	mergedPath := filepath.Join(real, "src", "locales", "fr-FR", "app.json")
@@ -88,7 +88,7 @@ func TestExtractRedact_NoRestoreKeepsPlaceholder(t *testing.T) {
 	require.NoError(t, os.WriteFile(rulesPath, []byte(
 		"version: v1\nrules:\n  - term: \"Mr Bean\"\n    category: person\n"), 0o644))
 
-	out, err := runExtractCmd(t, recipe, "--redact-rules", rulesPath, "--no-tm")
+	out, err := runExtractCmd(t, recipe, "--redact-rules", rulesPath, "--no-memory")
 	require.NoError(t, err, "extract stdout: %s", out)
 
 	entries, err := os.ReadDir(filepath.Join(real, "out"))
@@ -100,7 +100,7 @@ func TestExtractRedact_NoRestoreKeepsPlaceholder(t *testing.T) {
 	require.Len(t, m, 2)
 	editXLIFFTarget(t, xliffPath, strings.Replace(m[1], "Hello", "Bonjour", 1))
 
-	mergeOut, err := runMergeCmd(t, recipe, "-i", xliffPath, "--no-tm-update", "--no-restore")
+	mergeOut, err := runMergeCmd(t, recipe, "-i", xliffPath, "--no-memory-update", "--no-restore")
 	require.NoError(t, err, "merge stdout: %s", mergeOut)
 
 	mergedPath := filepath.Join(real, "src", "locales", "fr-FR", "app.json")

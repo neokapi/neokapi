@@ -257,7 +257,7 @@ leg) and `apply_edits` (the typed change-set, [AD-022](022-voice-profile.md)).
 ### Format editability is declarative
 
 A skill needs to know, before it edits, whether a format can be written back.
-`kapi formats list` carries an **Edit** column and the JSON adds `editable` and
+`kapi formats` carries an **Edit** column and the JSON adds `editable` and
 `round_trip`. A format is *editable* when it has a reader and a writer and is not
 a bilingual interchange format — **including binary office formats**, because the
 faithful round-trip is exactly what makes editing a binary container safe.

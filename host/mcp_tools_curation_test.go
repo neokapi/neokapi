@@ -36,7 +36,7 @@ func TestCuratedToolsDoNotShadowPorcelain(t *testing.T) {
 		"pseudo-translate": "pseudo_translate",
 		"term_lookup":      "context_search",
 		"tm_search":        "context_search",
-		"brand_guide":      "context_search",
+		"voice_guide":      "context_search",
 		"recycle":          "up (recycling is invisible by design)",
 		"diff-leverage":    "up",
 	}

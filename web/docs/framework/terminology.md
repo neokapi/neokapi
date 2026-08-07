@@ -5,6 +5,8 @@ description: neokapi's concept-oriented terminology system groups multi-locale t
 keywords: [terminology, terms, TBX, concepts, term enforcement, quality checks]
 ---
 
+import { PipelineDiagram, StreamDiagram } from "@neokapi/docs-shared";
+
 # Terminology
 
 neokapi manages terminology with a concept-oriented model inspired by the TBX
@@ -20,16 +22,19 @@ definition, and groups **terms** across locales. Each term has a lifecycle
 status, and a locale may hold several terms (a preferred form plus admitted
 variants).
 
-```
-Concept (e.g., "cloud storage")
-├── Domain: "infrastructure"
-├── Definition: "Remote file storage accessed via internet"
-├── Term: "cloud storage"     (en, preferred)
-├── Term: "stockage cloud"    (fr, preferred)
-├── Term: "stockage en nuage" (fr, admitted)
-├── Term: "Cloud-Speicher"    (de, preferred)
-└── Term: "クラウドストレージ"   (ja, preferred)
-```
+<StreamDiagram
+  title='Concept — "cloud storage"'
+  ariaLabel='Concept "cloud storage": its domain, its definition, and its terms in English, French, German and Japanese'
+  items={[
+    { kind: "Domain", detail: '"infrastructure"', role: "meta" },
+    { kind: "Definition", detail: '"Remote file storage accessed via internet"', role: "meta" },
+    { kind: "Term · en", detail: '"cloud storage"', role: "block", note: "preferred" },
+    { kind: "Term · fr", detail: '"stockage cloud"', role: "block", note: "preferred" },
+    { kind: "Term · fr", detail: '"stockage en nuage"', role: "block", note: "admitted" },
+    { kind: "Term · de", detail: '"Cloud-Speicher"', role: "block", note: "preferred" },
+    { kind: "Term · ja", detail: '"クラウドストレージ"', role: "block", note: "preferred" },
+  ]}
+/>
 
 This differs from a flat list of source→target pairs and is what enables
 multiple terms per locale, status-driven enforcement, and rich metadata
@@ -63,12 +68,28 @@ aligned with [SKOS](https://www.w3.org/2004/02/skos/):
 | Cross-scheme    | `exact-match`, `close-match`    | Equivalence across schemes           |
 | Stance          | `competitor`                    | A competitor's term                  |
 
-```mermaid
-graph LR
-  utilize["utilize (forbidden)"] -->|use-instead| use["use (preferred)"]
-  webstore["web store (deprecated)"] -->|replaced-by| marketplace["marketplace"]
-  storage["cloud storage"] -->|broader| infra["infrastructure"]
-```
+Each edge is a concept pointing at another under one of those labels:
+
+<PipelineDiagram
+  channelLabel="use-instead"
+  stages={[
+    { label: "utilize", sub: "forbidden", role: "qa" },
+    { label: "use", sub: "preferred", role: "io" },
+  ]}
+/>
+
+<PipelineDiagram
+  channelLabel="replaced-by"
+  stages={[
+    { label: "web store", sub: "deprecated", role: "qa" },
+    { label: "marketplace", sub: "preferred", role: "io" },
+  ]}
+/>
+
+<PipelineDiagram
+  channelLabel="broader"
+  stages={[{ label: "cloud storage" }, { label: "infrastructure" }]}
+/>
 
 A relation is a first-class record with an ID, a source and target concept, a
 type from the vocabulary above, an optional note, and an optional validity

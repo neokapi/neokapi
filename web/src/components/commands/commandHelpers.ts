@@ -23,7 +23,7 @@ export function commandSummary(cmd: CommandEntry): string {
 }
 
 /**
- * The runnable command line for a snippet, e.g. "kapi formats list".
+ * The runnable command line for a snippet, e.g. "kapi formats".
  *
  * Prefer the first authored example when present (examples already read as
  * complete invocations); otherwise synthesize from the command path. The

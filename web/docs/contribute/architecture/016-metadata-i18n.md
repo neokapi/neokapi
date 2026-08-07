@@ -101,11 +101,10 @@ core/formats/mo/              # Writer + stub reader (for DetectByExtension)
 Every CLI / Wails / REST handler that emits tool, format, or plugin
 metadata passes the result through `App.T()` (CLI) or `app.T()`
 (kapi-desktop backend) before handing to the client. The `Translator`
-is built at startup from the locale precedence chain:
-
-```
---lang flag  >  KAPI_LANG  >  config.language  >  LC_ALL / LC_MESSAGES / LANG  >  "en"
-```
+is built at startup from the first locale that resolves: the `--lang` flag,
+then `KAPI_LANG`, then `config.language`, then `LC_ALL` / `LC_MESSAGES` /
+`LANG`, falling back to `en`. The environment values are normalized from POSIX
+form on the way through, so `en_US.UTF-8` arrives as `en-US`.
 
 Builtin MO catalogs are embedded via `//go:embed` and merged in
 `i18n.Resolve`. The convention for plugin-provided catalogs

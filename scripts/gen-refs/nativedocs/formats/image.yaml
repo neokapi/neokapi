@@ -1,7 +1,7 @@
 # Native reference doc for the built-in `image` format.
 # Source: core/formats/image/{reader.go,writer.go,config.go,metadata.go}.
-# No Okapi equivalent — image OCR/localization is a neokapi capability.
-description: Localize raster images — emit the picture as a translatable Media asset, recognize embedded text with OCR, and translate alt-text/caption sidecars.
+# No Okapi equivalent — image OCR and image translation are neokapi capabilities.
+description: Translate raster images — emit the picture as a translatable Media asset, recognize embedded text with OCR, and translate alt-text/caption sidecars.
 overview: |
   The **Image** format reads raster images as documents. PNG and JPEG decode
   natively; GIF, BMP, TIFF and WebP decode in-core (pure Go); and the ISOBMFF
@@ -10,7 +10,7 @@ overview: |
   The image itself is always emitted as a **Media** part by reference — the
   pixel bytes are never loaded into the kapi process — so an image is a valid,
   inspectable document even with no OCR engine installed. This is the
-  *whole-image localization* mode: the picture is an asset to be replaced rather
+  *whole-image replacement* mode: the picture is an asset to be replaced rather
   than read.
 
   When the **kapi-vision** plugin is installed and `ocr` is enabled, the reader
@@ -22,7 +22,7 @@ overview: |
 
   An `<image>.alt.txt` sidecar beside the source supplies alt-text / caption
   copy: it is attached to the Media and emitted as a caption Block that
-  translates through the normal block path; the writer folds the localized text
+  translates through the normal block path; the writer folds the translated text
   back into a per-locale sidecar. Embedded metadata (PNG text chunks, XMP) is
   read without decoding pixels and mapped onto the document layer.
 parameters:
@@ -32,7 +32,7 @@ parameters:
       When enabled (the default), and the kapi-vision plugin is installed, the
       image's text is recognized and emitted as positioned, structured Blocks.
       When disabled — or the plugin is absent — the image is emitted as a Media
-      asset only (whole-image localization).
+      asset only (whole-image replacement).
     values: "`true` / `false` (default `true`)"
   layout:
     description: Use ML layout detection for regions and reading order.

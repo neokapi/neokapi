@@ -154,8 +154,17 @@ func run(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) error {
 		return err
 	}
 
-	fmt.Printf("wrote %s/{formats,tools,reference-gaps,commands,prompts,models}.json — %d formats, %d tools, %d commands, %d prompts, %d models\n",
-		outDir, len(formatEntries), len(toolEntries), len(cmdDataset.Commands), len(promptDataset.Prompts), len(modelDataset.Models))
+	// Generate the MCP tool reference by asking a live server for its tools.
+	mcpDataset, err := collectMCPDataset(now)
+	if err != nil {
+		return err
+	}
+	if err := writeJSON(filepath.Join(outDir, "mcp-tools.json"), mcpDataset); err != nil {
+		return err
+	}
+
+	fmt.Printf("wrote %s/{formats,tools,reference-gaps,commands,prompts,models,mcp-tools}.json — %d formats, %d tools, %d commands, %d prompts, %d models, %d MCP tools\n",
+		outDir, len(formatEntries), len(toolEntries), len(cmdDataset.Commands), len(promptDataset.Prompts), len(modelDataset.Models), len(mcpDataset.Tools))
 	printGapSummary(report)
 	return nil
 }

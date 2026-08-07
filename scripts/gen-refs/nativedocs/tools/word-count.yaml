@@ -4,7 +4,7 @@ description: Count the words in each block's source and target text for scoping 
 overview: |
   The **Word Count** tool tallies the number of words in every translatable
   block, reporting per-block counts and a document total. It is the standard
-  way to scope a localization job — how much text needs translating — and to
+  way to scope a translation job — how much text needs translating — and to
   drive word-based pricing.
 
   Counting runs over the segmented text. By default both the source and the

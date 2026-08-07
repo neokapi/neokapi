@@ -4,12 +4,13 @@
 description: Extract and update translatable strings in Android string resource files (res/values/strings.xml).
 overview: |
   The **Android String Resources** format reads `res/values/strings.xml`
-  files with full localization awareness, rather than as generic XML. It
+  files as Android string resources, rather than as generic XML. It
   extracts `<string>`, `<string-array>` items, and `<plurals>` items
   (by CLDR `quantity`) as translatable blocks.
 
-  Android l10n semantics are honored: entries marked `translatable="false"`
-  and bare resource references (`@string/foo`, `?attr/bar`) are skipped;
+  Android's resource semantics are honored: entries marked
+  `translatable="false"` and bare resource references (`@string/foo`,
+  `?attr/bar`) are skipped;
   positional/printf arguments (`%1$s`, `%d`, `%%`), `<xliff:g>` do-not-translate
   spans, inline styling tags, and `<![CDATA[…]]>` sections are protected as
   inline codes; and a comment immediately preceding an entry becomes a

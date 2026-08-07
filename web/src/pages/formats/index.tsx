@@ -57,7 +57,7 @@ export default function Formats() {
           <button
             type="button"
             className="button button--primary"
-            onClick={() => openKapi({ cmd: "kapi formats list", autoRun: true })}
+            onClick={() => openKapi({ cmd: "kapi formats", autoRun: true })}
           >
             <Play size={16} aria-hidden="true" fill="currentColor" style={{ marginRight: 6 }} />
             Try it live

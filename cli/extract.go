@@ -15,12 +15,11 @@ func NewExtractCmd(a *App, _ ExtractCmdOptions) *cobra.Command {
 		Short:   "Emit a bilingual file for a translator — native .kpz or XLIFF/PO",
 		GroupID: "advanced",
 		Long: `Emit bilingual XLIFF 2.x (default) or PO files for each target locale
-declared in a kapi project, pre-filled from the project's translation
-memory.
+declared in a kapi project, pre-filled from the project's content memory.
 
 Each invocation writes one batch of outputs under .kapi/work/cache/extractions/<batch-id>/
 plus one bilingual file per source → target pair in --out-dir (default "out/").`,
-		Example: `  kapi extract -p kapi.yaml --no-tm
+		Example: `  kapi extract -p kapi.yaml --no-memory
   kapi extract -p kapi.yaml --target-lang fr
   kapi extract -p kapi.yaml --target-lang fr,de,es
   kapi extract src/*.json -o work.kpz --target-lang fr,qps   # ad-hoc .kpz workspace`,
@@ -57,7 +56,11 @@ plus one bilingual file per source → target pair in --out-dir (default "out/")
 	cmd.Flags().String("pattern", "", "extra glob pattern restricting which source files to include")
 	cmd.Flags().String("format", ExtractFormatXLIFF2, "bilingual output format (xliff2 | po | kpz)")
 	cmd.Flags().String("xliff-version", "", "XLIFF 2.x version to emit (2.0, 2.1, 2.2; default 2.2)")
+	cmd.Flags().Bool("no-memory", false, "skip content-memory pre-fill on extract")
+	// Retired spelling: accepted so existing scripts keep working, hidden so
+	// --help teaches only the current name.
 	cmd.Flags().Bool("no-tm", false, "skip content-memory pre-fill on extract")
+	_ = cmd.Flags().MarkHidden("no-tm")
 	cmd.Flags().Bool("force", false, "re-extract every file, ignoring the incremental reuse of unchanged sources")
 	cmd.Flags().Bool("with-source", false, "embed raw source bytes in the .kpz (default: identity + skeleton only)")
 	cmd.Flags().String("out-dir", "out", "directory for emitted bilingual files (relative to project)")

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-07T08:32:48Z",
+  "generatedAt": "2026-08-07T13:24:53Z",
   "kind": "tool",
   "entries": [
     {
@@ -409,7 +409,7 @@
         }
       },
       "doc": {
-        "overview": "The **Term Extract** tool sends each block's source text to a\nconfigured LLM provider and asks it to return notable terms, each with a short\ndefinition and domain. The extracted entries are recorded on the block's\nproperties as a terminology list. Blocks whose source is empty are skipped, and\nblocks with no terms found are left unchanged.\n\nBecause the tool calls an external model, it requires provider credentials. An\noptional subject domain can be supplied to bias extraction toward that field\n(for example medical, legal, or technology terminology). The results are\ncandidate terms intended for review and curation into a terms store, not an\nauthoritative glossary.\n",
+        "overview": "The **Term Extract** tool sends each block's source text to a\nconfigured LLM provider and asks it to return notable terms, each with a short\ndefinition and domain. The extracted entries are recorded on the block's\nproperties as a terminology list. Blocks whose source is empty are skipped, and\nblocks with no terms found are left unchanged.\n\nBecause the tool calls an external model, it requires provider credentials. An\noptional subject domain can be supplied to bias extraction toward that field\n(for example medical, legal, or technology terminology). The results are\ncandidate terms intended for review and curation into a terms store, not\nauthoritative terminology.\n",
         "parameters": {
           "apiKey": {
             "description": "API key for the AI provider.",
@@ -1654,7 +1654,7 @@
         }
       },
       "doc": {
-        "overview": "The **Placeholder Check** tool verifies that every interpolation placeholder\nin the source survives, by count, into the target. A dropped `{count}` or an\nunbalanced `\u003c0\u003e` is the kind of break that crashes a localized application at\nruntime, so a placeholder present fewer times in the target than in the source\nis flagged as critical. It is read-only: it annotates findings and never\nrewrites content.\n\nPlaceholders are detected with a built-in pattern covering the common\ninterpolation styles — `{{name}}`, `${name}`, `%(name)s` (Python),\n`%1$s` (positional), `%s` / `%d` / `%@` (printf / Objective-C),\n`{name}` / `{0}` (ICU / .NET), and numbered tags such as `\u003c0\u003e…\u003c/0\u003e`. A target\nlocale is required; blocks without a target for that locale are skipped.\n",
+        "overview": "The **Placeholder Check** tool verifies that every interpolation placeholder\nin the source survives, by count, into the target. A dropped `{count}` or an\nunbalanced `\u003c0\u003e` is the kind of break that crashes a translated application at\nruntime, so a placeholder present fewer times in the target than in the source\nis flagged as critical. It is read-only: it annotates findings and never\nrewrites content.\n\nPlaceholders are detected with a built-in pattern covering the common\ninterpolation styles — `{{name}}`, `${name}`, `%(name)s` (Python),\n`%1$s` (positional), `%s` / `%d` / `%@` (printf / Objective-C),\n`{name}` / `{0}` (ICU / .NET), and numbered tags such as `\u003c0\u003e…\u003c/0\u003e`. A target\nlocale is required; blocks without a target for that locale are skipped.\n",
         "parameters": {
           "flagExtra": {
             "description": "Report placeholders present in the target but absent from the source.",
@@ -1763,7 +1763,7 @@
       "source": "built-in",
       "kind": "tool",
       "displayName": "Pseudo Translate",
-      "description": "Generate deterministic pseudo-translations for localization-readiness testing.",
+      "description": "Generate deterministic pseudo-translations for translation-readiness testing.",
       "category": "translation",
       "tags": [
         "translation",
@@ -1830,7 +1830,7 @@
         }
       },
       "doc": {
-        "overview": "The **Pseudo Translate** tool produces fake translations that exercise a\nproduct's localization without a real translator. It replaces ASCII letters\nwith accented look-alikes, wraps each segment in marker characters, and can\npad the text to simulate the length growth of a real translation. The result\nreveals hard-coded strings, clipped layouts, and encoding problems before\ntranslation begins. A target language is required (the conventional pseudo\nlocale is `qps`).\n\nInline codes and placeholders are protected: text inside `{...}` markers and\nnon-text runs are passed through unchanged so the runtime can still substitute\nparameters. The transform is deterministic, so the same input always yields\nthe same output.\n",
+        "overview": "The **Pseudo Translate** tool produces fake translations that exercise a\nproduct's handling of translated text without a real translator. It replaces\nASCII letters with accented look-alikes, wraps each segment in marker\ncharacters, and can pad the text to simulate the length growth of a real\ntranslation. The result reveals hard-coded strings, clipped layouts, and\nencoding problems before translation begins. A target language is required\n(the conventional pseudo locale is `qps`).\n\nInline codes and placeholders are protected: text inside `{...}` markers and\nnon-text runs are passed through unchanged so the runtime can still substitute\nparameters. The transform is deterministic, so the same input always yields\nthe same output.\n",
         "parameters": {
           "expansionPercent": {
             "description": "Extra padding to simulate translation expansion.",
@@ -3984,16 +3984,16 @@
         }
       },
       "doc": {
-        "overview": "The **Terminology Check** tool checks each translation against a glossary of\nsource/target term pairs. For every entry, if the source term occurs in the\nblock's source text, the tool verifies that the required target term occurs in\nthe translation; when it does not, the block is flagged and the missing\nexpectations are recorded on its properties. A target locale is required, and a\nterms or glossary supplies the term pairs.\n\nThe glossary is supplied programmatically rather than as a schema field, so the\ntool is typically wired up by the host application or a project that binds a\nterms. The only schema-level option controls whether term matching respects\nletter case.\n",
+        "overview": "The **Terminology Check** tool checks each translation against a set of\nsource/target term pairs. For every entry, if the source term occurs in the\nblock's source text, the tool verifies that the required target term occurs in\nthe translation; when it does not, the block is flagged and the missing\nexpectations are recorded on its properties. A target locale is required, and a\nterms store supplies the term pairs.\n\nThe term pairs are supplied programmatically rather than as a schema field, so\nthe tool is typically wired up by the host application or a project that binds\na terms store. The only schema-level option controls whether term matching\nrespects letter case.\n",
         "parameters": {
           "caseSensitive": {
             "description": "Whether term matching is case-sensitive.",
-            "help": "When enabled, source and target terms must match exactly, including letter\ncase. When disabled, matching is case-insensitive, so a glossary term\nmatches regardless of how it is capitalised in the text.\n",
+            "help": "When enabled, source and target terms must match exactly, including letter\ncase. When disabled, matching is case-insensitive, so a term matches\nregardless of how it is capitalised in the text.\n",
             "values": "`true` / `false` (default `false`)"
           }
         },
         "limitations": [
-          "The glossary of term pairs is configured programmatically; it is not exposed as a schema parameter.",
+          "The set of term pairs is configured programmatically; it is not exposed as a schema parameter.",
           "Matching is substring-based; it does not account for inflection or morphology.",
           "Requires a configured target locale and a terms store; blocks without a translation are skipped."
         ],
@@ -4004,7 +4004,7 @@
         "examples": [
           {
             "title": "Case-insensitive term matching",
-            "description": "Match glossary terms regardless of capitalisation.",
+            "description": "Match terms regardless of capitalisation.",
             "config": "caseSensitive: false\n"
           }
         ]

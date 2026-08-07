@@ -86,12 +86,12 @@ no native dependencies — including in the browser.
 
 SRX segmentation in practice is a **hybrid**: ICU's UAX-29 breaker proposes the
 sentence boundaries and the SRX ruleset is applied on top as *exceptions* — the
-default ruleset is ~2,800 no-break rules across 14 languages and only a handful
-of break rules. neokapi implements this hybrid directly:
+default ruleset is overwhelmingly no-break rules, scoped per language, with only
+a handful of break rules. neokapi implements this hybrid directly:
 
 - **Where ICU is linked** (every shipped native binary — CLI, desktop, server),
   the `srx` default loads the full default ruleset and runs the ICU-base +
-  SRX-exception hybrid, verified against a 14-language golden corpus.
+  SRX-exception hybrid, verified against a per-language golden corpus.
 - **Where ICU is not linked** (the browser/WASM build, pure-Go source builds),
   the same `srx` engine falls back to a reduced, self-contained ruleset with
   explicit break rules — no ICU needed. It is lighter than the full set but
@@ -103,19 +103,21 @@ build. The result is full-fidelity SRX segmentation where ICU is available, and
 a pure-Go approximation everywhere else.
 
 To tune boundaries — protect a domain abbreviation, split on a custom marker —
-point the engine at your own SRX file (an explicit `--source-srx-path` overrides
-the adaptive default in either mode):
+point the engine at your own SRX file (an explicit `--rules-path` overrides the
+adaptive default in either mode):
 
 ```bash
 kapi exec segmentation src/locales/en.json --engine srx \
-  --source-srx-path .kapi/rules.srx
+  --rules-path .kapi/rules.srx
 ```
+
+One file serves both sides: SRX rules are keyed by language, so the same ruleset
+supplies the source rules and, when `--segment-target` is set, the target rules.
 
 For a quick, file-free tweak the tool also accepts an inline `rules:` list in
 its config (break / no-break regex pairs); an inline list overrides the engine
 selection. For anything beyond a rule or two, prefer a real SRX file with
-`--source-srx-path` (and `--target-srx-path` when segmenting existing target
-text), so the rules are portable and shareable.
+`--rules-path`, so the rules are portable and shareable.
 
 ### SaT — the ML segmenter
 
@@ -139,7 +141,7 @@ for the protocol and isolation design. The plugin must be installed
 kapi exec segmentation src/locales/en.json
 
 # Use a custom SRX rule file
-kapi exec segmentation README.md --engine srx --source-srx-path .kapi/rules.srx
+kapi exec segmentation README.md --engine srx --rules-path .kapi/rules.srx
 
 # Semantic chunks via an LLM provider
 kapi exec segmentation docs/guide.md --engine llm --provider anthropic

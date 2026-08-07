@@ -32,7 +32,7 @@ batch are fine — merge handles each input independently.`,
 		Example: `  kapi merge                     # materialize target-language files from the project store
   kapi merge -i out/app.en-to-fr.xliff
   kapi merge -i file1.xliff -i file2.xliff
-  kapi merge -i vendor-return/ --no-tm-update
+  kapi merge -i vendor-return/ --no-memory-update
   kapi merge work.kpz -o out/    # emit target-language files from a .kpz workspace`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// A single .kpz positional arg is either a bilingual interchange
@@ -58,7 +58,11 @@ batch are fine — merge handles each input independently.`,
 	AddProjectFlag(cmd)
 	cmd.Flags().StringArrayP("input", "i", nil, "input XLIFF file, glob, or directory (repeatable)")
 	cmd.Flags().StringP("output", "o", "", "output directory or template when merging a .kpz workspace")
+	cmd.Flags().Bool("no-memory-update", false, "skip content-memory write-back")
+	// Retired spelling: accepted so existing scripts keep working, hidden so
+	// --help teaches only the current name.
 	cmd.Flags().Bool("no-tm-update", false, "skip content-memory write-back")
+	_ = cmd.Flags().MarkHidden("no-tm-update")
 	cmd.Flags().Bool("no-restore", false, "skip restoring redacted originals from the batch vault")
 	AddProgressFlag(cmd)
 	return cmd

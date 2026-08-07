@@ -5,8 +5,8 @@
 displayName: XLIFF 1.2
 description: Read and write OASIS XLIFF 1.2 bilingual exchange documents.
 overview: |
-  XLIFF 1.2 is the OASIS XML Localisation Interchange File Format — the
-  bilingual exchange format that translation tools and TMS platforms use
+  XLIFF 1.2 is the OASIS XML interchange standard for bilingual content —
+  the exchange format that translation tools and TMS platforms use
   to move content between extraction and translation. A document groups
   `<trans-unit>` elements under `<file>` containers, each unit holding a
   `<source>` and an optional `<target>`, with inline markup represented

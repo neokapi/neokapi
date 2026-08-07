@@ -1,14 +1,14 @@
 # Native reference doc for the built-in `pseudo-translate` tool.
 # Schema source: core/tools/pseudo.go (PseudoConfig).
-description: Generate deterministic pseudo-translations for localization-readiness testing.
+description: Generate deterministic pseudo-translations for translation-readiness testing.
 overview: |
   The **Pseudo Translate** tool produces fake translations that exercise a
-  product's localization without a real translator. It replaces ASCII letters
-  with accented look-alikes, wraps each segment in marker characters, and can
-  pad the text to simulate the length growth of a real translation. The result
-  reveals hard-coded strings, clipped layouts, and encoding problems before
-  translation begins. A target language is required (the conventional pseudo
-  locale is `qps`).
+  product's handling of translated text without a real translator. It replaces
+  ASCII letters with accented look-alikes, wraps each segment in marker
+  characters, and can pad the text to simulate the length growth of a real
+  translation. The result reveals hard-coded strings, clipped layouts, and
+  encoding problems before translation begins. A target language is required
+  (the conventional pseudo locale is `qps`).
 
   Inline codes and placeholders are protected: text inside `{...}` markers and
   non-text runs are passed through unchanged so the runtime can still substitute

@@ -1,4 +1,12 @@
-package main
+// Package mcptools is the kapi binary's MCP porcelain: the file-shaped tools
+// (format detection, content extraction, the review verbs) that sit alongside
+// the host's own MCP tools on the `kapi mcp` server. Registration happens in
+// init(), so importing the package is what exposes the tools.
+//
+// It is a library rather than part of `package main` so the tool surface can be
+// enumerated without running the binary — the reference generator and the
+// surface snapshot both link it directly.
+package mcptools
 
 import (
 	"bytes"
@@ -81,7 +89,7 @@ func registerKapiTools(server *mcp.Server, a *cli.App) {
 	if a.MCPSurface.AllTools {
 		mcp.AddTool(server, &mcp.Tool{
 			Name:        "pseudo_translate",
-			Description: "Pseudo-translate a file for localization QA testing",
+			Description: "Pseudo-translate a file to test how the UI holds expanded text",
 		}, func(ctx context.Context, req *mcp.CallToolRequest, input PseudoTranslateInput) (*mcp.CallToolResult, RunFlowOutput, error) {
 			return handlePseudoTranslate(ctx, a, input)
 		})

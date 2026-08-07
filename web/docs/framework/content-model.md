@@ -7,7 +7,7 @@ keywords: [content model, Part, Block, Run, Overlay, variant target, Layer, mult
 
 import { BlockPreview } from "@site/src/components/curated";
 import { ContentLab } from "@site/src/components/Lab";
-import { StreamDiagram } from "@neokapi/docs-shared";
+import { StreamDiagram, TypeDiagram } from "@neokapi/docs-shared";
 
 # Content Model
 
@@ -81,41 +81,71 @@ covered in [Pipeline](/framework/pipeline).
 The payload a Part carries is one of a few resource types. Together they describe
 both the content you read, edit, or translate and the structure that surrounds it.
 
-```mermaid
-classDiagram
-    class Layer {
-        +string Format
-        +Layer Parent
-    }
-    class Block {
-        +bool Translatable
-        +[]Run Source
-        +map~VariantKey,Target~ Targets
-        +[]Overlay Overlays
-        +map~string,any~ Annotations
-    }
-    class Target {
-        +[]Run Runs
-        +TargetStatus Status
-    }
-    class Overlay {
-        +OverlayType Type
-        +VariantKey Variant
-        +[]Span Spans
-    }
-    class Run {
-        +TextRun Text
-        +PlaceholderRun Ph
-        +PcOpenRun PcOpen
-        +PcCloseRun PcClose
-    }
-    Layer --> Layer : child Layers (embedded content)
-    Layer --> Block : contains
-    Block --> Run : flat Source sequence
-    Block --> Target : per variant
-    Block --> Overlay : positional stand-off layers
-    Target --> Run : flat run sequence
-```
+<TypeDiagram
+  caption="A Block is the centre: its Source is a flat run sequence, its Targets are keyed by variant, and its Overlays sit beside the runs rather than in them."
+  boxes={[
+    {
+      name: "Layer",
+      col: 0,
+      role: "io",
+      self: "child Layers — embedded content",
+      fields: [
+        { name: "Format", type: "string" },
+        { name: "ParentID", type: "string" },
+      ],
+    },
+    {
+      name: "Block",
+      col: 1,
+      role: "translate",
+      fields: [
+        { name: "Translatable", type: "bool" },
+        { name: "Source", type: "[]Run" },
+        { name: "Targets", type: "map[VariantKey]*Target" },
+        { name: "Overlays", type: "[]Overlay" },
+        { name: "Annotations", type: "map[string]Payload" },
+      ],
+    },
+    {
+      name: "Run",
+      col: 2,
+      fields: [
+        { name: "Text", type: "*TextRun" },
+        { name: "Ph", type: "*PlaceholderRun" },
+        { name: "PcOpen", type: "*PcOpenRun" },
+        { name: "PcClose", type: "*PcCloseRun" },
+        { name: "Sub", type: "*SubRun" },
+        { name: "Plural", type: "*PluralRun" },
+        { name: "Select", type: "*SelectRun" },
+      ],
+    },
+    {
+      name: "Target",
+      col: 2,
+      role: "translate",
+      fields: [
+        { name: "Runs", type: "[]Run" },
+        { name: "Status", type: "TargetStatus" },
+      ],
+    },
+    {
+      name: "Overlay",
+      col: 2,
+      role: "annotate",
+      fields: [
+        { name: "Type", type: "OverlayType" },
+        { name: "Variant", type: "*VariantKey" },
+        { name: "Spans", type: "[]Span" },
+      ],
+    },
+  ]}
+  edges={[
+    { from: 0, to: 1, label: "contains" },
+    { from: 1, to: 2, label: "flat Source sequence" },
+    { from: 1, to: 3, label: "per variant" },
+    { from: 1, to: 4, label: "positional stand-off" },
+  ]}
+/>
 
 - **Layer** — a structural grouping: a whole document, a section, or embedded
   content. Layers nest. Embedded content — HTML inside a JSON value, CDATA inside

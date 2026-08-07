@@ -39,6 +39,7 @@ type (
 	LocaleCoverage                = host.LocaleCoverage
 	Matcher                       = host.Matcher
 	MatcherOpts                   = host.MatcherOpts
+	MCPSurface                    = host.MCPSurface
 	MergeCmdOptions               = host.MergeCmdOptions
 	ModelDefaultOutput            = host.ModelDefaultOutput
 	MemorySessionDeleteOutput     = host.MemorySessionDeleteOutput
@@ -109,6 +110,7 @@ var (
 	ApplySourceLocale            = host.ApplySourceLocale
 	ApplyMCPToolFactories        = host.ApplyMCPToolFactories
 	BoolFlag                     = host.BoolFlag
+	BoolFlagAny                  = host.BoolFlagAny
 	BuildAISetupChoices          = host.BuildAISetupChoices
 	BuildModelRows               = host.BuildModelRows
 	BuiltinFlowNames             = host.BuiltinFlowNames

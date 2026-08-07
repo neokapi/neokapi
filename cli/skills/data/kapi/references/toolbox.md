@@ -104,7 +104,7 @@ this — it would either miss the match or trample the markup.
 is extraction-only — has no writer, so `ksed` stops with an error
 (`pdf is a read-only format`) rather than silently replacing the document with
 its extracted text. Read such a format with `kcat`; to translate it, extract to
-a bilingual format and merge. `kapi formats list --json` reports `has_writer`
+a bilingual format and merge. `kapi formats --json` reports `has_writer`
 per format — check it before editing an unfamiliar one.
 
 ## kdiff — compare the content
@@ -152,7 +152,7 @@ the result programmatically rather than just read it:
 - `kcat --json` and `kgrep --json` emit an array of `{file, number, id, text}` —
   use it to map a block to its `id`, read a match's position, or iterate
   reliably instead of parsing lines.
-- `kapi formats list --json` reports `has_reader` / `has_writer` per format —
+- `kapi formats --json` reports `has_reader` / `has_writer` per format —
   the dependable way to check whether `ksed` can write a format (PDF is
   `false`) before you try.
 
@@ -173,7 +173,7 @@ ksed -i 's/Acme Corp/Acme Ltd/g' *.docx  # rename it across all of them
 `kcat` and `kgrep` read every format kapi reads; `ksed` writes back the ones
 that support it (read-only formats like PDF are reported as an error, never
 silently mangled). The set includes formats served by the okapi-bridge when it
-is installed. Confirm what reads and writes with `kapi formats list --json`
+is installed. Confirm what reads and writes with `kapi formats --json`
 (`has_reader` / `has_writer`).
 
 ## How to apply

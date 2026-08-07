@@ -64,7 +64,7 @@ steps:
     narration: Crossing the boundary from an incumbent TMS. TMX is the interchange tier — lossy, but it is what the outside world speaks. From here on the project's own content memory is native.
     offline: false
   - comment: 2. kapi extract — one XLIFF per target locale, with Memory pre-fill
-  - command: kapi extract -p kapi.yaml --no-tm
+  - command: kapi extract -p kapi.yaml --no-memory
     narration: >-
       Extract emits a bilingual XLIFF per target locale. This step runs live in
       the embed below — inspect the emitted file in the files pane.

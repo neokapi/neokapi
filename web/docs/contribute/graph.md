@@ -5,23 +5,36 @@ description: The neokapi graph store library provides a backend-agnostic graph d
 keywords: [graph store, SQLite, concept management, GraphStore interface, neokapi]
 ---
 
+import { PhaseFlow } from "@neokapi/docs-shared";
+
 # Graph Store Library
 
 The graph store library (`core/graph/`) provides a backend-agnostic graph database abstraction for concept management. The framework includes a SQLite backend (adjacency tables) for local and CLI use. The interface is designed for extension, so server deployments can add their own backend behind the same interface.
 
 ## Architecture
 
-```mermaid
-graph TD
-    GS[GraphStore Interface] --> SQLite[SQLite Backend]
-    SQLite --> DB[(SQLite)]
+<PhaseFlow
+  nodes={[
+    { label: "GraphStore", sub: "backend-agnostic interface", role: "io" },
+    {
+      label: "SQLite backend",
+      sub: "graphstore.NewSQLiteGraphStore",
+      edge: "implemented by",
+    },
+    {
+      label: "graph.db",
+      sub: "graph_nodes · graph_edges",
+      role: "io",
+      edge: "reads and writes",
+    },
+  ]}
+/>
 
-    N[Node] --> P[Properties]
-    E[Edge] --> V[Validity]
-    V --> VF[ValidFrom]
-    V --> VT[ValidTo]
-    V --> T[Tags]
-```
+Two record types travel through that interface. A **node** carries an ID, a
+label, and a map of properties. An **edge** joins two nodes under a label and
+may carry a **validity** — a `ValidFrom`/`ValidTo` interval plus a set of tags —
+which is what lets a query ask the graph a question at a point in time and
+within a scope. Both are defined in [Key Types](#key-types) below.
 
 ## GraphStore Interface
 

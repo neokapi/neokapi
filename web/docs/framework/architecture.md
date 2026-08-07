@@ -15,7 +15,7 @@ and writes it back — byte-for-byte. Get your content right — edit it, check 
 keep it on brand — and the same engine makes it work in every language. It also
 serves AI ingestion and programmatic editing. It provides format-aware document parsing,
 composable processing tools, and a concurrent streaming pipeline. The [`kapi` CLI
-and desktop app](/kapi/overview) and [Kapi React](/react/introduction) are
+and desktop app](/kapi/overview) and [neokapi-i18n](/react/introduction) are
 surfaces built on top of this engine — but the content model, format readers and
 writers, tools, and pipeline are equally a Go library you can import and drive
 directly. If you want to start with running code, jump to the

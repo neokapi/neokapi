@@ -1,5 +1,4 @@
 ---
-sidebar_position: 13
 title: Ship-Aware Language Picker
 description: The two-gate ship model — a ship gate decides which locales go live, a verified gate decides which were human-reviewed. Emit a ship.json manifest with kapi status --ship and drive a language picker that hides un-shippable locales and flags AI-only ones.
 keywords: [ship gate, verified gate, ship.json, language picker, verified, AI badge, kapi status, neokapi-i18n]

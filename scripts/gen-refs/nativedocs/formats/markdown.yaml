@@ -19,7 +19,7 @@ parameters:
     help: |
       When enabled, fenced and indented code blocks are extracted as
       translatable content. By default they are emitted as non-translatable
-      data, since code is rarely localized.
+      data, since code is rarely translated.
     values: "`true` / `false` (default `false`)"
   translateFrontMatter:
     description: Make YAML front matter values translatable.
@@ -38,7 +38,7 @@ parameters:
     description: Make link and image URLs translatable.
     help: |
       When enabled, the URLs of links and images are extracted as translatable
-      content (useful when localized assets or pages live at different paths).
+      content (useful when per-locale assets or pages live at different paths).
       By default URLs are left untranslated.
     values: "`true` / `false` (default `false`)"
   translateBlockQuotes:

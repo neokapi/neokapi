@@ -10,6 +10,7 @@ import { RedactionDiagram } from "./RedactionDiagram";
 import { AxisLadderDiagram } from "./AxisLadderDiagram";
 import { AxisFamiliesDiagram } from "./AxisFamiliesDiagram";
 import { CycleDiagram } from "./CycleDiagram";
+import { TypeDiagram } from "./TypeDiagram";
 import { GatedLoopDiagram } from "./GatedLoopDiagram";
 import { withDiagramTheme } from "./storyEnv";
 
@@ -313,6 +314,70 @@ export const Cycle: Story = {
         { label: "Reflect", sub: "learnings" },
       ]}
       caption="The format-ops runbook is a self-feeding loop; each run records what it consumed."
+    />
+  ),
+};
+
+export const Types: Story = {
+  name: "TypeDiagram (record types and their links)",
+  render: () => (
+    <TypeDiagram
+      caption="A type card lists its fields; an edge carries what the link between two types means."
+      boxes={[
+        {
+          name: "Layer",
+          col: 0,
+          role: "io",
+          self: "nests — embedded content",
+          fields: [
+            { name: "Format", type: "string" },
+            { name: "ParentID", type: "string" },
+          ],
+        },
+        {
+          name: "Block",
+          col: 1,
+          role: "translate",
+          fields: [
+            { name: "Translatable", type: "bool" },
+            { name: "Source", type: "[]Run" },
+            { name: "Targets", type: "map[VariantKey]*Target" },
+            { name: "Overlays", type: "[]Overlay" },
+          ],
+        },
+        {
+          name: "Run",
+          col: 2,
+          fields: [
+            { name: "Text", type: "*TextRun" },
+            { name: "Ph", type: "*PlaceholderRun" },
+          ],
+        },
+        {
+          name: "Target",
+          col: 2,
+          role: "translate",
+          fields: [
+            { name: "Runs", type: "[]Run" },
+            { name: "Status", type: "TargetStatus" },
+          ],
+        },
+        {
+          name: "Overlay",
+          col: 2,
+          role: "annotate",
+          fields: [
+            { name: "Type", type: "OverlayType" },
+            { name: "Spans", type: "[]Span" },
+          ],
+        },
+      ]}
+      edges={[
+        { from: 0, to: 1, label: "contains" },
+        { from: 1, to: 2, label: "flat Source sequence" },
+        { from: 1, to: 3, label: "per variant" },
+        { from: 1, to: 4, label: "stand-off, run-anchored" },
+      ]}
     />
   ),
 };

@@ -6,10 +6,9 @@
 description: Extract translatable text from entity declarations in XML DTD files.
 overview: |
   A DTD (Document Type Definition) declares the structure and entities of an
-  XML vocabulary. This reader targets DTDs used for user-interface
-  localization — most notably the Mozilla DTD files referenced by XUL
-  documents — where translatable strings are stored as general entity
-  declarations.
+  XML vocabulary. This reader targets DTDs that carry user-interface text —
+  most notably the Mozilla DTD files referenced by XUL documents — where the
+  translatable strings are stored as general entity declarations.
 
   neokapi reads and writes DTD files. Each general (non-parameter)
   `<!ENTITY>` declaration becomes one translatable Block whose source is the

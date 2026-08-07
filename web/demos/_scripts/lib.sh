@@ -38,6 +38,6 @@ PY
 # (Capture first to avoid a SIGPIPE/pipefail false negative from grep -q.)
 plugin_installed() {
   local out
-  out=$("$KAPI" formats list 2>/dev/null || true)
+  out=$("$KAPI" formats 2>/dev/null || true)
   printf '%s' "$out" | grep -q "$1"
 }

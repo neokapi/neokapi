@@ -92,6 +92,10 @@ const cdnModelsVersion = (() => {
   }
 })();
 
+// Source-locale integrity is strict; target-locale drift only warns. Applied to
+// every link-integrity setting below, so one policy governs them all.
+const linkIntegrity = (process.env.DOCUSAURUS_CURRENT_LOCALE ?? "en") === "en" ? "throw" : "warn";
+
 const config: Config = {
   title: "neokapi",
   tagline: "The open-source, format-aware content engine — for people and AI agents",
@@ -121,7 +125,7 @@ const config: Config = {
   // DOCUSAURUS_CURRENT_LOCALE, so the policy can be expressed directly. English
   // stays strict: a broken link in the source IS a defect and should stop the
   // build.
-  onBrokenLinks: (process.env.DOCUSAURUS_CURRENT_LOCALE ?? "en") === "en" ? "throw" : "warn",
+  onBrokenLinks: linkIntegrity,
 
   i18n: {
     defaultLocale: "en",
@@ -148,8 +152,8 @@ const config: Config = {
   markdown: {
     mermaid: true,
     hooks: {
-      onBrokenMarkdownLinks: "warn",
-      onBrokenMarkdownImages: "warn",
+      onBrokenMarkdownLinks: linkIntegrity,
+      onBrokenMarkdownImages: linkIntegrity,
     },
   },
 
@@ -210,6 +214,9 @@ const config: Config = {
             from: "/contribute/notes-internal/plugin-bridge-protocol",
             to: "/contribute/implementation/plugin-protocol-v1",
           },
+          // The bridge's own page folded into the plugin overview, where it is
+          // the canonical Mode-C entry under "Standard plugins".
+          { from: "/contribute/java-bridge", to: "/contribute/plugins" },
           // The product-vocabulary rename (translation memory → content memory,
           // termbase/glossary → terms; #1462) and the de-localization of the
           // framing (#1463). The published routes are indexed, so every retired
@@ -612,7 +619,7 @@ const config: Config = {
         // projects); Framework is the engine (an Overview, then concepts +
         // extending + architecture + notes); Reference holds the
         // generated/interactive references + MCP; Toolbox holds the CLI utilities
-        // and Kapi React.
+        // and neokapi-i18n.
         {
           type: "docSidebar",
           sidebarId: "kapiSidebar",
@@ -662,9 +669,10 @@ const config: Config = {
           ],
         },
         {
-          // Toolbox holds the format-aware CLI utilities and Kapi React. Kapi
-          // React is a self-contained library — its own thing, kept out of the
-          // core Kapi narrative — so it lives here, not in the Kapi section.
+          // Toolbox holds the format-aware CLI utilities and neokapi-i18n.
+          // neokapi-i18n is a self-contained library — its own thing, kept out
+          // of the core Kapi narrative — so it lives here, not in the Kapi
+          // section.
           type: "dropdown",
           label: "Toolbox",
           position: "left",
@@ -678,7 +686,7 @@ const config: Config = {
             {
               type: "docSidebar",
               sidebarId: "reactSidebar",
-              label: "Kapi React",
+              label: "neokapi-i18n",
             },
           ],
         },
@@ -740,7 +748,7 @@ const config: Config = {
               to: "/toolbox/overview",
             },
             {
-              label: "Kapi React",
+              label: "neokapi-i18n",
               to: "/react/introduction",
             },
             {

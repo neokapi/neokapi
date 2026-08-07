@@ -1,4 +1,4 @@
-package main
+package mcptools
 
 // MCP review tools — agent parity for the review workflow (issue #1077,
 // phase 4). Agents get the same verbs the desktop Review page and `kapi

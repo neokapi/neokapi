@@ -1,0 +1,129 @@
+---
+sidebar_position: 3
+title: Context
+description: How kapi knows what your content should say — the two-axis context space a piece of content sits at (product and channel), the stores that govern each point (voice profile, terms, content memory), and the one question that reaches all of them.
+keywords: [kapi, context, voice profile, terms, content memory, product, channel, profiles, context search, governance]
+---
+
+import { PipelineDiagram } from "@neokapi/docs-shared";
+
+# Context
+
+Getting content right is not only about the words in the file. It is about what
+those words are supposed to be — what this project calls a thing, which wording
+it has already approved, what it will not say. kapi keeps that knowledge as
+**context**: the standing record a person or an AI agent consults before writing
+and is checked against after.
+
+Two questions describe the model:
+
+- **Where does this content sit?** Every piece of content has a place in a
+  two-axis space — the _product_ it belongs to and the _channel_ it ships on.
+- **What governs that place?** A point in the space binds governance: a voice
+  profile, a terms store, and the content memory of what has been said before.
+
+## The context space
+
+Content is written for a point, not for a project. A repository that holds both
+a framework and the app built on it is not one voice; a marketing page and an
+API reference are not one register. The two axes name the point:
+
+| Axis        | Answers                        | In the recipe                                  |
+| ----------- | ------------------------------ | ---------------------------------------------- |
+| **product** | which thing this belongs to    | a key under `profiles:`                        |
+| **channel** | which surface it ships on      | a `channel:` on the collection, as `product/channel` |
+
+The space is **structural, not declared**: a key under `profiles:` _is_ a
+product, the channels a profile lists _are_ the channels that product ships on,
+and a collection names its point with one `channel:` reference. A project that
+sits at a single point declares no profiles at all — the whole of it is governed
+by the project defaults.
+
+```yaml title="kapi.yaml"
+profiles:
+  console:
+    channels: [app, docs]
+    voice: .kapi/profiles/console/voice.yaml
+  sdk:
+    channels: [docs, cli]
+    voice: .kapi/voice.yaml
+
+collections:
+  - name: console-app
+    channel: console/app
+    content:
+      - path: "console/i18n/**/*.kbf.json"
+```
+
+Products and channels are **slugs** — lowercase, stable, never translated — so
+governance binds to an identifier that does not move when a term is reworded. A
+profile or a channel may _carry_ a display concept, but resolution never looks
+at it. The [project file reference](/reference/project-file#profiles-and-channels)
+covers the field shapes in full.
+
+## What governs a point
+
+Three stores hold the context, and all three are committed to git and versioned
+like code — the recipe binds them, `git diff` reviews changes to them:
+
+| Store              | Holds                                                | Bound by                          |
+| ------------------ | ---------------------------------------------------- | --------------------------------- |
+| **voice profile**  | tone, register, preferred and forbidden vocabulary   | `defaults.voice` or a profile's `voice:` |
+| **terms**          | the approved word for each concept, per language     | `defaults.terms_source` or a profile's `terms:` |
+| **content memory** | source/target pairs already produced and reviewed    | `defaults.memory_source`          |
+
+A profile binds a voice and a vocabulary to its whole product; the collection's
+channel then refines the voice, selecting a channel-specific override inside the
+bound profile when one exists. A point that declares no override of its own
+falls back to the project default — the right answer for a voice that reads the
+same everywhere.
+
+## One question, every store
+
+Because the stores govern one point together, you do not ask them one at a time.
+`kapi context search` — and the `context_search` tool over
+[MCP](/reference/mcp) — asks a single question across every store the project
+binds:
+
+```bash
+kapi context search "sign-in"
+```
+
+<PipelineDiagram
+  channelLabel=""
+  caption="One question reaches every store bound at the point."
+  stages={[
+    { label: "your question", sub: '"sign-in"', role: "io" },
+    { label: "voice · terms · memory", sub: "every bound store", role: "annotate" },
+    { label: "one answer", sub: "grouped by kind", role: "io" },
+  ]}
+/>
+
+The answer says what the project calls the thing, whether it is discouraged and
+what to say instead, and any wording already approved — grouped by kind, and
+naming any store it could not reach. You do not have to know which store holds
+the answer, which is the whole point: asking before you write is the cheap
+route, and learning the same fact from a failing check afterwards is not.
+
+## Two directions around the writer
+
+Context works on both sides of the moment content is written:
+
+- **Before** — the voice guide and the approved terms go into a writer's context
+  (a person's, or an agent's), so a draft starts compliant rather than being
+  corrected into compliance. The [agent skill](/kapi/get-started/use-with-claude)
+  injects them automatically; `context_search` fetches them on demand.
+- **After** — `kapi check` scores the result block by block against the same
+  stores, with an exit code, so the rules hold in the editing loop and again in
+  CI with no assistant present.
+
+Rules an agent proposes — a new forbidden term, a newly approved translation —
+land through `kapi apply` as typed change-set entries in the committed stores,
+so the review surface for the _rules_ is `git diff`, exactly as for code.
+
+## Related
+
+- [Content governance for AI](/kapi/recipes/content-governance-for-ai) — the how-to: author the stores and gate on them.
+- [Keep terms consistent](/kapi/recipes/terminology-qa) — building and enforcing the terms store.
+- [The project store](/kapi/project-store) — where the derived index of this context lives.
+- [Project file reference](/reference/project-file#profiles-and-channels) — the `profiles:` and `channel:` fields in full.

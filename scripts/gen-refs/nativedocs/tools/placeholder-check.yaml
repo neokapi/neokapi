@@ -4,7 +4,7 @@ description: Verify interpolation placeholders and numbered tags are preserved i
 overview: |
   The **Placeholder Check** tool verifies that every interpolation placeholder
   in the source survives, by count, into the target. A dropped `{count}` or an
-  unbalanced `<0>` is the kind of break that crashes a localized application at
+  unbalanced `<0>` is the kind of break that crashes a translated application at
   runtime, so a placeholder present fewer times in the target than in the source
   is flagged as critical. It is read-only: it annotates findings and never
   rewrites content.

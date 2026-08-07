@@ -4,6 +4,9 @@ import (
 	"os"
 
 	"github.com/neokapi/neokapi/cli"
+
+	// The kapi-level MCP porcelain registers itself on import.
+	_ "github.com/neokapi/neokapi/kapi/mcptools"
 )
 
 func main() {

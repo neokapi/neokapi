@@ -31,7 +31,8 @@ const (
 // SegmentationRule defines a break or no-break pattern for the inline-rules
 // segmentation fallback. Break rules cause a split at the match position;
 // no-break rules suppress a split. For full SRX 2.0 rule files use the srx
-// engine with SourceSrxPath / TargetSrxPath instead.
+// engine with its RulesPath parameter instead; one locale-keyed file serves
+// both the source and the target side.
 type SegmentationRule struct {
 	BeforeBreak string // Regex matching text before the break point
 	AfterBreak  string // Regex matching text after the break point

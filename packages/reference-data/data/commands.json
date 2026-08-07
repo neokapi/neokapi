@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-07T08:32:48Z",
+  "generatedAt": "2026-08-07T13:24:53Z",
   "commands": [
     {
       "id": "add",
@@ -4769,7 +4769,7 @@
       ],
       "use": "extract",
       "short": "Emit a bilingual file for a translator — native .kpz or XLIFF/PO",
-      "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a kapi project, pre-filled from the project's translation\nmemory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
+      "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi/work/cache/extractions/\u003cbatch-id\u003e/\nplus one bilingual file per source → target pair in --out-dir (default \"out/\").",
       "groupID": "advanced",
       "flags": [
         {
@@ -4785,7 +4785,7 @@
           "type": "string"
         },
         {
-          "name": "no-tm",
+          "name": "no-memory",
           "usage": "skip content-memory pre-fill on extract",
           "default": "false",
           "type": "bool"
@@ -4857,7 +4857,7 @@
         }
       ],
       "examples": [
-        "kapi extract -p kapi.yaml --no-tm",
+        "kapi extract -p kapi.yaml --no-memory",
         "kapi extract -p kapi.yaml --target-lang fr",
         "kapi extract -p kapi.yaml --target-lang fr,de,es",
         "kapi extract src/*.json -o work.kpz --target-lang fr,qps   # ad-hoc .kpz workspace"
@@ -5764,14 +5764,14 @@
           "type": "stringArray"
         },
         {
-          "name": "no-restore",
-          "usage": "skip restoring redacted originals from the batch vault",
+          "name": "no-memory-update",
+          "usage": "skip content-memory write-back",
           "default": "false",
           "type": "bool"
         },
         {
-          "name": "no-tm-update",
-          "usage": "skip content-memory write-back",
+          "name": "no-restore",
+          "usage": "skip restoring redacted originals from the batch vault",
           "default": "false",
           "type": "bool"
         },
@@ -5797,7 +5797,7 @@
         "kapi merge                     # materialize target-language files from the project store",
         "kapi merge -i out/app.en-to-fr.xliff",
         "kapi merge -i file1.xliff -i file2.xliff",
-        "kapi merge -i vendor-return/ --no-tm-update",
+        "kapi merge -i vendor-return/ --no-memory-update",
         "kapi merge work.kpz -o out/    # emit target-language files from a .kpz workspace"
       ],
       "offlineCapable": true,

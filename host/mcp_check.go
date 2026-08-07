@@ -62,7 +62,7 @@ type checkFileInput struct {
 	Require     []string `json:"require,omitempty" jsonschema:"regex that MUST appear in the content"`
 	ProfilePack string   `json:"profile_pack,omitempty" jsonschema:"built-in profile pack to check vocabulary against"`
 	ProfileFile string   `json:"profile_file,omitempty" jsonschema:"path to a voice profile YAML"`
-	Target      string   `json:"target,omitempty" jsonschema:"translated target file to check against the source (enables bilingual l10n checks)"`
+	Target      string   `json:"target,omitempty" jsonschema:"translated target file to check against the source (enables the bilingual source-against-target checks)"`
 	TargetLang  string   `json:"target_lang,omitempty" jsonschema:"locale of the target file (e.g. de)"`
 	DNT         []string `json:"dnt,omitempty" jsonschema:"do-not-translate terms that must survive verbatim into the target"`
 	Validate    string   `json:"validate,omitempty" jsonschema:"reader structure/encoding validation: off|report|strict (report folds structure.*/encoding.* findings into the report; strict also fails on a Major+ structure/encoding problem). Default off."`

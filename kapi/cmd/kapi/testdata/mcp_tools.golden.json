@@ -182,7 +182,7 @@
           ]
         },
         "target": {
-          "description": "translated target file to check against the source (enables bilingual l10n checks)",
+          "description": "translated target file to check against the source (enables the bilingual source-against-target checks)",
           "type": "string"
         },
         "target_lang": {
@@ -861,7 +861,7 @@
           "type": "integer"
         },
         "materialize": {
-          "description": "after the loop, write localized files for every shippable locale (overrides the recipe's materialize policy)",
+          "description": "after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy)",
           "type": "boolean"
         },
         "no_checks": {

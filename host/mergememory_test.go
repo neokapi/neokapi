@@ -134,7 +134,7 @@ func TestMemoryAbsorber_EmptyRunWritesNothing(t *testing.T) {
 	assert.Empty(t, entries)
 }
 
-// A nil absorber is the "--no-tm-update, or the store would not open" case, and
+// A nil absorber is the "--no-memory-update, or the store would not open" case, and
 // every call site relies on it being inert rather than on guarding each call.
 func TestMemoryAbsorber_NilIsInert(t *testing.T) {
 	a := &App{}

@@ -62,6 +62,13 @@ func checkDrift(bridgeDir, pluginsDir, metaPath, nativeDocsDir, outDir string) e
 	if diff := compareCommands(filepath.Join(outDir, "commands.json"), wantCommands); diff != "" {
 		problems = append(problems, "commands.json: "+diff)
 	}
+	wantMCP, err := collectMCPDataset("")
+	if err != nil {
+		return err
+	}
+	if diff := compareMCPTools(filepath.Join(outDir, "mcp-tools.json"), wantMCP); diff != "" {
+		problems = append(problems, "mcp-tools.json: "+diff)
+	}
 
 	if len(problems) > 0 {
 		for _, p := range problems {
@@ -239,6 +246,37 @@ func compareCommands(path string, want CommandDataset) string {
 		if !jsonEqual(want.Commands[i], got.Commands[i]) {
 			return fmt.Sprintf("command %q is stale (help text, flags, or examples changed)",
 				want.Commands[i].ID)
+		}
+	}
+	return ""
+}
+
+// compareMCPTools gates the committed MCP reference against the tools a live
+// `kapi mcp` server serves. Registering, retiring, or rewording a tool fails
+// this until the reference is regenerated, so /reference/mcp cannot teach an
+// assistant a tool the server does not answer to.
+func compareMCPTools(path string, want MCPDataset) string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Sprintf("cannot read %s: %v", path, err)
+	}
+	var got MCPDataset
+	if err := json.Unmarshal(raw, &got); err != nil {
+		return fmt.Sprintf("cannot parse %s: %v", path, err)
+	}
+
+	// generatedAt changes every run and is not part of the contract.
+	got.GeneratedAt = ""
+	want.GeneratedAt = ""
+
+	if len(got.Tools) != len(want.Tools) {
+		return fmt.Sprintf("MCP tool count changed: committed %d, served %d",
+			len(got.Tools), len(want.Tools))
+	}
+	for i := range want.Tools {
+		if !jsonEqual(want.Tools[i], got.Tools[i]) {
+			return fmt.Sprintf("MCP tool %q is stale (name, description, surface, or parameters changed)",
+				want.Tools[i].Name)
 		}
 	}
 	return ""

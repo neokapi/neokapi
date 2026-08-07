@@ -1,283 +1,92 @@
 ---
 sidebar_position: 13
 title: "MCP Tools Reference"
-description: Implementation note for AD-013 — the complete reference for the kapi MCP server's tool handlers, their JSON-RPC input and output schemas, and the file locations where each handler is implemented.
-keywords: [MCP tools, kapi mcp, tool handlers, JSON-RPC, MCP server reference, implementation note, neokapi]
+description: Implementation note for AD-013 — where the kapi MCP server's tool handlers live, how a tool reaches the server, and what shape its result takes. The tool list itself is generated onto the MCP reference page.
+keywords: [MCP tools, kapi mcp, tool handlers, JSON-RPC, MCP server, implementation note, neokapi]
 ---
 
 # MCP Tools Reference
 
-This note provides implementation details for [AD-013](/contribute/architecture/013-kapi-cli).
+Implementation detail for [AD-013](/contribute/architecture/013-kapi-cli).
 
-## Kapi MCP Server
+**The tool list is not here.** Tool names, descriptions, input schemas and the
+surface each belongs to are generated from a running server onto
+[the MCP reference page](/reference/mcp), with a CI drift gate. A second,
+hand-maintained copy is how the published list came to document three tools
+that no longer existed and omit the ones that did. This note covers what a
+generated table cannot: where the handlers live and how a tool gets registered.
 
-Started via `kapi mcp`. The tools default to ad-hoc single-file processing, but optionally accept a `project` (`kapi.yaml`) file for project-scoped defaults and content resolution.
+## How a tool reaches the server
 
-**Server info:** `{"name": "kapi", "version": "<version>"}`
+`kapi mcp` (`cli/mcp.go`) starts an `mcp.Server` over stdio and calls
+`host.ApplyMCPToolFactories`. Every factory registered through
+`host.RegisterMCPToolFactory` (`host/mcpregistry.go`) is invoked with the
+server and the `*host.App`, and adds its tools. Registration happens in
+`init()`, so linking a package is what exposes its tools — which is why the
+kapi porcelain lives in an importable package rather than in `package main`.
 
-### `list_formats`
+`App.MCPSurface` (set from the `--all-tools` / `--all-flows` / `--all` flags,
+never from the environment: the surface is a property of how the server was
+started) is read by the factories to decide what to add.
+`App.ResolveMCPProject` runs the same git-style upward walk the CLI uses, so a
+server started inside a project scopes itself to it.
 
-List all supported file formats with their extensions, MIME types, and read/write capabilities.
+| Handlers | Where |
+| --- | --- |
+| `context_search` | `host/mcp_context.go` |
+| `up`, `up_plan` | `host/mcp_up.go` |
+| `check_text`, `check_file` | `host/mcp_check.go` |
+| `apply_edits` | `host/mcp_edit.go` (change-set kinds in `host/apply.go`) |
+| `stats` | `host/mcp_stats.go` |
+| `voice_check`, `voice_rewrite` | `host/mcp_voice.go` |
+| Curated framework tools (`translate`, `term-check`, `redact`) | `host/mcp_tools.go` |
+| `detect_format`, `extract_content`, the listing and flow verbs | `kapi/mcptools/tools.go` |
+| The review verbs | `kapi/mcptools/review.go` |
 
-**Input:** none
+## Curation, not exposure
 
-**Output** (one element shown; `total` is `len(formats)`, set at runtime from
-the live registry, so the real value tracks the registered formats — see the
-generated [Format Reference](/reference/formats/html)):
+`host/mcp_tools.go` projects registry tools into MCP tools by rendering their
+`ComponentSchema` as the input schema, plus a required `text` and an optional
+`target_lang`. Only the tools in `agentFacingTools` are offered by default.
 
-```jsonc
-{
-  "formats": [
-    {
-      "name": "json",
-      "display_name": "JSON",
-      "extensions": [".json"],
-      "mime_types": ["application/json"],
-      "has_reader": true,
-      "has_writer": true,
-      "source": "built-in"
-    }
-    // …one entry per registered format
-  ],
-  "total": 0 // = len(formats), runtime-dependent
-}
-```
+Most of the unfiltered surface was never authored for an assistant: it arrived
+because someone added a pipeline step. Anything with a porcelain equivalent is
+deliberately absent too — two names for one job means the caller picks wrong
+half the time — and `recycle` and `diff-leverage` are what `up` does for you.
 
-### `detect_format`
+`neverAgentFacing` is stricter still: `external-command` and `script` execute
+caller-supplied commands and JavaScript, and are withheld even under
+`--all-tools`. "Show me every tool" and "let a caller run arbitrary code" are
+different decisions, and bundling them would make the first silently grant the
+second. `host/mcp_tools_curation_test.go` asserts this.
 
-Detect the file format from a file path based on its extension.
+## Result shapes
 
-**Input:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `path` | string | yes | File path to detect format from |
+Handlers return typed Go structs, which the SDK serializes into the result's
+`structuredContent` and mirrors as JSON text content. The struct is the schema
+— read it rather than a prose copy:
 
-**Output:**
+| Result | Type |
+| --- | --- |
+| `extract_content` | `mcptools.ExtractContentOutput` |
+| `detect_format` | `mcptools.DetectFormatOutput` |
+| `run_flow`, `pseudo_translate` | `mcptools.RunFlowOutput` |
+| `list_formats`, `list_flows`, `list_tools` | `mcptools.ListFormatsOutput`, `ListFlowsOutput`, `ListToolsOutput` |
+| Review verbs | `mcptools.ReviewQueueOutput`, `ReviewUnitOutput`, `ReviewDecisionOutput` |
+| `check_text`, `check_file` | a `kapi.check/v1` Report — see [the JSON contract](/reference/cli-contract) |
+| `stats` | the same document `kapi stats --json` emits |
+| A curated framework tool | `host.frameworkToolOutput` — target translations, rewritten source, properties, overlays, and annotations for the one processed block |
 
-```json
-{
-  "format": "json",
-  "extensions": [".json"],
-  "has_reader": true,
-  "has_writer": true
-}
-```
+`apply_edits` reports `ok` alongside the per-block outcome (`applied`,
+`skipped`, `stale`, `guard_failed`) and a per-entry asset result. `ok` is false
+when an edit drifted or was rejected, which is the caller's signal to re-read
+the block and retry rather than to force the write.
 
-### `extract_content`
+## The surface is a contract
 
-Parse a file into translatable content blocks — the read leg of the edit loop.
-Each block carries its `id`, its `content_hash` (canonical identity over the
-plain source text, the drift anchor), its `source_text` with inline codes
-rendered as `<x id="…"/>` placeholders, and its `word_count`. Pair it with
-`apply_edits` (or `kapi apply`) to round-trip an edit faithfully.
-
-**Input:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `path` | string | yes | File path to extract content from |
-| `format` | string | no | Override format detection |
-| `source_lang` | string | no | Source language (default: `en`) |
-| `project` | string | no | Path to `kapi.yaml` project file for scoped format detection |
-
-**Output:**
-
-```json
-{
-  "format": "json",
-  "word_count": 42,
-  "blocks": [
-    {
-      "id": "greeting",
-      "content_hash": "a3f82c…",
-      "source_text": "Hello <x id=\"1\"/>World<x id=\"/1\"/>",
-      "word_count": 2
-    }
-  ]
-}
-```
-
-### `apply_edits`
-
-Apply a typed change-set — the one write verb, the write leg of the edit loop.
-Content edits land through the byte-faithful round-trip (structure and inline
-codes preserved, drift-guarded by `content_hash`); asset edits (`term`, `memory`,
-`voice`, `recipe`) are written to their committed source artifact and reindexed
-into the project store. No AI provider is used.
-
-**Input:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `changeset` | array | yes | Typed change-set entries (`kind`: `content` / `term` / `memory` / `voice` / `recipe`) |
-
-**Output:** `ok` plus the per-block content outcome (`applied` / `skipped` / `stale` / `guard_failed`) and a per-entry `assets` result. `ok` is false when an edit drifted or was rejected, signalling the caller to re-read and retry.
-
-### `stats`
-
-Size files before processing them: per-file and total content metrics —
-blocks (translatable and not), words, characters (with and without spaces,
-plus the unique-character inventory), segments when available, and a by-role
-breakdown. Returns the same JSON `kapi stats --json` emits.
-
-**Input:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `files` | array | yes | Paths of the files to summarize |
-| `format` | string | no | Input format override applied to every file (default: auto-detect) |
-
-**Output:**
-
-```json
-{
-  "files": [
-    {
-      "file": "messages.json",
-      "blocks": 5,
-      "translatable": 5,
-      "non_translatable": 0,
-      "words": 42,
-      "characters": 230,
-      "characters_no_space": 195,
-      "unique_characters": 31,
-      "segments": 0
-    }
-  ],
-  "total": { "blocks": 5, "translatable": 5, "non_translatable": 0, "words": 42, "characters": 230, "characters_no_space": 195, "unique_characters": 31, "segments": 0 }
-}
-```
-
-### `run_flow`
-
-Execute a processing flow on a file. The flow name is any built-in flow from `list_flows` (e.g. `pseudo-translate`, `qa`, `recycle`, `translate-qa`, `secure-translate`). AI-powered flows (e.g. `translate`, `translate-qa`) run only when the required provider API keys are configured.
-
-**Input:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `flow_name` | string | yes | Name of the flow (e.g. `pseudo-translate`) |
-| `path` | string | yes* | Input file path (*optional when a `project` file with content patterns resolves the inputs) |
-| `project` | string | no | Path to a `kapi.yaml` project file for project-scoped execution (resolves inputs from content patterns) |
-| `source_lang` | string | no | Source language (default: `en`) |
-| `target_lang` | string | yes* | Target language (*optional for `pseudo-translate`, defaults to `qps`) |
-| `output_path` | string | no | Output file path (default: auto-generated as `<base>_<lang><ext>`) |
-
-**Output:**
-
-```json
-{
-  "flow_name": "pseudo-translate",
-  "input_path": "locales/en.json",
-  "output_path": "locales/en_qps.json"
-}
-```
-
-### `pseudo_translate`
-
-Shorthand for `run_flow` with `flow_name: "pseudo-translate"`. Pseudo-translates a file so QA can test it before real translations exist.
-
-**Input:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `path` | string | yes | File path to pseudo-translate |
-| `target_lang` | string | no | Target language (default: `qps`) |
-| `output_path` | string | no | Output file path (default: auto-generated) |
-
-**Output:** same as `run_flow`.
-
-### `list_flows`
-
-List all available processing flows.
-
-**Input:** none
-
-**Output** (illustrative selection; `total` is `len(flowdef.BuiltInFlows())`):
-
-```jsonc
-{
-  "flows": [
-    { "name": "pseudo-translate", "description": "Generate pseudo-translations for testing" },
-    { "name": "qa", "description": "Run rule-based quality checks on translations" },
-    { "name": "translate", "description": "Translate content using AI/LLM" }
-    // …one entry per built-in flow
-  ],
-  "total": 0 // = len(flowdef.BuiltInFlows()), runtime-dependent
-}
-```
-
-### `list_tools`
-
-List all available processing tools (built-in and plugin-provided).
-
-**Input:** none
-
-**Output** (one element shown; `total` is `len(tools)`, runtime-dependent —
-see the generated [Tool Reference](/reference/tools/translate)):
-
-```jsonc
-{
-  "tools": [
-    {
-      "name": "pseudo-translate",
-      "description": "Generate pseudo-translations for testing",
-      "source": "built-in"
-    }
-    // …one entry per registered tool
-  ],
-  "total": 0 // = len(tools), runtime-dependent
-}
-```
-
-## Voice, terminology, and content-memory tools
-
-The host runtime (`host/mcp_voice.go`) registers a further set of offline tools
-on the same `mcp` stdio server via `RegisterMCPToolFactory`, so any binary built
-on the shared base (including kapi) exposes them, and non-Claude MCP clients get
-local parity with the voice tools. All run offline against local files and
-SQLite stores.
-
-### `voice_check`
-
-Score text against a voice profile using deterministic vocabulary
-rules; returns a 0–100 compliance score and findings.
-
-**Input:**
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `text` | string | yes | The text to check |
-| `profile_pack` | string | one of pack/file | Starter pack name |
-| `profile_file` | string | one of pack/file | Path to a profile YAML |
-
-**Output:**
-| Field | Type | Description |
-|-------|------|-------------|
-| `profile` | string | Resolved profile name |
-| `score` | int | Overall 0–100 compliance score |
-| `dimensions` | array | Per-dimension scores |
-| `findings` | array | Vocabulary findings |
-
-### `voice_rewrite`
-
-Rewrite text to comply with a voice profile by substituting
-forbidden/competitor terms (deterministic, offline).
-
-**Input:** same as `voice_check`.
-
-**Output:**
-| Field | Type | Description |
-|-------|------|-------------|
-| `profile` | string | Resolved profile name |
-| `original` | string | Input text |
-| `rewritten` | string | Rewritten text |
-| `changes` | array | `{from, to, count}` substitutions made |
-
-## Retired: `voice_guide`, `term_lookup`, `tm_search`
-
-All three are replaced by **`context_search`** (AD-037). They were
-asset-shaped — one call per store — which forced a caller to know where an
-answer lived before it could ask, and returned partial answers that read as
-whole ones: `voice_guide` rendered a profile's own vocabulary while the
-project's terms store went unread.
-
-`context_search` asks the question once and answers from every store the
-project binds, grouped by kind, and says what it could not reach.
-
-`kapi voice guide` remains as a CLI verb: a human asking to see a profile
-rendered is a reasonable thing to type.
+`kapi/cmd/kapi/mcp_snapshot_test.go` snapshots every tool name and input schema
+to `testdata/mcp_tools.golden.json`. Descriptions may evolve freely; names and
+input schemas may only be extended. Renaming a tool, removing one, or changing
+a field's type breaks agent integrations already in the field and needs an
+explicit decision — regenerate with `KAPI_UPDATE_GOLDEN=1` and record it in
+[the CLI contract](/reference/cli-contract).

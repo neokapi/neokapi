@@ -21,7 +21,7 @@ type upMCPInput struct {
 	Project     string `json:"project,omitempty" jsonschema:"path to the kapi.yaml recipe (default: discovered upward from the working directory, like git)"`
 	Passes      int    `json:"passes,omitempty" jsonschema:"maximum reconciliation passes (0 = loop until up to date or parked; 1 = single pass)"`
 	Jobs        int    `json:"jobs,omitempty" jsonschema:"how many languages to catch up concurrently per pass (0 = project default, else 4)"`
-	Materialize bool   `json:"materialize,omitempty" jsonschema:"after the loop, write localized files for every shippable locale (overrides the recipe's materialize policy)"`
+	Materialize bool   `json:"materialize,omitempty" jsonschema:"after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy)"`
 	NoChecks    bool   `json:"no_checks,omitempty" jsonschema:"skip the project's bound checks inside the loop (failing units then count as translated)"`
 }
 

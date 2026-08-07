@@ -76,7 +76,7 @@ The content memory participates on both sides of the round-trip:
   project's memory, with provenance (batch id, source path, content hash,
   filename) that `kapi memory audit --batch <id>` can trace back later.
 
-Both are on by default; `--no-tm` and `--no-tm-update` disable them. Absorb is
+Both are on by default; `--no-memory` and `--no-memory-update` disable them. Absorb is
 **recycle leverage**, not a review decision: whether a reviewer *approved* a
 target is a separate, content-hash-bound fact recorded in the project
 [state store](/kapi/project-store) by `kapi apply` (`kind:"review"`), not in
@@ -136,7 +136,7 @@ Aggregate content-memory leverage: exact=108 fuzzy=67 new=1061 (total=1236)
 
 Multi-target in one pass is the default. Common options: `--target-lang fr,de`
 (subset), `--only <collection>`, `--pattern <glob>`, `--xliff-version 2.0`,
-`--no-tm`, `--out-dir <dir>`, and `--redact-rules` — redacted extraction ships
+`--no-memory`, `--out-dir <dir>`, and `--redact-rules` — redacted extraction ships
 placeholders only and `kapi merge` restores the originals from the local vault
 (see [Redaction](/framework/redaction)).
 
