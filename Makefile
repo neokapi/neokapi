@@ -1460,7 +1460,11 @@ l10n-derived-paths: ## Print the git pathspecs l10n-verify owns (one source of t
 	@echo "$(L10N_DERIVED)"
 
 l10n-verify: l10n ## CI gate: every committed derived artifact regenerates byte-identically
-	git diff --exit-code -- $(L10N_DERIVED)
+	@# The sidecar glob may match zero tracked files (the drop rule removes
+	@# byte-identical sidecars); git treats an unmatched pathspec as fatal,
+	@# so diff only what exists.
+	@tracked="$$(git ls-files -- $(L10N_DERIVED))"; \
+	if [ -n "$$tracked" ]; then git diff --exit-code -- $$tracked; fi
 	@untracked="$$(git ls-files --others --exclude-standard -- $(L10N_DERIVED))"; \
 	if [ -n "$$untracked" ]; then \
 		echo "l10n-verify: regeneration produced untracked files (commit them):"; \
