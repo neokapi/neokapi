@@ -143,8 +143,8 @@ export function MarkSourceTermDialog({
         <DialogHeader>
           <DialogTitle>Mark as term</DialogTitle>
           <DialogDescription>
-            Add a source term to the shared terms. Preferred and forbidden marks are governed —
-            they open a change-set for review.
+            Add a source term to the shared terms. Preferred and forbidden marks are governed — they
+            open a change-set for review.
           </DialogDescription>
         </DialogHeader>
 
