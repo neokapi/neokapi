@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	pluginreg "github.com/neokapi/neokapi/host/pluginhost/registry"
 
-	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/spf13/cobra"
@@ -129,11 +127,6 @@ Examples:
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name, constraint := ParsePluginRef(args[0])
-			// Refuse to install a plugin kapi has retired (offline-authoritative
-			// built-in tombstone), pointing at the replacement instead.
-			if t, ok := pluginhost.LookupTombstone(name); ok {
-				return fmt.Errorf("plugin %q was retired in kapi %s and can no longer be installed.\n  Reason: %s.\n  Replacement: %s", name, t.RetiredIn, t.Because, t.ReplacementMsg)
-			}
 			opts := pluginhost.InstallOptions{
 				IndexURL:    indexURL,
 				PluginName:  name,
@@ -145,7 +138,9 @@ Examples:
 					fmt.Fprintln(cmd.ErrOrStderr(), msg)
 				},
 			}
-			result, err := pluginhost.InstallFromRegistry(cmd.Context(), opts)
+			// InstallPluginFromRegistry refuses a retired plugin (offline
+			// tombstone), pointing at the replacement, before installing.
+			result, err := InstallPluginFromRegistry(cmd.Context(), opts)
 			if err != nil {
 				return err
 			}
@@ -196,50 +191,22 @@ Examples:
 				return err
 			}
 
-			meta, err := pluginhost.ReadInstalledMetadata(pluginDir)
-			switch {
-			case err != nil && os.IsNotExist(err):
-				// No bookkeeping file (legacy install or dev plugin).
-				// Fall back to channel/constraint/index from flags or
-				// defaults.
-				meta = &pluginhost.InstalledMetadata{}
-			case err != nil:
-				return err
-			}
-
-			channel := channelOverride
-			if channel == "" {
-				channel = meta.Channel
-			}
-			constraint := constraintOverride
-			if constraint == "" {
-				constraint = meta.Constraint
-			}
-			indexURL := indexOverride
-			if indexURL == "" {
-				indexURL = meta.IndexURL
-			}
-
-			currentVersion := meta.Version
-			if currentVersion == "" && a.PluginHost != nil {
-				if p := a.PluginHost.Plugin(name); p != nil {
-					currentVersion = p.Version()
-				}
-			}
-
-			result, err := pluginhost.InstallFromRegistry(cmd.Context(), pluginhost.InstallOptions{
-				IndexURL:    indexURL,
-				PluginName:  name,
-				Constraint:  constraint,
-				Channel:     channel,
-				KapiVersion: KapiVersion(),
-				Unsafe:      unsafe,
+			result, currentVersion, err := UpdatePlugin(cmd.Context(), name, PluginUpdateOverrides{
+				Channel:    channelOverride,
+				Constraint: constraintOverride,
+				IndexURL:   indexOverride,
+				Unsafe:     unsafe,
 				LogF: func(msg string) {
 					fmt.Fprintln(cmd.ErrOrStderr(), msg)
 				},
 			})
 			if err != nil {
 				return err
+			}
+			if currentVersion == "" && a.PluginHost != nil {
+				if p := a.PluginHost.Plugin(name); p != nil {
+					currentVersion = p.Version()
+				}
 			}
 
 			if currentVersion != "" && currentVersion == result.Version {
@@ -365,39 +332,19 @@ func newPluginSearchCmd(a *App) *cobra.Command {
 			if len(args) > 0 {
 				query = args[0]
 			}
-			url := indexURL
-			if url == "" {
-				url = pluginhost.DefaultIndexURL()
-			}
-			idx, err := pluginreg.FetchOrCached(cmd.Context(), url, true)
+			entries, err := SearchRegistry(cmd.Context(), indexURL, query, nil, true)
 			if err != nil {
 				return err
 			}
-			platform := pluginreg.PlatformKey()
-
-			// Sort by name for stable, scannable output (the index is a map).
-			names := make([]string, 0, len(idx.Plugins))
-			for name := range idx.Plugins {
-				names = append(names, name)
-			}
-			sort.Strings(names)
-
-			results := make([]output.PluginSearchEntry, 0, len(names))
-			for _, name := range names {
-				entry := idx.Plugins[name]
-				if !pluginreg.MatchQuery(name, entry.Description, query) {
-					continue
-				}
-				latest := pluginreg.HighestVersion(entry)
-				// Flag plugins with no installable build for this OS/arch, mirroring
-				// the install path's resolution — so `install` won't fail with a raw
-				// "no version ... for platform" error after a misleading listing.
-				_, _, rerr := idx.Resolve(name, "", "stable", version.Version)
+			var platform string
+			results := make([]output.PluginSearchEntry, 0, len(entries))
+			for _, e := range entries {
+				platform = e.Platform
 				results = append(results, output.PluginSearchEntry{
-					Name:        name,
-					Version:     latest,
-					Description: entry.Description,
-					Installable: rerr == nil,
+					Name:        e.Name,
+					Version:     e.Version,
+					Description: e.Description,
+					Installable: e.Installable,
 				})
 			}
 

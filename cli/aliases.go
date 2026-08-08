@@ -27,6 +27,8 @@ type (
 	CredentialRow                 = host.CredentialRow
 	CredentialSavedOutput         = host.CredentialSavedOutput
 	DiffOptions                   = host.DiffOptions
+	PluginUpdateOverrides         = host.PluginUpdateOverrides
+	RegistryPluginEntry           = host.RegistryPluginEntry
 	EnvCommand                    = host.EnvCommand
 	ExtractCmdOptions             = host.ExtractCmdOptions
 	FlowCmdOptions                = host.FlowCmdOptions
@@ -153,6 +155,9 @@ var (
 	SaveCredential               = host.SaveCredential
 	RemoveCredential             = host.RemoveCredential
 	TestCredential               = host.TestCredential
+	SearchRegistry               = host.SearchRegistry
+	InstallPluginFromRegistry    = host.InstallPluginFromRegistry
+	UpdatePlugin                 = host.UpdatePlugin
 	ListNamedResources           = host.ListNamedResources
 	ListTMXFiles                 = host.ListTMXFiles
 	LoadWorkspace                = host.LoadWorkspace
