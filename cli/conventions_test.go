@@ -56,7 +56,9 @@ var listCommands = [][]string{
 func newTestRoot(t *testing.T) (*cobra.Command, *App) {
 	t.Helper()
 	app := &App{SourceLang: "en"}
-	root := &cobra.Command{Use: "kapi"}
+	// Carry the real root's Short/Long so the two most visible strings in the
+	// product are held to the vocabulary rule, not exempted by a bare root.
+	root := &cobra.Command{Use: "kapi", Short: KapiRootShort, Long: KapiRootLong}
 	AddPersistentFlags(app, root)
 	AddCommandGroups(app, root)
 	root.AddCommand(KapiCommandSet(app)...)

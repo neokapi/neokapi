@@ -15,12 +15,12 @@ import (
 // generator — which cannot import the kapi module — emits them into
 // commands.json under the cli.commands.kapi.* scopes.
 const (
-	KapiRootShort = "A format-aware content toolkit — parse, edit, check, and localize any format"
+	KapiRootShort = "A format-aware content engine — parse, edit, check, and translate any format"
 	KapiRootLong  = `kapi parses any format into one unified content model, edits the content
-inside it, checks it, and writes it back byte-for-byte. At heart, both a
-localization engine and the tool that keeps your source content on brand:
-convert formats, translate with AI, and run quality checks across a wide range
-of file types.`
+inside it, checks it, and writes it back byte-for-byte. It holds a project's
+content context — the terms, the voice and the rules it goes by — so you can
+convert formats, translate with AI, and run quality checks against what
+actually applies.`
 )
 
 // KapiCommandSet constructs the full built-in command set of the kapi CLI,
