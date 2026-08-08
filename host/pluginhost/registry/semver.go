@@ -27,11 +27,9 @@ func canon(v string) string {
 // "1.2.0-rc17"), with build metadata stripped. Empty for a release.
 func prerelease(v string) string {
 	v = strings.TrimPrefix(v, "v")
-	if i := strings.Index(v, "+"); i >= 0 {
-		v = v[:i]
-	}
-	if i := strings.Index(v, "-"); i >= 0 {
-		return v[i+1:]
+	v, _, _ = strings.Cut(v, "+")
+	if _, pre, ok := strings.Cut(v, "-"); ok {
+		return pre
 	}
 	return ""
 }
