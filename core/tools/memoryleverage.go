@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
@@ -110,6 +111,41 @@ type MemoryLeverageConfig struct {
 	MakeTMX                       bool   `json:"makeTmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
 	TMXPath                       string `json:"tmxPath,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document"`
 	DowngradeIdenticalBestMatches bool   `json:"downgradeIdenticalBestMatches,omitempty" schema:"title=Downgrade Identical Exact Matches,description=Reduce score by 1%% when multiple identical exact matches are returned"`
+
+	// Profile and Glossary carry the context governing the collection, injected
+	// by the flow's bindings. Recycling consults neither for matching, but a
+	// filled target is stamped with them so a recycled target is as attributable
+	// as a freshly translated one. See recycleOrigin for the fill-time decision.
+	Profile  *coreprofile.VoiceProfile `json:"-" schema:"-"`
+	Glossary map[string]string         `json:"glossary,omitempty" schema:"-"`
+
+	// Governing context resolved once at construction from Profile + Glossary and
+	// stamped onto every filled target's Origin.
+	profileID      string
+	profileVersion string
+	contextFP      string
+}
+
+// recycleOrigin describes a target filled from content memory: how it was made
+// (this tool) and — resolved at fill time from the context governing the
+// collection now, not inherited from the matched entry — what governed it.
+//
+// The fingerprint is the CURRENT context's, deliberately. A recycled fill
+// asserts the matched entry as a valid target under the governance in force now,
+// so it must fall stale when that governance moves; carrying the entry's
+// original approving fingerprint would make the recycled target immune to drift
+// against the profile that actually governs it. That fingerprint is also not
+// available here — a memory lookup returns a source/target/score, not the Origin
+// of the decision that first approved the entry — so resolving at fill time is
+// both the correct semantics and the only reachable one.
+func (c *MemoryLeverageConfig) recycleOrigin() model.Origin {
+	return model.Origin{
+		Kind:               model.OriginMemory,
+		Tool:               "recycle",
+		Profile:            c.profileID,
+		ProfileVersion:     c.profileVersion,
+		ContextFingerprint: c.contextFP,
+	}
 }
 
 // ToolName returns the tool name this config applies to.
@@ -128,6 +164,11 @@ func (c *MemoryLeverageConfig) Reset() {
 	c.MakeTMX = false
 	c.TMXPath = ""
 	c.DowngradeIdenticalBestMatches = false
+	c.Profile = nil
+	c.Glossary = nil
+	c.profileID = ""
+	c.profileVersion = ""
+	c.contextFP = ""
 }
 
 // Validate checks configuration validity.
@@ -162,9 +203,18 @@ func MemoryLeverageSchema() *schema.ComponentSchema {
 func NewMemoryLeverageFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	cfg := &MemoryLeverageConfig{}
 	cfg.Reset()
+	// The voice profile is injected by the flow bindings as a live pointer, not a
+	// serializable value, so it is lifted out before ApplyConfig's JSON round-trip.
+	// The glossary is a plain map and binds directly.
+	var profile *coreprofile.VoiceProfile
+	if pf, ok := config["profile"].(*coreprofile.VoiceProfile); ok {
+		profile = pf
+		delete(config, "profile")
+	}
 	if err := schema.ApplyConfig(config, cfg); err != nil {
 		return nil, fmt.Errorf("recycle config: %w", err)
 	}
+	cfg.Profile = profile
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
 	}
@@ -187,6 +237,7 @@ func NewMemoryLeverageTool(cfg *MemoryLeverageConfig) *tool.BaseTool {
 		cfg.FillTarget = true
 		cfg.FillTargetThreshold = 0 // 0 means accept any score
 	}
+	cfg.profileID, cfg.profileVersion, cfg.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.Glossary)
 
 	t := &tool.BaseTool{
 		ToolName:        "recycle",
@@ -296,7 +347,7 @@ func recordWholeBlockMatch(v tool.VariantView, conf *MemoryLeverageConfig, trans
 		v.SetTarget(conf.TargetLocale, &model.Target{
 			Runs:   targetRuns,
 			Status: model.TargetStatusDraft,
-			Origin: model.Origin{Kind: model.OriginMemory, Tool: "recycle"},
+			Origin: conf.recycleOrigin(),
 			Score:  float64(score) / 100,
 		})
 	}
@@ -397,7 +448,7 @@ func leverageBlockRuns(conf *MemoryLeverageConfig, v tool.VariantView, bp BlockM
 	v.SetTarget(conf.TargetLocale, &model.Target{
 		Runs:   targetRuns,
 		Status: model.TargetStatusDraft,
-		Origin: model.Origin{Kind: model.OriginMemory, Tool: "recycle"},
+		Origin: conf.recycleOrigin(),
 		Score:  float64(m.Score) / 100,
 	})
 	v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
@@ -572,7 +623,7 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 		v.SetTarget(conf.TargetLocale, &model.Target{
 			Runs:   assembled,
 			Status: model.TargetStatusDraft,
-			Origin: model.Origin{Kind: model.OriginMemory, Tool: "recycle"},
+			Origin: conf.recycleOrigin(),
 			Score:  float64(minScore) / 100,
 		})
 	}

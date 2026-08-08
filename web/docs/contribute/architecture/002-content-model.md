@@ -333,6 +333,25 @@ refinement step ([AD-030](030-multimodal-extraction-and-llm-refinement.md)) read
 it to decide what to re-examine. Source and target provenance are one record on
 two sides of the Block.
 
+**What governed it.** `Origin` records not only *how* a target was produced but
+*what governed it*: the `Profile` and `ProfileVersion` in force, and a
+`ContextFingerprint` — a hash of the rendered voice guidance and the terminology
+as they reached the producer. That second half cannot be reconstructed after the
+fact (a profile is edited in place; terminology carries no version), so it is
+stamped at production time or lost. The fingerprint is a change detector, not a
+snapshot: it answers "have the governing inputs moved since this was produced?"
+and nothing more — it is deliberately narrower than an engine's config
+fingerprint, which also moves on a model or prompt change and would make a model
+swap read as a governance change. Every non-pseudo translation producer — AI, MT,
+and recycled content memory — stamps it, computed one way
+(`profile.GovernanceContext`), so targets written under one context share a
+fingerprint regardless of which engine produced them and fall stale together when
+the context moves. A recycled memory hit resolves its *own* fingerprint from the
+context governing the collection at fill time rather than inheriting the matched
+entry's approving one: a fill asserts the entry as valid under the governance in
+force now, so it must fall stale when that governance moves. Pseudo-translation
+takes no governing context and stamps none.
+
 ### The Run sequence
 
 A Block's content is not a string with embedded markers — it is a flat
