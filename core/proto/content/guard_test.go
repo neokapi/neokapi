@@ -33,10 +33,6 @@ var projectionAllowlist = map[string][]string{
 	// wrapper around canonical SegmentMessages (proto3 maps cannot have
 	// repeated-message values directly), not a segment redefinition.
 	"bowrain/core/proto/sync/v1/sync.proto": {"SyncBlock", "SyncSegmentList"},
-
-	// Store-service projection: a deliberately lossy flat block (source as
-	// plain string, targets as locale→string) for block storage/streaming.
-	"bowrain/proto/v1/neokapi_service.proto": {"BlockMessage"},
 }
 
 // messageDefRe matches a proto message definition whose name redefines the
