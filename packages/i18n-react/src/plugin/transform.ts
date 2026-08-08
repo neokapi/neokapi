@@ -132,8 +132,9 @@ function makeOffsetConverter(ast: Module, code: string): (offset: number) => num
 /**
  * Per-file dict cache keyed by path and invalidated by mtime, so a
  * long-lived dev server picks up edits to `translations/*.json`
- * without a restart. The stat costs microseconds per transform call;
- * the old process-lifetime cache served stale translations forever.
+ * without a restart. The stat costs microseconds per transform call —
+ * cheap enough to pay on every call rather than cache for the process
+ * lifetime, which would serve stale translations.
  */
 const dictFileCache = new Map<string, { mtimeMs: number; dict: Record<string, string> }>();
 

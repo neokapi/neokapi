@@ -11,6 +11,8 @@ const config = createMainConfig(
       "../../../packages/ui/src/stories/ui/!(ErrorNotice).stories.@(ts|tsx)",
       "../../../packages/ui/src/stories/*.stories.@(ts|tsx)",
       "../../../packages/flow-editor/src/**/*.stories.@(ts|tsx)",
+      "../../../packages/editor-grid/src/**/*.stories.@(ts|tsx)",
+      "../../../packages/status-views/src/**/*.stories.@(ts|tsx)",
       // Bowrain UI components (includes its own editor stories)
       "../../packages/ui/src/**/*.stories.@(ts|tsx)",
       // Bowrain apps

@@ -228,6 +228,7 @@ function CollapsibleSection({
       <Button
         variant="ghost"
         onClick={() => onToggle(id)}
+        aria-expanded={expanded}
         className="flex items-center gap-2 w-full h-auto rounded-none px-4 py-2.5 text-left justify-start hover:bg-accent/40"
       >
         {expanded ? (

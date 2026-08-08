@@ -233,7 +233,9 @@ that bite most often:
 - **Diagrams are real React components, never ASCII art.** The themed light/dark
   SVG kit is in `packages/docs-shared/src/diagram/` (`PipelineDiagram`,
   `StreamDiagram`, `PhaseFlow`, `RoundTripDiagram`, `LanesDiagram`,
-  `SwimlaneDiagram`, `ArchitectureDiagram`, `RedactionDiagram`), each with a
+  `SwimlaneDiagram`, `ArchitectureDiagram`, `RedactionDiagram`,
+  `AxisLadderDiagram`, `AxisFamiliesDiagram`, `CycleDiagram`,
+  `GatedLoopDiagram`), each with a
   story under **Diagrams** in the Kapi Storybook. Code fences are for code only:
   CLI output, file trees, config snippets — not flows or relationships.
 

@@ -1,9 +1,8 @@
 /**
  * neokapi-i18n extract tests — the AST walker emits structured
- * Block / Run sequences per Framework AD-002. The flat-string extraction
- * that used to live alongside has been removed; the runtime
- * dictionary is produced by `neokapi-i18n compile` from a translated
- * kbf writer, not directly by extract.
+ * Block / Run sequences per Framework AD-002. Extract produces the
+ * KBF blocks only; the runtime dictionary is produced separately by
+ * `neokapi-i18n compile` from a translated KBF writer.
  */
 
 import { describe, expect, it } from "vitest";
