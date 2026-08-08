@@ -28,7 +28,7 @@ export function FrontPage() {
     <div className="space-y-10">
       <section className="text-center">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Discover localization projects
+          Discover translation projects
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
           See translation progress, find languages that need help, and join the community.

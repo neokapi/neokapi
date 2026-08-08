@@ -124,7 +124,7 @@ function BravoThreadWelcome() {
           Chat with @bravo
         </h1>
         <p className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground text-sm delay-75 duration-200">
-          Your AI localization assistant
+          Your AI content assistant
         </p>
       </div>
     </div>

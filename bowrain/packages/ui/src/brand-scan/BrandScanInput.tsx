@@ -390,7 +390,7 @@ export function BrandScanInput({ onStarted, initialRequest }: BrandScanInputProp
           {awaitingSkipConfirm
             ? "The skipped files will not be read. Start anyway, or adjust the files first."
             : hasSource
-              ? "The scan drafts a voice profile and a candidate glossary. Nothing is saved until you approve."
+              ? "The scan drafts a voice profile and candidate terms. Nothing is saved until you approve."
               : "Add at least one source to start."}
         </p>
         <Button

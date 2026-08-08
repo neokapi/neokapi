@@ -69,7 +69,7 @@ function FieldEvidence({ evidence }: { evidence?: BrandScanFieldEvidence }) {
 /**
  * The review-first surface for a completed brand scan (epic 016): every
  * inferred field renders with confidence and source attribution and stays
- * editable; candidate glossary terms start selected and are individually
+ * editable; candidate terms start selected and are individually
  * deselectable (opt-out — the "N of M selected" count keeps the selection
  * explicit, and approved candidates enter curation as "proposed", never as
  * governed terms); a live tester scores sample copy against the current
@@ -313,11 +313,11 @@ export function BrandScanReview({
           <ExamplesEditor examples={examples} onChange={setExamples} />
         </Card>
 
-        {/* Candidate glossary */}
+        {/* Candidate terms */}
         {draft.terms.length > 0 && (
           <Card className="p-5 space-y-3">
             <div>
-              <h2 className="text-sm font-semibold">Candidate glossary</h2>
+              <h2 className="text-sm font-semibold">Candidate terms</h2>
               <p className="text-xs text-muted-foreground mt-1">
                 Terms the scan found in your material. Checked terms are created as concepts when
                 you approve — {selectedTerms.size} of {draft.terms.length} selected.

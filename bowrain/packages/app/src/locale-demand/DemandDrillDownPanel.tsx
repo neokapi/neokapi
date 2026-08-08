@@ -166,7 +166,7 @@ function AddLocaleBlock({ code, estimate }: { code: string; estimate?: PlanEstim
             <dd className="font-medium tabular-nums">~{estimate.units.toLocaleString("en-US")}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground">TM coverage</dt>
+            <dt className="text-muted-foreground">Content memory</dt>
             <dd className="font-medium tabular-nums">{estimate.memoryCoveragePercent}%</dd>
           </div>
           <div>
