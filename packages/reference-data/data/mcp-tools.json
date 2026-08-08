@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-07T13:24:53Z",
+  "generatedAt": "2026-08-08T14:57:02Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -90,7 +90,7 @@
     },
     {
       "name": "check_file",
-      "description": "Verify the content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) against the content checkset and return a kapi.check/v1 Report with per-block locations. The check counterpart to rewrite_file: author → check_file → fix the flagged block (optionally via rewrite_file) → re-check until pass. Pass target/target_lang to also run bilingual localization checks.",
+      "description": "Verify the content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) against the content checkset and return a kapi.check/v1 Report with per-block locations. The check counterpart to rewrite_file: author → check_file → fix the flagged block (optionally via rewrite_file) → re-check until pass. Pass target/target_lang to also run bilingual checks.",
       "surface": "default",
       "params": [
         {
