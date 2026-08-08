@@ -502,6 +502,18 @@ func (a *App) syncProjectBlockStore(ctx context.Context, pctx *project.ProjectCo
 	if err != nil {
 		return nil, "", err
 	}
+
+	// The block set just changed, so the uses_term / in_collection subgraph it
+	// projects is now stale — rebuild it. This runs AFTER the extraction
+	// transaction commits (the write gate is per handle and not reentrant) and
+	// searches the freshly written blocks, keeping the occurrence FTS index off
+	// the block write path. Best-effort, like the drift stamps above: the graph
+	// is a projection, so a failed rebuild only means the next pass rebuilds it,
+	// and it must never fail a converge over a derived index.
+	if _, gerr := a.MaterializeUsesTermGraph(ctx, layout.Root); gerr != nil {
+		stats.Warnings = append(stats.Warnings, fmt.Sprintf(
+			"could not rebuild the term-occurrence graph: %v — `kapi context` term navigation may be stale until the next extract", gerr))
+	}
 	return &stats, describeDrift(drift), nil
 }
 
