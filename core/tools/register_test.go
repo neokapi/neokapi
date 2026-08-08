@@ -100,3 +100,50 @@ func TestIsSourceTransformProbe(t *testing.T) {
 		assert.False(t, info.IsSourceTransform, "tool %q should NOT be source-transform-capable", name)
 	}
 }
+
+// TestToolRequiresUseCanonicalTokens guards against a requires-token
+// split-brain: the flow-path resource guards (host/flow.go, host/flowrun.go)
+// switch on the schema.Requires* constants to inject the content memory and the
+// terms store, so a registration that declares any other spelling is invisible
+// to them — the requirement gate silently does nothing.
+func TestToolRequiresUseCanonicalTokens(t *testing.T) {
+	reg := registry.NewToolRegistry()
+	RegisterAll(reg)
+
+	canonical := map[string]bool{
+		schema.RequiresTargetLanguage: true,
+		schema.RequiresSourceLanguage: true,
+		schema.RequiresMemory:         true,
+		schema.RequiresTerms:          true,
+		schema.RequiresCredentials:    true,
+		schema.RequiresRetryable:      true,
+	}
+	for _, info := range reg.ListWithSchemas() {
+		for _, req := range info.Requires {
+			assert.Truef(t, canonical[req],
+				"tool %q declares requires token %q, which no flow guard recognises; declare a schema.Requires* constant instead",
+				info.Name, req)
+		}
+	}
+}
+
+// TestMemoryAndTermsToolsMatchFlowGuards pins the two built-ins whose flow-path
+// gating the split-brain had killed: recycle must satisfy the RequiresMemory
+// guard (host/flowrun.go injectMemory) and term-check the RequiresTerms guard
+// (host/flow.go), or a flow run leverages neither store while reporting success.
+func TestMemoryAndTermsToolsMatchFlowGuards(t *testing.T) {
+	reg := registry.NewToolRegistry()
+	RegisterAll(reg)
+
+	requires := func(name string) []string {
+		s := reg.Schema(registry.ToolID(name))
+		if s == nil || s.ToolMeta == nil {
+			t.Fatalf("no schema for tool %q", name)
+		}
+		return s.ToolMeta.Requires
+	}
+	assert.Contains(t, requires("recycle"), schema.RequiresMemory,
+		"recycle must declare RequiresMemory so the flow content-memory guard fires")
+	assert.Contains(t, requires("term-check"), schema.RequiresTerms,
+		"term-check must declare RequiresTerms so the flow terms guard fires")
+}

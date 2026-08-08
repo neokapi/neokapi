@@ -1,0 +1,75 @@
+id: 09-toolbox-find-replace
+title: grep, sed and cat — for any format
+subtitle: kcat, kgrep and ksed work on the text kapi reads out of a document — Word, Excel, Markdown — not raw bytes.
+tagline: muscle memory from the tools you already know, on content those tools can't see into.
+kind: use-case
+publishAs: toolbox-explainer
+# A scripted plain-shell demo (no Claude): the toolbox is deterministic, so the
+# commands run for real and their output is recorded exactly.
+terminal: shell
+brand: kapi
+cwd: ~/sales
+needsAi: false
+captureTimeoutSec: 120
+aspects:
+  - format-aware
+  - kcat · kgrep · ksed
+  - docx + xlsx + markdown
+  - one pass, in place
+
+# Each comment names exactly what the command below it does. Wildcards (`*`)
+# fan a single pattern or substitution across every file, regardless of format.
+script:
+  - comment: A sales team's collateral — one product name, three formats.
+  - command: ls
+  - comment: kcat the Word proposal — its prose, as plain lines.
+  - command: kcat proposal.docx
+  - comment: kcat the Excel price list — one cell per line.
+  - command: kcat pricing.xlsx
+  - comment: kgrep every "SalesPilot" across all three files at once.
+  - command: kgrep -n SalesPilot *
+  - comment: ksed renames SalesPilot to Northstar, in place, in all three.
+  - command: ksed -i 's/SalesPilot/Northstar/g' *
+  - comment: kgrep the new name to confirm — same matches, renamed.
+  - command: kgrep -c Northstar *
+  - command: kcat proposal.docx
+
+artifacts:
+  - id: after
+    caption: "proposal.docx — renamed to Northstar, heading and bold intact"
+    source: docx
+    path: proposal.docx
+    reportTitle: "proposal.docx"
+    reportSub: "still a valid Word document — only the words changed"
+    width: 1100
+    height: 760
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      Hva om du kunne kjøre klassiske kommandolinjeverktøy — som cat og grep, eller til og med sed — på både tekst og innholdet i binære formater, som Word- og Excel-dokumenter? Nå kan du det.
+  - id: cat
+    kind: terminal
+    text: >
+      Her er salgsmateriellet til et team: en pitch i Markdown, et forslag i Word og en prisliste i Excel. kcat leser teksten rett ut av Word-dokumentet og regnearket, som rene linjer.
+    caption: "kcat leser teksten inni .docx- og .xlsx-filene"
+  - id: grep
+    kind: terminal
+    text: >
+      kgrep søker i den teksten på tvers av alle tre filene samtidig, og finner hver forekomst av produktnavnet.
+    caption: "kgrep finner produktnavnet på tvers av alle formatene"
+  - id: sed
+    kind: terminal
+    text: >
+      Og én ksed gir produktet nytt navn overalt, direkte i filene — hver fil lagres tilbake i sitt eget format.
+    caption: "én ksed endrer navnet i alle tre, direkte i filene"
+  - id: after
+    kind: artifact
+    artifact: after
+    text: >
+      Forslaget er fortsatt et gyldig Word-dokument — overskrift og struktur er intakt. Bare ordene er endret.
+  - id: outro
+    kind: outro
+    text: >
+      kcat, kgrep og ksed: grep, sed og cat, for ordene inni alle de over femti filformatene neokapi leser.

@@ -11,6 +11,7 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/host/output"
 	"github.com/spf13/cobra"
@@ -166,7 +167,7 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 			// leverages nothing. Mirrors the terms store glossary injection
 			// below and reuses the flow path's content memory opening logic.
 			var memoryProvider coretools.MemoryProvider
-			if ToolRequires(ToolSchema, "tm") {
+			if ToolRequires(ToolSchema, schema.RequiresMemory) {
 				p, cleanup, terr := a.OpenToolMemory(cmd)
 				if terr != nil {
 					return terr
@@ -198,7 +199,7 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 				// project's bound glossary injected when no glossary was
 				// supplied programmatically. This makes `kapi term-check
 				// fr.json` enforce the project terms store with no flag.
-				if ToolRequires(ToolSchema, "termbase") {
+				if ToolRequires(ToolSchema, schema.RequiresTerms) {
 					if _, ok := config["glossary"]; !ok {
 						glossary, gerr := a.ResolveProjectGlossary(cmd, effectiveLang)
 						if gerr != nil {
@@ -312,11 +313,11 @@ func newToolCommand(a *App, entry registry.CLIToolEntry) *cobra.Command {
 	if ToolSchema.ToolMeta != nil {
 		for _, req := range ToolSchema.ToolMeta.Requires {
 			switch req {
-			case "credentials":
+			case schema.RequiresCredentials:
 				cmd.Flags().String("credential", "", "saved credential name to use (see 'kapi credentials list')")
-			case "termbase":
+			case schema.RequiresTerms:
 				cmd.Flags().String("termstore", "", "named terms or path to a terms store (defaults to the project terms store)")
-			case "tm":
+			case schema.RequiresMemory:
 				cmd.Flags().String("memory", "", "named memory or path to a .db (defaults to the project content memory)")
 			}
 		}

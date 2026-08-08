@@ -2591,7 +2591,7 @@
       ],
       "requires": [
         "target-language",
-        "tm"
+        "memory"
       ],
       "cardinality": "bilingual",
       "consumes": [
@@ -2619,7 +2619,7 @@
           ],
           "requires": [
             "target-language",
-            "tm"
+            "memory"
           ],
           "cardinality": "bilingual",
           "consumes": [
@@ -3930,7 +3930,7 @@
       ],
       "requires": [
         "target-language",
-        "termbase"
+        "terms"
       ],
       "cardinality": "bilingual",
       "consumes": [
@@ -3956,7 +3956,7 @@
           ],
           "requires": [
             "target-language",
-            "termbase"
+            "terms"
           ],
           "cardinality": "bilingual",
           "consumes": [

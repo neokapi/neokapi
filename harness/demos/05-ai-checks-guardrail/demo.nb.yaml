@@ -1,0 +1,55 @@
+id: 05-ai-checks-guardrail
+title: Check AI output like you test code
+subtitle: An AI translated the app into German. kapi check reads the translation against the source and reports exactly what would break in production.
+tagline: do-not-translate, placeholders and terminology — deterministic checks that gate a bad translation before it ships.
+kind: use-case
+publishAs: kapi-checks-guardrail
+# A scripted plain-shell demo (no Claude): the checks are deterministic, so the
+# commands run for real and their output is recorded exactly.
+terminal: shell
+brand: kapi
+cwd: ~/checkout
+needsAi: false
+captureTimeoutSec: 120
+aspects:
+  - checks as tests
+  - do-not-translate
+  - placeholder integrity
+  - gate in CI
+
+# --no-fail keeps the demo's exit code clean while still printing the FAIL
+# verdict and the findings; with the gate on (no --no-fail) the same check exits
+# non-zero and blocks a merge.
+script:
+  - comment: An AI translated app.json into German. Is it safe to ship?
+  - command: cat app.de.json
+  - comment: Check the translation against the source — like running tests.
+  - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
+  - comment: Two real breakages — a dropped placeholder and a translated product name. Apply the fixes.
+  - command: cp -f app.de.fixed.json app.de.json && cat app.de.json
+  - comment: Run the same check again.
+  - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      En KI har oversatt denne appen til tysk. Det meste er bra — men to ting ville sviktet i produksjon: en plassholder er borte, og produktnavnet er oversatt.
+  - id: check
+    kind: terminal
+    text: >
+      kapi check leser den tyske oversettelsen mot den engelske kilden og kjører reglene som tester — ikke-oversettbare navn, plassholderintegritet, terminologi. Den rapporterer nøyaktig hva som røk: antall-plassholderen mangler, og Acme Cloud er oversatt.
+    caption: "kapi check rapporterer funnene for ikke-oversettbart og plassholdere"
+  - id: fix
+    kind: terminal
+    text: >
+      Vi retter de to feilene — gjenoppretter plassholderen og lar produktnavnet stå urørt — og kjører nøyaktig samme kontroll på nytt.
+    caption: "rett feilene, kjør kontrollen på nytt"
+  - id: pass
+    kind: terminal
+    text: >
+      Nå passerer den. Med porten på er det dette som stopper en dårlig oversettelse fra å gå ut — i kontinuerlig integrasjon, eller i en assistents rettesløyfe.
+  - id: outro
+    kind: outro
+    text: >
+      Kontroller som holder KI-resultater i sjakk, slik tester holder koden i sjakk: deterministiske, flerspråklige, og kjørt ved hver endring.
