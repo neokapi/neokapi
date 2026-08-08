@@ -478,7 +478,10 @@ func (s *Server) HandleStripeWebhook(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "stripe webhooks not configured"})
 	}
 
-	body, err := io.ReadAll(c.Request().Body)
+	// Cap the webhook body before the signature check: a Stripe event is small,
+	// and an unauthenticated caller must not be able to make the server buffer an
+	// arbitrarily large body ahead of verification.
+	body, err := io.ReadAll(io.LimitReader(c.Request().Body, 1<<20))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "failed to read body"})
 	}

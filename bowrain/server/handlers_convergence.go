@@ -159,12 +159,7 @@ func (s *Server) HandleListConvergenceRuns(c echo.Context) error {
 	if s.ConvergenceRunStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "convergence runs not configured"})
 	}
-	limit := 20
-	if v := c.QueryParam("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			limit = n
-		}
-	}
+	limit, _ := pageParams(c, 20, maxListPageSize)
 	runs, err := s.ConvergenceRunStore.ListRuns(c.Request().Context(), c.Param("id"), limit)
 	if err != nil {
 		return serverErr(c, err)

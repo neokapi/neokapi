@@ -29,11 +29,7 @@ func (s *Server) HandleAdminListWorkspaces(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
 
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
-	if limit <= 0 {
-		limit = 50
-	}
+	limit, offset := pageParams(c, 50, maxListPageSize)
 
 	ctx := c.Request().Context()
 	subs, err := s.BillingStore.ListSubscriptions(ctx, limit, offset)
@@ -552,11 +548,7 @@ func (s *Server) HandleAdminListUsers(c echo.Context) error {
 	}
 
 	// No query — return paginated list of all users.
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
-	if limit <= 0 {
-		limit = 50
-	}
+	limit, offset := pageParams(c, 50, maxListPageSize)
 
 	users, err := s.AuthStore.ListUsers(ctx, limit, offset)
 	if err != nil {
@@ -624,11 +616,7 @@ func (s *Server) HandleAdminListEvents(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
 	}
 
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
-	if limit <= 0 {
-		limit = 50
-	}
+	limit, offset := pageParams(c, 50, maxListPageSize)
 	eventType := c.QueryParam("type")
 
 	events, err := s.BillingStore.ListBillingEvents(c.Request().Context(), limit, offset, eventType)

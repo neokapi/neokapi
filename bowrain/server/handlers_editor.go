@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"io"
 	"maps"
 	"net/http"
 	"strconv"
@@ -310,22 +309,9 @@ func (s *Server) HandleUploadFiles(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "multipart form required"})
 	}
 
-	files := make(map[string][]byte)
-	for _, fh := range form.File["files"] {
-		f, err := fh.Open()
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("open %q: %s", fh.Filename, err)})
-		}
-		data, err := io.ReadAll(f)
-		f.Close()
-		if err != nil {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("read %q: %s", fh.Filename, err)})
-		}
-		files[fh.Filename] = data
-	}
-
-	if len(files) == 0 {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "no files uploaded"})
+	files, answered, err := readMultipartUploads(c, form)
+	if answered {
+		return err
 	}
 
 	info, err := editorAddFiles(ctx, s.ContentStore, s.FormatRegistry, pid, streamParam(c), files)
@@ -395,7 +381,12 @@ func (s *Server) HandleGetFileBlocks(c echo.Context) error {
 		targetLocales[i] = string(l)
 	}
 
-	blocks, err := editorGetBlocks(ctx, s.ContentStore, pid, streamParam(c), fname, targetLocales)
+	// Clamp the page: without a file wildcard on this route ItemName is often
+	// empty, which reduces the query to WHERE project_id = ? — a full-project
+	// hydrate-and-serialize (17k blocks at dogfood scale). Bound it like the
+	// sync block endpoint does.
+	limit, offset := pageParams(c, store.DefaultBlockLimit, store.DefaultBlockLimit)
+	blocks, err := editorGetBlocks(ctx, s.ContentStore, pid, streamParam(c), fname, targetLocales, limit, offset)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -742,11 +733,7 @@ func (s *Server) HandleGetMemoryEntries(c echo.Context) error {
 	sourceLocale := c.QueryParam("source_locale")
 	targetLocale := c.QueryParam("target_locale")
 	projectID := c.QueryParam("project_id")
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	if limit <= 0 {
-		limit = 50
-	}
+	limit, offset := pageParams(c, 50, maxListPageSize)
 
 	tm, err := s.wsStores.getMemory(ws)
 	if err != nil {
@@ -1090,10 +1077,7 @@ func (s *Server) HandleGetBlockHistory(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "locale query parameter is required"})
 	}
 
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	if limit <= 0 {
-		limit = 20
-	}
+	limit, _ := pageParams(c, 20, maxListPageSize)
 
 	entries, err := s.ContentStore.GetBlockHistory(c.Request().Context(), pid, streamParam(c), bid, locale, limit)
 	if err != nil {

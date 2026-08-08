@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -21,12 +20,7 @@ func (s *Server) HandleListAuditLog(c echo.Context) error {
 
 	projectID := c.Param("id")
 	eventType := c.QueryParam("type")
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
-
-	if limit <= 0 {
-		limit = 50
-	}
+	limit, offset := pageParams(c, 50, maxListPageSize)
 
 	entries, err := s.AuditLogger.ListAuditLog(c.Request().Context(), projectID, eventType, limit, offset)
 	if err != nil {
@@ -51,12 +45,7 @@ func (s *Server) HandleListWorkspaceAuditLog(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
-
-	if limit <= 0 {
-		limit = 50
-	}
+	limit, offset := pageParams(c, 50, maxListPageSize)
 
 	q := bevent.AuditQuery{
 		WorkspaceID:  wsID,

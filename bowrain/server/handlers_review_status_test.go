@@ -222,7 +222,7 @@ func TestHandleReviewBlockLegacyPropertyLifecycle(t *testing.T) {
 	// The blocks payload (what the editor consumes) must surface BOTH the
 	// per-locale status ("" here) and the legacy property, so the frontend
 	// fallback (status first, property second) resolves this block as reviewed.
-	blocks, err := editorGetBlocks(t.Context(), cs, pid, "main", "greetings.txt", []string{"fr", "de"})
+	blocks, err := editorGetBlocks(t.Context(), cs, pid, "main", "greetings.txt", []string{"fr", "de"}, platstore.DefaultBlockLimit, 0)
 	require.NoError(t, err)
 	byID := map[string]BlockInfoResponse{}
 	for _, bi := range blocks {

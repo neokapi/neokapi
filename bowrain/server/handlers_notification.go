@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/labstack/echo/v4"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -21,12 +20,7 @@ func (s *Server) HandleListNotifications(c echo.Context) error {
 
 	ctx := c.Request().Context()
 
-	limit := 50
-	if l := c.QueryParam("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-		}
-	}
+	limit, _ := pageParams(c, 50, maxListPageSize)
 
 	unreadOnly := c.QueryParam("unread") == "true"
 

@@ -342,10 +342,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 	ctx := c.Request().Context()
 	projectID := c.Param("id")
 	cursor, _ := strconv.ParseInt(c.QueryParam("cursor"), 10, 64)
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	if limit <= 0 {
-		limit = 1000
-	}
+	limit, _ := pageParams(c, 1000, store.DefaultBlockLimit)
 
 	stream := refParam(c)
 
