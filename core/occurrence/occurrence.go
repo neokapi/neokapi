@@ -8,15 +8,16 @@
 // connected project asks bowrain the same question over more dimensions, not a
 // different question.
 //
-// # What is NOT here
+// # The materialized graph
 //
-// Nothing writes to `graph_nodes` / `graph_edges`. Every occurrence carries the
-// edge it implies — see Occurrence.Edge — computed and handed back, but never
-// persisted. Materializing them waits on the identity vocabulary settling: what
-// a block node is called across a re-parse, how a coordinate is addressed, and
-// whether a concept node is per-project or per-workspace. Writing edges under a
-// naming scheme we then change is worse than not writing them, because the
-// wrong ones survive. The store attachment and this live query are the cut.
+// The live join above is one answer; the same occurrences also settle into the
+// project's property graph. BuildGraph (graph.go) computes the uses_term /
+// in_collection subgraph — block nodes keyed on content key (AD-036), concept
+// and collection nodes on their ids — which a host writer upserts into
+// `graph_nodes` / `graph_edges`. UsesInCollections then answers "term → blocks →
+// collection" by traversal, a walk the two-table join has no shape for. The
+// identity vocabulary the graph keys on lives in graph.go, settled: a block is
+// its content, a coordinate is edge data.
 //
 // [AD-039]: https://neokapi.org/docs/contribute/architecture/039-local-context-graph-store
 package occurrence
@@ -26,11 +27,9 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/blockstore"
-	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -95,29 +94,6 @@ type Occurrence struct {
 	Matched string `json:"matched"`
 	// Snippet is the match in context, elided at both ends.
 	Snippet string `json:"snippet"`
-}
-
-// Edge is the graph relationship this occurrence stands for: the block uses the
-// concept, at a coordinate given by the collection, document and locale.
-//
-// It is computed, not stored. See the package documentation for why nothing
-// writes it yet — and note that the ids here are provisional exactly because
-// that vocabulary is what has not settled.
-func (o Occurrence) Edge() graph.Edge {
-	return graph.Edge{
-		ID:     "uses_term:" + o.BlockHash + ":" + o.ConceptID + ":" + o.Locale + ":" + strconv.Itoa(o.Start),
-		Source: "block:" + o.BlockHash,
-		Target: "concept:" + o.ConceptID,
-		Label:  "uses_term",
-		Properties: map[string]string{
-			"term":        o.Term,
-			"term_locale": o.TermLocale,
-			"locale":      o.Locale,
-			"collection":  o.Collection,
-			"document":    o.Document,
-			"block_id":    o.BlockID,
-		},
-	}
 }
 
 // Result is what a query found.

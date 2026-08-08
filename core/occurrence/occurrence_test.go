@@ -311,9 +311,8 @@ func TestFindAcrossConcepts(t *testing.T) {
 		[]string{res.Occurrences[0].ConceptID, res.Occurrences[1].ConceptID})
 }
 
-// The edge an occurrence stands for is computed and handed back. Nothing writes
-// it — see the package documentation — but it must be well-formed and stable,
-// because the follow-on that does write it will key on exactly this.
+// The edge an occurrence contributes to must be well-formed and stable: the
+// materializer keys on exactly this, and folds repeat uses onto one relationship.
 func TestOccurrenceEdge(t *testing.T) {
 	o := Occurrence{
 		ConceptID: "c-memory", Term: "content memory", TermLocale: "en",
@@ -327,7 +326,14 @@ func TestOccurrenceEdge(t *testing.T) {
 	assert.Equal(t, "docs/guide.md", e.Properties["document"])
 	assert.Equal(t, o.Edge().ID, e.ID, "the id is deterministic")
 
+	// The match position is not part of the identity: two uses of one term in one
+	// block are one relationship, counted, not two edges.
 	other := o
 	other.Start = 40
-	assert.NotEqual(t, e.ID, other.Edge().ID, "two uses in one block are two edges")
+	assert.Equal(t, e.ID, other.Edge().ID, "position does not split the relationship")
+
+	// Locale is: the same term in a different locale's text is a different edge.
+	nb := o
+	nb.Locale = "nb"
+	assert.NotEqual(t, e.ID, nb.Edge().ID, "locale is part of the relationship identity")
 }
