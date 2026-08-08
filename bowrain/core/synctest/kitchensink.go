@@ -57,6 +57,7 @@ var BlockDerivedFields = map[string]string{
 func KitchenSinkBlock() *model.Block {
 	frVariant := model.VariantKey{Locale: model.LocaleFrench}
 	deFormal := model.VariantKey{Locale: model.LocaleGerman, Tone: "formal"}
+	esVariant := model.VariantKey{Locale: model.LocaleSpanish}
 
 	b := &model.Block{
 		ID:                 "ks-1",
@@ -126,6 +127,23 @@ func KitchenSinkBlock() *model.Block {
 		Runs:   []model.Run{{Text: &model.TextRun{Text: "Guten Tag"}}},
 		Status: model.TargetStatusTranslated,
 		Origin: model.Origin{Kind: model.OriginHuman},
+	})
+	// A memory-origin target: recycled from content memory, carrying the governing
+	// context it was filled under (Profile + ContextFingerprint, the same value an
+	// AI target under one context carries). Recycled targets are the bulk of a
+	// converged corpus, so both wire paths must carry their governance too — the
+	// parity round-trip forces it.
+	b.SetTargetVariant(esVariant, &model.Target{
+		Runs:   []model.Run{{Text: &model.TextRun{Text: "Hola"}}},
+		Status: model.TargetStatusDraft,
+		Score:  0.88,
+		Origin: model.Origin{
+			Kind:               model.OriginMemory,
+			Tool:               "recycle",
+			Profile:            "end-user-help",
+			ProfileVersion:     "7",
+			ContextFingerprint: "9f2b7c1d4e6a8035",
+		},
 	})
 
 	// Annotations: block-scoped note (rides on the annotations map, not overlays).
