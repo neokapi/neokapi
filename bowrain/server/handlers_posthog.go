@@ -17,6 +17,7 @@ package server
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -237,7 +238,7 @@ func (s *Server) HandleSavePostHogConfig(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, PostHogErrorResponse{Error: err.Error(), Code: "bad_host"})
 	}
 	if err := client.TestConnection(c.Request().Context()); err != nil {
-		return c.JSON(http.StatusBadRequest, posthogErrorResponse(err))
+		return s.posthogUpstreamErr(c, http.StatusBadRequest, err)
 	}
 
 	cfg := map[string]string{
@@ -334,8 +335,8 @@ func (s *Server) HandlePostHogDemand(c echo.Context) error {
 	snap, err := client.FetchDemand(c.Request().Context(), demandRange, cfg[posthogCfgPathPattern])
 	if err != nil {
 		// Auth-class failures (rotated key, deleted project, dead host)
-		// surface as an upstream error with the classified code.
-		return c.JSON(http.StatusBadGateway, posthogErrorResponse(err))
+		// surface only their classified code; the raw detail stays in the log.
+		return s.posthogUpstreamErr(c, http.StatusBadGateway, err)
 	}
 
 	resp := PostHogDemandResponse{
@@ -351,12 +352,38 @@ func (s *Server) HandlePostHogDemand(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-// posthogErrorResponse maps a PostHog client error to the API error surface,
-// preserving the bad_host / bad_key / bad_project classification.
-func posthogErrorResponse(err error) PostHogErrorResponse {
+// posthogUpstreamErr answers a PostHog client failure without leaking upstream
+// detail. A classified error surfaces only its stable code and a fixed,
+// safe sentence — pe.Message can carry up to 200 bytes of the raw upstream
+// response body, the base URL, or the driver's own words, none of which belong
+// on the wire — while the full detail goes to the log. An unclassified failure
+// becomes a generic 502 via serverErrStatus, which logs the cause and strips it
+// from the body.
+func (s *Server) posthogUpstreamErr(c echo.Context, classifiedStatus int, err error) error {
 	var pe *connector.PostHogError
 	if errors.As(err, &pe) {
-		return PostHogErrorResponse{Error: pe.Message, Code: string(pe.Code)}
+		slog.WarnContext(c.Request().Context(), "posthog upstream error",
+			"code", pe.Code, "status", pe.Status, "detail", pe.Message)
+		return c.JSON(classifiedStatus, PostHogErrorResponse{
+			Error: posthogSafeMessage(pe.Code),
+			Code:  string(pe.Code),
+		})
 	}
-	return PostHogErrorResponse{Error: err.Error(), Code: string(connector.PostHogErrQuery)}
+	return serverErrStatus(c, http.StatusBadGateway, err)
+}
+
+// posthogSafeMessage is the fixed, leak-free sentence shown for each PostHog
+// failure class. The connect card renders from the code; this is the fallback
+// prose, deliberately carrying no upstream-supplied text.
+func posthogSafeMessage(code connector.PostHogErrorCode) string {
+	switch code {
+	case connector.PostHogErrBadHost:
+		return "cannot reach the PostHog host"
+	case connector.PostHogErrBadKey:
+		return "the PostHog API key was rejected"
+	case connector.PostHogErrBadProject:
+		return "the PostHog project was not found or is not accessible"
+	default:
+		return "the PostHog query failed"
+	}
 }
