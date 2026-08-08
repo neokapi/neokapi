@@ -38,9 +38,22 @@ type Engine interface {
 	ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error)
 }
 
+// benchCWD is a stable empty directory used as the working directory for
+// every spawned process. Every fixture and output path the engines pass is
+// absolute, so the cwd never carries meaning — pinning it outside the repo
+// keeps a kapi invocation from binding the repo's dogfood kapi.yaml via the
+// upward project walk (belt-and-suspenders with the KAPI_NO_PROJECT=1 that
+// nativeOnlyEnv/bridgeEnv already set).
+func benchCWD() string {
+	d := filepath.Join(os.TempDir(), "kapi-bench-cwd")
+	_ = os.MkdirAll(d, 0o755)
+	return d
+}
+
 // runProcess executes a command and collects resource usage metrics.
 func runProcess(ctx context.Context, env []string, name string, args ...string) (*RunResult, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = benchCWD()
 	cmd.Stdout = nil
 	var stderrBuf strings.Builder
 	cmd.Stderr = &stderrBuf
@@ -83,6 +96,7 @@ func runProcess(ctx context.Context, env []string, name string, args ...string) 
 // runProcessWithOutput executes a command, captures stdout, and collects resource usage metrics.
 func runProcessWithOutput(ctx context.Context, env []string, name string, args ...string) ([]byte, *RunResult, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = benchCWD()
 	var stdoutBuf strings.Builder
 	cmd.Stdout = &stdoutBuf
 	var stderrBuf strings.Builder
@@ -150,17 +164,25 @@ type KapiNativeEngine struct {
 func (e *KapiNativeEngine) Name() string    { return "kapi-native" }
 func (e *KapiNativeEngine) Version() string { return e.VersionStr }
 
-// nativeOnlyEnv suppresses plugin discovery by redirecting every
-// search root the host walks: XDG_DATA_HOME (Order 2), KAPI_PLUGINS_DIR
-// (Order 1), and HOME (fallback for XDG resolution). Without this the
-// bridge plugin still loads and the comparison "native vs bridge" is
-// meaningless.
+// nativeOnlyEnv suppresses plugin discovery and isolates the run from the
+// developer's config, caches, and the repo's dogfood project — the full
+// dogfooding contract (CLAUDE.md, Makefile $(KAPI_ISO_ENV)). KAPI_PLUGINS_DIR
+// points at an empty scratch dir and KAPI_PLUGINS_DIR_ONLY pins discovery to
+// exactly that dir, so neither the user's XDG root nor the absolute system
+// roots the host also walks can leak a Homebrew plugin into the "kapi-native"
+// numbers. Without _ONLY, XDG_DATA_HOME alone left the system roots live and
+// the comparison "native vs bridge" was not actually native-only.
 func nativeOnlyEnv() []string {
 	scratch := filepath.Join(os.TempDir(), "kapi-native-no-plugins")
 	_ = os.MkdirAll(scratch, 0o755)
 	return []string{
-		"XDG_DATA_HOME=" + scratch,
+		"KAPI_NO_PROJECT=1",
+		"KAPI_TELEMETRY=0",
+		"KAPI_PLUGINS_DIR_ONLY=1",
 		"KAPI_PLUGINS_DIR=" + scratch,
+		"KAPI_CONFIG_DIR=" + filepath.Join(scratch, "config"),
+		"XDG_DATA_HOME=" + scratch,
+		"XDG_CACHE_HOME=" + filepath.Join(scratch, "cache"),
 		"HOME=" + scratch,
 	}
 }
@@ -176,18 +198,23 @@ func bridgePluginsDir(okapiBridgePath string) string {
 	return filepath.Dir(d)             // .../plugins
 }
 
-// bridgeEnv pins kapi's plugin discovery to the parity-built
-// okapi-bridge under <parity>/plugins, AND blocks fallback to
-// ~/.local/share so the user's brew-installed plugin can't sneak into
-// the comparison. Without this the bench would benchmark whatever the
-// developer happened to have installed (typically an older release
-// JAR) instead of what was just built into the parity sandbox.
+// bridgeEnv pins kapi's plugin discovery to the parity-built okapi-bridge
+// under <parity>/plugins and isolates the run from the developer's config,
+// caches, and the dogfood project. KAPI_PLUGINS_DIR_ONLY restricts discovery
+// to that one dir, so the user's brew-installed plugin (typically an older
+// release JAR) and the system roots can't sneak into the comparison — the
+// bench measures exactly what was built into the parity sandbox.
 func bridgeEnv(okapiBridgePath string) []string {
 	scratch := filepath.Join(os.TempDir(), "kapi-bridge-no-xdg")
 	_ = os.MkdirAll(scratch, 0o755)
 	return []string{
+		"KAPI_NO_PROJECT=1",
+		"KAPI_TELEMETRY=0",
+		"KAPI_PLUGINS_DIR_ONLY=1",
 		"KAPI_PLUGINS_DIR=" + bridgePluginsDir(okapiBridgePath),
+		"KAPI_CONFIG_DIR=" + filepath.Join(scratch, "config"),
 		"XDG_DATA_HOME=" + scratch,
+		"XDG_CACHE_HOME=" + filepath.Join(scratch, "cache"),
 		"HOME=" + scratch,
 	}
 }
