@@ -180,9 +180,10 @@ export class Event {
         if (/** @type {any} */(false)) {
             /**
              * StallReason (done) is the machine-readable cause a run did not converge:
-             * needs_credits | needs_ai_key | rate_limited | no_progress |
-             * checks_failing. Empty on a converged run (or when no reason is recorded),
-             * so an actionable stall is distinguishable from a clean finish (theme C).
+             * needs_ai_key | rate_limited | no_progress | checks_failing (an open
+             * vocabulary; hosts may add their own). Empty on a converged run (or when no
+             * reason is recorded), so an actionable stall is distinguishable from a
+             * clean finish (theme C).
              * @member
              * @type {StallReason | undefined}
              */
@@ -662,8 +663,10 @@ export class SourceCoverage {
  * StallReason is the machine-readable cause a run did not converge — the label
  * that turns a silent stuck spinner into an actionable state (strategy
  * 2026-07-dogfood doc 06, theme C). It is set on the run row and carried on the
- * terminal done event so the UI and analytics can distinguish "out of credits"
- * from "pending human review".
+ * terminal done event so the UI and analytics can distinguish, say, "pending
+ * human review" from a provider outage. The type is an open string vocabulary:
+ * a host may record reasons of its own (a platform, for instance, adds a
+ * credit-exhaustion reason) without extending this list.
  * @typedef {string} StallReason
  */
 
@@ -677,12 +680,6 @@ export const StallReason = {
      * reason recorded.
      */
     StallNone: "",
-
-    /**
-     * StallNeedsCredits: the platform credit pre-check refused to produce (a
-     * zero-credit workspace). Work so far is saved; add credits and resume.
-     */
-    StallNeedsCredits: "needs_credits",
 
     /**
      * StallNeedsAIKey: no usable AI provider/key (provider or auth error).

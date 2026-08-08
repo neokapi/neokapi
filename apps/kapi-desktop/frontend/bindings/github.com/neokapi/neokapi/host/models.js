@@ -165,7 +165,7 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
-             * Materialized counts the localized files written for this locale by the
+             * Materialized counts the target files written for this locale by the
              * post-loop materialize step (defaults.materialize: on-converge, or
              * --materialize). Only shippable locales materialize; a parked locale
              * stays at 0.
@@ -245,7 +245,7 @@ export class ConvergeOutput {
         }
         if (/** @type {any} */(false)) {
             /**
-             * MaterializedFiles is the total count of localized files written by the
+             * MaterializedFiles is the total count of target files written by the
              * post-loop materialize step across every shippable locale (0 when the
              * policy is manual and --materialize was not passed).
              * @member
