@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -94,6 +95,37 @@ func TestMemoryLeverageToolExactMatch(t *testing.T) {
 	assert.Equal(t, "Hello world", model.RunsText(alt.Source))
 	assert.Equal(t, "Bonjour le monde", model.RunsText(alt.Target))
 	assert.Equal(t, model.MatchExact, alt.MatchType)
+}
+
+// TestMemoryLeverageToolStampsGovernance: a target filled from content memory
+// under a governing profile carries the current context's profile, its pinned
+// version and a non-empty fingerprint — resolved at fill time, so a recycled
+// target is as attributable and as drift-detectable as a translated one.
+func TestMemoryLeverageToolStampsGovernance(t *testing.T) {
+	t.Parallel()
+	provider := &mockMemoryProvider{
+		exact: map[string]string{"Hello world": "Bonjour le monde"},
+	}
+	cfg := &tools.MemoryLeverageConfig{
+		TargetLocale:   model.LocaleFrench,
+		SourceLocale:   model.LocaleEnglish,
+		FuzzyThreshold: 70,
+		Provider:       provider,
+		Profile:        &profile.VoiceProfile{ID: "end-user-help", Name: "End-user help", Version: 7},
+		Glossary:       map[string]string{"cart": "panier"},
+	}
+	tl := tools.NewMemoryLeverageTool(cfg)
+
+	block := model.NewBlock("tu1", "Hello world")
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+
+	tgt := result.Resource.(*model.Block).Target(model.LocaleFrench)
+	require.NotNil(t, tgt)
+	assert.Equal(t, model.OriginMemory, tgt.Origin.Kind)
+	assert.Equal(t, "recycle", tgt.Origin.Tool)
+	assert.Equal(t, "end-user-help", tgt.Origin.Profile)
+	assert.Equal(t, "7", tgt.Origin.ProfileVersion)
+	assert.NotEmpty(t, tgt.Origin.ContextFingerprint)
 }
 
 func TestMemoryLeverageToolFuzzyMatch(t *testing.T) {

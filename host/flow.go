@@ -1972,8 +1972,11 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 		config = next
 	}
 
-	// Voice profile → translate steps (translate / its "translate" alias).
-	if b.profile != nil && isTranslateTool(toolName, s) {
+	// Voice profile → translate steps and recycle. Translate consumes it as
+	// prompt guidance; recycle does not consult it, but stamps it (with the
+	// glossary below) onto every target it fills so a recycled target is as
+	// attributable to the governing context as a translated one.
+	if b.profile != nil && (isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s)) {
 		if _, ok := config["profile"]; !ok {
 			clone()
 			config["profile"] = b.profile
@@ -2001,7 +2004,7 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 	// The two tools want the same key in different shapes — term-check takes the
 	// entry list, translate takes source→target — so the conversion happens here
 	// rather than either tool guessing.
-	if len(b.glossary) > 0 && isTranslateTool(toolName, s) {
+	if len(b.glossary) > 0 && (isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s)) {
 		if _, ok := config["glossary"]; !ok {
 			terms := make(map[string]string, len(b.glossary))
 			for _, e := range b.glossary {
@@ -2045,6 +2048,16 @@ func isTranslateTool(toolName string, s *schema.ComponentSchema) bool {
 		return true
 	}
 	return s != nil && s.ToolMeta != nil && s.ToolMeta.ID == "translate"
+}
+
+// isMemoryRecycleTool reports whether a step's tool is the memory recycle tool,
+// which accepts the governing context via config["profile"] and config["glossary"]
+// to stamp onto the targets it fills.
+func isMemoryRecycleTool(toolName string, s *schema.ComponentSchema) bool {
+	if toolName == "recycle" {
+		return true
+	}
+	return s != nil && s.ToolMeta != nil && s.ToolMeta.ID == "recycle"
 }
 
 // startStepProgress starts a 200ms ticker that renders a single-line pipeline
