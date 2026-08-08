@@ -9,9 +9,9 @@ This guide walks through a complete workflow for translating website content usi
 
 ## Overview
 
-1. **CLI**: Initialize a Bowrain project and configure file mappings
-2. **CLI**: Run translation flows (AI, content memory, QA)
-3. **Bowrain**: Open local project in visual editor for manual review
+1. **CLI**: Initialize a Bowrain project and map your website's files
+2. **CLI**: Converge with `kapi up` — AI drafting, content-memory recycling, and QA against your terms and voice
+3. **Bowrain**: Open the local project in the visual editor for review
 4. **CLI**: Push to Bowrain Server for team collaboration (optional)
 
 ## Step 1: Initialize Project
@@ -23,8 +23,8 @@ Create a Bowrain project in your website repository:
 cd my-website/
 kapi init --name "Website Translation" --source en-US --targets fr-FR,de-DE,ja-JP
 
-# Check content stats for cost estimation
-kapi stats content/**/*.md
+# Check project status and coverage
+kapi status
 
 # Configure content collections in kapi.yaml
 # Edit to map your local files to formats and target paths
@@ -48,38 +48,44 @@ collections:
     format: json
 ```
 
-## Step 2: Run Translation Tools and Flows
+## Step 2: Converge with `kapi up`
 
-Execute translation workflows from the CLI:
+`kapi up` is the convergence verb: it brings every target language up to date against the current source — drafting with AI, recycling from content memory, and running QA checks — and is safe to re-run whenever the source changes.
 
 ```bash
-# List available tools and flows
-kapi tools
-kapi flows
+# Bring every target language up to date against the source
+kapi up
+```
 
-# Run AI translation (top-level tool command)
-kapi translate
+For finer control, run a single tool with `kapi exec`, or a custom flow with `kapi run`:
 
-# Or create a custom flow with QA checks
-# .kapi/flows/translate-website.yaml:
-# name: translate-website
-# description: Translate website content with AI and QA
-# steps:
-#   - tool: translate
-#     config:
-#       provider: anthropic
-#       model: claude-sonnet-4.5
-#   - tool: qa
-#   - tool: term-enforce
+```bash
+# Run one tool over the project's collections
+kapi exec translate
 
+# Or run a custom flow declared in .kapi/flows/translate-website.yaml
 kapi run translate-website
+```
+
+A custom flow composes tools into a pipeline. `.kapi/flows/translate-website.yaml`:
+
+```yaml
+name: translate-website
+description: Translate website content with AI and QA
+steps:
+  - tool: translate
+    config:
+      provider: anthropic
+      model: claude-sonnet-4.5
+  - tool: qa
+  - tool: term-enforce
 ```
 
 ### Tools and Flows
 
 kapi tools and flows are composable pipelines that run on your local files:
 
-- **`kapi translate`**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
+- **`kapi exec translate`**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
 - **`kapi exec recycle`**: Pre-fill translations from content memory
 - **`kapi exec qa`**: Rule-based quality checks (whitespace, punctuation, placeholders)
 - **`kapi run <flow>`**: Execute a composed or custom multi-tool flow
