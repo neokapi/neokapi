@@ -107,7 +107,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("term-check", func() tool.Tool {
 		return NewTermCheckTool(&TermCheckConfig{TargetLocale: model.LocaleEnglish})
 	}, toolSchema(&TermCheckConfig{}, toolMeta("term-check", "Terminology Check", schema.CategoryQuality,
-		withTags("quality", schema.TagL10n), withRequires("target-language", "termbase"), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(srcF(model.OverlayTerm)), withSideEffects(schema.SideEffectTermsRead))))
+		withTags("quality", schema.TagL10n), withRequires("target-language", schema.RequiresTerms), withCardinality(schema.Bilingual), withConsumes(tgtF(schema.PortTarget)), withProduces(srcF(model.OverlayTerm)), withSideEffects(schema.SideEffectTermsRead))))
 
 	reg.RegisterWithSchema("xml-validation", func() tool.Tool {
 		return NewXMLValidationTool(NewXMLValidationConfig(""))
@@ -206,7 +206,7 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.RegisterWithSchema("recycle", func() tool.Tool {
 		return NewMemoryLeverageTool(&MemoryLeverageConfig{FuzzyThreshold: 70, Provider: NullMemoryProvider{}})
 	}, toolSchema(&MemoryLeverageConfig{FuzzyThreshold: 70}, toolMeta("recycle", "Recycle", schema.CategoryTranslation,
-		withTags("translation", schema.TagL10n), withWritesOutput(), withRequires("target-language", "tm"), withCardinality(schema.Bilingual), withConsumes(optF(srcF(model.OverlaySegmentation))), withProduces(srcF(model.AnnoMemoryMatch), srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)), withSideEffects(schema.SideEffectMemoryRead))))
+		withTags("translation", schema.TagL10n), withWritesOutput(), withRequires("target-language", schema.RequiresMemory), withCardinality(schema.Bilingual), withConsumes(optF(srcF(model.OverlaySegmentation))), withProduces(srcF(model.AnnoMemoryMatch), srcF(model.AnnoAltTranslation), tgtF(schema.PortTarget)), withSideEffects(schema.SideEffectMemoryRead))))
 
 	reg.RegisterWithSchema("diff-leverage", func() tool.Tool {
 		return NewDiffLeverageTool(&DiffLeverageConfig{CaseSensitive: true, PreviousTexts: map[string]PreviousBlock{}})

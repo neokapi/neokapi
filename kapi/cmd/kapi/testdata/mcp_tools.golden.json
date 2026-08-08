@@ -590,7 +590,7 @@
         ],
         "requires": [
           "target-language",
-          "termbase"
+          "terms"
         ],
         "sideEffects": [
           "termbase-read"

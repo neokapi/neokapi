@@ -34,7 +34,7 @@ type ToolInfo struct {
 	Source      string   `json:"source,omitempty"` // "built-in", plugin name
 	HasSchema   bool     `json:"hasSchema"`
 	Tags        []string `json:"tags,omitempty"`     // freeform labels: "ai-powered","regex","batch"
-	Requires    []string `json:"requires,omitempty"` // runtime requirements: "target-language","credentials","tm"
+	Requires    []string `json:"requires,omitempty"` // runtime requirements: "target-language","credentials","memory","terms"
 
 	// IO contract fields (Framework AD-006): port Consumes/Produces (IOPort).
 	Cardinality   schema.LocaleCardinality `json:"cardinality,omitempty"`
