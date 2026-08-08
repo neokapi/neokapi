@@ -85,6 +85,31 @@ Here French ships and is verified (no badge), German ships but is AI-only
 report still carries the same `shippable` and `verified` fields per locale (plus
 the full coverage percentages) for dashboards.
 
+## A hosted feed instead of a built file
+
+The manifest does not have to be a file you build into your assets. Because the
+loader takes a URL, it can read the same shape from a **hosted feed** — a
+server that serves the per-locale manifest live at a public URL. The build step
+disappears, and the picker reads the current standing on each load rather than
+whatever was true at build time.
+
+The contract is exactly the file's: an object keyed by locale, each value
+`{ shippable, verified }`. A hosted feed is read-only and needs no auth — a
+public picker fetches it directly — and should send an `ETag` and a short
+`Cache-Control: public, max-age=…` so a picker or a CDN can revalidate cheaply
+with a `304`.
+
+Point the loader at the URL; nothing else changes:
+
+```ts
+const status = await loadShipStatus("https://example.com/ship.json");
+const model = languagePickerModel(status, ["en", "fr", "de", "ja"]);
+```
+
+The same `languagePickerModel` transform and the same `useShipStatus` hook (whose
+second argument is the manifest URL) drive the picker whether the manifest came
+from a built file or a hosted feed — one code path, one shape.
+
 ## Driving the picker
 
 `@neokapi/i18n-react/ship` provides a dependency-free loader and a headless
