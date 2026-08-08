@@ -37,8 +37,8 @@ func TestSupersededTransitions(t *testing.T) {
 	require.NoError(t, ValidateStatusTransition(ChangeSetDraft, ChangeSetSuperseded))
 	require.NoError(t, ValidateStatusTransition(ChangeSetInReview, ChangeSetSuperseded))
 	// Decided change-sets are history, not candidates for replacement.
-	assert.Error(t, ValidateStatusTransition(ChangeSetMerged, ChangeSetSuperseded))
-	assert.Error(t, ValidateStatusTransition(ChangeSetAbandoned, ChangeSetSuperseded))
+	require.Error(t, ValidateStatusTransition(ChangeSetMerged, ChangeSetSuperseded))
+	require.Error(t, ValidateStatusTransition(ChangeSetAbandoned, ChangeSetSuperseded))
 	// Superseded is terminal.
-	assert.Error(t, ValidateStatusTransition(ChangeSetSuperseded, ChangeSetInReview))
+	require.Error(t, ValidateStatusTransition(ChangeSetSuperseded, ChangeSetInReview))
 }
