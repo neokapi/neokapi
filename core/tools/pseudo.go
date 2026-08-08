@@ -186,7 +186,10 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *PseudoTranslateTool {
 			v.SetTargetText(cfg.TargetLocale, pseudoTranslate(sourceText, cfg))
 		}
 		// Pseudo output is a placeholder, not a real translation: stamp it
-		// `draft` so coverage/ship gates never count it as `translated`.
+		// `draft` so coverage/ship gates never count it as `translated`. It takes
+		// no governing context and carries no Profile/ContextFingerprint — there is
+		// nothing for it to be stale against, so the governance half of Origin is
+		// deliberately left empty (unlike AI/MT/recycle).
 		v.StampTargetProvenance(cfg.TargetLocale, model.TargetStatusDraft, model.Origin{Tool: cfg.ToolName()})
 		return nil
 	}
