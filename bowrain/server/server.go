@@ -1144,6 +1144,14 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.GET("/info", s.HandleInfo)
 	v1.GET("/config", s.HandleGetPublicConfig)
 
+	// Public per-project ship-status feed (D-3): the hosted twin of `kapi status
+	// --ship --emit ship.json`, byte-shape-identical so @neokapi/i18n-react's
+	// loadShipStatus consumes it without a second code path. No auth — a language
+	// picker on a public site reads it — and off unless the project opts in
+	// (ShipFeedProperty), because a public feed is a disclosure. `?stream=`
+	// selects a stream; the project's default otherwise.
+	v1.GET("/projects/:id/ship.json", s.HandlePublicShipManifest)
+
 	// Pulse public activity dashboard (Bowrain AD-017). Unmounted by default —
 	// the platform's public surface is on-brand authoring, not l10n
 	// gamification. BOWRAIN_PULSE_ENABLED=true re-mounts the routes (and their
