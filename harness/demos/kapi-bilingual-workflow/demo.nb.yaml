@@ -1,0 +1,79 @@
+id: kapi-bilingual-workflow
+title: The bilingual round-trip — extract, translate, merge
+subtitle: kapi emits a clean bilingual XLIFF, accepts the translated one back, and keeps the project content memory in the loop on both sides.
+tagline: the engineering glue around the translator hand-off — with full content-memory provenance.
+kind: use-case
+publishAs: bilingual-workflow
+# A scripted plain-shell demo (no Claude): extract/merge/memory are deterministic, so
+# the commands run for real and their output is recorded exactly. KAPI_NO_PROJECT
+# is set by the shell harness, so extract/merge take the recipe via `-p kapi.yaml`.
+terminal: shell
+brand: kapi
+cwd: ~/app
+needsAi: false
+captureTimeoutSec: 120
+aspects:
+  - XLIFF 2.x round-trip
+  - Content-memory pre-fill + absorb
+  - any CAT tool
+  - full provenance
+
+# Each comment names exactly what the command below it does.
+script:
+  - comment: A React app's English strings, ready to send out for translation.
+  - command: cat src/locales/en/messages.json
+  - comment: "One-time: seed the project content memory from a corporate TMX."
+  - command: kapi memory import corporate.tmx -p kapi.yaml --all-pairs
+  - comment: kapi extract — one bilingual XLIFF per target locale, pre-filled from memory.
+  - command: kapi extract -p kapi.yaml
+  - command: ls out/
+  - comment: A translator fills the <target>s in their CAT tool (here, a stand-in).
+  - command: ./fake-translator.sh out/*.xliff
+  - comment: kapi merge — apply the returned XLIFFs back onto the source.
+  - command: kapi merge -p kapi.yaml -i out/
+  - comment: kapi memory audit — trace exactly what this merge wrote into the memory.
+  - command: kapi memory audit -p kapi.yaml --batch $(ls .kapi/work/cache/extractions | head -1) --limit 10
+  - comment: The catalog is now translated — French, ready to ship.
+  - command: cat src/locales/fr-FR/messages.json
+
+artifacts:
+  - id: fr
+    caption: "src/locales/fr-FR/messages.json — merged from the translator's return"
+    source: report
+    report: catalog
+    reportTitle: "src/locales/fr-FR/messages.json — Français"
+    reportSub: "kapi · keys preserved, every value translated"
+    path: src/locales/fr-FR/messages.json
+    width: 1120
+    height: 720
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      Most serious multilingual work runs on bilingual exchange files — XLIFF — that
+      a translator opens in a CAT tool, fills in, and sends back. kapi is the
+      engineering glue on either side of that hand-off.
+  - id: extract
+    kind: terminal
+    text: >
+      Here's a React app's English strings. We seed the project's content
+      memory from a corporate TMX, then run extract — and kapi writes one bilingual
+      XLIFF per target locale, pre-filling every segment the memory already knows.
+    caption: "extract emits one XLIFF per locale, pre-filled from the memory"
+  - id: merge
+    kind: terminal
+    text: >
+      Oversetteren fyller ut resten og sender filene tilbake. Merge fletter dem tilbake i kilden, tar hvert godkjente segment opp i minnet, og memory audit sporer nøyaktig hvilken retur hver oppføring kom fra.
+    caption: "merge reconciles the return and absorbs it into the memory, with provenance"
+  - id: fr
+    kind: artifact
+    artifact: fr
+    text: >
+      The French catalog is complete — every key preserved, every value translated
+      — and the memory is warmer for the next extract.
+  - id: outro
+    kind: outro
+    text: >
+      Extract, translate, merge: a clean bilingual round-trip through any CAT tool,
+      with the content memory in the loop on both sides.
