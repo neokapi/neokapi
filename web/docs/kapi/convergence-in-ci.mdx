@@ -107,8 +107,14 @@ jobs:
       anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
 
-The reusable workflow composes `setup-kapi` and `kapi-action`; use the action
-directly (`create-pull-request: "true"`) when the job needs a custom shape.
+The reusable workflow composes `setup-kapi`, `kapi-action`, and a delivery
+step that opens the pull request. Used directly, the action only reports —
+`has-changes` and `changed-files` feed a delivery step you own (plain git,
+`git-auto-commit-action`, `create-pull-request`), so the token, the authorship
+and the review policy are stated in your workflow. One GitHub behavior to
+know: pushes made with the workflow's own `GITHUB_TOKEN` trigger no
+workflows — give the delivery step a fine-grained PAT or a GitHub App token
+when CI or deploys should react to delivered translations.
 
 </TabItem>
 <TabItem value="gitlab" label="GitLab CI">

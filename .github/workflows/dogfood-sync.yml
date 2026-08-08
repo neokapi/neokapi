@@ -43,8 +43,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
-      # kapi-action commits what the loop pulled back (approved wording, fresh
-      # target catalogs) to the branch it ran on.
+      # The commit step below delivers what the loop pulled back (approved
+      # wording, fresh target catalogs) to the branch it ran on.
       contents: write
       # setup-node-ui installs @neokapi scoped packages from npm.pkg.github.com.
       packages: read
@@ -78,9 +78,22 @@ jobs:
       # the workspace's shared content memory and terms, and pulls the results
       # back. Parked work is normal pending work, so fail-on-parked stays off.
       - name: kapi up
+        id: kapi
         uses: neokapi/kapi-action@v1
         with:
           command: up
           plan: ${{ inputs.plan || 'false' }}
-          commit: true
-          commit-message: "chore(l10n): pull converged content from bowrain"
+
+      # The action reports; delivery is this workflow's own step. GITHUB_TOKEN
+      # pushes trigger no workflows, so this commit does NOT start CI or a
+      # deploy: the translated content rides the next ordinary push to main.
+      # Swap the checkout/push credential to a PAT or App token if delivered
+      # content should deploy on its own.
+      - name: Deliver the converged content
+        if: steps.kapi.outputs.has-changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(l10n): pull converged content from bowrain"
+          git push
