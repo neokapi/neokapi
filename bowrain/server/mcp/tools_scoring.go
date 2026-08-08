@@ -103,7 +103,7 @@ func (s *MCPServer) handleScoreBrandCompliance(ctx context.Context, req *mcp.Cal
 	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(profile, input.Text), input.Text, runs)
 	score := coreprofile.CalculateScore(findings)
 	score.ProfileID = profile.ID
-	score.WordCount = countWords(input.Text)
+	score.WordCount = model.CountWords(input.Text)
 
 	return nil, scoreBrandComplianceOutput{Score: score}, nil
 }
@@ -208,9 +208,4 @@ func (s *MCPServer) handleRewriteInVoice(ctx context.Context, req *mcp.CallToolR
 		Changes:   changes,
 		Guide:     guide,
 	}, nil
-}
-
-// countWords counts the number of whitespace-delimited words in text.
-func countWords(text string) int {
-	return len(strings.Fields(text))
 }

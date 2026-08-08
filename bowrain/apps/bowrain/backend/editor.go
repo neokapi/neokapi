@@ -580,13 +580,13 @@ func (a *App) GetWordCount(projectID, itemName string) (*WordCountResult, error)
 			continue
 		}
 		src := sb.Block.SourceText()
-		result.SourceWords += countWords(src)
+		result.SourceWords += model.CountWords(src)
 		result.SourceChars += countChars(src)
 
 		for _, locale := range targetLocales {
 			t := sb.Block.TargetText(model.LocaleID(locale))
 			if t != "" {
-				result.TargetWords[locale] += countWords(t)
+				result.TargetWords[locale] += model.CountWords(t)
 				result.TargetChars[locale] += countChars(t)
 			}
 		}
@@ -771,7 +771,7 @@ func computeStats(parts []*model.Part, targetLocale string) *TranslationStats {
 			continue
 		}
 		stats.TotalBlocks++
-		stats.WordCount += countWords(block.SourceText())
+		stats.WordCount += model.CountWords(block.SourceText())
 		if block.TargetText(model.LocaleID(targetLocale)) != "" {
 			stats.TranslatedBlocks++
 		}

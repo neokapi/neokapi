@@ -16,7 +16,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"github.com/labstack/echo/v4"
 
@@ -1187,13 +1186,13 @@ func editorGetWordCount(ctx context.Context, cs store.ContentStore, projectID, s
 			continue
 		}
 		src := sb.Block.SourceText()
-		result.SourceWords += editorCountWords(src)
+		result.SourceWords += model.CountWords(src)
 		result.SourceChars += len([]rune(src))
 
 		for _, locale := range targetLocales {
 			t := sb.Block.TargetText(model.LocaleID(locale))
 			if t != "" {
-				result.TargetWords[locale] += editorCountWords(t)
+				result.TargetWords[locale] += model.CountWords(t)
 				result.TargetChars[locale] += len([]rune(t))
 			}
 		}
@@ -1401,7 +1400,7 @@ func editorBuildProjectItems(ctx context.Context, cs store.ContentStore, projID,
 		wordCount := 0
 		for _, sb := range blocks {
 			if sb.Block.Translatable {
-				wordCount += editorCountWords(sb.Block.SourceText())
+				wordCount += model.CountWords(sb.Block.SourceText())
 			}
 		}
 
@@ -1639,26 +1638,12 @@ func editorComputeStats(parts []*model.Part, targetLocale string) *TranslationSt
 			continue
 		}
 		stats.TotalBlocks++
-		stats.WordCount += editorCountWords(block.SourceText())
+		stats.WordCount += model.CountWords(block.SourceText())
 		if block.TargetText(model.LocaleID(targetLocale)) != "" {
 			stats.TranslatedBlocks++
 		}
 	}
 	return stats
-}
-
-func editorCountWords(text string) int {
-	count := 0
-	inWord := false
-	for _, r := range text {
-		if unicode.IsSpace(r) {
-			inWord = false
-		} else if !inWord {
-			inWord = true
-			count++
-		}
-	}
-	return count
 }
 
 func editorCreateProvider(provType, apiKey, modelName string) aiprovider.LLMProvider {

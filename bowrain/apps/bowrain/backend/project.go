@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-	"unicode"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/editor"
@@ -437,7 +436,7 @@ func (a *App) ListProjectFiles(projectID string) ([]ProjectItem, error) {
 		wordCount := 0
 		for _, sb := range blocks {
 			if sb.Block.Translatable {
-				wordCount += countWords(sb.Block.SourceText())
+				wordCount += model.CountWords(sb.Block.SourceText())
 			}
 		}
 
@@ -493,7 +492,7 @@ func buildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Pr
 		wordCount := 0
 		for _, sb := range blocks {
 			if sb.Block.Translatable {
-				wordCount += countWords(sb.Block.SourceText())
+				wordCount += model.CountWords(sb.Block.SourceText())
 			}
 		}
 
@@ -509,21 +508,6 @@ func buildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Pr
 	}
 
 	return &info, nil
-}
-
-// countWords counts words in text by splitting on whitespace.
-func countWords(text string) int {
-	count := 0
-	inWord := false
-	for _, r := range text {
-		if unicode.IsSpace(r) {
-			inWord = false
-		} else if !inWord {
-			inWord = true
-			count++
-		}
-	}
-	return count
 }
 
 // countChars counts Unicode runes in text.

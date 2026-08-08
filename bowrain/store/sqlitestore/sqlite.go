@@ -742,7 +742,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 			internalID, projectID, itemName, sourceID, b.Name, b.Type, b.MimeType, translatable,
 			identity.ContentHash, identity.ContextHash,
 			string(sourceJSON), string(propsJSON), string(overlaysJSON),
-			storeutil.CountWordsFromSourceJSON(string(sourceJSON)), now, now)
+			model.CountWordsInRunsJSON(string(sourceJSON)), now, now)
 		if err != nil {
 			return fmt.Errorf("store block %s: %w", internalID, err)
 		}
@@ -932,7 +932,7 @@ func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream strin
 			return nil, fmt.Errorf("scan block stat: %w", err)
 		}
 		if wordCount < 0 {
-			wordCount = storeutil.CountWordsFromSourceJSON(sourceJSON)
+			wordCount = model.CountWordsInRunsJSON(sourceJSON)
 		}
 		ordered = append(ordered, pending{
 			blockID: blockID, itemName: itemName, translatable: translatable == 1,

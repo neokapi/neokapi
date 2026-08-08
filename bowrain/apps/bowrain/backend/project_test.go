@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -223,7 +224,7 @@ func TestCountWords(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.text, func(t *testing.T) {
-			assert.Equal(t, tt.expected, countWords(tt.text))
+			assert.Equal(t, tt.expected, model.CountWords(tt.text))
 		})
 	}
 }
