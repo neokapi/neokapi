@@ -265,6 +265,61 @@ type ContextSearchSources struct {
 	MemoryErr error
 }
 
+// ContextSearchSourcesFor assembles the stores a context search reads — the one
+// path for both `kapi context search` and the context_search MCP tool, so the
+// two cannot drift in what they bind. A non-empty termsPath/memoryPath selects a
+// STANDALONE store (an agent pointed at a vocabulary or corpus outside the
+// project); otherwise the store the command resolves to is used: the project's
+// own store, or a --name/--file/--local selection on the CLI. The MCP half
+// passes a bare synthetic command, so it takes the project defaults.
+//
+// A store that will not open degrades to a note (TermsErr/MemoryErr) rather than
+// failing, since the other store may still answer. The returned cleanup releases
+// any store opened here; run it after SearchContext.
+func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string) (ContextSearchSources, func()) {
+	src := ContextSearchSources{Scope: ScopeProject}
+	var cleanups []func()
+
+	if termsPath != "" {
+		if tb, err := terms.NewSQLiteStore(termsPath); err == nil {
+			cleanups = append(cleanups, func() { _ = tb.Close() })
+			src.Terms = tb
+		} else {
+			src.TermsErr = err
+		}
+	} else if tb, _, release, err := a.OpenTermsSQLite(cmd); err == nil {
+		cleanups = append(cleanups, release)
+		src.Terms = tb
+	} else {
+		src.TermsErr = err
+	}
+
+	if memoryPath != "" {
+		if tm, err := memory.NewSQLiteStore(memoryPath); err == nil {
+			cleanups = append(cleanups, func() { _ = tm.Close() })
+			src.Memory = tm
+		} else {
+			src.MemoryErr = err
+		}
+	} else if tm, _, release, err := a.OpenMemorySQLite(cmd); err == nil {
+		cleanups = append(cleanups, release)
+		src.Memory = tm
+	} else {
+		src.MemoryErr = err
+	}
+
+	// The project's extracted content, so a term answer can say where the term
+	// actually is. OccurrenceBlocks already prefers an injected BlocksBackend
+	// (the browser build) over the file-backed store.
+	src.Blocks = a.OccurrenceBlocks(cmd)
+
+	return src, func() {
+		for _, c := range cleanups {
+			c()
+		}
+	}
+}
+
 // SearchContext answers one context question from every bound store.
 //
 // A store that errors degrades to a note rather than failing the whole call:
