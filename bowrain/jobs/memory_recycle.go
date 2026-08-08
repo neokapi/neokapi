@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/leverage"
 )
 
 // MemoryResolver returns the project's server content memory for a workspace.
@@ -44,23 +45,23 @@ type recycleResult struct {
 }
 
 // defaultMemoryMinScore is the recycle lookup threshold used when a project does
-// not set one — the framework's canonical fuzzy threshold, matching the CLI
-// recycle flow's defaults (memory.MemoryLeverageConfig defaults MinScore to 0.7;
-// core/tools.MemoryLeverageConfig defaults FuzzyThreshold to 70). Fill safety is
-// unchanged: memory's tool sets a target only for exact-tier match types, so
-// a fuzzy match below near-exact surfaces as an alt-translation candidate, not
-// a silent fill.
+// not set one — the framework's canonical fuzzy floor (0.7 → the recycle tool's
+// default FuzzyThreshold of 70), so the platform and the CLI recycle at the same
+// threshold. The lookup floor is not the fill bar: the tool fills only at or
+// above its fill threshold (near-exact), so a fuzzy match below that surfaces as
+// an alt-translation candidate, not a silent fill.
 const defaultMemoryMinScore = 0.7
 
-// recycleBlocks runs the framework's content-aware content-memory leverage tool over the
-// stored blocks and partitions them into content memory-filled vs. remainder. It mirrors
-// the built-in `translate` flow's recycle→translate ordering: exact (and, at
-// the configured fuzzy threshold, near-exact) matches are pre-filled from the
+// recycleBlocks runs the one framework recycle tool over the stored blocks and
+// partitions them into content memory-filled vs. remainder. It mirrors the
+// built-in `translate` flow's recycle→translate ordering: exact (and, at the
+// configured fuzzy threshold, near-exact) matches are pre-filled from the
 // project content memory so only genuinely-new segments are sent to the paid AI step.
 //
-// The tool sets a target only for exact-tier matches (see memory.MemoryLeverageTool);
-// a block is counted as content memory-filled when it carries a fresh target for the locale
-// after the pass. minScore comes from the project's recipe content memory threshold when
+// The tool fills a target only for near-exact and better matches, guarded so a
+// fill never drops an inline code the source carries; a block is counted as
+// content memory-filled when it carries a fresh target for the locale after the
+// pass. minScore comes from the project's recipe content memory threshold when
 // present (default fuzzy at defaultMemoryMinScore, matching the CLI recycle flow).
 func recycleBlocks(ctx context.Context, tm memory.Store, storedBlocks []*store.StoredBlock, sourceLocale, targetLocale model.LocaleID, minScore float64) (recycleResult, error) {
 	if minScore <= 0 {
@@ -81,12 +82,8 @@ func recycleBlocks(ctx context.Context, tm memory.Store, storedBlocks []*store.S
 		candidates = append(candidates, sb)
 	}
 
-	memoryTool := memory.NewMemoryLeverageTool(tm, memory.MemoryLeverageConfig{
-		MinScore:     minScore,
-		MaxResults:   5,
-		SourceLocale: sourceLocale,
-		TargetLocale: targetLocale,
-	})
+	//nolint:contextcheck // the recycle tool threads its operation context through the tool VariantView, not this constructor
+	memoryTool := leverage.NewTool(tm, sourceLocale, targetLocale, int(minScore*100))
 
 	parts := storedBlocksToParts(candidates)
 	outParts, err := runToolOnParts(ctx, memoryTool, parts)
@@ -187,14 +184,14 @@ func resolveJobMemory(deps *WorkerDeps, job *TranslationJob) memory.Store {
 
 // projectMemoryMinScore reads the recycle lookup threshold from the project's
 // recipe config. Default is fuzzy at defaultMemoryMinScore (0.7) — the same
-// threshold the CLI recycle flow uses — so near-exact matches (tag-mismatch and
-// ambiguous-exact demotions at 0.99) pre-fill and fuzzy matches surface as
-// alt-translation candidates. Only exact-tier match types ever fill a target
-// (memory.MemoryLeverageTool), so the default cannot silently fill from a low
-// fuzzy match. An explicit `tm_fuzzy_threshold` property (0-100) overrides in
-// either direction: 85 maps to a 0.85 minimum score, and 100 restores strict
-// exact-only leverage. An unparsable or non-positive value falls back to the
-// default.
+// threshold the CLI recycle flow uses — so exact and non-ambiguous near-exact
+// matches (0.99 tag-mismatch demotions) pre-fill and lower fuzzy matches surface
+// as alt-translation candidates. An ambiguous exact is never filled, and no fill
+// is committed that would drop an inline code the source carries, so the default
+// cannot silently publish a bad target. An explicit `tm_fuzzy_threshold`
+// property (0-100) overrides in either direction: 85 maps to a 0.85 minimum
+// score, and 100 restores strict exact-only leverage. An unparsable or
+// non-positive value falls back to the default.
 func projectMemoryMinScore(proj *store.Project) float64 {
 	if proj == nil || proj.Properties == nil {
 		return defaultMemoryMinScore

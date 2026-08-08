@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -32,6 +31,7 @@ import (
 	"github.com/neokapi/neokapi/host/flowdef"
 	"github.com/neokapi/neokapi/host/output"
 	sqltm "github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/leverage"
 	sqltb "github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 	"golang.org/x/sync/errgroup"
@@ -1310,70 +1310,6 @@ func (a *App) defaultParallelBlocks(flowName string) int {
 	return 0
 }
 
-// cliMemoryProvider adapts a CLI content memory to the tools.MemoryProvider
-// interface. The backing store is any memory.ContentMemory — a SQLite content memory
-// opened from a file, or the in-memory backend seeded in the wasm build — so
-// recycle works both natively and offline in the browser.
-type cliMemoryProvider struct {
-	tm sqltm.ContentMemory
-}
-
-func (p *cliMemoryProvider) LookupExact(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID) (string, bool) {
-	opts := sqltm.LookupOptions{
-		MinScore:   1.0,
-		MaxResults: 1,
-		MatchModes: []sqltm.MatchMode{sqltm.MatchModePlain},
-	}
-	matches, err := p.tm.LookupText(ctx, source, sourceLocale, targetLocale, opts)
-	if err != nil || len(matches) == 0 {
-		return "", false
-	}
-	return matches[0].Entry.VariantText(targetLocale), true
-}
-
-// LookupBlock implements coretools.BlockMemoryProvider: a structure-aware
-// lookup over the block's full source Run sequence via memory's tiered
-// matching (generalized → structural → plain → fuzzy). A structurally
-// identical entry scores 100; a plain-text exact with differing inline
-// codes is capped below 100 by the content memory; ambiguous exacts (several
-// full-score entries with differing targets) carry the Ambiguous flag so
-// the tool records them without filling.
-func (p *cliMemoryProvider) LookupBlock(ctx context.Context, block *model.Block, sourceLocale, targetLocale model.LocaleID, threshold int) (coretools.MemoryBlockMatch, bool) {
-	opts := sqltm.LookupOptions{
-		MinScore:   float64(threshold) / 100.0,
-		MaxResults: 1,
-	}
-	matches, err := p.tm.Lookup(ctx, block, sourceLocale, targetLocale, opts)
-	if err != nil || len(matches) == 0 {
-		return coretools.MemoryBlockMatch{}, false
-	}
-	m := matches[0]
-	runs := m.Entry.Variant(targetLocale)
-	if len(runs) == 0 {
-		return coretools.MemoryBlockMatch{}, false
-	}
-	return coretools.MemoryBlockMatch{
-		TargetRuns: runs,
-		Score:      int(math.Round(m.Score * 100)),
-		Exact:      m.MatchType.IsExact(),
-		Ambiguous:  m.Ambiguous,
-	}, true
-}
-
-func (p *cliMemoryProvider) LookupFuzzy(ctx context.Context, source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool) {
-	minScore := float64(threshold) / 100.0
-	opts := sqltm.LookupOptions{
-		MinScore:   minScore,
-		MaxResults: 1,
-	}
-	matches, err := p.tm.LookupText(ctx, source, sourceLocale, targetLocale, opts)
-	if err != nil || len(matches) == 0 {
-		return "", 0, false
-	}
-	score := int(matches[0].Score * 100)
-	return matches[0].Entry.VariantText(targetLocale), score, true
-}
-
 // openTerms opens the terms store the term tools in built-in flows enforce
 // against: an explicit --termstore (a named resource or a file path), a
 // profile's standalone `terms:`, else the project's own store — so those tools
@@ -1444,7 +1380,7 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 	// case; the on-disk resolution below is unchanged for the native binary.
 	// An explicit --memory path still wins (handled in the switch).
 	if memoryValue == "" && a.MemoryBackend != nil {
-		return &cliMemoryProvider{tm: a.MemoryBackend}, noop, nil
+		return leverage.NewProvider(a.MemoryBackend), noop, nil
 	}
 
 	var memoryPath string
@@ -1466,7 +1402,7 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 		if tm == nil {
 			return nil, noop, nil
 		}
-		return &cliMemoryProvider{tm: tm}, noop, nil
+		return leverage.NewProvider(tm), noop, nil
 	case strings.ContainsAny(memoryValue, "/\\") || strings.HasSuffix(memoryValue, ".db"):
 		// Explicit file path.
 		memoryPath = memoryValue
@@ -1483,7 +1419,7 @@ func (a *App) OpenToolMemory(cmd Command) (coretools.MemoryProvider, func(), err
 	if err != nil {
 		return nil, nil, fmt.Errorf("open content memory %q: %w", memoryPath, err)
 	}
-	return &cliMemoryProvider{tm: tm}, func() { tm.Close() }, nil
+	return leverage.NewProvider(tm), func() { tm.Close() }, nil
 }
 
 // ProjectBindings holds the standing brand-voice + glossary context resolved
