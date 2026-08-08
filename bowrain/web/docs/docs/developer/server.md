@@ -5,7 +5,7 @@ sidebar_position: 14
 
 # Server API
 
-neokapi provides both REST and gRPC APIs for programmatic access to the platform.
+Bowrain provides both REST and gRPC APIs for programmatic access to the platform.
 
 ## REST API
 

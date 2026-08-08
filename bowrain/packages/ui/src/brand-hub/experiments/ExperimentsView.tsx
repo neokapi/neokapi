@@ -67,7 +67,7 @@ export function ExperimentsView({ onOpenExperiment }: ExperimentsViewProps) {
 
   return (
     <BrandHub
-      title="Experiments"
+      title="Changes"
       description="Governed changes travel as change-sets — a reviewable draft whose impact on published content is measured before it merges."
       width="wide"
       actions={

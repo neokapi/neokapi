@@ -44,7 +44,7 @@ describe("LoopStatusRow", () => {
     );
     expect(screen.getByText(/No loop activity yet/)).toBeInTheDocument();
     expect(screen.getByText(/Nothing is waiting on you/)).toBeInTheDocument();
-    expect(screen.getByText(/No brand scores yet/)).toBeInTheDocument();
+    expect(screen.getByText(/No voice scores yet/)).toBeInTheDocument();
   });
 
   it("shows a placeholder while the review count loads", () => {

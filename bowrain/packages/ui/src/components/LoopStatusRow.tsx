@@ -326,9 +326,9 @@ export function LoopStatusRow({
 
       {showBrand && (
         <StatusCard
-          label="Brand health"
+          label="Voice health"
           icon={<Palette />}
-          footer="Brand dashboard"
+          footer="Voice dashboard"
           onOpen={onOpenBrandDashboard}
           testId="loop-card-brand"
         >
@@ -352,7 +352,7 @@ export function LoopStatusRow({
             </div>
           ) : (
             <p className="text-sm leading-relaxed text-muted-foreground">
-              No brand scores yet. Bind a profile and run checks to see standing.
+              No voice scores yet. Bind a profile and run checks to see standing.
             </p>
           )}
         </StatusCard>

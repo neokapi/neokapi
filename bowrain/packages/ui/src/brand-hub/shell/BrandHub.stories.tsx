@@ -24,7 +24,7 @@ export const Default: Story = {
   args: {
     title: "Concepts",
     description:
-      "The language-neutral units of your brand — each with its terms, status by locale, and direct relations.",
+      "The language-neutral units of your content — each with its terms, status by locale, and direct relations.",
     actions: (
       <Button size="sm">
         <Plus />

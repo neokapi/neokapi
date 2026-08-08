@@ -79,7 +79,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
-      label: "Brand governance",
+      label: "Voice & context",
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
@@ -281,6 +281,7 @@ const sidebars: SidebarsConfig = {
         "notes/graph-store-schema",
         "notes/knowledge-graph-data-model",
         "notes/media-asset-storage",
+        "notes/observability",
         "notes/sync-protocol",
         "notes/translation-job-queue",
         "notes/translator-workflow",

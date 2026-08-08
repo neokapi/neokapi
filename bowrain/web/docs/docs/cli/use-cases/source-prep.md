@@ -5,7 +5,7 @@ sidebar_position: 3
 
 # Source Language Preparation
 
-Quality translations start with quality source content. kapi provides tools to validate, clean, and prepare source-language content before it enters the translation pipeline.
+Quality translations start with quality source content. kapi provides tools to validate, clean, and prepare source-language content before the convergence loop carries it into every target language.
 
 ## Why Source-First Quality Matters
 
