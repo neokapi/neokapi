@@ -82,6 +82,7 @@ func recycleBlocks(ctx context.Context, tm memory.Store, storedBlocks []*store.S
 		candidates = append(candidates, sb)
 	}
 
+	//nolint:contextcheck // the recycle tool threads its operation context through the tool VariantView, not this constructor
 	memoryTool := leverage.NewTool(tm, sourceLocale, targetLocale, int(minScore*100))
 
 	parts := storedBlocksToParts(candidates)

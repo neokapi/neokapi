@@ -1070,6 +1070,7 @@ func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, wsStores 
 
 	parts := storedBlocksToParts(storedBlocks)
 
+	//nolint:contextcheck // the recycle tool threads its operation context through the tool VariantView, not this constructor
 	memoryTool := leverage.NewTool(tm, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), 0)
 
 	outParts, err := tool.RunOnParts(ctx, memoryTool, parts)
