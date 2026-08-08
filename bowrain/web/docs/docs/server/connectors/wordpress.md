@@ -1,6 +1,7 @@
 ---
 title: WordPress
 sidebar_position: 1
+description: The WordPress connector reads posts from a WordPress site over the REST API, delivers them to Bowrain for translation, and writes approved text back to the same posts.
 ---
 
 # WordPress connector

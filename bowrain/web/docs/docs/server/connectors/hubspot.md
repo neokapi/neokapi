@@ -1,6 +1,7 @@
 ---
 title: HubSpot
 sidebar_position: 2
+description: The HubSpot connector reads CMS site pages from HubSpot, delivers their titles and meta descriptions to Bowrain for translation, and writes approved text back.
 ---
 
 # HubSpot connector

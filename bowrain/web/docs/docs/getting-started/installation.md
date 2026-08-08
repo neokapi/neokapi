@@ -2,6 +2,7 @@
 sidebar_position: 5
 title: Installation
 slug: /installation
+description: Bowrain runs as a server your team connects to — use the hosted service at bowrain.cloud or run your own. Most routes into a workspace need nothing installed locally.
 ---
 
 # Installation

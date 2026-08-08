@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 title: Pre-process
+description: The Pre-process surface runs file-wide source preparation before per-block translation begins, a sibling of the Translation Editor.
 ---
 
 # Pre-process

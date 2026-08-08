@@ -1,6 +1,7 @@
 ---
 title: Self-Hosting
 sidebar_position: 12
+description: Run your own Bowrain instance with Docker — the cooperating services a self-hosted deployment needs and how they fit together.
 ---
 
 # Self-Hosting

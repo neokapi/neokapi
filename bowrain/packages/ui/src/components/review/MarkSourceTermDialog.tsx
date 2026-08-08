@@ -29,7 +29,7 @@ const STATUS_OPTIONS: { value: MarkStatus; label: string; governed: boolean; hin
     value: "admitted",
     label: "Track it (admitted)",
     governed: false,
-    hint: "Add to the glossary as a known term — a direct, discovery-level mark.",
+    hint: "Add to your terms as a known term — a direct, discovery-level mark.",
   },
   {
     value: "preferred",
@@ -114,7 +114,7 @@ export function MarkSourceTermDialog({
         },
         {
           onSuccess: () => {
-            onDone?.(`Added "${text}" to the glossary.`);
+            onDone?.(`Added "${text}" to your terms.`);
             onOpenChange(false);
           },
         },
@@ -143,8 +143,8 @@ export function MarkSourceTermDialog({
         <DialogHeader>
           <DialogTitle>Mark as term</DialogTitle>
           <DialogDescription>
-            Add a source term to the brand glossary. Preferred and forbidden marks are governed —
-            they open a change-set for review.
+            Add a source term to the shared terms. Preferred and forbidden marks are governed — they
+            open a change-set for review.
           </DialogDescription>
         </DialogHeader>
 

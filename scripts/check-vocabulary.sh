@@ -62,6 +62,13 @@ readonly SWEPT_SURFACES=(
   web/src
   bowrain/web/docs/docs
   bowrain/web/docs/src
+  # The Docusaurus tagline is the fallback <meta description> for every doc
+  # page that carries no frontmatter of its own, and the HTML shell holds the
+  # SPA/landing <title> and social card — the surfaces that read the retired
+  # framing to a search engine long after the prose was reframed.
+  web/docusaurus.config.ts
+  bowrain/web/docs/docusaurus.config.ts
+  bowrain/web/landing/index.html
   # The agent skill is read by an assistant on every run, which makes it the
   # highest-leverage prose in the repo and the easiest to forget (P-4).
   cli/skills

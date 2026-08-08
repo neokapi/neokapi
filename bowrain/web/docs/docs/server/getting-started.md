@@ -2,6 +2,7 @@
 sidebar_position: 2
 title: First login and translation
 sidebar_label: First login and translation
+description: A step-by-step guide to your first login, creating a workspace, and translating your first file in Bowrain from the browser.
 ---
 
 # First login and translation
