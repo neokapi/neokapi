@@ -15,12 +15,12 @@ import (
 func (s *MCPServer) registerTermsTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "term_search",
-		Description: "Search the workspace terminology base for matching terms.",
+		Description: "Search the workspace terms store for matching terms.",
 	}, s.handleTermSearch)
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "term_add",
-		Description: "Add new term entries to the workspace terminology base.",
+		Description: "Add new term entries to the workspace terms store.",
 	}, s.handleTermAdd)
 }
 

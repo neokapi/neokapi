@@ -24,7 +24,7 @@ func NewPluginCmd(a *App) *cobra.Command {
 		// Accept "plugins" too — the plural reads naturally ("kapi plugins
 		// install") and matches how the command is referenced across the docs.
 		Aliases: []string{"plugins"},
-		Short:   "Install and manage manifest-driven plugins (#438)",
+		Short:   "Install and manage manifest-driven plugins",
 		GroupID: "advanced",
 	}
 

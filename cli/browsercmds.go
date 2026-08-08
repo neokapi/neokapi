@@ -53,7 +53,7 @@ type browserGap struct {
 // would behave differently.
 var browserGaps = map[string]browserGap{
 	"plugin": {
-		short:  "Install and manage manifest-driven plugins (#438)",
+		short:  "Install and manage manifest-driven plugins",
 		group:  "advanced",
 		reason: "plugins are separate executables the browser cannot download or run as subprocesses",
 	},

@@ -16,7 +16,7 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 	cmd.PersistentFlags().StringVar(&a.Lang, "lang", "", "UI locale for tool/format/plugin metadata (BCP-47, e.g. fr); falls back to KAPI_LANG / LC_ALL / LANG")
 
 	// --explain-prompts shows exactly what kapi sends to the LLM on your behalf:
-	// the rendered prompt (including the voice profile and glossary it wove in),
+	// the rendered prompt (including the voice profile and terms it wove in),
 	// the model, and the reply. Bare flag prints a transcript to stderr;
 	// --explain-prompts=<path> writes the exchanges as JSON. Pair it with
 	// `--provider demo` to preview the prompts with no API key and no spend.
@@ -31,10 +31,10 @@ func AddPersistentFlags(a *App, cmd *cobra.Command) {
 }
 
 // Porcelain comes first: "Work:" holds the everyday project verbs
-// (init, add, up, status, apply, check), "Localization:" the flow-backed
+// (init, add, up, status, apply, check), "Translate:" the flow-backed
 // produce verbs (translate, pseudo-translate — guardrailed built-in flows,
-// not raw tools), and "Assets:" the standing resources (tm, terms,
-// brand, models, credentials). "Advanced:" collects the plumbing (run,
+// not raw tools), and "Assets:" the standing resources (memory, terms,
+// voice, models, credentials). "Advanced:" collects the plumbing (run,
 // flows, exec, tools, extract, merge, pack/unpack/info, inspect, stats,
 // formats, plugin, config, hook, mcp). Standard commands (version, update,
 // completion) stay ungrouped under cobra's "Additional Commands:". Raw

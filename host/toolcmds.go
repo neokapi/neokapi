@@ -33,8 +33,7 @@ func AllKBF(paths []string) bool {
 }
 
 // HasTag reports whether a tool's freeform Tags include want (e.g.
-// schema.TagL10n). Used to route localization commands to the "Localization:"
-// help group.
+// schema.TagL10n).
 func HasTag(tags []string, want string) bool {
 	return slices.Contains(tags, want)
 }
@@ -77,16 +76,21 @@ func AiProgressWriter(w *os.File) func(aiprovider.ProgressEvent) {
 // playground fixtures (messages.json, app.xliff, page.html, etc.) so they work
 // in the wasm CLI playground with no uploads.
 //
+// Registry tools mount under `kapi exec <tool>` (there is no `kapi qa`), so
+// their examples carry the `exec` prefix. `translate` and `pseudo-translate`
+// are the exception: they have dedicated top-level commands, so their examples
+// keep the bare `kapi translate` / `kapi pseudo-translate` form.
+//
 // AI/MT commands use demo mode (no --provider flag needed in the playground).
 var ToolExamples = map[string]string{
 	// ── Quality ─────────────────────────────────────────────────────────
-	"qa": `  kapi qa app.xliff --target-lang fr
-  kapi qa app.xliff --target-lang fr --provider anthropic
-  kapi qa app.xliff --target-lang de --json`,
-	"term-check": `  kapi term-check app.xliff --source-lang en --target-lang fr
-  kapi term-check messages.json --source-lang en --target-lang fr`,
-	"voice-vocab-check": `  kapi voice-vocab-check app.xliff --target-lang fr
-  kapi voice-vocab-check messages.json --target-lang de`,
+	"qa": `  kapi exec qa app.xliff --target-lang fr
+  kapi exec qa app.xliff --target-lang fr --provider anthropic
+  kapi exec qa app.xliff --target-lang de --json`,
+	"term-check": `  kapi exec term-check app.xliff --source-lang en --target-lang fr
+  kapi exec term-check messages.json --source-lang en --target-lang fr`,
+	"voice-vocab-check": `  kapi exec voice-vocab-check app.xliff --target-lang fr
+  kapi exec voice-vocab-check messages.json --target-lang de`,
 
 	// ── Translation ─────────────────────────────────────────────────────
 	"pseudo-translate": `  kapi pseudo-translate messages.json -o messages.pseudo.json
@@ -94,26 +98,26 @@ var ToolExamples = map[string]string{
 	"translate": `  kapi translate messages.json --target-lang fr
   kapi translate app.xliff --target-lang de --provider openai
   kapi translate app.xliff --target-lang de -o app.de.xliff`,
-	"recycle": `  kapi recycle app.xliff --target-lang fr
-  kapi recycle messages.json --target-lang de`,
+	"recycle": `  kapi exec recycle app.xliff --target-lang fr
+  kapi exec recycle messages.json --target-lang de`,
 
 	// ── Text Processing ─────────────────────────────────────────────────
-	"search-replace": `  kapi search-replace messages.json --find "foo" --replace "bar"
-  kapi search-replace page.html --find "colour" --replace "color"`,
-	"case-transform": `  kapi case-transform messages.json --mode upper
-  kapi case-transform messages.json --mode lower`,
-	"segmentation": `  kapi segmentation messages.json
-  kapi segmentation app.xliff`,
+	"search-replace": `  kapi exec search-replace messages.json --find "foo" --replace "bar"
+  kapi exec search-replace page.html --find "colour" --replace "color"`,
+	"case-transform": `  kapi exec case-transform messages.json --mode upper
+  kapi exec case-transform messages.json --mode lower`,
+	"segmentation": `  kapi exec segmentation messages.json
+  kapi exec segmentation app.xliff`,
 
 	// ── AI Quality ───────────────────────────────────────────────────────
-	"review": `  kapi review app.xliff --target-lang fr
-  kapi review messages.json --target-lang de`,
-	"voice-check": `  kapi voice-check messages.json --target-lang fr
-  kapi voice-check app.xliff --target-lang de`,
+	"review": `  kapi exec review app.xliff --target-lang fr
+  kapi exec review messages.json --target-lang de`,
+	"voice-check": `  kapi exec voice-check messages.json --target-lang fr
+  kapi exec voice-check app.xliff --target-lang de`,
 
 	// ── AI Analysis ───────────────────────────────────────────────────────
-	"term-extract": `  kapi term-extract messages.json
-  kapi term-extract app.xliff --provider anthropic`,
+	"term-extract": `  kapi exec term-extract messages.json
+  kapi exec term-extract app.xliff --provider anthropic`,
 }
 
 // BespokeToolCommands names tools that own a dedicated, hand-written top-level

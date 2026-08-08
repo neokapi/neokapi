@@ -56,7 +56,9 @@ var listCommands = [][]string{
 func newTestRoot(t *testing.T) (*cobra.Command, *App) {
 	t.Helper()
 	app := &App{SourceLang: "en"}
-	root := &cobra.Command{Use: "kapi"}
+	// Carry the real root's Short/Long so the two most visible strings in the
+	// product are held to the vocabulary rule, not exempted by a bare root.
+	root := &cobra.Command{Use: "kapi", Short: KapiRootShort, Long: KapiRootLong}
 	AddPersistentFlags(app, root)
 	AddCommandGroups(app, root)
 	root.AddCommand(KapiCommandSet(app)...)
@@ -244,4 +246,32 @@ func TestConvention_HelpTextUsesCurrentVocabulary(t *testing.T) {
 		}
 	}
 	walk(root, "kapi")
+}
+
+// TestConvention_ToolExamplesResolveInCommandTree holds every tool's Example to
+// the real command tree: registry tools mount under `kapi exec <tool>` (there
+// is no `kapi qa`), so an example that names the bare verb resolves to no
+// subcommand and would print a command the user cannot run. `translate` and
+// `pseudo-translate` are the exception — they own top-level commands.
+func TestConvention_ToolExamplesResolveInCommandTree(t *testing.T) {
+	app := &App{SourceLang: "en"}
+	app.InitRegistries()
+	root := &cobra.Command{Use: "kapi"}
+	AddCommandGroups(app, root)
+	root.AddCommand(KapiCommandSet(app)...)
+
+	for tool, examples := range ToolExamples {
+		for line := range strings.SplitSeq(examples, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			require.Truef(t, strings.HasPrefix(line, "kapi "), "example must start with 'kapi ': %q", line)
+			args := strings.Fields(strings.TrimPrefix(line, "kapi "))
+			cmd, _, err := root.Find(args)
+			require.NoErrorf(t, err, "tool %q example %q", tool, line)
+			assert.NotSamef(t, root, cmd,
+				"tool %q example resolves to no subcommand — a registry tool needs the `kapi exec` prefix: %q", tool, line)
+		}
+	}
 }

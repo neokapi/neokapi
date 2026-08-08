@@ -36,7 +36,7 @@ func registerCheckMCPTools(server *mcp.Server, a *App) {
 		Description: "Verify the content inside a file (Word, PowerPoint, JSON, XLIFF, Markdown, …) against the " +
 			"content checkset and return a kapi.check/v1 Report with per-block locations. The check counterpart to " +
 			"rewrite_file: author → check_file → fix the flagged block (optionally via rewrite_file) → re-check " +
-			"until pass. Pass target/target_lang to also run bilingual localization checks.",
+			"until pass. Pass target/target_lang to also run bilingual checks.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in checkFileInput) (*mcp.CallToolResult, check.Report, error) {
 		return a.checkFileMCP(ctx, in)
 	})
@@ -84,7 +84,7 @@ func (a *App) checkTextMCP(ctx context.Context, in checkTextInput) (*mcp.CallToo
 }
 
 // checkFileMCP runs the content checkset over a file's content, optionally with
-// the bilingual localization checks when a target is supplied.
+// the bilingual checks when a target is supplied.
 func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToolResult, check.Report, error) {
 	a.InitRegistries()
 	if in.File == "" {

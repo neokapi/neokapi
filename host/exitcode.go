@@ -31,8 +31,8 @@ var ErrSilentExit = errors.New("")
 
 // exitCoder is implemented by any error that carries an explicit process exit
 // code. ExitCode checks for this interface via errors.As so that packages
-// inside cli/ (e.g. cli/pluginhost) can return a conforming type without
-// importing the cli package directly (which would create a cycle).
+// inside host/ (e.g. host/pluginhost) can return a conforming type without
+// importing the host package directly (which would create a cycle).
 type exitCoder interface {
 	ExitCode() int
 }

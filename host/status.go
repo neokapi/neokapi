@@ -102,7 +102,7 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 	if len(o.Locales) == 0 {
 		// The server and venue standing still render below: a connected
 		// project with nothing tracked yet must not hide where `up` would run.
-		fmt.Fprintln(w, "No localized content tracked (no content collections with target locales).")
+		fmt.Fprintln(w, "No target content tracked (no content collections with target locales).")
 	} else {
 		o.writeCoverageGrid(w)
 	}

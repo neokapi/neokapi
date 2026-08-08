@@ -78,7 +78,7 @@
         },
         "exec": {
           "case-transform": {
-            "example": "  kapi case-transform messages.json --mode upper\n  kapi case-transform messages.json --mode lower",
+            "example": "  kapi exec case-transform messages.json --mode upper\n  kapi exec case-transform messages.json --mode lower",
             "short": "Case Transform"
           },
           "create-target": {
@@ -114,11 +114,11 @@
             "short": "Pseudo Translate"
           },
           "qa": {
-            "example": "  kapi qa app.xliff --target-lang fr\n  kapi qa app.xliff --target-lang fr --provider anthropic\n  kapi qa app.xliff --target-lang de --json",
+            "example": "  kapi exec qa app.xliff --target-lang fr\n  kapi exec qa app.xliff --target-lang fr --provider anthropic\n  kapi exec qa app.xliff --target-lang de --json",
             "short": "Check translation quality with deterministic rules or an LLM (select with --mode)"
           },
           "recycle": {
-            "example": "  kapi recycle app.xliff --target-lang fr\n  kapi recycle messages.json --target-lang de",
+            "example": "  kapi exec recycle app.xliff --target-lang fr\n  kapi exec recycle messages.json --target-lang de",
             "short": "Recycle"
           },
           "redact": {
@@ -128,18 +128,18 @@
             "short": "Remove Target"
           },
           "review": {
-            "example": "  kapi review app.xliff --target-lang fr\n  kapi review messages.json --target-lang de",
+            "example": "  kapi exec review app.xliff --target-lang fr\n  kapi exec review messages.json --target-lang de",
             "short": "Review translations with scoring using an LLM provider"
           },
           "script": {
             "short": "Script"
           },
           "search-replace": {
-            "example": "  kapi search-replace messages.json --find \"foo\" --replace \"bar\"\n  kapi search-replace page.html --find \"colour\" --replace \"color\"",
+            "example": "  kapi exec search-replace messages.json --find \"foo\" --replace \"bar\"\n  kapi exec search-replace page.html --find \"colour\" --replace \"color\"",
             "short": "Search and Replace"
           },
           "segmentation": {
-            "example": "  kapi segmentation messages.json\n  kapi segmentation app.xliff",
+            "example": "  kapi exec segmentation messages.json\n  kapi exec segmentation app.xliff",
             "short": "Split source text into sentence or chunk segments (stand-off overlay)"
           },
           "short": "Execute one registry tool on files (the raw layer under the porcelain verbs)",
@@ -147,11 +147,11 @@
             "short": "Source Gate"
           },
           "term-check": {
-            "example": "  kapi term-check app.xliff --source-lang en --target-lang fr\n  kapi term-check messages.json --source-lang en --target-lang fr",
+            "example": "  kapi exec term-check app.xliff --source-lang en --target-lang fr\n  kapi exec term-check messages.json --source-lang en --target-lang fr",
             "short": "Terminology Check"
           },
           "term-extract": {
-            "example": "  kapi term-extract messages.json\n  kapi term-extract app.xliff --provider anthropic",
+            "example": "  kapi exec term-extract messages.json\n  kapi exec term-extract app.xliff --provider anthropic",
             "short": "Extract candidate terminology from content using an LLM provider"
           },
           "translate": {
@@ -162,7 +162,7 @@
             "short": "Restore original values into redacted content after processing"
           },
           "voice-check": {
-            "example": "  kapi voice-check messages.json --target-lang fr\n  kapi voice-check app.xliff --target-lang de",
+            "example": "  kapi exec voice-check messages.json --target-lang fr\n  kapi exec voice-check app.xliff --target-lang de",
             "short": "Check text against a voice profile using an LLM provider"
           },
           "voice-infer": {
@@ -242,7 +242,7 @@
         "ksed": {
           "short": "Stream-edit the text/content inside files (use ksed)"
         },
-        "long": "kapi parses any format into one unified content model, edits the content\ninside it, checks it, and writes it back byte-for-byte. At heart, both a\nlocalization engine and the tool that keeps your source content on brand:\nconvert formats, translate with AI, and run quality checks across a wide range\nof file types.",
+        "long": "kapi parses any format into one unified content model, edits the content\ninside it, checks it, and writes it back byte-for-byte. It holds a project's\ncontent context — the terms, the voice and the rules it goes by — so you can\nconvert formats, translate with AI, and run quality checks against what\nactually applies.",
         "ls": {
           "long": "List the files matched by the project's content collections (honoring the\nexclude list). With --stats, also show per-file block and word counts.\n\nIn a server-connected project (a recipe with a bowrain: block, with the\nbowrain plugin installed) a SYNC column reports each file's pending-push\nstanding (\"2 to push\" / \"synced\"), derived from the sync cache.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats",
           "short": "List the files the project's content tracks"
@@ -394,7 +394,7 @@
           "search": {
             "short": "Search the registry for plugins"
           },
-          "short": "Install and manage manifest-driven plugins (#438)",
+          "short": "Install and manage manifest-driven plugins",
           "update": {
             "long": "Update an installed plugin in place using the channel and constraint\nrecorded at install time. Pass --channel or --constraint to switch\ntracks during update; --index points the update at a different\nregistry index URL.\n\nExamples:\n  kapi plugin update bowrain\n  kapi plugin update bowrain --channel beta\n  kapi plugin update bowrain --constraint ^2.0",
             "short": "Update an installed plugin to the latest matching version"
@@ -420,7 +420,7 @@
           "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\nTo bring the whole project up to date, use 'kapi up' — the kapi loop\nlives there; run is the escape hatch for one named pipeline, one pass.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI/LLM\n\nCustom flows can be defined in the kapi.yaml recipe or .kapi/flows/ as YAML files.\n\nUse -p to run a flow from a kapi.yaml recipe:\n  kapi run translate -p kapi.yaml",
           "short": "Run a composed flow (a named multi-tool pipeline)"
         },
-        "short": "A format-aware content toolkit — parse, edit, check, and localize any format",
+        "short": "A format-aware content engine — parse, edit, check, and translate any format",
         "stats": {
           "example": "  kapi stats report.docx\n  kapi stats 'src/**'                       # every file under src, any depth\n  kapi stats --output-format json 'docs/**/*.md' | jq '.total.words'\n  kapi stats                                # inside a project: its tracked content\n  cat page.html | kapi stats -f html",
           "long": "Summarize the content of one or more files: total and translatable blocks,\nword and character counts (with and without spaces), segments, and a breakdown\nby structural role (heading, paragraph, list-item, table-cell, …). Any format —\na Word document, a JSON catalog, Markdown, HTML — yields the same shape.\n\nWord, character, and segment counts cover the translatable content; block and\nrole counts cover the whole document. Prints a human table by default;\n--output-format json|yaml emits the structured record for piping into a pipeline.\n\nPositional paths accept glob patterns and directories, expanded by kapi itself —\nquote the pattern and `**` recurses identically in every shell. Inside a project,\nno FILE means the project's tracked content; FILE \"-\" reads standard input.",
