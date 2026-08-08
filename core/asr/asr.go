@@ -13,8 +13,8 @@ package asr
 import (
 	"context"
 	"errors"
-	"fmt"
-	"sync"
+
+	"github.com/neokapi/neokapi/core/engine"
 )
 
 // Segment is one recognized span of speech: its text, its time bounds in
@@ -63,65 +63,24 @@ type Factory func() (Engine, error)
 // kapi-asr plugin is not installed, or no host wired one up.
 var ErrNoEngine = errors.New("asr: no engine registered (install the kapi-asr plugin)")
 
-var (
-	mu          sync.RWMutex
-	factories   = map[string]Factory{}
-	defaultName string
-)
+// registry holds the ASR engine factories. The package-level functions below
+// delegate to it, keeping the seam's small API while sharing the mechanism with
+// core/vision via core/engine.
+var registry = engine.NewRegistry[Engine]("asr", ErrNoEngine)
 
 // RegisterEngine registers a named engine factory. The first engine registered
 // becomes the default. Registering a duplicate name overwrites it. A host wires
 // the engine that discovers and drives the plugin; framework-only builds
 // register none, so ASR is absent.
-func RegisterEngine(name string, f Factory) {
-	mu.Lock()
-	defer mu.Unlock()
-	if f == nil {
-		return
-	}
-	factories[name] = f
-	if defaultName == "" {
-		defaultName = name
-	}
-}
+func RegisterEngine(name string, f Factory) { registry.Register(name, f) }
 
 // Available reports whether the named engine ("" = default) is registered.
-func Available(name string) bool {
-	mu.RLock()
-	defer mu.RUnlock()
-	if name == "" {
-		name = defaultName
-	}
-	if name == "" {
-		return false
-	}
-	_, ok := factories[name]
-	return ok
-}
+func Available(name string) bool { return registry.Available(name) }
 
 // Open opens the named engine ("" = default), returning ErrNoEngine if none is
 // registered. The caller owns the returned Engine and must Close it.
-func Open(name string) (Engine, error) {
-	mu.RLock()
-	if name == "" {
-		name = defaultName
-	}
-	f, ok := factories[name]
-	mu.RUnlock()
-	if !ok {
-		if name == "" {
-			return nil, ErrNoEngine
-		}
-		return nil, fmt.Errorf("asr: engine %q not registered: %w", name, ErrNoEngine)
-	}
-	return f()
-}
+func Open(name string) (Engine, error) { return registry.Open(name) }
 
 // ResetForTest clears the registry. It exists for tests that register a fake
 // engine and must not leak it across cases.
-func ResetForTest() {
-	mu.Lock()
-	defer mu.Unlock()
-	factories = map[string]Factory{}
-	defaultName = ""
-}
+func ResetForTest() { registry.ResetForTest() }
