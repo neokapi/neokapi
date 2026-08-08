@@ -105,7 +105,7 @@ func (r *convergeRenderer) OnEvent(ev convergence.Event) {
 		}
 		fmt.Fprintf(r.w, "pass %d done · produced %d (%+d)%s%s\n", ev.Pass, ev.Produced, ev.ProducedDelta, checks, next)
 	case convergence.EventMaterialized:
-		fmt.Fprintf(r.w, "materialized %d localized file(s)\n", ev.Files)
+		fmt.Fprintf(r.w, "materialized %d target file(s)\n", ev.Files)
 	case convergence.EventDone:
 		// The structured summary that follows on stdout carries the outcome;
 		// the progress stream needs no separate closing line.

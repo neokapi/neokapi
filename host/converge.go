@@ -55,7 +55,7 @@ type ConvergeLocaleResult struct {
 	// bound checks (#1078 G4) — they read at `draft`, not `translated`, for
 	// gating, so they hold the locale below its gate until fixed.
 	FailingChecks int `json:"failingChecks,omitempty"`
-	// Materialized counts the localized files written for this locale by the
+	// Materialized counts the target files written for this locale by the
 	// post-loop materialize step (defaults.materialize: on-converge, or
 	// --materialize). Only shippable locales materialize; a parked locale
 	// stays at 0.
@@ -81,7 +81,7 @@ type ConvergeOutput struct {
 	// short of their gate — per-scope detail under the per-locale rollup, so
 	// a UI can link each parked scope to its review queue.
 	ParkedScopes []ParkedScope `json:"parkedScopes,omitempty"`
-	// MaterializedFiles is the total count of localized files written by the
+	// MaterializedFiles is the total count of target files written by the
 	// post-loop materialize step across every shippable locale (0 when the
 	// policy is manual and --materialize was not passed).
 	MaterializedFiles int `json:"materializedFiles,omitempty"`
@@ -145,7 +145,7 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "Not yet up to date — parked locales await human review (never a build failure).")
 	}
 	if o.MaterializedFiles > 0 {
-		fmt.Fprintf(w, "Materialized %d localized file(s) from the project store.\n", o.MaterializedFiles)
+		fmt.Fprintf(w, "Materialized %d target file(s) from the project store.\n", o.MaterializedFiles)
 	}
 	return nil
 }
@@ -220,8 +220,8 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		return errors.New("no content to catch up (add content patterns to the project)")
 	}
 
-	// Standing project context + bindings, so flow steps honor brand-voice /
-	// glossary and write to the right per-locale target paths.
+	// Standing project context + bindings, so flow steps honor the voice
+	// profile and terms and write to the right per-locale target paths.
 	a.ProjectContext = pctx
 	defer func() { a.ProjectContext = nil }()
 	bindings, err := a.resolveProjectBindings(cmd, proj, projectPath, "")
@@ -597,7 +597,7 @@ func producedUnits(cov []LocaleCoverage) int {
 //
 // Materialize policy: when the recipe sets `defaults.materialize: on-converge`
 // (or the run forces it with --materialize), every locale whose gated scopes
-// are ALL shippable has its localized files written from the project block
+// are ALL shippable has its target files written from the project block
 // store via the shared merge/materialize path; parked locales are skipped —
 // their content isn't at the bar yet.
 func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *CheckExclusions, sourceGate model.SourceGateLevel, blockedOnSource, totalSource int, opts ConvergeOptions, emit func(convergence.Event)) error {
