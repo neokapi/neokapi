@@ -397,8 +397,13 @@ export const api = {
       samples_dismissed?: boolean;
       telemetry_disabled?: boolean;
       telemetry_notice_shown?: boolean;
+      machine_id?: string;
     }>("GetSettings"),
   saveSettings: (s: Record<string, unknown>) => call<void>("SaveSettings", s),
+  // Telemetry is shared with the kapi CLI: these write the same config store
+  // `kapi telemetry on|off` writes, not settings.json.
+  setTelemetryEnabled: (enabled: boolean) => call<void>("SetTelemetryEnabled", enabled),
+  markTelemetryNoticeShown: () => call<void>("MarkTelemetryNoticeShown"),
   dismissSamples: () => call<void>("DismissSamples"),
   getTheme: () => call<string>("GetTheme"),
   setTheme: (theme: string) => call<void>("SetTheme", theme),

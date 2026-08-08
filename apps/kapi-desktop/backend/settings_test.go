@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/telemetry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -139,4 +141,55 @@ func TestSettingsBackwardCompatibility(t *testing.T) {
 	assert.Equal(t, "dark", reloaded.settings.Theme)
 	assert.Equal(t, "qps", reloaded.settings.UILanguage)
 	assert.Equal(t, AppModeAdhoc, reloaded.settings.Mode)
+}
+
+// TestTelemetryProjectionFollowsSharedConfig is finding 4: the desktop
+// telemetry state is a projection of the shared kapi config, so `kapi
+// telemetry off` disables desktop analytics and the machine reports one
+// identity — not a second, settings.json-local opt-out and a separate id.
+func TestTelemetryProjectionFollowsSharedConfig(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("KAPI_CONFIG_DIR", dir)
+
+	app := isolatedSettingsApp(t)
+
+	// `kapi telemetry off` writes telemetry.enabled=false to the shared config;
+	// the desktop projection must reflect it.
+	require.NoError(t, app.SetTelemetryEnabled(false))
+	cfg := config.NewAppConfig()
+	require.NoError(t, cfg.Load())
+	assert.Equal(t, "false", cfg.GetString(telemetry.KeyEnabled))
+	assert.True(t, app.GetSettings().TelemetryDisabled, "desktop must honor the CLI's telemetry off")
+
+	// The toggle round-trips through the same shared key the CLI writes.
+	require.NoError(t, app.SetTelemetryEnabled(true))
+	cfg = config.NewAppConfig()
+	require.NoError(t, cfg.Load())
+	assert.Equal(t, "true", cfg.GetString(telemetry.KeyEnabled))
+
+	// One machine identity: the desktop reports exactly the shared machine id.
+	got := app.GetSettings()
+	assert.NotEmpty(t, got.MachineID)
+	assert.Equal(t, telemetry.MachineID(cfg), got.MachineID)
+	assert.Equal(t, got.MachineID, app.GetSettings().MachineID, "machine id is stable")
+
+	// The notice-shown flag lives in the shared config too.
+	require.NoError(t, app.MarkTelemetryNoticeShown())
+	assert.True(t, app.GetSettings().TelemetryNoticeShown)
+}
+
+// TestSaveSettingsDoesNotPersistTelemetry confirms the telemetry projection is
+// never written into settings.json — it belongs to the shared kapi config.
+func TestSaveSettingsDoesNotPersistTelemetry(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("KAPI_CONFIG_DIR", dir)
+	app := isolatedSettingsApp(t)
+
+	app.SaveSettings(AppSettings{Theme: "light", TelemetryDisabled: true, MachineID: "should-not-persist"})
+
+	reloaded := &settingsStore{filePath: app.settings.filePath}
+	reloaded.load()
+	assert.Equal(t, "light", reloaded.settings.Theme)
+	assert.False(t, reloaded.settings.TelemetryDisabled, "telemetry opt-out must not land in settings.json")
+	assert.Empty(t, reloaded.settings.MachineID, "machine id must not land in settings.json")
 }

@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/neokapi/neokapi/host/config"
+	"github.com/neokapi/neokapi/host/telemetry"
 )
 
 // App modes. The desktop is project-first: "projects" is the default for a
@@ -35,16 +38,16 @@ type AppSettings struct {
 	// (focused) in the last session. Empty when no project was open.
 	ActiveProject string `json:"active_project,omitempty"`
 
-	// TelemetryDisabled persists the anonymous-analytics opt-out (decision
-	// D1: opt-out, default ON — the zero value keeps telemetry enabled, so
-	// legacy settings files stay on the default). The frontend reads and
-	// writes it through GetSettings/SaveSettings; keyless builds never emit
-	// regardless of this flag.
-	TelemetryDisabled bool `json:"telemetry_disabled,omitempty"`
-
-	// TelemetryNoticeShown records that the one-time first-run telemetry
-	// notice has been displayed.
-	TelemetryNoticeShown bool `json:"telemetry_notice_shown,omitempty"`
+	// TelemetryDisabled, TelemetryNoticeShown and MachineID are NOT persisted
+	// in settings.json — they are a read-only projection of the shared kapi
+	// telemetry state that `kapi telemetry on|off` also drives. GetSettings
+	// fills them from the kapi config store (via telemetry.Resolve), so
+	// DO_NOT_TRACK, CI and the CLI toggle all apply, and the machine reports a
+	// single identity. Writes go through SetTelemetryEnabled /
+	// MarkTelemetryNoticeShown, not SaveSettings.
+	TelemetryDisabled    bool   `json:"telemetry_disabled,omitempty"`
+	TelemetryNoticeShown bool   `json:"telemetry_notice_shown,omitempty"`
+	MachineID            string `json:"machine_id,omitempty"`
 }
 
 // CustomLocale is a user-defined locale with code and display name.
@@ -104,19 +107,60 @@ func (s *settingsStore) save() {
 
 // --- App methods ---
 
-// GetSettings returns the current app settings.
-func (a *App) GetSettings() AppSettings {
-	a.settings.mu.Lock()
-	defer a.settings.mu.Unlock()
-	return a.settings.settings
+// sharedKapiConfig loads the kapi config store the CLI also uses — the same
+// file `kapi telemetry on|off` and the shared machine ID are written to. Read
+// fresh each call so a CLI toggle taken while the desktop is running is seen.
+func sharedKapiConfig() *config.AppConfig {
+	cfg := config.NewAppConfig()
+	_ = cfg.Load()
+	return cfg
 }
 
-// SaveSettings updates and persists app settings.
+// GetSettings returns the current app settings, with the telemetry projection
+// filled from the shared kapi config so the desktop and the CLI agree on
+// whether analytics run and on the machine's identity.
+func (a *App) GetSettings() AppSettings {
+	a.settings.mu.Lock()
+	s := a.settings.settings
+	a.settings.mu.Unlock()
+
+	cfg := sharedKapiConfig()
+	s.TelemetryDisabled = !telemetry.Resolve(cfg).Enabled
+	s.TelemetryNoticeShown = cfg.GetBool(telemetry.KeyNoticeShown)
+	s.MachineID = telemetry.MachineID(cfg)
+	return s
+}
+
+// SaveSettings persists the desktop-only app settings (theme, tabs, samples,
+// locale). The telemetry projection is never written here — it belongs to the
+// shared kapi config and is set through SetTelemetryEnabled /
+// MarkTelemetryNoticeShown.
 func (a *App) SaveSettings(s AppSettings) {
+	s.TelemetryDisabled = false
+	s.TelemetryNoticeShown = false
+	s.MachineID = ""
 	a.settings.mu.Lock()
 	defer a.settings.mu.Unlock()
 	a.settings.settings = s
 	a.settings.save()
+}
+
+// SetTelemetryEnabled writes the shared anonymous-analytics opt-out to the kapi
+// config store — the same key `kapi telemetry on|off` writes — so one toggle
+// governs both the CLI and the desktop.
+func (a *App) SetTelemetryEnabled(enabled bool) error {
+	value := "true"
+	if !enabled {
+		value = "false"
+	}
+	return config.SetGlobalConfig(telemetry.KeyEnabled, value)
+}
+
+// MarkTelemetryNoticeShown records in the shared kapi config that the one-time
+// first-run telemetry notice has been displayed, so the CLI's first-run notice
+// and the desktop's do not both fire on one machine.
+func (a *App) MarkTelemetryNoticeShown() error {
+	return config.SetGlobalConfig(telemetry.KeyNoticeShown, "true")
 }
 
 // GetTheme returns the current theme preference.
