@@ -58,6 +58,7 @@ const MARKETING: Record<PlanId, Marketing> = {
       t("Content memory & terminology"),
       t("Shared editor with review"),
       t("Bring your own AI key — uses no credits"),
+      t("REST API access"),
       t("Community support"),
     ],
   },
@@ -73,7 +74,6 @@ const MARKETING: Record<PlanId, Marketing> = {
       t("{credits} AI credits / month", { credits: formatCredits(f.monthlyCredits) }),
       t("Up to {projects} projects, {seats} seats", { projects: f.maxProjects, seats: f.maxSeats }),
       t("Git connector"),
-      t("REST API access"),
     ],
   },
   team: {

@@ -42,11 +42,14 @@ const (
 // This is the source of truth for feature gating.
 var PlanFeatures = map[Plan]map[Feature]bool{
 	PlanFree: {
-		FeatureBravo:            false,
-		FeatureBravoCodeExec:    false,
-		FeatureConnectorsGit:    false,
+		FeatureBravo:         false,
+		FeatureBravoCodeExec: false,
+		FeatureConnectorsGit: false,
+		// API tokens are the front door to the kapi loop — push from CI,
+		// machine-authored proposals, review in the app. Every plan has them;
+		// credits and token-count limits do the metering, not the door.
+		FeatureAPIAccess:        true,
 		FeatureConnectorsCustom: false,
-		FeatureAPIAccess:        false,
 		FeatureSSOSAML:          false,
 	},
 	PlanPro: {

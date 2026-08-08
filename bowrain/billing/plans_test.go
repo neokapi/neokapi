@@ -29,11 +29,11 @@ func TestHasFeature(t *testing.T) {
 		{"team has no sso", PlanTeam, FeatureSSOSAML, nil, false},
 		{"enterprise has sso", PlanEnterprise, FeatureSSOSAML, nil, true},
 		{"enterprise has all features", PlanEnterprise, FeatureSSOSAML, nil, true},
-		{"free has no api access", PlanFree, FeatureAPIAccess, nil, false},
+		{"free has api access — tokens are the front door to the kapi loop", PlanFree, FeatureAPIAccess, nil, true},
 		{"pro has api access", PlanPro, FeatureAPIAccess, nil, true},
 		{"override grants feature to free", PlanFree, FeatureConnectorsGit, map[Feature]bool{FeatureConnectorsGit: true}, true},
 		{"override revokes feature from pro", PlanPro, FeatureConnectorsGit, map[Feature]bool{FeatureConnectorsGit: false}, false},
-		{"override only affects specified feature", PlanFree, FeatureAPIAccess, map[Feature]bool{FeatureConnectorsGit: true}, false},
+		{"override only affects specified feature", PlanFree, FeatureSSOSAML, map[Feature]bool{FeatureConnectorsGit: true}, false},
 		{"unknown plan returns false", Plan("unknown"), FeatureAPIAccess, nil, false},
 	}
 
@@ -54,7 +54,7 @@ func TestMinimumPlanFor(t *testing.T) {
 		want    Plan
 	}{
 		{FeatureConnectorsGit, PlanPro},
-		{FeatureAPIAccess, PlanPro},
+		{FeatureAPIAccess, PlanFree},
 		{FeatureBravoCodeExec, PlanTeam},
 		{FeatureConnectorsCustom, PlanTeam},
 		{FeatureSSOSAML, PlanEnterprise},

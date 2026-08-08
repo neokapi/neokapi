@@ -138,7 +138,7 @@ Features are gated by plan using a compile-time matrix in
 | @bravo code execution | –    | –   | yes      | yes        | (moot while @bravo is dark)    |
 | Git connectors        | –    | yes | yes      | yes        | `RequireFeature` in `HandleAddConnector` |
 | Custom connectors     | –    | –   | yes      | yes        | reserved — no such feature yet |
-| API access            | –    | yes | yes      | yes        | `PlanGuard` on the token group |
+| API access            | yes  | yes | yes      | yes        | `PlanGuard` on the token group — every plan: tokens are the front door to the kapi loop |
 | SSO / SAML            | –    | –   | –        | yes        | reserved — no such feature yet |
 | Max projects          | 1    | 10  | unlimited| unlimited  | workspace limits               |
 | Max seats             | 1    | 3   | unlimited| unlimited  | workspace limits               |
