@@ -2,8 +2,8 @@ package backend
 
 import (
 	"errors"
-	"fmt"
 
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/credentials"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
@@ -41,27 +41,24 @@ func (a *App) ListProviders() []ProviderInfo {
 	return infos
 }
 
-// SaveProvider saves a provider config and optionally stores the API key in the OS keychain.
+// SaveProvider saves a provider config and optionally stores the API key in the
+// OS keychain. Validation (a rejected typo'd provider type) and the key write
+// are the shared host path, so the desktop cannot persist a provider the CLI
+// would refuse.
 func (a *App) SaveProvider(req ProviderSaveRequest) (*ProviderInfo, error) {
 	if a.credentials == nil {
 		return nil, errors.New("credential store not initialized")
 	}
 
-	cfg, err := a.credentials.Upsert(credentials.ProviderConfig{
+	cfg, err := host.SaveCredential(a.credentials, credentials.ProviderConfig{
 		ID:           req.ID,
 		Name:         req.Name,
 		ProviderType: req.ProviderType,
 		Model:        req.Model,
 		BaseURL:      req.BaseURL,
-	})
+	}, req.APIKey)
 	if err != nil {
-		return nil, fmt.Errorf("save provider config: %w", err)
-	}
-
-	if req.APIKey != "" {
-		if err := a.credentials.SetAPIKey(cfg.ID, req.APIKey); err != nil {
-			return nil, fmt.Errorf("save API key: %w", err)
-		}
+		return nil, err
 	}
 
 	info := providerInfoFrom(cfg)
@@ -83,14 +80,13 @@ func (a *App) DeleteProvider(id string) error {
 	if a.credentials == nil {
 		return errors.New("credential store not initialized")
 	}
-	_ = a.credentials.DeleteAPIKey(id) // ignore keychain errors
-	return a.credentials.Remove(id)
+	return host.RemoveCredential(a.credentials, id)
 }
 
-// TestProvider verifies that a provider is usable. For keyless local providers
-// (Ollama, Gemma, Demo) there is no API key to check — they run on-device — so
-// the check passes once the credential record exists. Cloud providers still
-// require a key in the keychain.
+// TestProvider verifies that a provider is usable. Keyless providers (on-device
+// ones plus subscription-backed claude-code) pass once the credential record
+// exists; cloud providers still require a key in the keychain. The keyless
+// decision is the shared host path, so the desktop and the CLI agree.
 func (a *App) TestProvider(id string) (bool, error) {
 	if a.credentials == nil {
 		return false, errors.New("credential store not initialized")
@@ -99,14 +95,7 @@ func (a *App) TestProvider(id string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if aiprovider.IsLocalProvider(aiprovider.ProviderID(cfg.ProviderType)) {
-		return true, nil // on-device; no API key needed
-	}
-	key, err := a.credentials.GetAPIKey(id)
-	if err != nil {
-		return false, fmt.Errorf("API key not found in keychain: %w", err)
-	}
-	return len(key) > 0, nil
+	return host.TestCredential(a.credentials, cfg)
 }
 
 // ProviderTypeInfo describes an available AI provider type for the frontend.

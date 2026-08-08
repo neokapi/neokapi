@@ -90,20 +90,14 @@ If only one credential is saved, tools will auto-detect it without --credential.
 				apiKey = key
 			}
 
-			cfg, err := a.Credentials.Upsert(credentials.ProviderConfig{
+			cfg, err := SaveCredential(a.Credentials, credentials.ProviderConfig{
 				Name:         name,
 				ProviderType: providerType,
 				Model:        model,
 				BaseURL:      baseURL,
-			})
+			}, apiKey)
 			if err != nil {
-				return fmt.Errorf("save provider config: %w", err)
-			}
-
-			if apiKey != "" {
-				if err := a.Credentials.SetAPIKey(cfg.ID, apiKey); err != nil {
-					return fmt.Errorf("store API key: %w", err)
-				}
+				return err
 			}
 
 			return output.Print(cmd, CredentialSavedOutput{
@@ -167,8 +161,7 @@ func newCredentialsRemoveCmd(a *App) *cobra.Command {
 				return fmt.Errorf("credential %q not found", name)
 			}
 
-			_ = a.Credentials.DeleteAPIKey(cfg.ID) // ignore keychain errors
-			if err := a.Credentials.Remove(cfg.ID); err != nil {
+			if err := RemoveCredential(a.Credentials, cfg.ID); err != nil {
 				return err
 			}
 
@@ -190,14 +183,14 @@ func newCredentialsTestCmd(a *App) *cobra.Command {
 				return fmt.Errorf("credential %q not found", name)
 			}
 
-			key, err := a.Credentials.GetAPIKey(cfg.ID)
+			usable, err := TestCredential(a.Credentials, cfg)
 			if err != nil {
-				return fmt.Errorf("API key not found in keychain: %w", err)
+				return err
 			}
 
-			status := "accessible"
-			if len(key) == 0 {
-				status = "empty"
+			status := "empty"
+			if usable {
+				status = "accessible"
 			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "Credential %q (%s): API key %s\n", name, cfg.ProviderType, status)

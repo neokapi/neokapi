@@ -150,6 +150,9 @@ var (
 	IsKpzPath                    = host.IsKpzPath
 	KapiVersion                  = host.KapiVersion
 	KnownProviderTypes           = host.KnownProviderTypes
+	SaveCredential               = host.SaveCredential
+	RemoveCredential             = host.RemoveCredential
+	TestCredential               = host.TestCredential
 	ListNamedResources           = host.ListNamedResources
 	ListTMXFiles                 = host.ListTMXFiles
 	LoadWorkspace                = host.LoadWorkspace
