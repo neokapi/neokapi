@@ -338,10 +338,10 @@ func TestBrandScanWorker_QuotaExceededFailsUpfront(t *testing.T) {
 	assert.Empty(t, quota.all(), "no usage is recorded for a scan blocked by the cap")
 }
 
-// TestBrandScanWorker_UploadSourceAndDeferredSkip: an uploaded markdown file
-// feeds the corpus while a pdf upload (deferred extractor) is skipped with a
+// TestBrandScanWorker_UploadSourceAndUnsupportedSkip: an uploaded markdown file
+// feeds the corpus while a pdf upload (no registered format) is skipped with a
 // per-source reason — surfaced as a zero-rune source, never a job failure.
-func TestBrandScanWorker_UploadSourceAndDeferredSkip(t *testing.T) {
+func TestBrandScanWorker_UploadSourceAndUnsupportedSkip(t *testing.T) {
 	f := newBrandScanFixture(t)
 	ctx := t.Context()
 
@@ -368,8 +368,8 @@ func TestBrandScanWorker_UploadSourceAndDeferredSkip(t *testing.T) {
 	require.Contains(t, byLabel, "brand-deck.pdf", "the skipped upload must still be attributed")
 	assert.Zero(t, byLabel["brand-deck.pdf"].Runes)
 
-	assert.True(t, f.logs.contains("deferred"),
-		"the skip reason (deferred pdf extractor) must reach the step logs")
+	assert.True(t, f.logs.contains("unsupported file type"),
+		"the skip reason (unsupported file type — pdf reads out-of-core via the pdfium plugin) must reach the step logs")
 }
 
 // TestBrandScanWorker_AllSourcesFail: when every source is unreadable the job
