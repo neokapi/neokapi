@@ -34,54 +34,14 @@ func mustUpsert(t *testing.T, s *Store, cfg ProviderConfig) ProviderConfig {
 	return out
 }
 
-// --- multi-tenant isolation ------------------------------------------------
-//
-// ProviderConfig.WorkspaceID documents an isolation contract: "one tenant
-// cannot see, overwrite, or delete another tenant's provider config". These
-// tests hold the store to that claim directly.
+// --- default exclusivity ---------------------------------------------------
 
-func TestUpsertNameDedupeIsScopedByWorkspace(t *testing.T) {
+func TestSetDefaultStaysExclusiveWithinProviderType(t *testing.T) {
 	s := newStore(t)
 
-	a := mustUpsert(t, s, ProviderConfig{WorkspaceID: "ws-a", Name: "Production", ProviderType: "anthropic"})
-	b := mustUpsert(t, s, ProviderConfig{WorkspaceID: "ws-b", Name: "Production", ProviderType: "anthropic"})
-
-	assert.NotEqual(t, a.ID, b.ID,
-		"two workspaces may each hold a same-named config; the second must not adopt the first's ID")
-	require.Len(t, s.List(), 2, "the second workspace's config must not overwrite the first's")
-
-	// Re-upserting within one workspace still dedupes by name.
-	again := mustUpsert(t, s, ProviderConfig{WorkspaceID: "ws-a", Name: "production", ProviderType: "anthropic", Model: "opus"})
-	assert.Equal(t, a.ID, again.ID, "same workspace + same name (case-insensitive) updates in place")
-	assert.Len(t, s.List(), 2)
-}
-
-func TestSetDefaultDoesNotClearAnotherWorkspacesDefault(t *testing.T) {
-	s := newStore(t)
-
-	mine := mustUpsert(t, s, ProviderConfig{WorkspaceID: "ws-a", Name: "A", ProviderType: "openai"})
-	theirs := mustUpsert(t, s, ProviderConfig{WorkspaceID: "ws-b", Name: "B", ProviderType: "openai"})
-
-	require.NoError(t, s.SetDefault(theirs.ID))
-	require.NoError(t, s.SetDefault(mine.ID))
-
-	byID := func(id string) ProviderConfig {
-		c, err := s.Get(id)
-		require.NoError(t, err)
-		return c
-	}
-
-	assert.True(t, byID(mine.ID).Default, "ws-a's credential should be ws-a's default")
-	assert.True(t, byID(theirs.ID).Default,
-		"ws-b's default must survive ws-a setting its own default: a tenant must not mutate another tenant's config")
-}
-
-func TestSetDefaultStaysExclusiveWithinOneWorkspace(t *testing.T) {
-	s := newStore(t)
-
-	a := mustUpsert(t, s, ProviderConfig{WorkspaceID: "ws-a", Name: "A", ProviderType: "openai"})
-	b := mustUpsert(t, s, ProviderConfig{WorkspaceID: "ws-a", Name: "B", ProviderType: "openai"})
-	other := mustUpsert(t, s, ProviderConfig{WorkspaceID: "ws-a", Name: "C", ProviderType: "anthropic"})
+	a := mustUpsert(t, s, ProviderConfig{Name: "A", ProviderType: "openai"})
+	b := mustUpsert(t, s, ProviderConfig{Name: "B", ProviderType: "openai"})
+	other := mustUpsert(t, s, ProviderConfig{Name: "C", ProviderType: "anthropic"})
 
 	require.NoError(t, s.SetDefault(a.ID))
 	require.NoError(t, s.SetDefault(b.ID))
@@ -327,7 +287,6 @@ func TestPersistenceAcrossReopen(t *testing.T) {
 
 	s1 := NewStore(path, "kapi-test")
 	cfg := mustUpsert(t, s1, ProviderConfig{
-		WorkspaceID:  "ws-a",
 		Name:         "Persisted",
 		ProviderType: "anthropic",
 		Model:        "claude-sonnet-4-5",
@@ -339,7 +298,6 @@ func TestPersistenceAcrossReopen(t *testing.T) {
 	got, err := s2.Get(cfg.ID)
 	require.NoError(t, err)
 	assert.Equal(t, cfg.Name, got.Name)
-	assert.Equal(t, "ws-a", got.WorkspaceID, "the workspace scope must survive a round-trip")
 	assert.Equal(t, "claude-sonnet-4-5", got.Model)
 	assert.Equal(t, "https://example.invalid", got.BaseURL)
 	assert.True(t, got.Default)
