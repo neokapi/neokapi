@@ -155,50 +155,45 @@ func TestProjectMemoryMinScore(t *testing.T) {
 	assert.Equal(t, 1.0, projectMemoryMinScore(&store.Project{Properties: map[string]string{"tm_fuzzy_threshold": "150"}}))
 }
 
-// TestRecycleBlocks_DefaultFuzzyFillsNearExact proves the default threshold
-// change (content memory-1): with no explicit minScore, near-exact matches — an exact text
-// match demoted to 0.99 by the ambiguity rule — now pre-fill instead of being
-// discarded by the old exact-only (1.0) default, while a genuinely fuzzy match
-// still never fills (only exact-tier match types set a target) and its block
-// stays in the AI remainder.
-func TestRecycleBlocks_DefaultFuzzyFillsNearExact(t *testing.T) {
+// TestRecycleBlocks_FillsUnambiguousLeavesAmbiguous pins the fill policy the
+// platform inherits from the one framework recycle tool: a clean exact match
+// pre-fills, but an ambiguous exact — the same source with two differing stored
+// targets — is left for review rather than filled by an arbitrary pick. Filling
+// one of two disagreeing targets unattended was exactly the unattributable fill
+// the consolidation removes; the block goes to the AI remainder instead.
+func TestRecycleBlocks_FillsUnambiguousLeavesAmbiguous(t *testing.T) {
 	ctx := t.Context()
 	tm := memory.NewInMemoryStore()
-	// Two entries with the same source but differing targets: both demote to
-	// ScoreNearExact (0.99, still exact-tier MatchType) under the ambiguity rule.
+
+	// b1: a single unambiguous exact match.
 	seedMemoryEntry(t, tm, "Hello", "Bonjour")
+
+	// b2: two exact matches with differing targets → demoted and flagged
+	// ambiguous, so the tool records both as candidates but fills neither.
+	seedMemoryEntry(t, tm, "Goodbye", "Au revoir")
 	require.NoError(t, tm.Add(ctx, memory.Entry{
-		ID: "seed-ambiguous",
+		ID: "seed-Goodbye-alt",
 		Variants: map[model.LocaleID][]model.Run{
-			"en": {{Text: &model.TextRun{Text: "Hello"}}},
-			"fr": {{Text: &model.TextRun{Text: "Salut"}}},
+			"en": {{Text: &model.TextRun{Text: "Goodbye"}}},
+			"fr": {{Text: &model.TextRun{Text: "Adieu"}}},
 		},
 		HintSrcLang: "en",
 	}))
-	// A near-miss for fuzzy matching only (Levenshtein < 1.0, > 0.7).
-	seedMemoryEntry(t, tm, "Hello there friends", "Salut les amis")
 
 	blocks := []*store.StoredBlock{
 		storedBlock("b1", "Hello"),
-		storedBlock("b2", "Hello there friend"),
+		storedBlock("b2", "Goodbye"),
 	}
 
-	// minScore 0 → the default (fuzzy at defaultMemoryMinScore).
+	// minScore 0 → the default fuzzy floor.
 	res, err := recycleBlocks(ctx, tm, blocks, "en", "fr", 0)
 	require.NoError(t, err)
 
-	require.Len(t, res.filled, 1, "the near-exact (demoted ambiguous) match must fill")
+	require.Len(t, res.filled, 1, "the unambiguous exact match fills")
 	assert.Equal(t, "b1", res.filled[0].ID)
-	assert.NotEmpty(t, res.filled[0].TargetText("fr"))
+	assert.Equal(t, "Bonjour", res.filled[0].TargetText("fr"))
 
-	require.Len(t, res.remainder, 1, "a fuzzy-only match must not fill; the block goes to AI")
+	require.Len(t, res.remainder, 1, "the ambiguous exact is left for review, not filled by an arbitrary pick")
 	assert.Equal(t, "b2", res.remainder[0].ID)
 	assert.Empty(t, res.remainder[0].TargetText("fr"))
-
-	// Explicit exact-only (1.0) still excludes the demoted near-exact match:
-	// the project setting overrides the fuzzy default in both directions.
-	strict, err := recycleBlocks(ctx, tm, []*store.StoredBlock{storedBlock("b1", "Hello")}, "en", "fr", 1.0)
-	require.NoError(t, err)
-	assert.Empty(t, strict.filled, "exact-only must not fill an ambiguous near-exact match")
-	require.Len(t, strict.remainder, 1)
 }
