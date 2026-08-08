@@ -112,6 +112,34 @@ func TestHandleProjectLsFast(t *testing.T) {
 	assert.Equal(t, "json", out.Files[0].Format)
 }
 
+// TestHandleProjectLsFast_CompoundExtension pins the fix for the MCP ls path:
+// a format-less .kbf.json item resolves to the KBF reader through the shared
+// content-aware ProjectContext detector, not the generic JSON reader its
+// .json tail would otherwise select.
+func TestHandleProjectLsFast_CompoundExtension(t *testing.T) {
+	a := bowrainTestApp()
+	tmpDir := t.TempDir()
+
+	writeTestFile(t, tmpDir, "i18n/en.kbf.json", `{"kind":"kapi-block-format","blocks":[]}`)
+
+	recipe := &project.Recipe{
+		KapiProject: coreproj.KapiProject{
+			Defaults: coreproj.Defaults{SourceLanguage: "en"},
+			// No format: — detection must resolve it.
+			Collections: []coreproj.Collection{{Path: "i18n/**/*.kbf.json"}},
+		},
+	}
+
+	proj, err := project.InitProject(tmpDir, recipe)
+	require.NoError(t, err)
+
+	_, out, err := handleProjectLsFast(a, proj, MCPLsInput{})
+	require.NoError(t, err)
+	require.Equal(t, 1, out.Total)
+	assert.Equal(t, "kbf", out.Files[0].Format,
+		"a compound suffix must out-rank its tail: .kbf.json is the KBF reader")
+}
+
 func TestHandleProjectLsPathFilter(t *testing.T) {
 	a := bowrainTestApp()
 	tmpDir := t.TempDir()
