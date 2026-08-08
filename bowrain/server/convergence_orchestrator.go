@@ -985,11 +985,18 @@ type stallError struct {
 
 func (e *stallError) Error() string { return e.message }
 
+// StallNeedsCredits is the platform-only stall reason: the credit pre-check
+// refused to produce (a zero-credit workspace). Work so far is saved; add
+// credits and resume. Credits are a platform concept, so this reason lives with
+// the server rather than in the framework's open StallReason vocabulary. The
+// wire value is fixed — it is carried on run events and persisted on run rows.
+const StallNeedsCredits convergence.StallReason = "needs_credits"
+
 // errStallNeedsCredits is the typed refusal a zero-credit platform-key
 // production returns instead of a silent empty job list. Its message is the
 // same two-ways-forward copy the enqueue handler surfaces.
 var errStallNeedsCredits = &stallError{
-	reason:  convergence.StallNeedsCredits,
+	reason:  StallNeedsCredits,
 	message: "out of platform credits — buy a credit pack, wait for the weekly reset, or configure your own AI provider key",
 }
 

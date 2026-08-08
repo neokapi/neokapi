@@ -9,7 +9,6 @@ import (
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -78,7 +77,7 @@ func TestLoopRollupLatestRunAcrossProjects(t *testing.T) {
 	newest := &bstore.ConvergenceRun{
 		ProjectID: pidB, Trigger: "manual",
 		State:       bstore.ConvergenceRunParked,
-		StallReason: convergence.StallNeedsCredits,
+		StallReason: StallNeedsCredits,
 		CreatedAt:   base.Add(time.Hour), FinishedAt: &newestFinished,
 	}
 	require.NoError(t, srv.ConvergenceRunStore.CreateRun(ctx, newest))
@@ -90,7 +89,7 @@ func TestLoopRollupLatestRunAcrossProjects(t *testing.T) {
 	assert.Equal(t, "Beta", resp.LatestRun.ProjectName)
 	assert.Equal(t, "main", resp.LatestRun.Stream)
 	assert.Equal(t, bstore.ConvergenceRunParked, resp.LatestRun.State)
-	assert.Equal(t, convergence.StallNeedsCredits, resp.LatestRun.StallReason)
+	assert.Equal(t, StallNeedsCredits, resp.LatestRun.StallReason)
 	assert.Equal(t, newestFinished.Format(time.RFC3339), resp.LatestRun.UpdatedAt)
 
 	// No dashboard has been viewed → no cached rollups → ship stays absent
