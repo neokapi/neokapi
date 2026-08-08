@@ -87,7 +87,7 @@
     "has_schema": true,
     "inputs": ["block"],
     "tags": ["translation"],
-    "requires": ["target-language", "memory"],
+    "requires": ["target-language", "tm"],
     "consumes": [
       {
         "type": "segmentation",
