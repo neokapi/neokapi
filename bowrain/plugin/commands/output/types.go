@@ -242,6 +242,9 @@ type PushOutput struct {
 	ConceptsProposed int    `json:"concepts_proposed,omitempty"`
 	ChangesetID      string `json:"changeset_id,omitempty"`
 	ChangesetURL     string `json:"changeset_url,omitempty"`
+	// ChangesetUnchanged: the ops matched the change-set already in review;
+	// ChangesetID names it and nothing new was created.
+	ChangesetUnchanged bool `json:"changeset_unchanged,omitempty"`
 
 	// Brand voice (the recipe-bound profile carried in the push's context
 	// content type and upserted by name on the server). BrandAction is
@@ -395,9 +398,15 @@ func (o PushOutput) formatConcepts(w io.Writer) {
 		if o.DryRun {
 			verb = "Would propose"
 		}
+		if o.ChangesetUnchanged {
+			verb = "Already proposed"
+		}
 		fmt.Fprintf(w, "%s %d governed edit(s) in a change-set", verb, o.ConceptsProposed)
 		if o.ChangesetID != "" {
 			fmt.Fprintf(w, " (%s)", o.ChangesetID)
+		}
+		if o.ChangesetUnchanged {
+			fmt.Fprint(w, " — unchanged since the last push, still in review")
 		}
 		fmt.Fprintln(w)
 		if o.ChangesetURL != "" {

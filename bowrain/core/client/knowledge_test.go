@@ -332,11 +332,12 @@ func TestRemoveRelationNoContent(t *testing.T) {
 func TestChangesetLifecycle(t *testing.T) {
 	created, gotCreate := knowledgeWriteServer(t, http.StatusCreated,
 		`{"id":"cs1","workspace_id":"ws1","name":"kapi push","status":"draft","created_by":"alice","created_at":"2026-06-01T10:00:00Z","updated_at":"2026-06-01T10:00:00Z"}`)
-	cs, err := created.CreateChangeset(context.Background(), "kapi push", "governed edits")
+	cs, err := created.CreateChangeset(context.Background(), "kapi push", "governed edits", "kapi-push/concepts")
 	require.NoError(t, err)
 	assert.Equal(t, http.MethodPost, gotCreate.method)
 	assert.Equal(t, "/api/v1/acme/changesets", gotCreate.path)
 	assert.Equal(t, "kapi push", gotCreate.body["name"])
+	assert.Equal(t, "kapi-push/concepts", gotCreate.body["origin"])
 	assert.Equal(t, "cs1", cs.ID)
 
 	appended, gotAppend := knowledgeWriteServer(t, http.StatusCreated,

@@ -31,7 +31,14 @@ import { WhatIfWizard } from "./WhatIfWizard";
 const ALL = "all";
 
 // Active statuses lead; terminal states trail.
-const GROUP_ORDER: ChangeSetStatus[] = ["draft", "in_review", "approved", "merged", "abandoned"];
+const GROUP_ORDER: ChangeSetStatus[] = [
+  "draft",
+  "in_review",
+  "approved",
+  "merged",
+  "abandoned",
+  "superseded",
+];
 
 export interface ExperimentsViewProps {
   onOpenExperiment: (changesetId: string) => void;

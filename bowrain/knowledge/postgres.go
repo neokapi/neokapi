@@ -456,9 +456,9 @@ func (s *PostgresKnowledgeStore) CreateChangeSet(ctx context.Context, cs *Change
 	}
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO kg_changesets (workspace_id, id, name, description, status, created_by, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		cs.WorkspaceID, cs.ID, cs.Name, cs.Description, string(cs.Status), cs.CreatedBy, cs.CreatedAt, cs.UpdatedAt)
+		`INSERT INTO kg_changesets (workspace_id, id, name, description, status, origin, created_by, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		cs.WorkspaceID, cs.ID, cs.Name, cs.Description, string(cs.Status), cs.Origin, cs.CreatedBy, cs.CreatedAt, cs.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert change-set: %w", err)
 	}
@@ -467,13 +467,13 @@ func (s *PostgresKnowledgeStore) CreateChangeSet(ctx context.Context, cs *Change
 
 func (s *PostgresKnowledgeStore) GetChangeSet(ctx context.Context, workspaceID, changesetID string) (*ChangeSet, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT workspace_id, id, name, description, status, created_by, created_at, updated_at, submitted_at, merged_at, merged_by
+		`SELECT `+changeSetColumns+`
 		 FROM kg_changesets WHERE workspace_id = $1 AND id = $2`, workspaceID, changesetID)
 	return scanChangeSet(row)
 }
 
 func (s *PostgresKnowledgeStore) ListChangeSets(ctx context.Context, workspaceID string, status ChangeSetStatus) ([]*ChangeSet, error) {
-	const cols = `workspace_id, id, name, description, status, created_by, created_at, updated_at, submitted_at, merged_at, merged_by`
+	const cols = changeSetColumns
 
 	var rows *sql.Rows
 	var err error
@@ -608,11 +608,70 @@ func (s *PostgresKnowledgeStore) SetMergeResult(ctx context.Context, workspaceID
 	return nil
 }
 
+// changeSetColumns is the SELECT list scanChangeSet expects, in order.
+const changeSetColumns = `workspace_id, id, name, description, status, origin, superseded_by, created_by, created_at, updated_at, submitted_at, merged_at, merged_by`
+
+// ListOpenChangeSetsByOrigin returns the workspace's undecided (draft or
+// in-review) change-sets carrying the given origin, oldest first.
+func (s *PostgresKnowledgeStore) ListOpenChangeSetsByOrigin(ctx context.Context, workspaceID, origin string) ([]*ChangeSet, error) {
+	if origin == "" {
+		return nil, nil
+	}
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+changeSetColumns+` FROM kg_changesets
+		 WHERE workspace_id = $1 AND origin = $2 AND status IN ('draft', 'in_review')
+		 ORDER BY created_at, id`, workspaceID, origin)
+	if err != nil {
+		return nil, fmt.Errorf("list change-sets by origin: %w", err)
+	}
+	defer rows.Close()
+	var result []*ChangeSet
+	for rows.Next() {
+		cs, err := scanChangeSet(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, cs)
+	}
+	return result, rows.Err()
+}
+
+// SupersedeChangeSet moves an undecided change-set to superseded and records
+// its successor, atomically and transition-checked.
+func (s *PostgresKnowledgeStore) SupersedeChangeSet(ctx context.Context, workspaceID, changesetID, successorID string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin supersede: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var current string
+	if err := tx.QueryRowContext(ctx,
+		`SELECT status FROM kg_changesets WHERE workspace_id = $1 AND id = $2 FOR UPDATE`,
+		workspaceID, changesetID).Scan(&current); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errors.New("change-set not found")
+		}
+		return fmt.Errorf("lock change-set: %w", err)
+	}
+	if err := ValidateStatusTransition(ChangeSetStatus(current), ChangeSetSuperseded); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE kg_changesets SET status = $3, superseded_by = $4, updated_at = NOW()
+		 WHERE workspace_id = $1 AND id = $2`,
+		workspaceID, changesetID, string(ChangeSetSuperseded), successorID); err != nil {
+		return fmt.Errorf("supersede change-set: %w", err)
+	}
+	return tx.Commit()
+}
+
 func scanChangeSet(row scanner) (*ChangeSet, error) {
 	var cs ChangeSet
 	var status string
 	var submittedAt, mergedAt sql.NullTime
 	err := row.Scan(&cs.WorkspaceID, &cs.ID, &cs.Name, &cs.Description, &status,
+		&cs.Origin, &cs.SupersededBy,
 		&cs.CreatedBy, &cs.CreatedAt, &cs.UpdatedAt, &submittedAt, &mergedAt, &cs.MergedBy)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

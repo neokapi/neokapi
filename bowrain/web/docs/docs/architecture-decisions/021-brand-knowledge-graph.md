@@ -229,6 +229,24 @@ reviewer" in the timeline. Two properties are deliberate:
 An unset or unrecognized basis reads as `peer` — a value the deployment does not
 understand must never be taken to waive separation of duties.
 
+#### One open proposal per origin
+
+An automated proposer would otherwise pile up drafts: every `kapi push` diffs
+local concepts against the *live* graph, and ops waiting in review are not in
+it yet, so an unchanged repo re-proposes the same edits on every push. A
+change-set may therefore carry an **origin** ("kapi-push/concepts"), and the
+origin admits one open change-set at a time. On submit:
+
+- identical ops make the submit **idempotent** — the new draft is abandoned
+  and the open change-set is returned, so a re-push changes nothing and the
+  review keeps its context;
+- different ops **supersede** the open change-set: it moves to the terminal
+  `superseded` status carrying `superseded_by`, its review tasks close, and
+  the audit chain records the replacement. The review always concerns the
+  newest proposal, and history stays on the record.
+
+Hand-drafted change-sets carry no origin and never participate.
+
 ### The summons
 
 Separation of duties means a submitted change-set is, by construction, work for

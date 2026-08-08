@@ -32,6 +32,7 @@ const CHANGESET_STATUS_CLASS: Record<ChangeSetStatus, string> = {
   approved: "border-transparent bg-primary/15 text-primary",
   merged: "border-transparent bg-success/15 text-success",
   abandoned: "border-border bg-muted text-muted-foreground/70 line-through",
+  superseded: "border-border bg-muted text-muted-foreground/70",
 };
 
 const CHANGESET_STATUS_LABEL: Record<ChangeSetStatus, string> = {
@@ -40,6 +41,7 @@ const CHANGESET_STATUS_LABEL: Record<ChangeSetStatus, string> = {
   approved: "Approved",
   merged: "Merged",
   abandoned: "Abandoned",
+  superseded: "Superseded",
 };
 
 export function ChangeSetStatusBadge({

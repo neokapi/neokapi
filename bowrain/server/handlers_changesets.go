@@ -65,6 +65,9 @@ func (s *Server) registerChangesetRoutes(g *echo.Group) {
 type CreateChangeSetRequest struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+	// Origin marks an automated proposal ("kapi-push/concepts"); the origin
+	// admits one open change-set at a time — see HandleSubmitChangeSet.
+	Origin string `json:"origin,omitempty"`
 }
 
 // UpdateChangeSetRequest patches a draft change-set's header fields. Nil
@@ -168,6 +171,7 @@ func (s *Server) HandleCreateChangeSet(c echo.Context) error {
 		Name:        req.Name,
 		Description: req.Description,
 		Status:      knowledge.ChangeSetDraft,
+		Origin:      strings.TrimSpace(req.Origin),
 		CreatedBy:   actor,
 	}
 	if err := s.KnowledgeStore.CreateChangeSet(c.Request().Context(), cs); err != nil {
@@ -378,6 +382,41 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 	if len(ops) == 0 {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "cannot submit an empty change-set"})
 	}
+	// An origin-carrying change-set is an automated proposal, and the origin
+	// admits one open proposal at a time. Identical ops make the submit
+	// idempotent: the new draft is abandoned and the open one is returned.
+	// Different ops supersede the open one — terminally, on the record — so
+	// repeated pushes converge to a single reviewable change-set.
+	if cs.Origin != "" {
+		open, err := s.KnowledgeStore.ListOpenChangeSetsByOrigin(ctx, wsID, cs.Origin)
+		if err != nil {
+			return serverErr(c, err)
+		}
+		for _, prior := range open {
+			if prior.ID == cs.ID {
+				continue
+			}
+			priorOps, err := s.KnowledgeStore.ListOps(ctx, wsID, prior.ID)
+			if err != nil {
+				return serverErr(c, err)
+			}
+			if prior.Status == knowledge.ChangeSetInReview && knowledge.SameOps(priorOps, ops) {
+				if err := s.KnowledgeStore.SetChangeSetStatus(ctx, wsID, cs.ID, knowledge.ChangeSetAbandoned); err != nil {
+					return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
+				}
+				return s.refreshedChangeSet(c, wsID, prior.ID)
+			}
+			if err := s.KnowledgeStore.SupersedeChangeSet(ctx, wsID, prior.ID, cs.ID); err != nil {
+				return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
+			}
+			s.publishKnowledgeEvents(c, []knowledge.MergeEvent{
+				changesetEvent(knowledge.EventChangeSetSuperseded, wsID, prior.ID, actor),
+			})
+			// The superseded review is over; nobody should keep a task for it.
+			s.closeChangeSetReviewTasks(ctx, wsID, prior.ID, actor)
+		}
+	}
+
 	if err := s.KnowledgeStore.SetChangeSetStatus(ctx, wsID, cs.ID, knowledge.ChangeSetInReview); err != nil {
 		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
 	}

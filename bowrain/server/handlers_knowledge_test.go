@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -804,6 +805,39 @@ func (f *fakeKnowledgeStore) SetChangeSetStatus(_ context.Context, ws, id string
 	}
 	cs.Status = to
 	cs.UpdatedAt = now
+	return nil
+}
+
+func (f *fakeKnowledgeStore) ListOpenChangeSetsByOrigin(_ context.Context, ws, origin string) ([]*knowledge.ChangeSet, error) {
+	if origin == "" {
+		return nil, nil
+	}
+	var out []*knowledge.ChangeSet
+	for _, cs := range f.changesets {
+		if cs.WorkspaceID != ws || cs.Origin != origin {
+			continue
+		}
+		if cs.Status != knowledge.ChangeSetDraft && cs.Status != knowledge.ChangeSetInReview {
+			continue
+		}
+		cp := *cs
+		out = append(out, &cp)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.Before(out[j].CreatedAt) })
+	return out, nil
+}
+
+func (f *fakeKnowledgeStore) SupersedeChangeSet(_ context.Context, ws, id, successorID string) error {
+	cs, ok := f.changesets[fakeKey(ws, id)]
+	if !ok {
+		return fmt.Errorf("change-set %s not found", id)
+	}
+	if err := knowledge.ValidateStatusTransition(cs.Status, knowledge.ChangeSetSuperseded); err != nil {
+		return err
+	}
+	cs.Status = knowledge.ChangeSetSuperseded
+	cs.SupersededBy = successorID
+	cs.UpdatedAt = time.Now().UTC()
 	return nil
 }
 

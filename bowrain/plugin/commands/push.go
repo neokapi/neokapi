@@ -195,6 +195,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 			out.ConceptsProposed = cres.ConceptsProposed
 			out.ChangesetID = cres.ChangesetID
 			out.ChangesetURL = cres.ChangesetURL
+			out.ChangesetUnchanged = cres.ChangesetUnchanged
 		}
 		applyLoopStatus(&out, proj, conn.Stream())
 	}

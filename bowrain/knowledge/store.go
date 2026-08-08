@@ -90,6 +90,14 @@ type Store interface {
 	// records SubmittedAt on the draft → in_review transition, and bumps
 	// UpdatedAt. Finalizing a merge is done through SetMergeResult, not here.
 	SetChangeSetStatus(ctx context.Context, workspaceID, changesetID string, to ChangeSetStatus) error
+	// ListOpenChangeSetsByOrigin returns the undecided (draft or in-review)
+	// change-sets carrying the given origin, oldest first. An empty origin
+	// returns nothing — hand-drafted change-sets never participate in
+	// supersession.
+	ListOpenChangeSetsByOrigin(ctx context.Context, workspaceID, origin string) ([]*ChangeSet, error)
+	// SupersedeChangeSet moves an undecided change-set to superseded and
+	// records the successor's id, validating the lifecycle edge.
+	SupersedeChangeSet(ctx context.Context, workspaceID, changesetID, successorID string) error
 	// SetMergeResult finalizes a merge: it validates the approved → merged
 	// transition via ValidateStatusTransition, sets Status to merged, and
 	// records MergedBy and MergedAt atomically.

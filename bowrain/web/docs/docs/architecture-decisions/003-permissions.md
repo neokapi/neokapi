@@ -136,7 +136,7 @@ scope       = "*"                        // full access (user's full permissions
             | "project:" id ":" action   // project-scoped action
             | "project:" id ":" action ":" constraint
 
-action      = "read" | "translate" | "review" | "manage" | "admin"
+action      = "read" | "translate" | "contribute" | "review" | "manage" | "admin"
 constraint  = locale ("," locale)*       // language restriction
 ```
 
@@ -148,10 +148,17 @@ Scope-to-permission mapping:
 | `read`                          | `view_content` only                            |
 | `translate`                     | `view_content`, `translate`                    |
 | `translate:fr,de`               | `view_content`, `translate` for fr and de only |
+| `contribute`                    | `view_content`, `translate`, `manage_files`, `manage_memory`, `manage_terms`, `run_flows` |
 | `review`                        | `view_content`, `translate`, `review`          |
 | `manage`                        | All non-destructive permissions                |
 | `admin`                         | All permissions                                |
 | `project:proj-123:translate:fr` | `translate` for fr on project proj-123 only    |
+
+`contribute` is the machine's share of the convergence loop: push and pull
+content, seed memory, run flows, and *propose* governed terminology — with
+none of the permissions that decide a review (`review`, `manage_brand`). A CI
+token on this scope structurally cannot approve what it proposed, which makes
+it the right scope for `kapi push` in CI regardless of who minted the token.
 
 `ScopeRestrictionMiddleware` runs after `ProjectAccessMiddleware`. It parses
 the token's scopes and intersects them with the resolved project

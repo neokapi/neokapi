@@ -562,8 +562,10 @@ kg_changesets.id text NOT NULL
 kg_changesets.merged_at timestamp with time zone NULL
 kg_changesets.merged_by text NOT NULL DEFAULT ''::text
 kg_changesets.name text NOT NULL DEFAULT ''::text
+kg_changesets.origin text NOT NULL DEFAULT ''::text
 kg_changesets.status text NOT NULL DEFAULT 'draft'::text
 kg_changesets.submitted_at timestamp with time zone NULL
+kg_changesets.superseded_by text NOT NULL DEFAULT ''::text
 kg_changesets.updated_at timestamp with time zone NOT NULL DEFAULT now()
 kg_changesets.workspace_id text NOT NULL
 kg_comments.author text NOT NULL DEFAULT ''::text
@@ -1487,6 +1489,7 @@ CREATE INDEX idx_jobs_push_id ON public.translation_jobs USING btree (push_id) W
 CREATE INDEX idx_jobs_status ON public.translation_jobs USING btree (status)
 CREATE INDEX idx_jobs_workspace ON public.translation_jobs USING btree (workspace_slug, created_at DESC)
 CREATE INDEX idx_jobs_workspace_id ON public.translation_jobs USING btree (workspace_id) WHERE (workspace_id <> ''::text)
+CREATE INDEX idx_kg_changesets_origin ON public.kg_changesets USING btree (workspace_id, origin) WHERE ((origin <> ''::text) AND (status = ANY (ARRAY['draft'::text, 'in_review'::text])))
 CREATE INDEX idx_kg_changesets_status ON public.kg_changesets USING btree (workspace_id, status)
 CREATE INDEX idx_kg_comments_changeset ON public.kg_comments USING btree (workspace_id, changeset_id)
 CREATE INDEX idx_kg_comments_concept ON public.kg_comments USING btree (workspace_id, concept_id)
