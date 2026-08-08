@@ -38,6 +38,7 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
+	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/terms"
@@ -777,23 +778,9 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 	// Convert to parts for tool processing.
 	parts := storedBlocksToParts(storedBlocks)
 
-	pseudoTool := &tool.BaseTool{
-		ToolName:        "pseudo-translate",
-		ToolDescription: "Pseudo-translates blocks",
-	}
-	pseudoTool.Produce = func(v tool.VariantView) error {
-		if !v.Translatable() {
-			return nil
-		}
-		locale := model.LocaleID(targetLocale)
-		runs := v.SourceRuns()
-		if runsHaveInlineCodes(runs) {
-			v.SetTargetRuns(locale, editorPseudoRuns(runs))
-		} else {
-			v.SetTargetText(locale, "["+editorPseudoAccent(v.SourceText())+"]")
-		}
-		return nil
-	}
+	pseudoTool := libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
+		TargetLocale: model.LocaleID(targetLocale),
+	})
 
 	outParts, err := runToolOnParts(ctx, pseudoTool, parts)
 	if err != nil {
@@ -1641,24 +1628,6 @@ func runToolOnParts(ctx context.Context, t tool.Tool, parts []*model.Part) ([]*m
 	return result, nil
 }
 
-// editorPseudoRuns walks a Run sequence and applies pseudo-accent to TextRun
-// content only, leaving inline-code runs untouched. The result is wrapped
-// with `[` / `]` brackets at the boundaries (as plain TextRuns) to mirror
-// the legacy coded-form pseudo behaviour.
-func editorPseudoRuns(runs []model.Run) []model.Run {
-	out := make([]model.Run, 0, len(runs)+2)
-	out = append(out, model.Run{Text: &model.TextRun{Text: "["}})
-	for _, r := range runs {
-		if r.Text != nil {
-			out = append(out, model.Run{Text: &model.TextRun{Text: editorPseudoAccent(r.Text.Text)}})
-			continue
-		}
-		out = append(out, r)
-	}
-	out = append(out, model.Run{Text: &model.TextRun{Text: "]"}})
-	return out
-}
-
 func editorComputeStats(parts []*model.Part, targetLocale string) *TranslationStatsResponse {
 	stats := &TranslationStatsResponse{}
 	for _, pt := range parts {
@@ -1690,35 +1659,6 @@ func editorCountWords(text string) int {
 		}
 	}
 	return count
-}
-
-func editorPseudoAccent(text string) string {
-	var buf bytes.Buffer
-	for _, r := range text {
-		if replacement, ok := editorAccentMap[r]; ok {
-			buf.WriteRune(replacement)
-		} else {
-			buf.WriteRune(r)
-		}
-	}
-	return buf.String()
-}
-
-var editorAccentMap = map[rune]rune{
-	'a': '\u00e0', 'b': '\u0180', 'c': '\u00e7', 'd': '\u00f0',
-	'e': '\u00e9', 'f': '\u0192', 'g': '\u011d', 'h': '\u0125',
-	'i': '\u00ee', 'j': '\u0135', 'k': '\u0137', 'l': '\u013c',
-	'm': '\u1e3f', 'n': '\u00f1', 'o': '\u00f6', 'p': '\u00fe',
-	'q': '\u01eb', 'r': '\u0155', 's': '\u0161', 't': '\u0163',
-	'u': '\u00fb', 'v': '\u1e7d', 'w': '\u0175', 'x': '\u1e8b',
-	'y': '\u00fd', 'z': '\u017e',
-	'A': '\u00c0', 'B': '\u0181', 'C': '\u00c7', 'D': '\u00d0',
-	'E': '\u00c9', 'F': '\u0191', 'G': '\u011c', 'H': '\u0124',
-	'I': '\u00ce', 'J': '\u0134', 'K': '\u0136', 'L': '\u013b',
-	'M': '\u1e3e', 'N': '\u00d1', 'O': '\u00d6', 'P': '\u00de',
-	'Q': '\u01ea', 'R': '\u0154', 'S': '\u0160', 'T': '\u0162',
-	'U': '\u00db', 'V': '\u1e7c', 'W': '\u0174', 'X': '\u1e8a',
-	'Y': '\u00dd', 'Z': '\u017d',
 }
 
 func editorCreateProvider(provType, apiKey, modelName string) aiprovider.LLMProvider {

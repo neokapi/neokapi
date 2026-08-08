@@ -275,7 +275,7 @@ func TestGenericPreview(t *testing.T) {
 		}},
 	}
 
-	preview := buildGenericPreview(parts)
+	preview := BuildGenericPreview(parts)
 	assert.Contains(t, preview, `<kat-block id="tu1">Hello &lt;world&gt;</kat-block>`)
 	assert.Contains(t, preview, "monospace")
 }

@@ -81,8 +81,7 @@ func TestPseudoTranslateFile(t *testing.T) {
 	for _, b := range blocks {
 		if b.Translatable {
 			assert.NotEmpty(t, flattenTargetRuns(b, "fr"), "block %q should have fr target", b.ID)
-			assert.Contains(t, flattenTargetRuns(b, "fr"), "[", "pseudo target should have brackets")
-			assert.Contains(t, flattenTargetRuns(b, "fr"), "]", "pseudo target should have brackets")
+			assert.Contains(t, flattenTargetRuns(b, "fr"), "▒", "pseudo target should carry the shade-marker wrap")
 		}
 	}
 }
@@ -133,16 +132,16 @@ func TestPseudoTranslateFile_PreservesSpans(t *testing.T) {
 		tgtInline := countInlineCodes(targetRuns)
 		assert.Equal(t, srcInline, tgtInline, "inline-code count should match source")
 
-		// Pseudo-translated text should carry the [...] wrapping
+		// Pseudo-translated text should carry the shade-marker wrapping
 		// emitted by the pseudo-translate tool.
-		hasBracket := false
+		hasWrap := false
 		for _, r := range targetRuns {
-			if r.Text != nil && (strings.Contains(r.Text.Text, "[") || strings.Contains(r.Text.Text, "]")) {
-				hasBracket = true
+			if r.Text != nil && strings.Contains(r.Text.Text, "▒") {
+				hasWrap = true
 				break
 			}
 		}
-		assert.True(t, hasBracket, "pseudo-translated target should contain bracket wrap")
+		assert.True(t, hasWrap, "pseudo-translated target should contain shade-marker wrap")
 	}
 }
 
@@ -233,12 +232,6 @@ func TestExportTranslatedFile_FileNotFound(t *testing.T) {
 
 	_, err = app.ExportTranslatedItem(info.ID, "nonexistent.txt", "fr")
 	assert.Error(t, err)
-}
-
-func TestPseudoAccent(t *testing.T) {
-	result := pseudoAccent("Hello World")
-	assert.NotEqual(t, "Hello World", result)
-	assert.Contains(t, result, "\u0124") // H -> Ĥ
 }
 
 func TestComputeStats(t *testing.T) {

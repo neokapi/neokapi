@@ -190,7 +190,7 @@ func TestPseudoTranslateItemOfflineEnqueues(t *testing.T) {
 	blocks, err := app.GetItemBlocks(proj.ID, "hello.txt")
 	require.NoError(t, err)
 	require.NotEmpty(t, blocks)
-	assert.Contains(t, flattenTargetRuns(blocks[0], "fr"), "[")
+	assert.Contains(t, flattenTargetRuns(blocks[0], "fr"), "▒")
 }
 
 func TestMemoryTranslateItemOnlineHitsServer(t *testing.T) {
