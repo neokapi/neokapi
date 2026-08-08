@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/neokapi/neokapi/host/credentials"
 	"github.com/neokapi/neokapi/host/output"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
@@ -40,6 +41,49 @@ func ValidateProviderType(providerType string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown provider %q; valid providers are: %s", providerType, strings.Join(known, ", "))
+}
+
+// SaveCredential validates the provider type, upserts the config, and stores
+// the API key when one is given. It is the single save path behind both the
+// CLI's `credentials add` and the desktop's SaveProvider, so a typo'd provider
+// type is rejected before it reaches the store on either surface.
+func SaveCredential(store *credentials.Store, cfg credentials.ProviderConfig, apiKey string) (credentials.ProviderConfig, error) {
+	if err := ValidateProviderType(cfg.ProviderType); err != nil {
+		return credentials.ProviderConfig{}, err
+	}
+	saved, err := store.Upsert(cfg)
+	if err != nil {
+		return credentials.ProviderConfig{}, fmt.Errorf("save provider config: %w", err)
+	}
+	if apiKey != "" {
+		if err := store.SetAPIKey(saved.ID, apiKey); err != nil {
+			return credentials.ProviderConfig{}, fmt.Errorf("store API key: %w", err)
+		}
+	}
+	return saved, nil
+}
+
+// RemoveCredential deletes a credential's API key (best-effort, ignoring
+// keychain errors) and its stored config.
+func RemoveCredential(store *credentials.Store, id string) error {
+	_ = store.DeleteAPIKey(id)
+	return store.Remove(id)
+}
+
+// TestCredential reports whether a credential is usable: keyless providers
+// (on-device plus subscription-backed claude-code) pass once the record
+// exists; every other provider needs a non-empty key in the keychain. Shared
+// so the CLI's `credentials test` and the desktop's TestProvider agree on the
+// keyless case rather than one reporting "empty" where the other passes.
+func TestCredential(store *credentials.Store, cfg credentials.ProviderConfig) (bool, error) {
+	if credentials.Keyless(cfg.ProviderType) {
+		return true, nil
+	}
+	key, err := store.GetAPIKey(cfg.ID)
+	if err != nil {
+		return false, fmt.Errorf("API key not found in keychain: %w", err)
+	}
+	return len(key) > 0, nil
 }
 
 type CredentialSavedOutput struct {

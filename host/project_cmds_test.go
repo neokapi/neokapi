@@ -46,3 +46,45 @@ func TestScaffoldRecipe_NeokapiI18nCleanLayout(t *testing.T) {
 	assert.Equal(t, "i18n/voice.yaml", proj.Defaults.Voice.ProfileFile)
 	assert.Equal(t, "i18n/terms.json", proj.Defaults.TermsSource)
 }
+
+// TestInitProject is finding 9: the whole `kapi init` composition — write
+// recipe, ensure the .kapi layout, stamp the state manifest — is one host call
+// so the desktop can create a project the same way. It is idempotent.
+func TestInitProject(t *testing.T) {
+	dir := t.TempDir()
+
+	res, err := InitProject(dir, InitOptions{Name: "MyApp", TargetLocales: []string{"fr"}})
+	require.NoError(t, err)
+	assert.False(t, res.AlreadyInitialized)
+	assert.Equal(t, "MyApp", res.Name)
+
+	// Recipe loads and the state layout exists.
+	proj, err := project.Load(res.RecipePath)
+	require.NoError(t, err)
+	assert.Equal(t, "MyApp", proj.Name)
+	assert.DirExists(t, res.StateDir)
+	assert.FileExists(t, filepath.Join(res.StateDir, project.StateManifestFilename))
+
+	// Idempotent: a second run adopts the existing recipe and leaves it be.
+	before, err := os.ReadFile(res.RecipePath)
+	require.NoError(t, err)
+	res2, err := InitProject(dir, InitOptions{Name: "Renamed"})
+	require.NoError(t, err)
+	assert.True(t, res2.AlreadyInitialized)
+	after, err := os.ReadFile(res.RecipePath)
+	require.NoError(t, err)
+	assert.Equal(t, before, after, "an existing recipe is left untouched")
+}
+
+// TestInitProject_ContentScaffold: with no target locales and no framework, the
+// on-brand content scaffold is written (not the translation one).
+func TestInitProject_ContentScaffold(t *testing.T) {
+	dir := t.TempDir()
+	res, err := InitProject(dir, InitOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Base(dir), res.Name, "name defaults to the dir basename")
+
+	proj, err := project.Load(res.RecipePath)
+	require.NoError(t, err)
+	assert.Empty(t, proj.Defaults.TargetLanguages, "content scaffold declares no targets")
+}

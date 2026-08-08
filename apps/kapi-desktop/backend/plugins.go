@@ -11,6 +11,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/core/vision"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/pluginhost"
 	pluginhostreg "github.com/neokapi/neokapi/host/pluginhost/registry"
 )
@@ -86,7 +87,7 @@ func (a *App) ensureMediaEngine(formatName string) {
 func (a *App) installPluginOnDemand(plugin, forWhat string) {
 	a.emitEvent("plugin-installing", map[string]string{"name": plugin})
 	lastPct := -1
-	_, err := pluginhost.InstallFromRegistry(context.Background(), pluginhost.InstallOptions{
+	_, err := host.InstallPluginFromRegistry(context.Background(), pluginhost.InstallOptions{
 		IndexURL:    pluginhost.DefaultIndexURL(),
 		PluginName:  plugin,
 		KapiVersion: version.Version,
@@ -136,22 +137,38 @@ type PluginUpdate struct {
 }
 
 // SearchPlugins searches the registry index for plugins whose name or
-// description matches the query (substring, case-sensitive).
+// description matches the query. The projection is the shared host one, so the
+// desktop and the CLI order results identically (by name) and mark
+// installability the same way.
 func (a *App) SearchPlugins(query string) ([]AvailablePlugin, error) {
-	idx, err := a.fetchIndex()
-	if err != nil {
-		return nil, fmt.Errorf("search plugins: %w", err)
-	}
-	return a.matchPlugins(idx, query), nil
+	return a.searchRegistry(query)
 }
 
 // ListAvailablePlugins returns every plugin in the registry index.
 func (a *App) ListAvailablePlugins() ([]AvailablePlugin, error) {
-	idx, err := a.fetchIndex()
+	return a.searchRegistry("")
+}
+
+// searchRegistry runs the shared registry search and maps the result into the
+// frontend-facing AvailablePlugin shape.
+func (a *App) searchRegistry(query string) ([]AvailablePlugin, error) {
+	entries, err := host.SearchRegistry(context.Background(), pluginhost.DefaultIndexURL(), query, a.installedNames(), false)
 	if err != nil {
-		return nil, fmt.Errorf("list available: %w", err)
+		return nil, fmt.Errorf("search plugins: %w", err)
 	}
-	return a.matchPlugins(idx, ""), nil
+	out := make([]AvailablePlugin, 0, len(entries))
+	for _, e := range entries {
+		out = append(out, AvailablePlugin{
+			Name:        e.Name,
+			Version:     e.Version,
+			Description: e.Description,
+			Type:        "manifest",
+			Installed:   e.Installed,
+			Available:   e.Installable,
+			Platform:    e.Platform,
+		})
+	}
+	return out, nil
 }
 
 // InstallPlugin downloads and installs a plugin asynchronously, emitting
@@ -161,7 +178,7 @@ func (a *App) InstallPlugin(name string) {
 
 	go func() {
 		lastPct := -1
-		_, err := pluginhost.InstallFromRegistry(context.Background(), pluginhost.InstallOptions{
+		_, err := host.InstallPluginFromRegistry(context.Background(), pluginhost.InstallOptions{
 			IndexURL:    pluginhost.DefaultIndexURL(),
 			PluginName:  name,
 			KapiVersion: version.Version,
@@ -194,9 +211,41 @@ func (a *App) InstallPlugin(name string) {
 	}()
 }
 
-// UpdatePlugin updates a plugin to the latest version (async).
+// UpdatePlugin updates an installed plugin to the latest matching version
+// (async). It reuses the channel, constraint and index recorded at install
+// time (installed.json) instead of reinstalling with defaults, so a plugin
+// tracking beta or pinned to a constraint stays on its track.
 func (a *App) UpdatePlugin(name string) {
-	a.InstallPlugin(name) // install latest overwrites older version
+	a.emitEvent("plugin-installing", map[string]string{"name": name})
+
+	go func() {
+		lastPct := -1
+		_, _, err := host.UpdatePlugin(context.Background(), name, host.PluginUpdateOverrides{
+			TargetDir: a.pluginDir,
+			LogF: func(msg string) {
+				a.logger.Printf("update %s: %s", name, msg)
+			},
+			ProgressF: func(downloaded, total int64) {
+				if total <= 0 {
+					return
+				}
+				pct := int(downloaded * 100 / total)
+				if pct != lastPct {
+					lastPct = pct
+					a.emitEvent("plugin-progress", map[string]any{"name": name, "percent": pct})
+				}
+			},
+		})
+		if err != nil {
+			a.emitEvent("plugin-error", map[string]string{"name": name, "error": err.Error()})
+			return
+		}
+
+		a.rescanPlugins()
+		a.emitEvent("plugin-installed", map[string]string{"name": name})
+		a.emitEvent("plugins-changed", nil)
+		a.emitEvent("registries-changed", nil)
+	}()
 }
 
 // RemovePlugin uninstalls a plugin via the plugin host, which deletes it from
@@ -274,35 +323,6 @@ func (a *App) CheckPluginUpdates() ([]PluginUpdate, error) {
 // fetchIndex downloads the registry index, honoring the on-disk cache.
 func (a *App) fetchIndex() (*pluginhostreg.IndexV2, error) {
 	return pluginhostreg.FetchOrCached(context.Background(), pluginhost.DefaultIndexURL(), false)
-}
-
-// matchPlugins flattens the registry index into AvailablePlugin entries,
-// filtering by query (empty matches everything) and marking installed
-// plugins. Each plugin is represented by its highest-versioned entry.
-func (a *App) matchPlugins(idx *pluginhostreg.IndexV2, query string) []AvailablePlugin {
-	installed := a.installedNames()
-	platform := pluginhostreg.PlatformKey()
-	var out []AvailablePlugin
-	for name, entry := range idx.Plugins {
-		if !pluginhostreg.MatchQuery(name, entry.Description, query) {
-			continue
-		}
-		latest := pluginhostreg.HighestVersion(entry)
-		// Mirror the install path's resolution (constraint "", channel
-		// "stable", this kapi version): if it can't resolve a build for the
-		// running platform, the plugin isn't installable here.
-		_, _, resErr := idx.Resolve(name, "", "stable", version.Version)
-		out = append(out, AvailablePlugin{
-			Name:        name,
-			Version:     latest,
-			Description: entry.Description,
-			Type:        "manifest",
-			Installed:   installed[name],
-			Available:   resErr == nil,
-			Platform:    platform,
-		})
-	}
-	return out
 }
 
 func (a *App) installedNames() map[string]bool {

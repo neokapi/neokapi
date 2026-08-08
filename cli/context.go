@@ -51,30 +51,11 @@ terminology match and a wording match are not scored on comparable things.`,
 			locale, _ := cmd.Flags().GetString("locale")
 			limit, _ := cmd.Flags().GetInt("limit")
 
-			src := host.ContextSearchSources{Scope: host.ScopeProject}
-
-			// A store that will not open degrades to a note rather than failing
-			// the command — the other store may still answer, and half an answer
-			// beats an error mid-task. But it is never silent: these openers
-			// create a missing file, so an error here means broken, not absent,
-			// and reporting it as "not bound" would send the caller looking for
-			// a store they already have.
-			if tb, _, releaseTerms, err := a.OpenTermsSQLite(cmd); err == nil {
-				defer releaseTerms()
-				src.Terms = tb
-			} else {
-				src.TermsErr = err
-			}
-			if tm, _, releaseMemory, err := a.OpenMemorySQLite(cmd); err == nil {
-				defer releaseMemory()
-				src.Memory = tm
-			} else {
-				src.MemoryErr = err
-			}
-			// The project's extracted content, so a term answer can say where
-			// the term actually is. Absent is ordinary — nothing extracted yet
-			// — and the search says so in a note rather than failing.
-			src.Blocks = a.OccurrenceBlocks(cmd)
+			// One assembly for both this verb and the context_search MCP tool
+			// (host.ContextSearchSourcesFor). The CLI passes no standalone paths,
+			// so it takes the store the --name/--file/--local flags resolve to.
+			src, cleanup := a.ContextSearchSourcesFor(cmd, "", "")
+			defer cleanup()
 
 			res, err := host.SearchContext(cmd.Context(), src, host.ContextSearchRequest{
 				Query:  args[0],

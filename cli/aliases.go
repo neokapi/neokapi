@@ -27,6 +27,10 @@ type (
 	CredentialRow                 = host.CredentialRow
 	CredentialSavedOutput         = host.CredentialSavedOutput
 	DiffOptions                   = host.DiffOptions
+	InitOptions                   = host.InitOptions
+	InitResult                    = host.InitResult
+	PluginUpdateOverrides         = host.PluginUpdateOverrides
+	RegistryPluginEntry           = host.RegistryPluginEntry
 	EnvCommand                    = host.EnvCommand
 	ExtractCmdOptions             = host.ExtractCmdOptions
 	FlowCmdOptions                = host.FlowCmdOptions
@@ -150,6 +154,13 @@ var (
 	IsKpzPath                    = host.IsKpzPath
 	KapiVersion                  = host.KapiVersion
 	KnownProviderTypes           = host.KnownProviderTypes
+	SaveCredential               = host.SaveCredential
+	RemoveCredential             = host.RemoveCredential
+	TestCredential               = host.TestCredential
+	InitProject                  = host.InitProject
+	SearchRegistry               = host.SearchRegistry
+	InstallPluginFromRegistry    = host.InstallPluginFromRegistry
+	UpdatePlugin                 = host.UpdatePlugin
 	ListNamedResources           = host.ListNamedResources
 	ListTMXFiles                 = host.ListTMXFiles
 	LoadWorkspace                = host.LoadWorkspace

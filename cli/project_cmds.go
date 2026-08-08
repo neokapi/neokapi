@@ -2,11 +2,7 @@ package cli
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
-	"github.com/neokapi/neokapi/core/project"
-	"github.com/neokapi/neokapi/core/version"
 	"github.com/spf13/cobra"
 )
 
@@ -58,18 +54,6 @@ scaffolds plus per-format parsing presets) with --list-presets.`,
 			if err != nil {
 				return err
 			}
-			if name == "" {
-				name = filepath.Base(root)
-			}
-			if sourceLocale == "" {
-				sourceLocale = "en"
-			}
-
-			content, err := FrameworkContent(framework)
-			if err != nil {
-				return err
-			}
-			voiceProfile, termsSource := FrameworkBindings(framework)
 
 			// `kapi init` is idempotent: re-running it (or running it on a
 			// project that already has a recipe) is not an error. This lets
@@ -77,53 +61,24 @@ scaffolds plus per-format parsing presets) with --list-presets.`,
 			// a server) run on top of `kapi init` without a separate command —
 			// `kapi init --server …` on an existing project just connects it.
 			//
-			// The recipe filename is fixed (kapi.yaml), so re-running can never
-			// scaffold a second recipe: when one is already here we adopt it and
-			// leave it untouched. The project label lives in the recipe's name:
-			// field; --name only affects a fresh scaffold.
-			recipeExists, err := RecipeExists(root)
+			// The composition (write recipe → EnsureLayout → SaveState) lives in
+			// host.InitProject so Kapi Desktop creates projects the same way.
+			res, err := InitProject(root, InitOptions{
+				Name:          name,
+				SourceLocale:  sourceLocale,
+				TargetLocales: targetLocale,
+				Framework:     framework,
+			})
 			if err != nil {
-				return fmt.Errorf("check for existing project: %w", err)
+				return err
 			}
 
-			recipePath := filepath.Join(root, project.RecipeFileName)
-			stateDir := filepath.Join(root, project.StateDirName)
-
-			if recipeExists {
-				fmt.Fprintf(cmd.OutOrStdout(), "kapi project already initialized: %s\n", recipePath)
+			if res.AlreadyInitialized {
+				fmt.Fprintf(cmd.OutOrStdout(), "kapi project already initialized: %s\n", res.RecipePath)
 			} else {
-				// On-brand content is the default. --target-locale or
-				// --framework opts into the translation scaffold; otherwise
-				// scaffold the content project (voice profile + terms + check).
-				var recipe []byte
-				if len(targetLocale) > 0 || framework != "" {
-					recipe = ScaffoldRecipe(name, sourceLocale, targetLocale, content, voiceProfile, termsSource)
-				} else {
-					recipe = ScaffoldContentRecipe(name, sourceLocale)
-				}
-				if err := os.WriteFile(recipePath, recipe, 0o644); err != nil {
-					return fmt.Errorf("write recipe: %w", err)
-				}
-			}
-
-			// EnsureLayout/SaveState are safe to run on an existing layout.
-			layout := project.Layout{Root: root, RecipePath: recipePath, StateDir: stateDir}
-			if err := project.EnsureLayout(layout); err != nil {
-				return fmt.Errorf("create state dir: %w", err)
-			}
-			if !recipeExists {
-				if err := project.SaveState(layout, &project.StateManifest{
-					Generator: project.StateGenerator{ID: "kapi", Version: version.Version},
-					Project: project.StateProjectRef{
-						ID:   name,
-						Path: "../" + filepath.Base(recipePath),
-					},
-				}); err != nil {
-					return fmt.Errorf("write state manifest: %w", err)
-				}
-				fmt.Fprintf(cmd.OutOrStdout(), "Initialized kapi project %q\n", name)
-				fmt.Fprintf(cmd.OutOrStdout(), "  recipe: %s\n", recipePath)
-				fmt.Fprintf(cmd.OutOrStdout(), "  state:  %s\n", stateDir)
+				fmt.Fprintf(cmd.OutOrStdout(), "Initialized kapi project %q\n", res.Name)
+				fmt.Fprintf(cmd.OutOrStdout(), "  recipe: %s\n", res.RecipePath)
+				fmt.Fprintf(cmd.OutOrStdout(), "  state:  %s\n", res.StateDir)
 			}
 			return nil
 		},

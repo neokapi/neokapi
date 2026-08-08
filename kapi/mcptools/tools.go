@@ -22,7 +22,6 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -462,7 +461,7 @@ func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLan
 		}
 	}
 
-	reader, err := createReader(a, fmtName)
+	reader, _, err := a.NewConfiguredReader(fmtName)
 	if err != nil {
 		return "", nil, err
 	}
@@ -489,40 +488,6 @@ func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLan
 	}
 
 	return fmtName, reader, nil
-}
-
-// createReader creates a format reader, handling preset syntax.
-func createReader(a *cli.App, fmtName string) (format.DataFormatReader, error) {
-	ref := preset.ParseFormatRef(fmtName)
-	registryName := ref.RegistryName()
-
-	var mergedConfig map[string]any
-	if ref.IsPreset() {
-		presetReg := preset.NewPresetRegistry()
-		preset.RegisterBuiltins(presetReg)
-		resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
-
-		var err error
-		mergedConfig, err = resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
-		if err != nil {
-			return nil, fmt.Errorf("resolve format config: %w", err)
-		}
-	}
-
-	reader, err := a.FormatReg.NewReader(registry.FormatID(registryName))
-	if err != nil {
-		return nil, fmt.Errorf("no reader for format %q: %w", fmtName, err)
-	}
-
-	if len(mergedConfig) > 0 {
-		if cfg := reader.Config(); cfg != nil {
-			if err := cfg.ApplyMap(mergedConfig); err != nil {
-				return nil, fmt.Errorf("apply format config: %w", err)
-			}
-		}
-	}
-
-	return reader, nil
 }
 
 // executeFlow runs a built-in flow on a file and writes the result. The tool

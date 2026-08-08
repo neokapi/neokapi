@@ -6,8 +6,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/memory"
-	"github.com/neokapi/neokapi/terms"
 )
 
 // The context retrieval surface (AD-037), MCP half.
@@ -47,59 +45,13 @@ type contextSearchInput struct {
 }
 
 func (a *App) handleContextSearch(ctx context.Context, _ *mcp.CallToolRequest, in contextSearchInput) (*mcp.CallToolResult, *ContextSearchResult, error) {
-	src := ContextSearchSources{Scope: ScopeProject}
-
-	// A store that will not open degrades to a note rather than failing the
-	// call, so the other store still answers. It is never silent, though: the
-	// store is created when absent, so an error means broken rather than
-	// absent, and an agent told "nothing is bound" would stop asking instead of
-	// reporting a fault its user can fix.
-	if in.Terms == "" || in.Memory == "" {
-		root, err := a.projectRootFor(nil)
-		switch {
-		case err != nil:
-			src.TermsErr, src.MemoryErr = err, err
-		case root == "":
-			// No project in scope: only an explicit path can answer.
-		default:
-			db, derr := a.ProjectDB(ctx, root)
-			if derr != nil {
-				src.TermsErr, src.MemoryErr = derr, derr
-			} else {
-				if in.Terms == "" && db.Terms() != nil {
-					src.Terms = db.Terms()
-				}
-				if in.Memory == "" && db.Memory() != nil {
-					src.Memory = db.Memory()
-				}
-				// The project's extracted content, so an agent told a term is
-				// discouraged learns in the same answer whether anything uses
-				// it. Autocommit: this is a read beside whatever else is
-				// running (see App.OccurrenceBlocks).
-				src.Blocks = db.BlocksAutocommit()
-			}
-		}
-	}
-	if in.Terms != "" {
-		if tb, err := terms.NewSQLiteStore(in.Terms); err == nil {
-			defer tb.Close()
-			src.Terms, src.TermsErr = tb, nil
-		} else {
-			src.TermsErr = err
-		}
-	}
-	if in.Memory != "" {
-		if tm, err := memory.NewSQLiteStore(in.Memory); err == nil {
-			defer tm.Close()
-			src.Memory, src.MemoryErr = tm, nil
-		} else {
-			src.MemoryErr = err
-		}
-	}
-
-	if a.BlocksBackend != nil {
-		src.Blocks = a.BlocksBackend // browser build: no file-backed store
-	}
+	// One assembly shared with `kapi context search` (ContextSearchSourcesFor).
+	// A bare command carries the context for the project resolution the flagless
+	// openers do (KAPI_PROJECT, else the upward walk from cwd); a non-empty
+	// terms/memory path selects a standalone store instead.
+	cmd := NewEnvCommand(ctx, "context-search")
+	src, cleanup := a.ContextSearchSourcesFor(cmd, in.Terms, in.Memory)
+	defer cleanup()
 
 	res, err := SearchContext(ctx, src, ContextSearchRequest{
 		Query:  in.Query,
