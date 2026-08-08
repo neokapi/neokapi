@@ -18,12 +18,12 @@ import (
 )
 
 // content memory table descriptors. Column specs are written side by side per dialect so
-// type drift is visible at the definition site. Tenant tables gain a leading
-// workspace_id column and workspace_id-prefixed PK/FK on Postgres only.
+// type drift is visible at the definition site. Partitioned tables gain a
+// leading partition-key column and a partition-key-prefixed PK/FK on Postgres only.
 var (
 	memoryEntries = sq.Table{
 		Name:        "tm_entries",
-		Tenant:      true,
+		Partitioned: true,
 		SQLiteWidth: 16,
 		Columns: []sq.Column{
 			{Name: "id", SQLite: "TEXT PRIMARY KEY", PG: "TEXT NOT NULL"},
@@ -47,8 +47,8 @@ var (
 	}
 
 	memoryVariants = sq.Table{
-		Name:   "tm_variants",
-		Tenant: true,
+		Name:        "tm_variants",
+		Partitioned: true,
 		Columns: []sq.Column{
 			{Name: "entry_id", SQLite: "TEXT NOT NULL REFERENCES tm_entries(id) ON DELETE CASCADE", PG: "TEXT NOT NULL"},
 			{Name: "locale", SQLite: "TEXT NOT NULL", PG: "TEXT NOT NULL"},
@@ -68,8 +68,8 @@ var (
 	}
 
 	memoryEntryEntities = sq.Table{
-		Name:   "tm_entry_entities",
-		Tenant: true,
+		Name:        "tm_entry_entities",
+		Partitioned: true,
 		Columns: []sq.Column{
 			{Name: "entry_id", SQLite: "TEXT NOT NULL REFERENCES tm_entries(id) ON DELETE CASCADE", PG: "TEXT NOT NULL"},
 			{Name: "placeholder_id", SQLite: "TEXT NOT NULL", PG: "TEXT NOT NULL"},
@@ -86,8 +86,8 @@ var (
 	}
 
 	memoryEntryEntityValues = sq.Table{
-		Name:   "tm_entry_entity_values",
-		Tenant: true,
+		Name:        "tm_entry_entity_values",
+		Partitioned: true,
 		Columns: []sq.Column{
 			{Name: "entry_id", SQLite: "TEXT NOT NULL", PG: "TEXT NOT NULL"},
 			{Name: "placeholder_id", SQLite: "TEXT NOT NULL", PG: "TEXT NOT NULL"},
@@ -108,7 +108,7 @@ var (
 
 	memoryImportSessions = sq.Table{
 		Name:        "tm_import_sessions",
-		Tenant:      true,
+		Partitioned: true,
 		SQLiteWidth: 22,
 		Columns: []sq.Column{
 			{Name: "id", SQLite: "TEXT PRIMARY KEY", PG: "TEXT NOT NULL"},
@@ -136,8 +136,8 @@ var (
 	}
 
 	memoryEntryOrigins = sq.Table{
-		Name:   "tm_entry_origins",
-		Tenant: true,
+		Name:        "tm_entry_origins",
+		Partitioned: true,
 		Columns: []sq.Column{
 			{Name: "entry_id", SQLite: "TEXT NOT NULL REFERENCES tm_entries(id) ON DELETE CASCADE", PG: "TEXT NOT NULL"},
 			{Name: "ordinal", SQLite: "INTEGER NOT NULL", PG: "INTEGER NOT NULL"},
@@ -240,9 +240,10 @@ func RenderMemorySQLiteV3() string {
 
 // RenderMemoryPostgresCreate renders the fresh-install Postgres content memory schema (the body
 // of historical migration v4, without the leading DROP statements): all tables
-// with workspace_id tenancy plus the pg_trgm/tsvector fuzzy infrastructure.
-func RenderMemoryPostgresCreate() string {
-	o := sq.Opt{AlignIndexes: true, Exclude: []string{"has_codes", "concept_id"}}
+// partitioned by the given tenant column plus the pg_trgm/tsvector fuzzy
+// infrastructure.
+func RenderMemoryPostgresCreate(tenantColumn string) string {
+	o := sq.Opt{TenantColumn: tenantColumn, AlignIndexes: true, Exclude: []string{"has_codes", "concept_id"}}
 	var b strings.Builder
 	b.WriteString(memoryEntries.Create(sq.Postgres, o))
 	b.WriteString(memoryEntries.CreateIndexes(sq.Postgres, o, "idx_tm_project", "idx_tm_updated", "idx_tm_stream"))
@@ -283,8 +284,8 @@ func RenderMemoryPostgresCreate() string {
 // They existed to clear the legacy bilingual tables during that one upgrade,
 // and a baseline is re-applied by design — carrying them would mean every
 // migrate pass silently destroyed the content memory it was meant to preserve.
-func RenderMemoryPostgresBaseline() string {
-	o := sq.Opt{AlignIndexes: true, IfNotExists: true, Exclude: []string{"has_codes"}}
+func RenderMemoryPostgresBaseline(tenantColumn string) string {
+	o := sq.Opt{TenantColumn: tenantColumn, AlignIndexes: true, IfNotExists: true, Exclude: []string{"has_codes"}}
 	var b strings.Builder
 	b.WriteString(memoryEntries.Create(sq.Postgres, o))
 	b.WriteString(memoryEntries.CreateIndexes(sq.Postgres, o, "idx_tm_project", "idx_tm_updated", "idx_tm_stream"))
@@ -310,8 +311,8 @@ func RenderMemoryPostgresBaseline() string {
 
 // RenderMemoryPostgresConceptID renders the Postgres migration adding concept_id to
 // entity maps (historical v5).
-func RenderMemoryPostgresConceptID() string {
-	o := sq.Opt{IfNotExists: true}
+func RenderMemoryPostgresConceptID(tenantColumn string) string {
+	o := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true}
 	return memoryEntryEntities.AddColumn(sq.Postgres, o, "concept_id") +
 		memoryEntryEntities.CreateIndexes(sq.Postgres, o, "idx_entities_concept")
 }

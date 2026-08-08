@@ -59,7 +59,7 @@ var Migrations = []storage.Migration{
 	{
 		Version:     5,
 		Description: "terms baseline (folds 1-4)",
-		SQL:         tbschema.RenderTermsPostgresBaseline(),
+		SQL:         tbschema.RenderTermsPostgresBaseline("workspace_id"),
 	},
 }
 

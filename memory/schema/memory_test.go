@@ -175,8 +175,8 @@ const pgV5Reference = `
 // DDL matches the historical known-good v4/v5 migrations as a set of
 // whitespace-collapsed statements — a fresh install produces the same schema.
 func TestMemoryPostgresSemanticEquivalence(t *testing.T) {
-	assertStmtSetEqual(t, "v4 create", pgV4Reference, RenderMemoryPostgresCreate())
-	assertStmtSetEqual(t, "v5 concept_id", pgV5Reference, RenderMemoryPostgresConceptID())
+	assertStmtSetEqual(t, "v4 create", pgV4Reference, RenderMemoryPostgresCreate("workspace_id"))
+	assertStmtSetEqual(t, "v5 concept_id", pgV5Reference, RenderMemoryPostgresConceptID("workspace_id"))
 }
 
 func assertStmtSetEqual(t *testing.T, name, want, got string) {

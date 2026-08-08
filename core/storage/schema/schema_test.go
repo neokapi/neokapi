@@ -9,13 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// wsCol is the partition-key column a server-side caller supplies for
+// Partitioned tables. The seam itself no longer names it.
+const wsCol = "workspace_id"
+
 // tenantTable exercises every dialect divergence the seam covers: a renamed
 // Postgres column, a SQLite-only column, a Postgres-only column, an inline
 // SQLite foreign key, a renamed index, and per-dialect index visibility.
 func tenantTable() Table {
 	return Table{
-		Name:   "widgets",
-		Tenant: true,
+		Name:        "widgets",
+		Partitioned: true,
 		Columns: []Column{
 			{Name: "id", SQLite: "TEXT PRIMARY KEY", PG: "TEXT NOT NULL"},
 			{Name: "owner_id", SQLite: "TEXT NOT NULL REFERENCES owners(id) ON DELETE CASCADE", PG: "TEXT NOT NULL"},
@@ -36,17 +40,17 @@ func tenantTable() Table {
 
 // --- the tenant prefix -----------------------------------------------------
 //
-// Multi-tenancy is the seam's one cross-cutting rewrite: on Postgres a Tenant
-// table gains a leading workspace_id column and a workspace_id prefix on its
-// primary key, each foreign key (both sides), and each index. Those four have
-// to agree — a workspace_id in the primary key but not in an index gives a
+// Partitioning is the seam's one cross-cutting rewrite: on Postgres a
+// Partitioned table gains a leading partition-key column and that same prefix
+// on its primary key, each foreign key (both sides), and each index. Those four
+// have to agree — a workspace_id in the primary key but not in an index gives a
 // lookup that silently reads across tenants, and a prefix on the local FK
 // columns but not the referenced ones is a constraint that cannot be satisfied.
 
 func TestTenantPrefixIsAppliedConsistentlyOnPostgres(t *testing.T) {
 	tbl := tenantTable()
-	create := tbl.Create(Postgres, Opt{})
-	indexes := tbl.CreateIndexes(Postgres, Opt{})
+	create := tbl.Create(Postgres, Opt{TenantColumn: wsCol})
+	indexes := tbl.CreateIndexes(Postgres, Opt{TenantColumn: wsCol})
 
 	assert.Contains(t, create, "workspace_id TEXT NOT NULL",
 		"the tenant discriminator is the leading column")
@@ -70,8 +74,8 @@ func TestSQLiteNeverCarriesTheTenantColumn(t *testing.T) {
 
 	// SQLite databases are one file per project, so the discriminator would be
 	// a constant column in every row.
-	assert.NotContains(t, create, TenantColumn)
-	assert.NotContains(t, indexes, TenantColumn)
+	assert.NotContains(t, create, wsCol)
+	assert.NotContains(t, indexes, wsCol)
 	// Default width is the longest name (created_at) plus one.
 	assert.Contains(t, create, "id         TEXT PRIMARY KEY", "SQLite keeps its inline primary key")
 	assert.NotContains(t, create, "PRIMARY KEY (", "PGPK is a Postgres-only table-level key")
@@ -79,15 +83,15 @@ func TestSQLiteNeverCarriesTheTenantColumn(t *testing.T) {
 
 func TestNonTenantTableIsUnprefixedOnBothDialects(t *testing.T) {
 	tbl := tenantTable()
-	tbl.Tenant = false
+	tbl.Partitioned = false
 	tbl.PK = []string{"id"}
 	tbl.PGPK = nil
 
 	for _, d := range []Dialect{SQLite, Postgres} {
 		create := tbl.Create(d, Opt{})
-		assert.NotContains(t, create, TenantColumn)
+		assert.NotContains(t, create, wsCol)
 		assert.Contains(t, create, "PRIMARY KEY (id)")
-		assert.NotContains(t, tbl.CreateIndexes(d, Opt{}), TenantColumn)
+		assert.NotContains(t, tbl.CreateIndexes(d, Opt{}), wsCol)
 	}
 }
 
@@ -97,28 +101,29 @@ func TestNonTenantTableIsUnprefixedOnBothDialects(t *testing.T) {
 func TestTenantPrefixDoesNotMutateTheDescriptor(t *testing.T) {
 	tbl := tenantTable()
 
-	_ = tbl.Create(Postgres, Opt{})
-	_ = tbl.CreateIndexes(Postgres, Opt{})
+	_ = tbl.Create(Postgres, Opt{TenantColumn: wsCol})
+	_ = tbl.CreateIndexes(Postgres, Opt{TenantColumn: wsCol})
 
 	assert.Equal(t, []string{"owner_id"}, tbl.FKs[0].Cols, "the descriptor's FK columns are unchanged")
 	assert.Equal(t, []string{"id"}, tbl.FKs[0].RefCols)
 	assert.Equal(t, []string{"owner_id"}, tbl.Indexes[0].Cols)
 	assert.Equal(t, []string{"id"}, tbl.PGPK)
 
-	assert.NotContains(t, tbl.Create(SQLite, Opt{}), TenantColumn,
+	assert.NotContains(t, tbl.Create(SQLite, Opt{}), wsCol,
 		"a Postgres render must not leak the tenant prefix into a later SQLite render")
-	assert.NotContains(t, tbl.CreateIndexes(SQLite, Opt{}), TenantColumn)
+	assert.NotContains(t, tbl.CreateIndexes(SQLite, Opt{}), wsCol)
 }
 
 // TestRenderIsIdempotent catches accidental descriptor mutation generally:
 // rendering twice must produce the same bytes.
 func TestRenderIsIdempotent(t *testing.T) {
 	tbl := tenantTable()
+	o := Opt{TenantColumn: wsCol}
 	for _, d := range []Dialect{SQLite, Postgres} {
-		firstCreate := tbl.Create(d, Opt{})
-		firstIndexes := tbl.CreateIndexes(d, Opt{})
-		assert.Equal(t, firstCreate, tbl.Create(d, Opt{}))
-		assert.Equal(t, firstIndexes, tbl.CreateIndexes(d, Opt{}))
+		firstCreate := tbl.Create(d, o)
+		firstIndexes := tbl.CreateIndexes(d, o)
+		assert.Equal(t, firstCreate, tbl.Create(d, o))
+		assert.Equal(t, firstIndexes, tbl.CreateIndexes(d, o))
 	}
 }
 
@@ -127,7 +132,7 @@ func TestRenderIsIdempotent(t *testing.T) {
 func TestDialectOnlyColumnsAreOmittedFromTheOtherDialect(t *testing.T) {
 	tbl := tenantTable()
 	sqlite := tbl.Create(SQLite, Opt{})
-	pg := tbl.Create(Postgres, Opt{})
+	pg := tbl.Create(Postgres, Opt{TenantColumn: wsCol})
 
 	assert.Contains(t, sqlite, "has_codes", "an empty PG spec means SQLite-only")
 	assert.NotContains(t, pg, "has_codes")
@@ -139,7 +144,7 @@ func TestDialectOnlyColumnsAreOmittedFromTheOtherDialect(t *testing.T) {
 func TestDialectOnlyIndexesAreFiltered(t *testing.T) {
 	tbl := tenantTable()
 	sqlite := tbl.CreateIndexes(SQLite, Opt{})
-	pg := tbl.CreateIndexes(Postgres, Opt{})
+	pg := tbl.CreateIndexes(Postgres, Opt{TenantColumn: wsCol})
 
 	assert.Contains(t, sqlite, "idx_widgets_codes")
 	assert.NotContains(t, pg, "idx_widgets_codes")
@@ -151,12 +156,12 @@ func TestPGNameRenamesColumnsAndIndexes(t *testing.T) {
 	tbl := tenantTable()
 
 	assert.Contains(t, tbl.Create(SQLite, Opt{}), "created_at")
-	pg := tbl.Create(Postgres, Opt{})
+	pg := tbl.Create(Postgres, Opt{TenantColumn: wsCol})
 	assert.Contains(t, pg, "created ")
 	assert.NotContains(t, pg, "created_at")
 
 	assert.Contains(t, tbl.CreateIndexes(SQLite, Opt{}), "idx_widgets_owner ")
-	assert.Contains(t, tbl.CreateIndexes(Postgres, Opt{}), "idx_widgets_ws_owner ")
+	assert.Contains(t, tbl.CreateIndexes(Postgres, Opt{TenantColumn: wsCol}), "idx_widgets_ws_owner ")
 }
 
 // TestCreateIndexesSelectsByLogicalName pins that the name filter matches the
@@ -165,11 +170,11 @@ func TestPGNameRenamesColumnsAndIndexes(t *testing.T) {
 func TestCreateIndexesSelectsByLogicalName(t *testing.T) {
 	tbl := tenantTable()
 
-	got := tbl.CreateIndexes(Postgres, Opt{}, "idx_widgets_owner")
+	got := tbl.CreateIndexes(Postgres, Opt{TenantColumn: wsCol}, "idx_widgets_owner")
 	assert.Contains(t, got, "idx_widgets_ws_owner")
 	assert.NotContains(t, got, "idx_widgets_tsv", "only the named index is rendered")
 
-	assert.Empty(t, tbl.CreateIndexes(Postgres, Opt{}, "idx_widgets_ws_owner"),
+	assert.Empty(t, tbl.CreateIndexes(Postgres, Opt{TenantColumn: wsCol}, "idx_widgets_ws_owner"),
 		"the filter takes logical names; the Postgres spelling selects nothing")
 }
 
@@ -181,7 +186,7 @@ func TestInlineForeignKeyIsPostgresOnlyAtTableLevel(t *testing.T) {
 		"SQLiteInline means the reference is already on the column spec")
 	assert.Contains(t, sqlite, "REFERENCES owners(id) ON DELETE CASCADE")
 
-	assert.Contains(t, tbl.Create(Postgres, Opt{}), "FOREIGN KEY (workspace_id, owner_id)")
+	assert.Contains(t, tbl.Create(Postgres, Opt{TenantColumn: wsCol}), "FOREIGN KEY (workspace_id, owner_id)")
 }
 
 func TestCommentsAreSQLiteOnly(t *testing.T) {
@@ -189,7 +194,7 @@ func TestCommentsAreSQLiteOnly(t *testing.T) {
 	assert.Contains(t, tbl.Create(SQLite, Opt{}), "-- derived on PG")
 	// The Postgres equivalence tests tokenize statements, so a stray comment
 	// would read as schema drift.
-	assert.NotContains(t, tbl.Create(Postgres, Opt{}), "--")
+	assert.NotContains(t, tbl.Create(Postgres, Opt{TenantColumn: wsCol}), "--")
 }
 
 // --- Opt -------------------------------------------------------------------
@@ -253,7 +258,7 @@ func TestAddColumn(t *testing.T) {
 	assert.Equal(t, "\t\tALTER TABLE widgets ADD COLUMN has_codes INTEGER NOT NULL DEFAULT 0;\n",
 		tbl.AddColumn(SQLite, Opt{}, "has_codes"))
 	assert.Equal(t, "\t\tALTER TABLE widgets ADD COLUMN created TIMESTAMPTZ NOT NULL DEFAULT NOW();\n",
-		tbl.AddColumn(Postgres, Opt{}, "created_at"),
+		tbl.AddColumn(Postgres, Opt{TenantColumn: wsCol}, "created_at"),
 		"AddColumn takes the logical name and renders the dialect's spelling")
 }
 
@@ -287,18 +292,18 @@ func TestPKAppliesToBothDialectsAndPGPKToPostgresOnly(t *testing.T) {
 		PK:      []string{"a", "b"},
 	}
 	assert.Contains(t, shared.Create(SQLite, Opt{}), "PRIMARY KEY (a, b)")
-	assert.Contains(t, shared.Create(Postgres, Opt{}), "PRIMARY KEY (a, b)")
+	assert.Contains(t, shared.Create(Postgres, Opt{TenantColumn: wsCol}), "PRIMARY KEY (a, b)")
 
 	pgOnly := shared
 	pgOnly.PK = nil
 	pgOnly.PGPK = []string{"a"}
 	assert.NotContains(t, pgOnly.Create(SQLite, Opt{}), "PRIMARY KEY",
 		"PGPK exists for tables whose SQLite key is inline on a column spec")
-	assert.Contains(t, pgOnly.Create(Postgres, Opt{}), "PRIMARY KEY (a)")
+	assert.Contains(t, pgOnly.Create(Postgres, Opt{TenantColumn: wsCol}), "PRIMARY KEY (a)")
 
 	both := shared
 	both.PGPK = []string{"a"}
-	assert.Contains(t, both.Create(Postgres, Opt{}), "PRIMARY KEY (a, b)",
+	assert.Contains(t, both.Create(Postgres, Opt{TenantColumn: wsCol}), "PRIMARY KEY (a, b)",
 		"PK wins over PGPK; PGPK is the fallback, not an override")
 }
 
