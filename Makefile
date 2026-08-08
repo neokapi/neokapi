@@ -705,6 +705,24 @@ audit-modules: ## Assert module isolation + go.mod/go.sum tidiness (fails on dri
 	[ $$rc -eq 0 ] || exit 1
 	@echo "audit-modules: all module boundaries clean and go.mod/go.sum tidy"
 
+# check-module-boundaries asserts the two package-level license/architecture
+# boundaries the tree relies on but no CI job enforced (audit-modules, which also
+# runs them, is a pre-push-only target): kapi-desktop must link neither cobra nor
+# the cli module — the Apache desktop stays cli-free — and bowrain/core must
+# import no package from the AGPL main bowrain module beyond core + plugin/schema.
+# Wired into CI as the `module-boundaries` job, gated on any_go OR kapi_desktop so
+# a desktop-only PR that reaches for cobra is still caught (any_go has no
+# apps/kapi-desktop filter).
+check-module-boundaries: ## Assert kapi-desktop cli/cobra-free + bowrain/core framework-only
+	@bad=$$(cd apps/kapi-desktop && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \
+	          | grep -E '^(github\.com/spf13/cobra|github\.com/neokapi/neokapi/cli)(/|$$)' || true); \
+	  if [ -n "$$bad" ]; then echo "ERROR: kapi-desktop must stay cobra-free and cli-free — it links:"; echo "$$bad" | sed 's/^/    /'; exit 1; fi
+	@bad=$$(cd bowrain/core && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
+	          | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
+	          | grep -vE '^github\.com/neokapi/neokapi/bowrain/(core|plugin/schema)(/|$$)' || true); \
+	  if [ -n "$$bad" ]; then echo "ERROR: bowrain/core must be framework-only — it imports the main bowrain module:"; echo "$$bad" | sed 's/^/    /'; exit 1; fi
+	@echo "check-module-boundaries: kapi-desktop cli/cobra-free and bowrain/core framework-only"
+
 # ── Parity (head-to-head against okapi-bridge) ──────────────────────────────
 #
 # `make parity-test` is the load-bearing safety net for issue #448:
