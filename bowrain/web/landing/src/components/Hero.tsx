@@ -1,20 +1,8 @@
-import { ArrowRight, Play } from "lucide-react";
-import { useRef, useState } from "react";
+import { ArrowRight } from "lucide-react";
 import { BowArc } from "./Logo";
 import { GITHUB_URL, KAPI_SITE_URL, SIGNUP_URL } from "../links";
 
 export function Hero() {
-  const base = import.meta.env.BASE_URL;
-
-  // The sizzle reel is click-to-play (no autoplay on load): the poster shows
-  // until the visitor presses play.
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const playSizzle = () => {
-    setPlaying(true);
-    void videoRef.current?.play();
-  };
-
   // Hoisted inline links: keeping these as JSX-expression variables (rather
   // than inline elements split across prettier-wrapped lines with {" "}
   // spacers) lets neokapi-i18n extract the surrounding sentences as single
@@ -39,7 +27,7 @@ export function Hero() {
   );
 
   return (
-    <section className="relative flex flex-col items-center overflow-hidden px-6 pb-20 pt-36 grain">
+    <section className="relative flex flex-col items-center overflow-hidden px-6 pb-24 pt-36 grain">
       {/* Atmosphere: the bow arc rising behind the headline. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[560px] overflow-hidden">
         <BowArc className="absolute left-1/2 top-10 h-[500px] w-[1400px] -translate-x-1/2 opacity-70" />
@@ -59,14 +47,14 @@ export function Hero() {
         </div>
 
         <h1 className="animate-fade-in-up-delay-1 font-display text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl md:text-6xl">
-          Human communication
-          <span className="prism-text block">is contextual.</span>
+          The context graph
+          <span className="prism-text block">for your content.</span>
         </h1>
 
         <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-xl text-lg text-muted-foreground md:text-xl">
-          Bowrain is the context graph for your content — the one your people and your AI agents
-          plug into. A legal notice is not a help article, so the rules that fix voice and tone move
-          with the audience, the surface and the moment. Recorded once, applied everywhere,
+          Human communication is contextual. Bowrain is the graph your people and your AI agents
+          plug into — a legal notice is not a help article, so the rules that fix voice and tone
+          move with the audience, the surface and the moment. Recorded once, applied everywhere,
           connected to the systems your content already lives in.
         </p>
 
@@ -89,46 +77,6 @@ export function Hero() {
         {/* kapi is the open foundation, deliberately a footnote to the outcome above. */}
         <p className="mt-6 text-sm text-muted-foreground/80">
           Open core — built on the Apache-2.0 {kapiLink} toolchain. {githubLink}
-        </p>
-      </div>
-
-      {/* Platform sizzle — a montage of the bowrain feature walkthroughs, produced
-          by the harness from the same recordings as the docs videos. Served by the
-          sibling docs deploy (/web/bowrain/docs/… today, /docs/… at launch); the
-          poster is a committed still in the landing's own public/. */}
-      <div className="animate-fade-in-up-delay-3 relative z-10 mt-16 w-full max-w-5xl">
-        <div className="relative overflow-hidden rounded-xl border border-border shadow-2xl shadow-primary/10">
-          <video
-            ref={videoRef}
-            className="block w-full"
-            muted
-            loop
-            playsInline
-            controls={playing}
-            poster={`${base}sizzle.jpg`}
-            aria-label="A montage of the Bowrain platform: the shared editor, real-time collaboration, content memory and terminology, review and approval, and corrections that become versioned checks."
-          >
-            <source
-              src={`${base}docs/video/bowrain-web/bowrain-sizzle-dark.webm`}
-              type="video/webm"
-            />
-          </video>
-          {!playing && (
-            <button
-              type="button"
-              onClick={playSizzle}
-              aria-label="Play the platform overview"
-              className="group absolute inset-0 flex items-center justify-center bg-foreground/10 transition-colors hover:bg-foreground/5"
-            >
-              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-card/95 shadow-lg transition-transform group-hover:scale-105">
-                <Play className="ml-1 h-7 w-7 text-foreground" fill="currentColor" />
-              </span>
-            </button>
-          )}
-        </div>
-        <p className="mt-3 text-center text-xs text-muted-foreground/70">
-          The platform at a glance — a shared editor, real-time collaboration, memory and
-          terminology, review, and checks that learn from every correction.
         </p>
       </div>
     </section>
