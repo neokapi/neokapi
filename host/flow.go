@@ -1159,7 +1159,15 @@ func (a *App) checkFlowPlacement(def *flow.FlowDefinition) error {
 			fmt.Fprintf(os.Stderr, "warning: flow %q: %s\n", def.Name, d.Message)
 		}
 	}
-	return def.CheckPlacement(a.ToolReg)
+	if err := def.CheckPlacement(a.ToolReg); err != nil {
+		return err
+	}
+	// A declared redaction policy binds every route to a remote sink, including
+	// a flow the operator composes step by step: if the project declares
+	// defaults.redaction, a flow that egresses source remotely must carry a
+	// redact step.
+	requireRedaction := a.ProjectContext != nil && ProjectRedaction(a.ProjectContext.Project) != nil
+	return def.CheckRedactionCoverage(a.ToolReg, requireRedaction)
 }
 
 // mergeFlowNodeConfig overlays a flow node's per-tool config onto the shared run
