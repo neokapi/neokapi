@@ -1282,21 +1282,20 @@ func (c *BowrainSourceConnector) detectFormat(absPath string) string {
 		}
 	}
 
-	// Fall back to registry detection by file extension — the framework's
-	// compound-aware Ext, not filepath.Ext. The stdlib helper sees ".json"
-	// where the path says ".kbf.json", so every KBF catalog a recipe left
-	// format-less was read here by the generic JSON reader while the review
-	// path read it with the KBF reader: one item, two identity vocabularies,
-	// and a decision recorded on a KBF unit could never join its server block.
-	ext := format.Ext(absPath)
-	if ext == "" {
-		return ""
-	}
-	name, err := c.formatReg.Detector().DetectByExtension(ext)
-	if err != nil {
-		return ""
-	}
-	return name
+	// Fall back to the project's content-aware detector — the same
+	// ProjectContext.DetectFormat the framework hosts use. A shared extension
+	// is disambiguated by file content and per-format priority, and a compound
+	// suffix like .kbf.json resolves to the KBF reader rather than the generic
+	// JSON reader its .json tail would otherwise select.
+	return c.projectContext().DetectFormat(c.formatReg, absPath)
+}
+
+// projectContext builds a framework ProjectContext over the connector's recipe,
+// which embeds the framework KapiProject, so content-aware format detection
+// resolves exactly as it does for kapi's own hosts.
+func (c *BowrainSourceConnector) projectContext() *coreproj.ProjectContext {
+	recipePath := filepath.Join(c.project.Root, coreproj.RecipeFileName)
+	return coreproj.NewProjectContext(&c.project.Recipe.KapiProject, recipePath)
 }
 
 // buildItemMeta generates editor metadata (BlockIndex + PreviewHTML) for each
