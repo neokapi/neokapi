@@ -27,6 +27,8 @@ type (
 	CredentialRow                 = host.CredentialRow
 	CredentialSavedOutput         = host.CredentialSavedOutput
 	DiffOptions                   = host.DiffOptions
+	InitOptions                   = host.InitOptions
+	InitResult                    = host.InitResult
 	PluginUpdateOverrides         = host.PluginUpdateOverrides
 	RegistryPluginEntry           = host.RegistryPluginEntry
 	EnvCommand                    = host.EnvCommand
@@ -155,6 +157,7 @@ var (
 	SaveCredential               = host.SaveCredential
 	RemoveCredential             = host.RemoveCredential
 	TestCredential               = host.TestCredential
+	InitProject                  = host.InitProject
 	SearchRegistry               = host.SearchRegistry
 	InstallPluginFromRegistry    = host.InstallPluginFromRegistry
 	UpdatePlugin                 = host.UpdatePlugin

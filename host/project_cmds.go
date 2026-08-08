@@ -8,8 +8,102 @@ import (
 
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/host/output"
 )
+
+// InitOptions configures InitProject.
+type InitOptions struct {
+	// Name is the project id written into the recipe's name: field. Empty
+	// defaults to the root directory's basename.
+	Name string
+	// SourceLocale is the BCP-47 source language. Empty defaults to "en".
+	SourceLocale string
+	// TargetLocales, when non-empty (or when Framework is set), opts into the
+	// translation scaffold rather than the on-brand content scaffold.
+	TargetLocales []string
+	// Framework pre-fills the content mapping for a known stack (a preset name)
+	// and scaffolds a translation project.
+	Framework string
+}
+
+// InitResult reports what InitProject did.
+type InitResult struct {
+	Name       string
+	RecipePath string
+	StateDir   string
+	// AlreadyInitialized is true when a recipe was already present; InitProject
+	// adopts it and leaves it untouched (init is idempotent).
+	AlreadyInitialized bool
+}
+
+// InitProject scaffolds (or adopts) a kapi project at root: it writes the recipe
+// (unless one is already present), ensures the .kapi state layout, and stamps
+// the state manifest. It is idempotent — re-running on an initialized project
+// adopts the existing recipe and returns AlreadyInitialized. This is the whole
+// composition `kapi init` performs, lifted here so Kapi Desktop can create a
+// project through the same path rather than reproducing it.
+func InitProject(root string, opts InitOptions) (*InitResult, error) {
+	name := opts.Name
+	if name == "" {
+		name = filepath.Base(root)
+	}
+	sourceLocale := opts.SourceLocale
+	if sourceLocale == "" {
+		sourceLocale = "en"
+	}
+
+	content, err := FrameworkContent(opts.Framework)
+	if err != nil {
+		return nil, err
+	}
+	voiceProfile, termsSource := FrameworkBindings(opts.Framework)
+
+	recipeExists, err := RecipeExists(root)
+	if err != nil {
+		return nil, fmt.Errorf("check for existing project: %w", err)
+	}
+	recipePath := filepath.Join(root, project.RecipeFileName)
+	stateDir := filepath.Join(root, project.StateDirName)
+
+	if !recipeExists {
+		// On-brand content is the default; a target locale or a framework opts
+		// into the translation scaffold.
+		var recipe []byte
+		if len(opts.TargetLocales) > 0 || opts.Framework != "" {
+			recipe = ScaffoldRecipe(name, sourceLocale, opts.TargetLocales, content, voiceProfile, termsSource)
+		} else {
+			recipe = ScaffoldContentRecipe(name, sourceLocale)
+		}
+		if err := os.WriteFile(recipePath, recipe, 0o644); err != nil {
+			return nil, fmt.Errorf("write recipe: %w", err)
+		}
+	}
+
+	// EnsureLayout/SaveState are safe to run on an existing layout.
+	layout := project.Layout{Root: root, RecipePath: recipePath, StateDir: stateDir}
+	if err := project.EnsureLayout(layout); err != nil {
+		return nil, fmt.Errorf("create state dir: %w", err)
+	}
+	if !recipeExists {
+		if err := project.SaveState(layout, &project.StateManifest{
+			Generator: project.StateGenerator{ID: "kapi", Version: version.Version},
+			Project: project.StateProjectRef{
+				ID:   name,
+				Path: "../" + filepath.Base(recipePath),
+			},
+		}); err != nil {
+			return nil, fmt.Errorf("write state manifest: %w", err)
+		}
+	}
+
+	return &InitResult{
+		Name:               name,
+		RecipePath:         recipePath,
+		StateDir:           stateDir,
+		AlreadyInitialized: recipeExists,
+	}, nil
+}
 
 // scaffoldContent is one content mapping written into a scaffolded recipe.
 type scaffoldContent struct {
