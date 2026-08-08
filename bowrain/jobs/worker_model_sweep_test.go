@@ -49,8 +49,8 @@ func TestModelSweep_EndToEnd(t *testing.T) {
 	bs, err := brandpg.NewPostgresBrandStore(db)
 	require.NoError(t, err)
 	profile := &brand.VoiceProfile{
-		WorkspaceID: wsID,
-		Name:        "Acme Voice",
+		Scope: wsID,
+		Name:  "Acme Voice",
 		Vocabulary: brand.VocabularyRules{
 			CompetitorTerms: []brand.TermRule{{Term: "Localizely"}},
 		},

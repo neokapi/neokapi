@@ -357,19 +357,19 @@ func TestRecipeGovernanceEntersTheChain(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 	for _, p := range []*profile.VoiceProfile{
-		{ID: "explicit-voice", Name: "Explicit Voice", WorkspaceID: LocalWorkspace},
-		{ID: "stream-voice", Name: "Stream Voice", WorkspaceID: LocalWorkspace},
-		{ID: "project-voice", Name: "Project Voice", WorkspaceID: LocalWorkspace},
-		{ID: "workspace-voice", Name: "Workspace Voice", WorkspaceID: LocalWorkspace},
+		{ID: "explicit-voice", Name: "Explicit Voice", Scope: LocalScope},
+		{ID: "stream-voice", Name: "Stream Voice", Scope: LocalScope},
+		{ID: "project-voice", Name: "Project Voice", Scope: LocalScope},
+		{ID: "workspace-voice", Name: "Workspace Voice", Scope: LocalScope},
 	} {
 		require.NoError(t, store.CreateProfile(t.Context(), p))
 	}
 
 	rc := profile.ResolveContext{
-		CollectionProfile:  b.profile,
-		StreamProperties:   map[string]string{profile.PropertyProfileID: "stream-voice"},
-		ProjectProperties:  map[string]string{profile.PropertyProfileID: "project-voice"},
-		WorkspaceProfileID: "workspace-voice",
+		CollectionProfile: b.profile,
+		StreamProperties:  map[string]string{profile.PropertyProfileID: "stream-voice"},
+		ProjectProperties: map[string]string{profile.PropertyProfileID: "project-voice"},
+		RootProfileID:     "workspace-voice",
 	}
 
 	got, err := profile.ResolveProfileFromContext(t.Context(), rc, store)

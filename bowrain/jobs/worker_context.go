@@ -298,7 +298,7 @@ func (b *profileBinder) upsert(ctx context.Context, name string, existing, pushe
 		created := *pushed
 		created.ID = id.New()
 		created.Name = name
-		created.WorkspaceID = b.workspaceID
+		created.Scope = b.workspaceID
 		created.Version = 1
 		created.CreatedAt = now
 		created.UpdatedAt = now
@@ -352,7 +352,7 @@ func sameAuthoredVoice(a, b *coreprofile.VoiceProfile) bool {
 	authored := func(p *coreprofile.VoiceProfile) string {
 		snapshot := *p
 		snapshot.ID = ""
-		snapshot.WorkspaceID = ""
+		snapshot.Scope = ""
 		snapshot.Version = 0
 		snapshot.VersionNote = ""
 		snapshot.CreatedAt = time.Time{}

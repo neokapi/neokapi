@@ -24,8 +24,9 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// LocalWorkspace is the workspace ID used for profiles in the local CLI voice store.
-const LocalWorkspace = "local"
+// LocalScope is the profile scope for the local CLI voice store: a single-owner
+// store keeps everything under the empty partition key.
+const LocalScope = ""
 
 // AddProfileFlags adds the mutually-exclusive profile-source flags plus the
 // voice-store resource flags.
@@ -232,7 +233,7 @@ func (a *App) SaveProfileToStore(cmd Command, profile *coreprofile.VoiceProfile,
 	if profile.ID == "" {
 		profile.ID = slugify(profile.Name)
 	}
-	profile.WorkspaceID = LocalWorkspace
+	profile.Scope = LocalScope
 
 	action := "created"
 	if _, gerr := store.GetProfile(cmd.Context(), profile.ID); gerr == nil {
@@ -626,7 +627,7 @@ func lookupStoreProfileAt(ctx context.Context, dbPath, name string) (*coreprofil
 	if p, gerr := store.GetProfile(ctx, slugify(name)); gerr == nil {
 		return p, nil
 	}
-	profiles, lerr := store.ListProfiles(ctx, LocalWorkspace)
+	profiles, lerr := store.ListProfiles(ctx, LocalScope)
 	if lerr != nil {
 		return nil, lerr
 	}

@@ -14,7 +14,7 @@ type Store interface {
 	GetProfile(ctx context.Context, id string) (*VoiceProfile, error)
 	UpdateProfile(ctx context.Context, profile *VoiceProfile) error
 	DeleteProfile(ctx context.Context, id string) error
-	ListProfiles(ctx context.Context, workspaceID string) ([]*VoiceProfile, error)
+	ListProfiles(ctx context.Context, scope string) ([]*VoiceProfile, error)
 
 	// Profile version history
 	ListProfileVersions(ctx context.Context, profileID string) ([]*ProfileVersion, error)
@@ -34,7 +34,7 @@ type Store interface {
 
 	// Correction storage (feedback loop)
 	StoreCorrection(ctx context.Context, correction *Correction) error
-	GetSuggestedRules(ctx context.Context, workspaceID string, minCount int) ([]*SuggestedRule, error)
+	GetSuggestedRules(ctx context.Context, scope string, minCount int) ([]*SuggestedRule, error)
 
 	// Rule decisions (the review/approve/reject/promote governance over
 	// correction-derived candidate rules). Candidates are derived live from the

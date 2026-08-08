@@ -89,15 +89,15 @@ func loadFS(ctx context.Context, fsys fs.FS, name string, opts Options, depth in
 // on purpose, so putting prose in the frontmatter fails to load rather than
 // quietly bypassing review of the body.
 type frontmatter struct {
-	Extends     string                        `yaml:"extends,omitempty"`
-	ID          string                        `yaml:"id,omitempty"`
-	Name        string                        `yaml:"name,omitempty"`
-	WorkspaceID string                        `yaml:"workspace_id,omitempty"`
-	MinScore    int                           `yaml:"min_score,omitempty"`
-	Tone        toneFront                     `yaml:"tone,omitempty"`
-	Style       profile.StyleRules            `yaml:"style,omitempty"`
-	Vocabulary  vocabularyFront               `yaml:"vocabulary,omitempty"`
-	Locales     map[model.LocaleID]localeMeta `yaml:"locales,omitempty"`
+	Extends    string                        `yaml:"extends,omitempty"`
+	ID         string                        `yaml:"id,omitempty"`
+	Name       string                        `yaml:"name,omitempty"`
+	Scope      string                        `yaml:"workspace_id,omitempty"`
+	MinScore   int                           `yaml:"min_score,omitempty"`
+	Tone       toneFront                     `yaml:"tone,omitempty"`
+	Style      profile.StyleRules            `yaml:"style,omitempty"`
+	Vocabulary vocabularyFront               `yaml:"vocabulary,omitempty"`
+	Locales    map[model.LocaleID]localeMeta `yaml:"locales,omitempty"`
 }
 
 // toneFront is ToneProfile without Guidelines: the enums are frontmatter, the
@@ -320,7 +320,7 @@ func (d *document) toProfile(ctx context.Context, opts Options) (*profile.VoiceP
 		ID:          d.front.ID,
 		Name:        d.front.Name,
 		Description: d.description,
-		WorkspaceID: d.front.WorkspaceID,
+		Scope:       d.front.Scope,
 		MinScore:    d.front.MinScore,
 		Tone: profile.ToneProfile{
 			Personality: d.front.Tone.Personality,

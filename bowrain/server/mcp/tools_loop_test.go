@@ -13,7 +13,7 @@ func TestLoopTools_SuggestedRulesAndPromote(t *testing.T) {
 	ctx := context.Background()
 	store := &memBrandStore{
 		profiles: []*coreprofile.VoiceProfile{
-			{ID: "p1", WorkspaceID: "ws1", Name: "Voice"},
+			{ID: "p1", Scope: "ws1", Name: "Voice"},
 		},
 		suggested: []*coreprofile.SuggestedRule{
 			{Term: "utilize", Replacement: "use", CorrectionCount: 4, Dimension: coreprofile.DimensionVocabulary},

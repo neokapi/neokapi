@@ -320,9 +320,9 @@ func TestReviewRecheck_RulePromotionScopedToPromotedTerm(t *testing.T) {
 	// A profile with two forbidden terms: "ancien" (old) and "utiliser" (just
 	// promoted). Both are enforced rules, but only "utiliser" is being promoted now.
 	profile := &coreprofile.VoiceProfile{
-		ID:          "p-rc",
-		Name:        "RC Voice",
-		WorkspaceID: wsID,
+		ID:    "p-rc",
+		Name:  "RC Voice",
+		Scope: wsID,
 		Vocabulary: coreprofile.VocabularyRules{
 			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "ancien"},

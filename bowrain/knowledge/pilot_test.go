@@ -147,7 +147,7 @@ func TestStartStopPilot_VoiceBinding(t *testing.T) {
 	ws := "ws"
 	pilotStream := "pilot/voice"
 
-	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: ws, Version: 2}
+	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", Scope: ws, Version: 2}
 	profiles := newFakeProfileStore(profile)
 
 	content := newPilotContentStore()

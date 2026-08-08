@@ -45,7 +45,7 @@ func TestBrandLoop_EndToEnd(t *testing.T) {
 
 	const wsID = "ws-loop-e2e"
 	const userID = "u-loop-e2e"
-	profile := &coreprofile.VoiceProfile{ID: "p-loop-e2e", WorkspaceID: wsID, Name: "Loop E2E"}
+	profile := &coreprofile.VoiceProfile{ID: "p-loop-e2e", Scope: wsID, Name: "Loop E2E"}
 	require.NoError(t, srv.BrandStore.CreateProfile(ctx, profile))
 
 	// correct posts a correction through the handler and returns the decoded body.
@@ -164,7 +164,7 @@ func TestPhase4_BrandRuleDemote(t *testing.T) {
 	srv := setupBrandLoopServer(t)
 	e := srv.GetEcho()
 	ctx := context.Background()
-	profile := &coreprofile.VoiceProfile{ID: "p-demote", WorkspaceID: "ws-d", Name: "D"}
+	profile := &coreprofile.VoiceProfile{ID: "p-demote", Scope: "ws-d", Name: "D"}
 	require.NoError(t, srv.BrandStore.CreateProfile(ctx, profile))
 
 	_, changed, err := coreprofile.PromoteAndSave(ctx, srv.BrandStore, profile.ID,
@@ -197,7 +197,7 @@ func TestBrandLoop_EvaluateBlastRadius(t *testing.T) {
 	ctx := context.Background()
 
 	const wsID = "ws-blast"
-	profile := &coreprofile.VoiceProfile{ID: "p-blast", WorkspaceID: wsID, Name: "Blast"}
+	profile := &coreprofile.VoiceProfile{ID: "p-blast", Scope: wsID, Name: "Blast"}
 	require.NoError(t, srv.BrandStore.CreateProfile(ctx, profile))
 
 	const projectID = "proj-blast"

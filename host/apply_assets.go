@@ -759,7 +759,7 @@ func (a *App) compileVoiceProfile(ctx context.Context, cmd Command, profilePath 
 	if profile.ID == "" {
 		profile.ID = slugify(profile.Name)
 	}
-	profile.WorkspaceID = LocalWorkspace
+	profile.Scope = LocalScope
 	if _, gerr := store.GetProfile(ctx, profile.ID); gerr == nil {
 		if uerr := store.UpdateProfile(ctx, profile); uerr != nil {
 			return fmt.Errorf("update voice store: %w", uerr)

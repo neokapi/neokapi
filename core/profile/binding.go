@@ -27,8 +27,10 @@ type ResolveContext struct {
 	// ExplicitProfileID takes priority over all other resolution levels.
 	ExplicitProfileID string
 
-	// WorkspaceProfileID is the workspace-level default profile.
-	WorkspaceProfileID string
+	// RootProfileID is the store-wide default profile — the least specific tier,
+	// bound at the root of the organizational hierarchy (a server's workspace, or
+	// the local store as a whole).
+	RootProfileID string
 
 	// ProjectProperties is the Project.Properties map.
 	ProjectProperties map[string]string

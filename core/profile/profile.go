@@ -37,8 +37,12 @@ type VoiceProfile struct {
 	Locales     map[model.LocaleID]LocaleOverride `json:"locales,omitempty" yaml:"locales,omitempty"`
 	Channels    map[string]ChannelOverride        `json:"channels,omitempty" yaml:"channels,omitempty"`
 	Personas    map[string]PersonaOverride        `json:"personas,omitempty" yaml:"personas,omitempty"`
-	WorkspaceID string                            `json:"workspace_id" yaml:"workspace_id,omitempty"`
-	Autonomy    AutonomyConfig                    `json:"autonomy,omitzero" yaml:"autonomy,omitempty"`
+	// Scope is the opaque partition key the storing host uses to separate one
+	// owner's profiles from another's: a server sets it to its tenant key, a
+	// single-owner store (the local CLI) leaves it empty. The persisted key
+	// stays workspace_id — the name a multi-tenant server writes it under.
+	Scope    string         `json:"workspace_id" yaml:"workspace_id,omitempty"`
+	Autonomy AutonomyConfig `json:"autonomy,omitzero" yaml:"autonomy,omitempty"`
 	// MinScore is the minimum voice-compliance score (0–100) a block must reach
 	// to count as on-brand in roll-ups (e.g. the dashboard's on-brand rate). 0
 	// (unset) uses DefaultMinScore; see ComplianceBar.
