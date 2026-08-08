@@ -2065,7 +2065,10 @@ export function SaveProjectFilter(tabID, f) {
 }
 
 /**
- * SaveProvider saves a provider config and optionally stores the API key in the OS keychain.
+ * SaveProvider saves a provider config and optionally stores the API key in the
+ * OS keychain. Validation (a rejected typo'd provider type) and the key write
+ * are the shared host path, so the desktop cannot persist a provider the CLI
+ * would refuse.
  * @param {$models.ProviderSaveRequest} req
  * @returns {$CancellablePromise<$models.ProviderInfo | null>}
  */
@@ -2145,7 +2148,9 @@ export function SearchMemoryEntriesFiltered(handle, query, anyLocale, requireLoc
 
 /**
  * SearchPlugins searches the registry index for plugins whose name or
- * description matches the query (substring, case-sensitive).
+ * description matches the query. The projection is the shared host one, so the
+ * desktop and the CLI order results identically (by name) and mark
+ * installability the same way.
  * @param {string} query
  * @returns {$CancellablePromise<$models.AvailablePlugin[]>}
  */
@@ -2336,10 +2341,10 @@ export function T() {
 }
 
 /**
- * TestProvider verifies that a provider is usable. For keyless local providers
- * (Ollama, Gemma, Demo) there is no API key to check — they run on-device — so
- * the check passes once the credential record exists. Cloud providers still
- * require a key in the keychain.
+ * TestProvider verifies that a provider is usable. Keyless providers (on-device
+ * ones plus subscription-backed claude-code) pass once the credential record
+ * exists; cloud providers still require a key in the keychain. The keyless
+ * decision is the shared host path, so the desktop and the CLI agree.
  * @param {string} id
  * @returns {$CancellablePromise<boolean>}
  */
@@ -2368,7 +2373,10 @@ export function UpdateMemoryEntry(handle, req) {
 }
 
 /**
- * UpdatePlugin updates a plugin to the latest version (async).
+ * UpdatePlugin updates an installed plugin to the latest matching version
+ * (async). It reuses the channel, constraint and index recorded at install
+ * time (installed.json) instead of reinstalling with defaults, so a plugin
+ * tracking beta or pinned to a constraint stays on its track.
  * @param {string} name
  * @returns {$CancellablePromise<void>}
  */

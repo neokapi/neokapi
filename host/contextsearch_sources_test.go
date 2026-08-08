@@ -28,8 +28,8 @@ func TestContextSearchSourcesFor_StandalonePaths(t *testing.T) {
 	defer cleanup()
 
 	require.NotNil(t, src.Terms, "a standalone terms path binds the terms store")
-	assert.NoError(t, src.TermsErr)
+	require.NoError(t, src.TermsErr)
 	require.NotNil(t, src.Memory, "a standalone memory path binds the memory store")
-	assert.NoError(t, src.MemoryErr)
+	require.NoError(t, src.MemoryErr)
 	assert.Equal(t, host.ScopeProject, src.Scope)
 }
