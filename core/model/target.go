@@ -105,7 +105,7 @@ func (s TargetStatus) Rank() int {
 // pilot shadowed a stream. So it is recorded at production time or approximated
 // forever.
 type Origin struct {
-	Kind      string `json:"kind,omitempty"`      // human | tm | mt | ai | ocr | asr
+	Kind      string `json:"kind,omitempty"`      // human | memory | mt | ai | ocr | asr
 	Engine    string `json:"engine,omitempty"`    // MT/AI/OCR/ASR engine name
 	Tool      string `json:"tool,omitempty"`      // tool id that produced it
 	Reference string `json:"reference,omitempty"` // batch id, content-memory entry, etc.

@@ -39,6 +39,7 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/leverage"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -1069,12 +1070,7 @@ func editorMemoryTranslate(ctx context.Context, cs store.ContentStore, wsStores 
 
 	parts := storedBlocksToParts(storedBlocks)
 
-	memoryTool := memory.NewMemoryLeverageTool(tm, memory.MemoryLeverageConfig{
-		MinScore:     0.7,
-		MaxResults:   5,
-		SourceLocale: proj.DefaultSourceLanguage,
-		TargetLocale: model.LocaleID(targetLocale),
-	})
+	memoryTool := leverage.NewTool(tm, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), 0)
 
 	outParts, err := tool.RunOnParts(ctx, memoryTool, parts)
 	if err != nil {

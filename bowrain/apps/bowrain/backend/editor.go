@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/leverage"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -525,12 +526,7 @@ func (a *App) memoryTranslateItemLocal(projectID, itemName, targetLocale string)
 
 	parts := storedBlocksToParts(storedBlocks)
 
-	memoryTool := memory.NewMemoryLeverageTool(tm, memory.MemoryLeverageConfig{
-		MinScore:     0.7,
-		MaxResults:   5,
-		SourceLocale: proj.DefaultSourceLanguage,
-		TargetLocale: model.LocaleID(targetLocale),
-	})
+	memoryTool := leverage.NewTool(tm, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), 0)
 
 	outParts, err := tool.RunOnParts(ctx, memoryTool, parts)
 	if err != nil {
