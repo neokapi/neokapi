@@ -46,12 +46,14 @@ export function analyticsAvailable(): boolean {
   return Boolean(POSTHOG_KEY) && !doNotTrack();
 }
 
-function initClient(): void {
+function initClient(machineID?: string): void {
   if (initialized) return;
   posthog.init(POSTHOG_KEY!, {
     api_host: POSTHOG_HOST,
-    // localStorage keeps a random anonymous distinct id stable across
-    // launches (machine-id semantics); no cross-site cookies.
+    // The distinct id is the shared kapi machine id, so the CLI and the
+    // desktop report as one machine rather than two identities. Falls back to
+    // a stable localStorage id only when the backend has none (non-Wails).
+    bootstrap: machineID ? { distinctID: machineID } : undefined,
     persistence: "localStorage",
     respect_dnt: true,
     autocapture: false,
@@ -84,32 +86,33 @@ export async function initAnalytics(): Promise<{ showNotice: boolean }> {
   const settings = await api.getSettings();
   if (!settings) return { showNotice: false };
   if (!settings.telemetry_disabled) {
-    initClient();
+    initClient(settings.machine_id);
     captureEvent("app_opened");
   }
   return { showNotice: !settings.telemetry_notice_shown };
 }
 
-/** Persist the telemetry setting and apply it to the live client. */
+/** Persist the telemetry setting and apply it to the live client. The opt-out
+ * is written to the shared kapi config (the same one `kapi telemetry` uses),
+ * not to settings.json. */
 export async function setTelemetryEnabled(enabled: boolean): Promise<void> {
-  const settings = (await api.getSettings()) ?? {};
-  await api.saveSettings({ ...settings, telemetry_disabled: !enabled });
+  await api.setTelemetryEnabled(enabled);
   if (!analyticsAvailable()) return;
   if (enabled) {
     if (initialized) {
       posthog.opt_in_capturing();
     } else {
-      initClient();
+      const settings = await api.getSettings();
+      initClient(settings?.machine_id);
     }
   } else if (initialized) {
     posthog.opt_out_capturing();
   }
 }
 
-/** Persist that the one-time first-run notice has been shown. */
+/** Persist that the one-time first-run notice has been shown (shared kapi config). */
 export async function markTelemetryNoticeShown(): Promise<void> {
-  const settings = (await api.getSettings()) ?? {};
-  await api.saveSettings({ ...settings, telemetry_notice_shown: true });
+  await api.markTelemetryNoticeShown();
 }
 
 /** Capture an explicit event. No-op unless analytics initialized. */

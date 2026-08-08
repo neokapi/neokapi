@@ -624,11 +624,13 @@ export class AppSettings {
         }
         if (/** @type {any} */(false)) {
             /**
-             * TelemetryDisabled persists the anonymous-analytics opt-out (decision
-             * D1: opt-out, default ON — the zero value keeps telemetry enabled, so
-             * legacy settings files stay on the default). The frontend reads and
-             * writes it through GetSettings/SaveSettings; keyless builds never emit
-             * regardless of this flag.
+             * TelemetryDisabled, TelemetryNoticeShown and MachineID are NOT persisted
+             * in settings.json — they are a read-only projection of the shared kapi
+             * telemetry state that `kapi telemetry on|off` also drives. GetSettings
+             * fills them from the kapi config store (via telemetry.Resolve), so
+             * DO_NOT_TRACK, CI and the CLI toggle all apply, and the machine reports a
+             * single identity. Writes go through SetTelemetryEnabled /
+             * MarkTelemetryNoticeShown, not SaveSettings.
              * @member
              * @type {boolean | undefined}
              */
@@ -636,12 +638,17 @@ export class AppSettings {
         }
         if (/** @type {any} */(false)) {
             /**
-             * TelemetryNoticeShown records that the one-time first-run telemetry
-             * notice has been displayed.
              * @member
              * @type {boolean | undefined}
              */
             this["telemetry_notice_shown"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["machine_id"] = undefined;
         }
 
         Object.assign(this, $$source);

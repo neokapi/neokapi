@@ -72,6 +72,13 @@ type ImportTMXOptions struct {
 	WarnFunc func(msg string)
 	// ImportedBy is recorded on the ImportSession.
 	ImportedBy string
+	// SkipIndexRebuild suppresses the automatic FTS5 search + fuzzy index
+	// rebuild that follows a bulk import. Leave it false — the default — and a
+	// single import leaves the store searchable with no further call. Set it
+	// only when the caller batches many imports and rebuilds the side-tables
+	// once at the end (the import-dir path): rebuilding per file is the
+	// dominant cost on large corpora.
+	SkipIndexRebuild bool
 }
 
 // ImportTMXWithOptions imports a TMX file into the content memory, supports recording an Origin
@@ -268,6 +275,21 @@ func ImportTMXSession(ctx context.Context, store Store, reader io.Reader, opts I
 			return session.ID, 0, err
 		}
 		imported = len(entries)
+		// BulkAddWithStream deliberately skips the FTS5 search + fuzzy
+		// side-tables — repopulating them per row is the dominant cost on
+		// large corpora. Restore them set-wise here so imported entries are
+		// visible to search and fuzzy lookup. Doing it inside the session,
+		// rather than at each call site, is what stops a caller (the desktop
+		// import path did) from leaving the import invisible. A batching
+		// caller opts out with SkipIndexRebuild and rebuilds once at the end.
+		if idx, ok := store.(SearchIndexRebuilder); ok && !opts.SkipIndexRebuild {
+			if err := idx.RebuildSearchIndex(ctx); err != nil {
+				return session.ID, imported, fmt.Errorf("rebuild search index: %w", err)
+			}
+			if err := idx.RebuildFuzzyIndex(ctx); err != nil {
+				return session.ID, imported, fmt.Errorf("rebuild fuzzy index: %w", err)
+			}
+		}
 	} else {
 		for _, entry := range entries {
 			if err := store.Add(ctx, entry); err != nil {

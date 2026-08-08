@@ -1078,7 +1078,9 @@ export function GetSessionState() {
 }
 
 /**
- * GetSettings returns the current app settings.
+ * GetSettings returns the current app settings, with the telemetry projection
+ * filled from the shared kapi config so the desktop and the CLI agree on
+ * whether analytics run and on the machine's identity.
  * @returns {$CancellablePromise<$models.AppSettings>}
  */
 export function GetSettings() {
@@ -1601,6 +1603,16 @@ export function LookupMemory(handle, req) {
 }
 
 /**
+ * MarkTelemetryNoticeShown records in the shared kapi config that the one-time
+ * first-run telemetry notice has been displayed, so the CLI's first-run notice
+ * and the desktop's do not both fire on one machine.
+ * @returns {$CancellablePromise<void>}
+ */
+export function MarkTelemetryNoticeShown() {
+    return $Call.ByID(415865061);
+}
+
+/**
  * MatchContent resolves content patterns against the filesystem.
  * All patterns are relative to the .kapi file's directory.
  * Patterns containing ".." are rejected for safety.
@@ -2076,7 +2088,10 @@ export function SaveSessionState(state) {
 }
 
 /**
- * SaveSettings updates and persists app settings.
+ * SaveSettings persists the desktop-only app settings (theme, tabs, samples,
+ * locale). The telemetry projection is never written here — it belongs to the
+ * shared kapi config and is set through SetTelemetryEnabled /
+ * MarkTelemetryNoticeShown.
  * @param {$models.AppSettings} s
  * @returns {$CancellablePromise<void>}
  */
@@ -2247,6 +2262,17 @@ export function SetLocale(locale) {
  */
 export function SetProviderDefault(id) {
     return $Call.ByID(3380514462, id);
+}
+
+/**
+ * SetTelemetryEnabled writes the shared anonymous-analytics opt-out to the kapi
+ * config store — the same key `kapi telemetry on|off` writes — so one toggle
+ * governs both the CLI and the desktop.
+ * @param {boolean} enabled
+ * @returns {$CancellablePromise<void>}
+ */
+export function SetTelemetryEnabled(enabled) {
+    return $Call.ByID(1799185900, enabled);
 }
 
 /**
