@@ -261,7 +261,7 @@ func TestConvention_ToolExamplesResolveInCommandTree(t *testing.T) {
 	root.AddCommand(KapiCommandSet(app)...)
 
 	for tool, examples := range ToolExamples {
-		for _, line := range strings.Split(examples, "\n") {
+		for line := range strings.SplitSeq(examples, "\n") {
 			line = strings.TrimSpace(line)
 			if line == "" {
 				continue

@@ -34,7 +34,7 @@ func TestConvergeRenderer_PlainStream(t *testing.T) {
 	assert.Contains(t, got, "pass 1/5 · catching up nb-NO, de-DE")
 	assert.Contains(t, got, "nb-NO      2/2 units  (content memory 1 · AI 1)")
 	assert.Contains(t, got, "pass 1 done · produced 4 (+4) · 1 failing check(s)")
-	assert.Contains(t, got, "materialized 3 localized file(s)")
+	assert.Contains(t, got, "materialized 3 target file(s)")
 	// unit_progress is TTY-only detail; a plain stream stays line-per-outcome.
 	assert.NotContains(t, got, "1/2 units")
 }

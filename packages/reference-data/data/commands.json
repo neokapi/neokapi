@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-07T13:24:53Z",
+  "generatedAt": "2026-08-08T15:26:39Z",
   "commands": [
     {
       "id": "add",
@@ -832,8 +832,8 @@
         }
       ],
       "examples": [
-        "kapi case-transform messages.json --mode upper",
-        "kapi case-transform messages.json --mode lower"
+        "kapi exec case-transform messages.json --mode upper",
+        "kapi exec case-transform messages.json --mode lower"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -2481,9 +2481,9 @@
         }
       ],
       "examples": [
-        "kapi qa app.xliff --target-lang fr",
-        "kapi qa app.xliff --target-lang fr --provider anthropic",
-        "kapi qa app.xliff --target-lang de --json"
+        "kapi exec qa app.xliff --target-lang fr",
+        "kapi exec qa app.xliff --target-lang fr --provider anthropic",
+        "kapi exec qa app.xliff --target-lang de --json"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -2649,8 +2649,8 @@
         }
       ],
       "examples": [
-        "kapi recycle app.xliff --target-lang fr",
-        "kapi recycle messages.json --target-lang de"
+        "kapi exec recycle app.xliff --target-lang fr",
+        "kapi exec recycle messages.json --target-lang de"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -3051,8 +3051,8 @@
         }
       ],
       "examples": [
-        "kapi review app.xliff --target-lang fr",
-        "kapi review messages.json --target-lang de"
+        "kapi exec review app.xliff --target-lang fr",
+        "kapi exec review messages.json --target-lang de"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -3341,8 +3341,8 @@
         }
       ],
       "examples": [
-        "kapi search-replace messages.json --find \"foo\" --replace \"bar\"",
-        "kapi search-replace page.html --find \"colour\" --replace \"color\""
+        "kapi exec search-replace messages.json --find \"foo\" --replace \"bar\"",
+        "kapi exec search-replace page.html --find \"colour\" --replace \"color\""
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -3543,8 +3543,8 @@
         }
       ],
       "examples": [
-        "kapi segmentation messages.json",
-        "kapi segmentation app.xliff"
+        "kapi exec segmentation messages.json",
+        "kapi exec segmentation app.xliff"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -3764,8 +3764,8 @@
         }
       ],
       "examples": [
-        "kapi term-check app.xliff --source-lang en --target-lang fr",
-        "kapi term-check messages.json --source-lang en --target-lang fr"
+        "kapi exec term-check app.xliff --source-lang en --target-lang fr",
+        "kapi exec term-check messages.json --source-lang en --target-lang fr"
       ],
       "offlineCapable": true,
       "runnableInBrowser": true,
@@ -3894,8 +3894,8 @@
         }
       ],
       "examples": [
-        "kapi term-extract messages.json",
-        "kapi term-extract app.xliff --provider anthropic"
+        "kapi exec term-extract messages.json",
+        "kapi exec term-extract app.xliff --provider anthropic"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -4313,8 +4313,8 @@
         }
       ],
       "examples": [
-        "kapi voice-check messages.json --target-lang fr",
-        "kapi voice-check app.xliff --target-lang de"
+        "kapi exec voice-check messages.json --target-lang fr",
+        "kapi exec voice-check app.xliff --target-lang de"
       ],
       "offlineCapable": false,
       "runnableInBrowser": true,
@@ -6084,7 +6084,7 @@
         "plugin"
       ],
       "use": "plugin",
-      "short": "Install and manage manifest-driven plugins (#438)",
+      "short": "Install and manage manifest-driven plugins",
       "aliases": [
         "plugins"
       ],

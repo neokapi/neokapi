@@ -248,7 +248,7 @@ func (o FlowRunOutput) FormatText(w io.Writer) error {
 	s := Theme(w)
 	if o.ProcessOnly {
 		fmt.Fprintf(w,
-			"Committed overlays for %s to the project store — run `kapi merge` to write localized files.\n",
+			"Committed overlays for %s to the project store — run `kapi merge` to write target files.\n",
 			s.Accent.Render(filepath.Base(o.InputPath)))
 		return nil
 	}

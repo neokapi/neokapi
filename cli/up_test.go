@@ -262,7 +262,7 @@ func TestUp_MaterializeOnConverge(t *testing.T) {
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "Up to date", out)
-	assert.Contains(t, out, "Materialized 2 localized file(s) from the project store.", out)
+	assert.Contains(t, out, "Materialized 2 target file(s) from the project store.", out)
 	for _, f := range []string{"a.json", "b.json"} {
 		_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", f))
 		require.NoError(t, statErr)
@@ -277,7 +277,7 @@ func TestUp_MaterializeFlagForces(t *testing.T) {
 
 	out, err := runUp(t, a, recipe, "--materialize")
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "Materialized 2 localized file(s) from the project store.", out)
+	assert.Contains(t, out, "Materialized 2 target file(s) from the project store.", out)
 }
 
 // TestUp_MaterializeSkipsParkedLocale: a locale short of its gate (parked)
