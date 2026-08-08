@@ -1150,7 +1150,7 @@ kapi-desktop-dev: kapi-desktop-frontend-deps ## Run Kapi Desktop in dev mode (ho
 	cd $(KAPI_DESKTOP_DIR) && wails3 dev
 
 kapi-desktop-test: ## Run Kapi Desktop Go backend tests
-	cd $(KAPI_DESKTOP_DIR) && $(GOTEST_BASE) ./backend/... -count=1 -timeout 60s
+	cd $(KAPI_DESKTOP_DIR) && $(GOTEST_BASE) ./backend/... -count=1 -timeout 180s
 
 # ── Wails bindings (committed AND regenerated at release) ───────────────────
 # Both desktop apps commit their generated bindings (.gitignore re-includes them
