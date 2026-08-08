@@ -477,7 +477,7 @@ func gatherBrandScanSources(ctx context.Context, deps *BrandScanWorkerDeps, jobI
 			skip(string(brandscan.SourceFile), key, brandScanBudgetSkipReason)
 			continue
 		}
-		label, text, err := readBrandScanUpload(ctx, deps.BlobStore, key)
+		label, text, err := readBrandScanUpload(ctx, deps.formats(), deps.BlobStore, key)
 		if label == "" {
 			label = key
 		}
@@ -515,15 +515,15 @@ func gatherBrandScanSources(ctx context.Context, deps *BrandScanWorkerDeps, jobI
 // readBrandScanUpload downloads a brand-scan upload envelope and extracts its
 // text via the brandscan format readers. It returns the original filename as
 // the source label (best effort — falls back to the key on decode failure).
-func readBrandScanUpload(ctx context.Context, blobs corestorage.BlobStore, key string) (label, text string, err error) {
+func readBrandScanUpload(ctx context.Context, reg *registry.FormatRegistry, blobs corestorage.BlobStore, key string) (label, text string, err error) {
 	if blobs == nil {
 		return "", "", errors.New("blob storage not configured")
 	}
 	// Blob-store errors can leak backend detail (endpoints, auth failures) and
 	// the key is caller-controlled, so failures surface as a generic reason;
 	// the detail goes to server logs only. Extraction errors below pass
-	// through — they are the extractor's own user-facing messages (unsupported
-	// type, deferred pdf/pptx).
+	// through — they are the extractor's own user-facing messages (e.g. an
+	// unsupported file type).
 	rc, err := blobs.Download(ctx, key)
 	if err != nil {
 		slog.WarnContext(ctx, "brand-scan upload download failed", "key", key, "error", err)
@@ -541,7 +541,7 @@ func readBrandScanUpload(ctx context.Context, blobs corestorage.BlobStore, key s
 	if err := json.Unmarshal(raw, &env); err != nil || env.Filename == "" {
 		return "", "", errors.New("blob is not a brand-scan upload")
 	}
-	text, err = brandscan.ExtractFile(env.Data, env.Filename, env.ContentType) //nolint:contextcheck // in-memory reader over already-downloaded bytes; no cancellation surface
+	text, err = brandscan.ExtractFile(reg, env.Data, env.Filename, env.ContentType) //nolint:contextcheck // in-memory reader over already-downloaded bytes; no cancellation surface
 	if err != nil {
 		return env.Filename, "", err
 	}

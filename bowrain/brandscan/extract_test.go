@@ -7,9 +7,20 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// testRegistry builds the full built-in format registry the server and worker
+// hand ExtractFile at runtime.
+func testRegistry(t *testing.T) *registry.FormatRegistry {
+	t.Helper()
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+	return reg
+}
 
 const docxContentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -96,9 +107,10 @@ func TestExtractFileHappyPaths(t *testing.T) {
 			wantContain: []string{"Fallback via content type."},
 		},
 	}
+	reg := testRegistry(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			text, err := ExtractFile(tt.data, tt.filename, tt.contentType)
+			text, err := ExtractFile(reg, tt.data, tt.filename, tt.contentType)
 			require.NoError(t, err)
 			for _, want := range tt.wantContain {
 				assert.Contains(t, text, want)
@@ -112,7 +124,7 @@ func TestExtractFileHappyPaths(t *testing.T) {
 
 func TestExtractFileDocx(t *testing.T) {
 	data := makeDocx(t, "Hello from Acme.", "We make orbital delivery boringly reliable.")
-	text, err := ExtractFile(data, "brand.docx", "")
+	text, err := ExtractFile(testRegistry(t), data, "brand.docx", "")
 	require.NoError(t, err)
 	assert.Contains(t, text, "Hello from Acme.")
 	assert.Contains(t, text, "We make orbital delivery boringly reliable.")
@@ -130,15 +142,16 @@ func TestExtractFileRejections(t *testing.T) {
 		{"oversize file", oversize, "big.txt", "", "too large"},
 		{"unknown extension", []byte("MZ"), "installer.exe", "", "unsupported file type"},
 		{"unknown content type without extension", []byte("data"), "blob", "application/octet-stream", "unsupported file type"},
-		{"pdf deferred", []byte("%PDF-1.7"), "brand.pdf", "", "deferred"},
-		{"pptx deferred", []byte("PK"), "deck.pptx", "", "deferred"},
-		{"pdf deferred by content type", []byte("%PDF-1.7"), "brand", "application/pdf", "deferred"},
-		{"pptx deferred by content type", []byte("PK"), "deck",
-			"application/vnd.openxmlformats-officedocument.presentationml.presentation", "deferred"},
+		// PDF has no reader in a non-wasm build (the wasm PDF reader is js-only;
+		// native reads go through the kapi-pdfium plugin), so a server-side
+		// brand scan reports it as unsupported rather than pretending to read it.
+		{"pdf without a registered reader", []byte("%PDF-1.7"), "brand.pdf", "", "unsupported file type"},
+		{"legacy binary ppt", []byte("\xd0\xcf\x11\xe0"), "deck.ppt", "", "unsupported file type"},
 	}
+	reg := testRegistry(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			text, err := ExtractFile(tt.data, tt.filename, tt.contentType)
+			text, err := ExtractFile(reg, tt.data, tt.filename, tt.contentType)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 			assert.Empty(t, text)
@@ -146,8 +159,24 @@ func TestExtractFileRejections(t *testing.T) {
 	}
 }
 
-func TestExtractFileDeferredMessageIsExplicit(t *testing.T) {
-	_, err := ExtractFile([]byte("%PDF-1.7"), "brand.pdf", "")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unsupported (deferred: needs pdf/pptx text extractor)")
+// The hand-rolled allowlist used to reject every PowerPoint deck the OpenXML
+// reader already handles. Routing detection through the registry accepts a
+// .pptx — by extension and by content type — exactly as the rest of kapi does.
+func TestCheckFileSupportedAcceptsRegistryFormats(t *testing.T) {
+	reg := testRegistry(t)
+	tests := []struct {
+		name        string
+		filename    string
+		contentType string
+	}{
+		{"pptx by extension", "deck.pptx", ""},
+		{"pptx by content type", "deck",
+			"application/vnd.openxmlformats-officedocument.presentationml.presentation"},
+		{"docx by extension", "brand.docx", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NoError(t, CheckFileSupported(reg, tt.filename, tt.contentType))
+		})
+	}
 }

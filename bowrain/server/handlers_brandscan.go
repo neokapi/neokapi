@@ -92,9 +92,9 @@ func (s *Server) HandleBrandScanUploads(c echo.Context) error {
 			})
 			continue
 		}
-		// Allowlist check up front — unsupported and deferred (pdf/pptx) types
-		// are skipped with the extractor's own reason, before any bytes land.
-		if err := brandscan.CheckFileSupported(fh.Filename, contentType); err != nil {
+		// Format check up front — types the registry has no reader for are
+		// skipped with the extractor's own reason, before any bytes land.
+		if err := brandscan.CheckFileSupported(s.FormatRegistry, fh.Filename, contentType); err != nil {
 			skipped = append(skipped, brandScanSkippedEntry{Name: fh.Filename, Reason: err.Error()})
 			continue
 		}
