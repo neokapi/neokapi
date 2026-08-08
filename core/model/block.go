@@ -1,7 +1,5 @@
 package model
 
-import "strings"
-
 // Block is the primary modifiable content unit: the text a tool reads,
 // rewrites, checks, or translates. Its content is a flat []Run per variant —
 // Source for the canonical content and Targets for each committed variant (a
@@ -130,15 +128,11 @@ func (b *Block) HasLocale(locale LocaleID) bool {
 	return b.HasTarget(locale)
 }
 
-// WordCount returns the number of words in the source text. Words are
-// sequences of non-whitespace characters; inline codes are stripped by
-// SourceText().
+// WordCount returns the number of words in the source text. Inline codes are
+// stripped by SourceText(); plural/select forms descend into their 'other'
+// branch; Private Use Area span markers are treated as word breaks.
 func (b *Block) WordCount() int {
-	text := strings.TrimSpace(b.SourceText())
-	if text == "" {
-		return 0
-	}
-	return len(strings.Fields(text))
+	return CountWords(b.SourceText())
 }
 
 // SourceRuns returns the Block's source content as a Run sequence.

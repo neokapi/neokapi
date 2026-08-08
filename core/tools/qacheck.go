@@ -582,7 +582,7 @@ func (h *qaCheckHandler) checkLengthIssues(conf *QACheckConfig, sourceText, targ
 
 	// Check: absolute maximum word count.
 	if conf.CheckMaxWords && conf.MaxWords > 0 && targetText != "" {
-		wordCount := countWords(targetText)
+		wordCount := model.CountWords(targetText)
 		if wordCount > conf.MaxWords {
 			findings = append(findings, check.Finding{
 				Category: "max-words",

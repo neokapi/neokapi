@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -138,7 +139,7 @@ func absoluteLengthFindings(text, subject string, maxChars, maxWords int) []Find
 		}
 	}
 	if maxWords > 0 {
-		wordCount := countWords(text)
+		wordCount := model.CountWords(text)
 		if wordCount > maxWords {
 			findings = append(findings, Finding{
 				Category: "max-words-exceeded",
@@ -218,16 +219,6 @@ func NewSourcePatternTool(rules []PatternRule) (*tool.BaseTool, error) {
 		return nil
 	}
 	return t, nil
-}
-
-// countWords counts the number of words in a text string. Words are sequences
-// of non-whitespace characters separated by whitespace.
-func countWords(text string) int {
-	text = strings.TrimSpace(text)
-	if text == "" {
-		return 0
-	}
-	return len(strings.Fields(text))
 }
 
 // firstControlChar returns the first non-whitespace control character in s.

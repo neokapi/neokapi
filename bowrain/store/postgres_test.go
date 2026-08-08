@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -665,7 +664,7 @@ func TestGetBlockStats(t *testing.T) {
 // Helper function tests
 // ---------------------------------------------------------------------------
 
-func TestCountWordsFromSourceJSON(t *testing.T) {
+func TestCountWordsInRunsJSON(t *testing.T) {
 	tests := []struct {
 		name     string
 		json     string
@@ -687,6 +686,13 @@ func TestCountWordsFromSourceJSON(t *testing.T) {
 			expected: 3,
 		},
 		{
+			// A plural block descends into its 'other' branch rather than
+			// counting as zero words.
+			name:     "plural descends to other branch",
+			json:     `[{"plural":{"pivot":"count","forms":{"one":[{"text":"one item"}],"other":[{"text":"many items here"}]}}}]`,
+			expected: 3,
+		},
+		{
 			name:     "empty text",
 			json:     `[{"text":""}]`,
 			expected: 0,
@@ -704,7 +710,7 @@ func TestCountWordsFromSourceJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, storeutil.CountWordsFromSourceJSON(tt.json))
+			assert.Equal(t, tt.expected, model.CountWordsInRunsJSON(tt.json))
 		})
 	}
 }
