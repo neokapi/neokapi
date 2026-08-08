@@ -244,6 +244,19 @@ export class ContentItem {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Channel overrides the collection's `channel:` for the files this item
+             * matches — the one place a single file, or a sub-pattern, sits at a
+             * different point in the context space than the rest of its collection. It
+             * takes the same qualified `profile/channel` form and the same validator as
+             * a collection's channel; empty inherits the collection's. A run resolves it
+             * per file through ResolveGovernanceForPath.
+             * @member
+             * @type {string | undefined}
+             */
+            this["channel"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Redaction overrides the project-wide redaction spec for this item.
              * nil means inherit defaults.
              * @member
@@ -263,7 +276,7 @@ export class ContentItem {
     static createFrom($$source = {}) {
         const $$createField1_0 = $$createType4;
         const $$createField5_0 = $$createType0;
-        const $$createField6_0 = $$createType6;
+        const $$createField7_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("format" in $$parsedSource) {
             $$parsedSource["format"] = $$createField1_0($$parsedSource["format"]);
@@ -272,7 +285,7 @@ export class ContentItem {
             $$parsedSource["target_languages"] = $$createField5_0($$parsedSource["target_languages"]);
         }
         if ("redaction" in $$parsedSource) {
-            $$parsedSource["redaction"] = $$createField6_0($$parsedSource["redaction"]);
+            $$parsedSource["redaction"] = $$createField7_0($$parsedSource["redaction"]);
         }
         return new ContentItem(/** @type {Partial<ContentItem>} */($$parsedSource));
     }
@@ -1306,6 +1319,26 @@ export class Profile {
              * @type {string | undefined}
              */
             this["concept"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ValidFrom and ValidTo bound the profile's governance in time — from when
+             * until when this profile is the one in force. Recipe-declared as a date
+             * (`YYYY-MM-DD`) or an RFC3339 instant, parsed and range-checked at load;
+             * empty is unbounded. The window is the same half-open model terms and graph
+             * edges carry (ValidFrom inclusive, ValidTo exclusive). ResolveGovernanceAt
+             * honours it and `kapi context search` surfaces it.
+             * @member
+             * @type {string | undefined}
+             */
+            this["valid_from"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["valid_to"] = undefined;
         }
 
         Object.assign(this, $$source);
