@@ -22,7 +22,6 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -245,17 +244,10 @@ func (a *App) RunSingleFile(ctx context.Context, cmd Command, flowName, inputPat
 	fmtName := a.FormatFlag
 	var mergedConfig map[string]any
 	if fmtName != "" {
-		ref := preset.ParseFormatRef(fmtName)
-		fmtName = ref.RegistryName()
-		if ref.IsPreset() {
-			presetReg := preset.NewPresetRegistry()
-			preset.RegisterBuiltins(presetReg)
-			resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
-			var err error
-			mergedConfig, err = resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
-			if err != nil {
-				return fmt.Errorf("resolve format config: %w", err)
-			}
+		var err error
+		fmtName, mergedConfig, err = a.resolveFormatRef(fmtName)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -746,20 +738,9 @@ func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputP
 		}
 	}
 
-	ref := preset.ParseFormatRef(fmtName)
-	registryName := ref.RegistryName()
-
-	var mergedConfig map[string]any
-	if ref.IsPreset() {
-		presetReg := preset.NewPresetRegistry()
-		preset.RegisterBuiltins(presetReg)
-		resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
-
-		var err error
-		mergedConfig, err = resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
-		if err != nil {
-			return "", nil, fmt.Errorf("resolve format config: %w", err)
-		}
+	registryName, mergedConfig, err := a.resolveFormatRef(fmtName)
+	if err != nil {
+		return "", nil, err
 	}
 
 	reader, err := a.FormatReg.NewReader(registry.FormatID(registryName))

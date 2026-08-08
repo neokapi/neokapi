@@ -21,7 +21,6 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/safeio"
 	"github.com/neokapi/neokapi/core/tool"
@@ -358,8 +357,10 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		fmtName = string(detected)
 	}
 
-	ref := preset.ParseFormatRef(fmtName)
-	registryName := ref.RegistryName()
+	registryName, mergedConfig, err := a.resolveFormatRef(fmtName)
+	if err != nil {
+		return err
+	}
 
 	if batchInfo != nil {
 		batchInfo.format = registryName
@@ -376,19 +377,8 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		return fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
 
-	var mergedConfig map[string]any
-	if ref.IsPreset() {
-		presetReg := preset.NewPresetRegistry()
-		preset.RegisterBuiltins(presetReg)
-		resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
-
-		mergedConfig, err = resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
-		if err != nil {
-			return fmt.Errorf("resolve format config: %w", err)
-		}
-		if err := applyFormatConfig(reader, mergedConfig); err != nil {
-			return fmt.Errorf("apply format config: %w", err)
-		}
+	if err := applyFormatConfig(reader, mergedConfig); err != nil {
+		return fmt.Errorf("apply format config: %w", err)
 	}
 
 	// Resolve the output path once, before creating the writer, so the

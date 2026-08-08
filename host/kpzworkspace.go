@@ -564,21 +564,11 @@ func (a *App) kpzConfigureReader() func(format.DataFormatReader, registry.Format
 		if a.FormatFlag == "" {
 			return nil
 		}
-		ref := preset.ParseFormatRef(a.FormatFlag)
-		if !ref.IsPreset() {
-			return nil
-		}
-		presetReg := preset.NewPresetRegistry()
-		preset.RegisterBuiltins(presetReg)
-		resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
-		mergedConfig, err := resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
+		_, mergedConfig, err := a.resolveFormatRef(a.FormatFlag)
 		if err != nil {
-			return fmt.Errorf("resolve format config: %w", err)
+			return err
 		}
-		if err := applyFormatConfig(reader, mergedConfig); err != nil {
-			return fmt.Errorf("apply format config: %w", err)
-		}
-		return nil
+		return applyFormatConfig(reader, mergedConfig)
 	}
 }
 
