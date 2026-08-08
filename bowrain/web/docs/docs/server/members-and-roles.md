@@ -89,7 +89,7 @@ needs.
 
 For programmatic access — CI pipelines, scripts, integrations — a workspace
 owner or admin can issue API tokens from **Workspace Settings > API tokens**.
-API access is available on Pro and above.
+API access is available on every plan.
 
 When creating a token you set:
 
