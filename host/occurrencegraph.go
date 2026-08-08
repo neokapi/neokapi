@@ -5,26 +5,21 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/neokapi/neokapi/core/blockstore"
 	coreg "github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/occurrence"
+	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/terms"
+	graphstore "github.com/neokapi/neokapi/host/storage/graph"
 )
 
 // MaterializeUsesTermGraph rebuilds the project's uses_term / in_collection
 // subgraph — the local context graph's first writer — from the project's terms
-// over its block cache. It returns the number of edges written.
+// over its block cache, and reports the number of edges written.
 //
-// The subgraph is a pure projection of the current terms × blocks, exactly as
-// the block cache is a pure projection of the source tree: the labels this
-// writer owns are cleared and rebuilt each pass, so a re-extract that renumbers
-// a document leaves no stale edge behind (block nodes key on the content key,
-// not a positional id). Concept nodes are refreshed rather than purged — they
-// mirror the authored terms store and a future terms-hierarchy writer shares
-// that vocabulary.
-//
-// It runs AFTER extraction has committed its block-write transaction, never
-// inside it: the write gate is per handle and not reentrant, and the occurrence
-// FTS index must stay off the block write path. On a build with no graph tables
-// (the browser's JSON sidecar) it is a no-op.
+// This is the App entry point, using the memoized project graph handle. The
+// shared body is materializeUsesTermGraph; MaterializeUsesTermGraphInDB is the
+// same work for an embedding host that holds a project store but not an App.
 func (a *App) MaterializeUsesTermGraph(ctx context.Context, root string) (int, error) {
 	g, err := a.ProjectGraph(ctx, root)
 	if errors.Is(err, ErrNoProjectGraph) {
@@ -37,8 +32,38 @@ func (a *App) MaterializeUsesTermGraph(ctx context.Context, root string) (int, e
 	if err != nil {
 		return 0, err
 	}
-	tb := db.Terms()
-	blocks := db.BlocksAutocommit()
+	return materializeUsesTermGraph(ctx, g, db.Terms(), db.BlocksAutocommit())
+}
+
+// MaterializeUsesTermGraphInDB rebuilds the uses_term / in_collection subgraph
+// for an already-open project store. It is the shared path for hosts that drive
+// extraction directly — the desktop's Re-extract — so the graph stays in step
+// with the block cache on every surface, not only `kapi up`. A store with no
+// file-backed SQLite driver (the browser's JSON sidecar) has no graph tables and
+// is a no-op.
+func MaterializeUsesTermGraphInDB(ctx context.Context, db *projectdb.DB) (int, error) {
+	if db == nil || db.Raw() == nil {
+		return 0, nil
+	}
+	g, err := graphstore.NewSQLiteGraphStore(db.Raw())
+	if err != nil {
+		return 0, fmt.Errorf("materialize uses_term graph: open graph: %w", err)
+	}
+	return materializeUsesTermGraph(ctx, g, db.Terms(), db.BlocksAutocommit())
+}
+
+// materializeUsesTermGraph is the shared rebuild. The subgraph is a pure
+// projection of the current terms × blocks, exactly as the block cache is a pure
+// projection of the source tree: the labels this writer owns are cleared and
+// rebuilt each pass, so a re-extract that renumbers a document leaves no stale
+// edge behind (block nodes key on the content key, not a positional id). Concept
+// nodes are refreshed rather than purged — they mirror the authored terms store
+// and a future terms-hierarchy writer shares that vocabulary.
+//
+// It must run AFTER extraction has committed its block-write transaction, never
+// inside it: the write gate is per handle and not reentrant, and searching the
+// blocks here keeps the occurrence FTS index off the block write path.
+func materializeUsesTermGraph(ctx context.Context, g *graphstore.SQLiteGraphStore, tb terms.Terminology, blocks blockstore.Store) (int, error) {
 	if tb == nil || blocks == nil {
 		return 0, nil
 	}
