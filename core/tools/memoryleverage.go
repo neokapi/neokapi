@@ -296,7 +296,7 @@ func recordWholeBlockMatch(v tool.VariantView, conf *MemoryLeverageConfig, trans
 		v.SetTarget(conf.TargetLocale, &model.Target{
 			Runs:   targetRuns,
 			Status: model.TargetStatusDraft,
-			Origin: model.Origin{Kind: "tm", Tool: "recycle"},
+			Origin: model.Origin{Kind: model.OriginMemory, Tool: "recycle"},
 			Score:  float64(score) / 100,
 		})
 	}
@@ -397,7 +397,7 @@ func leverageBlockRuns(conf *MemoryLeverageConfig, v tool.VariantView, bp BlockM
 	v.SetTarget(conf.TargetLocale, &model.Target{
 		Runs:   targetRuns,
 		Status: model.TargetStatusDraft,
-		Origin: model.Origin{Kind: "tm", Tool: "recycle"},
+		Origin: model.Origin{Kind: model.OriginMemory, Tool: "recycle"},
 		Score:  float64(m.Score) / 100,
 	})
 	v.Annotate(string(model.AnnoMemoryMatch), &MemoryMatchAnnotation{Score: m.Score, Type: propType})
@@ -572,7 +572,7 @@ func leverageSegments(conf *MemoryLeverageConfig, v tool.VariantView) bool {
 		v.SetTarget(conf.TargetLocale, &model.Target{
 			Runs:   assembled,
 			Status: model.TargetStatusDraft,
-			Origin: model.Origin{Kind: "tm", Tool: "recycle"},
+			Origin: model.Origin{Kind: model.OriginMemory, Tool: "recycle"},
 			Score:  float64(minScore) / 100,
 		})
 	}

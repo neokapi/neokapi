@@ -84,7 +84,7 @@ func TestMemoryLeverageToolExactMatch(t *testing.T) {
 	// alt-translation annotation carrying the match metadata.
 	tgt := resultBlock.Target(model.LocaleFrench)
 	require.NotNil(t, tgt)
-	assert.Equal(t, "tm", tgt.Origin.Kind)
+	assert.Equal(t, model.OriginMemory, tgt.Origin.Kind)
 	assert.Equal(t, "recycle", tgt.Origin.Tool)
 	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
 	assert.InEpsilon(t, 1.0, tgt.Score, 0.001)
@@ -337,7 +337,7 @@ func TestMemoryLeverageSegmentedAllExact(t *testing.T) {
 	// The committed target carries provenance + score, not just text.
 	tgt := rb.Target(model.LocaleFrench)
 	require.NotNil(t, tgt)
-	assert.Equal(t, "tm", tgt.Origin.Kind)
+	assert.Equal(t, model.OriginMemory, tgt.Origin.Kind)
 	assert.Equal(t, "recycle", tgt.Origin.Tool)
 	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
 	assert.InEpsilon(t, 1.0, tgt.Score, 0.001)
@@ -496,7 +496,7 @@ func TestMemoryLeverageBlockAwareRunsFill(t *testing.T) {
 	assert.Equal(t, "=m0", tgt.Runs[0].Ph.Equiv)
 	assert.Equal(t, " Installer", tgt.Runs[1].Text.Text)
 	assert.Equal(t, model.TargetStatusDraft, tgt.Status)
-	assert.Equal(t, "tm", tgt.Origin.Kind)
+	assert.Equal(t, model.OriginMemory, tgt.Origin.Kind)
 	assert.InEpsilon(t, 1.0, tgt.Score, 0.001)
 
 	tm, ok := model.AnnoAs[*tools.MemoryMatchAnnotation](rb, string(model.AnnoMemoryMatch))

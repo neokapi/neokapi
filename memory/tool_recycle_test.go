@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/memory"
+	"github.com/neokapi/neokapi/memory/leverage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,7 +29,9 @@ func runTool(t *testing.T, tl interface {
 }
 
 // TestTMLeverageToolPlaceholderIntegrity pins the invariant that a content-aware
-// TM fill must carry its source's inline codes.
+// content-memory fill must carry its source's inline codes, driving the single
+// framework recycle tool through the memory-backed provider — the same pairing
+// the CLI and the platform now share.
 //
 // The plain tier matches on flattened text — inline codes contribute no
 // characters — so a legacy entry recorded without placeholders is an "exact"
@@ -64,10 +68,17 @@ func TestTMLeverageToolPlaceholderIntegrity(t *testing.T) {
 			source: countSource,
 		},
 		{
-			name:   "entry carrying a code the source lacks is never applied",
-			en:     []model.Run{{Text: &model.TextRun{Text: "Install"}}},
-			nb:     []model.Run{{PcOpen: &model.PcOpenRun{ID: "9"}}, {Text: &model.TextRun{Text: "Installer"}}, {PcClose: &model.PcCloseRun{ID: "9"}}},
-			source: []model.Run{{Text: &model.TextRun{Text: "Install"}}},
+			// The entry's target carries paired markup the code-free source does
+			// not. The structure-aware path rejects those runs (unbalanced against
+			// the source), but the text path recovers the entry by its flattened
+			// text and fills the plain translation — the source has no codes to
+			// drop, and the target should mirror the source's structure, not the
+			// entry's incidental markup.
+			name:     "entry with extra codes recovers as flattened text",
+			en:       []model.Run{{Text: &model.TextRun{Text: "Install"}}},
+			nb:       []model.Run{{PcOpen: &model.PcOpenRun{ID: "9"}}, {Text: &model.TextRun{Text: "Installer"}}, {PcClose: &model.PcCloseRun{ID: "9"}}},
+			source:   []model.Run{{Text: &model.TextRun{Text: "Install"}}},
+			wantFill: "Installer",
 		},
 		{
 			name:     "code-free entry against a code-free source still fills",
@@ -85,11 +96,13 @@ func TestTMLeverageToolPlaceholderIntegrity(t *testing.T) {
 				ID:       "e1",
 				Variants: map[model.LocaleID][]model.Run{"en": tc.en, "nb": tc.nb},
 			}))
-			tl := memory.NewMemoryLeverageTool(tm, memory.MemoryLeverageConfig{
-				SourceLocale: "en",
-				TargetLocale: "nb",
-				MinScore:     0.7,
-				MaxResults:   5,
+			tl := tools.NewMemoryLeverageTool(&tools.MemoryLeverageConfig{
+				SourceLocale:        "en",
+				TargetLocale:        "nb",
+				Provider:            leverage.NewProvider(tm),
+				FuzzyThreshold:      70,
+				FillTarget:          true,
+				FillTargetThreshold: 0,
 			})
 
 			block := model.NewBlock("tu1", "")
