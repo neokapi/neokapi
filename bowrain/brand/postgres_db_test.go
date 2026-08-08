@@ -33,7 +33,7 @@ func newBrandStore(t *testing.T) *PostgresBrandStore {
 // ID, Version, and timestamps.
 func newTestProfile(ws, name string) *coreprofile.VoiceProfile {
 	return &coreprofile.VoiceProfile{
-		WorkspaceID: ws,
+		Scope:       ws,
 		Name:        name,
 		Description: "desc",
 		Tone:        coreprofile.ToneProfile{Personality: []string{"friendly"}, Formality: "neutral"},

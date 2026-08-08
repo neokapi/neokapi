@@ -50,11 +50,11 @@ func TestVoiceProfile_JSONRoundTrip(t *testing.T) {
 		Channels: map[string]ChannelOverride{
 			"support": {Tone: &ToneProfile{Formality: "formal"}},
 		},
-		WorkspaceID: "ws-1",
-		Version:     3,
-		CreatedAt:   now,
-		UpdatedAt:   now,
-		CreatedBy:   "user-1",
+		Scope:     "ws-1",
+		Version:   3,
+		CreatedAt: now,
+		UpdatedAt: now,
+		CreatedBy: "user-1",
 	}
 
 	data, err := json.Marshal(profile)
@@ -78,7 +78,7 @@ func TestVoiceProfile_JSONRoundTrip(t *testing.T) {
 	assert.Len(t, decoded.Examples, 1)
 	assert.Contains(t, decoded.Locales, model.LocaleID("ja-JP"))
 	assert.Contains(t, decoded.Channels, "support")
-	assert.Equal(t, profile.WorkspaceID, decoded.WorkspaceID)
+	assert.Equal(t, profile.Scope, decoded.Scope)
 	assert.Equal(t, profile.Version, decoded.Version)
 	assert.Equal(t, profile.CreatedBy, decoded.CreatedBy)
 }

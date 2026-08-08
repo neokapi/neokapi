@@ -38,7 +38,7 @@ func merge(parent, child *profile.VoiceProfile) *profile.VoiceProfile {
 	out.ID = firstNonEmpty(child.ID, out.ID)
 	out.Name = firstNonEmpty(child.Name, out.Name)
 	out.Description = firstNonEmpty(child.Description, out.Description)
-	out.WorkspaceID = firstNonEmpty(child.WorkspaceID, out.WorkspaceID)
+	out.Scope = firstNonEmpty(child.Scope, out.Scope)
 	if child.MinScore != 0 {
 		out.MinScore = child.MinScore
 	}

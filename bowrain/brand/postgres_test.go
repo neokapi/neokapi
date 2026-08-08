@@ -17,9 +17,9 @@ func TestPostgresBrandStore_ImplementsInterface(t *testing.T) {
 func TestScanProfile_Roundtrip(t *testing.T) {
 	// Verify JSON marshaling of profile fields produces valid output.
 	profile := &coreprofile.VoiceProfile{
-		ID:          "test-id",
-		Name:        "Test Brand",
-		WorkspaceID: "ws-1",
+		ID:    "test-id",
+		Name:  "Test Brand",
+		Scope: "ws-1",
 		Tone: coreprofile.ToneProfile{
 			Personality: []string{"friendly", "professional"},
 			Formality:   "neutral",

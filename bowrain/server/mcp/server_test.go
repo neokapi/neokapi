@@ -41,7 +41,7 @@ func (m *memBrandStore) DeleteProfile(_ context.Context, id string) error { retu
 func (m *memBrandStore) ListProfiles(_ context.Context, wsID string) ([]*coreprofile.VoiceProfile, error) {
 	var result []*coreprofile.VoiceProfile
 	for _, p := range m.profiles {
-		if p.WorkspaceID == wsID {
+		if p.Scope == wsID {
 			result = append(result, p)
 		}
 	}
@@ -105,7 +105,7 @@ func testProfile() *coreprofile.VoiceProfile {
 		ID:          "test-profile-1",
 		Name:        "Test Brand",
 		Description: "A test brand voice profile",
-		WorkspaceID: "ws-1",
+		Scope:       "ws-1",
 		Tone: coreprofile.ToneProfile{
 			Personality: []string{"friendly", "professional"},
 			Formality:   "neutral",

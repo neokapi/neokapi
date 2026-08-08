@@ -125,7 +125,7 @@ func populateContext(ctx context.Context, cs ScopeStore, wd WorkspaceDefault, rc
 
 	if wd != nil && workspaceID != "" {
 		if id, err := wd.WorkspaceBrandProfileID(ctx, workspaceID); err == nil {
-			rc.WorkspaceProfileID = id
+			rc.RootProfileID = id
 		}
 	}
 }

@@ -25,7 +25,7 @@ func TestHandleCheckBrandVoice_WholeWordAndConceptID(t *testing.T) {
 	ctx := context.Background()
 
 	profile := &coreprofile.VoiceProfile{
-		ID: "p-check", WorkspaceID: "ws-check", Name: "Check",
+		ID: "p-check", Scope: "ws-check", Name: "Check",
 		Vocabulary: coreprofile.VocabularyRules{
 			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "use", Replacement: "adopt", ConceptID: "c-use"},
@@ -45,7 +45,7 @@ func TestHandleCheckBrandVoice_WholeWordAndConceptID(t *testing.T) {
 		// WorkspaceAccessMiddleware sets workspace_id in production; set it here so
 		// the handler's cross-tenant guard (profile.WorkspaceID must match the
 		// request workspace) resolves to the profile's own workspace.
-		c.Set("workspace_id", profile.WorkspaceID)
+		c.Set("workspace_id", profile.Scope)
 		require.NoError(t, srv.HandleCheckBrandVoice(c))
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 		var out BrandCheckResponse
@@ -75,7 +75,7 @@ func TestGetSuggestedRules_BackfillsConceptID(t *testing.T) {
 	const wsID = "ws-concept-backfill"
 
 	profile := &coreprofile.VoiceProfile{
-		ID: "p-backfill", WorkspaceID: wsID, Name: "Backfill",
+		ID: "p-backfill", Scope: wsID, Name: "Backfill",
 		Vocabulary: coreprofile.VocabularyRules{
 			ForbiddenTerms: []coreprofile.TermRule{
 				{Term: "utilize", Replacement: "use", ConceptID: "c-utilize"},

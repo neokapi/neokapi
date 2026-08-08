@@ -25,7 +25,7 @@ func newTestStore(t *testing.T) *SQLiteStore {
 func testProfile() *coreprofile.VoiceProfile {
 	return &coreprofile.VoiceProfile{
 		ID:          "p1",
-		WorkspaceID: "ws1",
+		Scope:       "ws1",
 		Name:        "Friendly Tech",
 		Description: "A friendly tech voice profile",
 		Tone: coreprofile.ToneProfile{
@@ -109,11 +109,11 @@ func TestListProfiles(t *testing.T) {
 
 	p1 := testProfile()
 	p2 := &coreprofile.VoiceProfile{
-		ID: "p2", WorkspaceID: "ws1", Name: "Casual",
+		ID: "p2", Scope: "ws1", Name: "Casual",
 		Tone: coreprofile.ToneProfile{Formality: "casual"},
 	}
 	p3 := &coreprofile.VoiceProfile{
-		ID: "p3", WorkspaceID: "ws2", Name: "Other",
+		ID: "p3", Scope: "ws2", Name: "Other",
 		Tone: coreprofile.ToneProfile{Formality: "formal"},
 	}
 
@@ -383,7 +383,7 @@ func TestCorrectionStorage(t *testing.T) {
 
 	// Need a profile for the workspace join
 	require.NoError(t, store.CreateProfile(ctx, &coreprofile.VoiceProfile{
-		ID: "p1", WorkspaceID: "ws1", Name: "Test",
+		ID: "p1", Scope: "ws1", Name: "Test",
 		Tone: coreprofile.ToneProfile{Formality: "neutral"},
 	}))
 

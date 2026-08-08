@@ -40,9 +40,9 @@ func TestWorkerBrandContext_EndToEnd(t *testing.T) {
 	bs, err := brandpg.NewPostgresBrandStore(db)
 	require.NoError(t, err)
 	profile := &brand.VoiceProfile{
-		WorkspaceID: "ws-1",
-		Name:        "Acme Voice",
-		Tone:        brand.ToneProfile{Formality: "casual", Personality: []string{"friendly"}},
+		Scope: "ws-1",
+		Name:  "Acme Voice",
+		Tone:  brand.ToneProfile{Formality: "casual", Personality: []string{"friendly"}},
 		Vocabulary: brand.VocabularyRules{
 			ForbiddenTerms: []brand.TermRule{{Term: "utilize", Replacement: "use"}},
 		},

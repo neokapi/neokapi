@@ -51,7 +51,7 @@ func TestBrandUpsert_CreateThenIdempotentRepush(t *testing.T) {
 	assert.Equal(t, "created", res.Action)
 	require.NotNil(t, res.Profile)
 	assert.Equal(t, 1, res.Profile.Version)
-	assert.Equal(t, wsID, res.Profile.WorkspaceID)
+	assert.Equal(t, wsID, res.Profile.Scope)
 	assert.Equal(t, "u-1", res.Profile.CreatedBy)
 
 	rec2, res2 := upsertBrandProfile(t, srv, wsID, "u-1", payload)

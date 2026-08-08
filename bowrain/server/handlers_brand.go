@@ -107,7 +107,7 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 		Locales:     req.Locales,
 		Channels:    req.Channels,
 		Personas:    req.Personas,
-		WorkspaceID: wsID,
+		Scope:       wsID,
 		Version:     1,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -182,7 +182,7 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 			Locales:     req.Locales,
 			Channels:    req.Channels,
 			Personas:    req.Personas,
-			WorkspaceID: wsID,
+			Scope:       wsID,
 			Version:     1,
 			CreatedAt:   now,
 			UpdatedAt:   now,
@@ -337,7 +337,7 @@ func (s *Server) preservePromotedRules(ctx context.Context, existing *coreprofil
 
 // profileInRequestWorkspace reports whether the brand profile belongs to the
 // workspace the request is scoped to. BrandStore.GetProfile/UpdateProfile/
-// DeleteProfile take only a GLOBAL profile id and ignore VoiceProfile.WorkspaceID,
+// DeleteProfile take only a GLOBAL profile id and ignore VoiceProfile.Scope,
 // so without this check an owner/admin of workspace A could read, update, or
 // delete workspace B's brand profile by addressing it through their own
 // workspace (/api/v1/<A>/brand-profiles/<B-profile-id>) — a cross-tenant IDOR.
@@ -346,7 +346,7 @@ func (s *Server) preservePromotedRules(ctx context.Context, existing *coreprofil
 // the workspace context is missing (wsID empty).
 func profileInRequestWorkspace(c echo.Context, profile *coreprofile.VoiceProfile) bool {
 	wsID, _ := c.Get("workspace_id").(string)
-	return wsID != "" && profile != nil && profile.WorkspaceID == wsID
+	return wsID != "" && profile != nil && profile.Scope == wsID
 }
 
 // HandleGetBrandProfile returns a single brand voice profile by ID.
@@ -528,7 +528,7 @@ func (s *Server) HandleCreateFromStarter(c echo.Context) error {
 
 	profile := template
 	profile.ID = id.New()
-	profile.WorkspaceID = wsID
+	profile.Scope = wsID
 	profile.Version = 1
 	profile.CreatedAt = now
 	profile.UpdatedAt = now

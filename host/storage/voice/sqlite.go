@@ -150,7 +150,7 @@ func (s *SQLiteStore) CreateProfile(ctx context.Context, profile *coreprofile.Vo
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO brand_profiles (id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		profile.ID, profile.WorkspaceID, profile.Name, profile.Description,
+		profile.ID, profile.Scope, profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
 		string(locales), string(channels), string(personas), string(autonomy), profile.Version,
 		profile.CreatedAt.Format(time.RFC3339), profile.UpdatedAt.Format(time.RFC3339),
@@ -170,7 +170,7 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, id string) (*coreprofile.V
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by
 		 FROM brand_profiles WHERE id = ?`, id).
-		Scan(&p.ID, &p.WorkspaceID, &p.Name, &desc,
+		Scan(&p.ID, &p.Scope, &p.Name, &desc,
 			&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
 			&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON, &p.Version,
 			&createdStr, &updatedStr, &p.CreatedBy)
@@ -274,12 +274,12 @@ func (s *SQLiteStore) DeleteProfile(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *SQLiteStore) ListProfiles(ctx context.Context, workspaceID string) ([]*coreprofile.VoiceProfile, error) {
+func (s *SQLiteStore) ListProfiles(ctx context.Context, scope string) ([]*coreprofile.VoiceProfile, error) {
 	// Collect IDs first, then close the cursor before querying individual profiles.
 	// SQLite :memory: databases use a single connection, so a nested query
 	// while rows are open would deadlock.
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id FROM brand_profiles WHERE workspace_id = ? ORDER BY name`, workspaceID)
+		`SELECT id FROM brand_profiles WHERE workspace_id = ? ORDER BY name`, scope)
 	if err != nil {
 		return nil, fmt.Errorf("list profiles: %w", err)
 	}
@@ -408,7 +408,7 @@ func (s *SQLiteStore) StoreCorrection(ctx context.Context, correction *coreprofi
 	return nil
 }
 
-func (s *SQLiteStore) GetSuggestedRules(ctx context.Context, workspaceID string, minCount int) ([]*coreprofile.SuggestedRule, error) {
+func (s *SQLiteStore) GetSuggestedRules(ctx context.Context, scope string, minCount int) ([]*coreprofile.SuggestedRule, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT c.original_text, c.corrected_text, COUNT(*) as cnt, c.dimension
 		 FROM brand_voice_corrections c
@@ -416,7 +416,7 @@ func (s *SQLiteStore) GetSuggestedRules(ctx context.Context, workspaceID string,
 		 WHERE p.workspace_id = ?
 		 GROUP BY c.original_text, c.corrected_text, c.dimension
 		 HAVING cnt >= ?
-		 ORDER BY cnt DESC`, workspaceID, minCount)
+		 ORDER BY cnt DESC`, scope, minCount)
 	if err != nil {
 		return nil, fmt.Errorf("query suggested rules: %w", err)
 	}

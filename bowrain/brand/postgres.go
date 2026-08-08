@@ -83,7 +83,7 @@ func (s *PostgresBrandStore) CreateProfile(ctx context.Context, profile *corepro
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO brand_profiles (id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
-		profile.ID, profile.WorkspaceID, profile.Name, profile.Description,
+		profile.ID, profile.Scope, profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
 		string(locales), string(channels), string(personas), string(autonomy),
 		profile.Version, now, now, profile.CreatedBy)
@@ -660,7 +660,7 @@ func scanProfile(row scanner) (*coreprofile.VoiceProfile, error) {
 	var toneJSON, styleJSON, vocabJSON, examplesJSON, localesJSON, channelsJSON, personasJSON, autonomyJSON string
 
 	err := row.Scan(
-		&p.ID, &p.WorkspaceID, &p.Name, &p.Description,
+		&p.ID, &p.Scope, &p.Name, &p.Description,
 		&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
 		&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON,
 		&p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy)

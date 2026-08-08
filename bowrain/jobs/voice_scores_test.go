@@ -22,8 +22,8 @@ func TestPersistDraftVoiceScores(t *testing.T) {
 	ctx := t.Context()
 
 	profile := &brand.VoiceProfile{
-		WorkspaceID: "ws-1",
-		Name:        "Voice",
+		Scope: "ws-1",
+		Name:  "Voice",
 		Vocabulary: brand.VocabularyRules{
 			ForbiddenTerms: []brand.TermRule{{Term: "synergy", Replacement: "teamwork", Severity: "critical"}},
 		},

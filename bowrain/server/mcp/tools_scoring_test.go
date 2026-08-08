@@ -44,9 +44,9 @@ func (f wsDefaultFunc) WorkspaceBrandProfileID(ctx context.Context, workspaceID 
 func scoringTestServer(cs store.ContentStore, wsDefaultID string) *MCPServer {
 	return &MCPServer{
 		brandStore: &memBrandStore{profiles: []*coreprofile.VoiceProfile{
-			{ID: "hex1", Name: "Explicit", WorkspaceID: "ws1"},
-			{ID: "hex2", Name: "ProjectBound", WorkspaceID: "ws1"},
-			{ID: "hex3", Name: "WorkspaceDefault", WorkspaceID: "ws1"},
+			{ID: "hex1", Name: "Explicit", Scope: "ws1"},
+			{ID: "hex2", Name: "ProjectBound", Scope: "ws1"},
+			{ID: "hex3", Name: "WorkspaceDefault", Scope: "ws1"},
 		}},
 		contentStore: cs,
 		wsDefault: wsDefaultFunc(func(_ context.Context, _ string) (string, error) {
@@ -127,9 +127,9 @@ func findingForTerm(findings []coreprofile.VoiceFinding, term string) bool {
 func personaScoringServer() *MCPServer {
 	return &MCPServer{
 		brandStore: &memBrandStore{profiles: []*coreprofile.VoiceProfile{{
-			ID:          "hexP",
-			Name:        "WithPersona",
-			WorkspaceID: "ws1",
+			ID:    "hexP",
+			Name:  "WithPersona",
+			Scope: "ws1",
 			Vocabulary: coreprofile.VocabularyRules{
 				ForbiddenTerms: []coreprofile.TermRule{{Term: "utilize", Replacement: "use"}},
 			},

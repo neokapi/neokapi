@@ -253,7 +253,7 @@ func newVoiceProfilesCmd(a *App) *cobra.Command {
 			store, _, err := a.OpenVoiceStore(cmd)
 			if err == nil {
 				defer store.Close()
-				profiles, lerr := store.ListProfiles(cmd.Context(), LocalWorkspace)
+				profiles, lerr := store.ListProfiles(cmd.Context(), LocalScope)
 				if lerr == nil {
 					for _, p := range profiles {
 						summaries = append(summaries, output.VoiceProfileSummary{

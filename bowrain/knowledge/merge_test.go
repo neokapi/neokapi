@@ -230,7 +230,7 @@ func TestMergeChangeSet_VoiceRuleAddBumpsProfile(t *testing.T) {
 	ctx := context.Background()
 	ws := "ws"
 
-	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: ws, Version: 3}
+	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", Scope: ws, Version: 3}
 	profiles := newFakeProfileStore(profile)
 
 	store := newMemStore()

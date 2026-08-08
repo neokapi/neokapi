@@ -195,7 +195,7 @@ func TestApplyShipStates_OnBrandVoiceScores(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := t.Context()
-	profile := &coreprofile.VoiceProfile{ID: "p-ship", WorkspaceID: "ws-1", Name: "Ship Voice", MinScore: 80}
+	profile := &coreprofile.VoiceProfile{ID: "p-ship", Scope: "ws-1", Name: "Ship Voice", MinScore: 80}
 	require.NoError(t, bs.CreateProfile(ctx, profile))
 
 	// The content store assigns block IDs on store; scores must reference the

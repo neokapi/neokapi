@@ -112,7 +112,7 @@ func (f *fakeProfileStore) GetProfile(_ context.Context, id string) (*coreprofil
 func (f *fakeProfileStore) ListProfiles(_ context.Context, workspaceID string) ([]*coreprofile.VoiceProfile, error) {
 	var out []*coreprofile.VoiceProfile
 	for _, p := range f.profiles {
-		if workspaceID == "" || p.WorkspaceID == workspaceID {
+		if workspaceID == "" || p.Scope == workspaceID {
 			out = append(out, p)
 		}
 	}
@@ -145,7 +145,7 @@ func TestEvaluateChangeSet_VoiceRuleAddFlagsMatchingBlocks(t *testing.T) {
 		srcBlock("b2", "home.json", "en-US", "Welcome to our site"),          // clean
 	)
 
-	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: "ws"}
+	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", Scope: "ws"}
 	ps := newFakeProfileStore(profile)
 	e := NewEngine(bs, terms.NewInMemoryStore(), ps, nil)
 
@@ -185,7 +185,7 @@ func TestEvaluateChangeSet_VoiceRuleRemoveResolves(t *testing.T) {
 	)
 
 	profile := &coreprofile.VoiceProfile{
-		ID: "p1", Name: "Acme", WorkspaceID: "ws",
+		ID: "p1", Name: "Acme", Scope: "ws",
 		Vocabulary: coreprofile.VocabularyRules{ForbiddenTerms: []coreprofile.TermRule{{Term: "synergy"}}},
 	}
 	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
@@ -282,7 +282,7 @@ func TestEvaluateChangeSet_GroupingAndWordSums(t *testing.T) {
 	bs.addProject(&store.Project{ID: "other", Name: "Other", WorkspaceID: "ws2"})
 	bs.addBlocks("other", "main", srcBlock("o1", "o.json", "en-US", "synergy synergy"))
 
-	profile := &coreprofile.VoiceProfile{ID: "p1prof", Name: "Acme", WorkspaceID: "ws"}
+	profile := &coreprofile.VoiceProfile{ID: "p1prof", Name: "Acme", Scope: "ws"}
 	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
 	ops := []ChangeSetOp{
 		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1prof", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}),
@@ -353,7 +353,7 @@ func TestEvaluateChangeSet_SampleCap(t *testing.T) {
 	}
 	bs.addBlocks("proj1", "main", blocks...)
 
-	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: "ws"}
+	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", Scope: "ws"}
 	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
 	ops := []ChangeSetOp{
 		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}),
@@ -375,7 +375,7 @@ func TestEvaluateChangeSet_PilotStream(t *testing.T) {
 	bs.addBlocks("proj1", "main", srcBlock("m1", "home.json", "en-US", "main synergy copy"))
 	bs.addBlocks("proj1", "pilot/rebrand", srcBlock("p1b", "home.json", "en-US", "pilot synergy copy"))
 
-	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", WorkspaceID: "ws"}
+	profile := &coreprofile.VoiceProfile{ID: "p1", Name: "Acme", Scope: "ws"}
 	e := NewEngine(bs, terms.NewInMemoryStore(), newFakeProfileStore(profile), nil)
 	ops := []ChangeSetOp{
 		mustOp(t, 0, OpVoiceRuleAdd, VoiceRuleAddPayload{ProfileID: "p1", List: VoiceListForbidden, Rule: coreprofile.TermRule{Term: "synergy"}}),

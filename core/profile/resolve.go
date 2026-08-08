@@ -18,7 +18,7 @@ import (
 //     `profiles:` match), else CollectionConfig["brand_voice_profile_id"]
 //  3. Stream-level: StreamProperties["brand_voice_profile_id"]
 //  4. Project-level: ProjectProperties["brand_voice_profile_id"]
-//  5. Workspace-level: WorkspaceProfileID
+//  5. Root-level: RootProfileID
 //
 // This is the single chain: a recipe-governed project and a server-governed one
 // differ in which tiers they populate, never in how the tiers are ranked.
@@ -50,7 +50,7 @@ func resolveBoundProfile(ctx context.Context, rc ResolveContext, store Store) (*
 		rc.CollectionConfig[PropertyProfileID],
 		rc.StreamProperties[PropertyProfileID],
 		rc.ProjectProperties[PropertyProfileID],
-		rc.WorkspaceProfileID,
+		rc.RootProfileID,
 	} {
 		if id != "" {
 			return fetchProfile(ctx, store, id)

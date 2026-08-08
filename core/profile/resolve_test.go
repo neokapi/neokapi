@@ -381,10 +381,10 @@ func TestResolveProfileFromContext(t *testing.T) {
 		{
 			name: "a loaded collection profile overrides stream, project and workspace",
 			rc: ResolveContext{
-				CollectionProfile:  loaded,
-				StreamProperties:   map[string]string{PropertyProfileID: "stream-exp"},
-				ProjectProperties:  map[string]string{PropertyProfileID: "proj-voice"},
-				WorkspaceProfileID: "ws-default",
+				CollectionProfile: loaded,
+				StreamProperties:  map[string]string{PropertyProfileID: "stream-exp"},
+				ProjectProperties: map[string]string{PropertyProfileID: "proj-voice"},
+				RootProfileID:     "ws-default",
 			},
 			wantName:      "Recipe Voice",
 			wantFormality: "formal",
@@ -419,15 +419,15 @@ func TestResolveProfileFromContext(t *testing.T) {
 		},
 		{
 			name:          "workspace default",
-			rc:            ResolveContext{WorkspaceProfileID: "ws-default"},
+			rc:            ResolveContext{RootProfileID: "ws-default"},
 			wantName:      "Workspace Default",
 			wantFormality: "formal",
 		},
 		{
 			name: "project overrides workspace",
 			rc: ResolveContext{
-				WorkspaceProfileID: "ws-default",
-				ProjectProperties:  map[string]string{PropertyProfileID: "proj-voice"},
+				RootProfileID:     "ws-default",
+				ProjectProperties: map[string]string{PropertyProfileID: "proj-voice"},
 			},
 			wantName:      "Project Voice",
 			wantFormality: "neutral",
@@ -453,11 +453,11 @@ func TestResolveProfileFromContext(t *testing.T) {
 		{
 			name: "explicit overrides everything",
 			rc: ResolveContext{
-				ExplicitProfileID:  "explicit",
-				WorkspaceProfileID: "ws-default",
-				ProjectProperties:  map[string]string{PropertyProfileID: "proj-voice"},
-				StreamProperties:   map[string]string{PropertyProfileID: "stream-exp"},
-				CollectionConfig:   map[string]string{PropertyProfileID: "col-voice"},
+				ExplicitProfileID: "explicit",
+				RootProfileID:     "ws-default",
+				ProjectProperties: map[string]string{PropertyProfileID: "proj-voice"},
+				StreamProperties:  map[string]string{PropertyProfileID: "stream-exp"},
+				CollectionConfig:  map[string]string{PropertyProfileID: "col-voice"},
 			},
 			wantName:      "Explicit",
 			wantFormality: "formal",
@@ -517,7 +517,7 @@ func TestResolveProfileFromContext_NoStore(t *testing.T) {
 	assert.Equal(t, "Recipe Voice", profile.Name)
 
 	_, err = ResolveProfileFromContext(t.Context(),
-		ResolveContext{WorkspaceProfileID: "ws-default"}, nil)
+		ResolveContext{RootProfileID: "ws-default"}, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `"ws-default"`)
 	assert.Contains(t, err.Error(), "no voice store")

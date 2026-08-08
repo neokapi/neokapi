@@ -109,7 +109,7 @@ func TestCrossTenantBrandProfileIDOR(t *testing.T) {
 	s.BrandStore = bs
 
 	ctx := t.Context()
-	victim := &coreprofile.VoiceProfile{ID: "victim-bp", WorkspaceID: "test-ws", Name: "Victim"}
+	victim := &coreprofile.VoiceProfile{ID: "victim-bp", Scope: "test-ws", Name: "Victim"}
 	require.NoError(t, bs.CreateProfile(ctx, victim))
 
 	t.Run("read via foreign workspace slug is 404", func(t *testing.T) {
@@ -211,7 +211,7 @@ func TestWorkspaceSiblingIDRoutesNotGuarded(t *testing.T) {
 		require.NoError(t, err)
 		s.BrandStore = bs
 
-		profile := &coreprofile.VoiceProfile{ID: "bp-sibling-1", WorkspaceID: "test-ws", Name: "Sib"}
+		profile := &coreprofile.VoiceProfile{ID: "bp-sibling-1", Scope: "test-ws", Name: "Sib"}
 		require.NoError(t, bs.CreateProfile(ctx, profile))
 
 		code := do(t, s, http.MethodGet, "/api/v1/test/brand-profiles/"+profile.ID, ownerToken, "")

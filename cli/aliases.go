@@ -87,7 +87,7 @@ const (
 	FlowEventPipelineMetrics = host.FlowEventPipelineMetrics
 	FlowEventProgress        = host.FlowEventProgress
 	FlowEventState           = host.FlowEventState
-	LocalWorkspace           = host.LocalWorkspace
+	LocalScope               = host.LocalScope
 	ReviewDecisionApproved   = host.ReviewDecisionApproved
 	ReviewDecisionRejected   = host.ReviewDecisionRejected
 	ReviewDecisionSignedOff  = host.ReviewDecisionSignedOff
