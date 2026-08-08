@@ -24,9 +24,9 @@ function App() {
       <Nav />
       <Hero />
       <Divider />
-      <Problem />
-      <Divider />
       <Rename />
+      <Divider />
+      <Problem />
       <Divider />
       <Loop />
       <Divider />

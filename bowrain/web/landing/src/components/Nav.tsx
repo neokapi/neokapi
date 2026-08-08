@@ -10,7 +10,7 @@ import { useAuthStatus, type AuthStatus } from "../useAuthStatus";
 const LINKS = [
   { href: "#product", label: t("Product") },
   { href: "#loop", label: t("How it works") },
-  { href: "#try", label: t("Try it") },
+  { href: "#brand-challenge", label: t("Try it") },
   { href: "#pricing", label: t("Pricing") },
 ];
 
