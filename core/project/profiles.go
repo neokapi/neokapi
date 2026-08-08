@@ -5,7 +5,9 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
+	"github.com/neokapi/neokapi/core/graph"
 	"gopkg.in/yaml.v3"
 )
 
@@ -87,6 +89,54 @@ type Profile struct {
 	// Concept optionally references the concept that names this product, for
 	// display. Carried and shape-checked; never resolved during matching.
 	Concept string `yaml:"concept,omitempty" json:"concept,omitempty"`
+
+	// ValidFrom and ValidTo bound the profile's governance in time — from when
+	// until when this profile is the one in force. Recipe-declared as a date
+	// (`YYYY-MM-DD`) or an RFC3339 instant, parsed and range-checked at load;
+	// empty is unbounded. The window is the same half-open model terms and graph
+	// edges carry (ValidFrom inclusive, ValidTo exclusive). ResolveGovernanceAt
+	// honours it and `kapi context search` surfaces it.
+	ValidFrom string `yaml:"valid_from,omitempty" json:"valid_from,omitempty"`
+	ValidTo   string `yaml:"valid_to,omitempty" json:"valid_to,omitempty"`
+}
+
+// Validity parses the profile's declared window into the shared graph.Validity
+// vocabulary — the same temporal model the terms store and the graph edges use,
+// so a profile's "from when until when" reads and matches identically to a
+// term's. It returns nil when the profile declares no bounds, and an error when
+// a bound is unparseable or the range is inverted.
+func (pr Profile) Validity() (*graph.Validity, error) {
+	from, err := parseValidityBound(pr.ValidFrom)
+	if err != nil {
+		return nil, fmt.Errorf("valid_from: %w", err)
+	}
+	to, err := parseValidityBound(pr.ValidTo)
+	if err != nil {
+		return nil, fmt.Errorf("valid_to: %w", err)
+	}
+	if from == nil && to == nil {
+		return nil, nil
+	}
+	if from != nil && to != nil && to.Before(*from) {
+		return nil, fmt.Errorf("valid_to %q is before valid_from %q", pr.ValidTo, pr.ValidFrom)
+	}
+	return &graph.Validity{ValidFrom: from, ValidTo: to}, nil
+}
+
+// parseValidityBound accepts a bare date or an RFC3339 instant; a bare date is
+// read as midnight UTC, so a `valid_to` of a date excludes that whole day, which
+// is the half-open reading a reader expects from "until".
+func parseValidityBound(s string) (*time.Time, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+	for _, layout := range []string{time.RFC3339, "2006-01-02"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return &t, nil
+		}
+	}
+	return nil, fmt.Errorf("%q is not a date (want YYYY-MM-DD or an RFC3339 instant)", s)
 }
 
 // Channel is one surface a product ships on. The short form is the slug
@@ -236,6 +286,16 @@ type ResolvedGovernance struct {
 	// Empty when the collection bound to nothing, which is when the flat
 	// default governs.
 	Profile string
+	// Validity is the matched profile's declared window, nil when the profile
+	// (or the default point) bounds nothing. ResolveGovernance carries it
+	// unfiltered — the as-declared view — while ResolveGovernanceAt applies it.
+	Validity *graph.Validity
+}
+
+// ActiveAt reports whether this governance is in force at the given instant. A
+// governance with no validity window is always in force.
+func (rc *ResolvedGovernance) ActiveAt(at time.Time) bool {
+	return rc.Validity.Matches(graph.ScopeAt(at))
 }
 
 // ResolveGovernance returns the governance in force over the named content
@@ -333,7 +393,49 @@ func (p *KapiProject) governanceAt(ref ChannelRef) *ResolvedGovernance {
 	if prof.Terms != "" {
 		rc.Terms = prof.Terms
 	}
+	// Load has already validated the window, so a parse error cannot surface here.
+	if v, err := prof.Validity(); err == nil {
+		rc.Validity = v
+	}
 	return rc
+}
+
+// ResolveGovernanceAt resolves the governance in force over a collection AT a
+// point in time, honouring profile validity: a profile outside its declared
+// window does not govern, so resolution falls back to the project's default
+// point. Plain ResolveGovernance is the as-declared view (it carries the window
+// unfiltered); this is the as-of view a run takes when it wants an expired
+// profile to stop applying rather than merely be flagged.
+func (p *KapiProject) ResolveGovernanceAt(collection string, at time.Time) (*ResolvedGovernance, error) {
+	rc, err := p.ResolveGovernance(collection)
+	if err != nil {
+		return nil, err
+	}
+	if rc.Profile != "" && !rc.ActiveAt(at) {
+		return p.governanceAt(ChannelRef{}), nil
+	}
+	return rc, nil
+}
+
+// ProfileWindow is a declared profile and its validity, for surfaces that report
+// which governance is in force and until when.
+type ProfileWindow struct {
+	Name     string
+	Validity *graph.Validity
+}
+
+// ProfileWindows returns every profile that declares a validity window, in name
+// order. Profiles that bound nothing are omitted — there is no window to report.
+func (p *KapiProject) ProfileWindows() []ProfileWindow {
+	var out []ProfileWindow
+	for _, name := range sortedKeys(p.Profiles) {
+		v, err := p.Profiles[name].Validity()
+		if err != nil || v == nil {
+			continue
+		}
+		out = append(out, ProfileWindow{Name: name, Validity: v})
+	}
+	return out
 }
 
 // HasContextSpace reports whether the recipe governs content through the
@@ -451,6 +553,9 @@ func (p *KapiProject) validateProfiles() error {
 		}
 		if err := prof.Voice.validate(fmt.Sprintf("profiles.%s.voice", name)); err != nil {
 			return err
+		}
+		if _, err := prof.Validity(); err != nil {
+			return fmt.Errorf("profiles.%s: %w", name, err)
 		}
 	}
 	return nil
