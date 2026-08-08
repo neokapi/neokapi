@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 title: Configuration
+description: The complete reference for configuring bowrain-server and bowrain-worker — environment variables, service topology, and runtime settings.
 ---
 
 # Server configuration

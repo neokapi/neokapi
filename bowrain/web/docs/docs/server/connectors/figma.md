@@ -1,6 +1,7 @@
 ---
 title: Figma
 sidebar_position: 3
+description: The Figma connector reads the text layers of a Figma design file over the Figma REST API and delivers each one to Bowrain for translation.
 ---
 
 # Figma connector

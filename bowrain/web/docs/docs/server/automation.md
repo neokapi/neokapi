@@ -1,6 +1,7 @@
 ---
 title: Automation
 sidebar_position: 11
+description: Bowrain's two layers of automation — server-side rules that respond to events across a workspace, and local rules declared on a project recipe for kapi-driven CLI and CI workflows.
 ---
 
 # Automation

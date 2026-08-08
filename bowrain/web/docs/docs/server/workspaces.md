@@ -1,6 +1,7 @@
 ---
 title: Workspaces
 sidebar_position: 9
+description: A workspace is the top-level unit in Bowrain — it groups projects, members, terminology, and content memory, much like a GitHub organization or a Slack workspace.
 ---
 
 # Workspaces
