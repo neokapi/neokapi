@@ -12,7 +12,7 @@ func BuildPreview(parts []*model.Part, reader format.DataFormatReader) string {
 	if pb, ok := reader.(format.PreviewBuilder); ok {
 		return pb.BuildPreview(parts)
 	}
-	return buildGenericPreview(parts)
+	return BuildGenericPreview(parts)
 }
 
 // PreviewBoilerplateStart returns the standard HTML preamble for preview documents.

@@ -283,14 +283,14 @@ func (t *TermEnforceTool) annotate(v tool.BlockView) error {
 		found := false
 		var targetRefs []model.TermRef
 		if replacement != nil {
-			found = containsText(targetText, replacement.Text, t.cfg.CaseSensitive)
+			found = ContainsText(targetText, replacement.Text, t.cfg.CaseSensitive)
 			targetRefs = []model.TermRef{{Text: replacement.Text, Locale: replacement.Locale, Status: replacement.Status}}
 		} else {
 			for _, tt := range targetTerms {
 				if !isAcceptableStatus(tt.Status, t.cfg.CheckStatuses) {
 					continue
 				}
-				if containsText(targetText, tt.Text, t.cfg.CaseSensitive) {
+				if ContainsText(targetText, tt.Text, t.cfg.CaseSensitive) {
 					found = true
 					break
 				}
@@ -482,7 +482,10 @@ func termRefs(c Concept, locale model.LocaleID) []model.TermRef {
 	return refs
 }
 
-func containsText(text, substr string, caseSensitive bool) bool {
+// ContainsText reports whether text contains substr, honoring caseSensitive.
+// A case-insensitive match lowercases both sides. This is the default
+// term-enforcement comparison shared by the terms tool and platform callers.
+func ContainsText(text, substr string, caseSensitive bool) bool {
 	if caseSensitive {
 		return strings.Contains(text, substr)
 	}

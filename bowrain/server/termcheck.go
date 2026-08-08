@@ -125,7 +125,7 @@ func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, source
 		}
 		present := false
 		for _, tt := range mandated {
-			if containsFold(targetText, tt.Text) {
+			if terms.ContainsText(targetText, tt.Text, false) {
 				present = true
 				break
 			}
@@ -135,15 +135,6 @@ func targetMissingMandatedTerm(ctx context.Context, tb terms.Terminology, source
 		}
 	}
 	return false
-}
-
-// containsFold reports whether s contains substr, case-insensitively — the
-// default term-enforce comparison (containsText with caseSensitive=false).
-func containsFold(s, substr string) bool {
-	if substr == "" {
-		return false
-	}
-	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
 
 // termGate carries the terminology-governance context for one ship/on-brand pass:

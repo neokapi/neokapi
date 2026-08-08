@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"html"
 	"net/http"
 	"strings"
 
@@ -129,17 +128,12 @@ func (s *Server) HandleRenderBlockHTML(c echo.Context) error {
 // buildBlockListPreview generates a simple block-list preview from stored blocks.
 // Used as a last resort when neither PreviewHTML nor BlockIndex is available.
 func buildBlockListPreview(blocks []*store.StoredBlock) string {
-	var body strings.Builder
-	body.WriteString(`<div style="font-family: monospace; font-size: 13px;">`)
+	parts := make([]*model.Part, 0, len(blocks))
 	for _, sb := range blocks {
 		if !sb.Block.Translatable {
 			continue
 		}
-		text := html.EscapeString(sb.Block.SourceText())
-		fmt.Fprintf(&body,
-			`<p style="margin: 4px 0; padding: 4px 8px;"><kat-block id="%s">%s</kat-block></p>`+"\n",
-			sb.Block.ID, text)
+		parts = append(parts, &model.Part{Type: model.PartBlock, Resource: sb.Block})
 	}
-	body.WriteString(`</div>`)
-	return editor.PreviewBoilerplateStart() + body.String() + editor.PreviewBoilerplateEnd()
+	return editor.BuildGenericPreview(parts)
 }

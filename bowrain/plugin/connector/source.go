@@ -1463,11 +1463,11 @@ func (c *BowrainSourceConnector) resolveTargetPath(itemName, locale string) stri
 			// e.g. path: src/{lang}/**/*.json, relPath: src/en/foo/bar.json
 			// We need to reconstruct: src/{locale}/foo/bar.json
 			srcPattern := coreproj.ResolvePathPattern(it.Item.Path, srcLang)
-			prefix := globFixedPrefix(srcPattern)
+			prefix := coreproj.GlobFixedPrefix(srcPattern)
 			relative := strings.TrimPrefix(relPath, prefix)
 			// Expand {lang} before taking the fixed prefix — the other way
 			// around the prefix stops at '{' and the locale segment is lost.
-			destPrefix := globFixedPrefix(coreproj.ResolvePathPattern(it.Item.Target, locale))
+			destPrefix := coreproj.GlobFixedPrefix(coreproj.ResolvePathPattern(it.Item.Target, locale))
 			result := destPrefix + relative
 			return result
 		}
@@ -1476,7 +1476,7 @@ func (c *BowrainSourceConnector) resolveTargetPath(itemName, locale string) stri
 		result := dest
 		result = strings.ReplaceAll(result, "{locale}", locale)
 
-		prefix := globFixedPrefix(pattern)
+		prefix := coreproj.GlobFixedPrefix(pattern)
 		relative := strings.TrimPrefix(relPath, prefix)
 		dir := filepath.Dir(relative)
 		if dir == "." {
@@ -1735,23 +1735,6 @@ func (c *BowrainSourceConnector) ServerTargetLocales() []model.LocaleID {
 		locales[i] = model.LocaleID(l)
 	}
 	return locales
-}
-
-// globFixedPrefix returns the fixed directory prefix of a glob pattern,
-// i.e. everything before the first glob metacharacter (*, ?, [, {).
-func globFixedPrefix(pattern string) string {
-	for i, c := range pattern {
-		if c == '*' || c == '?' || c == '[' || c == '{' {
-			// Return everything up to the last path separator before the metachar.
-			return pattern[:i]
-		}
-	}
-	// No glob chars — return the directory portion.
-	dir := filepath.Dir(pattern)
-	if dir == "." {
-		return ""
-	}
-	return dir + string(filepath.Separator)
 }
 
 // lookupCachedHashForItem finds a block's cached hash for a specific item.

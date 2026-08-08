@@ -9,10 +9,10 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
-// buildGenericPreview generates a basic fallback preview for formats
+// BuildGenericPreview generates a basic fallback preview for formats
 // without dedicated preview builders. Each block is rendered as a
 // styled paragraph with <kat-block> markers.
-func buildGenericPreview(parts []*model.Part) string {
+func BuildGenericPreview(parts []*model.Part) string {
 	var body strings.Builder
 
 	body.WriteString(`<div style="font-family: monospace; font-size: 13px;">`)
