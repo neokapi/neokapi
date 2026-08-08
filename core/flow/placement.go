@@ -48,9 +48,10 @@ const (
 // Placement rule identifiers, stable for programmatic handling (CLI output,
 // flow-editor rendering).
 const (
-	RuleTransformerAfterTarget = "transformer-after-target"
-	RuleTransformerAfterEgress = "transformer-after-remote-egress"
-	RuleTransformerLate        = "transformer-late-placement"
+	RuleTransformerAfterTarget       = "transformer-after-target"
+	RuleTransformerAfterEgress       = "transformer-after-remote-egress"
+	RuleTransformerLate              = "transformer-late-placement"
+	RuleRedactionMissingBeforeEgress = "redaction-missing-before-remote-egress"
 )
 
 // PlacementDiagnostic is one finding from the placement pass.
@@ -173,6 +174,49 @@ func (d *FlowDefinition) CheckPlacement(reg *registry.ToolRegistry) error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// CheckRedactionCoverage enforces a project's declared redaction policy over a
+// flow. ValidatePlacement only orders a redact step the flow already lists; it
+// says nothing when the flow lists none. So a project that declares
+// defaults.redaction still leaks if a flow reaches a remote sink with no redact
+// step at all — the one route ingest redaction cannot reach, because the flow
+// author composes the steps.
+//
+// When requireRedaction is set, a flow that egresses source to a remote sink
+// with no recoverable (vaulting) transformer anywhere in it is rejected: the
+// same fail-closed stance the push route takes, extended to flows. Ordering of
+// a redact step that IS present — including the AD-020 exemption for a remote
+// detector that feeds entity-driven redaction — stays ValidatePlacement's job,
+// so this check does not re-decide it. A nil registry or a project with no
+// declared policy disables it.
+func (d *FlowDefinition) CheckRedactionCoverage(reg *registry.ToolRegistry, requireRedaction bool) error {
+	if reg == nil || !requireRedaction {
+		return nil
+	}
+	ordered, err := d.toolNodeRefs()
+	if err != nil {
+		return err
+	}
+	hasRedact := false
+	var egressTool string
+	for _, n := range ordered {
+		info := reg.ResolveToolInfo(registry.ToolID(n.Name), n.Config)
+		if info == nil {
+			continue
+		}
+		if info.Recoverable {
+			hasRedact = true
+		}
+		if egressTool == "" && hasSideEffect(info, schema.SideEffectRemoteSourceEgress) {
+			egressTool = n.Name
+		}
+	}
+	if egressTool != "" && !hasRedact {
+		return fmt.Errorf("flow %q: the project declares defaults.redaction, but %q sends source to a remote sink and the flow has no redact step — add a redact step before it, or run it on a local provider",
+			d.Name, egressTool)
+	}
+	return nil
 }
 
 // isTransformer reports whether a tool may rewrite source: the capability

@@ -17,6 +17,8 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -337,13 +339,15 @@ type brandScanUploadResponse struct {
 	} `json:"skipped"`
 }
 
-// TestBrandScanUploads_StoresAndSkips: allowlisted files are stored as
-// envelope blobs; disallowed, deferred (pdf), and oversize files come back in
+// TestBrandScanUploads_StoresAndSkips: importable files are stored as envelope
+// blobs; unsupported (pdf, unknown extension) and oversize files come back in
 // "skipped" with reasons.
 func TestBrandScanUploads_StoresAndSkips(t *testing.T) {
 	blobs, err := bloblocal.New(t.TempDir())
 	require.NoError(t, err)
-	s := &Server{BlobStore: blobs, wsStores: newWorkspaceStores()}
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+	s := &Server{BlobStore: blobs, FormatRegistry: reg, wsStores: newWorkspaceStores()}
 
 	oversize := bytes.Repeat([]byte("a"), (10<<20)+1)
 	body, contentType := brandScanMultipart(t, map[string][]byte{
@@ -371,8 +375,8 @@ func TestBrandScanUploads_StoresAndSkips(t *testing.T) {
 	}
 	require.Len(t, reasons, 3)
 	assert.Contains(t, reasons["notes.xyz"], "unsupported")
-	assert.Contains(t, reasons["brand-deck.pdf"], "deferred",
-		"pdf must surface the deferred-extractor reason, not a generic rejection")
+	assert.Contains(t, reasons["brand-deck.pdf"], "unsupported",
+		"pdf has no in-process reader (pdfium reads out of core), so a server-side scan reports it unsupported")
 	assert.Contains(t, reasons["huge.md"], "too large")
 
 	// The stored blob is a decodable envelope carrying the original filename.
