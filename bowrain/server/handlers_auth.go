@@ -1062,15 +1062,30 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 		return apiErr(c, http.StatusBadRequest, "invalid request")
 	}
 
-	// Accept refresh token from JSON body or cookie.
+	// Accept refresh token from JSON body or cookie. Which one it came from
+	// decides the security posture: a cookie-carried refresh is the browser BFF
+	// path (ambient credential), a body-carried one is the CLI/desktop client
+	// (bearer-style, authenticates by the token itself).
 	rawRefresh := req.RefreshToken
+	fromCookie := false
 	if rawRefresh == "" {
 		if rc, err := c.Cookie(refreshCookieName); err == nil {
 			rawRefresh = rc.Value
+			fromCookie = true
 		}
 	}
 	if rawRefresh == "" {
 		return apiErr(c, http.StatusBadRequest, "refresh_token required")
+	}
+
+	// The cookie path is a state-changing, ambient-credential request, so it
+	// must present the CSRF header the SPA sends on every cookie-authenticated
+	// call — otherwise a cross-site page could silently rotate the victim's
+	// session. The body path carries no ambient credential and is exempt.
+	if fromCookie {
+		if err := enforceCSRFForCookie(c); err != nil {
+			return err
+		}
 	}
 
 	// Hash the incoming token for lookup.
@@ -1119,12 +1134,19 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 	// Set cookies (for web clients) and return JSON (for CLI/desktop).
 	s.setSessionCookies(c, accessToken, newRefreshToken)
 
-	return c.JSON(http.StatusOK, platformAuth.TokenResponse{
-		AccessToken:  accessToken,
-		TokenType:    "Bearer",
-		ExpiresIn:    900,
-		RefreshToken: newRefreshToken,
-	})
+	// The cookie path already carries the rotated tokens as HttpOnly cookies;
+	// echoing them in the JS-readable body would hand any XSS a fresh 30-day
+	// refresh token to exfiltrate, cookie HttpOnly-ness notwithstanding. Only the
+	// CLI/desktop (body) path, which has no cookie jar, receives them in the body.
+	resp := platformAuth.TokenResponse{
+		TokenType: "Bearer",
+		ExpiresIn: 900,
+	}
+	if !fromCookie {
+		resp.AccessToken = accessToken
+		resp.RefreshToken = newRefreshToken
+	}
+	return c.JSON(http.StatusOK, resp)
 }
 
 // HandleAuthMe returns the current authenticated user.

@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -57,7 +58,10 @@ func (s *Server) HandleAdminAuthExchange(c echo.Context) error {
 	ctx := c.Request().Context()
 	idToken, err := s.AdminVerifier.Verify(ctx, req.IDToken)
 	if err != nil {
-		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "verify admin id_token: " + err.Error()})
+		// The verifier's own words (issuer mismatch, key ids, clock skew) go to
+		// the log, never to an unauthenticated caller.
+		slog.WarnContext(ctx, "admin id_token verification failed", "error", err)
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid id_token"})
 	}
 
 	// Extract identity, mirroring AdminGuard's Bearer path (email falls back to
