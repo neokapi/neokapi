@@ -21,6 +21,11 @@ type ProjectRequest struct {
 	DefaultStream         *string  `json:"default_stream,omitempty"`
 	DashboardVisibility   string   `json:"dashboard_visibility,omitempty"`
 	Workspace             string   `json:"workspace,omitempty"`
+	// ShipFeedPublic toggles the public ship-status feed
+	// (GET /projects/:id/ship.json). A pointer so "leave unchanged" (nil) is
+	// distinct from "turn off" (false); default off. Turning it on is a public
+	// disclosure, so it is guarded like dashboard_visibility.
+	ShipFeedPublic *bool `json:"ship_feed_public,omitempty"`
 }
 
 // HandleCreateProject creates a project in the authenticated user's workspace.
@@ -177,6 +182,16 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 			}
 		}
 		p.DashboardVisibility = req.DashboardVisibility
+	}
+	if req.ShipFeedPublic != nil {
+		// Publishing a public feed is the same disclosure decision as a public
+		// dashboard, so a personal workspace cannot turn it on either.
+		if *req.ShipFeedPublic && s.AuthStore != nil {
+			if ws, wsErr := s.AuthStore.GetWorkspace(ctx, existing.WorkspaceID); wsErr == nil && ws.Type == platauth.WorkspaceTypePersonal {
+				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "personal workspaces cannot expose projects publicly"})
+			}
+		}
+		p.Properties = applyShipFeedProperty(p.Properties, req.ShipFeedPublic)
 	}
 	if req.Workspace != "" && s.AuthStore != nil {
 		if ws, wsErr := s.AuthStore.GetWorkspaceBySlug(ctx, req.Workspace); wsErr == nil {
