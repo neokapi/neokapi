@@ -131,9 +131,17 @@ export async function captureScript(m: DemoManifest, opts: { force?: boolean } =
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     PATH: `${path.join(REPO_ROOT, "bin")}:${process.env.PATH}`,
+    // kapiIsolationEnv() carries the full contract, including KAPI_NO_PROJECT=1
+    // and an isolated XDG_CACHE_HOME — so a plain shell demo needs nothing more.
     ...kapiIsolationEnv(),
     ...(isBowrain
       ? {
+          // The bowrain CLI demo drives a real server against a project it
+          // creates, so it opts BACK IN to project discovery. Its sandbox is in
+          // os.tmpdir(), outside the repo, so there is no dogfood project to
+          // leak into. (Empty, not unset: only a NON-empty KAPI_NO_PROJECT
+          // disables discovery.)
+          KAPI_NO_PROJECT: "",
           BOWRAIN_AUTH_TOKEN: process.env.BOWRAIN_SESSION_TOKEN ?? "",
           BOWRAIN_SERVER_URL: process.env.BOWRAIN_BACKEND_URL ?? "",
           BOWRAIN_BACKEND_URL: process.env.BOWRAIN_BACKEND_URL ?? "",
@@ -142,11 +150,8 @@ export async function captureScript(m: DemoManifest, opts: { force?: boolean } =
           // auth.json) instead of the seed's localhost server.
           BOWRAIN_CONFIG_DIR: ensureDir(path.join(KAPI_ISO, "bowrain-config")),
           XDG_CONFIG_HOME: ensureDir(path.join(KAPI_ISO, "xdg-config")),
-          // Isolate the plugin dispatch cache (wiped above) so it never reads a
-          // stale entry from the developer's real ~/.cache/kapi.
-          XDG_CACHE_HOME: ensureDir(path.join(KAPI_ISO, "cache")),
         }
-      : { KAPI_NO_PROJECT: "1" }),
+      : {}),
   };
 
   for (const cmd of m.setup ?? []) {

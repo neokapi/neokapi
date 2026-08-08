@@ -18,9 +18,11 @@ KAPI="$(cd "$(dirname "$KAPI")" && pwd)/$(basename "$KAPI")"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-# Isolate plugins/caches from the developer environment (the project recipe
-# is explicit via -p, so project discovery is fine).
-export KAPI_PLUGINS_DIR_ONLY=1 NO_COLOR=1
+# Isolate plugins/caches from the developer environment. KAPI_NO_PROJECT is
+# hoisted here — not left to each call — so no bare invocation can ever bind the
+# repo's dogfood kapi.yaml. The project runs below name their recipe with an
+# explicit -p, which wins over KAPI_NO_PROJECT.
+export KAPI_NO_PROJECT=1 KAPI_PLUGINS_DIR_ONLY=1 NO_COLOR=1
 export KAPI_CONFIG_DIR="$WORK/config" XDG_DATA_HOME="$WORK/data" XDG_CACHE_HOME="$WORK/cache"
 
 mkproject() {
@@ -44,7 +46,7 @@ EOF
 echo "kpz-smoke: .kpz workspace (extract → transform → merge == one-shot)"
 printf '{"greeting":"Hello world","farewell":"Goodbye now"}' > "$WORK/app.json"
 (
-  cd "$WORK" && export KAPI_NO_PROJECT=1
+  cd "$WORK"   # KAPI_NO_PROJECT is already exported globally
   "$KAPI" pseudo-translate app.json -o oneshot.json --target-lang qps >/dev/null
   "$KAPI" extract app.json -o work.kpz --target-lang qps >/dev/null
   "$KAPI" pseudo-translate work.kpz >/dev/null            # transform in place

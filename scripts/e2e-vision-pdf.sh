@@ -47,7 +47,11 @@ collections:
     target: "out/{lang}.md"
 YAML
 
-# Isolate kapi from any developer/system config; discover ONLY our staged plugins.
+# Isolate kapi from any developer/system config; discover ONLY our staged
+# plugins. KAPI_NO_PROJECT keeps the upward walk from binding the repo's
+# dogfood kapi.yaml — safe today only because we cd into a temp project, but
+# the contract must not depend on that incidental cwd.
+export KAPI_NO_PROJECT=1
 export KAPI_PLUGINS_DIR_ONLY=1
 export KAPI_CONFIG_DIR="$WORK/config"
 export XDG_DATA_HOME="$WORK/data"

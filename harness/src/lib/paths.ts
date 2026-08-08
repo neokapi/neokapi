@@ -90,8 +90,9 @@ export const PLUGIN_DIR = path.join(REPO_ROOT, "packages", "kapi-claude-plugin")
  */
 export const KAPI_ISO = path.join(HARNESS_ROOT, ".kapi");
 export const KAPI_ISO_DATA = path.join(KAPI_ISO, "data"); // XDG_DATA_HOME → plugins live in <data>/kapi/plugins
-export const KAPI_ISO_HOME = path.join(KAPI_ISO, "home"); // KAPI_CONFIG_DIR → KAPI_HOME (tm/terms/flows)
+export const KAPI_ISO_HOME = path.join(KAPI_ISO, "home"); // KAPI_CONFIG_DIR → KAPI_HOME (memory/terms/flows)
 export const KAPI_ISO_PLUGINS = path.join(KAPI_ISO_DATA, "kapi", "plugins");
+export const KAPI_ISO_CACHE = path.join(KAPI_ISO, "cache"); // XDG_CACHE_HOME → <cache>/kapi/plugins-cache.json
 
 /**
  * Env vars that point kapi at the isolated state. Merge into PATH-augmented env.
@@ -105,13 +106,24 @@ export const KAPI_ISO_PLUGINS = path.join(KAPI_ISO_DATA, "kapi", "plugins");
  * discovery is restricted to that one dir (no user XDG root, no system roots).
  * Pointing KAPI_PLUGINS_DIR at the same dir XDG_DATA_HOME would resolve to
  * (KAPI_ISO_PLUGINS) avoids double-discovery because _ONLY skips the XDG root.
+ *
+ * XDG_CACHE_HOME is part of the contract, not an optional extra: without it the
+ * run shares the developer's real ~/.cache/kapi/plugins-cache.json, which only
+ * self-invalidates on a version bump — the exact stale-cache hazard the
+ * plugin-install demos wipe by hand (capture-script.ts). KAPI_NO_PROJECT keeps
+ * a kapi call from binding a discovered project; the one demo class that DOES
+ * want a project (bowrain CLI, sandbox in os.tmpdir() outside the repo) opts
+ * back in explicitly.
  */
 export function kapiIsolationEnv(): Record<string, string> {
+  ensureDir(KAPI_ISO_CACHE);
   return {
     XDG_DATA_HOME: KAPI_ISO_DATA,
+    XDG_CACHE_HOME: KAPI_ISO_CACHE,
     KAPI_CONFIG_DIR: KAPI_ISO_HOME,
     KAPI_PLUGINS_DIR: KAPI_ISO_PLUGINS,
     KAPI_PLUGINS_DIR_ONLY: "1",
+    KAPI_NO_PROJECT: "1",
     // Demo recordings must never emit telemetry or show the first-run
     // notice, even against a keyed release build.
     KAPI_TELEMETRY: "0",

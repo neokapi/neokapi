@@ -8,10 +8,20 @@
 import fs from "node:fs";
 import path from "node:path";
 import { loadEnv } from "../lib/env.ts";
-import { KAPI_BIN, KAPI_ISO_HOME, KAPI_ISO_PLUGINS, PLUGIN_DIR, REPO_ROOT, ensureDir } from "../lib/paths.ts";
+import { KAPI_BIN, KAPI_ISO_HOME, KAPI_ISO_PLUGINS, PLUGIN_DIR, REPO_ROOT, ensureDir, kapiIsolationEnv } from "../lib/paths.ts";
 import { run, sh } from "../lib/exec.ts";
 
 const CRED = "harness-gemini";
+
+/**
+ * Env for the setup-time kapi calls. Setup must write into the SAME isolated
+ * state the demos read from (KAPI_CONFIG_DIR/XDG roots), never the developer's
+ * real ~/.config/kapi — otherwise the harness-gemini credential and exported
+ * skills land in one store while every recording reads another.
+ */
+function setupKapiEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, ...kapiIsolationEnv() };
+}
 
 /**
  * Give the harness its own isolated kapi state so recordings don't depend on this
@@ -47,7 +57,7 @@ async function regenPluginBundle(): Promise<void> {
   const skillsDir = path.join(PLUGIN_DIR, "skills");
   fs.rmSync(skillsDir, { recursive: true, force: true });
   fs.mkdirSync(skillsDir, { recursive: true });
-  const r = await run(KAPI_BIN, ["skills", "export", "--dir", skillsDir], { timeoutMs: 60_000 });
+  const r = await run(KAPI_BIN, ["skills", "export", "--dir", skillsDir], { env: setupKapiEnv(), timeoutMs: 60_000 });
   if (r.code !== 0) throw new Error(`skills export failed: ${r.stderr}`);
   console.log(`✓ plugin bundle: ${skillsDir}`);
 }
@@ -58,7 +68,8 @@ async function ensureCredential(): Promise<void> {
     console.warn("! GEMINI_API_KEY not set (add it to ~/.config/neokapi/harness.env) — AI demos will fail. Offline demos still work.");
     return;
   }
-  const list = await run(KAPI_BIN, ["credentials", "list", "--json"], { timeoutMs: 30_000 });
+  const isoEnv = setupKapiEnv();
+  const list = await run(KAPI_BIN, ["credentials", "list", "--json"], { env: isoEnv, timeoutMs: 30_000 });
   let exists = false;
   try {
     exists = JSON.parse(list.stdout).credentials?.some((c: any) => c.name === CRED);
@@ -69,7 +80,7 @@ async function ensureCredential(): Promise<void> {
     console.log(`✓ credential "${CRED}" already present`);
     return;
   }
-  const r = await run(KAPI_BIN, ["credentials", "add", CRED, "--provider", "gemini", "--api-key", key], { timeoutMs: 30_000 });
+  const r = await run(KAPI_BIN, ["credentials", "add", CRED, "--provider", "gemini", "--api-key", key], { env: isoEnv, timeoutMs: 30_000 });
   if (r.code !== 0) throw new Error(`credentials add failed: ${r.stderr}`);
   console.log(`✓ registered kapi credential "${CRED}" (gemini)`);
 }

@@ -244,6 +244,10 @@ function goEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
     // or the machine's globally-installed plugins (so the recorded plugin list
     // is just what the demo installs).
     KAPI_PLUGINS_DIR_ONLY: "1",
+    // Never bind the repo's dogfood kapi.yaml via the upward project walk: these
+    // backend processes run from an in-repo cwd, and desktop projects are opened
+    // explicitly, so discovery must stay off.
+    KAPI_NO_PROJECT: "1",
     ...extra,
   };
 }
