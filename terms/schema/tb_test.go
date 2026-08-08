@@ -187,10 +187,10 @@ const (
 // whitespace-collapsed, column-order-insensitive statements — a fresh install
 // produces the same schema.
 func TestTermsPostgresSemanticEquivalence(t *testing.T) {
-	assertStmtSetEqual(t, "v1 create", pgV1Reference, RenderTermsPostgresV1())
-	assertStmtSetEqual(t, "v2 stream", pgV2Reference, RenderTermsPostgresV2())
+	assertStmtSetEqual(t, "v1 create", pgV1Reference, RenderTermsPostgresV1("workspace_id"))
+	assertStmtSetEqual(t, "v2 stream", pgV2Reference, RenderTermsPostgresV2("workspace_id"))
 	assertStmtSetEqual(t, "v3 fuzzy", pgV3Reference, RenderTermsPostgresV3())
-	assertStmtSetEqual(t, "v4 brand graph", pgV4Reference, RenderTermsPostgresV4())
+	assertStmtSetEqual(t, "v4 brand graph", pgV4Reference, RenderTermsPostgresV4("workspace_id"))
 }
 
 func assertStmtSetEqual(t *testing.T, name, want, got string) {

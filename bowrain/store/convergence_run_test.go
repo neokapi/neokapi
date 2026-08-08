@@ -266,7 +266,7 @@ func TestConvergenceRunStore_LatestRunForProjects(t *testing.T) {
 			require.NoError(t, rs.CreateRun(ctx, older))
 			newest := &store.ConvergenceRun{
 				ProjectID: "proj-b", Trigger: "manual",
-				State: store.ConvergenceRunParked, StallReason: convergence.StallNeedsCredits,
+				State: store.ConvergenceRunParked, StallReason: convergence.StallNoProgress,
 				CreatedAt: base.Add(time.Hour),
 			}
 			require.NoError(t, rs.CreateRun(ctx, newest))
@@ -277,7 +277,7 @@ func TestConvergenceRunStore_LatestRunForProjects(t *testing.T) {
 			assert.Equal(t, newest.ID, got.ID)
 			assert.Equal(t, "proj-b", got.ProjectID)
 			assert.Equal(t, store.ConvergenceRunParked, got.State)
-			assert.Equal(t, convergence.StallNeedsCredits, got.StallReason)
+			assert.Equal(t, convergence.StallNoProgress, got.StallReason)
 
 			// Scoping: a filter that excludes the newest run's project falls
 			// back to the newest run among the included projects.

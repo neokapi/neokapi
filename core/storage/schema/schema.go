@@ -10,9 +10,10 @@
 //   - per-dialect column types and constraints, written side by side on one
 //     Column so type drift between backends is visible at the definition site
 //     (TEXT timestamps vs TIMESTAMPTZ, TEXT vs JSONB, INTEGER vs BIGINT);
-//   - optional multi-tenancy: tables marked Tenant gain a leading
-//     workspace_id column plus composite PRIMARY KEY / FOREIGN KEY prefixes
-//     on Postgres, while SQLite (one database file per project) omits it;
+//   - optional partitioning: tables marked Partitioned gain a leading
+//     partition-key column (named by Opt.TenantColumn) plus composite
+//     PRIMARY KEY / FOREIGN KEY prefixes on the server dialect, while SQLite
+//     (one database file per project) omits it;
 //   - dialect-only columns and indexes (e.g. SQLite's has_codes flag, which
 //     Postgres derives at query time);
 //   - formatting knobs so the rendered SQLite DDL stays byte-identical to
@@ -35,15 +36,11 @@ type Dialect int
 const (
 	// SQLite is the framework's embedded backend dialect.
 	SQLite Dialect = iota
-	// Postgres is bowrain's server backend dialect.
+	// Postgres is the server-side dialect.
 	Postgres
 )
 
-// TenantColumn is the multi-tenancy discriminator every Tenant table carries
-// on Postgres. SQLite databases are per-project files and never have it.
-const TenantColumn = "workspace_id"
-
-// tenantSpec is the column spec rendered for TenantColumn.
+// tenantSpec is the column spec rendered for the partition-key column.
 const tenantSpec = "TEXT NOT NULL"
 
 // Column describes one logical column with its per-dialect spelling.
@@ -69,8 +66,8 @@ func (c Column) spec(d Dialect) string {
 	return c.SQLite
 }
 
-// FK is a table-level foreign key. On Postgres, Tenant tables prepend
-// workspace_id to both the local and referenced column lists. When
+// FK is a table-level foreign key. On Postgres, Partitioned tables prepend
+// the partition-key column to both the local and referenced column lists. When
 // SQLiteInline is set, the SQLite side already expresses the reference
 // inline on the column spec and the table-level clause is Postgres-only.
 type FK struct {
@@ -81,7 +78,8 @@ type FK struct {
 }
 
 // Index describes one secondary index. Postgres names may differ from the
-// historical SQLite names; Tenant tables prepend workspace_id to the key.
+// historical SQLite names; Partitioned tables prepend the partition-key
+// column to the key.
 type Index struct {
 	Name       string   // SQLite index name
 	PGName     string   // Postgres index name when it differs (empty = Name)
@@ -110,11 +108,11 @@ func (ix Index) in(d Dialect) bool {
 // Table describes one logical table.
 type Table struct {
 	Name string
-	// Tenant marks the table as workspace-scoped on Postgres: a leading
-	// workspace_id column, and workspace_id prefixes on the composite
-	// PRIMARY KEY and every FOREIGN KEY.
-	Tenant  bool
-	Columns []Column
+	// Partitioned marks the table as partition-scoped on Postgres: a leading
+	// partition-key column (named by Opt.TenantColumn), and that column
+	// prefixes the composite PRIMARY KEY and every FOREIGN KEY.
+	Partitioned bool
+	Columns     []Column
 	// PK is a composite primary key rendered on both dialects.
 	PK []string
 	// PGPK is a primary key rendered on Postgres only, for tables whose
@@ -129,6 +127,12 @@ type Table struct {
 
 // Opt controls rendering.
 type Opt struct {
+	// TenantColumn names the leading partition-key column rendered for
+	// Partitioned tables on Postgres (it is the discriminator every such table
+	// carries). The framework leaves it empty — SQLite databases are per-project
+	// files and never carry it; a server-side caller that partitions its tables
+	// supplies the name.
+	TenantColumn string
 	// Indent is the statement indentation prefix (default two tabs, the
 	// historical migration-literal indentation).
 	Indent string
@@ -167,8 +171,8 @@ func (t Table) column(name string) (Column, bool) {
 // per-dialect absence, with the tenant column prepended on Postgres.
 func (t Table) cols(d Dialect, o Opt) []Column {
 	var out []Column
-	if d == Postgres && t.Tenant {
-		out = append(out, Column{Name: TenantColumn, PG: tenantSpec})
+	if d == Postgres && t.Partitioned {
+		out = append(out, Column{Name: o.TenantColumn, PG: tenantSpec})
 	}
 	for _, c := range t.Columns {
 		if c.spec(d) == "" || o.excluded(c.Name) {
@@ -201,7 +205,7 @@ func pad(name string, width int) string {
 
 // pk returns the table-level primary-key column list for the dialect
 // (nil when the dialect has no table-level PK).
-func (t Table) pk(d Dialect) []string {
+func (t Table) pk(d Dialect, o Opt) []string {
 	switch d {
 	case SQLite:
 		return t.PK
@@ -213,8 +217,8 @@ func (t Table) pk(d Dialect) []string {
 		if len(pk) == 0 {
 			return nil
 		}
-		if t.Tenant {
-			return append([]string{TenantColumn}, pk...)
+		if t.Partitioned {
+			return append([]string{o.TenantColumn}, pk...)
 		}
 		return pk
 	}
@@ -243,7 +247,7 @@ func (t Table) Create(d Dialect, o Opt) string {
 		}
 		lines = append(lines, bodyLine{pad(c.name(d), width) + c.spec(d), comment})
 	}
-	if pk := t.pk(d); len(pk) > 0 {
+	if pk := t.pk(d, o); len(pk) > 0 {
 		lines = append(lines, bodyLine{"PRIMARY KEY (" + strings.Join(pk, ", ") + ")", ""})
 	}
 	for _, fk := range t.FKs {
@@ -280,9 +284,9 @@ func (t Table) Create(d Dialect, o Opt) string {
 // two-line layout; Postgres renders a single line with the tenant prefix.
 func (t Table) fkClause(d Dialect, fk FK, o Opt) string {
 	cols, refCols := fk.Cols, fk.RefCols
-	if d == Postgres && t.Tenant {
-		cols = append([]string{TenantColumn}, cols...)
-		refCols = append([]string{TenantColumn}, refCols...)
+	if d == Postgres && t.Partitioned {
+		cols = append([]string{o.TenantColumn}, cols...)
+		refCols = append([]string{o.TenantColumn}, refCols...)
 	}
 	ref := "REFERENCES " + fk.RefTable + "(" + strings.Join(refCols, ", ") + ") ON DELETE CASCADE"
 	head := "FOREIGN KEY (" + strings.Join(cols, ", ") + ")"
@@ -321,8 +325,8 @@ func (t Table) CreateIndexes(d Dialect, o Opt, names ...string) string {
 	var b strings.Builder
 	for _, ix := range group {
 		cols := ix.Cols
-		if d == Postgres && t.Tenant {
-			cols = append([]string{TenantColumn}, cols...)
+		if d == Postgres && t.Partitioned {
+			cols = append([]string{o.TenantColumn}, cols...)
 		}
 		name := ix.name(d)
 		if o.AlignIndexes {

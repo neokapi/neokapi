@@ -229,7 +229,7 @@ func TestOrchestrator_DriveStallsOnCredits(t *testing.T) {
 	require.NoError(t, err)
 	// Parked (work saved), NOT failed — and labeled.
 	assert.Equal(t, bstore.ConvergenceRunParked, got.State)
-	assert.Equal(t, convergence.StallNeedsCredits, got.StallReason)
+	assert.Equal(t, StallNeedsCredits, got.StallReason)
 	assert.NotEmpty(t, got.Error, "a labeled stall carries a human message")
 	// The reason surfaces through the REST view.
 	view := toConvergenceRunView(got)

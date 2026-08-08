@@ -22,14 +22,14 @@ import (
 )
 
 // Terms table descriptors. Column specs are written side by side per dialect
-// so type drift is visible at the definition site. Tenant tables gain a leading
-// workspace_id column and workspace_id-prefixed PK/FK on Postgres only. The
-// SQLite-only project_id column (absent on Postgres, which scopes by
-// workspace_id) carries an empty Postgres spec so the seam omits it there.
+// so type drift is visible at the definition site. Partitioned tables gain a
+// leading partition-key column and a partition-key-prefixed PK/FK on Postgres
+// only. The SQLite-only project_id column (absent on Postgres, which partitions
+// instead) carries an empty Postgres spec so the seam omits it there.
 var (
 	tbConcepts = sq.Table{
 		Name:        "tb_concepts",
-		Tenant:      true,
+		Partitioned: true,
 		SQLiteWidth: 12,
 		Columns: []sq.Column{
 			{Name: "id", SQLite: "TEXT PRIMARY KEY", PG: "TEXT NOT NULL"},
@@ -53,7 +53,7 @@ var (
 
 	tbTerms = sq.Table{
 		Name:        "tb_terms",
-		Tenant:      true,
+		Partitioned: true,
 		SQLiteWidth: 14,
 		Columns: []sq.Column{
 			{Name: "id", SQLite: "INTEGER PRIMARY KEY AUTOINCREMENT", PG: "SERIAL PRIMARY KEY"},
@@ -82,7 +82,7 @@ var (
 
 	tbRelations = sq.Table{
 		Name:        "tb_relations",
-		Tenant:      true,
+		Partitioned: true,
 		SQLiteWidth: 12,
 		Columns: []sq.Column{
 			{Name: "id", SQLite: "TEXT PRIMARY KEY", PG: "TEXT NOT NULL"},
@@ -225,11 +225,11 @@ func RenderTermsSQLiteV3() string {
 
 // RenderTermsPostgresV1 renders the fresh v1 Postgres schema: concepts (no stream
 // or source yet) and terms (no competitor/validity yet), with the base term
-// indexes. Column order is canonicalized by the seam (workspace_id first);
+// indexes. Column order is canonicalized by the seam (partition key first);
 // order is cosmetic and the semantic-equivalence test is order-insensitive.
-func RenderTermsPostgresV1() string {
-	conceptsOpt := sq.Opt{IfNotExists: true, Exclude: []string{"stream", "source"}}
-	termsOpt := sq.Opt{IfNotExists: true, Exclude: []string{"competitor_term", "valid_from", "valid_to", "tags"}}
+func RenderTermsPostgresV1(tenantColumn string) string {
+	conceptsOpt := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true, Exclude: []string{"stream", "source"}}
+	termsOpt := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true, Exclude: []string{"competitor_term", "valid_from", "valid_to", "tags"}}
 	return tbConcepts.Create(sq.Postgres, conceptsOpt) +
 		tbTerms.Create(sq.Postgres, termsOpt) +
 		tbTerms.CreateIndexes(sq.Postgres, termsOpt)
@@ -237,8 +237,8 @@ func RenderTermsPostgresV1() string {
 
 // RenderTermsPostgresV2 renders the v2 Postgres migration: the stream column on
 // concepts and its index.
-func RenderTermsPostgresV2() string {
-	o := sq.Opt{IfNotExists: true}
+func RenderTermsPostgresV2(tenantColumn string) string {
+	o := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true}
 	return tbConcepts.AddColumn(sq.Postgres, sq.Opt{}, "stream") +
 		tbConcepts.CreateIndexes(sq.Postgres, o, "idx_tb_concepts_stream")
 }
@@ -263,8 +263,8 @@ func RenderTermsPostgresV3() string {
 // out as literal SQL: a column added to tbConcepts or tbTerms lands in the
 // baseline and in the SQLite backend together, which is the property that keeps
 // the two backends from drifting.
-func RenderTermsPostgresBaseline() string {
-	o := sq.Opt{IfNotExists: true}
+func RenderTermsPostgresBaseline(tenantColumn string) string {
+	o := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true}
 	return tbConcepts.Create(sq.Postgres, o) +
 		tbConcepts.CreateIndexes(sq.Postgres, o) +
 		tbTerms.Create(sq.Postgres, o) +
@@ -276,8 +276,8 @@ func RenderTermsPostgresBaseline() string {
 
 // RenderTermsPostgresV4 renders the v4 Postgres migration: the source column on
 // concepts, the competitor/validity columns on terms, and the relations table.
-func RenderTermsPostgresV4() string {
-	o := sq.Opt{IfNotExists: true}
+func RenderTermsPostgresV4(tenantColumn string) string {
+	o := sq.Opt{TenantColumn: tenantColumn, IfNotExists: true}
 	var b strings.Builder
 	b.WriteString(tbConcepts.AddColumn(sq.Postgres, sq.Opt{}, "source"))
 	b.WriteString(tbTerms.AddColumn(sq.Postgres, sq.Opt{}, "competitor_term"))

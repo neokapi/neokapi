@@ -66,7 +66,7 @@ var Migrations = []storage.Migration{
 	{
 		Version:     6,
 		Description: "content memory baseline (folds 4-5; 1-3 retired earlier)",
-		SQL:         schema.RenderMemoryPostgresBaseline(),
+		SQL:         schema.RenderMemoryPostgresBaseline("workspace_id"),
 	},
 }
 
