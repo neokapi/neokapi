@@ -47,6 +47,7 @@ type PullResult struct {
 	DecisionsStaged int
 	LocalesCount    int
 	FilesWritten    int
+	ItemsRetired    int
 	DryRun          bool
 	UpToDate        bool
 
@@ -92,6 +93,7 @@ func doPull(ctx context.Context, conn *bconn.BowrainSourceConnector, locales []s
 		DecisionsStaged:     result.DecisionsStaged,
 		LocalesCount:        result.LocalesCount,
 		FilesWritten:        result.FilesWritten,
+		ItemsRetired:        result.ItemsRetired,
 		CollectionsObserved: result.CollectionsObserved,
 		GovernanceDiverged:  result.GovernanceDiverged,
 	}
@@ -158,6 +160,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		DecisionsStaged:     result.DecisionsStaged,
 		LocalesCount:        result.LocalesCount,
 		FilesWritten:        result.FilesWritten,
+		ItemsRetired:        result.ItemsRetired,
 		Stream:              conn.Stream(),
 		DryRun:              result.DryRun,
 		UpToDate:            result.UpToDate,

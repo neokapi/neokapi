@@ -195,6 +195,13 @@ type PullResult struct {
 	// remains the only door into the tracked record.
 	DecisionsStaged int
 
+	// ItemsRetired is how many items the server still streams translations
+	// for whose source file this checkout no longer has — deleted or renamed
+	// after it was pushed (push is additive-only, so the server never
+	// forgets). Nothing can be written for them, now or on any retry, so the
+	// pull skips them and moves the cursor on rather than wedging the stream.
+	ItemsRetired int
+
 	// DecisionsSkipped is how many arriving decisions could not be staged
 	// because their variant did not parse. Reported because the stream cursor
 	// is forward-only: a decision skipped on a pull is never offered again, so
