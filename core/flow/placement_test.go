@@ -204,6 +204,46 @@ func TestValidatePlacement_LatePlacementWarns(t *testing.T) {
 	assert.Empty(t, diags)
 }
 
+// Under a declared redaction policy, a flow that egresses source to a remote
+// sink with no redact step at all is rejected — the gap ValidatePlacement can't
+// see, because it only orders a redact step the flow already lists.
+func TestCheckRedactionCoverage(t *testing.T) {
+	t.Parallel()
+	reg := placementReg(t)
+
+	// translate egresses source; with a policy and no redact step, that leaks.
+	remoteNoRedact := chain(toolNode("t", "translate", nil))
+	require.Error(t, remoteNoRedact.CheckRedactionCoverage(reg, true),
+		"remote egress with no redact under a policy must fail closed")
+	require.NoError(t, remoteNoRedact.CheckRedactionCoverage(reg, false),
+		"no policy declared → nothing to enforce")
+
+	// A redact step ahead of the egress satisfies the policy; ordering is
+	// ValidatePlacement's job and passes here too.
+	redactThenTranslate := chain(
+		toolNode("r", "redact", nil),
+		toolNode("t", "translate", nil),
+	)
+	require.NoError(t, redactThenTranslate.CheckRedactionCoverage(reg, true))
+	require.NoError(t, redactThenTranslate.CheckPlacement(reg))
+
+	// Nothing egresses source remotely → a policy needs no redact step.
+	localOnly := chain(toolNode("c", "case-transform", nil))
+	require.NoError(t, localOnly.CheckRedactionCoverage(reg, true))
+
+	// Entity-driven redaction (AD-020): the remote NER precedes redact, which is
+	// allowed. Coverage sees a redact step and does not re-decide the ordering.
+	entityDriven := chain(
+		toolNode("n", "entity-extract", nil),
+		toolNode("r", "redact", map[string]any{
+			"detectors":   []string{"entities"},
+			"entityTypes": []string{"person"},
+		}),
+		toolNode("t", "translate", nil),
+	)
+	require.NoError(t, entityDriven.CheckRedactionCoverage(reg, true))
+}
+
 // Unknown (plugin) tools without loaded contracts are skipped, and a nil
 // registry disables the pass.
 func TestValidatePlacement_UnknownToolsAndNilRegistry(t *testing.T) {
