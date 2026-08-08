@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/blockstore"
+	coregraph "github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/occurrence"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -81,6 +83,10 @@ type ContextSearchResult struct {
 	// question: it serves a caller AUTHORING source content who wants its own
 	// writing to sound like the project.
 	Precedent []ContextPrecedentHit `json:"precedent,omitempty"`
+	// Profiles are the governance profiles whose validity is bounded — "which
+	// voice is in force, and until when". Only profiles that declare a window
+	// appear; a project that never bounds governance has none.
+	Profiles []ContextProfileHit `json:"profiles,omitempty"`
 	// Notes carries scope-shaped caveats — e.g. that a store the query would
 	// have consulted is not bound. Present so "nothing found" is never
 	// ambiguous between "no answer" and "nowhere to look".
@@ -167,6 +173,25 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 		}
 	}
 
+	if len(r.Profiles) > 0 {
+		fmt.Fprintln(w, "\nGoverning profiles")
+		for _, p := range r.Profiles {
+			window := ""
+			if p.ValidFrom != "" {
+				window += "from " + p.ValidFrom + " "
+			}
+			if p.ValidTo != "" {
+				window += "until " + p.ValidTo
+			}
+			window = strings.TrimSpace(window)
+			line := "  " + p.Name
+			if window != "" {
+				line += "  " + window
+			}
+			fmt.Fprintf(w, "%s (%s)\n", line, p.State)
+		}
+	}
+
 	// Notes last and always: they are what makes an empty or partial answer
 	// readable rather than ambiguous.
 	if len(r.Notes) > 0 {
@@ -237,6 +262,20 @@ type ContextPrecedentHit struct {
 	Discouraged []string `json:"discouraged,omitempty"`
 }
 
+// ContextProfileHit is a governance profile whose validity is bounded, reported
+// so an answer can say which voice is in force and until when.
+type ContextProfileHit struct {
+	Name string `json:"name"`
+	// ValidFrom and ValidTo render the profile's window as it was authored — a
+	// bare date when it is midnight, otherwise the full instant. Empty means the
+	// bound is open on that side.
+	ValidFrom string `json:"valid_from,omitempty"`
+	ValidTo   string `json:"valid_to,omitempty"`
+	// State is the window read against now: "active", "upcoming" (not yet in
+	// force) or "expired".
+	State string `json:"state"`
+}
+
 // ContextSearchSources are the stores a search consults. A nil member is a
 // store the caller has not bound; the search proceeds over the rest and says so
 // in Notes rather than failing, because a project with terms but no content
@@ -263,6 +302,12 @@ type ContextSearchSources struct {
 	// had no terminology when in fact it could not be read.
 	TermsErr  error
 	MemoryErr error
+
+	// Profiles are the project's bounded governance profiles — surfaced so an
+	// answer can say which voice is in force and until when. Populated from the
+	// resolved recipe; empty for a project that bounds no profile, or a
+	// standalone-store query with no project in scope.
+	Profiles []ContextProfileHit
 }
 
 // ContextSearchSourcesFor assembles the stores a context search reads — the one
@@ -312,6 +357,15 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 	// actually is. OccurrenceBlocks already prefers an injected BlocksBackend
 	// (the browser build) over the file-backed store.
 	src.Blocks = a.OccurrenceBlocks(cmd)
+
+	// The recipe's bounded governance profiles, so an answer can say which voice
+	// is in force and until when. Best-effort: a project that will not resolve or
+	// load simply contributes no profiles, exactly like a standalone-store query.
+	if path, err := ResolveProjectPath(cmd); err == nil && path != "" {
+		if proj, err := project.Load(path); err == nil {
+			src.Profiles = profileHits(proj.ProfileWindows())
+		}
+	}
 
 	return src, func() {
 		for _, c := range cleanups {
@@ -371,6 +425,8 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 		res.Notes = append(res.Notes, "no content memory is bound, so prior wording was not consulted")
 	}
 
+	res.Profiles = src.Profiles
+
 	flagRetiredPrecedent(res.Terms, res.Precedent)
 	res.Notes = append(res.Notes, countTermUses(ctx, src, res.Terms)...)
 
@@ -380,6 +436,56 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	}
 
 	return res, nil
+}
+
+// profileHits renders the project's bounded governance profiles for a context
+// answer, reading each window against now so the caller sees at a glance whether
+// a profile is active, not yet in force, or expired.
+func profileHits(windows []project.ProfileWindow) []ContextProfileHit {
+	if len(windows) == 0 {
+		return nil
+	}
+	now := time.Now()
+	out := make([]ContextProfileHit, 0, len(windows))
+	for _, w := range windows {
+		hit := ContextProfileHit{Name: w.Name, State: validityState(w.Validity, now)}
+		if w.Validity != nil {
+			hit.ValidFrom = formatValidityBound(w.Validity.ValidFrom)
+			hit.ValidTo = formatValidityBound(w.Validity.ValidTo)
+		}
+		out = append(out, hit)
+	}
+	return out
+}
+
+// validityState reads a window against an instant: expired once ValidTo has
+// passed, upcoming before ValidFrom, active in between (and for an unbounded
+// window).
+func validityState(v *coregraph.Validity, at time.Time) string {
+	if v == nil {
+		return "active"
+	}
+	if v.ValidTo != nil && !at.Before(*v.ValidTo) {
+		return "expired"
+	}
+	if v.ValidFrom != nil && at.Before(*v.ValidFrom) {
+		return "upcoming"
+	}
+	return "active"
+}
+
+// formatValidityBound renders a bound as a bare date when it falls on midnight
+// UTC (the form a recipe usually authors), otherwise the full RFC3339 instant. A
+// nil bound is open on that side.
+func formatValidityBound(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	u := t.UTC()
+	if u.Hour() == 0 && u.Minute() == 0 && u.Second() == 0 && u.Nanosecond() == 0 {
+		return u.Format("2006-01-02")
+	}
+	return u.Format(time.RFC3339)
 }
 
 // contextTopUses is how many places a context answer names per term. A context
