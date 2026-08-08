@@ -9,6 +9,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/tool"
 	mtprovider "github.com/neokapi/neokapi/providers/mt"
 )
@@ -27,6 +28,11 @@ type MTTranslateTool struct {
 	// session overlay cache re-translates after a provider/locale change instead
 	// of serving a stale cached target. See tool.OverlayConfigFingerprint.
 	configFP string
+	// Governing context, resolved once at construction and stamped onto every
+	// target's Origin so an MT target records what governed it. See mtOrigin.
+	profileID      string
+	profileVersion string
+	contextFP      string
 }
 
 // MTTranslateConfig holds configuration for the MT translate tool.
@@ -65,6 +71,16 @@ type MTTranslateConfig struct {
 	// provider as a default still reports its registered name. When empty, the
 	// name is derived from the provider id (<provider>-translate).
 	ToolName string `json:"-" schema:"-"`
+
+	// Profile and Glossary carry the governing context the flow's bindings inject
+	// into the unified translate tool. A classic MT engine takes neither voice
+	// guidance nor a glossary, so they are never sent to the provider — but they
+	// are the context governing the collection, so they are recorded on the
+	// target's Origin (Profile/ProfileVersion/ContextFingerprint). That keeps an
+	// MT target's governance stamp comparable to an AI or recycled one: all fall
+	// stale together when the profile or terms move.
+	Profile  *coreprofile.VoiceProfile `json:"-" schema:"-"`
+	Glossary map[string]string         `json:"glossary,omitempty" schema:"-"`
 }
 
 // NewMTTranslateTool creates a new MT translation tool.
@@ -85,6 +101,7 @@ func NewMTTranslateTool(p mtprovider.MTProvider, cfg MTTranslateConfig) *MTTrans
 	t.ToolName = name
 	t.ToolDescription = "Translates Blocks using " + string(p.Name())
 	t.configFP = tool.OverlayConfigFingerprint("mt", string(p.Name()), string(cfg.SourceLocale), string(cfg.TargetLocale))
+	t.profileID, t.profileVersion, t.contextFP = coreprofile.GovernanceContext(cfg.Profile, cfg.Glossary)
 	// Translate: writes the target locale; source stays read-only.
 	t.Produce = t.translate
 	return t
@@ -133,9 +150,19 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 	return nil
 }
 
-// mtOrigin describes a target produced by this MT tool.
+// mtOrigin describes a target produced by this MT tool: how it was made (the
+// provider) and which context governed it. The engine does not consume the
+// context, but a later reader cannot recover it after the fact — the profile is
+// edited in place and the terminology carries no version — so it is stamped at
+// production time, the same governance half the AI and recycle producers record.
 func (t *MTTranslateTool) mtOrigin() model.Origin {
-	return model.Origin{Kind: model.OriginMT, Engine: string(t.provider.Name())}
+	return model.Origin{
+		Kind:               model.OriginMT,
+		Engine:             string(t.provider.Name()),
+		Profile:            t.profileID,
+		ProfileVersion:     t.profileVersion,
+		ContextFingerprint: t.contextFP,
+	}
 }
 
 // hasInlineCodes reports whether a Run sequence contains any non-text

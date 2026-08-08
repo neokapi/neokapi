@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
@@ -35,10 +36,20 @@ var Providers = []Provider{}
 // `translate` tool calls this once it has classified --provider as an MT engine.
 func NewMTTranslateFromConfig(id mtprovider.ProviderID) registry.ToolConfigFactory {
 	return func(config map[string]any, targetLang string) (tool.Tool, error) {
+		// The voice profile is injected by the flow bindings as a live pointer, not
+		// a serializable value, so it is lifted out before the JSON round-trip that
+		// ApplyConfig performs. The glossary is a plain map and binds directly.
+		var profile *coreprofile.VoiceProfile
+		if pf, ok := config["profile"].(*coreprofile.VoiceProfile); ok {
+			profile = pf
+			delete(config, "profile")
+		}
+
 		var cfg MTTranslateConfig
 		if err := schema.ApplyConfig(config, &cfg); err != nil {
 			return nil, fmt.Errorf("%s translate config: %w", id, err)
 		}
+		cfg.Profile = profile
 		cfg.ToolName = "translate"
 		if targetLang != "" {
 			cfg.TargetLocale = model.LocaleID(targetLang)

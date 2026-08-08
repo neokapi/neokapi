@@ -8,6 +8,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/mt/tools"
+	"github.com/neokapi/neokapi/core/profile"
 	mtprovider "github.com/neokapi/neokapi/providers/mt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -81,6 +82,54 @@ func TestMTTranslateToolSetsTarget(t *testing.T) {
 	assert.Equal(t, "Hello World", mock.lastRequest.Source)
 	assert.Equal(t, model.LocaleEnglish, mock.lastRequest.SourceLocale)
 	assert.Equal(t, model.LocaleFrench, mock.lastRequest.TargetLocale)
+}
+
+// TestMTTranslateToolStampsGovernance: an MT target under a governing profile
+// carries the profile identity, its pinned version and a non-empty context
+// fingerprint, the same governance half the AI and recycle producers stamp — so
+// the target is attributable and can be told stale when the context moves.
+func TestMTTranslateToolStampsGovernance(t *testing.T) {
+	mock := newMock("test-mt")
+
+	tl := tools.NewMTTranslateTool(mock, tools.MTTranslateConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+		Profile:      &profile.VoiceProfile{ID: "end-user-help", Name: "End-user help", Version: 7},
+		Glossary:     map[string]string{"cart": "panier"},
+	})
+
+	block := model.NewBlock("tu1", "Hello World")
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+
+	tgt := result.Resource.(*model.Block).Target(model.LocaleFrench)
+	require.NotNil(t, tgt)
+	assert.Equal(t, model.OriginMT, tgt.Origin.Kind)
+	assert.Equal(t, "test-mt", tgt.Origin.Engine)
+	assert.Equal(t, "end-user-help", tgt.Origin.Profile)
+	assert.Equal(t, "7", tgt.Origin.ProfileVersion)
+	assert.NotEmpty(t, tgt.Origin.ContextFingerprint)
+}
+
+// TestMTTranslateToolUngovernedHasNoFingerprint: with no profile and no
+// terminology the target reads as ungoverned — empty profile fields and an
+// empty fingerprint, not a constant that looks like a real one.
+func TestMTTranslateToolUngovernedHasNoFingerprint(t *testing.T) {
+	mock := newMock("test-mt")
+
+	tl := tools.NewMTTranslateTool(mock, tools.MTTranslateConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+	})
+
+	block := model.NewBlock("tu1", "Hello World")
+	result := processPart(t, tl, &model.Part{Type: model.PartBlock, Resource: block})
+
+	tgt := result.Resource.(*model.Block).Target(model.LocaleFrench)
+	require.NotNil(t, tgt)
+	assert.Equal(t, model.OriginMT, tgt.Origin.Kind)
+	assert.Empty(t, tgt.Origin.Profile)
+	assert.Empty(t, tgt.Origin.ProfileVersion)
+	assert.Empty(t, tgt.Origin.ContextFingerprint)
 }
 
 func TestMTTranslateToolSkipsNonTranslatable(t *testing.T) {
