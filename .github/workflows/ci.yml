@@ -941,6 +941,24 @@ jobs:
       - name: Check go.mod tidiness
         run: make ci-tidy
 
+  # ── Module boundaries (package-level license/architecture guards) ─────────
+  module-boundaries:
+    name: Module boundaries
+    runs-on: ubuntu-latest
+    needs: changes
+    # any_go covers a bowrain/core regression; kapi_desktop covers a desktop-only
+    # PR reaching for cobra/cli — which any_go (no apps/kapi-desktop filter) skips.
+    if: needs.changes.outputs.any_go == 'true' || needs.changes.outputs.kapi_desktop == 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          cache-flavor: plain
+
+      # Job body lives in `make check-module-boundaries` (single source of truth).
+      - name: Assert package-level module boundaries
+        run: make check-module-boundaries
+
   # ── Build (runs in parallel with test/lint) ───────────────────────────────
   build:
     name: Build
