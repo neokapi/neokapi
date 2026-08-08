@@ -1,0 +1,73 @@
+package tool_test
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// fanOutTool emits factor output parts for every input part. With factor > 1 it
+// produces more parts than it consumes, which deadlocks any RunOnParts that
+// drains the output channel only after Process returns (the output buffer is
+// sized to len(input)).
+type fanOutTool struct {
+	tool.BaseTool
+	factor int
+}
+
+func (f *fanOutTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
+	for p := range in {
+		for range f.factor {
+			select {
+			case out <- p:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+	return nil
+}
+
+func TestRunOnParts_FanOutDoesNotDeadlock(t *testing.T) {
+	const inputParts, factor = 4, 8 // 32 outputs > 4-slot buffer
+
+	parts := make([]*model.Part, 0, inputParts)
+	for range inputParts {
+		parts = append(parts, &model.Part{Type: model.PartBlock})
+	}
+
+	ft := &fanOutTool{factor: factor}
+	ft.ToolName = "fan-out"
+
+	done := make(chan struct{})
+	var (
+		result []*model.Part
+		err    error
+	)
+	go func() {
+		result, err = tool.RunOnParts(context.Background(), ft, parts)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("RunOnParts deadlocked on a fan-out tool")
+	}
+
+	require.NoError(t, err)
+	require.Len(t, result, inputParts*factor)
+}
+
+func TestRunOnParts_EmptyInput(t *testing.T) {
+	ft := &fanOutTool{factor: 1}
+	ft.ToolName = "noop"
+	result, err := tool.RunOnParts(context.Background(), ft, nil)
+	require.NoError(t, err)
+	assert.Empty(t, result)
+}

@@ -465,7 +465,7 @@ func (a *App) pseudoTranslateItemLocal(projectID, itemName, targetLocale string)
 		TargetLocale: model.LocaleID(targetLocale),
 	})
 
-	outParts, err := runToolOnParts(ctx, pseudoTool, parts)
+	outParts, err := tool.RunOnParts(ctx, pseudoTool, parts)
 	if err != nil {
 		return nil, fmt.Errorf("pseudo-translate: %w", err)
 	}
@@ -532,7 +532,7 @@ func (a *App) memoryTranslateItemLocal(projectID, itemName, targetLocale string)
 		TargetLocale: model.LocaleID(targetLocale),
 	})
 
-	outParts, err := runToolOnParts(ctx, memoryTool, parts)
+	outParts, err := tool.RunOnParts(ctx, memoryTool, parts)
 	if err != nil {
 		return nil, fmt.Errorf("content memory translate: %w", err)
 	}
@@ -803,34 +803,4 @@ func partsToBlocks(parts []*model.Part) []*model.Block {
 		}
 	}
 	return blocks
-}
-
-// runToolOnParts executes a tool on parts using channels.
-//
-// Process runs in its own goroutine while the caller drains the output channel
-// concurrently, so a fan-out tool that emits more parts than it consumes cannot
-// deadlock on a bounded buffer.
-func runToolOnParts(ctx context.Context, t tool.Tool, parts []*model.Part) ([]*model.Part, error) {
-	in := make(chan *model.Part, len(parts))
-	out := make(chan *model.Part, len(parts))
-	for _, pt := range parts {
-		in <- pt
-	}
-	close(in)
-
-	errCh := make(chan error, 1)
-	go func() {
-		err := t.Process(ctx, in, out)
-		close(out)
-		errCh <- err
-	}()
-
-	var result []*model.Part
-	for pt := range out {
-		result = append(result, pt)
-	}
-	if err := <-errCh; err != nil {
-		return nil, err
-	}
-	return result, nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -442,7 +443,7 @@ func (a *App) termEnforceItemLocal(projectID, itemName, targetLocale string) ([]
 		SourceLocale: srcLocale,
 		TargetLocale: tgtLocale,
 	})
-	outParts, err := runToolOnParts(ctx, enforceTool, parts)
+	outParts, err := tool.RunOnParts(ctx, enforceTool, parts)
 	if err != nil {
 		return nil, fmt.Errorf("term-enforce: %w", err)
 	}
