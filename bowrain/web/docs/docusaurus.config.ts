@@ -48,7 +48,7 @@ const analyticsEnvironment = docsBaseUrl.includes("/prs/") ? "preview" : "prod";
 
 const config: Config = {
   title: "Bowrain",
-  tagline: "Keep your content on-brand, in every language — solo or as a team",
+  tagline: "The context graph your people and your AI agents plug into",
   favicon: "img/favicon.png",
 
   url: "https://bowrain.cloud",
