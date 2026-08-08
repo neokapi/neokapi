@@ -608,6 +608,14 @@ type ContentItem struct {
 	SourceLanguage  model.LocaleID   `yaml:"source_language,omitempty" json:"source_language,omitempty"`
 	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
 
+	// Channel overrides the collection's `channel:` for the files this item
+	// matches — the one place a single file, or a sub-pattern, sits at a
+	// different point in the context space than the rest of its collection. It
+	// takes the same qualified `profile/channel` form and the same validator as
+	// a collection's channel; empty inherits the collection's. A run resolves it
+	// per file through ResolveGovernanceForPath.
+	Channel string `yaml:"channel,omitempty" json:"channel,omitempty"`
+
 	// Redaction overrides the project-wide redaction spec for this item.
 	// nil means inherit defaults.
 	Redaction *RedactionSpec `yaml:"redaction,omitempty" json:"redaction,omitempty"`

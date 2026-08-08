@@ -266,6 +266,52 @@ func (p *KapiProject) ResolveGovernance(collection string) (*ResolvedGovernance,
 	return p.governanceAt(ref), nil
 }
 
+// ResolveGovernanceForPath returns the governance in force over one file,
+// resolving the point the file sits at rather than the collection's as a whole.
+// It honors a per-item `channel:` override where the matching item declares one,
+// otherwise the item's collection channel — so one file in a docs collection can
+// ship on a different channel, or under a different profile, than its neighbours.
+//
+// relPath is project-relative and slash-separated; matching uses the same
+// first-match-wins glob walk as CollectionForPath. A path no item claims
+// resolves the project's default point.
+func (p *KapiProject) ResolveGovernanceForPath(relPath string) (*ResolvedGovernance, error) {
+	ref, _, err := p.channelRefForPath(relPath)
+	if err != nil {
+		return nil, err
+	}
+	return p.governanceAt(ref), nil
+}
+
+// channelRefForPath finds the channel binding in force for a file: the matching
+// item's own `channel:` when it declares one, otherwise its collection's. It
+// returns the resolved ref, the collection name (for error context), and any
+// resolution error. A path nothing matches yields the zero ref — the default
+// point — and no error.
+func (p *KapiProject) channelRefForPath(relPath string) (ChannelRef, string, error) {
+	for i := range p.Collections {
+		coll := &p.Collections[i]
+		for _, item := range coll.EffectiveItems() {
+			if item.Path == "" {
+				continue
+			}
+			if !MatchGlob(item.Path, relPath) {
+				continue
+			}
+			chosen := coll.Channel
+			if item.Channel != "" {
+				chosen = item.Channel
+			}
+			ref, err := p.ResolveChannel(chosen)
+			if err != nil {
+				return ChannelRef{}, coll.Name, fmt.Errorf("%s: %w", collectionSubject(i, coll.Name), err)
+			}
+			return ref, coll.Name, nil
+		}
+	}
+	return ChannelRef{}, "", nil
+}
+
 // governanceAt resolves the governance at one point.
 func (p *KapiProject) governanceAt(ref ChannelRef) *ResolvedGovernance {
 	rc := &ResolvedGovernance{
@@ -352,6 +398,17 @@ func (p *KapiProject) validateContextSpace() error {
 	}
 	for i := range p.Collections {
 		c := &p.Collections[i]
+		// A per-file `channel:` override resolves the same way and must resolve at
+		// load too, so an undeclared axis fails on load rather than when a run
+		// reaches that one file.
+		for j := range c.Content {
+			if c.Content[j].Channel == "" {
+				continue
+			}
+			if _, err := p.ResolveChannel(c.Content[j].Channel); err != nil {
+				return fmt.Errorf("%s: content[%d]: %w", collectionSubject(i, c.Name), j, err)
+			}
+		}
 		if c.Channel == "" {
 			continue
 		}
