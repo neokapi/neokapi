@@ -580,23 +580,9 @@ ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fai
 
 # ── Module Isolation ──────────────────────────────────────────────────────────
 
-verify-isolation: ## Verify all Go module isolation boundaries
-	GOWORK=off bash -c "go build ./..."
-	GOWORK=off bash -c "cd host && go build ./..."
-	GOWORK=off bash -c "cd cli && go build ./..."
-	GOWORK=off bash -c "cd bowrain/core && go build ./..."
-	GOWORK=off bash -c "cd kapi && go build ./..."
-	GOWORK=off bash -c "cd bowrain/plugin && go build ./..."
-	@# kapi must not depend on bowrain
-	@if cd kapi && GOWORK=off go list -m all 2>/dev/null | grep -q 'neokapi/bowrain'; then echo "ERROR: kapi depends on bowrain"; exit 1; fi
-	@# bowrain/core must not depend on the main bowrain module (framework-only)
-	@if cd bowrain/core && GOWORK=off go list -m all 2>/dev/null | grep -qE 'neokapi/bowrain($$| )'; then echo "ERROR: bowrain/core depends on the main bowrain module"; exit 1; fi
-	@# bowrain must not depend on cli
-	@if cd bowrain && GOWORK=off go list -m all 2>/dev/null | grep -iE 'neokapi/cli'; then echo "ERROR: bowrain depends on cli"; exit 1; fi
-	@# kapi must not have heavy deps
-	@if cd kapi && GOWORK=off go list -m all 2>/dev/null | grep -iE 'wails|echo|oidc|keyring'; then echo "ERROR: kapi has heavy deps"; exit 1; fi
-	@# kapi-desktop must not link cobra or the cli module (host only)
-	@if cd apps/kapi-desktop && GOWORK=off go list -deps ./backend/... 2>/dev/null | grep -E '^(github.com/spf13/cobra|github.com/neokapi/neokapi/cli)(/|$$)'; then echo "ERROR: kapi-desktop links cobra / the cli module"; exit 1; fi
+# Module isolation boundaries are asserted by `audit-modules` below (folded in
+# from the retired `verify-isolation`, which matched on `go list -m all` and
+# false-flagged kapi's legitimate go-keyring/go-oidc, erroring on a green tree).
 
 # audit-modules asserts the module isolation contract and fails on drift. For
 # each isolated module it runs a GOWORK=off build (so the module resolves
@@ -616,6 +602,17 @@ verify-isolation: ## Verify all Go module isolation boundaries
 # bowrain/sync or bowrain/proto/v1 import (which would otherwise re-add the
 # require + replace on the main bowrain module and re-couple the framework-only
 # core to redis/echo/the gRPC service surface).
+#
+# Four more import-level (go list -deps) assertions, matched on PACKAGES so a
+# transitive dep cannot dodge them: every Apache-licensed module (., host, cli,
+# kapi, apps/kapi-desktop) must import no AGPL bowrain package except
+# bowrain/plugin/schema — the single license boundary, which also enforces
+# kapi↛bowrain; kapi must not link wails/echo; and the main bowrain module must
+# not depend on cli. These replace the old `verify-isolation` target, which
+# matched on `go list -m all` and so false-flagged kapi's legitimately linked
+# go-keyring and (transitive) go-oidc — it errored on a green tree and ran in no
+# workflow. oidc/keyring reach kapi legitimately (sigstore cosign, keychain),
+# so they are deliberately not asserted against.
 #
 # Modules audited (path → expected boundary):
 #   .                  framework — no host/cli/bowrain deps
@@ -662,6 +659,36 @@ audit-modules: ## Assert module isolation + go.mod/go.sum tidiness (fails on dri
 	      echo "ERROR: kapi-desktop must stay cobra-free — it links the cli module or cobra:"; \
 	      echo "$$bad" | sed 's/^/    /'; \
 	      echo "  (the desktop depends on the host module only; move the needed symbol into host/)"; \
+	      rc=1; \
+	    fi; \
+	  fi; \
+	  case "$$dir" in \
+	    .|host|cli|kapi|apps/kapi-desktop) \
+	      bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps $$pkgs 2>/dev/null \
+	                | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
+	                | grep -vE '^github\.com/neokapi/neokapi/bowrain/plugin/schema(/|$$)' || true ); \
+	      if [ -n "$$bad" ]; then \
+	        echo "ERROR: Apache-licensed module $$dir imports an AGPL bowrain package (only bowrain/plugin/schema is allowed):"; \
+	        echo "$$bad" | sed 's/^/    /'; \
+	        rc=1; \
+	      fi; \
+	      ;; \
+	  esac; \
+	  if [ "$$dir" = "kapi" ]; then \
+	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
+	              | grep -iE 'wailsapp/wails|labstack/echo' || true ); \
+	    if [ -n "$$bad" ]; then \
+	      echo "ERROR: kapi links a heavy bowrain-side dependency (wails/echo):"; \
+	      echo "$$bad" | sed 's/^/    /'; \
+	      rc=1; \
+	    fi; \
+	  fi; \
+	  if [ "$$dir" = "bowrain" ]; then \
+	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
+	              | grep -E '^github\.com/neokapi/neokapi/cli(/|$$)' || true ); \
+	    if [ -n "$$bad" ]; then \
+	      echo "ERROR: bowrain depends on the cli module (it composes over host, not cli):"; \
+	      echo "$$bad" | sed 's/^/    /'; \
 	      rc=1; \
 	    fi; \
 	  fi; \
@@ -2232,7 +2259,7 @@ help: ## Show this help
         ci-test-framework ci-test-cli ci-test-kapi ci-test-platform \
         ci-test-bowrain ci-test-kapi-desktop ci-test-bowrain-desktop ci-test-all \
         ci-frontend ci-kapi-desktop-frontend ci-bowrain-desktop-frontend ci-i18n-react ci-build ci-tidy \
-        verify-isolation audit-modules audit-vite-alias \
+        audit-modules audit-vite-alias \
         build build-all build-server build-worker build-kapi-bowrain-plugin build-bowrain-plugin build-bowrain build-headless \
         plugin-bundle dev-skills \
         install install-kapi-bowrain-plugin \
