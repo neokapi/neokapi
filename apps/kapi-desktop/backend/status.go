@@ -11,7 +11,6 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
-	"github.com/neokapi/neokapi/host"
 )
 
 // CollectionStatus is the JSON-serialisable summary the UI renders on the
@@ -272,13 +271,6 @@ func (a *App) RunExtract(tabID string) (*ExtractResult, error) {
 	stats, err := project.ExtractToBlockStore(context.Background(), a.formatReg, pctx, store, db, resolved)
 	if err != nil {
 		return nil, err
-	}
-
-	// The block set just changed, so rebuild the uses_term / in_collection
-	// subgraph it projects — the same rebuild `kapi up` runs, so term navigation
-	// stays in step on the desktop too. Best-effort: the graph is a projection.
-	if _, gerr := host.MaterializeUsesTermGraphInDB(context.Background(), db); gerr != nil {
-		a.logger.Printf("rebuild term-occurrence graph: %v", gerr)
 	}
 
 	result := &ExtractResult{Files: stats.Files, Blocks: stats.Blocks}

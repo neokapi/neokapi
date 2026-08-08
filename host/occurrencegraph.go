@@ -36,9 +36,10 @@ func (a *App) MaterializeUsesTermGraph(ctx context.Context, root string) (int, e
 }
 
 // MaterializeUsesTermGraphInDB rebuilds the uses_term / in_collection subgraph
-// for an already-open project store. It is the shared path for hosts that drive
-// extraction directly — the desktop's Re-extract — so the graph stays in step
-// with the block cache on every surface, not only `kapi up`. A store with no
+// for an already-open project store. It is the reuse seam for an embedding host
+// that drives extraction directly and holds a project store but not an App (the
+// desktop's Re-extract), so the graph can stay in step with the block cache on
+// that surface the same way `kapi up` keeps it in step. A store with no
 // file-backed SQLite driver (the browser's JSON sidecar) has no graph tables and
 // is a no-op.
 func MaterializeUsesTermGraphInDB(ctx context.Context, db *projectdb.DB) (int, error) {
