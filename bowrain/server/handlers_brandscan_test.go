@@ -17,6 +17,8 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
+	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -343,7 +345,9 @@ type brandScanUploadResponse struct {
 func TestBrandScanUploads_StoresAndSkips(t *testing.T) {
 	blobs, err := bloblocal.New(t.TempDir())
 	require.NoError(t, err)
-	s := &Server{BlobStore: blobs, wsStores: newWorkspaceStores()}
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+	s := &Server{BlobStore: blobs, FormatRegistry: reg, wsStores: newWorkspaceStores()}
 
 	oversize := bytes.Repeat([]byte("a"), (10<<20)+1)
 	body, contentType := brandScanMultipart(t, map[string][]byte{

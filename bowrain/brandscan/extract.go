@@ -60,6 +60,14 @@ func CheckFileSupported(reg *registry.FormatRegistry, filename, contentType stri
 	return err
 }
 
+// deferredExts are document formats whose text extraction is handled by an
+// out-of-process extractor (the pdfium / office plugins) rather than an
+// in-process reader in the brandscan registry. They are recognized but
+// deferred, not unsupported, so the upload surface can explain the difference.
+var deferredExts = map[string]bool{
+	".pdf": true, ".pptx": true, ".pptm": true, ".ppsx": true, ".potx": true,
+}
+
 // detectFormat resolves a registered format id from the registry by extension
 // first, then content type — the same precedence the file connector uses.
 func detectFormat(reg *registry.FormatRegistry, filename, contentType string) (string, error) {
@@ -76,6 +84,9 @@ func detectFormat(reg *registry.FormatRegistry, filename, contentType string) (s
 				return name, nil
 			}
 		}
+	}
+	if deferredExts[ext] {
+		return "", fmt.Errorf("brandscan: text extraction for %q is deferred to an external extractor (extension %q)", filename, ext)
 	}
 	return "", fmt.Errorf("brandscan: unsupported file type for %q (extension %q, content type %q)", filename, ext, contentType)
 }
