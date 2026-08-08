@@ -9,8 +9,8 @@ import (
 	coreg "github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/occurrence"
 	"github.com/neokapi/neokapi/core/projectdb"
-	"github.com/neokapi/neokapi/terms"
 	graphstore "github.com/neokapi/neokapi/host/storage/graph"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // MaterializeUsesTermGraph rebuilds the project's uses_term / in_collection
