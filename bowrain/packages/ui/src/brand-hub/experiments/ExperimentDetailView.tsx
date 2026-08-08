@@ -202,6 +202,8 @@ function lifecycleHint(cs: ChangeSetDetail): string {
       return cs.merged_at ? `Merged ${formatRelative(cs.merged_at)}.` : "Merged.";
     case "abandoned":
       return "Abandoned. No changes were applied.";
+    case "superseded":
+      return "Superseded by a newer proposal from the same origin. No changes were applied.";
   }
 }
 

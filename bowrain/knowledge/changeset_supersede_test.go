@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSameOps(t *testing.T) {
@@ -33,8 +34,8 @@ func TestSameOps(t *testing.T) {
 }
 
 func TestSupersededTransitions(t *testing.T) {
-	assert.NoError(t, ValidateStatusTransition(ChangeSetDraft, ChangeSetSuperseded))
-	assert.NoError(t, ValidateStatusTransition(ChangeSetInReview, ChangeSetSuperseded))
+	require.NoError(t, ValidateStatusTransition(ChangeSetDraft, ChangeSetSuperseded))
+	require.NoError(t, ValidateStatusTransition(ChangeSetInReview, ChangeSetSuperseded))
 	// Decided change-sets are history, not candidates for replacement.
 	assert.Error(t, ValidateStatusTransition(ChangeSetMerged, ChangeSetSuperseded))
 	assert.Error(t, ValidateStatusTransition(ChangeSetAbandoned, ChangeSetSuperseded))

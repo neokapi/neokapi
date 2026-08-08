@@ -643,7 +643,7 @@ func (s *PostgresKnowledgeStore) SupersedeChangeSet(ctx context.Context, workspa
 	if err != nil {
 		return fmt.Errorf("begin supersede: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var current string
 	if err := tx.QueryRowContext(ctx,

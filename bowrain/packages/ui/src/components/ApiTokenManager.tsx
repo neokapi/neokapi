@@ -57,7 +57,7 @@ const PRESETS: { value: ExpiryPreset; days: number | null; label: string }[] = [
   { value: "never", days: null, label: "No expiration" },
 ];
 
-type ScopeAction = "read" | "translate" | "review" | "manage";
+type ScopeAction = "read" | "translate" | "contribute" | "review" | "manage";
 
 const SCOPE_ACTIONS: { value: ScopeAction; label: string; description: string }[] = [
   { value: "read", label: "Read", description: "View content only" },
