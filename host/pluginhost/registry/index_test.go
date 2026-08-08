@@ -28,9 +28,8 @@ func TestHighestVersion(t *testing.T) {
 		// semantics), so 2.0.0-beta counts as 2.0.0 and outranks 1.9.0.
 		{"prerelease ranks as its release", []string{"1.9.0", "2.0.0-beta"}, "2.0.0-beta"},
 		{"release outranks lower prerelease", []string{"1.4.0-rc1", "1.5.0"}, "1.5.0"},
-		// Semver tie ("1.4.0" vs "1.4.0-rc1" compare equal) breaks
-		// lexicographically for determinism.
-		{"semver tie breaks lexicographically", []string{"1.4.0", "1.4.0-rc1"}, "1.4.0-rc1"},
+		{"a release outranks its own prereleases", []string{"1.4.0-rc1", "1.4.0"}, "1.4.0"},
+		{"rc numeric tails order numerically", []string{"1.2.0-rc7", "1.2.0-rc17"}, "1.2.0-rc17"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
