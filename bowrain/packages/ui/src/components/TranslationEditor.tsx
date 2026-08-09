@@ -383,7 +383,7 @@ export function TranslationEditor({
                 ? {
                     ...withTargetEntry(b, targetLocale, {
                       text: plainText,
-                      status: statusAfterEdit(b, targetLocale, plainText),
+                      status: statusAfterEdit(b, targetLocale, plainText, result.codedText),
                     }),
                     targets_coded: {
                       ...b.targets_coded,

@@ -154,6 +154,27 @@ describe("statusAfterEdit — an edit invalidates a stale review decision", () =
     ).toBe("translated");
     expect(statusAfterEdit(makeBlock({ fr: "Bonjour" }), "fr", "Salut")).toBe("");
   });
+
+  it("compares coded text when the save carries runs", () => {
+    // Identical once flattened, a different run sequence to the server: the
+    // inline code moved. The server demotes on the runs, so the optimistic copy
+    // must too — comparing plain text alone would keep a stale "reviewed".
+    const plain = "Bonjour monde";
+    const before = "\uE001Bonjour\uE002 monde";
+    const moved = "Bonjour \uE001monde\uE002";
+    const reviewed: BlockInfo = {
+      ...makeBlock({ fr: { text: plain, status: "reviewed" } }),
+      targets_coded: { fr: before },
+    };
+    expect(statusAfterEdit(reviewed, "fr", plain, moved)).toBe("translated");
+    expect(statusAfterEdit(reviewed, "fr", plain, before)).toBe("reviewed");
+  });
+
+  it("falls back to plain text when no coded text is available", () => {
+    const reviewed = makeBlock({ fr: { text: "Bonjour", status: "reviewed" } });
+    expect(statusAfterEdit(reviewed, "fr", "Bonjour", "Bonjour")).toBe("reviewed");
+    expect(statusAfterEdit(reviewed, "fr", "Salut", "Salut")).toBe("translated");
+  });
 });
 
 describe("withTargetStatus / withTargetEntry — optimistic writes", () => {

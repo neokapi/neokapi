@@ -98,21 +98,39 @@ export function rollbackTargetStatus(
   return withTargetStatus(block, locale, snapshot.status);
 }
 
+/** Coded target text for a locale ("" when the payload carries none). */
+export function getTargetCoded(block: BlockInfo, locale: string): string {
+  return block.targets_coded?.[locale] ?? "";
+}
+
 /**
- * The per-locale status an edited target carries after saving `newText` for
- * `locale`. A review decision judges ONE specific translation, so changing the
- * text invalidates a stale reviewed/signed-off status — the server demotes it
- * to translated on content change (editorUpdateBlockTarget[Runs]); the
- * optimistic write mirrors that so the chip matches what a reload fetches.
- * Re-saving identical content, and every rung at or below translated, keeps
- * the current status.
+ * The per-locale status an edited target carries after saving for `locale`. A
+ * review decision judges ONE specific translation, so changing the content
+ * invalidates a stale reviewed/signed-off status — the server demotes it to
+ * translated whenever the runs differ (demoteStaleReviewOnEdit); the optimistic
+ * write mirrors that so the chip matches what a reload fetches. Re-saving
+ * identical content, and every rung at or below translated, keeps the status.
+ *
+ * `newCoded` is the coded text of the saved runs. Pass it whenever the save
+ * carries runs: coded text encodes the inline codes, so an edit that only moves
+ * or retypes a code — identical once flattened, a different run sequence to the
+ * server — is seen as the change it is. Without it the comparison falls back to
+ * plain text and can miss such an edit.
  */
-export function statusAfterEdit(block: BlockInfo, locale: string, newText: string): TargetStatus {
+export function statusAfterEdit(
+  block: BlockInfo,
+  locale: string,
+  newText: string,
+  newCoded?: string,
+): TargetStatus {
   const prev = getTargetStatus(block, locale);
-  if ((prev === "reviewed" || prev === "signed-off") && newText !== getTargetText(block, locale)) {
-    return "translated";
-  }
-  return prev;
+  if (prev !== "reviewed" && prev !== "signed-off") return prev;
+  const prevCoded = getTargetCoded(block, locale);
+  const changed =
+    newCoded !== undefined && prevCoded !== ""
+      ? newCoded !== prevCoded
+      : newText !== getTargetText(block, locale);
+  return changed ? "translated" : prev;
 }
 
 /** Derive a block's translation status for a given target locale. */
@@ -190,13 +208,19 @@ export function memoryScoreClass(score: number): string {
   return "text-muted-foreground bg-muted";
 }
 
-/** Colour class for a terminology status badge. */
+/**
+ * Colour class for a terminology status badge — the full model.TermStatus
+ * ladder. A forbidden term badges destructive, matching the brand hub's
+ * TermStatusBadge.
+ */
 export function termStatusClass(status: string): string {
   const colors: Record<string, string> = {
     preferred: "text-success bg-success/[0.08]",
     approved: "text-info bg-info/[0.08]",
     admitted: "text-warning bg-warning/[0.08]",
-    deprecated: "text-destructive bg-destructive/[0.08]",
+    proposed: "text-muted-foreground bg-muted",
+    deprecated: "text-muted-foreground bg-muted line-through",
+    forbidden: "text-destructive bg-destructive/[0.08]",
   };
   return colors[status] || "text-muted-foreground bg-muted";
 }

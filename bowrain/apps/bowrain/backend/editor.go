@@ -6,6 +6,7 @@ import (
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"maps"
 	"os/exec"
+	"reflect"
 	"runtime"
 	"strings"
 
@@ -413,10 +414,33 @@ func (a *App) updateBlockTargetLocal(projectID, blockID, targetLocale, text stri
 	if err != nil {
 		return err
 	}
-	sb.Block.SetTargetText(model.LocaleID(targetLocale), text)
+	loc := model.LocaleID(targetLocale)
+	oldRuns := sb.Block.TargetRuns(loc)
+	sb.Block.SetTargetText(loc, text)
+	demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
 	// Use StoreBlocks (not StoreBlocksForItem) because the block already carries
 	// an internal ID — it should not be re-mapped through source_id assignment.
 	return a.store.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
+}
+
+// demoteStaleReviewOnEdit drops a reviewed/signed-off Target.Status back to
+// translated when an edit changed the target's runs. A review decision judges
+// ONE specific translation, so rewriting it invalidates the approval; the
+// offline cache applies the same rule as the server (server.editor.go), so a
+// reconnect does not resurrect an approval the edit already invalidated.
+// Statuses at or below translated are left alone — they are not decisions.
+func demoteStaleReviewOnEdit(b *model.Block, locale model.LocaleID, oldRuns []model.Run) {
+	t := b.Target(locale)
+	if t == nil {
+		return
+	}
+	if t.Status != model.TargetStatusReviewed && t.Status != model.TargetStatusSignedOff {
+		return
+	}
+	if reflect.DeepEqual(oldRuns, t.Runs) {
+		return
+	}
+	t.Status = model.TargetStatusTranslated
 }
 
 // UpdateBlockTargetRuns updates the target for a block using a
@@ -438,7 +462,10 @@ func (a *App) updateBlockTargetRunsLocal(req UpdateBlockTargetRunsRequest) error
 	if err != nil {
 		return err
 	}
-	sb.Block.SetTargetRuns(model.LocaleID(req.TargetLocale), runInfosToRuns(req.Runs))
+	loc := model.LocaleID(req.TargetLocale)
+	oldRuns := sb.Block.TargetRuns(loc)
+	sb.Block.SetTargetRuns(loc, runInfosToRuns(req.Runs))
+	demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
 	return a.store.StoreBlocks(ctx, req.ProjectID, "main", []*model.Block{sb.Block})
 }
 
