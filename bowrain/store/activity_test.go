@@ -126,3 +126,65 @@ func TestActivityStore_NilData(t *testing.T) {
 	require.Len(t, result.Activities, 1)
 	assert.NotNil(t, result.Activities[0].Data)
 }
+
+func TestActivityStore_TypesFilter(t *testing.T) {
+	store := newTestActivityStore(t)
+	ctx := t.Context()
+
+	for _, typ := range []ActivityType{
+		ActivityReviewAssigned, ActivityReviewDecided,
+		ActivityTaskCreated, ActivityTaskCompleted,
+		ActivityBlockTranslated, ActivityFlowCompleted,
+	} {
+		require.NoError(t, store.Create(ctx, &Activity{
+			WorkspaceID: "ws-1", ActorID: "u1", Type: typ, Summary: string(typ),
+		}))
+	}
+
+	types := func(as []Activity) []string {
+		out := make([]string, 0, len(as))
+		for _, a := range as {
+			out = append(out, string(a.Type))
+		}
+		return out
+	}
+
+	t.Run("ORs one prefix per entry", func(t *testing.T) {
+		result, err := store.List(ctx, ActivityQuery{
+			WorkspaceID: "ws-1",
+			Types:       []string{"review", "task"},
+		})
+		require.NoError(t, err)
+		assert.ElementsMatch(t, []string{
+			"review.assigned", "review.decided", "task.created", "task.completed",
+		}, types(result.Activities))
+	})
+
+	t.Run("an exact type matches only itself", func(t *testing.T) {
+		result, err := store.List(ctx, ActivityQuery{
+			WorkspaceID: "ws-1",
+			Types:       []string{"review.decided"},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"review.decided"}, types(result.Activities))
+	})
+
+	t.Run("types overrides the single prefix", func(t *testing.T) {
+		result, err := store.List(ctx, ActivityQuery{
+			WorkspaceID: "ws-1",
+			Type:        "block",
+			Types:       []string{"flow"},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"flow.completed"}, types(result.Activities))
+	})
+
+	t.Run("all-empty types is no filter", func(t *testing.T) {
+		result, err := store.List(ctx, ActivityQuery{
+			WorkspaceID: "ws-1",
+			Types:       []string{""},
+		})
+		require.NoError(t, err)
+		assert.Len(t, result.Activities, 6)
+	})
+}

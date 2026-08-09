@@ -845,18 +845,105 @@ func (s *PgBillingStore) GetLedger(ctx context.Context, workspaceID string, from
 
 	var entries []LedgerEntry
 	for rows.Next() {
-		var e LedgerEntry
-		var allocID sql.NullString
-		var refID sql.NullString
-		if err := rows.Scan(&e.ID, &e.WorkspaceID, &allocID, &e.Amount, &e.BalanceAfter,
-			&e.Operation, &refID, &e.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan ledger entry: %w", err)
+		e, err := scanLedgerEntry(rows)
+		if err != nil {
+			return nil, err
 		}
-		e.AllocationID = allocID.String
-		e.ReferenceID = refID.String
 		entries = append(entries, e)
 	}
 	return entries, rows.Err()
+}
+
+// scanLedgerEntry reads one row of the ledger column list shared by GetLedger
+// and GetLedgerPage.
+func scanLedgerEntry(rows *sql.Rows) (LedgerEntry, error) {
+	var e LedgerEntry
+	var allocID, refID sql.NullString
+	if err := rows.Scan(&e.ID, &e.WorkspaceID, &allocID, &e.Amount, &e.BalanceAfter,
+		&e.Operation, &refID, &e.CreatedAt); err != nil {
+		return LedgerEntry{}, fmt.Errorf("scan ledger entry: %w", err)
+	}
+	e.AllocationID = allocID.String
+	e.ReferenceID = refID.String
+	return e, nil
+}
+
+// MaxLedgerPageSize bounds one page of ledger entries. GetLedgerPage clamps to
+// it; handlers reuse it so a client sees the same ceiling it will get.
+const MaxLedgerPageSize = 500
+
+// GetLedgerPage returns the [offset, offset+limit) window of the workspace's
+// ledger for the query's window and operation, plus the total the filter
+// matches.
+func (s *PgBillingStore) GetLedgerPage(ctx context.Context, workspaceID string, q LedgerQuery) (*LedgerPage, error) {
+	limit := q.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > MaxLedgerPageSize {
+		limit = MaxLedgerPageSize
+	}
+	offset := max(q.Offset, 0)
+
+	// Constant skeleton + $N placeholder tokens only; every value binds
+	// through args.
+	const skeleton = `SELECT %s FROM credit_ledger
+		 WHERE workspace_id = $1 AND created_at >= $2 AND created_at < $3%s`
+	args := []any{workspaceID, q.From, q.To}
+	opFilter := ""
+	if q.Operation != "" {
+		opFilter = " AND operation = $4"
+		args = append(args, q.Operation)
+	}
+
+	page := &LedgerPage{Limit: limit, Offset: offset}
+	countQuery := fmt.Sprintf(skeleton, "COUNT(*)", opFilter)
+	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&page.Total); err != nil {
+		return nil, fmt.Errorf("count ledger: %w", err)
+	}
+
+	query := fmt.Sprintf(skeleton+` ORDER BY created_at DESC, id DESC LIMIT $%d OFFSET $%d`,
+		"id, workspace_id, allocation_id, amount, balance_after, operation, reference_id, created_at",
+		opFilter, len(args)+1, len(args)+2)
+	rows, err := s.db.QueryContext(ctx, query, append(args, limit, offset)...)
+	if err != nil {
+		return nil, fmt.Errorf("get ledger page: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		e, err := scanLedgerEntry(rows)
+		if err != nil {
+			return nil, err
+		}
+		page.Entries = append(page.Entries, e)
+	}
+	return page, rows.Err()
+}
+
+// GetUsageByOperation sums the debits (negative amounts, returned positive) in
+// the window per operation.
+func (s *PgBillingStore) GetUsageByOperation(ctx context.Context, workspaceID string, from, to time.Time) (map[string]int64, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT operation, SUM(-amount) FROM credit_ledger
+		 WHERE workspace_id = $1 AND created_at >= $2 AND created_at < $3 AND amount < 0
+		 GROUP BY operation`,
+		workspaceID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("usage by operation: %w", err)
+	}
+	defer rows.Close()
+
+	byOp := make(map[string]int64)
+	for rows.Next() {
+		var op string
+		var total int64
+		if err := rows.Scan(&op, &total); err != nil {
+			return nil, fmt.Errorf("scan usage by operation: %w", err)
+		}
+		byOp[op] = total
+	}
+	return byOp, rows.Err()
 }
 
 // ---------------------------------------------------------------------------

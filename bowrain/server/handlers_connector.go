@@ -402,62 +402,111 @@ func (s *Server) HandlePublish(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// HandleConnectorStatus reports a connector's sync state.
+// HandleConnectorStatus reports one connector's sync state.
 //
-// The DEFAULT read is cheap: the persisted row's last-sync time and recorded
-// last ingest error, no connector I/O. That is all the polling surfaces (the
-// setup wizard's 2s import poll, the dashboard delivery panel) consume — the
-// old default ran the connector's live Status() probe, which for git/forge
-// re-runs a clone, so every 2s poll paid a full clone (#1362).
-//
-// `?probe=1` opts into the deep probe (live Status(): item counts, pending
-// pull/push, remote reachability) for the explicit "Test"/manual paths such as
-// the connectors panel. Deployments without a config store (desktop/in-memory)
-// always probe — there is no stored row to read.
+// The DEFAULT read is cheap — that is all the polling surfaces (the setup
+// wizard's 2s import poll, the dashboard delivery panel) consume, since the old
+// default ran the live probe and for git/forge that re-runs a clone, so every
+// 2s poll paid a full clone (#1362). `?probe=1` opts into the deep probe for
+// the explicit "Test"/manual paths. See connectorStatus.
 func (s *Server) HandleConnectorStatus(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 	wsID, _ := c.Get("workspace_id").(string)
 	connID := connectorIDParam(c)
+	probe, _ := strconv.ParseBool(c.QueryParam("probe"))
 
+	status, err := s.connectorStatus(c.Request().Context(), wsID, connID, probe)
+	if err != nil {
+		// Unknown to both the live service and the config store — nothing to
+		// report a status for.
+		return apiErr(c, http.StatusNotFound, err.Error())
+	}
+	return c.JSON(http.StatusOK, status)
+}
+
+// maxConnectorStatusBatch bounds one batched status request, so ?ids= cannot
+// fan out into an unbounded number of live probes.
+const maxConnectorStatusBatch = 100
+
+// HandleConnectorStatusBatch reports the sync state of many connectors in one
+// call: GET /:ws/connectors/status?ids=a,b,c[&probe=1].
+//
+// A dashboard row per connector otherwise costs a request each — and with
+// probe=1 a clone each. The response is keyed by connector id; ?probe applies
+// to the whole batch, and the per-connector route stays for a single deep
+// probe. A connector neither the service nor the config store knows lands in
+// `unknown` rather than failing the batch.
+func (s *Server) HandleConnectorStatusBatch(c echo.Context) error {
+	if s.Services == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+	ids := csvParam(c, "ids")
+	if len(ids) == 0 {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "ids is required"})
+	}
+	if len(ids) > maxConnectorStatusBatch {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error: "too many ids: " + strconv.Itoa(maxConnectorStatusBatch) + " at most",
+		})
+	}
+
+	wsID, _ := c.Get("workspace_id").(string)
+	probe, _ := strconv.ParseBool(c.QueryParam("probe"))
+	ctx := c.Request().Context()
+
+	statuses := make(map[string]*connector.SyncStatus, len(ids))
+	unknown := []string{}
+	for _, connID := range ids {
+		if _, done := statuses[connID]; done {
+			continue
+		}
+		status, err := s.connectorStatus(ctx, wsID, connID, probe)
+		if err != nil {
+			unknown = append(unknown, connID)
+			continue
+		}
+		statuses[connID] = status
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"statuses": statuses, "unknown": unknown})
+}
+
+// connectorStatus resolves one connector's sync state, cheap or probed.
+//
+// The cheap read is the stored row's last-sync time and recorded last ingest
+// error, no connector I/O. probe opts into the live Status() call (item counts,
+// pending pull/push, remote reachability). Deployments without a config store
+// (desktop/in-memory) always probe — there is no stored row to read.
+//
+// A failed live probe degrades to the stored state rather than erroring: a
+// git/forge probe re-runs the same clone the ingest does, so a broken import
+// would otherwise 404 every poll and the recorded last_error (with the failed
+// import behind it) would never reach the client. An error is returned only
+// when the probe failed AND no stored row exists.
+func (s *Server) connectorStatus(ctx context.Context, wsID, connID string, probe bool) (*connector.SyncStatus, error) {
 	var cfg *bstore.ConnectorConfig
 	if s.ConnectorConfigStore != nil {
-		if got, cfgErr := s.ConnectorConfigStore.Get(c.Request().Context(), wsID, connID); cfgErr == nil {
+		if got, cfgErr := s.ConnectorConfigStore.Get(ctx, wsID, connID); cfgErr == nil {
 			cfg = &got
 		}
 	}
 
-	if probe, _ := strconv.ParseBool(c.QueryParam("probe")); !probe && cfg != nil {
-		// Cheap default: stored row + last ingest state only.
-		cheap := &connector.SyncStatus{ConnectorID: connID, LastSync: cfg.LastSyncAt}
-		if cfg.LastError != "" {
-			cheap.Errors = append(cheap.Errors, cfg.LastError)
-		}
-		return c.JSON(http.StatusOK, cheap)
+	if !probe && cfg != nil {
+		return storedConnectorStatus(connID, cfg), nil
 	}
 
-	status, statusErr := s.Services.Connector.ConnectorStatus(c.Request().Context(), wsID, connID)
-
+	status, statusErr := s.Services.Connector.ConnectorStatus(ctx, wsID, connID)
 	if statusErr != nil {
-		// The live probe failed. For a connector the config store knows this
-		// is a *status*, not a missing resource: a git/forge connector's probe
-		// re-runs the same clone the ingest does, so a broken import used to
-		// 404 every status poll here — and the recorded last_error (with the
-		// failed import behind it) never reached the client, which kept
-		// showing "importing" forever. Degrade to the stored state (real
-		// last-sync, recorded error) plus the probe error instead.
 		if cfg == nil {
-			return apiErr(c, http.StatusNotFound, statusErr.Error())
+			return nil, statusErr
 		}
-		degraded := &connector.SyncStatus{ConnectorID: connID, LastSync: cfg.LastSyncAt}
-		if cfg.LastError != "" {
-			degraded.Errors = append(degraded.Errors, cfg.LastError)
-		}
+		degraded := storedConnectorStatus(connID, cfg)
 		if msg := statusErr.Error(); cfg.LastError != msg {
 			degraded.Errors = append(degraded.Errors, msg)
 		}
-		return c.JSON(http.StatusOK, degraded)
+		return degraded, nil
 	}
 
 	// Replace the connector's own (fabricated) LastSync with the authoritative
@@ -471,7 +520,17 @@ func (s *Server) HandleConnectorStatus(c echo.Context) error {
 			status.Errors = append(status.Errors, cfg.LastError)
 		}
 	}
-	return c.JSON(http.StatusOK, status)
+	return status, nil
+}
+
+// storedConnectorStatus projects a stored connector row onto a sync status: the
+// authoritative last-sync time plus whatever the last ingest recorded.
+func storedConnectorStatus(connID string, cfg *bstore.ConnectorConfig) *connector.SyncStatus {
+	status := &connector.SyncStatus{ConnectorID: connID, LastSync: cfg.LastSyncAt}
+	if cfg.LastError != "" {
+		status.Errors = append(status.Errors, cfg.LastError)
+	}
+	return status
 }
 
 // touchConnectorLastSync records a successful sync time for a connector (and

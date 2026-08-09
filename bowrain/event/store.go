@@ -43,8 +43,22 @@ type AutomationRuleStore interface {
 	ToggleRule(ctx context.Context, id string, enabled bool) error
 }
 
+// HistoryQuery selects one page of a project's automation execution history.
+type HistoryQuery struct {
+	ProjectID string
+	Limit     int
+	Cursor    string // opaque; from a previous page's NextCursor
+}
+
+// HistoryPage is one page of execution history, newest first. NextCursor is
+// empty on the last page.
+type HistoryPage struct {
+	Entries    []HistoryEntry `json:"entries"`
+	NextCursor string         `json:"next_cursor,omitempty"`
+}
+
 // AutomationHistoryStore persists automation execution history.
 type AutomationHistoryStore interface {
 	RecordExecution(ctx context.Context, entry *HistoryEntry) error
-	ListHistory(ctx context.Context, projectID string, limit int) ([]HistoryEntry, error)
+	ListHistory(ctx context.Context, q HistoryQuery) (*HistoryPage, error)
 }

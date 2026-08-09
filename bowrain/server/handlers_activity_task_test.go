@@ -322,3 +322,147 @@ func TestHandleListTasks_AssigneeMe(t *testing.T) {
 	resp = list("?assignee_id=me", "")
 	assert.Empty(t, resp.Tasks)
 }
+
+// seedReviewTasks fills a workspace with the type/status spread the dashboard
+// and the review inbox filter over.
+func seedReviewTasks(t *testing.T, srv *Server) {
+	t.Helper()
+	ctx := t.Context()
+	seed := []*bstore.Task{
+		{WorkspaceID: "demo", ProjectID: "proj-1", Type: bstore.TaskReview, Title: "review-open", CreatedBy: "u0"},
+		{WorkspaceID: "demo", ProjectID: "proj-1", Type: bstore.TaskReviewTerms, Title: "terms-open", CreatedBy: "u0"},
+		{WorkspaceID: "demo", ProjectID: "proj-1", Type: bstore.TaskSourceReview, Title: "source-progress", CreatedBy: "u0"},
+		{WorkspaceID: "demo", ProjectID: "proj-1", Type: bstore.TaskTranslate, Title: "translate-open", CreatedBy: "u0"},
+		{WorkspaceID: "demo", ProjectID: "proj-2", Type: bstore.TaskReview, Title: "other-project", CreatedBy: "u0"},
+	}
+	for _, task := range seed {
+		require.NoError(t, srv.TaskStore.Create(ctx, task))
+	}
+	require.NoError(t, srv.TaskStore.Assign(ctx, seed[2].ID, "user-1"))
+}
+
+// The review inbox and the dashboard filter over review|review_terms|
+// source_review; ?types answers that server-side instead of over a page the
+// client already downloaded.
+func TestHandleListTasks_TypesFilter(t *testing.T) {
+	srv := setupTestServerWithStores(t)
+	seedReviewTasks(t, srv)
+
+	e := srv.GetEcho()
+	list := func(query string) []string {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/tasks"+query, nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetParamNames("ws")
+		c.SetParamValues("demo")
+		require.NoError(t, srv.HandleListTasks(c))
+		require.Equal(t, http.StatusOK, rec.Code)
+		var resp bstore.TaskResult
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		titles := make([]string, 0, len(resp.Tasks))
+		for _, task := range resp.Tasks {
+			titles = append(titles, task.Title)
+		}
+		return titles
+	}
+
+	assert.ElementsMatch(t,
+		[]string{"review-open", "terms-open", "source-progress", "other-project"},
+		list("?types=review,review_terms,source_review"))
+
+	assert.ElementsMatch(t, []string{"review-open", "other-project"}, list("?types=review"))
+	assert.ElementsMatch(t, []string{"review-open"}, list("?types=review&project_id=proj-1"))
+	assert.ElementsMatch(t, []string{"translate-open"}, list("?type=translate"))
+
+	// Whitespace and empty elements are tolerated rather than reaching SQL.
+	assert.ElementsMatch(t, []string{"review-open", "other-project"}, list("?types=+review+,"))
+}
+
+// The kanban column headers count the whole column, not the page loaded.
+func TestHandleGetTaskCounts(t *testing.T) {
+	srv := setupTestServerWithStores(t)
+	seedReviewTasks(t, srv)
+
+	e := srv.GetEcho()
+	counts := func(query, userID string) bstore.TaskCounts {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/tasks/counts"+query, nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetParamNames("ws")
+		c.SetParamValues("demo")
+		if userID != "" {
+			c.Set("user_id", userID)
+		}
+		require.NoError(t, srv.HandleGetTaskCounts(c))
+		require.Equal(t, http.StatusOK, rec.Code)
+		var resp bstore.TaskCounts
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		return resp
+	}
+
+	t.Run("whole workspace", func(t *testing.T) {
+		got := counts("", "")
+		assert.Equal(t, 5, got.Total)
+		assert.Equal(t, 4, got.ByStatus[string(bstore.TaskStatusOpen)])
+		assert.Equal(t, 1, got.ByStatus[string(bstore.TaskStatusInProgress)])
+		assert.Equal(t, 0, got.ByStatus[string(bstore.TaskStatusCompleted)])
+	})
+
+	t.Run("same filter vocabulary as the list", func(t *testing.T) {
+		got := counts("?types=review,review_terms,source_review&project_id=proj-1", "")
+		assert.Equal(t, 3, got.Total)
+		assert.Equal(t, 2, got.ByStatus[string(bstore.TaskStatusOpen)])
+		assert.Equal(t, 1, got.ByStatus[string(bstore.TaskStatusInProgress)])
+	})
+
+	t.Run("assignee_id=me resolves to the caller", func(t *testing.T) {
+		got := counts("?assignee_id=me", "user-1")
+		assert.Equal(t, 1, got.Total)
+		assert.Equal(t, 1, got.ByStatus[string(bstore.TaskStatusInProgress)])
+	})
+
+	t.Run("unauthenticated me counts nothing, never the workspace", func(t *testing.T) {
+		assert.Equal(t, 0, counts("?assignee_id=me", "").Total)
+	})
+}
+
+// ?types ORs one prefix per entry, so a feed can span families no single
+// prefix expresses.
+func TestHandleListActivities_TypesFilter(t *testing.T) {
+	srv := setupTestServerWithStores(t)
+	ctx := t.Context()
+
+	for _, typ := range []bstore.ActivityType{
+		bstore.ActivityReviewAssigned, bstore.ActivityReviewDecided,
+		bstore.ActivityTaskCreated, bstore.ActivityBlockTranslated,
+	} {
+		require.NoError(t, srv.ActivityStore.Create(ctx, &bstore.Activity{
+			WorkspaceID: "demo", ActorID: "user-1", Type: typ, Summary: string(typ),
+		}))
+	}
+
+	e := srv.GetEcho()
+	list := func(query string) []string {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/activities"+query, nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetParamNames("ws")
+		c.SetParamValues("demo")
+		require.NoError(t, srv.HandleListActivities(c))
+		require.Equal(t, http.StatusOK, rec.Code)
+		var resp bstore.ActivityResult
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+		types := make([]string, 0, len(resp.Activities))
+		for _, a := range resp.Activities {
+			types = append(types, string(a.Type))
+		}
+		return types
+	}
+
+	assert.ElementsMatch(t,
+		[]string{"review.assigned", "review.decided", "task.created"},
+		list("?types=review,task"))
+	assert.ElementsMatch(t, []string{"review.assigned", "review.decided"}, list("?type=review"))
+	assert.ElementsMatch(t, []string{"review.decided"}, list("?types=review.decided"))
+	assert.Len(t, list(""), 4)
+}

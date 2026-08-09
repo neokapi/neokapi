@@ -1586,6 +1586,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/translation-memory", s.HandleAddMemoryEntry)
 	g.PUT("/translation-memory/:eid", s.HandleUpdateMemoryEntry)
 	g.DELETE("/translation-memory/:eid", s.HandleDeleteMemoryEntry)
+	g.POST("/translation-memory/bulk-delete", s.HandleBulkDeleteMemoryEntries)
 
 	// Brand knowledge graph — Bowrain AD-021. The concept API (/:ws/concepts)
 	// is the workspace terminology surface; it replaces the former /:ws/terms
@@ -1615,6 +1616,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/connectors", s.HandleAddConnector)
 	g.PUT("/connectors/:id", s.HandleUpdateConnector)
 	g.DELETE("/connectors/:id", s.HandleRemoveConnector)
+	g.GET("/connectors/status", s.HandleConnectorStatusBatch)
 	g.GET("/connectors/:id/status", s.HandleConnectorStatus)
 	g.GET("/connectors/:id/content", s.HandleConnectorContent)
 	g.POST("/connectors/:id/fetch", s.HandleFetch)
@@ -1683,6 +1685,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 
 	// Tasks — Bowrain AD-011: /:ws/tasks (no more /my/tasks, use ?assignee_id=me)
 	g.GET("/tasks", s.HandleListTasks)
+	g.GET("/tasks/counts", s.HandleGetTaskCounts)
 	g.POST("/tasks", s.HandleCreateTask)
 	g.GET("/tasks/:taskId", s.HandleGetTask)
 	g.PATCH("/tasks/:taskId", s.HandleUpdateTask)

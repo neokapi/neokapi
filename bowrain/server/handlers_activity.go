@@ -17,12 +17,16 @@ func (s *Server) HandleListActivities(c echo.Context) error {
 	ws := c.Param("ws")
 	ctx := c.Request().Context()
 
+	// ?type is one prefix ("block" matches block.*); ?types is a comma-separated
+	// set of prefixes, for feeds that span families — a review inbox wants
+	// review.* and task.*, which no single prefix expresses.
 	q := bstore.ActivityQuery{
 		WorkspaceID: ws,
 		ProjectID:   c.QueryParam("project_id"),
 		Stream:      c.QueryParam("stream"),
 		ActorID:     c.QueryParam("actor_id"),
 		Type:        c.QueryParam("type"),
+		Types:       csvParam(c, "types"),
 		Cursor:      c.QueryParam("cursor"),
 	}
 

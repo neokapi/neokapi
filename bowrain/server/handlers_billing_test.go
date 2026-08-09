@@ -101,6 +101,32 @@ func (m *mockBillingStore) GrantTrialCredits(_ context.Context, _ string, amount
 func (m *mockBillingStore) GetLedger(_ context.Context, _ string, _, _ time.Time) ([]billing.LedgerEntry, error) {
 	return m.ledger, nil
 }
+
+// GetLedgerPage filters and pages m.ledger the way the SQL does, so a handler
+// test sees real paging rather than the whole slice.
+func (m *mockBillingStore) GetLedgerPage(_ context.Context, _ string, q billing.LedgerQuery) (*billing.LedgerPage, error) {
+	var matched []billing.LedgerEntry
+	for _, e := range m.ledger {
+		if q.Operation == "" || e.Operation == q.Operation {
+			matched = append(matched, e)
+		}
+	}
+	page := &billing.LedgerPage{Total: len(matched), Limit: q.Limit, Offset: q.Offset}
+	if q.Offset < len(matched) {
+		page.Entries = matched[q.Offset:min(q.Offset+q.Limit, len(matched))]
+	}
+	return page, nil
+}
+
+func (m *mockBillingStore) GetUsageByOperation(_ context.Context, _ string, _, _ time.Time) (map[string]int64, error) {
+	byOp := make(map[string]int64)
+	for _, e := range m.ledger {
+		if e.Amount < 0 {
+			byOp[e.Operation] += -e.Amount
+		}
+	}
+	return byOp, nil
+}
 func (m *mockBillingStore) GetFeatureOverrides(_ context.Context, _ string) ([]billing.FeatureOverride, error) {
 	return m.overrides, nil
 }
@@ -337,6 +363,77 @@ func TestHandleGetBillingUsage_WithEntries(t *testing.T) {
 	usage := resp["usage_by_operation"].(map[string]any)
 	assert.Equal(t, float64(1500), usage["ai_translation"])
 	assert.Equal(t, float64(200), usage["bravo_message"])
+}
+
+// billingUsage drives HandleGetBillingUsage with the given query string.
+func billingUsage(t *testing.T, s *Server, query string) map[string]any {
+	t.Helper()
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/billing/usage"+query, nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("workspace_id", "ws-1")
+
+	require.NoError(t, s.HandleGetBillingUsage(c))
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	return resp
+}
+
+// The ledger view pages rather than downloading the workspace's whole credit
+// history, and the usage breakdown stays whole-window whatever the page is.
+func TestHandleGetBillingUsage_PagesAndFilters(t *testing.T) {
+	store := &mockBillingStore{
+		ledger: []billing.LedgerEntry{
+			{ID: 1, Amount: -1000, Operation: "ai_translation"},
+			{ID: 2, Amount: -500, Operation: "ai_translation"},
+			{ID: 3, Amount: -200, Operation: "bravo_message"},
+			{ID: 4, Amount: -100, Operation: "bravo_message"},
+			{ID: 5, Amount: 50_000, Operation: "grant"},
+		},
+	}
+	s := newBillingTestServer(store)
+
+	t.Run("limit bounds the entries but not the total", func(t *testing.T) {
+		resp := billingUsage(t, s, "?limit=2")
+		assert.Len(t, resp["entries"], 2)
+		assert.Equal(t, float64(5), resp["total"])
+		assert.Equal(t, float64(2), resp["limit"])
+		assert.Equal(t, float64(0), resp["offset"])
+	})
+
+	t.Run("offset moves the window", func(t *testing.T) {
+		resp := billingUsage(t, s, "?limit=2&offset=4")
+		require.Len(t, resp["entries"], 1)
+		entry := resp["entries"].([]any)[0].(map[string]any)
+		assert.Equal(t, "grant", entry["operation"])
+	})
+
+	t.Run("operation narrows entries and total", func(t *testing.T) {
+		resp := billingUsage(t, s, "?operation=bravo_message")
+		assert.Len(t, resp["entries"], 2)
+		assert.Equal(t, float64(2), resp["total"])
+	})
+
+	t.Run("the breakdown covers the window, not the page", func(t *testing.T) {
+		resp := billingUsage(t, s, "?limit=1&operation=bravo_message")
+		require.Len(t, resp["entries"], 1)
+		usage := resp["usage_by_operation"].(map[string]any)
+		assert.Equal(t, float64(1500), usage["ai_translation"])
+		assert.Equal(t, float64(300), usage["bravo_message"])
+	})
+
+	t.Run("an over-large limit is clamped", func(t *testing.T) {
+		resp := billingUsage(t, s, "?limit=100000")
+		assert.Equal(t, float64(billing.MaxLedgerPageSize), resp["limit"])
+	})
+
+	t.Run("an empty page serializes as a list, not null", func(t *testing.T) {
+		resp := billingUsage(t, s, "?offset=99")
+		assert.Equal(t, []any{}, resp["entries"])
+	})
 }
 
 func TestHandleCreateCheckout_NilStripe(t *testing.T) {

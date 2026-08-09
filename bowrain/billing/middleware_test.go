@@ -112,6 +112,12 @@ func (m *mockBillingStore) GrantTrialCredits(context.Context, string, int64) (bo
 func (m *mockBillingStore) GetLedger(context.Context, string, time.Time, time.Time) ([]LedgerEntry, error) {
 	return nil, nil
 }
+func (m *mockBillingStore) GetLedgerPage(context.Context, string, LedgerQuery) (*LedgerPage, error) {
+	return &LedgerPage{}, nil
+}
+func (m *mockBillingStore) GetUsageByOperation(context.Context, string, time.Time, time.Time) (map[string]int64, error) {
+	return nil, nil
+}
 func (m *mockBillingStore) GetFeatureOverrides(context.Context, string) ([]FeatureOverride, error) {
 	return nil, nil
 }

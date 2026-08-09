@@ -2,6 +2,7 @@ package server
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -36,4 +37,21 @@ func pageParams(c echo.Context, def, max int) (limit, offset int) {
 		}
 	}
 	return limit, offset
+}
+
+// csvParam reads a comma-separated multi-value query parameter, trimming each
+// element and dropping empties. A missing or all-empty parameter returns nil,
+// which every consuming query reads as "no filter".
+func csvParam(c echo.Context, name string) []string {
+	raw := c.QueryParam(name)
+	if raw == "" {
+		return nil
+	}
+	var out []string
+	for part := range strings.SplitSeq(raw, ",") {
+		if v := strings.TrimSpace(part); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }
