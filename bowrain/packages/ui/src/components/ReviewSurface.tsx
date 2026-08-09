@@ -12,7 +12,13 @@ import {
 import { VirtualList, type VirtualListHandle } from "@neokapi/editor-grid";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ErrorNotice } from "../errors";
-import type { ProjectInfo, BlockInfo, FileQAResult, ReviewDemotion } from "../types/api";
+import type {
+  ProjectInfo,
+  BlockInfo,
+  BlockCounts,
+  FileQAResult,
+  ReviewDemotion,
+} from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useLocales } from "../hooks/useLocales";
 import { useAnalytics } from "../context/AnalyticsContext";
@@ -48,13 +54,22 @@ type StatusFilter = "all" | BlockStatus;
 
 const FILTERS: StatusFilter[] = ["all", "not-started", "draft", "translated", "reviewed"];
 
+/** The four buckets, all zero — the shape shown before the counts arrive. */
+const EMPTY_COUNTS: BlockCounts = {
+  total: 0,
+  translatable: 0,
+  status: { "not-started": 0, draft: 0, translated: 0, reviewed: 0 },
+};
+
 /**
  * ReviewSurface is the block-level translation review/QA surface — a sibling
- * route to the Translate editor. It lists translatable blocks by status with
- * filtering, bulk actions (mark reviewed, apply content memory), per-block approve/reject,
- * and a QA findings panel (reused ProblemsPanel). Mark-reviewed and QA were
- * moved out of the Translate toolbar into here. (Brand-rule promotion lives in
- * the separate brand-review surface; this is about translation review.)
+ * route to the Translate editor. The status filter and the histogram beside it
+ * are server queries: the list holds the blocks in the selected bucket for the
+ * selected locale, and the counts describe the whole file rather than the page.
+ * Bulk actions (mark reviewed, apply content memory) are one request each, with
+ * per-block outcomes; per-block approve/reject and a QA findings panel (reused
+ * ProblemsPanel) complete the surface. (Brand-rule promotion lives in the
+ * separate brand-review surface; this is about translation review.)
  */
 export function ReviewSurface({
   project,
@@ -75,10 +90,12 @@ export function ReviewSurface({
   const [qaLoading, setQaLoading] = useState(false);
   const [showProblems, setShowProblems] = useState(false);
 
+  const [counts, setCounts] = useState<BlockCounts>(EMPTY_COUNTS);
+
   const { getDisplayName } = useLocales();
   const api = useEditorApi();
   const { capture } = useAnalytics();
-  const { getFileBlocks } = api;
+  const { getFileBlocks, getBlockCounts } = api;
 
   const breadcrumbNode = useMemo(
     () => (
@@ -94,41 +111,50 @@ export function ReviewSurface({
   );
   useSetBreadcrumb(breadcrumbNode);
 
+  // The list is the selected bucket for the selected locale, asked for as
+  // such: the filter is a query parameter, not a pass over a full download.
   const loadBlocks = useCallback(async () => {
     try {
-      const b = await getFileBlocks(project.id, fileName);
+      const b = await getFileBlocks(project.id, fileName, {
+        locale: targetLocale,
+        translatable: true,
+        // A bucket partitions one locale's targets, so it travels only with a
+        // locale — a project with no target language filters by nothing.
+        status: filter === "all" || !targetLocale ? undefined : filter,
+      });
       setBlocks(b || []);
     } catch (e) {
       setError({ title: "Couldn't load the blocks", cause: e, retry: true });
     }
-  }, [getFileBlocks, project.id, fileName]);
+  }, [getFileBlocks, project.id, fileName, targetLocale, filter]);
+
+  // The histogram describes the file, so it is its own count query — a filtered
+  // page could only report itself.
+  const loadCounts = useCallback(async () => {
+    try {
+      setCounts(await getBlockCounts(project.id, fileName, targetLocale));
+    } catch {
+      setCounts(EMPTY_COUNTS);
+    }
+  }, [getBlockCounts, project.id, fileName, targetLocale]);
 
   useEffect(() => {
     void loadBlocks();
   }, [loadBlocks]);
 
-  const translatable = useMemo(() => blocks.filter((b) => b.translatable), [blocks]);
+  useEffect(() => {
+    void loadCounts();
+  }, [loadCounts]);
 
-  const counts = useMemo(() => {
-    const c: Record<BlockStatus, number> = {
-      "not-started": 0,
-      draft: 0,
-      translated: 0,
-      reviewed: 0,
-    };
-    for (const b of translatable) c[getBlockStatus(b, targetLocale)]++;
-    return c;
-  }, [translatable, targetLocale]);
-
-  const visible = useMemo(
-    () =>
-      filter === "all"
-        ? translatable
-        : translatable.filter((b) => getBlockStatus(b, targetLocale) === filter),
-    [translatable, filter, targetLocale],
-  );
+  const visible = blocks;
 
   const allVisibleSelected = visible.length > 0 && visible.every((b) => selected.has(b.id));
+
+  // A selection names blocks in the loaded bucket; a different bucket or locale
+  // is a different set, so the selection does not survive the switch.
+  useEffect(() => {
+    setSelected(new Set());
+  }, [filter, targetLocale]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelected((prev) => {
@@ -179,6 +205,7 @@ export function ReviewSurface({
       );
       try {
         await api.reviewBlock(project.id, fileName, block.id, targetLocale, reviewed, demoteTo);
+        void loadCounts();
       } catch (e) {
         setBlocks((prev) =>
           prev.map((b) =>
@@ -193,107 +220,97 @@ export function ReviewSurface({
         });
       }
     },
-    [api, capture, project.id, fileName, targetLocale],
+    [api, capture, project.id, fileName, targetLocale, loadCounts],
   );
 
-  // While a bulk pass runs, single approve/reject clicks and a second bulk
-  // click are disabled: an interleaved single call would race the loop's
-  // optimistic writes and rollbacks. The ref guards re-entrancy synchronously
-  // (state updates are async); the state drives the disabled buttons.
+  // While a bulk request is in flight, single approve/reject clicks and a
+  // second bulk click are disabled: an interleaved single call would race the
+  // batch's writes. The ref guards re-entrancy synchronously (state updates are
+  // async); the state drives the disabled buttons.
   const bulkInFlight = useRef(false);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  // Bulk mark-reviewed loops the per-block endpoint sequentially (no bulk
-  // route). Resilient: a failing block is rolled back and the loop continues.
-  // Each block's rollback snapshot is captured inside the setBlocks updater at
-  // its own optimistic-write time, never from a pre-loop copy of the state.
+  // One request carries the whole selection. Each block reports its own
+  // outcome, so an approval a block refuses is named rather than sinking the
+  // batch, and only the blocks that took the decision move.
   const bulkMarkReviewed = useCallback(async () => {
     if (bulkInFlight.current || selected.size === 0) return;
     bulkInFlight.current = true;
     setBulkBusy(true);
     try {
-      // Skip untranslated blocks: the server categorically 422s an approval of
-      // an empty translation, so looping them in would only produce guaranteed
-      // per-block failures (select-all on filter=all includes them).
+      // Skip untranslated blocks: the server categorically refuses an approval
+      // of an empty translation, so sending them in would only fill the result
+      // with guaranteed failures (select-all on filter=all includes them).
       const targetIds = blocks
         .filter(
           (b) => selected.has(b.id) && b.translatable && getTargetText(b, targetLocale).trim(),
         )
         .map((b) => b.id);
       setSelected(new Set());
-      if (targetIds.length > 0) {
-        capture(AnalyticsEvents.reviewDecisionClicked, {
-          decision: "approve",
-          locale: targetLocale,
-          bulk: true,
+      if (targetIds.length === 0) return;
+      capture(AnalyticsEvents.reviewDecisionClicked, {
+        decision: "approve",
+        locale: targetLocale,
+        bulk: true,
+      });
+      const result = await api.bulkReviewBlocks({
+        project_id: project.id,
+        item_name: fileName,
+        block_ids: targetIds,
+        target_locale: targetLocale,
+        approve: true,
+      });
+      const approved = new Set((result.results ?? []).filter((r) => r.ok).map((r) => r.block_id));
+      setBlocks((prev) =>
+        prev.map((b) => (approved.has(b.id) ? withTargetStatus(b, targetLocale, "reviewed") : b)),
+      );
+      if (result.succeeded > 0) setMessage(`Marked ${result.succeeded} block(s) as reviewed`);
+      if (result.failed > 0) {
+        const firstError = (result.results ?? []).find((r) => !r.ok)?.error;
+        setError({
+          title: `Couldn't mark ${result.failed} block(s) as reviewed`,
+          cause: firstError ? new Error(firstError) : undefined,
         });
       }
-      let reviewed = 0;
-      let failed = 0;
-      let lastError: unknown = null;
-      for (const blockId of targetIds) {
-        let snapshot: TargetStatusSnapshot = { existed: false, status: "" };
-        setBlocks((prev) =>
-          prev.map((b) => {
-            if (b.id !== blockId) return b;
-            snapshot = captureTargetStatus(b, targetLocale);
-            return withTargetStatus(b, targetLocale, "reviewed");
-          }),
-        );
-        try {
-          await api.reviewBlock(project.id, fileName, blockId, targetLocale, true);
-          reviewed++;
-        } catch (e) {
-          failed++;
-          lastError = e;
-          setBlocks((prev) =>
-            prev.map((b) =>
-              b.id === blockId ? rollbackTargetStatus(b, targetLocale, snapshot) : b,
-            ),
-          );
-        }
-      }
-      if (reviewed > 0) setMessage(`Marked ${reviewed} block(s) as reviewed`);
-      if (failed > 0) {
-        setError({ title: `Couldn't mark ${failed} block(s) as reviewed`, cause: lastError });
-      }
+      void loadCounts();
+    } catch (e) {
+      setError({ title: "Couldn't mark the selected blocks as reviewed", cause: e });
     } finally {
       bulkInFlight.current = false;
       setBulkBusy(false);
     }
-  }, [selected, blocks, api, capture, project.id, fileName, targetLocale]);
+  }, [selected, blocks, api, capture, project.id, fileName, targetLocale, loadCounts]);
 
+  // Exact content-memory leverage across the selection: one request, and the
+  // server decides which blocks clear the threshold.
   const bulkApplyMemory = useCallback(async () => {
-    if (selected.size === 0) return;
-    let applied = 0;
-    for (const block of blocks) {
-      if (!selected.has(block.id) || !block.translatable) continue;
-      try {
-        const matches = await api.lookupMemoryForBlock(
-          project.id,
-          fileName,
-          block.id,
-          targetLocale,
-        );
-        const best = matches?.[0];
-        if (best && best.score >= 1) {
-          await api.updateBlockTarget({
-            project_id: project.id,
-            item_name: fileName,
-            block_id: block.id,
-            target_locale: targetLocale,
-            text: best.target,
-          });
-          applied++;
-        }
-      } catch {
-        // skip individual failures; continue the batch
+    if (bulkInFlight.current || selected.size === 0) return;
+    bulkInFlight.current = true;
+    setBulkBusy(true);
+    try {
+      const targetIds = blocks.filter((b) => selected.has(b.id) && b.translatable).map((b) => b.id);
+      setSelected(new Set());
+      if (targetIds.length === 0) return;
+      const result = await api.bulkApplyMemory({
+        project_id: project.id,
+        block_ids: targetIds,
+        target_locale: targetLocale,
+      });
+      const applied = result.applied ?? [];
+      setMessage(`Applied ${applied.length} exact content-memory match(es)`);
+      if (applied.length > 0) {
+        // The blocks now carry text, so their bucket changed: re-ask for the
+        // page and the histogram rather than guessing where they landed.
+        await loadBlocks();
+        void loadCounts();
       }
+    } catch (e) {
+      setError({ title: "Couldn't apply the content memory", cause: e });
+    } finally {
+      bulkInFlight.current = false;
+      setBulkBusy(false);
     }
-    setMessage(`Applied ${applied} exact content-memory match(es)`);
-    setSelected(new Set());
-    await loadBlocks();
-  }, [selected, blocks, api, project.id, fileName, targetLocale, loadBlocks]);
+  }, [selected, blocks, api, project.id, targetLocale, loadBlocks, loadCounts]);
 
   const runQA = useCallback(() => {
     setQaLoading(true);
@@ -361,7 +378,7 @@ export function ReviewSurface({
       {/* Status filters */}
       <div className="flex items-center gap-1.5 mb-2 flex-wrap" data-testid="status-filters">
         {FILTERS.map((f) => {
-          const count = f === "all" ? translatable.length : counts[f];
+          const count = f === "all" ? counts.translatable : counts.status[f];
           return (
             <button
               key={f}
@@ -398,7 +415,7 @@ export function ReviewSurface({
           variant="outline"
           size="sm"
           onClick={bulkApplyMemory}
-          disabled={selected.size === 0}
+          disabled={selected.size === 0 || bulkBusy}
           data-testid="bulk-apply-tm"
         >
           Apply exact Memory

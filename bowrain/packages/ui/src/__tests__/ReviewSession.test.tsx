@@ -4,7 +4,7 @@
  * decides, approve advances to the next pending block, and "Approve all
  * passing" clears the queue and reflects the auto-continue to delivery.
  */
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -78,14 +78,18 @@ const stats: TranslationDashboardStats = {
   total_source_words: 0,
 };
 
-function renderSession(): { adapter: MockAdapter } {
+function renderSession(
+  dashboardStats: TranslationDashboardStats = stats,
+  prepare?: (adapter: MockAdapter) => void,
+): { adapter: MockAdapter } {
   const adapter = createMockAdapter(blocks);
+  prepare?.(adapter);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
       <ApiProvider adapter={adapter}>
         <WorkspaceProvider initialWorkspace={mockWorkspace}>
-          <ReviewSession project={sampleProject} dashboardStats={stats} stream="main" />
+          <ReviewSession project={sampleProject} dashboardStats={dashboardStats} stream="main" />
         </WorkspaceProvider>
       </ApiProvider>
     </QueryClientProvider>,
@@ -163,6 +167,33 @@ describe("ReviewSession", () => {
     await user.click(screen.getByTestId("reviewer-reject"));
     await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(1));
     expect(adapter.reviewBlockCalls[0]).toMatchObject({ reviewed: false, demoteTo: "draft" });
+  });
+
+  it("runs the QA pass only over the scopes the loaded queue holds", async () => {
+    // A second item the dashboard flags as failing, with nothing pending in
+    // the server's queue: it must cost no QA request.
+    const withQuietFailingItem: TranslationDashboardStats = {
+      ...stats,
+      item_stats: [
+        ...stats.item_stats,
+        {
+          item_name: "empty.json",
+          item_id: "itm-empty",
+          format: "json",
+          collection_id: "coll-default",
+          block_count: 0,
+          word_count: 0,
+          locales: [locale({ translated_blocks: 0, failing_checks: 3 })],
+        },
+      ],
+    };
+    let qa!: ReturnType<typeof vi.spyOn<MockAdapter, "runFileQACheck">>;
+    renderSession(withQuietFailingItem, (adapter) => {
+      qa = vi.spyOn(adapter, "runFileQACheck");
+    });
+    await waitForQueue();
+
+    expect(qa.mock.calls.map((c) => c[2])).not.toContain("empty.json");
   });
 
   it("'Approve all passing' clears the queue and shows the delivering state", async () => {

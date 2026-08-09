@@ -1,26 +1,35 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useEditorApi } from "../../hooks/useEditorApi";
-import type { BlockInfo } from "../../types/api";
+import { useStream } from "../../context/StreamContext";
+import { useWorkspace } from "../../context/WorkspaceContext";
+import type { BlockInfo, SpanInfo } from "../../types/api";
 import type { PreviewContentMode } from "./visual-editor-types";
 import { getTargetText } from "./blockStatus";
 import { pseudoTranslate, pseudoTranslateCoded } from "./pseudoTranslate";
 import { cn } from "@neokapi/ui-primitives";
 
+/** How many blocks one page of the preview's document fetch carries. */
+const PREVIEW_PAGE_SIZE = 500;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Expand a block's source coded text + spans into pseudo-translated display HTML. */
-function pseudoBlockToHTML(block: BlockInfo): string {
-  const spans = block.source_spans ?? [];
-  if (!block.has_spans || !block.source_coded || spans.length === 0) {
-    const pseudo = pseudoTranslate(block.source);
-    return pseudo.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  }
-  const pseudoCoded = pseudoTranslateCoded(block.source_coded);
+/** Escape the characters that would otherwise be read as markup. */
+function escapeHTML(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/**
+ * Expand coded text into display HTML: each inline-code placeholder takes the
+ * data of the span at its position, and literal text is escaped. Targets carry
+ * the source's spans — the codes are the same ones, reordered.
+ */
+function codedToHTML(coded: string, spans: SpanInfo[]): string {
   let result = "";
   let spanIdx = 0;
-  for (const ch of pseudoCoded) {
+  for (const ch of coded) {
     const code = ch.codePointAt(0) ?? 0;
     if (code === 0xe001 || code === 0xe002 || code === 0xe003) {
       const span = spans[spanIdx++];
@@ -38,30 +47,70 @@ function pseudoBlockToHTML(block: BlockInfo): string {
   return result;
 }
 
+/** Expand a block's source coded text + spans into pseudo-translated display HTML. */
+function pseudoBlockToHTML(block: BlockInfo): string {
+  const spans = block.source_spans ?? [];
+  if (!block.has_spans || !block.source_coded || spans.length === 0) {
+    return escapeHTML(pseudoTranslate(block.source));
+  }
+  return codedToHTML(pseudoTranslateCoded(block.source_coded), spans);
+}
+
 /** Expand a block's source coded text + spans into display HTML. */
 function sourceBlockToHTML(block: BlockInfo): string {
   const spans = block.source_spans ?? [];
   if (!block.has_spans || !block.source_coded || spans.length === 0) {
-    return block.source.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return escapeHTML(block.source);
   }
-  let result = "";
-  let spanIdx = 0;
-  for (const ch of block.source_coded) {
-    const code = ch.codePointAt(0) ?? 0;
-    if (code === 0xe001 || code === 0xe002 || code === 0xe003) {
-      const span = spans[spanIdx++];
-      if (span) result += span.data;
-    } else if (ch === "&") {
-      result += "&amp;";
-    } else if (ch === "<") {
-      result += "&lt;";
-    } else if (ch === ">") {
-      result += "&gt;";
-    } else {
-      result += ch;
-    }
+  return codedToHTML(block.source_coded, spans);
+}
+
+/**
+ * A locale's target as display HTML, with inline codes expanded through the
+ * source's spans. A target without codes is escaped text.
+ */
+function targetBlockToHTML(block: BlockInfo, locale: string): string {
+  const spans = block.source_spans ?? [];
+  const coded = block.targets_coded?.[locale] ?? "";
+  if (!block.has_spans || !coded || spans.length === 0) {
+    return escapeHTML(getTargetText(block, locale));
   }
-  return result;
+  return codedToHTML(coded, spans);
+}
+
+/**
+ * The item's blocks for the preview, in one paged fetch per (item, locale) and
+ * cached for as long as the surface keeps asking. The iframe covers the whole
+ * document, so this is the document — never a request per block.
+ */
+function useDocumentBlocks(projectId: string, itemName: string, targetLocale: string) {
+  const { getFileBlocks } = useEditorApi();
+  const { activeStream } = useStream();
+  const { activeWorkspace } = useWorkspace();
+  return useQuery({
+    queryKey: [
+      "preview-blocks",
+      activeWorkspace?.slug ?? "",
+      projectId,
+      activeStream,
+      itemName,
+      targetLocale,
+    ],
+    queryFn: async (): Promise<BlockInfo[]> => {
+      const all: BlockInfo[] = [];
+      for (let offset = 0; ; offset += PREVIEW_PAGE_SIZE) {
+        const page = await getFileBlocks(projectId, itemName, {
+          locale: targetLocale,
+          limit: PREVIEW_PAGE_SIZE,
+          offset,
+        });
+        all.push(...(page ?? []));
+        if (!page || page.length < PREVIEW_PAGE_SIZE) break;
+      }
+      return all;
+    },
+    staleTime: 30_000,
+  });
 }
 
 interface DocumentPreviewProps {
@@ -70,6 +119,11 @@ interface DocumentPreviewProps {
   targetLocale: string;
   selectedBlockId?: string;
   onBlockSelect: (blockId: string) => void;
+  /**
+   * Blocks the surface already holds — its in-progress edits. They overlay the
+   * document the preview fetches for itself, so a save shows immediately
+   * without narrowing the preview to whatever the surface has loaded.
+   */
   blocks?: BlockInfo[];
   previewContentMode?: PreviewContentMode;
   // Inline mode props
@@ -97,7 +151,15 @@ export function DocumentPreview({
   const [hovered, setHovered] = useState(false);
   const [iframeContentHeight, setIframeContentHeight] = useState<number>(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const { renderDocumentPreview, renderBlockHTML } = useEditorApi();
+  const { renderDocumentPreview } = useEditorApi();
+
+  // The document's blocks, plus the surface's edited copies on top.
+  const { data: documentBlocks } = useDocumentBlocks(projectId, itemName, targetLocale);
+  const contentBlocks = useMemo(() => {
+    const byId = new Map((documentBlocks ?? []).map((b) => [b.id, b]));
+    for (const b of blocks) byId.set(b.id, b);
+    return [...byId.values()];
+  }, [documentBlocks, blocks]);
 
   // Inline mode: spacerHeight prop is provided
   const inlineMode = spacerHeight !== undefined;
@@ -189,58 +251,23 @@ export function DocumentPreview({
     }
   }, [selectedBlockId, spacerHeight, iframeReady, inlineMode]);
 
-  // Push target/source/pseudo content into the iframe when mode or blocks change.
-  // Source content is sent as HTML (with spans expanded) so inline markup like
-  // <code> is preserved. Pseudo mode renders source text through the accent map
-  // client-side. Target content is sent as plain text.
+  // Push target/source/pseudo content into the iframe when the mode or the
+  // blocks change. Every mode sends HTML with the block's inline codes expanded
+  // through its spans, so markup like <code> renders in source, pseudo and
+  // target alike; a locale with no target falls back to the source.
   useEffect(() => {
     const cw = iframeRef.current?.contentWindow;
     if (!cw || !iframeReady) return;
 
-    for (const block of blocks) {
-      if (showPseudo) {
-        // Pseudo view: accent-map the source text on the fly
-        cw.postMessage(
-          { type: "kat-update-block", blockId: block.id, html: pseudoBlockToHTML(block) },
-          "*",
-        );
-      } else if (showTarget && getTargetText(block, targetLocale)) {
-        cw.postMessage(
-          { type: "kat-update-block", blockId: block.id, text: getTargetText(block, targetLocale) },
-          "*",
-        );
-      } else {
-        cw.postMessage(
-          { type: "kat-update-block", blockId: block.id, html: sourceBlockToHTML(block) },
-          "*",
-        );
-      }
+    for (const block of contentBlocks) {
+      const html = showPseudo
+        ? pseudoBlockToHTML(block)
+        : showTarget && getTargetText(block, targetLocale)
+          ? targetBlockToHTML(block, targetLocale)
+          : sourceBlockToHTML(block);
+      cw.postMessage({ type: "kat-update-block", blockId: block.id, html }, "*");
     }
-  }, [showTarget, showPseudo, blocks, targetLocale, iframeReady]);
-
-  // Use renderBlockHTML for richer block content when available (target mode only)
-  useEffect(() => {
-    const cw = iframeRef.current?.contentWindow;
-    if (!cw || !iframeReady || !showTarget || showPseudo || !renderBlockHTML) return;
-
-    let cancelled = false;
-    for (const block of blocks) {
-      if (getTargetText(block, targetLocale)) {
-        renderBlockHTML(projectId, block.id, targetLocale)
-          .then((html) => {
-            if (!cancelled) {
-              cw.postMessage({ type: "kat-update-block", blockId: block.id, html }, "*");
-            }
-          })
-          .catch(() => {
-            /* fall back to plain text already sent */
-          });
-      }
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [showTarget, showPseudo, blocks, targetLocale, iframeReady, renderBlockHTML, projectId]);
+  }, [showTarget, showPseudo, contentBlocks, targetLocale, iframeReady]);
 
   if (loading) {
     return (
