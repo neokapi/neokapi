@@ -102,6 +102,14 @@ web/i18n/nb/
 # falls back to English until regenerated.
 bowrain/web/docs/i18n/nb/
 
+# The Go surfaces keep gettext MO as the runtime format, but a compiled catalog
+# is build output: `go run ./core/i18n/gen/catalogs` produces each <locale>.mo
+# from the committed <locale>.json beside it, ahead of anything that compiles
+# core/i18n or host/i18n. Version control carries the reviewable JSON; a binary
+# nobody can read in a diff is how corrupt bytes got committed unnoticed.
+core/i18n/catalogs/*.mo
+host/i18n/catalogs/*.mo
+
 # Dogfood project state for the root kapi.yaml recipe.
 #
 # `.kapi/` is committed, so only the two things that are not get named here, and

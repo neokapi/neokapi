@@ -179,6 +179,12 @@ jobs:
           PCDIR=$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)
           echo "PKG_CONFIG_PATH=${PCDIR}" >> "$GITHUB_ENV"
 
+      # The plugin links core/i18n and host/i18n, whose embedded gettext
+      # catalogs are build output compiled from the committed translated JSON.
+      - name: Compile the embedded i18n catalogs
+        if: matrix.target.goos != 'windows'
+        run: go run ./core/i18n/gen/catalogs
+
       # ---- Build (macOS / Linux) ----
       - name: Build kapi-bowrain (macOS / Linux)
         if: matrix.target.goos != 'windows'
@@ -226,6 +232,7 @@ jobs:
           export CC
           PCDIR=$(ICU_LIBDIR="$(cygpath -m "$MROOT/lib")" ICU_INCLUDEDIR="$(cygpath -m "$MROOT/include")" bash scripts/gen-icu-static-pc.sh)
           export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
+          go run ./core/i18n/gen/catalogs
           mkdir -p out
           ( cd bowrain/plugin && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../../out/kapi-bowrain.exe ./cmd/kapi-bowrain )
 
@@ -777,6 +784,12 @@ jobs:
           wails3 generate syso -arch "$ARCH" -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.gen.json -out "wails_windows_${ARCH}.syso"
           rm -f build/windows/info.gen.json
 
+      # The desktop app links core/i18n and host/i18n — same build-time
+      # catalog compile as every other binary here.
+      - name: Compile the embedded i18n catalogs
+        if: runner.os != 'Windows'
+        run: go run ./core/i18n/gen/catalogs
+
       - name: Build Bowrain (Linux)
         if: runner.os == 'Linux'
         working-directory: bowrain/apps/bowrain
@@ -810,6 +823,7 @@ jobs:
           # native pkg-config too.
           PCDIR=$(ICU_LIBDIR="$(cygpath -m "$MROOT/lib")" ICU_INCLUDEDIR="$(cygpath -m "$MROOT/include")" bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
           export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
+          ( cd "${GITHUB_WORKSPACE}" && go run ./core/i18n/gen/catalogs )
           go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Bowrain.exe
           rm -f ./*.syso
 

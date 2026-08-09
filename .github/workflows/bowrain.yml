@@ -40,6 +40,11 @@ jobs:
         working-directory: bowrain/packages/ui
         run: vp check --no-fmt --no-lint
 
+      # The app links core/i18n and host/i18n, whose embedded gettext catalogs
+      # are build output compiled from the committed translated JSON.
+      - name: Compile the embedded i18n catalogs
+        run: go run ./core/i18n/gen/catalogs
+
       - name: Build Bowrain
         working-directory: bowrain/apps/bowrain
         run: wails3 build

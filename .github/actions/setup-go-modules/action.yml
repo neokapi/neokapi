@@ -108,3 +108,13 @@ runs:
         mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
         mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
         mkdir -p apps/kapi-desktop/frontend/dist && echo placeholder > apps/kapi-desktop/frontend/dist/index.html
+
+    # The embedded gettext catalogs are build output — the repository carries
+    # the translated JSON they are compiled from. core/i18n and host/i18n
+    # resolve `//go:embed catalogs/*.mo` at compile time, so this runs before
+    # any job's first Go build. Steps that reach the framework through `make`
+    # get it from the Makefile too; doing it here covers the jobs that call
+    # `go` directly.
+    - name: Compile the embedded i18n catalogs
+      shell: bash
+      run: go run ./core/i18n/gen/catalogs

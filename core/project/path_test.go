@@ -27,9 +27,9 @@ func TestResolveTargetPath(t *testing.T) {
 	// Literal item path: rel is just the filename.
 	got = ResolveTargetPath(
 		"core/i18n/builtins/metadata.json", "",
-		"core/i18n/catalogs/{lang}.mo", "core/i18n/builtins/metadata.json", "nb",
+		"core/i18n/catalogs/{lang}.json", "core/i18n/builtins/metadata.json", "nb",
 	)
-	assert.Equal(t, "core/i18n/catalogs/nb.mo", got)
+	assert.Equal(t, "core/i18n/catalogs/nb.json", got)
 
 	// Legacy bare `*` expands to the source basename without extension.
 	got = ResolveTargetPath("src/*.json", "", "out/{lang}/*.json", "src/messages.json", "fr")

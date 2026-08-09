@@ -1,9 +1,11 @@
 // Package i18n localizes backend-sourced metadata (tool / format / plugin
 // DisplayName, Description, parameter titles/descriptions, enum labels,
-// group labels) at API boundaries. Catalogs are gettext MO files compiled
-// from the l10n pipeline described in docs/ad/*-i18n-for-go-surfaces.md —
-// KBF is the exchange format in-pipeline; nothing KBF-shaped reaches the
-// runtime binary.
+// group labels) at API boundaries. The runtime format is gettext MO, keyed by
+// (msgctxt, msgid) = (scope, English source). Each catalog is compiled at
+// build time by `go run ./core/i18n/gen/catalogs` from the committed
+// translated JSON under catalogs/, which is what a reviewer reads and what the
+// dogfood recipe writes. See
+// [AD-016](../../web/docs/contribute/architecture/016-metadata-i18n.md).
 //
 // The package exposes:
 //

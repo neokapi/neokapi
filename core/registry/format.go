@@ -445,8 +445,9 @@ func (r *FormatRegistry) Detect(path string, opts DetectOptions) (FormatID, erro
 // as readerFormat. The writer defaults to the reader's format (same-in /
 // same-out round-trip), but a different output extension selects a different
 // writer: the output path is the caller's intent declaration, and it is how a
-// json source projects to a `catalogs/{lang}.mo` target without a dedicated
-// writer flag. Shared by the host flow runner and the bowrain pull so both
+// recipe target whose extension differs from its source projects cross-format
+// without a dedicated writer flag. Shared by the host flow runner and the
+// bowrain pull so both
 // venues project cross-format targets identically.
 func (r *FormatRegistry) WriterFormatFor(readerFormat FormatID, outputPath string) FormatID {
 	if ext := format.Ext(outputPath); ext != "" {

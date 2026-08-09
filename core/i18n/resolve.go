@@ -153,6 +153,5 @@ func PluginCatalogPath(pluginVersionDir string, locale model.LocaleID, i18nDir s
 	return exact
 }
 
-// Ensure fs.FS interface compatibility — keeps the go:embed declaration
-// honest even when the directory is empty (no .mo files committed yet).
+// Ensure fs.FS interface compatibility — keeps the go:embed declaration honest.
 var _ fs.FS = builtinFS

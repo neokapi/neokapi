@@ -1528,9 +1528,9 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	}
 
 	// The writer is chosen from the OUTPUT path, not the source format: a
-	// recipe target like `catalogs/{lang}.mo` on a json source is a
-	// cross-format projection, and writing source-format bytes to that path
-	// would corrupt the target (a JSON document under a .mo name).
+	// recipe target whose extension differs from its source is a cross-format
+	// projection, and writing source-format bytes to that path would corrupt
+	// the target (a JSON document under a .mo name, say).
 	// registry.WriterFormatFor is the same rule the host flow runner applies.
 	writerFormat := c.formatReg.WriterFormatFor(registry.FormatID(formatName), outputPath)
 	writer, err := c.formatReg.NewWriter(writerFormat)

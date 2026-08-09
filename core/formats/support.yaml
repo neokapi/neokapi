@@ -163,8 +163,8 @@ formats:
       - make test
     notes: >-
       Toolchain infrastructure, not a retirement candidate: the writer compiles
-      kapi's own builtin i18n catalogs (core/i18n/catalogs/<locale>.mo) and .mo
-      is the plugin i18n contract (core/i18n/resolve.go).
+      kapi's own embedded i18n catalogs at build time (core/i18n/gen/catalogs)
+      and .mo is the plugin i18n contract (core/i18n/resolve.go).
   odf:
     tier: available
     tier_since: "2026-06-12"

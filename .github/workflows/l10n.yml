@@ -50,6 +50,8 @@ on:
       - "terms/**/*.go"
       - "cli/**/*.go"
       - "host/i18n/**"
+      # The committed translated catalogs the Go binaries embed.
+      - "core/i18n/catalogs/**"
       # The extractor and compiler themselves.
       - "packages/i18n-react/**"
       - "packages/kapi-format/**"
@@ -93,6 +95,8 @@ on:
       - "terms/**/*.go"
       - "cli/**/*.go"
       - "host/i18n/**"
+      # The committed translated catalogs the Go binaries embed.
+      - "core/i18n/catalogs/**"
       # The extractor and compiler themselves.
       - "packages/i18n-react/**"
       - "packages/kapi-format/**"

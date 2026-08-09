@@ -34,6 +34,11 @@ RUN export GOWORK=off \
 # Copy source.
 COPY . .
 
+# The gettext catalogs core/i18n and host/i18n embed are build output:
+# version control carries the translated JSON, and this compiles it into
+# the `catalogs/*.mo` the `//go:embed` pattern below resolves.
+RUN go run ./core/i18n/gen/catalogs
+
 # Build only the worker binary (version injected via build args).
 ARG VERSION=dev
 ARG COMMIT=unknown

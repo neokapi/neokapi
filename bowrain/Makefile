@@ -102,7 +102,7 @@ DOCKER_WORKER_IMAGE   := ghcr.io/neokapi/bowrain-worker
 DOCKER_WEB_IMAGE      := ghcr.io/neokapi/bowrain-web
 DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
 
-.PHONY: all help \
+.PHONY: all help i18n-catalogs \
         build-server build-worker build-kapi-bowrain-plugin build-bowrain build-headless install-kapi-bowrain-plugin \
         stripe-provision \
         ui-deps ui-build ui-check storybook storybook-dev storybook-build \
@@ -136,11 +136,18 @@ help: ## Show bowrain targets
 
 # ── Build ────────────────────────────────────────────────────────────────────
 
-build-server: ## Build the Bowrain REST server
+# The framework's embedded gettext catalogs. Every binary and test here links
+# core/i18n and host/i18n, whose `//go:embed catalogs/*.mo` resolves at compile
+# time against build output the framework generates. Delegated so the recipe
+# lives in one place — see the root Makefile's i18n-catalogs.
+i18n-catalogs: ## Compile the framework's embedded MO catalogs
+	@$(MAKE) --no-print-directory -C .. i18n-catalogs
+
+build-server: i18n-catalogs ## Build the Bowrain REST server
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/bowrain-server ./cmd/bowrain-server
 
-build-worker: ## Build the Bowrain worker
+build-worker: i18n-catalogs ## Build the Bowrain worker
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/bowrain-worker ./cmd/bowrain-worker
 
@@ -152,7 +159,7 @@ stripe-provision: ## Create/confirm the Stripe products, prices, meter, and webh
 		$(if $(STRIPE_WEBHOOK_URL),-webhook-url $(STRIPE_WEBHOOK_URL)) \
 		$(if $(SSM_ENV),-env $(SSM_ENV))
 
-build-kapi-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
+build-kapi-bowrain-plugin: i18n-catalogs ## Build the kapi-bowrain plugin binary (manifest-driven)
 	@mkdir -p $(BIN_DIR)
 	cd plugin && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
 
@@ -422,27 +429,27 @@ test-e2e-dev: ## Run cloud e2e tests against the dev environment
 
 # ── Test ─────────────────────────────────────────────────────────────────────
 
-test: ## Run all platform tests
+test: i18n-catalogs ## Run all platform tests
 	cd core && $(GOTEST_BASE) ./... -count=1
 	cd plugin && $(GOTEST_BASE) ./... -count=1
 	$(GOTEST_BASE) ./... -count=1
 
-test-fast: ## Run all platform tests with caching
+test-fast: i18n-catalogs ## Run all platform tests with caching
 	cd core && $(GOTEST_BASE) ./...
 	cd plugin && $(GOTEST_BASE) ./...
 	$(GOTEST_BASE) ./...
 
-test-unit: ## Run platform unit tests only
+test-unit: i18n-catalogs ## Run platform unit tests only
 	cd core && $(GOTEST_BASE) ./... -count=1 -short
 	cd plugin && $(GOTEST_BASE) ./... -count=1 -short
 	$(GOTEST_BASE) ./... -count=1 -short
 
-test-race: ## Run platform tests with race detector
+test-race: i18n-catalogs ## Run platform tests with race detector
 	cd core && $(GOTEST) -race -shuffle=on ./... -count=1
 	cd plugin && $(GOTEST) -race -shuffle=on ./... -count=1
 	$(GOTEST) -race -shuffle=on ./... -count=1
 
-test-verbose: ## Run platform tests with verbose output
+test-verbose: i18n-catalogs ## Run platform tests with verbose output
 	cd core && $(GOTEST_BASE) ./... -count=1 -v
 	cd plugin && $(GOTEST_BASE) ./... -count=1 -v
 	$(GOTEST_BASE) ./... -count=1 -v
@@ -450,7 +457,7 @@ test-verbose: ## Run platform tests with verbose output
 test-integration: ## Run the platform's //go:build integration lane (Postgres-backed cross-store suites)
 	@bash ../scripts/test-integration.sh $(_RACE) $(_SHUFFLE)
 
-test-platform: ## Run platform core module tests only
+test-platform: i18n-catalogs ## Run platform core module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
 	cd core && $(GOTEST_BASE) $(call cov,$(COVER_DIR)/platform.out) $(_SHORT) -json ./... > ../test-results-platform.json
@@ -458,7 +465,7 @@ else
 	cd core && $(GOTEST_BASE) ./... -count=1
 endif
 
-test-bowrain-plugin: ## Run bowrain plugin tests (bowrain/plugin + bowrain/plugin/schema, separate go.mod)
+test-bowrain-plugin: i18n-catalogs ## Run bowrain plugin tests (bowrain/plugin + bowrain/plugin/schema, separate go.mod)
 	@mkdir -p $(COVER_DIR)
 ifdef CI
 	cd plugin && $(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain-plugin.out) $(_SHORT) -json ./... > ../test-results-bowrain-plugin.json
@@ -468,7 +475,7 @@ else
 	cd plugin/schema && $(GOTEST_BASE) ./... -count=1
 endif
 
-test-bowrain: ## Run bowrain module tests only
+test-bowrain: i18n-catalogs ## Run bowrain module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
 	$(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain.out) $(_SHORT) -json $$($(GO) list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json
@@ -478,7 +485,7 @@ endif
 
 # ── Coverage ─────────────────────────────────────────────────────────────────
 
-cover: ## Run platform tests with coverage
+cover: i18n-catalogs ## Run platform tests with coverage
 	@mkdir -p $(COVER_DIR)
 	cd core && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/platform.out $(_COVMODE) ./... -count=1
 	cd plugin && $(GOTEST_BASE) -coverprofile=$(COVER_DIR)/bowrain-plugin.out $(_COVMODE) ./... -count=1
@@ -493,12 +500,12 @@ cover: ## Run platform tests with coverage
 fmt: ## Format Go source files
 	$(GOFMT) -w -s .
 
-vet: ## Run go vet
+vet: i18n-catalogs ## Run go vet
 	cd core && $(GOVET) ./...
 	cd plugin && $(GOVET) ./...
 	$(GOVET) ./...
 
-lint: ## Run golangci-lint
+lint: i18n-catalogs ## Run golangci-lint
 ifdef GOLANGCI_LINT
 	cd core && $(GOLANGCI_LINT) run ./...
 	cd plugin && $(GOLANGCI_LINT) run ./...
