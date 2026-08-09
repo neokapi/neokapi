@@ -945,6 +945,35 @@ export interface MemoryUpdateRequest {
   target_locale: string;
 }
 
+/** One id's outcome in a bulk delete: `error` is empty exactly when `deleted`. */
+export interface BulkDeleteEntryResult {
+  id: string;
+  deleted: boolean;
+  error?: string;
+}
+
+/**
+ * A bulk delete's per-id outcomes plus the totals. The call succeeds as a
+ * whole even when individual ids fail, so one missing row does not strand the
+ * selection. Duplicate ids are reported once. At most 500 ids per batch.
+ */
+export interface BulkDeleteResult {
+  results: BulkDeleteEntryResult[];
+  deleted: number;
+  failed: number;
+}
+
+/**
+ * The 409 a governed batch is refused with — deleting a concept is a change
+ * the graph records, so it goes through a change-set rather than a delete.
+ * `hint` names the route that opens one.
+ */
+export interface GovernedRefusal {
+  error: string;
+  detail: string;
+  hint: string;
+}
+
 /** content-memory match for a single block */
 export interface MemoryMatchInfo {
   source: string;
@@ -1174,6 +1203,16 @@ export interface AutomationHistoryEntry {
   error: string;
   started_at: string;
   ended_at: string;
+}
+
+/**
+ * One page of automation execution history, newest first. The cursor is the
+ * (started_at, id) tuple the server encodes — opaque to callers — and is
+ * absent on the last page.
+ */
+export interface AutomationHistoryPage {
+  entries: AutomationHistoryEntry[];
+  next_cursor?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -1448,6 +1487,131 @@ export interface PendingReviewPage {
   offset: number;
 }
 
+// ---------------------------------------------------------------------------
+// Editor block queries, counts and batches (server handlers_editor.go,
+// handlers_editor_bulk.go)
+// ---------------------------------------------------------------------------
+
+/** A block's per-locale progress bucket, as the server names it. */
+export type BlockStatusBucket = "not-started" | "draft" | "translated" | "reviewed";
+
+/**
+ * Server-side filters for one page of a project's blocks (GET
+ * …/blocks/:ref). `status` partitions the blocks for `locale` and is rejected
+ * without one; `q` is a case-insensitive substring over the source and that
+ * locale's target.
+ */
+export interface BlockQueryOptions {
+  locale?: string;
+  status?: BlockStatusBucket;
+  q?: string;
+  translatable?: boolean;
+  limit?: number;
+  offset?: number;
+}
+
+/** The four progress buckets, keyed as the server keys them. */
+export interface BlockStatusCounts {
+  "not-started": number;
+  draft: number;
+  translated: number;
+  reviewed: number;
+}
+
+/**
+ * A block query's totals and status histogram, answered without shipping a
+ * block (GET …/blocks/:ref/counts). `status` partitions `translatable` for the
+ * requested locale; with no locale every bucket is zero.
+ */
+export interface BlockCounts {
+  total: number;
+  translatable: number;
+  locale?: string;
+  status: BlockStatusCounts;
+}
+
+/**
+ * One item's metadata and block tallies (GET …/items/:ref/one). Word count is
+ * not part of it — …/word-count/:ref answers that.
+ */
+export interface ItemInfo {
+  id: string;
+  name: string;
+  format: string;
+  type: string;
+  collection_id?: string;
+  block_count: number;
+  translatable: number;
+}
+
+/**
+ * One review decision applied to a selection of blocks (POST
+ * …/blocks/:ref/bulk-review). `status` picks the demotion rung when `approve`
+ * is false — "translated" (the default) or "draft", a rejection that re-opens
+ * the work — and is rejected alongside an approval.
+ */
+export interface BulkReviewBlocksRequest {
+  project_id: string;
+  stream?: string;
+  block_ids: string[];
+  target_locale: string;
+  approve: boolean;
+  status?: "translated" | "draft";
+  comment?: string;
+  item_name?: string;
+}
+
+/** One block's outcome inside a batch: `error` is empty exactly when `ok`. */
+export interface BulkBlockResult {
+  block_id: string;
+  ok: boolean;
+  status?: string;
+  error?: string;
+}
+
+/**
+ * The outcome of a bulk review. `review_completed` is true when the approvals
+ * emptied the project's whole review queue.
+ */
+export interface BulkReviewBlocksResult {
+  results: BulkBlockResult[];
+  succeeded: number;
+  failed: number;
+  review_completed: boolean;
+}
+
+/**
+ * The best content-memory match written into a selection of blocks (POST
+ * …/blocks/:ref/bulk-apply-memory). An absent `threshold` takes the server
+ * default of 1 — an exact match.
+ */
+export interface BulkApplyMemoryRequest {
+  project_id: string;
+  stream?: string;
+  block_ids: string[];
+  target_locale: string;
+  threshold?: number;
+}
+
+/** A block that took a match, and what it took. */
+export interface AppliedMemory {
+  block_id: string;
+  text: string;
+  score: number;
+}
+
+/** A block that took nothing, and why. */
+export interface SkippedMemory {
+  block_id: string;
+  reason: string;
+}
+
+/** The outcome of a bulk content-memory apply. */
+export interface BulkApplyMemoryResult {
+  applied: AppliedMemory[];
+  skipped: SkippedMemory[];
+}
+
 export interface TaskInfo {
   id: string;
   workspace_id: string;
@@ -1466,6 +1630,31 @@ export interface TaskInfo {
   created_at: string;
   updated_at: string;
   completed_at?: string;
+}
+
+/**
+ * Server-side task filters. The plural forms are sets matched exactly and win
+ * over their singular counterparts; `assignee_id: "me"` resolves to the caller.
+ */
+export interface TaskQuery {
+  project_id?: string;
+  assignee_id?: string;
+  status?: string;
+  statuses?: string[];
+  type?: string;
+  types?: string[];
+  priority?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+/**
+ * A task filter's totals, counted over the whole set rather than a page
+ * (GET /:ws/tasks/counts). `by_status` is zero-filled with every known status.
+ */
+export interface TaskCounts {
+  by_status: Record<string, number>;
+  total: number;
 }
 
 /** Create task request */
@@ -1790,6 +1979,34 @@ export interface CreditLedgerEntry {
   createdAt: string;
 }
 
+/** The window, page and operation filter for the credit ledger. */
+export interface CreditLedgerQuery {
+  /** RFC3339; defaults to the start of the current month. */
+  from?: string;
+  /** RFC3339; defaults to now. */
+  to?: string;
+  /** Page size; the server defaults to 50 and caps at 500. */
+  limit?: number;
+  offset?: number;
+  /** Exact operation match; absent means every operation. */
+  operation?: string;
+}
+
+/**
+ * One page of the credit ledger plus the totals for the whole window.
+ * `usage_by_operation` is summed in SQL over the window, not over the page, so
+ * it stays correct however small the page is.
+ */
+export interface CreditLedgerPage {
+  entries: CreditLedgerEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+  usage_by_operation: Record<string, number>;
+  from: string;
+  to: string;
+}
+
 /** Usage breakdown by operation type */
 export interface BillingUsageBreakdown {
   aiTranslation: number;
@@ -1943,6 +2160,17 @@ export interface ConnectorSyncStatus {
   pendingPull: number;
   pendingPush: number;
   errors: string[];
+}
+
+/**
+ * A whole panel's connector states in one read (`GET /:ws/connectors/status`).
+ * `statuses` is keyed by the connector id asked for; `unknown` names the ids
+ * neither the live service nor the config store could answer — a probe that
+ * failed with no stored state to degrade to.
+ */
+export interface ConnectorStatusBatch {
+  statuses: Record<string, ConnectorSyncStatus>;
+  unknown: string[];
 }
 
 /**
@@ -2131,6 +2359,40 @@ export interface BrandScanJob {
   error?: string;
   /** Present only when status is "completed". */
   draft?: BrandScanDraft;
+}
+
+/** One candidate term a reviewer kept, on approval. */
+export interface BrandScanApprovedTerm {
+  term: string;
+  definition?: string;
+  domain?: string;
+  /** Falls back to the request's `locale`, then to "en". */
+  locale?: string;
+}
+
+/**
+ * The reviewed outcome of a brand scan: the edited draft profile and the
+ * candidate terms that survived review, applied in one transaction.
+ */
+export interface BrandScanApproveRequest {
+  profile: VoiceProfile;
+  terms?: BrandScanApprovedTerm[];
+  /** Locale approved terms are created in when a term does not name its own. */
+  locale?: string;
+}
+
+/**
+ * What an approval applied: the stored profile and which action produced it,
+ * plus the concepts created and the ones already there. Terms are created at
+ * status "proposed", and only where no concept already carries them in that
+ * locale — so a retry after a partial application is safe.
+ */
+export interface BrandScanApproveResult {
+  profile: VoiceProfile;
+  profile_action: "created" | "updated" | "unchanged";
+  concepts_created: number;
+  concepts_existing: number;
+  concept_ids: string[];
 }
 
 /** Result of the stateless draft check (live tester). */

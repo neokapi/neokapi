@@ -45,7 +45,7 @@ interface AutomationHistoryProps {
 export function AutomationHistory({ workspaceSlug, projectId, ruleNames }: AutomationHistoryProps) {
   const api = useApi();
   const {
-    data: entries,
+    data: page,
     isLoading,
     error,
   } = useQuery({
@@ -66,7 +66,8 @@ export function AutomationHistory({ workspaceSlug, projectId, ruleNames }: Autom
     );
   }
 
-  if (!entries || entries.length === 0) {
+  const entries = page?.entries ?? [];
+  if (entries.length === 0) {
     return (
       <div className="py-8 text-center text-sm text-muted-foreground">
         No executions yet. Rules will appear here when triggered.

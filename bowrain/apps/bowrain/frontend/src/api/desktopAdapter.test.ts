@@ -9,6 +9,7 @@ const backend = vi.hoisted(() => ({
   ProxyMultipart: vi.fn(),
   Logout: vi.fn(),
   GetItemBlocks: vi.fn(),
+  QueryItemBlocks: vi.fn(),
   GetProject: vi.fn(),
   CreateProject: vi.fn(),
   CloseProject: vi.fn(),
@@ -23,13 +24,21 @@ describe("createDesktopAdapter (composite)", () => {
   });
 
   it("serves a local-first method from its Wails binding, bypassing the proxy", async () => {
-    backend.GetItemBlocks.mockResolvedValue([{ id: "b1" }]);
+    backend.QueryItemBlocks.mockResolvedValue([{ id: "b1" }]);
     const api = createDesktopAdapter();
 
     const blocks = await api.getFileBlocks("acme", "proj-1", "about.json");
 
-    // getFileBlocks is LOCAL_FIRST → WailsApiAdapter → Backend.GetItemBlocks.
-    expect(backend.GetItemBlocks).toHaveBeenCalledWith("proj-1", "about.json");
+    // getFileBlocks is LOCAL_FIRST → WailsApiAdapter → Backend.QueryItemBlocks,
+    // which takes the block filter the server-side page applies.
+    expect(backend.QueryItemBlocks).toHaveBeenCalledWith("proj-1", "about.json", {
+      locale: "",
+      status: "",
+      q: "",
+      translatable: null,
+      limit: 0,
+      offset: 0,
+    });
     expect(backend.ProxyRequest).not.toHaveBeenCalled();
     expect(blocks).toEqual([{ id: "b1" }]);
   });
@@ -46,7 +55,7 @@ describe("createDesktopAdapter (composite)", () => {
     const config = await api.getConfig();
 
     expect(backend.ProxyRequest).toHaveBeenCalledWith("GET", "/api/v1/info", "");
-    expect(backend.GetItemBlocks).not.toHaveBeenCalled();
+    expect(backend.QueryItemBlocks).not.toHaveBeenCalled();
     expect(config).toMatchObject({ mode: "server" });
   });
 

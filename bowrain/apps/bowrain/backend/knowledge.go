@@ -73,8 +73,11 @@ type ListConceptsArgs struct {
 	Source    string `json:"source,omitempty"`
 	Stream    string `json:"stream,omitempty"`
 	ProjectID string `json:"project_id,omitempty"`
-	Offset    int    `json:"offset,omitempty"`
-	Limit     int    `json:"limit,omitempty"`
+	// Sort takes "updated_at" to page the workspace newest-changed first;
+	// empty leaves the server's relevance ordering in force.
+	Sort   string `json:"sort,omitempty"`
+	Offset int    `json:"offset,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
 }
 
 // AddConceptRelationArgs is the body of POST /concepts/:cid/relations.
@@ -133,6 +136,9 @@ func (a *App) ListConcepts(workspaceSlug string, params ListConceptsArgs) (json.
 	if params.ProjectID != "" {
 		q.Set("project_id", params.ProjectID)
 	}
+	if params.Sort != "" {
+		q.Set("sort", params.Sort)
+	}
 	// Pair offset with an explicit limit so an unset (zero) limit doesn't cap
 	// the page to zero rows; let the server apply its default when no limit.
 	if params.Limit > 0 {
@@ -140,6 +146,19 @@ func (a *App) ListConcepts(workspaceSlug string, params ListConceptsArgs) (json.
 		q.Set("limit", strconv.Itoa(params.Limit))
 	}
 	return a.govRaw(http.MethodGet, withQuery(conceptsPath(workspaceSlug), q), nil)
+}
+
+// ConceptStatusCounts returns the workspace vocabulary counted by term
+// lifecycle status. A concept counts under every status one of its terms
+// carries, so the buckets overlap and do not sum to the total.
+func (a *App) ConceptStatusCounts(workspaceSlug string) (json.RawMessage, error) {
+	return a.govRaw(http.MethodGet, conceptsPath(workspaceSlug)+"/status-counts", nil)
+}
+
+// ConceptLocaleCoverage returns per-locale concept coverage over the whole
+// workspace, most complete locale first.
+func (a *App) ConceptLocaleCoverage(workspaceSlug string) (json.RawMessage, error) {
+	return a.govRaw(http.MethodGet, conceptsPath(workspaceSlug)+"/locale-coverage", nil)
 }
 
 // GetConcept returns a single concept by id.
@@ -310,6 +329,12 @@ func (a *App) ListChangesets(workspaceSlug, status string) (json.RawMessage, err
 	return a.govRaw(http.MethodGet, withQuery(changesetsPath(workspaceSlug), q), nil)
 }
 
+// ChangesetCounts returns the workspace's change-sets bucketed by lifecycle
+// status.
+func (a *App) ChangesetCounts(workspaceSlug string) (json.RawMessage, error) {
+	return a.govRaw(http.MethodGet, changesetsPath(workspaceSlug)+"/counts", nil)
+}
+
 // GetChangeset returns a single change-set with its ops, reviews, and pilots.
 func (a *App) GetChangeset(workspaceSlug, changesetID string) (json.RawMessage, error) {
 	return a.govRaw(http.MethodGet, changesetPath(workspaceSlug, changesetID), nil)
@@ -364,6 +389,13 @@ func (a *App) AbandonChangeset(workspaceSlug, changesetID string) (json.RawMessa
 // GetChangesetBlastRadius returns the impact of a change-set over stored content.
 func (a *App) GetChangesetBlastRadius(workspaceSlug, changesetID string) (json.RawMessage, error) {
 	return a.govRaw(http.MethodGet, changesetPath(workspaceSlug, changesetID)+"/blast-radius", nil)
+}
+
+// RefreshChangesetBlastRadius walks a change-set's blast radius now, ignoring
+// any stored summary. Nothing is persisted.
+func (a *App) RefreshChangesetBlastRadius(workspaceSlug, changesetID string) (json.RawMessage, error) {
+	path := changesetPath(workspaceSlug, changesetID) + "/blast-radius"
+	return a.govRaw(http.MethodGet, withQuery(path, url.Values{"fresh": []string{"1"}}), nil)
 }
 
 // AddPilot binds a change-set to a project's content stream.

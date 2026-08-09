@@ -636,6 +636,27 @@ export type {
   ModelSweepMeasurement,
   ModelSweepLocaleGroup,
   ModelRecommendationsResponse,
+  BlockStatusBucket,
+  BlockQueryOptions,
+  BlockStatusCounts,
+  BlockCounts,
+  ItemInfo,
+  BulkReviewBlocksRequest,
+  BulkBlockResult,
+  BulkReviewBlocksResult,
+  BulkApplyMemoryRequest,
+  AppliedMemory,
+  SkippedMemory,
+  BulkApplyMemoryResult,
+  BulkDeleteEntryResult,
+  BulkDeleteResult,
+  GovernedRefusal,
+  ConnectorStatusBatch,
+  AutomationHistoryPage,
+  TaskQuery,
+  TaskCounts,
+  CreditLedgerQuery,
+  CreditLedgerPage,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 
@@ -761,6 +782,9 @@ export type {
   BrandScanStatus,
   BrandScanJob,
   BrandScanCheckResult,
+  BrandScanApprovedTerm,
+  BrandScanApproveRequest,
+  BrandScanApproveResult,
 } from "./types/api";
 
 // Brand knowledge graph (AD-021) — concepts, graph, markets, change-sets
@@ -926,6 +950,12 @@ export type {
   ReviewRequest,
   StartPilotRequest,
   ListConceptsParams,
+  ConceptSort,
+  ConceptStatusCounts,
+  LocaleCoverage,
+  LocaleCoverageReport,
+  ChangeSetCounts,
+  ImpactSummary,
   RelationScope,
 } from "./types/brand-graph";
 

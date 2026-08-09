@@ -1,5 +1,4 @@
 import type { ApiAdapter } from "@neokapi/ui";
-import { rollupEntry } from "@neokapi/ui";
 import type {
   ConvergenceRun,
   ConvergenceEstimate,
@@ -46,7 +45,6 @@ import type {
   FileQAResult,
   AutomationRule,
   AutomationEvent,
-  AutomationHistoryEntry,
   SaveAutomationRuleRequest,
   NotificationInfo,
   EntityInfo,
@@ -137,6 +135,24 @@ import type {
   BrandScanJob,
   BrandScanCheckResult,
   ContextProfilesResponse,
+  BlockQueryOptions,
+  BlockCounts,
+  ItemInfo,
+  BulkReviewBlocksRequest,
+  BulkReviewBlocksResult,
+  BulkApplyMemoryRequest,
+  BulkApplyMemoryResult,
+  BulkDeleteResult,
+  ConnectorStatusBatch,
+  AutomationHistoryPage,
+  TaskQuery,
+  TaskCounts,
+  CreditLedgerQuery,
+  CreditLedgerPage,
+  BrandScanApproveResult,
+  ConceptStatusCounts,
+  LocaleCoverageReport,
+  ChangeSetCounts,
 } from "@neokapi/ui";
 
 import { codedToRuns } from "./codedToRuns";
@@ -597,6 +613,22 @@ export class WailsApiAdapter implements ApiAdapter {
     };
   }
 
+  // The desktop's connectors are local, so the batch is the per-connector read
+  // run over the selection; an id the local surface cannot answer is unknown,
+  // exactly as the server reports one.
+  async getConnectorStatuses(ws: string, connectorIds: string[]): Promise<ConnectorStatusBatch> {
+    const statuses: Record<string, ConnectorSyncStatus> = {};
+    const unknown: string[] = [];
+    for (const id of connectorIds) {
+      try {
+        statuses[id] = await this.getConnectorStatus(ws, id);
+      } catch {
+        unknown.push(id);
+      }
+    }
+    return { statuses, unknown };
+  }
+
   async fetchConnector(
     _ws: string,
     connectorId: string,
@@ -655,8 +687,65 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Editor ---
-  async getFileBlocks(_ws: string, projectId: string, fileName: string): Promise<BlockInfo[]> {
-    return Backend.GetItemBlocks(projectId, fileName) as Promise<BlockInfo[]>;
+  async getFileBlocks(
+    _ws: string,
+    projectId: string,
+    fileName: string,
+    _stream?: string,
+    opts?: BlockQueryOptions,
+  ): Promise<BlockInfo[]> {
+    return Backend.QueryItemBlocks(projectId, fileName, {
+      locale: opts?.locale ?? "",
+      status: opts?.status ?? "",
+      q: opts?.q ?? "",
+      translatable: opts?.translatable ?? null,
+      limit: opts?.limit ?? 0,
+      offset: opts?.offset ?? 0,
+    }) as Promise<BlockInfo[]>;
+  }
+
+  async getBlockCounts(
+    _ws: string,
+    projectId: string,
+    item?: string,
+    locale?: string,
+    _stream?: string,
+    opts?: { q?: string; translatable?: boolean },
+  ): Promise<BlockCounts> {
+    return Backend.GetBlockCounts(projectId, item ?? "", {
+      locale: locale ?? "",
+      status: "",
+      q: opts?.q ?? "",
+      translatable: opts?.translatable ?? null,
+      limit: 0,
+      offset: 0,
+    }) as Promise<BlockCounts>;
+  }
+
+  async getItem(_ws: string, projectId: string, itemName: string): Promise<ItemInfo> {
+    return Backend.GetItem(projectId, itemName) as Promise<ItemInfo>;
+  }
+
+  async bulkReviewBlocks(
+    _ws: string,
+    req: BulkReviewBlocksRequest,
+  ): Promise<BulkReviewBlocksResult> {
+    return Backend.BulkReviewBlocks(req.project_id, {
+      block_ids: req.block_ids,
+      target_locale: req.target_locale,
+      approve: req.approve,
+      status: req.status ?? "",
+      comment: req.comment ?? "",
+      item_name: req.item_name ?? "",
+    }) as Promise<BulkReviewBlocksResult>;
+  }
+
+  async bulkApplyMemory(_ws: string, req: BulkApplyMemoryRequest): Promise<BulkApplyMemoryResult> {
+    return Backend.BulkApplyMemory(req.project_id, {
+      block_ids: req.block_ids,
+      target_locale: req.target_locale,
+      threshold: req.threshold ?? 0,
+    }) as Promise<BulkApplyMemoryResult>;
   }
   async getPendingReview(
     _ws: string,
@@ -824,6 +913,21 @@ export class WailsApiAdapter implements ApiAdapter {
   async deleteMemoryEntry(_ws: string, entryId: string): Promise<void> {
     return Backend.DeleteMemoryEntry("", entryId);
   }
+  // The desktop deletes memory entries one at a time, so the batch reports each
+  // id's own outcome rather than failing the whole selection.
+  async bulkDeleteMemoryEntries(ws: string, entryIds: string[]): Promise<BulkDeleteResult> {
+    const results: BulkDeleteResult["results"] = [];
+    for (const id of entryIds) {
+      try {
+        await this.deleteMemoryEntry(ws, id);
+        results.push({ id, deleted: true });
+      } catch (err) {
+        results.push({ id, deleted: false, error: (err as Error).message });
+      }
+    }
+    const deleted = results.filter((r) => r.deleted).length;
+    return { results, deleted, failed: results.length - deleted };
+  }
 
   // --- Terminology ---
   async getTerms(
@@ -851,6 +955,11 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async updateConcept(_ws: string, req: UpdateConceptRequest): Promise<void> {
     return Backend.UpdateConcept(req);
+  }
+  // Deleting a concept is a governed transition, refused the same way the
+  // server refuses it — a multi-select learns it once, not once per row.
+  async bulkDeleteConcepts(_ws: string, _conceptIds: string[]): Promise<never> {
+    throw new Error("governed change requires a change-set");
   }
   async deleteConcept(_ws: string, conceptId: string): Promise<void> {
     return Backend.DeleteConcept("", conceptId);
@@ -1104,8 +1213,8 @@ export class WailsApiAdapter implements ApiAdapter {
   async listAutomationEvents(_ws: string, _projectId: string): Promise<AutomationEvent[]> {
     return [];
   }
-  async listAutomationHistory(_ws: string, _projectId: string): Promise<AutomationHistoryEntry[]> {
-    return [];
+  async listAutomationHistory(_ws: string, _projectId: string): Promise<AutomationHistoryPage> {
+    return { entries: [] };
   }
 
   // --- Automation Runs (Bowrain AD-013, not yet supported in desktop) ---
@@ -1266,31 +1375,18 @@ export class WailsApiAdapter implements ApiAdapter {
     return Backend.GetBrandTrends(workspaceSlug, projectId) as Promise<ScoreTrend[]>;
   }
   async getBrandRollup(workspaceSlug: string, opts?: BrandRollupOptions): Promise<BrandRollup> {
-    // The desktop has no server rollup endpoint to proxy, so it composes the same
-    // per-project brand reads it already exposes (scores + drift) and folds them
-    // with the shared rollupEntry aggregation. Effective-profile resolution is a
-    // server-side ladder, so the profile column stays blank on desktop.
-    const all = await this.listProjects();
-    const sorted = [...all].sort(
-      (a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id),
-    );
-    const offset = Math.max(0, opts?.offset ?? 0);
-    const limit = Math.max(1, Math.min(opts?.limit ?? 50, 200));
-    const page = sorted.slice(offset, offset + limit);
-    const driftOpts =
-      opts?.recentDays || opts?.minScore || opts?.dropPoints
-        ? { recentDays: opts.recentDays, minScore: opts.minScore, dropPoints: opts.dropPoints }
-        : undefined;
-    const projects = await Promise.all(
-      page.map(async (p) => {
-        const [scores, drift] = await Promise.all([
-          this.getBrandScores(workspaceSlug, p.id).catch(() => [] as StoredScore[]),
-          this.getBrandDrift(workspaceSlug, p.id, driftOpts).catch(() => undefined),
-        ]);
-        return rollupEntry({ id: p.id, name: p.name, scores, drift });
-      }),
-    );
-    return { projects, total: sorted.length, limit, offset };
+    // The rollup is the server's aggregation: the effective profile comes from
+    // a resolution ladder only the server can walk. Offline the backend answers
+    // the empty rollup marked offline rather than a locally composed board.
+    const out = (await Backend.GetBrandRollup(workspaceSlug, {
+      limit: opts?.limit ?? 0,
+      offset: opts?.offset ?? 0,
+      recentDays: opts?.recentDays ?? 0,
+      minScore: opts?.minScore ?? 0,
+      dropPoints: opts?.dropPoints ?? 0,
+      days: 0,
+    })) as BrandRollup;
+    return { projects: out.projects ?? [], total: out.total, limit: out.limit, offset: out.offset };
   }
   async listStarterPacks(): Promise<{ name: string; description: string }[]> {
     return Backend.ListStarterPacks() as Promise<{ name: string; description: string }[]>;
@@ -1384,6 +1480,10 @@ export class WailsApiAdapter implements ApiAdapter {
     throw new Error("not implemented in desktop app");
   }
 
+  async approveBrandScan(): Promise<BrandScanApproveResult> {
+    throw new Error("not implemented in desktop app");
+  }
+
   async checkBrandDraft(
     _ws: string,
     _profile: VoiceProfile,
@@ -1400,6 +1500,7 @@ export class WailsApiAdapter implements ApiAdapter {
       stream?: string;
       actor_id?: string;
       type?: string;
+      types?: string[];
       cursor?: string;
       limit?: number;
     },
@@ -1456,17 +1557,12 @@ export class WailsApiAdapter implements ApiAdapter {
   // --- Tasks (Bowrain AD-014, not yet supported in desktop) ---
   async listTasks(
     _ws: string,
-    _query?: {
-      project_id?: string;
-      assignee_id?: string;
-      status?: string;
-      type?: string;
-      priority?: string;
-      cursor?: string;
-      limit?: number;
-    },
+    _query?: TaskQuery,
   ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
     return { tasks: [], next_cursor: "" };
+  }
+  async getTaskCounts(_ws: string, _query?: TaskQuery): Promise<TaskCounts> {
+    return { by_status: { open: 0, in_progress: 0, completed: 0, cancelled: 0 }, total: 0 };
   }
   async createTask(_ws: string, _task: CreateTaskRequest): Promise<TaskInfo> {
     throw new Error("Tasks not yet supported in desktop mode");
@@ -1635,8 +1731,24 @@ export class WailsApiAdapter implements ApiAdapter {
   async billingCreatePortal(_ws: string, _returnUrl: string): Promise<{ url: string }> {
     throw new Error("not implemented in desktop app");
   }
-  async billingGetLedger(_ws: string, _from?: string, _to?: string): Promise<CreditLedgerEntry[]> {
+  async billingGetLedger(
+    _ws: string,
+    _from?: string,
+    _to?: string,
+    _opts?: { limit?: number; offset?: number; operation?: string },
+  ): Promise<CreditLedgerEntry[]> {
     return [];
+  }
+  async billingGetLedgerPage(_ws: string, query?: CreditLedgerQuery): Promise<CreditLedgerPage> {
+    return {
+      entries: [],
+      total: 0,
+      limit: query?.limit ?? 0,
+      offset: query?.offset ?? 0,
+      usage_by_operation: {},
+      from: query?.from ?? "",
+      to: query?.to ?? "",
+    };
   }
 
   // --- Brand knowledge graph (AD-021) ---
@@ -1652,6 +1764,12 @@ export class WailsApiAdapter implements ApiAdapter {
     params?: ListConceptsParams,
   ): Promise<TermSearchResult> {
     return Backend.ListConcepts(workspaceSlug, params ?? {}) as Promise<TermSearchResult>;
+  }
+  async getConceptStatusCounts(workspaceSlug: string): Promise<ConceptStatusCounts> {
+    return Backend.ConceptStatusCounts(workspaceSlug) as Promise<ConceptStatusCounts>;
+  }
+  async getConceptLocaleCoverage(workspaceSlug: string): Promise<LocaleCoverageReport> {
+    return Backend.ConceptLocaleCoverage(workspaceSlug) as Promise<LocaleCoverageReport>;
   }
   async getConcept(workspaceSlug: string, conceptId: string): Promise<ConceptInfo> {
     return Backend.GetConcept(workspaceSlug, conceptId) as Promise<ConceptInfo>;
@@ -1750,6 +1868,9 @@ export class WailsApiAdapter implements ApiAdapter {
   async listChangesets(workspaceSlug: string, status?: ChangeSetStatus): Promise<ChangeSet[]> {
     return Backend.ListChangesets(workspaceSlug, status ?? "") as Promise<ChangeSet[]>;
   }
+  async getChangesetCounts(workspaceSlug: string): Promise<ChangeSetCounts> {
+    return Backend.ChangesetCounts(workspaceSlug) as Promise<ChangeSetCounts>;
+  }
   async getChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSetDetail> {
     return Backend.GetChangeset(workspaceSlug, changesetId) as Promise<ChangeSetDetail>;
   }
@@ -1801,6 +1922,15 @@ export class WailsApiAdapter implements ApiAdapter {
     changesetId: string,
   ): Promise<ChangeSetImpact> {
     return Backend.GetChangesetBlastRadius(workspaceSlug, changesetId) as Promise<ChangeSetImpact>;
+  }
+  async refreshChangesetBlastRadius(
+    workspaceSlug: string,
+    changesetId: string,
+  ): Promise<ChangeSetImpact> {
+    return Backend.RefreshChangesetBlastRadius(
+      workspaceSlug,
+      changesetId,
+    ) as Promise<ChangeSetImpact>;
   }
   async addPilot(
     workspaceSlug: string,

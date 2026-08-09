@@ -420,6 +420,14 @@ export interface ChangeSet {
   submitted_at?: string;
   merged_at?: string;
   merged_by?: string;
+  /**
+   * How many ops the change-set holds, so a list row reports "N changes"
+   * without reading each change-set's ops. The list route counts it; the
+   * single-change-set read leaves it absent and carries `ops` instead.
+   */
+  ops_count?: number;
+  /** The blast-radius totals stored when the change-set was submitted. */
+  impact_summary?: ImpactSummary;
 }
 
 /** A reviewer's verdict on a change-set (knowledge.ChangeSetReview). */
@@ -518,22 +526,49 @@ export interface ProjectImpact {
   collections: CollectionImpact[];
 }
 
-/** The blast radius of a change-set over stored content (knowledge.ChangeSetImpact). */
+/**
+ * The blast radius of a change-set over stored content
+ * (knowledge.ChangeSetImpact). Two readings answer this shape: a live walk,
+ * and the summary stored when the change-set was submitted. The stored one
+ * carries the totals only — `projects` and `samples` are null — so a caller
+ * that needs the breakdown asks for a fresh walk.
+ */
 export interface ChangeSetImpact {
   total_blocks: number;
   affected_blocks: number;
   new_violations: number;
   resolved: number;
   words: number;
-  projects: ProjectImpact[];
-  samples: BlockSample[];
+  projects: ProjectImpact[] | null;
+  samples: BlockSample[] | null;
   /**
    * The walk stopped before it had seen the whole workspace, so every count
-   * above is a floor and not a total. Present only when true.
+   * above is a floor and not a total, and a project missing from the
+   * breakdown was not reached rather than unaffected. Present only when true.
    */
   partial?: boolean;
   /** Why the walk stopped. */
   partial_reason?: string;
+  /** This report is the stored summary, not a walk run for the request. */
+  stored?: boolean;
+  /** When the stored summary was computed. Absent on a live walk. */
+  computed_at?: string;
+}
+
+/**
+ * The stored totals a change-set carries on its header
+ * (knowledge.ImpactSummary). `projects` is a count here, not a breakdown.
+ */
+export interface ImpactSummary {
+  total_blocks: number;
+  affected_blocks: number;
+  new_violations: number;
+  resolved: number;
+  words: number;
+  projects: number;
+  partial?: boolean;
+  partial_reason?: string;
+  computed_at: string;
 }
 
 /** The per-(stream, locale) leaf of a concept usage report (knowledge.LocaleUsage). */
@@ -686,6 +721,54 @@ export interface ListConceptsParams {
   project_id?: string;
   offset?: number;
   limit?: number;
+  /**
+   * The one ordering the list accepts: most recently updated first. Absent
+   * leaves the server's relevance ordering in force; any other value is a 400.
+   */
+  sort?: ConceptSort;
+}
+
+/** The orderings GET /concepts accepts. */
+export type ConceptSort = "updated_at";
+
+/**
+ * The workspace vocabulary counted by term lifecycle status
+ * (GET /concepts/status-counts). Every known status is present, zero included.
+ * A concept counts under every status one of its terms carries, so the buckets
+ * overlap and do not sum to `total`.
+ */
+export interface ConceptStatusCounts {
+  total: number;
+  by_status: Record<string, number>;
+}
+
+/** One locale's share of the workspace's concepts (terms.LocaleCoverage). */
+export interface LocaleCoverage {
+  locale: string;
+  present: number;
+  total: number;
+  /** Integer percentage, 0-100. */
+  pct: number;
+}
+
+/**
+ * Per-locale concept coverage over the whole workspace, most complete locale
+ * first (GET /concepts/locale-coverage).
+ */
+export interface LocaleCoverageReport {
+  total: number;
+  locales: LocaleCoverage[];
+}
+
+/**
+ * The workspace's change-sets bucketed by lifecycle status
+ * (GET /changesets/counts). Every known status is present, zero included;
+ * `total` counts every change-set, including any status this build does not
+ * know, so it can exceed the sum of the buckets.
+ */
+export interface ChangeSetCounts {
+  total: number;
+  by_status: Record<string, number>;
 }
 
 /** Validity scope for relation reads (as_of RFC3339 + market). */

@@ -12,6 +12,8 @@
  * fields.
  */
 
+import type { GovernedRefusal } from "../types/api";
+
 /** Envelope keys that are part of the error contract, not detail payload. */
 const ENVELOPE_KEYS = new Set(["error", "message", "reference", "reference_id"]);
 
@@ -111,4 +113,17 @@ export function apiErrorFromResponse(
   const message = serverMessage ?? code ?? `${status}: ${bodyText}`;
 
   return new ApiError({ message, status, code, referenceId, details, body, bodyText });
+}
+
+/**
+ * The governed-refusal envelope when `err` is the 409 a governed batch is
+ * refused with — deleting concepts, which belongs in a change-set. Undefined
+ * for every other error, so a caller can fall through to ordinary handling.
+ */
+export function governedRefusal(err: unknown): GovernedRefusal | undefined {
+  if (!(err instanceof ApiError) || err.status !== 409) return undefined;
+  const detail = err.details?.detail;
+  const hint = err.details?.hint;
+  if (typeof detail !== "string" || typeof hint !== "string") return undefined;
+  return { error: err.code ?? err.message, detail, hint };
 }

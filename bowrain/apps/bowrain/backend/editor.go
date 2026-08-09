@@ -156,6 +156,339 @@ func (a *App) getItemBlocksLocal(projectID, itemName string) ([]BlockInfo, error
 	return blocks, nil
 }
 
+// EditorBlockFilter narrows a block page. Every field is optional: the zero
+// value pages an item's blocks unfiltered. Status names one per-locale bucket
+// and needs Locale, which also scopes the target side of Text.
+type EditorBlockFilter struct {
+	Locale       string `json:"locale,omitempty"`
+	Status       string `json:"status,omitempty"`
+	Text         string `json:"q,omitempty"`
+	Translatable *bool  `json:"translatable,omitempty"`
+	Limit        int    `json:"limit,omitempty"`
+	Offset       int    `json:"offset,omitempty"`
+}
+
+func (f EditorBlockFilter) remote(itemName string) apiclient.EditorBlockQuery {
+	return apiclient.EditorBlockQuery{
+		ItemName:     itemName,
+		Locale:       f.Locale,
+		Status:       f.Status,
+		Text:         f.Text,
+		Translatable: f.Translatable,
+		Limit:        f.Limit,
+		Offset:       f.Offset,
+	}
+}
+
+func (f EditorBlockFilter) local(projectID, itemName string) store.BlockQuery {
+	return store.BlockQuery{
+		ProjectID:    projectID,
+		Stream:       "main",
+		ItemName:     itemName,
+		TargetLocale: f.Locale,
+		Status:       f.Status,
+		Text:         f.Text,
+		Translatable: f.Translatable,
+		Limit:        f.Limit,
+		Offset:       f.Offset,
+	}
+}
+
+// QueryItemBlocks pages an item's blocks through the same filters the server
+// applies: server-side when connected, from the local store offline.
+func (a *App) QueryItemBlocks(projectID, itemName string, filter EditorBlockFilter) ([]BlockInfo, error) {
+	if a.isConnected() {
+		client, ws := a.editorRemote()
+		remote, err := client.QueryEditorBlocks(context.Background(), ws, projectID, filter.remote(itemName))
+		if err != nil {
+			a.goOffline()
+			return a.queryItemBlocksLocal(projectID, itemName, filter)
+		}
+		return editorBlocksToInfos(remote), nil
+	}
+	return a.queryItemBlocksLocal(projectID, itemName, filter)
+}
+
+func (a *App) queryItemBlocksLocal(projectID, itemName string, filter EditorBlockFilter) ([]BlockInfo, error) {
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	targetLocales := make([]string, len(proj.TargetLanguages))
+	for i, l := range proj.TargetLanguages {
+		targetLocales[i] = string(l)
+	}
+	stored, err := a.store.GetBlocks(ctx, filter.local(projectID, itemName))
+	if err != nil {
+		return nil, err
+	}
+	blocks := make([]BlockInfo, 0, len(stored))
+	for _, sb := range stored {
+		blocks = append(blocks, storedBlockToBlockInfo(sb, targetLocales))
+	}
+	return blocks, nil
+}
+
+// BlockStatusCountsView is the per-locale status histogram.
+type BlockStatusCountsView struct {
+	NotStarted int `json:"not-started"`
+	Draft      int `json:"draft"`
+	Translated int `json:"translated"`
+	Reviewed   int `json:"reviewed"`
+}
+
+// BlockCountsView is a block query's totals and histogram.
+type BlockCountsView struct {
+	Total        int                   `json:"total"`
+	Translatable int                   `json:"translatable"`
+	Locale       string                `json:"locale,omitempty"`
+	Status       BlockStatusCountsView `json:"status"`
+}
+
+// GetBlockCounts answers an item's progress with one aggregate query. The
+// filter's Status is ignored — the histogram is what the call reports.
+func (a *App) GetBlockCounts(projectID, itemName string, filter EditorBlockFilter) (*BlockCountsView, error) {
+	filter.Status = ""
+	if a.isConnected() {
+		client, ws := a.editorRemote()
+		counts, err := client.GetEditorBlockCounts(context.Background(), ws, projectID, filter.remote(itemName))
+		if err == nil {
+			return &BlockCountsView{
+				Total:        counts.Total,
+				Translatable: counts.Translatable,
+				Locale:       counts.Locale,
+				Status: BlockStatusCountsView{
+					NotStarted: counts.Status.NotStarted,
+					Draft:      counts.Status.Draft,
+					Translated: counts.Status.Translated,
+					Reviewed:   counts.Status.Reviewed,
+				},
+			}, nil
+		}
+		a.goOffline()
+	}
+	query := filter.local(projectID, itemName)
+	query.Limit, query.Offset = 0, 0
+	counts, err := a.store.CountBlocks(context.Background(), query)
+	if err != nil {
+		return nil, err
+	}
+	return &BlockCountsView{
+		Total:        counts.Total,
+		Translatable: counts.Translatable,
+		Locale:       filter.Locale,
+		Status: BlockStatusCountsView{
+			NotStarted: counts.NotStarted,
+			Draft:      counts.Draft,
+			Translated: counts.Translated,
+			Reviewed:   counts.Reviewed,
+		},
+	}, nil
+}
+
+// ItemView is one item's metadata and block tallies.
+type ItemView struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Format       string `json:"format"`
+	Type         string `json:"type"`
+	CollectionID string `json:"collection_id,omitempty"`
+	BlockCount   int    `json:"block_count"`
+	Translatable int    `json:"translatable"`
+}
+
+// GetItem returns one item's metadata without the project's whole item list.
+func (a *App) GetItem(projectID, itemName string) (*ItemView, error) {
+	if a.isConnected() {
+		client, ws := a.editorRemote()
+		item, err := client.GetEditorItem(context.Background(), ws, projectID, itemName)
+		if err == nil {
+			return &ItemView{
+				ID:           item.ID,
+				Name:         item.Name,
+				Format:       item.Format,
+				Type:         item.Type,
+				CollectionID: item.CollectionID,
+				BlockCount:   item.BlockCount,
+				Translatable: item.Translatable,
+			}, nil
+		}
+		a.goOffline()
+	}
+	ctx := context.Background()
+	item, err := a.store.GetItem(ctx, projectID, "main", itemName)
+	if err != nil {
+		return nil, err
+	}
+	counts, err := a.store.CountBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID, Stream: "main", ItemName: item.Name,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ItemView{
+		ID:           item.ID,
+		Name:         item.Name,
+		Format:       item.Format,
+		Type:         item.ItemType,
+		CollectionID: item.CollectionID,
+		BlockCount:   counts.Total,
+		Translatable: counts.Translatable,
+	}, nil
+}
+
+// BulkReviewArgs applies one review decision to a selection of blocks. Status
+// picks the demotion rung when Approve is false: "translated" (the default) or
+// "draft", a rejection that re-opens the work.
+type BulkReviewArgs struct {
+	BlockIDs     []string `json:"block_ids"`
+	TargetLocale string   `json:"target_locale"`
+	Approve      bool     `json:"approve"`
+	Status       string   `json:"status,omitempty"`
+	Comment      string   `json:"comment,omitempty"`
+	ItemName     string   `json:"item_name,omitempty"`
+}
+
+// BlockResultView is one block's outcome inside a batch.
+type BlockResultView struct {
+	BlockID string `json:"block_id"`
+	OK      bool   `json:"ok"`
+	Status  string `json:"status,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// BulkReviewView reports a batch review.
+type BulkReviewView struct {
+	Results         []BlockResultView `json:"results"`
+	Succeeded       int               `json:"succeeded"`
+	Failed          int               `json:"failed"`
+	ReviewCompleted bool              `json:"review_completed"`
+}
+
+// BulkReviewBlocks applies one review decision across a selection of blocks.
+// Connected it is one request; offline each block goes through the same local
+// review path a single decision takes, so a block that refuses is reported in
+// its own result either way.
+func (a *App) BulkReviewBlocks(projectID string, req BulkReviewArgs) (*BulkReviewView, error) {
+	if a.isConnected() {
+		client, ws := a.editorRemote()
+		resp, err := client.BulkReviewBlocks(context.Background(), ws, projectID, apiclient.EditorBulkReviewRequest{
+			BlockIDs:     req.BlockIDs,
+			TargetLocale: req.TargetLocale,
+			Approve:      req.Approve,
+			Status:       req.Status,
+			Comment:      req.Comment,
+			ItemName:     req.ItemName,
+		})
+		if err == nil {
+			out := &BulkReviewView{
+				Succeeded:       resp.Succeeded,
+				Failed:          resp.Failed,
+				ReviewCompleted: resp.ReviewCompleted,
+				Results:         make([]BlockResultView, 0, len(resp.Results)),
+			}
+			for _, r := range resp.Results {
+				out.Results = append(out.Results, BlockResultView{
+					BlockID: r.BlockID, OK: r.OK, Status: r.Status, Error: r.Error,
+				})
+			}
+			if req.ItemName != "" {
+				a.refreshItemCache(projectID, req.ItemName)
+			}
+			return out, nil
+		}
+		a.goOffline()
+	}
+
+	out := &BulkReviewView{Results: make([]BlockResultView, 0, len(req.BlockIDs))}
+	for _, id := range req.BlockIDs {
+		if err := a.reviewBlockLocal(projectID, id, req.TargetLocale, req.Approve, req.Status); err != nil {
+			out.Failed++
+			out.Results = append(out.Results, BlockResultView{BlockID: id, Error: err.Error()})
+			continue
+		}
+		status := string(model.TargetStatusReviewed)
+		if !req.Approve {
+			status = string(model.TargetStatusTranslated)
+			if req.Status == string(model.TargetStatusDraft) {
+				status = string(model.TargetStatusDraft)
+			}
+		}
+		out.Succeeded++
+		out.Results = append(out.Results, BlockResultView{BlockID: id, OK: true, Status: status})
+	}
+	return out, nil
+}
+
+// BulkApplyMemoryArgs applies the best content-memory match to a selection of
+// blocks. A zero Threshold takes the server default of 1 — an exact match.
+type BulkApplyMemoryArgs struct {
+	BlockIDs     []string `json:"block_ids"`
+	TargetLocale string   `json:"target_locale"`
+	Threshold    float64  `json:"threshold,omitempty"`
+}
+
+// AppliedMemoryView names a block that took a match, and what it took.
+type AppliedMemoryView struct {
+	BlockID string  `json:"block_id"`
+	Text    string  `json:"text"`
+	Score   float64 `json:"score"`
+}
+
+// SkippedMemoryView names a block that took nothing, and why.
+type SkippedMemoryView struct {
+	BlockID string `json:"block_id"`
+	Reason  string `json:"reason"`
+}
+
+// BulkApplyMemoryView reports a batch content-memory apply.
+type BulkApplyMemoryView struct {
+	Applied []AppliedMemoryView `json:"applied"`
+	Skipped []SkippedMemoryView `json:"skipped"`
+}
+
+// BulkApplyMemory writes the best content-memory match above the threshold
+// into each selected block's target. The match is resolved against the
+// workspace memory the server holds, so offline every block is skipped rather
+// than matched against a different corpus.
+func (a *App) BulkApplyMemory(projectID string, req BulkApplyMemoryArgs) (*BulkApplyMemoryView, error) {
+	if a.isConnected() {
+		client, ws := a.editorRemote()
+		body := apiclient.EditorBulkApplyMemoryRequest{
+			BlockIDs:     req.BlockIDs,
+			TargetLocale: req.TargetLocale,
+		}
+		if req.Threshold > 0 {
+			body.Threshold = &req.Threshold
+		}
+		resp, err := client.BulkApplyMemory(context.Background(), ws, projectID, body)
+		if err == nil {
+			out := &BulkApplyMemoryView{
+				Applied: make([]AppliedMemoryView, 0, len(resp.Applied)),
+				Skipped: make([]SkippedMemoryView, 0, len(resp.Skipped)),
+			}
+			for _, ap := range resp.Applied {
+				out.Applied = append(out.Applied, AppliedMemoryView{BlockID: ap.BlockID, Text: ap.Text, Score: ap.Score})
+			}
+			for _, sk := range resp.Skipped {
+				out.Skipped = append(out.Skipped, SkippedMemoryView{BlockID: sk.BlockID, Reason: sk.Reason})
+			}
+			return out, nil
+		}
+		a.goOffline()
+	}
+
+	out := &BulkApplyMemoryView{
+		Applied: []AppliedMemoryView{},
+		Skipped: make([]SkippedMemoryView, 0, len(req.BlockIDs)),
+	}
+	for _, id := range req.BlockIDs {
+		out.Skipped = append(out.Skipped, SkippedMemoryView{BlockID: id, Reason: "offline"})
+	}
+	return out, nil
+}
+
 // refreshItemCache re-fetches an item's blocks from the server and updates the
 // local cache. Called after a server-side bulk action so an offline reader sees
 // the mutated content. Best-effort: cache-refresh failures are non-fatal.
