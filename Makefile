@@ -1239,11 +1239,11 @@ wails3-cli: ## Install the wails3 CLI pinned to the wails version both desktop a
 	echo "wails3-cli: installing wails3 $$kv"; \
 	$(GO) install github.com/wailsapp/wails/v3/cmd/wails3@$$kv
 
-kapi-desktop-bindings: ## Regenerate the committed Kapi Desktop Wails bindings + wbridge id map
+kapi-desktop-bindings: i18n-catalogs ## Regenerate the committed Kapi Desktop Wails bindings + wbridge id map
 	cd $(KAPI_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
 	cd $(KAPI_DESKTOP_DIR)/frontend && node scripts/gen-wails-id-map.mjs
 
-bowrain-desktop-bindings: ## Regenerate the committed Bowrain Desktop Wails bindings + wbridge id map
+bowrain-desktop-bindings: i18n-catalogs ## Regenerate the committed Bowrain Desktop Wails bindings + wbridge id map
 	cd $(BOWRAIN_DESKTOP_DIR) && $(WAILS_BINDINGS_ENV) wails3 generate bindings $(WAILS_BINDINGS_FLAGS)
 	cd $(BOWRAIN_DESKTOP_DIR)/frontend && node scripts/gen-wails-id-map.mjs
 

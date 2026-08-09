@@ -808,6 +808,12 @@ jobs:
           cd ../cli && go mod download
           cd ../kapi && go mod download
 
+      # golangci-lint compiles the module, and core/i18n / host/i18n resolve
+      # `//go:embed catalogs/*.mo` against build output — the repository carries
+      # the translated JSON it is compiled from, not the MO.
+      - name: Compile the embedded i18n catalogs
+        run: go run ./core/i18n/gen/catalogs
+
       - name: Lint framework
         uses: ./.github/actions/golangci
         with:
@@ -852,6 +858,14 @@ jobs:
         run: |
           cd bowrain/core && go mod download
           cd ../../bowrain && go mod download
+
+      # Every module linted below links core/i18n or host/i18n, whose embedded
+      # gettext catalogs are build output. The compiler is a cgo build, hence
+      # the ICU headers here rather than only before the Wails lint below.
+      - name: Compile the embedded i18n catalogs
+        run: |
+          sudo apt-get update && sudo apt-get install -y libicu-dev pkg-config
+          go run ./core/i18n/gen/catalogs
 
       - name: Lint platform
         uses: ./.github/actions/golangci
