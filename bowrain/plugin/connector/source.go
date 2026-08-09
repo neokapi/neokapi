@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"maps"
 	"net/http"
 	"os"
@@ -1014,6 +1015,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 	// Group pulled blocks by item name.
 	filesWritten := 0
+	itemsRetired := 0
 
 	// Track per-file write failures. A failed write must NOT let the stream
 	// cursor advance past the unwritten change: the server's GetChanges is
@@ -1078,6 +1080,17 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 				// Read source, inject targets, write output.
 				absSource := c.project.ResolvePath(itemName)
+				if _, statErr := os.Stat(absSource); errors.Is(statErr, fs.ErrNotExist) {
+					// The source was deleted or renamed after it was pushed;
+					// additive-only push means the server never forgets it.
+					// There is nothing to reconstruct a target from — on this
+					// pull or any retry — so holding the cursor would wedge
+					// every later translation behind a file that is never
+					// coming back. Skip it loudly and move on.
+					itemsRetired++
+					fmt.Fprintf(os.Stderr, "pull: skipping %s (%s): its source file is gone from this checkout — retired locally, still on the server\n", itemName, loc)
+					continue
+				}
 				formatName := c.detectFormat(absSource)
 				if formatName == "" {
 					// The server has translations for an item this checkout
@@ -1137,6 +1150,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 		BlocksPulled:        totalPulled,
 		LocalesCount:        len(locales),
 		FilesWritten:        filesWritten,
+		ItemsRetired:        itemsRetired,
 		DecisionsStaged:     decisionsStaged,
 		DecisionsSkipped:    decisionsSkipped,
 		CollectionsObserved: contextResult.Observed,

@@ -155,6 +155,9 @@ type PullOutput struct {
 	BlocksPulled int `json:"blocks_pulled"`
 	LocalesCount int `json:"locales_count"`
 	FilesWritten int `json:"files_written,omitempty"`
+	// ItemsRetired: the server still streams these items but their source is
+	// gone from this checkout; skipped rather than wedging the cursor.
+	ItemsRetired int `json:"items_retired,omitempty"`
 	// DecisionsStaged is how many server-ledger decisions the pull staged
 	// into the working store (kapi commit publishes them).
 	DecisionsStaged int    `json:"decisions_staged,omitempty"`
@@ -191,6 +194,9 @@ func (o PullOutput) FormatText(w io.Writer) error {
 		}
 		if o.DecisionsStaged > 0 {
 			fmt.Fprintf(w, "Staged %d unit-state update(s) from the server ledger — `kapi commit` publishes them\n", o.DecisionsStaged)
+		}
+		if o.ItemsRetired > 0 {
+			fmt.Fprintf(w, "Skipped %d retired item(s): the server still holds them, this checkout no longer does\n", o.ItemsRetired)
 		}
 	}
 	if o.ConceptsPulled > 0 {
