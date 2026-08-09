@@ -354,6 +354,11 @@ func (b *RedisEventBus) runGroupReclaim(ctx context.Context, group string, handl
 // the event carries (the audit log and the notification inbox on the event id,
 // convergence and automation triggers on the run they would start), so a second
 // pass is a no-op rather than a duplicate.
+// poisonDeliveryCap is how many deliveries a pending entry gets before the
+// reclaim sweep gives up and acks it away. Failing entries redelivered without
+// bound once ground the server through 70k+ retries per half hour.
+const poisonDeliveryCap = 10
+
 func (b *RedisEventBus) reclaimStranded(ctx context.Context, group string, handler platev.GroupHandler) {
 	start := "0-0"
 	claimed := 0
@@ -372,7 +377,31 @@ func (b *RedisEventBus) reclaimStranded(ctx context.Context, group string, handl
 			}
 			break
 		}
+		// A handler that fails the same entry forever must not hold the
+		// group's sweep hostage: past the delivery cap the entry is acked
+		// away loudly. The cap is generous — real transients (a database
+		// blip, a deploy) resolve in a couple of deliveries.
+		retries := map[string]int64{}
+		if len(msgs) > 0 {
+			if pend, perr := b.client.XPendingExt(ctx, &redis.XPendingExtArgs{
+				Stream: b.stream,
+				Group:  group,
+				Start:  msgs[0].ID,
+				End:    msgs[len(msgs)-1].ID,
+				Count:  int64(len(msgs)),
+			}).Result(); perr == nil {
+				for _, pe := range pend {
+					retries[pe.ID] = pe.RetryCount
+				}
+			}
+		}
 		for _, msg := range msgs {
+			if retries[msg.ID] > poisonDeliveryCap {
+				slog.Error("redis-event-bus: dropping poison entry after repeated failed deliveries",
+					"group", group, "id", msg.ID, "deliveries", retries[msg.ID])
+				b.client.XAck(context.WithoutCancel(ctx), b.stream, group, msg.ID)
+				continue
+			}
 			b.handleGroupMessage(ctx, group, handler, msg)
 		}
 		claimed += len(msgs)
