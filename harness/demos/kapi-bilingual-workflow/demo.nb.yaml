@@ -1,48 +1,48 @@
 id: kapi-bilingual-workflow
-title: The bilingual round-trip — extract, translate, merge
-subtitle: kapi emits a clean bilingual XLIFF, accepts the translated one back, and keeps the project content memory in the loop on both sides.
-tagline: the engineering glue around the translator hand-off — with full content-memory provenance.
-kind: use-case
+title: "Den tospråklige rundturen — ekstraher, oversett, slå sammen"
+subtitle: "kapi sender ut en ren tospråklig XLIFF, tar imot den oversatte versjonen tilbake, og holder prosjektets innholdsminne i løkken på begge sider."
+tagline: limet som holder ingeniørprosessen sammen rundt overlevering til oversetter — med full innholds- og minneproveniense.
+kind: brukstilfelle
 publishAs: bilingual-workflow
 # A scripted plain-shell demo (no Claude): extract/merge/memory are deterministic, so
 # the commands run for real and their output is recorded exactly. KAPI_NO_PROJECT
 # is set by the shell harness, so extract/merge take the recipe via `-p kapi.yaml`.
-terminal: shell
+terminal: skall
 brand: kapi
 cwd: ~/app
 needsAi: false
 captureTimeoutSec: 120
 aspects:
-  - XLIFF 2.x round-trip
-  - Content-memory pre-fill + absorb
-  - any CAT tool
-  - full provenance
+  - XLIFF 2.x tur-retur
+  - Forhåndsutfylling og absorpsjon av innholdsminne
+  - et hvilket som helst CAT-verktøy
+  - full sporbarhet
 
 # Each comment names exactly what the command below it does.
 script:
-  - comment: A React app's English strings, ready to send out for translation.
+  - comment: "En React-apps engelske strenger, klare til å sendes ut for oversettelse."
   - command: cat src/locales/en/messages.json
-  - comment: "One-time: seed the project content memory from a corporate TMX."
+  - comment: "Én gang: seed prosjektets innholdsminne fra en bedrifts-TMX."
   - command: kapi memory import corporate.tmx -p kapi.yaml --all-pairs
-  - comment: kapi extract — one bilingual XLIFF per target locale, pre-filled from memory.
+  - comment: "kapi extract — én tospråklig XLIFF per mållokalitet, forhåndsutfylt fra minnet."
   - command: kapi extract -p kapi.yaml
   - command: ls out/
-  - comment: A translator fills the <target>s in their CAT tool (here, a stand-in).
+  - comment: "En oversetter fyller ut <target>ene i CAT-verktøyet sitt (her, en erstatning)."
   - command: ./fake-translator.sh out/*.xliff
-  - comment: kapi merge — apply the returned XLIFFs back onto the source.
+  - comment: kapi merge — bruk de returnerte XLIFF-ene tilbake på kilden.
   - command: kapi merge -p kapi.yaml -i out/
-  - comment: kapi memory audit — trace exactly what this merge wrote into the memory.
+  - comment: kapi memory audit — spor nøyaktig hva denne sammenslåingen skrev inn i minnet.
   - command: kapi memory audit -p kapi.yaml --batch $(ls .kapi/work/cache/extractions | head -1) --limit 10
-  - comment: The catalog is now translated — French, ready to ship.
+  - comment: "Katalogen er nå oversatt — fransk, klar til levering."
   - command: cat src/locales/fr-FR/messages.json
 
 artifacts:
   - id: fr
-    caption: "src/locales/fr-FR/messages.json — merged from the translator's return"
+    caption: "src/locales/fr-FR/messages.json — slått sammen fra oversettelsens retur"
     source: report
     report: catalog
     reportTitle: "src/locales/fr-FR/messages.json — Français"
-    reportSub: "kapi · keys preserved, every value translated"
+    reportSub: "kapi · nøkler bevart, alle verdier oversatt"
     path: src/locales/fr-FR/messages.json
     width: 1120
     height: 720
@@ -51,29 +51,23 @@ narration:
   - id: title
     kind: title
     text: >
-      Most serious multilingual work runs on bilingual exchange files — XLIFF — that
-      a translator opens in a CAT tool, fills in, and sends back. kapi is the
-      engineering glue on either side of that hand-off.
+      Det meste av seriøst flerspråklig arbeid kjører på tospråklige utvekslingsfiler — XLIFF — som en oversetter åpner i et CAT-verktøy, fyller ut og sender tilbake. kapi er limen på ingeniørsiden på begge sider av denne overleveringen.
   - id: extract
     kind: terminal
     text: >
-      Here's a React app's English strings. We seed the project's content
-      memory from a corporate TMX, then run extract — and kapi writes one bilingual
-      XLIFF per target locale, pre-filling every segment the memory already knows.
-    caption: "extract emits one XLIFF per locale, pre-filled from the memory"
+      Her er en React-apps engelske strenger. Vi seeder prosjektets innholdsminne fra en bedrifts-TMX, og kjører deretter extract — og kapi skriver én tospråklig XLIFF per mållokalitet, og forhåndsutfyller hvert segment minnet allerede kjenner.
+    caption: "extract sender ut én XLIFF per lokalitet, forhåndsutfylt fra minnet"
   - id: merge
     kind: terminal
     text: >
-      Oversetteren fyller ut resten og sender filene tilbake. Merge fletter dem tilbake i kilden, tar hvert godkjente segment opp i minnet, og memory audit sporer nøyaktig hvilken retur hver oppføring kom fra.
-    caption: "merge reconciles the return and absorbs it into the memory, with provenance"
+      Oversetteren fyller ut de gjenværende målsegmentene og returnerer filene. Sammenslåingen anvender dem tilbake på kilden, absorberer hvert godkjente segment inn i minnet, og minnerevisjonen sporer nøyaktig hvilken retur hver oppføring stammer fra.
+    caption: "merge avstemmer returen og absorberer den i minnet, med proveniens"
   - id: fr
-    kind: artifact
+    kind: artefakt
     artifact: fr
     text: >
-      The French catalog is complete — every key preserved, every value translated
-      — and the memory is warmer for the next extract.
+      Den franske katalogen er fullstendig — hver nøkkel bevart, hver verdi oversatt — og minnet er rikere for neste ekstraksjon.
   - id: outro
     kind: outro
     text: >
-      Extract, translate, merge: a clean bilingual round-trip through any CAT tool,
-      with the content memory in the loop on both sides.
+      Ekstraher, oversett, slå sammen: en ren tospråklig rundtur gjennom et hvilket som helst CAT-verktøy, med innholdsminnet i løkken på begge sider.

@@ -3,680 +3,680 @@
     "commands": {
       "kapi": {
         "add": {
-          "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\n  kapi add \"src\/**\/*.html\"\n  kapi add \"locales\/*.json\" --format json\n  kapi add \"src\/**\/*.html\" \"content\/**\/*.md\"",
-          "short": "Add file patterns to the project's content"
+          "long": "Legg til filmønstre i dette prosjektets innhold slik at kapi vet hvilke filer som skal\nbehandles. Mønstre støtter ** for rekursiv matching. Format oppdages automatisk\nfra filendelsen med mindre --format er angitt.\n\n  kapi add \"src\/**\/*.html\"\n  kapi add \"locales\/*.json\" --format json\n  kapi add \"src\/**\/*.html\" \"content\/**\/*.md\"",
+          "short": "Legg til filmønstre i prosjektets innhold"
         },
         "apply": {
           "example": "  kapi inspect report.docx --jsonl | edit-the-text | kapi apply\n  kapi apply changeset.jsonl\n  kapi apply changeset.jsonl --diff\n  kapi status --review --json | approve-units | kapi apply\n  kapi apply changeset.jsonl --in-place=.bak",
           "long": "Bruk et typet endrings-sett: skrive-motparten til 'kapi inspect'. Hver oppføring er\nen gjennomgått endring — en innholdsredigering, en ressursredigering (term, innholds-minnepar,\nmerkevareregel, oppskriftsfelt) eller et gjennomgangsresultat (kind:\"review\"). Innholdsredigeringer\nlandsettes via den samme byte-trofaste rundturen som motorens skrivere bruker (struktur og\ninline-koder bevart), driftsikret av content_hash; ressursredigeringer skrives\ninn i deres forpliktede kildeartefakt og den eksisterende importen kompilerer dem inn i\nbufferen; et gjennomgangsresultat registreres som enhetstilstand i prosjektlageret.\n\nEt innholds-minnepar (kind:\"memory\") er gjenbruksgrunnlag for fremtidige oversettelser — det\nfremmer ikke en enhet til gjennomgått. For å godkjenne en oversatt enhet, bruk en kind:\"review\"\noppføring adressert av dens fil\/id\/locale (slik 'kapi status --review' lister den), med\nstatus \"reviewed\" (standard) eller \"signed-off\"; enhetstilstanden iscenesettes i\nprosjektlageret og er bundet til oversettelsens innholds-hash, slik at en senere redigering\nflyttes enheten tilbake under gjennomgått. 'kapi commit' skriver det inn i den forpliktede\nposten under .kapi\/state\/.\n\nEndrings-settet er JSONL (én oppføring per linje), lest fra CHANGESET eller, uten\nargument eller \"-\", fra standardinndata. Innholdsoppføringer navngir sin egen fil, så\napply skriver disse filene på stedet; --diff forhåndsviser innholdsendringene og\nskriver ingenting. Ingen AI-leverandør er nødvendig.",
-          "short": "Apply a typed change-set (content + asset edits) — the one write verb"
+          "short": "Bruk et typet endrings-sett (innholds- og ressursredigeringer) — det ene skriveverbalet"
         },
         "check": {
-          "long": "Run content checks over one or more files and return structured findings\nplus a pass\/fail, gating on severity — the content-first counterpart to a test\nrunner.\n\nThe default checkset is source-side and needs no translation: text hygiene\n(empty, doubled spaces\/words, stray whitespace), length limits (--max-chars\/\n--max-words), forbidden\/required patterns (--forbid\/--require), and brand\nvocabulary when a profile is bound (--profile\/--pack\/--profile-file).\n\nBilingual checks (do-not-translate, placeholder integrity) are an\nopt-in: pass --target <file> --target-lang <lang> to check a translated target\nagainst its source.\n\nEach finding carries a stable rule id (<check>.<category>) and a block location,\nso an assistant can fix the exact block and track rules across iterations. Output\nis a human table by default; --output-format json|yaml emits the kapi.check\/v1\nReport.\n\nPositional paths accept glob patterns and directories, expanded by kapi itself —\nquote the pattern and `**` recurses identically in every shell. Inside a .kapi\nproject, check with no file arguments checks the project's declared content;\nnaming files narrows it to those.\n\nProject gate mode (--ship): it runs the\nproject's bound quality gates (brand, terminology, QA) plus its ship\/source\ncoverage gates over the project's content, and exits non-zero when any gate is\nunmet — the pre-release bar. Target drift never blocks an ordinary build (see\n'kapi status'); --ship is the explicit, opt-in enforcement point. With no file\narguments it inspects the project's content x target languages; pass files to\ngate just those.\n\nExit codes: 0 pass, 3 when the gate fails, 1 operational. --no-fail always exits\n0 (report mode) for a fix-loop.",
-          "short": "Verify content against a checkset and gate on severity, like tests over code"
+          "long": "Kjør innholdskontroller over én eller flere filer og returner strukturerte funn\npluss bestått\/ikke bestått, basert på alvorlighetsgrad — innholdsorientert motstykke til en\ntestløper.\n\nStandard kontrollsett er kildesiden og trenger ingen oversettelse: teksthygiene\n(tomme, doble mellomrom\/ord, uønsket mellomrom), lengdegrenser (--max-chars\/\n--max-words), forbudte\/påkrevde mønstre (--forbid\/--require), og merkevare-\nvokabular når en profil er tilknyttet (--profile\/--pack\/--profile-file).\n\nTospråklige kontroller (ikke-oversett, plassholder-integritet) er\nvalg-inn: send --target <file> --target-lang <lang> for å kontrollere et oversatt mål\nmot kilden.\n\nHvert funn har en stabil regel-id (<check>.<category>) og en blokkplassering,\nslik at en assistent kan fikse den nøyaktige blokken og spore regler på tvers av iterasjoner. Utdata\ner en menneskelig tabell som standard; --output-format json|yaml sender ut kapi.check\/v1\nRapporten.\n\nPosisjonsstier aksepterer glob-mønstre og kataloger, utvidet av kapi selv —\nsiter mønsteret og `**` rekurserer identisk i alle skall. Inne i et .kapi-\nprosjekt kontrollerer check uten filargumenter prosjektets deklarerte innhold;\nå navngi filer begrenser det til disse.\n\nProsjektport-modus (--ship): den kjører\nprosjektets bundne kvalitetsporter (merkevare, terminologi, QA) pluss dets leverings-\/kilde-\ndekningsporter over prosjektets innhold, og avslutter ikke-null når en port ikke er\noppfylt — frigivelsesterskelen. Måldrift blokkerer aldri en vanlig bygging (se\n'kapi status'); --ship er det eksplisitte, valg-inn håndhevingspunktet. Uten\nfilargumenter inspiserer det prosjektets innhold × målspråk; send filer for å\nporthindre bare disse.\n\nAvgangskoder: 0 bestått, 3 når porten feiler, 1 operasjonell. --no-fail avslutter alltid\n0 (rapportmodus) for en fikse-løkke.",
+          "short": "Verifiser innhold mot et kontrollsett og sett en grense for alvorlighetsgrad, som tester over kode"
         },
         "commit": {
           "long": "Skriv enhetstilstanden som er registrert siden siste commit inn i prosjektets forpliktede\npost — JSON Lines-skårene under .kapi\/state\/ som git sporer.\n\nÅ registrere en gjennomgang og å publisere den er separate handlinger. Tilstandsposten er\nvarig idet den skrives; å committe er det som legger den inn i posten en\nanmelder leser, slik at en kjøring av automatiske godkjenninger ikke lander i den sporede\nposten før noen har sett på den.\n\n'kapi status' rapporterer hva som er iscenesatt.",
           "short": "Skriv iscenesatt enhetstilstand inn i prosjektets forpliktede post"
         },
         "completion": {
-          "long": "Generate a shell completion script for the specified shell.\n\nTo load completions:\n\nBash:\n  $ source <(kapi completion bash)\n  # Or install permanently:\n  $ kapi completion bash > \/etc\/bash_completion.d\/kapi\n\nZsh:\n  $ source <(kapi completion zsh)\n  # Or install permanently:\n  $ kapi completion zsh > \"${fpath[1]}\/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Or install permanently:\n  $ kapi completion fish > ~\/.config\/fish\/completions\/kapi.fish\n\nPowerShell:\n  PS> kapi completion powershell | Out-String | Invoke-Expression\n",
-          "short": "Generate shell completion script"
+          "long": "Generer et skallfullføringsskript for det angitte skallet.\n\nSlik laster du inn fullføringer:\n\nBash:\n  $ source <(kapi completion bash)\n  # Eller installer permanent:\n  $ kapi completion bash > \/etc\/bash_completion.d\/kapi\n\nZsh:\n  $ source <(kapi completion zsh)\n  # Eller installer permanent:\n  $ kapi completion zsh > \"${fpath[1]}\/_kapi\"\n\nFish:\n  $ kapi completion fish | source\n  # Eller installer permanent:\n  $ kapi completion fish > ~\/.config\/fish\/completions\/kapi.fish\n\nPowerShell:\n  PS> kapi completion powershell | Out-String | Invoke-Expression\n",
+          "short": "Generer skallutfyllingsskript"
         },
         "config": {
-          "example": "  kapi config set ai.provider ollama   # app config\n  kapi config get ai.provider\n  kapi config unset ai.model\n  kapi config list\n  kapi config set bowrain.server.url https:\/\/bowrain.example  # plugin namespace\n  kapi config name                     # recipe: print the project name\n  kapi config name \"My Project\"        # recipe: set the project name\n  kapi config server.url https:\/\/bowrain.example\/acme\/app",
+          "example": "  kapi config set ai.provider ollama   # appkonfigurasjon\n  kapi config get ai.provider\n  kapi config unset ai.model\n  kapi config list\n  kapi config set bowrain.server.url https:\/\/bowrain.example  # plugin-navnerom\n  kapi config name                     # oppskrift: skriv ut prosjektnavnet\n  kapi config name \"My Project\"        # oppskrift: angi prosjektnavnet\n  kapi config server.url https:\/\/bowrain.example\/acme\/app",
           "get": {
-            "short": "Print a single config value"
+            "short": "Skriv ut en enkelt konfigurasjonsverdi"
           },
           "list": {
-            "short": "List every configured value, including plugin namespaces"
+            "short": "List opp alle konfigurerte verdier, inkludert programtillegg-navnerom"
           },
-          "long": "Read and write configuration.\n\nApp configuration (the global config file, typically ~\/.config\/kapi\/kapi.yaml)\nuses the subcommands. Common keys:\n  ai.provider   default AI provider for translate \/ qa \/ voice-check \/ flows\n                (e.g. `ollama` to default to a free, on-device local model)\n  ai.model      default model for the AI provider\n\nAn explicit --provider\/--model flag, inline config, or project recipe default always overrides these.\n\nInstalled plugins claim their own key namespaces, reached through the same\nsubcommands (e.g. `kapi config set bowrain.server.url https:\/\/…`); there is no\nseparate per-plugin config command. `kapi config list` shows every namespace.\n\nProject recipe fields use the positional form: with one argument the key is\nprinted, with two it is set and the recipe saved. Core keys: name,\nsource_language, preset. Dotted keys edit a registered recipe block\n(e.g. server.url, server.stream on a connected project).",
+          "long": "Les og skriv konfigurasjon.\n\nAppkonfigurasjon (den globale konfigurasjonsfilen, vanligvis ~\/.config\/kapi\/kapi.yaml)\nbruker underkommandoene. Vanlige nøkler:\n  ai.provider   standard AI-leverandør for translate \/ qa \/ voice-check \/ flows\n                (f.eks. `ollama` for å bruke en gratis, lokal enhet som standard)\n  ai.model      standardmodell for AI-leverandøren\n\nEt eksplisitt --provider\/--model-flagg, innebygd konfig eller standard fra prosjektoppskriften overstyrer alltid disse.\n\nInstallerte programtillegg bruker sine egne nøkkelnavnerom, nådd via de samme\nunderkommandoene (f.eks. `kapi config set bowrain.server.url https:\/\/…`); det finnes ingen\nseparat konfigurasjonskkommando per programtillegg. `kapi config list` viser alle navnerom.\n\nProsjektoppskriftsfelt bruker posisjonsformen: med ett argument skrives nøkkelen ut,\nmed to angis den og oppskriften lagres. Kjernøkler: name,\nsource_language, preset. Prikkede nøkler redigerer en registrert oppskriftsblokk\n(f.eks. server.url, server.stream på et tilkoblet prosjekt).",
           "path": {
-            "short": "Print the config file path (of kapi, or of a plugin namespace)"
+            "short": "Skriv ut konfigurasjonsfil-stien (for kapi, eller for et plugin-navnerom)"
           },
           "set": {
-            "short": "Set a config value (persists to the global config file, or a plugin's when the key is namespaced)"
+            "short": "Angi en konfigurasjonsverdi (lagres i den globale konfigurasjonsfilen, eller en plugins når nøkkelen er navneromssatt)"
           },
-          "short": "Get or set kapi configuration (app config subcommands, recipe keys positionally)",
+          "short": "Hent eller angi kapi-konfigurasjon (app-konfigurasjonsunderkommandoer, oppskriftsnøkler posisjonelt)",
           "unset": {
-            "short": "Remove a config value, restoring the built-in default"
+            "short": "Fjern en konfigurasjonsverdi og gjenopprett den innebygde standarden"
           }
         },
         "context": {
-          "long": "Retrieve the content context this project goes by — the terms, the\nvoice and the rules that hold — without needing to know which store holds the\nanswer.\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says about a word or a phrase before you write, rather than learning it\nfrom a failing check afterwards.",
+          "long": "Hent innholdskonteksten dette prosjektet bruker — termene, stemmen og reglene som gjelder — uten å måtte vite hvilken lagring som har svaret.\n\nKommunikasjon er kontekstuell: en juridisk merknad er ikke en hjelpetekst. Spør hva prosjektet sier om et ord eller en frase før du skriver, i stedet for å lære det fra en mislykket sjekk etterpå.",
           "search": {
             "example": "  kapi context search widget\n  kapi context search \"sign in\" --locale en\n  kapi context search widget --json",
-            "long": "Ask one question and get the answer from every store the project\nbinds: what this is called and whether it is discouraged, and wording the\nproject has already approved.\n\nResults are grouped by kind rather than merged into one ranked list, because a\nterminology match and a wording match are not scored on comparable things.",
-            "short": "Ask what the project's context says about a word or phrase"
+            "long": "Still ett spørsmål og få svar fra alle butikker prosjektet\nbinder: hva dette kalles og om det frarådes, og formuleringer\nprosjektet allerede har godkjent.\n\nResultater grupperes etter type fremfor å slås sammen til én rangert liste, fordi et\nterminologitreff og et formuleringsreff ikke scores på sammenlignbare ting.",
+            "short": "Spør hva prosjektets kontekst sier om et ord eller en frase"
           },
-          "short": "Ask what this project's content context says"
+          "short": "Spør hva dette prosjektets innholdskontekst sier"
         },
         "credentials": {
           "add": {
-            "long": "Save an AI provider credential to the OS keychain.\n\nThe credential name is used to reference it in flows and tool commands:\n  kapi translate --credential my-openai -i file.json --target-lang fr\n\nIf only one credential is saved, tools will auto-detect it without --credential.",
-            "short": "Save a named AI provider credential"
+            "long": "Lagre en AI-leverandørlegitimasjon i OS-nøkkelringen.\n\nLegitimasjonsnavnet brukes til å referere til det i flyter og verktøykommandoer:\n  kapi translate --credential my-openai -i file.json --target-lang fr\n\nHvis bare én legitimasjon er lagret, vil verktøy oppdage den automatisk uten --credential.",
+            "short": "Lagre en navngitt AI-leverandørlegitimasjon"
           },
           "list": {
-            "short": "List saved credentials"
+            "short": "List opp lagrede legitimasjoner"
           },
           "remove": {
-            "short": "Remove a saved credential"
+            "short": "Fjern en lagret legitimasjon"
           },
-          "short": "Manage saved AI provider credentials",
+          "short": "Administrer lagrede AI-leverandørlegitimasjoner",
           "test": {
-            "short": "Test that a credential's API key is accessible"
+            "short": "Test at en legitimasjons API-nøkkel er tilgjengelig"
           }
         },
         "engine": {
           "serve": {
             "example": "  kapi engine serve\n  kapi engine serve --socket \/tmp\/my-engine.sock\n  kapi engine serve --stdio",
-            "long": "Serve the neokapi content engine as a gRPC service (EngineService,\ncore\/proto\/engine\/v1) on a local Unix socket, so any gRPC-capable language\ncan extract documents into the canonical content model, process the part\nstream through tools or flows, and merge it back to document bytes.\n\nOn startup the command prints a one-line JSON handshake on stdout —\n{\"socket\": \"<path>\", \"version\": \"<kapi version>\", \"pid\": <pid>} — mirroring\nthe plugin daemon convention, then serves until interrupted.\n\nWith --stdio the server instead serves exactly ONE gRPC connection over\nstdin\/stdout — spawn-per-session callers (an editor extension, a language\nSDK that execs kapi) skip socket management entirely. In this mode stdout\ncarries nothing but the gRPC byte stream: the handshake and all logging go\nto stderr, and the server exits cleanly when stdin reaches EOF. --stdio and\n--socket are mutually exclusive.\n\nTrust model: the service is for TRUSTED LOCAL PEERS ONLY. There is no\nauthentication in v1; the socket (created inside a 0700 directory) or the\nprocess pipes are the security boundary, exactly like kapi's plugin daemon\nsockets. Do not expose the socket over the network or place it in a shared\ndirectory.",
-            "short": "Serve the EngineService gRPC API on a local Unix socket or stdio"
+            "long": "Kjør neokapi-innholdsmotoren som en gRPC-tjeneste (EngineService,\ncore\/proto\/engine\/v1) på en lokal Unix-sokkel, slik at ethvert gRPC-kompatibelt språk\nkan trekke ut dokumenter til den kanoniske innholdsmodellen, behandle del-\nstrømmen gjennom verktøy eller flyter, og slå det tilbake til dokumentbytes.\n\nVed oppstart skriver kommandoen et enlinje JSON-håndtrykk på stdout —\n{\"socket\": \"<path>\", \"version\": \"<kapi version>\", \"pid\": <pid>} — som speiler\nkonvensjonen for programtillegg-daemoner, og betjener deretter til den avbrytes.\n\nMed --stdio betjener serveren i stedet nøyaktig ÉN gRPC-tilkobling over\nstdin\/stdout — kallere som oppretter én prosess per økt (en editor-utvidelse, et\nspråk-SDK som kjører kapi) slipper å håndtere sokkelstyring. I denne modusen\nbærer stdout ingenting annet enn gRPC-bytestrømmen: håndtrykket og all logging\ngår til stderr, og serveren avsluttes ryddig når stdin når EOF. --stdio og\n--socket er gjensidig utelukkende.\n\nTillitsmodell: tjenesten er kun for BETRODDE LOKALE PARTER. Det finnes ingen\nautentisering i v1; sokkelen (opprettet i en 0700-katalog) eller prosessrørene\ner sikkerhetsbegrensningen, akkurat som kapIs programtillegg-daemon-sokkeler.\nIkke eksponer sokkelen over nettverket eller plasser den i en delt katalog.",
+            "short": "Betjen EngineService gRPC API på en lokal Unix-socket eller stdio"
           },
-          "short": "Serve the content engine as a local gRPC API"
+          "short": "Server innholdsmotoren som et lokalt gRPC API"
         },
         "exec": {
           "case-transform": {
             "example": "  kapi exec case-transform messages.json --mode upper\n  kapi exec case-transform messages.json --mode lower",
-            "short": "Case Transform"
+            "short": "Tilfelle-transformasjon"
           },
           "create-target": {
-            "short": "Create Target"
+            "short": "Opprett mål"
           },
           "diff-leverage": {
-            "short": "Diff Leverage"
+            "short": "Diff-innflytelse"
           },
           "dnt-check": {
-            "short": "Do-Not-Translate Check"
+            "short": "Ikke-oversett-sjekk"
           },
           "encoding-detect": {
-            "short": "Encoding Detect"
+            "short": "Kodingsdeteksjon"
           },
           "entity-extract": {
-            "short": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both"
+            "short": "Detekter navngitte enheter (personer, organisasjoner, produkter, steder) med en LLM, en lokal NER-modell, eller begge"
           },
           "external-command": {
-            "short": "External Command"
+            "short": "Ekstern kommando"
           },
           "inline-codes-remove": {
-            "short": "Inline Codes Remove"
+            "short": "Fjern innebygde koder"
           },
-          "long": "Execute any CLI-visible registry tool on files — one tool, one pass, no\nguardrails around it. The top-level verbs are porcelain workflows over this\nlayer: 'kapi translate' wraps recycle → translate → checks, 'kapi up'\nbrings a whole project up to date, 'kapi check' verifies, 'kapi stats' measures.\nReach for exec when you want exactly one tool's behavior — a bare\n'exec translate' with no Memory pass, a single 'exec term-check', a format\nconverter. The verb pairs with 'kapi run <flow>' the way 'kapi tools' pairs\nwith 'kapi flows': run composes a pipeline, exec executes one tool.\n\nDiscover tools and their options with 'kapi tools list' and\n'kapi tools schema <name>'.",
+          "long": "Kjør et hvilket som helst CLI-synlig registerverktøy på filer — ett verktøy, ett pass, ingen\nsikringer rundt det. Toppnivå-verbene er porselensarbeidsflyter over dette\nlaget: 'kapi translate' pakker inn resirkuler → oversett → kontroller, 'kapi up'\noppdaterer et helt prosjekt, 'kapi check' verifiserer, 'kapi stats' måler.\nBruk exec når du vil ha nøyaktig ett verktøys atferd — et rent\n'exec translate' uten minnepass, et enkelt 'exec term-check', en formatkonverter.\nVerbet pares med 'kapi run <flow>' slik 'kapi tools' pares\nmed 'kapi flows': run komponerer en pipeline, exec kjører ett verktøy.\n\nOppdag verktøy og deres alternativer med 'kapi tools list' og\n'kapi tools schema <name>'.",
           "media-refine": {
-            "short": "Re-read low-confidence OCR\/ASR lines with a configurable multimodal LLM"
+            "short": "Les linjer med lav OCR\/ASR-tillit på nytt med en konfigurerbar multimodal LLM"
           },
           "placeholder-check": {
-            "short": "Placeholder Check"
+            "short": "Plassholderkontroll"
           },
           "pseudo-translate": {
             "example": "  kapi pseudo-translate messages.json -o messages.pseudo.json\n  kapi pseudo-translate app.xliff -o app.pseudo.xliff --target-lang qps",
-            "short": "Pseudo Translate"
+            "short": "Pseudo-oversett"
           },
           "qa": {
             "example": "  kapi exec qa app.xliff --target-lang fr\n  kapi exec qa app.xliff --target-lang fr --provider anthropic\n  kapi exec qa app.xliff --target-lang de --json",
-            "short": "Check translation quality with deterministic rules or an LLM (select with --mode)"
+            "short": "Kontroller oversettelseskvalitet med deterministiske regler eller en LLM (velg med --mode)"
           },
           "recycle": {
             "example": "  kapi exec recycle app.xliff --target-lang fr\n  kapi exec recycle messages.json --target-lang de",
-            "short": "Recycle"
+            "short": "Resirkuler"
           },
           "redact": {
-            "short": "Replace sensitive spans with protected placeholders before processing"
+            "short": "Erstatt sensitive tekstdeler med beskyttede plassholdere før behandling"
           },
           "remove-target": {
-            "short": "Remove Target"
+            "short": "Fjern mål"
           },
           "review": {
             "example": "  kapi exec review app.xliff --target-lang fr\n  kapi exec review messages.json --target-lang de",
-            "short": "Review translations with scoring using an LLM provider"
+            "short": "Gjennomgå oversettelser med poenggiving ved hjelp av en LLM-leverandør"
           },
           "script": {
-            "short": "Script"
+            "short": "Skript"
           },
           "search-replace": {
             "example": "  kapi exec search-replace messages.json --find \"foo\" --replace \"bar\"\n  kapi exec search-replace page.html --find \"colour\" --replace \"color\"",
-            "short": "Search and Replace"
+            "short": "Søk og erstatt"
           },
           "segmentation": {
             "example": "  kapi exec segmentation messages.json\n  kapi exec segmentation app.xliff",
-            "short": "Split source text into sentence or chunk segments (stand-off overlay)"
+            "short": "Del kildetekst inn i setnings- eller chunk-segmenter (stand-off-overlegg)"
           },
-          "short": "Execute one registry tool on files (the raw layer under the porcelain verbs)",
+          "short": "Kjør ett registerverktøy på filer (det rå laget under porcelain-verbene)",
           "source-gate": {
-            "short": "Source Gate"
+            "short": "Kildegate"
           },
           "term-check": {
             "example": "  kapi exec term-check app.xliff --source-lang en --target-lang fr\n  kapi exec term-check messages.json --source-lang en --target-lang fr",
-            "short": "Terminology Check"
+            "short": "Terminologisjekk"
           },
           "term-extract": {
             "example": "  kapi exec term-extract messages.json\n  kapi exec term-extract app.xliff --provider anthropic",
-            "short": "Extract candidate terminology from content using an LLM provider"
+            "short": "Trekk ut kandidatterminologi fra innhold ved hjelp av en LLM-leverandør"
           },
           "translate": {
             "example": "  kapi translate messages.json --target-lang fr\n  kapi translate app.xliff --target-lang de --provider openai\n  kapi translate app.xliff --target-lang de -o app.de.xliff",
-            "short": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)"
+            "short": "Oversett innhold med en LLM eller maskinoversettingsleverandør (velg en motor, deretter en leverandør)"
           },
           "unredact": {
-            "short": "Restore original values into redacted content after processing"
+            "short": "Gjenopprett opprinnelige verdier i redigert innhold etter behandling"
           },
           "voice-check": {
             "example": "  kapi exec voice-check messages.json --target-lang fr\n  kapi exec voice-check app.xliff --target-lang de",
-            "short": "Check text against a voice profile using an LLM provider"
+            "short": "Kontroller tekst mot en stemprofil ved hjelp av en LLM-leverandør"
           },
           "voice-infer": {
-            "short": "Infer a draft voice profile from a content corpus using an LLM provider"
+            "short": "Utled et utkast til stemprofil fra et innholdskorpus ved hjelp av en LLM-leverandør"
           },
           "whitespace-correct": {
-            "short": "Whitespace Correct"
+            "short": "Hvitrom-korreksjon"
           },
           "xml-validation": {
-            "short": "XML Validation"
+            "short": "XML-validering"
           }
         },
         "extract": {
-          "example": "  kapi extract -p kapi.yaml --no-memory\n  kapi extract -p kapi.yaml --target-lang fr\n  kapi extract -p kapi.yaml --target-lang fr,de,es\n  kapi extract src\/*.json -o work.kpz --target-lang fr,qps   # ad-hoc .kpz workspace",
-          "long": "Emit bilingual XLIFF 2.x (default) or PO files for each target locale\ndeclared in a kapi project, pre-filled from the project's content memory.\n\nEach invocation writes one batch of outputs under .kapi\/work\/cache\/extractions\/<batch-id>\/\nplus one bilingual file per source → target pair in --out-dir (default \"out\/\").",
-          "short": "Emit a bilingual file for a translator — native .kpz or XLIFF\/PO"
+          "example": "  kapi extract -p kapi.yaml --no-memory\n  kapi extract -p kapi.yaml --target-lang fr\n  kapi extract -p kapi.yaml --target-lang fr,de,es\n  kapi extract src\/*.json -o work.kpz --target-lang fr,qps   # ad-hoc .kpz-arbeidsområde",
+          "long": "Send ut tospråklige XLIFF 2.x-filer (standard) eller PO-filer for hvert målspråk\ndeklarert i et kapi-prosjekt, forhåndsutfylt fra prosjektets innholdsminne.\n\nHver kjøring skriver én batch med utdata under .kapi\/work\/cache\/extractions\/<batch-id>\/\npluss én tospråklig fil per kilde → målpar i --out-dir (standard \"out\/\").",
+          "short": "Generer en tospråklig fil for en oversetter — native .kpz eller XLIFF\/PO"
         },
         "flows": {
           "example": "  kapi flows",
           "list": {
             "example": "  kapi flows list",
-            "short": "List available flows"
+            "short": "List opp tilgjengelige flyter"
           },
-          "short": "List available flows"
+          "short": "List opp tilgjengelige flyter"
         },
         "formats": {
           "example": "  kapi formats\n  kapi formats --ext .json\n  kapi formats --mime text\/html",
           "info": {
             "example": "  kapi formats info json\n  kapi formats info okf_html",
-            "short": "Show detailed information about a format"
+            "short": "Vis detaljert informasjon om et format"
           },
-          "long": "List all file formats that can be read and written.\n\nUse --mime or --ext to filter by MIME type or file extension.",
+          "long": "List opp alle filformater som kan leses og skrives.\n\nBruk --mime eller --ext for å filtrere etter MIME-type eller filendelse.",
           "schema": {
             "example": "  kapi formats schema json\n  kapi formats schema okf_html",
-            "short": "Output JSON Schema for a format"
+            "short": "Skriv ut JSON Schema for et format"
           },
-          "short": "List supported file formats"
+          "short": "List opp støttede filformater"
         },
         "hook": {
-          "long": "Glue commands for AI coding assistants. Each subcommand reads the\nassistant's hook payload on stdin and writes the assistant's expected response\non stdout. These are wired up by the assistant's plugin, not run by hand.\n\nThe decision protocol every kapi hook follows:\n\n  - a decision is JSON on stdout, and the exit code stays 0 — the assistant\n    reads a non-zero exit as a broken hook, not as a denial;\n  - a denial names the hook and carries a reason the assistant can act on;\n  - when the guard could not run at all — an unreadable or malformed payload, a\n    session directory that cannot be entered, a project that will not load — the\n    hook allows the operation and emits {\"systemMessage\":\"…\"} on stdout plus the\n    same warning on stderr, naming the hook. kapi hooks fail open, but an\n    unheard hook is never silent: a guard that never ran must not look like a\n    guard that passed.\n\nNote: these are the assistant-integration hooks. They are unrelated to the\nrecipe's hooks: block, which is a different (and unimplemented) mechanism.",
+          "long": "Limkommandoer for KI-kodingsassistenter. Hvert underkommando leser\nassistentens hook-nyttelast på stdin og skriver assistentens forventede svar\npå stdout. Disse kobles opp av assistentens plugin, ikke kjøres manuelt.\n\nBeslutningsprotokollen alle kapi-hooks følger:\n\n  - en beslutning er JSON på stdout, og avslutningstegnet forblir 0 — assistenten\n    tolker et ikke-null avslutning som en ødelagt hook, ikke som en avvisning;\n  - en avvisning navngir hooken og inneholder en begrunnelse assistenten kan handle på;\n  - når vaktfunksjonen ikke kunne kjøres i det hele tatt — en uleselig eller feilformatert nyttelast, en\n    øktmappe som ikke kan åpnes, et prosjekt som ikke vil laste — tillater\n    hooken operasjonen og sender {\"systemMessage\":\"…\"} på stdout pluss\n    samme advarsel på stderr, og navngir hooken. kapi hooks feiler åpent, men en\n    uhørt hook er aldri stille: en vakt som aldri kjørte må ikke se ut som en\n    vakt som besto.\n\nMerk: dette er assistentintegrasjonshooks. De er urelaterte til\noppskriftens hooks: block, som er en annen (og uimplementert) mekanisme.",
           "pre-edit": {
-            "long": "Claude Code PreToolUse hook for Edit\/Write\/MultiEdit. Reads the\nPreToolUse-event JSON on stdin, resolves the .kapi project in the session's\nworking directory, and:\n\n  - emits {\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",…}} (exit 0) when\n    the file being written is a project content target (a path that\n    \"kapi merge\" generates), so Claude routes the change through\n    extract → translate → merge instead;\n  - emits nothing (exit 0) outside a project, on source files, and on files the\n    project does not generate, leaving the normal permission flow untouched; or\n  - emits {\"systemMessage\":\"…\"} (exit 0), and the same warning on stderr, when\n    the guard could not run at all: an unreadable, empty, or malformed payload,\n    a session directory it cannot enter, or a project that will not load (for\n    example because it requires a plugin that is not installed). The edit\n    proceeds — no decision is carried, so the normal permission flow is\n    untouched — but the bypass is on record instead of invisible.\n\nWire it up via the kapi Claude Code plugin (hooks\/hooks.json) with a matcher of\nEdit|Write|MultiEdit. It fails open: anything other than a confirmed target\nmatch lets the edit proceed, so the guard never traps the assistant on an\nunrelated file.",
-            "short": "Claude Code PreToolUse hook: block direct edits to kapi-generated translation targets"
+            "long": "Claude Code PreToolUse-hook for Edit\/Write\/MultiEdit. Leser\nPreToolUse-hendelses-JSON på stdin, løser opp .kapi-prosjektet i øktens\narbeidsmappe og:\n\n  - sender ut {\"hookSpecificOutput\":{\"permissionDecision\":\"deny\",…}} (avslutt 0) når\n    filen som skrives er et prosjektinnholdsmål (en sti som\n    \"kapi merge\" genererer), slik at Claude ruter endringen gjennom\n    extract → translate → merge i stedet;\n  - sender ingenting ut (avslutt 0) utenfor et prosjekt, på kildefiler og på filer\n    prosjektet ikke genererer, og lar den normale tillatelsesflyt være uberørt; eller\n  - sender ut {\"systemMessage\":\"…\"} (avslutt 0), og samme advarsel på stderr, når\n    vakten ikke kunne kjøre i det hele tatt: en uleselig, tom eller feilformatert nyttelast,\n    en øktmappe den ikke kan gå inn i, eller et prosjekt som ikke vil laste (for\n    eksempel fordi det krever et programtillegg som ikke er installert). Redigeringen\n    fortsetter — ingen beslutning overføres, så den normale tillatelsesflyten er\n    uberørt — men forbikjøringen er registrert i stedet for å være usynlig.\n\nKoble det til via kapi Claude Code-programtillegget (hooks\/hooks.json) med en matcher på\nEdit|Write|MultiEdit. Det feiler åpent: alt annet enn en bekreftet måltreff\nlater redigeringen fortsette, slik at vakten aldri fanger assistenten på en\nurelatert fil.",
+            "short": "Claude Code PreToolUse-hook: blokkér direkte redigeringer av kapi-genererte oversettelsesmål"
           },
-          "short": "Integration hooks for AI coding assistants (Claude Code)",
+          "short": "Integrasjonskroker for AI-kodingsassistenter (Claude Code)",
           "stop": {
-            "long": "Claude Code Stop hook. Reads the Stop-event JSON on stdin, runs the\nverify gates for the project in the session's working directory, and:\n\n  - emits {\"decision\":\"block\",\"reason\":\"…findings…\"} (exit 0) when a gate\n    fails, so Claude keeps working and fixes the findings before stopping;\n  - emits nothing (exit 0) when the project passes, or when there is no .kapi\n    project to gate — Claude is free to finish; or\n  - emits {\"systemMessage\":\"…\"} (exit 0), and the same warning on stderr, when\n    the gates could not be evaluated at all: an unreadable, empty, or malformed\n    payload, a session directory it cannot enter, or a project whose gates\n    error. Claude is still free to finish — but the run is on record as\n    un-gated rather than passing.\n\nWire it up via the kapi Claude Code plugin (hooks\/hooks.json). It fails open:\nanything other than a clean gate failure lets Claude stop, so a missing project\nor a verify error never traps the assistant. Claude Code caps consecutive\nblocks, so an unfixable finding cannot loop forever.",
-            "short": "Claude Code Stop hook: keep working until the project's kapi check --ship gates pass"
+            "long": "Claude Code Stop-hook. Leser Stop-hendelsens JSON fra stdin, kjører\nverifiseringsportene for prosjektet i øktens arbeidsmappe, og:\n\n  - sender ut {\"decision\":\"block\",\"reason\":\"…funn…\"} (avslutt 0) når en port\n    feiler, slik at Claude fortsetter å arbeide og fikser funnene før den stopper;\n  - sender ingenting (avslutt 0) når prosjektet passerer, eller når det ikke finnes noe .kapi-\n    prosjekt å portere — Claude kan fritt fullføre; eller\n  - sender ut {\"systemMessage\":\"…\"} (avslutt 0), og den samme advarselen på stderr, når\n    portene ikke kunne evalueres i det hele tatt: en uleselig, tom eller misformet\n    nyttelast, en øktmappe den ikke kan gå inn i, eller et prosjekt hvis porter\n    feiler. Claude kan fortsatt fritt fullføre — men kjøringen er registrert som\n    u-portet fremfor bestått.\n\nKoble den til via kapi Claude Code-pluginen (hooks\/hooks.json). Den feiler åpent:\nalt annet enn en ren portfeil lar Claude stoppe, så et manglende prosjekt\neller en verifiseringsfeil setter aldri assistenten fast. Claude Code begrenser påfølgende\nblokkinger, slik at et urettbart funn ikke kan gå i evig løkke.",
+            "short": "Claude Code Stop-hook: fortsett å arbeide til prosjektets kapi check --ship-porter passerer"
           }
         },
         "info": {
-          "example": "  kapi info              # the project: what a snapshot would capture\n  kapi info handoff.kpz  # the archive: what it holds",
-          "long": "With no argument, reports the project in scope: its languages, how many files\nit tracks, and the parts a `kapi pack` snapshot would capture — each with\nwhether it is present and how many items it holds — plus what the snapshot\ndeliberately leaves out (regenerable caches, credentials, sync tokens).\n\nWith a .kpz argument, reports that archive. A project snapshot is reported as the\nsame parts, in the same words, so comparing the two is the round-trip check. A\nworkspace .kpz (the ad-hoc parcel with a working cache) instead reports its\ndocuments, locales, and whether the cache holds work not yet packed back.\n\nBoth forms support --output-format json|yaml.",
-          "short": "Report a project's packable state, or a .kpz archive's contents"
+          "example": "  kapi info              # prosjektet: hva et øyeblikksbilde ville fange\n  kapi info handoff.kpz  # arkivet: hva det inneholder",
+          "long": "Uten argument rapporterer kommandoen prosjektet i omfang: dets språk, hvor mange filer\ndet sporer, og delene et `kapi pack`-øyeblikksbilde vil fange — hver med\nom den er til stede og hvor mange elementer den inneholder — pluss hva øyeblikksbildet\nbevisst utelater (regenererbare cacher, legitimasjon, synkroniseringstokener).\n\nMed et .kpz-argument rapporteres det arkivet. Et prosjektøyeblikksbilde rapporteres med\nde samme delene, i de samme ordene, slik at sammenligning av de to er rundturkontroll. En\narbeidsområde-.kpz (den ad-hoc-pakken med en fungerende cache) rapporterer i stedet sine\ndokumenter, lokaliteter og om cachen inneholder arbeid som ennå ikke er pakket tilbake.\n\nBegge formene støtter --output-format json|yaml.",
+          "short": "Rapporter pakkbar tilstand for et prosjekt, eller innholdet i et .kpz-arkiv"
         },
         "init": {
-          "long": "Create a new kapi project with a kapi.yaml recipe and an\nadjacent .kapi\/ state directory.\n\nBy default kapi init scaffolds a content project that keeps your source in\nvoice — a voice profile, the project terms store, and a check flow, with no\ntarget languages. Pass --target-locale (or --framework) to make it a\ntranslation project instead.\n\nThe project id defaults to the current directory's basename and the source\nlocale to en. Override with --name, --source-locale, --target-locale\n(repeatable).\n\n--preset <name> (alias: --framework) pre-fills the content mapping for a known\nstack's i18n catalogs: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular — and scaffolds the translation project. List every preset (framework\nscaffolds plus per-format parsing presets) with --list-presets.",
-          "short": "Scaffold a new kapi project in the current directory"
+          "long": "Opprett et nytt kapi-prosjekt med en kapi.yaml-oppskrift og en\ntilhørende .kapi\/-tilstandskatalog.\n\nSom standard setter kapi init opp et innholdsprosjekt som holder kilden i\nstemme — en stemmeprofil, prosjektets termbutikk og en kontrollflyt, uten\nmålspråk. Send --target-locale (eller --framework) for å gjøre det til et\noversettelsesprosjekt i stedet.\n\nProsjekt-ID-en er som standard gjeldende katalogs basisnavn og kildelokaliteten\ner en. Overstyr med --name, --source-locale, --target-locale\n(gjentakbar).\n\n--preset <name> (alias: --framework) forhåndsutfyller innholdstilordningen for en kjent\nstabelens i18n-kataloger: react-i18next, react-intl, nextjs, vue-i18n, flutter,\nangular — og setter opp oversettelsesprosjektet. List opp alle forhåndsinnstillinger (rammeverk-\noppsett pluss per-format parsingsforhåndsinnstillinger) med --list-presets.",
+          "short": "Sett opp et nytt kapi-prosjekt i gjeldende katalog"
         },
         "inspect": {
-          "example": "  kapi inspect report.docx\n  kapi inspect --jsonl 'docs\/**\/*.md' | jq .content_hash\n  kapi inspect --output-format yaml report.dclg.xml\n  kapi inspect report.docx --project html,markdown   # each block rendered per format\n  cat page.html | kapi inspect -f html",
-          "long": "Parse each file into one record per content block: the text, a stable\ncontent-hash anchor, and the block's structural role (heading, list-item,\ntable-cell, …) and nesting level. Any format — a Word document, a JSON catalog,\nMarkdown, HTML — yields the same shape, so an AI agent or RAG pipeline can read\ncontent, retrieve against the anchors, and write edits back to the same blocks.\n\nPrints a JSON array by default; --output-format yaml emits a YAML sequence, and\n--jsonl streams one JSON object per line (JSONL) for piping into an ingestion\npipeline.\n\nPositional paths take glob patterns (`**` recurses) and directories, expanded\nby kapi itself. Inside a project, no FILE means the project's tracked content;\nFILE \"-\" reads standard input.",
-          "short": "Parse any format into anchored, structured content blocks"
+          "example": "  kapi inspect report.docx\n  kapi inspect --jsonl 'docs\/**\/*.md' | jq .content_hash\n  kapi inspect --output-format yaml report.dclg.xml\n  kapi inspect report.docx --project html,markdown   # hver blokk gjengitt per format\n  cat page.html | kapi inspect -f html",
+          "long": "Parser hver fil til én post per innholdsblokk: teksten, et stabilt\ninnholds-hash-anker og blokkens strukturelle rolle (overskrift, listeelement,\ntabellcelle, …) og nestenivå. Ethvert format — et Word-dokument, en JSON-katalog,\nMarkdown, HTML — gir samme form, slik at en AI-agent eller RAG-pipeline kan lese\ninnhold, hente mot ankerne og skrive redigeringer tilbake til de samme blokkene.\n\nSkriver ut en JSON-array som standard; --output-format yaml sender ut en YAML-sekvens, og\n--jsonl strømmer ett JSON-objekt per linje (JSONL) for piping inn i en inntakspipeline.\n\nPosisjonelle stier tar glob-mønstre (`**` rekurserer) og kataloger, utvidet\nav kapi selv. Inne i et prosjekt betyr ingen FIL prosjektets sporede innhold;\nFIL \"-\" leser standard inndata.",
+          "short": "Analyser et hvilket som helst format til forankrede, strukturerte innholdsblokker"
         },
         "kcat": {
-          "short": "Print the text\/content inside files (use kcat)"
+          "short": "Skriv ut teksten\/innholdet i filer (bruk kcat)"
         },
         "kconv": {
-          "short": "Convert files between formats (use kconv)"
+          "short": "Konverter filer mellom formater (bruk kconv)"
         },
         "kdiff": {
-          "short": "Compare the text\/content of files (use kdiff)"
+          "short": "Sammenlign teksten\/innholdet i filer (bruk kdiff)"
         },
         "kgrep": {
-          "short": "Search the text\/content inside files (use kgrep)"
+          "short": "Søk i tekst\/innhold i filer (bruk kgrep)"
         },
         "ksed": {
-          "short": "Stream-edit the text\/content inside files (use ksed)"
+          "short": "Strøm-rediger teksten\/innholdet i filer (bruk ksed)"
         },
-        "long": "kapi parses any format into one unified content model, edits the content\ninside it, checks it, and writes it back byte-for-byte. It holds a project's\ncontent context — the terms, the voice and the rules it goes by — so you can\nconvert formats, translate with AI, and run quality checks against what\nactually applies.",
+        "long": "kapi analyserer alle formater til én samlet innholdsmodell, redigerer innholdet\ni den, kontrollerer det og skriver det tilbake byte for byte. Det holder et prosjekts\ninnholdskontekst — termene, stemmen og reglene det følger — slik at du kan\nkonvertere formater, oversette med KI og kjøre kvalitetskontroller mot det som\nfaktisk gjelder.",
         "ls": {
-          "long": "List the files matched by the project's content collections (honoring the\nexclude list). With --stats, also show per-file block and word counts.\n\nIn a server-connected project (a recipe with a bowrain: block, with the\nbowrain plugin installed) a SYNC column reports each file's pending-push\nstanding (\"2 to push\" \/ \"synced\"), derived from the sync cache.\n\n  kapi ls\n  kapi ls src\/\n  kapi ls --stats",
-          "short": "List the files the project's content tracks"
+          "long": "List filene som matcher prosjektets innholdssamlinger (med hensyn til\nekskluderingslisten). Med --stats vises også antall blokker og ord per fil.\n\nI et servertilkoblet prosjekt (en oppskrift med en bowrain:-blokk, med\nbowrain-pluginen installert) rapporterer en SYNC-kolonne hver fils status for\nventing på push (\"2 to push\" \/ \"synced\"), utledet fra synkroniseringsbufferen.\n\n  kapi ls\n  kapi ls src\/\n  kapi ls --stats",
+          "short": "List opp filene som prosjektets innhold sporer"
         },
         "mcp": {
-          "long": "Start an MCP server over stdio.\n\nThe default surface is deliberately small: retrieving the project's context,\nchecking content against it, writing edits back, and running the loop. That is\nwhat an assistant needs to work inside this project's context.\n\nEverything else the tool registry can do is still reachable — pipeline steps,\nformat internals, one-off transforms — but as an explicit opt-in, because a\nsurface nobody chose is how it grew to fifty-one tools.\n\n  --all-tools   every CLI-visible registry tool\n  --all-flows   the flow-running verbs\n  --all         both",
-          "short": "Start MCP server (stdio) exposing the project's context and the loop around it"
+          "long": "Start en MCP-server over stdio.\n\nStandardoverflaten er bevisst liten: hente prosjektets kontekst,\nsjekke innhold mot den, skrive redigeringer tilbake og kjøre løkken. Det er\nhva en assistent trenger for å arbeide innenfor dette prosjektets kontekst.\n\nAlt annet verktøyregisteret kan gjøre er fortsatt tilgjengelig — rørledningstrinn,\nformat-interner, enkeltstående transformasjoner — men som eksplisitt tilvalg, fordi en\noverflate ingen valgte er slik det vokste til femti-ett verktøy.\n\n  --all-tools   alle CLI-synlige registerverktøy\n  --all-flows   flyt-kjørende verb\n  --all         begge",
+          "short": "Start MCP-server (stdio) som eksponerer prosjektets kontekst og løkken rundt den"
         },
         "memory": {
           "audit": {
-            "long": "Show every content-memory entry written (or updated) by a specific kapi merge batch,\nso you can see what a particular return from a translator contributed to\nthe project content memory.\n\nOrigin provenance is stamped by kapi merge (source=\"merge\",\nreference=<batch-id>, key=<source-rel>). Audit iterates the project content memory,\nsurfaces only TUs with at least one matching Origin, and prints\nsource file, block hash, timestamp, and the originating XLIFF filename.\n\nExamples:\n\n  kapi memory audit --batch <batch-id>             # full listing\n  kapi memory audit --batch <batch-id> --limit 50  # cap rows\n\nUse \"kapi memory stats\" for global content-memory metrics (entry counts, per-locale\nbreakdown). Audit is narrow by design — it answers \"what did this\nmerge do?\".\n",
-            "short": "Trace content-memory entries by merge batch id"
+            "long": "Vis alle innholdsminneposter som ble skrevet (eller oppdatert) av en bestemt kapi merge-kjøring,\nslik at du kan se hva en bestemt retur fra en oversetter bidro med til\nprosjektets innholdsminne.\n\nOpprinnelsesproveniens stemples av kapi merge (source=\"merge\",\nreference=<batch-id>, key=<source-rel>). Revisjon itererer prosjektets innholdsminne,\nviser kun TU-er med minst én samsvarende opprinnelse, og skriver ut\nkildefil, blokkHash, tidsstempel og det opprinnelige XLIFF-filnavnet.\n\nEksempler:\n\n  kapi memory audit --batch <batch-id>             # full liste\n  kapi memory audit --batch <batch-id> --limit 50  # begrens rader\n\nBruk \"kapi memory stats\" for globale innholdsminnemålinger (antall poster, per-språk-\nfordeling). Revisjon er smal av design — den svarer på \"hva gjorde denne\nsammenslåingen?\".\n",
+            "short": "Spor innholdsminne-oppføringer etter sammenslåingsbatch-id"
           },
           "example": "  kapi memory stats\n  kapi memory lookup \"welcome back\" -s en -t fr\n  kapi memory import corpus.tmx -s en -t fr",
           "export": {
-            "long": "Export the content memory to TMX 1.4 (default) or the native\n.memory.json bundle.\n\nTMX: each entry is written as a single <tu> with one <tuv> per language\nvariant present (or the subset requested via --locales). Inline markup is\npreserved as TMX <ph>\/<bpt>\/<ept>\/<it>\/<hi>. TMX is the lossy interchange\ntier — entity mappings, provenance origins, properties, and notes are\ndropped.\n\nbundle (--format bundle, or a -o path ending in .memory.json): the\ndeterministic, lossless native serialization — the right form for committing a\ncontent memory to git and for seeding a fresh content memory exactly. It stays\nplain JSON, so it reviews line by line in a diff. --locales does not apply.",
-            "short": "Export content memory to TMX or a native .memory.json bundle"
+            "long": "Eksporter innholdsminnet til TMX 1.4 (standard) eller den opprinnelige\n.memory.json-pakken.\n\nTMX: hver oppføring skrives som en enkelt <tu> med én <tuv> per språkvariant\nsom finnes (eller delsettet forespurt via --locales). Innebygd markeringsspråk\nbevares som TMX <ph>\/<bpt>\/<ept>\/<it>\/<hi>. TMX er det tapsbringende\nutvekslingsnivået — enhetstilordninger, provenansopprinnelser, egenskaper og notater\nutelates.\n\npakke (--format bundle, eller en -o-bane som slutter på .memory.json): den\ndeterministiske, tapsfrie opprinnelige serialiseringen — riktig form for å committe et\ninnholdsminne til git og for å sette opp et nytt innholdsminne nøyaktig. Det forblir\nenkel JSON, slik at det kan gjennomgås linje for linje i en diff. --locales gjelder ikke.",
+            "short": "Eksporter innholdsminne til TMX eller et innebygd .memory.json-pakke"
           },
           "import": {
             "example": "  kapi memory import corpus.tmx -s en -t fr\n  kapi memory import corpus.tmx --all-pairs --locales en,fr,de --name my-tm\n  kapi memory import seeds\/builtins-nb.memory.json",
-            "long": "Import a single TMX file (plain or .gz) or a native .memory.json\nbundle into the content memory.\n\nThe bundle is the native content-memory form: a deterministic, lossless JSON\nserialization that round-trips every Entry field (entity mappings, provenance\norigins, properties, notes) that TMX drops. Importing one preserves entry\nidentity verbatim, so re-seeding a content memory from committed bundles is\nfully reproducible. The format is selected by file extension; --format\noverrides.\n\nBy default, imports entries matching the given --source-locale and --target-locale.\nUse --all-pairs to emit entries for every (src, tgt) language pair present in\neach TU — useful for multilingual TMX files (e.g. EUR-Lex Euramis exports where\na single TU may contain 24+ languages). Combine with --locales to restrict the\npair set (e.g. --all-pairs --locales en-GB,fr,de).\n\nThe importer auto-detects UTF-8\/UTF-16 from the BOM, so Euramis exports work\nwithout pre-conversion. For web-crawl TMX sets (bitextor output) the per-TUV\n<prop type=\"source-document\"> URL is recorded as Origin.Reference.",
-            "short": "Import a TMX file or a native .memory.json bundle into content memory"
+            "long": "Importer én enkelt TMX-fil (vanlig eller .gz) eller et innebygd .memory.json-\nbunt til innholdsminnet.\n\nBunten er den innebygde innholdsminneformen: en deterministisk, tapsfri JSON-\nserialisering som rund-tripper alle Entry-felt (entitetsmappinger, provenans-\nopprinnelser, egenskaper, notater) som TMX dropper. Import av én bevarer oppføringens\nidentitet ordrett, slik at re-seeding av et innholdsminne fra forpliktede bunter er\nfullt reproduserbart. Formatet velges etter filendelse; --format overstyrer.\n\nSom standard importeres oppføringer som samsvarer med angitt --source-locale og --target-locale.\nBruk --all-pairs for å sende ut oppføringer for hvert (kilde, mål) språkpar som finnes i\nhvert TU — nyttig for flerspråklige TMX-filer (f.eks. EUR-Lex Euramis-eksporter der\net enkelt TU kan inneholde 24+ språk). Kombiner med --locales for å begrense\nparsettet (f.eks. --all-pairs --locales en-GB,fr,de).\n\nImporten oppdager automatisk UTF-8\/UTF-16 fra BOM-en, slik at Euramis-eksporter fungerer\nuten forhåndskonvertering. For web-crawl TMX-sett (bitextor-utdata) blir per-TUV\n<prop type=\"source-document\"> URL registrert som Origin.Reference.",
+            "short": "Importer en TMX-fil eller en innebygd .memory.json-pakke til innholdsminnet"
           },
           "import-dir": {
-            "long": "Walk a directory and import every matching TMX file into the content memory.\n\nAuto-detects plain .tmx and gzipped .tmx.gz files. The filename (without path)\nbecomes the Origin.Key on each imported entry so you can trace which file a\nsegment came from.\n\nBy default, imports entries matching --source-locale and --target-locale from\nevery file. Use --pattern to filter (glob against filename) and --all-pairs to\nemit the full language cross-product from multilingual files.\n\nExamples:\n  kapi memory import-dir .\/tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi memory import-dir .\/eurlex --name corpus --all-pairs --locales en-GB,fr,de",
-            "short": "Import all TMX files from a directory into content memory"
+            "long": "Gå gjennom en katalog og importer alle samsvarende TMX-filer til innholdsminnet.\n\nOppdager automatisk vanlige .tmx- og gzippede .tmx.gz-filer. Filnavnet (uten sti)\nbrukes som Origin.Key på hver importert oppføring, slik at du kan spore hvilken fil et\nsegment kom fra.\n\nSom standard importeres oppføringer som samsvarer med --source-locale og --target-locale fra\nhver fil. Bruk --pattern for å filtrere (glob mot filnavn) og --all-pairs for å\nsende ut det fullstendige språkkryssproduktet fra flerspråklige filer.\n\nEksempler:\n  kapi memory import-dir .\/tmx --name corpus --source-locale en --target-locale nb --pattern \"*en-nb*\"\n  kapi memory import-dir .\/eurlex --name corpus --all-pairs --locales en-GB,fr,de",
+            "short": "Importer alle TMX-filer fra en katalog til innholdsminnet"
           },
           "list": {
-            "short": "List named Memories in KAPI_HOME"
+            "short": "Vis navngitte minner i KAPI_HOME"
           },
-          "long": "Manage content memory.\n\nA content memory stores previously produced content — source segments with the\ntargets settled for them — as a SQLite database. Use these commands to\nimport\/export TMX, look up matches, and manage entries.\n\nInside a project, no flag means the project's own content memory — a subsystem\nof .kapi\/work\/store.db, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name <n>      Named content memory in KAPI_HOME (~\/.config\/kapi\/tm\/<n>.db)\n  --local         Content memory in current directory (.\/memory.db)\n  --file <path>   Explicit file path\n\nOutside a project and with no flag: same as --local (uses .\/memory.db).",
+          "long": "Administrer innholdsminne.\n\nEt innholdsminne lagrer tidligere produsert innhold — kildesegmenter med de\nfastlagte målene for dem — som en SQLite-database. Bruk disse kommandoene til å\nimportere\/eksportere TMX, slå opp treff og administrere oppføringer.\n\nInni et prosjekt betyr ingen flagg prosjektets eget innholdsminne — et undersystem\nav .kapi\/work\/store.db, og det er grunnen til at det ikke adresseres via sti. Bruk -p for å angi\nprosjektet eksplisitt.\n\nfrittstående lager i stedet (gjensidig eksklusivt):\n  --name <n>      Navngitt innholdsminne i KAPI_HOME (~\/.config\/kapi\/tm\/<n>.db)\n  --local         Innholdsminne i gjeldende katalog (.\/memory.db)\n  --file <path>   Eksplisitt filsti\n\nUtenfor et prosjekt og uten flagg: samme som --local (bruker .\/memory.db).",
           "lookup": {
             "example": "  kapi memory lookup \"welcome back\" -s en -t fr\n  kapi memory lookup \"save\" -s en -t de --min-score 0.8",
-            "short": "Look up text in content memory"
+            "short": "Slå opp tekst i innholdsminnet"
           },
           "search": {
             "example": "  kapi memory search \"dashboard\" -s en -t fr\n  kapi memory search \"settings\" --limit 5",
-            "short": "Search content memory entries"
+            "short": "Søk i innholdsminneoppføringer"
           },
           "sessions": {
             "delete": {
-              "short": "Remove a session record (entries are retained, session_id cleared)"
+              "short": "Fjern en øktpost (oppføringer beholdes, session_id tømmes)"
             },
             "list": {
-              "short": "List all import sessions"
+              "short": "List alle importøkter"
             },
-            "long": "An import session is created every time a TMX file is imported.\nEach session records the file's SHA-256 hash, TMX header metadata, and the\nnumber of entries imported. Origins on content-memory entries point back to the session\nthat added them so you can filter the content memory by import source.",
-            "short": "Manage TMX import sessions",
+            "long": "En importøkt opprettes hver gang en TMX-fil importeres.\nHver økt registrerer filens SHA-256-hash, TMX-hodemetadata og antall\nimporterte oppføringer. Opphav på innholdsminneoppføringer peker tilbake til økten\nsom la dem til, slik at du kan filtrere innholdsminnet etter importkilde.",
+            "short": "Administrer TMX-importøkter",
             "show": {
-              "short": "Show details for a single import session"
+              "short": "Vis detaljer for en enkelt importøkt"
             }
           },
-          "short": "Manage content memory",
+          "short": "Administrer innholdsminne",
           "stats": {
             "example": "  kapi memory stats\n  kapi memory stats --name my-tm",
-            "short": "Show content memory statistics"
+            "short": "Vis statistikk for inneholdsminne"
           }
         },
         "merge": {
-          "example": "  kapi merge                     # materialize target-language files from the project store\n  kapi merge -i out\/app.en-to-fr.xliff\n  kapi merge -i file1.xliff -i file2.xliff\n  kapi merge -i vendor-return\/ --no-memory-update\n  kapi merge work.kpz -o out\/    # emit target-language files from a .kpz workspace",
-          "long": "Materialize target-language files for a project, or apply bilingual files\nreturned by a translator back onto the project's source locales.\n\nWith no -i in a project, merge writes the target-language files from the\nproject block store: a process-only \"kapi run\" (in a project, no -o)\ncommits its work as targets\/<locale> overlays, and merge is the matching\nsink — it reads each source, applies the stored overlays, and writes the\ntarget-language file via the source format's skeleton round-trip.\n\nWith -i, merge applies one or more bilingual files returned by a\ntranslator back onto the project's source locales, using the skeleton\ncaptured by kapi extract. Each input carries the extraction\nbatch id in a file-level <note>, so merge finds the right extraction\nmanifest without guessing from the filename. Mixed target locales in one\nbatch are fine — merge handles each input independently.",
-          "short": "Apply a returned bilingual file (.kpz\/XLIFF\/PO) back onto the project source"
+          "example": "  kapi merge                     # materialiser målspråkfiler fra prosjektlageret\n  kapi merge -i out\/app.en-to-fr.xliff\n  kapi merge -i file1.xliff -i file2.xliff\n  kapi merge -i vendor-return\/ --no-memory-update\n  kapi merge work.kpz -o out\/    # emit målspråkfiler fra et .kpz-arbeidsområde",
+          "long": "Materialiser målspråksfiler for et prosjekt, eller anvend tospråklige filer\nreturnert av en oversetter tilbake på prosjektets kildelokaliteter.\n\nUten -i i et prosjekt skriver merge målspråksfilene fra\nprosjektets blokklagring: en prosess-bare «kapi run» (i et prosjekt, uten -o)\nbetaler arbeidet som targets\/<locale>-overlegg, og merge er det tilhørende\navløpet — det leser hver kilde, anvender de lagrede overleggene og skriver\nmålspråksfilen via kildeformatets skjelett-rundtur.\n\nMed -i anvender merge én eller flere tospråklige filer returnert av en\noversetter tilbake på prosjektets kildelokaliteter, ved hjelp av skjelettet\nhentet av kapi extract. Hver inndata bærer ekstraksjonens\nbatch-id i en <note> på filnivå, slik at merge finner riktig ekstraksjon\nmanifest uten å gjette fra filnavnet. Blandede mållokaliteter i én\nbatch er greit — merge håndterer hver inndata uavhengig.",
+          "short": "Bruk en returnert tospråklig fil (.kpz\/XLIFF\/PO) tilbake på prosjektkilden"
         },
         "models": {
           "default": {
-            "example": "  kapi models default                  # show the current default\n  kapi models default gemma3:4b        # local Ollama, provider inferred\n  kapi models default claude-sonnet-4  # anthropic, inferred\n  kapi models default gpt-4o --provider azureopenai",
-            "long": "With no argument, prints the configured default AI provider and model.\n\nWith a model argument, sets it as the default used by AI tools and flows\nwhen no --provider\/--model flag or recipe default is given. The provider is\ninferred from the model name by convention (claude-* → anthropic, gpt-* →\nopenai, gemini-* → gemini, an Ollama tag like gemma3:4b → ollama); pass\n--provider to choose it explicitly (e.g. Azure OpenAI). Writes ai.provider\nand ai.model to the global config (see `kapi config path`), so the setting\nis shared with Kapi Desktop.",
-            "short": "Show or set the default AI model (and its provider)"
+            "example": "  kapi models default                  # vis gjeldende standard\n  kapi models default gemma3:4b        # lokal Ollama, leverandør utledet\n  kapi models default claude-sonnet-4  # anthropic, utledet\n  kapi models default gpt-4o --provider azureopenai",
+            "long": "Uten argument skrives den konfigurerte standard-AI-leverandøren og -modellen ut.\n\nMed et modellargument angis den som standard brukt av AI-verktøy og flyter\nnår ingen --provider\/--model-flagg eller oppskriftstandarder er gitt. Leverandøren\nslutes fra modellnavnet etter konvensjon (claude-* → anthropic, gpt-* →\nopenai, gemini-* → gemini, en Ollama-tagg som gemma3:4b → ollama); bruk\n--provider for å velge den eksplisitt (f.eks. Azure OpenAI). Skriver ai.provider\nog ai.model til den globale konfigurasjonen (se `kapi config path`), slik at innstillingen\ndeles med Kapi Desktop.",
+            "short": "Vis eller angi standard AI-modell (og dens leverandør)"
           },
           "list": {
-            "short": "List every model kapi can use (Ollama, plugin assets, cloud providers)"
+            "short": "List opp alle modeller kapi kan bruke (Ollama, plugin-ressurser, skyleverandører)"
           },
-          "long": "A single view of every model kapi can use, across four sources:\n\n  • Detected        — keyless providers found on this machine, like the\n                      Claude Code CLI (uses your Claude subscription)\n  • Local · Ollama  — on-device models served by a local Ollama runtime\n                      (`kapi models pull <model>` installs one)\n  • Plugin models   — integrity-pinned assets a plugin downloads and caches\n                      under $XDG_CACHE_HOME\/kapi\/models\/<plugin>\/<id>\/<version>\/\n  • Cloud providers — remote models that require an API key\n\n`kapi models setup` interactively picks and verifies the default provider.\n`kapi models pull`\/`prune` install and remove Ollama and plugin models; cloud\nmodels are listed for reference. Filter with `--provider <ollama|plugin|cloud-id>`.\n`kapi models ollama` manages the local Ollama runtime itself.",
+          "long": "En samlet oversikt over alle modeller kapi kan bruke, fra fire kilder:\n\n  • Oppdaget         — nøkkelfrie leverandører funnet på denne maskinen, som\n                       Claude Code CLI (bruker Claude-abonnementet ditt)\n  • Lokalt · Ollama  — enhetsmodeller servert av et lokalt Ollama-kjøretidsmiljø\n                       (`kapi models pull <model>` installerer én)\n  • Plugin-modeller  — integritetsfestede ressurser som en plugin laster ned og\n                       mellomlagrer under $XDG_CACHE_HOME\/kapi\/models\/<plugin>\/<id>\/<version>\/\n  • Skyleverandører  — eksterne modeller som krever en API-nøkkel\n\n`kapi models setup` velger og verifiserer standard leverandør interaktivt.\n`kapi models pull`\/`prune` installerer og fjerner Ollama- og plugin-modeller; sky-\nmodeller er listet for referanse. Filtrer med `--provider <ollama|plugin|cloud-id>`.\n`kapi models ollama` administrerer det lokale Ollama-kjøretidsmiljøet selv.",
           "ollama": {
             "install": {
-              "long": "Show the platform-appropriate command to install the Ollama runtime. With --run on\nmacOS (and Homebrew present), kapi runs `brew install ollama` for you.",
-              "short": "Print how to install the Ollama runtime (or install it on macOS with --run)"
+              "long": "Vis den plattformspassende kommandoen for å installere Ollama-kjøretidsmiljøet. Med --run på\nmacOS (og Homebrew tilgjengelig) kjører kapi `brew install ollama` for deg.",
+              "short": "Skriv ut hvordan du installerer Ollama-kjøretidsmiljøet (eller installer det på macOS med --run)"
             },
             "list": {
-              "short": "List models installed on the Ollama server"
+              "short": "List opp modeller installert på Ollama-serveren"
             },
-            "long": "Detect, inspect, and feed the local Ollama runtime kapi uses for on-device\n(GPU-accelerated) translation. Ollama itself is a one-time install from\nhttps:\/\/ollama.com; kapi drives the rest — `kapi models ollama pull <model>` installs\na model, and `kapi translate --provider ollama --model <model>` uses it.",
+            "long": "Oppdag, inspiser og mat den lokale Ollama-kjøretiden som kapi bruker for på-enhet\n(GPU-akselerert) oversettelse. Ollama i seg selv er en engangsinstallasjon fra\nhttps:\/\/ollama.com; kapi tar seg av resten — `kapi models ollama pull <model>` installerer\nen modell, og `kapi translate --provider ollama --model <model>` bruker den.",
             "pull": {
-              "long": "Install a model so kapi can translate with it locally. <model> is any Ollama model\nreference (e.g. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Progress is streamed; a\nmodel already present is a no-op.",
-              "short": "Download a model onto the Ollama server"
+              "long": "Installer en modell slik at kapi kan oversette med den lokalt. <model> er en hvilken som helst Ollama-modellreferanse\n(f.eks. llama3.2:3b, qwen3:1.7b, aya-expanse:8b). Fremdrift strømmes; en\nmodell som allerede er til stede er en ikke-operasjon.",
+              "short": "Last ned en modell til Ollama-serveren"
             },
-            "short": "Manage the local Ollama runtime for on-device translation",
+            "short": "Administrer den lokale Ollama-kjøretiden for oversettelse på enheten",
             "status": {
-              "short": "Show whether the Ollama runtime is installed, running, and which models are present"
+              "short": "Vis om Ollama-kjøretidsmiljøet er installert, kjører og hvilke modeller som er til stede"
             }
           },
           "prune": {
-            "long": "Delete a model from disk. A bare reference defaults to an Ollama model; a plugin\nmodel id (e.g. sat-3l-sm), plugin name, or plugin\/model removes that cached asset.",
-            "short": "Remove a model (Ollama model, or a cached plugin asset)"
+            "long": "Slett en modell fra disk. En enkel referanse er som standard en Ollama-modell; en plugin-\nmodell-id (f.eks. sat-3l-sm), plugin-navn eller plugin\/modell fjerner det bufrede innholdet.",
+            "short": "Fjern en modell (Ollama-modell eller en bufret programtilleggsressurs)"
           },
           "pull": {
-            "long": "Install a model so kapi can translate with it. A bare reference defaults to an\nOllama model (e.g. llama3.2:3b, qwen3:1.7b) and is pulled into the local Ollama\nruntime. A plugin model id (e.g. sat-3l-sm), a plugin name, or plugin\/model fetches\nthat plugin's host-owned asset instead.",
-            "short": "Download a model (Ollama model, or a plugin asset)"
+            "long": "Installer en modell slik at kapi kan oversette med den. En enkel referanse bruker som standard en\nOllama-modell (f.eks. llama3.2:3b, qwen3:1.7b) og hentes inn i det lokale Ollama-\nkjøremiljøet. En plugin-modell-ID (f.eks. sat-3l-sm), et plugin-navn eller plugin\/modell henter\nden aktuelle pluginens vertseide ressurs i stedet.",
+            "short": "Last ned en modell (Ollama-modell eller en plugin-ressurs)"
           },
           "setup": {
             "example": "  kapi models setup",
-            "long": "Detects the AI options on this machine — the Claude Code CLI (uses your\nClaude subscription, no API key), a running Ollama server (local models),\nand API keys already present in the environment — then walks through picking\nthe default provider, storing an API key when one is needed, and verifying\nthe choice with a tiny test call. Writes ai.provider \/ ai.model to the global\nconfig (shared with Kapi Desktop).\n\nRequires a terminal; in CI set an API key env var or use `kapi config set`.",
-            "short": "Interactively pick and verify the default AI provider"
+            "long": "Oppdager AI-alternativene på denne maskinen — Claude Code CLI (bruker ditt\nClaude-abonnement, ingen API-nøkkel), en kjørende Ollama-server (lokale modeller)\nog API-nøkler som allerede finnes i miljøet — og går deretter gjennom valg av\nstandardleverandør, lagring av en API-nøkkel når det er nødvendig, og verifisering\nav valget med et lite testkall. Skriver ai.provider \/ ai.model til den globale\nkonfigurasjonen (delt med Kapi Desktop).\n\nKrever en terminal; i CI angir du en API-nøkkel som miljøvariabel eller bruker `kapi config set`.",
+            "short": "Velg og verifiser standard AI-leverandør interaktivt"
           },
-          "short": "Manage attached LLMs and ML models"
+          "short": "Administrer tilkoblede LLM-er og ML-modeller"
         },
         "pack": {
-          "example": "  kapi pack -o snapshot.kpz   # a kapi project\n  kapi pack work.kpz         # eject a .kpz workspace's cache",
-          "long": "Snapshot a kapi project's working state — the block-store overlays, the\nauthoritative content memory, and the terms store — into a portable .kpz.\nRegenerable caches and secrets are excluded. Move the snapshot to another\nmachine and \"kapi unpack\" it to resume work there.",
-          "short": "Snapshot a kapi project's working state into a .kpz"
+          "example": "  kapi pack -o snapshot.kpz   # et kapi-prosjekt\n  kapi pack work.kpz         # løs ut bufferen til et .kpz-arbeidsområde",
+          "long": "Ta et øyeblikksbilde av et kapi-prosjekts arbeidstilstand — blokklagrets overlegg, den autoritative innhuldsminnet og termlageret — til en portabel .kpz.\nRegenerbare mellomlagre og hemmeligheter er utelatt. Flytt øyeblikksbildet til en annen maskin og kjør \"kapi unpack\" for å gjenoppta arbeidet der.",
+          "short": "Ta et øyeblikksbilde av et kapi-prosjekts arbeidstilstand til en .kpz"
         },
         "plugin": {
           "doctor": {
-            "long": "Check the health of installed plugins.\n\nFor each plugin, doctor verifies the binary is present and its reported\nversion matches the manifest, then — for plugins that provide a\nself-check — runs the plugin's own diagnostics (e.g. confirming bundled\nbinaries, models, or engines resolve at runtime).\n\nWith no argument, doctor checks every installed plugin and prints a\none-line status each. Pass a plugin name for a detailed report including\nthe plugin's full self-check output. Exits non-zero if any checked\nplugin is unhealthy.\n\nExamples:\n  kapi plugins doctor\n  kapi plugins doctor av",
-            "short": "Run health\/self-checks on installed plugins"
+            "long": "Sjekk tilstanden til installerte programtillegg.\n\nFor hvert programtillegg kontrollerer doctor at binærfilen er til stede og at den rapporterte\nversjonen samsvarer med manifestet, og — for programtillegg som tilbyr en\negensjekk — kjøres programtilleggets egne diagnoser (f.eks. bekreftelse av medfølgende\nbinærfiler, modeller eller motorer som løses ved kjøretid).\n\nUten argument sjekker doctor hvert installerte programtillegg og skriver ut én\nlinjestatus for hvert. Oppgi et programtilleggnavn for en detaljert rapport inkludert\nprogramtilleggets fullstendige egensjekkutdata. Avslutter med ikke-null hvis noe sjekket\nprogramtillegg er usunt.\n\nEksempler:\n  kapi plugins doctor\n  kapi plugins doctor av",
+            "short": "Kjør helse-\/selvsjekker på installerte programtillegg"
           },
           "info": {
-            "short": "Show details for an installed plugin"
+            "short": "Vis detaljer for et installert programtillegg"
           },
           "install": {
-            "long": "Install a plugin from a registry. The plugin is downloaded,\nverified (SHA-256 + cosign signature), and unpacked into\n$XDG_DATA_HOME\/kapi\/plugins\/<name>\/.\n\nExamples:\n  kapi plugin install bowrain\n  kapi plugin install bowrain@^1.0\n  kapi plugin install bowrain --channel beta",
-            "short": "Install a plugin from the registry"
+            "long": "Installer en plugin fra et register. Pluginen lastes ned,\nverifiseres (SHA-256 + cosign-signatur) og pakkes ut i\n$XDG_DATA_HOME\/kapi\/plugins\/<name>\/.\n\nEksempler:\n  kapi plugin install bowrain\n  kapi plugin install bowrain@^1.0\n  kapi plugin install bowrain --channel beta",
+            "short": "Installer et programtillegg fra registeret"
           },
           "list": {
-            "short": "List installed plugins"
+            "short": "Vis installerte programtillegg"
           },
           "prune": {
-            "long": "Find plugins kapi has retired but that remain installed from an earlier version,\nand remove them. Retired plugins are already inert (kapi never loads them); this\ncleans them off disk after confirmation. System (Homebrew) installs are reported\nwith the command to remove them, never deleted by kapi. Downloaded model caches\nand configuration are left untouched.",
-            "short": "Remove retired plugins that are still installed"
+            "long": "Finn plugins som kapi har avviklet, men som fortsatt er installert fra en tidligere versjon,\nog fjern dem. Avviklede plugins er allerede inaktive (kapi laster dem aldri inn); dette\nfjerner dem fra disken etter bekreftelse. Systeminstallasjoner (Homebrew) rapporteres\nmed kommandoen for å fjerne dem, og slettes aldri av kapi. Nedlastede modellbuffere\nog konfigurasjon forblir urørt.",
+            "short": "Fjern utdaterte programtillegg som fortsatt er installert"
           },
           "rebuild-cache": {
-            "short": "Force a rebuild of the plugin dispatch cache"
+            "short": "Tving en gjenoppbygging av plugin-ekspedisjonsbufferen"
           },
           "registry": {
             "add": {
-              "short": "Add a registry to global config"
+              "short": "Legg til et register i global konfigurasjon"
             },
             "list": {
-              "short": "List configured registries"
+              "short": "List opp konfigurerte registre"
             },
             "remove": {
-              "short": "Remove a registry from global config"
+              "short": "Fjern et register fra global konfigurasjon"
             },
-            "short": "Manage plugin registries"
+            "short": "Administrer plugin-registre"
           },
           "remove": {
-            "short": "Remove an installed plugin"
+            "short": "Fjern en installert plugin"
           },
           "search": {
-            "short": "Search the registry for plugins"
+            "short": "Søk i registeret etter plugins"
           },
-          "short": "Install and manage manifest-driven plugins",
+          "short": "Installer og administrer manifeststyrte programtillegg",
           "update": {
-            "long": "Update an installed plugin in place using the channel and constraint\nrecorded at install time. Pass --channel or --constraint to switch\ntracks during update; --index points the update at a different\nregistry index URL.\n\nExamples:\n  kapi plugin update bowrain\n  kapi plugin update bowrain --channel beta\n  kapi plugin update bowrain --constraint ^2.0",
-            "short": "Update an installed plugin to the latest matching version"
+            "long": "Oppdater en installert plugin på stedet ved hjelp av kanalen og begrensningen\nregistrert ved installasjonstidspunktet. Angi --channel eller --constraint for å bytte\nspor under oppdatering; --index peker oppdateringen mot en annen\nregisterindeks-URL.\n\nEksempler:\n  kapi plugin update bowrain\n  kapi plugin update bowrain --channel beta\n  kapi plugin update bowrain --constraint ^2.0",
+            "short": "Oppdater et installert programtillegg til den nyeste samsvarende versjonen"
           },
           "update-index": {
-            "short": "Refresh the cached registry index"
+            "short": "Oppdater den bufrede registerindeksen"
           },
           "verify": {
-            "short": "Re-verify an installed plugin's manifest and binary"
+            "short": "Verifiser et installert programtilleggs manifest og binærfil på nytt"
           }
         },
         "pseudo-translate": {
           "example": "  kapi pseudo-translate messages.json\n  kapi pseudo-translate src\/locales\/en.json -o src\/locales\/qps.json",
-          "long": "Run the built-in pseudo-translate flow: expand every string with\nlocale-shaped accents and length padding so truncation, concatenation, and\nhardcoded-string bugs surface before any real translation is bought. Runs\nentirely offline — no AI provider or keys required.\n\nUse it as the pre-flight check; when the UI holds up, 'kapi translate' (ad\nhoc) or 'kapi up' (project) produce the real translations.",
-          "short": "Pseudo-translate files to test locale readiness — no AI keys needed"
+          "long": "Kjør den innebygde pseudo-oversettelsesflyten: utvid hver streng med\nlokaltilpassede aksenter og lengdefylling slik at avkutting, sammenkobling og\nhardkodede-streng-feil avdekkes før noen virkelig oversettelse kjøpes. Kjører\nheldig offline — ingen AI-leverandør eller nøkler kreves.\n\nBruk det som en forhåndssjekk; når grensesnittet holder, produserer 'kapi translate' (ad\nhoc) eller 'kapi up' (prosjekt) de virkelige oversettelsene.",
+          "short": "Pseudo-oversett filer for å teste lokaliseringsklarhet — ingen AI-nøkler nødvendig"
         },
         "rm": {
-          "long": "Stop tracking files matching the given patterns.\n\nIf a pattern matches one added with 'kapi add', the mapping is removed.\nOtherwise the pattern is added to the exclude list so those files are skipped.\n\n  kapi rm \"src\/**\/*.html\"       # remove the mapping\n  kapi rm \"src\/legacy\/*.html\"   # exclude matching files",
-          "short": "Remove file patterns from the project's content"
+          "long": "Slutt å spore filer som samsvarer med de angitte mønstrene.\n\nHvis et mønster samsvarer med ett som ble lagt til med 'kapi add', fjernes tilordningen.\nEller legges mønsteret til utelatelseslisten slik at disse filene hoppes over.\n\n  kapi rm \"src\/**\/*.html\"       # fjern tilordningen\n  kapi rm \"src\/legacy\/*.html\"   # utelat samsvarende filer",
+          "short": "Fjern filmønstre fra prosjektets innhold"
         },
         "run": {
-          "example": "  kapi run translate-qa -i app.xliff --target-lang fr\n  kapi run translate-qa -i messages.json --target-lang de\n  kapi run pseudo -p kapi.yaml         # a project-defined flow",
-          "long": "Run a composed flow that chains multiple tools together.\n\nFlows are multi-tool pipelines. For single-tool operations, use the\ntool directly (e.g. \"kapi translate\" instead of \"kapi run translate\").\nTo bring the whole project up to date, use 'kapi up' — the kapi loop\nlives there; run is the escape hatch for one named pipeline, one pass.\n\nBuilt-in flows:\n  translate-qa    Translate + quality check using AI\/LLM\n\nCustom flows can be defined in the kapi.yaml recipe or .kapi\/flows\/ as YAML files.\n\nUse -p to run a flow from a kapi.yaml recipe:\n  kapi run translate -p kapi.yaml",
-          "short": "Run a composed flow (a named multi-tool pipeline)"
+          "example": "  kapi run translate-qa -i app.xliff --target-lang fr\n  kapi run translate-qa -i messages.json --target-lang de\n  kapi run pseudo -p kapi.yaml         # en prosjektdefinert flyt",
+          "long": "Kjør en sammensatt flyt som kobler sammen flere verktøy.\n\nFlyter er flerverktøy-rørledninger. For enkeltverktøy-operasjoner, bruk\nverktøyet direkte (f.eks. «kapi translate» i stedet for «kapi run translate»).\nFor å bringe hele prosjektet oppdatert, bruk 'kapi up' — kapi-løkken\nbor der; run er nødutgangen for én navngitt rørledning, én gjennomgang.\n\nInnebygde flyter:\n  translate-qa    Oversett + kvalitetskontroll ved hjelp av AI\/LLM\n\nTilpassede flyter kan defineres i kapi.yaml-oppskriften eller .kapi\/flows\/ som YAML-filer.\n\nBruk -p for å kjøre en flyt fra en kapi.yaml-oppskrift:\n  kapi run translate -p kapi.yaml",
+          "short": "Kjør en sammensatt flyt (en navngitt flerverktøys-pipeline)"
         },
-        "short": "A format-aware content engine — parse, edit, check, and translate any format",
+        "short": "En formatbevisst innholdsmotor — analyser, rediger, sjekk og oversett ethvert format",
         "stats": {
-          "example": "  kapi stats report.docx\n  kapi stats 'src\/**'                       # every file under src, any depth\n  kapi stats --output-format json 'docs\/**\/*.md' | jq '.total.words'\n  kapi stats                                # inside a project: its tracked content\n  cat page.html | kapi stats -f html",
-          "long": "Summarize the content of one or more files: total and translatable blocks,\nword and character counts (with and without spaces), segments, and a breakdown\nby structural role (heading, paragraph, list-item, table-cell, …). Any format —\na Word document, a JSON catalog, Markdown, HTML — yields the same shape.\n\nWord, character, and segment counts cover the translatable content; block and\nrole counts cover the whole document. Prints a human table by default;\n--output-format json|yaml emits the structured record for piping into a pipeline.\n\nPositional paths accept glob patterns and directories, expanded by kapi itself —\nquote the pattern and `**` recurses identically in every shell. Inside a project,\nno FILE means the project's tracked content; FILE \"-\" reads standard input.",
-          "short": "Summarize content metrics for files — blocks, words, characters, segments, by role"
+          "example": "  kapi stats report.docx\n  kapi stats 'src\/**'                       # alle filer under src, hvilken som helst dybde\n  kapi stats --output-format json 'docs\/**\/*.md' | jq '.total.words'\n  kapi stats                                # inne i et prosjekt: dets sporede innhold\n  cat page.html | kapi stats -f html",
+          "long": "Oppsummer innholdet i én eller flere filer: totale og oversettbare blokker,\nord- og tegnantall (med og uten mellomrom), segmenter og en fordeling\netter strukturell rolle (overskrift, avsnitt, listeelement, tabellcelle, …). Alle formater —\net Word-dokument, en JSON-katalog, Markdown, HTML — gir samme struktur.\n\nOrd-, tegn- og segmentantall dekker det oversettbare innholdet; blokk- og\nrolleantall dekker hele dokumentet. Skriver ut en menneskelig tabell som standard;\n--output-format json|yaml sender den strukturerte posten for overføring til en pipeline.\n\nPosisjonsbaserte stier aksepterer glob-mønstre og kataloger, utvidet av kapi selv —\nsitér mønsteret og `**` rekurserer identisk i hvert skall. Inne i et prosjekt\nbetyr ingen FIL prosjektets sporede innhold; FIL «-» leser standard inndata.",
+          "short": "Oppsummer innholdsmetrikk for filer — blokker, ord, tegn, segmenter, etter rolle"
         },
         "status": {
-          "long": "Show, per target locale, how much of the project's tracked content is\ntranslated and whether it clears its ship gate — a derived dashboard, like\ngit status. Coverage is recomputed from the content × target files on every run;\nnothing is tracked as state.\n\nThis is the informational counterpart to 'kapi check --ship' (the quality gate). It\nnever fails: a locale that is behind is reported as pending, not an error —\ntarget-language drift is normal, expected work, not a build break.",
-          "short": "Show per-locale translation coverage and ship-gate standing"
+          "long": "Viser, per målspråk, hvor mye av prosjektets sporede innhold som er\noversatt og om det passerer leveringsporten — et avledet dashboard, som\ngit status. Dekning beregnes på nytt fra innholds- × målfilene ved hver kjøring;\ningenting spores som tilstand.\n\nDette er informasjonsmotparten til 'kapi check --ship' (kvalitetsporten). Den\nfeiler aldri: et språk som er etter rapporteres som ventende, ikke som en feil —\navvik i målspråk er normalt, forventet arbeid, ikke et byggbrudd.",
+          "short": "Vis oversettelsesdekning per lokalitet og status for leveringsgate"
         },
         "telemetry": {
           "example": "  kapi telemetry status\n  kapi telemetry off",
-          "long": "kapi collects anonymous usage telemetry to guide development: the name of the\nbuilt-in command that ran, a coarse duration bucket, the exit class, the kapi\nversion, and the operating system and architecture, keyed by a random\nanonymous ID. It never collects arguments, flag values, file paths, file\ncontents, or project names.\n\nTelemetry is disabled by any of: 'kapi telemetry off', KAPI_TELEMETRY=0,\nDO_NOT_TRACK=1, a CI environment, a build made with -tags notelemetry, or a\nbuild without a telemetry key (any build you compile yourself).\n\nSee https:\/\/neokapi.github.io\/reference\/telemetry for the full event list.",
+          "long": "kapi samler inn anonym brukstelemetri for å veilede utviklingen: navnet på den\ninnebygde kommandoen som kjørte, en grov varighetsklasse, avslutningsklassen, kapi-\nversjonen, samt operativsystem og arkitektur, knyttet til en tilfeldig\nanonym ID. Den samler aldri inn argumenter, flaggverdier, filstier, fil-\ninnhold eller prosjektnavn.\n\nTelemetri deaktiveres av ett av følgende: 'kapi telemetry off', KAPI_TELEMETRY=0,\nDO_NOT_TRACK=1, et CI-miljø, en build laget med -tags notelemetry, eller en\nbuild uten telemetrinøkkel (enhver build du kompilerer selv).\n\nSe https:\/\/neokapi.github.io\/reference\/telemetry for den fullstendige hendelseslisten.",
           "off": {
-            "short": "Disable anonymous usage telemetry (persists to the global config file)"
+            "short": "Deaktiver anonym brukstelemetri (lagres i den globale konfigurasjonsfilen)"
           },
           "on": {
-            "short": "Enable anonymous usage telemetry (persists to the global config file)"
+            "short": "Aktiver anonym brukstelemetri (lagres i den globale konfigurasjonsfilen)"
           },
-          "short": "Show or change anonymous usage telemetry (status, on, off)",
+          "short": "Vis eller endre anonym brukstelemetri (status, på, av)",
           "status": {
-            "short": "Show whether telemetry is enabled, why, and the exact payload shape"
+            "short": "Vis om telemetri er aktivert, hvorfor, og den eksakte nyttelastformen"
           }
         },
         "terms": {
           "example": "  kapi terms stats\n  kapi terms lookup \"dashboard\" -s en -t fr\n  kapi terms import terms.csv -s en -t fr",
           "export": {
-            "short": "Export terms to CSV, JSON, TBX, or a native .terms.json bundle"
+            "short": "Eksporter termer til CSV, JSON, TBX eller en innebygd .terms.json-pakke"
           },
           "import": {
             "example": "  kapi terms import terms.csv -s en -t fr --header\n  kapi terms import vocab.csv -s en --monolingual --header\n  kapi terms import terms.tbx --format tbx\n  kapi terms import seeds\/terms.json",
-            "short": "Import terms from CSV, JSON, TBX, or a native .terms.json bundle"
+            "short": "Importer termer fra CSV, JSON, TBX eller et innebygd .terms.json-pakkefil"
           },
           "list": {
-            "short": "List named terms stores in KAPI_HOME"
+            "short": "Vis navngitte termlagre i KAPI_HOME"
           },
-          "long": "Manage project terminology.\n\nA terms store holds approved terminology — concepts and their renderings per\nlocale — as a SQLite database. Use these commands to import, export, look up,\nand manage terms.\n\nInside a project, no flag means the project's own terms — a subsystem of\n.kapi\/work\/store.db, which is why it is not addressed by path. Use -p to name the\nproject explicitly.\n\nStandalone store instead (mutually exclusive):\n  --name <n>      Named terms store in the kapi config dir (terms\/<n>.db)\n  --local         Terms store in current directory (.\/terms.db)\n  --file <path>   Explicit file path\n\nOutside a project and with no flag: same as --local (uses .\/terms.db).",
+          "long": "Administrer prosjektterminologi.\n\nEt termslager inneholder godkjent terminologi — begreper og deres gjenginger per\nlokalitet — som en SQLite-database. Bruk disse kommandoene til å importere, eksportere, slå opp\nog administrere termer.\n\nInni et prosjekt betyr ingen flagg prosjektets egne termer — et delsystem av\n.kapi\/work\/store.db, og det er derfor det ikke adresseres med sti. Bruk -p for å angi\nprosjektet eksplisitt.\n\nFrittstående lager i stedet (gjensidig utelukkende):\n  --name <n>      Navngitt termslager i kapi-konfigurasjonsmappen (terms\/<n>.db)\n  --local         Termslager i gjeldende mappe (.\/terms.db)\n  --file <path>   Eksplisitt filsti\n\nUtenfor et prosjekt og uten flagg: samme som --local (bruker .\/terms.db).",
           "lookup": {
             "example": "  kapi terms lookup \"dashboard\" -s en -t fr\n  kapi terms lookup \"settings\" -s en -t de --fuzzy",
-            "short": "Look up a term in the terms store"
+            "short": "Slå opp et begrep i termlageret"
           },
           "occurrences": {
             "example": "  kapi terms occurrences \"content memory\"\n  kapi terms occurrences c-dashboard --locale nb\n  kapi terms occurrences \"log in\" --collection docs --json",
-            "long": "Show where a term is used in the project's extracted content.\n\nThe argument is a term as written, or a concept id. A concept is searched for\nunder every term it carries, in every language, so an approved English term is\nfound in the source text and its counterpart in the translated text.\n\nMatching folds case, spans any whitespace between a term's words, and requires a\nword boundary — \"AI\" is not a use of \"again\". Scripts written without word\nseparators are matched without that rule.\n\nThe project must have been extracted: occurrences are read from the block cache\ninside the project store, which `kapi up` and `kapi extract` fill.",
-            "short": "Show where a term is used in the project's content"
+            "long": "Vis hvor en term brukes i prosjektets uttrukne innhold.\n\nArgumentet er en term slik den er skrevet, eller en begreps-id. Et begrep søkes etter\nunder alle termer det inneholder, på alle språk, slik at en godkjent engelsk term finnes\ni kildeteksten og dens motpart i den oversatte teksten.\n\nSammenligningen ignorerer store\/små bokstaver, spenner over vilkårlig mellomrom mellom termens ord, og krever en\nordgrense — «AI» er ikke en bruk av «again». Skrift uten ordskillere sammenlignes uten den regelen.\n\nProsjektet må ha vært uttrukket: forekomster leses fra blokk-bufferen\ninn i prosjektlageret, som `kapi up` og `kapi extract` fyller.",
+            "short": "Vis hvor et begrep brukes i prosjektets innhold"
           },
           "search": {
             "example": "  kapi terms search \"encrypt\" -s en\n  kapi terms search \"log in\" -s en -t fr",
-            "short": "Search concepts in the terms store"
+            "short": "Søk etter begreper i termlageret"
           },
-          "short": "Manage terminology",
+          "short": "Administrer terminologi",
           "stats": {
             "example": "  kapi terms stats\n  kapi terms stats --name product-terms",
-            "short": "Show terms statistics"
+            "short": "Vis termstatistikk"
           }
         },
         "tools": {
           "example": "  kapi tools\n  kapi tools list",
           "list": {
             "example": "  kapi tools list",
-            "short": "List available processing tools"
+            "short": "List tilgjengelige behandlingsverktøy"
           },
           "schema": {
             "example": "  kapi tools schema translate\n  kapi tools schema pseudo-translate",
-            "short": "Print the JSON Schema for a tool's parameters"
+            "short": "Skriv ut JSON-skjemaet for et verktøys parametere"
           },
-          "short": "List available processing tools"
+          "short": "List tilgjengelige behandlingsverktøy"
         },
         "translate": {
           "example": "  kapi translate messages.json --target-lang fr\n  kapi translate docs\/*.md --target-lang de -o out\/{name}_{lang}.{ext}\n  kapi translate app.xliff --target-lang ja --provider ollama",
-          "long": "Translate files through the built-in translate flow: leverage a bound\ncontent memory first (a no-op without one), translate the rest with the\nconfigured AI provider, then run the deterministic checks (placeholders,\ninline tags, untranslated text) over what was produced.\n\nThis is the guardrailed spelling — the same three-step flow 'kapi up' loops\nover a project, applied to ad-hoc files. The raw translate tool (no Memory pass,\nno checks) stays available as 'kapi exec translate'. To bring a whole project\nup to date, use 'kapi up'.",
-          "short": "Translate files with guardrails — content memory reuse, AI translate, then checks"
+          "long": "Oversett filer gjennom den innebygde oversettelsesflyten: utnytt et tilknyttet\ninnholdsminne først (en no-op uten ett), oversett resten med den\nkonfigurerte AI-leverandøren, kjør deretter de deterministiske kontrollene (plassholdere,\ninline-tagger, uoversatt tekst) over det som ble produsert.\n\nDette er den sikrede varianten — den samme tretrinns-flyten som 'kapi up' løper\ngjennom for et prosjekt, anvendt på ad-hoc-filer. Det rå oversettelses-verktøyet (uten minnepass,\nuten kontroller) er fortsatt tilgjengelig som 'kapi exec translate'. For å oppdatere et helt prosjekt,\nbruk 'kapi up'.",
+          "short": "Oversett filer med sikkerhetsmekanismer — gjenbruk av innholdsminne, KI-oversettelse og deretter kontroller"
         },
         "unpack": {
           "example": "  kapi unpack snapshot.kpz",
-          "short": "Rehydrate a project's working state from a .kpz snapshot"
+          "short": "Gjenopprett et prosjekts arbeidstilstand fra et .kpz-øyeblikksbilde"
         },
         "up": {
-          "example": "  kapi up                # loop the default flow until every gated scope ships or parks\n  kapi up --plan         # dry run: pending work, content-memory leverage, and a token estimate per locale\n  kapi up --passes 1     # a single pass over every locale that needs work\n  kapi up --materialize  # also write target-language files for the shippable locales\n  kapi up --local        # connected project: run the loop on this machine, then push the results\n  kapi up -p kapi.yaml   # bring an explicit project recipe up to date",
-          "long": "Bring the project up to date: the recipe declares the languages, the flow, and\nthe gates that decide shippable; kapi up runs the project's default flow\n(defaults.flow) over every target language, looping until every gated scope is\nshippable or parked for a human.\n\nWithout defaults.flow, up runs the built-in default flow — Memory reuse (recycle)\nfollowed by AI translate — so a recipe needs no flow YAML at all to catch up.\nSetting defaults.flow replaces the built-in default.\n\nBefore each pass, up re-syncs the project block store with the working tree:\nedited source files, a store written by another kapi version, or a missing\nstore trigger a re-extraction (the same shared path behind the desktop's\nRe-extract). --no-extract opts out.\n\nEach pass re-derives coverage from the working tree, runs the flow only for\nthe locales still short of their gate, and stops when everything ships, a pass\nmakes no progress (the remainder parks — it needs a human), or the pass cap is\nreached. After each pass the project's bound checks run over what was\nproduced: a unit with failing findings (dropped placeholders, terminology\nviolations) counts as drafted, not translated, so it cannot lift its locale\nover the gate until fixed. --no-checks opts out.\n\nWhen the loop ends, the materialize policy decides whether target-language files\nare written from the project store: 'defaults.materialize: on-converge' (or\nthe --materialize flag) writes them for every locale whose gated scopes are\nall shippable; the default ('manual') leaves that to 'kapi merge'.\n\nVenue: in a server-connected project (a recipe with a bowrain: block, with the\nbowrain plugin installed) the loop runs on the Bowrain server by default — on\nthe org's keys, against the org's shared Memory and terminology — and this command\npushes local changes, streams the server run's live progress, and pulls the\nproduced targets. --local keeps the loop on this machine and then pushes the\nresults so the server never goes stale; --server fails rather than falling\nback to a local run. The resolved venue is printed first whenever the recipe\nconnects to a server. Without that block, up is purely local.\n\n--plan is a dry run in every venue: instead of running anything, up reports\nthe pending work per (collection, locale) — units missing a target, exact Memory\nleverage, the remaining AI work, and a rough token estimate — computed locally\nagainst the working tree, with no provider calls and no writes. Combine with\n--json for agents.\n\nup never fails the build on target drift: parked, pending target content is\nnormal toil, reported rather than thrown. Use 'kapi status' to inspect\nstanding without running anything, and 'kapi check --ship' to enforce the\ngates (e.g. before a release tag).\n\n--passes 1 runs a single pass (the behavior of the bare 'kapi run');\n--passes N caps the loop at N passes.",
-          "short": "Bring the project up to date (run the default flow until every gated scope ships or parks)"
+          "example": "  kapi up                # loop standardflyt til alle gatede omfang sendes eller parkeres\n  kapi up --plan         # tørrkjøring: ventende arbeid, innholdsminne-utnyttelse og et tokenestimat per lokalitet\n  kapi up --passes 1     # ett enkelt pass over alle lokaliteter som trenger arbeid\n  kapi up --materialize  # skriv også målspråkfiler for de klargjørbare lokalitetene\n  kapi up --local        # tilkoblet prosjekt: kjør løkken på denne maskinen, push deretter resultatene\n  kapi up -p kapi.yaml   # bring en eksplisitt prosjektoppskrift à jour",
+          "long": "Hold prosjektet oppdatert: oppskriften erklærer språkene, flyten og\nportene som avgjør om noe kan leveres; kapi up kjører prosjektets standardflyt\n(defaults.flow) over hvert målspråk, og løper i sløyfe til hvert portpassert omfang kan\nleveres eller er parkert for et menneske.\n\nUten defaults.flow kjører up den innebygde standardflyten — Minnegjenbruk (recycle)\nfulgt av AI-oversettelse — slik at en oppskrift ikke trenger noen flyt-YAML i det hele tatt for å ta igjen.\nÅ sette defaults.flow erstatter den innebygde standarden.\n\nFør hvert pass synkroniserer up prosjektets blokklagring med arbeidsträdet på nytt:\nredigerte kildefiler, en lagring skrevet av en annen kapi-versjon, eller en manglende\nlagring utløser en re-ekstrahering (den samme delte veien bak skrivebordets\nRe-ekstraher). --no-extract velger bort dette.\n\nHvert pass re-beregner dekning fra arbeidsträdet, kjører flyten bare for\nlokaler som fortsatt er under sin port, og stopper når alt leveres, et pass\nikke gjør fremgang (resten parkeres — det trenger et menneske), eller passtaket er\nnådd. Etter hvert pass kjøres prosjektets bundne sjekker over det som ble\nprodusert: en enhet med feilende funn (droppede plassholdere, terminologibrudd)\nteller som utkast, ikke oversatt, og kan derfor ikke løfte lokalet\nover porten før det er rettet. --no-checks velger bort dette.\n\nNår sløyfen avsluttes, bestemmer materialiseringspolicyen om målspråksfiler\nskrives fra prosjektlagringen: 'defaults.materialize: on-converge' (eller\n--materialize-flagget) skriver dem for hvert lokal hvis portpasserte omfang alle\nkan leveres; standarden ('manual') overlater dette til 'kapi merge'.\n\nVenue: i et servertilkoblet prosjekt (en oppskrift med en bowrain:-blokk, med\nbowrain-programtillegget installert) kjøres sløyfen på Bowrain-serveren som standard — på\norganisasjonens nøkler, mot organisasjonens delte minne og terminologi — og denne kommandoen\ndytter lokale endringer, streamer serverens live fremdrift og henter\nproduserte mål. --local holder sløyfen på denne maskinen og dytter deretter\nresultatene slik at serveren aldri blir utdatert; --server feiler i stedet for å\nfalle tilbake til en lokal kjøring. Den løste venue skrives ut først når oppskriften\nkobler til en server. Uten den blokken er up rent lokal.\n\n--plan er en tørrkjøring i alle venue: i stedet for å kjøre noe rapporterer up\ndet ventende arbeidet per (samling, lokal) — enheter som mangler et mål, eksakt Minneutnyttelse,\ngjenværende AI-arbeid og et grovt tokenestimat — beregnet lokalt\nmot arbeidsträdet, uten leverandøroppkall og uten skriving. Kombiner med\n--json for agenter.\n\nup feiler aldri bygget på grunn av måldrift: parkert, ventende målinnhold er\nnormal belastning, rapportert heller enn kastet. Bruk 'kapi status' for å inspisere\nstatus uten å kjøre noe, og 'kapi check --ship' for å håndheve\nportene (f.eks. før en utgivelsesmerking).\n\n--passes 1 kjører ett enkelt pass (oppførselen til det nakne 'kapi run');\n--passes N begrenser sløyfen til N pass.",
+          "short": "Hold prosjektet oppdatert (kjør standard flyt til alle portvoktede omfang er levert eller parkert)"
         },
         "update": {
           "example": "  kapi update",
-          "long": "Update the kapi binary itself.\n\nIf kapi was installed via a package manager (Homebrew, winget, apt, …), this\nprints the exact upgrade command — pass --run to execute it for you. If kapi was\ninstalled by direct download, it downloads the latest release, verifies its\nSHA-256 and cosign signature, and replaces the binary in place.\n\n  kapi update            # check and update (or print the upgrade command)\n  kapi update --check    # only report whether an update is available\n  kapi update --run      # on a managed install, run the package manager for me",
-          "short": "Update kapi to the latest release"
+          "long": "Oppdater selve kapi-binærfilen.\n\nHvis kapi ble installert via en pakkebehandler (Homebrew, winget, apt, …), skriver\ndette ut den nøyaktige oppgraderingskommandoen — bruk --run for å kjøre den for deg. Hvis kapi ble\ninstallert ved direkte nedlasting, laster den ned den nyeste versjonen, verifiserer\nSHA-256 og cosign-signaturen, og erstatter binærfilen på plass.\n\n  kapi update            # sjekk og oppdater (eller skriv ut oppgraderingskommandoen)\n  kapi update --check    # rapporter bare om en oppdatering er tilgjengelig\n  kapi update --run      # på en administrert installasjon, kjør pakkebehandleren for meg",
+          "short": "Oppdater kapi til den nyeste utgivelsen"
         },
         "version": {
           "example": "  kapi version",
-          "short": "Show version information"
+          "short": "Vis versjonsinformasjon"
         },
         "voice": {
           "check": {
-            "short": "Score text against a voice profile"
+            "short": "Vurder tekst opp mot en stemprofil"
           },
           "guide": {
-            "short": "Print the voice guide (inject into your assistant's context)"
+            "short": "Skriv ut stemmeguiden (injiser i assistentens kontekst)"
           },
           "import": {
-            "short": "Import a profile YAML into the local voice store"
+            "short": "Importer en profil-YAML til den lokale stemmebutikken"
           },
-          "long": "Check, rewrite, and govern content against a voice profile.\n\nProfile source (mutually exclusive):\n  --profile <name>       Profile in the local voice store (see 'kapi voice profiles')\n  --profile-file <path>  Standalone profile YAML (git-shareable, no store needed)\n  --pack <name>          Built-in starter pack (professional-b2b, friendly-dtc,\n                         technical-docs, marketing-blog, customer-support)\n\nText input for check\/rewrite is read from --text, or from stdin when --text is\nomitted or set to \"-\".",
+          "long": "Sjekk, omskriv og styr innhold mot en stemmeprofil.\n\nProfilkilde (gjensidig utelukkende):\n  --profile <name>       Profil i det lokale stemmelageret (se 'kapi voice profiles')\n  --profile-file <path>  Frittstående profil-YAML (git-delbar, ingen lager nødvendig)\n  --pack <name>          Innebygd startpakke (professional-b2b, friendly-dtc,\n                         technical-docs, marketing-blog, customer-support)\n\nTekstinndata for sjekk\/omskriving leses fra --text, eller fra stdin når --text er\nutelatt eller satt til \"-\".",
           "new": {
-            "long": "Write a voice profile YAML to fill in.\n\nWith no flags, emits a commented template. With --pack, emits an existing\nstarter pack as an editable base. An AI assistant can fill this in from what it\nalready knows about the product, from sample content, or from a linked website,\nthen `kapi voice import` it.",
-            "short": "Scaffold a voice profile YAML to fill in (optionally seeded from a starter pack)"
+            "long": "Skriv en stemmeprofil-YAML å fylle ut.\n\nUten flagg sendes en kommentert mal. Med --pack sendes en eksisterende\nstartpakke som en redigerbar base. En AI-assistent kan fylle denne ut fra det den\nallerede vet om produktet, fra eksempelinnhold eller fra en koblet nettside,\nog deretter importere den med `kapi voice import`.",
+            "short": "Lag et stemmeprofi-YAML-skjelett å fylle ut (eventuelt seeded fra en startpakke)"
           },
           "pack": {
-            "short": "Install a built-in starter pack into the local voice store"
+            "short": "Installer et innebygd startpakke i den lokale stemmelagringen"
           },
           "profiles": {
-            "short": "List voice profiles (local store + built-in packs)"
+            "short": "Vis stemmeprofiler (lokalt lager + innebygde pakker)"
           },
           "rewrite": {
-            "long": "Rewrite content against a voice profile by substituting forbidden and\ncompetitor terms with their approved replacements. This is the deterministic,\noffline path — it changes only the terms the profile defines and reports each\nchange; it does not call a model.\n\nText is read from --input-text or stdin and the rewrite is printed. To fix tone,\nstyle, or phrasing in voice, rewrite the text yourself with the voice guide as\ncontext ('kapi voice guide') and apply the edit through 'kapi apply' — kapi does\nnot send content to a model to rewrite it.",
-            "short": "Substitute forbidden\/competitor terms for their approved wording (offline)"
+            "long": "Omskriv innhold mot en stemprofil ved å erstatte forbudte termer og\nkonkurrentbetegnelser med godkjente erstatninger. Dette er den deterministiske,\nfrakoblede veien — den endrer bare termene profilen definerer og rapporterer hver\nendring; den kaller ikke en modell.\n\nTekst leses fra --input-text eller stdin, og omskrivingen skrives ut. For å rette tone,\nstil eller formulering i stemmen, omskriv teksten selv med stemeguiden som\nkontekst ('kapi voice guide') og bruk endringen via 'kapi apply' — kapi sender\nikke innhold til en modell for å omskrive det.",
+            "short": "Erstatt forbudte\/konkurrenters termer med godkjent ordlyd (frakoblet)"
           },
-          "short": "Keep AI-generated content in voice (tone, style, terminology)",
+          "short": "Hold AI-generert innhold i stemme (tone, stil, terminologi)",
           "show": {
-            "short": "Show a voice profile as a guide"
+            "short": "Vis en stemprofil som veiledning"
           },
           "validate": {
-            "long": "Validate a voice profile YAML and report structural problems.\n\nPass a file path, or \"-\" to read the profile from stdin. Validation reports:\n\n  - YAML syntax or type errors that stop the profile from parsing\n  - unknown fields (typo'd or unsupported keys)\n  - missing required fields (only 'name' is required)\n  - invalid enum values (tone formality\/emotion\/humor, style sentence_length\/\n    person_pov\/contractions, example category, rule severity)\n  - regex in style prohibited_patterns\/required_patterns that does not compile\n  - vocabulary term rules with an empty term\n\nExit codes: 0 when the profile is valid, 1 when it has any problem. With --json\nthe result is {\"valid\": bool, \"errors\": [{\"field\", \"message\"}]}.",
-            "short": "Validate a voice profile YAML (structure, enums, regex, terms)"
+            "long": "Valider en stemmeprofil-YAML og rapporter strukturelle problemer.\n\nOppgi en filsti, eller \"-\" for å lese profilen fra stdin. Validering rapporterer:\n\n  - YAML-syntaks- eller typefeil som hindrer profilen fra å bli tolket\n  - ukjente felt (skrivefeil eller nøkler som ikke støttes)\n  - manglende påkrevde felt (kun 'name' er påkrevd)\n  - ugyldige enum-verdier (tone formalitet\/følelse\/humor, stil setningslengde\/\n    person_pov\/sammentrekninger, eksempelkategori, regelens alvorlighetsgrad)\n  - regex i stil prohibited_patterns\/required_patterns som ikke kompilerer\n  - ordforrådsterm-regler med en tom term\n\nAvslutnigskoder: 0 når profilen er gyldig, 1 når den har et problem. Med --json\ner resultatet {\"valid\": bool, \"errors\": [{\"field\", \"message\"}]}.",
+            "short": "Valider en stemprofil-YAML (struktur, enumer, regex, termer)"
           }
         }
       }
     },
     "output": {
       "flows": {
-        "available": "Available flows:",
+        "available": "Tilgjengelige flyter:",
         "header": {
-          "description": "DESCRIPTION",
-          "flow": "FLOW",
-          "steps": "STEPS"
+          "description": "BESKRIVELSE",
+          "flow": "FLYT",
+          "steps": "TRINN"
         },
-        "none": "No flows defined.",
-        "total": "Total: %d flow(s)"
+        "none": "Ingen flyter er definert.",
+        "total": "Totalt: %d flyt(er)"
       },
       "formats": {
-        "available": "Available formats:",
+        "available": "Tilgjengelige formater:",
         "header": {
-          "default": "DEFAULT",
-          "description": "DESCRIPTION",
-          "edit": "EDIT",
-          "extensions": "EXTENSIONS",
+          "default": "STANDARD",
+          "description": "BESKRIVELSE",
+          "edit": "REDIGER",
+          "extensions": "UTVIDELSER",
           "format": "FORMAT",
-          "mimeTypes": "MIME TYPES",
-          "name": "NAME",
+          "mimeTypes": "MIME-TYPER",
+          "name": "NAVN",
           "parameter": "PARAMETER",
-          "read": "READ",
-          "source": "SOURCE",
+          "read": "LES",
+          "source": "KILDE",
           "type": "TYPE",
-          "write": "WRITE"
+          "write": "SKRIV"
         },
-        "total": "Total: %d format(s)"
+        "total": "Totalt: %d format(er)"
       },
       "occurrences": {
         "header": {
-          "block": "BLOCK",
-          "document": "DOCUMENT",
-          "locale": "LOCALE",
+          "block": "BLOKK",
+          "document": "DOKUMENT",
+          "locale": "LOKALITET",
           "term": "TERM",
-          "text": "TEXT"
+          "text": "TEKST"
         }
       },
       "plugins": {
         "header": {
-          "description": "DESCRIPTION",
-          "formats": "FORMATS",
-          "name": "NAME",
+          "description": "BESKRIVELSE",
+          "formats": "FORMATER",
+          "name": "NAVN",
           "status": "STATUS",
           "type": "TYPE",
-          "version": "VERSION"
+          "version": "VERSJON"
         },
-        "installed": "Installed plugins:",
-        "none": "No plugins installed.",
-        "total": "Total: %d plugin(s)"
+        "installed": "Installerte programtillegg:",
+        "none": "Ingen programtillegg installert.",
+        "total": "Totalt: %d programtillegg"
       },
       "presets": {
         "header": {
-          "description": "DESCRIPTION",
+          "description": "BESKRIVELSE",
           "format": "FORMAT",
-          "preset": "PRESET",
-          "source": "SOURCE"
+          "preset": "FORHÅNDSINNSTILLING",
+          "source": "KILDE"
         }
       },
       "registries": {
         "header": {
-          "channels": "CHANNELS",
-          "name": "NAME",
+          "channels": "KANALER",
+          "name": "NAVN",
           "url": "URL"
         },
-        "none": "No registries configured.",
-        "total": "Total: %d registry(ies)"
+        "none": "Ingen registre er konfigurert.",
+        "total": "Totalt: %d register(e)"
       },
       "resources": {
         "header": {
-          "modified": "MODIFIED",
-          "name": "NAME",
-          "path": "PATH",
-          "size": "SIZE"
+          "modified": "ENDRET",
+          "name": "NAVN",
+          "path": "STI",
+          "size": "STØRRELSE"
         }
       },
       "terms": {
         "header": {
-          "concept": "CONCEPT",
-          "concepts": "CONCEPTS",
-          "definition": "DEFINITION",
-          "domain": "DOMAIN",
-          "locale": "LOCALE",
-          "match": "MATCH",
-          "score": "SCORE",
+          "concept": "KONSEPT",
+          "concepts": "BEGREPER",
+          "definition": "DEFINISJON",
+          "domain": "DOMENE",
+          "locale": "NASJONAL INNSTILLING",
+          "match": "TREFF",
+          "score": "POENGSUM",
           "status": "STATUS",
           "term": "TERM",
-          "terms": "TERMS"
+          "terms": "TERMER"
         }
       },
       "tm": {
         "header": {
-          "entries": "ENTRIES",
-          "localePair": "LOCALE PAIR",
-          "locales": "LOCALES",
-          "matchType": "MATCH TYPE",
-          "score": "SCORE",
-          "source": "SOURCE",
-          "target": "TARGET"
+          "entries": "OPPFØRINGER",
+          "localePair": "LOKALITETSPAR",
+          "locales": "LOKALITETER",
+          "matchType": "TREFFTYPE",
+          "score": "POENGSUM",
+          "source": "KILDE",
+          "target": "MÅL"
         }
       },
       "tools": {
-        "available": "Available tools:",
+        "available": "Tilgjengelige verktøy:",
         "category": {
-          "analysis": "Analysis",
-          "other": "Other",
-          "quality": "Quality",
-          "text-processing": "Text Processing",
-          "translation": "Translation"
+          "analysis": "Analyse",
+          "other": "Annet",
+          "quality": "Kvalitet",
+          "text-processing": "Tekstbehandling",
+          "translation": "Oversettelse"
         },
         "header": {
-          "description": "DESCRIPTION",
-          "tool": "TOOL"
+          "description": "BESKRIVELSE",
+          "tool": "VERKTØY"
         },
-        "none": "No tools available.",
-        "total": "Total: %d tool(s)"
+        "none": "Ingen verktøy tilgjengelig.",
+        "total": "Totalt: %d verktøy"
       }
     }
   },
   "desktop": {
     "menu": {
-      "checkForUpdates": "Check for Updates…",
-      "clearRecentProjects": "Clear Recent Projects",
-      "file": "File",
-      "newProject": "New Project",
-      "noRecentProjects": "No Recent Projects",
-      "open": "Open...",
-      "recentProjects": "Recent Projects",
-      "save": "Save",
-      "saveAs": "Save As..."
+      "checkForUpdates": "Se etter oppdateringer…",
+      "clearRecentProjects": "Tøm siste prosjekter",
+      "file": "Fil",
+      "newProject": "Nytt prosjekt",
+      "noRecentProjects": "Ingen siste prosjekter",
+      "open": "Åpne...",
+      "recentProjects": "Nylige prosjekter",
+      "save": "Lagre",
+      "saveAs": "Lagre som..."
     }
   }
 }

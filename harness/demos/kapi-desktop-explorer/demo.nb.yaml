@@ -1,7 +1,7 @@
 id: kapi-desktop-explorer
-title: Browse terms and content memory
-subtitle: A visual tour of terminology and content memory in Kapi Desktop.
-tagline: the visual companion to the kapi command line
+title: Bla gjennom termer og innholdsminne
+subtitle: En visuell omvisning i terminologi og innholdsminne i Kapi Desktop.
+tagline: den visuelle følgesvennen til kapi-kommandolinjen
 kind: use-case
 publishAs: kapi-desktop-explorer
 terminal: desktop
@@ -10,11 +10,11 @@ needsAi: false
 # One continuous narration read — uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Terms
-  - Content memory
-  - Multi-locale terms
-  - Inline formatting
-  - Entity placeholders
+  - Termer
+  - Innholdsminne
+  - Flerspråklige termer
+  - Innebygd formatering
+  - Enhetsplassholdere
 
 # A "desktop" demo replays the recorded Kapi Desktop screencast (public/<id>/
 # screencast.{json,webm}) inside the macOS window frame. Each narration scene of
@@ -30,68 +30,58 @@ narration:
     kind: desktop
     beat: intro
     text: >-
-      It opens to a calm home screen. Everything a translator leans on — the
-      agreed terms and the remembered translations — sits one click away in the
-      sidebar.
-
+      Det åpner seg til et rolig startskjermbilde. Alt en oversetter lener seg på — de avtalte termene og de huskede oversettelsene — ligger ett klikk unna i sidefeltet.
   # The sidebar sections are Terms and Content Memory (renamed in #1442); the
   # `beat` ids stay as recorded.
   - id: termbases
     kind: desktop
     beat: open-termbases
-    caption: The Terms section lists each terms file on disk.
+    caption: Termer-seksjonen viser alle termfiler som finnes på disk.
     text: >-
-      The Terms section lists each terms file stored on disk, with its size
-      and when it last changed.
-
+      Terms-seksjonen lister opp hver termsfil lagret på disk, med størrelse og tidspunkt for siste endring.
   - id: glossary
     kind: desktop
     beat: open-glossary
-    caption: Opening one shows every concept it holds.
+    caption: Å åpne én viser hvert begrep den inneholder.
     text: >-
-      Opening the product terms brings up every concept it holds — eight here
-      — with an activity chart of recent edits across the top.
-
+      Å åpne produkttermene viser frem hvert konsept det inneholder — åtte her — med et aktivitetsdiagram over nylige redigeringer øverst.
   - id: concept
     kind: desktop
     beat: inspect-concept
-    caption: Hvert begrep har en definisjon og godkjente termer.
+    caption: Hvert konsept har en definisjon og dets godkjente termer.
     text: >-
-      Hvert begrep bærer en definisjon og de godkjente termene sine på tvers av språk. Et statusmerke markerer den foretrukne ordlyden, og flagger termene som er utgått.
+      Hvert konsept har en definisjon og godkjente termer på tvers av språk. Et statusmerke markerer den foretrukne formuleringen og flagger termer som er utdaterte.
   - id: search-term
     kind: desktop
     beat: search-term
-    caption: Fulltekstsøk finner en term raskt.
+    caption: Fritekstsøk finner et begrep raskt.
     text: >-
-      Fulltekstsøk finner en term på et øyeblikk. Her: faktura-begrepet, med de godkjente oversettelsene sine.
+      Fulltekstsøk finner et begrep på et øyeblikk. Her er fakturakonseptet, med godkjente oversettelser.
   - id: open-tm
     kind: desktop
     beat: open-tm
-    caption: Content Memory works the same way.
+    caption: Innholdsminnet fungerer på samme måte.
     text: >-
-      Content Memory works the same way. We cross over and open the memory for
-      the Acme app.
-
+      Innholdsminne fungerer på samme måte. Vi går over og åpner minnet for Acme-appen.
   - id: inspect-tm
     kind: desktop
     beat: inspect-tm
-    caption: Hver oppføring parer en kildestreng med oversettelsene.
+    caption: Hver oppføring kobler en kildestreng til oversettelsene sine.
     text: >-
-      Hver oppføring parer en kildestreng med oversettelsene sine. Formatering i teksten, som fet skrift og lenker, bevares som tagger i stedet for rå markup.
+      Hver oppføring kobler en kildestreng til oversettelsene sine. Innebygd formatering, som fet tekst og lenker, bevares som tagger i stedet for bokstavelig markup.
   - id: entity
     kind: desktop
     beat: entity
-    caption: "Navn holdes som plassholdere, klare til gjenbruk."
+    caption: "Navn lagres som plassholdere, klare til gjenbruk."
     text: >-
-      Navn og andre entiteter holdes som plassholdere, slik at en lagret oversettelse kan gjenbrukes senere med en annen verdi.
+      Navn og andre entiteter lagres som plassholdere, slik at en husket oversettelse kan gjenbrukes senere med en annen verdi.
   - id: search-tm
     kind: desktop
     beat: search-tm
     caption: Minnet er også søkbart.
     text: >-
-      Og minnet er søkbart, det også — hver streng som nevner ordet invite.
+      Og minnet er også søkbart — alle strenger som nevner ordet invite.
   - id: outro
     kind: outro
     text: >-
-      That's the terminology and content memory at the heart of kapi,
-      browsable in one place.
+      Det er terminologi- og innholdsminnet i hjertet av kapi, tilgjengelig på ett sted.
