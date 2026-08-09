@@ -96,6 +96,13 @@ type BlockQuery struct {
 	Offset        int             // Pagination offset
 }
 
+// PendingReviewRef names one (block, locale) pair awaiting review.
+type PendingReviewRef struct {
+	BlockID  string `json:"block_id"`
+	ItemName string `json:"item_name"`
+	Locale   string `json:"locale"`
+}
+
 // Version represents a named snapshot of project state.
 type Version struct {
 	ID          string    `json:"id"`

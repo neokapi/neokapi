@@ -41,6 +41,8 @@ export {
     MemoryUpdateRequest,
     PcCloseRunInfo,
     PcOpenRunInfo,
+    PendingReviewEntryView,
+    PendingReviewPageView,
     PlaceholderRunInfo,
     PluginInfo,
     PluralRunInfo,

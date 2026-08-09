@@ -148,16 +148,30 @@ export function ReviewSession({
     [dashboardStats, project.target_languages],
   );
 
-  // Compose the flat queue from existing reads: one getFileBlocks per item with
-  // pending work, plus a QA pass only for scopes the dashboard flags as failing.
+  // The queue comes from the server's pending-review pages — one indexed
+  // query, not a blocks fetch per item (978 items once meant minutes of
+  // "gathering", over only the first dashboard page of scopes). The QA pass
+  // still runs per scope the dashboard flags as failing.
   const buildQueue = useCallback(async (): Promise<ReviewEntry[]> => {
-    const itemNames = [...new Set(scopes.map((s) => s.itemName))];
+    const pageSize = 200;
     const blocksByItem = new Map<string, BlockInfo[]>();
-    await Promise.all(
-      itemNames.map(async (name) => {
-        blocksByItem.set(name, await api.getFileBlocks(project.id, name).catch(() => []));
-      }),
-    );
+    const seenBlocks = new Set<string>();
+    let offset = 0;
+    for (;;) {
+      const page = await api
+        .getPendingReview(project.id, { limit: pageSize, offset })
+        .catch(() => null);
+      if (!page) break;
+      for (const e of page.entries) {
+        if (!e.block || seenBlocks.has(`${e.item_name}:${e.block_id}`)) continue;
+        seenBlocks.add(`${e.item_name}:${e.block_id}`);
+        const list = blocksByItem.get(e.item_name) ?? [];
+        list.push(e.block);
+        blocksByItem.set(e.item_name, list);
+      }
+      offset += page.entries.length;
+      if (offset >= page.total || page.entries.length === 0) break;
+    }
     const qaByScope = new Map<string, Map<string, QAIssue[]>>();
     await Promise.all(
       scopes

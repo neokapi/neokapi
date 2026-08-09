@@ -17,6 +17,7 @@ import type {
   QAIssue,
   FileQAResult,
   CreateSourceProposalRequest,
+  PendingReviewPage,
 } from "../types/api";
 
 export function useEditorApi() {
@@ -28,6 +29,15 @@ export function useEditorApi() {
   const getFileBlocks = useCallback(
     async (projectId: string, fileName: string): Promise<BlockInfo[]> =>
       api.getFileBlocks(ws, projectId, fileName, activeStream),
+    [api, ws, activeStream],
+  );
+
+  const getPendingReview = useCallback(
+    async (
+      projectId: string,
+      opts?: { locales?: string[]; limit?: number; offset?: number },
+    ): Promise<PendingReviewPage> =>
+      api.getPendingReview(ws, projectId, { ...opts, stream: activeStream }),
     [api, ws, activeStream],
   );
 
@@ -210,6 +220,7 @@ export function useEditorApi() {
   return useMemo(
     () => ({
       getFileBlocks,
+      getPendingReview,
       updateBlockTarget,
       updateBlockTargetCoded,
       aiTranslateFile,
@@ -236,6 +247,7 @@ export function useEditorApi() {
     }),
     [
       getFileBlocks,
+      getPendingReview,
       updateBlockTarget,
       updateBlockTargetCoded,
       aiTranslateFile,

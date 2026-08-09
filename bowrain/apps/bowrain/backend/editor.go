@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"fmt"
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"maps"
 	"os/exec"
 	"runtime"
@@ -20,6 +21,49 @@ import (
 // GetItemBlocks returns all blocks for an item in the project.
 // When connected, blocks are fetched from the server and cached locally.
 // On connection failure, falls back to the local cache.
+// PendingReviewEntryView is one entry of the translation review queue as the
+// frontend consumes it.
+type PendingReviewEntryView struct {
+	BlockID  string     `json:"block_id"`
+	ItemName string     `json:"item_name"`
+	Locale   string     `json:"locale"`
+	Block    *BlockInfo `json:"block,omitempty"`
+}
+
+// PendingReviewPageView is one page of the queue plus its total size.
+type PendingReviewPageView struct {
+	Entries []PendingReviewEntryView `json:"entries"`
+	Total   int                      `json:"total"`
+	Limit   int                      `json:"limit"`
+	Offset  int                      `json:"offset"`
+}
+
+// GetPendingReview pages the translation review queue: server-side when
+// connected, from the local store offline — the same predicate either way.
+func (a *App) GetPendingReview(projectID string, locales []string, limit, offset int) (*PendingReviewPageView, error) {
+	if a.isConnected() {
+		client, ws := a.editorRemote()
+		page, err := client.GetPendingReview(context.Background(), ws, projectID, locales, limit, offset)
+		if err != nil {
+			a.goOffline()
+			return a.getPendingReviewLocal(projectID, locales, limit, offset)
+		}
+		out := &PendingReviewPageView{Total: page.Total, Limit: page.Limit, Offset: page.Offset}
+		for _, e := range page.Entries {
+			view := PendingReviewEntryView{BlockID: e.BlockID, ItemName: e.ItemName, Locale: e.Locale}
+			if e.Block != nil {
+				infos := editorBlocksToInfos([]apiclient.EditorBlock{*e.Block})
+				if len(infos) == 1 {
+					view.Block = &infos[0]
+				}
+			}
+			out.Entries = append(out.Entries, view)
+		}
+		return out, nil
+	}
+	return a.getPendingReviewLocal(projectID, locales, limit, offset)
+}
+
 func (a *App) GetItemBlocks(projectID, itemName string) ([]BlockInfo, error) {
 	if a.isConnected() {
 		client, ws := a.editorRemote()
@@ -35,6 +79,51 @@ func (a *App) GetItemBlocks(projectID, itemName string) ([]BlockInfo, error) {
 		return blocks, nil
 	}
 	return a.getItemBlocksLocal(projectID, itemName)
+}
+
+// getPendingReviewLocal answers the queue from the local store — the same
+// predicate the server runs, so online and offline agree on what is pending.
+func (a *App) getPendingReviewLocal(projectID string, locales []string, limit, offset int) (*PendingReviewPageView, error) {
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	targetLocales := make([]string, len(proj.TargetLanguages))
+	for i, l := range proj.TargetLanguages {
+		targetLocales[i] = string(l)
+	}
+
+	refs, total, err := a.store.ListPendingReview(ctx, projectID, "main", locales, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(refs))
+	seen := map[string]bool{}
+	for _, r := range refs {
+		if !seen[r.BlockID] {
+			seen[r.BlockID] = true
+			ids = append(ids, r.BlockID)
+		}
+	}
+	byID := map[string]*BlockInfo{}
+	if len(ids) > 0 {
+		stored, err := a.store.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: "main", IDs: ids})
+		if err != nil {
+			return nil, err
+		}
+		for _, sb := range stored {
+			bi := storedBlockToBlockInfo(sb, targetLocales)
+			byID[bi.ID] = &bi
+		}
+	}
+	out := &PendingReviewPageView{Total: total, Limit: limit, Offset: offset}
+	for _, r := range refs {
+		out.Entries = append(out.Entries, PendingReviewEntryView{
+			BlockID: r.BlockID, ItemName: r.ItemName, Locale: r.Locale, Block: byID[r.BlockID],
+		})
+	}
+	return out, nil
 }
 
 func (a *App) getItemBlocksLocal(projectID, itemName string) ([]BlockInfo, error) {

@@ -568,6 +568,8 @@ export type {
   LoopRollupShip,
   LoopRollupShipProject,
   TaskInfo,
+  PendingReviewEntry,
+  PendingReviewPage,
   TaskType,
   TaskStatus,
   TaskPriority,

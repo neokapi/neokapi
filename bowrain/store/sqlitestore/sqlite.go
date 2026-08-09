@@ -880,6 +880,53 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 	return result, nil
 }
 
+// ListPendingReview pages the (block, locale) pairs whose stored target still
+// needs a review decision — the SQLite twin of the Postgres query, with
+// json_extract standing in for the ->> operator.
+func (s *SQLiteStore) ListPendingReview(ctx context.Context, projectID, stream string, locales []string, limit, offset int) ([]platstore.PendingReviewRef, int, error) {
+	if stream == "" {
+		stream = "main"
+	}
+	if limit <= 0 {
+		limit = 200
+	}
+	where := `b.project_id = ? AND b.translatable AND t.text <> ''
+		AND COALESCE(json_extract(t.target_json, '$.status'), '') IN ('draft', 'translated')`
+	// Positional placeholders bind in string order: the JOIN's stream comes
+	// before the WHERE's project.
+	args := []any{stream, projectID}
+	if len(locales) > 0 {
+		where += ` AND t.locale IN (?` + strings.Repeat(",?", len(locales)-1) + `)`
+		for _, l := range locales {
+			args = append(args, l)
+		}
+	}
+	from := ` FROM blocks b JOIN translations t
+		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = ? WHERE ` + where
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT count(*)`+from, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count pending review: %w", err)
+	}
+
+	query := `SELECT b.id, b.item_name, t.locale` + from +
+		fmt.Sprintf(` ORDER BY b.item_name, b.id, t.locale LIMIT %d OFFSET %d`, limit, offset)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list pending review: %w", err)
+	}
+	defer rows.Close()
+	var refs []platstore.PendingReviewRef
+	for rows.Next() {
+		var r platstore.PendingReviewRef
+		if err := rows.Scan(&r.BlockID, &r.ItemName, &r.Locale); err != nil {
+			return nil, 0, fmt.Errorf("scan pending review: %w", err)
+		}
+		refs = append(refs, r)
+	}
+	return refs, total, rows.Err()
+}
+
 func (s *SQLiteStore) GetBlockStats(ctx context.Context, projectID, stream string) ([]platstore.BlockStatRow, error) {
 	stream = storeutil.DefaultStream(stream)
 

@@ -1432,6 +1432,22 @@ export type TaskStatus = "open" | "in_progress" | "completed" | "cancelled";
 export type TaskPriority = "low" | "normal" | "high" | "urgent";
 
 /** Task info */
+/** One entry of the translation review queue (GET …/pending-review/:ref). */
+export interface PendingReviewEntry {
+  block_id: string;
+  item_name: string;
+  locale: string;
+  block?: BlockInfo;
+}
+
+/** One page of the translation review queue plus the queue's total size. */
+export interface PendingReviewPage {
+  entries: PendingReviewEntry[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface TaskInfo {
   id: string;
   workspace_id: string;

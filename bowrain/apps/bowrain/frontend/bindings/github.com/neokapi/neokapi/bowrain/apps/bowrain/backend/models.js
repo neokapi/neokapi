@@ -1966,6 +1966,122 @@ export class PcOpenRunInfo {
 }
 
 /**
+ * GetItemBlocks returns all blocks for an item in the project.
+ * When connected, blocks are fetched from the server and cached locally.
+ * On connection failure, falls back to the local cache.
+ * PendingReviewEntryView is one entry of the translation review queue as the
+ * frontend consumes it.
+ */
+export class PendingReviewEntryView {
+    /**
+     * Creates a new PendingReviewEntryView instance.
+     * @param {Partial<PendingReviewEntryView>} [$$source = {}] - The source object to create the PendingReviewEntryView.
+     */
+    constructor($$source = {}) {
+        if (!("block_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["block_id"] = "";
+        }
+        if (!("item_name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["item_name"] = "";
+        }
+        if (!("locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["locale"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {BlockInfo | null | undefined}
+             */
+            this["block"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PendingReviewEntryView instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {PendingReviewEntryView}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType23;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("block" in $$parsedSource) {
+            $$parsedSource["block"] = $$createField3_0($$parsedSource["block"]);
+        }
+        return new PendingReviewEntryView(/** @type {Partial<PendingReviewEntryView>} */($$parsedSource));
+    }
+}
+
+/**
+ * PendingReviewPageView is one page of the queue plus its total size.
+ */
+export class PendingReviewPageView {
+    /**
+     * Creates a new PendingReviewPageView instance.
+     * @param {Partial<PendingReviewPageView>} [$$source = {}] - The source object to create the PendingReviewPageView.
+     */
+    constructor($$source = {}) {
+        if (!("entries" in $$source)) {
+            /**
+             * @member
+             * @type {PendingReviewEntryView[]}
+             */
+            this["entries"] = [];
+        }
+        if (!("total" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["total"] = 0;
+        }
+        if (!("limit" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["limit"] = 0;
+        }
+        if (!("offset" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["offset"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PendingReviewPageView instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {PendingReviewPageView}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType25;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("entries" in $$parsedSource) {
+            $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
+        }
+        return new PendingReviewPageView(/** @type {Partial<PendingReviewPageView>} */($$parsedSource));
+    }
+}
+
+/**
  * PlaceholderRunInfo is a self-closing inline code.
  */
 export class PlaceholderRunInfo {
@@ -2254,7 +2370,7 @@ export class ProjectInfo {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType10;
-        const $$createField5_0 = $$createType23;
+        const $$createField5_0 = $$createType27;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField3_0($$parsedSource["target_languages"]);
@@ -2582,13 +2698,13 @@ export class RunInfo {
      * @returns {RunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType25;
-        const $$createField1_0 = $$createType27;
-        const $$createField2_0 = $$createType29;
-        const $$createField3_0 = $$createType31;
-        const $$createField4_0 = $$createType33;
-        const $$createField5_0 = $$createType35;
-        const $$createField6_0 = $$createType37;
+        const $$createField0_0 = $$createType29;
+        const $$createField1_0 = $$createType31;
+        const $$createField2_0 = $$createType33;
+        const $$createField3_0 = $$createType35;
+        const $$createField4_0 = $$createType37;
+        const $$createField5_0 = $$createType39;
+        const $$createField6_0 = $$createType41;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("text" in $$parsedSource) {
             $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
@@ -3034,7 +3150,7 @@ export class TermLookupResult {
      * @returns {TermLookupResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType39;
+        const $$createField0_0 = $$createType43;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("matches" in $$parsedSource) {
             $$parsedSource["matches"] = $$createField0_0($$parsedSource["matches"]);
@@ -3160,7 +3276,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType41;
+        const $$createField0_0 = $$createType45;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -3306,8 +3422,8 @@ export class ToolInfo {
     static createFrom($$source = {}) {
         const $$createField5_0 = $$createType10;
         const $$createField6_0 = $$createType10;
-        const $$createField7_0 = $$createType43;
-        const $$createField8_0 = $$createType43;
+        const $$createField7_0 = $$createType47;
+        const $$createField8_0 = $$createType47;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("requires" in $$parsedSource) {
             $$parsedSource["requires"] = $$createField5_0($$parsedSource["requires"]);
@@ -3735,8 +3851,8 @@ export class WordCountResult {
      * @returns {WordCountResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType44;
-        const $$createField3_0 = $$createType44;
+        const $$createField2_0 = $$createType48;
+        const $$createField3_0 = $$createType48;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_words" in $$parsedSource) {
             $$parsedSource["target_words"] = $$createField2_0($$parsedSource["target_words"]);
@@ -3837,26 +3953,30 @@ const $$createType18 = MemoryEntryInfo.createFrom;
 const $$createType19 = $Create.Array($$createType18);
 const $$createType20 = RunConstraintsInfo.createFrom;
 const $$createType21 = $Create.Nullable($$createType20);
-const $$createType22 = ProjectItem.createFrom;
-const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = TextRunInfo.createFrom;
-const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = PlaceholderRunInfo.createFrom;
-const $$createType27 = $Create.Nullable($$createType26);
-const $$createType28 = PcOpenRunInfo.createFrom;
+const $$createType22 = BlockInfo.createFrom;
+const $$createType23 = $Create.Nullable($$createType22);
+const $$createType24 = PendingReviewEntryView.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = ProjectItem.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = TextRunInfo.createFrom;
 const $$createType29 = $Create.Nullable($$createType28);
-const $$createType30 = PcCloseRunInfo.createFrom;
+const $$createType30 = PlaceholderRunInfo.createFrom;
 const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = SubRunInfo.createFrom;
+const $$createType32 = PcOpenRunInfo.createFrom;
 const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = PluralRunInfo.createFrom;
+const $$createType34 = PcCloseRunInfo.createFrom;
 const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = SelectRunInfo.createFrom;
+const $$createType36 = SubRunInfo.createFrom;
 const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = TermMatchInfo.createFrom;
-const $$createType39 = $Create.Array($$createType38);
-const $$createType40 = ConceptInfo.createFrom;
-const $$createType41 = $Create.Array($$createType40);
-const $$createType42 = IOPort.createFrom;
+const $$createType38 = PluralRunInfo.createFrom;
+const $$createType39 = $Create.Nullable($$createType38);
+const $$createType40 = SelectRunInfo.createFrom;
+const $$createType41 = $Create.Nullable($$createType40);
+const $$createType42 = TermMatchInfo.createFrom;
 const $$createType43 = $Create.Array($$createType42);
-const $$createType44 = $Create.Map($Create.Any, $Create.Any);
+const $$createType44 = ConceptInfo.createFrom;
+const $$createType45 = $Create.Array($$createType44);
+const $$createType46 = IOPort.createFrom;
+const $$createType47 = $Create.Array($$createType46);
+const $$createType48 = $Create.Map($Create.Any, $Create.Any);

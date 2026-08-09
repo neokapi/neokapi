@@ -123,6 +123,7 @@ import type {
   RepoDetection,
   RepoDetectOptions,
   ModelRecommendationsResponse,
+  PendingReviewPage,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -548,6 +549,15 @@ export interface ApiAdapter {
     fileName: string,
     stream?: string,
   ): Promise<BlockInfo[]>;
+  /**
+   * One page of the server-side translation review queue: (block, locale)
+   * pairs still awaiting a decision, each with its hydrated block.
+   */
+  getPendingReview(
+    workspaceSlug: string,
+    projectId: string,
+    opts?: { stream?: string; locales?: string[]; limit?: number; offset?: number },
+  ): Promise<PendingReviewPage>;
   updateBlockTarget(workspaceSlug: string, req: UpdateBlockRequest): Promise<void>;
   updateBlockTargetCoded(workspaceSlug: string, req: UpdateBlockTargetCodedRequest): Promise<void>;
   pseudoTranslateFile(

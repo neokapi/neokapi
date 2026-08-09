@@ -1885,6 +1885,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/:id/assets/:ref/:aid/variants", s.HandleListVariants)
 	g.POST("/:id/assets/:ref/:aid/variants", s.HandleCreateVariant)
 
+	// Pending translation review — the session's server-side queue.
+	g.GET("/:id/pending-review/:ref", s.HandleListPendingReview)
+
 	// Review queue — Bowrain AD-011: /:ws/:id/review-queue/:ref
 	g.GET("/:id/review-queue/:ref", s.HandleListReviewQueue)
 	g.GET("/:id/review-queue/:ref/:itemId", s.HandleGetReviewQueueItem)

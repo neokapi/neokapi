@@ -936,6 +936,50 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 	return result, nil
 }
 
+// ListPendingReview pages the (block, locale) pairs whose stored target still
+// needs a review decision. One indexed join answers what the review session
+// once assembled with a blocks fetch per item — minutes of "gathering" at
+// dogfood scale (978 items), and only ever the first dashboard page of it.
+func (s *PostgresStore) ListPendingReview(ctx context.Context, projectID, stream string, locales []string, limit, offset int) ([]platstore.PendingReviewRef, int, error) {
+	if stream == "" {
+		stream = "main"
+	}
+	if limit <= 0 {
+		limit = 200
+	}
+	where := `b.project_id = $1 AND b.translatable AND t.text <> ''
+		AND COALESCE(t.target_json->>'status', '') IN ('draft', 'translated')`
+	args := []any{projectID, stream}
+	if len(locales) > 0 {
+		where += ` AND t.locale = ANY($3)`
+		args = append(args, locales)
+	}
+	from := ` FROM blocks b JOIN translations t
+		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = $2 WHERE ` + where
+
+	var total int
+	if err := s.db.DB.QueryRowContext(ctx, `SELECT count(*)`+from, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count pending review: %w", err)
+	}
+
+	query := `SELECT b.id, b.item_name, t.locale` + from +
+		fmt.Sprintf(` ORDER BY b.item_name, b.id, t.locale LIMIT %d OFFSET %d`, limit, offset)
+	rows, err := s.db.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list pending review: %w", err)
+	}
+	defer rows.Close()
+	var refs []platstore.PendingReviewRef
+	for rows.Next() {
+		var r platstore.PendingReviewRef
+		if err := rows.Scan(&r.BlockID, &r.ItemName, &r.Locale); err != nil {
+			return nil, 0, fmt.Errorf("scan pending review: %w", err)
+		}
+		refs = append(refs, r)
+	}
+	return refs, total, rows.Err()
+}
+
 func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream string) ([]platstore.BlockStatRow, error) {
 	stream = storeutil.DefaultStream(stream)
 
