@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 )
 
 // governance.go is the desktop's REST proxy for the bowrain-server governance
@@ -298,6 +300,67 @@ func (a *App) GetBrandDrift(workspaceSlug, projectID string, recentDays, minScor
 	var out json.RawMessage
 	if err := a.govRequest(http.MethodGet, path, nil, &out); err != nil {
 		return nil, err
+	}
+	return out, nil
+}
+
+// BrandRollupArgs selects the rollup page and the drift window. Zero fields are
+// omitted, leaving the server's defaults in force.
+type BrandRollupArgs struct {
+	Limit      int `json:"limit"`
+	Offset     int `json:"offset"`
+	RecentDays int `json:"recentDays"`
+	MinScore   int `json:"minScore"`
+	DropPoints int `json:"dropPoints"`
+	Days       int `json:"days"`
+}
+
+// BrandRollupResult is the workspace brand-compliance rollup the desktop
+// returns: the server's page verbatim, plus Offline distinguishing "no server
+// to ask" from "no projects scored".
+type BrandRollupResult struct {
+	Projects []apiclient.BrandRollupEntry `json:"projects"`
+	Total    int                          `json:"total"`
+	Limit    int                          `json:"limit"`
+	Offset   int                          `json:"offset"`
+	Offline  bool                         `json:"offline"`
+}
+
+// GetBrandRollup returns the workspace brand-compliance rollup from the
+// connected server.
+//
+// The rollup is the server's aggregation: it reads stored per-project scores
+// and resolves each project's effective profile through a ladder (collection →
+// stream → project → workspace default) that lives server-side. Composing it
+// from per-project reads produces a different board — a blank profile column
+// and a trend derived from a different window — so offline this returns the
+// empty rollup marked Offline rather than a locally computed one.
+func (a *App) GetBrandRollup(workspaceSlug string, args BrandRollupArgs) (BrandRollupResult, error) {
+	if !a.isConnected() {
+		return BrandRollupResult{Projects: []apiclient.BrandRollupEntry{}, Offline: true}, nil
+	}
+
+	q := url.Values{}
+	for name, v := range map[string]int{
+		"limit":       args.Limit,
+		"offset":      args.Offset,
+		"recent_days": args.RecentDays,
+		"min_score":   args.MinScore,
+		"drop_points": args.DropPoints,
+		"days":        args.Days,
+	} {
+		if v > 0 {
+			q.Set(name, strconv.Itoa(v))
+		}
+	}
+	path := withQuery("/api/v1/"+url.PathEscape(workspaceSlug)+"/brand-voice/rollup", q)
+
+	var out BrandRollupResult
+	if err := a.govRequest(http.MethodGet, path, nil, &out); err != nil {
+		return BrandRollupResult{}, err
+	}
+	if out.Projects == nil {
+		out.Projects = []apiclient.BrandRollupEntry{}
 	}
 	return out, nil
 }

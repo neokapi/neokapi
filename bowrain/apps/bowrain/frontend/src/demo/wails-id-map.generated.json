@@ -84,6 +84,7 @@
   "2510784253": "SelectWorkspace",
   "2548870795": "AbandonChangeset",
   "2559376511": "RemoveItem",
+  "2587037143": "GetBrandRollup",
   "2593375276": "InitContentStore",
   "2593803262": "ImportTermsJSON",
   "2609792707": "SetEventSink",
