@@ -13,7 +13,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { ErrorNotice } from "../errors";
-import type { ProjectInfo, BlockInfo, TranslationStats } from "../types/api";
+import type { ProjectInfo, TranslationStats } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
@@ -70,14 +70,14 @@ export function PreProcessSurface({
   );
   useSetBreadcrumb(breadcrumbNode);
 
-  // Load a block count so the surface can report the file's size (a proxy for
-  // extraction/source-prep state) without a dedicated endpoint.
+  // The file's translatable size is a count query — the surface reports the
+  // number, so it asks for the number.
   useEffect(() => {
     let cancelled = false;
     api
-      .getFileBlocks(project.id, fileName)
-      .then((b: BlockInfo[]) => {
-        if (!cancelled) setBlockTotal((b || []).filter((x) => x.translatable).length);
+      .getBlockCounts(project.id, fileName)
+      .then((counts) => {
+        if (!cancelled) setBlockTotal(counts.translatable);
       })
       .catch(() => {
         if (!cancelled) setBlockTotal(null);

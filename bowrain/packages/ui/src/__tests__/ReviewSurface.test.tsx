@@ -1,8 +1,9 @@
 /**
- * Component tests for the Review surface's persistence wiring: approve /
- * reject / bulk-mark-reviewed call `api.reviewBlock` with the active target
- * locale, apply the per-locale optimistic update, and roll it back when the
- * server call fails.
+ * Component tests for the Review surface's server wiring: approve / reject
+ * call `api.reviewBlock` with the active target locale, apply the per-locale
+ * optimistic update and roll it back on failure; the bulk actions are one
+ * request each with per-block outcomes; and the status filter and its
+ * histogram are block queries rather than passes over a full download.
  */
 import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -46,8 +47,12 @@ const testBlocks: BlockInfo[] = [
   makeBlock("b3", "Open settings", { text: "Ouvrir les réglages", status: "reviewed" }),
 ];
 
-function renderSurface(blocks: BlockInfo[] = testBlocks): { adapter: MockAdapter } {
+function renderSurface(
+  blocks: BlockInfo[] = testBlocks,
+  prepare?: (adapter: MockAdapter) => void,
+): { adapter: MockAdapter } {
   const adapter = createMockAdapter(blocks);
+  prepare?.(adapter);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
@@ -153,21 +158,28 @@ describe("ReviewSurface — approve/reject persist via api.reviewBlock", () => {
   });
 });
 
-describe("ReviewSurface — bulk mark reviewed", () => {
-  it("loops reviewBlock over the selected blocks and reports the count", async () => {
+describe("ReviewSurface — bulk actions are one request", () => {
+  it("sends the whole selection in one bulk-review request and reports the count", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSurface();
+    const bulk = vi.spyOn(adapter, "bulkReviewBlocks");
     await waitForRows();
 
     await user.click(screen.getByTestId("review-select-b1"));
     await user.click(screen.getByTestId("review-select-b2"));
     await user.click(screen.getByTestId("bulk-mark-reviewed"));
 
-    await waitFor(() => expect(adapter.reviewBlockCalls).toHaveLength(2));
-    expect(adapter.reviewBlockCalls.map((c) => c.blockId).sort()).toEqual(["b1", "b2"]);
-    for (const call of adapter.reviewBlockCalls) {
-      expect(call).toMatchObject({ targetLocale: "fr-FR", reviewed: true });
-    }
+    await waitFor(() => expect(bulk).toHaveBeenCalledTimes(1));
+    const req = bulk.mock.calls[0][1];
+    expect([...req.block_ids].sort()).toEqual(["b1", "b2"]);
+    expect(req).toMatchObject({
+      project_id: sampleProject.id,
+      item_name: "messages.json",
+      target_locale: "fr-FR",
+      approve: true,
+    });
+    // The batch replaces the per-block loop entirely.
+    expect(adapter.reviewBlockCalls).toHaveLength(0);
     await waitFor(() =>
       expect(screen.getByText("Marked 2 block(s) as reviewed")).toBeInTheDocument(),
     );
@@ -175,18 +187,18 @@ describe("ReviewSurface — bulk mark reviewed", () => {
     expect(screen.getByTestId("review-status-b2").textContent).toBe("Reviewed");
   });
 
-  it("disables bulk and per-row review buttons while the bulk loop runs", async () => {
+  it("disables bulk and per-row review buttons while the request is in flight", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSurface();
     await waitForRows();
 
-    // Make reviewBlock hang until released so the loop stays in flight.
+    // Hold the batch open so the surface stays mid-request.
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    const original = adapter.reviewBlock.bind(adapter);
-    vi.spyOn(adapter, "reviewBlock").mockImplementation(async (...args) => {
+    const original = adapter.bulkReviewBlocks.bind(adapter);
+    vi.spyOn(adapter, "bulkReviewBlocks").mockImplementation(async (...args) => {
       await gate;
       return original(...args);
     });
@@ -195,8 +207,8 @@ describe("ReviewSurface — bulk mark reviewed", () => {
     await user.click(screen.getByTestId("review-select-b2"));
     await user.click(screen.getByTestId("bulk-mark-reviewed"));
 
-    // While the loop awaits the server, a single approve/reject or a second
-    // bulk click would race its optimistic writes and rollbacks — disabled.
+    // While the batch awaits the server, a single approve/reject or a second
+    // bulk click would race its writes — disabled.
     await waitFor(() => expect(screen.getByTestId("bulk-mark-reviewed")).toBeDisabled());
     expect(screen.getByTestId("approve-b2")).toBeDisabled();
     expect(screen.getByTestId("reject-b1")).toBeDisabled();
@@ -205,40 +217,45 @@ describe("ReviewSurface — bulk mark reviewed", () => {
     await waitFor(() =>
       expect(screen.getByText("Marked 2 block(s) as reviewed")).toBeInTheDocument(),
     );
-    // Buttons re-enable once the loop finishes.
+    // Buttons re-enable once the batch finishes.
     expect(screen.getByTestId("reject-b1")).toBeEnabled();
   });
 
-  it("skips untranslated blocks in the bulk set instead of looping guaranteed 422s", async () => {
+  it("leaves untranslated blocks out of the request instead of sending certain refusals", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSurface([
       makeBlock("b1", "Hello world", "Bonjour le monde"),
       makeBlock("b2", "Goodbye now", ""),
     ]);
+    const bulk = vi.spyOn(adapter, "bulkReviewBlocks");
     await waitForRows();
 
     // Select-all on filter=all includes the untranslated block.
     await user.click(screen.getByTestId("select-all"));
     await user.click(screen.getByTestId("bulk-mark-reviewed"));
 
+    await waitFor(() => expect(bulk).toHaveBeenCalledTimes(1));
+    expect(bulk.mock.calls[0][1].block_ids).toEqual(["b1"]);
     await waitFor(() =>
       expect(screen.getByText("Marked 1 block(s) as reviewed")).toBeInTheDocument(),
     );
-    expect(adapter.reviewBlockCalls).toHaveLength(1);
-    expect(adapter.reviewBlockCalls[0]).toMatchObject({ blockId: "b1", reviewed: true });
     expect(screen.getByTestId("review-status-b2").textContent).toBe("Not Started");
   });
 
-  it("continues past per-block failures, rolls back only the failed block, and reports both counts", async () => {
+  it("surfaces the blocks that refused, and moves only the ones that took the decision", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSurface();
     await waitForRows();
 
-    // Fail only b1; b2 succeeds — the loop must keep going.
-    const original = adapter.reviewBlock.bind(adapter);
-    vi.spyOn(adapter, "reviewBlock").mockImplementation(async (...args) => {
-      if (args[3] === "b1") throw new Error("boom");
-      return original(...args);
+    // One protected block refuses inside an otherwise successful batch.
+    vi.spyOn(adapter, "bulkReviewBlocks").mockResolvedValue({
+      results: [
+        { block_id: "b1", ok: false, error: "block is protected" },
+        { block_id: "b2", ok: true, status: "reviewed" },
+      ],
+      succeeded: 1,
+      failed: 1,
+      review_completed: false,
     });
 
     await user.click(screen.getByTestId("review-select-b1"));
@@ -249,8 +266,74 @@ describe("ReviewSurface — bulk mark reviewed", () => {
       expect(screen.getByText("Marked 1 block(s) as reviewed")).toBeInTheDocument(),
     );
     expect(screen.getByText("Couldn't mark 1 block(s) as reviewed")).toBeInTheDocument();
-    // The failed block rolled back; the successful one stuck.
+    // The refused block kept its status; the approved one moved.
     expect(screen.getByTestId("review-status-b1").textContent).toBe("Translated");
     expect(screen.getByTestId("review-status-b2").textContent).toBe("Reviewed");
+  });
+
+  it("applies content memory across the selection in one request", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSurface();
+    const bulk = vi.spyOn(adapter, "bulkApplyMemory");
+    const lookup = vi.spyOn(adapter, "lookupMemoryForBlock");
+    await waitForRows();
+
+    await user.click(screen.getByTestId("review-select-b1"));
+    await user.click(screen.getByTestId("review-select-b2"));
+    await user.click(screen.getByTestId("bulk-apply-tm"));
+
+    await waitFor(() => expect(bulk).toHaveBeenCalledTimes(1));
+    const req = bulk.mock.calls[0][1];
+    expect([...req.block_ids].sort()).toEqual(["b1", "b2"]);
+    expect(req).toMatchObject({ project_id: sampleProject.id, target_locale: "fr-FR" });
+    // No per-block lookup + write pair anymore.
+    expect(lookup).not.toHaveBeenCalled();
+    // The mock holds no content memory, so nothing clears the threshold.
+    await waitFor(() =>
+      expect(screen.getByText("Applied 0 exact content-memory match(es)")).toBeInTheDocument(),
+    );
+  });
+});
+
+describe("ReviewSurface — the filter and the histogram are server queries", () => {
+  it("asks for the selected bucket rather than filtering a full page", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSurface();
+    const list = vi.spyOn(adapter, "getFileBlocks");
+    await waitForRows();
+
+    await user.click(screen.getByTestId("filter-reviewed"));
+
+    await waitFor(() =>
+      expect(list.mock.calls.at(-1)?.[4]).toMatchObject({
+        locale: "fr-FR",
+        translatable: true,
+        status: "reviewed",
+      }),
+    );
+    // b3 is the only reviewed block, so it is the only row the server returns.
+    await waitFor(() => expect(screen.getByTestId("review-row-b3")).toBeInTheDocument());
+    expect(screen.queryByTestId("review-row-b1")).not.toBeInTheDocument();
+  });
+
+  it("labels each filter with the counted histogram, not the loaded rows", async () => {
+    // A histogram over the whole file — larger than the three rows loaded.
+    let counts!: ReturnType<typeof vi.spyOn<MockAdapter, "getBlockCounts">>;
+    renderSurface(testBlocks, (adapter) => {
+      counts = vi.spyOn(adapter, "getBlockCounts").mockResolvedValue({
+        total: 40,
+        translatable: 36,
+        locale: "fr-FR",
+        status: { "not-started": 20, draft: 5, translated: 4, reviewed: 7 },
+      });
+    });
+    await waitForRows();
+
+    await waitFor(() => expect(counts).toHaveBeenCalled());
+    expect(counts.mock.calls[0].slice(1, 4)).toEqual([sampleProject.id, "messages.json", "fr-FR"]);
+    expect(screen.getByTestId("filter-all").textContent).toContain("(36)");
+    expect(screen.getByTestId("filter-reviewed").textContent).toContain("(7)");
+    expect(screen.getByTestId("filter-translated").textContent).toContain("(4)");
+    expect(screen.getByTestId("filter-not-started").textContent).toContain("(20)");
   });
 });

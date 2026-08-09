@@ -1,7 +1,8 @@
 /**
  * Component tests for the Translate editor's shared search filter (Visual +
- * Table views) and the term-insert behaviour (insert at the open editor's
- * Lexical cursor vs. append-and-persist fallback).
+ * Table views), which is a debounced server query; the progress bar, which is
+ * the server's histogram; and the term-insert behaviour (insert at the open
+ * editor's Lexical cursor vs. append-and-persist fallback).
  */
 import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -46,10 +47,18 @@ const testBlocks: BlockInfo[] = [
   makeBlock("b3", "Open settings", "Ouvrir les réglages"),
 ];
 
-function renderEditor(opts: { view?: "visual" | "table"; blocks?: BlockInfo[] } = {}): {
+function renderEditor(
+  opts: {
+    view?: "visual" | "table";
+    blocks?: BlockInfo[];
+    /** Runs against the adapter before the first render, for spies. */
+    prepare?: (adapter: MockAdapter) => void;
+  } = {},
+): {
   adapter: MockAdapter;
 } {
   const adapter = createMockAdapter(opts.blocks ?? testBlocks);
+  opts.prepare?.(adapter);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
@@ -134,6 +143,52 @@ describe("TranslationEditor — search filter in the Visual view", () => {
     );
     expect(screen.getByTestId("visual-editor-layout")).toBeInTheDocument();
     expect(screen.queryByText("No blocks to display")).not.toBeInTheDocument();
+  });
+});
+
+describe("TranslationEditor — the search and the counts are server queries", () => {
+  it("sends the query and the locale once the keystrokes settle", async () => {
+    const user = userEvent.setup();
+    let list!: ReturnType<typeof vi.spyOn<MockAdapter, "getFileBlocks">>;
+    renderEditor({
+      view: "table",
+      prepare: (adapter) => {
+        list = vi.spyOn(adapter, "getFileBlocks");
+      },
+    });
+    await waitForBlocks(3);
+
+    await user.type(screen.getByTestId("search-input"), "Goodbye");
+
+    await waitFor(() =>
+      expect(list.mock.calls.at(-1)?.[4]).toMatchObject({ locale: "fr-FR", q: "Goodbye" }),
+    );
+    // The box debounces, so the settled query runs — not one per keystroke.
+    expect(list.mock.calls.filter((c) => c[4]?.q).length).toBeLessThanOrEqual(2);
+    await waitForBlocks(1);
+  });
+
+  it("draws the progress bar from the counted histogram, not the loaded page", async () => {
+    renderEditor({
+      view: "table",
+      prepare: (adapter) => {
+        vi.spyOn(adapter, "getBlockCounts").mockResolvedValue({
+          total: 40,
+          translatable: 36,
+          locale: "fr-FR",
+          status: { "not-started": 20, draft: 5, translated: 4, reviewed: 7 },
+        });
+      },
+    });
+    await waitForBlocks(3);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("progress-text").textContent).toContain("(16/36 translated)"),
+    );
+    const text = screen.getByTestId("progress-text").textContent ?? "";
+    expect(text).toContain("44%");
+    expect(text).toContain("7 reviewed");
+    expect(text).toContain("20 pending");
   });
 });
 

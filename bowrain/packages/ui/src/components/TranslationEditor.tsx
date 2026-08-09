@@ -16,6 +16,7 @@ import { ErrorNotice } from "../errors";
 import type {
   ProjectInfo,
   BlockInfo,
+  BlockCounts,
   ReviewDemotion,
   WordCountResult,
   MemoryMatchInfo,
@@ -38,7 +39,6 @@ import { VisualEditorLayout } from "./editor/VisualEditorLayout";
 import { TableView } from "./editor/TableView";
 import {
   captureTargetStatus,
-  getBlockStatus,
   getTargetText,
   rollbackTargetStatus,
   statusAfterEdit,
@@ -51,6 +51,16 @@ import { type UnifiedSaveResult, type UnifiedTargetEditorHandle } from "./Unifie
 
 /** The Translate editor exposes two views the user toggles between. */
 export type TranslateView = "visual" | "table";
+
+/** How long the search box waits, in ms, before it becomes a server query. */
+const SEARCH_DEBOUNCE_MS = 250;
+
+/** The four buckets, all zero — the shape shown before the counts arrive. */
+const EMPTY_COUNTS: BlockCounts = {
+  total: 0,
+  translatable: 0,
+  status: { "not-started": 0, draft: 0, translated: 0, reviewed: 0 },
+};
 
 interface TranslationEditorProps {
   project: ProjectInfo;
@@ -93,6 +103,7 @@ export function TranslationEditor({
   reloadSignal,
 }: TranslationEditorProps) {
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
+  const [counts, setCounts] = useState<BlockCounts>(EMPTY_COUNTS);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [targetLocale, setTargetLocale] = useState(project.target_languages[0] || "");
@@ -151,17 +162,40 @@ export function TranslationEditor({
 
   const api = useEditorApi();
   const { capture } = useAnalytics();
-  const { getFileBlocks, getWordCount: getWordCountApi } = api;
+  const { getFileBlocks, getBlockCounts, getWordCount: getWordCountApi } = api;
 
-  // Load blocks
+  // The search box is a server query, so the keystrokes settle before it runs.
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(searchQuery.trim()), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // The editor holds one item and one locale at a time, and asks for exactly
+  // that: the search runs over the runs server-side, so the list is the answer
+  // rather than a filtered download.
   const loadBlocks = useCallback(async () => {
     try {
-      const b = await getFileBlocks(project.id, fileName);
+      const b = await getFileBlocks(project.id, fileName, {
+        locale: targetLocale,
+        q: query || undefined,
+      });
       setBlocks(b || []);
     } catch (e) {
       setError({ title: "Couldn't load the blocks", cause: e });
     }
-  }, [getFileBlocks, project.id, fileName]);
+  }, [getFileBlocks, project.id, fileName, targetLocale, query]);
+
+  // The progress bar reports the histogram for the same query, counted in SQL.
+  const loadCounts = useCallback(async () => {
+    try {
+      setCounts(
+        await getBlockCounts(project.id, fileName, targetLocale, { q: query || undefined }),
+      );
+    } catch {
+      setCounts(EMPTY_COUNTS);
+    }
+  }, [getBlockCounts, project.id, fileName, targetLocale, query]);
 
   const loadWordCount = useCallback(async () => {
     try {
@@ -174,28 +208,19 @@ export function TranslationEditor({
 
   useEffect(() => {
     void loadBlocks();
+    void loadCounts();
     void loadWordCount();
     // reloadSignal is an external freshness trigger: bumping it re-runs this
     // effect to pull authoritative state after an out-of-band change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadBlocks, loadWordCount, reloadSignal]);
+  }, [loadBlocks, loadCounts, loadWordCount, reloadSignal]);
 
-  // Filter blocks by search — one filter state shared by both views: the
-  // Table rows and the Visual card list navigate the same filtered set.
-  const filteredBlocks = searchQuery
-    ? blocks.filter(
-        (b) =>
-          b.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          getTargetText(b, targetLocale).toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : blocks;
-
-  // Keep the selection inside the filtered range (a narrowing query would
+  // Keep the selection inside the loaded range (a narrowing query would
   // otherwise leave selectedIndex dangling past the end and blank the
   // Visual card).
   useEffect(() => {
-    setSelectedIndex((i) => Math.max(0, Math.min(i, filteredBlocks.length - 1)));
-  }, [filteredBlocks.length]);
+    setSelectedIndex((i) => Math.max(0, Math.min(i, blocks.length - 1)));
+  }, [blocks.length]);
 
   // Changing the query reshuffles which block sits at each index, so close
   // any open editor rather than let it silently re-seed on another block.
@@ -204,24 +229,14 @@ export function TranslationEditor({
     setEditingIndex(null);
   }, []);
 
-  const translatableBlocks = filteredBlocks.filter((b) => b.translatable);
-  const translatedCount = translatableBlocks.filter((b) => getTargetText(b, targetLocale)).length;
+  const statusCounts = counts.status;
+  const translatableCount = counts.translatable;
+  const translatedCount = translatableCount - statusCounts["not-started"];
   const progress =
-    translatableBlocks.length > 0
-      ? Math.round((translatedCount / translatableBlocks.length) * 100)
-      : 0;
-
-  // Status counts for progress bar
-  const statusCounts = useMemo(() => {
-    const counts = { "not-started": 0, draft: 0, translated: 0, reviewed: 0 };
-    for (const b of translatableBlocks) {
-      counts[getBlockStatus(b, targetLocale)]++;
-    }
-    return counts;
-  }, [translatableBlocks, targetLocale]);
+    translatableCount > 0 ? Math.round((translatedCount / translatableCount) * 100) : 0;
 
   // Selected block ID for preview synchronization + presence.
-  const selectedBlockId = filteredBlocks[selectedIndex]?.id;
+  const selectedBlockId = blocks[selectedIndex]?.id;
 
   useEffect(() => {
     onSelectedBlockChange?.(selectedBlockId);
@@ -229,11 +244,11 @@ export function TranslationEditor({
 
   const startEditing = useCallback(
     (index: number) => {
-      const block = filteredBlocks[index];
+      const block = blocks[index];
       if (!block || !block.translatable) return;
       setEditingIndex(index);
     },
-    [filteredBlocks],
+    [blocks],
   );
 
   // Keyboard navigation + Cmd+E entity marking (active in both views; the
@@ -253,7 +268,7 @@ export function TranslationEditor({
         e.preventDefault();
         const sel = window.getSelection();
         if (sel && sel.toString().trim().length > 0 && selectedIndex >= 0) {
-          const block = filteredBlocks[selectedIndex];
+          const block = blocks[selectedIndex];
           const selectedText = sel.toString().trim();
           const sourceText = block?.source ?? "";
           const startIdx = sourceText.indexOf(selectedText);
@@ -275,7 +290,7 @@ export function TranslationEditor({
       if (view !== "table") return;
       if (e.key === "ArrowDown" || e.key === "j") {
         e.preventDefault();
-        setSelectedIndex((i) => Math.min(i + 1, filteredBlocks.length - 1));
+        setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1));
       } else if (e.key === "ArrowUp" || e.key === "k") {
         e.preventDefault();
         setSelectedIndex((i) => Math.max(i - 1, 0));
@@ -287,11 +302,11 @@ export function TranslationEditor({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editingIndex, selectedIndex, filteredBlocks, view, startEditing]);
+  }, [editingIndex, selectedIndex, blocks, view, startEditing]);
 
   // Load content memory + term matches for the selected block.
   useEffect(() => {
-    const block = filteredBlocks[selectedIndex];
+    const block = blocks[selectedIndex];
     if (!block || !block.translatable) {
       setTmMatches([]);
       setTermMatches([]);
@@ -306,12 +321,12 @@ export function TranslationEditor({
       .then((m) => setTermMatches(m || []))
       .catch(() => setTermMatches([]));
     void Promise.all([memoryPromise, termPromise]);
-  }, [selectedIndex, filteredBlocks, targetLocale, project.id, fileName, api]);
+  }, [selectedIndex, blocks, targetLocale, project.id, fileName, api]);
 
   // Load QA issues, history, and notes for the selected block (Visual card).
   useEffect(() => {
     if (view !== "visual") return;
-    const block = filteredBlocks[selectedIndex];
+    const block = blocks[selectedIndex];
     if (!block) return;
     api
       .runQACheck(project.id, block.id, targetLocale)
@@ -325,12 +340,12 @@ export function TranslationEditor({
       .listBlockNotes(project.id, block.id)
       .then((n) => setBlockNotes(n || []))
       .catch(() => setBlockNotes([]));
-  }, [view, selectedIndex, filteredBlocks, targetLocale, project.id, api]);
+  }, [view, selectedIndex, blocks, targetLocale, project.id, api]);
 
   const handleCreateEntity = useCallback(
     async (type: string, dnt: boolean) => {
       if (!entityMarkState || selectedIndex < 0) return;
-      const block = filteredBlocks[selectedIndex];
+      const block = blocks[selectedIndex];
       if (!block) return;
       try {
         const created = await fullApi.createEntity(wsSlug, project.id, fileName, block.id, {
@@ -351,7 +366,7 @@ export function TranslationEditor({
       }
       setEntityMarkState(null);
     },
-    [entityMarkState, selectedIndex, filteredBlocks, fullApi, wsSlug, project.id, fileName],
+    [entityMarkState, selectedIndex, blocks, fullApi, wsSlug, project.id, fileName],
   );
 
   // Single dispatcher for the UnifiedTargetEditor — flat results go through
@@ -359,7 +374,7 @@ export function TranslationEditor({
   // `targets[locale]` and clear `targets_coded[locale]`. See AD #408 / #409.
   const handleUnifiedSave = useCallback(
     async (index: number, result: UnifiedSaveResult) => {
-      const block = filteredBlocks[index];
+      const block = blocks[index];
       if (!block) return;
       try {
         if (result.kind === "flat") {
@@ -424,14 +439,16 @@ export function TranslationEditor({
           );
         }
         capture(AnalyticsEvents.translationSaved, { locale: targetLocale, method: "editor" });
+        // The block changed bucket, so the histogram is re-asked for.
+        void loadCounts();
         const nextIndex = index + 1;
         setEditingIndex(null);
-        if (nextIndex < filteredBlocks.length) setSelectedIndex(nextIndex);
+        if (nextIndex < blocks.length) setSelectedIndex(nextIndex);
       } catch (e) {
         setError({ title: "Couldn't save the translation", cause: e });
       }
     },
-    [filteredBlocks, api, capture, project.id, fileName, targetLocale],
+    [blocks, api, capture, project.id, fileName, targetLocale, loadCounts],
   );
 
   const handleExport = async () => {
@@ -493,6 +510,7 @@ export function TranslationEditor({
       );
       try {
         await api.reviewBlock(project.id, fileName, block.id, targetLocale, reviewed, demoteTo);
+        void loadCounts();
         return true;
       } catch (e) {
         setBlocks((prev) =>
@@ -509,7 +527,7 @@ export function TranslationEditor({
         return false;
       }
     },
-    [api, capture, project.id, fileName, targetLocale],
+    [api, capture, project.id, fileName, targetLocale, loadCounts],
   );
 
   // Visual card handlers.
@@ -522,34 +540,34 @@ export function TranslationEditor({
   );
 
   const handleVisualApprove = useCallback(() => {
-    const block = filteredBlocks[selectedIndex];
+    const block = blocks[selectedIndex];
     // An untranslated block has nothing to review — the server categorically
     // 422s it, so don't fire a call that can only fail (mirrors the server's
     // no-empty-translation rule client-side; the card also disables Approve).
     if (!block || !getTargetText(block, targetLocale).trim()) return;
     const index = selectedIndex;
-    const total = filteredBlocks.length;
+    const total = blocks.length;
     // Only advance once the review persisted: advancing optimistically would
     // bounce the reviewer to the next block and then surface the rollback +
     // error for a block no longer on screen.
     void applyReview(block, true).then((ok) => {
       if (ok) setSelectedIndex((i) => (i === index && i < total - 1 ? i + 1 : i));
     });
-  }, [filteredBlocks, selectedIndex, targetLocale, applyReview]);
+  }, [blocks, selectedIndex, targetLocale, applyReview]);
 
   const handleVisualReject = useCallback(() => {
-    const block = filteredBlocks[selectedIndex];
+    const block = blocks[selectedIndex];
     if (!block) return;
     // A rejection demotes the target to draft so the unit re-enters the work
     // queue (host's rejected → draft mapping) — not merely back to translated,
     // which would leave the rejected text passing translated-coverage gates.
     void applyReview(block, false, "draft");
-  }, [selectedIndex, filteredBlocks, applyReview]);
+  }, [selectedIndex, blocks, applyReview]);
 
   const handleApplyMemory = useCallback(
     (index: number) => {
       const match = memoryMatches[index];
-      const block = filteredBlocks[selectedIndex];
+      const block = blocks[selectedIndex];
       if (!match || !block || !block.translatable) return;
       void api
         .updateBlockTarget({
@@ -574,16 +592,7 @@ export function TranslationEditor({
           );
         });
     },
-    [
-      memoryMatches,
-      filteredBlocks,
-      selectedIndex,
-      api,
-      capture,
-      project.id,
-      fileName,
-      targetLocale,
-    ],
+    [memoryMatches, blocks, selectedIndex, api, capture, project.id, fileName, targetLocale],
   );
 
   // Insert a target term. When a target editor is open for the selected
@@ -592,7 +601,7 @@ export function TranslationEditor({
   // open, fall back to appending to the stored target and persisting.
   const handleInsertTerm = useCallback(
     (text: string) => {
-      const block = filteredBlocks[selectedIndex];
+      const block = blocks[selectedIndex];
       if (!block || !block.translatable) return;
       if (editingIndex !== null && targetEditorRef.current) {
         targetEditorRef.current.insertText(text);
@@ -617,7 +626,7 @@ export function TranslationEditor({
         })
         .catch((e) => setError({ title: "Couldn't insert the term", cause: e }));
     },
-    [filteredBlocks, selectedIndex, editingIndex, api, project.id, fileName, targetLocale],
+    [blocks, selectedIndex, editingIndex, api, project.id, fileName, targetLocale],
   );
 
   const handleRunFileQA = useCallback(() => {
@@ -631,7 +640,7 @@ export function TranslationEditor({
 
   const handleRevertHistory = useCallback(
     (entry: BlockHistoryEntry) => {
-      const block = filteredBlocks[selectedIndex];
+      const block = blocks[selectedIndex];
       if (!block) return;
       // Use the audited server rollback: it restores the prior version
       // (including inline markup) non-destructively and records the rollback.
@@ -651,19 +660,19 @@ export function TranslationEditor({
         })
         .catch((e) => setError({ title: "Couldn't revert the change", cause: e }));
     },
-    [filteredBlocks, selectedIndex, api, project.id, targetLocale],
+    [blocks, selectedIndex, api, project.id, targetLocale],
   );
 
   const handleAddNote = useCallback(
     (text: string) => {
-      const block = filteredBlocks[selectedIndex];
+      const block = blocks[selectedIndex];
       if (!block) return;
       api
         .addBlockNote(project.id, block.id, text)
         .then((note) => setBlockNotes((prev) => [...prev, note]))
         .catch((e) => setError({ title: "Couldn't add the note", cause: e }));
     },
-    [filteredBlocks, selectedIndex, api, project.id],
+    [blocks, selectedIndex, api, project.id],
   );
 
   const handleDeleteNote = useCallback(
@@ -700,7 +709,7 @@ export function TranslationEditor({
           data-testid="progress-reviewed"
           className="bg-success opacity-40"
           style={{
-            width: `${(statusCounts.reviewed / Math.max(translatableBlocks.length, 1)) * 100}%`,
+            width: `${(statusCounts.reviewed / Math.max(translatableCount, 1)) * 100}%`,
           }}
         />
       )}
@@ -709,7 +718,7 @@ export function TranslationEditor({
           data-testid="progress-translated"
           className="bg-info opacity-40"
           style={{
-            width: `${(statusCounts.translated / Math.max(translatableBlocks.length, 1)) * 100}%`,
+            width: `${(statusCounts.translated / Math.max(translatableCount, 1)) * 100}%`,
           }}
         />
       )}
@@ -718,7 +727,7 @@ export function TranslationEditor({
           data-testid="progress-draft"
           className="bg-warning opacity-40"
           style={{
-            width: `${(statusCounts.draft / Math.max(translatableBlocks.length, 1)) * 100}%`,
+            width: `${(statusCounts.draft / Math.max(translatableCount, 1)) * 100}%`,
           }}
         />
       )}
@@ -791,7 +800,7 @@ export function TranslationEditor({
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-semibold text-foreground whitespace-nowrap"
           data-testid="progress-text"
         >
-          {progress}% ({translatedCount}/{translatableBlocks.length} translated)
+          {progress}% ({translatedCount}/{translatableCount} translated)
           {progressBreakdown.length > 0 && ` — ${progressBreakdown.join(", ")}`}
         </span>
       </div>
@@ -814,8 +823,7 @@ export function TranslationEditor({
               <VisualEditorLayout
                 project={project}
                 fileName={fileName}
-                blocks={filteredBlocks}
-                previewBlocks={blocks}
+                blocks={blocks}
                 selectedIndex={selectedIndex}
                 editingIndex={editingIndex}
                 targetLocale={targetLocale}
@@ -845,7 +853,7 @@ export function TranslationEditor({
             </div>
           ) : (
             <TableView
-              blocks={filteredBlocks}
+              blocks={blocks}
               targetLocale={targetLocale}
               targetLocaleLabel={getDisplayName(targetLocale)}
               selectedIndex={selectedIndex}
@@ -868,7 +876,7 @@ export function TranslationEditor({
         data-testid="status-bar"
       >
         <span>
-          Block {selectedIndex + 1} of {filteredBlocks.length}
+          Block {selectedIndex + 1} of {blocks.length}
         </span>
         {wordCount && (
           <span>
@@ -881,7 +889,7 @@ export function TranslationEditor({
         <span className="text-muted-foreground inline-flex items-center gap-0.5">
           Enter: edit | Esc: cancel | <ArrowUp className="w-3 h-3 inline-block" />
           <ArrowDown className="w-3 h-3 inline-block" />: navigate
-          {editingIndex !== null && filteredBlocks[editingIndex]?.has_spans && (
+          {editingIndex !== null && blocks[editingIndex]?.has_spans && (
             <> | Ctrl+1..9: insert tag</>
           )}
           {editingIndex === null && <> | {"⌘"}E: mark entity</>}

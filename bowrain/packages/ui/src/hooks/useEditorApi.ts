@@ -4,6 +4,12 @@ import { useWorkspace } from "../context/WorkspaceContext";
 import { useStream } from "../context/StreamContext";
 import type {
   BlockInfo,
+  BlockCounts,
+  BlockQueryOptions,
+  BulkApplyMemoryRequest,
+  BulkApplyMemoryResult,
+  BulkReviewBlocksRequest,
+  BulkReviewBlocksResult,
   ReviewDemotion,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
@@ -26,9 +32,39 @@ export function useEditorApi() {
   const ws = activeWorkspace?.slug ?? "";
   const { activeStream } = useStream();
 
+  /**
+   * One page of an item's blocks. `opts` carries the server-side filters — the
+   * locale's status bucket, a substring over source and target, translatability
+   * and the page bounds — so a narrowed view is a narrowed query.
+   */
   const getFileBlocks = useCallback(
-    async (projectId: string, fileName: string): Promise<BlockInfo[]> =>
-      api.getFileBlocks(ws, projectId, fileName, activeStream),
+    async (projectId: string, fileName: string, opts?: BlockQueryOptions): Promise<BlockInfo[]> =>
+      (await api.getFileBlocks(ws, projectId, fileName, activeStream, opts)) ?? [],
+    [api, ws, activeStream],
+  );
+
+  /** The totals and status histogram for a block query, hydrating no block. */
+  const getBlockCounts = useCallback(
+    async (
+      projectId: string,
+      item?: string,
+      locale?: string,
+      opts?: { q?: string; translatable?: boolean },
+    ): Promise<BlockCounts> => api.getBlockCounts(ws, projectId, item, locale, activeStream, opts),
+    [api, ws, activeStream],
+  );
+
+  /** One review decision across a selection of blocks, in one request. */
+  const bulkReviewBlocks = useCallback(
+    async (req: Omit<BulkReviewBlocksRequest, "stream">): Promise<BulkReviewBlocksResult> =>
+      api.bulkReviewBlocks(ws, { ...req, stream: activeStream }),
+    [api, ws, activeStream],
+  );
+
+  /** The best content-memory match written into a selection, in one request. */
+  const bulkApplyMemory = useCallback(
+    async (req: Omit<BulkApplyMemoryRequest, "stream">): Promise<BulkApplyMemoryResult> =>
+      api.bulkApplyMemory(ws, { ...req, stream: activeStream }),
     [api, ws, activeStream],
   );
 
@@ -220,6 +256,9 @@ export function useEditorApi() {
   return useMemo(
     () => ({
       getFileBlocks,
+      getBlockCounts,
+      bulkReviewBlocks,
+      bulkApplyMemory,
       getPendingReview,
       updateBlockTarget,
       updateBlockTargetCoded,
@@ -247,6 +286,9 @@ export function useEditorApi() {
     }),
     [
       getFileBlocks,
+      getBlockCounts,
+      bulkReviewBlocks,
+      bulkApplyMemory,
       getPendingReview,
       updateBlockTarget,
       updateBlockTargetCoded,

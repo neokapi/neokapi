@@ -13,7 +13,7 @@ import { useEditorApi } from "../../hooks/useEditorApi";
 import { useLocales } from "../../hooks/useLocales";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { ErrorNotice } from "../../errors";
-import { getTargetText } from "../editor/blockStatus";
+import { getTargetText, statusAfterEdit, withTargetEntry } from "../editor/blockStatus";
 import { type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { ArrowLeft, Rocket, CircleCheck, Sparkles, RefreshCw, FileText } from "../icons";
 import { ReviewQueueList } from "./ReviewQueueList";
@@ -63,6 +63,22 @@ interface ReviewScope {
 }
 
 const scopeKey = (s: { itemName: string; locale: string }) => `${s.itemName}::${s.locale}`;
+
+/** How many pending entries one page of the queue carries. */
+const QUEUE_PAGE_SIZE = 200;
+
+/**
+ * How many pending entries one session loads. The header reports the server's
+ * total, so a queue larger than this is named in full and worked a slice at a
+ * time — emptying the slice refetches the next one.
+ */
+const QUEUE_MAX_ENTRIES = 1000;
+
+/** One page of the queue, plus the size of the queue it came from. */
+interface QueueLoad {
+  entries: ReviewEntry[];
+  total: number;
+}
 
 /**
  * Derive the (item, locale) scopes that may hold pending-review blocks from the
@@ -143,66 +159,92 @@ export function ReviewSession({
   const sourceLocale = project.default_source_language;
   const brandProfileId = useMemo(() => resolveBrandProfile(project, stream), [project, stream]);
 
+  const targetLocales = useMemo(() => project.target_languages ?? [], [project.target_languages]);
+
   const scopes = useMemo(
-    () => scopesFromStats(dashboardStats, project.target_languages),
-    [dashboardStats, project.target_languages],
+    () => scopesFromStats(dashboardStats, targetLocales),
+    [dashboardStats, targetLocales],
+  );
+
+  // Item metadata for the entries the server hands back — the dashboard names
+  // the id, format and collection a queue row is grouped and filtered by.
+  const itemMeta = useMemo(() => {
+    const m = new Map<string, { itemId: string; format?: string; collectionId?: string }>();
+    for (const item of dashboardStats.item_stats) {
+      m.set(item.item_name, {
+        itemId: item.item_id,
+        format: item.format,
+        collectionId: item.collection_id,
+      });
+    }
+    return m;
+  }, [dashboardStats]);
+
+  // The (item, locale) scopes the dashboard reports error-severity findings
+  // for — the only ones worth a QA request.
+  const failingScopes = useMemo(
+    () => new Set(scopes.filter((s) => s.failing).map(scopeKey)),
+    [scopes],
   );
 
   // The queue comes from the server's pending-review pages — one indexed
   // query, not a blocks fetch per item (978 items once meant minutes of
-  // "gathering", over only the first dashboard page of scopes). The QA pass
-  // still runs per scope the dashboard flags as failing.
-  const buildQueue = useCallback(async (): Promise<ReviewEntry[]> => {
-    const pageSize = 200;
-    const blocksByItem = new Map<string, BlockInfo[]>();
-    const seenBlocks = new Set<string>();
-    let offset = 0;
-    for (;;) {
+  // "gathering"). Both passes are bounded: the pages stop at the session's
+  // slice, and QA runs only for the flagged scopes the slice actually holds.
+  const buildQueue = useCallback(async (): Promise<QueueLoad> => {
+    const loaded: { itemName: string; locale: string; block: BlockInfo }[] = [];
+    const seen = new Set<string>();
+    let total = 0;
+    for (let offset = 0; offset < QUEUE_MAX_ENTRIES; offset += QUEUE_PAGE_SIZE) {
       const page = await api
-        .getPendingReview(project.id, { limit: pageSize, offset })
+        .getPendingReview(project.id, {
+          locales: targetLocales,
+          limit: QUEUE_PAGE_SIZE,
+          offset,
+        })
         .catch(() => null);
       if (!page) break;
-      for (const e of page.entries) {
-        if (!e.block || seenBlocks.has(`${e.item_name}:${e.block_id}`)) continue;
-        seenBlocks.add(`${e.item_name}:${e.block_id}`);
-        const list = blocksByItem.get(e.item_name) ?? [];
-        list.push(e.block);
-        blocksByItem.set(e.item_name, list);
+      total = page.total;
+      const pageEntries = page.entries ?? [];
+      for (const e of pageEntries) {
+        const key = `${e.item_name}::${e.block_id}::${e.locale}`;
+        if (!e.block || seen.has(key)) continue;
+        seen.add(key);
+        loaded.push({ itemName: e.item_name, locale: e.locale, block: e.block });
       }
-      offset += page.entries.length;
-      if (offset >= page.total || page.entries.length === 0) break;
+      if (pageEntries.length < QUEUE_PAGE_SIZE || offset + pageEntries.length >= page.total) break;
     }
+
+    const qaScopes = new Set(
+      loaded.map((e) => scopeKey(e)).filter((key) => failingScopes.has(key)),
+    );
     const qaByScope = new Map<string, Map<string, QAIssue[]>>();
     await Promise.all(
-      scopes
-        .filter((s) => s.failing)
-        .map(async (s) => {
-          const results = await api
-            .runFileQACheck(project.id, s.itemName, s.locale)
-            .catch(() => []);
-          qaByScope.set(scopeKey(s), new Map(results.map((r) => [r.blockId, r.issues])));
-        }),
+      [...qaScopes].map(async (key) => {
+        const [itemName, locale] = key.split("::");
+        const results = await api.runFileQACheck(project.id, itemName, locale).catch(() => []);
+        qaByScope.set(key, new Map((results ?? []).map((r) => [r.blockId, r.issues])));
+      }),
     );
+
     const entries: ReviewEntry[] = [];
-    for (const s of scopes) {
-      const blocks = blocksByItem.get(s.itemName) ?? [];
-      const issues = qaByScope.get(scopeKey(s));
-      for (const b of blocks) {
-        if (!isPendingReview(b, s.locale)) continue;
-        entries.push({
-          id: entryKey(s.itemId, b.id, s.locale),
-          itemId: s.itemId,
-          itemName: s.itemName,
-          format: s.format,
-          collectionId: s.collectionId,
-          locale: s.locale,
-          block: b,
-          issues: issues?.get(b.id) ?? [],
-        });
-      }
+    for (const e of loaded) {
+      if (!isPendingReview(e.block, e.locale)) continue;
+      const meta = itemMeta.get(e.itemName);
+      const itemId = meta?.itemId ?? e.itemName;
+      entries.push({
+        id: entryKey(itemId, e.block.id, e.locale),
+        itemId,
+        itemName: e.itemName,
+        format: meta?.format,
+        collectionId: meta?.collectionId,
+        locale: e.locale,
+        block: e.block,
+        issues: qaByScope.get(scopeKey(e))?.get(e.block.id) ?? [],
+      });
     }
-    return entries;
-  }, [api, project.id, scopes]);
+    return { entries, total: Math.max(total, entries.length) };
+  }, [api, project.id, targetLocales, failingScopes, itemMeta]);
 
   const {
     data,
@@ -216,10 +258,19 @@ export function ReviewSession({
     staleTime: 15_000,
   });
 
-  // Local mirror of the queue so approve/reject/edit apply optimistically.
+  // Local mirror of the queue so approve/reject/edit apply optimistically, and
+  // the server's queue size beside it — the loaded slice may be smaller.
   const [entries, setEntries] = useState<ReviewEntry[]>([]);
+  const [pendingTotal, setPendingTotal] = useState(0);
+  // One refill per emptied slice: a queue whose reported total never matches a
+  // page must not spin the session in refetches.
+  const sliceRefillRef = useRef(false);
   useEffect(() => {
-    if (data) setEntries(data);
+    if (data) {
+      setEntries(data.entries);
+      setPendingTotal(data.total);
+      if (data.entries.length > 0) sliceRefillRef.current = false;
+    }
   }, [data]);
 
   const [filter, setFilter] = useState<ReviewQueueFilter>({});
@@ -290,6 +341,7 @@ export function ReviewSession({
       setEditing(false);
       actedRef.current = true;
       setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+      setPendingTotal((t) => Math.max(0, t - 1));
       try {
         await api.reviewBlock(
           project.id,
@@ -347,13 +399,16 @@ export function ReviewSession({
     [api, project.id],
   );
 
-  // Persist an inline edit, then reload the item's blocks so the reviewer shows
-  // server truth (status demotes to translated on a content change), and
-  // re-check the block.
+  // Persist an inline edit and carry the saved text into the entry. The status
+  // follows the server's rule for an edited target (statusAfterEdit: a content
+  // change invalidates a review decision and demotes to translated), so the
+  // reviewer shows what a reload would fetch without pulling the item's blocks.
   const saveEdit = useCallback(
     async (entry: ReviewEntry, result: UnifiedSaveResult) => {
       setBusy(true);
       try {
+        let text: string;
+        let coded: string | undefined;
         if (result.kind === "flat") {
           await api.updateBlockTargetCoded({
             project_id: project.id,
@@ -363,6 +418,8 @@ export function ReviewSession({
             coded_text: result.codedText,
             spans: result.spans,
           });
+          coded = result.codedText;
+          text = result.codedText.replace(/[\uE001-\uE003]/g, "");
         } else {
           await api.updateBlockTarget({
             project_id: project.id,
@@ -371,14 +428,18 @@ export function ReviewSession({
             target_locale: entry.locale,
             text: result.text,
           });
+          text = result.text;
         }
         setEditing(false);
-        const blocks = await api.getFileBlocks(project.id, entry.itemName);
-        const fresh = blocks.find((b) => b.id === entry.block.id);
-        if (fresh) {
-          setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, block: fresh } : e)));
-          void recheck({ ...entry, block: fresh });
-        }
+        const saved: BlockInfo = {
+          ...withTargetEntry(entry.block, entry.locale, {
+            text,
+            status: statusAfterEdit(entry.block, entry.locale, text, coded),
+          }),
+          targets_coded: { ...entry.block.targets_coded, [entry.locale]: coded ?? "" },
+        };
+        setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, block: saved } : e)));
+        void recheck({ ...entry, block: saved });
       } catch (e) {
         setActionError(e);
       } finally {
@@ -414,13 +475,18 @@ export function ReviewSession({
     }
   }, [api, project.id, filter.locale, refetch]);
 
-  // Auto-continue: when an action empties the queue, reflect the server's
+  // Auto-continue: when an action empties the loaded slice, either pull the
+  // next one or — with nothing left pending anywhere — reflect the server's
   // completing run + delivery rather than dead-ending.
   useEffect(() => {
-    if (!isLoading && !isFetching && entries.length === 0 && actedRef.current) {
-      setDelivering(true);
+    if (isLoading || isFetching || entries.length > 0 || !actedRef.current) return;
+    if (pendingTotal > 0 && !sliceRefillRef.current) {
+      sliceRefillRef.current = true;
+      void refetch();
+      return;
     }
-  }, [entries.length, isLoading, isFetching]);
+    setDelivering(true);
+  }, [entries.length, isLoading, isFetching, pendingTotal, refetch]);
 
   // Keyboard model: j/k (or ↓/↑) move, a approve, r reject, e edit. Suppressed
   // while editing or when focus is in a field, so typing is never intercepted.
@@ -513,7 +579,7 @@ export function ReviewSession({
           className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground"
           data-testid="review-pending-count"
         >
-          {counts.total} pending
+          {pendingTotal} pending
         </span>
         <div className="flex-1" />
         {openProposals.length > 0 && (

@@ -27,14 +27,12 @@ import { AlertTriangle } from "../icons";
 interface VisualEditorLayoutProps {
   project: ProjectInfo;
   fileName: string;
-  blocks: BlockInfo[];
   /**
-   * Full (unfiltered) block list for the document preview. The iframe shows
-   * the whole document regardless of any search filter, so target/pseudo
-   * content pushes must cover every block — while `blocks` (possibly
-   * filtered) drives card navigation and selection. Defaults to `blocks`.
+   * The blocks the surface navigates — the page the editor asked the server
+   * for. The preview pane fetches the whole document itself and treats these
+   * as the locally-edited overlay.
    */
-  previewBlocks?: BlockInfo[];
+  blocks: BlockInfo[];
   selectedIndex: number;
   editingIndex: number | null;
   targetLocale: string;
@@ -99,7 +97,6 @@ export function VisualEditorLayout({
   project,
   fileName,
   blocks,
-  previewBlocks,
   selectedIndex,
   editingIndex,
   targetLocale,
@@ -357,7 +354,7 @@ export function VisualEditorLayout({
           targetLocale={targetLocale}
           selectedBlockId={currentBlock.id}
           onBlockSelect={handleBlockSelect}
-          blocks={previewBlocks ?? blocks}
+          blocks={blocks}
           previewContentMode={previewContentMode}
           spacerHeight={spacerHeight}
           onSpacerPosition={handleSpacerPosition}
