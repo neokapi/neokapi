@@ -624,7 +624,7 @@
   "dw0c48RdM1V": "▒ Ţĥîš đŕàƒţ ţöüçĥéš ñöñé öƒ ţĥé {impact.total_blocks.toLocaleString} šţöŕéđ ƃļöçķš — ñö ḿéàšüŕàƃļé îḿþàçţ öñ þüƃļîšĥéđ çöñţéñţ. ▒",
   "jQoEG1V24sF": "▒ {=m0}Þàŕţîàļ ḿéàšüŕéḿéñţ.{/=m0} Ţĥé šçàñ đîđ ñöţ çöṽéŕ ţĥé ŵĥöļé ŵöŕķšþàçé, šö àñýţĥîñĝ îţ đîđ ñöţ ŕéàçĥ çöüñţš àš ñöţĥîñĝ ĥéŕé — îñçļüđîñĝ þŕöĵéçţš ḿîššîñĝ ƒŕöḿ ţĥé ƃŕéàķđöŵñ ƃéļöŵ. {value} ▒",
   "5AgySAalkfx": "▒ {=m0} {impact.affected_blocks.toLocaleString} {/=m0} {=m2} àƒƒéçţéđ ƃļöçķ{value} {/=m2} ▒",
-  "caCkyynRwS7": "▒ {formatPercent} öƒ {impact.total_blocks.toLocaleString} šţöŕéđ ƃļöçķš àçŕöšš{value} {impact.projects.length} þŕöĵéçţ{value_2}. ▒",
+  "8H3fxnWTJRZ": "▒ {formatPercent} öƒ {impact.total_blocks.toLocaleString} šţöŕéđ ƃļöçķš àçŕöšš{value} {projectCount} þŕöĵéçţ{value_2}. ▒",
   "eQfGSvwp8Wa": "▒ Ñéŵ ƒļàĝš ▒",
   "iMwbtnMGbov": "▒ Ŕéšöļṽéđ ▒",
   "dQmph97RFnw": "▒ Ŵöŕđš ▒",
