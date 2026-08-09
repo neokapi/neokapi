@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -214,75 +215,20 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	sb, err := s.ContentStore.GetBlock(ctx, pid, stream, bid)
+	out, err := s.applyBlockReview(ctx, c, blockReviewInput{
+		ProjectID: pid, Stream: stream, BlockID: bid, Request: req, DemoteTo: demoteTo,
+		Elevate: func() error { return s.requireLanguagePermission(c, platauth.PermReview, req.TargetLocale) },
+	})
 	if err != nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "block not found: " + err.Error()})
+		var fault reviewFault
+		if errors.As(err, &fault) {
+			return c.JSON(fault.code, ErrorResponse{Error: fault.msg})
+		}
+		if errors.Is(err, errAccessDenied) {
+			return err // Elevate already wrote the 403
+		}
+		return serverErr(c, err)
 	}
-
-	loc := model.LocaleID(req.TargetLocale)
-	target := sb.Block.Target(loc) // locale-only variant (tone/channel empty)
-
-	var status model.TargetStatus
-	if req.Reviewed {
-		if target == nil || strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
-			return c.JSON(http.StatusUnprocessableEntity, ErrorResponse{
-				Error: fmt.Sprintf("block %q has no %s translation to review: translate it first (an untranslated block falls back to source, which is not a reviewable translation)", bid, req.TargetLocale),
-			})
-		}
-		if target.Status == model.TargetStatusSignedOff {
-			// Signed-off sits above reviewed on the ladder; re-approving must
-			// not demote it. Idempotent success, keeping the higher rung.
-			return c.JSON(http.StatusOK, map[string]any{
-				"ok": true, "block_id": bid, "target_locale": req.TargetLocale,
-				"reviewed": true, "status": string(target.Status),
-			})
-		}
-		status = model.TargetStatusReviewed
-	} else {
-		if target == nil {
-			// Nothing to demote. Clear the legacy block-global flag if present so
-			// a block reviewed under the old scheme can be un-reviewed at all.
-			if _, ok := sb.Block.Properties[legacyTranslationStatusProperty]; ok {
-				delete(sb.Block.Properties, legacyTranslationStatusProperty)
-				if err := s.ContentStore.StoreBlocks(ctx, pid, stream, []*model.Block{sb.Block}); err != nil {
-					return serverErr(c, fmt.Errorf("store block: %w", err))
-				}
-				s.emitEditorBlockChange(c, pid, bid, req.ItemName, stream, "updated")
-				wsID, _ := c.Get("workspace_id").(string)
-				s.invalidateDashboardCache(wsID, pid)
-			}
-			return c.JSON(http.StatusOK, map[string]any{"ok": true, "block_id": bid, "target_locale": req.TargetLocale, "reviewed": false})
-		}
-		if target.Status == model.TargetStatusSignedOff {
-			// Undoing a sign-off is a review-level action, not ordinary
-			// translation work: without this gate a PermTranslate caller could
-			// drop a signed-off target two rungs to translated with no audit
-			// trail distinct from an ordinary un-review.
-			if err := s.requireLanguagePermission(c, platauth.PermReview, req.TargetLocale); err != nil {
-				return err
-			}
-		}
-		status = demoteTo
-	}
-	// Whether this call actually moves the target UP to reviewed from below — the
-	// signal the governed review continuation keys on, so an idempotent re-approve
-	// of an already-reviewed target advances nothing.
-	approvalTransition := req.Reviewed && status == model.TargetStatusReviewed &&
-		target.Status.Rank() < model.TargetStatusReviewed.Rank()
-	target.Status = status
-
-	if err := s.ContentStore.StoreBlocks(ctx, pid, stream, []*model.Block{sb.Block}); err != nil {
-		return serverErr(c, fmt.Errorf("store block: %w", err))
-	}
-
-	// The review is a DECISION, and decisions live in the ledger — with the
-	// decider's identity, the time, and the hash of the translation it
-	// blesses — not only in the projected status the line above wrote. The
-	// ledger is what travels to the client on pull, where the same record
-	// lands in the project's committed state.
-	s.recordReviewDecision(ctx, c, pid, stream, sb, req.TargetLocale, status, req.Reviewed)
-
-	s.emitEditorBlockChange(c, pid, bid, req.ItemName, stream, "updated")
 
 	wsID, _ := c.Get("workspace_id").(string)
 	s.invalidateDashboardCache(wsID, pid)
@@ -294,17 +240,128 @@ func (s *Server) HandleReviewBlock(c echo.Context) error {
 	// per-block review response above is unchanged for them. Only a real approval
 	// transition advances the loop; an un-review/rejection re-opens work and an
 	// idempotent re-approve of already-reviewed content advances nothing.
-	if approvalTransition {
+	if out.Approval {
 		if proj, perr := s.ContentStore.GetProject(ctx, pid); perr == nil {
 			actor, _ := c.Get("user_id").(string)
-			s.advanceReviewLoop(ctx, proj, stream, []model.LocaleID{loc}, actor)
+			s.advanceReviewLoop(ctx, proj, stream, []model.LocaleID{model.LocaleID(req.TargetLocale)}, actor)
 		}
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"ok": true, "block_id": bid, "target_locale": req.TargetLocale,
-		"reviewed": req.Reviewed, "status": string(status),
-	})
+	resp := map[string]any{
+		"ok": true, "block_id": bid, "target_locale": req.TargetLocale, "reviewed": req.Reviewed,
+	}
+	if out.HadTarget {
+		resp["status"] = string(out.Status)
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
+// reviewFault is a per-block refusal that the single-block route answers with
+// its own HTTP status and the bulk route records against the block.
+type reviewFault struct {
+	code int
+	msg  string
+}
+
+func (e reviewFault) Error() string { return e.msg }
+
+// blockReviewInput is one block's review, as both the single-block route and
+// the bulk route pose it. Elevate is called before demoting a signed-off
+// target: the single-block route hands over the standard language-permission
+// gate (which writes its own 403), the bulk route a plain predicate so one
+// protected block cannot answer for the whole batch.
+type blockReviewInput struct {
+	ProjectID string
+	Stream    string
+	BlockID   string
+	Request   ReviewBlockRequest
+	DemoteTo  model.TargetStatus
+	Elevate   func() error
+}
+
+// blockReviewOutcome reports what the review did to one block.
+type blockReviewOutcome struct {
+	// HadTarget is false when the locale had no target at all — an
+	// un-review with nothing to demote.
+	HadTarget bool
+	// Status is the rung the target now holds.
+	Status model.TargetStatus
+	// Approval is true when the call moved the target UP to reviewed from
+	// below: the signal the governed review continuation keys on, so an
+	// idempotent re-approve advances nothing.
+	Approval bool
+}
+
+// applyBlockReview moves one block's target for one locale to the requested
+// rung: the status transition, the demotion rules, the decision-ledger write
+// and the change event. It is the whole of the review semantics; both review
+// routes go through it so they cannot drift apart. The caller owns the
+// dashboard-cache invalidation and the review-loop continuation, which are
+// per-request rather than per-block.
+func (s *Server) applyBlockReview(ctx context.Context, c echo.Context, in blockReviewInput) (blockReviewOutcome, error) {
+	req := in.Request
+	sb, err := s.ContentStore.GetBlock(ctx, in.ProjectID, in.Stream, in.BlockID)
+	if err != nil {
+		return blockReviewOutcome{}, reviewFault{http.StatusNotFound, "block not found: " + err.Error()}
+	}
+
+	loc := model.LocaleID(req.TargetLocale)
+	target := sb.Block.Target(loc) // locale-only variant (tone/channel empty)
+
+	var status model.TargetStatus
+	if req.Reviewed {
+		if target == nil || strings.TrimSpace(sb.Block.TargetText(loc)) == "" {
+			return blockReviewOutcome{}, reviewFault{http.StatusUnprocessableEntity, fmt.Sprintf(
+				"block %q has no %s translation to review: translate it first (an untranslated block falls back to source, which is not a reviewable translation)",
+				in.BlockID, req.TargetLocale)}
+		}
+		if target.Status == model.TargetStatusSignedOff {
+			// Signed-off sits above reviewed on the ladder; re-approving must
+			// not demote it. Idempotent success, keeping the higher rung.
+			return blockReviewOutcome{HadTarget: true, Status: target.Status}, nil
+		}
+		status = model.TargetStatusReviewed
+	} else {
+		if target == nil {
+			// Nothing to demote. Clear the legacy block-global flag if present so
+			// a block reviewed under the old scheme can be un-reviewed at all.
+			if _, ok := sb.Block.Properties[legacyTranslationStatusProperty]; ok {
+				delete(sb.Block.Properties, legacyTranslationStatusProperty)
+				if err := s.ContentStore.StoreBlocks(ctx, in.ProjectID, in.Stream, []*model.Block{sb.Block}); err != nil {
+					return blockReviewOutcome{}, fmt.Errorf("store block: %w", err)
+				}
+				s.emitEditorBlockChange(c, in.ProjectID, in.BlockID, req.ItemName, in.Stream, "updated")
+			}
+			return blockReviewOutcome{}, nil
+		}
+		if target.Status == model.TargetStatusSignedOff {
+			// Undoing a sign-off is a review-level action, not ordinary
+			// translation work: without this gate a PermTranslate caller could
+			// drop a signed-off target two rungs to translated with no audit
+			// trail distinct from an ordinary un-review.
+			if err := in.Elevate(); err != nil {
+				return blockReviewOutcome{}, err
+			}
+		}
+		status = in.DemoteTo
+	}
+	approval := req.Reviewed && status == model.TargetStatusReviewed &&
+		target.Status.Rank() < model.TargetStatusReviewed.Rank()
+	target.Status = status
+
+	if err := s.ContentStore.StoreBlocks(ctx, in.ProjectID, in.Stream, []*model.Block{sb.Block}); err != nil {
+		return blockReviewOutcome{}, fmt.Errorf("store block: %w", err)
+	}
+
+	// The review is a DECISION, and decisions live in the ledger — with the
+	// decider's identity, the time, and the hash of the translation it
+	// blesses — not only in the projected status the line above wrote. The
+	// ledger is what travels to the client on pull, where the same record
+	// lands in the project's committed state.
+	s.recordReviewDecision(ctx, c, in.ProjectID, in.Stream, sb, req.TargetLocale, status, req.Reviewed)
+	s.emitEditorBlockChange(c, in.ProjectID, in.BlockID, req.ItemName, in.Stream, "updated")
+
+	return blockReviewOutcome{HadTarget: true, Status: status, Approval: approval}, nil
 }
 
 // PresenceRequest reports the caller's current editing focus in a project.

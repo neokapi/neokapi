@@ -1800,11 +1800,17 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 
 	// Items — Bowrain AD-011: /:ws/:id/items/:ref
 	g.GET("/:id/items/:ref", s.HandleGetFileBlocks) // list items
+	// One item's metadata. Item names carry slashes, so the name is a query
+	// parameter and the route needs its own segment beside the list route.
+	g.GET("/:id/items/:ref/one", s.HandleGetItem) // ?item=path/to/file
 	g.POST("/:id/items/:ref", s.HandleUploadFiles)
 	g.DELETE("/:id/items/:ref", s.HandleRemoveFile) // ?item=path/to/file
 
 	// Blocks — Bowrain AD-011: /:ws/:id/blocks/:ref
-	g.GET("/:id/blocks/:ref", s.HandleGetFileBlocks)
+	g.GET("/:id/blocks/:ref", s.HandleGetFileBlocks) // ?item=&locale=&status=&q=&translatable=
+	g.GET("/:id/blocks/:ref/counts", s.HandleGetBlockCounts)
+	g.POST("/:id/blocks/:ref/bulk-review", s.HandleBulkReviewBlocks)
+	g.POST("/:id/blocks/:ref/bulk-apply-memory", s.HandleBulkApplyMemory)
 	g.PUT("/:id/blocks/:ref/:bid", s.HandleUpdateBlockTarget)
 	g.PUT("/:id/blocks/:ref/:bid/runs", s.HandleUpdateBlockTargetRuns)
 	g.PUT("/:id/blocks/:ref/:bid/status", s.HandleSetBlockStatus)

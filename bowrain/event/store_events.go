@@ -404,6 +404,10 @@ func (s *EventEmittingStore) GetBlocks(ctx context.Context, query store.BlockQue
 	return s.inner.GetBlocks(ctx, query)
 }
 
+func (s *EventEmittingStore) CountBlocks(ctx context.Context, query store.BlockQuery) (store.BlockCounts, error) {
+	return s.inner.CountBlocks(ctx, query)
+}
+
 func (s *EventEmittingStore) GetBlockStats(ctx context.Context, projectID, stream string) ([]store.BlockStatRow, error) {
 	return s.inner.GetBlockStats(ctx, projectID, stream)
 }

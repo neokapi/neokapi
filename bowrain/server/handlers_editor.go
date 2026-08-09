@@ -1,10 +1,13 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"net/http"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -360,14 +363,45 @@ func (s *Server) HandleRemoveFile(c echo.Context) error {
 	return c.JSON(http.StatusOK, info)
 }
 
-// HandleGetFileBlocks returns all blocks for a file in a project.
+// blockQueryFromRequest reads the block filters off the query string:
+// item, locale, status (a per-locale bucket), q (case-insensitive substring
+// over source and the locale's target), translatable, limit and offset.
+// An unknown status is a 400 rather than a silently empty page.
+func blockQueryFromRequest(c echo.Context, pid string) (store.BlockQuery, error) {
+	q := store.BlockQuery{
+		ProjectID:    pid,
+		Stream:       streamParam(c),
+		ItemName:     fileParam(c),
+		TargetLocale: c.QueryParam("locale"),
+		Text:         strings.TrimSpace(c.QueryParam("q")),
+	}
+	if raw := c.QueryParam("status"); raw != "" && raw != "all" {
+		if !slices.Contains(store.BlockStatusBuckets(), raw) {
+			return q, fmt.Errorf("status must be one of %s", strings.Join(store.BlockStatusBuckets(), ", "))
+		}
+		if q.TargetLocale == "" {
+			return q, errors.New("status requires a locale")
+		}
+		q.Status = raw
+	}
+	if raw := c.QueryParam("translatable"); raw != "" {
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			return q, errors.New("translatable must be true or false")
+		}
+		q.Translatable = &v
+	}
+	return q, nil
+}
+
+// HandleGetFileBlocks returns a page of a project's blocks, narrowed by the
+// query string.
 func (s *Server) HandleGetFileBlocks(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
 	pid := projectParam(c)
-	fname := fileParam(c)
 	ctx := c.Request().Context()
 
 	// Get project to know target locales.
@@ -381,17 +415,126 @@ func (s *Server) HandleGetFileBlocks(c echo.Context) error {
 		targetLocales[i] = string(l)
 	}
 
+	query, err := blockQueryFromRequest(c, pid)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
 	// Clamp the page: without a file wildcard on this route ItemName is often
 	// empty, which reduces the query to WHERE project_id = ? — a full-project
 	// hydrate-and-serialize (17k blocks at dogfood scale). Bound it like the
 	// sync block endpoint does.
-	limit, offset := pageParams(c, store.DefaultBlockLimit, store.DefaultBlockLimit)
-	blocks, err := editorGetBlocks(ctx, s.ContentStore, pid, streamParam(c), fname, targetLocales, limit, offset)
+	query.Limit, query.Offset = pageParams(c, store.DefaultBlockLimit, store.DefaultBlockLimit)
+
+	blocks, err := editorQueryBlocks(ctx, s.ContentStore, query, targetLocales)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
 	return c.JSON(http.StatusOK, blocks)
+}
+
+// BlockStatusCountsResponse is the per-locale status histogram, keyed as the
+// editor names its buckets.
+type BlockStatusCountsResponse struct {
+	NotStarted int `json:"not-started"`
+	Draft      int `json:"draft"`
+	Translated int `json:"translated"`
+	Reviewed   int `json:"reviewed"`
+}
+
+// BlockCountsResponse summarizes a block query. Status partitions
+// Translatable for the requested locale; with no locale it is all zeros.
+type BlockCountsResponse struct {
+	Total        int                       `json:"total"`
+	Translatable int                       `json:"translatable"`
+	Locale       string                    `json:"locale,omitempty"`
+	Status       BlockStatusCountsResponse `json:"status"`
+}
+
+// HandleGetBlockCounts answers a file's progress with one aggregate query. It
+// takes the same filters as the blocks route (item, locale, q, translatable)
+// minus status, which is the histogram it reports.
+//
+// GET /:ws/:id/blocks/:ref/counts?item=file.json&locale=fr
+func (s *Server) HandleGetBlockCounts(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	query, err := blockQueryFromRequest(c, projectParam(c))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	query.Status = ""
+
+	counts, err := s.ContentStore.CountBlocks(c.Request().Context(), query)
+	if err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusOK, BlockCountsResponse{
+		Total:        counts.Total,
+		Translatable: counts.Translatable,
+		Locale:       query.TargetLocale,
+		Status: BlockStatusCountsResponse{
+			NotStarted: counts.NotStarted,
+			Draft:      counts.Draft,
+			Translated: counts.Translated,
+			Reviewed:   counts.Reviewed,
+		},
+	})
+}
+
+// ItemInfoResponse is one item's metadata plus its block tallies — what a
+// surface needs to name and size a file without the project's whole item
+// list. Word count is not part of it: /:ws/:id/word-count/:ref answers that.
+type ItemInfoResponse struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Format       string `json:"format"`
+	Type         string `json:"type"`
+	CollectionID string `json:"collection_id,omitempty"`
+	BlockCount   int    `json:"block_count"`
+	Translatable int    `json:"translatable"`
+}
+
+// HandleGetItem returns one item's metadata. The item name is a query
+// parameter because names carry slashes, and the list route already owns
+// /items/:ref.
+//
+// GET /:ws/:id/items/:ref/one?item=path/to/file.json
+func (s *Server) HandleGetItem(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := projectParam(c)
+	fname := fileParam(c)
+	if fname == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "item is required"})
+	}
+	ctx := c.Request().Context()
+	stream := streamParam(c)
+
+	item, err := s.ContentStore.GetItem(ctx, pid, stream, fname)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	counts, err := s.ContentStore.CountBlocks(ctx, store.BlockQuery{
+		ProjectID: pid, Stream: stream, ItemName: item.Name,
+	})
+	if err != nil {
+		return serverErr(c, err)
+	}
+
+	return c.JSON(http.StatusOK, ItemInfoResponse{
+		ID:           item.ID,
+		Name:         item.Name,
+		Format:       item.Format,
+		Type:         item.ItemType,
+		CollectionID: item.CollectionID,
+		BlockCount:   counts.Total,
+		Translatable: counts.Translatable,
+	})
 }
 
 // HandleUpdateBlockTarget updates the target text for a block.

@@ -75,6 +75,11 @@ type BlockStore interface {
 	StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error
 	GetBlock(ctx context.Context, projectID, stream, blockID string) (*StoredBlock, error)
 	GetBlocks(ctx context.Context, query BlockQuery) ([]*StoredBlock, error)
+	// CountBlocks answers a BlockQuery's totals and its per-locale status
+	// histogram in SQL, hydrating nothing. Limit and Offset are ignored — the
+	// counts describe the whole matching set — and so is Status, which is the
+	// histogram the call reports.
+	CountBlocks(ctx context.Context, query BlockQuery) (BlockCounts, error)
 	GetBlockStats(ctx context.Context, projectID, stream string) ([]BlockStatRow, error)
 	// ListPendingReview pages the (block, locale) pairs awaiting a review
 	// decision: translatable blocks whose stored target has text and a status
