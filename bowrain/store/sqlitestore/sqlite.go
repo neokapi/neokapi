@@ -910,8 +910,8 @@ func (s *SQLiteStore) ListPendingReview(ctx context.Context, projectID, stream s
 	}
 
 	query := `SELECT b.id, b.item_name, t.locale` + from +
-		fmt.Sprintf(` ORDER BY b.item_name, b.id, t.locale LIMIT %d OFFSET %d`, limit, offset)
-	rows, err := s.db.QueryContext(ctx, query, args...)
+		` ORDER BY b.item_name, b.id, t.locale LIMIT ? OFFSET ?`
+	rows, err := s.db.QueryContext(ctx, query, append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list pending review: %w", err)
 	}

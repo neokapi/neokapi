@@ -40,7 +40,7 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 
 	var locales []string
 	if raw := strings.TrimSpace(c.QueryParam("locales")); raw != "" {
-		for _, l := range strings.Split(raw, ",") {
+		for l := range strings.SplitSeq(raw, ",") {
 			if l = strings.TrimSpace(l); l != "" {
 				locales = append(locales, l)
 			}

@@ -950,9 +950,11 @@ func (s *PostgresStore) ListPendingReview(ctx context.Context, projectID, stream
 	where := `b.project_id = $1 AND b.translatable AND t.text <> ''
 		AND COALESCE(t.target_json->>'status', '') IN ('draft', 'translated')`
 	args := []any{projectID, stream}
+	next := 3
 	if len(locales) > 0 {
-		where += ` AND t.locale = ANY($3)`
+		where += fmt.Sprintf(` AND t.locale = ANY($%d)`, next)
 		args = append(args, locales)
+		next++
 	}
 	from := ` FROM blocks b JOIN translations t
 		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = $2 WHERE ` + where
@@ -963,8 +965,8 @@ func (s *PostgresStore) ListPendingReview(ctx context.Context, projectID, stream
 	}
 
 	query := `SELECT b.id, b.item_name, t.locale` + from +
-		fmt.Sprintf(` ORDER BY b.item_name, b.id, t.locale LIMIT %d OFFSET %d`, limit, offset)
-	rows, err := s.db.DB.QueryContext(ctx, query, args...)
+		fmt.Sprintf(` ORDER BY b.item_name, b.id, t.locale LIMIT $%d OFFSET $%d`, next, next+1)
+	rows, err := s.db.DB.QueryContext(ctx, query, append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list pending review: %w", err)
 	}
