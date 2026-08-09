@@ -37,7 +37,6 @@ import type {
   FileQAResult,
   AutomationRule,
   AutomationEvent,
-  AutomationHistoryEntry,
   AutomationRun,
   AutomationStep,
   AutomationLogEntry,
@@ -124,6 +123,23 @@ import type {
   RepoDetectOptions,
   ModelRecommendationsResponse,
   PendingReviewPage,
+  BlockQueryOptions,
+  BlockCounts,
+  ItemInfo,
+  BulkReviewBlocksRequest,
+  BulkReviewBlocksResult,
+  BulkApplyMemoryRequest,
+  BulkApplyMemoryResult,
+  BulkDeleteResult,
+  GovernedRefusal,
+  ConnectorStatusBatch,
+  AutomationHistoryPage,
+  TaskQuery,
+  TaskCounts,
+  CreditLedgerQuery,
+  CreditLedgerPage,
+  BrandScanApproveRequest,
+  BrandScanApproveResult,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -161,6 +177,9 @@ import type {
   UpdateChangeSetRequest,
   ReviewRequest,
   ChangeSetImpact,
+  ChangeSetCounts,
+  ConceptStatusCounts,
+  LocaleCoverageReport,
   MergeResult,
   Pilot,
   StartPilotRequest,
@@ -502,6 +521,17 @@ export interface ApiAdapter {
     connectorId: string,
     opts?: { probe?: boolean },
   ): Promise<ConnectorSyncStatus>;
+  /**
+   * Read a whole panel's connector states in one call. `probe` applies to the
+   * batch, with the same cost as the single read — reserve it for explicit
+   * "Test" surfaces. At most 100 ids; a connector the server cannot answer for
+   * lands in `unknown` rather than failing the call.
+   */
+  getConnectorStatuses(
+    workspaceSlug: string,
+    connectorIds: string[],
+    opts?: { probe?: boolean },
+  ): Promise<ConnectorStatusBatch>;
   /** Pull content from the connector into the given project (synchronous). */
   fetchConnector(
     workspaceSlug: string,
@@ -543,12 +573,55 @@ export interface ApiAdapter {
   ): Promise<PostHogDemandResponse>;
 
   // Editor
+  /**
+   * One page of an item's blocks. `opts` narrows the page server-side: a
+   * locale's status bucket, a case-insensitive substring over source and
+   * target, translatability, and the page bounds.
+   */
   getFileBlocks(
     workspaceSlug: string,
     projectId: string,
     fileName: string,
     stream?: string,
+    opts?: BlockQueryOptions,
   ): Promise<BlockInfo[]>;
+  /**
+   * The totals and status histogram for a block query, answered in SQL
+   * without shipping a block. The histogram is what the call reports, so it
+   * takes every block filter except `status`.
+   */
+  getBlockCounts(
+    workspaceSlug: string,
+    projectId: string,
+    item?: string,
+    locale?: string,
+    stream?: string,
+    opts?: { q?: string; translatable?: boolean },
+  ): Promise<BlockCounts>;
+  /** One item's metadata and block tallies, without the project's item list. */
+  getItem(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    stream?: string,
+  ): Promise<ItemInfo>;
+  /**
+   * Apply one review decision across a selection of blocks in a single
+   * request. A block that refuses is reported in its own result; the call
+   * itself succeeds.
+   */
+  bulkReviewBlocks(
+    workspaceSlug: string,
+    req: BulkReviewBlocksRequest,
+  ): Promise<BulkReviewBlocksResult>;
+  /**
+   * Write the best content-memory match above the threshold into each
+   * selected block's target, in one request.
+   */
+  bulkApplyMemory(
+    workspaceSlug: string,
+    req: BulkApplyMemoryRequest,
+  ): Promise<BulkApplyMemoryResult>;
   /**
    * One page of the server-side translation review queue: (block, locale)
    * pairs still awaiting a decision, each with its hydrated block.
@@ -796,6 +869,12 @@ export interface ApiAdapter {
   ): Promise<MemoryEntryInfo>;
   updateMemoryEntry(workspaceSlug: string, req: MemoryUpdateRequest): Promise<void>;
   deleteMemoryEntry(workspaceSlug: string, entryId: string): Promise<void>;
+  /**
+   * Delete a selection of content-memory entries in one request. Each id gets
+   * its own result, so a missing entry does not strand the rest of the
+   * selection. At most 500 ids.
+   */
+  bulkDeleteMemoryEntries(workspaceSlug: string, entryIds: string[]): Promise<BulkDeleteResult>;
 
   // Terminology
   getTerms(
@@ -810,6 +889,13 @@ export interface ApiAdapter {
   addConcept(workspaceSlug: string, req: AddConceptRequest): Promise<ConceptInfo>;
   updateConcept(workspaceSlug: string, req: UpdateConceptRequest): Promise<void>;
   deleteConcept(workspaceSlug: string, conceptId: string): Promise<void>;
+  /**
+   * Always refuses: deleting a concept is a governed transition, so a
+   * multi-select learns once — rather than once per row — that the batch
+   * belongs in a change-set. Rejects with an ApiError carrying status 409 and
+   * the {@link GovernedRefusal} envelope; read it with `governedRefusal`.
+   */
+  bulkDeleteConcepts(workspaceSlug: string, conceptIds: string[]): Promise<never>;
   importTermsCSV(
     workspaceSlug: string,
     csvContent: string,
@@ -847,10 +933,15 @@ export interface ApiAdapter {
     ruleId: string,
   ): Promise<AutomationRule>;
   listAutomationEvents(workspaceSlug: string, projectId: string): Promise<AutomationEvent[]>;
+  /**
+   * One page of a project's automation execution history, newest first. Page
+   * on with the returned `next_cursor`; its absence means the last page.
+   */
   listAutomationHistory(
     workspaceSlug: string,
     projectId: string,
-  ): Promise<AutomationHistoryEntry[]>;
+    opts?: { limit?: number; cursor?: string },
+  ): Promise<AutomationHistoryPage>;
 
   // Automation Runs (Bowrain AD-013)
   listAutomationRuns(
@@ -1021,6 +1112,17 @@ export interface ApiAdapter {
   uploadBrandScanSources(workspaceSlug: string, files: File[]): Promise<BrandScanUploadResult>;
   startBrandScan(workspaceSlug: string, req: BrandScanRequest): Promise<{ job_id: string }>;
   getBrandScan(workspaceSlug: string, jobId: string): Promise<BrandScanJob>;
+  /**
+   * Apply a reviewed scan: store the edited profile and create the approved
+   * terms, in one transaction. Terms land at status "proposed" and only where
+   * no concept already carries them in that locale, so a retry after a
+   * partially applied approval is safe.
+   */
+  approveBrandScan(
+    workspaceSlug: string,
+    scanId: string,
+    req: BrandScanApproveRequest,
+  ): Promise<BrandScanApproveResult>;
   /** Stateless deterministic check of sample text against an in-progress draft. */
   checkBrandDraft(
     workspaceSlug: string,
@@ -1033,6 +1135,12 @@ export interface ApiAdapter {
   verifyWorkspaceAuditChain(workspaceSlug: string): Promise<AuditChainVerification>;
 
   // Activities (Bowrain AD-014)
+  /**
+   * One page of the workspace activity feed. `type` and `types` are prefix
+   * matches — `types` ORs one per element, which is how a feed spans families
+   * ("review." plus "task.") that no single prefix expresses — and `types`
+   * wins when both are given.
+   */
   listActivities(
     workspaceSlug: string,
     query?: {
@@ -1040,6 +1148,7 @@ export interface ApiAdapter {
       stream?: string;
       actor_id?: string;
       type?: string;
+      types?: string[];
       cursor?: string;
       limit?: number;
     },
@@ -1089,18 +1198,21 @@ export interface ApiAdapter {
   getLoopRollup(workspaceSlug: string): Promise<LoopRollup>;
 
   // Tasks (Bowrain AD-014)
+  /**
+   * One page of the workspace's tasks. `statuses` and `types` are sets matched
+   * exactly and win over their singular counterparts — a surface spanning
+   * review, review_terms and source_review has no single `type`.
+   */
   listTasks(
     workspaceSlug: string,
-    query?: {
-      project_id?: string;
-      assignee_id?: string;
-      status?: string;
-      type?: string;
-      priority?: string;
-      cursor?: string;
-      limit?: number;
-    },
+    query?: TaskQuery,
   ): Promise<{ tasks: TaskInfo[]; next_cursor: string }>;
+  /**
+   * The same filter's totals, counted over the whole set rather than the page
+   * — a kanban header that counts the rows it loaded understates a column with
+   * more work than one page.
+   */
+  getTaskCounts(workspaceSlug: string, query?: TaskQuery): Promise<TaskCounts>;
   createTask(workspaceSlug: string, task: CreateTaskRequest): Promise<TaskInfo>;
   getTask(workspaceSlug: string, taskId: string): Promise<TaskInfo>;
   updateTask(
@@ -1114,7 +1226,7 @@ export interface ApiAdapter {
   cancelTask(workspaceSlug: string, taskId: string): Promise<void>;
   listMyTasks(
     workspaceSlug: string,
-    query?: { status?: string; cursor?: string; limit?: number },
+    query?: Omit<TaskQuery, "assignee_id">,
   ): Promise<{ tasks: TaskInfo[]; next_cursor: string }>;
 
   // Notification preferences (Bowrain AD-014)
@@ -1213,7 +1325,18 @@ export interface ApiAdapter {
     cancelUrl: string,
   ): Promise<{ url: string }>;
   billingCreatePortal(workspaceSlug: string, returnUrl: string): Promise<{ url: string }>;
-  billingGetLedger(workspaceSlug: string, from?: string, to?: string): Promise<CreditLedgerEntry[]>;
+  billingGetLedger(
+    workspaceSlug: string,
+    from?: string,
+    to?: string,
+    opts?: { limit?: number; offset?: number; operation?: string },
+  ): Promise<CreditLedgerEntry[]>;
+  /**
+   * One page of the credit ledger with the window's totals beside it:
+   * `usage_by_operation` is summed over the whole window, so the breakdown
+   * stays correct however small the page is.
+   */
+  billingGetLedgerPage(workspaceSlug: string, query?: CreditLedgerQuery): Promise<CreditLedgerPage>;
 
   // Brand knowledge graph — Concepts (AD-021)
   // The concept routes share /api/v1/{ws}/concepts with the Terminology block
@@ -1222,6 +1345,14 @@ export interface ApiAdapter {
   // TermSearchResult shapes as the Terminology methods; ordinary concept edits
   // reuse updateConcept/deleteConcept above.
   listConcepts(workspaceSlug: string, params?: ListConceptsParams): Promise<TermSearchResult>;
+  /**
+   * The workspace vocabulary counted by term lifecycle status. A concept
+   * counts under every status one of its terms carries, so the buckets overlap
+   * and do not sum to the total.
+   */
+  getConceptStatusCounts(workspaceSlug: string): Promise<ConceptStatusCounts>;
+  /** Per-locale concept coverage over the workspace, most complete first. */
+  getConceptLocaleCoverage(workspaceSlug: string): Promise<LocaleCoverageReport>;
   getConcept(workspaceSlug: string, conceptId: string): Promise<ConceptInfo>;
   createConcept(workspaceSlug: string, req: AddConceptRequest): Promise<ConceptInfo>;
   getConceptStory(workspaceSlug: string, conceptId: string): Promise<ConceptStory>;
@@ -1269,7 +1400,10 @@ export interface ApiAdapter {
   deleteMarket(workspaceSlug: string, marketId: string): Promise<void>;
 
   // Brand knowledge graph — Change-sets / experiments (AD-021)
+  /** Change-set headers, each carrying `ops_count`. */
   listChangesets(workspaceSlug: string, status?: ChangeSetStatus): Promise<ChangeSet[]>;
+  /** The workspace's change-sets bucketed by lifecycle status. */
+  getChangesetCounts(workspaceSlug: string): Promise<ChangeSetCounts>;
   getChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSetDetail>;
   createChangeset(workspaceSlug: string, req: CreateChangeSetRequest): Promise<ChangeSet>;
   patchChangeset(
@@ -1296,7 +1430,19 @@ export interface ApiAdapter {
   ): Promise<ChangeSet>;
   mergeChangeset(workspaceSlug: string, changesetId: string): Promise<MergeResult>;
   abandonChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSet>;
+  /**
+   * A change-set's blast radius. A submitted change-set answers from its
+   * stored summary — `stored: true`, `computed_at` set, and null `projects`
+   * and `samples`, since the summary never carried the breakdown. Ask
+   * {@link ApiAdapter.refreshChangesetBlastRadius} for the breakdown.
+   */
   getChangesetBlastRadius(workspaceSlug: string, changesetId: string): Promise<ChangeSetImpact>;
+  /**
+   * Walk the blast radius now, ignoring any stored summary. Nothing is
+   * persisted; the walk has a server-side time budget and reports `partial`
+   * when it runs out.
+   */
+  refreshChangesetBlastRadius(workspaceSlug: string, changesetId: string): Promise<ChangeSetImpact>;
   addPilot(workspaceSlug: string, changesetId: string, req: StartPilotRequest): Promise<Pilot>;
   removePilot(
     workspaceSlug: string,

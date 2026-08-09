@@ -1,4 +1,4 @@
-import type { BlockInfo, TargetEntry, TargetStatus } from "../../types/api";
+import type { BlockInfo, BlockStatusBucket, TargetEntry, TargetStatus } from "../../types/api";
 
 /**
  * Single source of truth for per-block translation status, its derived CSS
@@ -12,7 +12,8 @@ import type { BlockInfo, TargetEntry, TargetStatus } from "../../types/api";
  * `getBlockStatus` so both shapes work.
  */
 
-export type BlockStatus = "not-started" | "draft" | "translated" | "reviewed";
+/** The bucket the server counts a block under, for one locale. */
+export type BlockStatus = BlockStatusBucket;
 
 /** Plain target text for a locale, whatever shape the entry has. */
 export function getTargetText(block: BlockInfo, locale: string): string {

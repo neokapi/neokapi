@@ -42,7 +42,6 @@ import type {
   FileQAResult,
   AutomationRule,
   AutomationEvent,
-  AutomationHistoryEntry,
   AutomationRun,
   AutomationStep,
   AutomationLogEntry,
@@ -136,6 +135,22 @@ import type {
   RepoDetectOptions,
   ModelRecommendationsResponse,
   PendingReviewPage,
+  BlockQueryOptions,
+  BlockCounts,
+  ItemInfo,
+  BulkReviewBlocksRequest,
+  BulkReviewBlocksResult,
+  BulkApplyMemoryRequest,
+  BulkApplyMemoryResult,
+  BulkDeleteResult,
+  ConnectorStatusBatch,
+  AutomationHistoryPage,
+  TaskQuery,
+  TaskCounts,
+  CreditLedgerQuery,
+  CreditLedgerPage,
+  BrandScanApproveRequest,
+  BrandScanApproveResult,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -173,6 +188,9 @@ import type {
   UpdateChangeSetRequest,
   ReviewRequest,
   ChangeSetImpact,
+  ChangeSetCounts,
+  ConceptStatusCounts,
+  LocaleCoverageReport,
   MergeResult,
   Pilot,
   StartPilotRequest,
@@ -1264,6 +1282,34 @@ export class RestApiAdapter implements ApiAdapter {
     };
   }
 
+  async getConnectorStatuses(
+    workspaceSlug: string,
+    connectorIds: string[],
+    opts?: { probe?: boolean },
+  ): Promise<ConnectorStatusBatch> {
+    if (connectorIds.length === 0) return { statuses: {}, unknown: [] };
+    const q = new URLSearchParams({ ids: connectorIds.join(",") });
+    if (opts?.probe) q.set("probe", "1");
+    const raw = await this.fetchJSON<{
+      statuses: Record<string, ConnectorSyncStatusDTO>;
+      unknown: string[] | null;
+    }>(`/api/v1/${workspaceSlug}/connectors/status?${q.toString()}`);
+    const statuses: Record<string, ConnectorSyncStatus> = {};
+    for (const [id, dto] of Object.entries(raw.statuses ?? {})) {
+      statuses[id] = {
+        connectorId: dto.ConnectorID,
+        lastSync: dto.LastSync,
+        itemCount: dto.ItemCount,
+        fileCount: dto.FileCount,
+        wordCount: dto.WordCount,
+        pendingPull: dto.PendingPull,
+        pendingPush: dto.PendingPush,
+        errors: dto.Errors ?? [],
+      };
+    }
+    return { statuses, unknown: raw.unknown ?? [] };
+  }
+
   async fetchConnector(
     workspaceSlug: string,
     connectorId: string,
@@ -1383,15 +1429,77 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     fileName: string,
     stream?: string,
+    opts?: BlockQueryOptions,
   ): Promise<BlockInfo[]> {
     // Normalise the server's typed `source_runs`/`targets_runs` into the
     // coded-text + spans shape the render primitives consume, so inline codes
     // render faithfully (and identically) across the editor and review
     // surfaces. See components/editor/blockRuns.ts.
+    const q = new URLSearchParams({ item: fileName });
+    if (opts?.locale) q.set("locale", opts.locale);
+    if (opts?.status) q.set("status", opts.status);
+    if (opts?.q) q.set("q", opts.q);
+    if (opts?.translatable !== undefined) q.set("translatable", String(opts.translatable));
+    if (opts?.limit !== undefined) q.set("limit", String(opts.limit));
+    if (opts?.offset !== undefined) q.set("offset", String(opts.offset));
     const raw = await this.fetchJSON<ServerBlockInfo[]>(
-      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}?item=${encodeURIComponent(fileName)}`,
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}?${q.toString()}`,
     );
     return normalizeServerBlocks(raw);
+  }
+
+  async getBlockCounts(
+    workspaceSlug: string,
+    projectId: string,
+    item?: string,
+    locale?: string,
+    stream?: string,
+    opts?: { q?: string; translatable?: boolean },
+  ): Promise<BlockCounts> {
+    const q = new URLSearchParams();
+    if (item) q.set("item", item);
+    if (locale) q.set("locale", locale);
+    if (opts?.q) q.set("q", opts.q);
+    if (opts?.translatable !== undefined) q.set("translatable", String(opts.translatable));
+    const qs = q.toString();
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/counts${qs ? `?${qs}` : ""}`,
+    );
+  }
+
+  async getItem(
+    workspaceSlug: string,
+    projectId: string,
+    itemName: string,
+    stream?: string,
+  ): Promise<ItemInfo> {
+    // The item name is a query parameter, not a path segment: names carry
+    // slashes, and /items/:ref is the list route.
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/items/${this.ref(stream)}/one?item=${encodeURIComponent(itemName)}`,
+    );
+  }
+
+  async bulkReviewBlocks(
+    workspaceSlug: string,
+    req: BulkReviewBlocksRequest,
+  ): Promise<BulkReviewBlocksResult> {
+    const { project_id, stream, ...body } = req;
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, project_id)}/blocks/${this.ref(stream)}/bulk-review`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  }
+
+  async bulkApplyMemory(
+    workspaceSlug: string,
+    req: BulkApplyMemoryRequest,
+  ): Promise<BulkApplyMemoryResult> {
+    const { project_id, stream, ...body } = req;
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, project_id)}/blocks/${this.ref(stream)}/bulk-apply-memory`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
   }
 
   async getPendingReview(
@@ -1983,6 +2091,16 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
+  async bulkDeleteMemoryEntries(
+    workspaceSlug: string,
+    entryIds: string[],
+  ): Promise<BulkDeleteResult> {
+    return this.fetchJSON(`${this.memoryEp(workspaceSlug)}/bulk-delete`, {
+      method: "POST",
+      body: JSON.stringify({ ids: entryIds }),
+    });
+  }
+
   // ── Terminology ──────────────────────────────────────────────────────────
 
   private termsEp(ws: string) {
@@ -2029,6 +2147,15 @@ export class RestApiAdapter implements ApiAdapter {
   async deleteConcept(workspaceSlug: string, conceptId: string): Promise<void> {
     await this.fetchJSON(`${this.termsEp(workspaceSlug)}/${conceptId}`, {
       method: "DELETE",
+    });
+  }
+
+  async bulkDeleteConcepts(workspaceSlug: string, conceptIds: string[]): Promise<never> {
+    // The batch is validated and then refused with the same 409 and change-set
+    // hint the per-concept route returns.
+    return this.fetchJSON(`${this.termsEp(workspaceSlug)}/bulk-delete`, {
+      method: "POST",
+      body: JSON.stringify({ ids: conceptIds }),
     });
   }
 
@@ -2171,8 +2298,15 @@ export class RestApiAdapter implements ApiAdapter {
   async listAutomationHistory(
     workspaceSlug: string,
     projectId: string,
-  ): Promise<AutomationHistoryEntry[]> {
-    return this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/history`);
+    opts?: { limit?: number; cursor?: string },
+  ): Promise<AutomationHistoryPage> {
+    const q = new URLSearchParams();
+    if (opts?.limit !== undefined) q.set("limit", String(opts.limit));
+    if (opts?.cursor) q.set("cursor", opts.cursor);
+    const qs = q.toString();
+    return this.fetchJSON(
+      `${this.automationsEp(workspaceSlug, projectId)}/history${qs ? `?${qs}` : ""}`,
+    );
   }
 
   // ── Automation Runs (Bowrain AD-013) ──────────────────────────────────────────
@@ -2581,6 +2715,17 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(`${this.brandScanEp(workspaceSlug)}/${encodeURIComponent(jobId)}`);
   }
 
+  async approveBrandScan(
+    workspaceSlug: string,
+    scanId: string,
+    req: BrandScanApproveRequest,
+  ): Promise<BrandScanApproveResult> {
+    return this.fetchJSON(
+      `${this.brandScanEp(workspaceSlug)}/${encodeURIComponent(scanId)}/approve`,
+      { method: "POST", body: JSON.stringify(req) },
+    );
+  }
+
   async checkBrandDraft(
     workspaceSlug: string,
     profile: VoiceProfile,
@@ -2601,6 +2746,7 @@ export class RestApiAdapter implements ApiAdapter {
       stream?: string;
       actor_id?: string;
       type?: string;
+      types?: string[];
       cursor?: string;
       limit?: number;
     },
@@ -2613,7 +2759,8 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.project_id) params.set("project_id", query.project_id);
     if (query?.stream) params.set("stream", query.stream);
     if (query?.actor_id) params.set("actor_id", query.actor_id);
-    if (query?.type) params.set("type", query.type);
+    if (query?.types?.length) params.set("types", query.types.join(","));
+    else if (query?.type) params.set("type", query.type);
     if (query?.cursor) params.set("cursor", query.cursor);
     if (query?.limit) params.set("limit", String(query.limit));
     const qs = params.toString();
@@ -2706,28 +2853,37 @@ export class RestApiAdapter implements ApiAdapter {
     return `/api/v1/${ws}/tasks`;
   }
 
-  async listTasks(
-    workspaceSlug: string,
-    query?: {
-      project_id?: string;
-      assignee_id?: string;
-      status?: string;
-      type?: string;
-      priority?: string;
-      cursor?: string;
-      limit?: number;
-    },
-  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
+  /**
+   * The task filters, as the server reads them: the plural forms are
+   * comma-separated sets and win over their singular counterparts.
+   */
+  private taskParams(query?: TaskQuery, paged = true): URLSearchParams {
     const params = new URLSearchParams();
     if (query?.project_id) params.set("project_id", query.project_id);
     if (query?.assignee_id) params.set("assignee_id", query.assignee_id);
-    if (query?.status) params.set("status", query.status);
-    if (query?.type) params.set("type", query.type);
+    if (query?.statuses?.length) params.set("statuses", query.statuses.join(","));
+    else if (query?.status) params.set("status", query.status);
+    if (query?.types?.length) params.set("types", query.types.join(","));
+    else if (query?.type) params.set("type", query.type);
     if (query?.priority) params.set("priority", query.priority);
-    if (query?.cursor) params.set("cursor", query.cursor);
-    if (query?.limit) params.set("limit", String(query.limit));
-    const qs = params.toString();
+    if (paged) {
+      if (query?.cursor) params.set("cursor", query.cursor);
+      if (query?.limit) params.set("limit", String(query.limit));
+    }
+    return params;
+  }
+
+  async listTasks(
+    workspaceSlug: string,
+    query?: TaskQuery,
+  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
+    const qs = this.taskParams(query).toString();
     return this.fetchJSON(`${this.tasksEp(workspaceSlug)}${qs ? `?${qs}` : ""}`);
+  }
+
+  async getTaskCounts(workspaceSlug: string, query?: TaskQuery): Promise<TaskCounts> {
+    const qs = this.taskParams(query, false).toString();
+    return this.fetchJSON(`${this.tasksEp(workspaceSlug)}/counts${qs ? `?${qs}` : ""}`);
   }
 
   async createTask(workspaceSlug: string, task: CreateTaskRequest): Promise<TaskInfo> {
@@ -2779,7 +2935,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async listMyTasks(
     workspaceSlug: string,
-    query?: { status?: string; cursor?: string; limit?: number },
+    query?: Omit<TaskQuery, "assignee_id">,
   ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
     // "My tasks" is the tasks route filtered to the caller: the server folded
     // the former dedicated /my/tasks route into /tasks?assignee_id=me
@@ -3212,22 +3368,48 @@ export class RestApiAdapter implements ApiAdapter {
     workspaceSlug: string,
     from?: string,
     to?: string,
+    opts?: { limit?: number; offset?: number; operation?: string },
   ): Promise<CreditLedgerEntry[]> {
+    const page = await this.billingGetLedgerPage(workspaceSlug, { from, to, ...opts });
+    return page.entries;
+  }
+
+  async billingGetLedgerPage(
+    workspaceSlug: string,
+    query?: CreditLedgerQuery,
+  ): Promise<CreditLedgerPage> {
     const params = new URLSearchParams();
-    if (from) params.set("from", from);
-    if (to) params.set("to", to);
+    if (query?.from) params.set("from", query.from);
+    if (query?.to) params.set("to", query.to);
+    if (query?.limit !== undefined) params.set("limit", String(query.limit));
+    if (query?.offset !== undefined) params.set("offset", String(query.offset));
+    if (query?.operation) params.set("operation", query.operation);
     const qs = params.toString();
-    const raw = await this.fetchJSON<{ entries?: CreditLedgerEntryDTO[] }>(
-      `${this.billingEp(workspaceSlug)}/usage${qs ? `?${qs}` : ""}`,
-    );
-    return (raw.entries ?? []).map((e) => ({
-      id: String(e.id),
-      amount: e.amount,
-      balanceAfter: e.balance_after,
-      operation: e.operation,
-      referenceId: e.reference_id,
-      createdAt: e.created_at,
-    }));
+    const raw = await this.fetchJSON<{
+      entries?: CreditLedgerEntryDTO[];
+      total?: number;
+      limit?: number;
+      offset?: number;
+      usage_by_operation?: Record<string, number>;
+      from?: string;
+      to?: string;
+    }>(`${this.billingEp(workspaceSlug)}/usage${qs ? `?${qs}` : ""}`);
+    return {
+      entries: (raw.entries ?? []).map((e) => ({
+        id: String(e.id),
+        amount: e.amount,
+        balanceAfter: e.balance_after,
+        operation: e.operation,
+        referenceId: e.reference_id,
+        createdAt: e.created_at,
+      })),
+      total: raw.total ?? 0,
+      limit: raw.limit ?? 0,
+      offset: raw.offset ?? 0,
+      usage_by_operation: raw.usage_by_operation ?? {},
+      from: raw.from ?? "",
+      to: raw.to ?? "",
+    };
   }
 
   // ── Brand knowledge graph — Concepts (AD-021) ─────────────────────────────
@@ -3267,10 +3449,19 @@ export class RestApiAdapter implements ApiAdapter {
     if (params?.source) q.set("source", params.source);
     if (params?.stream) q.set("stream", params.stream);
     if (params?.project_id) q.set("project_id", params.project_id);
+    if (params?.sort) q.set("sort", params.sort);
     if (params?.offset !== undefined) q.set("offset", String(params.offset));
     if (params?.limit !== undefined) q.set("limit", String(params.limit));
     const qs = q.toString();
     return this.fetchJSON(`${this.termsEp(workspaceSlug)}${qs ? `?${qs}` : ""}`);
+  }
+
+  async getConceptStatusCounts(workspaceSlug: string): Promise<ConceptStatusCounts> {
+    return this.fetchJSON(`${this.termsEp(workspaceSlug)}/status-counts`);
+  }
+
+  async getConceptLocaleCoverage(workspaceSlug: string): Promise<LocaleCoverageReport> {
+    return this.fetchJSON(`${this.termsEp(workspaceSlug)}/locale-coverage`);
   }
 
   async getConcept(workspaceSlug: string, conceptId: string): Promise<ConceptInfo> {
@@ -3428,6 +3619,10 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(`${this.changesetsEp(workspaceSlug)}${qs}`);
   }
 
+  async getChangesetCounts(workspaceSlug: string): Promise<ChangeSetCounts> {
+    return this.fetchJSON(`${this.changesetsEp(workspaceSlug)}/counts`);
+  }
+
   async getChangeset(workspaceSlug: string, changesetId: string): Promise<ChangeSetDetail> {
     return this.fetchJSON(this.changesetEp(workspaceSlug, changesetId));
   }
@@ -3512,6 +3707,15 @@ export class RestApiAdapter implements ApiAdapter {
     changesetId: string,
   ): Promise<ChangeSetImpact> {
     return this.fetchJSON(`${this.changesetEp(workspaceSlug, changesetId)}/blast-radius`);
+  }
+
+  async refreshChangesetBlastRadius(
+    workspaceSlug: string,
+    changesetId: string,
+  ): Promise<ChangeSetImpact> {
+    // `fresh=1` is the one value the server reads as "walk it now"; nothing is
+    // persisted, so the stored summary is left as it was.
+    return this.fetchJSON(`${this.changesetEp(workspaceSlug, changesetId)}/blast-radius?fresh=1`);
   }
 
   async addPilot(

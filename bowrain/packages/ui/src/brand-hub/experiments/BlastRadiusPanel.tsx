@@ -121,7 +121,9 @@ export function BlastRadiusPanel({
       ) : (
         <BreakdownChart impact={impact} partial={impact.partial} />
       )}
-      {!hideSamples && (impact.samples?.length ?? 0) > 0 && <Samples samples={impact.samples} />}
+      {!hideSamples && (impact.samples?.length ?? 0) > 0 && (
+        <Samples samples={impact.samples ?? []} />
+      )}
     </div>
   );
 }
@@ -155,6 +157,7 @@ function PartialNotice({ reason }: { reason?: string }) {
 
 function Hero({ impact, caption }: { impact: ChangeSetImpact; caption?: string }) {
   const share = affectedShare(impact);
+  const projectCount = impact.projects?.length ?? 0;
   return (
     <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-primary/5 via-card to-card p-5">
       <div className="pointer-events-none absolute -right-6 -top-6 text-primary/10">
@@ -176,7 +179,7 @@ function Hero({ impact, caption }: { impact: ChangeSetImpact; caption?: string }
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {formatPercent(share)} of {impact.total_blocks.toLocaleString()} stored blocks across{" "}
-          {impact.projects.length} project{impact.projects.length === 1 ? "" : "s"}.
+          {projectCount} project{projectCount === 1 ? "" : "s"}.
         </p>
       </div>
     </div>

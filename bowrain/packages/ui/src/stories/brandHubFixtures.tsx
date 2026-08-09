@@ -326,7 +326,44 @@ export const brandHubOverrides: Partial<ApiAdapter> = {
           c.definition.toLowerCase().includes(q),
       );
     }
+    if (params?.sort === "updated_at") {
+      list = [...list].sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
+    }
     return { concepts: list, total_count: list.length };
+  },
+  getConceptStatusCounts: async () => {
+    // A concept counts under every status one of its terms carries, so the
+    // buckets overlap — the same way the server counts them.
+    const by_status: Record<string, number> = {
+      preferred: 0,
+      approved: 0,
+      admitted: 0,
+      proposed: 0,
+      deprecated: 0,
+      forbidden: 0,
+    };
+    for (const c of sampleConcepts) {
+      for (const status of new Set(c.terms.map((t) => t.status))) by_status[status]++;
+    }
+    return { total: sampleConcepts.length, by_status };
+  },
+  getConceptLocaleCoverage: async () => {
+    const present = new Map<string, number>();
+    for (const c of sampleConcepts) {
+      for (const locale of new Set(c.terms.map((t) => t.locale))) {
+        present.set(locale, (present.get(locale) ?? 0) + 1);
+      }
+    }
+    const total = sampleConcepts.length;
+    const locales = [...present.entries()]
+      .map(([locale, n]) => ({
+        locale,
+        present: n,
+        total,
+        pct: total === 0 ? 0 : Math.round((n / total) * 100),
+      }))
+      .sort((a, b) => b.present - a.present || a.locale.localeCompare(b.locale));
+    return { total, locales };
   },
   getConcept: async (_ws, id) => sampleConcepts.find((c) => c.id === id) ?? sampleConcepts[0],
   createConcept: async (_ws, req) => ({
@@ -385,7 +422,28 @@ export const brandHubOverrides: Partial<ApiAdapter> = {
     created_at: now,
     updated_at: now,
   }),
-  getChangesetBlastRadius: async () => sampleImpact,
+  getChangesetCounts: async () => {
+    const by_status: Record<string, number> = {
+      draft: 0,
+      in_review: 0,
+      approved: 0,
+      merged: 0,
+      abandoned: 0,
+      superseded: 0,
+    };
+    for (const c of sampleChangesets) by_status[c.status]++;
+    return { total: sampleChangesets.length, by_status };
+  },
+  // The stored summary carries the totals only; the fresh walk carries the
+  // breakdown — the same difference the server reports.
+  getChangesetBlastRadius: async () => ({
+    ...sampleImpact,
+    projects: null,
+    samples: null,
+    stored: true,
+    computed_at: now,
+  }),
+  refreshChangesetBlastRadius: async () => sampleImpact,
   listBrandProfiles: async () => [],
 };
 

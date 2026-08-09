@@ -287,6 +287,107 @@ export class AddObservationArgs {
 }
 
 /**
+ * AppliedMemoryView names a block that took a match, and what it took.
+ */
+export class AppliedMemoryView {
+    /**
+     * Creates a new AppliedMemoryView instance.
+     * @param {Partial<AppliedMemoryView>} [$$source = {}] - The source object to create the AppliedMemoryView.
+     */
+    constructor($$source = {}) {
+        if (!("block_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["block_id"] = "";
+        }
+        if (!("text" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["text"] = "";
+        }
+        if (!("score" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["score"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new AppliedMemoryView instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {AppliedMemoryView}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new AppliedMemoryView(/** @type {Partial<AppliedMemoryView>} */($$parsedSource));
+    }
+}
+
+/**
+ * BlockCountsView is a block query's totals and histogram.
+ */
+export class BlockCountsView {
+    /**
+     * Creates a new BlockCountsView instance.
+     * @param {Partial<BlockCountsView>} [$$source = {}] - The source object to create the BlockCountsView.
+     */
+    constructor($$source = {}) {
+        if (!("total" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["total"] = 0;
+        }
+        if (!("translatable" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["translatable"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (!("status" in $$source)) {
+            /**
+             * @member
+             * @type {BlockStatusCountsView}
+             */
+            this["status"] = (new BlockStatusCountsView());
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BlockCountsView instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {BlockCountsView}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType4;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("status" in $$parsedSource) {
+            $$parsedSource["status"] = $$createField3_0($$parsedSource["status"]);
+        }
+        return new BlockCountsView(/** @type {Partial<BlockCountsView>} */($$parsedSource));
+    }
+}
+
+/**
  * BlockInfo is a serializable representation of a translatable block.
  */
 export class BlockInfo {
@@ -347,10 +448,10 @@ export class BlockInfo {
      * @returns {BlockInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType5;
-        const $$createField2_0 = $$createType7;
-        const $$createField3_0 = $$createType8;
-        const $$createField5_0 = $$createType9;
+        const $$createField1_0 = $$createType6;
+        const $$createField2_0 = $$createType8;
+        const $$createField3_0 = $$createType9;
+        const $$createField5_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("sourceRuns" in $$parsedSource) {
             $$parsedSource["sourceRuns"] = $$createField1_0($$parsedSource["sourceRuns"]);
@@ -365,6 +466,110 @@ export class BlockInfo {
             $$parsedSource["properties"] = $$createField5_0($$parsedSource["properties"]);
         }
         return new BlockInfo(/** @type {Partial<BlockInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * BlockResultView is one block's outcome inside a batch.
+ */
+export class BlockResultView {
+    /**
+     * Creates a new BlockResultView instance.
+     * @param {Partial<BlockResultView>} [$$source = {}] - The source object to create the BlockResultView.
+     */
+    constructor($$source = {}) {
+        if (!("block_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["block_id"] = "";
+        }
+        if (!("ok" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["ok"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["status"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BlockResultView instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {BlockResultView}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BlockResultView(/** @type {Partial<BlockResultView>} */($$parsedSource));
+    }
+}
+
+/**
+ * BlockStatusCountsView is the per-locale status histogram.
+ */
+export class BlockStatusCountsView {
+    /**
+     * Creates a new BlockStatusCountsView instance.
+     * @param {Partial<BlockStatusCountsView>} [$$source = {}] - The source object to create the BlockStatusCountsView.
+     */
+    constructor($$source = {}) {
+        if (!("not-started" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["not-started"] = 0;
+        }
+        if (!("draft" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["draft"] = 0;
+        }
+        if (!("translated" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["translated"] = 0;
+        }
+        if (!("reviewed" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["reviewed"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BlockStatusCountsView instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {BlockStatusCountsView}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BlockStatusCountsView(/** @type {Partial<BlockStatusCountsView>} */($$parsedSource));
     }
 }
 
@@ -471,7 +676,7 @@ export class BlockTermMatch {
      * @returns {BlockTermMatch}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType10;
+        const $$createField1_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_terms" in $$parsedSource) {
             $$parsedSource["target_terms"] = $$createField1_0($$parsedSource["target_terms"]);
@@ -603,12 +808,236 @@ export class BrandRollupResult {
      * @returns {BrandRollupResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType12;
+        const $$createField0_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("projects" in $$parsedSource) {
             $$parsedSource["projects"] = $$createField0_0($$parsedSource["projects"]);
         }
         return new BrandRollupResult(/** @type {Partial<BrandRollupResult>} */($$parsedSource));
+    }
+}
+
+/**
+ * BulkApplyMemoryArgs applies the best content-memory match to a selection of
+ * blocks. A zero Threshold takes the server default of 1 — an exact match.
+ */
+export class BulkApplyMemoryArgs {
+    /**
+     * Creates a new BulkApplyMemoryArgs instance.
+     * @param {Partial<BulkApplyMemoryArgs>} [$$source = {}] - The source object to create the BulkApplyMemoryArgs.
+     */
+    constructor($$source = {}) {
+        if (!("block_ids" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["block_ids"] = [];
+        }
+        if (!("target_locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target_locale"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["threshold"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BulkApplyMemoryArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {BulkApplyMemoryArgs}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType11;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("block_ids" in $$parsedSource) {
+            $$parsedSource["block_ids"] = $$createField0_0($$parsedSource["block_ids"]);
+        }
+        return new BulkApplyMemoryArgs(/** @type {Partial<BulkApplyMemoryArgs>} */($$parsedSource));
+    }
+}
+
+/**
+ * BulkApplyMemoryView reports a batch content-memory apply.
+ */
+export class BulkApplyMemoryView {
+    /**
+     * Creates a new BulkApplyMemoryView instance.
+     * @param {Partial<BulkApplyMemoryView>} [$$source = {}] - The source object to create the BulkApplyMemoryView.
+     */
+    constructor($$source = {}) {
+        if (!("applied" in $$source)) {
+            /**
+             * @member
+             * @type {AppliedMemoryView[]}
+             */
+            this["applied"] = [];
+        }
+        if (!("skipped" in $$source)) {
+            /**
+             * @member
+             * @type {SkippedMemoryView[]}
+             */
+            this["skipped"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BulkApplyMemoryView instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {BulkApplyMemoryView}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType15;
+        const $$createField1_0 = $$createType17;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("applied" in $$parsedSource) {
+            $$parsedSource["applied"] = $$createField0_0($$parsedSource["applied"]);
+        }
+        if ("skipped" in $$parsedSource) {
+            $$parsedSource["skipped"] = $$createField1_0($$parsedSource["skipped"]);
+        }
+        return new BulkApplyMemoryView(/** @type {Partial<BulkApplyMemoryView>} */($$parsedSource));
+    }
+}
+
+/**
+ * BulkReviewArgs applies one review decision to a selection of blocks. Status
+ * picks the demotion rung when Approve is false: "translated" (the default) or
+ * "draft", a rejection that re-opens the work.
+ */
+export class BulkReviewArgs {
+    /**
+     * Creates a new BulkReviewArgs instance.
+     * @param {Partial<BulkReviewArgs>} [$$source = {}] - The source object to create the BulkReviewArgs.
+     */
+    constructor($$source = {}) {
+        if (!("block_ids" in $$source)) {
+            /**
+             * @member
+             * @type {string[]}
+             */
+            this["block_ids"] = [];
+        }
+        if (!("target_locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target_locale"] = "";
+        }
+        if (!("approve" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["approve"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["status"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["comment"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["item_name"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BulkReviewArgs instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {BulkReviewArgs}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType11;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("block_ids" in $$parsedSource) {
+            $$parsedSource["block_ids"] = $$createField0_0($$parsedSource["block_ids"]);
+        }
+        return new BulkReviewArgs(/** @type {Partial<BulkReviewArgs>} */($$parsedSource));
+    }
+}
+
+/**
+ * BulkReviewView reports a batch review.
+ */
+export class BulkReviewView {
+    /**
+     * Creates a new BulkReviewView instance.
+     * @param {Partial<BulkReviewView>} [$$source = {}] - The source object to create the BulkReviewView.
+     */
+    constructor($$source = {}) {
+        if (!("results" in $$source)) {
+            /**
+             * @member
+             * @type {BlockResultView[]}
+             */
+            this["results"] = [];
+        }
+        if (!("succeeded" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["succeeded"] = 0;
+        }
+        if (!("failed" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["failed"] = 0;
+        }
+        if (!("review_completed" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["review_completed"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BulkReviewView instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {BulkReviewView}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType19;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("results" in $$parsedSource) {
+            $$parsedSource["results"] = $$createField0_0($$parsedSource["results"]);
+        }
+        return new BulkReviewView(/** @type {Partial<BulkReviewView>} */($$parsedSource));
     }
 }
 
@@ -713,7 +1142,7 @@ export class CollabSession {
      * @returns {CollabSession}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType13;
+        const $$createField3_0 = $$createType20;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("user" in $$parsedSource) {
             $$parsedSource["user"] = $$createField3_0($$parsedSource["user"]);
@@ -837,7 +1266,7 @@ export class ConceptInfo {
      */
     static createFrom($$source = {}) {
         const $$createField3_0 = $$createType3;
-        const $$createField4_0 = $$createType9;
+        const $$createField4_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("terms" in $$parsedSource) {
             $$parsedSource["terms"] = $$createField3_0($$parsedSource["terms"]);
@@ -1068,6 +1497,74 @@ export class CreateChangesetArgs {
 }
 
 /**
+ * EditorBlockFilter narrows a block page. Every field is optional: the zero
+ * value pages an item's blocks unfiltered. Status names one per-locale bucket
+ * and needs Locale, which also scopes the target side of Text.
+ */
+export class EditorBlockFilter {
+    /**
+     * Creates a new EditorBlockFilter instance.
+     * @param {Partial<EditorBlockFilter>} [$$source = {}] - The source object to create the EditorBlockFilter.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["status"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["q"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | null | undefined}
+             */
+            this["translatable"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["limit"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["offset"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new EditorBlockFilter instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {EditorBlockFilter}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new EditorBlockFilter(/** @type {Partial<EditorBlockFilter>} */($$parsedSource));
+    }
+}
+
+/**
  * EvaluateRuleArgs is the body for the blast-radius evaluation.
  */
 export class EvaluateRuleArgs {
@@ -1196,8 +1693,8 @@ export class FlowDefinitionInfo {
      * @returns {FlowDefinitionInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType15;
-        const $$createField4_0 = $$createType17;
+        const $$createField3_0 = $$createType22;
+        const $$createField4_0 = $$createType24;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("nodes" in $$parsedSource) {
             $$parsedSource["nodes"] = $$createField3_0($$parsedSource["nodes"]);
@@ -1316,8 +1813,8 @@ export class FlowNodeInfo {
      * @returns {FlowNodeInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType18;
-        const $$createField5_0 = $$createType19;
+        const $$createField4_0 = $$createType25;
+        const $$createField5_0 = $$createType26;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("config" in $$parsedSource) {
             $$parsedSource["config"] = $$createField4_0($$parsedSource["config"]);
@@ -1397,8 +1894,8 @@ export class FormatInfo {
      * @returns {FormatInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType10;
-        const $$createField3_0 = $$createType10;
+        const $$createField2_0 = $$createType11;
+        const $$createField3_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("mime_types" in $$parsedSource) {
             $$parsedSource["mime_types"] = $$createField2_0($$parsedSource["mime_types"]);
@@ -1543,6 +2040,79 @@ export class InviteInfo {
 }
 
 /**
+ * ItemView is one item's metadata and block tallies.
+ */
+export class ItemView {
+    /**
+     * Creates a new ItemView instance.
+     * @param {Partial<ItemView>} [$$source = {}] - The source object to create the ItemView.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("format" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["format"] = "";
+        }
+        if (!("type" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["type"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["collection_id"] = undefined;
+        }
+        if (!("block_count" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["block_count"] = 0;
+        }
+        if (!("translatable" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["translatable"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ItemView instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ItemView}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ItemView(/** @type {Partial<ItemView>} */($$parsedSource));
+    }
+}
+
+/**
  * ListConceptsArgs holds the GET /concepts query params (ListConceptsParams).
  */
 export class ListConceptsArgs {
@@ -1606,6 +2176,15 @@ export class ListConceptsArgs {
              * @type {string | undefined}
              */
             this["project_id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Sort takes "updated_at" to page the workspace newest-changed first;
+             * empty leaves the server's relevance ordering in force.
+             * @member
+             * @type {string | undefined}
+             */
+            this["sort"] = undefined;
         }
         if (/** @type {any} */(false)) {
             /**
@@ -1676,7 +2255,7 @@ export class MarketArgs {
      * @returns {MarketArgs}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType10;
+        const $$createField2_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField2_0($$parsedSource["locales"]);
@@ -1890,7 +2469,7 @@ export class MemorySearchResult {
      * @returns {MemorySearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType21;
+        const $$createField0_0 = $$createType28;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2092,7 +2671,7 @@ export class PcOpenRunInfo {
      * @returns {PcOpenRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType23;
+        const $$createField6_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -2152,7 +2731,7 @@ export class PendingReviewEntryView {
      * @returns {PendingReviewEntryView}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType25;
+        const $$createField3_0 = $$createType32;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("block" in $$parsedSource) {
             $$parsedSource["block"] = $$createField3_0($$parsedSource["block"]);
@@ -2208,7 +2787,7 @@ export class PendingReviewPageView {
      * @returns {PendingReviewPageView}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType27;
+        const $$createField0_0 = $$createType34;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("entries" in $$parsedSource) {
             $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
@@ -2285,7 +2864,7 @@ export class PlaceholderRunInfo {
      * @returns {PlaceholderRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType23;
+        const $$createField6_0 = $$createType30;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("constraints" in $$parsedSource) {
             $$parsedSource["constraints"] = $$createField6_0($$parsedSource["constraints"]);
@@ -2341,7 +2920,7 @@ export class PluginInfo {
      * @returns {PluginInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType10;
+        const $$createField3_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("formats" in $$parsedSource) {
             $$parsedSource["formats"] = $$createField3_0($$parsedSource["formats"]);
@@ -2383,7 +2962,7 @@ export class PluralRunInfo {
      * @returns {PluralRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType8;
+        const $$createField1_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("forms" in $$parsedSource) {
             $$parsedSource["forms"] = $$createField1_0($$parsedSource["forms"]);
@@ -2505,8 +3084,8 @@ export class ProjectInfo {
      * @returns {ProjectInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType10;
-        const $$createField5_0 = $$createType29;
+        const $$createField3_0 = $$createType11;
+        const $$createField5_0 = $$createType36;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_languages" in $$parsedSource) {
             $$parsedSource["target_languages"] = $$createField3_0($$parsedSource["target_languages"]);
@@ -2834,13 +3413,13 @@ export class RunInfo {
      * @returns {RunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType31;
-        const $$createField1_0 = $$createType33;
-        const $$createField2_0 = $$createType35;
-        const $$createField3_0 = $$createType37;
-        const $$createField4_0 = $$createType39;
-        const $$createField5_0 = $$createType41;
-        const $$createField6_0 = $$createType43;
+        const $$createField0_0 = $$createType38;
+        const $$createField1_0 = $$createType40;
+        const $$createField2_0 = $$createType42;
+        const $$createField3_0 = $$createType44;
+        const $$createField4_0 = $$createType46;
+        const $$createField5_0 = $$createType48;
+        const $$createField6_0 = $$createType50;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("text" in $$parsedSource) {
             $$parsedSource["text"] = $$createField0_0($$parsedSource["text"]);
@@ -2966,12 +3545,50 @@ export class SelectRunInfo {
      * @returns {SelectRunInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType8;
+        const $$createField1_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("cases" in $$parsedSource) {
             $$parsedSource["cases"] = $$createField1_0($$parsedSource["cases"]);
         }
         return new SelectRunInfo(/** @type {Partial<SelectRunInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * SkippedMemoryView names a block that took nothing, and why.
+ */
+export class SkippedMemoryView {
+    /**
+     * Creates a new SkippedMemoryView instance.
+     * @param {Partial<SkippedMemoryView>} [$$source = {}] - The source object to create the SkippedMemoryView.
+     */
+    constructor($$source = {}) {
+        if (!("block_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["block_id"] = "";
+        }
+        if (!("reason" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["reason"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SkippedMemoryView instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SkippedMemoryView}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SkippedMemoryView(/** @type {Partial<SkippedMemoryView>} */($$parsedSource));
     }
 }
 
@@ -3185,7 +3802,7 @@ export class TermEnforceResult {
      * @returns {TermEnforceResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType10;
+        const $$createField3_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("expected" in $$parsedSource) {
             $$parsedSource["expected"] = $$createField3_0($$parsedSource["expected"]);
@@ -3286,7 +3903,7 @@ export class TermLookupResult {
      * @returns {TermLookupResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType45;
+        const $$createField0_0 = $$createType52;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("matches" in $$parsedSource) {
             $$parsedSource["matches"] = $$createField0_0($$parsedSource["matches"]);
@@ -3412,7 +4029,7 @@ export class TermSearchResult {
      * @returns {TermSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType47;
+        const $$createField0_0 = $$createType54;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("concepts" in $$parsedSource) {
             $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
@@ -3556,10 +4173,10 @@ export class ToolInfo {
      * @returns {ToolInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType10;
-        const $$createField6_0 = $$createType10;
-        const $$createField7_0 = $$createType49;
-        const $$createField8_0 = $$createType49;
+        const $$createField5_0 = $$createType11;
+        const $$createField6_0 = $$createType11;
+        const $$createField7_0 = $$createType56;
+        const $$createField8_0 = $$createType56;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("requires" in $$parsedSource) {
             $$parsedSource["requires"] = $$createField5_0($$parsedSource["requires"]);
@@ -3736,7 +4353,7 @@ export class UpdateBlockTargetRunsRequest {
      * @returns {UpdateBlockTargetRunsRequest}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType5;
+        const $$createField4_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("runs" in $$parsedSource) {
             $$parsedSource["runs"] = $$createField4_0($$parsedSource["runs"]);
@@ -3886,7 +4503,7 @@ export class Validity {
      * @returns {Validity}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType9;
+        const $$createField2_0 = $$createType10;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tags" in $$parsedSource) {
             $$parsedSource["tags"] = $$createField2_0($$parsedSource["tags"]);
@@ -3987,8 +4604,8 @@ export class WordCountResult {
      * @returns {WordCountResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType50;
-        const $$createField3_0 = $$createType50;
+        const $$createField2_0 = $$createType57;
+        const $$createField3_0 = $$createType57;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_words" in $$parsedSource) {
             $$parsedSource["target_words"] = $$createField2_0($$parsedSource["target_words"]);
@@ -4071,50 +4688,57 @@ const $$createType0 = Validity.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = TermInfo.createFrom;
 const $$createType3 = $Create.Array($$createType2);
-const $$createType4 = RunInfo.createFrom;
-const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = BlockTargetInfo.createFrom;
-const $$createType7 = $Create.Map($Create.Any, $$createType6);
-const $$createType8 = $Create.Map($Create.Any, $$createType5);
-const $$createType9 = $Create.Map($Create.Any, $Create.Any);
-const $$createType10 = $Create.Array($Create.Any);
-const $$createType11 = client$0.BrandRollupEntry.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = CollabUser.createFrom;
-const $$createType14 = FlowNodeInfo.createFrom;
+const $$createType4 = BlockStatusCountsView.createFrom;
+const $$createType5 = RunInfo.createFrom;
+const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = BlockTargetInfo.createFrom;
+const $$createType8 = $Create.Map($Create.Any, $$createType7);
+const $$createType9 = $Create.Map($Create.Any, $$createType6);
+const $$createType10 = $Create.Map($Create.Any, $Create.Any);
+const $$createType11 = $Create.Array($Create.Any);
+const $$createType12 = client$0.BrandRollupEntry.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = AppliedMemoryView.createFrom;
 const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = FlowEdgeInfo.createFrom;
+const $$createType16 = SkippedMemoryView.createFrom;
 const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = $Create.Map($Create.Any, $Create.Any);
-const $$createType19 = PositionInfo.createFrom;
-const $$createType20 = MemoryEntryInfo.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = RunConstraintsInfo.createFrom;
-const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = BlockInfo.createFrom;
-const $$createType25 = $Create.Nullable($$createType24);
-const $$createType26 = PendingReviewEntryView.createFrom;
-const $$createType27 = $Create.Array($$createType26);
-const $$createType28 = ProjectItem.createFrom;
-const $$createType29 = $Create.Array($$createType28);
-const $$createType30 = TextRunInfo.createFrom;
-const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = PlaceholderRunInfo.createFrom;
-const $$createType33 = $Create.Nullable($$createType32);
-const $$createType34 = PcOpenRunInfo.createFrom;
-const $$createType35 = $Create.Nullable($$createType34);
-const $$createType36 = PcCloseRunInfo.createFrom;
-const $$createType37 = $Create.Nullable($$createType36);
-const $$createType38 = SubRunInfo.createFrom;
-const $$createType39 = $Create.Nullable($$createType38);
-const $$createType40 = PluralRunInfo.createFrom;
-const $$createType41 = $Create.Nullable($$createType40);
-const $$createType42 = SelectRunInfo.createFrom;
-const $$createType43 = $Create.Nullable($$createType42);
-const $$createType44 = TermMatchInfo.createFrom;
-const $$createType45 = $Create.Array($$createType44);
-const $$createType46 = ConceptInfo.createFrom;
-const $$createType47 = $Create.Array($$createType46);
-const $$createType48 = IOPort.createFrom;
-const $$createType49 = $Create.Array($$createType48);
-const $$createType50 = $Create.Map($Create.Any, $Create.Any);
+const $$createType18 = BlockResultView.createFrom;
+const $$createType19 = $Create.Array($$createType18);
+const $$createType20 = CollabUser.createFrom;
+const $$createType21 = FlowNodeInfo.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = FlowEdgeInfo.createFrom;
+const $$createType24 = $Create.Array($$createType23);
+const $$createType25 = $Create.Map($Create.Any, $Create.Any);
+const $$createType26 = PositionInfo.createFrom;
+const $$createType27 = MemoryEntryInfo.createFrom;
+const $$createType28 = $Create.Array($$createType27);
+const $$createType29 = RunConstraintsInfo.createFrom;
+const $$createType30 = $Create.Nullable($$createType29);
+const $$createType31 = BlockInfo.createFrom;
+const $$createType32 = $Create.Nullable($$createType31);
+const $$createType33 = PendingReviewEntryView.createFrom;
+const $$createType34 = $Create.Array($$createType33);
+const $$createType35 = ProjectItem.createFrom;
+const $$createType36 = $Create.Array($$createType35);
+const $$createType37 = TextRunInfo.createFrom;
+const $$createType38 = $Create.Nullable($$createType37);
+const $$createType39 = PlaceholderRunInfo.createFrom;
+const $$createType40 = $Create.Nullable($$createType39);
+const $$createType41 = PcOpenRunInfo.createFrom;
+const $$createType42 = $Create.Nullable($$createType41);
+const $$createType43 = PcCloseRunInfo.createFrom;
+const $$createType44 = $Create.Nullable($$createType43);
+const $$createType45 = SubRunInfo.createFrom;
+const $$createType46 = $Create.Nullable($$createType45);
+const $$createType47 = PluralRunInfo.createFrom;
+const $$createType48 = $Create.Nullable($$createType47);
+const $$createType49 = SelectRunInfo.createFrom;
+const $$createType50 = $Create.Nullable($$createType49);
+const $$createType51 = TermMatchInfo.createFrom;
+const $$createType52 = $Create.Array($$createType51);
+const $$createType53 = ConceptInfo.createFrom;
+const $$createType54 = $Create.Array($$createType53);
+const $$createType55 = IOPort.createFrom;
+const $$createType56 = $Create.Array($$createType55);
+const $$createType57 = $Create.Map($Create.Any, $Create.Any);

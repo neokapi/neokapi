@@ -7,6 +7,7 @@
  */
 
 import type { ApiAdapter } from "../api/adapter";
+import { getBlockStatus, getTargetText } from "../components/editor/blockStatus";
 import type {
   ApprovePassingRequest,
   ApprovePassingResult,
@@ -30,6 +31,10 @@ import type {
   BrandScanDraft,
   BrandScanJob,
   ModelRecommendationsResponse,
+  BlockQueryOptions,
+  BlockStatusCounts,
+  AutomationHistoryPage,
+  BrandScanApproveResult,
 } from "../types/api";
 import type { VoiceProfile, BrandCorrectionRequest } from "../brand/types";
 import type {
@@ -50,6 +55,26 @@ import {
   sampleAutomationHistory,
   sampleRoleTemplates,
 } from "./fixtures";
+
+/**
+ * The block filters the server applies, run over the fixture blocks: a
+ * locale's status bucket, a case-insensitive substring over source and that
+ * locale's target, and translatability. Paging is the caller's slice.
+ */
+function queryBlocks(blocks: BlockInfo[], opts?: BlockQueryOptions): BlockInfo[] {
+  const needle = opts?.q?.toLowerCase();
+  return blocks.filter((b) => {
+    if (opts?.translatable !== undefined && b.translatable !== opts.translatable) return false;
+    if (opts?.status && opts.locale && getBlockStatus(b, opts.locale) !== opts.status) return false;
+    if (needle) {
+      const target = opts?.locale ? getTargetText(b, opts.locale) : "";
+      if (!b.source.toLowerCase().includes(needle) && !target.toLowerCase().includes(needle)) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Preview HTML generation — turns a blocks array into a fully interactive
@@ -584,8 +609,69 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     deleteCollection: noop,
     uploadToCollection: notImpl,
 
+    // --- Connectors -----------------------------------------------------
+    // The mock exposes no connectors, so the batch answers every id as one
+    // it cannot resolve rather than inventing a status.
+    getConnectorStatuses: async (_ws, ids) => ({ statuses: {}, unknown: [...ids] }),
+
     // --- Editor ---------------------------------------------------------
-    getFileBlocks: async () => _blocks,
+    getFileBlocks: async (_ws, _projectId, _fileName, _stream, opts) =>
+      queryBlocks(_blocks, opts).slice(
+        opts?.offset ?? 0,
+        (opts?.offset ?? 0) + (opts?.limit ?? _blocks.length),
+      ),
+
+    getBlockCounts: async (_ws, _projectId, _item, locale, _stream, opts) => {
+      const matching = queryBlocks(_blocks, { locale, ...opts });
+      const translatable = matching.filter((b) => b.translatable !== false);
+      const status: BlockStatusCounts = {
+        "not-started": 0,
+        draft: 0,
+        translated: 0,
+        reviewed: 0,
+      };
+      if (locale) for (const b of translatable) status[getBlockStatus(b, locale)]++;
+      return { total: matching.length, translatable: translatable.length, locale, status };
+    },
+
+    getItem: async (_ws, _projectId, itemName) => ({
+      id: itemName,
+      name: itemName,
+      format: "json",
+      type: "file",
+      block_count: _blocks.length,
+      translatable: _blocks.filter((b) => b.translatable !== false).length,
+    }),
+
+    bulkReviewBlocks: async (_ws, req) => {
+      const results = req.block_ids.map((id) => {
+        const blk = _blocks.find((b) => b.id === id);
+        if (!blk) return { block_id: id, ok: false, error: "block not found" };
+        const status = req.approve ? "reviewed" : (req.status ?? "translated");
+        const entry = blk.targets[req.target_locale];
+        blk.targets[req.target_locale] = {
+          text: typeof entry === "string" ? entry : (entry?.text ?? ""),
+          status,
+        };
+        return { block_id: id, ok: true, status };
+      });
+      const succeeded = results.filter((r) => r.ok).length;
+      return {
+        results,
+        succeeded,
+        failed: results.length - succeeded,
+        review_completed: _blocks.every(
+          (b) => getBlockStatus(b, req.target_locale) === "reviewed" || b.translatable === false,
+        ),
+      };
+    },
+
+    // The mock carries no content memory, so every selected block is skipped
+    // for the reason the server gives when nothing clears the threshold.
+    bulkApplyMemory: async (_ws, req) => ({
+      applied: [],
+      skipped: req.block_ids.map((id) => ({ block_id: id, reason: "no match above threshold" })),
+    }),
 
     // The server-side review queue: every (block, locale) pair with target
     // text still below reviewed — the same predicate the server runs.
@@ -887,6 +973,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     addMemoryEntry: notImpl,
     updateMemoryEntry: noop,
     deleteMemoryEntry: noop,
+    bulkDeleteMemoryEntries: async (_ws, ids) => ({
+      results: ids.map((id) => ({ id, deleted: true })),
+      deleted: ids.length,
+      failed: 0,
+    }),
 
     // --- Terms ----------------------------------------------------------
     getTerms: async () => ({ concepts: [], total_count: 0 }),
@@ -894,6 +985,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     addConcept: notImpl,
     updateConcept: noop,
     deleteConcept: noop,
+    // Deleting a concept is governed, so the batch is refused the way the
+    // server refuses it.
+    bulkDeleteConcepts: async () => {
+      throw new Error("governed change requires a change-set");
+    },
     importTermsCSV: async () => 0,
     importTermsJSON: async () => 0,
     exportTermsJSON: async () => "{}",
@@ -951,7 +1047,16 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       throw new Error("Rule not found");
     },
     listAutomationEvents: async (): Promise<AutomationEvent[]> => sampleAutomationEvents,
-    listAutomationHistory: async (): Promise<AutomationHistoryEntry[]> => sampleAutomationHistory,
+    listAutomationHistory: async (_ws, _projectId, opts): Promise<AutomationHistoryPage> => {
+      const limit = opts?.limit ?? sampleAutomationHistory.length;
+      const start = opts?.cursor
+        ? sampleAutomationHistory.findIndex((e) => e.id === opts.cursor) + 1
+        : 0;
+      const entries = sampleAutomationHistory.slice(start, start + limit);
+      const last = entries[entries.length - 1];
+      const more = last ? start + entries.length < sampleAutomationHistory.length : false;
+      return more && last ? { entries, next_cursor: last.id } : { entries };
+    },
 
     // --- Automation Runs ------------------------------------------------
     listAutomationRuns: async () => [],
@@ -1193,6 +1298,13 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       brandScanPollIndex = 0;
       return { job_id: sampleBrandScanJob.id };
     },
+    approveBrandScan: async (_ws, _scanId, req): Promise<BrandScanApproveResult> => ({
+      profile: req.profile,
+      profile_action: "created",
+      concepts_created: req.terms?.length ?? 0,
+      concepts_existing: 0,
+      concept_ids: (req.terms ?? []).map((t) => `concept-${t.term}`),
+    }),
     getBrandScan: async (_ws, jobId): Promise<BrandScanJob> => {
       const states = adapter.brandScanJobStates;
       const state = states[Math.min(brandScanPollIndex, states.length - 1)];
@@ -1266,6 +1378,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
 
     // --- Tasks (Bowrain AD-014) -----------------------------------------------------
     listTasks: async () => ({ tasks: [], next_cursor: "" }),
+    getTaskCounts: async () => ({
+      by_status: { open: 0, in_progress: 0, completed: 0, cancelled: 0 },
+      total: 0,
+    }),
     createTask: async (_ws, task) => ({
       id: `task-${Date.now()}`,
       workspace_id: "ws-1",
@@ -1474,6 +1590,15 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     billingCreateCheckout: async () => ({ url: "#" }),
     billingCreatePortal: async () => ({ url: "#" }),
     billingGetLedger: async () => [],
+    billingGetLedgerPage: async (_ws, query) => ({
+      entries: [],
+      total: 0,
+      limit: query?.limit ?? 50,
+      offset: query?.offset ?? 0,
+      usage_by_operation: {},
+      from: query?.from ?? new Date(Date.now() - 30 * 86400_000).toISOString(),
+      to: query?.to ?? new Date().toISOString(),
+    }),
   };
   return adapter;
 }
