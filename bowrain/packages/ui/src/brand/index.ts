@@ -20,6 +20,16 @@ export { PersonasEditor } from "./PersonasEditor";
 export { CandidateRulesList } from "./CandidateRulesList";
 export { BlastRadiusSummary } from "./BlastRadiusSummary";
 export { DriftAlert } from "./DriftAlert";
+export {
+  DEFAULT_MIN_SCORE,
+  complianceBar,
+  barForProfile,
+  scoreBand,
+  scoreTextClass,
+  scoreStrokeClass,
+  scoreFillClass,
+} from "./complianceBar";
+export type { ScoreBand, HasMinScore, ProfileBarSource } from "./complianceBar";
 export type {
   VoiceProfile,
   ToneProfile,

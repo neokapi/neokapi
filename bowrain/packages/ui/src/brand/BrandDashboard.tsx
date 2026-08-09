@@ -3,15 +3,24 @@ import type { BrandComplianceScore, ScoreTrend, StoredScore } from "./types";
 import { BrandScoreGauge } from "./BrandScoreGauge";
 import { BrandDimensionBreakdown } from "./BrandDimensionBreakdown";
 import { BrandFindingsList } from "./BrandFindingsList";
+import { DEFAULT_MIN_SCORE, scoreFillClass, scoreTextClass } from "./complianceBar";
 
 interface BrandDashboardProps {
   score: BrandComplianceScore | null;
   trends: ScoreTrend[];
   recentScores: StoredScore[];
+  /** The profile's on-brand bar; DEFAULT_MIN_SCORE when no profile is loaded. */
+  bar?: number;
   className?: string;
 }
 
-export function BrandDashboard({ score, trends, recentScores, className }: BrandDashboardProps) {
+export function BrandDashboard({
+  score,
+  trends,
+  recentScores,
+  bar = DEFAULT_MIN_SCORE,
+  className,
+}: BrandDashboardProps) {
   if (!score) {
     return (
       <div className={cn("space-y-6", className)}>
@@ -38,7 +47,7 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
           </CardHeader>
           <CardContent className="flex justify-center pb-4">
             <div className="relative">
-              <BrandScoreGauge score={score.overall} size={140} />
+              <BrandScoreGauge score={score.overall} bar={bar} size={140} />
             </div>
           </CardContent>
         </Card>
@@ -49,7 +58,7 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
             <CardTitle className="text-sm">Dimensions</CardTitle>
           </CardHeader>
           <CardContent>
-            <BrandDimensionBreakdown dimensions={score.dimensions} />
+            <BrandDimensionBreakdown dimensions={score.dimensions} bar={bar} />
           </CardContent>
         </Card>
 
@@ -72,11 +81,7 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
                       <div
                         className={cn(
                           "h-full rounded-full transition-all",
-                          t.avg_score >= 80
-                            ? "bg-success"
-                            : t.avg_score >= 60
-                              ? "bg-warning"
-                              : "bg-destructive",
+                          scoreFillClass(t.avg_score, bar),
                         )}
                         style={{ width: `${t.avg_score}%` }}
                       />
@@ -106,14 +111,9 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
                   <span className="text-muted-foreground truncate max-w-[200px]">{s.block_id}</span>
                   <span className="text-muted-foreground">{s.locale}</span>
                   <span
-                    className={cn(
-                      "font-medium tabular-nums",
-                      s.score >= 80
-                        ? "text-success"
-                        : s.score >= 60
-                          ? "text-warning"
-                          : "text-destructive",
-                    )}
+                    data-testid="recent-score"
+                    data-below-bar={s.score < bar}
+                    className={cn("font-medium tabular-nums", scoreTextClass(s.score, bar))}
                   >
                     {s.score}
                   </span>

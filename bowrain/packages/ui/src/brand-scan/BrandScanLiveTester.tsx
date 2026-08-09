@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { VoiceProfile, BrandVoiceFinding } from "../brand/types";
 import type { BrandScanCheckResult } from "../types/api";
 import { BrandScoreGauge } from "../brand/BrandScoreGauge";
+import { complianceBar } from "../brand/complianceBar";
 import { BrandFindingsList } from "../brand/BrandFindingsList";
 import { useCheckBrandDraft } from "../hooks/useBrandScanApi";
 import { TEST_IDS } from "../test-ids";
@@ -71,7 +72,7 @@ export function BrandScanLiveTester({ profile, debounceMs = 500 }: BrandScanLive
       {result && (
         <div className="space-y-3">
           <div className="flex items-center gap-4">
-            <BrandScoreGauge score={result.score.overall} size={72} />
+            <BrandScoreGauge score={result.score.overall} bar={complianceBar(profile)} size={72} />
             <p className="text-xs text-muted-foreground">
               {result.findings.length === 0
                 ? "No rule violations in this sample."

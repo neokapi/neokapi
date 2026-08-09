@@ -1,27 +1,22 @@
 import { cn } from "@neokapi/ui-primitives";
+import { DEFAULT_MIN_SCORE, scoreStrokeClass, scoreTextClass } from "./complianceBar";
 
 interface BrandScoreGaugeProps {
   score: number;
+  /** The profile's on-brand bar; DEFAULT_MIN_SCORE when no profile is loaded. */
+  bar?: number;
   size?: number;
   className?: string;
   label?: string;
 }
 
-function scoreColor(score: number): string {
-  if (score >= 80) return "text-success";
-  if (score >= 60) return "text-warning";
-  if (score >= 40) return "text-warning";
-  return "text-destructive";
-}
-
-function strokeColor(score: number): string {
-  if (score >= 80) return "stroke-success";
-  if (score >= 60) return "stroke-warning";
-  if (score >= 40) return "stroke-warning";
-  return "stroke-destructive";
-}
-
-export function BrandScoreGauge({ score, size = 120, className, label }: BrandScoreGaugeProps) {
+export function BrandScoreGauge({
+  score,
+  bar = DEFAULT_MIN_SCORE,
+  size = 120,
+  className,
+  label,
+}: BrandScoreGaugeProps) {
   const clamped = Math.max(0, Math.min(100, score));
   const radius = 45;
   const circumference = 2 * Math.PI * radius;
@@ -37,7 +32,7 @@ export function BrandScoreGauge({ score, size = 120, className, label }: BrandSc
           r={radius}
           fill="none"
           className={cn(
-            strokeColor(clamped),
+            scoreStrokeClass(clamped, bar),
             "transition-[stroke-dashoffset] duration-[600ms] ease-in-out",
           )}
           strokeWidth="8"
@@ -50,7 +45,11 @@ export function BrandScoreGauge({ score, size = 120, className, label }: BrandSc
         className="absolute flex flex-col items-center justify-center"
         style={{ width: size, height: size }}
       >
-        <span className={cn("text-2xl font-bold tabular-nums", scoreColor(clamped))}>
+        <span
+          data-testid="brand-score"
+          data-below-bar={clamped < bar}
+          className={cn("text-2xl font-bold tabular-nums", scoreTextClass(clamped, bar))}
+        >
           {clamped}
         </span>
       </div>

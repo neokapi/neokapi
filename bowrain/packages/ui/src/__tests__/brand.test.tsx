@@ -7,6 +7,8 @@ import { BrandExamplePair } from "../brand/BrandExamplePair";
 import { BrandFindingsList } from "../brand/BrandFindingsList";
 import { BrandProfileCard } from "../brand/BrandProfileCard";
 import { BrandProfileList } from "../brand/BrandProfileList";
+import { BrandDashboard } from "../brand/BrandDashboard";
+import { DEFAULT_MIN_SCORE, barForProfile, complianceBar, scoreBand } from "../brand/complianceBar";
 import { BreadcrumbProvider } from "../context/BreadcrumbContext";
 import type { DimensionScore, VoiceExample, BrandVoiceFinding, VoiceProfile } from "../brand/types";
 
@@ -329,5 +331,85 @@ describe("BrandProfileList", () => {
     renderList([makeProfile()], { onCreate });
     await user.click(screen.getByText("New profile"));
     expect(onCreate).toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The on-brand bar (core/profile.ComplianceBar)
+// ---------------------------------------------------------------------------
+
+describe("complianceBar", () => {
+  it("defaults when a profile sets no bar of its own", () => {
+    expect(complianceBar(undefined)).toBe(DEFAULT_MIN_SCORE);
+    expect(complianceBar(null)).toBe(DEFAULT_MIN_SCORE);
+    expect(complianceBar({})).toBe(DEFAULT_MIN_SCORE);
+    expect(complianceBar({ min_score: 0 })).toBe(DEFAULT_MIN_SCORE);
+  });
+
+  it("takes the profile's bar, capped at 100", () => {
+    expect(complianceBar({ min_score: 90 })).toBe(90);
+    expect(complianceBar({ min_score: 140 })).toBe(100);
+  });
+
+  it("resolves a profile's bar by id, defaulting when it is not loaded", () => {
+    const profiles = [{ id: "p1", min_score: 90 }, { id: "p2" }];
+    expect(barForProfile(profiles, "p1")).toBe(90);
+    expect(barForProfile(profiles, "p2")).toBe(DEFAULT_MIN_SCORE);
+    expect(barForProfile(profiles, "gone")).toBe(DEFAULT_MIN_SCORE);
+    expect(barForProfile(undefined, "p1")).toBe(DEFAULT_MIN_SCORE);
+  });
+
+  it("bands a score against the bar it is given", () => {
+    expect(scoreBand(85, 80)).toBe("pass");
+    expect(scoreBand(85, 90)).toBe("warn");
+    expect(scoreBand(20, 90)).toBe("fail");
+  });
+});
+
+describe("a profile with min_score 90 renders an 85 below the bar everywhere", () => {
+  const bar = complianceBar(makeProfile({ min_score: 90 }));
+
+  it("in the score gauge", () => {
+    const { rerender } = render(<BrandScoreGauge score={85} bar={bar} />);
+    expect(screen.getByTestId("brand-score").dataset.belowBar).toBe("true");
+    expect(screen.getByTestId("brand-score").className).toContain("text-warning");
+    // The same 85 clears the default bar.
+    rerender(<BrandScoreGauge score={85} />);
+    expect(screen.getByTestId("brand-score").dataset.belowBar).toBe("false");
+    expect(screen.getByTestId("brand-score").className).toContain("text-success");
+  });
+
+  it("in the dimension breakdown", () => {
+    const dimensions: DimensionScore[] = [makeDimension({ dimension: "tone", score: 85 })];
+    const { rerender } = render(<BrandDimensionBreakdown dimensions={dimensions} bar={bar} />);
+    expect(screen.getByTestId("dimension-score-tone").dataset.belowBar).toBe("true");
+    rerender(<BrandDimensionBreakdown dimensions={dimensions} />);
+    expect(screen.getByTestId("dimension-score-tone").dataset.belowBar).toBe("false");
+  });
+
+  it("in the compliance dashboard's gauge and recent checks", () => {
+    const score = {
+      overall: 85,
+      dimensions: [makeDimension({ dimension: "tone", score: 85 })],
+      findings: [],
+    } as unknown as Parameters<typeof BrandDashboard>[0]["score"];
+    const recent = [
+      {
+        id: "s1",
+        project_id: "p",
+        stream: "main",
+        block_id: "b1",
+        profile_id: "prof-1",
+        locale: "fr",
+        score: 85,
+        dimensions: [],
+        findings: [],
+        checked_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+    render(<BrandDashboard score={score} trends={[]} recentScores={recent} bar={bar} />);
+    expect(screen.getByTestId("brand-score").dataset.belowBar).toBe("true");
+    expect(screen.getByTestId("recent-score").dataset.belowBar).toBe("true");
+    expect(screen.getByTestId("dimension-score-tone").dataset.belowBar).toBe("true");
   });
 });
