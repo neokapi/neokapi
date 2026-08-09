@@ -1527,16 +1527,28 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 		return fmt.Errorf("create reader for %s: %w", formatName, err)
 	}
 
-	// Create a shared skeleton store so the writer can reconstruct non-translatable
-	// content (frontmatter, structural markup, etc.) byte-exactly from the source.
-	skelStore, err := format.NewSkeletonStore()
+	// The writer is chosen from the OUTPUT path, not the source format: a
+	// recipe target like `catalogs/{lang}.mo` on a json source is a
+	// cross-format projection, and writing source-format bytes to that path
+	// would corrupt the target (a JSON document under a .mo name).
+	// registry.WriterFormatFor is the same rule the host flow runner applies.
+	writerFormat := c.formatReg.WriterFormatFor(registry.FormatID(formatName), outputPath)
+	writer, err := c.formatReg.NewWriter(writerFormat)
+	if err != nil {
+		return fmt.Errorf("create writer for %s: %w", writerFormat, err)
+	}
+
+	// A skeleton store lets a SAME-format writer reconstruct non-translatable
+	// content (frontmatter, structural markup, etc.) byte-exactly from the
+	// source. NewWiredSkeleton wires it only for an eligible same-format pair —
+	// a cross-format writer reconstructs from the content model instead, and
+	// must never be fed a foreign skeleton.
+	skelStore, err := format.NewWiredSkeleton(reader, writer)
 	if err != nil {
 		return fmt.Errorf("create skeleton store: %w", err)
 	}
-	defer skelStore.Close()
-
-	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
-		emitter.SetSkeletonStore(skelStore)
+	if skelStore != nil {
+		defer skelStore.Close()
 	}
 
 	f, err := os.Open(sourcePath)
@@ -1570,16 +1582,6 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 			}
 		}
 		parts = append(parts, p)
-	}
-
-	// Write output.
-	writer, err := c.formatReg.NewWriter(registry.FormatID(formatName))
-	if err != nil {
-		return fmt.Errorf("create writer for %s: %w", formatName, err)
-	}
-
-	if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
-		consumer.SetSkeletonStore(skelStore)
 	}
 
 	// For formats that need the original file content for reconstruction

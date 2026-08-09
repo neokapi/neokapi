@@ -45,6 +45,10 @@ func TestGroupReclaim_DropsPoisonEntryAfterCap(t *testing.T) {
 		pending, perr := bus.client.XPending(context.Background(), bus.stream, "poison-test").Result()
 		return perr == nil && pending.Count == 0
 	}, 30*time.Second, 500*time.Millisecond, "the pending list never drained")
-	assert.Greater(t, calls.Load(), int64(poisonDeliveryCap),
+	// The cap is a maximum, not an overshoot: a single poisoned entry is
+	// delivered exactly poisonDeliveryCap times before the sweep acks it away,
+	// so equality is the deterministic single-entry outcome. Strictly-greater
+	// only held when the publish-until loop happened to enqueue extra events.
+	assert.GreaterOrEqual(t, calls.Load(), int64(poisonDeliveryCap),
 		"the entry should have been retried up to the cap before the drop")
 }
