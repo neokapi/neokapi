@@ -1652,6 +1652,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.POST("/brand-scans/uploads", s.HandleBrandScanUploads)
 	g.POST("/brand-scans", s.HandleCreateBrandScan, aiLimit, billing.QuotaGuard(s.BillingStore))
 	g.GET("/brand-scans/:id", s.HandleGetBrandScan)
+	g.POST("/brand-scans/:id/approve", s.HandleApproveBrandScan)
 	g.POST("/brand-scans/check-draft", s.HandleCheckBrandDraft, aiLimit)
 
 	// Translation jobs — Bowrain AD-011: /:ws/jobs
