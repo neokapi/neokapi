@@ -587,6 +587,40 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     // --- Editor ---------------------------------------------------------
     getFileBlocks: async () => _blocks,
 
+    // The server-side review queue: every (block, locale) pair with target
+    // text still below reviewed — the same predicate the server runs.
+    getPendingReview: async (_ws, _projectId, opts) => {
+      const entries = _blocks.flatMap((b) =>
+        Object.entries(b.targets ?? {})
+          .filter(([, t]) => {
+            // A target entry is either bare text or {text, status}.
+            const tt =
+              typeof t === "string"
+                ? { text: t, status: "" }
+                : (t as { text?: string; status?: string });
+            return (
+              b.translatable !== false &&
+              (tt.text ?? "").trim() !== "" &&
+              ["draft", "translated", ""].includes(tt.status ?? "")
+            );
+          })
+          .map(([loc]) => ({
+            block_id: b.id,
+            item_name: b.item_name ?? "messages.json",
+            locale: loc,
+            block: b,
+          })),
+      );
+      const offset = opts?.offset ?? 0;
+      const limit = opts?.limit ?? 200;
+      return {
+        entries: entries.slice(offset, offset + limit),
+        total: entries.length,
+        limit,
+        offset,
+      };
+    },
+
     updateBlockTarget: async (_ws, req) => {
       const blk = _blocks.find((b) => b.id === req.block_id);
       if (blk) {

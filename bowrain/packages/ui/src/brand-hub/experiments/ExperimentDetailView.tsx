@@ -18,6 +18,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { ArrowLeft, Lock, GitMerge, GitPullRequest, Plus, Network } from "../../components/icons";
 import type { ChangeSetDetail } from "../../types/brand-graph";
+import { TERMINAL_CHANGESET_STATUSES } from "../../types/brand-graph";
 import {
   useChangeset,
   useChangesetBlastRadius,
@@ -143,7 +144,7 @@ function LifecycleBar({ changeset }: { changeset: ChangeSetDetail }) {
   const abandon = useAbandonChangeset(changeset.id);
   const [mergeOpen, setMergeOpen] = useState(false);
 
-  const terminal = changeset.status === "merged" || changeset.status === "abandoned";
+  const terminal = TERMINAL_CHANGESET_STATUSES.has(changeset.status);
   const busy = submit.isPending || abandon.isPending;
 
   return (

@@ -14,6 +14,7 @@ import type {
   PublicPlatformConfig,
   ModelRecommendationsResponse,
   BlockInfo,
+  PendingReviewPage,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
   AITranslateFileRequest,
@@ -656,6 +657,18 @@ export class WailsApiAdapter implements ApiAdapter {
   // --- Editor ---
   async getFileBlocks(_ws: string, projectId: string, fileName: string): Promise<BlockInfo[]> {
     return Backend.GetItemBlocks(projectId, fileName) as Promise<BlockInfo[]>;
+  }
+  async getPendingReview(
+    _ws: string,
+    projectId: string,
+    opts?: { stream?: string; locales?: string[]; limit?: number; offset?: number },
+  ): Promise<PendingReviewPage> {
+    return Backend.GetPendingReview(
+      projectId,
+      opts?.locales ?? [],
+      opts?.limit ?? 0,
+      opts?.offset ?? 0,
+    ) as Promise<PendingReviewPage>;
   }
   async updateBlockTarget(_ws: string, req: UpdateBlockRequest): Promise<void> {
     return Backend.UpdateBlockTarget(req);

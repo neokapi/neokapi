@@ -4,6 +4,7 @@
 // governance queue.
 import type { ConceptInfo } from "../../types/api";
 import type { ChangeSet } from "../../types/brand-graph";
+import { TERMINAL_CHANGESET_STATUSES } from "../../types/brand-graph";
 import type { BrandTrend, DimensionScore, DriftResult, StoredScore } from "../../brand/types";
 
 /** Per-locale completeness of the concept vocabulary. */
@@ -138,7 +139,7 @@ export function sortByRecent(changesets: ChangeSet[]): ChangeSet[] {
 
 /** Change-sets that are not yet settled (a draft, in review, or approved-not-merged). */
 export function activeExperiments(changesets: ChangeSet[]): ChangeSet[] {
-  return changesets.filter((c) => c.status !== "merged" && c.status !== "abandoned");
+  return changesets.filter((c) => !TERMINAL_CHANGESET_STATUSES.has(c.status));
 }
 
 /** Change-sets a steward must act on: in review, or approved and awaiting merge. */

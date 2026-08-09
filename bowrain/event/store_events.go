@@ -408,6 +408,10 @@ func (s *EventEmittingStore) GetBlockStats(ctx context.Context, projectID, strea
 	return s.inner.GetBlockStats(ctx, projectID, stream)
 }
 
+func (s *EventEmittingStore) ListPendingReview(ctx context.Context, projectID, stream string, locales []string, limit, offset int) ([]store.PendingReviewRef, int, error) {
+	return s.inner.ListPendingReview(ctx, projectID, stream, locales, limit, offset)
+}
+
 func (s *EventEmittingStore) DeleteBlock(ctx context.Context, projectID, stream, blockID string) error {
 	if err := s.inner.DeleteBlock(ctx, projectID, stream, blockID); err != nil {
 		return err

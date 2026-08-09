@@ -24,6 +24,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { Plus, Trash2, FlaskConical } from "../../components/icons";
 import type { ChangeSetDetail, Pilot } from "../../types/brand-graph";
+import { TERMINAL_CHANGESET_STATUSES } from "../../types/brand-graph";
 import { useAddPilot, useRemovePilot } from "../../hooks/useChangesetsApi";
 import { useProjects } from "../../hooks/useProjectApi";
 import { formatRelative } from "../shell/atoms";
@@ -35,7 +36,7 @@ export interface PilotsPanelProps {
 export function PilotsPanel({ changeset }: PilotsPanelProps) {
   const remove = useRemovePilot(changeset.id);
   const [addOpen, setAddOpen] = useState(false);
-  const terminal = changeset.status === "merged" || changeset.status === "abandoned";
+  const terminal = TERMINAL_CHANGESET_STATUSES.has(changeset.status);
 
   return (
     <Card>

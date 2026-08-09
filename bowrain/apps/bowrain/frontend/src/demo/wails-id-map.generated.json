@@ -29,6 +29,7 @@
   "776322992": "ListPlugins",
   "794357047": "ExportTranslatedItem",
   "832952266": "SaveProviderConfig",
+  "883386567": "GetPendingReview",
   "892094965": "LookupMemoryForBlock",
   "892954425": "AddMember",
   "913799173": "EvaluateRule",

@@ -316,6 +316,44 @@ func (c *BowrainClient) GetEditorBlocks(ctx context.Context, ws, projectID, item
 	return out, nil
 }
 
+// PendingReviewEntry is one entry of the server-side translation review
+// queue: a (block, locale) pair awaiting a decision, with its block payload.
+type PendingReviewEntry struct {
+	BlockID  string       `json:"block_id"`
+	ItemName string       `json:"item_name"`
+	Locale   string       `json:"locale"`
+	Block    *EditorBlock `json:"block,omitempty"`
+}
+
+// PendingReviewPage is one page of the queue plus the queue's total size.
+type PendingReviewPage struct {
+	Entries []PendingReviewEntry `json:"entries"`
+	Total   int                  `json:"total"`
+	Limit   int                  `json:"limit"`
+	Offset  int                  `json:"offset"`
+}
+
+// GetPendingReview pages the translation review queue (GET
+// /api/v1/:ws/:proj/pending-review/:stream).
+func (c *BowrainClient) GetPendingReview(ctx context.Context, ws, projectID string, locales []string, limit, offset int) (*PendingReviewPage, error) {
+	q := url.Values{}
+	if len(locales) > 0 {
+		q.Set("locales", strings.Join(locales, ","))
+	}
+	if limit > 0 {
+		q.Set("limit", strconv.Itoa(limit))
+	}
+	if offset > 0 {
+		q.Set("offset", strconv.Itoa(offset))
+	}
+	path := fmt.Sprintf("/api/v1/%s/%s/pending-review/%s", url.PathEscape(ws), url.PathEscape(projectID), editorRef)
+	var out PendingReviewPage
+	if err := c.editorDo(ctx, http.MethodGet, path, q, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // UpdateBlockTargetRuns replaces a block's target with a canonical Run sequence.
 func (c *BowrainClient) UpdateBlockTargetRuns(ctx context.Context, ws, projectID, blockID, targetLocale string, runs []model.Run) error {
 	body := struct {

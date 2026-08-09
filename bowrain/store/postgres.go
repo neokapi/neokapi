@@ -936,6 +936,65 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 	return result, nil
 }
 
+// ListPendingReview pages the (block, locale) pairs whose stored target still
+// needs a review decision. One indexed join answers what the review session
+// once assembled with a blocks fetch per item — minutes of "gathering" at
+// dogfood scale (978 items), and only ever the first dashboard page of it.
+func (s *PostgresStore) ListPendingReview(ctx context.Context, projectID, stream string, locales []string, limit, offset int) ([]platstore.PendingReviewRef, int, error) {
+	if stream == "" {
+		stream = "main"
+	}
+	if limit <= 0 {
+		limit = 200
+	}
+	// Constant skeleton + $N placeholder tokens only; every value binds
+	// through args (the G201-triage contract this package's query builders
+	// share).
+	//
+	// The status test is the review-completion gate's predicate (see
+	// server/review_loop.go targetPendingReview): anything below reviewed is
+	// pending — including an EMPTY status, which an IN ('draft','translated')
+	// spelling once excluded, leaving a block that stalls completion forever
+	// invisible in the queue. Known narrower edge: a code-only target
+	// (RunsHaveContent true, flattened text empty) is pending for the gate
+	// but skipped here by text <> ''.
+	const skeleton = `SELECT %s FROM blocks b JOIN translations t
+		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = $2
+		WHERE b.project_id = $1 AND b.translatable AND t.text <> ''
+		AND COALESCE(t.target_json->>'status', '') NOT IN ('reviewed', 'signed-off')%s`
+	args := []any{projectID, stream}
+	localeFilter := ""
+	next := 3
+	if len(locales) > 0 {
+		localeFilter = fmt.Sprintf(` AND t.locale = ANY($%d)`, next)
+		args = append(args, locales)
+		next++
+	}
+
+	var total int
+	countQuery := fmt.Sprintf(skeleton, "count(*)", localeFilter)
+	if err := s.db.DB.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count pending review: %w", err)
+	}
+
+	query := fmt.Sprintf(skeleton+` ORDER BY b.item_name, b.id, t.locale LIMIT $%d OFFSET $%d`,
+		"b.id, b.item_name, t.locale", localeFilter, next, next+1)
+	rows, err := s.db.DB.QueryContext(ctx, query, append(args, limit, offset)...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list pending review: %w", err)
+	}
+	defer rows.Close()
+	var refs []platstore.PendingReviewRef
+	for rows.Next() {
+		var r platstore.PendingReviewRef
+		if err := rows.Scan(&r.BlockID, &r.ItemName, &r.Locale); err != nil {
+			return nil, 0, fmt.Errorf("scan pending review: %w", err)
+		}
+		refs = append(refs, r)
+	}
+	return refs, total, rows.Err()
+}
+
 func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream string) ([]platstore.BlockStatRow, error) {
 	stream = storeutil.DefaultStream(stream)
 

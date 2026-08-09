@@ -135,6 +135,7 @@ import type {
   RepoDetection,
   RepoDetectOptions,
   ModelRecommendationsResponse,
+  PendingReviewPage,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1391,6 +1392,32 @@ export class RestApiAdapter implements ApiAdapter {
       `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}?item=${encodeURIComponent(fileName)}`,
     );
     return normalizeServerBlocks(raw);
+  }
+
+  async getPendingReview(
+    workspaceSlug: string,
+    projectId: string,
+    opts?: { stream?: string; locales?: string[]; limit?: number; offset?: number },
+  ): Promise<PendingReviewPage> {
+    const q = new URLSearchParams();
+    if (opts?.locales?.length) q.set("locales", opts.locales.join(","));
+    if (opts?.limit) q.set("limit", String(opts.limit));
+    if (opts?.offset) q.set("offset", String(opts.offset));
+    const raw = await this.fetchJSON<{
+      entries: { block_id: string; item_name: string; locale: string; block?: ServerBlockInfo }[];
+      total: number;
+      limit: number;
+      offset: number;
+    }>(
+      `${this.projectEp(workspaceSlug, projectId)}/pending-review/${this.ref(opts?.stream)}?${q.toString()}`,
+    );
+    return {
+      ...raw,
+      entries: raw.entries.map((e) => ({
+        ...e,
+        block: e.block ? normalizeServerBlocks([e.block])[0] : undefined,
+      })),
+    };
   }
 
   async updateBlockTarget(workspaceSlug: string, req: UpdateBlockRequest): Promise<void> {
