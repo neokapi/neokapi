@@ -127,6 +127,58 @@ type ChangeSet struct {
 	SubmittedAt  *time.Time `json:"submitted_at,omitempty"`
 	MergedAt     *time.Time `json:"merged_at,omitempty"`
 	MergedBy     string     `json:"merged_by,omitempty"`
+	// Impact is the blast-radius summary computed when the change-set was
+	// submitted. Nil while a draft, and nil when the submit-time walk did not
+	// finish.
+	Impact *ImpactSummary `json:"impact_summary,omitempty"`
+	// OpsCount is the number of edits the change-set holds. The list endpoint
+	// counts it; the single-change-set read leaves it zero and carries Ops.
+	OpsCount int `json:"ops_count,omitempty"`
+}
+
+// ImpactSummary is the headline of a change-set's blast radius, computed once
+// at submit: the totals plus how many projects they span, without the
+// per-project breakdown or the samples.
+type ImpactSummary struct {
+	TotalBlocks    int       `json:"total_blocks"`
+	AffectedBlocks int       `json:"affected_blocks"`
+	NewViolations  int       `json:"new_violations"`
+	Resolved       int       `json:"resolved"`
+	Words          int       `json:"words"`
+	Projects       int       `json:"projects"`
+	Partial        bool      `json:"partial,omitempty"`
+	PartialReason  string    `json:"partial_reason,omitempty"`
+	ComputedAt     time.Time `json:"computed_at"`
+}
+
+// ChangeSetCounts is the workspace's change-sets bucketed by lifecycle status,
+// every known status present.
+type ChangeSetCounts struct {
+	Total    int            `json:"total"`
+	ByStatus map[string]int `json:"by_status"`
+}
+
+// ConceptStatusCounts is the workspace vocabulary counted by term lifecycle
+// status. A concept counts under every status one of its terms carries, so the
+// buckets overlap and do not sum to Total.
+type ConceptStatusCounts struct {
+	Total    int            `json:"total"`
+	ByStatus map[string]int `json:"by_status"`
+}
+
+// LocaleCoverage is one locale's share of the workspace's concepts.
+type LocaleCoverage struct {
+	Locale  string `json:"locale"`
+	Present int    `json:"present"`
+	Total   int    `json:"total"`
+	Pct     int    `json:"pct"`
+}
+
+// LocaleCoverageReport is per-locale concept coverage across the whole
+// workspace, most complete locale first.
+type LocaleCoverageReport struct {
+	Total   int              `json:"total"`
+	Locales []LocaleCoverage `json:"locales"`
 }
 
 // ChangeSetOp is one ordered operation within a change-set, mirroring the
@@ -199,6 +251,14 @@ type ChangeSetImpact struct {
 	Partial bool `json:"partial,omitempty"`
 	// PartialReason says why it stopped, for a caller that shows the user.
 	PartialReason string `json:"partial_reason,omitempty"`
+
+	// Stored reports that the totals came from the summary computed when the
+	// change-set was submitted rather than from a walk run for this request.
+	// Projects and Samples are then absent; RefreshChangesetBlastRadius runs
+	// the live walk that carries them.
+	Stored bool `json:"stored,omitempty"`
+	// ComputedAt stamps a stored summary. Nil on a live walk.
+	ComputedAt *time.Time `json:"computed_at,omitempty"`
 }
 
 // ProjectImpact is the per-project slice of a ChangeSetImpact.
@@ -257,9 +317,13 @@ type ListConceptsParams struct {
 	Market string // market validity-tag facet
 	Locale string // source locale to scope the text search to
 	Source string // term source facet (terminology, brand_vocabulary)
+	Sort   string // "updated_at" pages the workspace newest-changed first
 	Offset int    // page offset
 	Limit  int    // page size (server defaults to 50)
 }
+
+// SortConceptsUpdatedAt is the one value ListConceptsParams.Sort accepts.
+const SortConceptsUpdatedAt = "updated_at"
 
 // GraphParams scopes a graph visualization request. All fields are optional.
 type GraphParams struct {
@@ -297,6 +361,9 @@ func (c *BowrainClient) ListConcepts(ctx context.Context, params ListConceptsPar
 	if params.Source != "" {
 		q.Set("source", params.Source)
 	}
+	if params.Sort != "" {
+		q.Set("sort", params.Sort)
+	}
 	if params.Offset > 0 {
 		q.Set("offset", strconv.Itoa(params.Offset))
 	}
@@ -305,6 +372,27 @@ func (c *BowrainClient) ListConcepts(ctx context.Context, params ListConceptsPar
 	}
 	var out ConceptSearchResult
 	if err := c.getKnowledgeJSON(ctx, "/concepts", q, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ConceptStatusCounts returns the workspace's concept total and the number of
+// concepts carrying a term at each lifecycle status, from one grouped query
+// (GET /api/v1/:ws/concepts/status-counts).
+func (c *BowrainClient) ConceptStatusCounts(ctx context.Context) (*ConceptStatusCounts, error) {
+	var out ConceptStatusCounts
+	if err := c.getKnowledgeJSON(ctx, "/concepts/status-counts", nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ConceptLocaleCoverage returns per-locale concept coverage over every concept
+// in the workspace (GET /api/v1/:ws/concepts/locale-coverage).
+func (c *BowrainClient) ConceptLocaleCoverage(ctx context.Context) (*LocaleCoverageReport, error) {
+	var out LocaleCoverageReport
+	if err := c.getKnowledgeJSON(ctx, "/concepts/locale-coverage", nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -393,11 +481,34 @@ func (c *BowrainClient) GetChangeset(ctx context.Context, id string) (*ChangeSet
 	return &out, nil
 }
 
-// GetChangesetBlastRadius previews a change-set's blast radius over stored
-// content (GET /api/v1/:ws/changesets/:id/blast-radius). Nothing is persisted.
+// ChangesetCounts returns the workspace's change-sets bucketed by lifecycle
+// status (GET /api/v1/:ws/changesets/counts).
+func (c *BowrainClient) ChangesetCounts(ctx context.Context) (*ChangeSetCounts, error) {
+	var out ChangeSetCounts
+	if err := c.getKnowledgeJSON(ctx, "/changesets/counts", nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// GetChangesetBlastRadius returns a change-set's blast radius over stored
+// content (GET /api/v1/:ws/changesets/:id/blast-radius). A submitted
+// change-set answers from the summary computed at submit — totals only, with
+// Stored set and ComputedAt stamped. RefreshChangesetBlastRadius runs the live
+// walk instead, which is the only path carrying the breakdown and the samples.
 func (c *BowrainClient) GetChangesetBlastRadius(ctx context.Context, id string) (*ChangeSetImpact, error) {
+	return c.changesetBlastRadius(ctx, id, nil)
+}
+
+// RefreshChangesetBlastRadius walks a change-set's blast radius now, ignoring
+// any stored summary (GET .../blast-radius?fresh=1). Nothing is persisted.
+func (c *BowrainClient) RefreshChangesetBlastRadius(ctx context.Context, id string) (*ChangeSetImpact, error) {
+	return c.changesetBlastRadius(ctx, id, url.Values{"fresh": []string{"1"}})
+}
+
+func (c *BowrainClient) changesetBlastRadius(ctx context.Context, id string, q url.Values) (*ChangeSetImpact, error) {
 	var out ChangeSetImpact
-	if err := c.getKnowledgeJSON(ctx, "/changesets/"+url.PathEscape(id)+"/blast-radius", nil, &out); err != nil {
+	if err := c.getKnowledgeJSON(ctx, "/changesets/"+url.PathEscape(id)+"/blast-radius", q, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil

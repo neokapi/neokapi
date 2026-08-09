@@ -157,9 +157,55 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	userID, _ := c.Get("user_id").(string)
 
-	profiles, err := s.BrandStore.ListProfiles(ctx, wsID)
+	result, err := s.upsertBrandProfile(ctx, wsID, userID, req, "superseded by kapi push")
 	if err != nil {
 		return serverErr(c, err)
+	}
+	switch result.Action {
+	case brandUpsertCreated:
+		return c.JSON(http.StatusCreated, BrandProfileUpsertResponse{Action: result.Action, Profile: result.Profile})
+	case brandUpsertUpdated:
+		s.emitAudit(c, auditEvent{
+			Type:         platev.EventBrandProfileUpdated,
+			ResourceType: "brand_profile",
+			ResourceID:   result.Profile.ID,
+			Data:         map[string]string{"name": result.Profile.Name, "via": "push"},
+			Before:       map[string]string{"version": strconv.Itoa(result.BeforeVersion)},
+			After:        map[string]string{"version": strconv.Itoa(result.Profile.Version)},
+		})
+	}
+	return c.JSON(http.StatusOK, BrandProfileUpsertResponse{Action: result.Action, Profile: result.Profile})
+}
+
+// The three outcomes of a brand-profile upsert.
+const (
+	brandUpsertCreated   = "created"
+	brandUpsertUpdated   = "updated"
+	brandUpsertUnchanged = "unchanged"
+)
+
+// brandProfileUpsert is the outcome of upsertBrandProfile: the stored profile,
+// which of the three actions produced it, and the version an update superseded
+// (zero unless Action is "updated").
+type brandProfileUpsert struct {
+	Profile       *coreprofile.VoiceProfile
+	Action        string
+	BeforeVersion int
+}
+
+// upsertBrandProfile creates or updates the workspace profile matching req by
+// name, case-insensitively, and reports which it did. An update archives the
+// current state as an immutable version under versionNote before bumping;
+// identical content is a no-op. Server-promoted vocabulary rules the request
+// does not carry are folded back in, so an upsert from stale content never
+// reverts a promotion.
+//
+// The caller emits any audit event: the same upsert is reached from a push and
+// from a brand-scan approval, and those are not the same act.
+func (s *Server) upsertBrandProfile(ctx context.Context, wsID, userID string, req BrandProfileRequest, versionNote string) (brandProfileUpsert, error) {
+	profiles, err := s.BrandStore.ListProfiles(ctx, wsID)
+	if err != nil {
+		return brandProfileUpsert{}, err
 	}
 	var existing *coreprofile.VoiceProfile
 	for _, p := range profiles {
@@ -189,12 +235,12 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 			CreatedBy:   userID,
 		}
 		if err := s.BrandStore.CreateProfile(ctx, profile); err != nil {
-			return serverErr(c, err)
+			return brandProfileUpsert{}, err
 		}
-		return c.JSON(http.StatusCreated, BrandProfileUpsertResponse{Action: "created", Profile: profile})
+		return brandProfileUpsert{Profile: profile, Action: brandUpsertCreated}, nil
 	}
 
-	// The effective pushed vocabulary keeps the server's promoted rules.
+	// The effective incoming vocabulary keeps the server's promoted rules.
 	vocab := req.Vocabulary
 	s.preservePromotedRules(ctx, existing, &vocab)
 
@@ -203,10 +249,10 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 	current := brandContentOf(existing.Name, existing.Description, existing.Tone, existing.Style,
 		existing.Vocabulary, existing.Examples, existing.Locales, existing.Channels, existing.Personas)
 	if reflect.DeepEqual(incoming, current) {
-		return c.JSON(http.StatusOK, BrandProfileUpsertResponse{Action: "unchanged", Profile: existing})
+		return brandProfileUpsert{Profile: existing, Action: brandUpsertUnchanged}, nil
 	}
 
-	beforeVersion := strconv.Itoa(existing.Version)
+	beforeVersion := existing.Version
 	existing.Name = req.Name
 	existing.Description = req.Description
 	existing.Tone = req.Tone
@@ -216,23 +262,15 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 	existing.Locales = req.Locales
 	existing.Channels = req.Channels
 	existing.Personas = req.Personas
-	existing.VersionNote = "superseded by kapi push"
+	existing.VersionNote = versionNote
 	existing.UpdatedAt = time.Now().UTC()
 
 	// UpdateProfile archives the current state as an immutable ProfileVersion
-	// and bumps existing.Version — the pushed change lands as a new version.
+	// and bumps existing.Version — the incoming change lands as a new version.
 	if err := s.BrandStore.UpdateProfile(ctx, existing); err != nil {
-		return serverErr(c, err)
+		return brandProfileUpsert{}, err
 	}
-	s.emitAudit(c, auditEvent{
-		Type:         platev.EventBrandProfileUpdated,
-		ResourceType: "brand_profile",
-		ResourceID:   existing.ID,
-		Data:         map[string]string{"name": existing.Name, "via": "push"},
-		Before:       map[string]string{"version": beforeVersion},
-		After:        map[string]string{"version": strconv.Itoa(existing.Version)},
-	})
-	return c.JSON(http.StatusOK, BrandProfileUpsertResponse{Action: "updated", Profile: existing})
+	return brandProfileUpsert{Profile: existing, Action: brandUpsertUpdated, BeforeVersion: beforeVersion}, nil
 }
 
 // brandProfileContent is the authored surface of a voice profile the push

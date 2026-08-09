@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,6 +37,7 @@ import (
 func (s *Server) registerChangesetRoutes(g *echo.Group) {
 	// Collection + single change-set.
 	g.GET("/changesets", s.HandleListChangeSets)
+	g.GET("/changesets/counts", s.HandleGetChangeSetCounts)
 	g.POST("/changesets", s.HandleCreateChangeSet)
 	g.GET("/changesets/:id", s.HandleGetChangeSet)
 	g.PATCH("/changesets/:id", s.HandleUpdateChangeSet)
@@ -121,8 +123,28 @@ type ChangeSetDetailResponse struct {
 // Collection + single change-set
 // ---------------------------------------------------------------------------
 
+// ChangeSetCountsResponse is the workspace's change-sets bucketed by lifecycle
+// status. Every known status is present, zero included.
+type ChangeSetCountsResponse struct {
+	Total    int            `json:"total"`
+	ByStatus map[string]int `json:"by_status"`
+}
+
+// changeSetStatusOrder is the lifecycle vocabulary in reading order, so a
+// bucketed count lists the same statuses in the same order everywhere.
+var changeSetStatusOrder = []knowledge.ChangeSetStatus{
+	knowledge.ChangeSetDraft,
+	knowledge.ChangeSetInReview,
+	knowledge.ChangeSetApproved,
+	knowledge.ChangeSetMerged,
+	knowledge.ChangeSetAbandoned,
+	knowledge.ChangeSetSuperseded,
+}
+
 // HandleListChangeSets lists the workspace's change-sets, newest first, optionally
-// filtered to a single status.
+// filtered to a single status. Each carries ops_count — the number of edits it
+// holds — counted in the list query, so a caller never reads a change-set's
+// detail to say "N changes".
 func (s *Server) HandleListChangeSets(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
@@ -135,14 +157,43 @@ func (s *Server) HandleListChangeSets(c echo.Context) error {
 	if status != "" && !status.IsValid() {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("unknown change-set status %q", status)})
 	}
-	sets, err := s.KnowledgeStore.ListChangeSets(c.Request().Context(), wsID, status)
+	sets, err := s.KnowledgeStore.ListChangeSetSummaries(c.Request().Context(), wsID, status)
 	if err != nil {
 		return serverErr(c, err)
 	}
 	if sets == nil {
-		sets = []*knowledge.ChangeSet{}
+		sets = []*knowledge.ChangeSetSummary{}
 	}
 	return c.JSON(http.StatusOK, sets)
+}
+
+// HandleGetChangeSetCounts returns the workspace's change-sets bucketed by
+// status, from one grouped query — so a dashboard reads the buckets without
+// downloading the list to count it.
+func (s *Server) HandleGetChangeSetCounts(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
+	if s.KnowledgeStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: errKnowledgeUnavailable.Error()})
+	}
+	wsID, _ := c.Get("workspace_id").(string)
+	counts, err := s.KnowledgeStore.CountChangeSetsByStatus(c.Request().Context(), wsID)
+	if err != nil {
+		return serverErr(c, err)
+	}
+
+	resp := ChangeSetCountsResponse{ByStatus: make(map[string]int, len(changeSetStatusOrder))}
+	for _, status := range changeSetStatusOrder {
+		resp.ByStatus[string(status)] = counts[status]
+	}
+	// Total counts every change-set the workspace holds, including one in a
+	// status this build does not know: the buckets can lag the data, the total
+	// must not.
+	for _, n := range counts {
+		resp.Total += n
+	}
+	return c.JSON(http.StatusOK, resp)
 }
 
 // HandleCreateChangeSet opens a new draft change-set and announces it.
@@ -431,6 +482,10 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 	governed, _ := knowledge.ChangeSetIsGoverned(changeSetOpValues(ops))
 	s.summonChangeSetReviewers(c, cs, len(ops), governed)
 
+	// Compute the blast radius once, here, off the request: every reviewer's
+	// dashboard then reads a stored summary instead of re-walking every block.
+	go s.recordChangeSetImpact(context.WithoutCancel(ctx), c.Param("ws"), wsID, cs.ID)
+
 	return s.refreshedChangeSet(c, wsID, cs.ID)
 }
 
@@ -665,17 +720,22 @@ func (s *Server) HandleAbandonChangeSet(c echo.Context) error {
 // Blast radius + pilots
 // ---------------------------------------------------------------------------
 
-// HandleChangeSetBlastRadius previews a change-set's blast radius over the
+// HandleChangeSetBlastRadius reports a change-set's blast radius over the
 // workspace's stored content — how many blocks the draft would newly flag or
-// resolve, per project → collection → (stream, locale) — including the content
-// already exercising the draft through its pilot streams. Nothing is persisted.
+// resolve — including the content already exercising the draft through its
+// pilot streams. Nothing is persisted here.
+//
+// A submitted change-set carries the summary computed at submit, and that is
+// what this returns: totals, stamped with when they were computed, in one row
+// read. ?fresh=1 (and any change-set with no stored summary) runs the live
+// walk, which is the only path that carries the per-project breakdown and the
+// samples.
 func (s *Server) HandleChangeSetBlastRadius(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
 	}
-	engine, err := s.knowledgeEngineFor(c.Param("ws"))
-	if err != nil {
-		return serverErrStatus(c, http.StatusServiceUnavailable, err)
+	if s.KnowledgeStore == nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, errKnowledgeUnavailable)
 	}
 	wsID, _ := c.Get("workspace_id").(string)
 	ctx := c.Request().Context()
@@ -684,19 +744,15 @@ func (s *Server) HandleChangeSetBlastRadius(c echo.Context) error {
 	if cs == nil {
 		return resp
 	}
-	opPtrs, err := s.KnowledgeStore.ListOps(ctx, wsID, cs.ID)
-	if err != nil {
-		return serverErr(c, err)
-	}
-	pilots, err := s.KnowledgeStore.ListPilots(ctx, wsID, cs.ID)
-	if err != nil {
-		return serverErr(c, err)
+	if cs.Impact != nil && c.QueryParam("fresh") != "1" {
+		return c.JSON(http.StatusOK, cs.Impact.Report())
 	}
 
-	impact, err := engine.EvaluateChangeSet(ctx, wsID, *cs, changeSetOpValues(opPtrs), knowledge.EvalOptions{
-		PilotStreams: pilotStreams(pilots),
-		Budget:       blastRadiusBudget,
-	})
+	engine, err := s.knowledgeEngineFor(c.Param("ws"))
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
+	}
+	impact, err := s.evaluateChangeSetImpact(ctx, engine, wsID, cs)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -705,6 +761,55 @@ func (s *Server) HandleChangeSetBlastRadius(c echo.Context) error {
 			"workspace_id", wsID, "change_set_id", cs.ID, "scanned", impact.TotalBlocks)
 	}
 	return c.JSON(http.StatusOK, impact)
+}
+
+// evaluateChangeSetImpact runs the bounded blast-radius walk for one
+// change-set, including its pilot streams.
+func (s *Server) evaluateChangeSetImpact(ctx context.Context, engine *knowledge.Engine, wsID string, cs *knowledge.ChangeSet) (*knowledge.ChangeSetImpact, error) {
+	opPtrs, err := s.KnowledgeStore.ListOps(ctx, wsID, cs.ID)
+	if err != nil {
+		return nil, err
+	}
+	pilots, err := s.KnowledgeStore.ListPilots(ctx, wsID, cs.ID)
+	if err != nil {
+		return nil, err
+	}
+	return engine.EvaluateChangeSet(ctx, wsID, *cs, changeSetOpValues(opPtrs), knowledge.EvalOptions{
+		PilotStreams: pilotStreams(pilots),
+		Budget:       blastRadiusBudget,
+	})
+}
+
+// recordChangeSetImpact walks a submitted change-set's blast radius once and
+// stores the summary on it, so every later reader answers from a row rather
+// than repeating the slowest read in the platform.
+//
+// Best-effort and detached from the submit: a submit never waits on the walk,
+// and a walk that errors leaves no summary, which sends the blast-radius
+// endpoint back to a live scan. A walk that ran out of budget IS stored — with
+// its Partial flag intact, so the floor still reads as a floor.
+func (s *Server) recordChangeSetImpact(ctx context.Context, wsSlug, wsID, changesetID string) {
+	engine, err := s.knowledgeEngineFor(wsSlug)
+	if err != nil {
+		slog.DebugContext(ctx, "no blast-radius summary at submit: knowledge engine unavailable",
+			"workspace_id", wsID, "change_set_id", changesetID, "error", err)
+		return
+	}
+	cs, err := s.KnowledgeStore.GetChangeSet(ctx, wsID, changesetID)
+	if err != nil {
+		return
+	}
+	impact, err := s.evaluateChangeSetImpact(ctx, engine, wsID, cs)
+	if err != nil {
+		slog.WarnContext(ctx, "blast-radius summary not stored: the walk failed",
+			"workspace_id", wsID, "change_set_id", changesetID, "error", err)
+		return
+	}
+	summary := impact.Summarize(time.Now().UTC())
+	if err := s.KnowledgeStore.SetChangeSetImpact(ctx, wsID, changesetID, &summary); err != nil {
+		slog.WarnContext(ctx, "blast-radius summary not stored: the write failed",
+			"workspace_id", wsID, "change_set_id", changesetID, "error", err)
+	}
 }
 
 // blastRadiusBudget bounds the blast-radius walk.

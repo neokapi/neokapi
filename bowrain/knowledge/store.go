@@ -80,6 +80,16 @@ type Store interface {
 	// ListChangeSets returns the workspace's change-sets. A non-empty status
 	// filters to that status; an empty status returns all, newest first.
 	ListChangeSets(ctx context.Context, workspaceID string, status ChangeSetStatus) ([]*ChangeSet, error)
+	// ListChangeSetSummaries returns the same page as ListChangeSets with each
+	// change-set's op count attached, counted in the same query.
+	ListChangeSetSummaries(ctx context.Context, workspaceID string, status ChangeSetStatus) ([]*ChangeSetSummary, error)
+	// CountChangeSetsByStatus returns how many change-sets the workspace holds
+	// in each lifecycle status. Statuses with none are absent from the map.
+	CountChangeSetsByStatus(ctx context.Context, workspaceID string) (map[ChangeSetStatus]int, error)
+	// SetChangeSetImpact stores the blast-radius summary on a change-set, or
+	// clears it when summary is nil. It touches no other field, including
+	// UpdatedAt: a computed summary is not an edit.
+	SetChangeSetImpact(ctx context.Context, workspaceID, changesetID string, summary *ImpactSummary) error
 	// UpdateChangeSet persists a change-set's mutable header fields (name,
 	// description) and bumps UpdatedAt. It is used for ordinary draft edits;
 	// status changes go through SetChangeSetStatus / SetMergeResult, not here.

@@ -30,16 +30,17 @@ func TestBaselineVersionsSitAboveRetiredOnes(t *testing.T) {
 	// Store and jobs sit above the rest because they were consolidated more
 	// than once: migrations appended after a fold (store 16-19, jobs 8-9) were
 	// themselves folded, and every number they spent stays spent. A baseline
-	// edited in place spends its old number too: auth 8 and knowledge 2 and 3
-	// were baselines before the machine author identity, the solo self-approval
-	// marker and change-set supersession were folded into them, store 20 before
+	// edited in place spends its old number too: auth 8 and knowledge 2, 3 and
+	// 4 were baselines before the machine author identity, the solo
+	// self-approval marker, change-set supersession and the stored
+	// blast-radius summary were folded into them, store 20 before
 	// the audit event key, jobs 9 before created_by, billing 7 before the
 	// deduction idempotency index, and extraction 2 before its attempt and
 	// lease bookkeeping.
 	highestEverIssued := map[string]int{
 		"store": 20, "auth": 8, "jobs": 9, "quota": 3, "runner": 1,
 		"extraction": 2, "brand_scan": 1, "model_sweep": 1, "brand": 2,
-		"knowledge": 3, "agent": 1, "billing": 7, "platform_config": 1,
+		"knowledge": 4, "agent": 1, "billing": 7, "platform_config": 1,
 		"terms": 4, "memory": 5,
 	}
 

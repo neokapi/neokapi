@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/knowledge"
+	sqltb "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
@@ -32,6 +34,8 @@ func (s *Server) registerConceptRoutes(g *echo.Group) {
 	// Concept collection + single concept.
 	g.GET("/concepts", s.HandleListConcepts)
 	g.GET("/concepts/count", s.HandleGetConceptCount)
+	g.GET("/concepts/status-counts", s.HandleGetConceptStatusCounts)
+	g.GET("/concepts/locale-coverage", s.HandleGetConceptLocaleCoverage)
 	g.POST("/concepts", s.HandleCreateConcept)
 
 	// Import/export (renamed from /terms/...; behavior preserved).
@@ -141,10 +145,14 @@ type ConceptStoryResponse struct {
 // Concept CRUD
 // ---------------------------------------------------------------------------
 
+// conceptSortUpdatedAt is the one value the concept list's sort param accepts:
+// most recently updated first.
+const conceptSortUpdatedAt = "updated_at"
+
 // HandleListConcepts searches the workspace's concepts, narrowing the page by
 // status, domain, market, locale, and source. The locale query param scopes the
 // text search to a source locale; stream inheritance is honored when a non-main
-// stream is given.
+// stream is given; sort=updated_at pages the workspace newest-changed first.
 func (s *Server) HandleListConcepts(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
@@ -165,6 +173,12 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 	if limit <= 0 {
 		limit = 50
 	}
+	sortBy := c.QueryParam("sort")
+	if sortBy != "" && sortBy != conceptSortUpdatedAt {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error: fmt.Sprintf("unknown sort %q (the concept list sorts by %q)", sortBy, conceptSortUpdatedAt),
+		})
+	}
 
 	tb, err := s.wsStores.getTB(ws)
 	if err != nil {
@@ -175,14 +189,22 @@ func (s *Server) HandleListConcepts(c echo.Context) error {
 	stream := c.QueryParam("stream")
 	var concepts []terms.Concept
 	var total int
-	if stream != "" && stream != "main" && s.ContentStore != nil {
+	switch {
+	case stream != "" && stream != "main" && s.ContentStore != nil:
 		chain := buildStreamChain(ctx, s.ContentStore, c.QueryParam("project_id"), stream)
 		concepts, total, err = tb.SearchForStream(ctx, query, locale, "", stream, chain[1:], offset, limit)
-	} else {
+	case sortBy == conceptSortUpdatedAt:
+		concepts, total, err = searchConceptsByRecency(ctx, tb, query, locale, offset, limit)
+	default:
 		concepts, total, err = tb.Search(ctx, query, locale, "", offset, limit)
 	}
 	if err != nil {
 		return serverErr(c, err)
+	}
+	if sortBy == conceptSortUpdatedAt {
+		sort.SliceStable(concepts, func(i, j int) bool {
+			return concepts[i].UpdatedAt.After(concepts[j].UpdatedAt)
+		})
 	}
 
 	// Post-filter the page by the graph-specific facets. These facets are derived
@@ -226,6 +248,105 @@ func (s *Server) HandleGetConceptCount(c echo.Context) error {
 		return serverErr(c, err)
 	}
 	return c.JSON(http.StatusOK, map[string]int{"count": count})
+}
+
+// ConceptStatusCountsResponse is the workspace vocabulary counted by term
+// lifecycle status. Every known status is present, zero included, so a caller
+// renders a stable set of bars.
+type ConceptStatusCountsResponse struct {
+	Total    int            `json:"total"`
+	ByStatus map[string]int `json:"by_status"`
+}
+
+// LocaleCoverageResponse is per-locale concept coverage over the whole
+// workspace, most complete locale first.
+type LocaleCoverageResponse struct {
+	Total   int                    `json:"total"`
+	Locales []sqltb.LocaleCoverage `json:"locales"`
+}
+
+// HandleGetConceptStatusCounts returns the workspace's concept total and the
+// number of concepts carrying a term at each lifecycle status, from one grouped
+// query rather than a list call per status.
+func (s *Server) HandleGetConceptStatusCounts(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+	tb, err := s.wsStores.getTB(c.Param("ws"))
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
+	}
+
+	ctx := c.Request().Context()
+	var counts sqltb.ConceptCounts
+	if agg, ok := tb.(sqltb.ConceptAggregates); ok {
+		counts, err = agg.ConceptCounts(ctx)
+	} else {
+		var all []terms.Concept
+		all, err = tb.Concepts(ctx)
+		counts = sqltb.CountsFromConcepts(all)
+	}
+	if err != nil {
+		return serverErr(c, err)
+	}
+
+	byStatus := make(map[string]int, len(sqltb.TermStatusOrder))
+	for _, status := range sqltb.TermStatusOrder {
+		byStatus[string(status)] = counts.ByStatus[status]
+	}
+	return c.JSON(http.StatusOK, ConceptStatusCountsResponse{Total: counts.Total, ByStatus: byStatus})
+}
+
+// HandleGetConceptLocaleCoverage returns, per locale, how many of the
+// workspace's concepts define a term in it — computed over every concept, not a
+// page of them.
+func (s *Server) HandleGetConceptLocaleCoverage(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+	tb, err := s.wsStores.getTB(c.Param("ws"))
+	if err != nil {
+		return serverErrStatus(c, http.StatusServiceUnavailable, err)
+	}
+
+	ctx := c.Request().Context()
+	var coverage []sqltb.LocaleCoverage
+	if agg, ok := tb.(sqltb.ConceptAggregates); ok {
+		coverage, err = agg.ConceptLocaleCoverage(ctx)
+	} else {
+		var all []terms.Concept
+		all, err = tb.Concepts(ctx)
+		coverage = sqltb.CoverageFromConcepts(all)
+	}
+	if err != nil {
+		return serverErr(c, err)
+	}
+
+	total := 0
+	if len(coverage) > 0 {
+		total = coverage[0].Total
+	} else if total, err = tb.Count(ctx); err != nil {
+		return serverErr(c, err)
+	}
+	if coverage == nil {
+		coverage = []sqltb.LocaleCoverage{}
+	}
+	return c.JSON(http.StatusOK, LocaleCoverageResponse{Total: total, Locales: coverage})
+}
+
+// searchConceptsByRecency pages concepts newest-updated first, in the database
+// when the store can order there and over the requested page otherwise.
+func searchConceptsByRecency(ctx context.Context, tb terms.Store, query string, locale model.LocaleID, offset, limit int) ([]terms.Concept, int, error) {
+	if rs, ok := tb.(sqltb.RecentSearcher); ok {
+		return rs.SearchRecent(ctx, query, locale, "", offset, limit)
+	}
+	return tb.Search(ctx, query, locale, "", offset, limit)
 }
 
 // HandleCreateConcept creates a concept through ordinary curation. Creating a

@@ -99,6 +99,65 @@ type ChangeSetImpact struct {
 	Partial bool `json:"partial,omitempty"`
 	// PartialReason names why the walk stopped (e.g. "time budget exhausted").
 	PartialReason string `json:"partial_reason,omitempty"`
+
+	// Stored reports that this report came from the summary computed when the
+	// change-set was submitted rather than from a walk run for this request.
+	// The totals stand as of ComputedAt; Projects and Samples are absent. A
+	// caller that needs the breakdown asks for a fresh scan.
+	Stored bool `json:"stored,omitempty"`
+	// ComputedAt stamps a stored summary. Nil on a live walk.
+	ComputedAt *time.Time `json:"computed_at,omitempty"`
+}
+
+// ImpactSummary is the headline of a change-set's blast radius: the totals plus
+// the number of projects they span, without the per-project breakdown or the
+// samples. It is computed once when a change-set is submitted and stored on it,
+// so every later reader answers from one row instead of a walk over every
+// stored block.
+type ImpactSummary struct {
+	TotalBlocks    int       `json:"total_blocks"`
+	AffectedBlocks int       `json:"affected_blocks"`
+	NewViolations  int       `json:"new_violations"`
+	Resolved       int       `json:"resolved"`
+	Words          int       `json:"words"`
+	Projects       int       `json:"projects"`
+	Partial        bool      `json:"partial,omitempty"`
+	PartialReason  string    `json:"partial_reason,omitempty"`
+	ComputedAt     time.Time `json:"computed_at"`
+}
+
+// Summarize reduces a walked impact report to the summary stored on the
+// change-set, stamped at.
+func (i ChangeSetImpact) Summarize(at time.Time) ImpactSummary {
+	return ImpactSummary{
+		TotalBlocks:    i.TotalBlocks,
+		AffectedBlocks: i.AffectedBlocks,
+		NewViolations:  i.NewViolations,
+		Resolved:       i.Resolved,
+		Words:          i.Words,
+		Projects:       len(i.Projects),
+		Partial:        i.Partial,
+		PartialReason:  i.PartialReason,
+		ComputedAt:     at.UTC(),
+	}
+}
+
+// Report renders a stored summary as an impact report, flagged Stored and
+// stamped with the instant it was computed. Projects and Samples stay empty:
+// the summary never carried them.
+func (s ImpactSummary) Report() ChangeSetImpact {
+	at := s.ComputedAt
+	return ChangeSetImpact{
+		TotalBlocks:    s.TotalBlocks,
+		AffectedBlocks: s.AffectedBlocks,
+		NewViolations:  s.NewViolations,
+		Resolved:       s.Resolved,
+		Words:          s.Words,
+		Partial:        s.Partial,
+		PartialReason:  s.PartialReason,
+		Stored:         true,
+		ComputedAt:     &at,
+	}
 }
 
 // ProjectImpact is the per-project slice of a ChangeSetImpact.

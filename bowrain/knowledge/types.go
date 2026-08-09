@@ -240,6 +240,17 @@ type ChangeSet struct {
 	SubmittedAt  *time.Time `json:"submitted_at,omitempty"`
 	MergedAt     *time.Time `json:"merged_at,omitempty"`
 	MergedBy     string     `json:"merged_by,omitempty"`
+	// Impact is the blast-radius summary computed when the change-set was
+	// submitted. Nil while a draft, and nil when the submit-time walk did not
+	// finish — readers then fall back to a live scan.
+	Impact *ImpactSummary `json:"impact_summary,omitempty"`
+}
+
+// ChangeSetSummary is a change-set header with the number of ops it carries, so
+// a list view reports "N changes" without reading each change-set's ops.
+type ChangeSetSummary struct {
+	*ChangeSet
+	OpsCount int `json:"ops_count"`
 }
 
 // ChangeSetOp is a single ordered operation within a change-set. Seq orders ops
