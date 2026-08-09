@@ -16,6 +16,8 @@ export {
     BlockInfo,
     BlockTargetInfo,
     BlockTermMatch,
+    BrandRollupArgs,
+    BrandRollupResult,
     CandidateRuleArgs,
     CollabSession,
     CollabUser,

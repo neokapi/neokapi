@@ -74,7 +74,8 @@ type TaskQuery struct {
 	AssigneeID  string
 	Status      string     // empty = all; use Statuses for multi-status filter
 	Statuses    []string   // if set, matches any of these statuses (overrides Status)
-	Type        string     // empty = all
+	Type        string     // empty = all; use Types for a multi-type filter
+	Types       []string   // if set, matches any of these types (overrides Type)
 	Priority    string     // empty = all
 	DueBefore   *time.Time // if set, only tasks with due_at <= this time
 	Limit       int
@@ -152,70 +153,82 @@ func (s *TaskStore) Get(ctx context.Context, taskID string) (*Task, error) {
 	return scanTask(row)
 }
 
+// taskWhere renders the query's filters as a WHERE clause of $N placeholder
+// tokens plus the values they bind. Every value travels through args; the
+// clause text is assembled from constants only.
+//
+// Counts and the list share it, so the kanban column totals and the rows a
+// column pages through always describe the same set.
+func taskWhere(q TaskQuery) (clause string, args []any) {
+	var where []string
+	next := func() string { return fmt.Sprintf("$%d", len(args)+1) }
+
+	if q.WorkspaceID != "" {
+		where = append(where, "workspace_id = "+next())
+		args = append(args, q.WorkspaceID)
+	}
+	if q.ProjectID != "" {
+		where = append(where, "project_id = "+next())
+		args = append(args, q.ProjectID)
+	}
+	if q.AssigneeID != "" {
+		where = append(where, "assignee_id = "+next())
+		args = append(args, q.AssigneeID)
+	}
+	if len(q.Statuses) > 0 {
+		placeholders := make([]string, len(q.Statuses))
+		for i, st := range q.Statuses {
+			placeholders[i] = next()
+			args = append(args, st)
+		}
+		where = append(where, "status IN ("+strings.Join(placeholders, ",")+")")
+	} else if q.Status != "" {
+		where = append(where, "status = "+next())
+		args = append(args, q.Status)
+	}
+	if len(q.Types) > 0 {
+		placeholders := make([]string, len(q.Types))
+		for i, ty := range q.Types {
+			placeholders[i] = next()
+			args = append(args, ty)
+		}
+		where = append(where, "type IN ("+strings.Join(placeholders, ",")+")")
+	} else if q.Type != "" {
+		where = append(where, "type = "+next())
+		args = append(args, q.Type)
+	}
+	if q.Priority != "" {
+		where = append(where, "priority = "+next())
+		args = append(args, q.Priority)
+	}
+	if q.DueBefore != nil {
+		where = append(where, "due_at IS NOT NULL AND due_at <= "+next())
+		args = append(args, q.DueBefore.UTC().Format(time.RFC3339))
+	}
+	if q.Cursor != "" {
+		where = append(where, "created_at < "+next())
+		args = append(args, q.Cursor)
+	}
+
+	if len(where) == 0 {
+		return "", args
+	}
+	return "WHERE " + strings.Join(where, " AND "), args
+}
+
 // List returns tasks matching the query.
 func (s *TaskStore) List(ctx context.Context, q TaskQuery) (*TaskResult, error) {
 	if q.Limit <= 0 {
 		q.Limit = 50
 	}
 
-	var where []string
-	var args []any
-	argN := 0
-	nextArg := func() string {
-		argN++
-		return fmt.Sprintf("$%d", argN)
-	}
-
-	if q.WorkspaceID != "" {
-		where = append(where, "workspace_id = "+nextArg())
-		args = append(args, q.WorkspaceID)
-	}
-	if q.ProjectID != "" {
-		where = append(where, "project_id = "+nextArg())
-		args = append(args, q.ProjectID)
-	}
-	if q.AssigneeID != "" {
-		where = append(where, "assignee_id = "+nextArg())
-		args = append(args, q.AssigneeID)
-	}
-	if len(q.Statuses) > 0 {
-		placeholders := make([]string, len(q.Statuses))
-		for i, st := range q.Statuses {
-			placeholders[i] = nextArg()
-			args = append(args, st)
-		}
-		where = append(where, "status IN ("+strings.Join(placeholders, ",")+")")
-	} else if q.Status != "" {
-		where = append(where, "status = "+nextArg())
-		args = append(args, q.Status)
-	}
-	if q.Type != "" {
-		where = append(where, "type = "+nextArg())
-		args = append(args, q.Type)
-	}
-	if q.Priority != "" {
-		where = append(where, "priority = "+nextArg())
-		args = append(args, q.Priority)
-	}
-	if q.DueBefore != nil {
-		where = append(where, "due_at IS NOT NULL AND due_at <= "+nextArg())
-		args = append(args, q.DueBefore.UTC().Format(time.RFC3339))
-	}
-	if q.Cursor != "" {
-		where = append(where, "created_at < "+nextArg())
-		args = append(args, q.Cursor)
-	}
-
-	whereClause := ""
-	if len(where) > 0 {
-		whereClause = "WHERE " + strings.Join(where, " AND ")
-	}
+	whereClause, args := taskWhere(q)
 
 	query := fmt.Sprintf(
 		`SELECT id, workspace_id, project_id, stream, type, status, priority,
 		 title, description, assignee_id, created_by, completed_by, data, due_at,
 		 created_at, updated_at, completed_at
-		 FROM tasks %s ORDER BY created_at DESC LIMIT %s`, whereClause, nextArg())
+		 FROM tasks %s ORDER BY created_at DESC LIMIT $%d`, whereClause, len(args)+1)
 	args = append(args, q.Limit+1)
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
@@ -245,6 +258,46 @@ func (s *TaskStore) List(ctx context.Context, q TaskQuery) (*TaskResult, error) 
 	}
 
 	return result, nil
+}
+
+// TaskCounts is the status rollup for a task query: one total per status plus
+// the sum across all of them.
+type TaskCounts struct {
+	ByStatus map[string]int `json:"by_status"`
+	Total    int            `json:"total"`
+}
+
+// Counts returns how many tasks match the query, grouped by status. Limit and
+// Cursor are ignored — a column header counts the whole set, not the page. The
+// map carries every known status, zero-filled, so a board renders an empty
+// column rather than omitting it.
+func (s *TaskStore) Counts(ctx context.Context, q TaskQuery) (*TaskCounts, error) {
+	q.Limit, q.Cursor = 0, ""
+	whereClause, args := taskWhere(q)
+
+	query := fmt.Sprintf(`SELECT status, COUNT(*) FROM tasks %s GROUP BY status`, whereClause)
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := &TaskCounts{ByStatus: map[string]int{
+		string(TaskStatusOpen):       0,
+		string(TaskStatusInProgress): 0,
+		string(TaskStatusCompleted):  0,
+		string(TaskStatusCancelled):  0,
+	}}
+	for rows.Next() {
+		var status string
+		var n int
+		if err := rows.Scan(&status, &n); err != nil {
+			return nil, err
+		}
+		counts.ByStatus[status] = n
+		counts.Total += n
+	}
+	return counts, rows.Err()
 }
 
 // CountOpenByType returns how many tasks of the given type are open or

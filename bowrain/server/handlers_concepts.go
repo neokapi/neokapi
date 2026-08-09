@@ -43,6 +43,8 @@ func (s *Server) registerConceptRoutes(g *echo.Group) {
 	g.POST("/concepts/import/json", s.HandleImportConceptsJSON)
 	g.GET("/concepts/export/json", s.HandleExportConceptsJSON)
 
+	g.POST("/concepts/bulk-delete", s.HandleBulkDeleteConcepts)
+
 	g.GET("/concepts/:cid", s.HandleGetConcept)
 	g.PUT("/concepts/:cid", s.HandleUpdateConcept)
 	g.DELETE("/concepts/:cid", s.HandleDeleteConcept)

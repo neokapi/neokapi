@@ -267,3 +267,65 @@ func TestGovernanceReturnsDecodedJSON(t *testing.T) {
 	assert.Equal(t, "utilize", candidates[0]["term"])
 	assert.Equal(t, "pending", candidates[0]["status"])
 }
+
+// The rollup is the server's aggregation, proxied whole — the desktop no
+// longer needs a local recomposition that cannot resolve the profile ladder.
+func TestGetBrandRollup(t *testing.T) {
+	overall := 82
+	app, rec := newGovTestApp(t, func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"projects": []apiclient.BrandRollupEntry{{
+				ProjectID:    "p1",
+				ProjectName:  "Docs",
+				ProfileID:    "prof-1",
+				ProfileName:  "House voice",
+				Overall:      &overall,
+				Trend:        "up",
+				ScoredBlocks: 12,
+			}},
+			"total":  1,
+			"limit":  50,
+			"offset": 0,
+		})
+	})
+
+	out, err := app.GetBrandRollup("acme", BrandRollupArgs{Limit: 50, RecentDays: 7})
+	require.NoError(t, err)
+
+	assert.Equal(t, http.MethodGet, rec.method)
+	assert.Equal(t, "/api/v1/acme/brand-voice/rollup", rec.path)
+	assert.Equal(t, "Bearer tok-xyz", rec.auth)
+	assert.Contains(t, rec.query, "limit=50")
+	assert.Contains(t, rec.query, "recent_days=7")
+	assert.NotContains(t, rec.query, "offset", "a zero option is omitted, leaving the server default")
+
+	assert.False(t, out.Offline)
+	assert.Equal(t, 1, out.Total)
+	require.Len(t, out.Projects, 1)
+	assert.Equal(t, "Docs", out.Projects[0].ProjectName)
+	assert.Equal(t, "House voice", out.Projects[0].ProfileName,
+		"the effective profile comes from the server's resolution ladder")
+	require.NotNil(t, out.Projects[0].Overall)
+	assert.Equal(t, 82, *out.Projects[0].Overall)
+}
+
+func TestGetBrandRollupOffline(t *testing.T) {
+	app := newTestApp(t)
+
+	out, err := app.GetBrandRollup("acme", BrandRollupArgs{})
+	require.NoError(t, err, "offline is a marked empty answer, not an error")
+	assert.True(t, out.Offline)
+	assert.Equal(t, []apiclient.BrandRollupEntry{}, out.Projects)
+	assert.Equal(t, 0, out.Total)
+}
+
+func TestGetBrandRollupServerError(t *testing.T) {
+	app, _ := newGovTestApp(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"error":"brand voice not configured"}`))
+	})
+
+	out, err := app.GetBrandRollup("acme", BrandRollupArgs{})
+	require.Error(t, err)
+	assert.False(t, out.Offline, "a server error is not offline")
+}

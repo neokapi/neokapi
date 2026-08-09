@@ -52,6 +52,24 @@ type LedgerEntry struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+// LedgerQuery selects one page of a workspace's credit ledger.
+type LedgerQuery struct {
+	From      time.Time
+	To        time.Time
+	Operation string // empty = every operation
+	Limit     int
+	Offset    int
+}
+
+// LedgerPage is one page of ledger entries, newest first, plus the total number
+// of entries the same filter matches.
+type LedgerPage struct {
+	Entries []LedgerEntry `json:"entries"`
+	Total   int           `json:"total"`
+	Limit   int           `json:"limit"`
+	Offset  int           `json:"offset"`
+}
+
 // FeatureOverride allows per-workspace feature grants or revocations
 // that override the plan matrix. Managed via the control plane.
 type FeatureOverride struct {

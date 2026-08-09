@@ -93,7 +93,8 @@ type ActivityQuery struct {
 	ProjectID   string
 	Stream      string
 	ActorID     string
-	Type        string // prefix match (e.g., "block" matches "block.*")
+	Type        string   // prefix match (e.g., "block" matches "block.*")
+	Types       []string // if set, matches any of these prefixes (overrides Type)
 	Since       time.Time
 	Limit       int
 	Cursor      string // created_at cursor for pagination
@@ -170,7 +171,21 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 		where = append(where, "actor_id = "+ph())
 		args = append(args, q.ActorID)
 	}
-	if q.Type != "" {
+	// A single prefix cannot express a set that spans families ("review.*" plus
+	// "task.*"), so Types ORs one LIKE per prefix.
+	if len(q.Types) > 0 {
+		likes := make([]string, 0, len(q.Types))
+		for _, t := range q.Types {
+			if t == "" {
+				continue
+			}
+			likes = append(likes, "type LIKE "+ph())
+			args = append(args, t+"%")
+		}
+		if len(likes) > 0 {
+			where = append(where, "("+strings.Join(likes, " OR ")+")")
+		}
+	} else if q.Type != "" {
 		where = append(where, "type LIKE "+ph())
 		args = append(args, q.Type+"%")
 	}

@@ -371,7 +371,7 @@ func (c *BowrainClient) ListConcepts(ctx context.Context, params ListConceptsPar
 		q.Set("limit", strconv.Itoa(params.Limit))
 	}
 	var out ConceptSearchResult
-	if err := c.getKnowledgeJSON(ctx, "/concepts", q, &out); err != nil {
+	if err := c.getWorkspaceJSON(ctx, "/concepts", q, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -382,7 +382,7 @@ func (c *BowrainClient) ListConcepts(ctx context.Context, params ListConceptsPar
 // (GET /api/v1/:ws/concepts/status-counts).
 func (c *BowrainClient) ConceptStatusCounts(ctx context.Context) (*ConceptStatusCounts, error) {
 	var out ConceptStatusCounts
-	if err := c.getKnowledgeJSON(ctx, "/concepts/status-counts", nil, &out); err != nil {
+	if err := c.getWorkspaceJSON(ctx, "/concepts/status-counts", nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -392,7 +392,7 @@ func (c *BowrainClient) ConceptStatusCounts(ctx context.Context) (*ConceptStatus
 // in the workspace (GET /api/v1/:ws/concepts/locale-coverage).
 func (c *BowrainClient) ConceptLocaleCoverage(ctx context.Context) (*LocaleCoverageReport, error) {
 	var out LocaleCoverageReport
-	if err := c.getKnowledgeJSON(ctx, "/concepts/locale-coverage", nil, &out); err != nil {
+	if err := c.getWorkspaceJSON(ctx, "/concepts/locale-coverage", nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -402,7 +402,7 @@ func (c *BowrainClient) ConceptLocaleCoverage(ctx context.Context) (*LocaleCover
 // (GET /api/v1/:ws/concepts/:cid/story).
 func (c *BowrainClient) GetConceptStory(ctx context.Context, conceptID string) (*ConceptStory, error) {
 	var out ConceptStory
-	if err := c.getKnowledgeJSON(ctx, "/concepts/"+url.PathEscape(conceptID)+"/story", nil, &out); err != nil {
+	if err := c.getWorkspaceJSON(ctx, "/concepts/"+url.PathEscape(conceptID)+"/story", nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -422,7 +422,7 @@ func (c *BowrainClient) ListConceptRelations(ctx context.Context, conceptID, asO
 		q.Set("market", market)
 	}
 	var out []terms.ConceptRelation
-	if err := c.getKnowledgeJSON(ctx, "/concepts/"+url.PathEscape(conceptID)+"/relations", q, &out); err != nil {
+	if err := c.getWorkspaceJSON(ctx, "/concepts/"+url.PathEscape(conceptID)+"/relations", q, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -451,7 +451,7 @@ func (c *BowrainClient) GetGraph(ctx context.Context, params GraphParams) (*Grap
 		q.Set("market", params.Market)
 	}
 	var out GraphViz
-	if err := c.getKnowledgeJSON(ctx, "/graph", q, &out); err != nil {
+	if err := c.getWorkspaceJSON(ctx, "/graph", q, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -465,7 +465,7 @@ func (c *BowrainClient) ListChangesets(ctx context.Context, status string) ([]Ch
 		q.Set("status", status)
 	}
 	var out []ChangeSet
-	if err := c.getKnowledgeJSON(ctx, "/changesets", q, &out); err != nil {
+	if err := c.getWorkspaceJSON(ctx, "/changesets", q, &out); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -475,7 +475,7 @@ func (c *BowrainClient) ListChangesets(ctx context.Context, status string) ([]Ch
 // (GET /api/v1/:ws/changesets/:id).
 func (c *BowrainClient) GetChangeset(ctx context.Context, id string) (*ChangeSetDetail, error) {
 	var out ChangeSetDetail
-	if err := c.getKnowledgeJSON(ctx, "/changesets/"+url.PathEscape(id), nil, &out); err != nil {
+	if err := c.getWorkspaceJSON(ctx, "/changesets/"+url.PathEscape(id), nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -485,7 +485,7 @@ func (c *BowrainClient) GetChangeset(ctx context.Context, id string) (*ChangeSet
 // status (GET /api/v1/:ws/changesets/counts).
 func (c *BowrainClient) ChangesetCounts(ctx context.Context) (*ChangeSetCounts, error) {
 	var out ChangeSetCounts
-	if err := c.getKnowledgeJSON(ctx, "/changesets/counts", nil, &out); err != nil {
+	if err := c.getWorkspaceJSON(ctx, "/changesets/counts", nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -508,7 +508,7 @@ func (c *BowrainClient) RefreshChangesetBlastRadius(ctx context.Context, id stri
 
 func (c *BowrainClient) changesetBlastRadius(ctx context.Context, id string, q url.Values) (*ChangeSetImpact, error) {
 	var out ChangeSetImpact
-	if err := c.getKnowledgeJSON(ctx, "/changesets/"+url.PathEscape(id)+"/blast-radius", q, &out); err != nil {
+	if err := c.getWorkspaceJSON(ctx, "/changesets/"+url.PathEscape(id)+"/blast-radius", q, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -714,12 +714,12 @@ func (c *BowrainClient) wsPrefix() string {
 	return fmt.Sprintf("%s/api/v1/%s", c.baseURL, url.PathEscape(c.workspace))
 }
 
-// getKnowledgeJSON issues a workspace-scoped GET against the knowledge-graph
-// surface and decodes the JSON body into out. It requires a workspace-scoped
-// client (the graph lives on /api/v1/:ws/..., not under a project).
-func (c *BowrainClient) getKnowledgeJSON(ctx context.Context, path string, query url.Values, out any) error {
+// getWorkspaceJSON issues a GET against a workspace-scoped path
+// (/api/v1/:ws/<path>) and decodes the JSON body into out. It requires a
+// workspace-scoped client — these surfaces sit above the project, not under it.
+func (c *BowrainClient) getWorkspaceJSON(ctx context.Context, path string, query url.Values, out any) error {
 	if c.workspace == "" {
-		return errors.New("knowledge graph requires a workspace-scoped client (use NewWorkspaceBowrainClient)")
+		return errors.New("workspace-scoped surface requires a workspace-scoped client (use NewWorkspaceBowrainClient)")
 	}
 	u, err := url.Parse(c.wsPrefix() + path)
 	if err != nil {

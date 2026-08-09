@@ -25,6 +25,42 @@ func taskWorkspaceID(c echo.Context) string {
 	return c.Param("ws")
 }
 
+// taskAssigneeParam reads ?assignee_id, resolving the literal "me" to the
+// authenticated user. ok is false when "me" has no user to resolve against —
+// "my tasks" is then empty, never the whole workspace list.
+//
+// "me" mirrors the review queue's assigned_to=me: /:ws/tasks?assignee_id=me is
+// the "my tasks" surface (the dedicated /my/tasks route was folded into this
+// filter, Bowrain AD-011), so the literal must never reach the store, where it
+// would match nothing.
+func taskAssigneeParam(c echo.Context) (assignee string, ok bool) {
+	assignee = c.QueryParam("assignee_id")
+	if assignee != "me" {
+		return assignee, true
+	}
+	assignee, _ = c.Get("user_id").(string)
+	return assignee, assignee != ""
+}
+
+// taskQueryFromRequest builds the filter half of a task query — everything the
+// list and the status counts share. Paging is the caller's to add.
+//
+// ?types=a,b,c is the multi-type filter the review inbox and the dashboard need
+// (review, review_terms, source_review are one set); ?type stays the single
+// exact match and applies when ?types is absent.
+func taskQueryFromRequest(c echo.Context, ws, assignee string) bstore.TaskQuery {
+	return bstore.TaskQuery{
+		WorkspaceID: ws,
+		ProjectID:   c.QueryParam("project_id"),
+		AssigneeID:  assignee,
+		Status:      c.QueryParam("status"),
+		Statuses:    csvParam(c, "statuses"),
+		Type:        c.QueryParam("type"),
+		Types:       csvParam(c, "types"),
+		Priority:    c.QueryParam("priority"),
+	}
+}
+
 // HandleListTasks returns tasks for a workspace, optionally filtered.
 func (s *Server) HandleListTasks(c echo.Context) error {
 	if s.TaskStore == nil {
@@ -34,31 +70,13 @@ func (s *Server) HandleListTasks(c echo.Context) error {
 	ws := taskWorkspaceID(c)
 	ctx := c.Request().Context()
 
-	// "me" resolves to the authenticated user (mirroring the review queue's
-	// assigned_to=me): /:ws/tasks?assignee_id=me is the "my tasks" surface —
-	// the former dedicated /my/tasks route was folded into this filter
-	// (Bowrain AD-011), so the literal "me" must never reach the store, where
-	// it would match nothing.
-	assignee := c.QueryParam("assignee_id")
-	if assignee == "me" {
-		assignee, _ = c.Get("user_id").(string)
-		if assignee == "" {
-			// No authenticated user to resolve "me" against: "my tasks" is
-			// empty, never the whole workspace list.
-			return c.JSON(http.StatusOK, bstore.TaskResult{Tasks: []bstore.Task{}})
-		}
+	assignee, ok := taskAssigneeParam(c)
+	if !ok {
+		return c.JSON(http.StatusOK, bstore.TaskResult{Tasks: []bstore.Task{}})
 	}
 
-	q := bstore.TaskQuery{
-		WorkspaceID: ws,
-		ProjectID:   c.QueryParam("project_id"),
-		AssigneeID:  assignee,
-		Status:      c.QueryParam("status"),
-		Type:        c.QueryParam("type"),
-		Priority:    c.QueryParam("priority"),
-		Cursor:      c.QueryParam("cursor"),
-	}
-
+	q := taskQueryFromRequest(c, ws, assignee)
+	q.Cursor = c.QueryParam("cursor")
 	q.Limit, _ = pageParams(c, 0, maxListPageSize)
 
 	result, err := s.TaskStore.List(ctx, q)
@@ -70,6 +88,30 @@ func (s *Server) HandleListTasks(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, result)
+}
+
+// HandleGetTaskCounts returns how many tasks match the same filters
+// HandleListTasks accepts, grouped by status.
+//
+// A board's column headers count the whole column, not the page it has loaded,
+// so they read this rather than tallying the rows in hand.
+// GET /api/v1/:ws/tasks/counts
+func (s *Server) HandleGetTaskCounts(c echo.Context) error {
+	empty := &bstore.TaskCounts{ByStatus: map[string]int{}}
+	if s.TaskStore == nil {
+		return c.JSON(http.StatusOK, empty)
+	}
+
+	assignee, ok := taskAssigneeParam(c)
+	if !ok {
+		return c.JSON(http.StatusOK, empty)
+	}
+
+	counts, err := s.TaskStore.Counts(c.Request().Context(), taskQueryFromRequest(c, taskWorkspaceID(c), assignee))
+	if err != nil {
+		return serverErr(c, err)
+	}
+	return c.JSON(http.StatusOK, counts)
 }
 
 // HandleCreateTask creates a new task.

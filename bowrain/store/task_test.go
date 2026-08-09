@@ -293,3 +293,119 @@ func TestTaskStore_DueBeforeFilter_IncludesExactMatch(t *testing.T) {
 	assert.Len(t, result.Tasks, 1)
 	assert.Equal(t, "Exact deadline", result.Tasks[0].Title)
 }
+
+func TestTaskStore_TypesFilter(t *testing.T) {
+	store := newTestTaskStore(t)
+	ctx := t.Context()
+
+	seed := []*Task{
+		{WorkspaceID: "ws-1", ProjectID: "proj-1", Type: TaskTranslate, Title: "T-translate", CreatedBy: "u0"},
+		{WorkspaceID: "ws-1", ProjectID: "proj-1", Type: TaskReview, Title: "T-review", CreatedBy: "u0"},
+		{WorkspaceID: "ws-1", ProjectID: "proj-1", Type: TaskReviewTerms, Title: "T-review-terms", CreatedBy: "u0"},
+		{WorkspaceID: "ws-1", ProjectID: "proj-1", Type: TaskSourceReview, Title: "T-source-review", CreatedBy: "u0"},
+		{WorkspaceID: "ws-2", ProjectID: "proj-9", Type: TaskReview, Title: "other-workspace", CreatedBy: "u0"},
+	}
+	for _, task := range seed {
+		require.NoError(t, store.Create(ctx, task))
+	}
+
+	titles := func(tasks []Task) []string {
+		out := make([]string, 0, len(tasks))
+		for _, task := range tasks {
+			out = append(out, task.Title)
+		}
+		return out
+	}
+
+	t.Run("matches any of the listed types", func(t *testing.T) {
+		result, err := store.List(ctx, TaskQuery{
+			WorkspaceID: "ws-1",
+			Types: []string{
+				string(TaskReview), string(TaskReviewTerms), string(TaskSourceReview),
+			},
+		})
+		require.NoError(t, err)
+		assert.ElementsMatch(t, []string{"T-review", "T-review-terms", "T-source-review"}, titles(result.Tasks))
+	})
+
+	t.Run("stays inside the workspace", func(t *testing.T) {
+		result, err := store.List(ctx, TaskQuery{
+			WorkspaceID: "ws-2",
+			Types:       []string{string(TaskReview)},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"other-workspace"}, titles(result.Tasks))
+	})
+
+	t.Run("types overrides the single type", func(t *testing.T) {
+		result, err := store.List(ctx, TaskQuery{
+			WorkspaceID: "ws-1",
+			Type:        string(TaskTranslate),
+			Types:       []string{string(TaskReview)},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"T-review"}, titles(result.Tasks))
+	})
+
+	t.Run("empty types falls back to the single type", func(t *testing.T) {
+		result, err := store.List(ctx, TaskQuery{
+			WorkspaceID: "ws-1",
+			Type:        string(TaskTranslate),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []string{"T-translate"}, titles(result.Tasks))
+	})
+}
+
+func TestTaskStore_Counts(t *testing.T) {
+	store := newTestTaskStore(t)
+	ctx := t.Context()
+
+	seed := []*Task{
+		{WorkspaceID: "ws-1", ProjectID: "proj-1", Type: TaskReview, Title: "open-1", CreatedBy: "u0"},
+		{WorkspaceID: "ws-1", ProjectID: "proj-1", Type: TaskReview, Title: "open-2", CreatedBy: "u0"},
+		{WorkspaceID: "ws-1", ProjectID: "proj-1", Type: TaskReview, Title: "in-progress", CreatedBy: "u0"},
+		{WorkspaceID: "ws-1", ProjectID: "proj-1", Type: TaskTranslate, Title: "translate", CreatedBy: "u0"},
+		{WorkspaceID: "ws-2", ProjectID: "proj-9", Type: TaskReview, Title: "other-workspace", CreatedBy: "u0"},
+	}
+	for _, task := range seed {
+		require.NoError(t, store.Create(ctx, task))
+	}
+	require.NoError(t, store.Assign(ctx, seed[2].ID, "u1"))
+	require.NoError(t, store.Complete(ctx, seed[3].ID, "u1"))
+
+	t.Run("groups the workspace by status", func(t *testing.T) {
+		counts, err := store.Counts(ctx, TaskQuery{WorkspaceID: "ws-1"})
+		require.NoError(t, err)
+		assert.Equal(t, 4, counts.Total)
+		assert.Equal(t, 2, counts.ByStatus[string(TaskStatusOpen)])
+		assert.Equal(t, 1, counts.ByStatus[string(TaskStatusInProgress)])
+		assert.Equal(t, 1, counts.ByStatus[string(TaskStatusCompleted)])
+		assert.Equal(t, 0, counts.ByStatus[string(TaskStatusCancelled)])
+	})
+
+	t.Run("honours the same filters as List", func(t *testing.T) {
+		counts, err := store.Counts(ctx, TaskQuery{
+			WorkspaceID: "ws-1",
+			Types:       []string{string(TaskReview)},
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 3, counts.Total)
+		assert.Equal(t, 2, counts.ByStatus[string(TaskStatusOpen)])
+		assert.Equal(t, 1, counts.ByStatus[string(TaskStatusInProgress)])
+		assert.Equal(t, 0, counts.ByStatus[string(TaskStatusCompleted)])
+	})
+
+	t.Run("counts the whole set, not the page", func(t *testing.T) {
+		counts, err := store.Counts(ctx, TaskQuery{WorkspaceID: "ws-1", Limit: 1})
+		require.NoError(t, err)
+		assert.Equal(t, 4, counts.Total)
+	})
+
+	t.Run("every known status is present, zero-filled", func(t *testing.T) {
+		counts, err := store.Counts(ctx, TaskQuery{WorkspaceID: "ws-nothing"})
+		require.NoError(t, err)
+		assert.Equal(t, 0, counts.Total)
+		assert.Len(t, counts.ByStatus, 4)
+	})
+}

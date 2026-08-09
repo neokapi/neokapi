@@ -75,7 +75,12 @@ func (s *Server) HandleGetBilling(c echo.Context) error {
 	})
 }
 
-// HandleGetBillingUsage returns the credit usage breakdown by operation type.
+// HandleGetBillingUsage returns the credit usage breakdown by operation type
+// plus one page of the ledger behind it.
+//
+// usage_by_operation is summed in SQL over the whole window, so it stays
+// correct however small the page is; entries is the ?limit/?offset page,
+// narrowed by ?operation. total counts the entries the same filter matches.
 // GET /api/v1/:ws/billing/usage
 func (s *Server) HandleGetBillingUsage(c echo.Context) error {
 	if s.BillingStore == nil {
@@ -100,24 +105,35 @@ func (s *Server) HandleGetBillingUsage(c echo.Context) error {
 		}
 	}
 
-	entries, err := s.BillingStore.GetLedger(c.Request().Context(), wsID, from, to)
+	ctx := c.Request().Context()
+	byOp, err := s.BillingStore.GetUsageByOperation(ctx, wsID, from, to)
 	if err != nil {
 		return serverErr(c, err)
 	}
 
-	// Aggregate by operation type.
-	byOp := make(map[string]int64)
-	for _, e := range entries {
-		if e.Amount < 0 {
-			byOp[e.Operation] += -e.Amount
-		}
+	limit, offset := pageParams(c, 50, billing.MaxLedgerPageSize)
+	page, err := s.BillingStore.GetLedgerPage(ctx, wsID, billing.LedgerQuery{
+		From:      from,
+		To:        to,
+		Operation: c.QueryParam("operation"),
+		Limit:     limit,
+		Offset:    offset,
+	})
+	if err != nil {
+		return serverErr(c, err)
+	}
+	if page.Entries == nil {
+		page.Entries = []billing.LedgerEntry{}
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{
 		"usage_by_operation": byOp,
 		"from":               from,
 		"to":                 to,
-		"entries":            entries,
+		"entries":            page.Entries,
+		"total":              page.Total,
+		"limit":              page.Limit,
+		"offset":             page.Offset,
 	})
 }
 

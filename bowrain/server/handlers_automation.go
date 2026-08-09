@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -169,26 +168,25 @@ func (s *Server) HandleListAutomationEvents(c echo.Context) error {
 	return c.JSON(http.StatusOK, events)
 }
 
-// HandleListAutomationHistory returns recent execution history.
+// HandleListAutomationHistory returns one page of execution history, newest
+// first: {entries, next_cursor}. ?limit bounds the page, ?cursor continues from
+// a previous one.
 func (s *Server) HandleListAutomationHistory(c echo.Context) error {
-	projectID := c.Param("id")
 	if s.AutomationRuleStore == nil {
-		return c.JSON(http.StatusOK, []event.HistoryEntry{})
+		return c.JSON(http.StatusOK, event.HistoryPage{Entries: []event.HistoryEntry{}})
 	}
 
-	limit := 50
-	if l := c.QueryParam("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			limit = parsed
-		}
-	}
-
-	entries, err := s.AutomationRuleStore.ListHistory(c.Request().Context(), projectID, limit)
+	limit, _ := pageParams(c, 50, maxListPageSize)
+	page, err := s.AutomationRuleStore.ListHistory(c.Request().Context(), event.HistoryQuery{
+		ProjectID: c.Param("id"),
+		Limit:     limit,
+		Cursor:    c.QueryParam("cursor"),
+	})
 	if err != nil {
 		return serverErr(c, err)
 	}
-	if entries == nil {
-		entries = []event.HistoryEntry{}
+	if page.Entries == nil {
+		page.Entries = []event.HistoryEntry{}
 	}
-	return c.JSON(http.StatusOK, entries)
+	return c.JSON(http.StatusOK, page)
 }

@@ -35,6 +35,15 @@ type BillingStore interface {
 	// Ledger
 	GetLedger(ctx context.Context, workspaceID string, from, to time.Time) ([]LedgerEntry, error)
 
+	// GetLedgerPage returns one page of the ledger, filtered and counted in
+	// SQL. It is what a client-facing history view reads: GetLedger returns
+	// the whole window and is for callers that need every row.
+	GetLedgerPage(ctx context.Context, workspaceID string, q LedgerQuery) (*LedgerPage, error)
+
+	// GetUsageByOperation sums the debits in the window per operation, so the
+	// usage breakdown does not depend on how many entries a page carries.
+	GetUsageByOperation(ctx context.Context, workspaceID string, from, to time.Time) (map[string]int64, error)
+
 	// Feature overrides
 	GetFeatureOverrides(ctx context.Context, workspaceID string) ([]FeatureOverride, error)
 	ListAllFeatureOverrides(ctx context.Context) ([]FeatureOverride, error)
