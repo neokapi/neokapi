@@ -20,6 +20,20 @@ function useWs() {
   return { api, ws };
 }
 
+/**
+ * Every read whose answer a concept write can change: the lists, and the
+ * server-side status counts and locale coverage the dashboard reads instead of
+ * folding a page of concepts itself.
+ */
+export function invalidateConceptAggregates(
+  qc: ReturnType<typeof useQueryClient>,
+  ws: string,
+): void {
+  void qc.invalidateQueries({ queryKey: ["concepts", ws] });
+  void qc.invalidateQueries({ queryKey: ["concept-status-counts", ws] });
+  void qc.invalidateQueries({ queryKey: ["concept-locale-coverage", ws] });
+}
+
 // ── Concept list + single concept ──────────────────────────────────────────
 
 export function useConcepts(params?: ListConceptsParams) {
@@ -29,6 +43,32 @@ export function useConcepts(params?: ListConceptsParams) {
     queryFn: () => api.listConcepts(ws, params),
     enabled: !!ws,
     staleTime: 15_000,
+  });
+}
+
+/**
+ * The workspace vocabulary counted by term lifecycle status, over every concept
+ * rather than a page of them. The buckets overlap — a concept counts under each
+ * status one of its terms carries — so they do not sum to `total`.
+ */
+export function useConceptStatusCounts() {
+  const { api, ws } = useWs();
+  return useQuery({
+    queryKey: ["concept-status-counts", ws],
+    queryFn: () => api.getConceptStatusCounts(ws),
+    enabled: !!ws,
+    staleTime: 30_000,
+  });
+}
+
+/** Per-locale concept coverage over the whole workspace, most complete first. */
+export function useConceptLocaleCoverage() {
+  const { api, ws } = useWs();
+  return useQuery({
+    queryKey: ["concept-locale-coverage", ws],
+    queryFn: () => api.getConceptLocaleCoverage(ws),
+    enabled: !!ws,
+    staleTime: 30_000,
   });
 }
 
@@ -48,7 +88,7 @@ export function useCreateConcept() {
   return useMutation({
     mutationFn: (req: AddConceptRequest) => api.createConcept(ws, req),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["concepts", ws] });
+      invalidateConceptAggregates(qc, ws);
       void qc.invalidateQueries({ queryKey: ["graph", ws] });
     },
   });
@@ -60,7 +100,7 @@ export function useUpdateConcept() {
   return useMutation({
     mutationFn: (req: UpdateConceptRequest) => api.updateConcept(ws, req),
     onSuccess: (_r, req) => {
-      void qc.invalidateQueries({ queryKey: ["concepts", ws] });
+      invalidateConceptAggregates(qc, ws);
       void qc.invalidateQueries({ queryKey: ["concept", ws, req.concept_id] });
       void qc.invalidateQueries({ queryKey: ["graph", ws] });
     },
@@ -73,7 +113,7 @@ export function useDeleteConcept() {
   return useMutation({
     mutationFn: (conceptId: string) => api.deleteConcept(ws, conceptId),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["concepts", ws] });
+      invalidateConceptAggregates(qc, ws);
       void qc.invalidateQueries({ queryKey: ["graph", ws] });
     },
   });

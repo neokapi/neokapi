@@ -52,6 +52,26 @@ const (
 	ActivityReviewAssigned ActivityType = "review.assigned"
 	ActivityReviewDecided  ActivityType = "review.decided"
 
+	// Knowledge graph (AD-021). The families are the feed's filter vocabulary:
+	// `?types=` matches a prefix, so `concept` selects every concept.* entry,
+	// and a surface spanning governed change lists changeset, review and pilot.
+	ActivityConceptCreated         ActivityType = "concept.created"
+	ActivityConceptUpdated         ActivityType = "concept.updated"
+	ActivityConceptDeleted         ActivityType = "concept.deleted"
+	ActivityConceptTermStatus      ActivityType = "concept.term.status_changed"
+	ActivityConceptRelationAdded   ActivityType = "concept.relation.added"
+	ActivityConceptRelationRemoved ActivityType = "concept.relation.removed"
+
+	ActivityChangeSetOpened     ActivityType = "changeset.created"
+	ActivityChangeSetAbandoned  ActivityType = "changeset.abandoned"
+	ActivityChangeSetSuperseded ActivityType = "changeset.superseded"
+
+	ActivityPilotStarted ActivityType = "pilot.started"
+	ActivityPilotStopped ActivityType = "pilot.stopped"
+
+	ActivityObservationAdded ActivityType = "observation.added"
+	ActivityCommentAdded     ActivityType = "comment.added"
+
 	// Connectors
 	ActivityConnectorSynced ActivityType = "connector.synced"
 	ActivityConnectorFailed ActivityType = "connector.failed"

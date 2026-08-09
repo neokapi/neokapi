@@ -12,7 +12,7 @@
 import { Button, Card, Skeleton } from "@neokapi/ui-primitives";
 import { Shield, ArrowRight } from "../../components/icons";
 import type { ChangeSet } from "../../types/brand-graph";
-import { useChangesets, useChangeset } from "../../hooks/useChangesetsApi";
+import { useChangesets } from "../../hooks/useChangesetsApi";
 import { useUserDisplayNames } from "../../hooks/useMembersApi";
 import { formatRelative } from "../shell/atoms";
 import { sortByWaiting, waitingSince } from "../dashboard/metrics";
@@ -79,11 +79,9 @@ export function PendingConceptChanges({ onOpenChangeSet }: PendingConceptChanges
 
 function PendingRow({ changeset, onOpen }: { changeset: ChangeSet; onOpen?: () => void }) {
   const { nameOf } = useUserDisplayNames();
-  // The list endpoint carries a change-set's header, not its ops, so the count
-  // that makes this concrete — "57 changes" rather than "a change" — comes from
-  // the detail the review page reads anyway.
-  const { data: detail } = useChangeset(changeset.id);
-  const count = detail?.ops?.length;
+  // The list route counts each change-set's ops, so the count that makes this
+  // concrete — "57 changes" rather than "a change" — costs no extra request.
+  const count = changeset.ops_count;
 
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">

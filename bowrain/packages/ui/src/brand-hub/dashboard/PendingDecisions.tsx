@@ -6,8 +6,8 @@
 import { Button, Card, CardContent, Skeleton, cn } from "@neokapi/ui-primitives";
 import { ErrorNotice } from "../../errors";
 import { Shield, Check, ArrowRight, Loader2 } from "../../components/icons";
-import type { ChangeSet } from "../../types/brand-graph";
-import { useChangesetBlastRadius, useApproveChangeset } from "../../hooks/useChangesetsApi";
+import type { ChangeSet, ImpactSummary } from "../../types/brand-graph";
+import { useApproveChangeset } from "../../hooks/useChangesetsApi";
 import { useUserDisplayNames } from "../../hooks/useMembersApi";
 import { ChangeSetStatusBadge, formatRelative } from "../shell/atoms";
 import { pendingDecisions, waitingSince } from "./metrics";
@@ -74,7 +74,6 @@ export function PendingDecisions({ changesets, loading, onOpen }: PendingDecisio
 }
 
 function PendingDecisionRow({ changeset, onOpen }: { changeset: ChangeSet; onOpen?: () => void }) {
-  const { data: impact, isLoading: impactLoading } = useChangesetBlastRadius(changeset.id);
   const { nameOf } = useUserDisplayNames();
   const approve = useApproveChangeset(changeset.id);
   const inReview = changeset.status === "in_review";
@@ -96,7 +95,7 @@ function PendingDecisionRow({ changeset, onOpen }: { changeset: ChangeSet; onOpe
           <p className="mt-0.5 text-xs text-muted-foreground">
             {nameOf(changeset.created_by)} · waiting {formatRelative(waitingSince(changeset))}
           </p>
-          <BlastRadiusStrip impact={impact} loading={impactLoading} />
+          <BlastRadiusStrip impact={changeset.impact_summary} />
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -130,17 +129,20 @@ function PendingDecisionRow({ changeset, onOpen }: { changeset: ChangeSet; onOpe
   );
 }
 
-function BlastRadiusStrip({
-  impact,
-  loading,
-}: {
-  impact?: { affected_blocks: number; new_violations: number; resolved: number; words: number };
-  loading?: boolean;
-}) {
-  if (loading) {
-    return <Skeleton className="mt-2 h-4 w-44" />;
+/**
+ * The totals the server computed and stored when the change-set was submitted,
+ * carried on the list row. A change-set that has not been submitted has none,
+ * and a walk that stopped early reports a floor rather than a total.
+ */
+function BlastRadiusStrip({ impact }: { impact?: ImpactSummary }) {
+  if (!impact) {
+    return (
+      <p className="mt-2 text-xs text-muted-foreground">
+        Blast radius is measured when a proposal is submitted.
+      </p>
+    );
   }
-  if (!impact || impact.affected_blocks === 0) {
+  if (impact.affected_blocks === 0) {
     return (
       <p className="mt-2 text-xs text-muted-foreground">
         No published content is affected — safe to merge.
@@ -149,9 +151,9 @@ function BlastRadiusStrip({
   }
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-      <Metric value={impact.affected_blocks} label="blocks" />
+      <Metric value={impact.affected_blocks} label="blocks" prefix={impact.partial ? "≥" : ""} />
       <span className="text-border">·</span>
-      <Metric value={impact.words} label="words" />
+      <Metric value={impact.words} label="words" prefix={impact.partial ? "≥" : ""} />
       {impact.new_violations > 0 && (
         <span className="font-medium text-warning tabular-nums">
           +{impact.new_violations.toLocaleString()} new
@@ -162,14 +164,22 @@ function BlastRadiusStrip({
           −{impact.resolved.toLocaleString()} resolved
         </span>
       )}
+      {impact.partial && (
+        <span className="text-muted-foreground" title={impact.partial_reason}>
+          partial
+        </span>
+      )}
     </div>
   );
 }
 
-function Metric({ value, label }: { value: number; label: string }) {
+function Metric({ value, label, prefix = "" }: { value: number; label: string; prefix?: string }) {
   return (
     <span className={cn("text-muted-foreground")}>
-      <span className="font-medium tabular-nums text-foreground">{value.toLocaleString()}</span>{" "}
+      <span className="font-medium tabular-nums text-foreground">
+        {prefix}
+        {value.toLocaleString()}
+      </span>{" "}
       {label}
     </span>
   );

@@ -4,6 +4,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
+import { invalidateConceptAggregates } from "./useConceptsApi";
 import type {
   ChangeSetStatus,
   CreateChangeSetRequest,
@@ -32,6 +33,20 @@ export function useChangesets(status?: ChangeSetStatus) {
   });
 }
 
+/**
+ * The workspace's change-sets bucketed by lifecycle status, counted over every
+ * change-set rather than over a page of them.
+ */
+export function useChangesetCounts() {
+  const { api, ws } = useWs();
+  return useQuery({
+    queryKey: ["changeset-counts", ws],
+    queryFn: () => api.getChangesetCounts(ws),
+    enabled: !!ws,
+    staleTime: 10_000,
+  });
+}
+
 export function useChangeset(changesetId: string) {
   const { api, ws } = useWs();
   return useQuery({
@@ -49,6 +64,7 @@ export function useCreateChangeset() {
     mutationFn: (req: CreateChangeSetRequest) => api.createChangeset(ws, req),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["changesets", ws] });
+      void qc.invalidateQueries({ queryKey: ["changeset-counts", ws] });
     },
   });
 }
@@ -103,6 +119,7 @@ function invalidateLifecycle(
 ) {
   void qc.invalidateQueries({ queryKey: ["changeset", ws, changesetId] });
   void qc.invalidateQueries({ queryKey: ["changesets", ws] });
+  void qc.invalidateQueries({ queryKey: ["changeset-counts", ws] });
 }
 
 export function useSubmitChangeset(changesetId: string) {
@@ -140,7 +157,7 @@ export function useMergeChangeset(changesetId: string) {
     onSuccess: () => {
       invalidateLifecycle(qc, ws, changesetId);
       // A merge applies ops to the live graph + voice profiles.
-      void qc.invalidateQueries({ queryKey: ["concepts", ws] });
+      invalidateConceptAggregates(qc, ws);
       void qc.invalidateQueries({ queryKey: ["graph", ws] });
       void qc.invalidateQueries({ queryKey: ["brand-profiles", ws] });
     },

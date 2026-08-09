@@ -9,13 +9,14 @@ import { Button, Card, CardContent, Skeleton, cn } from "@neokapi/ui-primitives"
 import { Network, FlaskConical, Palette, Shield, ArrowRight, Pencil } from "../../components/icons";
 import type { ChangeSet } from "../../types/brand-graph";
 import type { ConceptInfo } from "../../types/api";
-import { useChangesets } from "../../hooks/useChangesetsApi";
-import { useConcepts } from "../../hooks/useConceptsApi";
+import { useChangesetCounts, useChangesets } from "../../hooks/useChangesetsApi";
+import { useConcepts, useConceptStatusCounts } from "../../hooks/useConceptsApi";
 import { useUserDisplayNames } from "../../hooks/useMembersApi";
 import { useBrandProfiles } from "../../hooks/useBrandApi";
+import { TERMINAL_CHANGESET_STATUSES } from "../../types/brand-graph";
 import { BrandHub } from "../shell/BrandHub";
 import { ChangeSetStatusBadge, EmptyState, formatRelative } from "../shell/atoms";
-import { activeExperiments, pendingDecisions, sortByRecent } from "./metrics";
+import { sortByRecent } from "./metrics";
 import { PendingDecisions } from "./PendingDecisions";
 import { ComplianceOverview } from "./ComplianceOverview";
 import { RollupMatrix } from "./RollupMatrix";
@@ -39,14 +40,19 @@ export function BrandDashboardView({
   onOpenConcept,
   onOpenProject,
 }: BrandDashboardViewProps) {
-  const { data: allConcepts, isLoading: conceptsLoading } = useConcepts({ limit: 1 });
+  const { data: conceptCounts, isLoading: conceptsLoading } = useConceptStatusCounts();
+  const { data: csCounts, isLoading: countsLoading } = useChangesetCounts();
   const { data: changesets, isLoading: csLoading } = useChangesets();
   const { data: profiles } = useBrandProfiles();
 
   const changesetList = useMemo(() => changesets ?? [], [changesets]);
-  const pending = useMemo(() => pendingDecisions(changesetList), [changesetList]);
-  const active = useMemo(() => activeExperiments(changesetList), [changesetList]);
   const recentExperiments = useMemo(() => sortByRecent(changesetList).slice(0, 5), [changesetList]);
+
+  // The counts span every change-set, not the page the list returned. Pending
+  // is what a steward must decide (in review, or approved awaiting merge);
+  // active is everything the lifecycle has not settled.
+  const pendingCount = countFor(csCounts?.by_status, ["in_review", "approved"]);
+  const activeCount = activeFromCounts(csCounts?.total, csCounts?.by_status);
 
   return (
     <BrandHub
@@ -59,20 +65,20 @@ export function BrandDashboardView({
           <MetricCard
             icon={<Network />}
             label="Concepts"
-            value={conceptsLoading ? undefined : (allConcepts?.total_count ?? 0)}
+            value={conceptsLoading ? undefined : (conceptCounts?.total ?? 0)}
             onClick={onViewConcepts}
           />
           <MetricCard
             icon={<Shield />}
             label="Pending decisions"
-            value={csLoading ? undefined : pending.length}
-            emphasis={pending.length > 0}
+            value={countsLoading ? undefined : pendingCount}
+            emphasis={pendingCount > 0}
             onClick={onViewExperiments}
           />
           <MetricCard
             icon={<FlaskConical />}
             label="Active experiments"
-            value={csLoading ? undefined : active.length}
+            value={countsLoading ? undefined : activeCount}
             onClick={onViewExperiments}
           />
           <MetricCard
@@ -132,6 +138,27 @@ export function BrandDashboardView({
   );
 }
 
+// ── Change-set counts ─────────────────────────────────────────────────────────
+
+/** The sum of the named buckets, treating an absent bucket as empty. */
+function countFor(byStatus: Record<string, number> | undefined, statuses: string[]): number {
+  if (!byStatus) return 0;
+  return statuses.reduce((sum, status) => sum + (byStatus[status] ?? 0), 0);
+}
+
+/**
+ * Change-sets the lifecycle has not settled, as total minus the terminal
+ * buckets. Counting the non-terminal statuses instead would undercount a status
+ * this build does not know — and `total` already includes those.
+ */
+function activeFromCounts(
+  total: number | undefined,
+  byStatus: Record<string, number> | undefined,
+): number {
+  if (total === undefined) return 0;
+  return Math.max(0, total - countFor(byStatus, [...TERMINAL_CHANGESET_STATUSES]));
+}
+
 // ── Recent concepts ───────────────────────────────────────────────────────────
 
 function RecentConcepts({
@@ -141,16 +168,10 @@ function RecentConcepts({
   onViewConcepts?: () => void;
   onOpenConcept?: (conceptId: string) => void;
 }) {
-  const { data, isLoading } = useConcepts({ limit: 6 });
-  const concepts = useMemo(
-    () =>
-      [...(data?.concepts ?? [])].sort(
-        (a, b) =>
-          new Date(b.updated_at || b.created_at).getTime() -
-          new Date(a.updated_at || a.created_at).getTime(),
-      ),
-    [data],
-  );
+  // Ordered by the server; a page of six sorted client-side would only be the
+  // six most recent of whichever six the relevance ordering happened to return.
+  const { data, isLoading } = useConcepts({ sort: "updated_at", limit: 6 });
+  const concepts = data?.concepts ?? [];
 
   return (
     <Card>

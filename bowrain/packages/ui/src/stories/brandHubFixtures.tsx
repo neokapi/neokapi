@@ -4,7 +4,7 @@
 // Storybook still discovers the *.stories.tsx files that import from here.
 import type { Decorator } from "@storybook/react";
 import type { ApiAdapter } from "../api/adapter";
-import type { ConceptInfo, Membership, TermSearchResult } from "../types/api";
+import type { ActivityInfo, ConceptInfo, Membership, TermSearchResult } from "../types/api";
 import type {
   ConceptRelation,
   Observation,
@@ -173,6 +173,8 @@ const sampleMarkets: Market[] = [
   },
 ];
 
+// The list route counts ops and carries the impact stored at submission; the
+// single-change-set read carries the ops themselves instead.
 export const sampleChangesets: ChangeSet[] = [
   {
     id: "cs-1",
@@ -184,6 +186,16 @@ export const sampleChangesets: ChangeSet[] = [
     created_at: earlier,
     updated_at: now,
     submitted_at: now,
+    ops_count: 2,
+    impact_summary: {
+      total_blocks: 1280,
+      affected_blocks: 34,
+      new_violations: 12,
+      resolved: 7,
+      words: 210,
+      projects: 2,
+      computed_at: now,
+    },
   },
   {
     id: "cs-2",
@@ -193,6 +205,7 @@ export const sampleChangesets: ChangeSet[] = [
     created_by: "alex",
     created_at: earlier,
     updated_at: earlier,
+    ops_count: 1,
   },
   {
     id: "cs-3",
@@ -204,6 +217,7 @@ export const sampleChangesets: ChangeSet[] = [
     updated_at: earlier,
     merged_at: earlier,
     merged_by: "sam",
+    ops_count: 5,
   },
 ];
 
@@ -288,6 +302,80 @@ const sampleImpact: ChangeSetImpact = {
   ],
   samples: [],
 };
+
+// The workspace activity feed as the server records it: one row per governed
+// or ordinary write, newest first, carrying a sentence and the id of what it
+// touched — never a title, which the hub resolves from its own list reads.
+export const sampleActivities: ActivityInfo[] = [
+  {
+    id: "act-1",
+    workspace_id: "ws-1",
+    actor_id: "sam",
+    actor_name: "Sam Okafor",
+    type: "comment.added",
+    entity_type: "concept",
+    entity_id: "c-checkout",
+    summary: "commented on a concept",
+    created_at: "2026-06-13T11:20:00Z",
+  },
+  {
+    id: "act-2",
+    workspace_id: "ws-1",
+    actor_id: "alex",
+    actor_name: "Alex Romero",
+    type: "review.decided",
+    entity_type: "changeset",
+    entity_id: "cs-1",
+    summary: "approved a change",
+    created_at: "2026-06-13T10:05:00Z",
+  },
+  {
+    id: "act-3",
+    workspace_id: "ws-1",
+    actor_id: "alex",
+    actor_name: "Alex Romero",
+    type: "concept.term.status_changed",
+    entity_type: "concept",
+    entity_id: "c-basket",
+    summary: "changed a term's status",
+    created_at: "2026-06-13T08:40:00Z",
+  },
+  {
+    id: "act-4",
+    workspace_id: "ws-1",
+    actor_id: "sam",
+    actor_name: "Sam Okafor",
+    type: "pilot.started",
+    entity_type: "changeset",
+    entity_id: "cs-1",
+    stream: "main",
+    summary: "started piloting a change on p-web · main",
+    created_at: "2026-06-12T16:30:00Z",
+    data: { project_id: "p-web", stream: "main" },
+  },
+  {
+    id: "act-5",
+    workspace_id: "ws-1",
+    actor_id: "alex",
+    actor_name: "Alex Romero",
+    type: "observation.added",
+    entity_type: "concept",
+    entity_id: "c-rival",
+    summary: "recorded an observation",
+    created_at: "2026-06-12T10:10:00Z",
+  },
+  {
+    id: "act-6",
+    workspace_id: "ws-1",
+    actor_id: "sam",
+    actor_name: "Sam Okafor",
+    type: "changeset.created",
+    entity_type: "changeset",
+    entity_id: "cs-2",
+    summary: "opened an experiment",
+    created_at: "2026-06-09T09:00:00Z",
+  },
+];
 
 // The actors that author fixture change-sets, reviews, observations, and
 // comments, mapped to display names so the hub renders people, not raw user ids.
@@ -444,6 +532,16 @@ export const brandHubOverrides: Partial<ApiAdapter> = {
     computed_at: now,
   }),
   refreshChangesetBlastRadius: async () => sampleImpact,
+  // The workspace feed, filtered by type prefix the way the server filters it.
+  listActivities: async (_ws, query) => {
+    const prefixes = query?.types ?? (query?.type ? [query.type] : []);
+    const matching =
+      prefixes.length === 0
+        ? sampleActivities
+        : sampleActivities.filter((a) => prefixes.some((p) => a.type.startsWith(p)));
+    return { activities: matching, next_cursor: "" };
+  },
+  markActivitiesSeen: async () => {},
   listBrandProfiles: async () => [],
 };
 

@@ -114,6 +114,8 @@ const populated: Decorator = createProvidersDecorator(undefined, {
   ...complianceOverrides,
 });
 
+// An empty workspace has to answer the aggregates as emptily as the lists — the
+// dashboard's metric cards read the counts, not the list lengths.
 const emptyOverrides: Partial<ApiAdapter> = {
   ...brandHubOverrides,
   listConcepts: async () => ({ concepts: [], total_count: 0 }),
@@ -121,6 +123,9 @@ const emptyOverrides: Partial<ApiAdapter> = {
   listMarkets: async () => [],
   listProjects: async () => [],
   listBrandProfiles: async () => [],
+  getConceptStatusCounts: async () => ({ total: 0, by_status: {} }),
+  getConceptLocaleCoverage: async () => ({ total: 0, locales: [] }),
+  getChangesetCounts: async () => ({ total: 0, by_status: {} }),
 };
 
 const empty: Decorator = createProvidersDecorator(undefined, emptyOverrides);

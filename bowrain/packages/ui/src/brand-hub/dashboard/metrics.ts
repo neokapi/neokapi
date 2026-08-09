@@ -1,53 +1,13 @@
 // Pure derivation helpers for the Brand dashboard (AD-021). Kept free of React
-// so they can be unit-tested directly: locale coverage from concepts, score
-// aggregation from stored brand checks, and the waiting order for the pending
-// governance queue.
-import type { ConceptInfo } from "../../types/api";
+// so they can be unit-tested directly: score aggregation over stored brand
+// checks, and the waiting order for the pending governance queue. Concept
+// status counts and locale coverage are server aggregates, not derivations.
 import type { ChangeSet } from "../../types/brand-graph";
 import { TERMINAL_CHANGESET_STATUSES } from "../../types/brand-graph";
-import type { BrandTrend, DimensionScore, DriftResult, StoredScore } from "../../brand/types";
-
-/** Per-locale completeness of the concept vocabulary. */
-export interface LocaleCoverage {
-  locale: string;
-  /** Concepts carrying at least one term in this locale. */
-  present: number;
-  /** Concepts considered (the full sample). */
-  total: number;
-  /** present / total as a 0–100 integer. */
-  pct: number;
-}
+import type { DimensionScore, StoredScore } from "../../brand/types";
 
 /** Canonical dimension order so breakdowns read the same everywhere. */
 const DIMENSION_ORDER = ["tone", "style", "vocabulary", "clarity", "brand_compliance"];
-
-/**
- * computeLocaleCoverage reports, for every locale that appears across the given
- * concepts, how many concepts define a term in it. The result is sorted by
- * coverage (then locale) so the most-complete locales lead.
- */
-export function computeLocaleCoverage(concepts: ConceptInfo[]): LocaleCoverage[] {
-  const total = concepts.length;
-  if (total === 0) return [];
-  const present = new Map<string, number>();
-  for (const concept of concepts) {
-    const locales = new Set<string>();
-    for (const term of concept.terms) {
-      if (term.locale) locales.add(term.locale);
-    }
-    for (const locale of locales) {
-      present.set(locale, (present.get(locale) ?? 0) + 1);
-    }
-  }
-  return [...present.entries()]
-    .map(([locale, count]) => ({
-      locale,
-      present: count,
-      total,
-      pct: Math.round((count / total) * 100),
-    }))
-    .sort((a, b) => b.present - a.present || a.locale.localeCompare(b.locale));
-}
 
 /** averageScore is the rounded mean of stored brand-check scores, or null when empty. */
 export function averageScore(scores: StoredScore[]): number | null {
@@ -88,31 +48,6 @@ export function aggregateDimensions(scores: StoredScore[]): DimensionScore[] {
 function dimRank(dimension: string): number {
   const i = DIMENSION_ORDER.indexOf(dimension);
   return i === -1 ? DIMENSION_ORDER.length : i;
-}
-
-/**
- * trendDirection maps a drift analysis to the rollup's coarse arrow: the recent
- * window sitting a point or more above its baseline reads as "up", a point or
- * more below as "down", otherwise "flat". No recent activity is "flat" (nothing
- * moved); no drift data at all is "" (unknown). Mirrors the server's rollupTrend
- * so the web and desktop rollups agree.
- */
-export function trendDirection(drift?: DriftResult): BrandTrend {
-  if (!drift) return "";
-  if (drift.recent_count === 0) return "flat";
-  const diff = drift.recent_avg - drift.baseline_avg;
-  if (diff >= 1) return "up";
-  if (diff <= -1) return "down";
-  return "flat";
-}
-
-/** latestChecked returns the most recent checked_at ISO string, or null. */
-export function latestChecked(scores: StoredScore[]): string | null {
-  let latest: string | null = null;
-  for (const s of scores) {
-    if (!latest || s.checked_at > latest) latest = s.checked_at;
-  }
-  return latest;
 }
 
 /** The instant a change-set started waiting on a steward. */
