@@ -192,7 +192,11 @@ export type { ReviewQueueListProps } from "./components/review/ReviewQueueList";
 export { FocusedReviewer } from "./components/review/FocusedReviewer";
 export type { FocusedReviewerProps, ReviewerOnBrand } from "./components/review/FocusedReviewer";
 export { ReviewInbox } from "./components/review/ReviewInbox";
-export type { ReviewInboxProps, ReviewInboxProject } from "./components/review/ReviewInbox";
+export type {
+  ReviewInboxProps,
+  ReviewInboxProject,
+  ReviewInboxTask,
+} from "./components/review/ReviewInbox";
 export { MarkSourceTermDialog } from "./components/review/MarkSourceTermDialog";
 export type { MarkSourceTermDialogProps } from "./components/review/MarkSourceTermDialog";
 export { SuggestBrandRuleDialog } from "./components/review/SuggestBrandRuleDialog";

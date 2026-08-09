@@ -10,7 +10,12 @@ import {
   type LoopStatusData,
   type ProjectInfo,
 } from "@neokapi/ui";
-import { activitiesQueryOptions, myTasksQueryOptions, projectsQueryOptions } from "../../queries";
+import {
+  activitiesQueryOptions,
+  myTasksQueryOptions,
+  projectsQueryOptions,
+  REVIEW_TASK_TYPES,
+} from "../../queries";
 import { usePlatform } from "../../platform";
 import type { WorkspaceRouteContext } from "..";
 
@@ -39,7 +44,6 @@ const LOOP_ACTIVITY_TYPES = new Set([
 ]);
 
 /** Task types that represent review standing (AD-014 queue, #1332 hand-off). */
-const REVIEW_TASK_TYPES = new Set(["review", "review_terms", "source_review"]);
 
 export function ProjectDashboardRoute() {
   const navigate = useNavigate();
