@@ -211,7 +211,7 @@ test-race: ## Run tests with race detector
 # see the script header for the fallback rules), keeping the signal cheap while
 # push/nightly still run the full race gate. BASE_SHA/HEAD_SHA default to
 # origin/main...HEAD for local use.
-test-race-changed: ## Race-test only the Go packages changed vs BASE_SHA (PR CI)
+test-race-changed: i18n-catalogs ## Race-test only the Go packages changed vs BASE_SHA (PR CI)
 	@bash scripts/test-race-changed.sh
 
 test-verbose: ## Run tests with verbose output
@@ -287,7 +287,7 @@ check-bowrain: ## Bowrain-only quality checks
 # not (a TTY, signals, cgo, the system clipboard). CI has always built it, but
 # only in the docs workflows, so the failure arrived minutes after a push that
 # `make pre-push` had passed. Compile only: no link, no gzip, ~1s warm.
-check-wasm: ## Compile-check the in-browser CLI for js/wasm (the docs playground target)
+check-wasm: i18n-catalogs ## Compile-check the in-browser CLI for js/wasm (the docs playground target)
 	@cd kapi && GOOS=js GOARCH=wasm $(GO) build -o /dev/null ./cmd/kapi-wasm-cli
 	@GOOS=js GOARCH=wasm $(GO) build -o /dev/null ./cmd/kapi-wasm
 	@echo "✓ js/wasm builds (kapi-wasm-cli, kapi-wasm)"
@@ -295,12 +295,28 @@ check-wasm: ## Compile-check the in-browser CLI for js/wasm (the docs playground
 test-parallel: ## Run all tests in parallel
 	@$(MAKE) --no-print-directory _fw-test & $(MAKE) -C bowrain test & wait
 
+# ── Generated build inputs ──────────────────────────────────────────────────
+
+# The embedded gettext catalogs. core/i18n and host/i18n resolve
+# `//go:embed catalogs/*.mo` at compile time, and the MO is build output — the
+# repository carries the translated JSON it is compiled from. So every target
+# that builds, tests, vets or lints either module declares this first, and a
+# build that skipped it fails on the embed rather than silently shipping
+# English.
+#
+# The compiler is pure Go in the framework module and imports neither package
+# it writes for, so it builds and runs against an empty catalogs directory:
+# no bootstrap cycle, and no kapi binary in the loop. It rewrites a catalog
+# only when the bytes change, so a repeat run invalidates nothing.
+i18n-catalogs: ## Compile the embedded MO catalogs from the committed translated JSON
+	@$(GO) run ./core/i18n/gen/catalogs
+
 # ── Framework test/quality internals ────────────────────────────────────────
 
 _fw-fmt:
 	$(GOFMT) -w -s core/ host/ cli/ kapi/ memory/ terms/ providers/
 
-_fw-test:
+_fw-test: i18n-catalogs
 	$(GOTEST_BASE) ./... -count=1
 	cd cli && $(GOTEST_BASE) ./... -count=1
 	cd kapi && $(GOTEST_BASE) ./... -count=1
@@ -310,33 +326,33 @@ _fw-test:
 	cd scripts/batcheval && $(GOTEST_BASE) ./... -count=1
 	cd scripts/contexteval && $(GOTEST_BASE) ./... -count=1
 
-_fw-test-fast:
+_fw-test-fast: i18n-catalogs
 	$(GOTEST_BASE) ./...
 	cd cli && $(GOTEST_BASE) ./...
 	cd kapi && $(GOTEST_BASE) ./...
 
-_fw-test-unit:
+_fw-test-unit: i18n-catalogs
 	$(GOTEST_BASE) ./... -count=1 -short
 	cd cli && $(GOTEST_BASE) ./... -count=1 -short
 	cd kapi && $(GOTEST_BASE) ./... -count=1 -short
 
-_fw-test-race:
+_fw-test-race: i18n-catalogs
 	$(GOTEST) -race -shuffle=on ./... -count=1
 	cd cli && $(GOTEST) -race -shuffle=on ./... -count=1
 	cd kapi && $(GOTEST) -race -shuffle=on ./... -count=1
 
-_fw-test-verbose:
+_fw-test-verbose: i18n-catalogs
 	$(GOTEST_BASE) ./... -count=1 -v
 	cd cli && $(GOTEST_BASE) ./... -count=1 -v
 	cd kapi && $(GOTEST_BASE) ./... -count=1 -v
 
-_fw-test-integration:
+_fw-test-integration: i18n-catalogs
 	@bash scripts/test-integration.sh $(_RACE) $(_SHUFFLE)
 
 # host/ carries the runtime and every service the CLI dispatches to, so it is
 # vetted and linted alongside the modules that import it — not left to the
 # module that happens to build it.
-_fw-vet:
+_fw-vet: i18n-catalogs
 	$(GOVET) ./...
 	cd host && $(GOVET) ./...
 	cd cli && $(GOVET) ./...
@@ -344,7 +360,7 @@ _fw-vet:
 	cd scripts/batcheval && $(GOVET) ./...
 	cd scripts/contexteval && $(GOVET) ./...
 
-_fw-lint:
+_fw-lint: i18n-catalogs
 ifdef GOLANGCI_LINT
 	$(GOLANGCI_LINT) run ./...
 	cd host && $(GOLANGCI_LINT) run ./...
@@ -381,7 +397,7 @@ _fw-deps-update:
 # JSON output. Locally they run fast with -count=1 only.
 # Use `make ci-test-<module>` to reproduce CI behavior locally.
 
-test-framework: ## Run framework module tests only (incl. the eval-harness modules)
+test-framework: i18n-catalogs ## Run framework module tests only (incl. the eval-harness modules)
 	@mkdir -p $(COVER_DIR)
 ifdef CI
 # The eval harnesses (scripts/batcheval, scripts/contexteval) are separate
@@ -401,7 +417,7 @@ else
 	cd scripts/contexteval && $(GOTEST_BASE) ./... -count=1
 endif
 
-test-cli: ## Run host + cli module tests only
+test-cli: i18n-catalogs ## Run host + cli module tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
 	cd host && $(GOTEST_BASE) $(call cov,../$(COVER_DIR)/host.out) -json ./... > ../test-results-cli.json
@@ -411,7 +427,7 @@ else
 	cd cli && $(GOTEST_BASE) ./... -count=1
 endif
 
-test-kapi: ## Run kapi CLI tests only
+test-kapi: i18n-catalogs ## Run kapi CLI tests only
 	@mkdir -p $(COVER_DIR)
 ifdef CI
 	cd kapi && $(GOTEST_BASE) $(call cov,../$(COVER_DIR)/kapi.out) -json ./... > ../test-results-kapi.json
@@ -419,7 +435,7 @@ else
 	cd kapi && $(GOTEST_BASE) ./... -count=1
 endif
 
-test-platform test-bowrain-plugin test-bowrain: ## Run individual bowrain module tests
+test-platform test-bowrain-plugin test-bowrain: i18n-catalogs ## Run individual bowrain module tests
 	$(MAKE) -C bowrain $@
 
 # ── EngineService example clients (contract lock) ───────────────────────────
@@ -441,7 +457,7 @@ engine-examples-python: build ## Run the Python EngineService example client
 # `test-bowrain` excludes apps/bowrain under CI) because the Wails app backend
 # needs the GTK/WebKit toolchain on Linux — mirrors `kapi-desktop-test`. Driven
 # by the `bowrain-desktop` CI job.
-bowrain-desktop-test: ## Run Bowrain Desktop Go backend tests
+bowrain-desktop-test: i18n-catalogs ## Run Bowrain Desktop Go backend tests
 	cd bowrain/apps/bowrain && $(GOTEST_BASE) ./backend/... -count=1 -timeout 120s
 
 # ── CI-equivalent targets (for local reproduction) ──────────────────────────
@@ -544,7 +560,7 @@ ci-i18n-react: ## Mirror the CI `neokapi-i18n` job: typecheck/validate/test/buil
 	cd packages/i18n-react && vp run test
 	cd packages/i18n-react && vp run build
 
-ci-build: ## Mirror the CI `build` job: build all three binaries (no fts5) + assert module isolation
+ci-build: i18n-catalogs ## Mirror the CI `build` job: build all three binaries (no fts5) + assert module isolation
 	@mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
 	@mkdir -p apps/kapi-desktop/frontend/dist && echo placeholder > apps/kapi-desktop/frontend/dist/index.html
 	cd kapi && go build -o ../bin/kapi ./cmd/kapi
@@ -636,7 +652,7 @@ ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fai
 # (embeds don't affect dependency resolution), so the boundary contract holds.
 AUDIT_MODULES := . host cli bowrain/core kapi apps/kapi-desktop bowrain/plugin bowrain
 
-audit-modules: ## Assert module isolation + go.mod/go.sum tidiness (fails on drift)
+audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness (fails on drift)
 	@set -e; rc=0; for dir in $(AUDIT_MODULES); do \
 	  echo ">> audit $$dir"; \
 	  pkgs="./..."; [ "$$dir" = "apps/kapi-desktop" ] && pkgs="./backend/..."; \
@@ -713,7 +729,7 @@ audit-modules: ## Assert module isolation + go.mod/go.sum tidiness (fails on dri
 # Wired into CI as the `module-boundaries` job, gated on any_go OR kapi_desktop so
 # a desktop-only PR that reaches for cobra is still caught (any_go has no
 # apps/kapi-desktop filter).
-check-module-boundaries: ## Assert kapi-desktop cli/cobra-free + bowrain/core framework-only
+check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + bowrain/core framework-only
 	@bad=$$(cd apps/kapi-desktop && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \
 	          | grep -E '^(github\.com/spf13/cobra|github\.com/neokapi/neokapi/cli)(/|$$)' || true); \
 	  if [ -n "$$bad" ]; then echo "ERROR: kapi-desktop must stay cobra-free and cli-free — it links:"; echo "$$bad" | sed 's/^/    /'; exit 1; fi
@@ -754,7 +770,7 @@ TIKAL_JAR_GLOB := $(OKAPI_REPO)/applications/tikal/target/okapi-application-tika
 # and ran the parity suite — the adjudicator for every round-trip change — in a
 # build configuration no other target uses. Nothing failed, because fts5 is a
 # runtime SQL capability rather than a compile gate.
-parity-test: parity-sandbox ## Run the full parity test suite (#448)
+parity-test: parity-sandbox i18n-catalogs ## Run the full parity test suite (#448)
 	@TIKAL_ENV=""; \
 	if ls $(TIKAL_JAR_GLOB) >/dev/null 2>&1; then \
 	    mkdir -p $(PARITY_DIR)/tikal; \
@@ -932,7 +948,7 @@ contract-audit-clean: ## Remove the contract-audit working directory
 # commands too.
 LINK_KAPI_BUSYBOX = for n in kgrep ksed kcat kconv kdiff; do ln -sf kapi $(BIN_DIR)/$$n; done
 
-build: ## Build the kapi CLI (Apache-2.0; manifest-driven plugins discovered at runtime)
+build: i18n-catalogs ## Build the kapi CLI (Apache-2.0; manifest-driven plugins discovered at runtime)
 	@mkdir -p $(BIN_DIR)
 	cd kapi && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi ./cmd/kapi
 	@$(LINK_KAPI_BUSYBOX)
@@ -944,7 +960,7 @@ build: ## Build the kapi CLI (Apache-2.0; manifest-driven plugins discovered at 
 # "No rule to make target 'bin/kapi'".
 bin/kapi: build
 
-build-bowrain-plugin: ## Build the kapi-bowrain plugin binary (manifest-driven)
+build-bowrain-plugin: i18n-catalogs ## Build the kapi-bowrain plugin binary (manifest-driven)
 	@mkdir -p $(BIN_DIR)
 	cd bowrain/plugin && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi-bowrain ./cmd/kapi-bowrain
 
@@ -980,7 +996,7 @@ dev-skills: ## Copy the bundled skills into ./.claude/skills for in-repo dogfood
 	@cp -R $(SKILLS_SRC)/kapi .claude/skills/kapi
 	@echo "Copied skills into .claude/skills (gitignored; canonical source is $(SKILLS_SRC))"
 
-build-all: ## Build all Go binaries
+build-all: i18n-catalogs ## Build all Go binaries
 	@mkdir -p $(BIN_DIR)
 	cd kapi && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi ./cmd/kapi
 	@$(LINK_KAPI_BUSYBOX)
@@ -1167,7 +1183,7 @@ build-kapi-desktop: kapi-desktop-frontend-build ## Build the Kapi Desktop app
 kapi-desktop-dev: kapi-desktop-frontend-deps ## Run Kapi Desktop in dev mode (hot reload)
 	cd $(KAPI_DESKTOP_DIR) && wails3 dev
 
-kapi-desktop-test: ## Run Kapi Desktop Go backend tests
+kapi-desktop-test: i18n-catalogs ## Run Kapi Desktop Go backend tests
 	cd $(KAPI_DESKTOP_DIR) && $(GOTEST_BASE) ./backend/... -count=1 -timeout 180s
 
 # ── Wails bindings (committed AND regenerated at release) ───────────────────
@@ -1350,13 +1366,17 @@ L10N_COMPILE_TARGETS := \
 	$(LANDING_DIR):translations
 
 # Every committed artifact the four stages derive. l10n-verify diffs exactly
-# this set; nothing else in the tree is the gate's business. The last entry is
-# git pathspec magic, left unquoted so l10n-derived-paths can hand the list to
-# Two contexts consume these paths and need opposite quoting. A Make recipe
-# is a /bin/sh command string, where bare parentheses are a syntax error —
-# the glob pathspec must be single-quoted there (L10N_SIDECAR_SPEC_SH).
-# l10n-derived-paths feeds a script that builds an argv array, where quote
-# characters would reach git literally — it gets the bare form.
+# this set; nothing else in the tree is the gate's business. The Go catalog
+# directories are in it for their <lang>.json — the compiled <lang>.mo beside
+# them is gitignored build output, which the gate's untracked check skips
+# because it honours .gitignore.
+#
+# The sidecar entry is a git glob pathspec, and the two contexts that consume
+# it need opposite quoting. A Make recipe is a /bin/sh command string, where
+# bare parentheses are a syntax error — there the pathspec must be
+# single-quoted (L10N_SIDECAR_SPEC_SH). l10n-derived-paths feeds a script that
+# builds an argv array, where quote characters would reach git literally — it
+# gets the bare form.
 L10N_SIDECAR_SPEC    := :(glob)harness/demos/*/demo.*.yaml
 L10N_SIDECAR_SPEC_SH := ':(glob)harness/demos/*/demo.*.yaml'
 L10N_DERIVED := \
@@ -1398,10 +1418,10 @@ landing-frontend-deps: ## Install landing page dependencies
 landing-extract: landing-frontend-deps i18n-react-build ## Extract landing page strings → bowrain/web/landing/i18n/
 	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}"
 
-kapi-i18n-generate: ## Regenerate core/i18n/builtins/metadata.json from the Go registries
+kapi-i18n-generate: i18n-catalogs ## Regenerate core/i18n/builtins/metadata.json from the Go registries
 	go generate ./core/i18n/...
 
-kapi-cli-i18n-generate: ## Regenerate host/i18n/commands.json from the cobra command tree
+kapi-cli-i18n-generate: i18n-catalogs ## Regenerate host/i18n/commands.json from the cobra command tree
 	cd cli && go generate ./i18ngen/...
 
 l10n-extract: kapi-desktop-extract bowrain-app-extract bowrain-ctrl-extract bowrain-pulse-extract emails-extract landing-extract kapi-i18n-generate kapi-cli-i18n-generate ## Stage 1: every SOURCE catalog the recipe declares (no target languages)
@@ -1470,15 +1490,18 @@ l10n-pseudo: bin/kapi ## Pseudo-translate every surface into the qps probe local
 	@for dir in $(L10N_KBF_DIRS); do \
 		$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate $$dir/i18n --target-lang qps -o $$dir/i18n-qps -q || exit 1; \
 	done
-	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate core/i18n/builtins/metadata.json --target-lang qps -f json -o core/i18n/catalogs/qps.mo -q
+	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate core/i18n/builtins/metadata.json --target-lang qps -f json -o core/i18n/catalogs/qps.json -q
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/mailer/subjects/en.json --target-lang qps -f json -o bowrain/mailer/subjects/qps.json -q
 
 # Stage 4: compile.
-# Catalogs are not what the products load: the SPAs and the landing page load
-# compiled runtime dictionaries, and the transactional emails are rendered to
-# per-locale HTML that the server embeds. Both are neokapi-i18n's job.
+# A catalog is not what a product loads. The SPAs and the landing page load
+# compiled runtime dictionaries and the transactional emails are rendered to
+# per-locale HTML the server embeds — neokapi-i18n's job; the Go binaries load
+# gettext MO compiled from the committed catalog JSON — the i18n-catalogs
+# target's job. Both read a catalog this pipeline wrote and neither is the
+# catalog itself.
 
-l10n-compile: l10n-translate i18n-react-build ## Stage 4: catalogs → runtime dictionaries + rendered email templates
+l10n-compile: l10n-translate i18n-react-build ## Stage 4: catalogs → runtime dictionaries, embedded MO, rendered email templates
 	@for spec in $(L10N_COMPILE_TARGETS); do \
 		dir=$${spec%%:*}; out=$${spec#*:}; \
 		(cd $$dir && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out $$out) || exit 1; \
@@ -1487,8 +1510,12 @@ l10n-compile: l10n-translate i18n-react-build ## Stage 4: catalogs → runtime d
 		done; \
 	done
 	cd $(EMAILS_DIR) && vp run build
+	@# Recursive rather than a prerequisite: the Go catalogs must compile from
+	@# the JSON stage 3 has just written, and a sibling prerequisite carries no
+	@# ordering under `make -j`.
+	@$(MAKE) --no-print-directory i18n-catalogs
 
-landing-build-nb: ## Build the nb landing variant → bowrain/web/landing/dist/nb (inline mode from the committed catalogs)
+landing-build-nb:## Build the nb landing variant → bowrain/web/landing/dist/nb (inline mode from the committed catalogs)
 	cd $(LANDING_DIR) && vp run build:nb
 
 # The whole loop, and its one gate.
@@ -1544,12 +1571,12 @@ bowrain-storybook: ## Run Bowrain Storybook (port 6006)
 bowrain-storybook-build: ## Build Bowrain Storybook
 	$(MAKE) -C bowrain storybook-build
 
-install: ## Install kapi CLI to GOPATH/bin
+install: i18n-catalogs ## Install kapi CLI to GOPATH/bin
 	cd kapi && $(GO) install $(LDFLAGS) ./cmd/kapi
 
 # ── Coverage ─────────────────────────────────────────────────────────────────
 
-cover: ## Run tests with coverage (merged report)
+cover: i18n-catalogs ## Run tests with coverage (merged report)
 	@mkdir -p $(COVER_DIR)
 	$(GOTEST_BASE) -coverprofile=$(COVER_DIR)/framework.out $(_COVMODE) ./... -count=1
 	cd host && $(GOTEST_BASE) -coverprofile=../$(COVER_DIR)/host.out $(_COVMODE) ./... -count=1
@@ -1579,7 +1606,7 @@ test-e2e: ## Run all end-to-end tests
 
 # Not $(GOTEST): that bakes in $(GOTAGS), and a second -tags would silently
 # shadow it rather than add to it.
-test-e2e-kapi: ## Run kapi e2e tests
+test-e2e-kapi: i18n-catalogs ## Run kapi e2e tests
 	$(GO) test -tags "fts5,e2e" ./kapi/e2e/... -count=1 -v
 
 test-e2e-bowrain: ; $(MAKE) -C bowrain $@
@@ -1973,10 +2000,10 @@ harness-videos-staged: ## Full fresh pass: stack up → seed → record, then na
 BRIDGE_PLUGIN ?= $(NEOKAPI_WORKSPACE_DIR)/okapi-bridge/dist/plugin
 BRIDGE_ARG     = $(if $(WITH_BRIDGE),$(if $(wildcard $(BRIDGE_PLUGIN)),-bridge $(BRIDGE_PLUGIN),$(error WITH_BRIDGE=1 but no bridge plugin at $(BRIDGE_PLUGIN))),)
 
-generate-reference-docs: ## Generate the reference dataset from THIS repo (built-in + in-repo plugins) → packages/reference-data/data. WITH_BRIDGE=1 adds okapi-bridge (not committed).
+generate-reference-docs: i18n-catalogs ## Generate the reference dataset from THIS repo (built-in + in-repo plugins) → packages/reference-data/data. WITH_BRIDGE=1 adds okapi-bridge (not committed).
 	$(GO) run ./scripts/gen-refs $(BRIDGE_ARG)
 
-check-reference-docs: ## Drift gate: fail if the committed reference dataset is stale vs. source (gates the built-in subset)
+check-reference-docs: i18n-catalogs ## Drift gate: fail if the committed reference dataset is stale vs. source (gates the built-in subset)
 	$(GO) run ./scripts/gen-refs -check $(BRIDGE_ARG)
 
 # Superseded by generate-reference-docs; kept as an alias for existing callers.
@@ -1988,7 +2015,7 @@ generate-contract-types: ## Generate the shared TS contract + content-model type
 check-contract-types: ## Drift gate: fail if the committed contract/content types or content JSON Schema are stale vs. Go
 	$(GO) run ./scripts/gen-contract-types -check
 
-generate-reference-pages: ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/reference/{commands,formats,tools}
+generate-reference-pages: i18n-catalogs ## Generate static per-entry reference MDX pages (R4, #673) → web/docs/reference/{commands,formats,tools}
 	cd web && node --no-warnings --experimental-strip-types scripts/gen-reference-pages.ts
 
 # ── Documentation Site ──────────────────────────────────────────────────────
@@ -2030,7 +2057,7 @@ fetch-vision-models: ## Stage Vision Lab models (OCR whole + layout chunked) →
 # Output dir for the in-browser playground (gitignored; built locally or in CI).
 WASM_DEMO_DIR := web/static/wasm
 
-web-wasm-demo: ## Build the in-browser playground wasm + JS glue → web/static/wasm/
+web-wasm-demo: i18n-catalogs ## Build the in-browser playground wasm + JS glue → web/static/wasm/
 	@mkdir -p $(WASM_DEMO_DIR)
 	GOOS=js GOARCH=wasm $(GO) build -o $(WASM_DEMO_DIR)/kapi.wasm ./cmd/kapi-wasm
 	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
@@ -2051,7 +2078,7 @@ web-pdfium-wasm: ## Stage @embedpdf/pdfium wasm → web/static/wasm/pdfium.wasm
 		echo "  warning: $(PDFIUM_WASM_SRC) not found — run 'vp install'; browser PDF disabled"; \
 	fi
 
-web-wasm-cli: web-pdfium-wasm ## Build the in-browser kapi CLI (wasm) → web/static/wasm/kapi-cli.wasm
+web-wasm-cli: web-pdfium-wasm i18n-catalogs ## Build the in-browser kapi CLI (wasm) → web/static/wasm/kapi-cli.wasm
 	@mkdir -p $(WASM_DEMO_DIR)
 	cd kapi && GOOS=js GOARCH=wasm $(GO) build -o $(CURDIR)/$(WASM_DEMO_DIR)/kapi-cli.wasm ./cmd/kapi-wasm-cli
 	@cp "$$($(GO) env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DEMO_DIR)/wasm_exec.js
@@ -2288,7 +2315,7 @@ help: ## Show this help
         kapi-desktop-bindings bowrain-desktop-bindings wails-bindings check-wails-bindings \
         check-kapi-desktop-bindings check-bowrain-desktop-bindings wails3-cli \
         bowrain-app-extract bowrain-ctrl-extract bowrain-pulse-extract \
-        kapi-i18n-generate kapi-cli-i18n-generate i18n-react-build \
+        kapi-i18n-generate kapi-cli-i18n-generate i18n-react-build i18n-catalogs \
         l10n l10n-extract l10n-seed l10n-translate l10n-pseudo l10n-compile \
         l10n-verify l10n-derived-paths l10n-review-export \
         flow-editor-deps flow-editor-check flow-editor-test \

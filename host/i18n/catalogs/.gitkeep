@@ -1,0 +1,4 @@
+Translated catalogs live here as <locale>.json — text, reviewable in a diff,
+written by the dogfood recipe's neokapi-cli collection. The sibling <locale>.mo
+is compiled from it by `go run ./core/i18n/gen/catalogs`, embedded via
+//go:embed in ../embed.go, and gitignored.

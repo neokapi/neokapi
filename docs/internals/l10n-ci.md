@@ -24,7 +24,7 @@ template. Bringing all of them up to date is four stages:
 | 1. Extract | `l10n-extract` | ours — the React extractors and two `go:generate`s |
 | 2. Seed | `l10n-seed` | kapi — one command |
 | 3. Translate | `l10n-translate` | kapi — one command |
-| 4. Compile | `l10n-compile` | ours — catalogs into runtime dictionaries |
+| 4. Compile | `l10n-compile` | ours — catalogs into what each runtime loads |
 
 `make l10n` runs all four; each stage depends on the one before it, so it is one
 ordered walk even under `make -j`.
@@ -50,17 +50,34 @@ provider credentials, no network. Its output therefore contains only reviewed
 wording, and the pass is a deterministic function of source plus committed
 context — which is what makes a byte gate over it legitimate.
 
+Stage 4 compiles a catalog into whatever its runtime loads. The SPAs, the
+landing page and the transactional emails take compiled dictionaries and
+rendered HTML from `@neokapi/i18n-react`. The Go binaries take gettext MO:
+`make i18n-catalogs` compiles each committed `core/i18n/catalogs/<lang>.json`
+and `host/i18n/catalogs/<lang>.json` into the sibling `<lang>.mo` that
+`//go:embed catalogs/*.mo` picks up. Version control carries the JSON — text a
+reviewer reads in a diff — and never the MO. That is why the compiler is pure
+Go in the framework module rather than a kapi invocation: it links neither
+package it writes for, so there is no bootstrap cycle, and every target that
+builds, tests, vets or lints those modules can declare it as a prerequisite.
+A build that skips it fails on the embed pattern rather than silently shipping
+English.
+
 The `qps` pseudo-locale is a separate, isolated pass (`l10n-pseudo`). It is a
 runtime-correctness probe — does the UI survive expanded, marked-up text? — not
 project content, so it is not a target language in the recipe and does not bind
-the project.
+the project. It writes `core/i18n/catalogs/qps.json` in the same shape as any
+other locale's catalog, and stage 4 compiles it like any other.
 
 ## One gate, and what it is allowed to assert
 
 `make l10n-verify` regenerates everything and diffs the committed derived set,
 which `make l10n-derived-paths` prints so the Makefile and CI cannot disagree
 about it. It also fails on *untracked* output, because `git diff` alone cannot
-see a catalog for a locale or a surface that did not exist before.
+see a catalog for a locale or a surface that did not exist before. The two Go
+catalog directories are in that set for their `<lang>.json`; the `<lang>.mo`
+beside them is gitignored, and the untracked check honours `.gitignore`, so
+build output does not read as drift.
 
 The gate asserts **generated-vs-source consistency** and nothing else. It says
 nothing about how much of a target language is translated, and must never be
@@ -161,9 +178,10 @@ reversibly.
 | Piece | One-line justification |
 | --- | --- |
 | `l10n-extract` (and the six extractors under it) | AD-038: a recipe may not name a subprocess |
-| `l10n-compile` | same; the products load compiled dictionaries and rendered HTML, not catalogs |
+| `l10n-compile` | same; no runtime loads a catalog directly — the SPAs load compiled dictionaries, the emails rendered HTML, the Go binaries embedded MO |
 | `l10n-seed` | wipe-and-reseed proves the committed context is the truth and the one project store (`.kapi/work/store.db`) is only its projection |
 | `l10n-pseudo` | `qps` is a correctness probe, not project content, so it is not a target language |
+| `i18n-catalogs` | the Go binaries' embedded MO is build output, and `//go:embed` resolves at compile time, so it is a build prerequisite rather than a stage anyone runs by hand |
 | `l10n-verify` / `l10n-derived-paths` | a generated-vs-source gate over committed artifacts, and its single source of truth for what that set is |
 | `l10n-review-export` | emits the lossy interchange views (TMX/CSV) a human reviewer asks for; the native seeds stay the truth |
 | `scripts/l10n-autofix.sh` | the deterministic-regeneration commit; nothing standard commits the output of a stage that is not kapi's |

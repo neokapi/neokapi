@@ -1,3 +1,4 @@
-Compiled MO catalogs land here — one per locale, produced by
-`make l10n` (KBF reader → MO writer). Embedded into the
-framework binary via //go:embed in ../embed.go.
+Translated catalogs live here as <locale>.json — text, reviewable in a diff,
+written by the dogfood recipe's neokapi-engine collection. The sibling
+<locale>.mo is compiled from it by `go run ./core/i18n/gen/catalogs`, embedded
+via //go:embed in ../embed.go, and gitignored.

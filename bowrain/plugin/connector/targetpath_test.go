@@ -33,7 +33,7 @@ collections:
     base: host/i18n
     content:
       - path: commands.json
-        target: catalogs/{lang}.mo
+        target: catalogs/{lang}.json
   - name: no-target
     content:
       - path: "plain/**/*.md"
@@ -48,7 +48,7 @@ collections:
 		// never the master.
 		{"harness/demos/07-x/demo.yaml", "harness/demos/07-x/demo.nb.yaml"},
 		// A name-changing target maps fully; the source filename does not leak.
-		{"host/i18n/commands.json", "host/i18n/catalogs/nb.mo"},
+		{"host/i18n/commands.json", "host/i18n/catalogs/nb.json"},
 		// No matching item and no locale segment: locale-suffixed sibling.
 		{"unmatched/readme.txt", "unmatched/readme.nb.txt"},
 	}

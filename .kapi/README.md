@@ -127,11 +127,16 @@ predicate, `model.DiffRunCodes`.
 ## Why not PO files? (decided, not overlooked)
 
 The Go-surface catalogs (builtins, CLI help) are standard gettext at
-runtime — embedded MO, msgid = English source, msgctxt = scope — but the
-repository does not carry per-locale `.po` files. PO's value is its
-translator-facing ecosystem (Poedit, Weblate, community PRs); today's
-translator population is the maintainer plus kapi-driven agents, so
-committed PO would be a second translation workflow with no audience.
+runtime — embedded MO, msgid = English source, msgctxt = scope — and the
+repository carries a per-locale catalog for them, but as JSON in the shape of
+its source document, not as `.po`. The reviewable-text half of PO's argument is
+answered: `core/i18n/catalogs/<lang>.json` and `host/i18n/catalogs/<lang>.json`
+diff line by line, and the MO is compiled from them at build time. What is left
+of PO's value is its translator-facing ecosystem (Poedit, Weblate, community
+PRs); today's translator population is the maintainer plus kapi-driven agents,
+so committed PO would be a second translation workflow with no audience — and
+a second file format for the same content, one the recipe could not write from
+a JSON source without a conversion nobody asked for.
 
 If external locale contributions become a goal, PO enters **through the
 project, not beside it**: `kapi extract --format po` emits the bilingual
@@ -152,18 +157,27 @@ intermediates, `l10n/review/`).
    `harness/demos/*/demo.yaml`. Tooling may have written the first
    draft, but humans own the content; nothing regenerates them.
    Corrections land here.
-2. **Committed-generated — machine-owned, drift-gated.** The embedded MO
-   catalogs, `commands.json`/`metadata.json` inventories, the frontend
-   runtime catalogs (`public/translations/<locale>.json`), the demo
-   narration sidecars (`harness/demos/*/demo.<lang>.yaml`), the rendered email
-   templates and subject catalogs (`go:embed`ed into the server), and the
-   landing runtime catalogs (the web-landing workflow builds the nb variant
-   from them without a kapi toolchain). Committed because `go:embed` needs
-   them at build time (regenerating needs a built kapi — a bootstrap cycle)
-   and the apps ship them as static assets. `make l10n-verify` regenerates
+2. **Committed-generated — machine-owned, drift-gated.** The Go-surface
+   catalogs (`core/i18n/catalogs/<lang>.json`,
+   `host/i18n/catalogs/<lang>.json`), the `commands.json`/`metadata.json`
+   inventories, the frontend runtime catalogs
+   (`public/translations/<locale>.json`), the demo narration sidecars
+   (`harness/demos/*/demo.<lang>.yaml`), the rendered email templates and
+   subject catalogs (`go:embed`ed into the server), and the landing runtime
+   catalogs (the web-landing workflow builds the nb variant from them without a
+   kapi toolchain). Committed because the apps ship them as static assets, and
+   because a catalog is what a reviewer reads. `make l10n-verify` regenerates
    all of it and fails on any byte drift; in CI that is the `l10n` workflow,
    which on a same-repo pull request commits the regeneration back instead of
    failing. Never hand-edit.
+
+   The compiled MO the Go binaries embed is **not** in this tier and not in
+   git: `make i18n-catalogs` produces `<lang>.mo` from the `<lang>.json` beside
+   it, ahead of anything that compiles `core/i18n` or `host/i18n`. It is pure
+   Go in the framework module and links neither package it writes for, so there
+   is no bootstrap cycle and no kapi binary in the loop. A binary catalog in
+   git is unreviewable — that is how a pull once wrote JSON bytes into the
+   `.mo` files with nothing in the diff to see.
 3. **Materialized targets — generated, never committed.** The translated
    docs pages for both Docusaurus sites. Derived from source + content memory;
    gitignored build artefacts, because committing them made every source-doc

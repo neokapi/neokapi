@@ -1,0 +1,2446 @@
+{
+  "tools": {
+    "case-transform": {
+      "displayName": "Endre store\/små bokstaver",
+      "category": "text-processing",
+      "properties": {
+        "applySource": {
+          "title": "Bruk på kilde",
+          "description": "Bruk på kildeteksten"
+        },
+        "applyTarget": {
+          "title": "Bruk på mål",
+          "description": "Bruk på målteksten"
+        },
+        "mode": {
+          "title": "Transformasjonsmodus",
+          "description": "Modus for store\/små bokstaver",
+          "options": {
+            "lower": {
+              "label": "små bokstaver"
+            },
+            "title": {
+              "label": "stor forbokstav"
+            },
+            "upper": {
+              "label": "store bokstaver"
+            }
+          }
+        }
+      }
+    },
+    "create-target": {
+      "displayName": "Create Target",
+      "category": "text-processing",
+      "properties": {
+        "copySource": {
+          "title": "Copy Source",
+          "description": "Copy the source runs into the new target"
+        },
+        "createOnNonTranslatable": {
+          "title": "Create on Non-Translatable",
+          "description": "Create a target even for non-translatable text units"
+        },
+        "overwrite": {
+          "title": "Overwrite Existing",
+          "description": "Overwrite the existing target if one already exists"
+        },
+        "targetLocale": {
+          "title": "Target Locale",
+          "description": "Target locale to create"
+        }
+      }
+    },
+    "diff-leverage": {
+      "displayName": "Diff-gjenbruk",
+      "category": "translation",
+      "properties": {
+        "caseSensitive": {
+          "title": "Versalfølsom",
+          "description": "Om sammenligningen skiller mellom store og små bokstaver"
+        },
+        "fuzzyMatch": {
+          "title": "Fuzzy-treff",
+          "description": "Aktiver fuzzy-matching for lignende tekster"
+        }
+      }
+    },
+    "dnt-check": {
+      "displayName": "Do-Not-Translate Check",
+      "category": "quality",
+      "properties": {
+        "caseInsensitive": {
+          "title": "Case-insensitive preservation",
+          "description": "Accept a case-folded match in the target instead of requiring exact case"
+        },
+        "terms": {
+          "title": "Do-Not-Translate Terms",
+          "description": "Strings that must survive verbatim into the target (product names"
+        }
+      }
+    },
+    "encoding-detect": {
+      "displayName": "Tegnkodingsdeteksjon",
+      "category": "analysis"
+    },
+    "entity-extract": {
+      "displayName": "AI-entitetsuttrekk",
+      "description": "Detect named entities (people, organizations, products, locations) with an LLM, a local NER model, or both",
+      "category": "analysis",
+      "properties": {
+        "apiKey": {
+          "title": "API-nøkkel",
+          "description": "API-nøkkel for AI-leverandøren"
+        },
+        "batchConcurrency": {
+          "description": "Antall samtidige batchkall (0 eller 1 = sekvensielt)"
+        },
+        "batchSize": {
+          "description": "Antall blokker per LLM-kall (0 eller 1 = én blokk per kall)"
+        },
+        "engine": {
+          "title": "Uttrekksmotor",
+          "description": "llm (AI-leverandør; standard) \/ ner (lokal modell på enheten — ingenting forlater maskinen) \/ hybrid (begge)",
+          "options": {
+            "hybrid": {
+              "label": "Hybrid (NER + LLM)"
+            },
+            "llm": {
+              "label": "LLM (AI provider)"
+            },
+            "ner": {
+              "label": "Local NER (on-device)"
+            }
+          },
+          "enumDescriptions": {
+            "hybrid": "Run the local model and the LLM, merging results.",
+            "llm": "Extract with an AI provider.",
+            "ner": "On-device model — no credentials, nothing leaves the machine."
+          }
+        },
+        "knownTerms": {
+          "description": "Terms to exclude from extraction (already in the terms store)"
+        },
+        "locale": {
+          "description": "Språkkode for kildeinnholdet"
+        },
+        "model": {
+          "title": "Modell",
+          "description": "Navn på AI-modell"
+        },
+        "provider": {
+          "title": "AI-leverandør",
+          "description": "AI-leverandør",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
+            },
+            "demo": {
+              "label": "Demo (illustrerende)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "extract": {
+          "label": "Extraction"
+        },
+        "llm": {
+          "label": "LLM (AI provider)"
+        },
+        "llm:provider": {
+          "label": "Leverandør"
+        }
+      }
+    },
+    "external-command": {
+      "displayName": "External Command",
+      "category": "text-processing",
+      "properties": {
+        "applySource": {
+          "title": "Bruk på kilde",
+          "description": "Process source text"
+        },
+        "applyTarget": {
+          "title": "Bruk på mål",
+          "description": "Process target text"
+        },
+        "args": {
+          "title": "Arguments",
+          "description": "Command arguments; use ${source} and ${target} as placeholders"
+        },
+        "command": {
+          "title": "Command Line",
+          "description": "The command to execute"
+        },
+        "sendAsStdin": {
+          "title": "Send as Stdin",
+          "description": "Send text via stdin instead of command arguments"
+        },
+        "targetLocale": {
+          "title": "Target Locale",
+          "description": "Target locale for processing"
+        },
+        "timeout": {
+          "title": "Timeout",
+          "description": "Timeout in seconds"
+        }
+      }
+    },
+    "inline-codes-remove": {
+      "displayName": "Inline Codes Remove",
+      "category": "text-processing",
+      "properties": {
+        "applySource": {
+          "title": "Bruk på kilde",
+          "description": "Apply to the source text"
+        },
+        "applyTarget": {
+          "title": "Bruk på mål",
+          "description": "Apply to the target text"
+        },
+        "includeNonTranslatable": {
+          "title": "Include Non-Translatable",
+          "description": "Apply the removal action even to text units marked as non-translatable"
+        },
+        "replaceWithSpace": {
+          "title": "Replace With Space",
+          "description": "Replace line-break inline codes with spaces instead of removing them entirely"
+        },
+        "targetLocale": {
+          "title": "Target Locale",
+          "description": "Target locale for processing"
+        }
+      }
+    },
+    "media-refine": {
+      "displayName": "Media Refine",
+      "description": "Re-read low-confidence OCR\/ASR lines with a configurable multimodal LLM",
+      "category": "text-processing",
+      "properties": {
+        "apiKey": {
+          "title": "API-nøkkel",
+          "description": "API-nøkkel for AI-leverandøren"
+        },
+        "model": {
+          "title": "Modell",
+          "description": "Multimodal model name"
+        },
+        "provider": {
+          "title": "AI-leverandør",
+          "description": "Multimodal AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
+            },
+            "demo": {
+              "label": "Demo (illustrerende)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        },
+        "threshold": {
+          "title": "Confidence Threshold",
+          "description": "Re-read extracted lines whose confidence is below this"
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Leverandør"
+        }
+      }
+    },
+    "placeholder-check": {
+      "displayName": "Placeholder Check",
+      "category": "quality",
+      "properties": {
+        "flagExtra": {
+          "title": "Flag extra placeholders",
+          "description": "Report placeholders present in the target but absent from the source"
+        }
+      }
+    },
+    "pseudo-translate": {
+      "displayName": "Pseudooversettelse",
+      "category": "translation",
+      "properties": {
+        "expansionPercent": {
+          "title": "Ekspansjonsprosent",
+          "description": "Ekstra utfyllingsprosent som legges til for å simulere ekspansjon ved oversettelse (0 = ingen utfylling)"
+        },
+        "prefix": {
+          "title": "Prefiks",
+          "description": "Tegn som settes inn foran hver oversatt blokk"
+        },
+        "suffix": {
+          "title": "Suffiks",
+          "description": "Tegn som legges til etter hver oversatt blokk"
+        }
+      }
+    },
+    "qa": {
+      "displayName": "Kvalitetskontroll",
+      "description": "Check translation quality with deterministic rules or an LLM (select with --mode)",
+      "category": "quality",
+      "properties": {
+        "absoluteMaxCharLength": {
+          "title": "Absolutt maksimalt antall tegn",
+          "description": "Maksimalt antall tegn tillatt i et målsegment"
+        },
+        "apiKey": {
+          "title": "API-nøkkel",
+          "description": "API-nøkkel for AI-leverandøren"
+        },
+        "charset": {
+          "title": "Tegnsettkoding",
+          "description": "Navn på tegnsettkodingen det skal kontrolleres mot (f.eks. ISO-8859-1)"
+        },
+        "checkAbsoluteMaxCharLength": {
+          "title": "Kontroller absolutt maksimal lengde",
+          "description": "Flagg målsegmenter som overskrider en absolutt tegngrense"
+        },
+        "checkCharset": {
+          "title": "Kontroller mot tegnsettkoding",
+          "description": "Warn if a target character is not included in the specified character set encoding"
+        },
+        "checkCodeDifference": {
+          "title": "Kontroller kodeforskjeller",
+          "description": "Verifiser at målsegmenter har de samme inline-kodene som kildesegmentene"
+        },
+        "checkCorruptedCharacters": {
+          "title": "Kontroller ødelagte tegn",
+          "description": "Check for patterns indicating encoding corruption (mojibake"
+        },
+        "checkDoubleSpaces": {
+          "title": "Kontroller doble mellomrom",
+          "description": "Se etter doble mellomrom i målteksten"
+        },
+        "checkDoubledWord": {
+          "title": "Varsle om gjentatte ord",
+          "description": "Se etter påfølgende gjentatte ord i målteksten"
+        },
+        "checkEmptySource": {
+          "title": "Varsle om ikke-tomt mål med tom kilde",
+          "description": "Kontroller for ikke-tomt mål når kilden er tom"
+        },
+        "checkEmptyTarget": {
+          "title": "Varsle om tomt mål",
+          "description": "Kontroller for tomt mål når kilden har innhold"
+        },
+        "checkLeadingWhitespace": {
+          "title": "Kontroller innledende blanktegn",
+          "description": "Kontroller for avvik i innledende blanktegn mellom kilde og mål"
+        },
+        "checkMaxCharLength": {
+          "title": "Kontroller maksimalt lengdeforhold",
+          "description": "Flagg mål som er lengre enn en prosentandel av kildens tegnlengde"
+        },
+        "checkMaxWords": {
+          "title": "Check Maximum Word Count",
+          "description": "Flag target segments that exceed an absolute word count limit"
+        },
+        "checkMinCharLength": {
+          "title": "Kontroller minimalt lengdeforhold",
+          "description": "Flagg mål som er kortere enn en prosentandel av kildens tegnlengde"
+        },
+        "checkPatterns": {
+          "title": "Kontroller mønstre",
+          "description": "Verifiser at kildemønstre har forventet tilsvarende innhold i målet"
+        },
+        "checkSourceInconsistency": {
+          "title": "Kontroller kildeinkonsistens",
+          "description": "Flag when different source texts share the same translation"
+        },
+        "checkSpanConstraints": {
+          "title": "Kontroller span-begrensninger",
+          "description": "Kontroller brudd på begrensninger for spans som ikke kan slettes eller klones"
+        },
+        "checkTargetInconsistency": {
+          "title": "Kontroller målinkonsistens",
+          "description": "Flag when the same source text is translated differently across the run"
+        },
+        "checkTargetSameAsSource": {
+          "title": "Varsle når mål er lik kilde",
+          "description": "Kontroller når målteksten er identisk med kildeteksten"
+        },
+        "checkTerminology": {
+          "title": "Verifiser terminologi",
+          "description": "Aktiver terminologikontroller"
+        },
+        "checkTrailingWhitespace": {
+          "title": "Kontroller avsluttende blanktegn",
+          "description": "Kontroller for avvik i avsluttende blanktegn mellom kilde og mål"
+        },
+        "checks": {
+          "title": "Kvalitetskontroller",
+          "description": "Kvalitetskontroller som skal utføres (f.eks. terminology fluency accuracy consistency)"
+        },
+        "consistencyCaseSensitive": {
+          "title": "Case-Sensitive Consistency",
+          "description": "Whether consistency comparison is case-sensitive"
+        },
+        "doubledWordExceptions": {
+          "title": "Unntak for gjentatte ord",
+          "description": "Semikolonseparert liste over ord som kan gjentas (f.eks. sie;vous;nous)"
+        },
+        "forbiddenChars": {
+          "title": "Forbudte tegn",
+          "description": "Characters that must not appear in target text (e.g. {}[])"
+        },
+        "maxCharLengthAbove": {
+          "title": "Prosent for lang tekst (maks)",
+          "description": "Maksimal tillatt prosentandel av kildelengden for lang tekst"
+        },
+        "maxCharLengthBelow": {
+          "title": "Prosent for kort tekst (maks)",
+          "description": "Maksimal tillatt prosentandel av kildelengden for kort tekst"
+        },
+        "maxCharLengthBreak": {
+          "title": "Terskel for kort\/lang (maks)",
+          "description": "Antall tegn som teksten må overstige for å regnes som lang i kontrollen av maksimal lengde"
+        },
+        "maxWords": {
+          "title": "Maksimalt antall ord",
+          "description": "Maximum number of words allowed in any target segment"
+        },
+        "minCharLengthAbove": {
+          "title": "Prosent for lang tekst (min)",
+          "description": "Minste påkrevde prosentandel av kildelengden for lang tekst"
+        },
+        "minCharLengthBelow": {
+          "title": "Prosent for kort tekst (min)",
+          "description": "Minste påkrevde prosentandel av kildelengden for kort tekst"
+        },
+        "minCharLengthBreak": {
+          "title": "Terskel for kort\/lang (min)",
+          "description": "Antall tegn som teksten må overstige for å regnes som lang i kontrollen av minimal lengde"
+        },
+        "mode": {
+          "title": "QA Mode",
+          "description": "How to check quality: deterministic local rules, or an AI provider's review",
+          "options": {
+            "ai": {
+              "label": "AI review"
+            },
+            "rules": {
+              "label": "Deterministic rules"
+            }
+          },
+          "enumDescriptions": {
+            "ai": "LLM-judged quality review via an AI provider.",
+            "rules": "Local rule-based checks — no credentials, no network."
+          }
+        },
+        "model": {
+          "title": "Modell",
+          "description": "Navn på AI-modell"
+        },
+        "provider": {
+          "title": "AI-leverandør",
+          "description": "AI-leverandør",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
+            },
+            "demo": {
+              "label": "Demo (illustrerende)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        },
+        "requiredChars": {
+          "title": "Påkrevde tegn",
+          "description": "Tegn som må forekomme i målet hvis de finnes i kilden (f.eks. tegnsetting)"
+        },
+        "strictCodeOrder": {
+          "title": "Håndhev streng koderekkefølge",
+          "description": "Flagg forskjeller når koder står i ulik rekkefølge i kilde og mål"
+        },
+        "targetSameAsSourceWithCodes": {
+          "title": "Ta med koder i sammenligningen",
+          "description": "Ta med inline-koder når kilde og mål sammenlignes for likhet"
+        },
+        "targetSameAsSourceWithNumbers": {
+          "title": "Ta med segmenter med bare tall",
+          "description": "Ta med segmenter med bare tall i sammenligningen av mål som er lik kilde"
+        }
+      },
+      "groups": {
+        "ai": {
+          "label": "AI review"
+        },
+        "ai:provider": {
+          "label": "Leverandør"
+        },
+        "qa": {
+          "label": "Quality check"
+        },
+        "rules": {
+          "label": "Deterministic rules"
+        },
+        "rules:characters": {
+          "label": "Tegn"
+        },
+        "rules:consistency": {
+          "label": "Consistency"
+        },
+        "rules:general": {
+          "label": "Generelt"
+        },
+        "rules:inlineCodes": {
+          "label": "Inline-koder"
+        },
+        "rules:length": {
+          "label": "Lengde"
+        },
+        "rules:patterns": {
+          "label": "Mønstre"
+        }
+      }
+    },
+    "recycle": {
+      "displayName": "Recycle",
+      "category": "translation",
+      "properties": {
+        "downgradeIdenticalBestMatches": {
+          "title": "Nedgrader identiske eksakttreff",
+          "description": "Reduser poengsummen med 1%% når flere identiske eksakttreff returneres"
+        },
+        "fillIfTargetIsEmpty": {
+          "title": "Bare hvis mål er tomt",
+          "description": "Fyll målet bare når det ikke har innhold fra før"
+        },
+        "fillTarget": {
+          "title": "Fyll mål med oversettelse",
+          "description": "Kopier den beste oversettelseskandidaten inn i målinnholdet"
+        },
+        "fillTargetThreshold": {
+          "title": "Terskel for målfylling",
+          "description": "Minste treffpoengsum som kreves for å fylle målet"
+        },
+        "fuzzyThreshold": {
+          "title": "Terskel for fuzzy-treff",
+          "description": "Minste poengsum for fuzzy-treff (0-100)"
+        },
+        "makeTmx": {
+          "title": "Generer TMX-dokument",
+          "description": "Opprett en TMX-fil med alle gjenbrukte treff"
+        },
+        "noQueryThreshold": {
+          "title": "Terskel for å hoppe over spørring",
+          "description": "Skip content-memory query if existing candidate scores at or above this value (101 = always query)"
+        },
+        "tmxPath": {
+          "title": "TMX-utdatasti",
+          "description": "Filsti for det genererte TMX-dokumentet"
+        }
+      }
+    },
+    "redact": {
+      "displayName": "Sladding",
+      "description": "Erstatt sensitive spenn med beskyttede plassholdere før behandling",
+      "category": "text-processing",
+      "properties": {
+        "detectors": {
+          "title": "Detektorer",
+          "description": "Deteksjonsmotorer som skal kjøres: rules og\/eller entities"
+        },
+        "entityTypes": {
+          "title": "Entitetskategorier",
+          "description": "Entitetskategorier som skal sladdes: person"
+        },
+        "placeholder": {
+          "title": "Plassholdermal",
+          "description": "Synlig plassholdermal; støtter {category} og {n}"
+        },
+        "rulesPath": {
+          "title": "Regelfil",
+          "description": "Sti til en YAML-fil med sladderegler"
+        }
+      }
+    },
+    "remove-target": {
+      "displayName": "Remove Target",
+      "category": "text-processing",
+      "properties": {
+        "filterByIDs": {
+          "title": "Filter by IDs",
+          "description": "When true filter text units by ID; when false filter by target locale"
+        },
+        "removeBlockIfEmpty": {
+          "title": "Remove Empty Text Units",
+          "description": "Remove the text unit entirely if it has no remaining targets after removal"
+        },
+        "targetLocale": {
+          "title": "Target Locale",
+          "description": "Target locale to remove (if empty all targets are removed)"
+        },
+        "textUnitIDs": {
+          "title": "Text Unit IDs for Removal",
+          "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
+        }
+      }
+    },
+    "review": {
+      "displayName": "Review",
+      "description": "Gjennomgå oversettelser med poengsetting ved hjelp av en LLM-leverandør",
+      "category": "quality",
+      "properties": {
+        "apiKey": {
+          "title": "API-nøkkel",
+          "description": "API-nøkkel for AI-leverandøren"
+        },
+        "model": {
+          "title": "Modell",
+          "description": "Navn på AI-modell"
+        },
+        "provider": {
+          "title": "AI-leverandør",
+          "description": "AI-leverandør",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
+            },
+            "demo": {
+              "label": "Demo (illustrerende)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Leverandør"
+        }
+      }
+    },
+    "script": {
+      "displayName": "Skript",
+      "category": "text-processing",
+      "properties": {
+        "allowSourceMutation": {
+          "title": "Tillat endring av kilden",
+          "description": "Tillat at skriptet endrer kildeteksten (av som standard; kilden er skrivebeskyttet)"
+        },
+        "code": {
+          "title": "Inline-kode",
+          "description": "Inline ES5 JavaScript-kode"
+        },
+        "scriptFile": {
+          "title": "Skriptfil",
+          "description": "Sti til en .js-fil"
+        },
+        "source": {
+          "title": "Skriptkilde",
+          "description": "Skriptkildemodus",
+          "options": {
+            "file": {
+              "label": "fil"
+            },
+            "inline": {
+              "label": "inline"
+            }
+          }
+        }
+      }
+    },
+    "search-replace": {
+      "displayName": "Søk og erstatt",
+      "category": "text-processing",
+      "properties": {
+        "dotAll": {
+          "title": "Punktum matcher også linjeskift",
+          "description": "La punktumtegnet matche alle tegn, inkludert linjeskift"
+        },
+        "ignoreCase": {
+          "title": "Ignorer forskjeller i store\/små bokstaver",
+          "description": "Ignorer store\/små bokstaver ved matching av søkemønstre"
+        },
+        "multiLine": {
+          "title": "Flerlinjemodus",
+          "description": "La ^ og $ matche ved begynnelsen og slutten av hver linje"
+        },
+        "regEx": {
+          "title": "Bruk regulære uttrykk",
+          "description": "Aktiver modus for regulære uttrykk for alle søkemønstre"
+        },
+        "replaceAll": {
+          "title": "Erstatt alle forekomster",
+          "description": "Erstatt alle treff i stedet for bare det første"
+        },
+        "source": {
+          "title": "Erstatt i kildeinnhold",
+          "description": "Utfør søk og erstatt på kildeinnholdet"
+        },
+        "target": {
+          "title": "Erstatt i målinnhold",
+          "description": "Utfør søk og erstatt på målinnholdet"
+        }
+      }
+    },
+    "segmentation": {
+      "displayName": "Segmentering",
+      "description": "Split source text into sentence or chunk segments (stand-off overlay)",
+      "category": "text-processing",
+      "properties": {
+        "credential": {
+          "title": "Legitimasjon",
+          "description": "Stored credential name"
+        },
+        "engine": {
+          "title": "Segmenteringsmotor",
+          "description": "Which segmenter to use; the default needs no configuration",
+          "options": {
+            "llm": {
+              "label": "LLM (semantic chunks)"
+            },
+            "srx": {
+              "label": "Rule-based (hybrid SRX\/UAX-29)"
+            },
+            "uax29": {
+              "label": "Unicode baseline (UAX-29)"
+            }
+          },
+          "enumDescriptions": {
+            "llm": "Semantic chunking via an AI provider — produces meaning-based chunks rather than sentence boundaries.",
+            "srx": "Faithful sentence segmentation: ICU UAX-29 boundaries refined by Okapi SRX exceptions where ICU is available, pure-Go SRX rules otherwise. No configuration required.",
+            "uax29": "Unicode default sentence boundaries (ICU UAX-29). A language-agnostic baseline with no exceptions."
+          }
+        },
+        "instruction": {
+          "title": "Instruksjon for oppdeling",
+          "description": "Optional guidance for how to chunk"
+        },
+        "layer": {
+          "title": "Overleggslag",
+          "description": "Navn på segmenteringsoverleggslaget; tomt bruker motorens naturlige lag"
+        },
+        "maxChunkRunes": {
+          "title": "Max Chunk Size",
+          "description": "Soft upper bound on chunk size in characters (0 = model default)"
+        },
+        "model": {
+          "title": "Modell",
+          "description": "Model name"
+        },
+        "overwriteSegmentation": {
+          "title": "Overskriv eksisterende segmentering",
+          "description": "Segmenter allerede segmenterte blokker på nytt og erstatt tidligere segmentering"
+        },
+        "provider": {
+          "title": "Leverandør",
+          "description": "AI provider id (anthropic"
+        },
+        "renumberCodes": {
+          "title": "Renummerer kode-ID-er",
+          "description": "Renummerer inline-kode-ID-er når segmenter materialiseres til et tospråklig format"
+        },
+        "rulesPath": {
+          "title": "SRX Rules File",
+          "description": "Path to a custom SRX 2.0 rules file (overrides the built-in ruleset)"
+        },
+        "segmentSource": {
+          "title": "Segmenter kildetekst",
+          "description": "Segmenter kildeteksten"
+        },
+        "segmentTarget": {
+          "title": "Segmenter måltekst",
+          "description": "Segmenter eksisterende måltekst"
+        },
+        "treatIsolatedCodesAsWhitespace": {
+          "title": "Behandle isolerte koder som blanktegn",
+          "description": "Behandle isolerte inline-koder som blanktegn under segmentering"
+        },
+        "trimLeadingWhitespace": {
+          "title": "Fjern innledende blanktegn",
+          "description": "Utelat innledende blanktegn fra hvert segmentspenn"
+        },
+        "trimTrailingWhitespace": {
+          "title": "Fjern avsluttende blanktegn",
+          "description": "Utelat avsluttende blanktegn fra hvert segmentspenn"
+        }
+      },
+      "groups": {
+        "boundaries": {
+          "label": "Boundary handling"
+        },
+        "llm": {
+          "label": "LLM (semantic chunks)"
+        },
+        "segmentation": {
+          "label": "Segmentering"
+        },
+        "srx": {
+          "label": "Rule-based (hybrid SRX\/UAX-29)"
+        }
+      }
+    },
+    "source-gate": {
+      "displayName": "Source Gate",
+      "category": "translation",
+      "properties": {
+        "gate": {
+          "title": "Source Gate",
+          "description": "Minimum source-authoring status a block must reach before its translations are produced",
+          "options": {
+            "approved": {
+              "label": "godkjent"
+            },
+            "authored": {
+              "label": "authored"
+            },
+            "checked": {
+              "label": "checked"
+            },
+            "none": {
+              "label": "ingen"
+            }
+          }
+        }
+      }
+    },
+    "term-check": {
+      "displayName": "Terminologikontroll",
+      "category": "quality",
+      "properties": {
+        "caseSensitive": {
+          "title": "Versalfølsom",
+          "description": "Om termmatching skiller mellom store og små bokstaver"
+        }
+      }
+    },
+    "term-extract": {
+      "displayName": "AI-terminologiuttrekk",
+      "description": "Trekk ut terminologikandidater fra innhold med en LLM-leverandør",
+      "category": "analysis",
+      "properties": {
+        "apiKey": {
+          "title": "API-nøkkel",
+          "description": "API-nøkkel for AI-leverandøren"
+        },
+        "domain": {
+          "title": "Domene",
+          "description": "Fagdomene for terminologiuttrekk (f.eks. medical legal technology)"
+        },
+        "model": {
+          "title": "Modell",
+          "description": "Navn på AI-modell"
+        },
+        "provider": {
+          "title": "AI-leverandør",
+          "description": "AI-leverandør",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
+            },
+            "demo": {
+              "label": "Demo (illustrerende)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Leverandør"
+        }
+      }
+    },
+    "translate": {
+      "displayName": "Oversett",
+      "description": "Translate content with an LLM or machine-translation provider (select an engine, then a provider)",
+      "category": "translation",
+      "properties": {
+        "apiKey": {
+          "title": "API-nøkkel",
+          "description": "API-nøkkel for AI-leverandøren"
+        },
+        "batchConcurrency": {
+          "title": "Batchsamtidighet",
+          "description": "Antall samtidige batchkall (0 eller 1 = sekvensielt)"
+        },
+        "batching": {
+          "title": "Batching",
+          "description": "How many blocks share one LLM call",
+          "options": {
+            "auto": {
+              "label": "auto"
+            },
+            "single": {
+              "label": "single"
+            }
+          }
+        },
+        "context": {
+          "title": "Context",
+          "description": "What the model is told about a block besides the block itself",
+          "options": {
+            "key": {
+              "label": "key"
+            },
+            "neighbours": {
+              "label": "neighbours"
+            },
+            "none": {
+              "label": "ingen"
+            }
+          }
+        },
+        "contextWindow": {
+          "title": "Context Window",
+          "description": "Blocks either side to send as reference (with context: neighbours)"
+        },
+        "engine": {
+          "title": "Engine",
+          "description": "Translation engine: an AI model or a machine-translation provider",
+          "options": {
+            "llm": {
+              "label": "AI (LLM)"
+            },
+            "mt": {
+              "label": "Machine translation"
+            }
+          },
+          "enumDescriptions": {
+            "llm": "Translate with a large language model.",
+            "mt": "Translate with a plugin-provided machine-translation engine."
+          }
+        },
+        "instruction": {
+          "title": "Instruction",
+          "description": "Extra guidance for the model while translating (e.g. 'informal register; keep product names in English')"
+        },
+        "model": {
+          "title": "Modell",
+          "description": "Navn på AI-modell"
+        },
+        "provider": {
+          "title": "AI-leverandør",
+          "description": "AI-leverandør",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
+            },
+            "demo": {
+              "label": "Demo (illustrerende)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        },
+        "skipMatched": {
+          "title": "Hopp over oversatte",
+          "description": "Hopp over blokker som allerede har en måloversettelse"
+        }
+      },
+      "groups": {
+        "prompt": {
+          "label": "Prompt"
+        },
+        "provider": {
+          "label": "Leverandør"
+        }
+      }
+    },
+    "unredact": {
+      "displayName": "Avsladding",
+      "description": "Gjenopprett originalverdier i sladdet innhold etter behandling",
+      "category": "text-processing"
+    },
+    "voice-check": {
+      "displayName": "AI Voice Check",
+      "description": "Check text against a voice profile using an LLM provider",
+      "category": "quality",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "profileId": {
+          "title": "Profile ID",
+          "description": "Voice profile to resolve from the store"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
+    "voice-infer": {
+      "displayName": "AI Voice Inference",
+      "description": "Infer a draft voice profile from a content corpus using an LLM provider",
+      "category": "analysis",
+      "properties": {
+        "apiKey": {
+          "title": "API Key",
+          "description": "API key for the AI provider"
+        },
+        "domain": {
+          "title": "Domain",
+          "description": "Subject domain hint for the analysis (e.g. medical legal technology)"
+        },
+        "maxExamples": {
+          "title": "Max Examples",
+          "description": "Maximum before\/after examples to infer"
+        },
+        "model": {
+          "title": "Model",
+          "description": "AI model name"
+        },
+        "profileName": {
+          "title": "Profile Name",
+          "description": "Name for the inferred draft profile"
+        },
+        "provider": {
+          "title": "AI Provider",
+          "description": "AI provider",
+          "options": {
+            "anthropic": {
+              "label": "Anthropic"
+            },
+            "azureopenai": {
+              "label": "Azure OpenAI"
+            },
+            "claude-code": {
+              "label": "Claude Code"
+            },
+            "demo": {
+              "label": "Demo (illustrative)"
+            },
+            "gemini": {
+              "label": "Gemini"
+            },
+            "ollama": {
+              "label": "Ollama"
+            },
+            "openai": {
+              "label": "OpenAI"
+            }
+          }
+        }
+      },
+      "groups": {
+        "provider": {
+          "label": "Provider"
+        }
+      }
+    },
+    "whitespace-correct": {
+      "displayName": "Whitespace Correct",
+      "category": "text-processing",
+      "properties": {
+        "correctComma": {
+          "title": "Comma",
+          "description": "Correct whitespace after commas"
+        },
+        "correctExclamation": {
+          "title": "Exclamation Point",
+          "description": "Correct whitespace after exclamation marks"
+        },
+        "correctFullStop": {
+          "title": "Full Stop",
+          "description": "Correct whitespace after full stops (periods)"
+        },
+        "correctQuestion": {
+          "title": "Question Mark",
+          "description": "Correct whitespace after question marks"
+        },
+        "includeHorizontalWS": {
+          "title": "Horizontal Tabs",
+          "description": "Include horizontal tab characters in corrections"
+        },
+        "includeVerticalWS": {
+          "title": "Vertical White Space",
+          "description": "Include vertical whitespace (line feeds and carriage returns) in corrections"
+        },
+        "matchSourceWhitespace": {
+          "title": "Match Source Whitespace",
+          "description": "Copy source leading\/trailing whitespace to target"
+        },
+        "normalizeSpaces": {
+          "title": "Normalize Spaces",
+          "description": "Collapse multiple spaces to a single space"
+        },
+        "removeZeroWidthChars": {
+          "title": "Remove Zero-Width Characters",
+          "description": "Remove zero-width spaces and joiners"
+        },
+        "targetLocale": {
+          "title": "Target Locale",
+          "description": "Target locale for processing"
+        },
+        "trimLeading": {
+          "title": "Fjern innledende blanktegn",
+          "description": "Remove leading whitespace from target text"
+        },
+        "trimTrailing": {
+          "title": "Fjern avsluttende blanktegn",
+          "description": "Remove trailing whitespace from target text"
+        }
+      },
+      "groups": {
+        "punctuation": {
+          "label": "Punctuation"
+        },
+        "whitespace-types": {
+          "label": "Whitespace-types"
+        }
+      }
+    },
+    "xml-validation": {
+      "displayName": "XML Validation",
+      "category": "quality",
+      "properties": {
+        "checkSource": {
+          "title": "Check Source",
+          "description": "Validate source text for XML well-formedness"
+        },
+        "checkTarget": {
+          "title": "Check Target",
+          "description": "Validate target text for XML well-formedness"
+        },
+        "locale": {
+          "title": "Target Locale",
+          "description": "Target locale for validation"
+        },
+        "wrapRoot": {
+          "title": "Wrap in Root Element",
+          "description": "Wrap text in a root element before validating"
+        }
+      }
+    }
+  },
+  "formats": {
+    "androidxml": {
+      "displayName": "Android-strengressurser",
+      "properties": {
+        "extractComments": {
+          "title": "Trekk ut kommentarer som merknader",
+          "description": "Vis en XML-kommentar rett foran en oppføring som oversettermerknad på den utsendte blokken. Kommentarer bevares alltid uendret ved rundtur uavhengig av denne innstillingen."
+        },
+        "extractNonTranslatableContent": {
+          "title": "Surface non-translatable content",
+          "description": "Surface <string>\/<string-array>\/<plurals> entries marked translatable=\"false\" as non-translatable content blocks (visible to ingestion, skipped by MT). When off, such entries stay in opaque skeleton and round-trip verbatim. Bare resource references are always skeleton."
+        },
+        "skipNonTranslatable": {
+          "title": "Hopp over oppføringer med translatable=\"false\"",
+          "description": "Ekskluder <string>-\/<string-array>-\/<plurals>-oppføringer merket med translatable=\"false\" fra uttrekket. Slike ressurser eies av utvikleren og bevares uendret ved rundtur."
+        },
+        "skipResourceReferences": {
+          "title": "Hopp over ressursreferanser",
+          "description": "Ekskluder <string>-verdier som bare er en ressursreferanse (f.eks. @string\/foo, ?attr\/bar). En referanse er et alias, ikke oversettbar UI-tekst."
+        }
+      }
+    },
+    "applestrings": {
+      "displayName": "Apple Strings",
+      "extensions": [
+        ".strings",
+        ".stringsdict"
+      ],
+      "properties": {
+        "extractComments": {
+          "title": "Trekk ut kommentarer som merknader",
+          "description": "Vis en \/* ... *\/- eller \/\/ ...-kommentar foran en .strings-oppføring som oversettermerknad på den utsendte blokken."
+        },
+        "protectPlaceholders": {
+          "title": "Beskytt formatplassholdere",
+          "description": "Løft printf-spesifikatorer (%@, %lld, %1$@) og .stringsdict-tokener (%#@var@) til inline-koder slik at de aldri oversettes."
+        }
+      }
+    },
+    "arb": {
+      "displayName": "Flutter ARB",
+      "extensions": [
+        ".arb"
+      ],
+      "properties": {
+        "descriptionNotes": {
+          "title": "Vis beskrivelser som merknader",
+          "description": "Surface the human-facing context in a resource's sibling \"@<id>\" attributes object as developer notes: the resource \"description\" plus each placeholder's \"example\"\/\"description\" hint. The attributes object is always preserved byte-faithfully on round-trip regardless of this setting."
+        }
+      }
+    },
+    "archive": {
+      "displayName": "Archive (ZIP\/TAR)",
+      "extensions": [
+        ".zip",
+        ".tar",
+        ".tgz",
+        ".tar.gz"
+      ],
+      "mimeTypes": [
+        "application\/zip",
+        "application\/x-tar",
+        "application\/gzip",
+        "application\/x-gzip"
+      ]
+    },
+    "asciidoc": {
+      "displayName": "AsciiDoc",
+      "extensions": [
+        ".adoc",
+        ".asciidoc",
+        ".adfm",
+        ".asc"
+      ],
+      "mimeTypes": [
+        "text\/asciidoc"
+      ],
+      "properties": {
+        "extractBlockTitles": {
+          "title": "Extract block titles",
+          "description": "Emit AsciiDoc block titles (`.Title`) as translatable blocks. When false they are preserved verbatim as skeleton."
+        },
+        "extractTableCells": {
+          "title": "Extract table cells",
+          "description": "Emit `|===` table cells as translatable blocks grouped into table \/ table-row groups. When false the table is preserved verbatim."
+        }
+      }
+    },
+    "audio": {
+      "displayName": "Audio",
+      "extensions": [
+        ".wav",
+        ".mp3",
+        ".m4a",
+        ".aac",
+        ".flac",
+        ".ogg",
+        ".opus"
+      ],
+      "mimeTypes": [
+        "audio\/wav",
+        "audio\/mpeg",
+        "audio\/mp4",
+        "audio\/flac",
+        "audio\/ogg"
+      ]
+    },
+    "csv": {
+      "displayName": "CSV",
+      "extensions": [
+        ".csv"
+      ],
+      "mimeTypes": [
+        "text\/csv"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst"
+        },
+        "columnNamesRow": {
+          "title": "Rad med kolonnenavn",
+          "description": "Radnummer (1-basert) som inneholder kolonnenavn. 0 betyr automatisk gjenkjenning."
+        },
+        "columns": {
+          "title": "Column Roles",
+          "description": "Column-role mapping for bilingual translation tables: an object with 0-based column indices for key, source and target (e.g. {key: 0, source: 1, target: 2}). On merge only the target column is rewritten."
+        },
+        "commentColumns": {
+          "title": "Kommentarkolonner",
+          "description": "Kolonneindekser (0-basert) som inneholder kommentarer eller merknader"
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content such as preamble rows and non-translatable column cells is surfaced as content blocks (visible to ingestion\/LLM consumers, skipped by machine translation) instead of opaque data. Disable to keep it as plain data parts."
+        },
+        "hasHeader": {
+          "title": "Har overskriftsrad",
+          "description": "Hvis true, behandles den første raden som overskrifter (ikke oversettbare)"
+        },
+        "keyColumns": {
+          "title": "Nøkkelkolonner",
+          "description": "Kolonneindekser (0-basert) som gir blokk-ID-en (kilde-ID \/ post-ID)"
+        },
+        "separator": {
+          "title": "Feltskilletegn",
+          "description": "Skilletegn for felt (komma for CSV, tabulator for TSV)"
+        },
+        "textQualifier": {
+          "title": "Tekstkvalifikator",
+          "description": "Tegn som brukes til å omslutte feltverdier som inneholder skilletegn eller linjeskift"
+        },
+        "translatableColumns": {
+          "title": "Oversettbare kolonner",
+          "description": "Kolonneindekser (0-basert) som trekkes ut som oversettbart innhold. Hvis tom er alle kolonner oversettbare."
+        },
+        "trimValues": {
+          "title": "Trim verdier",
+          "description": "Hvis true, fjernes innledende og avsluttende blanktegn fra celleverdier"
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver regex-basert deteksjon av inline-koder i celleverdier"
+        },
+        "valuesStartRow": {
+          "title": "Startrad for verdier",
+          "description": "Radnummer (1-basert) der dataverdiene begynner. 0 betyr automatisk gjenkjenning."
+        }
+      }
+    },
+    "designtokens": {
+      "displayName": "Design Tokens (DTCG)",
+      "extensions": [
+        ".tokens"
+      ],
+      "properties": {
+        "extractDescriptions": {
+          "title": "Trekk ut $description-dokumentasjon",
+          "description": "Trekk ut $description-verdier (lesbar dokumentasjon for tokener og grupper) som oversettbare blokker. Dette er det eneste naturspråklige feltet i DTCG; $value er alltid en typet designverdi (farge, dimensjon, skriftnavn, …) og trekkes aldri ut. Deaktiver for å lese filen som fullstendig ikke-oversettbar struktur."
+        }
+      }
+    },
+    "doclang": {
+      "displayName": "DocLang",
+      "extensions": [
+        ".dclg.xml",
+        ".xml"
+      ],
+      "mimeTypes": [
+        "application\/doclang+xml"
+      ]
+    },
+    "docling": {
+      "displayName": "DoclingDocument JSON",
+      "extensions": [
+        ".json"
+      ],
+      "mimeTypes": [
+        "application\/json"
+      ]
+    },
+    "epub": {
+      "displayName": "EPUB-e-bok",
+      "extensions": [
+        ".epub"
+      ],
+      "mimeTypes": [
+        "application\/epub+zip"
+      ]
+    },
+    "exec": {
+      "displayName": "Exec (uttrekk i underprosess)"
+    },
+    "html": {
+      "displayName": "HTML",
+      "extensions": [
+        ".html",
+        ".htm",
+        ".xhtml"
+      ],
+      "mimeTypes": [
+        "text\/html",
+        "application\/xhtml+xml"
+      ],
+      "properties": {
+        "attributes": {
+          "title": "Attributtregler",
+          "description": "Globale uttrekksregler for attributter -- tilordner attributtnavn til regelkonfigurasjonen deres (ruleTypes, allElementsExcept, onlyTheseElements, conditions)"
+        },
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst"
+        },
+        "elements": {
+          "title": "Elementregler",
+          "description": "Uttrekksregler for elementer -- tilordner elementnavn til regelkonfigurasjonen deres (ruleTypes, conditions, idAttributes, translatableAttributes)"
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), renderable non-translatable contextual content -- the <noscript> fallback subtree and JSON data islands (<script type=\"application\/ld+json\"|\"application\/json\">) -- is surfaced as content blocks (visible to ingestion\/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Generic executable <script> and <style> always stay opaque."
+        },
+        "parser": {
+          "title": "Parseratferd",
+          "description": "Innstillinger som styrer hvordan HTML-parseren leser inndata"
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver regex-basert deteksjon av inline-koder (plassholdere, variabler, tagger) i oversettbar tekst"
+        }
+      }
+    },
+    "i18next": {
+      "displayName": "i18next JSON",
+      "properties": {
+        "legacyPluralForms": {
+          "title": "Gjenkjenn eldre flertallsformer",
+          "description": "Gjenkjenn de eldre v1–v3-flertallsnøklene (key_plural og de numeriske formene key_0 \/ key_1 \/ key_2 …) i tillegg til v4 CLDR-suffiksene (_zero \/ _one \/ _two \/ _few \/ _many \/ _other)."
+        },
+        "protectInterpolation": {
+          "title": "Beskytt interpolasjon og nesting",
+          "description": "Oppdag i18next-interpolasjon ({{var}}, {{var, format}}) og nesting ($t(key)) og beskytt dem som inline-koder slik at de aldri oversettes."
+        },
+        "subfilterHtmlValues": {
+          "title": "Underfilter for HTML-verdier (_html-nøkler)",
+          "description": "Send verdier med nøkler som slutter på \"_html\" (i18next-konvensjonen for oppmerking), til HTML-underfilteret slik at tagger beskyttes og teksten forblir oversettbar. Av som standard: HTML-underfilteret er ikke byte-tro for rene oppmerkingsfragmenter."
+        }
+      }
+    },
+    "image": {
+      "displayName": "Image",
+      "extensions": [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".bmp",
+        ".tif",
+        ".tiff",
+        ".webp",
+        ".heic",
+        ".heif",
+        ".avif"
+      ],
+      "mimeTypes": [
+        "image\/png",
+        "image\/jpeg",
+        "image\/gif",
+        "image\/bmp",
+        "image\/tiff",
+        "image\/webp",
+        "image\/heic",
+        "image\/heif",
+        "image\/avif"
+      ]
+    },
+    "json": {
+      "displayName": "JSON",
+      "extensions": [
+        ".json"
+      ],
+      "mimeTypes": [
+        "application\/json"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst."
+        },
+        "escapeForwardSlashes": {
+          "title": "Escape skråstreker",
+          "description": "Escape skråstreker i JSON-utdata (\\\/)."
+        },
+        "exceptions": {
+          "title": "Unntaksmønster for nøkler",
+          "description": "Regex-mønster for nøkkelnavn. Når extractAllPairs er true, ekskluderes matchende nøkler. Når false, inkluderes de."
+        },
+        "extractAllPairs": {
+          "title": "Trekk ut alle nøkkel\/streng-par",
+          "description": "Trekk ut alle nøkkel\/verdi-par for oversettelse. Når false, bruk extractionRules til å angi hvilke stier som skal trekkes ut."
+        },
+        "extractIsolatedStrings": {
+          "title": "Trekk ut strenger uten tilknyttet nøkkel",
+          "description": "Trekk ut strengverdier i arrays (uten nøkler) som oversettbare blokker."
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable string content — isolated array strings and values excluded by the extraction rules — is surfaced as content blocks (visible to ingestion\/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
+        },
+        "extractionRules": {
+          "title": "Uttrekksregler",
+          "description": "Regex-mønster for JSON-stier som skal trekkes ut. Overstyrer extractAllPairs når angitt."
+        },
+        "genericMetaRules": {
+          "title": "Generiske metadataregler",
+          "description": "Regex for nøkler hvis verdier blir generiske metadata."
+        },
+        "idRules": {
+          "title": "ID-regler",
+          "description": "Regex for nøkler hvis verdier blir blokk-ID-er (overstyrer useKeyAsName)."
+        },
+        "maxwidthRules": {
+          "title": "Maksbredderegler",
+          "description": "Regex for nøkler hvis verdier setter maksbreddebegrensninger."
+        },
+        "maxwidthSizeUnit": {
+          "title": "Størrelsesenhet for maksbredde",
+          "description": "Størrelsesenhet for maksbredde.",
+          "options": {
+            "char": {
+              "label": "Tegn"
+            },
+            "pixel": {
+              "label": "Piksel"
+            }
+          }
+        },
+        "noteRules": {
+          "title": "Merknadsregler",
+          "description": "Regex for nøkler hvis verdier blir oversettermerknader."
+        },
+        "subfilter": {
+          "title": "Underfilterformat",
+          "description": "Globalt underfilterformatnavn (f.eks. 'html') som brukes på alle eller matchende uttrukne strenger."
+        },
+        "subfilterRules": {
+          "title": "Underfilterregler",
+          "description": "Regex som matcher nøkler hvis verdier skal behandles med underfilteret."
+        },
+        "subfilters": {
+          "title": "Underfiltertilordninger",
+          "description": "Array av {pattern, format}-tilordninger for innebygd innhold i bestemte nøkler."
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver mønsterbasert deteksjon av inline-koder (plassholdere, tagger osv.)."
+        },
+        "useFullKeyPath": {
+          "title": "Bruk hele nøkkelstien",
+          "description": "Bruk full sti (\/key1\/key2) i stedet for nærmeste nøkkel som navn."
+        },
+        "useIdStack": {
+          "title": "Bruk hele ID-stien for resname",
+          "description": "Bygg TextUnit-ID-er fra den nestede nøkkelstakken."
+        },
+        "useKeyAsName": {
+          "title": "Bruk nøkkelen som resname",
+          "description": "Bruk JSON-nøkkelen som navn på blokken (TextUnit) for referanse."
+        },
+        "useLeadingSlashOnKeyPath": {
+          "title": "Ta med innledende \"\/\" i nøkkelstien",
+          "description": "Ta med innledende skråstrek i nøkkelstinavn."
+        }
+      }
+    },
+    "kbf": {
+      "displayName": "Kapi Bundle Format (KBF)",
+      "extensions": [
+        ".kbf.json"
+      ],
+      "mimeTypes": [
+        "application\/vnd.neokapi.kbf+json"
+      ]
+    },
+    "markdown": {
+      "displayName": "Markdown",
+      "extensions": [
+        ".md",
+        ".markdown"
+      ],
+      "mimeTypes": [
+        "text\/markdown",
+        "text\/x-markdown"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst"
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content such as code blocks is surfaced as content blocks (visible to ingestion\/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
+        },
+        "frontMatterKeys": {
+          "title": "Frontmatter-nøkler",
+          "description": "Frontmatter-nøkler som trekkes ut når translateFrontMatter er på (tom = alle skalarverdier). Angi nøklene som bærer prosa, f.eks. title og description."
+        },
+        "subfilter": {
+          "title": "HTML-underfilter",
+          "description": "Underfilterformat som brukes på HTML-innhold i Markdown (f.eks. 'html')"
+        },
+        "translateBlockQuotes": {
+          "title": "Oversett sitatblokker",
+          "description": "Hvis true, er innhold i sitatblokker oversettbart."
+        },
+        "translateCodeBlocks": {
+          "title": "Oversett kodeblokker",
+          "description": "Hvis true, er avgrensede (fenced) og innrykkede kodeblokker oversettbare. Hvis false, sendes de ut som ikke-oversettbare data."
+        },
+        "translateFrontMatter": {
+          "title": "Oversett YAML-frontmatter",
+          "description": "Hvis true, er verdier i YAML-frontmatter oversettbare. Hvis false, sendes de ut som ikke-oversettbare data."
+        },
+        "translateHTMLBlocks": {
+          "title": "Oversett HTML-blokker",
+          "description": "Hvis true, er rå HTML-blokker oversettbare. Hvis false, sendes de ut som ikke-oversettbare data."
+        },
+        "translateImageAlt": {
+          "title": "Oversett alt-tekst for bilder",
+          "description": "Hvis true, inkluderes alt-tekst for bilder i oversettbart innhold."
+        },
+        "translateURLs": {
+          "title": "Oversett hyperkoblings-URL-er",
+          "description": "Hvis true, er lenke- og bilde-URL-er oversettbare."
+        },
+        "unescapeBackslashCharacters": {
+          "title": "Støtt escaping med omvendt skråstrek",
+          "description": "Tolk tegnsetting som er escapet med omvendt skråstrek, i kildedokumenter"
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver regex-basert deteksjon av inline-koder i oversettbar tekst"
+        }
+      }
+    },
+    "mdx": {
+      "displayName": "MDX",
+      "extensions": [
+        ".mdx"
+      ],
+      "mimeTypes": [
+        "text\/mdx"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst."
+        },
+        "extractNonTranslatableContent": {
+          "title": "Surface Non-Translatable Content",
+          "description": "If true, MDX-specific non-translatable content (block-level JSX text children, GFM table cell prose, and markdown spans that cannot be reconstructed faithfully) is surfaced as non-translatable content blocks (visible to ingestion, skipped by MT) while staying byte-faithful on round-trip. If false, those constructs stay opaque."
+        },
+        "frontMatterKeys": {
+          "title": "Frontmatter-nøkler",
+          "description": "Frontmatter-nøkler som trekkes ut når translateFrontMatter er på (tom = alle skalarverdier). Angi nøklene som bærer prosa, f.eks. title og description."
+        },
+        "translateBlockQuotes": {
+          "title": "Oversett sitatblokker",
+          "description": "Hvis true, er innhold i sitatblokker oversettbart."
+        },
+        "translateCodeBlocks": {
+          "title": "Oversett kodeblokker",
+          "description": "Hvis true, er avgrensede (fenced) og innrykkede kodeblokker oversettbare. Hvis false, sendes de ut som ikke-oversettbare data."
+        },
+        "translateFrontMatter": {
+          "title": "Oversett YAML-frontmatter",
+          "description": "Hvis true, er verdier i YAML-frontmatter oversettbare. Hvis false, sendes de ut som ikke-oversettbare data."
+        },
+        "translateHTMLBlocks": {
+          "title": "Oversett HTML-blokker",
+          "description": "Hvis true, er rå HTML-blokker oversettbare. Hvis false, sendes de ut som ikke-oversettbare data."
+        },
+        "translateImageAlt": {
+          "title": "Oversett alt-tekst for bilder",
+          "description": "Hvis true, inkluderes alt-tekst for bilder i oversettbart innhold."
+        },
+        "translateURLs": {
+          "title": "Oversett hyperkoblings-URL-er",
+          "description": "Hvis true, er lenke- og bilde-URL-er oversettbare."
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver regex-basert deteksjon av inline-koder i oversettbar tekst."
+        }
+      }
+    },
+    "messageformat": {
+      "displayName": "ICU MessageFormat",
+      "extensions": [
+        ".mf",
+        ".messageformat"
+      ],
+      "mimeTypes": [
+        "text\/x-messageformat"
+      ]
+    },
+    "mo": {
+      "displayName": "MO (Gettext, binær)",
+      "extensions": [
+        ".mo"
+      ],
+      "mimeTypes": [
+        "application\/x-gettext-translation"
+      ]
+    },
+    "odf": {
+      "displayName": "Open Document Format",
+      "extensions": [
+        ".odt",
+        ".ods",
+        ".odp",
+        ".odg",
+        ".odf"
+      ],
+      "mimeTypes": [
+        "application\/vnd.oasis.opendocument.text",
+        "application\/vnd.oasis.opendocument.spreadsheet",
+        "application\/vnd.oasis.opendocument.presentation"
+      ]
+    },
+    "openxml": {
+      "displayName": "Office Open XML",
+      "extensions": [
+        ".docx",
+        ".docm",
+        ".dotx",
+        ".dotm",
+        ".xlsx",
+        ".xlsm",
+        ".xltx",
+        ".xltm",
+        ".pptx",
+        ".pptm",
+        ".ppsx",
+        ".potx"
+      ],
+      "mimeTypes": [
+        "application\/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application\/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application\/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ],
+      "properties": {
+        "aggressiveCleanup": {
+          "title": "Aggressiv kodeopprydding",
+          "description": "Fjern revisjons-ID-er, korrekturfeil og annen støy før runs flettes."
+        },
+        "automaticallyAcceptRevisions": {
+          "title": "Godta revisjoner automatisk",
+          "description": "Godta sporede endringer automatisk før uttrekk. Når true (standard, som i Okapi), beholdes innsatte runs og slettede runs forkastes; rader merket med <w:trPr><w:del\/> (ECMA-376 §17.13.5.13) fjernes helt; rader merket med <w:trPr><w:ins\/> (§17.13.5.16) beholdes."
+        },
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst."
+        },
+        "complexFieldDefinitionsToExtract": {
+          "title": "Komplekse feltdefinisjoner som skal trekkes ut",
+          "description": "Feltinstruksjonsprefikser som skal trekkes ut (f.eks. \"HYPERLINK\", \"REF\")."
+        },
+        "excludeColors": {
+          "title": "Ekskluder bestemte skriftfarger",
+          "description": "Skriftfarger som skal ekskluderes (heksadesimal RGB, f.eks. \"FF0000\" for rød)."
+        },
+        "excludeHighlightColors": {
+          "title": "Ekskluder uthevingsfarger",
+          "description": "Uthevingsfarger som skal ekskluderes (f.eks. \"yellow\", \"red\")."
+        },
+        "excludeStyles": {
+          "title": "Ekskluder stiler",
+          "description": "Navn på avsnitts-\/tegnstiler som skal ekskluderes."
+        },
+        "excludedColumns": {
+          "title": "Ekskluderte kolonner",
+          "description": "Kolonnebokstaver som skal ekskluderes (f.eks. \"A\", \"C\", \"AA\")."
+        },
+        "excludedSheets": {
+          "title": "Ekskluderte ark",
+          "description": "Arknavn som skal ekskluderes fra uttrekket."
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content is surfaced — image\/shape alt-text (descr\/title on docPr\/cNvPr) as content blocks (visible to ingestion\/LLM consumers, skipped by machine translation), and PowerPoint\/Excel comment text as data parts — instead of being hidden in opaque skeleton. Disable to keep it opaque."
+        },
+        "extractRunFontsInfo": {
+          "title": "Trekk ut skriftinformasjon for runs",
+          "description": "Legg ved skriftmetadata som annotasjoner på blokker."
+        },
+        "fontMappings": {
+          "title": "Skrifttilordninger",
+          "description": "Tilordning fra skriftnavn til skriptgruppe (f.eks. \"MS Gothic\": \"ja\")."
+        },
+        "ignoreSoftHyphenTag": {
+          "title": "Ignorer tagger for myk bindestrek",
+          "description": "Ignorer tagger for myk bindestrek i dokumentet."
+        },
+        "includeHighlightColors": {
+          "title": "Inkluder uthevingsfarger",
+          "description": "Hvis ikke tom, trekkes bare tekst med disse uthevingsfargene ut."
+        },
+        "includeStyles": {
+          "title": "Inkluder stiler",
+          "description": "Hvis ikke tom, trekkes bare tekst med disse stilene ut."
+        },
+        "includedSlides": {
+          "title": "Inkluderte lysbildenumre",
+          "description": "Hvis ikke tom, trekkes bare disse lysbildenumrene ut (1-basert)."
+        },
+        "lineSeparatorReplacement": {
+          "title": "Erstatningsstreng for linjeskilletegn",
+          "description": "Erstatningsstreng for linjeskilletegn."
+        },
+        "replaceLineSeparator": {
+          "title": "Legg til linjeskilletegn som tegn",
+          "description": "Erstatt Unicode-linjeskilletegnet (U+2028) i utdata."
+        },
+        "replaceNoBreakHyphenTag": {
+          "title": "Erstatt tagger for hard bindestrek",
+          "description": "Erstatt tagger for hard bindestrek med tegnet for hard bindestrek."
+        },
+        "tabAsCharacter": {
+          "title": "Legg til tabulator som tegn",
+          "description": "Behandle tabulatorelementer som tabulatortegn i stedet for plassholder-spenn."
+        },
+        "translateCharts": {
+          "title": "Oversett diagramtekst",
+          "description": "Trekk ut strenger fra innebygde diagrammer."
+        },
+        "translateComments": {
+          "title": "Oversett kommentarer",
+          "description": "Trekk ut kommentartekst fra Word-dokumenter."
+        },
+        "translateDiagrams": {
+          "title": "Oversett diagramdata",
+          "description": "Trekk ut tekst fra SmartArt-grafikk."
+        },
+        "translateDocProperties": {
+          "title": "Oversett dokumentegenskaper",
+          "description": "Trekk ut tittel, emne og nøkkelord fra dokumentegenskapene."
+        },
+        "translateFootnotes": {
+          "title": "Oversett fotnoter og sluttnoter",
+          "description": "Trekk ut fotnoter og sluttnoter fra Word-dokumenter."
+        },
+        "translateHeadersFooters": {
+          "title": "Oversett topptekst og bunntekst",
+          "description": "Trekk ut tekst fra topptekster og bunntekster i Word-dokumenter."
+        },
+        "translateHiddenSlides": {
+          "title": "Oversett skjulte lysbilder",
+          "description": "Trekk ut innhold fra skjulte lysbilder i PowerPoint."
+        },
+        "translateHiddenText": {
+          "title": "Oversett skjult tekst",
+          "description": "Trekk ut tekst med vanish-egenskapen (skjult) i Word-dokumenter."
+        },
+        "translateHyperlinks": {
+          "title": "Trekk ut eksterne hyperkoblinger",
+          "description": "Trekk ut hyperkoblingstekst for oversettelse."
+        },
+        "translateSharedStrings": {
+          "title": "Oversett delte strenger",
+          "description": "Trekk ut delte strenger fra Excel-arbeidsbøker."
+        },
+        "translateSheetNames": {
+          "title": "Oversett arknavn",
+          "description": "Trekk ut arknavn i Excel-arbeidsbøker."
+        },
+        "translateSlideMasters": {
+          "title": "Oversett lysbildemaler",
+          "description": "Trekk ut tekst fra lysbildemaler i PowerPoint."
+        },
+        "translateSlideNotes": {
+          "title": "Oversett lysbildenotater",
+          "description": "Trekk ut foredragsholdernotater i PowerPoint-presentasjoner."
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver mønsterbasert deteksjon av inline-koder (plassholdere, tagger osv.)."
+        }
+      }
+    },
+    "plaintext": {
+      "displayName": "Ren tekst",
+      "extensions": [
+        ".txt",
+        ".text"
+      ],
+      "mimeTypes": [
+        "text\/plain"
+      ],
+      "properties": {
+        "paragraphs": {
+          "title": "Paragraphs",
+          "description": "If true, blank-line-separated paragraphs become blocks instead of individual lines."
+        },
+        "segmentByLine": {
+          "description": "Hvis true, blir hver linje en egen blokk. Hvis false, er avsnitt (atskilt med tomme linjer) blokker."
+        },
+        "spliceLines": {
+          "title": "Splice Lines",
+          "description": "If true, lines ending with the splice marker are joined with the next line into a single block."
+        },
+        "spliceMarker": {
+          "title": "Splice Marker",
+          "description": "Continuation marker recognized at the end of a line in splice mode."
+        }
+      }
+    },
+    "po": {
+      "displayName": "PO (Gettext)",
+      "extensions": [
+        ".po",
+        ".pot"
+      ],
+      "mimeTypes": [
+        "text\/x-gettext-translation"
+      ],
+      "properties": {
+        "allowEmptyOutputTarget": {
+          "title": "Tillat tomme mål i utdata",
+          "description": "Tillat tomt mål i utdata når ingen oversettelse er tilgjengelig"
+        },
+        "bilingualMode": {
+          "title": "Tospråklig modus",
+          "description": "I tospråklig modus (standard) er msgid kildeteksten og msgstr målet. I enspråklig modus behandles msgid som en ID."
+        },
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst"
+        },
+        "preserveUntranslated": {
+          "title": "Bevar uoversatte oppføringer",
+          "description": "Hvis true, sendes oppføringer med tom msgstr ut som blokker. Hvis false, hoppes de over."
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver regex-basert deteksjon av inline-koder i PO-meldingstekst"
+        },
+        "wrapContent": {
+          "title": "Bryt lange innholdslinjer",
+          "description": "Bryt lange innholdslinjer i utdata ved omtrent 80 tegn"
+        }
+      }
+    },
+    "properties": {
+      "displayName": "Java Properties",
+      "extensions": [
+        ".properties"
+      ],
+      "mimeTypes": [
+        "text\/x-java-properties"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst"
+        },
+        "commentsAreNotes": {
+          "title": "Kommentarer som merknader",
+          "description": "Behandle kommentarer som oversettermerknader knyttet til den påfølgende oppføringen"
+        },
+        "escapeExtendedChars": {
+          "title": "Escape utvidede tegn",
+          "description": "Escape utvidede Unicode-tegn (ikke-ASCII) i utdata med \\uXXXX-notasjon"
+        },
+        "extraComments": {
+          "title": "Flere kommentarmarkører",
+          "description": "Gjenkjenn kommentarstiler med semikolon og dobbel skråstrek i tillegg til standardmarkørene # og !"
+        },
+        "extractNonTranslatableContent": {
+          "title": "Surface Excluded Values",
+          "description": "Surface the value text of excluded entries (keys filtered out, or under #_skip \/ #_bskip) as non-translatable content blocks visible to ingestion but skipped by translation"
+        },
+        "extractOnlyMatchingKey": {
+          "title": "Trekk bare ut matchende nøkler",
+          "description": "Når aktivert, trekkes bare oppføringer med nøkler som matcher betingelsen ut; ellers ekskluderes matchende nøkler"
+        },
+        "keyCondition": {
+          "title": "Mønster for nøkkelbetingelse",
+          "description": "Regulært uttrykk som testes mot property-nøkler for uttrekksfiltrering"
+        },
+        "separator": {
+          "title": "Skilletegn",
+          "description": "Skilletegn mellom nøkkel og verdi (vanligvis '=' eller ':')"
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver regex-basert deteksjon av inline-koder i property-verdier"
+        },
+        "useJavaEscapes": {
+          "title": "Behold Java-escapesekvenser",
+          "description": "Behold Java-property-escapesekvenser (\\: \\= \\# \\!) i uttrukket tekst i stedet for å løse dem opp"
+        },
+        "useKeyCondition": {
+          "title": "Aktiver nøkkelbetingelse",
+          "description": "Filtrer oppføringer for uttrekk basert på en regex-betingelse på nøklene"
+        }
+      }
+    },
+    "resx": {
+      "displayName": ".NET RESX",
+      "extensions": [
+        ".resx",
+        ".resw"
+      ],
+      "mimeTypes": [
+        "text\/microsoft-resx"
+      ],
+      "properties": {
+        "extractComments": {
+          "title": "Trekk ut kommentarer som merknader",
+          "description": "Vis <comment>-elementet som hører til hver <data>-strengoppføring, som oversettermerknad på den utsendte blokken. Kommentarer bevares alltid uendret ved rundtur uavhengig av denne innstillingen."
+        },
+        "skipNameDataReferences": {
+          "title": "Hopp over navnereferanser",
+          "description": "Ekskluder designer-navnereferanser (oppføringer med navn som begynner med \">\", f.eks. \">>control.Name\") fra uttrekket. Disse inneholder WinForms-feltnavn, ikke UI-strenger."
+        }
+      }
+    },
+    "srt": {
+      "displayName": "SRT-undertekster",
+      "extensions": [
+        ".srt"
+      ],
+      "mimeTypes": [
+        "application\/x-subrip",
+        "text\/srt"
+      ]
+    },
+    "tmx": {
+      "displayName": "TMX",
+      "extensions": [
+        ".tmx"
+      ],
+      "mimeTypes": [
+        "application\/x-tmx+xml"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst"
+        },
+        "escapeGT": {
+          "title": "Escape større enn-tegn",
+          "description": "Escape > som &gt; i XML-utdata"
+        },
+        "exitOnInvalid": {
+          "title": "Avbryt ved ugyldige TU-er",
+          "description": "Stopp behandlingen ved ugyldige TU-er. Når false, hoppes ugyldige TU-er over."
+        },
+        "processAllTargets": {
+          "title": "Les alle måloppføringer",
+          "description": "Les alle målspråk-TUV-er fra hver TU. Når false, leses bare det første målet."
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver regex-basert deteksjon av inline-koder i oversettbar tekst"
+        }
+      }
+    },
+    "ts": {
+      "displayName": "Qt TS",
+      "mimeTypes": [
+        "application\/x-ts",
+        "application\/x-linguist"
+      ]
+    },
+    "tsv": {
+      "displayName": "TSV",
+      "extensions": [
+        ".tsv"
+      ],
+      "mimeTypes": [
+        "text\/tab-separated-values"
+      ]
+    },
+    "video": {
+      "displayName": "Video",
+      "extensions": [
+        ".mp4",
+        ".mov",
+        ".m4v",
+        ".mkv",
+        ".webm",
+        ".avi"
+      ],
+      "mimeTypes": [
+        "video\/mp4",
+        "video\/quicktime",
+        "video\/x-matroska",
+        "video\/webm"
+      ]
+    },
+    "vtt": {
+      "displayName": "WebVTT",
+      "extensions": [
+        ".vtt"
+      ],
+      "mimeTypes": [
+        "text\/vtt"
+      ],
+      "properties": {
+        "cjkCharsPerLine": {
+          "title": "Maks tegn per linje for CJK",
+          "description": "Maksimalt antall tegn per linje for CJK-språk. Sett til 0 for å deaktivere."
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content such as a STYLE block's embedded CSS is surfaced as a content block (visible to ingestion\/LLM consumers, skipped by machine translation) instead of being hidden. Disable to keep the legacy opaque behavior."
+        },
+        "maxCharsPerLine": {
+          "title": "Maks tegn per linje",
+          "description": "Maksimalt antall tegn per linje i utdata. Sett til 0 for å deaktivere."
+        },
+        "maxLinesPerCaption": {
+          "title": "Maks linjer per undertekst",
+          "description": "Maksimalt antall linjer per undertekst i utdata. Sett til 0 for å deaktivere."
+        },
+        "splitWords": {
+          "title": "Del ord ved tegngrensen",
+          "description": "Del ord slik at de ikke overskrider tegngrensen per linje."
+        }
+      }
+    },
+    "xcstrings": {
+      "displayName": "Apple String Catalog",
+      "extensions": [
+        ".xcstrings"
+      ],
+      "mimeTypes": [
+        "application\/json"
+      ],
+      "properties": {
+        "extractNonTranslatableContent": {
+          "title": "Surface non-translatable content",
+          "description": "Surface an entry's developer comment via a non-translatable fallback block when the entry has no translatable leaf (no localizations, an empty localizations object, or a stale entry skipped because extractStale is off). When off, the part stream is byte-identical to the prior behavior."
+        },
+        "extractStale": {
+          "title": "Trekk ut foreldede oppføringer",
+          "description": "Send ut oppføringer med extractionState \"stale\" (kildestrengen finnes ikke lenger i kodebasen) som oversettbare blokker."
+        },
+        "markTranslatedState": {
+          "title": "State for nye oversettelser",
+          "description": "stringUnit-state-verdien som skrives for en lokalisering som fylles ut for første gang. Eksisterende state-verdier bevares uendret ved rundtur."
+        }
+      }
+    },
+    "xliff": {
+      "displayName": "XLIFF 1.2",
+      "extensions": [
+        ".xlf",
+        ".xliff"
+      ],
+      "mimeTypes": [
+        "application\/xliff+xml",
+        "application\/x-xliff+xml"
+      ],
+      "properties": {
+        "addAltTrans": {
+          "title": "Legg til alt-trans-elementer",
+          "description": "Tillat at nye alt-trans-elementer legges til"
+        },
+        "addTargetLanguage": {
+          "title": "Legg til target-language-attributt",
+          "description": "Legg til target-language-attributtet på file-elementer hvis det ikke allerede finnes"
+        },
+        "allowEmptyTargets": {
+          "title": "Tillat tomme mål",
+          "description": "Tillat at target-elementer med tomt innhold skrives"
+        },
+        "alwaysAddTargets": {
+          "title": "Legg til mål for enspråklig XLIFF",
+          "description": "Legg til target-elementer for enspråklige XLIFF-filer som mangler target i kilden"
+        },
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst"
+        },
+        "editAltTrans": {
+          "title": "Rediger alt-trans-elementer",
+          "description": "Tillat redigering av eksisterende alt-trans-elementer"
+        },
+        "fallbackToID": {
+          "title": "Bruk trans-unit-ID som navn hvis resname mangler",
+          "description": "Bruk id-attributtet på trans-unit som blokknavn når resname-attributtet mangler"
+        },
+        "forceUniqueIds": {
+          "title": "Håndhev unike trans-unit-ID-er",
+          "description": "Skriv om trans-unit-ID-er for å sikre unikhet i hele filen"
+        },
+        "ignoreInputSegmentation": {
+          "title": "Ignorer inndatasegmentering",
+          "description": "Ignorer seg-source\/mrk-segmentering fra inndata-XLIFF og behandle hele kilden som ett segment"
+        },
+        "includeExtensions": {
+          "title": "Ta med XLIFF-utvidelseselementer",
+          "description": "Ta med utvidelseselementer fra ikke-standard navnerom i uttrukket innhold"
+        },
+        "includeIts": {
+          "title": "Ta med ITS-oppmerking",
+          "description": "Ta med ITS-oppmerking (Internationalization Tag Set) i uttrukket innhold"
+        },
+        "overrideTargetLanguage": {
+          "title": "Overstyr målspråk",
+          "description": "Overstyr target-language-attributtet i utdatadokumentet med pipelinens målspråkkode"
+        },
+        "preserveSpaceByDefault": {
+          "title": "Bevar blanktegn som standard",
+          "description": "Behandle alt innhold som xml:space=\"preserve\" med mindre det overstyres eksplisitt"
+        },
+        "targetStateValue": {
+          "title": "State-verdi for mål",
+          "description": "State-verdi som settes på target-elementer når useTranslationTargetState er aktivert"
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver regex-basert deteksjon av inline-koder i oversettbar tekst"
+        },
+        "useTranslationTargetState": {
+          "title": "Oppdater state-attributtet på mål",
+          "description": "Oppdater state-attributtet på target-elementer når oversatt XLIFF skrives"
+        }
+      }
+    },
+    "xliff2": {
+      "displayName": "XLIFF 2.x",
+      "extensions": [
+        ".xlf",
+        ".xliff"
+      ],
+      "mimeTypes": [
+        "application\/xliff+xml"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst"
+        },
+        "discardInvalidTargets": {
+          "title": "Forkast ugyldige mål",
+          "description": "Forkast mål som ikke består validering, i stedet for å avvise hele filen"
+        },
+        "forceUniqueIds": {
+          "title": "Sikre unike tagg-ID-er",
+          "description": "Sørg for at inline-tagg-ID-er er unike i hver enhet"
+        },
+        "ignoreTagTypeMatch": {
+          "title": "Ignorer taggtypeavvik",
+          "description": "Ignorer taggtypeavvik mellom kilde- og målsegmenter"
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver regex-basert deteksjon av inline-koder i oversettbar tekst"
+        },
+        "version": {
+          "title": "XLIFF-versjon",
+          "description": "XLIFF 2.x-versjon som skal skrives ut. Tom betyr: bevar inndatadokumentets versjon ved rundtur, ellers brukes 2.2 som standard.",
+          "options": {
+            "": {
+              "label": "Auto (bevar inndata, standard 2.2)"
+            },
+            "2.0": {
+              "label": "XLIFF 2.0"
+            },
+            "2.1": {
+              "label": "XLIFF 2.1"
+            },
+            "2.2": {
+              "label": "XLIFF 2.2"
+            }
+          }
+        },
+        "writeOriginalData": {
+          "title": "Ta med originaldata i utdata",
+          "description": "Utdata inkluderer originaldata når de er tilgjengelige"
+        }
+      }
+    },
+    "xml": {
+      "displayName": "XML",
+      "extensions": [
+        ".xml"
+      ],
+      "mimeTypes": [
+        "text\/xml",
+        "application\/xml"
+      ],
+      "properties": {
+        "attributes": {
+          "title": "Attributtregler",
+          "description": "Avanserte attributtspesifikke behandlingsregler med begrensninger på elementomfang"
+        },
+        "blockTypeMap": {
+          "title": "Blokktypetilordning",
+          "description": "Tilordning fra elementnavn til blokktypestrenger for semantisk typeannotasjon"
+        },
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst"
+        },
+        "elements": {
+          "title": "Elementregler",
+          "description": "Avanserte elementspesifikke behandlingsregler med betingelser, inline-merking og tilordning av oversettbare attributter"
+        },
+        "excludeByDefault": {
+          "title": "Ekskluder som standard",
+          "description": "Ekskluder alle elementer med mindre de eksplisitt inkluderes av en elementregel med INCLUDE"
+        },
+        "excludedElements": {
+          "title": "Ekskluderte elementer",
+          "description": "Elementnavn med innhold som ekskluderes fra uttrekket"
+        },
+        "extractNonTranslatableContent": {
+          "title": "Extract non-translatable content",
+          "description": "If true (default), non-translatable contextual content such as whitelist-excluded element text and verbatim code\/pre subtrees is surfaced as content blocks (visible to ingestion\/LLM consumers, skipped by machine translation) instead of being hidden in skeleton. Disable to keep it in skeleton."
+        },
+        "groupElements": {
+          "title": "Gruppeelementer",
+          "description": "Elementnavn som gir gruppe-\/laggrenser i utdataene"
+        },
+        "idAttributes": {
+          "title": "ID-attributter",
+          "description": "Attributtnavn som brukes til å hente blokk-ID-er fra elementer"
+        },
+        "inlineElements": {
+          "title": "Inline-elementer",
+          "description": "Elementnavn som behandles som inline (spenn i teksten) i stedet for som blokknivå"
+        },
+        "preserveWhitespace": {
+          "title": "Bevar blanktegn",
+          "description": "Bevar opprinnelige blanktegn i tekstinnhold i stedet for å slå dem sammen"
+        },
+        "preserveWhitespaceElements": {
+          "title": "Elementer som bevarer blanktegn",
+          "description": "Elementnavn som bevarer blanktegn uavhengig av den globale innstillingen"
+        },
+        "subfilters": {
+          "title": "Underfiltre",
+          "description": "Array av {pattern, format}-tilordninger for innebygd innhold. Mønstrene bruker punktumseparerte elementstier med glob-støtte."
+        },
+        "translatableAttributes": {
+          "title": "Oversettbare attributter",
+          "description": "Attributtnavn som er oversettbare i alle elementer"
+        },
+        "translatableElements": {
+          "title": "Oversettbare elementer",
+          "description": "Elementnavn med oversettbart tekstinnhold. Hvis tom er alt tekstinnhold oversettbart."
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver regex-basert deteksjon av inline-koder i oversettbar tekst"
+        }
+      }
+    },
+    "yaml": {
+      "displayName": "YAML",
+      "extensions": [
+        ".yaml",
+        ".yml"
+      ],
+      "mimeTypes": [
+        "application\/yaml",
+        "text\/yaml",
+        "application\/x-yaml"
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "title": "Kodefinnerregler",
+          "description": "Regex-mønstre som matcher inline-koder i oversettbar tekst"
+        },
+        "extractNonStrings": {
+          "title": "Trekk ut ikke-strengverdier",
+          "description": "Trekk ut skalarverdier som ikke er strenger (boolske verdier, tall, null), som oversettbare blokker"
+        },
+        "keyPathPatterns": {
+          "title": "Mønstre for nøkkelstier",
+          "description": "Når ikke tom, trekkes bare nøkler som matcher ett av disse glob-mønstrene ut. Støtter * (én nøkkel) og ** (vilkårlig dybde)."
+        },
+        "subfilter": {
+          "title": "Underfilterformat",
+          "description": "Underfilter som brukes på skalarverdier (f.eks. 'html' for å behandle HTML i YAML-verdier)"
+        },
+        "useCodeFinder": {
+          "title": "Aktiver deteksjon av inline-koder",
+          "description": "Aktiver regex-basert deteksjon av inline-koder i strengverdier"
+        }
+      }
+    }
+  }
+}

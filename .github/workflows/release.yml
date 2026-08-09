@@ -207,6 +207,15 @@ jobs:
           PCDIR=$(ICU_PREFIX="$HOME/icu-static" bash scripts/gen-icu-static-pc.sh)
           echo "PKG_CONFIG_PATH=${PCDIR}" >> "$GITHUB_ENV"
 
+      # The embedded gettext catalogs are build output — the repository carries
+      # the translated JSON they are compiled from — and core/i18n / host/i18n
+      # resolve `//go:embed catalogs/*.mo` at compile time. A release that
+      # skipped this would fail the build rather than ship English silently,
+      # but it must not get the chance.
+      - name: Compile the embedded i18n catalogs
+        if: matrix.target.goos != 'windows'
+        run: go run ./core/i18n/gen/catalogs
+
       # ---- Build (macOS / Linux) ----
       - name: Build kapi (macOS / Linux)
         if: matrix.target.goos != 'windows'
@@ -267,6 +276,9 @@ jobs:
           # convert the generated .pc dir for the (native) pkg-config too.
           PCDIR=$(ICU_LIBDIR="$(cygpath -m "$MROOT/lib")" ICU_INCLUDEDIR="$(cygpath -m "$MROOT/include")" bash scripts/gen-icu-static-pc.sh)
           export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
+          # Build output, not source: the embedded gettext catalogs compile
+          # from the committed translated JSON before //go:embed resolves.
+          go run ./core/i18n/gen/catalogs
           mkdir -p out
           ( cd kapi && go build -tags fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o ../out/kapi.exe ./cmd/kapi )
 
@@ -915,6 +927,12 @@ jobs:
           wails3 generate syso -arch "$ARCH" -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.gen.json -out "wails_windows_${ARCH}.syso"
           rm -f build/windows/info.gen.json
 
+      # The desktop app links core/i18n and host/i18n, whose embedded gettext
+      # catalogs are compiled from the committed translated JSON at build time.
+      - name: Compile the embedded i18n catalogs
+        if: runner.os != 'Windows'
+        run: go run ./core/i18n/gen/catalogs
+
       - name: Build Kapi Desktop (Linux)
         if: runner.os == 'Linux'
         working-directory: apps/kapi-desktop
@@ -945,6 +963,7 @@ jobs:
           # native pkg-config too.
           PCDIR=$(ICU_LIBDIR="$(cygpath -m "$MROOT/lib")" ICU_INCLUDEDIR="$(cygpath -m "$MROOT/include")" bash "${GITHUB_WORKSPACE}/scripts/gen-icu-static-pc.sh")
           export PKG_CONFIG_PATH="$(cygpath -m "$PCDIR")"
+          ( cd "${GITHUB_WORKSPACE}" && go run ./core/i18n/gen/catalogs )
           go build -tags production,fts5 -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Kapi.exe
           rm -f ./*.syso
 

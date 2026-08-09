@@ -54,16 +54,28 @@ The generated document is object-keyed (`tools.<id>`, `formats.<id>`),
 not capability-array-keyed, so block names produced by the JSON filter
 stay stable when tools are added or removed.
 
-### 3. KBF is the authoring format; gettext MO is the runtime format
+### 3. JSON is the committed catalog; gettext MO is the runtime format
 
-KBF is the platform's authoring / exchange format — rich, placeholder-
-aware, and segment-oriented. It is the wrong shape for runtime lookup.
-MO's binary hash-indexed catalog with `msgctxt` for disambiguation
-maps directly onto the `(scope, source)` lookup, and
+MO's binary indexed catalog with `msgctxt` for disambiguation maps directly
+onto the `(scope, source)` lookup, and
 [`github.com/leonelquinteros/gotext`](https://github.com/leonelquinteros/gotext)
-is a mature pure-Go loader. The `core/formats/mo/` format writer
-consumes `kbf.Block` streams and emits MO; `DetectByExtension(".mo")`
-picks it up when the output path's extension says `.mo`.
+is a mature pure-Go loader. But a compiled catalog is build output, and a
+binary in version control is a diff nobody can read. So the repository carries
+the translated catalog as JSON in the shape of its source document —
+`core/i18n/catalogs/<lang>.json`, `host/i18n/catalogs/<lang>.json`, written by
+the dogfood recipe's `neokapi-engine` and `neokapi-cli` collections — and
+`go run ./core/i18n/gen/catalogs` compiles each into the sibling `<lang>.mo`
+before anything that embeds it compiles.
+
+The compiler reads its extraction configuration from the recipe rather than
+restating it, so the msgctxt it writes is by construction the key path the pull
+wrote the JSON under and the scope the runtime looks a string up by. It pairs
+source and translation by that key path: msgid is the English source, msgstr
+the translation. A string the locale has not translated, or has copied
+verbatim, is left out — the runtime then returns the source, which is what
+target-language drift should look like. The `core/formats/mo/` writer does the
+encoding; `DetectByExtension(".mo")` picks it up when an output path says
+`.mo`.
 
 ### 4. Translate at the API boundary, not per-call-site
 
@@ -84,14 +96,17 @@ core/i18n/
 ├── catalog.go                # Scope, Translator, gotext-backed lookup
 ├── resolve.go                # --lang / KAPI_LANG / config / LC_ALL / LANG chain
 ├── schema.go                 # LocalizeComponentSchema
-├── embed.go                  # //go:embed all:catalogs → builtin MO files
-├── catalogs/                 # Compiled MO per locale (committed)
+├── embed.go                  # //go:embed catalogs/*.mo → builtin MO files
+├── catalogs/
+│   ├── <locale>.json         # Translated catalog, committed; the review surface
+│   └── <locale>.mo           # Compiled at build time, gitignored
 ├── builtins/
 │   └── metadata.json         # Generated, committed; extraction input
-├── gen/
-│   ├── gen.go                # Generator library
-│   └── cmd/main.go           # //go:generate entry point
-└── kapi.yaml                 # Project file documenting the pipeline
+└── gen/
+    ├── gen.go                # metadata.json generator library
+    ├── catalog.go            # JSON catalog → MO compiler
+    ├── cmd/main.go           # //go:generate entry point
+    └── catalogs/main.go      # Build-time catalog compiler entry point
 
 core/formats/mo/              # Writer + stub reader (for DetectByExtension)
 ```
@@ -121,14 +136,19 @@ behavior.
 
 ```bash
 go generate ./core/i18n/...               # Go registries → builtins/metadata.json
-kapi pseudo-translate builtins/metadata.json \
+kapi run tm-recycle --target-lang nb      # metadata.json → catalogs/nb.json
+kapi pseudo-translate core/i18n/builtins/metadata.json \
     --target-lang qps -f json \
-    -o core/i18n/catalogs/qps.mo          # JSON reader → pseudo-translate → MO writer
+    -o core/i18n/catalogs/qps.json        # the probe locale, same catalog shape
+go run ./core/i18n/gen/catalogs           # catalogs/<lang>.json → catalogs/<lang>.mo
 ```
 
-One conversion, no KBF intermediate on disk — `core/kbf/` blocks flow
-through the in-process pipeline and the MO writer flattens them at the
-sink.
+Every step but the last is `make l10n`'s. The last is a build prerequisite:
+`//go:embed catalogs/*.mo` resolves at compile time, so `make i18n-catalogs`
+runs ahead of every target that builds, tests, vets or lints `core/i18n` or
+`host/i18n`, and a build that skipped it fails on the embed rather than
+silently shipping English. The compiler imports neither package it writes for,
+so it builds and runs against an empty catalogs directory.
 
 ### Plugin bundles
 

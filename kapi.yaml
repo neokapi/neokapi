@@ -16,10 +16,18 @@
 # `cli` is a channel within neokapi, not a product beside bowrain.
 #
 #   neokapi-cli            — the CLI's own help and output chrome
-#                            (host/i18n/commands.json) → gettext MO catalogs
-#                            embedded in the kapi binary (host/i18n)
-#   neokapi-engine         — generated tool/format metadata → gettext MO
-#                            catalogs embedded in the kapi binary (core/i18n)
+#                            (host/i18n/commands.json) → host/i18n/catalogs/
+#                            <lang>.json
+#   neokapi-engine         — generated tool/format metadata
+#                            (core/i18n/builtins/metadata.json) →
+#                            core/i18n/catalogs/<lang>.json
+#
+# Both Go collections write translated JSON in the shape of their source: text
+# a reviewer reads in a diff. gettext MO stays the runtime format, and
+# `go run ./core/i18n/gen/catalogs` compiles each committed <lang>.json into
+# the sibling <lang>.mo the binary embeds. The MO is build output — regenerated
+# ahead of anything that compiles core/i18n or host/i18n, and not in version
+# control.
 #   neokapi-desktop        — KBF catalogs extracted from the React frontend by
 #                            @neokapi/i18n-react →
 #                            public/translations/<locale>.json
@@ -123,16 +131,20 @@ collections:
     channel: neokapi/engine
     base: core/i18n
     content:
+      # The block name the reader derives from the key path is the gettext
+      # msgctxt the compiled catalog is keyed by, and the Scope the runtime
+      # looks a string up under (core/i18n.Scope) — dot-separated, no leading
+      # slash, which is what useKeyAsName alone produces. Only the four leaf
+      # keys that hold prose are extracted; ids, categories, extensions and
+      # mime types are not text a reader sees.
       - path: builtins/metadata.json
         format:
           name: json
           config:
             extractAllPairs: false
             useKeyAsName: true
-            useFullKeyPath: true
-            useLeadingSlashOnKeyPath: true
-            extractionRules: "(display_name|description|title|label)$"
-        target: catalogs/{lang}.mo
+            extractionRules: "(displayName|description|title|label)$"
+        target: catalogs/{lang}.json
   # The CLI's own help and output strings.
   - name: neokapi-cli
     channel: neokapi/cli
@@ -145,7 +157,7 @@ collections:
       - path: commands.json
         format:
           name: json
-        target: catalogs/{lang}.mo
+        target: catalogs/{lang}.json
   - name: neokapi-desktop
     channel: neokapi/desktop
     base: apps/kapi-desktop/frontend
