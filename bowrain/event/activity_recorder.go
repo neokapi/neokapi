@@ -60,14 +60,20 @@ func (r *ActivityRecorder) handleEvent(ev platev.Event) error {
 
 func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity {
 	a := &bstore.Activity{
-		ProjectID:   ev.ProjectID,
-		ActorID:     ev.Actor,
-		ActorName:   ev.Data["actor_name"],
-		Data:        ev.Data,
-		WorkspaceID: ev.Data["workspace_slug"],
+		ProjectID: ev.ProjectID,
+		ActorID:   ev.Actor,
+		ActorName: ev.Data["actor_name"],
+		Data:      ev.Data,
+		// The event's own workspace field first: the sync path sets it and
+		// carries neither Data key, which once filed 17k activities under an
+		// empty workspace — real rows no feed could ever show.
+		WorkspaceID: ev.WorkspaceID,
 	}
 	if a.ActorID == "" {
 		a.ActorID = "system"
+	}
+	if a.WorkspaceID == "" {
+		a.WorkspaceID = ev.Data["workspace_slug"]
 	}
 	if a.WorkspaceID == "" {
 		a.WorkspaceID = ev.Data["workspace_id"]
@@ -101,12 +107,9 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityType = "item"
 		a.Summary = "pulled content"
 
-	// Block events (only record updates, not individual creates for volume)
-	case platev.EventBlockUpdated:
-		a.Type = bstore.ActivityBlockTranslated
-		a.EntityType = "block"
-		a.EntityID = ev.Data["block_id"]
-		a.Summary = "updated block " + ev.Data["block_id"]
+	// Block events never reach the feed: a push or converge touches
+	// thousands of blocks, and the feed is for people — the push- and
+	// run-level entries above are the readable record of that work.
 
 	// Streams
 	case platev.EventStreamCreated:

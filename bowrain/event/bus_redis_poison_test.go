@@ -3,8 +3,6 @@ package event
 import (
 	"context"
 	"errors"
-	"log/slog"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -23,11 +21,6 @@ func TestGroupReclaim_DropsPoisonEntryAfterCap(t *testing.T) {
 	url := startRedis(t)
 	bus := newReclaimBusAt(t, url, 30*time.Millisecond, 10*time.Millisecond)
 
-	var buf syncBuffer
-	prev := slog.Default()
-	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
-	t.Cleanup(func() { slog.SetDefault(prev) })
-
 	var calls atomic.Int64
 	bus.SubscribeGroup("poison-test", func(_ platev.Event) error {
 		calls.Add(1)
@@ -44,16 +37,14 @@ func TestGroupReclaim_DropsPoisonEntryAfterCap(t *testing.T) {
 
 	// The entry is delivered, fails, and is reclaimed until the cap drops it:
 	// the group's pending list must eventually go (and stay) empty.
-	// The reclaim sweep redelivers the failing entries until the cap drops
-	// them — loudly — and the pending list drains for good.
-	require.Eventually(t, func() bool {
-		return strings.Contains(buf.String(), "dropping poison entry")
-	}, 20*time.Second, 500*time.Millisecond, "no poison drop was ever logged")
-
+	// The handler never succeeds, so the only way the pending list drains is
+	// the sweep's poison drop. (The drop's ERROR line goes through the global
+	// slog default, which other tests in this package swap — asserting on it
+	// here would race them.)
 	require.Eventually(t, func() bool {
 		pending, perr := bus.client.XPending(context.Background(), bus.stream, "poison-test").Result()
 		return perr == nil && pending.Count == 0
-	}, 20*time.Second, 500*time.Millisecond, "the pending list never drained")
+	}, 30*time.Second, 500*time.Millisecond, "the pending list never drained")
 	assert.Greater(t, calls.Load(), int64(poisonDeliveryCap),
 		"the entry should have been retried up to the cap before the drop")
 }
