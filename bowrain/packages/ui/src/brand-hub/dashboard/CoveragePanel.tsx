@@ -5,10 +5,9 @@
 import { Badge, Card, CardContent, Skeleton, cn } from "@neokapi/ui-primitives";
 import { Tag, Languages, Globe } from "../../components/icons";
 import type { TermStatus } from "../../types/brand-graph";
-import { useConcepts } from "../../hooks/useConceptsApi";
+import { useConceptLocaleCoverage, useConceptStatusCounts } from "../../hooks/useConceptsApi";
 import { useMarkets } from "../../hooks/useMarketsApi";
 import { TermStatusBadge, EmptyState } from "../shell/atoms";
-import { computeLocaleCoverage } from "./metrics";
 
 // ── Vocabulary by status ──────────────────────────────────────────────────────
 
@@ -51,25 +50,13 @@ function PanelShell({
 }
 
 export function VocabularyByStatus() {
-  // total_count comes back regardless of limit, so the count queries stay cheap.
-  const total = useConcepts({ limit: 1 });
-  const preferred = useConcepts({ status: "preferred", limit: 1 });
-  const approved = useConcepts({ status: "approved", limit: 1 });
-  const admitted = useConcepts({ status: "admitted", limit: 1 });
-  const proposed = useConcepts({ status: "proposed", limit: 1 });
-  const forbidden = useConcepts({ status: "forbidden", limit: 1 });
+  // One count over the whole vocabulary. The buckets overlap — a concept counts
+  // under every status one of its terms carries — so they do not sum to total.
+  const { data, isLoading: loading } = useConceptStatusCounts();
 
-  const counts: Record<TermStatus, number> = {
-    preferred: preferred.data?.total_count ?? 0,
-    approved: approved.data?.total_count ?? 0,
-    admitted: admitted.data?.total_count ?? 0,
-    proposed: proposed.data?.total_count ?? 0,
-    deprecated: 0,
-    forbidden: forbidden.data?.total_count ?? 0,
-  };
-  const totalCount = total.data?.total_count ?? 0;
-  const max = Math.max(totalCount, ...SHOWN_STATUSES.map((s) => counts[s]), 1);
-  const loading = total.isLoading;
+  const byStatus = data?.by_status ?? {};
+  const totalCount = data?.total ?? 0;
+  const max = Math.max(totalCount, ...SHOWN_STATUSES.map((s) => byStatus[s] ?? 0), 1);
 
   return (
     <PanelShell
@@ -87,12 +74,14 @@ export function VocabularyByStatus() {
             <li key={status} className="space-y-1">
               <div className="flex items-center justify-between">
                 <TermStatusBadge status={status} className="text-[10px]" />
-                <span className="text-sm tabular-nums text-muted-foreground">{counts[status]}</span>
+                <span className="text-sm tabular-nums text-muted-foreground">
+                  {byStatus[status] ?? 0}
+                </span>
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                 <div
                   className={cn("h-full rounded-full", STATUS_BAR[status])}
-                  style={{ width: `${Math.round((counts[status] / max) * 100)}%` }}
+                  style={{ width: `${Math.round(((byStatus[status] ?? 0) / max) * 100)}%` }}
                 />
               </div>
             </li>
@@ -106,9 +95,11 @@ export function VocabularyByStatus() {
 // ── Locale coverage ───────────────────────────────────────────────────────────
 
 export function LocaleCoveragePanel({ limit = 8 }: { limit?: number }) {
-  const { data, isLoading } = useConcepts({ limit: 100 });
-  const concepts = data?.concepts ?? [];
-  const coverage = computeLocaleCoverage(concepts).slice(0, limit);
+  // Counted over the whole workspace, most complete locale first — a page of
+  // concepts folded client-side reported the coverage of that page, not of the
+  // vocabulary.
+  const { data, isLoading } = useConceptLocaleCoverage();
+  const coverage = (data?.locales ?? []).slice(0, limit);
 
   return (
     <PanelShell

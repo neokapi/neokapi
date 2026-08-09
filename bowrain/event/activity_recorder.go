@@ -64,16 +64,20 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		ActorID:   ev.Actor,
 		ActorName: ev.Data["actor_name"],
 		Data:      ev.Data,
-		// The event's own workspace field first: the sync path sets it and
-		// carries neither Data key, which once filed 17k activities under an
-		// empty workspace — real rows no feed could ever show.
-		WorkspaceID: ev.WorkspaceID,
+		// The feed lists by workspace *slug* (GET /:ws/activities), so an
+		// explicit slug on the event wins: the knowledge path sets
+		// Event.WorkspaceID to the workspace UUID and carries the slug here,
+		// and preferring the UUID filed those rows where no feed could list
+		// them. The event's own field is the fallback the sync path needs — it
+		// sets WorkspaceID and carries neither Data key, which once filed 17k
+		// activities under an empty workspace.
+		WorkspaceID: ev.Data["workspace_slug"],
 	}
 	if a.ActorID == "" {
 		a.ActorID = "system"
 	}
 	if a.WorkspaceID == "" {
-		a.WorkspaceID = ev.Data["workspace_slug"]
+		a.WorkspaceID = ev.WorkspaceID
 	}
 	if a.WorkspaceID == "" {
 		a.WorkspaceID = ev.Data["workspace_id"]
@@ -214,6 +218,79 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityType = "changeset"
 		a.EntityID = ev.Data["changeset_id"]
 		a.Summary = "merged a change into the workspace terms"
+	case knowledge.EventChangeSetCreated:
+		a.Type = bstore.ActivityChangeSetOpened
+		a.EntityType = "changeset"
+		a.EntityID = ev.Data["changeset_id"]
+		a.Summary = "opened an experiment"
+	case knowledge.EventChangeSetAbandoned:
+		a.Type = bstore.ActivityChangeSetAbandoned
+		a.EntityType = "changeset"
+		a.EntityID = ev.Data["changeset_id"]
+		a.Summary = "abandoned an experiment"
+	case knowledge.EventChangeSetSuperseded:
+		a.Type = bstore.ActivityChangeSetSuperseded
+		a.EntityType = "changeset"
+		a.EntityID = ev.Data["changeset_id"]
+		a.Summary = "superseded an experiment with a newer proposal"
+
+	// Pilots: a change-set bound to a project's content stream, tried before it
+	// is merged everywhere.
+	case knowledge.EventPilotStarted:
+		a.Type = bstore.ActivityPilotStarted
+		a.EntityType = "changeset"
+		a.EntityID = ev.Data["changeset_id"]
+		a.Stream = ev.Data["stream"]
+		a.Summary = pilotSummary("started piloting a change", ev.Data)
+	case knowledge.EventPilotStopped:
+		a.Type = bstore.ActivityPilotStopped
+		a.EntityType = "changeset"
+		a.EntityID = ev.Data["changeset_id"]
+		a.Stream = ev.Data["stream"]
+		a.Summary = pilotSummary("stopped piloting a change", ev.Data)
+
+	// Concepts, evidence, and discussion — the ordinary (ungoverned) edits to
+	// the graph, which are most of what a steward's day looks like.
+	case knowledge.EventConceptCreated:
+		a.Type = bstore.ActivityConceptCreated
+		a.EntityType = "concept"
+		a.EntityID = ev.Data["concept_id"]
+		a.Summary = "created a concept"
+	case knowledge.EventConceptUpdated:
+		a.Type = bstore.ActivityConceptUpdated
+		a.EntityType = "concept"
+		a.EntityID = ev.Data["concept_id"]
+		a.Summary = "updated a concept"
+	case knowledge.EventConceptDeleted:
+		a.Type = bstore.ActivityConceptDeleted
+		a.EntityType = "concept"
+		a.EntityID = ev.Data["concept_id"]
+		a.Summary = "deleted a concept"
+	case knowledge.EventConceptTermStatusChanged:
+		a.Type = bstore.ActivityConceptTermStatus
+		a.EntityType = "concept"
+		a.EntityID = ev.Data["concept_id"]
+		a.Summary = "changed a term's status"
+	case knowledge.EventConceptRelationAdded:
+		a.Type = bstore.ActivityConceptRelationAdded
+		a.EntityType = "concept"
+		a.EntityID = ev.Data["concept_id"]
+		a.Summary = "connected two concepts"
+	case knowledge.EventConceptRelationRemoved:
+		a.Type = bstore.ActivityConceptRelationRemoved
+		a.EntityType = "concept"
+		a.EntityID = ev.Data["concept_id"]
+		a.Summary = "removed a relation between concepts"
+	case knowledge.EventObservationAdded:
+		a.Type = bstore.ActivityObservationAdded
+		a.EntityType = "concept"
+		a.EntityID = ev.Data["concept_id"]
+		a.Summary = "recorded an observation"
+	case knowledge.EventConceptCommentAdded:
+		a.Type = bstore.ActivityCommentAdded
+		a.EntityType = "concept"
+		a.EntityID = ev.Data["concept_id"]
+		a.Summary = "commented on a concept"
 
 	// Connector sync
 	case platev.EventSyncCompleted:
@@ -240,6 +317,20 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 	}
 
 	return a
+}
+
+// pilotSummary names where a pilot runs when the event says, because "started
+// piloting a change" alone leaves the reader asking the obvious next question.
+func pilotSummary(verb string, data map[string]string) string {
+	project, stream := data["project_id"], data["stream"]
+	switch {
+	case project != "" && stream != "":
+		return verb + " on " + project + " · " + stream
+	case project != "":
+		return verb + " on " + project
+	default:
+		return verb
+	}
 }
 
 // flowFailedSummary is the line the activity feed shows for a failed job.

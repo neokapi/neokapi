@@ -1,195 +1,168 @@
 import { describe, it, expect } from "vite-plus/test";
-import type { ConceptInfo } from "../../types/api";
-import type { ChangeSet, ChangeSetDetail } from "../../types/brand-graph";
-import { buildFeed, conceptDisplayName, dayLabel, groupByDay, type StorySource } from "./feed";
+import type { ActivityInfo, ConceptInfo } from "../../types/api";
+import {
+  ACTIVITY_CATEGORIES,
+  CATEGORY_TYPE_PREFIXES,
+  categoryForType,
+  conceptDisplayName,
+  dayLabel,
+  groupByDay,
+  toFeedItem,
+  typePrefixesFor,
+} from "./feed";
 
-function changeset(id: string, partial: Partial<ChangeSet>): ChangeSet {
+function activity(partial: Partial<ActivityInfo>): ActivityInfo {
   return {
-    id,
-    workspace_id: "ws-1",
-    name: id,
-    status: "draft",
-    created_by: "alex",
-    created_at: "2026-06-01T08:00:00Z",
-    updated_at: "2026-06-01T08:00:00Z",
+    id: "a-1",
+    workspace_id: "acme",
+    actor_id: "sam",
+    actor_name: "Sam Okafor",
+    type: "concept.updated",
+    summary: "updated a concept",
+    created_at: "2026-06-13T10:00:00Z",
     ...partial,
   };
 }
 
-describe("buildFeed", () => {
-  it("derives lifecycle events from change-set timestamps", () => {
-    const cs = changeset("cs-1", {
-      name: "Prefer Paiement",
-      status: "merged",
-      submitted_at: "2026-06-02T09:00:00Z",
-      merged_at: "2026-06-03T10:00:00Z",
-      merged_by: "sam",
-    });
-    const feed = buildFeed({ changesets: [cs] });
-    const kinds = feed.map((f) => f.kind);
-    expect(kinds).toContain("changeset.opened");
-    expect(kinds).toContain("changeset.submitted");
-    expect(kinds).toContain("changeset.merged");
-    // Newest first → merged leads.
-    expect(feed[0].kind).toBe("changeset.merged");
-    expect(feed[0].actor).toBe("sam");
+describe("typePrefixesFor", () => {
+  it("expresses a category as the type families the server matches by prefix", () => {
+    expect(typePrefixesFor(["concept"])).toEqual(["concept."]);
+    expect(typePrefixesFor(["experiment"])).toEqual(["changeset.", "review.", "pilot."]);
   });
 
-  it("emits an abandoned event for abandoned change-sets", () => {
-    const feed = buildFeed({
-      changesets: [changeset("cs-x", { status: "abandoned", updated_at: "2026-06-05T00:00:00Z" })],
-    });
-    expect(feed.some((f) => f.kind === "changeset.abandoned")).toBe(true);
+  it("orders by the canonical category order and deduplicates", () => {
+    expect(typePrefixesFor(["comment", "experiment"])).toEqual([
+      "changeset.",
+      "review.",
+      "pilot.",
+      "comment.",
+    ]);
   });
 
-  it("includes reviews and pilots from details", () => {
-    const detail: ChangeSetDetail = {
-      ...changeset("cs-1", { name: "Prefer Paiement" }),
-      governed: true,
-      solo_review: false,
-      ops: [],
-      reviews: [
-        {
-          workspace_id: "ws-1",
-          changeset_id: "cs-1",
-          reviewer: "alex",
-          verdict: "approve",
-          basis: "peer",
-          created_at: "2026-06-02T12:00:00Z",
-        },
-      ],
-      pilots: [
-        {
-          workspace_id: "ws-1",
-          changeset_id: "cs-1",
-          project_id: "p-web",
-          stream: "main",
-          created_by: "sam",
-          created_at: "2026-06-02T13:00:00Z",
-        },
-      ],
-    };
-    const feed = buildFeed({ changesets: [], details: [detail] });
-    expect(feed.find((f) => f.kind === "changeset.reviewed")?.detail).toMatch(/Approved/);
-    expect(feed.find((f) => f.kind === "pilot.started")?.detail).toMatch(/p-web/);
+  it("asks for nothing when no category is selected", () => {
+    expect(typePrefixesFor([])).toEqual([]);
+  });
+});
+
+describe("categoryForType", () => {
+  it("claims each recorded knowledge family", () => {
+    expect(categoryForType("concept.created")).toBe("concept");
+    expect(categoryForType("concept.term.status_changed")).toBe("concept");
+    expect(categoryForType("changeset.abandoned")).toBe("experiment");
+    expect(categoryForType("review.decided")).toBe("experiment");
+    expect(categoryForType("pilot.started")).toBe("experiment");
+    expect(categoryForType("observation.added")).toBe("observation");
+    expect(categoryForType("comment.added")).toBe("comment");
   });
 
-  it("maps story entries to concept/observation/comment, skipping changeset entries", () => {
-    const story: StorySource = {
-      conceptId: "c-checkout",
-      entries: [
-        { kind: "revision", at: "2026-06-01T00:00:00Z", actor: "alex", summary: "Created" },
-        { kind: "observation", at: "2026-06-02T00:00:00Z", actor: "alex", summary: "Saw rival" },
-        { kind: "comment", at: "2026-06-03T00:00:00Z", actor: "sam", summary: "Discuss fr-FR" },
-        { kind: "changeset", at: "2026-06-04T00:00:00Z", actor: "sam", summary: "Opened exp" },
-      ],
-    };
-    const feed = buildFeed({
-      changesets: [],
-      stories: [story],
-      conceptNames: { "c-checkout": "Checkout" },
-    });
-    const byKind = feed.map((f) => f.kind);
-    expect(byKind).toEqual(["comment", "observation", "concept.revision"]);
-    expect(feed.every((f) => f.title === "Checkout")).toBe(true);
-    expect(byKind).not.toContain("changeset");
+  it("claims nothing outside the brand families", () => {
+    expect(categoryForType("item.pushed")).toBeNull();
+    expect(categoryForType("flow.completed")).toBeNull();
   });
 
-  it("de-duplicates identical events from overlapping sources", () => {
-    const detail: ChangeSetDetail = {
-      ...changeset("cs-1", {}),
-      governed: false,
-      solo_review: false,
-      ops: [],
-      reviews: [
-        {
-          workspace_id: "ws-1",
-          changeset_id: "cs-1",
-          reviewer: "alex",
-          verdict: "approve",
-          basis: "peer",
-          created_at: "2026-06-02T12:00:00Z",
-        },
-      ],
-      pilots: [],
-    };
-    const feed = buildFeed({ changesets: [], details: [detail, detail] });
-    expect(feed.filter((f) => f.kind === "changeset.reviewed")).toHaveLength(1);
+  it("keeps the families disjoint, so no type lands in two categories", () => {
+    const prefixes = ACTIVITY_CATEGORIES.flatMap((c) => CATEGORY_TYPE_PREFIXES[c]);
+    for (const a of prefixes) {
+      const overlapping = prefixes.filter((b) => a !== b && (a.startsWith(b) || b.startsWith(a)));
+      expect(overlapping).toEqual([]);
+    }
+  });
+});
+
+describe("toFeedItem", () => {
+  it("names the change-set when it can, keeping the server sentence as detail", () => {
+    const item = toFeedItem(
+      activity({
+        type: "review.assigned",
+        entity_type: "changeset",
+        entity_id: "cs-1",
+        summary: "submitted a change for review",
+      }),
+      { "cs-1": "Prefer ‘Paiement’ for fr-FR" },
+    );
+    expect(item.title).toBe("Prefer ‘Paiement’ for fr-FR");
+    expect(item.detail).toBe("submitted a change for review");
+    expect(item.changesetId).toBe("cs-1");
+    expect(item.category).toBe("experiment");
   });
 
-  it("drops items with invalid timestamps and respects the limit", () => {
-    const stories: StorySource[] = [
-      {
-        conceptId: "c1",
-        entries: [
-          { kind: "revision", at: "", summary: "no date" },
-          { kind: "revision", at: "2026-06-01T00:00:00Z", summary: "ok" },
-        ],
-      },
-    ];
-    const feed = buildFeed({ changesets: [], stories, limit: 1 });
-    expect(feed).toHaveLength(1);
-    expect(feed[0].detail).toBe("ok");
+  it("falls back to the sentence rather than showing an id", () => {
+    const item = toFeedItem(
+      activity({ type: "concept.created", entity_type: "concept", entity_id: "c-9" }),
+    );
+    expect(item.title).toBe("updated a concept");
+    expect(item.detail).toBeUndefined();
+    expect(item.title).not.toContain("c-9");
+    expect(item.conceptId).toBe("c-9");
+  });
+
+  it("reads the subject out of the payload when the entity ref is absent", () => {
+    const item = toFeedItem(
+      activity({ type: "pilot.started", data: { changeset_id: "cs-2", stream: "main" } }),
+      { "cs-2": "Ban competitor name" },
+    );
+    expect(item.changesetId).toBe("cs-2");
+    expect(item.title).toBe("Ban competitor name");
+  });
+
+  it("carries the actor and instant through unchanged", () => {
+    const item = toFeedItem(activity({ id: "a-7", created_at: "2026-06-01T08:00:00Z" }));
+    expect(item.id).toBe("a-7");
+    expect(item.at).toBe("2026-06-01T08:00:00Z");
+    expect(item.actor).toBe("sam");
   });
 });
 
 describe("conceptDisplayName", () => {
-  const base: ConceptInfo = {
-    id: "c1",
+  const concept = (terms: ConceptInfo["terms"]): ConceptInfo => ({
+    id: "c-1",
     domain: "commerce",
     definition: "",
-    terms: [],
-    created_at: "",
-    updated_at: "",
-  };
-
-  it("prefers a preferred term", () => {
-    expect(
-      conceptDisplayName({
-        ...base,
-        terms: [
-          { text: "Caisse", locale: "fr-FR", status: "proposed" },
-          { text: "Checkout", locale: "en-US", status: "preferred" },
-        ],
-      }),
-    ).toBe("Checkout");
+    terms,
+    created_at: "2026-06-01T00:00:00Z",
+    updated_at: "2026-06-01T00:00:00Z",
   });
 
-  it("falls back to an English term, then the first", () => {
+  it("prefers a preferred term, then English, then the first", () => {
     expect(
-      conceptDisplayName({
-        ...base,
-        terms: [
+      conceptDisplayName(
+        concept([
+          { text: "Kasse", locale: "de-DE", status: "approved" },
+          { text: "Checkout", locale: "en-US", status: "preferred" },
+        ]),
+      ),
+    ).toBe("Checkout");
+    expect(
+      conceptDisplayName(
+        concept([
           { text: "Kasse", locale: "de-DE", status: "approved" },
           { text: "Cart", locale: "en-GB", status: "admitted" },
-        ],
-      }),
+        ]),
+      ),
     ).toBe("Cart");
-    expect(conceptDisplayName({ ...base, terms: [] })).toBe("commerce");
+    expect(conceptDisplayName(concept([]))).toBe("commerce");
   });
 });
 
-describe("dayLabel + groupByDay", () => {
-  // Local-time (no trailing Z) so day boundaries are deterministic regardless of
-  // the machine timezone — dayLabel/groupByDay intentionally bucket by local day.
-  const now = new Date("2026-06-13T12:00:00").getTime();
+describe("groupByDay", () => {
+  const now = new Date("2026-06-13T12:00:00Z").getTime();
 
-  it("labels today and yesterday relatively", () => {
-    expect(dayLabel("2026-06-13T08:00:00", now)).toBe("Today");
-    expect(dayLabel("2026-06-12T23:00:00", now)).toBe("Yesterday");
-    expect(dayLabel("2026-06-01T08:00:00", now)).toMatch(/Jun/);
+  it("labels today, yesterday, and older days", () => {
+    expect(dayLabel("2026-06-13T09:00:00Z", now)).toBe("Today");
+    expect(dayLabel("2026-06-12T09:00:00Z", now)).toBe("Yesterday");
+    expect(dayLabel("2026-06-01T09:00:00Z", now)).toContain("2026");
+    expect(dayLabel("not-a-date", now)).toBe("—");
   });
 
-  it("buckets a sorted feed into ordered day groups", () => {
-    const feed = buildFeed({
-      changesets: [
-        changeset("a", { created_at: "2026-06-13T09:00:00" }),
-        changeset("b", { created_at: "2026-06-12T09:00:00" }),
-        changeset("c", { created_at: "2026-06-12T08:00:00" }),
-      ],
-    });
-    const groups = groupByDay(feed, now);
+  it("buckets a sorted page into days, preserving order", () => {
+    const items = [
+      toFeedItem(activity({ id: "a", created_at: "2026-06-13T11:00:00Z" })),
+      toFeedItem(activity({ id: "b", created_at: "2026-06-13T09:00:00Z" })),
+      toFeedItem(activity({ id: "c", created_at: "2026-06-12T09:00:00Z" })),
+    ];
+    const groups = groupByDay(items, now);
     expect(groups.map((g) => g.label)).toEqual(["Today", "Yesterday"]);
-    expect(groups[1].items).toHaveLength(2);
+    expect(groups[0].items.map((i) => i.id)).toEqual(["a", "b"]);
+    expect(groups[1].items.map((i) => i.id)).toEqual(["c"]);
   });
 });

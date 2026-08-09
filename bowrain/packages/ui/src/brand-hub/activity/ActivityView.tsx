@@ -1,10 +1,12 @@
-// Activity — the brand-scoped timeline (AD-021). It weaves change-set lifecycle,
-// reviews, pilots, and per-concept revisions/observations/comments into one
-// chronological feed, grouped by day and filterable by event category. The
-// weaving + grouping live in ./feed (pure, tested); this file is the data wiring
-// and the timeline presentation.
+// Activity — the brand-scoped timeline (AD-021). It reads the workspace
+// activity feed, filtered server-side to the knowledge type families the
+// category toggles select, and groups the page by day. The mapping and grouping
+// live in ./feed (pure, tested); this file is the data wiring and the timeline
+// presentation. Two list reads name the change-sets and concepts a page refers
+// to, so a row says what it is about rather than showing an id.
 import { useMemo, useState } from "react";
 import {
+  Button,
   Card,
   CardContent,
   Skeleton,
@@ -12,7 +14,8 @@ import {
   ToggleGroupItem,
   cn,
 } from "@neokapi/ui-primitives";
-import { useQueries } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { ErrorNotice } from "../../errors";
 import {
   Activity,
   FlaskConical,
@@ -24,8 +27,10 @@ import {
   MessageSquare,
   Check,
   Archive,
+  Loader2,
+  Network,
+  Lock,
 } from "../../components/icons";
-import type { ChangeSetDetail } from "../../types/brand-graph";
 import { useApi } from "../../context/ApiContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
 import { useChangesets } from "../../hooks/useChangesetsApi";
@@ -35,16 +40,20 @@ import { BrandHub } from "../shell/BrandHub";
 import { EmptyState, formatRelative } from "../shell/atoms";
 import {
   ACTIVITY_CATEGORIES,
-  buildFeed,
   conceptDisplayName,
   groupByDay,
+  toFeedItem,
+  typePrefixesFor,
   type ActivityCategory,
+  type EntityNames,
   type FeedItem,
-  type FeedKind,
 } from "./feed";
 
-const STORY_FANOUT = 12; // concepts whose stories we expand into the feed
-const DETAIL_FANOUT = 15; // change-sets whose reviews + pilots we expand
+/** Rows per page. The feed is cursor-paged; "Load more" fetches the next one. */
+const PAGE_SIZE = 40;
+
+/** Concepts named for the feed, most recently updated first — what a feed cites. */
+const NAMED_CONCEPTS = 100;
 
 const CATEGORY_LABEL: Record<ActivityCategory, string> = {
   experiment: "Experiments",
@@ -63,84 +72,48 @@ export function ActivityView({ onOpenConcept, onOpenExperiment }: ActivityViewPr
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
 
-  const { data: changesets, isLoading: csLoading } = useChangesets();
-  const { data: conceptsData, isLoading: conceptsLoading } = useConcepts({ limit: 50 });
-
-  const concepts = useMemo(() => conceptsData?.concepts ?? [], [conceptsData]);
-  const conceptNames = useMemo(
-    () => Object.fromEntries(concepts.map((c) => [c.id, conceptDisplayName(c)])),
-    [concepts],
-  );
-
-  const storyIds = useMemo(
-    () =>
-      [...concepts]
-        .sort(
-          (a, b) =>
-            new Date(b.updated_at || b.created_at).getTime() -
-            new Date(a.updated_at || a.created_at).getTime(),
-        )
-        .slice(0, STORY_FANOUT)
-        .map((c) => c.id),
-    [concepts],
-  );
-
-  const changesetIds = useMemo(
-    () =>
-      [...(changesets ?? [])]
-        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-        .slice(0, DETAIL_FANOUT)
-        .map((c) => c.id),
-    [changesets],
-  );
-
-  const storyQueries = useQueries({
-    queries: storyIds.map((id) => ({
-      queryKey: ["concept-story", ws, id],
-      queryFn: () => api.getConceptStory(ws, id),
-      enabled: !!ws,
-      staleTime: 15_000,
-    })),
-  });
-
-  const detailQueries = useQueries({
-    queries: changesetIds.map((id) => ({
-      queryKey: ["changeset", ws, id],
-      queryFn: () => api.getChangeset(ws, id),
-      enabled: !!ws,
-      staleTime: 5_000,
-    })),
-  });
-
-  const stories = storyQueries.map((q, i) => ({
-    conceptId: storyIds[i],
-    entries: q.data?.entries ?? [],
-  }));
-  const details = detailQueries.map((q) => q.data).filter((d): d is ChangeSetDetail => Boolean(d));
-
-  const feed = buildFeed({
-    changesets: changesets ?? [],
-    details,
-    stories,
-    conceptNames,
-  });
-
-  // ── Category filter ──────────────────────────────────────────────────────
   const [enabled, setEnabled] = useState<ActivityCategory[]>([...ACTIVITY_CATEGORIES]);
-  const counts = useMemo(() => {
-    const c: Record<ActivityCategory, number> = {
-      experiment: 0,
-      concept: 0,
-      observation: 0,
-      comment: 0,
-    };
-    for (const item of feed) c[item.category] += 1;
-    return c;
-  }, [feed]);
+  const types = useMemo(() => typePrefixesFor(enabled), [enabled]);
 
-  const filtered = feed.filter((item) => enabled.includes(item.category));
-  const groups = groupByDay(filtered);
-  const isLoading = csLoading || conceptsLoading;
+  const feedQuery = useInfiniteQuery({
+    queryKey: ["brand-activities", ws, types],
+    queryFn: ({ pageParam }) =>
+      api.listActivities(ws, {
+        types,
+        limit: PAGE_SIZE,
+        cursor: pageParam || undefined,
+      }),
+    initialPageParam: "",
+    getNextPageParam: (last) => last.next_cursor || undefined,
+    // Nothing selected asks the server for nothing, rather than for everything.
+    enabled: !!ws && types.length > 0,
+    staleTime: 10_000,
+  });
+
+  // The names a page cites. Both are single reads the hub already makes
+  // elsewhere; a row whose subject neither names falls back to the server's own
+  // sentence, so nothing renders as a raw id.
+  const { data: changesets } = useChangesets();
+  const { data: conceptsData } = useConcepts({ sort: "updated_at", limit: NAMED_CONCEPTS });
+  const names: EntityNames = useMemo(() => {
+    const out: EntityNames = {};
+    for (const cs of changesets ?? []) out[cs.id] = cs.name;
+    for (const concept of conceptsData?.concepts ?? []) {
+      out[concept.id] = conceptDisplayName(concept);
+    }
+    return out;
+  }, [changesets, conceptsData]);
+
+  const feed = useMemo(
+    () =>
+      (feedQuery.data?.pages ?? []).flatMap((page) =>
+        (page.activities ?? []).map((activity) => toFeedItem(activity, names)),
+      ),
+    [feedQuery.data, names],
+  );
+
+  const groups = groupByDay(feed);
+  const nothingSelected = types.length === 0;
 
   const toolbar = (
     <ToggleGroup
@@ -154,7 +127,6 @@ export function ActivityView({ onOpenConcept, onOpenExperiment }: ActivityViewPr
       {ACTIVITY_CATEGORIES.map((cat) => (
         <ToggleGroupItem key={cat} value={cat} className="gap-1.5 text-xs">
           {CATEGORY_LABEL[cat]}
-          <span className="tabular-nums text-muted-foreground">{counts[cat]}</span>
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
@@ -164,9 +136,21 @@ export function ActivityView({ onOpenConcept, onOpenExperiment }: ActivityViewPr
     <BrandHub
       title="Activity"
       description="What's changing across your brand language — experiments moving through review, and edits to concepts, observations, and discussions."
-      toolbar={feed.length > 0 ? toolbar : undefined}
+      toolbar={toolbar}
     >
-      {isLoading ? (
+      {feedQuery.isError ? (
+        <ErrorNotice
+          error={feedQuery.error}
+          title="Couldn't load the activity feed"
+          hint="The workspace feed is a single read; retry it."
+        />
+      ) : nothingSelected ? (
+        <EmptyState
+          icon={<Activity />}
+          title="No categories selected"
+          description="Re-enable a filter to load activity."
+        />
+      ) : feedQuery.isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-14 w-full" />
@@ -177,12 +161,6 @@ export function ActivityView({ onOpenConcept, onOpenExperiment }: ActivityViewPr
           icon={<Activity />}
           title="No activity yet"
           description="Once you open experiments or edit concepts, their changes appear here in order."
-        />
-      ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={<Activity />}
-          title="No matching activity"
-          description="No events match the selected categories. Re-enable a filter to see more."
         />
       ) : (
         <div className="space-y-6">
@@ -213,6 +191,19 @@ export function ActivityView({ onOpenConcept, onOpenExperiment }: ActivityViewPr
               </Card>
             </section>
           ))}
+          {feedQuery.hasNextPage && (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={feedQuery.isFetchingNextPage}
+                onClick={() => void feedQuery.fetchNextPage()}
+              >
+                {feedQuery.isFetchingNextPage && <Loader2 className="animate-spin" />}
+                {feedQuery.isFetchingNextPage ? "Loading" : "Load older activity"}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </BrandHub>
@@ -228,29 +219,34 @@ const CATEGORY_ACCENT: Record<ActivityCategory, string> = {
   comment: "border-accent/40 bg-accent/40 text-accent-foreground",
 };
 
-function kindIcon(kind: FeedKind): React.ReactNode {
-  switch (kind) {
-    case "changeset.opened":
+const NEUTRAL_ACCENT = "border-border bg-muted text-muted-foreground";
+
+/** The icon for a recorded activity type, matched most-specific first. */
+function typeIcon(type: string): React.ReactNode {
+  switch (type) {
+    case "changeset.created":
       return <FlaskConical />;
-    case "changeset.submitted":
-      return <GitPullRequest />;
-    case "changeset.merged":
-      return <GitMerge />;
     case "changeset.abandoned":
+    case "changeset.superseded":
       return <Archive />;
-    case "changeset.reviewed":
+    case "review.assigned":
+      return <GitPullRequest />;
+    case "review.decided":
       return <Check />;
-    case "pilot.started":
-      return <GitFork />;
-    case "concept.revision":
-      return <Pencil />;
-    case "observation":
-      return <Quote />;
-    case "comment":
-      return <MessageSquare />;
+    case "concept.term.status_changed":
+      return <Lock />;
+    case "concept.relation.added":
+    case "concept.relation.removed":
+      return <Network />;
     default:
-      return <Activity />;
+      break;
   }
+  if (type.startsWith("pilot.")) return <GitFork />;
+  if (type.startsWith("concept.")) return <Pencil />;
+  if (type.startsWith("observation.")) return <Quote />;
+  if (type.startsWith("comment.")) return <MessageSquare />;
+  if (type.startsWith("changeset.")) return <GitMerge />;
+  return <Activity />;
 }
 
 function TimelineRow({
@@ -263,15 +259,13 @@ function TimelineRow({
   onOpenExperiment?: (changesetId: string) => void;
 }) {
   const { nameOf } = useUserDisplayNames();
-  const open = item.changesetId
-    ? onOpenExperiment
-      ? () => onOpenExperiment(item.changesetId as string)
-      : undefined
-    : item.conceptId
-      ? onOpenConcept
-        ? () => onOpenConcept(item.conceptId as string)
-        : undefined
-      : undefined;
+  const { changesetId, conceptId } = item;
+  const open =
+    changesetId && onOpenExperiment
+      ? () => onOpenExperiment(changesetId)
+      : conceptId && onOpenConcept
+        ? () => onOpenConcept(conceptId)
+        : undefined;
   const Tag = open ? "button" : "div";
 
   return (
@@ -287,10 +281,10 @@ function TimelineRow({
         <span
           className={cn(
             "flex size-8 shrink-0 items-center justify-center rounded-full border [&_svg]:size-4",
-            CATEGORY_ACCENT[item.category],
+            item.category ? CATEGORY_ACCENT[item.category] : NEUTRAL_ACCENT,
           )}
         >
-          {kindIcon(item.kind)}
+          {typeIcon(item.type)}
         </span>
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium text-foreground">{item.title}</div>

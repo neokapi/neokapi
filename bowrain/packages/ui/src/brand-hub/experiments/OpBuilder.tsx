@@ -5,12 +5,19 @@
 // caller (WhatIfWizard, or the detail view's add-op dialog) shows the resulting
 // ops and the refreshed blast radius. Concept/term/profile pickers read the
 // real hooks; only a draft change-set id is required.
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { ErrorNotice } from "../../errors";
 import {
   Button,
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
   Input,
   Label,
+  ListCapRow,
   Select,
   SelectContent,
   SelectItem,
@@ -18,6 +25,7 @@ import {
   SelectValue,
   Textarea,
   cn,
+  useDebounced,
 } from "@neokapi/ui-primitives";
 import { Lock, Sparkles, Network, ScrollText, Trash2, Pencil, Plus } from "../../components/icons";
 import type { ConceptInfo } from "../../types/api";
@@ -181,15 +189,12 @@ function AddButton({ busy, disabled }: { busy: boolean; disabled: boolean }) {
   );
 }
 
-function useConceptOptions() {
-  const { data, isLoading } = useConcepts({ limit: 100 });
-  const concepts = data?.concepts ?? [];
-  return { concepts, isLoading };
-}
-
 function conceptName(c: ConceptInfo): string {
   return c.terms[0]?.text || c.id;
 }
+
+/** How many matches the picker lists at a time. */
+const PICKER_PAGE = 20;
 
 // ── Ban / Prefer (term.status) ───────────────────────────────────────────────
 
@@ -200,16 +205,14 @@ function TermStatusForm({
   error,
   onSubmit,
 }: FormProps & { to: TermStatus; verb: string }) {
-  const { concepts, isLoading } = useConceptOptions();
-  const [conceptId, setConceptId] = useState("");
+  const [concept, setConcept] = useState<ConceptInfo | null>(null);
   const [termIdx, setTermIdx] = useState("");
 
-  const concept = concepts.find((c) => c.id === conceptId);
   const term = concept?.terms[Number(termIdx)];
   const alreadyAtTarget = term?.status === to;
 
   const reset = () => {
-    setConceptId("");
+    setConcept(null);
     setTermIdx("");
   };
 
@@ -236,13 +239,12 @@ function TermStatusForm({
       <p className="text-sm font-medium">{verb} a term</p>
       <ConceptPicker
         label="Concept"
-        value={conceptId}
-        onChange={(v) => {
-          setConceptId(v);
+        value={concept}
+        onChange={(c) => {
+          setConcept(c);
           setTermIdx("");
         }}
-        concepts={concepts}
-        loading={isLoading}
+        testid="op-term-concept"
       />
       {concept && (
         <div className="space-y-1.5">
@@ -275,31 +277,29 @@ function TermStatusForm({
 // ── Add relation (relation.add) ──────────────────────────────────────────────
 
 function RelationForm({ busy, error, onSubmit }: FormProps) {
-  const { concepts, isLoading } = useConceptOptions();
-  const [sourceId, setSourceId] = useState("");
-  const [targetId, setTargetId] = useState("");
+  const [source, setSource] = useState<ConceptInfo | null>(null);
+  const [target, setTarget] = useState<ConceptInfo | null>(null);
   const [type, setType] = useState<RelationType>("RELATED");
 
-  const targets = useMemo(() => concepts.filter((c) => c.id !== sourceId), [concepts, sourceId]);
-  const valid = sourceId && targetId && sourceId !== targetId;
+  const valid = source && target && source.id !== target.id;
 
   const reset = () => {
-    setSourceId("");
-    setTargetId("");
+    setSource(null);
+    setTarget(null);
     setType("RELATED");
   };
 
   const handle = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!valid) return;
+    if (!source || !target || source.id === target.id) return;
     onSubmit(
       {
         op: "relation.add",
         payload: {
           relation: {
             id: newId("rel"),
-            source_id: sourceId,
-            target_id: targetId,
+            source_id: source.id,
+            target_id: target.id,
             relation_type: type,
             created_at: new Date().toISOString(),
           },
@@ -314,13 +314,13 @@ function RelationForm({ busy, error, onSubmit }: FormProps) {
       <p className="text-sm font-medium">Add a relation</p>
       <ConceptPicker
         label="Source concept"
-        value={sourceId}
-        onChange={(v) => {
-          setSourceId(v);
-          if (v === targetId) setTargetId("");
+        value={source}
+        onChange={(c) => {
+          setSource(c);
+          if (c && c.id === target?.id) setTarget(null);
         }}
-        concepts={concepts}
-        loading={isLoading}
+        exclude={target?.id}
+        testid="op-relation-source"
       />
       <div className="space-y-1.5">
         <Label className="text-xs">Relation</Label>
@@ -340,10 +340,10 @@ function RelationForm({ busy, error, onSubmit }: FormProps) {
       </div>
       <ConceptPicker
         label="Target concept"
-        value={targetId}
-        onChange={setTargetId}
-        concepts={targets}
-        loading={isLoading}
+        value={target}
+        onChange={setTarget}
+        exclude={source?.id}
+        testid="op-relation-target"
       />
       <FormError error={error} />
       <AddButton busy={busy} disabled={!valid} />
@@ -469,15 +469,12 @@ function VoiceRuleForm({ mode, busy, error, onSubmit }: FormProps & { mode: "add
 // ── Edit concept (concept.update) ────────────────────────────────────────────
 
 function EditConceptForm({ busy, error, onSubmit }: FormProps) {
-  const { concepts, isLoading } = useConceptOptions();
-  const [conceptId, setConceptId] = useState("");
+  const [concept, setConcept] = useState<ConceptInfo | null>(null);
   const [definition, setDefinition] = useState("");
   const [domain, setDomain] = useState("");
-  const concept = concepts.find((c) => c.id === conceptId);
 
-  const onPick = (v: string) => {
-    setConceptId(v);
-    const c = concepts.find((x) => x.id === v);
+  const onPick = (c: ConceptInfo | null) => {
+    setConcept(c);
     setDefinition(c?.definition ?? "");
     setDomain(c?.domain ?? "");
   };
@@ -487,7 +484,7 @@ function EditConceptForm({ busy, error, onSubmit }: FormProps) {
     (definition.trim() !== (concept.definition ?? "") || domain.trim() !== (concept.domain ?? ""));
 
   const reset = () => {
-    setConceptId("");
+    setConcept(null);
     setDefinition("");
     setDomain("");
   };
@@ -512,13 +509,7 @@ function EditConceptForm({ busy, error, onSubmit }: FormProps) {
   return (
     <form onSubmit={handle} className="space-y-3">
       <p className="text-sm font-medium">Edit a concept</p>
-      <ConceptPicker
-        label="Concept"
-        value={conceptId}
-        onChange={onPick}
-        concepts={concepts}
-        loading={isLoading}
-      />
+      <ConceptPicker label="Concept" value={concept} onChange={onPick} testid="op-edit-concept" />
       {concept && (
         <>
           <div className="space-y-1.5">
@@ -553,35 +544,74 @@ function EditConceptForm({ busy, error, onSubmit }: FormProps) {
 
 // ── Concept picker ───────────────────────────────────────────────────────────
 
+/**
+ * A concept chosen out of the whole workspace vocabulary. Typing runs the
+ * server's text search (`q`) rather than filtering a page the client happened
+ * to hold, so a concept past the first page is still reachable; with no query
+ * the most recently updated lead. The chosen concept is held as a whole record,
+ * because the next query's results need not contain it.
+ */
 function ConceptPicker({
   label,
   value,
   onChange,
-  concepts,
-  loading,
+  exclude,
+  testid,
 }: {
   label: string;
-  value: string;
-  onChange: (v: string) => void;
-  concepts: ConceptInfo[];
-  loading: boolean;
+  value: ConceptInfo | null;
+  onChange: (concept: ConceptInfo | null) => void;
+  /** A concept id the choice may not be — the relation form's other end. */
+  exclude?: string;
+  testid?: string;
 }) {
+  const [text, setText] = useState("");
+  const query = useDebounced(text.trim(), 200);
+  const { data, isLoading } = useConcepts(
+    query ? { q: query, limit: PICKER_PAGE } : { sort: "updated_at", limit: PICKER_PAGE },
+  );
+
+  const options = (data?.concepts ?? []).filter((c) => c.id !== exclude);
+  const total = data?.total_count ?? options.length;
+
   return (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger size="sm">
-          <SelectValue placeholder={loading ? "Loading…" : "Choose a concept…"} />
-        </SelectTrigger>
-        <SelectContent>
-          {concepts.map((c) => (
-            <SelectItem key={c.id} value={c.id}>
-              {conceptName(c)}
-              {c.domain ? ` · ${c.domain}` : ""}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <Combobox
+        value={value?.id ?? null}
+        onValueChange={(id: string | null) => {
+          onChange(options.find((c) => c.id === id) ?? null);
+        }}
+        inputValue={value ? conceptName(value) : text}
+        onInputValueChange={(next: string) => {
+          setText(next);
+          if (value) onChange(null);
+        }}
+      >
+        <ComboboxInput
+          placeholder={isLoading ? "Searching…" : "Search concepts…"}
+          data-testid={testid}
+        />
+        <ComboboxContent>
+          <ComboboxList>
+            <ComboboxEmpty>
+              {isLoading ? "Searching…" : "No concept matches that search."}
+            </ComboboxEmpty>
+            {options.map((c) => (
+              <ComboboxItem key={c.id} value={c.id}>
+                {conceptName(c)}
+                {c.domain ? ` · ${c.domain}` : ""}
+              </ComboboxItem>
+            ))}
+          </ComboboxList>
+          <ListCapRow
+            shown={options.length}
+            total={total}
+            noun="concepts"
+            hint="Keep typing to narrow the search."
+          />
+        </ComboboxContent>
+      </Combobox>
     </div>
   );
 }

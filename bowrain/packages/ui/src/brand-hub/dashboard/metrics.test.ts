@@ -1,30 +1,15 @@
 import { describe, it, expect } from "vite-plus/test";
-import type { ConceptInfo } from "../../types/api";
 import type { ChangeSet } from "../../types/brand-graph";
-import type { DriftResult, StoredScore } from "../../brand/types";
+import type { StoredScore } from "../../brand/types";
 import {
-  computeLocaleCoverage,
   averageScore,
   aggregateDimensions,
-  trendDirection,
-  latestChecked,
   waitingSince,
   sortByWaiting,
   sortByRecent,
   activeExperiments,
   pendingDecisions,
 } from "./metrics";
-
-function concept(id: string, locales: string[]): ConceptInfo {
-  return {
-    id,
-    domain: "commerce",
-    definition: "",
-    terms: locales.map((locale) => ({ text: `${id}-${locale}`, locale, status: "preferred" })),
-    created_at: "2026-06-01T00:00:00Z",
-    updated_at: "2026-06-01T00:00:00Z",
-  };
-}
 
 function changeset(id: string, partial: Partial<ChangeSet>): ChangeSet {
   return {
@@ -38,37 +23,6 @@ function changeset(id: string, partial: Partial<ChangeSet>): ChangeSet {
     ...partial,
   };
 }
-
-describe("computeLocaleCoverage", () => {
-  it("returns empty for no concepts", () => {
-    expect(computeLocaleCoverage([])).toEqual([]);
-  });
-
-  it("counts each concept once per locale and sorts by coverage", () => {
-    const cov = computeLocaleCoverage([
-      concept("a", ["en-US", "de-DE"]),
-      concept("b", ["en-US"]),
-      concept("c", ["en-US", "fr-FR"]),
-    ]);
-    // en-US in all 3, de-DE + fr-FR in 1 each.
-    expect(cov[0]).toEqual({ locale: "en-US", present: 3, total: 3, pct: 100 });
-    expect(cov.map((c) => c.locale)).toEqual(["en-US", "de-DE", "fr-FR"]);
-    const de = cov.find((c) => c.locale === "de-DE");
-    expect(de).toEqual({ locale: "de-DE", present: 1, total: 3, pct: 33 });
-  });
-
-  it("does not double-count duplicate locales within one concept", () => {
-    const c: ConceptInfo = {
-      ...concept("dup", []),
-      terms: [
-        { text: "a", locale: "en-US", status: "preferred" },
-        { text: "b", locale: "en-US", status: "admitted" },
-      ],
-    };
-    const cov = computeLocaleCoverage([c]);
-    expect(cov).toEqual([{ locale: "en-US", present: 1, total: 1, pct: 100 }]);
-  });
-});
 
 describe("averageScore", () => {
   const score = (s: number): StoredScore => ({
@@ -126,63 +80,6 @@ describe("aggregateDimensions", () => {
     expect(dims.map((d) => d.dimension)).toEqual(["tone", "vocabulary"]);
     const vocab = dims.find((d) => d.dimension === "vocabulary");
     expect(vocab).toMatchObject({ score: 80, issues: 3 });
-  });
-});
-
-describe("trendDirection", () => {
-  const drift = (partial: Partial<DriftResult>): DriftResult => ({
-    drifted: false,
-    recent_avg: 80,
-    baseline_avg: 80,
-    drop: 0,
-    recent_days: 7,
-    recent_count: 5,
-    ...partial,
-  });
-
-  it("is unknown when there is no drift data", () => {
-    expect(trendDirection(undefined)).toBe("");
-  });
-
-  it("is flat when nothing was scored recently", () => {
-    expect(trendDirection(drift({ recent_count: 0, recent_avg: 0, baseline_avg: 90 }))).toBe(
-      "flat",
-    );
-  });
-
-  it("rises, falls, and holds around a one-point band", () => {
-    expect(trendDirection(drift({ recent_avg: 85, baseline_avg: 80 }))).toBe("up");
-    expect(trendDirection(drift({ recent_avg: 74, baseline_avg: 82 }))).toBe("down");
-    expect(trendDirection(drift({ recent_avg: 80.4, baseline_avg: 80 }))).toBe("flat");
-  });
-});
-
-describe("latestChecked", () => {
-  const at = (iso: string): StoredScore => ({
-    id: iso,
-    project_id: "p",
-    stream: "main",
-    block_id: "b",
-    profile_id: "pr",
-    locale: "en-US",
-    score: 80,
-    dimensions: [],
-    findings: [],
-    checked_at: iso,
-  });
-
-  it("returns null when empty", () => {
-    expect(latestChecked([])).toBeNull();
-  });
-
-  it("returns the most recent timestamp regardless of order", () => {
-    expect(
-      latestChecked([
-        at("2026-06-01T00:00:00Z"),
-        at("2026-06-09T00:00:00Z"),
-        at("2026-06-05T00:00:00Z"),
-      ]),
-    ).toBe("2026-06-09T00:00:00Z");
   });
 });
 

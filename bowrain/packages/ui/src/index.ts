@@ -868,8 +868,6 @@ export {
   ActivityView,
   BrandDashboardView,
   RollupMatrix,
-  aggregateBrandRollup,
-  rollupEntry,
 } from "./brand-hub";
 export type {
   BrandHubProps,
@@ -885,7 +883,6 @@ export type {
   ExperimentDetailViewProps,
   ActivityViewProps,
   BrandDashboardViewProps,
-  RollupProjectInput,
 } from "./brand-hub";
 
 // Brand knowledge graph value exports (ordered constant arrays)
