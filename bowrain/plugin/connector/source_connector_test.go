@@ -140,18 +140,21 @@ func TestResolveTargetPath(t *testing.T) {
 			want:   "locales/fr.json",
 		},
 		{
-			name: "lang placeholder pattern",
+			// The pull maps targets with the same vocabulary the local
+			// engine uses (project.ResolveTargetPath) — a directory-mirror
+			// is {relpath}, not a glob-shaped target.
+			name: "lang pattern mirrors the subtree",
 			content: []coreproj.Collection{
-				{Path: "src/{lang}/**/*.json", Target: "src/{lang}/**/*.json", Format: &coreproj.FormatSpec{Name: "json"}},
+				{Path: "src/{lang}/**/*.json", Target: "src/{lang}/{relpath}", Format: &coreproj.FormatSpec{Name: "json"}},
 			},
 			item:   "src/en/foo/bar.json",
 			locale: "fr",
 			want:   "src/fr/foo/bar.json",
 		},
 		{
-			name: "legacy locale path filename placeholders",
+			name: "filename token maps a name-preserving target",
 			content: []coreproj.Collection{
-				{Path: "locales/en.json", Target: "out/{locale}/{path}/{filename}", Format: &coreproj.FormatSpec{Name: "json"}},
+				{Path: "locales/en.json", Target: "out/{lang}/{filename}", Format: &coreproj.FormatSpec{Name: "json"}},
 			},
 			item:   "locales/en.json",
 			locale: "fr",
