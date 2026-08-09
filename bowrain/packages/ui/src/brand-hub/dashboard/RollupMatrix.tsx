@@ -6,7 +6,8 @@
 import { Badge, Card, CardContent, Skeleton, cn } from "@neokapi/ui-primitives";
 import { Activity, AlertTriangle, ArrowDown, ArrowRight, ArrowUp } from "../../components/icons";
 import type { BrandRollupEntry, BrandTrend } from "../../brand/types";
-import { useBrandRollup } from "../../hooks/useBrandApi";
+import { useBrandProfiles, useBrandRollup } from "../../hooks/useBrandApi";
+import { DEFAULT_MIN_SCORE, barForProfile, scoreTextClass } from "../../brand/complianceBar";
 import { EmptyState, formatRelative } from "../shell/atoms";
 
 export interface RollupMatrixProps {
@@ -14,16 +15,9 @@ export interface RollupMatrixProps {
   onOpenProject?: (projectId: string) => void;
 }
 
-/** scoreTone maps a 0–100 score to the shared semantic score bands (matching
- * BrandScoreGauge): ≥80 healthy, ≥40 warning, below that critical. */
-function scoreTone(score: number): string {
-  if (score >= 80) return "text-success";
-  if (score >= 40) return "text-warning";
-  return "text-destructive";
-}
-
 export function RollupMatrix({ onOpenProject }: RollupMatrixProps) {
   const { data, isLoading } = useBrandRollup();
+  const { data: profiles } = useBrandProfiles();
   const rows = data?.projects ?? [];
 
   return (
@@ -76,7 +70,12 @@ export function RollupMatrix({ onOpenProject }: RollupMatrixProps) {
                 </thead>
                 <tbody>
                   {rows.map((row) => (
-                    <RollupRow key={row.project_id} row={row} onOpenProject={onOpenProject} />
+                    <RollupRow
+                      key={row.project_id}
+                      row={row}
+                      bar={barForProfile(profiles, row.profile_id)}
+                      onOpenProject={onOpenProject}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -95,9 +94,12 @@ export function RollupMatrix({ onOpenProject }: RollupMatrixProps) {
 
 function RollupRow({
   row,
+  bar = DEFAULT_MIN_SCORE,
   onOpenProject,
 }: {
   row: BrandRollupEntry;
+  /** The row's own profile bar — each project is judged against its own. */
+  bar?: number;
   onOpenProject?: (projectId: string) => void;
 }) {
   return (
@@ -126,7 +128,13 @@ function RollupRow({
         {row.overall === null ? (
           <span className="text-muted-foreground/60">—</span>
         ) : (
-          <span className={cn("font-semibold", scoreTone(row.overall))}>{row.overall}</span>
+          <span
+            data-testid="rollup-score"
+            data-below-bar={row.overall < bar}
+            className={cn("font-semibold", scoreTextClass(row.overall, bar))}
+          >
+            {row.overall}
+          </span>
         )}
       </td>
       <td className="px-3 py-2.5 text-center">

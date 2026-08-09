@@ -24,8 +24,11 @@ export interface OnBrandRateChipProps {
 
 const basisExplanations: Record<OnBrandBasis, string> = {
   checks: "Based on QA checks only — no brand voice scores exist for this locale yet.",
+  "checks+terms": "Based on QA checks plus terminology compliance for this locale.",
   "voice+checks":
     "Based on QA checks plus brand voice scores measured against the profile's minimum bar.",
+  "voice+checks+terms":
+    "Based on QA checks, terminology compliance, and brand voice scores measured against the profile's minimum bar.",
 };
 
 export function OnBrandRateChip({

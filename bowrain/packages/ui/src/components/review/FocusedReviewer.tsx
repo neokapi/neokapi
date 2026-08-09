@@ -336,7 +336,7 @@ export function FocusedReviewer({
           {issues.length === 0 ? (
             <div className="flex items-center gap-2 rounded-md border border-success/25 bg-success/5 px-3 py-2 text-sm text-success">
               <CircleCheck className="h-4 w-4 shrink-0" />
-              Passes checks{onBrand ? " and the on-brand bar" : ""}.
+              Passes checks.
             </div>
           ) : (
             <ul className="space-y-1 rounded-md border border-border bg-muted/20 p-2">

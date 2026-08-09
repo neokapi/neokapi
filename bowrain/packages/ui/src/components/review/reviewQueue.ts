@@ -15,11 +15,12 @@ import { getBlockStatus, getTargetText } from "../editor/blockStatus";
 /**
  * The check bucket a pending entry falls in — the third axis a reviewer filters
  * by (alongside item and locale): a block with an error-severity finding is
- * `failing`; one flagged off-brand (a brand-dimension finding, or an explicit
- * per-block on-brand:false signal) is `off_brand`; everything else is `clean`
- * (passes checks and the on-brand bar — the set "Approve all passing" clears).
+ * `failing`, everything else is `clean`. Check findings are the only per-block
+ * evidence the queue payload carries; the terminology and brand-voice bars are
+ * the server's to apply on approve (shipstate.blockOnBrandAndPassing), so
+ * `clean` means "no failing check", never "the server will approve this".
  */
-export type ReviewCheckStatus = "failing" | "off_brand" | "clean";
+export type ReviewCheckStatus = "failing" | "clean";
 
 /** How the queue list groups its rows. */
 export type ReviewGroupBy = "item" | "locale" | "check";
@@ -34,8 +35,8 @@ export interface ReviewQueueFilter {
 /**
  * One pending block awaiting review in one locale, carrying everything the
  * reviewer needs to render and act faithfully: the full (runs-normalised)
- * block for source/target rendering + edit, the block's check findings for
- * that locale, and an optional per-block on-brand signal.
+ * block for source/target rendering + edit, and the block's check findings for
+ * that locale.
  */
 export interface ReviewEntry {
   /** Stable identity: `${itemId}::${blockId}::${locale}`. */
@@ -49,8 +50,6 @@ export interface ReviewEntry {
   block: BlockInfo;
   /** Check findings for this block+locale; empty until QA has been loaded. */
   issues: QAIssue[];
-  /** Per-block on-brand signal; `undefined` when not yet determined. */
-  onBrand?: boolean;
 }
 
 /** One grouped section of the queue list. */
@@ -66,7 +65,6 @@ export interface ReviewGroup {
 export interface ReviewQueueCounts {
   total: number;
   failing: number;
-  offBrand: number;
   clean: number;
   /** Pending entries per locale (locale → count). */
   byLocale: Record<string, number>;
@@ -100,13 +98,11 @@ export function isPendingReview(block: BlockInfo, locale: string): boolean {
 
 /** The check bucket for an entry (see ReviewCheckStatus). */
 export function entryCheckStatus(entry: ReviewEntry): ReviewCheckStatus {
-  if (entryHasErrors(entry)) return "failing";
-  if (entry.onBrand === false) return "off_brand";
-  return "clean";
+  return entryHasErrors(entry) ? "failing" : "clean";
 }
 
-/** Whether an entry passes checks + the on-brand bar (a "passing" block). */
-export function isEntryPassing(entry: ReviewEntry): boolean {
+/** Whether an entry carries no failing check. */
+export function isEntryClean(entry: ReviewEntry): boolean {
   return entryCheckStatus(entry) === "clean";
 }
 
@@ -128,17 +124,16 @@ export function filterEntries(
 
 const CHECK_LABELS: Record<ReviewCheckStatus, string> = {
   failing: "Failing checks",
-  off_brand: "Off-brand",
-  clean: "Clean",
+  clean: "No failing checks",
 };
 
-/** Order groups deterministically: failing first, then off-brand, then clean. */
-const CHECK_ORDER: ReviewCheckStatus[] = ["failing", "off_brand", "clean"];
+/** Order groups deterministically: failing first, then clean. */
+const CHECK_ORDER: ReviewCheckStatus[] = ["failing", "clean"];
 
 /**
  * Group entries for the list panel. Insertion order is preserved within a
  * group; group order is first-appearance for item/locale, and severity order
- * (failing → off-brand → clean) for check-status.
+ * (failing → clean) for check-status.
  */
 export function groupEntries(
   entries: readonly ReviewEntry[],
@@ -179,15 +174,12 @@ export function queueCounts(entries: readonly ReviewEntry[]): ReviewQueueCounts 
   const counts: ReviewQueueCounts = {
     total: entries.length,
     failing: 0,
-    offBrand: 0,
     clean: 0,
     byLocale: {},
     byItem: {},
   };
   for (const entry of entries) {
-    const status = entryCheckStatus(entry);
-    if (status === "failing") counts.failing++;
-    else if (status === "off_brand") counts.offBrand++;
+    if (entryCheckStatus(entry) === "failing") counts.failing++;
     else counts.clean++;
     counts.byLocale[entry.locale] = (counts.byLocale[entry.locale] ?? 0) + 1;
     counts.byItem[entry.itemId] = (counts.byItem[entry.itemId] ?? 0) + 1;
@@ -195,9 +187,14 @@ export function queueCounts(entries: readonly ReviewEntry[]): ReviewQueueCounts 
   return counts;
 }
 
-/** Number of passing (clean) entries — the "Approve all passing" preview. */
-export function passingCount(entries: readonly ReviewEntry[]): number {
-  return entries.reduce((n, e) => (isEntryPassing(e) ? n + 1 : n), 0);
+/**
+ * Entries with no failing check — the upper bound on what "Approve all passing"
+ * will approve. The server additionally applies the terminology and brand-voice
+ * bars, evidence the queue payload does not carry, so it may approve fewer; its
+ * response reports the Approved/Skipped split that actually happened.
+ */
+export function noFailingChecksCount(entries: readonly ReviewEntry[]): number {
+  return entries.reduce((n, e) => (isEntryClean(e) ? n + 1 : n), 0);
 }
 
 /**

@@ -84,6 +84,12 @@ export interface VoiceProfile {
   channels?: Record<string, ChannelOverride>;
   personas?: Record<string, PersonaOverride>;
   workspace_id: string;
+  /**
+   * The minimum voice-compliance score (0–100) a block must reach to count as
+   * on-brand. Absent or 0 means the default bar (complianceBar / core/profile's
+   * DefaultMinScore).
+   */
+  min_score?: number;
   version: number;
   created_at: string;
   updated_at: string;

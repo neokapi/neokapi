@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { cn } from "@neokapi/ui-primitives";
 import { getTargetText } from "../editor/blockStatus";
-import { AlertTriangle, ShieldCheck, CircleCheck } from "../icons";
+import { AlertTriangle, CircleCheck } from "../icons";
 import {
   entryCheckStatus,
   groupEntries,
@@ -18,7 +18,6 @@ const GROUP_OPTIONS: { value: ReviewGroupBy; label: string }[] = [
 
 const checkDot: Record<ReviewCheckStatus, { className: string; icon: typeof AlertTriangle }> = {
   failing: { className: "text-destructive", icon: AlertTriangle },
-  off_brand: { className: "text-warning", icon: ShieldCheck },
   clean: { className: "text-success", icon: CircleCheck },
 };
 

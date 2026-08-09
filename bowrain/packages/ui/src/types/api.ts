@@ -813,12 +813,12 @@ export interface WordCountResult {
 export type ShipState = "governed" | "ai_shippable" | "pending";
 
 /**
- * Evidence behind a derived on-brand rate: `checks` = QA check results only
- * (no brand voice scores existed for the scope); `voice+checks` = QA checks
- * plus persisted brand voice scores measured against the profile's minimum
- * bar.
+ * Evidence behind a derived on-brand rate (store.OnBrandBasis). QA checks
+ * always inform it; `+terms` is added when term governance was active for the
+ * scope, and `voice` when at least one block's persisted voice score, measured
+ * against its profile's minimum bar, also informed it.
  */
-export type OnBrandBasis = "checks" | "voice+checks";
+export type OnBrandBasis = "checks" | "checks+terms" | "voice+checks" | "voice+checks+terms";
 
 /** Per-locale translation progress */
 export interface LocaleTranslationStats {

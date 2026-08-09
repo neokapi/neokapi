@@ -15,7 +15,13 @@ import {
 } from "@neokapi/ui-primitives";
 import { BarChart3 } from "../../components/icons";
 import { useProjects } from "../../hooks/useProjectApi";
-import { useBrandScores, useBrandTrends, useBrandDrift } from "../../hooks/useBrandApi";
+import {
+  useBrandScores,
+  useBrandTrends,
+  useBrandDrift,
+  useBrandProfiles,
+} from "../../hooks/useBrandApi";
+import { barForProfile } from "../../brand/complianceBar";
 import { BrandScoreGauge } from "../../brand/BrandScoreGauge";
 import { BrandDimensionBreakdown } from "../../brand/BrandDimensionBreakdown";
 import { DriftAlert } from "../../brand/DriftAlert";
@@ -34,12 +40,16 @@ export function ComplianceOverview() {
   const { data: scores, isLoading: scoresLoading } = useBrandScores(projectId);
   const { data: trends } = useBrandTrends(projectId);
   const { data: drift } = useBrandDrift(projectId);
+  const { data: profiles } = useBrandProfiles();
 
   const recentScores = scores ?? [];
   const trendSeries = trends ?? [];
   const avg = averageScore(recentScores);
   const dimensions = aggregateDimensions(recentScores);
   const hasData = recentScores.length > 0 || trendSeries.length > 0;
+  // Scores name the profile that produced them, so the bar comes from that
+  // profile — the same pairing the server makes when aggregating on-brand.
+  const bar = barForProfile(profiles, recentScores[0]?.profile_id);
 
   return (
     <Card>
@@ -94,7 +104,7 @@ export function ComplianceOverview() {
                 <p className="text-sm text-muted-foreground">No score yet</p>
               ) : (
                 <div className="relative">
-                  <BrandScoreGauge score={avg} size={132} />
+                  <BrandScoreGauge score={avg} bar={bar} size={132} />
                 </div>
               )}
               <p className="text-center text-xs text-muted-foreground">
@@ -104,7 +114,7 @@ export function ComplianceOverview() {
 
             <div className="lg:col-span-4">
               {dimensions.length > 0 ? (
-                <BrandDimensionBreakdown dimensions={dimensions} />
+                <BrandDimensionBreakdown dimensions={dimensions} bar={bar} />
               ) : (
                 <p className="text-xs text-muted-foreground">No dimension data yet.</p>
               )}

@@ -22,6 +22,7 @@ import type {
   LocaleTranslationStats,
   OnBrandBasis,
   RoleTemplate,
+  ShipState,
 } from "../types/api";
 
 // ---------------------------------------------------------------------------
@@ -1641,30 +1642,45 @@ export const largeDashboardStats: TranslationDashboardStats = {
 // ---------------------------------------------------------------------------
 
 /**
+ * store.DeriveShipState, mirrored: pending when the scope is empty, coverage is
+ * partial, or any check fails; governed when every block is also approved;
+ * ai_shippable in between.
+ */
+function deriveShipState(
+  translatedBlocks: number,
+  totalBlocks: number,
+  approvedBlocks: number,
+  failingChecks: number,
+): ShipState {
+  if (totalBlocks === 0 || translatedBlocks < totalBlocks || failingChecks > 0) return "pending";
+  return approvedBlocks >= totalBlocks ? "governed" : "ai_shippable";
+}
+
+/**
  * sampleDashboardStats with server-derived ship states stamped onto every
- * locale slice, mirroring the server rule (governed = 100% coverage + every
- * block approved + no failing checks; ai_shippable = 100% coverage + checks
- * pass; pending otherwise). fr-FR is promoted to full coverage (governed) and
- * de-DE to full coverage without full approval (ai_shippable) so all three
- * states appear.
+ * locale slice via deriveShipState. fr-FR is promoted to full coverage and full
+ * approval (governed), de-DE to full coverage without full approval
+ * (ai_shippable), and ja-JP to full coverage with failing checks — pending on
+ * the failing-checks arm rather than on coverage, so a story can express it.
  */
 export const shipStateDashboardStats: TranslationDashboardStats = (() => {
-  const promoteToFull = new Set(["fr-FR", "de-DE"]);
+  const promoteToFull = new Set(["fr-FR", "de-DE", "ja-JP"]);
   const approvedFraction: Record<string, number> = { "fr-FR": 1, "de-DE": 0.4, "ja-JP": 0.25 };
+  const failingFraction: Record<string, number> = { "ja-JP": 0.1 };
 
   const stamp = (l: LocaleTranslationStats): LocaleTranslationStats => {
     const full = promoteToFull.has(l.locale);
     const translated = full ? l.total_blocks : l.translated_blocks;
     const approved = Math.round(l.total_blocks * (approvedFraction[l.locale] ?? 0));
-    const covered = l.total_blocks > 0 && translated >= l.total_blocks;
+    const failing = Math.round(translated * (failingFraction[l.locale] ?? 0));
     return {
       ...l,
       translated_blocks: translated,
       translated_words: full ? l.total_words : l.translated_words,
       percentage: full ? 100 : l.percentage,
       approved_blocks: approved,
-      failing_checks: 0,
-      ship_state: !covered ? "pending" : approved >= l.total_blocks ? "governed" : "ai_shippable",
+      failing_checks: failing,
+      ship_state: deriveShipState(translated, l.total_blocks, approved, failing),
     };
   };
 

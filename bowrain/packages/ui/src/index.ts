@@ -209,11 +209,11 @@ export {
   entryKey,
   entryCheckStatus,
   isPendingReview,
-  isEntryPassing,
+  isEntryClean,
   filterEntries,
   groupEntries,
   queueCounts,
-  passingCount,
+  noFailingChecksCount,
 } from "./components/review/reviewQueue";
 export type {
   ReviewEntry,
@@ -663,7 +663,15 @@ export {
   BlastRadiusSummary,
   DriftAlert,
   starterPacks,
+  DEFAULT_MIN_SCORE,
+  complianceBar,
+  barForProfile,
+  scoreBand,
+  scoreTextClass,
+  scoreStrokeClass,
+  scoreFillClass,
 } from "./brand";
+export type { ScoreBand, HasMinScore, ProfileBarSource } from "./brand";
 export type {
   VoiceProfile,
   ToneProfile,

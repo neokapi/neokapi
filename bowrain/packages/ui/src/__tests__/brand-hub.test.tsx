@@ -16,6 +16,7 @@ import {
 } from "../brand-hub/shell/atoms";
 import { BrandHub } from "../brand-hub/shell/BrandHub";
 import { ExperimentsView } from "../brand-hub/experiments/ExperimentsView";
+import { RollupMatrix } from "../brand-hub/dashboard/RollupMatrix";
 import { sampleChangesets } from "../stories/brandHubFixtures";
 
 const workspace: Workspace = {
@@ -105,5 +106,52 @@ describe("ExperimentsView", () => {
     // Status group badges from the fixtures (draft, in_review, merged).
     expect(screen.getByText("In review")).toBeInTheDocument();
     expect(screen.getByText("Merged")).toBeInTheDocument();
+  });
+});
+
+describe("RollupMatrix judges each project against its own profile bar", () => {
+  const rollup = {
+    projects: [
+      {
+        project_id: "strict",
+        project_name: "Strict",
+        profile_id: "p-strict",
+        profile_name: "Strict voice",
+        overall: 85,
+        trend: "flat" as const,
+        scored_blocks: 10,
+        last_scored_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        project_id: "default",
+        project_name: "Default",
+        profile_id: "p-default",
+        profile_name: "Default voice",
+        overall: 85,
+        trend: "flat" as const,
+        scored_blocks: 10,
+        last_scored_at: "2026-01-01T00:00:00Z",
+      },
+    ],
+    total: 2,
+    limit: 50,
+    offset: 0,
+  };
+
+  it("shows an 85 below the bar under min_score 90 and above it under the default", async () => {
+    const adapter = mockAdapter({
+      getBrandRollup: vi.fn().mockResolvedValue(rollup),
+      listBrandProfiles: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-strict", min_score: 90 }, { id: "p-default" }]),
+    });
+    renderWithProviders(<RollupMatrix />, adapter);
+
+    await waitFor(() => expect(screen.getAllByTestId("rollup-score")).toHaveLength(2));
+    const [strict, dflt] = screen.getAllByTestId("rollup-score");
+    expect(strict.dataset.belowBar).toBe("true");
+    expect(strict.className).toContain("text-warning");
+    expect(dflt.dataset.belowBar).toBe("false");
+    expect(dflt.className).toContain("text-success");
   });
 });

@@ -283,3 +283,107 @@ func TestMemoryTranslateFile(t *testing.T) {
 	assert.Greater(t, stats.TotalBlocks, 0)
 	assert.Equal(t, 0, stats.TranslatedBlocks) // Empty Memory = no matches
 }
+
+// reviewedBlock translates and approves the first block of a fresh project,
+// returning the app, project, item name and block id at status "reviewed".
+func reviewedBlock(t *testing.T, locale, text string) (*App, *ProjectInfo, string, string) {
+	t.Helper()
+	app, info, itemName := setupProjectWithFile(t)
+
+	blocks, err := app.GetItemBlocks(info.ID, itemName)
+	require.NoError(t, err)
+	require.NotEmpty(t, blocks)
+	blockID := blocks[0].ID
+
+	require.NoError(t, app.UpdateBlockTarget(UpdateBlockRequest{
+		ProjectID: info.ID, ItemName: itemName, BlockID: blockID,
+		TargetLocale: locale, Text: text,
+	}))
+	require.NoError(t, app.ReviewBlock(info.ID, itemName, blockID, locale, true, ""))
+	require.Equal(t, "reviewed", targetStatus(t, app, info.ID, itemName, blockID, locale))
+
+	return app, info, itemName, blockID
+}
+
+func targetStatus(t *testing.T, app *App, projectID, itemName, blockID, locale string) string {
+	t.Helper()
+	blocks, err := app.GetItemBlocks(projectID, itemName)
+	require.NoError(t, err)
+	for _, b := range blocks {
+		if b.ID == blockID {
+			return b.Targets[locale].Status
+		}
+	}
+	t.Fatalf("block %q not found in %q", blockID, itemName)
+	return ""
+}
+
+func TestUpdateBlockTargetDemotesStaleReview(t *testing.T) {
+	app, info, itemName, blockID := reviewedBlock(t, "fr", "Bonjour")
+
+	require.NoError(t, app.UpdateBlockTarget(UpdateBlockRequest{
+		ProjectID: info.ID, ItemName: itemName, BlockID: blockID,
+		TargetLocale: "fr", Text: "Salut",
+	}))
+
+	assert.Equal(t, "translated", targetStatus(t, app, info.ID, itemName, blockID, "fr"),
+		"an edit offline must invalidate the approval, as the server does")
+}
+
+func TestUpdateBlockTargetKeepsReviewOnIdenticalContent(t *testing.T) {
+	app, info, itemName, blockID := reviewedBlock(t, "fr", "Bonjour")
+
+	require.NoError(t, app.UpdateBlockTarget(UpdateBlockRequest{
+		ProjectID: info.ID, ItemName: itemName, BlockID: blockID,
+		TargetLocale: "fr", Text: "Bonjour",
+	}))
+
+	assert.Equal(t, "reviewed", targetStatus(t, app, info.ID, itemName, blockID, "fr"))
+}
+
+func TestUpdateBlockTargetRunsDemotesStaleReview(t *testing.T) {
+	app, info, itemName, blockID := reviewedBlock(t, "fr", "Bonjour")
+
+	require.NoError(t, app.UpdateBlockTargetRuns(UpdateBlockTargetRunsRequest{
+		ProjectID: info.ID, ItemName: itemName, BlockID: blockID,
+		TargetLocale: "fr",
+		Runs:         []RunInfo{{Text: &TextRunInfo{Text: "Salut"}}},
+	}))
+
+	assert.Equal(t, "translated", targetStatus(t, app, info.ID, itemName, blockID, "fr"))
+}
+
+func TestUpdateBlockTargetRunsKeepsReviewOnIdenticalRuns(t *testing.T) {
+	app, info, itemName, blockID := reviewedBlock(t, "fr", "Bonjour")
+
+	require.NoError(t, app.UpdateBlockTargetRuns(UpdateBlockTargetRunsRequest{
+		ProjectID: info.ID, ItemName: itemName, BlockID: blockID,
+		TargetLocale: "fr",
+		Runs:         []RunInfo{{Text: &TextRunInfo{Text: "Bonjour"}}},
+	}))
+
+	assert.Equal(t, "reviewed", targetStatus(t, app, info.ID, itemName, blockID, "fr"))
+}
+
+func TestUpdateBlockTargetLeavesLowerRungsAlone(t *testing.T) {
+	app, info, itemName := setupProjectWithFile(t)
+
+	blocks, err := app.GetItemBlocks(info.ID, itemName)
+	require.NoError(t, err)
+	require.NotEmpty(t, blocks)
+	blockID := blocks[0].ID
+
+	require.NoError(t, app.UpdateBlockTarget(UpdateBlockRequest{
+		ProjectID: info.ID, ItemName: itemName, BlockID: blockID,
+		TargetLocale: "fr", Text: "Bonjour",
+	}))
+	before := targetStatus(t, app, info.ID, itemName, blockID, "fr")
+
+	require.NoError(t, app.UpdateBlockTarget(UpdateBlockRequest{
+		ProjectID: info.ID, ItemName: itemName, BlockID: blockID,
+		TargetLocale: "fr", Text: "Salut",
+	}))
+
+	assert.Equal(t, before, targetStatus(t, app, info.ID, itemName, blockID, "fr"),
+		"a rung at or below translated is not a review decision")
+}

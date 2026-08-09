@@ -5,12 +5,12 @@ import {
   entryCheckStatus,
   entryHasErrors,
   isPendingReview,
-  isEntryPassing,
+  isEntryClean,
   matchesFilter,
   filterEntries,
   groupEntries,
   queueCounts,
-  passingCount,
+  noFailingChecksCount,
   nextIndex,
   indexAfterRemoval,
   type ReviewEntry,
@@ -69,33 +69,22 @@ describe("entryCheckStatus", () => {
       "failing",
     );
   });
-  it("is off_brand when flagged off-brand and no errors", () => {
-    expect(entryCheckStatus(entry({ itemId: "i1", locale: "fr", onBrand: false }))).toBe(
-      "off_brand",
-    );
-  });
-  it("failing wins over off_brand", () => {
-    expect(
-      entryCheckStatus(entry({ itemId: "i1", locale: "fr", issues: [error], onBrand: false })),
-    ).toBe("failing");
-  });
-  it("is clean with only warnings and on-brand undefined", () => {
+  it("is clean with only warnings", () => {
     expect(entryCheckStatus(entry({ itemId: "i1", locale: "fr", issues: [warning] }))).toBe(
       "clean",
     );
     expect(entryHasErrors(entry({ itemId: "i1", locale: "fr", issues: [warning] }))).toBe(false);
   });
-  it("isEntryPassing only for clean", () => {
-    expect(isEntryPassing(entry({ itemId: "i1", locale: "fr" }))).toBe(true);
-    expect(isEntryPassing(entry({ itemId: "i1", locale: "fr", issues: [error] }))).toBe(false);
-    expect(isEntryPassing(entry({ itemId: "i1", locale: "fr", onBrand: false }))).toBe(false);
+  it("isEntryClean only for clean", () => {
+    expect(isEntryClean(entry({ itemId: "i1", locale: "fr" }))).toBe(true);
+    expect(isEntryClean(entry({ itemId: "i1", locale: "fr", issues: [error] }))).toBe(false);
   });
 });
 
 describe("filtering", () => {
   const entries = [
     entry({ itemId: "i1", locale: "fr", block: block("a", "fr", "x"), issues: [error] }),
-    entry({ itemId: "i1", locale: "de", block: block("b", "de", "x"), onBrand: false }),
+    entry({ itemId: "i1", locale: "de", block: block("b", "de", "x") }),
     entry({ itemId: "i2", locale: "fr", block: block("c", "fr", "x") }),
   ];
   it("matchesFilter respects every set field", () => {
@@ -106,7 +95,7 @@ describe("filtering", () => {
   });
   it("filterEntries narrows and preserves order", () => {
     expect(filterEntries(entries, { locale: "fr" }).map((e) => e.block.id)).toEqual(["a", "c"]);
-    expect(filterEntries(entries, { check: "off_brand" }).map((e) => e.block.id)).toEqual(["b"]);
+    expect(filterEntries(entries, { check: "clean" }).map((e) => e.block.id)).toEqual(["b", "c"]);
     expect(filterEntries(entries, {})).toHaveLength(3);
   });
 });
@@ -115,7 +104,7 @@ describe("groupEntries", () => {
   const entries = [
     entry({ itemId: "i2", locale: "fr", block: block("a", "fr", "x") }),
     entry({ itemId: "i1", locale: "de", block: block("b", "de", "x"), issues: [error] }),
-    entry({ itemId: "i1", locale: "fr", block: block("c", "fr", "x"), onBrand: false }),
+    entry({ itemId: "i1", locale: "fr", block: block("c", "fr", "x") }),
   ];
   it("groups by item, first-appearance order", () => {
     const groups = groupEntries(entries, "item");
@@ -128,29 +117,28 @@ describe("groupEntries", () => {
   });
   it("groups by check-status in severity order", () => {
     const groups = groupEntries(entries, "check");
-    expect(groups.map((g) => g.key)).toEqual(["failing", "off_brand", "clean"]);
+    expect(groups.map((g) => g.key)).toEqual(["failing", "clean"]);
     expect(groups[0].label).toBe("Failing checks");
   });
 });
 
-describe("queueCounts + passingCount", () => {
+describe("queueCounts + noFailingChecksCount", () => {
   const entries = [
     entry({ itemId: "i1", locale: "fr", block: block("a", "fr", "x"), issues: [error] }),
-    entry({ itemId: "i1", locale: "de", block: block("b", "de", "x"), onBrand: false }),
+    entry({ itemId: "i1", locale: "de", block: block("b", "de", "x"), issues: [error] }),
     entry({ itemId: "i2", locale: "fr", block: block("c", "fr", "x") }),
     entry({ itemId: "i2", locale: "fr", block: block("d", "fr", "x") }),
   ];
   it("tallies by status, locale, and item", () => {
     const counts = queueCounts(entries);
     expect(counts.total).toBe(4);
-    expect(counts.failing).toBe(1);
-    expect(counts.offBrand).toBe(1);
+    expect(counts.failing).toBe(2);
     expect(counts.clean).toBe(2);
     expect(counts.byLocale).toEqual({ fr: 3, de: 1 });
     expect(counts.byItem).toEqual({ i1: 2, i2: 2 });
   });
-  it("passingCount counts only clean entries", () => {
-    expect(passingCount(entries)).toBe(2);
+  it("noFailingChecksCount counts only entries without a failing check", () => {
+    expect(noFailingChecksCount(entries)).toBe(2);
   });
 });
 

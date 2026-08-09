@@ -1,16 +1,12 @@
 import type { DimensionScore } from "./types";
 import { cn } from "@neokapi/ui-primitives";
+import { DEFAULT_MIN_SCORE, scoreFillClass } from "./complianceBar";
 
 interface BrandDimensionBreakdownProps {
   dimensions: DimensionScore[];
+  /** The profile's on-brand bar; DEFAULT_MIN_SCORE when no profile is loaded. */
+  bar?: number;
   className?: string;
-}
-
-function barColor(score: number): string {
-  if (score >= 80) return "bg-success";
-  if (score >= 60) return "bg-warning";
-  if (score >= 40) return "bg-warning";
-  return "bg-destructive";
 }
 
 const dimensionLabels: Record<string, string> = {
@@ -21,7 +17,11 @@ const dimensionLabels: Record<string, string> = {
   brand_compliance: "Brand",
 };
 
-export function BrandDimensionBreakdown({ dimensions, className }: BrandDimensionBreakdownProps) {
+export function BrandDimensionBreakdown({
+  dimensions,
+  bar = DEFAULT_MIN_SCORE,
+  className,
+}: BrandDimensionBreakdownProps) {
   return (
     <div className={cn("space-y-3", className)}>
       {dimensions.map((dim) => (
@@ -30,11 +30,20 @@ export function BrandDimensionBreakdown({ dimensions, className }: BrandDimensio
             <span className="text-muted-foreground">
               {dimensionLabels[dim.dimension] ?? dim.dimension}
             </span>
-            <span className="font-medium tabular-nums">{dim.score}</span>
+            <span
+              className="font-medium tabular-nums"
+              data-testid={`dimension-score-${dim.dimension}`}
+              data-below-bar={dim.score < bar}
+            >
+              {dim.score}
+            </span>
           </div>
           <div className="h-2 rounded-full bg-muted overflow-hidden">
             <div
-              className={cn("h-full rounded-full transition-all duration-500", barColor(dim.score))}
+              className={cn(
+                "h-full rounded-full transition-all duration-500",
+                scoreFillClass(dim.score, bar),
+              )}
               style={{ width: `${dim.score}%` }}
             />
           </div>

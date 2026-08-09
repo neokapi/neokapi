@@ -27,7 +27,7 @@ import {
   entryKey,
   filterEntries,
   isPendingReview,
-  passingCount,
+  noFailingChecksCount,
   queueCounts,
   type ReviewEntry,
   type ReviewGroupBy,
@@ -250,7 +250,10 @@ export function ReviewSession({
 
   const visible = useMemo(() => filterEntries(entries, filter), [entries, filter]);
   const counts = useMemo(() => queueCounts(entries), [entries]);
-  const passing = useMemo(() => passingCount(entries), [entries]);
+  // The queue payload carries check findings only, so this is an upper bound on
+  // what the server's approve-passing will take (it also applies the term and
+  // brand-voice bars). The response's Approved/Skipped split is what happened.
+  const noFailing = useMemo(() => noFailingChecksCount(entries), [entries]);
 
   // Clamp the cursor whenever the visible list shrinks (filter change, removal).
   useEffect(() => {
@@ -397,8 +400,10 @@ export function ReviewSession({
       const locales = filter.locale ? [filter.locale] : undefined;
       const result = await api.approvePassing(project.id, locales);
       setMessage(
-        `Approved ${result.approved} passing block${result.approved === 1 ? "" : "s"}` +
-          (result.skipped > 0 ? ` · ${result.skipped} left for review` : ""),
+        `Approved ${result.approved} block${result.approved === 1 ? "" : "s"}` +
+          (result.skipped > 0
+            ? ` · ${result.skipped} skipped for failing checks, terminology, or the brand bar`
+            : ""),
       );
       if (result.review_completed) setDelivering(true);
       await refetch();
@@ -463,8 +468,7 @@ export function ReviewSession({
   const localesWithPending = Object.keys(counts.byLocale);
   const checkFilters: { value: ReviewCheckStatus; label: string; count: number }[] = [
     { value: "failing", label: "Failing", count: counts.failing },
-    { value: "off_brand", label: "Off-brand", count: counts.offBrand },
-    { value: "clean", label: "Clean", count: counts.clean },
+    { value: "clean", label: "No failing checks", count: counts.clean },
   ];
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -529,12 +533,12 @@ export function ReviewSession({
           <Button
             size="sm"
             onClick={() => setConfirmBulk(true)}
-            disabled={busy || passing === 0}
+            disabled={busy || noFailing === 0}
             data-testid="approve-all-passing"
           >
             <Sparkles className="mr-1 h-4 w-4" /> Approve all passing
             <span className="ml-1.5 rounded-full bg-white/20 px-1.5 text-[11px] tabular-nums">
-              {passing}
+              {noFailing}
             </span>
           </Button>
         )}
@@ -681,9 +685,9 @@ export function ReviewSession({
         open={confirmBulk}
         onOpenChange={setConfirmBulk}
         title="Approve all passing?"
-        description={`Approve ${passing} block${passing === 1 ? "" : "s"} that pass checks and the on-brand bar${
+        description={`${noFailing} block${noFailing === 1 ? "" : "s"}${
           filter.locale ? ` in ${localeName(filter.locale)}` : ""
-        }. Flagged blocks stay for review.`}
+        } carry no failing check. The server applies the terminology and brand bars on approve, so it may take fewer; the rest stay for review.`}
         confirmLabel="Approve passing"
         onConfirm={() => void runBulkApprove()}
         loading={busy}
