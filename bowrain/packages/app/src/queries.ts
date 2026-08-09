@@ -82,6 +82,17 @@ export const convergenceEstimateQueryOptions = (
     staleTime: 5_000,
   });
 
+/**
+ * The task types that count as "review work for you" — the dashboard's count
+ * and the review inbox's task section read the same set, so a task counted on
+ * one surface is always visible on the other.
+ */
+export const REVIEW_TASK_TYPES: ReadonlySet<string> = new Set([
+  "review",
+  "review_terms",
+  "source_review",
+]);
+
 export const myTasksQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
   queryOptions({
     queryKey: ["myTasks", workspaceSlug],

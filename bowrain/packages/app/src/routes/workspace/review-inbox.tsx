@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ReviewInbox, useApi, type ReviewInboxProject } from "@neokapi/ui";
+import { ReviewInbox, useApi, type ReviewInboxProject, type ReviewInboxTask } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
+import { myTasksQueryOptions, REVIEW_TASK_TYPES } from "../../queries";
 
 /**
  * ReviewInboxRoute is the workspace-level roll-up of pending review: every
@@ -30,6 +31,23 @@ export function ReviewInboxRoute() {
     staleTime: 30_000,
   });
 
+  // The same open-task set the dashboard counts as "review task(s) for you":
+  // its card links here, so what is counted there must be visible here.
+  const { data: myTasksData } = useQuery({
+    ...myTasksQueryOptions(adapter, ws),
+    enabled: !!ws,
+  });
+  const tasks: ReviewInboxTask[] = (myTasksData?.tasks ?? [])
+    .filter((t) => REVIEW_TASK_TYPES.has(t.type))
+    .map((t) => ({
+      id: t.id,
+      title: t.title,
+      type: t.type,
+      changesetId: t.data?.changeset_id,
+      projectId: t.project_id || undefined,
+      stream: t.stream,
+    }));
+
   const projects: ReviewInboxProject[] = (rollup?.ship?.projects ?? []).map((p) => ({
     projectId: p.project_id,
     projectName: p.project_name ?? p.project_id,
@@ -47,6 +65,20 @@ export function ReviewInboxRoute() {
 
   return (
     <ReviewInbox
+      tasks={tasks}
+      onOpenTask={(t) => {
+        if (t.changesetId) {
+          void navigate({
+            to: "/$workspace/context/changes/$id",
+            params: { workspace: wsParam, id: t.changesetId },
+          });
+        } else if (t.projectId) {
+          void navigate({
+            to: "/$workspace/p/$projectId/s/$stream/review",
+            params: { workspace: wsParam, projectId: t.projectId, stream: t.stream ?? "main" },
+          });
+        }
+      }}
       projects={projects}
       loading={isLoading}
       coverageNote={coverageNote}
