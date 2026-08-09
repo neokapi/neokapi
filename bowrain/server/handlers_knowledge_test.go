@@ -122,6 +122,8 @@ func TestKnowledgeRoutesRegistered(t *testing.T) {
 
 	want := []string{
 		"GET /:ws/concepts",
+		"GET /:ws/concepts/status-counts",
+		"GET /:ws/concepts/locale-coverage",
 		"POST /:ws/concepts",
 		"GET /:ws/concepts/:cid",
 		"PUT /:ws/concepts/:cid",
@@ -143,6 +145,7 @@ func TestKnowledgeRoutesRegistered(t *testing.T) {
 		"PUT /:ws/markets/:mid",
 		"DELETE /:ws/markets/:mid",
 		"GET /:ws/changesets",
+		"GET /:ws/changesets/counts",
 		"POST /:ws/changesets",
 		"GET /:ws/changesets/:id",
 		"PATCH /:ws/changesets/:id",
@@ -775,6 +778,43 @@ func (f *fakeKnowledgeStore) ListChangeSets(_ context.Context, ws string, status
 		out = append(out, &cp)
 	}
 	return out, nil
+}
+
+func (f *fakeKnowledgeStore) ListChangeSetSummaries(ctx context.Context, ws string, status knowledge.ChangeSetStatus) ([]*knowledge.ChangeSetSummary, error) {
+	sets, err := f.ListChangeSets(ctx, ws, status)
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(sets, func(i, j int) bool {
+		if !sets[i].CreatedAt.Equal(sets[j].CreatedAt) {
+			return sets[i].CreatedAt.After(sets[j].CreatedAt)
+		}
+		return sets[i].ID < sets[j].ID
+	})
+	out := make([]*knowledge.ChangeSetSummary, 0, len(sets))
+	for _, cs := range sets {
+		out = append(out, &knowledge.ChangeSetSummary{ChangeSet: cs, OpsCount: len(f.ops[fakeKey(ws, cs.ID)])})
+	}
+	return out, nil
+}
+
+func (f *fakeKnowledgeStore) CountChangeSetsByStatus(_ context.Context, ws string) (map[knowledge.ChangeSetStatus]int, error) {
+	out := map[knowledge.ChangeSetStatus]int{}
+	for _, cs := range f.changesets {
+		if cs.WorkspaceID == ws {
+			out[cs.Status]++
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeKnowledgeStore) SetChangeSetImpact(_ context.Context, ws, id string, summary *knowledge.ImpactSummary) error {
+	cs, ok := f.changesets[fakeKey(ws, id)]
+	if !ok {
+		return fmt.Errorf("change-set %s not found", id)
+	}
+	cs.Impact = summary
+	return nil
 }
 
 func (f *fakeKnowledgeStore) UpdateChangeSet(_ context.Context, cs *knowledge.ChangeSet) error {
