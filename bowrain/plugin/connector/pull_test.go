@@ -276,3 +276,31 @@ func TestPull_AllWritesSucceedAdvancesCursor(t *testing.T) {
 		assert.True(t, strings.Contains(string(b), "Hello-"+loc))
 	}
 }
+
+// TestPull_CrossFormatTargetWritesTheTargetFormat pins the projection rule on
+// the pull venue: a json source with a `catalogs/{lang}.mo` target must write a
+// GNU MO catalog, not translated source-format bytes under a .mo name. The
+// writer comes from the output path's extension (registry.WriterFormatFor),
+// the same rule the host flow runner applies.
+func TestPull_CrossFormatTargetWritesTheTargetFormat(t *testing.T) {
+	targetLangs := []string{"nb"}
+	srv := pullTestServer(t, "proj123", targetLangs, 42)
+	conn := newPullTestConnector(t, srv, targetLangs, 5)
+	defer conn.Close()
+
+	conn.project.Recipe.Collections[0].Target = "catalogs/{lang}.mo"
+
+	res, err := conn.Pull(context.Background(), bowrainconn.PullOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, 1, res.FilesWritten)
+
+	out := filepath.Join(conn.project.Root, "catalogs", "nb.mo")
+	b, readErr := os.ReadFile(out)
+	require.NoError(t, readErr)
+	require.GreaterOrEqual(t, len(b), 4, "catalog too short to carry the MO magic")
+	assert.Equal(t, []byte{0xde, 0x12, 0x04, 0x95}, b[:4],
+		"the .mo target must be a little-endian GNU MO catalog, not %q…", string(b[:min(len(b), 16)]))
+	assert.True(t, strings.Contains(string(b), "Hello-nb"),
+		"the catalog must carry the pulled translation")
+}

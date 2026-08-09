@@ -441,6 +441,22 @@ func (r *FormatRegistry) Detect(path string, opts DetectOptions) (FormatID, erro
 	return r.detectFile(path, opts.AllowedSources, opts.PriorityOverrides)
 }
 
+// WriterFormatFor returns the format that writes outputPath for content read
+// as readerFormat. The writer defaults to the reader's format (same-in /
+// same-out round-trip), but a different output extension selects a different
+// writer: the output path is the caller's intent declaration, and it is how a
+// json source projects to a `catalogs/{lang}.mo` target without a dedicated
+// writer flag. Shared by the host flow runner and the bowrain pull so both
+// venues project cross-format targets identically.
+func (r *FormatRegistry) WriterFormatFor(readerFormat FormatID, outputPath string) FormatID {
+	if ext := format.Ext(outputPath); ext != "" {
+		if det, err := r.Detect(outputPath, DetectOptions{ExtensionOnly: true}); err == nil && det != "" {
+			return det
+		}
+	}
+	return readerFormat
+}
+
 // DetectByExtension maps a file extension to a registered format name.
 // If detection fails and an onMiss callback is set, it triggers lazy loading
 // (e.g., starting bridge processes) and retries once.
