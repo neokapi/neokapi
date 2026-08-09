@@ -34,6 +34,8 @@ export interface TopBarProps {
   onViewAllActivities?: () => void;
   onMarkActivitiesSeen?: () => void;
   myTasks?: TaskInfo[];
+  /** Actionable task total for the badge, counted server-side. */
+  myTaskCount?: number;
   onTaskClick?: (task: TaskInfo) => void;
   onCompleteTask?: (taskId: string) => void;
   onViewAllTasks?: () => void;
@@ -96,6 +98,7 @@ export function TopBar({
   onViewAllActivities,
   onMarkActivitiesSeen,
   myTasks,
+  myTaskCount,
   onTaskClick,
   onCompleteTask,
   onViewAllTasks,
@@ -144,6 +147,7 @@ export function TopBar({
       {myTasks && (
         <TaskIndicator
           tasks={myTasks}
+          count={myTaskCount}
           onTaskClick={onTaskClick}
           onCompleteTask={onCompleteTask}
           onViewAll={onViewAllTasks}

@@ -7,6 +7,12 @@ export interface TaskBoardProps {
   tasks: TaskInfo[];
   loading?: boolean;
   currentUserId?: string;
+  /**
+   * Per-status totals over the whole filter, from the server's task counts.
+   * The board's column headers wear these; counting the loaded page instead
+   * understates a column that holds more work than one page.
+   */
+  statusCounts?: Record<string, number>;
   /** More tasks are available on the server (cursor pagination). */
   hasMore?: boolean;
   /** Fetch and append the next page of tasks. */
@@ -144,6 +150,7 @@ export function TaskBoard({
   tasks,
   loading,
   currentUserId: _currentUserId,
+  statusCounts,
   hasMore,
   onLoadMore,
   onCreateTask: _onCreateTask,
@@ -218,7 +225,7 @@ export function TaskBoard({
           {columns.map((status) => (
             <div key={status} className="space-y-2">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
-                {statusLabels[status]} ({grouped[status].length})
+                {statusLabels[status]} ({statusCounts?.[status] ?? grouped[status].length})
               </h3>
               <div className="space-y-2">
                 {grouped[status].map((task) => (

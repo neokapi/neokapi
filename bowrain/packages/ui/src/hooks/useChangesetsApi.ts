@@ -35,7 +35,8 @@ export function useChangesets(status?: ChangeSetStatus) {
 
 /**
  * The workspace's change-sets bucketed by lifecycle status, counted over every
- * change-set rather than over a page of them.
+ * change-set rather than over the fetched page — buckets an active filter
+ * excludes would otherwise read as empty rather than unknown.
  */
 export function useChangesetCounts() {
   const { api, ws } = useWs();
@@ -77,6 +78,7 @@ export function usePatchChangeset(changesetId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["changeset", ws, changesetId] });
       void qc.invalidateQueries({ queryKey: ["changesets", ws] });
+      void qc.invalidateQueries({ queryKey: ["changesetCounts", ws] });
     },
   });
 }
@@ -119,6 +121,7 @@ function invalidateLifecycle(
 ) {
   void qc.invalidateQueries({ queryKey: ["changeset", ws, changesetId] });
   void qc.invalidateQueries({ queryKey: ["changesets", ws] });
+  // A lifecycle move changes which bucket the change-set counts under.
   void qc.invalidateQueries({ queryKey: ["changeset-counts", ws] });
 }
 

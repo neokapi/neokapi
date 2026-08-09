@@ -16,7 +16,7 @@ export type { PlanComparisonTableProps, ComparisonFeature } from "./PlanComparis
 export { UpgradePrompt } from "./UpgradePrompt";
 export type { UpgradePromptProps } from "./UpgradePrompt";
 
-export { CreditLedger } from "./CreditLedger";
+export { CreditLedger, ALL_OPERATIONS, operationLabel } from "./CreditLedger";
 export type { CreditLedgerProps } from "./CreditLedger";
 
 export { ModelUsageTable } from "./ModelUsageTable";

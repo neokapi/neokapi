@@ -12,11 +12,12 @@ import {
   SubscriptionBadge,
   UsageBar,
   CreditLedger,
+  ALL_OPERATIONS,
+  operationLabel,
   type BillingOverview,
   type BillingPlan,
   type BillingPlansResponse,
-  type BillingUsageBreakdown,
-  type CreditLedgerEntry,
+  type CreditLedgerPage,
   type ModelUsage,
   type RunnerUsage,
   ModelUsageTable,
@@ -42,6 +43,9 @@ function formatDate(iso: string): string {
     year: "numeric",
   });
 }
+
+/** Ledger rows per page; the server caps the window at its own maximum. */
+const LEDGER_PAGE_SIZE = 25;
 
 function UsageBreakdownRow({ label, value }: { label: string; value: number }) {
   const formatted = formatTokens(value);
@@ -135,10 +139,15 @@ export function SettingsBillingRoute() {
 
   const [overview, setOverview] = useState<BillingOverview | null>(null);
   const [plans, setPlans] = useState<BillingPlansResponse | null>(null);
-  const [usage, setUsage] = useState<BillingUsageBreakdown | null>(null);
   const [modelUsage, setModelUsage] = useState<ModelUsage[]>([]);
   const [runnerUsage, setRunnerUsage] = useState<RunnerUsage[]>([]);
-  const [ledger, setLedger] = useState<CreditLedgerEntry[]>([]);
+  // One /usage read answers both billing panels: `usage_by_operation` is summed
+  // in SQL over the whole window (the operation filter does not narrow it), and
+  // `entries` is the page that filter does narrow.
+  const [ledgerPage, setLedgerPage] = useState<CreditLedgerPage | null>(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerOperation, setLedgerOperation] = useState<string>(ALL_OPERATIONS);
+  const [ledgerOffset, setLedgerOffset] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
@@ -160,14 +169,6 @@ export function SettingsBillingRoute() {
       .then(setPlans)
       .catch(() => {});
     void api
-      .billingGetUsage(ws)
-      .then(setUsage)
-      .catch(() => {});
-    void api
-      .billingGetLedger(ws)
-      .then(setLedger)
-      .catch(() => {});
-    void api
       .billingGetModelUsage(ws)
       .then((r) => {
         setModelUsage(r.model_usage ?? []);
@@ -175,6 +176,20 @@ export function SettingsBillingRoute() {
       })
       .catch(() => {});
   }, [api, ws]);
+
+  useEffect(() => {
+    if (!ws) return;
+    setLedgerLoading(true);
+    void api
+      .billingGetLedgerPage(ws, {
+        limit: LEDGER_PAGE_SIZE,
+        offset: ledgerOffset,
+        operation: ledgerOperation === ALL_OPERATIONS ? undefined : ledgerOperation,
+      })
+      .then(setLedgerPage)
+      .catch(() => {})
+      .finally(() => setLedgerLoading(false));
+  }, [api, ws, ledgerOperation, ledgerOffset]);
 
   const handleManageSubscription = useCallback(async () => {
     if (!ws) return;
@@ -262,6 +277,17 @@ export function SettingsBillingRoute() {
   // plan — the server decides purchasability, so no button here can 503.
   const upgradeable = (plans?.plans ?? []).filter((p) => p.purchasable && !p.current);
   const creditPack = plans?.credit_pack;
+
+  // Per-operation credit spend for the window, summed by the server. Rows are
+  // whatever the deployment actually charged, so a newly-added operation shows
+  // up here instead of vanishing from a fixed list. The sum counts debits
+  // only, so purchases and grants appear in the ledger below but not here —
+  // and the ledger's chips, which read this set, filter spend rather than
+  // every movement.
+  const usageRows = Object.entries(ledgerPage?.usage_by_operation ?? {})
+    .filter(([, value]) => value !== 0)
+    .sort((a, b) => b[1] - a[1]);
+  const usageTotal = usageRows.reduce((sum, [, value]) => sum + value, 0);
 
   return (
     <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
@@ -392,7 +418,7 @@ export function SettingsBillingRoute() {
       )}
 
       {/* Usage Breakdown */}
-      {usage && (
+      {usageRows.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Usage Breakdown</CardTitle>
@@ -400,16 +426,13 @@ export function SettingsBillingRoute() {
           </CardHeader>
           <CardContent>
             <div className="grid">
-              <UsageBreakdownRow label="AI Translation" value={usage.aiTranslation} />
-              <UsageBreakdownRow label="AI Quality Check" value={usage.aiQualityCheck} />
-              <UsageBreakdownRow label="@bravo Messages" value={usage.bravoMessages} />
-              <UsageBreakdownRow label="@bravo Container" value={usage.bravoContainer} />
+              {usageRows.map(([op, value]) => (
+                <UsageBreakdownRow key={op} label={operationLabel(op)} value={value} />
+              ))}
               <div className="flex items-center justify-between pt-2 mt-1 border-t border-border font-medium">
                 <span className="text-sm text-foreground">Total</span>
                 <span className="font-mono text-sm text-foreground">
-                  {usage.total >= 1_000
-                    ? `${(usage.total / 1_000).toFixed(0)}K`
-                    : String(usage.total)}
+                  {usageTotal >= 1_000 ? `${(usageTotal / 1_000).toFixed(0)}K` : String(usageTotal)}
                 </span>
               </div>
             </div>
@@ -437,7 +460,20 @@ export function SettingsBillingRoute() {
           <CardDescription>Recent credit activity for this workspace</CardDescription>
         </CardHeader>
         <CardContent>
-          <CreditLedger entries={ledger} />
+          <CreditLedger
+            entries={ledgerPage?.entries ?? []}
+            operations={usageRows.map(([op]) => op)}
+            operation={ledgerOperation}
+            onOperationChange={(op) => {
+              setLedgerOperation(op);
+              setLedgerOffset(0);
+            }}
+            total={ledgerPage?.total ?? 0}
+            limit={ledgerPage?.limit || LEDGER_PAGE_SIZE}
+            offset={ledgerPage?.offset ?? 0}
+            onOffsetChange={setLedgerOffset}
+            loading={ledgerLoading}
+          />
         </CardContent>
       </Card>
     </div>

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TaskBoard, useWorkspace, useApi, useAuth, Card } from "@neokapi/ui";
 import type { TaskInfo } from "@neokapi/ui";
+import { taskCountsQueryOptions } from "../../queries";
 
 export function TasksRoute() {
   const navigate = useNavigate();
@@ -29,6 +30,12 @@ export function TasksRoute() {
     queryFn: () => api.listTasks(ws, { limit: LIMIT, cursor: cursor || undefined }),
     enabled: !!ws,
     staleTime: 30_000,
+  });
+
+  // Column totals over the whole workspace, not over the pages loaded so far.
+  const { data: counts } = useQuery({
+    ...taskCountsQueryOptions(api, ws),
+    enabled: !!ws,
   });
 
   useEffect(() => {
@@ -60,6 +67,8 @@ export function TasksRoute() {
       setCursor("");
       void queryClient.invalidateQueries({ queryKey: ["tasks", ws] });
       void queryClient.invalidateQueries({ queryKey: ["myTasks", ws] });
+      void queryClient.invalidateQueries({ queryKey: ["taskCounts", ws] });
+      void queryClient.invalidateQueries({ queryKey: ["myTaskCounts", ws] });
     },
   });
 
@@ -69,6 +78,8 @@ export function TasksRoute() {
       setCursor("");
       void queryClient.invalidateQueries({ queryKey: ["tasks", ws] });
       void queryClient.invalidateQueries({ queryKey: ["myTasks", ws] });
+      void queryClient.invalidateQueries({ queryKey: ["taskCounts", ws] });
+      void queryClient.invalidateQueries({ queryKey: ["myTaskCounts", ws] });
     },
   });
 
@@ -86,6 +97,7 @@ export function TasksRoute() {
       <TaskBoard
         tasks={allTasks}
         loading={isFetching}
+        statusCounts={counts?.by_status}
         hasMore={hasMore}
         onLoadMore={handleLoadMore}
         currentUserId={user?.id}

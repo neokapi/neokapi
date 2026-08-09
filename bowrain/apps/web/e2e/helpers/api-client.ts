@@ -200,14 +200,18 @@ export async function getEditorProject(
   return apiGet(`/${wsSlug}/${projectId}`, token);
 }
 
-/** Find an item ID by filename within a project's items array. */
-export function findItemId(
+/**
+ * Assert a project really holds the named file, and give the name back. The
+ * editor routes address an item by name, so this is the coordinate a deep
+ * link carries — the lookup exists to fail loudly when a fixture drifts.
+ */
+export function findItemName(
   project: { items: Array<{ id: string; name: string }> },
   fileName: string,
 ): string {
   const item = project.items.find((i) => i.name === fileName);
   if (!item) throw new Error(`Item not found: ${fileName}`);
-  return item.id;
+  return item.name;
 }
 
 export async function deleteEditorProject(

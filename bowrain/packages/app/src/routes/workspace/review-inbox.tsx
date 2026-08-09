@@ -3,7 +3,7 @@ import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query";
 import { ReviewInbox, useApi, type ReviewInboxProject, type ReviewInboxTask } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
-import { myTasksQueryOptions, REVIEW_TASK_TYPES } from "../../queries";
+import { myReviewTasksQueryOptions } from "../../queries";
 
 /**
  * ReviewInboxRoute is the workspace-level roll-up of pending review: every
@@ -32,21 +32,20 @@ export function ReviewInboxRoute() {
   });
 
   // The same open-task set the dashboard counts as "review task(s) for you":
-  // its card links here, so what is counted there must be visible here.
-  const { data: myTasksData } = useQuery({
-    ...myTasksQueryOptions(adapter, ws),
+  // its card links here, so the filter runs server-side on both surfaces and
+  // what is counted there is exactly what is listed here.
+  const { data: reviewTasksData } = useQuery({
+    ...myReviewTasksQueryOptions(adapter, ws),
     enabled: !!ws,
   });
-  const tasks: ReviewInboxTask[] = (myTasksData?.tasks ?? [])
-    .filter((t) => REVIEW_TASK_TYPES.has(t.type))
-    .map((t) => ({
-      id: t.id,
-      title: t.title,
-      type: t.type,
-      changesetId: t.data?.changeset_id,
-      projectId: t.project_id || undefined,
-      stream: t.stream,
-    }));
+  const tasks: ReviewInboxTask[] = (reviewTasksData?.tasks ?? []).map((t) => ({
+    id: t.id,
+    title: t.title,
+    type: t.type,
+    changesetId: t.data?.changeset_id,
+    projectId: t.project_id || undefined,
+    stream: t.stream,
+  }));
 
   const projects: ReviewInboxProject[] = (rollup?.ship?.projects ?? []).map((p) => ({
     projectId: p.project_id,

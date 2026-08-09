@@ -31,7 +31,7 @@ describe("route tree", () => {
     );
     expect(childPaths).toContain("/");
     expect(childPaths).toContain("p/$projectId/s/$stream");
-    expect(childPaths).toContain("p/$projectId/s/$stream/$itemId/translate");
+    expect(childPaths).toContain("p/$projectId/s/$stream/$itemName/translate");
     expect(childPaths).toContain("terms");
     expect(childPaths).toContain("memory");
     expect(childPaths).toContain("context");
@@ -57,6 +57,30 @@ describe("route tree", () => {
     expect(childPaths).toContain("memory");
     expect(childPaths).toContain("changes");
     expect(childPaths).toContain("activity");
+  });
+
+  // The per-file editor surfaces address an item by its NAME — the coordinate
+  // the server resolves — and names carry slashes. The router percent-encodes
+  // a path param and decodes it on the way back, so the segment survives the
+  // round-trip without the app encoding anything itself; doing so as well
+  // would double-encode.
+  it("round-trips a nested item name through the editor route", async () => {
+    const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
+    const itemName = "docs/guide/a.md";
+
+    const href = router.buildLocation({
+      to: "/$workspace/p/$projectId/s/$stream/$itemName/translate",
+      params: { workspace: "acme", projectId: "proj-1", stream: "main", itemName },
+    }).href;
+
+    // One segment, not three: the slashes are encoded, so `$itemName` matches.
+    expect(href).toBe("/acme/p/proj-1/s/main/docs%2Fguide%2Fa.md/translate");
+    expect(href.split("/")).toHaveLength(8);
+
+    const matches = router.matchRoutes(href, undefined);
+    const leaf = matches[matches.length - 1] as AnyRoute;
+    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream/$itemName/translate");
+    expect(leaf.params.itemName).toBe(itemName);
   });
 
   it("contains auth child routes", () => {

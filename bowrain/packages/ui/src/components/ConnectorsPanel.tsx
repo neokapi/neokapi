@@ -43,7 +43,8 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { useApi } from "../context/ApiContext";
 import { useAnalytics } from "../context/AnalyticsContext";
 import { AnalyticsEvents } from "../analytics-events";
-import type { ConnectorInfo, ConnectorContentItem } from "../types/api";
+import { fetchConnectorStatuses } from "../api/connector-status";
+import type { ConnectorInfo, ConnectorContentItem, ConnectorSyncStatus } from "../types/api";
 
 // ---------------------------------------------------------------------------
 // Connector type catalog
@@ -273,6 +274,21 @@ export function ConnectorsPanel({
   });
 
   const list = connectors ?? [];
+  const connectorIds = list.map((c) => c.id);
+
+  // One read for the whole panel rather than a request per row. The panel is
+  // the explicit manual surface, so it probes: the deep read supplies the item
+  // counts and pending pull/push each status line renders, at the same cost as
+  // the cheap one. The "probe" leaf keeps the deep result out of the cache
+  // entry the polling surfaces share, and the ["connector-status", ws] prefix
+  // the fetch/publish mutations invalidate covers both.
+  const statusesQuery = useQuery({
+    queryKey: ["connector-status", workspaceSlug, "batch", connectorIds.join(","), "probe"],
+    queryFn: () => fetchConnectorStatuses(api, workspaceSlug, connectorIds, { probe: true }),
+    enabled: connectorIds.length > 0,
+    staleTime: 30_000,
+    retry: false,
+  });
 
   return (
     <div className="mx-auto w-full max-w-3xl p-4 md:p-6">
@@ -314,6 +330,9 @@ export function ConnectorsPanel({
               connector={c}
               workspaceSlug={workspaceSlug}
               projectId={projectId}
+              status={statusesQuery.data?.[c.id]}
+              statusLoading={statusesQuery.isLoading}
+              statusError={statusesQuery.error ? errorMessage(statusesQuery.error) : null}
               onRemove={() => setRemoveTarget(c)}
             />
           ))}
@@ -362,11 +381,18 @@ function ConnectorRow({
   connector,
   workspaceSlug,
   projectId,
+  status,
+  statusLoading,
+  statusError,
   onRemove,
 }: {
   connector: ConnectorInfo;
   workspaceSlug: string;
   projectId: string;
+  /** This connector's slice of the panel's batch status read. */
+  status?: ConnectorSyncStatus;
+  statusLoading: boolean;
+  statusError: string | null;
   onRemove: () => void;
 }) {
   const api = useApi();
@@ -381,19 +407,6 @@ function ConnectorRow({
   // user-supplied label (may be empty), so fall back to the connector id.
   const displayName = connector.name || connector.id;
 
-  const statusQuery = useQuery({
-    // The "probe" leaf keeps the deep result out of the cheap-read cache entry
-    // other surfaces share, while the panel's own ["connector-status", ws, id]
-    // prefix invalidations (fetch/publish below) still reach it.
-    queryKey: ["connector-status", workspaceSlug, connector.id, "probe"],
-    // The panel is the explicit manual surface: the deep probe supplies the
-    // item counts and pending pull/push the status line renders. Polling
-    // surfaces (setup wizard, dashboard) stay on the cheap default read.
-    queryFn: () => api.getConnectorStatus(workspaceSlug, connector.id, { probe: true }),
-    staleTime: 30_000,
-    retry: false,
-  });
-
   const fetchMutation = useMutation({
     mutationFn: () => api.fetchConnector(workspaceSlug, connector.id, projectId),
     onMutate: () => {
@@ -402,8 +415,10 @@ function ConnectorRow({
     },
     onSuccess: (res) => {
       setFeedback(`Fetched ${res.items_fetched} item${res.items_fetched === 1 ? "" : "s"}.`);
+      // The panel's status is one batch entry, not a per-connector one, so the
+      // invalidation has to reach the whole workspace prefix.
       void queryClient.invalidateQueries({
-        queryKey: ["connector-status", workspaceSlug, connector.id],
+        queryKey: ["connector-status", workspaceSlug],
       });
     },
     onError: (e) => setActionError(errorMessage(e)),
@@ -418,8 +433,10 @@ function ConnectorRow({
     onSuccess: () => {
       setPublishConfirm(false);
       setFeedback("Published this project's content.");
+      // The panel's status is one batch entry, not a per-connector one, so the
+      // invalidation has to reach the whole workspace prefix.
       void queryClient.invalidateQueries({
-        queryKey: ["connector-status", workspaceSlug, connector.id],
+        queryKey: ["connector-status", workspaceSlug],
       });
     },
     onError: (e) => {
@@ -428,7 +445,6 @@ function ConnectorRow({
     },
   });
 
-  const status = statusQuery.data;
   const busy = fetchMutation.isPending || publishMutation.isPending;
 
   return (
@@ -445,11 +461,7 @@ function ConnectorRow({
                 <Badge variant="secondary">{categoryLabel(connector.category)}</Badge>
               )}
             </div>
-            <StatusLine
-              loading={statusQuery.isLoading}
-              error={statusQuery.error ? errorMessage(statusQuery.error) : null}
-              status={status}
-            />
+            <StatusLine loading={statusLoading} error={statusError} status={status} />
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -643,19 +655,14 @@ function StatusLine({
 }: {
   loading: boolean;
   error: string | null;
-  status?: {
-    lastSync: string;
-    itemCount: number;
-    pendingPull: number;
-    pendingPush: number;
-    errors: string[];
-  };
+  status?: ConnectorSyncStatus;
 }) {
   if (loading) return <Skeleton className="mt-1.5 h-3.5 w-40" />;
-  if (error) {
+  // No slice in the batch means the server could answer for neither the live
+  // service nor the config store — the same "unavailable" as a failed call.
+  if (error || !status) {
     return <p className="text-muted-foreground mt-1 text-xs">Status unavailable</p>;
   }
-  if (!status) return null;
 
   const lastSync = status.lastSync ? new Date(status.lastSync) : null;
   const lastSyncValid = lastSync && !Number.isNaN(lastSync.getTime()) && lastSync.getTime() > 0;

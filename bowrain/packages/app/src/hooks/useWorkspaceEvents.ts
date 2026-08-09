@@ -98,9 +98,15 @@ export function planInvalidations(ws: string, ev: WorkspaceChangeEvent): Invalid
     return plan;
   }
 
-  // Tasks → task lists.
+  // Tasks → task lists and the server-counted badges beside them.
   if (t.startsWith("task.")) {
-    immediate(["tasks", ws], ["myTasks", ws], ["activities", ws]);
+    immediate(
+      ["tasks", ws],
+      ["myTasks", ws],
+      ["taskCounts", ws],
+      ["myTaskCounts", ws],
+      ["activities", ws],
+    );
     return plan;
   }
 

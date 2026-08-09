@@ -39,7 +39,9 @@ const MAX_ITEM_ROWS = 500;
 export interface ProjectViewProps {
   project: ProjectInfo;
   onBack: () => void;
-  onOpenFile: (itemId: string) => void;
+  /** Open one file's editor surfaces. The item name is the coordinate the
+   *  server addresses an item by, so it is what travels in the route. */
+  onOpenFile: (itemName: string) => void;
   /** Upload files via adapter. Web apps pass File objects; desktop passes file paths. */
   onUploadFiles: (files: File[]) => void;
   onRemoveFile: (fileName: string) => void;
@@ -437,7 +439,7 @@ export function ProjectView({
                   >
                     <td className={`${isMobile ? "px-2" : "px-4"} py-2.5 text-sm`}>
                       <button
-                        onClick={() => onOpenFile(f.id)}
+                        onClick={() => onOpenFile(f.name)}
                         className="bg-transparent border-none text-primary cursor-pointer text-sm p-0 hover:underline inline-flex items-center gap-1.5 text-left break-all"
                         data-testid={`open-file-${f.name}`}
                       >

@@ -357,14 +357,14 @@ export function ProjectDetailRoute() {
       <ProjectView
         project={project}
         onBack={() => navigate({ to: "/$workspace", params: { workspace: workspace ?? ws } })}
-        onOpenFile={(itemId) =>
+        onOpenFile={(itemName) =>
           navigate({
-            to: "/$workspace/p/$projectId/s/$stream/$itemId/translate",
+            to: "/$workspace/p/$projectId/s/$stream/$itemName/translate",
             params: {
               workspace: workspace ?? ws,
               projectId: project.id,
               stream: activeStream,
-              itemId,
+              itemName,
             },
           })
         }
