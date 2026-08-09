@@ -1,0 +1,67 @@
+id: bowrain-web-editor
+title: Den delte oversettelseseditoren
+subtitle: "Alle språkversjoner, med teamets minne og termer innebygd."
+tagline: den serversidige plattformfølgesvennen til kapi
+kind: use-case
+publishAs: bowrain-web-editor
+terminal: desktop
+target: nett
+brand: bowrain
+needsAi: false
+# One continuous narration read — uniform voice across scenes.
+oneshot: true
+aspects:
+  - Kilde og mål side om side
+  - Direkte dokumentforhåndsvisning
+  - Delt minne og terminologi innebygd
+  - Alle språkversjoner på ett sted
+
+narration:
+  - id: title
+    kind: title
+    text: >-
+      Bowrains editor — alle språkversjoner, med teamets minne og termer der arbeidet skjer.
+  - id: intro
+    kind: desktop
+    beat: intro
+    text: >-
+      Filene et team synkroniserer fra kapi åpnes her, i nettleseren, mot det delte arbeidsområdet.
+  - id: open-project
+    kind: desktop
+    beat: open-project
+    text: >-
+      Et prosjekt samler innholdet som er i omfang og lokalitetene det leveres i.
+  - id: open-file
+    kind: skrivebord
+    beat: open-file
+    caption: Åpne en fil for å begynne å oversette.
+    text: >-
+      Åpne en fil og den blir en oversettelsesstasjon.
+  - id: split
+    kind: desktop
+    beat: split
+    caption: "Kilde og mål, side om side."
+    text: >-
+      Kilde og mål vises side ved side, med fremdrift gjennom filen — og arbeidsområdets minne er allerede anvendt på blokkene det matchet.
+  - id: context
+    kind: desktop
+    beat: kontekst
+    caption: "Delt minne og terminologi, innebygd."
+    text: >-
+      Mens du oversetter, dukker treff fra det delte innholdsminnet og den godkjente terminologien opp rett ved siden av blokken — de samme styrte kildene, der arbeidet skjer.
+  - id: locale
+    kind: desktop
+    beat: språkversjon
+    caption: "Én editor, alle mållokaliteter."
+    text: >-
+      Én editor betjener alle mållokaliteter — bytt fra fransk til tysk uten å forlate filen.
+  - id: preview
+    kind: desktop
+    beat: preview
+    caption: En live forhåndsvisning av den oversatte siden.
+    text: >-
+      En direkte forhåndsvisning gjengir siden mens teamet jobber, slik at oversettelsen sees i kontekst, ikke bare som en liste med strenger.
+  - id: outro
+    kind: outro
+    text: >-
+      Det styrte minnet og terminologien, nå i selve editoren — delt på tvers av teamet, oppå de åpne kapi-verktøyene.

@@ -1,0 +1,68 @@
+id: bowrain-web-governance
+title: Delt terminologi og minne
+subtitle: "Én styrt kilde for stemme, termer og oversettelser for et team."
+tagline: server-side plattformkompanjongen til kapi
+kind: brukstilfelle
+publishAs: bowrain-web-governance
+terminal: desktop
+target: web
+brand: bowrain
+needsAi: false
+# One continuous narration read — uniform voice across scenes.
+oneshot: true
+aspects:
+  - Delt innholdsminne
+  - Terminologi som konsepter
+  - Flerspråklige termer
+  - Forvaltet på tvers av et team
+
+narration:
+  - id: tittel
+    kind: title
+    text: >-
+      Bowrain — der et teams terminologi og innholdsminne lever, delt og forvaltet.
+  - id: intro
+    kind: skrivebord
+    beat: intro
+    text: >-
+      Med kapi er termene og innholdsminnet lokale filer som én bygger eier. Bowrain holder dem på serveren, delt av alle.
+  - id: åpen-minne
+    kind: desktop
+    beat: open-memory
+    caption: Arbeidsområdets inneholdsminne.
+    text: >-
+      Innholdsminnet beholder alle godkjente oversettelser, tilgjengelig for hvert prosjekt og hver oversetter i arbeidsområdet.
+  - id: tm-list
+    kind: skrivebord
+    beat: tm-list
+    caption: "Én oversettelsesminne, gjenbrukt på tvers av prosjekter."
+    text: >-
+      Hver oppføring kobler en kildestreng med oversettelsene sine, slik at samme formulering gjenbrukes i stedet for å bli oversatt på nytt.
+  - id: tm-search
+    kind: desktop
+    beat: tm-search
+    caption: Fritekstsøk i minnet.
+    text: >-
+      Det er søkbart på et øyeblikk — her, alle lagrede tekster om selskapets misjon.
+  - id: open-concepts
+    kind: desktop
+    beat: open-concepts
+    caption: "Merkevare, deretter Konsepter — styrt terminologi."
+    text: >-
+      Terminologi styres på samme måte, i Brand hub, som konsepter — ideene bak ordene, holdt på ett sted i stedet for spredt over utsjekkinger.
+  - id: concept-list
+    kind: desktop
+    beat: concept-list
+    caption: "Konsepter, med termer og status per målspråk."
+    text: >-
+      Hvert konsept viser hva teamet kaller det på alle lokal, med en status som markerer ordlyden teamet har blitt enige om.
+  - id: concept-detail
+    kind: desktop
+    beat: konsept-detalj
+    caption: "Ett konsept, én sannhet, alle språk."
+    text: >-
+      Åpne et konsept, og hele historien er her — termene på alle språk og deres godkjente status. Én sannhet, delt av alle redaktører, alle AI-kall og hver kjøring av løkken.
+  - id: outro
+    kind: outro
+    text: >-
+      Delt, versjonert, styrt — minnet og konseptene et team forvalter over tid, på toppen av de åpne kapi-verktøyene.
