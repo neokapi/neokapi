@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -609,7 +610,106 @@ func (s *PostgresKnowledgeStore) SetMergeResult(ctx context.Context, workspaceID
 }
 
 // changeSetColumns is the SELECT list scanChangeSet expects, in order.
-const changeSetColumns = `workspace_id, id, name, description, status, origin, superseded_by, created_by, created_at, updated_at, submitted_at, merged_at, merged_by`
+const changeSetColumns = `workspace_id, id, name, description, status, origin, superseded_by, created_by, created_at, updated_at, submitted_at, merged_at, merged_by, impact_summary`
+
+// changeSetColumnsC is changeSetColumns qualified with the "c" alias, for the
+// joined queries. Derived rather than spelled twice so the two cannot drift.
+var changeSetColumnsC = qualifyColumns("c", changeSetColumns)
+
+// qualifyColumns prefixes every column in a comma-separated list with alias.
+func qualifyColumns(alias, cols string) string {
+	parts := strings.Split(cols, ", ")
+	for i, p := range parts {
+		parts[i] = alias + "." + p
+	}
+	return strings.Join(parts, ", ")
+}
+
+// ListChangeSetSummaries returns the workspace's change-sets with each one's op
+// count, from a single grouped join.
+func (s *PostgresKnowledgeStore) ListChangeSetSummaries(ctx context.Context, workspaceID string, status ChangeSetStatus) ([]*ChangeSetSummary, error) {
+	// Constant skeleton + $N placeholders only; every value binds through args.
+	const skeleton = `SELECT %s, COALESCE(o.n, 0)
+		FROM kg_changesets c
+		LEFT JOIN (
+			SELECT changeset_id, COUNT(*) AS n FROM kg_changeset_ops
+			WHERE workspace_id = $1 GROUP BY changeset_id
+		) o ON o.changeset_id = c.id
+		WHERE c.workspace_id = $1%s
+		ORDER BY c.created_at DESC, c.id`
+
+	args := []any{workspaceID}
+	statusFilter := ""
+	if status != "" {
+		statusFilter = " AND c.status = $2"
+		args = append(args, string(status))
+	}
+
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(skeleton, changeSetColumnsC, statusFilter), args...)
+	if err != nil {
+		return nil, fmt.Errorf("list change-set summaries: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*ChangeSetSummary
+	for rows.Next() {
+		var opsCount int
+		cs, err := scanChangeSet(rows, &opsCount)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, &ChangeSetSummary{ChangeSet: cs, OpsCount: opsCount})
+	}
+	return result, rows.Err()
+}
+
+// CountChangeSetsByStatus groups the workspace's change-sets by status.
+func (s *PostgresKnowledgeStore) CountChangeSetsByStatus(ctx context.Context, workspaceID string) (map[ChangeSetStatus]int, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT status, COUNT(*) FROM kg_changesets WHERE workspace_id = $1 GROUP BY status`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("count change-sets by status: %w", err)
+	}
+	defer rows.Close()
+
+	out := map[ChangeSetStatus]int{}
+	for rows.Next() {
+		var status string
+		var n int
+		if err := rows.Scan(&status, &n); err != nil {
+			return nil, fmt.Errorf("scan change-set status count: %w", err)
+		}
+		out[ChangeSetStatus(status)] = n
+	}
+	return out, rows.Err()
+}
+
+// SetChangeSetImpact writes the blast-radius summary onto a change-set, leaving
+// every other column — UpdatedAt included — untouched.
+func (s *PostgresKnowledgeStore) SetChangeSetImpact(ctx context.Context, workspaceID, changesetID string, summary *ImpactSummary) error {
+	var payload any
+	if summary != nil {
+		b, err := json.Marshal(summary)
+		if err != nil {
+			return fmt.Errorf("marshal impact summary: %w", err)
+		}
+		payload = string(b)
+	}
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE kg_changesets SET impact_summary = $1 WHERE workspace_id = $2 AND id = $3`,
+		payload, workspaceID, changesetID)
+	if err != nil {
+		return fmt.Errorf("set change-set impact: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("set change-set impact rows affected: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("change-set %s not found", changesetID)
+	}
+	return nil
+}
 
 // ListOpenChangeSetsByOrigin returns the workspace's undecided (draft or
 // in-review) change-sets carrying the given origin, oldest first.
@@ -666,18 +766,29 @@ func (s *PostgresKnowledgeStore) SupersedeChangeSet(ctx context.Context, workspa
 	return tx.Commit()
 }
 
-func scanChangeSet(row scanner) (*ChangeSet, error) {
+// scanChangeSet reads one changeSetColumns row. extra receives any trailing
+// columns a joined query selected beyond the change-set itself.
+func scanChangeSet(row scanner, extra ...any) (*ChangeSet, error) {
 	var cs ChangeSet
 	var status string
 	var submittedAt, mergedAt sql.NullTime
-	err := row.Scan(&cs.WorkspaceID, &cs.ID, &cs.Name, &cs.Description, &status,
+	var impact []byte
+	dest := []any{&cs.WorkspaceID, &cs.ID, &cs.Name, &cs.Description, &status,
 		&cs.Origin, &cs.SupersededBy,
-		&cs.CreatedBy, &cs.CreatedAt, &cs.UpdatedAt, &submittedAt, &mergedAt, &cs.MergedBy)
+		&cs.CreatedBy, &cs.CreatedAt, &cs.UpdatedAt, &submittedAt, &mergedAt, &cs.MergedBy, &impact}
+	err := row.Scan(append(dest, extra...)...)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("change-set not found")
 		}
 		return nil, fmt.Errorf("scan change-set: %w", err)
+	}
+	if len(impact) > 0 {
+		var sum ImpactSummary
+		if err := json.Unmarshal(impact, &sum); err != nil {
+			return nil, fmt.Errorf("decode change-set impact summary: %w", err)
+		}
+		cs.Impact = &sum
 	}
 	cs.Status = ChangeSetStatus(status)
 	cs.CreatedAt = cs.CreatedAt.UTC()

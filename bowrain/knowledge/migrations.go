@@ -11,19 +11,22 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 //	1  knowledge graph governance schema (baseline)
 //	2  knowledge graph baseline (folded 1)
+//	3  solo self-approval marker
+//	4  change-set origin and supersession
 //
-// Baseline is version 4 — above every number issued, so an existing database
+// Baseline is version 5 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
-// repaired. Retired numbers are never reused; the next migration is version 5.
+// repaired. Retired numbers are never reused; the next migration is version 6.
 //
 // The subsystem carries exactly one baseline (migrations/schema_test.go
 // enforces it), so a schema change is made by editing the baseline in place and
-// bumping its version. Version 4 added kg_changesets.origin/superseded_by —
-// one open change-set per automated origin.
+// bumping its version. Version 5 added kg_changesets.impact_summary — the
+// blast radius computed at submit, so reading it is a row rather than a walk
+// over every stored block.
 var Migrations = []storage.Migration{
 	{
-		Version:     4,
-		Description: "knowledge graph baseline (folds 1-3) + change-set origin and supersession",
+		Version:     5,
+		Description: "knowledge graph baseline (folds 1-4) + stored change-set blast-radius summary",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS kg_markets (
 				workspace_id TEXT NOT NULL,
@@ -94,11 +97,13 @@ var Migrations = []storage.Migration{
 				submitted_at TIMESTAMPTZ,
 				merged_at    TIMESTAMPTZ,
 				merged_by    TEXT NOT NULL DEFAULT '',
+				impact_summary JSONB,
 				PRIMARY KEY (workspace_id, id)
 			);
 			CREATE INDEX IF NOT EXISTS idx_kg_changesets_status ON kg_changesets(workspace_id, status);
 			ALTER TABLE kg_changesets ADD COLUMN IF NOT EXISTS origin        TEXT NOT NULL DEFAULT '';
 			ALTER TABLE kg_changesets ADD COLUMN IF NOT EXISTS superseded_by TEXT NOT NULL DEFAULT '';
+			ALTER TABLE kg_changesets ADD COLUMN IF NOT EXISTS impact_summary JSONB;
 			CREATE INDEX IF NOT EXISTS idx_kg_changesets_origin
 				ON kg_changesets(workspace_id, origin) WHERE origin != '' AND status IN ('draft', 'in_review');
 

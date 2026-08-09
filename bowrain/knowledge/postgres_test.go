@@ -19,11 +19,11 @@ func TestKgMigrations_Baseline(t *testing.T) {
 	// A single consolidated baseline, numbered above every version this
 	// subsystem ever issued so an existing database applies it once — which is
 	// what repairs a database whose bookkeeping was emptied but whose schema
-	// was left standing. Version 4 folded in 2 and 3 (solo self-approval,
-	// change-set supersession); a schema change edits the baseline and bumps
-	// it, never appends a second migration.
+	// was left standing. Version 5 folded in 2, 3 and 4 (solo self-approval,
+	// change-set supersession, the stored blast-radius summary); a schema
+	// change edits the baseline and bumps it, never appends a second migration.
 	require.Len(t, Migrations, 1)
-	assert.Equal(t, 4, Migrations[0].Version)
+	assert.Equal(t, 5, Migrations[0].Version)
 	assert.NotEmpty(t, Migrations[0].SQL)
 
 	sql := Migrations[0].SQL
@@ -45,6 +45,9 @@ func TestKgMigrations_Baseline(t *testing.T) {
 	} {
 		assert.Contains(t, sql, pk)
 	}
+	// A database that ran an earlier baseline gets the new column repaired in,
+	// since CREATE TABLE IF NOT EXISTS is a no-op for it.
+	assert.Contains(t, sql, "ADD COLUMN IF NOT EXISTS impact_summary JSONB")
 	// Postgres column types: JSONB for snapshot/payload/locales, TIMESTAMPTZ stamps.
 	assert.Contains(t, sql, "JSONB")
 	assert.Contains(t, sql, "TIMESTAMPTZ")

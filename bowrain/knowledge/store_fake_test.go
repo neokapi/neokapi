@@ -215,6 +215,37 @@ func (s *memStore) ListChangeSets(_ context.Context, ws string, status ChangeSet
 	return out, nil
 }
 
+func (s *memStore) ListChangeSetSummaries(ctx context.Context, ws string, status ChangeSetStatus) ([]*ChangeSetSummary, error) {
+	sets, err := s.ListChangeSets(ctx, ws, status)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*ChangeSetSummary, 0, len(sets))
+	for _, cs := range sets {
+		out = append(out, &ChangeSetSummary{ChangeSet: cs, OpsCount: len(s.ops[csKey(ws, cs.ID)])})
+	}
+	return out, nil
+}
+
+func (s *memStore) CountChangeSetsByStatus(_ context.Context, ws string) (map[ChangeSetStatus]int, error) {
+	out := map[ChangeSetStatus]int{}
+	for _, cs := range s.changesets {
+		if cs.WorkspaceID == ws {
+			out[cs.Status]++
+		}
+	}
+	return out, nil
+}
+
+func (s *memStore) SetChangeSetImpact(_ context.Context, ws, id string, summary *ImpactSummary) error {
+	cs, ok := s.changesets[csKey(ws, id)]
+	if !ok {
+		return fmt.Errorf("change-set %s not found", id)
+	}
+	cs.Impact = summary
+	return nil
+}
+
 func (s *memStore) UpdateChangeSet(_ context.Context, cs *ChangeSet) error {
 	existing, ok := s.changesets[csKey(cs.WorkspaceID, cs.ID)]
 	if !ok {
