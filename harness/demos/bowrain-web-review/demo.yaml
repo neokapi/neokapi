@@ -1,8 +1,8 @@
 id: bowrain-web-review
-title: Gjennomgå og godkjenn
-subtitle: Teamarbeidsflyten på innhold synkronisert fra kapi.
-tagline: den serversidige plattformkompanjonen til kapi
-kind: brukstilfelle
+title: Review and approve
+subtitle: The team workflow on content synced from kapi.
+tagline: the server-side platform companion to kapi
+kind: use-case
 publishAs: bowrain-web-review
 terminal: desktop
 target: web
@@ -11,50 +11,66 @@ needsAi: false
 # One continuous narration read — uniform voice across scenes.
 oneshot: true
 aspects:
-  - Innhold synkronisert fra kapi
-  - En fokusert gjennomgangsflate
-  - Godkjenn blokk for blokk
-  - Fremdrift mot ferdig
+  - Content synced from kapi
+  - A focused review surface
+  - Approve block by block
+  - Progress toward done
 
 narration:
   - id: title
     kind: title
     text: >-
-      Fra kapi til en gjennomgått oversettelse — godkjenningssløyfen et team kjører på Bowrain.
+      From kapi to a reviewed translation — the approval loop a team runs on
+      Bowrain.
+
   - id: intro
     kind: desktop
     beat: intro
     text: >-
-      Med kapi alene er gjennomgang enkeltspiller: kapi status --review viser hva som venter på en beslutning, og kapi apply registrerer den i prosjektets tilstandslager. Push prosjektet til Bowrain og de samme beslutningene får en teamflate — prosjekter et arbeidsområde gjennomgår sammen.
-  - id: åpne-prosjekt
+      With kapi alone, review is single-player: kapi status --review lists what
+      awaits a decision, and kapi apply records it in the project state store.
+      Push the project to Bowrain and the same decisions get a team surface —
+      projects a workspace reviews together.
+
+  - id: open-project
     kind: desktop
-    beat: åpne-prosjekt
+    beat: open-project
     text: >-
-      Åpne et prosjekt for å se filene og hvor langt hver av dem har kommet.
+      Open a project to see its files and how far along each one is.
+
   - id: open-file
     kind: desktop
     beat: open-file
     text: >-
-      Åpne en fil for å begynne å arbeide deg gjennom den.
-  - id: fokus
+      Open a file to start working through it.
+
+  - id: focus
     kind: desktop
     beat: focus
-    caption: "En fokusert gjennomgang, én blokk om gangen."
+    caption: A focused, one-block-at-a-time review.
     text: >-
-      Fokusmodus tar det én blokk om gangen — kilde, mål og statusen som holder styr på hvor hver blokk står.
-  - id: gjennomgang
+      Focus mode takes it one block at a time — source, target, and the status
+      that tracks where each block stands.
+
+  - id: review
     kind: desktop
-    beat: gjennomgang
-    caption: "Godkjenn en blokk, gå til neste."
+    beat: review
+    caption: Approve a block, move to the next.
     text: >-
-      En gjennomgår godkjenner en blokk og går videre til den neste — hver endring registrert mot arbeidsområdet, ikke en lokal fil.
+      A reviewer approves a block and moves to the next — every change recorded
+      against the workspace, not a local file.
+
   - id: progress
     kind: desktop
-    beat: fremdrift
-    caption: "Fremdrift mot ferdig, gjennom hele filen."
+    beat: progress
+    caption: Progress toward done, across the file.
     text: >-
-      Statustellingene sporer filen fra utkast til oversatt til gjennomgått, slik at teamet alltid vet hva som gjenstår.
+      The status counts track the file from draft to translated to reviewed, so
+      the team always knows what is left.
+
   - id: outro
     kind: outro
     text: >-
-      Gjennomgått på serveren, deretter hentet tilbake til repositoriet med kapi — den samme gjennomgangsstatusen som enkeltspillerløkken registrerer, nå ivaretatt av arbeidsområdet. Én rundtur, styrt fra ende til ende.
+      Reviewed on the server, then pulled back into the repository with kapi —
+      the same review state the single-player loop records, now carried by the
+      workspace. One round trip, governed end to end.

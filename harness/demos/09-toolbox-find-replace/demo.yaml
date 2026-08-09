@@ -1,7 +1,7 @@
 id: 09-toolbox-find-replace
-title: "grep, sed og cat — for alle formater"
-subtitle: "kcat, kgrep og ksed arbeider på teksten kapi leser ut av et dokument — Word, Excel, Markdown — ikke rå bytes."
-tagline: "muskellminne fra verktøyene du allerede kjenner, på innhold disse verktøyene ikke kan se inn i."
+title: grep, sed and cat — for any format
+subtitle: kcat, kgrep and ksed work on the text kapi reads out of a document — Word, Excel, Markdown — not raw bytes.
+tagline: muscle memory from the tools you already know, on content those tools can't see into.
 kind: use-case
 publishAs: toolbox-explainer
 # A scripted plain-shell demo (no Claude): the toolbox is deterministic, so the
@@ -12,35 +12,35 @@ cwd: ~/sales
 needsAi: false
 captureTimeoutSec: 120
 aspects:
-  - format-bevisst
+  - format-aware
   - kcat · kgrep · ksed
   - docx + xlsx + markdown
-  - "ett pass, på stedet"
+  - one pass, in place
 
 # Each comment names exactly what the command below it does. Wildcards (`*`)
 # fan a single pattern or substitution across every file, regardless of format.
 script:
-  - comment: "Et salgsteams materiell — ett produktnavn, tre formater."
+  - comment: A sales team's collateral — one product name, three formats.
   - command: ls
-  - comment: kcat Word-forslaget — innholdet som rene tekstlinjer.
+  - comment: kcat the Word proposal — its prose, as plain lines.
   - command: kcat proposal.docx
-  - comment: kcat Excel-prislisten — én celle per linje.
+  - comment: kcat the Excel price list — one cell per line.
   - command: kcat pricing.xlsx
-  - comment: kgrep etter hvert «SalesPilot» i alle tre filene samtidig.
+  - comment: kgrep every "SalesPilot" across all three files at once.
   - command: kgrep -n SalesPilot *
-  - comment: "ksed gir nytt navn fra SalesPilot til Northstar, på stedet, i alle tre."
+  - comment: ksed renames SalesPilot to Northstar, in place, in all three.
   - command: ksed -i 's/SalesPilot/Northstar/g' *
-  - comment: "kgrep det nye navnet for å bekrefte — samme treff, omdøpt."
+  - comment: kgrep the new name to confirm — same matches, renamed.
   - command: kgrep -c Northstar *
   - command: kcat proposal.docx
 
 artifacts:
-  - id: etter
-    caption: "proposal.docx — omdøpt til Northstar, overskrift og fet skrift intakt"
+  - id: after
+    caption: "proposal.docx — renamed to Northstar, heading and bold intact"
     source: docx
     path: proposal.docx
     reportTitle: "proposal.docx"
-    reportSub: "fortsatt et gyldig Word-dokument — bare ordene ble endret"
+    reportSub: "still a valid Word document — only the words changed"
     width: 1100
     height: 760
 
@@ -48,28 +48,36 @@ narration:
   - id: title
     kind: title
     text: >
-      Hva om du kunne kjøre klassiske CLI-verktøy — som cat og grep, eller til og med sed — på både tekst og innholdet inne i binære formater, som Word- og Excel-dokumenter? Nå kan du det.
+      What if you could run classic CLI tools — like cat and grep, or even sed —
+      across both text and the content inside binary formats, like Word and Excel
+      documents? Well, now you can.
   - id: cat
     kind: terminal
     text: >
-      Her er salgsteamets materiell: en Markdown-presentasjon, et Word-forslag og en Excel-prisliste. kcat leser teksten direkte ut av Word-dokumentet og regnearket, som vanlige linjer.
-    caption: "kcat leser teksten inne i .docx og .xlsx"
+      Here's a sales team's collateral: a Markdown pitch, a Word proposal, and an
+      Excel price list. kcat reads the text straight out of the Word document and
+      the spreadsheet, as plain lines.
+    caption: "kcat reads the text inside the .docx and the .xlsx"
   - id: grep
     kind: terminal
     text: >
-      kgrep søker gjennom den teksten i alle tre filene samtidig, og finner hvert eneste sted produktnavnet er nevnt.
-    caption: "kgrep finner produktnavnet på tvers av alle formater"
+      kgrep searches that text across all three files at once, and finds every
+      mention of the product name.
+    caption: "kgrep finds the product name across every format"
   - id: sed
     kind: terminal
     text: >
-      Og én ksed gir produktet nytt navn overalt, på stedet — hver fil lagret tilbake i sitt eget format.
-    caption: "én ksed omdøper på tvers av alle tre, på stedet"
+      And one ksed renames the product everywhere, in place — each file saved back
+      in its own format.
+    caption: "one ksed renames across all three, in place"
   - id: after
-    kind: artefakt
-    artifact: etter
+    kind: artifact
+    artifact: after
     text: >
-      Forslaget er fortsatt et gyldig Word-dokument — overskrift og struktur intakt. Bare ordene ble endret.
+      The proposal is still a valid Word document — heading and structure intact.
+      Only the words changed.
   - id: outro
     kind: outro
     text: >
-      kcat, kgrep og ksed: grep, sed og cat, for ordene inne i alle de mer enn femti filformatene neokapi leser.
+      kcat, kgrep and ksed: grep, sed and cat, for the words inside any of the
+      more than fifty file formats neokapi reads.

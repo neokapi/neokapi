@@ -1,62 +1,73 @@
 id: 07-global-launch-many-languages
-title: Oversett appstrenger til fire språk
-subtitle: "Én kildefil, fire målspråk, inkludert ett ikke-latinsk skript."
-kind: fra-nybegynner-til-ekspert
+title: Translate app strings into four languages
+subtitle: One source file, four target languages, including a non-Latin script.
+kind: zero-to-hero
 aspects:
-  - flerspråklig
-  - CJK / ikke-latinsk
-  - plassholdere bevart
+  - multi-locale
+  - CJK / non-Latin
+  - placeholders preserved
 needsAi: true
 model: sonnet
 captureTimeoutSec: 360
 
 prompt: >
-  Vi lanserer notatappen vår i flere markeder. Kan du oversette appstrengene våre, src/en.json, til tysk, spansk, fransk og japansk? Lagre hver fil ved siden av den opprinnelige som src/de.json, src/es.json, src/fr.json og src/ja.json.
+  We're launching our notes app in more markets. Can you translate our app strings,
+  src/en.json, into German, Spanish, French and Japanese? Save each one next to it as
+  src/de.json, src/es.json, src/fr.json and src/ja.json.
+
 artifacts:
   - id: ja
-    caption: "src/ja.json — Japansk, plassholdere intakte"
-    source: rapport
-    report: katalog
+    caption: "src/ja.json — Japanese, placeholders intact"
+    source: report
+    report: catalog
     reportTitle: "src/ja.json — 日本語"
-    reportSub: "kapi · {{name}} og {{price}} bevart"
+    reportSub: "kapi · {{name}} and {{price}} preserved"
     path: src/ja.json
     width: 1120
     height: 720
   - id: de
-    caption: "src/de.json — Tysk, samme nøkler"
-    source: rapport
-    report: katalog
+    caption: "src/de.json — German, same keys"
+    source: report
+    report: catalog
     reportTitle: "src/de.json — Deutsch"
-    reportSub: "kapi · nøkler og plassholdere intakt"
+    reportSub: "kapi · keys and placeholders intact"
     path: src/de.json
     width: 1120
     height: 720
 
 narration:
-  - id: tittel
-    kind: tittel
+  - id: title
+    kind: title
     text: >
-      Fire målspråk fra én engelsk fil, ett av dem med ikke-latinsk skript. I et kapi-prosjekt er dette én avstemming, ikke fire oversettingsjobber.
-  - id: ledetekst
-    kind: ledetekst
+      Four target languages from one English file, one of them in a non-Latin script. In a
+      kapi project this is one reconciliation, not four translation jobs.
+  - id: prompt
+    kind: prompt
     text: >
-      Forespørselen lister opp språkene og hvor hver fil skal plasseres. Den sier ikke hvordan — ferdigheten setter de fire lokalene som prosjektmål og lar kapi avstemme dem.
-  - id: arbeid
+      The request lists the languages and where each file should go. It doesn't say how —
+      the skill sets the four locales as project targets and lets kapi reconcile them.
+  - id: work
     kind: terminal
     text: >
-      kapi up --plan forhåndsviser først det ventende arbeidet — enhetene, innholds­minne­utnyttelsen og et token-estimat — før noe brukes. Deretter konvergerer én kapi up-kjøring alle fire lokaliteter samtidig. Fordi kapi parser JSON-en, bæres hver nøkkel og hver interpolasjonsplassholder gjennom; bare verdiene endres.
-    caption: "kapi up --plan forhåndsviser arbeidet; én up-kjøring konvergerer alle fire lokaliteter"
+      kapi up --plan first previews the pending work — the units, the content-memory
+      leverage, and a token estimate — before anything is spent. Then one kapi up pass
+      converges all four locales together. Because kapi parses the JSON, every key and every
+      interpolation placeholder is carried through; only the values change.
+    caption: "kapi up --plan previews the work; one up pass converges all four locales"
   - id: ja
-    kind: artefakt
+    kind: artifact
     artifact: ja
     text: >
-      Den japanske katalogen. Grensesnitt­teksten er oversatt, og plassholderne for navnet og prisen sitter nøyaktig der koden forventer dem. Filen er fortsatt gyldig JSON.
+      The Japanese catalog. The interface text is translated, and the placeholders for the
+      name and the price sit exactly where the code expects them. The file is still valid JSON.
   - id: de
-    kind: artefakt
+    kind: artifact
     artifact: de
     text: >
-      Og tysk, med sine lengre sammensatte ord, fra samme gjennomgang. Samme nøkler, samme plassholdere. Å legge til et marked senere er bare én ekstra mållokalitet i oppskriften.
+      And German, with its longer compound words, from the same pass. Same keys, same
+      placeholders. Adding a market later is one more target locale in the recipe.
   - id: outro
-    kind: avslutning
+    kind: outro
     text: >
-      Den engelske kildeteksten forblir nøkkelen i alle filer, slik at koden leses likt uavhengig av hvilket språk som er lastet inn.
+      The source English text stays the key in every file, so the code reads the same
+      whichever language is loaded.
