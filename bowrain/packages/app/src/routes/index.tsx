@@ -372,7 +372,7 @@ const projectSettingsRoute = createRoute({
 
 const translateRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "p/$projectId/s/$stream/$itemId/translate",
+  path: "p/$projectId/s/$stream/$itemName/translate",
   component: lazyRouteComponent(() => import("./workspace/translate"), "TranslateRoute"),
   pendingComponent: EditorSkeleton,
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
@@ -391,7 +391,7 @@ const translateRoute = createRoute({
 
 const reviewRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "p/$projectId/s/$stream/$itemId/review",
+  path: "p/$projectId/s/$stream/$itemName/review",
   component: lazyRouteComponent(() => import("./workspace/review"), "ReviewRoute"),
   pendingComponent: EditorSkeleton,
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
@@ -402,7 +402,7 @@ const reviewRoute = createRoute({
 });
 
 // The dedicated project-level governed review session (walks all pending
-// blocks across items + locales). Distinct from the per-item `$itemId/review`
+// blocks across items + locales). Distinct from the per-item `$itemName/review`
 // surface above; every "review" entry point routes here.
 const reviewSessionRoute = createRoute({
   getParentRoute: () => workspaceRoute,
@@ -428,7 +428,7 @@ const reviewSessionRoute = createRoute({
 
 const preProcessRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "p/$projectId/s/$stream/$itemId/pre-process",
+  path: "p/$projectId/s/$stream/$itemName/pre-process",
   component: lazyRouteComponent(() => import("./workspace/pre-process"), "PreProcessRoute"),
   pendingComponent: EditorSkeleton,
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {

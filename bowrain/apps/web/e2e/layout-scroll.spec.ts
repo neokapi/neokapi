@@ -4,7 +4,7 @@ import {
   getOrCreateWorkspace,
   createEditorProject,
   getEditorProject,
-  findItemId,
+  findItemName,
   uploadSeedFiles,
   deleteAllEditorProjects,
   waitForServer,
@@ -183,7 +183,7 @@ function report(route: string, viewport: string, clips: Clip[]): string {
 let token: string;
 let wsSlug: string;
 let projectId: string;
-let itemId: string;
+let itemName: string;
 
 test.describe("Layout: no route clips content the user cannot reach", () => {
   test.beforeAll(async () => {
@@ -204,7 +204,7 @@ test.describe("Layout: no route clips content the user cannot reach", () => {
     ]);
     await uploadSeedFiles(token, wsSlug, proj.id, ["about-us.html"]);
     projectId = proj.id;
-    itemId = findItemId(await getEditorProject(token, wsSlug, projectId), "about-us.html");
+    itemName = findItemName(await getEditorProject(token, wsSlug, projectId), "about-us.html");
   });
 
   // The routes whose shells own a secondary navigation column or a long form —
@@ -226,7 +226,7 @@ test.describe("Layout: no route clips content the user cannot reach", () => {
     // manages its own panes, so it is the route most likely to lose a scroller.
     {
       name: "editor",
-      path: `/${wsSlug}/p/${projectId}/s/main/${itemId}/translate`,
+      path: `/${wsSlug}/p/${projectId}/s/main/${encodeURIComponent(itemName)}/translate`,
       ready: "view-switcher",
     },
   ];

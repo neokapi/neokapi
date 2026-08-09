@@ -83,20 +83,62 @@ export const convergenceEstimateQueryOptions = (
   });
 
 /**
- * The task types that count as "review work for you" — the dashboard's count
- * and the review inbox's task section read the same set, so a task counted on
- * one surface is always visible on the other.
+ * The task types that count as "review work for you". It travels to the server
+ * as `?types=` — matched exactly, one IN-list — so the dashboard's count and
+ * the review inbox's list are the same query, and a task counted on one
+ * surface is always visible on the other.
  */
-export const REVIEW_TASK_TYPES: ReadonlySet<string> = new Set([
-  "review",
-  "review_terms",
-  "source_review",
-]);
+export const REVIEW_TASK_TYPES: readonly string[] = ["review", "review_terms", "source_review"];
 
 export const myTasksQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
   queryOptions({
     queryKey: ["myTasks", workspaceSlug],
     queryFn: () => api.listMyTasks(workspaceSlug, { status: "open" }),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+/**
+ * The caller's open tasks counted over the whole set. The top bar's badge
+ * reads `total` from this rather than the length of the page it happens to
+ * show.
+ */
+export const myTaskCountsQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
+  queryOptions({
+    queryKey: ["myTaskCounts", workspaceSlug],
+    queryFn: () => api.getTaskCounts(workspaceSlug, { assignee_id: "me", status: "open" }),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+/** The workspace's tasks bucketed by status — the board's column headers. */
+export const taskCountsQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
+  queryOptions({
+    queryKey: ["taskCounts", workspaceSlug],
+    queryFn: () => api.getTaskCounts(workspaceSlug),
+    staleTime: 30_000,
+  });
+
+/** The caller's open review tasks, narrowed to {@link REVIEW_TASK_TYPES} server-side. */
+export const myReviewTasksQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
+  queryOptions({
+    queryKey: ["myTasks", workspaceSlug, "review"],
+    queryFn: () =>
+      api.listMyTasks(workspaceSlug, { status: "open", types: [...REVIEW_TASK_TYPES] }),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+/** The same review-task filter's total, for the dashboard's loop-status card. */
+export const myReviewTaskCountsQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
+  queryOptions({
+    queryKey: ["myTaskCounts", workspaceSlug, "review"],
+    queryFn: () =>
+      api.getTaskCounts(workspaceSlug, {
+        assignee_id: "me",
+        status: "open",
+        types: [...REVIEW_TASK_TYPES],
+      }),
     staleTime: 30_000,
     refetchInterval: 60_000,
   });

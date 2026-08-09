@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { fn } from "storybook/test";
 import { CreditLedger } from "../../components/billing/CreditLedger";
 import type { CreditLedgerEntry } from "../../types/api";
 
@@ -79,20 +80,56 @@ const sampleEntries: CreditLedgerEntry[] = [
   },
 ];
 
+/** The operations the server reports for the window, whatever the page holds. */
+const windowOperations = [
+  "plan_reset",
+  "ai_translation",
+  "bravo_message",
+  "bravo_container",
+  "ai_quality_check",
+  "purchase",
+  "grant",
+];
+
 export const Default: Story = {
   args: {
     entries: sampleEntries,
+    operations: windowOperations,
+    operation: "all",
+    onOperationChange: fn(),
+    total: sampleEntries.length,
   },
 };
 
 export const Empty: Story = {
   args: {
     entries: [],
+    operations: [],
+    total: 0,
   },
 };
 
-export const DebitsOnly: Story = {
+/** One operation chosen: the server returns its rows, and the window's chips stay. */
+export const FilteredToOneOperation: Story = {
   args: {
-    entries: sampleEntries.filter((e) => e.amount < 0),
+    entries: sampleEntries.filter((e) => e.operation === "ai_translation"),
+    operations: windowOperations,
+    operation: "ai_translation",
+    onOperationChange: fn(),
+    total: 2,
+  },
+};
+
+/** A window larger than one page — the pager counts the server's total. */
+export const Paged: Story = {
+  args: {
+    entries: sampleEntries.slice(0, 4),
+    operations: windowOperations,
+    operation: "all",
+    onOperationChange: fn(),
+    total: 128,
+    limit: 4,
+    offset: 4,
+    onOffsetChange: fn(),
   },
 };

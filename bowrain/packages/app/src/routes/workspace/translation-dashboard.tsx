@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
-import { keepPreviousData, useQueries, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import {
   DeliveryPanel,
   TranslationDashboard,
   TranslationDashboardSkeleton,
   useApi,
   useStream,
+  fetchConnectorStatuses,
   type DashboardItemSort,
   type DeliveryConnectorStatus,
   type FileProgressPaging,
@@ -59,13 +60,16 @@ export function TranslationDashboardRoute() {
     queryFn: () => adapter.listConnectors(ws),
     staleTime: 15_000,
   });
-  const statusQueries = useQueries({
-    queries: (connectors ?? []).map((c) => ({
-      queryKey: ["connector-status", ws, c.id],
-      queryFn: () => adapter.getConnectorStatus(ws, c.id),
-      staleTime: 30_000,
-      retry: false,
-    })),
+  // One batch read for the panel: a request per connector turned a workspace
+  // with many delivery targets into a fan-out on every dashboard visit. The
+  // cheap (unprobed) read is right here — this surface polls.
+  const connectorIds = (connectors ?? []).map((c) => c.id);
+  const { data: connectorStatuses } = useQuery({
+    queryKey: ["connector-status", ws, "batch", connectorIds.join(",")],
+    queryFn: () => fetchConnectorStatuses(adapter, ws, connectorIds),
+    enabled: connectorIds.length > 0,
+    staleTime: 30_000,
+    retry: false,
   });
 
   useEffect(() => {
@@ -90,8 +94,8 @@ export function TranslationDashboardRoute() {
     isLoading: isFetching,
   };
 
-  const deliveryConnectors: DeliveryConnectorStatus[] | undefined = connectors?.map((c, i) => {
-    const status = statusQueries[i]?.data;
+  const deliveryConnectors: DeliveryConnectorStatus[] | undefined = connectors?.map((c) => {
+    const status = connectorStatuses?.[c.id];
     // The status endpoint appends the connector's stored last sync failure as
     // the final entry of `errors` (cleared on the next successful sync).
     const errors = status?.errors ?? [];

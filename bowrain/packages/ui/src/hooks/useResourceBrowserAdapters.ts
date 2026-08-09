@@ -16,8 +16,28 @@ import type {
 } from "@neokapi/ui-primitives";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
+import { governedRefusal } from "../errors/ApiError";
 import type { ApiAdapter } from "../api/adapter";
-import type { MemoryEntryInfo, ConceptInfo, TermInfo } from "../types/api";
+import type { MemoryEntryInfo, ConceptInfo, TermInfo, BulkDeleteEntryResult } from "../types/api";
+
+/** The bulk-delete route accepts at most this many ids per request. */
+const MAX_BULK_DELETE_IDS = 500;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/**
+ * Names what survived a partly-failed batch. The count comes first because
+ * that is the part the user must act on; the first reason explains why.
+ */
+function bulkDeleteFailureMessage(failures: BulkDeleteEntryResult[], requested: number): string {
+  const reason = failures.find((f) => f.error)?.error;
+  const head = `${failures.length} of ${requested} entries could not be deleted`;
+  return reason ? `${head}: ${reason}` : `${head}.`;
+}
 
 // Bowrain's content memory is stored as bilingual (source + target pair)
 // entries, whereas the shared @neokapi/ui-primitives MemoryBrowser speaks the
@@ -119,8 +139,18 @@ function createMemoryAdapter(
     async deleteEntry(id: string): Promise<void> {
       await api.deleteMemoryEntry(ws, id);
     },
+    // One request per batch instead of one per row. There is no transaction
+    // behind it: each id carries its own outcome, so a selection that partly
+    // fails has really partly deleted, and saying so is the honest report.
     async deleteEntries(ids: string[]): Promise<void> {
-      await Promise.all(ids.map((id) => api.deleteMemoryEntry(ws, id)));
+      const failures: BulkDeleteEntryResult[] = [];
+      for (const batch of chunk(ids, MAX_BULK_DELETE_IDS)) {
+        const result = await api.bulkDeleteMemoryEntries(ws, batch);
+        failures.push(...result.results.filter((r) => !r.deleted));
+      }
+      if (failures.length > 0) {
+        throw new Error(bulkDeleteFailureMessage(failures, ids.length));
+      }
     },
   };
 }
@@ -190,8 +220,17 @@ function createTermsAdapter(api: ApiAdapter, ws: string): TermsAdapter {
     async deleteConcept(id: string): Promise<void> {
       await api.deleteConcept(ws, id);
     },
+    // Always refused: deleting concepts is a governed transition that belongs
+    // in a change-set. One request means the selection learns that once,
+    // rather than once per row.
     async deleteConcepts(ids: string[]): Promise<void> {
-      await Promise.all(ids.map((id) => api.deleteConcept(ws, id)));
+      try {
+        await api.bulkDeleteConcepts(ws, ids);
+      } catch (err) {
+        const refusal = governedRefusal(err);
+        if (refusal) throw new Error(`${refusal.detail} ${refusal.hint}`);
+        throw err;
+      }
     },
     async importCSV(content, srcLocale, tgtLocale, domain, hasHeader): Promise<ImportResult> {
       const count = await api.importTermsCSV(ws, content, srcLocale, tgtLocale, domain, hasHeader);

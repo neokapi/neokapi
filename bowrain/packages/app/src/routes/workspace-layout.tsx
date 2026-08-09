@@ -41,6 +41,7 @@ import { subNavTarget } from "./sub-nav-targets";
 import { viewFromPath, type WorkspaceView } from "./view-from-path";
 import {
   activitiesQueryOptions,
+  myTaskCountsQueryOptions,
   myTasksQueryOptions,
   pendingChangesetsQueryOptions,
 } from "../queries";
@@ -55,7 +56,7 @@ import type { WorkspaceRouteContext } from ".";
 
 /** Parse project-level params from the current URL path. */
 function parseProjectParams(pathname: string, workspaceSlug: string) {
-  // Pattern: /$workspace/p/$projectId/s/$stream[/$itemId/translate]
+  // Pattern: /$workspace/p/$projectId/s/$stream[/$itemName/translate]
   const prefix = `/${workspaceSlug}/p/`;
   if (!pathname.startsWith(prefix)) return null;
 
@@ -66,18 +67,18 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
 
   const projectId = decodeURIComponent(parts[0]);
   const stream = decodeURIComponent(parts[2]);
-  let itemId: string | undefined;
+  let itemName: string | undefined;
 
-  // Check for the per-file editor surfaces (/$itemId/{translate,review,pre-process}).
+  // Check for the per-file editor surfaces (/$itemName/{translate,review,pre-process}).
   if (parts.length >= 5 && ["translate", "review", "pre-process"].includes(parts[4])) {
-    itemId = decodeURIComponent(parts[3]);
+    itemName = decodeURIComponent(parts[3]);
   }
 
   const isAutomations = parts.length >= 4 && parts[3] === "automations";
   const isRuns = parts.length >= 4 && parts[3] === "runs";
   const isConnectors = parts.length >= 4 && parts[3] === "connectors";
 
-  return { projectId, stream, itemId, isAutomations, isRuns, isConnectors };
+  return { projectId, stream, itemName, isAutomations, isRuns, isConnectors };
 }
 
 // ---------------------------------------------------------------------------
@@ -114,6 +115,9 @@ function ConnectedTopBar({
 
   const { data: activitiesData } = useQuery(activitiesQueryOptions(api, workspaceSlug));
   const { data: myTasksData } = useQuery(myTasksQueryOptions(api, workspaceSlug));
+  // The dropdown shows one page; the badge counts every open task assigned to
+  // the caller, which only the server can answer.
+  const { data: myTaskCounts } = useQuery(myTaskCountsQueryOptions(api, workspaceSlug));
 
   const markSeen = useCallback(() => {
     void api.markActivitiesSeen(workspaceSlug).then(() => {
@@ -136,6 +140,7 @@ function ConnectedTopBar({
       activities={activitiesData?.activities}
       newActivityCount={activitiesData?.new_count}
       myTasks={myTasksData?.tasks}
+      myTaskCount={myTaskCounts?.total}
       onViewAllActivities={onViewAllActivities}
       onMarkActivitiesSeen={markSeen}
       onViewAllTasks={onViewAllTasks}
@@ -421,7 +426,7 @@ export function WorkspaceLayout() {
       activeStream: projectParams.stream,
       activeProjectView,
       onBack:
-        projectParams.itemId ||
+        projectParams.itemName ||
         projectParams.isAutomations ||
         projectParams.isRuns ||
         projectParams.isConnectors
@@ -453,14 +458,14 @@ export function WorkspaceLayout() {
           },
         });
       },
-      onOpenFile: (itemId: string) => {
+      onOpenFile: (itemName: string) => {
         void navigate({
-          to: "/$workspace/p/$projectId/s/$stream/$itemId/translate",
+          to: "/$workspace/p/$projectId/s/$stream/$itemName/translate",
           params: {
             workspace: workspaceSlug ?? ws,
             projectId: project.id,
             stream: projectParams.stream,
-            itemId,
+            itemName,
           },
         });
       },
@@ -745,6 +750,12 @@ export function WorkspaceLayout() {
                     });
                     void queryClient.invalidateQueries({
                       queryKey: ["tasks", ws],
+                    });
+                    void queryClient.invalidateQueries({
+                      queryKey: ["myTaskCounts", ws],
+                    });
+                    void queryClient.invalidateQueries({
+                      queryKey: ["taskCounts", ws],
                     });
                   }}
                   leftSlot={

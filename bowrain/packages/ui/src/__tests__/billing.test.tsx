@@ -188,17 +188,18 @@ describe("CreditLedger", () => {
     expect(screen.getByText("Balance")).toBeInTheDocument();
   });
 
-  it("shows operation labels", () => {
-    const entries = [
-      makeEntry({ id: "e1", operation: "ai_quality_check" }),
-      makeEntry({ id: "e2", operation: "bravo_message" }),
-      makeEntry({ id: "e3", operation: "plan_reset" }),
-    ];
-    render(<CreditLedger entries={entries} />);
-    // Each label appears in both filter button and table cell
-    expect(screen.getAllByText("AI Quality Check").length).toBe(2);
-    expect(screen.getAllByText("@bravo Message").length).toBe(2);
-    expect(screen.getAllByText("Weekly Reset").length).toBe(2);
+  it("offers every operation the window charged, not only those on the page", () => {
+    render(
+      <CreditLedger
+        entries={[makeEntry({ id: "e1", operation: "ai_translation" })]}
+        operations={["ai_translation", "bravo_message", "plan_reset"]}
+        onOperationChange={() => {}}
+      />,
+    );
+    // Chips come from the server's whole-window totals; the page holds one row.
+    expect(screen.getByRole("button", { name: "@bravo Message" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Weekly Reset" })).toBeInTheDocument();
+    expect(screen.getAllByText("AI Translation")).toHaveLength(2);
   });
 
   it("shows 'No transactions found' when empty", () => {
@@ -206,39 +207,81 @@ describe("CreditLedger", () => {
     expect(screen.getByText("No transactions found")).toBeInTheDocument();
   });
 
-  it("filter buttons work to show subset", async () => {
+  it("reports the chosen operation instead of filtering the page itself", async () => {
     const user = userEvent.setup();
+    const onOperationChange = vi.fn();
     const entries = [
       makeEntry({ id: "e1", operation: "ai_translation", amount: -50 }),
       makeEntry({ id: "e2", operation: "purchase", amount: 1000 }),
     ];
-    render(<CreditLedger entries={entries} />);
+    render(
+      <CreditLedger
+        entries={entries}
+        operations={["ai_translation", "purchase"]}
+        operation="all"
+        onOperationChange={onOperationChange}
+      />,
+    );
 
-    // Both entries visible initially: each label appears in filter button + table cell = 2
-    expect(screen.getAllByText("AI Translation")).toHaveLength(2);
-    expect(screen.getAllByText("Credit Purchase")).toHaveLength(2);
-
-    // Click the "Credit Purchase" filter button
     await user.click(screen.getByRole("button", { name: "Credit Purchase" }));
 
-    // AI Translation only in filter button now (table row hidden), so just 1
-    expect(screen.getAllByText("AI Translation")).toHaveLength(1);
-    // Credit Purchase still in filter button + table cell
-    expect(screen.getAllByText("Credit Purchase")).toHaveLength(2);
-
-    // Click "All" to reset
-    await user.click(screen.getByRole("button", { name: "All" }));
+    expect(onOperationChange).toHaveBeenCalledWith("purchase");
+    // The rows are the server's answer: the component never drops one itself.
     expect(screen.getAllByText("AI Translation")).toHaveLength(2);
-    expect(screen.getAllByText("Credit Purchase")).toHaveLength(2);
   });
 
-  it("does not show filter buttons when only one operation type", () => {
-    const entries = [
-      makeEntry({ id: "e1", operation: "ai_translation" }),
-      makeEntry({ id: "e2", operation: "ai_translation" }),
-    ];
-    render(<CreditLedger entries={entries} />);
+  it("does not show filter chips without an operation handler", () => {
+    render(
+      <CreditLedger
+        entries={[makeEntry({ id: "e1" })]}
+        operations={["ai_translation", "purchase"]}
+      />,
+    );
     expect(screen.queryByRole("button", { name: "All" })).not.toBeInTheDocument();
+  });
+
+  it("does not show filter chips when the window charged one operation", () => {
+    render(
+      <CreditLedger
+        entries={[makeEntry({ id: "e1" })]}
+        operations={["ai_translation"]}
+        onOperationChange={() => {}}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "All" })).not.toBeInTheDocument();
+  });
+
+  it("pages on the server's total, not on the rows it was handed", async () => {
+    const user = userEvent.setup();
+    const onOffsetChange = vi.fn();
+    render(
+      <CreditLedger
+        entries={[makeEntry({ id: "e1" }), makeEntry({ id: "e2" })]}
+        total={57}
+        limit={2}
+        offset={0}
+        onOffsetChange={onOffsetChange}
+      />,
+    );
+
+    expect(screen.getByTestId("ledger-range")).toHaveTextContent("1–2 of 57");
+    expect(screen.getByTestId("ledger-prev")).toBeDisabled();
+
+    await user.click(screen.getByTestId("ledger-next"));
+    expect(onOffsetChange).toHaveBeenCalledWith(2);
+  });
+
+  it("hides the pager when the window fits on one page", () => {
+    render(
+      <CreditLedger
+        entries={[makeEntry({ id: "e1" })]}
+        total={1}
+        limit={25}
+        offset={0}
+        onOffsetChange={() => {}}
+      />,
+    );
+    expect(screen.queryByTestId("ledger-next")).not.toBeInTheDocument();
   });
 
   it("shows reference ID truncated to 8 chars", () => {

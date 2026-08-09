@@ -14,7 +14,7 @@ import { useEditorSurfaceNav } from "./useEditorSurfaceNav";
  */
 export function ReviewRoute() {
   const navigate = useNavigate();
-  const { workspace, projectId, itemId } = useParams({ strict: false });
+  const { workspace, projectId, itemName } = useParams({ strict: false });
   const adapter = useApi();
   const { activeWorkspace, user } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
@@ -24,8 +24,7 @@ export function ReviewRoute() {
     projectQueryOptions(adapter, ws, projectId!, activeStream),
   );
 
-  const item = project.items?.find((i) => i.id === itemId);
-  const fileName = item?.name ?? itemId ?? "";
+  const fileName = itemName ?? "";
 
   const surfaceTabs = useEditorSurfaceNav("review");
 
@@ -54,12 +53,12 @@ export function ReviewRoute() {
       surfaceTabs={surfaceTabs}
       onBack={() =>
         navigate({
-          to: "/$workspace/p/$projectId/s/$stream/$itemId/translate",
+          to: "/$workspace/p/$projectId/s/$stream/$itemName/translate",
           params: {
             workspace: workspace ?? ws,
             projectId: project.id,
             stream: activeStream,
-            itemId: itemId ?? "",
+            itemName: fileName,
           },
         })
       }

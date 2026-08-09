@@ -170,6 +170,12 @@ const priorityColors: Record<string, string> = {
 
 export interface TaskIndicatorProps {
   tasks: TaskInfo[];
+  /**
+   * Actionable tasks over the whole assignee filter, from the server's task
+   * counts. The dropdown shows one page; the badge speaks for everything
+   * waiting, so it does not stop at the page size.
+   */
+  count?: number;
   onTaskClick?: (task: TaskInfo) => void;
   onCompleteTask?: (taskId: string) => void;
   onViewAll?: () => void;
@@ -177,6 +183,7 @@ export interface TaskIndicatorProps {
 
 export function TaskIndicator({
   tasks,
+  count,
   onTaskClick,
   onCompleteTask,
   onViewAll,
@@ -186,9 +193,8 @@ export function TaskIndicator({
   const close = useCallback(() => setOpen(false), []);
   useClickOutside(ref, close);
 
-  const actionableCount = tasks.filter(
-    (t) => t.status === "open" || t.status === "in_progress",
-  ).length;
+  const actionableCount =
+    count ?? tasks.filter((t) => t.status === "open" || t.status === "in_progress").length;
 
   return (
     <div ref={ref} className="relative">

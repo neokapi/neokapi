@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent, Badge, Button } from "@neokap
 import {
   SubscriptionBadge,
   CreditLedger,
+  ALL_OPERATIONS,
   ModelUsageTable,
   cn,
   useSetBreadcrumb,
@@ -71,6 +72,9 @@ export function WorkspaceDetailRoute() {
   const [showGrantCredits, setShowGrantCredits] = useState(false);
   const [showFeatureOverride, setShowFeatureOverride] = useState(false);
   const [showAddNote, setShowAddNote] = useState(false);
+  // The admin ledger route returns the whole 90-day window in one response, so
+  // this operation filter narrows a complete set rather than a page.
+  const [ledgerOperation, setLedgerOperation] = useState<string>(ALL_OPERATIONS);
   const [showAddMember, setShowAddMember] = useState(false);
 
   const impersonate = useMutation({
@@ -111,6 +115,9 @@ export function WorkspaceDetailRoute() {
     queryFn: () => getModelUsage(workspaceId!),
     enabled: !!workspaceId,
   });
+
+  const ledgerEntries = toLedgerEntries(ledger ?? []);
+  const ledgerOperations = Array.from(new Set(ledgerEntries.map((e) => e.operation)));
 
   useSetBreadcrumb(workspace?.name ?? "Workspace");
 
@@ -246,7 +253,14 @@ export function WorkspaceDetailRoute() {
               Grant Credits
             </Button>
           </div>
-          <CreditLedger entries={toLedgerEntries(ledger ?? [])} />
+          <CreditLedger
+            entries={ledgerEntries.filter(
+              (e) => ledgerOperation === ALL_OPERATIONS || e.operation === ledgerOperation,
+            )}
+            operations={ledgerOperations}
+            operation={ledgerOperation}
+            onOperationChange={setLedgerOperation}
+          />
         </TabsContent>
 
         <TabsContent value="usage" className="mt-4 space-y-4">

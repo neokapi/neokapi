@@ -5,7 +5,7 @@ import {
   getOrCreateWorkspace,
   createEditorProject,
   getEditorProject,
-  findItemId,
+  findItemName,
   uploadSeedFiles,
   deleteAllEditorProjects,
   waitForServer,
@@ -90,16 +90,17 @@ test.describe("Routing", () => {
 
   test("deep link to editor loads correctly", async ({ page }) => {
     await injectAuthCookie(page, token);
-    // Resolve item ID from the project
+    // The route addresses the item by name; names carry slashes, so the
+    // segment is percent-encoded.
     const proj = await getEditorProject(token, wsSlug, projectId);
-    const itemId = findItemId(proj, "about-us.html");
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main/${itemId}/translate`);
+    const itemName = findItemName(proj, "about-us.html");
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/${encodeURIComponent(itemName)}/translate`);
 
     // Editor should load (Visual/Table view switcher is always visible)
     await expect(page.getByTestId("view-switcher")).toBeVisible({ timeout: 30000 });
 
-    // URL should contain the item ID
-    expect(page.url()).toContain(`/s/main/${itemId}/translate`);
+    // URL should contain the item name
+    expect(page.url()).toContain(`/s/main/${encodeURIComponent(itemName)}/translate`);
   });
 
   test("deep link to content memory explorer loads correctly", async ({ page }) => {

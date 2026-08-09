@@ -12,9 +12,8 @@ import {
 } from "@neokapi/ui";
 import {
   activitiesQueryOptions,
-  myTasksQueryOptions,
+  myReviewTaskCountsQueryOptions,
   projectsQueryOptions,
-  REVIEW_TASK_TYPES,
 } from "../../queries";
 import { usePlatform } from "../../platform";
 import type { WorkspaceRouteContext } from "..";
@@ -43,8 +42,6 @@ const LOOP_ACTIVITY_TYPES = new Set([
   "connector.failed",
 ]);
 
-/** Task types that represent review standing (AD-014 queue, #1332 hand-off). */
-
 export function ProjectDashboardRoute() {
   const navigate = useNavigate();
   const { workspace } = useParams({ strict: false });
@@ -64,10 +61,10 @@ export function ProjectDashboardRoute() {
   const { data: projects } = useSuspenseQuery(projectsQueryOptions(adapter, ws));
   const hasProjects = projects.length > 0;
 
-  // Loop-status inputs. Activities and my-tasks reuse the layout's top-bar
-  // queries (same keys — cache hits, no extra requests, no extra polling).
-  // The brand rollup is the one additional fetch on this surface; it shares
-  // the brand dashboard's key and is skipped entirely on first run.
+  // Loop-status inputs. Activities reuses the layout's top-bar query (same
+  // key — a cache hit, no extra request, no extra polling). The brand rollup
+  // and the review-task count are the two additional fetches on this surface;
+  // both are skipped entirely on first run.
   //
   // These are non-suspense enrichments: a failure leaves `data` undefined and
   // the dependent card simply doesn't render. Silent absence is intended here —
@@ -77,8 +74,11 @@ export function ProjectDashboardRoute() {
     ...activitiesQueryOptions(adapter, ws),
     enabled: hasProjects,
   });
-  const { data: myTasksData } = useQuery({
-    ...myTasksQueryOptions(adapter, ws),
+  // Open review work assigned to the caller, filtered and counted server-side
+  // — the same query the review inbox lists, so the card's number and that
+  // page's rows cannot disagree.
+  const { data: reviewTaskCounts } = useQuery({
+    ...myReviewTaskCountsQueryOptions(adapter, ws),
     enabled: hasProjects,
   });
   const { data: brandRollup } = useQuery({
@@ -102,9 +102,7 @@ export function ProjectDashboardRoute() {
     if (!hasProjects) return undefined;
 
     const latest = activitiesData?.activities?.find((a) => LOOP_ACTIVITY_TYPES.has(a.type));
-    const openReviewTasks = myTasksData
-      ? myTasksData.tasks.filter((t) => REVIEW_TASK_TYPES.has(t.type)).length
-      : undefined;
+    const openReviewTasks = reviewTaskCounts?.total;
 
     let brand: LoopStatusData["brand"];
     if (brandRollup) {
@@ -153,7 +151,7 @@ export function ProjectDashboardRoute() {
       ship,
       brand,
     };
-  }, [hasProjects, activitiesData, myTasksData, brandRollup, loopRollup]);
+  }, [hasProjects, activitiesData, reviewTaskCounts, brandRollup, loopRollup]);
 
   const invalidateProjects = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: ["projects", ws] });

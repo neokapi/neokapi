@@ -424,6 +424,7 @@ export { countBucket, creditBucket, percentBucket, sharePercentBucket } from "./
 
 // API
 export type { ApiAdapter } from "./api/adapter";
+export { fetchConnectorStatuses, CONNECTOR_STATUS_BATCH_SIZE } from "./api/connector-status";
 export { RestApiAdapter, type ApiTransport } from "./api/rest-adapter";
 
 // Collaboration
@@ -816,6 +817,7 @@ export {
 } from "./hooks/useMarketsApi";
 export {
   useChangesets,
+  useChangesetCounts,
   useChangeset,
   useCreateChangeset,
   usePatchChangeset,
@@ -1010,6 +1012,8 @@ export {
   PlanComparisonTable,
   UpgradePrompt,
   CreditLedger,
+  ALL_OPERATIONS,
+  operationLabel,
   ModelUsageTable,
 } from "./components/billing";
 export type {

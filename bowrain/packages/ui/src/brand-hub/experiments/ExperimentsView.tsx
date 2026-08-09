@@ -17,7 +17,7 @@ import {
 import { Plus, FlaskConical } from "../../components/icons";
 import type { ChangeSet, ChangeSetStatus } from "../../types/brand-graph";
 import { CHANGE_SET_STATUSES } from "../../types/brand-graph";
-import { useChangesets } from "../../hooks/useChangesetsApi";
+import { useChangesetCounts, useChangesets } from "../../hooks/useChangesetsApi";
 import { useUserDisplayNames } from "../../hooks/useMembersApi";
 import { BrandHub } from "../shell/BrandHub";
 import {
@@ -52,6 +52,10 @@ export function ExperimentsView({ onOpenExperiment }: ExperimentsViewProps) {
   const { data: changesets, isLoading } = useChangesets(
     filter === ALL ? undefined : (filter as ChangeSetStatus),
   );
+  // Bucket totals for the whole workspace, counted in SQL. A group header
+  // reading the length of the list it was handed would say "3" whenever the
+  // status filter had cut the other buckets away.
+  const { data: counts } = useChangesetCounts();
 
   const groups = useMemo(() => {
     const map = new Map<ChangeSetStatus, ChangeSet[]>();
@@ -116,7 +120,9 @@ export function ExperimentsView({ onOpenExperiment }: ExperimentsViewProps) {
             <section key={group.status} className="space-y-2">
               <div className="flex items-center gap-2">
                 <ChangeSetStatusBadge status={group.status} />
-                <span className="text-xs text-muted-foreground">{group.items.length}</span>
+                <span className="text-xs text-muted-foreground">
+                  {counts?.by_status?.[group.status] ?? group.items.length}
+                </span>
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {group.items.map((cs) => (

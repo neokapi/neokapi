@@ -14,7 +14,7 @@ import { useEditorSurfaceNav } from "./useEditorSurfaceNav";
 
 export function TranslateRoute() {
   const navigate = useNavigate();
-  const { workspace, projectId, itemId } = useParams({ strict: false });
+  const { workspace, projectId, itemName } = useParams({ strict: false });
   const adapter = useApi();
   const { activeWorkspace, user } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
@@ -24,9 +24,10 @@ export function TranslateRoute() {
     projectQueryOptions(adapter, ws, projectId!, activeStream),
   );
 
-  // Resolve item name from ID via project data.
-  const item = project.items?.find((i) => i.id === itemId);
-  const fileName = item?.name ?? itemId ?? "";
+  // The item name is the route coordinate, so the file this surface edits
+  // needs no lookup — and no dependence on the project response carrying
+  // every item.
+  const fileName = itemName ?? "";
 
   useEffect(() => {
     document.title = `${fileName} — ${project.name} — Bowrain`;
