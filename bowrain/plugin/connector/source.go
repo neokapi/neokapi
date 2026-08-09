@@ -1447,72 +1447,50 @@ func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePat
 	return blocks, media, nil
 }
 
-// resolveTargetPath determines the output path for a translated file.
-// It checks content entries for a target pattern (which may contain {lang} or
-// {locale}/{path}/{filename} placeholders), falls back to replacing the source
-// locale in the path, or appends the locale as a suffix.
+// resolveTargetPath maps a pulled item to the output path its translation is
+// written to, using the same matcher and target expansion the local engine
+// uses (project.MatchGlob + project.ResolveTargetPath) — one template
+// vocabulary, one behavior. A hand-rolled copy here once dropped the {dir}
+// token and reconstructed the SOURCE path, so a pull overwrote four English
+// masters with Norwegian; the in-place guard at the bottom makes that class
+// impossible regardless of template.
 func (c *BowrainSourceConnector) resolveTargetPath(itemName, locale string) string {
-	relPath := itemName
 	recipe := c.project.Recipe
 	srcLang := string(recipe.Defaults.SourceLanguage)
 
-	// Check if any content entry has a target pattern.
+	out := ""
 	for _, it := range recipe.IterateContent() {
 		entryLang := string(it.Item.ResolvedSourceLanguage(it.Collection, recipe.Defaults))
 		pattern := coreproj.ResolvePathPattern(it.Item.Path, entryLang)
-		matched, err := doublestar.Match(pattern, relPath)
-		if err != nil || !matched {
+		if !coreproj.MatchGlob(pattern, itemName) {
 			continue
 		}
-
-		dest := it.Item.Target
-		if dest == "" {
-			break // No target — fall through to default behavior.
+		if it.Item.Target == "" {
+			break // matched, but no target — the fallbacks below decide
 		}
-
-		// If dest contains {lang}, expand it with the target locale.
-		if strings.Contains(dest, "{lang}") {
-			// Derive the relative portion by comparing against the source pattern.
-			// e.g. path: src/{lang}/**/*.json, relPath: src/en/foo/bar.json
-			// We need to reconstruct: src/{locale}/foo/bar.json
-			srcPattern := coreproj.ResolvePathPattern(it.Item.Path, srcLang)
-			prefix := coreproj.GlobFixedPrefix(srcPattern)
-			relative := strings.TrimPrefix(relPath, prefix)
-			// Expand {lang} before taking the fixed prefix — the other way
-			// around the prefix stops at '{' and the locale segment is lost.
-			destPrefix := coreproj.GlobFixedPrefix(coreproj.ResolvePathPattern(it.Item.Target, locale))
-			result := destPrefix + relative
-			return result
-		}
-
-		// Legacy-style dest with {locale}/{path}/{filename} placeholders.
-		result := dest
-		result = strings.ReplaceAll(result, "{locale}", locale)
-
-		prefix := coreproj.GlobFixedPrefix(pattern)
-		relative := strings.TrimPrefix(relPath, prefix)
-		dir := filepath.Dir(relative)
-		if dir == "." {
-			dir = ""
-		}
-		file := filepath.Base(relative)
-		result = strings.ReplaceAll(result, "{filename}", file)
-		result = strings.ReplaceAll(result, "{path}", dir)
-		for strings.Contains(result, "//") {
-			result = strings.ReplaceAll(result, "//", "/")
-		}
-		return result
+		out = coreproj.ResolveTargetPath(pattern, it.Item.Base, it.Item.Target, itemName, locale)
+		break
 	}
 
-	// Default: replace the source locale in the path with the target locale.
-	if srcLang != "" && strings.Contains(relPath, srcLang) {
-		return strings.Replace(relPath, srcLang, locale, 1)
+	if out == "" {
+		// No matching item or no target template: replace the source locale
+		// segment when the path carries one, else suffix the locale.
+		if srcLang != "" && strings.Contains(itemName, srcLang) {
+			out = strings.Replace(itemName, srcLang, locale, 1)
+		} else {
+			ext := filepath.Ext(itemName)
+			out = strings.TrimSuffix(itemName, ext) + "." + locale + ext
+		}
 	}
 
-	// If we cannot determine the target path, put it next to the source with a locale suffix.
-	ext := filepath.Ext(relPath)
-	base := strings.TrimSuffix(relPath, ext)
-	return base + "." + locale + ext
+	// A target-language write must never land on the source file. Whatever
+	// produced the collision (a template without {lang}, a mapping bug), the
+	// locale-suffixed sibling is always a safe destination.
+	if filepath.Clean(out) == filepath.Clean(itemName) {
+		ext := filepath.Ext(itemName)
+		out = strings.TrimSuffix(itemName, ext) + "." + locale + ext
+	}
+	return out
 }
 
 // writeTranslatedFile reads a source file, injects target translations into blocks,
