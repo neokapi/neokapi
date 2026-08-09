@@ -1,0 +1,59 @@
+package event
+
+import (
+	"context"
+	"errors"
+	"log/slog"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	platev "github.com/neokapi/neokapi/bowrain/core/event"
+)
+
+// A handler that fails the same entry on every delivery must not hold the
+// group's reclaim sweep forever: 70k retries per half hour once ground the
+// production server. Past poisonDeliveryCap the sweep acks the entry away and
+// says so at ERROR.
+func TestGroupReclaim_DropsPoisonEntryAfterCap(t *testing.T) {
+	url := startRedis(t)
+	bus := newReclaimBusAt(t, url, 30*time.Millisecond, 10*time.Millisecond)
+
+	var buf syncBuffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	var calls atomic.Int64
+	bus.SubscribeGroup("poison-test", func(_ platev.Event) error {
+		calls.Add(1)
+		return errors.New("always fails")
+	})
+
+	// The group reader starts asynchronously; an event published before the
+	// group exists is never delivered to it. Publish until the handler has
+	// seen at least one delivery, then watch that delivery get poisoned.
+	require.Eventually(t, func() bool {
+		bus.Publish(platev.Event{Type: "block.updated", WorkspaceID: "ws"})
+		return calls.Load() > 0
+	}, 10*time.Second, 200*time.Millisecond, "the group never received a delivery")
+
+	// The entry is delivered, fails, and is reclaimed until the cap drops it:
+	// the group's pending list must eventually go (and stay) empty.
+	// The reclaim sweep redelivers the failing entries until the cap drops
+	// them — loudly — and the pending list drains for good.
+	require.Eventually(t, func() bool {
+		return strings.Contains(buf.String(), "dropping poison entry")
+	}, 20*time.Second, 500*time.Millisecond, "no poison drop was ever logged")
+
+	require.Eventually(t, func() bool {
+		pending, perr := bus.client.XPending(context.Background(), bus.stream, "poison-test").Result()
+		return perr == nil && pending.Count == 0
+	}, 20*time.Second, 500*time.Millisecond, "the pending list never drained")
+	assert.Greater(t, calls.Load(), int64(poisonDeliveryCap),
+		"the entry should have been retried up to the cap before the drop")
+}

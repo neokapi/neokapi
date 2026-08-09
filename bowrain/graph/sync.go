@@ -2,6 +2,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -89,7 +90,15 @@ func (s *GraphSyncer) onBlockUpdated(ctx context.Context, ev platev.Event) error
 		},
 	}
 
-	if err := s.store.UpdateNode(ctx, node); err != nil {
+	err := s.store.UpdateNode(ctx, node)
+	if errors.Is(err, coreg.ErrNodeNotFound) {
+		// The create was missed — a block pushed before this syncer ran, or a
+		// node wiped by a data reset while its block survived. The update
+		// carries everything the node needs, so upsert rather than letting
+		// the event fail (and redeliver) forever.
+		err = s.store.CreateNode(ctx, node)
+	}
+	if err != nil {
 		slog.Info("graph sync: update node for block", "id", blockID, "error", err)
 		return err
 	}
@@ -103,6 +112,9 @@ func (s *GraphSyncer) onBlockDeleted(ctx context.Context, ev platev.Event) error
 	}
 
 	if err := s.store.DeleteNode(ctx, blockID); err != nil {
+		if errors.Is(err, coreg.ErrNodeNotFound) {
+			return nil // already gone — this event's outcome holds
+		}
 		slog.Info("graph sync: delete node for block", "id", blockID, "error", err)
 		return err
 	}
