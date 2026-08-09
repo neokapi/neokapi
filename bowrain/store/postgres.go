@@ -947,25 +947,38 @@ func (s *PostgresStore) ListPendingReview(ctx context.Context, projectID, stream
 	if limit <= 0 {
 		limit = 200
 	}
-	where := `b.project_id = $1 AND b.translatable AND t.text <> ''
-		AND COALESCE(t.target_json->>'status', '') IN ('draft', 'translated')`
+	// Constant skeleton + $N placeholder tokens only; every value binds
+	// through args (the G201-triage contract this package's query builders
+	// share).
+	//
+	// The status test is the review-completion gate's predicate (see
+	// server/review_loop.go targetPendingReview): anything below reviewed is
+	// pending — including an EMPTY status, which an IN ('draft','translated')
+	// spelling once excluded, leaving a block that stalls completion forever
+	// invisible in the queue. Known narrower edge: a code-only target
+	// (RunsHaveContent true, flattened text empty) is pending for the gate
+	// but skipped here by text <> ''.
+	const fromSkeleton = ` FROM blocks b JOIN translations t
+		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = $2
+		WHERE b.project_id = $1 AND b.translatable AND t.text <> ''
+		AND COALESCE(t.target_json->>'status', '') NOT IN ('reviewed', 'signed-off')%s`
 	args := []any{projectID, stream}
+	localeFilter := ""
 	next := 3
 	if len(locales) > 0 {
-		where += fmt.Sprintf(` AND t.locale = ANY($%d)`, next)
+		localeFilter = fmt.Sprintf(` AND t.locale = ANY($%d)`, next)
 		args = append(args, locales)
 		next++
 	}
-	from := ` FROM blocks b JOIN translations t
-		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = $2 WHERE ` + where
+	from := fmt.Sprintf(fromSkeleton, localeFilter)
 
 	var total int
-	if err := s.db.DB.QueryRowContext(ctx, `SELECT count(*)`+from, args...).Scan(&total); err != nil {
+	if err := s.db.DB.QueryRowContext(ctx, fmt.Sprintf("SELECT count(*)%s", from), args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count pending review: %w", err)
 	}
 
-	query := `SELECT b.id, b.item_name, t.locale` + from +
-		fmt.Sprintf(` ORDER BY b.item_name, b.id, t.locale LIMIT $%d OFFSET $%d`, next, next+1)
+	query := fmt.Sprintf(`SELECT b.id, b.item_name, t.locale%s ORDER BY b.item_name, b.id, t.locale LIMIT $%d OFFSET $%d`,
+		from, next, next+1)
 	rows, err := s.db.DB.QueryContext(ctx, query, append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list pending review: %w", err)

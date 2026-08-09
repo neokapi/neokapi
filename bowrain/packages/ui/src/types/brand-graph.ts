@@ -378,6 +378,18 @@ export const CHANGE_SET_STATUSES: ChangeSetStatus[] = [
   "superseded",
 ];
 
+/**
+ * The statuses with no outgoing lifecycle edges (knowledge's transition
+ * table). A UI that hand-lists "merged or abandoned" forgets the next
+ * terminal member — superseded already proved it — so terminality is asked
+ * of this set, never spelled inline.
+ */
+export const TERMINAL_CHANGESET_STATUSES: ReadonlySet<ChangeSetStatus> = new Set([
+  "merged",
+  "abandoned",
+  "superseded",
+]);
+
 /** The outcome a reviewer records (knowledge.ReviewVerdict). */
 export type ReviewVerdict = "approve" | "reject";
 

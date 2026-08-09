@@ -890,27 +890,29 @@ func (s *SQLiteStore) ListPendingReview(ctx context.Context, projectID, stream s
 	if limit <= 0 {
 		limit = 200
 	}
-	where := `b.project_id = ? AND b.translatable AND t.text <> ''
-		AND COALESCE(json_extract(t.target_json, '$.status'), '') IN ('draft', 'translated')`
-	// Positional placeholders bind in string order: the JOIN's stream comes
-	// before the WHERE's project.
+	// The SQLite twin of the Postgres predicate: below-reviewed status is
+	// pending, empty status included. Positional placeholders bind in string
+	// order — the JOIN's stream comes before the WHERE's project.
+	const fromSkeleton = ` FROM blocks b JOIN translations t
+		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = ?
+		WHERE b.project_id = ? AND b.translatable AND t.text <> ''
+		AND COALESCE(json_extract(t.target_json, '$.status'), '') NOT IN ('reviewed', 'signed-off')%s`
 	args := []any{stream, projectID}
+	localeFilter := ""
 	if len(locales) > 0 {
-		where += ` AND t.locale IN (?` + strings.Repeat(",?", len(locales)-1) + `)`
+		localeFilter = fmt.Sprintf(` AND t.locale IN (?%s)`, strings.Repeat(",?", len(locales)-1))
 		for _, l := range locales {
 			args = append(args, l)
 		}
 	}
-	from := ` FROM blocks b JOIN translations t
-		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = ? WHERE ` + where
+	from := fmt.Sprintf(fromSkeleton, localeFilter)
 
 	var total int
-	if err := s.db.QueryRowContext(ctx, `SELECT count(*)`+from, args...).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, fmt.Sprintf("SELECT count(*)%s", from), args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count pending review: %w", err)
 	}
 
-	query := `SELECT b.id, b.item_name, t.locale` + from +
-		` ORDER BY b.item_name, b.id, t.locale LIMIT ? OFFSET ?`
+	query := fmt.Sprintf(`SELECT b.id, b.item_name, t.locale%s ORDER BY b.item_name, b.id, t.locale LIMIT ? OFFSET ?`, from)
 	rows, err := s.db.QueryContext(ctx, query, append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list pending review: %w", err)

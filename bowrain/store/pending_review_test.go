@@ -39,17 +39,21 @@ func TestListPendingReview_SQLite(t *testing.T) {
 		mk("b3", "", "godkjent", model.TargetStatusReviewed, true), // decided
 		mk("b4", "", "", model.TargetStatusDraft, true),            // no target text
 		mk("b5", "", "skjult", model.TargetStatusDraft, false),     // not translatable
+		// An EMPTY status is below reviewed and therefore pending — the
+		// review-completion gate counts it, so the queue must show it (an
+		// IN ('draft','translated') spelling once hid it forever).
+		mk("b6", "", "tomt", model.TargetStatusNew, true),
 	}
 	require.NoError(t, s.StoreBlocksForItem(ctx, "p1", "main", "a.md", blocks[:3]))
 	require.NoError(t, s.StoreBlocksForItem(ctx, "p1", "main", "b.md", blocks[3:]))
 
 	refs, total, err := s.ListPendingReview(ctx, "p1", "main", []string{"nb"}, 10, 0)
 	require.NoError(t, err)
-	assert.Equal(t, 2, total)
-	require.Len(t, refs, 2)
+	assert.Equal(t, 3, total)
+	require.Len(t, refs, 3)
 	// The store assigns its own block ids; the item and locale are the
 	// stable coordinates to assert on.
-	for _, r := range refs {
+	for _, r := range refs[:2] {
 		assert.Equal(t, "a.md", r.ItemName)
 		assert.Equal(t, "nb", r.Locale)
 		assert.NotEmpty(t, r.BlockID)
@@ -58,6 +62,6 @@ func TestListPendingReview_SQLite(t *testing.T) {
 	// Pagination holds the same order.
 	page2, total2, err := s.ListPendingReview(ctx, "p1", "main", nil, 1, 1)
 	require.NoError(t, err)
-	assert.Equal(t, 2, total2)
+	assert.Equal(t, 3, total2)
 	require.Len(t, page2, 1)
 }
