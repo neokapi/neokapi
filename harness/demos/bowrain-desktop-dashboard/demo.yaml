@@ -1,7 +1,7 @@
 id: bowrain-desktop-dashboard
-title: "Skrivebordsappen, på teamets server"
-subtitle: "En likestilt, sanntidsklient av det delte arbeidsområdet."
-tagline: serversidens plattformfølgesvenn til kapi
+title: The desktop app, on your team's server
+subtitle: An equal, real-time client of the shared workspace.
+tagline: the server-side platform companion to kapi
 kind: use-case
 publishAs: bowrain-desktop-dashboard
 terminal: desktop
@@ -10,40 +10,53 @@ brand: bowrain
 needsAi: false
 oneshot: true
 aspects:
-  - Innebygd skrivebordsapp
-  - En likeverdig sanntidsklient
-  - Det samme delte arbeidsområdet
-  - "Fungerer frakoblet, synkroniserer tilbake"
+  - Native desktop app
+  - An equal real-time client
+  - The same shared workspace
+  - Works offline, syncs back
 
 narration:
   - id: title
-    kind: tittel
+    kind: title
     text: >-
-      Bowrain Desktop — en innebygd, sanntidsklient til teamets server.
+      Bowrain Desktop — a native, real-time client of your team's server.
+
   - id: intro
-    kind: skrivebord
+    kind: desktop
     beat: intro
     text: >-
-      Bowrain leveres også som en innebygd skrivebordsapp — den samme delte appen nettleseren kjører, montert innebygd. Den åpner nøyaktig det samme arbeidsområdet, med tilstedeværelse og redigeringer delt direkte, og en frakoblet redigeringskø som holder deg i arbeid uten tilkobling og synkroniserer tilbake når du kobler til igjen.
+      Bowrain also ships as a native desktop app — the same shared app the
+      browser runs, mounted natively. It opens the very same workspace, with
+      presence and edits shared live, and an offline edit queue that keeps you
+      working without a connection and syncs back when you reconnect.
+
   - id: stats
     kind: desktop
-    beat: statistikk
-    caption: Arbeidsområdet på et øyeblikk.
+    beat: stats
+    caption: The workspace at a glance.
     text: >-
-      Dashbordet oppsummerer arbeidsområdet — prosjekter, ord, språk og filer — hentet direkte fra serveren.
-  - id: prosjekter
+      The dashboard sums up the workspace — projects, words, languages, and
+      files — pulled live from the server.
+
+  - id: projects
     kind: desktop
-    beat: prosjekter
-    caption: "Teamets prosjekter, på skrivebordet."
+    beat: projects
+    caption: The team's projects, on the desktop.
     text: >-
-      Hvert prosjekt teamet jobber med er her, med sine språk og filantall, klart til å åpnes i den samme editoren nettleseren bruker.
+      Every project the team works on is here, with its languages and file
+      counts, ready to open in the same editor the browser uses.
+
   - id: connectors
-    kind: skrivebord
+    kind: desktop
     beat: connectors
-    caption: Koble til eksterne innholdskilder.
+    caption: Connect remote content sources.
     text: >-
-      Koblinger konfigureres per prosjekt. Åpne ett, og Koblinger-visningen kobler til eksterne innholdskilder — et CMS, et designverktøy — slik at innhold strømmer inn og ferdige oversettelser strømmer tilbake ut.
+      Connectors are wired per project. Open one, and its Connectors view
+      attaches remote content sources — a CMS, a design tool — so content flows
+      in and finished translations flow back out.
+
   - id: outro
     kind: outro
     text: >-
-      Det samme styrte arbeidsområdet, i en innebygd app — skrivebordssiden av plattformen som forvalter et teams arbeid på toppen av de åpne kapi-verktøyene.
+      The same governed workspace, in a native app — the desktop side of the
+      platform that stewards a team's work on top of the open kapi tools.
