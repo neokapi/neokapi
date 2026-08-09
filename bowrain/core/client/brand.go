@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -62,6 +64,78 @@ func BrandProfileUpsertFromProfile(p *coreprofile.VoiceProfile) BrandProfileUpse
 type BrandProfileUpsertResult struct {
 	Action  string                    `json:"action"`
 	Profile *coreprofile.VoiceProfile `json:"profile"`
+}
+
+// BrandScanApprovedTerm is one candidate term a reviewer kept on a brand scan.
+// Locale falls back to the request's Locale, then to "en".
+type BrandScanApprovedTerm struct {
+	Term       string `json:"term"`
+	Definition string `json:"definition,omitempty"`
+	Domain     string `json:"domain,omitempty"`
+	Locale     string `json:"locale,omitempty"`
+}
+
+// BrandScanApproval is the reviewed outcome of a brand scan: the edited draft
+// profile and the terms that survived review, applied in one request.
+type BrandScanApproval struct {
+	Profile BrandProfileUpsert      `json:"profile"`
+	Terms   []BrandScanApprovedTerm `json:"terms,omitempty"`
+	Locale  string                  `json:"locale,omitempty"`
+}
+
+// BrandScanApprovalResult reports what the approval applied: the stored profile
+// and which action produced it, plus the concepts created and the ones already
+// present.
+type BrandScanApprovalResult struct {
+	Profile          *coreprofile.VoiceProfile `json:"profile"`
+	ProfileAction    string                    `json:"profile_action"`
+	ConceptsCreated  int                       `json:"concepts_created"`
+	ConceptsExisting int                       `json:"concepts_existing"`
+	ConceptIDs       []string                  `json:"concept_ids"`
+}
+
+// ApproveBrandScan applies a reviewed brand scan — profile and approved terms —
+// in one request (POST /api/v1/:ws/brand-scans/:id/approve). It is idempotent
+// by content: the profile upserts by name, and a term is created only when the
+// workspace has no concept carrying it in that locale, so a retry after a
+// partial failure converges rather than duplicating. A 403 surfaces as
+// ErrForbidden.
+func (c *BowrainClient) ApproveBrandScan(ctx context.Context, scanID string, req BrandScanApproval) (*BrandScanApprovalResult, error) {
+	if c.workspace == "" {
+		return nil, errors.New("brand scans are workspace-scoped (use NewWorkspaceBowrainClient)")
+	}
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal brand-scan approval: %w", err)
+	}
+
+	path := "/brand-scans/" + url.PathEscape(scanID) + "/approve"
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.wsPrefix()+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.doRequest(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("request %s: %w", strings.TrimPrefix(path, "/"), err)
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusCreated:
+		var out BrandScanApprovalResult
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			return nil, fmt.Errorf("decode brand-scan approval response: %w", err)
+		}
+		return &out, nil
+	case http.StatusForbidden:
+		return nil, fmt.Errorf("%s: %w", strings.TrimPrefix(path, "/"), ErrForbidden)
+	default:
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, NewStatusError(strings.TrimPrefix(path, "/"), resp.StatusCode, respBody)
+	}
 }
 
 // UpsertBrandProfile creates or updates the workspace brand profile matching
