@@ -864,56 +864,117 @@ func (s *PostgresStore) GetBlock(ctx context.Context, projectID, stream, blockID
 	return sb, nil
 }
 
-func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*platstore.StoredBlock, error) {
-	where := []string{"project_id = $1"}
+// blockFilterPg is the FROM/WHERE half of a BlockQuery: the block predicates,
+// plus the per-locale translations join the status and target-text filters
+// read. GetBlocks and CountBlocks share it so a filtered page and its counts
+// can never disagree about what matches.
+type blockFilterPg struct {
+	join  string // "" when the query needs no per-locale row
+	where string
+	args  []any
+}
+
+// pgStatusBucket is the SQL twin of the editor's getBlockStatus: the bucket a
+// block's target for the joined locale falls into. Both must agree, or the
+// server's counts contradict the chip the editor renders beside them.
+const pgStatusBucket = `CASE
+	WHEN COALESCE(t.target_json->>'status', '') IN ('reviewed', 'signed-off') THEN 'reviewed'
+	WHEN COALESCE(t.text, '') = '' THEN 'not-started'
+	WHEN t.target_json->>'status' = 'translated' THEN 'translated'
+	WHEN t.target_json->>'status' = 'draft' THEN 'draft'
+	WHEN b.properties::jsonb->>'translation-status' = 'reviewed' THEN 'reviewed'
+	WHEN b.properties::jsonb->>'translation-status' = 'draft' THEN 'draft'
+	WHEN b.properties::jsonb->>'translation-origin' IN ('machine', 'pseudo') THEN 'draft'
+	ELSE 'translated'
+END`
+
+// pgSourceTextMatch tests the substring against each source run's text
+// separately. Text runs serialize flat — {"text":"literal"} — so the run's
+// text is at ->>'text'; every other run kind nests under its own
+// discriminator and yields NULL there. A run array is the only shape
+// source_json ever holds, but a nil run slice marshals to JSON null, which
+// jsonb_array_elements rejects — hence the type guard rather than a bare cast.
+const pgSourceTextMatch = `EXISTS (
+	SELECT 1 FROM jsonb_array_elements(
+		CASE WHEN jsonb_typeof(b.source_json::jsonb) = 'array' THEN b.source_json::jsonb ELSE '[]'::jsonb END
+	) r WHERE strpos(lower(COALESCE(r->>'text', '')), lower(%s)) > 0
+)`
+
+// pgBlockFilter renders a BlockQuery into bound SQL. withStatus is false for
+// the counts query, whose histogram would otherwise be filtered to one bucket.
+func pgBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterPg {
+	where := []string{"b.project_id = $1"}
 	args := []any{query.ProjectID}
 	paramN := 2
+	bind := func(v any) string {
+		args = append(args, v)
+		p := fmt.Sprintf("$%d", paramN)
+		paramN++
+		return p
+	}
 
 	if query.ItemName != "" {
-		where = append(where, fmt.Sprintf("item_name = $%d", paramN))
-		args = append(args, query.ItemName)
-		paramN++
+		where = append(where, "b.item_name = "+bind(query.ItemName))
 	}
 	if len(query.IDs) > 0 {
 		var pb strings.Builder
-		pb.WriteString("id IN (")
+		pb.WriteString("b.id IN (")
 		for i, id := range query.IDs {
 			if i > 0 {
 				pb.WriteByte(',')
 			}
-			fmt.Fprintf(&pb, "$%d", paramN)
-			args = append(args, id)
-			paramN++
+			pb.WriteString(bind(id))
 		}
 		pb.WriteByte(')')
 		where = append(where, pb.String())
 	}
 	if query.ContentHash != "" {
-		where = append(where, fmt.Sprintf("content_hash = $%d", paramN))
-		args = append(args, query.ContentHash)
-		paramN++
+		where = append(where, "b.content_hash = "+bind(query.ContentHash))
 	}
 	if query.Translatable != nil {
-		where = append(where, fmt.Sprintf("translatable = $%d", paramN))
-		args = append(args, *query.Translatable)
+		where = append(where, "b.translatable = "+bind(*query.Translatable))
 	}
 
-	var qb strings.Builder
-	qb.WriteString(`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, overlays, stored_at, updated_at
-		 FROM blocks WHERE `)
-	qb.WriteString(strings.Join(where, " AND "))
-	qb.WriteString(" ORDER BY id")
+	join := ""
+	if query.TargetLocale != "" {
+		stream := bind(storeutil.DefaultStream(query.Stream))
+		locale := bind(query.TargetLocale)
+		join = fmt.Sprintf(`LEFT JOIN translations t
+			ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = %s AND t.locale = %s`, stream, locale)
+	}
+	if query.Text != "" {
+		// One placeholder, referenced from both sides of the OR.
+		p := bind(query.Text)
+		match := fmt.Sprintf(pgSourceTextMatch, p)
+		if join != "" {
+			match = fmt.Sprintf("(%s OR strpos(lower(COALESCE(t.text, '')), lower(%s)) > 0)", match, p)
+		}
+		where = append(where, match)
+	}
+	if withStatus && query.Status != "" && join != "" {
+		where = append(where, pgStatusBucket+" = "+bind(query.Status))
+	}
 
+	return blockFilterPg{join: join, where: strings.Join(where, " AND "), args: args}
+}
+
+func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*platstore.StoredBlock, error) {
+	f := pgBlockFilter(query, true)
+
+	// Constant skeleton + rendered fragments that carry $N placeholders only;
+	// every value binds through args. Limit and offset are ints, formatted.
+	const skeleton = `SELECT b.id, b.project_id, b.item_name, b.source_id, b.name, b.type, b.mime_type, b.translatable,
+			b.content_hash, b.context_hash, b.source_json, b.properties, b.overlays, b.stored_at, b.updated_at
+		 FROM blocks b %s WHERE %s ORDER BY b.id%s`
+	page := ""
 	if query.Limit > 0 {
-		fmt.Fprintf(&qb, " LIMIT %d", query.Limit)
+		page += fmt.Sprintf(" LIMIT %d", query.Limit)
 	}
 	if query.Offset > 0 {
-		fmt.Fprintf(&qb, " OFFSET %d", query.Offset)
+		page += fmt.Sprintf(" OFFSET %d", query.Offset)
 	}
-	q := qb.String()
 
-	rows, err := s.db.QueryContext(ctx, q, args...)
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(skeleton, f.join, f.where, page), f.args...)
 	if err != nil {
 		return nil, fmt.Errorf("query blocks: %w", err)
 	}
@@ -934,6 +995,32 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 		return nil, err
 	}
 	return result, nil
+}
+
+// CountBlocks answers the editor's progress bar with one aggregate instead of
+// a full page of hydrated blocks.
+func (s *PostgresStore) CountBlocks(ctx context.Context, query platstore.BlockQuery) (platstore.BlockCounts, error) {
+	f := pgBlockFilter(query, false)
+	bucket := "''"
+	if f.join != "" {
+		bucket = pgStatusBucket
+	}
+
+	const skeleton = `SELECT count(*),
+			count(*) FILTER (WHERE x.translatable),
+			count(*) FILTER (WHERE x.translatable AND x.bucket = 'not-started'),
+			count(*) FILTER (WHERE x.translatable AND x.bucket = 'draft'),
+			count(*) FILTER (WHERE x.translatable AND x.bucket = 'translated'),
+			count(*) FILTER (WHERE x.translatable AND x.bucket = 'reviewed')
+		 FROM (SELECT b.translatable, %s AS bucket FROM blocks b %s WHERE %s) x`
+
+	var out platstore.BlockCounts
+	err := s.db.QueryRowContext(ctx, fmt.Sprintf(skeleton, bucket, f.join, f.where), f.args...).
+		Scan(&out.Total, &out.Translatable, &out.NotStarted, &out.Draft, &out.Translated, &out.Reviewed)
+	if err != nil {
+		return platstore.BlockCounts{}, fmt.Errorf("count blocks: %w", err)
+	}
+	return out, nil
 }
 
 // ListPendingReview pages the (block, locale) pairs whose stored target still

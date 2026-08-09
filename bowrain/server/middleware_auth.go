@@ -653,6 +653,25 @@ func (s *Server) requireLanguagePermission(c echo.Context, perm platauth.Permiss
 	return deny(c, "no access to language: "+locale)
 }
 
+// hasPermission is requirePermission as a predicate: it answers the same
+// question without writing a 403 or recording a denial.
+func hasPermission(c echo.Context, perm platauth.Permission) bool {
+	perms, ok := c.Get("project_permissions").(platauth.Permission)
+	return ok && perms.Has(perm)
+}
+
+// allowsLanguage is requireLanguagePermission as a predicate: it answers the
+// same question without writing a 403 or recording a denial. A batch route
+// uses it where one block's refusal must be recorded against that block
+// instead of answering for the whole request.
+func allowsLanguage(c echo.Context, perm platauth.Permission, locale string) bool {
+	if !hasPermission(c, perm) {
+		return false
+	}
+	languages, _ := c.Get("project_languages").([]string)
+	return len(languages) == 0 || slices.Contains(languages, locale)
+}
+
 // ScopeRestrictionMiddleware narrows project_permissions based on API token scopes.
 // Only applies when the request is authenticated via an API token (api_token_id on context).
 // Parses the token's scopes and intersects them with the already-resolved project permissions.

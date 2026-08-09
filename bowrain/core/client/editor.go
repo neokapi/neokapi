@@ -316,6 +316,190 @@ func (c *BowrainClient) GetEditorBlocks(ctx context.Context, ws, projectID, item
 	return out, nil
 }
 
+// EditorBlockQuery narrows QueryEditorBlocks. Every field is optional: the
+// zero value pages the project's blocks unfiltered. Status is one of
+// "not-started", "draft", "translated", "reviewed" and needs Locale, which
+// also scopes the target side of Text.
+type EditorBlockQuery struct {
+	ItemName     string
+	Locale       string
+	Status       string
+	Text         string
+	Translatable *bool
+	Limit        int
+	Offset       int
+}
+
+func (q EditorBlockQuery) values() url.Values {
+	v := url.Values{}
+	if q.ItemName != "" {
+		v.Set("item", q.ItemName)
+	}
+	if q.Locale != "" {
+		v.Set("locale", q.Locale)
+	}
+	if q.Status != "" {
+		v.Set("status", q.Status)
+	}
+	if q.Text != "" {
+		v.Set("q", q.Text)
+	}
+	if q.Translatable != nil {
+		v.Set("translatable", strconv.FormatBool(*q.Translatable))
+	}
+	if q.Limit > 0 {
+		v.Set("limit", strconv.Itoa(q.Limit))
+	}
+	if q.Offset > 0 {
+		v.Set("offset", strconv.Itoa(q.Offset))
+	}
+	return v
+}
+
+// QueryEditorBlocks returns one filtered page of a project's blocks.
+func (c *BowrainClient) QueryEditorBlocks(ctx context.Context, ws, projectID string, q EditorBlockQuery) ([]EditorBlock, error) {
+	path := fmt.Sprintf("/api/v1/%s/%s/blocks/%s", url.PathEscape(ws), url.PathEscape(projectID), editorRef)
+	var out []EditorBlock
+	if err := c.editorDo(ctx, http.MethodGet, path, q.values(), nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// EditorBlockStatusCounts is the per-locale status histogram.
+type EditorBlockStatusCounts struct {
+	NotStarted int `json:"not-started"`
+	Draft      int `json:"draft"`
+	Translated int `json:"translated"`
+	Reviewed   int `json:"reviewed"`
+}
+
+// EditorBlockCounts mirrors BlockCountsResponse: the totals and histogram for
+// a block query, answered without shipping a single block.
+type EditorBlockCounts struct {
+	Total        int                     `json:"total"`
+	Translatable int                     `json:"translatable"`
+	Locale       string                  `json:"locale,omitempty"`
+	Status       EditorBlockStatusCounts `json:"status"`
+}
+
+// GetEditorBlockCounts returns the totals and status histogram for a block
+// query (GET /api/v1/:ws/:proj/blocks/:stream/counts). The query's Status is
+// ignored — the histogram is what the call reports.
+func (c *BowrainClient) GetEditorBlockCounts(ctx context.Context, ws, projectID string, q EditorBlockQuery) (*EditorBlockCounts, error) {
+	q.Status = ""
+	path := fmt.Sprintf("/api/v1/%s/%s/blocks/%s/counts", url.PathEscape(ws), url.PathEscape(projectID), editorRef)
+	var out EditorBlockCounts
+	if err := c.editorDo(ctx, http.MethodGet, path, q.values(), nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// EditorItem mirrors ItemInfoResponse: one item's metadata and block tallies.
+type EditorItem struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Format       string `json:"format"`
+	Type         string `json:"type"`
+	CollectionID string `json:"collection_id,omitempty"`
+	BlockCount   int    `json:"block_count"`
+	Translatable int    `json:"translatable"`
+}
+
+// GetEditorItem returns one item's metadata, without the project's whole item
+// list (GET /api/v1/:ws/:proj/items/:stream/one).
+func (c *BowrainClient) GetEditorItem(ctx context.Context, ws, projectID, itemName string) (*EditorItem, error) {
+	q := url.Values{}
+	q.Set("item", itemName)
+	path := fmt.Sprintf("/api/v1/%s/%s/items/%s/one", url.PathEscape(ws), url.PathEscape(projectID), editorRef)
+	var out EditorItem
+	if err := c.editorDo(ctx, http.MethodGet, path, q, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// EditorBulkReviewRequest applies one review decision to a selection of
+// blocks. Status picks the demotion rung when Approve is false: "translated"
+// (the default) or "draft", a rejection that re-opens the work.
+type EditorBulkReviewRequest struct {
+	BlockIDs     []string `json:"block_ids"`
+	TargetLocale string   `json:"target_locale"`
+	Approve      bool     `json:"approve"`
+	Status       string   `json:"status,omitempty"`
+	Comment      string   `json:"comment,omitempty"`
+	ItemName     string   `json:"item_name,omitempty"`
+}
+
+// EditorBlockResult is one block's outcome inside a batch.
+type EditorBlockResult struct {
+	BlockID string `json:"block_id"`
+	OK      bool   `json:"ok"`
+	Status  string `json:"status,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// EditorBulkReviewResponse mirrors BulkReviewResponse.
+type EditorBulkReviewResponse struct {
+	Results         []EditorBlockResult `json:"results"`
+	Succeeded       int                 `json:"succeeded"`
+	Failed          int                 `json:"failed"`
+	ReviewCompleted bool                `json:"review_completed"`
+}
+
+// BulkReviewBlocks applies one review decision across a selection of blocks in
+// a single request (POST /api/v1/:ws/:proj/blocks/:stream/bulk-review). A
+// block that refuses is reported in its own result; the call itself succeeds.
+func (c *BowrainClient) BulkReviewBlocks(ctx context.Context, ws, projectID string, req EditorBulkReviewRequest) (*EditorBulkReviewResponse, error) {
+	path := fmt.Sprintf("/api/v1/%s/%s/blocks/%s/bulk-review", url.PathEscape(ws), url.PathEscape(projectID), editorRef)
+	var out EditorBulkReviewResponse
+	if err := c.editorDo(ctx, http.MethodPost, path, nil, req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// EditorBulkApplyMemoryRequest applies the best content-memory match to a
+// selection of blocks. A nil Threshold takes the server default of 1 — an
+// exact match.
+type EditorBulkApplyMemoryRequest struct {
+	BlockIDs     []string `json:"block_ids"`
+	TargetLocale string   `json:"target_locale"`
+	Threshold    *float64 `json:"threshold,omitempty"`
+}
+
+// EditorAppliedMemory names a block that took a match, and what it took.
+type EditorAppliedMemory struct {
+	BlockID string  `json:"block_id"`
+	Text    string  `json:"text"`
+	Score   float64 `json:"score"`
+}
+
+// EditorSkippedMemory names a block that took nothing, and why.
+type EditorSkippedMemory struct {
+	BlockID string `json:"block_id"`
+	Reason  string `json:"reason"`
+}
+
+// EditorBulkApplyMemoryResponse mirrors BulkApplyMemoryResponse.
+type EditorBulkApplyMemoryResponse struct {
+	Applied []EditorAppliedMemory `json:"applied"`
+	Skipped []EditorSkippedMemory `json:"skipped"`
+}
+
+// BulkApplyMemory writes the best content-memory match above the threshold
+// into each selected block's target, in one request (POST
+// /api/v1/:ws/:proj/blocks/:stream/bulk-apply-memory).
+func (c *BowrainClient) BulkApplyMemory(ctx context.Context, ws, projectID string, req EditorBulkApplyMemoryRequest) (*EditorBulkApplyMemoryResponse, error) {
+	path := fmt.Sprintf("/api/v1/%s/%s/blocks/%s/bulk-apply-memory", url.PathEscape(ws), url.PathEscape(projectID), editorRef)
+	var out EditorBulkApplyMemoryResponse
+	if err := c.editorDo(ctx, http.MethodPost, path, nil, req, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // PendingReviewEntry is one entry of the server-side translation review
 // queue: a (block, locale) pair awaiting a decision, with its block payload.
 type PendingReviewEntry struct {

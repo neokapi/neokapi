@@ -92,8 +92,55 @@ type BlockQuery struct {
 	Translatable  *bool           // Filter by translatable flag
 	HasTarget     *model.LocaleID // Filter blocks that have a target for this locale
 	MissingTarget *model.LocaleID // Filter blocks missing a target for this locale
-	Limit         int             // Max results (0 = no limit)
-	Offset        int             // Pagination offset
+
+	// TargetLocale scopes the per-locale filters: the Status bucket and the
+	// target side of Text. It names a locale-only target variant ("fr"), the
+	// variant the editor writes. Empty leaves both filters source-only.
+	TargetLocale string
+	// Status keeps only blocks whose TargetLocale target sits in one bucket —
+	// BlockStatusNotStarted, BlockStatusDraft, BlockStatusTranslated or
+	// BlockStatusReviewed. Empty keeps every bucket.
+	Status string
+	// Text keeps only blocks whose source text, or whose TargetLocale target
+	// text, contains it case-insensitively. Source matching is per run, so a
+	// substring spanning an inline-code boundary does not match.
+	Text string
+
+	Limit  int // Max results (0 = no limit)
+	Offset int // Pagination offset
+}
+
+// The per-locale status buckets a block falls into, as the editor names them.
+// They partition the translatable blocks of a query: every block sits in
+// exactly one for a given locale.
+const (
+	// BlockStatusNotStarted is a locale with no target text.
+	BlockStatusNotStarted = "not-started"
+	// BlockStatusDraft is unrevised content: a draft rung, the legacy
+	// block-global draft flag, or machine/pseudo provenance with no rung.
+	BlockStatusDraft = "draft"
+	// BlockStatusTranslated is committed content awaiting review.
+	BlockStatusTranslated = "translated"
+	// BlockStatusReviewed covers both reviewed and signed-off.
+	BlockStatusReviewed = "reviewed"
+)
+
+// BlockStatusBuckets lists the buckets in ladder order.
+func BlockStatusBuckets() []string {
+	return []string{BlockStatusNotStarted, BlockStatusDraft, BlockStatusTranslated, BlockStatusReviewed}
+}
+
+// BlockCounts summarizes a BlockQuery for one locale without hydrating a
+// single block. Total and Translatable count the blocks the query's
+// non-status filters keep; the four buckets partition Translatable by the
+// query's TargetLocale, so they sum to it.
+type BlockCounts struct {
+	Total        int
+	Translatable int
+	NotStarted   int
+	Draft        int
+	Translated   int
+	Reviewed     int
 }
 
 // PendingReviewRef names one (block, locale) pair awaiting review.

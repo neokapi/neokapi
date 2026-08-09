@@ -690,13 +690,20 @@ func editorRemoveFile(ctx context.Context, cs store.ContentStore, projectID, str
 
 // editorGetBlocks returns blocks for a specific item, formatted for the API.
 func editorGetBlocks(ctx context.Context, cs store.ContentStore, projectID, stream, itemName string, targetLocales []string, limit, offset int) ([]BlockInfoResponse, error) {
-	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
+	return editorQueryBlocks(ctx, cs, store.BlockQuery{
 		ProjectID: projectID,
 		Stream:    stream,
 		ItemName:  itemName,
 		Limit:     limit,
 		Offset:    offset,
-	})
+	}, targetLocales)
+}
+
+// editorQueryBlocks runs an arbitrary block query and formats the page for the
+// API — the filtered form of editorGetBlocks, used by the surfaces that narrow
+// by status, locale or search text.
+func editorQueryBlocks(ctx context.Context, cs store.ContentStore, query store.BlockQuery, targetLocales []string) ([]BlockInfoResponse, error) {
+	storedBlocks, err := cs.GetBlocks(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -716,12 +723,17 @@ func editorUpdateBlockTarget(ctx context.Context, cs store.ContentStore, project
 		return err
 	}
 
-	loc := model.LocaleID(req.TargetLocale)
-	oldRuns := sb.Block.TargetRuns(loc)
-	sb.Block.SetTargetText(loc, req.Text)
-	demoteStaleReviewOnEdit(sb.Block, loc, oldRuns)
-
+	applyTargetTextEdit(sb.Block, model.LocaleID(req.TargetLocale), req.Text)
 	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
+}
+
+// applyTargetTextEdit writes text as the block's target for locale, demoting a
+// review the edit invalidates. Every path that edits target text in place goes
+// through it, so none can skip the demotion.
+func applyTargetTextEdit(b *model.Block, loc model.LocaleID, text string) {
+	oldRuns := b.TargetRuns(loc)
+	b.SetTargetText(loc, text)
+	demoteStaleReviewOnEdit(b, loc, oldRuns)
 }
 
 // editorUpdateBlockTargetRuns loads a block, updates its target with the given
@@ -1200,44 +1212,67 @@ func editorGetWordCount(ctx context.Context, cs store.ContentStore, projectID, s
 
 // editorLookupMemoryForBlock looks up content-memory matches for a specific block.
 func editorLookupMemoryForBlock(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, stream, blockID, targetLocale string) ([]MemoryMatchInfoResponse, error) {
-	proj, err := cs.GetProject(ctx, projectID)
-	if err != nil {
+	lookup, err := newMemoryLookup(ctx, cs, wsStores, ws, projectID)
+	if err != nil || lookup == nil {
 		return nil, err
-	}
-
-	tm, err := wsStores.getMemory(ws)
-	if err != nil {
-		return nil, fmt.Errorf("init content memory: %w", err)
-	}
-	if count, err := tm.Count(ctx); err != nil {
-		return nil, err
-	} else if count == 0 {
-		return nil, nil
 	}
 
 	sb, err := cs.GetBlock(ctx, projectID, stream, blockID)
 	if err != nil {
 		return nil, err
 	}
+	return lookup.matches(ctx, sb.Block, targetLocale)
+}
 
+// memoryLookup binds a workspace's content memory to a project's source
+// language once, so a run of blocks costs one lookup each rather than a fresh
+// project read and store open per block.
+type memoryLookup struct {
+	tm           memory.Store
+	projectID    string
+	sourceLocale model.LocaleID
+}
+
+// newMemoryLookup resolves the project and its workspace memory. It returns a
+// nil lookup (and no error) when the memory holds nothing to match against.
+func newMemoryLookup(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID string) (*memoryLookup, error) {
+	proj, err := cs.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	tm, err := wsStores.getMemory(ws)
+	if err != nil {
+		return nil, fmt.Errorf("init content memory: %w", err)
+	}
+	count, err := tm.Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		return nil, nil
+	}
+	return &memoryLookup{tm: tm, projectID: projectID, sourceLocale: proj.DefaultSourceLanguage}, nil
+}
+
+// matches returns the block's content-memory matches, best score first.
+func (m *memoryLookup) matches(ctx context.Context, b *model.Block, targetLocale string) ([]MemoryMatchInfoResponse, error) {
 	opts := memory.DefaultLookupOptions()
 	opts.MaxResults = 5
-	opts.ProjectID = projectID // for scoring boost
-	matches, err := tm.Lookup(ctx, sb.Block, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), opts)
+	opts.ProjectID = m.projectID // for scoring boost
+	tgtLoc := model.LocaleID(targetLocale)
+	matches, err := m.tm.Lookup(ctx, b, m.sourceLocale, tgtLoc, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	srcLoc := proj.DefaultSourceLanguage
-	tgtLoc := model.LocaleID(targetLocale)
 	result := make([]MemoryMatchInfoResponse, len(matches))
-	for i, m := range matches {
+	for i, mt := range matches {
 		result[i] = MemoryMatchInfoResponse{
-			Source:    m.Entry.VariantText(srcLoc),
-			Target:    m.Entry.VariantText(tgtLoc),
-			Score:     m.Score,
-			MatchType: string(m.MatchType),
-			ProjectID: m.Entry.ProjectID,
+			Source:    mt.Entry.VariantText(m.sourceLocale),
+			Target:    mt.Entry.VariantText(tgtLoc),
+			Score:     mt.Score,
+			MatchType: string(mt.MatchType),
+			ProjectID: mt.Entry.ProjectID,
 		}
 	}
 	return result, nil

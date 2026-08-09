@@ -43,6 +43,32 @@ func (s *Server) requireEditableStatus(c echo.Context, projectID, blockID, local
 	}
 }
 
+// blockEditAllowed is requireEditableStatus as a predicate: the same ABAC
+// gate, answering without writing a 403. A batch route uses it so one
+// protected block is skipped in its own result instead of refusing the whole
+// request.
+func (s *Server) blockEditAllowed(c echo.Context, projectID, blockID, locale string) bool {
+	as, ok := s.ContentStore.(platstore.BlockAccessStore)
+	if !ok {
+		return true
+	}
+	access, owner, err := as.GetBlockAccess(c.Request().Context(), projectID, blockID)
+	if err != nil {
+		return true
+	}
+	switch access {
+	case bstore.BlockAccessPublished:
+		return hasPermission(c, platauth.PermManageProject)
+	case bstore.BlockAccessRestricted:
+		if actor, _ := c.Get("user_id").(string); owner != "" && owner == actor {
+			return true
+		}
+		return allowsLanguage(c, platauth.PermReview, locale)
+	default:
+		return true
+	}
+}
+
 // BlockStatusRequest sets a block's access state and optional owner. Reason
 // captures a structured rejection/send-back note when moving content back to a
 // lower state. The JSON field keeps its historical name — "status" is the

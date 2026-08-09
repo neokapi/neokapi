@@ -817,56 +817,117 @@ func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, stream, blockID s
 	return sb, nil
 }
 
-func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*platstore.StoredBlock, error) {
-	where := []string{"project_id = ?"}
-	args := []any{query.ProjectID}
+// blockFilterSQLite is the FROM/WHERE half of a BlockQuery, shared by
+// GetBlocks and CountBlocks so a filtered page and its counts can never
+// disagree about what matches. Positional placeholders bind in string order,
+// so the join's arguments precede the WHERE's.
+type blockFilterSQLite struct {
+	join  string // "" when the query needs no per-locale row
+	where string
+	args  []any
+}
+
+// sqliteStatusBucket is the SQLite twin of the Postgres bucket expression —
+// itself the SQL twin of the editor's getBlockStatus — with json_extract
+// standing in for the ->> operator.
+const sqliteStatusBucket = `CASE
+	WHEN COALESCE(json_extract(t.target_json, '$.status'), '') IN ('reviewed', 'signed-off') THEN 'reviewed'
+	WHEN COALESCE(t.text, '') = '' THEN 'not-started'
+	WHEN json_extract(t.target_json, '$.status') = 'translated' THEN 'translated'
+	WHEN json_extract(t.target_json, '$.status') = 'draft' THEN 'draft'
+	WHEN json_extract(b.properties, '$."translation-status"') = 'reviewed' THEN 'reviewed'
+	WHEN json_extract(b.properties, '$."translation-status"') = 'draft' THEN 'draft'
+	WHEN json_extract(b.properties, '$."translation-origin"') IN ('machine', 'pseudo') THEN 'draft'
+	ELSE 'translated'
+END`
+
+// sqliteSourceTextMatch tests the substring against each source run's text
+// separately, so no JSON punctuation can satisfy a search. Text runs
+// serialize flat — {"text":"literal"} — so the run's text is at $.text; every
+// other run kind nests under its own discriminator and yields NULL there.
+const sqliteSourceTextMatch = `EXISTS (
+	SELECT 1 FROM json_each(b.source_json) r
+	WHERE instr(lower(COALESCE(json_extract(r.value, '$.text'), '')), lower(?)) > 0
+)`
+
+// sqliteBlockFilter renders a BlockQuery into bound SQL. withStatus is false
+// for the counts query, whose histogram would otherwise be filtered to one
+// bucket.
+func sqliteBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterSQLite {
+	where := []string{"b.project_id = ?"}
+	whereArgs := []any{query.ProjectID}
 
 	if query.ItemName != "" {
-		where = append(where, "item_name = ?")
-		args = append(args, query.ItemName)
+		where = append(where, "b.item_name = ?")
+		whereArgs = append(whereArgs, query.ItemName)
 	}
 	if len(query.IDs) > 0 {
 		var pb strings.Builder
-		pb.WriteString("id IN (")
+		pb.WriteString("b.id IN (")
 		for i, id := range query.IDs {
 			if i > 0 {
 				pb.WriteByte(',')
 			}
 			pb.WriteByte('?')
-			args = append(args, id)
+			whereArgs = append(whereArgs, id)
 		}
 		pb.WriteByte(')')
 		where = append(where, pb.String())
 	}
 	if query.ContentHash != "" {
-		where = append(where, "content_hash = ?")
-		args = append(args, query.ContentHash)
+		where = append(where, "b.content_hash = ?")
+		whereArgs = append(whereArgs, query.ContentHash)
 	}
 	if query.Translatable != nil {
 		v := 0
 		if *query.Translatable {
 			v = 1
 		}
-		where = append(where, "translatable = ?")
-		args = append(args, v)
+		where = append(where, "b.translatable = ?")
+		whereArgs = append(whereArgs, v)
 	}
 
-	var qb strings.Builder
-	qb.WriteString(`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
-			source_json, properties, overlays, stored_at, updated_at
-		 FROM blocks WHERE `)
-	qb.WriteString(strings.Join(where, " AND "))
-	qb.WriteString(" ORDER BY id")
+	join := ""
+	var joinArgs []any
+	if query.TargetLocale != "" {
+		join = `LEFT JOIN translations t
+			ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = ? AND t.locale = ?`
+		joinArgs = append(joinArgs, storeutil.DefaultStream(query.Stream), query.TargetLocale)
+	}
+	if query.Text != "" {
+		match := sqliteSourceTextMatch
+		whereArgs = append(whereArgs, query.Text)
+		if join != "" {
+			match = "(" + match + " OR instr(lower(COALESCE(t.text, '')), lower(?)) > 0)"
+			whereArgs = append(whereArgs, query.Text)
+		}
+		where = append(where, match)
+	}
+	if withStatus && query.Status != "" && join != "" {
+		where = append(where, sqliteStatusBucket+" = ?")
+		whereArgs = append(whereArgs, query.Status)
+	}
 
+	return blockFilterSQLite{join: join, where: strings.Join(where, " AND "), args: append(joinArgs, whereArgs...)}
+}
+
+func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*platstore.StoredBlock, error) {
+	f := sqliteBlockFilter(query, true)
+
+	// Constant skeleton + rendered fragments carrying placeholders only; every
+	// value binds through args. Limit and offset are ints, formatted.
+	const skeleton = `SELECT b.id, b.project_id, b.item_name, b.source_id, b.name, b.type, b.mime_type, b.translatable,
+			b.content_hash, b.context_hash, b.source_json, b.properties, b.overlays, b.stored_at, b.updated_at
+		 FROM blocks b %s WHERE %s ORDER BY b.id%s`
+	page := ""
 	if query.Limit > 0 {
-		fmt.Fprintf(&qb, " LIMIT %d", query.Limit)
+		page += fmt.Sprintf(" LIMIT %d", query.Limit)
 	}
 	if query.Offset > 0 {
-		fmt.Fprintf(&qb, " OFFSET %d", query.Offset)
+		page += fmt.Sprintf(" OFFSET %d", query.Offset)
 	}
-	q := qb.String()
 
-	rows, err := s.db.QueryContext(ctx, q, args...)
+	rows, err := s.db.QueryContext(ctx, fmt.Sprintf(skeleton, f.join, f.where, page), f.args...)
 	if err != nil {
 		return nil, fmt.Errorf("query blocks: %w", err)
 	}
@@ -878,6 +939,41 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 		return nil, err
 	}
 	return result, nil
+}
+
+// CountBlocks answers the editor's progress bar with one aggregate instead of
+// a full page of hydrated blocks.
+func (s *SQLiteStore) CountBlocks(ctx context.Context, query platstore.BlockQuery) (platstore.BlockCounts, error) {
+	f := sqliteBlockFilter(query, false)
+	bucket := "''"
+	if f.join != "" {
+		bucket = sqliteStatusBucket
+	}
+
+	const skeleton = `SELECT count(*),
+			SUM(CASE WHEN x.translatable THEN 1 ELSE 0 END),
+			SUM(CASE WHEN x.translatable AND x.bucket = 'not-started' THEN 1 ELSE 0 END),
+			SUM(CASE WHEN x.translatable AND x.bucket = 'draft' THEN 1 ELSE 0 END),
+			SUM(CASE WHEN x.translatable AND x.bucket = 'translated' THEN 1 ELSE 0 END),
+			SUM(CASE WHEN x.translatable AND x.bucket = 'reviewed' THEN 1 ELSE 0 END)
+		 FROM (SELECT b.translatable, %s AS bucket FROM blocks b %s WHERE %s) x`
+
+	// SUM over no rows is NULL, so every bucket scans through a nullable int.
+	var total int
+	var translatable, notStarted, draft, translated, reviewed sql.NullInt64
+	err := s.db.QueryRowContext(ctx, fmt.Sprintf(skeleton, bucket, f.join, f.where), f.args...).
+		Scan(&total, &translatable, &notStarted, &draft, &translated, &reviewed)
+	if err != nil {
+		return platstore.BlockCounts{}, fmt.Errorf("count blocks: %w", err)
+	}
+	return platstore.BlockCounts{
+		Total:        total,
+		Translatable: int(translatable.Int64),
+		NotStarted:   int(notStarted.Int64),
+		Draft:        int(draft.Int64),
+		Translated:   int(translated.Int64),
+		Reviewed:     int(reviewed.Int64),
+	}, nil
 }
 
 // ListPendingReview pages the (block, locale) pairs whose stored target still
