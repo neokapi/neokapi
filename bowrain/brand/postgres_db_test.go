@@ -119,6 +119,55 @@ func TestPostgresBrandStore_ProfileVersioning(t *testing.T) {
 	require.Error(t, err, "UpdateProfile of an unknown profile fails at the versioning read")
 }
 
+// TestPostgresBrandStore_MinScoreRoundTrips pins the profile's own on-brand bar
+// onto every read the store answers. min_score was declared on the model, sent
+// on the wire, and read by four UI surfaces, but the store's column list never
+// carried it: every profile came back with the zero value, so ComplianceBar
+// answered the default 80 for every workspace no matter what was authored, and
+// the ship gate judged a min_score-90 profile at 80. A missing column does not
+// fail a scan — it just returns a zero — so only a round-trip catches it.
+func TestPostgresBrandStore_MinScoreRoundTrips(t *testing.T) {
+	store := newBrandStore(t)
+	ctx := t.Context()
+
+	p := newTestProfile("ws-bar", "Strict")
+	p.MinScore = 90
+	require.NoError(t, store.CreateProfile(ctx, p))
+
+	got, err := store.GetProfile(ctx, p.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 90, got.MinScore, "GetProfile must carry the authored bar")
+	assert.Equal(t, 90, got.ComplianceBar())
+
+	listed, err := store.ListProfiles(ctx, "ws-bar")
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	assert.Equal(t, 90, listed[0].MinScore, "ListProfiles reads the same columns as GetProfile")
+
+	// An update moves the bar, and clearing it returns the profile to the
+	// default rung rather than freezing the last non-zero value.
+	p.MinScore = 60
+	require.NoError(t, store.UpdateProfile(ctx, p))
+	got, err = store.GetProfile(ctx, p.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 60, got.MinScore)
+
+	p.MinScore = 0
+	require.NoError(t, store.UpdateProfile(ctx, p))
+	got, err = store.GetProfile(ctx, p.ID)
+	require.NoError(t, err)
+	assert.Zero(t, got.MinScore)
+	assert.Equal(t, coreprofile.DefaultMinScore, got.ComplianceBar())
+
+	// A profile that never set a bar reads back as unset, not as the default
+	// baked into the column — the two are different states on the wire.
+	plain := newTestProfile("ws-bar", "Default")
+	require.NoError(t, store.CreateProfile(ctx, plain))
+	got, err = store.GetProfile(ctx, plain.ID)
+	require.NoError(t, err)
+	assert.Zero(t, got.MinScore)
+}
+
 // TestPostgresBrandStore_RuleDecisions pins the rule-decision persistence
 // contract: RecordRuleDecision upserts on (profile_id, term), GetRuleDecision
 // matches the term case-insensitively and returns (nil, nil) when absent, and

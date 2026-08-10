@@ -734,8 +734,11 @@ export {
   scoreTextClass,
   scoreStrokeClass,
   scoreFillClass,
+  MIN_SCORE_HELP,
+  minScoreFieldValue,
+  parseMinScore,
 } from "./brand";
-export type { ScoreBand, HasMinScore, ProfileBarSource } from "./brand";
+export type { ScoreBand, HasMinScore, ProfileBarSource, ParsedMinScore } from "./brand";
 export type {
   VoiceProfile,
   ToneProfile,

@@ -26,6 +26,8 @@ import type {
   VoiceExample,
 } from "./types";
 import { Plus, Trash2, ArrowLeft, X } from "../components/icons";
+import { DEFAULT_MIN_SCORE } from "./complianceBar";
+import { MIN_SCORE_HELP, minScoreFieldValue, parseMinScore } from "./minScore";
 
 interface BrandProfileEditorProps {
   profile?: VoiceProfile;
@@ -67,10 +69,15 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
   );
   const [examples, setExamples] = useState<VoiceExample[]>(profile?.examples ?? []);
   const [personalityInput, setPersonalityInput] = useState("");
+  const [minScoreText, setMinScoreText] = useState(minScoreFieldValue(profile?.min_score));
+
+  const minScore = parseMinScore(minScoreText);
 
   const handleSubmit = useCallback(() => {
-    onSave({ name, description, tone, style, vocabulary, examples });
-  }, [name, description, tone, style, vocabulary, examples, onSave]);
+    const bar = parseMinScore(minScoreText);
+    if (!bar.valid) return;
+    onSave({ name, description, tone, style, vocabulary, examples, min_score: bar.value });
+  }, [name, description, tone, style, vocabulary, examples, minScoreText, onSave]);
 
   const addPersonalityTag = useCallback(() => {
     const tag = personalityInput.trim().toLowerCase();
@@ -204,6 +211,23 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
             placeholder="Brief description of this voice profile"
           />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="profile-min-score">On-brand bar</Label>
+          <Input
+            id="profile-min-score"
+            type="number"
+            min={0}
+            max={100}
+            value={minScoreText}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMinScoreText(e.target.value)}
+            placeholder={String(DEFAULT_MIN_SCORE)}
+            aria-invalid={!minScore.valid}
+            data-testid="profile-min-score"
+          />
+          <p className={`text-xs ${minScore.valid ? "text-muted-foreground" : "text-destructive"}`}>
+            {minScore.valid ? MIN_SCORE_HELP : "The bar must be a whole number between 0 and 100."}
+          </p>
         </div>
       </Card>
 
@@ -619,7 +643,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button onClick={handleSubmit} disabled={!name.trim()}>
+        <Button onClick={handleSubmit} disabled={!name.trim() || !minScore.valid}>
           {profile ? "Save Changes" : "Create Profile"}
         </Button>
       </div>

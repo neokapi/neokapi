@@ -65,19 +65,25 @@ func TestBrandMigrations_SingleBaseline(t *testing.T) {
 	// every version ever issued, so a live database DOES re-run it, and
 	// declaring personas in the CREATE is how the column arrives.
 	require.Len(t, Migrations, 1, "the brand schema is a single consolidated baseline")
-	assert.Equal(t, 3, Migrations[0].Version, "baseline sits above versions 1 and 2, which it folds")
+	assert.Equal(t, 4, Migrations[0].Version, "baseline sits above versions 1-3, which it folds")
 	assert.NotEmpty(t, Migrations[0].SQL)
 
 	sql := Migrations[0].SQL
 
-	// The correction-learning loop's schema, and the personas column folded in
-	// from version 2, are all in the one baseline.
+	// The correction-learning loop's schema, the personas column folded in from
+	// version 2, and the on-brand bar from version 4 are all in the one baseline.
 	for _, want := range []string{
 		"brand_rule_decisions", "brand_voice_corrections", "brand_profile_versions",
-		"autonomy", "personas",
+		"autonomy", "personas", "min_score",
 	} {
 		assert.Contains(t, sql, want)
 	}
+
+	// A column the baseline only DECLARES never reaches a database that already
+	// has the table: CREATE ... IF NOT EXISTS is a no-op there. Every column
+	// added after the table existed needs its own idempotent ALTER beside it.
+	assert.Contains(t, sql, "ALTER TABLE brand_profiles ADD COLUMN IF NOT EXISTS min_score",
+		"a live database gains min_score by ALTER, not by re-reading the CREATE")
 
 	// Idempotent throughout: a baseline that is re-applied must not fail on
 	// objects that already exist.

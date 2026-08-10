@@ -10,6 +10,8 @@ import type {
 } from "./types";
 import { ArrowLeft, Check } from "../components/icons";
 import { defaultTone, defaultStyle, defaultVocabulary } from "./defaults";
+import { DEFAULT_MIN_SCORE } from "./complianceBar";
+import { MIN_SCORE_HELP, minScoreFieldValue, parseMinScore } from "./minScore";
 import { ToneSpectrumSelector } from "./ToneSpectrumSelector";
 import { PersonalityTagPicker } from "./PersonalityTagPicker";
 import { BrandVoicePreview } from "./BrandVoicePreview";
@@ -60,7 +62,9 @@ export function BrandProfileWizard({ profile, onSave, onCancel }: BrandProfileWi
   const [personas, setPersonas] = useState<Record<string, PersonaOverride>>(
     profile?.personas ?? {},
   );
+  const [minScoreText, setMinScoreText] = useState(minScoreFieldValue(profile?.min_score));
 
+  const minScore = parseMinScore(minScoreText);
   const currentIndex = steps.findIndex((s) => s.key === currentStep);
 
   const handleNext = useCallback(() => {
@@ -76,11 +80,22 @@ export function BrandProfileWizard({ profile, onSave, onCancel }: BrandProfileWi
   }, [currentIndex]);
 
   const handleSubmit = useCallback(() => {
-    onSave({ name, description, tone, style, vocabulary, examples, personas });
-  }, [name, description, tone, style, vocabulary, examples, personas, onSave]);
+    const bar = parseMinScore(minScoreText);
+    if (!bar.valid) return;
+    onSave({
+      name,
+      description,
+      tone,
+      style,
+      vocabulary,
+      examples,
+      personas,
+      min_score: bar.value,
+    });
+  }, [name, description, tone, style, vocabulary, examples, personas, minScoreText, onSave]);
 
   const isLastStep = currentIndex === steps.length - 1;
-  const canProceed = currentStep === "identity" ? name.trim().length > 0 : true;
+  const canProceed = currentStep === "identity" ? name.trim().length > 0 && minScore.valid : true;
 
   return (
     <div className="space-y-6">
@@ -160,6 +175,29 @@ export function BrandProfileWizard({ profile, onSave, onCancel }: BrandProfileWi
                   }
                   placeholder="Brief description of this voice profile"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile-min-score">On-brand bar</Label>
+                <Input
+                  id="profile-min-score"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={minScoreText}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setMinScoreText(e.target.value)
+                  }
+                  placeholder={String(DEFAULT_MIN_SCORE)}
+                  aria-invalid={!minScore.valid}
+                  data-testid="profile-min-score"
+                />
+                <p
+                  className={`text-xs ${minScore.valid ? "text-muted-foreground" : "text-destructive"}`}
+                >
+                  {minScore.valid
+                    ? MIN_SCORE_HELP
+                    : "The bar must be a whole number between 0 and 100."}
+                </p>
               </div>
             </Card>
           )}
@@ -323,7 +361,7 @@ export function BrandProfileWizard({ profile, onSave, onCancel }: BrandProfileWi
                 Cancel
               </Button>
               {isLastStep ? (
-                <Button onClick={handleSubmit} disabled={!name.trim()}>
+                <Button onClick={handleSubmit} disabled={!name.trim() || !minScore.valid}>
                   {profile ? "Save Changes" : "Create Profile"}
                 </Button>
               ) : (

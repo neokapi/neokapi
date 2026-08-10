@@ -8,20 +8,26 @@ import "github.com/neokapi/neokapi/bowrain/storage"
 //
 //	1  brand voice schema (baseline)
 //	2  author personas on brand profiles
+//	3  brand voice baseline (folds 1-2)
 //
-// The personas column version 2 added by ALTER is declared in the CREATE below.
+// The columns later versions added by ALTER (personas, min_score) are declared
+// in the CREATE below as well: the CREATE serves an empty database, the ALTER
+// serves one that already has the table, and both are idempotent.
 //
-// Baseline is version 3 — above every number issued, so an existing database
+// Baseline is version 4 — above every number issued, so an existing database
 // applies it once and any drift between its schema and its bookkeeping is
 // repaired. Because the baseline is idempotent and re-applied by design, the
 // old warning that changes "MUST be incremental, never a re-run of the
 // baseline" no longer holds: a re-run is now the mechanism, not the hazard.
 //
-// Retired numbers are never reused; the next migration is version 4.
+// Retired numbers are never reused; the next migration is version 5. Version 4
+// added brand_profiles.min_score — the profile's own on-brand bar, which the
+// API accepted and the store then dropped, pinning every workspace profile to
+// the default bar no matter what was authored.
 var Migrations = []storage.Migration{
 	{
-		Version:     3,
-		Description: "brand voice baseline (folds 1-2)",
+		Version:     4,
+		Description: "brand voice baseline (folds 1-3) + the profile's own on-brand bar",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS brand_profiles (
 				id           TEXT PRIMARY KEY,
@@ -36,6 +42,10 @@ var Migrations = []storage.Migration{
 				channels     JSONB NOT NULL DEFAULT '{}',
 				autonomy     JSONB NOT NULL DEFAULT '{}',
 				personas     JSONB NOT NULL DEFAULT '{}',
+				-- The profile's own on-brand bar (0-100); 0 means the default
+				-- (core/profile.DefaultMinScore). The ship gate and bulk
+				-- approve-passing read it through VoiceProfile.ComplianceBar.
+				min_score    INTEGER NOT NULL DEFAULT 0,
 				version      INTEGER NOT NULL DEFAULT 1,
 				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -43,6 +53,10 @@ var Migrations = []storage.Migration{
 				UNIQUE (workspace_id, name)
 			);
 			CREATE INDEX IF NOT EXISTS idx_brand_profiles_workspace ON brand_profiles(workspace_id);
+			-- The CREATE above serves an empty database; this serves one that
+			-- already has the table, where CREATE ... IF NOT EXISTS is a no-op
+			-- and would leave the new column missing. Both are idempotent.
+			ALTER TABLE brand_profiles ADD COLUMN IF NOT EXISTS min_score INTEGER NOT NULL DEFAULT 0;
 
 			CREATE TABLE IF NOT EXISTS brand_profile_versions (
 				profile_id TEXT NOT NULL,

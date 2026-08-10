@@ -28,7 +28,24 @@ type BrandProfileRequest struct {
 	Locales     map[model.LocaleID]coreprofile.LocaleOverride `json:"locales,omitempty"`
 	Channels    map[string]coreprofile.ChannelOverride        `json:"channels,omitempty"`
 	Personas    map[string]coreprofile.PersonaOverride        `json:"personas,omitempty"`
+	// MinScore is the profile's own on-brand bar (0–100); 0 means the default
+	// (coreprofile.DefaultMinScore). It is authored content, not server-managed
+	// metadata: the bar decides which blocks the ship gate and bulk
+	// approve-passing count as on-brand, so it round-trips through every write
+	// surface — create, update, and the `kapi push` upsert.
+	MinScore int `json:"min_score,omitempty"`
 }
+
+// validMinScore reports whether a requested on-brand bar is in range. 0 is
+// valid and means "use the default"; the accepted band mirrors
+// coreprofile.ValidateProfile's min_score rule.
+func validMinScore(minScore int) bool {
+	return minScore >= 0 && minScore <= 100
+}
+
+// errMinScoreRange is the 400 a bar outside 0–100 earns, worded the way
+// coreprofile.ValidateProfile words it.
+const errMinScoreRange = "min_score must be between 0 and 100"
 
 // BrandProfileUpsertResponse reports what HandleUpsertBrandProfile did.
 // Action is "created", "updated", or "unchanged"; Profile is the stored
@@ -91,6 +108,9 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 	if req.Name == "" {
 		return apiErr(c, http.StatusBadRequest, "name is required")
 	}
+	if !validMinScore(req.MinScore) {
+		return apiErr(c, http.StatusBadRequest, errMinScoreRange)
+	}
 
 	wsID, _ := c.Get("workspace_id").(string)
 	userID, _ := c.Get("user_id").(string)
@@ -107,6 +127,7 @@ func (s *Server) HandleCreateBrandProfile(c echo.Context) error {
 		Locales:     req.Locales,
 		Channels:    req.Channels,
 		Personas:    req.Personas,
+		MinScore:    req.MinScore,
 		Scope:       wsID,
 		Version:     1,
 		CreatedAt:   now,
@@ -151,6 +172,9 @@ func (s *Server) HandleUpsertBrandProfile(c echo.Context) error {
 	}
 	if req.Name == "" {
 		return apiErr(c, http.StatusBadRequest, "name is required")
+	}
+	if !validMinScore(req.MinScore) {
+		return apiErr(c, http.StatusBadRequest, errMinScoreRange)
 	}
 
 	ctx := c.Request().Context()
@@ -228,6 +252,7 @@ func (s *Server) upsertBrandProfile(ctx context.Context, wsID, userID string, re
 			Locales:     req.Locales,
 			Channels:    req.Channels,
 			Personas:    req.Personas,
+			MinScore:    req.MinScore,
 			Scope:       wsID,
 			Version:     1,
 			CreatedAt:   now,
@@ -244,10 +269,16 @@ func (s *Server) upsertBrandProfile(ctx context.Context, wsID, userID string, re
 	vocab := req.Vocabulary
 	s.preservePromotedRules(ctx, existing, &vocab)
 
-	incoming := brandContentOf(req.Name, req.Description, req.Tone, req.Style, vocab,
-		req.Examples, req.Locales, req.Channels, req.Personas)
-	current := brandContentOf(existing.Name, existing.Description, existing.Tone, existing.Style,
-		existing.Vocabulary, existing.Examples, existing.Locales, existing.Channels, existing.Personas)
+	incoming := brandContentOf(brandProfileContent{
+		Name: req.Name, Description: req.Description, Tone: req.Tone, Style: req.Style,
+		Vocabulary: vocab, Examples: req.Examples, Locales: req.Locales,
+		Channels: req.Channels, Personas: req.Personas, MinScore: req.MinScore,
+	})
+	current := brandContentOf(brandProfileContent{
+		Name: existing.Name, Description: existing.Description, Tone: existing.Tone, Style: existing.Style,
+		Vocabulary: existing.Vocabulary, Examples: existing.Examples, Locales: existing.Locales,
+		Channels: existing.Channels, Personas: existing.Personas, MinScore: existing.MinScore,
+	})
 	if reflect.DeepEqual(incoming, current) {
 		return brandProfileUpsert{Profile: existing, Action: brandUpsertUnchanged}, nil
 	}
@@ -262,6 +293,7 @@ func (s *Server) upsertBrandProfile(ctx context.Context, wsID, userID string, re
 	existing.Locales = req.Locales
 	existing.Channels = req.Channels
 	existing.Personas = req.Personas
+	existing.MinScore = req.MinScore
 	existing.VersionNote = versionNote
 	existing.UpdatedAt = time.Now().UTC()
 
@@ -287,16 +319,15 @@ type brandProfileContent struct {
 	Locales     map[model.LocaleID]coreprofile.LocaleOverride
 	Channels    map[string]coreprofile.ChannelOverride
 	Personas    map[string]coreprofile.PersonaOverride
+	MinScore    int
 }
 
-// brandContentOf builds a normalized comparable view: every empty top-level
-// collection maps to nil so a YAML-decoded pushed profile (nil slices/maps)
-// compares equal to a stored one that round-tripped through the database.
-func brandContentOf(name, description string, tone coreprofile.ToneProfile, style coreprofile.StyleRules,
-	vocab coreprofile.VocabularyRules, examples []coreprofile.VoiceExample,
-	locales map[model.LocaleID]coreprofile.LocaleOverride, channels map[string]coreprofile.ChannelOverride,
-	personas map[string]coreprofile.PersonaOverride,
-) brandProfileContent {
+// brandContentOf normalizes a comparable view: every empty top-level collection
+// maps to nil so a YAML-decoded pushed profile (nil slices/maps) compares equal
+// to a stored one that round-tripped through the database.
+func brandContentOf(c brandProfileContent) brandProfileContent {
+	tone, style, vocab := c.Tone, c.Style, c.Vocabulary
+	examples, locales, channels, personas := c.Examples, c.Locales, c.Channels, c.Personas
 	if len(tone.Personality) == 0 {
 		tone.Personality = nil
 	}
@@ -331,8 +362,9 @@ func brandContentOf(name, description string, tone coreprofile.ToneProfile, styl
 		personas = nil
 	}
 	return brandProfileContent{
-		Name: name, Description: description, Tone: tone, Style: style,
+		Name: c.Name, Description: c.Description, Tone: tone, Style: style,
 		Vocabulary: vocab, Examples: examples, Locales: locales, Channels: channels, Personas: personas,
+		MinScore: c.MinScore,
 	}
 }
 
@@ -416,6 +448,9 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
+	if !validMinScore(req.MinScore) {
+		return apiErr(c, http.StatusBadRequest, errMinScoreRange)
+	}
 
 	ctx := c.Request().Context()
 	profile, err := s.BrandStore.GetProfile(ctx, c.Param("id"))
@@ -436,6 +471,7 @@ func (s *Server) HandleUpdateBrandProfile(c echo.Context) error {
 	profile.Locales = req.Locales
 	profile.Channels = req.Channels
 	profile.Personas = req.Personas
+	profile.MinScore = req.MinScore
 	profile.Version++
 	profile.UpdatedAt = time.Now().UTC()
 
