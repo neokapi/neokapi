@@ -362,12 +362,24 @@ export class RestApiAdapter implements ApiAdapter {
     return this.refreshPromise;
   }
 
-  /** Attempt to refresh the access token using the stored refresh token or cookie. */
+  /**
+   * Attempt to refresh the access token using the stored refresh token or cookie.
+   *
+   * The headers come from `headers()` for the same reason the uploads' do. In
+   * cookie (BFF) mode there is no in-memory refresh token, so the body is empty
+   * and the server reads the HttpOnly refresh cookie — which makes this an
+   * ambient-credential, state-changing request, and those must carry the CSRF
+   * header. A hand-rolled `{ "Content-Type": … }` omitted it, so every browser
+   * refresh came back 403 "missing CSRF header", `tryRefresh` reported failure,
+   * and `onSessionExpired` bounced the user to the identity provider as soon as
+   * the 15-minute access cookie lapsed (#1809). Deriving from `headers()` keeps
+   * the auth contract in one place.
+   */
   private async tryRefresh(): Promise<boolean> {
     try {
       const resp = await this.fetchImpl(`${this.baseUrl}/api/v1/auth/refresh`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: this.headers(),
         credentials: "same-origin",
         body: JSON.stringify(this.refreshToken ? { refresh_token: this.refreshToken } : {}),
       });
