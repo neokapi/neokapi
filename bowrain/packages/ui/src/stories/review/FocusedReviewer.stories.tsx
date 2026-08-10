@@ -28,8 +28,10 @@ function entry(over: Partial<ReviewEntry>): ReviewEntry {
     itemId: "itm-1",
     itemName: "auth.json",
     // The server names the collection on every queue entry; "" is the item
-    // that belongs to none.
+    // that belongs to none, and "" terminology is a target no governance was
+    // active for — not one that cleared it.
     collectionId: "",
+    termCompliance: "",
     locale: "fr-FR",
     block: block({}),
     issues: [],
@@ -69,11 +71,30 @@ const meta: Meta<typeof FocusedReviewer> = {
 export default meta;
 type Story = StoryObj<typeof FocusedReviewer>;
 
-/** A clean block that passes checks and the on-brand bar. */
-export const Clean: Story = {
+/** A block that clears every bar the server applies on approve. */
+export const Passing: Story = {
   args: {
-    entry: entry({}),
+    entry: entry({ termCompliance: "compliant", voiceScore: 94, voiceBar: 80 }),
     onBrand: { rate: 0.94, basis: "voice+checks", onBrandBlocks: 47, translatedBlocks: 50 },
+  },
+};
+
+/**
+ * Checks pass, but the target uses a forbidden term — the server refuses it,
+ * and the reviewer sees which bar it missed rather than a green chip.
+ */
+export const TermViolation: Story = {
+  args: {
+    entry: entry({ termCompliance: "violation", voiceScore: 91, voiceBar: 80 }),
+    onBrand: { rate: 0.81, basis: "voice+checks+terms", onBrandBlocks: 40, translatedBlocks: 50 },
+  },
+};
+
+/** Checks and terminology pass; the voice score sits below the profile's bar. */
+export const BelowVoiceBar: Story = {
+  args: {
+    entry: entry({ termCompliance: "compliant", voiceScore: 62, voiceBar: 90 }),
+    onBrand: { rate: 0.66, basis: "voice+checks+terms", onBrandBlocks: 33, translatedBlocks: 50 },
   },
 };
 

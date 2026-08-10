@@ -666,6 +666,31 @@ func OnBrandBasisFor(voice, terms bool) OnBrandBasis {
 	}
 }
 
+// TermCompliance is one target's terminology verdict, as a review surface
+// receives it per (block, locale). It is the per-block half of what
+// OnBrandBasis names in aggregate: the deterministic, offline check that the
+// target uses no forbidden or competitor term and omits no mandated rendering
+// its source concept requires.
+//
+// Three rungs, not two, because "not checked" is not "compliant": a project
+// with no terms store and no brand vocabulary has nothing to be compliant with,
+// and a queue that painted those targets green would be claiming evidence it
+// never had.
+type TermCompliance string
+
+const (
+	// TermComplianceUnchecked — no terminology governance was active for the
+	// locale, so nothing was checked and nothing is claimed.
+	TermComplianceUnchecked TermCompliance = ""
+	// TermComplianceCompliant — the target was checked and respects the
+	// project's terminology.
+	TermComplianceCompliant TermCompliance = "compliant"
+	// TermComplianceViolation — the target uses a forbidden or competitor term,
+	// or omits a rendering its source concept mandates for the locale. The
+	// server will not auto-approve it.
+	TermComplianceViolation TermCompliance = "violation"
+)
+
 // ItemTranslationStats holds per-file translation progress.
 type ItemTranslationStats struct {
 	ItemName     string `json:"item_name"`

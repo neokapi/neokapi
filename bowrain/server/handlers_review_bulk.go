@@ -25,11 +25,20 @@ type ApprovePassingRequest struct {
 // failing/off-brand blocks). ReviewCompleted is true when this pass emptied the
 // project's whole review queue and kicked off the completing convergence run →
 // delivery, so a surface can show "all approved · delivering…".
+//
+// The Skipped* fields name WHICH bar each excluded target missed — the same
+// three the review queue's entries now carry, so the surface that previewed the
+// pass and the response that reports it speak in one vocabulary. A target can
+// miss more than one bar; it is counted against the first in gate order
+// (checks, then terminology, then voice), so the three sum to Skipped.
 type ApprovePassingResponse struct {
-	Approved         int  `json:"approved"`
-	Skipped          int  `json:"skipped"`
-	RemainingPending int  `json:"remaining_pending"`
-	ReviewCompleted  bool `json:"review_completed"`
+	Approved              int  `json:"approved"`
+	Skipped               int  `json:"skipped"`
+	SkippedFailingChecks  int  `json:"skipped_failing_checks"`
+	SkippedTermViolations int  `json:"skipped_term_violations"`
+	SkippedBelowVoiceBar  int  `json:"skipped_below_voice_bar"`
+	RemainingPending      int  `json:"remaining_pending"`
+	ReviewCompleted       bool `json:"review_completed"`
 }
 
 // HandleApprovePassing bulk-approves every block whose target for a locale is
@@ -103,6 +112,7 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 	gate := s.resolveTermGate(ctx, proj, stream, wsID)
 
 	approved, skipped := 0, 0
+	skippedBy := map[approveBlocker]int{}
 	touchedSet := map[model.LocaleID]bool{}
 	var toStore []*model.Block
 	for _, sb := range blocks {
@@ -115,13 +125,17 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 				continue // untranslated, or already approved — not a candidate
 			}
 			scored := scores[string(locale.Normalize(loc))]
-			if blockOnBrandAndPassing(ctx, sb.Block, loc, scored, gate) {
+			blocker := blockApproveBlocker(ctx, sb.Block, loc, scored, gate)
+			if blocker == approveBlockerNone {
 				sb.Block.Target(loc).Status = model.TargetStatusReviewed
 				approved++
 				touchedSet[loc] = true
 				modified = true
 			} else {
-				skipped++ // failing/off-brand: left pending for a person
+				// Failing/off-brand: left pending for a person, and named by
+				// the bar it missed rather than lumped into one count.
+				skipped++
+				skippedBy[blocker]++
 			}
 		}
 		if modified {
@@ -157,9 +171,12 @@ func (s *Server) HandleApprovePassing(c echo.Context) error {
 	s.invalidateDashboardCache(wsID, pid)
 
 	return c.JSON(http.StatusOK, ApprovePassingResponse{
-		Approved:         approved,
-		Skipped:          skipped,
-		RemainingPending: remaining,
-		ReviewCompleted:  reviewCompleted,
+		Approved:              approved,
+		Skipped:               skipped,
+		SkippedFailingChecks:  skippedBy[approveBlockerChecks],
+		SkippedTermViolations: skippedBy[approveBlockerTerms],
+		SkippedBelowVoiceBar:  skippedBy[approveBlockerVoice],
+		RemainingPending:      remaining,
+		ReviewCompleted:       reviewCompleted,
 	})
 }

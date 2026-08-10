@@ -271,6 +271,23 @@ describe("OnBrandBasis mirrors store.OnBrandBasis", () => {
   });
 });
 
+describe("TermCompliance mirrors store.TermCompliance", () => {
+  const members = goConstValues(src.storeTypes, "TermCompliance");
+
+  it("enumerates every verdict the review queue can receive, unchecked included", () => {
+    // Three rungs, and the empty one is a member: "not checked" is not
+    // "compliant", and a union that dropped it would let the queue read an
+    // ungoverned target as a cleared one.
+    expect(members.size).toBe(3);
+    expect(members.has("")).toBe(true);
+    expectSameMembers(
+      "TermCompliance",
+      { path: GO.storeTypes, members },
+      { path: TS.api, members: tsUnionMembers(src.api, "TermCompliance") },
+    );
+  });
+});
+
 describe("ChangeSetStatus mirrors knowledge.ChangeSetStatus", () => {
   const members = goConstValues(src.knowledgeTypes, "ChangeSetStatus");
 

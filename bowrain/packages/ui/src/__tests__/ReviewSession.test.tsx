@@ -322,6 +322,121 @@ describe("ReviewSession", () => {
     });
   });
 
+  // The queue's passing bucket is honest only if the entries carry the bars the
+  // server judges on. While the payload carried check findings alone, a target
+  // using a forbidden term or scoring below its profile's bar sat in "no failing
+  // checks" and was counted as about to be approved — by a server that refuses
+  // it. #1771 removed the guessed `off_brand` bucket rather than fake the
+  // evidence; these cases pin the evidence that replaced it.
+  describe("bucketing on the bars the server applies", () => {
+    it("keeps a term violation and a below-bar score out of the passing count", async () => {
+      renderSession(stats, (a) => {
+        a.blockEvidence = {
+          b1: { term_compliance: "violation" },
+          b2: { term_compliance: "compliant", voice_score: 40, voice_bar: 80 },
+        };
+      });
+      await waitForQueue();
+
+      // Neither block carries a failing check, so a check-only bucket said two.
+      expect(screen.getByTestId("filter-verdict-passing").textContent).toContain("(0)");
+      expect(screen.getByTestId("filter-verdict-failing").textContent).toContain("(2)");
+      expect(screen.getByTestId("approve-all-passing")).toBeDisabled();
+    });
+
+    it("counts a compliant, above-bar block as passing", async () => {
+      renderSession(stats, (a) => {
+        a.blockEvidence = {
+          b1: { term_compliance: "compliant", voice_score: 95, voice_bar: 80 },
+          b2: { term_compliance: "violation" },
+        };
+      });
+      await waitForQueue();
+
+      expect(screen.getByTestId("filter-verdict-passing").textContent).toContain("(1)");
+      expect(screen.getByTestId("approve-all-passing")).toBeEnabled();
+      expect(within(screen.getByTestId("approve-all-passing")).getByText("1")).toBeInTheDocument();
+    });
+
+    it("names the bar a block missed, and shows its score against its own bar", async () => {
+      renderSession(stats, (a) => {
+        a.blockEvidence = { b1: { term_compliance: "violation", voice_score: 62, voice_bar: 90 } };
+      });
+      await waitForQueue();
+
+      expect(screen.getByTestId("reviewer-verdict-failing")).toBeInTheDocument();
+      expect(screen.getByTestId("reviewer-blocker-terms")).toBeInTheDocument();
+      expect(screen.getByTestId("reviewer-blocker-voice")).toBeInTheDocument();
+      expect(screen.getByTestId("reviewer-voice-score").textContent).toContain("62/90");
+    });
+
+    it("counts the passing blocks the pass actually covers when a locale is filtered", async () => {
+      const user = userEvent.setup();
+      // The pass forwards the locale filter and nothing else, so the count
+      // beside the button has to be over that locale — it used to be over the
+      // whole loaded queue while the sentence beside it said "in German".
+      const bilingual: BlockInfo[] = [
+        { ...block("b1", "Hello world", "Bonjour le monde"), targets: { "fr-FR": "Bonjour" } },
+        { ...block("b2", "Goodbye now", "Au revoir"), targets: { "de-DE": "Auf Wiedersehen" } },
+      ];
+      const bilingualStats: TranslationDashboardStats = {
+        ...stats,
+        locale_stats: [locale({}), locale({ locale: "de-DE" })],
+        item_stats: [
+          { ...stats.item_stats[0], locales: [locale({}), locale({ locale: "de-DE" })] },
+        ],
+      };
+      renderSession(bilingualStats, undefined, { blocks: bilingual });
+      await waitForQueue();
+      expect(screen.getByTestId("approve-all-passing").textContent).toContain("2");
+
+      await user.click(screen.getByTestId("filter-locale-de-DE"));
+      await waitFor(() =>
+        expect(screen.getByTestId("approve-all-passing").textContent).toContain("1"),
+      );
+    });
+
+    it("treats an unchecked terminology verdict as nothing claimed, not as compliance", async () => {
+      // No governance active for the locale: the entry passes on terminology
+      // because nothing was checked, and the surface says nothing about it.
+      renderSession(stats, (a) => {
+        a.blockEvidence = { b1: {}, b2: {} };
+      });
+      await waitForQueue();
+
+      expect(screen.getByTestId("filter-verdict-passing").textContent).toContain("(2)");
+      expect(screen.queryByTestId("reviewer-blocker-terms")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("reviewer-voice-score")).not.toBeInTheDocument();
+    });
+  });
+
+  it("names which bar the bulk pass's skipped blocks missed", async () => {
+    const user = userEvent.setup();
+    const { adapter } = renderSession(stats, (a) => {
+      a.approvePassingResult = {
+        approved: 3,
+        skipped: 4,
+        skipped_failing_checks: 1,
+        skipped_term_violations: 2,
+        skipped_below_voice_bar: 1,
+        remaining_pending: 4,
+        review_completed: false,
+      };
+    });
+    await waitForQueue();
+
+    await user.click(screen.getByTestId("approve-all-passing"));
+    await user.click(await screen.findByRole("button", { name: "Approve passing" }));
+    await waitFor(() => expect(adapter.approvePassingReviewCalls).toHaveLength(1));
+
+    // "Skipped for failing checks, terminology, or the brand bar" named all
+    // three every time and so told a reviewer nothing about what to fix.
+    const message = await screen.findByText(/skipped/);
+    expect(message.textContent).toContain("1 failing checks");
+    expect(message.textContent).toContain("2 terminology");
+    expect(message.textContent).toContain("1 below the voice bar");
+  });
+
   it("'Approve all passing' clears the queue and shows the delivering state", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSession();

@@ -207,19 +207,24 @@ export { SourceProposalsDialog } from "./components/review/SourceProposalsDialog
 export type { SourceProposalsDialogProps } from "./components/review/SourceProposalsDialog";
 export {
   entryKey,
-  entryCheckStatus,
+  entryVerdict,
+  entryBlockers,
   isPendingReview,
-  isEntryClean,
+  isEntryPassing,
+  isBelowVoiceBar,
   filterEntries,
   groupEntries,
   queueCounts,
-  noFailingChecksCount,
+  passingCount,
+  VERDICT_LABELS,
+  BLOCKER_LABELS,
 } from "./components/review/reviewQueue";
 export type {
   ReviewEntry,
   ReviewGroup,
   ReviewGroupBy,
-  ReviewCheckStatus,
+  ReviewQueueVerdict,
+  ReviewBlocker,
   ReviewQueueFilter,
   ReviewQueueCounts,
 } from "./components/review/reviewQueue";

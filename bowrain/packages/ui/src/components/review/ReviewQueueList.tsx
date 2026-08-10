@@ -3,22 +3,24 @@ import { cn } from "@neokapi/ui-primitives";
 import { getTargetText } from "../editor/blockStatus";
 import { AlertTriangle, CircleCheck } from "../icons";
 import {
-  entryCheckStatus,
+  BLOCKER_LABELS,
+  entryBlockers,
+  entryVerdict,
   groupEntries,
   type ReviewEntry,
   type ReviewGroupBy,
-  type ReviewCheckStatus,
+  type ReviewQueueVerdict,
 } from "./reviewQueue";
 
 const GROUP_OPTIONS: { value: ReviewGroupBy; label: string }[] = [
   { value: "item", label: "File" },
   { value: "locale", label: "Locale" },
-  { value: "check", label: "Checks" },
+  { value: "verdict", label: "Verdict" },
 ];
 
-const checkDot: Record<ReviewCheckStatus, { className: string; icon: typeof AlertTriangle }> = {
+const verdictDot: Record<ReviewQueueVerdict, { className: string; icon: typeof AlertTriangle }> = {
   failing: { className: "text-destructive", icon: AlertTriangle },
-  clean: { className: "text-success", icon: CircleCheck },
+  passing: { className: "text-success", icon: CircleCheck },
 };
 
 export interface ReviewQueueListProps {
@@ -36,7 +38,7 @@ export interface ReviewQueueListProps {
 /**
  * ReviewQueueList is the review session's left rail: the pending blocks across
  * all of a project's items and locales, grouped (by file, locale, or
- * check-status) with a live count per group, and the current block highlighted.
+ * verdict) with a live count per group, and the current block highlighted.
  * Selection is keyboard-driven from the session; this panel reflects and scrolls
  * to `currentId` and lets the reviewer jump with a click.
  */
@@ -102,8 +104,9 @@ export function ReviewQueueList({
                 <span className="tabular-nums">{group.entries.length}</span>
               </div>
               {group.entries.map((entry) => {
-                const status = entryCheckStatus(entry);
-                const Dot = checkDot[status].icon;
+                const verdict = entryVerdict(entry);
+                const Dot = verdictDot[verdict].icon;
+                const blockers = entryBlockers(entry);
                 const active = entry.id === currentId;
                 return (
                   <button
@@ -122,7 +125,10 @@ export function ReviewQueueList({
                     )}
                   >
                     <Dot
-                      className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", checkDot[status].className)}
+                      className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", verdictDot[verdict].className)}
+                      // The dot says pass or fail; the title says which bar,
+                      // so a row is never red for a reason nobody can read.
+                      aria-label={blockers.map((b) => BLOCKER_LABELS[b]).join(", ") || "Passing"}
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm">{entry.block.source}</span>

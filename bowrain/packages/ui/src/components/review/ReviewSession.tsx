@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button, Alert, AlertDescription, cn } from "@neokapi/ui-primitives";
 import { ConfirmDialog } from "../ConfirmDialog";
 import type {
+  ApprovePassingResult,
   ProjectInfo,
   TranslationDashboardStats,
   BlockInfo,
@@ -27,12 +28,13 @@ import {
   entryKey,
   filterEntries,
   isPendingReview,
-  noFailingChecksCount,
+  passingCount,
   queueCounts,
+  VERDICT_LABELS,
   type ReviewEntry,
   type ReviewGroupBy,
   type ReviewQueueFilter,
-  type ReviewCheckStatus,
+  type ReviewQueueVerdict,
 } from "./reviewQueue";
 
 export interface ReviewSessionProps {
@@ -114,6 +116,22 @@ function scopesFromStats(stats: TranslationDashboardStats, targetLocales: string
     }
   }
   return scopes;
+}
+
+/**
+ * Name the bars a bulk pass's skipped blocks missed, in the server's own
+ * counts. "Skipped for failing checks, terminology, or the brand bar" named all
+ * three every time and therefore none of them; the response now attributes each
+ * skip to exactly one.
+ */
+function skipReasons(result: ApprovePassingResult): string {
+  const parts: string[] = [];
+  if (result.skipped_failing_checks) parts.push(`${result.skipped_failing_checks} failing checks`);
+  if (result.skipped_term_violations) parts.push(`${result.skipped_term_violations} terminology`);
+  if (result.skipped_below_voice_bar) {
+    parts.push(`${result.skipped_below_voice_bar} below the voice bar`);
+  }
+  return parts.length > 0 ? parts.join(", ") : "no reason given";
 }
 
 /** Resolve the bound brand profile from the active stream, if any. */
@@ -206,8 +224,9 @@ export function ReviewSession({
   // "gathering"). Both passes are bounded: the pages stop at the session's
   // slice, and QA runs only for the flagged scopes the slice actually holds.
   const buildQueue = useCallback(async (): Promise<QueueLoad> => {
-    const loaded: { itemName: string; locale: string; collectionId: string; block: BlockInfo }[] =
-      [];
+    const loaded: (Omit<ReviewEntry, "id" | "itemId" | "format" | "issues"> & {
+      itemName: string;
+    })[] = [];
     const seen = new Set<string>();
     let total = 0;
     for (let offset = 0; offset < QUEUE_MAX_ENTRIES; offset += QUEUE_PAGE_SIZE) {
@@ -231,6 +250,11 @@ export function ReviewSession({
           locale: e.locale,
           collectionId: e.collection_id ?? "",
           block: e.block,
+          // The bars beyond QA, as the server judges them. Absent fields mean
+          // "not applied", never "cleared".
+          termCompliance: e.term_compliance ?? "",
+          voiceScore: e.voice_score,
+          voiceBar: e.voice_bar,
         });
       }
       if (pageEntries.length < QUEUE_PAGE_SIZE || offset + pageEntries.length >= page.total) break;
@@ -262,6 +286,9 @@ export function ReviewSession({
         locale: e.locale,
         block: e.block,
         issues: qaByScope.get(scopeKey(e))?.get(e.block.id) ?? [],
+        termCompliance: e.termCompliance,
+        voiceScore: e.voiceScore,
+        voiceBar: e.voiceBar,
       });
     }
     return { entries, total: Math.max(total, entries.length) };
@@ -323,10 +350,17 @@ export function ReviewSession({
 
   const visible = useMemo(() => filterEntries(entries, filter), [entries, filter]);
   const counts = useMemo(() => queueCounts(entries), [entries]);
-  // The queue payload carries check findings only, so this is an upper bound on
-  // what the server's approve-passing will take (it also applies the term and
-  // brand-voice bars). The response's Approved/Skipped split is what happened.
-  const noFailing = useMemo(() => noFailingChecksCount(entries), [entries]);
+  // What "Approve all passing" will take, counted over the entries that pass
+  // actually covers: the queue as loaded, narrowed by the locale filter it
+  // forwards. The queue payload carries all three bars the server applies —
+  // check findings, the terminology verdict, and the voice score against its
+  // profile's bar — so this is the count, not an upper bound on it. The
+  // response still reports the split that happened: the queue is a snapshot,
+  // and a re-check in between can move a block.
+  const passing = useMemo(
+    () => passingCount(filter.locale ? entries.filter((e) => e.locale === filter.locale) : entries),
+    [entries, filter.locale],
+  );
 
   // Clamp the cursor whenever the visible list shrinks (filter change, removal).
   useEffect(() => {
@@ -497,9 +531,7 @@ export function ReviewSession({
       const result = await api.approvePassing(project.id, locales);
       setMessage(
         `Approved ${result.approved} block${result.approved === 1 ? "" : "s"}` +
-          (result.skipped > 0
-            ? ` · ${result.skipped} skipped for failing checks, terminology, or the brand bar`
-            : ""),
+          (result.skipped > 0 ? ` · ${result.skipped} skipped (${skipReasons(result)})` : ""),
       );
       if (result.review_completed) setDelivering(true);
       await refetch();
@@ -565,7 +597,7 @@ export function ReviewSession({
 
   const localeName = useCallback((code: string) => getDisplayName(code), [getDisplayName]);
 
-  // ── Filter controls (locale + check-status pills, item select) ────────────
+  // ── Filter controls (locale + verdict pills, item select) ─────────────────
   const localesWithPending = Object.keys(counts.byLocale);
   // The dashboard's rollups name the collection a scope filter came in with;
   // the empty id is the collection-less bucket, which has no name of its own.
@@ -574,9 +606,9 @@ export function ReviewSession({
       ? "In no collection"
       : (dashboardStats.collection_stats.find((c) => c.collection_id === filter.collectionId)
           ?.collection_name ?? filter.collectionId);
-  const checkFilters: { value: ReviewCheckStatus; label: string; count: number }[] = [
-    { value: "failing", label: "Failing", count: counts.failing },
-    { value: "clean", label: "No failing checks", count: counts.clean },
+  const verdictFilters: { value: ReviewQueueVerdict; label: string; count: number }[] = [
+    { value: "failing", label: VERDICT_LABELS.failing, count: counts.failing },
+    { value: "passing", label: VERDICT_LABELS.passing, count: counts.passing },
   ];
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -641,12 +673,12 @@ export function ReviewSession({
           <Button
             size="sm"
             onClick={() => setConfirmBulk(true)}
-            disabled={busy || noFailing === 0}
+            disabled={busy || passing === 0}
             data-testid="approve-all-passing"
           >
             <Sparkles className="mr-1 h-4 w-4" /> Approve all passing
             <span className="ml-1.5 rounded-full bg-white/20 px-1.5 text-[11px] tabular-nums">
-              {noFailing}
+              {passing}
             </span>
           </Button>
         )}
@@ -678,19 +710,19 @@ export function ReviewSession({
             </button>
           ))}
           <span className="ml-3 text-[11px] uppercase tracking-wide text-muted-foreground">
-            Checks
+            Verdict
           </span>
-          {checkFilters.map((cf) => (
+          {verdictFilters.map((cf) => (
             <button
               key={cf.value}
               type="button"
               onClick={() =>
-                setFilter((f) => ({ ...f, check: f.check === cf.value ? undefined : cf.value }))
+                setFilter((f) => ({ ...f, verdict: f.verdict === cf.value ? undefined : cf.value }))
               }
-              data-testid={`filter-check-${cf.value}`}
+              data-testid={`filter-verdict-${cf.value}`}
               className={cn(
                 "rounded-md border px-2 py-0.5 text-xs transition-colors",
-                filter.check === cf.value
+                filter.verdict === cf.value
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-border bg-card text-muted-foreground hover:text-foreground",
               )}
@@ -712,7 +744,7 @@ export function ReviewSession({
             </>
           )}
           {(filter.locale ||
-            filter.check ||
+            filter.verdict ||
             filter.itemId ||
             filter.collectionId !== undefined) && (
             <button
@@ -810,9 +842,9 @@ export function ReviewSession({
         onOpenChange={setConfirmBulk}
         title="Approve all passing?"
         description={
-          `${noFailing} block${noFailing === 1 ? "" : "s"}${
+          `${passing} block${passing === 1 ? "" : "s"}${
             filter.locale ? ` in ${localeName(filter.locale)}` : ""
-          } in this queue carry no failing check. The server applies the terminology and brand bars on approve, so it may take fewer; the rest stay for review.` +
+          } in this queue clear the checks, the terminology and the voice bar. The rest stay for review.` +
           // The bulk pass takes a stream and locales, not a collection, so with
           // a collection scope open the count above describes a narrower set
           // than the act. Saying so beats a count that quietly means something
