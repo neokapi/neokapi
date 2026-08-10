@@ -1239,6 +1239,14 @@ func (s *Server) HandleGetBlockHistory(c echo.Context) error {
 // returned unchanged (legacy shape). The full computation is cached per
 // project/stream, so paging/sorting requests slice the cached result.
 //
+// `collection=<id>` narrows item_stats to one collection's items and makes
+// `item_total` that collection's count, so a consumer drilling into a
+// collection pages the list it is actually showing instead of filtering a page
+// of the project. `ungrouped=1` asks for the collection-less items — the same
+// bucket the rollups mark — because their collection id is the empty string and
+// so no `collection` value can name them. The two are mutually exclusive; a
+// request carrying both is a 400 rather than a guess at which one was meant.
+//
 // Each collection rollup carries the coordinates its collection row persists —
 // `channel` and `coordinates` — so a consumer can group collections by the
 // point in context space their content occupies. Items whose collection id is
@@ -1257,22 +1265,31 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	wsID, _ := c.Get("workspace_id").(string)
 	ctx := c.Request().Context()
 
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	offset, _ := strconv.Atoi(c.QueryParam("offset"))
 	sortField := c.QueryParam("sort")
 	switch sortField {
 	case "", "name", "words", "completion":
 	default:
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "sort must be name, words, or completion"})
 	}
-	dir := c.QueryParam("dir")
+	ungrouped, _ := strconv.ParseBool(c.QueryParam("ungrouped"))
+	window := dashboardItemWindow{
+		collectionID: c.QueryParam("collection"),
+		ungrouped:    ungrouped,
+		sortField:    sortField,
+		dir:          c.QueryParam("dir"),
+	}
+	window.limit, _ = strconv.Atoi(c.QueryParam("limit"))
+	window.offset, _ = strconv.Atoi(c.QueryParam("offset"))
+	if window.collectionID != "" && window.ungrouped {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "collection and ungrouped are mutually exclusive"})
+	}
 
 	// Check cache first
 	cacheKey := dashboardCacheKey(wsID, pid, stream)
 	if cached, ok := s.dashboardCache.Load(cacheKey); ok {
 		entry := cached.(*dashboardCacheEntry)
 		if time.Now().Before(entry.expiresAt) {
-			return c.JSON(http.StatusOK, pageDashboardStats(entry.stats, limit, offset, sortField, dir))
+			return c.JSON(http.StatusOK, pageDashboardStats(entry.stats, window))
 		}
 		s.dashboardCache.Delete(cacheKey)
 	}
@@ -1303,5 +1320,5 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 		expiresAt: time.Now().Add(dashboardCacheTTL),
 	})
 
-	return c.JSON(http.StatusOK, pageDashboardStats(stats, limit, offset, sortField, dir))
+	return c.JSON(http.StatusOK, pageDashboardStats(stats, window))
 }

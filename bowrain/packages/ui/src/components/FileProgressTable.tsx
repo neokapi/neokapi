@@ -36,6 +36,11 @@ interface FileProgressTableProps {
   localeDisplayNames?: Record<string, string>;
   /** Server-side paging/sort; omit for client-side sorting of the full list. */
   paging?: FileProgressPaging;
+  /**
+   * Open one item. Given, the name cell becomes the way into that item's
+   * content; omitted, the table stays a read-only report.
+   */
+  onOpenItem?: (item: ItemTranslationStats) => void;
 }
 
 /** Hard render cap — large projects can hold thousands of files. */
@@ -53,6 +58,7 @@ export function FileProgressTable({
   locales,
   localeDisplayNames,
   paging,
+  onOpenItem,
 }: FileProgressTableProps) {
   const [localSortField, setLocalSortField] = useState<SortField>("name");
   const [localSortDir, setLocalSortDir] = useState<SortDir>("asc");
@@ -172,11 +178,25 @@ export function FileProgressTable({
                       className="max-w-[200px] truncate py-2 pr-3 font-medium"
                       title={item.item_name}
                     >
-                      <FormattedFileName
-                        name={item.item_name}
-                        format={item.format}
-                        iconClassName="w-3.5 h-3.5 shrink-0"
-                      />
+                      {onOpenItem ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenItem(item)}
+                          className="max-w-full truncate text-left hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <FormattedFileName
+                            name={item.item_name}
+                            format={item.format}
+                            iconClassName="w-3.5 h-3.5 shrink-0"
+                          />
+                        </button>
+                      ) : (
+                        <FormattedFileName
+                          name={item.item_name}
+                          format={item.format}
+                          iconClassName="w-3.5 h-3.5 shrink-0"
+                        />
+                      )}
                     </td>
                     <td className="px-2 py-2 text-muted-foreground">{item.format}</td>
                     <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">

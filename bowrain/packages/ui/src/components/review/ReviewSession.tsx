@@ -41,6 +41,15 @@ export interface ReviewSessionProps {
   dashboardStats: TranslationDashboardStats;
   /** The active stream/ref. */
   stream: string;
+  /**
+   * Filter the session opens on — how a collection carries into review from the
+   * project overview. The reviewer can clear it like any other filter.
+   *
+   * The queue itself is a bounded slice of the pending work, so a filter
+   * narrows what has been loaded rather than re-querying the server: a very
+   * large collection can show fewer entries than its rollup counts.
+   */
+  initialFilter?: ReviewQueueFilter;
   /** Navigate to the delivery dashboard (completion CTA + delivery link). */
   onOpenDelivery?: () => void;
   /** Navigate to the runs page (watch the delivering run). */
@@ -147,6 +156,7 @@ export function ReviewSession({
   project,
   dashboardStats,
   stream,
+  initialFilter,
   onOpenDelivery,
   onOpenRuns,
   onOpenChangeset,
@@ -276,7 +286,7 @@ export function ReviewSession({
     }
   }, [data]);
 
-  const [filter, setFilter] = useState<ReviewQueueFilter>({});
+  const [filter, setFilter] = useState<ReviewQueueFilter>(initialFilter ?? {});
   const [groupBy, setGroupBy] = useState<ReviewGroupBy>("item");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -535,6 +545,13 @@ export function ReviewSession({
 
   // ── Filter controls (locale + check-status pills, item select) ────────────
   const localesWithPending = Object.keys(counts.byLocale);
+  // The dashboard's rollups name the collection a scope filter came in with;
+  // the empty id is the collection-less bucket, which has no name of its own.
+  const collectionFilterName =
+    filter.collectionId === ""
+      ? "In no collection"
+      : (dashboardStats.collection_stats.find((c) => c.collection_id === filter.collectionId)
+          ?.collection_name ?? filter.collectionId);
   const checkFilters: { value: ReviewCheckStatus; label: string; count: number }[] = [
     { value: "failing", label: "Failing", count: counts.failing },
     { value: "clean", label: "No failing checks", count: counts.clean },
@@ -659,7 +676,23 @@ export function ReviewSession({
               {cf.label} ({cf.count})
             </button>
           ))}
-          {(filter.locale || filter.check || filter.itemId) && (
+          {filter.collectionId !== undefined && (
+            <>
+              <span className="ml-3 text-[11px] uppercase tracking-wide text-muted-foreground">
+                Collection
+              </span>
+              <span
+                className="rounded-md border border-primary bg-primary px-2 py-0.5 text-xs text-primary-foreground"
+                data-testid="filter-collection"
+              >
+                {collectionFilterName}
+              </span>
+            </>
+          )}
+          {(filter.locale ||
+            filter.check ||
+            filter.itemId ||
+            filter.collectionId !== undefined) && (
             <button
               type="button"
               onClick={() => setFilter({})}

@@ -98,6 +98,47 @@ describe("filtering", () => {
     expect(filterEntries(entries, { check: "clean" }).map((e) => e.block.id)).toEqual(["b", "c"]);
     expect(filterEntries(entries, {})).toHaveLength(3);
   });
+
+  // How a collection carries from the project overview into review.
+  //
+  // Three states, not two: "col-app" is a named collection, "" is an item the
+  // dashboard lists as belonging to none, and undefined is an item the
+  // dashboard does not list at all — membership nobody can name.
+  describe("by collection", () => {
+    const scoped = [
+      entry({ itemId: "i1", locale: "fr", collectionId: "col-app", block: block("a", "fr", "x") }),
+      entry({ itemId: "i2", locale: "fr", collectionId: "col-docs", block: block("b", "fr", "x") }),
+      entry({ itemId: "i3", locale: "fr", collectionId: "", block: block("c", "fr", "x") }),
+      entry({ itemId: "i4", locale: "fr", block: block("d", "fr", "x") }),
+    ];
+
+    it("narrows to one collection", () => {
+      expect(filterEntries(scoped, { collectionId: "col-app" }).map((e) => e.block.id)).toEqual([
+        "a",
+      ]);
+    });
+
+    it("selects the collection-less entries with the empty id, not with no filter", () => {
+      expect(filterEntries(scoped, { collectionId: "" }).map((e) => e.block.id)).toEqual(["c"]);
+      expect(filterEntries(scoped, {})).toHaveLength(4);
+    });
+
+    it("excludes an entry whose collection is unknown from every scope", () => {
+      // The dashboard named no item for this entry, so its collection is
+      // undefined rather than empty. "Cannot confirm" is not "confirmed to
+      // belong to none": it matches neither a named collection nor the
+      // collection-less bucket, and only an unfiltered queue shows it.
+      const unknown = scoped[3];
+      expect(matchesFilter(unknown, { collectionId: "" })).toBe(false);
+      expect(matchesFilter(unknown, { collectionId: "col-app" })).toBe(false);
+      expect(matchesFilter(unknown, {})).toBe(true);
+    });
+
+    it("composes with the other filters", () => {
+      expect(matchesFilter(scoped[0], { collectionId: "col-app", locale: "fr" })).toBe(true);
+      expect(matchesFilter(scoped[0], { collectionId: "col-app", locale: "de" })).toBe(false);
+    });
+  });
 });
 
 describe("groupEntries", () => {

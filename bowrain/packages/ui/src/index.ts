@@ -253,8 +253,32 @@ export { toKapiBlock } from "./components/blockAdapter";
 export { LanguageLabel, localeDisplayName } from "./components/LanguageLabel";
 export { LocaleCompletionChart } from "./components/LocaleCompletionChart";
 export { WordCountChart } from "./components/WordCountChart";
-export { CollectionHeatmap } from "./components/CollectionHeatmap";
 export { FileProgressTable, type FileProgressPaging } from "./components/FileProgressTable";
+// Collection-first project overview: the grouped card grid (level one) and the
+// per-collection item list it drills into (level two).
+export {
+  CollectionOverview,
+  type CollectionOverviewProps,
+  type CollectionScope,
+} from "./components/collections/CollectionOverview";
+export {
+  CollectionItemsView,
+  type CollectionItemsViewProps,
+} from "./components/collections/CollectionItemsView";
+export {
+  LocaleCoverageRail,
+  LocaleCoverageRails,
+  type LocaleCoverageRailProps,
+} from "./components/collections/LocaleCoverageRail";
+export {
+  coordinateAxes,
+  defaultGroupingAxis,
+  groupCollectionsByAxis,
+  isUngroupedBucket,
+  partitionRollups,
+  remainingCoordinates,
+  type CollectionGroup,
+} from "./components/collections/collectionGrouping";
 // Chart components re-exported from @neokapi/ui-primitives above
 // content memory + terms browsers are the shared Apache-licensed suites from
 // @neokapi/ui-primitives, fed by bowrain's REST adapter via the

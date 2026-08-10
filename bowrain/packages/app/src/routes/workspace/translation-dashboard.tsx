@@ -1,16 +1,20 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
+import { useNavigate, useParams, useRouteContext, useSearch } from "@tanstack/react-router";
 import { keepPreviousData, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import {
+  CollectionItemsView,
   DeliveryPanel,
   TranslationDashboard,
   TranslationDashboardSkeleton,
   useApi,
   useStream,
   fetchConnectorStatuses,
+  type ApiAdapter,
+  type CollectionScope,
   type DashboardItemSort,
   type DeliveryConnectorStatus,
   type FileProgressPaging,
+  type ItemTranslationStats,
 } from "@neokapi/ui";
 import {
   DASHBOARD_ITEM_PAGE_SIZE,
@@ -19,46 +23,155 @@ import {
 } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 
-export function TranslationDashboardRoute() {
-  const navigate = useNavigate();
-  const { workspace, projectId } = useParams({ strict: false });
-  const adapter = useApi();
-  const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
-  const ws = activeWorkspace.slug;
-  const { activeStream } = useStream();
+/**
+ * The overview's URL state. Absent, the route renders the collection overview;
+ * present, it renders that scope's item list.
+ *
+ * `collection` and `ungrouped` mirror the endpoint's own parameters — the
+ * collection-less bucket needs a flag of its own because its collection id is
+ * the empty string. `items=all` is the collection-agnostic list, kept reachable
+ * so the grouping hides nothing.
+ */
+export interface DashboardSearch {
+  collection?: string;
+  ungrouped?: boolean;
+  items?: "all";
+  /** The coordinate axis the overview groups by, when the reader picks one. */
+  axis?: string;
+}
 
-  // Server-side item paging: the table's sort is pushed down to the endpoint
-  // and "Load more" grows the page. The route loader primes the default
-  // (first page, name asc) so the initial render is a cache hit.
+/** Which scope the search names, or undefined for the overview. */
+function itemScope(search: DashboardSearch): DashboardSearch | undefined {
+  if (search.collection) return { collection: search.collection };
+  if (search.ungrouped) return { ungrouped: true };
+  if (search.items === "all") return { items: "all" };
+  return undefined;
+}
+
+/**
+ * One collection's items (or, unscoped, the project's whole list). Mounted
+ * under a key derived from the scope, so switching collections starts a fresh
+ * page rather than carrying the previous collection's rows across as
+ * placeholder data; within a scope, sorting and "Load more" keep the visible
+ * page while the next one arrives.
+ */
+function ScopedItems({
+  adapter,
+  workspaceSlug,
+  projectId,
+  stream,
+  scope,
+  onBack,
+  onReview,
+  onOpenItem,
+}: {
+  adapter: ApiAdapter;
+  workspaceSlug: string;
+  projectId: string;
+  stream: string;
+  scope: DashboardSearch;
+  onBack: () => void;
+  onReview: (scope?: CollectionScope) => void;
+  onOpenItem: (item: ItemTranslationStats) => void;
+}) {
   const [itemSort, setItemSort] = useState<{ field: DashboardItemSort; dir: "asc" | "desc" }>({
     field: "name",
     dir: "asc",
   });
   const [pageCount, setPageCount] = useState(1);
 
-  const { data: project } = useSuspenseQuery(
-    projectQueryOptions(adapter, ws, projectId!, activeStream),
-  );
-  const {
-    data: stats,
-    isPending,
-    isFetching,
-  } = useQuery({
-    ...translationDashboardQueryOptions(adapter, ws, projectId!, activeStream, {
+  const { data: stats, isFetching } = useQuery({
+    ...translationDashboardQueryOptions(adapter, workspaceSlug, projectId, stream, {
+      itemCollection: scope.collection,
+      itemUngrouped: scope.ungrouped,
       itemLimit: pageCount * DASHBOARD_ITEM_PAGE_SIZE,
       itemSort: itemSort.field,
       itemDir: itemSort.dir,
     }),
-    // Keep the previous page on screen while a sort change / load-more fetches.
     placeholderData: keepPreviousData,
   });
 
-  // Delivery panel data: the workspace's connectors and each one's last
-  // delivery (same query keys as the connectors panel, so the caches align).
+  if (!stats) return <TranslationDashboardSkeleton />;
+
+  const itemTotal = stats.item_total ?? stats.item_stats.length;
+  const paging: FileProgressPaging = {
+    total: itemTotal,
+    sortField: itemSort.field,
+    sortDir: itemSort.dir,
+    onSortChange: (field, dir) => {
+      setItemSort({ field, dir });
+      setPageCount(1);
+    },
+    hasMore: stats.item_stats.length < itemTotal,
+    onLoadMore: () => setPageCount((c) => c + 1),
+    isLoading: isFetching,
+  };
+
+  const all = scope.items === "all";
+  const rollup = all
+    ? undefined
+    : scope.ungrouped
+      ? stats.collection_stats.find((c) => c.ungrouped)
+      : stats.collection_stats.find((c) => c.collection_id === scope.collection);
+  const title = all
+    ? "All items"
+    : scope.ungrouped
+      ? "In no collection"
+      : (rollup?.collection_name ?? scope.collection ?? "");
+
+  return (
+    <CollectionItemsView
+      collection={rollup}
+      title={title}
+      itemStats={stats.item_stats}
+      localeStats={stats.locale_stats}
+      paging={paging}
+      onBack={onBack}
+      onReview={
+        all
+          ? undefined
+          : () =>
+              onReview({
+                collectionId: scope.collection ?? "",
+                ungrouped: Boolean(scope.ungrouped),
+              })
+      }
+      onOpenItem={onOpenItem}
+    />
+  );
+}
+
+export function TranslationDashboardRoute() {
+  const navigate = useNavigate();
+  const { workspace, projectId } = useParams({ strict: false });
+  const search = useSearch({ strict: false }) as DashboardSearch;
+  const adapter = useApi();
+  const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const ws = activeWorkspace.slug;
+  const { activeStream } = useStream();
+
+  const scope = itemScope(search);
+
+  const { data: project } = useSuspenseQuery(
+    projectQueryOptions(adapter, ws, projectId!, activeStream),
+  );
+
+  // The overview reads the loader-primed default page — the same cache entry
+  // the review session holds. Collection rollups are complete on every
+  // response, and the overview renders no item rows of its own, so drilling in
+  // is what pays for an item list: its own scoped read, in which the table's
+  // "N of M" counts the collection rather than a page of the project.
+  const { data: stats, isPending } = useQuery({
+    ...translationDashboardQueryOptions(adapter, ws, projectId!, activeStream),
+    enabled: !scope,
+  });
+
+  // Delivery is an overview band; a drill-down neither shows nor fetches it.
   const { data: connectors } = useQuery({
     queryKey: ["connectors", ws],
     queryFn: () => adapter.listConnectors(ws),
     staleTime: 15_000,
+    enabled: !scope,
   });
   // One batch read for the panel: a request per connector turned a workspace
   // with many delivery targets into a fan-out on every dashboard visit. The
@@ -73,26 +186,69 @@ export function TranslationDashboardRoute() {
   });
 
   useEffect(() => {
-    document.title = `Dashboard — ${project.name} — ${activeWorkspace.name} — Bowrain`;
+    document.title = `Overview — ${project.name} — ${activeWorkspace.name} — Bowrain`;
   }, [project.name, activeWorkspace.name]);
+
+  const routeParams = {
+    workspace: workspace ?? ws,
+    projectId: project.id,
+    stream: activeStream,
+  };
+  const dashboardRoute = "/$workspace/p/$projectId/s/$stream/dashboard" as const;
+
+  const openScope = (next: DashboardSearch) =>
+    void navigate({
+      to: dashboardRoute,
+      params: routeParams,
+      search: (prev: DashboardSearch) => ({ axis: prev.axis, ...next }),
+    });
+
+  // Review carries the collection it was entered from, so the queue opens on
+  // the scope the reader was looking at rather than the whole project.
+  const openReview = (reviewScope?: CollectionScope) =>
+    void navigate({
+      to: "/$workspace/p/$projectId/s/$stream/review",
+      params: routeParams,
+      search: reviewScope
+        ? {
+            collection: reviewScope.ungrouped ? undefined : reviewScope.collectionId,
+            ungrouped: reviewScope.ungrouped || undefined,
+          }
+        : {},
+    });
+
+  if (scope) {
+    return (
+      <div className="mx-auto max-w-6xl p-6">
+        <ScopedItems
+          key={scope.collection ?? (scope.ungrouped ? "~ungrouped" : "~all")}
+          adapter={adapter}
+          workspaceSlug={ws}
+          projectId={project.id}
+          stream={activeStream}
+          scope={scope}
+          onBack={() =>
+            void navigate({
+              to: dashboardRoute,
+              params: routeParams,
+              search: (prev: DashboardSearch) => ({ axis: prev.axis }),
+            })
+          }
+          onReview={openReview}
+          onOpenItem={(item) =>
+            void navigate({
+              to: "/$workspace/p/$projectId/s/$stream/translate/$",
+              params: { ...routeParams, _splat: item.item_name },
+            })
+          }
+        />
+      </div>
+    );
+  }
 
   if (isPending || !stats) {
     return <TranslationDashboardSkeleton />;
   }
-
-  const itemTotal = stats.item_total ?? stats.item_stats.length;
-  const itemsPaging: FileProgressPaging = {
-    total: itemTotal,
-    sortField: itemSort.field,
-    sortDir: itemSort.dir,
-    onSortChange: (field, dir) => {
-      setItemSort({ field, dir });
-      setPageCount(1);
-    },
-    hasMore: stats.item_stats.length < itemTotal,
-    onLoadMore: () => setPageCount((c) => c + 1),
-    isLoading: isFetching,
-  };
 
   const deliveryConnectors: DeliveryConnectorStatus[] | undefined = connectors?.map((c) => {
     const status = connectorStatuses?.[c.id];
@@ -107,12 +263,6 @@ export function TranslationDashboardRoute() {
     };
   });
 
-  const routeParams = {
-    workspace: workspace ?? ws,
-    projectId: project.id,
-    stream: activeStream,
-  };
-
   const delivery = (
     <DeliveryPanel
       localeStats={stats.locale_stats}
@@ -120,9 +270,7 @@ export function TranslationDashboardRoute() {
       onOpenConnectors={() =>
         navigate({ to: "/$workspace/p/$projectId/s/$stream/connectors", params: routeParams })
       }
-      onOpenReview={() =>
-        navigate({ to: "/$workspace/p/$projectId/s/$stream/review", params: routeParams })
-      }
+      onOpenReview={() => openReview()}
     />
   );
 
@@ -131,8 +279,25 @@ export function TranslationDashboardRoute() {
       <TranslationDashboard
         stats={stats}
         projectName={project.name}
-        itemsPaging={itemsPaging}
         delivery={delivery}
+        groupingAxis={search.axis}
+        onGroupingAxisChange={(axis) =>
+          void navigate({
+            to: dashboardRoute,
+            params: routeParams,
+            search: { axis },
+            replace: true,
+          })
+        }
+        onOpenCollection={(collectionScope) =>
+          openScope(
+            collectionScope.ungrouped
+              ? { ungrouped: true }
+              : { collection: collectionScope.collectionId },
+          )
+        }
+        onOpenAllItems={() => openScope({ items: "all" })}
+        onReviewCollection={openReview}
       />
     </div>
   );

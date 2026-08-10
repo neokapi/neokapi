@@ -429,6 +429,15 @@ const reviewSessionRoute = createRoute({
   path: "p/$projectId/s/$stream/review",
   component: lazyRouteComponent(() => import("./workspace/review-session"), "ReviewSessionRoute"),
   pendingComponent: EditorSkeleton,
+  // The collection a reviewer entered from, pre-applied to the queue. Same
+  // spelling as the overview's own scope, so the two surfaces hand off without
+  // translating between vocabularies.
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { collection?: string; ungrouped?: boolean } => ({
+    collection: typeof search.collection === "string" ? search.collection : undefined,
+    ungrouped: search.ungrouped === true || search.ungrouped === "true" ? true : undefined,
+  }),
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await Promise.all([
       queryClient.ensureQueryData(
@@ -495,6 +504,9 @@ const connectorsRoute = createRoute({
   },
 });
 
+// The project overview and the item list it drills into are one route: the
+// collection a reader is inside is URL state, so a drill-down is linkable and
+// the back affordance is the browser's as much as the page's.
 const translationDashboardRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/dashboard",
@@ -503,6 +515,14 @@ const translationDashboardRoute = createRoute({
     () => import("./workspace/translation-dashboard"),
     "TranslationDashboardRoute",
   ),
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { collection?: string; ungrouped?: boolean; items?: "all"; axis?: string } => ({
+    collection: typeof search.collection === "string" ? search.collection : undefined,
+    ungrouped: search.ungrouped === true || search.ungrouped === "true" ? true : undefined,
+    items: search.items === "all" ? "all" : undefined,
+    axis: typeof search.axis === "string" ? search.axis : undefined,
+  }),
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await Promise.all([
       queryClient.ensureQueryData(

@@ -2138,17 +2138,59 @@ func sortDashboardItems(items []store.ItemTranslationStats, field, dir string) {
 	})
 }
 
-// pageDashboardStats returns a shallow copy of stats with ItemStats sorted and
-// sliced to the requested window. The input (typically the cached full result)
-// is never mutated. limit <= 0 with an empty sort keeps the legacy full,
-// ListItems-ordered response.
-func pageDashboardStats(stats *store.TranslationDashboardStats, limit, offset int, sortField, dir string) *store.TranslationDashboardStats {
-	if limit <= 0 && sortField == "" {
+// dashboardItemWindow is the item-list request a dashboard read carries: which
+// collection's items are wanted, then how that list is ordered and sliced. The
+// zero value asks for every item in ListItems order — the legacy response.
+type dashboardItemWindow struct {
+	// collectionID scopes the list to one collection. Empty means every item;
+	// the items belonging to no collection are asked for with ungrouped.
+	collectionID string
+	// ungrouped scopes the list to the items belonging to no collection — the
+	// same bucket CollectionStats marks with Ungrouped. A collection id can
+	// never select it, because that bucket's id is the empty string.
+	ungrouped bool
+	limit     int
+	offset    int
+	sortField string
+	dir       string
+}
+
+// scoped reports whether the window narrows the item list to one collection.
+func (w dashboardItemWindow) scoped() bool { return w.collectionID != "" || w.ungrouped }
+
+// itemInScope reports whether one item belongs to the collection the window
+// names.
+func (w dashboardItemWindow) itemInScope(it store.ItemTranslationStats) bool {
+	if w.ungrouped {
+		return it.CollectionID == ""
+	}
+	return it.CollectionID == w.collectionID
+}
+
+// pageDashboardStats returns a shallow copy of stats with ItemStats filtered to
+// the window's collection, sorted, and sliced to the requested page. The input
+// (typically the cached full result) is never mutated. An unscoped window with
+// no limit and no sort keeps the legacy full, ListItems-ordered response.
+//
+// ItemTotal follows the filter: a scoped read reports how many items the
+// collection holds, so a paged consumer's "N of M" counts the list it is
+// actually paging. An unscoped read leaves the project-wide total alone.
+func pageDashboardStats(stats *store.TranslationDashboardStats, w dashboardItemWindow) *store.TranslationDashboardStats {
+	if w.limit <= 0 && w.sortField == "" && !w.scoped() {
 		return stats
 	}
 	resp := *stats
-	items := make([]store.ItemTranslationStats, len(stats.ItemStats))
-	copy(items, stats.ItemStats)
+	items := make([]store.ItemTranslationStats, 0, len(stats.ItemStats))
+	for _, it := range stats.ItemStats {
+		if w.scoped() && !w.itemInScope(it) {
+			continue
+		}
+		items = append(items, it)
+	}
+	if w.scoped() {
+		resp.ItemTotal = len(items)
+	}
+	limit, offset, sortField, dir := w.limit, w.offset, w.sortField, w.dir
 	if sortField == "" {
 		sortField = "name"
 	}

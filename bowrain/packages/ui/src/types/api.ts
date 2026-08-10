@@ -915,7 +915,11 @@ export interface TranslationDashboardStats {
    * options were passed to getTranslationDashboard; the full list otherwise.
    */
   item_stats: ItemTranslationStats[];
-  /** Full item count regardless of paging (absent from pre-paging servers). */
+  /**
+   * How many items the request's scope holds, regardless of paging: the whole
+   * project, or one collection when the request named one (absent from
+   * pre-paging servers).
+   */
   item_total?: number;
   collection_stats: CollectionTranslationStats[];
   total_blocks: number;
@@ -926,8 +930,26 @@ export interface TranslationDashboardStats {
 /** Server-side sort column for the dashboard's per-file rows. */
 export type DashboardItemSort = "name" | "words" | "completion";
 
-/** Item paging/sorting options for getTranslationDashboard. */
+/**
+ * Item scoping/paging/sorting options for getTranslationDashboard.
+ *
+ * Locale totals and collection rollups are unaffected by any of these — they
+ * describe the whole project on every response. Only item_stats (and, under a
+ * collection scope, item_total) narrow.
+ */
 export interface TranslationDashboardItemOpts {
+  /**
+   * Scope item_stats to one collection's items, so a drill-down pages that
+   * collection instead of filtering a page of the project.
+   */
+  itemCollection?: string;
+  /**
+   * Scope item_stats to the items belonging to no collection — the bucket
+   * collection_stats marks with `ungrouped`. Its collection id is the empty
+   * string, so no itemCollection value can name it. Mutually exclusive with
+   * itemCollection.
+   */
+  itemUngrouped?: boolean;
   /** Max item_stats rows to return (omit for the full list). */
   itemLimit?: number;
   /** Offset into the sorted list (default 0). */

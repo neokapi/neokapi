@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
+import { useNavigate, useParams, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ReviewSession, useApi } from "@neokapi/ui";
+import { ReviewSession, useApi, type ReviewQueueFilter } from "@neokapi/ui";
 import { projectQueryOptions, translationDashboardQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 
@@ -15,6 +15,7 @@ import type { WorkspaceRouteContext } from "..";
 export function ReviewSessionRoute() {
   const navigate = useNavigate();
   const { workspace, projectId, stream } = useParams({ strict: false });
+  const search = useSearch({ strict: false }) as { collection?: string; ungrouped?: boolean };
   const adapter = useApi();
   const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
@@ -34,12 +35,22 @@ export function ReviewSessionRoute() {
 
   const baseParams = { workspace: wsParam, projectId: project.id, stream: streamParam };
 
+  // The collection the reviewer arrived from, pre-applied to the queue. The
+  // collection-less bucket is the empty id, so it is a distinct scope rather
+  // than the absence of one.
+  const initialFilter: ReviewQueueFilter | undefined = search.ungrouped
+    ? { collectionId: "" }
+    : search.collection
+      ? { collectionId: search.collection }
+      : undefined;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ReviewSession
         project={project}
         dashboardStats={stats}
         stream={streamParam}
+        initialFilter={initialFilter}
         onBack={() => navigate({ to: "/$workspace/p/$projectId/s/$stream", params: baseParams })}
         onOpenDelivery={() =>
           navigate({ to: "/$workspace/p/$projectId/s/$stream/dashboard", params: baseParams })

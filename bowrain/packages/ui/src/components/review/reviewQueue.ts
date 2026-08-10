@@ -30,6 +30,18 @@ export interface ReviewQueueFilter {
   itemId?: string;
   locale?: string;
   check?: ReviewCheckStatus;
+  /**
+   * The collection whose items the queue is narrowed to. `""` selects the
+   * items belonging to no collection — the same bucket the dashboard's rollups
+   * mark as ungrouped — which is why the field is matched on presence rather
+   * than truthiness: an empty string is a scope, not an absent filter.
+   *
+   * Matched exactly, so an entry whose collection is *unknown* (no dashboard
+   * row named its item, leaving ReviewEntry.collectionId undefined) matches no
+   * scope at all. An unknown collection is not the empty one, and coalescing
+   * the two would file an entry nobody can place under "in no collection".
+   */
+  collectionId?: string;
 }
 
 /**
@@ -111,6 +123,9 @@ export function matchesFilter(entry: ReviewEntry, filter: ReviewQueueFilter): bo
   if (filter.itemId && entry.itemId !== filter.itemId) return false;
   if (filter.locale && entry.locale !== filter.locale) return false;
   if (filter.check && entryCheckStatus(entry) !== filter.check) return false;
+  if (filter.collectionId !== undefined && entry.collectionId !== filter.collectionId) {
+    return false;
+  }
   return true;
 }
 
