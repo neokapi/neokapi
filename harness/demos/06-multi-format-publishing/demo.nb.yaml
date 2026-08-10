@@ -1,0 +1,79 @@
+id: 06-multi-format-publishing
+title: Oversett Markdown og en properties-fil
+subtitle: "To filer i to formater, én forespørsel, hver returnert i sitt eget format."
+kind: brukstilfelle
+aspects:
+  - formatbevisst
+  - Markdown tur-retur
+  - .properties tur-retur
+needsAi: true
+model: sonnet
+captureTimeoutSec: 320
+
+prompt: >
+  Vi trenger franske versjoner av to filer: veiledningen README.md for å komme i gang, og UI-strengene messages.properties. Kan du oversette begge til fransk og beholde hver i sitt eget format? Lagre dem som README.fr.md og messages.fr.properties.
+artifacts:
+  - id: md-before
+    caption: "README.md — den engelske veiledningen, gjengitt"
+    source: rapport
+    report: markdown
+    reportTitle: "README.md (engelsk)"
+    path: README.md
+    width: 1100
+    height: 820
+  - id: md-after
+    caption: "README.fr.md — samme overskrifter, lister og sitat, på fransk"
+    source: rapport
+    report: markdown
+    reportTitle: "README.fr.md (Français)"
+    path: README.fr.md
+    width: 1100
+    height: 820
+  - id: props
+    caption: "messages.fr.properties — nøkler bevart, verdier oversatt"
+    source: rapport
+    report: catalog
+    reportTitle: "messages.fr.properties"
+    reportSub: "kapi · Java properties tur-retur"
+    path: messages.fr.properties
+    width: 1100
+    height: 700
+
+narration:
+  - id: tittel
+    kind: title
+    text: >
+      Innhold lever sjelden i ett format. Her må to filer i to formater oversettes, og hver av dem må komme tilbake i sitt opprinnelige format.
+  - id: forespørsel
+    kind: forespørsel
+    text: >
+      Forespørselen nevner begge filene og ber om å beholde hver i sitt eget format. Den forklarer ikke hvordan de to formatene skiller seg — kapi vet det allerede.
+  - id: markdown
+    kind: terminal
+    text: >
+      kapi leser Markdown og Java-egenskaper som distinkte formater. For veiledningen oversetter den prosateksten med den konfigurerte AI-leverandøren og skriver Markdown tilbake: overskriftene, den fete teksten, listen og blokksitatene forblir der de var.
+    caption: "kapi oversetter README.md og skriver Markdown tilbake, med strukturen intakt"
+  - id: properties
+    kind: terminal
+    text: >
+      For properties-filen beholder den hver nøkkel til venstre for likhetstegnet og oversetter kun meldingen til høyre.
+    caption: "messages.properties — nøkler urørt, bare verdiene oversatt"
+  - id: md-before
+    kind: artefakt
+    artifact: md-before
+    text: >
+      Den engelske veiledningen slik den gjengis i dag: en tittel, seksjoner og et tips i et blokksitatfelt.
+  - id: md-after
+    kind: artefakt
+    artifact: md-after
+    text: >
+      Den franske versjonen, med samme struktur — fordi kapi behandlet den som Markdown gjennom hele prosessen, ikke som en tekstblokk.
+  - id: props
+    kind: artefakt
+    artifact: props
+    text: >
+      Og properties-filen på fransk: hver nøkkel bevart, hver verdi oversatt. Én kjøring håndterte begge formatene.
+  - id: outro
+    kind: outro
+    text: >
+      kapi leser og skriver formatene innhold faktisk leveres i — kataloger, dokumenter og data — slik at en oversettelsesforespørsel ikke blir til en haug med konverteringsskript.
