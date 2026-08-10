@@ -80,11 +80,12 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
     itemName = parts.slice(4).map(decodeURIComponent).join("/");
   }
 
+  const isSource = parts.length >= 4 && parts[3] === "source";
   const isAutomations = parts.length >= 4 && parts[3] === "automations";
   const isRuns = parts.length >= 4 && parts[3] === "runs";
   const isConnectors = parts.length >= 4 && parts[3] === "connectors";
 
-  return { projectId, stream, itemName, isAutomations, isRuns, isConnectors };
+  return { projectId, stream, itemName, isSource, isAutomations, isRuns, isConnectors };
 }
 
 // ---------------------------------------------------------------------------
@@ -418,13 +419,15 @@ export function WorkspaceLayout() {
     }
 
     // Determine which project sub-page is active.
-    const activeProjectView = projectParams.isAutomations
-      ? ("automations" as const)
-      : projectParams.isRuns
-        ? ("runs" as const)
-        : projectParams.isConnectors
-          ? ("connectors" as const)
-          : ("dashboard" as const);
+    const activeProjectView = projectParams.isSource
+      ? ("source" as const)
+      : projectParams.isAutomations
+        ? ("automations" as const)
+        : projectParams.isRuns
+          ? ("runs" as const)
+          : projectParams.isConnectors
+            ? ("connectors" as const)
+            : ("dashboard" as const);
 
     return {
       level: "project",
@@ -433,11 +436,12 @@ export function WorkspaceLayout() {
       activeProjectView,
       onBack:
         projectParams.itemName ||
+        projectParams.isSource ||
         projectParams.isAutomations ||
         projectParams.isRuns ||
         projectParams.isConnectors
           ? () => {
-              // Editor/automations/runs/connectors → project detail (up one level)
+              // A project sub-surface goes up to the project's overview.
               void navigate({
                 to: "/$workspace/p/$projectId/s/$stream",
                 params: {
@@ -448,7 +452,7 @@ export function WorkspaceLayout() {
               });
             }
           : () => {
-              // Project detail → workspace dashboard (up one level)
+              // The overview is the project's top level: up is the workspace.
               void navigate({
                 to: "/$workspace",
                 params: { workspace: workspaceSlug ?? ws },
@@ -457,6 +461,16 @@ export function WorkspaceLayout() {
       onOpenDashboard: () => {
         void navigate({
           to: "/$workspace/p/$projectId/s/$stream",
+          params: {
+            workspace: workspaceSlug ?? ws,
+            projectId: project.id,
+            stream: projectParams.stream,
+          },
+        });
+      },
+      onOpenSource: () => {
+        void navigate({
+          to: "/$workspace/p/$projectId/s/$stream/source",
           params: {
             workspace: workspaceSlug ?? ws,
             projectId: project.id,

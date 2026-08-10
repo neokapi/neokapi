@@ -488,6 +488,7 @@ export type {
   Workspace,
   Membership,
   ProjectInfo,
+  ProjectReadOptions,
   ProjectItem,
   SkippedFile,
   UploadFilesResult,

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { setupLocalApp } from "./mock-backend";
+import { setupLocalApp, openProjectSource } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 /**
@@ -24,7 +24,7 @@ async function openVisualEditorWithMemoryAndTerms(page: any) {
   await page.getByTestId("project-name-input").fill("Context Test");
   await selectMultiLocales(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();
-  await expect(page.getByTestId("file-drop-zone")).toBeVisible();
+  await openProjectSource(page);
 
   await page.evaluate(async () => {
     const backend = (window as any).__wailsMockByName;
@@ -67,7 +67,7 @@ async function openVisualEditorWithMemoryAndTerms(page: any) {
   await page.getByTestId("back-to-projects").click();
   await page.waitForTimeout(200);
   await page.getByText("Context Test").first().click();
-  await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+  await openProjectSource(page);
 
   await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
   await page.evaluate(() => {

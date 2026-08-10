@@ -45,7 +45,16 @@ func (s *Server) HandleCreateEditorProject(c echo.Context) error {
 	return c.JSON(http.StatusCreated, info)
 }
 
-// HandleGetEditorProject returns an editor project.
+// HandleGetEditorProject returns an editor project. The default response is the
+// full detail view, with every item embedded.
+//
+// `?view=summary` returns the same shape with an empty items[] — the project's
+// metadata, collections, streams and aggregates. Embedding the items costs a
+// block read per item, so a surface that only needs the project's name,
+// locales, streams or collections asks for the summary; the item list itself is
+// served, paged and sorted, by the dashboard endpoint. The default is the full
+// view because that is the shape existing clients (the Wails desktop, the Go
+// editor client) already read.
 func (s *Server) HandleGetEditorProject(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
@@ -59,7 +68,11 @@ func (s *Server) HandleGetEditorProject(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	info, err := editorBuildProjectInfo(ctx, s.ContentStore, proj, streamParamWithProject(c, proj))
+	build := editorBuildProjectInfo
+	if c.QueryParam("view") == "summary" {
+		build = editorBuildProjectSummaryInfo
+	}
+	info, err := build(ctx, s.ContentStore, proj, streamParamWithProject(c, proj))
 	if err != nil {
 		return serverErr(c, err)
 	}

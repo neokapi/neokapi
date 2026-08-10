@@ -42,8 +42,12 @@ export function featureFromRoutePattern(pattern: string): string | null {
   const project = inWorkspace.match(/^p\/\$projectId\/s\/\$stream(?:\/(.*))?$/);
   if (project) {
     const rest = project[1] ?? "";
+    // The stream root is the project's overview. `dashboard` is its former
+    // address, kept as a redirect; its own name stays so the two are
+    // distinguishable in the funnel for as long as anything still links there.
     if (rest === "") return "project_overview";
     if (rest === "dashboard") return "translation_dashboard";
+    if (rest === "source") return "project_source";
     if (rest === "settings") return "project_settings";
     // Per-file editor surfaces: {translate,review,pre-process}/$, whose
     // trailing splat is dropped with every other param segment.

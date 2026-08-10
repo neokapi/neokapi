@@ -472,8 +472,8 @@ func (s *Server) HandleListWorkspaceProjects(c echo.Context) error {
 						info.WordCount += it.WordCount
 					}
 				}
-			} else if ic, bc, wc, err := editorBuildProjectSummary(ctx, s.ContentStore, p.ID, stream); err == nil {
-				info.ItemCount, info.BlockCount, info.WordCount = ic, bc, wc
+			} else if agg, err := editorBuildProjectSummary(ctx, s.ContentStore, p.ID, stream); err == nil {
+				info.ItemCount, info.BlockCount, info.WordCount = agg.itemCount, agg.blockCount, agg.wordCount
 			}
 			if streams, err := s.ContentStore.ListStreams(ctx, p.ID, false); err == nil {
 				info.StreamCount = len(streams)

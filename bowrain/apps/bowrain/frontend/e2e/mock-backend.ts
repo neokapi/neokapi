@@ -1396,3 +1396,13 @@ export async function setupLocalApp(page: Page) {
     .first()
     .waitFor({ state: "visible", timeout: 10000 });
 }
+
+/**
+ * Opens the project's source view — its collections, the files inside them and
+ * its streams. Opening a project lands on its overview, so every test that
+ * works with files goes through here first.
+ */
+export async function openProjectSource(page: Page) {
+  await page.getByTestId("sidebar-source").click();
+  await page.getByTestId("file-drop-zone").waitFor({ state: "visible", timeout: 10000 });
+}

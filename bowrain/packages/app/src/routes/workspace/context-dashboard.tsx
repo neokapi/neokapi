@@ -35,7 +35,7 @@ export function ContextDashboardRoute() {
       }
       onOpenProject={(projectId) =>
         void navigate({
-          to: "/$workspace/p/$projectId/s/$stream/dashboard",
+          to: "/$workspace/p/$projectId/s/$stream",
           params: { workspace: ws, projectId, stream: "main" },
         })
       }

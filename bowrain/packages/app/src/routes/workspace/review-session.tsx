@@ -53,7 +53,7 @@ export function ReviewSessionRoute() {
         initialFilter={initialFilter}
         onBack={() => navigate({ to: "/$workspace/p/$projectId/s/$stream", params: baseParams })}
         onOpenDelivery={() =>
-          navigate({ to: "/$workspace/p/$projectId/s/$stream/dashboard", params: baseParams })
+          navigate({ to: "/$workspace/p/$projectId/s/$stream", params: baseParams })
         }
         onOpenRuns={() =>
           navigate({ to: "/$workspace/p/$projectId/s/$stream/runs", params: baseParams })

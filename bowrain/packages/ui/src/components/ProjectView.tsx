@@ -65,7 +65,7 @@ export interface ProjectViewProps {
   onDeleteStream?: (streamName: string) => void;
   /** Open project member management. */
   onManageMembers?: () => void;
-  /** Navigate to the translation dashboard for this project. */
+  /** Navigate to the project's overview. */
   onOpenDashboard?: () => void;
   /** Navigate to project settings page. */
   onOpenSettings?: () => void;
@@ -219,7 +219,7 @@ export function ProjectView({
                 onClick={onOpenDashboard}
                 data-testid="open-dashboard-btn"
               >
-                Dashboard
+                Overview
               </Button>
             )}
             {onOpenTerms && (

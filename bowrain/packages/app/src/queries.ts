@@ -36,6 +36,21 @@ export const brandProfilesQueryOptions = (api: ApiAdapter, workspaceSlug: string
     staleTime: 30_000,
   });
 
+/**
+ * The project as every surface but the source view reads it: name, locales,
+ * properties, collections, streams and aggregates, with no embedded item array.
+ *
+ * The server builds that array with a block read per item, so on a project of
+ * any size it dominated the load of every project route — including the ones
+ * that only wanted the project's name. The item list itself belongs to the
+ * overview's drill-down, which reads it paged and sorted from the dashboard
+ * endpoint.
+ *
+ * The key is the plain project key because this is the shape the app reads
+ * everywhere: the workspace layout resolves the sidebar's project from it, and
+ * {@link projectDetailQueryOptions} takes a key of its own so the two never
+ * overwrite each other.
+ */
 export const projectQueryOptions = (
   api: ApiAdapter,
   workspaceSlug: string,
@@ -44,7 +59,24 @@ export const projectQueryOptions = (
 ) =>
   queryOptions({
     queryKey: ["project", workspaceSlug, projectId, stream ?? "main"],
-    queryFn: () => api.getProject(workspaceSlug, projectId, stream),
+    queryFn: () => api.getProject(workspaceSlug, projectId, stream, { view: "summary" }),
+    staleTime: 30_000,
+  });
+
+/**
+ * The project with its items embedded — what the source view renders. Only that
+ * surface asks for it; a mutation invalidating the `["project", ws, id]` prefix
+ * refreshes this and the summary above together.
+ */
+export const projectDetailQueryOptions = (
+  api: ApiAdapter,
+  workspaceSlug: string,
+  projectId: string,
+  stream?: string,
+) =>
+  queryOptions({
+    queryKey: ["project", workspaceSlug, projectId, stream ?? "main", "full"],
+    queryFn: () => api.getProject(workspaceSlug, projectId, stream, { view: "full" }),
     staleTime: 30_000,
   });
 

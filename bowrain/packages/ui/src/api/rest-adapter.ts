@@ -7,6 +7,7 @@ import type {
   Workspace,
   Membership,
   ProjectInfo,
+  ProjectReadOptions,
   UploadFilesResult,
   ConfigResponse,
   PublicPlatformConfig,
@@ -1012,8 +1013,13 @@ export class RestApiAdapter implements ApiAdapter {
     workspaceSlug: string,
     projectId: string,
     _stream?: string,
+    opts?: ProjectReadOptions,
   ): Promise<ProjectInfo> {
-    return this.fetchJSON(this.projectEp(workspaceSlug, projectId));
+    // The default (no query) is the server's full detail shape. `view=summary`
+    // drops the embedded item array, which the server would otherwise pay a
+    // block read per item to build.
+    const query = opts?.view === "summary" ? "?view=summary" : "";
+    return this.fetchJSON(this.projectEp(workspaceSlug, projectId) + query);
   }
 
   async updateProject(

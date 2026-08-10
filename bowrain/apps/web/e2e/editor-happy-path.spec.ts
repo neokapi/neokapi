@@ -76,7 +76,8 @@ test.describe("Editor happy path", () => {
     await injectAuthCookie(page, token);
 
     // ── 1. Upload a good JSON file + a bogus-extension file via the UI ──────
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
+    // Uploads live on the source view; the stream root is the overview.
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/source`);
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 15000 });
 
     const seedFile = path.resolve(__dirname, "seed", FILE_NAME);

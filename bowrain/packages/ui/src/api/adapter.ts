@@ -3,6 +3,7 @@ import type {
   Workspace,
   Membership,
   ProjectInfo,
+  ProjectReadOptions,
   ConfigResponse,
   PublicPlatformConfig,
   BlockInfo,
@@ -386,7 +387,12 @@ export interface ApiAdapter {
     defaultSourceLanguage: string,
     targetLanguages: string[],
   ): Promise<ProjectInfo>;
-  getProject(workspaceSlug: string, projectId: string, stream?: string): Promise<ProjectInfo>;
+  getProject(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+    opts?: ProjectReadOptions,
+  ): Promise<ProjectInfo>;
   updateProject(
     workspaceSlug: string,
     projectId: string,

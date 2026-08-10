@@ -26,6 +26,7 @@ describe("featureFromRoutePattern", () => {
     const base = "/$workspace/p/$projectId/s/$stream";
     expect(featureFromRoutePattern(base)).toBe("project_overview");
     expect(featureFromRoutePattern(`${base}/dashboard`)).toBe("translation_dashboard");
+    expect(featureFromRoutePattern(`${base}/source`)).toBe("project_source");
     expect(featureFromRoutePattern(`${base}/settings`)).toBe("project_settings");
     expect(featureFromRoutePattern(`${base}/automations`)).toBe("automations");
     expect(featureFromRoutePattern(`${base}/runs`)).toBe("runs");

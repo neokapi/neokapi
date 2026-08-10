@@ -54,17 +54,17 @@ test.describe("Translation Dashboard", () => {
     await pseudoTranslateFile(token, wsSlug, projectId, "about-us.html", "fr");
   });
 
-  test("deep link to translation dashboard loads correctly", async ({ page }) => {
+  test("deep link to the project overview loads correctly", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main/dashboard`);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 15000 });
-    expect(page.url()).toContain(`/p/${projectId}/s/main/dashboard`);
+    expect(page.url()).toContain(`/p/${projectId}/s/main`);
   });
 
   test("displays project name in dashboard header", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main/dashboard`);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/Dashboard Test Project/)).toBeVisible();
@@ -72,7 +72,7 @@ test.describe("Translation Dashboard", () => {
 
   test("shows summary stat cards", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main/dashboard`);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 15000 });
     await expect(page.getByText("Source Words")).toBeVisible();
@@ -83,7 +83,7 @@ test.describe("Translation Dashboard", () => {
 
   test("shows completion percentage", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main/dashboard`);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 15000 });
     // The header shows "XX% complete"
@@ -92,7 +92,7 @@ test.describe("Translation Dashboard", () => {
 
   test("shows language completion charts when data exists", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main/dashboard`);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 15000 });
     await expect(page.getByText("Completion by Language")).toBeVisible();
@@ -101,7 +101,7 @@ test.describe("Translation Dashboard", () => {
 
   test("shows file progress table", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main/dashboard`);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 15000 });
     await expect(page.getByText("File Progress")).toBeVisible();
@@ -111,13 +111,13 @@ test.describe("Translation Dashboard", () => {
 
   test("URL persists on page refresh", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main/dashboard`);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 15000 });
 
     await page.reload();
 
     await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 15000 });
-    expect(page.url()).toContain(`/p/${projectId}/s/main/dashboard`);
+    expect(page.url()).toContain(`/p/${projectId}/s/main`);
   });
 });

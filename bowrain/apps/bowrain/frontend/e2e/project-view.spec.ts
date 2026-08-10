@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { setupLocalApp } from "./mock-backend";
+import { setupLocalApp, openProjectSource } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 async function createProject(page: any) {
@@ -11,8 +11,10 @@ async function createProject(page: any) {
   await selectMultiLocales(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();
 
-  // Wait for project view
+  // Creating a project lands on its overview; the file surface is the source
+  // view beside it.
   await expect(page.getByTestId("back-to-projects")).toBeVisible();
+  await openProjectSource(page);
 }
 
 test.describe("Project View", () => {
