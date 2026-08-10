@@ -30,12 +30,24 @@ var (
 	runID         = strconv.FormatInt(time.Now().UnixNano()%100000, 10)
 )
 
+// testMaxConns is the connection ceiling for a per-test schema pool. Small
+// enough to keep a test binary's total connection use modest, and it is the
+// ceiling on both pools at once — see storage.ConfigureSQLOverPool.
+const testMaxConns int32 = 5
+
 // NewTestDB returns a *storage.PgDB connected to an isolated PostgreSQL schema.
 // The first call in a test binary starts a container (shared across tests);
 // subsequent calls reuse it but create a fresh schema per test for isolation.
 //
 // If Docker is not available, the test is skipped.
 func NewTestDB(t *testing.T) *storage.PgDB {
+	t.Helper()
+	return NewTestDBWithMaxConns(t, testMaxConns)
+}
+
+// NewTestDBWithMaxConns is NewTestDB with an explicit connection ceiling, for
+// tests that need concurrency to exceed the pool on purpose.
+func NewTestDBWithMaxConns(t *testing.T, maxConns int32) *storage.PgDB {
 	t.Helper()
 
 	// In -short mode (PR fast-feedback CI), skip the container-backed suites
@@ -87,7 +99,7 @@ func NewTestDB(t *testing.T) *storage.PgDB {
 	}
 
 	// Open a connection pool where every connection uses this schema.
-	db, err := openWithSchema(sharedConnStr, schemaName)
+	db, err := openWithSchema(sharedConnStr, schemaName, maxConns)
 	if err != nil {
 		t.Fatalf("open postgres with schema: %v", err)
 	}
@@ -106,12 +118,13 @@ func NewTestDB(t *testing.T) *storage.PgDB {
 
 // openWithSchema opens a PgDB where every connection in the pool
 // sets search_path to the given schema via AfterConnect.
-func openWithSchema(connStr, schema string) (*storage.PgDB, error) {
+func openWithSchema(connStr, schema string, maxConns int32) (*storage.PgDB, error) {
 	poolConfig, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
+	poolConfig.MaxConns = maxConns
 	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
 		_, err := conn.Exec(ctx, "SET search_path TO "+schema+", public")
 		return err
@@ -123,9 +136,7 @@ func openWithSchema(connStr, schema string) (*storage.PgDB, error) {
 	}
 
 	db := stdlib.OpenDBFromPool(pool)
-	db.SetMaxOpenConns(5)
-	db.SetMaxIdleConns(2)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	storage.ConfigureSQLOverPool(db, maxConns)
 
 	if err := db.PingContext(context.Background()); err != nil {
 		pool.Close()

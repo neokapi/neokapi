@@ -18,6 +18,7 @@ import (
 	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/service"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
@@ -34,8 +35,13 @@ import (
 // getMemory/getTB create in-memory stores instead of requiring PostgreSQL.
 func initTestStores(t *testing.T, srv *Server) {
 	t.Helper()
+	initTestStoresOnDB(t, srv, pgtest.NewTestDB(t))
+}
 
-	db := pgtest.NewTestDB(t)
+// initTestStoresOnDB is initTestStores over a caller-supplied database, for
+// tests that need a particular connection ceiling.
+func initTestStoresOnDB(t *testing.T, srv *Server, db *storage.PgDB) {
+	t.Helper()
 
 	cs, err := bstore.NewPostgresStoreFromDB(db)
 	require.NoError(t, err)
