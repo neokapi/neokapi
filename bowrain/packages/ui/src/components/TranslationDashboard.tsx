@@ -6,8 +6,7 @@ import { LocaleCompletionChart } from "./LocaleCompletionChart";
 import { OnBrandRateChip } from "./OnBrandRateChip";
 import { ShipStateBadge } from "./ShipStateBadge";
 import { WordCountChart } from "./WordCountChart";
-import { CollectionHeatmap } from "./CollectionHeatmap";
-import { FileProgressTable, type FileProgressPaging } from "./FileProgressTable";
+import { CollectionOverview, type CollectionScope } from "./collections/CollectionOverview";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -29,17 +28,20 @@ export interface TranslationDashboardProps {
   projectName?: string;
   className?: string;
   /**
-   * Server-side paging/sort seam for the file-progress table. When present,
-   * stats.item_stats is one server-sorted page and the table lazy-loads the
-   * rest; when absent the table sorts the full list client-side.
-   */
-  itemsPaging?: FileProgressPaging;
-  /**
    * Optional delivery panel (DeliveryPanel), rendered next to the per-locale
    * ship-readiness list. The route composes it so this component stays free of
    * data fetching.
    */
   delivery?: React.ReactNode;
+  /** Open one collection's items — the overview's second level. */
+  onOpenCollection?: (scope: CollectionScope) => void;
+  /** Open the project's item list unscoped. */
+  onOpenAllItems?: () => void;
+  /** Open review with one collection pre-applied. */
+  onReviewCollection?: (scope: CollectionScope) => void;
+  /** The axis collections are grouped by; undefined takes the derived default. */
+  groupingAxis?: string;
+  onGroupingAxisChange?: (axis: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,20 +120,34 @@ function StatCard({ label, value, icon: Icon }: StatCardProps) {
 // Main Component
 // ---------------------------------------------------------------------------
 
+/**
+ * TranslationDashboard is a project's overview: what the project's content is,
+ * grouped by where each collection sits in context space, and how far each
+ * language has come in it.
+ *
+ * It is the first of two levels. The per-item list is the second — reached from
+ * a collection card or from the all-items entry, and composed by the route
+ * (CollectionItemsView), so a project holding a thousand files never opens on
+ * a thousand file paths.
+ */
 export function TranslationDashboard({
   stats,
   projectName,
   className,
-  itemsPaging,
   delivery,
+  onOpenCollection,
+  onOpenAllItems,
+  onReviewCollection,
+  groupingAxis,
+  onGroupingAxisChange,
 }: TranslationDashboardProps) {
   if (!stats) {
     return (
       <div data-testid="translation-dashboard" className={cn("space-y-6", className)}>
-        <h1 className="text-lg font-semibold">Delivery</h1>
+        <h1 className="text-lg font-semibold">Overview</h1>
         <Card className="p-8 text-center">
           <p className="text-sm text-muted-foreground">
-            No translation data yet. Upload files and add translations to see progress here.
+            No content yet. Add files or connect a collection to see it here.
           </p>
         </Card>
       </div>
@@ -155,7 +171,7 @@ export function TranslationDashboard({
     <div data-testid="translation-dashboard" className={cn("space-y-6", className)}>
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">
-          {projectName ? `${projectName} — Delivery` : "Delivery"}
+          {projectName ? `${projectName} — Overview` : "Overview"}
         </h1>
         <span className="text-sm text-muted-foreground">{overallPct}% complete</span>
       </div>
@@ -176,6 +192,20 @@ export function TranslationDashboard({
         <StatCard label="Overall Completion" value={`${overallPct}%`} icon={Languages} />
       </div>
 
+      {/* The content itself, before any report about it: which collections the
+          project holds, where each sits, and how each language stands in it. */}
+      {stats.collection_stats.length > 0 && onOpenCollection && (
+        <CollectionOverview
+          collections={stats.collection_stats}
+          groupingAxis={groupingAxis}
+          onGroupingAxisChange={onGroupingAxisChange}
+          onOpenCollection={onOpenCollection}
+          onOpenAllItems={onOpenAllItems}
+          onReviewCollection={onReviewCollection}
+          itemTotal={stats.item_total ?? stats.item_stats.length}
+        />
+      )}
+
       {/* Ship readiness + delivery */}
       {(hasShipStates || delivery) && (
         <div
@@ -192,28 +222,6 @@ export function TranslationDashboard({
           <LocaleCompletionChart localeStats={stats.locale_stats} />
           <WordCountChart localeStats={stats.locale_stats} />
         </div>
-      )}
-
-      {/* Collection Heatmap */}
-      {stats.collection_stats.length > 0 && (
-        <CollectionHeatmap
-          collectionStats={stats.collection_stats}
-          locales={stats.locale_stats.map((l) => l.locale)}
-        />
-      )}
-
-      {/* File Progress Table */}
-      {(stats.item_stats.length > 0 || (itemsPaging?.total ?? 0) > 0) && (
-        <FileProgressTable
-          itemStats={stats.item_stats}
-          locales={stats.locale_stats.map((l) => l.locale)}
-          localeDisplayNames={Object.fromEntries(
-            stats.locale_stats
-              .filter((l) => l.display_name)
-              .map((l) => [l.locale, l.display_name!]),
-          )}
-          paging={itemsPaging}
-        />
       )}
     </div>
   );

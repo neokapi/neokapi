@@ -1160,7 +1160,9 @@ export const sampleDashboardStats: TranslationDashboardStats = {
   collection_stats: [
     {
       collection_id: "coll-default",
-      collection_name: "Default",
+      collection_name: "Product app",
+      channel: "acme/app",
+      coordinates: { product: "acme", channel: "app" },
       item_count: 2,
       block_count: 42,
       word_count: 3000,
@@ -1194,6 +1196,8 @@ export const sampleDashboardStats: TranslationDashboardStats = {
     {
       collection_id: "coll-web",
       collection_name: "Website",
+      channel: "acme/web",
+      coordinates: { product: "acme", channel: "web" },
       item_count: 1,
       block_count: 8,
       word_count: 800,

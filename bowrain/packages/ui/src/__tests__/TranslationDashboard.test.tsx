@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vite-plus/test";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TranslationDashboard } from "../components/TranslationDashboard";
@@ -9,20 +9,22 @@ import {
 } from "../stories/fixtures";
 import type { TranslationDashboardStats } from "../types/api";
 
+const noop = () => {};
+
 describe("TranslationDashboard", () => {
   it("shows empty state when stats is null", () => {
     render(<TranslationDashboard stats={null} projectName="Test" />);
-    expect(screen.getByText(/no translation data yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/no content yet/i)).toBeInTheDocument();
   });
 
   it("renders the project name in the header", () => {
     render(<TranslationDashboard stats={sampleDashboardStats} projectName="Demo App" />);
-    expect(screen.getByText(/Demo App — Delivery/)).toBeInTheDocument();
+    expect(screen.getByText(/Demo App — Overview/)).toBeInTheDocument();
   });
 
   it("renders generic header when no project name given", () => {
     render(<TranslationDashboard stats={sampleDashboardStats} />);
-    expect(screen.getByText("Delivery")).toBeInTheDocument();
+    expect(screen.getByText("Overview")).toBeInTheDocument();
   });
 
   it("renders all four summary stat cards", () => {
@@ -33,30 +35,98 @@ describe("TranslationDashboard", () => {
     expect(screen.getByText("Overall Completion")).toBeInTheDocument();
   });
 
-  it("shows correct target language count", () => {
-    render(<TranslationDashboard stats={sampleDashboardStats} />);
-    // sampleDashboardStats has 3 locales
-    expect(screen.getByText("3")).toBeInTheDocument();
-  });
-
   it("shows overall completion percentage in header", () => {
     render(<TranslationDashboard stats={sampleDashboardStats} />);
-    // The header shows "XX% complete"
     expect(screen.getByText(/% complete$/)).toBeInTheDocument();
   });
 
-  it("renders file progress table with all items", () => {
-    render(<TranslationDashboard stats={sampleDashboardStats} />);
-    expect(screen.getByText("messages")).toBeInTheDocument();
-    expect(screen.getByText("ui-strings")).toBeInTheDocument();
-    expect(screen.getByText("landing-page")).toBeInTheDocument();
+  it("leads with the collections, not the files", () => {
+    render(<TranslationDashboard stats={sampleDashboardStats} onOpenCollection={noop} />);
+    expect(screen.getByTestId("collection-overview")).toBeInTheDocument();
+    expect(screen.getByText("Product app")).toBeInTheDocument();
+    expect(screen.getByText("Website")).toBeInTheDocument();
+    // The per-file table is the second level now; the overview holds no rows.
+    expect(screen.queryByText("messages")).toBeNull();
+    expect(screen.queryByText("ui-strings")).toBeNull();
   });
 
-  it("renders collection heatmap", () => {
-    render(<TranslationDashboard stats={sampleDashboardStats} />);
-    expect(screen.getByText("Collection Progress")).toBeInTheDocument();
-    expect(screen.getByText("Default")).toBeInTheDocument();
-    expect(screen.getByText("Website")).toBeInTheDocument();
+  it("groups collections by the coordinate axis that partitions them best", () => {
+    render(<TranslationDashboard stats={sampleDashboardStats} onOpenCollection={noop} />);
+    // Both collections share product=acme and differ on channel, so product is
+    // the axis that groups; the heading names the axis and its value.
+    const overview = screen.getByTestId("collection-overview");
+    expect(within(overview).getByText("product")).toBeInTheDocument();
+    expect(within(overview).getByText("acme")).toBeInTheDocument();
+  });
+
+  it("opens a collection by name and by its Items action", async () => {
+    const user = userEvent.setup();
+    const onOpenCollection = vi.fn();
+    render(
+      <TranslationDashboard stats={sampleDashboardStats} onOpenCollection={onOpenCollection} />,
+    );
+    await user.click(screen.getByText("Website"));
+    expect(onOpenCollection).toHaveBeenCalledWith({
+      collectionId: "coll-web",
+      ungrouped: false,
+    });
+
+    const card = screen.getByTestId("collection-card-coll-web");
+    await user.click(within(card).getByRole("button", { name: "Items" }));
+    expect(onOpenCollection).toHaveBeenCalledTimes(2);
+  });
+
+  it("carries the collection into review", async () => {
+    const user = userEvent.setup();
+    const onReviewCollection = vi.fn();
+    render(
+      <TranslationDashboard
+        stats={sampleDashboardStats}
+        onOpenCollection={noop}
+        onReviewCollection={onReviewCollection}
+      />,
+    );
+    const card = screen.getByTestId("collection-card-coll-web");
+    await user.click(within(card).getByRole("button", { name: "Review" }));
+    expect(onReviewCollection).toHaveBeenCalledWith({
+      collectionId: "coll-web",
+      ungrouped: false,
+    });
+  });
+
+  it("keeps the whole item list reachable behind an all-items entry", async () => {
+    const user = userEvent.setup();
+    const onOpenAllItems = vi.fn();
+    render(
+      <TranslationDashboard
+        stats={sampleDashboardStats}
+        onOpenCollection={noop}
+        onOpenAllItems={onOpenAllItems}
+      />,
+    );
+    await user.click(screen.getByTestId("open-all-items"));
+    expect(onOpenAllItems).toHaveBeenCalledOnce();
+  });
+
+  it("names the collection-less bucket rather than calling it a collection", () => {
+    const withUngrouped: TranslationDashboardStats = {
+      ...sampleDashboardStats,
+      collection_stats: [
+        ...sampleDashboardStats.collection_stats,
+        {
+          collection_id: "",
+          collection_name: "",
+          ungrouped: true,
+          item_count: 3,
+          block_count: 5,
+          word_count: 60,
+          locales: [],
+        },
+      ],
+    };
+    render(<TranslationDashboard stats={withUngrouped} onOpenCollection={noop} />);
+    expect(screen.getByTestId("collection-card-ungrouped")).toBeInTheDocument();
+    expect(screen.getAllByText("In no collection").length).toBeGreaterThan(0);
   });
 
   it("renders chart titles", () => {
@@ -75,22 +145,13 @@ describe("TranslationDashboard", () => {
     expect(screen.queryByText("Word Count by Language")).toBeNull();
   });
 
-  it("hides collection heatmap when no collections", () => {
+  it("hides the collection overview when the project holds no collections", () => {
     const noColl: TranslationDashboardStats = {
       ...sampleDashboardStats,
       collection_stats: [],
     };
-    render(<TranslationDashboard stats={noColl} />);
-    expect(screen.queryByText("Collection Progress")).toBeNull();
-  });
-
-  it("hides file table when no items", () => {
-    const noItems: TranslationDashboardStats = {
-      ...sampleDashboardStats,
-      item_stats: [],
-    };
-    render(<TranslationDashboard stats={noItems} />);
-    expect(screen.queryByText("File Progress")).toBeNull();
+    render(<TranslationDashboard stats={noColl} onOpenCollection={noop} />);
+    expect(screen.queryByTestId("collection-overview")).toBeNull();
   });
 
   it("renders the ship-readiness band when the server derives ship states", () => {
@@ -107,13 +168,10 @@ describe("TranslationDashboard", () => {
     expect(screen.queryByTestId("ship-readiness")).toBeNull();
   });
 
-  it("shows compact rollup indicators in the collection heatmap", () => {
-    render(<TranslationDashboard stats={shipStateDashboardStats} />);
-    const heatmap = screen.getByText("Collection Progress").closest("[data-slot=card]")!;
-    // Both collections carry a pending ja-JP rollup.
-    expect(
-      within(heatmap as HTMLElement).getAllByTestId("ship-state-pending").length,
-    ).toBeGreaterThan(0);
+  it("carries each locale's ship state onto its collection rail", () => {
+    render(<TranslationDashboard stats={shipStateDashboardStats} onOpenCollection={noop} />);
+    const overview = screen.getByTestId("collection-overview");
+    expect(within(overview).getAllByTestId("ship-state-pending").length).toBeGreaterThan(0);
   });
 
   it("renders an on-brand rate chip per locale when the server derives it", () => {
@@ -158,22 +216,5 @@ describe("TranslationDashboard", () => {
     );
     expect(screen.getByTestId("delivery-slot")).toBeInTheDocument();
     expect(screen.getByTestId("ship-readiness")).toBeInTheDocument();
-  });
-
-  it("sorts file table by name descending when clicking File header", async () => {
-    const user = userEvent.setup();
-    render(<TranslationDashboard stats={sampleDashboardStats} />);
-
-    // Find the "File Progress" card and the "File" column header.
-    const fileProgressCard = screen.getByText("File Progress").closest("[data-slot=card]")!;
-    const headers = within(fileProgressCard).getAllByRole("columnheader");
-    const fileHeader = headers[0]; // First column is "File"
-
-    // Default is asc by name, clicking toggles to desc.
-    await user.click(fileHeader);
-
-    // In desc order: ui-strings.xliff > messages.json > landing-page.html
-    const rows = within(fileProgressCard).getAllByRole("row");
-    expect(within(rows[1]).getByText("ui-strings")).toBeInTheDocument();
   });
 });

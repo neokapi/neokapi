@@ -353,60 +353,7 @@ describe("FileProgressTable (server paging)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 4. CollectionHeatmap
-// ---------------------------------------------------------------------------
-
-import { CollectionHeatmap } from "../components/CollectionHeatmap";
-import type { CollectionTranslationStats } from "../types/api";
-
-describe("CollectionHeatmap", () => {
-  it("renders collection names and locale columns", () => {
-    const stats: CollectionTranslationStats[] = [
-      {
-        collection_id: "c1",
-        collection_name: "UI Strings",
-        item_count: 5,
-        block_count: 50,
-        word_count: 200,
-        locales: [
-          {
-            locale: "fr-FR",
-            translated_blocks: 40,
-            total_blocks: 50,
-            translated_words: 160,
-            total_words: 200,
-            percentage: 80,
-          },
-        ],
-      },
-    ];
-    render(<CollectionHeatmap collectionStats={stats} locales={["fr-FR", "ja-JP"]} />);
-    expect(screen.getByText("UI Strings")).toBeInTheDocument();
-    expect(screen.getByText("fr-FR")).toBeInTheDocument();
-    expect(screen.getByText("ja-JP")).toBeInTheDocument();
-    // 80% for fr-FR, 0% for ja-JP
-    expect(screen.getByText("80%")).toBeInTheDocument();
-    expect(screen.getByText("0%")).toBeInTheDocument();
-  });
-
-  it("shows 'Default' for collections with empty name", () => {
-    const stats: CollectionTranslationStats[] = [
-      {
-        collection_id: "c1",
-        collection_name: "",
-        item_count: 1,
-        block_count: 10,
-        word_count: 50,
-        locales: [],
-      },
-    ];
-    render(<CollectionHeatmap collectionStats={stats} locales={[]} />);
-    expect(screen.getByText("Default")).toBeInTheDocument();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 5. CollectionTabs
+// 4. CollectionTabs
 // ---------------------------------------------------------------------------
 
 import { CollectionTabs } from "../components/CollectionTabs";
@@ -506,7 +453,7 @@ describe("CollectionTabs", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 6. WordCountChart — recharts uses SVG which jsdom does not fully support.
+// 5. WordCountChart — recharts uses SVG which jsdom does not fully support.
 //    We test that the component renders without crashing and shows the card title.
 // ---------------------------------------------------------------------------
 
@@ -533,7 +480,7 @@ describe("WordCountChart", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 7. ActivityTaskIndicators
+// 6. ActivityTaskIndicators
 // ---------------------------------------------------------------------------
 
 import { ActivityIndicator, TaskIndicator } from "../components/ActivityTaskIndicators";
@@ -641,7 +588,7 @@ describe("TaskIndicator", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 8. FilterBar — complex component, test key behaviors
+// 7. FilterBar — complex component, test key behaviors
 // ---------------------------------------------------------------------------
 
 import { FilterBar, type FilterToken, type FilterField } from "../components/FilterBar";
@@ -683,7 +630,7 @@ describe("FilterBar", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 9. WorkspaceSwitcher — requires SidebarProvider context
+// 8. WorkspaceSwitcher — requires SidebarProvider context
 // ---------------------------------------------------------------------------
 
 import { WorkspaceSwitcher } from "../components/WorkspaceSwitcher";

@@ -1634,6 +1634,8 @@ export class RestApiAdapter implements ApiAdapter {
     opts?: TranslationDashboardItemOpts,
   ): Promise<TranslationDashboardStats> {
     const params = new URLSearchParams();
+    if (opts?.itemCollection) params.set("collection", opts.itemCollection);
+    if (opts?.itemUngrouped) params.set("ungrouped", "1");
     if (opts?.itemLimit !== undefined) params.set("limit", String(opts.itemLimit));
     if (opts?.itemOffset) params.set("offset", String(opts.itemOffset));
     if (opts?.itemSort) params.set("sort", opts.itemSort);

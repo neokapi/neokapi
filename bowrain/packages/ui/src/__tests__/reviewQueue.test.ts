@@ -98,6 +98,31 @@ describe("filtering", () => {
     expect(filterEntries(entries, { check: "clean" }).map((e) => e.block.id)).toEqual(["b", "c"]);
     expect(filterEntries(entries, {})).toHaveLength(3);
   });
+
+  // How a collection carries from the project overview into review.
+  describe("by collection", () => {
+    const scoped = [
+      entry({ itemId: "i1", locale: "fr", collectionId: "col-app", block: block("a", "fr", "x") }),
+      entry({ itemId: "i2", locale: "fr", collectionId: "col-docs", block: block("b", "fr", "x") }),
+      entry({ itemId: "i3", locale: "fr", block: block("c", "fr", "x") }),
+    ];
+
+    it("narrows to one collection", () => {
+      expect(filterEntries(scoped, { collectionId: "col-app" }).map((e) => e.block.id)).toEqual([
+        "a",
+      ]);
+    });
+
+    it("selects the collection-less entries with the empty id, not with no filter", () => {
+      expect(filterEntries(scoped, { collectionId: "" }).map((e) => e.block.id)).toEqual(["c"]);
+      expect(filterEntries(scoped, {})).toHaveLength(3);
+    });
+
+    it("composes with the other filters", () => {
+      expect(matchesFilter(scoped[0], { collectionId: "col-app", locale: "fr" })).toBe(true);
+      expect(matchesFilter(scoped[0], { collectionId: "col-app", locale: "de" })).toBe(false);
+    });
+  });
 });
 
 describe("groupEntries", () => {

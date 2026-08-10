@@ -184,6 +184,8 @@ export const translationDashboardQueryOptions = (
       workspaceSlug,
       projectId,
       stream ?? "main",
+      itemOpts.itemCollection ?? "",
+      itemOpts.itemUngrouped ?? false,
       itemOpts.itemLimit ?? 0,
       itemOpts.itemOffset ?? 0,
       itemOpts.itemSort ?? "name",
