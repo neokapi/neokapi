@@ -1,6 +1,6 @@
 import { Card, Textarea } from "@neokapi/ui-primitives";
 import { useEffect, useState } from "react";
-import type { VoiceProfile, BrandVoiceFinding } from "../brand/types";
+import type { VoiceProfile } from "../brand/types";
 import type { BrandScanCheckResult } from "../types/api";
 import { BrandScoreGauge } from "../brand/BrandScoreGauge";
 import { complianceBar } from "../brand/complianceBar";
@@ -13,22 +13,6 @@ export interface BrandScanLiveTesterProps {
   profile: VoiceProfile;
   /** Debounce before a check fires. Tests lower this. */
   debounceMs?: number;
-}
-
-/**
- * The check-draft endpoint serializes core/check.Finding, whose grouping
- * field is `category`; the brand UI vocabulary calls the same field
- * `dimension`. Normalize here so the findings list never dereferences an
- * absent field, whichever shape the adapter delivered.
- */
-function normalizeCheckFindings(findings: unknown[]): BrandVoiceFinding[] {
-  return (findings ?? []).map((raw) => {
-    const f = raw as Partial<BrandVoiceFinding> & { category?: string };
-    return {
-      ...f,
-      dimension: (f.dimension ?? f.category ?? "vocabulary") as BrandVoiceFinding["dimension"],
-    } as BrandVoiceFinding;
-  });
 }
 
 /**
@@ -79,9 +63,7 @@ export function BrandScanLiveTester({ profile, debounceMs = 500 }: BrandScanLive
                 : `${result.findings.length} finding${result.findings.length === 1 ? "" : "s"} against the draft rules.`}
             </p>
           </div>
-          {result.findings.length > 0 && (
-            <BrandFindingsList findings={normalizeCheckFindings(result.findings)} />
-          )}
+          {result.findings.length > 0 && <BrandFindingsList findings={result.findings} />}
         </div>
       )}
     </Card>

@@ -1,6 +1,6 @@
 // IOPort is defined once in the shared @neokapi/contract-types package (#817).
-import type { IOPort, Run } from "@neokapi/contract-types";
-import type { VoiceProfile } from "../brand/types";
+import type { IOPort, Run, RunRange } from "@neokapi/contract-types";
+import type { BrandVoiceFinding, VoiceProfile } from "../brand/types";
 export type { IOPort };
 
 /** User info from auth system */
@@ -1171,11 +1171,22 @@ export interface BlockHistoryEntry {
   timestamp: string;
 }
 
-/** A single QA check finding */
+/**
+ * A single QA check finding.
+ *
+ * `type`, `severity` and `message` are what the Problems panel has always
+ * listed. `position` is the run-anchored span the underlying
+ * `core/check.Finding` carries — absent when the checker judged the whole block
+ * and located nothing, which is why an unpositioned issue is recorded as a
+ * block annotation rather than guessed at as a span.
+ */
 export interface QAIssue {
   type: string;
   severity: "error" | "warning";
   message: string;
+  position?: RunRange;
+  suggestion?: string;
+  original_text?: string;
 }
 
 /** QA results for a single block within a file */
@@ -2529,7 +2540,8 @@ export interface BrandScanApproveResult {
 export interface BrandScanCheckResult {
   /** core/brand.BrandComplianceScore — the roll-up plus per-dimension detail. */
   score: { overall: number; dimensions?: unknown[]; word_count?: number };
-  findings: unknown[];
+  /** core/check.Finding, the same shape the profile check and stored scores emit. */
+  findings: BrandVoiceFinding[];
 }
 
 /** The signed state that ties a GitHub App installation back to the workspace

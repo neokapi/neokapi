@@ -1,5 +1,9 @@
 /** Brand voice types matching Go core/brand package */
 
+import type { RunRange } from "@neokapi/contract-types";
+
+export type { RunRange };
+
 export interface ToneProfile {
   personality: string[];
   formality: "casual" | "neutral" | "formal" | "technical";
@@ -123,13 +127,36 @@ export interface BrandCorrectionResult {
 
 export type BrandSeverity = "neutral" | "minor" | "major" | "critical";
 
+/**
+ * One voice finding, exactly as `core/check.Finding` serializes it — the shape
+ * the profile check, the draft check and the stored brand scores all emit.
+ *
+ * Two fields used to be described wrongly, and both failed silently. The
+ * grouping field is `category` on the wire, not `dimension`: the findings list
+ * read `finding.dimension` and rendered an empty chip for every server-sourced
+ * finding, and `BrandScanLiveTester` carried a normaliser to paper over it on
+ * the one path it knew about. And `position` is a run-anchored
+ * {@link RunRange}, not `{start, end}` character offsets — a consumer that
+ * believed the declaration would have indexed into the wrong thing.
+ *
+ * `position` is optional because a finding need not locate anything: a checker
+ * that judges the whole block leaves it at the zero range.
+ */
 export interface BrandVoiceFinding {
-  dimension: Dimension;
+  /**
+   * Groups the finding. A voice check reports a {@link Dimension}; the field
+   * is free-form on the Go side so a new checker adds a category without
+   * touching the core, and it is typed as such here.
+   */
+  category: string;
   severity: BrandSeverity;
   message: string;
   suggestion?: string;
-  position: { start: number; end: number };
+  /** Run-anchored span over the checked runs. */
+  position?: RunRange;
   original_text?: string;
+  /** Checker-specific detail: the matched rule id, a replacement, a concept id. */
+  metadata?: Record<string, string>;
 }
 
 export interface DimensionScore {
