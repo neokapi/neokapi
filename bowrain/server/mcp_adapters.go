@@ -66,5 +66,5 @@ type tbResolverAdapter struct {
 }
 
 func (a *tbResolverAdapter) GetTB(workspaceID string) (terms.Store, error) {
-	return a.ws.getTB(workspaceID)
+	return a.ws.getTerms(workspaceID)
 }

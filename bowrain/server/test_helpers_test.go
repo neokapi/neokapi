@@ -32,7 +32,7 @@ import (
 
 // initTestStores wires up test stores on the server for testing.
 // It also installs factory functions on wsStores so that
-// getMemory/getTB create in-memory stores instead of requiring PostgreSQL.
+// getMemory/getTerms create in-memory stores instead of requiring PostgreSQL.
 func initTestStores(t *testing.T, srv *Server) {
 	t.Helper()
 	initTestStoresOnDB(t, srv, pgtest.NewTestDB(t))
@@ -74,7 +74,7 @@ func initTestStoresOnDB(t *testing.T, srv *Server, db *storage.PgDB) {
 	srv.wsStores.memoryFactory = func() memory.Store {
 		return &testMemoryStore{memory.NewInMemoryStore()}
 	}
-	srv.wsStores.tbFactory = func() terms.Store {
+	srv.wsStores.termsFactory = func() terms.Store {
 		return &testTermStore{terms.NewInMemoryStore()}
 	}
 }

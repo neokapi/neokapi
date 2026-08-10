@@ -61,7 +61,7 @@ func TestWorkerBrandContext_EndToEnd(t *testing.T) {
 		model.NewBlock("b1", "Open the dashboard"),
 	}))
 
-	// Real Postgres terms (workspace-keyed, like the server's getTB) with a
+	// Real Postgres terms (workspace-keyed, like the server's getTerms) with a
 	// preferred fr rendering.
 	tb, err := sqltb.NewPostgresStoreFromDB(db, wsSlug)
 	require.NoError(t, err)

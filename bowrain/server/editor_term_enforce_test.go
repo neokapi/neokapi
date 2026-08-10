@@ -48,7 +48,7 @@ func TestEditorTermEnforce(t *testing.T) {
 	}))
 
 	wsStores := newWorkspaceStores()
-	wsStores.tbFactory = func() terms.Store { return &testTermStore{tb} }
+	wsStores.termsFactory = func() terms.Store { return &testTermStore{tb} }
 
 	results, err := editorTermEnforce(ctx, cs, wsStores, "acme", "p1", "main", "hello.txt", "fr")
 	require.NoError(t, err)
@@ -93,7 +93,7 @@ func TestEditorTermEnforcePasses(t *testing.T) {
 	}))
 
 	wsStores := newWorkspaceStores()
-	wsStores.tbFactory = func() terms.Store { return &testTermStore{tb} }
+	wsStores.termsFactory = func() terms.Store { return &testTermStore{tb} }
 
 	results, err := editorTermEnforce(ctx, cs, wsStores, "acme", "p1", "main", "hello.txt", "fr")
 	require.NoError(t, err)

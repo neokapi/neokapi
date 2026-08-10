@@ -35,7 +35,7 @@ func (s *Server) knowledgeEngineFor(wsSlug string) (*knowledge.Engine, error) {
 	if s.KnowledgeStore == nil || s.ContentStore == nil || s.wsStores == nil {
 		return nil, errKnowledgeUnavailable
 	}
-	tb, err := s.wsStores.getTB(wsSlug)
+	tb, err := s.wsStores.getTerms(wsSlug)
 	if err != nil {
 		return nil, err
 	}

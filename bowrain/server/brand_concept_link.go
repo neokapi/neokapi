@@ -37,14 +37,14 @@ const defaultBrandConceptLocale = model.LocaleID("en")
 // EventConceptRelationAdded when a new edge is added). The returned slice is
 // empty when the graph already held everything, so publishing it is a no-op.
 //
-// wsSlug keys the workspace terms (getTB); wsID scopes the project lookup that
+// wsSlug keys the workspace terms (getTerms); wsID scopes the project lookup that
 // resolves the source locale and stamps the emitted events.
 func (s *Server) linkRuleToConcept(ctx context.Context, wsSlug, wsID string, rule coreprofile.SuggestedRule) (string, []knowledge.MergeEvent, error) {
 	term := strings.TrimSpace(rule.Term)
 	if term == "" {
 		return "", nil, nil
 	}
-	tb, err := s.wsStores.getTB(wsSlug)
+	tb, err := s.wsStores.getTerms(wsSlug)
 	if err != nil {
 		return "", nil, err
 	}

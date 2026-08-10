@@ -357,7 +357,7 @@ func (s *Server) HandleApproveBrandScan(c echo.Context) error {
 		approved = append(approved, terms.Term{Text: text, Locale: locale, Status: model.TermProposed})
 	}
 
-	tb, err := s.wsStores.getTB(c.Param("ws"))
+	tb, err := s.wsStores.getTerms(c.Param("ws"))
 	if err != nil {
 		return serverErrStatus(c, http.StatusServiceUnavailable, err)
 	}

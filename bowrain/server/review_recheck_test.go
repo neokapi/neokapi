@@ -64,7 +64,7 @@ func newRecheckHarness(t *testing.T) (*Server, string, string) {
 		wsStores:            newWorkspaceStores(),
 	}
 	// In-memory workspace terms (no PgDB wired on wsStores), shared per slug.
-	s.wsStores.tbFactory = func() terms.Store {
+	s.wsStores.termsFactory = func() terms.Store {
 		return &testTermStore{terms.NewInMemoryStore()}
 	}
 	s.convergence = newConvergenceOrchestrator(s)
@@ -182,7 +182,7 @@ func TestReviewRecheck_ConceptForbiddenTermDemotesAndRequeues(t *testing.T) {
 
 	// Mark a concept with a forbidden fr term "utiliser" (the governed outcome; RV-E
 	// reacts to the resulting event, downstream of the change-set gate).
-	tb, err := s.wsStores.getTB("rc")
+	tb, err := s.wsStores.getTerms("rc")
 	require.NoError(t, err)
 	cid := id.New()
 	require.NoError(t, tb.AddConcept(ctx, terms.Concept{
@@ -260,7 +260,7 @@ func TestReviewRecheck_ConceptMandatedTermAbsenceDemotesAndRequeues(t *testing.T
 
 	// Give the "app" concept a mandated (preferred) fr rendering "application". The
 	// governed outcome; RV-F reacts to the resulting concept event.
-	tb, err := s.wsStores.getTB("rc")
+	tb, err := s.wsStores.getTerms("rc")
 	require.NoError(t, err)
 	cid := id.New()
 	require.NoError(t, tb.AddConcept(ctx, terms.Concept{

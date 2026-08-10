@@ -121,7 +121,7 @@ func TestTermAwareShipPredicateUnification(t *testing.T) {
 	bOK := reviewedBlock("ok", "Close the app", "Fermer l'application")           // clean
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{bBad, bMiss, bOK})
 
-	tb, err := s.wsStores.getTB("rc")
+	tb, err := s.wsStores.getTerms("rc")
 	require.NoError(t, err)
 	useID, appID := seedTermUnificationConcepts(t, tb)
 
@@ -192,7 +192,7 @@ func TestApprovePassingExcludesTermViolations(t *testing.T) {
 	bOK := translatedFrBlock("ok", "Close the app", "Fermer l'application")
 	projID, ids := seedGovernedProject(t, s, wsID, []*model.Block{bBad, bMiss, bOK})
 
-	tb, err := s.wsStores.getTB("rc")
+	tb, err := s.wsStores.getTerms("rc")
 	require.NoError(t, err)
 	seedTermUnificationConcepts(t, tb)
 
