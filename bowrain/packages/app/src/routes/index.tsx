@@ -369,13 +369,27 @@ const requireSplat = {
  * drill-down is linkable. Shared with the route's former `/dashboard` address
  * so a redirect from there carries the reader's scope across.
  */
+/**
+ * The item whose preview is open, by name. Held in the URL so the reading
+ * deep-links and Back closes it rather than leaving the list behind.
+ */
+const previewSearch = (search: Record<string, unknown>): string | undefined =>
+  typeof search.preview === "string" && search.preview !== "" ? search.preview : undefined;
+
 const overviewSearch = (
   search: Record<string, unknown>,
-): { collection?: string; ungrouped?: boolean; items?: "all"; axis?: string } => ({
+): {
+  collection?: string;
+  ungrouped?: boolean;
+  items?: "all";
+  axis?: string;
+  preview?: string;
+} => ({
   collection: typeof search.collection === "string" ? search.collection : undefined,
   ungrouped: search.ungrouped === true || search.ungrouped === "true" ? true : undefined,
   items: search.items === "all" ? "all" : undefined,
   axis: typeof search.axis === "string" ? search.axis : undefined,
+  preview: previewSearch(search),
 });
 
 /**
@@ -449,6 +463,9 @@ const projectSourceRoute = createRoute({
   },
   pendingComponent: ProjectDetailSkeleton,
   component: ProjectDetailRoute,
+  validateSearch: (search: Record<string, unknown>): { preview?: string } => ({
+    preview: previewSearch(search),
+  }),
 });
 
 const projectSettingsRoute = createRoute({

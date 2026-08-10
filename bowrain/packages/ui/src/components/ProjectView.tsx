@@ -18,6 +18,7 @@ import { OpenInDesktop } from "./OpenInDesktop";
 import { CollectionTabs } from "./CollectionTabs";
 import { ProjectTypeBadge } from "./ProjectTypeBadge";
 import { FormattedFileName } from "./FormattedFileName";
+import { FilePreview, type ItemPreviewBinding } from "./FilePreview";
 import { ListCapRow } from "./ListCapRow";
 import {
   ArrowLeft,
@@ -40,8 +41,14 @@ export interface ProjectViewProps {
   project: ProjectInfo;
   onBack: () => void;
   /** Open one file's editor surfaces. The item name is the coordinate the
-   *  server addresses an item by, so it is what travels in the route. */
+   *  server addresses an item by, so it is what travels in the route.
+   *  Ignored when `preview` is set. */
   onOpenFile: (itemName: string) => void;
+  /**
+   * Given, a row opens the file's preview instead of an editor, and the editors
+   * are reached from the preview's own actions.
+   */
+  preview?: ItemPreviewBinding;
   /** Upload files via adapter. Web apps pass File objects; desktop passes file paths. */
   onUploadFiles: (files: File[]) => void;
   onRemoveFile: (fileName: string) => void;
@@ -75,6 +82,7 @@ export function ProjectView({
   project,
   onBack,
   onOpenFile,
+  preview,
   onUploadFiles,
   onRemoveFile,
   onOpenMemory,
@@ -134,6 +142,13 @@ export function ProjectView({
   // Hard render cap: very large collections (thousands of files) should not
   // mount thousands of table rows. The cap is surfaced honestly via ListCapRow.
   const visibleItems = useMemo(() => items.slice(0, MAX_ITEM_ROWS), [items]);
+
+  // A row reads the file; an editor is entered deliberately. Without a preview
+  // binding the row keeps its older behaviour and opens the editor directly.
+  const openItem = preview ? preview.onOpen : onOpenFile;
+  const previewFormat = preview
+    ? allItems.find((i) => i.name === preview.itemName)?.format
+    : undefined;
 
   const totalBlocks = items.reduce((sum, f) => sum + f.block_count, 0);
   const totalWords = items.reduce((sum, f) => sum + f.word_count, 0);
@@ -432,14 +447,18 @@ export function ProjectView({
               </thead>
               <tbody>
                 {visibleItems.map((f) => (
+                  // The whole row is the pointer target for reading the file;
+                  // the name inside stays a button, so the row is reachable by
+                  // keyboard without nesting focus inside a focusable row.
                   <tr
                     key={f.name}
-                    className="border-b border-border/50 transition-colors hover:bg-accent/50"
+                    className={`border-b border-border/50 transition-colors hover:bg-accent/50 ${preview ? "cursor-pointer" : ""}`}
+                    onClick={preview ? () => openItem(f.name) : undefined}
                     data-testid={`file-row-${f.name}`}
                   >
                     <td className={`${isMobile ? "px-2" : "px-4"} py-2.5 text-sm`}>
                       <button
-                        onClick={() => onOpenFile(f.name)}
+                        onClick={() => openItem(f.name)}
                         className="bg-transparent border-none text-primary cursor-pointer text-sm p-0 hover:underline inline-flex items-center gap-1.5 text-left break-all"
                         data-testid={`open-file-${f.name}`}
                       >
@@ -499,6 +518,19 @@ export function ProjectView({
           </div>
         )}
       </Card>
+
+      {preview && (
+        <FilePreview
+          projectId={project.id}
+          itemName={preview.itemName}
+          format={previewFormat}
+          targetLocales={preview.targetLocales ?? project.target_languages}
+          onClose={preview.onClose}
+          onOpenTranslate={preview.onOpenTranslate}
+          onOpenReview={preview.onOpenReview}
+          onOpenPreProcess={preview.onOpenPreProcess}
+        />
+      )}
     </div>
   );
 }
