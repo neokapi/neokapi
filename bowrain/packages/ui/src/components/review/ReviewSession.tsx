@@ -167,7 +167,10 @@ export function ReviewSession({
   );
 
   // Item metadata for the entries the server hands back — the dashboard names
-  // the id, format and collection a queue row is grouped and filtered by.
+  // the id, format and collection a queue row is grouped and filtered by. An
+  // item the dashboard does not list has no nameable collection: its entries
+  // carry `collectionId: undefined`, distinct from the `""` a listed item with
+  // no collection carries, so an unknown is never filed as a known-empty.
   const itemMeta = useMemo(() => {
     const m = new Map<string, { itemId: string; format?: string; collectionId?: string }>();
     for (const item of dashboardStats.item_stats) {
