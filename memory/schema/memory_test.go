@@ -179,6 +179,23 @@ func TestMemoryPostgresSemanticEquivalence(t *testing.T) {
 	assertStmtSetEqual(t, "v5 concept_id", pgV5Reference, RenderMemoryPostgresConceptID("workspace_id"))
 }
 
+// TestMemoryPostgresBaselineNamesTheExtensionSchema pins where pg_trgm is
+// installed.
+//
+// An extension belongs to a database but lives in ONE schema, and an
+// unqualified CREATE EXTENSION takes whatever search_path points at. Leaving it
+// unqualified made gin_trgm_ops land wherever the first migrating session
+// happened to be pointing; every later session found the extension already
+// present (so IF NOT EXISTS did nothing) and no operator class it could see.
+// The baseline is the migration that still runs, so it is the one that must
+// name the schema.
+func TestMemoryPostgresBaselineNamesTheExtensionSchema(t *testing.T) {
+	sql := RenderMemoryPostgresBaseline("workspace_id")
+	if !strings.Contains(sql, "CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;") {
+		t.Errorf("the baseline does not pin pg_trgm to a schema:\n%s", sql)
+	}
+}
+
 func assertStmtSetEqual(t *testing.T, name, want, got string) {
 	t.Helper()
 	w := normalizeStatements(want)

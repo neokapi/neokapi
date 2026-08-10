@@ -154,7 +154,9 @@ func (tm *SQLiteStore) AddWithStream(ctx context.Context, entry Entry, stream st
 	}
 	if err := tm.addInTx(ctx, tx.Tx, entry, stream); err != nil {
 		_ = tx.Rollback()
-		return err
+		// The statements run on the embedded *sql.Tx, past the gated handle
+		// that would have named a cancellation for us; see storage.CancelledBy.
+		return storage.CancelledBy(ctx, err)
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit: %w", err)
@@ -178,17 +180,20 @@ func (tm *SQLiteStore) BulkAddWithStream(ctx context.Context, entries []Entry, s
 		return fmt.Errorf("begin tx: %w", err)
 	}
 
+	// The prepared statements below live on the embedded *sql.Tx, past the gated
+	// handle, so a cancellation that closes them out from under this loop has to
+	// be named here; see storage.CancelledBy.
 	stmts, err := prepareBulkStmts(ctx, tx.Tx)
 	if err != nil {
 		_ = tx.Rollback()
-		return err
+		return storage.CancelledBy(ctx, err)
 	}
 	defer stmts.Close()
 
 	for i := range entries {
 		if err := stmts.addEntry(ctx, &entries[i], stream); err != nil {
 			_ = tx.Rollback()
-			return fmt.Errorf("bulk add entry %s: %w", entries[i].ID, err)
+			return storage.CancelledBy(ctx, fmt.Errorf("bulk add entry %s: %w", entries[i].ID, err))
 		}
 	}
 	if err := tx.Commit(); err != nil {

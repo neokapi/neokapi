@@ -88,6 +88,10 @@ func NewTestDBWithMaxConns(t *testing.T, maxConns int32) *storage.PgDB {
 			// cleanup is intentionally not called — the container lives for the entire test binary.
 			// Docker will clean it up via Ryuk (testcontainers' resource reaper).
 		}
+		if err := anchorExtensionsInPublic(sharedDB); err != nil {
+			sharedMu.Unlock()
+			t.Fatalf("anchor extensions in public: %v", err)
+		}
 	}
 	schemaCounter++
 	schemaName := "t" + runID + "_" + sanitize(t.Name()) + "_" + strconv.Itoa(schemaCounter)
@@ -114,6 +118,36 @@ func NewTestDBWithMaxConns(t *testing.T, maxConns int32) *storage.PgDB {
 	})
 
 	return db
+}
+
+// anchorExtensionsInPublic puts the extensions the schemas depend on into
+// public, before any test schema exists.
+//
+// A PostgreSQL extension belongs to a DATABASE but is installed INTO a SCHEMA,
+// and every test here shares one database while getting its own schema at the
+// front of search_path. An unqualified CREATE EXTENSION in a migration
+// therefore lands in whichever test schema got there first, is invisible to
+// every other test's search_path (IF NOT EXISTS makes their own attempt a
+// no-op), and is dropped along with that schema when its test ends. Sequential
+// tests never see it; a parallel suite fails whichever test loses the draw,
+// with "operator class gin_trgm_ops does not exist".
+//
+// The migrations name public themselves now, so this is the harness's half:
+// public is created before any test schema, is on every test's search_path, and
+// is never dropped. The ALTER is the self-heal — a database left behind by an
+// interrupted run can still hold the extension in a dead schema, where CREATE
+// EXTENSION IF NOT EXISTS is a no-op that fixes nothing. pg_trgm is
+// relocatable, and the ALTER is a no-op when it is already in public.
+func anchorExtensionsInPublic(db *storage.PgDB) error {
+	for _, ext := range []string{"pg_trgm"} {
+		if _, err := db.Exec("CREATE EXTENSION IF NOT EXISTS " + ext + " WITH SCHEMA public"); err != nil {
+			return fmt.Errorf("create %s: %w", ext, err)
+		}
+		if _, err := db.Exec("ALTER EXTENSION " + ext + " SET SCHEMA public"); err != nil {
+			return fmt.Errorf("relocate %s to public: %w", ext, err)
+		}
+	}
+	return nil
 }
 
 // openWithSchema opens a PgDB where every connection in the pool

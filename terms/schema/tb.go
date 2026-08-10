@@ -180,6 +180,15 @@ var pgTermsFuzzyBaselineBlock = strings.NewReplacer(
 	// a full table rewrite; the trigger maintains the column from here on.
 	"UPDATE tb_terms SET search_tsv = to_tsvector('simple', text_lower);",
 	"UPDATE tb_terms SET search_tsv = to_tsvector('simple', text_lower)\n\t\t\tWHERE search_tsv IS NULL;",
+
+	// An extension belongs to a database but is INSTALLED INTO one schema, and
+	// an unqualified CREATE EXTENSION picks whatever search_path points at.
+	// Name the schema, so where gin_trgm_ops ends up does not depend on the
+	// session that happened to run the migration first: IF NOT EXISTS makes the
+	// second caller a no-op, and a caller whose search_path led somewhere else
+	// would then find no operator class at all.
+	"CREATE EXTENSION IF NOT EXISTS pg_trgm;",
+	"CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;",
 ).Replace(pgTermsFuzzyBlock)
 
 // ── SQLite render (byte-identical to the historical migrations) ──────────────

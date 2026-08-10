@@ -2,7 +2,9 @@ package projectdb_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -101,9 +103,9 @@ func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 	var (
 		wg       sync.WaitGroup
 		busy     atomic.Int64
-		other    atomic.Int64
 		dripOK   atomic.Int64
 		dripBusy atomic.Int64
+		other    = &unexpectedWrites{}
 	)
 	record := func(err error) {
 		switch {
@@ -111,7 +113,7 @@ func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 		case isBusy(err):
 			busy.Add(1)
 		default:
-			other.Add(1)
+			other.add(err)
 		}
 	}
 
@@ -145,7 +147,7 @@ func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 			case isBusy(err):
 				dripBusy.Add(1)
 			default:
-				other.Add(1)
+				other.add(err)
 			}
 		}
 	})
@@ -153,16 +155,45 @@ func TestWriteGate_SmallWritesAreNotStarved(t *testing.T) {
 
 	assert.Zero(t, busy.Load(), "a write on the gated handle was refused for the lock")
 	assert.Zero(t, dripBusy.Load(), "the drip writer was refused for the lock — the starvation is back")
-	assert.Zero(t, other.Load(), "a write failed for a reason other than the lock")
+	assert.Zerof(t, other.count(), "a write failed for a reason other than the lock: %s", other)
 	assert.GreaterOrEqualf(t, dripOK.Load(), dripFloor,
 		"the drip completed %d writes in %s, below the floor of %d — it is being starved",
 		dripOK.Load(), window, dripFloor)
 }
 
+// isCtxErr recognises the writes the window ended rather than the store
+// refused. errors.Is is enough because storage.CancelledBy makes it enough: a
+// write that fails while its context is done wraps the context's error, so the
+// database/sql lifecycle errors a cancellation used to surface instead
+// (ErrTxDone, "statement is closed") are no longer a separate spelling to match.
 func isCtxErr(err error) bool {
-	return err != nil &&
-		(strings.Contains(err.Error(), context.DeadlineExceeded.Error()) ||
-			strings.Contains(err.Error(), context.Canceled.Error()))
+	return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
+}
+
+// unexpectedWrites collects the failures the contention tests cannot explain, so
+// a red run names them. The count alone said only "was 1", which is the one
+// thing about such a failure that is never in question.
+type unexpectedWrites struct {
+	mu   sync.Mutex
+	errs []string
+}
+
+func (u *unexpectedWrites) add(err error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.errs = append(u.errs, err.Error())
+}
+
+func (u *unexpectedWrites) count() int {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return len(u.errs)
+}
+
+func (u *unexpectedWrites) String() string {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return strings.Join(slices.Compact(slices.Sorted(slices.Values(u.errs))), "; ")
 }
 
 // TestWriteGate_ServesWritersInArrivalOrder: the queue is Go's, and Go serves

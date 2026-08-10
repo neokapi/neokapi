@@ -599,8 +599,11 @@ jobs:
           jq -r 'select(.Action=="fail" and .Test!=null) | "\(.Package)\t\(.Test)"' test-results-bowrain.json | sort -u || true
           echo "::endgroup::"
           echo "::group::Failure output"
+          # -A 3: testify writes the cause on the lines AFTER "Error:", so a
+          # line-matching grep shows "Received unexpected error:" and drops the
+          # error itself — which is the only part worth reading.
           jq -r 'select(.Action=="output") | .Output' test-results-bowrain.json \
-            | grep -aE "panic:|DATA RACE|Error Trace|Error:|FAIL|expected|actual|connection refused|cannot|no such|context deadline|\.go:[0-9]+:" | head -200 || true
+            | grep -aA 3 -E "panic:|DATA RACE|Error Trace|Error:|FAIL|expected|actual|connection refused|cannot|no such|context deadline|\.go:[0-9]+:" | head -300 || true
           echo "::endgroup::"
 
       - name: Upload bowrain test JSON (on failure)
