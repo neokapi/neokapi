@@ -165,4 +165,14 @@ jobs:
             echo '```'
             ./bin/kapi status || true
             echo '```'
+            echo ""
+            echo "### Seed entries that produced nothing"
+            echo ""
+            echo "Reviewed wording whose source string is gone. Kept rather than"
+            echo "deleted — but content memory matches on text, so any surface"
+            echo "that emits the same source string is filled from it."
+            echo ""
+            echo '```'
+            make -s l10n-orphans-report || true
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

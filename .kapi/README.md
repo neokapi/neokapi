@@ -124,6 +124,36 @@ asymmetric entry, `recycle` refuses the fill, and `placeholder-check` reports a
 critical finding if one ever reaches a target — all keyed off the one
 predicate, `model.DiffRunCodes`.
 
+## Entries whose source string is gone
+
+A seed entry outlives the string that motivated it. Source copy is rewritten,
+a screen is redesigned, a fixture leak is plugged (#1791) — and the reviewed
+pair that translated the old wording stops matching anything. Such an entry is
+**kept, not deleted**: review is the expensive part, and a string that comes
+back should come back already translated. Deleting on every source change would
+make the seeds a projection of today's source, which is what the derived
+catalogs already are.
+
+Keeping them is only safe while they are visible, because content memory is
+keyed by **text, not by call site**. An entry with no source left is not inert:
+the moment any surface anywhere in the recipe emits the same English string,
+`recycle` fills it from this entry as reviewed wording. An entry carrying a
+spelling the project has since retired is therefore a spelling waiting to be
+re-approved somewhere else.
+
+So each cycle reports them. `make l10n-orphans` runs the four stages and then
+asks, of every seed entry, whether its target text appears anywhere in the
+artifacts the translate stage materialized for that locale; `make
+l10n-orphans-report` asks the same question over targets already on disk, which
+is what the `l10n` workflow puts in its job summary. It reports and never gates
+— an entry producing nothing is pending or finished work, not a build break.
+
+Reading the list is a review task, not a cleanup task. A large count usually
+means a *source* change outran its translations rather than that anything is
+wrong: when a source string gains or renumbers an inline code, its entry stops
+matching structurally and shows up here until it is re-anchored. Retire an entry
+only when its wording should never come back.
+
 ## Why not PO files? (decided, not overlooked)
 
 The Go-surface catalogs (builtins, CLI help) are standard gettext at
