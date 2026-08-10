@@ -54,9 +54,12 @@ import type { WorkspaceRouteContext } from ".";
 // Helpers to extract project context from URL
 // ---------------------------------------------------------------------------
 
+/** The per-file editor surfaces, each of which trails the item name as a splat. */
+const EDITOR_SURFACES = ["translate", "review", "pre-process"];
+
 /** Parse project-level params from the current URL path. */
 function parseProjectParams(pathname: string, workspaceSlug: string) {
-  // Pattern: /$workspace/p/$projectId/s/$stream[/$itemName/translate]
+  // Pattern: /$workspace/p/$projectId/s/$stream[/translate/<item name>]
   const prefix = `/${workspaceSlug}/p/`;
   if (!pathname.startsWith(prefix)) return null;
 
@@ -69,9 +72,12 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
   const stream = decodeURIComponent(parts[2]);
   let itemName: string | undefined;
 
-  // Check for the per-file editor surfaces (/$itemName/{translate,review,pre-process}).
-  if (parts.length >= 5 && ["translate", "review", "pre-process"].includes(parts[4])) {
-    itemName = decodeURIComponent(parts[3]);
+  // The item name is everything after the surface segment: it is a path and
+  // keeps its slashes, so it spans as many segments as it has parts. A bare
+  // /review with nothing trailing is the project-level review session, not a
+  // file, which is why this needs a segment beyond the surface.
+  if (parts.length >= 5 && EDITOR_SURFACES.includes(parts[3])) {
+    itemName = parts.slice(4).map(decodeURIComponent).join("/");
   }
 
   const isAutomations = parts.length >= 4 && parts[3] === "automations";
@@ -460,12 +466,12 @@ export function WorkspaceLayout() {
       },
       onOpenFile: (itemName: string) => {
         void navigate({
-          to: "/$workspace/p/$projectId/s/$stream/$itemName/translate",
+          to: "/$workspace/p/$projectId/s/$stream/translate/$",
           params: {
             workspace: workspaceSlug ?? ws,
             projectId: project.id,
             stream: projectParams.stream,
-            itemName,
+            _splat: itemName,
           },
         });
       },

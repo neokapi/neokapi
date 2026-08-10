@@ -32,6 +32,17 @@ func NewAuthService(store auth.AuthStore, jwtSecret string) *AuthService {
 	return &AuthService{store: store, jwtSecret: jwtSecret}
 }
 
+// AcceptedInvite is what a redeemed invite joined: the workspace, and the role
+// the accepting user now holds in it. Slug and name are best-effort — a
+// workspace read that fails after the membership is written leaves them empty
+// rather than undoing a completed join.
+type AcceptedInvite struct {
+	WorkspaceID   string
+	WorkspaceSlug string
+	WorkspaceName string
+	Role          platauth.Role
+}
+
 // GetOrCreateUser finds a user by email, or creates one if not found.
 // Used during OIDC login to upsert the user record.
 //
@@ -509,50 +520,73 @@ func (s *AuthService) ValidateAPIToken(ctx context.Context, plaintext string) (*
 // Creating either is already restricted to admins and owners
 // (HandleCreateInvite), so the bearer shape stays an explicit choice by someone
 // who could have added the member directly.
-func (s *AuthService) AcceptInvite(ctx context.Context, code, userID string) error {
+//
+// The returned AcceptedInvite is what the caller confirms the join with: the
+// alternative is a second round trip to learn which workspace was joined, and
+// the accepting user cannot address a workspace they have only just gained
+// access to.
+func (s *AuthService) AcceptInvite(ctx context.Context, code, userID string) (*AcceptedInvite, error) {
 	inv, err := s.store.GetInviteByCode(ctx, code)
 	if err != nil {
-		return errors.New("invalid invite code")
+		return nil, errors.New("invalid invite code")
 	}
 
 	if time.Now().After(inv.ExpiresAt) {
-		return errors.New("invite expired")
+		return nil, errors.New("invite expired")
 	}
 
 	if inv.MaxUses > 0 && inv.UseCount >= inv.MaxUses {
-		return errors.New("invite has been fully used")
+		return nil, errors.New("invite has been fully used")
 	}
 
 	// Address-bound invite: the redeeming identity must be the invited one.
 	if invEmail := strings.TrimSpace(inv.Email); invEmail != "" {
 		u, err := s.store.GetUser(ctx, userID)
 		if err != nil {
-			return errors.New("invite is for a different account")
+			return nil, errors.New("invite is for a different account")
 		}
 		if !strings.EqualFold(strings.TrimSpace(u.Email), invEmail) {
 			// Deliberately does not echo the invited address: the caller has
 			// only proved they hold the code, which is not grounds to learn who
 			// it was sent to.
-			return errors.New("invite is for a different account")
+			return nil, errors.New("invite is for a different account")
 		}
 	}
 
-	// If the user is already a member, treat as success (idempotent).
-	if _, err := s.store.GetMembership(ctx, inv.WorkspaceID, userID); err == nil {
-		return nil
+	// If the user is already a member, treat as success (idempotent). The role
+	// reported is the one they actually hold, which an earlier join or a later
+	// change may have moved away from the invite's.
+	if existing, err := s.store.GetMembership(ctx, inv.WorkspaceID, userID); err == nil {
+		return s.acceptedInvite(ctx, inv.WorkspaceID, existing.Role)
 	}
 
 	if err := s.store.AddMember(ctx, inv.WorkspaceID, userID, inv.Role); err != nil {
-		return fmt.Errorf("add member: %w", err)
+		return nil, fmt.Errorf("add member: %w", err)
 	}
 
 	if err := s.store.IncrementInviteUseCount(ctx, inv.ID); err != nil {
-		return fmt.Errorf("increment use count: %w", err)
+		return nil, fmt.Errorf("increment use count: %w", err)
 	}
 
 	props := analytics.Props(inv.WorkspaceID, "")
 	props["role"] = string(inv.Role)
 	track(s.tracker, userID, analytics.EventMemberJoined, props)
 
-	return nil
+	return s.acceptedInvite(ctx, inv.WorkspaceID, inv.Role)
+}
+
+// acceptedInvite names the workspace behind a completed join. The membership
+// is already written when this runs, so a workspace read that fails leaves the
+// join standing and reports the ids it does have.
+func (s *AuthService) acceptedInvite(
+	ctx context.Context,
+	workspaceID string,
+	role platauth.Role,
+) (*AcceptedInvite, error) {
+	accepted := &AcceptedInvite{WorkspaceID: workspaceID, Role: role}
+	if ws, err := s.store.GetWorkspace(ctx, workspaceID); err == nil && ws != nil {
+		accepted.WorkspaceSlug = ws.Slug
+		accepted.WorkspaceName = ws.Name
+	}
+	return accepted, nil
 }

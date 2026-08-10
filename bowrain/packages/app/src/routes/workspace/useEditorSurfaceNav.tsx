@@ -9,24 +9,24 @@ import { EditorSurfaceTabs, type EditorSurface, useStream } from "@neokapi/ui";
  */
 export function useEditorSurfaceNav(active: EditorSurface): React.ReactNode {
   const navigate = useNavigate();
-  const { workspace, projectId, itemName } = useParams({ strict: false });
+  const { workspace, projectId, _splat } = useParams({ strict: false });
   const { activeStream } = useStream();
 
   const go = (surface: EditorSurface) => {
-    if (surface === active || !projectId || !itemName) return;
+    if (surface === active || !projectId || !_splat) return;
     const path =
       surface === "translate"
-        ? "/$workspace/p/$projectId/s/$stream/$itemName/translate"
+        ? "/$workspace/p/$projectId/s/$stream/translate/$"
         : surface === "review"
-          ? "/$workspace/p/$projectId/s/$stream/$itemName/review"
-          : "/$workspace/p/$projectId/s/$stream/$itemName/pre-process";
+          ? "/$workspace/p/$projectId/s/$stream/review/$"
+          : "/$workspace/p/$projectId/s/$stream/pre-process/$";
     void navigate({
       to: path,
       params: {
         workspace: workspace ?? "",
         projectId,
         stream: activeStream,
-        itemName,
+        _splat,
       },
     });
   };

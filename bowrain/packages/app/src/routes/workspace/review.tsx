@@ -14,7 +14,7 @@ import { useEditorSurfaceNav } from "./useEditorSurfaceNav";
  */
 export function ReviewRoute() {
   const navigate = useNavigate();
-  const { workspace, projectId, itemName } = useParams({ strict: false });
+  const { workspace, projectId, _splat } = useParams({ strict: false });
   const adapter = useApi();
   const { activeWorkspace, user } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
@@ -24,7 +24,10 @@ export function ReviewRoute() {
     projectQueryOptions(adapter, ws, projectId!, activeStream),
   );
 
-  const fileName = itemName ?? "";
+  // The item name is the route's trailing splat, so a name with slashes stays
+  // one coordinate — the file this surface edits needs no lookup, and no
+  // dependence on the project response carrying every item.
+  const fileName = _splat ?? "";
 
   const surfaceTabs = useEditorSurfaceNav("review");
 
@@ -53,12 +56,12 @@ export function ReviewRoute() {
       surfaceTabs={surfaceTabs}
       onBack={() =>
         navigate({
-          to: "/$workspace/p/$projectId/s/$stream/$itemName/translate",
+          to: "/$workspace/p/$projectId/s/$stream/translate/$",
           params: {
             workspace: workspace ?? ws,
             projectId: project.id,
             stream: activeStream,
-            itemName: fileName,
+            _splat: fileName,
           },
         })
       }

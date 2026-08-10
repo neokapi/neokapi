@@ -23,7 +23,7 @@ function segmentsToFeature(path: string): string {
 
 /**
  * Derive a stable feature name from a TanStack Router route PATTERN (e.g.
- * "/$workspace/p/$projectId/s/$stream/$itemName/translate" → "translate").
+ * "/$workspace/p/$projectId/s/$stream/translate/$" → "translate").
  * Patterns — not resolved paths — go in, so no workspace slugs, project ids,
  * or file names ever reach analytics. Returns null when the pattern carries
  * no feature (the bare root redirect).
@@ -45,7 +45,8 @@ export function featureFromRoutePattern(pattern: string): string | null {
     if (rest === "") return "project_overview";
     if (rest === "dashboard") return "translation_dashboard";
     if (rest === "settings") return "project_settings";
-    // Per-file editor surfaces: $itemName/{translate,review,pre-process}.
+    // Per-file editor surfaces: {translate,review,pre-process}/$, whose
+    // trailing splat is dropped with every other param segment.
     return segmentsToFeature(rest) || "project_overview";
   }
   return segmentsToFeature(inWorkspace) || null;

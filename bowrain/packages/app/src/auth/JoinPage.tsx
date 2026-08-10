@@ -26,6 +26,38 @@ function setReturnPathCookie(path: string) {
   document.cookie = `bowrain_return_path=${encodeURIComponent(path)}; path=/; max-age=600; SameSite=Lax`;
 }
 
+/** "an admin", "a member" — the roles are ordinary English words. */
+function article(word: string): string {
+  return /^[aeiou]/i.test(word) ? "an" : "a";
+}
+
+/**
+ * What the join actually granted. The role and workspace come from the accept
+ * response; either may be absent if the server could not name the workspace it
+ * had already joined the user to, and a join that happened is still confirmed
+ * rather than reported as a blank.
+ */
+export function JoinedDescription({ result }: { result: AcceptInviteResponse }) {
+  const workspaceName = result.workspace_name?.trim();
+  const role = result.role?.trim();
+
+  if (workspaceName && role) {
+    return (
+      <>
+        You are now {article(role)} {role} of <strong>{workspaceName}</strong>
+      </>
+    );
+  }
+  if (workspaceName) {
+    return (
+      <>
+        You have joined <strong>{workspaceName}</strong>
+      </>
+    );
+  }
+  return <>You have joined the workspace</>;
+}
+
 export function JoinPage({ code, onJoined }: JoinPageProps) {
   const api = useApi();
   const { user, setUser } = useAuth();
@@ -137,7 +169,7 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
               <CircleCheck className="mb-2 h-12 w-12 text-emerald-500 dark:text-emerald-400" />
               <CardTitle className="text-xl font-semibold">Joined!</CardTitle>
               <CardDescription>
-                You are now a {result.role} of <strong>{result.workspace_name}</strong>
+                <JoinedDescription result={result} />
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">

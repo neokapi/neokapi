@@ -92,7 +92,7 @@ export function BowrainApp({ api, platform, queryClient, history }: BowrainAppPr
   // SPA navigation analytics (epic 018, workstream B): posthog-js only fires
   // $pageview on full document loads, so router navigations are captured here
   // through the platform seam. Events carry the matched route PATTERN
-  // ("/$workspace/p/$projectId/s/$stream/$itemName/translate"), never resolved
+  // ("/$workspace/p/$projectId/s/$stream/translate/$"), never resolved
   // params, so slugs/ids stay out of the properties. A feature_entered event
   // is derived from the same pattern, deduped against the previous feature.
   // No-op when the host wires no analytics (desktop).

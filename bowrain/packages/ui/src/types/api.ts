@@ -178,8 +178,15 @@ export interface Invite {
   created_at: string;
 }
 
-/** Accept invite response */
+/**
+ * A redeemed invite: the workspace joined and the role now held. The workspace
+ * fields are what the confirmation screen names and what the client switches
+ * to — the accepting user has no other handle on a workspace they have only
+ * just gained access to. `status` is the original shape's field, kept so a
+ * caller that only checked it still can.
+ */
 export interface AcceptInviteResponse {
+  status?: string;
   workspace_id: string;
   workspace_slug: string;
   workspace_name: string;

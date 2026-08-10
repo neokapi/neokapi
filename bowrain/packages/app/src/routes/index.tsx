@@ -345,6 +345,23 @@ const dashboardRoute = createRoute({
   component: ProjectDashboardRoute,
 });
 
+/**
+ * An editor surface always names a file, so its trailing splat must not be
+ * empty. A splat matches the empty remainder too and, being one node deeper,
+ * outranks the exact sibling path — without this a bare `…/s/main/review`
+ * opens the per-file editor on no file instead of the project-level review
+ * session. Returning `false` from a param parse declines the match, handing
+ * the path to that sibling.
+ *
+ * The router types `params.parse` away for a route whose own params are the
+ * splat, but the matcher honours it, hence the cast. The behaviour is pinned
+ * in routes/index.test.ts, so a router upgrade that drops it fails there
+ * rather than in production.
+ */
+const requireSplat = {
+  parse: (raw: Record<string, string>) => (raw._splat ? raw : false),
+} as unknown as { parse?: undefined };
+
 // Stream-scoped project routes.
 const projectRoute = createRoute({
   getParentRoute: () => workspaceRoute,
@@ -372,7 +389,8 @@ const projectSettingsRoute = createRoute({
 
 const translateRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "p/$projectId/s/$stream/$itemName/translate",
+  path: "p/$projectId/s/$stream/translate/$",
+  params: requireSplat,
   component: lazyRouteComponent(() => import("./workspace/translate"), "TranslateRoute"),
   pendingComponent: EditorSkeleton,
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
@@ -391,7 +409,8 @@ const translateRoute = createRoute({
 
 const reviewRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "p/$projectId/s/$stream/$itemName/review",
+  path: "p/$projectId/s/$stream/review/$",
+  params: requireSplat,
   component: lazyRouteComponent(() => import("./workspace/review"), "ReviewRoute"),
   pendingComponent: EditorSkeleton,
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
@@ -402,8 +421,9 @@ const reviewRoute = createRoute({
 });
 
 // The dedicated project-level governed review session (walks all pending
-// blocks across items + locales). Distinct from the per-item `$itemName/review`
-// surface above; every "review" entry point routes here.
+// blocks across items + locales). Distinct from the per-item `review/$`
+// surface above, which the exact path outranks; every project-level "review"
+// entry point routes here.
 const reviewSessionRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/review",
@@ -428,7 +448,8 @@ const reviewSessionRoute = createRoute({
 
 const preProcessRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "p/$projectId/s/$stream/$itemName/pre-process",
+  path: "p/$projectId/s/$stream/pre-process/$",
+  params: requireSplat,
   component: lazyRouteComponent(() => import("./workspace/pre-process"), "PreProcessRoute"),
   pendingComponent: EditorSkeleton,
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {

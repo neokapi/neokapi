@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"testing"
 
@@ -60,4 +61,30 @@ func TestSendInviteEmail(t *testing.T) {
 	assert.Contains(t, email.Body, "Accept Invitation")
 	assert.Contains(t, email.Body, "Acme Inc.")
 	assert.Contains(t, email.Body, string(platauth.RoleMember))
+}
+
+// TestAcceptInviteResponseWire pins the field names the join confirmation
+// reads. The response once carried only `status`, so the page rendered "You
+// are now a undefined of undefined" and could not select the workspace it had
+// just joined — both come off these keys.
+func TestAcceptInviteResponseWire(t *testing.T) {
+	body, err := json.Marshal(AcceptInviteResponse{
+		Status:        "joined",
+		WorkspaceID:   "ws-1",
+		WorkspaceSlug: "acme",
+		WorkspaceName: "Acme Inc.",
+		Role:          string(platauth.RoleMember),
+	})
+	require.NoError(t, err)
+
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(body, &got))
+
+	assert.Equal(t, map[string]any{
+		"status":         "joined",
+		"workspace_id":   "ws-1",
+		"workspace_slug": "acme",
+		"workspace_name": "Acme Inc.",
+		"role":           "member",
+	}, got)
 }

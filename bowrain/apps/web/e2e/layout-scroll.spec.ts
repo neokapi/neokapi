@@ -226,7 +226,7 @@ test.describe("Layout: no route clips content the user cannot reach", () => {
     // manages its own panes, so it is the route most likely to lose a scroller.
     {
       name: "editor",
-      path: `/${wsSlug}/p/${projectId}/s/main/${encodeURIComponent(itemName)}/translate`,
+      path: `/${wsSlug}/p/${projectId}/s/main/translate/${itemName}`,
       ready: "view-switcher",
     },
   ];
