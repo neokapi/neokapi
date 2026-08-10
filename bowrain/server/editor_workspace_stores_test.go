@@ -78,12 +78,10 @@ func TestWorkspaceStores_ConcurrentFirstUseOpensOneStore(t *testing.T) {
 			got := make([]any, goroutines)
 			errs := make([]error, goroutines)
 			for i := range goroutines {
-				done.Add(1)
-				go func() {
-					defer done.Done()
+				done.Go(func() {
 					start.Wait()
 					got[i], errs[i] = get("acme")
-				}()
+				})
 			}
 			// Release them together, so every goroutine finds the entry empty.
 			start.Done()
