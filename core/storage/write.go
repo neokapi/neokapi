@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"sync/atomic"
 )
 
@@ -34,7 +36,8 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...any) (sql.R
 		return nil, err
 	}
 	defer db.gate.release()
-	return db.DB.ExecContext(ctx, query, args...)
+	res, err := db.DB.ExecContext(ctx, query, args...)
+	return res, CancelledBy(ctx, err)
 }
 
 // Exec runs a statement without a context. It exists so the promoted
@@ -64,9 +67,9 @@ func (db *DB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) {
 	tx, err := db.DB.BeginTx(ctx, opts)
 	if err != nil {
 		db.gate.release()
-		return nil, err
+		return nil, CancelledBy(ctx, err)
 	}
-	return &Tx{Tx: tx, gate: db.gate}, nil
+	return &Tx{Tx: tx, ctx: ctx, gate: db.gate}, nil
 }
 
 // Begin starts a transaction without a context. Prefer BeginTx.
@@ -84,6 +87,9 @@ func (db *DB) Begin() (*Tx, error) {
 type Tx struct {
 	*sql.Tx
 
+	// ctx is the context the transaction was begun with, kept so Commit can say
+	// why it failed; see CancelledBy.
+	ctx  context.Context
 	gate *writeGate
 	done atomic.Bool
 }
@@ -91,12 +97,16 @@ type Tx struct {
 // Commit commits the transaction and releases the write permit.
 func (tx *Tx) Commit() error {
 	defer tx.finish()
-	return tx.Tx.Commit()
+	return CancelledBy(tx.ctx, tx.Tx.Commit())
 }
 
 // Rollback rolls the transaction back and releases the write permit. It is safe
 // to call after Commit — the usual `defer tx.Rollback()` — and releases the
 // permit exactly once either way.
+//
+// Its error is deliberately NOT run through CancelledBy: the transaction is
+// over either way, every call site discards this, and a rollback that finds the
+// context's own rollback got there first has nothing to report.
 func (tx *Tx) Rollback() error {
 	defer tx.finish()
 	return tx.Tx.Rollback()
@@ -106,4 +116,35 @@ func (tx *Tx) finish() {
 	if tx.done.CompareAndSwap(false, true) {
 		tx.gate.release()
 	}
+}
+
+// CancelledBy names the caller's cancellation as the reason a write failed,
+// when that is what happened.
+//
+// database/sql reacts to a context ending by closing the transaction and its
+// prepared statements from a background goroutine (Tx.awaitDone). A statement
+// or a Commit that loses the race with it returns a lifecycle error instead of
+// the context's — `sql: transaction has already been committed or rolled back`,
+// `sql: statement is closed` — which says nothing about the context and reads
+// like a corrupted handle. Both were observed escaping the project store's
+// bulk-write path when its deadline expired mid-transaction.
+//
+// The returned error wraps BOTH: `errors.Is(err, context.DeadlineExceeded)`
+// answers "did my deadline stop this", and the underlying error is still there
+// for anyone who wants the detail. A caller that must distinguish "the write did
+// not happen because I cancelled" from "the store is broken" — a retry loop, an
+// exit code, a test asserting the gate refused nothing — can now do so.
+//
+// It is applied where the error reports whether the write happened: a statement,
+// a BEGIN, a Commit. Reads are untouched: they are not gated, and a cancelled
+// read already returns the context error through database/sql's own checks.
+func CancelledBy(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	cerr := ctx.Err()
+	if cerr == nil || errors.Is(err, cerr) {
+		return err
+	}
+	return fmt.Errorf("%w: %w", cerr, err)
 }
