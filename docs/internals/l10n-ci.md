@@ -82,7 +82,10 @@ build output does not read as drift.
 The gate asserts **generated-vs-source consistency** and nothing else. It says
 nothing about how much of a target language is translated, and must never be
 made to: an English change that leaves nb behind is pending work, not a build
-break. Coverage is reported to the job summary and cannot fail anything.
+break. Coverage is reported to the job summary and cannot fail anything, and so
+is the mirror-image number — the seed entries that produced nothing, which
+`make l10n-orphans-report` lists and
+[`.kapi/README.md`](../../.kapi/README.md) explains.
 
 Five separate gates used to cover subsets of this, and the subsets did not add
 up to the whole — a surface could go stale in the gap between them.
@@ -184,6 +187,7 @@ reversibly.
 | `i18n-catalogs` | the Go binaries' embedded MO is build output, and `//go:embed` resolves at compile time, so it is a build prerequisite rather than a stage anyone runs by hand |
 | `l10n-verify` / `l10n-derived-paths` | a generated-vs-source gate over committed artifacts, and its single source of truth for what that set is |
 | `l10n-review-export` | emits the lossy interchange views (TMX/CSV) a human reviewer asks for; the native seeds stay the truth |
+| `l10n-orphans` / `l10n-orphans-report` | the seeds are human-owned and keep entries their source string has outlived; content memory matches on text, so a kept entry is wording any surface can pick up again, and the only safe version of keeping it is seeing it |
 | `scripts/l10n-autofix.sh` | the deterministic-regeneration commit; nothing standard commits the output of a stage that is not kapi's |
 | `make l10n-extract` in the dogfood workflow | the loop cannot carry collections whose source catalogs do not exist yet |
 

@@ -1343,7 +1343,9 @@ BOWRAIN_APP_DIR       := bowrain/packages/app
 EMAILS_DIR            := bowrain/emails
 LANDING_DIR           := bowrain/web/landing
 
-# Keep these globs in sync with each package's own `extract` script.
+# These flags and each package's own `extract` script are one definition in two
+# places, so `check-extract-fixtures` compares them: a surface with a package
+# script must be invoked with the same flag set from either side.
 #
 # An --ignore is a glob `fs/promises.glob` matches against the path it yields —
 # `../` prefix and all — and `**` does not match a leading `..` segment. A bare
@@ -1370,6 +1372,28 @@ BOWRAIN_APP_EXTRACT_SRC   := --src "src/**/*.{tsx,jsx}" --src "../ui/src/**/*.ts
 BOWRAIN_SHELL_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
 EMAILS_EXTRACT_SRC        := --src "src/*.tsx" --ignore "src/*.stories.tsx" --ignore "src/storybook-decorator.tsx"
 LANDING_EXTRACT_SRC       := --src "src/**/*.{tsx,jsx}"
+
+# A surface whose own wrapper components render translatable text carries a
+# componentMap in a neokapi-i18n.config.json, and *both* halves of the pipeline
+# have to read it: the vite transform imports the file unconditionally, while
+# the extract CLI only sees it when handed --config. A key is a hash over the
+# resolved JSX path, so a map present on one side only produces catalog keys the
+# running app never asks for — the string is extracted, translated, compiled and
+# then silently unresolvable. Surfaces with no such config pass no flag.
+KAPI_DESKTOP_EXTRACT_CONFIG  := --config neokapi-i18n.config.json
+BOWRAIN_APP_EXTRACT_CONFIG   := --config neokapi-i18n.config.json
+# ctrl and pulse render the same shared app components, so they read the app's map.
+BOWRAIN_SHELL_EXTRACT_CONFIG := --config ../../packages/app/neokapi-i18n.config.json
+EMAILS_EXTRACT_CONFIG        := --config neokapi-i18n.config.json
+LANDING_EXTRACT_CONFIG       :=
+
+# The whole argv each extract target runs, so `l10n-extract-globs` prints the
+# real invocation and the guard checks what the pipeline actually does.
+KAPI_DESKTOP_EXTRACT_FLAGS  := $(KAPI_DESKTOP_EXTRACT_CONFIG) --out i18n/ --target-locale qps $(KAPI_DESKTOP_EXTRACT_SRC)
+BOWRAIN_APP_EXTRACT_FLAGS   := $(BOWRAIN_APP_EXTRACT_CONFIG) --out i18n/ --target-locale qps $(BOWRAIN_APP_EXTRACT_SRC)
+BOWRAIN_SHELL_EXTRACT_FLAGS := $(BOWRAIN_SHELL_EXTRACT_CONFIG) --out i18n/ --target-locale qps $(BOWRAIN_SHELL_EXTRACT_SRC)
+EMAILS_EXTRACT_FLAGS        := $(EMAILS_EXTRACT_CONFIG) --out i18n/ --target-locale qps $(EMAILS_EXTRACT_SRC)
+LANDING_EXTRACT_FLAGS       := $(LANDING_EXTRACT_CONFIG) --out i18n/ --target-locale qps $(LANDING_EXTRACT_SRC)
 
 # Every surface whose source catalogs are per-file .kbf.json under <dir>/i18n
 # and whose targets land in <dir>/i18n-<lang>. The pseudo-translation pass and
@@ -1417,28 +1441,28 @@ L10N_DERIVED := \
 # both need the source catalogs, and target drift must never gate either.
 
 kapi-desktop-extract: kapi-desktop-frontend-deps i18n-react-build ## Extract Kapi Desktop UI strings → i18n/ (per-file .kbf.json)
-	cd $(KAPI_DESKTOP_FRONTEND) && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps $(KAPI_DESKTOP_EXTRACT_SRC)
+	cd $(KAPI_DESKTOP_FRONTEND) && $(NEOKAPI_I18N_CLI) extract $(KAPI_DESKTOP_EXTRACT_FLAGS)
 
 bowrain-app-extract: i18n-react-build ## Extract bowrain app+ui+shell strings → bowrain/packages/app/i18n/
-	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(BOWRAIN_APP_EXTRACT_SRC)
+	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) extract $(BOWRAIN_APP_EXTRACT_FLAGS)
 
 bowrain-ctrl-extract: i18n-react-build ## Extract ctrl admin-app strings → bowrain/apps/ctrl/i18n/
-	cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) extract --config ../../packages/app/neokapi-i18n.config.json --out i18n/ --target-locale qps $(BOWRAIN_SHELL_EXTRACT_SRC)
+	cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) extract $(BOWRAIN_SHELL_EXTRACT_FLAGS)
 
 bowrain-pulse-extract: i18n-react-build ## Extract pulse dashboard strings → bowrain/apps/pulse/i18n/
-	cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) extract --config ../../packages/app/neokapi-i18n.config.json --out i18n/ --target-locale qps $(BOWRAIN_SHELL_EXTRACT_SRC)
+	cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) extract $(BOWRAIN_SHELL_EXTRACT_FLAGS)
 
 emails-frontend-deps: ## Install transactional-email template dependencies
 	cd $(EMAILS_DIR) && vp install
 
 emails-extract: emails-frontend-deps i18n-react-build ## Extract transactional-email strings → bowrain/emails/i18n/
-	cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(EMAILS_EXTRACT_SRC)
+	cd $(EMAILS_DIR) && $(NEOKAPI_I18N_CLI) extract $(EMAILS_EXTRACT_FLAGS)
 
 landing-frontend-deps: ## Install landing page dependencies
 	cd $(LANDING_DIR) && vp install
 
 landing-extract: landing-frontend-deps i18n-react-build ## Extract landing page strings → bowrain/web/landing/i18n/
-	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps $(LANDING_EXTRACT_SRC)
+	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) extract $(LANDING_EXTRACT_FLAGS)
 
 kapi-i18n-generate: i18n-catalogs ## Regenerate core/i18n/builtins/metadata.json from the Go registries
 	go generate ./core/i18n/...
@@ -1453,14 +1477,14 @@ l10n-extract: kapi-desktop-extract bowrain-app-extract bowrain-ctrl-extract bowr
 # reads this rather than re-deriving globs, so the thing it checks is the thing
 # stage 1 runs. Single-quoted because the flag strings carry double quotes.
 l10n-extract-globs: ## Print each extract surface as "<dir><TAB><extract flags>"
-	@printf '%s\t%s\n' '$(KAPI_DESKTOP_FRONTEND)' '$(KAPI_DESKTOP_EXTRACT_SRC)'
-	@printf '%s\t%s\n' '$(BOWRAIN_APP_DIR)' '$(BOWRAIN_APP_EXTRACT_SRC)'
-	@printf '%s\t%s\n' 'bowrain/apps/ctrl' '$(BOWRAIN_SHELL_EXTRACT_SRC)'
-	@printf '%s\t%s\n' 'bowrain/apps/pulse' '$(BOWRAIN_SHELL_EXTRACT_SRC)'
-	@printf '%s\t%s\n' '$(EMAILS_DIR)' '$(EMAILS_EXTRACT_SRC)'
-	@printf '%s\t%s\n' '$(LANDING_DIR)' '$(LANDING_EXTRACT_SRC)'
+	@printf '%s\t%s\n' '$(KAPI_DESKTOP_FRONTEND)' '$(KAPI_DESKTOP_EXTRACT_FLAGS)'
+	@printf '%s\t%s\n' '$(BOWRAIN_APP_DIR)' '$(BOWRAIN_APP_EXTRACT_FLAGS)'
+	@printf '%s\t%s\n' 'bowrain/apps/ctrl' '$(BOWRAIN_SHELL_EXTRACT_FLAGS)'
+	@printf '%s\t%s\n' 'bowrain/apps/pulse' '$(BOWRAIN_SHELL_EXTRACT_FLAGS)'
+	@printf '%s\t%s\n' '$(EMAILS_DIR)' '$(EMAILS_EXTRACT_FLAGS)'
+	@printf '%s\t%s\n' '$(LANDING_DIR)' '$(LANDING_EXTRACT_FLAGS)'
 
-check-extract-fixtures: ## Guard: no test/story file is in any extract surface's scan set, and no fixture string is in a committed catalog
+check-extract-fixtures: ## Guard: no test/story file is extracted, and each surface's make and package invocations agree
 	@node scripts/check-extract-fixtures.mjs
 
 # Stage 2: seed.
@@ -1583,6 +1607,27 @@ l10n-verify: l10n ## CI gate: every committed derived artifact regenerates byte-
 		exit 1; \
 	fi
 	@echo "l10n-verify: every committed derived artifact matches its source"
+
+# Everything the translate stage materializes for one locale — the corpus the
+# orphan report asks "did this seed entry produce anything?" against. Not the
+# same set as L10N_DERIVED: that one names what is *committed*, and the docs
+# pages and per-surface catalogs here are generated build artifacts on purpose.
+L10N_TARGETS = $(foreach d,$(L10N_KBF_DIRS),$(d)/i18n-$(1)) \
+	core/i18n/catalogs/$(1).json host/i18n/catalogs/$(1).json \
+	bowrain/mailer/subjects/$(1).json bowrain/mailer/templates/$(1) \
+	web/i18n/$(1) bowrain/web/docs/i18n/$(1) \
+	$(wildcard harness/demos/*/demo.$(1).yaml)
+
+# Standing, never gating — the committed seeds are human-owned source, and an
+# entry whose source string is gone is kept rather than deleted. Content memory
+# matches on text, though, so a kept entry is wording any surface can pick up
+# again; the point of the report is that a reviewer sees which ones those are.
+l10n-orphans: l10n l10n-orphans-report ## Run the four stages, then report seed entries that produced nothing
+
+# The report over already-materialized targets. Split out because CI has just
+# run the stages and re-running them to read their output would double the job.
+l10n-orphans-report: ## Report seed entries that produced no target artifact (never gates)
+	@$(foreach lang,$(L10N_LANGS),node scripts/l10n-orphan-report.mjs $(lang) $(call L10N_TARGETS,$(lang));)
 
 # ── Frontend packages ────────────────────────────────────────────────────────
 
@@ -2354,6 +2399,7 @@ help: ## Show this help
         kapi-i18n-generate kapi-cli-i18n-generate i18n-react-build i18n-catalogs \
         l10n l10n-extract l10n-seed l10n-translate l10n-pseudo l10n-compile \
         l10n-verify l10n-derived-paths l10n-extract-globs l10n-review-export \
+        l10n-orphans l10n-orphans-report \
         check-extract-fixtures \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
