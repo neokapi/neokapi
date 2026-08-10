@@ -44,7 +44,7 @@ const sampleTree: ContentTree = {
               range: { startRun: 0, endRun: 1, startOffset: 7, endOffset: 14 },
               text: "utilize",
               props: {
-                category: "brand-vocabulary",
+                category: "voice-vocabulary",
                 severity: "major",
                 term: "utilize",
                 kind: "forbidden",
@@ -86,7 +86,7 @@ export default meta;
 type Story = StoryObj<typeof FilePreview>;
 
 // Default: the preview sheet open on a JSON file, showing the source, the fr
-// target (via the side toggle) and the term / brand-vocabulary annotations.
+// target (via the side toggle) and the term / voice-vocabulary annotations.
 export const Default: Story = {};
 
 // A source-only file (no committed targets): the side toggle offers only Source.

@@ -15,12 +15,13 @@ import type { OverlaySpan, OverlayView } from "./types";
 //
 // The palette keys on the ACTUAL overlay types the engine emits
 // (`labInspectAnnotated`): `term` (vocabulary), and `qa` — where a `qa` overlay
-// whose `props.category` is `"brand-vocabulary"` is a brand violation, and every
-// other `qa` overlay is a rule-based check (double spaces, doubled words). So a
-// span's accent is decided by its overlay type AND its span props, not the type
-// alone: term = violet (vocabulary), brand-vocabulary = pink (a brand QA), other
-// qa = amber. Other model overlay types (entity/segmentation/alignment) keep
-// stable accents in case a future annotator emits them.
+// whose `props.category` is `"voice-vocabulary"` is a voice-profile violation,
+// and every other `qa` overlay is a rule-based check (double spaces, doubled
+// words). So a span's accent is decided by its overlay type AND its span props,
+// not the type alone: term = violet (vocabulary), voice-vocabulary = pink (a
+// voice QA), other qa = amber. Other model overlay types
+// (entity/segmentation/alignment) keep stable accents in case a future
+// annotator emits them.
 
 export interface OverlayStyle {
   /** Tailwind classes applied to the highlight <mark>. */
@@ -29,9 +30,11 @@ export interface OverlayStyle {
   label: string;
 }
 
-// Brand violations ride on the `qa` overlay type and are distinguished by this
-// span-prop category. Keep in sync with the wasm annotator (lab_annotate.go).
-const BRAND_CATEGORY = "brand-vocabulary";
+// Voice-vocabulary violations ride on the `qa` overlay type and are
+// distinguished by this span-prop category. The value is what the producers
+// emit — the wasm annotator (kapi/cmd/kapi-wasm-cli/lab_annotate.go) and the
+// desktop inspector (apps/kapi-desktop/backend/inspect.go).
+const VOICE_CATEGORY = "voice-vocabulary";
 
 // Effective-accent keys. The renderer never sees these directly — they are the
 // resolved identity (type + category) that `overlayStyle` maps to an accent.
@@ -42,10 +45,10 @@ const OVERLAY_STYLES: Record<string, OverlayStyle> = {
     className: "bg-violet-500/20 text-violet-700 dark:text-violet-300",
     label: "Vocabulary",
   },
-  // Brand-vocabulary violations (a `qa` overlay with category=brand-vocabulary).
-  [BRAND_CATEGORY]: {
+  // Voice-vocabulary violations (a `qa` overlay with category=voice-vocabulary).
+  [VOICE_CATEGORY]: {
     className: "bg-pink-500/20 text-pink-700 dark:text-pink-300",
-    label: "Brand",
+    label: "Voice",
   },
   // Rule-based and LLM-judged QA findings (double spaces, doubled words, …).
   qa: { className: "bg-amber-500/25 text-amber-700 dark:text-amber-300", label: "QA" },
@@ -69,21 +72,23 @@ const DEFAULT_STYLE: OverlayStyle = {
 };
 
 /**
- * The effective accent key for an overlay span. Brand violations ride on the
- * `qa` overlay type, so a `qa` span carrying `props.category="brand-vocabulary"`
- * resolves to the brand accent; everything else resolves on its overlay type.
+ * The effective accent key for an overlay span. Voice-vocabulary violations
+ * ride on the `qa` overlay type, so a `qa` span carrying
+ * `props.category="voice-vocabulary"` resolves to the voice accent; everything
+ * else resolves on its overlay type.
  */
 function effectiveKey(type: string, span?: OverlaySpan): string {
-  if (type === "qa" && span?.props?.category === BRAND_CATEGORY) {
-    return BRAND_CATEGORY;
+  if (type === "qa" && span?.props?.category === VOICE_CATEGORY) {
+    return VOICE_CATEGORY;
   }
   return type;
 }
 
 /**
- * Resolve the accent + label for an overlay span. Pass the span so a brand
- * violation (a `qa` overlay with category=brand-vocabulary) gets the brand
- * accent rather than the generic QA accent. Unknown keys fall back to emerald.
+ * Resolve the accent + label for an overlay span. Pass the span so a
+ * voice-vocabulary violation (a `qa` overlay with category=voice-vocabulary)
+ * gets the voice accent rather than the generic QA accent. Unknown keys fall
+ * back to emerald.
  */
 export function overlayStyle(type: string, span?: OverlaySpan): OverlayStyle {
   const key = effectiveKey(type, span);
@@ -112,13 +117,13 @@ export interface ResolvedSpan {
 
 // The props worth surfacing in the tooltip, per overlay identity — chosen so a
 // reader sees the actionable fact, not the raw prop bag. Terms show their target
-// translation (+ domain); brand violations show the suggested replacement (or
-// the human message); other QA shows its message. Anything not listed falls back
-// to a compact key:value join.
+// translation (+ domain); voice-vocabulary violations show the suggested
+// replacement (or the human message); other QA shows its message. Anything not
+// listed falls back to a compact key:value join.
 const TOOLTIP_PROPS: Record<string, string[]> = {
   term: ["target", "domain"],
   terms: ["target", "domain"],
-  [BRAND_CATEGORY]: ["replacement", "message"],
+  [VOICE_CATEGORY]: ["replacement", "message"],
   qa: ["message"],
 };
 
@@ -179,8 +184,8 @@ export function resolveOverlaySpans(
         start: idx,
         end: idx + needle.length,
         type: ov.type,
-        // Style/tooltip key on the span too, so a brand-vocabulary qa span gets
-        // the brand accent rather than the generic QA accent.
+        // Style/tooltip key on the span too, so a voice-vocabulary qa span gets
+        // the voice accent rather than the generic QA accent.
         style: overlayStyle(ov.type, span),
         span,
         tooltip: tooltipFor(ov.type, span),

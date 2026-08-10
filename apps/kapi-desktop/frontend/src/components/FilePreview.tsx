@@ -58,7 +58,7 @@ export interface FilePreviewProps {
 // the WASM runtime.
 //
 // It calls InspectFileAnnotated so the tree carries the project's real
-// terminology, brand-vocabulary and QA overlays; the DocumentViewer's
+// terminology, voice-vocabulary and QA overlays; the DocumentViewer's
 // Annotations toggle highlights them on the rendered document. Committed targets
 // from the project (translated/merged sibling files) ride along in the tree, so
 // the source↔target toggle works whenever a translation exists.

@@ -84,10 +84,22 @@ describe("normalizeServerBlock", () => {
     expect(block.has_spans).toBe(false);
   });
 
-  it("strips the raw run fields from the normalised block", () => {
-    const block = normalizeServerBlock(serverBlock({ source_runs: boldName })) as ServerBlockInfo;
-    expect(block.source_runs).toBeUndefined();
-    expect(block.targets_runs).toBeUndefined();
+  it("keeps the typed runs and drops only the server-side flag", () => {
+    const block = normalizeServerBlock(
+      serverBlock({
+        source_runs: boldName,
+        targets_runs: { fr: boldName },
+        has_inline_codes: true,
+      }),
+    ) as ServerBlockInfo;
+    // The runs are the content model: the run-native projection reads them,
+    // and flattening to coded text would lose the boundaries overlay ranges
+    // anchor to.
+    expect(block.source_runs).toEqual(boldName);
+    expect(block.targets_runs).toEqual({ fr: boldName });
+    // `has_inline_codes` is the server's spelling of `has_spans`; only the
+    // normalised field survives.
     expect(block.has_inline_codes).toBeUndefined();
+    expect(block.has_spans).toBe(true);
   });
 });
