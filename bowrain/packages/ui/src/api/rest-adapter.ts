@@ -137,6 +137,7 @@ import type {
   RepoDetectOptions,
   ModelRecommendationsResponse,
   PendingReviewOptions,
+  TermCompliance,
   PendingReviewPage,
   BlockQueryOptions,
   BlockCounts,
@@ -1555,6 +1556,9 @@ export class RestApiAdapter implements ApiAdapter {
         locale: string;
         block?: ServerBlockInfo;
         collection_id?: string;
+        term_compliance?: TermCompliance;
+        voice_score?: number;
+        voice_bar?: number;
       }[];
       total: number;
       limit: number;

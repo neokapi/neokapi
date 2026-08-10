@@ -647,6 +647,15 @@ export interface ApprovePassingResult {
   approved: number;
   /** Pending blocks left untouched (failing checks / off-brand). */
   skipped: number;
+  /**
+   * Which bar each skipped block missed. A block missing more than one is
+   * counted against the first the server applies (checks, then terminology,
+   * then voice), so the three sum to `skipped`. The same three axes the queue's
+   * entries carry, so a preview and its outcome are read in one vocabulary.
+   */
+  skipped_failing_checks: number;
+  skipped_term_violations: number;
+  skipped_below_voice_bar: number;
   /** Pending-review targets still awaiting review after the call. */
   remaining_pending: number;
   /** True iff this call emptied the review queue → completing run + delivery. */
@@ -1588,7 +1597,26 @@ export interface PendingReviewEntry {
    * cannot disagree about where a row belongs.
    */
   collection_id: string;
+  /**
+   * This target's terminology verdict (Go store.TermCompliance). Absent or `""`
+   * means no terminology governance was active for the locale — which is not
+   * compliance, because nothing was checked.
+   */
+  term_compliance?: TermCompliance;
+  /**
+   * The latest persisted brand voice score for this block+locale, and the
+   * on-brand bar of the profile that produced it. Absent together for a block
+   * that has never been scored; the server applies no voice bar to one either.
+   */
+  voice_score?: number;
+  voice_bar?: number;
 }
+
+/**
+ * A target's terminology verdict, as the review queue carries it. Mirror of Go
+ * store.TermCompliance: three rungs, because "not checked" is not "compliant".
+ */
+export type TermCompliance = "" | "compliant" | "violation";
 
 /** One page of the translation review queue plus the queue's total size. */
 export interface PendingReviewPage {

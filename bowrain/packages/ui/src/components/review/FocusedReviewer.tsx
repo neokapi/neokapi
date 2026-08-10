@@ -20,7 +20,14 @@ import {
   Info,
   FileText,
 } from "../icons";
-import { entryCheckStatus, type ReviewEntry } from "./reviewQueue";
+import {
+  BLOCKER_LABELS,
+  entryBlockers,
+  entryVerdict,
+  VERDICT_LABELS,
+  type ReviewEntry,
+  type ReviewQueueVerdict,
+} from "./reviewQueue";
 
 /** Locale-level on-brand context for the reviewer header chip. */
 export interface ReviewerOnBrand {
@@ -72,13 +79,17 @@ export interface FocusedReviewerProps {
   onEntityPromote?: (entityKey: string) => void;
 }
 
-const checkChip: Record<string, { label: string; className: string }> = {
+// The verdict over all three bars the server applies on approve, not over
+// checks alone: "Passes checks" was a claim about one of them.
+const verdictChip: Record<ReviewQueueVerdict, { label: string; className: string }> = {
   failing: {
-    label: "Failing checks",
+    label: VERDICT_LABELS.failing,
     className: "border-destructive/40 bg-destructive/10 text-destructive",
   },
-  off_brand: { label: "Off-brand", className: "border-warning/40 bg-warning/10 text-warning" },
-  clean: { label: "Passes checks", className: "border-success/40 bg-success/10 text-success" },
+  passing: {
+    label: VERDICT_LABELS.passing,
+    className: "border-success/40 bg-success/10 text-success",
+  },
 };
 
 /**
@@ -115,8 +126,9 @@ export function FocusedReviewer({
 }: FocusedReviewerProps) {
   const { block, locale, issues } = entry;
   const status = getBlockStatus(block, locale);
-  const check = entryCheckStatus(entry);
-  const chip = checkChip[check];
+  const verdict = entryVerdict(entry);
+  const blockers = entryBlockers(entry);
+  const chip = verdictChip[verdict];
   const [selection, setSelection] = useState("");
 
   const localeLabel = localeName ? `${localeName(locale)} (${locale})` : locale;
@@ -172,15 +184,35 @@ export function FocusedReviewer({
             "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
             chip.className,
           )}
-          data-testid={`reviewer-check-${check}`}
+          data-testid={`reviewer-verdict-${verdict}`}
         >
-          {check === "clean" ? (
+          {verdict === "passing" ? (
             <CircleCheck className="h-3 w-3" />
           ) : (
             <AlertTriangle className="h-3 w-3" />
           )}
           {chip.label}
         </span>
+        {/* Which bar, not just that one was missed — the reviewer's next act
+            depends on whether it is a check, a term, or the voice score. */}
+        {blockers.map((b) => (
+          <span
+            key={b}
+            className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+            data-testid={`reviewer-blocker-${b}`}
+          >
+            {BLOCKER_LABELS[b]}
+          </span>
+        ))}
+        {entry.voiceScore !== undefined && (
+          <span
+            className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] tabular-nums text-muted-foreground"
+            data-testid="reviewer-voice-score"
+            title="The block's latest voice score against its profile's on-brand bar"
+          >
+            Voice {entry.voiceScore}/{entry.voiceBar}
+          </span>
+        )}
         {onBrand && (
           <OnBrandRateChip
             rate={onBrand.rate}

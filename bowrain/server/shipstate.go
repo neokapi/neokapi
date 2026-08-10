@@ -198,16 +198,38 @@ func blockFailsChecks(ctx context.Context, block *model.Block, loc model.LocaleI
 // (latestVoiceScores(...)[normalize(locale)]); an empty map degrades to
 // checks-only. A nil gate makes the term check a no-op, matching the dashboard.
 func blockOnBrandAndPassing(ctx context.Context, block *model.Block, loc model.LocaleID, scored map[string]scoredBlock, gate *termGate) bool {
+	return blockApproveBlocker(ctx, block, loc, scored, gate) == approveBlockerNone
+}
+
+// approveBlocker names the first bar a pending target misses. It exists so a
+// caller can report WHY a block was left for a person in the same vocabulary
+// the review queue's entries carry, rather than in one undifferentiated
+// "skipped" count.
+type approveBlocker string
+
+const (
+	approveBlockerNone   approveBlocker = ""
+	approveBlockerChecks approveBlocker = "checks"
+	approveBlockerTerms  approveBlocker = "terms"
+	approveBlockerVoice  approveBlocker = "voice"
+)
+
+// blockApproveBlocker is the one predicate behind blockOnBrandAndPassing: it
+// applies the three bars in gate order and names the first one the target
+// misses, or approveBlockerNone when it clears them all. Order is significant
+// only for attribution — a target missing two bars is reported against the
+// first — so the reported reasons sum to the skipped count.
+func blockApproveBlocker(ctx context.Context, block *model.Block, loc model.LocaleID, scored map[string]scoredBlock, gate *termGate) approveBlocker {
 	if blockFailsChecks(ctx, block, loc) {
-		return false
+		return approveBlockerChecks
 	}
 	if !gate.compliant(ctx, block, loc) {
-		return false
+		return approveBlockerTerms
 	}
 	if vs, ok := scored[block.ID]; ok && vs.score < vs.bar {
-		return false
+		return approveBlockerVoice
 	}
-	return true
+	return approveBlockerNone
 }
 
 // scoredBlock is the latest persisted voice score for one block+locale, paired

@@ -2,17 +2,20 @@ import { describe, it, expect } from "vite-plus/test";
 import type { BlockInfo, QAIssue } from "../types/api";
 import {
   entryKey,
-  entryCheckStatus,
+  entryBlockers,
+  entryVerdict,
   entryHasErrors,
   isPendingReview,
-  isEntryClean,
+  isBelowVoiceBar,
+  isEntryPassing,
   matchesFilter,
   filterEntries,
   groupEntries,
   queueCounts,
-  noFailingChecksCount,
+  passingCount,
   nextIndex,
   indexAfterRemoval,
+  VERDICT_LABELS,
   type ReviewEntry,
 } from "../components/review/reviewQueue";
 
@@ -34,6 +37,9 @@ function entry(overrides: Partial<ReviewEntry> & { locale: string; itemId: strin
     itemName: overrides.itemName ?? `${overrides.itemId}.json`,
     // The server names every entry's collection, "" for an item in none.
     collectionId: "",
+    // Unchecked terminology and no voice score: the neutral default, so a case
+    // that says nothing about those bars is not silently asserting them.
+    termCompliance: "",
     issues: [],
     block: block(blockId, overrides.locale, "draft target"),
     ...overrides,
@@ -65,21 +71,83 @@ describe("isPendingReview", () => {
   });
 });
 
-describe("entryCheckStatus", () => {
-  it("is failing when an error finding is present", () => {
-    expect(entryCheckStatus(entry({ itemId: "i1", locale: "fr", issues: [error, warning] }))).toBe(
-      "failing",
-    );
+// The verdict mirrors the server's approve-passing predicate over the three
+// bars the queue payload carries. It bucketed on check findings alone while
+// they were the only evidence, so "no failing checks" over-counted by exactly
+// the blocks the server then refused — a term violation or a below-bar voice
+// score sat in the passing bucket.
+describe("entryVerdict", () => {
+  const cases: {
+    name: string;
+    entry: Partial<ReviewEntry>;
+    verdict: "failing" | "passing";
+    blockers: string[];
+  }[] = [
+    { name: "nothing against it", entry: {}, verdict: "passing", blockers: [] },
+    {
+      name: "an error finding",
+      entry: { issues: [error, warning] },
+      verdict: "failing",
+      blockers: ["checks"],
+    },
+    { name: "only warnings", entry: { issues: [warning] }, verdict: "passing", blockers: [] },
+    {
+      name: "a terminology violation, checks clean",
+      entry: { termCompliance: "violation" },
+      verdict: "failing",
+      blockers: ["terms"],
+    },
+    {
+      name: "term-compliant",
+      entry: { termCompliance: "compliant" },
+      verdict: "passing",
+      blockers: [],
+    },
+    {
+      name: "a voice score below its profile's bar",
+      entry: { voiceScore: 62, voiceBar: 90 },
+      verdict: "failing",
+      blockers: ["voice"],
+    },
+    {
+      name: "a voice score at the bar",
+      entry: { voiceScore: 90, voiceBar: 90 },
+      verdict: "passing",
+      blockers: [],
+    },
+    {
+      name: "unscored — no voice bar is applied to it either",
+      entry: {},
+      verdict: "passing",
+      blockers: [],
+    },
+    {
+      name: "every bar missed at once, named in the server's order",
+      entry: { issues: [error], termCompliance: "violation", voiceScore: 10, voiceBar: 80 },
+      verdict: "failing",
+      blockers: ["checks", "terms", "voice"],
+    },
+  ];
+  for (const c of cases) {
+    it(c.name, () => {
+      const e = entry({ itemId: "i1", locale: "fr", ...c.entry });
+      expect(entryVerdict(e)).toBe(c.verdict);
+      expect(entryBlockers(e)).toEqual(c.blockers);
+      expect(isEntryPassing(e)).toBe(c.verdict === "passing");
+    });
+  }
+
+  it("an unchecked terminology verdict is not a violation", () => {
+    // "" means no governance was active — nothing to violate, nothing claimed.
+    expect(entryVerdict(entry({ itemId: "i1", locale: "fr", termCompliance: "" }))).toBe("passing");
   });
-  it("is clean with only warnings", () => {
-    expect(entryCheckStatus(entry({ itemId: "i1", locale: "fr", issues: [warning] }))).toBe(
-      "clean",
-    );
+
+  it("entryHasErrors and isBelowVoiceBar answer their own axis only", () => {
     expect(entryHasErrors(entry({ itemId: "i1", locale: "fr", issues: [warning] }))).toBe(false);
-  });
-  it("isEntryClean only for clean", () => {
-    expect(isEntryClean(entry({ itemId: "i1", locale: "fr" }))).toBe(true);
-    expect(isEntryClean(entry({ itemId: "i1", locale: "fr", issues: [error] }))).toBe(false);
+    expect(isBelowVoiceBar(entry({ itemId: "i1", locale: "fr" }))).toBe(false);
+    expect(
+      isBelowVoiceBar(entry({ itemId: "i1", locale: "fr", voiceScore: 79, voiceBar: 80 })),
+    ).toBe(true);
   });
 });
 
@@ -92,13 +160,39 @@ describe("filtering", () => {
   it("matchesFilter respects every set field", () => {
     expect(matchesFilter(entries[0], { itemId: "i1" })).toBe(true);
     expect(matchesFilter(entries[0], { itemId: "i2" })).toBe(false);
-    expect(matchesFilter(entries[0], { locale: "fr", check: "failing" })).toBe(true);
-    expect(matchesFilter(entries[0], { locale: "fr", check: "clean" })).toBe(false);
+    expect(matchesFilter(entries[0], { locale: "fr", verdict: "failing" })).toBe(true);
+    expect(matchesFilter(entries[0], { locale: "fr", verdict: "passing" })).toBe(false);
   });
   it("filterEntries narrows and preserves order", () => {
     expect(filterEntries(entries, { locale: "fr" }).map((e) => e.block.id)).toEqual(["a", "c"]);
-    expect(filterEntries(entries, { check: "clean" }).map((e) => e.block.id)).toEqual(["b", "c"]);
+    expect(filterEntries(entries, { verdict: "passing" }).map((e) => e.block.id)).toEqual([
+      "b",
+      "c",
+    ]);
     expect(filterEntries(entries, {})).toHaveLength(3);
+  });
+  it("the verdict filter sees the terminology and voice bars, not checks alone", () => {
+    const mixed = [
+      entry({ itemId: "i1", locale: "fr", block: block("clean", "fr", "x") }),
+      entry({
+        itemId: "i1",
+        locale: "fr",
+        block: block("term", "fr", "x"),
+        termCompliance: "violation",
+      }),
+      entry({
+        itemId: "i1",
+        locale: "fr",
+        block: block("voice", "fr", "x"),
+        voiceScore: 40,
+        voiceBar: 80,
+      }),
+    ];
+    expect(filterEntries(mixed, { verdict: "passing" }).map((e) => e.block.id)).toEqual(["clean"]);
+    expect(filterEntries(mixed, { verdict: "failing" }).map((e) => e.block.id)).toEqual([
+      "term",
+      "voice",
+    ]);
   });
 
   // How a collection carries from the project overview into review. The server
@@ -149,30 +243,52 @@ describe("groupEntries", () => {
     const groups = groupEntries(entries, "locale");
     expect(groups.map((g) => g.key).sort()).toEqual(["de", "fr"]);
   });
-  it("groups by check-status in severity order", () => {
-    const groups = groupEntries(entries, "check");
-    expect(groups.map((g) => g.key)).toEqual(["failing", "clean"]);
-    expect(groups[0].label).toBe("Failing checks");
+  it("groups by verdict in severity order", () => {
+    const groups = groupEntries(entries, "verdict");
+    expect(groups.map((g) => g.key)).toEqual(["failing", "passing"]);
+    expect(groups[0].label).toBe(VERDICT_LABELS.failing);
   });
 });
 
-describe("queueCounts + noFailingChecksCount", () => {
+describe("queueCounts + passingCount", () => {
   const entries = [
     entry({ itemId: "i1", locale: "fr", block: block("a", "fr", "x"), issues: [error] }),
     entry({ itemId: "i1", locale: "de", block: block("b", "de", "x"), issues: [error] }),
     entry({ itemId: "i2", locale: "fr", block: block("c", "fr", "x") }),
     entry({ itemId: "i2", locale: "fr", block: block("d", "fr", "x") }),
   ];
-  it("tallies by status, locale, and item", () => {
+  it("tallies by verdict, locale, and item", () => {
     const counts = queueCounts(entries);
     expect(counts.total).toBe(4);
     expect(counts.failing).toBe(2);
-    expect(counts.clean).toBe(2);
+    expect(counts.passing).toBe(2);
     expect(counts.byLocale).toEqual({ fr: 3, de: 1 });
     expect(counts.byItem).toEqual({ i1: 2, i2: 2 });
   });
-  it("noFailingChecksCount counts only entries without a failing check", () => {
-    expect(noFailingChecksCount(entries)).toBe(2);
+  it("passingCount counts the entries approve-passing will take", () => {
+    expect(passingCount(entries)).toBe(2);
+  });
+  it("a term violation and a below-bar score leave the passing count, not just failing checks", () => {
+    const withBars = [
+      ...entries,
+      entry({
+        itemId: "i3",
+        locale: "fr",
+        block: block("e", "fr", "x"),
+        termCompliance: "violation",
+      }),
+      entry({
+        itemId: "i3",
+        locale: "fr",
+        block: block("f", "fr", "x"),
+        voiceScore: 20,
+        voiceBar: 80,
+      }),
+    ];
+    // Six entries, four of which the server will refuse — the old
+    // check-status-only count said four would pass.
+    expect(passingCount(withBars)).toBe(2);
+    expect(queueCounts(withBars).failing).toBe(4);
   });
 });
 

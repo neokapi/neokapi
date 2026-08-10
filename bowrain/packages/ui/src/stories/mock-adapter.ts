@@ -36,6 +36,7 @@ import type {
   AutomationHistoryPage,
   BrandScanApproveResult,
   PendingReviewOptions,
+  TermCompliance,
 } from "../types/api";
 import type { VoiceProfile, BrandCorrectionRequest } from "../brand/types";
 import type {
@@ -259,6 +260,15 @@ export interface MockAdapter extends ApiAdapter {
   itemCollections: Record<string, string>;
   /** `getPendingReview` option objects in call order. */
   pendingReviewCalls: (PendingReviewOptions | undefined)[];
+  /**
+   * Per-block terminology and voice evidence the review queue carries (block id
+   * → the fields the server stamps). A block absent from the map has no
+   * terminology governance applied and has never been scored.
+   */
+  blockEvidence: Record<
+    string,
+    { term_compliance?: TermCompliance; voice_score?: number; voice_bar?: number }
+  >;
 }
 
 // ---------------------------------------------------------------------------
@@ -533,6 +543,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     brandScanJobStates: [sampleBrandScanJob],
     itemNames: {},
     itemCollections: {},
+    blockEvidence: {},
     pendingReviewCalls,
 
     // --- Config ---------------------------------------------------------
@@ -778,12 +789,18 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
             })
             .map(([loc]) => {
               const itemName = adapter.itemNames[b.id] ?? "messages.json";
+              const evidence = adapter.blockEvidence[b.id];
               return {
                 block_id: b.id,
                 item_name: itemName,
                 locale: loc,
                 block: b,
                 collection_id: adapter.itemCollections[itemName] ?? "",
+                // The two bars beyond QA the server judges on, absent unless a
+                // test seeds them — the same shape the real payload carries.
+                term_compliance: evidence?.term_compliance,
+                voice_score: evidence?.voice_score,
+                voice_bar: evidence?.voice_bar,
               };
             }),
         )
@@ -949,7 +966,15 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
           }
         }
       }
-      return { approved, skipped: 0, remaining_pending: 0, review_completed: true };
+      return {
+        approved,
+        skipped: 0,
+        skipped_failing_checks: 0,
+        skipped_term_violations: 0,
+        skipped_below_voice_bar: 0,
+        remaining_pending: 0,
+        review_completed: true,
+      };
     },
 
     recordBrandCorrection: async (_ws, _projectId, req) => {

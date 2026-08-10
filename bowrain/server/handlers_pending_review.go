@@ -7,6 +7,8 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/locale"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // pendingReviewEntry is one queue entry: the (block, locale) pair awaiting a
@@ -22,6 +24,17 @@ type pendingReviewEntry struct {
 	// queue narrowed to a collection and a queue grouped by collection cannot
 	// disagree about where a row belongs.
 	CollectionID string `json:"collection_id"`
+	// TermCompliance is this target's terminology verdict, empty when no
+	// terminology governance was active for the locale. It is one of the two
+	// bars beyond QA checks that approve-passing applies, so a queue that
+	// bucketed on checks alone called blocks passing that the server refuses.
+	TermCompliance store.TermCompliance `json:"term_compliance,omitempty"`
+	// VoiceScore is the latest persisted brand voice score for this block and
+	// locale, and VoiceBar the on-brand bar of the profile that produced it
+	// (VoiceProfile.ComplianceBar). Both are absent together when the block has
+	// never been scored — the server then applies no voice bar to it either.
+	VoiceScore *int `json:"voice_score,omitempty"`
+	VoiceBar   *int `json:"voice_bar,omitempty"`
 }
 
 type pendingReviewResponse struct {
@@ -97,6 +110,7 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 		}
 	}
 	byID := map[string]*BlockInfoResponse{}
+	blockByID := map[string]*model.Block{}
 	if len(ids) > 0 {
 		stored, err := s.ContentStore.GetBlocks(ctx, store.BlockQuery{
 			ProjectID: pid,
@@ -109,18 +123,48 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 		for _, sb := range stored {
 			bi := storedBlockToInfoResponse(sb, targetLocales)
 			byID[bi.ID] = &bi
+			if sb.Block != nil {
+				blockByID[sb.Block.ID] = sb.Block
+			}
 		}
 	}
 
+	// The two bars beyond QA checks that approve-passing applies, resolved ONCE
+	// for the page: the terminology gate (one terms snapshot + a brand profile
+	// per locale, then offline per block) and the project's persisted voice
+	// scores (one read, latest per block+locale, each paired with the bar of the
+	// profile that produced it). Both are the same helpers shipstate.go uses, so
+	// the queue's verdict is the predicate the bulk pass will actually apply.
+	wsID, _ := c.Get("workspace_id").(string)
+	gate := s.resolveTermGate(ctx, proj, streamParam(c), wsID)
+	scores := latestVoiceScores(ctx, s.BrandStore, pid, streamParam(c))
+
 	entries := make([]pendingReviewEntry, 0, len(refs))
 	for _, r := range refs {
-		entries = append(entries, pendingReviewEntry{
+		entry := pendingReviewEntry{
 			BlockID:      r.BlockID,
 			ItemName:     r.ItemName,
 			Locale:       r.Locale,
 			Block:        byID[r.BlockID],
 			CollectionID: r.CollectionID,
-		})
+		}
+		loc := model.LocaleID(r.Locale)
+		if block := blockByID[r.BlockID]; block != nil {
+			// Unchecked and compliant are different answers: with no governance
+			// active there is nothing the target could have violated, and
+			// claiming compliance would be claiming evidence.
+			if gate.active(ctx, loc) {
+				entry.TermCompliance = store.TermComplianceCompliant
+				if !gate.compliant(ctx, block, loc) {
+					entry.TermCompliance = store.TermComplianceViolation
+				}
+			}
+			if vs, ok := scores[string(locale.Normalize(loc))][block.ID]; ok {
+				score, bar := vs.score, vs.bar
+				entry.VoiceScore, entry.VoiceBar = &score, &bar
+			}
+		}
+		entries = append(entries, entry)
 	}
 	return c.JSON(http.StatusOK, pendingReviewResponse{Entries: entries, Total: total, Limit: limit, Offset: offset})
 }
