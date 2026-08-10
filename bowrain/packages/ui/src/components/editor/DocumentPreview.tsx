@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { FormatPreview, extOf } from "@neokapi/ui-primitives/preview";
+import type { BlockAttrs } from "@neokapi/ui-primitives/preview";
 import { useEditorApi } from "../../hooks/useEditorApi";
 import { useStream } from "../../context/StreamContext";
 import { useWorkspace } from "../../context/WorkspaceContext";
@@ -7,6 +9,7 @@ import type { BlockInfo, SpanInfo } from "../../types/api";
 import type { PreviewContentMode } from "./visual-editor-types";
 import { getTargetText } from "./blockStatus";
 import { pseudoTranslate, pseudoTranslateCoded } from "./pseudoTranslate";
+import { blocksToContentTree } from "../../preview/toContentTree";
 import { cn } from "@neokapi/ui-primitives";
 
 /** How many blocks one page of the preview's document fetch carries. */
@@ -111,6 +114,127 @@ function useDocumentBlocks(projectId: string, itemName: string, targetLocale: st
     },
     staleTime: 30_000,
   });
+}
+
+/**
+ * The marker `core/editor`'s fallback preview builders put on their container:
+ * the response is a plain listing of the item's blocks, not the format's own
+ * rendering, because no reader supplied PreviewHTML for it. See
+ * `genericPreviewOpen` in core/editor/preview_generic.go.
+ */
+const GENERIC_PREVIEW_MARKER = 'data-kat-preview="generic"';
+
+/** The synthetic locale the pseudo-translated reading is projected under. */
+const PSEUDO_LOCALE = "__pseudo";
+
+/**
+ * ContentPreview renders the item from the content model rather than from
+ * server HTML — the reading used when the server has no format-aware preview to
+ * give. The shared preview kit lays the blocks out by their structure and marks
+ * their entities and findings inline, which a monospace listing of expanded
+ * coded text cannot do.
+ *
+ * It keeps the iframe path's contract with the visual editor: clicking a block
+ * selects it, and in inline mode the selected block opens a gap the editor card
+ * drops into, with the gap's position and the document's height reported back.
+ */
+function ContentPreview({
+  blocks,
+  itemName,
+  targetLocale,
+  side,
+  selectedBlockId,
+  onBlockSelect,
+  spacerHeight,
+  onContentHeight,
+  onSpacerPosition,
+}: {
+  blocks: BlockInfo[];
+  itemName: string;
+  targetLocale: string;
+  side: "source" | "target" | "pseudo";
+  selectedBlockId?: string;
+  onBlockSelect: (blockId: string) => void;
+  spacerHeight?: number;
+  onContentHeight?: (h: number) => void;
+  onSpacerPosition?: (y: number) => void;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  // The element currently holding the editor gap, so it can be released when
+  // the selection moves.
+  const spacedRef = useRef<HTMLElement | null>(null);
+
+  // Pseudo-translation is generated here, so it travels as one more target
+  // locale the kit can render — the projection stays the only place a block
+  // becomes a content node.
+  const projected = useMemo(() => {
+    if (side !== "pseudo") return blocks;
+    return blocks.map((block) => ({
+      ...block,
+      targets: { ...block.targets, [PSEUDO_LOCALE]: pseudoTranslate(block.source) },
+    }));
+  }, [blocks, side]);
+
+  const tree = useMemo(
+    () => blocksToContentTree(projected, { format: extOf(itemName), name: itemName }),
+    [projected, itemName],
+  );
+
+  const blockAttrs = useCallback(
+    (id: string): BlockAttrs => ({ "data-testid": `preview-block-${id}` }),
+    [],
+  );
+
+  const report = useCallback(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    onContentHeight?.(root.scrollHeight);
+  }, [onContentHeight]);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    if (spacedRef.current) {
+      spacedRef.current.style.marginBottom = "";
+      spacedRef.current = null;
+    }
+    const el =
+      selectedBlockId && spacerHeight
+        ? root.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(selectedBlockId)}"]`)
+        : null;
+    if (el && spacerHeight) {
+      el.style.marginBottom = `${spacerHeight}px`;
+      spacedRef.current = el;
+      const top = el.getBoundingClientRect().bottom - root.getBoundingClientRect().top;
+      onSpacerPosition?.(top + root.scrollTop);
+    }
+    report();
+  }, [selectedBlockId, spacerHeight, onSpacerPosition, report, tree]);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(report);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [report]);
+
+  return (
+    <div
+      ref={rootRef}
+      className="relative h-full w-full overflow-auto rounded-lg border border-border bg-card px-6 py-5"
+      data-testid="preview-content"
+    >
+      <FormatPreview
+        tree={tree}
+        side={side === "source" ? "source" : side === "pseudo" ? PSEUDO_LOCALE : targetLocale}
+        onSelectBlock={onBlockSelect}
+        selectedBlockId={selectedBlockId}
+        blockAttrs={blockAttrs}
+        reducedMotion
+      />
+    </div>
+  );
 }
 
 interface DocumentPreviewProps {
@@ -297,18 +421,38 @@ export function DocumentPreview({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <iframe
-        ref={iframeRef}
-        srcDoc={previewHTML}
-        className="w-full h-full border border-[var(--border)] rounded-lg bg-white"
-        style={
-          inlineMode && iframeContentHeight > 0 ? { minHeight: iframeContentHeight } : undefined
-        }
-        sandbox="allow-scripts"
-        title="Document Preview"
-        data-testid="preview-iframe"
-        onLoad={handleIframeLoad}
-      />
+      {/* The split: a reader-generated preview is the document as its own format
+          renders it, and only an iframe can show that faithfully. The server's
+          fallback is a listing of the blocks — the content model already says
+          everything that listing does, so the kit renders it instead, in the
+          app's own type, structure-aware and with the block annotations marked
+          where they occur. */}
+      {previewHTML.includes(GENERIC_PREVIEW_MARKER) ? (
+        <ContentPreview
+          blocks={contentBlocks}
+          itemName={itemName}
+          targetLocale={targetLocale}
+          side={showPseudo ? "pseudo" : showTarget ? "target" : "source"}
+          selectedBlockId={selectedBlockId}
+          onBlockSelect={onBlockSelect}
+          spacerHeight={spacerHeight}
+          onContentHeight={onContentHeight}
+          onSpacerPosition={onSpacerPosition}
+        />
+      ) : (
+        <iframe
+          ref={iframeRef}
+          srcDoc={previewHTML}
+          className="w-full h-full border border-[var(--border)] rounded-lg bg-white"
+          style={
+            inlineMode && iframeContentHeight > 0 ? { minHeight: iframeContentHeight } : undefined
+          }
+          sandbox="allow-scripts"
+          title="Document Preview"
+          data-testid="preview-iframe"
+          onLoad={handleIframeLoad}
+        />
+      )}
       {!isControlled && (
         <div
           className={cn(

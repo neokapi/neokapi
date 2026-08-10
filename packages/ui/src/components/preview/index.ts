@@ -7,7 +7,7 @@
 export { default as DocumentViewer } from "./DocumentViewer";
 export type { DocumentViewerProps } from "./DocumentViewer";
 export { default as FormatPreview } from "./FormatPreview";
-export type { FormatPreviewProps, PreviewSide } from "./FormatPreview";
+export type { BlockAttrs, FormatPreviewProps, PreviewSide } from "./FormatPreview";
 export { default as FileBrowser } from "./FileBrowser";
 export type { FileBrowserProps, BrowserFile } from "./FileBrowser";
 export { default as BlockInspector } from "./BlockInspector";

@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Button, Badge, cn } from "@neokapi/ui-primitives";
-import type { OnBrandBasis } from "../../types/api";
+import { FormatPreview } from "@neokapi/ui-primitives/preview";
+import type { EntityInfo, OnBrandBasis } from "../../types/api";
 import { OnBrandRateChip } from "../OnBrandRateChip";
-import { SourceCellDisplay } from "../editor/SourceCellDisplay";
-import { HighlightedSource } from "../editor/HighlightedSource";
+import { blocksToContentTree, type BlockEvidence } from "../../preview/toContentTree";
+import { entityLabel } from "../editor/HighlightedSource";
 import { CollapsedTargetCell } from "../editor/GridTargetRenderer";
 import { UnifiedTargetEditor, type UnifiedSaveResult } from "../UnifiedTargetEditor";
 import { getBlockStatus, statusConfig } from "../editor/blockStatus";
@@ -122,11 +123,30 @@ export function FocusedReviewer({
 
   // Capture the current source-text selection so the source-side lane can act
   // on it. Constrained to the source column via the onMouseUp target.
+  //
+  // The kit renders the source as the concatenation of the block's literal
+  // runs, so a DOM selection over it yields exactly the source text a term or a
+  // voice rule is matched against — overlay marks split the text into more
+  // elements, but `Selection.toString()` reads across them.
   const captureSelection = useCallback(() => {
     const text = window.getSelection?.()?.toString().trim() ?? "";
     setSelection(text);
   }, []);
 
+  // The source as the content model holds it: typed runs with the block's
+  // entities as an inline overlay, and its position-less check results recorded
+  // as annotations rather than guessed onto a span. One block and no item name,
+  // so the block is the whole tree.
+  const sourceTree = useMemo(() => {
+    const evidence: BlockEvidence = { issues, issueLocale: locale };
+    return blocksToContentTree([block], {
+      evidence: { [block.id]: evidence },
+      sourceLocale,
+      locales: [locale],
+    });
+  }, [block, issues, locale, sourceLocale]);
+
+  const entities: EntityInfo[] = block.entities ?? [];
   const errorCount = issues.filter((i) => i.severity === "error").length;
 
   return (
@@ -194,21 +214,39 @@ export function FocusedReviewer({
               onKeyUp={captureSelection}
               data-testid="reviewer-source"
             >
-              {block.has_spans && block.source_coded ? (
-                <SourceCellDisplay
-                  codedText={block.source_coded}
-                  spans={block.source_spans ?? []}
-                  entities={block.entities}
-                />
-              ) : (
-                <HighlightedSource
-                  text={block.source}
-                  termMatches={[]}
-                  entities={block.entities}
-                  onEntityPromote={onEntityPromote}
-                />
-              )}
+              <FormatPreview tree={sourceTree} side="source" reducedMotion />
             </div>
+            {/* Marked entities. The document marks them where they occur; this
+                lane is where they can be acted on — a tooltip cannot hold a
+                button. */}
+            {entities.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5" data-testid="source-entities">
+                {entities.map((entity) => (
+                  <span
+                    key={entity.key}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-xs"
+                  >
+                    <span className="text-muted-foreground">{entityLabel(entity.type)}</span>
+                    <span className="font-medium">{entity.text}</span>
+                    {entity.dnt && (
+                      <span className="rounded bg-muted px-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        dnt
+                      </span>
+                    )}
+                    {onEntityPromote && (
+                      <button
+                        type="button"
+                        className="text-primary hover:underline"
+                        onClick={() => onEntityPromote(entity.key)}
+                        data-testid={`promote-entity-${entity.key}`}
+                      >
+                        Promote
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
             {/* Source-side review lane. Mark-as-term and suggest-rule act on a
                 selection (annotate → re-check the locales); propose-source-change
                 is the back-to-source lane (transform → re-draft all locales). */}

@@ -313,6 +313,63 @@
   color: var(--doc-muted);
 }
 
+/* ── Selectable blocks ───────────────────────────────────────────────────────
+   When a host listens for block selection, every block becomes a target. The
+   affordance stays quiet — the document must still read as a document — so it
+   is a hairline margin rule that warms on hover and firms up on selection,
+   rather than a card or a fill. Reading measure is untouched: the rule is drawn
+   in the padding the block gains, not by indenting the text.
+
+   The rule's resting colour is the host's to set: give a block
+   `--kapi-block-rule` (through blockAttrs' className, say a review status) and
+   the margin states it without the kit knowing what it means. Deliberately read
+   through `var(…, transparent)` rather than declared with a default here, so the
+   host's value has no cascade to win. */
+.selectable {
+  cursor: pointer;
+  border-inline-start: 2px solid var(--kapi-block-rule, transparent);
+  padding-inline-start: 0.6rem;
+  margin-inline-start: -0.75rem;
+  border-radius: 0 3px 3px 0;
+  transition:
+    border-color 0.12s ease,
+    background-color 0.12s ease;
+}
+
+.selectable:hover {
+  border-inline-start-color: var(
+    --kapi-block-rule,
+    color-mix(in srgb, var(--doc-accent) 40%, transparent)
+  );
+  background: color-mix(in srgb, var(--doc-accent) 5%, transparent);
+}
+
+.selectable:focus-visible {
+  outline: 2px solid var(--doc-accent);
+  outline-offset: 2px;
+}
+
+.selected,
+.selected:hover {
+  border-inline-start-color: var(--doc-accent);
+  background: color-mix(in srgb, var(--doc-accent) 9%, transparent);
+}
+
+/* A cell is already ruled by the grid, so it takes the tint alone — a margin
+   rule would fight the table border and shift the column. */
+td.selectable {
+  border: 1px solid var(--doc-border);
+  padding: 0.3rem 0.5rem;
+  margin-inline-start: 0;
+  border-radius: 0;
+}
+
+td.selected,
+td.selected:hover {
+  outline: 2px solid var(--doc-accent);
+  outline-offset: -2px;
+}
+
 .heading {
   font-size: 1.02rem;
   font-weight: 800;

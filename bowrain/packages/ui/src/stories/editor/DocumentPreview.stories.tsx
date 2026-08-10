@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { DocumentPreview } from "../../components/editor/DocumentPreview";
 import { sampleBlocks } from "../fixtures";
-import { withProviders } from "../decorators";
+import { createProvidersDecorator, withProviders } from "../decorators";
 
 const meta: Meta<typeof DocumentPreview> = {
   title: "Editor/Formatting/DocumentPreview",
@@ -77,5 +77,20 @@ export const InlineMode: Story = {
         <Story />
       </div>
     ),
+  ],
+};
+
+/**
+ * No reader supplied a preview for the item, so the server answers with its
+ * fallback listing of blocks. The preview reads that marker and renders the
+ * content model itself instead of framing the listing in an iframe.
+ */
+export const ContentModelFallback: Story = {
+  args: { selectedBlockId: "blk-1" },
+  decorators: [
+    createProvidersDecorator(sampleBlocks, {
+      renderDocumentPreview: async () =>
+        '<!DOCTYPE html><html><body><div data-kat-preview="generic" style="font-family: monospace; font-size: 13px;"><p><kat-block id="blk-1">Welcome to Neokapi</kat-block></p></div></body></html>',
+    }),
   ],
 };

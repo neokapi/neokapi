@@ -16,7 +16,7 @@ function block(over: Partial<BlockInfo>): BlockInfo {
     has_spans: false,
     properties: {},
     entities: [
-      { key: "entity:0", text: "password", type: "entity:product", start: 15, end: 23, dnt: false },
+      { key: "entity:0", text: "password", type: "entity:product", start: 11, end: 19, dnt: false },
     ],
     ...over,
   };

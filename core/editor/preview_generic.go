@@ -9,13 +9,21 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
+// genericPreviewOpen opens the body of a fallback preview. The
+// data-kat-preview marker states what the document is: not the format's own
+// rendering but a plain listing of its blocks, because no reader supplied
+// PreviewHTML for this item. A client reads the marker to decide whether the
+// preview is worth an iframe at all — a listing it can render better itself,
+// from the content model, with the block annotations shown inline.
+const genericPreviewOpen = `<div data-kat-preview="generic" style="font-family: monospace; font-size: 13px;">`
+
 // BuildGenericPreview generates a basic fallback preview for formats
 // without dedicated preview builders. Each block is rendered as a
 // styled paragraph with <kat-block> markers.
 func BuildGenericPreview(parts []*model.Part) string {
 	var body strings.Builder
 
-	body.WriteString(`<div style="font-family: monospace; font-size: 13px;">`)
+	body.WriteString(genericPreviewOpen)
 
 	for _, part := range parts {
 		if part.Type != model.PartBlock {
@@ -58,7 +66,7 @@ func BuildPreviewFromBlockIndex(blockIndexJSON string) string {
 	}
 
 	var body strings.Builder
-	body.WriteString(`<div style="font-family: monospace; font-size: 13px;">`)
+	body.WriteString(genericPreviewOpen)
 
 	for _, ref := range index.DocumentOrder {
 		kind, id, ok := strings.Cut(ref, ":")

@@ -43,6 +43,16 @@ import styles from "./FormatPreview.module.css";
 /** Which side of each block to render. */
 export type PreviewSide = "source" | (string & {});
 
+/**
+ * Host-supplied decoration for one block's element: a class name plus any
+ * `data-*` markers. The kit knows nothing about what a host encodes there —
+ * review status, a batch mark, a test hook — it only puts the attributes on the
+ * element that carries the block, beside the `data-block-id` it always emits.
+ */
+export type BlockAttrs = { className?: string } & {
+  [attr: `data-${string}`]: string | undefined;
+};
+
 export interface FormatPreviewProps {
   /** The engine output to render. Provide one of `tree` or `doc`. */
   tree?: ContentTree;
@@ -75,6 +85,17 @@ export interface FormatPreviewProps {
   reducedMotion?: boolean;
   /** Show spreadsheet column letters / row numbers (default true). */
   gridHeaders?: boolean;
+  /**
+   * Called with a block's id when its element is activated (click, Enter or
+   * Space). Present, every block becomes a button-roled, focusable target — the
+   * document itself is the way to select a block, so a host needs no list
+   * beside it.
+   */
+  onSelectBlock?: (id: string) => void;
+  /** The currently selected block, marked `aria-current` and styled as such. */
+  selectedBlockId?: string;
+  /** Per-block class name and `data-*` markers (see BlockAttrs). */
+  blockAttrs?: (id: string) => BlockAttrs | undefined;
   className?: string;
 }
 
@@ -91,6 +112,9 @@ interface PreviewCtx {
   beforeIndex: Map<string, string> | null;
   /** The document's source locale, used for `dir`/`lang` on the source side. */
   sourceLocale?: string;
+  onSelectBlock?: (id: string) => void;
+  selectedBlockId?: string;
+  blockAttrs?: (id: string) => BlockAttrs | undefined;
 }
 
 const Ctx = React.createContext<PreviewCtx | null>(null);
@@ -120,6 +144,64 @@ function activeLocale(line: RenderLine | undefined, ctx: PreviewCtx): string | u
 function lineDirAttrs(line: RenderLine, ctx: PreviewCtx): { dir: TextDirection; lang?: string } {
   if (line.role === "code") return { dir: "ltr" };
   return directionAttrs(activeLocale(line, ctx));
+}
+
+// ── Block element: identity, host decoration, selection ─────────────────────
+
+/** The attributes every block element carries, whatever structure renders it. */
+type BlockElProps = Record<string, unknown> & { className?: string };
+
+/**
+ * `useBlockProps` gives one block's element its identity (`data-block-id`), the
+ * host's decoration, and — when the host listens for selection — button
+ * semantics: focusable, activated by click, Enter or Space, and marked
+ * `aria-current` while selected.
+ *
+ * A click that ends a text selection is not a selection of the block: the
+ * reader was highlighting a phrase (to mark a term, say), and stealing that
+ * gesture would close the reading over it.
+ */
+function useBlockProps(id: string, ownClass?: string): BlockElProps {
+  const ctx = useCtx();
+  const { onSelectBlock } = ctx;
+  const decoration = ctx.blockAttrs?.(id);
+  const { className: hostClass, ...dataAttrs } = decoration ?? {};
+
+  const activate = React.useCallback(() => {
+    if (!onSelectBlock) return;
+    if (typeof window !== "undefined" && window.getSelection()?.isCollapsed === false) return;
+    onSelectBlock(id);
+  }, [onSelectBlock, id]);
+
+  const onKeyDown = React.useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      activate();
+    },
+    [activate],
+  );
+
+  const selected = ctx.selectedBlockId === id;
+  const base: BlockElProps = {
+    ...dataAttrs,
+    "data-block-id": id,
+    className: cn(
+      ownClass,
+      onSelectBlock && styles.selectable,
+      selected && styles.selected,
+      hostClass,
+    ),
+  };
+  if (!onSelectBlock) return base;
+  return {
+    ...base,
+    role: "button",
+    tabIndex: 0,
+    "aria-current": selected ? "true" : undefined,
+    onClick: activate,
+    onKeyDown,
+  };
 }
 
 // ── before-model lookup (word diff) ──────────────────────────────────────────
@@ -274,7 +356,10 @@ function RedactMarkerFilter(): React.ReactElement {
 function LineText({ line, seq = 0 }: { line: RenderLine; seq?: number }): React.ReactElement {
   const ctx = useCtx();
   const isSource = ctx.side === "source";
-  const fullText = isSource ? line.text : (line.targets?.[ctx.side] ?? line.text);
+  // A block with no translation yet reads as its source rather than as a hole
+  // in the document — a partially translated document is still a document, and
+  // it is the block's status, not a gap, that says the target is outstanding.
+  const fullText = isSource ? line.text : line.targets?.[ctx.side] || line.text;
 
   // Remember the previously-rendered text so a slot roll can start from it.
   const prevFullText = React.useRef(fullText);
@@ -420,28 +505,46 @@ function DiffText({ text, prev }: { text: string; prev: string | undefined }): R
 
 // ── Structure renderers ──────────────────────────────────────────────────────
 
+function SlideTitle({ line }: { line: RenderLine }): React.ReactElement {
+  return (
+    <div {...useBlockProps(line.id, styles.slideTitle)}>
+      <LineText line={line} seq={0} />
+    </div>
+  );
+}
+
+function SlideBullet({ line, seq }: { line: RenderLine; seq: number }): React.ReactElement {
+  return (
+    <li {...useBlockProps(line.id)}>
+      <LineText line={line} seq={seq} />
+    </li>
+  );
+}
+
 function Slides({ slides }: { slides: RenderSlide[] }): React.ReactElement {
   return (
     <div className={styles.slideDeck}>
       {slides.map((slide) => (
         <div key={slide.name} className={styles.slide}>
-          {slide.title && (
-            <div className={styles.slideTitle}>
-              <LineText line={slide.title} seq={0} />
-            </div>
-          )}
+          {slide.title && <SlideTitle line={slide.title} />}
           {slide.bullets.length > 0 && (
             <ul className={styles.slideBullets}>
               {slide.bullets.map((b, i) => (
-                <li key={b.id}>
-                  <LineText line={b} seq={i + 1} />
-                </li>
+                <SlideBullet key={b.id} line={b} seq={i + 1} />
               ))}
             </ul>
           )}
         </div>
       ))}
     </div>
+  );
+}
+
+function Cell({ cell }: { cell: RenderCell }): React.ReactElement {
+  return (
+    <td {...useBlockProps(cell.id, styles.cell)}>
+      <LineText line={cell} />
+    </td>
   );
 }
 
@@ -474,11 +577,9 @@ function Sheet({
           {grid.map((row, r) => (
             <tr key={r}>
               {gridHeaders && <td className={styles.rowHead}>{r + 1}</td>}
-              {row.map((cell, c) => (
-                <td key={c} className={styles.cell}>
-                  {cell ? <LineText line={cell} /> : ""}
-                </td>
-              ))}
+              {row.map((cell, c) =>
+                cell ? <Cell key={c} cell={cell} /> : <td key={c} className={styles.cell} />,
+              )}
             </tr>
           ))}
         </tbody>
@@ -495,33 +596,44 @@ function Sheet({
 function Line({ line, index = 0 }: { line: RenderLine; index?: number }): React.ReactElement {
   const ctx = useCtx();
   const attrs = lineDirAttrs(line, ctx);
+  const ownClass =
+    line.role === "code"
+      ? styles.code
+      : line.role === "heading"
+        ? styles.heading
+        : line.role === "bullet"
+          ? undefined
+          : cn(styles.para, line.preserveWhitespace && styles.preserve);
+  const blockProps = useBlockProps(line.id, ownClass);
   const content = <LineText line={line} seq={index} />;
 
   // Code is preformatted, monospaced, and never typeset as prose: markdown
   // markers inside it are literal characters, and its whitespace is meaningful.
   if (line.role === "code") {
     return (
-      <pre {...attrs} className={styles.code} data-code-language={line.codeLanguage}>
+      <pre {...attrs} {...blockProps} data-code-language={line.codeLanguage}>
         <code>{content}</code>
       </pre>
     );
   }
   if (line.role === "heading") {
     return (
-      <div {...attrs} className={styles.heading}>
+      <div {...attrs} {...blockProps}>
         {content}
       </div>
     );
   }
+  // The list is the typographic frame; the item is the block, so the selection
+  // affordance sits on the <li> rather than the <ul> around it.
   if (line.role === "bullet") {
     return (
       <ul {...attrs} className={styles.bulletList}>
-        <li>{content}</li>
+        <li {...blockProps}>{content}</li>
       </ul>
     );
   }
   return (
-    <p {...attrs} className={cn(styles.para, line.preserveWhitespace && styles.preserve)}>
+    <p {...attrs} {...blockProps}>
       {content}
     </p>
   );
@@ -548,22 +660,28 @@ function Pages({ pages }: { pages: RenderPage[] }): React.ReactElement {
   );
 }
 
+function Entry({ line, seq }: { line: RenderLine; seq: number }): React.ReactElement {
+  return (
+    <div {...useBlockProps(line.id, styles.entry)}>
+      {line.key && (
+        // A catalog key is an identifier, not prose: always LTR, and
+        // isolated so it cannot be reordered by an adjacent RTL value.
+        <bdi dir="ltr" className={styles.entryKey} title={line.key}>
+          {line.key}
+        </bdi>
+      )}
+      <span className={styles.entryText}>
+        <LineText line={line} seq={seq} />
+      </span>
+    </div>
+  );
+}
+
 function List({ lines }: { lines: RenderLine[] }): React.ReactElement {
   return (
     <div className={styles.list}>
       {lines.map((l, i) => (
-        <div key={l.id} className={styles.entry}>
-          {l.key && (
-            // A catalog key is an identifier, not prose: always LTR, and
-            // isolated so it cannot be reordered by an adjacent RTL value.
-            <bdi dir="ltr" className={styles.entryKey} title={l.key}>
-              {l.key}
-            </bdi>
-          )}
-          <span className={styles.entryText}>
-            <LineText line={l} seq={i} />
-          </span>
-        </div>
+        <Entry key={l.id} line={l} seq={i} />
       ))}
     </div>
   );
@@ -631,6 +749,9 @@ export default function FormatPreview({
   typewriterStagger = 0,
   reducedMotion,
   gridHeaders = true,
+  onSelectBlock,
+  selectedBlockId,
+  blockAttrs,
   className,
 }: FormatPreviewProps): React.ReactElement {
   const model = useMemo<RenderDoc>(() => {
@@ -651,8 +772,17 @@ export default function FormatPreview({
   // no animation — render it faithfully (real inline formatting + reconstructed
   // tables, preview-fidelity #1/#2). Overlay-highlight / diff / typewriter
   // previews keep the structured RenderDoc path, which segments flat text.
+  // A host that selects or decorates blocks needs each block on its own
+  // element, which is the structured RenderDoc path — the projected render AST
+  // is a faithful document, not an addressable one.
   const useProjection =
-    !doc && !before && transition === "none" && side === "source" && !!tree?.render;
+    !doc &&
+    !before &&
+    transition === "none" &&
+    side === "source" &&
+    !!tree?.render &&
+    !onSelectBlock &&
+    !blockAttrs;
 
   const ctx = useMemo<PreviewCtx>(
     () => ({
@@ -665,6 +795,9 @@ export default function FormatPreview({
       reducedMotion,
       beforeIndex,
       sourceLocale: model.sourceLocale,
+      onSelectBlock,
+      selectedBlockId,
+      blockAttrs,
     }),
     [
       side,
@@ -676,6 +809,9 @@ export default function FormatPreview({
       reducedMotion,
       beforeIndex,
       model.sourceLocale,
+      onSelectBlock,
+      selectedBlockId,
+      blockAttrs,
     ],
   );
 
