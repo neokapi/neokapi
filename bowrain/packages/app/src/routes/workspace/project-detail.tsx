@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
+import { useNavigate, useParams, useRouteContext, useSearch } from "@tanstack/react-router";
 import { useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
@@ -54,6 +54,35 @@ export function ProjectDetailRoute() {
   const { data: project } = useSuspenseQuery(
     projectDetailQueryOptions(adapter, ws, projectId!, activeStream),
   );
+
+  // Which item's preview is open. A search param rather than component state,
+  // so the reading survives a reload and Back dismisses it.
+  const search = useSearch({ strict: false }) as { preview?: string };
+  const setPreview = (itemName: string | undefined) =>
+    void navigate({
+      to: "/$workspace/p/$projectId/s/$stream/source",
+      params: { workspace: workspace ?? ws, projectId: project.id, stream: activeStream },
+      search: { preview: itemName },
+    });
+
+  // The three item surfaces share a shape: the item name travels as the splat.
+  const openItemIn =
+    (
+      to:
+        | "/$workspace/p/$projectId/s/$stream/translate/$"
+        | "/$workspace/p/$projectId/s/$stream/review/$"
+        | "/$workspace/p/$projectId/s/$stream/pre-process/$",
+    ) =>
+    (itemName: string) =>
+      void navigate({
+        to,
+        params: {
+          workspace: workspace ?? ws,
+          projectId: project.id,
+          stream: activeStream,
+          _splat: itemName,
+        },
+      });
 
   // Workspace brand-voice profiles feed the per-collection / per-stream voice
   // pickers; the dialogs render the control only when profiles exist.
@@ -363,17 +392,19 @@ export function ProjectDetailRoute() {
       <ProjectView
         project={project}
         onBack={() => navigate({ to: "/$workspace", params: { workspace: workspace ?? ws } })}
-        onOpenFile={(itemName) =>
-          navigate({
-            to: "/$workspace/p/$projectId/s/$stream/translate/$",
-            params: {
-              workspace: workspace ?? ws,
-              projectId: project.id,
-              stream: activeStream,
-              _splat: itemName,
-            },
-          })
-        }
+        onOpenFile={openItemIn("/$workspace/p/$projectId/s/$stream/translate/$")}
+        // A row reads the file; the editors are entered from the preview's own
+        // actions. Which file is open lives in the URL, so the reading
+        // deep-links and Back closes it.
+        preview={{
+          itemName: search.preview ?? null,
+          onOpen: (itemName) => setPreview(itemName),
+          onClose: () => setPreview(undefined),
+          targetLocales: project.target_languages,
+          onOpenTranslate: openItemIn("/$workspace/p/$projectId/s/$stream/translate/$"),
+          onOpenReview: openItemIn("/$workspace/p/$projectId/s/$stream/review/$"),
+          onOpenPreProcess: openItemIn("/$workspace/p/$projectId/s/$stream/pre-process/$"),
+        }}
         onUploadFiles={handleUploadFiles}
         onRemoveFile={handleRemoveFile}
         onOpenDashboard={() =>

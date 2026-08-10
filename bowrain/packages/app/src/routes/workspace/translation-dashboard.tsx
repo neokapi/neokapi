@@ -14,7 +14,7 @@ import {
   type DashboardItemSort,
   type DeliveryConnectorStatus,
   type FileProgressPaging,
-  type ItemTranslationStats,
+  type ItemPreviewBinding,
 } from "@neokapi/ui";
 import {
   DASHBOARD_ITEM_PAGE_SIZE,
@@ -38,6 +38,8 @@ export interface DashboardSearch {
   items?: "all";
   /** The coordinate axis the overview groups by, when the reader picks one. */
   axis?: string;
+  /** The item whose preview is open, by name. */
+  preview?: string;
 }
 
 /** Which scope the search names, or undefined for the overview. */
@@ -63,7 +65,7 @@ function ScopedItems({
   scope,
   onBack,
   onReview,
-  onOpenItem,
+  preview,
 }: {
   adapter: ApiAdapter;
   workspaceSlug: string;
@@ -72,7 +74,7 @@ function ScopedItems({
   scope: DashboardSearch;
   onBack: () => void;
   onReview: (scope?: CollectionScope) => void;
-  onOpenItem: (item: ItemTranslationStats) => void;
+  preview: ItemPreviewBinding & { projectId: string };
 }) {
   const [itemSort, setItemSort] = useState<{ field: DashboardItemSort; dir: "asc" | "desc" }>({
     field: "name",
@@ -136,7 +138,7 @@ function ScopedItems({
                 ungrouped: Boolean(scope.ungrouped),
               })
       }
-      onOpenItem={onOpenItem}
+      preview={preview}
     />
   );
 }
@@ -219,6 +221,38 @@ export function TranslationDashboardRoute() {
         : {},
     });
 
+  // Opening and closing the preview is a search-param change on the address the
+  // drill-down already sits at, so the reading deep-links and Back closes it.
+  const setPreview = (item: string | undefined) =>
+    void navigate({
+      to: dashboardRoute,
+      params: routeParams,
+      search: (prev: DashboardSearch) => ({ ...prev, preview: item }),
+    });
+
+  const previewBinding: ItemPreviewBinding & { projectId: string } = {
+    projectId: project.id,
+    itemName: search.preview ?? null,
+    onOpen: (itemName) => setPreview(itemName),
+    onClose: () => setPreview(undefined),
+    targetLocales: project.target_languages,
+    onOpenTranslate: (itemName) =>
+      void navigate({
+        to: "/$workspace/p/$projectId/s/$stream/translate/$",
+        params: { ...routeParams, _splat: itemName },
+      }),
+    onOpenReview: (itemName) =>
+      void navigate({
+        to: "/$workspace/p/$projectId/s/$stream/review/$",
+        params: { ...routeParams, _splat: itemName },
+      }),
+    onOpenPreProcess: (itemName) =>
+      void navigate({
+        to: "/$workspace/p/$projectId/s/$stream/pre-process/$",
+        params: { ...routeParams, _splat: itemName },
+      }),
+  };
+
   if (scope) {
     return (
       <div className="mx-auto max-w-6xl p-6">
@@ -237,12 +271,7 @@ export function TranslationDashboardRoute() {
             })
           }
           onReview={openReview}
-          onOpenItem={(item) =>
-            void navigate({
-              to: "/$workspace/p/$projectId/s/$stream/translate/$",
-              params: { ...routeParams, _splat: item.item_name },
-            })
-          }
+          preview={previewBinding}
         />
       </div>
     );

@@ -7,6 +7,7 @@ import type {
 import { ArrowLeft } from "../icons";
 import { CoordinateLine } from "../../brand-hub/profiles/Coordinates";
 import { FileProgressTable, type FileProgressPaging } from "../FileProgressTable";
+import { FilePreview, type ItemPreviewBinding } from "../FilePreview";
 import { LocaleCoverageRails } from "./LocaleCoverageRail";
 
 /**
@@ -30,8 +31,14 @@ export interface CollectionItemsViewProps {
   onBack: () => void;
   /** Open review scoped to this collection. */
   onReview?: () => void;
-  /** Open one item in the translation editor. */
+  /** Open one item in the translation editor. Ignored when `preview` is set. */
   onOpenItem?: (item: ItemTranslationStats) => void;
+  /**
+   * Given, a row opens the item's preview instead of an editor, and the editors
+   * are reached from the preview's own actions. The project id the preview reads
+   * its blocks under comes with it.
+   */
+  preview?: ItemPreviewBinding & { projectId: string };
   className?: string;
 }
 
@@ -44,9 +51,13 @@ export function CollectionItemsView({
   onBack,
   onReview,
   onOpenItem,
+  preview,
   className,
 }: CollectionItemsViewProps) {
   const locales = localeStats.map((l) => l.locale);
+  const previewFormat = preview
+    ? itemStats.find((i) => i.item_name === preview.itemName)?.format
+    : undefined;
   const localeDisplayNames = Object.fromEntries(
     localeStats.filter((l) => l.display_name).map((l) => [l.locale, l.display_name!]),
   );
@@ -95,8 +106,21 @@ export function CollectionItemsView({
         locales={locales}
         localeDisplayNames={localeDisplayNames}
         paging={paging}
-        onOpenItem={onOpenItem}
+        onOpenItem={preview ? (item) => preview.onOpen(item.item_name) : onOpenItem}
       />
+
+      {preview && (
+        <FilePreview
+          projectId={preview.projectId}
+          itemName={preview.itemName}
+          format={previewFormat}
+          targetLocales={preview.targetLocales ?? locales}
+          onClose={preview.onClose}
+          onOpenTranslate={preview.onOpenTranslate}
+          onOpenReview={preview.onOpenReview}
+          onOpenPreProcess={preview.onOpenPreProcess}
+        />
+      )}
     </div>
   );
 }

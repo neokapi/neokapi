@@ -254,6 +254,13 @@ export { LanguageLabel, localeDisplayName } from "./components/LanguageLabel";
 export { LocaleCompletionChart } from "./components/LocaleCompletionChart";
 export { WordCountChart } from "./components/WordCountChart";
 export { FileProgressTable, type FileProgressPaging } from "./components/FileProgressTable";
+// The item-level read: a side sheet showing one file's document, from which the
+// editors are reached explicitly.
+export {
+  FilePreview,
+  type FilePreviewProps,
+  type ItemPreviewBinding,
+} from "./components/FilePreview";
 // Collection-first project overview: the grouped card grid (level one) and the
 // per-collection item list it drills into (level two).
 export {

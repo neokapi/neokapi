@@ -222,7 +222,11 @@ function ContentPreview({
   return (
     <div
       ref={rootRef}
-      className="relative h-full w-full overflow-auto rounded-lg border border-border bg-card px-6 py-5"
+      // The container is the document's own surface, so it takes the colour the
+      // preview kit paints its page with. Left as the app's card, a document
+      // shorter than the pane showed the card below the page — invisible in a
+      // light theme, a hard edge in a dark one.
+      className="relative h-full w-full overflow-auto rounded-lg border border-border bg-[var(--kapi-preview-bg,#fff)] px-6 py-5"
       data-testid="preview-content"
     >
       <FormatPreview
