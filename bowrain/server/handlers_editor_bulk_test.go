@@ -90,6 +90,20 @@ func editorCall(t *testing.T, srv *Server, method, pid, path, body string, h ech
 	return rec, h(c)
 }
 
+// editorBlockCall is editorCall for the routes that also bind :bid.
+func editorBlockCall(t *testing.T, srv *Server, method, pid, bid, path, body string, h echo.HandlerFunc) (*httptest.ResponseRecorder, error) {
+	t.Helper()
+	e := echo.New()
+	r := httptest.NewRequest(method, path, strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c := e.NewContext(r, rec)
+	c.SetParamNames("ws", "id", "ref", "bid")
+	c.SetParamValues("acme", pid, "main", bid)
+	c.Set("project_permissions", platauth.PermTranslate|platauth.PermReview|platauth.PermViewContent)
+	return rec, h(c)
+}
+
 func decodeJSON[T any](t *testing.T, rec *httptest.ResponseRecorder) T {
 	t.Helper()
 	var out T
@@ -152,6 +166,59 @@ func TestHandleGetFileBlocks_Filters(t *testing.T) {
 			"/api/v1/acme/"+pid+"/blocks/main?item=greetings.txt&status=draft", "", srv.HandleGetFileBlocks)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+}
+
+// A client that has just written a target asks what the server now holds,
+// rather than re-fetching the item or rebuilding the block from its own request
+// plus a local copy of the server's demotion rule.
+func TestHandleGetBlock(t *testing.T) {
+	srv, cs := newEditorBulkServer(t)
+	pid, ids := seedEditorBulkProject(t, cs)
+
+	get := func(t *testing.T, bid string) *httptest.ResponseRecorder {
+		t.Helper()
+		rec, err := editorBlockCall(t, srv, http.MethodGet, pid, bid,
+			"/api/v1/acme/"+pid+"/blocks/main/"+bid, "", srv.HandleGetBlock)
+		require.NoError(t, err)
+		return rec
+	}
+
+	t.Run("answers the list route's element for one id", func(t *testing.T) {
+		rec := get(t, ids["Thanks"])
+		require.Equal(t, http.StatusOK, rec.Code)
+		one := decodeJSON[BlockInfoResponse](t, rec)
+		assert.Equal(t, "Thanks", one.Source)
+		assert.Equal(t, "Merci", one.Targets["fr"].Text)
+		assert.Equal(t, string(model.TargetStatusReviewed), one.Targets["fr"].Status)
+
+		// Same block, same shape, whichever route produced it — the point of
+		// the endpoint is that a reader need not reconstruct one from the other.
+		listRec, err := editorCall(t, srv, http.MethodGet, pid,
+			"/api/v1/acme/"+pid+"/blocks/main?item=greetings.txt&locale=fr&q=Thanks", "",
+			srv.HandleGetFileBlocks)
+		require.NoError(t, err)
+		blocks := decodeJSON[[]BlockInfoResponse](t, listRec)
+		require.Len(t, blocks, 1)
+		assert.Equal(t, blocks[0], one)
+	})
+
+	t.Run("reports the demotion an edit caused", func(t *testing.T) {
+		bid := ids["Thanks"]
+		_, err := editorBlockCall(t, srv, http.MethodPut, pid, bid,
+			"/api/v1/acme/"+pid+"/blocks/main/"+bid,
+			`{"project_id":"`+pid+`","target_locale":"fr","text":"Merci beaucoup"}`,
+			srv.HandleUpdateBlockTarget)
+		require.NoError(t, err)
+
+		one := decodeJSON[BlockInfoResponse](t, get(t, bid))
+		assert.Equal(t, "Merci beaucoup", one.Targets["fr"].Text)
+		assert.Equal(t, string(model.TargetStatusTranslated), one.Targets["fr"].Status,
+			"an edit invalidates the review decision it was approved under")
+	})
+
+	t.Run("an unknown block is a 404", func(t *testing.T) {
+		assert.Equal(t, http.StatusNotFound, get(t, "no-such-block").Code)
 	})
 }
 

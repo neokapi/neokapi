@@ -196,6 +196,47 @@ describe("ReviewSession", () => {
     expect(qa.mock.calls.map((c) => c[2])).not.toContain("empty.json");
   });
 
+  // The block a save leaves behind is the server's to report. Reconstructing it
+  // client-side means a second copy of the demotion rule, which can disagree —
+  // so the session re-reads, and only falls back when the read cannot happen.
+  it("shows the re-read block after an inline save, not a local reconstruction", async () => {
+    const user = userEvent.setup();
+    const serverBlock = block("b1", "Hello world", {
+      text: "Bonjour le monde (server)",
+      status: "draft",
+    });
+    let getBlock!: ReturnType<typeof vi.spyOn<MockAdapter, "getBlock">>;
+    renderSession(stats, (adapter) => {
+      getBlock = vi.spyOn(adapter, "getBlock").mockResolvedValue(serverBlock);
+    });
+    await waitForQueue();
+
+    await user.click(screen.getByTestId("reviewer-edit"));
+    await user.click(screen.getByTestId("unified-save"));
+
+    await waitFor(() => expect(getBlock).toHaveBeenCalledTimes(1));
+    expect(getBlock.mock.calls[0].slice(0, 3)).toEqual(["demo", sampleProject.id, "b1"]);
+    await waitFor(() =>
+      expect(screen.getByTestId("reviewer-target-cell").textContent).toContain("(server)"),
+    );
+  });
+
+  it("falls back to the local reconstruction when the re-read fails", async () => {
+    const user = userEvent.setup();
+    renderSession(stats, (adapter) => {
+      vi.spyOn(adapter, "getBlock").mockRejectedValue(new Error("offline"));
+    });
+    await waitForQueue();
+
+    await user.click(screen.getByTestId("reviewer-edit"));
+    await user.click(screen.getByTestId("unified-save"));
+
+    // The save itself succeeded; a failed follow-up read must not report it as
+    // an error, and the reviewer keeps showing the saved text.
+    await waitFor(() => expect(screen.queryByTestId("reviewer-editor")).not.toBeInTheDocument());
+    expect(screen.getByTestId("reviewer-target-cell").textContent).toContain("Bonjour le monde");
+  });
+
   it("'Approve all passing' clears the queue and shows the delivering state", async () => {
     const user = userEvent.setup();
     const { adapter } = renderSession();

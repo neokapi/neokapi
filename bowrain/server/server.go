@@ -1814,6 +1814,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	g.GET("/:id/blocks/:ref/counts", s.HandleGetBlockCounts)
 	g.POST("/:id/blocks/:ref/bulk-review", s.HandleBulkReviewBlocks)
 	g.POST("/:id/blocks/:ref/bulk-apply-memory", s.HandleBulkApplyMemory)
+	g.GET("/:id/blocks/:ref/:bid", s.HandleGetBlock)
 	g.PUT("/:id/blocks/:ref/:bid", s.HandleUpdateBlockTarget)
 	g.PUT("/:id/blocks/:ref/:bid/runs", s.HandleUpdateBlockTargetRuns)
 	g.PUT("/:id/blocks/:ref/:bid/status", s.HandleSetBlockStatus)

@@ -605,6 +605,19 @@ export interface ApiAdapter {
     stream?: string,
     opts?: { q?: string; translatable?: boolean },
   ): Promise<BlockCounts>;
+  /**
+   * One block, in the same shape `getFileBlocks` returns its elements.
+   *
+   * A surface that has just written a target reads back what the server now
+   * holds rather than reconstructing it: the demotion an edit triggers, and
+   * anything else the write recomputed, are the server's to decide.
+   */
+  getBlock(
+    workspaceSlug: string,
+    projectId: string,
+    blockId: string,
+    stream?: string,
+  ): Promise<BlockInfo>;
   /** One item's metadata and block tallies, without the project's item list. */
   getItem(
     workspaceSlug: string,

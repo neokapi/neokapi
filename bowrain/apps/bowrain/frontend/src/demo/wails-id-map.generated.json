@@ -44,6 +44,7 @@
   "1133678686": "ListInvites",
   "1139403919": "CreateStoreVersion",
   "1179732963": "GetWordCount",
+  "1186645613": "GetBlock",
   "1195520622": "BulkReviewBlocks",
   "1213282658": "DeleteFlowDefinition",
   "1240071736": "ListStoreVersions",

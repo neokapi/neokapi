@@ -366,6 +366,18 @@ func (c *BowrainClient) QueryEditorBlocks(ctx context.Context, ws, projectID str
 	return out, nil
 }
 
+// GetEditorBlock returns one block, in the same shape QueryEditorBlocks
+// returns its elements (GET /api/v1/:ws/:proj/blocks/:stream/:bid).
+func (c *BowrainClient) GetEditorBlock(ctx context.Context, ws, projectID, blockID string) (*EditorBlock, error) {
+	path := fmt.Sprintf("/api/v1/%s/%s/blocks/%s/%s",
+		url.PathEscape(ws), url.PathEscape(projectID), editorRef, url.PathEscape(blockID))
+	var out EditorBlock
+	if err := c.editorDo(ctx, http.MethodGet, path, nil, nil, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // EditorBlockStatusCounts is the per-locale status histogram.
 type EditorBlockStatusCounts struct {
 	NotStarted int `json:"not-started"`

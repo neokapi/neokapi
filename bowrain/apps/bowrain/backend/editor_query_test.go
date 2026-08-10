@@ -75,6 +75,43 @@ func TestGetBlockCountsPartitionsByStatus(t *testing.T) {
 		"the buckets partition the translatable blocks")
 }
 
+// A surface that has just written a target reads the block back rather than
+// rebuilding it — the demotion the write applies is the store's decision, and
+// offline that store is the local working copy.
+func TestGetBlockReportsWhatTheStoreHolds(t *testing.T) {
+	app, info, itemName := setupProjectWithFile(t)
+
+	blocks, err := app.GetItemBlocks(info.ID, itemName)
+	require.NoError(t, err)
+	require.NotEmpty(t, blocks)
+	id := blocks[0].ID
+
+	one, err := app.GetBlock(info.ID, id)
+	require.NoError(t, err)
+	assert.Equal(t, blocks[0], *one, "the same element the block page carries")
+
+	require.NoError(t, app.UpdateBlockTarget(UpdateBlockRequest{
+		ProjectID: info.ID, ItemName: itemName, BlockID: id,
+		TargetLocale: "fr", Text: "Bonjour le monde",
+	}))
+	after, err := app.GetBlock(info.ID, id)
+	require.NoError(t, err)
+	assert.Equal(t, "Bonjour le monde", after.Targets["fr"].Text)
+
+	// Whatever the write left behind, the single read and the page agree — the
+	// point of the route is that a caller need not derive one from the other.
+	reread, err := app.GetItemBlocks(info.ID, itemName)
+	require.NoError(t, err)
+	for _, b := range reread {
+		if b.ID == id {
+			assert.Equal(t, b, *after)
+		}
+	}
+
+	_, err = app.GetBlock(info.ID, "no-such-block")
+	assert.Error(t, err)
+}
+
 func TestGetItemReportsTallies(t *testing.T) {
 	app, info, itemName := setupProjectWithFile(t)
 

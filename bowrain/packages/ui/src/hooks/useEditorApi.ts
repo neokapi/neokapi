@@ -43,6 +43,18 @@ export function useEditorApi() {
     [api, ws, activeStream],
   );
 
+  /**
+   * One block, in the shape `getFileBlocks` returns its elements. A surface
+   * that has just written a target reads back what the server now holds
+   * instead of reconstructing it — the demotion an edit causes is the store's
+   * decision, not the client's to predict.
+   */
+  const getBlock = useCallback(
+    async (projectId: string, blockId: string): Promise<BlockInfo> =>
+      api.getBlock(ws, projectId, blockId, activeStream),
+    [api, ws, activeStream],
+  );
+
   /** The totals and status histogram for a block query, hydrating no block. */
   const getBlockCounts = useCallback(
     async (
@@ -257,6 +269,7 @@ export function useEditorApi() {
     () => ({
       getFileBlocks,
       getBlockCounts,
+      getBlock,
       bulkReviewBlocks,
       bulkApplyMemory,
       getPendingReview,
@@ -287,6 +300,7 @@ export function useEditorApi() {
     [
       getFileBlocks,
       getBlockCounts,
+      getBlock,
       bulkReviewBlocks,
       bulkApplyMemory,
       getPendingReview,
