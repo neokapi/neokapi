@@ -98,17 +98,28 @@ export interface ContentTreeOptions extends BlockProjectionOptions {
   evidence?: Record<string, BlockEvidence>;
 }
 
+/**
+ * Inline-code placeholders in coded text are private-use characters standing in
+ * for a span. Falling back to plain text they have nothing to stand for, so they
+ * are dropped rather than rendered as tofu — a payload that carries typed runs
+ * never reaches this path.
+ */
+function plainText(text: string): string {
+  return text.replace(/[\uE001-\uE003]/g, "");
+}
+
 /** The typed source runs, or the plain source as a single text run. */
 function sourceRuns(block: BlockInfo): Run[] {
   if (block.source_runs && block.source_runs.length > 0) return block.source_runs;
-  return block.source ? [{ text: block.source }] : [];
+  const text = plainText(block.source ?? "");
+  return text ? [{ text }] : [];
 }
 
 /** The typed target runs for a locale, or its plain text as one text run. */
 function targetRuns(block: BlockInfo, locale: string): Run[] {
   const runs = block.targets_runs?.[locale];
   if (runs && runs.length > 0) return runs;
-  const text = getTargetText(block, locale);
+  const text = plainText(getTargetText(block, locale));
   return text ? [{ text }] : [];
 }
 

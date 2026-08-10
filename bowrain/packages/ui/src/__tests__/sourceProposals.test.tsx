@@ -215,10 +215,9 @@ describe("FocusedReviewer back-to-source affordances", () => {
     const user = userEvent.setup();
     const promoted: string[] = [];
     render(<FocusedReviewer {...baseProps} onEntityPromote={(k) => promoted.push(k)} />);
-    // Click the highlighted entity to open its popover, then Promote.
-    await user.click(screen.getByText("password"));
-    const promote = await screen.findByText("Promote");
-    await user.click(promote);
+    // The document marks the entity where it occurs; the lane beneath it is
+    // where the entity can be acted on.
+    await user.click(screen.getByTestId("promote-entity-entity:0"));
     expect(promoted).toEqual(["entity:0"]);
   });
 });

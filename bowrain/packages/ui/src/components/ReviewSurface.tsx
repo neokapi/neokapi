@@ -7,15 +7,20 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   cn,
 } from "@neokapi/ui-primitives";
-import { VirtualList, type VirtualListHandle } from "@neokapi/editor-grid";
+import { FormatPreview, extOf } from "@neokapi/ui-primitives/preview";
+import type { BlockAttrs } from "@neokapi/ui-primitives/preview";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { ErrorNotice } from "../errors";
 import type {
   ProjectInfo,
   BlockInfo,
   BlockCounts,
+  BlockTermMatch,
   FileQAResult,
   ReviewDemotion,
 } from "../types/api";
@@ -24,21 +29,23 @@ import { useLocales } from "../hooks/useLocales";
 import { useAnalytics } from "../context/AnalyticsContext";
 import { AnalyticsEvents } from "../analytics-events";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
-import { FormattedSourceDisplay } from "./editor/FormattedSourceDisplay";
-import { CollapsedTargetCell } from "./editor/GridTargetRenderer";
 import { ProblemsPanel } from "./editor/ProblemsPanel";
+import { ReviewInspector } from "./review/ReviewInspector";
+import { blocksToContentTree, type BlockEvidence } from "../preview/toContentTree";
+import type { UnifiedSaveResult } from "./UnifiedTargetEditor";
 import {
   captureTargetStatus,
   getBlockStatus,
   getTargetText,
   rollbackTargetStatus,
-  statusBadgeClass,
+  statusAfterEdit,
   statusLabel,
+  withTargetEntry,
   withTargetStatus,
   type BlockStatus,
   type TargetStatusSnapshot,
 } from "./editor/blockStatus";
-import { ArrowLeft, Check, X, AlertTriangle } from "./icons";
+import { ArrowLeft, Check, AlertTriangle } from "./icons";
 
 interface ReviewSurfaceProps {
   project: ProjectInfo;
@@ -54,6 +61,9 @@ type StatusFilter = "all" | BlockStatus;
 
 const FILTERS: StatusFilter[] = ["all", "not-started", "draft", "translated", "reviewed"];
 
+/** How many blocks one page of the reading pane carries. */
+const PAGE_SIZE = 50;
+
 /** The four buckets, all zero — the shape shown before the counts arrive. */
 const EMPTY_COUNTS: BlockCounts = {
   total: 0,
@@ -61,15 +71,40 @@ const EMPTY_COUNTS: BlockCounts = {
   status: { "not-started": 0, draft: 0, translated: 0, reviewed: 0 },
 };
 
+/** The margin rule a block's review status paints in the reading pane. */
+const STATUS_RULE: Record<BlockStatus, string> = {
+  "not-started": "[--kapi-block-rule:var(--color-muted-foreground)] opacity-80",
+  draft: "[--kapi-block-rule:var(--color-warning)]",
+  translated: "[--kapi-block-rule:var(--color-info)]",
+  reviewed: "[--kapi-block-rule:var(--color-success)]",
+};
+
+/** Whether a keystroke belongs to a text field rather than the surface. */
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  return ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+}
+
 /**
- * ReviewSurface is the block-level translation review/QA surface — a sibling
- * route to the Translate editor. The status filter and the histogram beside it
- * are server queries: the list holds the blocks in the selected bucket for the
- * selected locale, and the counts describe the whole file rather than the page.
- * Bulk actions (mark reviewed, apply content memory) are one request each, with
- * per-block outcomes; per-block approve/reject and a QA findings panel (reused
- * ProblemsPanel) complete the surface. (Brand-rule promotion lives in the
- * separate brand-review surface; this is about translation review.)
+ * ReviewSurface is the block-level review surface — a sibling route to the
+ * Translate editor, and document-first: the item is rendered as the document it
+ * is, through the shared preview kit, with term, entity and voice findings
+ * marked inline where they occur. A block is chosen by reading, not by scanning
+ * a source/target grid; its particulars and the decision itself arrive in a
+ * slide-in inspector beside the text.
+ *
+ * What the document cannot state, it does not fake. The status filter and the
+ * histogram beside it are server queries over the whole file (the pane holds one
+ * page of the selected bucket, and says so). QA findings the payload gives no
+ * position for tint their block and are listed in the inspector rather than
+ * being guessed onto a span. Terms are a per-block lookup, so they are asked for
+ * when a block is opened — one request, not one per block of the document.
+ *
+ * Bulk actions carry a batch the reader marks up as they read (M, or the
+ * inspector's button); each is one request with per-block outcomes.
+ * (Brand-rule promotion lives in the separate brand-review surface; this is
+ * about translation review.)
  */
 export function ReviewSurface({
   project,
@@ -81,7 +116,10 @@ export function ReviewSurface({
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [targetLocale, setTargetLocale] = useState(project.target_languages[0] || "");
   const [filter, setFilter] = useState<StatusFilter>("all");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [marked, setMarked] = useState<Set<string>>(new Set());
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [limit, setLimit] = useState(PAGE_SIZE);
   const [error, setError] = useState<{ title: string; cause?: unknown; retry?: boolean } | null>(
     null,
   );
@@ -89,6 +127,8 @@ export function ReviewSurface({
   const [fileQAResults, setFileQAResults] = useState<FileQAResult[]>([]);
   const [qaLoading, setQaLoading] = useState(false);
   const [showProblems, setShowProblems] = useState(false);
+  const [termsByBlock, setTermsByBlock] = useState<Record<string, BlockTermMatch[]>>({});
+  const [termsLoading, setTermsLoading] = useState(false);
 
   const [counts, setCounts] = useState<BlockCounts>(EMPTY_COUNTS);
 
@@ -96,6 +136,11 @@ export function ReviewSurface({
   const api = useEditorApi();
   const { capture } = useAnalytics();
   const { getFileBlocks, getBlockCounts } = api;
+
+  // Which side the document is read on. Review is reading the translation, so
+  // it opens on the target locale and the source is a keystroke away.
+  const [side, setSide] = useState<"source" | "target">("target");
+  const readingSide = side === "target" && targetLocale ? targetLocale : "source";
 
   const breadcrumbNode = useMemo(
     () => (
@@ -111,8 +156,9 @@ export function ReviewSurface({
   );
   useSetBreadcrumb(breadcrumbNode);
 
-  // The list is the selected bucket for the selected locale, asked for as
-  // such: the filter is a query parameter, not a pass over a full download.
+  // The pane is the selected bucket for the selected locale, asked for as such:
+  // the filter is a query parameter, not a pass over a full download, and the
+  // page size is explicit so the footer can say what is being shown.
   const loadBlocks = useCallback(async () => {
     try {
       const b = await getFileBlocks(project.id, fileName, {
@@ -121,12 +167,13 @@ export function ReviewSurface({
         // A bucket partitions one locale's targets, so it travels only with a
         // locale — a project with no target language filters by nothing.
         status: filter === "all" || !targetLocale ? undefined : filter,
+        limit,
       });
       setBlocks(b || []);
     } catch (e) {
       setError({ title: "Couldn't load the blocks", cause: e, retry: true });
     }
-  }, [getFileBlocks, project.id, fileName, targetLocale, filter]);
+  }, [getFileBlocks, project.id, fileName, targetLocale, filter, limit]);
 
   // The histogram describes the file, so it is its own count query — a filtered
   // page could only report itself.
@@ -147,17 +194,22 @@ export function ReviewSurface({
   }, [loadCounts]);
 
   const visible = blocks;
+  const selectedBlock = useMemo(
+    () => visible.find((b) => b.id === selectedId) ?? null,
+    [visible, selectedId],
+  );
 
-  const allVisibleSelected = visible.length > 0 && visible.every((b) => selected.has(b.id));
-
-  // A selection names blocks in the loaded bucket; a different bucket or locale
-  // is a different set, so the selection does not survive the switch.
+  // A batch names blocks in the loaded bucket; a different bucket or locale is a
+  // different set, so neither the batch nor the open block survives the switch.
   useEffect(() => {
-    setSelected(new Set());
+    setMarked(new Set());
+    setSelectedId(null);
+    setEditing(false);
+    setLimit(PAGE_SIZE);
   }, [filter, targetLocale]);
 
-  const toggleSelect = useCallback((id: string) => {
-    setSelected((prev) => {
+  const toggleMark = useCallback((id: string) => {
+    setMarked((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -165,12 +217,36 @@ export function ReviewSurface({
     });
   }, []);
 
-  const toggleSelectAll = useCallback(() => {
-    setSelected((prev) => {
+  const markAllShown = useCallback(() => {
+    setMarked((prev) => {
       if (visible.every((b) => prev.has(b.id))) return new Set();
       return new Set(visible.map((b) => b.id));
     });
   }, [visible]);
+
+  // Terms are looked up for the block being read, once, and cached for the
+  // session: the projection then shows them inline on that block as well as in
+  // the inspector. There is no file-level term query, and a request per block of
+  // the document would be one too many.
+  useEffect(() => {
+    if (!selectedId || !targetLocale || termsByBlock[selectedId]) return;
+    let cancelled = false;
+    setTermsLoading(true);
+    api
+      .lookupTermsForBlock(project.id, fileName, selectedId, targetLocale)
+      .then((t) => {
+        if (!cancelled) setTermsByBlock((prev) => ({ ...prev, [selectedId]: t ?? [] }));
+      })
+      .catch(() => {
+        if (!cancelled) setTermsByBlock((prev) => ({ ...prev, [selectedId]: [] }));
+      })
+      .finally(() => {
+        if (!cancelled) setTermsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, selectedId, project.id, fileName, targetLocale, termsByBlock]);
 
   // Persist a per-block review decision: optimistic per-locale Target.Status
   // write (matches what a reload fetches), server call, rollback on failure.
@@ -230,23 +306,21 @@ export function ReviewSurface({
   const bulkInFlight = useRef(false);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  // One request carries the whole selection. Each block reports its own
-  // outcome, so an approval a block refuses is named rather than sinking the
-  // batch, and only the blocks that took the decision move.
+  // One request carries the whole batch. Each block reports its own outcome, so
+  // an approval a block refuses is named rather than sinking the batch, and only
+  // the blocks that took the decision move.
   const bulkMarkReviewed = useCallback(async () => {
-    if (bulkInFlight.current || selected.size === 0) return;
+    if (bulkInFlight.current || marked.size === 0) return;
     bulkInFlight.current = true;
     setBulkBusy(true);
     try {
       // Skip untranslated blocks: the server categorically refuses an approval
       // of an empty translation, so sending them in would only fill the result
-      // with guaranteed failures (select-all on filter=all includes them).
+      // with guaranteed failures (marking all on filter=all includes them).
       const targetIds = blocks
-        .filter(
-          (b) => selected.has(b.id) && b.translatable && getTargetText(b, targetLocale).trim(),
-        )
+        .filter((b) => marked.has(b.id) && b.translatable && getTargetText(b, targetLocale).trim())
         .map((b) => b.id);
-      setSelected(new Set());
+      setMarked(new Set());
       if (targetIds.length === 0) return;
       capture(AnalyticsEvents.reviewDecisionClicked, {
         decision: "approve",
@@ -279,17 +353,17 @@ export function ReviewSurface({
       bulkInFlight.current = false;
       setBulkBusy(false);
     }
-  }, [selected, blocks, api, capture, project.id, fileName, targetLocale, loadCounts]);
+  }, [marked, blocks, api, capture, project.id, fileName, targetLocale, loadCounts]);
 
-  // Exact content-memory leverage across the selection: one request, and the
-  // server decides which blocks clear the threshold.
+  // Exact content-memory leverage across the batch: one request, and the server
+  // decides which blocks clear the threshold.
   const bulkApplyMemory = useCallback(async () => {
-    if (bulkInFlight.current || selected.size === 0) return;
+    if (bulkInFlight.current || marked.size === 0) return;
     bulkInFlight.current = true;
     setBulkBusy(true);
     try {
-      const targetIds = blocks.filter((b) => selected.has(b.id) && b.translatable).map((b) => b.id);
-      setSelected(new Set());
+      const targetIds = blocks.filter((b) => marked.has(b.id) && b.translatable).map((b) => b.id);
+      setMarked(new Set());
       if (targetIds.length === 0) return;
       const result = await api.bulkApplyMemory({
         project_id: project.id,
@@ -310,7 +384,66 @@ export function ReviewSurface({
       bulkInFlight.current = false;
       setBulkBusy(false);
     }
-  }, [selected, blocks, api, project.id, targetLocale, loadBlocks, loadCounts]);
+  }, [marked, blocks, api, project.id, targetLocale, loadBlocks, loadCounts]);
+
+  // A correction made while reviewing is the same write the Translate editor
+  // makes: coded text plus spans, with the status the server would derive.
+  const saveTarget = useCallback(
+    async (block: BlockInfo, result: UnifiedSaveResult) => {
+      try {
+        if (result.kind === "flat") {
+          await api.updateBlockTargetCoded({
+            project_id: project.id,
+            item_name: fileName,
+            block_id: block.id,
+            target_locale: targetLocale,
+            coded_text: result.codedText,
+            spans: result.spans,
+          });
+          // Inline-code placeholders are private-use characters; the plain text a
+          // reload would fetch is the coded text without them.
+          const plainText = result.codedText.replace(/[\uE001-\uE003]/g, "");
+          setBlocks((prev) =>
+            prev.map((b) =>
+              b.id === block.id
+                ? {
+                    ...withTargetEntry(b, targetLocale, {
+                      text: plainText,
+                      status: statusAfterEdit(b, targetLocale, plainText, result.codedText),
+                    }),
+                    targets_coded: { ...b.targets_coded, [targetLocale]: result.codedText },
+                  }
+                : b,
+            ),
+          );
+        } else {
+          await api.updateBlockTarget({
+            project_id: project.id,
+            item_name: fileName,
+            block_id: block.id,
+            target_locale: targetLocale,
+            text: result.text,
+          });
+          setBlocks((prev) =>
+            prev.map((b) =>
+              b.id === block.id
+                ? withTargetEntry(b, targetLocale, {
+                    text: result.text,
+                    status: statusAfterEdit(b, targetLocale, result.text),
+                  })
+                : b,
+            ),
+          );
+        }
+        capture(AnalyticsEvents.translationSaved, { locale: targetLocale, method: "editor" });
+        setEditing(false);
+        void loadCounts();
+      } catch (e) {
+        setError({ title: "Couldn't save the translation", cause: e });
+      }
+    },
+    [api, capture, project.id, fileName, targetLocale, loadCounts],
+  );
 
   const runQA = useCallback(() => {
     setQaLoading(true);
@@ -327,18 +460,151 @@ export function ReviewSurface({
     [fileQAResults],
   );
 
-  // Map QA issues to blocks for inline detail.
   const qaByBlock = useMemo(() => {
     const m = new Map<string, FileQAResult>();
     for (const r of fileQAResults) m.set(r.blockId, r);
     return m;
   }, [fileQAResults]);
 
-  // Virtualize the block list via the shared @neokapi/editor-grid VirtualList:
-  // large files can hold thousands of blocks, so only the rows near the viewport
-  // are mounted. Rows measure themselves (source/target text and QA findings
-  // vary in height). The handle drives the QA "jump to block" scroll below.
-  const gridRef = useRef<VirtualListHandle>(null);
+  // ── The document ──────────────────────────────────────────────────────────
+
+  // Evidence for the projection: QA results carry no offsets, so they become
+  // block annotations; term hits do carry them and become inline marks on the
+  // blocks that have been opened. Entities ride along on the blocks themselves.
+  const evidence = useMemo(() => {
+    const out: Record<string, BlockEvidence> = {};
+    for (const r of fileQAResults) {
+      out[r.blockId] = { issues: r.issues, issueLocale: targetLocale };
+    }
+    for (const [id, terms] of Object.entries(termsByBlock)) {
+      if (terms.length > 0) out[id] = { ...out[id], terms };
+    }
+    return out;
+  }, [fileQAResults, termsByBlock, targetLocale]);
+
+  const tree = useMemo(
+    () =>
+      blocksToContentTree(visible, {
+        format: extOf(fileName),
+        name: fileName,
+        evidence,
+        locales: targetLocale ? [targetLocale] : undefined,
+        sourceLocale: project.default_source_language,
+      }),
+    [visible, fileName, evidence, targetLocale, project.default_source_language],
+  );
+
+  const blockAttrs = useCallback(
+    (id: string): BlockAttrs => {
+      const block = visible.find((b) => b.id === id);
+      const status = block ? getBlockStatus(block, targetLocale) : "not-started";
+      const flagged = (qaByBlock.get(id)?.issues.length ?? 0) > 0;
+      return {
+        className: cn(
+          STATUS_RULE[status],
+          flagged && "bg-warning/5",
+          marked.has(id) && "outline outline-1 outline-dashed outline-primary/50",
+        ),
+        "data-testid": `review-block-${id}`,
+        "data-status": status,
+        "data-marked": marked.has(id) ? "true" : undefined,
+        "data-flagged": flagged ? "true" : undefined,
+      };
+    },
+    [visible, targetLocale, qaByBlock, marked],
+  );
+
+  const docRef = useRef<HTMLDivElement>(null);
+
+  const revealBlock = useCallback((id: string) => {
+    docRef.current
+      ?.querySelector(`[data-block-id="${CSS.escape(id)}"]`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, []);
+
+  const selectBlock = useCallback(
+    (id: string) => {
+      setSelectedId(id);
+      setEditing(false);
+      revealBlock(id);
+    },
+    [revealBlock],
+  );
+
+  const step = useCallback(
+    (delta: number) => {
+      if (visible.length === 0) return;
+      const current = visible.findIndex((b) => b.id === selectedId);
+      const next = Math.min(Math.max(current + delta, 0), visible.length - 1);
+      selectBlock(visible[current < 0 ? 0 : next].id);
+    },
+    [visible, selectedId, selectBlock],
+  );
+
+  // The reading pane's keyboard model: move through the document, decide on the
+  // block being read, open it for correction, hold it for the batch. Held while
+  // a text field has focus, so typing a translation is never a decision.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      const block = visible.find((b) => b.id === selectedId) ?? null;
+      switch (e.key) {
+        case "j":
+        case "ArrowDown":
+          e.preventDefault();
+          step(1);
+          break;
+        case "k":
+        case "ArrowUp":
+          e.preventDefault();
+          step(-1);
+          break;
+        case "a":
+          if (block && !bulkBusy && getTargetText(block, targetLocale).trim()) {
+            e.preventDefault();
+            void setStatus(block, true);
+          }
+          break;
+        case "r":
+          if (block && !bulkBusy && getTargetText(block, targetLocale).trim()) {
+            e.preventDefault();
+            void setStatus(block, false, "draft");
+          }
+          break;
+        case "e":
+          if (block) {
+            e.preventDefault();
+            setEditing((prev) => !prev);
+          }
+          break;
+        case "m":
+          if (block) {
+            e.preventDefault();
+            toggleMark(block.id);
+          }
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [visible, selectedId, step, setStatus, toggleMark, bulkBusy, targetLocale]);
+
+  const shownCount = visible.length;
+  const bucketTotal = filter === "all" ? counts.translatable : counts.status[filter];
+  const hasMore = shownCount >= limit && bucketTotal > shownCount;
+
+  const selectedNode = useMemo(() => {
+    if (!selectedId) return null;
+    const walk = (nodes: typeof tree.root): (typeof tree.root)[number] | null => {
+      for (const node of nodes) {
+        if (node.kind === "block" && node.id === selectedId) return node;
+        const found = node.children ? walk(node.children) : null;
+        if (found) return found;
+      }
+      return null;
+    };
+    return walk(tree.root);
+  }, [tree, selectedId]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0" data-testid="review-surface">
@@ -398,24 +664,41 @@ export function ReviewSurface({
         })}
       </div>
 
-      {/* Bulk action bar */}
-      <div className="flex items-center gap-2 mb-2">
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
-          <input
-            type="checkbox"
-            checked={allVisibleSelected}
-            onChange={toggleSelectAll}
-            data-testid="select-all"
-          />
-          Select all
-        </label>
-        <span className="text-xs text-muted-foreground">{selected.size} selected</span>
+      {/* Reading side + batch actions */}
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        <Tabs value={side} onValueChange={(v) => setSide(v as "source" | "target")}>
+          <TabsList className="h-7">
+            <TabsTrigger value="source" className="text-[11px] px-2 h-6" data-testid="read-source">
+              Source
+            </TabsTrigger>
+            <TabsTrigger
+              value="target"
+              className="text-[11px] px-2 h-6"
+              disabled={!targetLocale}
+              data-testid="read-target"
+            >
+              {targetLocale || "Target"}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={markAllShown}
+          data-testid="mark-all-shown"
+          className="text-xs"
+        >
+          Mark all shown
+        </Button>
+        <span className="text-xs text-muted-foreground" data-testid="marked-count">
+          {marked.size} in batch
+        </span>
         <div className="flex-1" />
         <Button
           variant="outline"
           size="sm"
           onClick={bulkApplyMemory}
-          disabled={selected.size === 0 || bulkBusy}
+          disabled={marked.size === 0 || bulkBusy}
           data-testid="bulk-apply-tm"
         >
           Apply exact Memory
@@ -423,7 +706,7 @@ export function ReviewSurface({
         <Button
           size="sm"
           onClick={bulkMarkReviewed}
-          disabled={selected.size === 0 || bulkBusy}
+          disabled={marked.size === 0 || bulkBusy}
           data-testid="bulk-mark-reviewed"
         >
           <Check className="w-3.5 h-3.5 mr-1" /> Mark reviewed
@@ -453,137 +736,96 @@ export function ReviewSurface({
         </Alert>
       )}
 
-      {/* Block list (virtualized — only rows near the viewport are mounted) */}
-      <VirtualList<BlockInfo>
-        ref={gridRef}
-        items={visible}
-        estimateSize={96}
-        overscan={12}
-        getItemKey={(_, block) => block.id}
-        initialRect={{ width: 800, height: 600 }}
-        className="flex-1 overflow-auto border border-border rounded-lg bg-card"
-        dataTestId="review-list"
-        empty={
-          <div className="p-6 text-center text-muted-foreground">No blocks for this filter</div>
-        }
-        renderRow={(block, { key, rowProps }) => {
-          const status = getBlockStatus(block, targetLocale);
-          const qa = qaByBlock.get(block.id);
-          return (
-            <div
-              key={key}
-              {...rowProps}
-              data-testid={`review-row-${block.id}`}
-              className="flex items-start gap-3 px-3 py-2.5 border-b border-border"
-            >
-              <input
-                type="checkbox"
-                checked={selected.has(block.id)}
-                onChange={() => toggleSelect(block.id)}
-                className="mt-1.5"
-                data-testid={`review-select-${block.id}`}
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className={cn(
-                      "px-1.5 py-0.5 rounded text-[10px] font-semibold",
-                      statusBadgeClass[status],
-                    )}
-                    data-testid={`review-status-${block.id}`}
-                  >
-                    {statusLabel[status]}
-                  </span>
-                  {qa && qa.issues.length > 0 && (
-                    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
-                      <AlertTriangle className="w-2.5 h-2.5" />
-                      {qa.issues.length}
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-sm leading-relaxed break-words text-muted-foreground">
-                    {block.has_spans && block.source_coded && block.source_spans ? (
-                      <FormattedSourceDisplay
-                        codedText={block.source_coded}
-                        spans={block.source_spans}
-                      />
-                    ) : (
-                      block.source
-                    )}
-                  </div>
-                  <div className="text-sm leading-relaxed break-words">
-                    <CollapsedTargetCell
-                      block={block}
-                      locale={targetLocale}
-                      testId={`review-target-${block.id}`}
-                    />
-                  </div>
-                </div>
-                {/* QA findings detail */}
-                {qa && qa.issues.length > 0 && (
-                  <div className="mt-1.5 rounded-md border border-border bg-muted/30 p-2 space-y-1">
-                    {qa.issues.map((issue, i) => (
-                      <div key={i} className="flex items-start gap-1.5 text-xs">
-                        <AlertTriangle
-                          className={cn(
-                            "w-3 h-3 shrink-0 mt-0.5",
-                            issue.severity === "error" ? "text-destructive" : "text-warning",
-                          )}
-                        />
-                        <span
-                          className={
-                            issue.severity === "error"
-                              ? "text-destructive"
-                              : "text-warning dark:text-warning"
-                          }
-                        >
-                          <span className="font-medium">{issue.type}:</span> {issue.message}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {/* Approve / reject */}
-              <div className="flex flex-col gap-1 shrink-0">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-[11px] px-2"
-                  onClick={() => void setStatus(block, true)}
-                  disabled={
-                    status === "reviewed" ||
-                    bulkBusy ||
-                    // No non-empty translation → the server 422s the approval.
-                    !getTargetText(block, targetLocale).trim()
-                  }
-                  data-testid={`approve-${block.id}`}
-                >
-                  <Check className="w-3.5 h-3.5 mr-1" /> Approve
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-[11px] px-2 text-destructive hover:text-destructive"
-                  // A rejection demotes the target to draft so the unit
-                  // re-enters the work queue (host's rejected → draft
-                  // mapping), not merely back to translated.
-                  onClick={() => void setStatus(block, false, "draft")}
-                  disabled={
-                    bulkBusy ||
-                    // Nothing to reject on an untranslated block (and a
-                    // clearing call for it is a server-side no-op).
-                    !getTargetText(block, targetLocale).trim()
-                  }
-                  data-testid={`reject-${block.id}`}
-                >
-                  <X className="w-3.5 h-3.5 mr-1" /> Reject
-                </Button>
-              </div>
-            </div>
-          );
+      {/* The document. Terms, entities and positioned voice findings are marked
+          in the text; the block's status is the rule in its margin. */}
+      {/* The pane is the page: the kit paints the document surface itself, so
+          the preview fills the frame rather than sitting on a card inside it. */}
+      <div
+        ref={docRef}
+        className="flex-1 overflow-auto rounded-lg border border-border"
+        data-testid="review-document"
+      >
+        {visible.length === 0 ? (
+          <p className="p-6 text-center text-muted-foreground">No blocks for this filter</p>
+        ) : (
+          <FormatPreview
+            className="min-h-full px-7 py-6"
+            tree={tree}
+            side={readingSide}
+            onSelectBlock={selectBlock}
+            selectedBlockId={selectedId ?? undefined}
+            blockAttrs={blockAttrs}
+            // The kit's mark animations belong to a demo, not to a working
+            // surface: a decision or a term lookup re-renders the pane, and a
+            // term that re-scrambles itself each time is noise over the text.
+            reducedMotion
+          />
+        )}
+      </div>
+
+      {/* Footer: what the pane holds of the file, and how to drive it */}
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+        <span data-testid="page-summary">
+          Showing {shownCount} of {bucketTotal}
+        </span>
+        {hasMore && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-[11px]"
+            onClick={() => setLimit((l) => l + PAGE_SIZE)}
+            data-testid="load-more"
+          >
+            Load more
+          </Button>
+        )}
+        <div className="flex-1" />
+        <span className="hidden items-center gap-3 sm:flex" aria-hidden>
+          <span>
+            <kbd className="rounded border border-border px-1">J</kbd>/
+            <kbd className="rounded border border-border px-1">K</kbd> move
+          </span>
+          <span>
+            <kbd className="rounded border border-border px-1">A</kbd> approve
+          </span>
+          <span>
+            <kbd className="rounded border border-border px-1">R</kbd> reject
+          </span>
+          <span>
+            <kbd className="rounded border border-border px-1">E</kbd> edit
+          </span>
+          <span>
+            <kbd className="rounded border border-border px-1">M</kbd> batch
+          </span>
+        </span>
+      </div>
+
+      <ReviewInspector
+        block={selectedBlock}
+        node={selectedNode}
+        itemName={fileName}
+        locale={targetLocale}
+        localeLabel={targetLocale ? `${getDisplayName(targetLocale)} (${targetLocale})` : ""}
+        issues={selectedId ? (qaByBlock.get(selectedId)?.issues ?? []) : []}
+        terms={selectedId ? (termsByBlock[selectedId] ?? []) : []}
+        termsLoading={termsLoading}
+        editing={editing}
+        busy={bulkBusy}
+        marked={selectedId ? marked.has(selectedId) : false}
+        onClose={() => {
+          setSelectedId(null);
+          setEditing(false);
         }}
+        onApprove={() => selectedBlock && void setStatus(selectedBlock, true)}
+        // A rejection demotes the target to draft so the unit re-enters the work
+        // queue (host's rejected → draft mapping), not merely back to translated.
+        onReject={() => selectedBlock && void setStatus(selectedBlock, false, "draft")}
+        onEditToggle={() => setEditing((prev) => !prev)}
+        onSaveEdit={(result) => {
+          if (selectedBlock) void saveTarget(selectedBlock, result);
+        }}
+        onCancelEdit={() => setEditing(false)}
+        onToggleMark={() => selectedId && toggleMark(selectedId)}
       />
 
       {/* QA problems panel (reused) */}
@@ -591,12 +833,7 @@ export function ReviewSurface({
         <ProblemsPanel
           issues={fileQAResults}
           loading={qaLoading}
-          onNavigateToBlock={(blockId) => {
-            // Rows are virtualized, so scroll via the shared list handle (the
-            // target row may not be mounted yet).
-            const index = visible.findIndex((b) => b.id === blockId);
-            if (index >= 0) gridRef.current?.scrollToIndex(index, { align: "center" });
-          }}
+          onNavigateToBlock={selectBlock}
           onClose={() => setShowProblems(false)}
         />
       )}
