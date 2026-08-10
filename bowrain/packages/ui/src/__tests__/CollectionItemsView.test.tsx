@@ -50,7 +50,7 @@ describe("CollectionItemsView", () => {
     render(
       <CollectionItemsView
         collection={collection}
-        title="bowrain-app"
+        title={collection.collection_name!}
         itemStats={items}
         localeStats={localeStats}
         onBack={() => {}}
@@ -66,7 +66,7 @@ describe("CollectionItemsView", () => {
     render(
       <CollectionItemsView
         collection={collection}
-        title="bowrain-app"
+        title={collection.collection_name!}
         itemStats={items}
         localeStats={localeStats}
         onBack={() => {}}
@@ -81,7 +81,7 @@ describe("CollectionItemsView", () => {
     render(
       <CollectionItemsView
         collection={collection}
-        title="bowrain-app"
+        title={collection.collection_name!}
         itemStats={items}
         localeStats={localeStats}
         onBack={onBack}
@@ -97,7 +97,7 @@ describe("CollectionItemsView", () => {
     render(
       <CollectionItemsView
         collection={collection}
-        title="bowrain-app"
+        title={collection.collection_name!}
         itemStats={items}
         localeStats={localeStats}
         onBack={() => {}}
@@ -125,7 +125,7 @@ describe("CollectionItemsView", () => {
     render(
       <CollectionItemsView
         collection={collection}
-        title="bowrain-app"
+        title={collection.collection_name!}
         itemStats={items}
         localeStats={localeStats}
         paging={{
@@ -148,7 +148,7 @@ describe("CollectionItemsView", () => {
     render(
       <CollectionItemsView
         collection={collection}
-        title="bowrain-app"
+        title={collection.collection_name!}
         itemStats={items}
         localeStats={localeStats}
         onBack={() => {}}
