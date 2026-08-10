@@ -8,7 +8,7 @@ import {
   useMemoryBrowserAdapter,
   useTermsBrowserAdapter,
 } from "../hooks/useResourceBrowserAdapters";
-import { ApiError } from "../errors/ApiError";
+import { ApiError, governedRefusalError, GOVERNED_REFUSAL_HINT } from "../errors/ApiError";
 import type { ApiAdapter } from "../api/adapter";
 import type { Workspace } from "../types/api";
 
@@ -142,6 +142,23 @@ describe("concept bulk delete", () => {
     expect(bulkDeleteConcepts).toHaveBeenCalledTimes(1);
     expect(bulkDeleteConcepts).toHaveBeenCalledWith("demo", ["c1", "c2"]);
     expect(deleteConcept).not.toHaveBeenCalled();
+  });
+
+  // The desktop refuses locally — there is no server call to make — and used to
+  // throw a bare Error, so `governedRefusal` returned undefined and the browser
+  // rethrew the machine phrase instead of naming what was refused and what to
+  // do instead. `governedRefusalError` builds the envelope the server sends.
+  it("reads a locally-raised refusal exactly as it reads the server's", async () => {
+    const adapter = mockAdapter({
+      bulkDeleteConcepts: vi.fn().mockRejectedValue(governedRefusalError("deleting concepts")),
+    });
+
+    const { result } = renderHook(() => useTermsBrowserAdapter(), { wrapper: wrapper(adapter) });
+    await waitFor(() => expect(result.current).not.toBeNull());
+
+    await expect(result.current!.deleteConcepts(["c1"])).rejects.toThrow(
+      `deleting concepts ${GOVERNED_REFUSAL_HINT}`,
+    );
   });
 
   it("rethrows anything that is not a governed refusal", async () => {
