@@ -84,9 +84,27 @@ describe("session refresh", () => {
     // cookie lapsed, the adapter refreshes, and retries. If the refresh 403s,
     // this is where the session is declared dead.
     const responses = [
-      { ok: false, status: 401, json: async () => ({}), text: async () => "", headers: { get: () => null } },
-      { ok: true, status: 200, json: async () => ({}), text: async () => "{}", headers: { get: () => null } },
-      { ok: true, status: 200, json: async () => ({ id: "u1" }), text: async () => "{}", headers: { get: () => null } },
+      {
+        ok: false,
+        status: 401,
+        json: async () => ({}),
+        text: async () => "",
+        headers: { get: () => null },
+      },
+      {
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+        text: async () => "{}",
+        headers: { get: () => null },
+      },
+      {
+        ok: true,
+        status: 200,
+        json: async () => ({ id: "u1" }),
+        text: async () => "{}",
+        headers: { get: () => null },
+      },
     ];
     const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(responses.shift()));
     vi.stubGlobal("fetch", fetchMock);
