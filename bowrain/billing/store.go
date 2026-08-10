@@ -44,6 +44,16 @@ type BillingStore interface {
 	// usage breakdown does not depend on how many entries a page carries.
 	GetUsageByOperation(ctx context.Context, workspaceID string, from, to time.Time) (map[string]int64, error)
 
+	// GetNetByOperation sums EVERY movement in the window per operation, signed:
+	// a debit stays negative, a purchase or grant positive.
+	//
+	// It exists because GetUsageByOperation answers a narrower question than its
+	// key set suggests. Summing `amount < 0` only, it never mentions purchase,
+	// grant, expire or plan_reset — so a client deriving the ledger's operation
+	// filter from it could not offer the operations the ledger table right below
+	// was displaying. This one names every operation the window contains.
+	GetNetByOperation(ctx context.Context, workspaceID string, from, to time.Time) (map[string]int64, error)
+
 	// Feature overrides
 	GetFeatureOverrides(ctx context.Context, workspaceID string) ([]FeatureOverride, error)
 	ListAllFeatureOverrides(ctx context.Context) ([]FeatureOverride, error)

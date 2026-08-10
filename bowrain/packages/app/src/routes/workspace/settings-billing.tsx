@@ -278,16 +278,23 @@ export function SettingsBillingRoute() {
   const upgradeable = (plans?.plans ?? []).filter((p) => p.purchasable && !p.current);
   const creditPack = plans?.credit_pack;
 
-  // Per-operation credit spend for the window, summed by the server. Rows are
+  // Per-operation credit SPEND for the window, summed by the server. Rows are
   // whatever the deployment actually charged, so a newly-added operation shows
-  // up here instead of vanishing from a fixed list. The sum counts debits
-  // only, so purchases and grants appear in the ledger below but not here —
-  // and the ledger's chips, which read this set, filter spend rather than
-  // every movement.
+  // up here instead of vanishing from a fixed list. Debits only, by
+  // definition: a purchase is not consumption.
   const usageRows = Object.entries(ledgerPage?.usage_by_operation ?? {})
     .filter(([, value]) => value !== 0)
     .sort((a, b) => b[1] - a[1]);
   const usageTotal = usageRows.reduce((sum, [, value]) => sum + value, 0);
+
+  // The ledger's chips filter the TABLE, so they read the window's whole
+  // operation vocabulary — spend plus the purchases, grants, expiries and
+  // resets. Derived from the spend breakdown they could not offer the very
+  // operations the rows underneath were showing. Largest movement first, by
+  // magnitude, so a big grant and a big spend rank alike.
+  const ledgerOperations = Object.entries(ledgerPage?.net_by_operation ?? {})
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .map(([op]) => op);
 
   return (
     <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
@@ -462,7 +469,7 @@ export function SettingsBillingRoute() {
         <CardContent>
           <CreditLedger
             entries={ledgerPage?.entries ?? []}
-            operations={usageRows.map(([op]) => op)}
+            operations={ledgerOperations}
             operation={ledgerOperation}
             onOperationChange={(op) => {
               setLedgerOperation(op);

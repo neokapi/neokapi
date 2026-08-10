@@ -924,13 +924,32 @@ func (s *PgBillingStore) GetLedgerPage(ctx context.Context, workspaceID string, 
 // GetUsageByOperation sums the debits (negative amounts, returned positive) in
 // the window per operation.
 func (s *PgBillingStore) GetUsageByOperation(ctx context.Context, workspaceID string, from, to time.Time) (map[string]int64, error) {
+	return s.sumLedgerByOperation(ctx, workspaceID, from, to, true)
+}
+
+// GetNetByOperation sums every movement in the window per operation, signed.
+func (s *PgBillingStore) GetNetByOperation(ctx context.Context, workspaceID string, from, to time.Time) (map[string]int64, error) {
+	return s.sumLedgerByOperation(ctx, workspaceID, from, to, false)
+}
+
+// sumLedgerByOperation groups the window's ledger by operation. debitsOnly
+// restricts it to spend and returns the sum positive; otherwise every row
+// counts and the sum keeps its sign.
+//
+// The two are one query with one predicate swapped rather than two, because a
+// window they disagree about is a bug in exactly one of them.
+func (s *PgBillingStore) sumLedgerByOperation(ctx context.Context, workspaceID string, from, to time.Time, debitsOnly bool) (map[string]int64, error) {
+	sum, where := "SUM(amount)", ""
+	if debitsOnly {
+		sum, where = "SUM(-amount)", " AND amount < 0"
+	}
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT operation, SUM(-amount) FROM credit_ledger
-		 WHERE workspace_id = $1 AND created_at >= $2 AND created_at < $3 AND amount < 0
+		`SELECT operation, `+sum+` FROM credit_ledger
+		 WHERE workspace_id = $1 AND created_at >= $2 AND created_at < $3`+where+`
 		 GROUP BY operation`,
 		workspaceID, from, to)
 	if err != nil {
-		return nil, fmt.Errorf("usage by operation: %w", err)
+		return nil, fmt.Errorf("ledger by operation: %w", err)
 	}
 	defer rows.Close()
 
@@ -939,7 +958,7 @@ func (s *PgBillingStore) GetUsageByOperation(ctx context.Context, workspaceID st
 		var op string
 		var total int64
 		if err := rows.Scan(&op, &total); err != nil {
-			return nil, fmt.Errorf("scan usage by operation: %w", err)
+			return nil, fmt.Errorf("scan ledger by operation: %w", err)
 		}
 		byOp[op] = total
 	}

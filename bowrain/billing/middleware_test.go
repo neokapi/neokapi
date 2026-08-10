@@ -118,6 +118,9 @@ func (m *mockBillingStore) GetLedgerPage(context.Context, string, LedgerQuery) (
 func (m *mockBillingStore) GetUsageByOperation(context.Context, string, time.Time, time.Time) (map[string]int64, error) {
 	return nil, nil
 }
+func (m *mockBillingStore) GetNetByOperation(context.Context, string, time.Time, time.Time) (map[string]int64, error) {
+	return nil, nil
+}
 func (m *mockBillingStore) GetFeatureOverrides(context.Context, string) ([]FeatureOverride, error) {
 	return nil, nil
 }

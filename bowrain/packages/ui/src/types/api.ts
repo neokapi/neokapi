@@ -2133,16 +2133,25 @@ export interface CreditLedgerQuery {
 }
 
 /**
- * One page of the credit ledger plus the totals for the whole window.
- * `usage_by_operation` is summed in SQL over the window, not over the page, so
- * it stays correct however small the page is.
+ * One page of the credit ledger plus the totals for the whole window. Both
+ * breakdowns are summed in SQL over the window, not over the page, so they stay
+ * correct however small the page is.
  */
 export interface CreditLedgerPage {
   entries: CreditLedgerEntry[];
   total: number;
   limit: number;
   offset: number;
+  /** Spend: debits only, summed positive. What a "where did the credits go" panel shows. */
   usage_by_operation: Record<string, number>;
+  /**
+   * Every movement, signed — debits negative, purchases and grants positive.
+   * This is the window's operation vocabulary, so it is what an operation
+   * filter over the ledger reads: `usage_by_operation` omits every operation
+   * that only ever adds credits, and a filter derived from it could not offer
+   * the operations the ledger table itself displays.
+   */
+  net_by_operation: Record<string, number>;
   from: string;
   to: string;
 }

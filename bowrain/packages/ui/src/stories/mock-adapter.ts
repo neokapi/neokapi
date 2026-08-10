@@ -1687,6 +1687,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       limit: query?.limit ?? 50,
       offset: query?.offset ?? 0,
       usage_by_operation: {},
+      net_by_operation: {},
       from: query?.from ?? new Date(Date.now() - 30 * 86400_000).toISOString(),
       to: query?.to ?? new Date().toISOString(),
     }),

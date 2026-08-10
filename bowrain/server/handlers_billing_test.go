@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -124,6 +126,14 @@ func (m *mockBillingStore) GetUsageByOperation(_ context.Context, _ string, _, _
 		if e.Amount < 0 {
 			byOp[e.Operation] += -e.Amount
 		}
+	}
+	return byOp, nil
+}
+
+func (m *mockBillingStore) GetNetByOperation(_ context.Context, _ string, _, _ time.Time) (map[string]int64, error) {
+	byOp := make(map[string]int64)
+	for _, e := range m.ledger {
+		byOp[e.Operation] += e.Amount
 	}
 	return byOp, nil
 }
@@ -423,6 +433,23 @@ func TestHandleGetBillingUsage_PagesAndFilters(t *testing.T) {
 		usage := resp["usage_by_operation"].(map[string]any)
 		assert.Equal(t, float64(1500), usage["ai_translation"])
 		assert.Equal(t, float64(300), usage["bravo_message"])
+	})
+
+	// The spend breakdown's key set is not the window's operation vocabulary:
+	// summing debits only, it never names the grant, and a client deriving the
+	// ledger's operation filter from it could not offer the operation the row
+	// underneath displays.
+	t.Run("the signed breakdown names every operation, spend names only spend", func(t *testing.T) {
+		resp := billingUsage(t, s, "")
+		usage := resp["usage_by_operation"].(map[string]any)
+		net := resp["net_by_operation"].(map[string]any)
+
+		assert.NotContains(t, usage, "grant")
+		assert.Equal(t, float64(50_000), net["grant"], "a credit keeps its sign")
+		assert.Equal(t, float64(-1500), net["ai_translation"], "a debit keeps its sign")
+		assert.ElementsMatch(t,
+			[]string{"ai_translation", "bravo_message", "grant"},
+			slices.Collect(maps.Keys(net)))
 	})
 
 	t.Run("an over-large limit is clamped", func(t *testing.T) {

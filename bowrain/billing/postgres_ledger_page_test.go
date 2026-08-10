@@ -98,3 +98,36 @@ func TestPgGetUsageByOperation(t *testing.T) {
 	// Debits only, returned positive; the grant contributes nothing.
 	assert.Equal(t, map[string]int64{"ai_translation": 600, "bravo_message": 40}, byOp)
 }
+
+// TestPgGetNetByOperation: the spend breakdown's key set is not the window's
+// operation vocabulary. Summing `amount < 0` only, it never mentions the grant
+// that funded the spend — so a ledger filter derived from it could not offer
+// the operation the row right there displays.
+func TestPgGetNetByOperation(t *testing.T) {
+	store := newCreditTestStore(t)
+	ctx := t.Context()
+	const ws = "ws-net-by-op"
+	seedLedger(t, store, ws)
+	from, to := ledgerWindow()
+
+	net, err := store.GetNetByOperation(ctx, ws, from, to)
+	require.NoError(t, err)
+
+	// Every movement, signed: debits stay negative, the plan grant positive.
+	assert.Equal(t, map[string]int64{
+		"grant":          1_000_000,
+		"ai_translation": -600,
+		"bravo_message":  -40,
+	}, net)
+
+	spend, err := store.GetUsageByOperation(ctx, ws, from, to)
+	require.NoError(t, err)
+	assert.NotContains(t, spend, "grant",
+		"spend is the narrower question; net is the one a filter reads")
+
+	t.Run("another workspace's window is empty", func(t *testing.T) {
+		net, err := store.GetNetByOperation(ctx, "ws-nobody", from, to)
+		require.NoError(t, err)
+		assert.Empty(t, net)
+	})
+}
