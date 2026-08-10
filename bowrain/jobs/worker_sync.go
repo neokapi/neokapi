@@ -155,8 +155,9 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 
 	// The context content type reconciles BEFORE the chunks are stored: the
 	// collections are the structure the items are stored into, so an item
-	// naming a collection that has not been created yet would be stored
-	// ungrouped and stay that way until the next push.
+	// naming a collection that has not been created yet would fall to the
+	// project's default collection and be governed by it until the next push
+	// re-binds it. See the binding in processBlockChunk.
 	contextEntries, err := parseContextEntries(manifest.Contexts)
 	if err != nil {
 		markJobFailed(ctx, deps, job.ID, "invalid context entries")
@@ -503,19 +504,37 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 				if meta.Collection != "" {
 					// The collection this item belongs to was reconciled before
 					// the chunks were stored, precisely so this lookup finds it.
-					// When it does not, the item is stored UNGROUPED — outside
-					// the collection's coordinates, its voice and its gates —
-					// and the push still reports success. That is governance
-					// quietly not applying, so it is said out loud rather than
-					// inferred later from a gate that never ran.
+					// When it does not, the item does NOT stay outside every
+					// collection: an item stored with no collection id falls to
+					// the project's default collection, which every project
+					// created through the API has (#1786). So the named
+					// collection's coordinates, voice and gates do not apply —
+					// and the default collection's bindings do, to content that
+					// was never authored under them.
+					//
+					// The fallback is resolved here rather than left to the
+					// store, so the warning names the collection the item
+					// actually landed in instead of describing an outcome the
+					// store does not produce. Only a project with no default
+					// collection leaves the item genuinely ungrouped.
 					coll, err := deps.ContentStore.GetCollectionByName(ctx, projectID, meta.Collection, stream)
 					switch {
 					case err == nil && coll != nil:
 						item.CollectionID = coll.ID
 					default:
-						slog.Warn("pushed item could not be bound to its collection; it is stored ungrouped and its collection's governance does not apply to it",
-							"project_id", projectID, "stream", stream,
-							"item", itemName, "collection", meta.Collection, "error", err)
+						fallback, fbErr := deps.ContentStore.GetDefaultCollection(ctx, projectID)
+						if fbErr == nil && fallback != nil {
+							item.CollectionID = fallback.ID
+							slog.Warn("pushed item could not be bound to its collection; it falls to the project's default collection, so the named collection's governance does not apply to it and the default collection's does",
+								"project_id", projectID, "stream", stream,
+								"item", itemName, "collection", meta.Collection,
+								"default_collection", fallback.Name, "error", err)
+						} else {
+							slog.Warn("pushed item could not be bound to its collection and the project has no default collection; it is stored ungrouped, so no collection's governance applies to it",
+								"project_id", projectID, "stream", stream,
+								"item", itemName, "collection", meta.Collection,
+								"error", err, "default_collection_error", fbErr)
+						}
 					}
 				}
 			}
