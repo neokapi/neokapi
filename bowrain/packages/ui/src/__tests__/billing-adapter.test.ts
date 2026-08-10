@@ -146,6 +146,41 @@ describe("billingGetLedger", () => {
   });
 });
 
+describe("billingGetLedgerPage", () => {
+  // The two breakdowns answer different questions and both reach the client.
+  // Spend omits every operation that only ever adds credits, so a filter built
+  // from it could not offer the purchase and grant rows the table displays.
+  it("carries the spend breakdown and the window's whole operation set", async () => {
+    mockFetch({
+      entries: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+      usage_by_operation: { ai_translation: 600 },
+      net_by_operation: { ai_translation: -600, purchase: 200_000, grant: 1_000 },
+      from: "2026-08-01T00:00:00Z",
+      to: "2026-08-11T00:00:00Z",
+    });
+
+    const page = await adapter().billingGetLedgerPage("acme");
+
+    expect(page.usage_by_operation).toEqual({ ai_translation: 600 });
+    expect(Object.keys(page.net_by_operation).sort()).toEqual([
+      "ai_translation",
+      "grant",
+      "purchase",
+    ]);
+    expect(page.net_by_operation.ai_translation).toBe(-600);
+  });
+
+  it("degrades to empty breakdowns rather than undefined", async () => {
+    mockFetch({ entries: [] });
+    const page = await adapter().billingGetLedgerPage("acme");
+    expect(page.usage_by_operation).toEqual({});
+    expect(page.net_by_operation).toEqual({});
+  });
+});
+
 describe("checkout", () => {
   it("sends a plan (never a price) and returns the URL the server named", async () => {
     const fetchMock = mockFetch({ checkout_url: "https://checkout.stripe.com/s/1" });

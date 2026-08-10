@@ -1753,6 +1753,7 @@ export class WailsApiAdapter implements ApiAdapter {
       limit: query?.limit ?? 0,
       offset: query?.offset ?? 0,
       usage_by_operation: {},
+      net_by_operation: {},
       from: query?.from ?? "",
       to: query?.to ?? "",
     };

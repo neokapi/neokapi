@@ -3430,6 +3430,7 @@ export class RestApiAdapter implements ApiAdapter {
       limit?: number;
       offset?: number;
       usage_by_operation?: Record<string, number>;
+      net_by_operation?: Record<string, number>;
       from?: string;
       to?: string;
     }>(`${this.billingEp(workspaceSlug)}/usage${qs ? `?${qs}` : ""}`);
@@ -3446,6 +3447,7 @@ export class RestApiAdapter implements ApiAdapter {
       limit: raw.limit ?? 0,
       offset: raw.offset ?? 0,
       usage_by_operation: raw.usage_by_operation ?? {},
+      net_by_operation: raw.net_by_operation ?? {},
       from: raw.from ?? "",
       to: raw.to ?? "",
     };

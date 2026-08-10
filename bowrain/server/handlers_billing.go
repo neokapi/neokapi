@@ -82,8 +82,17 @@ func (s *Server) HandleGetBilling(c echo.Context) error {
 // the window whatever ?operation and ?limit say, Entries is the page those
 // narrow — so they are named rather than left to an anonymous map a reader has
 // to infer the contract of.
+//
+// UsageByOperation and NetByOperation answer different questions and a client
+// needs both. Usage is spend: debits only, summed positive, which is what a
+// "where did the credits go" breakdown means. Net is every movement, signed —
+// including the purchases, grants, expiries and plan resets that spend
+// excludes. A client deriving the ledger's operation filter from the spend
+// breakdown could not offer the operations the ledger table beside it was
+// already showing.
 type BillingUsageResponse struct {
 	UsageByOperation map[string]int64      `json:"usage_by_operation"`
+	NetByOperation   map[string]int64      `json:"net_by_operation"`
 	From             time.Time             `json:"from"`
 	To               time.Time             `json:"to"`
 	Entries          []billing.LedgerEntry `json:"entries"`
@@ -127,6 +136,10 @@ func (s *Server) HandleGetBillingUsage(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, err)
 	}
+	netByOp, err := s.BillingStore.GetNetByOperation(ctx, wsID, from, to)
+	if err != nil {
+		return serverErr(c, err)
+	}
 
 	limit, offset := pageParams(c, 50, billing.MaxLedgerPageSize)
 	page, err := s.BillingStore.GetLedgerPage(ctx, wsID, billing.LedgerQuery{
@@ -145,6 +158,7 @@ func (s *Server) HandleGetBillingUsage(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, BillingUsageResponse{
 		UsageByOperation: byOp,
+		NetByOperation:   netByOp,
 		From:             from,
 		To:               to,
 		Entries:          page.Entries,
