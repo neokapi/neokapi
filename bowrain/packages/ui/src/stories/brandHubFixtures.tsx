@@ -224,6 +224,7 @@ export const sampleChangesets: ChangeSet[] = [
 const sampleChangesetDetail: ChangeSetDetail = {
   ...sampleChangesets[0],
   governed: true,
+  solo_review: false,
   ops: [
     {
       workspace_id: "ws-1",
@@ -258,6 +259,7 @@ const sampleChangesetDetail: ChangeSetDetail = {
       changeset_id: "cs-1",
       reviewer: "alex",
       verdict: "approve",
+      basis: "peer",
       comment: "Agreed, matches the brand book.",
       created_at: now,
     },

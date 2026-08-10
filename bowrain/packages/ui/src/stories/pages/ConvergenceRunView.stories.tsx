@@ -90,13 +90,13 @@ export const Connecting: Story = {
 export const Converged: Story = {
   args: {
     model: reduceRun(convergedEvents),
-    run: { ...run, state: "converged", finished_at: new Date().toISOString() },
+    run,
   },
 };
 
 export const Parked: Story = {
   args: {
     model: reduceRun(parkedEvents),
-    run: { ...run, trigger: "cli", state: "parked", finished_at: new Date().toISOString() },
+    run: { ...run, trigger: "cli" },
   },
 };

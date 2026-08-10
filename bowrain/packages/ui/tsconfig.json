@@ -16,5 +16,13 @@
     }
   },
   "include": ["src", "src/**/*.json"],
-  "exclude": ["src/__tests__", "src/stories", "src/**/*.stories.tsx", "src/**/*.stories.ts"]
+  // Stories, their fixtures and the mock adapter are in. They were excluded
+  // when `@storybook/react-vite` was unresolvable here, on the stated claim
+  // that the storybook workspace typechecked them instead — it has never held
+  // a tsconfig, so nothing did. `vp run typecheck:stories` compiles this.
+  //
+  // src/__tests__ stays out: partial `as ApiAdapter` casts and matcher types
+  // put ~670 errors behind it. That is a separate surface and a separate
+  // change, not a place to put more of this one.
+  "exclude": ["src/__tests__"]
 }

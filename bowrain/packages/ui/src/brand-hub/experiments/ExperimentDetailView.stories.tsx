@@ -180,6 +180,9 @@ const base: ChangeSetDetail = {
   updated_at: now,
   submitted_at: now,
   governed: true,
+  // The workspace has other eligible reviewers, so a solo verdict is not on
+  // offer — the panel renders the peer path.
+  solo_review: false,
   ops,
   reviews: [],
   pilots: [
@@ -251,6 +254,7 @@ export const Approved: Story = {
           changeset_id: "cs-1",
           reviewer: "alex",
           verdict: "approve",
+          basis: "peer",
           comment: "Matches the brand book.",
           created_at: now,
         },
@@ -274,6 +278,7 @@ export const Merged: Story = {
           changeset_id: "cs-1",
           reviewer: "alex",
           verdict: "approve",
+          basis: "peer",
           created_at: now,
         },
       ],

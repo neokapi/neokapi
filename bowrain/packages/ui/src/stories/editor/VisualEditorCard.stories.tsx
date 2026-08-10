@@ -3,7 +3,6 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { VisualEditorCard } from "../../components/editor/VisualEditorCard";
 import type { VisualEditorMode } from "../../components/editor/visual-editor-types";
-import type { SpanInfo } from "../../types/api";
 import {
   sampleBlocks,
   sampleProject,
@@ -40,7 +39,7 @@ function InteractiveCard(props: CardOverrides) {
       onEditorModeChange={setEditorMode}
       isEditing={isEditing}
       onStartEditing={() => setIsEditing(true)}
-      onSave={(_codedText: string, _spans: SpanInfo[]) => setIsEditing(false)}
+      onSave={() => setIsEditing(false)}
       onCancel={() => setIsEditing(false)}
       onApprove={() => setIsEditing(false)}
       onReject={() => {}}
