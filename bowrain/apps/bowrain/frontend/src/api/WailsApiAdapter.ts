@@ -1,4 +1,5 @@
 import type { ApiAdapter } from "@neokapi/ui";
+import { governedRefusalError } from "@neokapi/ui";
 import type {
   ConvergenceRun,
   ConvergenceEstimate,
@@ -972,8 +973,13 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   // Deleting a concept is a governed transition, refused the same way the
   // server refuses it — a multi-select learns it once, not once per row.
+  //
+  // The refusal is the server's 409 envelope, not a bare Error: the resource
+  // browser reads {detail, hint} off it (governedRefusal) to say what was
+  // refused and what to do instead, and a plain Error left the desktop showing
+  // a vaguer message than the web for the same action.
   async bulkDeleteConcepts(_ws: string, _conceptIds: string[]): Promise<never> {
-    throw new Error("governed change requires a change-set");
+    throw governedRefusalError("deleting concepts");
   }
   async deleteConcept(_ws: string, conceptId: string): Promise<void> {
     return Backend.DeleteConcept("", conceptId);

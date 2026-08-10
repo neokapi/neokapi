@@ -116,6 +116,31 @@ export function apiErrorFromResponse(
 }
 
 /**
+ * The 409 envelope the server refuses a governed edit with, verbatim from
+ * `conceptGovernedConflict` (bowrain/server/handlers_concepts.go). `detail`
+ * names the specific edit and is supplied per call site.
+ *
+ * It is declared here because an adapter with no server to ask still has to
+ * refuse — the desktop's concept bulk-delete is governed whether or not a
+ * request is made — and a bare `Error` there gave the desktop a vaguer refusal
+ * than the web for the same action. A contract test holds these strings
+ * against the Go source.
+ */
+export const GOVERNED_REFUSAL_ERROR = "governed change requires a change-set";
+export const GOVERNED_REFUSAL_HINT =
+  "open a change-set (POST /:ws/changesets), add the governed op, and submit it for review";
+
+/**
+ * The refusal an adapter raises locally, shaped so `governedRefusal` reads it
+ * exactly as it reads the server's. `detail` is the phrase naming the edit
+ * ("deleting concepts"), matching the argument the Go handler passes.
+ */
+export function governedRefusalError(detail: string): ApiError {
+  const body = { error: GOVERNED_REFUSAL_ERROR, detail, hint: GOVERNED_REFUSAL_HINT };
+  return apiErrorFromResponse(409, JSON.stringify(body));
+}
+
+/**
  * The governed-refusal envelope when `err` is the 409 a governed batch is
  * refused with — deleting concepts, which belongs in a change-set. Undefined
  * for every other error, so a caller can fall through to ordinary handling.

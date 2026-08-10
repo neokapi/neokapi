@@ -172,6 +172,7 @@ const GO = {
   handlersBilling: "bowrain/server/handlers_billing.go",
   handlersQA: "bowrain/server/handlers_qa.go",
   finding: "core/check/finding.go",
+  handlersConcepts: "bowrain/server/handlers_concepts.go",
 } as const;
 
 const TS = {
@@ -182,6 +183,7 @@ const TS = {
   atoms: "bowrain/packages/ui/src/brand-hub/shell/atoms.tsx",
   restAdapter: "bowrain/packages/ui/src/api/rest-adapter.ts",
   brandTypes: "bowrain/packages/ui/src/brand/types.ts",
+  apiError: "bowrain/packages/ui/src/errors/ApiError.ts",
 } as const;
 
 const src = {
@@ -197,6 +199,7 @@ const src = {
   handlersBilling: readRepoFile(GO.handlersBilling),
   handlersQA: readRepoFile(GO.handlersQA),
   finding: readRepoFile(GO.finding),
+  handlersConcepts: readRepoFile(GO.handlersConcepts),
   api: readRepoFile(TS.api),
   brandGraph: readRepoFile(TS.brandGraph),
   blockStatus: readRepoFile(TS.blockStatus),
@@ -204,6 +207,7 @@ const src = {
   atoms: readRepoFile(TS.atoms),
   restAdapter: readRepoFile(TS.restAdapter),
   brandTypes: readRepoFile(TS.brandTypes),
+  apiError: readRepoFile(TS.apiError),
 };
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -449,6 +453,29 @@ describe("QAIssueResponse mirrors the QA issue", () => {
       "QAIssueResponse",
       { path: GO.handlersQA, members: goStructJSONFields(src.handlersQA, "QAIssueResponse") },
       { path: TS.api, members: tsInterfaceFields(src.api, "QAIssue") },
+    );
+  });
+});
+
+describe("the governed refusal is one sentence, written once", () => {
+  // The desktop refuses a governed concept delete with no server to ask, so it
+  // raises the envelope itself. Two copies of the wording is one that drifts —
+  // and the drift is invisible, because both sides still produce *a* refusal.
+  const goEnvelope = blockAfter(src.handlersConcepts, "func conceptGovernedConflict");
+  const goStrings = new Set([...goEnvelope.matchAll(/"([^"]{20,})"/g)].map((m) => m[1]));
+
+  const tsStrings = new Set(
+    [...src.apiError.matchAll(/GOVERNED_REFUSAL_(?:ERROR|HINT) =\s*\n?\s*"([^"]+)"/g)].map(
+      (m) => m[1],
+    ),
+  );
+
+  it("uses the error and hint the Go handler writes", () => {
+    expect(tsStrings.size).toBe(2);
+    expectSameMembers(
+      "governed refusal",
+      { path: GO.handlersConcepts, members: goStrings },
+      { path: TS.apiError, members: tsStrings },
     );
   });
 });
