@@ -1570,6 +1570,13 @@ export interface PendingReviewEntry {
   item_name: string;
   locale: string;
   block?: BlockInfo;
+  /**
+   * The collection this entry's item belongs to, `""` for an item in no
+   * collection. It comes from the same join the server's `collection` filter
+   * tests, so a queue narrowed to a collection and a queue grouped by one
+   * cannot disagree about where a row belongs.
+   */
+  collection_id: string;
 }
 
 /** One page of the translation review queue plus the queue's total size. */
@@ -1578,6 +1585,25 @@ export interface PendingReviewPage {
   total: number;
   limit: number;
   offset: number;
+}
+
+/**
+ * How one page of the review queue is scoped. Every field narrows the queue
+ * server-side, so `total` describes the scope asked for — a caller paging one
+ * collection is never told the project's size.
+ */
+export interface PendingReviewOptions {
+  stream?: string;
+  locales?: string[];
+  limit?: number;
+  offset?: number;
+  /**
+   * Narrow the queue to one collection's items. Undefined imposes no
+   * constraint; `""` selects the items in no collection — the ungrouped bucket
+   * the dashboard rollups also name — which is why the field is matched on
+   * presence rather than truthiness.
+   */
+  collectionId?: string;
 }
 
 // ---------------------------------------------------------------------------

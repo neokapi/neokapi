@@ -13,6 +13,7 @@ import type {
   PublicPlatformConfig,
   ModelRecommendationsResponse,
   BlockInfo,
+  PendingReviewOptions,
   PendingReviewPage,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
@@ -752,11 +753,19 @@ export class WailsApiAdapter implements ApiAdapter {
       threshold: req.threshold ?? 0,
     }) as Promise<BulkApplyMemoryResult>;
   }
+  // The desktop queue is the whole project's: `collectionId` is not threaded
+  // because the Wails backend has no collection-scoped entry point into review
+  // (the governed review session is a web surface). A caller that passes one
+  // would be answered a wider queue than it asked for, so it is refused rather
+  // than quietly ignored.
   async getPendingReview(
     _ws: string,
     projectId: string,
-    opts?: { stream?: string; locales?: string[]; limit?: number; offset?: number },
+    opts?: PendingReviewOptions,
   ): Promise<PendingReviewPage> {
+    if (opts?.collectionId !== undefined) {
+      throw new Error("the desktop review queue cannot be scoped to a collection");
+    }
     return Backend.GetPendingReview(
       projectId,
       opts?.locales ?? [],

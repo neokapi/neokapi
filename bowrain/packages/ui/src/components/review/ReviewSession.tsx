@@ -45,9 +45,9 @@ export interface ReviewSessionProps {
    * Filter the session opens on — how a collection carries into review from the
    * project overview. The reviewer can clear it like any other filter.
    *
-   * The queue itself is a bounded slice of the pending work, so a filter
-   * narrows what has been loaded rather than re-querying the server: a very
-   * large collection can show fewer entries than its rollup counts.
+   * The collection scope is applied by the server, so the queue loaded is the
+   * collection's queue and its reported total is the collection's total. The
+   * item and locale filters narrow the loaded slice in place.
    */
   initialFilter?: ReviewQueueFilter;
   /** Navigate to the delivery dashboard (completion CTA + delivery link). */
@@ -65,7 +65,6 @@ interface ReviewScope {
   itemId: string;
   itemName: string;
   format?: string;
-  collectionId?: string;
   locale: string;
   /** Dashboard says this scope has error-severity findings → fetch QA. */
   failing: boolean;
@@ -108,7 +107,6 @@ function scopesFromStats(stats: TranslationDashboardStats, targetLocales: string
           itemId: item.item_id,
           itemName: item.item_name,
           format: item.format,
-          collectionId: item.collection_id,
           locale: ls.locale,
           failing,
         });
@@ -177,18 +175,14 @@ export function ReviewSession({
   );
 
   // Item metadata for the entries the server hands back — the dashboard names
-  // the id, format and collection a queue row is grouped and filtered by. An
-  // item the dashboard does not list has no nameable collection: its entries
-  // carry `collectionId: undefined`, distinct from the `""` a listed item with
-  // no collection carries, so an unknown is never filed as a known-empty.
+  // the id and format a queue row is grouped by. The collection is NOT read
+  // from here: the queue payload carries it, from the same join the server's
+  // collection filter tests, so a row can never be filed under a collection the
+  // filter would not have selected it for.
   const itemMeta = useMemo(() => {
-    const m = new Map<string, { itemId: string; format?: string; collectionId?: string }>();
+    const m = new Map<string, { itemId: string; format?: string }>();
     for (const item of dashboardStats.item_stats) {
-      m.set(item.item_name, {
-        itemId: item.item_id,
-        format: item.format,
-        collectionId: item.collection_id,
-      });
+      m.set(item.item_name, { itemId: item.item_id, format: item.format });
     }
     return m;
   }, [dashboardStats]);
@@ -200,18 +194,27 @@ export function ReviewSession({
     [scopes],
   );
 
+  const [filter, setFilter] = useState<ReviewQueueFilter>(initialFilter ?? {});
+  // The collection the queue is loaded for. It is a query scope, not a view
+  // filter: the server pages that collection's queue and reports its total, so
+  // a collection larger than the session's slice is worked a slice at a time
+  // instead of being sieved out of the project's first thousand entries.
+  const collectionScope = filter.collectionId;
+
   // The queue comes from the server's pending-review pages — one indexed
   // query, not a blocks fetch per item (978 items once meant minutes of
   // "gathering"). Both passes are bounded: the pages stop at the session's
   // slice, and QA runs only for the flagged scopes the slice actually holds.
   const buildQueue = useCallback(async (): Promise<QueueLoad> => {
-    const loaded: { itemName: string; locale: string; block: BlockInfo }[] = [];
+    const loaded: { itemName: string; locale: string; collectionId: string; block: BlockInfo }[] =
+      [];
     const seen = new Set<string>();
     let total = 0;
     for (let offset = 0; offset < QUEUE_MAX_ENTRIES; offset += QUEUE_PAGE_SIZE) {
       const page = await api
         .getPendingReview(project.id, {
           locales: targetLocales,
+          collectionId: collectionScope,
           limit: QUEUE_PAGE_SIZE,
           offset,
         })
@@ -223,7 +226,12 @@ export function ReviewSession({
         const key = `${e.item_name}::${e.block_id}::${e.locale}`;
         if (!e.block || seen.has(key)) continue;
         seen.add(key);
-        loaded.push({ itemName: e.item_name, locale: e.locale, block: e.block });
+        loaded.push({
+          itemName: e.item_name,
+          locale: e.locale,
+          collectionId: e.collection_id ?? "",
+          block: e.block,
+        });
       }
       if (pageEntries.length < QUEUE_PAGE_SIZE || offset + pageEntries.length >= page.total) break;
     }
@@ -250,14 +258,14 @@ export function ReviewSession({
         itemId,
         itemName: e.itemName,
         format: meta?.format,
-        collectionId: meta?.collectionId,
+        collectionId: e.collectionId,
         locale: e.locale,
         block: e.block,
         issues: qaByScope.get(scopeKey(e))?.get(e.block.id) ?? [],
       });
     }
     return { entries, total: Math.max(total, entries.length) };
-  }, [api, project.id, targetLocales, failingScopes, itemMeta]);
+  }, [api, project.id, targetLocales, collectionScope, failingScopes, itemMeta]);
 
   const {
     data,
@@ -266,7 +274,9 @@ export function ReviewSession({
     refetch,
     isFetching,
   } = useQuery({
-    queryKey: ["review-session", ws, project.id, stream, scopes.length],
+    // The collection scope keys the query: clearing or changing it loads a
+    // different queue from the server rather than re-sieving the loaded one.
+    queryKey: ["review-session", ws, project.id, stream, scopes.length, collectionScope ?? null],
     queryFn: buildQueue,
     staleTime: 15_000,
   });
@@ -286,7 +296,6 @@ export function ReviewSession({
     }
   }, [data]);
 
-  const [filter, setFilter] = useState<ReviewQueueFilter>(initialFilter ?? {});
   const [groupBy, setGroupBy] = useState<ReviewGroupBy>("item");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -800,9 +809,18 @@ export function ReviewSession({
         open={confirmBulk}
         onOpenChange={setConfirmBulk}
         title="Approve all passing?"
-        description={`${noFailing} block${noFailing === 1 ? "" : "s"}${
-          filter.locale ? ` in ${localeName(filter.locale)}` : ""
-        } carry no failing check. The server applies the terminology and brand bars on approve, so it may take fewer; the rest stay for review.`}
+        description={
+          `${noFailing} block${noFailing === 1 ? "" : "s"}${
+            filter.locale ? ` in ${localeName(filter.locale)}` : ""
+          } in this queue carry no failing check. The server applies the terminology and brand bars on approve, so it may take fewer; the rest stay for review.` +
+          // The bulk pass takes a stream and locales, not a collection, so with
+          // a collection scope open the count above describes a narrower set
+          // than the act. Saying so beats a count that quietly means something
+          // else than the button does.
+          (collectionScope !== undefined
+            ? ` This pass covers the whole project, not just ${collectionFilterName}.`
+            : "")
+        }
         confirmLabel="Approve passing"
         onConfirm={() => void runBulkApprove()}
         loading={busy}

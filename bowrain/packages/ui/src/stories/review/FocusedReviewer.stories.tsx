@@ -27,6 +27,9 @@ function entry(over: Partial<ReviewEntry>): ReviewEntry {
     id: "itm-1::b1::fr-FR",
     itemId: "itm-1",
     itemName: "auth.json",
+    // The server names the collection on every queue entry; "" is the item
+    // that belongs to none.
+    collectionId: "",
     locale: "fr-FR",
     block: block({}),
     issues: [],

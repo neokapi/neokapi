@@ -143,11 +143,35 @@ type BlockCounts struct {
 	Reviewed     int
 }
 
-// PendingReviewRef names one (block, locale) pair awaiting review.
+// PendingReviewRef names one (block, locale) pair awaiting review, with the
+// collection its item belongs to so a queue row can be grouped and filtered
+// without a second source for the pairing.
 type PendingReviewRef struct {
 	BlockID  string `json:"block_id"`
 	ItemName string `json:"item_name"`
 	Locale   string `json:"locale"`
+	// CollectionID is the collection of the item this block belongs to, "" for
+	// an item in no collection. A block whose item has no row for the stream
+	// reads as "" too — the item row is the only thing that knows, and a queue
+	// that dropped such a block would be worse than one that files it as
+	// ungrouped.
+	CollectionID string `json:"collection_id"`
+}
+
+// PendingReviewQuery scopes one page of the review queue.
+type PendingReviewQuery struct {
+	ProjectID string
+	Stream    string
+	// Locales narrows to these target locales; empty imposes no constraint.
+	Locales []string
+	// CollectionID narrows the queue to the items of one collection. Nil
+	// imposes no constraint; a non-nil empty string selects the items belonging
+	// to no collection — the ungrouped bucket the dashboard rollups also name.
+	// A pointer rather than a string because the empty collection is a scope,
+	// not the absence of one.
+	CollectionID *string
+	Limit        int
+	Offset       int
 }
 
 // Version represents a named snapshot of project state.

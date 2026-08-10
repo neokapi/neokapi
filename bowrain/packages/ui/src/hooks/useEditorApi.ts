@@ -23,6 +23,7 @@ import type {
   QAIssue,
   FileQAResult,
   CreateSourceProposalRequest,
+  PendingReviewOptions,
   PendingReviewPage,
 } from "../types/api";
 
@@ -83,7 +84,7 @@ export function useEditorApi() {
   const getPendingReview = useCallback(
     async (
       projectId: string,
-      opts?: { locales?: string[]; limit?: number; offset?: number },
+      opts?: Omit<PendingReviewOptions, "stream">,
     ): Promise<PendingReviewPage> =>
       api.getPendingReview(ws, projectId, { ...opts, stream: activeStream }),
     [api, ws, activeStream],

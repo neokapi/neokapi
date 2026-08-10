@@ -979,38 +979,45 @@ func (s *SQLiteStore) CountBlocks(ctx context.Context, query platstore.BlockQuer
 // ListPendingReview pages the (block, locale) pairs whose stored target still
 // needs a review decision — the SQLite twin of the Postgres query, with
 // json_extract standing in for the ->> operator.
-func (s *SQLiteStore) ListPendingReview(ctx context.Context, projectID, stream string, locales []string, limit, offset int) ([]platstore.PendingReviewRef, int, error) {
-	if stream == "" {
-		stream = "main"
-	}
+func (s *SQLiteStore) ListPendingReview(ctx context.Context, q platstore.PendingReviewQuery) ([]platstore.PendingReviewRef, int, error) {
+	stream := storeutil.DefaultStream(q.Stream)
+	limit := q.Limit
 	if limit <= 0 {
 		limit = 200
 	}
 	// The SQLite twin of the Postgres predicate: below-reviewed status is
-	// pending, empty status included. Positional placeholders bind in string
-	// order — the JOIN's stream comes before the WHERE's project.
+	// pending, empty status included, and the LEFT JOIN on items carries each
+	// block's collection without dropping a block whose item has no row for the
+	// stream. Positional placeholders bind in string order — the two JOINs'
+	// streams come before the WHERE's project.
 	const skeleton = `SELECT %s FROM blocks b JOIN translations t
 		ON t.project_id = b.project_id AND t.block_id = b.id AND t.stream = ?
+		LEFT JOIN items i
+		ON i.project_id = b.project_id AND i.stream = ? AND i.name = b.item_name
 		WHERE b.project_id = ? AND b.translatable AND t.text <> ''
 		AND COALESCE(json_extract(t.target_json, '$.status'), '') NOT IN ('reviewed', 'signed-off')%s`
-	args := []any{stream, projectID}
-	localeFilter := ""
-	if len(locales) > 0 {
-		localeFilter = fmt.Sprintf(` AND t.locale IN (?%s)`, strings.Repeat(",?", len(locales)-1))
-		for _, l := range locales {
+	args := []any{stream, stream, q.ProjectID}
+	scope := ""
+	if len(q.Locales) > 0 {
+		scope = fmt.Sprintf(` AND t.locale IN (?%s)`, strings.Repeat(",?", len(q.Locales)-1))
+		for _, l := range q.Locales {
 			args = append(args, l)
 		}
 	}
+	if q.CollectionID != nil {
+		scope += ` AND COALESCE(i.collection_id, '') = ?`
+		args = append(args, *q.CollectionID)
+	}
 
 	var total int
-	countQuery := fmt.Sprintf(skeleton, "count(*)", localeFilter)
+	countQuery := fmt.Sprintf(skeleton, "count(*)", scope)
 	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count pending review: %w", err)
 	}
 
 	query := fmt.Sprintf(skeleton+` ORDER BY b.item_name, b.id, t.locale LIMIT ? OFFSET ?`,
-		"b.id, b.item_name, t.locale", localeFilter)
-	rows, err := s.db.QueryContext(ctx, query, append(args, limit, offset)...)
+		"b.id, b.item_name, t.locale, COALESCE(i.collection_id, '')", scope)
+	rows, err := s.db.QueryContext(ctx, query, append(args, limit, q.Offset)...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list pending review: %w", err)
 	}
@@ -1018,7 +1025,7 @@ func (s *SQLiteStore) ListPendingReview(ctx context.Context, projectID, stream s
 	var refs []platstore.PendingReviewRef
 	for rows.Next() {
 		var r platstore.PendingReviewRef
-		if err := rows.Scan(&r.BlockID, &r.ItemName, &r.Locale); err != nil {
+		if err := rows.Scan(&r.BlockID, &r.ItemName, &r.Locale, &r.CollectionID); err != nil {
 			return nil, 0, fmt.Errorf("scan pending review: %w", err)
 		}
 		refs = append(refs, r)

@@ -12,6 +12,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReviewSession } from "../components/review/ReviewSession";
 import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
+import type { ReviewQueueFilter } from "../components/review/reviewQueue";
 import { createMockAdapter, type MockAdapter } from "../stories/mock-adapter";
 import { sampleProject } from "../stories/fixtures";
 import type { BlockInfo, TargetEntry, TranslationDashboardStats, Workspace } from "../types/api";
@@ -81,15 +82,21 @@ const stats: TranslationDashboardStats = {
 function renderSession(
   dashboardStats: TranslationDashboardStats = stats,
   prepare?: (adapter: MockAdapter) => void,
+  opts?: { initialFilter?: ReviewQueueFilter; blocks?: BlockInfo[] },
 ): { adapter: MockAdapter } {
-  const adapter = createMockAdapter(blocks);
+  const adapter = createMockAdapter(opts?.blocks ?? blocks);
   prepare?.(adapter);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
       <ApiProvider adapter={adapter}>
         <WorkspaceProvider initialWorkspace={mockWorkspace}>
-          <ReviewSession project={sampleProject} dashboardStats={dashboardStats} stream="main" />
+          <ReviewSession
+            project={sampleProject}
+            dashboardStats={dashboardStats}
+            stream="main"
+            initialFilter={opts?.initialFilter}
+          />
         </WorkspaceProvider>
       </ApiProvider>
     </QueryClientProvider>,
@@ -235,6 +242,84 @@ describe("ReviewSession", () => {
     // an error, and the reviewer keeps showing the saved text.
     await waitFor(() => expect(screen.queryByTestId("reviewer-editor")).not.toBeInTheDocument());
     expect(screen.getByTestId("reviewer-target-cell").textContent).toContain("Bonjour le monde");
+  });
+
+  // A collection is a QUERY scope, not a view filter. It used to narrow the
+  // loaded slice in the browser, so a collection with more pending work than
+  // the session's 1000-entry slice showed fewer entries than its own card
+  // counted — and the "N pending" it reported was the project's number.
+  describe("a collection scope is asked of the server", () => {
+    const twoItems: BlockInfo[] = [
+      block("b1", "Hello world", "Bonjour le monde"),
+      block("b2", "Goodbye now", "Au revoir"),
+    ];
+    const twoItemStats: TranslationDashboardStats = {
+      ...stats,
+      item_stats: [
+        { ...stats.item_stats[0], item_name: "app.json", item_id: "itm-app" },
+        { ...stats.item_stats[0], item_name: "docs.json", item_id: "itm-docs" },
+      ],
+    };
+    // b1 lives in app.json, which is in a collection; b2 lives in docs.json,
+    // which is in none — the "" scope.
+    const inCollections = (a: MockAdapter) => {
+      a.itemNames = { b1: "app.json", b2: "docs.json" };
+      a.itemCollections = { "app.json": "coll-app" };
+    };
+
+    it("pages the collection's queue, and its total", async () => {
+      const { adapter } = renderSession(twoItemStats, inCollections, {
+        initialFilter: { collectionId: "coll-app" },
+        blocks: twoItems,
+      });
+      await waitFor(() =>
+        expect(screen.getByTestId("queue-row-itm-app::b1::fr-FR")).toBeInTheDocument(),
+      );
+
+      expect(adapter.pendingReviewCalls[0]?.collectionId).toBe("coll-app");
+      expect(screen.queryByTestId("queue-row-itm-docs::b2::fr-FR")).not.toBeInTheDocument();
+      expect(screen.getByTestId("review-pending-count").textContent).toContain("1 pending");
+    });
+
+    it("asks for the ungrouped bucket with the empty id, not with no scope", async () => {
+      const { adapter } = renderSession(twoItemStats, inCollections, {
+        initialFilter: { collectionId: "" },
+        blocks: twoItems,
+      });
+      await waitFor(() =>
+        expect(screen.getByTestId("queue-row-itm-docs::b2::fr-FR")).toBeInTheDocument(),
+      );
+
+      expect(adapter.pendingReviewCalls[0]?.collectionId).toBe("");
+      expect(screen.queryByTestId("queue-row-itm-app::b1::fr-FR")).not.toBeInTheDocument();
+    });
+
+    it("asks for no scope at all when the session opens unfiltered", async () => {
+      const { adapter } = renderSession(twoItemStats, inCollections, { blocks: twoItems });
+      await waitFor(() =>
+        expect(screen.getByTestId("queue-row-itm-app::b1::fr-FR")).toBeInTheDocument(),
+      );
+
+      expect(adapter.pendingReviewCalls[0]?.collectionId).toBeUndefined();
+      expect(screen.getByTestId("queue-row-itm-docs::b2::fr-FR")).toBeInTheDocument();
+    });
+
+    it("reloads from the server when the reviewer clears the scope", async () => {
+      const user = userEvent.setup();
+      const { adapter } = renderSession(twoItemStats, inCollections, {
+        initialFilter: { collectionId: "coll-app" },
+        blocks: twoItems,
+      });
+      await waitFor(() =>
+        expect(screen.getByTestId("queue-row-itm-app::b1::fr-FR")).toBeInTheDocument(),
+      );
+
+      await user.click(screen.getByTestId("filter-clear"));
+      await waitFor(() =>
+        expect(screen.getByTestId("queue-row-itm-docs::b2::fr-FR")).toBeInTheDocument(),
+      );
+      expect(adapter.pendingReviewCalls.at(-1)?.collectionId).toBeUndefined();
+    });
   });
 
   it("'Approve all passing' clears the queue and shows the delivering state", async () => {

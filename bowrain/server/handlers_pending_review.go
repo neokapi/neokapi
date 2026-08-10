@@ -17,6 +17,11 @@ type pendingReviewEntry struct {
 	ItemName string             `json:"item_name"`
 	Locale   string             `json:"locale"`
 	Block    *BlockInfoResponse `json:"block,omitempty"`
+	// CollectionID is the collection of the entry's item, "" for an item in no
+	// collection. It comes from the same join the collection filter tests, so a
+	// queue narrowed to a collection and a queue grouped by collection cannot
+	// disagree about where a row belongs.
+	CollectionID string `json:"collection_id"`
 }
 
 type pendingReviewResponse struct {
@@ -30,6 +35,14 @@ type pendingReviewResponse struct {
 // query answers what the review session once assembled client-side with a
 // blocks fetch per item — minutes of "gathering" at dogfood scale, and only
 // ever the first dashboard page of it.
+//
+// The optional `collection` query parameter narrows the queue to one
+// collection's items, server-side. PRESENCE of the key is the filter, not its
+// value: `?collection=` selects the items in no collection — the ungrouped
+// bucket the dashboard rollups name — which is a scope of its own and not the
+// absence of one. A reviewer arriving from a collection card used to get the
+// project's whole queue and filter it in the browser over a bounded slice, so a
+// collection larger than the slice showed fewer entries than its card counted.
 func (s *Server) HandleListPendingReview(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
@@ -48,7 +61,20 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 	}
 	limit, offset := pageParams(c, 200, 500)
 
-	refs, total, err := s.ContentStore.ListPendingReview(ctx, pid, streamParam(c), locales, limit, offset)
+	var collectionID *string
+	if c.QueryParams().Has("collection") {
+		scope := strings.TrimSpace(c.QueryParam("collection"))
+		collectionID = &scope
+	}
+
+	refs, total, err := s.ContentStore.ListPendingReview(ctx, store.PendingReviewQuery{
+		ProjectID:    pid,
+		Stream:       streamParam(c),
+		Locales:      locales,
+		CollectionID: collectionID,
+		Limit:        limit,
+		Offset:       offset,
+	})
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -89,10 +115,11 @@ func (s *Server) HandleListPendingReview(c echo.Context) error {
 	entries := make([]pendingReviewEntry, 0, len(refs))
 	for _, r := range refs {
 		entries = append(entries, pendingReviewEntry{
-			BlockID:  r.BlockID,
-			ItemName: r.ItemName,
-			Locale:   r.Locale,
-			Block:    byID[r.BlockID],
+			BlockID:      r.BlockID,
+			ItemName:     r.ItemName,
+			Locale:       r.Locale,
+			Block:        byID[r.BlockID],
+			CollectionID: r.CollectionID,
 		})
 	}
 	return c.JSON(http.StatusOK, pendingReviewResponse{Entries: entries, Total: total, Limit: limit, Offset: offset})

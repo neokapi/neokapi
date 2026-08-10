@@ -35,6 +35,7 @@ import type {
   BlockStatusCounts,
   AutomationHistoryPage,
   BrandScanApproveResult,
+  PendingReviewOptions,
 } from "../types/api";
 import type { VoiceProfile, BrandCorrectionRequest } from "../brand/types";
 import type {
@@ -245,6 +246,19 @@ export interface MockAdapter extends ApiAdapter {
    * queued → processing → completed/failed progressions.
    */
   brandScanJobStates: BrandScanJob[];
+  /**
+   * Which item each block belongs to (block id → item name). A block absent
+   * from the map is in "messages.json", the single-item default.
+   */
+  itemNames: Record<string, string>;
+  /**
+   * Which collection each item belongs to (item name → collection id), the
+   * pairing the server makes by joining items. An item absent from the map is
+   * in no collection, the "" scope.
+   */
+  itemCollections: Record<string, string>;
+  /** `getPendingReview` option objects in call order. */
+  pendingReviewCalls: (PendingReviewOptions | undefined)[];
 }
 
 // ---------------------------------------------------------------------------
@@ -500,6 +514,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
   const startBrandScanCalls: BrandScanRequest[] = [];
   const uploadBrandScanSourcesCalls: string[][] = [];
   const checkBrandDraftCalls: { profileName: string; text: string }[] = [];
+  const pendingReviewCalls: (PendingReviewOptions | undefined)[] = [];
   let brandScanPollIndex = 0;
 
   const adapter: MockAdapter = {
@@ -516,6 +531,9 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     uploadBrandScanSourcesCalls,
     checkBrandDraftCalls,
     brandScanJobStates: [sampleBrandScanJob],
+    itemNames: {},
+    itemCollections: {},
+    pendingReviewCalls,
 
     // --- Config ---------------------------------------------------------
     getConfig: async () => ({
@@ -738,29 +756,38 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
     }),
 
     // The server-side review queue: every (block, locale) pair with target
-    // text still below reviewed — the same predicate the server runs.
+    // text still below reviewed — the same predicate the server runs. The
+    // collection scope is applied here, as the server applies it, so a caller
+    // that passes one is answered its queue and its total.
     getPendingReview: async (_ws, _projectId, opts) => {
-      const entries = _blocks.flatMap((b) =>
-        Object.entries(b.targets ?? {})
-          .filter(([, t]) => {
-            // A target entry is either bare text or {text, status}.
-            const tt =
-              typeof t === "string"
-                ? { text: t, status: "" }
-                : (t as { text?: string; status?: string });
-            return (
-              b.translatable !== false &&
-              (tt.text ?? "").trim() !== "" &&
-              ["draft", "translated", ""].includes(tt.status ?? "")
-            );
-          })
-          .map(([loc]) => ({
-            block_id: b.id,
-            item_name: "messages.json",
-            locale: loc,
-            block: b,
-          })),
-      );
+      pendingReviewCalls.push(opts);
+      const entries = _blocks
+        .flatMap((b) =>
+          Object.entries(b.targets ?? {})
+            .filter(([, t]) => {
+              // A target entry is either bare text or {text, status}.
+              const tt =
+                typeof t === "string"
+                  ? { text: t, status: "" }
+                  : (t as { text?: string; status?: string });
+              return (
+                b.translatable !== false &&
+                (tt.text ?? "").trim() !== "" &&
+                ["draft", "translated", ""].includes(tt.status ?? "")
+              );
+            })
+            .map(([loc]) => {
+              const itemName = adapter.itemNames[b.id] ?? "messages.json";
+              return {
+                block_id: b.id,
+                item_name: itemName,
+                locale: loc,
+                block: b,
+                collection_id: adapter.itemCollections[itemName] ?? "",
+              };
+            }),
+        )
+        .filter((e) => opts?.collectionId === undefined || e.collection_id === opts.collectionId);
       const offset = opts?.offset ?? 0;
       const limit = opts?.limit ?? 200;
       return {
