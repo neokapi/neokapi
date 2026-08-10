@@ -244,7 +244,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-vocabulary check-reference-provenance check-package-licenses check-tracked-binaries check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-vocabulary check-reference-provenance check-package-licenses check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
@@ -1344,10 +1344,32 @@ EMAILS_DIR            := bowrain/emails
 LANDING_DIR           := bowrain/web/landing
 
 # Keep these globs in sync with each package's own `extract` script.
-KAPI_DESKTOP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../../../packages/ui/src/**/*.tsx" --src "../../../packages/flow-editor/src/**/*.tsx" --src "../../../packages/status-views/src/**/*.tsx" --ignore "src/stories/**" --ignore "../../../packages/*/src/stories/**" --ignore "../../../packages/*/src/__tests__/**"
-BOWRAIN_UI_IGNORES       := --ignore "**/*.stories.tsx" --ignore "**/*.test.tsx" --ignore "**/__tests__/**" --ignore "**/stories/**" --ignore "**/demo/**"
-BOWRAIN_APP_EXTRACT_SRC  := --src "src/**/*.{tsx,jsx}" --src "../ui/src/**/*.tsx" --src "../../apps/web/src/**/*.tsx" --src "../../apps/bowrain/frontend/src/**/*.tsx" $(BOWRAIN_UI_IGNORES)
-EMAILS_EXTRACT_SRC       := --src "src/*.tsx" --ignore "src/*.stories.tsx" --ignore "src/storybook-decorator.tsx"
+#
+# An --ignore is a glob `fs/promises.glob` matches against the path it yields —
+# `../` prefix and all — and `**` does not match a leading `..` segment. A bare
+# `**/…` ignore therefore fires only for --src roots that are themselves
+# unprefixed, and is dead for every `../`-prefixed root. So the exclude set is
+# spelled once per distinct prefix among a surface's roots: $(call
+# src-ignores,<prefix>) is one rooted copy, and a surface passes every prefix
+# its --src flags use.
+#
+# What the set excludes is fixtures — tests and stories. Their strings are not
+# product copy: extracted, they ship in the runtime catalogs and reach the
+# translate stage as if a human had written them for users.
+src-ignores = --ignore "$(1)**/*.stories.tsx" --ignore "$(1)**/*.test.tsx" --ignore "$(1)**/__tests__/**" --ignore "$(1)**/stories/**"
+# The bowrain surfaces also keep their `demo/` fixture trees out.
+bowrain-ui-ignores = $(call src-ignores,$(1)) --ignore "$(1)**/demo/**"
+
+# One variable per surface, and the extract targets below run exactly these —
+# so `l10n-extract-globs` can hand the whole set to the fixture guard and be
+# checking what the pipeline actually scans.
+KAPI_DESKTOP_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" --src "../../../packages/ui/src/**/*.tsx" --src "../../../packages/flow-editor/src/**/*.tsx" --src "../../../packages/status-views/src/**/*.tsx" $(call src-ignores,) $(call src-ignores,../../../)
+BOWRAIN_UI_IGNORES        := $(call bowrain-ui-ignores,)
+BOWRAIN_APP_EXTRACT_SRC   := --src "src/**/*.{tsx,jsx}" --src "../ui/src/**/*.tsx" --src "../../apps/web/src/**/*.tsx" --src "../../apps/bowrain/frontend/src/**/*.tsx" $(BOWRAIN_UI_IGNORES) $(call bowrain-ui-ignores,../) $(call bowrain-ui-ignores,../../)
+# ctrl and pulse each scan only their own src/, so the unprefixed set is whole.
+BOWRAIN_SHELL_EXTRACT_SRC := --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
+EMAILS_EXTRACT_SRC        := --src "src/*.tsx" --ignore "src/*.stories.tsx" --ignore "src/storybook-decorator.tsx"
+LANDING_EXTRACT_SRC       := --src "src/**/*.{tsx,jsx}"
 
 # Every surface whose source catalogs are per-file .kbf.json under <dir>/i18n
 # and whose targets land in <dir>/i18n-<lang>. The pseudo-translation pass and
@@ -1401,10 +1423,10 @@ bowrain-app-extract: i18n-react-build ## Extract bowrain app+ui+shell strings �
 	cd $(BOWRAIN_APP_DIR) && $(NEOKAPI_I18N_CLI) extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps $(BOWRAIN_APP_EXTRACT_SRC)
 
 bowrain-ctrl-extract: i18n-react-build ## Extract ctrl admin-app strings → bowrain/apps/ctrl/i18n/
-	cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) extract --config ../../packages/app/neokapi-i18n.config.json --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
+	cd bowrain/apps/ctrl && $(NEOKAPI_I18N_CLI) extract --config ../../packages/app/neokapi-i18n.config.json --out i18n/ --target-locale qps $(BOWRAIN_SHELL_EXTRACT_SRC)
 
 bowrain-pulse-extract: i18n-react-build ## Extract pulse dashboard strings → bowrain/apps/pulse/i18n/
-	cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) extract --config ../../packages/app/neokapi-i18n.config.json --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}" $(BOWRAIN_UI_IGNORES)
+	cd bowrain/apps/pulse && $(NEOKAPI_I18N_CLI) extract --config ../../packages/app/neokapi-i18n.config.json --out i18n/ --target-locale qps $(BOWRAIN_SHELL_EXTRACT_SRC)
 
 emails-frontend-deps: ## Install transactional-email template dependencies
 	cd $(EMAILS_DIR) && vp install
@@ -1416,7 +1438,7 @@ landing-frontend-deps: ## Install landing page dependencies
 	cd $(LANDING_DIR) && vp install
 
 landing-extract: landing-frontend-deps i18n-react-build ## Extract landing page strings → bowrain/web/landing/i18n/
-	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps --src "src/**/*.{tsx,jsx}"
+	cd $(LANDING_DIR) && $(NEOKAPI_I18N_CLI) extract --out i18n/ --target-locale qps $(LANDING_EXTRACT_SRC)
 
 kapi-i18n-generate: i18n-catalogs ## Regenerate core/i18n/builtins/metadata.json from the Go registries
 	go generate ./core/i18n/...
@@ -1426,6 +1448,20 @@ kapi-cli-i18n-generate: i18n-catalogs ## Regenerate host/i18n/commands.json from
 
 l10n-extract: kapi-desktop-extract bowrain-app-extract bowrain-ctrl-extract bowrain-pulse-extract emails-extract landing-extract kapi-i18n-generate kapi-cli-i18n-generate ## Stage 1: every SOURCE catalog the recipe declares (no target languages)
 	@echo "✓ source catalogs extracted — every collection kapi.yaml declares now has content"
+
+# Every extract surface as "<dir><TAB><flags>", one per line: the fixture guard
+# reads this rather than re-deriving globs, so the thing it checks is the thing
+# stage 1 runs. Single-quoted because the flag strings carry double quotes.
+l10n-extract-globs: ## Print each extract surface as "<dir><TAB><extract flags>"
+	@printf '%s\t%s\n' '$(KAPI_DESKTOP_FRONTEND)' '$(KAPI_DESKTOP_EXTRACT_SRC)'
+	@printf '%s\t%s\n' '$(BOWRAIN_APP_DIR)' '$(BOWRAIN_APP_EXTRACT_SRC)'
+	@printf '%s\t%s\n' 'bowrain/apps/ctrl' '$(BOWRAIN_SHELL_EXTRACT_SRC)'
+	@printf '%s\t%s\n' 'bowrain/apps/pulse' '$(BOWRAIN_SHELL_EXTRACT_SRC)'
+	@printf '%s\t%s\n' '$(EMAILS_DIR)' '$(EMAILS_EXTRACT_SRC)'
+	@printf '%s\t%s\n' '$(LANDING_DIR)' '$(LANDING_EXTRACT_SRC)'
+
+check-extract-fixtures: ## Guard: no test/story file is in any extract surface's scan set, and no fixture string is in a committed catalog
+	@node scripts/check-extract-fixtures.mjs
 
 # Stage 2: seed.
 # The committed context under .kapi/ is the truth; the project store is its
@@ -2317,7 +2353,8 @@ help: ## Show this help
         bowrain-app-extract bowrain-ctrl-extract bowrain-pulse-extract \
         kapi-i18n-generate kapi-cli-i18n-generate i18n-react-build i18n-catalogs \
         l10n l10n-extract l10n-seed l10n-translate l10n-pseudo l10n-compile \
-        l10n-verify l10n-derived-paths l10n-review-export \
+        l10n-verify l10n-derived-paths l10n-extract-globs l10n-review-export \
+        check-extract-fixtures \
         flow-editor-deps flow-editor-check flow-editor-test \
         kapi-storybook kapi-storybook-build bowrain-storybook bowrain-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \

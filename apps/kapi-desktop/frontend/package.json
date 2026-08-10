@@ -13,7 +13,7 @@
     "fmt": "vp fmt",
     "test": "vp test",
     "test:watch": "vp test watch",
-    "extract": "vpx neokapi-i18n extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps --src \"src/**/*.{tsx,jsx}\" --src \"../../../packages/ui/src/**/*.tsx\" --src \"../../../packages/flow-editor/src/**/*.tsx\" --src \"../../../packages/status-views/src/**/*.tsx\" --ignore \"src/stories/**\" --ignore \"../../../packages/*/src/stories/**\" --ignore \"../../../packages/*/src/__tests__/**\"",
+    "extract": "vpx neokapi-i18n extract --config neokapi-i18n.config.json --out i18n/ --target-locale qps --src \"src/**/*.{tsx,jsx}\" --src \"../../../packages/ui/src/**/*.tsx\" --src \"../../../packages/flow-editor/src/**/*.tsx\" --src \"../../../packages/status-views/src/**/*.tsx\" --ignore \"**/*.stories.tsx\" --ignore \"**/*.test.tsx\" --ignore \"**/__tests__/**\" --ignore \"**/stories/**\" --ignore \"../../../**/*.stories.tsx\" --ignore \"../../../**/*.test.tsx\" --ignore \"../../../**/__tests__/**\" --ignore \"../../../**/stories/**\"",
     "compile": "vpx neokapi-i18n compile i18n-qps/ --out public/translations",
     "compile:nb": "vpx neokapi-i18n compile i18n-nb/ --out public/translations --locale nb"
   },

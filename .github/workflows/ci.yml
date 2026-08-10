@@ -907,6 +907,16 @@ jobs:
       - name: Guard — no compiled executable is tracked in git
         run: ./scripts/check-tracked-binaries.sh
 
+      # The fixture guard expands the extract globs the way the extractor does,
+      # so it needs `fs/promises.glob` — Node 22. No dependencies: it reads the
+      # flag sets from `make l10n-extract-globs` and globs the working tree.
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Guard — no test or story file is extracted into a shipped catalog
+        run: node scripts/check-extract-fixtures.mjs
+
       # gofmt needs a toolchain, but no modules — gofmt is purely syntactic, so
       # this is a bare setup-go with the cache off and adds ~10s.
       #
