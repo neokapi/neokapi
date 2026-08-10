@@ -193,6 +193,18 @@ func TestTermsPostgresSemanticEquivalence(t *testing.T) {
 	assertStmtSetEqual(t, "v4 brand graph", pgV4Reference, RenderTermsPostgresV4("workspace_id"))
 }
 
+// TestTermsPostgresBaselineNamesTheExtensionSchema pins where pg_trgm is
+// installed, for the same reason the content memory's baseline does: an
+// unqualified CREATE EXTENSION puts the operator class wherever the first
+// migrating session's search_path pointed, and leaves every later session with
+// an extension that exists and an operator class it cannot see.
+func TestTermsPostgresBaselineNamesTheExtensionSchema(t *testing.T) {
+	sql := RenderTermsPostgresBaseline("workspace_id")
+	if !strings.Contains(sql, "CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;") {
+		t.Errorf("the baseline does not pin pg_trgm to a schema:\n%s", sql)
+	}
+}
+
 func assertStmtSetEqual(t *testing.T, name, want, got string) {
 	t.Helper()
 	w := normalizeStatements(want)

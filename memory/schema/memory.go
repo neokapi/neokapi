@@ -199,6 +199,17 @@ const pgFuzzyBlock = "\t\tCREATE EXTENSION IF NOT EXISTS pg_trgm;\n" +
 var pgFuzzyBaselineBlock = strings.NewReplacer(
 	"CREATE INDEX idx_tm_var_", "CREATE INDEX IF NOT EXISTS idx_tm_var_",
 	"ADD COLUMN search_tsv tsvector", "ADD COLUMN IF NOT EXISTS search_tsv tsvector",
+
+	// An extension belongs to a database but is INSTALLED INTO one schema, and
+	// an unqualified CREATE EXTENSION picks whatever search_path points at.
+	// Name the schema, so where gin_trgm_ops ends up does not depend on the
+	// session that happened to run the migration first: IF NOT EXISTS makes the
+	// second caller a no-op, and a caller whose search_path led somewhere else
+	// would then find no operator class at all. See pg_trgm's placement being
+	// pinned in the schema tests, and the two-live-schemas regression test in
+	// bowrain/memory.
+	"CREATE EXTENSION IF NOT EXISTS pg_trgm;",
+	"CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;",
 ).Replace(pgFuzzyBlock)
 
 // sqliteV1Opt renders the historical v1 SQLite layout: two-tab indentation,
