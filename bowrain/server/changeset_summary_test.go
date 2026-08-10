@@ -126,20 +126,28 @@ func TestBlastRadiusAnswersFromTheStoredSummary(t *testing.T) {
 	assert.Empty(t, got.Projects, "the stored summary carries no breakdown")
 }
 
-// TestBlastRadiusFreshBypassesTheStoredSummary: ?fresh=1 must reach the walk
-// even when a summary is sitting there. The harness has no content store, so
-// the walk is unavailable and the handler says so — which is the proof it went
-// looking for the engine rather than answering from the row.
+// TestBlastRadiusFreshBypassesTheStoredSummary: a truthy ?fresh must reach the
+// walk even when a summary is sitting there. The harness has no content store,
+// so the walk is unavailable and the handler says so — which is the proof it
+// went looking for the engine rather than answering from the row.
+//
+// Every spelling boolParam accepts is asserted because the handler used to
+// compare against the literal "1": ?fresh=true asked for a recomputation and
+// silently got the stored row back.
 func TestBlastRadiusFreshBypassesTheStoredSummary(t *testing.T) {
-	h := newKGHarness(t)
-	cs := h.seedChangeSet(t, "stored", 1)
-	require.NoError(t, h.fake.SetChangeSetImpact(t.Context(), kgTestWS, cs.ID, &knowledge.ImpactSummary{
-		AffectedBlocks: 12, ComputedAt: time.Now().UTC(),
-	}))
+	for _, query := range []string{"?fresh=1", "?fresh=true", "?fresh=t"} {
+		t.Run(query, func(t *testing.T) {
+			h := newKGHarness(t)
+			cs := h.seedChangeSet(t, "stored", 1)
+			require.NoError(t, h.fake.SetChangeSetImpact(t.Context(), kgTestWS, cs.ID, &knowledge.ImpactSummary{
+				AffectedBlocks: 12, ComputedAt: time.Now().UTC(),
+			}))
 
-	c, _ := h.req(http.MethodGet, "/changesets/"+cs.ID+"/blast-radius?fresh=1", "",
-		platauth.PermViewContent, "id", cs.ID)
-	assertEngineUnavailable(t, h.srv.HandleChangeSetBlastRadius(c))
+			c, _ := h.req(http.MethodGet, "/changesets/"+cs.ID+"/blast-radius"+query, "",
+				platauth.PermViewContent, "id", cs.ID)
+			assertEngineUnavailable(t, h.srv.HandleChangeSetBlastRadius(c))
+		})
+	}
 }
 
 // TestBlastRadiusWithoutASummaryWalks: a draft that has never been submitted

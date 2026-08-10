@@ -75,6 +75,23 @@ func (s *Server) HandleGetBilling(c echo.Context) error {
 	})
 }
 
+// BillingUsageResponse is the credit-usage answer: the per-operation spend
+// summed over the whole window, and one page of the ledger behind it.
+//
+// The two halves are narrowed differently on purpose — UsageByOperation covers
+// the window whatever ?operation and ?limit say, Entries is the page those
+// narrow — so they are named rather than left to an anonymous map a reader has
+// to infer the contract of.
+type BillingUsageResponse struct {
+	UsageByOperation map[string]int64      `json:"usage_by_operation"`
+	From             time.Time             `json:"from"`
+	To               time.Time             `json:"to"`
+	Entries          []billing.LedgerEntry `json:"entries"`
+	Total            int                   `json:"total"`
+	Limit            int                   `json:"limit"`
+	Offset           int                   `json:"offset"`
+}
+
 // HandleGetBillingUsage returns the credit usage breakdown by operation type
 // plus one page of the ledger behind it.
 //
@@ -126,14 +143,14 @@ func (s *Server) HandleGetBillingUsage(c echo.Context) error {
 		page.Entries = []billing.LedgerEntry{}
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{
-		"usage_by_operation": byOp,
-		"from":               from,
-		"to":                 to,
-		"entries":            page.Entries,
-		"total":              page.Total,
-		"limit":              page.Limit,
-		"offset":             page.Offset,
+	return c.JSON(http.StatusOK, BillingUsageResponse{
+		UsageByOperation: byOp,
+		From:             from,
+		To:               to,
+		Entries:          page.Entries,
+		Total:            page.Total,
+		Limit:            page.Limit,
+		Offset:           page.Offset,
 	})
 }
 

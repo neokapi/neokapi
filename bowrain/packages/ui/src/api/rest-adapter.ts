@@ -77,12 +77,13 @@ import type {
   ArchivedProject,
   TranslationDashboardStats,
   TranslationDashboardItemOpts,
-  ActivityInfo,
+  ActivityPage,
   ConvergenceRun,
   ConvergenceEstimate,
   LoopRollup,
   ConvergenceRunScope,
   TaskInfo,
+  TaskPage,
   CreateTaskRequest,
   NotificationPreference,
   BravoConversation,
@@ -239,15 +240,34 @@ interface CreditLedgerEntryDTO {
  * has no JSON tags, so every field is PascalCase. Mapped into the UI's camelCase
  * ConnectorSyncStatus so consumers never touch the wire casing.
  */
+/**
+ * The wire shape of `core/connector.SyncStatus`, which the per-connector and
+ * batch status routes both answer with verbatim. The adapter normalises it into
+ * the camelCase {@link ConnectorSyncStatus} the surfaces read.
+ */
 interface ConnectorSyncStatusDTO {
-  ConnectorID: string;
-  LastSync: string;
-  ItemCount: number;
-  FileCount: number;
-  WordCount: number;
-  PendingPull: number;
-  PendingPush: number;
-  Errors: string[] | null;
+  connector_id: string;
+  last_sync: string;
+  item_count: number;
+  file_count: number;
+  word_count: number;
+  pending_pull: number;
+  pending_push: number;
+  errors: string[] | null;
+}
+
+/** One DTO → the camelCase status, shared by the single and batch reads. */
+function connectorSyncStatus(dto: ConnectorSyncStatusDTO): ConnectorSyncStatus {
+  return {
+    connectorId: dto.connector_id,
+    lastSync: dto.last_sync,
+    itemCount: dto.item_count,
+    fileCount: dto.file_count,
+    wordCount: dto.word_count,
+    pendingPull: dto.pending_pull,
+    pendingPush: dto.pending_push,
+    errors: dto.errors ?? [],
+  };
 }
 
 /**
@@ -1276,16 +1296,7 @@ export class RestApiAdapter implements ApiAdapter {
         opts?.probe ? "?probe=1" : ""
       }`,
     );
-    return {
-      connectorId: dto.ConnectorID,
-      lastSync: dto.LastSync,
-      itemCount: dto.ItemCount,
-      fileCount: dto.FileCount,
-      wordCount: dto.WordCount,
-      pendingPull: dto.PendingPull,
-      pendingPush: dto.PendingPush,
-      errors: dto.Errors ?? [],
-    };
+    return connectorSyncStatus(dto);
   }
 
   async getConnectorStatuses(
@@ -1302,16 +1313,7 @@ export class RestApiAdapter implements ApiAdapter {
     }>(`/api/v1/${workspaceSlug}/connectors/status?${q.toString()}`);
     const statuses: Record<string, ConnectorSyncStatus> = {};
     for (const [id, dto] of Object.entries(raw.statuses ?? {})) {
-      statuses[id] = {
-        connectorId: dto.ConnectorID,
-        lastSync: dto.LastSync,
-        itemCount: dto.ItemCount,
-        fileCount: dto.FileCount,
-        wordCount: dto.WordCount,
-        pendingPull: dto.PendingPull,
-        pendingPush: dto.PendingPush,
-        errors: dto.Errors ?? [],
-      };
+      statuses[id] = connectorSyncStatus(dto);
     }
     return { statuses, unknown: raw.unknown ?? [] };
   }
@@ -2758,11 +2760,7 @@ export class RestApiAdapter implements ApiAdapter {
       cursor?: string;
       limit?: number;
     },
-  ): Promise<{
-    activities: ActivityInfo[];
-    next_cursor: string;
-    new_count?: number;
-  }> {
+  ): Promise<ActivityPage> {
     const params = new URLSearchParams();
     if (query?.project_id) params.set("project_id", query.project_id);
     if (query?.stream) params.set("stream", query.stream);
@@ -2881,10 +2879,7 @@ export class RestApiAdapter implements ApiAdapter {
     return params;
   }
 
-  async listTasks(
-    workspaceSlug: string,
-    query?: TaskQuery,
-  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
+  async listTasks(workspaceSlug: string, query?: TaskQuery): Promise<TaskPage> {
     const qs = this.taskParams(query).toString();
     return this.fetchJSON(`${this.tasksEp(workspaceSlug)}${qs ? `?${qs}` : ""}`);
   }
@@ -2944,7 +2939,7 @@ export class RestApiAdapter implements ApiAdapter {
   async listMyTasks(
     workspaceSlug: string,
     query?: Omit<TaskQuery, "assignee_id">,
-  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
+  ): Promise<TaskPage> {
     // "My tasks" is the tasks route filtered to the caller: the server folded
     // the former dedicated /my/tasks route into /tasks?assignee_id=me
     // (Bowrain AD-011). The old path fell through to the catch-all and 404'd

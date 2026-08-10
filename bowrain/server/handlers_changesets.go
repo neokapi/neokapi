@@ -744,7 +744,7 @@ func (s *Server) HandleChangeSetBlastRadius(c echo.Context) error {
 	if cs == nil {
 		return resp
 	}
-	if cs.Impact != nil && c.QueryParam("fresh") != "1" {
+	if cs.Impact != nil && !boolParam(c, "fresh") {
 		return c.JSON(http.StatusOK, cs.Impact.Report())
 	}
 

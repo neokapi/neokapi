@@ -63,8 +63,11 @@ func taskQueryFromRequest(c echo.Context, ws, assignee string) bstore.TaskQuery 
 
 // HandleListTasks returns tasks for a workspace, optionally filtered.
 func (s *Server) HandleListTasks(c echo.Context) error {
+	// The same bstore.TaskResult the live path returns, so an unconfigured
+	// deployment answers the shape a client already parses — next_cursor
+	// omitted, not an empty string that reads as a cursor.
 	if s.TaskStore == nil {
-		return c.JSON(http.StatusOK, map[string]any{"tasks": []any{}, "next_cursor": ""})
+		return c.JSON(http.StatusOK, bstore.TaskResult{Tasks: []bstore.Task{}})
 	}
 
 	ws := taskWorkspaceID(c)

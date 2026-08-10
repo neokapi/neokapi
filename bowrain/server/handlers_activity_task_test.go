@@ -77,10 +77,36 @@ func TestHandleListActivities_WithData(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	var resp bstore.ActivityResult
+	var resp ActivityListResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.Len(t, resp.Activities, 1)
 	assert.Equal(t, "Alice", resp.Activities[0].ActorName)
+
+	// The last page omits next_cursor rather than sending "" — the same rule
+	// bstore.ActivityResult, TaskResult and event.HistoryPage already follow, so
+	// a client reads "no next page" the same way whatever it is paging. An
+	// anonymous read omits new_count rather than claiming zero unseen.
+	var raw map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &raw))
+	assert.NotContains(t, raw, "next_cursor")
+	assert.NotContains(t, raw, "new_count")
+	assert.Contains(t, raw, "activities")
+}
+
+// An unconfigured activity store answers the shape the live path answers, not
+// a hand-built map that spelled next_cursor as an empty string.
+func TestHandleListActivities_NoStoreMatchesLiveShape(t *testing.T) {
+	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
+	srv.ActivityStore = nil
+
+	rec := httptest.NewRecorder()
+	c := srv.GetEcho().NewContext(httptest.NewRequest(http.MethodGet, "/api/v1/demo/activities", nil), rec)
+	c.SetParamNames("ws")
+	c.SetParamValues("demo")
+
+	require.NoError(t, srv.HandleListActivities(c))
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.JSONEq(t, `{"activities":[]}`, rec.Body.String())
 }
 
 func TestHandleCreateTask(t *testing.T) {

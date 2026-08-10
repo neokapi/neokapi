@@ -42,7 +42,7 @@ func (s *Server) HandleListCandidates(c echo.Context) error {
 			minCount = parsed
 		}
 	}
-	includeResolved := c.QueryParam("all") == "true"
+	includeResolved := boolParam(c, "all")
 
 	ctx := c.Request().Context()
 	suggestions, err := s.BrandStore.GetSuggestedRules(ctx, wsID, minCount)

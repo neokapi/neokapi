@@ -78,8 +78,9 @@ import type {
   ModelUsageResponse,
   TranslationDashboardStats,
   TranslationDashboardItemOpts,
-  ActivityInfo,
+  ActivityPage,
   TaskInfo,
+  TaskPage,
   CreateTaskRequest,
   NotificationPreference,
   RoleTemplate,
@@ -1504,12 +1505,8 @@ export class WailsApiAdapter implements ApiAdapter {
       cursor?: string;
       limit?: number;
     },
-  ): Promise<{
-    activities: ActivityInfo[];
-    next_cursor: string;
-    new_count?: number;
-  }> {
-    return { activities: [], next_cursor: "", new_count: 0 };
+  ): Promise<ActivityPage> {
+    return { activities: [] };
   }
 
   async markActivitiesSeen(_ws: string): Promise<void> {}
@@ -1555,11 +1552,8 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Tasks (Bowrain AD-014, not yet supported in desktop) ---
-  async listTasks(
-    _ws: string,
-    _query?: TaskQuery,
-  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
-    return { tasks: [], next_cursor: "" };
+  async listTasks(_ws: string, _query?: TaskQuery): Promise<TaskPage> {
+    return { tasks: [] };
   }
   async getTaskCounts(_ws: string, _query?: TaskQuery): Promise<TaskCounts> {
     return { by_status: { open: 0, in_progress: 0, completed: 0, cancelled: 0 }, total: 0 };
@@ -1592,8 +1586,8 @@ export class WailsApiAdapter implements ApiAdapter {
   async listMyTasks(
     _ws: string,
     _query?: { status?: string; cursor?: string; limit?: number },
-  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
-    return { tasks: [], next_cursor: "" };
+  ): Promise<TaskPage> {
+    return { tasks: [] };
   }
 
   // --- Notification preferences (Bowrain AD-014, not yet supported in desktop) ---

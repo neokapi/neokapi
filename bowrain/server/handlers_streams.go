@@ -17,7 +17,7 @@ func (s *Server) HandleListStreams(c echo.Context) error {
 	}
 
 	projectID := c.Param("id")
-	includeArchived := c.QueryParam("include_archived") == "true"
+	includeArchived := boolParam(c, "include_archived")
 
 	streams, err := s.ContentStore.ListStreams(c.Request().Context(), projectID, includeArchived)
 	if err != nil {

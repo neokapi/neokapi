@@ -4,11 +4,11 @@ import { RestApiAdapter } from "../api/rest-adapter";
 /**
  * Pins getConnectorStatus and detectInstallationRepo against the payloads the
  * SERVER actually sends. The connector status marshals the Go SyncStatus
- * struct with NO json tags — PascalCase keys — and the GitHub-setup wizard's
- * import tracking reads `errors` off the mapped result. The founder drill
- * exposed that a failed import's recorded error has to survive this exact
- * wire → adapter mapping (previously the endpoint 404ed instead, and the
- * wizard showed "Importing…" forever).
+ * struct, whose json tags are snake_case, and the GitHub-setup wizard's import
+ * tracking reads `errors` off the mapped result. The founder drill exposed that
+ * a failed import's recorded error has to survive this exact wire → adapter
+ * mapping (previously the endpoint 404ed instead, and the wizard showed
+ * "Importing…" forever).
  */
 
 function mockFetch(body: unknown, status = 200) {
@@ -40,14 +40,14 @@ describe("getConnectorStatus", () => {
     // What HandleConnectorStatus returns for a never-synced connector whose
     // initial ingest failed and whose live probe re-fails on the same clone.
     mockFetch({
-      ConnectorID: "conn-1",
-      LastSync: "0001-01-01T00:00:00Z",
-      ItemCount: 0,
-      FileCount: 0,
-      WordCount: 0,
-      PendingPull: 0,
-      PendingPush: 0,
-      Errors: [
+      connector_id: "conn-1",
+      last_sync: "0001-01-01T00:00:00Z",
+      item_count: 0,
+      file_count: 0,
+      word_count: 0,
+      pending_pull: 0,
+      pending_push: 0,
+      errors: [
         "git clone: fatal: could not read Username for 'https://github.com': terminal prompts disabled\n: exit status 128",
       ],
     });
@@ -60,7 +60,7 @@ describe("getConnectorStatus", () => {
   });
 
   it("requests the deep probe only when asked", async () => {
-    const fetchMock = mockFetch({ ConnectorID: "conn-1", LastSync: "", Errors: null });
+    const fetchMock = mockFetch({ connector_id: "conn-1", last_sync: "", errors: null });
     const a = adapter();
 
     // Default: the cheap stored read — what the wizard's 2s import poll and
@@ -76,21 +76,24 @@ describe("getConnectorStatus", () => {
     );
   });
 
-  it("maps a healthy synced payload with null Errors", async () => {
+  it("maps a healthy synced payload with null errors", async () => {
     mockFetch({
-      ConnectorID: "conn-1",
-      LastSync: "2026-07-18T09:30:00Z",
-      ItemCount: 12,
-      FileCount: 12,
-      WordCount: 340,
-      PendingPull: 0,
-      PendingPush: 0,
-      Errors: null,
+      connector_id: "conn-1",
+      last_sync: "2026-07-18T09:30:00Z",
+      item_count: 12,
+      file_count: 12,
+      word_count: 340,
+      pending_pull: 0,
+      pending_push: 0,
+      errors: null,
     });
 
     const status = await adapter().getConnectorStatus("acme", "conn-1");
 
+    expect(status.connectorId).toBe("conn-1");
     expect(status.lastSync).toBe("2026-07-18T09:30:00Z");
+    expect(status.itemCount).toBe(12);
+    expect(status.wordCount).toBe(340);
     expect(status.errors).toEqual([]);
   });
 });

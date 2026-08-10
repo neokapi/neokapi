@@ -1284,7 +1284,7 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	default:
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "sort must be name, words, or completion"})
 	}
-	ungrouped, _ := strconv.ParseBool(c.QueryParam("ungrouped"))
+	ungrouped := boolParam(c, "ungrouped")
 	window := dashboardItemWindow{
 		collectionID: c.QueryParam("collection"),
 		ungrouped:    ungrouped,

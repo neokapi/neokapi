@@ -319,7 +319,7 @@ func (s *Server) HandlePostHogDemand(c echo.Context) error {
 	}
 
 	cacheKey := posthogDemandCacheKey(pid, demandRange)
-	if c.QueryParam("refresh") != "true" {
+	if !boolParam(c, "refresh") {
 		if cached, ok := s.posthogDemand.Get(cacheKey); ok {
 			cached.Cached = true
 			return c.JSON(http.StatusOK, cached)
