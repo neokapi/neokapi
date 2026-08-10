@@ -20,7 +20,7 @@ interface LocaleSelectProps {
   "data-testid"?: string;
 }
 
-/** Single-locale selector with search. Shows "French (fr)" in options, stores "fr". */
+/** Single-locale selector with search. Shows "French (fr)" in the field and in options, stores "fr". */
 export function LocaleSelect({
   value,
   onChange,
@@ -39,10 +39,19 @@ export function LocaleSelect({
     return locales.map((l) => ({ value: l.code, label: `${l.display_name} (${l.code})` }));
   }, [codes, locales, getDisplayName]);
 
+  // The field holds a code, but a reader should not have to decode one. Without
+  // this the combobox renders its own value — "fr-FR" where the list beneath it
+  // says "French (fr-FR)".
+  const labelOf = useMemo(() => {
+    const byCode = new Map(options.map((o) => [o.value, o.label]));
+    return (code: string) => byCode.get(code) ?? `${getDisplayName(code)} (${code})`;
+  }, [options, getDisplayName]);
+
   return (
     <div style={style} className={className} data-testid={rest["data-testid"]}>
       <Combobox
         value={value}
+        itemToStringLabel={labelOf}
         onValueChange={(v: string | null) => {
           if (v != null) onChange(v);
         }}

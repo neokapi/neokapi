@@ -1,4 +1,5 @@
 import { Button, Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useState, useMemo } from "react";
 import type { DashboardItemSort, ItemTranslationStats } from "../types/api";
 import { LanguageLabel } from "./LanguageLabel";
@@ -45,6 +46,48 @@ interface FileProgressTableProps {
 
 /** Hard render cap — large projects can hold thousands of files. */
 const MAX_ROWS = 500;
+
+/**
+ * A sortable column heading. The direction is an icon rather than an arrow
+ * glued onto the label — a string concatenated into the heading becomes part of
+ * the column's name, so "Words" read as "Words ↑" to anything computing an
+ * accessible name, and as "Wordsnull" wherever the inactive state's absent
+ * indicator was stringified instead of skipped. `aria-sort` carries the state
+ * where it belongs, and the button makes the heading reachable by keyboard.
+ */
+function SortHeader({
+  label,
+  field,
+  sortField,
+  sortDir,
+  onSort,
+  className,
+}: {
+  label: string;
+  field: SortField;
+  sortField: SortField;
+  sortDir: SortDir;
+  onSort: (field: SortField) => void;
+  className?: string;
+}) {
+  const active = sortField === field;
+  const Icon = active ? (sortDir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+  return (
+    <th
+      className={cn("py-2 font-medium text-muted-foreground", className)}
+      aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className="inline-flex cursor-pointer items-center gap-1 bg-transparent p-0 text-inherit hover:text-foreground"
+      >
+        {label}
+        <Icon aria-hidden="true" className={cn("size-3", active ? "opacity-100" : "opacity-40")} />
+      </button>
+    </th>
+  );
+}
 
 function completionBarColor(pct: number): string {
   if (pct >= 90) return "bg-success";
@@ -107,11 +150,6 @@ export function FileProgressTable({
     return items;
   }, [itemStats, sortField, sortDir, paging]);
 
-  const sortIndicator = (field: SortField) => {
-    if (sortField !== field) return null;
-    return sortDir === "asc" ? " ↑" : " ↓";
-  };
-
   // Hard cap so a project with thousands of files never floods the DOM; the
   // ListCapRow below makes the cut honest. Server paging already bounds rows.
   const visibleRows = sorted.length > MAX_ROWS ? sorted.slice(0, MAX_ROWS) : sorted;
@@ -128,25 +166,31 @@ export function FileProgressTable({
           <table className="w-full text-xs">
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b">
-                <th
-                  className="cursor-pointer py-2 pr-3 text-left font-medium text-muted-foreground hover:text-foreground"
-                  onClick={() => toggleSort("name")}
-                >
-                  File{sortIndicator("name")}
-                </th>
+                <SortHeader
+                  label="File"
+                  field="name"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                  className="pr-3 text-left"
+                />
                 <th className="px-2 py-2 text-left font-medium text-muted-foreground">Format</th>
-                <th
-                  className="cursor-pointer px-2 py-2 text-right font-medium text-muted-foreground hover:text-foreground"
-                  onClick={() => toggleSort("words")}
-                >
-                  Words{sortIndicator("words")}
-                </th>
-                <th
-                  className="cursor-pointer px-2 py-2 text-right font-medium text-muted-foreground hover:text-foreground"
-                  onClick={() => toggleSort("completion")}
-                >
-                  Avg %{sortIndicator("completion")}
-                </th>
+                <SortHeader
+                  label="Words"
+                  field="words"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                  className="px-2 text-right"
+                />
+                <SortHeader
+                  label="Avg %"
+                  field="completion"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                  onSort={toggleSort}
+                  className="px-2 text-right"
+                />
                 {locales.map((l) => (
                   <th
                     key={l}

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
+import { localeDisplayName } from "../components/LanguageLabel";
 import type { LocaleInfo } from "../types/api";
 
 const EMPTY_LOCALES: LocaleInfo[] = [];
@@ -24,10 +25,14 @@ export function useLocales() {
     gcTime: Infinity,
   });
 
+  // The catalog is a curated list of major tags, so a project target such as
+  // "fr-FR" is routinely absent from it. Falling back to the code itself put
+  // raw BCP-47 in front of readers wherever a picker or a label asked for a
+  // name; CLDR knows every well-formed tag, so ask it before giving up.
   const getDisplayName = useCallback(
     (code: string): string => {
       const info = locales.find((l) => l.code === code);
-      return info ? info.display_name : code;
+      return info ? info.display_name : localeDisplayName(code);
     },
     [locales],
   );

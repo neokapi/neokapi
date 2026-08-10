@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { LocaleInfo } from "@neokapi/ui-primitives";
+import { resolveLocaleName, type LocaleInfo } from "@neokapi/ui-primitives";
 import { api } from "./useApi";
 import { qk } from "../lib/queryKeys";
 
@@ -20,10 +20,13 @@ export function useLocales() {
     [query.data],
   );
 
+  // The backend catalog lists major tags only, so a project target such as
+  // "fr-FR" is absent from it. CLDR names every well-formed tag; falling back
+  // to the code put raw BCP-47 in front of readers.
   const getDisplayName = useCallback(
     (code: string): string => {
       const info = locales.find((l) => l.code === code);
-      return info ? info.displayName : code;
+      return info ? info.displayName : resolveLocaleName(code);
     },
     [locales],
   );

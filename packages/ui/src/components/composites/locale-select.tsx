@@ -79,7 +79,15 @@ export function LocaleSelect({
 }: LocaleSelectProps) {
   const [open, setOpen] = useState(false);
 
-  const selected = locales.find((l) => l.code === value);
+  // A caller's `locales` is a catalog of major tags, so a real project target
+  // (fr-FR, pt-BR) is often not in it. Reading that as "nothing selected" hid
+  // the selection behind the placeholder; CLDR can name the tag, so name it.
+  const selected = useMemo(
+    () =>
+      locales.find((l) => l.code === value) ??
+      (value ? { code: value, displayName: resolveLocaleName(value) } : undefined),
+    [locales, value],
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -197,7 +205,7 @@ export function MultiLocaleSelect({
               className="inline-flex items-center gap-1 rounded bg-muted px-1 py-0.5 text-[10px] font-medium"
             >
               <LocalePill locale={code} />
-              <span>{displayMap.get(code) ?? code}</span>
+              <span>{displayMap.get(code) ?? resolveLocaleName(code)}</span>
               {!disabled && (
                 <span
                   role="button"
