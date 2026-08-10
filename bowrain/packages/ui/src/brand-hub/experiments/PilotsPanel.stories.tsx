@@ -15,6 +15,7 @@ const base: ChangeSetDetail = {
   created_at: now,
   updated_at: now,
   governed: true,
+  solo_review: false,
   ops: [],
   reviews: [],
   pilots: [

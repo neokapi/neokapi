@@ -38,6 +38,13 @@ import type {
 } from "../types/api";
 import type { VoiceProfile, BrandCorrectionRequest } from "../brand/types";
 import type {
+  ChangeSet,
+  ChangeSetImpact,
+  ChangeSetStatus,
+  Market,
+  MarketRequest,
+} from "../types/brand-graph";
+import type {
   AutomationRule,
   AutomationEvent,
   AutomationHistoryEntry,
@@ -403,6 +410,52 @@ const MOCK_KNOWN_EXTENSIONS = new Set([
   "yml",
 ]);
 
+/**
+ * A fixed timestamp. The brand-graph endpoints below stamp records they invent,
+ * and a story that renders a relative time must not re-render differently on
+ * every reload.
+ */
+const MOCK_NOW = "2026-01-01T00:00:00Z";
+
+/** The shape every change-set endpoint returns, at whatever status it returns. */
+function mockChangeset(id: string, status: ChangeSetStatus): ChangeSet {
+  return {
+    id,
+    workspace_id: "ws-1",
+    name: "Mock change-set",
+    status,
+    created_by: "storybook",
+    created_at: MOCK_NOW,
+    updated_at: MOCK_NOW,
+  };
+}
+
+/** A market as the create/update endpoints echo one back. */
+function mockMarket(id: string, req: MarketRequest): Market {
+  return {
+    id,
+    workspace_id: "ws-1",
+    name: req.name,
+    description: req.description,
+    locales: req.locales ?? [],
+    created_at: MOCK_NOW,
+    updated_at: MOCK_NOW,
+  };
+}
+
+/** An empty blast radius — nothing affected, nothing to inspect. */
+function mockImpact(): ChangeSetImpact {
+  return {
+    total_blocks: 0,
+    affected_blocks: 0,
+    new_violations: 0,
+    resolved: 0,
+    words: 0,
+    projects: [],
+    samples: [],
+  };
+}
+
 export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
   // Mutable copy so updates are reflected in subsequent reads
   const _blocks: BlockInfo[] = blocks
@@ -472,6 +525,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       build_date: "unknown",
       // The mock backend answers every brand-scan call, so the capability is on.
       features: { brand_scan: true },
+    }),
+    getPublicPlatformConfig: async () => ({
+      signups_open: true,
+      maintenance: { enabled: false },
+      ai_customer_choice: false,
     }),
 
     // --- Auth -----------------------------------------------------------
@@ -698,7 +756,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
           })
           .map(([loc]) => ({
             block_id: b.id,
-            item_name: b.item_name ?? "messages.json",
+            item_name: "messages.json",
             locale: loc,
             block: b,
           })),
@@ -1605,6 +1663,204 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       from: query?.from ?? new Date(Date.now() - 30 * 86400_000).toISOString(),
       to: query?.to ?? new Date().toISOString(),
     }),
+
+    // --- Account security ---------------------------------------------------
+    refreshSession: async () => true,
+    getAccountSecurity: async () => ({ in_app: true, account_url: "" }),
+    listPasskeys: async () => ({ passkeys: [] }),
+    passkeyRegisterStart: async () => ({ options: {}, nonce: "mock-nonce" }),
+    passkeyRegisterFinish: async () => {},
+    deletePasskey: async () => {},
+
+    // --- Connectors ---------------------------------------------------------
+    listConnectors: async () => [],
+    addConnector: async (_ws, type) => ({ id: "conn-1", name: "", category: type }),
+    removeConnector: async () => {},
+    getConnectorStatus: async (_ws, connectorId) => ({
+      connectorId,
+      lastSync: "",
+      itemCount: 0,
+      fileCount: 0,
+      wordCount: 0,
+      pendingPull: 0,
+      pendingPush: 0,
+      errors: [],
+    }),
+    fetchConnector: async () => ({ items_fetched: 0 }),
+    publishConnector: async () => ({ status: "ok" }),
+    listConnectorContent: async () => [],
+
+    // --- GitHub App ---------------------------------------------------------
+    githubSetupState: async () => ({ state: "mock-state", expires_in: 600 }),
+    claimInstallation: async () => ({ installation_id: 1, account: "acme" }),
+    listInstallationRepos: async () => [],
+    detectInstallationRepo: async () => ({
+      monorepo_markers: null,
+      signals: [],
+      proposed_patterns: "",
+      match_count: 0,
+      match_preview: [],
+      truncated: false,
+    }),
+    bindInstallationRepo: async (_ws, _installationId, req) => ({
+      connector_id: "conn-1",
+      repository: req.repository,
+      project_id: req.project_id,
+      branch: req.branch ?? "main",
+    }),
+
+    // --- PostHog ------------------------------------------------------------
+    getPostHogConnector: async () => ({ configured: false }),
+    savePostHogConnector: async () => ({ configured: true }),
+    deletePostHogConnector: async () => {},
+    getPostHogDemand: async (_ws, _project, range) => ({
+      range,
+      generated_at: MOCK_NOW,
+      total_sessions: 0,
+      countries: null,
+      languages: null,
+      source: { kind: "posthog", host_label: "mock", posthog_project_id: "0" },
+      cached_at: MOCK_NOW,
+      cached: false,
+    }),
+
+    // --- Context profiles ---------------------------------------------------
+    listContextProfiles: async () => ({
+      profiles: [],
+      axes: [],
+      terms: { concept_count: 0 },
+      scan_scope: "workspace",
+    }),
+
+    // --- Convergence --------------------------------------------------------
+    estimateConvergence: async () => ({
+      source: { gate: "none", total: 0, ready: 0, held: 0 },
+      totals: { pending: 0, via_tm: 0, via_ai: 0, token_estimate: 0 },
+    }),
+
+    // --- Concepts -----------------------------------------------------------
+    // The brand-hub stories drive these from `brandHubOverrides`, which carries
+    // the fixture graph. Here they answer emptily but truthfully, so a story
+    // that renders the surface without opting into that graph gets an empty
+    // state rather than a crash.
+    listConcepts: async () => ({ concepts: [], total_count: 0 }),
+    getConceptStatusCounts: async () => ({ total: 0, by_status: {} }),
+    getConceptLocaleCoverage: async () => ({ total: 0, locales: [] }),
+    getConcept: async (_ws, conceptId) => ({
+      id: conceptId,
+      domain: "",
+      definition: "",
+      terms: [],
+      created_at: MOCK_NOW,
+      updated_at: MOCK_NOW,
+    }),
+    createConcept: async (_ws, req) => ({
+      id: "c-new",
+      domain: req.domain,
+      definition: req.definition,
+      terms: req.terms,
+      created_at: MOCK_NOW,
+      updated_at: MOCK_NOW,
+    }),
+    getConceptStory: async (_ws, conceptId) => ({ concept_id: conceptId, entries: [] }),
+    listConceptRelations: async () => [],
+    addConceptRelation: async (_ws, conceptId, req) => ({
+      id: "r-new",
+      source_id: conceptId,
+      target_id: req.target_id,
+      relation_type: req.relation_type,
+      note: req.note,
+      created_at: MOCK_NOW,
+    }),
+    deleteConceptRelation: async () => {},
+    getConceptBlastRadius: async (_ws, conceptId) => ({
+      concept_id: conceptId,
+      total_blocks: 0,
+      blocks: 0,
+      occurrences: 0,
+      words: 0,
+      projects: [],
+      samples: [],
+    }),
+    listObservations: async () => [],
+    addObservation: async (_ws, conceptId, req) => ({
+      id: "o-new",
+      workspace_id: "ws-1",
+      concept_id: conceptId,
+      created_by: "storybook",
+      created_at: MOCK_NOW,
+      ...req,
+    }),
+    deleteObservation: async () => {},
+    listConceptComments: async () => [],
+    addConceptComment: async (_ws, conceptId, req) => ({
+      id: "cm-new",
+      workspace_id: "ws-1",
+      concept_id: conceptId,
+      body: req.body,
+      author: "storybook",
+      created_at: MOCK_NOW,
+      resolved: false,
+    }),
+    resolveConceptComment: async () => {},
+    deleteConceptComment: async () => {},
+
+    // --- Markets ------------------------------------------------------------
+    listMarkets: async () => [],
+    createMarket: async (_ws, req) => mockMarket("m-new", req),
+    updateMarket: async (_ws, marketId, req) => mockMarket(marketId, req),
+    deleteMarket: async () => {},
+
+    // --- Change-sets --------------------------------------------------------
+    listChangesets: async () => [],
+    getChangesetCounts: async () => ({ total: 0, by_status: {} }),
+    getChangeset: async (_ws, changesetId) => ({
+      ...mockChangeset(changesetId, "draft"),
+      governed: false,
+      ops: [],
+      reviews: [],
+      pilots: [],
+      solo_review: false,
+    }),
+    createChangeset: async (_ws, req) => ({
+      ...mockChangeset("cs-new", "draft"),
+      name: req.name,
+      description: req.description,
+    }),
+    patchChangeset: async (_ws, changesetId, req) => ({
+      ...mockChangeset(changesetId, "draft"),
+      ...req,
+    }),
+    appendChangesetOp: async (_ws, changesetId, req) => ({
+      workspace_id: "ws-1",
+      changeset_id: changesetId,
+      seq: 1,
+      base_rev: req.base_rev ?? 0,
+      created_by: "storybook",
+      created_at: MOCK_NOW,
+      ...req,
+    }),
+    removeChangesetOp: async () => {},
+    submitChangeset: async (_ws, changesetId) => mockChangeset(changesetId, "in_review"),
+    approveChangeset: async (_ws, changesetId) => mockChangeset(changesetId, "approved"),
+    rejectChangeset: async (_ws, changesetId) => mockChangeset(changesetId, "draft"),
+    mergeChangeset: async (_ws, changesetId) => ({
+      changeset_id: changesetId,
+      revisions_created: 0,
+      pilots_stopped: 0,
+    }),
+    abandonChangeset: async (_ws, changesetId) => mockChangeset(changesetId, "abandoned"),
+    getChangesetBlastRadius: async () => mockImpact(),
+    refreshChangesetBlastRadius: async () => mockImpact(),
+    addPilot: async (_ws, changesetId, req) => ({
+      workspace_id: "ws-1",
+      changeset_id: changesetId,
+      project_id: req.project_id,
+      stream: req.stream,
+      created_by: "storybook",
+      created_at: MOCK_NOW,
+    }),
+    removePilot: async () => {},
   };
   return adapter;
 }

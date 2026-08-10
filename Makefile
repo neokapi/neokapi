@@ -511,6 +511,11 @@ ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web f
 	# Build neokapi-i18n first so that subpath resolves (mirrors ci-kapi-desktop-frontend).
 	cd packages/i18n-react && vp run build
 	cd bowrain/packages/ui && vp check
+	# `vp check` reads the workspace lint ignore set, which skips stories — so
+	# nothing compiled a *.stories.tsx or the Storybook mock adapter, and the
+	# mock drifted 62 members behind ApiAdapter without a job noticing (#1801).
+	# tsc over the package tsconfig is what covers them.
+	cd bowrain/packages/ui && vp run typecheck:stories
 	cd bowrain/packages/ui && vp test
 	# packages/app was never covered here, so a broken viewFromPath sat on main
 	# from #1462 until #1533: the sidebar stopped highlighting on /terms and no

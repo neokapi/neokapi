@@ -2,11 +2,6 @@ import { useState, useCallback } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { VisualEditorLayout } from "../../components/editor/VisualEditorLayout";
-import type {
-  VisualEditorMode,
-  PreviewContentMode,
-} from "../../components/editor/visual-editor-types";
-import type { SpanInfo } from "../../types/api";
 import {
   sampleBlocks,
   sampleProject,
@@ -30,12 +25,6 @@ function InteractiveLayout(overrides: LayoutOverrides) {
   const blocks = overrides.blocks ?? sampleBlocks;
   const [selectedIndex, setSelectedIndex] = useState(overrides.selectedIndex ?? 0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editorMode, setEditorMode] = useState<VisualEditorMode>(
-    (overrides.editorMode as VisualEditorMode) ?? "translate",
-  );
-  const [previewContentMode, setPreviewContentMode] = useState<PreviewContentMode>(
-    overrides.previewContentMode ?? "source",
-  );
 
   const handleNavigate = useCallback((idx: number) => {
     setSelectedIndex(idx);
@@ -46,13 +35,10 @@ function InteractiveLayout(overrides: LayoutOverrides) {
     setEditingIndex(selectedIndex);
   }, [selectedIndex]);
 
-  const handleSave = useCallback(
-    (_codedText: string, _spans: SpanInfo[]) => {
-      setEditingIndex(null);
-      setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1));
-    },
-    [blocks.length],
-  );
+  const handleSave = useCallback(() => {
+    setEditingIndex(null);
+    setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1));
+  }, [blocks.length]);
 
   const handleCancelEditing = useCallback(() => {
     setEditingIndex(null);
@@ -66,10 +52,6 @@ function InteractiveLayout(overrides: LayoutOverrides) {
       selectedIndex={selectedIndex}
       editingIndex={editingIndex}
       targetLocale={overrides.targetLocale ?? "fr-FR"}
-      editorMode={editorMode}
-      onEditorModeChange={setEditorMode}
-      previewContentMode={previewContentMode}
-      onPreviewContentModeChange={setPreviewContentMode}
       onNavigate={handleNavigate}
       onStartEditing={handleStartEditing}
       onSave={handleSave}
@@ -121,10 +103,6 @@ const meta: Meta<typeof VisualEditorLayout> = {
     selectedIndex: 0,
     editingIndex: null,
     targetLocale: "fr-FR",
-    editorMode: "translate",
-    onEditorModeChange: fn(),
-    previewContentMode: "source",
-    onPreviewContentModeChange: fn(),
     onNavigate: fn(),
     onStartEditing: fn(),
     onSave: fn(),
@@ -158,16 +136,15 @@ export const WithMemoryMatches: Story = {
   render: () => <InteractiveLayout memoryMatches={sampleMemoryMatches} />,
 };
 
-/** Interactive layout in review mode */
+/** Interactive layout — reach review mode from the toolbar */
 export const ReviewMode: Story = {
-  render: () => <InteractiveLayout editorMode="review" />,
+  render: () => <InteractiveLayout />,
 };
 
-/** Interactive layout in enrich mode with notes and term creation */
+/** Enrich-mode inputs — notes and term creation; reach the mode from the toolbar */
 export const EnrichMode: Story = {
   render: () => (
     <InteractiveLayout
-      editorMode="enrich"
       notes={sampleBlockNotes}
       onAddNote={fn()}
       onDeleteNote={fn()}
@@ -270,23 +247,9 @@ export const WithHistory: Story = {
   },
 };
 
-/** Static snapshot: target preview content mode */
-export const TargetPreview: Story = {
-  args: {
-    previewContentMode: "target",
-  },
-};
-
-/** Static snapshot: pseudo preview — source text with accent mapping */
-export const PseudoPreview: Story = {
-  args: {
-    previewContentMode: "pseudo",
-  },
-};
-
-/** Interactive pseudo mode — click blocks, switch modes, see accented source */
-export const PseudoMode: Story = {
-  render: () => <InteractiveLayout previewContentMode="pseudo" />,
+/** Interactive preview modes — target and pseudo are toolbar choices */
+export const PreviewModes: Story = {
+  render: () => <InteractiveLayout />,
 };
 
 // ---------------------------------------------------------------------------
@@ -297,8 +260,6 @@ function NavigationDemo() {
   const blocks = navigationBlocks;
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editorMode, setEditorMode] = useState<VisualEditorMode>("translate");
-  const [previewContentMode, setPreviewContentMode] = useState<PreviewContentMode>("source");
 
   const handleNavigate = useCallback((idx: number) => {
     setSelectedIndex(idx);
@@ -309,13 +270,10 @@ function NavigationDemo() {
     setEditingIndex(selectedIndex);
   }, [selectedIndex]);
 
-  const handleSave = useCallback(
-    (_codedText: string, _spans: SpanInfo[]) => {
-      setEditingIndex(null);
-      setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1));
-    },
-    [blocks.length],
-  );
+  const handleSave = useCallback(() => {
+    setEditingIndex(null);
+    setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1));
+  }, [blocks.length]);
 
   const handleCancelEditing = useCallback(() => {
     setEditingIndex(null);
@@ -329,10 +287,6 @@ function NavigationDemo() {
       selectedIndex={selectedIndex}
       editingIndex={editingIndex}
       targetLocale="fr-FR"
-      editorMode={editorMode}
-      onEditorModeChange={setEditorMode}
-      previewContentMode={previewContentMode}
-      onPreviewContentModeChange={setPreviewContentMode}
       onNavigate={handleNavigate}
       onStartEditing={handleStartEditing}
       onSave={handleSave}

@@ -359,9 +359,11 @@ describe("createRestConceptSource", () => {
     });
     const source = createRestConceptSource(adapter, WS, { onGovernedEdit });
 
-    const error = await source.addRelation!("c1", { targetId: "c2", type: "RELATED" }).catch(
-      (e: unknown) => e,
-    );
+    // addRelation is Awaitable — a source may answer synchronously — so the
+    // rejection has to be caught through a promise the test makes itself.
+    const error = await Promise.resolve(
+      source.addRelation!("c1", { targetId: "c2", type: "RELATED" }),
+    ).catch((e: unknown) => e);
     expect(isGovernedEditError(error)).toBe(false);
     expect(onGovernedEdit).not.toHaveBeenCalled();
   });

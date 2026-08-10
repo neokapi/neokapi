@@ -29,6 +29,8 @@ const sampleProjects: ProjectInfo[] = [
 const sampleEntries: AuditEntry[] = [
   {
     id: 1,
+    chain_key: "ws-1",
+    workspace_id: "ws-1",
     project_id: "proj-1",
     event_type: "project.created",
     actor: "alice@example.com",
@@ -38,6 +40,8 @@ const sampleEntries: AuditEntry[] = [
   },
   {
     id: 2,
+    chain_key: "ws-1",
+    workspace_id: "ws-1",
     project_id: "proj-1",
     event_type: "item.created",
     actor: "alice@example.com",
@@ -47,6 +51,8 @@ const sampleEntries: AuditEntry[] = [
   },
   {
     id: 3,
+    chain_key: "ws-1",
+    workspace_id: "ws-1",
     project_id: "proj-1",
     event_type: "block.updated",
     actor: "bob@example.com",
@@ -56,6 +62,8 @@ const sampleEntries: AuditEntry[] = [
   },
   {
     id: 4,
+    chain_key: "ws-1",
+    workspace_id: "ws-1",
     project_id: "proj-1",
     event_type: "stream.created",
     actor: "alice@example.com",
@@ -65,6 +73,8 @@ const sampleEntries: AuditEntry[] = [
   },
   {
     id: 5,
+    chain_key: "ws-1",
+    workspace_id: "ws-1",
     project_id: "proj-2",
     event_type: "connector.push.completed",
     actor: "ci-bot",

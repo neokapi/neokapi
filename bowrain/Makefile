@@ -204,8 +204,12 @@ ui-deps: ## Install shared UI package dependencies
 ui-build: ui-deps ## Type-check shared UI (consumed from source; no emit)
 	cd packages/ui && vp check --no-fmt --no-lint
 
-ui-check: ui-deps ## Lint, format-check, and typecheck shared UI
+ui-check: ui-deps ## Lint, format-check, and typecheck shared UI (stories included)
 	cd packages/ui && vp check
+	# Stories and the Storybook mock adapter are outside the workspace lint
+	# ignore set that `vp check` reads; tsc over the package tsconfig is the
+	# only thing that compiles them (#1801).
+	cd packages/ui && vp run typecheck:stories
 
 storybook: ui-deps email-deps ## Launch Storybook dev server (port 6006)
 	@printf '\033]0;Storybook\007'
