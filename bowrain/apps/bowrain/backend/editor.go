@@ -230,6 +230,43 @@ func (a *App) queryItemBlocksLocal(projectID, itemName string, filter EditorBloc
 	return blocks, nil
 }
 
+// GetBlock returns one block in the same shape the block page returns its
+// elements: server-side when connected, from the local working copy offline.
+//
+// It is what a surface reads after writing a target, instead of rebuilding the
+// block from its own request — the demotion an edit triggers is the store's
+// decision on both paths (applyTargetTextEdit locally, the server's
+// demoteStaleReviewOnEdit remotely), and a second copy of that rule in
+// TypeScript is a copy that can disagree.
+func (a *App) GetBlock(projectID, blockID string) (*BlockInfo, error) {
+	if a.isConnected() {
+		client, ws := a.editorRemote()
+		remote, err := client.GetEditorBlock(context.Background(), ws, projectID, blockID)
+		if err == nil {
+			infos := editorBlocksToInfos([]apiclient.EditorBlock{*remote})
+			if len(infos) == 1 {
+				return &infos[0], nil
+			}
+		}
+		a.goOffline()
+	}
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	targetLocales := make([]string, len(proj.TargetLanguages))
+	for i, l := range proj.TargetLanguages {
+		targetLocales[i] = string(l)
+	}
+	sb, err := a.store.GetBlock(ctx, projectID, "main", blockID)
+	if err != nil {
+		return nil, err
+	}
+	bi := storedBlockToBlockInfo(sb, targetLocales)
+	return &bi, nil
+}
+
 // BlockStatusCountsView is the per-locale status histogram.
 type BlockStatusCountsView struct {
 	NotStarted int `json:"not-started"`

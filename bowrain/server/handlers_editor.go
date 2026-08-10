@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -417,15 +418,9 @@ func (s *Server) HandleGetFileBlocks(c echo.Context) error {
 	pid := projectParam(c)
 	ctx := c.Request().Context()
 
-	// Get project to know target locales.
-	proj, err := s.ContentStore.GetProject(ctx, pid)
+	targetLocales, err := s.projectTargetLocales(ctx, pid)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
-	}
-
-	targetLocales := make([]string, len(proj.TargetLanguages))
-	for i, l := range proj.TargetLanguages {
-		targetLocales[i] = string(l)
 	}
 
 	query, err := blockQueryFromRequest(c, pid)
@@ -444,6 +439,50 @@ func (s *Server) HandleGetFileBlocks(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, blocks)
+}
+
+// projectTargetLocales names a project's target languages as plain strings —
+// what the block payload keys its `targets` map by.
+func (s *Server) projectTargetLocales(ctx context.Context, pid string) ([]string, error) {
+	proj, err := s.ContentStore.GetProject(ctx, pid)
+	if err != nil {
+		return nil, err
+	}
+	locales := make([]string, len(proj.TargetLanguages))
+	for i, l := range proj.TargetLanguages {
+		locales[i] = string(l)
+	}
+	return locales, nil
+}
+
+// HandleGetBlock returns one block in the same shape the list route returns its
+// elements: GET /:ws/:id/blocks/:ref/:bid.
+//
+// Every other single-block operation already addresses a block this way
+// (/history, /notes, /term-matches, /html, and the PUTs), so reading the block
+// itself was the one gap. It exists because a client that has just written a
+// target had no way to ask what the server now holds: it either re-fetched the
+// whole item's blocks or rebuilt the block from its own request plus a local
+// copy of the server's demotion rule. The second is what `ReviewSession`
+// did — correct only for as long as the two copies of the rule agree.
+func (s *Server) HandleGetBlock(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := projectParam(c)
+	ctx := c.Request().Context()
+
+	targetLocales, err := s.projectTargetLocales(ctx, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	sb, err := s.ContentStore.GetBlock(ctx, pid, streamParam(c), c.Param("bid"))
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, storedBlockToInfoResponse(sb, targetLocales))
 }
 
 // BlockStatusCountsResponse is the per-locale status histogram, keyed as the

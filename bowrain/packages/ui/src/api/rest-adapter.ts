@@ -1487,6 +1487,19 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
+  async getBlock(
+    workspaceSlug: string,
+    projectId: string,
+    blockId: string,
+    stream?: string,
+  ): Promise<BlockInfo> {
+    const raw = await this.fetchJSON<ServerBlockInfo>(
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${encodeURIComponent(blockId)}`,
+    );
+    // The same run → coded-text normalisation the list route's elements get.
+    return normalizeServerBlocks([raw])[0];
+  }
+
   async getItem(
     workspaceSlug: string,
     projectId: string,

@@ -723,6 +723,10 @@ export class WailsApiAdapter implements ApiAdapter {
     }) as Promise<BlockCounts>;
   }
 
+  async getBlock(_ws: string, projectId: string, blockId: string): Promise<BlockInfo> {
+    return Backend.GetBlock(projectId, blockId) as Promise<BlockInfo>;
+  }
+
   async getItem(_ws: string, projectId: string, itemName: string): Promise<ItemInfo> {
     return Backend.GetItem(projectId, itemName) as Promise<ItemInfo>;
   }

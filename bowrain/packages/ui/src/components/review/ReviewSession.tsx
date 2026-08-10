@@ -412,10 +412,17 @@ export function ReviewSession({
     [api, project.id],
   );
 
-  // Persist an inline edit and carry the saved text into the entry. The status
-  // follows the server's rule for an edited target (statusAfterEdit: a content
-  // change invalidates a review decision and demotes to translated), so the
-  // reviewer shows what a reload would fetch without pulling the item's blocks.
+  // Persist an inline edit and carry the saved block into the entry.
+  //
+  // The block is RE-READ rather than rebuilt: what a write leaves behind is the
+  // server's decision (a content change invalidates a review decision and
+  // demotes to translated, plus whatever else the write recomputed), and the
+  // client predicting it means a second copy of that rule which can disagree.
+  //
+  // The local reconstruction stays as the fallback, because the read is not
+  // part of the save: a save that succeeded must not be reported as failed
+  // because the follow-up GET did not land \u2014 offline, or against a server that
+  // predates the single-block route.
   const saveEdit = useCallback(
     async (entry: ReviewEntry, result: UnifiedSaveResult) => {
       setBusy(true);
@@ -444,13 +451,19 @@ export function ReviewSession({
           text = result.text;
         }
         setEditing(false);
-        const saved: BlockInfo = {
-          ...withTargetEntry(entry.block, entry.locale, {
-            text,
-            status: statusAfterEdit(entry.block, entry.locale, text, coded),
-          }),
-          targets_coded: { ...entry.block.targets_coded, [entry.locale]: coded ?? "" },
-        };
+
+        let saved: BlockInfo;
+        try {
+          saved = await api.getBlock(project.id, entry.block.id);
+        } catch {
+          saved = {
+            ...withTargetEntry(entry.block, entry.locale, {
+              text,
+              status: statusAfterEdit(entry.block, entry.locale, text, coded),
+            }),
+            targets_coded: { ...entry.block.targets_coded, [entry.locale]: coded ?? "" },
+          };
+        }
         setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, block: saved } : e)));
         void recheck({ ...entry, block: saved });
       } catch (e) {

@@ -634,6 +634,12 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       return { total: matching.length, translatable: translatable.length, locale, status };
     },
 
+    getBlock: async (_ws, _projectId, blockId) => {
+      const block = _blocks.find((b) => b.id === blockId);
+      if (!block) throw new Error(`block not found: ${blockId}`);
+      return block;
+    },
+
     getItem: async (_ws, _projectId, itemName) => ({
       id: itemName,
       name: itemName,

@@ -57,6 +57,7 @@ const LOCAL_FIRST: ReadonlySet<string> = new Set<string>([
   "listConnectorContent",
   "getFileBlocks",
   "getBlockCounts",
+  "getBlock",
   "getItem",
   "bulkReviewBlocks",
   "bulkApplyMemory",
