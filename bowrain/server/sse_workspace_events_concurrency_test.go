@@ -126,7 +126,7 @@ func TestWorkspaceEventsSSEDoesNotBlockTheSession(t *testing.T) {
 	for range tests {
 		select {
 		case got := <-results:
-			assert.NoError(t, got.err, "%s failed while the event stream was open", got.name)
+			require.NoError(t, got.err, "%s failed while the event stream was open", got.name)
 			assert.Equal(t, http.StatusOK, got.status, "%s answered %d while the event stream was open", got.name, got.status)
 			t.Logf("%s: %d in %v", got.name, got.status, got.elapsed.Round(time.Millisecond))
 		case <-deadline:

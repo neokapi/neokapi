@@ -132,7 +132,7 @@ func dsnSetsPoolMaxConns(connStr string) bool {
 	if u, err := url.Parse(connStr); err == nil && (u.Scheme == "postgres" || u.Scheme == "postgresql") {
 		return u.Query().Has(key)
 	}
-	for _, field := range strings.Fields(connStr) {
+	for field := range strings.FieldsSeq(connStr) {
 		if k, _, ok := strings.Cut(field, "="); ok && k == key {
 			return true
 		}
