@@ -221,7 +221,12 @@ test.describe("Layout: no route clips content the user cannot reach", () => {
     // Content memory is a Context surface now; `nav-memory` is not a rail
     // entry any more, and waiting on it only bought an 8s timeout per sweep.
     { name: "memory", path: `/${wsSlug}/context/memory`, ready: "nav-context" },
-    { name: "project-detail", path: `/${wsSlug}/p/${projectId}/s/main`, ready: "nav-translate" },
+    { name: "project-overview", path: `/${wsSlug}/p/${projectId}/s/main`, ready: "nav-translate" },
+    {
+      name: "project-source",
+      path: `/${wsSlug}/p/${projectId}/s/main/source`,
+      ready: "nav-translate",
+    },
     // The editor replaces the shell's scroll container with overflow-hidden and
     // manages its own panes, so it is the route most likely to lose a scroller.
     {

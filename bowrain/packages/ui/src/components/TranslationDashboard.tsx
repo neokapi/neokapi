@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
+import { Button, Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
 import type { LocaleTranslationStats, TranslationDashboardStats } from "../types/api";
 import { Globe, FileText, Languages, BarChart3 } from "./icons";
 import { LanguageLabel } from "./LanguageLabel";
@@ -42,6 +42,12 @@ export interface TranslationDashboardProps {
   /** The axis collections are grouped by; undefined takes the derived default. */
   groupingAxis?: string;
   onGroupingAxisChange?: (axis: string) => void;
+  /**
+   * Open the project's source view, where files are added and collections are
+   * created. A project with nothing in it has no overview to show, so this is
+   * the one action it offers.
+   */
+  onAddContent?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -140,15 +146,26 @@ export function TranslationDashboard({
   onReviewCollection,
   groupingAxis,
   onGroupingAxisChange,
+  onAddContent,
 }: TranslationDashboardProps) {
-  if (!stats) {
+  // Nothing to report on: no stats at all, or a project whose content has yet
+  // to arrive. Both render the same invitation rather than a grid of zeroes —
+  // this is the surface a project opens on, so it has to say what to do next.
+  if (!stats || (stats.translatable_blocks === 0 && stats.collection_stats.length === 0)) {
     return (
       <div data-testid="translation-dashboard" className={cn("space-y-6", className)}>
-        <h1 className="text-lg font-semibold">Overview</h1>
-        <Card className="p-8 text-center">
+        <h1 className="text-lg font-semibold">
+          {projectName ? `${projectName} — Overview` : "Overview"}
+        </h1>
+        <Card className="flex flex-col items-center gap-4 p-8 text-center">
           <p className="text-sm text-muted-foreground">
             No content yet. Add files or connect a collection to see it here.
           </p>
+          {onAddContent && (
+            <Button onClick={onAddContent} data-testid="dashboard-add-content">
+              Add content
+            </Button>
+          )}
         </Card>
       </div>
     );

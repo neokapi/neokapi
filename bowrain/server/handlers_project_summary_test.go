@@ -138,3 +138,60 @@ func TestGetProjectCarriesAggregates(t *testing.T) {
 	assert.Equal(t, 9, info.WordCount)
 	assert.Equal(t, 1, info.StreamCount)
 }
+
+// TestGetProjectSummaryView asserts ?view=summary answers with the project's
+// metadata, collections, streams and aggregates but no embedded item rows —
+// the shape every project surface that is not the source view reads.
+func TestGetProjectSummaryView(t *testing.T) {
+	srv, token := newTestServer(t)
+	e := srv.GetEcho()
+	pid := seedSummaryProject(t, srv, token)
+
+	// A collection, so the summary can be asserted to number it the same way
+	// the detail view does.
+	ctx := t.Context()
+	require.NoError(t, srv.ContentStore.CreateCollection(ctx, &platstore.Collection{
+		ID: "docs", ProjectID: pid, Name: "Docs", Kind: "uploaded", ItemLabel: "item",
+	}))
+	require.NoError(t, srv.ContentStore.StoreItem(ctx, pid, "main", &platstore.Item{
+		ProjectID: pid, Name: "c.json", Format: "json", CollectionID: "docs",
+	}))
+
+	get := func(query string) ProjectInfoResponse {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/test/"+pid+query, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code)
+		var info ProjectInfoResponse
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &info))
+		return info
+	}
+
+	summary := get("?view=summary")
+	full := get("")
+
+	assert.Empty(t, summary.Items, "summary view must not embed per-item rows")
+	assert.Len(t, full.Items, 3, "the default view is unchanged")
+
+	// Everything that is not the item array agrees between the two views.
+	assert.Equal(t, full.Name, summary.Name)
+	assert.Equal(t, full.TargetLanguages, summary.TargetLanguages)
+	assert.Equal(t, full.ItemCount, summary.ItemCount)
+	assert.Equal(t, full.BlockCount, summary.BlockCount)
+	assert.Equal(t, full.WordCount, summary.WordCount)
+	assert.Equal(t, full.StreamCount, summary.StreamCount)
+	assert.Equal(t, full.ActiveStream, summary.ActiveStream)
+	assert.Equal(t, full.Streams, summary.Streams)
+	assert.Equal(t, full.Collections, summary.Collections)
+	tallies := map[string]int{}
+	for _, coll := range summary.Collections {
+		tallies[coll.ID] = coll.ItemCount
+	}
+	assert.Equal(t, 1, tallies["docs"], "collections carry their item tally")
+
+	// An unrecognised view falls back to the full detail rather than silently
+	// serving a shape the caller did not ask for.
+	assert.Len(t, get("?view=nonsense").Items, 3)
+}

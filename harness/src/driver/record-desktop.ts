@@ -986,19 +986,25 @@ async function bowrainCollaborationWalk(c: WalkCtx): Promise<void> {
   });
 
   // Closing hand-off: the same workspace opens natively. Land back on the
-  // project view, where the web-only "Open in Bowrain Desktop" banner renders
+  // source view, where the web-only "Open in Bowrain Desktop" banner renders
   // (this walk deliberately never dismisses it — the banner IS the beat).
   await beatEls("desktop-handoff", ['[data-testid="open-in-desktop-banner"]'], async () => {
     if (projectId) {
-      await page.goto(`${wsBase}/p/${projectId}/s/main${themeQ}`, { waitUntil: "domcontentloaded" });
+      await page.goto(`${wsBase}/p/${projectId}/s/main/source${themeQ}`, {
+        waitUntil: "domcontentloaded",
+      });
       await injectCursor(page); // re-add cursor after navigation
     } else {
-      // No seed — reach the first project's view via the dashboard.
+      // No seed — reach the first project via the dashboard, then its source
+      // view, which is where the banner lives.
       await page.goto(`${wsBase}${themeQ}`, { waitUntil: "domcontentloaded" });
       await injectCursor(page);
       await page.waitForSelector('[data-testid^="project-card"]', { timeout: 15_000 }).catch(() => {});
       const card = page.locator('[data-testid^="project-card"]').first();
       if (await card.count()) await humanClick(page, card);
+      const sourceNav = page.locator('[data-testid="sidebar-source"]');
+      await sourceNav.waitFor({ timeout: 15_000 }).catch(() => {});
+      if (await sourceNav.count()) await humanClick(page, sourceNav);
     }
     await page
       .waitForSelector('[data-testid="open-in-desktop-banner"]', { timeout: 15_000 })

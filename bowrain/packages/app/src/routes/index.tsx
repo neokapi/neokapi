@@ -56,6 +56,7 @@ import {
   workspacesQueryOptions,
   projectsQueryOptions,
   projectQueryOptions,
+  projectDetailQueryOptions,
   translationDashboardQueryOptions,
 } from "../queries";
 
@@ -362,13 +363,88 @@ const requireSplat = {
   parse: (raw: Record<string, string>) => (raw._splat ? raw : false),
 } as unknown as { parse?: undefined };
 
+/**
+ * The overview's URL state. The collection a reader is inside is a search
+ * param, so the overview and the item list it drills into are one route and a
+ * drill-down is linkable. Shared with the route's former `/dashboard` address
+ * so a redirect from there carries the reader's scope across.
+ */
+const overviewSearch = (
+  search: Record<string, unknown>,
+): { collection?: string; ungrouped?: boolean; items?: "all"; axis?: string } => ({
+  collection: typeof search.collection === "string" ? search.collection : undefined,
+  ungrouped: search.ungrouped === true || search.ungrouped === "true" ? true : undefined,
+  items: search.items === "all" ? "all" : undefined,
+  axis: typeof search.axis === "string" ? search.axis : undefined,
+});
+
+/**
+ * The overview needs the project's name and the dashboard's default page of
+ * stats. Both are primed here so the component's first render is a cache hit;
+ * neither carries the project's item array.
+ */
+const overviewLoader = async ({
+  context: { queryClient, api, activeWorkspace },
+  params,
+}: {
+  context: WorkspaceRouteContext & { queryClient: QueryClient; api: ApiAdapter };
+  params: { projectId: string; stream: string };
+}) => {
+  await Promise.all([
+    queryClient.ensureQueryData(
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+    ),
+    queryClient.ensureQueryData(
+      translationDashboardQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+    ),
+  ]);
+};
+
 // Stream-scoped project routes.
+//
+// The stream root is the project's overview: opening a project lands on its
+// collections and their ship readiness, and the item list is one drill-down
+// below (`?collection=` / `?items=all`). The file-centric source view — where
+// collections, uploads and streams are managed — is a sibling at
+// `…/s/$stream/source`.
 const projectRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream",
+  pendingComponent: TranslationDashboardSkeleton,
+  component: lazyRouteComponent(
+    () => import("./workspace/translation-dashboard"),
+    "TranslationDashboardRoute",
+  ),
+  validateSearch: overviewSearch,
+  loader: overviewLoader,
+});
+
+// The overview's former address. Links and bookmarks shipped pointing here, so
+// it stays reachable and lands on the same surface at its new address, carrying
+// the drill-down the reader was on.
+const translationDashboardRedirectRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/dashboard",
+  validateSearch: overviewSearch,
+  beforeLoad: ({ params, search }) => {
+    throw redirect({
+      to: "/$workspace/p/$projectId/s/$stream",
+      params,
+      search,
+      replace: true,
+    });
+  },
+});
+
+// The project's source content: its collections, the files inside them, its
+// streams, and the project-level actions (members, archive, settings). Reached
+// from the sidebar beside the overview.
+const projectSourceRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/source",
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await queryClient.ensureQueryData(
-      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+      projectDetailQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
     );
   },
   pendingComponent: ProjectDetailSkeleton,
@@ -501,42 +577,6 @@ const connectorsRoute = createRoute({
     await queryClient.ensureQueryData(
       projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
     );
-  },
-});
-
-// The project overview and the item list it drills into are one route: the
-// collection a reader is inside is URL state, so a drill-down is linkable and
-// the back affordance is the browser's as much as the page's.
-const translationDashboardRoute = createRoute({
-  getParentRoute: () => workspaceRoute,
-  path: "p/$projectId/s/$stream/dashboard",
-  pendingComponent: TranslationDashboardSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/translation-dashboard"),
-    "TranslationDashboardRoute",
-  ),
-  validateSearch: (
-    search: Record<string, unknown>,
-  ): { collection?: string; ungrouped?: boolean; items?: "all"; axis?: string } => ({
-    collection: typeof search.collection === "string" ? search.collection : undefined,
-    ungrouped: search.ungrouped === true || search.ungrouped === "true" ? true : undefined,
-    items: search.items === "all" ? "all" : undefined,
-    axis: typeof search.axis === "string" ? search.axis : undefined,
-  }),
-  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
-    await Promise.all([
-      queryClient.ensureQueryData(
-        projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
-      ),
-      queryClient.ensureQueryData(
-        translationDashboardQueryOptions(
-          api,
-          activeWorkspace.slug,
-          params.projectId,
-          params.stream,
-        ),
-      ),
-    ]);
   },
 });
 
@@ -918,6 +958,8 @@ const routeTree = rootRoute.addChildren([
   workspaceRoute.addChildren([
     dashboardRoute,
     projectRoute,
+    translationDashboardRedirectRoute,
+    projectSourceRoute,
     projectSettingsRoute,
     translateRoute,
     reviewRoute,
@@ -926,7 +968,6 @@ const routeTree = rootRoute.addChildren([
     automationsRoute,
     runsRoute,
     connectorsRoute,
-    translationDashboardRoute,
     contextRoute.addChildren([
       contextIndexRoute,
       contextProfilesRoute,

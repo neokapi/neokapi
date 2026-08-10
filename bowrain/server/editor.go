@@ -1451,28 +1451,44 @@ func editorBuildProjectItems(ctx context.Context, cs store.ContentStore, projID,
 	return out, itemCounts, nil
 }
 
-// editorBuildProjectSummary computes the per-project aggregates for the
-// workspace project list without materializing (or shipping) the per-item
-// arrays: item count, total block count, and translatable source words. It
-// uses GetBlockStats — the same lightweight projection the translation
-// dashboard uses — instead of a full GetBlocks per item, so no targets,
-// properties, or overlays are deserialized.
-func editorBuildProjectSummary(ctx context.Context, cs store.ContentStore, projID, stream string) (itemCount, blockCount, wordCount int, err error) {
+// projectAggregates are the per-project totals every project response carries,
+// plus the per-collection item tally the collection rows are numbered from.
+type projectAggregates struct {
+	itemCount  int
+	blockCount int
+	wordCount  int
+	// itemCounts maps a collection id to how many of the project's items sit
+	// in it; the collection-less bucket is keyed by the empty string.
+	itemCounts map[string]int
+}
+
+// editorBuildProjectSummary computes a project's aggregates without
+// materializing (or shipping) the per-item array: item count, total block
+// count, translatable source words, and the per-collection tally. It uses
+// GetBlockStats — the same lightweight projection the translation dashboard
+// uses — instead of a full GetBlocks per item, so no targets, properties, or
+// overlays are deserialized.
+func editorBuildProjectSummary(ctx context.Context, cs store.ContentStore, projID, stream string) (projectAggregates, error) {
 	items, err := cs.ListItems(ctx, projID, stream)
 	if err != nil {
-		return 0, 0, 0, fmt.Errorf("list items: %w", err)
+		return projectAggregates{}, fmt.Errorf("list items: %w", err)
 	}
+	agg := projectAggregates{itemCount: len(items), itemCounts: make(map[string]int, len(items))}
+	for _, item := range items {
+		agg.itemCounts[item.CollectionID]++
+	}
+
 	stats, err := cs.GetBlockStats(ctx, projID, stream)
 	if err != nil {
-		return 0, 0, 0, fmt.Errorf("get block stats: %w", err)
+		return projectAggregates{}, fmt.Errorf("get block stats: %w", err)
 	}
 	for _, bs := range stats {
-		blockCount++
+		agg.blockCount++
 		if bs.Translatable {
-			wordCount += bs.SourceWords
+			agg.wordCount += bs.SourceWords
 		}
 	}
-	return len(items), blockCount, wordCount, nil
+	return agg, nil
 }
 
 func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Project, stream string) (*ProjectInfoResponse, error) {
@@ -1489,15 +1505,44 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 		info.WordCount += it.WordCount
 	}
 
-	// Include collections in the response.
-	colls, _ := cs.ListCollections(ctx, proj.ID, stream)
+	editorAttachProjectShape(ctx, cs, proj.ID, stream, info, itemCounts)
+	return info, nil
+}
+
+// editorBuildProjectSummaryInfo builds the project's metadata shape: the
+// project's own fields, its collections and streams, and the aggregates —
+// everything except the per-item array. It costs one item listing plus one
+// block-stats projection, where the full builder costs a full block read per
+// item, so a project's surfaces that only need its name, locales, streams or
+// collections stay flat as the item count grows.
+func editorBuildProjectSummaryInfo(ctx context.Context, cs store.ContentStore, proj *store.Project, stream string) (*ProjectInfoResponse, error) {
+	info := projectToInfoResponse(proj)
+
+	agg, err := editorBuildProjectSummary(ctx, cs, proj.ID, stream)
+	if err != nil {
+		return nil, err
+	}
+	info.ItemCount = agg.itemCount
+	info.BlockCount = agg.blockCount
+	info.WordCount = agg.wordCount
+
+	editorAttachProjectShape(ctx, cs, proj.ID, stream, info, agg.itemCounts)
+	return info, nil
+}
+
+// editorAttachProjectShape fills the parts of a project response that describe
+// its shape rather than its content: the collections (each carrying the item
+// tally the caller counted) and the streams. Shared by both builders so the
+// summary and the full detail describe the same project.
+func editorAttachProjectShape(ctx context.Context, cs store.ContentStore, projID, stream string, info *ProjectInfoResponse, itemCounts map[string]int) {
+	colls, _ := cs.ListCollections(ctx, projID, stream)
 	for _, coll := range colls {
 		cr := collectionToResponse(coll)
 		cr.ItemCount = itemCounts[coll.ID]
 		info.Collections = append(info.Collections, cr)
 	}
 
-	streams, _ := cs.ListStreams(ctx, proj.ID, false)
+	streams, _ := cs.ListStreams(ctx, projID, false)
 	if streams != nil {
 		deref := make([]store.Stream, len(streams))
 		for i, st := range streams {
@@ -1507,8 +1552,6 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 	}
 	info.StreamCount = len(streams)
 	info.ActiveStream = stream
-
-	return info, nil
 }
 
 // storedBlockToInfoResponse converts a StoredBlock to a BlockInfoResponse.

@@ -382,6 +382,19 @@ export interface ProjectInfo {
   modified_at: string;
 }
 
+/**
+ * How much of a project to read.
+ *
+ * `"summary"` asks for the project without its embedded item array: the name,
+ * locales, properties, collections, streams and aggregates. Embedding the items
+ * costs the server a block read per item, so a surface that needs none of them
+ * asks for the summary and lets the dashboard endpoint serve the item list,
+ * paged. `"full"` (the default) is the detail shape with `items` populated.
+ */
+export interface ProjectReadOptions {
+  view?: "summary" | "full";
+}
+
 /** A file the server declined to import during an upload, and why. */
 export interface SkippedFile {
   name: string;

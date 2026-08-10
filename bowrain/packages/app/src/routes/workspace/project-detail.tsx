@@ -31,10 +31,16 @@ import type {
   StreamDiffResult,
   StreamInfo,
 } from "@neokapi/ui";
-import { projectQueryOptions, brandProfilesQueryOptions } from "../../queries";
+import { projectDetailQueryOptions, brandProfilesQueryOptions } from "../../queries";
 import { usePlatform } from "../../platform";
 import type { WorkspaceRouteContext } from "..";
 
+/**
+ * The project's source content: the collections it is organised into, the items
+ * inside them, its streams, and the project-level actions. This is the one
+ * surface that reads the project's embedded item array — every other project
+ * route reads the summary, and the overview serves the item list paged.
+ */
 export function ProjectDetailRoute() {
   const navigate = useNavigate();
   const { workspace, projectId } = useParams({ strict: false });
@@ -46,7 +52,7 @@ export function ProjectDetailRoute() {
   const { activeStream, setActiveStream } = useStream();
 
   const { data: project } = useSuspenseQuery(
-    projectQueryOptions(adapter, ws, projectId!, activeStream),
+    projectDetailQueryOptions(adapter, ws, projectId!, activeStream),
   );
 
   // Workspace brand-voice profiles feed the per-collection / per-stream voice
@@ -372,7 +378,7 @@ export function ProjectDetailRoute() {
         onRemoveFile={handleRemoveFile}
         onOpenDashboard={() =>
           navigate({
-            to: "/$workspace/p/$projectId/s/$stream/dashboard",
+            to: "/$workspace/p/$projectId/s/$stream",
             params: {
               workspace: workspace ?? ws,
               projectId: project.id,

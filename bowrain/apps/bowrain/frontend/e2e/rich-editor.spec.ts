@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { setupLocalApp } from "./mock-backend";
+import { setupLocalApp, openProjectSource } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 // Quarantined in CI (#867): this rich-editor suite passes locally but
@@ -24,7 +24,7 @@ async function openEditorInTable(page: any) {
   await page.getByTestId("project-name-input").fill("Rich Editor Test");
   await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
-  await expect(page.getByTestId("file-drop-zone")).toBeVisible();
+  await openProjectSource(page);
 
   await page.evaluate(async () => {
     const backend = (window as any).__wailsMockByName;
@@ -38,7 +38,7 @@ async function openEditorInTable(page: any) {
   await page.waitForTimeout(200);
 
   await page.getByText("Rich Editor Test").first().click();
-  await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+  await openProjectSource(page);
 
   await expect(page.getByTestId("open-file-hello.txt")).toBeVisible({ timeout: 5000 });
   await page.evaluate(() => {

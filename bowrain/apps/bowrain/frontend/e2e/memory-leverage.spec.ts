@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { setupLocalApp } from "./mock-backend";
+import { setupLocalApp, openProjectSource } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 // Quarantined in CI (#867): this content memory-leverage suite passes locally but
@@ -44,7 +44,7 @@ async function openEditorWithMemory(page: any) {
   await page.getByTestId("project-name-input").fill("content memory Leverage Test");
   await selectMultiLocales(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();
-  await expect(page.getByTestId("file-drop-zone")).toBeVisible();
+  await openProjectSource(page);
 
   // Seed content-memory entries exactly matching the auto-generated block sources
   await page.evaluate(async () => {
@@ -72,7 +72,7 @@ async function openEditorWithMemory(page: any) {
   await page.getByTestId("back-to-projects").click();
   await page.waitForTimeout(200);
   await page.getByText("content memory Leverage Test").first().click();
-  await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+  await openProjectSource(page);
 
   // Open file in editor
   await expect(page.getByTestId("open-file-page.html")).toBeVisible({ timeout: 5000 });

@@ -31,6 +31,7 @@ describe("route tree", () => {
     );
     expect(childPaths).toContain("/");
     expect(childPaths).toContain("p/$projectId/s/$stream");
+    expect(childPaths).toContain("p/$projectId/s/$stream/source");
     expect(childPaths).toContain("p/$projectId/s/$stream/translate/$");
     expect(childPaths).toContain("terms");
     expect(childPaths).toContain("memory");
@@ -130,6 +131,71 @@ describe("route tree", () => {
     expect(href).not.toContain("%2F");
     const matches = router.matchRoutes(href, undefined);
     expect((matches[matches.length - 1] as AnyRoute).params._splat).toBe(itemName);
+  });
+
+  // Opening a project lands on its overview — collections and ship readiness —
+  // not on a list of its files. The stream root IS that surface; the
+  // file-centric source view is a named sibling.
+  it("renders the overview at the stream root", () => {
+    const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
+
+    const matches = router.matchRoutes("/acme/p/proj-1/s/main", undefined);
+    const leaf = matches[matches.length - 1] as AnyRoute;
+    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream");
+
+    const source = router.matchRoutes("/acme/p/proj-1/s/main/source", undefined);
+    expect((source[source.length - 1] as AnyRoute).routeId).toBe(
+      "/$workspace/p/$projectId/s/$stream/source",
+    );
+  });
+
+  // The overview's drill-down is search state on that same root, so a link to
+  // one collection resolves to the root route rather than a path of its own.
+  it("keeps the collection drill-down on the root route", () => {
+    const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
+    const href = router.buildLocation({
+      to: "/$workspace/p/$projectId/s/$stream",
+      params: { workspace: "acme", projectId: "proj-1", stream: "main" },
+      search: { collection: "docs" },
+    }).href;
+    expect(href).toBe("/acme/p/proj-1/s/main?collection=docs");
+
+    const matches = router.matchRoutes("/acme/p/proj-1/s/main", { collection: "docs" });
+    const leaf = matches[matches.length - 1] as AnyRoute;
+    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream");
+    expect(leaf.search.collection).toBe("docs");
+  });
+
+  // Links and bookmarks to the overview's former address must not break, and
+  // must arrive on the drill-down they named.
+  it("redirects the former /dashboard address to the root, keeping its scope", () => {
+    const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
+    const matches = router.matchRoutes("/acme/p/proj-1/s/main/dashboard", { collection: "docs" });
+    const leaf = matches[matches.length - 1] as AnyRoute;
+    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream/dashboard");
+    expect(leaf.search.collection).toBe("docs");
+
+    // beforeLoad throws the redirect; assert where it points rather than
+    // driving a full navigation, which would need a live query client.
+    const route = router.routesById["/$workspace/p/$projectId/s/$stream/dashboard"] as unknown as {
+      options: { beforeLoad: (opts: unknown) => void };
+    };
+    const thrown = (() => {
+      try {
+        route.options.beforeLoad({
+          params: { workspace: "acme", projectId: "proj-1", stream: "main" },
+          search: { collection: "docs" },
+        });
+      } catch (err) {
+        return err as AnyRoute;
+      }
+      return undefined;
+    })();
+
+    expect(thrown, "the former address must redirect, not render").toBeDefined();
+    expect(thrown!.options.to).toBe("/$workspace/p/$projectId/s/$stream");
+    expect(thrown!.options.search).toEqual({ collection: "docs" });
+    expect(thrown!.options.replace).toBe(true);
   });
 
   it("contains auth child routes", () => {

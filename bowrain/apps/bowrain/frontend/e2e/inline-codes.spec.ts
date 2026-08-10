@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { setupLocalApp } from "./mock-backend";
+import { setupLocalApp, openProjectSource } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 // Quarantined in CI (#867): this heavy inline-code editor suite passes locally
@@ -28,7 +28,7 @@ async function openEditorWithInlineBlocks(page: Page) {
   await page.getByTestId("project-name-input").fill("Inline Test");
   await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
-  await expect(page.getByTestId("file-drop-zone")).toBeVisible();
+  await openProjectSource(page);
 
   // Add a file via the mock backend, then monkey-patch GetItemBlocks to return
   // span-bearing blocks for welcome.html
@@ -179,7 +179,7 @@ async function openEditorWithInlineBlocks(page: Page) {
   await page.waitForTimeout(200);
 
   await page.getByText("Inline Test").first().click();
-  await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+  await openProjectSource(page);
 
   // Open the file
   await expect(page.getByTestId("open-file-welcome.html")).toBeVisible({ timeout: 5000 });

@@ -194,7 +194,9 @@ export function TranslationDashboardRoute() {
     projectId: project.id,
     stream: activeStream,
   };
-  const dashboardRoute = "/$workspace/p/$projectId/s/$stream/dashboard" as const;
+  // The overview is the stream root: a scope change is a search-param change on
+  // the address the project already sits at.
+  const dashboardRoute = "/$workspace/p/$projectId/s/$stream" as const;
 
   const openScope = (next: DashboardSearch) =>
     void navigate({
@@ -298,6 +300,9 @@ export function TranslationDashboardRoute() {
         }
         onOpenAllItems={() => openScope({ items: "all" })}
         onReviewCollection={openReview}
+        onAddContent={() =>
+          void navigate({ to: "/$workspace/p/$projectId/s/$stream/source", params: routeParams })
+        }
       />
     </div>
   );

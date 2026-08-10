@@ -88,8 +88,9 @@ test.describe("Open in Desktop", () => {
 
   test("shows Open in Desktop banner on project view", async ({ page }) => {
     await injectAuthCookie(page, token);
-    // Navigate directly to the project detail route
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
+    // The banner lives on the source view — the project surface that
+    // renders ProjectView.
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/source`);
 
     // The "Open in Bowrain Desktop" banner should appear in server mode.
     await expect(page.getByTestId(TEST_IDS.editor.openInDesktopBanner)).toBeVisible({
@@ -100,8 +101,9 @@ test.describe("Open in Desktop", () => {
 
   test("generates correct deep link URL", async ({ page }) => {
     await injectAuthCookie(page, token);
-    // Navigate directly to the project detail route
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
+    // The banner lives on the source view — the project surface that
+    // renders ProjectView.
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/source`);
 
     const btn = page.getByTestId(TEST_IDS.editor.openInDesktopButton);
     await expect(btn).toBeVisible({ timeout: 10000 });
@@ -117,8 +119,9 @@ test.describe("Open in Desktop", () => {
 
   test("dismiss banner persists across navigation", async ({ page }) => {
     await injectAuthCookie(page, token);
-    // Navigate directly to the project detail route
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
+    // The banner lives on the source view — the project surface that
+    // renders ProjectView.
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/source`);
 
     // Banner should be visible.
     await expect(page.getByTestId(TEST_IDS.editor.openInDesktopBanner)).toBeVisible({
@@ -137,10 +140,11 @@ test.describe("Open in Desktop", () => {
     );
     expect(dismissed).toBe("true");
 
-    // Navigate to dashboard and back — banner should stay dismissed.
+    // Navigate to the workspace and back — banner should stay dismissed.
     await page.goto(`/${wsSlug}`);
     await expect(page.getByText("Desktop Test Project").first()).toBeVisible({ timeout: 10000 });
-    await page.getByText("Desktop Test Project").first().click();
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/source`);
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
 
     // Banner should still be hidden.
     await expect(page.getByTestId(TEST_IDS.editor.openInDesktopBanner)).not.toBeVisible();
@@ -149,8 +153,8 @@ test.describe("Open in Desktop", () => {
   test("shows download fallback when app not installed", async ({ page }) => {
     await injectAuthCookie(page, token);
 
-    // Clear any dismissed state and navigate to project.
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
+    // Clear any dismissed state and navigate to the source view.
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/source`);
     await page.evaluate(() => localStorage.removeItem("bowrain-open-in-desktop-dismissed"));
     await page.reload();
 

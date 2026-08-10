@@ -77,15 +77,31 @@ test.describe("Routing", () => {
     expect(page.url()).toContain(`/${wsSlug}`);
   });
 
-  test("deep link to project detail loads correctly", async ({ page }) => {
+  test("deep link to a project opens its overview", async ({ page }) => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
-    // Project view should load
-    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
+    // The stream root is the collection-first overview, not a file list.
+    await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 10000 });
 
     // URL should contain the project ID and stream
     expect(page.url()).toContain(`/p/${projectId}/s/main`);
+  });
+
+  test("the overview's former /dashboard address still resolves", async ({ page }) => {
+    await injectAuthCookie(page, token);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/dashboard`);
+
+    await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 10000 });
+    await expect(page).toHaveURL(new RegExp(`/p/${projectId}/s/main$`), { timeout: 10000 });
+  });
+
+  test("deep link to the source view loads the file list", async ({ page }) => {
+    await injectAuthCookie(page, token);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/source`);
+
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
+    expect(page.url()).toContain(`/p/${projectId}/s/main/source`);
   });
 
   test("deep link to editor loads correctly", async ({ page }) => {
@@ -133,13 +149,13 @@ test.describe("Routing", () => {
   test("URL persists on page refresh", async ({ page }) => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
-    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 10000 });
 
     // Refresh the page
     await page.reload();
 
-    // Project view should still be loaded after refresh
-    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
+    // The overview should still be loaded after refresh
+    await expect(page.getByTestId("translation-dashboard")).toBeVisible({ timeout: 10000 });
     expect(page.url()).toContain(`/p/${projectId}/s/main`);
   });
 

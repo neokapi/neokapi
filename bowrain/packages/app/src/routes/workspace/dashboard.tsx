@@ -268,13 +268,14 @@ export function ProjectDashboardRoute() {
     });
   }, [navigate, workspace, ws, loopRollup]);
 
-  // Deep link for the ship card: the delivery (translation) dashboard of the
-  // counted project with the most pending locales (the server sorts it first).
+  // Deep link for the ship card: the overview — where the delivery band lives —
+  // of the counted project with the most pending locales (the server sorts it
+  // first).
   const handleOpenDelivery = useCallback(() => {
     const target = loopRollup?.ship?.projects?.[0];
     if (!target) return;
     void navigate({
-      to: "/$workspace/p/$projectId/s/$stream/dashboard",
+      to: "/$workspace/p/$projectId/s/$stream",
       params: {
         workspace: workspace ?? ws,
         projectId: target.project_id,

@@ -37,6 +37,7 @@ import {
   Activity,
   Rocket,
   Plug,
+  FolderOpen,
 } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
@@ -87,7 +88,7 @@ export function NavCount({ count }: { count?: number }) {
 
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
-export type ProjectView = "dashboard" | "automations" | "runs" | "connectors";
+export type ProjectView = "dashboard" | "source" | "automations" | "runs" | "connectors";
 
 export type SidebarContext =
   | { level: "workspace"; activeView: View }
@@ -98,6 +99,8 @@ export type SidebarContext =
       activeProjectView: ProjectView;
       onBack: () => void;
       onOpenDashboard: () => void;
+      /** The project's source content: collections, items and streams. */
+      onOpenSource?: () => void;
       onOpenFile: (fileName: string) => void;
       onStreamChange: (stream: string) => void;
       onCreateStream?: () => void;
@@ -268,7 +271,7 @@ function IconNav<V extends string>({
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  tooltip="Dashboard"
+                  tooltip="Overview"
                   tooltipWhenExpanded
                   isActive={ctx.activeProjectView === "dashboard"}
                   onClick={ctx.onOpenDashboard}
@@ -277,6 +280,19 @@ function IconNav<V extends string>({
                   <LayoutDashboard />
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {ctx.onOpenSource && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    tooltip="Source content"
+                    tooltipWhenExpanded
+                    isActive={ctx.activeProjectView === "source"}
+                    onClick={ctx.onOpenSource}
+                    data-testid="sidebar-source"
+                  >
+                    <FolderOpen />
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {ctx.onOpenAutomations && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -450,9 +466,24 @@ function MobileNav<V extends string>({
                   data-testid="sidebar-dashboard"
                 >
                   <LayoutDashboard />
-                  <span>Dashboard</span>
+                  <span>Overview</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {ctx.onOpenSource && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={ctx.activeProjectView === "source"}
+                    onClick={() => {
+                      ctx.onOpenSource!();
+                      setOpenMobile(false);
+                    }}
+                    data-testid="sidebar-source"
+                  >
+                    <FolderOpen />
+                    <span>Source content</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {ctx.onOpenAutomations && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -480,6 +511,21 @@ function MobileNav<V extends string>({
                   >
                     <Rocket />
                     <span>Runs</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {ctx.onOpenConnectors && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={ctx.activeProjectView === "connectors"}
+                    onClick={() => {
+                      ctx.onOpenConnectors!();
+                      setOpenMobile(false);
+                    }}
+                    data-testid="sidebar-connectors"
+                  >
+                    <Plug />
+                    <span>Connectors</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}

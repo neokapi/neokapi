@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { setupLocalApp } from "./mock-backend";
+import { setupLocalApp, openProjectSource } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 // Quarantined in CI (#867): this translation-editor suite passes locally but
@@ -26,7 +26,7 @@ async function openEditorInTable(page: any) {
   await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
 
-  await expect(page.getByTestId("file-drop-zone")).toBeVisible();
+  await openProjectSource(page);
 
   // Step 2: Add a file via mock backend
   await page.evaluate(async () => {
@@ -43,7 +43,7 @@ async function openEditorInTable(page: any) {
 
   // Step 4: Now on the dashboard, click the project to re-enter
   await page.getByText("Editor Test").first().click();
-  await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+  await openProjectSource(page);
 
   // Step 5: Click the file to open editor
   await expect(page.getByTestId("open-file-hello.txt")).toBeVisible({ timeout: 5000 });
