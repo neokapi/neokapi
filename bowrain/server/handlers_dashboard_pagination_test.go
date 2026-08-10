@@ -86,11 +86,15 @@ func TestTranslationDashboardPagination(t *testing.T) {
 	assert.Equal(t, 9, full.TotalSourceWords)
 	require.Len(t, full.LocaleStats, 1)
 
-	// Every seeded item belongs to no collection, so the rollups are one
-	// ungrouped bucket carrying all three.
+	// Project creation ensures a default collection, and StoreItem resolves an
+	// unset collection_id to it — so every API-seeded item lands in the default
+	// bucket, never the ungrouped one. (The ungrouped bucket exists only for
+	// items whose named collection has no row; dashboard_coordinates_test
+	// seeds that shape directly against the store.)
 	require.Len(t, full.CollectionStats, 1)
-	assert.True(t, full.CollectionStats[0].Ungrouped)
-	assert.Empty(t, full.CollectionStats[0].CollectionID)
+	assert.False(t, full.CollectionStats[0].Ungrouped)
+	assert.NotEmpty(t, full.CollectionStats[0].CollectionID)
+	assert.Equal(t, "default", full.CollectionStats[0].CollectionName)
 	assert.Equal(t, 3, full.CollectionStats[0].ItemCount)
 
 	// First page sorted by words descending.
