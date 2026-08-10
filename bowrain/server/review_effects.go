@@ -109,7 +109,7 @@ func (s *Server) approveTermCandidate(ctx context.Context, item *bstore.ReviewIt
 		UpdatedAt: time.Now(),
 	}
 
-	tb, tbErr := s.wsStores.getTB(wsSlug)
+	tb, tbErr := s.wsStores.getTerms(wsSlug)
 	if tbErr != nil {
 		slog.Error("review-effects: failed to init terms", "workspace", wsSlug, "error", tbErr)
 		return

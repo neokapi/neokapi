@@ -43,7 +43,7 @@ func TestPromoteEntityToConcept(t *testing.T) {
 	require.NotEmpty(t, concept.ID)
 
 	// A real terms concept with the entity text as an approved source-locale term.
-	tb, err := s.wsStores.getTB("rc")
+	tb, err := s.wsStores.getTerms("rc")
 	require.NoError(t, err)
 	got, ok, err := tb.GetConcept(ctx, concept.ID)
 	require.NoError(t, err)

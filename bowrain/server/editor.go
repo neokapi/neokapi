@@ -24,11 +24,11 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/jobs"
-	sqltm "github.com/neokapi/neokapi/bowrain/memory"
+	sqlmemory "github.com/neokapi/neokapi/bowrain/memory"
 	"github.com/neokapi/neokapi/bowrain/resilience/aiguard"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	sqltb "github.com/neokapi/neokapi/bowrain/terms"
+	sqlterms "github.com/neokapi/neokapi/bowrain/terms"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/id"
@@ -49,25 +49,40 @@ var (
 )
 
 // ---------------------------------------------------------------------------
-// Workspace content memory/TB management (persistent, PostgreSQL-backed)
+// Workspace content memory / terms management (persistent, PostgreSQL-backed)
 // ---------------------------------------------------------------------------
 
-// workspaceMemoryTerms holds workspace-scoped content memory and terminology stores.
+// workspaceMemoryTerms holds one workspace's content memory and terms stores.
+//
+// Both are opened lazily, on the first request that needs them, and the entry
+// then caches them for the process's lifetime. mu guards that opening: it is
+// held across the nil check and the assignment, so two concurrent requests for
+// the same workspace open one store between them rather than each opening its
+// own and racing to publish it.
+//
+// The lock is per entry rather than the map's own lock because opening a
+// PostgreSQL-backed store runs migrations — holding workspaceStores.mu for that
+// would stall every other workspace's lookup behind one workspace's first use.
 type workspaceMemoryTerms struct {
-	tm memory.Store
-	tb terms.Store
+	mu     sync.Mutex
+	memory memory.Store
+	terms  terms.Store
 }
 
-// workspaceStores manages per-workspace content memory and terminology stores.
+// workspaceStores manages per-workspace content memory and terms stores.
 type workspaceStores struct {
+	// mu guards stores, the slug → entry map. It is released before the entry
+	// itself is filled; see workspaceMemoryTerms.
 	mu     sync.RWMutex
 	stores map[string]*workspaceMemoryTerms
 	pgDB   *storage.PgDB // PostgreSQL database (required in production)
 
-	// memoryFactory and tbFactory are optional factory functions for creating
-	// content memory/TB stores without PostgreSQL. Used by tests to inject in-memory stores.
+	// memoryFactory and termsFactory are optional factory functions for
+	// creating content memory / terms stores without PostgreSQL. Used by tests
+	// to inject in-memory stores. They are installed during setup, before the
+	// server serves, and never written afterwards.
 	memoryFactory func() memory.Store
-	tbFactory     func() terms.Store
+	termsFactory  func() terms.Store
 }
 
 func newWorkspaceStores() *workspaceStores {
@@ -77,58 +92,71 @@ func newWorkspaceStores() *workspaceStores {
 }
 
 func (ws *workspaceStores) getOrCreate(wsSlug string) *workspaceMemoryTerms {
+	ws.mu.RLock()
+	w, ok := ws.stores[wsSlug]
+	ws.mu.RUnlock()
+	if ok {
+		return w
+	}
+
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
-	w, ok := ws.stores[wsSlug]
-	if !ok {
-		w = &workspaceMemoryTerms{}
-		ws.stores[wsSlug] = w
+	// Another caller may have created the entry between the two locks; the
+	// entry has to be unique per slug or the caching below is per-caller.
+	if w, ok := ws.stores[wsSlug]; ok {
+		return w
 	}
+	w = &workspaceMemoryTerms{}
+	ws.stores[wsSlug] = w
 	return w
 }
 
 func (ws *workspaceStores) getMemory(wsSlug string) (memory.Store, error) {
 	w := ws.getOrCreate(wsSlug)
-	if w.tm != nil {
-		return w.tm, nil
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.memory != nil {
+		return w.memory, nil
 	}
 
 	if ws.pgDB == nil {
 		if ws.memoryFactory != nil {
-			w.tm = ws.memoryFactory()
-			return w.tm, nil
+			w.memory = ws.memoryFactory()
+			return w.memory, nil
 		}
 		return nil, errNoPgDB
 	}
 
-	tm, err := sqltm.NewPostgresStoreFromDB(ws.pgDB, wsSlug)
+	opened, err := sqlmemory.NewPostgresStoreFromDB(ws.pgDB, wsSlug)
 	if err != nil {
 		return nil, err
 	}
-	w.tm = tm
-	return tm, nil
+	w.memory = opened
+	return opened, nil
 }
 
-func (ws *workspaceStores) getTB(wsSlug string) (terms.Store, error) {
+func (ws *workspaceStores) getTerms(wsSlug string) (terms.Store, error) {
 	w := ws.getOrCreate(wsSlug)
-	if w.tb != nil {
-		return w.tb, nil
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.terms != nil {
+		return w.terms, nil
 	}
 
 	if ws.pgDB == nil {
-		if ws.tbFactory != nil {
-			w.tb = ws.tbFactory()
-			return w.tb, nil
+		if ws.termsFactory != nil {
+			w.terms = ws.termsFactory()
+			return w.terms, nil
 		}
 		return nil, errNoPgDB
 	}
 
-	tb, err := sqltb.NewPostgresStoreFromDB(ws.pgDB, wsSlug)
+	opened, err := sqlterms.NewPostgresStoreFromDB(ws.pgDB, wsSlug)
 	if err != nil {
 		return nil, err
 	}
-	w.tb = tb
-	return tb, nil
+	w.terms = opened
+	return opened, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -909,7 +937,7 @@ func editorGlossary(
 	if brandCtx.Stores == nil || workspaceSlug == "" || sourceLocale == "" || targetLocale == "" {
 		return nil
 	}
-	tb, err := brandCtx.Stores.getTB(workspaceSlug)
+	tb, err := brandCtx.Stores.getTerms(workspaceSlug)
 	if err != nil || tb == nil {
 		if err != nil {
 			slog.WarnContext(ctx, "terms resolution failed; translating without glossary",
@@ -1124,7 +1152,7 @@ func editorTermEnforce(ctx context.Context, cs store.ContentStore, wsStores *wor
 		return nil, err
 	}
 
-	tb, err := wsStores.getTB(ws)
+	tb, err := wsStores.getTerms(ws)
 	if err != nil {
 		return nil, fmt.Errorf("init terms: %w", err)
 	}
@@ -1285,7 +1313,7 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 		return nil, err
 	}
 
-	tb, err := wsStores.getTB(ws)
+	tb, err := wsStores.getTerms(ws)
 	if err != nil {
 		return nil, fmt.Errorf("init terms: %w", err)
 	}

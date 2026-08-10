@@ -16,7 +16,7 @@ type ServerKnownTermsLoader struct {
 
 // LoadKnownTerms returns all term texts for the given locale from the workspace terms.
 func (l *ServerKnownTermsLoader) LoadKnownTerms(ctx context.Context, _ string, locale string) ([]string, error) {
-	tb, err := l.wsStores.getTB(l.workspaceSlug)
+	tb, err := l.wsStores.getTerms(l.workspaceSlug)
 	if err != nil {
 		return nil, fmt.Errorf("init terms: %w", err)
 	}

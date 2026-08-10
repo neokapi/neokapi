@@ -49,7 +49,7 @@ func kgIntegrationServer(t *testing.T) *Server {
 	require.NoError(t, err)
 	srv.BrandStore = bs
 
-	srv.wsStores.tbFactory = func() terms.Store {
+	srv.wsStores.termsFactory = func() terms.Store {
 		return &testTermStore{terms.NewInMemoryStore()}
 	}
 	return srv

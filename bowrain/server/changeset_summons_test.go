@@ -50,7 +50,7 @@ func newSummonsHarness(t *testing.T) *summonsHarness {
 	t.Cleanup(func() { _ = cs.Close() })
 
 	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
-	srv.wsStores.tbFactory = func() terms.Store {
+	srv.wsStores.termsFactory = func() terms.Store {
 		return &testTermStore{terms.NewInMemoryStore()}
 	}
 	fake := newFakeKnowledgeStore()

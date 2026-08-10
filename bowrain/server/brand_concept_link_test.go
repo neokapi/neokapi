@@ -21,7 +21,7 @@ import (
 func linkTestServer(t *testing.T) *Server {
 	t.Helper()
 	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
-	srv.wsStores.tbFactory = func() terms.Store {
+	srv.wsStores.termsFactory = func() terms.Store {
 		return &testTermStore{terms.NewInMemoryStore()}
 	}
 	return srv
@@ -61,7 +61,7 @@ func TestLinkRuleToConcept_CreatesForbiddenReplacementAndRelation(t *testing.T) 
 	require.NoError(t, err)
 	require.NotEmpty(t, forbiddenID)
 
-	tb, err := srv.wsStores.getTB(wsSlug)
+	tb, err := srv.wsStores.getTerms(wsSlug)
 	require.NoError(t, err)
 
 	// Forbidden concept: brand-vocabulary source, English (default) locale.
@@ -114,7 +114,7 @@ func TestLinkRuleToConcept_Idempotent(t *testing.T) {
 	assert.Equal(t, firstID, secondID, "re-promotion reuses the forbidden concept")
 	assert.Empty(t, events, "a re-promotion that changes nothing emits no events")
 
-	tb, err := srv.wsStores.getTB(wsSlug)
+	tb, err := srv.wsStores.getTerms(wsSlug)
 	require.NoError(t, err)
 	count, err := tb.Count(ctx)
 	require.NoError(t, err)
@@ -134,7 +134,7 @@ func TestLinkRuleToConcept_NoReplacement(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, forbiddenID)
 
-	tb, err := srv.wsStores.getTB(wsSlug)
+	tb, err := srv.wsStores.getTerms(wsSlug)
 	require.NoError(t, err)
 	count, err := tb.Count(ctx)
 	require.NoError(t, err)
@@ -150,7 +150,7 @@ func TestLinkRuleToConcept_ReusesExistingBrandConceptCaseInsensitive(t *testing.
 	ctx := context.Background()
 	const wsSlug, wsID = "acme", "ws-acme"
 
-	tb, err := srv.wsStores.getTB(wsSlug)
+	tb, err := srv.wsStores.getTerms(wsSlug)
 	require.NoError(t, err)
 	// Seed a pre-existing brand-vocab forbidden concept with a different casing.
 	seeded := terms.Concept{
@@ -193,7 +193,7 @@ func TestLinkRuleToConcept_UsesProjectSourceLocale(t *testing.T) {
 	forbiddenID, _, err := srv.linkRuleToConcept(ctx, "acme", "ws-acme", coreprofile.SuggestedRule{Term: "nutzen"})
 	require.NoError(t, err)
 
-	tb, err := srv.wsStores.getTB("acme")
+	tb, err := srv.wsStores.getTerms("acme")
 	require.NoError(t, err)
 	c, ok, err := tb.GetConcept(ctx, forbiddenID)
 	require.NoError(t, err)

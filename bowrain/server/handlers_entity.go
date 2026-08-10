@@ -312,7 +312,7 @@ func (s *Server) promoteEntityToConcept(ctx context.Context, wsSlug, wsID, actor
 		concept.Properties = map[string]string{"translatability": string(model.TranslatabilityDNT)}
 	}
 
-	tb, err := s.wsStores.getTB(wsSlug)
+	tb, err := s.wsStores.getTerms(wsSlug)
 	if err != nil {
 		return concept, err
 	}

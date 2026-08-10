@@ -16,7 +16,7 @@ func TestProcessDecisionSideEffects_ApproveTermCandidate(t *testing.T) {
 	tb := newTestTermsStore()
 	ws := &workspaceStores{
 		stores: map[string]*workspaceMemoryTerms{
-			"test-ws": {tb: tb},
+			"test-ws": {terms: tb},
 		},
 	}
 
@@ -60,7 +60,7 @@ func TestProcessDecisionSideEffects_ApproveTermDNT(t *testing.T) {
 	tb := newTestTermsStore()
 	ws := &workspaceStores{
 		stores: map[string]*workspaceMemoryTerms{
-			"ws": {tb: tb},
+			"ws": {terms: tb},
 		},
 	}
 

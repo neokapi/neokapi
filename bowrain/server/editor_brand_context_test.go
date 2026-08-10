@@ -71,7 +71,7 @@ func editorBrandContextFixture(t *testing.T) (platstore.ContentStore, editorBran
 		},
 	}))
 	wsStores := newWorkspaceStores()
-	wsStores.tbFactory = func() terms.Store { return &testTermStore{tb} }
+	wsStores.termsFactory = func() terms.Store { return &testTermStore{tb} }
 
 	profile := &coreprofile.VoiceProfile{
 		ID:   "bp-1",
@@ -168,7 +168,7 @@ func TestEditorTranslateConfigDegradesGracefully(t *testing.T) {
 		// The workspace default names a profile the store cannot resolve.
 		Brand:            &editorFakeBrandStore{profiles: map[string]*coreprofile.VoiceProfile{}},
 		WorkspaceDefault: editorFakeWorkspaceDefault{id: "gone"},
-		// No pgDB and no factory: getTB fails.
+		// No pgDB and no factory: getTerms fails.
 		Stores: newWorkspaceStores(),
 	}
 

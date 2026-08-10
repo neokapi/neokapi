@@ -20,7 +20,7 @@ import (
 
 // TermsResolver returns the workspace's server terms, so a translation job can
 // build the per-locale glossary that reaches the model's prompt. It mirrors the
-// server's workspaceStores.getTB: a per-workspace, PostgreSQL-backed terms
+// server's workspaceStores.getTerms: a per-workspace, PostgreSQL-backed terms
 // keyed by the workspace slug. Optional on WorkerDeps — when nil the job
 // translates without a glossary.
 type TermsResolver interface {
