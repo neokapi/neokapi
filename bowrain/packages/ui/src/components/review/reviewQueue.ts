@@ -36,10 +36,10 @@ export interface ReviewQueueFilter {
    * mark as ungrouped — which is why the field is matched on presence rather
    * than truthiness: an empty string is a scope, not an absent filter.
    *
-   * Matched exactly, so an entry whose collection is *unknown* (no dashboard
-   * row named its item, leaving ReviewEntry.collectionId undefined) matches no
-   * scope at all. An unknown collection is not the empty one, and coalescing
-   * the two would file an entry nobody can place under "in no collection".
+   * The server applies this one (`GET …/pending-review?collection=`), so a
+   * collection larger than the session's slice is paged as its own queue rather
+   * than sieved out of the project's. Matching it again here is a no-op that
+   * keeps the pure model complete for callers holding a mixed set.
    */
   collectionId?: string;
 }
@@ -56,7 +56,13 @@ export interface ReviewEntry {
   itemId: string;
   itemName: string;
   format?: string;
-  collectionId?: string;
+  /**
+   * The collection of this entry's item, `""` for an item in no collection.
+   * The server names it on the queue payload, from the same join its collection
+   * filter tests — so the entry a scope selected and the entry a group files
+   * always agree.
+   */
+  collectionId: string;
   locale: string;
   /** Full block (source_runs/targets_runs already normalised to coded+spans). */
   block: BlockInfo;

@@ -32,6 +32,8 @@ function entry(overrides: Partial<ReviewEntry> & { locale: string; itemId: strin
   return {
     id: entryKey(overrides.itemId, blockId, overrides.locale),
     itemName: overrides.itemName ?? `${overrides.itemId}.json`,
+    // The server names every entry's collection, "" for an item in none.
+    collectionId: "",
     issues: [],
     block: block(blockId, overrides.locale, "draft target"),
     ...overrides,
@@ -99,17 +101,19 @@ describe("filtering", () => {
     expect(filterEntries(entries, {})).toHaveLength(3);
   });
 
-  // How a collection carries from the project overview into review.
+  // How a collection carries from the project overview into review. The server
+  // applies this scope when it pages the queue and names each entry's
+  // collection on the payload, so the predicate here answers the same question
+  // over a set a caller may have gathered from several scopes.
   //
-  // Three states, not two: "col-app" is a named collection, "" is an item the
-  // dashboard lists as belonging to none, and undefined is an item the
-  // dashboard does not list at all — membership nobody can name.
+  // Two states: "col-app" is a named collection and "" is an item in none. The
+  // empty id is a scope of its own, which is why the filter is matched on
+  // presence rather than truthiness.
   describe("by collection", () => {
     const scoped = [
       entry({ itemId: "i1", locale: "fr", collectionId: "col-app", block: block("a", "fr", "x") }),
       entry({ itemId: "i2", locale: "fr", collectionId: "col-docs", block: block("b", "fr", "x") }),
       entry({ itemId: "i3", locale: "fr", collectionId: "", block: block("c", "fr", "x") }),
-      entry({ itemId: "i4", locale: "fr", block: block("d", "fr", "x") }),
     ];
 
     it("narrows to one collection", () => {
@@ -120,18 +124,7 @@ describe("filtering", () => {
 
     it("selects the collection-less entries with the empty id, not with no filter", () => {
       expect(filterEntries(scoped, { collectionId: "" }).map((e) => e.block.id)).toEqual(["c"]);
-      expect(filterEntries(scoped, {})).toHaveLength(4);
-    });
-
-    it("excludes an entry whose collection is unknown from every scope", () => {
-      // The dashboard named no item for this entry, so its collection is
-      // undefined rather than empty. "Cannot confirm" is not "confirmed to
-      // belong to none": it matches neither a named collection nor the
-      // collection-less bucket, and only an unfiltered queue shows it.
-      const unknown = scoped[3];
-      expect(matchesFilter(unknown, { collectionId: "" })).toBe(false);
-      expect(matchesFilter(unknown, { collectionId: "col-app" })).toBe(false);
-      expect(matchesFilter(unknown, {})).toBe(true);
+      expect(filterEntries(scoped, {})).toHaveLength(3);
     });
 
     it("composes with the other filters", () => {

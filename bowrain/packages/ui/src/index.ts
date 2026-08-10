@@ -612,6 +612,7 @@ export type {
   TaskInfo,
   TaskPage,
   PendingReviewEntry,
+  PendingReviewOptions,
   PendingReviewPage,
   TaskType,
   TaskStatus,

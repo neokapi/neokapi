@@ -95,7 +95,16 @@ func (a *App) getPendingReviewLocal(projectID string, locales []string, limit, o
 		targetLocales[i] = string(l)
 	}
 
-	refs, total, err := a.store.ListPendingReview(ctx, projectID, "main", locales, limit, offset)
+	// No collection scope: the desktop's queue is the whole project's. The
+	// filter exists for the web review session, which is entered from a
+	// collection card.
+	refs, total, err := a.store.ListPendingReview(ctx, store.PendingReviewQuery{
+		ProjectID: projectID,
+		Stream:    "main",
+		Locales:   locales,
+		Limit:     limit,
+		Offset:    offset,
+	})
 	if err != nil {
 		return nil, err
 	}

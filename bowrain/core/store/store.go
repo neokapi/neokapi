@@ -84,8 +84,10 @@ type BlockStore interface {
 	// ListPendingReview pages the (block, locale) pairs awaiting a review
 	// decision: translatable blocks whose stored target has text and a status
 	// still below reviewed. Ordered by item then block so a session walks the
-	// project in a stable, file-grouped order. Total counts the whole queue.
-	ListPendingReview(ctx context.Context, projectID, stream string, locales []string, limit, offset int) ([]PendingReviewRef, int, error)
+	// project in a stable, file-grouped order. Total counts the whole queue the
+	// query scopes — with a collection filter, that collection's queue, so a
+	// caller paging a collection is never told the project's total.
+	ListPendingReview(ctx context.Context, query PendingReviewQuery) ([]PendingReviewRef, int, error)
 	DeleteBlock(ctx context.Context, projectID, stream, blockID string) error
 
 	// ClearBlockTargets removes ALL committed target translations for a block,

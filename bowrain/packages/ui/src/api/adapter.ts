@@ -124,6 +124,7 @@ import type {
   RepoDetection,
   RepoDetectOptions,
   ModelRecommendationsResponse,
+  PendingReviewOptions,
   PendingReviewPage,
   BlockQueryOptions,
   BlockCounts,
@@ -649,7 +650,7 @@ export interface ApiAdapter {
   getPendingReview(
     workspaceSlug: string,
     projectId: string,
-    opts?: { stream?: string; locales?: string[]; limit?: number; offset?: number },
+    opts?: PendingReviewOptions,
   ): Promise<PendingReviewPage>;
   updateBlockTarget(workspaceSlug: string, req: UpdateBlockRequest): Promise<void>;
   updateBlockTargetCoded(workspaceSlug: string, req: UpdateBlockTargetCodedRequest): Promise<void>;

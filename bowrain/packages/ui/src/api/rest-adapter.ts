@@ -136,6 +136,7 @@ import type {
   RepoDetection,
   RepoDetectOptions,
   ModelRecommendationsResponse,
+  PendingReviewOptions,
   PendingReviewPage,
   BlockQueryOptions,
   BlockCounts,
@@ -1538,14 +1539,23 @@ export class RestApiAdapter implements ApiAdapter {
   async getPendingReview(
     workspaceSlug: string,
     projectId: string,
-    opts?: { stream?: string; locales?: string[]; limit?: number; offset?: number },
+    opts?: PendingReviewOptions,
   ): Promise<PendingReviewPage> {
     const q = new URLSearchParams();
     if (opts?.locales?.length) q.set("locales", opts.locales.join(","));
     if (opts?.limit) q.set("limit", String(opts.limit));
     if (opts?.offset) q.set("offset", String(opts.offset));
+    // Presence of the key is the filter, so the ungrouped scope — the empty
+    // collection id — sets an empty value rather than dropping the parameter.
+    if (opts?.collectionId !== undefined) q.set("collection", opts.collectionId);
     const raw = await this.fetchJSON<{
-      entries: { block_id: string; item_name: string; locale: string; block?: ServerBlockInfo }[];
+      entries: {
+        block_id: string;
+        item_name: string;
+        locale: string;
+        block?: ServerBlockInfo;
+        collection_id?: string;
+      }[];
       total: number;
       limit: number;
       offset: number;
@@ -1556,6 +1566,7 @@ export class RestApiAdapter implements ApiAdapter {
       ...raw,
       entries: raw.entries.map((e) => ({
         ...e,
+        collection_id: e.collection_id ?? "",
         block: e.block ? normalizeServerBlocks([e.block])[0] : undefined,
       })),
     };
