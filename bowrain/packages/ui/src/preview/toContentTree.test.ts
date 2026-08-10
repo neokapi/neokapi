@@ -278,6 +278,67 @@ describe("blockToContentNode — annotations", () => {
     // They stay off the overlays: an unpositioned issue is not a span.
     expect(node.overlays).toBeUndefined();
   });
+
+  // The QA endpoints dropped core/check.Finding's Position at the boundary, so
+  // every issue reached this projection unpositioned and could only ever be an
+  // annotation. It rides along now, and a located issue is a span like any
+  // other finding.
+  it("makes a positioned issue a span on the locale it was raised on", () => {
+    const issues: QAIssue[] = [
+      {
+        type: "placeholder",
+        severity: "error",
+        message: "Missing {count}",
+        position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 7 },
+        original_text: "Utilize",
+        suggestion: "Add {count}",
+      },
+      { type: "spacing", severity: "warning", message: "Double space" },
+    ];
+    const node = blockToContentNode(block(), { evidence: { issues, issueLocale: "fr-FR" } });
+
+    const qa = node.overlays?.filter((o) => o.type === "qa") ?? [];
+    expect(qa).toHaveLength(1);
+    expect(qa[0].side).toBe("fr-FR");
+    expect(qa[0].spans).toHaveLength(1);
+    expect(qa[0].spans[0].range).toEqual({
+      startRun: 0,
+      startOffset: 0,
+      endRun: 0,
+      endOffset: 7,
+    });
+    expect(qa[0].spans[0].props).toEqual({
+      category: "placeholder",
+      severity: "error",
+      message: "Missing {count}",
+      suggestion: "Add {count}",
+    });
+
+    // Only the one the payload could not locate stays an annotation.
+    expect(node.annotations).toHaveLength(1);
+    expect(node.annotations?.[0].summary).toBe("Double space");
+  });
+
+  it("keeps one qa overlay per side when findings and issues share a locale", () => {
+    const node = blockToContentNode(block(), {
+      evidence: {
+        findings: [{ ...voiceFinding, side: "fr-FR" }],
+        issues: [
+          {
+            type: "placeholder",
+            severity: "error",
+            message: "Missing {count}",
+            position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 7 },
+          },
+        ],
+        issueLocale: "fr-FR",
+      },
+    });
+    const qa = node.overlays?.filter((o) => o.type === "qa") ?? [];
+    expect(qa).toHaveLength(1);
+    expect(qa[0].side).toBe("fr-FR");
+    expect(qa[0].spans).toHaveLength(2);
+  });
 });
 
 describe("blocksToContentTree", () => {

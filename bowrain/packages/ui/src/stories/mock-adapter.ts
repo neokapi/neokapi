@@ -1386,12 +1386,12 @@ export function createMockAdapter(blocks?: BlockInfo[]): MockAdapter {
       const findings = rules
         .filter((r) => text.toLowerCase().includes(r.term.toLowerCase()))
         .map((r) => ({
-          // Server shape: core/check.Finding serializes the grouping field as
-          // `category` (NOT the UI's `dimension`) — the live tester normalizes.
+          // Server shape: core/check.Finding — the grouping field is
+          // `category`, and the position is a run range, not character offsets.
           category: "vocabulary",
           severity: r.severity ?? "major",
           message: `Uses the term "${r.term}"`,
-          position: { start: 0, end: r.term.length },
+          position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: r.term.length },
           original_text: r.term,
         }));
       return { score: { overall: findings.length > 0 ? 62 : 96 }, findings };

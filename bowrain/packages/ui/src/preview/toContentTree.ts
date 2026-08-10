@@ -34,6 +34,7 @@ import type {
 } from "@neokapi/ui-primitives/preview";
 import { runRangeForBytes, textForBytes } from "@neokapi/ui-primitives/preview";
 import { getTargetStatus, getTargetText } from "../components/editor/blockStatus";
+import type { BrandVoiceFinding } from "../brand/types";
 import type { BlockInfo, BlockTermMatch, EntityInfo, QAIssue } from "../types/api";
 
 /**
@@ -41,16 +42,11 @@ import type { BlockInfo, BlockTermMatch, EntityInfo, QAIssue } from "../types/ap
  * the shape the voice-vocabulary check, the /check endpoint and the stored
  * brand scores all emit. `position` is already run-anchored, so it needs no
  * offset conversion.
+ *
+ * The wire shape itself is {@link BrandVoiceFinding}; `side` is bowrain's own
+ * annotation, naming which text the finding was raised against.
  */
-export interface BlockFinding {
-  /** Groups the finding: "voice-vocabulary", "terminology", "placeholder", … */
-  category: string;
-  severity: string;
-  message: string;
-  suggestion?: string;
-  position?: RunRange;
-  original_text?: string;
-  metadata?: Record<string, string>;
+export interface BlockFinding extends BrandVoiceFinding {
   /**
    * The side the finding was raised on — "source" or a target locale key.
    * Defaults to "source".
@@ -65,9 +61,10 @@ export interface BlockEvidence {
   /** Voice / QA findings carrying their own run range. */
   findings?: BlockFinding[];
   /**
-   * Check results with no position (the `qa-check` endpoints). They become
-   * block-level annotations, not span highlights — a span the payload does not
-   * locate must not be guessed at.
+   * Check results from the `qa-check` endpoints. One that carries a position
+   * becomes a span like any other finding; one that does not becomes a
+   * block-level annotation — a span the payload does not locate must not be
+   * guessed at.
    */
   issues?: QAIssue[];
   /** The locale `issues` were raised on, recorded on each annotation. */
@@ -191,29 +188,65 @@ function findingSpan(finding: BlockFinding, index: number): OverlaySpan {
 }
 
 /**
- * Findings become `qa` overlays grouped by side, carrying their category in
- * span props — the anchoring the preview kit's `overlayHighlight` reads to give
- * a voice-vocabulary violation its own accent.
+ * A QA issue is a `core/check.Finding` under the Problems panel's names —
+ * `type` is the finding's category, and the two-valued severity is the
+ * collapsed one that endpoint has always reported. A positioned issue is
+ * therefore a span like any other finding's.
  */
-function findingOverlays(findings: BlockFinding[]): OverlayView[] {
+function issueSpan(issue: QAIssue, index: number): OverlaySpan {
+  return {
+    id: `issue:${index}`,
+    range: issue.position ?? ZERO_RANGE,
+    text: issue.original_text,
+    props: props({
+      category: issue.type,
+      severity: issue.severity,
+      message: issue.message,
+      suggestion: issue.suggestion,
+    }),
+  };
+}
+
+/**
+ * Findings and positioned QA issues become `qa` overlays grouped by side,
+ * carrying their category in span props — the anchoring the preview kit's
+ * `overlayHighlight` reads to give a voice-vocabulary violation its own accent.
+ *
+ * One overlay per side, not one per source of evidence: a block whose voice
+ * check and QA check both flagged the same target must not produce two `qa`
+ * overlays for that locale.
+ */
+function qaOverlays(
+  findings: BlockFinding[],
+  issues: QAIssue[],
+  issueLocale?: string,
+): OverlayView[] {
   const bySide = new Map<string, OverlaySpan[]>();
-  findings.forEach((finding, i) => {
-    const side = finding.side ?? "source";
+  const push = (side: string, span: OverlaySpan) => {
     const spans = bySide.get(side) ?? [];
-    spans.push(findingSpan(finding, i));
+    spans.push(span);
     bySide.set(side, spans);
+  };
+  findings.forEach((finding, i) => push(finding.side ?? "source", findingSpan(finding, i)));
+  issues.forEach((issue, i) => {
+    if (issue.position) push(issueLocale ?? "source", issueSpan(issue, i));
   });
   return [...bySide].flatMap(([side, spans]) => overlay("qa", side, spans));
 }
 
-/** Position-less check results, recorded on the block rather than a span. */
+/**
+ * Check results the payload does not locate, recorded on the block rather than
+ * a span — a position that was never reported must not be guessed at.
+ */
 function issueAnnotations(issues: QAIssue[], locale?: string): AnnotationView[] {
-  return issues.map((issue, i) => ({
-    key: `qa:${i}`,
-    type: "qa",
-    summary: issue.message,
-    fields: props({ check: issue.type, severity: issue.severity, locale }),
-  }));
+  return issues
+    .filter((issue) => !issue.position)
+    .map((issue, i) => ({
+      key: `qa:${i}`,
+      type: "qa",
+      summary: issue.message,
+      fields: props({ check: issue.type, severity: issue.severity, locale }),
+    }));
 }
 
 /**
@@ -235,7 +268,7 @@ export function blockToContentNode(block: BlockInfo, opts: BlockNodeOptions = {}
   const overlays: OverlayView[] = [
     ...overlay("term", "source", termSpans(source, evidence.terms ?? [])),
     ...overlay("entity", "source", entitySpans(source, block.entities ?? [])),
-    ...findingOverlays(evidence.findings ?? []),
+    ...qaOverlays(evidence.findings ?? [], evidence.issues ?? [], evidence.issueLocale),
   ];
   const annotations = issueAnnotations(evidence.issues ?? [], evidence.issueLocale);
 

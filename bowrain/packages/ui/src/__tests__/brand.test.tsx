@@ -58,10 +58,10 @@ function makeDimension(overrides: Partial<DimensionScore> = {}): DimensionScore 
 
 function makeFinding(overrides: Partial<BrandVoiceFinding> = {}): BrandVoiceFinding {
   return {
-    dimension: "tone",
+    category: "tone",
     severity: "minor",
     message: "Tone is too formal for the target audience",
-    position: { start: 0, end: 10 },
+    position: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 10 },
     ...overrides,
   };
 }
@@ -202,6 +202,13 @@ describe("BrandFindingsList", () => {
     const findings = [makeFinding({ message: "Too wordy", suggestion: "Use shorter sentences" })];
     render(<BrandFindingsList findings={findings} />);
     expect(screen.getByText("Suggestion: Use shorter sentences")).toBeInTheDocument();
+  });
+
+  // The wire field is `category`; the list read `dimension`, which no server
+  // response carries, so this chip was empty for every real finding.
+  it("names the category the server grouped the finding under", () => {
+    render(<BrandFindingsList findings={[makeFinding({ category: "brand_compliance" })]} />);
+    expect(screen.getByText("brand compliance")).toBeInTheDocument();
   });
 
   it("shows empty message when no findings", () => {

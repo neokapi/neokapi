@@ -170,6 +170,8 @@ const GO = {
   handlersConnector: "bowrain/server/handlers_connector.go",
   handlersActivity: "bowrain/server/handlers_activity.go",
   handlersBilling: "bowrain/server/handlers_billing.go",
+  handlersQA: "bowrain/server/handlers_qa.go",
+  finding: "core/check/finding.go",
 } as const;
 
 const TS = {
@@ -179,6 +181,7 @@ const TS = {
   chip: "bowrain/packages/ui/src/components/OnBrandRateChip.tsx",
   atoms: "bowrain/packages/ui/src/brand-hub/shell/atoms.tsx",
   restAdapter: "bowrain/packages/ui/src/api/rest-adapter.ts",
+  brandTypes: "bowrain/packages/ui/src/brand/types.ts",
 } as const;
 
 const src = {
@@ -192,12 +195,15 @@ const src = {
   handlersConnector: readRepoFile(GO.handlersConnector),
   handlersActivity: readRepoFile(GO.handlersActivity),
   handlersBilling: readRepoFile(GO.handlersBilling),
+  handlersQA: readRepoFile(GO.handlersQA),
+  finding: readRepoFile(GO.finding),
   api: readRepoFile(TS.api),
   brandGraph: readRepoFile(TS.brandGraph),
   blockStatus: readRepoFile(TS.blockStatus),
   chip: readRepoFile(TS.chip),
   atoms: readRepoFile(TS.atoms),
   restAdapter: readRepoFile(TS.restAdapter),
+  brandTypes: readRepoFile(TS.brandTypes),
 };
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -402,6 +408,30 @@ describe("BillingUsageResponse mirrors the credit ledger page", () => {
         members: goStructJSONFields(src.handlersBilling, "BillingUsageResponse"),
       },
       { path: TS.api, members: tsInterfaceFields(src.api, "CreditLedgerPage") },
+    );
+  });
+});
+
+describe("BrandVoiceFinding mirrors check.Finding", () => {
+  // The two fields this caught: the grouping field is `category`, not
+  // `dimension` (nothing on the wire ever carried `dimension`, so the findings
+  // list rendered an empty chip), and `position` is a run range, not a
+  // {start,end} character pair.
+  it("declares the finding the profile check and stored scores emit", () => {
+    expectSameMembers(
+      "check.Finding",
+      { path: GO.finding, members: goStructJSONFields(src.finding, "Finding") },
+      { path: TS.brandTypes, members: tsInterfaceFields(src.brandTypes, "BrandVoiceFinding") },
+    );
+  });
+});
+
+describe("QAIssueResponse mirrors the QA issue", () => {
+  it("declares everything the QA endpoints report about a finding", () => {
+    expectSameMembers(
+      "QAIssueResponse",
+      { path: GO.handlersQA, members: goStructJSONFields(src.handlersQA, "QAIssueResponse") },
+      { path: TS.api, members: tsInterfaceFields(src.api, "QAIssue") },
     );
   });
 });

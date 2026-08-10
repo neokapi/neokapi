@@ -13,15 +13,29 @@ import (
 	"github.com/neokapi/neokapi/core/tools"
 )
 
-// QAIssueResponse is a single QA finding returned by the API. The wire shape is
-// stable for the editor's Problems panel: {type, severity ("error"|"warning"),
-// message}. Internally the QA tools emit core/check.Finding; this handler maps
-// each finding onto that response at the boundary so the frontend contract does
-// not change.
+// QAIssueResponse is a single QA finding returned by the API.
+//
+// {type, severity ("error"|"warning"), message} is the shape the editor's
+// Problems panel has always read, and it is unchanged. The QA tools emit
+// core/check.Finding, which also locates the finding; dropping that at the
+// boundary left the caller with an issue it could name but not point at, so a
+// run-native consumer could only record it as a block-level annotation
+// (preview/toContentTree). Position, suggestion and the offending snippet now
+// ride along.
+//
+// Position is a pointer with omitempty rather than a value, because
+// model.RunRange's zero value is a legitimate reading — "the checker located
+// nothing" — and a zero range serialized as {0,0,0,0} is indistinguishable
+// from a real span at the start of the first run.
 type QAIssueResponse struct {
 	Type     string `json:"type"`
 	Severity string `json:"severity"`
 	Message  string `json:"message"`
+	// Position anchors the finding to the checked runs; absent when the checker
+	// judged the whole block.
+	Position     *model.RunRange `json:"position,omitempty"`
+	Suggestion   string          `json:"suggestion,omitempty"`
+	OriginalText string          `json:"original_text,omitempty"`
 }
 
 // FileQAResultResponse holds QA results for a single block.
@@ -123,20 +137,30 @@ func runQAOnBlock(ctx context.Context, block *model.Block, locale model.LocaleID
 	_, _ = qaTool.ApplyContext(ctx, part)
 
 	// Read the findings the tool recorded on the scratch copy and map them onto
-	// the stable wire shape ({type, severity, message}) the editor's Problems
-	// panel expects.
-	findings := check.Findings(tool.NewBlockViewWithContext(ctx, &scratch))
-	if len(findings) == 0 {
-		return []QAIssueResponse{}
-	}
+	// the wire shape the editor's Problems panel expects.
+	return qaIssuesFromFindings(check.Findings(tool.NewBlockViewWithContext(ctx, &scratch)))
+}
 
-	result := make([]QAIssueResponse, len(findings))
-	for i, f := range findings {
-		result[i] = QAIssueResponse{
-			Type:     f.Category,
-			Severity: qaWireSeverity(f.Severity),
-			Message:  f.Message,
+// qaIssuesFromFindings maps core/check.Finding onto the QA wire shape.
+//
+// Everything the finding locates or suggests rides along; only the severity is
+// narrowed, to the two values the Problems panel has always styled. The result
+// is an empty slice, never nil, so a clean block encodes as [].
+func qaIssuesFromFindings(findings []check.Finding) []QAIssueResponse {
+	result := make([]QAIssueResponse, 0, len(findings))
+	for _, f := range findings {
+		issue := QAIssueResponse{
+			Type:         f.Category,
+			Severity:     qaWireSeverity(f.Severity),
+			Message:      f.Message,
+			Suggestion:   f.Suggestion,
+			OriginalText: f.OriginalText,
 		}
+		if !f.Position.IsZero() {
+			pos := f.Position
+			issue.Position = &pos
+		}
+		result = append(result, issue)
 	}
 	return result
 }
