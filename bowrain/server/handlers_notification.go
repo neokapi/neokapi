@@ -22,7 +22,7 @@ func (s *Server) HandleListNotifications(c echo.Context) error {
 
 	limit, _ := pageParams(c, 50, maxListPageSize)
 
-	unreadOnly := c.QueryParam("unread") == "true"
+	unreadOnly := boolParam(c, "unread")
 
 	notifications, err := s.NotificationStore.List(ctx, userID, limit, unreadOnly)
 	if err != nil {

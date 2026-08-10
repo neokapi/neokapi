@@ -41,15 +41,21 @@ type ContentItem struct {
 }
 
 // SyncStatus reports the synchronization state between the store and a connector.
+//
+// The json tags are load-bearing: this struct IS the wire shape of
+// GET /:ws/connectors/:id/status and of every element of the batch route's
+// `statuses` map. Untagged it serialized PascalCase — the only bowrain response
+// that did — so the adapter carried a hand-written PascalCase DTO beside the
+// snake_case one the desktop binding already returned for the same reading.
 type SyncStatus struct {
-	ConnectorID string
-	LastSync    time.Time
-	ItemCount   int
-	FileCount   int // total local files scanned
-	WordCount   int // total source words across all local blocks
-	PendingPull int // Items changed externally since last pull
-	PendingPush int // Items changed locally since last push
-	Errors      []string
+	ConnectorID string    `json:"connector_id"`
+	LastSync    time.Time `json:"last_sync"`
+	ItemCount   int       `json:"item_count"`
+	FileCount   int       `json:"file_count"`   // total local files scanned
+	WordCount   int       `json:"word_count"`   // total source words across all local blocks
+	PendingPull int       `json:"pending_pull"` // Items changed externally since last pull
+	PendingPush int       `json:"pending_push"` // Items changed locally since last push
+	Errors      []string  `json:"errors"`
 }
 
 // ---------------------------------------------------------------------------

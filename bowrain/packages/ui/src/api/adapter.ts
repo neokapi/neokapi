@@ -72,12 +72,13 @@ import type {
   ArchivedProject,
   TranslationDashboardStats,
   TranslationDashboardItemOpts,
-  ActivityInfo,
+  ActivityPage,
   ConvergenceRun,
   ConvergenceEstimate,
   LoopRollup,
   ConvergenceRunScope,
   TaskInfo,
+  TaskPage,
   CreateTaskRequest,
   NotificationPreference,
   BravoConversation,
@@ -1158,11 +1159,7 @@ export interface ApiAdapter {
       cursor?: string;
       limit?: number;
     },
-  ): Promise<{
-    activities: ActivityInfo[];
-    next_cursor: string;
-    new_count?: number;
-  }>;
+  ): Promise<ActivityPage>;
 
   markActivitiesSeen(workspaceSlug: string): Promise<void>;
 
@@ -1209,10 +1206,7 @@ export interface ApiAdapter {
    * exactly and win over their singular counterparts — a surface spanning
    * review, review_terms and source_review has no single `type`.
    */
-  listTasks(
-    workspaceSlug: string,
-    query?: TaskQuery,
-  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }>;
+  listTasks(workspaceSlug: string, query?: TaskQuery): Promise<TaskPage>;
   /**
    * The same filter's totals, counted over the whole set rather than the page
    * — a kanban header that counts the rows it loaded understates a column with
@@ -1230,10 +1224,7 @@ export interface ApiAdapter {
   assignTask(workspaceSlug: string, taskId: string, assigneeId: string): Promise<void>;
   completeTask(workspaceSlug: string, taskId: string): Promise<void>;
   cancelTask(workspaceSlug: string, taskId: string): Promise<void>;
-  listMyTasks(
-    workspaceSlug: string,
-    query?: Omit<TaskQuery, "assignee_id">,
-  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }>;
+  listMyTasks(workspaceSlug: string, query?: Omit<TaskQuery, "assignee_id">): Promise<TaskPage>;
 
   // Notification preferences (Bowrain AD-014)
   getNotificationPreferences(

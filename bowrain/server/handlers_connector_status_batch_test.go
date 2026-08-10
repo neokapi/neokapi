@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -43,11 +44,6 @@ func addTestConnector(t *testing.T, s *Server, wsID, name string) string {
 	return added["id"]
 }
 
-type batchStatusResponse struct {
-	Statuses map[string]*connector.SyncStatus `json:"statuses"`
-	Unknown  []string                         `json:"unknown"`
-}
-
 // One request answers a whole panel of connector rows; the two surfaces that
 // render a status per row used to fire one live probe each.
 func TestHandleConnectorStatusBatch(t *testing.T) {
@@ -62,15 +58,37 @@ func TestHandleConnectorStatusBatch(t *testing.T) {
 	require.NoError(t, s.ConnectorConfigStore.TouchLastSync(ctx, wsID, first, synced))
 	require.NoError(t, s.ConnectorConfigStore.SetLastError(ctx, wsID, second, "fetch failed: boom"))
 
-	post := func(t *testing.T, query string) batchStatusResponse {
+	post := func(t *testing.T, query string) ConnectorStatusBatchResponse {
 		t.Helper()
 		c, rec := batchStatusCtx(t, wsID, query)
 		require.NoError(t, s.HandleConnectorStatusBatch(c))
 		require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-		var resp batchStatusResponse
+		var resp ConnectorStatusBatchResponse
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 		return resp
 	}
+
+	// The keys, not just the values: SyncStatus carried no json tags, so every
+	// element of this map serialized PascalCase — the one bowrain response that
+	// did, and the reason the TypeScript adapter kept a second DTO for the same
+	// reading the desktop binding already returned in snake_case.
+	t.Run("elements serialize snake_case", func(t *testing.T) {
+		c, rec := batchStatusCtx(t, wsID, "?ids="+first)
+		require.NoError(t, s.HandleConnectorStatusBatch(c))
+		var raw struct {
+			Statuses map[string]map[string]json.RawMessage `json:"statuses"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &raw))
+		keys := make([]string, 0, len(raw.Statuses[first]))
+		for k := range raw.Statuses[first] {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		assert.Equal(t, []string{
+			"connector_id", "errors", "file_count", "item_count",
+			"last_sync", "pending_pull", "pending_push", "word_count",
+		}, keys)
+	})
 
 	t.Run("one call answers every id", func(t *testing.T) {
 		resp := post(t, "?ids="+first+","+second)

@@ -8,10 +8,24 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
+// ActivityListResponse is one page of a workspace's activity feed.
+//
+// NextCursor is omitted on the last page, matching bstore.ActivityResult and
+// every other cursor-paged answer this server gives (tasks, review queue,
+// automation history): "no next page" is the key's absence, never an empty
+// string. NewCount is a pointer because it is only meaningful for an
+// identified user — an anonymous read omits it rather than reporting zero
+// unseen activities, which would be a claim the server has not made.
+type ActivityListResponse struct {
+	Activities []bstore.Activity `json:"activities"`
+	NextCursor string            `json:"next_cursor,omitempty"`
+	NewCount   *int              `json:"new_count,omitempty"`
+}
+
 // HandleListActivities returns activities for a workspace, optionally filtered.
 func (s *Server) HandleListActivities(c echo.Context) error {
 	if s.ActivityStore == nil {
-		return c.JSON(http.StatusOK, map[string]any{"activities": []any{}, "next_cursor": ""})
+		return c.JSON(http.StatusOK, ActivityListResponse{Activities: []bstore.Activity{}})
 	}
 
 	ws := c.Param("ws")
@@ -40,16 +54,16 @@ func (s *Server) HandleListActivities(c echo.Context) error {
 		result.Activities = []bstore.Activity{}
 	}
 
-	// Include new activity count for the indicator badge.
-	resp := map[string]any{
-		"activities":  result.Activities,
-		"next_cursor": result.NextCursor,
+	resp := ActivityListResponse{
+		Activities: result.Activities,
+		NextCursor: result.NextCursor,
 	}
+	// The indicator badge's unseen count, for an identified user only.
 	userID, _ := c.Get("user_id").(string)
 	if userID != "" {
 		if wsObj, err := s.AuthStore.GetWorkspaceBySlug(ctx, ws); err == nil {
 			newCount, _ := s.ActivityStore.CountNewActivities(ctx, userID, wsObj.ID)
-			resp["new_count"] = newCount
+			resp.NewCount = &newCount
 		}
 	}
 

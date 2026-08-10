@@ -38,7 +38,7 @@ func (s *Server) HandleListProjectRefs(c echo.Context) error {
 
 	ctx := c.Request().Context()
 	projectID := c.Param("id")
-	includeArchived := c.QueryParam("include_archived") == "true"
+	includeArchived := boolParam(c, "include_archived")
 	kind := store.StreamTagKind(c.QueryParam("kind"))
 
 	streams, err := s.ContentStore.ListStreams(ctx, projectID, includeArchived)

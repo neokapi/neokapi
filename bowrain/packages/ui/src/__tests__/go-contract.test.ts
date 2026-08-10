@@ -83,6 +83,42 @@ function tsArrayMembers(source: string, declName: string): Set<string> {
 }
 
 /**
+ * The json field names a Go struct serializes: the tag's first component, with
+ * `-` (never serialized) and untagged fields left out. An untagged field is a
+ * finding in itself — it serializes under its Go identifier — so the caller
+ * asserts the count it expects rather than trusting the absence.
+ */
+function goStructJSONFields(source: string, typeName: string): Set<string> {
+  const body = blockAfter(source, `type ${typeName} struct`);
+  const out = new Set<string>();
+  for (const m of body.matchAll(/`json:"([^"]*)"/g)) {
+    const name = m[1].split(",")[0];
+    if (name && name !== "-") out.add(name);
+  }
+  return out;
+}
+
+/**
+ * The property names an `interface Name { … }` declares, top level only —
+ * a nested object literal's own keys belong to that literal, not the interface.
+ */
+function tsInterfaceFields(source: string, typeName: string): Set<string> {
+  const body = blockAfter(source, `interface ${typeName} {`)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/.*$/gm, "");
+  const out = new Set<string>();
+  let depth = 0;
+  for (const line of body.split("\n")) {
+    if (depth === 0) {
+      const m = /^\s*(?:readonly\s+)?(?:"([^"]+)"|([A-Za-z_$][\w$]*))\??\s*:/.exec(line);
+      if (m) out.add(m[1] ?? m[2]);
+    }
+    depth += (line.match(/[{[]/g) ?? []).length - (line.match(/[}\]]/g) ?? []).length;
+  }
+  return out;
+}
+
+/**
  * The keys of a TS object literal that follows `declName`. Quoted keys keep
  * their text; bare identifier keys are taken verbatim.
  */
@@ -130,6 +166,10 @@ const GO = {
   knowledgeTypes: "bowrain/knowledge/types.go",
   changeset: "bowrain/knowledge/changeset.go",
   task: "bowrain/store/task.go",
+  connector: "bowrain/core/connector/connector.go",
+  handlersConnector: "bowrain/server/handlers_connector.go",
+  handlersActivity: "bowrain/server/handlers_activity.go",
+  handlersBilling: "bowrain/server/handlers_billing.go",
 } as const;
 
 const TS = {
@@ -138,6 +178,7 @@ const TS = {
   blockStatus: "bowrain/packages/ui/src/components/editor/blockStatus.ts",
   chip: "bowrain/packages/ui/src/components/OnBrandRateChip.tsx",
   atoms: "bowrain/packages/ui/src/brand-hub/shell/atoms.tsx",
+  restAdapter: "bowrain/packages/ui/src/api/rest-adapter.ts",
 } as const;
 
 const src = {
@@ -147,11 +188,16 @@ const src = {
   knowledgeTypes: readRepoFile(GO.knowledgeTypes),
   changeset: readRepoFile(GO.changeset),
   task: readRepoFile(GO.task),
+  connector: readRepoFile(GO.connector),
+  handlersConnector: readRepoFile(GO.handlersConnector),
+  handlersActivity: readRepoFile(GO.handlersActivity),
+  handlersBilling: readRepoFile(GO.handlersBilling),
   api: readRepoFile(TS.api),
   brandGraph: readRepoFile(TS.brandGraph),
   blockStatus: readRepoFile(TS.blockStatus),
   chip: readRepoFile(TS.chip),
   atoms: readRepoFile(TS.atoms),
+  restAdapter: readRepoFile(TS.restAdapter),
 };
 
 // ── Tests ───────────────────────────────────────────────────────────────────
@@ -283,6 +329,79 @@ describe("TaskStatus mirrors store.TaskStatus", () => {
       "TaskStatus",
       { path: GO.task, members },
       { path: TS.api, members: tsUnionMembers(src.api, "TaskStatus") },
+    );
+  });
+});
+
+// ── Response shapes ─────────────────────────────────────────────────────────
+//
+// The tests above catch a member the UI forgot; these catch a FIELD it forgot.
+// A response the server names as a struct and the adapter names as an interface
+// drifts silently otherwise: a key added server-side still type-checks here, and
+// a key renamed leaves the reader holding `undefined` rather than a failure.
+
+describe("SyncStatus mirrors connector.SyncStatus", () => {
+  it("is the DTO the adapter normalises, field for field", () => {
+    const members = goStructJSONFields(src.connector, "SyncStatus");
+    // Every field tagged: an untagged one serializes under its Go identifier,
+    // which is exactly the PascalCase leak this struct used to have.
+    expect(members.size).toBe(8);
+    expectSameMembers(
+      "SyncStatus",
+      { path: GO.connector, members },
+      {
+        path: TS.restAdapter,
+        members: tsInterfaceFields(src.restAdapter, "ConnectorSyncStatusDTO"),
+      },
+    );
+  });
+});
+
+describe("ConnectorStatusBatchResponse mirrors the batch read", () => {
+  it("names the same two halves the adapter reads", () => {
+    expectSameMembers(
+      "ConnectorStatusBatchResponse",
+      {
+        path: GO.handlersConnector,
+        members: goStructJSONFields(src.handlersConnector, "ConnectorStatusBatchResponse"),
+      },
+      { path: TS.api, members: tsInterfaceFields(src.api, "ConnectorStatusBatch") },
+    );
+  });
+});
+
+describe("ActivityListResponse mirrors the activity page", () => {
+  it("declares every field the feed can receive", () => {
+    expectSameMembers(
+      "ActivityListResponse",
+      {
+        path: GO.handlersActivity,
+        members: goStructJSONFields(src.handlersActivity, "ActivityListResponse"),
+      },
+      { path: TS.api, members: tsInterfaceFields(src.api, "ActivityPage") },
+    );
+  });
+});
+
+describe("TaskResult mirrors the task page", () => {
+  it("declares every field the board can receive", () => {
+    expectSameMembers(
+      "TaskResult",
+      { path: GO.task, members: goStructJSONFields(src.task, "TaskResult") },
+      { path: TS.api, members: tsInterfaceFields(src.api, "TaskPage") },
+    );
+  });
+});
+
+describe("BillingUsageResponse mirrors the credit ledger page", () => {
+  it("declares the window totals and the page together", () => {
+    expectSameMembers(
+      "BillingUsageResponse",
+      {
+        path: GO.handlersBilling,
+        members: goStructJSONFields(src.handlersBilling, "BillingUsageResponse"),
+      },
+      { path: TS.api, members: tsInterfaceFields(src.api, "CreditLedgerPage") },
     );
   });
 });

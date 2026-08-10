@@ -415,7 +415,7 @@ func (s *Server) HandleConnectorStatus(c echo.Context) error {
 	}
 	wsID, _ := c.Get("workspace_id").(string)
 	connID := connectorIDParam(c)
-	probe, _ := strconv.ParseBool(c.QueryParam("probe"))
+	probe := boolParam(c, "probe")
 
 	status, err := s.connectorStatus(c.Request().Context(), wsID, connID, probe)
 	if err != nil {
@@ -429,6 +429,15 @@ func (s *Server) HandleConnectorStatus(c echo.Context) error {
 // maxConnectorStatusBatch bounds one batched status request, so ?ids= cannot
 // fan out into an unbounded number of live probes.
 const maxConnectorStatusBatch = 100
+
+// ConnectorStatusBatchResponse answers the batched connector-status read.
+// `statuses` is keyed by the connector id asked for and carries the same
+// element the per-connector route returns; `unknown` names the ids neither the
+// live service nor the config store could answer.
+type ConnectorStatusBatchResponse struct {
+	Statuses map[string]*connector.SyncStatus `json:"statuses"`
+	Unknown  []string                         `json:"unknown"`
+}
 
 // HandleConnectorStatusBatch reports the sync state of many connectors in one
 // call: GET /:ws/connectors/status?ids=a,b,c[&probe=1].
@@ -453,7 +462,7 @@ func (s *Server) HandleConnectorStatusBatch(c echo.Context) error {
 	}
 
 	wsID, _ := c.Get("workspace_id").(string)
-	probe, _ := strconv.ParseBool(c.QueryParam("probe"))
+	probe := boolParam(c, "probe")
 	ctx := c.Request().Context()
 
 	statuses := make(map[string]*connector.SyncStatus, len(ids))
@@ -470,7 +479,7 @@ func (s *Server) HandleConnectorStatusBatch(c echo.Context) error {
 		statuses[connID] = status
 	}
 
-	return c.JSON(http.StatusOK, map[string]any{"statuses": statuses, "unknown": unknown})
+	return c.JSON(http.StatusOK, ConnectorStatusBatchResponse{Statuses: statuses, Unknown: unknown})
 }
 
 // connectorStatus resolves one connector's sync state, cheap or probed.

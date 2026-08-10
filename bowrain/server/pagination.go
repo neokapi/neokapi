@@ -39,6 +39,26 @@ func pageParams(c echo.Context, def, max int) (limit, offset int) {
 	return limit, offset
 }
 
+// boolParam reads a boolean flag off the query string. True is anything
+// strconv.ParseBool accepts — "1", "t", "true", "TRUE"; a missing, empty or
+// unparseable value is false.
+//
+// It exists so a flag means the same thing on every route. Handlers used to
+// spell the comparison themselves, and the spellings disagreed: ?fresh was
+// `!= "1"`, ?probe was ParseBool, ?include_archived / ?unread / ?all were
+// `== "true"`. A client that guessed the other spelling got the default
+// silently — ?fresh=true re-read the stored summary it had asked to recompute.
+// Every accepted spelling is a superset of what each site accepted before, so
+// no request that worked stops working.
+//
+// This is deliberately not a tri-state: a filter that must tell "absent" from
+// "false" (blockQueryFromRequest's ?translatable) parses its own raw value and
+// rejects a value it cannot read, rather than folding it into the default.
+func boolParam(c echo.Context, name string) bool {
+	v, _ := strconv.ParseBool(c.QueryParam(name))
+	return v
+}
+
 // csvParam reads a comma-separated multi-value query parameter, trimming each
 // element and dropping empties. A missing or all-empty parameter returns nil,
 // which every consuming query reads as "no filter".

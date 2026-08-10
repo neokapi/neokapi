@@ -1530,6 +1530,21 @@ export interface ActivityInfo {
   created_at: string;
 }
 
+/**
+ * One page of a workspace's activity feed (`GET /:ws/activities`), mirroring
+ * the server's `ActivityListResponse`.
+ *
+ * `next_cursor` is absent on the last page — the server omits the key rather
+ * than sending an empty string, so "there is no next page" reads the same here
+ * as on every other cursor-paged answer. `new_count` is the unseen-activity
+ * badge and is present only for an identified caller.
+ */
+export interface ActivityPage {
+  activities: ActivityInfo[];
+  next_cursor?: string;
+  new_count?: number;
+}
+
 /** Task type discriminator */
 export type TaskType =
   | "translate"
@@ -1724,6 +1739,16 @@ export interface TaskQuery {
   priority?: string;
   cursor?: string;
   limit?: number;
+}
+
+/**
+ * One page of tasks (`GET /:ws/tasks`), mirroring the server's
+ * `store.TaskResult`. As with every cursor-paged answer, `next_cursor` is
+ * absent on the last page rather than an empty string.
+ */
+export interface TaskPage {
+  tasks: TaskInfo[];
+  next_cursor?: string;
 }
 
 /**
@@ -2225,8 +2250,9 @@ export interface ConnectorInfo {
 /**
  * A connector's sync state. Counts are best-effort — a connector reports what it
  * can compute cheaply, so some may be zero — and `errors` carries any problems
- * surfaced by the connector's last status probe. Normalised from the server's
- * PascalCase `SyncStatus` wire shape into camelCase by the adapter.
+ * surfaced by the connector's last status probe. Normalised into camelCase by
+ * the adapter from the server's snake_case `SyncStatus` wire shape, which the
+ * desktop binding answers with too.
  */
 export interface ConnectorSyncStatus {
   connectorId: string;

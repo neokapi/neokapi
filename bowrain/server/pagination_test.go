@@ -43,6 +43,33 @@ func TestPageParamsClamps(t *testing.T) {
 	}
 }
 
+// TestBoolParam pins the one spelling every boolean flag now answers to.
+// Before it, ?fresh compared against the literal "1" while ?probe went through
+// ParseBool and ?include_archived against "true", so the same query string
+// meant different things on neighbouring routes.
+func TestBoolParam(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		query string
+		want  bool
+	}{
+		{"absent is false", "", false},
+		{"bare flag with no value is false", "flag", false},
+		{"1 is true", "flag=1", true},
+		{"true is true", "flag=true", true},
+		{"TRUE is true", "flag=TRUE", true},
+		{"t is true", "flag=t", true},
+		{"0 is false", "flag=0", false},
+		{"false is false", "flag=false", false},
+		{"unparseable is false", "flag=yes-please", false},
+		{"another parameter does not leak in", "other=true", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, boolParam(pageCtx(tc.query), "flag"))
+		})
+	}
+}
+
 // TestReadMultipartUploadsCaps pins the finding-9 contract: the multipart
 // upload reader refuses too many files, an over-large total, and an over-large
 // single file before buffering unbounded content.
