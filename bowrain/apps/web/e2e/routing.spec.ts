@@ -90,17 +90,17 @@ test.describe("Routing", () => {
 
   test("deep link to editor loads correctly", async ({ page }) => {
     await injectAuthCookie(page, token);
-    // The route addresses the item by name; names carry slashes, so the
-    // segment is percent-encoded.
+    // The route addresses the item by name, carried as the surface's trailing
+    // splat — real path segments, so a nested name needs no encoding.
     const proj = await getEditorProject(token, wsSlug, projectId);
     const itemName = findItemName(proj, "about-us.html");
-    await page.goto(`/${wsSlug}/p/${projectId}/s/main/${encodeURIComponent(itemName)}/translate`);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/translate/${itemName}`);
 
     // Editor should load (Visual/Table view switcher is always visible)
     await expect(page.getByTestId("view-switcher")).toBeVisible({ timeout: 30000 });
 
     // URL should contain the item name
-    expect(page.url()).toContain(`/s/main/${encodeURIComponent(itemName)}/translate`);
+    expect(page.url()).toContain(`/s/main/translate/${itemName}`);
   });
 
   test("deep link to content memory explorer loads correctly", async ({ page }) => {

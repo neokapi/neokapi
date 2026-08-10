@@ -31,7 +31,7 @@ describe("route tree", () => {
     );
     expect(childPaths).toContain("/");
     expect(childPaths).toContain("p/$projectId/s/$stream");
-    expect(childPaths).toContain("p/$projectId/s/$stream/$itemName/translate");
+    expect(childPaths).toContain("p/$projectId/s/$stream/translate/$");
     expect(childPaths).toContain("terms");
     expect(childPaths).toContain("memory");
     expect(childPaths).toContain("context");
@@ -60,27 +60,76 @@ describe("route tree", () => {
   });
 
   // The per-file editor surfaces address an item by its NAME — the coordinate
-  // the server resolves — and names carry slashes. The router percent-encodes
-  // a path param and decodes it on the way back, so the segment survives the
-  // round-trip without the app encoding anything itself; doing so as well
-  // would double-encode.
-  it("round-trips a nested item name through the editor route", async () => {
+  // the server resolves — and names carry slashes. The name is therefore the
+  // route's trailing SPLAT, carried as real path segments: a percent-encoded
+  // `%2F` inside a single `$itemName` segment matched in dev but not behind the
+  // production CDN, so nothing may depend on `%2F` surviving the round trip.
+  it("round-trips a nested item name through the editor route", () => {
     const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
-    const itemName = "docs/guide/a.md";
+    const itemName = "apps/kapi-desktop/frontend/category.kbf.json";
 
     const href = router.buildLocation({
-      to: "/$workspace/p/$projectId/s/$stream/$itemName/translate",
-      params: { workspace: "acme", projectId: "proj-1", stream: "main", itemName },
+      to: "/$workspace/p/$projectId/s/$stream/translate/$",
+      params: { workspace: "acme", projectId: "proj-1", stream: "main", _splat: itemName },
     }).href;
 
-    // One segment, not three: the slashes are encoded, so `$itemName` matches.
-    expect(href).toBe("/acme/p/proj-1/s/main/docs%2Fguide%2Fa.md/translate");
-    expect(href.split("/")).toHaveLength(8);
+    // Real slashes, no percent-encoding: the name spans as many segments as it
+    // has parts, and the surface segment leads so the splat can trail.
+    expect(href).toBe(
+      "/acme/p/proj-1/s/main/translate/apps/kapi-desktop/frontend/category.kbf.json",
+    );
+    expect(href).not.toContain("%2F");
 
     const matches = router.matchRoutes(href, undefined);
     const leaf = matches[matches.length - 1] as AnyRoute;
-    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream/$itemName/translate");
-    expect(leaf.params.itemName).toBe(itemName);
+    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream/translate/$");
+    expect(leaf.params._splat).toBe(itemName);
+  });
+
+  it("matches a flat item name on each editor surface", () => {
+    const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
+    for (const surface of ["translate", "review", "pre-process"]) {
+      const matches = router.matchRoutes(
+        `/acme/p/proj-1/s/main/${surface}/about-us.html`,
+        undefined,
+      );
+      const leaf = matches[matches.length - 1] as AnyRoute;
+      expect(leaf.routeId).toBe(`/$workspace/p/$projectId/s/$stream/${surface}/$`);
+      expect(leaf.params._splat).toBe("about-us.html");
+    }
+  });
+
+  // `review` is two routes: the project-level session at the bare path, and the
+  // per-file surface that trails a name. The exact path has to outrank the
+  // splat, or opening the review session lands in an editor for no file.
+  it("keeps the project-level review session ahead of the per-file splat", () => {
+    const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
+
+    const session = router.matchRoutes("/acme/p/proj-1/s/main/review", undefined);
+    expect((session[session.length - 1] as AnyRoute).routeId).toBe(
+      "/$workspace/p/$projectId/s/$stream/review",
+    );
+
+    const perFile = router.matchRoutes("/acme/p/proj-1/s/main/review/docs/a.md", undefined);
+    const leaf = perFile[perFile.length - 1] as AnyRoute;
+    expect(leaf.routeId).toBe("/$workspace/p/$projectId/s/$stream/review/$");
+    expect(leaf.params._splat).toBe("docs/a.md");
+  });
+
+  // A name whose segments need escaping (a space, a hash) still round-trips:
+  // each segment is encoded on its own, and the slashes between them are not.
+  it("encodes within segments but never the separators", () => {
+    const router = createBowrainRouter({ queryClient: undefined!, api: undefined! });
+    const itemName = "docs/release notes/v1#2.md";
+
+    const href = router.buildLocation({
+      to: "/$workspace/p/$projectId/s/$stream/translate/$",
+      params: { workspace: "acme", projectId: "proj-1", stream: "main", _splat: itemName },
+    }).href;
+
+    expect(href).not.toContain("%2F");
+    const matches = router.matchRoutes(href, undefined);
+    expect((matches[matches.length - 1] as AnyRoute).params._splat).toBe(itemName);
   });
 
   it("contains auth child routes", () => {

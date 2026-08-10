@@ -157,7 +157,8 @@ func (s *Server) HandleAcceptInvite(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	if err := s.Services.Auth.AcceptInvite(ctx, code, userID); err != nil {
+	accepted, err := s.Services.Auth.AcceptInvite(ctx, code, userID)
+	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 	s.emitAudit(c, auditEvent{
@@ -167,5 +168,24 @@ func (s *Server) HandleAcceptInvite(c echo.Context) error {
 		Data:         map[string]string{"user_id": userID},
 	})
 
-	return c.JSON(http.StatusOK, map[string]string{"status": "joined"})
+	// The workspace and role travel back with the acceptance: the accepting
+	// user has no other way to name what they just joined, and the client
+	// confirms the join and switches to the workspace from this response.
+	return c.JSON(http.StatusOK, AcceptInviteResponse{
+		Status:        "joined",
+		WorkspaceID:   accepted.WorkspaceID,
+		WorkspaceSlug: accepted.WorkspaceSlug,
+		WorkspaceName: accepted.WorkspaceName,
+		Role:          string(accepted.Role),
+	})
+}
+
+// AcceptInviteResponse confirms a redeemed invite. `status` is retained from
+// the original shape; the rest is what the confirmation screen renders.
+type AcceptInviteResponse struct {
+	Status        string `json:"status"`
+	WorkspaceID   string `json:"workspace_id"`
+	WorkspaceSlug string `json:"workspace_slug"`
+	WorkspaceName string `json:"workspace_name"`
+	Role          string `json:"role"`
 }

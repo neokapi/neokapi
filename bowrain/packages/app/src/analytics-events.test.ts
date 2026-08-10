@@ -30,9 +30,9 @@ describe("featureFromRoutePattern", () => {
     expect(featureFromRoutePattern(`${base}/automations`)).toBe("automations");
     expect(featureFromRoutePattern(`${base}/runs`)).toBe("runs");
     expect(featureFromRoutePattern(`${base}/connectors`)).toBe("connectors");
-    expect(featureFromRoutePattern(`${base}/$itemName/translate`)).toBe("translate");
-    expect(featureFromRoutePattern(`${base}/$itemName/review`)).toBe("review");
-    expect(featureFromRoutePattern(`${base}/$itemName/pre-process`)).toBe("pre_process");
+    expect(featureFromRoutePattern(`${base}/translate/$`)).toBe("translate");
+    expect(featureFromRoutePattern(`${base}/review/$`)).toBe("review");
+    expect(featureFromRoutePattern(`${base}/pre-process/$`)).toBe("pre_process");
   });
 
   // The hub moved from /brand to /context, so the derived feature names move
@@ -70,7 +70,7 @@ describe("featureFromRoutePattern", () => {
 
   it("never emits param placeholders or slashes", () => {
     for (const pattern of [
-      "/$workspace/p/$projectId/s/$stream/$itemName/translate",
+      "/$workspace/p/$projectId/s/$stream/translate/$",
       "/$workspace/context/voice/$profileId",
       "/join/$code",
     ]) {
