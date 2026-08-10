@@ -1238,6 +1238,15 @@ func (s *Server) HandleGetBlockHistory(c echo.Context) error {
 // `item_total` carrying the full count. Without a limit the full list is
 // returned unchanged (legacy shape). The full computation is cached per
 // project/stream, so paging/sorting requests slice the cached result.
+//
+// Each collection rollup carries the coordinates its collection row persists —
+// `channel` and `coordinates` — so a consumer can group collections by the
+// point in context space their content occupies. Items whose collection id is
+// empty aggregate under one bucket with an empty `collection_id` and
+// `ungrouped: true`; the flag, not an invented id, marks it, because an
+// invented id would resolve to no collection anywhere else in the API. Naming
+// that bucket ("Ungrouped", "Default") is the consumer's call. Rollups arrive
+// ordered by collection name with the ungrouped bucket last.
 func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})

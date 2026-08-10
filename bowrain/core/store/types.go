@@ -644,23 +644,43 @@ func OnBrandBasisFor(voice, terms bool) OnBrandBasis {
 
 // ItemTranslationStats holds per-file translation progress.
 type ItemTranslationStats struct {
-	ItemName     string                   `json:"item_name"`
-	ItemID       string                   `json:"item_id"`
-	Format       string                   `json:"format"`
-	CollectionID string                   `json:"collection_id"`
-	BlockCount   int                      `json:"block_count"`
-	WordCount    int                      `json:"word_count"`
-	Locales      []LocaleTranslationStats `json:"locales"`
-}
-
-// CollectionTranslationStats holds per-collection translation progress.
-type CollectionTranslationStats struct {
-	CollectionID   string                   `json:"collection_id"`
-	CollectionName string                   `json:"collection_name"`
-	ItemCount      int                      `json:"item_count"`
+	ItemName     string `json:"item_name"`
+	ItemID       string `json:"item_id"`
+	Format       string `json:"format"`
+	CollectionID string `json:"collection_id"`
+	// CollectionName is the name of the collection CollectionID refers to.
+	// Empty when the item is ungrouped, or when its collection id names a row
+	// this project no longer holds.
+	CollectionName string                   `json:"collection_name,omitempty"`
 	BlockCount     int                      `json:"block_count"`
 	WordCount      int                      `json:"word_count"`
 	Locales        []LocaleTranslationStats `json:"locales"`
+}
+
+// CollectionTranslationStats holds per-collection translation progress.
+//
+// Channel and Coordinates project what the collection row already persists, so
+// a consumer can group the rollup by the point in context space the content
+// occupies without a second round trip. Both are omitted for a collection that
+// declares neither — including the ungrouped bucket.
+type CollectionTranslationStats struct {
+	CollectionID   string `json:"collection_id"`
+	CollectionName string `json:"collection_name"`
+	// Channel is the delivery channel the collection is bound to, as the
+	// context push stored it on the collection's connector config.
+	Channel string `json:"channel,omitempty"`
+	// Coordinates is the collection's point in the project's context space:
+	// axis → value, as Collection.Context holds it.
+	Coordinates map[string]string `json:"coordinates,omitempty"`
+	// Ungrouped marks the synthetic bucket that holds items belonging to no
+	// collection (CollectionID is empty and no collection row exists). It is
+	// the flag rather than an invented id, so a consumer can label and place
+	// the bucket without an id that resolves to nothing.
+	Ungrouped  bool                     `json:"ungrouped,omitempty"`
+	ItemCount  int                      `json:"item_count"`
+	BlockCount int                      `json:"block_count"`
+	WordCount  int                      `json:"word_count"`
+	Locales    []LocaleTranslationStats `json:"locales"`
 }
 
 // UnitDecision is the server's record of one workflow decision for one unit in

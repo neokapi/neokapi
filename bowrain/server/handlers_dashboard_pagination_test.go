@@ -86,6 +86,13 @@ func TestTranslationDashboardPagination(t *testing.T) {
 	assert.Equal(t, 9, full.TotalSourceWords)
 	require.Len(t, full.LocaleStats, 1)
 
+	// Every seeded item belongs to no collection, so the rollups are one
+	// ungrouped bucket carrying all three.
+	require.Len(t, full.CollectionStats, 1)
+	assert.True(t, full.CollectionStats[0].Ungrouped)
+	assert.Empty(t, full.CollectionStats[0].CollectionID)
+	assert.Equal(t, 3, full.CollectionStats[0].ItemCount)
+
 	// First page sorted by words descending.
 	page := getDashboard(t, srv, token, pid, "?limit=2&offset=0&sort=words&dir=desc")
 	assert.Equal(t, []string{"a.json", "b.json"}, itemNames(page))

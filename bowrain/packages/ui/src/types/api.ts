@@ -856,15 +856,31 @@ export interface ItemTranslationStats {
   item_id: string;
   format: string;
   collection_id: string;
+  /** Name of the collection collection_id refers to; absent when ungrouped. */
+  collection_name?: string;
   block_count: number;
   word_count: number;
   locales: LocaleTranslationStats[];
 }
 
-/** Per-collection translation progress */
+/**
+ * Per-collection translation progress.
+ *
+ * channel and coordinates project what the collection row persists, so rollups
+ * can be grouped by the point in context space their content occupies. The
+ * ungrouped bucket — items belonging to no collection — has an empty
+ * collection_id and ungrouped: true; naming it is the consumer's call. Rollups
+ * arrive ordered by collection name with the ungrouped bucket last.
+ */
 export interface CollectionTranslationStats {
   collection_id: string;
   collection_name: string;
+  /** Delivery channel the collection is bound to; absent when unbound. */
+  channel?: string;
+  /** The collection's point in context space: axis → value. */
+  coordinates?: Record<string, string>;
+  /** True on the single bucket holding items that belong to no collection. */
+  ungrouped?: boolean;
   item_count: number;
   block_count: number;
   word_count: number;

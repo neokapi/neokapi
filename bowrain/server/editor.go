@@ -1805,9 +1805,9 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 	}
 
 	colls, _ := cs.ListCollections(ctx, proj.ID, stream)
-	collMap := map[string]string{} // id → name
+	collMap := make(map[string]*store.Collection, len(colls)) // id → row
 	for _, c := range colls {
-		collMap[c.ID] = c.Name
+		collMap[c.ID] = c
 	}
 
 	// Build item metadata lookup.
@@ -1986,14 +1986,19 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 		if ia != nil {
 			bc, wc = ia.blockCount, ia.wordCount
 		}
+		collName := ""
+		if c := collMap[item.CollectionID]; c != nil {
+			collName = c.Name
+		}
 		itemStats = append(itemStats, store.ItemTranslationStats{
-			ItemName:     item.Name,
-			ItemID:       item.ID,
-			Format:       item.Format,
-			CollectionID: item.CollectionID,
-			BlockCount:   bc,
-			WordCount:    wc,
-			Locales:      itemLocales,
+			ItemName:       item.Name,
+			ItemID:         item.ID,
+			Format:         item.Format,
+			CollectionID:   item.CollectionID,
+			CollectionName: collName,
+			BlockCount:     bc,
+			WordCount:      wc,
+			Locales:        itemLocales,
 		})
 	}
 
@@ -2038,15 +2043,48 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 				ApprovedBlocks:   cla.approvedBlocks,
 			})
 		}
-		collStats = append(collStats, store.CollectionTranslationStats{
-			CollectionID:   cid,
-			CollectionName: collMap[cid],
-			ItemCount:      len(ca.itemSet),
-			BlockCount:     ca.blockCount,
-			WordCount:      ca.wordCount,
-			Locales:        cls,
-		})
+		stat := store.CollectionTranslationStats{
+			CollectionID: cid,
+			ItemCount:    len(ca.itemSet),
+			BlockCount:   ca.blockCount,
+			WordCount:    ca.wordCount,
+			Locales:      cls,
+		}
+		// Items belonging to no collection aggregate under the ungrouped
+		// bucket: the empty collection id, flagged so a consumer can label and
+		// place it deliberately rather than inferring it from an empty string.
+		if cid == "" {
+			stat.Ungrouped = true
+		}
+		// Channel and coordinates are projected from the collection row the
+		// context push wrote. A bucket whose id names no row (an item pointing
+		// at a deleted collection) carries neither.
+		if c := collMap[cid]; c != nil {
+			stat.CollectionName = c.Name
+			stat.Channel = c.ConnectorConfig[coreprofile.PropertyChannel]
+			stat.Coordinates = maps.Clone(c.Context)
+		}
+		collStats = append(collStats, stat)
 	}
+	// collAggs is a map, so order it before it reaches the wire: by collection
+	// name — falling back to the id for a bucket whose collection row is gone —
+	// with the ungrouped bucket last.
+	collSortKey := func(c store.CollectionTranslationStats) string {
+		if c.CollectionName == "" {
+			return strings.ToLower(c.CollectionID)
+		}
+		return strings.ToLower(c.CollectionName)
+	}
+	sort.SliceStable(collStats, func(i, j int) bool {
+		a, b := collStats[i], collStats[j]
+		if a.Ungrouped != b.Ungrouped {
+			return b.Ungrouped
+		}
+		if ka, kb := collSortKey(a), collSortKey(b); ka != kb {
+			return ka < kb
+		}
+		return a.CollectionID < b.CollectionID
+	})
 
 	return &store.TranslationDashboardStats{
 		LocaleStats:        localeStats,
