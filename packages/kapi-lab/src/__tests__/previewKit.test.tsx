@@ -41,9 +41,9 @@ function tree(format: string, root: ContentNode[]): ContentTree {
 }
 
 // Mirror the REAL `labInspectAnnotated` shapes: term overlays carry the matched
-// surface + its `target` translation + `domain`; brand violations ride on the
-// `qa` overlay type with props.category="brand-vocabulary" + a `replacement`;
-// other QA findings are `qa` overlays carrying a `message`.
+// surface + its `target` translation + `domain`; voice-vocabulary violations
+// ride on the `qa` overlay type with props.category="voice-vocabulary" + a
+// `replacement`; other QA findings are `qa` overlays carrying a `message`.
 const termOverlay: OverlayView = {
   type: "term",
   side: "source",
@@ -57,7 +57,7 @@ const termOverlay: OverlayView = {
   ],
 };
 
-const brandOverlay: OverlayView = {
+const voiceOverlay: OverlayView = {
   type: "qa",
   side: "source",
   spans: [
@@ -66,7 +66,7 @@ const brandOverlay: OverlayView = {
       range: { startRun: 0, startOffset: 0, endRun: 0, endOffset: 0 },
       text: "Acme",
       props: {
-        category: "brand-vocabulary",
+        category: "voice-vocabulary",
         severity: "critical",
         message: 'Competitor term "Acme" found',
       },
@@ -92,7 +92,7 @@ const mdTree = tree("markdown", [
   layer("/tmp/guide.md", [
     block("h1", "heading", "Welcome to Acme", {
       targets: { "fr-FR": txt("Bienvenue chez Acme") },
-      overlays: [termOverlay, brandOverlay, qaOverlay],
+      overlays: [termOverlay, voiceOverlay, qaOverlay],
     }),
     block("p1", "", "Acme helps teams ship faster.", {
       targets: { "fr-FR": txt("Acme aide les équipes.") },
@@ -171,9 +171,9 @@ describe("treeToRenderDoc — targets & overlays", () => {
 
 describe("overlayHighlight", () => {
   it("resolves source-side spans to char ranges and skips other sides", () => {
-    // term + brand are source-side; qa is fr-FR-side and must be skipped here.
+    // term + voice are source-side; qa is fr-FR-side and must be skipped here.
     const spans = resolveOverlaySpans(
-      [termOverlay, brandOverlay, qaOverlay],
+      [termOverlay, voiceOverlay, qaOverlay],
       "source",
       "Welcome to Acme",
     );
@@ -192,17 +192,17 @@ describe("overlayHighlight", () => {
     expect(spans[0].type).toBe("qa");
   });
 
-  it("distinguishes brand-vocabulary qa from plain qa by span props", () => {
-    const [brand] = resolveOverlaySpans([brandOverlay], "source", "Welcome to Acme");
+  it("distinguishes voice-vocabulary qa from plain qa by span props", () => {
+    const [voice] = resolveOverlaySpans([voiceOverlay], "source", "Welcome to Acme");
     const [plainQa] = resolveOverlaySpans([qaOverlay], "fr-FR", "Acme aide");
-    // Brand violation = pink accent + "Brand" label; plain qa = amber "QA".
-    expect(brand.style.label).toBe("Brand");
-    expect(brand.style.className).toContain("pink");
+    // Voice violation = pink accent + "Voice" label; plain qa = amber "QA".
+    expect(voice.style.label).toBe("Voice");
+    expect(voice.style.className).toContain("pink");
     expect(plainQa.style.label).toBe("QA");
     expect(plainQa.style.className).toContain("amber");
-    expect(brand.style.className).not.toBe(plainQa.style.className);
-    // The brand tooltip surfaces the human message.
-    expect(brand.tooltip).toContain("Competitor term");
+    expect(voice.style.className).not.toBe(plainQa.style.className);
+    // The voice tooltip surfaces the human message.
+    expect(voice.tooltip).toContain("Competitor term");
   });
 
   it("filters by overlay type", () => {
@@ -219,8 +219,8 @@ describe("overlayHighlight", () => {
     expect(overlayStyle("term").className).not.toBe(overlayStyle("qa").className);
     expect(overlayStyle("term").label).toBe("Vocabulary");
     expect(overlayStyle("qa").label).toBe("QA");
-    // A brand-vocabulary qa span resolves to the dedicated brand accent.
-    expect(overlayStyle("qa", brandOverlay.spans[0]).label).toBe("Brand");
+    // A voice-vocabulary qa span resolves to the dedicated voice accent.
+    expect(overlayStyle("qa", voiceOverlay.spans[0]).label).toBe("Voice");
     expect(overlayStyle("totally-unknown").label).toBe("Totally Unknown");
   });
 
@@ -257,7 +257,7 @@ describe("FormatPreview", () => {
 
   it("highlights overlays with color-coded marks and a type attribute", () => {
     // A doc carrying only the term overlay (the heading in mdTree also carries a
-    // brand qa overlay over the same span, which would win the innermost flatten).
+    // voice qa overlay over the same span, which would win the innermost flatten).
     const termOnly = tree("markdown", [
       layer("/tmp/g.md", [block("h1", "heading", "Welcome to Acme", { overlays: [termOverlay] })]),
     ]);

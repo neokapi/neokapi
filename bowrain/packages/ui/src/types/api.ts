@@ -1,5 +1,5 @@
 // IOPort is defined once in the shared @neokapi/contract-types package (#817).
-import type { IOPort } from "@neokapi/contract-types";
+import type { IOPort, Run } from "@neokapi/contract-types";
 import type { VoiceProfile } from "../brand/types";
 export type { IOPort };
 
@@ -715,13 +715,33 @@ export interface TargetInfo {
  */
 export type TargetEntry = string | TargetInfo;
 
-/** Translation block info */
+/**
+ * Translation block info.
+ *
+ * The block carries its inline content twice, and the two forms are not
+ * interchangeable:
+ *
+ *   - `source_runs` / `targets_runs` are the RFC 0001 typed run sequences the
+ *     server ships — the content model itself. Run-anchored data (overlay
+ *     ranges, segment spans, check-finding positions) only means anything
+ *     against these, so the run-native surfaces read them: `preview/toContentTree`
+ *     projects them for the shared preview kit.
+ *   - `source_coded` / `source_spans` / `targets_coded` are the flattened
+ *     coded-text form the cell-level render primitives consume, derived from
+ *     the runs at the read boundary (`components/editor/blockRuns`).
+ *
+ * Both are populated on the live path; a fixture may carry only one.
+ */
 export interface BlockInfo {
   id: string;
   source: string;
+  /** RFC 0001 typed source runs — the server's inline-code representation. */
+  source_runs?: Run[];
   source_coded?: string;
   source_spans?: SpanInfo[];
   targets: Record<string, TargetEntry>;
+  /** Per-locale typed target runs, keyed like `targets`. */
+  targets_runs?: Record<string, Run[]>;
   targets_coded?: Record<string, string>;
   translatable: boolean;
   has_spans: boolean;

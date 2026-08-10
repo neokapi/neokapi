@@ -225,6 +225,14 @@ export type {
 } from "./components/review/reviewQueue";
 export { normalizeServerBlock, normalizeServerBlocks } from "./components/editor/blockRuns";
 export type { ServerBlockInfo } from "./components/editor/blockRuns";
+export { blockToContentNode, blocksToContentTree } from "./preview/toContentTree";
+export type {
+  BlockEvidence,
+  BlockFinding,
+  BlockNodeOptions,
+  BlockProjectionOptions,
+  ContentTreeOptions,
+} from "./preview/toContentTree";
 export { PreProcessSurface } from "./components/PreProcessSurface";
 export { TranslationDashboard } from "./components/TranslationDashboard";
 export { ShipStateBadge, type ShipStateBadgeProps } from "./components/ShipStateBadge";

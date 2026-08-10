@@ -55,6 +55,7 @@ export type {
   RenderSection,
   StructureRule,
 } from "./renderDoc";
+export { runsPlainText, runRangeForChars, runRangeForBytes, textForBytes } from "./runRange";
 export { overlayStyle, resolveOverlaySpans, segmentText, overlayTypes } from "./overlayHighlight";
 export type { OverlayStyle, ResolvedSpan, TextSegment } from "./overlayHighlight";
 // Multimodal viewers (AD-030): timed media (subtitles/audio/video) + raster OCR.

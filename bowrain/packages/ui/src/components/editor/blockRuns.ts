@@ -1,4 +1,5 @@
-import type { Run } from "@neokapi/kapi-format";
+import type { Run as SchemaRun } from "@neokapi/kapi-format";
+import type { Run } from "@neokapi/contract-types";
 import { runsToCoded } from "@neokapi/ui-primitives";
 import type { BlockInfo, SpanInfo } from "../../types/api";
 
@@ -19,19 +20,24 @@ import type { BlockInfo, SpanInfo } from "../../types/api";
 
 /** The raw block shape as the server serialises it (superset of BlockInfo). */
 export interface ServerBlockInfo extends BlockInfo {
-  /** RFC 0001 typed source runs (the server's inline-code representation). */
-  source_runs?: Run[];
-  /** Per-locale typed target runs. */
-  targets_runs?: Record<string, Run[]>;
   /** Server flag mirroring the frontend's `has_spans`. */
   has_inline_codes?: boolean;
 }
 
-/** Coded text + spans for a run sequence, or null when it can't be flattened. */
+/**
+ * Coded text + spans for a run sequence, or null when it can't be flattened.
+ *
+ * The payload's runs are the generated contract shape (@neokapi/contract-types,
+ * from Go); `runsToCoded` reads the hand-authored schema shape
+ * (@neokapi/kapi-format). The two agree on every field the bridge touches and
+ * differ only in `RunConstraints`, whose flags the generated type marks
+ * optional (the Go tags are omitempty) and the schema type requires — and which
+ * the bridge never reads.
+ */
 function codeRuns(runs: Run[] | undefined): { codedText: string; spans: SpanInfo[] } | null {
   if (!runs || runs.length === 0) return null;
   try {
-    return runsToCoded(runs);
+    return runsToCoded(runs as SchemaRun[]);
   } catch {
     // Plural / select wrappers can't flatten to a single coded string; the
     // plain `source` / `targets[locale].text` (ICU) is rendered instead.
@@ -44,9 +50,16 @@ function codeRuns(runs: Run[] | undefined): { codedText: string; spans: SpanInfo
  * the server's typed runs when the coded fields are absent. Idempotent: a block
  * that already carries coded text (Storybook fixtures, or a future server that
  * sends coded directly) passes through untouched.
+ *
+ * The typed runs ride along on the normalised block. Flattening to coded text
+ * loses the run boundaries that overlay ranges, segment spans and check-finding
+ * positions anchor to, so a run-native consumer — `preview/toContentTree`,
+ * feeding the shared preview kit — needs the sequences themselves, not their
+ * projection.
  */
 export function normalizeServerBlock(raw: ServerBlockInfo): BlockInfo {
-  const { source_runs, targets_runs, has_inline_codes, ...block } = raw;
+  const { has_inline_codes, ...block } = raw;
+  const { source_runs, targets_runs } = block;
 
   let sourceCoded = block.source_coded;
   let sourceSpans = block.source_spans;
