@@ -42,6 +42,10 @@ type BrandProfileUpsert struct {
 	Locales     map[model.LocaleID]coreprofile.LocaleOverride `json:"locales,omitempty"`
 	Channels    map[string]coreprofile.ChannelOverride        `json:"channels,omitempty"`
 	Personas    map[string]coreprofile.PersonaOverride        `json:"personas,omitempty"`
+	// MinScore is the profile's own on-brand bar (0–100); 0 means the default.
+	// It is authored content — a recipe that raises the bar carries the raised
+	// bar into the workspace rather than leaving the server on the default.
+	MinScore int `json:"min_score,omitempty"`
 }
 
 // BrandProfileUpsertFromProfile builds the upsert payload from a resolved
@@ -57,6 +61,7 @@ func BrandProfileUpsertFromProfile(p *coreprofile.VoiceProfile) BrandProfileUpse
 		Locales:     p.Locales,
 		Channels:    p.Channels,
 		Personas:    p.Personas,
+		MinScore:    p.MinScore,
 	}
 }
 

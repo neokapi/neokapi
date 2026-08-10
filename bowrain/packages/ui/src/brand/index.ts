@@ -30,6 +30,8 @@ export {
   scoreFillClass,
 } from "./complianceBar";
 export type { ScoreBand, HasMinScore, ProfileBarSource } from "./complianceBar";
+export { MIN_SCORE_HELP, minScoreFieldValue, parseMinScore } from "./minScore";
+export type { ParsedMinScore } from "./minScore";
 export type {
   VoiceProfile,
   ToneProfile,

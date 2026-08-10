@@ -174,6 +174,13 @@ export interface CreateVoiceProfileRequest {
   vocabulary: VocabularyRules;
   examples: VoiceExample[];
   personas?: Record<string, PersonaOverride>;
+  /**
+   * The profile's own on-brand bar (0–100); omitted or 0 means the default
+   * (complianceBar / core/profile's DefaultMinScore). Authored content, not
+   * server-managed metadata: the bar decides which blocks the ship gate and
+   * bulk approve-passing count as on-brand, so every write surface carries it.
+   */
+  min_score?: number;
 }
 
 export interface UpdateVoiceProfileRequest extends CreateVoiceProfileRequest {

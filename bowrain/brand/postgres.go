@@ -38,6 +38,14 @@ func (s *PostgresBrandStore) Close() error {
 // Profile CRUD
 // ---------------------------------------------------------------------------
 
+// profileColumns is the one column list every profile read selects, in the
+// order scanProfile scans. Spelled once because a column added to the table and
+// forgotten in one of the reads is invisible — the row still scans, the field
+// just comes back zero, which is exactly how min_score reached the API, the
+// wire and four UI surfaces while the store silently dropped it.
+const profileColumns = `id, workspace_id, name, description, tone, style, vocabulary, examples,
+	locales, channels, personas, autonomy, min_score, version, created_at, updated_at, created_by`
+
 func (s *PostgresBrandStore) CreateProfile(ctx context.Context, profile *coreprofile.VoiceProfile) error {
 	if profile.ID == "" {
 		profile.ID = id.New()
@@ -81,12 +89,12 @@ func (s *PostgresBrandStore) CreateProfile(ctx context.Context, profile *corepro
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO brand_profiles (id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+		`INSERT INTO brand_profiles (`+profileColumns+`)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
 		profile.ID, profile.Scope, profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
 		string(locales), string(channels), string(personas), string(autonomy),
-		profile.Version, now, now, profile.CreatedBy)
+		profile.MinScore, profile.Version, now, now, profile.CreatedBy)
 	if err != nil {
 		return fmt.Errorf("insert brand profile: %w", err)
 	}
@@ -95,7 +103,7 @@ func (s *PostgresBrandStore) CreateProfile(ctx context.Context, profile *corepro
 
 func (s *PostgresBrandStore) GetProfile(ctx context.Context, profileID string) (*coreprofile.VoiceProfile, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by
+		`SELECT `+profileColumns+`
 		 FROM brand_profiles WHERE id = $1`, profileID)
 	return scanProfile(row)
 }
@@ -155,12 +163,13 @@ func (s *PostgresBrandStore) UpdateProfile(ctx context.Context, profile *corepro
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE brand_profiles
 		 SET name=$1, description=$2, tone=$3, style=$4, vocabulary=$5, examples=$6,
-		     locales=$7, channels=$8, personas=$9, autonomy=$10, version=$11, updated_at=$12
-		 WHERE id=$13`,
+		     locales=$7, channels=$8, personas=$9, autonomy=$10, min_score=$11,
+		     version=$12, updated_at=$13
+		 WHERE id=$14`,
 		profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
 		string(locales), string(channels), string(personas), string(autonomy),
-		profile.Version, now, profile.ID)
+		profile.MinScore, profile.Version, now, profile.ID)
 	if err != nil {
 		return fmt.Errorf("update brand profile: %w", err)
 	}
@@ -185,7 +194,7 @@ func (s *PostgresBrandStore) DeleteProfile(ctx context.Context, profileID string
 
 func (s *PostgresBrandStore) ListProfiles(ctx context.Context, workspaceID string) ([]*coreprofile.VoiceProfile, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, workspace_id, name, description, tone, style, vocabulary, examples, locales, channels, personas, autonomy, version, created_at, updated_at, created_by
+		`SELECT `+profileColumns+`
 		 FROM brand_profiles WHERE workspace_id = $1 ORDER BY name`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list brand profiles: %w", err)
@@ -663,7 +672,7 @@ func scanProfile(row scanner) (*coreprofile.VoiceProfile, error) {
 		&p.ID, &p.Scope, &p.Name, &p.Description,
 		&toneJSON, &styleJSON, &vocabJSON, &examplesJSON,
 		&localesJSON, &channelsJSON, &personasJSON, &autonomyJSON,
-		&p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy)
+		&p.MinScore, &p.Version, &p.CreatedAt, &p.UpdatedAt, &p.CreatedBy)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("brand profile not found")
