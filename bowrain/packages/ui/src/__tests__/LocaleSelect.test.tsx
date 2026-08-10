@@ -118,6 +118,21 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 /* ── LocaleSelect (backed by Combobox input) ── */
 
 describe("LocaleSelect", () => {
+  it("names a locale the catalog has never heard of", async () => {
+    // The known-locale catalog is a curated list of major tags, so a project
+    // target like fr-FR is not in it. The picker must still say French.
+    const onChange = vi.fn();
+    render(
+      <Wrapper>
+        <LocaleSelect value="fr-FR" onChange={onChange} codes={["en", "fr-FR"]} data-testid="src" />
+      </Wrapper>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("combobox")).toHaveValue("French (France) (fr-FR)");
+    });
+  });
+
   it("renders the combobox with display value", async () => {
     const onChange = vi.fn();
     render(
@@ -127,7 +142,7 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveValue("en");
+      expect(screen.getByRole("combobox")).toHaveValue("English (en)");
     });
   });
 
@@ -141,7 +156,7 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveValue("en");
+      expect(screen.getByRole("combobox")).toHaveValue("English (en)");
     });
 
     await user.click(screen.getByRole("combobox"));
@@ -158,7 +173,7 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveValue("en");
+      expect(screen.getByRole("combobox")).toHaveValue("English (en)");
     });
 
     await user.click(screen.getByRole("combobox"));
@@ -177,7 +192,7 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveValue("en");
+      expect(screen.getByRole("combobox")).toHaveValue("English (en)");
     });
 
     // Click to open, then type to search
@@ -203,7 +218,7 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveValue("en");
+      expect(screen.getByRole("combobox")).toHaveValue("English (en)");
     });
 
     await user.click(screen.getByRole("combobox"));

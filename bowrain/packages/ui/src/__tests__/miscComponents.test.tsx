@@ -261,10 +261,29 @@ describe("FileProgressTable", () => {
     expect(within(rows[1]).getByText("alpha")).toBeInTheDocument();
 
     // Click File column header to toggle to desc
-    const fileHeader = screen.getByRole("columnheader", { name: /^File/ });
-    await userEvent.click(fileHeader);
+    await userEvent.click(screen.getByRole("button", { name: /^File/ }));
     const rowsAfter = screen.getAllByRole("row");
     expect(within(rowsAfter[1]).getByText("beta")).toBeInTheDocument();
+  });
+
+  it("states the sort in aria-sort rather than in the column's name", async () => {
+    render(<FileProgressTable itemStats={[makeItemStat()]} locales={[]} />);
+
+    const file = screen.getByRole("columnheader", { name: /^File/ });
+    const words = screen.getByRole("columnheader", { name: /^Words/ });
+    expect(file).toHaveAttribute("aria-sort", "ascending");
+    expect(words).toHaveAttribute("aria-sort", "none");
+
+    // The direction lives in the attribute and in an aria-hidden icon, so the
+    // column is named "File" in every state — never "File ↑", never "Filenull".
+    expect(file).toHaveAccessibleName("File");
+    expect(words).toHaveAccessibleName("Words");
+
+    await userEvent.click(screen.getByRole("button", { name: /^File/ }));
+    expect(screen.getByRole("columnheader", { name: /^File/ })).toHaveAttribute(
+      "aria-sort",
+      "descending",
+    );
   });
 
   it("caps rendering at 500 rows and shows an honest cap row", () => {
@@ -318,11 +337,11 @@ describe("FileProgressTable (server paging)", () => {
     );
 
     // Same column: toggles direction.
-    await userEvent.click(screen.getByRole("columnheader", { name: /^File/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^File/ }));
     expect(onSortChange).toHaveBeenCalledWith("name", "desc");
 
     // Different column: starts ascending.
-    await userEvent.click(screen.getByRole("columnheader", { name: /^Words/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Words/ }));
     expect(onSortChange).toHaveBeenCalledWith("words", "asc");
   });
 

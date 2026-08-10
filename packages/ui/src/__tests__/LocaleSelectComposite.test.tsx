@@ -2,7 +2,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { MultiLocaleSelect, type LocaleInfo } from "../components/composites/locale-select";
+import {
+  LocaleSelect,
+  MultiLocaleSelect,
+  type LocaleInfo,
+} from "../components/composites/locale-select";
 
 const locales: LocaleInfo[] = [
   { code: "en", displayName: "English" },
@@ -29,6 +33,22 @@ afterEach(() => {
   root = null;
 });
 
+describe("LocaleSelect (composite)", () => {
+  it("names the selection", () => {
+    render(<LocaleSelect value="fr" onChange={vi.fn()} locales={locales} />);
+    expect(container!.textContent).toContain("French");
+  });
+
+  // A caller's catalog is a list of major tags; a real project target is often
+  // a regional one that is not in it. Reading that as "nothing selected" hid
+  // the selection behind the placeholder.
+  it("names a selection its catalog does not list", () => {
+    render(<LocaleSelect value="pt-BR" onChange={vi.fn()} locales={locales} />);
+    expect(container!.textContent).toContain("Portuguese");
+    expect(container!.textContent).not.toContain("Select locale");
+  });
+});
+
 describe("MultiLocaleSelect (composite)", () => {
   it("renders a chip per selected locale", () => {
     render(<MultiLocaleSelect value={["en", "fr"]} onChange={vi.fn()} locales={locales} />);
@@ -52,6 +72,11 @@ describe("MultiLocaleSelect (composite)", () => {
       remove!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     expect(onChange).toHaveBeenCalledWith(["en"]);
+  });
+
+  it("names a chip whose code its catalog does not list", () => {
+    render(<MultiLocaleSelect value={["pt-BR"]} onChange={vi.fn()} locales={locales} />);
+    expect(container!.textContent).toContain("Portuguese");
   });
 
   it("collapses to an inline hint when every locale is selected", () => {
