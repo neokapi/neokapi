@@ -272,6 +272,27 @@ func TestSeedProjectContext_KeepsServerVocabulary(t *testing.T) {
 	assert.Equal(t, 2, concepts, "the store is the union of the source and the pull")
 }
 
+// TestSeedProjectContext_ApplyStampsWhatItCompiled: a write path that edits a
+// committed source and imports it itself records the digest, so the next
+// seeding pass does not re-import a source the store already holds.
+func TestSeedProjectContext_ApplyStampsWhatItCompiled(t *testing.T) {
+	a, cmd, root, recipe := newApplyAssetProject(t)
+	ctx := context.Background()
+
+	res := a.applyAssetEntry(ctx, cmd, changeEntry{
+		Kind: kindTerm, Op: "upsert", Term: "sign in", Locale: "en", Status: "preferred",
+	})
+	require.Equal(t, "applied", res.Status, "detail: %s", res.Detail)
+
+	seeded, err := a.SeedProjectContext(ctx, recipe)
+	require.NoError(t, err)
+	assert.False(t, seeded.Compiled(), "apply's own compile was recorded")
+	assert.Equal(t, 1, seeded.Skipped)
+
+	concepts, _ := storeCounts(t, a, root)
+	assert.Equal(t, 1, concepts)
+}
+
 // TestSeedProjectContext_RelationsRoundTrip: the committed bundle is the terms
 // store's lossless form, so the edges it carries reach the store too.
 func TestSeedProjectContext_RelationsRoundTrip(t *testing.T) {

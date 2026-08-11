@@ -175,6 +175,28 @@ func (a *App) SeedProjectContext(ctx context.Context, projectPath string) (SeedC
 	return res, nil
 }
 
+// stampContextSource records a source's current digest as compiled, for a
+// caller that just wrote the file and imported it itself (the apply paths, the
+// terminology projection). Without it the next seeding pass re-imports a source
+// the store already holds — harmless, since the importers upsert, but pure cost
+// and it would repeat on every run.
+//
+// Best-effort: the stamp is an optimization, and a store that cannot record it
+// simply re-imports next time.
+func (a *App) stampContextSource(ctx context.Context, root, srcPath string) {
+	db, err := a.ProjectDB(ctx, root)
+	if err != nil {
+		return
+	}
+	digest, derr := fileDigest(srcPath)
+	if derr != nil {
+		return
+	}
+	stamps := loadContextDigests(ctx, db)
+	stamps[relSlash(root, srcPath)] = digest
+	_ = saveContextDigests(ctx, db, stamps)
+}
+
 // projectStoreExists reports whether the project already has a store file. It
 // stats rather than opens, because opening creates one — the distinction a dry
 // run depends on.

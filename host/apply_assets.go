@@ -180,6 +180,7 @@ func (a *App) compileTermsSource(ctx context.Context, root, srcPath string) erro
 	if _, err := ImportKTBFile(ctx, tb, f); err != nil {
 		return fmt.Errorf("compile terms: %w", err)
 	}
+	a.stampContextSource(ctx, root, srcPath)
 	return nil
 }
 
@@ -481,6 +482,7 @@ func (a *App) compileMemorySource(ctx context.Context, root, srcPath string) err
 		return fmt.Errorf("compile content memory: %w", err)
 	}
 	a.RebuildMemorySearchIndexes(ctx, tm)
+	a.stampContextSource(ctx, root, srcPath)
 	return nil
 }
 
