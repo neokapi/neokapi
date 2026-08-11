@@ -111,6 +111,50 @@ func TestContentLint_RunAwareBoundaries(t *testing.T) {
 			wantNot: []string{"control-char"},
 		},
 
+		// Line structure is not spacing. A block's text spans as many lines as
+		// the source wrote it on, and what follows each newline indents the
+		// continuation line — the markup, not the prose (#1854).
+		{
+			// The reported bug, verbatim: `- one two\n  three four`, the
+			// CommonMark two-space continuation indent every wrapped bullet has.
+			name:    "a two-space continuation indent is not a double space",
+			runs:    []model.Run{hygTx("one two\n  three four")},
+			wantNot: []string{"double-spaces"},
+		},
+		{
+			name:    "an ordered list's three-space continuation indent",
+			runs:    []model.Run{hygTx("one two\n   three four")},
+			wantNot: []string{"double-spaces"},
+		},
+		{
+			name:    "an indent carried across the join of two text runs",
+			runs:    []model.Run{hygTx("one two\n"), hygTx("  three four")},
+			wantNot: []string{"double-spaces"},
+		},
+		{
+			name:    "every continuation line of a multi-line block is indented",
+			runs:    []model.Run{hygTx("one two\n  three four\n  five six")},
+			wantNot: []string{"double-spaces"},
+		},
+
+		// Genuine positives on wrapped content, unchanged: silencing the indent
+		// must not silence the prose beside it.
+		{
+			name: "a double space on the first line of a wrapped block still fires",
+			runs: []model.Run{hygTx("one  two\n  three four")},
+			want: []string{"double-spaces"},
+		},
+		{
+			name: "a double space on an indented continuation line still fires",
+			runs: []model.Run{hygTx("one two\n  three  four")},
+			want: []string{"double-spaces"},
+		},
+		{
+			name: "spaces before a line break still fire — nothing structural puts them there",
+			runs: []model.Run{hygTx("one two  \nthree four")},
+			want: []string{"double-spaces"},
+		},
+
 		// Genuine positives, unchanged.
 		{
 			name: "genuine leading whitespace still fires",

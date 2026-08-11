@@ -132,6 +132,29 @@ func TestWhitespaceCorrect_PreservesTargetRuns(t *testing.T) {
 			target: []model.Run{wsTx("Vous  avez "), wsPluralRun("un   objet", "des   objets")},
 			want:   []string{"text:Vous avez ", "plural:des objets"},
 		},
+		{
+			// A wrapped list item's continuation indent is markup around the
+			// translation: collapsing it re-lays-out the target's markdown. It is
+			// the same whitespace `hygiene.double-spaces` declines to report
+			// (#1854), and the two must not disagree.
+			name: "a continuation indent survives space normalization",
+			cfg: &tools.WhitespaceCorrectConfig{
+				TargetLocale: model.LocaleFrench, NormalizeSpaces: true,
+			},
+			source: []model.Run{wsTx("one two\n  three four")},
+			target: []model.Run{wsTx("un deux\n  trois quatre")},
+			want:   []string{"text:un deux\n  trois quatre"},
+		},
+		{
+			// The indent is kept, the prose defect beside it is still collapsed.
+			name: "a double space past the indent still collapses",
+			cfg: &tools.WhitespaceCorrectConfig{
+				TargetLocale: model.LocaleFrench, NormalizeSpaces: true,
+			},
+			source: []model.Run{wsTx("one two\n  three four")},
+			target: []model.Run{wsTx("un deux\n  trois  quatre")},
+			want:   []string{"text:un deux\n  trois quatre"},
+		},
 	}
 
 	for _, tt := range tests {
