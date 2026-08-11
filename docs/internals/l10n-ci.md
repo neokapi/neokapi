@@ -117,8 +117,10 @@ human to run a command and push its output is asking them to be a build step.
 The moment an artifact under this gate stops being deterministic, the auto-fix
 becomes wrong and the gate must go strict.
 
-This is the only job in the repository that holds `contents: write` for
-multilingual reasons. It used to be four, including the frontend and desktop
+This and the dogfood sync below are the only jobs in the repository that hold
+`contents: write` for multilingual reasons, and they write to different places:
+this one to the pull-request branch under review, the sync only to its own bot
+branch. It used to be four, including the frontend and desktop
 jobs — which run `vp install` and a full test suite on pull-request content, and
 held repository write only because a catalog check was bolted onto them.
 
@@ -139,7 +141,7 @@ bowrain.cloud, nightly and on demand. It is deliberately unremarkable:
 `setup-kapi` installs the **released** CLI and the bowrain plugin from the
 registry rather than building either from the checkout, so the nightly is a test
 of the product rather than of the working tree. `kapi-action` runs the
-convergence verb and commits what came back. The one non-standard step is
+convergence verb and reports; the workflow delivers. The one non-standard step is
 `make l10n-extract`, and it is there because five collections declare catalogs
 the extractors produce from React source — build artifacts, gitignored by
 design, so a run from a clean checkout would carry nothing for them. Source
@@ -149,16 +151,30 @@ gate a push.
 This is the one in-repo kapi invocation that binds the root recipe. Everything
 else must isolate itself per the contract in CLAUDE.md.
 
-Between `kapi up` and the delivery step sits `scripts/check-sync-backed.sh`. The
-artifacts the loop owns are rebuilt from `.kapi/` on the next regeneration, so a
-run that produces them without a matching `.kapi/` change delivers wording with
-nothing behind it — content the following regeneration overwrites from a context
-that never learned it, with every run in the sequence green. The gate refuses
-that run, naming every file, and the nightly goes red. It also refuses anything
-the run changed outside `.kapi/` and the derived set, backed or not: `git add -A`
-would otherwise carry a source edit into main with no review and no CI. Its
-`--self-test` runs in the repo-guards job, because nothing on a pull request
-exercises the gate itself.
+Two steps sit between `kapi up` and delivery, in this order.
+
+`kapi commit` is the loop's return leg. The pull stages the server's approved
+decisions in the project's working store, and `kapi commit` is the only door
+from there into the committed record under `.kapi/state/` that git tracks —
+recording a decision and publishing it stay separate acts, so `up` does not do
+it. Nothing staged is a no-op that exits 0.
+
+`scripts/check-sync-backed.sh` then asks whether the committed context moved
+with what the run produced, which is why it runs second. The artifacts the loop
+owns are rebuilt from `.kapi/` on the next regeneration, so a run that produces
+them without a matching `.kapi/` change delivers wording with nothing behind it
+— content the following regeneration overwrites from a context that never
+learned it, with every run in the sequence green. The gate refuses that run,
+naming every file, and the nightly goes red. It also refuses anything the run
+changed outside `.kapi/` and the derived set, backed or not: an indiscriminate
+delivery would otherwise carry a source edit into main with no review and no CI.
+
+Delivery is `scripts/auto-pr.sh`: what survives the gate goes up as a pull
+request on the rolling `bot/dogfood-sync` branch, never as a push to main, so a
+human reads approved wording before it ships. A night that brought nothing home
+opens nothing and leaves no branch behind. Both scripts carry a `--self-test`
+that runs in the repo-guards job, because nothing on a pull request exercises
+either of them.
 
 ### What CI needs configured
 
