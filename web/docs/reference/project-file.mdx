@@ -140,6 +140,7 @@ carry a `path:`; a bare entry needs a `path:`.
 | `target`           | string        | Output path template (see [Source and target paths](#source-and-target-paths))            |
 | `source_language`  | string        | Overrides the collection's and the project's source language                              |
 | `target_languages` | string[]      | Overrides the collection's and the project's target languages                             |
+| `channel`          | string        | Overrides the collection's `channel:` for the files this item matches (see [Profiles and channels](#profiles-and-channels)) |
 | `redaction`        | RedactionSpec | Overrides `defaults.redaction` for this item                                              |
 
 #### base
@@ -221,7 +222,8 @@ Content is written for a point in a two-axis space: the **product** it belongs t
 and the **channel** it ships on. The space is structural rather than declared — a
 key under `profiles:` is a product, the channels that profile lists are the
 channels that product ships on, and a collection names the point its content sits
-at with one `channel:` reference.
+at with one `channel:` reference. [Context](/kapi/context) is the concept; this
+section is the schema.
 
 ```yaml
 profiles:
@@ -234,6 +236,7 @@ profiles:
         concept: term:9a1c0f42b7
       - cli
     voice: .kapi/voice.yaml
+    valid_to: 2026-12-01
 
 collections:
   - name: console-app
@@ -244,14 +247,18 @@ collections:
     channel: sdk/docs
     content:
       - path: "web/docs/**/*.mdx"
+      - path: "web/docs/legal/**/*.mdx"
+        channel: sdk/cli
 ```
 
-| Field      | Type              | Description                                                                                       |
-| ---------- | ----------------- | -------------------------------------------------------------------------------------------------- |
-| `channels` | Channel[]         | The surfaces this product ships on. A slug, or `{id, concept}` in long form                        |
-| `voice`    | VoiceBinding      | The voice profile governing this product's content, in the same forms as `defaults.voice`. Unset keeps `defaults.voice` |
-| `terms`    | string            | A standalone terms store governing this product's content, resolved relative to the project root. Unset, the project's own store governs |
-| `concept`  | string            | The concept that names this product, for display. Carried and shape-checked, never resolved during matching |
+| Field        | Type              | Description                                                                                       |
+| ------------ | ----------------- | -------------------------------------------------------------------------------------------------- |
+| `channels`   | Channel[]         | The surfaces this product ships on. A slug, or `{id, concept}` in long form                        |
+| `voice`      | VoiceBinding      | The voice profile governing this product's content, in the same forms as `defaults.voice`. Unset keeps `defaults.voice` |
+| `terms`      | string            | A standalone terms store governing this product's content, resolved relative to the project root. Unset, the project's own store governs |
+| `concept`    | string            | The concept that names this product, for display. Carried and shape-checked, never resolved during matching |
+| `valid_from` | string            | Date (`YYYY-MM-DD`) or RFC3339 instant this profile starts governing, inclusive. Unset is unbounded (see [Profile validity](#profile-validity)) |
+| `valid_to`   | string            | Date or RFC3339 instant it stops, exclusive. Unset is unbounded                                    |
 
 The map key is the profile's name: the product-axis value its collections carry,
 and the directory under `.kapi/profiles/<name>/` holding the files it overrides.
@@ -265,14 +272,48 @@ translated, comparable byte for byte — which is why a profile or a channel may
 
 A collection's `channel:` is always written `profile/channel` — the product owns
 the surface, and the binding reads as one. A bare channel name is a load error
-that spells out the qualified form(s). Binding a channel requires a named
-collection. A
+that spells out the qualified form(s), even when exactly one profile declares it.
+Binding a channel requires a named collection. A
 collection that binds none is governed by the project default point —
 `defaults.voice` and the project's own terms.
 
+A content item may carry its own `channel:`, in the same qualified form and under
+the same load-time validation, for the files that item matches. It is available
+to per-file governance resolution; a flow run and a push resolve governance per
+collection, so an item's own channel does not change what either carries.
+
 On a connected project, the resolved product and channel travel to the server as
 the content's coordinates, so both venues resolve the same voice for the same
-content.
+content. A profile's `terms:` does not: it is a path into the local project, and
+a connected run warns that the binding applies locally only.
+
+#### Conventional files
+
+A profile's own directory answers before the project default does, so overrides
+kept in the conventional place need no line in the recipe. Resolution for a
+collection's point, most specific first:
+
+| Store | Order                                                                                   |
+| ----- | --------------------------------------------------------------------------------------- |
+| voice | `profiles.<name>.voice` → `.kapi/profiles/<name>/voice.yaml` → `defaults.voice` → `.kapi/voice.yaml` → `voice.yaml` |
+| terms | `--termstore` → `profiles.<name>.terms` → `.kapi/profiles/<name>/terms.json` (when the file exists) → the project's own store |
+
+The channel then refines the voice that resolved: a matching entry under the
+voice profile's own `channels:` replaces its tone, its style, or both. Vocabulary
+is not channel-scoped.
+
+#### Profile validity
+
+`valid_from` and `valid_to` bound a profile's governance in time — the same
+half-open window a term carries, with `valid_from` inclusive and `valid_to`
+exclusive, so a `valid_to` date excludes that whole day. A bound is a date
+(`YYYY-MM-DD`) or an RFC3339 instant; an unparseable bound or an inverted range
+fails at load.
+
+The window is reported rather than enforced.
+[`kapi context search`](/reference/commands/context-search) reads every bounded profile
+against the current time and labels it `active`, `upcoming` or `expired`; a run
+resolves the profile its collection binds either way.
 
 ### Defaults
 

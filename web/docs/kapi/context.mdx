@@ -2,10 +2,10 @@
 sidebar_position: 3
 title: Context
 description: How kapi knows what your content should say — the two-axis context space a piece of content sits at (product and channel), the stores that govern each point (voice profile, terms, content memory), and the one question that reaches all of them.
-keywords: [kapi, context, voice profile, terms, content memory, product, channel, profiles, context search, governance]
+keywords: [kapi, context, voice profile, terms, content memory, product, channel, profiles, context search, governance, profile validity]
 ---
 
-import { PipelineDiagram } from "@neokapi/docs-shared";
+import { AxisLadderDiagram, PipelineDiagram } from "@neokapi/docs-shared";
 
 # Context
 
@@ -21,6 +21,12 @@ Two questions describe the model:
   two-axis space — the _product_ it belongs to and the _channel_ it ships on.
 - **What governs that place?** A point in the space binds governance: a voice
   profile, a terms store, and the content memory of what has been said before.
+
+Neither question mentions a language. A project that publishes in one language
+has both of them, and answering them is the ordinary case: keeping a repository's
+own writing consistent across the surfaces it ships on, whoever — or whatever —
+wrote the draft. A language is [one more axis](#one-more-axis-language) of the
+same space, and it is added last.
 
 ## The context space
 
@@ -41,19 +47,30 @@ by the project defaults.
 
 ```yaml title="kapi.yaml"
 profiles:
-  console:
-    channels: [app, docs]
-    voice: .kapi/profiles/console/voice.yaml
-  sdk:
-    channels: [docs, cli]
+  acme:
+    channels: [docs, app, landing]
     voice: .kapi/voice.yaml
 
 collections:
-  - name: console-app
-    channel: console/app
+  - name: acme-docs
+    channel: acme/docs
+    base: web
     content:
-      - path: "console/i18n/**/*.kbf.json"
+      - path: "docs/**/*.md"
+  - name: acme-landing
+    channel: acme/landing
+    content:
+      - path: "site/pages/**/*.mdx"
 ```
+
+One product on three surfaces. A second product is a second key under
+`profiles:`, and its channels are its own — two products may both ship a `docs`
+channel without sharing anything but the word.
+
+A collection's `channel:` is always written `product/channel`. A bare channel
+name is a load error, even when exactly one product declares it; the error names
+the qualified form to paste. A collection that binds no channel is governed by
+the project's default point.
 
 Products and channels are **slugs** — lowercase, stable, never translated — so
 governance binds to an identifier that does not move when a term is reworded. A
@@ -77,6 +94,96 @@ channel then refines the voice, selecting a channel-specific override inside the
 bound profile when one exists. A point that declares no override of its own
 falls back to the project default — the right answer for a voice that reads the
 same everywhere.
+
+### Where a profile's files live
+
+The filesystem mirrors the recipe. The default governance sits flat in `.kapi/`;
+each profile keeps what it overrides in a directory of its own, named after its
+key under `profiles:`:
+
+```
+.kapi/
+├── voice.yaml              # the project default
+├── terms.json
+├── memory/
+└── profiles/
+    └── acme-labs/
+        ├── voice.yaml      # this product's voice, by convention
+        └── terms.json      # this product's vocabulary, by convention
+```
+
+Only the differences belong there. A profile that does not override the
+vocabulary keeps no `terms.json`, and resolution falls through to the flat
+default. A profile directory is itself a binding: a profile that names neither
+`voice:` nor `terms:` in the recipe is still answered by its own files, so a
+project that keeps its overrides here does not have to restate every one of them
+in `kapi.yaml`.
+
+What does **not** split by profile is the content memory and the unit-state
+record. A recycled wording and an approval are facts about a unit — true
+wherever that unit is governed from — so both stay at the top of `.kapi/`. See
+[the project store](/kapi/project-store) for the full layout.
+
+## How a point resolves
+
+Governance resolves from the broadest binding toward the most specific, and the
+most specific one that exists wins:
+
+<AxisLadderDiagram
+  rungs={[
+    { grade: "1", name: "project default", gloss: "defaults.voice · the project's own terms" },
+    { grade: "2", name: "profile", gloss: "profiles.<name>.voice / terms:, else .kapi/profiles/<name>/" },
+    { grade: "3", name: "channel", gloss: "the matching override inside the voice already selected" },
+  ]}
+  caption="A collection's point resolves up the ladder; an unbound collection stops at rung 1."
+/>
+
+The rungs are not symmetric, and the difference is worth knowing:
+
+- **Rung 2 selects a file.** The profile's `voice:` wins as written; failing
+  that, its conventional `.kapi/profiles/<name>/voice.yaml` answers; failing
+  that, `defaults.voice`. Terms resolve the same way — `terms:`, then
+  `.kapi/profiles/<name>/terms.json` when the file is actually there, then the
+  project's own store.
+- **Rung 3 refines what rung 2 selected.** A channel entry inside the bound
+  voice profile replaces the tone, the style, or both, so a landing-page
+  register is authored once beside the voice it varies rather than duplicated
+  into a file per product-and-channel pair. A channel the profile has no entry
+  for is not an error: the base voice applies.
+
+Vocabulary is not channel-scoped. The words a product will and will not use are
+the same on every surface it ships on, which is why rung 3 moves the register
+and never the term list.
+
+Resolution is by declaration, not by matching. Every failure — a channel no
+profile declares, a bare reference, a non-slug name, a voice binding naming two
+sources — is caught when the recipe loads, because the alternative is content
+governed by a plausible-looking wrong voice.
+
+## Governance can have a lifetime
+
+A profile can declare from when until when it is the one in force. The bounds
+are a date or an RFC3339 instant, and the window is half-open — `valid_from` is
+inclusive, `valid_to` exclusive, so a `valid_to` date excludes that whole day:
+
+```yaml title="kapi.yaml"
+profiles:
+  acme-relaunch:
+    channels: [landing]
+    voice: .kapi/profiles/acme-relaunch/voice.yaml
+    valid_from: 2026-09-01
+    valid_to: 2026-12-01
+```
+
+The window is reported rather than enforced. `kapi context search` reads every
+bounded profile against today and labels it `active`, `upcoming` or `expired`,
+so a writer can see that the guidance they are about to follow has a start or an
+end date; a run resolves the profile its collection binds either way. An expired
+profile is therefore something to act on, not a silent switch.
+
+The same half-open window scopes an individual term, which is what lets a
+vocabulary survive a rename: _recognise the old name until March_ is a different
+instruction from _never use it_, and a context answer distinguishes them.
 
 ## One question, every store
 
@@ -105,6 +212,14 @@ naming any store it could not reach. You do not have to know which store holds
 the answer, which is the whole point: asking before you write is the cheap
 route, and learning the same fact from a failing check afterwards is not.
 
+Three details make the answer actionable rather than merely informative. A
+discouraged term is reported with where it is actually used, so *this word is
+retired* becomes *this word is retired and sits in thirty-four blocks*. Approved
+wording that contains a term the same search found retired is flagged, so one
+answer never contradicts itself. And `--locale` narrows terms to one language,
+because a spelling can be retired in one and admitted in another. Add `--json`
+for the shape an assistant reads; it is the same shape the MCP tool returns.
+
 ## Two directions around the writer
 
 Context works on both sides of the moment content is written:
@@ -121,9 +236,25 @@ Rules an agent proposes — a new forbidden term, a newly approved translation �
 land through `kapi apply` as typed change-set entries in the committed stores,
 so the review surface for the _rules_ is `git diff`, exactly as for code.
 
+## One more axis: language
+
+Adding `target_languages` to the recipe does not add a third governance axis. A
+translated block sits at the point its source sits at, and the same profile
+governs it: the voice bound at `acme/landing` is the voice its Norwegian landing
+page is written in, and the terms bound at `acme/docs` are the terms its German
+documentation uses.
+
+What a language adds is an override *inside* the voice profile, next to the
+channel overrides — a `locales:` entry carries the formality, the point of view,
+the vocabulary and the examples that hold for that language only. So the thing
+you author for one language is the thing that governs every other, and the loop
+that keeps the languages in step is [convergence](/kapi/convergence), not a
+second context model.
+
 ## Related
 
 - [Content governance for AI](/kapi/recipes/content-governance-for-ai) — the how-to: author the stores and gate on them.
 - [Keep terms consistent](/kapi/recipes/terminology-qa) — building and enforcing the terms store.
 - [The project store](/kapi/project-store) — where the derived index of this context lives.
 - [Project file reference](/reference/project-file#profiles-and-channels) — the `profiles:` and `channel:` fields in full.
+- [`kapi context search`](/reference/commands/context-search) — the command's own flags and output.
