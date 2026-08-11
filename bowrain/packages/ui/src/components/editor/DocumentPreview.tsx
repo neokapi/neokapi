@@ -351,9 +351,13 @@ export function DocumentPreview({
   }, []);
 
   // Fallback: mark ready on iframe load (for previews without kat-iframe-ready)
+  const readyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const handleIframeLoad = useCallback(() => {
-    setTimeout(() => setIframeReady(true), 50);
+    clearTimeout(readyTimerRef.current);
+    readyTimerRef.current = setTimeout(() => setIframeReady(true), 50);
   }, []);
+  // Without this the timer outlives an unmount and sets state on a dead tree.
+  useEffect(() => () => clearTimeout(readyTimerRef.current), []);
 
   // Send selection to iframe when selectedBlockId changes
   useEffect(() => {
