@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host"
 	"github.com/neokapi/neokapi/host/pluginhost"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -107,59 +107,41 @@ gates (e.g. before a release tag).
 	return cmd
 }
 
-// runUpWithVenue resolves where the convergence loop runs and executes it.
-//
-// The server venue engages when the recipe binds a convergence venue AND an
-// installed plugin provides the hidden `server-up` plumbing command. --local
-// still dispatches to the plumbing (the plugin converges locally, then pushes
-// so the server copy never goes stale). --plan never dispatches: the server
-// runs the same loop, so the local plan against the working tree is the
-// honest preview. Without the plumbing, the loop runs locally — with the
-// existing stale-server warning when a venue is bound, or an error under
-// --server.
+// runUpWithVenue executes the run at the venue host.ResolveUpVenue picks — the
+// same decision every surface offering the verb makes, an agent over MCP
+// included. What is the terminal's own is here: the resolved-venue line, the
+// user's flags re-rendered as argv for the plumbing subprocess, and the live
+// stdio the subprocess inherits.
 func runUpWithVenue(a *App, cmd *cobra.Command, projectPath string) error {
-	hasServer, serverURL := a.ServerRecipeURL(projectPath)
-	plan := BoolFlag(cmd, "plan")
 	local := BoolFlag(cmd, "local")
 	forceServer := BoolFlag(cmd, "server")
 	if local && forceServer {
 		return errors.New("--local and --server are mutually exclusive")
 	}
 
-	var route *pluginhost.CommandRoute
-	if a.PluginHost != nil {
-		route = a.PluginHost.CommandRoute("server-up")
+	dec, err := a.ResolveUpVenue(projectPath, upVenueOptions(cmd))
+	if err != nil {
+		return err
 	}
 
-	if forceServer {
-		switch {
-		case !hasServer:
-			return fmt.Errorf("--server needs a recipe connected to a bowrain server%s — run 'kapi init --server <url>' to connect this project", venueBlockHint())
-		case route == nil:
-			return errors.New("--server needs the server venue plumbing, which no installed plugin provides — install the bowrain plugin (kapi plugin install bowrain)")
-		}
+	if dec.Venue == host.UpVenueServer {
+		printUpVenue(a, cmd, local, dec.ServerURL)
+		return pluginhost.ExecPluginCommand(cmd.Context(), dec.Route, forwardedFlagArgs(cmd.Flags(), "server"))
 	}
 
-	if hasServer && route != nil && !plan {
-		printUpVenue(a, cmd, local, serverURL)
-		return pluginhost.ExecPluginCommand(cmd.Context(), route, forwardedFlagArgs(cmd.Flags(), "server"))
-	}
-
-	if hasServer && route == nil && !plan {
+	if dec.HasServer && dec.Route == nil && !BoolFlag(cmd, "plan") {
 		a.WarnIfServerRecipeConvergingLocally(cmd, projectPath)
 	}
 	return a.ExecuteUp(cmd, projectPath)
 }
 
-// venueBlockHint names the recipe block a user would add to connect a project,
-// as the registered venue extension spells it. A binary linking no platform has
-// no key to name and gets no hint — the next case tells it to install the
-// plugin, which is the honest first step there.
-func venueBlockHint() string {
-	if key, ok := project.VenueKey(); ok {
-		return fmt.Sprintf(" (a `%s:` block)", key)
+// upVenueOptions reads the venue knobs off the command's flags.
+func upVenueOptions(cmd *cobra.Command) host.UpVenueOptions {
+	return host.UpVenueOptions{
+		Local:       BoolFlag(cmd, "local"),
+		ForceServer: BoolFlag(cmd, "server"),
+		Plan:        BoolFlag(cmd, "plan"),
 	}
-	return ""
 }
 
 // printUpVenue names the resolved venue on stderr before the run starts.
