@@ -95,9 +95,6 @@ translated a block is not the person who approves it. The workspace chooses the
 mode: off, warn (the self-approval is recorded but allowed), or block (the
 self-approval is rejected).
 
-The full model is documented in
-[AD-020: Governance, audit, and rollback](/architecture-decisions/020-governance-audit-rollback).
-
 ## The audit log
 
 Every event on the platform is persisted to an append-only, hash-chained audit

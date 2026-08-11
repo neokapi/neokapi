@@ -3,11 +3,10 @@
  *
  * The single definition site for every event the browser app fires — no
  * scattered string literals. Names are `snake_case` `domain_action`, matching
- * the server-side taxonomy in `bowrain/analytics/events.go`. Every event
- * defined here MUST be listed in the reference doc
- * `web/docs/contribute/implementation/analytics-events.md`; the drift test in
- * `src/__tests__/analytics-events.test.ts` fails otherwise (the client-side
- * mirror of the Go drift gate).
+ * the server-side taxonomy in `bowrain/analytics/events.go`. The taxonomy is
+ * documented outside this repository; what stays enforced here is the shape —
+ * `src/__tests__/analytics-events.test.ts` fails a name that is not
+ * `snake_case` `domain_action` (the client-side mirror of the Go gate).
  *
  * Events are fired through the AnalyticsContext capture seam
  * (`useAnalytics().capture`), which the web shell backs with PostHog via the

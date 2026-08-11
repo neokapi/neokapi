@@ -185,8 +185,6 @@ of the loop write the shards) and the same artifacts become committable.
 Do not hand-edit a seed to clear this gate. Seeds are read-only accelerants;
 wording is decided in the ledger, and a seed edited to match an artifact
 records a decision nobody made.
-
-web/docs/contribute/implementation/dogfood-sync.md carries the full contract.
 EOF
   fi
 

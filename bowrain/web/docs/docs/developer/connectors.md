@@ -50,7 +50,7 @@ type SourceConnector interface {
 }
 ```
 
-`IntegrationConnector` uses fetch/publish terminology from Bowrain's perspective; `SourceConnector` uses push/pull terminology from the source system's perspective. See the [Connector Interfaces](/notes/connector-interfaces) note for the full option and result types.
+`IntegrationConnector` uses fetch/publish terminology from Bowrain's perspective; `SourceConnector` uses push/pull terminology from the source system's perspective. The full option and result types are declared alongside the interfaces in the connector package.
 
 ## Categories
 

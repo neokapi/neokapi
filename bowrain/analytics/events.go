@@ -9,10 +9,9 @@ import "time"
 // properties (surface: "server", app_version) and, when a workspace_id
 // property is present, the PostHog "workspace" group association.
 //
-// Every constant defined here MUST be listed in the generated reference doc
-// web/docs/contribute/implementation/analytics-events.md — the drift gate in
-// events_test.go fails otherwise. Events never carry content, file paths, or
-// source text.
+// The event taxonomy is documented outside this repository; what stays enforced
+// here is the shape: events_test.go fails a name that is not snake_case
+// domain_action. Events never carry content, file paths, or source text.
 const (
 	// Identity and workspace lifecycle.
 	EventUserSignup       = "user_signup"

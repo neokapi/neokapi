@@ -70,9 +70,8 @@ Producing, promoting, and releasing stay separate. Each role has a home:
 :::note[The formal name]
 The model behind this — derived state, lifecycle ladders, coverage gates — is
 formally called **convergence**; the server-side runs are *convergence as a
-service* ([AD-022](/architecture-decisions/022-convergence-as-a-service)). The
-REST API, the run event stream, and `--json` output use that vocabulary. On the
-kapi site the same model is named *the kapi loop*.
+service*. The REST API, the run event stream, and `--json` output use that
+vocabulary. On the kapi site the same model is named *the kapi loop*.
 :::
 
 ## Source first: settle before the fan-out
@@ -122,8 +121,8 @@ is incurred.
   **protected** so translation can never touch them, source QA — and stamps each
   unit's source status up the authoring ladder (*authored → checked → approved*).
 - **Hold at the source ship-gate.** The project's `source_gate`
-  ([`defaults.source_gate`](/architecture-decisions/022-convergence-as-a-service),
-  default `checked`) is the source-side counterpart of the ship gate. Source that
+  (`defaults.source_gate`, default `checked`) is the source-side counterpart of
+  the ship gate. Source that
   has not cleared its bar **holds**: the run parks with the reason
   `source_not_ready`, opens a **source-review task** in the team's queue (see
   [Review](/server/review)), and reports how many blocks are blocked on source —

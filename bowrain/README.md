@@ -178,8 +178,7 @@ Most are also reachable from the repo root as `make -C bowrain <target>`.
 
 - **[bowrain docs](https://bowrain.cloud/docs/)** — published Docusaurus site
 - **[bowrain landing](https://bowrain.cloud/)** — marketing/intro site
-- **[Architecture decisions](web/docs/docs/architecture-decisions/)** — bowrain-specific ADs
-- **[Server reference](web/docs/docs/server/)**, **[CLI reference](web/docs/docs/cli/)**, **[Desktop reference](web/docs/docs/desktop/)**
+- **[Server reference](web/docs/docs/server/)**, **[CLI reference](web/docs/docs/cli/)**, **[Developer reference](web/docs/docs/developer/)**
 
 ## License
 

@@ -47,8 +47,7 @@ Concretely, when a run holds on source:
 - The run parks with the reason **`source_not_ready`** and records how many
   blocks are blocked on source. In the **Runs** view this reads as *parked —
   N blocks need source review*; the run still exits without error.
-- The loop opens a **source-review task** (`source_review`,
-  [AD-014](/architecture-decisions/014-translator-workflow)) for a member with
+- The loop opens a **source-review task** (`source_review`) for a member with
   source-edit permission. It is the same task queue as `translate`, `review`, and
   the fix-up tasks — no new surface, just a new task type — and appears on the
   Task Board and in *My Tasks*.
@@ -61,8 +60,7 @@ issue once per locale downstream.
 
 Clearing the task lifts the affected source units to the gate and lets the loop
 proceed: completing it emits `source.review.completed`, which fans out the
-per-locale translate/review tasks the run was holding
-([AD-013](/architecture-decisions/013-automation-engine)). A reviewer can also
+per-locale translate/review tasks the run was holding. A reviewer can also
 lower the bar — a project may set `source_gate: none` to opt out of the gate
 entirely — but the governed default is to settle first. The next run reads the
 cleared source and translates the now-approved content, memory-first.

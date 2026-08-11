@@ -147,6 +147,85 @@ const config: Config = {
   ],
 
   plugins: [
+    // This site publishes user-facing documentation only: getting started, the
+    // product, the CLI, walkthroughs and developer setup. The engineering
+    // architecture set that used to live at /architecture-decisions/* and
+    // /notes/* is no longer published. Those routes were indexed, so each one
+    // redirects to the user-facing page that covers the same ground rather
+    // than 404ing.
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        redirects: [
+          { from: "/architecture-decisions/index", to: "/developer/server" },
+          { from: "/architecture-decisions/001-vision-and-modules", to: "/developer/server" },
+          {
+            from: "/architecture-decisions/002-authentication-and-workspaces",
+            to: "/server/workspaces",
+          },
+          { from: "/architecture-decisions/003-permissions", to: "/server/members-and-roles" },
+          { from: "/architecture-decisions/004-content-store", to: "/developer/content-store" },
+          { from: "/architecture-decisions/005-streams", to: "/developer/content-store" },
+          {
+            from: "/architecture-decisions/006-graph-concept-storage",
+            to: "/getting-started/the-context-graph",
+          },
+          {
+            from: "/architecture-decisions/007-media-and-blob-storage",
+            to: "/developer/content-store",
+          },
+          { from: "/architecture-decisions/008-connector-system", to: "/developer/connectors" },
+          { from: "/architecture-decisions/009-sync-protocol", to: "/cli/overview" },
+          {
+            from: "/architecture-decisions/010-bowrain-cli-and-project-model",
+            to: "/cli/project-model",
+          },
+          { from: "/architecture-decisions/011-rest-api", to: "/developer/server" },
+          { from: "/architecture-decisions/012-distributed-event-bus", to: "/developer/events" },
+          { from: "/architecture-decisions/013-automation-engine", to: "/server/automation" },
+          { from: "/architecture-decisions/014-translator-workflow", to: "/server/review" },
+          { from: "/architecture-decisions/015-server-ai-operations", to: "/server/pre-process" },
+          { from: "/architecture-decisions/016-bravo-agent", to: "/server/web-overview" },
+          { from: "/architecture-decisions/017-bowrain-apps", to: "/server/desktop-app" },
+          {
+            from: "/architecture-decisions/018-billing-and-plans",
+            to: "/server/billing-and-credits",
+          },
+          {
+            from: "/architecture-decisions/019-correction-learning-loop",
+            to: "/the-loop",
+          },
+          {
+            from: "/architecture-decisions/020-governance-audit-rollback",
+            to: "/server/security-and-privacy",
+          },
+          {
+            from: "/architecture-decisions/021-brand-knowledge-graph",
+            to: "/getting-started/the-context-graph",
+          },
+          {
+            from: "/architecture-decisions/022-convergence-as-a-service",
+            to: "/the-loop",
+          },
+          { from: "/notes/index", to: "/developer/server" },
+          { from: "/notes/admin-control-plane", to: "/server/configuration" },
+          { from: "/notes/automation-run-visibility", to: "/server/automation" },
+          { from: "/notes/brand-voice-data-model", to: "/server/brand-voice" },
+          { from: "/notes/bravo-agent-implementation", to: "/server/web-overview" },
+          { from: "/notes/cli-commands-reference", to: "/cli/overview" },
+          { from: "/notes/connector-interfaces", to: "/developer/connectors" },
+          { from: "/notes/content-store-schema", to: "/developer/content-store" },
+          { from: "/notes/entity-term-extraction", to: "/server/terminology" },
+          { from: "/notes/graph-store-schema", to: "/getting-started/the-context-graph" },
+          { from: "/notes/knowledge-graph-data-model", to: "/getting-started/the-context-graph" },
+          { from: "/notes/media-asset-storage", to: "/developer/content-store" },
+          { from: "/notes/observability", to: "/server/configuration" },
+          { from: "/notes/sync-protocol", to: "/cli/overview" },
+          { from: "/notes/translation-job-queue", to: "/server/automation" },
+          { from: "/notes/translator-workflow", to: "/server/review" },
+        ],
+      },
+    ],
     // @neokapi/docs-shared ships raw TS (main: src/index.ts). In this standalone
     // (non-workspace) docs build it resolves under node_modules/.pnpm, which
     // Docusaurus's babel-loader excludes by default — so its `export type {…}`
