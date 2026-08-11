@@ -96,12 +96,13 @@ type FileRunnerConfig struct {
 	// SourceLocale is the BCP-47 source locale.
 	SourceLocale model.LocaleID
 
-	// ProjectRoot, when set, is the project directory. A process-only run
-	// (RunFileToStore) tags each file's session context with the input's
-	// path relative to this root so the target overlays it commits are keyed
-	// globally-unique per source file (blockstore.StoreKey) rather than by the
-	// collision-prone file-local block id. Empty ⇒ ad-hoc run: overlays keep
-	// the raw id (a single document can't collide with itself).
+	// ProjectRoot, when set, is the project directory. Every run mode tags each
+	// file's session context with the input's path relative to this root, so the
+	// target overlays it commits are keyed globally-unique per source file
+	// (blockstore.StoreKey) rather than by the collision-prone file-local block
+	// id — the file-writing and process-only paths write the same key, and merge
+	// reads it. Empty ⇒ ad-hoc run: overlays keep the raw id (a single document
+	// can't collide with itself).
 	ProjectRoot string
 
 	// Encoding is the file encoding (default: "UTF-8").
@@ -593,6 +594,38 @@ func (r *FileRunner) newExecutor() *DefaultExecutor {
 	return NewExecutor(execOpts...)
 }
 
+// overlayScope returns ctx carrying the namespace under which this run addresses
+// every block overlay it reads or writes: blockstore.OverlayKey resolves to
+// blockstore.StoreKey(namespace, blockID, sourceText), which is the same Hash the
+// project store's own blocks carry.
+//
+// ONE namespace across both run modes is what lets a convergence pass (which
+// writes files, so each pass's coverage sees real output) and a later merge (which
+// reads the overlays back) meet on the same overlay. Leaving the file-writing path
+// untagged put the run's work under the bare, file-local block id instead, where no
+// reader looks — and a missing overlay is blockstore.ErrNotFound, the legitimate
+// "not translated yet" sentinel, so merge wrote the source text over already
+// translated files and exited 0.
+//
+// A caller that already named the file keeps its tag: merge spells the namespace
+// exactly as the recipe resolver does, which is the spelling the store was
+// populated with. Outside a project — ad-hoc runs, the per-document .kpz workspace
+// store — the context stays untagged and the bare id is the key, which cannot
+// collide in a store holding one document.
+func (r *FileRunner) overlayScope(ctx context.Context, inputPath string) context.Context {
+	if r.cfg.ProjectRoot == "" || blockstore.SourceRel(ctx) != "" {
+		return ctx
+	}
+	return blockstore.WithSourceRel(ctx, blockstore.SourceNamespace(r.cfg.ProjectRoot, inputPath))
+}
+
+// commitsTargets reports whether the run should append the implicit
+// commit-targets step: the store outlives the run, so the `targets/<locale>`
+// overlays are state a later merge reads rather than throwaway per-run caching.
+func (r *FileRunner) commitsTargets(targetLang string) bool {
+	return targetLang != "" && r.cfg.Store != nil && r.cfg.Store.Capabilities().Persistent
+}
+
 // RunFileToStore reads and parses the input via the reader, runs the tool chain
 // against the configured persistent Store so SessionTools commit
 // `targets/<locale>` overlays, commits the session, and writes NO output file
@@ -611,27 +644,22 @@ func (r *FileRunner) RunFileToStore(ctx context.Context, flowName string, tools 
 		return errors.New("process-only run requires a persistent block store; the configured store is ephemeral")
 	}
 
-	// Tag the session with this file's project-relative path so the target
-	// overlays committed below are keyed globally-unique per source file
-	// (matching the block store's own keys), not by the file-local block id.
-	//
-	// A failure here is fatal rather than a fallback to the untagged id space.
-	// The tag is one half of blockstore.StoreKey and `kapi merge` supplies the
-	// other half unconditionally from the recipe, so an untagged run commits its
-	// overlays under keys merge cannot address — and merge reads that as "nothing
-	// translated yet", writes the source text into every target file and exits 0.
-	// Silently producing a wrong deliverable is worse than refusing to start.
-	// filepath.Rel of a plain relative CLI argument against the absolute project
-	// root is exactly the case that used to fail, so ProjectRel absolutises both
-	// sides first; what remains an error is genuinely unaddressable.
-	if r.cfg.ProjectRoot != "" {
-		rel, err := blockstore.ProjectRel(r.cfg.ProjectRoot, inputPath)
-		if err != nil {
+	// A process-only run's ONLY deliverable is the overlays, and merge materializes
+	// exactly the files the recipe resolves — so an input the project root cannot
+	// name has nowhere to put its work, and that is fatal rather than a fallback to
+	// some other namespace. Silently producing a wrong deliverable is worse than
+	// refusing to start. filepath.Rel of a plain relative CLI argument against the
+	// absolute project root is exactly the case that used to fail, so ProjectRel
+	// absolutises both sides first; what remains an error is genuinely
+	// unaddressable. The file-writing path, whose deliverable is the file itself,
+	// keeps going (see overlayScope / blockstore.SourceNamespace).
+	if r.cfg.ProjectRoot != "" && blockstore.SourceRel(ctx) == "" {
+		if _, err := blockstore.ProjectRel(r.cfg.ProjectRoot, inputPath); err != nil {
 			reader.Close()
 			return fmt.Errorf("process-only run: %w", err)
 		}
-		ctx = blockstore.WithSourceRel(ctx, rel)
 	}
+	ctx = r.overlayScope(ctx, inputPath)
 
 	// Project mode: stream the source through the document cache (parse → record
 	// once on a miss, replay one part at a time thereafter). No whole document is
@@ -729,6 +757,11 @@ func (r *FileRunner) runProcessOnly(ctx context.Context, flowName string, tools 
 // and MCP which need to apply format presets and project config.
 func (r *FileRunner) RunFileWithReaderWriter(ctx context.Context, flowName string, tools []tool.Tool, inputPath, outputPath, targetLang string, reader format.DataFormatReader, writer format.DataFormatWriter) error {
 	sameFormat := reader.Name() == writer.Name()
+
+	// A file-writing run in project scope commits the same `targets/<locale>`
+	// overlays a process-only run does — convergence deliberately runs this path so
+	// each pass's coverage sees real files — so it addresses them by the same key.
+	ctx = r.overlayScope(ctx, inputPath)
 
 	// Document-cache fast path (project mode): for a same-format round-trip whose
 	// writer reconstructs from the content model + skeleton (not the raw source
@@ -1020,6 +1053,17 @@ func (r *FileRunner) runExecuteWrite(ctx context.Context, flowName string, tools
 	fb := NewFlow(flowName)
 	for _, t := range tools {
 		fb.AddTool(t)
+	}
+	// Against a store that outlives the run, the file is only half the deliverable:
+	// the `targets/<locale>` overlays are what a later merge replays. The
+	// channel-based producers — recycle, which is the first step of the built-in
+	// convergence flow, and every other capability-typed Produce BaseTool — set the
+	// target on the in-flight block without implementing SessionTool, so their work
+	// reaches the file and nothing else. Appending the same implicit step the
+	// process-only path appends persists it; it is idempotent for the bespoke
+	// SessionTools that already wrote their overlay.
+	if r.commitsTargets(targetLang) {
+		fb.AddTool(newCommitTargetsTool(model.LocaleID(targetLang)))
 	}
 	f, err := fb.Build()
 	if err != nil {

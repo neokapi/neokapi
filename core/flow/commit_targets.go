@@ -11,16 +11,17 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 )
 
-// commitTargetsTool is the implicit trailing step of a process-only run. For
-// every block that carries a target for the run's locale it writes a
-// `targets/<locale>` overlay to the session, so a later `kapi merge` (which
-// replays those overlays via the hydrate step) materializes the localized
+// commitTargetsTool is the implicit trailing step of any run against a store
+// that outlives it. For every block that carries a target for the run's locale it
+// writes a `targets/<locale>` overlay to the session, so a later `kapi merge`
+// (which replays those overlays via the hydrate step) materializes the localized
 // file.
 //
 // It exists because the channel-based translate tools (recycle, and any
 // other capability-typed Produce BaseTool) set the target on the in-flight
-// block but do NOT implement SessionTool, so without this step a process-only
-// run would discard their work when the output stream is drained. Bespoke
+// block but do NOT implement SessionTool, so without this step a run would
+// discard their work when the output stream is drained — and a file-writing run
+// would leave the store claiming the block was never translated. Bespoke
 // SessionTools (e.g. pseudo-translate) already write their own overlay; this
 // step is idempotent and simply re-affirms the same `targets/<locale>` key from
 // the block's final target text, so it is safe to append unconditionally.
@@ -38,10 +39,13 @@ func newCommitTargetsTool(locale model.LocaleID) *commitTargetsTool {
 
 // targetOverlayPayload is the canonical {runs}/{text} overlay shape the hydrate
 // step understands. Runs are preferred so inline markup round-trips; plain text
-// is the fallback for run-free targets.
+// is the fallback for run-free targets. Status carries the target's lifecycle
+// state, which is what makes re-affirming an already-hydrated block a true no-op
+// rather than a silent downgrade of its review state.
 type targetOverlayPayload struct {
-	Runs []model.Run `json:"runs,omitempty"`
-	Text string      `json:"text,omitempty"`
+	Runs   []model.Run `json:"runs,omitempty"`
+	Text   string      `json:"text,omitempty"`
+	Status string      `json:"status,omitempty"`
 }
 
 func (t *commitTargetsTool) SessionProcess(ctx context.Context, sess blockstore.Session, in <-chan *model.Part, out chan<- *model.Part) error {
@@ -78,7 +82,7 @@ func (t *commitTargetsTool) commitOne(ctx context.Context, sess blockstore.Sessi
 	if tgt == nil || len(tgt.Runs) == 0 {
 		return nil
 	}
-	payload, err := json.Marshal(targetOverlayPayload{Runs: tgt.Runs})
+	payload, err := json.Marshal(targetOverlayPayload{Runs: tgt.Runs, Status: string(tgt.Status)})
 	if err != nil {
 		return fmt.Errorf("commit-targets: encode overlay: %w", err)
 	}

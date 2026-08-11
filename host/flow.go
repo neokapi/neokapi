@@ -826,10 +826,24 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, 
 		}
 	}
 
+	// In project mode this file's run belongs to the same project block store the
+	// single-file path uses, keyed by the same project root, so a batch run commits
+	// the same `targets/<locale>` overlays and a later merge finds them. A run with
+	// no store leaves the project holding files it cannot account for, and
+	// materializing then writes the source back over them. Autocommit sessions make
+	// the store safe for the concurrent per-file goroutines (host/workspace.go).
+	var projStore blockstore.Store
+	projRoot := ""
+	if a.ProjectContext != nil {
+		projStore = a.openProjectBlockStore(ctx)
+		projRoot = a.ProjectContext.ProjectDir
+	}
 	runner := flow.NewFileRunner(flow.FileRunnerConfig{
 		FormatReg:    a.FormatReg,
 		SourceLocale: model.LocaleID(a.SourceLang),
 		Encoding:     a.Encoding,
+		Store:        projStore,
+		ProjectRoot:  projRoot,
 	})
 
 	if err := runner.RunFileWithReaderWriter(ctx, flowName, flowTools, inputPath, outputPath, a.TargetLang, reader, writer); err != nil {
