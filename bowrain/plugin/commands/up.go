@@ -178,6 +178,17 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		jsonStream = output.NewNDJSONStream(cmd.OutOrStdout())
 	}
 
+	// Self-seeding, before anything reads the store. The push carries the
+	// project's terminology and reviewed wording out of the store, and on a
+	// fresh CI checkout the store is empty — so without this the server venue
+	// pushed no terminology at all and then pulled the workspace's, leaving the
+	// store holding the server's vocabulary and nothing git carried.
+	if projectPath, perr := cli.ResolveProjectPath(cmd); perr == nil && projectPath != "" {
+		if _, serr := app.SeedProjectContext(ctx, projectPath); serr != nil {
+			return fmt.Errorf("seed committed context: %w", serr)
+		}
+	}
+
 	// Recipe pre-push automations run before the push, exactly as they did for
 	// the retired `kapi sync` (up subsumed sync — the hooks must not silently
 	// stop firing for projects that migrated CI from sync to up).

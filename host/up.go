@@ -105,6 +105,17 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	}
 	a.InitRegistries()
 
+	// Seed before the plan, not only before the loop: the plan's leverage figure
+	// is read out of the project store, so on a fresh clone an unseeded store
+	// reports zero content-memory leverage and a token estimate for translating
+	// a corpus git already carries the reviewed wording for. The converge path
+	// seeds again; the compile is digest-keyed, so the second call is a read.
+	if seeded, serr := a.SeedProjectContext(cmd.Context(), projectPath); serr != nil {
+		return fmt.Errorf("seed committed context: %w", serr)
+	} else if seeded.Compiled() && !a.Quiet {
+		fmt.Fprintln(cmd.ErrOrStderr(), formatSeedLine(seeded))
+	}
+
 	if BoolFlag(cmd, "plan") {
 		return a.runUpPlan(cmd, proj, projectPath)
 	}

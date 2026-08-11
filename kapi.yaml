@@ -65,6 +65,11 @@ name: neokapi
 defaults:
   source_language: en
   target_languages: [nb]
+  # A converged locale's target files are written by the run that converged it.
+  # This repository's targets are build artifacts a later stage consumes (MO
+  # compilation, the Docusaurus i18n trees, the demo sidecars), so a run that
+  # left them in the store would hand the next stage the previous run's output.
+  materialize: on-converge
   voice:
     profile_file: .kapi/voice.yaml
   # terms_source is the committed, git-tracked terms document (the review

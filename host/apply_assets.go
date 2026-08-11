@@ -1,6 +1,7 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -100,7 +101,7 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 		return errResult(res, err.Error())
 	}
 
-	concepts, err := loadKTBConcepts(srcPath)
+	file, err := loadKTBFile(srcPath)
 	if err != nil {
 		return errResult(res, err.Error())
 	}
@@ -114,14 +115,15 @@ func (a *App) applyTermEntry(ctx context.Context, cmd Command, e changeEntry) as
 		status = model.TermPreferred
 	}
 
-	concepts, changed := upsertTerm(concepts, e.Term, model.LocaleID(locale), status, e.Replacement)
+	concepts, changed := upsertTerm(file.Concepts, e.Term, model.LocaleID(locale), status, e.Replacement)
 	if !changed {
 		res.Status = "skipped"
 		res.Detail = "already present"
 		return res
 	}
+	file.Concepts = concepts
 
-	if err := writeKTB(srcPath, concepts); err != nil {
+	if _, err := writeKTB(srcPath, file); err != nil {
 		return errResult(res, err.Error())
 	}
 	if err := a.compileTermsSource(ctx, root, srcPath); err != nil {
@@ -181,13 +183,15 @@ func (a *App) compileTermsSource(ctx context.Context, root, srcPath string) erro
 	return nil
 }
 
-// loadKTBConcepts reads the concepts from a .terms.json source, returning an empty
-// slice when the file does not exist yet (the first term creates it).
-func loadKTBConcepts(path string) ([]terms.Concept, error) {
+// loadKTBFile reads a .terms.json source, returning an empty bundle when the
+// file does not exist yet (the first term creates it). The whole document is
+// returned — concepts and relations — so a writer round-trips everything the
+// file carried rather than only the part it edited.
+func loadKTBFile(path string) (*ktb.File, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return ktb.FromConcepts(nil), nil
 		}
 		return nil, fmt.Errorf("open terms source: %w", err)
 	}
@@ -196,23 +200,33 @@ func loadKTBConcepts(path string) ([]terms.Concept, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse terms source: %w", err)
 	}
-	return file.Concepts, nil
+	return file, nil
 }
 
-// writeKTB serializes concepts to a deterministic .terms.json document, creating
-// parent directories. The deterministic marshal keeps `git diff` minimal.
-func writeKTB(path string, concepts []terms.Concept) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create source dir: %w", err)
-	}
-	data, err := ktb.Marshal(ktb.FromConcepts(concepts))
+// writeKTB serializes a bundle to a deterministic .terms.json document, creating
+// parent directories, and reports whether the bytes on disk actually moved.
+//
+// The write is skipped when the serialization is identical to what is already
+// there. A projection that rewrote the file every run would put a change under
+// `.kapi/` on every night of an automated sync — and a change under `.kapi/` is
+// what the erasure gate reads as the decision backing a derived artifact, so a
+// file that churns on its own manufactures backing for artifacts nothing
+// decided.
+func writeKTB(path string, file *ktb.File) (bool, error) {
+	data, err := ktb.Marshal(file)
 	if err != nil {
-		return fmt.Errorf("marshal terms source: %w", err)
+		return false, fmt.Errorf("marshal terms source: %w", err)
+	}
+	if existing, rerr := os.ReadFile(path); rerr == nil && bytes.Equal(existing, data) {
+		return false, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return false, fmt.Errorf("create source dir: %w", err)
 	}
 	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return fmt.Errorf("write terms source: %w", err)
+		return false, fmt.Errorf("write terms source: %w", err)
 	}
-	return nil
+	return true, nil
 }
 
 // upsertTerm inserts or updates a single-locale term within the concept set.

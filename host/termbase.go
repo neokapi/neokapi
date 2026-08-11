@@ -131,10 +131,20 @@ func ImportKTBFile(ctx context.Context, tb terms.Terminology, r io.Reader) (int,
 	return addConcepts(ctx, tb, file)
 }
 
+// addConcepts writes a decoded bundle into tb: every concept, then every
+// relation. Relations come second because the store rejects an edge whose
+// endpoints are not both present, and they are written at all because the
+// bundle is the terms store's lossless form — a compile that dropped the edges
+// would make a wipe-and-reseed lose the graph the file carries.
 func addConcepts(ctx context.Context, tb terms.Terminology, file *ktb.File) (int, error) {
 	for _, c := range file.Concepts {
 		if err := tb.AddConcept(ctx, c); err != nil {
 			return 0, fmt.Errorf("add concept %s: %w", c.ID, err)
+		}
+	}
+	for _, rel := range file.Relations {
+		if err := tb.AddRelation(ctx, rel); err != nil {
+			return 0, fmt.Errorf("add relation %s: %w", rel.ID, err)
 		}
 	}
 	return len(file.Concepts), nil
@@ -151,7 +161,16 @@ func exportTerms(ctx context.Context, tb terms.Terminology, w io.Writer, marshal
 	if err != nil {
 		return fmt.Errorf("list concepts: %w", err)
 	}
-	data, err := marshal(ktb.FromConcepts(concepts))
+	file := ktb.FromConcepts(concepts)
+	// The relations ride along so the bundle is what its documentation claims:
+	// lossless. A bundle that carried only concepts could not reproduce the
+	// store it came from, which is the one thing the native form is for.
+	relations, err := tb.ListRelations(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("list relations: %w", err)
+	}
+	file.Relations = relations
+	data, err := marshal(file)
 	if err != nil {
 		return fmt.Errorf("marshal terms bundle: %w", err)
 	}
