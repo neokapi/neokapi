@@ -53,9 +53,11 @@ type PullResult struct {
 
 	// CollectionsObserved and GovernanceDiverged carry the context content
 	// type's pull half: how many collections the server reported, and which
-	// recipe-owned ones it governs differently. Observed, never applied.
-	CollectionsObserved int
-	GovernanceDiverged  []string
+	// recipe-owned ones it governs differently, with the differing part named.
+	// Observed, never applied.
+	CollectionsObserved  int
+	GovernanceDiverged   []string
+	GovernanceDivergence []string
 }
 
 // doPull executes the core pull logic and returns structured results.
@@ -89,13 +91,14 @@ func doPull(ctx context.Context, conn *bconn.BowrainSourceConnector, locales []s
 	}
 
 	pr := &PullResult{
-		BlocksPulled:        result.BlocksPulled,
-		DecisionsStaged:     result.DecisionsStaged,
-		LocalesCount:        result.LocalesCount,
-		FilesWritten:        result.FilesWritten,
-		ItemsRetired:        result.ItemsRetired,
-		CollectionsObserved: result.CollectionsObserved,
-		GovernanceDiverged:  result.GovernanceDiverged,
+		BlocksPulled:         result.BlocksPulled,
+		DecisionsStaged:      result.DecisionsStaged,
+		LocalesCount:         result.LocalesCount,
+		FilesWritten:         result.FilesWritten,
+		ItemsRetired:         result.ItemsRetired,
+		CollectionsObserved:  result.CollectionsObserved,
+		GovernanceDiverged:   result.GovernanceDiverged,
+		GovernanceDivergence: result.GovernanceDivergence,
 	}
 	if dryRun {
 		pr.DryRun = true
@@ -156,16 +159,17 @@ func runPull(cmd *cobra.Command, args []string) error {
 	}
 
 	out := output.PullOutput{
-		BlocksPulled:        result.BlocksPulled,
-		DecisionsStaged:     result.DecisionsStaged,
-		LocalesCount:        result.LocalesCount,
-		FilesWritten:        result.FilesWritten,
-		ItemsRetired:        result.ItemsRetired,
-		Stream:              conn.Stream(),
-		DryRun:              result.DryRun,
-		UpToDate:            result.UpToDate,
-		CollectionsObserved: result.CollectionsObserved,
-		GovernanceDiverged:  result.GovernanceDiverged,
+		BlocksPulled:         result.BlocksPulled,
+		DecisionsStaged:      result.DecisionsStaged,
+		LocalesCount:         result.LocalesCount,
+		FilesWritten:         result.FilesWritten,
+		ItemsRetired:         result.ItemsRetired,
+		Stream:               conn.Stream(),
+		DryRun:               result.DryRun,
+		UpToDate:             result.UpToDate,
+		CollectionsObserved:  result.CollectionsObserved,
+		GovernanceDiverged:   result.GovernanceDiverged,
+		GovernanceDivergence: result.GovernanceDivergence,
 	}
 
 	// Fold the workspace's governed terminology into the pull: fetch the

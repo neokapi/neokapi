@@ -219,10 +219,15 @@ type PullResult struct {
 	// recipe declares.
 	CollectionsObserved int
 
-	// GovernanceDiverged names recipe-owned collections the server holds at a
-	// different point than the recipe declares. Reported so the divergence is
-	// visible; never resolved here, because kapi.yaml is the authority.
+	// GovernanceDiverged names recipe-owned collections the server governs
+	// differently from the recipe. Reported so the divergence is visible; never
+	// resolved here, because kapi.yaml is the authority.
 	GovernanceDiverged []string
+
+	// GovernanceDivergence says which part of each one differs — its point, its
+	// channel, its voice — as "<collection>: <parts>". The names alone leave a
+	// reader diffing two sides they cannot see.
+	GovernanceDivergence []string
 }
 
 // SourceConnector represents a content source that pushes to and pulls from Bowrain.

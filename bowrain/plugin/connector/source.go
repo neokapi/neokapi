@@ -1011,7 +1011,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 
 	// Record what the server holds and report what diverges. Nothing here
 	// changes the governance a local run resolves — see connector/context.go.
-	contextResult := c.applyPulledContext(contexts)
+	contextResult := c.applyPulledContext(ctx, contexts)
 
 	// Group pulled blocks by item name.
 	filesWritten := 0
@@ -1154,7 +1154,8 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 		DecisionsStaged:     decisionsStaged,
 		DecisionsSkipped:    decisionsSkipped,
 		CollectionsObserved: contextResult.Observed,
-		GovernanceDiverged:  contextResult.Diverged,
+		GovernanceDiverged:   contextResult.Diverged,
+		GovernanceDivergence: contextResult.DivergedDetail,
 	}, nil
 }
 

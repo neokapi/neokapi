@@ -11,11 +11,13 @@ import (
 	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
+	coreprofile "github.com/neokapi/neokapi/core/profile"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 // newContextProject scaffolds a project with two named collections and one
@@ -105,7 +107,7 @@ func TestApplyPulledContext_RecipeOwnedGovernanceIsNotApplied(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "docs", before.Channel)
 
-	res := conn.applyPulledContext([]*pb.SyncContextEntry{{
+	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
 		Name:         "docs",
 		Coordinates:  map[string]string{"product": "bowrain"},
 		Channel:      "email",
@@ -115,6 +117,8 @@ func TestApplyPulledContext_RecipeOwnedGovernanceIsNotApplied(t *testing.T) {
 
 	assert.Equal(t, 1, res.Observed)
 	assert.Equal(t, []string{"docs"}, res.Diverged, "a recipe-owned divergence is reported")
+	assert.Equal(t, []string{"docs: point, channel, voice"}, res.DivergedDetail,
+		"every differing part is named")
 	assert.Empty(t, res.WorkspaceOwned)
 
 	after, err := conn.project.Recipe.ResolveGovernance("docs")
@@ -140,7 +144,7 @@ func TestApplyPulledContext_RecipeOwnedGovernanceIsNotApplied(t *testing.T) {
 func TestApplyPulledContext_AgreementIsNotADivergence(t *testing.T) {
 	conn := newContextProject(t)
 
-	res := conn.applyPulledContext([]*pb.SyncContextEntry{{
+	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
 		Name:        "docs",
 		Coordinates: map[string]string{"product": "kapi", "channel": "docs"},
 		Channel:     "docs",
@@ -158,7 +162,7 @@ func TestApplyPulledContext_AgreementIsNotADivergence(t *testing.T) {
 func TestApplyPulledContext_WorkspaceOwnedIsRecorded(t *testing.T) {
 	conn := newContextProject(t)
 
-	res := conn.applyPulledContext([]*pb.SyncContextEntry{{
+	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
 		Name:        "uploads",
 		Coordinates: map[string]string{"product": "bowrain"},
 		Owner:       bowsync.ContextOwnerWorkspace,
@@ -176,10 +180,111 @@ func TestApplyPulledContext_WorkspaceOwnedIsRecorded(t *testing.T) {
 func TestApplyPulledContext_UnownedEntryDefaultsToWorkspace(t *testing.T) {
 	conn := newContextProject(t)
 
-	res := conn.applyPulledContext([]*pb.SyncContextEntry{{Name: "docs"}})
+	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{Name: "docs"}})
 
 	assert.Equal(t, []string{"docs"}, res.WorkspaceOwned)
 	assert.Equal(t, bowsync.ContextOwnerWorkspace, conn.cache.ServerContext["docs"].Owner)
+}
+
+// The voice used to be excluded from the comparison, so a collection whose
+// voice had been changed server-side pulled clean: not applied — which is
+// correct, a file-bound voice is git's — and not reported either, which is not.
+// The divergence a pull cannot resolve is exactly the one it must name.
+
+// bindCollectionVoice writes a voice profile file and binds it to the docs
+// collection, the way a project whose voice lives in git does.
+func bindCollectionVoice(t *testing.T, conn *BowrainSourceConnector, name string) {
+	t.Helper()
+	root := conn.project.Root
+	rel := filepath.Join(".kapi", "voice.yaml")
+	require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(root, rel)), 0o755))
+	body, err := yaml.Marshal(&coreprofile.VoiceProfile{Name: name})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(root, rel), body, 0o644))
+	conn.project.Recipe.KapiProject.Defaults.Voice = &coreproj.VoiceBinding{ProfileFile: rel}
+}
+
+// TestApplyPulledContext_VoiceDivergenceIsReported: the server governs a
+// recipe-owned collection by a different voice than the recipe binds. The pull
+// leaves the local binding alone and says so.
+func TestApplyPulledContext_VoiceDivergenceIsReported(t *testing.T) {
+	conn := newContextProject(t)
+	bindCollectionVoice(t, conn, "Kapi Docs Voice")
+
+	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
+		Name:         "docs",
+		Coordinates:  map[string]string{"product": "kapi", "channel": "docs"},
+		Channel:      "docs",
+		VoiceProfile: "Someone Else's Voice",
+		Owner:        bowsync.ContextOwnerRecipe,
+	}})
+
+	assert.Equal(t, []string{"docs"}, res.Diverged,
+		"a voice the recipe does not bind must be reported, not absorbed and not applied")
+	assert.Equal(t, []string{"docs: voice"}, res.DivergedDetail,
+		"the report must name the part that differs, or the reader diffs two sides they cannot see")
+
+	// Report, never resolve: the profile a local run resolves is the recipe's.
+	profile, _, _, found, err := conn.app.LoadCollectionVoice(t.Context(),
+		&conn.project.Recipe.KapiProject, conn.project.Root, host.VoiceResolveOptions{Collection: "docs"})
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.Equal(t, "Kapi Docs Voice", profile.Name, "a pull must not move the voice a local run resolves")
+}
+
+// TestApplyPulledContext_SameVoiceIsSilent keeps the report honest in the case
+// the old exclusion existed for: a project whose voice is a FILE, agreeing with
+// the server, must say nothing — or the warning is noise on every pull.
+func TestApplyPulledContext_SameVoiceIsSilent(t *testing.T) {
+	conn := newContextProject(t)
+	bindCollectionVoice(t, conn, "Kapi Docs Voice")
+
+	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
+		Name:         "docs",
+		Coordinates:  map[string]string{"product": "kapi", "channel": "docs"},
+		Channel:      "docs",
+		VoiceProfile: "Kapi Docs Voice",
+		Owner:        bowsync.ContextOwnerRecipe,
+	}})
+
+	assert.Equal(t, 1, res.Observed)
+	assert.Empty(t, res.Diverged, "a file-bound voice that matches the hub's name is agreement")
+}
+
+// TestApplyPulledContext_VoiceAppearingServerSideIsReported: the recipe binds
+// no voice and the server governs the collection by one. The recipe is
+// authoritative for a recipe-owned collection, so that is a divergence too.
+func TestApplyPulledContext_VoiceAppearingServerSideIsReported(t *testing.T) {
+	conn := newContextProject(t)
+
+	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
+		Name:         "docs",
+		Coordinates:  map[string]string{"product": "kapi", "channel": "docs"},
+		Channel:      "docs",
+		VoiceProfile: "Workspace Default",
+		Owner:        bowsync.ContextOwnerRecipe,
+	}})
+
+	assert.Equal(t, []string{"docs"}, res.Diverged)
+}
+
+// TestApplyPulledContext_WorkspaceOwnedVoiceIsNotADivergence: ownership decides
+// first. A workspace-owned collection has no local governance to conflict with,
+// whatever voice it carries.
+func TestApplyPulledContext_WorkspaceOwnedVoiceIsNotADivergence(t *testing.T) {
+	conn := newContextProject(t)
+	bindCollectionVoice(t, conn, "Kapi Docs Voice")
+
+	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
+		Name:         "docs",
+		Coordinates:  map[string]string{"product": "kapi", "channel": "docs"},
+		Channel:      "docs",
+		VoiceProfile: "Someone Else's Voice",
+		Owner:        bowsync.ContextOwnerWorkspace,
+	}})
+
+	assert.Empty(t, res.Diverged)
+	assert.Equal(t, []string{"docs"}, res.WorkspaceOwned)
 }
 
 // TestPushContextChanged_TracksTheRecipe pins the local half of the fast path:

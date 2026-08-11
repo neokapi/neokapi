@@ -170,12 +170,14 @@ type PullOutput struct {
 	ConceptRelationsPulled int `json:"concept_relations_pulled,omitempty"`
 
 	// Context sync. CollectionsObserved is how many collections the server
-	// reported; GovernanceDiverged names the recipe-owned ones the server holds
-	// at a different point than the recipe declares. A pull records both and
-	// applies neither: kapi.yaml is the authority for recipe-owned governance,
-	// so a divergence is something to report and resolve in git.
-	CollectionsObserved int      `json:"collections_observed,omitempty"`
-	GovernanceDiverged  []string `json:"governance_diverged,omitempty"`
+	// reported; GovernanceDiverged names the recipe-owned ones the server
+	// governs differently, and GovernanceDivergence says which part of each
+	// differs — its point, its channel, its voice. A pull records all of it and
+	// applies none of it: kapi.yaml is the authority for recipe-owned
+	// governance, so a divergence is something to report and resolve in git.
+	CollectionsObserved  int      `json:"collections_observed,omitempty"`
+	GovernanceDiverged   []string `json:"governance_diverged,omitempty"`
+	GovernanceDivergence []string `json:"governance_divergence,omitempty"`
 }
 
 func (o PullOutput) FormatText(w io.Writer) error {
@@ -208,8 +210,14 @@ func (o PullOutput) FormatText(w io.Writer) error {
 			verb, o.ConceptsPulled, o.ConceptRelationsPulled)
 	}
 	if len(o.GovernanceDiverged) > 0 {
+		// The detail names the differing part; the bare names are the fallback
+		// for a result that carries no detail (an older plugin over the daemon).
+		listed := o.GovernanceDivergence
+		if len(listed) == 0 {
+			listed = o.GovernanceDiverged
+		}
 		fmt.Fprintf(w, "The server governs these collections differently from this recipe: %s\n",
-			strings.Join(o.GovernanceDiverged, ", "))
+			strings.Join(listed, "; "))
 		fmt.Fprintln(w, "The recipe still decides locally — reconcile them in kapi.yaml, not by pulling.")
 	}
 	return nil
