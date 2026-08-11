@@ -23,7 +23,7 @@ vendor: neokapi
 homepage: https://github.com/neokapi/neokapi
 license: Apache-2.0
 description: |
-  AI-native localization framework — format-aware parsing, concurrent
+  Format-aware content engine — parsing into one content model, concurrent
   pipelines, and pluggable tools. Installs the kapi CLI plus the
   kgrep / ksed / kcat / kconv toolbox aliases (busybox-style symlinks).
 

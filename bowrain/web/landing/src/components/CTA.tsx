@@ -14,8 +14,8 @@ export function CTA() {
 
       <div ref={ref} className="reveal relative z-10 mx-auto max-w-3xl text-center">
         <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-          Keep every language <span className="prism-text">caught up</span> — and every draft on
-          brand.
+          Every project, every person, every agent — plugged into{" "}
+          <span className="prism-text">one context graph</span>.
         </h2>
         <p className="mt-4 text-muted-foreground">
           Start with one project and one language pair. The free plan needs no card — and the loop

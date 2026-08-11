@@ -177,7 +177,7 @@ export function ConvergencePanel({
 
       {locales.length === 0 ? (
         <p className="p-3 text-xs text-muted-foreground">
-          {t("No localized content tracked yet.")}
+          {t("No translated content tracked yet.")}
         </p>
       ) : (
         <Card>

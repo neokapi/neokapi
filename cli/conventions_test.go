@@ -215,6 +215,13 @@ var retiredVocabulary = regexp.MustCompile(`(?i)termbases?|glossar(?:y|ies)|loca
 func TestConvention_HelpTextUsesCurrentVocabulary(t *testing.T) {
 	root, _ := newTestRoot(t)
 
+	// The root's own Short and Long are the two most visible strings in the
+	// product and the easiest to exempt by accident: a bare `&cobra.Command{Use:
+	// "kapi"}` carries neither, and the walk below then passes over the words a
+	// user reads first. Assert the fixture is the real root before trusting it.
+	require.Equal(t, KapiRootShort, root.Short, "the test root must carry the real root's Short")
+	require.Equal(t, KapiRootLong, root.Long, "the test root must carry the real root's Long")
+
 	var walk func(cmd *cobra.Command, path string)
 	walk = func(cmd *cobra.Command, path string) {
 		check := func(field, text string) {

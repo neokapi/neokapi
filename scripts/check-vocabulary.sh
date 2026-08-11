@@ -1,17 +1,26 @@
 #!/usr/bin/env bash
 #
-# Guard: retired framing must not reappear in user-facing prose.
+# Guard: retired framing and retired vocabulary must not reappear in user-facing
+# prose, in shipped product strings, or in the metadata a build stamps into an
+# installer and a signed binary.
 #
-# The positioning canon (R12) retires a small set of phrases, listed with their
-# replacements in this script's failure output — which is the whole of the rule
-# a contributor needs. Prose drifts back to them the way an absolute
-# home path creeps into a Makefile: nobody decides to, and nothing fails. A
-# retired phrase re-enters through a copied paragraph, a stale doc, or a fresh
-# session that read the code first and re-derived the old frame from package
-# names. This makes that a build failure rather than something a reader notices
-# months later.
+# Two rule sets, each with its own scope:
 #
-# What fails, and why it is retired:
+#   FRAMING     — the positioning phrases the R12 canon retires, listed with
+#                 their replacements in this script's failure output. Scope:
+#                 SWEPT_SURFACES.
+#   VOCABULARY  — the fixed vocabulary of docs/internals/brand-communication.md
+#                 (content memory, terms, voice profile). Scope: VOCAB_SURFACES,
+#                 a narrower set, because a Go or TSX file names identifiers as
+#                 well as prose and the two cannot be told apart by a grep.
+#
+# Prose drifts back to a retired phrase the way an absolute home path creeps
+# into a Makefile: nobody decides to, and nothing fails. It re-enters through a
+# copied paragraph, a stale doc, or a fresh session that read the code first and
+# re-derived the old frame from package names. This makes that a build failure
+# rather than something a reader notices months later.
+#
+# What fails under FRAMING, and why it is retired:
 #
 #   "brand memory"        R12(b). Bowrain is the context graph; brand is one
 #                         coordinate on it, not the frame. ("content memory"
@@ -32,12 +41,18 @@
 #                         the product calling itself a localization platform,
 #                         which R2 retires as a headline and R12 as a frame.
 #
+# What fails under VOCABULARY: termbase, glossary, localize in any inflection,
+# l10n, translation memory, and "brand voice" as the name of the mechanism. The
+# CLI's own help text is held to the same list by
+# TestConvention_HelpTextUsesCurrentVocabulary in cli/, which walks the built
+# command tree rather than grepping Go source.
+#
 # What this guard CANNOT catch: a hero that leads with translation. That is a
 # judgement about emphasis, not a phrase, and it stays a review question.
 #
 # Usage:
 #     ./scripts/check-vocabulary.sh              # scan swept surfaces
-#     ./scripts/check-vocabulary.sh --self-test  # prove the matcher both ways
+#     ./scripts/check-vocabulary.sh --self-test  # prove the matchers both ways
 #
 # Wired into `make check-vocabulary` (part of `make lint`), `make pre-push`, and
 # the repo-guards job in .github/workflows/ci.yml.
@@ -45,13 +60,31 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 
-# ── the matcher ──────────────────────────────────────────────────────────────
+# ── the matchers ─────────────────────────────────────────────────────────────
 #
 # Case-insensitive, and tolerant of the line wrapping and markdown emphasis that
 # prose actually contains: "brand **memory**" and a "brand\nmemory" split across
 # two lines both count. Matching is per-line, so the wrap case is handled by
 # normalising whitespace before the scan rather than by the pattern.
 readonly RETIRED_RE='brand[[:space:]*_]+memor(y|ies)|brand-first|Kapi[[:space:]*_]+drafts|for your whole team|locali[sz]ation[[:space:]*_]+platform'
+
+# The inflections are the point: a noun-only search misses "localized", which is
+# how most of these survive a sweep. TMX and TBX are deliberately absent — they
+# are external file-format standards we do not own, and naming them is correct.
+# This is the same pattern the CLI help-text convention test carries; keep the
+# two in step.
+readonly RETIRED_VOCAB_RE='termbases?|glossar(y|ies)|locali[sz](e|es|ed|ing|ation|ations)|l10n|translation memor(y|ies)|brand[[:space:]*_-]+voice'
+
+# Rename-boundary identifiers, deleted from a line before the VOCABULARY match
+# runs. Each names something a rename may not touch, so the retired word inside
+# it is a boundary rather than prose drifting back:
+#
+#   "termbases"  the desktop's navigation view id. It is persisted in the app's
+#                view state and pinned to its historical spelling by the id
+#                union in apps/kapi-desktop/frontend/src/types/api.ts.
+#
+# Quoted deliberately: the bare word `termbase` in prose stays a failure.
+readonly VOCAB_BOUNDARY_RE='"termbases"'
 
 # ── scope ────────────────────────────────────────────────────────────────────
 #
@@ -70,9 +103,19 @@ readonly SWEPT_SURFACES=(
   web/docusaurus.config.ts
   bowrain/web/docs/docusaurus.config.ts
   bowrain/web/landing/index.html
-  # The agent skill is read by an assistant on every run, which makes it the
-  # highest-leverage prose in the repo and the easiest to forget (P-4).
-  cli/skills
+  # The CLI module, which carries the agent skill an assistant reads on every
+  # run — the highest-leverage prose in the repo and the easiest to forget
+  # (P-4) — alongside the help strings and the fixtures that quote the product
+  # back to itself.
+  cli
+  # The desktop app: its window chrome, its first-run copy, and the build
+  # metadata below.
+  apps
+  # Distribution metadata. A package description and a signed binary's file
+  # properties are read long after anyone reviews the prose that produced them,
+  # and they are the one product surface no docs sweep has ever looked at.
+  packaging
+  deploy/homebrew
   # Transactional email is the highest-REACH prose in the product: its header
   # goes out with every message the platform sends. It carried "Localization
   # platform" through four sweeps because the emails are a separate build with
@@ -88,11 +131,29 @@ readonly SWEPT_SURFACES=(
   bowrain/packages/ui/src
 )
 
+# The surfaces held to the fixed vocabulary as well as the framing. Narrower on
+# purpose: these carry product strings and shipped metadata, and no identifier
+# that a rename boundary keeps (bar the one in VOCAB_BOUNDARY_RE).
+readonly VOCAB_SURFACES=(
+  # Every string the desktop build stamps into an installer, a .app bundle, and
+  # a signed Windows binary's file properties.
+  apps/kapi-desktop/build
+  # The desktop's own components — the window a user meets before any docs.
+  apps/kapi-desktop/frontend/src/components
+  # The Linux package description and the Homebrew cask description: the two
+  # lines a user reads before installing anything.
+  packaging
+  deploy/homebrew
+)
+
 # Surfaces deliberately NOT scanned yet, each with the worklist item that will
 # sweep it and add it above. Printed on every run: an unscanned surface must be
 # visible, not silently absent, or a green check reads as "all prose is clean"
 # when it means "the prose we swept is clean".
 readonly PENDING_SURFACES=(
+  "apps/kapi-desktop/frontend/src/{stories,demo} (vocabulary) — story fixtures and the recorded demo app still name projects 'Acme App Localization' and browse 'termbases'; swept with the desktop story pass"
+  "cli/skills (vocabulary) — the i18n playbooks name third-party libraries (@angular/localize, expo-localization) and the eval table quotes user prompts verbatim; swept with the skill-copy item in 02"
+  "bowrain/web/landing/src (vocabulary) — 'brand voice' survives as use-case copy under a hero that has not been re-cut yet; swept with the landing rebuild (R13)"
 )
 
 # Files inside a swept surface that legitimately spell a retired phrase. Empty:
@@ -100,44 +161,76 @@ readonly PENDING_SURFACES=(
 # a phrase this guard retires.
 readonly ALLOWED_FILES=()
 
-# scan_paths prints "file:line:match" for every retired phrase under the given
-# paths, and "file: (phrase wrapped across a line break)" for a file that is
-# dirty only once its newlines are flattened. Returns 1 if it printed anything.
+# list_files prints NUL-separated paths for one surface.
 #
-# Two passes rather than one: a per-line grep gives exact line numbers for the
-# ordinary case, and a flattened whole-file match catches a phrase that prose
-# wrapping split in two. Reporting the wrapped case at file level — rather than
-# guessing a line — keeps each occurrence to exactly one hit.
+# A relative path is a surface inside this repo, enumerated with git so the
+# scan sees exactly the files the repo owns: node_modules, compiled site output
+# and generated catalogs are ignored and therefore skipped, while a tracked
+# build/ directory of hand-written metadata is not. An absolute path is the
+# self-test's temp directory, outside any work tree, so it falls back to a walk.
+list_files() {
+  local p
+  for p in "$@"; do
+    [ -e "$p" ] || continue
+    case "$p" in
+      /*) find "$p" -type f -print0 ;;
+      *) git ls-files -z --cached --others --exclude-standard -- "$p" ;;
+    esac
+  done
+}
+
+# scan_paths prints "file:line:match" for every hit of regex $1 under the paths
+# from $3 on, and "file: (phrase wrapped across a line break)" for a file that
+# is dirty only once its newlines are flattened. $2 is the boundary pattern
+# deleted before matching (empty: nothing is deleted). Returns 1 if it printed
+# anything.
+#
+# Two matches per file rather than one: a per-line match gives exact line
+# numbers for the ordinary case, and a flattened whole-file match catches a
+# phrase that prose wrapping split in two. Reporting the wrapped case at file
+# level — rather than guessing a line — keeps each occurrence to exactly one hit.
+#
+# One perl process for the whole scan, not a grep pipeline per file: the swept
+# set is several thousand files, and three subprocesses each put this guard at
+# twenty seconds inside `make lint`.
 scan_paths() {
-  local hits="" exclude_re f line_hits
+  local re="$1" boundary="$2"
+  shift 2
+  local hits exclude_re
   # The ${a[@]+"${a[@]}"} form: under `set -u` an empty array expansion is an
   # unbound-variable error on bash 3.2, which is what /bin/bash still is on
   # macOS.
   exclude_re="$(printf '%s\n' ${ALLOWED_FILES[@]+"${ALLOWED_FILES[@]}"} | paste -sd'|' -)"
 
-  while IFS= read -r -d '' f; do
-    if [ -n "$exclude_re" ] && printf '%s\n' "$f" | grep -qxE "$exclude_re"; then
-      continue
-    fi
-    # Flattened match decides whether the file is dirty at all.
-    if ! tr '\n' ' ' <"$f" 2>/dev/null | grep -qiE "$RETIRED_RE"; then
-      continue
-    fi
-    if line_hits=$(grep -HnoiE "$RETIRED_RE" "$f" 2>/dev/null); then
-      hits="${hits}${line_hits}"$'\n'
-    else
-      hits="${hits}${f}: (phrase wrapped across a line break)"$'\n'
-    fi
-  done < <(
-    for p in "$@"; do
-      [ -e "$p" ] || continue
-      find "$p" -type f ! -path '*/node_modules/*' ! -path '*/build/*' -print0
-    done
-  )
+  hits="$(list_files "$@" | RE="$re" BOUNDARY="$boundary" ALLOWED="$exclude_re" perl -0 -ne '
+    BEGIN {
+      $re      = qr/$ENV{RE}/i;
+      $bound   = $ENV{BOUNDARY} ne "" ? qr/$ENV{BOUNDARY}/ : undef;
+      $allowed = $ENV{ALLOWED}  ne "" ? qr/^(?:$ENV{ALLOWED})$/ : undef;
+    }
+    chomp;
+    my $f = $_;
+    next unless -f $f;
+    # Icons, fonts and screenshots are in the tracked set too; a match inside
+    # one would be a byte coincidence, not prose.
+    next if -B $f;
+    next if $allowed && $f =~ $allowed;
+    my $text = do { local $/; open(my $fh, "<", $f) or next; <$fh> };
+    next unless defined $text;
+    $text =~ s/$bound//g if $bound;
+    my @lines = split /\n/, $text, -1;
+    my $found = 0;
+    for my $i (0 .. $#lines) {
+      my $line = $lines[$i];
+      while ($line =~ /$re/g) { print "$f:", $i + 1, ":$&\n"; $found = 1 }
+    }
+    next if $found;
+    (my $flat = $text) =~ s/\n/ /g;
+    print "$f: (phrase wrapped across a line break)\n" if $flat =~ /$re/;
+  ')"
 
-  hits="$(printf '%s' "$hits" | grep -c . >/dev/null 2>&1 && printf '%s' "$hits" || printf '')"
   [ -z "$hits" ] && return 0
-  printf '%s' "$hits"
+  printf '%s\n' "$hits"
   return 1
 }
 
@@ -174,8 +267,25 @@ Brand is one coordinate beside audience, surface, register and market.
 The brand voice profile is one axis of a profile.
 EOF
 
+  # The vocabulary rule set, which the framing rule set deliberately lets pass.
+  cat >"$tmp/surface/vocab.md" <<'EOF'
+Kapi — Localization Toolkit
+Import your termbase and your glossary.
+Useful for localization QA and for localized builds.
+The translation memory holds approved wording.
+Score a draft against its brand voice.
+EOF
+
+  cat >"$tmp/surface/vocab-clean.md" <<'EOF'
+Kapi — the context-aware content workbench
+Import your terms store; the content memory holds approved wording.
+Useful for multilingual QA and for translated builds.
+Score a draft against its voice profile.
+The desktop's view id "termbases" is persisted and keeps its spelling.
+EOF
+
   local out n
-  if out=$(scan_paths "$tmp/surface/retired.md"); then
+  if out=$(scan_paths "$RETIRED_RE" "" "$tmp/surface/retired.md"); then
     echo "✖ self-test: the matcher did NOT flag planted retired framing"
     status=1
   else
@@ -189,17 +299,39 @@ EOF
     fi
   fi
 
-  if out=$(scan_paths "$tmp/surface/wrapped.md"); then
+  if out=$(scan_paths "$RETIRED_RE" "" "$tmp/surface/wrapped.md"); then
     echo "✖ self-test: the matcher did NOT flag a phrase wrapped across lines"
     status=1
   else
     echo "✓ self-test: flags a retired phrase split across a line break"
   fi
 
-  if out=$(scan_paths "$tmp/surface/clean.md"); then
+  if out=$(scan_paths "$RETIRED_RE" "" "$tmp/surface/clean.md"); then
     echo "✓ self-test: settled vocabulary passes (content memory, brand as a coordinate)"
   else
     echo "✖ self-test: the matcher flagged settled vocabulary:"
+    printf '%s\n' "$out"
+    status=1
+  fi
+
+  if out=$(scan_paths "$RETIRED_VOCAB_RE" "$VOCAB_BOUNDARY_RE" "$tmp/surface/vocab.md"); then
+    echo "✖ self-test: the vocabulary matcher did NOT flag planted retired vocabulary"
+    status=1
+  else
+    n=$(printf '%s\n' "$out" | grep -c . || true)
+    if [ "$n" -lt 6 ]; then
+      echo "✖ self-test: expected every planted retired word to be flagged, got ${n}:"
+      printf '%s\n' "$out"
+      status=1
+    else
+      echo "✓ self-test: flags termbase, glossary, localization, localized, translation memory, brand voice"
+    fi
+  fi
+
+  if out=$(scan_paths "$RETIRED_VOCAB_RE" "$VOCAB_BOUNDARY_RE" "$tmp/surface/vocab-clean.md"); then
+    echo "✓ self-test: settled vocabulary and the persisted \"termbases\" view id pass"
+  else
+    echo "✖ self-test: the vocabulary matcher flagged settled vocabulary:"
     printf '%s\n' "$out"
     status=1
   fi
@@ -219,45 +351,75 @@ fi
 # Run the self-test first: a matcher that silently stops matching is worse than
 # no check at all, and it costs milliseconds.
 if ! self_test >/dev/null; then
-  echo "✖ check-vocabulary.sh: self-test failed — the matcher is broken."
+  echo "✖ check-vocabulary.sh: self-test failed — a matcher is broken."
   self_test || true
   exit 1
 fi
 
-if hits=$(scan_paths "${SWEPT_SURFACES[@]}"); then
-  echo "✓ no retired framing in the swept surfaces"
-  # An empty pending list is the completion signal for the whole sweep, so say
-  # so rather than printing a bare heading over nothing. (Also: bash 3.2, which
-  # macOS ships, treats "${arr[@]}" on an empty array as unbound under set -u.)
-  if [ "${#PENDING_SURFACES[@]}" -gt 0 ]; then
-    echo ""
-    echo "Not yet scanned — each is swept by the worklist item named:"
-    printf '  %s\n' "${PENDING_SURFACES[@]}"
-  else
-    echo "  every file-backed surface is in scope — the sweep is complete."
-    echo "  CLI help text is not file-backed: it is assembled from Go string"
-    echo "  literals, and is held to the same vocabulary by"
-    echo "  TestConvention_HelpTextUsesCurrentVocabulary in cli/."
-  fi
-  exit 0
-fi
+status=0
 
-echo "✖ retired framing found in user-facing prose:"
-printf '%s\n' "$hits"
-echo ""
-echo "These phrases were retired by R12 (context-first positioning):"
-echo ""
-echo "  brand memory          → the context graph. Brand is ONE coordinate,"
-echo "                          beside audience, surface, register, market and"
-echo "                          validity. ('content memory' is a different"
-echo "                          object and keeps its name.)"
-echo "  brand-first           → context-first."
-echo "  Kapi drafts, …        → kapi holds the context graph for one project;"
-echo "                          Bowrain holds the same graph across projects."
-echo "                          Reach, not capability."
-echo "  for your whole team   → team is one angle, not the venue."
+if hits=$(scan_paths "$RETIRED_RE" "" "${SWEPT_SURFACES[@]}"); then
+  echo "✓ no retired framing in the swept surfaces"
+else
+  status=1
+  echo "✖ retired framing found in user-facing prose:"
+  printf '%s\n' "$hits"
+  echo ""
+  echo "These phrases were retired by R12 (context-first positioning):"
+  echo ""
+  echo "  brand memory          → the context graph. Brand is ONE coordinate,"
+  echo "                          beside audience, surface, register, market and"
+  echo "                          validity. ('content memory' is a different"
+  echo "                          object and keeps its name.)"
+  echo "  brand-first           → context-first."
+  echo "  Kapi drafts, …        → kapi holds the context graph for one project;"
+  echo "                          Bowrain holds the same graph across projects."
+  echo "                          Reach, not capability."
+  echo "  for your whole team   → team is one angle, not the venue."
   echo "  localization platform → the context graph. (l10n stays as SEO"
   echo "                          vocabulary; the product does not call"
   echo "                          itself a localization platform.)"
+  echo ""
+fi
+
+if hits=$(scan_paths "$RETIRED_VOCAB_RE" "$VOCAB_BOUNDARY_RE" "${VOCAB_SURFACES[@]}"); then
+  echo "✓ no retired vocabulary in the product strings and build metadata"
+else
+  status=1
+  echo "✖ retired vocabulary found in product strings or build metadata:"
+  printf '%s\n' "$hits"
+  echo ""
+  echo "The fixed vocabulary is docs/internals/brand-communication.md:"
+  echo ""
+  echo "  termbase, glossary    → the terms store."
+  echo "  translation memory    → content memory (recycling is the verb)."
+  echo "  localization, l10n    → multilingual content, or language. Recast the"
+  echo "  localize, localized     sentence rather than substituting one word."
+  echo "  brand voice           → the voice profile. Brand is the label most"
+  echo "                          workspaces give their default profile, not the"
+  echo "                          name of the mechanism."
+  echo ""
+  echo "An identifier a rename may not touch — a persisted id, a wire field, an"
+  echo "analytics id — belongs in VOCAB_BOUNDARY_RE with the reason it is one."
+  echo ""
+fi
+
+if [ "$status" -ne 0 ]; then
+  exit 1
+fi
+
+# An empty pending list is the completion signal for the whole sweep, so say
+# so rather than printing a bare heading over nothing. (Also: bash 3.2, which
+# macOS ships, treats "${arr[@]}" on an empty array as unbound under set -u.)
+if [ "${#PENDING_SURFACES[@]}" -gt 0 ]; then
+  echo ""
+  echo "Not yet held to the fixed vocabulary — each is swept by the item named:"
+  printf '  %s\n' "${PENDING_SURFACES[@]}"
+else
+  echo "  every file-backed surface is in scope — the sweep is complete."
+fi
 echo ""
-exit 1
+echo "  CLI help text is not file-backed: it is assembled from Go string"
+echo "  literals, and is held to the same vocabulary by"
+echo "  TestConvention_HelpTextUsesCurrentVocabulary in cli/."
+exit 0

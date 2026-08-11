@@ -6,10 +6,10 @@
     "0000": {
       "ProductVersion": "0.0.0-dev",
       "CompanyName": "neokapi",
-      "FileDescription": "Kapi - Localization Toolkit",
+      "FileDescription": "Kapi — the context-aware content workbench",
       "LegalCopyright": "© 2025-2026 neokapi",
       "ProductName": "Kapi",
-      "Comments": "Desktop companion for the kapi localization CLI"
+      "Comments": "Kapi — the context-aware content workbench"
     }
   }
 }

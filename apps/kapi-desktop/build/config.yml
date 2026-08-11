@@ -4,9 +4,9 @@ info:
   companyName: "neokapi"
   productName: "Kapi"
   productIdentifier: "io.github.neokapi.kapi-desktop"
-  description: "Localization Toolkit - powered by neokapi"
+  description: "Kapi — the context-aware content workbench"
   copyright: "© 2025-2026 neokapi"
-  comments: "Desktop companion for the kapi localization CLI"
+  comments: "Kapi — the context-aware content workbench"
   version: "0.0.0-dev"
 
 dev_mode:

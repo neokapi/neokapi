@@ -5,7 +5,7 @@ sidebar_label: Gate brand terminology in CI
 
 # Use case: gate brand terminology in CI
 
-A team's governed terminology lives in the [Brand](/server/brand) hub on the
+A team's governed terminology lives in the [Context](/server/context) hub on the
 Bowrain server — preferred terms, forbidden terms, the wording approved per
 market. This guide wires that governed terminology into a CI gate, so a pull
 request that uses a banned term or the wrong translation fails the build before
@@ -119,14 +119,14 @@ kapi check --ship --json
 `kapi pull` refreshes the local terms store on every run, so pulling at the start of
 each CI job keeps the gate aligned with the current governed terminology. When
 the workspace changes a preferred or forbidden term — a
-[governed edit](/server/brand#tiered-governance) that travels through a
-[change-set](/server/brand#experiments-change-sets-and-pilots) — the next CI run
+[governed edit](/server/context#tiered-governance) that travels through a
+[change-set](/server/context#experiments-change-sets-and-pilots) — the next CI run
 pulls it and gates against it automatically.
 
 ## Related
 
 - [kapi pull](/cli/commands/pull) — fetches translations and governed
   terminology into the local terms store
-- [Brand](/server/brand) — where terminology is governed
+- [Context](/server/context) — where terminology is governed
 - [GitHub Actions](/cli/use-cases/github-actions) — installing kapi in CI and CI authentication
 - [Source language preparation](/cli/use-cases/source-prep) — QA gates on source content in CI

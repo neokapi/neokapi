@@ -8,7 +8,7 @@ import { ThemedVideo } from "@neokapi/docs-shared";
 
 # Terminology
 
-The Terminology Explorer is the **Concepts** view of the [Brand](/server/brand)
+The Terminology Explorer is the **Concepts** view of the [Context](/server/context)
 hub: concept-oriented term management for maintaining consistent vocabulary across
 locales. Each concept represents a single meaning with terms in multiple
 languages, lifecycle statuses, and domain classification.
@@ -16,11 +16,11 @@ languages, lifecycle statuses, and domain classification.
 Terminology and content memory are kept on the server, shared across every
 project — one governed source of the team's approved wording.
 
-A concept is more than its terms. In the Brand hub each concept also carries typed
+A concept is more than its terms. In the Context hub each concept also carries typed
 **relations** to other concepts (what replaced it, what to use instead, which
 competitor it stands against), per-market validity, observations, comments, and a
-[story](/server/brand#the-concept-story) of how it came to be. This page covers
-the everyday term-management surface; see [Brand](/server/brand) for the richer
+[story](/server/context#the-concept-story) of how it came to be. This page covers
+the everyday term-management surface; see [Context](/server/context) for the richer
 concept model with relations and governance around it.
 
 <ThemedVideo
@@ -50,7 +50,7 @@ The explorer displays concepts in a paginated table with these columns:
 | **Status**      | Lifecycle status badge                                       |
 | **Updated**     | Date the concept was last modified                           |
 
-Clicking a concept opens its [dashboard](/server/brand#concepts) — the
+Clicking a concept opens its [dashboard](/server/context#concepts) — the
 per-concept page that gathers its terms, geography, constraints, direct
 relations, and timeline. The concept count badge in the header shows the total
 number of concepts matching current filters.
@@ -87,14 +87,14 @@ Filters can be combined with text search. Changing a filter resets to page 1.
 Click **Add Concept** in the header to create a concept — the unit of meaning
 that terms attach to. A new concept starts with a first term and a `proposed`
 status. To round it out — terms in other languages, a domain, relations, and
-per-market constraints — open its [dashboard](/server/brand#concepts) and edit
+per-market constraints — open its [dashboard](/server/context#concepts) and edit
 it there.
 
 ## Editing concepts
 
-Clicking a concept opens its [dashboard](/server/brand#concepts): the per-concept
+Clicking a concept opens its [dashboard](/server/context#concepts): the per-concept
 page that gathers its terms, geography, constraints, a local
-[relations](/server/brand#relations) widget, and a timeline. Terms and their
+[relations](/server/context#relations) widget, and a timeline. Terms and their
 metadata are edited on the dashboard rather than inline in the table.
 
 How an edit applies depends on whether it is governed:
@@ -104,14 +104,14 @@ How an edit applies depends on whether it is governed:
 - **Governed edits** — setting or clearing a term's `forbidden` or `preferred`
   status, recording a `replaced_by` relation, or deleting a concept — are
   bundled into a reviewable
-  [change-set](/server/brand#experiments-change-sets-and-pilots) whose blast
+  [change-set](/server/context#experiments-change-sets-and-pilots) whose blast
   radius is measured before anyone approves it.
 
 ## Deleting concepts
 
 Deleting a concept is a governed action. From the concept
-[dashboard](/server/brand#concepts), the delete is added to a
-[change-set](/server/brand#experiments-change-sets-and-pilots) and removes the
+[dashboard](/server/context#concepts), the delete is added to a
+[change-set](/server/context#experiments-change-sets-and-pilots) and removes the
 concept only once that change-set is approved and merged, so a concept other
 content still references cannot disappear unreviewed.
 
@@ -178,8 +178,8 @@ The terminology system is concept-oriented, inspired by the TBX (TermBase eXchan
 The framework owns this concept and term model; for its architecture, see the
 [framework terminology reference](https://neokapi.github.io/framework/terminology).
 
-On the platform, the same concepts are the nodes of the [Brand](/server/brand)
+On the platform, the same concepts are the nodes of the [Context](/server/context)
 knowledge graph — with typed relations, per-market validity, observations,
 comments, and governed change-sets layered on top. When you are ready to model
 *how concepts relate* rather than just curate terms, start at
-[Brand](/server/brand).
+[Context](/server/context).

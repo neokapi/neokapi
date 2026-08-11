@@ -15,7 +15,7 @@ import (
 // generator — which cannot import the kapi module — emits them into
 // commands.json under the cli.commands.kapi.* scopes.
 const (
-	KapiRootShort = "A format-aware content engine — parse, edit, check, and translate any format"
+	KapiRootShort = "A format-aware content engine that knows your project's context"
 	KapiRootLong  = `kapi parses any format into one unified content model, edits the content
 inside it, checks it, and writes it back byte-for-byte. It holds a project's
 content context — the terms, the voice and the rules it goes by — so you can

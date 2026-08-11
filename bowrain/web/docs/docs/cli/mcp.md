@@ -154,7 +154,7 @@ Once connected, your AI assistant can call these tools:
 | `concept_story`     | Show the chronological timeline of a governed concept                                 |
 | `experiment_status` | Report brand knowledge-graph change-sets, with detail and blast radius for one change-set |
 
-The three concept tools read the workspace [brand knowledge graph](/server/brand); they require a project connected to a workspace on a Bowrain server.
+The three concept tools read the workspace [brand knowledge graph](/server/context); they require a project connected to a workspace on a Bowrain server.
 
 ## Example Conversations
 
@@ -254,7 +254,7 @@ No parameters.
 
 ### concept_search
 
-Search the workspace [brand knowledge graph](/server/brand) for governed concepts (terms, status, domain) matching a query.
+Search the workspace [brand knowledge graph](/server/context) for governed concepts (terms, status, domain) matching a query.
 
 | Parameter | Type   | Required | Description                                                              |
 | --------- | ------ | -------- | ------------------------------------------------------------------------ |
