@@ -183,3 +183,81 @@ func TestProcessSyncPush_ItemCollectionBinding(t *testing.T) {
 		})
 	}
 }
+
+// TestProcessSyncPush_RePushKeepsExistingCollectionBinding pins the other half
+// of the same rule. An item with no binding yet falls to the project's default
+// collection when its collection cannot be resolved (above). An item that is
+// already filed under one does not move: a lookup that failed once is not a
+// decision to regroup content, so a re-push that could not name a collection
+// leaves the binding it finds alone.
+//
+// Without that distinction the sequence below is silent corruption of a user's
+// collection bindings — content authored under one collection is handed to the
+// default collection's coordinates, voice and gates by a transient failure, and
+// the only trace is a warning.
+func TestProcessSyncPush_RePushKeepsExistingCollectionBinding(t *testing.T) {
+	tests := []struct {
+		name string
+		// meta is the collection the re-push's item meta carries: a name that
+		// no longer resolves, or nothing at all.
+		meta    string
+		wantLog string
+	}{
+		{
+			name:    "the re-push names a collection that does not resolve",
+			meta:    "vanished",
+			wantLog: "it keeps the collection it is already filed under",
+		},
+		{
+			name: "the re-push names no collection at all",
+			meta: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			deps := newTestWorkerDeps(t)
+			ctx := t.Context()
+
+			projectID := "collection-rebinding"
+			require.NoError(t, deps.ContentStore.CreateProject(ctx, &store.Project{ID: projectID, Name: "Collection Rebinding"}))
+
+			// The project has a default collection, as every project created
+			// through the API does (#1786) — it is what an unresolved
+			// collection would drag the item into.
+			def := &store.Collection{ProjectID: projectID, Name: "default", ItemLabel: "item", IsDefault: true}
+			require.NoError(t, deps.ContentStore.CreateCollection(ctx, def))
+			defColl, err := deps.ContentStore.GetDefaultCollection(ctx, projectID)
+			require.NoError(t, err)
+
+			docs := &store.Collection{ProjectID: projectID, Name: "docs", ItemLabel: "item"}
+			require.NoError(t, deps.ContentStore.CreateCollection(ctx, docs))
+			docsColl, err := deps.ContentStore.GetCollectionByName(ctx, projectID, "docs", "main")
+			require.NoError(t, err)
+			require.NotEqual(t, defColl.ID, docsColl.ID)
+
+			// The first push files the item under docs.
+			jobID := stageSyncPushWithCollection(t, deps, projectID, "job-bind", "en.json", "docs")
+			require.NoError(t, ProcessSyncPushJobForTest(ctx, deps, jobID))
+			bound, err := deps.ContentStore.GetItem(ctx, projectID, "main", "en.json")
+			require.NoError(t, err)
+			require.Equal(t, docsColl.ID, bound.CollectionID, "the first push must file the item under docs")
+
+			// The second push cannot place it.
+			logs := captureLogs(t)
+			rePushID := stageSyncPushWithCollection(t, deps, projectID, "job-rebind", "en.json", tc.meta)
+			require.NoError(t, ProcessSyncPushJobForTest(ctx, deps, rePushID))
+
+			item, err := deps.ContentStore.GetItem(ctx, projectID, "main", "en.json")
+			require.NoError(t, err)
+			assert.Equal(t, docsColl.ID, item.CollectionID,
+				"a push that could not resolve a collection must leave the binding it found alone")
+			assert.NotEqual(t, defColl.ID, item.CollectionID,
+				"a lookup failure must not move the item into the default collection")
+
+			if tc.wantLog != "" {
+				assert.Contains(t, logs.String(), tc.wantLog)
+			}
+		})
+	}
+}
