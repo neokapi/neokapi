@@ -32,7 +32,8 @@ else to write, run against the repository that builds the product:
 `setup-kapi` installs the **released** CLI and the bowrain plugin from the
 registry rather than building either from the checkout, so a green nightly is
 evidence about the shipped product and not about the working tree.
-`kapi-action` runs the convergence verb and commits what came back.
+`kapi-action` runs the convergence verb and reports; delivering what came back
+is the workflow's own business, below.
 
 The one step a customer would not write is `make l10n-extract`. Five of the
 recipe's collections declare catalogs that the neokapi-i18n extractor produces
@@ -88,6 +89,35 @@ land as review-queue work (epic 006), and approved wording returns as decisions
 the project commits under `.kapi/state/`. The nightly keeps the server current;
 human review closes the loop.
 
+## The return leg runs in the nightly
+
+The pull stages every approved decision the server's ledger holds into the
+project's working store. Staging is not publishing: `kapi commit` is the only
+door from there into the committed record under `.kapi/state/` that git tracks,
+and recording a decision stays a separate act from putting it in the record a
+reviewer reads. A run of automated approvals therefore does not reach the
+tracked record on its own.
+
+So the nightly runs it, between `kapi up` and the backing gate:
+
+```yaml
+- name: Commit the decisions the run brought home
+  run: kapi commit
+```
+
+Order is the whole point. The gate below asks whether the committed context
+moved with the artifacts the run produced; the artifacts came from wording the
+server approved, and this step is what puts that approval under `.kapi/`.
+Running the gate first would refuse the run for a shard the next line was about
+to write. Nothing staged is a no-op that exits 0.
+
+The terminology half of the return leg does not run yet. Approved concept
+decisions arrive from the server into the project's rebuildable terms store and
+never reach the authored `.kapi/terms.json`, and no command projects them there
+without replacing the whole file — which would delete authored concepts the
+workspace has not adopted. It waits on a merging projection; see
+[issue #1850](https://github.com/neokapi/neokapi/issues/1850).
+
 ## Delivery is gated on the committed context
 
 Everything the loop writes — target catalogs, narration sidecars, runtime
@@ -119,8 +149,9 @@ voice profile, a profile), changes matching `make l10n-derived-paths` are
 **derived** — the same set `l10n-verify` regenerates — and anything else is
 **foreign**. Derived changes need a backing change in the same run; a foreign
 change is refused whether or not the context moved, because a convergence run
-does not author source and the delivery step's `git add -A` would carry it into
-main with no review and no CI.
+does not author source: a source edit appearing in one is a symptom, and the
+gate is the layer that says so rather than letting it reach a diff nobody
+expected it in.
 
 Backing is asked of the run as a whole rather than file by file: no committed
 mapping ties a seed or a shard to the artifact it feeds — seed filenames are
@@ -132,8 +163,32 @@ carrying the run's decisions home, never by editing a seed until the artifact
 matches: seeds are read-only accelerants, wording is decided in the ledger, and
 a seed edited to fit an artifact records a decision nobody made.
 
-The gate runs only in this workflow, so `--self-test` drives its classification
-against scratch repositories from the repo-guards job of `ci.yml` and from `make
+## Delivery is a pull request
+
+What survives the gate goes up as a pull request, never as a push to `main`.
+Approved wording is content someone decided, so a human reads the diff before it
+ships — the same intent `kapi commit` carries one layer down, applied to the
+repository rather than the project.
+
+`scripts/auto-pr.sh` does it, on a fixed bot branch (`bot/dogfood-sync`)
+force-pushed each run. One rolling pull request per stream: an unmerged one is
+refreshed with a comment rather than joined by a nightly sibling, and a night
+that brought nothing home pushes nothing, opens nothing, and exits 0 — quiet
+nights leave no branches and no pull requests behind.
+
+Only the paths the loop owns are staged — `.kapi/` and the derived set from
+`make l10n-derived-paths`, the same two the gate classifies — so an unrelated
+working-tree change cannot ride along even if the gate's refusal of foreign
+changes were ever relaxed. Staging is by concrete path rather than pathspec,
+because `git add` treats a pathspec matching nothing as fatal and the sidecar
+glob matches nothing until a locale gets its first one.
+
+The pull request is opened with `GITHUB_TOKEN`, which starts no workflow runs,
+so its checks do not run on their own; the body says to close and reopen it (or
+push any commit) to start them.
+
+Both scripts run only in scheduled jobs, so `--self-test` drives them against
+scratch repositories from the repo-guards job of `ci.yml` and from `make
 pre-push`. A change that disarms the gate fails on the pull request that makes
 it rather than in a nightly nobody is watching.
 

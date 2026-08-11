@@ -15,7 +15,7 @@
 #      timeout. The Bedrock legs need AWS SSO credentials CI does not hold, so
 #      EVALS_SKIP_BEDROCK=1 leaves them a desktop responsibility.
 #
-# Refreshed datasets are committed via auto-PR (scripts/evals-auto-pr.sh, the
+# Refreshed datasets are committed via auto-PR (scripts/auto-pr.sh, the
 # bot-identity conventions of scripts/l10n-autofix.sh) — dashboards stay
 # reviewable, and a bad sweep never lands on main unseen.
 
@@ -121,13 +121,13 @@ jobs:
       - name: Open the price-drift auto-PR
         env:
           GH_TOKEN: ${{ github.token }}
-          EVALS_PR_NOTE: >-
+          AUTO_PR_NOTE: >-
             check-models drift: ${{ steps.modelcheck.outputs.drift }}. When
             true, the model catalog (providers/ai/models.json) also needs a
             curation pass — run scripts/prompts/update-model-catalog.md; this
             PR only refreshes the price tables.
         run: |
-          bash scripts/evals-auto-pr.sh bot/evals-model-prices \
+          bash scripts/auto-pr.sh bot/evals-model-prices \
             "chore(evals): refresh model price tables" -- \
             scripts/batcheval/prices.json \
             scripts/contexteval/prices.json
@@ -187,13 +187,13 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          EVALS_PR_NOTE: >-
+          AUTO_PR_NOTE: >-
             Weekly sweep of the gemini and claude-code legs
             (EVALS_SKIP_BEDROCK=1 — the Bedrock leg needs AWS SSO credentials
             and stays a desktop run). Same-day re-runs correct their history
             entry rather than appending a second point.
         run: |
-          bash scripts/evals-auto-pr.sh bot/evals-dashboards \
+          bash scripts/auto-pr.sh bot/evals-dashboards \
             "chore(evals): refresh context-eval and batch-eval dashboards" -- \
             web/src/pages/context-eval/_contexteval.json \
             web/src/pages/batch-eval/_batcheval.json

@@ -2,9 +2,10 @@
 #
 # This is the workflow the product tells everyone else to write, run against the
 # repository that builds the product: install the CLI with setup-kapi, run the
-# convergence verb with kapi-action, commit what came back once the committed
-# context explains it. Nothing in it is bespoke: a step here that a customer
-# could not copy is a step the product is missing.
+# convergence verb with kapi-action, carry the run's decisions home, and open a
+# pull request with what came back once the committed context explains it.
+# Nothing in it is bespoke: a step here that a customer could not copy is a step
+# the product is missing.
 #
 # INERT BY DEFAULT (roadmap epic 017-F, decision D2). Every job is gated on the
 # repo variable DOGFOOD_SYNC_ENABLED == 'true', so until the founder arms it
@@ -43,9 +44,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
-      # The commit step below delivers what the loop pulled back (approved
-      # wording, fresh target catalogs) to the branch it ran on.
+      # The delivery step below pushes what the loop brought home (approved
+      # wording, fresh target catalogs) to a bot branch, never to the branch it
+      # ran on, and opens the pull request that proposes it.
       contents: write
+      pull-requests: write
       # setup-node-ui installs @neokapi scoped packages from npm.pkg.github.com.
       packages: read
     steps:
@@ -87,6 +90,19 @@ jobs:
           command: up
           plan: ${{ inputs.plan || 'false' }}
 
+      # The loop's return leg. `kapi up` pulls the server's ledger and stages
+      # every approved decision in the project's working store; `kapi commit` is
+      # the only door from there into the committed record under .kapi/state/
+      # that git tracks. Without it the run's target artifacts are wording no
+      # committed context explains, which is what the gate below refuses — the
+      # approvals reached the tree and nothing carried them home.
+      #
+      # Recording and publishing stay separate acts, so this is not something
+      # `up` does on its own. Nothing staged is a no-op and exits 0.
+      - name: Commit the decisions the run brought home
+        if: ${{ !inputs.plan }}
+        run: kapi commit
+
       # Delivery is conditional on the committed context explaining what the run
       # produced. Every artifact the loop owns is rebuilt from .kapi/ on the next
       # regeneration, so wording delivered without a matching .kapi/ change lives
@@ -101,16 +117,43 @@ jobs:
       - name: Refuse what the committed context cannot explain
         run: ./scripts/check-sync-backed.sh
 
-      # The action reports; delivery is this workflow's own step. GITHUB_TOKEN
-      # pushes trigger no workflows, so this commit does NOT start CI or a
-      # deploy: the translated content rides the next ordinary push to main.
-      # Swap the checkout/push credential to a PAT or App token if delivered
-      # content should deploy on its own.
-      - name: Deliver the converged content
-        if: steps.kapi.outputs.has-changes == 'true'
+      # The action reports; delivery is this workflow's own step, and it is a
+      # pull request rather than a push to main. Approved wording is content
+      # someone decided, so a human reads the diff before it ships — the same
+      # explicit-commit intent `kapi commit` carries one layer down.
+      #
+      # One rolling bot branch: an unmerged pull request is refreshed rather
+      # than joined by a sibling, and a night with nothing pending pushes
+      # nothing and opens nothing. Only the paths the loop owns are staged —
+      # .kapi/ (the committed context) and the artifacts derived from it, the
+      # same two sets the gate above classifies.
+      #
+      # Runs whatever the action reported, for the gate's reason: the return leg
+      # can move .kapi/ on a run that produced no derived change at all, and
+      # has-changes was computed before it ran.
+      - name: Open a pull request with what the loop brought home
+        if: ${{ !inputs.plan }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTO_PR_NOTE: >-
+            `kapi up` converged this repository's content on bowrain.cloud and
+            `kapi commit` wrote the decisions it brought home into
+            `.kapi/state/`. The backing gate passed: every derived artifact in
+            this diff is explained by a change under `.kapi/`.
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "chore(l10n): pull converged content from bowrain"
-          git push
+          # Globbing off: the derived set carries git pathspec magic
+          # (`:(glob)…`), which the shell must not expand against the tree.
+          set -f
+          # An unreadable derived set would deliver the context change and leave
+          # every artifact it backs behind, green — the silent half-delivery this
+          # whole sequence exists to prevent. The gate above refuses it first;
+          # this refuses it again rather than trusting step order to hold.
+          derived="$(make -s l10n-derived-paths)"
+          if [ -z "${derived//[[:space:]]/}" ]; then
+            echo "::error title=Delivery refused::the derived set is empty — refusing to deliver a partial tree"
+            exit 1
+          fi
+          # shellcheck disable=SC2086  # the derived set is a list of pathspecs
+          ./scripts/auto-pr.sh bot/dogfood-sync \
+            "chore(l10n): converged content from bowrain" -- \
+            .kapi ':(exclude).kapi/work' $derived

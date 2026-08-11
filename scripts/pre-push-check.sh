@@ -79,6 +79,11 @@ run_check "Reference dataset provenance" ./scripts/check-reference-provenance.sh
 # nothing else here would notice it losing its teeth. ~1s, all in a scratch repo.
 run_check "Sync backing gate" ./scripts/check-sync-backed.sh --self-test
 
+# Ungated for the same reason: the delivery it proves runs only in scheduled
+# jobs, so nothing else here would notice it pushing to the wrong place or
+# staging more than the job owns. ~1s, all in scratch repos.
+run_check "Scheduled auto-PR delivery" ./scripts/auto-pr.sh --self-test
+
 # Ungated for the same reason, plus one specific to this repo: the bowrain
 # checks below are gated on ^bowrain/core/ and ^bowrain/plugin/ only, so the
 # main bowrain module has no local format gate at all — which is how nine files
