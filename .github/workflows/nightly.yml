@@ -66,6 +66,23 @@ jobs:
       - name: Platform + bowrain (race, containers, stable)
         run: make test-platform test-bowrain
 
+      # The test targets redirect `go test -json` to these files, so a failure
+      # is otherwise invisible: the job log shows only which make target exited
+      # non-zero, and nothing here converts or uploads the results the way
+      # ci.yml does. A nightly-only red that names no test is the failure mode
+      # this whole workflow exists to avoid.
+      - name: Name the failing tests
+        if: failure()
+        run: |
+          for f in test-results-framework.json test-results-cli.json \
+                   test-results-kapi.json test-results-platform.json \
+                   test-results-bowrain.json test-results-bowrain-plugin.json \
+                   test-results-bowrain-plugin-schema.json; do
+            [ -s "$f" ] || continue
+            echo "── $f ──"
+            bash scripts/print-go-test-failures.sh "$f"
+          done
+
   # ── Vision ONNX (real models) ───────────────────────────────────────────────
   # Exercises the kapi-vision plugin against the REAL PP-OCRv5 (OCR) and
   # PP-DocLayoutV3 (layout) models and a real onnxruntime — the numeric/inference

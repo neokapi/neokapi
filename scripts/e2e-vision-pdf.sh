@@ -62,7 +62,11 @@ cd "$PROJ"
 
 echo "== tier-3 extract (pdfium render -> vision layout) =="
 t0=$(date +%s)
-"$KAPI_BIN" extract 2>&1 | tee "$WORK/extract.log"
+# -p names the staged project explicitly, which is the only way to reach it
+# from here: KAPI_NO_PROJECT above disables KAPI_PROJECT and the cwd upward
+# walk alike, so cd'ing into $PROJ does not make this recipe discoverable. An
+# explicit flag outranks the opt-out, so the isolation contract still holds.
+"$KAPI_BIN" extract -p "$PROJ/kapi.yaml" 2>&1 | tee "$WORK/extract.log"
 t1=$(date +%s)
 echo "extract took $((t1 - t0))s"
 
