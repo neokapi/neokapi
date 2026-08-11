@@ -17,9 +17,9 @@
 #              profile, a profile. The context graph moved.
 #   derived  — the artifacts the loop owns (`make l10n-derived-paths`, the same
 #              set l10n-verify regenerates).
-#   foreign  — everything else. A convergence run has no business writing it,
-#              and a delivery step that runs `git add -A` would carry it into
-#              main with no review and no CI.
+#   foreign  — everything else. A convergence run has no business writing it, so
+#              its presence is a symptom of the run rather than content to
+#              deliver, whatever the delivery step stages.
 #
 # It refuses — non-zero, naming every file — when derived changes have no
 # backing change, and when anything foreign changed. Foreign is refused even
@@ -194,8 +194,8 @@ EOF
     cat >&2 <<'EOF'
 
 The run also changed files outside both the context graph and the artifacts the
-loop owns. A convergence run does not author these, and the delivery step would
-commit them with no review and no CI:
+loop owns. A convergence run does not author these, so a run that wrote them is
+not a run to deliver from:
 
 Refused — outside the loop's scope:
 EOF

@@ -149,8 +149,9 @@ voice profile, a profile), changes matching `make l10n-derived-paths` are
 **derived** — the same set `l10n-verify` regenerates — and anything else is
 **foreign**. Derived changes need a backing change in the same run; a foreign
 change is refused whether or not the context moved, because a convergence run
-does not author source and the delivery step's `git add -A` would carry it into
-main with no review and no CI.
+does not author source: a source edit appearing in one is a symptom, and the
+gate is the layer that says so rather than letting it reach a diff nobody
+expected it in.
 
 Backing is asked of the run as a whole rather than file by file: no committed
 mapping ties a seed or a shard to the artifact it feeds — seed filenames are
