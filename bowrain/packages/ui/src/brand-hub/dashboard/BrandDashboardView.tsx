@@ -5,6 +5,7 @@
 // on; coverage, compliance, and recent change fan out below it. Built entirely
 // on the real concept, change-set, market, and brand-profile hooks.
 import { useMemo } from "react";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import { Button, Card, CardContent, Skeleton, cn } from "@neokapi/ui-primitives";
 import { Network, FlaskConical, Palette, Shield, ArrowRight, Pencil } from "../../components/icons";
 import type { ChangeSet } from "../../types/brand-graph";
@@ -318,8 +319,11 @@ function ConceptRow({ concept, onOpen }: { concept: ConceptInfo; onOpen?: () => 
           </div>
           <div className="text-xs text-muted-foreground">
             {concept.domain ? `${concept.domain} · ` : ""}
-            {concept.terms.length} term{concept.terms.length === 1 ? "" : "s"} ·{" "}
-            {formatRelative(concept.updated_at || concept.created_at)}
+            <Plural count={concept.terms.length}>
+              <One>{concept.terms.length} term</One>
+              <Other>{concept.terms.length} terms</Other>
+            </Plural>{" "}
+            · {formatRelative(concept.updated_at || concept.created_at)}
           </div>
         </div>
         <ArrowRight className="size-4 shrink-0 text-muted-foreground" />

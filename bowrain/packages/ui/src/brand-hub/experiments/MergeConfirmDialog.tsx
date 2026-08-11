@@ -3,6 +3,7 @@
 // and if the merge hits stale-draft conflicts (409 + OpConflict list), we
 // surface them clearly with the re-base guidance rather than a raw error string.
 import { useState } from "react";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import {
   Badge,
   Button,
@@ -102,7 +103,10 @@ function ConflictView({ conflicts }: { conflicts: OpConflict[] }) {
       <div className="flex items-center gap-2">
         <AlertTriangle className="size-4 text-destructive" />
         <h3 className="text-sm font-medium text-destructive">
-          {conflicts.length} stale-draft conflict{conflicts.length === 1 ? "" : "s"}
+          <Plural count={conflicts.length}>
+            <One>{conflicts.length} stale-draft conflict</One>
+            <Other>{conflicts.length} stale-draft conflicts</Other>
+          </Plural>
         </h3>
       </div>
       <p className="text-xs text-muted-foreground">

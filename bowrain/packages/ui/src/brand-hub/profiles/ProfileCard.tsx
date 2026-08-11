@@ -1,4 +1,5 @@
 import { Badge, Card, cn } from "@neokapi/ui-primitives";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import type { ContextProfile } from "../../types/context-profiles";
 import { CoordinateReadout } from "./Coordinates";
 import { Folder, Palette } from "../../components/icons";
@@ -90,7 +91,10 @@ export function ProfileCard({ profile, onSelect, className }: ProfileCardProps) 
               {rest > 0 && ` +${rest}`}
               <span className="opacity-60">
                 {" · "}
-                {projects.size} {projects.size === 1 ? "project" : "projects"}
+                <Plural count={projects.size}>
+                  <One>{projects.size} project</One>
+                  <Other>{projects.size} projects</Other>
+                </Plural>
               </span>
             </span>
           )}

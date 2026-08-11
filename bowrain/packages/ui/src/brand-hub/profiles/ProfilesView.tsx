@@ -4,7 +4,6 @@ import { EmptyState } from "../shell/atoms";
 import { ProfileCard } from "./ProfileCard";
 import { useContextProfiles } from "./useContextProfiles";
 import { Layers, Sparkles } from "../../components/icons";
-import { useSetBreadcrumb } from "../../context/BreadcrumbContext";
 
 export interface ProfilesViewProps {
   /** Opens one profile. */
@@ -18,7 +17,6 @@ export interface ProfilesViewProps {
  * the workspace's content occupies, and what governs each.
  */
 export function ProfilesView({ onOpenProfile, onScanBrand }: ProfilesViewProps) {
-  useSetBreadcrumb(null);
   const { data, isLoading, error } = useContextProfiles();
 
   if (isLoading) return <ProfilesSkeleton />;

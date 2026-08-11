@@ -4,6 +4,7 @@
 // badge on the ops that need a second approval to merge. Read-only by default;
 // pass `editable` + `onRemove` to let a draft drop ops.
 import { Badge, Button, cn } from "@neokapi/ui-primitives";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import { Lock, Trash2, GitMerge } from "../../components/icons";
 import type { ChangeSetOp } from "../../types/brand-graph";
 import { groupOps, governedOpCount, CATEGORY_LABEL, type OpDiffRow } from "./ops";
@@ -32,7 +33,10 @@ export function OpsDiff({ ops, editable, onRemove, removingSeq, className }: Ops
     <div className={cn("space-y-4", className)}>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span>
-          {ops.length} operation{ops.length === 1 ? "" : "s"}
+          <Plural count={ops.length}>
+            <One>{ops.length} operation</One>
+            <Other>{ops.length} operations</Other>
+          </Plural>
         </span>
         {governed > 0 && (
           <Badge variant="outline" className="gap-1 border-primary/40 text-[10px] text-primary">

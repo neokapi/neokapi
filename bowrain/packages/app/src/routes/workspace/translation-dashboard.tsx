@@ -7,6 +7,7 @@ import {
   TranslationDashboard,
   TranslationDashboardSkeleton,
   useApi,
+  useBreadcrumbExtra,
   useStream,
   fetchConnectorStatuses,
   type ApiAdapter,
@@ -122,25 +123,37 @@ function ScopedItems({
       : (rollup?.collection_name ?? scope.collection ?? "");
 
   return (
-    <CollectionItemsView
-      collection={rollup}
-      title={title}
-      itemStats={stats.item_stats}
-      localeStats={stats.locale_stats}
-      paging={paging}
-      onBack={onBack}
-      onReview={
-        all
-          ? undefined
-          : () =>
-              onReview({
-                collectionId: scope.collection ?? "",
-                ungrouped: Boolean(scope.ungrouped),
-              })
-      }
-      preview={preview}
-    />
+    <>
+      {/* The shell's trail ends at the project; only this route knows what the
+          `?collection=` id is called, so it appends that step itself. */}
+      <ScopedBreadcrumb title={title} />
+      <CollectionItemsView
+        collection={rollup}
+        title={title}
+        itemStats={stats.item_stats}
+        localeStats={stats.locale_stats}
+        itemBase={stats.item_base}
+        paging={paging}
+        onBack={onBack}
+        onReview={
+          all
+            ? undefined
+            : () =>
+                onReview({
+                  collectionId: scope.collection ?? "",
+                  ungrouped: Boolean(scope.ungrouped),
+                })
+        }
+        preview={preview}
+      />
+    </>
   );
+}
+
+/** Appends one step to the shell's trail and renders nothing else. */
+function ScopedBreadcrumb({ title }: { title: string }) {
+  useBreadcrumbExtra([{ label: title }]);
+  return null;
 }
 
 export function TranslationDashboardRoute() {

@@ -11,7 +11,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@neokapi/ui-primitives";
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ErrorNotice } from "../errors";
 import type {
   ProjectInfo,
@@ -33,7 +33,6 @@ import { useAnalytics } from "../context/AnalyticsContext";
 import { AnalyticsEvents } from "../analytics-events";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { useLocales } from "../hooks/useLocales";
-import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { EntityMarkPopover } from "./editor/EntityMarkPopover";
 import { VisualEditorLayout } from "./editor/VisualEditorLayout";
 import { TableView } from "./editor/TableView";
@@ -46,7 +45,7 @@ import {
   withTargetStatus,
   type TargetStatusSnapshot,
 } from "./editor/blockStatus";
-import { ArrowLeft, ArrowUp, ArrowDown } from "./icons";
+import { ArrowUp, ArrowDown } from "./icons";
 import { type UnifiedSaveResult, type UnifiedTargetEditorHandle } from "./UnifiedTargetEditor";
 
 /** The Translate editor exposes two views the user toggles between. */
@@ -94,7 +93,7 @@ interface TranslationEditorProps {
 export function TranslationEditor({
   project,
   fileName,
-  onBack,
+  onBack: _onBack,
   onExport,
   presenceSlot,
   onSelectedBlockChange,
@@ -146,19 +145,6 @@ export function TranslationEditor({
   const wsSlug = activeWorkspace?.slug ?? "";
 
   // Register breadcrumb in the top bar area
-  const breadcrumbNode = useMemo(
-    () => (
-      <button
-        onClick={onBack}
-        data-testid="back-to-project"
-        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-none p-0"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" /> {project.name}
-      </button>
-    ),
-    [onBack, project.name],
-  );
-  useSetBreadcrumb(breadcrumbNode);
 
   const api = useEditorApi();
   const { capture } = useAnalytics();

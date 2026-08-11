@@ -13,7 +13,6 @@ import { BrandProfileCard } from "./BrandProfileCard";
 import { BrandScanLocalLaneCard } from "../brand-scan/BrandScanLocalLaneCard";
 import { ListCapRow } from "../components/ListCapRow";
 import { Plus, Search, Sparkles } from "../components/icons";
-import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 
 /** Hard render cap for the profile grid. */
 const MAX_PROFILE_CARDS = 100;
@@ -40,7 +39,6 @@ export function BrandProfileList({
   onScanBrand,
   onLocalLane,
 }: BrandProfileListProps) {
-  useSetBreadcrumb(null);
   const [deleteTarget, setDeleteTarget] = useState<VoiceProfile | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

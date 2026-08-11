@@ -17,7 +17,31 @@
  * 20KB+. `#` inside plural branches is locale-number-formatted.
  */
 
-export type ICUParamValue = string | number | Date;
+/**
+ * What a call site may hand a placeholder.
+ *
+ * The nullish and boolean members are not authored deliberately — they are what
+ * a JSX expression evaluates to. The plugin lifts every expression inside a
+ * translated text run into a param, so `Words{sortIndicator(field)}` becomes a
+ * placeholder whose value is `null` on the columns that carry no indicator.
+ * React renders `null`, `undefined`, `false` and `true` as nothing; the type
+ * admits them so the substitution below can preserve that.
+ */
+export type ICUParamValue = string | number | Date | boolean | null | undefined;
+
+/**
+ * A placeholder's text, with React's own rendering semantics: the values React
+ * drops from a tree contribute nothing here either.
+ *
+ * `String(value)` is the obvious thing to write and the wrong one — it put the
+ * literal "null" in a column header ("Wordsnull"), because a sort indicator
+ * that returns `null` for an inactive column is idiomatic JSX and only stops
+ * being invisible once the transform has turned it into a string parameter.
+ */
+export function paramText(value: ICUParamValue): string {
+  if (value === null || value === undefined || typeof value === "boolean") return "";
+  return String(value);
+}
 
 /**
  * True when `text` contains an ICU argument this resolver handles.
@@ -79,9 +103,16 @@ function parseExpression(
   const varName = text.slice(varStart, i).trim();
 
   if (text[i] === "}") {
-    // Simple substitution: {varName}
+    // Simple substitution: {varName}. An unbound name keeps its token — a
+    // catalog naming a placeholder this call site does not supply is a bug worth
+    // seeing. A name bound to null is a different thing: the call site did
+    // supply it, and JSX renders it as nothing, so key presence is what decides.
     const value =
-      varName === "#" ? String(params._count ?? "") : String(params[varName] ?? `{${varName}}`);
+      varName === "#"
+        ? paramText(params._count)
+        : varName in params
+          ? paramText(params[varName])
+          : `{${varName}}`;
     return { value, end: i + 1 };
   }
 
@@ -157,7 +188,7 @@ function parseExpression(
     selectedBranch = selectedBranch.replaceAll("#", formatNumber(count, "", locale));
   } else {
     // select: exact string match
-    selectedBranch = branches[String(paramValue)] ?? branches["other"] ?? "";
+    selectedBranch = branches[paramText(paramValue)] ?? branches["other"] ?? "";
   }
 
   // Recursively resolve any nested expressions
@@ -174,13 +205,21 @@ function formatValue(
   style: string,
   locale: string,
 ): string {
+  // Nothing in, nothing out — decided before any coercion, because the
+  // coercions disagree about what a nullish value means. `Number(null)` is 0
+  // and `Number(undefined)` is NaN, so a null count would have formatted as a
+  // confident "0" while an absent one fell through to the text fallback.
+  if (raw === null || raw === undefined || typeof raw === "boolean") return "";
+
+  // Every unformattable value falls back to its plain text, so a value React
+  // would have rendered as nothing stays nothing rather than becoming "null".
   if (type === "number") {
     const n = typeof raw === "number" ? raw : Number(raw);
-    if (Number.isNaN(n)) return String(raw);
+    if (Number.isNaN(n)) return paramText(raw);
     return formatNumber(n, style, locale);
   }
-  const date = raw instanceof Date ? raw : new Date(typeof raw === "number" ? raw : String(raw));
-  if (Number.isNaN(date.getTime())) return String(raw);
+  const date = raw instanceof Date ? raw : new Date(typeof raw === "number" ? raw : paramText(raw));
+  if (Number.isNaN(date.getTime())) return paramText(raw);
   const styleValue = isDateTimeStyle(style) ? style : "medium";
   try {
     return new Intl.DateTimeFormat(

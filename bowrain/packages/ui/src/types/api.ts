@@ -943,6 +943,13 @@ export interface TranslationDashboardStats {
    * pre-paging servers).
    */
   item_total?: number;
+  /**
+   * The directory prefix every item in the request's scope shares, with a
+   * trailing slash. Computed over the whole scope, so it is stable across pages
+   * and sorts; absent when the items share no prefix (or from an older server).
+   * Names are shown relative to it.
+   */
+  item_base?: string;
   collection_stats: CollectionTranslationStats[];
   total_blocks: number;
   translatable_blocks: number;

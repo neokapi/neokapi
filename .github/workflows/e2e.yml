@@ -4,22 +4,29 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 2 * * *" # Nightly at 2 AM UTC
-  # The Docker and browser suites stay nightly — they are heavy, and a PR should
-  # not wait on them. Use workflow_dispatch to run the whole lane for a branch.
+  # The Docker suites stay nightly — they need four images and a database, and a
+  # PR should not wait on them. Use workflow_dispatch to run the whole lane.
   #
-  # The Kapi CLI job is the exception, and it earned it. It needs no Docker, no
-  # browser and no services; it takes about three minutes. It also went red on
-  # 2026-07-26 and stayed red because #1462 rewrote a CLI flag inside it — a
-  # change that touched cli/ and host/, so a path-gated pre-merge run would have
-  # caught it in review instead of in a nightly nobody read. The paths below are
-  # the CLI surface it actually exercises, deliberately not `core/**`: broad
-  # enough to catch a flag or command rename, narrow enough that most PRs never
-  # trigger it.
+  # The two self-contained suites are pre-merge, and both earned it the same
+  # way. The Kapi CLI job went red on 2026-07-26 and stayed red because #1462
+  # rewrote a CLI flag inside it. The Playwright job went red when #1775 moved
+  # the desktop adapter onto its REST proxy transport and the mock backend did
+  # not follow: every spec died on the launch probe, and because the job was
+  # nightly-only, nothing said so. Both are failures a path-gated pre-merge run
+  # would have put in front of a reviewer instead of in a log nobody opens.
+  #
+  # Each job filters on the surface it actually exercises (see the `changes`
+  # job), so a CLI-only PR does not pay for browsers and a frontend-only PR does
+  # not pay for Go.
   pull_request:
     paths:
       - "cli/**"
       - "host/**"
       - "kapi/**"
+      - "bowrain/packages/**"
+      - "bowrain/apps/bowrain/frontend/**"
+      - "packages/i18n-react/**"
+      - "packages/ui/**"
       - ".github/workflows/e2e.yml"
 
 permissions:
@@ -27,9 +34,47 @@ permissions:
   packages: write
 
 jobs:
+  # ── Which surface did this PR touch? ──────────────────────────────────────
+  # GitHub filters paths per workflow, not per job, so the union above would
+  # otherwise run both suites for either kind of change. Outside a pull request
+  # (nightly, dispatch) both filters report true and everything runs.
+  changes:
+    name: Detect touched surfaces
+    # Only a pull request has a base to diff against. Nightly and dispatch runs
+    # skip this and the suites below fall through to running unconditionally —
+    # which is why those conditions lead with the event check and are wrapped in
+    # !cancelled(): a skipped `needs` would otherwise skip its dependents, and
+    # silently disabling the nightly lane is the exact failure this file is
+    # meant to stop happening.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      cli: ${{ steps.filter.outputs.cli }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            cli:
+              - 'cli/**'
+              - 'host/**'
+              - 'kapi/**'
+              - '.github/workflows/e2e.yml'
+            frontend:
+              - 'bowrain/packages/**'
+              - 'bowrain/apps/bowrain/frontend/**'
+              - 'packages/i18n-react/**'
+              - 'packages/ui/**'
+              - '.github/workflows/e2e.yml'
+
   # ── Kapi CLI E2E (no Docker, no external services) ────────────────────────
   kapi-e2e:
     name: Kapi CLI E2E
+    needs: changes
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.cli == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -44,7 +89,11 @@ jobs:
   # ── Bowrain frontend Playwright E2E (self-contained, mock backend) ───────
   playwright:
     name: Playwright E2E
-    if: github.event_name != 'pull_request' # heavy: browsers — nightly only
+    needs: changes
+    # Pre-merge on the surfaces it covers: this suite is the only thing that
+    # exercises the desktop app end to end, including the REST transport its
+    # mock backend has to keep pace with.
+    if: ${{ !cancelled() && (github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

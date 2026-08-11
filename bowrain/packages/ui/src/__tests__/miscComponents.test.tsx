@@ -241,6 +241,79 @@ describe("FileProgressTable", () => {
     expect(screen.getByText("German")).toBeInTheDocument();
   });
 
+  it("names a column without a sort indicator bleeding into it", () => {
+    // The header is a translated text run, so an indicator returning null used
+    // to arrive as the string "null" — "Wordsnull", "Avg %null".
+    render(<FileProgressTable itemStats={[makeItemStat()]} locales={["fr-FR"]} />);
+    for (const header of ["Words", "Avg %", "Format"]) {
+      expect(screen.getByRole("columnheader", { name: new RegExp(`^${header}`) })).toBeVisible();
+    }
+    expect(screen.queryByText(/null/)).not.toBeInTheDocument();
+  });
+
+  it("marks the sorted column for assistive technology and no other", () => {
+    render(<FileProgressTable itemStats={[makeItemStat()]} locales={[]} />);
+    expect(screen.getByRole("columnheader", { name: /^File/ })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+    expect(screen.getByRole("columnheader", { name: /^Words/ })).toHaveAttribute(
+      "aria-sort",
+      "none",
+    );
+  });
+
+  it("lays out on declared column widths, so two pages of one list agree", () => {
+    const { container, rerender } = render(
+      <FileProgressTable itemStats={[makeItemStat()]} locales={["fr-FR"]} />,
+    );
+    const widths = () =>
+      Array.from(container.querySelectorAll("colgroup col")).map(
+        (c) => (c as HTMLElement).style.width,
+      );
+    const first = widths();
+    // A different page of the same collection: different rows, same columns.
+    rerender(
+      <FileProgressTable
+        itemStats={[
+          makeItemStat({
+            item_id: "i2",
+            item_name: "a-considerably-longer-file-name.json",
+            word_count: 9_999_999,
+          }),
+        ]}
+        locales={["fr-FR"]}
+      />,
+    );
+    expect(widths()).toEqual(first);
+    expect(container.querySelector("table")).toHaveClass("table-fixed");
+  });
+
+  it("shows names relative to the base every row shares", () => {
+    const items = [
+      makeItemStat({ item_id: "i1", item_name: "bowrain/packages/app/src/i18n.ts" }),
+      makeItemStat({ item_id: "i2", item_name: "bowrain/packages/app/src/queries.ts" }),
+    ];
+    render(
+      <FileProgressTable itemStats={items} locales={[]} itemBase="bowrain/packages/app/src/" />,
+    );
+    expect(screen.getByText("i18n")).toBeInTheDocument();
+    expect(screen.getByText("queries")).toBeInTheDocument();
+    // The whole name stays reachable — it is what identifies the file.
+    expect(screen.getByTitle("bowrain/packages/app/src/i18n.ts")).toBeInTheDocument();
+  });
+
+  it("leaves a name the base does not prefix whole rather than half-trimmed", () => {
+    render(
+      <FileProgressTable
+        itemStats={[makeItemStat({ item_name: "elsewhere/stray.json" })]}
+        locales={[]}
+        itemBase="bowrain/packages/app/src/"
+      />,
+    );
+    expect(screen.getByText("elsewhere/stray")).toBeInTheDocument();
+  });
+
   it("renders format and word count", () => {
     const items = [makeItemStat({ format: "xliff", word_count: 500 })];
     render(<FileProgressTable itemStats={items} locales={["fr-FR"]} />);
@@ -768,20 +841,25 @@ describe("TopBar", () => {
 // 11. BreadcrumbContext
 // ---------------------------------------------------------------------------
 
-import { BreadcrumbProvider, useBreadcrumb, useSetBreadcrumb } from "../context/BreadcrumbContext";
+import {
+  BreadcrumbProvider,
+  useBreadcrumb,
+  useBreadcrumbExtra,
+  type BreadcrumbItem,
+} from "../context/BreadcrumbContext";
 
 function BreadcrumbDisplay() {
-  const breadcrumb = useBreadcrumb();
-  return <div data-testid="breadcrumb">{breadcrumb}</div>;
+  const items = useBreadcrumb();
+  return <div data-testid="breadcrumb">{items.map((i) => i.label).join(" / ")}</div>;
 }
 
-function BreadcrumbSetter({ node }: { node: React.ReactNode }) {
-  useSetBreadcrumb(node);
+function BreadcrumbExtra({ items }: { items: BreadcrumbItem[] }) {
+  useBreadcrumbExtra(items);
   return null;
 }
 
 describe("BreadcrumbContext", () => {
-  it("provides null breadcrumb by default", () => {
+  it("is empty by default", () => {
     render(
       <BreadcrumbProvider>
         <BreadcrumbDisplay />
@@ -790,32 +868,59 @@ describe("BreadcrumbContext", () => {
     expect(screen.getByTestId("breadcrumb").textContent).toBe("");
   });
 
-  it("sets and reads breadcrumb", () => {
+  it("reads the base trail the shell supplies", () => {
     render(
-      <BreadcrumbProvider>
-        <BreadcrumbSetter node={<span>Home / Project</span>} />
+      <BreadcrumbProvider base={[{ label: "Acme" }, { label: "Projects" }]}>
         <BreadcrumbDisplay />
       </BreadcrumbProvider>,
     );
-    expect(screen.getByText("Home / Project")).toBeInTheDocument();
+    expect(screen.getByTestId("breadcrumb").textContent).toBe("Acme / Projects");
   });
 
-  it("clears breadcrumb on unmount", () => {
-    const { rerender } = render(
-      <BreadcrumbProvider>
-        <BreadcrumbSetter node={<span>Page A</span>} />
+  it("appends the route's own steps after the base", () => {
+    render(
+      <BreadcrumbProvider base={[{ label: "Acme" }]}>
+        <BreadcrumbExtra items={[{ label: "Docs collection" }]} />
         <BreadcrumbDisplay />
       </BreadcrumbProvider>,
     );
-    expect(screen.getByText("Page A")).toBeInTheDocument();
+    expect(screen.getByTestId("breadcrumb").textContent).toBe("Acme / Docs collection");
+  });
 
-    // Rerender without the setter — should clear
-    rerender(
-      <BreadcrumbProvider>
+  it("clears the route's steps when it unmounts", () => {
+    const { rerender } = render(
+      <BreadcrumbProvider base={[{ label: "Acme" }]}>
+        <BreadcrumbExtra items={[{ label: "Page A" }]} />
         <BreadcrumbDisplay />
       </BreadcrumbProvider>,
     );
-    expect(screen.queryByText("Page A")).not.toBeInTheDocument();
+    expect(screen.getByTestId("breadcrumb").textContent).toBe("Acme / Page A");
+
+    rerender(
+      <BreadcrumbProvider base={[{ label: "Acme" }]}>
+        <BreadcrumbDisplay />
+      </BreadcrumbProvider>,
+    );
+    expect(screen.getByTestId("breadcrumb").textContent).toBe("Acme");
+  });
+
+  // A caller building a fresh array each render is the normal case, and the
+  // effect keys on the labels precisely so that it settles instead of looping.
+  it("settles when the route passes a new array identity every render", () => {
+    let renders = 0;
+    function Unstable() {
+      renders++;
+      useBreadcrumbExtra([{ label: "Leaf", onClick: () => {} }]);
+      return null;
+    }
+    render(
+      <BreadcrumbProvider base={[{ label: "Acme" }]}>
+        <Unstable />
+        <BreadcrumbDisplay />
+      </BreadcrumbProvider>,
+    );
+    expect(screen.getByTestId("breadcrumb").textContent).toBe("Acme / Leaf");
+    expect(renders).toBeLessThan(10);
   });
 });
 

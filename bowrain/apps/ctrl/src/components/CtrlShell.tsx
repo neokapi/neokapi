@@ -5,6 +5,7 @@ import {
   SidebarInset,
   SidebarTrigger,
   useSidebar,
+  BreadcrumbBar,
   BreadcrumbProvider,
   useBreadcrumb,
   Separator,
@@ -18,7 +19,7 @@ export interface CtrlShellProps {
 }
 
 function Header({ headerSlot }: { headerSlot?: ReactNode }) {
-  const breadcrumb = useBreadcrumb();
+  const breadcrumbs = useBreadcrumb();
   const { isMobile } = useSidebar();
 
   return (
@@ -30,7 +31,7 @@ function Header({ headerSlot }: { headerSlot?: ReactNode }) {
             <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
           </>
         )}
-        <span className="text-sm font-medium">{breadcrumb}</span>
+        <BreadcrumbBar items={breadcrumbs} />
       </div>
       <div className="flex-1 min-w-0" />
       {headerSlot && <div className="flex items-center gap-1 px-4">{headerSlot}</div>}

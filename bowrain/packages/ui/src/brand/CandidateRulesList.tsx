@@ -1,4 +1,5 @@
 import { Badge, Button, cn } from "@neokapi/ui-primitives";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import type { CandidateRule, RuleDecisionStatus } from "./types";
 import { ListCapRow } from "../components/ListCapRow";
 
@@ -84,8 +85,10 @@ export function CandidateRulesList({
               </p>
               <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
                 <span>
-                  {candidate.correction_count} correction
-                  {candidate.correction_count === 1 ? "" : "s"}
+                  <Plural count={candidate.correction_count}>
+                    <One>{candidate.correction_count} correction</One>
+                    <Other>{candidate.correction_count} corrections</Other>
+                  </Plural>
                 </span>
                 <span className="capitalize">{candidate.dimension.replace("_", " ")}</span>
               </div>

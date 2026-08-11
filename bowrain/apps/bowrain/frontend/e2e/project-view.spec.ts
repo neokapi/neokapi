@@ -23,7 +23,9 @@ test.describe("Project View", () => {
   });
 
   test("should display project name", async ({ page }) => {
-    await expect(page.getByText("File Test")).toBeVisible();
+    // By its own hook: the name is also in the trail and on the panel that
+    // holds the project's sections, and this asserts the page's title.
+    await expect(page.getByTestId("project-title")).toHaveText("File Test");
   });
 
   test("should show file stats", async ({ page }) => {

@@ -4,6 +4,7 @@
 // the affected content. Pure presentation over a ChangeSetImpact; reused by the
 // experiment detail view, the merge confirmation, and the live wizard preview.
 import { useMemo, useState } from "react";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import {
   Badge,
   Card,
@@ -174,12 +175,23 @@ function Hero({ impact, caption }: { impact: ChangeSetImpact; caption?: string }
             {impact.affected_blocks.toLocaleString()}
           </span>
           <span className="text-sm text-muted-foreground">
-            affected block{impact.affected_blocks === 1 ? "" : "s"}
+            <Plural count={impact.affected_blocks}>
+              <One>affected block</One>
+              <Other>affected blocks</Other>
+            </Plural>
           </span>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          {formatPercent(share)} of {impact.total_blocks.toLocaleString()} stored blocks across{" "}
-          {projectCount} project{projectCount === 1 ? "" : "s"}.
+          <Plural count={projectCount}>
+            <One>
+              {formatPercent(share)} of {impact.total_blocks.toLocaleString()} stored blocks across{" "}
+              {projectCount} project.
+            </One>
+            <Other>
+              {formatPercent(share)} of {impact.total_blocks.toLocaleString()} stored blocks across{" "}
+              {projectCount} projects.
+            </Other>
+          </Plural>
         </p>
       </div>
     </div>
@@ -409,8 +421,10 @@ function Samples({ samples }: { samples: BlockSample[] }) {
       </ul>
       {samples.length > shown.length && (
         <p className="text-xs text-muted-foreground">
-          and {samples.length - shown.length} more sample
-          {samples.length - shown.length === 1 ? "" : "s"}.
+          <Plural count={samples.length - shown.length}>
+            <One>and {samples.length - shown.length} more sample.</One>
+            <Other>and {samples.length - shown.length} more samples.</Other>
+          </Plural>
         </p>
       )}
     </div>

@@ -1,4 +1,5 @@
 import { Badge, Button, Card } from "@neokapi/ui-primitives";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import type { ArchivedProject } from "../types/api";
 import { Trash2, ArrowLeft } from "./icons";
 
@@ -92,7 +93,10 @@ export function RecycleBinView({
                         <>
                           <span>·</span>
                           <span className={remaining <= 7 ? "text-destructive" : ""}>
-                            {remaining} {remaining === 1 ? "day" : "days"} remaining
+                            <Plural count={remaining}>
+                              <One>{remaining} day remaining</One>
+                              <Other>{remaining} days remaining</Other>
+                            </Plural>
                           </span>
                         </>
                       )}

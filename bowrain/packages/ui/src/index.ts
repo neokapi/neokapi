@@ -455,7 +455,14 @@ export { WorkspaceProvider, useWorkspace } from "./context/WorkspaceContext";
 export { ApiProvider, useApi } from "./context/ApiContext";
 export { ThemeProvider, useTheme } from "./context/ThemeContext";
 export type { Theme } from "./context/ThemeContext";
-export { BreadcrumbProvider, useBreadcrumb, useSetBreadcrumb } from "./context/BreadcrumbContext";
+export {
+  BreadcrumbProvider,
+  useBreadcrumb,
+  useBreadcrumbExtra,
+  useSetBreadcrumb,
+  type BreadcrumbItem,
+} from "./context/BreadcrumbContext";
+export { BreadcrumbBar, type BreadcrumbBarProps } from "./components/BreadcrumbBar";
 export { StreamProvider, useStream } from "./context/StreamContext";
 export { StreamActionsProvider, useStreamActions } from "./context/StreamActionsContext";
 export { AnalyticsProvider, useAnalytics } from "./context/AnalyticsContext";

@@ -28,7 +28,6 @@ import { useEditorApi } from "../hooks/useEditorApi";
 import { useLocales } from "../hooks/useLocales";
 import { useAnalytics } from "../context/AnalyticsContext";
 import { AnalyticsEvents } from "../analytics-events";
-import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { ProblemsPanel } from "./editor/ProblemsPanel";
 import { ReviewInspector } from "./review/ReviewInspector";
 import { blocksToContentTree, type BlockEvidence } from "../preview/toContentTree";
@@ -45,7 +44,7 @@ import {
   type BlockStatus,
   type TargetStatusSnapshot,
 } from "./editor/blockStatus";
-import { ArrowLeft, Check, AlertTriangle } from "./icons";
+import { Check, AlertTriangle } from "./icons";
 
 interface ReviewSurfaceProps {
   project: ProjectInfo;
@@ -109,7 +108,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 export function ReviewSurface({
   project,
   fileName,
-  onBack,
+  onBack: _onBack,
   presenceSlot,
   surfaceTabs,
 }: ReviewSurfaceProps) {
@@ -141,20 +140,6 @@ export function ReviewSurface({
   // it opens on the target locale and the source is a keystroke away.
   const [side, setSide] = useState<"source" | "target">("target");
   const readingSide = side === "target" && targetLocale ? targetLocale : "source";
-
-  const breadcrumbNode = useMemo(
-    () => (
-      <button
-        onClick={onBack}
-        data-testid="back-to-project"
-        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-none p-0"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" /> {project.name}
-      </button>
-    ),
-    [onBack, project.name],
-  );
-  useSetBreadcrumb(breadcrumbNode);
 
   // The pane is the selected bucket for the selected locale, asked for as such:
   // the filter is a query parameter, not a pass over a full download, and the

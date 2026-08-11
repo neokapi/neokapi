@@ -34,6 +34,9 @@ import {
   BravoPanelTrigger,
   useBravo,
   useBravoAssistantRuntime,
+  subNavConfig,
+  viewLabel,
+  type BreadcrumbItem,
 } from "@neokapi/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
@@ -41,6 +44,7 @@ import { subNavTarget } from "./sub-nav-targets";
 import { viewFromPath, type WorkspaceView } from "./view-from-path";
 import {
   activitiesQueryOptions,
+  projectQueryOptions,
   myTaskCountsQueryOptions,
   myTasksQueryOptions,
   pendingChangesetsQueryOptions,
@@ -56,6 +60,59 @@ import type { WorkspaceRouteContext } from ".";
 
 /** The per-file editor surfaces, each of which trails the item name as a splat. */
 const EDITOR_SURFACES = ["translate", "review", "pre-process"];
+
+/** What each editor surface is called in the trail. */
+const EDITOR_SURFACE_LABELS: Record<string, string> = {
+  translate: "Translate",
+  review: "Review",
+  "pre-process": "Pre-process",
+};
+
+/** What each project section is called in the trail — the sub-nav's own labels. */
+const PROJECT_SURFACE_LABELS: Record<string, string> = {
+  source: "Source content",
+  automations: "Automations",
+  runs: "Runs",
+  connectors: "Connectors",
+};
+
+/** Where a workspace rail entry lands, for the trail's section step. */
+function sectionRoute(view: string): string {
+  switch (view) {
+    case "context":
+      return "/$workspace/context";
+    case "insights":
+      return "/$workspace/context/dashboard";
+    case "settings":
+      return "/$workspace/settings";
+    default:
+      return "/$workspace";
+  }
+}
+
+/**
+ * The project behind a URL, from whichever cache already knows it.
+ *
+ * Three of them can: the stream-scoped read the project routes issue, its
+ * `"full"` variant, and the workspace's project list. Reading only the first
+ * meant a project opened straight after creation had no cached entry yet, and
+ * the trail named it by its raw id — "project-1" where its name belongs — until
+ * some other query happened to fill the gap.
+ */
+function cachedProject(
+  queryClient: ReturnType<typeof useQueryClient>,
+  workspaceSlug: string,
+  projectId: string,
+  stream: string,
+): ProjectInfo | undefined {
+  return (
+    queryClient.getQueryData<ProjectInfo>(["project", workspaceSlug, projectId, stream]) ??
+    queryClient.getQueryData<ProjectInfo>(["project", workspaceSlug, projectId, stream, "full"]) ??
+    queryClient
+      .getQueryData<ProjectInfo[]>(["projects", workspaceSlug])
+      ?.find((p) => p.id === projectId)
+  );
+}
 
 /** Parse project-level params from the current URL path. */
 function parseProjectParams(pathname: string, workspaceSlug: string) {
@@ -382,10 +439,11 @@ export function WorkspaceLayout() {
   // stream/member/brand/term change). Scope to the active project when the URL
   // is on a project route to reduce noise; otherwise stream the whole
   // workspace. Yjs collab WS keeps handling per-cursor presence.
-  const activeProjectId = useMemo(
-    () => parseProjectParams(pathname, workspaceSlug ?? "")?.projectId,
+  const activeProjectParams = useMemo(
+    () => parseProjectParams(pathname, workspaceSlug ?? ""),
     [pathname, workspaceSlug],
   );
+  const activeProjectId = activeProjectParams?.projectId;
   // The change-event stream is a raw same-origin EventSource with cookie auth —
   // that only works in the browser. On the desktop the server is reached over
   // Wails with a keychain token, and freshness arrives via the backend-event
@@ -396,6 +454,24 @@ export function WorkspaceLayout() {
   // caches. No-op on web (the hook gates on kind === "desktop").
   useDesktopFreshness(ws, activeProjectId);
 
+  // The shell reads the open project for two things — the trail's project step
+  // and the title of the panel holding its sections — and both used to peek at
+  // the query cache from inside a useMemo. A cache read is not a subscription:
+  // nothing re-ran when the project finally arrived, so a project opened
+  // straight after creation kept its raw id in the trail ("project-1") until
+  // some unrelated state change happened to recompute the memo. This is the
+  // same query the project routes issue, deduplicated by key, so subscribing
+  // here costs no extra request and makes the shell react when it lands.
+  const { data: fetchedProject } = useQuery({
+    ...projectQueryOptions(
+      adapter,
+      ws,
+      activeProjectParams?.projectId ?? "",
+      activeProjectParams?.stream,
+    ),
+    enabled: !!activeProjectParams,
+  });
+
   const sidebarContext = useMemo<SidebarContext | undefined>(() => {
     const projectParams = parseProjectParams(pathname, workspaceSlug ?? "");
     if (!projectParams) {
@@ -405,12 +481,9 @@ export function WorkspaceLayout() {
     }
 
     // Try to read project from React Query cache (populated by child route loaders)
-    const project = queryClient.getQueryData<ProjectInfo>([
-      "project",
-      ws,
-      projectParams.projectId,
-      projectParams.stream,
-    ]);
+    const project =
+      fetchedProject ??
+      cachedProject(queryClient, ws, projectParams.projectId, projectParams.stream);
 
     if (!project) {
       // Project data not yet in cache — fall back to workspace nav.
@@ -434,30 +507,6 @@ export function WorkspaceLayout() {
       project,
       activeStream: projectParams.stream,
       activeProjectView,
-      onBack:
-        projectParams.itemName ||
-        projectParams.isSource ||
-        projectParams.isAutomations ||
-        projectParams.isRuns ||
-        projectParams.isConnectors
-          ? () => {
-              // A project sub-surface goes up to the project's overview.
-              void navigate({
-                to: "/$workspace/p/$projectId/s/$stream",
-                params: {
-                  workspace: workspaceSlug ?? ws,
-                  projectId: project.id,
-                  stream: projectParams.stream,
-                },
-              });
-            }
-          : () => {
-              // The overview is the project's top level: up is the workspace.
-              void navigate({
-                to: "/$workspace",
-                params: { workspace: workspaceSlug ?? ws },
-              });
-            },
       onOpenDashboard: () => {
         void navigate({
           to: "/$workspace/p/$projectId/s/$stream",
@@ -521,7 +570,132 @@ export function WorkspaceLayout() {
         });
       },
     };
-  }, [pathname, workspaceSlug, stream, activeView, ws, queryClient, navigate, handleStreamChange]);
+  }, [
+    pathname,
+    workspaceSlug,
+    stream,
+    activeView,
+    ws,
+    queryClient,
+    navigate,
+    handleStreamChange,
+    fetchedProject,
+  ]);
+
+  // -----------------------------------------------------------------------
+  // Breadcrumbs
+  // -----------------------------------------------------------------------
+
+  /**
+   * The trail, derived here because this is where the URL is already parsed.
+   *
+   * Deriving it centrally is what makes it exist on every page at once: a
+   * per-route hook would have covered the routes someone remembered to add it
+   * to, and the pages most in need of it — six segments deep inside a project —
+   * are the ones most easily missed. Routes append only what the URL cannot
+   * say, through useBreadcrumbExtra.
+   *
+   * It also carries the whole burden of going back, now that the rail no longer
+   * offers an arrow: every step above the current page is a link, so two levels
+   * up is one click rather than two guesses.
+   */
+  const breadcrumbs = useMemo<BreadcrumbItem[]>(() => {
+    const wsSlug = workspaceSlug ?? ws;
+    // The trail's destinations are assembled as strings (the project routes are
+    // built from a base plus a section segment), so they are opaque to the
+    // router's route-literal typing and go through unknown.
+    const goto = (to: string, params?: Record<string, string>) => () =>
+      void navigate({ to, params: { workspace: wsSlug, ...params } } as unknown as Parameters<
+        typeof navigate
+      >[0]);
+
+    const trail: BreadcrumbItem[] = [{ label: activeWorkspace.name, onClick: goto("/$workspace") }];
+
+    const projectParams = parseProjectParams(pathname, wsSlug);
+    if (!projectParams) {
+      // A workspace section: the rail entry names it, and a sub-nav entry names
+      // the page within it. Projects is the workspace's landing view, so it
+      // adds no step of its own — the workspace name already is that page.
+      const section = viewLabel(effectiveView);
+      if (section && effectiveView !== "translate") {
+        trail.push({ label: section, onClick: goto(sectionRoute(effectiveView)) });
+      }
+      const subId = contextSubNav ?? insightsSubNav ?? settingsSubNav;
+      const subLabel = subId
+        ? subNavConfig()[effectiveView]?.find((i) => i.id === subId)?.label
+        : undefined;
+      if (subLabel) trail.push({ label: subLabel });
+      return trail;
+    }
+
+    const projectRoute = "/$workspace/p/$projectId/s/$stream";
+    const projectRouteParams = {
+      projectId: projectParams.projectId,
+      stream: projectParams.stream,
+    };
+    const project =
+      fetchedProject ??
+      cachedProject(queryClient, ws, projectParams.projectId, projectParams.stream);
+
+    // The two "up one level" steps carry the ids the surfaces' own back buttons
+    // used to, because the trail is what replaced those buttons: the step IS
+    // the way back now, so the hook for it belongs on the step.
+    trail.push({ label: "Projects", onClick: goto("/$workspace"), testId: "back-to-projects" });
+    trail.push({
+      // Before the project's own record lands in the cache the id is the only
+      // name there is — better a stable step that fills in than one that pops
+      // into existence a moment later and shifts everything left.
+      label: project?.name ?? projectParams.projectId,
+      onClick: goto(projectRoute, projectRouteParams),
+      testId: "back-to-project",
+    });
+
+    // The stream earns a step only when it is not the project's default: on the
+    // default it says nothing, and the selector in the top bar already shows it.
+    if (project && projectParams.stream !== (project.default_stream || "main")) {
+      trail.push({
+        label: projectParams.stream,
+        onClick: goto(projectRoute, projectRouteParams),
+      });
+    }
+
+    const surface = projectParams.isSource
+      ? "source"
+      : projectParams.isAutomations
+        ? "automations"
+        : projectParams.isRuns
+          ? "runs"
+          : projectParams.isConnectors
+            ? "connectors"
+            : undefined;
+    if (surface) {
+      trail.push({
+        label: PROJECT_SURFACE_LABELS[surface],
+        onClick: goto(`${projectRoute}/${surface}`, projectRouteParams),
+      });
+    }
+
+    // An editor surface names both what it is and which file it is on.
+    if (projectParams.itemName) {
+      const editor = EDITOR_SURFACES.find((s) => pathname.includes(`/${s}/`));
+      if (editor) trail.push({ label: EDITOR_SURFACE_LABELS[editor] ?? editor });
+      trail.push({ label: projectParams.itemName });
+    }
+
+    return trail;
+  }, [
+    pathname,
+    workspaceSlug,
+    ws,
+    activeWorkspace.name,
+    effectiveView,
+    contextSubNav,
+    insightsSubNav,
+    settingsSubNav,
+    queryClient,
+    navigate,
+    fetchedProject,
+  ]);
 
   // -----------------------------------------------------------------------
   // Handlers
@@ -720,6 +894,7 @@ export function WorkspaceLayout() {
               onSignOut={serverMode === "server" ? handleSignOut : undefined}
               collapsed={sidebarCollapsed}
               onCollapsedChange={setSidebarCollapsed}
+              breadcrumbs={breadcrumbs}
               showThemeToggle={false}
               sidebarContext={sidebarContext}
               activeSubNav={contextSubNav ?? insightsSubNav ?? settingsSubNav}

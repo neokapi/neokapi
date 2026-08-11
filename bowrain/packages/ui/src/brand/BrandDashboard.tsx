@@ -1,4 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import type { BrandComplianceScore, ScoreTrend, StoredScore } from "./types";
 import { BrandScoreGauge } from "./BrandScoreGauge";
 import { BrandDimensionBreakdown } from "./BrandDimensionBreakdown";
@@ -118,7 +119,10 @@ export function BrandDashboard({
                     {s.score}
                   </span>
                   <span className="text-muted-foreground">
-                    {s.findings.length} finding{s.findings.length !== 1 ? "s" : ""}
+                    <Plural count={s.findings.length}>
+                      <One>{s.findings.length} finding</One>
+                      <Other>{s.findings.length} findings</Other>
+                    </Plural>
                   </span>
                 </div>
               ))}

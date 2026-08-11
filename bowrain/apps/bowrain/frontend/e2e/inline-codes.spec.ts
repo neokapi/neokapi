@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { setupLocalApp, openProjectSource } from "./mock-backend";
+import { setupLocalApp, openProjectSource, openProjectByName } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 // Quarantined in CI (#867): this heavy inline-code editor suite passes locally
@@ -178,7 +178,7 @@ async function openEditorWithInlineBlocks(page: Page) {
   await page.getByTestId("back-to-projects").click();
   await page.waitForTimeout(200);
 
-  await page.getByText("Inline Test").first().click();
+  await openProjectByName(page, "Inline Test");
   await openProjectSource(page);
 
   // Open the file

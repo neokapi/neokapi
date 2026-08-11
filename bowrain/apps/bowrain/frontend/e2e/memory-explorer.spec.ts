@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { setupLocalApp } from "./mock-backend";
+import { setupLocalApp, openProjectSource } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 /**
@@ -18,8 +18,10 @@ async function createProject(page: Page) {
   await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
 
-  // Wait for project view
+  // Creating a project lands on its overview; the memory and terms browsers
+  // are opened from the source view beside it (#1793 moved the landing).
   await expect(page.getByTestId("back-to-projects")).toBeVisible();
+  await openProjectSource(page);
 }
 
 /** Opens the content memory browser from the project view. */
@@ -183,8 +185,12 @@ test.describe("content memory Browser", () => {
   test("should navigate back to the projects dashboard", async ({ page }) => {
     await createProjectAndOpenMemory(page);
 
-    // The sidebar back button leaves the project (and closes the browser)
-    await page.getByTestId("sidebar-home").click();
+    // The content memory browser is a workspace route, so opening it has
+    // already left the project — there is no project step in the trail to click.
+    // The rail is the way back, and it is always there now: it no longer swaps
+    // itself out for a project's sections, so Projects is one click from
+    // anywhere in the workspace.
+    await page.getByTestId("nav-translate").click();
 
     await expect(page.getByTestId("tm-browser")).not.toBeVisible();
     await expect(page.getByText("content memory Test")).toBeVisible();

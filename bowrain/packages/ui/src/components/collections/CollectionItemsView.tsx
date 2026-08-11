@@ -1,4 +1,5 @@
 import { Button, Card, CardContent, cn } from "@neokapi/ui-primitives";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import type {
   CollectionTranslationStats,
   ItemTranslationStats,
@@ -27,6 +28,8 @@ export interface CollectionItemsViewProps {
   itemStats: ItemTranslationStats[];
   /** The project's target locales, in the order the table columns follow. */
   localeStats: LocaleTranslationStats[];
+  /** The scope's shared directory prefix (`item_base`); names show relative to it. */
+  itemBase?: string;
   paging?: FileProgressPaging;
   onBack: () => void;
   /** Open review scoped to this collection. */
@@ -47,6 +50,7 @@ export function CollectionItemsView({
   title,
   itemStats,
   localeStats,
+  itemBase,
   paging,
   onBack,
   onReview,
@@ -89,11 +93,23 @@ export function CollectionItemsView({
                 </code>
               )}
               <span className="tabular-nums">
-                {collection.item_count.toLocaleString()}{" "}
-                {collection.item_count === 1 ? "item" : "items"}
+                <Plural count={collection.item_count}>
+                  <One>{collection.item_count.toLocaleString()} item</One>
+                  <Other>{collection.item_count.toLocaleString()} items</Other>
+                </Plural>
               </span>
-              <span className="tabular-nums">{collection.word_count.toLocaleString()} words</span>
-              <span className="tabular-nums">{collection.block_count.toLocaleString()} blocks</span>
+              <span className="tabular-nums">
+                <Plural count={collection.word_count}>
+                  <One>{collection.word_count.toLocaleString()} word</One>
+                  <Other>{collection.word_count.toLocaleString()} words</Other>
+                </Plural>
+              </span>
+              <span className="tabular-nums">
+                <Plural count={collection.block_count}>
+                  <One>{collection.block_count.toLocaleString()} block</One>
+                  <Other>{collection.block_count.toLocaleString()} blocks</Other>
+                </Plural>
+              </span>
               <CoordinateLine coordinates={collection.coordinates} className="text-[11px]" />
             </div>
             <LocaleCoverageRails locales={collection.locales} className="max-h-56" />
@@ -105,6 +121,7 @@ export function CollectionItemsView({
         itemStats={itemStats}
         locales={locales}
         localeDisplayNames={localeDisplayNames}
+        itemBase={itemBase}
         paging={paging}
         onOpenItem={preview ? (item) => preview.onOpen(item.item_name) : onOpenItem}
       />

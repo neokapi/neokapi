@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
 
 /**
@@ -98,6 +100,39 @@ export const Events = {
 `;
 
 /**
+ * The generated Wails bindings, as `name -> Call.ByID` number.
+ *
+ * These used to be a hand-copied table with a comment telling you which grep to
+ * re-run. Nobody re-ran it. By the time this was written eight of the ninety-odd
+ * ids had drifted — every content-memory binding among them — and six named
+ * bindings no longer existed at all. A stale id is silent: `Call.ByID` finds no
+ * handler, warns into a log nobody reads, and resolves `null`, so the mock goes
+ * on answering "nothing" to calls it believes it is serving.
+ *
+ * The bindings file is committed, so it can simply be read. It is the same file
+ * the app imports, which makes it the only copy.
+ */
+function wailsCallIds(): Record<string, number> {
+  const bindings = fileURLToPath(
+    new URL(
+      "../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js",
+      import.meta.url,
+    ),
+  );
+  const source = readFileSync(bindings, "utf8");
+  const ids: Record<string, number> = {};
+  for (const [, name, id] of source.matchAll(
+    /export function (\w+)\([^)]*\)\s*\{\s*return \$Call\.ByID\((\d+)/g,
+  )) {
+    ids[name] = Number(id);
+  }
+  if (Object.keys(ids).length === 0) {
+    throw new Error(`[mock] no Call.ByID bindings found in ${bindings} — did their shape change?`);
+  }
+  return ids;
+}
+
+/**
  * Injects a mock Wails backend into the page.
  * Intercepts @wailsio/runtime with a mock module that delegates
  * Call.ByID to window.__wailsMock, then populates mock handlers
@@ -123,7 +158,7 @@ export async function injectMockBackend(page: Page) {
   });
 
   // Register mock backend handlers keyed by Wails v3 binding call IDs
-  await page.addInitScript(() => {
+  await page.addInitScript((callIds: Record<string, number>) => {
     let projectCounter = 0;
     let providerCounter = 0;
     const projects: Record<string, any> = {};
@@ -147,102 +182,22 @@ export async function injectMockBackend(page: Page) {
       block.targets[locale] = status ? { text, status } : text;
     };
 
-    // Call IDs from the generated bindings (app.js)
-    // Regenerate by running: grep -E '(export function|ByID)' bindings/.../app.js | paste - -
-    const IDS = {
-      AddConcept: 1629877469,
-      AddItems: 3605832733,
-      AddMemoryEntry: 2110941316,
-      CancelLogin: 3730504007,
-      CheckPluginUpdates: 3156217699,
-      CloseProject: 3843799473,
-      ConfigureConnector: 4176435679,
-      ConnectToServer: 2777579616,
-      CreateProject: 4069855585,
-      CreateStoreVersion: 1139403919,
-      DeleteConcept: 3557611909,
-      DeleteFlowDefinition: 1213282658,
-      DeleteProviderConfig: 1970959020,
-      DeleteMemoryEntry: 3484082396,
-      DetectFormat: 661014944,
-      Disconnect: 668361826,
-      ExportTermsJSON: 2197315403,
-      ExportTranslatedItem: 794357047,
-      FetchContent: 704585525,
-      GetConnectionState: 3416146777,
-      GetDefaultServerURL: 3615231647,
-      GetConnectorStatus: 2803823489,
-      GetCurrentWorkspace: 1584343218,
-      GetFlowDefinition: 1916918101,
-      GetItemBlocks: 3766337077,
-      GetKnownLocales: 2350617666,
-      GetLocaleDisplayName: 4205376439,
-      GetPendingChangesCount: 3204097911,
-      GetProject: 999425817,
-      GetServerWorkspaces: 3159397869,
-      GetMemoryCount: 696825198,
-      GetMemoryEntries: 2067629197,
-      GetTermCount: 2826518989,
-      GetTerms: 3424415079,
-      GetVersion: 663291304,
-      GetWordCount: 1179732963,
-      HandleAuthURL: 3257686637,
-      HandleDeepLink: 2634747220,
-      ImportTermsCSV: 1757479876,
-      ImportTermsJSON: 2593803262,
-      InitContentStore: 2593375276,
-      InstallPlugin: 1116631856,
-      ListAvailablePlugins: 1166028921,
-      ListConnectorTypes: 1554488048,
-      ListConnectors: 3954342840,
-      ListContentItems: 1917252895,
-      ListFlowDefinitions: 92689182,
-      ListFormats: 2901617344,
-      ListPlugins: 776322992,
-      ListProjectFiles: 2403520224,
-      ListProjects: 371450674,
-      ListProviderConfigs: 3735242532,
-      ListStoreProjects: 4233071499,
-      ListStoreVersions: 1240071736,
-      ListTools: 3952806715,
-      ListWorkspaces: 3303885562,
-      LoadPlugins: 686613052,
-      Logout: 329111662,
-      LookupMemoryForBlock: 1469074117,
-      LookupTerms: 223814221,
-      LookupTermsForBlock: 1112384681,
-      OpenFileInOS: 3445961939,
-      PluginDir: 426528074,
-      PseudoTranslateItem: 274883483,
-      PublishContent: 2672799444,
-      RemoveConnector: 616177915,
-      RemoveItem: 2559376511,
-      RenderBlockHTML: 3166545228,
-      RenderDocumentPreview: 2234199739,
-      ReviewBlock: 1353546789,
-      SaveFlowDefinition: 1456548112,
-      SaveProviderConfig: 832952266,
-      SearchPlugins: 3626837420,
-      SearchPluginsByMimeType: 1251365601,
-      SearchPluginsByType: 3665916513,
-      SelectWorkspace: 2510784253,
-      SetApplication: 1103546806,
-      StartLogin: 1565988937,
-      StartWatching: 378219921,
-      StopWatching: 2958338237,
-      StoreProject: 1885409090,
-      MemoryTranslateItem: 1701277356,
-      TermEnforceItem: 88031319,
-      TestProviderConfig: 3045289771,
-      TryAutoConnect: 1058981368,
-      UpdateBlockTarget: 3768121167,
-      UpdateBlockTargetRuns: 3903261825,
-      UpdateConcept: 3374190367,
-      UpdatePlugin: 3191396990,
-      UpdatePresence: 3401740472,
-      UpdateMemoryEntry: 3731738086,
-      WaitForLogin: 3244055841,
-    };
+    // Every id comes from the committed bindings (see wailsCallIds). The proxy
+    // is what stops a rename from going quiet: reading a name the bindings no
+    // longer export throws here, at setup, naming it — rather than registering a
+    // handler under `undefined` that no call will ever reach.
+    const IDS: Record<string, number> = new Proxy(callIds, {
+      get(target, name: string) {
+        const id = target[name];
+        if (id === undefined) {
+          throw new Error(
+            `[mock] the Wails bindings export no "${String(name)}" — it was renamed or removed. ` +
+              `Update the handler in e2e/mock-backend.ts.`,
+          );
+        }
+        return id;
+      },
+    });
 
     // Global content memory storage (workspace-scoped, not per-project)
     const memoryStore: Record<string, any> = {};
@@ -369,8 +324,9 @@ export async function injectMockBackend(page: Page) {
     mock[IDS.PluginDir] = () => "~/.kapi/plugins";
     mock[IDS.SetApplication] = () => {};
 
-    // --- New stub handlers for methods added since last update ---
-    mock[IDS.CheckPluginUpdates] = () => [];
+    // The plugin-catalogue bindings (install/search/update) were removed from
+    // the backend; their stubs went with them. The IDS proxy is what found
+    // them — reading a name the bindings no longer export throws at setup.
     mock[IDS.ConfigureConnector] = () => null;
     mock[IDS.CreateStoreVersion] = () => null;
     mock[IDS.DetectFormat] = (filePath: string) => {
@@ -401,8 +357,6 @@ export async function injectMockBackend(page: Page) {
       date: new Date().toISOString(),
     });
     mock[IDS.InitContentStore] = () => {};
-    mock[IDS.InstallPlugin] = () => null;
-    mock[IDS.ListAvailablePlugins] = () => [];
     mock[IDS.ListConnectorTypes] = () => [];
     mock[IDS.ListConnectors] = () => [];
     mock[IDS.ListContentItems] = () => [];
@@ -413,11 +367,7 @@ export async function injectMockBackend(page: Page) {
     mock[IDS.FetchContent] = () => [];
     mock[IDS.PublishContent] = () => {};
     mock[IDS.RemoveConnector] = () => {};
-    mock[IDS.SearchPlugins] = () => [];
-    mock[IDS.SearchPluginsByMimeType] = () => [];
-    mock[IDS.SearchPluginsByType] = () => [];
     mock[IDS.StoreProject] = () => null;
-    mock[IDS.UpdatePlugin] = () => null;
 
     // Locale handlers
     const knownLocales = [
@@ -1322,6 +1272,171 @@ export async function injectMockBackend(page: Page) {
       };
     };
 
+    // ── REST transport ──────────────────────────────────────────────────
+    //
+    // The desktop app is not a Wails app with a REST fallback; it is a REST
+    // client with a Wails fast path. desktopAdapter keeps a LOCAL_FIRST set —
+    // the methods the working copy answers — and routes *everything else*
+    // through Backend.ProxyRequest to the server. So mocking the bindings alone
+    // mocks only half the app, and the half it leaves out contains the launch
+    // probe: getConfig and getCurrentUser are both REST.
+    //
+    // That is how this suite came to be entirely red. #1775 moved the adapter
+    // onto the proxy transport; nothing here learned about it; every spec died
+    // in setupLocalApp on an offline-launch screen, and the job is nightly, so
+    // the failure had no reader. The lesson is not "remember to update the
+    // mock" — it is that an unmocked route must be impossible to merge past,
+    // which is why this job is now path-gated onto the surfaces it covers (see
+    // .github/workflows/e2e.yml) and why an unknown route below is a loud 501
+    // naming itself rather than a quiet 404 that reads as "no data".
+    //
+    // Routes read and write the SAME state the binding handlers use. There is
+    // no second copy of a project here: a project created through the Wails
+    // CreateProject is visible to GET /api/v1/{ws}/projects because both are
+    // looking at `projects`. A mock whose two transports disagree is worse than
+    // no mock at all.
+    const restJSON = (value: unknown) => ({ status: 200, body: JSON.stringify(value ?? null) });
+
+    /** Locale rollups for a project, in the shape the dashboard reads. */
+    const localeStatsFor = (project: any) =>
+      (project?.target_languages ?? []).map((locale: string) => ({
+        locale,
+        translated_blocks: 0,
+        total_blocks: 0,
+        translated_words: 0,
+        total_words: 0,
+        percentage: 0,
+      }));
+
+    /**
+     * `[method, path pattern, handler]`. The pattern's capture groups arrive as
+     * `params`; `{ws}` is the workspace slug, which standalone mode reports as
+     * "local". Add a route here when the adapter learns a new call — the 501
+     * below will tell you the exact path and method to add.
+     */
+    const REST_ROUTES: Array<
+      [string, RegExp, (params: string[], body: any, query: URLSearchParams) => unknown]
+    > = [
+      // Launch probe: reachability, then whether the stored session is valid.
+      [
+        "GET",
+        /^\/api\/v1\/info$/,
+        () => ({
+          mode: "standalone",
+          version: "e2e",
+          commit: "e2e",
+          build_date: "",
+          features: { brand_scan: false },
+          provider_types: [],
+        }),
+      ],
+      [
+        "GET",
+        /^\/api\/v1\/auth\/me$/,
+        () => ({
+          id: "user-1",
+          email: "dev@example.com",
+          name: "Dev User",
+          avatar_url: "",
+        }),
+      ],
+      [
+        "GET",
+        /^\/api\/v1\/workspaces$/,
+        () => [{ id: "ws-local", slug: "local", name: "Local", description: "", role: "owner" }],
+      ],
+
+      // Projects — the same `projects` map the bindings mutate.
+      ["GET", /^\/api\/v1\/[^/]+\/projects$/, () => Object.values(projects)],
+      [
+        "POST",
+        /^\/api\/v1\/[^/]+\/projects$/,
+        (_p, body) =>
+          mock[IDS.CreateProject](
+            body?.name,
+            body?.source_language ?? body?.default_source_language ?? "en",
+            body?.target_languages ?? [],
+          ),
+      ],
+      ["GET", /^\/api\/v1\/[^/]+\/([^/]+)$/, ([id]) => projects[id] ?? null],
+      [
+        "DELETE",
+        /^\/api\/v1\/[^/]+\/([^/]+)$/,
+        ([id]) => {
+          mock[IDS.CloseProject](id);
+          return null;
+        },
+      ],
+
+      // The translation dashboard the project overview opens on.
+      [
+        "GET",
+        /^\/api\/v1\/[^/]+\/([^/]+)\/dashboard\/[^/]+$/,
+        ([id]) => {
+          const project = projects[id];
+          const files = projectFiles[id] ?? {};
+          const item_stats = Object.entries(files).map(([item_name, blocks]: [string, any]) => ({
+            item_id: item_name,
+            item_name,
+            format: "json",
+            collection_id: "",
+            block_count: blocks.length,
+            word_count: 0,
+            locales: localeStatsFor(project),
+          }));
+          return {
+            locale_stats: localeStatsFor(project),
+            item_stats,
+            item_total: item_stats.length,
+            collection_stats: [],
+            total_blocks: item_stats.reduce((n, i) => n + i.block_count, 0),
+            translatable_blocks: 0,
+            total_source_words: 0,
+          };
+        },
+      ],
+
+      // Workspace chrome the shell polls on every page.
+      ["GET", /^\/api\/v1\/[^/]+\/activities$/, () => ({ activities: [], new_count: 0 })],
+      ["POST", /^\/api\/v1\/[^/]+\/activities\/seen$/, () => null],
+      ["GET", /^\/api\/v1\/[^/]+\/tasks\/counts$/, () => ({ total: 0, by_status: {} })],
+      ["GET", /^\/api\/v1\/[^/]+\/tasks$/, () => ({ tasks: [], total: 0 })],
+      ["GET", /^\/api\/v1\/[^/]+\/loop-rollup$/, () => ({})],
+      ["GET", /^\/api\/v1\/[^/]+\/brand-voice\/rollup$/, () => ({ projects: [] })],
+      ["GET", /^\/api\/v1\/[^/]+\/changesets\/counts$/, () => ({ total: 0, by_status: {} })],
+      ["GET", /^\/api\/v1\/[^/]+\/changesets$/, () => []],
+      ["GET", /^\/api\/v1\/[^/]+\/connectors$/, () => []],
+    ];
+
+    mock[IDS.ProxyRequest] = (method: string, path: string, body: string) => {
+      const [route, rawQuery] = path.split("?");
+      const query = new URLSearchParams(rawQuery ?? "");
+      for (const [routeMethod, pattern, handler] of REST_ROUTES) {
+        if (routeMethod !== method) continue;
+        const match = pattern.exec(route);
+        if (!match) continue;
+        return restJSON(handler(match.slice(1), body ? JSON.parse(body) : undefined, query));
+      }
+      // Loud, and it names its own fix. A 404 here would read to the app as
+      // "the server has no such thing", which is a plausible answer — and a
+      // plausible wrong answer is what lets a suite go green against a mock
+      // that no longer resembles the server.
+      const message = `[mock] no REST route for ${method} ${route} — add one to REST_ROUTES in e2e/mock-backend.ts`;
+      console.error(message);
+      (window as any).__mockUnhandledRoutes = [
+        ...((window as any).__mockUnhandledRoutes ?? []),
+        `${method} ${route}`,
+      ];
+      return { status: 501, body: JSON.stringify({ error: message }) };
+    };
+
+    // Bindings the shell polls on every page. Each returned a silent null
+    // before — Call.ByID's fallback for an unmocked id — and a null where a
+    // component expects a list is a crash waiting for the right page.
+    mock[IDS.GetFailedChangesCount] = () => 0;
+    mock[IDS.ListChangesets] = () => [];
+    mock[IDS.ListBrandProfiles] = () => [];
+
     mock[IDS.StartWatching] = () => {};
     mock[IDS.StopWatching] = () => {};
     mock[IDS.UpdatePresence] = () => {};
@@ -1343,7 +1458,7 @@ export async function injectMockBackend(page: Page) {
 
     // Expose projectFiles so recordings can add custom blocks and use PseudoTranslateItem
     (window as any).__projectFiles = projectFiles;
-  });
+  }, wailsCallIds());
 }
 
 /**
@@ -1395,6 +1510,31 @@ export async function setupLocalApp(page: Page) {
     .or(page.getByTestId("nav-translate"))
     .first()
     .waitFor({ state: "visible", timeout: 10000 });
+  // Launch is the path that rotted last time — getConfig and getCurrentUser are
+  // both REST — so it is worth asserting outright rather than leaving to
+  // whatever the spec happens to look at next.
+  await assertNoUnhandledRoutes(page);
+}
+
+/**
+ * Fails with the offending paths if the app asked the mock for a REST route it
+ * does not serve.
+ *
+ * Call it after a flow that exercises new ground. The mock answers an unknown
+ * route with 501, never 404: a 404 is a legitimate server answer that a
+ * component may render as a harmless empty state, so it would let a spec pass
+ * while the mock quietly stopped resembling the server.
+ */
+export async function assertNoUnhandledRoutes(page: Page) {
+  const unhandled = await page.evaluate(
+    () => (window as unknown as { __mockUnhandledRoutes?: string[] }).__mockUnhandledRoutes ?? [],
+  );
+  if (unhandled.length > 0) {
+    throw new Error(
+      `the app called REST routes the mock does not serve:\n  ${[...new Set(unhandled)].join("\n  ")}\n` +
+        `Add them to REST_ROUTES in e2e/mock-backend.ts.`,
+    );
+  }
 }
 
 /**
@@ -1402,7 +1542,23 @@ export async function setupLocalApp(page: Page) {
  * its streams. Opening a project lands on its overview, so every test that
  * works with files goes through here first.
  */
+/**
+ * Opens a project from the workspace's project grid, by name.
+ *
+ * Scoped to the cards on purpose. `getByText(name).first()` used to do this,
+ * and it worked only for as long as the name appeared exactly once: the shell
+ * now also puts it in the breadcrumb trail and on the panel holding the
+ * project's sections, so a bare text match can resolve to a heading that is not
+ * a link to anywhere.
+ */
+export async function openProjectByName(page: Page, name: string) {
+  await page.locator('[data-testid^="project-card-"]').filter({ hasText: name }).first().click();
+}
+
 export async function openProjectSource(page: Page) {
-  await page.getByTestId("sidebar-source").click();
+  // Project sections live in the secondary panel beside the rail, not in the
+  // rail itself — the rail stays the workspace so Context/Insights/Settings
+  // remain reachable from inside a project.
+  await page.getByTestId("subnav-source").click();
   await page.getByTestId("file-drop-zone").waitFor({ state: "visible", timeout: 10000 });
 }

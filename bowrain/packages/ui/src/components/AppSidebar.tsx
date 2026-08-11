@@ -23,7 +23,6 @@ import {
   Sparkles,
   Clock,
   Trash2,
-  ArrowLeft,
   Globe,
   Users,
   KeyRound,
@@ -97,7 +96,6 @@ export type SidebarContext =
       project: ProjectInfo;
       activeStream: string;
       activeProjectView: ProjectView;
-      onBack: () => void;
       onOpenDashboard: () => void;
       /** The project's source content: collections, items and streams. */
       onOpenSource?: () => void;
@@ -188,6 +186,47 @@ export const viewLabel = (id: string): string | undefined =>
     bin: t("Recycle bin"),
   }[id];
 
+/**
+ * A project's own sections, for the secondary panel.
+ *
+ * A project is somewhere you are inside the workspace, not somewhere else: its
+ * sections belong one level in from Projects, which is exactly what the
+ * secondary panel is for. Putting them in the rail instead meant the rail had
+ * to give up the workspace — Context, Insights and Settings all vanished the
+ * moment a project opened, and the only way back to any of them was an
+ * unlabelled arrow that led one step at a time.
+ *
+ * Entries whose callback the host leaves unset are dropped, so a project that
+ * cannot run automations does not advertise them.
+ */
+export const projectSubNavConfig = (
+  ctx: Extract<SidebarContext, { level: "project" }>,
+): SubNavItem[] =>
+  [
+    { id: "dashboard", label: t("Overview"), icon: <LayoutDashboard />, on: ctx.onOpenDashboard },
+    { id: "source", label: t("Source content"), icon: <FolderOpen />, on: ctx.onOpenSource },
+    { id: "automations", label: t("Automations"), icon: <Sparkles />, on: ctx.onOpenAutomations },
+    { id: "runs", label: t("Runs"), icon: <Rocket />, on: ctx.onOpenRuns },
+    { id: "connectors", label: t("Connectors"), icon: <Plug />, on: ctx.onOpenConnectors },
+  ]
+    .filter((item) => item.on)
+    .map(({ id, label, icon }) => ({ id, label, icon }));
+
+/** Run the project section named by `id`. */
+export function openProjectSection(
+  ctx: Extract<SidebarContext, { level: "project" }>,
+  id: string,
+): void {
+  const run = {
+    dashboard: ctx.onOpenDashboard,
+    source: ctx.onOpenSource,
+    automations: ctx.onOpenAutomations,
+    runs: ctx.onOpenRuns,
+    connectors: ctx.onOpenConnectors,
+  }[id];
+  run?.();
+}
+
 /** Sub-navigation items for views that have secondary menus. Exported for AppShell. */
 export const subNavConfig = (): Record<string, SubNavItem[]> => ({
   context: [
@@ -231,6 +270,16 @@ export const subNavConfig = (): Record<string, SubNavItem[]> => ({
 // Desktop: Icon-only rail
 // ---------------------------------------------------------------------------
 
+/**
+ * The rail is the workspace, always.
+ *
+ * It does not change when a project opens. A project is reached through
+ * Projects and stays under it, so Projects simply stays lit while the project's
+ * own sections fill the panel beside the rail. The alternative — swapping the
+ * rail's contents — is what made the sidebar confusing: the same strip of icons
+ * meant different things depending on where you were, and three of the
+ * workspace's four destinations were unreachable from inside any project.
+ */
 function IconNav<V extends string>({
   activeView,
   onViewChange,
@@ -243,101 +292,9 @@ function IconNav<V extends string>({
   sidebarContext: SidebarContext;
 }) {
   const mainItems = [...workspaceNavItems(), ...extraNavItems];
-  const isProject = sidebarContext.level === "project";
-
-  if (isProject) {
-    const ctx = sidebarContext as Extract<SidebarContext, { level: "project" }>;
-    return (
-      <>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Back"
-                  tooltipWhenExpanded
-                  onClick={ctx.onBack}
-                  data-testid="sidebar-home"
-                >
-                  <ArrowLeft />
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarSeparator />
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  tooltip="Overview"
-                  tooltipWhenExpanded
-                  isActive={ctx.activeProjectView === "dashboard"}
-                  onClick={ctx.onOpenDashboard}
-                  data-testid="sidebar-dashboard"
-                >
-                  <LayoutDashboard />
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              {ctx.onOpenSource && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip="Source content"
-                    tooltipWhenExpanded
-                    isActive={ctx.activeProjectView === "source"}
-                    onClick={ctx.onOpenSource}
-                    data-testid="sidebar-source"
-                  >
-                    <FolderOpen />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {ctx.onOpenAutomations && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip="Automations"
-                    tooltipWhenExpanded
-                    isActive={ctx.activeProjectView === "automations"}
-                    onClick={ctx.onOpenAutomations}
-                    data-testid="sidebar-automations"
-                  >
-                    <Sparkles />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {ctx.onOpenRuns && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip="Runs"
-                    tooltipWhenExpanded
-                    isActive={ctx.activeProjectView === "runs"}
-                    onClick={ctx.onOpenRuns}
-                    data-testid="sidebar-runs"
-                  >
-                    <Rocket />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {ctx.onOpenConnectors && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip="Connectors"
-                    tooltipWhenExpanded
-                    isActive={ctx.activeProjectView === "connectors"}
-                    onClick={ctx.onOpenConnectors}
-                    data-testid="sidebar-connectors"
-                  >
-                    <Plug />
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </>
-    );
-  }
+  // Inside a project, Projects is the section you are in — the rail says so
+  // even though the URL is a project's, not the list's.
+  const railView = sidebarContext.level === "project" ? "translate" : activeView;
 
   return (
     <>
@@ -349,7 +306,7 @@ function IconNav<V extends string>({
                 <SidebarMenuButton
                   tooltip={label}
                   tooltipWhenExpanded
-                  isActive={activeView === id}
+                  isActive={railView === id}
                   onClick={() => onViewChange(id as V)}
                   data-testid={`nav-${id}`}
                 >
@@ -369,7 +326,7 @@ function IconNav<V extends string>({
                 <SidebarMenuButton
                   tooltip={label}
                   tooltipWhenExpanded
-                  isActive={activeView === id}
+                  isActive={railView === id}
                   onClick={() => onViewChange(id as V)}
                   data-testid={`nav-${id}`}
                 >
@@ -410,6 +367,11 @@ function MobileNav<V extends string>({
   const { setOpenMobile } = useSidebar();
   const mainItems = [...workspaceNavItems(), ...extraNavItems];
   const isProject = sidebarContext.level === "project";
+  const projectCtx = isProject
+    ? (sidebarContext as Extract<SidebarContext, { level: "project" }>)
+    : undefined;
+  // Inside a project, Projects is the section you are in.
+  const railView = isProject ? "translate" : activeView;
 
   const handleNav = (id: string) => {
     onViewChange(id as V);
@@ -429,118 +391,12 @@ function MobileNav<V extends string>({
   const navLabelFor = (id: string): string | undefined =>
     mainItems.find((item) => item.id === id)?.label ?? viewLabel(id);
 
-  if (isProject) {
-    const ctx = sidebarContext as Extract<SidebarContext, { level: "project" }>;
-    return (
-      <>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => {
-                    ctx.onBack();
-                    setOpenMobile(false);
-                  }}
-                  data-testid="sidebar-home"
-                >
-                  <ArrowLeft />
-                  <span>Back</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarSeparator />
-        <SidebarGroup>
-          <SidebarGroupLabel>{ctx.project.name}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={ctx.activeProjectView === "dashboard"}
-                  onClick={() => {
-                    ctx.onOpenDashboard();
-                    setOpenMobile(false);
-                  }}
-                  data-testid="sidebar-dashboard"
-                >
-                  <LayoutDashboard />
-                  <span>Overview</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              {ctx.onOpenSource && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={ctx.activeProjectView === "source"}
-                    onClick={() => {
-                      ctx.onOpenSource!();
-                      setOpenMobile(false);
-                    }}
-                    data-testid="sidebar-source"
-                  >
-                    <FolderOpen />
-                    <span>Source content</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {ctx.onOpenAutomations && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={ctx.activeProjectView === "automations"}
-                    onClick={() => {
-                      ctx.onOpenAutomations!();
-                      setOpenMobile(false);
-                    }}
-                    data-testid="sidebar-automations"
-                  >
-                    <Sparkles />
-                    <span>Automations</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {ctx.onOpenRuns && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={ctx.activeProjectView === "runs"}
-                    onClick={() => {
-                      ctx.onOpenRuns!();
-                      setOpenMobile(false);
-                    }}
-                    data-testid="sidebar-runs"
-                  >
-                    <Rocket />
-                    <span>Runs</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {ctx.onOpenConnectors && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    isActive={ctx.activeProjectView === "connectors"}
-                    onClick={() => {
-                      ctx.onOpenConnectors!();
-                      setOpenMobile(false);
-                    }}
-                    data-testid="sidebar-connectors"
-                  >
-                    <Plug />
-                    <span>Connectors</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </>
-    );
-  }
-
-  // Workspace-level: show main nav items. Keep undefined (not []) when a view has
-  // no sub-nav, so the secondary menu stays hidden for those views.
-  const subItems = subNavConfig()[activeView as string]?.filter(
-    (item) => !hiddenSubNavIds?.includes(item.id),
-  );
+  // The workspace's own sub-nav, shown when no project is open — a project
+  // fills this slot with its own sections instead. Keep undefined (not []) when
+  // a view has no sub-nav, so the secondary menu stays hidden for those views.
+  const subItems = isProject
+    ? undefined
+    : subNavConfig()[activeView as string]?.filter((item) => !hiddenSubNavIds?.includes(item.id));
 
   return (
     <>
@@ -551,7 +407,7 @@ function MobileNav<V extends string>({
             {mainItems.map(({ id, label, icon }) => (
               <SidebarMenuItem key={id}>
                 <SidebarMenuButton
-                  isActive={activeView === id}
+                  isActive={railView === id}
                   onClick={() => handleNav(id)}
                   data-testid={`nav-${id}`}
                 >
@@ -571,7 +427,7 @@ function MobileNav<V extends string>({
             {workspaceBottomItems().map(({ id, label, icon }) => (
               <SidebarMenuItem key={id}>
                 <SidebarMenuButton
-                  isActive={activeView === id}
+                  isActive={railView === id}
                   onClick={() => handleNav(id)}
                   data-testid={`nav-${id}`}
                 >
@@ -583,6 +439,40 @@ function MobileNav<V extends string>({
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>
+
+      {/* The open project's sections, under its name. On mobile they sit below
+          the workspace nav rather than replacing it, for the same reason the
+          desktop rail no longer swaps: a project is a place inside the
+          workspace, not a mode that hides it. */}
+      {isProject && (
+        <>
+          <SidebarSeparator />
+          <SidebarGroup>
+            <SidebarGroupLabel>{projectCtx!.project.name}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {projectSubNavConfig(projectCtx!).map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      isActive={projectCtx!.activeProjectView === item.id}
+                      onClick={() => {
+                        openProjectSection(projectCtx!, item.id);
+                        setOpenMobile(false);
+                      }}
+                      // The same id the desktop panel gives this entry: one
+                      // control, one hook, whatever the viewport.
+                      data-testid={`subnav-${item.id}`}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </>
+      )}
 
       {/* Inline sub-nav for current view (e.g. settings sub-items) */}
       {subItems && onSubNavChange && (
