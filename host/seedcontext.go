@@ -132,6 +132,13 @@ func (a *App) SeedProjectContext(ctx context.Context, projectPath string) (SeedC
 	next := make(map[string]string, len(sources))
 
 	for _, src := range sources {
+		if !storeHolds(db, src.kind) {
+			// A build with no file-backed store for this subsystem (the browser
+			// build) has nothing to project into. No stamp is recorded, so the
+			// source compiles the first time a real store is there.
+			res.Skipped++
+			continue
+		}
 		digest, derr := fileDigest(src.path)
 		if derr != nil {
 			return res, derr
@@ -166,6 +173,18 @@ func (a *App) SeedProjectContext(ctx context.Context, projectPath string) (SeedC
 		return res, err
 	}
 	return res, nil
+}
+
+// storeHolds reports whether this build's store carries the subsystem a source
+// compiles into.
+func storeHolds(db *projectdb.DB, kind contextSourceKind) bool {
+	switch kind {
+	case sourceKindTerms:
+		return db.Terms() != nil
+	case sourceKindMemory:
+		return db.Memory() != nil
+	}
+	return false
 }
 
 // compileContextSource imports one bundle through the same importer the apply
