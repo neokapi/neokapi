@@ -306,6 +306,7 @@ brand_profiles.description text NOT NULL DEFAULT ''::text
 brand_profiles.examples jsonb NOT NULL DEFAULT '[]'::jsonb
 brand_profiles.id text NOT NULL
 brand_profiles.locales jsonb NOT NULL DEFAULT '{}'::jsonb
+brand_profiles.min_score integer NOT NULL DEFAULT 0
 brand_profiles.name text NOT NULL
 brand_profiles.personas jsonb NOT NULL DEFAULT '{}'::jsonb
 brand_profiles.style jsonb NOT NULL DEFAULT '{}'::jsonb
