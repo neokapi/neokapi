@@ -38,7 +38,7 @@ type brandScanUploadEntry struct {
 }
 
 // brandScanSkippedEntry names a file that was not stored, with the reason
-// (disallowed type, oversize, or a deferred pdf/pptx extractor).
+// (disallowed type, oversize, or no in-process extractor for it).
 type brandScanSkippedEntry struct {
 	Name   string `json:"name"`
 	Reason string `json:"reason"`
