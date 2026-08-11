@@ -910,6 +910,14 @@ jobs:
       - name: Guard — no compiled executable is tracked in git
         run: ./scripts/check-tracked-binaries.sh
 
+      # The gate itself runs only in the nightly convergence, where nothing
+      # exercises it on a pull request. Its self-test does: it drives the real
+      # classification against real scratch repositories, so a change to the
+      # derived set or to the classification cannot pass here and disarm the
+      # nightly there.
+      - name: Guard — the sync commits only what the committed context explains
+        run: ./scripts/check-sync-backed.sh --self-test
+
       # The fixture guard expands the extract globs the way the extractor does,
       # so it needs `fs/promises.glob` — Node 22. No dependencies: it reads the
       # flag sets from `make l10n-extract-globs` and globs the working tree.

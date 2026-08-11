@@ -149,6 +149,17 @@ gate a push.
 This is the one in-repo kapi invocation that binds the root recipe. Everything
 else must isolate itself per the contract in CLAUDE.md.
 
+Between `kapi up` and the delivery step sits `scripts/check-sync-backed.sh`. The
+artifacts the loop owns are rebuilt from `.kapi/` on the next regeneration, so a
+run that produces them without a matching `.kapi/` change delivers wording with
+nothing behind it — content the following regeneration overwrites from a context
+that never learned it, with every run in the sequence green. The gate refuses
+that run, naming every file, and the nightly goes red. It also refuses anything
+the run changed outside `.kapi/` and the derived set, backed or not: `git add -A`
+would otherwise carry a source edit into main with no review and no CI. Its
+`--self-test` runs in the repo-guards job, because nothing on a pull request
+exercises the gate itself.
+
 ### What CI needs configured
 
 Nothing is created by this repository; both already exist and are referenced by
