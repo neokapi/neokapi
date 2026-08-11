@@ -231,7 +231,7 @@ func pullInto(t *testing.T, srv *httptest.Server) (*terms.SQLiteStore, *bproject
 	t.Helper()
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
 	tb := newProjectTerms(t)
-	res, baseline, err := PullConcepts(context.Background(), client, tb, false)
+	res, baseline, err := PullConcepts(context.Background(), client, tb, "", false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	require.NotNil(t, baseline)
@@ -254,7 +254,7 @@ func TestPullConceptsWritesTermsAndBaseline(t *testing.T) {
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
 	tb := newProjectTerms(t)
 
-	res, baseline, err := PullConcepts(context.Background(), client, tb, false)
+	res, baseline, err := PullConcepts(context.Background(), client, tb, "", false)
 	require.NoError(t, err)
 	assert.Equal(t, 2, res.Concepts)
 	assert.Equal(t, 3, res.Terms)
@@ -282,7 +282,7 @@ func TestPullConceptsDryRunWritesNothing(t *testing.T) {
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
 	tb := newProjectTerms(t)
 
-	res, baseline, err := PullConcepts(context.Background(), client, tb, true)
+	res, baseline, err := PullConcepts(context.Background(), client, tb, "", true)
 	require.NoError(t, err)
 	assert.Equal(t, 2, res.Concepts)
 	require.NotNil(t, baseline)

@@ -198,6 +198,12 @@ func printPullExtras(resp *pb.PullResponse) {
 	if c, r := resp.GetConceptsPulled(), resp.GetConceptRelationsPulled(); c > 0 || r > 0 {
 		fmt.Printf("snapshotted %d concept(s) and %d relation(s) from the workspace terminology\n", c, r)
 	}
+	// The terminology return leg. Empty when the merge produced the bytes
+	// already in git, which is the ordinary pull — a projection that changed
+	// nothing must read as silence, not as a line saying zero.
+	if p := resp.GetTermsProjection(); p != "" {
+		fmt.Println(p)
+	}
 	if d := resp.GetGovernanceDiverged(); len(d) > 0 {
 		fmt.Printf("the server governs these collections differently from this recipe: %s\n", strings.Join(d, ", "))
 		fmt.Println("the recipe still decides locally — reconcile them in kapi.yaml, not by pulling")

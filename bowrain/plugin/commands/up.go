@@ -178,6 +178,17 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		jsonStream = output.NewNDJSONStream(cmd.OutOrStdout())
 	}
 
+	// Self-seeding, before anything reads the store. The push carries the
+	// project's terminology and reviewed wording out of the store, and on a
+	// fresh CI checkout the store is empty — an unseeded run pushes no
+	// terminology at all and then pulls the workspace's, leaving the store
+	// holding the server's vocabulary and nothing git carried.
+	if projectPath, perr := cli.ResolveProjectPath(cmd); perr == nil && projectPath != "" {
+		if _, serr := app.SeedProjectContext(ctx, projectPath); serr != nil {
+			return fmt.Errorf("seed committed context: %w", serr)
+		}
+	}
+
 	// Recipe pre-push automations run before the push, exactly as they did for
 	// the retired `kapi sync` (up subsumed sync — the hooks must not silently
 	// stop firing for projects that migrated CI from sync to up).
@@ -291,10 +302,21 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		return fmt.Errorf("pull: %w", err)
 	}
 	if proj, perr := project.FindProject(""); perr == nil {
-		if _, baseline, cerr := conceptPull(ctx, proj, false); cerr != nil {
+		cres, baseline, cerr := conceptPull(ctx, proj, false)
+		if cerr != nil {
 			return cerr
-		} else if baseline != nil {
+		}
+		if baseline != nil {
 			conn.SetConceptBaseline(baseline)
+		}
+		// The terminology return leg: reviewed decisions the pull brought back
+		// are merged into the committed terms source, so they are reviewable in
+		// `git diff` rather than living only in the gitignored store. Silence
+		// when the merge changed nothing, which is the ordinary night.
+		if cres != nil && !app.Quiet && !jsonOut {
+			if line := cli.FormatTermsProjection(cres.Projection); line != "" {
+				fmt.Fprintln(stderr, line)
+			}
 		}
 	}
 

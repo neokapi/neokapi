@@ -65,6 +65,20 @@ name: neokapi
 defaults:
   source_language: en
   target_languages: [nb]
+  # A converged locale's target files are written by the run that converged it.
+  # This repository's targets are build artifacts a later stage consumes (MO
+  # compilation, the Docusaurus i18n trees, the demo sidecars), so a run that
+  # left them in the store would hand the next stage the previous run's output.
+  materialize: on-converge
+  # The loop this project runs locally. tm-recycle is exact-match content-memory
+  # leverage and nothing else, so a checkout with no credentials converges from
+  # the committed context alone and the pass is a deterministic function of
+  # source + .kapi/. AI convergence happens at the server venue (the bowrain:
+  # block below), on the org's keys and against the org's shared memory; a
+  # deliberate local AI pass is `kapi run translate-ai`. Without this the
+  # built-in default flow ends in `translate`, and a fresh clone stops on a
+  # missing provider credential having recycled nothing.
+  flow: tm-recycle
   voice:
     profile_file: .kapi/voice.yaml
   # terms_source is the committed, git-tracked terms document (the review

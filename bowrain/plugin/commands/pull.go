@@ -149,6 +149,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		if cres != nil {
 			out.ConceptsPulled = cres.Concepts
 			out.ConceptRelationsPulled = cres.Relations
+			out.TermsProjection = cli.FormatTermsProjection(cres.Projection)
 		}
 		return output.Print(cmd, out)
 	}
@@ -188,6 +189,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 	if cres != nil {
 		out.ConceptsPulled = cres.Concepts
 		out.ConceptRelationsPulled = cres.Relations
+		out.TermsProjection = cli.FormatTermsProjection(cres.Projection)
 	}
 
 	if err := output.Print(cmd, out); err != nil {

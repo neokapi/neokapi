@@ -67,6 +67,8 @@ type (
 	StatsOutput                   = host.StatsOutput
 	StatusOutput                  = host.StatusOutput
 	StopHookDecision              = host.StopHookDecision
+	SeedContextResult             = host.SeedContextResult
+	TermsProjectionResult         = host.TermsProjectionResult
 	ToolRunConfig                 = host.ToolRunConfig
 	UpOptions                     = host.UpOptions
 	UpPlanOutput                  = host.UpPlanOutput
@@ -193,6 +195,7 @@ var (
 	ParseLocaleList              = host.ParseLocaleList
 	ParsePluginRef               = host.ParsePluginRef
 	ParseSedProgram              = host.ParseSedProgram
+	FormatTermsProjection        = host.FormatTermsProjection
 	PrintPresetList              = host.PrintPresetList
 	PrintUpResult                = host.PrintUpResult
 	PrintUpResultStream          = host.PrintUpResultStream
