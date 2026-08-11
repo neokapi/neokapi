@@ -48,7 +48,9 @@ func TestSQLiteMemory_MultilingualUpdate(t *testing.T) {
 	defer tm.Close()
 
 	require.NoError(t, tm.Add(context.Background(), trilingual("e1", "Hello", "Bonjour", "Hallo")))
-	// Replace: add Italian, drop German.
+	// An update carries the locales it has something to say about: Italian
+	// arrives, German is left alone rather than dropped (see
+	// variant_merge_test.go for the rule and how a locale is retired).
 	entry := memory.Entry{
 		ID: "e1",
 		Variants: map[model.LocaleID][]model.Run{
@@ -59,8 +61,9 @@ func TestSQLiteMemory_MultilingualUpdate(t *testing.T) {
 	}
 	require.NoError(t, tm.Add(context.Background(), entry))
 	got, _ := mustGetEntry(t, tm, "e1")
-	assert.Equal(t, []model.LocaleID{"en", "fr", "it"}, got.Locales())
+	assert.Equal(t, []model.LocaleID{"de", "en", "fr", "it"}, got.Locales())
 	assert.Equal(t, "Ciao", got.VariantText("it"))
+	assert.Equal(t, "Hallo", got.VariantText("de"))
 }
 
 func TestSQLiteMemory_DeleteCascades(t *testing.T) {

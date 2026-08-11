@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1222,10 +1223,11 @@ type memoryAbsorber struct {
 	app     *App
 	tm      *memory.SQLiteStore
 	entries []memory.Entry
-	// seen dedupes within a run. Entry ids are content-derived, so one string
-	// merged from two files is one entry, and the bulk path would otherwise
-	// carry it twice.
-	seen map[string]bool
+	// staged maps an entry id to its position in entries. Entry ids are
+	// content-derived, so one string merged from two files — or the same source
+	// merged for a second target locale — is one entry, and the bulk path would
+	// otherwise carry it twice.
+	staged map[string]int
 }
 
 // newMemoryAbsorber returns an absorber over tm, or nil when there is no
@@ -1235,7 +1237,7 @@ func (a *App) newMemoryAbsorber(tm *memory.SQLiteStore) *memoryAbsorber {
 	if tm == nil {
 		return nil
 	}
-	return &memoryAbsorber{app: a, tm: tm, seen: map[string]bool{}}
+	return &memoryAbsorber{app: a, tm: tm, staged: map[string]int{}}
 }
 
 // absorb stages one merged block. The new/updated split is decided here, while
@@ -1249,14 +1251,19 @@ func (m *memoryAbsorber) absorb(ctx context.Context, block *model.Block, source,
 	if !ok {
 		return 0, 0, nil
 	}
-	if m.seen[entry.ID] {
+	if i, staged := m.staged[entry.ID]; staged {
+		// A second target locale for the same source teaches another variant of
+		// the entry already staged, not a competing entry: fold it in so the one
+		// write carries every locale this run learned. The counts stay per
+		// entry, so the fold adds neither a new nor an updated one.
+		maps.Copy(m.entries[i].Variants, entry.Variants)
 		return 0, 0, nil
 	}
 	_, existed, gerr := m.tm.GetEntry(ctx, entry.ID)
 	if gerr != nil {
 		return 0, 0, fmt.Errorf("read content-memory entry %s: %w", entry.ID, gerr)
 	}
-	m.seen[entry.ID] = true
+	m.staged[entry.ID] = len(m.entries)
 	m.entries = append(m.entries, entry)
 	if existed {
 		return 0, 1, nil
@@ -1275,7 +1282,7 @@ func (m *memoryAbsorber) flush(ctx context.Context) error {
 		return fmt.Errorf("record %d content-memory entr%s: %w",
 			len(m.entries), map[bool]string{true: "y", false: "ies"}[len(m.entries) == 1], err)
 	}
-	m.entries, m.seen = nil, map[string]bool{}
+	m.entries, m.staged = nil, map[string]int{}
 	m.app.RebuildMemorySearchIndexes(ctx, m.tm)
 	return nil
 }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-08T14:57:02Z",
+  "generatedAt": "2026-08-11T21:48:58Z",
   "tools": [
     {
       "name": "apply_edits",
@@ -1680,7 +1680,7 @@
     },
     {
       "name": "up",
-      "description": "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the default flow (content memory reuse then AI translate) over every target language — concurrently per language — loop until every gated scope is shippable or parks for a human, and run the project's bound checks each pass. Never fails on pending target work: parked units are reported, not thrown. Returns the structured result (per-locale standing, parked scopes, materialized files). Use up_plan first to see the pending work and token estimate.",
+      "description": "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the default flow (content memory reuse then AI translate) over every target language — concurrently per language — loop until every gated scope is shippable or parks for a human, and run the project's bound checks each pass. In a project connected to a Bowrain server the run happens there (push, converge on the org's keys and shared content memory, pull the results); pass local to run the loop on this machine instead. Never fails on pending target work: parked units are reported, not thrown. Returns the structured result (per-locale standing, parked scopes, materialized files). Use up_plan first to see the pending work and token estimate.",
       "surface": "default",
       "params": [
         {
@@ -1688,6 +1688,12 @@
           "type": "integer",
           "required": false,
           "description": "how many languages to catch up concurrently per pass (0 = project default, else 4)"
+        },
+        {
+          "name": "local",
+          "type": "boolean",
+          "required": false,
+          "description": "in a server-connected project, run the loop on this machine and push the results, instead of running it on the server"
         },
         {
           "name": "materialize",

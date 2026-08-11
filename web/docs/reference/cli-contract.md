@@ -191,6 +191,8 @@ The [MCP server](/reference/mcp) (`kapi mcp`) is part of the same contract: its 
 
 The registry tools on that surface are exactly the CLI-visible ones — a built-in tool appears under `kapi exec`, in `kapi tools list`, and as an MCP tool when it registers a config factory and does not declare itself internal (`registry.ToolRegistry.CLITools`). Wiring a factory for a tool that lacked one is therefore an additive surface change: it adds the tool to all three at once, and the snapshot moves. `whitespace-correct` gained one this way, and `dnt-check`, `placeholder-check`, `xml-validation`, `create-target`, `remove-target`, `inline-codes-remove` and `external-command` followed.
 
+The `up` tool takes an optional `local` field, mirroring `kapi up --local`: in a project connected to a server the run happens at that venue by default — the same decision the command makes — and `local` keeps the loop on this machine, pushing the results afterwards.
+
 ## Running commands a recipe names
 
 `external-command` and `script` run code the configuration chooses. They stay

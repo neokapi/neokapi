@@ -143,9 +143,10 @@ func (tm *SQLiteStore) Add(ctx context.Context, entry Entry) error {
 }
 
 // AddWithStream inserts or updates a multilingual content-memory entry associated with a
-// stream (e.g., a git branch name). All variants, entities, entity values,
-// and origins are replaced atomically inside a single transaction so that a
-// partial failure can't leave orphan rows and bulk imports aren't gated by
+// stream (e.g., a git branch name). Variants are replaced per locale (see
+// variantLocaleDeletes); entities, entity values and origins are replaced
+// wholesale. Everything happens inside a single transaction so that a partial
+// failure can't leave orphan rows and bulk imports aren't gated by
 // per-statement fsync latency.
 func (tm *SQLiteStore) AddWithStream(ctx context.Context, entry Entry, stream string) error {
 	tx, err := tm.db.BeginTx(ctx, nil)
@@ -334,7 +335,9 @@ func prepareBulkStmts(ctx context.Context, tx *sql.Tx) (*bulkStmts, error) {
 		return nil, fmt.Errorf("prepare upsert: %w", err)
 	}
 
-	if s.delVariants, err = tx.PrepareContext(ctx, `DELETE FROM tm_variants WHERE entry_id = ?`); err != nil {
+	// Per locale, not per entry: see variantLocaleDeletes. The FTS5 side-tables
+	// are not maintained here at all — the bulk path rebuilds them set-wise.
+	if s.delVariants, err = tx.PrepareContext(ctx, `DELETE FROM tm_variants WHERE entry_id = ? AND locale = ?`); err != nil {
 		return nil, err
 	}
 	if s.insVariant, err = tx.PrepareContext(ctx, `INSERT INTO tm_variants
@@ -382,7 +385,8 @@ func (s *bulkStmts) Close() {
 }
 
 // addEntry is the prepared-statement counterpart of addInTx used by the
-// bulk-import hot path. It mirrors the same upsert-and-replace semantics.
+// bulk-import hot path. It mirrors the same upsert semantics — variants
+// replaced per locale, entities and origins wholesale.
 func (s *bulkStmts) addEntry(ctx context.Context, entry *Entry, stream string) error {
 	if entry.ID == "" {
 		return ErrEntryIDRequired
@@ -429,8 +433,10 @@ func (s *bulkStmts) addEntry(ctx context.Context, entry *Entry, stream string) e
 		return fmt.Errorf("upsert entry: %w", err)
 	}
 
-	if _, err := s.delVariants.ExecContext(ctx, entry.ID); err != nil {
-		return fmt.Errorf("delete variants: %w", err)
+	for locale := range entry.Variants {
+		if _, err := s.delVariants.ExecContext(ctx, entry.ID, string(locale)); err != nil {
+			return fmt.Errorf("delete variants %s: %w", locale, err)
+		}
 	}
 
 	for locale, runs := range entry.Variants {
@@ -508,6 +514,20 @@ func (s *bulkStmts) addEntry(ctx context.Context, entry *Entry, stream string) e
 	return nil
 }
 
+// variantLocaleDeletes clears one locale of one entry across the variant table
+// and the two manually-maintained FTS5 side-tables.
+//
+// A write replaces the locales it carries and leaves the rest of the entry
+// standing. One source text is taught one target locale at a time — materialize
+// runs per locale, and every locale keys the same entry off the source content
+// hash — so clearing the whole variant set would leave an entry holding only
+// the locale written last.
+var variantLocaleDeletes = []struct{ what, sql string }{
+	{"variants", "DELETE FROM tm_variants WHERE entry_id = ? AND locale = ?"},
+	{"variant_search", "DELETE FROM tm_variant_search WHERE entry_id = ? AND locale = ?"},
+	{"variant_trigram", "DELETE FROM tm_variant_trigram WHERE entry_id = ? AND locale = ?"},
+}
+
 // addInTx performs the full upsert of an entry (header + variants +
 // entities + origins) against the given transaction. It is the shared
 // implementation used by AddWithStream and BulkAddWithStream.
@@ -566,16 +586,15 @@ func (tm *SQLiteStore) addInTx(ctx context.Context, tx *sql.Tx, entry Entry, str
 		return fmt.Errorf("upsert entry: %w", err)
 	}
 
-	// Replace variants. We also maintain the two FTS5 side-tables manually
-	// (they are not content= external FTS, so triggers aren't wired).
-	if _, err := tx.ExecContext(ctx, "DELETE FROM tm_variants WHERE entry_id = ?", entry.ID); err != nil {
-		return fmt.Errorf("delete variants: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, "DELETE FROM tm_variant_search WHERE entry_id = ?", entry.ID); err != nil {
-		return fmt.Errorf("delete variant_search: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, "DELETE FROM tm_variant_trigram WHERE entry_id = ?", entry.ID); err != nil {
-		return fmt.Errorf("delete variant_trigram: %w", err)
+	// Replace the variants this write carries, locale by locale. We also
+	// maintain the two FTS5 side-tables manually (they are not content=
+	// external FTS, so triggers aren't wired).
+	for locale := range entry.Variants {
+		for _, del := range variantLocaleDeletes {
+			if _, err := tx.ExecContext(ctx, del.sql, entry.ID, string(locale)); err != nil {
+				return fmt.Errorf("delete %s %s: %w", del.what, locale, err)
+			}
+		}
 	}
 
 	for locale, runs := range entry.Variants {

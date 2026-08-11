@@ -860,6 +860,10 @@
           "description": "how many languages to catch up concurrently per pass (0 = project default, else 4)",
           "type": "integer"
         },
+        "local": {
+          "description": "in a server-connected project, run the loop on this machine and push the results, instead of running it on the server",
+          "type": "boolean"
+        },
         "materialize": {
           "description": "after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy)",
           "type": "boolean"

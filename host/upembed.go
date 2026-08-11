@@ -28,6 +28,14 @@ type UpOptions struct {
 	// Jobs is how many locales one pass runs concurrently; <= 0 uses the
 	// `kapi up` default (4).
 	Jobs int
+	// Local keeps the loop on this machine in a server-connected project,
+	// pushing the results afterwards. Read by RunUpDispatch; RunUp is the
+	// local venue by construction and ignores it.
+	Local bool
+	// ForceServer refuses a local fallback in RunUpDispatch: a project with
+	// no bound venue, or an install without the venue plumbing, fails rather
+	// than quietly converging here.
+	ForceServer bool
 	// OnEvent receives the run's convergence.Event stream — the one protocol
 	// every surface renders a run from. Events arrive one at a time.
 	OnEvent func(convergence.Event)
@@ -36,12 +44,14 @@ type UpOptions struct {
 	LogWriter io.Writer
 }
 
-// RunUp is the embedded `kapi up`: it runs the exact convergence engine behind
-// the CLI's `up` / no-argument `run` — loop-to-gate over the project's default
-// flow, auto-extract on block-store drift before each pass, bound checks in
-// the loop, and the recipe's materialize policy — and returns the structured
-// result instead of printing it. The desktop's "Bring up to date" binds here
-// so the two surfaces share one code path and agree to the unit.
+// RunUp is the embedded local-venue `kapi up`: it runs the exact convergence
+// engine behind the CLI's `up` / no-argument `run` — loop-to-gate over the
+// project's default flow, auto-extract on block-store drift before each pass,
+// bound checks in the loop, and the recipe's materialize policy — and returns
+// the structured result instead of printing it.
+//
+// A surface that offers the verb to a user or an agent calls RunUpDispatch
+// instead, so a server-connected project runs where the recipe says it does.
 //
 // sourceLang overrides the project's source language when non-empty. Like the
 // CLI, RunUp never fails on target drift: parked work is reported in the

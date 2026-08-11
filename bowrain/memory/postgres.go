@@ -134,11 +134,16 @@ func (tm *PostgresStore) AddWithStream(ctx context.Context, entry fw.Entry, stre
 		return fmt.Errorf("upsert entry: %w", err)
 	}
 
-	// Replace variants.
-	if _, err := tm.db.ExecContext(ctx,
-		"DELETE FROM tm_variants WHERE workspace_id = $1 AND entry_id = $2",
-		tm.workspaceID, entry.ID); err != nil {
-		return fmt.Errorf("delete variants: %w", err)
+	// Replace the variants this write carries, locale by locale: one source text
+	// is taught one target locale at a time, and every locale keys the same entry
+	// off the source content hash, so clearing the whole set would leave the entry
+	// holding only the locale written last. Same rule as the SQLite store.
+	for loc := range entry.Variants {
+		if _, err := tm.db.ExecContext(ctx,
+			"DELETE FROM tm_variants WHERE workspace_id = $1 AND entry_id = $2 AND locale = $3",
+			tm.workspaceID, entry.ID, string(loc)); err != nil {
+			return fmt.Errorf("delete variants %s: %w", loc, err)
+		}
 	}
 	for loc, runs := range entry.Variants {
 		if len(runs) == 0 {

@@ -10,8 +10,9 @@ import (
 
 // init registers the kapi-loop MCP tools on the shared `mcp` server: `up`
 // (bring the project up to date) and `up_plan` (the dry-run work plan with a
-// token estimate). They drive exactly the CLI's `kapi up` engine, so an agent
-// runs the same loop a human does.
+// token estimate). They drive exactly the CLI's `kapi up` engine at the venue
+// the recipe binds, so an agent runs the same loop a human does — a connected
+// project pushes, converges on the server and pulls the results back.
 func init() {
 	RegisterMCPToolFactory(registerUpMCPTools)
 }
@@ -23,6 +24,7 @@ type upMCPInput struct {
 	Jobs        int    `json:"jobs,omitempty" jsonschema:"how many languages to catch up concurrently per pass (0 = project default, else 4)"`
 	Materialize bool   `json:"materialize,omitempty" jsonschema:"after the loop, write the target-language files for every shippable locale (overrides the recipe's materialize policy)"`
 	NoChecks    bool   `json:"no_checks,omitempty" jsonschema:"skip the project's bound checks inside the loop (failing units then count as translated)"`
+	Local       bool   `json:"local,omitempty" jsonschema:"in a server-connected project, run the loop on this machine and push the results, instead of running it on the server"`
 }
 
 // upPlanMCPInput is the input to the `up_plan` MCP tool.
@@ -36,7 +38,9 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 		Description: "Bring a kapi project up to date against its ship gates: re-extract drifted sources, run the " +
 			"default flow (content memory reuse then AI translate) over every target language — concurrently per language — " +
 			"loop until every gated scope is shippable or parks for a human, and run the project's bound checks " +
-			"each pass. Never fails on pending target work: parked units are reported, not thrown. Returns the " +
+			"each pass. In a project connected to a Bowrain server the run happens there (push, converge on the " +
+			"org's keys and shared content memory, pull the results); pass local to run the loop on this machine " +
+			"instead. Never fails on pending target work: parked units are reported, not thrown. Returns the " +
 			"structured result (per-locale standing, parked scopes, materialized files). Use up_plan " +
 			"first to see the pending work and token estimate.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in upMCPInput) (*mcp.CallToolResult, *ConvergeOutput, error) {
@@ -44,12 +48,13 @@ func registerUpMCPTools(server *mcp.Server, a *App) {
 		if err != nil {
 			return nil, nil, err
 		}
-		out, err := a.RunUp(ctx, path, "", UpOptions{
+		out, err := a.RunUpDispatch(ctx, path, "", UpOptions{
 			UntilGate:   in.Passes != 1,
 			MaxPasses:   in.Passes,
 			Jobs:        in.Jobs,
 			NoChecks:    in.NoChecks,
 			Materialize: in.Materialize,
+			Local:       in.Local,
 		})
 		if err != nil {
 			return nil, nil, err

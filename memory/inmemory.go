@@ -81,6 +81,9 @@ func (tm *InMemoryStore) Add(ctx context.Context, entry Entry) error {
 
 // AddWithStream inserts or updates a content-memory entry. InMemoryStore ignores the
 // stream parameter — it's a persistence concern for on-disk backends only.
+//
+// An update replaces the locales it carries and leaves the entry's other
+// variants standing, matching the SQLite store (see variantLocaleDeletes).
 func (tm *InMemoryStore) AddWithStream(_ context.Context, entry Entry, _ string) error {
 	if entry.ID == "" {
 		return ErrEntryIDRequired
@@ -96,21 +99,40 @@ func (tm *InMemoryStore) AddWithStream(_ context.Context, entry Entry, _ string)
 		entry.UpdatedAt = now
 	}
 
-	stored := storedEntry{entry: entry, keys: buildVariantKeys(entry)}
-
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
 	if idx, exists := tm.byID[entry.ID]; exists {
-		tm.entries[idx] = stored
+		entry.Variants = mergedVariants(tm.entries[idx].entry.Variants, entry.Variants)
+		tm.entries[idx] = storedEntry{entry: entry, keys: buildVariantKeys(entry)}
 		return nil
 	}
+
+	stored := storedEntry{entry: entry, keys: buildVariantKeys(entry)}
 	if tm.maxEntries > 0 && len(tm.entries) >= tm.maxEntries {
 		tm.evictOldest()
 	}
 	tm.byID[entry.ID] = len(tm.entries)
 	tm.entries = append(tm.entries, stored)
 	return nil
+}
+
+// mergedVariants folds the incoming variants over the stored ones: a locale the
+// write carries wins, a locale it does not mention keeps what the entry holds.
+// The result is a fresh map, so the caller's entry never aliases stored state.
+func mergedVariants(stored, incoming map[model.LocaleID][]model.Run) map[model.LocaleID][]model.Run {
+	out := make(map[model.LocaleID][]model.Run, len(stored)+len(incoming))
+	maps.Copy(out, stored)
+	for loc, runs := range incoming {
+		if len(runs) == 0 {
+			// An explicitly empty locale retires that variant, which is how a
+			// wholesale rewrite spells "this locale is gone".
+			delete(out, loc)
+			continue
+		}
+		out[loc] = runs
+	}
+	return out
 }
 
 func buildVariantKeys(entry Entry) map[model.LocaleID]variantKeys {
