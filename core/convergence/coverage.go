@@ -169,11 +169,15 @@ func TallyBlockStore(sess blockstore.Session, scopes []BlockStoreScope) (*Covera
 			if err != nil {
 				return nil, nil, err
 			}
-			id := b.ID
-			if id == "" {
-				id = b.Hash
+			// The block's Hash is the key its overlays are written under
+			// (blockstore.StoreKey — the source file's path plus the file-local id).
+			// The bare ID restarts in every source file, so asking for it finds
+			// nothing and reads as "untranslated" for content that is translated.
+			key := b.Hash
+			if key == "" {
+				key = b.ID
 			}
-			blockIDs = append(blockIDs, id)
+			blockIDs = append(blockIDs, key)
 		}
 		totals[sc.Collection] = len(blockIDs)
 

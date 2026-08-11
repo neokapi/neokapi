@@ -675,7 +675,18 @@ func (a *App) UpdateMemoryEntry(handle string, req UpdateMemoryEntryRequest) err
 	if !found {
 		return fmt.Errorf("entry %q not found", req.EntryID)
 	}
-	existing.Variants = variantsFromInput(req.Variants)
+	// A write replaces the locales it names and leaves the rest standing, so an
+	// edit that removes a language has to say so: the removed locale is named
+	// with no runs, which retires it. Handing the store only the surviving
+	// locales would leave the dropped one in place and the editor showing a
+	// language the user just deleted.
+	next := variantsFromInput(req.Variants)
+	for locale := range existing.Variants {
+		if _, kept := next[locale]; !kept {
+			next[locale] = nil
+		}
+	}
+	existing.Variants = next
 	if req.HintSrcLang != "" {
 		existing.HintSrcLang = model.LocaleID(req.HintSrcLang)
 	}

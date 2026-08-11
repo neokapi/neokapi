@@ -65,6 +65,32 @@ func ProjectRel(projectRoot, path string) (string, error) {
 	return rel, nil
 }
 
+// SourceNamespace names one source file inside a store many files share: its
+// project-relative path when the project root can name it, its absolute path
+// when it cannot.
+//
+// Every key in such a store must name its file distinctly — the file-local block
+// id ("tu1") restarts in every source and so is not a name. A run that
+// legitimately writes output for a file lying outside the project (an explicit
+// `-i`/`-o` pair while a recipe happens to be in scope) therefore still gets a
+// namespace of its own instead of sharing the raw id space with every other such
+// file.
+//
+// Only project-relative namespaces are ever looked up again: merge materializes
+// exactly the files the recipe resolves. An absolute-path namespace is write-only
+// overlay cache scope, which is precisely what an out-of-project input is — and
+// why the process-only path, whose only deliverable IS the overlays, refuses that
+// case through ProjectRel rather than storing work nobody will collect.
+func SourceNamespace(projectRoot, path string) string {
+	if rel, err := ProjectRel(projectRoot, path); err == nil {
+		return rel
+	}
+	if abs, err := filepath.Abs(path); err == nil {
+		return abs
+	}
+	return path
+}
+
 type sourceRelKey struct{}
 
 // WithSourceRel tags a context with the project-relative path of the source file

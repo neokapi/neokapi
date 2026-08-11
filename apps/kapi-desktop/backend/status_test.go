@@ -170,10 +170,12 @@ func TestRunExtractThenCoverageWithTargets(t *testing.T) {
 	_, err := app.RunExtract(tab.ID)
 	require.NoError(t, err)
 
-	// Simulate a translation pass committing two fr-FR target overlays — the
-	// same keys (targets/<locale> by block ID) a real `kapi run` writes. Through
-	// the app's own handle, not a second pool on the store file: the write gate
-	// that orders this process's writers is per pool.
+	// Simulate a translation pass committing two fr-FR target overlays under the
+	// same keys a real `kapi run` writes: the store block's own Hash
+	// (blockstore.StoreKey — the source file's path plus the file-local id), not
+	// the file-local id, which restarts in every source. Through the app's own
+	// handle, not a second pool on the store file: the write gate that orders this
+	// process's writers is per pool.
 	db, err := app.projectStore(app.getOpenProject(tab.ID))
 	require.NoError(t, err)
 	ctx := context.Background()
@@ -183,7 +185,7 @@ func TestRunExtractThenCoverageWithTargets(t *testing.T) {
 	var ids []string
 	for b, berr := range sess.Blocks(blockstore.BlockFilter{Collection: "App"}) {
 		require.NoError(t, berr)
-		ids = append(ids, b.ID)
+		ids = append(ids, b.Hash)
 	}
 	require.Len(t, ids, 3)
 
