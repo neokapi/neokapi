@@ -18,7 +18,6 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useAuiState,
-  useMessage,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -385,7 +384,7 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({ className, ...rest
 // ---------------------------------------------------------------------------
 
 function MessageTokenUsage() {
-  const metadata = useMessage((m) => m.metadata);
+  const metadata = useAuiState((s) => s.message.metadata);
   const custom = (metadata as Record<string, unknown>)?.custom as
     | { input_tokens?: number; output_tokens?: number }
     | undefined;
