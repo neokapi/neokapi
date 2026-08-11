@@ -2,9 +2,9 @@
 #
 # This is the workflow the product tells everyone else to write, run against the
 # repository that builds the product: install the CLI with setup-kapi, run the
-# convergence verb with kapi-action, commit what came back. Nothing in it is
-# bespoke: a step here that a customer could not copy is a step the product is
-# missing.
+# convergence verb with kapi-action, commit what came back once the committed
+# context explains it. Nothing in it is bespoke: a step here that a customer
+# could not copy is a step the product is missing.
 #
 # INERT BY DEFAULT (roadmap epic 017-F, decision D2). Every job is gated on the
 # repo variable DOGFOOD_SYNC_ENABLED == 'true', so until the founder arms it
@@ -86,6 +86,20 @@ jobs:
         with:
           command: up
           plan: ${{ inputs.plan || 'false' }}
+
+      # Delivery is conditional on the committed context explaining what the run
+      # produced. Every artifact the loop owns is rebuilt from .kapi/ on the next
+      # regeneration, so wording delivered without a matching .kapi/ change lives
+      # exactly until then and is overwritten from a context that never learned
+      # it — a green run that erases its own result. The gate refuses that run,
+      # naming every file, and this job goes red: pending work the loop has not
+      # carried home is a signal, not something to commit past.
+      #
+      # Runs unconditionally rather than behind has-changes, so the gate reads
+      # the tree itself rather than the action's account of it. A clean tree
+      # (a `plan` dispatch, or a run with nothing to catch up) passes.
+      - name: Refuse what the committed context cannot explain
+        run: ./scripts/check-sync-backed.sh
 
       # The action reports; delivery is this workflow's own step. GITHUB_TOKEN
       # pushes trigger no workflows, so this commit does NOT start CI or a

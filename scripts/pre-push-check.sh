@@ -75,6 +75,10 @@ run_check "Retired framing in user-facing prose" ./scripts/check-vocabulary.sh
 
 run_check "Reference dataset provenance" ./scripts/check-reference-provenance.sh
 
+# Ungated because the gate it proves runs only in the nightly convergence:
+# nothing else here would notice it losing its teeth. ~1s, all in a scratch repo.
+run_check "Sync backing gate" ./scripts/check-sync-backed.sh --self-test
+
 # Ungated for the same reason, plus one specific to this repo: the bowrain
 # checks below are gated on ^bowrain/core/ and ^bowrain/plugin/ only, so the
 # main bowrain module has no local format gate at all — which is how nine files
