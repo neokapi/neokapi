@@ -168,6 +168,11 @@ type PullOutput struct {
 	// Concept sync (governed terminology pulled into the local terms).
 	ConceptsPulled         int `json:"concepts_pulled,omitempty"`
 	ConceptRelationsPulled int `json:"concept_relations_pulled,omitempty"`
+	// TermsProjection is the one-line report of the return leg into the
+	// committed terms source, empty when the merge changed nothing. Nothing
+	// changing is the ordinary outcome and must read as silence, not as a
+	// zero-valued line a reader could mistake for work.
+	TermsProjection string `json:"terms_projection,omitempty"`
 
 	// Context sync. CollectionsObserved is how many collections the server
 	// reported; GovernanceDiverged names the recipe-owned ones the server
@@ -208,6 +213,9 @@ func (o PullOutput) FormatText(w io.Writer) error {
 		}
 		fmt.Fprintf(w, "%s %d governed concept(s), %d relation(s) into the local terms\n",
 			verb, o.ConceptsPulled, o.ConceptRelationsPulled)
+	}
+	if o.TermsProjection != "" {
+		fmt.Fprintln(w, o.TermsProjection)
 	}
 	if len(o.GovernanceDiverged) > 0 {
 		// The detail names the differing part; the bare names are the fallback

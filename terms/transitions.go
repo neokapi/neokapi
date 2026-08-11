@@ -63,3 +63,13 @@ func IsGovernedTransition(from, to model.TermStatus) bool {
 	}
 	return from == model.TermForbidden
 }
+
+// IsGovernedStatus reports whether a term status is one a platform can only
+// reach through a reviewed change-set — forbidden (the term is banned) and
+// preferred (the term is the one to use). Every transition into either is
+// governed (IsGovernedTransition), so a term resting at one of them carries the
+// evidence that a decision was reviewed, which is what a return leg back into
+// git needs to distinguish a decision from ordinary workspace state.
+func IsGovernedStatus(s model.TermStatus) bool {
+	return s == model.TermForbidden || s == model.TermPreferred
+}

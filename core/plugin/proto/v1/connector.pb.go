@@ -746,8 +746,13 @@ type PullResponse struct {
 	// cursor already advanced, so replacing the result with an error would hide
 	// what did arrive.
 	TerminologyError string `protobuf:"bytes,10,opt,name=terminology_error,json=terminologyError,proto3" json:"terminology_error,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The terminology return leg's report: reviewed decisions the pull merged
+	// into the committed terms source, as the one line the verb prints. Empty
+	// when the merge produced the bytes already in git, which is the ordinary
+	// outcome — a pull that changed nothing must say nothing.
+	TermsProjection string `protobuf:"bytes,11,opt,name=terms_projection,json=termsProjection,proto3" json:"terms_projection,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PullResponse) Reset() {
@@ -846,6 +851,13 @@ func (x *PullResponse) GetGovernanceDiverged() []string {
 func (x *PullResponse) GetTerminologyError() string {
 	if x != nil {
 		return x.TerminologyError
+	}
+	return ""
+}
+
+func (x *PullResponse) GetTermsProjection() string {
+	if x != nil {
+		return x.TermsProjection
 	}
 	return ""
 }
@@ -1085,7 +1097,7 @@ const file_core_plugin_proto_v1_connector_proto_rawDesc = "" +
 	"\aproject\x18\x01 \x01(\v2\x1d.neokapi.plugin.v1.ProjectRefR\aproject\x12\x18\n" +
 	"\alocales\x18\x02 \x03(\tR\alocales\x12\x14\n" +
 	"\x05force\x18\x03 \x01(\bR\x05force\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xc9\x03\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xf4\x03\n" +
 	"\fPullResponse\x12#\n" +
 	"\rblocks_pulled\x18\x01 \x01(\x05R\fblocksPulled\x12#\n" +
 	"\rfiles_written\x18\x02 \x01(\x05R\ffilesWritten\x12#\n" +
@@ -1097,7 +1109,8 @@ const file_core_plugin_proto_v1_connector_proto_rawDesc = "" +
 	"\x14collections_observed\x18\b \x01(\x05R\x13collectionsObserved\x12/\n" +
 	"\x13governance_diverged\x18\t \x03(\tR\x12governanceDiverged\x12+\n" +
 	"\x11terminology_error\x18\n" +
-	" \x01(\tR\x10terminologyError\"\x0f\n" +
+	" \x01(\tR\x10terminologyError\x12)\n" +
+	"\x10terms_projection\x18\v \x01(\tR\x0ftermsProjection\"\x0f\n" +
 	"\rHealthRequest\"Q\n" +
 	"\x0eHealthResponse\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12%\n" +

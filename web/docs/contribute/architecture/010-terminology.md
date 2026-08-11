@@ -174,12 +174,43 @@ fresh CI checkout. Presence is table-level, so the gate behaves identically
 whether the project's database is absent, present with empty terms tables, or
 fully populated ([AD-039](039-local-context-graph-store.md)); the tables earn
 their keep only for the heavy indexed lookups (fuzzy, FTS) during translation.
-**CI reads the terms; it never writes them back** — humans author them through
-git; a pulled new bundle just rebuilds the projection, so there is nothing to
-reconcile.
+
+**The projection is rebuilt on the read path, not only by an edit.** The
+convergence loop compiles the bound bundle into the store before it runs,
+keyed by the file's content digest, so a fresh clone converges against the
+committed vocabulary and a pulled change to the bundle reaches the store with no
+explicit import. An unchanged bundle costs a read and no writes.
+
+### The return leg: reviewed decisions come home
+
+A workspace's terminology is decided where the reviewers are, so decisions have
+to travel back into git or they exist only in a store nobody diffs. After a
+concept pull, the reviewed decisions among the pulled concepts are **merged**
+into the committed bundle.
+
+Two properties make that safe to run unattended:
+
+- **Upsert-only, at every level.** A concept the decision set does not mention
+  survives; a term it does not mention survives; nothing is removed. A
+  whole-store export over the authored file would be the opposite — it would
+  delete every concept the workspace has not adopted — so removal stays an
+  edit an author makes deliberately.
+- **Byte-stable.** The merged document is compared against the bytes on disk and
+  an identical serialization is not rewritten, so a run with no new decisions
+  writes nothing at all.
+
+What counts as reviewed is the term's own status. A platform admits *forbidden*
+and *preferred* only from a reviewed change-set — the direct write path refuses
+them — so a term resting at either carries the evidence that a reviewer approved
+it. A concept whose terms are all ungoverned is ordinary workspace state and
+stays out of git until a decision touches it. The same rule selects the one
+governed edge kind, `REPLACED_BY`.
+
+The projection lands in the working tree; publishing it is a reviewable pull
+request, never a push to the default branch.
 
 In bowrain (server mode) terminology is managed in the platform database and
-edited through the app; git is not in the loop.
+edited through the app.
 
 > **Source, not state.** Contrast content memory
 > ([AD-009](009-content-memory.md)), which is *derived state* — a rebuildable

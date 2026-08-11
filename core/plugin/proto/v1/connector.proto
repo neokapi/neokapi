@@ -202,6 +202,12 @@ message PullResponse {
   // cursor already advanced, so replacing the result with an error would hide
   // what did arrive.
   string terminology_error = 10;
+
+  // The terminology return leg's report: reviewed decisions the pull merged
+  // into the committed terms source, as the one line the verb prints. Empty
+  // when the merge produced the bytes already in git, which is the ordinary
+  // outcome — a pull that changed nothing must say nothing.
+  string terms_projection = 11;
 }
 
 // ---------------------------------------------------------------------------

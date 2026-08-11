@@ -302,10 +302,21 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		return fmt.Errorf("pull: %w", err)
 	}
 	if proj, perr := project.FindProject(""); perr == nil {
-		if _, baseline, cerr := conceptPull(ctx, proj, false); cerr != nil {
+		cres, baseline, cerr := conceptPull(ctx, proj, false)
+		if cerr != nil {
 			return cerr
-		} else if baseline != nil {
+		}
+		if baseline != nil {
 			conn.SetConceptBaseline(baseline)
+		}
+		// The terminology return leg: reviewed decisions the pull brought back
+		// are merged into the committed terms source, so they are reviewable in
+		// `git diff` rather than living only in the gitignored store. Silence
+		// when the merge changed nothing, which is the ordinary night.
+		if cres != nil && !app.Quiet && !jsonOut {
+			if line := cli.FormatTermsProjection(cres.Projection); line != "" {
+				fmt.Fprintln(stderr, line)
+			}
 		}
 	}
 

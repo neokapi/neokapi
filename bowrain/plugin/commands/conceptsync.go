@@ -13,6 +13,7 @@ import (
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
+	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/terms"
@@ -94,11 +95,17 @@ type relationAddPayload struct {
 // Results
 // ---------------------------------------------------------------------------
 
-// PullConceptsResult holds the counts a concept pull reports.
+// PullConceptsResult holds the counts a concept pull reports, plus what the
+// return leg into the committed terms source amounted to.
 type PullConceptsResult struct {
 	Concepts  int
 	Terms     int
 	Relations int
+	// Projection reports the merge of the workspace's reviewed decisions into
+	// the project's committed terms source. Zero-valued when the project has no
+	// recipe path to project into, and Written is false whenever the merge
+	// produced the bytes already in git.
+	Projection cli.TermsProjectionResult
 }
 
 // PushConceptsResult holds what a concept push applied directly versus proposed
@@ -135,13 +142,20 @@ func (r *PushConceptsResult) changed() bool {
 
 // PullConcepts paginates the workspace concept search, fetches the typed
 // relations touching the pulled concepts, writes them into tb (refreshing by
-// concept ID), and returns the counts plus a baseline snapshot the caller
-// records in the sync cache so a later push can diff against it. When dryRun is
-// set it fetches and counts but writes nothing.
+// concept ID), projects the reviewed decisions among them into the project's
+// committed terms source, and returns the counts plus a baseline snapshot the
+// caller records in the sync cache so a later push can diff against it. When
+// dryRun is set it fetches and counts but writes nothing.
+//
+// The projection is the return leg's other half. Without it a pull writes the
+// workspace's vocabulary into the gitignored store and stops there, so a
+// decision a reviewer approved on the server can never reach the repository
+// that asked for it. recipePath names the project to project into; empty skips
+// the projection (a caller with no recipe in hand).
 //
 // tb is the project's terms store, handed in rather than opened: it is a schema
 // of the project's one store, and the handle belongs to the caller's App.
-func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *terms.SQLiteStore, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
+func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *terms.SQLiteStore, recipePath string, dryRun bool) (*PullConceptsResult, *bproject.ConceptBaseline, error) {
 	concepts, kept, err := fetchServerConcepts(ctx, client)
 	if err != nil {
 		return nil, nil, err
@@ -156,6 +170,13 @@ func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *term
 	if !dryRun {
 		if err := writeConceptsToTerms(ctx, tb, concepts, kept); err != nil {
 			return nil, nil, err
+		}
+		if recipePath != "" && app != nil {
+			proj, perr := app.ProjectReviewedConcepts(ctx, recipePath, concepts, kept)
+			if perr != nil {
+				return nil, nil, fmt.Errorf("project reviewed terminology: %w", perr)
+			}
+			res.Projection = proj
 		}
 	}
 
@@ -720,7 +741,7 @@ func conceptPull(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pul
 	if err != nil {
 		return nil, nil, err
 	}
-	res, baseline, err := PullConcepts(ctx, client, tb, dryRun)
+	res, baseline, err := PullConcepts(ctx, client, tb, proj.Layout.RecipePath, dryRun)
 	if err != nil {
 		return nil, nil, err
 	}

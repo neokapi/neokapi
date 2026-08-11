@@ -224,10 +224,13 @@ terms store ([AD-010](010-terminology.md)), which is *source*, the memory is
   (the shared, authoritative "remote backend"). One continuum, larger backend.
 - it is **rebuildable**, which makes it softer than Terraform state: the leverage
   reconstructs from the committed translations (the per-locale `i18n/{lang}/`
-  target catalogs) plus an optional human-curated, **read-only** committed
-  `.memory.json` *seed*
-  bound by `defaults.memory_source`. A cold or clobbered store is a performance hit,
-  not data loss.
+  target catalogs) plus the human-curated, **read-only** committed
+  `.memory.json` *seeds*. A cold or clobbered store is a performance hit,
+  not data loss. The rebuild happens on the read path: the convergence loop
+  compiles every committed bundle under `.kapi/memory/` — not only the primary
+  bound by `defaults.memory_source` — before it runs, keyed by each file's
+  content digest, so a fresh clone has its reviewed leverage without an explicit
+  import and an unchanged bundle costs a read and no writes.
 - because it is additive and rebuildable it needs **no locking**: it tolerates
   last-write-wins or per-branch cache keys, unlike Terraform state, which must be
   locked because it is irreplaceable.
