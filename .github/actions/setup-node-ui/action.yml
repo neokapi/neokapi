@@ -10,6 +10,17 @@ inputs:
 runs:
   using: composite
   steps:
+    # Drift between the vite-plus devDependency and the `vite` catalog alias
+    # breaks vp itself: the overrides force vite-plus's own vendored core down
+    # to the aliased version, and a core that far from the CLI cannot load its
+    # rolldown binding. Every step below is a vp invocation, so the guard has to
+    # precede all of them — behind them it never runs. It sat inside `make
+    # ci-frontend` and stayed skipped while eight jobs failed on the binding
+    # trace instead, which is the failure it exists to translate.
+    - name: Guard — the vite catalog alias tracks vite-plus
+      shell: bash
+      run: bash scripts/audit-vite-alias.sh
+
     # `vp env use <node-version>` downloads a Node.js runtime from the Vite+
     # CDN whenever the runner has no matching one cached. That download is the
     # single point of failure for every job that uses this action: on
