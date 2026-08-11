@@ -918,6 +918,13 @@ jobs:
       - name: Guard — the sync commits only what the committed context explains
         run: ./scripts/check-sync-backed.sh --self-test
 
+      # Same reason, one step further along: the delivery that carries a
+      # scheduled job's output to a reviewable pull request also runs nowhere a
+      # pull request would notice. Its self-test drives the real staging, push
+      # and refresh against scratch repositories with a real remote.
+      - name: Guard — scheduled output is delivered as a reviewable pull request
+        run: ./scripts/auto-pr.sh --self-test
+
       # The fixture guard expands the extract globs the way the extractor does,
       # so it needs `fs/promises.glob` — Node 22. No dependencies: it reads the
       # flag sets from `make l10n-extract-globs` and globs the working tree.
