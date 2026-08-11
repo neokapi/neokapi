@@ -40,40 +40,18 @@ jobs:
             echo "value=${GH_SHA}" >> "$GITHUB_OUTPUT"
           fi
 
+  # This workflow builds and publishes; it does not deploy. Hosted prod is
+  # Cognito end-to-end and has no Keycloak task definition (bowrain-infra
+  # AD-005) — the cluster runs exactly three services, server, worker and
+  # pulse. Keycloak is the self-host and dev provider, consumed from ghcr by
+  # whoever runs it, so there is no service here for this repo to roll.
+  #
+  # A deploy step added later must not gate on `vars.AWS_DEPLOY_ROLE_ARN`: that
+  # variable is shared with every other deploy workflow and is set, so it
+  # cannot express whether a Keycloak service exists.
   build:
     name: Build Keycloak Image
     needs: image-tag
     uses: ./.github/workflows/_build-keycloak-image.yml
     with:
       image-tag: ${{ needs.image-tag.outputs.value }}
-
-  deploy:
-    name: Deploy to ECS
-    # No-op until the AWS environment exists: with the repo var unset the job
-    # is skipped and the workflow stays green (build + publish only).
-    if: ${{ vars.AWS_DEPLOY_ROLE_ARN != '' }}
-    needs: [image-tag, build]
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    environment: ${{ inputs.environment || 'prod' }}
-    steps:
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      # The task definition is Terraform-owned and pins :latest — the forced
-      # deployment makes ECS re-pull the :latest image pushed above.
-      # Rollback = re-run this workflow from an older commit (a retag
-      # workflow_dispatch input can make that a one-click revert later).
-      - name: Force new deployment of keycloak
-        env:
-          CLUSTER: ${{ vars.ECS_CLUSTER }}
-          SERVICE: bowrain-${{ inputs.environment || 'prod' }}-keycloak
-        run: |
-          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" \
-            --force-new-deployment > /dev/null
-          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
