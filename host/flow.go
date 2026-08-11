@@ -770,12 +770,18 @@ func (a *App) processFlowFile(ctx context.Context, cmd Command, flowName, inputP
 // When recorder is non-nil, tools are wrapped with TracingTool and reader/writer
 // events are recorded. Returns trace nodes (nil when recorder is nil).
 func (a *App) processFlowFileNative(ctx context.Context, cmd Command, flowName, inputPath, outputTemplate, outputBase, registryName string, reader format.DataFormatReader, mergedConfig map[string]any, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
-	// Build fresh tool instances for this file (thread-safe in batch mode).
-	flowTools, cleanup, err := a.buildFlowTools(flowName, inputPath, cmd)
+	// A project run hands back the pass's assembled chain — ONE slice, shared by
+	// every file in the batch, which runs its files concurrently. So the wrapping
+	// below builds this file's own slice rather than writing into that one: an
+	// in-place wrap is a write to shared memory from each goroutine, and the
+	// wrapper another goroutine happens to be reading is not the one it created.
+	shared, cleanup, err := a.buildFlowTools(flowName, inputPath, cmd)
 	if err != nil {
 		return nil, err
 	}
 	defer cleanup()
+	flowTools := make([]tool.Tool, len(shared))
+	copy(flowTools, shared)
 
 	// Auto-wrap IO-bound tools with ParallelBlockTool.
 	if n := a.resolveParallelBlocks(flowName); n > 1 {
