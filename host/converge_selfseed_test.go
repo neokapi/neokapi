@@ -83,6 +83,7 @@ func newSelfSeedProject(t *testing.T) (*App, *EnvCommand, string) {
 	a.SourceLang = "en"
 	cmd := NewEnvCommand(context.Background(), "up")
 	a.AddFlowRunFlags(cmd)
+	AddUpFlags(cmd)
 	// Discovery is off under the isolation contract, so the fixture names its
 	// own recipe explicitly — an explicit -p wins over KAPI_NO_PROJECT, and the
 	// recycle tool resolves the project store from it exactly as a real run does.
@@ -124,6 +125,45 @@ func TestConverge_SelfSeedsCommittedContext(t *testing.T) {
 	target, err := os.ReadFile(filepath.Join(filepath.Dir(recipe), "src", "nb.json"))
 	require.NoError(t, err)
 	assert.Contains(t, string(target), "Hei verden")
+}
+
+// TestUpPlan_DoesNotCreateTheStore: `kapi up --plan` is a dry run, so it must
+// not leave a project store behind. Seeding on the plan path is therefore
+// conditional on a store already being there — computeProjectPlan stats rather
+// than opens for the same reason, because opening runs every subsystem's
+// migrations and creates the file.
+func TestUpPlan_DoesNotCreateTheStore(t *testing.T) {
+	a, cmd, recipe := newSelfSeedProject(t)
+	require.NoError(t, cmd.Flags().Set("plan", "true"))
+
+	require.NoError(t, a.ExecuteUp(cmd, recipe))
+
+	assert.NoFileExists(t, project.LayoutAt(filepath.Dir(recipe)).StorePath(),
+		"a dry run created a project store")
+}
+
+// TestUpPlan_SeedsAnExistingStore: once a store is there, the plan seeds it, so
+// the leverage figure a user approves spend against reflects what git carries
+// rather than what the last run happened to leave behind.
+func TestUpPlan_SeedsAnExistingStore(t *testing.T) {
+	a, cmd, recipe := newSelfSeedProject(t)
+	root := filepath.Dir(recipe)
+	ctx := context.Background()
+
+	// A store exists but predates the committed bundle.
+	db, err := a.ProjectDB(ctx, root)
+	require.NoError(t, err)
+	require.NoError(t, db.PutMeta(ctx, "seed-test", "1"))
+	before, err := db.Memory().Count(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, before)
+
+	require.NoError(t, cmd.Flags().Set("plan", "true"))
+	require.NoError(t, a.ExecuteUp(cmd, recipe))
+
+	after, err := db.Memory().Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, after, "the plan seeded the existing store from the committed bundle")
 }
 
 // TestConverge_SeedsAPulledSourceEdit: a `git pull` that changes a committed

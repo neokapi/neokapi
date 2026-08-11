@@ -175,6 +175,18 @@ func (a *App) SeedProjectContext(ctx context.Context, projectPath string) (SeedC
 	return res, nil
 }
 
+// projectStoreExists reports whether the project already has a store file. It
+// stats rather than opens, because opening creates one — the distinction a dry
+// run depends on.
+func projectStoreExists(projectPath string) bool {
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		return false
+	}
+	_, statErr := os.Stat(layout.StorePath())
+	return statErr == nil
+}
+
 // storeHolds reports whether this build's store carries the subsystem a source
 // compiles into.
 func storeHolds(db *projectdb.DB, kind contextSourceKind) bool {
