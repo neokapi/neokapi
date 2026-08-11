@@ -1587,7 +1587,20 @@ landing-build-nb:## Build the nb landing variant → bowrain/web/landing/dist/nb
 
 # The stages chain through their prerequisites (compile → translate → extract),
 # so this is one ordered walk even under `make -j`.
+#
+# The collapse guard closes the loop on itself. Everything downstream treats
+# whatever stage 4 wrote as the truth — the auto-fix commits it, l10n-verify
+# compares against it — so a stage-3 run that produced no target catalogs
+# writes `{}` everywhere and every check agrees. Asserting it here, in the walk
+# that produced the files, is the one place that can tell the difference.
 l10n: l10n-compile ## Bring every multilingual surface up to date (all four stages)
+	@$(MAKE) --no-print-directory l10n-collapse-check
+
+# Not a coverage bar: a catalog with fewer entries than yesterday passes. Only a
+# catalog that carried entries at HEAD and regenerated to none fails, and only
+# while the committed content memory still holds pairs for its locale.
+l10n-collapse-check: ## Guard: no committed target-locale catalog regenerated to empty
+	@node scripts/check-catalog-collapse.mjs $(L10N_LANGS) -- $(L10N_DERIVED)
 
 # The only l10n gate. It asserts generated-vs-source consistency: the committed
 # derived artifacts must be exactly what the current source + committed context
@@ -2404,6 +2417,7 @@ help: ## Show this help
         kapi-i18n-generate kapi-cli-i18n-generate i18n-react-build i18n-catalogs \
         l10n l10n-extract l10n-seed l10n-translate l10n-pseudo l10n-compile \
         l10n-verify l10n-derived-paths l10n-extract-globs l10n-review-export \
+        l10n-collapse-check \
         l10n-orphans l10n-orphans-report \
         check-extract-fixtures \
         flow-editor-deps flow-editor-check flow-editor-test \
