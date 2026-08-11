@@ -1,64 +1,78 @@
 id: kapi-desktop-flows
-title: Sett sammen flyter for et prosjekt
-subtitle: Rørledningene et prosjekt kjører over innholdet sitt.
-tagline: den visuelle følgesvennen til kapi-kommandolinjen
+title: Compose flows for a project
+subtitle: The pipelines a project runs over its content.
+tagline: the visual companion to the kapi command line
 kind: use-case
 publishAs: kapi-desktop-flows
-terminal: skrivebord
+terminal: desktop
 brand: desktop
 needsAi: false
 # One continuous narration read — uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Prosjektflyter
-  - Rørledninger av trinn
-  - KI-oversettelse og kvalitetssikring
-  - Sammensettbare verktøy
+  - Project flows
+  - Pipelines of steps
+  - AI translation & QA
+  - Composable tools
 
 narration:
   - id: title
     kind: title
     text: >-
-      Et prosjekt trenger ingen flytdefinisjoner for å oversette: Kapi leveres med en innebygd standardflyt — gjenbruk av oversettelsesminne, deretter KI-oversettelse, deretter kontroller.
+      A project needs no flow definitions to translate: Kapi ships a built-in
+      default flow — translation-memory reuse, then AI translation, then
+      checks.
+
   - id: intro
-    kind: skrivebord
+    kind: desktop
     beat: intro
     text: >-
-      Bring up to date kjører den standard flyten slik den er. Vi åpner KapiMart-eksemplet for å se når et prosjekt definerer sin egen.
+      Bring up to date runs that default flow as it stands. We'll open the
+      KapiMart sample to see when a project defines its own.
+
   - id: open-project
     kind: desktop
     beat: open-project
     caption: KapiMart — åpnet fra startskjermen.
     text: >-
-      KapiMart åpnes fra startskjermen, med sitt eget innhold, innstillinger og flyter.
-  - id: bibliotek
-    kind: skrivebord
+      KapiMart åpnes fra startskjermen, med sitt eget innhold, egne innstillinger og egne flyter.
+  - id: library
+    kind: desktop
     beat: library
-    caption: Flyt-fanen viser pipelinene som er definert i prosjektet.
+    caption: The Flows tab lists the pipelines defined in the project.
     text: >-
-      Flyter-fanen i verktøykassen er nødutgangen: rørledninger som prosjektet definerer når standarden ikke er tilstrekkelig, lagret sammen med det og delt via versjonskontroll.
+      The Flows tab in the Toolbox is the escape hatch: pipelines the project
+      defines when the default is not enough, saved alongside it and shared
+      through version control.
+
   - id: library-zoom
-    kind: skrivebord
+    kind: desktop
     beat: library-zoom
-    caption: Hver flyt er en navngitt sekvens av trinn.
+    caption: Hver flyt er en navngitt sekvens av steg.
     text: >-
-      Hver enkelt er en navngitt sekvens av trinn — en enkel oversettelse, en oversettelse med kvalitetskontroller og en pseudo-oversettelse for testing.
+      Hver av dem er en navngitt sekvens av steg — en ren oversettelse, en oversettelse med kvalitetskontroller, og en pseudooversettelse for testing.
   - id: open-flow
-    kind: skrivebord
+    kind: desktop
     beat: open-flow
-    caption: Å åpne en flyt viser dens pipeline.
+    caption: En åpnet flyt viser pipelinen sin.
     text: >-
-      Å åpne translate-and-qa avslører pipelinen.
+      Åpner du translate-and-qa, ser du pipelinen dens.
   - id: pipeline
-    kind: skrivebord
+    kind: desktop
     beat: pipeline
-    caption: "Kilden flyter gjennom KI-oversettelse, deretter en kvalitetskontroll."
+    caption: Source flows through AI translation, then a quality check.
     text: >-
-      Kilden flyter gjennom KI-oversettelse og deretter en kvalitetskontroll før den skrives tilbake — samme form som den innebygde standarden, nå din å omorganisere, legge til eller utvide.
+      The source flows through AI translation and then a quality check before
+      it is written back — the same shape as the built-in default, now yours
+      to reorder, add to, or extend.
+
   - id: outro
     kind: outro
     text: >-
-      Standard-flyten dekker de fleste prosjekter uten noen konfigurasjon. Når den ikke gjør det, setter du sammen din egen — visuelt, lagret med prosjektet, kjør hvor som helst.
+      The default flow covers most projects with zero configuration. When it
+      doesn't, compose your own — visually, saved with the project, run
+      anywhere.
+
 # Norwegian Bokmål narration is generated, not authored here: `make l10n`
 # recycles this file into the sibling demo.nb.yaml sidecar, which the harness
 # overlays at load time. Fix a translation in the demo-narration seed under
