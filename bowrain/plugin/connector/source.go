@@ -1147,13 +1147,13 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	}
 
 	return &bowrainconn.PullResult{
-		BlocksPulled:        totalPulled,
-		LocalesCount:        len(locales),
-		FilesWritten:        filesWritten,
-		ItemsRetired:        itemsRetired,
-		DecisionsStaged:     decisionsStaged,
-		DecisionsSkipped:    decisionsSkipped,
-		CollectionsObserved: contextResult.Observed,
+		BlocksPulled:         totalPulled,
+		LocalesCount:         len(locales),
+		FilesWritten:         filesWritten,
+		ItemsRetired:         itemsRetired,
+		DecisionsStaged:      decisionsStaged,
+		DecisionsSkipped:     decisionsSkipped,
+		CollectionsObserved:  contextResult.Observed,
 		GovernanceDiverged:   contextResult.Diverged,
 		GovernanceDivergence: contextResult.DivergedDetail,
 	}, nil

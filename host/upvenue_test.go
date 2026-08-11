@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -135,24 +136,12 @@ func (s *serverUpStub) dispatchedArgs(t *testing.T) []string {
 	}
 	require.NoError(t, err)
 	var args []string
-	for _, line := range splitLines(string(raw)) {
+	for line := range strings.SplitSeq(string(raw), "\n") {
 		if line != "" {
 			args = append(args, line)
 		}
 	}
 	return args
-}
-
-func splitLines(s string) []string {
-	var out []string
-	start := 0
-	for i := range len(s) {
-		if s[i] == '\n' {
-			out = append(out, s[start:i])
-			start = i + 1
-		}
-	}
-	return append(out, s[start:])
 }
 
 // TestResolveUpVenue is the decision table both surfaces share.
@@ -237,24 +226,23 @@ func callMCPUp(t *testing.T, a *App, in map[string]any) (*ConvergeOutput, error)
 		return nil, err
 	}
 	if res.IsError {
-		return nil, assertToolError(t, res)
+		return nil, toolErrorFrom(res)
 	}
 	var out ConvergeOutput
 	require.NoError(t, json.Unmarshal(mustJSON(t, res.StructuredContent), &out))
 	return &out, nil
 }
 
-// assertToolError turns an MCP tool error result into a Go error so a caller
-// can assert on the message.
-func assertToolError(t *testing.T, res *mcp.CallToolResult) error {
-	t.Helper()
-	msg := ""
+// toolErrorFrom turns an MCP tool error result into a Go error so a caller can
+// assert on the message.
+func toolErrorFrom(res *mcp.CallToolResult) error {
+	var parts []string
 	for _, c := range res.Content {
 		if tc, ok := c.(*mcp.TextContent); ok {
-			msg += tc.Text
+			parts = append(parts, tc.Text)
 		}
 	}
-	return &mcpToolError{msg: msg}
+	return &mcpToolError{msg: strings.Join(parts, "")}
 }
 
 type mcpToolError struct{ msg string }
