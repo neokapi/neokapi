@@ -25,7 +25,10 @@ func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, fn func(i
 	if err != nil {
 		return "", fmt.Errorf("%s!%s: %w", loc.Archive, loc.Entry, err)
 	}
-	fmtName := a.ResolveFormatName(loc.Entry, content)
+	fmtName, err := a.ResolveFormatName(loc.Entry, content)
+	if err != nil {
+		return "", fmt.Errorf("%s!%s: %w", loc.Archive, loc.Entry, err)
+	}
 	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
 	if err != nil {
 		return fmtName, fmt.Errorf("no reader for format %q: %w", fmtName, err)
@@ -64,7 +67,10 @@ func (a *App) streamEntryBlocks(ctx context.Context, loc entryLocator, fn func(i
 // for byte-faithful round-trip) but on bytes, so it can drive a single archive
 // entry. Returns an error if the format has no writer.
 func (a *App) editBytes(ctx context.Context, name string, content []byte, t *tool.BaseTool, writeLocale model.LocaleID) ([]byte, error) {
-	fmtName := a.ResolveFormatName(name, content)
+	fmtName, err := a.ResolveFormatName(name, content)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", name, err)
+	}
 	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
 	if err != nil {
 		return nil, fmt.Errorf("no reader for format %q: %w", fmtName, err)

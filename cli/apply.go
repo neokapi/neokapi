@@ -14,8 +14,9 @@ import (
 // authored the changes; apply enforces the guardrails and writes them.
 func NewApplyCmd(a *App) *cobra.Command {
 	var (
-		diff   bool
-		asJSON bool
+		diff        bool
+		asJSON      bool
+		inPlaceFlag *InPlaceFlag
 	)
 	cmd := &cobra.Command{
 		Use:     "apply [flags] [CHANGESET]",
@@ -53,8 +54,8 @@ writes nothing. No AI provider is required.`,
 				return errors.New("--diff previews changes without writing; it cannot be combined with -i/--in-place")
 			}
 			backupSuffix := ""
-			if v, _ := cmd.Flags().GetString("in-place"); inPlace && v != SentinelInPlace {
-				backupSuffix = v
+			if inPlace {
+				backupSuffix = inPlaceFlag.Suffix
 			}
 			path := ""
 			if len(args) == 1 {
@@ -69,7 +70,6 @@ writes nothing. No AI provider is required.`,
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format for content files (default: auto-detect)")
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
 	f.StringVar(&a.Encoding, "encoding", "UTF-8", "input/output encoding")
-	f.StringP("in-place", "i", "", "keep a backup of edited content files with --in-place=.bak")
-	f.Lookup("in-place").NoOptDefVal = SentinelInPlace
+	inPlaceFlag = RegisterInPlace(f, "keep a backup of edited content files with --in-place=.bak")
 	return cmd
 }

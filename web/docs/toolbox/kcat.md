@@ -44,6 +44,7 @@ rather than the block-aware `kgrep`.
 | ---- | ------- |
 | `-n, --number` | Number the output blocks. |
 | `--id` | Prefix each block with its source ID. |
+| `-r, --recursive` | Recurse into directory arguments. |
 | `--target LOCALE` | Print the translation for `LOCALE` instead of the source. |
 | `-f, --format` | Override format detection (e.g. `-f json`). |
 | `--source-lang` | Source language (default `en`). |

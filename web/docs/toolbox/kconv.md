@@ -21,6 +21,12 @@ The target format comes from `--to` — a format id such as `markdown`, `html` o
 extension. With no `-o`, the result is written to standard output. With no file,
 or when the file is `-`, standard input is read.
 
+Several files convert in one run. Give `-o` a **directory** — a trailing slash,
+or a path that already is one — and each input is written to its own file there,
+named after the input and re-extensioned for the target format. With `-r`,
+directory arguments are walked and the sub-tree is mirrored under the output
+directory.
+
 ## How the conversion works
 
 `kconv` is a projection of the content model. Each block carries a normalized
@@ -73,6 +79,12 @@ kconv guide.md -o guide.dclg.xml
 
 # Emit the French translation of an XLIFF as Markdown
 kconv messages.xliff --to md --target fr
+
+# Everything in a folder to Markdown, one file each, in converted/
+kconv ~/Downloads/* --to md -o converted/
+
+# A whole documentation tree to HTML, sub-directories mirrored
+kconv -r docs --to html -o site/
 ```
 
 ## Options
@@ -80,14 +92,28 @@ kconv messages.xliff --to md --target fr
 | Flag | Meaning |
 | ---- | ------- |
 | `-t, --to FORMAT` | Target format — a format id (`markdown`, `html`, `doclang`) or an extension (`md`). |
-| `-o, --output PATH` | Write to `PATH` (format inferred from its extension); default is standard output. |
+| `-o, --output PATH` | Write to `PATH`; a directory (`-o out/`) writes one file per input. Default is standard output. |
+| `-r, --recursive` | Recurse into directory arguments. |
 | `--target LOCALE` | Convert the translation for `LOCALE` instead of the source. |
 | `-f, --format` | Override input format detection (e.g. `-f docling`). |
 | `--source-lang` | Source language (default `en`). |
 | `--encoding` | Input/output encoding (default `UTF-8`). |
 
-`-o` takes a single input file — convert files one at a time, or omit `-o` to
-stream to standard output.
+## Writing to a directory
+
+An output directory is created if it does not exist. Each input becomes
+`<name>.<ext>` under it, where `<ext>` is the target format's own extension, and
+sub-directories are mirrored relative to the deepest directory every input
+shares — so `kconv 'docs/**/*.md' --to html -o site/` writes
+`site/guide/intro.html` for `docs/guide/intro.md`, and two files of the same name
+in sibling directories cannot collide.
+
+Two inputs that *would* resolve to the same output file — `report.md` and
+`report.html` both converted to DocLang — are a reported error rather than a
+silent overwrite, and so is a conversion that would write over its own input.
+The rest of the run continues; the exit status is 2.
+
+Without a directory, `-o` names a single output file and takes a single input.
 
 ## Faithful vs. clean
 

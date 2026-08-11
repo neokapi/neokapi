@@ -102,7 +102,7 @@ namesakes' contract.
 | `pack` / `unpack` / `info` | positional archive | — | text·json·yaml | preferred / — | 1 |
 | `add` / `ls` / `rm` | positional patterns | yes | text·json·yaml | required | 1 |
 | `exec <tool> <files…>` | positional | yes | text·json·yaml | memory + terms bound from project | 1 |
-| `kcat` / `kgrep` / `ksed` / `kconv` | positional, stdin | globs yes, dirs need `-r` | text·json·yaml | — | 2; kgrep 1 = no match |
+| `kcat` / `kgrep` / `ksed` / `kconv` | positional, stdin | globs yes, dirs need `-r` (`ksed`: `-R`) | text·json·yaml | — | 2; kgrep 1 = no match |
 | `kdiff a [b]` | 1–2 positional | — | text·json·yaml | — | 1 differ |
 | `flows` / `tools` / `formats` | — | — | text·json·yaml | — | 1 |
 | `plugin …` | positional name | — | text·json·yaml | — | 1; doctor 1 unhealthy |

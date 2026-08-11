@@ -11,8 +11,10 @@ import (
 // via newToolboxProxies, behind the detached `kapi ksed` subcommand.
 func newSedCmd(a *App) *cobra.Command {
 	var (
-		scripts   []string
-		targetLoc string
+		scripts     []string
+		targetLoc   string
+		recursive   bool
+		inPlaceFlag *InPlaceFlag
 	)
 
 	cmd := &cobra.Command{
@@ -31,9 +33,14 @@ By default the edited document is written to standard output (like sed); use -i
 to edit files in place, optionally keeping a backup (-i.bak). Edits apply to the
 source text unless --target LOCALE selects a translation.
 
+Directory arguments are walked with -R. It is spelled -R rather than -r because
+sed's own -r means --regexp-extended, and quietly repurposing it would rewrite a
+whole tree for someone who only asked for a different regexp dialect.
+
 With no FILE, or when FILE is "-", standard input is read.`,
 		Example: `  ksed 's/colour/color/g' guide.md
   ksed -i 's/Inc\./LLC/' *.docx
+  ksed -R -i 's/colour/color/g' docs
   ksed -i.bak -e 's/v1/v2/g' -e 's/beta//' locales/en.JSON
   ksed --target fr 's/Bonjour/Salut/g' messages.xliff`,
 		Args: cobra.ArbitraryArgs,
@@ -55,9 +62,7 @@ With no FILE, or when FILE is "-", standard input is read.`,
 			inPlace := cmd.Flags().Changed("in-place")
 			backupSuffix := ""
 			if inPlace {
-				if v, _ := cmd.Flags().GetString("in-place"); v != SentinelInPlace {
-					backupSuffix = v
-				}
+				backupSuffix = inPlaceFlag.Suffix
 			}
 
 			loc := model.LocaleID(targetLoc)
@@ -65,20 +70,25 @@ With no FILE, or when FILE is "-", standard input is read.`,
 			t := NewSedTool(prog, loc, scopeSource)
 			writeLocale := loc // "" for source round-trip
 
-			return a.RunSed(cmd.Context(), files, t, writeLocale, inPlace, backupSuffix)
+			return a.RunSed(cmd.Context(), files, t, SedOptions{
+				WriteLocale:  writeLocale,
+				InPlace:      inPlace,
+				BackupSuffix: backupSuffix,
+				Recursive:    recursive,
+			})
 		},
 	}
 
 	f := cmd.Flags()
 	f.StringArrayVarP(&scripts, "expression", "e", nil, "add a substitution script (repeatable; SCRIPT positional not needed)")
+	f.BoolVarP(&recursive, "recursive", "R", false, "recurse into directory arguments (-R, not -r: sed's -r is --regexp-extended)")
 	f.StringVar(&targetLoc, "target", "", "edit the target translation for LOCALE instead of the source")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format (default: auto-detect by extension/content)")
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
 	f.StringVar(&a.Encoding, "encoding", "UTF-8", "input/output encoding")
 
 	// -i takes an OPTIONAL backup suffix: `-i` (no backup) or `-i.bak`.
-	f.StringP("in-place", "i", "", "edit files in place; append a backup SUFFIX if given (e.g. -i.bak)")
-	f.Lookup("in-place").NoOptDefVal = SentinelInPlace
+	inPlaceFlag = RegisterInPlace(f, "edit files in place; append a backup SUFFIX if given (e.g. -i.bak)")
 
 	return cmd
 }

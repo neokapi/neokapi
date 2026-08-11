@@ -12,6 +12,7 @@ func newConvCmd(a *App) *cobra.Command {
 		to        string
 		outPath   string
 		targetLoc string
+		recursive bool
 	)
 
 	cmd := &cobra.Command{
@@ -28,11 +29,19 @@ The target format is taken from --to, or inferred from the -o output extension.
 With no -o, the result is written to standard output. With no FILE, or "-",
 standard input is read.
 
+Several files convert in one run. Give -o a directory (a trailing slash, or a
+path that already is one) and each input is written to its own file there,
+named after the input and re-extensioned for the target format; the directory
+is created if it does not exist. With -r, directory arguments are walked and
+the sub-tree is mirrored under the output directory.
+
 A same-format conversion (e.g. .docx → .docx) round-trips faithfully via the
 document skeleton; a cross-format conversion reconstructs from the content model.`,
 		Example: `  kconv report.docx --to md
   kconv report.dclg.xml -o report.html
   kconv scan.docling.JSON --to html
+  kconv ~/Downloads/* --to md -o converted/
+  kconv -r docs --to html -o site/
   kconv messages.xliff --to md --target fr
   docling convert in.pdf --to json | kconv -f docling --to md`,
 		Args: cobra.ArbitraryArgs,
@@ -41,13 +50,19 @@ document skeleton; a cross-format conversion reconstructs from the content model
 			if err != nil {
 				return err
 			}
-			return a.RunConv(cmd.Context(), args, toFmt, model.LocaleID(targetLoc), outPath)
+			return a.RunConv(cmd.Context(), args, ConvOptions{
+				To:           toFmt,
+				TargetLocale: model.LocaleID(targetLoc),
+				Output:       outPath,
+				Recursive:    recursive,
+			})
 		},
 	}
 
 	f := cmd.Flags()
 	f.StringVarP(&to, "to", "t", "", "target format (e.g. markdown, html, doclang, or an extension like md)")
-	f.StringVarP(&outPath, "output", "o", "", "output file (format inferred from its extension; default: stdout)")
+	f.StringVarP(&outPath, "output", "o", "", "output file, or a directory (`-o out/`) to write one file per input (default: stdout)")
+	f.BoolVarP(&recursive, "recursive", "r", false, "recurse into directory arguments")
 	f.StringVar(&targetLoc, "target", "", "convert the target translation for LOCALE instead of the source")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")

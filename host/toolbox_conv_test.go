@@ -59,7 +59,7 @@ func TestConvDocLangToMarkdown(t *testing.T) {
 	path := writeToolboxFile(t, dir, "report.dclg.xml", src)
 
 	out, err := captureStdout(t, func() error {
-		return app.RunConv(context.Background(), []string{path}, "markdown", "", "")
+		return app.RunConv(context.Background(), []string{path}, ConvOptions{To: "markdown"})
 	})
 	require.NoError(t, err)
 	assert.Contains(t, out, "## Overview")
@@ -82,7 +82,7 @@ func TestConvDocLangToHTML(t *testing.T) {
 	path := writeToolboxFile(t, dir, "t.dclg.xml", src)
 
 	out, err := captureStdout(t, func() error {
-		return app.RunConv(context.Background(), []string{path}, "html", "", "")
+		return app.RunConv(context.Background(), []string{path}, ConvOptions{To: "html"})
 	})
 	require.NoError(t, err)
 	// The export is a complete, standalone HTML document, not a bare fragment.
@@ -105,7 +105,7 @@ func TestConvMarkdownToDocLang(t *testing.T) {
 	path := writeToolboxFile(t, dir, "in.md", "# Title\n\nSome **bold** text.\n")
 
 	out, err := captureStdout(t, func() error {
-		return app.RunConv(context.Background(), []string{path}, "doclang", "", "")
+		return app.RunConv(context.Background(), []string{path}, ConvOptions{To: "doclang"})
 	})
 	require.NoError(t, err)
 	assert.Contains(t, out, `<doclang xmlns="https://www.doclang.ai/ns/v0"`)
@@ -122,7 +122,7 @@ func TestConvMarkdownCodeToDocLang(t *testing.T) {
 	path := writeToolboxFile(t, dir, "in.md", "```go\nfmt.Println(\"hi\")\n```\n")
 
 	out, err := captureStdout(t, func() error {
-		return app.RunConv(context.Background(), []string{path}, "doclang", "", "")
+		return app.RunConv(context.Background(), []string{path}, ConvOptions{To: "doclang"})
 	})
 	require.NoError(t, err)
 	assert.Contains(t, out, "<code>")
@@ -136,7 +136,7 @@ func TestConvToSkeletonTargetFails(t *testing.T) {
 	app := newToolboxApp(t)
 	dir := t.TempDir()
 	path := writeToolboxFile(t, dir, "in.md", "# Title\n")
-	err := app.RunConv(context.Background(), []string{path}, "openxml", "", filepath.Join(dir, "out.docx"))
+	err := app.RunConv(context.Background(), []string{path}, ConvOptions{To: "openxml", Output: filepath.Join(dir, "out.docx")})
 	require.Error(t, err, "expected openxml (skeleton-driven) to reject generation from markdown")
 }
 
@@ -165,7 +165,7 @@ func TestConvToFile(t *testing.T) {
 		`<doclang xmlns="https://www.doclang.ai/ns/v0" version="0.6"><heading level="1">Hi</heading></doclang>`)
 	outPath := filepath.Join(dir, "out.html")
 
-	err := app.RunConv(context.Background(), []string{src}, "html", "", outPath)
+	err := app.RunConv(context.Background(), []string{src}, ConvOptions{To: "html", Output: outPath})
 	require.NoError(t, err)
 	got, err := os.ReadFile(outPath)
 	require.NoError(t, err)
@@ -178,7 +178,7 @@ func TestConvOutputRejectsMultipleInputs(t *testing.T) {
 	dir := t.TempDir()
 	a := writeToolboxFile(t, dir, "a.md", "# A\n")
 	b := writeToolboxFile(t, dir, "b.md", "# B\n")
-	err := app.RunConv(context.Background(), []string{a, b}, "html", "", filepath.Join(dir, "out.html"))
+	err := app.RunConv(context.Background(), []string{a, b}, ConvOptions{To: "html", Output: filepath.Join(dir, "out.html")})
 	require.Error(t, err)
 }
 
@@ -195,7 +195,7 @@ func TestConvTimingReportsPerFile(t *testing.T) {
 	app.ConvTiming = true
 	stderr, err := captureStderr(t, func() error {
 		_, outErr := captureStdout(t, func() error {
-			return app.RunConv(context.Background(), []string{a, b}, "html", "", "")
+			return app.RunConv(context.Background(), []string{a, b}, ConvOptions{To: "html"})
 		})
 		return outErr
 	})
@@ -206,7 +206,7 @@ func TestConvTimingReportsPerFile(t *testing.T) {
 	app.ConvTiming = false
 	stderr, err = captureStderr(t, func() error {
 		_, outErr := captureStdout(t, func() error {
-			return app.RunConv(context.Background(), []string{a}, "html", "", "")
+			return app.RunConv(context.Background(), []string{a}, ConvOptions{To: "html"})
 		})
 		return outErr
 	})

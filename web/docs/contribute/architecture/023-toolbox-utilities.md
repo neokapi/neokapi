@@ -99,6 +99,16 @@ text. This is the one place the toolbox decides what "the text" of a file is.
   `plaintext`. stdin carries no usable path, so its detection is purely
   content-based through the same detector — a piped `.docx` or JSON catalog is
   still recognized.
+- **The binary guard.** The plaintext fallback is what makes extensionless prose
+  work, and it is also what made `kcat ~/Downloads/*` print a disk image. So the
+  fallback is gated: input that no format claimed *and* whose bytes are binary
+  fails with `ErrBinaryContent` instead, which each utility reports per file and
+  carries on from. The rule is git's — a NUL byte in the first 8000 bytes —
+  exempting the Unicode byte-order marks, since UTF-16/32 text is full of NUL
+  bytes and announces itself. It sits in the one format-resolution helper, so
+  every utility inherits it; it cannot fire for a format kapi understands
+  (a `.docx`, a `.wav`) because detection already claimed those, and `-f` is the
+  escape hatch because it short-circuits detection entirely.
 - **Read path (`kcat`, `kgrep`).** `streamBlocks` opens the input, detects the
   format, and calls back for each Block in order. `kcat` prints each block's
   source text (or a `--target LOCALE` translation) one block per line; `kgrep`
@@ -154,20 +164,33 @@ source), `--format`/`-f`, `--source-lang`, and `--encoding`.
   (filename prefix), `-e` (repeatable pattern), `-q` (quiet; status only),
   `--color`, and `--json`.
 - **`ksed`** — `-e` (repeatable `s/regexp/replacement/flags` script), `-i`
-  (in-place, optional attached backup suffix). The script supports
-  backreferences (`\1`, `&`), the `g` and `i` flags, and any single-byte
-  delimiter. sed's attached-suffix form (`-i.bak`) is normalized into the flag
-  parser before dispatch.
+  (in-place, optional attached backup suffix), `-R` (recurse into directory
+  arguments). The script supports backreferences (`\1`, `&`), the `g` and `i`
+  flags, and any single-byte delimiter. sed's attached-suffix form (`-i.bak`) is
+  normalized into the flag parser before dispatch. Recursion is `-R` here and
+  `-r` everywhere else in the toolbox, which is fidelity to the classics winning
+  over internal uniformity: sed's `-r` is `--regexp-extended`, and taking that
+  letter would silently rewrite a whole tree for someone who asked for a regexp
+  dialect. `-r` is left unbound, so typing it is an error rather than a surprise.
 - **`kcat`** — `-n` (number blocks), `--id` (prefix each block with its source
-  ID), and `--json`.
+  ID), `-r` (recurse into directory arguments), and `--json`.
 - **`kdiff`** — `--by auto|id|content` (alignment strategy), `-q`/`--brief`
   (status only), `--stat` (summary line), `--color`, and `--json`. `--target
   LOCALE` compares a target translation across two files, or — with a single
   input — produces a coverage report. It takes one or two `FILE` arguments rather
   than a glob, and never edits in place.
-- **`kconv`** — `-t`/`--to FORMAT` (target format id or extension) and
+- **`kconv`** — `-t`/`--to FORMAT` (target format id or extension),
   `-o`/`--output PATH` (write to a file, format inferred from its extension;
-  default stdout). `-o` takes a single input.
+  default stdout) and `-r` (recurse into directory arguments). When `-o` names a
+  **directory** — a trailing separator, or a path that already is one — the run
+  becomes a batch: one output file per input, named `<stem><target ext>`, with
+  the input sub-tree mirrored relative to the deepest directory every input
+  shares. That root is computed from the resolved inputs rather than the
+  arguments, so a shell-expanded glob and a kapi-expanded one behave alike, and
+  same-named files in sibling directories cannot collide. Two inputs that resolve
+  to one output, and an output that would land on its own input, are reported and
+  skipped — never a silent overwrite. Without a directory, `-o` takes a single
+  input.
 
 With no `FILE`, or when `FILE` is `-`, standard input is read. A terminal stdin
 read is raced against the command context so Ctrl-C (which the CLI traps as

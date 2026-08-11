@@ -12,6 +12,7 @@ func newCatCmd(a *App) *cobra.Command {
 		number    bool
 		showIDs   bool
 		targetLoc string
+		recursive bool
 	)
 
 	cmd := &cobra.Command{
@@ -33,6 +34,7 @@ With no FILE, or when FILE is "-", standard input is read.`,
 				Number:       number,
 				ShowIDs:      showIDs,
 				TargetLocale: model.LocaleID(targetLoc),
+				Recursive:    recursive,
 			})
 		},
 	}
@@ -40,6 +42,7 @@ With no FILE, or when FILE is "-", standard input is read.`,
 	f := cmd.Flags()
 	f.BoolVarP(&number, "number", "n", false, "number the output blocks")
 	f.BoolVar(&showIDs, "id", false, "prefix each block with its source ID")
+	f.BoolVarP(&recursive, "recursive", "r", false, "recurse into directory arguments")
 	f.StringVar(&targetLoc, "target", "", "print the target translation for LOCALE instead of the source")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")

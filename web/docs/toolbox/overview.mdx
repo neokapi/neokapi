@@ -105,3 +105,14 @@ equivalent.
   operate on the source text. `--target LOCALE` operates on a target language
   instead — for example `kgrep --target fr "déconnexion" messages.xliff` searches
   the French translations.
+- **Files and directories.** Glob patterns expand in-process, so a quoted
+  `'src/**/*.md'` behaves the same in every shell. A directory argument needs
+  `-r, --recursive`; without it, it is reported and skipped, as in `grep`. The
+  one exception is `ksed`, which spells it `-R` — sed's own `-r` means
+  `--regexp-extended`, so the letter is left alone.
+- **Binary input is refused.** A file that no format claims and whose bytes are
+  binary — a `.dmg`, an installer, an image with no reader — is reported and
+  skipped rather than read as plain text, so a glob over a downloads folder
+  cannot spray raw bytes at the terminal or into a converted file. Other files in
+  the same run are unaffected, and the exit status is 2. `-f FORMAT` overrides
+  the guard when you mean it.

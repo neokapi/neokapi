@@ -137,7 +137,7 @@ func TestRunSedStdout(t *testing.T) {
 	sedTool := NewSedTool(prog, "", true)
 
 	out, cerr := captureStdout(t, func() error {
-		return app.RunSed(context.Background(), []string{path}, sedTool, "", false, "")
+		return app.RunSed(context.Background(), []string{path}, sedTool, SedOptions{})
 	})
 	require.NoError(t, cerr)
 	assert.Contains(t, out, "Hello EARTH")
@@ -216,22 +216,30 @@ func TestResolveFormatNameStdin(t *testing.T) {
 	app := newToolboxApp(t)
 
 	t.Run("piped JSON is detected by content", func(t *testing.T) {
-		assert.Equal(t, "json", app.ResolveFormatName(StdinName, []byte(`{"a":"hello","b":"world"}`)))
+		name, err := app.ResolveFormatName(StdinName, []byte(`{"a":"hello","b":"world"}`))
+		require.NoError(t, err)
+		assert.Equal(t, "json", name)
 	})
 
 	t.Run("piped plain text falls back to plaintext", func(t *testing.T) {
-		assert.Equal(t, FallbackFormat, app.ResolveFormatName(StdinName, []byte("just some words\n")))
+		name, err := app.ResolveFormatName(StdinName, []byte("just some words\n"))
+		require.NoError(t, err)
+		assert.Equal(t, FallbackFormat, name)
 	})
 
 	t.Run("explicit --format wins over content", func(t *testing.T) {
 		app.FormatFlag = "plaintext"
 		defer func() { app.FormatFlag = "" }()
-		assert.Equal(t, "plaintext", app.ResolveFormatName(StdinName, []byte(`{"a":"b"}`)))
+		name, err := app.ResolveFormatName(StdinName, []byte(`{"a":"b"}`))
+		require.NoError(t, err)
+		assert.Equal(t, "plaintext", name)
 	})
 
 	t.Run("file extension still wins for paths", func(t *testing.T) {
 		// .md extension chosen even though the bytes look like JSON.
-		assert.Equal(t, "markdown", app.ResolveFormatName("notes.md", []byte(`{"a":"b"}`)))
+		name, err := app.ResolveFormatName("notes.md", []byte(`{"a":"b"}`))
+		require.NoError(t, err)
+		assert.Equal(t, "markdown", name)
 	})
 
 	t.Run("piped .docx is detected as openxml, not epub", func(t *testing.T) {
@@ -241,7 +249,9 @@ func TestResolveFormatNameStdin(t *testing.T) {
 		}
 		content, err := os.ReadFile(fixtures[0])
 		require.NoError(t, err)
-		assert.Equal(t, "openxml", app.ResolveFormatName(StdinName, content))
+		name, err := app.ResolveFormatName(StdinName, content)
+		require.NoError(t, err)
+		assert.Equal(t, "openxml", name)
 	})
 }
 

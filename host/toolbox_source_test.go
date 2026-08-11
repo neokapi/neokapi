@@ -172,7 +172,9 @@ func TestResolveFormatFromSeeker(t *testing.T) {
 	app := &App{FormatReg: formatReg}
 	content := []byte(`{"greeting":"hello"}`)
 
-	assert.Equal(t,
-		app.ResolveFormatName("catalog.json", content),
-		app.resolveFormatFrom("catalog.json", bytes.NewReader(content)))
+	fromBytes, err := app.ResolveFormatName("catalog.json", content)
+	require.NoError(t, err)
+	fromSeeker, err := app.resolveFormatFrom("catalog.json", bytes.NewReader(content))
+	require.NoError(t, err)
+	assert.Equal(t, fromBytes, fromSeeker)
 }

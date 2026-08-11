@@ -23,6 +23,7 @@ type (
 	ConvergeLocaleResult          = host.ConvergeLocaleResult
 	ConvergeOptions               = host.ConvergeOptions
 	ConvergeOutput                = host.ConvergeOutput
+	ConvOptions                   = host.ConvOptions
 	CredentialListOutput          = host.CredentialListOutput
 	CredentialRow                 = host.CredentialRow
 	CredentialSavedOutput         = host.CredentialSavedOutput
@@ -37,7 +38,9 @@ type (
 	FlowRunEvent                  = host.FlowRunEvent
 	FlowRunOptions                = host.FlowRunOptions
 	GrepOptions                   = host.GrepOptions
+	SedOptions                    = host.SedOptions
 	HookNotice                    = host.HookNotice
+	InPlaceFlag                   = host.InPlaceFlag
 	InputOptions                  = host.InputOptions
 	LoadProjectInteractiveOptions = host.LoadProjectInteractiveOptions
 	LocaleCoverage                = host.LocaleCoverage
@@ -94,12 +97,12 @@ const (
 	FallbackNone             = host.FallbackNone
 	FallbackProjectThenStdin = host.FallbackProjectThenStdin
 	FallbackStdinOnly        = host.FallbackStdinOnly
-	SentinelInPlace          = host.SentinelInPlace
 	StdinName                = host.StdinName
 )
 
 // Function and variable re-exports.
 var (
+	RegisterInPlace              = host.RegisterInPlace
 	AddVoiceAIFlags              = host.AddVoiceAIFlags
 	AddProfileFlags              = host.AddProfileFlags
 	AddProgressFlag              = host.AddProgressFlag
