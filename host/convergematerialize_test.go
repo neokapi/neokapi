@@ -277,6 +277,45 @@ func TestUp_RecycledWorkSurvivesMaterialize(t *testing.T) {
 	}
 }
 
+// TestRunFlowAllLocales_RecordsItsWork covers the other file-writing project
+// path — the multi-locale orchestrator the desktop's run button and `kapi run`
+// share. Its files are half the deliverable; without the overlays the store reads
+// "never translated" and the next materialize writes the source back.
+func TestRunFlowAllLocales_RecordsItsWork(t *testing.T) {
+	a, _, recipe, dir := newLoopProject(t, map[string]string{
+		"en.json": `{"greeting":"Hello world","farewell":"Goodbye now"}`,
+	})
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+
+	_, err = a.RunFlowAllLocales(context.Background(), FlowRunOptions{
+		FlowName:    "translate",
+		Project:     proj,
+		ProjectPath: recipe,
+		InputPaths:  []string{filepath.Join(dir, "src", "en.json")},
+	}, nil)
+	require.NoError(t, err)
+
+	afterRun := map[string]string{}
+	for _, loc := range []string{"nb", "de"} {
+		b, rerr := os.ReadFile(filepath.Join(dir, "out", loc, "en.json"))
+		require.NoError(t, rerr)
+		require.NotContains(t, string(b), "Hello world", "%s: the run must have translated the file", loc)
+		afterRun[loc] = string(b)
+	}
+
+	written, merr := a.materializeFromProjectStore(context.Background(), io.Discard,
+		proj, recipe, []model.LocaleID{"nb", "de"}, true)
+	require.NoError(t, merr)
+	assert.Equal(t, 2, written)
+	for _, loc := range []string{"nb", "de"} {
+		b, rerr := os.ReadFile(filepath.Join(dir, "out", loc, "en.json"))
+		require.NoError(t, rerr)
+		assert.Equal(t, afterRun[loc], string(b),
+			"%s: materializing the run's own overlays must reproduce the run's output", loc)
+	}
+}
+
 // TestConverge_BlockStoreCoverageSeesTheRunsWork is the third reader of the same
 // overlays: the block-store coverage tally behind the desktop status panel. It
 // must address them by the same key everything else does, or a fully translated

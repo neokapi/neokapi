@@ -271,6 +271,12 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 		}
 	}
 
+	// The run's own project store: the files it writes are half the deliverable,
+	// and the `targets/<locale>` overlays it commits are the half a later merge
+	// replays and the status panel counts. A run that records nothing leaves the
+	// store reading "never translated" over content that is translated.
+	projStore := a.openProjectBlockStore(ctx)
+
 	emit := func(ev FlowRunEvent) {
 		if sink == nil {
 			return
@@ -386,6 +392,8 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 				FormatReg:    a.FormatReg,
 				SourceLocale: pctx.SourceLocale,
 				Encoding:     pctx.Encoding,
+				Store:        projStore,
+				ProjectRoot:  pctx.ProjectDir,
 				DetectFormat: func(path string) registry.FormatID {
 					return registry.FormatID(pctx.DetectFormat(a.FormatReg, path))
 				},
