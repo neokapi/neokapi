@@ -204,6 +204,108 @@ func TestCheck_StrictAndLenientPresets(t *testing.T) {
 	assert.Positive(t, lenientOut.Summary.Findings, "--lenient still reports the findings")
 }
 
+// TestCheck_MarkdownContinuationIndentIsNotADoubleSpace is #1854 end to end: a
+// wrapped markdown list item carries the CommonMark two-space continuation
+// indent into its block text, and the gate reported one `hygiene.double-spaces`
+// per bullet — on the indent, never on the prose. Over the repo's own docs that
+// was the only signal the gate produced, which is how a gate teaches its authors
+// to ignore it.
+//
+// The table is the issue's minimised repro plus the controls that say the rule
+// still works: a real double space inside a sentence, one on an indented
+// continuation line, and the same wrapped bullet through the mdx reader (the
+// docs corpus reads .md as MDX).
+func TestCheck_MarkdownContinuationIndentIsNotADoubleSpace(t *testing.T) {
+	t.Setenv("KAPI_NO_PROJECT", "1")
+
+	tests := []struct {
+		name     string
+		file     string
+		content  string
+		wantDbl  int
+		wantPass bool
+	}{
+		{
+			name:     "two-space list continuation indent",
+			file:     "list.md",
+			content:  "- one two\n  three four\n",
+			wantDbl:  0,
+			wantPass: true,
+		},
+		{
+			name:     "one-space list continuation indent",
+			file:     "list1.md",
+			content:  "- one two\n three four\n",
+			wantDbl:  0,
+			wantPass: true,
+		},
+		{
+			name:     "ordered list, three-space continuation indent",
+			file:     "ordered.md",
+			content:  "1. one two\n   three four\n",
+			wantDbl:  0,
+			wantPass: true,
+		},
+		{
+			name:     "blockquote continuation",
+			file:     "quote.md",
+			content:  "> one two\n> three four\n",
+			wantDbl:  0,
+			wantPass: true,
+		},
+		{
+			name:     "wrapped paragraph",
+			file:     "para.md",
+			content:  "one two\nthree four\n",
+			wantDbl:  0,
+			wantPass: true,
+		},
+		{
+			name:     "a wrapped bullet read as MDX",
+			file:     "list.mdx",
+			content:  "- one two\n  three four\n",
+			wantDbl:  0,
+			wantPass: true,
+		},
+		{
+			name:     "every bullet of a wrapped list",
+			file:     "many.md",
+			content:  "- one two\n  three four\n- five six\n  seven eight\n",
+			wantDbl:  0,
+			wantPass: true,
+		},
+		{
+			name:     "a real double space inside a sentence",
+			file:     "prose.md",
+			content:  "one two  three four\n",
+			wantDbl:  1,
+			wantPass: true,
+		},
+		{
+			name:     "a real double space on an indented continuation line",
+			file:     "mixed.md",
+			content:  "- one two\n  three  four\n",
+			wantDbl:  1,
+			wantPass: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := filepath.Join(t.TempDir(), tt.file)
+			require.NoError(t, os.WriteFile(src, []byte(tt.content), 0o644))
+
+			a := &App{SourceLang: "en"}
+			out, err := a.ComputeCheck(NewCheckCmd(a), []string{src})
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.wantDbl, ruleCounts(out)["hygiene.double-spaces"],
+				"findings: %+v", out.Findings)
+			assert.Equal(t, tt.wantPass, out.Pass)
+		})
+	}
+}
+
 // TestCheck_MonolingualInvalidForbidPattern confirms a bad --forbid regex is an
 // operational error rather than a silent no-op.
 func TestCheck_MonolingualInvalidForbidPattern(t *testing.T) {

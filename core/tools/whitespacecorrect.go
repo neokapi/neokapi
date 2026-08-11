@@ -253,23 +253,32 @@ func removeZeroWidthChars(text string) string {
 // across the target's runs. A space either side of an inline code survives: the
 // code sits between them, so they separate a word from a placeholder rather than
 // doubling each other. Two spaces spanning the join of adjacent text runs do
-// collapse \u2014 nothing separates those. That is the same boundary rule
-// `hygiene.double-spaces` reports on (#1465), so the rule and the correction
-// agree on what a double space is.
+// collapse — nothing separates those. Whitespace that indents a line
+// survives whole: it continues the source's line structure, and collapsing a
+// wrapped list item's two-space continuation indent rewrites the markup around
+// the translation. That is the same boundary rule `hygiene.double-spaces`
+// reports on (#1465), so the rule and the correction agree on what a double
+// space is.
 func normalizeSpacesRuns(runs []model.Run) []model.Run {
 	return textRunScan(runs, func() func(string) string {
 		prevSpace := false
+		indent := false
 		return func(text string) string {
 			var b strings.Builder
 			b.Grow(len(text))
 			for _, r := range text {
-				if r == ' ' {
-					if prevSpace {
+				switch r {
+				case ' ':
+					if prevSpace && !indent {
 						continue
 					}
 					prevSpace = true
-				} else {
+				case '\n':
 					prevSpace = false
+					indent = true
+				default:
+					prevSpace = false
+					indent = false
 				}
 				b.WriteRune(r)
 			}

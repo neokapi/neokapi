@@ -80,6 +80,13 @@ func TestHygieneOverlay_DoubleSpacesIsRunAware(t *testing.T) {
 			runs: []model.Run{hygTx("Hello world")},
 			want: nil,
 		},
+		{
+			// A wrapped list item's continuation indent: line structure, so
+			// nothing to highlight (#1854).
+			name: "a continuation indent is not a double space",
+			runs: []model.Run{hygTx("one two\n  three four")},
+			want: nil,
+		},
 
 		// Genuine defects, and the span must still land on them.
 		{
@@ -120,6 +127,13 @@ func TestHygieneOverlay_DoubleSpacesIsRunAware(t *testing.T) {
 				{category: "double-spaces", covers: "  "},
 				{category: "double-spaces", covers: "  "},
 			},
+		},
+		{
+			// Only the prose defect is highlighted; the indent beside it is not
+			// part of the span.
+			name: "a double space on a continuation line, past the indent",
+			runs: []model.Run{hygTx("one two\n  three  four")},
+			want: []wantSpan{{category: "double-spaces", covers: "  "}},
 		},
 	}
 

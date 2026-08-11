@@ -58,7 +58,7 @@ func TrailingWhitespace(s string) string {
 }
 
 // DoubleSpaces reports whether a [HygieneText] flattening contains two or more
-// consecutive spaces.
+// consecutive spaces between two pieces of content on the same line.
 //
 // Across an inline code it deliberately does not fire: in `[text "Hello "][ph]
 // [text " world"]` each space separates a word from the placeholder between
@@ -66,6 +66,10 @@ func TrailingWhitespace(s string) string {
 // consecutive spaces in the content, only in a flattening that dropped what was
 // between them. Two spaces inside one text run, or spanning two adjacent text
 // runs (nothing separates those), are a real double space and do fire.
+//
+// Across a line break it does not fire either — see [doubleSpaceSpans] for why
+// the whitespace after a newline is the source's line structure rather than
+// spacing the author put between two words.
 func DoubleSpaces(text string) bool { return len(doubleSpaceSpans(text)) > 0 }
 
 // DoubledWord returns the first immediately-repeated word in a [HygieneText]
@@ -131,8 +135,25 @@ func HygieneOverlay(runs []model.Run) *model.Overlay {
 }
 
 // doubleSpaceSpans returns the byte range of every maximal run of two or more
-// consecutive spaces in a hygiene flattening. It is the single scanner behind
-// both the verdict ([DoubleSpaces]) and the ranges ([HygieneOverlay]).
+// consecutive spaces in a hygiene flattening, skipping any run that indents a
+// line. It is the single scanner behind both the verdict ([DoubleSpaces]) and
+// the ranges ([HygieneOverlay]).
+//
+// A block's text spans as many lines as the source wrote it on: a wrapped
+// paragraph or list item arrives with its literal line breaks, each followed by
+// whatever prefix the format uses to continue the line. That prefix is line
+// structure, not spacing between words — CommonMark indents a list item's
+// continuation lines to the marker's content column, so every conventionally
+// wrapped bullet carries a two-space run after each newline. A rule that reads
+// those as a typographic double space fires on the indent rather than the prose,
+// on content the author cannot correct without breaking the markup.
+//
+// Only a run that immediately follows a newline is discounted. A run at the
+// text's own leading edge is not: a block need not begin at a line start (it may
+// follow a list marker or a heading's `# `), so the check cannot know that
+// whitespace to be indentation — and [LeadingWhitespace] already judges the
+// content's edge. Spaces before a newline stay reportable for the same reason:
+// nothing structural puts them there.
 func doubleSpaceSpans(text string) [][2]int {
 	var out [][2]int
 	for i := 0; i+1 < len(text); {
@@ -140,6 +161,9 @@ func doubleSpaceSpans(text string) [][2]int {
 			start := i
 			for i < len(text) && text[i] == ' ' {
 				i++
+			}
+			if start > 0 && text[start-1] == '\n' {
+				continue // the line's indent, not spacing inside a sentence
 			}
 			out = append(out, [2]int{start, i})
 			continue
