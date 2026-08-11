@@ -410,24 +410,35 @@ func (s *PostgresStore) StoreItem(ctx context.Context, projectID, stream string,
 		item.ID = id.New()
 	}
 
-	// Resolve collection_id to the default collection if not set.
+	// An empty incoming collection id means "unspecified", not "no collection",
+	// and what it resolves to depends on whether this item is already bound:
+	// an item with no binding yet falls to the project's default collection,
+	// while an item that is already filed under one keeps that binding. A
+	// caller that could not resolve a collection this time round — a transient
+	// lookup failure on a re-push — must not move content out of the collection
+	// it was filed under. Both halves are decided in the statement below, on the
+	// raw incoming id ($10): resolving the default here instead would hand the
+	// upsert a non-empty id and clobber the existing binding (#1840).
+	fallbackCollectionID := ""
 	if item.CollectionID == "" {
 		defColl, defErr := s.GetDefaultCollection(ctx, projectID)
-		if defErr == nil {
-			item.CollectionID = defColl.ID
+		if defErr == nil && defColl != nil {
+			fallbackCollectionID = defColl.ID
 		}
 	}
 
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO items (id, project_id, stream, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE(NULLIF($10::text, ''), $13::text), $11, $12)
 		 ON CONFLICT(project_id, stream, name) DO UPDATE SET
 			format=EXCLUDED.format, item_type=EXCLUDED.item_type,
 			block_index=EXCLUDED.block_index, preview_html=EXCLUDED.preview_html,
-			properties=EXCLUDED.properties, collection_id=CASE WHEN EXCLUDED.collection_id='' THEN items.collection_id ELSE EXCLUDED.collection_id END,
+			properties=EXCLUDED.properties,
+			collection_id=COALESCE(NULLIF($10::text, ''), NULLIF(items.collection_id, ''), EXCLUDED.collection_id),
 			updated_at=EXCLUDED.updated_at`,
 		item.ID, projectID, stream, item.Name, item.Format, item.ItemType,
-		item.BlockIndex, item.PreviewHTML, string(propsJSON), item.CollectionID, now, now)
+		item.BlockIndex, item.PreviewHTML, string(propsJSON), item.CollectionID, now, now,
+		fallbackCollectionID)
 	if err != nil {
 		return fmt.Errorf("store item %q: %w", item.Name, err)
 	}

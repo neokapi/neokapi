@@ -517,13 +517,25 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 					// actually landed in instead of describing an outcome the
 					// store does not produce. Only a project with no default
 					// collection leaves the item genuinely ungrouped.
+					//
+					// The fallback applies to an item with no binding yet. An
+					// item this push already found filed under a collection
+					// keeps that binding: a lookup that failed once is not a
+					// decision to regroup content, and a re-push that resolved
+					// the default here would move the item into it (#1840).
 					coll, err := deps.ContentStore.GetCollectionByName(ctx, projectID, meta.Collection, stream)
 					switch {
 					case err == nil && coll != nil:
 						item.CollectionID = coll.ID
 					default:
-						fallback, fbErr := deps.ContentStore.GetDefaultCollection(ctx, projectID)
-						if fbErr == nil && fallback != nil {
+						existing, exErr := deps.ContentStore.GetItem(ctx, projectID, stream, itemName)
+						if exErr == nil && existing != nil && existing.CollectionID != "" {
+							item.CollectionID = existing.CollectionID
+							slog.Warn("pushed item could not be bound to the collection its meta names; it keeps the collection it is already filed under, so that collection's governance goes on applying to it and the named one's does not",
+								"project_id", projectID, "stream", stream,
+								"item", itemName, "collection", meta.Collection,
+								"kept_collection_id", existing.CollectionID, "error", err)
+						} else if fallback, fbErr := deps.ContentStore.GetDefaultCollection(ctx, projectID); fbErr == nil && fallback != nil {
 							item.CollectionID = fallback.ID
 							slog.Warn("pushed item could not be bound to its collection; it falls to the project's default collection, so the named collection's governance does not apply to it and the default collection's does",
 								"project_id", projectID, "stream", stream,
