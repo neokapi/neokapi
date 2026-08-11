@@ -105,7 +105,11 @@ test.describe("Editor happy path", () => {
     await expect(page.getByTestId(`file-row-${BOGUS_FILE}`)).not.toBeVisible();
 
     // ── 2. Open the editor (Visual view is the default) ─────────────────────
+    // A file row opens the preview sheet; the editor is a further click from
+    // there. Navigating straight to the translate URL skips the sheet, which
+    // is why the routing and layout specs never touch it.
     await page.getByTestId(`open-file-${FILE_NAME}`).click();
+    await page.getByTestId("file-preview-translate").click();
     await expect(page.getByTestId("view-switcher")).toBeVisible({ timeout: 30000 });
     await expect(page.getByTestId("visual-editor-card")).toBeVisible({ timeout: 30000 });
 

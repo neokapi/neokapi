@@ -77,8 +77,9 @@ test.describe("Brand scan onboarding", () => {
 
   test("uploads endpoint stores allowed files and names skipped ones", async () => {
     // API-level contract: one allowed markdown file, one disallowed
-    // extension, one deferred type (pdf) — the endpoint stores the first and
-    // names the other two in "skipped" with per-file reasons.
+    // extension, one type with no in-process extractor (pdf) — the endpoint
+    // stores the first and names the other two in "skipped" with per-file
+    // reasons.
     const form = new FormData();
     form.append("files", new Blob([MD_CONTENT], { type: "text/markdown" }), MD_FILE);
     form.append(
@@ -111,7 +112,7 @@ test.describe("Brand scan onboarding", () => {
     expect(body.skipped).toHaveLength(2);
     const skippedByName = new Map(body.skipped!.map((s) => [s.name, s.reason]));
     expect(skippedByName.get("notes.xyz")).toContain("unsupported file type");
-    expect(skippedByName.get("brand-deck.pdf")).toContain("deferred");
+    expect(skippedByName.get("brand-deck.pdf")).toContain("unsupported file type");
   });
 
   test("scan intake requires at least one source", async ({ page }) => {
