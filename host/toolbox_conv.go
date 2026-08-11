@@ -26,29 +26,69 @@ import (
 // `kconv report.docx --to md`        → Markdown on stdout
 // `kconv report.dclg.xml -o out.html` → HTML file
 // `kconv fr.xliff --to md --target fr` → the French translation as Markdown
+// `kconv ~/Downloads/* --to md -o out/` → one .md per input, in out/
+// `kconv -r docs --to html -o site/`  → the docs tree, mirrored as HTML
 //
 // Like the rest of the toolbox it is exposed as a `kconv` busybox symlink and as
 // the hidden `kapi convert` subcommand. A same-format conversion (e.g. .docx →
 // .docx) still round-trips faithfully via the skeleton; a cross-format one
 // projects through the model.
 
+// ConvOptions carries one `kconv` invocation's flags.
+type ConvOptions struct {
+	// To is the resolved target format.
+	To registry.FormatID
+	// TargetLocale writes that translation instead of the source ("" = source).
+	TargetLocale model.LocaleID
+	// Output is -o: a single file, an output directory (a trailing separator, or
+	// a path that already is one), or "" for standard output.
+	Output string
+	// Recursive walks directory arguments, like `kgrep -r`.
+	Recursive bool
+}
+
 // RunConv converts each input file (or stdin) into the target format.
-func (a *App) RunConv(ctx context.Context, args []string, toFmt registry.FormatID, targetLoc model.LocaleID, outPath string) error {
+func (a *App) RunConv(ctx context.Context, args []string, opts ConvOptions) error {
 	hadError := false
-	files, err := expandInputs(args, false, func(path string, err error) {
+	files, err := expandInputs(args, opts.Recursive, func(path string, err error) {
 		hadError = true
 		fmt.Fprintf(os.Stderr, "kconv: %s: %v\n", path, err)
 	})
 	if err != nil {
 		return err
 	}
-	if outPath != "" && len(files) > 1 {
-		return errors.New("-o accepts a single input file; convert files one at a time (or omit -o to write to stdout)")
+	outDir, err := prepareOutputDir(opts.Output, len(files))
+	if err != nil {
+		return err
 	}
+	// The tree the outputs mirror. Computed from the resolved inputs rather than
+	// the arguments, so it is the same whether the shell expanded the glob or
+	// kapi did, and whether the user named a directory or a pattern.
+	root := ""
+	if outDir != "" {
+		root = commonDir(files)
+	}
+	claimed := map[string]string{}
 
 	for _, file := range files {
+		outPath := opts.Output
+		if outDir != "" {
+			dest, derr := a.convOutputPath(outDir, root, file, opts.To)
+			if derr == nil {
+				derr = claimOutput(claimed, dest, file)
+			}
+			if derr == nil {
+				derr = os.MkdirAll(filepath.Dir(dest), 0o755)
+			}
+			if derr != nil {
+				hadError = true
+				fmt.Fprintf(os.Stderr, "kconv: %s: %v\n", DisplayName(file), derr)
+				continue
+			}
+			outPath = dest
+		}
 		start := time.Now()
-		cerr := a.convertDocument(ctx, file, toFmt, targetLoc, outPath)
+		cerr := a.convertDocument(ctx, file, opts.To, opts.TargetLocale, outPath)
 		if cerr == nil && a.ConvTiming {
 			// Self-reported so the number excludes process start-up — the
 			// comparable figure for a conversion library. Milliseconds with the
@@ -91,7 +131,10 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	if err != nil {
 		return err
 	}
-	inFmt := a.resolveFormatFrom(path, sniff)
+	inFmt, err := a.resolveFormatFrom(path, sniff)
+	if err != nil {
+		return err
+	}
 
 	reader, err := a.FormatReg.NewReader(registry.FormatID(inFmt))
 	if err != nil {
@@ -215,6 +258,137 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	return nil
 }
 
+// prepareOutputDir decides whether -o names an output directory rather than an
+// output file, and creates it when it does. A trailing separator is the
+// explicit spelling (`-o out/`), and a path that already is a directory is
+// taken as one. Returns "" when -o names a single file (or is absent).
+//
+// Without a directory, -o stays single-input: one output filename cannot hold
+// several documents, and silently converting only the last one is the failure
+// mode this rejects.
+func prepareOutputDir(out string, inputs int) (string, error) {
+	if out == "" {
+		return "", nil
+	}
+	isDir := strings.HasSuffix(out, "/") || strings.HasSuffix(out, string(os.PathSeparator))
+	if info, err := os.Stat(out); err == nil && info.IsDir() {
+		isDir = true
+	}
+	if !isDir {
+		if inputs > 1 {
+			return "", fmt.Errorf(
+				"-o %s names one output file but %d inputs were given — pass a directory instead (e.g. `-o %s/`) to write one file per input, or omit -o to write to stdout",
+				out, inputs, format.TrimExt(out))
+		}
+		return "", nil
+	}
+	dir := filepath.Clean(out)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("create output directory %s: %w", dir, err)
+	}
+	return dir, nil
+}
+
+// convOutputPath is where one input lands under an output directory: its stem,
+// re-extensioned for the target format, under the input's own position in the
+// tree relative to root. So `kconv 'docs/**/*.md' --to html -o site/` writes
+// site/guide/intro.html for docs/guide/intro.md — the shape survives the
+// conversion, and two same-named files in different directories cannot collide.
+func (a *App) convOutputPath(dir, root, input string, toFmt registry.FormatID) (string, error) {
+	if input == "" || input == StdinName {
+		return "", errors.New("standard input has no filename to derive an output name from — name the file (-o out.md) instead of a directory")
+	}
+	ext := a.formatExt(toFmt)
+	if ext == "" {
+		return "", fmt.Errorf("no filename extension is registered for %q — write a single file with `-o NAME.EXT` instead of a directory", toFmt)
+	}
+	dest := filepath.Join(dir, subdirUnder(root, input), format.Stem(input)+ext)
+	if abs, err := filepath.Abs(input); err == nil && sameFile(abs, dest) {
+		return "", fmt.Errorf("the conversion would overwrite the input (%s) — write to a different -o directory", dest)
+	}
+	return dest, nil
+}
+
+// subdirUnder returns input's directory relative to root, or "" when it does
+// not lie under root (a mixed absolute/relative argument list, say) — in which
+// case the file flattens into the output directory and claimOutput catches any
+// resulting collision.
+func subdirUnder(root, input string) string {
+	if root == "" {
+		return ""
+	}
+	rel, err := filepath.Rel(root, filepath.Dir(filepath.Clean(input)))
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return ""
+	}
+	return rel
+}
+
+// commonDir is the deepest directory every input sits under — the root of the
+// tree the output mirrors. It needs no provenance from the arguments: a list of
+// files in one directory shares that directory (so the output is flat), and
+// `docs/**/*.md` shares docs/ (so the output keeps the sub-tree). Returns ""
+// when the inputs share nothing, e.g. an absolute path beside a relative one.
+func commonDir(files []string) string {
+	var common []string
+	seen := false
+	for _, f := range files {
+		if f == "" || f == StdinName {
+			continue
+		}
+		dir := filepath.Dir(filepath.Clean(f))
+		segs := strings.Split(filepath.ToSlash(dir), "/")
+		if !filepath.IsAbs(dir) && dir != "." {
+			// Root every relative path at ".", so `docs/a.md src/b.md` shares the
+			// working directory and mirrors both trees, rather than sharing
+			// nothing and flattening two files into one directory.
+			segs = append([]string{"."}, segs...)
+		}
+		if !seen {
+			common, seen = segs, true
+			continue
+		}
+		n := 0
+		for n < len(common) && n < len(segs) && common[n] == segs[n] {
+			n++
+		}
+		common = common[:n]
+	}
+	if len(common) == 0 {
+		return ""
+	}
+	if len(common) == 1 && common[0] == "" {
+		return string(filepath.Separator) // every input is at the filesystem root
+	}
+	return filepath.Clean(filepath.FromSlash(strings.Join(common, "/")))
+}
+
+// claimOutput records dest as this run's output for input, and rejects a second
+// input that resolves to the same file. Two inputs whose stems collide (a.md
+// and a.html converted to Markdown) would otherwise leave one silently
+// overwritten by the other, with the run reporting success.
+func claimOutput(claimed map[string]string, dest, input string) error {
+	key := dest
+	if abs, err := filepath.Abs(dest); err == nil {
+		key = abs
+	}
+	if prev, dup := claimed[key]; dup {
+		return fmt.Errorf("would overwrite %s, already converted from %s — convert them separately, or to different directories", dest, prev)
+	}
+	claimed[key] = input
+	return nil
+}
+
+// formatExt is the filename extension a converted file gets: the target
+// format's first registered extension, which is its preferred spelling
+// (".md" over ".markdown", the compound ".dclg.xml" for DocLang).
+func (a *App) formatExt(id registry.FormatID) string {
+	if info := a.FormatReg.FormatInfo(id); info != nil && len(info.Extensions) > 0 {
+		return info.Extensions[0]
+	}
+	return ""
+}
+
 // conversionWriter returns the writer for a `convert` target. JSON and YAML
 // document conversions are served by the STRUCTURAL writers — an array of block
 // records (the `kapi inspect` shape) — rather than the catalog key→value
@@ -252,6 +426,12 @@ func (a *App) ResolveTargetFormat(to, outPath string) (registry.FormatID, error)
 	if outPath != "" {
 		if det := a.writerForOutputPath(outPath); det != "" {
 			return det, nil
+		}
+		// An output directory carries no extension to infer from, and saying
+		// "cannot infer a target format from out" reads like a broken filename.
+		if info, err := os.Stat(outPath); (err == nil && info.IsDir()) ||
+			strings.HasSuffix(outPath, "/") || strings.HasSuffix(outPath, string(os.PathSeparator)) {
+			return "", fmt.Errorf("an output directory sets no target format — pass --to (e.g. `--to md -o %s`)", outPath)
 		}
 		return "", fmt.Errorf("cannot infer a target format from %q — pass --to", filepath.Base(outPath))
 	}

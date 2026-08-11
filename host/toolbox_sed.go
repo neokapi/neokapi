@@ -10,11 +10,58 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/spf13/pflag"
 )
 
-// SentinelInPlace marks "-i given with no backup suffix"; cobra's NoOptDefVal
-// distinguishes a bare -i from one carrying a SUFFIX (-i.bak).
-const SentinelInPlace = "\x00nosuffix"
+// InPlaceFlag is the `-i` shared by `ksed` and `kapi apply`: a switch on its
+// own, carrying an optional backup suffix when one is attached (`-i.bak`).
+//
+// pflag needs a non-empty NoOptDefVal for a flag whose value is optional —
+// without one, a bare `-i` swallows the next argument as its value. That marker
+// used to be a NUL-prefixed sentinel in a plain string flag, and pflag prints
+// NoOptDefVal verbatim into the flag list: `--help` came out with a raw NUL in
+// it, so the usage text registered as *binary* and `ksed --help | grep -i
+// recursive` matched nothing at all.
+//
+// Declaring the type as "bool" is what fixes the display: pflag omits both the
+// value placeholder and the `[=…]` suffix for a bool whose NoOptDefVal is
+// "true", so the flag lists like any other switch and the optional suffix is
+// explained in its description — which is how GNU sed documents `-i` too.
+type InPlaceFlag struct {
+	// Suffix is the backup suffix (`-i.bak` → ".bak"); empty means no backup.
+	Suffix string
+}
+
+// inPlaceBare is what pflag substitutes for a bare `-i`. Writing it as a suffix
+// on purpose (`-itrue`) is read as the bare form; no one names a backup "true",
+// and the alternative is putting an unprintable byte back into --help.
+const inPlaceBare = "true"
+
+// Set records an attached suffix, or clears it for the bare form.
+func (f *InPlaceFlag) Set(s string) error {
+	if s == inPlaceBare {
+		f.Suffix = ""
+		return nil
+	}
+	f.Suffix = s
+	return nil
+}
+
+func (f *InPlaceFlag) String() string { return f.Suffix }
+
+// Type is "bool" so pflag renders `-i` as a switch; see InPlaceFlag.
+func (f *InPlaceFlag) Type() string { return "bool" }
+
+// RegisterInPlace adds the `-i/--in-place[=SUFFIX]` flag to fs and returns the
+// value it writes into. Callers pair it with fs.Changed("in-place"): the flag
+// being set is what turns editing on, and Suffix only says whether a backup is
+// kept.
+func RegisterInPlace(fs *pflag.FlagSet, usage string) *InPlaceFlag {
+	v := &InPlaceFlag{}
+	fs.VarP(v, "in-place", "i", usage)
+	fs.Lookup("in-place").NoOptDefVal = inPlaceBare
+	return v
+}
 
 // NormalizeSedInPlaceArgs rewrites sed's attached backup form `-iSUFFIX`
 // (e.g. `-i.bak`) into pflag's `--in-place=SUFFIX`, which pflag's optional-value
@@ -33,9 +80,23 @@ func NormalizeSedInPlaceArgs(args []string) []string {
 	return out
 }
 
-func (a *App) RunSed(ctx context.Context, args []string, t *tool.BaseTool, writeLocale model.LocaleID, inPlace bool, backupSuffix string) error {
+// SedOptions carries one `ksed` invocation's flags.
+type SedOptions struct {
+	// WriteLocale selects the translation the writer emits ("" = source).
+	WriteLocale model.LocaleID
+	// InPlace rewrites each input rather than streaming to stdout (-i).
+	InPlace bool
+	// BackupSuffix keeps a copy of each rewritten input (-i.bak).
+	BackupSuffix string
+	// Recursive walks directory arguments. Spelled -R rather than -r, because
+	// sed's own -r is --regexp-extended and quietly repurposing it would edit a
+	// tree for someone who only asked for a different regexp dialect.
+	Recursive bool
+}
+
+func (a *App) RunSed(ctx context.Context, args []string, t *tool.BaseTool, opts SedOptions) error {
 	hadError := false
-	files, err := expandInputs(args, false, func(path string, err error) {
+	files, err := expandInputs(args, opts.Recursive, func(path string, err error) {
 		hadError = true
 		fmt.Fprintf(os.Stderr, "ksed: %s: %v\n", path, err)
 	})
@@ -43,7 +104,7 @@ func (a *App) RunSed(ctx context.Context, args []string, t *tool.BaseTool, write
 		return err
 	}
 	for _, file := range files {
-		if err := a.EditDocument(ctx, file, t, writeLocale, inPlace, backupSuffix, os.Stdout); err != nil {
+		if err := a.EditDocument(ctx, file, t, opts.WriteLocale, opts.InPlace, opts.BackupSuffix, os.Stdout); err != nil {
 			// A cancelled context (Ctrl-C) is a global interrupt, not a per-file
 			// error: stop now and let cli.Run map it to exit 130 with no message.
 			if errors.Is(err, context.Canceled) {

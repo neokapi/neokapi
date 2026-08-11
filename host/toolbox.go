@@ -100,6 +100,19 @@ func readContent(ctx context.Context, path string) ([]byte, error) {
 	}
 }
 
+// ErrBinaryContent reports input that no format claimed and whose bytes are
+// binary. Reading it as plain text — the fallback that serves extensionless
+// prose — would print or convert the raw bytes, so the toolbox refuses instead.
+// See the guard in binary.go.
+var ErrBinaryContent = errors.New("binary file")
+
+// errBinaryInput is the per-file error the toolbox reports for binary input.
+// The message names the escape hatch, because a binary file kapi *does*
+// understand is exactly what --format is for.
+func errBinaryInput() error {
+	return fmt.Errorf("%w — no text format detected; pass -f FORMAT to read it as one anyway", ErrBinaryContent)
+}
+
 // ResolveFormatName picks the format for a path + content. An explicit --format
 // wins; otherwise it runs the framework's canonical detection cascade
 // (extension → container-aware content sniffing) and falls back to plain text.
@@ -108,18 +121,39 @@ func readContent(ctx context.Context, path string) ([]byte, error) {
 // routes through the same Detector.Detect path as files, which means piped
 // documents (a .docx, a JSON catalog) are recognised via content sniffing, and
 // only genuinely unidentifiable input falls back to plain text. This is the one
-// place the toolbox decides a format, so both files and stdin share it.
-func (a *App) ResolveFormatName(path string, content []byte) string {
-	return a.resolveFormatFrom(path, bytes.NewReader(content))
+// place the toolbox decides a format, so both files and stdin share it — which
+// is also why the binary guard lives here: every toolbox command inherits it
+// from this one function.
+func (a *App) ResolveFormatName(path string, content []byte) (string, error) {
+	if name, ok := a.explicitOrDetected(path, bytes.NewReader(content)); ok {
+		return name, nil
+	}
+	if a.binaryBytes(content) {
+		return "", errBinaryInput()
+	}
+	return FallbackFormat, nil
 }
 
 // resolveFormatFrom is ResolveFormatName over a seekable stream rather than a
 // buffer. The detector reads a prefix and seeks back, so an open file resolves
 // its format without being read into memory — which is the whole point for a
 // package format, where the buffer would be the file.
-func (a *App) resolveFormatFrom(path string, content io.ReadSeeker) string {
+func (a *App) resolveFormatFrom(path string, content io.ReadSeeker) (string, error) {
+	if name, ok := a.explicitOrDetected(path, content); ok {
+		return name, nil
+	}
+	if a.binaryStream(content) {
+		return "", errBinaryInput()
+	}
+	return FallbackFormat, nil
+}
+
+// explicitOrDetected runs the two stages that can name a format — an explicit
+// --format, then the detection cascade — and reports whether either did. A
+// false result is the fallback case, and the only one the binary guard sees.
+func (a *App) explicitOrDetected(path string, content io.ReadSeeker) (string, bool) {
 	if a.FormatFlag != "" {
-		return preset.ParseFormatRef(a.FormatFlag).RegistryName()
+		return preset.ParseFormatRef(a.FormatFlag).RegistryName(), true
 	}
 	// stdin carries no usable path; let Detect skip the extension stage.
 	detectPath := path
@@ -127,9 +161,9 @@ func (a *App) resolveFormatFrom(path string, content io.ReadSeeker) string {
 		detectPath = ""
 	}
 	if name, err := a.FormatReg.Detector().Detect(detectPath, content, ""); err == nil && name != "" {
-		return name
+		return name, true
 	}
-	return FallbackFormat
+	return "", false
 }
 
 // StreamBlocks opens path (or stdin), detects its format, and calls fn for each
@@ -149,7 +183,10 @@ func (a *App) StreamBlocks(ctx context.Context, path string, fn func(index int, 
 	if err != nil {
 		return "", err
 	}
-	fmtName := a.resolveFormatFrom(path, sniff)
+	fmtName, err := a.resolveFormatFrom(path, sniff)
+	if err != nil {
+		return "", err
+	}
 	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
 	if err != nil {
 		return fmtName, fmt.Errorf("no reader for format %q: %w", fmtName, err)
@@ -215,7 +252,10 @@ func (a *App) EditDocument(ctx context.Context, path string, t *tool.BaseTool, w
 	if err != nil {
 		return err
 	}
-	fmtName := a.resolveFormatFrom(path, sniff)
+	fmtName, err := a.resolveFormatFrom(path, sniff)
+	if err != nil {
+		return err
+	}
 
 	reader, err := a.FormatReg.NewReader(registry.FormatID(fmtName))
 	if err != nil {

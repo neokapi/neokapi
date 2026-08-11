@@ -45,6 +45,9 @@ ksed --target fr 's/Bonjour/Salut/g' messages.xliff
 
 # Reorder with backreferences
 ksed 's/(\w+), (\w+)/\2 \1/' names.txt
+
+# Edit a whole documentation tree in place
+ksed -R -i 's/colour/color/g' docs
 ```
 
 ## Options
@@ -53,10 +56,16 @@ ksed 's/(\w+), (\w+)/\2 \1/' names.txt
 | ---- | ------- |
 | `-e, --expression SCRIPT` | Add a substitution script (repeatable). |
 | `-i, --in-place[=SUFFIX]` | Edit files in place; append a backup `SUFFIX` if given (e.g. `-i.bak`). |
+| `-R, --recursive` | Recurse into directory arguments. |
 | `--target LOCALE` | Edit the translation for `LOCALE` instead of the source. |
 | `-f, --format` | Override format detection (e.g. `-f json`). |
 | `--source-lang` | Source language (default `en`). |
 | `--encoding` | Input/output encoding (default `UTF-8`). |
+
+Recursion is `-R`, not the `-r` the other utilities use. In sed, `-r` means
+`--regexp-extended`, and binding it to recursion here would rewrite a whole
+directory tree for someone who only asked for a different regexp dialect. `-r`
+is therefore left unbound, and typing it is an error rather than a surprise.
 
 ## Faithful round-trips
 

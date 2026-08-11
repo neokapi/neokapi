@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-08T15:26:39Z",
+  "generatedAt": "2026-08-11T06:28:24Z",
   "commands": [
     {
       "id": "add",
@@ -88,7 +88,7 @@
           "name": "in-place",
           "shorthand": "i",
           "usage": "keep a backup of edited content files with --in-place=.bak",
-          "type": "string"
+          "type": "bool"
         },
         {
           "name": "json",

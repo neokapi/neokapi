@@ -22,11 +22,13 @@ type CatOptions struct {
 	Number       bool
 	ShowIDs      bool
 	TargetLocale model.LocaleID
+	// Recursive walks directory arguments, like `kgrep -r`.
+	Recursive bool
 }
 
 func (a *App) RunCat(ctx context.Context, cmd Command, args []string, opts CatOptions) error {
 	hadError := false
-	files, err := expandInputs(args, false, func(path string, err error) {
+	files, err := expandInputs(args, opts.Recursive, func(path string, err error) {
 		hadError = true
 		fmt.Fprintf(os.Stderr, "kcat: %s: %v\n", path, err)
 	})
