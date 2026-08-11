@@ -205,29 +205,29 @@ func TestWriteGate_ServesWritersInArrivalOrder(t *testing.T) {
 	raw := db.Raw()
 	require.NotNil(t, raw)
 
+	// Service order is read back from the database, not recorded in the
+	// goroutine after the write returns. ExecContext releases the permit before
+	// it returns, so anything a writer appends afterwards races every writer
+	// behind it: a goroutine descheduled between release and its own mutex —
+	// tens of milliseconds on a loaded two-P runner under -race — records
+	// itself last no matter when it was served. The rowid is assigned while the
+	// permit is still held, so it witnesses the gate rather than the scheduler.
+	_, err := raw.ExecContext(t.Context(),
+		`CREATE TABLE write_order (seq INTEGER PRIMARY KEY AUTOINCREMENT, writer INTEGER NOT NULL)`)
+	require.NoError(t, err)
+
 	// Hold the permit so everyone queues behind a known point.
 	holder, err := raw.BeginTx(t.Context(), nil)
 	require.NoError(t, err)
 
 	const waiters = 5
-	var (
-		mu     sync.Mutex
-		served []int
-		wg     sync.WaitGroup
-	)
+	var wg sync.WaitGroup
 	for i := range waiters {
 		started := make(chan struct{})
 		wg.Go(func() {
 			close(started)
-			if _, err := raw.ExecContext(context.Background(),
-				`INSERT INTO store_meta (key, value) VALUES (?, ?)
-				 ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-				fmt.Sprintf("order-%d", i), "x"); err != nil {
-				return
-			}
-			mu.Lock()
-			served = append(served, i)
-			mu.Unlock()
+			_, _ = raw.ExecContext(context.Background(),
+				`INSERT INTO write_order (writer) VALUES (?)`, i)
 		})
 		<-started
 		time.Sleep(20 * time.Millisecond) // let this one reach the queue before the next
@@ -235,6 +235,17 @@ func TestWriteGate_ServesWritersInArrivalOrder(t *testing.T) {
 
 	require.NoError(t, holder.Rollback())
 	wg.Wait()
+
+	rows, err := raw.QueryContext(t.Context(), `SELECT writer FROM write_order ORDER BY seq`)
+	require.NoError(t, err)
+	defer rows.Close()
+	var served []int
+	for rows.Next() {
+		var w int
+		require.NoError(t, rows.Scan(&w))
+		served = append(served, w)
+	}
+	require.NoError(t, rows.Err())
 
 	assert.Equal(t, []int{0, 1, 2, 3, 4}, served,
 		"writers were served out of arrival order")
