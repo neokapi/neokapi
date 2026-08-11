@@ -144,7 +144,16 @@ jobs:
           # Globbing off: the derived set carries git pathspec magic
           # (`:(glob)…`), which the shell must not expand against the tree.
           set -f
-          # shellcheck disable=SC2046  # the derived set is a list of pathspecs
+          # An unreadable derived set would deliver the context change and leave
+          # every artifact it backs behind, green — the silent half-delivery this
+          # whole sequence exists to prevent. The gate above refuses it first;
+          # this refuses it again rather than trusting step order to hold.
+          derived="$(make -s l10n-derived-paths)"
+          if [ -z "${derived//[[:space:]]/}" ]; then
+            echo "::error title=Delivery refused::the derived set is empty — refusing to deliver a partial tree"
+            exit 1
+          fi
+          # shellcheck disable=SC2086  # the derived set is a list of pathspecs
           ./scripts/auto-pr.sh bot/dogfood-sync \
             "chore(l10n): converged content from bowrain" -- \
-            .kapi ':(exclude).kapi/work' $(make -s l10n-derived-paths)
+            .kapi ':(exclude).kapi/work' $derived
