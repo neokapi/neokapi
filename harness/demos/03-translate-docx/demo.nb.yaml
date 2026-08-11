@@ -1,0 +1,62 @@
+id: 03-translate-docx
+title: "Oversett et dokument, strukturen intakt"
+subtitle: "En Word-kunngjøring, oversatt til japansk med kapi — overskrifter, lister og formatering bevart."
+kind: use-case
+publishAs: claude-translate-document
+aspects:
+  - dokumentformater
+  - oversettelse
+  - strukturbevarende
+needsAi: true
+model: sonnet
+captureTimeoutSec: 240
+
+prompt: >
+  Kan du oversette announcement.docx til japansk?
+artifacts:
+  - id: before
+    caption: "announcement.docx — det opprinnelige engelske dokumentet"
+    source: docx
+    path: announcement.docx
+    from: armatyr
+    reportTitle: "announcement.docx"
+    reportSub: "Engelsk — det opprinnelige Word-dokumentet"
+    width: 1100
+    height: 860
+  - id: etter
+    caption: "announcement.ja.docx — oversatt, struktur og formatering intakt"
+    source: docx
+    path: announcement.ja.docx
+    reportTitle: "announcement.ja.docx"
+    reportSub: "kapi · Japansk, overskrifter / lister / fet skrift bevart"
+    width: 1100
+    height: 860
+
+narration:
+  - id: tittel
+    kind: title
+    text: >
+      En lanseringskunngjøring, skrevet i Word. Oppgaven: få den på japansk, med selve dokumentet uendret.
+  - id: prompt
+    kind: prompt
+    text: >
+      Utvikleren ber bare om å oversette dokumentet — ingenting om filformatet eller hvordan layouten skal bevares.
+  - id: work
+    kind: terminal
+    text: >
+      Claude gir dokumentet til kapi, som leser Word-formatet direkte. Den oversetter teksten til japansk og skriver et nytt dokument tilbake — en strukturert rundtur, den samme kommandoen for ethvert dokument eller språk. Bare en enkel og uverifisert KI-oversettelse i denne demoen, men kapi kunne også rute dette gjennom menneskelig gjennomgang og utføre samsvarskontroller.
+    caption: "kapi leser .docx-filen, oversetter teksten, skriver et nytt dokument"
+  - id: before
+    kind: artefakt
+    artifact: before
+    text: >
+      Her er originalen — overskrifter, en punktliste, fete datoer, en kontaktlinje.
+  - id: etter
+    kind: artefakt
+    artifact: etter
+    text: >
+      Og den japanske versjonen. Teksten er oversatt, men overskriftene, listen, de fete datoene og produktnavnet kommer gjennom nøyaktig slik de var.
+  - id: outro
+    kind: outro
+    text: >
+      Én kommando, og dokumentet snakker japansk — strukturen intakt. Den samme tilnærmingen kan brukes på over 50 filformater med kapi.

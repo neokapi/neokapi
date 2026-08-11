@@ -1,8 +1,8 @@
 id: 05-ai-checks-guardrail
-title: Check AI output like you test code
-subtitle: An AI translated the app into German. kapi check reads the translation against the source and reports exactly what would break in production.
-tagline: do-not-translate, placeholders and terminology — deterministic checks that gate a bad translation before it ships.
-kind: use-case
+title: Sjekk AI-output slik du tester kode
+subtitle: En AI oversatte appen til tysk. kapi check leser oversettelsen mot kilden og rapporterer nøyaktig hva som ville gå galt i produksjon.
+tagline: "do-not-translate, plassholere og terminologi — deterministiske sjekker som stopper en dårlig oversettelse før den sendes ut."
+kind: brukstilfelle
 publishAs: kapi-checks-guardrail
 # A scripted plain-shell demo (no Claude): the checks are deterministic, so the
 # commands run for real and their output is recorded exactly.
@@ -12,44 +12,44 @@ cwd: ~/checkout
 needsAi: false
 captureTimeoutSec: 120
 aspects:
-  - checks as tests
+  - sjekker som tester
   - do-not-translate
-  - placeholder integrity
-  - gate in CI
+  - plassholder-integritet
+  - port i CI
 
 # --no-fail keeps the demo's exit code clean while still printing the FAIL
 # verdict and the findings; with the gate on (no --no-fail) the same check exits
 # non-zero and blocks a merge.
 script:
-  - comment: An AI translated app.json into German. Is it safe to ship?
+  - comment: En AI oversatte app.json til tysk. Er det trygt å sende ut?
   - command: cat app.de.json
-  - comment: Check the translation against the source — like running tests.
+  - comment: Sjekk oversettelsen mot kilden — som å kjøre tester.
   - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
-  - comment: Two real breakages — a dropped placeholder and a translated product name. Apply the fixes.
+  - comment: To reelle feil — en manglende plassholder og et oversatt produktnavn. Bruk rettelsene.
   - command: cp -f app.de.fixed.json app.de.json && cat app.de.json
-  - comment: Run the same check again.
+  - comment: Kjør den samme sjekken igjen.
   - command: kapi check app.json --target app.de.json --target-lang de --dnt "Acme Cloud" --no-fail 2>/dev/null
 
 narration:
   - id: title
     kind: title
     text: >
-      En KI har oversatt denne appen til tysk. Det meste er bra — men to ting ville sviktet i produksjon: en plassholder er borte, og produktnavnet er oversatt.
+      En AI oversatte denne appen til tysk. Det meste er greit — men to ting ville brutt i produksjon: en plassholder ble utelatt, og produktnavnet ble oversatt.
   - id: check
     kind: terminal
     text: >
-      kapi check leser den tyske oversettelsen mot den engelske kilden og kjører reglene som tester — ikke-oversettbare navn, plassholderintegritet, terminologi. Den rapporterer nøyaktig hva som røk: antall-plassholderen mangler, og Acme Cloud er oversatt.
-    caption: "kapi check rapporterer funnene for ikke-oversettbart og plassholdere"
+      kapi check leser det tyske mot det engelske og kjører reglene som tester — do-not-translate, plassholder-integritet, terminologi. Den rapporterer nøyaktig hva som gikk galt: count-plassholderen mangler, og Acme Cloud ble oversatt.
+    caption: "kapi check rapporterer funn for ikke-oversett og plassholdere"
   - id: fix
     kind: terminal
     text: >
-      Vi retter de to feilene — gjenoppretter plassholderen og lar produktnavnet stå urørt — og kjører nøyaktig samme kontroll på nytt.
-    caption: "rett feilene, kjør kontrollen på nytt"
+      Vi bruker de to rettelsene — gjenoppretter plassholderen, beholder produktnavnet ordrett — og kjører nøyaktig den samme sjekken igjen.
+    caption: "bruk rettelsene, kjør sjekken på nytt"
   - id: pass
     kind: terminal
     text: >
-      Nå passerer den. Med porten på er det dette som stopper en dårlig oversettelse fra å gå ut — i kontinuerlig integrasjon, eller i en assistents rettesløyfe.
+      Nå er den godkjent. Med porten aktivert er dette det som hindrer en dårlig oversettelse fra å bli sendt ut — i kontinuerlig integrasjon, eller inne i en assistents rettelsesløkke.
   - id: outro
     kind: outro
     text: >
-      Kontroller som holder KI-resultater i sjakk, slik tester holder koden i sjakk: deterministiske, flerspråklige, og kjørt ved hver endring.
+      Sjekker som holder AI-output i tøylen, slik tester holder kode i tøylen: deterministiske, flerspråklige og kjørt ved hver endring.
