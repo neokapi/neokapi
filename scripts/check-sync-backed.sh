@@ -104,6 +104,14 @@ gate() {
   derived_specs=($derived_spec)
   set +f
 
+  # An empty set is refused rather than tolerated: `git status -- ` with no
+  # pathspec after it lists the whole tree, which would classify every change as
+  # derived and turn this gate into an approval.
+  if [ "${#derived_specs[@]}" -eq 0 ]; then
+    echo "check-sync-backed: the derived set is empty — refusing to classify anything as derived" >&2
+    return 2
+  fi
+
   while IFS= read -r -d '' rec; do
     all_entries+=("$rec")
     all_paths+=("${rec:3}")
@@ -324,6 +332,18 @@ self_test() {
 
   git -C "$repo" checkout -q -- .
   rm -rf "$repo/.kapi/work"
+
+  printf '{"greeting":"Hallo"}\n' >"$repo/core/i18n/catalogs/nb.json"
+  local out rc=0
+  out="$(gate "$repo" '   ' 2>&1)" || rc=$?
+  if [ "$rc" -eq 2 ] && printf '%s\n' "$out" | grep -qF "derived set is empty"; then
+    echo "✓ self-test: an empty derived set is refused, not read as approval"
+  else
+    echo "✖ self-test: an empty derived set did not stop the gate (exit ${rc}):"
+    printf '%s\n' "$out" | sed 's/^/    /'
+    SELFTEST_STATUS=1
+  fi
+  git -C "$repo" checkout -q -- .
 
   # The gate arms itself in this repository: the derived set comes from the
   # Makefile, and a rename there must fail loudly rather than pass everything.
