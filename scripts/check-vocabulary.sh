@@ -2,8 +2,9 @@
 #
 # Guard: retired framing must not reappear in user-facing prose.
 #
-# The positioning canon (web/docs/contribute/implementation/positioning.md, R12)
-# retires a small set of phrases. Prose drifts back to them the way an absolute
+# The positioning canon (R12) retires a small set of phrases, listed with their
+# replacements in this script's failure output — which is the whole of the rule
+# a contributor needs. Prose drifts back to them the way an absolute
 # home path creeps into a Makefile: nobody decides to, and nothing fails. A
 # retired phrase re-enters through a copied paragraph, a stale doc, or a fresh
 # session that read the code first and re-derived the old frame from package
@@ -94,11 +95,10 @@ readonly SWEPT_SURFACES=(
 readonly PENDING_SURFACES=(
 )
 
-# Files inside a swept surface that legitimately spell a retired phrase.
-readonly ALLOWED_FILES=(
-  # The canon itself: it must name the retired phrases in order to retire them.
-  web/docs/contribute/implementation/positioning.md
-)
+# Files inside a swept surface that legitimately spell a retired phrase. Empty:
+# every swept surface is user-facing prose, and none of it has a reason to name
+# a phrase this guard retires.
+readonly ALLOWED_FILES=()
 
 # scan_paths prints "file:line:match" for every retired phrase under the given
 # paths, and "file: (phrase wrapped across a line break)" for a file that is
@@ -110,7 +110,10 @@ readonly ALLOWED_FILES=(
 # guessing a line — keeps each occurrence to exactly one hit.
 scan_paths() {
   local hits="" exclude_re f line_hits
-  exclude_re="$(printf '%s\n' "${ALLOWED_FILES[@]}" | paste -sd'|' -)"
+  # The ${a[@]+"${a[@]}"} form: under `set -u` an empty array expansion is an
+  # unbound-variable error on bash 3.2, which is what /bin/bash still is on
+  # macOS.
+  exclude_re="$(printf '%s\n' ${ALLOWED_FILES[@]+"${ALLOWED_FILES[@]}"} | paste -sd'|' -)"
 
   while IFS= read -r -d '' f; do
     if [ -n "$exclude_re" ] && printf '%s\n' "$f" | grep -qxE "$exclude_re"; then
@@ -257,5 +260,4 @@ echo "  for your whole team   → team is one angle, not the venue."
   echo "                          vocabulary; the product does not call"
   echo "                          itself a localization platform.)"
 echo ""
-echo "See web/docs/contribute/implementation/positioning.md for the canon."
 exit 1

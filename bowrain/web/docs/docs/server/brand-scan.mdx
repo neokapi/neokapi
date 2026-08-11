@@ -130,8 +130,8 @@ scan itself creates neither — it only hands you a draft to carry forward.
 
 Because onboarding happens before a workspace has configured a
 bring-your-own provider key, a scan always runs on **platform AI credits** — the
-same [hybrid credits model](/architecture-decisions/018-billing-and-plans#ai-providers-and-credits)
-that governs the rest of the platform's AI operations. A scan is refused up front
+same [hybrid credits model](/server/billing-and-credits) that governs the rest of
+the platform's AI operations. A scan is refused up front
 if the workspace has no spendable credits, and the credits it spends
 (one credit per token) are metered per phase and reported on the job as
 `tokens_used`. On a self-hosted deployment with billing disabled, no credits are
@@ -139,9 +139,7 @@ deducted.
 
 ## Under the hood
 
-- [AD-021: The brand knowledge graph](/architecture-decisions/021-brand-knowledge-graph) —
-  the brand surfaces a scan feeds into.
+- [The Brand hub](/server/brand) — the brand surfaces a scan feeds into.
 - [Brand voice & corrections](/server/brand-voice) — the profile a scan drafts,
   and how a saved profile is enforced.
-- [AD-018: Billing and plans](/architecture-decisions/018-billing-and-plans) —
-  the credits a scan spends.
+- [Billing and credits](/server/billing-and-credits) — the credits a scan spends.

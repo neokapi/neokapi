@@ -3,6 +3,20 @@
 # here independently of the repo workspace.
 packages: []
 
+# Where the package manager itself is downloaded from, so the
+# package.json#packageManager pin resolves the same way on every machine. pnpm
+# 11.13+ requires an integrity-only resolution for that bootstrap, which a
+# registry mirror cannot provide (it serves npm's packument verbatim, so the
+# advertised tarball URL is not canonical for the mirror) — every pnpm command
+# in this directory then fails with "must use a registry package path and an
+# integrity-only resolution". The repo-root pnpm-workspace.yaml carries the same
+# setting and the full explanation; this standalone workspace needs its own copy
+# because `--ignore-workspace` never reads the root file. Only the
+# package-manager bootstrap is governed; dependency resolution still follows
+# .npmrc.
+packageManagerRegistries:
+  default: https://registry.npmjs.org/
+
 # core-js' install script only prints a funding banner — not needed.
 allowBuilds:
   core-js: set this to true or false

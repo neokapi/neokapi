@@ -118,9 +118,7 @@ bowrain:
 ```
 
 `kapi push` from CI just pushes; the server catches the project up on its own clock; `kapi up`
-is push + *watch the run* + pull. See [Keeping content caught up](/the-loop) for the model, and
-[AD-022: Convergence as a Service](/architecture-decisions/022-convergence-as-a-service) for the
-server-side design.
+is push + *watch the run* + pull. See [Keeping content caught up](/the-loop) for the model.
 
 Every run — started by a push, by `kapi up`, or manually — appears in the
 project's **Runs** view in the web and desktop app, with its state (*Running*,

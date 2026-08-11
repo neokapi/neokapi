@@ -9,8 +9,8 @@
 #
 # INERT BY DEFAULT (roadmap epic 017-F, decision D2). Every job is gated on the
 # repo variable DOGFOOD_SYNC_ENABLED == 'true', so until the founder arms it
-# (see web/docs/contribute/implementation/dogfood-sync.md) this workflow is a
-# no-op: scheduled runs and manual dispatches evaluate the gate and skip.
+# this workflow is a no-op: scheduled runs and manual dispatches evaluate the
+# gate and skip.
 #
 # Arming it needs two settings that are not in this file:
 #   * repo secret   BOWRAIN_AUTH_TOKEN     — a bwt_ workspace API token

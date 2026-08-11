@@ -309,22 +309,20 @@ const config: Config = {
           // notes-internal/ → implementation/. The pages stay public — publishing
           // implementation detail is deliberate for an open-source engine — but
           // the old directory name told readers the content was internal, which
-          // is neither true nor useful. Every one of the 25 published routes
-          // keeps a redirect; the entries below are generated from the files in
-          // web/docs/contribute/implementation/, not typed by hand. The bare
-          // /contribute/notes-internal covers the directory-index form.
+          // is neither true nor useful. Every one of the published routes keeps
+          // a redirect; the entries immediately below mirror the files in
+          // web/docs/contribute/implementation/ one-for-one, and the four whose
+          // note has since left this site are grouped separately further down.
+          // The bare /contribute/notes-internal covers the directory-index form.
           { from: "/contribute/notes-internal", to: "/contribute/implementation/index" },
-          { from: "/contribute/notes-internal/analytics-events", to: "/contribute/implementation/analytics-events" },
           { from: "/contribute/notes-internal/cdn-assets", to: "/contribute/implementation/cdn-assets" },
           { from: "/contribute/notes-internal/cli-conventions", to: "/contribute/implementation/cli-conventions" },
           { from: "/contribute/notes-internal/content-fidelity", to: "/contribute/implementation/content-fidelity" },
           { from: "/contribute/notes-internal/content-parity", to: "/contribute/implementation/content-parity" },
-          { from: "/contribute/notes-internal/dogfood-sync", to: "/contribute/implementation/dogfood-sync" },
           { from: "/contribute/notes-internal/flow-steps-format", to: "/contribute/implementation/flow-steps-format" },
           { from: "/contribute/notes-internal/implementing-formats", to: "/contribute/implementation/implementing-formats" },
           { from: "/contribute/notes-internal/index", to: "/contribute/implementation/index" },
           { from: "/contribute/notes-internal/kapi-project-file", to: "/contribute/implementation/kapi-project-file" },
-          { from: "/contribute/notes-internal/loop-docs-review", to: "/contribute/implementation/loop-docs-review" },
           { from: "/contribute/notes-internal/markdown-in-ui", to: "/contribute/implementation/markdown-in-ui" },
           { from: "/contribute/notes-internal/mcp-tools-reference", to: "/contribute/implementation/mcp-tools-reference" },
           { from: "/contribute/notes-internal/memory-matching-algorithm", to: "/contribute/implementation/memory-matching-algorithm" },
@@ -332,13 +330,28 @@ const config: Config = {
           { from: "/contribute/notes-internal/omml-math", to: "/contribute/implementation/omml-math" },
           { from: "/contribute/notes-internal/plugin-model", to: "/contribute/implementation/plugin-model" },
           { from: "/contribute/notes-internal/plugin-protocol-v1", to: "/contribute/implementation/plugin-protocol-v1" },
-          { from: "/contribute/notes-internal/positioning", to: "/contribute/implementation/positioning" },
           { from: "/contribute/notes-internal/session-tool-authoring", to: "/contribute/implementation/session-tool-authoring" },
           { from: "/contribute/notes-internal/skeleton-store", to: "/contribute/implementation/skeleton-store" },
           { from: "/contribute/notes-internal/streaming-tree-formats", to: "/contribute/implementation/streaming-tree-formats" },
           { from: "/contribute/notes-internal/terminology-data-model", to: "/contribute/implementation/terminology-data-model" },
           { from: "/contribute/notes-internal/tool-data-model-redesign", to: "/contribute/implementation/tool-data-model-redesign" },
           { from: "/contribute/notes-internal/wasm-engine-abi", to: "/contribute/implementation/wasm-engine-abi" },
+          // Four notes documented the hosted platform rather than the framework
+          // — its product-analytics taxonomy, the nightly convergence of this
+          // repo's own content against it, a review of the loop documentation
+          // across both sites, and the messaging canon. This site publishes
+          // framework documentation, so they are no longer part of it. Their
+          // routes were indexed (and two of them also had a notes-internal
+          // predecessor route), so every one lands on the implementation index
+          // rather than 404ing.
+          { from: "/contribute/implementation/analytics-events", to: "/contribute/implementation/index" },
+          { from: "/contribute/implementation/dogfood-sync", to: "/contribute/implementation/index" },
+          { from: "/contribute/implementation/loop-docs-review", to: "/contribute/implementation/index" },
+          { from: "/contribute/implementation/positioning", to: "/contribute/implementation/index" },
+          { from: "/contribute/notes-internal/analytics-events", to: "/contribute/implementation/index" },
+          { from: "/contribute/notes-internal/dogfood-sync", to: "/contribute/implementation/index" },
+          { from: "/contribute/notes-internal/loop-docs-review", to: "/contribute/implementation/index" },
+          { from: "/contribute/notes-internal/positioning", to: "/contribute/implementation/index" },
           // Workspace paths was contributor machine setup (NEOKAPI_* variables
           // and the absolute-path guard), not product documentation, so it was
           // unpublished and now lives in the repository at

@@ -4,7 +4,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -56,28 +55,6 @@ func eventConstants(t *testing.T) map[string]string {
 	}
 	require.NotEmpty(t, events, "no Event* constants found in events.go")
 	return events
-}
-
-// TestEventReferenceDocDrift asserts that every event constant defined in
-// events.go is documented in the analytics event reference. Adding an event
-// without updating the doc fails this test (epic 018 drift gate).
-func TestEventReferenceDocDrift(t *testing.T) {
-	_, thisFile, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-
-	// bowrain/analytics → repo root is two levels up.
-	docPath := filepath.Join(filepath.Dir(thisFile), "..", "..",
-		"web", "docs", "contribute", "implementation", "analytics-events.md")
-	data, err := os.ReadFile(docPath)
-	require.NoError(t, err,
-		"analytics event reference doc missing; every event constant must be documented there")
-	doc := string(data)
-
-	for constName, event := range eventConstants(t) {
-		assert.Contains(t, doc, "`"+event+"`",
-			"event %s (%q) is not documented in %s — add it to the reference table",
-			constName, event, docPath)
-	}
 }
 
 // TestEventNamesAreSnakeCaseDomainAction asserts the taxonomy naming rule.

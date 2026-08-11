@@ -41,7 +41,7 @@ type ContentStore interface {
     BlockStore      // blocks, notes, history (stream-scoped)
     VersionStore    // named versions + diffs (stream-scoped)
     ChangeFeed      // incremental sync change log (stream-scoped)
-    AssetStore      // assets and locale variants (AD-007)
+    AssetStore      // assets and locale variants
 
     Close() error
 }
@@ -68,8 +68,7 @@ Two backends implement `ContentStore`, with different roles:
   that connection. This is the source of truth for every workspace.
 - **SQLite** (`bowrain/store/sqlitestore`) backs the desktop app's local
   working copy — a cache for speed and offline edits that mirrors the server
-  and is never a source of truth (see
-  [AD-017: Bowrain Apps](/architecture-decisions/017-bowrain-apps)).
+  and is never a source of truth.
 
 ```go
 import "github.com/neokapi/neokapi/bowrain/store/sqlitestore"
@@ -82,8 +81,7 @@ defer store.Close()
 ```
 
 Both backends share one logical schema — projects, streams, collections,
-items, blocks, versions, the change log, and assets — documented in the
-[Content Store Schema](/notes/content-store-schema) note.
+items, blocks, versions, the change log, and assets.
 
 ## Block Identity
 

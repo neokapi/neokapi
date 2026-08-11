@@ -229,8 +229,7 @@ The **Dashboard** rolls the hub up into the questions a steward asks daily:
 aggregate compliance, drift, coverage, and the pending decisions. The decision
 inbox is deliberately plain — a list of proposals, each with a human-readable
 summary, its blast radius, and an approve-or-reject choice. That simplicity is the
-contract a future lightweight stakeholder-review surface would consume; see
-[AD-021](/architecture-decisions/021-brand-knowledge-graph) for the design.
+contract a future lightweight stakeholder-review surface would consume.
 
 The **Activity** section is the brand-scoped event timeline: concepts created and
 updated, statuses changed, relations gained and lost, observations and comments
@@ -262,10 +261,8 @@ so an assistant consults the hub's terminology rather than guessing.
 
 ## Under the hood
 
-- [AD-021: The brand knowledge graph](/architecture-decisions/021-brand-knowledge-graph) —
-  the architectural decision behind the hub.
-- [Knowledge graph data model](/notes/knowledge-graph-data-model) — schemas, REST
-  routes, change-set operation types, and permission mapping.
-- [AD-019: The correction-learning loop](/architecture-decisions/019-correction-learning-loop)
-  and [AD-020: Governance, audit, and rollback](/architecture-decisions/020-governance-audit-rollback) —
-  the loop that feeds Voice and the separation-of-duties machinery governance reuses.
+- [The context graph](/getting-started/the-context-graph) — the model the hub is a
+  view onto.
+- [Brand voice & corrections](/server/brand-voice) — the loop that feeds Voice.
+- [Security and privacy](/server/security-and-privacy) — the separation-of-duties
+  machinery governance reuses.

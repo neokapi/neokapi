@@ -2241,7 +2241,12 @@ docs-build-prod: web-wasm-demo web-wasm-cli ## Build the kapi docs+landing site 
 	cd web && DOCS_BASE_URL=$(NEOKAPI_DOCS_BASE) vp run build
 
 bowrain-docs-build-prod: ## Build the standalone bowrain docs site with the production base → bowrain/web/docs/build
-	cd bowrain/web/docs && corepack pnpm install --ignore-workspace
+# bowrain/web/docs carries its own pnpm-workspace.yaml (packages: []), so it is
+# already its own workspace root and needs no --ignore-workspace to stay out of
+# the repo workspace. The flag is actively harmful here: it makes pnpm skip that
+# file, including its packageManagerRegistries pin, and the package-manager
+# bootstrap then fails on any machine whose default registry is a mirror.
+	cd bowrain/web/docs && corepack pnpm install
 	cd bowrain/web/docs && DOCS_BASE_URL=$(BOWRAIN_DOCS_BASE) vpx docusaurus build
 
 publish-landing: landing-build ## Build + deploy the bowrain landing page to neokapi.github.io (PAGES_PUBLISH_YES=1 to skip prompt)

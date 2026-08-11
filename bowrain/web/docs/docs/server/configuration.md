@@ -24,8 +24,7 @@ Bowrain Server requires **PostgreSQL**. There is no SQLite or file backend. The
 connection string must use the `postgres://` or `postgresql://` scheme — the
 server refuses to start otherwise. The schema is created automatically on first
 start, and migrations run on startup. The brand knowledge graph runs on the
-same stock PostgreSQL (no extension required) — see
-[AD-006](/architecture-decisions/006-graph-concept-storage).
+same stock PostgreSQL (no extension required).
 
 ```bash
 BOWRAIN_DATABASE_URL=postgres://bowrain:password@localhost/bowrain

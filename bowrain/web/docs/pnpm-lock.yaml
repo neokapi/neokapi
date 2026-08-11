@@ -11,6 +11,9 @@ importers:
       '@docusaurus/core':
         specifier: ^3.10.0
         version: 3.10.1(@mdx-js/react@3.1.1(@types/react@19.2.15)(react@19.2.6))(postcss@8.5.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@7.0.2)
+      '@docusaurus/plugin-client-redirects':
+        specifier: 3.10.1
+        version: 3.10.1(@mdx-js/react@3.1.1(@types/react@19.2.15)(react@19.2.6))(postcss@8.5.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@7.0.2)
       '@docusaurus/preset-classic':
         specifier: ^3.10.0
         version: 3.10.1(@algolia/client-search@5.53.0)(@mdx-js/react@3.1.1(@types/react@19.2.15)(react@19.2.6))(@types/react@19.2.15)(postcss@8.5.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(search-insights@2.17.3)(typescript@7.0.2)
@@ -1108,6 +1111,13 @@ packages:
       react: '*'
       react-dom: '*'
 
+  '@docusaurus/plugin-client-redirects@3.10.1':
+    resolution: {integrity: sha512-LHgd+YDvkhfOHMAE6XtUng3DQNzVM765RqVRrMJgHtzAvfopQhY6ieprqjxDVBdv21cLma6I0jHr+YCZH8fL9A==, tarball: https://registry.npmjs.org/@docusaurus/plugin-client-redirects/-/plugin-client-redirects-3.10.1.tgz}
+    engines: {node: '>=20.0'}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0
+      react-dom: ^18.0.0 || ^19.0.0
+
   '@docusaurus/plugin-content-blog@3.10.1':
     resolution: {integrity: sha512-mmkgE6Q2+K74tnkou7tXlpDLvoCU/qkSa2GSQ3XUiHWvcebCoDQzS670RR3tO8PmaWlIyWWISYWzZLuMfxunRA==, tarball: https://registry.npmjs.org/@docusaurus/plugin-content-blog/-/plugin-content-blog-3.10.1.tgz}
     engines: {node: '>=20.0'}
@@ -1493,11 +1503,14 @@ packages:
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==, tarball: https://registry.npmjs.org/@polka/url/-/url-1.0.0-next.29.tgz}
 
-  '@posthog/core@1.42.1':
-    resolution: {integrity: sha512-cZojBmvf92gZAn0MGf/J2S+3t2sZqb9E2/6mjY4jJsImwz7PuYqdNj870Wx2iwwlf++wfhRuH4K4bpDy9GIoCA==, tarball: https://registry.npmjs.org/@posthog/core/-/core-1.42.1.tgz}
+  '@posthog/browser-common@0.4.0':
+    resolution: {integrity: sha512-W9DCGVks15docUMPvJ2nd8NS16Gn74bsGWuaeg31beEKFSjdW8wvnQ1ETY6WSql5pYxZb3GdJmEUZVVstKSrBQ==, tarball: https://registry.npmjs.org/@posthog/browser-common/-/browser-common-0.4.0.tgz}
 
-  '@posthog/types@1.395.0':
-    resolution: {integrity: sha512-Ty0gbVc6d9ku9H3caF54PmEfu4PHUGpJKTriMyDb4rjCTsEYOOjD4r6Fw/UMYSSWg8Ls3KnCtTow8LL6ciqNDg==, tarball: https://registry.npmjs.org/@posthog/types/-/types-1.395.0.tgz}
+  '@posthog/core@1.47.0':
+    resolution: {integrity: sha512-LW62V+9yx7G7mLd+EYpwW0PiaPZI8XRJ1tLuhw+9fXHpugLp8XQD5JuCQ2kIXvoUfyx1DpKfGQY3dUnzMOIn7Q==, tarball: https://registry.npmjs.org/@posthog/core/-/core-1.47.0.tgz}
+
+  '@posthog/types@1.402.2':
+    resolution: {integrity: sha512-ZZTiS4dLwF4/D0YTzS3gGSLFnhuNOY5yu4d9VGS9trGe5GW6FjIXo20p18K5BPW2RZSYSld8sdnSAY3AUXleUQ==, tarball: https://registry.npmjs.org/@posthog/types/-/types-1.402.2.tgz}
 
   '@sideway/address@4.1.5':
     resolution: {integrity: sha512-IqO/DUQHUkPeixNQ8n0JA6102hT9CmaljNTPmQ1u8MEhBo/R4Q8eKLN/vGZxuebwOroDB4cbpjheD4+/sKFK4Q==, tarball: https://registry.npmjs.org/@sideway/address/-/address-4.1.5.tgz}
@@ -2892,6 +2905,9 @@ packages:
   domhandler@5.0.3:
     resolution: {integrity: sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w==, tarball: https://registry.npmjs.org/domhandler/-/domhandler-5.0.3.tgz}
     engines: {node: '>= 4'}
+
+  dompurify@3.4.13:
+    resolution: {integrity: sha512-2vmYIoqjze2d+kakP8S/nS5shfsl587kzwEjcGlTdiksUVgFHnFCsLYDVj/JNqJVOQZGSYBTmuycv0PodwmnMQ==, tarball: https://registry.npmjs.org/dompurify/-/dompurify-3.4.13.tgz}
 
   dompurify@3.4.7:
     resolution: {integrity: sha512-2jBxDJY4RR06tQNy4w5FlFH7kfxsQZlufd0sbv+chfHCxeJwrFw2baUDsSwvBISD4K4RDbd0PTfy3uNXsR6siA==, tarball: https://registry.npmjs.org/dompurify/-/dompurify-3.4.7.tgz}
@@ -4656,8 +4672,8 @@ packages:
     resolution: {integrity: sha512-FfR8sjd4em2T6fb3I2MwAJU7HWVMr9zba+enmQeeWFfCbm+UOC/0X4DS8XtpUTMwWMGbjKYP7xjfNekzyGmB3A==, tarball: https://registry.npmjs.org/postcss/-/postcss-8.5.15.tgz}
     engines: {node: ^10 || ^12 || >=14}
 
-  posthog-js@1.402.3:
-    resolution: {integrity: sha512-MCn4O9wJc1BGBbb820MlmYifDb6EhFBFhfR1K9294gfgFRcxin+NSlypswVBdt1ZO4XD/P7EPmwApyVX/EYlUw==, tarball: https://registry.npmjs.org/posthog-js/-/posthog-js-1.402.3.tgz}
+  posthog-js@1.415.1:
+    resolution: {integrity: sha512-42kmHsgzxAZ3fM6W/NcbBun6r39Zoc5v0l0RJRZ6O+2BdVGNCQXiZTe/mDG9+7Bf0yz/dKY5BDZXB85Vq0JGFw==, tarball: https://registry.npmjs.org/posthog-js/-/posthog-js-1.415.1.tgz}
 
   preact@10.29.7:
     resolution: {integrity: sha512-DCHYrK/B10yUD3ZjLfhZ3WIE/9Vf9VFUODcRE2dRomTYDpJk6z6L9wecSfhfE6M9ZTHUdyQkoC46arIDhEV84Q==, tarball: https://registry.npmjs.org/preact/-/preact-10.29.7.tgz}
@@ -5482,6 +5498,9 @@ packages:
 
   web-vitals@5.3.0:
     resolution: {integrity: sha512-q6LWsLatGYZp5VGBIOvbTj6JBV2nOmC8KvWztXBmwJcfFAzhwKwbOxhUH306XY3CcaZDUlSmSuNPBsCn0bFu+g==, tarball: https://registry.npmjs.org/web-vitals/-/web-vitals-5.3.0.tgz}
+
+  web-vitals@6.0.0:
+    resolution: {integrity: sha512-Guaibvy/+uNtL6Bsu4jmMJGzuSl91oeRH5iO9pPRbYftnFUr3yqT1TUNX/OE4o9HexuEMU3Kb/Wg7iKhlffZUA==, tarball: https://registry.npmjs.org/web-vitals/-/web-vitals-6.0.0.tgz}
 
   webpack-bundle-analyzer@4.10.2:
     resolution: {integrity: sha512-vJptkMm9pk5si4Bv922ZbKLV8UTT4zib4FPgXMhgzUny0bfDDkLXAVQs3ly3fS4/TN9ROFtb0NFrm04UXFE/Vw==, tarball: https://registry.npmjs.org/webpack-bundle-analyzer/-/webpack-bundle-analyzer-4.10.2.tgz}
@@ -7081,6 +7100,43 @@ snapshots:
       - uglify-js
       - webpack-cli
 
+  '@docusaurus/plugin-client-redirects@3.10.1(@mdx-js/react@3.1.1(@types/react@19.2.15)(react@19.2.6))(postcss@8.5.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@7.0.2)':
+    dependencies:
+      '@docusaurus/core': 3.10.1(@mdx-js/react@3.1.1(@types/react@19.2.15)(react@19.2.6))(postcss@8.5.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@7.0.2)
+      '@docusaurus/logger': 3.10.1
+      '@docusaurus/utils': 3.10.1(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.15))(html-minifier-terser@7.2.0)(postcss@8.5.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@docusaurus/utils-common': 3.10.1(clean-css@5.3.3)(cssnano@6.1.2(postcss@8.5.15))(html-minifier-terser@7.2.0)(postcss@8.5.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@docusaurus/utils-validation': 3.10.1(postcss@8.5.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      eta: 2.2.0
+      fs-extra: 11.3.5
+      lodash: 4.18.1
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
+      tslib: 2.8.1
+    transitivePeerDependencies:
+      - '@docusaurus/faster'
+      - '@mdx-js/react'
+      - '@minify-html/node'
+      - '@parcel/css'
+      - '@rspack/core'
+      - '@swc/core'
+      - '@swc/css'
+      - '@swc/html'
+      - bufferutil
+      - clean-css
+      - cssnano
+      - csso
+      - debug
+      - esbuild
+      - html-minifier-terser
+      - lightningcss
+      - postcss
+      - supports-color
+      - typescript
+      - uglify-js
+      - utf-8-validate
+      - webpack-cli
+
   '@docusaurus/plugin-content-blog@3.10.1(@docusaurus/plugin-content-docs@3.10.1(@mdx-js/react@3.1.1(@types/react@19.2.15)(react@19.2.6))(postcss@8.5.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@7.0.2))(@mdx-js/react@3.1.1(@types/react@19.2.15)(react@19.2.6))(postcss@8.5.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@7.0.2)':
     dependencies:
       '@docusaurus/core': 3.10.1(@mdx-js/react@3.1.1(@types/react@19.2.15)(react@19.2.6))(postcss@8.5.15)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@7.0.2)
@@ -8019,7 +8075,7 @@ snapshots:
 
   '@neokapi/docs-shared@file:../../../packages/docs-shared(react@19.2.6)':
     dependencies:
-      posthog-js: 1.402.3
+      posthog-js: 1.415.1
       react: 19.2.6
     transitivePeerDependencies:
       - preact-render-to-string
@@ -8146,11 +8202,16 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
-  '@posthog/core@1.42.1':
+  '@posthog/browser-common@0.4.0':
     dependencies:
-      '@posthog/types': 1.395.0
+      '@posthog/core': 1.47.0
+      '@posthog/types': 1.402.2
 
-  '@posthog/types@1.395.0': {}
+  '@posthog/core@1.47.0':
+    dependencies:
+      '@posthog/types': 1.402.2
+
+  '@posthog/types@1.402.2': {}
 
   '@sideway/address@4.1.5':
     dependencies:
@@ -9641,6 +9702,10 @@ snapshots:
   domhandler@5.0.3:
     dependencies:
       domelementtype: 2.3.0
+
+  dompurify@3.4.13:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
 
   dompurify@3.4.7:
     optionalDependencies:
@@ -11811,16 +11876,18 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  posthog-js@1.402.3:
+  posthog-js@1.415.1:
     dependencies:
-      '@posthog/core': 1.42.1
-      '@posthog/types': 1.395.0
+      '@posthog/browser-common': 0.4.0
+      '@posthog/core': 1.47.0
+      '@posthog/types': 1.402.2
       core-js: 3.49.0
-      dompurify: 3.4.7
+      dompurify: 3.4.13
       fflate: 0.4.8
       preact: 10.29.7
       query-selector-shadow-dom: 1.0.1
       web-vitals: 5.3.0
+      web-vitals-soft-navs: web-vitals@6.0.0
     transitivePeerDependencies:
       - preact-render-to-string
 
@@ -12737,6 +12804,8 @@ snapshots:
   web-namespaces@2.0.1: {}
 
   web-vitals@5.3.0: {}
+
+  web-vitals@6.0.0: {}
 
   webpack-bundle-analyzer@4.10.2:
     dependencies:

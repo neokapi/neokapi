@@ -306,8 +306,7 @@ flows:
 # nightly + manual sync runs in .github/workflows/dogfood-sync.yml (gated on the
 # DOGFOOD_SYNC_ENABLED repo variable, token in BOWRAIN_AUTH_TOKEN).
 #
-# To disconnect: re-comment this block and unset DOGFOOD_SYNC_ENABLED. Runbook:
-# web/docs/contribute/implementation/dogfood-sync.md
+# To disconnect: re-comment this block and unset DOGFOOD_SYNC_ENABLED.
 bowrain:
   url: "https://app.bowrain.cloud/bowrain-hq/uek630Q5"   # <server>/<workspace>/<project-id>
   converge: manual     # push never auto-converges; start the loop deliberately

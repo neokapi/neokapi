@@ -10,8 +10,7 @@ gRPC API; also drives the kapi loop's runs), an **async worker** (processes the
 translation jobs those runs enqueue, and push ingestion), and backing
 services — PostgreSQL, ElasticMQ (SQS-compatible job queue), Redis (event
 bus), Keycloak (OIDC), and Mailpit (SMTP). The server and
-worker share the job queue and a blob volume; push processing is asynchronous
-([AD-009](../architecture-decisions/009-sync-protocol.md)).
+worker share the job queue and a blob volume; push processing is asynchronous.
 
 There are three ways to run this locally, depending on what you are working on:
 
@@ -102,7 +101,7 @@ Keycloak is on `http://localhost:8180` (admin/admin) and Mailpit on
 ## The translation worker
 
 The `bowrain-worker` processes the translation jobs that loop runs
-enqueue (a push to an `on-push` project starts one — AD-022). Its upstream
+enqueue (a push to an `on-push` project starts one). Its upstream
 provider for these platform jobs is configured by environment:
 
 - `BOWRAIN_PLATFORM_PROVIDER` — `demo` (default), `gemini`, `openai`,

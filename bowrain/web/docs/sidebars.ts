@@ -9,8 +9,7 @@ import type { SidebarsConfig } from "@docusaurus/plugin-content-docs";
 //   cliSidebar             — the developer/CI connector: kapi + the bowrain
 //                            plugin. One route among the connectors, not the
 //                            default way into the platform.
-//   forDevelopersSidebar   — self-hosting + the engineering docs (developer/,
-//                            architecture-decisions/, notes/)
+//   forDevelopersSidebar   — self-hosting + the developer/ engineering docs
 //
 // Section headings use `collapsible: false` so they render as static labels
 // rather than collapsible menus — consistent with the kapi docs site pattern.
@@ -230,61 +229,6 @@ const sidebars: SidebarsConfig = {
         "developer/events",
         "developer/local-development",
         "developer/release",
-      ],
-    },
-    {
-      type: "category",
-      label: "Architecture decisions",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: [
-        "architecture-decisions/README",
-        "architecture-decisions/001-vision-and-modules",
-        "architecture-decisions/002-authentication-and-workspaces",
-        "architecture-decisions/003-permissions",
-        "architecture-decisions/004-content-store",
-        "architecture-decisions/005-streams",
-        "architecture-decisions/006-graph-concept-storage",
-        "architecture-decisions/007-media-and-blob-storage",
-        "architecture-decisions/008-connector-system",
-        "architecture-decisions/009-sync-protocol",
-        "architecture-decisions/010-bowrain-cli-and-project-model",
-        "architecture-decisions/011-rest-api",
-        "architecture-decisions/012-distributed-event-bus",
-        "architecture-decisions/013-automation-engine",
-        "architecture-decisions/014-translator-workflow",
-        "architecture-decisions/015-server-ai-operations",
-        "architecture-decisions/016-bravo-agent",
-        "architecture-decisions/017-bowrain-apps",
-        "architecture-decisions/018-billing-and-plans",
-        "architecture-decisions/019-correction-learning-loop",
-        "architecture-decisions/020-governance-audit-rollback",
-        "architecture-decisions/021-brand-knowledge-graph",
-        "architecture-decisions/022-convergence-as-a-service",
-      ],
-    },
-    {
-      type: "category",
-      label: "Implementation notes",
-      collapsible: false,
-      className: "sidebar-section-heading",
-      items: [
-        "notes/README",
-        "notes/admin-control-plane",
-        "notes/automation-run-visibility",
-        "notes/brand-voice-data-model",
-        "notes/bravo-agent-implementation",
-        "notes/cli-commands-reference",
-        "notes/connector-interfaces",
-        "notes/content-store-schema",
-        "notes/entity-term-extraction",
-        "notes/graph-store-schema",
-        "notes/knowledge-graph-data-model",
-        "notes/media-asset-storage",
-        "notes/observability",
-        "notes/sync-protocol",
-        "notes/translation-job-queue",
-        "notes/translator-workflow",
       ],
     },
   ],
