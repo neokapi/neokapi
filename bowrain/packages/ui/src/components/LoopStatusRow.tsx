@@ -1,4 +1,5 @@
 import { Badge, Card, CardContent, cn } from "@neokapi/ui-primitives";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import type { ReactNode } from "react";
 import {
   Activity,
@@ -286,7 +287,10 @@ export function LoopStatusRow({
               {openReviewTasks}
             </span>
             <span className="text-sm text-muted-foreground">
-              open review task{openReviewTasks !== 1 ? "s" : ""} for you
+              <Plural count={openReviewTasks}>
+                <One>open review task for you</One>
+                <Other>open review tasks for you</Other>
+              </Plural>
             </span>
           </div>
         ) : (
@@ -311,7 +315,10 @@ export function LoopStatusRow({
                 {shippableLocales}
               </span>
               <span className="text-sm text-muted-foreground">
-                of {totalLocales} locale{totalLocales !== 1 ? "s" : ""} shippable
+                <Plural count={totalLocales}>
+                  <One>of {totalLocales} locale shippable</One>
+                  <Other>of {totalLocales} locales shippable</Other>
+                </Plural>
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -339,8 +346,10 @@ export function LoopStatusRow({
                   {brand.averageScore}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  average across {brand.scoredProjects} scored project
-                  {brand.scoredProjects !== 1 ? "s" : ""}
+                  <Plural count={brand.scoredProjects}>
+                    <One>average across {brand.scoredProjects} scored project</One>
+                    <Other>average across {brand.scoredProjects} scored projects</Other>
+                  </Plural>
                 </span>
               </div>
               {brand.driftingProjects > 0 && (

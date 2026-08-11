@@ -574,9 +574,22 @@ type BlockStatRow struct {
 // consumers can render an honest "N of M" without fetching everything; without
 // a limit the endpoint returns every item and ItemTotal == len(ItemStats).
 type TranslationDashboardStats struct {
-	LocaleStats        []LocaleTranslationStats     `json:"locale_stats"`
-	ItemStats          []ItemTranslationStats       `json:"item_stats"`
-	ItemTotal          int                          `json:"item_total"`
+	LocaleStats []LocaleTranslationStats `json:"locale_stats"`
+	ItemStats   []ItemTranslationStats   `json:"item_stats"`
+	ItemTotal   int                      `json:"item_total"`
+
+	// ItemBase is the directory prefix every item in scope shares, with a
+	// trailing slash, or empty when they share none. A recipe collection is
+	// declared with a `base:` and its items are named relative to the project
+	// root, so every row of a collection repeats that base — "bowrain/packages/
+	// app/src/…" on each of a thousand files, which is the part carrying no
+	// information at all. Consumers display names relative to it.
+	//
+	// It is computed over the whole scope rather than the returned page, so it
+	// does not move as the reader pages or re-sorts. That is why it is a field
+	// here and not something a client derives from ItemStats.
+	ItemBase string `json:"item_base,omitempty"`
+
 	CollectionStats    []CollectionTranslationStats `json:"collection_stats"`
 	TotalBlocks        int                          `json:"total_blocks"`
 	TranslatableBlocks int                          `json:"translatable_blocks"`

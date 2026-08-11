@@ -6,16 +6,24 @@ import {
   cn,
   useSidebar,
 } from "@neokapi/ui-primitives";
-import { useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   AppSidebar,
   type AppSidebarProps,
+  type SidebarContext as SidebarContextType,
   type SubNavItem,
   NavCount,
+  openProjectSection,
+  projectSubNavConfig,
   subNavConfig,
   viewLabel,
 } from "./AppSidebar";
-import { BreadcrumbProvider, useBreadcrumb } from "../context/BreadcrumbContext";
+import {
+  BreadcrumbProvider,
+  useBreadcrumb,
+  type BreadcrumbItem,
+} from "../context/BreadcrumbContext";
+import { BreadcrumbBar } from "./BreadcrumbBar";
 
 export interface AppShellProps<V extends string = string> extends Omit<
   AppSidebarProps<V>,
@@ -23,6 +31,12 @@ export interface AppShellProps<V extends string = string> extends Omit<
 > {
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
+  /**
+   * The trail the shell derives from the URL, shown in the header. A mounted
+   * route appends what only it can name (a collection's title, a file) with
+   * useBreadcrumbExtra.
+   */
+  breadcrumbs?: BreadcrumbItem[];
   headerSlot?: ReactNode;
   /** Slot for a right-side panel (e.g. @bravo chat). Rendered inline beside main content. */
   rightPanelSlot?: ReactNode;
@@ -34,22 +48,23 @@ export interface AppShellProps<V extends string = string> extends Omit<
 export type { SidebarContext } from "./AppSidebar";
 
 function Header({ headerSlot }: { headerSlot?: ReactNode }) {
-  const breadcrumb = useBreadcrumb();
+  const breadcrumbs = useBreadcrumb();
   const { isMobile } = useSidebar();
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2">
-      <div className="flex items-center gap-2 px-4">
+      {/* The trail takes the room it needs and yields the rest: min-w-0 lets it
+          shrink, so the top bar's controls keep their width on a deep page. */}
+      <div className="flex min-w-0 flex-1 items-center gap-2 px-4">
         {isMobile && (
           <>
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
           </>
         )}
-        {breadcrumb}
+        <BreadcrumbBar items={breadcrumbs} />
       </div>
-      <div className="flex-1 min-w-0" />
-      {headerSlot && <div className="flex items-center gap-1 px-4">{headerSlot}</div>}
+      {headerSlot && <div className="flex shrink-0 items-center gap-1 px-4">{headerSlot}</div>}
     </header>
   );
 }
@@ -59,25 +74,20 @@ function SecondaryPanel({
   items,
   activeId,
   onSelect,
-  open,
   counts,
 }: {
   title: string;
   items: SubNavItem[];
   activeId?: string;
   onSelect: (id: string) => void;
-  open: boolean;
   counts?: Record<string, number>;
 }) {
   return (
     <div
-      className={cn(
-        "shrink-0 bg-sidebar text-sidebar-foreground overflow-hidden transition-[width,border-width] duration-200 ease-in-out hidden md:flex flex-col",
-        open ? "border-r" : "border-r-0",
-      )}
-      style={{ width: open ? 208 : 0 }}
+      data-secondary-panel=""
+      className="hidden w-52 shrink-0 flex-col overflow-hidden border-r bg-sidebar text-sidebar-foreground md:flex"
     >
-      <div className="flex flex-col h-full min-h-0 w-52">
+      <div className="flex h-full min-h-0 w-52 flex-col">
         <div className="shrink-0 px-4 py-3">
           <h2 className="text-sm font-medium whitespace-nowrap">{title}</h2>
         </div>
@@ -94,7 +104,6 @@ function SecondaryPanel({
               <li key={item.id}>
                 <button
                   onClick={() => onSelect(item.id)}
-                  tabIndex={open ? 0 : -1}
                   data-testid={`subnav-${item.id}`}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors outline-none border-none cursor-pointer bg-transparent whitespace-nowrap",
@@ -119,6 +128,7 @@ function SecondaryPanel({
 export function AppShell<V extends string = string>({
   collapsed,
   onCollapsedChange,
+  breadcrumbs,
   headerSlot,
   rightPanelSlot,
   children,
@@ -127,29 +137,52 @@ export function AppShell<V extends string = string>({
   onSubNavChange,
   ...sidebarProps
 }: AppShellProps<V>) {
-  const activeView =
-    sidebarProps.sidebarContext?.level === "workspace"
-      ? sidebarProps.sidebarContext.activeView
+  const sidebarContext = sidebarProps.sidebarContext;
+  const projectCtx =
+    sidebarContext?.level === "project"
+      ? (sidebarContext as Extract<SidebarContextType, { level: "project" }>)
       : undefined;
+  const activeView = sidebarContext?.level === "workspace" ? sidebarContext.activeView : undefined;
+
+  // The panel serves two masters, one at a time: a project's own sections while
+  // a project is open, and otherwise the current workspace view's sub-nav. Both
+  // are the same second level of navigation, which is why they share one strip
+  // rather than the project's taking over the rail.
+  //
   // hiddenSubNavIds arrives via sidebarProps (inherited from AppSidebarProps) and
   // is also spread to AppSidebar below, so both sub-nav render paths stay in sync.
-  const subNavItems = activeView
+  const workspaceSubNav = activeView
     ? subNavConfig()[activeView]?.filter((item) => !sidebarProps.hiddenSubNavIds?.includes(item.id))
     : undefined;
-  const showSecondary = !!(subNavItems && subNavItems.length > 0 && onSubNavChange);
 
-  const lastSubNavRef = useRef<{ items: SubNavItem[]; title: string } | null>(null);
-  if (subNavItems && activeView) {
-    lastSubNavRef.current = { items: subNavItems, title: viewLabel(activeView) ?? activeView };
-  }
+  const panel:
+    | { items: SubNavItem[]; title: string; activeId?: string; onSelect: (id: string) => void }
+    | undefined = projectCtx
+    ? {
+        items: projectSubNavConfig(projectCtx),
+        title: projectCtx.project.name,
+        activeId: projectCtx.activeProjectView,
+        onSelect: (id) => openProjectSection(projectCtx, id),
+      }
+    : workspaceSubNav && workspaceSubNav.length > 0 && onSubNavChange && activeView
+      ? {
+          items: workspaceSubNav,
+          title: viewLabel(activeView) ?? activeView,
+          activeId: activeSubNav,
+          onSelect: onSubNavChange,
+        }
+      : undefined;
 
-  const panelData = showSecondary
-    ? { items: subNavItems!, title: viewLabel(activeView!) ?? activeView! }
-    : lastSubNavRef.current;
+  // The panel is mounted only while it has something to show. It used to stay
+  // mounted at zero width so its contents could animate shut, which meant that
+  // after leaving a project the previous project's sections were still in the
+  // document: clickable, announceable, and matching any query for the project's
+  // name. Two hundred milliseconds of polish is not worth a strip of stale
+  // navigation that the page no longer has any way to reach.
 
   return (
     <SidebarProvider>
-      <BreadcrumbProvider>
+      <BreadcrumbProvider base={breadcrumbs}>
         <AppSidebar
           collapsed={collapsed}
           onCollapsedChange={onCollapsedChange}
@@ -160,13 +193,12 @@ export function AppShell<V extends string = string>({
         <SidebarInset>
           <Header headerSlot={headerSlot} />
           <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
-            {panelData && onSubNavChange && (
+            {panel && (
               <SecondaryPanel
-                title={panelData.title}
-                items={panelData.items}
-                activeId={activeSubNav}
-                onSelect={onSubNavChange}
-                open={showSecondary}
+                title={panel.title}
+                items={panel.items}
+                activeId={panel.activeId}
+                onSelect={panel.onSelect}
                 counts={sidebarProps.subNavCounts}
               />
             )}

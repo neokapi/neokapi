@@ -30,7 +30,7 @@ import {
   useSyncExternalStore,
   useCallback,
 } from "react";
-import { hasICUSyntax, resolveICU, type ICUParamValue } from "./icu.ts";
+import { hasICUSyntax, paramText, resolveICU, type ICUParamValue } from "./icu.ts";
 
 // ─── Translation store ───────────────────────────────────────
 
@@ -288,7 +288,7 @@ export function __t(
   // Substitute {param} tokens
   if (params) {
     for (const [key, value] of Object.entries(params)) {
-      text = text.replaceAll(`{${key}}`, String(value));
+      text = text.replaceAll(`{${key}}`, paramText(value));
     }
   }
 
@@ -343,7 +343,7 @@ export function __tx(
   // Substitute string params first (not element tokens)
   if (params) {
     for (const [key, value] of Object.entries(params)) {
-      text = text.replaceAll(`{${key}}`, String(value));
+      text = text.replaceAll(`{${key}}`, paramText(value));
     }
   }
 
@@ -591,9 +591,13 @@ export function t(
 ): string {
   const actualParams = typeof contextOrParams === "object" ? contextOrParams : params;
   if (!actualParams) return text;
-  let out = text;
+  // Resolve ICU here too, not only in the plugin-injected `__t`. Both paths run
+  // in a build the developer is looking at — Storybook and the packages that
+  // test without the transform take this one — and a plural that renders as its
+  // own source template in one of them is a plural nobody trusts.
+  let out = hasICUSyntax(text) ? resolveICU(text, actualParams, currentLocale) : text;
   for (const [k, v] of Object.entries(actualParams)) {
-    out = out.replaceAll(`{${k}}`, String(v));
+    out = out.replaceAll(`{${k}}`, paramText(v));
   }
   return out;
 }

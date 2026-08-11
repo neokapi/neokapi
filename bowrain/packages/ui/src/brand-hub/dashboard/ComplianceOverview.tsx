@@ -3,6 +3,7 @@
 // project picker and reads the existing brand score / trend / drift hooks. It
 // reuses the brand score gauge, dimension breakdown, and drift banner.
 import { useEffect, useState } from "react";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import {
   Card,
   CardContent,
@@ -108,7 +109,10 @@ export function ComplianceOverview() {
                 </div>
               )}
               <p className="text-center text-xs text-muted-foreground">
-                {recentScores.length} block{recentScores.length === 1 ? "" : "s"} checked
+                <Plural count={recentScores.length}>
+                  <One>{recentScores.length} block checked</One>
+                  <Other>{recentScores.length} blocks checked</Other>
+                </Plural>
               </p>
             </div>
 

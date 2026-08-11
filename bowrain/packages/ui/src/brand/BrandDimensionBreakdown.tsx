@@ -1,4 +1,5 @@
 import type { DimensionScore } from "./types";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import { cn } from "@neokapi/ui-primitives";
 import { DEFAULT_MIN_SCORE, scoreFillClass } from "./complianceBar";
 
@@ -49,7 +50,10 @@ export function BrandDimensionBreakdown({
           </div>
           {dim.issues > 0 && (
             <span className="text-[10px] text-muted-foreground">
-              {dim.issues} issue{dim.issues !== 1 ? "s" : ""}
+              <Plural count={dim.issues}>
+                <One>{dim.issues} issue</One>
+                <Other>{dim.issues} issues</Other>
+              </Plural>
             </span>
           )}
         </div>

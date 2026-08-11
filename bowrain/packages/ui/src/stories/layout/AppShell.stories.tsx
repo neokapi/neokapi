@@ -171,7 +171,6 @@ export const ProjectLevel: Story = {
       project: sampleProject,
       activeStream: "main",
       activeProjectView: "dashboard",
-      onBack: fn(),
       onOpenDashboard: fn(),
       onOpenFile: fn(),
       onStreamChange: fn(),
@@ -189,6 +188,11 @@ export const ProjectLevel: Story = {
         collapsed={collapsed}
         onCollapsedChange={setCollapsed}
         sidebarContext={ctx}
+        breadcrumbs={[
+          { label: mockWorkspace.name, onClick: fn() },
+          { label: "Projects", onClick: fn() },
+          { label: sampleProject.name },
+        ]}
       >
         <div className="flex items-center justify-center h-full text-muted-foreground">
           Project Detail — File list and upload area
@@ -207,7 +211,6 @@ export const AutomationsLevel: Story = {
       project: sampleProject,
       activeStream: "main",
       activeProjectView: "automations",
-      onBack: fn(),
       onOpenDashboard: fn(),
       onOpenFile: fn(),
       onStreamChange: fn(),
@@ -224,6 +227,11 @@ export const AutomationsLevel: Story = {
         collapsed={collapsed}
         onCollapsedChange={setCollapsed}
         sidebarContext={ctx}
+        breadcrumbs={[
+          { label: mockWorkspace.name, onClick: fn() },
+          { label: "Projects", onClick: fn() },
+          { label: sampleProject.name },
+        ]}
       >
         <div className="flex items-center justify-center h-full text-muted-foreground">
           Project Automations
@@ -242,7 +250,6 @@ export const EditorLevel: Story = {
       project: sampleProject,
       activeStream: "main",
       activeProjectView: "dashboard",
-      onBack: fn(),
       onOpenDashboard: fn(),
       onOpenFile: fn(),
       onStreamChange: fn(),
@@ -259,6 +266,11 @@ export const EditorLevel: Story = {
         collapsed={collapsed}
         onCollapsedChange={setCollapsed}
         sidebarContext={ctx}
+        breadcrumbs={[
+          { label: mockWorkspace.name, onClick: fn() },
+          { label: "Projects", onClick: fn() },
+          { label: sampleProject.name },
+        ]}
       >
         <div className="flex items-center justify-center h-full text-muted-foreground">
           Translation Editor — about.json (fr-FR)
@@ -277,7 +289,6 @@ export const ProjectCollapsed: Story = {
       project: sampleProject,
       activeStream: "main",
       activeProjectView: "dashboard",
-      onBack: fn(),
       onOpenDashboard: fn(),
       onOpenFile: fn(),
       onStreamChange: fn(),
@@ -293,6 +304,11 @@ export const ProjectCollapsed: Story = {
         collapsed={collapsed}
         onCollapsedChange={setCollapsed}
         sidebarContext={ctx}
+        breadcrumbs={[
+          { label: mockWorkspace.name, onClick: fn() },
+          { label: "Projects", onClick: fn() },
+          { label: sampleProject.name },
+        ]}
       >
         <div className="flex items-center justify-center h-full text-muted-foreground">
           Collapsed sidebar — project mode

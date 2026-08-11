@@ -12,16 +12,15 @@ import {
 import { useState, useRef, useCallback, useMemo } from "react";
 import type { ProjectInfo, CollectionInfo, StreamInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
-import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { useStream } from "../context/StreamContext";
 import { OpenInDesktop } from "./OpenInDesktop";
 import { CollectionTabs } from "./CollectionTabs";
 import { ProjectTypeBadge } from "./ProjectTypeBadge";
 import { FormattedFileName } from "./FormattedFileName";
+import { t } from "@neokapi/i18n-react/runtime";
 import { FilePreview, type ItemPreviewBinding } from "./FilePreview";
 import { ListCapRow } from "./ListCapRow";
 import {
-  ArrowLeft,
   ArrowRight,
   X,
   Package,
@@ -36,6 +35,31 @@ import {
 
 /** Hard cap on rendered file/item rows; larger collections show a ListCapRow. */
 const MAX_ITEM_ROWS = 500;
+
+/**
+ * The noun a collection calls its items, in the form `count` needs.
+ *
+ * A collection's `item_label` arrives from the server as a bare singular
+ * ("file", "page", "post", …), and appending an "s" to it is a rule that holds
+ * in one language. Each known label is its own message here instead, so a
+ * translator supplies both forms and a language with more than two gets the
+ * rest. An unrecognised label falls back to the generic noun rather than being
+ * inflected by a rule that may not apply to it.
+ */
+function itemNoun(label: string, count: number): string {
+  switch (label) {
+    case "page":
+      return t("{count, plural, one {page} other {pages}}", { count });
+    case "post":
+      return t("{count, plural, one {post} other {posts}}", { count });
+    case "document":
+      return t("{count, plural, one {document} other {documents}}", { count });
+    case "file":
+      return t("{count, plural, one {file} other {files}}", { count });
+    default:
+      return t("{count, plural, one {item} other {items}}", { count });
+  }
+}
 
 export interface ProjectViewProps {
   project: ProjectInfo;
@@ -80,7 +104,7 @@ export interface ProjectViewProps {
 
 export function ProjectView({
   project,
-  onBack,
+  onBack: _onBack,
   onOpenFile,
   preview,
   onUploadFiles,
@@ -111,19 +135,6 @@ export function ProjectView({
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
 
   // Register breadcrumb in the top bar area
-  const breadcrumbNode = useMemo(
-    () => (
-      <button
-        onClick={onBack}
-        data-testid="back-to-projects"
-        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-none p-0"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" /> Projects
-      </button>
-    ),
-    [onBack],
-  );
-  useSetBreadcrumb(breadcrumbNode);
 
   const collections = project.collections ?? [];
   const hasCollections = collections.length > 0;
@@ -163,7 +174,7 @@ export function ProjectView({
     ? (activeCollection.editable ?? activeCollection.kind === "uploaded")
     : projectEditable;
   const itemLabel = activeCollection?.item_label ?? "file";
-  const itemLabelPlural = items.length === 1 ? itemLabel : `${itemLabel}s`;
+  const itemLabelPlural = itemNoun(itemLabel, items.length);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -215,7 +226,13 @@ export function ProjectView({
         >
           <div>
             <div className="flex items-center gap-2">
-              <h2 className={isMobile ? "text-lg font-semibold" : "text-xl font-semibold"}>
+              {/* The project's name is on screen three times now — the trail,
+                  the panel that holds its sections, and here — so the page's
+                  own title needs a hook that says which one it is. */}
+              <h2
+                data-testid="project-title"
+                className={isMobile ? "text-lg font-semibold" : "text-xl font-semibold"}
+              >
                 {project.name}
               </h2>
               {project.type && <ProjectTypeBadge type={project.type} />}
@@ -361,7 +378,7 @@ export function ProjectView({
                 data-testid="add-files-btn"
               >
                 <Upload className="w-3.5 h-3.5 mr-1.5" />
-                Add {itemLabel === "file" ? "Files" : itemLabel + "s"}
+                <span className="capitalize">Add {itemNoun(itemLabel, 0)}</span>
               </Button>
             </div>
           )}

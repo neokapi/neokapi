@@ -3,6 +3,7 @@
 // vocabulary by lifecycle status, per-locale completeness, and the markets a
 // workspace has defined.
 import { Badge, Card, CardContent, Skeleton, cn } from "@neokapi/ui-primitives";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import { Tag, Languages, Globe } from "../../components/icons";
 import type { TermStatus } from "../../types/brand-graph";
 import { useConceptLocaleCoverage, useConceptStatusCounts } from "../../hooks/useConceptsApi";
@@ -172,7 +173,10 @@ export function MarketsPanel() {
                 )}
               </div>
               <Badge variant="outline" className="shrink-0 text-[10px]">
-                {market.locales.length} locale{market.locales.length === 1 ? "" : "s"}
+                <Plural count={market.locales.length}>
+                  <One>{market.locales.length} locale</One>
+                  <Other>{market.locales.length} locales</Other>
+                </Plural>
               </Badge>
             </li>
           ))}

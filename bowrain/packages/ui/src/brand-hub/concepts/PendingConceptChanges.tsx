@@ -10,6 +10,7 @@
 // proposed it and how long ago, and goes one click to the change-set. It shows
 // only what is genuinely pending review — a draft is its author's business.
 import { Button, Card, Skeleton } from "@neokapi/ui-primitives";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import { Shield, ArrowRight } from "../../components/icons";
 import type { ChangeSet } from "../../types/brand-graph";
 import { useChangesets } from "../../hooks/useChangesetsApi";
@@ -52,9 +53,10 @@ export function PendingConceptChanges({ onOpenChangeSet }: PendingConceptChanges
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-medium">
-            {pending.length === 1
-              ? "A change to these concepts is waiting for review"
-              : `${pending.length} changes to these concepts are waiting for review`}
+            <Plural count={pending.length}>
+              <One>A change to these concepts is waiting for review</One>
+              <Other>{pending.length} changes to these concepts are waiting for review</Other>
+            </Plural>
           </h2>
           <p className="text-xs text-muted-foreground">
             Proposed concepts and terms stay out of this list until a reviewer approves them.
@@ -97,8 +99,12 @@ function PendingRow({ changeset, onOpen }: { changeset: ChangeSet; onOpen?: () =
         <p className="mt-0.5 text-xs text-muted-foreground">
           {count === undefined ? null : (
             <>
-              <span className="tabular-nums">{count.toLocaleString()}</span>
-              {count === 1 ? " change" : " changes"} ·{" "}
+              <span className="tabular-nums">{count.toLocaleString()}</span>{" "}
+              <Plural count={count}>
+                <One>change</One>
+                <Other>changes</Other>
+              </Plural>{" "}
+              ·{" "}
             </>
           )}
           {nameOf(changeset.created_by)} · waiting {formatRelative(waitingSince(changeset))}

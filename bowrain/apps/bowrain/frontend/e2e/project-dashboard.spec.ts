@@ -47,9 +47,13 @@ test("should create a new project", async ({ page }) => {
   await expectLocaleChips(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
 
-  // Should navigate to project view
+  // Should navigate to project view. Asserted through the trail rather than a
+  // bare text match: the project's name is on the page more than once (the
+  // trail, the panel holding its sections, the overview heading), and the
+  // question this test is asking is "did we land inside the project we just
+  // created", which is exactly what the trail's project step says.
   await expect(page.getByTestId("back-to-projects")).toBeVisible();
-  await expect(page.getByText("My Test Project")).toBeVisible();
+  await expect(page.getByTestId("back-to-project")).toHaveText("My Test Project");
 });
 
 test("should navigate back from project view to dashboard", async ({ page }) => {

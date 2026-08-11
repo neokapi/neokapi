@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { setupLocalApp, openProjectSource } from "./mock-backend";
+import { setupLocalApp, openProjectSource, openProjectByName } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 // Quarantined in CI (#867): this content memory-leverage suite passes locally but
@@ -71,7 +71,7 @@ async function openEditorWithMemory(page: any) {
   // Navigate back to projects list and re-enter to refresh
   await page.getByTestId("back-to-projects").click();
   await page.waitForTimeout(200);
-  await page.getByText("content memory Leverage Test").first().click();
+  await openProjectByName(page, "content memory Leverage Test");
   await openProjectSource(page);
 
   // Open file in editor

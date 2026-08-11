@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { setupLocalApp, openProjectSource } from "./mock-backend";
+import { setupLocalApp, openProjectSource, openProjectByName } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 // Quarantined in CI (#867): this translation-editor suite passes locally but
@@ -42,7 +42,7 @@ async function openEditorInTable(page: any) {
   await page.waitForTimeout(200);
 
   // Step 4: Now on the dashboard, click the project to re-enter
-  await page.getByText("Editor Test").first().click();
+  await openProjectByName(page, "Editor Test");
   await openProjectSource(page);
 
   // Step 5: Click the file to open editor

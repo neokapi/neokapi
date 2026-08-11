@@ -23,7 +23,14 @@ func PreviewBoilerplateStart() string {
 <head>
 <meta charset="UTF-8">
 <style>
-  html, body { overflow: hidden; }
+  /* The document scrolls itself. A host that instead grows the frame to the
+     content height and scrolls its own page — the inline visual editor — sends
+     kat-fit-height to suppress this, so only that host gets the clipped
+     document it actually wants. Hiding it by default is what left a long file
+     unreadable in the preview panel: a fixed-height frame, and no way to reach
+     past the first screen of it. */
+  html, body { overflow: auto; }
+  html.kat-fit, html.kat-fit body { overflow: hidden; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; padding: 16px; color: #1a1a2e; }
   kat-block { border-radius: 2px; display: inline; }
   .kat-wrapper { cursor: pointer; position: relative; border-radius: 6px; padding: 6px 8px; margin: -6px -8px; transition: background-color 0.15s; }
@@ -108,6 +115,9 @@ const previewScript = `
         reportContentHeight();
         window.parent.postMessage({ type: 'kat-spacer-position', y: rect.top + scrollY, contentHeight: document.body.scrollHeight }, '*');
       }
+    }
+    if (e.data?.type === 'kat-fit-height') {
+      document.documentElement.classList.toggle('kat-fit', !!e.data.fit);
     }
     if (e.data?.type === 'kat-remove-spacer') {
       var old = document.getElementById('kat-editor-spacer');

@@ -2238,6 +2238,43 @@ func (w dashboardItemWindow) itemInScope(it store.ItemTranslationStats) bool {
 	return it.CollectionID == w.collectionID
 }
 
+// commonItemBase returns the directory prefix every item name shares, with a
+// trailing slash, or "" when they share none.
+//
+// Whole segments only: "docs/api" and "docs/apps" share "docs/", not "docs/ap".
+// A single item contributes its own directory, which is what makes a one-file
+// collection read as the file rather than as the path to it.
+func commonItemBase(items []store.ItemTranslationStats) string {
+	if len(items) == 0 {
+		return ""
+	}
+	dirOf := func(name string) []string {
+		name = strings.TrimPrefix(filepath.ToSlash(name), "/")
+		segs := strings.Split(name, "/")
+		return segs[:len(segs)-1] // drop the file's own name
+	}
+	shared := dirOf(items[0].ItemName)
+	for _, it := range items[1:] {
+		if len(shared) == 0 {
+			return ""
+		}
+		segs := dirOf(it.ItemName)
+		if len(segs) < len(shared) {
+			shared = shared[:len(segs)]
+		}
+		for i := range shared {
+			if segs[i] != shared[i] {
+				shared = shared[:i]
+				break
+			}
+		}
+	}
+	if len(shared) == 0 {
+		return ""
+	}
+	return strings.Join(shared, "/") + "/"
+}
+
 // pageDashboardStats returns a shallow copy of stats with ItemStats filtered to
 // the window's collection, sorted, and sliced to the requested page. The input
 // (typically the cached full result) is never mutated. An unscoped window with
@@ -2248,7 +2285,9 @@ func (w dashboardItemWindow) itemInScope(it store.ItemTranslationStats) bool {
 // actually paging. An unscoped read leaves the project-wide total alone.
 func pageDashboardStats(stats *store.TranslationDashboardStats, w dashboardItemWindow) *store.TranslationDashboardStats {
 	if w.limit <= 0 && w.sortField == "" && !w.scoped() {
-		return stats
+		resp := *stats
+		resp.ItemBase = commonItemBase(stats.ItemStats)
+		return &resp
 	}
 	resp := *stats
 	items := make([]store.ItemTranslationStats, 0, len(stats.ItemStats))
@@ -2261,6 +2300,9 @@ func pageDashboardStats(stats *store.TranslationDashboardStats, w dashboardItemW
 	if w.scoped() {
 		resp.ItemTotal = len(items)
 	}
+	// Over the filtered list, before it is sliced: the base names the scope, so
+	// it must not change when the reader asks for the next page of that scope.
+	resp.ItemBase = commonItemBase(items)
 	limit, offset, sortField, dir := w.limit, w.offset, w.sortField, w.dir
 	if sortField == "" {
 		sortField = "name"

@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { One, Other, Plural, t } from "@neokapi/i18n-react/runtime";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
@@ -414,7 +415,12 @@ function ConnectorRow({
       setActionError(null);
     },
     onSuccess: (res) => {
-      setFeedback(`Fetched ${res.items_fetched} item${res.items_fetched === 1 ? "" : "s"}.`);
+      // A string, not JSX, so the plural is ICU inside t() rather than <Plural>.
+      setFeedback(
+        t("{count, plural, one {Fetched # item.} other {Fetched # items.}}", {
+          count: res.items_fetched,
+        }),
+      );
       // The panel's status is one batch entry, not a per-connector one, so the
       // invalidation has to reach the whole workspace prefix.
       void queryClient.invalidateQueries({
@@ -641,7 +647,10 @@ function ContentItemRow({ item }: { item: ConnectorContentItem }) {
       </div>
       {blockCount > 0 && (
         <span className="text-muted-foreground shrink-0 text-xs">
-          {blockCount} block{blockCount === 1 ? "" : "s"}
+          <Plural count={blockCount}>
+            <One>{blockCount} block</One>
+            <Other>{blockCount} blocks</Other>
+          </Plural>
         </span>
       )}
     </li>
@@ -674,13 +683,19 @@ function StatusLine({
         {lastSyncValid ? `Synced ${lastSync.toLocaleString()}` : "Never synced"}
       </span>
       <span>
-        {status.itemCount} item{status.itemCount === 1 ? "" : "s"}
+        <Plural count={status.itemCount}>
+          <One>{status.itemCount} item</One>
+          <Other>{status.itemCount} items</Other>
+        </Plural>
       </span>
       {status.pendingPull > 0 && <Badge variant="secondary">{status.pendingPull} to pull</Badge>}
       {status.pendingPush > 0 && <Badge variant="secondary">{status.pendingPush} to push</Badge>}
       {status.errors.length > 0 && (
         <Badge variant="destructive">
-          {status.errors.length} error{status.errors.length === 1 ? "" : "s"}
+          <Plural count={status.errors.length}>
+            <One>{status.errors.length} error</One>
+            <Other>{status.errors.length} errors</Other>
+          </Plural>
         </Badge>
       )}
     </div>

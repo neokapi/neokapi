@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { One, Other, Plural, t } from "@neokapi/i18n-react/runtime";
 import { Badge, Button, Card, Skeleton, cn } from "@neokapi/ui-primitives";
 import { BrandHub } from "../shell/BrandHub";
 import { EmptyState, formatRelative } from "../shell/atoms";
@@ -163,9 +164,16 @@ export function ProfileDetailView({
         >
           {profile.pending_changes > 0 ? (
             <p className="text-sm text-foreground">
-              {profile.pending_changes}{" "}
-              {profile.pending_changes === 1 ? "change-set is" : "change-sets are"} in review
-              carrying a voice rule for this profile.
+              <Plural count={profile.pending_changes}>
+                <One>
+                  {profile.pending_changes} change-set is in review carrying a voice rule for this
+                  profile.
+                </One>
+                <Other>
+                  {profile.pending_changes} change-sets are in review carrying a voice rule for this
+                  profile.
+                </Other>
+              </Plural>
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -224,7 +232,11 @@ function profileSubtitle(profile: ContextProfile): string {
   if (profile.is_default) return "The workspace's own point.";
   if (!profile.declared) return "A voice the workspace holds, bound to no point.";
   const count = profile.collections.length;
-  return `${count} ${count === 1 ? "collection" : "collections"} sit here.`;
+  // A plain string, so the plural is ICU inside t() rather than <Plural>. "sit"
+  // agrees with the count too — the one-collection form is "sits".
+  return t("{count, plural, one {# collection sits here.} other {# collections sit here.}}", {
+    count,
+  });
 }
 
 function Section({

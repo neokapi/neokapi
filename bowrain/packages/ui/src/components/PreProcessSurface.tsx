@@ -11,15 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@neokapi/ui-primitives";
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ErrorNotice } from "../errors";
 import type { ProjectInfo, TranslationStats } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
 import { useLocales } from "../hooks/useLocales";
-import { useSetBreadcrumb } from "../context/BreadcrumbContext";
-import { ArrowLeft, Languages, Wand2, Sparkles, Loader2 } from "./icons";
+import { Languages, Wand2, Sparkles, Loader2 } from "./icons";
 
 interface PreProcessSurfaceProps {
   project: ProjectInfo;
@@ -41,7 +40,7 @@ type OpKey = "pseudo" | "memory" | "ai";
 export function PreProcessSurface({
   project,
   fileName,
-  onBack,
+  onBack: _onBack,
   surfaceTabs,
 }: PreProcessSurfaceProps) {
   const [targetLocale, setTargetLocale] = useState(project.target_languages[0] || "");
@@ -55,20 +54,6 @@ export function PreProcessSurface({
   const fullApi = useApi();
   const { activeWorkspace } = useWorkspace();
   const wsSlug = activeWorkspace?.slug ?? "";
-
-  const breadcrumbNode = useMemo(
-    () => (
-      <button
-        onClick={onBack}
-        data-testid="back-to-project"
-        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-none p-0"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" /> {project.name}
-      </button>
-    ),
-    [onBack, project.name],
-  );
-  useSetBreadcrumb(breadcrumbNode);
 
   // The file's translatable size is a count query — the surface reports the
   // number, so it asks for the number.

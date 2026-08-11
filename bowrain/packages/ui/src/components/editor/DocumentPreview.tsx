@@ -368,6 +368,16 @@ export function DocumentPreview({
     );
   }, [selectedBlockId, iframeReady]);
 
+  // Tell the document who scrolls. Inline mode grows the frame to the content
+  // and scrolls the surrounding page, so the document must not scroll too;
+  // every other host gives the frame a fixed height, and there the document is
+  // the only thing that can scroll.
+  useEffect(() => {
+    const cw = iframeRef.current?.contentWindow;
+    if (!cw || !iframeReady) return;
+    cw.postMessage({ type: "kat-fit-height", fit: inlineMode }, "*");
+  }, [iframeReady, inlineMode]);
+
   // Send spacer insert/remove messages in inline mode
   useEffect(() => {
     const cw = iframeRef.current?.contentWindow;

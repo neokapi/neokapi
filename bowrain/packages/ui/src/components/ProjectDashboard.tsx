@@ -12,6 +12,7 @@ import {
 } from "@neokapi/ui-primitives";
 import { useCallback, useState } from "react";
 import type { DragEvent } from "react";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import type { ProjectInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
 import { ListCapRow } from "./ListCapRow";
@@ -152,23 +153,66 @@ export interface ProjectDashboardProps {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-/** Summary statistics strip shown between the loop-status layer and the grid. */
+/**
+ * Summary statistics strip shown between the loop-status layer and the grid.
+ *
+ * Each label agrees with its own number. A workspace holding one project read
+ * "1 Projects" — and the label is not decoration, it is the sentence the number
+ * is the subject of. The count driving the form is the true one even where the
+ * displayed value is abbreviated: 1,000 words shows as "1k" and is still plural.
+ */
 function DashboardStats({ projects }: { projects: ProjectInfo[] }) {
   const totalWords = projects.reduce((acc, p) => acc + projectWordCount(p), 0);
   const uniqueLocales = new Set(projects.flatMap((p) => p.target_languages));
   const totalFiles = projects.reduce((acc, p) => acc + projectFileCount(p), 0);
 
   const stats = [
-    { label: "Projects", value: String(projects.length) },
-    { label: "Words", value: compactNumber(totalWords) },
-    { label: "Languages", value: String(uniqueLocales.size) },
-    { label: "Files", value: String(totalFiles) },
+    {
+      key: "projects",
+      value: String(projects.length),
+      label: (
+        <Plural count={projects.length}>
+          <One>Project</One>
+          <Other>Projects</Other>
+        </Plural>
+      ),
+    },
+    {
+      key: "words",
+      value: compactNumber(totalWords),
+      label: (
+        <Plural count={totalWords}>
+          <One>Word</One>
+          <Other>Words</Other>
+        </Plural>
+      ),
+    },
+    {
+      key: "languages",
+      value: String(uniqueLocales.size),
+      label: (
+        <Plural count={uniqueLocales.size}>
+          <One>Language</One>
+          <Other>Languages</Other>
+        </Plural>
+      ),
+    },
+    {
+      key: "files",
+      value: String(totalFiles),
+      label: (
+        <Plural count={totalFiles}>
+          <One>File</One>
+          <Other>Files</Other>
+        </Plural>
+      ),
+    },
   ];
 
   return (
     <div className="mb-8 flex flex-wrap items-center gap-x-10 gap-y-3 rounded-lg border border-border/60 bg-muted/20 px-6 py-4">
       {stats.map((s) => (
-        <div key={s.label} className="flex items-baseline gap-2">
+        <div key={s.key} className="flex items-baseline gap-2">
           <span className="text-xl font-semibold tabular-nums leading-none">{s.value}</span>
           <span className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</span>
         </div>
@@ -207,8 +251,10 @@ function ProjectCard({
           <h3 className="font-semibold text-base leading-snug pr-2">{project.name}</h3>
           <div className="flex items-center gap-1 shrink-0">
             <Badge variant="secondary" className="text-[11px]">
-              {project.target_languages.length} lang
-              {project.target_languages.length !== 1 ? "s" : ""}
+              <Plural count={project.target_languages.length}>
+                <One>{project.target_languages.length} lang</One>
+                <Other>{project.target_languages.length} langs</Other>
+              </Plural>
             </Badge>
             {(onRename || onArchive) && (
               <DropdownMenu>
@@ -267,7 +313,10 @@ function ProjectCard({
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <FileText className="w-3 h-3" />
-            {fileCount} file{fileCount !== 1 ? "s" : ""}
+            <Plural count={fileCount}>
+              <One>{fileCount} file</One>
+              <Other>{fileCount} files</Other>
+            </Plural>
           </span>
           <span className="flex items-center gap-1">
             <Globe className="w-3 h-3" />
@@ -474,10 +523,20 @@ function OnboardingView({
             >
               <Upload className="mx-auto mb-1.5 h-4 w-4" />
               {pendingFileCount > 0 ? (
-                <span>
-                  {pendingFileCount} file{pendingFileCount !== 1 ? "s" : ""} ready to import — added
-                  right after the project is created
-                </span>
+                <Plural count={pendingFileCount}>
+                  <One>
+                    <span>
+                      {pendingFileCount} file ready to import — added right after the project is
+                      created
+                    </span>
+                  </One>
+                  <Other>
+                    <span>
+                      {pendingFileCount} files ready to import — added right after the project is
+                      created
+                    </span>
+                  </Other>
+                </Plural>
               ) : (
                 <span>Drop files here — they are imported right after the project is created</span>
               )}
@@ -596,7 +655,10 @@ export function ProjectDashboard({
                 {workspaceName ? `${workspaceName}` : "Projects"}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {projects.length} project{projects.length !== 1 ? "s" : ""} in this workspace
+                <Plural count={projects.length}>
+                  <One>{projects.length} project in this workspace</One>
+                  <Other>{projects.length} projects in this workspace</Other>
+                </Plural>
               </p>
             </div>
             <Button onClick={() => setShowCreate(true)} data-testid="new-project-btn">

@@ -1,6 +1,7 @@
 import { Button, Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useState, useMemo } from "react";
+import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import type { DashboardItemSort, ItemTranslationStats } from "../types/api";
 import { LanguageLabel } from "./LanguageLabel";
 import { FormattedFileName } from "./FormattedFileName";
@@ -35,6 +36,14 @@ interface FileProgressTableProps {
   itemStats: ItemTranslationStats[];
   locales: string[];
   localeDisplayNames?: Record<string, string>;
+  /**
+   * Directory prefix shared by every item in scope (`item_base`), trailing
+   * slash included. Names render relative to it — a collection declared with a
+   * `base:` otherwise repeats that base on every row, which is the one part of
+   * the path that cannot tell two files apart. The full name stays in the row's
+   * tooltip and is what every callback still carries.
+   */
+  itemBase?: string;
   /** Server-side paging/sort; omit for client-side sorting of the full list. */
   paging?: FileProgressPaging;
   /**
@@ -89,6 +98,30 @@ function SortHeader({
   );
 }
 
+/**
+ * Column widths, in pixels, shared by every surface that shows this table.
+ *
+ * They are declared rather than derived because an auto-laid-out table sizes
+ * its columns from the rows it happens to be showing: the same table read
+ * "Format | Words | Avg %" at one width on a project's overview and another on
+ * a collection, and shifted again on the next page of the same collection.
+ * Columns that move between two views of one list read as two different tables.
+ *
+ * The name column is deliberately absent — it takes whatever is left, so the
+ * part that varies in length is the part with room to vary.
+ */
+const COL_WIDTH = { format: 96, words: 96, avg: 80, locale: 120 } as const;
+
+/**
+ * Floor for the name column, below which a path truncates to nothing useful.
+ *
+ * Kept tight on purpose: it is the point at which the card starts scrolling
+ * sideways, and a floor set to what a comfortable name wants rather than what a
+ * legible one needs put a horizontal scrollbar under tables that had room to
+ * spare. Above it the column takes everything left over.
+ */
+const NAME_MIN_WIDTH = 160;
+
 function completionBarColor(pct: number): string {
   if (pct >= 90) return "bg-success";
   if (pct >= 50) return "bg-warning";
@@ -100,6 +133,7 @@ export function FileProgressTable({
   itemStats,
   locales,
   localeDisplayNames,
+  itemBase,
   paging,
   onOpenItem,
 }: FileProgressTableProps) {
@@ -150,10 +184,26 @@ export function FileProgressTable({
     return items;
   }, [itemStats, sortField, sortDir, paging]);
 
+  // A name the base does not actually prefix is left whole rather than
+  // half-trimmed — the base is a claim about the scope, and an item outside it
+  // is better shown in full than shown wrong.
+  const displayName = (name: string) =>
+    itemBase && name.startsWith(itemBase) ? name.slice(itemBase.length) : name;
+
   // Hard cap so a project with thousands of files never floods the DOM; the
   // ListCapRow below makes the cut honest. Server paging already bounds rows.
   const visibleRows = sorted.length > MAX_ROWS ? sorted.slice(0, MAX_ROWS) : sorted;
   const totalRows = paging ? paging.total : sorted.length;
+
+  // The declared columns plus a floor for the name. Below this the card scrolls
+  // sideways rather than compressing the columns, so a project with many target
+  // locales reads the same as one with two.
+  const minTableWidth =
+    NAME_MIN_WIDTH +
+    COL_WIDTH.format +
+    COL_WIDTH.words +
+    COL_WIDTH.avg +
+    locales.length * COL_WIDTH.locale;
 
   return (
     <Card>
@@ -163,7 +213,18 @@ export function FileProgressTable({
       <CardContent>
         {/* Scroll containment: the table scrolls inside the card, never the page. */}
         <div className="max-h-[70vh] overflow-auto">
-          <table className="w-full text-xs">
+          <table className="w-full table-fixed text-xs" style={{ minWidth: minTableWidth }}>
+            {/* Widths live here, once, rather than on the cells — every surface
+                showing this table then lays it out identically. */}
+            <colgroup>
+              <col />
+              <col style={{ width: COL_WIDTH.format }} />
+              <col style={{ width: COL_WIDTH.words }} />
+              <col style={{ width: COL_WIDTH.avg }} />
+              {locales.map((l) => (
+                <col key={l} style={{ width: COL_WIDTH.locale }} />
+              ))}
+            </colgroup>
             <thead className="sticky top-0 z-10 bg-card">
               <tr className="border-b">
                 <SortHeader
@@ -192,10 +253,7 @@ export function FileProgressTable({
                   className="px-2 text-right"
                 />
                 {locales.map((l) => (
-                  <th
-                    key={l}
-                    className="min-w-[80px] px-1 py-2 text-center font-medium text-muted-foreground"
-                  >
+                  <th key={l} className="px-1 py-2 text-center font-medium text-muted-foreground">
                     <LanguageLabel
                       code={l}
                       displayName={localeDisplayNames?.[l]}
@@ -218,10 +276,7 @@ export function FileProgressTable({
 
                 return (
                   <tr key={item.item_id} className="border-b last:border-0">
-                    <td
-                      className="max-w-[200px] truncate py-2 pr-3 font-medium"
-                      title={item.item_name}
-                    >
+                    <td className="truncate py-2 pr-3 font-medium" title={item.item_name}>
                       {onOpenItem ? (
                         <button
                           type="button"
@@ -229,20 +284,20 @@ export function FileProgressTable({
                           className="max-w-full truncate text-left hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <FormattedFileName
-                            name={item.item_name}
+                            name={displayName(item.item_name)}
                             format={item.format}
                             iconClassName="w-3.5 h-3.5 shrink-0"
                           />
                         </button>
                       ) : (
                         <FormattedFileName
-                          name={item.item_name}
+                          name={displayName(item.item_name)}
                           format={item.format}
                           iconClassName="w-3.5 h-3.5 shrink-0"
                         />
                       )}
                     </td>
-                    <td className="px-2 py-2 text-muted-foreground">{item.format}</td>
+                    <td className="truncate px-2 py-2 text-muted-foreground">{item.format}</td>
                     <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
                       {item.word_count.toLocaleString()}
                     </td>
@@ -277,7 +332,14 @@ export function FileProgressTable({
           {paging ? (
             <div className="flex items-center justify-between gap-3 py-2 text-[11px] text-muted-foreground">
               <span data-testid="file-progress-count">
-                Showing {visibleRows.length} of {totalRows} file{totalRows !== 1 ? "s" : ""}
+                <Plural count={totalRows}>
+                  <One>
+                    Showing {visibleRows.length} of {totalRows} file
+                  </One>
+                  <Other>
+                    Showing {visibleRows.length} of {totalRows} files
+                  </Other>
+                </Plural>
               </span>
               {paging.hasMore && (
                 <Button
