@@ -1,7 +1,7 @@
 id: kapi-desktop-config
-title: Konfigurer Kapi Desktop
-subtitle: "Utseende, AI-leverandører og plugins — på ett sted."
-tagline: den visuelle følgesvennen til kapi-kommandolinjen
+title: Configure Kapi Desktop
+subtitle: Appearance, AI providers, and plugins — in one place.
+tagline: the visual companion to the kapi command line
 kind: use-case
 publishAs: kapi-desktop-config
 terminal: desktop
@@ -10,16 +10,16 @@ needsAi: false
 # One continuous narration read — uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Utseende
-  - AI-leverandører
+  - Appearance
+  - AI providers
   - Plugins
-  - Nøkkelring-baserte nøkler
+  - Keychain-backed keys
 
 narration:
-  - id: tittel
+  - id: title
     kind: title
     text: >-
-      Kapi Desktop holder all konfigurasjon på ett sted.
+      Kapi Desktop samler all konfigurasjon på ett sted.
   - id: intro
     kind: desktop
     beat: intro
@@ -28,28 +28,30 @@ narration:
   - id: open-settings
     kind: desktop
     beat: open-settings
-    caption: "Innstillinger — utseende, legitimasjon, programtillegg, lokaliteter."
+    caption: "Innstillinger — utseende, legitimasjon, tillegg, språk."
     text: >-
-      Innstillinger samler utseende, AI-legitimasjon, plugins og språk under ett tak.
+      Innstillinger samler utseende, KI-legitimasjon, tillegg og språk under ett tak.
   - id: general
     kind: desktop
-    beat: generelt
-    caption: "Utseende følger systemet, eller fest lyst eller mørkt."
+    beat: general
+    caption: "Utseendet følger systemet, eller låses til lyst eller mørkt."
     text: >-
-      Utseende følger systemet ditt, eller du kan feste lyst eller mørkt. Selve grensesnittet kan til og med kjøre i pseudo-engelsk for språktesting.
-  - id: legitimasjon
+      Appearance follows your system, or you can pin light or dark. The
+      interface itself can even run in pseudo-English for language testing.
+
+  - id: credentials
     kind: desktop
-    beat: legitimasjon
-    caption: AI-legitimasjon — nøkler lagres i OS-nøkkelringen.
+    beat: credentials
+    caption: KI-legitimasjon — nøklene ligger i nøkkelringen til operativsystemet.
     text: >-
-      AI-legitimasjon inneholder leverandørene Kapi oversetter med — Anthropic, OpenAI, Gemini. Nøklene lagres i operativsystemets nøkkelring, aldri på disk.
+      KI-legitimasjon holder leverandørene Kapi oversetter med — Anthropic, OpenAI, Gemini. Nøklene ligger i operativsystemets nøkkelring, aldri på disk.
   - id: plugins
     kind: desktop
     beat: plugins
-    caption: Programtillegg utvider tilgjengelige formater og verktøy.
+    caption: Tillegg utvider formatene og verktøyene som er tilgjengelige.
     text: >-
-      Og plugins utvider Kapi — ved å legge til formater, koblinger og verktøy utover det innebygde settet.
+      Og tillegg utvider Kapi — med formater, koblinger og verktøy utover det innebygde.
   - id: outro
     kind: outro
     text: >-
-      Utseende, leverandører, programtillegg — konfigurert én gang, brukt overalt.
+      Utseende, leverandører, tillegg — konfigurert én gang, brukt overalt.

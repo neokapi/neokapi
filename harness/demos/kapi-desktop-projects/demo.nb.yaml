@@ -1,61 +1,71 @@
 id: kapi-desktop-projects
-title: Opprett og administrer et prosjekt
-subtitle: Sett opp et flerspråklig innholdsprosjekt i Kapi Desktop.
-tagline: det visuelle følgesvennet til kapi-kommandolinjen
+title: Opprett og håndter et prosjekt
+subtitle: Set up a multilingual content project in Kapi Desktop.
+tagline: the visual companion to the kapi command line
 kind: use-case
 publishAs: kapi-desktop-projects
-terminal: skrivebord
+terminal: desktop
 brand: desktop
 needsAi: false
 # One continuous narration read — uniform voice speed and tone across scenes.
 oneshot: true
 aspects:
-  - Prosjekter
-  - Kilde- og målspråk
-  - Innholdsmønstre
-  - Prosjektinnstillinger
+  - Projects
+  - Source & target languages
+  - Content patterns
+  - Project settings
 
 narration:
   - id: title
     kind: title
     text: >-
-      Kapi Desktop — la oss opprette og sette opp et flerspråklig innholdsprosjekt.
+      Kapi Desktop — let's create and set up a multilingual content project.
+
   - id: intro
-    kind: skrivebord
+    kind: desktop
     beat: intro
     text: >-
-      Det åpnes til en startskjerm. Et nytt prosjekt starter her.
+      Den åpner til en startskjerm. Et nytt prosjekt starter rett her.
   - id: new-project
     kind: desktop
     beat: new-project
-    caption: Nytt prosjekt krever bare et navn.
+    caption: Nytt prosjekt spør bare om et navn.
     text: >-
-      Nytt prosjekt krever bare et navn — her, Acme Help Center. Kapi utleder mappen og resten fra det.
+      Nytt prosjekt spør bare om et navn — her: Acme Help Center. Kapi utleder mappen og resten fra det.
   - id: templates
     kind: desktop
-    beat: maler
-    caption: Eller start fra KapiMart-eksempelet.
+    beat: templates
+    caption: Eller start fra KapiMart-eksemplet.
     text: >-
-      Eller start fra KapiMart — et ferdiglaget eksempelprosjekt med innholdssamlinger, målspråk og et fylt innholdsminne.
+      Or start from KapiMart — a ready-made sample project with content
+      collections, target languages, and a stocked content memory.
+
   - id: project-home
     kind: desktop
     beat: project-home
-    caption: Prosjektet åpnes til samlingene og skipets status.
+    caption: The project opens to its collections and ship standing.
     text: >-
-      Prosjektet åpnes til én flate: innholdssamlingene, og hver lokals stige mot leveringsporten — utkast, oversatt, gjennomgått, klar.
+      The project opens to one surface: its content collections, and each
+      locale's ladder toward the ship gate — drafted, translated, reviewed,
+      ready.
+
   - id: project-settings
     kind: desktop
     beat: project-settings
-    caption: "Prosjektinnstillinger: språk, programtillegg, behandling."
+    caption: "Prosjektinnstillinger: språk, tillegg, prosessering."
     text: >-
-      Prosjektinnstillinger er der du velger kildespråket og lokalitetene du oversetter til, sammen med programtillegg og behandlingsalternativer.
+      Prosjektinnstillinger er der du velger kildespråket og språkene du oversetter til, ved siden av tillegg og prosesseringsvalg.
   - id: content
     kind: desktop
     beat: content
-    caption: Hver samling definerer hvilke filer som tilhører prosjektet.
+    caption: Each collection defines which files belong to the project.
     text: >-
-      Hver samling definerer hvilke filer som tilhører prosjektet — glob-mønstre som motoren leser fra og skriver tilbake til. Oppdater er prosjektets ene hovedhandling: den kjører standard-flyten, runde etter runde, til alle portlagte omfang leveres eller parkeres for den som trenger et menneske.
+      Each collection defines which files belong to the project — glob patterns
+      the engine reads from and writes back to. Bring up to date is the
+      project's one main action: it runs the default flow, pass after pass,
+      until every gated scope ships or parks what needs a person.
+
   - id: outro
     kind: outro
     text: >-
-      Det er et prosjekt — opprettet, strukturert og ett klikk unna å være oppdatert.
+      That's a project — created, structured, and one click from up to date.
