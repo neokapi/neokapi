@@ -55,6 +55,10 @@ function DimensionSelect({ dimension }: { dimension: Dimension }) {
   if (!source.options) {
     return (
       <input
+        // Keyed on the tuple's value so a move made elsewhere — a breadcrumb
+        // rung, a result row — is reflected here rather than leaving a stale
+        // uncontrolled value behind.
+        key={value ?? ""}
         type="text"
         aria-label={dimensionLabel(dimension)}
         placeholder={dimensionLabel(dimension)}

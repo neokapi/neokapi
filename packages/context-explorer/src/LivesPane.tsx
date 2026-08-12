@@ -16,8 +16,13 @@ import type { ContentAnswer, LocaleCoverage } from "./types";
 export interface LivesPaneProps {
   /** Cap on the items listed. */
   limit?: number;
-  /** Called when a collection row is chosen, so the ladder can descend. */
-  onOpenCollection?: (collection: string) => void;
+  /**
+   * Called when a collection row is chosen, so the ladder can descend. Carries
+   * the collection's ID, not its label: the tuple addresses a collection the
+   * same way the filter bar's options do, and a workspace's ids are not its
+   * names.
+   */
+  onOpenCollection?: (collectionID: string) => void;
   /** Called when a content row is chosen. */
   onOpenItem?: (item: { id: string; document?: string }) => void;
   className?: string;
@@ -133,7 +138,7 @@ export function LivesPane({ limit, onOpenCollection, onOpenItem, className }: Li
                       <button
                         type="button"
                         className="flex w-full items-center gap-2 py-1.5 text-left hover:text-primary"
-                        onClick={() => onOpenCollection?.(c.name)}
+                        onClick={() => onOpenCollection?.(c.id)}
                       >
                         <span className="font-medium">{c.name}</span>
                         {c.project && (
