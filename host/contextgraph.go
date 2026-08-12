@@ -88,9 +88,13 @@ func MaterializeContextGraphInDB(ctx context.Context, db *projectdb.DB, proj *pr
 // document, which does not even re-key: block nodes are their content, not a
 // positional id.
 //
-// Concept nodes are refreshed rather than purged — they mirror the authored
-// terms store, and they are workspace vocabulary that a future terms-hierarchy
-// writer shares.
+// Concept nodes are refreshed rather than purged: they mirror the authored
+// terms store, and they are workspace vocabulary a future terms-hierarchy writer
+// shares. Coordinate nodes ARE purged, because here the recipe is the whole of
+// the vocabulary — a profile deleted from it is a point the project no longer
+// occupies, and nothing else in this store has an opinion. The server, whose
+// coordinate vocabulary belongs to a workspace rather than to any one project,
+// leaves them alone for exactly the same reason.
 //
 // It must run AFTER extraction has committed its block-write transaction, never
 // inside it: the write gate is per handle and not reentrant, and searching the
