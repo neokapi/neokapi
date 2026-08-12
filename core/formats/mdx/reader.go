@@ -123,7 +123,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 		MimeType: "text/mdx",
 	}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
-		return nil
+		return ctx.Err()
 	}
 
 	// Bound the whole-input read with the shared safeio byte budget so an
@@ -141,6 +141,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	r.naming.Reset()
 
 	segs := scanSegments(content)
+	// Validate the whole scan before emitting anything: a document whose
+	// parse ended early must fail, not deliver a fraction of its blocks.
+	if err := checkSegments(segs, content); err != nil {
+		return err
+	}
 	for _, seg := range segs {
 		span := content[seg.start:seg.end]
 		switch seg.kind {
@@ -152,7 +157,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 			r.emitOpaque(ctx, ch, span, "esm")
 		case segJSX:
 			if !r.emitJSX(ctx, ch, span, locale) {
-				return nil
+				return ctx.Err()
 			}
 		case segExpr:
 			r.emitOpaque(ctx, ch, span, "expression")
@@ -211,7 +216,7 @@ func (r *Reader) emitMarkdownSpan(ctx context.Context, ch chan<- model.PartResul
 		subSpan := span[sub.start:sub.end]
 		if sub.isTable {
 			if !r.emitTable(ctx, ch, subSpan, locale) {
-				return nil
+				return ctx.Err()
 			}
 			continue
 		}
@@ -312,14 +317,14 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 			r.blockCounter++
 			block.ID = fmt.Sprintf("tu%d", r.blockCounter)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-				return nil
+				return ctx.Err()
 			}
 		}
 		for _, data := range dataParts {
 			r.dataCounter++
 			data.ID = fmt.Sprintf("d%d", r.dataCounter)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
-				return nil
+				return ctx.Err()
 			}
 		}
 		return nil
@@ -367,7 +372,7 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 				block.ID = fmt.Sprintf("tu%d", r.blockCounter)
 				block.Translatable = false
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-					return nil
+					return ctx.Err()
 				}
 			}
 		}
@@ -384,7 +389,7 @@ func (r *Reader) emitMarkdownProse(ctx context.Context, ch chan<- model.PartResu
 		idMap[orig] = newID
 		block.ID = newID
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
-			return nil
+			return ctx.Err()
 		}
 	}
 	for _, entry := range entries {

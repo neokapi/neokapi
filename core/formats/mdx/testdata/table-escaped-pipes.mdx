@@ -1,0 +1,16 @@
+---
+title: "Table cells with escaped pipes"
+---
+
+# Table cells with escaped pipes
+
+A GFM cell splits on an unescaped pipe wherever it appears, so a pipe inside a
+cell's code span is written `\|` in the source.
+
+| Flag                            | Effect                        |
+| ------------------------------- | ----------------------------- |
+| `--output-format <json\|text>`  | Explicit format selection     |
+| `--color <auto\|always\|never>` | Colorize output               |
+| `enum=fast\|thorough`           | Allowed values                |
+
+Prose after the table.
