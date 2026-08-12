@@ -50,9 +50,10 @@ type RecordAbsorbResult struct {
 	// source→target pairs they carried.
 	Documents int `json:"documents,omitempty"`
 	Pairs     int `json:"pairs,omitempty"`
-	// Learned counts pairs written as new content-memory entries; Reconciled
-	// counts entries already in the store whose target for this locale
-	// disagreed with the committed record and was corrected to it.
+	// Learned counts the new content-memory entries written; Reconciled counts
+	// the entries already in the store whose target disagreed with the committed
+	// record and was corrected to it. Both count entries, not pairs: a source
+	// answered in several locales is one entry carrying a variant each.
 	Learned    int `json:"learned,omitempty"`
 	Reconciled int `json:"reconciled,omitempty"`
 	// Refused counts pairs whose target does not carry its source's inline
@@ -280,6 +281,22 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pair
 
 	now := time.Now().UTC()
 	var write []memory.Entry
+	// One staged copy per entry id. An entry can be reached by two locales' pairs
+	// — the same source string, a target in each — and each read returns the
+	// store's PRE-RUN state. Appending both would write two copies whose locale
+	// sets disagree, and since a write replaces variants per locale, the second
+	// would put the first locale back the way it was. Correcting one staged copy
+	// keeps both.
+	staged := map[string]int{}
+	stage := func(e memory.Entry) (entry *memory.Entry, fresh bool) {
+		if i, ok := staged[e.ID]; ok {
+			return &write[i], false
+		}
+		staged[e.ID] = len(write)
+		write = append(write, e)
+		return &write[len(write)-1], true
+	}
+
 	for _, k := range keys {
 		p := pairs[k]
 		win, contested := p.winner()
@@ -310,11 +327,13 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pair
 			// (AD-009) would demote both and a full-score fill policy would
 			// take neither — the disagreement would cost the translation
 			// instead of resolving it.
-			e.Variants[p.locale] = win.runs
-			e.Origins = withRecordOrigin(e.Origins, p.origin, now)
-			e.UpdatedAt = now
-			write = append(write, e)
-			res.Reconciled++
+			s, fresh := stage(e)
+			s.Variants[p.locale] = win.runs
+			s.Origins = withRecordOrigin(s.Origins, p.origin, now)
+			s.UpdatedAt = now
+			if fresh {
+				res.Reconciled++
+			}
 			held = true
 		}
 		if held {
@@ -322,18 +341,21 @@ func (a *App) writeRecordPairs(ctx context.Context, tm *memory.SQLiteStore, pair
 		}
 		origin := p.origin
 		origin.AddedAt = now
-		write = append(write, memory.Entry{
-			ID:          recordEntryID(k),
+		// The id keys on the source alone, so a second locale for the same source
+		// folds into the entry the first one staged rather than opening a rival.
+		s, fresh := stage(memory.Entry{
+			ID:          recordEntryID(recordSourceKey(p.sourceRuns)),
 			HintSrcLang: sourceLocale,
-			Variants: map[model.LocaleID][]model.Run{
-				sourceLocale: p.sourceRuns,
-				p.locale:     win.runs,
-			},
-			Origins:   []memory.Origin{origin},
-			CreatedAt: now,
-			UpdatedAt: now,
+			Variants:    map[model.LocaleID][]model.Run{sourceLocale: p.sourceRuns},
+			Origins:     []memory.Origin{origin},
+			CreatedAt:   now,
+			UpdatedAt:   now,
 		})
-		res.Learned++
+		s.Variants[p.locale] = win.runs
+		s.UpdatedAt = now
+		if fresh {
+			res.Learned++
+		}
 	}
 	if len(write) == 0 {
 		return nil
@@ -467,19 +489,26 @@ func recordDigest(u recordUnit) (string, bool, error) {
 	return hex.EncodeToString(h.Sum(nil)), true, nil
 }
 
-// recordKey identifies a source within one locale by the keys the memory
-// matches on, so two occurrences of the same string in the same shape are one
-// pair with two votes rather than two competing entries.
-func recordKey(locale model.LocaleID, runs []model.Run) string {
-	return string(locale) + "\x00" +
-		memory.NormalizeText(model.RunsStructuralText(runs)) + "\x00" +
+// recordSourceKey identifies a source by the keys the memory matches on, so two
+// occurrences of the same string in the same shape are one pair with two votes
+// rather than two competing entries.
+func recordSourceKey(runs []model.Run) string {
+	return memory.NormalizeText(model.RunsStructuralText(runs)) + "\x00" +
 		memory.NormalizeText(model.FlattenRuns(runs))
 }
 
+// recordKey scopes a source to one locale: the votes are per locale, because the
+// answers are.
+func recordKey(locale model.LocaleID, runs []model.Run) string {
+	return string(locale) + "\x00" + recordSourceKey(runs)
+}
+
 // recordEntryID is the deterministic id a record-derived entry carries, so a
-// re-absorbed pair updates its own row instead of adding a rival.
-func recordEntryID(key string) string {
-	sum := sha256.Sum256([]byte(key))
+// re-absorbed pair updates its own row instead of adding a rival. It keys on the
+// source alone: an entry is multilingual, and every locale's answer for one
+// source belongs in it.
+func recordEntryID(sourceKey string) string {
+	sum := sha256.Sum256([]byte(sourceKey))
 	return "record:" + hex.EncodeToString(sum[:])[:24]
 }
 

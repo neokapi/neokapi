@@ -290,6 +290,50 @@ func TestAbsorbCommittedRecord_ContestedSourceResolvesToTheRepeatedAnswer(t *tes
 	assert.Equal(t, "Navn", entry.VariantText("nb"))
 }
 
+// TestAbsorbCommittedRecord_FoldsEveryLocaleIntoOneEntry: an entry is
+// multilingual, so every locale's answer for one source belongs in it. Two
+// locales are two pairs and one entry — and, when they correct an entry already
+// in the store, one staged copy: each read returns the store's pre-run state, so
+// two copies would disagree on the locales they did not touch and the write that
+// landed second would put the other locale back.
+func TestAbsorbCommittedRecord_FoldsEveryLocaleIntoOneEntry(t *testing.T) {
+	a, root, recipe := newRecordProject(t, ".json")
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.TargetLanguages = []model.LocaleID{"nb", "de"}
+	require.NoError(t, project.Save(recipe, proj))
+
+	writeDoc(t, root, "src/en.json", `{"greeting":"Hello world"}`)
+	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden"}`)
+	writeDoc(t, root, "src/de.json", `{"greeting":"Hallo Welt"}`)
+	ctx := context.Background()
+
+	res, err := a.SeedProjectContext(ctx, recipe)
+	require.NoError(t, err)
+	assert.Equal(t, 2, res.Record.Pairs, "one pair per locale")
+	assert.Equal(t, 1, res.Record.Learned, "one source, one entry")
+
+	entries := storeEntries(t, a, root)
+	require.Len(t, entries, 1)
+	e := entries["Hello world"]
+	assert.Equal(t, "Hei verden", e.VariantText("nb"))
+	assert.Equal(t, "Hallo Welt", e.VariantText("de"))
+
+	// Both targets move at once: each locale's correction must survive the other.
+	writeDoc(t, root, "src/nb.json", `{"greeting":"Hallo verden"}`)
+	writeDoc(t, root, "src/de.json", `{"greeting":"Hallo, Welt"}`)
+	res, err = a.SeedProjectContext(ctx, recipe)
+	require.NoError(t, err)
+	assert.Equal(t, 2, res.Record.Pairs, "both locales answered again")
+	assert.Equal(t, 1, res.Record.Reconciled, "one entry corrected, in two locales")
+
+	entries = storeEntries(t, a, root)
+	require.Len(t, entries, 1)
+	e = entries["Hello world"]
+	assert.Equal(t, "Hallo verden", e.VariantText("nb"))
+	assert.Equal(t, "Hallo, Welt", e.VariantText("de"))
+}
+
 // TestAbsorbCommittedRecord_KeepsPulledApproval is the survival property: an
 // approval a venue pull wrote into the store is not committed to git, so an
 // absorbing pass must be an upsert of what the record answers and nothing more.
