@@ -1,0 +1,50 @@
+{
+  "nav.plan": "Berth plan",
+  "nav.arrivals": "Arrivals",
+  "nav.alerts": "Alerts",
+  "nav.fleet": "Fleet",
+  "nav.settings": "Preferences",
+
+  "plan.title": "Berth plan",
+  "plan.empty": "No arrivals on this plan yet",
+  "plan.assign": "Assign berth",
+  "plan.move": "Move vessel",
+  "plan.release": "Release berth",
+  "plan.waiting": "Waiting for a berth",
+  "plan.reason.label": "Reason for the move",
+  "plan.reason.placeholder": "Why is this vessel moving?",
+  "plan.conflict": "This berth cannot accept the vessel",
+  "plan.conflict.draught": "Draught exceeds the berth limit",
+  "plan.conflict.length": "Length overall exceeds the berth limit",
+
+  "arrivals.title": "Arrivals",
+  "arrivals.eta": "ETA",
+  "arrivals.etd": "ETD",
+  "arrivals.state.waiting": "Waiting",
+  "arrivals.state.assigned": "Assigned",
+  "arrivals.state.alongside": "Alongside",
+  "arrivals.state.departed": "Departed",
+
+  "alerts.title": "Alerts",
+  "alerts.empty": "No open alerts",
+  "alerts.acknowledge": "Acknowledge",
+  "alerts.acknowledged_by": "Acknowledged by {name}",
+  "alerts.escalated": "Escalated to the terminal supervisor",
+  "alerts.kind.under_keel_clearance": "Under-keel clearance",
+  "alerts.kind.crosswind": "Crosswind",
+  "alerts.kind.tidal_window": "Tidal window",
+
+  "fleet.title": "Fleet",
+  "fleet.subscribe": "Subscribe to this vessel",
+  "fleet.unsubscribe": "Unsubscribe",
+  "fleet.search.placeholder": "Search by ship name or IMO number",
+
+  "account.signin.title": "Log on to Compass",
+  "account.signin.button": "Log on",
+  "account.signout": "Log off",
+  "account.preferences": "Preferences",
+
+  "error.offline": "Compass cannot reach the server. Your last view is shown.",
+  "error.forbidden": "Your token is issued for another terminal.",
+  "error.retry": "Try again"
+}

@@ -7,7 +7,7 @@ import {
   KAPI_ISO_PLUGINS,
   REPO_ROOT,
   captureDir,
-  demoFixturesDir,
+  demoFixturesDirFor,
   ensureDir,
   kapiIsolationEnv,
   publicDemoDir,
@@ -105,7 +105,10 @@ export async function captureScript(m: DemoManifest, opts: { force?: boolean } =
   // 1. Fresh sandbox from fixtures (the sandbox IS the project the commands act on).
   rmrf(sb);
   ensureDir(sb);
-  const fixtures = demoFixturesDir(id);
+  const fixtures = demoFixturesDirFor(m);
+  if (m.fixturesFrom && !fs.existsSync(fixtures)) {
+    throw new Error(`demo ${id}: fixturesFrom "${m.fixturesFrom}" does not exist under the repo root`);
+  }
   if (fs.existsSync(fixtures)) fs.cpSync(fixtures, sb, { recursive: true });
 
   // 2. Isolated env: repo bin on PATH (so kcat/kgrep/ksed resolve) + throwaway
@@ -116,6 +119,10 @@ export async function captureScript(m: DemoManifest, opts: { force?: boolean } =
   //    dogfood project to leak into — taking auth + server URL from the seed
   //    (harness/.env, written by `make harness-seed`).
   const isBowrain = m.brand === "bowrain" && m.terminal === "shell";
+  // A demo whose sandbox is itself a kapi project needs recipe discovery on, so
+  // the commands read the way a user types them. Safe for the same reason the
+  // bowrain class is: the sandbox is in os.tmpdir(), outside the repo.
+  const discoversProject = isBowrain || m.project === true;
   if (isBowrain) {
     loadEnv();
     installBowrainPlugin();
@@ -134,14 +141,10 @@ export async function captureScript(m: DemoManifest, opts: { force?: boolean } =
     // kapiIsolationEnv() carries the full contract, including KAPI_NO_PROJECT=1
     // and an isolated XDG_CACHE_HOME — so a plain shell demo needs nothing more.
     ...kapiIsolationEnv(),
+    // Empty, not unset: only a NON-empty KAPI_NO_PROJECT disables discovery.
+    ...(discoversProject ? { KAPI_NO_PROJECT: "" } : {}),
     ...(isBowrain
       ? {
-          // The bowrain CLI demo drives a real server against a project it
-          // creates, so it opts BACK IN to project discovery. Its sandbox is in
-          // os.tmpdir(), outside the repo, so there is no dogfood project to
-          // leak into. (Empty, not unset: only a NON-empty KAPI_NO_PROJECT
-          // disables discovery.)
-          KAPI_NO_PROJECT: "",
           BOWRAIN_AUTH_TOKEN: process.env.BOWRAIN_SESSION_TOKEN ?? "",
           BOWRAIN_SERVER_URL: process.env.BOWRAIN_BACKEND_URL ?? "",
           BOWRAIN_BACKEND_URL: process.env.BOWRAIN_BACKEND_URL ?? "",

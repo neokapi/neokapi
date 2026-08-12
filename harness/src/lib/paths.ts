@@ -43,8 +43,13 @@ function resolveRepoRoot(): string {
 }
 export const REPO_ROOT = resolveRepoRoot();
 
-/** Where published kapi demo videos land in the neokapi docs site (served via the docs-assets release). */
-export const DOCS_VIDEO_DIR = path.join(REPO_ROOT, "web", "docs", "static", "video", "kapi");
+/**
+ * Where published kapi demo videos land in the neokapi docs site (served via the
+ * docs-assets release). This is the one directory `scripts/publish-cdn-assets.sh
+ * video-kapi` uploads and `.gitignore` excludes, so a demo that publishes
+ * anywhere else reaches neither git nor the CDN.
+ */
+export const DOCS_VIDEO_DIR = path.join(REPO_ROOT, "web", "static", "video", "kapi");
 
 /** Base of the bowrain docs static video tree (sibling to the kapi one, in the bowrain docs site). */
 const BOWRAIN_DOCS_VIDEO_BASE = path.join(REPO_ROOT, "bowrain", "web", "docs", "static", "video");
@@ -133,6 +138,14 @@ export function kapiIsolationEnv(): Record<string, string> {
 /** Per-demo locations. */
 export const demoSrcDir = (id: string) => path.join(DEMOS_DIR, id);
 export const demoFixturesDir = (id: string) => path.join(DEMOS_DIR, id, "fixtures");
+/**
+ * The directory a demo's sandbox is seeded from: its own `fixtures/`, or the
+ * repo-relative tree named by `fixturesFrom:`. The second form lets a demo drive
+ * a committed sample project (`samples/<name>/`) directly, so the recording and
+ * the sample a reader clones cannot drift apart.
+ */
+export const demoFixturesDirFor = (m: { id: string; fixturesFrom?: string }): string =>
+  m.fixturesFrom ? path.resolve(REPO_ROOT, m.fixturesFrom) : demoFixturesDir(m.id);
 export const sandboxDir = (id: string) => path.join(SANDBOX_DIR, id);
 export const captureDir = (id: string) => path.join(CAPTURES_DIR, id);
 /** Public/<id> is what Remotion reads via staticFile(). */

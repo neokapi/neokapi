@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { chromium, type Browser } from "playwright";
 import type { ArtifactSpec, CapturedArtifact, DemoManifest } from "../types.ts";
-import { captureDir, demoFixturesDir, ensureDir, kapiIsolationEnv, publicDemoDir, REPO_ROOT } from "../lib/paths.ts";
+import { captureDir, demoFixturesDirFor, ensureDir, kapiIsolationEnv, publicDemoDir, REPO_ROOT } from "../lib/paths.ts";
 import { spawn } from "node:child_process";
 import { sh, sleep } from "../lib/exec.ts";
 import { renderReport, renderMarkdownDoc, renderCode, renderCodeDiff, renderDocxHtml } from "./report.ts";
@@ -91,7 +91,7 @@ async function captureOne(
 ): Promise<CapturedArtifact | null> {
   const snap = snapshotDir(m.id);
   // Read from the pristine fixture (for a "before" card) or the post-run snapshot.
-  const baseDir = spec.from === "fixture" ? demoFixturesDir(m.id) : snap;
+  const baseDir = spec.from === "fixture" ? demoFixturesDirFor(m) : snap;
   const pub = publicDemoDir(m.id);
   const artDir = ensureDir(path.join(pub, "artifacts"));
   const w = spec.width ?? DEFAULT_W;
@@ -144,7 +144,7 @@ async function captureOne(
       await shot(browser, "file://" + tmpHtml, outPng, w, h);
     } else if (spec.source === "codediff") {
       // Same file from the pristine fixture (before) and the post-run snapshot (after).
-      const beforeSrc = path.join(demoFixturesDir(m.id), spec.path ?? "");
+      const beforeSrc = path.join(demoFixturesDirFor(m), spec.path ?? "");
       const afterSrc = path.join(snap, spec.path ?? "");
       if (!fs.existsSync(beforeSrc) || !fs.existsSync(afterSrc)) {
         console.warn(`    skip artifact ${spec.id}: codediff source ${spec.path} missing (before/after)`);
