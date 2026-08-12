@@ -11,16 +11,21 @@ import (
 // blockstore.Store API speaks kbf.Block. The projection copies the
 // fields the Store interface and its consumers read:
 //
-//   - ID, Translatable
+//   - ID (the durable structural key), Translatable
 //   - Hash (StoredBlock.ContentHash falling back to model.Block.Identity.Hash)
 //   - Source/Target runs (the flat run sequences from the model)
 //   - Type (string → kbf.BlockType)
 //   - Properties.File, from the item the block belongs to
 //
-// The file is the block's place: an occurrence names the document it
-// was found in, and a decision finds its block by (document, id). The
-// store is keyed by content and holds no document on the block row, so
-// the item name is where that comes from.
+// ID and File together are the block's PLACE, and both come off the
+// store rather than off the block: a stored row keeps its generated
+// primary key in model.Block.ID and its reader-assigned name in
+// source_id, and it is the reader-assigned one that means the same
+// thing here as in a project's own block cache. An occurrence names the
+// document it was found in, and a decision finds its block by
+// (document, structural key), so a projection that handed back the
+// generated key would make the two halves of the product address one
+// block by different names.
 //
 // Placeholders and preview hints stay on the Bowrain side for now;
 // adding them here is non-breaking and we'll do it as callers need them.
@@ -34,6 +39,9 @@ func toKBF(sb *platstore.StoredBlock) *kbf.Block {
 		Translatable: sb.Translatable,
 		Type:         kbf.BlockType(sb.Type),
 		Source:       append([]model.Run(nil), sb.Source...),
+	}
+	if sb.SourceID != "" {
+		b.ID = sb.SourceID
 	}
 	b.Properties.File = sb.ItemName
 	if b.Hash == "" && sb.Identity != nil {

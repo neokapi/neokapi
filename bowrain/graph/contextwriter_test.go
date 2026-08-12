@@ -153,6 +153,8 @@ func TestWhichProjectsUseThisConcept(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "docs.json", blocks[0].Properties[contextgraph.PropDocument])
+	assert.Equal(t, "intro", blocks[0].Properties[contextgraph.PropBlockID],
+		"a block node names its structural key, the same one a decision addresses it by")
 }
 
 // A rebuild replaces its own project stream's rows and leaves the others

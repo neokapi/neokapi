@@ -72,8 +72,10 @@ func (s *Server) rebuildContextGraph(g *platgraph.SQLGraphStore, ev platev.Event
 	}
 	// The workspace's terminology is keyed by slug. Without it the pass still
 	// writes membership, coordinates and blessings — it simply has no vocabulary
-	// to attach occurrences to.
-	if slug := ev.Data["workspace_slug"]; slug != "" {
+	// to attach occurrences to, which is the wrong graph rather than a smaller
+	// one, so the slug is resolved from the project when the event does not
+	// carry it (a connector ingest publishes no workspace).
+	if slug := s.workspaceSlug(ctx, ev.Data["workspace_slug"], proj.WorkspaceID); slug != "" {
 		if tb, terr := s.wsStores.getTerms(slug); terr == nil {
 			in.Terms = tb
 		} else {
@@ -94,6 +96,22 @@ func (s *Server) rebuildContextGraph(g *platgraph.SQLGraphStore, ev platev.Event
 	}
 	slog.Info("context graph: rebuilt",
 		"project", ev.ProjectID, "stream", in.Stream, "edges", edges)
+}
+
+// workspaceSlug resolves the slug the workspace's terminology is keyed by:
+// the one the event carries, else the one the project's workspace holds.
+func (s *Server) workspaceSlug(ctx context.Context, fromEvent, workspaceID string) string {
+	if fromEvent != "" {
+		return fromEvent
+	}
+	if s.AuthStore == nil || workspaceID == "" {
+		return ""
+	}
+	ws, err := s.AuthStore.GetWorkspace(ctx, workspaceID)
+	if err != nil || ws == nil {
+		return ""
+	}
+	return ws.Slug
 }
 
 // pushedStream resolves the stream a push landed on: the one the event names,
