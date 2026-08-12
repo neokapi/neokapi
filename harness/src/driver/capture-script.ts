@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { CaptureError, DemoCapture, DemoManifest, TimelineEvent } from "../types.ts";
+import type { DemoCapture, DemoManifest } from "../types.ts";
 import {
   KAPI_BIN,
   KAPI_ISO,
@@ -16,6 +16,7 @@ import {
 } from "../lib/paths.ts";
 import { sh } from "../lib/exec.ts";
 import { loadEnv } from "../lib/env.ts";
+import { assertCaptureSound, runScriptSteps, unexpectedExitMessage } from "./script-run.ts";
 
 /**
  * Install the locally-built kapi-bowrain plugin into the harness's isolated
@@ -86,6 +87,10 @@ function cleanBowrainOutput(out: string, sandbox: string, cwdLabel: string): str
  *
  * Deterministic and unbilled — the commands are the toolbox (kcat/kgrep/ksed),
  * not an LLM. Output is captured exactly as a user would see it.
+ *
+ * Throws when any command exits some way other than the one its step declared
+ * (see ScriptStep.expectExit), so the stages that narrate, render and publish
+ * this take never run on a recording of a failure nobody meant to record.
  */
 export async function captureScript(m: DemoManifest, opts: { force?: boolean } = {}): Promise<void> {
   const id = m.id;
@@ -96,6 +101,7 @@ export async function captureScript(m: DemoManifest, opts: { force?: boolean } =
 
   if (!opts.force && fs.existsSync(captureJson)) {
     console.log(`  · capture exists for ${id} (use --force to re-run)`);
+    assertCaptureSound(id, captureJson);
     return;
   }
   if (!fs.existsSync(KAPI_BIN)) {
@@ -164,38 +170,13 @@ export async function captureScript(m: DemoManifest, opts: { force?: boolean } =
 
   // 3. Run each script step, recording a command + its real output.
   console.log(`  · running ${m.script?.length ?? 0} scripted command(s) in ${sb} …`);
-  const events: TimelineEvent[] = [];
-  const errors: CaptureError[] = [];
-  let i = 0;
   const start = Date.now();
-  let commandCount = 0;
-  for (const step of m.script ?? []) {
-    if (step.comment !== undefined) {
-      events.push({ i: i++, kind: "comment", text: step.comment });
-      continue;
-    }
-    const command = step.command;
-    if (!command) continue;
-    commandCount++;
-    events.push({ i: i++, kind: "command", text: command });
-    const r = await sh(command, { cwd: sb, env, timeoutMs: (m.captureTimeoutSec ?? 120) * 1000 });
-    let out = [r.stdout, r.stderr].filter((s) => s && s.trim()).join("\n").replace(/\n+$/, "");
-    if (isBowrain) out = cleanBowrainOutput(out, sb, m.cwd ?? "~/project");
-    const isError = r.code !== 0;
-    // grep exits 1 on "no match" — not a real error; only flag other non-zero codes.
-    const realError = isError && r.code !== 1;
-    if (out !== "" || isError) {
-      events.push({ i: i++, kind: "output", text: out, isError: realError });
-    }
-    if (realError) {
-      errors.push({
-        tool: "shell",
-        command: command.slice(0, 100),
-        snippet: (r.stderr || r.stdout).split("\n").slice(0, 2).join(" ").slice(0, 200),
-        hardError: true,
-      });
-    }
-  }
+  const { events, errors, commandCount } = await runScriptSteps(m.script ?? [], {
+    cwd: sb,
+    env,
+    timeoutMs: (m.captureTimeoutSec ?? 120) * 1000,
+    ...(isBowrain ? { clean: (out: string) => cleanBowrainOutput(out, sb, m.cwd ?? "~/project") } : {}),
+  });
 
   const capture: DemoCapture = {
     id,
@@ -224,10 +205,11 @@ export async function captureScript(m: DemoManifest, opts: { force?: boolean } =
   fs.cpSync(sb, snapshot, { recursive: true });
 
   console.log(`  ✓ captured ${id}: ${events.length} events, ${commandCount} commands`);
+  // The take is persisted first, so the failing output is there to read, and the
+  // stage then fails: a capture nobody can narrate must not reach the narrate,
+  // render and publish stages that follow it.
   if (errors.length) {
-    console.warn(`  ⚠ ${errors.length} command error(s) — these will show in the video:`);
-    for (const e of errors) console.warn(`      ✗ ${e.command} ↳ ${e.snippet}`);
-  } else {
-    console.log(`  ✓ clean: no command errors`);
+    throw new Error(unexpectedExitMessage(id, errors));
   }
+  console.log(`  ✓ clean: every command exited as declared`);
 }

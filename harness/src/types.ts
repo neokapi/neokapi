@@ -165,6 +165,18 @@ export interface ScriptStep {
   command?: string;
   /** A "# ..." annotation line shown in the terminal (no command run). */
   comment?: string;
+  /**
+   * The exit code — or codes — this step is expected to produce. Defaults to 0,
+   * so any command that fails without saying it would fails the capture.
+   *
+   * A step whose non-zero result is the substance of the beat declares it here:
+   * `expectExit: 3` for a gate that must fail on camera, `expectExit: [0, 1]`
+   * for a search whose "found nothing" is a legitimate answer. The declaration
+   * binds in both directions — a step that declares 3 and exits 0 is as broken a
+   * take as one that exits 1 without declaring anything, because in both cases
+   * the recording no longer shows what the demo says it shows.
+   */
+  expectExit?: number | number[];
 }
 
 /** How to capture one visual artifact after the Claude run finishes. */

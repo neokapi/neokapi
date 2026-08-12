@@ -24,6 +24,26 @@ async function fetchJson<T>(rel: string): Promise<T | null> {
   }
 }
 
+/**
+ * A stand-in capture for a demo this machine has not recorded. The registry
+ * lists every authored demo, not the locally captured ones, so a composition
+ * can be opened before its capture exists; it says so on screen rather than
+ * failing on an absent capture. (The render stage skips such a demo outright.)
+ */
+function placeholderCapture(id: string, title: string): DemoCapture {
+  return {
+    id,
+    title,
+    subtitle: "not captured on this machine",
+    aspects: [],
+    prompt: "",
+    terminal: "shell",
+    brand: "kapi",
+    events: [{ i: 0, kind: "comment", text: `no capture yet — run: pnpm run demo ${id} --only=capture` }],
+    meta: { model: "shell", durationMs: 0, numTurns: 0, capturedAt: "", errors: [] },
+  };
+}
+
 /** Fallback narration so a demo still previews in Studio before TTS has run. */
 function fallbackNarration(capture: DemoCapture): NarrationManifest {
   const termSec = Math.max(20, Math.min(90, capture.events.length * 2.2));
@@ -41,11 +61,9 @@ function fallbackNarration(capture: DemoCapture): NarrationManifest {
 
 const calcMeta: CalculateMetadataFunction<DemoProps> = async ({ props }) => {
   const id = props.id;
-  const capture = await fetchJson<DemoCapture>(`${id}/capture.json`);
-  if (!capture) {
-    // Nothing captured yet — render a 1s placeholder so Studio doesn't crash.
-    return { durationInFrames: FPS, fps: FPS, width: WIDTH, height: HEIGHT, props };
-  }
+  const capture =
+    (await fetchJson<DemoCapture>(`${id}/capture.json`)) ??
+    placeholderCapture(id, typeof props.title === "string" ? props.title : id);
   // Locale-suffixed narration (narration-nb.json) when the render passes a
   // non-default locale; the English narration.json otherwise. No silent
   // cross-locale fallback here — render.ts refuses to render a locale whose
@@ -79,7 +97,7 @@ export const RemotionRoot: React.FC = () => {
           fps={FPS}
           width={WIDTH}
           height={HEIGHT}
-          defaultProps={{ id: d.id, capture: undefined as any, narration: undefined as any, artifacts: [] as CapturedArtifact[], screencast: null, themeMode: "dark" as const }}
+          defaultProps={{ id: d.id, title: d.title, capture: undefined as any, narration: undefined as any, artifacts: [] as CapturedArtifact[], screencast: null, themeMode: "dark" as const }}
           calculateMetadata={calcMeta}
         />
       ))}
