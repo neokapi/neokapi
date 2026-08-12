@@ -335,6 +335,14 @@ type ContextSearchSources struct {
 	// not stale, they are simply unread.
 	Freshness []string
 
+	// Unseeded reports a project whose committed context sources have never been
+	// compiled into the store this search reads — a fresh clone, before anything
+	// ran. Its stores answer, and answer empty, which is indistinguishable from
+	// a project that genuinely holds no such term. The by-location answer reads
+	// the committed documents directly and does not have this state, so leaving
+	// it unsaid is what let the two retrieval primitives disagree in silence.
+	Unseeded bool
+
 	// Recipe is the project whose context space the answer resolves places
 	// against, so a term's uses can say where each one is governed. nil for a
 	// standalone-store query with no project in scope.
@@ -402,6 +410,7 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 		if proj, err := project.Load(path); err == nil {
 			src.Recipe = proj
 			src.Profiles = profileHits(proj.ProfileWindows(), src.At)
+			src.Unseeded = a.ContextSourcesUnseeded(ctxOrBackground(cmd.Context()), path)
 		}
 	}
 
@@ -445,6 +454,10 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	// it is the only note that says the rest of the answer may already be
 	// answering a question about a graph that has moved.
 	res.Notes = append(res.Notes, src.Freshness...)
+	if src.Unseeded {
+		res.Notes = append(res.Notes,
+			"this project's committed context has not been compiled into its store yet, so an empty answer here means unread, not absent — run `kapi up`")
+	}
 
 	if src.Terms != nil {
 		concepts, _, err := src.Terms.Search(ctx, req.Query, req.Locale, "", 0, limit)

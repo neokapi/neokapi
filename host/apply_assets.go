@@ -17,11 +17,11 @@ import (
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
+	"github.com/neokapi/neokapi/core/yamledit"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/kmb"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
-	"gopkg.in/yaml.v3"
 )
 
 // applyAssetEntry lands one asset change (a glossary term, content memory pair, voice rule,
@@ -737,16 +737,15 @@ func voiceRuleList(profile *coreprofile.VoiceProfile, list string) *[]coreprofil
 	}
 }
 
-// writeProfileYAML serializes a VoiceProfile to its committed YAML form.
+// writeProfileYAML writes a VoiceProfile back into its committed YAML form,
+// keeping the document's comments and key order and leaving the file untouched
+// when nothing about it moved (core/yamledit). A voice profile is authored,
+// reviewed source: a decision that lands three lines of vocabulary and also
+// deletes the file's explanation of itself is not a reviewable diff, and a
+// rewrite that changed nothing at all would still register under `.kapi/` as
+// the decision backing whatever else a run produced.
 func writeProfileYAML(path string, profile *coreprofile.VoiceProfile) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create profile dir: %w", err)
-	}
-	data, err := yaml.Marshal(profile)
-	if err != nil {
-		return fmt.Errorf("marshal voice profile: %w", err)
-	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if _, err := yamledit.WriteFile(path, profile, 0o644); err != nil {
 		return fmt.Errorf("write voice profile: %w", err)
 	}
 	return nil

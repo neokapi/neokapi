@@ -232,6 +232,44 @@ func (a *App) stampContextSource(ctx context.Context, root, srcPath string) {
 	_ = saveContextDigests(ctx, db, stamps)
 }
 
+// ContextSourcesUnseeded reports a project that binds committed context sources
+// none of which has ever been compiled into its store — a fresh clone, before
+// anything ran. A read surface uses it to say that an empty answer is unread
+// rather than absent.
+//
+// It reads the compile stamps only: no digest is computed, so a source edited
+// since its last compile is NOT reported here. That is the intended line — the
+// state worth naming is a store that has never been written, because a stale one
+// still answers with something the project decided.
+func (a *App) ContextSourcesUnseeded(ctx context.Context, projectPath string) bool {
+	layout, err := project.LayoutFor(projectPath)
+	if err != nil {
+		return false
+	}
+	proj, err := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil {
+		return false
+	}
+	sources, err := committedContextSources(proj, layout)
+	if err != nil || len(sources) == 0 {
+		return false
+	}
+	if _, statErr := os.Stat(layout.StorePath()); statErr != nil {
+		return true
+	}
+	db, err := a.ProjectDB(ctx, layout.Root)
+	if err != nil {
+		return false
+	}
+	stamps := loadContextDigests(ctx, db)
+	for _, src := range sources {
+		if stamps[src.rel] != "" {
+			return false
+		}
+	}
+	return true
+}
+
 // projectStoreExists reports whether the project already has a store file. It
 // stats rather than opens, because opening creates one — the distinction a dry
 // run depends on.

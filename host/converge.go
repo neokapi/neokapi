@@ -99,10 +99,24 @@ type ConvergeOutput struct {
 	// source_not_ready when every pending locale had nothing producible because
 	// its source is held below the gate. Empty on a clean/parked-on-target run.
 	StallReason string `json:"stallReason,omitempty"`
+	// Monolingual reports a run over a project that resolves no target locale at
+	// all: the source half of convergence ran and the per-locale fan-out was not
+	// applicable. Locales is empty for such a run, and a reader needs to tell
+	// that apart from a multilingual project whose locales all dropped out.
+	Monolingual bool `json:"monolingual,omitempty"`
+	// ExtractedFiles and ExtractedBlocks report the pre-pass re-extraction that
+	// brought the project store back in sync with the working tree. Both 0 when
+	// the store was already current. They are the "what moved" of a monolingual
+	// run, whose whole output is otherwise source-side.
+	ExtractedFiles  int `json:"extractedFiles,omitempty"`
+	ExtractedBlocks int `json:"extractedBlocks,omitempty"`
 }
 
 // FormatText renders the convergence summary.
 func (o ConvergeOutput) FormatText(w io.Writer) error {
+	if o.Monolingual {
+		return o.formatMonolingual(w)
+	}
 	verb := "pass"
 	if o.Passes != 1 {
 		verb = "passes"
@@ -147,6 +161,22 @@ func (o ConvergeOutput) FormatText(w io.Writer) error {
 	if o.MaterializedFiles > 0 {
 		fmt.Fprintf(w, "Materialized %d target file(s) from the project store.\n", o.MaterializedFiles)
 	}
+	return nil
+}
+
+// formatMonolingual renders a run over a project with no target locale. The
+// locale grid is not printed empty: a table with no rows reads as "nothing was
+// reconciled", when in fact the whole source half of the run — seed, extract,
+// occurrence graph — completed. What moved is the store, so that is what the
+// summary reports.
+func (o ConvergeOutput) formatMonolingual(w io.Writer) error {
+	fmt.Fprintf(w, "Reconciled the source — no target languages configured, so the per-language flow %q did not run.\n\n", o.Flow)
+	if o.ExtractedBlocks > 0 || o.ExtractedFiles > 0 {
+		fmt.Fprintf(w, "Extracted %d block(s) from %d file(s) into the project store.\n", o.ExtractedBlocks, o.ExtractedFiles)
+	} else {
+		fmt.Fprintln(w, "The project store already matched the working tree.")
+	}
+	fmt.Fprintln(w, "Up to date: the committed context and the occurrence graph match the sources.")
 	return nil
 }
 
@@ -203,11 +233,6 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	if a.SourceLang == "" {
 		a.SourceLang = "en"
 	}
-	locales := pctx.TargetLocales
-	if len(locales) == 0 {
-		return errors.New("no target languages configured (defaults.target_languages)")
-	}
-
 	resolved, err := pctx.ResolveContent(a.FormatReg)
 	if err != nil {
 		return fmt.Errorf("resolve content: %w", err)
@@ -219,6 +244,17 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	if len(sources) == 0 {
 		return errors.New("no content to catch up (add content patterns to the project)")
 	}
+
+	// The locales this run fans out over, and the verdict that decides whether it
+	// fans out at all. A project that resolves none is MONOLINGUAL — the front
+	// door, not a misconfiguration: the source half of convergence still runs
+	// (the committed context seeds, the working tree re-extracts into the store,
+	// the occurrence graph refreshes) and only recycle/translate/materialize are
+	// not applicable. Not-applicable is not an error, and refusing to start left
+	// a one-language project with no way to compile its own sources into the
+	// store at all.
+	locales := contentTargetLocales(proj.Defaults, resolved)
+	monolingual := len(locales) == 0
 
 	// Self-seeding (AD-009/AD-010 custody): the committed context sources are the
 	// truth and the store is their projection, so they compile on the way in —
@@ -300,6 +336,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 
 	onEvent := opts.onEvent
 	emitter := convergence.NewEmitter(onEvent)
+	facts := convergeFacts{monolingual: monolingual}
 
 	// The venue-neutral loop (core/convergence.Loop) owns the semantics —
 	// pass barrier, per-locale fan-out, stall-parks-the-rest; these closures
@@ -361,6 +398,8 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 			if stats == nil {
 				return nil, nil
 			}
+			facts.extractedFiles += stats.Files
+			facts.extractedBlocks += stats.Blocks
 			// Stamp-write failures do not endanger the extracted content, so
 			// they never fail the pass — but left unsaid they make kapi
 			// re-extract and re-translate everything on every run with no
@@ -454,8 +493,50 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 		}
 		d := res.Final.Detail.(derivedState)
 		return a.finishConverge(ctx, cmd, proj, projectPath, flowLabel, res.Passes, d.cov, locales, d.excl,
-			sourceGate, blockedOnSource, totalSource, opts, emitter.Emit)
+			sourceGate, blockedOnSource, totalSource, facts, opts, emitter.Emit)
 	})
+}
+
+// convergeFacts are the run-scoped facts finishConverge reports that the
+// coverage rollup cannot derive: whether the project fanned out at all, and what
+// the pre-pass extraction moved.
+type convergeFacts struct {
+	monolingual     bool
+	extractedFiles  int
+	extractedBlocks int
+}
+
+// contentTargetLocales is the set of target locales a project's resolved content
+// expands to: the recipe's `defaults.target_languages`, plus any a content item
+// declares for itself. Empty means monolingual.
+//
+// It resolves exactly as UnitsFromProject does — same per-item fallback, same
+// skip of an item with no target template — so the locales a run fans out over
+// and the units its coverage is derived from can never disagree. Deriving the
+// fan-out from the defaults alone left a recipe that names its languages per
+// item converging nothing while its coverage counted them.
+func contentTargetLocales(defaults project.Defaults, resolved []project.ResolvedFile) []model.LocaleID {
+	seen := make(map[model.LocaleID]bool, len(defaults.TargetLanguages))
+	out := make([]model.LocaleID, 0, len(defaults.TargetLanguages))
+	add := func(loc model.LocaleID) {
+		if loc == "" || seen[loc] {
+			return
+		}
+		seen[loc] = true
+		out = append(out, loc)
+	}
+	for _, loc := range defaults.TargetLanguages {
+		add(loc)
+	}
+	for _, rf := range resolved {
+		if rf.Item == nil || rf.Item.Target == "" {
+			continue
+		}
+		for _, loc := range rf.Item.ResolvedTargetLanguages(nil, defaults) {
+			add(loc)
+		}
+	}
+	return out
 }
 
 // derivedState is the CLI venue's rich derivation, threaded through the loop's
@@ -629,8 +710,11 @@ func producedUnits(cov []LocaleCoverage) int {
 // are ALL shippable has its target files written from the project block
 // store via the shared merge/materialize path; parked locales are skipped —
 // their content isn't at the bar yet.
-func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *CheckExclusions, sourceGate model.SourceGateLevel, blockedOnSource, totalSource int, opts ConvergeOptions, emit func(convergence.Event)) error {
+func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.KapiProject, projectPath, flowName string, passes int, cov []LocaleCoverage, locales []model.LocaleID, excl *CheckExclusions, sourceGate model.SourceGateLevel, blockedOnSource, totalSource int, facts convergeFacts, opts ConvergeOptions, emit func(convergence.Event)) error {
 	out := buildConvergeOutput(flowName, passes, cov, locales, excl)
+	out.Monolingual = facts.monolingual
+	out.ExtractedFiles = facts.extractedFiles
+	out.ExtractedBlocks = facts.extractedBlocks
 	out.BlockedOnSource = blockedOnSource
 	if sourceGate != "" {
 		out.SourceGate = string(sourceGate)

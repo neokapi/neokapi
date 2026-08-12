@@ -25,10 +25,23 @@ func (c *VoiceVocabConfig) Validate() error  { return nil }
 type VoiceVocabCheckTool struct {
 	tool.BaseTool
 	profile     *profile.VoiceProfile
-	terminology terms.Terminology       // optional — if provided, filters by term_source=brand_vocabulary
+	terminology terms.Terminology       // optional — the project's decided vocabulary
 	resolver    profile.ProfileResolver // optional: lazy profile resolution
 	rc          profile.ResolveContext  // context for resolver
 	resolved    bool                    // true after first resolution attempt
+	// sourceLocale is the language the terms lookup asks in when a block carries
+	// no locale of its own. Most readers stamp the locale on the document layer
+	// rather than on every block, so without it a caller with a terms store bound
+	// would look its vocabulary up in the empty language and match nothing.
+	sourceLocale model.LocaleID
+}
+
+// InSourceLocale sets the language the vocabulary lookup asks in for blocks that
+// carry no locale, and returns the tool so a caller can chain it onto the
+// constructor. A block that does carry one always wins.
+func (t *VoiceVocabCheckTool) InSourceLocale(loc model.LocaleID) *VoiceVocabCheckTool {
+	t.sourceLocale = loc
+	return t
 }
 
 // NewVoiceVocabCheckTool creates a new voice vocabulary check tool.
@@ -70,6 +83,56 @@ func (t *VoiceVocabCheckTool) resolveOnce(ctx context.Context) {
 	}
 }
 
+// vocabularyLookupLocales is the set of locales a source text's vocabulary is
+// looked up in: the text's own locale and, when that names a region, the bare
+// language beneath it.
+//
+// A terms lookup matches the locale exactly, so a project writing en-GB against
+// a vocabulary recorded as `en` would be held to nothing at all — a gate that
+// reports PASS because it asked the wrong question. An empty locale yields no
+// candidate: there is no language to look terms up in, and the empty string is a
+// locale like any other in the store.
+func vocabularyLookupLocales(loc model.LocaleID) []model.LocaleID {
+	if loc == "" {
+		return nil
+	}
+	out := []model.LocaleID{loc}
+	if i := strings.IndexAny(string(loc), "-_"); i > 0 {
+		out = append(out, loc[:i])
+	}
+	return out
+}
+
+// preferredTerm answers "what should this say instead" for a matched term: the
+// preferred term its concept carries in the same language, or "" when the
+// concept names none.
+//
+// The match is consulted first and the store second, because a lookup can return
+// either shape: the in-memory store hands back the whole concept, while the
+// SQLite one selects a row per term and fills in a concept STUB carrying the id
+// and definition but none of its other terms. Reading only the match therefore
+// left every finding from a real project without the alternative — the one part
+// of a vocabulary finding that says what to do.
+func (t *VoiceVocabCheckTool) preferredTerm(ctx context.Context, m terms.TermMatch, loc model.LocaleID) (string, error) {
+	if pref := m.Concept.PreferredTerm(loc); pref != nil && pref.Text != "" {
+		return pref.Text, nil
+	}
+	if m.Concept.ID == "" || len(m.Concept.Terms) > 0 {
+		return "", nil // nothing to look up, or the concept was whole and named none
+	}
+	full, found, err := t.terminology.GetConcept(ctx, m.Concept.ID)
+	if err != nil {
+		return "", fmt.Errorf("read concept %s: %w", m.Concept.ID, err)
+	}
+	if !found {
+		return "", nil
+	}
+	if pref := full.PreferredTerm(loc); pref != nil && pref.Text != "" {
+		return pref.Text, nil
+	}
+	return "", nil
+}
+
 func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	t.resolveOnce(v.Context())
 
@@ -88,13 +151,41 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 	// the check_vocabulary MCP tool, so none of these paths diverge.
 	findings := profile.HitsToFindings(profile.MatchVocabulary(t.profile, sourceText), sourceText, sourceRuns)
 
-	// If terminology is available, also look up voice vocabulary terms.
+	// The bound terms store, when there is one: the vocabulary the project
+	// DECIDED, enforced alongside the profile's own lists.
+	//
+	// Every source is consulted, not just the voice vocabulary. A term decision
+	// lands in the terminology source (`kapi apply` writes concepts there), so a
+	// brand-vocabulary-only filter enforced a source nothing writes to and
+	// ignored the one everything writes to — retrieval reported a word as retired
+	// while every gate passed it.
 	if t.terminology != nil {
-		matches, err := t.terminology.LookupAll(v.Context(), sourceText, terms.LookupOptions{
-			SourceFilter: []terms.TermSource{terms.TermSourceBrandVocabulary},
-		})
-		if err != nil {
-			return err
+		lookupIn := v.SourceLocale()
+		if lookupIn == "" {
+			lookupIn = t.sourceLocale
+		}
+		var matches []terms.TermMatch
+		// Deduped across the candidate languages: a term recorded in both en-GB
+		// and en is one decision about one word, and two findings for it would
+		// penalize the block's score twice.
+		type hit struct {
+			text string
+			pos  int
+		}
+		seen := map[hit]bool{}
+		for _, loc := range vocabularyLookupLocales(lookupIn) {
+			found, err := t.terminology.LookupAll(v.Context(), sourceText, terms.LookupOptions{SourceLocale: loc})
+			if err != nil {
+				return err
+			}
+			for _, m := range found {
+				key := hit{text: strings.ToLower(m.Term.Text), pos: m.Position.Start}
+				if seen[key] {
+					continue
+				}
+				seen[key] = true
+				matches = append(matches, m)
+			}
 		}
 		for _, m := range matches {
 			var f profile.VoiceFinding
@@ -115,18 +206,35 @@ func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {
 					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
 					OriginalText: m.Term.Text,
 				}
+			case m.Term.Status == model.TermDeprecated:
+				// Retired, not banned: the word was the project's own until a
+				// decision replaced it, so it reads as the softer finding the
+				// retrieval surface already reports it as ("discouraged — say X").
+				// Minor keeps `--strict` from turning every legacy spelling in a
+				// corpus into a build failure the day a term is retired.
+				f = profile.VoiceFinding{
+					Category:     string(profile.DimensionVocabulary),
+					Severity:     profile.SeverityMinor,
+					Message:      fmt.Sprintf("Retired term %q found in terms", m.Term.Text),
+					Position:     model.RunRangeForBytes(sourceRuns, m.Position.Start, m.Position.End),
+					OriginalText: m.Term.Text,
+				}
 			default:
 				continue
 			}
-			// When the matched concept carries a preferred term in the source
-			// locale, surface it as the structured replacement — symmetric with the
-			// profile path, which carries the rule's replacement.
-			if pref := m.Concept.PreferredTerm(v.SourceLocale()); pref != nil && pref.Text != "" {
-				f.Suggestion = fmt.Sprintf("Use %q instead", pref.Text)
+			// What to say instead: the concept's preferred term in the same
+			// language, surfaced as the structured replacement — symmetric with
+			// the profile path, which carries the rule's replacement.
+			pref, perr := t.preferredTerm(v.Context(), m, lookupIn)
+			if perr != nil {
+				return perr
+			}
+			if pref != "" {
+				f.Suggestion = fmt.Sprintf("Use %q instead", pref)
 				if f.Metadata == nil {
 					f.Metadata = make(map[string]string)
 				}
-				f.Metadata["replacement"] = pref.Text
+				f.Metadata["replacement"] = pref
 			}
 			// Link the finding to its knowledge-graph concept, mirroring the profile
 			// path so a terms store-sourced hit pivots to the concept story too.
