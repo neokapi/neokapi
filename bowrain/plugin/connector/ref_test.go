@@ -34,6 +34,14 @@ type refServer struct {
 	published    ref.Ref
 	commitAssert ref.Ref
 	commits      int
+	// statusUnavailable makes the push-status route fail, so the ingest is
+	// unconfirmable — a server with no worker, or one too old for the endpoint.
+	statusUnavailable bool
+	// afterCommit is what the ref answers once a commit has landed. It stands
+	// in for the ordinary case where the server's fold and this client's differ
+	// — an undeclared collection the server keeps, an approval it holds that
+	// this client has not pulled.
+	afterCommit *ref.Ref
 }
 
 func newRefServer(t *testing.T, projectID string, published ref.Ref) *refServer {
@@ -48,7 +56,20 @@ func newRefServer(t *testing.T, projectID string, published ref.Ref) *refServer 
 		})
 	})
 	mux.HandleFunc(base+"/sync/main/ref", func(w http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(w).Encode(rs.published)
+		answer := rs.published
+		if rs.commits > 0 && rs.afterCommit != nil {
+			answer = *rs.afterCommit
+		}
+		_ = json.NewEncoder(w).Encode(answer)
+	})
+	mux.HandleFunc(base+"/sync/main/status", func(w http.ResponseWriter, _ *http.Request) {
+		if rs.statusUnavailable {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"push_id": "p1", "status": "completed", "total": 1, "completed": 1,
+		})
 	})
 	mux.HandleFunc(base+"/sync/main/pull", func(w http.ResponseWriter, _ *http.Request) {
 		current := rs.published
@@ -211,8 +232,7 @@ func TestPush_LearnsTheGovernanceItDidNotWrite(t *testing.T) {
 	conn := newRefConnector(t, srv.Server, "proj1")
 	require.True(t, conn.refs.Ref("main").IsZero(), "a project that has never pulled claims nothing")
 
-	pushCtx := apiclient.NewPushContext(nil)
-	conn.SetPushContext(pushCtx)
+	conn.SetPushContext(apiclient.NewPushContext(nil))
 
 	func() {
 		defer conn.Close()
@@ -220,20 +240,23 @@ func TestPush_LearnsTheGovernanceItDidNotWrite(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	got := loadRefs(t, conn).Ref("main")
-	assert.Equal(t, "trm-server", got.Terms, "governance this push did not write comes from the negotiation")
-	assert.Equal(t, pushCtx.Hash, got.Context, "governance this push wrote is its own to record")
+	assert.Equal(t, "trm-server", loadRefs(t, conn).Ref("main").Terms,
+		"governance this push did not write comes from the negotiation")
 }
 
-// TestPush_RecordsWhatItPutInForce: after a confirmed push the project's ref
-// carries the governance the push carried, so the next push skips the round
-// trip when nothing moved — and the position is never rewound by a queued
-// commit that answers with no position at all.
-func TestPush_RecordsWhatItPutInForce(t *testing.T) {
+// TestPush_RecordsTheServersGovernanceNotItsOwnFold is the lock-out guard.
+//
+// The server keeps a collection the recipe no longer declares, and keeps it
+// recipe-owned — so the fold it publishes and the fold this client makes over
+// what the recipe declares differ, permanently. If the push cached its own fold
+// and then asserted it, every later governance push would be refused for a
+// collection nobody moved, on a project that could never recover.
+func TestPush_RecordsTheServersGovernanceNotItsOwnFold(t *testing.T) {
 	srv := newRefServer(t, "proj1", ref.Ref{})
+	srv.afterCommit = &ref.Ref{Content: 5, Context: "ctx-with-leftover", Decisions: "dec-server"}
+
 	conn := newRefConnector(t, srv.Server, "proj1")
 	conn.refs.Consume("main", 31)
-
 	pushCtx := apiclient.NewPushContext(nil)
 	conn.SetPushContext(pushCtx)
 
@@ -244,8 +267,39 @@ func TestPush_RecordsWhatItPutInForce(t *testing.T) {
 	}()
 
 	got := loadRefs(t, conn).Ref("main")
-	assert.Equal(t, pushCtx.Hash, got.Context, "the push records the context it put in force")
+	assert.Equal(t, "ctx-with-leftover", got.Context, "the cached component is the server's, read back")
+	assert.NotEqual(t, pushCtx.Hash, got.Context, "and not this client's own fold")
+	assert.Equal(t, "dec-server", got.Decisions)
 	assert.Equal(t, int64(31), got.Content,
 		"a queued commit carries no position, and no position is never a rewind")
-	assert.False(t, conn.PushContextChanged(), "the same context again is not worth a round trip")
+
+	// The next push asserts what the server answered, so it is accepted.
+	require.NoError(t, conn.Close())
+	_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, "ctx-with-leftover", srv.commitAssert.Context)
+}
+
+// TestPush_ClaimsNothingWhenTheIngestIsUnconfirmed: a write the server has not
+// confirmed leaves the components it carried empty rather than guessed. Empty
+// asserts nothing and reads as worth sending again, so the next push re-sends an
+// idempotent write instead of asserting a value that may never have landed.
+func TestPush_ClaimsNothingWhenTheIngestIsUnconfirmed(t *testing.T) {
+	srv := newRefServer(t, "proj1", ref.Ref{Context: "ctx-server", Terms: "trm-server", Decisions: "dec-server"})
+	srv.statusUnavailable = true
+
+	conn := newRefConnector(t, srv.Server, "proj1")
+	conn.SetPushContext(apiclient.NewPushContext(nil))
+
+	func() {
+		defer conn.Close()
+		_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
+		require.NoError(t, err)
+	}()
+
+	got := loadRefs(t, conn).Ref("main")
+	assert.Empty(t, got.Context, "an unconfirmed write claims nothing about what it carried")
+	assert.Empty(t, got.Decisions)
+	assert.Equal(t, "trm-server", got.Terms, "a component this push never wrote is untouched")
+	assert.True(t, conn.PushContextChanged(), "and the context is worth sending again")
 }

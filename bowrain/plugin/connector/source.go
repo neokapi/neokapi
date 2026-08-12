@@ -764,23 +764,12 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	c.cache.ProjectID = c.project.Recipe.Server.ProjectID()
 
 	// What the negotiation reported comes first: a project pushing before it has
-	// ever pulled learns here about the governance it did NOT write. The
-	// components this push put in force are recorded after it and overwrite
-	// them, because the negotiation answered before the write.
+	// ever pulled learns here about the governance it did NOT write.
 	if served != nil {
 		c.refs.Observe(c.stream, *served)
 	}
-
-	// The ref now records what this push put in force: the context it carried
-	// and the decision record it carried, so the next push can skip the round
-	// trip when neither has moved. Both are the values this client computed
-	// rather than values read back — the commit is queued, and the server's own
-	// ref does not show the write until the worker has applied it.
 	c.refs.Consume(c.stream, lastCursor)
-	if c.pushContext != nil {
-		c.refs.SetIdentity(c.stream, ref.ComponentContext, c.pushContext.Hash)
-	}
-	c.refs.SetIdentity(c.stream, ref.ComponentDecisions, decisionsHash)
+	c.recordGovernanceAfterPush(ctx, ingest)
 	c.refs.Touch(time.Now())
 
 	if err := c.cache.Save(c.project.Layout); err != nil {
@@ -803,6 +792,34 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		UndeclaredCollections: undeclared,
 		Ingest:                ingest,
 	}, nil
+}
+
+// recordGovernanceAfterPush records where the governance components stand once
+// a push has landed — read back from the server, never computed here.
+//
+// A client-computed value would be wrong in an ordinary case. The server keeps a
+// collection the recipe no longer declares (report, never delete), and it keeps
+// it recipe-owned, so the fold it publishes and the fold this client makes over
+// what the recipe declares differ permanently. Caching this side's fold and then
+// asserting it would refuse every later governance push with "governance moved"
+// — over a collection nobody moved, on a project that could never recover,
+// because the recipe is the authority and pulling would not remove it.
+//
+// When the ingest is not confirmed applied, or the ref cannot be read, the
+// components this push carried are CLEARED rather than guessed. An empty
+// component asserts nothing and reads as "worth sending again", so the next push
+// re-sends an idempotent write and re-reads the answer. One redundant reconcile,
+// never a false conflict.
+func (c *BowrainSourceConnector) recordGovernanceAfterPush(ctx context.Context, ingest string) {
+	if c.client != nil && ingest == bowrainconn.IngestApplied {
+		if current, err := c.client.Ref(ctx); err == nil {
+			c.refs.Record(c.stream, current)
+			return
+		}
+	}
+	for _, component := range []ref.Component{ref.ComponentContext, ref.ComponentDecisions} {
+		c.refs.SetIdentity(c.stream, component, "")
+	}
 }
 
 // ingestConfirmWindow bounds how long a push waits for the server to say what

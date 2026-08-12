@@ -107,6 +107,24 @@ func (c *Cache) Observe(stream string, observed ref.Ref) {
 	})
 }
 
+// Record replaces every governance identity for a stream with the one the
+// server answered, empty values included.
+//
+// The difference from Observe is what the answer means. Observe merges a
+// possibly-silent answer — a response that omits a component said nothing about
+// it. Record takes a DEFINITE one: the server was asked for its ref and gave it,
+// so an empty component there is the fact that the component holds nothing, and
+// keeping an older value beside it would be keeping a claim the server has just
+// contradicted.
+func (c *Cache) Record(stream string, answered ref.Ref) {
+	c.update(stream, func(current ref.Ref) ref.Ref {
+		for _, component := range ref.Components() {
+			current = current.WithIdentity(component, answered.Identity(component))
+		}
+		return current
+	})
+}
+
 // SetIdentity records one governance identity for a stream, including an empty
 // one — which is how a component that genuinely holds nothing (a workspace with
 // no terminology, a project with no committed decisions) is recorded as such.
