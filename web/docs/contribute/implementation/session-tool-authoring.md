@@ -135,6 +135,16 @@ The `targets/<locale>` shape is cross-tool: any translator writes
 and reads the same key, so a session hydrated by one can be
 continued by another. Keep the payload small and JSON-compatible.
 
+`annotations/<name>` is cross-tool in the same way, one level down:
+`<name>` is the block-annotation key, so a store that holds blocks
+rather than loose overlays files the payload as that block's
+annotation. A `<name>` the payload registry knows (`note`,
+`quality.findings`, …) means the body has to match that
+annotation's schema; anything else is kept verbatim and comes back
+to your tool exactly as written. `skeletons/<format>` and any other
+prefix stay opaque — they name no annotation and no store reads
+them but the tool that wrote them.
+
 ## Read-only stores
 
 The `FormatReaderStore` wraps a raw XLIFF / JSON / etc. file as a
