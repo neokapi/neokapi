@@ -28,6 +28,13 @@ type segment struct {
 	kind  segmentKind
 	start int
 	end   int
+	// unterminated records that an opaque region's construct never closed:
+	// the scanner reached end of document still looking for the closing
+	// tag/brace and took every remaining byte with it. The reader turns
+	// this into a parse error — a region that swallows the document tail
+	// leaves that content unreadable, and saying nothing about it is how a
+	// document silently loses most of its blocks.
+	unterminated bool
 }
 
 // scanSegments splits an MDX body (front matter already stripped) into a
@@ -47,6 +54,9 @@ type segment struct {
 //     extends across continuation lines until the construct is complete
 //     (brace/paren/bracket balanced for ESM and expressions, tag depth
 //     back to zero for JSX) and terminated by a blank line or EOF.
+//   - A line opening a fenced code block skips the whole fence. Fenced
+//     code is opaque to structure (see fence.go), so a shell transcript
+//     line like `<binary> version` cannot open a JSX region.
 //   - Everything else is Markdown and accumulates until the next opaque
 //     region opens.
 //
@@ -70,6 +80,12 @@ func scanSegments(body []byte) []segment {
 
 	for i < n {
 		lineStart := i
+		// A fenced code block belongs to the Markdown span whole. Nothing
+		// inside it is inspected, so its content cannot open an MDX region.
+		if fenceEnd, ok := fencedBlockEnd(body, lineStart); ok {
+			i = fenceEnd
+			continue
+		}
 		// Identify the byte that begins the line's content and whether the
 		// line has any leading indentation (spaces/tabs).
 		j := lineStart
@@ -101,15 +117,21 @@ func scanSegments(body []byte) []segment {
 		// Markdown before it, then consume the region's lines.
 		flushMarkdown(lineStart)
 		var regionEnd int
+		var closed bool
 		switch kind {
 		case segESM:
-			regionEnd = scanESM(body, lineStart)
+			regionEnd, closed = scanESM(body, lineStart)
 		case segJSX:
-			regionEnd = scanJSX(body, lineStart)
+			regionEnd, closed = scanJSX(body, lineStart)
 		case segExpr:
-			regionEnd = scanExpr(body, lineStart)
+			regionEnd, closed = scanExpr(body, lineStart)
 		}
-		segs = append(segs, segment{kind: kind, start: lineStart, end: regionEnd})
+		segs = append(segs, segment{
+			kind:         kind,
+			start:        lineStart,
+			end:          regionEnd,
+			unterminated: !closed,
+		})
 		i = regionEnd
 		mdStart = regionEnd
 	}
@@ -160,9 +182,9 @@ func hasWordAt(body []byte, p int, word string) bool {
 }
 
 // scanESM returns the end index (exclusive) of an ESM region beginning at
-// lineStart. The region spans every continuation line until the JS becomes
-// brace/paren/bracket balanced (then through that physical line's end), so
-// multi-line imports/exports such as
+// lineStart, and whether the statement completed. The region spans every
+// continuation line until the JS becomes brace/paren/bracket balanced (then
+// through that physical line's end), so multi-line imports/exports such as
 //
 //	import {
 //	  A,
@@ -173,26 +195,31 @@ func hasWordAt(body []byte, p int, word string) bool {
 // `import "./side-effect";`) completes at its first line end. String and
 // template literals and line/block comments are respected so brackets
 // inside them don't affect the balance.
-func scanESM(body []byte, lineStart int) int {
+func scanESM(body []byte, lineStart int) (int, bool) {
 	return scanBalancedBlock(body, lineStart)
 }
 
 // scanExpr returns the end index of a top-level `{ … }` expression region
-// beginning at lineStart, balancing braces (and respecting strings and
-// comments) and ending through the physical line on which the depth first
-// returns to zero.
-func scanExpr(body []byte, lineStart int) int {
+// beginning at lineStart, and whether it closed. Braces are balanced (and
+// strings and comments respected); the region ends through the physical
+// line on which the depth first returns to zero.
+func scanExpr(body []byte, lineStart int) (int, bool) {
 	return scanBalancedBlock(body, lineStart)
 }
 
 // scanBalancedBlock consumes lines from lineStart, tracking nesting of
 // (){}[ ] across the JS-flavoured content (skipping strings, template
 // literals, and comments), and returns the index just past the line on
-// which the running depth first returns to zero. If depth never returns
-// to zero (malformed input), it consumes through EOF. After the depth
-// hits zero mid-line, the remainder of that physical line is included so
-// trailing `;` and inline comments stay with the region.
-func scanBalancedBlock(body []byte, lineStart int) int {
+// which the running depth first returns to zero. After the depth hits zero
+// mid-line, the remainder of that physical line is included so trailing `;`
+// and inline comments stay with the region.
+//
+// The second result is false when the brackets never balanced: the scan ran
+// out of document with the construct still open, so the region reaches EOF
+// only because nothing closed it. A statement that opened no bracket at all
+// and ends at EOF (`import "./x";` on the last line, no newline) is
+// complete, not unterminated.
+func scanBalancedBlock(body []byte, lineStart int) (int, bool) {
 	s := newJSScanner(body, lineStart)
 	depth := 0
 	started := false
@@ -207,31 +234,35 @@ func scanBalancedBlock(body []byte, lineStart int) int {
 			if started && depth <= 0 {
 				// Finish the current physical line so any trailing
 				// `;`, whitespace, or `//` comment is captured.
-				return nextLine(body, s.pos)
+				return nextLine(body, s.pos), true
 			}
 		case tokNewline:
 			// A statement with no brackets at all (e.g. a bare
 			// `import "./side-effect";`) completes at its first line end.
 			if depth <= 0 {
-				return s.pos
+				return s.pos, true
 			}
 		case tokEOF:
-			return len(body)
+			return len(body), depth <= 0
 		}
 	}
-	return len(body)
+	return len(body), depth <= 0
 }
 
 // scanJSX returns the end index of a block-level JSX region beginning at
-// lineStart. It tracks JSX tag depth (start tags increment, end tags
-// decrement, self-closing tags are neutral) while skipping over `{ … }`
-// expression containers, strings, and comments so braces and angle
-// brackets inside attributes/expressions don't confuse the depth. The
+// lineStart, and whether the element closed. It tracks JSX tag depth (start
+// tags increment, end tags decrement, self-closing tags are neutral) while
+// skipping over `{ … }` expression containers, strings, comments, and
+// fenced code blocks in the children, so braces and angle brackets inside
+// attributes, expressions, or a code sample don't confuse the depth. The
 // region ends just past the line on which tag depth first returns to zero
 // (for a balanced element/fragment) — or, for a single self-closing tag,
-// just past its `/>`-terminating line. Malformed/unterminated input is
-// consumed through EOF.
-func scanJSX(body []byte, lineStart int) int {
+// just past its `/>`-terminating line.
+//
+// The second result is false when the element never closed: the region
+// reaches EOF only because the scan ran out of document looking for the
+// closing tag.
+func scanJSX(body []byte, lineStart int) (int, bool) {
 	s := newJSXScanner(body, lineStart)
 	depth := 0
 	opened := false
@@ -245,12 +276,12 @@ func scanJSX(body []byte, lineStart int) int {
 			} else if depth == 0 {
 				// A top-level self-closing element (`<Tag … />`) is the
 				// whole region. Finish its physical line.
-				return endOfJSXLine(body, s.pos)
+				return endOfJSXLine(body, s.pos), true
 			}
 		case jsxEndTag:
 			depth--
 			if opened && depth <= 0 {
-				return endOfJSXLine(body, s.pos)
+				return endOfJSXLine(body, s.pos), true
 			}
 		case jsxFragmentOpen:
 			opened = true
@@ -258,10 +289,10 @@ func scanJSX(body []byte, lineStart int) int {
 		case jsxFragmentClose:
 			depth--
 			if opened && depth <= 0 {
-				return endOfJSXLine(body, s.pos)
+				return endOfJSXLine(body, s.pos), true
 			}
 		case jsxEOF:
-			return len(body)
+			return len(body), false
 		case jsxOther:
 			// Stray content between tags (whitespace, text, expressions).
 			// If we have not opened any tag yet this is not valid JSX —
@@ -269,11 +300,11 @@ func scanJSX(body []byte, lineStart int) int {
 			// as the region). This should not happen because the caller
 			// only enters scanJSX on a `<tag` line.
 			if !opened {
-				return nextLine(body, lineStart)
+				return nextLine(body, lineStart), false
 			}
 		}
 	}
-	return len(body)
+	return len(body), false
 }
 
 // endOfJSXLine returns the end of the physical line containing pos, but if

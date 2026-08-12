@@ -87,6 +87,12 @@ func splitJSXSegments(span []byte) ([]contentSeg, bool) {
 
 	i := 0
 	for i < n {
+		// A fenced code block is structure, not child prose: its bytes ride
+		// the skeleton whole, and nothing inside it is read as a tag.
+		if end, ok := fenceRegionAt(span, i); ok {
+			i = end
+			continue
+		}
 		switch span[i] {
 		case '<':
 			sc := &jsxScanner{body: span, pos: i}
@@ -105,9 +111,18 @@ func splitJSXSegments(span []byte) ([]contentSeg, bool) {
 			}
 			i = js.pos
 		default:
-			// A text run extends to the next tag or expression container.
+			// A text run extends to the next tag, expression container, or
+			// fence opener. Inline code spans ride inside the run: their
+			// angle brackets and braces are code, not structure.
 			textStart := i
 			for i < n && span[i] != '<' && span[i] != '{' {
+				if _, isFence := fenceRegionAt(span, i); isFence {
+					break
+				}
+				if end, ok := codeSpanEnd(span, i); ok {
+					i = end
+					continue
+				}
 				i++
 			}
 			ls := textStart
@@ -250,6 +265,9 @@ func (r *Reader) emitContentSegs(ctx context.Context, ch chan<- model.PartResult
 		block.SourceLocale = locale
 		block.Translatable = false
 		block.PreserveWhitespace = true
+		// The segment is a byte slice of the region, so the writer must emit
+		// it unchanged — see BlockPropVerbatim.
+		block.Properties[BlockPropVerbatim] = "1"
 		if role != "" {
 			block.SetSemanticRole(role, 0)
 		}

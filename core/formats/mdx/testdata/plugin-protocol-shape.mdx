@@ -1,0 +1,65 @@
+---
+id: plugin-protocol-shape
+title: "Plugin protocol"
+---
+
+# Plugin protocol
+
+A plugin is a binary kapi discovers, launches, and talks to over one of three
+transports. This page describes the contract both sides hold to.
+
+## Discovery
+
+Roots are searched in order, and the first manifest wins.
+
+Results are cached as JSON, keyed by each root's directory mtime. The cache is
+rejected when the binary's cache version changes.
+
+## Standard verbs
+
+Every plugin binary answers these, regardless of which transports it declares:
+
+```
+<binary> version           # print the plugin's version, exit 0
+<binary> doctor            # self-check, exit 0 when healthy (only if selfcheck)
+```
+
+`version` confirms an installed binary matches its manifest. `doctor` backs the
+plugin health check; a plugin that bundles native libraries declares the
+capability and confirms those resolve.
+
+An **unrecognised** first argument must exit non-zero. A catch-all dispatcher
+silently absorbs verbs added by a later protocol revision instead of failing
+visibly, so this is a required rule rather than a style preference.
+
+## The three transports
+
+A manifest's capability sections determine which transports kapi uses. A plugin
+may declare any subset.
+
+| Capability section | Transport | Invocation                    |
+| ------------------ | --------- | ----------------------------- |
+| `commands`         | argv      | `<binary> <verb> [flags]`     |
+| `formats`          | stream    | `<binary> serve --stdio`      |
+| `tools`            | gRPC      | `<binary> daemon --port 0`    |
+
+### Argv
+
+The simplest transport: kapi runs the binary once per invocation and reads its
+exit code.
+
+```bash
+kapi plugins run example -- --help
+```
+
+### Stream
+
+kapi writes length-prefixed frames on stdin and reads them from stdout. Frames
+carry the content model, so a stream plugin sees the same blocks a native
+format reader emits.
+
+## Failure modes
+
+A plugin that exits non-zero fails the step that called it. A plugin that
+writes malformed frames fails the read with the offending frame's offset, which
+is the only way a truncated stream is distinguishable from a short one.

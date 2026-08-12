@@ -21,6 +21,8 @@ const (
 //     brackets nested in JS don't desync the tag depth;
 //   - quoted attribute-value strings;
 //   - JS-style comments;
+//   - Markdown code in the children — fenced blocks and inline code spans
+//     (see fence.go), whose angle brackets are code, not tags;
 //   - JSX text between tags.
 //
 // It is deliberately permissive: it recognises tag *shape* (`<name …>`,
@@ -38,13 +40,29 @@ func newJSXScanner(body []byte, start int) *jsxScanner {
 // nextTag advances to and consumes the next JSX tag, returning its class
 // and (for start tags) whether it was self-closing. Non-tag bytes between
 // tags are consumed and reported as jsxOther so the caller can detect
-// stray content. Expression containers `{ … }` are skipped wholesale.
+// stray content. Expression containers `{ … }` and the children's Markdown
+// code — fenced blocks and inline code spans — are skipped wholesale.
 func (s *jsxScanner) nextTag() (jsxTagToken, bool) {
 	for s.pos < len(s.body) {
+		// Markdown children may hold fenced code, and a fence is opaque to
+		// tag depth: `<binary> version` in a shell transcript is not a tag
+		// that leaves the element unbalanced.
+		if end, ok := fenceRegionAt(s.body, s.pos); ok {
+			s.pos = end
+			continue
+		}
 		c := s.body[s.pos]
 		switch c {
 		case '<':
 			return s.consumeTag()
+		case '`':
+			// An inline code span in the children is opaque for the same
+			// reason a fence is.
+			if end, ok := codeSpanEnd(s.body, s.pos); ok {
+				s.pos = end
+				continue
+			}
+			s.pos++
 		case '{':
 			// Skip a JSX expression container as opaque content.
 			s.pos++

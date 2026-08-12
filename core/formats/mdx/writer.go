@@ -20,6 +20,17 @@ import (
 // extra import surface — the markdown reader sets the property by this key.
 const BlockPropLinePrefix = "md:line-prefix"
 
+// BlockPropVerbatim marks a block the MDX reader surfaced as a verbatim slice
+// of the source — a JSX text child or a GFM table cell (see content.go). Its
+// runs already carry the source spelling, escapes included, so the writer
+// emits them unchanged.
+//
+// The markdown writer's rendering re-escapes `|` in a table cell, which is
+// right for the markdown reader (whose cells arrive unescaped) and wrong here:
+// a cell holding `enum=fast\|thorough` would come back with a doubled
+// backslash and break the byte round-trip.
+const BlockPropVerbatim = "mdx:verbatim"
+
 // Writer implements DataFormatWriter for MDX files.
 //
 // It replays the MDX skeleton (built by the reader from the spliced
@@ -160,6 +171,9 @@ func (w *Writer) blockText(block *model.Block) string {
 	runs := w.blockRuns(block)
 	if runs == nil {
 		return ""
+	}
+	if block.Properties[BlockPropVerbatim] != "" {
+		return model.RenderRunsWithData(runs)
 	}
 	// Shared with the markdown writer and the reader's faithfulness
 	// check: original-data rendering, front matter quoting, line-prefix.

@@ -41,6 +41,25 @@ func readParts(t *testing.T, src []byte) ([]*model.Part, *format.SkeletonStore) 
 	return parts, store
 }
 
+// readErr runs the MDX reader over src and returns the first error it
+// reports, or nil when the document reads cleanly.
+func readErr(t *testing.T, src []byte) error {
+	t.Helper()
+	r := NewReader()
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer func() { _ = store.Close() }()
+	r.SetSkeletonStore(store)
+	doc := &model.RawDocument{Reader: io.NopCloser(bytes.NewReader(src)), SourceLocale: model.LocaleEnglish}
+	require.NoError(t, r.Open(context.Background(), doc))
+	for pr := range r.Read(context.Background()) {
+		if pr.Error != nil {
+			return pr.Error
+		}
+	}
+	return nil
+}
+
 // writeParts replays the skeleton store + parts through the MDX writer for
 // the given target locale (empty = source) and returns the output bytes.
 func writeParts(t *testing.T, parts []*model.Part, store *format.SkeletonStore, locale model.LocaleID) []byte {
@@ -289,6 +308,33 @@ After the table.
 	assert.Contains(t, string(out), "| alpha      | first     |", "source padding preserved")
 }
 
+// TestTableCellEscapedPipeVerbatim guards the escape convention of surfaced
+// table cells: MDX takes the cell text as a byte slice of the source, escapes
+// included, so the writer must emit it unchanged. Re-escaping (which is right
+// for the markdown reader, whose cells arrive unescaped) would double the
+// backslash and break the round-trip.
+func TestTableCellEscapedPipeVerbatim(t *testing.T) {
+	src := []byte("| Flag                           | Effect                    |\n" +
+		"| ------------------------------ | ------------------------- |\n" +
+		"| `--output-format <json\\|text>` | Explicit format selection |\n")
+	parts, store := readParts(t, src)
+
+	var cells []string
+	for _, p := range parts {
+		if p.Type != model.PartBlock {
+			continue
+		}
+		if b := p.Resource.(*model.Block); b.Type == "table-cell" {
+			cells = append(cells, b.SourceText())
+		}
+	}
+	assert.Contains(t, cells, "`--output-format <json\\|text>`",
+		"the cell must carry the source spelling, escape included")
+
+	out := writeParts(t, parts, store, "")
+	assert.Equal(t, string(src), string(out), "an escaped pipe must survive byte-for-byte")
+}
+
 // TestTranslationSplicesOnlyProse verifies that translating a prose block
 // changes only that block's bytes, leaving ESM, JSX, and tables untouched.
 func TestTranslationSplicesOnlyProse(t *testing.T) {
@@ -402,59 +448,90 @@ func TestConfigRejectsUnknownKey(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// TestMalformedMDXGracefulOpaque verifies that malformed MDX — an unbalanced
-// JSX tag (no closing </Box>) and an unterminated `{expression}` (no closing
-// brace) — does NOT panic and still round-trips byte-for-byte. The scanner's
-// balanced-block / JSX-depth tracking consumes such unterminated regions
-// through EOF (see scanBalancedBlock / scanJSX), so the malformed region is
-// preserved verbatim as an opaque region rather than corrupted. We assert
-// graceful opaque passthrough (the PRIMARY acceptance bar — byte faithfulness)
-// rather than requiring an error.
-func TestMalformedMDXGracefulOpaque(t *testing.T) {
-	cases := map[string][]byte{
-		"unbalanced JSX tag": []byte(`# Title
+// TestMalformedMDXReportsUnterminatedConstruct verifies the reader's
+// structural backstop: an MDX construct that opens and never closes takes the
+// rest of the document into one opaque region, which is content loss the
+// byte-faithful round-trip cannot detect. The read therefore FAILS with an
+// *UnterminatedConstructError naming the construct, its line, and its byte
+// offset, rather than reporting a fraction of the document's blocks.
+func TestMalformedMDXReportsUnterminatedConstruct(t *testing.T) {
+	cases := []struct {
+		name     string
+		src      []byte
+		wantKind string
+		wantLine int
+	}{
+		{
+			name: "unbalanced JSX tag",
+			src: []byte(`# Title
 
 <Box prop="x">
   unterminated children, no closing tag
 `),
-		"unterminated expression": []byte(`# Title
+			wantKind: "JSX element",
+			wantLine: 3,
+		},
+		{
+			name: "unterminated expression",
+			src: []byte(`# Title
 
 { someValue without a closing brace
 
 after
 `),
-		"unbalanced JSX with prose before": []byte(`Intro prose.
+			wantKind: "expression",
+			wantLine: 3,
+		},
+		{
+			name: "unbalanced JSX with prose before",
+			src: []byte(`Intro prose.
 
 <Outer>
   <Inner>
   still open
 `),
-		"unterminated ESM import": []byte(`import { A, B
+			wantKind: "JSX element",
+			wantLine: 3,
+		},
+		{
+			name: "unterminated ESM import",
+			src: []byte(`import { A, B
 from "x"
 `),
-		"both malformed JSX and expression": []byte(`<Broken attr={oops
+			wantKind: "ESM statement",
+			wantLine: 1,
+		},
+		{
+			name: "both malformed JSX and expression",
+			src: []byte(`<Broken attr={oops
 
 { alsoBroken
 `),
+			wantKind: "JSX element",
+			wantLine: 1,
+		},
 	}
 
-	for name, src := range cases {
-		t.Run(name, func(t *testing.T) {
-			var out []byte
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var err error
 			require.NotPanics(t, func() {
-				out = roundTrip(t, src)
+				err = readErr(t, c.src)
 			}, "malformed MDX must not panic")
-			assert.Equal(t, string(src), string(out),
-				"malformed MDX must round-trip byte-for-byte via the opaque fallback")
+			var ue *UnterminatedConstructError
+			require.ErrorAs(t, err, &ue, "expected an unterminated-construct error, got %v", err)
+			assert.Equal(t, c.wantKind, ue.Kind)
+			assert.Equal(t, c.wantLine, ue.Line, "the error must name the opening line")
+			assert.Positive(t, ue.Swallowed, "the error must report how much of the document is affected")
+			assert.Contains(t, ue.Error(), "never closes")
 		})
 	}
 }
 
-// TestMalformedMDXNoTranslatableLeak verifies that for malformed MDX the
-// unterminated JSX/expression bytes are preserved as opaque Data (or simply
-// kept verbatim) and never leak into a translatable Block — the malformed
-// construct must not be mistaken for translatable prose.
-func TestMalformedMDXNoTranslatableLeak(t *testing.T) {
+// TestMalformedMDXFailsBeforeEmitting verifies the backstop fires before any
+// part reaches the channel: a failing document yields the error and nothing
+// else, so no consumer can mistake a partial stream for a whole one.
+func TestMalformedMDXFailsBeforeEmitting(t *testing.T) {
 	src := []byte(`# Heading
 
 <Widget prop="value">
@@ -462,16 +539,35 @@ func TestMalformedMDXNoTranslatableLeak(t *testing.T) {
 
 { brokenExpr
 `)
-	parts, store := readParts(t, src)
+	r := NewReader()
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer func() { _ = store.Close() }()
+	r.SetSkeletonStore(store)
+	doc := &model.RawDocument{Reader: io.NopCloser(bytes.NewReader(src)), SourceLocale: model.LocaleEnglish}
+	require.NoError(t, r.Open(context.Background(), doc))
 
-	for _, p := range parts {
-		if p.Type == model.PartBlock {
-			txt := p.Resource.(*model.Block).SourceText()
-			assert.NotContains(t, txt, "Widget", "malformed JSX component name leaked into a block")
-			assert.NotContains(t, txt, "brokenExpr", "malformed expression leaked into a block")
+	var content []*model.Part
+	var readErr error
+	for pr := range r.Read(context.Background()) {
+		if pr.Error != nil {
+			readErr = pr.Error
+			continue
+		}
+		if pr.Part.Type == model.PartBlock || pr.Part.Type == model.PartData {
+			content = append(content, pr.Part)
 		}
 	}
+	var ue *UnterminatedConstructError
+	require.ErrorAs(t, readErr, &ue)
+	assert.Empty(t, content, "no block or data part may be emitted for a document that fails to parse")
+}
 
-	out := writeParts(t, parts, store, "")
-	assert.Equal(t, string(src), string(out), "malformed MDX must round-trip verbatim")
+// TestUnclosedFenceIsNotAnError verifies a code fence left open at end of
+// document — which CommonMark closes implicitly — reads and round-trips
+// normally. Only an unclosed MDX construct is a parse failure.
+func TestUnclosedFenceIsNotAnError(t *testing.T) {
+	src := []byte("# Title\n\nProse.\n\n```\n<binary> version\n")
+	out := roundTrip(t, src)
+	assert.Equal(t, string(src), string(out))
 }

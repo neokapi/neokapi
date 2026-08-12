@@ -19,6 +19,9 @@ func TestScanSegmentsGapFree(t *testing.T) {
 		"{expr}\n\ntext\n\n<>\nfrag\n</>\n",
 		"export const a = {\n b: 1,\n};\n\ntext\n",
 		"text\n<Comp prop={value}>\n  child\n</Comp>\ntext after\n",
+		"# H\n\n```\n<binary> version\n```\n\nafter\n",
+		"<Tag>\n\n```sh\n<binary> doctor\n```\n\n</Tag>\n\nafter\n",
+		"```\nunclosed fence at EOF\n",
 	}
 	for _, in := range inputs {
 		body := []byte(in)
@@ -54,6 +57,8 @@ func TestScanSegmentsClassification(t *testing.T) {
 		{"Just prose.\n", segMarkdown},
 		{"    indented < not jsx\n", segMarkdown},
 		{"- list with import keyword inside\n", segMarkdown},
+		{"```\n<binary> version\n```\n", segMarkdown},
+		{"~~~\nimport X from \"x\";\n~~~\n", segMarkdown},
 	}
 	for _, c := range cases {
 		segs := scanSegments([]byte(c.body))

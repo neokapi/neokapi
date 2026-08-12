@@ -1,0 +1,56 @@
+---
+title: "Fenced angle-bracket tokens"
+---
+
+import { Callout } from "@neokapi/docs-shared";
+
+# Fenced angle-bracket tokens
+
+A fence is opaque: nothing inside it decides document structure.
+
+```
+<binary> version
+```
+
+Prose after an info-string-less fence.
+
+```bash
+<binary> doctor            # self-check, exit 0 when healthy
+kapi run <recipe> --out <dir>
+```
+
+Prose after a fence with an info string.
+
+~~~text
+<placeholder>
+~~~
+
+Prose after a tilde fence.
+
+<Callout type="note">
+
+A fence inside a JSX element keeps the element balanced.
+
+```console
+$ kapi plugins doctor
+<binary> ok
+```
+
+</Callout>
+
+## A heading after the JSX element
+
+- A list item whose fence is indented:
+
+  ```
+  <indented> token
+  ```
+
+- A second list item.
+
+| Column        | Meaning                     |
+| ------------- | --------------------------- |
+| `<binary>`    | the plugin executable       |
+| `<recipe>`    | the recipe path             |
+
+Closing prose, which must be read as prose.

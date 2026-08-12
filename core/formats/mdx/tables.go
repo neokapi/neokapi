@@ -24,7 +24,8 @@ type mdSubSpan struct {
 // contain a `|`. The block ends at the first line that is blank or is not
 // a table row. Tables must start at column 0 or with up to three spaces of
 // indent (CommonMark leading-indent tolerance); more indent makes it a
-// code block, handled by ordinary Markdown delegation.
+// code block, handled by ordinary Markdown delegation. Fenced code blocks
+// are skipped whole, so an ASCII table drawn inside a fence stays code.
 func splitMarkdownTables(span []byte) []mdSubSpan {
 	var subs []mdSubSpan
 	nonTableStart := 0
@@ -39,6 +40,12 @@ func splitMarkdownTables(span []byte) []mdSubSpan {
 
 	for i < n {
 		lineStart := i
+		// A fenced code block is opaque: pipes and dashes inside it are
+		// code, not a table.
+		if fenceEnd, ok := fencedBlockEnd(span, lineStart); ok {
+			i = fenceEnd
+			continue
+		}
 		lineEnd := lineEndAt(span, lineStart)
 		nextStart := lineEnd
 		if nextStart < n && span[nextStart] == '\n' {
