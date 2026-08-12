@@ -25,6 +25,7 @@ RUN corepack pnpm fetch
 # ui-primitives → neokapi-i18n); glob workspace members resolve only from the
 # dirs present here.
 COPY packages/concept-ui/package.json packages/concept-ui/
+COPY packages/context-explorer/package.json packages/context-explorer/
 COPY packages/contract-types/package.json packages/contract-types/
 COPY packages/editor-grid/package.json packages/editor-grid/
 COPY packages/kapi-format/package.json packages/kapi-format/
@@ -39,6 +40,7 @@ RUN corepack pnpm install --offline
 
 # Source for ctrl + its workspace deps (consumed from source via package exports).
 COPY packages/concept-ui/ packages/concept-ui/
+COPY packages/context-explorer/ packages/context-explorer/
 COPY packages/contract-types/ packages/contract-types/
 COPY packages/editor-grid/ packages/editor-grid/
 COPY packages/kapi-format/ packages/kapi-format/

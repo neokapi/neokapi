@@ -66,9 +66,13 @@ export function ScopeProvider({
 
   const capabilities = useMemo(() => {
     const derived = deriveCapabilities(source);
-    // A mount's pinning is the authority on which dimensions move: a source may
-    // be able to answer across projects while this mount shows exactly one.
-    return { ...derived, free: derived.free.length ? derived.free : free };
+    // The mount's pinning is the authority on which dimensions move: a source
+    // may be able to answer across projects while this mount shows exactly one.
+    // Intersecting rather than preferring one side keeps the filter bar and
+    // setDimension from disagreeing — a picker that renders and refuses to move
+    // is worse than one that is absent.
+    const declared = derived.free.length ? derived.free.filter((d) => free.includes(d)) : free;
+    return { ...derived, free: declared };
   }, [source, free]);
 
   const setScope = useCallback(

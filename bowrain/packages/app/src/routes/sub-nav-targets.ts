@@ -13,6 +13,7 @@
 export const subNavTargets = {
   // Context hub — the points you govern, and the graph you author at them.
   profiles: "/$workspace/context/profiles",
+  explorer: "/$workspace/context/explorer",
   concepts: "/$workspace/context/concepts",
   voice: "/$workspace/context/voice",
   memory: "/$workspace/context/memory",

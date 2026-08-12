@@ -6,6 +6,7 @@
  * theme-tokens.css mapping above. */
 @import "@neokapi/ui-primitives/styles/theme-colors.css";
 @import "@neokapi/concept-ui/styles/sources.css";
+@import "@neokapi/context-explorer/styles/sources.css";
 
 @source "../";
 

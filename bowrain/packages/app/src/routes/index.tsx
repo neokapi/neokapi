@@ -645,6 +645,39 @@ const contextProfileDetailRoute = createRoute({
   ),
 });
 
+// The explorer stands at a point rather than listing one kind of thing, so its
+// search params carry the scope tuple and a link resolves back to exactly where
+// someone was standing. Only the dimensions the reader moved appear.
+const explorerSearch = (
+  search: Record<string, unknown>,
+): {
+  project?: string;
+  stream?: string;
+  collection?: string;
+  path?: string;
+  coordinate?: string;
+  locale?: string;
+} => {
+  const str = (key: string) =>
+    typeof search[key] === "string" ? (search[key] as string) : undefined;
+  return {
+    project: str("project"),
+    stream: str("stream"),
+    collection: str("collection"),
+    path: str("path"),
+    coordinate: str("coordinate"),
+    locale: str("locale"),
+  };
+};
+
+const contextExplorerRoute = createRoute({
+  getParentRoute: () => contextRoute,
+  path: "explorer",
+  pendingComponent: ExplorerSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/context-explorer"), "ExplorerRoute"),
+  validateSearch: explorerSearch,
+});
+
 const contextConceptsRoute = createRoute({
   getParentRoute: () => contextRoute,
   path: "concepts",
@@ -989,6 +1022,7 @@ const routeTree = rootRoute.addChildren([
       contextIndexRoute,
       contextProfilesRoute,
       contextProfileDetailRoute,
+      contextExplorerRoute,
       contextConceptsRoute,
       contextConceptStoryRoute,
       contextChangesRoute,
