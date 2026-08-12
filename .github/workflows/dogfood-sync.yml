@@ -64,8 +64,11 @@ jobs:
         with:
           # `kapi up` and the current recipe shape ship in 1.2.0; until it is
           # stable this pins the release candidate (same as kapi-workflows).
-          version: 1.2.0-rc18
-          plugins: bowrain@1.2.0-rc21
+          # `latest` resolves stable tags only, so a prerelease is reachable
+          # from a pin and from nowhere else. The CLI and the plugin are cut at
+          # one version, so this pair is the pair that was released together.
+          version: 1.2.0-rc23
+          plugins: bowrain@1.2.0-rc23
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
 
       # The one thing kapi cannot do for itself. Five collections declare
@@ -75,6 +78,17 @@ jobs:
       # only (source catalogs) — the target side is the loop's job, and target
       # drift must never gate a push.
       - uses: ./.github/actions/setup-node-ui
+
+      # Both build stages reach Go: extraction regenerates the two inventories
+      # through `go generate`, and compilation builds the embedded gettext
+      # catalogs from the committed JSON. This pins the toolchain the two stages
+      # would otherwise resolve from the runner's image, and warms the module
+      # cache they would otherwise download in full on every run.
+      - uses: ./.github/actions/setup-go-modules
+        with:
+          # Nothing here is race-instrumented, so the plain build cache is the
+          # one these stages share with the other non-test jobs.
+          cache-flavor: plain
 
       - name: Extract the source catalogs the loop carries
         run: make l10n-extract
@@ -102,6 +116,23 @@ jobs:
       - name: Commit the decisions the run brought home
         if: ${{ !inputs.plan }}
         run: kapi commit
+
+      # The pipeline's third stage, the other thing kapi cannot do for itself. A
+      # catalog is not what a product loads: the SPAs and the landing page load
+      # compiled runtime dictionaries, the transactional emails are rendered to
+      # per-locale HTML the server embeds, and the Go binaries load gettext MO.
+      # Delivering the catalogs alone leaves every surface compiled from them
+      # behind until a human runs `make l10n`, so the wording reaches the
+      # pull request and the product still ships the previous run's.
+      #
+      # It runs after the return leg, so it compiles what the loop materialized,
+      # and before the gate, which classifies what it wrote: the compiled
+      # dictionaries and the per-locale email renders are in `l10n-owned-paths`
+      # alongside the catalogs they come from. A plan dispatch materializes
+      # nothing, so there is nothing for it to compile.
+      - name: Compile the catalogs into what the products load
+        if: ${{ !inputs.plan }}
+        run: make l10n-compile
 
       # Delivery is conditional on the committed context explaining what the run
       # produced. Every artifact the loop owns is rebuilt from .kapi/ on the next

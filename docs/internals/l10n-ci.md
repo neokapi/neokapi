@@ -182,22 +182,28 @@ bowrain.cloud, nightly and on demand. It is deliberately unremarkable:
 - uses: neokapi/kapi-action@v1
   with:
     command: up
+- run: make l10n-compile
 ```
 
 `setup-kapi` installs the **released** CLI and the bowrain plugin from the
 registry rather than building either from the checkout, so the nightly is a test
-of the product rather than of the working tree. `kapi-action` runs the
-convergence verb and reports; the workflow delivers. The one non-standard step is
-`make l10n-extract`, and it is there because five collections declare catalogs
-the extractors produce from React source — build artifacts, gitignored by
-design, so a run from a clean checkout would carry nothing for them. Source
-catalogs only: the target side is the loop's job, and target drift must never
-gate a push.
+of the product rather than of the working tree. Both are pinned to an explicit
+prerelease: `latest` resolves stable tags only, so a release candidate is
+reachable from a pin and from nowhere else, and the pin is what carries a new
+CLI or plugin into the nightly. `kapi-action` runs the convergence verb and
+reports; the workflow delivers.
+
+The two non-standard steps are the pipeline's own build stages, run here for the
+reason they exist at all — the recipe may not name a subprocess. `make
+l10n-extract` comes first because five collections declare catalogs the
+extractors produce from React source: build artifacts, gitignored by design, so
+a run from a clean checkout would carry nothing for them. Source catalogs only —
+the target side is the loop's job, and target drift must never gate a push.
 
 This is the one in-repo kapi invocation that binds the root recipe against the
 server venue. Everything else must isolate itself per the contract in CLAUDE.md.
 
-Two steps sit between `kapi up` and delivery, in this order.
+Three steps sit between `kapi up` and delivery, in this order.
 
 `kapi commit` is the loop's return leg for unit decisions. The pull stages the
 server's approved decisions in the project's working store, and `kapi commit` is
@@ -207,6 +213,15 @@ not do it. Nothing staged is a no-op that exits 0. The terminology return leg
 needs no step: the concept pull merges approved term decisions into
 `.kapi/terms.json` itself, upsert-only and byte-stable, so a night with no new
 decisions writes nothing.
+
+`make l10n-compile` is the pipeline's third stage, and it runs here rather than
+only on a developer's machine because no runtime loads a catalog: the SPAs and
+the landing page load compiled dictionaries, the transactional emails rendered
+per-locale HTML, the Go binaries embedded MO. A night that delivered catalogs
+alone would leave every surface compiled from them behind until someone ran
+`make l10n` by hand. It reads what the loop materialized, so it runs after the
+return leg and before the gate, which classifies the compiled dictionaries and
+the per-locale renders as owned output alongside the catalogs they come from.
 
 `scripts/check-sync-backed.sh` then asks whether the committed context moved
 with what the run produced, which is why it runs second. Wording the loop
@@ -257,6 +272,7 @@ reversibly.
 | `l10n-orphans` / `l10n-orphans-report` | content memory matches on text, so an entry whose source string is gone is wording any surface can pick up again, and the only safe version of keeping it is seeing it |
 | `scripts/l10n-autofix.sh` | the deterministic-regeneration commit; nothing standard commits the output of a stage that is not kapi's |
 | `make l10n-extract` in the dogfood workflow | the loop cannot carry collections whose source catalogs do not exist yet |
+| `make l10n-compile` in the dogfood workflow | a night that delivered catalogs alone would ship every runtime compiled from the previous one |
 
 Anything not in that table should not exist. If a new surface needs a new make
 target, ask first whether the recipe can declare it instead — it usually can,
