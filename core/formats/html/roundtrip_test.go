@@ -2,6 +2,8 @@ package html_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -438,14 +440,21 @@ func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
 			expected: `<html><head>` + injectedContentTypeMeta + `<meta name="keywords" content="UFO,  Burlington"></head><body><p>Text</p></body></html>`,
 		},
 		// Inter-element whitespace inside translatable block content is
-		// dropped by the reader (mirroring okapi's HtmlFilter — leading/
-		// trailing newlines get treated as non-significant source
-		// formatting, not part of the translatable text). Parity with
-		// okapi requires this trim so translated text joins its sibling
-		// tags directly; untranslated round-trip loses the source
-		// indentation as a result.
-		{name: "block_ws_newlines", input: "<html><body><p>\n  Hello world\n</p></body></html>", expected: "<html><body><p>Hello world</p></body></html>"},
-		{name: "block_ws_indented", input: "<html><body><li>\n    Item text\n  </li></body></html>", expected: "<html><body><li>Item text</li></body></html>"},
+		// dropped from the extracted text (mirroring okapi's HtmlFilter —
+		// leading/trailing newlines are non-significant source formatting,
+		// not part of the translatable text), and the reader hands the bytes
+		// it dropped to the skeleton so an unedited block writes back exactly
+		// as it was read. TestSkeletonRoundtrip_TrimmedWhitespaceIsRestored
+		// holds the other half: an edited block still joins its sibling tags
+		// directly.
+		{name: "block_ws_newlines", input: "<html><body><p>\n  Hello world\n</p></body></html>"},
+		{name: "block_ws_indented", input: "<html><body><li>\n    Item text\n  </li></body></html>"},
+		// Source line breaks inside a paragraph: extraction collapses them to
+		// single spaces, and the round-trip restores the source wrapping.
+		{name: "block_ws_wrapped_lines", input: "<html><body><p>\n  Compass holds the plan.\n  Tidewatch watches the water.\n</p></body></html>"},
+		// An inline element as a block container's last child: the whitespace
+		// between it and the closing tag survives.
+		{name: "inline_last_child", input: "<html><body><header>\n  <a href=\"/demo\">Book</a>\n</header></body></html>"},
 		// Regression: known container elements roundtrip correctly (#151).
 		{name: "table_nested", input: `<html><body><table><tbody><tr><td>Cell</td></tr></tbody></table></body></html>`},
 		{name: "ul_nested", input: `<html><body><ul><li>One</li><li>Two</li></ul></body></html>`},
@@ -465,6 +474,145 @@ func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
 }
 
 const injectedContentTypeMeta = `<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">`
+
+// TestSkeletonRoundtrip_NoOpIsByteIdentical sweeps the whole HTML corpus: read
+// a file, write it straight back with nothing edited, and require the bytes to
+// match. The per-case table above can only cover shapes somebody thought to
+// write down, and every case there is free to declare an `expected` output
+// different from its input — which is how a writer that reflowed pretty-printed
+// markup passed a suite named ByteExact. This sweep has no such escape hatch,
+// so any corpus file the writer cannot reproduce fails it.
+func TestSkeletonRoundtrip_NoOpIsByteIdentical(t *testing.T) {
+	paths, err := filepath.Glob(filepath.Join("testdata", "*.html"))
+	require.NoError(t, err)
+	require.NotEmpty(t, paths, "no HTML corpus files found under testdata/")
+	for _, path := range paths {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			input, err := os.ReadFile(path)
+			require.NoError(t, err)
+			output := roundtripWithSkeleton(t, string(input))
+			// The sole rewrite an unedited document may carry is the
+			// Content-Type meta the writer injects into a <head> that declares
+			// no charset, mirroring okapi's HtmlFilter. Discounting exactly
+			// that one insertion keeps the sweep strict about everything else.
+			assert.Equal(t, string(input), strings.Replace(output, injectedContentTypeMeta, "", 1),
+				"a round-trip that edits nothing must not rewrite the document")
+		})
+	}
+}
+
+// TestSkeletonRoundtrip_TrimmedWhitespaceIsRestored is the other half of the
+// contract: the whitespace extraction drops comes back only while the block it
+// was trimmed from is untouched. An edited block joins its sibling tags
+// directly, which is what extraction parity with okapi's HtmlFilter requires.
+func TestSkeletonRoundtrip_TrimmedWhitespaceIsRestored(t *testing.T) {
+	cases := []struct {
+		name string
+		// input is the source HTML.
+		input string
+		// edit, when non-nil, is offered each source text run and returns the
+		// replacement text, or "" to leave that run alone.
+		edit func(runText string) string
+		want string
+	}{
+		{
+			name:  "leaf_block_untouched_replays_source_wrapping",
+			input: "<body><p>\n  Compass holds the plan.\n  Tidewatch watches.\n</p></body>",
+			want:  "<body><p>\n  Compass holds the plan.\n  Tidewatch watches.\n</p></body>",
+		},
+		{
+			name:  "leaf_block_edited_joins_tags_directly",
+			input: "<body><p>\n  Compass holds the plan.\n  Tidewatch watches.\n</p></body>",
+			edit: func(s string) string {
+				if strings.Contains(s, "Compass") {
+					return "Compass holds the berth plan."
+				}
+				return ""
+			},
+			want: "<body><p>Compass holds the berth plan.</p></body>",
+		},
+		{
+			name:  "inline_only_container_untouched_keeps_edge_whitespace",
+			input: "<body><header>\n  <a href=\"/demo\">Book</a>\n</header></body>",
+			want:  "<body><header>\n  <a href=\"/demo\">Book</a>\n</header></body>",
+		},
+		{
+			name:  "inline_only_container_edited_drops_edge_whitespace",
+			input: "<body><header>\n  <a href=\"/demo\">Book</a>\n</header></body>",
+			edit: func(s string) string {
+				if s == "Book" {
+					return "Reserve"
+				}
+				return ""
+			},
+			want: "<body><header><a href=\"/demo\">Reserve</a></header></body>",
+		},
+		// A container with block children keeps its inline last child in the
+		// skeleton, so the whitespace before its closing tag is trimmed off the
+		// text unit rather than peeled off the block's runs.
+		{
+			name:  "inline_last_child_untouched_keeps_trailing_whitespace",
+			input: "<body><header>\n  <h1>Port</h1>\n  <a href=\"/demo\">Book</a>\n</header></body>",
+			want:  "<body><header>\n  <h1>Port</h1>\n  <a href=\"/demo\">Book</a>\n</header></body>",
+		},
+		{
+			name:  "inline_last_child_edited_drops_trailing_whitespace",
+			input: "<body><header>\n  <h1>Port</h1>\n  <a href=\"/demo\">Book</a>\n</header></body>",
+			edit: func(s string) string {
+				if s == "Book" {
+					return "Reserve"
+				}
+				return ""
+			},
+			want: "<body><header>\n  <h1>Port</h1>\n  <a href=\"/demo\">Reserve</a></header></body>",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
+			reader := htmlfmt.NewReader()
+			writer := htmlfmt.NewWriter()
+			store, err := format.NewSkeletonStore()
+			require.NoError(t, err)
+			defer store.Close()
+			reader.SetSkeletonStore(store)
+			writer.SetSkeletonStore(store)
+
+			require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(tc.input, model.LocaleEnglish)))
+			parts := testutil.CollectParts(t, reader.Read(ctx))
+			reader.Close()
+
+			if tc.edit != nil {
+				edited := false
+				for _, p := range parts {
+					b, ok := p.Resource.(*model.Block)
+					if p.Type != model.PartBlock || !ok {
+						continue
+					}
+					// Rewrite text in place, the way a correction tool does:
+					// replacing the whole run slice would also drop the inline
+					// placeholders that carry the block's markup.
+					for i := range b.Source {
+						if b.Source[i].Text == nil {
+							continue
+						}
+						if replacement := tc.edit(b.Source[i].Text.Text); replacement != "" {
+							b.Source[i].Text.Text = replacement
+							edited = true
+						}
+					}
+				}
+				require.True(t, edited, "edit matched no block — the case asserts nothing")
+			}
+
+			var buf bytes.Buffer
+			require.NoError(t, writer.SetOutputWriter(&buf))
+			require.NoError(t, writer.Write(ctx, testutil.PartsToChannel(parts)))
+			writer.Close()
+			assert.Equal(t, tc.want, buf.String())
+		})
+	}
+}
 
 func TestSkeletonRoundtrip_WithTranslation(t *testing.T) {
 	input := `<html><body><p>Hello world</p></body></html>`

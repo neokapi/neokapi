@@ -56,6 +56,11 @@ type tokenReaderState struct {
 	// drop them when a structural event arrives after a text-unit (or
 	// vice-versa).
 	pendingWS [][]byte
+	// lastTextBlockEntries is the store's entry count right after
+	// lastTextBlock's ref was written, so onStructuralEvent can tell whether
+	// the ref is still the last entry and its trailing whitespace can be
+	// restored in the position it occupied.
+	lastTextBlockEntries int
 	// lastTextBlock points at the most recent top-level text-block emitted
 	// so we can retroactively trim its trailing whitespace when the next
 	// event proves we just exited a text-unit.
@@ -166,23 +171,38 @@ func (s *tokenReaderState) dropPendingWS() {
 	s.pendingWS = nil
 }
 
+// takePendingWS returns the buffered pure-WS tokens joined and clears the
+// buffer.
+func (s *tokenReaderState) takePendingWS() []byte {
+	if len(s.pendingWS) == 0 {
+		return nil
+	}
+	joined := bytes.Join(s.pendingWS, nil)
+	s.pendingWS = nil
+	return joined
+}
+
 // trimTrailingWSOfLastTextBlock retroactively trims trailing HTML whitespace
 // from the most recent top-level text-block. Called when a structural event
 // follows a text-unit, so any trailing whitespace inside the unit (embedded
-// in the last text-block's content) should be dropped to match Okapi.
-func (s *tokenReaderState) trimTrailingWSOfLastTextBlock() {
+// in the last text-block's content) should be dropped to match Okapi. It
+// returns the bytes it removed.
+func (s *tokenReaderState) trimTrailingWSOfLastTextBlock() string {
 	if s.lastTextBlock == nil {
-		return
+		return ""
 	}
 	runs := s.lastTextBlock.Source
 	if len(runs) == 0 {
-		return
+		return ""
 	}
 	last := &runs[len(runs)-1]
 	if last.Text == nil {
-		return
+		return ""
 	}
-	last.Text.Text = strings.TrimRightFunc(last.Text.Text, isHTMLWhitespace)
+	trimmed := strings.TrimRightFunc(last.Text.Text, isHTMLWhitespace)
+	dropped := last.Text.Text[len(trimmed):]
+	last.Text.Text = trimmed
+	return dropped
 }
 
 // onStructuralEvent is called immediately before writing a top-level
@@ -191,11 +211,31 @@ func (s *tokenReaderState) trimTrailingWSOfLastTextBlock() {
 // just exited a text-unit, drop pendingWS and trim trailing whitespace of
 // the last text-block; otherwise flush pendingWS (it sits between two
 // structural events and is preserved).
+//
+// The trimming settles what the text unit contains; it must not also decide
+// what the document contains. The bytes it removes therefore go to the
+// skeleton as a SkeletonTrimmed entry, which the writer emits only while
+// nothing has edited that block — so an untouched document keeps the source
+// formatting between a text unit and the tag that follows it, and an edited
+// one still joins the new text straight to the tag the way extraction parity
+// requires.
 func (s *tokenReaderState) onStructuralEvent() {
 	if s.lastTextBlock != nil {
-		s.trimTrailingWSOfLastTextBlock()
-		s.dropPendingWS()
+		block := s.lastTextBlock
+		// The block's own trailing whitespace sits immediately after its ref;
+		// restoring it is only positionally sound while the ref is still the
+		// last entry written (nothing — an inline close tag, say — has since
+		// come between them).
+		refIsLastEntry := s.store.EntriesWritten() == s.lastTextBlockEntries
+		dropped := s.trimTrailingWSOfLastTextBlock()
+		if !refIsLastEntry {
+			dropped = ""
+		}
+		restored := dropped + string(s.takePendingWS())
 		s.lastTextBlock = nil
+		if restored != "" {
+			s.store.WriteTrimmed([]byte(model.RenderRunsWithData(block.Source)), []byte(restored))
+		}
 		return
 	}
 	s.flushPendingWS()
@@ -517,6 +557,7 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					block.Name = s.structuralName(s.textStep())
 					s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 					s.lastTextBlock = block
+					s.lastTextBlockEntries = s.store.EntriesWritten()
 				}
 			} else {
 				// Pure-whitespace text token at top level: buffer it. The
@@ -1040,9 +1081,19 @@ leafClosed:
 	// runs without a newline are preserved (okapi keeps multi-space
 	// formatting inside `<title>` and similar; matching that exactly
 	// is too strict for a normalizer-friendly fix).
+	//
+	// Both normalizations rewrite bytes the document actually held, so the
+	// pre-normalization rendering goes to the skeleton as a SkeletonOriginal:
+	// the writer replays it whenever nothing edited the block, which keeps an
+	// untouched round-trip byte-for-byte without weakening the extraction the
+	// normalizations exist to produce.
 	if !preserveWS {
+		original := model.RenderRunsWithData(b.Runs())
 		s.peelEdgeNewlinesFromRuns(b)
 		s.collapseInternalNewlineRuns(b)
+		if rendered := model.RenderRunsWithData(b.Runs()); rendered != original {
+			s.store.WriteOriginal([]byte(rendered), []byte(original))
+		}
 	}
 
 	s.store.WriteRef(blockID)
