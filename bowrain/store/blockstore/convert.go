@@ -15,10 +15,15 @@ import (
 //   - Hash (StoredBlock.ContentHash falling back to model.Block.Identity.Hash)
 //   - Source/Target runs (the flat run sequences from the model)
 //   - Type (string → kbf.BlockType)
+//   - Properties.File, from the item the block belongs to
 //
-// Properties, placeholders, and preview hints stay on the Bowrain
-// side for now; adding them here is non-breaking and we'll do it as
-// callers need them.
+// The file is the block's place: an occurrence names the document it
+// was found in, and a decision finds its block by (document, id). The
+// store is keyed by content and holds no document on the block row, so
+// the item name is where that comes from.
+//
+// Placeholders and preview hints stay on the Bowrain side for now;
+// adding them here is non-breaking and we'll do it as callers need them.
 func toKBF(sb *platstore.StoredBlock) *kbf.Block {
 	if sb == nil || sb.Block == nil {
 		return nil
@@ -30,6 +35,7 @@ func toKBF(sb *platstore.StoredBlock) *kbf.Block {
 		Type:         kbf.BlockType(sb.Type),
 		Source:       append([]model.Run(nil), sb.Source...),
 	}
+	b.Properties.File = sb.ItemName
 	if b.Hash == "" && sb.Identity != nil {
 		b.Hash = sb.Identity.ContentHash
 	}

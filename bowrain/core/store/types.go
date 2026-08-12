@@ -792,6 +792,58 @@ type DecisionStore interface {
 	ListUnitDecisions(ctx context.Context, projectID, stream string) ([]UnitDecision, error)
 }
 
+// ChannelAliasProposal is the workspace's observation that two channel slugs
+// look like one channel.
+//
+// A workspace owns EQUIVALENCE, never RESOLUTION. A project resolves its own
+// coordinates from its own recipe, offline, and a server that rewrote a pushed
+// slug would make the same recipe mean different things depending on whether it
+// had been connected. So this is a proposal, with its evidence attached, and
+// nothing reads it to resolve anything.
+type ChannelAliasProposal struct {
+	WorkspaceID string `json:"workspace_id,omitempty"`
+	// Profile is the product-axis value both slugs sit under. Equivalence is
+	// only ever proposed within one profile: a channel is a surface OF a
+	// product, so two products' identically named channels are two channels.
+	Profile string `json:"profile,omitempty"`
+	// ProposedChannel is the slug that arrived; ExistingChannel is the one the
+	// workspace already held.
+	ProposedChannel string `json:"proposed_channel"`
+	ExistingChannel string `json:"existing_channel"`
+	// Evidence names why the two look alike, so a reviewer judges the
+	// observation rather than trusting it.
+	Evidence string `json:"evidence,omitempty"`
+	// ProjectID and Collection locate the push that raised it.
+	ProjectID  string `json:"project_id,omitempty"`
+	Collection string `json:"collection,omitempty"`
+	// Status is proposed | accepted | dismissed. Accepting records agreement;
+	// it still rewrites nothing.
+	Status    string `json:"status,omitempty"`
+	CreatedAt string `json:"created_at,omitempty"`
+	UpdatedAt string `json:"updated_at,omitempty"`
+}
+
+// Channel-alias proposal statuses.
+const (
+	ChannelAliasProposed  = "proposed"
+	ChannelAliasAccepted  = "accepted"
+	ChannelAliasDismissed = "dismissed"
+)
+
+// ChannelAliasStore is the optional capability of a content store that keeps
+// channel-slug equivalence proposals. Optional — assert for it — so every
+// existing ContentStore fake keeps compiling.
+type ChannelAliasStore interface {
+	// UpsertChannelAliasProposals records proposals idempotently, keyed by
+	// (workspace, profile, proposed, existing). A proposal a reviewer already
+	// judged keeps its status: re-observing the same fragmentation must not
+	// reopen a dismissal.
+	UpsertChannelAliasProposals(ctx context.Context, proposals []ChannelAliasProposal) (int, error)
+	// ListChannelAliasProposals returns a workspace's proposals, newest first.
+	// An empty status returns every one.
+	ListChannelAliasProposals(ctx context.Context, workspaceID, status string) ([]ChannelAliasProposal, error)
+}
+
 // BlockAccessStore is the optional capability behind the block access ladder
 // (ABAC): who may edit, distinct from the review ladder on the target. Assert
 // for it rather than for a concrete store type — a concrete-type assertion

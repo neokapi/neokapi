@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bwblockstore "github.com/neokapi/neokapi/bowrain/store/blockstore"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
@@ -403,7 +405,7 @@ func TestHydration_StoreBlocksRoundtripsTargets(t *testing.T) {
 	b.SetTargetRuns("fr", []model.Run{{Text: &model.TextRun{Text: "Bonjour"}}})
 	b.SetTargetRuns("de", []model.Run{{Text: &model.TextRun{Text: "Hallo"}}})
 
-	require(t, cs.StoreBlocks(ctx, projectID, "main", []*model.Block{b}))
+	require.NoError(t, cs.StoreBlocks(ctx, projectID, "main", []*model.Block{b}))
 
 	rows, err := cs.GetBlocks(ctx, platstore.BlockQuery{
 		ProjectID: projectID,
@@ -431,12 +433,5 @@ func TestHydration_StoreBlocksRoundtripsTargets(t *testing.T) {
 	}
 	if single.Block.TargetText("fr") != "Bonjour" {
 		t.Fatalf("single-fetch fr didn't round-trip: %q", single.Block.TargetText("fr"))
-	}
-}
-
-func require(t *testing.T, err error) {
-	t.Helper()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
 	}
 }

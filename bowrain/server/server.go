@@ -846,6 +846,10 @@ func NewServer(cfg Config) *Server {
 	if s.GraphStore != nil {
 		s.graphSyncer = platgraph.NewGraphSyncer(s.GraphStore, s.EventBus)
 	}
+	// The context graph is rebuilt from what a push landed, so it stays in step
+	// with the content the same way `kapi up` keeps a project's own graph in
+	// step with its block cache.
+	s.subscribeContextGraphOnPush()
 
 	// Initialize MCP server for brand voice + agent tools when stores are available.
 	if s.BrandStore != nil {
@@ -1627,6 +1631,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 	// context space, aggregated read-only from collections, voices and
 	// vocabulary: /:ws/profiles
 	g.GET("/profiles", s.HandleListContextProfiles)
+
+	// Channel-slug equivalence the workspace observed between projects and
+	// proposes without resolving: /:ws/context/channel-proposals
+	g.GET("/context/channel-proposals", s.HandleListChannelAliasProposals)
 
 	// Brand profiles — Bowrain AD-011: /:ws/brand-profiles
 	g.GET("/brand-profiles", s.HandleListBrandProfiles)
