@@ -36,6 +36,7 @@ COPY packages/kapi-format/package.json packages/kapi-format/
 COPY packages/i18n-react/package.json packages/i18n-react/
 COPY packages/ui/package.json packages/ui/
 COPY packages/concept-ui/package.json packages/concept-ui/
+COPY packages/context-explorer/package.json packages/context-explorer/
 COPY packages/contract-types/package.json packages/contract-types/
 COPY packages/editor-grid/package.json packages/editor-grid/
 COPY packages/status-views/package.json packages/status-views/
@@ -56,6 +57,7 @@ COPY packages/kapi-format/ packages/kapi-format/
 COPY packages/i18n-react/ packages/i18n-react/
 COPY packages/ui/ packages/ui/
 COPY packages/concept-ui/ packages/concept-ui/
+COPY packages/context-explorer/ packages/context-explorer/
 COPY packages/contract-types/ packages/contract-types/
 COPY packages/editor-grid/ packages/editor-grid/
 COPY packages/status-views/ packages/status-views/
