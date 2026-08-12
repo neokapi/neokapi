@@ -763,13 +763,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	c.cache.ServerURL = c.project.Recipe.Server.ServerURL()
 	c.cache.ProjectID = c.project.Recipe.Server.ProjectID()
 
-	// What the negotiation reported comes first: a project pushing before it has
-	// ever pulled learns here about the governance it did NOT write.
-	if served != nil {
-		c.refs.Observe(c.stream, *served)
-	}
 	c.refs.Consume(c.stream, lastCursor)
-	c.recordGovernanceAfterPush(ctx, ingest)
+	c.recordGovernanceAfterPush(ctx, pushID, ingest, served)
 	c.refs.Touch(time.Now())
 
 	if err := c.cache.Save(c.project.Layout); err != nil {
@@ -810,7 +805,18 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 // component asserts nothing and reads as "worth sending again", so the next push
 // re-sends an idempotent write and re-reads the answer. One redundant reconcile,
 // never a false conflict.
-func (c *BowrainSourceConnector) recordGovernanceAfterPush(ctx context.Context, ingest string) {
+//
+// A push that committed NOTHING is the third case and takes neither branch: the
+// negotiation's answer still describes the server, because this push did not
+// move it. It is also where a project pushing before it has ever pulled learns
+// the governance it never wrote.
+func (c *BowrainSourceConnector) recordGovernanceAfterPush(ctx context.Context, pushID, ingest string, negotiated *ref.Ref) {
+	if pushID == "" || pushID == apiclient.PushUnchanged {
+		if negotiated != nil {
+			c.refs.Observe(c.stream, *negotiated)
+		}
+		return
+	}
 	if c.client != nil && ingest == bowrainconn.IngestApplied {
 		if current, err := c.client.Ref(ctx); err == nil {
 			c.refs.Record(c.stream, current)
@@ -851,9 +857,9 @@ const ingestConfirmWindow = 6 * time.Second
 // as unknown rather than refused — the alternative is refusing pushes that
 // worked.
 func (c *BowrainSourceConnector) confirmIngest(ctx context.Context, pushID string) (string, error) {
-	// "unchanged" is the init fast path's sentinel: nothing was committed, so
+	// The unchanged sentinel is the init fast path's: nothing was committed, so
 	// there is no job and nothing to confirm.
-	if c.client == nil || pushID == "" || pushID == "unchanged" {
+	if c.client == nil || pushID == "" || pushID == apiclient.PushUnchanged {
 		return "", nil
 	}
 

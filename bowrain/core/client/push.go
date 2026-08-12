@@ -117,6 +117,12 @@ type PushCommitRequest struct {
 	ExpectedRef ref.Ref `json:"expected_ref,omitzero"`
 }
 
+// PushUnchanged is the push id a push reports when the negotiation found
+// nothing to send: no chunks were uploaded, no manifest was committed, and no
+// worker job exists to confirm. A caller reads it as "the server already holds
+// this state", never as "the server accepted a write".
+const PushUnchanged = "unchanged"
+
 // PushOption adjusts one push.
 type PushOption func(*pushSettings)
 
@@ -278,7 +284,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		// still takes this exit.
 		if len(decisions) == 0 {
 			return &SyncPushResponse{
-				PushID:                "unchanged",
+				PushID:                PushUnchanged,
 				UndeclaredCollections: initResp.UndeclaredCollections,
 				ServerRef:             initResp.Ref,
 			}, nil

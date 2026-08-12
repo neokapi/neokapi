@@ -42,6 +42,9 @@ type refServer struct {
 	// — an undeclared collection the server keeps, an approval it holds that
 	// this client has not pulled.
 	afterCommit *ref.Ref
+	// unchanged makes the negotiation report the fast path, so a push commits
+	// nothing at all.
+	unchanged bool
 }
 
 func newRefServer(t *testing.T, projectID string, published ref.Ref) *refServer {
@@ -79,8 +82,12 @@ func newRefServer(t *testing.T, projectID string, published ref.Ref) *refServer 
 	})
 	mux.HandleFunc(base+"/sync/main/push/init", func(w http.ResponseWriter, _ *http.Request) {
 		current := rs.published
+		status := "diff_computed"
+		if rs.unchanged {
+			status = apiclient.PushUnchanged
+		}
 		_ = json.NewEncoder(w).Encode(apiclient.PushInitResponse{
-			UploadID: "u1", Status: "diff_computed", ContextChanged: true, Ref: &current,
+			UploadID: "u1", Status: status, ContextChanged: true, Ref: &current,
 		})
 	})
 	mux.HandleFunc(base+"/sync/main/push/commit", func(w http.ResponseWriter, r *http.Request) {
@@ -280,6 +287,30 @@ func TestPush_RecordsTheServersGovernanceNotItsOwnFold(t *testing.T) {
 	assert.Equal(t, "ctx-with-leftover", srv.commitAssert.Context)
 }
 
+// TestPush_ThatCommittedNothingKeepsWhatTheNegotiationReported: the fast path
+// wrote nothing, so there is nothing to be unsure about — the negotiation's
+// answer still describes the server, and clearing components over a push that
+// never happened would send the next one back for no reason.
+func TestPush_ThatCommittedNothingKeepsWhatTheNegotiationReported(t *testing.T) {
+	srv := newRefServer(t, "proj1", ref.Ref{Context: "ctx-server", Terms: "trm-server", Decisions: "dec-server"})
+	srv.unchanged = true
+
+	conn := newRefConnector(t, srv.Server, "proj1")
+	conn.SetPushContext(apiclient.NewPushContext(nil))
+
+	func() {
+		defer conn.Close()
+		_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
+		require.NoError(t, err)
+	}()
+
+	require.Zero(t, srv.commits, "the fast path commits nothing")
+	got := loadRefs(t, conn).Ref("main")
+	assert.Equal(t, "ctx-server", got.Context)
+	assert.Equal(t, "trm-server", got.Terms)
+	assert.Equal(t, "dec-server", got.Decisions)
+}
+
 // TestPush_ClaimsNothingWhenTheIngestIsUnconfirmed: a write the server has not
 // confirmed leaves the components it carried empty rather than guessed. Empty
 // asserts nothing and reads as worth sending again, so the next push re-sends an
@@ -289,6 +320,7 @@ func TestPush_ClaimsNothingWhenTheIngestIsUnconfirmed(t *testing.T) {
 	srv.statusUnavailable = true
 
 	conn := newRefConnector(t, srv.Server, "proj1")
+	conn.ObserveTermsRef("trm-pulled")
 	conn.SetPushContext(apiclient.NewPushContext(nil))
 
 	func() {
@@ -300,6 +332,7 @@ func TestPush_ClaimsNothingWhenTheIngestIsUnconfirmed(t *testing.T) {
 	got := loadRefs(t, conn).Ref("main")
 	assert.Empty(t, got.Context, "an unconfirmed write claims nothing about what it carried")
 	assert.Empty(t, got.Decisions)
-	assert.Equal(t, "trm-server", got.Terms, "a component this push never wrote is untouched")
+	assert.Equal(t, "trm-pulled", got.Terms,
+		"terminology is not the push path's to refresh, so what a concept pull observed stands")
 	assert.True(t, conn.PushContextChanged(), "and the context is worth sending again")
 }
