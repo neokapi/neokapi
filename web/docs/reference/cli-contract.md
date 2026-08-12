@@ -207,7 +207,7 @@ asks again. With no terminal attached kapi refuses rather than assuming
 consent; `KAPI_TRUST_EXEC=1` is the opt-in for automation, and the general
 `--yes` flag deliberately does not grant it. The engine gRPC API and the MCP
 tool surface refuse these tools outright. See
-[AD-038](/contribute/architecture/038-execution-trust).
+[E-06](/contribute/architecture/engine/e-06-execution-trust).
 
 ## Tool registration invariants
 

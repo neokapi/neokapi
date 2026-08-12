@@ -146,4 +146,4 @@ finished stream and does not sit inside it.
 - [Flows](/framework/flows) — the graph the pipeline executes.
 - [Tools](/framework/tools) — the stages that run in the pipeline.
 - [Content Model](/framework/content-model) — the Part that streams through it.
-- [AD-004: Processing Engine](/contribute/architecture/004-processing-engine) — the design rationale.
+- [E-01: Processing Engine](/contribute/architecture/engine/e-01-processing-engine) — the design rationale.

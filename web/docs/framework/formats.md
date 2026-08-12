@@ -52,7 +52,7 @@ installed (and the `ocr`/`layout` options on), the reader also extracts in-image
 text and document layout — regions, reading order, tables — turning a screenshot
 or scanned page into structured, translatable content. The design, and the full
 set of image-adaptation modes, are described in
-[AD-029](/contribute/architecture/029-vision-and-image-adaptation).
+[M-03](/contribute/architecture/multilingual/m-03-multimodal-content).
 
 PDF is read by Google's PDFium rather than a built-in reader: on the desktop and
 CLI through the `kapi-pdfium` plugin, and in the browser through PDFium compiled
@@ -60,11 +60,11 @@ to WebAssembly. Beyond text, it recovers each fragment's position on the page
 (geometry) and the document's structure — headings, paragraphs, and tables — from
 the PDF's own tags where present and by geometric inference otherwise. You can try
 it on your own files in the [Structure & Layout lab](/lab/structure); the design is described in
-[AD-028](/contribute/architecture/028-pdf-reader-plugin).
+[E-08](/contribute/architecture/engine/e-08-document-structure-tiers).
 
 An **archive** — a ZIP, TAR, or gzip-compressed TAR — is a *namespace* of inner
 documents rather than one document, so it is handled as a **container binding**
-([AD-026](/contribute/architecture/026-flow-io-binding)) rather than a format
+([E-04](/contribute/architecture/engine/e-04-flows-and-io-binding)) rather than a format
 with a writer. Pointed at an output-producing command, each entry is processed
 as its **own file run** — through that entry's normal reader and writer with full
 skeleton round-trip — and the results are repacked over the original container,
@@ -133,11 +133,11 @@ Each reader that supports this exposes an `extractNonTranslatableContent` option
 (on by default) in the [Format Reference](/formats); set it false to restore the
 older skeleton-only behavior. The design — and why it leaves translation output
 and the round-trip guarantee unchanged — is described in
-[AD-031](/contribute/architecture/031-content-fidelity-surfacing). Equations are
+[E-02](/contribute/architecture/engine/e-02-format-system). Equations are
 a notable case: Word/OMML formulas are converted to LaTeX/MathML and rendered on
 cross-format export, and the natural-language prose inside an equation is
 translatable — see [kconv](/toolbox/kconv) and
-[AD-032](/contribute/architecture/032-math-and-equations).
+[M-04](/contribute/architecture/multilingual/m-04-math-and-equations).
 
 ## Plugin formats
 

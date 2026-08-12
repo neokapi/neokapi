@@ -10,7 +10,7 @@ keywords: [plugin model, in-process registry, cli.App, init registration, blank 
 
 This implementation note covers the **in-process registry mechanism** a plugin binary uses to wire its features into the shared `cli.App` (an alias of the host module's `host.App` — the cobra-free application runtime the `cli` shell wraps). Plugin packages are blank-imported by a plugin binary's `main`; their `init()` functions register features against process-global registries via direct function calls — no gRPC, no dynamic loading inside the binary.
 
-This is one half of the plugin story: how the Go code _inside_ a plugin binary is composed. How `kapi` then **discovers** that binary on disk and **dispatches** to it at runtime (the `manifest.json` model and the A/B/C transport modes) lives in [AD-007: Plugin System](../architecture/007-plugin-system). The `kapi` binary itself links no vendor plugins; the registries below populate inside the plugin binary — in the worked example below, that's `kapi-gitlab` (built from `gitlab-plugin/cmd/kapi-gitlab/`).
+This is one half of the plugin story: how the Go code _inside_ a plugin binary is composed. How `kapi` then **discovers** that binary on disk and **dispatches** to it at runtime (the `manifest.json` model and the A/B/C transport modes) lives in [E-05: Plugin System](../architecture/engine/e-05-plugin-system). The `kapi` binary itself links no vendor plugins; the registries below populate inside the plugin binary — in the worked example below, that's `kapi-gitlab` (built from `gitlab-plugin/cmd/kapi-gitlab/`).
 
 This note is the reference for: how the registries work, how to write the Go side of a new plugin, and when to use the schema-only registry vs. the heavier ones.
 
@@ -235,7 +235,7 @@ import _ "example.com/gitlab-plugin"
 
 A plugin ships as its own binary plus a `manifest.json`, installed into a kapi plugin directory rather than linked into `kapi`. Because the plugin runs as a separate process, its license is independent of `kapi`'s: the `kapi` binary stays Apache-2.0 and links no vendor-plugin code, while a plugin binary (e.g. `kapi-gitlab`) carries that plugin's packages under its own license. There is no `-tags pure` / `kapi-pure` split — `kapi` is always plugin-free, and plugins are something you install into it.
 
-See [AD-007: Plugin System](../architecture/007-plugin-system) for the manifest schema, discovery precedence, install paths (`kapi plugin install <name>`, Homebrew), and the A/B/C transport modes.
+See [E-05: Plugin System](../architecture/engine/e-05-plugin-system) for the manifest schema, discovery precedence, install paths (`kapi plugin install <name>`, Homebrew), and the A/B/C transport modes.
 
 ## Initialization order
 
@@ -271,6 +271,6 @@ Tests that mutate the global registries should call `coreproj.ResetExtensionsFor
 
 ## Relationship to runtime dispatch
 
-The registries on this page are purely in-process: they assemble the command tree, MCP tools, and recipe schema _inside_ a single plugin binary. They say nothing about how that binary is found or invoked — that is the runtime concern owned by [AD-007: Plugin System](../architecture/007-plugin-system): `manifest.json` discovery and the A/B/C transport modes (one-shot command exec, an MCP-over-stdio session, and the gRPC daemon used by formats/tools/source connectors, including the Java Okapi bridge).
+The registries on this page are purely in-process: they assemble the command tree, MCP tools, and recipe schema _inside_ a single plugin binary. They say nothing about how that binary is found or invoked — that is the runtime concern owned by [E-05: Plugin System](../architecture/engine/e-05-plugin-system): `manifest.json` discovery and the A/B/C transport modes (one-shot command exec, an MCP-over-stdio session, and the gRPC daemon used by formats/tools/source connectors, including the Java Okapi bridge).
 
-In short: this note is the contract for the Go _inside_ a plugin; AD-007 is the contract for the process _around_ it.
+In short: this note is the contract for the Go _inside_ a plugin; E-05 is the contract for the process _around_ it.

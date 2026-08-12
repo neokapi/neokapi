@@ -13,7 +13,7 @@ beyond the open-source core — cloud sync, the Okapi filter bridge, third-party
 formats — ships as a separate binary that kapi discovers on disk and dispatches
 to at runtime.
 
-This page is the developer-facing overview. [AD-007: Plugin System](/contribute/architecture/007-plugin-system)
+This page is the developer-facing overview. [E-05: Plugin System](/contribute/architecture/engine/e-05-plugin-system)
 holds the full design rationale; the [Plugin model note](/contribute/implementation/plugin-model)
 covers the complementary in-process side — how the Go code _inside_ a plugin
 binary wires its features into the shared `cli.App`.
@@ -130,13 +130,13 @@ the declaration. Typing one of that plugin's verbs without it installed gets the
 same offer rather than an unknown-command error — prompt on a terminal, install
 under `--yes`, then run the verb; both install routes plus exit code 2 in CI or
 under `--quiet`. A mistyped verb is left alone, keeping cobra's suggestions. See
-[AD-007](/contribute/architecture/007-plugin-system#missing-plugin-verbs).
+[E-05](/contribute/architecture/engine/e-05-plugin-system#missing-plugin-verbs).
 
 A `schema_extensions` entry may also set `"venue": true`, marking its key as the
 recipe's binding to a remote convergence venue. kapi reads `url:` and
 `converge:` out of that block to decide where `kapi up` runs, and finds the
 block by the flag rather than by the key's name. See
-[AD-007](/contribute/architecture/007-plugin-system#the-venue-extension).
+[E-05](/contribute/architecture/engine/e-05-plugin-system#the-venue-extension).
 
 ## Lifecycle commands
 
@@ -223,6 +223,6 @@ leaves downloaded model caches and configuration alone.
 
 ## See also
 
-- [AD-007: Plugin System](/contribute/architecture/007-plugin-system) — full design rationale and the registry/signing model
+- [E-05: Plugin System](/contribute/architecture/engine/e-05-plugin-system) — full design rationale and the registry/signing model
 - [Plugin model note](/contribute/implementation/plugin-model) — the in-process registry contract a plugin binary uses to wire features into `cli.App`
 - [Plugin protocol v1](/contribute/implementation/plugin-protocol-v1) — the language-neutral specification an out-of-tree plugin repository builds and verifies against

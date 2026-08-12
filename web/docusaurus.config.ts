@@ -201,7 +201,7 @@ const config: Config = {
           { from: "/klf-tests", to: "/kbf-tests" },
           {
             from: "/contribute/architecture/025-klf-package",
-            to: "/contribute/architecture/025-kbf-package",
+            to: "/contribute/architecture/multilingual/m-06-content-packages",
           },
           // The Okapi-parity dashboard was retired with the bridge's product
           // surface (#1073). /format-maturity carries the quality story now, so
@@ -278,8 +278,140 @@ const config: Config = {
             to: "/contribute/architecture/context/c-03-context-store-and-graph",
           },
           {
+            from: "/contribute/architecture/001-vision-and-modules",
+            to: "/contribute/architecture/foundations/f-01-framework-and-modules",
+          },
+          {
+            from: "/contribute/architecture/002-content-model",
+            to: "/contribute/architecture/foundations/f-02-content-model",
+          },
+          {
+            from: "/contribute/architecture/003-identity",
+            to: "/contribute/architecture/foundations/f-03-identity",
+          },
+          {
+            from: "/contribute/architecture/034-content-model-wire-schema",
+            to: "/contribute/architecture/foundations/f-04-wire-schema",
+          },
+          {
+            from: "/contribute/architecture/004-processing-engine",
+            to: "/contribute/architecture/engine/e-01-processing-engine",
+          },
+          {
+            from: "/contribute/architecture/005-format-system",
+            to: "/contribute/architecture/engine/e-02-format-system",
+          },
+          // Content-fidelity surfacing is a reader behaviour, so it is a section
+          // of the format system rather than a decision of its own.
+          {
+            from: "/contribute/architecture/031-content-fidelity-surfacing",
+            to: "/contribute/architecture/engine/e-02-format-system",
+          },
+          {
+            from: "/contribute/architecture/006-tool-system",
+            to: "/contribute/architecture/engine/e-03-tool-system",
+          },
+          {
+            from: "/contribute/architecture/026-flow-io-binding",
+            to: "/contribute/architecture/engine/e-04-flows-and-io-binding",
+          },
+          {
+            from: "/contribute/architecture/007-plugin-system",
+            to: "/contribute/architecture/engine/e-05-plugin-system",
+          },
+          {
+            from: "/contribute/architecture/038-execution-trust",
+            to: "/contribute/architecture/engine/e-06-execution-trust",
+          },
+          // The model and machine-translation provider decisions are one
+          // decision: two interfaces reached the same way.
+          {
+            from: "/contribute/architecture/011-ai-providers",
+            to: "/contribute/architecture/engine/e-07-model-providers",
+          },
+          {
+            from: "/contribute/architecture/012-mt-providers",
+            to: "/contribute/architecture/engine/e-07-model-providers",
+          },
+          {
+            from: "/contribute/architecture/028-pdf-reader-plugin",
+            to: "/contribute/architecture/engine/e-08-document-structure-tiers",
+          },
+          {
+            from: "/contribute/architecture/013-kapi-cli",
+            to: "/contribute/architecture/surfaces/s-01-kapi-cli",
+          },
+          {
+            from: "/contribute/architecture/014-kapi-desktop",
+            to: "/contribute/architecture/surfaces/s-02-kapi-desktop",
+          },
+          {
+            from: "/contribute/architecture/024-agent-skills",
+            to: "/contribute/architecture/surfaces/s-03-agent-surfaces",
+          },
+          {
+            from: "/contribute/architecture/023-toolbox-utilities",
+            to: "/contribute/architecture/surfaces/s-04-toolbox",
+          },
+          {
+            from: "/contribute/architecture/019-i18n-react",
+            to: "/contribute/architecture/surfaces/s-05-i18n-runtime",
+          },
+          // In-context review is what the runtime does in a dev server, so it
+          // is a section of the runtime decision.
+          {
+            from: "/contribute/architecture/035-in-context-review",
+            to: "/contribute/architecture/surfaces/s-05-i18n-runtime",
+          },
+          {
+            from: "/contribute/architecture/027-visual-editor-data-model",
+            to: "/contribute/architecture/surfaces/s-06-visual-editor",
+          },
+          {
+            from: "/contribute/architecture/017-bilingual-format-interop",
+            to: "/contribute/architecture/multilingual/m-01-bilingual-interop",
+          },
+          // The segmenter plugin is one engine tier of segmentation, which now
+          // has a decision covering the whole concern.
+          {
+            from: "/contribute/architecture/021-sat-segmenter-plugin",
+            to: "/contribute/architecture/multilingual/m-02-segmentation",
+          },
+          {
+            from: "/contribute/architecture/029-vision-and-image-adaptation",
+            to: "/contribute/architecture/multilingual/m-03-multimodal-content",
+          },
+          {
+            from: "/contribute/architecture/030-multimodal-extraction-and-llm-refinement",
+            to: "/contribute/architecture/multilingual/m-03-multimodal-content",
+          },
+          {
+            from: "/contribute/architecture/032-math-and-equations",
+            to: "/contribute/architecture/multilingual/m-04-math-and-equations",
+          },
+          {
+            from: "/contribute/architecture/036-llm-prompts-and-batching",
+            to: "/contribute/architecture/multilingual/m-05-prompts-and-batching",
+          },
+          {
+            from: "/contribute/architecture/025-kbf-package",
+            to: "/contribute/architecture/multilingual/m-06-content-packages",
+          },
+          {
+            from: "/contribute/architecture/016-metadata-i18n",
+            to: "/contribute/architecture/multilingual/m-07-metadata-i18n",
+          },
+          {
+            from: "/contribute/architecture/015-testing-and-documentation",
+            to: "/contribute/architecture/assurance/a-01-testing-and-documentation",
+          },
+          {
+            from: "/contribute/architecture/018-parity-testing",
+            to: "/contribute/architecture/assurance/a-02-parity",
+          },
+          {
             from: "/contribute/architecture/029-vision-and-image-localization",
-            to: "/contribute/architecture/029-vision-and-image-adaptation",
+            to: "/contribute/architecture/multilingual/m-03-multimodal-content",
           },
           {
             from: "/contribute/notes-internal/multimodal-localization",

@@ -30,7 +30,7 @@ against this page and verifies the result with the
 [conformance suite](#conformance-suite) — which runs against a *released* kapi
 module, so a plugin repository never needs to live inside this one.
 
-The architectural rationale is [AD-007](/contribute/architecture/007-plugin-system);
+The architectural rationale is [E-05](/contribute/architecture/engine/e-05-plugin-system);
 the in-process Go registries a Go plugin binary uses internally are
 [Note: Plugin model](plugin-model.md). This page is the wire.
 
@@ -211,7 +211,7 @@ changes what an existing kapi verb means. Every plugin command also attaches
 under `kapi <group> <verb>`, and a command whose name collides with a built-in
 attaches under the group *only*. A plugin that needs to participate in a core
 verb uses a `command_contribution` rather than a same-name command. See
-[AD-007](/contribute/architecture/007-plugin-system).
+[E-05](/contribute/architecture/engine/e-05-plugin-system).
 
 ### Mode B — session subprocess (MCP over stdio)
 
@@ -490,7 +490,7 @@ Because tarballs are fetched with Go's HTTP client rather than a browser, the
 extracted binary never carries the macOS quarantine attribute, so plugins need no
 Apple notarization or Authenticode signature. The supply-chain layer (cosign +
 SHA-256) is the meaningful guarantee, and it is enforced on every platform. See
-[AD-007](/contribute/architecture/007-plugin-system).
+[E-05](/contribute/architecture/engine/e-05-plugin-system).
 
 ## Conformance suite
 

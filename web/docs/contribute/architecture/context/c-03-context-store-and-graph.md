@@ -104,7 +104,7 @@ against the file being there: the terminology gate reads the committed terms
 source directly on a fresh checkout whether or not a database exists
 ([C-08](c-08-terms.md)), `kapi up --plan` never creates state, and `kapi pack`
 carries only non-empty parts
-([AD-025](../025-kbf-package.md)). `DetectStoreDrift` reads
+([M-06](../multilingual/m-06-content-packages.md)). `DetectStoreDrift` reads
 "store missing" as *the block cache holds no blocks*, not as *the file is
 absent*, precisely because the file exists from the first open of any subsystem.
 
@@ -182,7 +182,7 @@ there will not be one: projects relate by co-occurrence through the vocabulary
 they share.
 
 Within a scope, identity is **durable** — a block is its content key
-([AD-003](../003-identity.md)), a unit state is its unit and variant —
+([F-03](../foundations/f-03-identity.md)), a unit state is its unit and variant —
 not a reader's positional id, so a re-parse that renumbers a document rewrites
 the same rows rather than orphaning them.
 

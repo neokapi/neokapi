@@ -239,7 +239,7 @@ Packs are YAML files embedded via `go:embed`; each returns a
 ### Content model integration
 
 `VoiceAnnotation` is a registered payload (`voice`) stored as a
-block-scoped **annotation** ([AD-002](/contribute/architecture/002-content-model)),
+block-scoped **annotation** ([F-02](/contribute/architecture/foundations/f-02-content-model)),
 the counterpart to positional overlays like `term` and `entity`. It is reached
 through the block's `Anno`/`SetAnno` helpers and registered for wire/store
 rehydration via `model.RegisterPayload`:

@@ -12,7 +12,7 @@ This note provides implementation details for [C-09](/contribute/architecture/co
 ## Derived matching keys
 
 Each content-memory entry stores its variants as `[]model.Run` sequences
-(AD-002). Several matching representations are derived from those runs at storage
+(F-02). Several matching representations are derived from those runs at storage
 time and indexed for fast lookup. The `memory` package computes them with the
 framework's projection helpers in `core/model`:
 
@@ -68,7 +68,7 @@ type Match struct {
 }
 ```
 
-The `recycle` tool ([AD-006](/contribute/architecture/006-tool-system)) applies adaptations automatically -- translators receive pre-adapted targets with correct entity values.
+The `recycle` tool ([E-03](/contribute/architecture/engine/e-03-tool-system)) applies adaptations automatically -- translators receive pre-adapted targets with correct entity values.
 
 ## Fuzzy Candidate Retrieval
 

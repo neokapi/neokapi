@@ -192,7 +192,7 @@ power use.
 **The tools that execute arbitrary commands and scripts are not part of that
 flag.** *Show me every tool* and *let a caller run anything* are different classes
 of decision, and bundling them means enabling the first silently grants the
-second ([AD-038](../038-execution-trust.md)). They are not exposed over
+second ([E-06](../engine/e-06-execution-trust.md)). They are not exposed over
 MCP at all; `kapi exec` still runs them.
 
 Cutting MCP exposure removes nothing from the CLI: `kapi exec <tool>` runs every
@@ -231,6 +231,6 @@ registry tool regardless.
   tables and traversals these primitives read.
 - [C-05: Freshness and the composite ref](c-05-freshness.md) — the staleness note
   and the enforcing gate.
-- [AD-024: Agent Skills](../024-agent-skills.md) — the skill that
+- [S-03: Agent Skills](../surfaces/s-03-agent-surfaces.md) — the skill that
   drives these verbs.
 - [MCP reference](/reference/mcp) — the served tool and resource list.

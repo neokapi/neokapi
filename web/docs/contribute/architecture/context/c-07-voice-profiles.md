@@ -36,12 +36,12 @@ and rewritten. The subsystem has to satisfy several constraints at once:
   deterministic and needs no network. A model-backed check for the subjective
   dimensions is opt-in and credential-gated.
 - **Composable with the rest of the engine.** Voice evaluation runs as registered
-  tools ([AD-006](../006-tool-system.md)) so it composes into flows, reuses
+  tools ([E-03](../engine/e-03-tool-system.md)) so it composes into flows, reuses
   the schema and config machinery, and writes findings as block annotations other
   tools and the UI can read.
 - **Several surfaces.** The same capability is reachable from the CLI, from an
   MCP client, and from the bundled agent skill
-  ([AD-024](../024-agent-skills.md)).
+  ([S-03](../surfaces/s-03-agent-surfaces.md)).
 
 Terms ([C-08](c-08-terms.md)) handle consistency at the concept level; a voice
 profile is the broader, prose-level guardrail. The two intersect at vocabulary
@@ -77,7 +77,7 @@ vocabulary, clarity, brand compliance) — a severity, a human message, an optio
 suggestion, the original text, optional metadata, and a **`Position
 model.RunRange`**, so a finding is anchored to the runs it concerns, the same
 run-range model overlays and redaction use
-([AD-002](../002-content-model.md)).
+([F-02](../foundations/f-02-content-model.md)).
 
 Tools attach findings to a block as a `VoiceAnnotation` (annotation type
 `voice`), which also carries the profile id, the overall score and its own
@@ -101,7 +101,7 @@ bespoke to voice. Voice is one checkset over the generic core.
   filter by voice vocabulary. It is an annotate-class tool: it writes the
   annotation, never the content. This is the fast first pass.
 - **`voice-check`** (`core/ai/tools`) — model-backed. It asks a provider
-  ([AD-011](../011-ai-providers.md)) to score the subjective dimensions
+  ([E-07](../engine/e-07-model-providers.md)) to score the subjective dimensions
   against the rendered voice guide. It declares that it requires credentials and
   has an API-call side effect, produces the `voice` annotation, and runs with
   bounded per-block parallelism.
@@ -193,7 +193,7 @@ Locale and channel overrides apply on top via `--locale`/`--channel`; an explici
 `check` reads its subject from `--text`, a positional file, or stdin.
 `check --min-score` returns the quality-gate sentinel when the score is below the
 threshold, which the CLI maps to a distinct exit code
-([AD-013](../013-kapi-cli.md)) so skills and CI can tell a failed gate
+([S-01](../surfaces/s-01-kapi-cli.md)) so skills and CI can tell a failed gate
 from an operational error. `kapi check --voice` is the project-level style
 gate, with `--voice-min` setting the similarity cutoff.
 
@@ -242,7 +242,7 @@ installed.
 ### MCP surface
 
 `host/mcp_voice.go` registers two offline voice tools on the shared `kapi mcp`
-stdio server ([AD-013](../013-kapi-cli.md)) so non-CLI agents get parity:
+stdio server ([S-01](../surfaces/s-01-kapi-cli.md)) so non-CLI agents get parity:
 `voice_check` scores text using the deterministic vocabulary rules, and
 `voice_rewrite` substitutes forbidden and competitor terms.
 
@@ -270,9 +270,9 @@ of what applies at a point rather than a thing to ask for separately.
   profile governs which content.
 - [C-08: Terms](c-08-terms.md) — concept-level consistency the vocabulary rules
   intersect.
-- [AD-006: Tool System](../006-tool-system.md) — the checks as
+- [E-03: Tool System](../engine/e-03-tool-system.md) — the checks as
   registered tools.
-- [AD-011: AI Providers](../011-ai-providers.md) —
+- [E-07: AI Providers](../engine/e-07-model-providers.md) —
   the provider behind the model-backed check.
-- [AD-002: Content Model](../002-content-model.md) — run ranges
+- [F-02: Content Model](../foundations/f-02-content-model.md) — run ranges
   and block annotations.

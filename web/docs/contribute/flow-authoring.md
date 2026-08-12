@@ -40,7 +40,7 @@ steps:
 At the CLI the binding comes from `-i` / `-o` (a plain path is detected, a
 `scheme:` is explicit), the project / `.kpz` you are in, or auto-detection;
 `kapi run <flow> --explain` shows the resolved `source → sink`. See
-[AD-026: Flow I/O Binding](architecture/026-flow-io-binding).
+[E-04: Flow I/O Binding](architecture/engine/e-04-flows-and-io-binding).
 
 ### Step labels
 
@@ -143,7 +143,7 @@ positions beside data-flow validation at every flow build and load:
 
 A flow that declares the removed `source_transforms:` field is rejected at
 load with a migration error directing you to list the transformers as ordered
-steps. See the [tool-system AD](/contribute/architecture/006-tool-system) for
+steps. See the [tool-system AD](/contribute/architecture/engine/e-03-tool-system) for
 the immutability model and the producer/applier split.
 
 ## How steps compile to the graph
@@ -155,7 +155,7 @@ The `StepsToGraph()` function transforms a `StepsSpec` into `FlowNode` and `Flow
 3. After a parallel block, subsequent steps connect from all branch endpoints (fan-in)
 
 The graph is tool nodes only. The flow's source and sink are bindings supplied at
-run time ([AD-026](architecture/026-flow-io-binding)), not nodes in the graph.
+run time ([E-04](architecture/engine/e-04-flows-and-io-binding)), not nodes in the graph.
 
 The resulting graph is what the `Executor` runs -- each node becomes a goroutine connected by buffered channels.
 

@@ -171,7 +171,7 @@ both the content you read, edit, or translate and the structure that surrounds i
   engine), `uax29` (the ICU Unicode baseline), `llm` (semantic chunks), or `sat`
   (the wtpsplit ML model, run via the `kapi-sat` plugin). See
   [Segmentation](/framework/segmentation) and
-  [AD-002](/contribute/architecture/002-content-model).
+  [F-02](/contribute/architecture/foundations/f-02-content-model).
 - **Run** — one element of a block's inline content: a chunk of text, an opening
   or closing inline tag, a self-closing placeholder, or a structured plural/select
   construct (see below).
@@ -361,4 +361,4 @@ run relies on, with zero targets in sight.
 - [Inline Formatting](/framework/inline-formatting) and [Vocabularies](/framework/vocabularies) — how inline-code runs are represented and classified.
 - [Pipeline](/framework/pipeline) — how Parts stream through the executor.
 - [Interface Reference](/contribute/interfaces) — the concrete Go types and method signatures.
-- [AD-002: Content Model](/contribute/architecture/002-content-model) — the design rationale.
+- [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model) — the design rationale.

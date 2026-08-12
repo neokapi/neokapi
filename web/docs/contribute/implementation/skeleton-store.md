@@ -1,7 +1,7 @@
 ---
 sidebar_position: 14
 title: Skeleton Store and Streaming HTML
-description: Implementation note for AD-005 — details of the SkeletonStore temp-file-backed binary store and the tokenizer-based HTML reader/writer that uses skeleton entries to faithfully reconstruct documents.
+description: Implementation note for E-02 — details of the SkeletonStore temp-file-backed binary store and the tokenizer-based HTML reader/writer that uses skeleton entries to faithfully reconstruct documents.
 keywords: [SkeletonStore, streaming HTML, skeleton, tokenizer, HTML reader, implementation note, neokapi]
 ---
 
@@ -11,7 +11,7 @@ import { StreamDiagram } from "@neokapi/docs-shared";
 
 Implementation details for the `SkeletonStore` framework type and the
 tokenizer-based HTML reader/writer that uses it. Parent AD:
-[AD-005](/contribute/architecture/005-format-system) (skeleton strategies).
+[E-02](/contribute/architecture/engine/e-02-format-system) (skeleton strategies).
 
 ## SkeletonStore (`core/format/skeleton.go`)
 
@@ -124,7 +124,7 @@ Some translatable text is embedded *inside* a payload the reader otherwise
 captures opaquely and replays verbatim — the natural-language prose (`<m:nor/>`
 runs: "where", "otherwise", units) inside a Word equation's OMML, which is
 captured as one opaque sentinel run for a byte-exact DOCX round-trip
-([AD-032](/contribute/architecture/032-math-and-equations)). A flat
+([M-04](/contribute/architecture/multilingual/m-04-math-and-equations)). A flat
 `Text`/`Ref` skeleton cannot reach into that blob.
 
 The **sub-skeleton** is the same `Text`/`Ref` mechanism applied recursively over

@@ -10,8 +10,8 @@ keywords: [content parity, sync wire, round-trip, overlays, SyncBlock, protoconv
 This note records the parity contract for the kapi↔bowrain sync wire: a
 `model.Block` that kapi has locally must survive **push → store → pull**
 losslessly. It is the operational companion to
-[AD-034: Content-Model Wire Schema](/contribute/architecture/034-content-model-wire-schema)
-(the canonical schema) and [AD-002: Content Model](/contribute/architecture/002-content-model)
+[F-04: Content-Model Wire Schema](/contribute/architecture/foundations/f-04-wire-schema)
+(the canonical schema) and [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model)
 (the model itself).
 
 ## The invariant

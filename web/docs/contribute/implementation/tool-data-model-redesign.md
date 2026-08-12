@@ -13,11 +13,11 @@ contract is typed over the data that rides on a Block, why there is a uniform
 unit/segment iterator on the tool views, and why source and sink are typed
 bindings. The canonical, normative descriptions live in the ADs:
 
-- [AD-002: Content Model](/contribute/architecture/002-content-model) — Overlays
+- [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model) — Overlays
   and Annotations as the two stand-off carriers.
-- [AD-006: Tool System](/contribute/architecture/006-tool-system) — the
+- [E-03: Tool System](/contribute/architecture/engine/e-03-tool-system) — the
   capability-typed handlers, the `IOPort` IO contract, and the unit iterator.
-- [AD-026: Flow I/O Binding](/contribute/architecture/026-flow-io-binding) —
+- [E-04: Flow I/O Binding](/contribute/architecture/engine/e-04-flows-and-io-binding) —
   typed source/sink bindings and data-flow validation.
 
 Read this note for the *why*; read the ADs for the authoritative *what*.
@@ -154,7 +154,7 @@ requirements the flow validator enforces.
 ### Why capability and ports are orthogonal
 
 The capability a tool declares by which block handler it sets on `BaseTool`
-(`Annotate` / `Produce` / `Transform`, AD-006) is the **write-surface**
+(`Annotate` / `Produce` / `Transform`, E-03) is the **write-surface**
 contract — what kind of mutation the tool may make. The `IOPort` contract is the
 **data-dependency** contract — which interpretations it reads and writes. They
 compose: `recycle` is `Translate`-capable (writes the target) *and*
@@ -213,7 +213,7 @@ part-type contract cannot:
 
 - For each tool's **required** (non-optional) consumed port, some upstream
   producer must supply it — an earlier tool's `Produces`, ingest-time settlers
-  (AD-026 — segmentation/normalization persisted at extract), or the **source
+  (E-04 — segmentation/normalization persisted at extract), or the **source
   binding** (below). Otherwise the flow is rejected at load/build with a precise
   message ("`qa` requires a `target`; no upstream tool produces one")
   rather than failing at runtime.
@@ -221,12 +221,12 @@ part-type contract cannot:
   upgrades when X is present" affordance.
 
 This complements the structural checks (cycle detection) and the transformer
-**placement pass** (`core/flow/placement.go`, AD-006), which runs beside
+**placement pass** (`core/flow/placement.go`, E-03), which runs beside
 data-flow validation at the same build/load gates.
 
 ## Bindings as port producers/consumers
 
-AD-026 makes source and sink **bindings** (endpoint pickers), not reader/writer
+E-04 makes source and sink **bindings** (endpoint pickers), not reader/writer
 graph nodes. The port contract is what makes that coherent: a binding advertises
 the ports it provides as a source or accepts as a sink.
 
@@ -234,12 +234,12 @@ the ports it provides as a source or accepts as a sink.
 | --- | --- | --- |
 | `file` | `source` content (one locale, or bilingual for interchange) | requires materializable `target` |
 | `store` / `kpz` | existing `source` + any persisted overlays (segmentation, terms, …) | accepts any port (commits overlays) |
-| `import` / `export` | `source` + `target` + `segmentation` + `alignment` (AD-017) | emits interchange; requires `target` |
+| `import` / `export` | `source` + `target` + `segmentation` + `alignment` (M-01) | emits interchange; requires `target` |
 | `none` | — | accepts anything (discards) |
 
 The first tool's required `Consumes` must be satisfiable by the source binding's
 provided ports; the last stage's `Produces` must be acceptable by the sink. A
-process-only run (`sink: store` / `none`, AD-026) needs no materializable target;
+process-only run (`sink: store` / `none`, E-04) needs no materializable target;
 a `file` sink does. This gives the flow editor a real check at both the head and
 tail of the graph, and the typed "data flowing along each edge" view: tool node
 ports render the overlay/annotation types they carry, so a connection that would
@@ -253,7 +253,7 @@ warning.
   `Consumes`/`Produces` on a built-in tool breaks a real flow. Each tool's
   declared contract is audited against its actual reads/writes; an end-to-end test
   per built-in flow is the guardrail.
-- **Plugin tools** (AD-007) declare their metadata over gRPC. The overlay /
+- **Plugin tools** (E-05) declare their metadata over gRPC. The overlay /
   annotation vocabulary is extensible by plugins (`model.RegisterPayload`) and
   crosses the bridge via the `OverlayMessage` carrier, so a term, entity, qa,
   alignment, or any plugin-defined type round-trips by type name and JSON; full
@@ -269,8 +269,8 @@ warning.
 
 ## Related
 
-- [AD-002: Content Model](/contribute/architecture/002-content-model) — Blocks, Overlays, Annotations, segmentation.
-- [AD-006: Tool System](/contribute/architecture/006-tool-system) — capability-typed handlers, `ToolMeta`, the `IOPort` IO contract, the unit iterator.
-- [AD-026: Flow I/O Binding](/contribute/architecture/026-flow-io-binding) — source/sink as bindings; typed binding ends.
+- [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model) — Blocks, Overlays, Annotations, segmentation.
+- [E-03: Tool System](/contribute/architecture/engine/e-03-tool-system) — capability-typed handlers, `ToolMeta`, the `IOPort` IO contract, the unit iterator.
+- [E-04: Flow I/O Binding](/contribute/architecture/engine/e-04-flows-and-io-binding) — source/sink as bindings; typed binding ends.
 - [Flow Steps Format](flow-steps-format.md) — the steps document the editor reads and writes.
 - [Session-Scoped Tool Authoring](session-tool-authoring.md) — overlay conventions for SessionTools.

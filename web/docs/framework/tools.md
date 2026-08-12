@@ -105,7 +105,7 @@ A concrete tool embeds `BaseTool` and sets only the handlers it needs.
 matching handler. **Any handler left unset is a pass-through** — the Part flows
 to the output channel unchanged. For Blocks, a tool sets one of three
 capability-typed handlers and the view it receives decides what it may write
-(the immutability model — see [the tool-system AD](/contribute/architecture/006-tool-system)):
+(the immutability model — see [the tool-system AD](/contribute/architecture/engine/e-03-tool-system)):
 `Annotate` reads source and target but writes only overlays, annotations, and
 properties; `Produce` writes the target; `Transform` is a read-only edit
 producer — it returns an edit plan, and a framework-owned applier performs the
@@ -124,7 +124,7 @@ func NewCaseTransformTool(cfg *CaseTransformConfig) *tool.BaseTool {
         Cfg:             cfg,
     }
     // Transform producer: returns the case rewrite as an edit plan; the
-    // framework applier rewrites the block (AD-006).
+    // framework applier rewrites the block (E-03).
     t.Transform = func(v tool.BlockView) (tool.EditPlan, error) {
         if !v.Translatable() {
             return tool.EditPlan{}, nil // pass through

@@ -90,7 +90,7 @@ State has two representations, and conflating them is the trap to avoid:
 1. **Source of truth — a committed, diff-friendly serialization.** JSON Lines
    under `.kapi/state/`, one shard per document, committed: mergeable, reviewable
    in a diff, exchangeable to XLIFF (`<target state=…>`, notes, phase and owner —
-   [AD-017](../017-bilingual-format-interop.md)), carried by a `.kpz`
+   [M-01](../multilingual/m-01-bilingual-interop.md)), carried by a `.kpz`
    parcel's bilingual profile. This is what a fresh checkout restores from. The
    on-disk form is schema-versioned (`SchemaVersion`, `Kind =
    "kapi-project-state"`).
@@ -245,7 +245,7 @@ re-exports the core types through aliases so downstream code sees one import.
   working set and the `blesses` edge.
 - [C-09: Content memory](c-09-content-memory.md) — the recycle corpus this store
   is deliberately not.
-- [AD-017: Bilingual Format Interop](../017-bilingual-format-interop.md) —
+- [M-01: Bilingual Format Interop](../multilingual/m-01-bilingual-interop.md) —
   the exchange that carries state across a hand-off.
 - [Convergence](/kapi/convergence) and [the project store](/kapi/project-store) —
   the end-user model derived from this state.

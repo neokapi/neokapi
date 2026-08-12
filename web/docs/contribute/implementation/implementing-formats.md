@@ -1,7 +1,7 @@
 ---
 sidebar_position: 15
 title: Implementing Formats
-description: Implementation note for AD-005 — step-by-step instructions for writing new neokapi format readers and writers, or migrating Okapi Java filters, including terminology mapping from Okapi to neokapi concepts.
+description: Implementation note for E-02 — step-by-step instructions for writing new neokapi format readers and writers, or migrating Okapi Java filters, including terminology mapping from Okapi to neokapi concepts.
 keywords: [implementing formats, format reader, format writer, Okapi migration, DataFormatReader, neokapi]
 ---
 
@@ -9,7 +9,7 @@ keywords: [implementing formats, format reader, format writer, Okapi migration, 
 
 Step-by-step guide for implementing new neokapi format readers/writers or
 migrating existing Okapi filters. Parent AD:
-[AD-005](/contribute/architecture/005-format-system).
+[E-02](/contribute/architecture/engine/e-02-format-system).
 
 :::note Canonical tutorial
 For the end-to-end "add a format" walkthrough, follow
@@ -445,14 +445,14 @@ produces ~101 entries instead of ~10,000.
 | Embedded/subfiltered content                      | Ref (`layer:<path>`) | Child layer                                   |
 
 The last two rows are the **content-fidelity surfacing** convention
-([AD-031](/contribute/architecture/031-content-fidelity-surfacing), default-ON
+([E-02](/contribute/architecture/engine/e-02-format-system), default-ON
 per-format opt-out `extractNonTranslatableContent`): contextual non-translatable
 content is surfaced for LLM/RAG ingestion instead of being buried in skeleton.
 The body still rides a skeleton **Ref** so the round-trip stays byte-exact and
 the writer re-emits it from the (non-translatable) block; MT skips it because
 `Translatable` is false. With the flag off, these rows collapse back to plain
 skeleton `Text` — the configuration parity pins
-([AD-018](/contribute/architecture/018-parity-testing)). See
+([A-02](/contribute/architecture/assurance/a-02-parity)). See
 [Content-Fidelity Surfacing](/contribute/implementation/content-fidelity) for the
 implementation recipe. Translatable prose embedded *inside* an opaque payload
 (e.g. `<m:nor/>` text in a Word equation) uses the **sub-skeleton** pattern

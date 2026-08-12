@@ -97,7 +97,7 @@ than guessed.
 
 A `.kpz` is a deterministic zip bundling a project's **authoritative** content,
 one member per content type — the same content-type set the
-[sync protocol](/contribute/architecture/025-kbf-package) moves over the wire:
+[sync protocol](/contribute/architecture/multilingual/m-06-content-packages) moves over the wire:
 
 ```
 project.kpz
@@ -108,7 +108,7 @@ project.kpz
 ├── terms.json             terminology
 ├── media/<name>           opaque blobs
 │
-│   ── working-state members (AD-025 §5) ──
+│   ── working-state members (M-06 §5) ──
 ├── source/<name>          ingested source document(s)
 ├── overlays.json          in-progress overlays  (targets, annotations, …)
 └── history.jsonl          advisory provenance log (opt-in; excluded from rootHash)
@@ -134,7 +134,7 @@ The same container serves **two profiles**, set by the manifest `kind`:
   `extract` and ingested by `merge` (see [KBF vs XLIFF](/reference/serialization/choosing)).
 
 Both are *parcels*, not workspaces: day-to-day work happens in the ambient `.kapi`
-project ([AD-025](/contribute/architecture/025-kbf-package) §7).
+project ([M-06](/contribute/architecture/multilingual/m-06-content-packages) §7).
 
 Because every member is a native lossless format, the whole package is lossless:
 unpacking can seed a fresh [project store](/kapi/project-store) — content
@@ -232,7 +232,7 @@ a TMS — and the lossy, standards-based subset is what the other side expects.
 
 ## See also
 
-- [AD-025: KBF Family and the .kpz Package](/contribute/architecture/025-kbf-package) — the decision and rationale.
+- [M-06: KBF Family and the .kpz Package](/contribute/architecture/multilingual/m-06-content-packages) — the decision and rationale.
 - [Specification](/reference/serialization/content-bundle) — the KBF block format the family is built around.
 - [KBF vs XLIFF](/reference/serialization/choosing) — the native-vs-interchange split for blocks.
 - Reference implementations: [`memory/kmb`](https://github.com/neokapi/neokapi/tree/main/memory/kmb) (the content-memory bundle), [`terms/ktb`](https://github.com/neokapi/neokapi/tree/main/terms/ktb) (the terms bundle), [`kpz`](https://github.com/neokapi/neokapi/tree/main/kpz) (the package container).
