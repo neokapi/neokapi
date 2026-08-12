@@ -2,12 +2,11 @@
 //
 // Guard: a committed target-locale catalog may not regenerate to nothing.
 //
-// The four stages are a deterministic function of source plus the committed
-// context under `.kapi/`, and the loop trusts that: a same-repo pull request
-// commits the regeneration back rather than failing (scripts/l10n-autofix.sh).
-// So whatever stage 4 writes is what ships, and a stage-3 run that yields no
-// target catalogs at all writes `{}` over every locale — a total erasure that
-// looks exactly like a legitimate regeneration to every downstream check.
+// The target-language tier is the loop's, and everything downstream treats what
+// the loop wrote as the truth: the nightly delivers it, a human commits it,
+// nothing re-derives it. So a convergence that yields no target catalogs at all
+// writes `{}` over every locale — a total erasure that looks exactly like a
+// legitimate regeneration to every downstream check.
 //
 // Partial coverage is not this. A source change that outruns its translations
 // leaves a catalog with fewer entries, and that is the normal drift the loop
@@ -20,9 +19,11 @@
 // branch being regenerated — the same baseline the auto-fix would commit over.
 //
 // Usage:
-//     node scripts/check-catalog-collapse.mjs <lang>... -- <derived path>...
+//     node scripts/check-catalog-collapse.mjs <lang>... -- <loop-owned path>...
 //
-// Run it through `make l10n`, which regenerates first and knows both lists.
+// Run it through `make l10n`, which converges first and knows both lists. It
+// belongs in that walk and nowhere else: only the run that produced the files
+// can tell an empty catalog from an unchanged one.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
@@ -31,10 +32,10 @@ import { basename } from "node:path";
 const argv = process.argv.slice(2);
 const split = argv.indexOf("--");
 const langs = split === -1 ? [] : argv.slice(0, split);
-const derivedPaths = split === -1 ? [] : argv.slice(split + 1);
+const ownedPaths = split === -1 ? [] : argv.slice(split + 1);
 
-if (langs.length === 0 || derivedPaths.length === 0) {
-  console.error("usage: check-catalog-collapse.mjs <lang>... -- <derived path>...");
+if (langs.length === 0 || ownedPaths.length === 0) {
+  console.error("usage: check-catalog-collapse.mjs <lang>... -- <loop-owned path>...");
   process.exit(2);
 }
 
@@ -57,8 +58,8 @@ function countInJSON(raw) {
   try {
     return countStrings(JSON.parse(raw));
   } catch {
-    // A catalog that no longer parses is a different failure, and l10n-verify
-    // reports it as drift. Not this guard's question.
+    // A catalog that no longer parses is a different failure, and the reader
+    // that wrote it reports that. Not this guard's question.
     return null;
   }
 }
@@ -99,7 +100,7 @@ for (const lang of langs) {
     continue;
   }
 
-  const tracked = git(["ls-files", "--", ...derivedPaths])
+  const tracked = git(["ls-files", "--", ...ownedPaths])
     .split("\n")
     .filter((p) => basename(p) === `${lang}.json`);
 
@@ -134,8 +135,8 @@ for (const { path, lang, before, pairs } of collapsed) {
 }
 console.error(
   "\nThis is not translation drift — drift leaves a smaller catalog, not an empty\n" +
-    "one. The reviewed pairs are still committed, so stage 3 produced no target\n" +
-    "catalogs for this locale: check that `kapi run tm-recycle` resolved the project\n" +
+    "one. The reviewed pairs are still committed, so the convergence produced no\n" +
+    "target catalogs for this locale: check that `kapi up` resolved the project\n" +
     "store `.kapi/work/store.db` and the collections kapi.yaml declares.\n",
 );
 process.exit(1);

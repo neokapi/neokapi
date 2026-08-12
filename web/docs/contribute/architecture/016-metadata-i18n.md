@@ -136,7 +136,7 @@ behavior.
 
 ```bash
 go generate ./core/i18n/...               # Go registries → builtins/metadata.json
-kapi run tm-recycle --target-lang nb      # metadata.json → catalogs/nb.json
+kapi up                                   # metadata.json → catalogs/<lang>.json
 kapi pseudo-translate core/i18n/builtins/metadata.json \
     --target-lang qps -f json \
     -o core/i18n/catalogs/qps.json        # the probe locale, same catalog shape

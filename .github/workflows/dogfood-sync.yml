@@ -148,7 +148,11 @@ jobs:
           # every artifact it backs behind, green — the silent half-delivery this
           # whole sequence exists to prevent. The gate above refuses it first;
           # this refuses it again rather than trusting step order to hold.
-          derived="$(make -s l10n-derived-paths)"
+          #
+          # The same target the gate reads: every committed artifact the pipeline
+          # owns, both the loop's target tier and the build tier, so the pull
+          # request carries exactly what the gate classified.
+          derived="$(make -s l10n-owned-paths)"
           if [ -z "${derived//[[:space:]]/}" ]; then
             echo "::error title=Delivery refused::the derived set is empty — refusing to deliver a partial tree"
             exit 1

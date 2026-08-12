@@ -156,12 +156,13 @@ Videos come from the **harness** (`harness/`): authored `demo.yaml` sequences
 driven against real infrastructure, screencast, TTS-narrated, rendered with
 Remotion into light + dark `.webm`. Two things are easy to get wrong:
 
-- **Narration sidecars are generated.** `demo.<lang>.yaml` files come from the
-  dogfood recipe (`make l10n`, drift-gated by `l10n-verify`). Fold fixes into
-  `.kapi/memory/demo-narration-<lang>.memory.json` and regenerate — never edit a
-  sidecar or author inline translations. A sidecar identical to its source is
-  dropped rather than committed, so a demo gets one exactly when its narration
-  has been translated. See [the dogfood loop in
+- **Narration sidecars are loop output.** `demo.<lang>.yaml` files are written by
+  `kapi up` on the dogfood recipe (`make l10n`) — never edited by hand, and never
+  hand-translated inline. A wording fix is a decision: correct it where it is
+  reviewed and let the next convergence materialize it, rather than editing the
+  `.kapi/memory/` bundle the loop reads as an input. A sidecar identical to its
+  source is dropped rather than committed, so a demo gets one exactly when its
+  narration has been translated. See [the dogfood loop in
   CI](docs/internals/l10n-ci.md).
 - **Assets are not in git and not in GitHub releases.** They live only on the
   S3 + CloudFront CDN (`$DOCS_CDN_URL`) and are referenced by URL via

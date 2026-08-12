@@ -260,7 +260,7 @@ collections:
         target: "{dir}/demo.{lang}.yaml"
 flows:
   # Exact-match content-memory leverage only (no AI, no checks): the
-  # deterministic pass behind `make l10n-translate`, run over the whole recipe.
+  # deterministic pass `defaults.flow` binds, run over the whole recipe.
   # Named tm-recycle so it does not shadow the built-in `recycle`/`translate`
   # flows (built-ins win in `kapi run`).
   tm-recycle:

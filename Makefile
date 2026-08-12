@@ -1318,30 +1318,47 @@ i18n-react-build: ## Build @neokapi/i18n-react (runtime + vite plugin + CLI) int
 #
 # The repo dogfoods kapi through the root kapi.yaml recipe, which declares
 # every surface as a content collection with a `target:` template. Bringing all
-# of them up to date is four stages, and only two are make's business:
+# of them up to date is one kapi verb between two build stages:
 #
-#   l10n-extract    source catalogs out of React and Go source   — kapi cannot
-#   l10n-seed       project store from the committed context     — one kapi run
-#   l10n-translate  every declared collection, every locale      — one kapi run
+#   l10n-extract    source strings out of React and Go source    — kapi cannot
+#   l10n-converge   the whole recipe, one `kapi up`              — the loop
 #   l10n-compile    catalogs into shippable runtime dictionaries — kapi cannot
 #
 # The extractors and the catalog compilers stay outside the recipe, because a
 # recipe may not name a subprocess (AD-038: "a recipe is trusted" is the
-# assumption execution trust exists to disprove). Stages 2 and 3
-# are each a single kapi invocation over the whole recipe — there are no
-# per-surface targets, because a per-surface target would be a hand-rolled
-# subset of what the recipe already declares. To iterate on one surface, scope
-# the same command: `kapi run tm-recycle -i <path> --target-lang nb`.
+# assumption execution trust exists to disprove). Everything between them is
+# one `kapi up`: it compiles the committed context under `.kapi/` into the
+# project store itself — keyed by each bundle's content digest, so an unchanged
+# bundle costs a read and a pulled edit recompiles exactly itself — re-extracts
+# the block store from the working tree, runs the recipe's flow over every
+# collection and locale, and writes the targets. There are no per-surface
+# targets, because a per-surface target would be a hand-rolled subset of what
+# the recipe already declares; `kapi up --plan` reports the pending work per
+# (collection, locale) without running anything, and `kapi up --passes 1` is a
+# single pass for a quick iteration.
 #
-# `make l10n` runs all four. `make l10n-verify` runs them and fails if any
-# committed derived artifact moved — that is a generated-vs-source gate, never
-# a translation-coverage one: pending target-language work is normal and must
-# never fail a build (CLAUDE.md, "Target-language drift").
+# `make l10n` runs all three. `make l10n-build` runs the two build stages with no
+# loop between them, and `make l10n-verify` runs that and fails if a
+# BUILD-DERIVED artifact moved — a generated-vs-source gate over the tier that
+# is a function of committed source alone. The target-language tier is the
+# loop's: reported by `make l10n-report`, gated by nothing, because pending
+# target work is normal and must never fail a build (CLAUDE.md, "Target-language
+# drift").
 #
 # The `l10n-*` names are retained spellings on a developer-facing internal
 # surface; the concept is the repo's own multilingual content.
 
 L10N_LANGS := nb
+
+# The convergence stage binds the dogfood project deliberately — it is the one
+# workflow the isolation contract in CLAUDE.md carves out — so it does NOT set
+# KAPI_NO_PROJECT. It does pin the venue: in an install that carries
+# kapi-bowrain, `kapi up` dispatches the loop to the server, and `make l10n`
+# would stop being the local, credential-free pass over the committed context
+# that a developer, a fresh clone and the derived-artifact gate all depend on.
+# Discovering no plugins is what keeps the venue local; the nightly
+# (dogfood-sync.yml) is where the server venue runs, deliberately.
+KAPI_LOOP_ENV := KAPI_PLUGINS_DIR_ONLY=1
 
 KAPI_DESKTOP_FRONTEND := $(KAPI_DESKTOP_DIR)/frontend
 BOWRAIN_APP_DIR       := bowrain/packages/app
@@ -1416,30 +1433,71 @@ L10N_COMPILE_TARGETS := \
 	$(EMAILS_DIR):translations \
 	$(LANDING_DIR):translations
 
-# Every committed artifact the four stages derive. l10n-verify diffs exactly
-# this set; nothing else in the tree is the gate's business. The Go catalog
-# directories are in it for their <lang>.json — the compiled <lang>.mo beside
-# them is gitignored build output, which the gate's untracked check skips
-# because it honours .gitignore.
+# The committed artifacts this pipeline owns, in two tiers told apart by what
+# each is a function of.
 #
-# The sidecar entry is a git glob pathspec, and the two contexts that consume
-# it need opposite quoting. A Make recipe is a /bin/sh command string, where
-# bare parentheses are a syntax error — there the pathspec must be
-# single-quoted (L10N_SIDECAR_SPEC_SH). l10n-derived-paths feeds a script that
-# builds an argv array, where quote characters would reach git literally — it
-# gets the bare form.
-L10N_SIDECAR_SPEC    := :(glob)harness/demos/*/demo.*.yaml
-L10N_SIDECAR_SPEC_SH := ':(glob)harness/demos/*/demo.*.yaml'
+# BUILD-DERIVED (L10N_DERIVED) — committed source alone. The two generated
+# inventories the extract stage writes out of the Go registries and the cobra
+# command tree; the English email renders; and the whole `qps` probe tier, which
+# is a mechanical expansion of the extracted source catalogs and is then
+# compiled like any other locale. Nothing here passes through the project store,
+# so regenerating it must reproduce it byte for byte — l10n-verify says so.
+#
+# LOOP-OWNED (L10N_LOOP_OWNED) — the target-language tier `kapi up` writes out
+# of the project store, which holds the union of what git carries and what a
+# venue pull brought home. A byte gate over it would require a checkout with no
+# server to reproduce wording a reviewer approved on one, and would overwrite
+# that wording the moment it could not. So this tier is reported — coverage and
+# placeholder parity, `make l10n-report` — and gated by nothing except
+# l10n-collapse-check, which asserts existence rather than coverage.
+#
+# The compiled runtime dictionaries split the same way, and by the same rule:
+# `translations/qps.json` is compiled from the pseudo expansion of the source
+# catalogs, `translations/<lang>.json` from what the loop materialized. The qps
+# side keeps every surface's compiler under the byte gate, so a compiler change
+# still surfaces as drift.
+#
+# Two entries are git magic pathspecs, and they are kept OUT of the plain lists
+# because the two contexts that consume them need opposite quoting. A Make
+# recipe is a /bin/sh command string, where bare parentheses are a syntax error
+# — there the pathspec must be single-quoted (the *_SH variants). The
+# path-printing targets feed scripts that build an argv array, where quote
+# characters would reach git literally — they get the bare form. Every consumer
+# therefore appends the spec it needs to the plain list.
+L10N_SIDECAR_SPEC       := :(glob)harness/demos/*/demo.*.yaml
+L10N_SIDECAR_SPEC_SH    := ':(glob)harness/demos/*/demo.*.yaml'
+# `*` in a git glob pathspec does not cross a `/`, so this is the English
+# renders at the top of the directory and none of the per-locale trees below it.
+L10N_MAIL_RENDER_SPEC    := :(glob)bowrain/mailer/templates/*.html
+L10N_MAIL_RENDER_SPEC_SH := ':(glob)bowrain/mailer/templates/*.html'
+
 L10N_DERIVED := \
-	core/i18n/builtins/metadata.json core/i18n/catalogs \
-	host/i18n/commands.json host/i18n/catalogs \
-	$(KAPI_DESKTOP_FRONTEND)/public/translations \
-	bowrain/apps/web/public/translations \
-	bowrain/apps/bowrain/frontend/public/translations \
-	bowrain/apps/ctrl/public/translations \
-	bowrain/apps/pulse/public/translations \
-	$(LANDING_DIR)/translations \
-	bowrain/mailer/templates bowrain/mailer/subjects
+	core/i18n/builtins/metadata.json \
+	host/i18n/commands.json \
+	core/i18n/catalogs/qps.json \
+	bowrain/mailer/subjects/qps.json \
+	$(KAPI_DESKTOP_FRONTEND)/public/translations/qps.json \
+	bowrain/apps/web/public/translations/qps.json \
+	bowrain/apps/bowrain/frontend/public/translations/qps.json \
+	bowrain/apps/ctrl/public/translations/qps.json \
+	bowrain/apps/pulse/public/translations/qps.json \
+	$(LANDING_DIR)/translations/qps.json \
+	bowrain/mailer/templates/qps
+
+# One locale's committed loop output. The Go catalog directories contribute
+# their <lang>.json — the compiled <lang>.mo beside them is gitignored build
+# output, which every untracked scan here skips because it honours .gitignore.
+L10N_LOOP_LOCALE = core/i18n/catalogs/$(1).json host/i18n/catalogs/$(1).json \
+	bowrain/mailer/subjects/$(1).json \
+	$(KAPI_DESKTOP_FRONTEND)/public/translations/$(1).json \
+	bowrain/apps/web/public/translations/$(1).json \
+	bowrain/apps/bowrain/frontend/public/translations/$(1).json \
+	bowrain/apps/ctrl/public/translations/$(1).json \
+	bowrain/apps/pulse/public/translations/$(1).json \
+	$(LANDING_DIR)/translations/$(1).json \
+	bowrain/mailer/templates/$(1)
+
+L10N_LOOP_CATALOGS := $(foreach lang,$(L10N_LANGS),$(call L10N_LOOP_LOCALE,$(lang)))
 
 # Stage 1: extract.
 # The source side only. Deliberately never the target side: a push and a build
@@ -1492,55 +1550,31 @@ l10n-extract-globs: ## Print each extract surface as "<dir><TAB><extract flags>"
 check-extract-fixtures: ## Guard: no test/story file is extracted, and each surface's make and package invocations agree
 	@node scripts/check-extract-fixtures.mjs
 
-# Stage 2: seed.
-# The committed context under .kapi/ is the truth; the project store is its
-# derived projection (AD-039), so a wipe-and-reseed reproduces it exactly.
-# Native .terms.json/.memory.json are used because they are lossless and
-# identity-preserving; TMX/CSV are the lossy interchange tier, emitted on demand
-# by l10n-review-export.
-
-l10n-seed: bin/kapi ## Stage 2: rebuild the project store from the committed .kapi/ context
-	@mkdir -p .kapi/work/cache
-	@# Terms and content memory share the one project store (AD-039), so a
-	@# wipe-and-reseed drops the whole file. That is safe here and only here:
-	@# the dogfood project's unit state lives in the committed .kapi/state/
-	@# shards, which this does not touch.
-	@rm -f .kapi/work/store.db .kapi/work/store.db-wal .kapi/work/store.db-shm
-	./bin/kapi terms import .kapi/terms.json
-	@for f in .kapi/memory/*.memory.json; do \
-		[ -e "$$f" ] || continue; \
-		./bin/kapi memory import "$$f"; \
-	done
-
-l10n-review-export: l10n-seed ## Emit disposable TMX/CSV review views of the native seeds → l10n/review/
+l10n-review-export: bin/kapi ## Emit disposable TMX/CSV review views of the project store → l10n/review/
 	@mkdir -p l10n/review
 	./bin/kapi memory export --format tmx -o l10n/review/tm-all.tmx
 	./bin/kapi terms export --format csv -s en -t nb -o l10n/review/terms-en-nb.csv
-	@echo "Review views written to l10n/review/ (gitignored; the .memory.json/.terms.json context is the source of truth)"
+	@echo "Review views written to l10n/review/ (gitignored, read-only: wording is decided in the ledger, not in an exported view)"
 
-# Stage 3: translate.
-# One kapi run per locale over the WHOLE recipe. With no -i, the flow-run path
-# resolves the project's content patterns and writes each item's output from its
-# own `target:` template, so every collection is covered by construction — add a
-# collection to kapi.yaml and it is translated with no Makefile change.
+# Stage 2: converge.
+# One `kapi up` over the WHOLE recipe. The loop resolves the project's content
+# patterns and writes each item's output from its own `target:` template, so
+# every collection is covered by construction — add a collection to kapi.yaml
+# and it is converged with no Makefile change.
 #
-# tm-recycle is exact-match content-memory leverage and nothing else: no AI, no
-# provider credentials, no network. Output therefore contains only reviewed
-# strings, and the pass is a deterministic function of source + committed
-# context, which is what makes l10n-verify a legitimate byte gate.
+# The recipe binds `flow: tm-recycle` — exact-match content-memory leverage and
+# nothing else: no AI, no provider credentials, no network. So this stage is the
+# committed context plus whatever the store already learned, and a fresh clone
+# converges from git alone. AI convergence is the server venue's (the nightly),
+# or a deliberate local `kapi run translate-ai`.
 #
-# The qps pseudo-locale is a separate, isolated pass: it is a runtime-correctness
-# probe (does the UI survive expanded, marked-up text?), not project content, so
-# it is not a target language in the recipe and does not bind the project.
+# The store is never wiped. `up` compiles the committed sources by content
+# digest, so an unchanged bundle costs a read; and wording a venue pull brought
+# home lives in the store beside what git carries. A wipe would delete exactly
+# the half git does not hold.
 
-l10n-translate: l10n-extract l10n-seed ## Stage 3: every declared collection, every locale (one kapi run per locale)
-	@# The per-locale intermediate catalogs are wholly derived by this stage.
-	@# Recycle fills blanks rather than overwriting, so a stale intermediate
-	@# from an earlier run would shadow a fresh recycle — wipe first.
-	@for lang in $(L10N_LANGS); do \
-		find . -type d -name "i18n-$$lang" -not -path "./.claude/*" -not -path "*/node_modules/*" -exec rm -rf {} + 2>/dev/null; \
-		./bin/kapi run tm-recycle --target-lang $$lang -q || exit 1; \
-	done
+l10n-converge: l10n-extract bin/kapi ## Stage 2: the whole recipe, one `kapi up`
+	$(KAPI_LOOP_ENV) ./bin/kapi up
 	@# A narration sidecar byte-identical to its source carries nothing — the
 	@# harness already falls back to English. Dropping it keeps the committed
 	@# set equal to the demos that actually have reviewed narration, with no
@@ -1549,7 +1583,12 @@ l10n-translate: l10n-extract l10n-seed ## Stage 3: every declared collection, ev
 		[ -e "$$f" ] || continue; \
 		if cmp -s "$$f" "$${f%/*}/demo.yaml"; then rm -f "$$f"; fi; \
 	done
-	@$(MAKE) --no-print-directory l10n-pseudo
+
+# The qps pseudo-locale is a separate, isolated pass: it is a runtime-correctness
+# probe (does the UI survive expanded, marked-up text?), not project content, so
+# it is not a target language in the recipe and does not bind the project. It
+# expands the extracted source catalogs mechanically, which is why its output is
+# byte-gated where the loop's is not.
 
 l10n-pseudo: bin/kapi ## Pseudo-translate every surface into the qps probe locale
 	@for dir in $(L10N_KBF_DIRS); do \
@@ -1558,7 +1597,7 @@ l10n-pseudo: bin/kapi ## Pseudo-translate every surface into the qps probe local
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate core/i18n/builtins/metadata.json --target-lang qps -f json -o core/i18n/catalogs/qps.json -q
 	$(KAPI_ISO_ENV) ./bin/kapi pseudo-translate bowrain/mailer/subjects/en.json --target-lang qps -f json -o bowrain/mailer/subjects/qps.json -q
 
-# Stage 4: compile.
+# Stage 3: compile.
 # A catalog is not what a product loads. The SPAs and the landing page load
 # compiled runtime dictionaries and the transactional emails are rendered to
 # per-locale HTML the server embeds — neokapi-i18n's job; the Go binaries load
@@ -1566,81 +1605,148 @@ l10n-pseudo: bin/kapi ## Pseudo-translate every surface into the qps probe local
 # target's job. Both read a catalog this pipeline wrote and neither is the
 # catalog itself.
 
-l10n-compile: l10n-translate i18n-react-build ## Stage 4: catalogs → runtime dictionaries, embedded MO, rendered email templates
+# Which target locales this stage compiles. `make l10n` compiles what the loop
+# has just materialized; `make l10n-build` compiles none, because a walk that
+# regenerates the build tier must not rewrite an artifact the loop owns — a
+# developer's tree still carries the previous run's `i18n-<lang>/`, and
+# compiling from it would put loop output in the diff of a gate that has nothing
+# to say about it.
+L10N_COMPILE_LANGS ?= $(L10N_LANGS)
+
+# Each locale is compiled where its catalogs are on disk, and skipped where they
+# are not: a fresh checkout has no target-locale catalogs at all, and the probe
+# exists only after l10n-pseudo has run.
+l10n-compile: i18n-react-build ## Stage 3: catalogs → runtime dictionaries, embedded MO, rendered email templates
 	@for spec in $(L10N_COMPILE_TARGETS); do \
 		dir=$${spec%%:*}; out=$${spec#*:}; \
-		(cd $$dir && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out $$out) || exit 1; \
-		for lang in $(L10N_LANGS); do \
-			(cd $$dir && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out $$out --locale $$lang) || exit 1; \
+		if [ -d "$$dir/i18n-qps" ]; then \
+			(cd $$dir && $(NEOKAPI_I18N_CLI) compile i18n-qps/ --out $$out) || exit 1; \
+		fi; \
+		for lang in $(L10N_COMPILE_LANGS); do \
+			if [ -d "$$dir/i18n-$$lang" ]; then \
+				(cd $$dir && $(NEOKAPI_I18N_CLI) compile i18n-$$lang/ --out $$out --locale $$lang) || exit 1; \
+			fi; \
 		done; \
 	done
 	cd $(EMAILS_DIR) && vp run build
 	@# Recursive rather than a prerequisite: the Go catalogs must compile from
-	@# the JSON stage 3 has just written, and a sibling prerequisite carries no
-	@# ordering under `make -j`.
+	@# the JSON on disk now, and a sibling prerequisite carries no ordering
+	@# under `make -j`.
 	@$(MAKE) --no-print-directory i18n-catalogs
 
 landing-build-nb:## Build the nb landing variant → bowrain/web/landing/dist/nb (inline mode from the committed catalogs)
 	cd $(LANDING_DIR) && vp run build:nb
 
-# The whole loop, and its one gate.
+# The two walks, the gate, and the reports.
 
-# The stages chain through their prerequisites (compile → translate → extract),
-# so this is one ordered walk even under `make -j`.
+# The stages are recursive submake calls rather than a prerequisite chain,
+# because the order is the point and a prerequisite carries none under
+# `make -j`.
 #
 # The collapse guard closes the loop on itself. Everything downstream treats
-# whatever stage 4 wrote as the truth — the auto-fix commits it, l10n-verify
-# compares against it — so a stage-3 run that produced no target catalogs
-# writes `{}` everywhere and every check agrees. Asserting it here, in the walk
-# that produced the files, is the one place that can tell the difference.
-l10n: l10n-compile ## Bring every multilingual surface up to date (all four stages)
+# what the walk wrote as the truth — the nightly delivers it, a human commits it
+# — so a convergence that produced no target catalogs at all writes `{}`
+# everywhere and every check agrees. Asserting it here, in the walk that
+# produced the files, is the one place that can tell the difference.
+l10n: l10n-converge ## Bring every multilingual surface up to date (extract → kapi up → compile)
+	@$(MAKE) --no-print-directory l10n-pseudo
+	@$(MAKE) --no-print-directory l10n-compile
 	@$(MAKE) --no-print-directory l10n-collapse-check
+
+# The build tier on its own — no loop, so it cannot rewrite a target-language
+# artifact. This is what l10n-verify regenerates and what the l10n workflow
+# rebuilds on a pull request: extraction, the qps probe, and the compilations
+# that read neither the project store nor a target locale's catalogs.
+l10n-build: l10n-extract ## Regenerate the build-derived tier only (no convergence)
+	@$(MAKE) --no-print-directory l10n-pseudo
+	@$(MAKE) --no-print-directory l10n-compile L10N_COMPILE_LANGS=
 
 # Not a coverage bar: a catalog with fewer entries than yesterday passes. Only a
 # catalog that carried entries at HEAD and regenerated to none fails, and only
-# while the committed content memory still holds pairs for its locale.
+# while the committed content memory still holds pairs for its locale. It reads
+# the loop-owned set, because that is where a target-locale catalog is.
 l10n-collapse-check: ## Guard: no committed target-locale catalog regenerated to empty
-	@node scripts/check-catalog-collapse.mjs $(L10N_LANGS) -- $(L10N_DERIVED)
+	@node scripts/check-catalog-collapse.mjs $(L10N_LANGS) -- $(L10N_LOOP_CATALOGS)
 
-# The only l10n gate. It asserts generated-vs-source consistency: the committed
-# derived artifacts must be exactly what the current source + committed context
-# produce. It says nothing about translation coverage, and must not — an English
-# change that leaves nb behind is pending work, not a build break.
+# Three path sets, one definition each, so no consumer re-derives a list.
 #
-# A new untracked file under the derived paths counts as drift too: `git diff`
-# alone would miss a catalog for a locale or a surface that did not exist before.
-l10n-derived-paths: ## Print the git pathspecs l10n-verify owns (one source of truth for CI)
-	@echo "$(L10N_DERIVED) $(L10N_SIDECAR_SPEC)"
+#   l10n-derived-paths     the byte gate — l10n-verify and scripts/l10n-autofix.sh.
+#                          Source-deterministic artifacts only.
+#   l10n-loop-owned-paths  the target tier on its own: the answer to "what may
+#                          this run change with no source change behind it",
+#                          which is what a reviewer reading a convergence diff
+#                          needs and what the gate below classifies as derived.
+#   l10n-owned-paths       both — scripts/check-sync-backed.sh (which classifies
+#                          a convergence run's tree) and the nightly's delivery
+#                          step. A convergence run may legitimately leave either
+#                          tier behind; anything else it touched is foreign.
 
-l10n-verify: l10n ## CI gate: every committed derived artifact regenerates byte-identically
-	@# The sidecar glob may match zero tracked files (the drop rule removes
-	@# byte-identical sidecars); git treats an unmatched pathspec as fatal,
-	@# so diff only what exists.
-	@tracked="$$(git ls-files -- $(L10N_DERIVED) $(L10N_SIDECAR_SPEC_SH))"; \
+l10n-derived-paths: ## Print the git pathspecs l10n-verify byte-gates
+	@echo "$(L10N_DERIVED) $(L10N_MAIL_RENDER_SPEC)"
+
+l10n-loop-owned-paths: ## Print the git pathspecs the loop owns (target tier, never byte-gated)
+	@echo "$(L10N_LOOP_CATALOGS) $(L10N_SIDECAR_SPEC)"
+
+l10n-owned-paths: ## Print every committed artifact this pipeline owns (both tiers)
+	@echo "$(L10N_DERIVED) $(L10N_MAIL_RENDER_SPEC) $(L10N_LOOP_CATALOGS) $(L10N_SIDECAR_SPEC)"
+
+# The byte gate. It asserts generated-vs-source consistency over the tier that is
+# a function of committed source alone: the generated inventories, the English
+# email renders, and the qps probe. It says nothing about translation coverage,
+# and cannot — the target tier is not in its set.
+#
+# A new untracked file under the gated paths counts as drift too: `git diff`
+# alone would miss an artifact for a surface that did not exist before.
+l10n-verify: l10n-build ## CI gate: every build-derived artifact regenerates byte-identically
+	@# A magic pathspec may match zero tracked files; git treats an unmatched
+	@# pathspec as fatal, so diff only what exists.
+	@tracked="$$(git ls-files -- $(L10N_DERIVED) $(L10N_MAIL_RENDER_SPEC_SH))"; \
 	if [ -n "$$tracked" ]; then git diff --exit-code -- $$tracked; fi
-	@untracked="$$(git ls-files --others --exclude-standard -- $(L10N_DERIVED) $(L10N_SIDECAR_SPEC_SH))"; \
+	@untracked="$$(git ls-files --others --exclude-standard -- $(L10N_DERIVED) $(L10N_MAIL_RENDER_SPEC_SH))"; \
 	if [ -n "$$untracked" ]; then \
 		echo "l10n-verify: regeneration produced untracked files (commit them):"; \
 		echo "$$untracked" | sed 's/^/  /'; \
 		exit 1; \
 	fi
-	@echo "l10n-verify: every committed derived artifact matches its source"
+	@echo "l10n-verify: every build-derived artifact matches its source"
 
-# Everything the translate stage materializes for one locale — the corpus the
-# orphan report asks "did this seed entry produce anything?" against. Not the
-# same set as L10N_DERIVED: that one names what is *committed*, and the docs
-# pages and per-surface catalogs here are generated build artifacts on purpose.
+# What replaced the byte gate on the target tier: coverage and placeholder
+# parity per locale, reported and never gated. Coverage below a bar is pending
+# work; a placeholder mismatch is a defect a human reads, not a build break the
+# next source edit inherits.
+#
+# <target artifact>:<the document it is measured against>. The reference is the
+# qps probe where a surface has one — it expands every source string and keeps
+# its placeholders — and the source document otherwise.
+L10N_REPORT_PAIRS = \
+	core/i18n/catalogs/$(1).json:core/i18n/builtins/metadata.json \
+	host/i18n/catalogs/$(1).json:host/i18n/commands.json \
+	bowrain/mailer/subjects/$(1).json:bowrain/mailer/subjects/en.json \
+	$(KAPI_DESKTOP_FRONTEND)/public/translations/$(1).json:$(KAPI_DESKTOP_FRONTEND)/public/translations/qps.json \
+	bowrain/apps/web/public/translations/$(1).json:bowrain/apps/web/public/translations/qps.json \
+	bowrain/apps/bowrain/frontend/public/translations/$(1).json:bowrain/apps/bowrain/frontend/public/translations/qps.json \
+	bowrain/apps/ctrl/public/translations/$(1).json:bowrain/apps/ctrl/public/translations/qps.json \
+	bowrain/apps/pulse/public/translations/$(1).json:bowrain/apps/pulse/public/translations/qps.json \
+	$(LANDING_DIR)/translations/$(1).json:$(LANDING_DIR)/translations/qps.json
+
+l10n-report: ## Report per-locale coverage and placeholder parity over the loop-owned tier (never gates)
+	@$(foreach lang,$(L10N_LANGS),node scripts/l10n-loop-report.mjs $(lang) $(call L10N_REPORT_PAIRS,$(lang));)
+
+# Everything the loop materializes for one locale — the corpus the orphan report
+# asks "did this seed entry produce anything?" against. Not the same set as
+# L10N_LOOP_CATALOGS: that one names what is *committed*, and the docs pages and
+# per-surface catalogs here are generated build artifacts on purpose.
 L10N_TARGETS = $(foreach d,$(L10N_KBF_DIRS),$(d)/i18n-$(1)) \
 	core/i18n/catalogs/$(1).json host/i18n/catalogs/$(1).json \
 	bowrain/mailer/subjects/$(1).json bowrain/mailer/templates/$(1) \
 	web/i18n/$(1) bowrain/web/docs/i18n/$(1) \
 	$(wildcard harness/demos/*/demo.$(1).yaml)
 
-# Standing, never gating — the committed seeds are human-owned source, and an
+# Standing, never gating — the committed seeds are read-only accelerants, and an
 # entry whose source string is gone is kept rather than deleted. Content memory
 # matches on text, though, so a kept entry is wording any surface can pick up
 # again; the point of the report is that a reviewer sees which ones those are.
-l10n-orphans: l10n l10n-orphans-report ## Run the four stages, then report seed entries that produced nothing
+l10n-orphans: l10n l10n-orphans-report ## Run the loop, then report seed entries that produced nothing
 
 # The report over already-materialized targets. Split out because CI has just
 # run the stages and re-running them to read their output would double the job.
@@ -2420,9 +2526,10 @@ help: ## Show this help
         check-kapi-desktop-bindings check-bowrain-desktop-bindings wails3-cli \
         bowrain-app-extract bowrain-ctrl-extract bowrain-pulse-extract \
         kapi-i18n-generate kapi-cli-i18n-generate i18n-react-build i18n-catalogs \
-        l10n l10n-extract l10n-seed l10n-translate l10n-pseudo l10n-compile \
-        l10n-verify l10n-derived-paths l10n-extract-globs l10n-review-export \
-        l10n-collapse-check \
+        l10n l10n-build l10n-extract l10n-converge l10n-pseudo l10n-compile \
+        l10n-verify l10n-derived-paths l10n-loop-owned-paths l10n-owned-paths \
+        l10n-extract-globs l10n-review-export \
+        l10n-collapse-check l10n-report \
         l10n-orphans l10n-orphans-report \
         check-extract-fixtures \
         flow-editor-deps flow-editor-check flow-editor-test \
