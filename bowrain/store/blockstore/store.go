@@ -324,9 +324,9 @@ func (s *session) GetOverlay(kind, blockHash string) (blockstore.Overlay, error)
 	case tableTranslations:
 		return s.getTranslation(kind, blockHash)
 	case tableAnnotations:
-		return s.getExtOrAnnotation(kind, blockHash, "annotations")
+		return s.getAnnotation(kind, blockHash)
 	default:
-		return s.getExtOrAnnotation(kind, blockHash, "overlays_ext")
+		return s.getExt(kind, blockHash)
 	}
 }
 
@@ -349,9 +349,9 @@ func (s *session) PutOverlay(o blockstore.Overlay) error {
 	case tableTranslations:
 		return s.putTranslation(o.Kind, o.BlockHash, payload, updatedAt)
 	case tableAnnotations:
-		return s.putExtOrAnnotation("annotations", o.Kind, o.BlockHash, payload, updatedAt)
+		return s.putAnnotation(o.Kind, o.BlockHash, payload, updatedAt)
 	default:
-		return s.putExtOrAnnotation("overlays_ext", o.Kind, o.BlockHash, payload, updatedAt)
+		return s.putExt(o.Kind, o.BlockHash, payload, updatedAt)
 	}
 }
 
@@ -365,22 +365,30 @@ func (s *session) ListOverlays(kind string) iter.Seq2[blockstore.Overlay, error]
 		case tableTranslations:
 			s.listTranslations(kind, yield)
 		case tableAnnotations:
-			s.listExtOrAnnotation(kind, "annotations", yield)
+			s.listAnnotations(kind, yield)
 		default:
-			s.listExtOrAnnotation(kind, "overlays_ext", yield)
+			s.listExt(kind, yield)
 		}
 	}
 }
 
 // ─── table dispatchers ──────────────────────────────────────────
 //
-// Only the target dispatcher resolves the caller's key onto the block row it
-// belongs to (see blockkey.go). The annotations and plugin tables file their
-// rows under the key as given, which is a narrower contract than the target's:
-// their rows are written and read through this adapter alone, and an annotation
-// the block round-trip writes carries a different kind spelling and payload
-// envelope, so a shared key without a shared envelope would hand the block
-// hydrator a record it cannot decode. Tracked in #1888.
+// Every dispatcher resolves the caller's key onto the block row it belongs to
+// (see blockkey.go), so all three tables address a block the one way the rest
+// of the store does. Block and item deletion clear overlays by `blocks.id`; a
+// row filed under anything else outlives the block it describes.
+//
+// A `targets/<locale>` and an `annotations/<name>` overlay are further shared
+// with the block round-trip, so each goes through bowrain/store's own writer and
+// reader: one key, one spelling of the kind, one payload envelope, whichever
+// door the write came through.
+//
+// The plugin catchall is the one place a caller's own vocabulary survives
+// intact. Its kind is opaque — it names no block field and no annotation key —
+// and its payload is the tool's bytes verbatim, because nothing but this adapter
+// reads `overlays_ext`. That is a deliberate narrowing, not the divergence
+// above: the row is still filed under the block's id, so it dies with its block.
 
 func (s *session) getTranslation(kind, blockHash string) (blockstore.Overlay, error) {
 	_, locale := splitKindOnce(kind)
@@ -458,13 +466,9 @@ func (s *session) listTranslations(kind string, yield func(blockstore.Overlay, e
 			yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: encode translation payload: %w", err))
 			return
 		}
-		key := keys[st.BlockID]
-		if key == "" {
-			key = st.BlockID
-		}
 		if !yield(blockstore.Overlay{
 			Kind:      kind,
-			BlockHash: key,
+			BlockHash: blockKeyOr(keys, st.BlockID),
 			Payload:   payload,
 			UpdatedAt: st.UpdatedAt,
 		}, nil) {
@@ -473,19 +477,109 @@ func (s *session) listTranslations(kind string, yield func(blockstore.Overlay, e
 	}
 }
 
-func (s *session) getExtOrAnnotation(kind, blockHash, table string) (blockstore.Overlay, error) {
+func (s *session) getAnnotation(kind, blockHash string) (blockstore.Overlay, error) {
+	key, err := annotationKey(kind)
+	if err != nil {
+		return blockstore.Overlay{}, err
+	}
+	rowID, err := s.resolveBlockRow(blockHash)
+	if err != nil {
+		return blockstore.Overlay{}, err
+	}
+	stored, err := corestore.LoadBlockAnnotation(s.ctx, s.opts.DB, s.dialect(),
+		s.opts.ProjectID, s.opts.Stream, rowID, key)
+	if err != nil {
+		return blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: get annotation: %w", err)
+	}
+	if stored == nil {
+		return blockstore.Overlay{}, blockstore.ErrNotFound
+	}
+	payload, err := encodeAnnotationPayload(stored.Value)
+	if err != nil {
+		return blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: encode annotation payload: %w", err)
+	}
+	return blockstore.Overlay{
+		Kind:      kind,
+		BlockHash: blockHash,
+		Payload:   payload,
+		UpdatedAt: stored.UpdatedAt,
+	}, nil
+}
+
+func (s *session) putAnnotation(kind, blockHash string, payload []byte, updatedAt time.Time) error {
+	key, err := annotationKey(kind)
+	if err != nil {
+		return err
+	}
+	rowID, err := s.resolveBlockRow(blockHash)
+	if err != nil {
+		return err
+	}
+	if err := corestore.UpsertBlockAnnotation(s.ctx, s.opts.DB, s.dialect(),
+		s.opts.ProjectID, s.opts.Stream, rowID, key, model.DecodePayload(key, payload), updatedAt); err != nil {
+		return fmt.Errorf("bowrain/blockstore: put annotation: %w", err)
+	}
+	return nil
+}
+
+func (s *session) listAnnotations(kind string, yield func(blockstore.Overlay, error) bool) {
+	key, err := annotationKey(kind)
+	if err != nil {
+		yield(blockstore.Overlay{}, err)
+		return
+	}
+	stored, err := corestore.LoadAnnotationsByKey(s.ctx, s.opts.DB, s.dialect(),
+		s.opts.ProjectID, s.opts.Stream, key)
+	if err != nil {
+		yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: list annotations: %w", err))
+		return
+	}
+	if len(stored) == 0 {
+		return
+	}
+	rowIDs := make([]string, 0, len(stored))
+	for _, sa := range stored {
+		rowIDs = append(rowIDs, sa.BlockID)
+	}
+	keys, err := s.blockKeysByRow(rowIDs)
+	if err != nil {
+		yield(blockstore.Overlay{}, err)
+		return
+	}
+	for _, sa := range stored {
+		payload, err := encodeAnnotationPayload(sa.Value)
+		if err != nil {
+			yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: encode annotation payload: %w", err))
+			return
+		}
+		if !yield(blockstore.Overlay{
+			Kind:      kind,
+			BlockHash: blockKeyOr(keys, sa.BlockID),
+			Payload:   payload,
+			UpdatedAt: sa.UpdatedAt,
+		}, nil) {
+			return
+		}
+	}
+}
+
+func (s *session) getExt(kind, blockHash string) (blockstore.Overlay, error) {
+	rowID, err := s.resolveBlockRow(blockHash)
+	if err != nil {
+		return blockstore.Overlay{}, err
+	}
 	var (
 		payload      []byte
 		updatedAtStr string
 	)
-	row := s.opts.DB.QueryRowContext(s.ctx, s.sqlSelectExtOrAnnotation(table),
-		s.opts.ProjectID, s.opts.Stream, blockHash, kind,
+	row := s.opts.DB.QueryRowContext(s.ctx, s.sqlSelectExt(),
+		s.opts.ProjectID, s.opts.Stream, rowID, kind,
 	)
 	if err := row.Scan(&payload, &updatedAtStr); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return blockstore.Overlay{}, blockstore.ErrNotFound
 		}
-		return blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: get %s: %w", table, err)
+		return blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: get overlays_ext: %w", err)
 	}
 	return blockstore.Overlay{
 		Kind:      kind,
@@ -495,25 +589,33 @@ func (s *session) getExtOrAnnotation(kind, blockHash, table string) (blockstore.
 	}, nil
 }
 
-func (s *session) putExtOrAnnotation(table, kind, blockHash string, payload []byte, updatedAt time.Time) error {
-	_, err := s.opts.DB.ExecContext(s.ctx, s.sqlUpsertExtOrAnnotation(table),
-		s.opts.ProjectID, s.opts.Stream, blockHash, kind, payload, updatedAt,
-	)
+func (s *session) putExt(kind, blockHash string, payload []byte, updatedAt time.Time) error {
+	rowID, err := s.resolveBlockRow(blockHash)
 	if err != nil {
-		return fmt.Errorf("bowrain/blockstore: put %s: %w", table, err)
+		return err
+	}
+	if _, err := s.opts.DB.ExecContext(s.ctx, s.sqlUpsertExt(),
+		s.opts.ProjectID, s.opts.Stream, rowID, kind, payload, updatedAt,
+	); err != nil {
+		return fmt.Errorf("bowrain/blockstore: put overlays_ext: %w", err)
 	}
 	return nil
 }
 
-func (s *session) listExtOrAnnotation(kind, table string, yield func(blockstore.Overlay, error) bool) {
-	rows, err := s.opts.DB.QueryContext(s.ctx, s.sqlListExtOrAnnotation(table),
+func (s *session) listExt(kind string, yield func(blockstore.Overlay, error) bool) {
+	rows, err := s.opts.DB.QueryContext(s.ctx, s.sqlListExt(),
 		s.opts.ProjectID, s.opts.Stream, kind,
 	)
 	if err != nil {
-		yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: list %s: %w", table, err))
+		yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: list overlays_ext: %w", err))
 		return
 	}
-	defer rows.Close()
+	type row struct {
+		blockID   string
+		payload   []byte
+		updatedAt int64
+	}
+	var collected []row
 	for rows.Next() {
 		var (
 			blockID      string
@@ -521,20 +623,38 @@ func (s *session) listExtOrAnnotation(kind, table string, yield func(blockstore.
 			updatedAtStr string
 		)
 		if err := rows.Scan(&blockID, &payload, &updatedAtStr); err != nil {
-			yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: list %s scan: %w", table, err))
+			rows.Close()
+			yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: list overlays_ext scan: %w", err))
 			return
 		}
+		collected = append(collected, row{blockID, payload, corestore.ParseOverlayTimestamp(updatedAtStr)})
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: list overlays_ext rows: %w", err))
+		return
+	}
+	if len(collected) == 0 {
+		return
+	}
+	rowIDs := make([]string, 0, len(collected))
+	for _, r := range collected {
+		rowIDs = append(rowIDs, r.blockID)
+	}
+	keys, err := s.blockKeysByRow(rowIDs)
+	if err != nil {
+		yield(blockstore.Overlay{}, err)
+		return
+	}
+	for _, r := range collected {
 		if !yield(blockstore.Overlay{
 			Kind:      kind,
-			BlockHash: blockID,
-			Payload:   payload,
-			UpdatedAt: corestore.ParseOverlayTimestamp(updatedAtStr),
+			BlockHash: blockKeyOr(keys, r.blockID),
+			Payload:   r.payload,
+			UpdatedAt: r.updatedAt,
 		}, nil) {
 			return
 		}
-	}
-	if err := rows.Err(); err != nil {
-		yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: list %s rows: %w", table, err))
 	}
 }
 
@@ -555,41 +675,42 @@ func (s *session) Close() error {
 
 // ─── SQL helpers ────────────────────────────────────────────────
 
-// Annotations + overlays_ext share a SQL shape — one set of helpers
-// with the table name interpolated keeps them in lockstep.
+// The plugin catchall is the only table this adapter still writes directly:
+// targets and annotations go through bowrain/store's own statements, so the
+// block round-trip and this adapter cannot spell a row two ways.
 
-func (s *session) sqlSelectExtOrAnnotation(table string) string {
+func (s *session) sqlSelectExt() string {
 	switch s.opts.Dialect {
 	case SQLiteDialect:
-		return `SELECT payload, updated_at FROM ` + table + `
+		return `SELECT payload, updated_at FROM overlays_ext
 			WHERE project_id = ? AND stream = ? AND block_id = ? AND kind = ?`
 	default:
-		return `SELECT payload, updated_at FROM ` + table + `
+		return `SELECT payload, updated_at FROM overlays_ext
 			WHERE project_id = $1 AND stream = $2 AND block_id = $3 AND kind = $4`
 	}
 }
 
-func (s *session) sqlListExtOrAnnotation(table string) string {
+func (s *session) sqlListExt() string {
 	switch s.opts.Dialect {
 	case SQLiteDialect:
-		return `SELECT block_id, payload, updated_at FROM ` + table + `
+		return `SELECT block_id, payload, updated_at FROM overlays_ext
 			WHERE project_id = ? AND stream = ? AND kind = ? ORDER BY block_id`
 	default:
-		return `SELECT block_id, payload, updated_at FROM ` + table + `
+		return `SELECT block_id, payload, updated_at FROM overlays_ext
 			WHERE project_id = $1 AND stream = $2 AND kind = $3 ORDER BY block_id`
 	}
 }
 
-func (s *session) sqlUpsertExtOrAnnotation(table string) string {
+func (s *session) sqlUpsertExt() string {
 	switch s.opts.Dialect {
 	case SQLiteDialect:
-		return `INSERT INTO ` + table + ` (project_id, stream, block_id, kind, payload, updated_at)
+		return `INSERT INTO overlays_ext (project_id, stream, block_id, kind, payload, updated_at)
 			VALUES (?, ?, ?, ?, ?, ?)
 			ON CONFLICT(project_id, stream, block_id, kind) DO UPDATE SET
 				payload = excluded.payload,
 				updated_at = excluded.updated_at`
 	default:
-		return `INSERT INTO ` + table + ` (project_id, stream, block_id, kind, payload, updated_at)
+		return `INSERT INTO overlays_ext (project_id, stream, block_id, kind, payload, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6)
 			ON CONFLICT (project_id, stream, block_id, kind) DO UPDATE SET
 				payload = EXCLUDED.payload,

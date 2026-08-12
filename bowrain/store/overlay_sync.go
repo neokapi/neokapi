@@ -48,16 +48,48 @@ func SyncBlockOverlays(
 		}
 	}
 
-	for kind, ann := range annotations {
-		body, err := serializeSingleAnnotation(ann)
-		if err != nil {
-			return fmt.Errorf("marshal annotation block=%s kind=%s: %w", blockID, kind, err)
+	for key, ann := range annotations {
+		if err := UpsertBlockAnnotation(ctx, ex, dialect, projectID, stream, blockID, key, ann, now); err != nil {
+			return err
 		}
-		if _, err := ex.ExecContext(ctx, sqlUpsertAnnotation(dialect),
-			projectID, stream, blockID, kind, body, now,
-		); err != nil {
-			return fmt.Errorf("upsert annotation block=%s kind=%s: %w", blockID, kind, err)
-		}
+	}
+	return nil
+}
+
+// UpsertBlockAnnotation writes one (block, key) annotation row. It is the ONLY
+// writer of the annotations table, because all three of a row's coordinates are
+// read back by the block hydrator and a writer that spells any one of them
+// differently files a row nothing joins to:
+//
+//   - block_id is the block's own `blocks.id` — what LoadBlockOverlays queries
+//     by, and what block and item deletion clear.
+//   - kind is the bare annotation key ("note", "quality.findings"), which is
+//     what Block.SetAnno is handed on the way back.
+//   - payload is the type-discriminated envelope {"type":…,"data":…}, which is
+//     what model.DecodePayload reads.
+//
+// A caller holding bytes rather than a typed payload gets its type through
+// model.DecodePayload first, so the envelope is written by one function and read
+// by one function.
+func UpsertBlockAnnotation(
+	ctx context.Context,
+	ex Execer,
+	dialect string,
+	projectID, stream, blockID, key string,
+	ann model.Payload,
+	now time.Time,
+) error {
+	if key == "" {
+		return fmt.Errorf("upsert annotation block=%s: empty key", blockID)
+	}
+	body, err := serializeSingleAnnotation(ann)
+	if err != nil {
+		return fmt.Errorf("marshal annotation block=%s key=%s: %w", blockID, key, err)
+	}
+	if _, err := ex.ExecContext(ctx, sqlUpsertAnnotation(dialect),
+		projectID, stream, blockID, key, body, now,
+	); err != nil {
+		return fmt.Errorf("upsert annotation block=%s key=%s: %w", blockID, key, err)
 	}
 	return nil
 }
@@ -310,6 +342,86 @@ func scanStoredTarget(rows *sql.Rows, blockID string) (*StoredTarget, error) {
 	return st, nil
 }
 
+// StoredAnnotation is one annotations row as the store holds it: the block it
+// is filed under, the annotation key it is filed as, and the payload decoded
+// through model.DecodePayload.
+type StoredAnnotation struct {
+	// BlockID is the row's block key — the store's own `blocks.id`.
+	BlockID string
+	// Key is the row's kind column: the bare annotation key.
+	Key string
+	// Value is the row's payload, rehydrated. Never nil on a loaded row.
+	Value model.Payload
+	// UpdatedAt is the row's write time in Unix seconds.
+	UpdatedAt int64
+}
+
+// LoadBlockAnnotation reads one (block, key) annotation row, or (nil, nil) when
+// the block carries no annotation under that key.
+func LoadBlockAnnotation(
+	ctx context.Context,
+	db Querier,
+	dialect string,
+	projectID, stream, blockID, key string,
+) (*StoredAnnotation, error) {
+	rows, err := db.QueryContext(ctx, sqlSelectAnnotationRow(dialect), projectID, stream, blockID, key)
+	if err != nil {
+		return nil, fmt.Errorf("load annotation block=%s key=%s: %w", blockID, key, err)
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("load annotation block=%s key=%s: %w", blockID, key, err)
+		}
+		return nil, nil
+	}
+	sa, err := scanStoredAnnotation(rows)
+	if err != nil {
+		return nil, err
+	}
+	return sa, rows.Err()
+}
+
+// LoadAnnotationsByKey reads every annotation row filed under one key in a
+// project stream, ordered by block id so one corpus answers one query the same
+// way twice.
+func LoadAnnotationsByKey(
+	ctx context.Context,
+	db Querier,
+	dialect string,
+	projectID, stream, key string,
+) ([]StoredAnnotation, error) {
+	rows, err := db.QueryContext(ctx, sqlListAnnotationRowsByKey(dialect), projectID, stream, key)
+	if err != nil {
+		return nil, fmt.Errorf("list annotations key=%s: %w", key, err)
+	}
+	defer rows.Close()
+	var out []StoredAnnotation
+	for rows.Next() {
+		sa, err := scanStoredAnnotation(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *sa)
+	}
+	return out, rows.Err()
+}
+
+// scanStoredAnnotation reads one (block_id, kind, payload, updated_at) row and
+// decodes the payload the way LoadBlockOverlays does, so a single-annotation
+// read and block hydration cannot disagree about what a row holds.
+func scanStoredAnnotation(rows *sql.Rows) (*StoredAnnotation, error) {
+	var bid, key, payload, updatedAt string
+	if err := rows.Scan(&bid, &key, &payload, &updatedAt); err != nil {
+		return nil, fmt.Errorf("scan annotation: %w", err)
+	}
+	ann, err := deserializeSingleAnnotation(key, []byte(payload))
+	if err != nil {
+		return nil, fmt.Errorf("deserialize annotation block=%s key=%s: %w", bid, key, err)
+	}
+	return &StoredAnnotation{BlockID: bid, Key: key, Value: ann, UpdatedAt: ParseOverlayTimestamp(updatedAt)}, nil
+}
+
 // ParseOverlayTimestamp reads an overlay row's updated_at, which arrives as the
 // SQLite `datetime('now')` TEXT form ("2006-01-02 15:04:05") or the Postgres
 // TIMESTAMPTZ that pgx renders over the database/sql surface. Returns Unix
@@ -529,6 +641,21 @@ func sqlListAnnotationsByBlocks(dialect string, nblocks int) string {
 		AND block_id IN (` + placeholderList(dialect, 3, nblocks) + `)`
 }
 
+// sqlSelectAnnotationRow and sqlListAnnotationRowsByKey read the same column
+// set, so a single-annotation read and a whole-key listing cannot disagree
+// about what an annotation is.
+func sqlSelectAnnotationRow(dialect string) string {
+	return `SELECT block_id, kind, payload, updated_at FROM annotations
+		WHERE project_id = ` + placeholder(dialect, 1) + ` AND stream = ` + placeholder(dialect, 2) + `
+		AND block_id = ` + placeholder(dialect, 3) + ` AND kind = ` + placeholder(dialect, 4)
+}
+
+func sqlListAnnotationRowsByKey(dialect string) string {
+	return `SELECT block_id, kind, payload, updated_at FROM annotations
+		WHERE project_id = ` + placeholder(dialect, 1) + ` AND stream = ` + placeholder(dialect, 2) + `
+		AND kind = ` + placeholder(dialect, 3) + ` ORDER BY block_id`
+}
+
 func sqlListTranslationLocalesByBlocks(dialect string, nblocks int) string {
 	return `SELECT block_id, locale FROM translations
 		WHERE project_id = ` + placeholder(dialect, 1) + ` AND stream = ` + placeholder(dialect, 2) + `
@@ -568,25 +695,39 @@ func placeholderList(dialect string, startAt, count int) string {
 
 // ─── Annotation (de)serialization ───────────────────────────────
 
-// serializeSingleAnnotation emits one Annotation's wire bytes. Matches
-// the type-discriminated wrapper `{"type":"…","data":{…}}` used by
-// serializeAnnotations for cross-compat with existing round-trip code.
-func serializeSingleAnnotation(ann model.Payload) ([]byte, error) {
-	return json.Marshal(map[string]any{
-		"type": model.PayloadTypeName(ann),
-		"data": ann,
-	})
+// annotationEnvelope is the annotations column's payload shape: the payload's
+// own type name alongside its body, so an interface-typed annotation can be
+// rehydrated as the concrete type its writer held.
+type annotationEnvelope struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
 }
 
-// deserializeSingleAnnotation reverses serializeSingleAnnotation. Delegates
-// to the existing map-based deserializer by wrapping the payload in a
-// single-entry map under the caller-supplied kind, then picks the one
-// annotation out.
-func deserializeSingleAnnotation(kind string, payload []byte) (model.Payload, error) {
-	wrapped, err := json.Marshal(map[string]json.RawMessage{kind: payload})
+// serializeSingleAnnotation emits one annotation's stored bytes.
+func serializeSingleAnnotation(ann model.Payload) ([]byte, error) {
+	data, err := json.Marshal(ann)
 	if err != nil {
 		return nil, err
 	}
-	anns := deserializeAnnotations(string(wrapped))
-	return anns[kind], nil
+	return json.Marshal(annotationEnvelope{Type: model.PayloadTypeName(ann), Data: data})
+}
+
+// deserializeSingleAnnotation reverses serializeSingleAnnotation through
+// model.DecodePayload — the one decode every reader of a stand-off payload
+// uses. The row's kind names the annotation key; the envelope's type names the
+// payload, and falls back to the key for a row whose writer left it empty.
+func deserializeSingleAnnotation(key string, payload []byte) (model.Payload, error) {
+	var env annotationEnvelope
+	if err := json.Unmarshal(payload, &env); err != nil {
+		return model.DecodePayload(key, payload), nil
+	}
+	typeName := env.Type
+	if typeName == "" {
+		typeName = key
+	}
+	body := env.Data
+	if len(body) == 0 {
+		body = payload
+	}
+	return model.DecodePayload(typeName, body), nil
 }
