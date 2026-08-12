@@ -278,9 +278,12 @@ collection that binds none is governed by the project default point —
 `defaults.voice` and the project's own terms.
 
 A content item may carry its own `channel:`, in the same qualified form and under
-the same load-time validation, for the files that item matches. It is available
-to per-file governance resolution; a flow run and a push resolve governance per
-collection, so an item's own channel does not change what either carries.
+the same load-time validation, for the files that item matches. It is the finest
+point a recipe can name, and everything resolves to it: a flow run partitions
+those files out of the rest of the collection and gives them their own voice and
+terms, `kapi check` gates them against that vocabulary, and
+[`kapi context search`](/reference/commands/context-search) reports it as the
+point each use sits at.
 
 On a connected project, the resolved product and channel travel to the server as
 the content's coordinates, so both venues resolve the same voice for the same
@@ -310,10 +313,19 @@ exclusive, so a `valid_to` date excludes that whole day. A bound is a date
 (`YYYY-MM-DD`) or an RFC3339 instant; an unparseable bound or an inverted range
 fails at load.
 
-The window is reported rather than enforced.
-[`kapi context search`](/reference/commands/context-search) reads every bounded profile
-against the current time and labels it `active`, `upcoming` or `expired`; a run
-resolves the profile its collection binds either way.
+A profile outside its window does not govern. Resolution falls through to the
+next binding — a collection's channel under an expired item channel, then the
+project default — exactly as if the expired profile were absent, and the run,
+check or push that applied the fall-through reports it once:
+
+```
+governance: profile "sdk" expired 2026-12-01; governing with the project default
+```
+
+The instant is the run's own wall clock; there is no flag to resolve for another
+date. [`kapi context search`](/reference/commands/context-search) reads every
+bounded profile against the current time and labels it `active`, `upcoming` or
+`expired`, so a window can be seen before it closes.
 
 ### Defaults
 

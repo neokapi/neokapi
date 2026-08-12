@@ -94,6 +94,21 @@ func (a *App) checkFileMCP(ctx context.Context, in checkFileInput) (*mcp.CallToo
 	if err != nil {
 		return nil, check.Report{}, err
 	}
+	// A file inside a project is checked against the voice governing the point
+	// it sits at — the same resolution `kapi check` makes, so an assistant and a
+	// CI gate report the same findings for the same file. A named profile_pack /
+	// profile_file still wins. The MCP half passes a bare synthetic command, so
+	// it takes the project defaults; a project that will not resolve leaves the
+	// vocabulary family off rather than failing a check the other families can
+	// still answer.
+	if opts.profile == nil {
+		//nolint:contextcheck // ctx travels inside the synthetic command; the resolver reads it back with CmdContext
+		if voice, verr := a.newCheckVoice(NewEnvCommand(ctx, "check_file")); verr == nil {
+			if p, perr := voice.forFile(ctx, in.File); perr == nil {
+				opts.profile = p
+			}
+		}
+	}
 	a.SourceLang = firstNonEmpty(a.SourceLang, "en")
 	target := check.Target{Kind: "file", File: in.File}
 	var diags []check.Diagnostic

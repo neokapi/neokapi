@@ -226,7 +226,7 @@ func TestApplyPulledContext_VoiceDivergenceIsReported(t *testing.T) {
 
 	// Report, never resolve: the profile a local run resolves is the recipe's.
 	profile, _, _, found, err := conn.app.LoadCollectionVoice(t.Context(),
-		&conn.project.Recipe.KapiProject, conn.project.Root, host.VoiceResolveOptions{Collection: "docs"})
+		&conn.project.Recipe.KapiProject, conn.project.Root, host.VoiceResolveOptions{Point: coreproj.GovernancePoint{Collection: "docs"}})
 	require.NoError(t, err)
 	require.True(t, found)
 	assert.Equal(t, "Kapi Docs Voice", profile.Name, "a pull must not move the voice a local run resolves")

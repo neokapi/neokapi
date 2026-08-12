@@ -169,13 +169,30 @@ workspace vocabulary. A recipe that binds terms per profile
 `RunFlowAllLocales`) that the binding applies to local runs only. The run
 proceeds — this is a caveat, not a fault.
 
-A run resolves its governance per collection and executes once per distinct
-resolution: `groupInputsByBinding` (host) partitions the input set, and each
-group gets its own bindings and its own tool chain — the chain is built before
-any content is seen, so a per-file switch is not possible. Grouping keys on what
-the points *resolve to*, not on the points themselves, so two collections
-governed by one profile share a group, and a recipe where no collection binds a
-channel produces exactly one group: the single, unsplit run.
+One function resolves governance for every surface:
+`KapiProject.ResolveGovernanceFor(GovernancePoint{Collection, Path, At})`. It
+walks the declared bindings finest-first — a content item's own `channel:`, then
+its collection's, then the project default — skipping any whose profile is
+outside its validity window at `At`, and records the skip on
+`ResolvedGovernance.Fallback` so the caller can report it. `ResolveGovernance`
+and `ResolveGovernanceForPath` are the as-declared views over the same walk (a
+zero `At` applies no window); `ResolveGovernanceAt` is the as-of view.
+
+A run resolves per FILE and executes once per distinct resolution:
+`groupInputsByBinding` (host) partitions the input set through that function,
+and each group gets its own bindings and its own tool chain — the chain is built
+before any content is seen, so the partition is what makes per-file governance
+possible. Grouping keys on what the points *resolve to*, not on the points
+themselves, so two collections governed by one profile share a group, and a
+recipe where nothing binds a channel produces exactly one group: the single,
+unsplit run.
+
+The instant is fixed once per run (`App.GovernanceInstant`, shared by every
+converge worker), so a long pass cannot cross a validity boundary halfway
+through. The first fall-through per run is printed on stderr as
+`governance: profile "x" expired <date>; governing with …`, deduplicated by
+`App.NoteGovernance`; `kapi context search` carries the same sentence in its
+result notes.
 
 Every failure is caught at load, because a silent fall-back would translate that
 content in a plausible-looking wrong voice: a non-slug profile name or channel, a

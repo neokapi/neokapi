@@ -1338,7 +1338,7 @@ func (a *App) openTerms(cmd ...Command) (*sqltb.SQLiteStore, func(), error) {
 	if len(cmd) == 0 || cmd[0] == nil {
 		return nil, noop, nil
 	}
-	sel, err := a.ResolveTermsStore(cmd[0], "")
+	sel, err := a.ResolveTermsStore(cmd[0], project.GovernancePoint{})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1458,18 +1458,17 @@ type ProjectBindings struct {
 }
 
 // resolveProjectBindings resolves the standing brand-voice + glossary context
-// for one content collection of a project flow run — the governance at the
-// collection's point in the context space. The voice comes from the profile
-// matching that point, else defaults.voice, else a convention voice.yaml,
-// with the point's channel selecting the override inside it; the glossary comes
-// from that profile's standalone terms, else the project's own store.
-// Returns nil when the project carries neither, so ad-hoc behavior is
-// unchanged.
+// for one point of a project flow run — the governance in force there. The
+// voice comes from the profile matching that point, else defaults.voice, else a
+// convention voice.yaml, with the point's channel selecting the override inside
+// it; the glossary comes from that profile's standalone terms, else the
+// project's own store. Returns nil when the project carries neither, so ad-hoc
+// behavior is unchanged.
 //
-// collection is empty for a run that is not split by governance — every caller
-// outside the grouping (groupInputsByBinding) passes "", which resolves exactly
-// the project-wide bindings it always did.
-func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, projectPath, collection string) (*ProjectBindings, error) {
+// point is the zero value for a run that is not split by governance — every
+// caller outside the grouping (groupInputsByBinding) passes it, which resolves
+// exactly the project-wide bindings it always did.
+func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, projectPath string, point project.GovernancePoint) (*ProjectBindings, error) {
 	root := filepath.Dir(projectPath)
 
 	storePath, err := resolveResourcePath(cmd, "brands", "brand.db")
@@ -1477,14 +1476,14 @@ func (a *App) resolveProjectBindings(cmd Command, proj *project.KapiProject, pro
 		return nil, err
 	}
 	profile, _, _, err := a.ResolveVoiceProfile(CmdContext(cmd), proj, root, VoiceResolveOptions{
-		StorePath:  storePath,
-		Collection: collection,
+		StorePath: storePath,
+		Point:     point,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	glossary, err := a.ResolveProjectGlossaryFor(cmd, a.TargetLang, collection)
+	glossary, err := a.ResolveProjectGlossaryFor(cmd, a.TargetLang, point)
 	if err != nil {
 		return nil, err
 	}
@@ -1512,21 +1511,21 @@ func ToolRequires(s *schema.ComponentSchema, req string) bool {
 // use, with no flag. Resolution order:
 //
 //  1. An explicit --termstore flag (named resource or path) — a standalone store.
-//  2. The `terms:` of the profile matching the named collection's point
-//     (project.ResolveGovernance) — a standalone store, relative to the project
-//     root. This is the one place a recipe still names a terms FILE: it binds a
-//     vocabulary to a region of the context space, and there is nothing on the
-//     wire for it, so it stays a local path.
+//  2. The `terms:` of the profile governing the point
+//     (project.ResolveGovernanceFor) — a standalone store, relative to the
+//     project root. This is the one place a recipe still names a terms FILE: it
+//     binds a vocabulary to a region of the context space, and there is nothing
+//     on the wire for it, so it stays a local path.
 //  3. That profile's conventional override, `.kapi/profiles/<name>/terms.json`,
 //     when the file exists — the same binding without the line in the recipe.
 //  4. The project's own store.
 //
-// An empty collection resolves the project-wide binding, which is what every
-// caller outside a partitioned flow run wants.
+// The zero point resolves the project-wide binding, which is what every caller
+// outside a partitioned flow run wants.
 //
 // Returns the zero selection (with nil error) when there is no project and no
 // flag, so callers fall through to the tool's default (no vocabulary).
-func (a *App) ResolveTermsStore(cmd Command, collection string) (StoreSelection, error) {
+func (a *App) ResolveTermsStore(cmd Command, point project.GovernancePoint) (StoreSelection, error) {
 	if cmd != nil {
 		if tbValue, _ := cmd.Flags().GetString("termstore"); tbValue != "" {
 			if strings.ContainsAny(tbValue, "/\\") || strings.HasSuffix(tbValue, ".db") {
@@ -1550,7 +1549,7 @@ func (a *App) ResolveTermsStore(cmd Command, collection string) (StoreSelection,
 	if lerr != nil {
 		return StoreSelection{}, fmt.Errorf("load project for terms: %w", lerr)
 	}
-	rc, rerr := proj.ResolveGovernance(collection)
+	rc, rerr := proj.ResolveGovernanceFor(point)
 	if rerr != nil {
 		return StoreSelection{}, rerr
 	}
@@ -1598,16 +1597,16 @@ func governedTermsPath(root string, rc *project.ResolvedGovernance) string {
 // no terms for the locale pair. The result is suitable for injection into a
 // term-check tool config under the "glossary" key.
 func (a *App) ResolveProjectGlossary(cmd Command, targetLang string) ([]coretools.GlossaryEntry, error) {
-	return a.ResolveProjectGlossaryFor(cmd, targetLang, "")
+	return a.ResolveProjectGlossaryFor(cmd, targetLang, project.GovernancePoint{})
 }
 
-// ResolveProjectGlossaryFor is ResolveProjectGlossary scoped to one content
-// collection: it reads the terms that collection binds (its own `terms:`, else
-// defaults.terms_source), so a recipe governing two brands enforces each brand's
-// vocabulary over its own content. An empty collection is the project-wide
+// ResolveProjectGlossaryFor is ResolveProjectGlossary scoped to one point in the
+// context space: it reads the terms governing there (the profile's own `terms:`,
+// else defaults.terms_source), so a recipe governing two brands enforces each
+// brand's vocabulary over its own content. The zero point is the project-wide
 // resolution.
-func (a *App) ResolveProjectGlossaryFor(cmd Command, targetLang, collection string) ([]coretools.GlossaryEntry, error) {
-	concepts, err := a.projectConcepts(cmd, collection)
+func (a *App) ResolveProjectGlossaryFor(cmd Command, targetLang string, point project.GovernancePoint) ([]coretools.GlossaryEntry, error) {
+	concepts, err := a.projectConcepts(cmd, point)
 	if err != nil || len(concepts) == 0 {
 		return nil, err
 	}
@@ -1649,9 +1648,9 @@ func (a *App) ResolveProjectGlossaryFor(cmd Command, targetLang, collection stri
 // directly (a project whose store holds concepts but binds no committed
 // source — the shape a `kapi terms import` leaves behind).
 //
-// collection scopes the resolution to one content collection's terms binding;
-// empty is the project-wide answer.
-func (a *App) projectConcepts(cmd Command, collection string) ([]sqltb.Concept, error) {
+// point scopes the resolution to the terms binding governing there; the zero
+// point is the project-wide answer.
+func (a *App) projectConcepts(cmd Command, point project.GovernancePoint) ([]sqltb.Concept, error) {
 	explicitStore := false
 	if cmd != nil {
 		if v, _ := cmd.Flags().GetString("termstore"); v != "" {
@@ -1661,7 +1660,7 @@ func (a *App) projectConcepts(cmd Command, collection string) ([]sqltb.Concept, 
 
 	// Source of truth: the committed .terms.json serialization.
 	if !explicitStore {
-		srcPath, err := a.resolveProjectTermsSourcePath(cmd, collection)
+		srcPath, err := a.resolveProjectTermsSourcePath(cmd, point)
 		if err != nil {
 			return nil, err
 		}
@@ -1670,10 +1669,10 @@ func (a *App) projectConcepts(cmd Command, collection string) ([]sqltb.Concept, 
 		}
 	}
 
-	// Working index: an explicit --termstore, the collection's standalone terms
+	// Working index: an explicit --termstore, the point's standalone terms
 	// binding, or the project's own store. Read directly only when no
 	// serialization is bound (or the user explicitly selected a store).
-	sel, err := a.ResolveTermsStore(cmd, collection)
+	sel, err := a.ResolveTermsStore(cmd, point)
 	if err != nil {
 		return nil, err
 	}
@@ -1733,13 +1732,13 @@ func conceptsFromKTB(path string) ([]sqltb.Concept, error) {
 // project that keeps its glossary at the conventional path needs no recipe
 // entry at all.
 //
-// A collection whose profile binds its own terms has named the vocabulary for
-// that content, and the project-wide committed source then belongs to other
-// content — so there is no committed source at that point, and the profile's
-// store is read through ResolveTermsStore instead. Without this the profile's
-// terms would be shadowed in every recipe that also binds
-// defaults.terms_source, which is most of them.
-func (a *App) resolveProjectTermsSourcePath(cmd Command, collection string) (string, error) {
+// A point whose profile binds its own terms has named the vocabulary for that
+// content, and the project-wide committed source then belongs to other content
+// — so there is no committed source at that point, and the profile's store is
+// read through ResolveTermsStore instead. Without this the profile's terms would
+// be shadowed in every recipe that also binds defaults.terms_source, which is
+// most of them.
+func (a *App) resolveProjectTermsSourcePath(cmd Command, point project.GovernancePoint) (string, error) {
 	projectPath, err := ResolveProjectPath(cmd)
 	if err != nil || projectPath == "" {
 		return "", err
@@ -1750,14 +1749,12 @@ func (a *App) resolveProjectTermsSourcePath(cmd Command, collection string) (str
 	}
 	root := filepath.Dir(projectPath)
 
-	if collection != "" {
-		rc, rerr := proj.ResolveGovernance(collection)
-		if rerr != nil {
-			return "", rerr
-		}
-		if governedTermsPath(root, rc) != "" {
-			return "", nil
-		}
+	rc, rerr := proj.ResolveGovernanceFor(point)
+	if rerr != nil {
+		return "", rerr
+	}
+	if governedTermsPath(root, rc) != "" {
+		return "", nil
 	}
 
 	src := proj.Defaults.TermsSource
@@ -1919,14 +1916,17 @@ func (a *App) resolveRunBindings(inputPath string, cmd ...Command) *ProjectBindi
 
 	if projectPath, err := ResolveProjectPath(c); err == nil && projectPath != "" {
 		if proj, err := project.Load(projectPath); err == nil {
-			collection := ""
+			point := a.GovernancePointFor("", "")
 			if inputPath != "" {
 				root, aerr := filepath.Abs(filepath.Dir(projectPath))
 				if rel, ok := projectRelPath(root, inputPath); aerr == nil && ok {
-					collection = proj.CollectionForPath(rel)
+					point = a.GovernancePointFor("", rel)
 				}
 			}
-			b, err := a.resolveProjectBindings(c, proj, projectPath, collection)
+			if rc, rerr := proj.ResolveGovernanceFor(point); rerr == nil {
+				a.NoteGovernance(c, rc)
+			}
+			b, err := a.resolveProjectBindings(c, proj, projectPath, point)
 			if err == nil {
 				return b
 			}

@@ -74,6 +74,27 @@ func bindingsCmd(t *testing.T, recipe string) Command {
 	return cmd
 }
 
+// wantGroup is one expected partition: the point its files are governed at,
+// written `profile/channel` (empty for the project's default point), and the
+// files themselves. The expectation is the resolved point rather than a
+// collection label, because grouping is by what a point resolves to.
+type wantGroup struct {
+	point  string
+	inputs []string
+}
+
+// resolvedPoint renders what a group's representative point resolves to, which
+// is what the group is: the governance every file in it shares.
+func resolvedPoint(t *testing.T, proj *project.KapiProject, pt project.GovernancePoint) string {
+	t.Helper()
+	if proj == nil {
+		return ""
+	}
+	rc, err := proj.ResolveGovernanceFor(pt)
+	require.NoError(t, err)
+	return rc.Ref().String()
+}
+
 func TestGroupInputsByBinding(t *testing.T) {
 	defaultVoice := &project.VoiceBinding{ProfileFile: "voice.yaml"}
 	profiles := map[string]project.Profile{
@@ -116,7 +137,7 @@ func TestGroupInputsByBinding(t *testing.T) {
 		name   string
 		proj   *project.KapiProject
 		inputs []string
-		want   []bindingGroup
+		want   []wantGroup
 	}{
 		{
 			name: "no collection names a channel: one ungrouped run",
@@ -125,7 +146,7 @@ func TestGroupInputsByBinding(t *testing.T) {
 				project.Collection{Name: "app", Content: []project.ContentItem{{Path: "app/**/*.json"}}},
 			),
 			inputs: abs("docs/a.md", "app/b.json"),
-			want:   []bindingGroup{{Collection: "", Inputs: abs("docs/a.md", "app/b.json")}},
+			want:   []wantGroup{{point: "", inputs: abs("docs/a.md", "app/b.json")}},
 		},
 		{
 			name: "two products: one group each, in input order",
@@ -138,9 +159,9 @@ func TestGroupInputsByBinding(t *testing.T) {
 				},
 			),
 			inputs: abs("docs/a.md", "platform/b.md", "docs/c.md"),
-			want: []bindingGroup{
-				{Collection: "", Inputs: abs("docs/a.md", "docs/c.md")},
-				{Collection: "platform", Inputs: abs("platform/b.md")},
+			want: []wantGroup{
+				{point: "", inputs: abs("docs/a.md", "docs/c.md")},
+				{point: "platform/docs", inputs: abs("platform/b.md")},
 			},
 		},
 		{
@@ -158,7 +179,7 @@ func TestGroupInputsByBinding(t *testing.T) {
 				},
 			),
 			inputs: abs("docs/a.md", "more-docs/b.md"),
-			want:   []bindingGroup{{Collection: "platform-docs", Inputs: abs("docs/a.md", "more-docs/b.md")}},
+			want:   []wantGroup{{point: "platform/docs", inputs: abs("docs/a.md", "more-docs/b.md")}},
 		},
 		{
 			name: "two collections at one point share one group",
@@ -175,7 +196,7 @@ func TestGroupInputsByBinding(t *testing.T) {
 				},
 			),
 			inputs: abs("notes/a.md", "more-notes/b.md"),
-			want:   []bindingGroup{{Collection: "platform-notes", Inputs: abs("notes/a.md", "more-notes/b.md")}},
+			want:   []wantGroup{{point: "platform/notes", inputs: abs("notes/a.md", "more-notes/b.md")}},
 		},
 		{
 			name: "same profile, different channel: different governance, different groups",
@@ -192,9 +213,9 @@ func TestGroupInputsByBinding(t *testing.T) {
 				},
 			),
 			inputs: abs("docs/a.md", "landing/b.md"),
-			want: []bindingGroup{
-				{Collection: "platform-docs", Inputs: abs("docs/a.md")},
-				{Collection: "platform-landing", Inputs: abs("landing/b.md")},
+			want: []wantGroup{
+				{point: "platform/docs", inputs: abs("docs/a.md")},
+				{point: "platform/landing", inputs: abs("landing/b.md")},
 			},
 		},
 		{
@@ -211,9 +232,9 @@ func TestGroupInputsByBinding(t *testing.T) {
 				},
 			),
 			inputs: abs("app/a.json", "docs/b.md"),
-			want: []bindingGroup{
-				{Collection: "", Inputs: abs("app/a.json")},
-				{Collection: "docs", Inputs: abs("docs/b.md")},
+			want: []wantGroup{
+				{point: "", inputs: abs("app/a.json")},
+				{point: "house/home", inputs: abs("docs/b.md")},
 			},
 		},
 		{
@@ -227,9 +248,9 @@ func TestGroupInputsByBinding(t *testing.T) {
 				},
 			),
 			inputs: abs("docs/a.md", "press/b.md"),
-			want: []bindingGroup{
-				{Collection: "", Inputs: abs("docs/a.md")},
-				{Collection: "press", Inputs: abs("press/b.md")},
+			want: []wantGroup{
+				{point: "", inputs: abs("docs/a.md")},
+				{point: "press/news", inputs: abs("press/b.md")},
 			},
 		},
 		{
@@ -242,16 +263,16 @@ func TestGroupInputsByBinding(t *testing.T) {
 				},
 			),
 			inputs: append(abs("scripts/build.sh", "platform/b.md"), filepath.FromSlash("/elsewhere/c.md")),
-			want: []bindingGroup{
-				{Collection: "", Inputs: append(abs("scripts/build.sh"), filepath.FromSlash("/elsewhere/c.md"))},
-				{Collection: "platform", Inputs: abs("platform/b.md")},
+			want: []wantGroup{
+				{point: "", inputs: append(abs("scripts/build.sh"), filepath.FromSlash("/elsewhere/c.md"))},
+				{point: "platform/docs", inputs: abs("platform/b.md")},
 			},
 		},
 		{
 			name:   "no project is one group",
 			proj:   nil,
 			inputs: abs("docs/a.md"),
-			want:   []bindingGroup{{Collection: "", Inputs: abs("docs/a.md")}},
+			want:   []wantGroup{{point: "", inputs: abs("docs/a.md")}},
 		},
 	}
 
@@ -260,12 +281,13 @@ func TestGroupInputsByBinding(t *testing.T) {
 			if tt.proj != nil {
 				require.NoError(t, tt.proj.Validate(), "the fixture must be a loadable recipe")
 			}
-			got, err := groupInputsByBinding(tt.proj, root, tt.inputs)
+			a := &App{}
+			got, err := a.groupInputsByBinding(nil, tt.proj, root, tt.inputs)
 			require.NoError(t, err)
 			require.Len(t, got, len(tt.want))
 			for i := range tt.want {
-				assert.Equal(t, tt.want[i].Collection, got[i].Collection, "group %d collection", i)
-				assert.Equal(t, tt.want[i].Inputs, got[i].Inputs, "group %d inputs", i)
+				assert.Equal(t, tt.want[i].point, resolvedPoint(t, tt.proj, got[i].Point), "group %d point", i)
+				assert.Equal(t, tt.want[i].inputs, got[i].Inputs, "group %d inputs", i)
 			}
 		})
 	}
@@ -283,25 +305,25 @@ func TestResolveProjectBindings_PerChannelVoice(t *testing.T) {
 	a := &App{}
 	cmd := bindingsCmd(t, recipe)
 
-	defaults, err := a.resolveProjectBindings(cmd, proj, recipe, "")
+	defaults, err := a.resolveProjectBindings(cmd, proj, recipe, project.GovernancePoint{})
 	require.NoError(t, err)
 	require.NotNil(t, defaults)
 	require.NotNil(t, defaults.profile)
 	assert.Equal(t, "House Style", defaults.profile.Name)
 
-	framework, err := a.resolveProjectBindings(cmd, proj, recipe, "framework-docs")
+	framework, err := a.resolveProjectBindings(cmd, proj, recipe, project.GovernancePoint{Collection: "framework-docs"})
 	require.NoError(t, err)
 	require.NotNil(t, framework.profile)
 	assert.Equal(t, "House Style", framework.profile.Name,
 		"a collection that names no channel keeps the project voice")
 
-	platform, err := a.resolveProjectBindings(cmd, proj, recipe, "platform-docs")
+	platform, err := a.resolveProjectBindings(cmd, proj, recipe, project.GovernancePoint{Collection: "platform-docs"})
 	require.NoError(t, err)
 	require.NotNil(t, platform.profile)
 	assert.Equal(t, "Platform Voice", platform.profile.Name,
 		"the profile matching the collection's point must win")
 
-	unknown, err := a.resolveProjectBindings(cmd, proj, recipe, "no-such-collection")
+	unknown, err := a.resolveProjectBindings(cmd, proj, recipe, project.GovernancePoint{Collection: "no-such-collection"})
 	require.NoError(t, err)
 	require.NotNil(t, unknown.profile)
 	assert.Equal(t, "House Style", unknown.profile.Name)
@@ -318,7 +340,7 @@ func TestResolveProjectBindings_ExplicitProfileWinsOverTheRecipe(t *testing.T) {
 	require.NoError(t, err)
 
 	a := &App{}
-	b, err := a.resolveProjectBindings(bindingsCmd(t, recipe), proj, recipe, "platform-docs")
+	b, err := a.resolveProjectBindings(bindingsCmd(t, recipe), proj, recipe, project.GovernancePoint{Collection: "platform-docs"})
 	require.NoError(t, err)
 	require.NotNil(t, b)
 	require.NotNil(t, b.profile)
@@ -346,7 +368,7 @@ func TestRecipeGovernanceEntersTheChain(t *testing.T) {
 	require.NoError(t, err)
 
 	a := &App{}
-	b, err := a.resolveProjectBindings(bindingsCmd(t, recipe), proj, recipe, "platform-docs")
+	b, err := a.resolveProjectBindings(bindingsCmd(t, recipe), proj, recipe, project.GovernancePoint{Collection: "platform-docs"})
 	require.NoError(t, err)
 	require.NotNil(t, b)
 	require.NotNil(t, b.profile)
@@ -411,7 +433,7 @@ func resolveAtChannel(t *testing.T, a *App, channel string) (*profile.VoiceProfi
 	proj, err := project.LoadWithOptions(recipe, project.LoadOptions{SkipRequiresCheck: true})
 	require.NoError(t, err)
 
-	b, err := a.resolveProjectBindings(bindingsCmd(t, recipe), proj, recipe, "platform-docs")
+	b, err := a.resolveProjectBindings(bindingsCmd(t, recipe), proj, recipe, project.GovernancePoint{Collection: "platform-docs"})
 	require.NoError(t, err)
 	require.NotNil(t, b)
 	require.NotNil(t, b.profile)
@@ -430,13 +452,13 @@ func TestResolveGroupBindings_SingleRunWhenUngoverned(t *testing.T) {
 		filepath.Join(root, "docs", "a.md"),
 		filepath.Join(root, "platform", "b.md"),
 	}
-	groups, err := groupInputsByBinding(proj, root, inputs)
+	a := &App{}
+	groups, err := a.groupInputsByBinding(nil, proj, root, inputs)
 	require.NoError(t, err)
 	require.Len(t, groups, 1, "no channel anywhere must not split the run")
-	assert.Empty(t, groups[0].Collection, "the single group resolves the project-wide bindings")
+	assert.Empty(t, resolvedPoint(t, proj, groups[0].Point), "the single group resolves the project-wide bindings")
 	assert.Equal(t, inputs, groups[0].Inputs)
 
-	a := &App{}
 	require.NoError(t, a.resolveGroupBindings(bindingsCmd(t, recipe), proj, recipe, groups))
 	require.NotNil(t, groups[0].bindings)
 	assert.Equal(t, "House Style", groups[0].bindings.profile.Name)
@@ -446,7 +468,7 @@ func TestResolveGroupBindings_SingleRunWhenUngoverned(t *testing.T) {
 	governed, gRoot := governedProject(t, "platform/docs")
 	gProj, err := project.LoadWithOptions(governed, project.LoadOptions{SkipRequiresCheck: true})
 	require.NoError(t, err)
-	gGroups, err := groupInputsByBinding(gProj, gRoot, []string{
+	gGroups, err := a.groupInputsByBinding(nil, gProj, gRoot, []string{
 		filepath.Join(gRoot, "docs", "a.md"),
 		filepath.Join(gRoot, "platform", "b.md"),
 	})

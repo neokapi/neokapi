@@ -139,8 +139,8 @@ func (c *BowrainSourceConnector) voiceDivergesFrom(ctx context.Context, collecti
 	}
 	profile, _, _, found, err := c.app.LoadCollectionVoice(ctx, &c.project.Recipe.KapiProject, c.project.Root,
 		host.VoiceResolveOptions{
-			Collection: collection,
-			StorePath:  filepath.Join(c.project.Root, brandStoreName),
+			Point:     c.app.GovernancePointFor(collection, ""),
+			StorePath: filepath.Join(c.project.Root, brandStoreName),
 		})
 	if err != nil {
 		return false

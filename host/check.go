@@ -198,7 +198,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		args = expanded
 	}
 
-	profile, err := a.resolveCheckProfile(cmd)
+	voice, err := a.newCheckVoice(cmd)
 	if err != nil {
 		return check.Report{}, err
 	}
@@ -208,7 +208,7 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		return check.Report{}, err
 	}
 
-	opts := checkRunOptions{profile: profile}
+	opts := checkRunOptions{}
 	opts.maxChars, _ = cmd.Flags().GetInt("max-chars")
 	opts.maxWords, _ = cmd.Flags().GetInt("max-words")
 	opts.forbid, _ = cmd.Flags().GetStringSlice("forbid")
@@ -231,6 +231,9 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		}
 		dnt, _ := cmd.Flags().GetStringSlice("dnt")
 		sourcePath := args[0]
+		if opts.profile, err = voice.forFile(ctx, sourcePath); err != nil {
+			return check.Report{}, err
+		}
 		unit := VerifyUnit{SourcePath: sourcePath, TargetPath: targetFile, Locale: targetLang, DisplayPath: targetFile}
 		blocks, missing, berr := a.bilingualBlocks(ctx, unit)
 		if berr != nil {
@@ -261,6 +264,12 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		defer prog.Done()
 		for _, file := range args {
 			prog.Step(DisplayName(file))
+			// The voice is resolved per file: a run over a governed project
+			// checks each file against the vocabulary in force where that file
+			// sits, not against one voice picked for the whole invocation.
+			if opts.profile, err = voice.forFile(ctx, file); err != nil {
+				return check.Report{}, err
+			}
 			blocks, fileDiags, ferr := a.checkFileBlocks(ctx, file, validateMode, opts)
 			prog.Advance()
 			if ferr != nil {
@@ -430,7 +439,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 	if opts.voice {
 		refs := voiceExamples(opts.profile)
 		if len(refs) == 0 {
-			return nil, errors.New("--voice needs a voice profile with examples (--profile/--pack/--profile-file)")
+			return nil, errors.New("--voice needs a voice profile with examples — bind one in the recipe, or name it with --profile/--pack/--profile-file")
 		}
 		t, closeT, derr := dialVoicePlugin(ctx)
 		if derr != nil {
@@ -543,13 +552,98 @@ func gateFromFlags(cmd Command) check.Gate {
 	return g
 }
 
-func (a *App) resolveCheckProfile(cmd Command) (*profile.VoiceProfile, error) {
+// checkVoice answers "which voice governs this file" for one `kapi check` run.
+//
+// An explicit --profile / --profile-file / --pack names one voice for every
+// file, and outranks the recipe. With none, the project's recipe governs, and it
+// governs PER FILE: the point a file sits at — its content item's own
+// `channel:`, else its collection's — selects the profile, and an expired
+// profile selects none. Two files of one project are therefore checked against
+// two vocabularies when the recipe says so, which is the whole reason a recipe
+// can bind governance to a point.
+//
+// Resolved profiles are cached by point, so a check over a thousand files loads
+// each voice once.
+type checkVoice struct {
+	app   *App
+	cmd   Command
+	fixed *profile.VoiceProfile
+	proj  *project.KapiProject
+	root  string
+	store string
+	cache map[string]*profile.VoiceProfile
+}
+
+// newCheckVoice builds the resolver for one run. A project that will not load
+// leaves it with nothing to resolve, which is the ad-hoc case: `kapi check` on
+// a file outside any project checks the content-only families.
+func (a *App) newCheckVoice(cmd Command) (*checkVoice, error) {
+	v := &checkVoice{app: a, cmd: cmd, cache: map[string]*profile.VoiceProfile{}}
+
 	name, _ := cmd.Flags().GetString("profile")
 	file, _ := cmd.Flags().GetString("profile-file")
 	pack, _ := cmd.Flags().GetString("pack")
-	if name == "" && file == "" && pack == "" {
-		return nil, nil // a voice profile is optional for `kapi check`
+	if name != "" || file != "" || pack != "" {
+		p, _, err := a.ResolveVoiceProfileCmd(cmd)
+		if err != nil {
+			return nil, err
+		}
+		v.fixed = p
+		return v, nil
 	}
-	p, _, err := a.ResolveVoiceProfileCmd(cmd)
-	return p, err
+
+	projectPath, err := ResolveProjectPath(cmd)
+	if err != nil || projectPath == "" {
+		return v, nil
+	}
+	proj, lerr := project.LoadWithOptions(projectPath, project.LoadOptions{SkipRequiresCheck: true})
+	if lerr != nil {
+		return nil, fmt.Errorf("load project for voice: %w", lerr)
+	}
+	storePath, serr := resolveResourcePath(cmd, "brands", "brand.db")
+	if serr != nil {
+		return nil, serr
+	}
+	v.proj, v.root, v.store = proj, filepath.Dir(projectPath), storePath
+	return v, nil
+}
+
+// forFile returns the voice profile governing one file, or nil when nothing
+// binds one there.
+func (v *checkVoice) forFile(ctx context.Context, file string) (*profile.VoiceProfile, error) {
+	if v.fixed != nil || v.proj == nil {
+		return v.fixed, nil
+	}
+
+	point := v.app.GovernancePointFor("", "")
+	abs := file
+	if !filepath.IsAbs(abs) {
+		if r, aerr := filepath.Abs(abs); aerr == nil {
+			abs = r
+		}
+	}
+	if rel, ok := projectRelPath(v.root, abs); ok {
+		point = v.app.GovernancePointFor("", rel)
+	}
+
+	rc, err := v.app.ResolveGovernanceAtPoint(v.cmd, v.proj, point)
+	if err != nil {
+		return nil, err
+	}
+	key := rc.Profile + "\x00" + rc.Channel
+	if p, ok := v.cache[key]; ok {
+		return p, nil
+	}
+	p, _, found, err := v.app.ResolveVoiceProfile(ctx, v.proj, v.root, VoiceResolveOptions{
+		StorePath: v.store,
+		Point:     point,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		p = nil
+	}
+	v.cache[key] = p
+	return p, nil
 }

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -92,12 +93,12 @@ func TestResolveTermsStore_ProfileBindingWins(t *testing.T) {
 	t.Chdir(root)
 
 	a := &App{}
-	got, err := a.ResolveTermsStore(newTermsTestCmd(), "docs")
+	got, err := a.ResolveTermsStore(newTermsTestCmd(), project.GovernancePoint{Collection: "docs"})
 	require.NoError(t, err)
 	assert.False(t, got.InProject(), "a profile's terms: names a standalone store")
 	assert.Equal(t, bound, got.Path)
 
-	got, err = a.ResolveTermsStore(newTermsTestCmd(), "")
+	got, err = a.ResolveTermsStore(newTermsTestCmd(), project.GovernancePoint{})
 	require.NoError(t, err)
 	assert.True(t, got.InProject(), "the default point is governed by the project store")
 }

@@ -198,7 +198,7 @@ func TestResolveVoiceProfile_Ladder(t *testing.T) {
 		}
 		proj.Defaults.Voice = &project.VoiceBinding{ProfileFile: ".kapi/voice.yaml"}
 
-		p, src, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{Collection: "app"})
+		p, src, found, err := app.ResolveVoiceProfile(ctx, proj, root, VoiceResolveOptions{Point: project.GovernancePoint{Collection: "app"}})
 		require.NoError(t, err)
 		require.True(t, found)
 		assert.Equal(t, "Bowrain Style", p.Name, "the profile's directory outranks defaults.voice")

@@ -80,21 +80,23 @@ func BuildPushContext(ctx context.Context, proj *bproject.Project, dryRun bool) 
 			continue
 		}
 
+		// The point is resolved at the run's instant, through the same seam a
+		// run and a check use, so a push carries the governance actually in
+		// force: a profile outside its validity window governs nothing, and the
+		// coordinates fall through with it.
+		point := app.GovernancePointFor(coll.Name, "")
 		profile, governance, _, found, err := app.LoadCollectionVoice(ctx, kapiProject, proj.Root, host.VoiceResolveOptions{
-			Collection: coll.Name,
-			StorePath:  storePath,
+			Point:     point,
+			StorePath: storePath,
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("resolve governance for collection %q: %w", coll.Name, err)
 		}
+		app.NoteGovernance(nil, governance)
 
-		ref, refErr := kapiProject.ResolveChannel(coll.Channel)
-		if refErr != nil {
-			return nil, nil, fmt.Errorf("resolve channel for collection %q: %w", coll.Name, refErr)
-		}
 		entry := &pb.SyncContextEntry{
 			Name:        coll.Name,
-			Coordinates: ref.Coordinates(),
+			Coordinates: governance.Ref().Coordinates(),
 			Owner:       bowsync.ContextOwnerRecipe,
 		}
 		if governance != nil {

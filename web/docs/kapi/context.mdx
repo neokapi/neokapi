@@ -175,11 +175,22 @@ profiles:
     valid_to: 2026-12-01
 ```
 
-The window is reported rather than enforced. `kapi context search` reads every
-bounded profile against today and labels it `active`, `upcoming` or `expired`,
-so a writer can see that the guidance they are about to follow has a start or an
-end date; a run resolves the profile its collection binds either way. An expired
-profile is therefore something to act on, not a silent switch.
+A profile outside its window **stops governing**. Resolution falls through to
+the next binding — the collection's channel, then the project default — exactly
+as if the expired one were not declared, so a seasonal voice retires itself on
+the date it says. The same instant governs a whole run, so a long convergence
+cannot cross a boundary halfway through.
+
+The switch is never silent. The first time a run, a check or a push resolves
+through a lapsed profile it says so:
+
+```
+governance: profile "acme-relaunch" expired 2026-12-01; governing with the project default
+```
+
+`kapi context search` reads every bounded profile against the current time and
+labels it `active`, `upcoming` or `expired`, so a writer can see that the
+guidance they are about to follow has a start or an end date before it lapses.
 
 The same half-open window scopes an individual term, which is what lets a
 vocabulary survive a rename: _recognise the old name until March_ is a different

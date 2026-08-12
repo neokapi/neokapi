@@ -241,7 +241,7 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// profile and terms and write to the right per-locale target paths.
 	a.ProjectContext = pctx
 	defer func() { a.ProjectContext = nil }()
-	bindings, err := a.resolveProjectBindings(cmd, proj, projectPath, "")
+	bindings, err := a.resolveProjectBindings(cmd, proj, projectPath, a.GovernancePointFor("", ""))
 	if err != nil {
 		return err
 	}
@@ -261,16 +261,16 @@ func (a *App) RunDefaultFlowConverge(cmd Command, proj *project.KapiProject, pro
 	// one group holding every source, bound to the project-wide resolution
 	// already made above — one flow run per locale, as convergence has always
 	// done.
-	groups, err := groupInputsByBinding(proj, pctx.ProjectDir, sources)
+	groups, err := a.groupInputsByBinding(cmd, proj, pctx.ProjectDir, sources)
 	if err != nil {
 		return err
 	}
 	for i := range groups {
-		if groups[i].Collection == "" {
+		if groups[i].Point.Collection == "" && groups[i].Point.Path == "" {
 			groups[i].bindings = bindings
 			continue
 		}
-		b, berr := a.resolveProjectBindings(cmd, proj, projectPath, groups[i].Collection)
+		b, berr := a.resolveProjectBindings(cmd, proj, projectPath, groups[i].Point)
 		if berr != nil {
 			return berr
 		}

@@ -359,10 +359,10 @@ func (a *App) resolveProjectVoiceProfile(cmd Command, locale, channel, persona s
 		return nil, "", false, err
 	}
 
-	// Which collection owns the first named file, if any. A path outside every
-	// declared glob yields "", which resolves the project defaults — the same
-	// answer as before this lookup existed.
-	collection := ""
+	// Where the first named file sits, if any. A path outside every declared
+	// glob resolves the project defaults — the same answer as before this
+	// lookup existed.
+	point := a.GovernancePointFor("", "")
 	for _, path := range paths {
 		if path == "" {
 			continue
@@ -374,14 +374,14 @@ func (a *App) resolveProjectVoiceProfile(cmd Command, locale, channel, persona s
 			}
 		}
 		if rel, rerr := filepath.Rel(root, abs); rerr == nil && !strings.HasPrefix(rel, "..") {
-			collection = proj.CollectionForPath(filepath.ToSlash(rel))
+			point = a.GovernancePointFor("", filepath.ToSlash(rel))
 		}
 		break
 	}
 
 	return a.ResolveVoiceProfile(CmdContext(cmd), proj, root, VoiceResolveOptions{
 		Locale: locale, Channel: channel, Persona: persona, StorePath: storePath,
-		Collection: collection,
+		Point: point,
 	})
 }
 
@@ -398,11 +398,13 @@ type VoiceResolveOptions struct {
 	// the project root (the CLI's flag-free default resolves against the
 	// working directory instead, via its resource flags).
 	StorePath string
-	// Collection names the content collection whose context to resolve. Its
-	// coordinates select the profile (hence the voice) and the channel; an
-	// empty name, or a collection that declares none, resolves the project's
-	// own default point — defaults.voice, no channel.
-	Collection string
+	// Point is the place in the context space whose governance to resolve: a
+	// content collection, or the finer point one file sits at. Its coordinates
+	// select the profile (hence the voice) and the channel; the zero point, and
+	// a place that declares none, resolve the project's own default point —
+	// defaults.voice, no channel. A non-zero At applies profile validity, so an
+	// expired profile stops selecting its voice.
+	Point project.GovernancePoint
 }
 
 // ResolveVoiceProfile resolves the voice profile bound to a loaded
@@ -478,7 +480,7 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 		storePath = filepath.Join(root, "brand.db")
 	}
 
-	rc, err := proj.ResolveGovernance(opts.Collection)
+	rc, err := proj.ResolveGovernanceFor(opts.Point)
 	if err != nil {
 		return nil, nil, "", false, err
 	}
