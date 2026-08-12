@@ -1,5 +1,6 @@
 import {
   Home,
+  Compass,
   FolderKanban,
   BookOpen,
   ClipboardCheck,
@@ -94,6 +95,12 @@ const projectItems: SidebarItem[] = [
     view: "project-home",
     icon: <FolderKanban size={20} strokeWidth={SW} />,
     label: "Project",
+  },
+  {
+    type: "item",
+    view: "context",
+    icon: <Compass size={20} strokeWidth={SW} />,
+    label: "Context",
   },
   {
     type: "item",

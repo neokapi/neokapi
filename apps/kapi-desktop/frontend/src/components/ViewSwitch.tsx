@@ -11,6 +11,7 @@ import { ToolboxPage } from "./ToolboxPage";
 import { TermsPage } from "./TermsPage";
 import { MemoriesPage } from "./MemoriesPage";
 import { ChecksPanel } from "./ChecksPanel";
+import { ContextExplorerView } from "./ContextExplorerView";
 import { ReviewPage, type ReviewScope } from "./ReviewPage";
 import { FormatsPage } from "./FormatsPage";
 import { SettingsPage } from "./SettingsPage";
@@ -319,6 +320,9 @@ export function ViewSwitch({
         }
         // View-only runner for a job selected from the feed (no runnerState).
         return <RunnerViewFallback tabID={tabID} project={history.project} navigate={navigate} />;
+
+      case "context":
+        return <ContextExplorerView tabID={tabID} projectName={history.project.name} />;
 
       case "checks":
         return <ChecksPanel tabID={tabID} />;
