@@ -134,7 +134,13 @@ func compileCollection(
 			if err != nil {
 				return nil, fmt.Errorf("read %s: %w", src, err)
 			}
-			pattern := project.ResolveTargetPath(item.Path, item.Base, item.Target, src, langMark)
+			// ResolveTargetPath names a file to write, so it returns an
+			// OS-native path. Everything below treats the pattern as slash
+			// form — it is split, rejoined with a locale, logged, and reported
+			// as a repo-relative path, and each read converts back with
+			// FromSlash — so the one native form entering is normalized here.
+			pattern := filepath.ToSlash(
+				project.ResolveTargetPath(item.Path, item.Base, item.Target, src, langMark))
 			prefix, suffix, ok := strings.Cut(pattern, langMark)
 			if !ok {
 				return nil, fmt.Errorf("target %q names no {lang}: one catalog per locale needs it", item.Target)
@@ -255,9 +261,16 @@ func expandSources(root, itemPath string) ([]string, error) {
 
 // discoverLocales lists the locales that have a committed catalog, by matching
 // the target pattern's two fixed halves against the directory.
+// The halves and the match are compared in one normalization — the platform's
+// own. filepath.Rel returns a native path, so trimming a slash-spelled half off
+// it silently matches nothing on a platform whose separator is not "/", which
+// reads as a locale having no committed catalog rather than as a path bug.
+// Either spelling may arrive here: a target pattern comes back OS-native from
+// project.ResolveTargetPath, and slash form is what the compiler passes around.
 func discoverLocales(root, prefix, suffix string) ([]model.LocaleID, error) {
-	glob := filepath.Join(root, filepath.FromSlash(prefix+"*"+suffix))
-	matches, err := filepath.Glob(glob)
+	head := filepath.FromSlash(prefix)
+	tail := filepath.FromSlash(suffix)
+	matches, err := filepath.Glob(filepath.Join(root, head+"*"+tail))
 	if err != nil {
 		return nil, fmt.Errorf("scan %s: %w", prefix+"*"+suffix, err)
 	}
@@ -267,7 +280,7 @@ func discoverLocales(root, prefix, suffix string) ([]model.LocaleID, error) {
 		if err != nil {
 			return nil, err
 		}
-		tag := strings.TrimSuffix(strings.TrimPrefix(filepath.ToSlash(rel), prefix), suffix)
+		tag := strings.TrimSuffix(strings.TrimPrefix(rel, head), tail)
 		if tag == "" || strings.ContainsAny(tag, `/\`) {
 			continue
 		}
