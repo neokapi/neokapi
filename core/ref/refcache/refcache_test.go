@@ -134,3 +134,49 @@ func TestStreamsAreIndependentAndTheUnnamedStreamIsMain(t *testing.T) {
 	assert.Equal(t, "rc", cache.Ref("release").Context)
 	assert.Empty(t, cache.Ref("main").Context)
 }
+
+// TestLoadObservedReadsAnyDestination: the reader's half does not inherit
+// Load's destination check. A surface that reports what the project last
+// observed has no reason to know which server the recipe binds, and refusing to
+// read for that reason would leave it unable to say anything at all.
+func TestLoadObservedReadsAnyDestination(t *testing.T) {
+	layout := testLayout(t)
+
+	cache := Load(layout, "https://one.test", "p1")
+	cache.Record("main", ref.Ref{Context: "ctx", Terms: "trm"})
+	require.NoError(t, cache.Save(layout))
+
+	// Load discards it for another destination; LoadObserved reports it.
+	assert.True(t, Load(layout, "https://two.test", "p1").Ref("main").IsZero())
+	assert.Equal(t, "ctx", LoadObserved(layout).Ref("main").Context)
+
+	// A missing file is an empty cache, never an error.
+	assert.True(t, LoadObserved(testLayout(t)).Ref("main").IsZero())
+}
+
+// TestObservedRefAnswersForTheOnlyStreamRecorded: a caller that cannot name the
+// stream is answered from the only one there is. A project on a named stream
+// would otherwise be reported against the default stream's absent ref — read
+// forever as never observed — while two streams recorded leaves it unanswered
+// rather than guessed.
+func TestObservedRefAnswersForTheOnlyStreamRecorded(t *testing.T) {
+	one := &Cache{}
+	one.Record("release-2026", ref.Ref{Context: "ctx"})
+	assert.Equal(t, "ctx", one.ObservedRef("").Context)
+	assert.Equal(t, "ctx", one.ObservedRef("release-2026").Context)
+	assert.True(t, one.Ref("").IsZero(), "Ref keeps naming the default stream")
+
+	two := &Cache{}
+	two.Record("release-2026", ref.Ref{Context: "ctx"})
+	two.Record("release-2027", ref.Ref{Context: "ctx-2"})
+	assert.True(t, two.ObservedRef("").IsZero(), "two streams cannot be disambiguated")
+	assert.Equal(t, "ctx-2", two.ObservedRef("release-2027").Context)
+
+	named := &Cache{}
+	named.Record("main", ref.Ref{Context: "m"})
+	named.Record("release", ref.Ref{Context: "r"})
+	assert.Equal(t, "m", named.ObservedRef("").Context, "the default stream wins when it is recorded")
+
+	var absent *Cache
+	assert.True(t, absent.ObservedRef("").IsZero())
+}

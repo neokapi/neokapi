@@ -225,7 +225,7 @@ standing against its gate, recomputed on every run:
 
 ```bash
 kapi status
-# source  2 units · authored 100% · checked 0% · approved 0%
+# source      2 units · authored 100% · checked 0% · approved 0%
 #
 # scope  units  draft  translated  reviewed  signed-off  pipeline         ship
 # de        42   100%        100%       80%         0%   ██████████ 100%  ready
@@ -234,9 +234,24 @@ kapi status
 # 1 of 2 scopes ready to ship
 ```
 
+A project connected to a convergence venue gets two more lines, and they are two
+different questions. **Content** is a position — what is here and not there —
+and a transfer resolves it. **Governance** is an identity: which context, terms
+and decisions are in force. Two identity hashes that differ carry no distance
+and no direction, so the line says a component moved and never how far behind
+you are; resolving what that means for work already written is a judgement, and
+`kapi status` does not make it.
+
+```bash
+kapi status
+# content     https://venue.example.com · 12 to push · 0 to pull
+# governance  context in sync · terms moved · decisions in sync
+#             run `kapi pull` to take down the governance that moved
+```
+
 `kapi check --ship` is the enforcing counterpart — the pre-release bar. It runs
-the project's bound quality gates (voice, terminology, QA) together with the ship
-and source coverage gates over the project's content, and exits non-zero when any
+the project's bound quality gates (voice, terminology, QA, staleness) together
+with the ship and source coverage gates over the project's content, and exits non-zero when any
 gate is unmet (for a release tag or a `main` check). Target drift never blocks an
 ordinary build; `--ship` is the explicit, opt-in enforcement point. (A bare
 `kapi check <files>` runs a checkset over the files you name — the content-first

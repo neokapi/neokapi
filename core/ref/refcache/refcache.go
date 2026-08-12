@@ -8,6 +8,12 @@
 // re-derivable, so deleting it costs exactly one negotiation round trip and can
 // never cost a wrong answer. That is why it is not migrated, versioned or
 // repaired: a file this side cannot read is a file this side re-fetches.
+//
+// It sits in the framework, beside the ref it holds, because the transport is
+// not its only reader: the retrieval surfaces report that a project's
+// governance has moved, and they run in a binary that links no platform code.
+// A reader that cannot name a destination uses LoadObserved and ObservedRef;
+// everything that WRITES goes through Load, which is destination-keyed.
 package refcache
 
 import (
@@ -17,7 +23,6 @@ import (
 	"path/filepath"
 	"time"
 
-	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/ref"
 )
@@ -82,6 +87,59 @@ func (c *Cache) Ref(stream string) ref.Ref {
 		return ref.Ref{}
 	}
 	return c.Streams[normalizeStream(stream)]
+}
+
+// LoadObserved reads the cache for REPORTING, whatever destination wrote it.
+//
+// It is the reader's half of Load, for a caller that wants to say what the
+// project last observed but does not know which server or project the recipe
+// binds — the retrieval surfaces, which read the graph and must be able to say
+// it moved, without taking on the transport's configuration to do it.
+//
+// Nothing decides from what this returns: a report that names the wrong
+// destination is a report to correct, while a WRITE against the wrong
+// destination is a position in one server's change feed applied to another.
+// Load keeps the destination check for exactly that reason, and this does not
+// inherit it.
+func LoadObserved(layout coreproj.Layout) *Cache {
+	empty := &Cache{Streams: map[string]ref.Ref{}}
+
+	data, err := os.ReadFile(PathFor(layout))
+	if err != nil {
+		return empty
+	}
+	var cache Cache
+	if err := json.Unmarshal(data, &cache); err != nil {
+		return empty
+	}
+	if cache.Streams == nil {
+		cache.Streams = map[string]ref.Ref{}
+	}
+	return &cache
+}
+
+// ObservedRef returns the ref recorded for a stream, and — for a caller that
+// cannot name one — the ref of the only stream recorded when the cache holds
+// exactly one.
+//
+// The fallback is what makes the cache readable by a surface that has not
+// loaded the recipe: a project on a named stream would otherwise be reported
+// against the default stream's absent ref, which reads as "never observed"
+// forever. Two or more streams recorded leaves it unanswered rather than
+// guessed, because there is no way to tell which one the caller sits on.
+func (c *Cache) ObservedRef(stream string) ref.Ref {
+	if c == nil {
+		return ref.Ref{}
+	}
+	if r, ok := c.Streams[normalizeStream(stream)]; ok {
+		return r
+	}
+	if stream == "" && len(c.Streams) == 1 {
+		for _, r := range c.Streams {
+			return r
+		}
+	}
+	return ref.Ref{}
 }
 
 // Observe records the governance identities a contact with the server
@@ -193,7 +251,7 @@ func (c *Cache) update(stream string, apply func(ref.Ref) ref.Ref) {
 // than accumulating two that describe the same place.
 func normalizeStream(stream string) string {
 	if stream == "" {
-		return bproject.StreamMain
+		return ref.DefaultStream
 	}
 	return stream
 }

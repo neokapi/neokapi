@@ -24,7 +24,6 @@ import (
 	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	"github.com/neokapi/neokapi/bowrain/core/refcache"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/plugin/schema"
@@ -34,6 +33,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/ref"
+	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host"
 )
@@ -566,6 +566,27 @@ func (c *BowrainSourceConnector) ObserveTermsRef(component string) {
 		return
 	}
 	c.refs.SetIdentity(c.stream, ref.ComponentTerms, component)
+}
+
+// Governance answers the status report's second axis: the governance
+// identities this project last observed, and the ones the venue publishes now.
+//
+// The venue's half is best-effort and returned as a pointer for that reason. An
+// unreachable server, an unclaimed project, a server too old for the endpoint —
+// each leaves it nil, which is a report ("not checked") and not a comparison
+// against nothing. Reading a missing answer as an empty ref would say every
+// component had moved, on a laptop that simply has no network.
+func (c *BowrainSourceConnector) Governance(ctx context.Context) (observed ref.Ref, venue *ref.Ref, observedAt time.Time) {
+	observed = c.refs.Ref(c.stream)
+	observedAt = c.refs.ObservedAt
+	if c.client == nil {
+		return observed, nil, observedAt
+	}
+	current, err := c.client.Ref(ctx)
+	if err != nil {
+		return observed, nil, observedAt
+	}
+	return observed, &current, observedAt
 }
 
 // SetPushContext records the context content type the next Push carries: the

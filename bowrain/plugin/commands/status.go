@@ -6,9 +6,10 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/neokapi/neokapi/bowrain/core/project"
-	"github.com/neokapi/neokapi/bowrain/core/refcache"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/ref"
+	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/spf13/cobra"
 )
 
@@ -39,6 +40,20 @@ type serverStatusJSON struct {
 	LastSync    string           `json:"last_sync,omitempty"`
 	ActiveRuns  []activeRunJSON  `json:"active_runs"`
 	Terminology *terminologyJSON `json:"terminology,omitempty"`
+	Governance  *governanceJSON  `json:"governance,omitempty"`
+}
+
+// governanceJSON is the governance axis of the built-in status report: the ref
+// this project last observed, and the one the venue publishes now.
+//
+// Both refs travel; no verdict does. Comparison is core/ref's, made once where
+// the report is rendered — a second comparison here would be a second answer to
+// "did governance move?", and the two would part company the day one of them
+// learned a component the other had not.
+type governanceJSON struct {
+	Observed   ref.Ref  `json:"observed"`
+	Venue      *ref.Ref `json:"venue,omitempty"`
+	ObservedAt string   `json:"observed_at,omitempty"`
 }
 
 // terminologyJSON is the standing of the workspace's governed terminology: the
@@ -128,6 +143,15 @@ func runServerStatus(cmd *cobra.Command, _ []string) error {
 		if !status.LastSync.IsZero() {
 			out.LastSync = status.LastSync.Format(timeRFC3339)
 		}
+	}
+
+	// The governance axis. It costs one round trip, which is why it is taken
+	// here and not on every read path: a status report is a question asked on
+	// purpose, and the retrieval surfaces answer from what this one records.
+	observed, venue, observedAt := conn.Governance(ctx)
+	out.Governance = &governanceJSON{Observed: observed, Venue: venue}
+	if !observedAt.IsZero() {
+		out.Governance.ObservedAt = observedAt.Format(timeRFC3339)
 	}
 
 	// List in-flight runs (best-effort; a server that predates convergence runs

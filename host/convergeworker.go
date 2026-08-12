@@ -85,6 +85,12 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		// And for governance: one instant for the whole pass, one report of a
 		// profile that expired under it.
 		governance: a.ensureGovernance(),
+		// The freshness watch is one process's reading history, and a fan-out
+		// is one reader. Sharing it means a convergence that spans a governance
+		// move reports it once, to whichever worker read across it — rather
+		// than once per locale, or not at all because each worker's first read
+		// established a baseline of its own.
+		freshness: a.freshnessWatch(),
 	}
 }
 
@@ -156,6 +162,8 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"projectStores":       fieldShared, // pre-seeded: one store per project, not per locale
 	"governance":          fieldShared, // one instant and one transition report per run
 	"governanceOnce":      fieldOwned,  // a fresh Once that sees the pre-seeded state
+	"freshness":           fieldShared, // one process, one reading history
+	"freshnessOnce":       fieldOwned,  // a fresh Once that sees the pre-seeded watch
 	"projectFlowTools":    fieldOwned,  // each worker builds its own tool instances
 	"convergeProgressTap": fieldOwned,  // one tap per locale
 	"pluginRuntimeOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded runtime

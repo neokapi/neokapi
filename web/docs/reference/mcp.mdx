@@ -193,6 +193,14 @@ answer says what the project calls the thing, whether it is discouraged and
 what to say instead, and any wording already approved. Asking before writing is
 the cheap route; learning the same fact from a failing check afterwards is not.
 
+Every answer carries `notes`, and the first of them says whether the context,
+the terms or the decisions moved since this session last read them. The
+comparison is against what the project last observed of its server, held on
+disk — so it costs a small file read and no round trip, and it reports rather
+than resolves: an assistant told the terms moved asks again before continuing,
+because the wording it had settled on was chosen against a context that has
+since changed.
+
 ### "Extract the content from this file"
 
 > Show me the translatable strings in `messages.json`

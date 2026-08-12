@@ -126,6 +126,13 @@ type App struct {
 	// from `kapi mcp` flags; the zero value is the curated set.
 	MCPSurface MCPSurface
 
+	// freshness remembers the governance identities this process last read, so
+	// a retrieval answer can say what moved under it. Process-lived on purpose:
+	// it is the difference between two reads by the same reader, which is what
+	// an assistant holding a stale answer needs told. See host/freshness.go.
+	freshness     *governanceWatch
+	freshnessOnce sync.Once
+
 	// execTrustGranted records that this process has established the right to
 	// run the active project's exec-class steps — the user answered the
 	// prompt, a stored decision matched, or the environment granted it. Set by

@@ -53,6 +53,20 @@ func Components() []Component {
 	return []Component{ComponentContent, ComponentContext, ComponentTerms, ComponentDecisions}
 }
 
+// GovernanceComponents lists the identity components — every component except
+// the position. They are what a status report and a staleness note speak about:
+// the position moves in the ordinary course of content traffic and says nothing
+// about governance.
+func GovernanceComponents() []Component {
+	return []Component{ComponentContext, ComponentTerms, ComponentDecisions}
+}
+
+// DefaultStream is the stream a ref belongs to when no caller named one. It is
+// the protocol's default stream name, spelled here because the framework cannot
+// reach the recipe vocabulary that also spells it; the two are asserted equal
+// where both are in scope.
+const DefaultStream = "main"
+
 // Ref is one stream's freshness ref.
 //
 // The zero Ref makes no claim about anything: position nought and three empty
