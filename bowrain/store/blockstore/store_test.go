@@ -177,15 +177,19 @@ func TestSession_OverlayKeyNamesNoBlock(t *testing.T) {
 	require.NoError(t, err)
 	defer sess.Close()
 
-	err = sess.PutOverlay(blockstore.Overlay{
-		Kind:      "targets/fr",
-		BlockHash: "hash-nobody-holds",
-		Payload:   []byte(`{"text":"Bonjour"}`),
-	})
-	require.ErrorIs(t, err, blockstore.ErrNotFound)
+	for _, kind := range []string{"targets/fr", "annotations/qa", "plugins/lint"} {
+		t.Run(kind, func(t *testing.T) {
+			err = sess.PutOverlay(blockstore.Overlay{
+				Kind:      kind,
+				BlockHash: "hash-nobody-holds",
+				Payload:   []byte(`{"text":"Bonjour"}`),
+			})
+			require.ErrorIs(t, err, blockstore.ErrNotFound)
 
-	_, err = sess.GetOverlay("targets/fr", "hash-nobody-holds")
-	require.ErrorIs(t, err, blockstore.ErrNotFound)
+			_, err = sess.GetOverlay(kind, "hash-nobody-holds")
+			require.ErrorIs(t, err, blockstore.ErrNotFound)
+		})
+	}
 }
 
 func TestSession_ListOverlays(t *testing.T) {
@@ -286,14 +290,17 @@ func TestSession_DispatchByKind(t *testing.T) {
 		require.NoErrorf(t, db.QueryRow(q, args...).Scan(&count), "probe %q", q)
 		require.Equalf(t, 1, count, "expected 1 row from %q", q)
 	}
-	// The target row is filed under the block's own id — where the block
-	// round-trip writes it and where hydration reads it back.
+	// Every row is filed under the block's own id — where the block round-trip
+	// writes it, where hydration reads it back, and where deletion clears it.
+	// The annotation is filed under the bare key, which is what Block.SetAnno is
+	// handed on the way back; the plugin kind stays opaque because nothing but
+	// this adapter reads it.
 	mustRowCount(`SELECT count(*) FROM translations WHERE project_id=? AND block_id=? AND locale=?`,
 		projectID, block.ID, "fr")
 	mustRowCount(`SELECT count(*) FROM annotations WHERE project_id=? AND block_id=? AND kind=?`,
-		projectID, block.ContentHash, "annotations/qa")
+		projectID, block.ID, "qa")
 	mustRowCount(`SELECT count(*) FROM overlays_ext WHERE project_id=? AND block_id=? AND kind=?`,
-		projectID, block.ContentHash, "plugins/lint")
+		projectID, block.ID, "plugins/lint")
 
 	// Read-back round-trip through the polymorphic API.
 	sess2, err := bs.Begin(ctx)

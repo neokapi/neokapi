@@ -139,3 +139,38 @@ type GenericAnnotation struct {
 
 // AnnotationType returns the type identifier for this annotation.
 func (g *GenericAnnotation) TypeName() string { return g.Kind }
+
+// RawAnnotation carries a stand-off payload whose concrete type this process
+// does not have: a body written by a plugin, a tool, or a build that registered
+// a type this one does not link. It holds the bytes exactly as they arrived, so
+// a store or wire round-trip hands back what its writer wrote.
+//
+// It is what DecodePayload produces when neither the payload registry nor
+// GenericAnnotation can describe a body. Decoding such a body into
+// GenericAnnotation instead — which reads only "type" and "fields" — silently
+// dropped every field the writer named.
+type RawAnnotation struct {
+	// Kind is the type name the body was filed under.
+	Kind string
+	// Body is the payload, verbatim.
+	Body json.RawMessage
+}
+
+// TypeName returns the type name the body was filed under, so a re-encoded
+// payload keeps the discriminator it arrived with.
+func (r *RawAnnotation) TypeName() string { return r.Kind }
+
+// MarshalJSON emits the body unchanged.
+func (r *RawAnnotation) MarshalJSON() ([]byte, error) {
+	if len(r.Body) == 0 {
+		return []byte("null"), nil
+	}
+	return r.Body, nil
+}
+
+// UnmarshalJSON keeps the body unchanged. Kind is set by whoever knows the type
+// name — the envelope decoder, not the body.
+func (r *RawAnnotation) UnmarshalJSON(data []byte) error {
+	r.Body = append(r.Body[:0], data...)
+	return nil
+}

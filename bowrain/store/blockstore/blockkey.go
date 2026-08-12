@@ -77,6 +77,16 @@ func (s *session) cacheRow(key, id string) {
 	s.rowIDs[key] = id
 }
 
+// blockKeyOr returns the content key a row id is addressed by, falling back to
+// the row id itself when the block carries no content key — a listing names
+// every row it found, never fewer.
+func blockKeyOr(keys map[string]string, rowID string) string {
+	if key := keys[rowID]; key != "" {
+		return key
+	}
+	return rowID
+}
+
 // blockKeysByRow returns the content key each row id is addressed by through
 // the Store API, so a listed overlay carries the same BlockHash the block
 // iterator reports for its block. A row whose block carries no content key maps

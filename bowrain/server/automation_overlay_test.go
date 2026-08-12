@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/blockstore"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,11 +37,17 @@ func TestAutomation_WriteOverlay_EndToEnd(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	// An overlay is a layer on a block, so the block the rule names has to
+	// exist — the adapter refuses a key that names none.
+	require.NoError(t, srv.ContentStore.StoreBlocks(ctx, projectID, "main", []*model.Block{
+		model.NewRunsBlock("blk-qa", []model.Run{{Text: &model.TextRun{Text: "Hello."}}}),
+	}))
+
 	// Fire the action directly (no event-bus routing — the engine loop
 	// is exercised by other workflow tests). The action payload mimics
 	// what a rule on `content.extracted` would dispatch.
 	const wantKind = "annotations/qa"
-	const wantBlock = "block-hash-abc"
+	const wantBlock = "blk-qa"
 	const wantPayload = `{"findings":[{"rule":"punctuation","severity":"info"}]}`
 
 	action := event.AutomationAction{

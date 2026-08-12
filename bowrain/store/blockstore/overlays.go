@@ -48,6 +48,34 @@ func splitKindOnce(kind string) (prefix, rest string) {
 	return before, after
 }
 
+// An `annotations/<name>` overlay is a block annotation, not a private layer:
+// <name> is the key Block.SetAnno files it under, and the payload is that
+// annotation's body. The adapter therefore hands the store the same three
+// coordinates the block round-trip does — the block's row id, the bare key, and
+// a typed payload — so a QA tool's findings written through a flow reach the
+// editor that reads the block, and a note the editor writes reaches the flow.
+
+// annotationKey returns the annotation key an `annotations/<name>` kind names.
+// A kind with no name addresses no annotation and is refused rather than filed
+// under the empty key, where nothing would ever look for it.
+func annotationKey(kind string) (string, error) {
+	_, key := splitKindOnce(kind)
+	if key == "" {
+		return "", fmt.Errorf("bowrain/blockstore: kind %q names no annotation", kind)
+	}
+	return key, nil
+}
+
+// encodeAnnotationPayload renders a stored annotation back as an overlay
+// payload. A payload whose type this process knows comes back through that
+// type's own JSON; one it does not comes back as the bytes its writer wrote.
+func encodeAnnotationPayload(ann model.Payload) ([]byte, error) {
+	if ann == nil {
+		return []byte("{}"), nil
+	}
+	return json.Marshal(ann)
+}
+
 // A `targets/<locale>` overlay payload is not opaque: it is a projection of
 // model.Target, and the store reads it as one. The translate-family tools spell
 // the content three ways — `runs` (structure preserved), `text`, or `target` —

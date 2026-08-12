@@ -18,11 +18,18 @@
 //   - The `blockstore.Store` interface stays polymorphic — callers
 //     only say `PutOverlay(kind, …)`; the dispatcher picks the table.
 //
-// A `targets/<locale>` overlay is a model.Target, not an opaque body, and it
-// goes through bowrain/store's own writer so a target reaching the store
-// through this adapter and one reaching it through the block round-trip are
-// the same row: the same columns, filed under the same `blocks.id`. The two
-// used to disagree on both, and the shape of that was silence — the write
-// succeeded, every reader that derives coverage, review state or a decision
-// from a target saw nothing, and "no translation yet" is what nothing means.
+// A `targets/<locale>` overlay is a model.Target and an `annotations/<name>`
+// overlay is a block annotation — neither is an opaque body. Both go through
+// bowrain/store's own writer and reader, so an overlay reaching the store
+// through this adapter and one reaching it through the block round-trip are the
+// same row: the same columns and payload envelope, filed under the same
+// `blocks.id`, under the same spelling of the kind. The two used to disagree on
+// all three, and the shape of that was silence — the write succeeded, every
+// reader that derives coverage, review state, a decision or a block's
+// annotations saw nothing, and "no translation yet" is what nothing means.
+//
+// Every overlay row is filed under the block's own `blocks.id`, whichever name
+// the caller addressed the block by. Block and item deletion clear overlays by
+// that id; a row filed under anything else survives the block it describes,
+// forever.
 package blockstore

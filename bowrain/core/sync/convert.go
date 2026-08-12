@@ -380,8 +380,9 @@ func marshalAnnotations(anns map[string]model.Payload) ([]byte, error) {
 }
 
 // unmarshalAnnotations reconstructs typed annotations from the discriminated
-// envelopes written by marshalAnnotations, falling back to GenericAnnotation
-// for unregistered types.
+// envelopes written by marshalAnnotations, through model.DecodePayload — the
+// same decode the server store's hydration uses, so an annotation means one
+// thing whether it arrives over the wire or off a row.
 func unmarshalAnnotations(data []byte) (map[string]model.Payload, error) {
 	var env map[string]annotationEnvelope
 	if err := json.Unmarshal(data, &env); err != nil {
@@ -389,16 +390,11 @@ func unmarshalAnnotations(data []byte) (map[string]model.Payload, error) {
 	}
 	out := make(map[string]model.Payload, len(env))
 	for k, e := range env {
-		a, ok := model.NewPayload(e.Type)
-		if !ok {
-			a = &model.GenericAnnotation{Kind: e.Type}
+		typeName := e.Type
+		if typeName == "" {
+			typeName = k
 		}
-		if len(e.Data) > 0 {
-			if err := json.Unmarshal(e.Data, a); err != nil {
-				return nil, fmt.Errorf("decode annotation %q (%s): %w", k, e.Type, err)
-			}
-		}
-		out[k] = a
+		out[k] = model.DecodePayload(typeName, e.Data)
 	}
 	return out, nil
 }
