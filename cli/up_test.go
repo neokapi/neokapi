@@ -249,8 +249,14 @@ func TestUp_MaterializePolicyManualByDefault(t *testing.T) {
 }
 
 // TestUp_MaterializeOnConverge: with defaults.materialize: on-converge, a
-// gated-green locale has its localized files written from the project store
-// after the loop, and the counts are reported.
+// gated-green locale ends the run with its localized files on disk carrying the
+// translation.
+//
+// What it must NOT do is rewrite them from a store that holds no target for the
+// locale. The convergence pass writes the target files itself, so on this path
+// the store can legitimately hold nothing; materializing from it then wrote the
+// SOURCE text over every translation the pass had just produced, and a test that
+// only stat'd the files called it a success.
 func TestUp_MaterializeOnConverge(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
@@ -262,22 +268,27 @@ func TestUp_MaterializeOnConverge(t *testing.T) {
 	out, err := runUp(t, a, recipe)
 	require.NoError(t, err, out)
 	assert.Contains(t, out, "Up to date", out)
-	assert.Contains(t, out, "Materialized 2 target file(s) from the project store.", out)
 	for _, f := range []string{"a.json", "b.json"} {
-		_, statErr := os.Stat(filepath.Join(root, "src/locales/nb-NO", f))
-		require.NoError(t, statErr)
+		body, rerr := os.ReadFile(filepath.Join(root, "src/locales/nb-NO", f))
+		require.NoError(t, rerr)
+		assert.NotContains(t, string(body), "Hello, world.",
+			"%s must hold the pseudo-translation, not the source it was written over", f)
 	}
 }
 
 // TestUp_MaterializeFlagForces: --materialize forces the post-loop write even
-// when the recipe policy is manual.
+// when the recipe policy is manual — and, like the policy, writes what the store
+// holds rather than source fallback over the run's own output.
 func TestUp_MaterializeFlagForces(t *testing.T) {
 	a := processOnlyApp(t)
-	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 
 	out, err := runUp(t, a, recipe, "--materialize")
 	require.NoError(t, err, out)
-	assert.Contains(t, out, "Materialized 2 target file(s) from the project store.", out)
+	assert.Contains(t, out, "Up to date", out)
+	body, rerr := os.ReadFile(filepath.Join(root, "src/locales/nb-NO", "a.json"))
+	require.NoError(t, rerr)
+	assert.NotContains(t, string(body), "Hello, world.")
 }
 
 // TestUp_MaterializeSkipsParkedLocale: a locale short of its gate (parked)

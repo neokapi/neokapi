@@ -677,6 +677,11 @@ func (a *App) finishConverge(ctx context.Context, cmd Command, proj *project.Kap
 		}
 	}
 
+	// Everything this run wrote is the store's own output. Stamping it as
+	// absorbed is what keeps the next run from reading its own materialization
+	// back as a statement from git; see stampCommittedRecord.
+	a.stampCommittedRecord(ctx, proj, projectPath)
+
 	state := convergence.RunConverged
 	if !out.Converged {
 		state = convergence.RunParked

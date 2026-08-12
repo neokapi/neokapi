@@ -1239,6 +1239,56 @@ func uniqueStrings(in []string) []string {
 	return out
 }
 
+// FullScoreEntries returns every entry whose sourceLocale variant would match
+// the given source runs at score 1.0 — the exact tiers' generalized and
+// structural hits, plus the plain hits whose own inline-code structure matches
+// (a plain hit with a differing structure takes the tag-mismatch penalty and
+// never reaches full score).
+//
+// It is the set the ambiguity rule compares (demoteAmbiguousExacts), which
+// Lookup cannot report: once demoted, the members come back at ScoreNearExact
+// or are filtered out entirely by a full-score policy, so a caller that has to
+// RESOLVE the disagreement rather than avoid it cannot see who is in it. The
+// content-record absorber is that caller: it reconciles the entries holding a
+// stale target for a source the committed translations answer, so the answer is
+// unambiguous again.
+//
+// Entries are returned in ID order, deduplicated across the tiers.
+func (tm *SQLiteStore) FullScoreEntries(ctx context.Context, runs []model.Run, sourceLocale model.LocaleID) ([]Entry, error) {
+	if len(runs) == 0 {
+		return nil, nil
+	}
+	plainKey := NormalizeText(model.FlattenRuns(runs))
+	structKey := NormalizeText(model.RunsStructuralText(runs))
+	generalKey := NormalizeText(model.RunsGeneralizedText(runs))
+
+	var out []Entry
+	seen := map[string]bool{}
+	for _, tier := range []struct{ column, key string }{
+		{"general_key", generalKey},
+		{"struct_key", structKey},
+		{"plain", plainKey},
+	} {
+		entries, err := tm.queryExactVariant(ctx, tier.column, tier.key, sourceLocale, ApplyDefaults(LookupOptions{}))
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range entries {
+			if seen[e.ID] {
+				continue
+			}
+			if tier.column == "plain" &&
+				NormalizeText(model.RunsStructuralText(e.Variant(sourceLocale))) != structKey {
+				continue // tag mismatch: below full score, so outside the ambiguity set
+			}
+			seen[e.ID] = true
+			out = append(out, e)
+		}
+	}
+	slices.SortFunc(out, func(a, b Entry) int { return cmp.Compare(a.ID, b.ID) })
+	return out, nil
+}
+
 // GetEntry fetches a single entry by ID with all its variants populated.
 func (tm *SQLiteStore) GetEntry(ctx context.Context, id string) (Entry, bool, error) {
 	entries, err := tm.loadEntriesByIDs(ctx, []string{id})
