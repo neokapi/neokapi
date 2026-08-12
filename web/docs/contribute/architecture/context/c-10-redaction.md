@@ -43,7 +43,7 @@ pipeline already preserves inline codes across translation.
 
 A redacted span becomes a `model.PlaceholderRun` with a `Type` of the form
 `redaction:<category>`, mirroring the `entity:` prefix convention of the semantic
-vocabulary ([AD-002](../002-content-model.md)). The run carries a
+vocabulary ([F-02](../foundations/f-02-content-model.md)). The run carries a
 stable id (the token), a visible stand-in string (default template
 `[REDACTED:{category}]`), and constraints marking it non-deletable and
 non-cloneable. Categories are free-form strings; a recommended set is surfaced in
@@ -80,7 +80,7 @@ codes is rendered through the placeholder protocol, which presents each
 placeholder as an opaque token — the model sees neither the original nor even the
 visible label — and the return is matched back to the source run by id, so the
 placeholder survives the round trip with full fidelity
-([AD-036](../036-llm-prompts-and-batching.md)).
+([M-05](../multilingual/m-05-prompts-and-batching.md)).
 
 ### Detection
 
@@ -119,7 +119,7 @@ Detection produces spans, byte offsets plus a category, consumed by
 
 ### Redaction is a structured edit
 
-`redact` is a **transformer** ([AD-006](../006-tool-system.md)): it
+`redact` is a **transformer** ([E-03](../engine/e-03-tool-system.md)): it
 produces an edit plan — the span-to-replacement edits plus the originals to vault
 — and the framework applier rewrites the source. Because the plan is a known
 span-to-replacement map, the applier **rebases** the surviving run-anchored source
@@ -227,11 +227,11 @@ that redaction is enabled.
 
 - [C-01: The project model](c-01-project-model.md) — where the vault sits and
   what deleting `work/` costs.
-- [AD-004: Processing Engine](../004-processing-engine.md) — the
+- [E-01: Processing Engine](../engine/e-01-processing-engine.md) — the
   in-process vault riding the block through the stream.
-- [AD-006: Tool System](../006-tool-system.md) — transformers, IO
+- [E-03: Tool System](../engine/e-03-tool-system.md) — transformers, IO
   contracts and the placement pass.
-- [AD-002: Content Model](../002-content-model.md) — placeholder
+- [F-02: Content Model](../foundations/f-02-content-model.md) — placeholder
   runs and the semantic vocabulary.
-- [AD-017: Bilingual Format Interop](../017-bilingual-format-interop.md) —
+- [M-01: Bilingual Format Interop](../multilingual/m-01-bilingual-interop.md) —
   the extract and merge round trip redaction slots into.

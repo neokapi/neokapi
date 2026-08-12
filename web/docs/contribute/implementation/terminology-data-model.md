@@ -84,7 +84,7 @@ Text normalization applies Unicode NFC (`golang.org/x/text/unicode/norm`) via `N
 
 ## Pipeline Tools
 
-Two pipeline tools integrate terminology into the streaming pipeline ([AD-006](/contribute/architecture/006-tool-system)):
+Two pipeline tools integrate terminology into the streaming pipeline ([E-03](/contribute/architecture/engine/e-03-tool-system)):
 
 **`term-lookup`** (Enrich) -- Scans source text for known terms, attaches `TermAnnotation` with `TextRange` character positions. Downstream tools (AI translate, QA) use these annotations for context.
 
@@ -93,7 +93,7 @@ Two pipeline tools integrate terminology into the streaming pipeline ([AD-006](/
 Related AI and redaction tools (registered in `core/ai/tools/` and
 `core/tools/`):
 
-**`term-extract`** (Enrich, AI) -- LLM extraction of candidate terms. Uses an AI provider from [AD-011](/contribute/architecture/011-ai-providers).
+**`term-extract`** (Enrich, AI) -- LLM extraction of candidate terms. Uses an AI provider from [E-07](/contribute/architecture/engine/e-07-model-providers).
 
 **`entity-extract`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: content-memory generalization ([C-09](/contribute/architecture/context/c-09-content-memory)), do-not-translate markers, translation hints, and terminology candidate discovery. Should run early in the pipeline -- before `recycle`.
 
@@ -153,4 +153,4 @@ consequential: any transition to `forbidden` or `preferred`, or from
 - `TermAnnotation` -- matched term with concept, target terms, and position
 - `EntityAnnotation` -- named entity with type, DNT flag, and position
 
-These join `AltTranslation` as first-class annotations on Blocks ([AD-002](/contribute/architecture/002-content-model)).
+These join `AltTranslation` as first-class annotations on Blocks ([F-02](/contribute/architecture/foundations/f-02-content-model)).

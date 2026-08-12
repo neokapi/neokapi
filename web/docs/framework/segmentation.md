@@ -22,7 +22,7 @@ It divides a block's source into the units a translator or model works on —
 usually sentences. In neokapi segmentation is a **run-anchored stand-off
 overlay**, not a structural split: the boundaries are recorded as spans over the
 existing runs, and the source runs themselves are never rewritten
-([AD-002: Content Model](/contribute/architecture/002-content-model)). A block
+([F-02: Content Model](/contribute/architecture/foundations/f-02-content-model)). A block
 can carry several segmentation layers at once, and removing the overlay restores
 the unsegmented block exactly.
 
@@ -128,7 +128,7 @@ poorly: languages without reliable sentence punctuation, user-generated or
 transcribed text, and mixed-script content. Select a model with `--sat-model`
 (e.g. `sat-3l-sm` for speed, `sat-12l-sm` for accuracy) and tune `--threshold`
 to make boundaries more or less eager. See
-[AD-021: SaT Segmenter Plugin](/contribute/architecture/021-sat-segmenter-plugin)
+[M-02: SaT Segmenter Plugin](/contribute/architecture/multilingual/m-02-segmentation)
 for the protocol and isolation design. The plugin must be installed
 (`kapi plugins`) before the engine is available.
 

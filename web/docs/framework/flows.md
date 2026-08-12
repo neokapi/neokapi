@@ -133,7 +133,7 @@ as `redact` placed after a step that sends source to a remote service (except
 a step producing an input the transformer's configuration requires), and warns
 when a transformer sits later than its earliest valid slot, since every
 overlay present at apply time must be rebased. See
-[the tool system AD](/contribute/architecture/006-tool-system) for the model.
+[the tool system AD](/contribute/architecture/engine/e-03-tool-system) for the model.
 
 A flow that declares the removed `source_transforms:` field is rejected at
 load with a migration error: list the transformers as ordered steps instead.
@@ -198,7 +198,7 @@ resolved `source → sink` without running anything.
 A flow only ever declares *intrinsic* intent — a check flow that produces no
 document sets `sink: none` — never a path. Inside a project, a run with no `-o`
 lands its work in the store (process-only); `kapi merge` materializes files when
-you're ready. See [AD-026](/contribute/architecture/026-flow-io-binding) for the
+you're ready. See [E-04](/contribute/architecture/engine/e-04-flows-and-io-binding) for the
 full model.
 
 ## Running a flow

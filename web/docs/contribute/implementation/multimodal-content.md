@@ -5,10 +5,10 @@ title: Multimodal content — implementation map
 # Multimodal content — implementation map
 
 Tactical notes for the multimodal surface described in
-[AD-030](../architecture/030-multimodal-extraction-and-llm-refinement.md)
+[M-03](../architecture/multilingual/m-03-multimodal-content.md)
 (extraction + refinement) and
-[AD-029](../architecture/029-vision-and-image-adaptation.md) (vision). The
-content-model anchors are [AD-002](../architecture/002-content-model.md):
+[M-03](../architecture/multilingual/m-03-multimodal-content.md) (vision). The
+content-model anchors are [F-02](../architecture/foundations/f-02-content-model.md):
 a block carries a temporal `TimingAnnotation`, a spatial `GeometryAnnotation`,
 and a recognition `Origin` (OCR/ASR, with confidence).
 
@@ -43,7 +43,7 @@ ffmpeg/av engine is resolvable instead of erroring.
 ## Flows
 
 Built-in flows (`host/flowdef.BuiltInFlows`) compose the existing tools; the
-reader/writer are run-time bindings (AD-026), so a flow is just the tool chain:
+reader/writer are run-time bindings (E-04), so a flow is just the tool chain:
 
 - `audio-to-subtitles` — `translate` (the audio reader yields timed cues).
 - `video-to-subtitles` — `translate` over the demuxed cues (both the speech

@@ -309,7 +309,7 @@ occurrence index in the block cache ([C-03](c-03-context-store-and-graph.md)).
   the projection lives and how occurrence is indexed.
 - [C-09: Content memory](c-09-content-memory.md) — shared matching
   infrastructure, and the source-versus-state contrast.
-- [AD-006: Tool System](../006-tool-system.md) — the pipeline-tool
+- [E-03: Tool System](../engine/e-03-tool-system.md) — the pipeline-tool
   pattern.
 - [Terminology data model](../../implementation/terminology-data-model.md) — the
   full Go structs, the tool catalog and the relation vocabulary.

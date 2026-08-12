@@ -1,7 +1,7 @@
 ---
 sidebar_position: 17
 title: Content-Fidelity Surfacing
-description: Implementation note for AD-031 — how a format author surfaces non-translatable contextual content (alt-text, code, formulas, comments, metadata) for ingestion while keeping the byte-exact round-trip and Okapi parity, via the inverted disableNonTranslatableContent toggle, the getter/setter/ApplyMap/schema trio, the duck-typed parity force-off, and the two surfacing channels (non-translatable Block vs Data/NoteAnnotation).
+description: Implementation note for E-02 — how a format author surfaces non-translatable contextual content (alt-text, code, formulas, comments, metadata) for ingestion while keeping the byte-exact round-trip and Okapi parity, via the inverted disableNonTranslatableContent toggle, the getter/setter/ApplyMap/schema trio, the duck-typed parity force-off, and the two surfacing channels (non-translatable Block vs Data/NoteAnnotation).
 keywords: [content fidelity, surfacing, non-translatable content, ExtractNonTranslatableContent, SemanticRole, skeleton, parity, format reader, neokapi]
 ---
 
@@ -12,9 +12,9 @@ contextual content (image and shape alt-text, code blocks, captions, formulas,
 do-not-translate strings, config-excluded values, comments, document metadata)
 visible to ingestion and LLM/RAG consumers while machine translation skips it and
 the round-trip stays byte-exact. Parent AD:
-[AD-031: Content-Fidelity Surfacing](/contribute/architecture/031-content-fidelity-surfacing).
+[E-02: Content-Fidelity Surfacing](/contribute/architecture/engine/e-02-format-system).
 For the surrounding format-system contracts see
-[AD-005: Format System](/contribute/architecture/005-format-system), the general
+[E-02: Format System](/contribute/architecture/engine/e-02-format-system), the general
 port recipe in
 [Implementing Formats](/contribute/implementation/implementing-formats), and the
 skeleton mechanics in
@@ -130,7 +130,7 @@ is the concrete realization of the parity contract — *same semantic config →
 same results* — while letting native readers pick the richer default. Exposing
 exactly `SetExtractNonTranslatableContent(bool)` (no more, no less) is therefore
 the contract a new surfacing format must honor to participate in parity (see
-[AD-018: Parity Testing](/contribute/architecture/018-parity-testing)).
+[A-02: Parity Testing](/contribute/architecture/assurance/a-02-parity)).
 
 ## Channel 1 — renderable content as a non-translatable Block
 
@@ -174,7 +174,7 @@ Pick the closest existing role from `core/model/structure.go` —
 equations, and so on. Do not invent a role for a surfacing case; the role is the
 stable handle that semantic export, the editor, and ingestion use to recognize
 the content without treating it as MT input. MT skips it because `Translatable`
-is `false` (AD-012); RAG sees it because it is a part in the stream rather than
+is `false` (E-07); RAG sees it because it is a part in the stream rather than
 buried in the skeleton.
 
 Equations are the richer instance of this channel: an *inline* formula surfaces
@@ -286,10 +286,10 @@ setter rather than emitting unconditionally.
 
 ## Related
 
-- [AD-031: Content-Fidelity Surfacing](/contribute/architecture/031-content-fidelity-surfacing) — the parent decision and rationale.
-- [AD-005: Format System](/contribute/architecture/005-format-system) — reader/writer contracts and skeleton strategies.
-- [AD-002: Content Model](/contribute/architecture/002-content-model) — `Block`, `Translatable`, and the semantic-role taxonomy this note leans on.
-- [AD-018: Parity Testing](/contribute/architecture/018-parity-testing) — the *same semantic config → same results* contract the duck-typed force-off honors.
+- [E-02: Content-Fidelity Surfacing](/contribute/architecture/engine/e-02-format-system) — the parent decision and rationale.
+- [E-02: Format System](/contribute/architecture/engine/e-02-format-system) — reader/writer contracts and skeleton strategies.
+- [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model) — `Block`, `Translatable`, and the semantic-role taxonomy this note leans on.
+- [A-02: Parity Testing](/contribute/architecture/assurance/a-02-parity) — the *same semantic config → same results* contract the duck-typed force-off honors.
 - [Implementing Formats](/contribute/implementation/implementing-formats) — the `nonFoo` default convention and the general port recipe.
 - [Skeleton Store and Streaming HTML](/contribute/implementation/skeleton-store) — how skeleton refs reconstruct documents byte-exactly.
 - [OMML Math Conversion](/contribute/implementation/omml-math) — formula surfacing (`RoleFormula` blocks, placeholder renderings) and the sub-skeleton write-back for equation prose.

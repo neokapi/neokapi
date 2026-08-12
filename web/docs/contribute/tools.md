@@ -16,7 +16,7 @@ want to process. Parts you don't handle pass through unchanged. There are two
 families of handler.
 
 For **Block** parts, set exactly ONE capability-typed handler — the parameter
-type bounds what the tool may write (immutability model, AD-006):
+type bounds what the tool may write (immutability model, E-03):
 
 - `Annotate(tool.BlockView) error` — read-only; writes only overlays,
   annotations, and properties.

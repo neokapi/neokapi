@@ -11,7 +11,7 @@ keywords: [architecture decisions, neokapi, framework design, content model, con
 These are the Architecture Decisions for the **neokapi framework**, the open
 content and language engine. Everything here is Apache-2.0 and describes the
 framework modules: the repository root, the cobra-free host runtime, the shared
-CLI base, the `kapi` binary, and Kapi Desktop.
+CLI base, the `kapi` binary, Kapi Desktop, and the in-repo plugins.
 
 Each decision describes the **current** state of its subsystem, not the history
 of how it got there. When a subsystem evolves, its decision is updated in place;
@@ -39,9 +39,29 @@ Each series is a directory, and its decisions sort by `sidebar_position` within
 it. The sidebar is generated from the directory: adding a decision means adding a
 file, never editing a list.
 
-## C — Context
+## F — Foundations
 
-What a project knows, where it keeps it, and what governs it.
+| AD | Title | Scope |
+| --- | --- | --- |
+| [F-01](foundations/f-01-framework-and-modules.md) | The framework and its modules | the Go modules, `go.work`, the enforced dependency direction |
+| [F-02](foundations/f-02-content-model.md) | The content model | Part and Resource, Block, Run, Overlay, the semantic vocabulary, Layers |
+| [F-03](foundations/f-03-identity.md) | Identity | short ids, the durable content key, occurrences |
+| [F-04](foundations/f-04-wire-schema.md) | The content-model wire schema | the canonical proto, `protoconvert`, frozen field numbers, the drift guard |
+
+## E — Engine
+
+| AD | Title | Scope |
+| --- | --- | --- |
+| [E-01](engine/e-01-processing-engine.md) | The processing engine | channel-based streaming, the Executor, parallel block tools, collectors |
+| [E-02](engine/e-02-format-system.md) | The format system | readers and writers, detection, registries, skeletons, non-translatable context |
+| [E-03](engine/e-03-tool-system.md) | The tool system | the Tool interface, locale cardinality, annotations, side effects, schemas |
+| [E-04](engine/e-04-flows-and-io-binding.md) | Flows and I/O binding | source and sink bindings, process-only runs, ingest versus run transforms |
+| [E-05](engine/e-05-plugin-system.md) | The plugin system | manifest-driven out-of-process plugins, the transport modes, presets |
+| [E-06](engine/e-06-execution-trust.md) | Execution trust | the exec class, per-project consent keyed to the approved argv |
+| [E-07](engine/e-07-model-providers.md) | Model and translation providers | the model provider interface, machine-translation backends, credentials |
+| [E-08](engine/e-08-document-structure-tiers.md) | Document structure tiers | tagged structure versus geometric reconstruction, the native and browser readers |
+
+## C — Context
 
 | AD | Title | Scope |
 | --- | --- | --- |
@@ -56,58 +76,32 @@ What a project knows, where it keeps it, and what governs it.
 | [C-09](context/c-09-content-memory.md) | Content memory | tiered matching, entity generalization, the two-stage rebuild |
 | [C-10](context/c-10-redaction.md) | Redaction and clearance | the placeholder model, the local vault, the three policy readers |
 
-## F — Foundations
-
-| AD | Title | Scope |
-| --- | --- | --- |
-| [001](001-vision-and-modules.md) | Vision and Modules | Go modules, `go.work`, dependency boundaries |
-| [002](002-content-model.md) | Content Model | Part/Resource, Block, Run, Overlay, semantic vocabulary, Layers |
-| [003](003-identity.md) | Identity | Base62 IDs, dual block identity |
-| [034](034-content-model-wire-schema.md) | Content-Model Wire Schema | the canonical proto, `protoconvert`, frozen field numbers |
-
-## E — Engine
-
-| AD | Title | Scope |
-| --- | --- | --- |
-| [004](004-processing-engine.md) | Processing Engine | channel-based streaming, Executor, parallel block tools, collectors |
-| [005](005-format-system.md) | Format System | DataFormatReader/Writer, detection, registries, skeleton strategies |
-| [006](006-tool-system.md) | Tool System | BaseTool, locale cardinality, annotations, side effects, schemas |
-| [007](007-plugin-system.md) | Plugin System | manifest-driven out-of-process plugins, gRPC, presets |
-| [011](011-ai-providers.md) | AI Providers | LLMProvider, streaming, batching, worker pool |
-| [012](012-mt-providers.md) | MT Providers | MTProvider interface, built-in backends |
-| [026](026-flow-io-binding.md) | Flow I/O Binding | source/sink bindings, process-only runs, ingest versus run transforms |
-| [028](028-pdf-reader-plugin.md) | PDF Reader & Structure Tiers | native plugin plus browser WASM, geometry, structure tiers |
-| [031](031-content-fidelity-surfacing.md) | Content-Fidelity Surfacing | readers surfacing non-translatable context |
-| [038](038-execution-trust.md) | Execution Trust | exec-class tools and formats, per-project consent |
-
 ## S — Surfaces
 
 | AD | Title | Scope |
 | --- | --- | --- |
-| [013](013-kapi-cli.md) | Kapi CLI | the standalone CLI, output formats, credential store, MCP server |
-| [014](014-kapi-desktop.md) | Kapi Desktop | the Wails app, flow editor, runner, plugin manager |
-| [019](019-i18n-react.md) | neokapi-i18n | the React runtime, build-time extraction, re-attach |
-| [023](023-toolbox-utilities.md) | Toolbox Utilities | the busybox multi-call binary, block-text projection, exit codes |
-| [024](024-agent-skills.md) | Agent Skills | embedded skill routers, install, the one write verb |
-| [027](027-visual-editor-data-model.md) | Visual Editor | the render projection, shared preview kit, edit round-trip |
-| [035](035-in-context-review.md) | In-Context Review | DOM stamping, write-back over a dev middleware, term and check painting |
+| [S-01](surfaces/s-01-kapi-cli.md) | The kapi CLI | the command tree, output formats, the credential store, exit codes |
+| [S-02](surfaces/s-02-kapi-desktop.md) | Kapi Desktop | the desktop app, the flow editor, the runner, the plugin manager |
+| [S-03](surfaces/s-03-agent-surfaces.md) | Agent surfaces: MCP and skills | the embedded skill, the curated MCP surface, the one write verb |
+| [S-04](surfaces/s-04-toolbox.md) | Toolbox utilities | the multi-call binary, block-text projection, exit codes |
+| [S-05](surfaces/s-05-i18n-runtime.md) | The i18n runtime for React | the runtime, build-time extraction, re-attach, in-context review |
+| [S-06](surfaces/s-06-visual-editor.md) | The visual editor data model | the render projection, the shared preview kit, the edit round-trip |
 
 ## M — Multilingual
 
 | AD | Title | Scope |
 | --- | --- | --- |
-| [016](016-metadata-i18n.md) | Metadata i18n | tool, format and plugin metadata in other languages |
-| [017](017-bilingual-format-interop.md) | Bilingual Format Interop | XLIFF/PO/TMX round-trip, target alignment |
-| [021](021-sat-segmenter-plugin.md) | SaT Segmenter Plugin | the ONNX segmentation model, native-stack isolation |
-| [025](025-kbf-package.md) | Content Packages | the block bundle and the project parcel |
-| [029](029-vision-and-image-adaptation.md) | Vision & Image Adaptation | image as an adaptable asset, OCR and layout |
-| [030](030-multimodal-extraction-and-llm-refinement.md) | Multimodal Extraction | confidence-gated escalation, media anchors, provenance |
-| [032](032-math-and-equations.md) | Math & Equations | the equation converter, formula blocks, translatable prose inside math |
-| [036](036-llm-prompts-and-batching.md) | Prompts & Batching | the prompt library, batching, placeholder protocol |
+| [M-01](multilingual/m-01-bilingual-interop.md) | Bilingual format interop | the extract and merge round trip, target alignment, exchange carriers |
+| [M-02](multilingual/m-02-segmentation.md) | Segmentation | the stand-off overlay, the engine registry, per-project selection |
+| [M-03](multilingual/m-03-multimodal-content.md) | Multimodal content | image, audio and video extraction, confidence-gated escalation, provenance |
+| [M-04](multilingual/m-04-math-and-equations.md) | Math and equations | the equation converter, formula blocks, translatable prose inside math |
+| [M-05](multilingual/m-05-prompts-and-batching.md) | Prompts and batching | the prompt library, batching, the placeholder protocol |
+| [M-06](multilingual/m-06-content-packages.md) | Content packages | the block bundle and the project parcel |
+| [M-07](multilingual/m-07-metadata-i18n.md) | Metadata in other languages | tool, format and plugin metadata, compiled catalogs |
 
 ## A — Assurance
 
 | AD | Title | Scope |
 | --- | --- | --- |
-| [015](015-testing-and-documentation.md) | Testing and Documentation | the test pyramid, the docs site, screenshots, recordings |
-| [018](018-parity-testing.md) | Parity Testing | the parity harness, the comparison dashboard |
+| [A-01](assurance/a-01-testing-and-documentation.md) | Testing and documentation | the test pyramid, the docs site, screenshots, recordings |
+| [A-02](assurance/a-02-parity.md) | Parity with the Okapi Framework | the parity harness, the comparison dashboard, faithful output |

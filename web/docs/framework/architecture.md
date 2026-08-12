@@ -20,7 +20,7 @@ surfaces built on top of this engine — but the content model, format readers a
 writers, tools, and pipeline are equally a Go library you can import and drive
 directly. If you want to start with running code, jump to the
 [Go quickstart](/framework/go-quickstart); for the reasoning behind each major
-design choice, see the [Architecture Decisions](/contribute/architecture/001-vision-and-modules).
+design choice, see the [Architecture Decisions](/contribute/architecture/foundations/f-01-framework-and-modules).
 
 ## Processing Pipeline
 
@@ -47,11 +47,11 @@ translation can **fan out** across N goroutines with an ordered fan-in; and the
 executor runs many documents in parallel, bounded by `MaxConcurrency`. Context
 cancellation propagates to every stage. Readers, writers, and tools can be
 supplied by [plugins](/contribute/implementation/plugin-model) — the
-[`kapi-sat`](/contribute/architecture/021-sat-segmenter-plugin) segmenter, the
-[`kapi-pdfium`](/contribute/architecture/028-pdf-reader-plugin) PDF
+[`kapi-sat`](/contribute/architecture/multilingual/m-02-segmentation) segmenter, the
+[`kapi-pdfium`](/contribute/architecture/engine/e-08-document-structure-tiers) PDF
 reader, or any remote plugin — dispatched as subprocesses over gRPC. See
-[AD-001](/contribute/architecture/001-vision-and-modules) and
-[AD-004](/contribute/architecture/004-processing-engine).
+[F-01](/contribute/architecture/foundations/f-01-framework-and-modules) and
+[E-01](/contribute/architecture/engine/e-01-processing-engine).
 
 ## Package Layout
 
@@ -124,4 +124,4 @@ a few concepts, each with its own page:
 
 For the concrete Go interfaces and method signatures behind these concepts, see
 the [Interface Reference](/contribute/interfaces). For the design rationale, see
-the [Architecture Decisions](/contribute/architecture/001-vision-and-modules).
+the [Architecture Decisions](/contribute/architecture/foundations/f-01-framework-and-modules).
