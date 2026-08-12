@@ -13,7 +13,9 @@
     "preview": "vp preview",
     "lint": "vp lint",
     "check": "vp check",
-    "fmt": "vp fmt"
+    "fmt": "vp fmt",
+    "test:e2e": "playwright test",
+    "test": "vp test"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.3.0",
@@ -27,13 +29,16 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.4",
+    "jsdom": "^30.0.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.2.8"
+    "vite-plus": "^0.2.8",
+    "vitest": "^4.1.10"
   }
 }

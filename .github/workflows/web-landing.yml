@@ -79,6 +79,27 @@ jobs:
           VITE_POSTHOG_HOST: https://eu.i.posthog.com
         run: vp run build:nb
 
+      # The conversion event is captured inside the click listener, where a
+      # refactor has already lost it once. The unit suite asserts the capture
+      # happens on that path; the smoke suite below cannot, because a page that
+      # rewrites the link and captures nothing still reaches the app.
+      - name: Unit-test the landing page
+        working-directory: bowrain/web/landing
+        run: vpr test
+
+      # The smoke suite guards the two things that break without failing
+      # anything: the narrative order the six sections are told in, and the
+      # click path that carries utm_* to the app and fires the conversion
+      # event. It needs no backend — both are client-side — and starts its own
+      # dev server.
+      - name: Install Playwright browser
+        working-directory: bowrain/web/landing
+        run: vpx playwright install --with-deps chromium
+
+      - name: Smoke-test the landing page
+        working-directory: bowrain/web/landing
+        run: vpr test:e2e
+
       - name: Upload bowrain-web artifact
         uses: actions/upload-artifact@v7
         with:

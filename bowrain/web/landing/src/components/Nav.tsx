@@ -7,10 +7,12 @@ import { APP_URL, GITHUB_URL, SIGNUP_URL, docsUrl } from "../links";
 import { isDark, toggleMode } from "../theme";
 import { useAuthStatus, type AuthStatus } from "../useAuthStatus";
 
+// The four beats a visitor is most likely to want to jump to, in narrative
+// order. They are anchors into the six-section argument, not a site map.
 const LINKS = [
-  { href: "#product", label: t("Product") },
-  { href: "#loop", label: t("How it works") },
-  { href: "#brand-challenge", label: t("Try it") },
+  { href: "#how", label: t("How it works") },
+  { href: "#loop", label: t("The loop") },
+  { href: "#proof", label: t("Try it") },
   { href: "#pricing", label: t("Pricing") },
 ];
 

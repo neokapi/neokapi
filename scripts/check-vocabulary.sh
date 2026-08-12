@@ -144,6 +144,11 @@ readonly VOCAB_SURFACES=(
   # lines a user reads before installing anything.
   packaging
   deploy/homebrew
+  # The landing page's own components, and the head sidecar that carries its
+  # per-locale <title> and social description. Both hold prose and nothing else;
+  # the six-section rebuild left no retired spelling behind in either.
+  bowrain/web/landing/src
+  bowrain/web/landing/locale-meta.json
 )
 
 # Surfaces deliberately NOT scanned yet, each with the worklist item that will
@@ -153,7 +158,6 @@ readonly VOCAB_SURFACES=(
 readonly PENDING_SURFACES=(
   "apps/kapi-desktop/frontend/src/{stories,demo} (vocabulary) — story fixtures and the recorded demo app still name projects 'Acme App Localization' and browse 'termbases'; swept with the desktop story pass"
   "cli/skills (vocabulary) — the i18n playbooks name third-party libraries (@angular/localize, expo-localization) and the eval table quotes user prompts verbatim; swept with the skill-copy item in 02"
-  "bowrain/web/landing/src (vocabulary) — 'brand voice' survives as use-case copy under a hero that has not been re-cut yet; swept with the landing rebuild (R13)"
 )
 
 # Files inside a swept surface that legitimately spell a retired phrase. Empty:

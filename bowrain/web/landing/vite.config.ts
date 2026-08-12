@@ -39,8 +39,21 @@ const base = locale ? `${rootBase}${locale}/` : rootBase;
 // LANDING_ORIGIN when the site moves to its own domain.
 const origin = process.env.LANDING_ORIGIN ?? "https://bowrain.cloud";
 
-// Per-locale <html lang>, <title>/description/og swaps (from the human-owned
-// locale-meta.json sidecar), and hreflang alternate links on every variant.
+// Per-locale <html lang>, optional <title>/description/og swaps, and hreflang
+// alternate links on every variant.
+//
+// locale-meta.json declares which target locales the site builds; each may
+// carry head strings, and each field is applied only when present. The head is
+// the one place a target locale's prose is not catalog-driven, so an absent
+// field falls back to English exactly as a missing catalog entry does — no
+// hand-translation, and no locale left announcing a framing the page retired.
+type LocaleMeta = Partial<{
+  title: string;
+  description: string;
+  ogTitle: string;
+  ogDescription: string;
+}>;
+
 function localeHtml(): PluginOption {
   return {
     name: "landing-locale-html",
@@ -54,16 +67,21 @@ function localeHtml(): PluginOption {
       ].join("\n");
       let out = html.replace("</head>", `${alternates}\n  </head>`);
       if (locale && locale in localeMeta) {
-        const meta = localeMeta[locale as keyof typeof localeMeta];
-        out = out
-          .replace('<html lang="en">', `<html lang="${locale}">`)
-          .replace(/<title>[^<]*<\/title>/, `<title>${meta.title}</title>`)
-          .replace(/(<meta\s+name="description"\s+content=")[^"]*(")/, `$1${meta.description}$2`)
-          .replace(/(<meta property="og:title" content=")[^"]*(")/, `$1${meta.ogTitle}$2`)
-          .replace(
+        const meta: LocaleMeta = localeMeta[locale as keyof typeof localeMeta];
+        out = out.replace('<html lang="en">', `<html lang="${locale}">`);
+        const swaps: Array<[string | undefined, RegExp, (v: string) => string]> = [
+          [meta.title, /<title>[^<]*<\/title>/, (v) => `<title>${v}</title>`],
+          [meta.description, /(<meta\s+name="description"\s+content=")[^"]*(")/, (v) => `$1${v}$2`],
+          [meta.ogTitle, /(<meta property="og:title" content=")[^"]*(")/, (v) => `$1${v}$2`],
+          [
+            meta.ogDescription,
             /(<meta\s+property="og:description"\s+content=")[^"]*(")/,
-            `$1${meta.ogDescription}$2`,
-          );
+            (v) => `$1${v}$2`,
+          ],
+        ];
+        for (const [value, pattern, replacement] of swaps) {
+          if (value) out = out.replace(pattern, replacement(value));
+        }
       }
       return out;
     },
@@ -92,6 +110,13 @@ export default defineConfig({
   },
   build: {
     outDir: locale ? `dist/${locale}` : "dist",
+  },
+  test: {
+    // Pure-logic tests run in node; DOM tests opt into jsdom per-file with a
+    // `// @vitest-environment jsdom` pragma. `e2e/` is Playwright's, and its
+    // specs would otherwise be collected here and fail on a missing runner.
+    environment: "node",
+    exclude: ["dist/**", "e2e/**", "node_modules/**"],
   },
   lint: {
     ignorePatterns: ["dist/**", "i18n/**", "i18n-*/**", "translations/**"],
