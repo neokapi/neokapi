@@ -14,7 +14,7 @@ formats — ships as a separate binary that kapi discovers on disk and dispatche
 to at runtime.
 
 This page is the developer-facing overview. [E-05: Plugin System](/contribute/architecture/engine/e-05-plugin-system)
-holds the full design rationale; the [Plugin model note](/contribute/implementation/plugin-model)
+holds the full design rationale; the [Plugin model note](/contribute/implementation/engine/plugin-model)
 covers the complementary in-process side — how the Go code _inside_ a plugin
 binary wires its features into the shared `cli.App`.
 
@@ -173,7 +173,7 @@ without `--unsafe`.
   of the product surface. Its role is keeping the plugin protocol honest: it is
   the reference implementation of a third-party kapi plugin in a non-Go language,
   and its CI runs the
-  [conformance suite](/contribute/implementation/plugin-protocol-v1#conformance-suite)
+  [conformance suite](/contribute/implementation/engine/plugin-protocol-v1#conformance-suite)
   against released kapi versions. Any plugin repository can verify itself against
   the contract the same way.
 - **On-device ML sidecars** — cgo plugins that run native ML in their own
@@ -224,5 +224,5 @@ leaves downloaded model caches and configuration alone.
 ## See also
 
 - [E-05: Plugin System](/contribute/architecture/engine/e-05-plugin-system) — full design rationale and the registry/signing model
-- [Plugin model note](/contribute/implementation/plugin-model) — the in-process registry contract a plugin binary uses to wire features into `cli.App`
-- [Plugin protocol v1](/contribute/implementation/plugin-protocol-v1) — the language-neutral specification an out-of-tree plugin repository builds and verifies against
+- [Plugin model note](/contribute/implementation/engine/plugin-model) — the in-process registry contract a plugin binary uses to wire features into `cli.App`
+- [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1) — the language-neutral specification an out-of-tree plugin repository builds and verifies against

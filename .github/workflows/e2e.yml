@@ -81,9 +81,15 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-go-modules
 
+      # Through the make target, not a raw `go test`: the Makefile owns the tag
+      # set, and `go` does not union repeated -tags flags — the last one wins.
+      # Spelling the tags here had already dropped fts5, which no test would
+      # have reported, because fts5 is a runtime SQL capability rather than a
+      # compile gate. The target also builds the i18n catalogs the suite reads
+      # and selects ./kapi/e2e/..., so CI and a local run test the same thing.
       - name: Run kapi CLI e2e tests
         working-directory: .
-        run: go test -tags=e2e -count=1 -v ./kapi/e2e/
+        run: make test-e2e-kapi
         timeout-minutes: 5
 
   # ── Bowrain frontend Playwright E2E (self-contained, mock backend) ───────
@@ -280,8 +286,14 @@ jobs:
           docker compose -f bowrain/e2e/server/compose.yaml up -d --wait
         timeout-minutes: 5
 
+      # The stack is already up from the step above, so this cannot go through
+      # `make test-e2e-bowrain` (which owns setup and teardown) and must spell
+      # its own tags. Both must be in ONE comma-joined flag: `go` does not union
+      # repeated -tags, the last occurrence wins. The suite's test binary links
+      # go-sqlite3, so dropping fts5 compiles a build without FTS5 that fails
+      # only when a query reaches it — silently, and far from here.
       - name: Run Bowrain server E2E tests
-        run: go test -tags=e2e -count=1 -v ./bowrain/e2e/server/
+        run: go test -tags "fts5,e2e" -count=1 -v ./bowrain/e2e/server/
         timeout-minutes: 5
 
       - name: Cache Playwright browsers

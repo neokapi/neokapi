@@ -11,7 +11,7 @@ import { cn } from "../../lib/utils";
  * flow / plugin descriptions, overviews, parameter help, example descriptions,
  * long-form docs) should render it through this component rather than dropping
  * the raw string into JSX. See
- * `web/docs/contribute/implementation/markdown-in-ui.md` for the catalogue of
+ * `web/docs/contribute/implementation/repo/markdown-in-ui.md` for the catalogue of
  * fields that carry markdown.
  *
  * Rendering is react-markdown + remark-gfm; block styling is the shared

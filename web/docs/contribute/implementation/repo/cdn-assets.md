@@ -1,4 +1,5 @@
 ---
+sidebar_position: 1
 title: CDN asset offloading (S3 + CloudFront)
 description: How the large, immutable docs assets are served from the S3 + CloudFront CDN to keep the GitHub Pages deploy small and fast.
 ---

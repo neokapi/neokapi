@@ -304,7 +304,7 @@ actionable error rather than silently ignoring the block. A recipe without
 `requires:` loads in any binary and the extras pass through.
 
 Implementation detail — the `Scope` enum, the decoder helpers and a worked
-example — lives in [Note: Plugin model](../../implementation/plugin-model.md).
+example — lives in [Note: Plugin model](../../implementation/engine/plugin-model.md).
 
 ### Converging somewhere else
 
@@ -495,7 +495,7 @@ right extraction without guessing from its name.
   execution.
 - [E-03: Tool System](../engine/e-03-tool-system.md) — the `Tool` and
   `SessionTool` interfaces.
-- [Flow steps format](../../implementation/flow-steps-format.md) — the shared
+- [Flow steps format](../../implementation/engine/flow-steps-format.md) — the shared
   flow syntax.
-- [kapi.yaml project file](../../implementation/kapi-project-file.md) — the
+- [kapi.yaml project file](../../implementation/context/kapi-project-file.md) — the
   schema reference.

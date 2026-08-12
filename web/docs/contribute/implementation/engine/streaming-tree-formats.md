@@ -1,4 +1,5 @@
 ---
+sidebar_position: 3
 id: streaming-tree-formats
 title: "Streaming the whole-document (tree) formats"
 description: "How the tree/structured-data format readers (JSON, XML, catalogs, …) reach bounded-memory streaming through an ancestor-only walk, and which formats stay buffered and why."

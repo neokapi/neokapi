@@ -1,5 +1,5 @@
 ---
-sidebar_position: 15
+sidebar_position: 1
 title: Implementing Formats
 description: Implementation note for E-02 — step-by-step instructions for writing new neokapi format readers and writers, or migrating Okapi Java filters, including terminology mapping from Okapi to neokapi concepts.
 keywords: [implementing formats, format reader, format writer, Okapi migration, DataFormatReader, neokapi]
@@ -392,7 +392,7 @@ documents. The reader writes skeleton entries as it parses; the writer reads
 them to reconstruct the output. Tools in between only see blocks — they never
 touch the skeleton.
 
-See [Skeleton Store](/contribute/implementation/skeleton-store) for binary format and API
+See [Skeleton Store](/contribute/implementation/engine/skeleton-store) for binary format and API
 details.
 
 ### Reader Side: Coalescing Buffer Pattern
@@ -453,10 +453,10 @@ the writer re-emits it from the (non-translatable) block; MT skips it because
 `Translatable` is false. With the flag off, these rows collapse back to plain
 skeleton `Text` — the configuration parity pins
 ([A-02](/contribute/architecture/assurance/a-02-parity)). See
-[Content-Fidelity Surfacing](/contribute/implementation/content-fidelity) for the
+[Content-Fidelity Surfacing](/contribute/implementation/engine/content-fidelity) for the
 implementation recipe. Translatable prose embedded *inside* an opaque payload
 (e.g. `<m:nor/>` text in a Word equation) uses the **sub-skeleton** pattern
-([Skeleton Store](/contribute/implementation/skeleton-store)).
+([Skeleton Store](/contribute/implementation/engine/skeleton-store)).
 
 The skeleton ref replaces the **entire encoded value** (e.g., including JSON
 quotes), and the writer is responsible for re-encoding the block text in the

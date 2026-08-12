@@ -172,4 +172,4 @@ code rather than accumulating stale exemptions.
 - [E-05: The plugin system](../engine/e-05-plugin-system.md) — the bridge service that imports this schema
 - [M-06: Content packages](../multilingual/m-06-content-packages.md) — the KBF bundle and its use of the in-process Run JSON
 - [S-06: The visual editor data model](../surfaces/s-06-visual-editor.md) — the editor projections
-- [Plugin protocol v1](/contribute/implementation/plugin-protocol-v1) — the contract plugin repositories verify against
+- [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1) — the contract plugin repositories verify against

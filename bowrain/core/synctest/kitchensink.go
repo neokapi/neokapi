@@ -9,7 +9,7 @@
 // model.Block grows a field, the reflect completeness guard (which walks this
 // fixture) fails until the fixture and converters are updated.
 //
-// See web/docs/contribute/implementation/content-parity.md.
+// See web/docs/contribute/implementation/foundations/content-parity.md.
 package synctest
 
 import (

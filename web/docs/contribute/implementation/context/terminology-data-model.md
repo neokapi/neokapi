@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 2
 title: "Terminology Data Model"
 description: Implementation note for C-08 — the Go struct layout for Concept, Term, and their context dimensions, plus the SQL schema for the SQLite terms store and the import pipeline from TBX and CSV sources.
 keywords: [terminology data model, Concept, Term, SQLite, TBX import, CSV, implementation note, neokapi]

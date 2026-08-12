@@ -117,7 +117,7 @@ Lifecycle is owned by the executor, not the tool:
 
 Every `SessionTool` also implements `Tool`, so flow composition keeps working
 whether or not a step uses the session. See
-[the SessionTool authoring guide](/contribute/implementation/session-tool-authoring)
+[the SessionTool authoring guide](/contribute/implementation/engine/session-tool-authoring)
 for idiomatic patterns.
 
 ### Tool categories

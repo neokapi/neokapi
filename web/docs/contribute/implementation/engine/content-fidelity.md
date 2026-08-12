@@ -1,5 +1,5 @@
 ---
-sidebar_position: 17
+sidebar_position: 4
 title: Content-Fidelity Surfacing
 description: Implementation note for E-02 — how a format author surfaces non-translatable contextual content (alt-text, code, formulas, comments, metadata) for ingestion while keeping the byte-exact round-trip and Okapi parity, via the inverted disableNonTranslatableContent toggle, the getter/setter/ApplyMap/schema trio, the duck-typed parity force-off, and the two surfacing channels (non-translatable Block vs Data/NoteAnnotation).
 keywords: [content fidelity, surfacing, non-translatable content, ExtractNonTranslatableContent, SemanticRole, skeleton, parity, format reader, neokapi]
@@ -16,9 +16,9 @@ the round-trip stays byte-exact. Parent AD:
 For the surrounding format-system contracts see
 [E-02: Format System](/contribute/architecture/engine/e-02-format-system), the general
 port recipe in
-[Implementing Formats](/contribute/implementation/implementing-formats), and the
+[Implementing Formats](/contribute/implementation/engine/implementing-formats), and the
 skeleton mechanics in
-[Skeleton Store and Streaming HTML](/contribute/implementation/skeleton-store).
+[Skeleton Store and Streaming HTML](/contribute/implementation/engine/skeleton-store).
 
 Surfacing is a richer *default*, not a new structural type. The roles it leans
 on (`RoleCode`, `RoleFormula`, `RoleCaption`, … in `core/model/structure.go`)
@@ -30,7 +30,7 @@ that would otherwise be carried only as skeleton bytes.
 A surfacing-capable config carries one boolean whose **zero value means
 surfacing is ON**. The field is private and inverted so the rich default falls
 out of `Config{}` without a `Reset()` assignment — the `nonFoo` convention
-documented in [Implementing Formats](/contribute/implementation/implementing-formats)
+documented in [Implementing Formats](/contribute/implementation/engine/implementing-formats)
 ("`bool` defaults to `false`, so use `nonFoo` naming when you want the default
 behavior to be `foo`").
 
@@ -181,7 +181,7 @@ Equations are the richer instance of this channel: an *inline* formula surfaces
 as a placeholder run carrying its portable rendering, a *standalone* equation as
 a detached `RoleFormula` block, and the natural-language prose embedded inside an
 equation is written back through a **sub-skeleton**. See
-[OMML Math Conversion](/contribute/implementation/omml-math) for the
+[OMML Math Conversion](/contribute/implementation/multilingual/omml-math) for the
 formula-specific surfacing and its byte-exact splice.
 
 ## Channel 2 — comments and metadata as Data or a note
@@ -290,6 +290,6 @@ setter rather than emitting unconditionally.
 - [E-02: Format System](/contribute/architecture/engine/e-02-format-system) — reader/writer contracts and skeleton strategies.
 - [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model) — `Block`, `Translatable`, and the semantic-role taxonomy this note leans on.
 - [A-02: Parity Testing](/contribute/architecture/assurance/a-02-parity) — the *same semantic config → same results* contract the duck-typed force-off honors.
-- [Implementing Formats](/contribute/implementation/implementing-formats) — the `nonFoo` default convention and the general port recipe.
-- [Skeleton Store and Streaming HTML](/contribute/implementation/skeleton-store) — how skeleton refs reconstruct documents byte-exactly.
-- [OMML Math Conversion](/contribute/implementation/omml-math) — formula surfacing (`RoleFormula` blocks, placeholder renderings) and the sub-skeleton write-back for equation prose.
+- [Implementing Formats](/contribute/implementation/engine/implementing-formats) — the `nonFoo` default convention and the general port recipe.
+- [Skeleton Store and Streaming HTML](/contribute/implementation/engine/skeleton-store) — how skeleton refs reconstruct documents byte-exactly.
+- [OMML Math Conversion](/contribute/implementation/multilingual/omml-math) — formula surfacing (`RoleFormula` blocks, placeholder renderings) and the sub-skeleton write-back for equation prose.

@@ -419,7 +419,7 @@ type SessionTool interface {
 }
 ```
 
-See [Session Tool Authoring](/contribute/implementation/session-tool-authoring)
+See [Session Tool Authoring](/contribute/implementation/engine/session-tool-authoring)
 for the lifecycle and when to use this contract.
 
 ## Flow interfaces
@@ -533,5 +533,5 @@ onto the in-process `Part` model via `core/plugin/protoconvert`. The full
 service is defined in `core/plugin/proto/v2/neokapi_bridge.proto`.
 
 See [Plugin System](/contribute/plugins) and
-[Plugin protocol v1](/contribute/implementation/plugin-protocol-v1) for the full
+[Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1) for the full
 contract.

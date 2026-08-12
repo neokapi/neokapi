@@ -194,7 +194,7 @@ write-back. A format picks the one that fits its structure:
   the writer reads entries sequentially to reconstruct the document with
   byte-exact fidelity. Peak memory is a small constant per document regardless of
   document size. Preferred for new formats. See
-  [Skeleton Store](/contribute/implementation/skeleton-store) for the binary
+  [Skeleton Store](/contribute/implementation/engine/skeleton-store) for the binary
   format and wiring.
 
 - **Re-parse** (JSON, YAML, PO, plain text). The writer re-opens the source
@@ -387,7 +387,7 @@ of its fragments are genuinely *context* rather than inert data.
 Which formats expose the flag, and exactly what each surfaces, is generated into
 the [Format Reference](/formats) rather than enumerated here. The per-format
 finding, carrier, and skeleton-strategy ledger lives in
-[content-fidelity](/contribute/implementation/content-fidelity).
+[content-fidelity](/contribute/implementation/engine/content-fidelity).
 
 #### Round-trip, translation-skip, and parity all still hold
 
@@ -423,7 +423,7 @@ spans inside it. This is how translatable prose embedded in an opaque structure 
 the natural-language text inside a Word equation — is translated while the
 surrounding math is replayed byte-for-byte
 ([M-04](../multilingual/m-04-math-and-equations.md); see
-[Skeleton Store](/contribute/implementation/skeleton-store)).
+[Skeleton Store](/contribute/implementation/engine/skeleton-store)).
 
 ### Subfilters and nested layers
 
@@ -450,8 +450,8 @@ readers just implement `SubfilterAware` and declare patterns in their config.
 7. If the format can host embedded content, implement `SubfilterAware` and accept
    `Subfilters []SubfilterMapping` in the config.
 
-See [Implementing Formats](/contribute/implementation/implementing-formats) for a
-walkthrough, and [Skeleton Store](/contribute/implementation/skeleton-store) for
+See [Implementing Formats](/contribute/implementation/engine/implementing-formats) for a
+walkthrough, and [Skeleton Store](/contribute/implementation/engine/skeleton-store) for
 the preferred strategy's details.
 
 ## Consequences
@@ -483,6 +483,6 @@ the preferred strategy's details.
 - [E-05: The plugin system](e-05-plugin-system.md) — how plugin and bridge formats register
 - [M-04: Math and equations](../multilingual/m-04-math-and-equations.md) — the sub-skeleton extension to the skeleton strategies
 - [A-02: Parity](../assurance/a-02-parity.md) — the "same semantic config → same results" contract and the parity-safe carriers
-- [Implementing Formats](/contribute/implementation/implementing-formats) — implementation walkthrough
-- [Skeleton Store](/contribute/implementation/skeleton-store) — binary skeleton format and wiring
-- [content-fidelity](/contribute/implementation/content-fidelity) — the per-format surfacing ledger
+- [Implementing Formats](/contribute/implementation/engine/implementing-formats) — implementation walkthrough
+- [Skeleton Store](/contribute/implementation/engine/skeleton-store) — binary skeleton format and wiring
+- [content-fidelity](/contribute/implementation/engine/content-fidelity) — the per-format surfacing ledger

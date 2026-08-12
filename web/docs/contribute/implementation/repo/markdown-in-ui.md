@@ -1,5 +1,5 @@
 ---
-sidebar_position: 51
+sidebar_position: 2
 title: Markdown in the UI
 description: Implementation note — which tool/format/flow/plugin metadata fields carry markdown, and the single shared Markdown typeset primitive that every neokapi UI uses to render them.
 keywords: [markdown, typeset, prose, react-markdown, remark-gfm, tool description, format overview, ui copy, shadcn]

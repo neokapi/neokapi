@@ -28,7 +28,7 @@ type ToolInfo struct {
 	DisplayName string `json:"display_name,omitempty"`
 	// Description is markdown (inline emphasis/code/links). UIs render it
 	// through the shared Markdown primitive — see
-	// web/docs/contribute/implementation/markdown-in-ui.md.
+	// web/docs/contribute/implementation/repo/markdown-in-ui.md.
 	Description string   `json:"description,omitempty"`
 	Category    string   `json:"category,omitempty"`
 	Source      string   `json:"source,omitempty"` // "built-in", plugin name

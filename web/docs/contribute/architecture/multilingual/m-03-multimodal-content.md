@@ -354,4 +354,4 @@ be demonstrating the plumbing rather than the capability.
 - [M-05: Prompts and batching](m-05-prompts-and-batching.md) — the per-modality refinement prompts
 - [C-10: Redaction](../context/c-10-redaction.md) — the other source transform in the same stage
 - [S-06: The visual editor](../surfaces/s-06-visual-editor.md) — where source provenance and review findings surface
-- [Multimodal content](/contribute/implementation/multimodal-content) — the tactical note
+- [Multimodal content](/contribute/implementation/multilingual/multimodal-content) — the tactical note

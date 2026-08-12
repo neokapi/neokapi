@@ -379,7 +379,7 @@ export interface PluginDocs {
 // The *Doc `overview`, `limitations`, `processingNotes`, per-parameter
 // help, and example `description` fields are markdown — render them through
 // the shared `Markdown` primitive (@neokapi/ui-primitives). See
-// web/docs/contribute/implementation/markdown-in-ui.md.
+// web/docs/contribute/implementation/repo/markdown-in-ui.md.
 
 export interface FilterDoc {
   filterName: string;

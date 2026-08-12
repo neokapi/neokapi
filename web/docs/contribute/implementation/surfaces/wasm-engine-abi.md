@@ -1,5 +1,5 @@
 ---
-sidebar_position: 31
+sidebar_position: 3
 title: "WASM Engine ABI"
 description: The stable JS contract between the browser wasm build of kapi and the @neokapi/engine npm package — the global function set, the kapiEngineABI feature-detection descriptor, and the optional host-provided reverse bridges.
 keywords: [wasm, WebAssembly, engine ABI, kapiEngineABI, "@neokapi/engine", browser engine, reverse bridge, implementation note]

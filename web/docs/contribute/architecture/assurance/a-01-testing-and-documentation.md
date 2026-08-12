@@ -173,7 +173,7 @@ assets — videos, screenshots, ML models, the WebAssembly engine — are served
 a CDN rather than committed, so `static/video/` and `static/wasm/` are build
 outputs and are not in version control. That is a delivery detail deliberately
 left out of this decision; see
-[CDN assets](/contribute/implementation/cdn-assets).
+[CDN assets](/contribute/implementation/repo/cdn-assets).
 
 ### The walkthrough pipeline
 
@@ -293,4 +293,4 @@ Before committing a change that affects documented behavior:
 - [S-01: The kapi CLI](../surfaces/s-01-kapi-cli.md) — the surface the embeds run
 - [S-02: Kapi Desktop](../surfaces/s-02-kapi-desktop.md) — the desktop surface and its tests
 - [Testing guide](/contribute/testing) — how to write tests for a new format or tool
-- [CDN assets](/contribute/implementation/cdn-assets) — where the generated assets live
+- [CDN assets](/contribute/implementation/repo/cdn-assets) — where the generated assets live

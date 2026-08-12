@@ -1,4 +1,5 @@
 ---
+sidebar_position: 1
 title: 'Note: CLI conventions'
 sidebar_label: CLI conventions
 ---

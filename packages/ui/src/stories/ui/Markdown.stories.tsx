@@ -14,7 +14,7 @@ const meta: Meta<typeof Markdown> = {
           "help, long-form docs) renders through this component rather than being dropped " +
           "into JSX as a raw string. Wraps react-markdown + remark-gfm; use `inline` for " +
           "compact list rows, table cells, tooltips, and chips. " +
-          "See web/docs/contribute/implementation/markdown-in-ui.md.",
+          "See web/docs/contribute/implementation/repo/markdown-in-ui.md.",
       },
     },
   },

@@ -64,7 +64,7 @@ var app = &cli.App{}
 //
 // The TypeScript half of this contract (ambient global typings + the
 // KapiRuntime facade) lives in packages/engine; the docs note is
-// web/docs/contribute/implementation/wasm-engine-abi.md. Keep all three in
+// web/docs/contribute/implementation/surfaces/wasm-engine-abi.md. Keep all three in
 // sync when adding an entry point.
 
 // engineABIVersion is the `abi` field reported by kapiEngineABI(). Bump only

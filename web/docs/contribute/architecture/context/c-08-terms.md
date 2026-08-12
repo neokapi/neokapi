@@ -311,5 +311,5 @@ occurrence index in the block cache ([C-03](c-03-context-store-and-graph.md)).
   infrastructure, and the source-versus-state contrast.
 - [E-03: Tool System](../engine/e-03-tool-system.md) — the pipeline-tool
   pattern.
-- [Terminology data model](../../implementation/terminology-data-model.md) — the
+- [Terminology data model](../../implementation/context/terminology-data-model.md) — the
   full Go structs, the tool catalog and the relation vocabulary.

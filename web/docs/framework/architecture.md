@@ -46,7 +46,7 @@ by channels with automatic backpressure; a block-handling stage such as
 translation can **fan out** across N goroutines with an ordered fan-in; and the
 executor runs many documents in parallel, bounded by `MaxConcurrency`. Context
 cancellation propagates to every stage. Readers, writers, and tools can be
-supplied by [plugins](/contribute/implementation/plugin-model) — the
+supplied by [plugins](/contribute/implementation/engine/plugin-model) — the
 [`kapi-sat`](/contribute/architecture/multilingual/m-02-segmentation) segmenter, the
 [`kapi-pdfium`](/contribute/architecture/engine/e-08-document-structure-tiers) PDF
 reader, or any remote plugin — dispatched as subprocesses over gRPC. See

@@ -47,7 +47,7 @@ type Spec struct {
 	// Description is human-readable markdown prose describing what this
 	// format is for. Rendered on the docs site and in the app UIs through
 	// the shared Markdown primitive — see
-	// web/docs/contribute/implementation/markdown-in-ui.md.
+	// web/docs/contribute/implementation/repo/markdown-in-ui.md.
 	Description string `yaml:"description,omitempty"`
 
 	// Variants enumerates sub-formats sharing one filter (e.g. openxml

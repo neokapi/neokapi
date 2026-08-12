@@ -310,5 +310,5 @@ entity mappings, so the memory accumulates richer data over time.
   source-versus-state contrast.
 - [F-02: Content Model](../foundations/f-02-content-model.md) — run
   sequences, inline-code runs, entity annotations.
-- [Memory matching algorithm](../../implementation/memory-matching-algorithm.md)
+- [Memory matching algorithm](../../implementation/context/memory-matching-algorithm.md)
   — trigram construction, the performance table, the TMX element mapping.

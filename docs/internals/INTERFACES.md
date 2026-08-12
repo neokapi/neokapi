@@ -934,7 +934,7 @@ retired layer. Two documents own the plugin contract:
 - The **in-process registry contract** — how a plugin binary wires its
   commands, MCP tools, formats, and recipe schema into the shared `cli.App`
   via `init()` registration — is described in the
-  [plugin model](../../web/docs/contribute/implementation/plugin-model.md)
+  [plugin model](../../web/docs/contribute/implementation/engine/plugin-model.md)
   note.
 - The **runtime transport** — manifest discovery, dispatch, and the A/B/C
   transport modes — is described in
@@ -980,7 +980,7 @@ The host translates between neokapi Parts and Okapi Events via
 `core/plugin/protoconvert`. The Okapi Java bridge implementation lives in the
 separate [okapi-bridge](https://github.com/neokapi/okapi-bridge) repository;
 its wire protocol, batching, and daemon lifecycle are documented in the
-[plugin protocol](../../web/docs/contribute/implementation/plugin-protocol-v1.md)
+[plugin protocol](../../web/docs/contribute/implementation/engine/plugin-protocol-v1.md)
 note.
 
 ---
