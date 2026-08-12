@@ -322,6 +322,13 @@ type ContextSearchSources struct {
 	// standalone-store query with no project in scope.
 	Profiles []ContextProfileHit
 
+	// Freshness carries staleness notes about the graph these stores are read
+	// from: governance that moved since this process last read it. Resolved by
+	// the caller (host/freshness.go) because it is a property of the reader's
+	// history, not of any store — the same stores read by a fresh process are
+	// not stale, they are simply unread.
+	Freshness []string
+
 	// Recipe is the project whose context space the answer resolves places
 	// against, so a term's uses can say where each one is governed. nil for a
 	// standalone-store query with no project in scope.
@@ -392,6 +399,13 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 		}
 	}
 
+	// Whether the graph these stores hold has moved since this process last
+	// read it. Assembled here, with the stores, so every surface that retrieves
+	// context reports staleness identically — a note that appeared on one
+	// surface and not the other would teach an assistant that only one of them
+	// can go stale.
+	src.Freshness = a.governanceNotes(cmd)
+
 	return src, func() {
 		for _, c := range cleanups {
 			c()
@@ -420,6 +434,11 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 	}
 
 	res := &ContextSearchResult{Query: req.Query, Scope: scope}
+
+	// Freshness leads the notes. A caller that reads one note reads this one:
+	// it is the only note that says the rest of the answer may already be
+	// answering a question about a graph that has moved.
+	res.Notes = append(res.Notes, src.Freshness...)
 
 	if src.Terms != nil {
 		concepts, _, err := src.Terms.Search(ctx, req.Query, req.Locale, "", 0, limit)

@@ -13,11 +13,11 @@ import (
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
-	"github.com/neokapi/neokapi/bowrain/core/refcache"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/terms"
 	"golang.org/x/sync/errgroup"
 )

@@ -12,6 +12,7 @@ import (
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/host/output"
 )
 
@@ -60,6 +61,39 @@ type StatusServerSection struct {
 	LastSync    string             `json:"last_sync,omitempty"`
 	ActiveRuns  []StatusActiveRun  `json:"active_runs,omitempty"`
 	Terminology *StatusTerminology `json:"terminology,omitempty"`
+	// Governance is the second axis: where this project's governance stands
+	// against the venue's. Absent when the venue could not be asked at all.
+	Governance *StatusGovernance `json:"governance,omitempty"`
+}
+
+// StatusGovernance is the governance axis of the status report: the freshness
+// ref this project last observed, and the one the venue publishes now.
+//
+// Two refs rather than one verdict, because the comparison belongs to core/ref
+// and is made once, where it is rendered. A plugin that shipped its own verdict
+// would be a second implementation of `moved`, and the two would answer
+// differently the day one of them learned about a new component.
+type StatusGovernance struct {
+	// Observed is what this project recorded at its last contact with the
+	// venue. The zero value is a project that has never observed one.
+	Observed ref.Ref `json:"observed"`
+	// Venue is the ref the venue publishes now. nil when it could not be read
+	// — an unreachable server, or one too old to publish a ref. That is a
+	// different report from "nothing moved", so it is a different value.
+	Venue *ref.Ref `json:"venue,omitempty"`
+	// ObservedAt is when the venue was last reached (RFC 3339), empty when it
+	// never was. It dates the observation; it decides nothing, because a clock
+	// cannot say whether what it timed has moved since.
+	ObservedAt string `json:"observed_at,omitempty"`
+}
+
+// Divergence compares what this project observed against what the venue holds
+// now, and reports whether the comparison could be made at all.
+func (g *StatusGovernance) Divergence() (ref.Divergence, bool) {
+	if g == nil || g.Venue == nil {
+		return ref.Divergence{}, false
+	}
+	return ref.Compare(g.Observed, *g.Venue), true
 }
 
 // StatusTerminology is the standing of the workspace's governed terminology:
@@ -228,11 +262,25 @@ func pipelineCell(lc LocaleCoverage, bars bool) string {
 	return fmt.Sprintf("%s %3d%%", ProgressBar(lc.ShipProgress, 100, shipBarWidth), lc.ShipProgress)
 }
 
+// statusLabel writes a standing line's label in the report's gutter. One width
+// for every standing line, so the values line up in a column a reader can scan
+// down — which is the whole reason the axes are labelled rather than run
+// together.
+func statusLabel(w io.Writer, label string) {
+	fmt.Fprintf(w, "%-*s", statusLabelWidth, label)
+}
+
+// statusLabelWidth is the gutter the standing lines share. It is set by the
+// longest label rather than by the shortest that fits, so adding an axis does
+// not re-flow the report.
+const statusLabelWidth = 12
+
 // writeVenueLine renders the one-line convergence-venue standing for a
 // server-connected recipe: where `kapi up` would run and under which
 // server.converge policy.
 func writeVenueLine(w io.Writer, v StatusVenue) {
-	fmt.Fprintf(w, "venue   %s", v.Venue)
+	statusLabel(w, "venue")
+	fmt.Fprint(w, v.Venue)
 	if v.ConvergePolicy != "" {
 		fmt.Fprintf(w, " · converge: %s", v.ConvergePolicy)
 	}
@@ -242,15 +290,26 @@ func writeVenueLine(w io.Writer, v StatusVenue) {
 	fmt.Fprintln(w)
 }
 
-// writeServerLine renders the one-line connected-server standing beneath the
-// coverage grid: the server, ahead/behind transport counts, and any in-flight
-// convergence run.
+// writeServerLine renders the connected-venue standing beneath the coverage
+// grid, on the report's two axes.
+//
+// CONTENT is a position: what is here and not there, and what is there and not
+// here. It counts, and it resolves itself — a push or a pull moves it.
+//
+// GOVERNANCE is an identity: which context, terminology and decisions are in
+// force. It does not count, because two unequal identity hashes carry no
+// distance and no direction. Rendering them on one line taught the reader that
+// "behind" means the same thing on both, and it does not: content behind is
+// work a transfer finishes, governance moved is a question for someone who can
+// decide what the new context means for what was written under the old one.
 func writeServerLine(w io.Writer, s StatusServerSection) {
 	url := s.ServerURL
 	if url == "" {
 		url = "(connected)"
 	}
-	fmt.Fprintf(w, "\nserver  %s · %d to push · %d to pull", url, s.PendingPush, s.PendingPull)
+	fmt.Fprintln(w)
+	statusLabel(w, "content")
+	fmt.Fprintf(w, "%s · %d to push · %d to pull", url, s.PendingPush, s.PendingPull)
 	for _, r := range s.ActiveRuns {
 		passes := ""
 		if r.Passes > 0 {
@@ -259,7 +318,62 @@ func writeServerLine(w io.Writer, s StatusServerSection) {
 		fmt.Fprintf(w, " · run %s %s%s", r.ID, r.State, passes)
 	}
 	fmt.Fprintln(w)
+	writeGovernanceLine(w, s.Governance)
 	writeTermsLine(w, s.Terminology)
+}
+
+// writeGovernanceLine renders the governance axis: each identity component's
+// standing against the venue's published ref.
+//
+// Silent for a project with no governance standing to report at all. A line
+// that said "in sync" about a comparison never made would be the one report
+// worse than no report: it is the answer a reader would act on.
+func writeGovernanceLine(w io.Writer, g *StatusGovernance) {
+	if g == nil {
+		return
+	}
+	statusLabel(w, "governance")
+	div, compared := g.Divergence()
+	if !compared {
+		if g.ObservedAt == "" {
+			fmt.Fprintln(w, "never observed — a push or pull records what the venue holds")
+			return
+		}
+		fmt.Fprintf(w, "not checked — the venue could not be reached (last observed %s)\n", g.ObservedAt)
+		return
+	}
+
+	parts := make([]string, 0, len(ref.GovernanceComponents()))
+	moved := false
+	for _, d := range div.All() {
+		if d.Component == ref.ComponentContent {
+			continue
+		}
+		if d.Status == ref.StatusMoved {
+			moved = true
+		}
+		parts = append(parts, fmt.Sprintf("%s %s", d.Component, governanceWord(d.Status)))
+	}
+	fmt.Fprintln(w, strings.Join(parts, " · "))
+	if moved {
+		statusLabel(w, "")
+		fmt.Fprintln(w, "run `kapi pull` to take down the governance that moved")
+	}
+}
+
+// governanceWord renders one component's standing as the sentence a reader
+// needs. `moved` deliberately names no direction: an identity hash cannot say
+// which side changed, and inventing "behind" would promise an ordering that
+// does not exist.
+func governanceWord(s ref.Status) string {
+	switch s {
+	case ref.StatusMoved:
+		return "moved"
+	case ref.StatusCurrent:
+		return "in sync"
+	default:
+		return "not observed"
+	}
 }
 
 // writeTermsLine renders the terminology standing beneath the server line.
@@ -272,14 +386,15 @@ func writeServerLine(w io.Writer, s StatusServerSection) {
 // sent any, which is the report that sends someone to re-do work already
 // queued in front of a colleague.
 func writeTermsLine(w io.Writer, t *StatusTerminology) {
+	statusLabel(w, "terms")
 	switch {
 	case t == nil:
-		fmt.Fprintln(w, "terms   never synced — kapi pull snapshots the workspace terminology for offline checks")
+		fmt.Fprintln(w, "never synced — kapi pull snapshots the workspace terminology for offline checks")
 		return
 	case t.PulledAt != "":
-		fmt.Fprintf(w, "terms   synced %s · %d concepts · %d relations", t.PulledAt, t.Concepts, t.Relations)
+		fmt.Fprintf(w, "synced %s · %d concepts · %d relations", t.PulledAt, t.Concepts, t.Relations)
 	default:
-		fmt.Fprint(w, "terms   never snapshotted locally")
+		fmt.Fprint(w, "never snapshotted locally")
 	}
 	if t.PendingChangesets > 0 {
 		noun := "change-sets"
@@ -290,7 +405,8 @@ func writeTermsLine(w io.Writer, t *StatusTerminology) {
 	}
 	fmt.Fprintln(w)
 	if t.PendingURL != "" {
-		fmt.Fprintf(w, "        review: %s\n", t.PendingURL)
+		statusLabel(w, "")
+		fmt.Fprintf(w, "review: %s\n", t.PendingURL)
 	}
 }
 
@@ -316,7 +432,8 @@ func writeSourceLine(w io.Writer, sc SourceCoverage) {
 	default:
 		standing = " · blocked: " + sc.Pending[0].State
 	}
-	fmt.Fprintf(w, "source  %d units · %s%s\n\n", sc.Total, strings.Join(cells, " · "), standing)
+	statusLabel(w, "source")
+	fmt.Fprintf(w, "%d units · %s%s\n\n", sc.Total, strings.Join(cells, " · "), standing)
 }
 
 // scopeLabel renders a coverage row's scope: the locale, or "locale/collection"

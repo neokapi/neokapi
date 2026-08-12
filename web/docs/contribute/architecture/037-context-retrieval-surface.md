@@ -170,6 +170,32 @@ A term match and a memory match are not comparable scores. Results are grouped
 by kind, each group ranked within itself. A single blended list would impose an
 order that means nothing.
 
+### Every answer reports its own freshness
+
+An answer is a snapshot of a graph that other processes move, and a caller holds
+one for the length of a task. So the first of an answer's `notes` says whether
+the governing context, the terminology or the committed decisions moved since
+this process last read them.
+
+The comparison is against the freshness ref this project last observed of its
+server, held on disk (`core/ref/refcache`). Two consequences follow from putting
+it there rather than on the wire:
+
+- **A retrieval costs no round trip.** It is a read path a caller hits
+  repeatedly inside a single thought; phoning the server on each one would trade
+  a note nobody waits for against latency on every question asked. Refreshing
+  the cache belongs to the transport, at the cadence it already runs at.
+- **The baseline is per process and advances on every read.** A first answer
+  reports nothing — nothing has moved since a read that had not happened yet —
+  and a change is reported once, to the answer that first spans it, rather than
+  on every answer from then on.
+
+It reports and never resolves. What a moved context means for work already
+written is a judgement, and the retrieval surface is not in a position to make
+it. `kapi status` carries the same fact for a person, on its governance axis;
+`kapi check` is the enforcing half, where a target produced under a superseded
+context fails the staleness gate.
+
 ### The generated surface becomes opt-in
 
 MCP exposes a **curated** set by default. `KAPI_MCP_ALL_TOOLS=1` restores the
@@ -190,6 +216,9 @@ registry tool regardless.
   teaching a surface that MCP does not have.
 - **Callers stop needing a map of the stores.** The question is the interface;
   where the answer lives is ours to change.
+- **A stale answer is visible to the caller holding it.** Retrieval was
+  previously a read with no memory, so an agent that retrieved once and wrote
+  for an hour had no way to learn that the context under it had changed.
 - **Partial answers stop reading as whole ones** — the failure that made
   `voice_guide` actively misleading rather than merely narrow.
 - **A new registry tool no longer becomes an agent tool by accident.** Exposure

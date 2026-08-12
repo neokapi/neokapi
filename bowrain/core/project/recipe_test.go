@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/plugin/schema" // ensure decoders are registered
 
 	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/ref"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -209,6 +210,15 @@ func TestRecipe_TypeAliasesMatchSchema(t *testing.T) {
 	assert.Equal(t, "$auto", StreamAuto)
 	assert.Equal(t, "main", StreamMain)
 	assert.Equal(t, "wait_translate", ActionWaitTranslate)
+}
+
+// TestStreamMainIsTheFrameworksDefaultStream holds the two spellings of the
+// default stream to one value. The recipe vocabulary names it here; the
+// framework's ref cache names it in core/ref, because a package below the
+// platform cannot reach the recipe to ask. Let them drift and a ref written
+// under one name is read under the other — reported forever as never observed.
+func TestStreamMainIsTheFrameworksDefaultStream(t *testing.T) {
+	assert.Equal(t, ref.DefaultStream, StreamMain)
 }
 
 func TestFrameworkLoad_PreservesUnknownExtras(t *testing.T) {

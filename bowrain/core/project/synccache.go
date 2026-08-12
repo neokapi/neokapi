@@ -20,7 +20,7 @@ const SyncCacheFilename = "sync-cache.json"
 //
 // FRESHNESS IS NOT HERE. Where a stream stands — the position consumed and the
 // governance identities last confirmed — is one composite ref per stream, kept
-// by bowrain/core/refcache. This file holds what a push must know to build its
+// by core/ref/refcache. This file holds what a push must know to build its
 // payload: the block hashes the server confirmed, the claim token, the cached
 // project metadata. The distinction is what the ref replaced: four freshness
 // fragments at three granularities lived here, nothing coordinated them, and a

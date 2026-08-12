@@ -201,6 +201,25 @@ End by telling the user, concretely:
 
 ---
 
+# Notice when the context moves under you
+
+A context bound to a server is shared, and it moves while you work. Two surfaces
+report it, and both stop at reporting:
+
+- `kapi status` prints a **governance** line: `in sync`, or which of the
+  context, the terms and the decisions moved since this project last observed
+  the server. Movement is not distance — two identities that differ carry no
+  ordering, so the line names what moved and never how far behind you are.
+- A `context_search` answer carries a **note** when any of them moved since you
+  last read them in this session. Re-read the context before continuing; the
+  answer you were working from describes a graph that has changed.
+
+`kapi check` is the enforcing half: content produced under a context that has
+since been superseded fails the staleness gate, naming what moved. Re-running
+`kapi up` reproduces it under the context now in force.
+
+---
+
 # Refresh an existing context
 
 When new material lands — a site relaunch, product renames, a batch of new

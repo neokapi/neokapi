@@ -305,6 +305,25 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		}
 	}
 
+	// --- staleness gate --------------------------------------------------
+	// Part of the default gate set, and it carries no flag of its own: the
+	// other gates are bars you set, and this one is a fact about provenance —
+	// a target's stamp either matches the context governing its file or it
+	// does not. A run that named specific gates gets only those.
+	if !sel.explicit {
+		units, err := a.resolveVerifyUnits(cmd, proj, root, args, localeFilter)
+		if err != nil {
+			return verifyOutput{}, err
+		}
+		staleGate, judged, err := a.verifyStaleness(cmd, proj, root, units)
+		if err != nil {
+			return verifyOutput{}, err
+		}
+		if judged {
+			gates = append(gates, staleGate)
+		}
+	}
+
 	// --- ship gate (opt-in: the pre-release coverage bar) ----------------
 	// By default the ship gate is *not* evaluated here — coverage is the job of
 	// `kapi status`, and target drift is non-blocking. With --ship, a locale that

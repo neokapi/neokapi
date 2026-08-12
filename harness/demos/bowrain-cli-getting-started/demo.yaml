@@ -51,10 +51,11 @@ narration:
     text: >
       Track the files you want translated, then push. Push is pure transport — it
       moves the source up to the server, like git push; it does not translate on
-      its own. kapi status then shows the standing: the per-locale coverage grid,
-      plus the server line, the terms line, and the venue line — which server this
-      project belongs to, what the org's terms require, and where the loop will
-      run.
+      its own. kapi status then shows the standing on two axes: the content line
+      counts what is waiting to move in each direction, and the governance line
+      says whether the context, the terms and the decisions are still the ones
+      this project observed. Beneath them the terms line and the venue line say
+      what the org's vocabulary requires and where the loop will run.
     caption: "kapi push — source up to the server"
   - id: up
     kind: terminal

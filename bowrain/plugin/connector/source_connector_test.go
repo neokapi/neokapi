@@ -8,10 +8,10 @@ import (
 
 	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
-	"github.com/neokapi/neokapi/bowrain/core/refcache"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"

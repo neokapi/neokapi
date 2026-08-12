@@ -43,6 +43,23 @@ Two jobs follow from that, and they are the ones to reach for first:
 
   Retrieve first, then write; a check that fails afterwards is the expensive way
   to learn the same fact.
+- **Context refresh** — a retrieved answer is a snapshot, and the project's
+  context moves while you work: a colleague approves a terminology decision, a
+  `kapi up` run brings one down. Two surfaces tell you, and both only tell you:
+
+  ```bash
+  kapi status                       # the governance line: in sync, or what moved
+  ```
+
+  A `context_search` answer carries a note when the context, the terms or the
+  decisions moved since you last read them here. **Read the notes, and when one
+  says the context moved, ask again before you continue** — the wording you had
+  settled on was chosen against a context that has since changed, and everything
+  you write from here on inherits the stale answer.
+
+  Neither surface resolves anything: what a moved context means for work already
+  done is a judgement. Re-read, reconsider what you have written, and say what
+  changed rather than silently rewriting.
 
 A rule can be scoped, so *what applies here* has a real answer that differs by
 file and by surface — the old name may be permitted in the migration guide and

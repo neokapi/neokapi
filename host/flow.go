@@ -2020,18 +2020,7 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 	// rather than either tool guessing.
 	if len(b.glossary) > 0 && (isTranslateTool(toolName, s) || isMemoryRecycleTool(toolName, s)) {
 		if _, ok := config["glossary"]; !ok {
-			terms := make(map[string]string, len(b.glossary))
-			for _, e := range b.glossary {
-				if e.Source == "" || e.Target == "" {
-					continue
-				}
-				// First entry wins, so a duplicated source term resolves the same
-				// way on every run — the prompt has to be deterministic.
-				if _, dup := terms[e.Source]; !dup {
-					terms[e.Source] = e.Target
-				}
-			}
-			if len(terms) > 0 {
+			if terms := GlossaryTerms(b.glossary); len(terms) > 0 {
 				clone()
 				config["glossary"] = terms
 			}
@@ -2039,6 +2028,31 @@ func (a *App) applyBindings(b *ProjectBindings, toolName string, s *schema.Compo
 	}
 
 	return config
+}
+
+// GlossaryTerms projects a resolved glossary into the source→target map a
+// translation producer takes.
+//
+// It is the one definition of that projection, and it has to be: the map is an
+// input to the context fingerprint every producer stamps on what it writes, so
+// the staleness gate recomputes it to ask whether the governing context has
+// moved since. A second projection that dropped a different entry would make
+// every target read as stale against a context nobody changed.
+//
+// A duplicated source term keeps its FIRST entry, so one glossary resolves the
+// same way on every run — a prompt has to be deterministic, and so does a
+// fingerprint over it.
+func GlossaryTerms(entries []coretools.GlossaryEntry) map[string]string {
+	terms := make(map[string]string, len(entries))
+	for _, e := range entries {
+		if e.Source == "" || e.Target == "" {
+			continue
+		}
+		if _, dup := terms[e.Source]; !dup {
+			terms[e.Source] = e.Target
+		}
+	}
+	return terms
 }
 
 // MergeToolPreset overlays a step's config onto its project-level tool preset
