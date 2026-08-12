@@ -5,6 +5,12 @@
 export {
     AIModelOrigin,
     AIModelResolution,
+    ContextPrecedentHit,
+    ContextProfileHit,
+    ContextScope,
+    ContextSearchResult,
+    ContextTermHit,
+    ContextTermUse,
     ConvergeLocaleResult,
     ConvergeOutput,
     ConvergenceReport,

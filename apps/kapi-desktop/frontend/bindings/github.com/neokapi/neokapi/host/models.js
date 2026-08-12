@@ -114,6 +114,467 @@ export class AIModelResolution {
 }
 
 /**
+ * ContextPrecedentHit is one piece of previously-approved wording.
+ */
+export class ContextPrecedentHit {
+    /**
+     * Creates a new ContextPrecedentHit instance.
+     * @param {Partial<ContextPrecedentHit>} [$$source = {}] - The source object to create the ContextPrecedentHit.
+     */
+    constructor($$source = {}) {
+        if (!("entry_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["entry_id"] = "";
+        }
+        if (!("text" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["text"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["note"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Discouraged names terms in this wording that the same search found to be
+             * retired. Approval is a fact about when the wording was written, not a
+             * standing endorsement: terminology moves underneath content, and that gap
+             * is exactly what a rename produces. Offering such a line unqualified as
+             * "already approved" would make one answer contradict itself.
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["discouraged"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextPrecedentHit instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextPrecedentHit}
+     */
+    static createFrom($$source = {}) {
+        const $$createField4_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("discouraged" in $$parsedSource) {
+            $$parsedSource["discouraged"] = $$createField4_0($$parsedSource["discouraged"]);
+        }
+        return new ContextPrecedentHit(/** @type {Partial<ContextPrecedentHit>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextProfileHit is a governance profile whose validity is bounded, reported
+ * so an answer can say which voice is in force and until when.
+ */
+export class ContextProfileHit {
+    /**
+     * Creates a new ContextProfileHit instance.
+     * @param {Partial<ContextProfileHit>} [$$source = {}] - The source object to create the ContextProfileHit.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ValidFrom and ValidTo render the profile's window as it was authored — a
+             * bare date when it is midnight, otherwise the full instant. Empty means the
+             * bound is open on that side.
+             * @member
+             * @type {string | undefined}
+             */
+            this["valid_from"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["valid_to"] = undefined;
+        }
+        if (!("state" in $$source)) {
+            /**
+             * State is the window read against now: "active", "upcoming" (not yet in
+             * force) or "expired".
+             * @member
+             * @type {string}
+             */
+            this["state"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextProfileHit instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextProfileHit}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ContextProfileHit(/** @type {Partial<ContextProfileHit>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextScope names how much of the graph a result set could have come from.
+ * A caller must be able to tell "this project holds no answer" from "this scope
+ * cannot hold one", so a narrow scope is reported rather than left implied.
+ * @readonly
+ * @enum {string}
+ */
+export const ContextScope = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    /**
+     * ScopeProject is a local kapi project: a terms store, a content memory and
+     * a profile. No concept relations, no revisions, no market scoping.
+     */
+    ScopeProject: "project",
+
+    /**
+     * ScopeWorkspace is a Bowrain-connected workspace: the full concept graph.
+     */
+    ScopeWorkspace: "workspace",
+};
+
+/**
+ * ContextSearchResult is the answer, grouped by kind.
+ * 
+ * Deliberately NOT one ranked list. A term match scores on lexical closeness to
+ * a concept; a memory match scores on segment similarity. The two numbers are
+ * not comparable, so blending them would impose an order that means nothing.
+ * Grouping keeps each ranking honest and lets the caller weigh the kinds.
+ */
+export class ContextSearchResult {
+    /**
+     * Creates a new ContextSearchResult instance.
+     * @param {Partial<ContextSearchResult>} [$$source = {}] - The source object to create the ContextSearchResult.
+     */
+    constructor($$source = {}) {
+        if (!("query" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["query"] = "";
+        }
+        if (!("scope" in $$source)) {
+            /**
+             * Scope says how much could have been searched, so an empty result is
+             * readable: a project scope that finds nothing has not consulted a concept
+             * graph, because it has none.
+             * @member
+             * @type {ContextScope}
+             */
+            this["scope"] = ContextScope.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Terms are concepts whose terms or definition match — what the project
+             * calls this, and whether it is discouraged.
+             * @member
+             * @type {ContextTermHit[] | undefined}
+             */
+            this["terms"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Precedent is wording the project has already approved that matches the
+             * query — "how have we said this before?".
+             * 
+             * This is NOT translation recycling. Recycling is the loop's job and is
+             * invisible by design (`up` pre-fills from content memory as the structural
+             * cost control), so offering "search memory for prior translations" would
+             * invite a caller to hand-crank work already done. Precedent is a different
+             * question: it serves a caller AUTHORING source content who wants its own
+             * writing to sound like the project.
+             * @member
+             * @type {ContextPrecedentHit[] | undefined}
+             */
+            this["precedent"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Profiles are the governance profiles whose validity is bounded — "which
+             * voice is in force, and until when". Only profiles that declare a window
+             * appear; a project that never bounds governance has none.
+             * @member
+             * @type {ContextProfileHit[] | undefined}
+             */
+            this["profiles"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Notes carries scope-shaped caveats — e.g. that a store the query would
+             * have consulted is not bound. Present so "nothing found" is never
+             * ambiguous between "no answer" and "nowhere to look".
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["notes"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextSearchResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextSearchResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField2_0 = $$createType2;
+        const $$createField3_0 = $$createType4;
+        const $$createField4_0 = $$createType6;
+        const $$createField5_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("terms" in $$parsedSource) {
+            $$parsedSource["terms"] = $$createField2_0($$parsedSource["terms"]);
+        }
+        if ("precedent" in $$parsedSource) {
+            $$parsedSource["precedent"] = $$createField3_0($$parsedSource["precedent"]);
+        }
+        if ("profiles" in $$parsedSource) {
+            $$parsedSource["profiles"] = $$createField4_0($$parsedSource["profiles"]);
+        }
+        if ("notes" in $$parsedSource) {
+            $$parsedSource["notes"] = $$createField5_0($$parsedSource["notes"]);
+        }
+        return new ContextSearchResult(/** @type {Partial<ContextSearchResult>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextTermHit is one concept the query matched.
+ */
+export class ContextTermHit {
+    /**
+     * Creates a new ContextTermHit instance.
+     * @param {Partial<ContextTermHit>} [$$source = {}] - The source object to create the ContextTermHit.
+     */
+    constructor($$source = {}) {
+        if (!("concept_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["concept_id"] = "";
+        }
+        if (!("term" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["term"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["status"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["definition"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["domain"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Replacement is what to say instead, when the matched term is discouraged.
+             * Derived, not stored: a concept groups its terms per locale, so the
+             * replacement for a deprecated word is the preferred word for the same
+             * concept in the same language. A caller asking "may I use this?" needs the
+             * answer and the alternative together, not a second lookup.
+             * @member
+             * @type {string | undefined}
+             */
+            this["replacement"] = undefined;
+        }
+        if (!("discouraged" in $$source)) {
+            /**
+             * Discouraged is the one-glance answer to "may I use this word?", derived
+             * from Status so a caller does not have to know the status vocabulary.
+             * @member
+             * @type {boolean}
+             */
+            this["discouraged"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ValidFrom/ValidTo carry the term's own time scoping when it has any.
+             * A rule that starts or stops on a date is what lets a context survive a
+             * rename without being rewritten, so a caller must be able to see that the
+             * answer it just got has an expiry — "recognise the old name until March"
+             * is a different instruction from "never use it".
+             * @member
+             * @type {string | undefined}
+             */
+            this["valid_from"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["valid_to"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Uses is how many times this exact term appears in the project's
+             * extracted content, and UseBlocks in how many blocks. Together they turn
+             * "this word is discouraged" into "this word is discouraged and sits in 34
+             * places", which is the difference between a rule and a job. Zero when no
+             * block cache is bound — see the note the search adds in that case.
+             * @member
+             * @type {number | undefined}
+             */
+            this["uses"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["use_blocks"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * TopUses are the first few of those uses, enough to see what kind of
+             * content is involved without turning a context answer into a report.
+             * `kapi terms occurrences` is where the full list lives.
+             * @member
+             * @type {ContextTermUse[] | undefined}
+             */
+            this["top_uses"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextTermHit instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextTermHit}
+     */
+    static createFrom($$source = {}) {
+        const $$createField12_0 = $$createType8;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("top_uses" in $$parsedSource) {
+            $$parsedSource["top_uses"] = $$createField12_0($$parsedSource["top_uses"]);
+        }
+        return new ContextTermHit(/** @type {Partial<ContextTermHit>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextTermUse is one place a term is used, as a context answer shows it.
+ */
+export class ContextTermUse {
+    /**
+     * Creates a new ContextTermUse instance.
+     * @param {Partial<ContextTermUse>} [$$source = {}] - The source object to create the ContextTermUse.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["document"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["block_id"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["locale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["snippet"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Point is the place in the context space this document sits at, written
+             * `profile/channel`, resolved per file so a content item's own `channel:`
+             * shows where its files are actually governed. Empty when the document sits
+             * at the project's default point, or when no recipe was bound to resolve
+             * against.
+             * @member
+             * @type {string | undefined}
+             */
+            this["point"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextTermUse instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextTermUse}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ContextTermUse(/** @type {Partial<ContextTermUse>} */($$parsedSource));
+    }
+}
+
+/**
  * ConvergeLocaleResult is the per-locale outcome of a convergence run.
  */
 export class ConvergeLocaleResult {
@@ -184,7 +645,7 @@ export class ConvergeLocaleResult {
      * @returns {ConvergeLocaleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType0;
+        const $$createField3_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
@@ -295,8 +756,8 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType2;
-        const $$createField4_0 = $$createType4;
+        const $$createField3_0 = $$createType11;
+        const $$createField4_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -463,8 +924,8 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType6;
-        const $$createField2_0 = $$createType5;
+        const $$createField1_0 = $$createType15;
+        const $$createField2_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField1_0($$parsedSource["scopes"]);
@@ -555,10 +1016,19 @@ export class UpPlanScope {
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Map($Create.Any, $Create.Any);
-const $$createType1 = ConvergeLocaleResult.createFrom;
+const $$createType0 = $Create.Array($Create.Any);
+const $$createType1 = ContextTermHit.createFrom;
 const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = ParkedScope.createFrom;
+const $$createType3 = ContextPrecedentHit.createFrom;
 const $$createType4 = $Create.Array($$createType3);
-const $$createType5 = UpPlanScope.createFrom;
+const $$createType5 = ContextProfileHit.createFrom;
 const $$createType6 = $Create.Array($$createType5);
+const $$createType7 = ContextTermUse.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $Create.Map($Create.Any, $Create.Any);
+const $$createType10 = ConvergeLocaleResult.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = ParkedScope.createFrom;
+const $$createType13 = $Create.Array($$createType12);
+const $$createType14 = UpPlanScope.createFrom;
+const $$createType15 = $Create.Array($$createType14);

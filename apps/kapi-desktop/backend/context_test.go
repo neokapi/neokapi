@@ -1,0 +1,283 @@
+package backend
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/terms"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// newContextProject scaffolds a project with a real context space on disk: two
+// collections at two points, one profile whose window has closed, and a source
+// file per collection. Everything the explorer answers comes from this recipe
+// and the project's own store — no fake sources anywhere.
+func newContextProject(t *testing.T, app *App) (*TabInfo, string) {
+	t.Helper()
+	root := t.TempDir()
+
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "docs", "help"), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, "docs", "help", "billing.json"),
+		[]byte(`{"intro":"Sign in to see your invoices.","cta":"Manage billing"}`),
+		0o644,
+	))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "app"), 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(root, "app", "en.json"),
+		[]byte(`{"login":"Sign in"}`),
+		0o644,
+	))
+
+	proj := &project.KapiProject{
+		Version: project.CurrentVersion,
+		Name:    "Northsea",
+		Defaults: project.Defaults{
+			SourceLanguage:  "en-US",
+			TargetLanguages: []model.LocaleID{"nb-NO"},
+		},
+		Profiles: map[string]project.Profile{
+			"support": {Channels: []project.Channel{{ID: "docs"}}},
+			// A profile whose window closed yesterday: resolution must fall
+			// through it and say so rather than governing with it.
+			"campaign": {
+				Channels: []project.Channel{{ID: "promo"}},
+				ValidTo:  time.Now().AddDate(0, 0, -1).Format("2006-01-02"),
+			},
+		},
+		Collections: []project.Collection{
+			{
+				Name:    "Docs",
+				Channel: "support/docs",
+				Content: []project.ContentItem{
+					{Path: "docs/help/billing.json", Target: "docs/help/billing.{lang}.json"},
+				},
+			},
+			{
+				Name: "App",
+				Content: []project.ContentItem{
+					{Path: "app/en.json", Target: "app/{lang}.json"},
+				},
+			},
+		},
+	}
+	path := filepath.Join(root, "kapi.yaml")
+	require.NoError(t, project.Save(path, proj))
+
+	tab, err := app.OpenProject(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseProject(tab.ID) })
+	return tab, root
+}
+
+// seedConcept writes one concept into the project's own terms store — the same
+// schema inside the same store file the explorer reads back.
+func seedConcept(t *testing.T, app *App, tab *TabInfo) {
+	t.Helper()
+	db, err := app.projectStore(app.getOpenProject(tab.ID))
+	require.NoError(t, err)
+	require.NoError(t, db.Terms().AddConcept(context.Background(), terms.Concept{
+		ID:         "c-signin",
+		Definition: "Authenticating into the product.",
+		Terms: []terms.Term{
+			{Text: "sign in", Locale: "en-US", Status: model.TermPreferred},
+			{Text: "log in", Locale: "en-US", Status: model.TermForbidden},
+		},
+	}))
+}
+
+func TestContextGovernsResolvesTheFinestDeclaredPoint(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+
+	docs, err := app.ContextGoverns(tab.ID, "Docs", "", 0)
+	require.NoError(t, err)
+	assert.Equal(t, "support", docs.Point.Profile)
+	assert.Equal(t, "docs", docs.Point.Channel)
+	assert.False(t, docs.Point.Default)
+
+	// A collection that binds nothing falls back to the project's default point.
+	appColl, err := app.ContextGoverns(tab.ID, "App", "", 0)
+	require.NoError(t, err)
+	assert.Empty(t, appColl.Point.Profile)
+	assert.True(t, appColl.Point.Default)
+}
+
+func TestContextGovernsReportsAProfileWindow(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+
+	res, err := app.ContextGoverns(tab.ID, "Docs", "", 0)
+	require.NoError(t, err)
+
+	states := map[string]string{}
+	for _, p := range res.Profiles {
+		states[p.Name] = p.State
+	}
+	assert.Equal(t, "expired", states["campaign"], "a closed window is reported, not hidden")
+	assert.NotContains(t, states, "support", "an unbounded profile declares no window")
+}
+
+func TestContextGovernsCarriesTheProjectVocabulary(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+	seedConcept(t, app, tab)
+
+	res, err := app.ContextGoverns(tab.ID, "Docs", "", 10)
+	require.NoError(t, err)
+	require.Len(t, res.Concepts, 1)
+	assert.Equal(t, "c-signin", res.Concepts[0].ID)
+	assert.Equal(t, 1, res.ConceptsTotal)
+
+	statuses := map[string]string{}
+	for _, term := range res.Concepts[0].Terms {
+		statuses[term.Text] = term.Status
+	}
+	assert.Equal(t, "preferred", statuses["sign in"])
+	assert.Equal(t, "forbidden", statuses["log in"])
+}
+
+func TestContextLivesPlacesContentAtThePoint(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+	_, err := app.RunExtract(tab.ID)
+	require.NoError(t, err)
+
+	res, err := app.ContextLives(tab.ID, "Docs", "", 50)
+	require.NoError(t, err)
+	require.Len(t, res.Collections, 1)
+	assert.Equal(t, "Docs", res.Collections[0].Name)
+	assert.Equal(t, "support", res.Collections[0].Profile)
+	assert.Equal(t, 2, res.Collections[0].Blocks)
+
+	require.Len(t, res.Coverage, 1)
+	assert.Equal(t, "nb-NO", res.Coverage[0].Locale)
+	assert.Equal(t, 2, res.Coverage[0].Units)
+	assert.Equal(t, 0, res.Coverage[0].Covered)
+
+	require.NotEmpty(t, res.Items)
+	for _, item := range res.Items {
+		assert.Equal(t, "docs/help/billing.json", item.Document)
+	}
+}
+
+func TestContextLivesNarrowsToADocument(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+	_, err := app.RunExtract(tab.ID)
+	require.NoError(t, err)
+
+	// A directory is as legitimate a point as a file.
+	dir, err := app.ContextLives(tab.ID, "Docs", "docs/help", 50)
+	require.NoError(t, err)
+	assert.Equal(t, 2, dir.ItemsTotal)
+
+	// A path no content sits at answers empty rather than falling back to all.
+	none, err := app.ContextLives(tab.ID, "Docs", "docs/help/other.json", 50)
+	require.NoError(t, err)
+	assert.Equal(t, 0, none.ItemsTotal)
+	assert.Empty(t, none.Items)
+}
+
+func TestContextSearchGroupsByKind(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+	seedConcept(t, app, tab)
+	_, err := app.RunExtract(tab.ID)
+	require.NoError(t, err)
+
+	res, err := app.ContextSearch(tab.ID, "sign in", "", 10)
+	require.NoError(t, err)
+	require.NotNil(t, res.Answer)
+	assert.Equal(t, "sign in", res.Answer.Query)
+	require.NotEmpty(t, res.Answer.Terms)
+	assert.Equal(t, "c-signin", res.Answer.Terms[0].ConceptID)
+
+	require.NotEmpty(t, res.Content, "the extracted content holds the phrase")
+	assert.Contains(t, res.Content[0].Text, "Sign in")
+}
+
+func TestContextSearchRefusesAnEmptyQuery(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+
+	_, err := app.ContextSearch(tab.ID, "  ", "", 10)
+	assert.Error(t, err)
+}
+
+func TestContextRelatesAnswersAtProjectReach(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+	seedConcept(t, app, tab)
+	_, err := app.RunExtract(tab.ID)
+	require.NoError(t, err)
+
+	res, err := app.ContextRelates(tab.ID, "concept", "sign in", 20)
+	require.NoError(t, err)
+	assert.Equal(t, "project", res.Reach, "a local project holds its own subgraph only")
+	require.NotEmpty(t, res.Occurrences)
+	assert.Equal(t, "c-signin", res.Occurrences[0].ConceptID)
+}
+
+func TestContextRelatesSaysWhenTheSubjectIsUnknown(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+	seedConcept(t, app, tab)
+
+	res, err := app.ContextRelates(tab.ID, "concept", "nothing-by-that-name", 20)
+	require.NoError(t, err)
+	assert.Empty(t, res.Occurrences)
+	require.NotEmpty(t, res.Notes, "an unknown subject is reported, not answered as empty")
+}
+
+func TestContextOptionsOffersOnlyTheFreeDimensions(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+
+	collections, err := app.ContextOptions(tab.ID, "collection")
+	require.NoError(t, err)
+	values := make([]string, 0, len(collections))
+	for _, o := range collections {
+		values = append(values, o.Value)
+	}
+	assert.ElementsMatch(t, []string{"Docs", "App"}, values)
+
+	locales, err := app.ContextOptions(tab.ID, "locale")
+	require.NoError(t, err)
+	require.Len(t, locales, 1)
+	assert.Equal(t, "nb-NO", locales[0].Value)
+
+	coordinates, err := app.ContextOptions(tab.ID, "coordinate")
+	require.NoError(t, err)
+	found := make([]string, 0, len(coordinates))
+	for _, o := range coordinates {
+		found = append(found, o.Value)
+	}
+	assert.Contains(t, found, "support/docs")
+
+	// A pinned dimension has no options: this mount cannot move it.
+	projects, err := app.ContextOptions(tab.ID, "project")
+	require.NoError(t, err)
+	assert.Empty(t, projects)
+}
+
+func TestContextExplorerRejectsAnUnknownTab(t *testing.T) {
+	app := NewApp()
+
+	_, err := app.ContextGoverns("nope", "", "", 0)
+	assert.Error(t, err)
+	_, err = app.ContextLives("nope", "", "", 0)
+	assert.Error(t, err)
+	_, err = app.ContextRelates("nope", "concept", "x", 0)
+	assert.Error(t, err)
+	_, err = app.ContextSearch("nope", "x", "", 0)
+	assert.Error(t, err)
+	_, err = app.ContextOptions("nope", "collection")
+	assert.Error(t, err)
+}

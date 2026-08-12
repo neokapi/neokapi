@@ -1,0 +1,45 @@
+{
+  "name": "@neokapi/context-explorer",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "typecheck": "vp check --no-fmt --no-lint",
+    "check": "vp check",
+    "lint": "vp lint",
+    "fmt": "vp fmt",
+    "test": "vp test",
+    "test:watch": "vp test watch"
+  },
+  "dependencies": {
+    "@neokapi/concept-ui": "*",
+    "@neokapi/i18n-react": "*",
+    "@neokapi/ui-primitives": "*",
+    "lucide-react": "^1.30.0"
+  },
+  "devDependencies": {
+    "@storybook/react-vite": "^10.5.7",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "jsdom": "^30.0.1",
+    "storybook": "^10.5.7",
+    "typescript": "^7.0.2",
+    "vite-plus": "^0.2.8",
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

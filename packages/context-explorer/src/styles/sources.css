@@ -1,0 +1,11 @@
+/*
+ * Registers @neokapi/context-explorer/src as a Tailwind @source so consumers of
+ * this package don't have to add the @source themselves. Without it, classes
+ * used only inside the explorer (the pane frames, the note strip's amber tones,
+ * any arbitrary value) are never generated in the consumer's CSS.
+ *
+ * Import this from any CSS file that processes Tailwind utilities and renders
+ * @neokapi/context-explorer components.
+ */
+
+@source "../";

@@ -4,6 +4,7 @@
 @import "@neokapi/ui-primitives/styles/theme-tokens.css";
 @import "@neokapi/flow-editor/styles/sources.css";
 @import "@neokapi/concept-ui/styles/sources.css";
+@import "@neokapi/context-explorer/styles/sources.css";
 
 /*
  * Tailwind v4 removed automatic cursor:pointer from interactive elements.
