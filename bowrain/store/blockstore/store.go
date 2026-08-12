@@ -56,6 +56,9 @@ type Options struct {
 // content store to the core/blockstore interface. Overlays are
 // persisted in the `block_overlays` table defined by migration
 // #2 (Postgres) / #34 (SQLite).
+//
+// On Postgres the returned Store also satisfies blockstore.TextSearcher
+// (see pgStore); on SQLite a text search takes core/blockstore's scan.
 func New(opts Options) (blockstore.Store, error) {
 	if opts.ContentStore == nil {
 		return nil, errors.New("bowrain/blockstore: ContentStore is required")
@@ -69,7 +72,11 @@ func New(opts Options) (blockstore.Store, error) {
 	if opts.Stream == "" {
 		opts.Stream = "main"
 	}
-	return &store{opts: opts}, nil
+	s := &store{opts: opts}
+	if opts.Dialect == PostgresDialect {
+		return &pgStore{store: s}, nil
+	}
+	return s, nil
 }
 
 type store struct {
