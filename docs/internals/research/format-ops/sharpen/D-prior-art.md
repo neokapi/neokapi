@@ -1,7 +1,7 @@
 # Deep-dive D — Prior art + naming: an intuitive axis categorization and a Structure/Geometry ladder
 
 Read-only survey of the neokapi repo root (HEAD caught up to main).
-Anchors read in full: `core/model/structure.go`, `core/formats/docling/{schema.go,reader.go,spec.yaml}`, `core/formats/doclang/{reader.go,spec.yaml}`, `core/formats/image/reader.go`, `core/structure/analyze.go`, `web/docs/contribute/architecture/028-pdf-reader-plugin.md`, `web/docs/contribute/architecture/029-vision-and-image-adaptation.md`, `docs/internals/format-maturity.md`.
+Anchors read in full: `core/model/structure.go`, `core/formats/docling/{schema.go,reader.go,spec.yaml}`, `core/formats/doclang/{reader.go,spec.yaml}`, `core/formats/image/reader.go`, `core/structure/analyze.go`, `web/docs/contribute/architecture/engine/e-08-document-structure-tiers.md`, `web/docs/contribute/architecture/multilingual/m-03-multimodal-content.md`, `docs/internals/format-maturity.md`.
 
 ---
 
@@ -9,8 +9,8 @@ Anchors read in full: `core/model/structure.go`, `core/formats/docling/{schema.g
 
 The repo **already contains two orthogonal "depth" ladders the maturity framework never captured**, and a content-model substrate purpose-built to carry them:
 
-1. **AD-028 structure tiers (recovery *authority*)** — tier 1 tagged tree / tier 2 geometric / tier 3 ML. This is a *provenance/confidence* ladder, not a *representation* ladder.
-2. **AD-029 image-enrichment ladder (representation *depth*)** — Media-only → alt-text/caption → metadata → OCR text → layout/structure+geometry. This is the exact ladder the user named ("metadata OR OCR-to-text OR OCR+structure+geometry").
+1. **E-08 structure tiers (recovery *authority*)** — tier 1 tagged tree / tier 2 geometric / tier 3 ML. This is a *provenance/confidence* ladder, not a *representation* ladder.
+2. **M-03 image-enrichment ladder (representation *depth*)** — Media-only → alt-text/caption → metadata → OCR text → layout/structure+geometry. This is the exact ladder the user named ("metadata OR OCR-to-text OR OCR+structure+geometry").
 3. **`core/model/structure.go`** — three stand-off block annotations (`StructureAnnotation`, `GeometryAnnotation`, `RelationAnnotation`) that can *represent* every rung of #2, deliberately "aligned with the DocLang / DoclingDocument taxonomy" (`structure.go:32-33`).
 
 None of the six maturity axes (Engine L, Vocabulary V, Editor E, Knowledge K, Corpus C, Security S) scores any of this. The vision/OCR/structure stack (#900–#912) landed entirely *underneath* the rubric. The deliverable below proposes a seventh axis **G — Structure & Geometry (a.k.a. "Comprehension depth")** and an intuitive 3-family grouping of all seven.
@@ -97,11 +97,11 @@ Sources:
 
 ---
 
-## 2. The structure-tier prior art we already wrote (AD-028 / AD-029)
+## 2. The structure-tier prior art we already wrote (E-08 / M-03)
 
-### 2.1 AD-028 — structure recovery *authority* (provenance ladder, NOT representation)
+### 2.1 E-08 — structure recovery *authority* (provenance ladder, NOT representation)
 
-`028-pdf-reader-plugin.md` "Structure tiers" table (verbatim):
+`engine/e-08-document-structure-tiers.md` "Structure tiers" table (verbatim):
 
 | Tier | Source | Where it runs | Authority |
 |---|---|---|---|
@@ -109,15 +109,15 @@ Sources:
 | **2 — Geometric inference** | Block positions: row clustering, column alignment, relative line height | Native **and** browser | Heuristic |
 | **3 — ML layout** | A vision model over the rendered page | Native plugin + host (kapi-vision) | Heuristic, highest recall |
 
-And two extraction **granularities** (`geometry` config flag, AD-028 "Two extraction modes"):
+And two extraction **granularities** (`geometry` config flag, E-08 "Two extraction modes"):
 - **Fast path** (`geometry=false`, default) — one plain-text Block per page.
 - **Geometry path** (`geometry=true`) — one Block per positioned run, each with `GeometryAnnotation`; `glyphs=true` adds per-character boxes.
 
 Key insight for §4: **tier 1/2/3 is the *confidence/provenance* of where roles+geometry come from; the *fast/geometry* split is the *representation depth*.** These are different things and neither is scored today.
 
-### 2.2 AD-029 — the representation-depth ladder (exactly the user's named ladder)
+### 2.2 M-03 — the representation-depth ladder (exactly the user's named ladder)
 
-`029-vision-and-image-adaptation.md` Context table (verbatim modes):
+`multilingual/m-03-multimodal-content.md` Context table (verbatim modes):
 
 | Mode | What it localizes |
 |---|---|
@@ -127,7 +127,7 @@ Key insight for §4: **tier 1/2/3 is the *confidence/provenance* of where roles+
 | **In-image text (OCR)** | text rendered into the image |
 | **Layout / structure** | the document's regions + reading order, tables reconstructed to row/col cells |
 
-Two default-on toggles: `ocr` (Media-only when off) and `layout` (geometric tier-2 when off). AD-029 also confirms geometry is **format-conditional**: *"It exists only for formats with intrinsic spatial layout (PDF, PPTX slide coordinates, XLSX cell grid, rendered HTML) or for content ingested from a layout-aware source (Docling/DocLang)"* (`structure.go:121-126`).
+Two default-on toggles: `ocr` (Media-only when off) and `layout` (geometric tier-2 when off). M-03 also confirms geometry is **format-conditional**: *"It exists only for formats with intrinsic spatial layout (PDF, PPTX slide coordinates, XLSX cell grid, rendered HTML) or for content ingested from a layout-aware source (Docling/DocLang)"* (`structure.go:121-126`).
 
 ### 2.3 The code that realizes both ladders
 
@@ -168,21 +168,21 @@ Current per-axis distribution (snapshot 2026-06-13, `format-maturity.md:581-586`
 
 - **vs Engine (L)** — L measures *byte/round-trip/parity fidelity of the serialization*. A reader can be L4 byte-faithful while emitting one flat `Block` per page (G0). PDF is `L2` today but its whole value proposition is the structure tiers — invisible to L.
 - **vs Vocabulary (V)** — V measures **inline / run-level** meaning (`fmt:*`, `link:*`, `media:*`, `code:*` *within* a block, `format-maturity.md:160-166`). G measures **block-level + cross-block + spatial** structure. They are orthogonal: **docling is `V0` (plain text runs, `reader.go:18-20`) but represents headings/tables/geometry/reading-order = high G**; **html is `V1` (typed inline) but emits no geometry = low G**. Two genuinely independent axes.
-- It subsumes both repo ladders: the AD-029 representation depth (the *what*) is the axis itself; the AD-028 tier 1/2/3 (the *how/authority*) is a **provenance qualifier** recorded per format, mirroring promise-vs-score (`GeometryAnnotation.SourceRef`, `structure.go:140-142`, already carries provenance).
+- It subsumes both repo ladders: the M-03 representation depth (the *what*) is the axis itself; the E-08 tier 1/2/3 (the *how/authority*) is a **provenance qualifier** recorded per format, mirroring promise-vs-score (`GeometryAnnotation.SourceRef`, `structure.go:140-142`, already carries provenance).
 
 ### 4.2 The ladder — each rung defined by what `core/model/structure.go` + the Layer/Group tree can actually carry
 
 | Level | Name | Entry criteria (grounded in deep-dive A's model) | Realized by |
 |---|---|---|---|
-| **G0** | Flat / opaque | `LayerStart → Block → LayerEnd`; no `StructureAnnotation.Role`, no Group nesting beyond the document layer, no geometry. The "destructive flatten." | AD-028 fast path (one Block/page); most current formats |
+| **G0** | Flat / opaque | `LayerStart → Block → LayerEnd`; no `StructureAnnotation.Role`, no Group nesting beyond the document layer, no geometry. The "destructive flatten." | E-08 fast path (one Block/page); most current formats |
 | **G1** | Linear + containers | Blocks in correct **reading order**, grouped by the `Layer`/`Group` tree (lists, sections), but roles are generic (`Block.Type` only) — no normalized `StructureAnnotation.Role`. | catalog/line formats with `PartGroupStart`; OCR text recovered |
-| **G2** | Logical roles | Every block carries a normalized **`StructureAnnotation.Role`** (heading+`Level`, paragraph, caption, footnote, list-item, code, formula) and **`LayoutLayer`** where applicable (body/furniture/metadata). No geometry required. | DocLang/Docling text items; AD-028 tier-1 minus geometry; the level docling reaches for a geometry-less doc |
-| **G3** | Tables + nesting + relations | G2 **plus** reconstructed table grids (`Group("table")→("table-row")→table-cell/table-header`), nested lists, and typed **`RelationAnnotation`** edges (`caption-of`, `footnote-of`). Reading order explicit. | docling/doclang readers + `structure.Gridify`/`TableToParts`; AD-028 tier-1 tables; vision tier-3 table reconstruction |
-| **G4** | Full geometry / spatial fidelity | G3 **plus** a **`GeometryAnnotation`** on every block (page + bbox + origin + resolution), `Z` stacking for overlay planes, and — for the top sub-rung — per-glyph **`Glyphs`**. Enough to reconstruct the page and round-trip to DocLang `<location>`. | AD-028 geometry/glyphs path; DoclingDocument prov bboxes; visual editor + Vision Lab |
+| **G2** | Logical roles | Every block carries a normalized **`StructureAnnotation.Role`** (heading+`Level`, paragraph, caption, footnote, list-item, code, formula) and **`LayoutLayer`** where applicable (body/furniture/metadata). No geometry required. | DocLang/Docling text items; E-08 tier-1 minus geometry; the level docling reaches for a geometry-less doc |
+| **G3** | Tables + nesting + relations | G2 **plus** reconstructed table grids (`Group("table")→("table-row")→table-cell/table-header`), nested lists, and typed **`RelationAnnotation`** edges (`caption-of`, `footnote-of`). Reading order explicit. | docling/doclang readers + `structure.Gridify`/`TableToParts`; E-08 tier-1 tables; vision tier-3 table reconstruction |
+| **G4** | Full geometry / spatial fidelity | G3 **plus** a **`GeometryAnnotation`** on every block (page + bbox + origin + resolution), `Z` stacking for overlay planes, and — for the top sub-rung — per-glyph **`Glyphs`**. Enough to reconstruct the page and round-trip to DocLang `<location>`. | E-08 geometry/glyphs path; DoclingDocument prov bboxes; visual editor + Vision Lab |
 
-### 4.3 How the AD-029 enrichment ladder maps onto G (the unification)
+### 4.3 How the M-03 enrichment ladder maps onto G (the unification)
 
-| AD-029 mode | G rung |
+| M-03 mode | G rung |
 |---|---|
 | Whole-image Media only | G0 (no text comprehended) |
 | + alt-text / caption / metadata blocks | G0–G1 (text present, no in-image structure) |
@@ -204,7 +204,7 @@ Mirror the Vocabulary `vocabtypes` grep (`format-maturity.md:204-211`), over non
 - **G3**: package emits `Group{Type:"table"/"table-row"}` **+** `AddRelation` (`structure.go:264`) **+** a structure/table test.
 - **G4**: package calls `SetGeometry` (`structure.go:255`) **+** a geometry test; G4-top adds `GeometryAnnotation.Glyphs`.
 
-New per-format artifact (proposed): **`core/formats/<id>/structure.yaml`** — declares the G rung, the AD-028 provenance tier (authoritative / geometric / ML), and the `na` geometry cells with `reviewed_by`. Exactly the `vocabulary.yaml` + `constructs.yaml` shape.
+New per-format artifact (proposed): **`core/formats/<id>/structure.yaml`** — declares the G rung, the E-08 provenance tier (authoritative / geometric / ML), and the `na` geometry cells with `reviewed_by`. Exactly the `vocabulary.yaml` + `constructs.yaml` shape.
 
 ---
 
@@ -245,6 +245,6 @@ Fidelity = {Engine, Vocabulary, Structure/Geometry}; Trust = {Corpus, Security};
 - DocLang: `core/formats/doclang/reader.go` `blockRole` (39-47), `<layer>`/`<location>` (261-269), `geometryFrom` 512-grid (502-516), OTSL `otslCellTok` (72-79).
 - Image/vision ladder: `core/formats/image/reader.go` `Config{OCR,Layout}` (46-57), `ocrParts` tier-3→tier-2 (305-336).
 - Tier-2 engine: `core/structure/analyze.go` `Analyze` (61), `Gridify` (222), `ToParts` (351), `TableToParts` (375).
-- ADs: `web/docs/contribute/architecture/028-pdf-reader-plugin.md` (structure-tiers table, two extraction modes), `029-vision-and-image-adaptation.md` (Context modes table, ocr/layout toggles).
+- ADs: `web/docs/contribute/architecture/engine/e-08-document-structure-tiers.md` (structure-tiers table, two extraction modes), `multilingual/m-03-multimodal-content.md` (Context modes table, ocr/layout toggles).
 - Rubric to extend: `docs/internals/format-maturity.md` axes table (99-106), Vocabulary precedent (160-217), `na` rule (112-117), min-over-gating (27), promise-vs-score (16-30).
 - Governance prior art (no axis-grouping written yet): `docs/internals/research/format-ops/followup-maturity-ladder-governance.md:73,96,112` (vector published, headline by min; promises aggregate by minimum).

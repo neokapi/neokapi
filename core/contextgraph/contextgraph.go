@@ -7,7 +7,7 @@
 // server into Postgres. Locally the dimensions are pinned — the store IS one
 // project — while the server carries real workspace, project and stream
 // identities. Nothing else differs, which is what lets a query written against
-// one store run against the other ([AD-039]).
+// one store run against the other ([C-03]).
 //
 // # Two kinds of node
 //
@@ -43,12 +43,12 @@
 // rename does not touch, so the display name rides as a node property and the
 // rule costs nothing.
 //
-// Within a scope, identity is durable: a block is its content key ([AD-036]),
+// Within a scope, identity is durable: a block is its content key ([F-03]),
 // not a reader's positional id, so a re-parse that renumbers a document rewrites
 // the same rows rather than orphaning them.
 //
-// [AD-036]: https://neokapi.org/docs/contribute/architecture/003-identity
-// [AD-039]: https://neokapi.org/docs/contribute/architecture/039-local-context-graph-store
+// [F-03]: https://neokapi.org/docs/contribute/architecture/foundations/f-03-identity
+// [C-03]: https://neokapi.org/docs/contribute/architecture/context/c-03-context-store-and-graph
 package contextgraph
 
 import "strings"

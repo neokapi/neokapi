@@ -60,7 +60,7 @@ checkout).
    `kapi init --list-presets` / `core/preset/builtins.go`; format ids and
    `--format` flags against `core/formats/`; any kapi commands quoted in the
    playbook against the current CLI. A CLI change and its skill update land in
-   one PR (AD-024 lockstep).
+   one PR (S-03 lockstep).
 5. **Update** the registry entry (vectors, grade, status, buys, notes,
    `watch.latest_verified`, `watch.verified` = today) and the playbook section
    (grade table row, prose, setup steps). Keep them in exact agreement — the
@@ -127,5 +127,5 @@ checkout).
 - Registry + playbooks: `cli/skills/data/kapi/references/i18n/`
 - Fleet sweep: `.claude/workflows/i18n-triage.js`
 - Research base: `strategy/i18n-skill/research-*.md`
-- Skill architecture + lockstep rule: `web/docs/contribute/architecture/024-agent-skills.md`
+- Skill architecture + lockstep rule: `web/docs/contribute/architecture/surfaces/s-03-agent-surfaces.md`
 - Trigger evals: `cli/skills/EVALS.md`

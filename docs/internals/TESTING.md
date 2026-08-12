@@ -649,7 +649,7 @@ func TestDiscover(t *testing.T) {
 
 See the [plugin model](../../web/docs/contribute/implementation/plugin-model.md)
 note for the in-process registry contract and
-[AD-007: Plugin system](../../web/docs/contribute/architecture/007-plugin-system.md)
+[E-05: Plugin system](../../web/docs/contribute/architecture/engine/e-05-plugin-system.md)
 for discovery and the A/B/C transport modes.
 
 ### Okapi Java bridge

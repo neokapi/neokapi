@@ -5,7 +5,7 @@ Worktree HEAD: `48fae7e8a fix(docs): dedupe vision models to default-locale outp
 Bottom line up front: the codebase already carries **two distinct, orthogonal "how deeply do we understand this document" concepts**, both shipped and tested, but neither is named as a maturity axis:
 
 1. **A richness ladder** = which content-model standoff payloads are present: `Media` → plain text → `GeometryAnnotation` → `StructureAnnotation.Role` → table Groups → reading order + `RelationAnnotation`. This is the ladder the user named ("metadata only / OCR text / OCR+structure+geometry"). It maps 1:1 onto the annotation carriers in `core/model/structure.go`.
-2. **An authority tier** (Tier 1/2/3, from AD-028) = how that structure was *obtained* — authoritative tags vs geometric heuristic vs ML heuristic. This is provenance/confidence, NOT richness. A format can reach the top richness rung via Tier 1 (authoritative) or Tier 3 (ML guess) — same payloads, different trust.
+2. **An authority tier** (Tier 1/2/3, from E-08) = how that structure was *obtained* — authoritative tags vs geometric heuristic vs ML heuristic. This is provenance/confidence, NOT richness. A format can reach the top richness rung via Tier 1 (authoritative) or Tier 3 (ML guess) — same payloads, different trust.
 
 A new Structure/Geometry axis should **measure the richness ladder** and **carry the authority tier as a confidence qualifier** — do not collapse them.
 
@@ -34,9 +34,9 @@ Above blocks, structural containment is carried by **Groups** (`table` / `table-
 
 ## 2. The TWO existing depth vocabularies
 
-### 2a. Authority tier (AD-028, the named ladder)
+### 2a. Authority tier (E-08, the named ladder)
 
-`web/docs/contribute/architecture/028-pdf-reader-plugin.md:131-179`, "Structure tiers … in decreasing order of authority":
+`web/docs/contribute/architecture/engine/e-08-document-structure-tiers.md:131-179`, "Structure tiers … in decreasing order of authority":
 
 | Tier | Source | Where | Authority |
 |---|---|---|---|
@@ -44,11 +44,11 @@ Above blocks, structural containment is carried by **Groups** (`table` / `table-
 | **2 — Geometric inference** | Row clustering, column alignment, line height | Native **and** browser | Heuristic |
 | **3 — ML layout** | A vision model over the rendered page | Native plugin + host (kapi-vision) | Heuristic, highest recall |
 
-Tier-2 is `core/structure.Analyze`/`ToParts` (format-agnostic, `analyze.go:1-12`). Tier-3 runs the kapi-vision layout model over a page raster and is "deliberately *not* part of the PDF format … applies to any format that can produce [raster+blocks]" (AD-028:163-179). Tiers degrade cleanly downward (3→2→1-absent). This is the ONLY place the word "tier" is a defined concept — and it is about *provenance/authority*, not feature richness.
+Tier-2 is `core/structure.Analyze`/`ToParts` (format-agnostic, `analyze.go:1-12`). Tier-3 runs the kapi-vision layout model over a page raster and is "deliberately *not* part of the PDF format … applies to any format that can produce [raster+blocks]" (E-08:163-179). Tiers degrade cleanly downward (3→2→1-absent). This is the ONLY place the word "tier" is a defined concept — and it is about *provenance/authority*, not feature richness.
 
-### 2b. Localization-mode table (AD-029, a capability enumeration)
+### 2b. Localization-mode table (M-03, a capability enumeration)
 
-`web/docs/contribute/architecture/029-vision-and-image-adaptation.md:36-42` — "treating 'image' as 'OCR' conflates [several modes]":
+`web/docs/contribute/architecture/multilingual/m-03-multimodal-content.md:36-42` — "treating 'image' as 'OCR' conflates [several modes]":
 
 | Mode | What it localizes | Mechanism |
 |---|---|---|
@@ -58,7 +58,7 @@ Tier-2 is `core/structure.Analyze`/`ToParts` (format-agnostic, `analyze.go:1-12`
 | In-image text (OCR) | text rendered into the image | extract → translate → re-render |
 | Layout / structure | the document's regions | regions + reading order + table cells |
 
-These are **capabilities/what-we-localize**, partially overlapping the richness ladder (OCR→Layout is the richness tail; whole-image/alt/metadata are separate localization targets, not richness rungs). Two default-on toggles gate enrichment (AD-029:119-122; `image/Config` at `core/formats/image/reader.go:46-55`): `ocr` (off → Media only), `layout` (off → tier-2).
+These are **capabilities/what-we-localize**, partially overlapping the richness ladder (OCR→Layout is the richness tail; whole-image/alt/metadata are separate localization targets, not richness rungs). Two default-on toggles gate enrichment (M-03:119-122; `image/Config` at `core/formats/image/reader.go:46-55`): `ocr` (off → Media only), `layout` (off → tier-2).
 
 ### 2c. The IMPLICIT richness ladder (not named anywhere, but the real "comprehension depth")
 
@@ -67,9 +67,9 @@ Reconstructed from what each code path actually emits. Each rung adds one payloa
 | Rung | Name | Payloads present | Emitted by (evidence) |
 |---|---|---|---|
 | **R0** | Opaque asset | `model.Media` only | image w/ `ocr=false` or no plugin (`image/reader.go:195-205, 226`) |
-| **R0′** | Metadata | + metadata-plane Blocks (`LayerMetadata`) + namespaced `Layer.Properties` | `core/docmeta`; image (`reader.go:177`, `metadata.go`), PDF Info dict (AD-028:110-116) |
-| **R1** | Plain text | text Blocks, no geometry | PDF fast path = "one plain-text Block per page" (AD-028:101-104) |
-| **R2** | Positioned text | + `GeometryAnnotation{BBox[, Glyphs]}` | PDF geometry path (AD-028:105-108); `BlocksFromOCR` (`vision.go:166-183`); wasm rects |
+| **R0′** | Metadata | + metadata-plane Blocks (`LayerMetadata`) + namespaced `Layer.Properties` | `core/docmeta`; image (`reader.go:177`, `metadata.go`), PDF Info dict (E-08:110-116) |
+| **R1** | Plain text | text Blocks, no geometry | PDF fast path = "one plain-text Block per page" (E-08:101-104) |
+| **R2** | Positioned text | + `GeometryAnnotation{BBox[, Glyphs]}` | PDF geometry path (E-08:105-108); `BlocksFromOCR` (`vision.go:166-183`); wasm rects |
 | **R3** | Roles + plane | + `StructureAnnotation.Role/Level/Layer` | tier-2 prose (`analyze.go:336-341`); docling/doclang role maps |
 | **R4** | Tables / containment | + `table`/`table-row` Groups + `table-cell`/`table-header` roles | `structure.Gridify`/`TableToParts` (`analyze.go:222-260, 375-398`); docling cell grid; doclang OTSL |
 | **R5** | Reading order + relations | + reading-order sort + `RelationAnnotation` (caption-of), full plane/visibility | tier-3 `PartsFromLayout` (`layout.go:121-157`); docling `$ref` body tree; doclang doc order |
@@ -89,7 +89,7 @@ This R0–R5 ladder is the thing the user described and is what a Structure/Geom
 ### Plugin — `plugins/vision/` (own Go module, cgo `-tags onnx`)
 - `manifest.json`: ops `["ping","info","ocr","layout"]`; engine `ppocrv5-mobile`; models = `layout` (`ppdoclayoutv3.onnx`, `on_demand:true`), `det` (`ppocrv5_det.onnx`), `rec` (`ppocrv5_rec.onnx`, default).
 - Internals: `internal/ocr/{engine.go, engine_onnx.go, engine_stub.go, algo.go, layout_onnx.go, layoutmap.go}`, `internal/models/`.
-- README/AD-029:141-162: **OCR** = PP-OCRv5 mobile DBNet detection + CRNN+CTC recognition (shipped v0.1.0); **Layout** = PP-DocLayoutV3 (RT-DETR, NMS-free), tier-3 (shipped v0.2.0).
+- README/M-03:141-162: **OCR** = PP-OCRv5 mobile DBNet detection + CRNN+CTC recognition (shipped v0.1.0); **Layout** = PP-DocLayoutV3 (RT-DETR, NMS-free), tier-3 (shipped v0.2.0).
 - Layout class→role map (`internal/ocr/layoutmap.go`): 25 PP-DocLayoutV3 labels (`doc_title paragraph_title abstract content text table figure_title chart image header footer footnote display_formula inline_formula seal algorithm …`) → roles `title/heading/paragraph/table/caption/picture/code/formula/footnote/page-header/page-footer`; unmapped ⇒ paragraph (`layoutRole`).
 - **No TrOCR / handwriting-recognition / OCR-cascade in this HEAD.** Grep across `core plugins cli web/docs` finds zero "trocr"/"handwriting OCR"/"cascade" for vision. ("handwriting" appears only as a DocLang *inline formatting category* in `core/formats/doclang/testdata/conformance/doclang.xsd:28,33,45`; "cascade" only in SRX/DTCG/openxml/wiki contexts.) The handwriting-cascade named in the survey brief is NOT present at `48fae7e8a` — treat it as a not-yet-landed PR.
 
@@ -112,15 +112,15 @@ So a single format (`image`) **spans R0→R5 at runtime**, gated on (a) plugin i
 ## 4. Per-format placement on the R0–R5 ladder TODAY
 
 ### `image` (`core/formats/image/`) — spans R0–R5, plugin-conditional
-- **Always (pure-Go, no plugin):** R0 Media (`reader.go:195-205`) + R0′ metadata (PNG tEXt/iTXt/zTXt + XMP DC fields, read without loading pixels — stops at IDAT/SOS; `metadata.go:25-78,140-192`) + alt-text caption Block `RoleCaption`+`RelCaptionOf` (`reader.go:211-216`). Writer folds localized alt-text back to a per-locale `.alt.txt` sidecar (AD-029:68-81).
+- **Always (pure-Go, no plugin):** R0 Media (`reader.go:195-205`) + R0′ metadata (PNG tEXt/iTXt/zTXt + XMP DC fields, read without loading pixels — stops at IDAT/SOS; `metadata.go:25-78,140-192`) + alt-text caption Block `RoleCaption`+`RelCaptionOf` (`reader.go:211-216`). Writer folds localized alt-text back to a per-locale `.alt.txt` sidecar (M-03:68-81).
 - **With kapi-vision + `ocr=true`:** R2 (OCR lines+geometry) → R3/R4 via `structure.Analyze` (tier-2) → **R5 via PP-DocLayoutV3 tier-3** when `layout=true` (roles + reading order + table cells).
 - Default config is `{OCR:true, Layout:true}` (`reader.go:57`) — i.e. aims for the top rung when the plugin is present, R0 when absent.
 - It is the **only** `IsBinaryAssetFormat` (`core/project/asset.go:16-23`): an on-disk localized variant is authoritative; `kapi run`/`merge` won't clobber it. So R0 (asset replacement) is a first-class localization mode, not a degenerate failure.
 
 ### `pdf` (`core/formats/pdf/` + `plugins/pdfium/`) — spans R0′–R5, the ONLY format reaching Tier 1
-- **Native:** in-core reader is a **no-op** (`register_pdf_other.go`); the format is supplied entirely by the `kapi-pdfium` plugin at runtime. Modes (AD-028:97-108): fast path = R1 (one text Block/page); geometry path = R2 (Block/run + `GeometryAnnotation`, +`Glyphs` with `glyphs=true`). Plus R0′ Info-dict metadata.
+- **Native:** in-core reader is a **no-op** (`register_pdf_other.go`); the format is supplied entirely by the `kapi-pdfium` plugin at runtime. Modes (E-08:97-108): fast path = R1 (one text Block/page); geometry path = R2 (Block/run + `GeometryAnnotation`, +`Glyphs` with `glyphs=true`). Plus R0′ Info-dict metadata.
 - **Structure:** Tier 1 = tagged struct tree (`plugins/pdfium/internal/pdfreader/structtree.go:17-30`, MCID→text/bbox walk, experimental PDFium APIs, runtime-gated; falls to tier-2 if absent) → Tier 2 `structure.Analyze` → Tier 3 (`tier3` option renders page→PNG@72dpi marked `vision.PageRasterProperty`; host decorator `cli/pluginhost/tier3_reader.go` + `format_factory.go:68-73` runs `vision.StructureFromLayout`, strips request if kapi-vision absent ⇒ clean fall to tier-2).
-- **Browser** (`pdf/wasm_bridge.go`): extract → rects+geometry (R2) → **always tier-2** `structure.ToParts(structure.Analyze(blocks))` (`wasm_bridge.go:212-221`). No tier-1 (struct tree not exposed by the JS `extract()` contract), no tier-3 (no native vision) ⇒ documented native/browser asymmetry (AD-028:181-185).
+- **Browser** (`pdf/wasm_bridge.go`): extract → rects+geometry (R2) → **always tier-2** `structure.ToParts(structure.Analyze(blocks))` (`wasm_bridge.go:212-221`). No tier-1 (struct tree not exposed by the JS `extract()` contract), no tier-3 (no native vision) ⇒ documented native/browser asymmetry (E-08:181-185).
 - So PDF reaches every richness rung R3–R5 and is the **sole holder of Tier-1 authority** (author-fidelity structure). It reaches R5 by two different authority tiers (Tier-1 tagged tree OR Tier-3 ML), illustrating richness⊥authority.
 
 ### `docling` (`core/formats/docling/`) — top rung R5, structure-only (no pixels), always-on
@@ -152,18 +152,18 @@ So a single format (`image`) **spans R0→R5 at runtime**, gated on (a) plugin i
 - **`vision-pdf-e2e` job** (L132-195+): builds real `kapi` + `kapi-pdfium` + `kapi-vision`, installs them, reads a real PDF with `tier3` on so pdfium renders pages and vision runs layout over the raster — the **cross-process Tier-3 wiring** the smoke lane can't cover. Reuses the onnxruntime/models caches; caches `libpdfium` (`chromium/7891`).
 - Per-PR suite uses **fakes** (`vision.ResetForTest`, `vision.go:124-129`); the OCR/structure algorithms are pure-Go and tested without native deps (`core/structure/analyze_test.go`, `core/vision/*_test.go`, `cli/pluginhost/tier3_reader_test.go` incl. `TestEnrichTier3_FallbackTier2`).
 - Release lanes: `.github/workflows/release-vision.yml`, `release-sat.yml`, `release-check.yml` (the three sibling onnxruntime plugins).
-- Note (AD-028:163 / nightly L75-77): a full render→layout PDF e2e is "a planned extension" — the e2e job is the first cut.
+- Note (E-08:163 / nightly L75-77): a full render→layout PDF e2e is "a planned extension" — the e2e job is the first cut.
 
 ---
 
 ## 6. Recommendation for the framework sharpening (the deliverable question)
 
-A new **Structure/Geometry axis should DEFINE the R0–R5 richness ladder** (it does not exist as a named concept) and **REUSE the existing Tier-1/2/3 vocabulary as an orthogonal authority/confidence qualifier** (it already exists, AD-028). Concretely:
+A new **Structure/Geometry axis should DEFINE the R0–R5 richness ladder** (it does not exist as a named concept) and **REUSE the existing Tier-1/2/3 vocabulary as an orthogonal authority/confidence qualifier** (it already exists, E-08). Concretely:
 
 - The axis levels should be the payload-presence ladder: **G0 opaque-asset/Media → G0′ metadata → G1 plain text → G2 positioned text (`GeometryAnnotation`) → G3 roles+plane (`StructureAnnotation`) → G4 tables/containment (Groups) → G5 reading-order+relations (`RelationAnnotation`, reading order)**. These are directly measurable from the emitted Part stream (which annotations/groups appear) — no new model needed.
 - Each level above G2 also carries an **authority tag** (Tier 1 authoritative / Tier 2 geometric-heuristic / Tier 3 ML-heuristic / "native" when the source format declares it, e.g. docling/doclang). Same richness, different trust — do not merge into one number.
 - The axis must be **capability-conditional, not static**, for `image`/`pdf`: score the *ceiling* the format+plugin can reach and the *floor* it degrades to (R0/R1), because the rung is environment-dependent (plugin install + `ocr`/`layout`/`tier3` toggles).
 - `docling`/`doclang` are the **reference top-rung** (G5, native authority) and the natural conformance oracles for the role/layer/geometry vocabularies — every other format's structural output is expressed in the *same* `model.Role*`/`Layer*` vocabulary (`structure.go:34-67`) precisely so a reader, the editor, an exporter, and a DocLang writer "all speak the same role names" (`structure.go:31-33`). The axis should reuse that vocabulary as its rubric, not invent a parallel one.
-- Note the AD-029 mode table (whole-image / alt / metadata / OCR / layout) is a **localization-capability** enumeration that partly overlaps but is not identical to the richness ladder; keep it as a separate "what can we localize" capability list (it includes R0 asset-replacement and alt-text/metadata which are localization *targets*, not comprehension depth).
+- Note the M-03 mode table (whole-image / alt / metadata / OCR / layout) is a **localization-capability** enumeration that partly overlaps but is not identical to the richness ladder; keep it as a separate "what can we localize" capability list (it includes R0 asset-replacement and alt-text/metadata which are localization *targets*, not comprehension depth).
 
-Key files: `core/model/structure.go`, `core/structure/analyze.go`, `core/vision/{vision.go,layout.go}`, `core/formats/{image,pdf,docling,doclang}/`, `plugins/vision/` (manifest + `internal/ocr/layoutmap.go`), `plugins/pdfium/internal/pdfreader/structtree.go`, `cli/pluginhost/tier3_reader.go`, AD-028 `web/docs/contribute/architecture/028-pdf-reader-plugin.md`, AD-029 `029-vision-and-image-adaptation.md`, `.github/workflows/nightly.yml`.
+Key files: `core/model/structure.go`, `core/structure/analyze.go`, `core/vision/{vision.go,layout.go}`, `core/formats/{image,pdf,docling,doclang}/`, `plugins/vision/` (manifest + `internal/ocr/layoutmap.go`), `plugins/pdfium/internal/pdfreader/structtree.go`, `cli/pluginhost/tier3_reader.go`, E-08 `web/docs/contribute/architecture/engine/e-08-document-structure-tiers.md`, M-03 `multilingual/m-03-multimodal-content.md`, `.github/workflows/nightly.yml`.
