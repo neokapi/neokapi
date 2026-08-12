@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/storage/compression"
 )
 
@@ -285,6 +286,13 @@ type SyncPushResponse struct {
 	// candidate blocks and uploaded none is a bug the changed count hides.
 	BlocksUploaded int `json:"-"`
 	ChunkCount     int `json:"-"`
+
+	// ServerRef is the freshness ref the init negotiation reported, carried
+	// forward by Push like UndeclaredCollections. It is what a project pushing
+	// before it has ever pulled learns about the governance it did NOT write:
+	// the components this push put in force are its own to record, and this
+	// fills in the rest without a second round trip.
+	ServerRef *ref.Ref `json:"-"`
 }
 
 // ChangeEntry represents a single change log entry from the server.

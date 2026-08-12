@@ -280,6 +280,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 			return &SyncPushResponse{
 				PushID:                "unchanged",
 				UndeclaredCollections: initResp.UndeclaredCollections,
+				ServerRef:             initResp.Ref,
 			}, nil
 		}
 		commitResp, err := c.pushCommit(ctx, PushCommitRequest{
@@ -292,6 +293,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		}
 		if commitResp != nil {
 			commitResp.UndeclaredCollections = initResp.UndeclaredCollections
+			commitResp.ServerRef = initResp.Ref
 		}
 		return commitResp, nil
 	}
@@ -433,6 +435,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 	}
 	if commitResp != nil {
 		commitResp.UndeclaredCollections = initResp.UndeclaredCollections
+		commitResp.ServerRef = initResp.Ref
 		commitResp.ChunkCount = len(chunks)
 		for _, ch := range chunks {
 			commitResp.BlocksUploaded += ch.RecordCount

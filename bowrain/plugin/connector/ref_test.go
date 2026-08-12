@@ -203,6 +203,28 @@ func TestPush_AssertsTheObservedRef(t *testing.T) {
 	assert.Equal(t, "dec-observed", srv.commitAssert.Decisions)
 }
 
+// TestPush_LearnsTheGovernanceItDidNotWrite: a project that pushes before it
+// has ever pulled has no cached ref, and the negotiation it already paid for is
+// where the components this push does not write come from.
+func TestPush_LearnsTheGovernanceItDidNotWrite(t *testing.T) {
+	srv := newRefServer(t, "proj1", ref.Ref{Content: 99, Context: "ctx-server", Terms: "trm-server", Decisions: "dec-server"})
+	conn := newRefConnector(t, srv.Server, "proj1")
+	require.True(t, conn.refs.Ref("main").IsZero(), "a project that has never pulled claims nothing")
+
+	pushCtx := apiclient.NewPushContext(nil)
+	conn.SetPushContext(pushCtx)
+
+	func() {
+		defer conn.Close()
+		_, err := conn.Push(context.Background(), bowrainconn.PushOptions{})
+		require.NoError(t, err)
+	}()
+
+	got := loadRefs(t, conn).Ref("main")
+	assert.Equal(t, "trm-server", got.Terms, "governance this push did not write comes from the negotiation")
+	assert.Equal(t, pushCtx.Hash, got.Context, "governance this push wrote is its own to record")
+}
+
 // TestPush_RecordsWhatItPutInForce: after a confirmed push the project's ref
 // carries the governance the push carried, so the next push skips the round
 // trip when nothing moved — and the position is never rewound by a queued

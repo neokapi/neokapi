@@ -700,12 +700,14 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	var undeclared []string
 	blocksUploaded := 0
 	chunkCount := 0
+	var served *ref.Ref
 	if resp != nil {
 		lastCursor = resp.NewCursor
 		pushID = resp.PushID
 		undeclared = resp.UndeclaredCollections
 		blocksUploaded = resp.BlocksUploaded
 		chunkCount = resp.ChunkCount
+		served = resp.ServerRef
 	}
 
 	// Fetch and cache server metadata (best-effort).
@@ -760,6 +762,14 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	c.cache.LastSync = time.Now().UTC()
 	c.cache.ServerURL = c.project.Recipe.Server.ServerURL()
 	c.cache.ProjectID = c.project.Recipe.Server.ProjectID()
+
+	// What the negotiation reported comes first: a project pushing before it has
+	// ever pulled learns here about the governance it did NOT write. The
+	// components this push put in force are recorded after it and overwrite
+	// them, because the negotiation answered before the write.
+	if served != nil {
+		c.refs.Observe(c.stream, *served)
+	}
 
 	// The ref now records what this push put in force: the context it carried
 	// and the decision record it carried, so the next push can skip the round
