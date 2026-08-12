@@ -2,12 +2,19 @@ import { ArrowRight, MessageSquare } from "lucide-react";
 import { BowArc } from "./Logo";
 import { CONTACT_EMAIL, SIGNUP_URL } from "../links";
 import { useReveal } from "../useReveal";
+import { useSectionSignals } from "../useSectionSignals";
+import { SECTION_CTA } from "../sections";
 
 export function CTA() {
+  const sectionRef = useSectionSignals<HTMLElement>(SECTION_CTA);
   const ref = useReveal();
 
   return (
-    <section id="get-started" className="relative mx-auto max-w-6xl overflow-hidden px-6 py-24">
+    <section
+      id="get-started"
+      ref={sectionRef}
+      className="relative mx-auto max-w-6xl overflow-hidden px-6 py-24"
+    >
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[300px] overflow-hidden opacity-60">
         <BowArc className="absolute left-1/2 bottom-[-260px] h-[500px] w-[1200px] -translate-x-1/2" />
       </div>

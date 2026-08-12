@@ -1,41 +1,66 @@
-import { Apple, Monitor, Download } from "lucide-react";
+import { Apple, Monitor, Download, Globe2, Laptop, Terminal } from "lucide-react";
+import { t } from "@neokapi/i18n-react/runtime";
 import { useReveal } from "../useReveal";
-import { docsUrl } from "../links";
+import { useSectionSignals } from "../useSectionSignals";
+import { SECTION_APPS } from "../sections";
+import { docsUrl, KAPI_SITE_URL } from "../links";
+
+// Three places the same workspace is reachable from. The third is the point of
+// the open core: a developer never has to leave their checkout to be inside the
+// same graph as the reviewer.
+const PLACES = [
+  {
+    icon: Globe2,
+    where: t("In the browser"),
+    body: t("Nothing to install. Projects, review queue and context, at app.bowrain.cloud."),
+  },
+  {
+    icon: Laptop,
+    where: t("As a desktop app"),
+    body: t(
+      "A signed native build for macOS, Windows and Linux. It keeps working offline and syncs when you reconnect.",
+    ),
+  },
+  {
+    icon: Terminal,
+    where: t("From your checkout"),
+    body: t(
+      "kapi resolves the same context locally, gates the same checks in CI, and answers your agents over MCP.",
+    ),
+  },
+];
 
 export function Apps() {
-  const base = import.meta.env.BASE_URL;
+  const sectionRef = useSectionSignals<HTMLElement>(SECTION_APPS);
   const ref = useReveal();
 
   return (
-    <section id="apps" className="mx-auto max-w-6xl px-6 py-24">
+    <section id="apps" ref={sectionRef} className="mx-auto max-w-6xl px-6 py-24">
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 font-mono text-xs text-muted-foreground">
-            WEB & DESKTOP
+            WHERE YOU WORK
           </div>
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            The same workspace, wherever you work.
+            {t("One workspace,")} <span className="prism-text">{t("three ways in.")}</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Bowrain runs in the browser and as a native desktop app — same projects, same memory,
-            same terminology, same review queue. The desktop app keeps working offline and syncs
-            your changes when you reconnect.
+            {t(
+              "Same projects, same context, same review queue, whichever door you come through — because all three read the graph rather than a copy of it.",
+            )}
           </p>
         </div>
 
-        {/* Real desktop screenshot, captured from the live app. */}
-        <div className="mt-12 overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-primary/5">
-          <div className="flex items-center gap-2 border-b border-border bg-muted px-4 py-2.5">
-            <div className="h-2.5 w-2.5 rounded-full bg-destructive/60" />
-            <div className="h-2.5 w-2.5 rounded-full bg-warning/60" />
-            <div className="h-2.5 w-2.5 rounded-full bg-success/60" />
-            <span className="ml-2 text-xs text-muted-foreground">Bowrain — Flows</span>
-          </div>
-          <img
-            src={`${base}desktop-flows.png`}
-            alt="The Bowrain flow builder: a visual node graph wiring Input → AI Translate → QA Check → Output, with a library of built-in flows."
-            className="block w-full"
-          />
+        <div className="mt-12 grid gap-6 md:grid-cols-3">
+          {PLACES.map((p) => (
+            <div key={p.where} className="rounded-xl border border-border bg-card p-6">
+              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <p.icon className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-base font-semibold">{p.where}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
+            </div>
+          ))}
         </div>
 
         {/* macOS ships via the Homebrew cask; Windows and Linux builds are
@@ -69,10 +94,17 @@ export function Apps() {
         </div>
         <p className="mt-3 text-center text-xs text-muted-foreground/70">
           macOS installs with{" "}
-          <code className="rounded bg-secondary px-1 text-secondary-foreground">
+          <code translate="no" className="rounded bg-secondary px-1 text-secondary-foreground">
             brew install --cask neokapi/tap/bowrain
           </code>
-          . Works offline; changes sync automatically when you reconnect.
+          .{" "}
+          <a
+            href={KAPI_SITE_URL}
+            className="underline underline-offset-2 transition hover:text-foreground"
+          >
+            kapi
+          </a>{" "}
+          installs on its own and needs no account.
         </p>
       </div>
     </section>

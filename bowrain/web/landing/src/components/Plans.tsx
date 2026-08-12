@@ -2,6 +2,8 @@ import { Check, Gift, Zap, Users, Building2 } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import { CONTACT_EMAIL, SIGNUP_URL, signupUrl } from "../links";
 import { useReveal } from "../useReveal";
+import { useSectionSignals } from "../useSectionSignals";
+import { SECTION_PLANS } from "../sections";
 import plansCatalog from "../generated/plans.json";
 
 // ── Facts (generated) vs marketing copy (hand-authored) ──────────────────────
@@ -159,10 +161,11 @@ const TIERS: Tier[] = plansCatalog.plans.map((facts): Tier => {
 });
 
 export function Plans() {
+  const sectionRef = useSectionSignals<HTMLElement>(SECTION_PLANS);
   const ref = useReveal();
 
   return (
-    <section id="pricing" className="mx-auto max-w-6xl px-6 py-24">
+    <section id="pricing" ref={sectionRef} className="mx-auto max-w-6xl px-6 py-24">
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Plans</h2>

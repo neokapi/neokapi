@@ -758,6 +758,9 @@ importers:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
     devDependencies:
+      '@playwright/test':
+        specifier: ^1.62.0
+        version: 1.62.1
       '@tailwindcss/vite':
         specifier: ^4.3.3
         version: 4.3.3(@voidzero-dev/vite-plus-core@0.2.8(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.11)(typescript@7.0.2))
@@ -773,6 +776,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.0.4
         version: 6.0.5(@voidzero-dev/vite-plus-core@0.2.8(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.11)(typescript@7.0.2))
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.0.1
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
@@ -782,6 +788,9 @@ importers:
       vite-plus:
         specifier: ^0.2.8
         version: 0.2.8(@types/node@26.2.0)(@voidzero-dev/vite-plus-core@0.2.8(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.11)(typescript@7.0.2))(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.0.1)(terser@5.49.0)(tsx@4.23.11)(typescript@7.0.2)
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@26.2.0)(@vitest/browser-preview@4.1.10)(@voidzero-dev/vite-plus-core@0.2.8(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.11)(typescript@7.0.2))(jsdom@30.0.1)
 
   packages/concept-ui:
     dependencies:
@@ -12218,10 +12227,6 @@ packages:
 
   tinyrainbow@2.0.0:
     resolution: {integrity: sha512-op4nsTR47R6p0vMUUoYl/a+ljLFVtlfaXkLQmqfLR1qHma1h/ysYk4hEXZ880bf2CYgTskvTa/e196Vd5dDQXw==, tarball: https://registry.npmjs.org/tinyrainbow/-/tinyrainbow-2.0.0.tgz}
-    engines: {node: '>=14.0.0'}
-
-  tinyrainbow@3.1.0:
-    resolution: {integrity: sha512-Bf+ILmBgretUrdJxzXM0SgXLZ3XfiaUuOj/IKQHuTXip+05Xn+uyEYdVg0kYDipTBcLrCVyUzAPz7QmArb0mmw==, tarball: https://registry.npmjs.org/tinyrainbow/-/tinyrainbow-3.1.0.tgz}
     engines: {node: '>=14.0.0'}
 
   tinyrainbow@3.1.1:
@@ -25580,8 +25585,6 @@ snapshots:
 
   tinyrainbow@2.0.0: {}
 
-  tinyrainbow@3.1.0: {}
-
   tinyrainbow@3.1.1: {}
 
   tinyspy@4.0.4: {}
@@ -26065,7 +26068,7 @@ snapshots:
       tinybench: 2.9.0
       tinyexec: 1.2.4
       tinyglobby: 0.2.17
-      tinyrainbow: 3.1.0
+      tinyrainbow: 3.1.1
       vite: '@voidzero-dev/vite-plus-core@0.2.8(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.11)(typescript@7.0.2)'
       why-is-node-running: 2.3.0
     optionalDependencies:
@@ -26094,7 +26097,7 @@ snapshots:
       tinybench: 2.9.0
       tinyexec: 1.2.4
       tinyglobby: 0.2.17
-      tinyrainbow: 3.1.0
+      tinyrainbow: 3.1.1
       vite: '@voidzero-dev/vite-plus-core@0.2.8(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.11)(typescript@7.0.2)'
       why-is-node-running: 2.3.0
     optionalDependencies:

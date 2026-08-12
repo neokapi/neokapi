@@ -1,10 +1,13 @@
 import { Shield, Server, Package } from "lucide-react";
 import { GITHUB_URL, KAPI_SITE_URL } from "../links";
 import { useReveal } from "../useReveal";
+import { useSectionSignals } from "../useSectionSignals";
+import { SECTION_OPEN_SOURCE } from "../sections";
 
 // Deliberately compact: the OSS foundation earns trust, but this page sells
 // the Bowrain outcome. The kapi story lives on the kapi site.
 export function OpenSource() {
+  const sectionRef = useSectionSignals<HTMLElement>(SECTION_OPEN_SOURCE);
   const ref = useReveal();
 
   // Hoisted so neokapi-i18n extracts the sentence as one block with a named
@@ -19,7 +22,7 @@ export function OpenSource() {
   );
 
   return (
-    <section id="open-source" className="mx-auto max-w-6xl px-6 py-24">
+    <section id="open-source" ref={sectionRef} className="mx-auto max-w-6xl px-6 py-24">
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">

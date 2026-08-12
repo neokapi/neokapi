@@ -1,6 +1,8 @@
 import { PenTool, ClipboardCheck, Fingerprint, Database, Zap, Plug } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import { useReveal } from "../useReveal";
+import { useSectionSignals } from "../useSectionSignals";
+import { SECTION_PRODUCT } from "../sections";
 
 // Every claim here traces to a shipped code path (epic 011 claims discipline):
 // preview formats = the four format.PreviewBuilder implementations; presence,
@@ -11,7 +13,7 @@ const CAPABILITIES = [
     icon: PenTool,
     title: t("A shared editor for every format"),
     body: t(
-      "In-context visual preview for HTML, Markdown, MDX, and JSX; structured block editing for everything else — app strings, XLIFF, subtitles, office documents. Suggestions from memory, term highlights, and QA checks inline.",
+      "In-context visual preview for HTML, Markdown, MDX, and JSX; structured block editing for everything else — app strings, subtitles, office documents, interchange files. Suggestions from memory, term highlights, and checks inline.",
     ),
     detail: [
       t("Visual preview · web formats"),
@@ -31,15 +33,15 @@ const CAPABILITIES = [
     icon: Fingerprint,
     title: t("Voice profile, scored"),
     body: t(
-      "Profiles hold tone, style, and vocabulary rules. Drafts score 0–100 across five dimensions; trends and drift show where a surface is sliding off voice.",
+      "A profile holds the tone, style, and vocabulary rules that apply at its coordinates. Drafts score 0–100 across five dimensions; trends and drift show where a surface is sliding off profile.",
     ),
     detail: [t("Five-dimension score"), t("Drift detection"), t("Rules from corrections")],
   },
   {
     icon: Database,
-    title: t("Terminology & content memory"),
+    title: t("Terms and content memory"),
     body: t(
-      "One terms store and one content memory for the whole workspace, applied in every draft and every lookup. Import from CSV or JSON; entity-aware matching recycles past work even when names and numbers change.",
+      "One terms store and one content memory for the whole workspace, applied in every draft and every lookup. Import from CSV or JSON; entity-aware matching recycles approved wording even when names and numbers change.",
     ),
     detail: [
       t("Shared terms & content memory"),
@@ -51,9 +53,9 @@ const CAPABILITIES = [
     icon: Zap,
     title: t("Automation that keeps pace"),
     body: t(
-      "When content arrives, drafting starts; reviewers get tasks; people get notified. Runs are visible with per-step logs, and the server keeps every language caught up on its own clock.",
+      "When content arrives, drafting starts; reviewers get tasks; people get notified. Runs are visible with per-step logs, so the state of any piece of content is a thing you can look up rather than ask about.",
     ),
-    detail: [t("Translate on push"), t("Review tasks & notifications"), t("Run logs")],
+    detail: [t("Draft on push"), t("Review tasks & notifications"), t("Run logs")],
   },
   {
     icon: Plug,
@@ -66,21 +68,20 @@ const CAPABILITIES = [
 ];
 
 export function Product() {
+  const sectionRef = useSectionSignals<HTMLElement>(SECTION_PRODUCT);
   const ref = useReveal();
 
   return (
-    <section id="product" className="mx-auto max-w-6xl px-6 py-24">
+    <section id="product" ref={sectionRef} className="mx-auto max-w-6xl px-6 py-24">
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            See what a change costs <span className="prism-text">before you make it.</span>
+            {t("What the workspace")} <span className="prism-text">{t("holds.")}</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Context becomes agreed rather than assumed. A change is proposed, its reach over
-            existing content is computed before anyone approves it, and it can be trialled on one
-            stream of real content before it merges — so a rule change is a measured experiment
-            rather than a leap. Around that: editing, review, memory, automation, and the systems
-            your content already lives in.
+            {t(
+              "One editor, one review trail, one terms store and one content memory, shared by every project in the workspace — and the connectors that reach the systems your content already lives in.",
+            )}
           </p>
         </div>
 

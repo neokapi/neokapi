@@ -1,58 +1,61 @@
-import { Bot, Users, Lightbulb, ShieldCheck, ArrowRight } from "lucide-react";
+import { SearchCheck, PenTool, GitCompareArrows, ShieldCheck, ArrowRight } from "lucide-react";
 import { t } from "@neokapi/i18n-react/runtime";
 import { useReveal } from "../useReveal";
+import { useSectionSignals } from "../useSectionSignals";
+import { SECTION_LOOP } from "../sections";
 
+// Four steps, numbered, because this genuinely is a sequence that closes on
+// itself: what Enforce holds is what Discover proposed and Decide promoted.
 const STEPS = [
   {
-    icon: Bot,
-    title: t("Draft"),
+    icon: SearchCheck,
+    title: t("Discover"),
     body: t(
-      "AI translates and drafts with your terminology, content memory, and brand voice in the prompt — not generic model output.",
+      "Point it at what you already publish — the repository, the site, whatever style guide exists. It proposes the profiles, the coordinates they sit at and the starting vocabulary, and you correct a first draft instead of authoring one.",
     ),
   },
   {
-    icon: Users,
-    title: t("Review"),
+    icon: PenTool,
+    title: t("Correct"),
     body: t(
-      "Review in a shared editor: suggestions, term highlights, notes, history. Solo, it is your quality gate; with a team, live presence shows who's working where.",
+      "People edit where they already work. Each correction is captured with the point it was made at, so the same fix does not have to be made twenty times before anything remembers it.",
     ),
   },
   {
-    icon: Lightbulb,
-    title: t("Learn"),
+    icon: GitCompareArrows,
+    title: t("Decide"),
     body: t(
-      "Accepted corrections update the shared memory. Recurring ones surface as candidate rules you can promote into the brand profile — or reject.",
+      "Recurring corrections surface as candidate rules. A proposal shows its reach over existing content before anyone approves it, and can be trialled on one stream of real content before it merges — so a rule change is a measured experiment rather than a leap.",
     ),
   },
   {
     icon: ShieldCheck,
     title: t("Enforce"),
     body: t(
-      "The next run drafts against the updated rules, in every locale and on every surface. Checks score drafts and flag violations before anything ships.",
+      "A promoted rule holds from then on: in the checks that gate a change, in what your agents are told applies here, and in every draft the next run produces. Rules start and stop on a date, so a campaign or a policy change expires on its own.",
     ),
   },
 ];
 
 export function Loop() {
+  const sectionRef = useSectionSignals<HTMLElement>(SECTION_LOOP);
   const ref = useReveal();
 
   return (
-    <section id="loop" className="relative mx-auto max-w-6xl px-6 py-24">
+    <section id="loop" ref={sectionRef} className="relative mx-auto max-w-6xl px-6 py-24">
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 font-mono text-xs text-muted-foreground">
-            THE LEARNING LOOP
+            THE LOOP
           </div>
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            You correct a first draft. <span className="prism-text">You never write one.</span>
+            {t("The context comes from the work.")}{" "}
+            <span className="prism-text">{t("Not from a workshop.")}</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
-            An empty context is worth nothing, and nobody fills one in from a blank page. So the
-            first act is discovery: point Bowrain at the repository, the published site, whatever
-            style guide exists, and it proposes the profiles, the channels they ship on and the
-            starting vocabulary for review. After that the same loop keeps it current — corrections
-            do not evaporate in a review thread, they become versioned rules enforced on every
-            future generation. There is no separate onboarding mode to maintain.
+            {t(
+              "An empty graph is worth nothing, and nobody fills one in from a blank page. So the first act is discovery, and every act after it is the same loop: corrections aggregate into candidate rules, rules are promoted with provenance and a version, and what was decided is enforced from then on. The context improves as a by-product of people doing their jobs, which is the only way it stays current.",
+            )}
           </p>
         </div>
 
@@ -81,7 +84,9 @@ export function Loop() {
             ))}
           </div>
           <p className="mt-6 text-center text-xs text-muted-foreground/70">
-            …and Enforce feeds Draft: the loop runs continuously as your source content changes.
+            {t(
+              "…and Enforce feeds Discover: the rules you keep are the ones the work produced. There is no separate onboarding mode to maintain.",
+            )}
           </p>
         </div>
       </div>

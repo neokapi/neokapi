@@ -1,5 +1,7 @@
 import { t } from "@neokapi/i18n-react/runtime";
 import { useReveal } from "../useReveal";
+import { useSectionSignals } from "../useSectionSignals";
+import { SECTION_RENAME } from "../sections";
 
 // The rename is the argument, not an illustration of it.
 //
@@ -44,10 +46,11 @@ const TONE_STYLES: Record<string, string> = {
 };
 
 export function Rename() {
+  const sectionRef = useSectionSignals<HTMLElement>(SECTION_RENAME);
   const ref = useReveal();
 
   return (
-    <section className="mx-auto max-w-6xl px-6 py-24">
+    <section id="rename" ref={sectionRef} className="mx-auto max-w-6xl px-6 py-24">
       <div ref={ref} className="reveal">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -82,7 +85,7 @@ export function Rename() {
 
         <p className="mx-auto mt-8 max-w-2xl text-center text-muted-foreground">
           {t(
-            "Written down as a list of preferred and banned terms, that is wrong nearly everywhere it lands. Which rule applies depends entirely on where the words sit — so Bowrain records where content sits, and scopes the rule to it.",
+            "Written down as a list of preferred and banned terms, that is wrong nearly everywhere it lands. Which rule applies depends entirely on where the words sit — so the thing worth writing down is not the list. It is the place.",
           )}
         </p>
       </div>

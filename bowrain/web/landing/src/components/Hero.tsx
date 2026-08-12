@@ -1,8 +1,14 @@
 import { ArrowRight } from "lucide-react";
 import { BowArc } from "./Logo";
 import { GITHUB_URL, KAPI_SITE_URL, SIGNUP_URL } from "../links";
+import { useSectionSignals } from "../useSectionSignals";
+import { SECTION_HERO } from "../sections";
 
 export function Hero() {
+  // The hero carries an id so its CTA — the most-clicked link on the page —
+  // attributes to a section rather than to null.
+  const sectionRef = useSectionSignals<HTMLElement>(SECTION_HERO);
+
   // Hoisted inline links: keeping these as JSX-expression variables (rather
   // than inline elements split across prettier-wrapped lines with {" "}
   // spacers) lets neokapi-i18n extract the surrounding sentences as single
@@ -27,7 +33,11 @@ export function Hero() {
   );
 
   return (
-    <section className="relative flex flex-col items-center overflow-hidden px-6 pb-24 pt-36 grain">
+    <section
+      id="hero"
+      ref={sectionRef}
+      className="relative flex flex-col items-center overflow-hidden px-6 pb-24 pt-36 grain"
+    >
       {/* Atmosphere: the bow arc rising behind the headline. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[560px] overflow-hidden">
         <BowArc className="absolute left-1/2 top-10 h-[500px] w-[1400px] -translate-x-1/2 opacity-70" />
@@ -67,7 +77,7 @@ export function Hero() {
             <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
           </a>
           <a
-            href="#loop"
+            href="#how"
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card/60 px-6 py-3 text-base font-medium transition hover:border-muted-foreground sm:w-auto"
           >
             How it works

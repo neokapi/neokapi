@@ -8,7 +8,9 @@
 // dropped. Imported from the module path (not the package index) so the landing
 // bundle never pulls the docs diagram components or their CSS.
 //
-// Events: one $pageview (single-page site) and signup/app CTA clicks.
+// Events: one $pageview (single-page site), signup/app CTA clicks, and the
+// comprehension signals in sectionSignals.ts (section_viewed, landing_engagement
+// and the per-proof engagement events the sections fire).
 //
 // Separately from analytics — and NOT key-gated — every anchor pointing at
 // app.bowrain.cloud forwards inbound utm_* parameters (and stamps a default
@@ -25,11 +27,25 @@ const KEY = import.meta.env.VITE_POSTHOG_KEY;
 const HOST = import.meta.env.VITE_POSTHOG_HOST || "https://eu.i.posthog.com";
 const APP_HOST = "app.bowrain.cloud";
 
+// The narrative the page currently argues. Registered on every event so a later
+// rewrite is comparable against this one rather than silently averaged with it.
+// It is a label, not an experiment: nothing on the page branches on it.
+const HERO_NARRATIVE = "context-graph-monolingual-first";
+
 export function initAnalytics(): void {
   installSignupLinkForwarding();
   const environment = import.meta.env.BASE_URL.includes("/prs/") ? "preview" : "prod";
   initDocsAnalytics({ key: KEY, host: HOST, surface: "landing", environment });
   captureDocsPageview();
+}
+
+/**
+ * Capture a landing-page event. The narrative label rides along on every one, so
+ * a funnel can be read per version of the argument without re-deriving it from
+ * deploy dates.
+ */
+export function captureLandingEvent(event: string, properties?: Record<string, unknown>): void {
+  captureDocsEvent(event, { ...properties, narrative: HERO_NARRATIVE });
 }
 
 // Rewrites app.bowrain.cloud anchors on click to carry the visitor's inbound
@@ -59,7 +75,12 @@ function installSignupLinkForwarding(): void {
         url.searchParams.set("utm_source", "bowrain-landing");
       }
       if (anchor.href !== url.toString()) anchor.href = url.toString();
-      captureDocsEvent("signup_cta_clicked", {
+      // The conversion event. It has been dropped once by a refactor that moved
+      // the capture off the click path, so it stays here, in the listener that
+      // is always installed, fired before the navigation the browser is already
+      // committed to. `section` needs every section to carry an id — including
+      // the hero, whose CTA is the most-clicked one on the page.
+      captureLandingEvent("signup_cta_clicked", {
         href: url.toString(),
         section: anchor.closest("section[id]")?.id ?? null,
       });
