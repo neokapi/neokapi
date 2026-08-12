@@ -6,7 +6,7 @@ import {
   PLUGIN_DIR,
   REPO_ROOT,
   captureDir,
-  demoFixturesDir,
+  demoFixturesDirFor,
   ensureDir,
   kapiIsolationEnv,
   publicDemoDir,
@@ -82,7 +82,10 @@ export async function captureDemo(m: DemoManifest, opts: CaptureOptions = {}): P
   // 1. Fresh sandbox from fixtures.
   rmrf(sb);
   ensureDir(sb);
-  const fixtures = demoFixturesDir(id);
+  const fixtures = demoFixturesDirFor(m);
+  if (m.fixturesFrom && !fs.existsSync(fixtures)) {
+    throw new Error(`demo ${id}: fixturesFrom "${m.fixturesFrom}" does not exist under the repo root`);
+  }
   if (fs.existsSync(fixtures)) {
     fs.cpSync(fixtures, sb, { recursive: true });
   }

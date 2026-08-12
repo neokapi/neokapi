@@ -32,6 +32,7 @@ with a continuous British-English narration track explaining the story.
 | 7 | `07-global-launch-many-languages` | Multi-locale incl. non-Latin (de/es/fr/**ja**) |
 | 8 | `08-mcp-tools`                    | The MCP integration path: kapi run as an MCP server |
 | 9 | `09-toolbox-find-replace`         | The toolbox (kcat/kgrep/ksed) — a **scripted shell** demo, no Claude |
+| S0 | `s0-northsea-governance`         | The monolingual journey end to end — discover, retrieve, gate, decide, converge. A **scripted shell** demo seeded from `samples/northsea` via `fixturesFrom`, offline throughout |
 
 Between them the demos exercise the task sections of the kapi skill —
 `references/localize.md`, `references/i18n.md`, `references/voice.md`,
@@ -47,6 +48,20 @@ banner or tool-call chrome) and the title/outro cards use the kapi-only lockup
 (`brand: kapi`). Everything else — the macOS window, captions, voice-over, artifact
 spotlights — is identical to the Claude demos. `09-toolbox-find-replace` is the
 reference example.
+
+Two manifest keys belong to this class:
+
+- `fixturesFrom: samples/<name>` seeds the sandbox from a committed sample
+  project instead of the demo's own `fixtures/`, so the tree in the recording is
+  the tree a reader clones. A path that does not exist fails the capture rather
+  than producing an empty sandbox.
+- `project: true` turns kapi recipe discovery back on for a sandbox that *is* a
+  kapi project, so the commands read the way a user types them instead of each
+  carrying `-p`. The sandbox lives in `os.tmpdir()`, outside the repo, so the
+  dogfood project is unreachable from it and the rest of the isolation contract
+  still applies.
+
+`s0-northsea-governance` uses both.
 
 ## How it works (pipeline)
 

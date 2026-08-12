@@ -55,6 +55,23 @@ export interface DemoManifest {
   cwd?: string;
   /** Ordered commands for a `terminal: "shell"` demo (run via `sh -c`, so globs expand). */
   script?: ScriptStep[];
+  /**
+   * Repo-relative directory to seed the sandbox from, instead of the demo's own
+   * `fixtures/`. A demo that drives a committed sample project points here
+   * (`samples/northsea`), so the tree in the recording is the tree a reader
+   * clones and the two cannot drift apart. A path that does not exist is a hard
+   * capture error rather than an empty sandbox.
+   */
+  fixturesFrom?: string;
+  /**
+   * Opt a `terminal: "shell"` demo back into kapi project discovery, for a demo
+   * whose sandbox IS a kapi project (a recipe at its root). The sandbox lives in
+   * os.tmpdir(), outside the repo, so the dogfood project is unreachable from
+   * it; the rest of the isolation contract — config dir, XDG roots,
+   * plugins-dir-only — still applies. Without this every command would have to
+   * carry `-p`, which is chrome the viewer has to learn to ignore.
+   */
+  project?: boolean;
   /** The task prompt handed to Claude Code (required unless `terminal: "shell"`). */
   prompt?: string;
   /** Whether the demo needs the Gemini AI path (translate / AI brand). */

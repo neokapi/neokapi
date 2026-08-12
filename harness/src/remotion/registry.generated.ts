@@ -80,5 +80,9 @@ export const DEMOS: RegistryEntry[] = [
   {
     "id": "kapi-desktop-projects",
     "title": "Create and manage a project"
+  },
+  {
+    "id": "s0-northsea-governance",
+    "title": "Govern the content you already have"
   }
 ];

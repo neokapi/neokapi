@@ -1,0 +1,60 @@
+# Northsea — one product, one language, three surfaces.
+#
+# Everything this recipe binds is a file in this repository. No server, no
+# provider credential: the gate runs from the committed context alone.
+version: v1
+name: northsea
+defaults:
+  source_language: en-GB
+  voice:
+    profile_file: .kapi/voice.yaml
+  # The committed vocabulary record. `kapi apply` writes term decisions here and
+  # recompiles them into .kapi/work/store.db, which is derived and gitignored.
+  terms_source: .kapi/terms.json
+  exclude:
+    - "**/node_modules/**"
+    - "**/.git/**"
+
+profiles:
+  northsea:
+    channels: [docs, app, landing, reference]
+    voice: .kapi/voice.yaml
+
+collections:
+  # Operator documentation. The two historical surfaces below it — the API
+  # reference and the changelog — sit at their own point: they are a published
+  # record rather than instructional prose, and the register that suits a
+  # procedure does not suit either of them. They are listed first because a file
+  # takes the first item that matches it.
+  - name: northsea-docs
+    channel: northsea/docs
+    base: docs
+    content:
+      - path: api/*.md
+        channel: northsea/reference
+      - path: changelog.md
+        channel: northsea/reference
+      - path: "**/*.md"
+
+  # Compass interface strings. One block per key.
+  - name: northsea-app
+    channel: northsea/app
+    base: app
+    content:
+      - path: strings.en.json
+        format:
+          name: json
+
+  # The marketing page. Same vocabulary as everything else; a warmer register.
+  - name: northsea-landing
+    channel: northsea/landing
+    base: landing
+    content:
+      - path: index.html
+
+flows:
+  # The deterministic gate: every surface scored against the voice in force at
+  # its point. No provider, no network.
+  check:
+    steps:
+      - tool: voice-vocab-check
