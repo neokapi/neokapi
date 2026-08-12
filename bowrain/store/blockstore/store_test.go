@@ -54,6 +54,19 @@ func newTestStore(t *testing.T) (blockstore.Store, platstore.ContentStore, strin
 	return bs, cs, projectID
 }
 
+// seedBlock stores one block and returns it as the store holds it. An overlay
+// names a block, so every overlay test needs the block it names to exist.
+func seedBlock(t *testing.T, cs platstore.ContentStore, projectID, id, text string) *platstore.StoredBlock {
+	t.Helper()
+	ctx := context.Background()
+	b := model.NewRunsBlock(id, []model.Run{{Text: &model.TextRun{Text: text}}})
+	require.NoError(t, cs.StoreBlocks(ctx, projectID, "main", []*model.Block{b}))
+	rows, err := cs.GetBlocks(ctx, platstore.BlockQuery{ProjectID: projectID, Stream: "main", IDs: []string{id}})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	return rows[0]
+}
+
 func TestStore_Capabilities(t *testing.T) {
 	bs, _, _ := newTestStore(t)
 	caps := bs.Capabilities()
@@ -125,102 +138,97 @@ func TestSession_PutGetBlock(t *testing.T) {
 
 func TestSession_OverlayRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	bs, _, _ := newTestStore(t)
+	bs, cs, projectID := newTestStore(t)
+	block := seedBlock(t, cs, projectID, "blk-greet", "Hello")
 	sess, err := bs.Begin(ctx)
-	if err != nil {
-		t.Fatalf("begin: %v", err)
-	}
+	require.NoError(t, err)
 
 	o := blockstore.Overlay{
 		Kind:      "targets/fr",
-		BlockHash: "hash-abc",
-		Payload:   []byte(`{"runs":[{"text":{"text":"Bonjour"}}]}`),
+		BlockHash: block.ContentHash,
+		Payload:   []byte(`{"runs":[{"text":"Bonjour"}]}`),
 	}
-	if err := sess.PutOverlay(o); err != nil {
-		t.Fatalf("put overlay: %v", err)
-	}
+	require.NoError(t, sess.PutOverlay(o))
 
-	got, err := sess.GetOverlay("targets/fr", "hash-abc")
-	if err != nil {
-		t.Fatalf("get overlay: %v", err)
-	}
-	if got.Kind != o.Kind || got.BlockHash != o.BlockHash {
-		t.Fatalf("overlay key mismatch: got %+v want %+v", got, o)
-	}
-	if string(got.Payload) != string(o.Payload) {
-		t.Fatalf("overlay payload mismatch: got %s want %s", got.Payload, o.Payload)
-	}
-	if got.UpdatedAt == 0 {
-		t.Fatalf("UpdatedAt not set on returned overlay")
-	}
+	got, err := sess.GetOverlay("targets/fr", block.ContentHash)
+	require.NoError(t, err)
+	require.Equal(t, o.Kind, got.Kind)
+	require.Equal(t, o.BlockHash, got.BlockHash)
+	require.JSONEq(t, `{"runs":[{"text":"Bonjour"}],"text":"Bonjour"}`, string(got.Payload))
+	require.NotZero(t, got.UpdatedAt, "UpdatedAt not set on returned overlay")
 
 	// Overwrite — same key, new payload, should upsert.
 	o2 := o
-	o2.Payload = []byte(`{"runs":[{"text":{"text":"Salut"}}]}`)
-	if err := sess.PutOverlay(o2); err != nil {
-		t.Fatalf("put overlay 2: %v", err)
-	}
-	got2, err := sess.GetOverlay("targets/fr", "hash-abc")
-	if err != nil {
-		t.Fatalf("get overlay 2: %v", err)
-	}
-	if string(got2.Payload) != string(o2.Payload) {
-		t.Fatalf("overwrite didn't stick: got %s", got2.Payload)
-	}
-	_ = sess.Commit()
+	o2.Payload = []byte(`{"runs":[{"text":"Salut"}]}`)
+	require.NoError(t, sess.PutOverlay(o2))
+	got2, err := sess.GetOverlay("targets/fr", block.ContentHash)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"runs":[{"text":"Salut"}],"text":"Salut"}`, string(got2.Payload))
+	require.NoError(t, sess.Commit())
+}
+
+// TestSession_OverlayKeyNamesNoBlock pins the refusal: an overlay is a layer on
+// a block, and a row nothing can join to is indistinguishable from work not yet
+// done.
+func TestSession_OverlayKeyNamesNoBlock(t *testing.T) {
+	ctx := context.Background()
+	bs, _, _ := newTestStore(t)
+	sess, err := bs.Begin(ctx)
+	require.NoError(t, err)
+	defer sess.Close()
+
+	err = sess.PutOverlay(blockstore.Overlay{
+		Kind:      "targets/fr",
+		BlockHash: "hash-nobody-holds",
+		Payload:   []byte(`{"text":"Bonjour"}`),
+	})
+	require.ErrorIs(t, err, blockstore.ErrNotFound)
+
+	_, err = sess.GetOverlay("targets/fr", "hash-nobody-holds")
+	require.ErrorIs(t, err, blockstore.ErrNotFound)
 }
 
 func TestSession_ListOverlays(t *testing.T) {
 	ctx := context.Background()
-	bs, _, _ := newTestStore(t)
+	bs, cs, projectID := newTestStore(t)
+	one := seedBlock(t, cs, projectID, "blk-1", "One")
+	two := seedBlock(t, cs, projectID, "blk-2", "Two")
+	three := seedBlock(t, cs, projectID, "blk-3", "Three")
+
 	sess, err := bs.Begin(ctx)
-	if err != nil {
-		t.Fatalf("begin: %v", err)
-	}
+	require.NoError(t, err)
 
 	writes := []blockstore.Overlay{
-		{Kind: "targets/fr", BlockHash: "h1", Payload: []byte(`{"t":"a"}`)},
-		{Kind: "targets/fr", BlockHash: "h2", Payload: []byte(`{"t":"b"}`)},
-		{Kind: "targets/fr", BlockHash: "h3", Payload: []byte(`{"t":"c"}`)},
-		{Kind: "targets/de", BlockHash: "h1", Payload: []byte(`{"t":"x"}`)},
-		{Kind: "annotations/qa", BlockHash: "h1", Payload: []byte(`{"findings":[]}`)},
+		{Kind: "targets/fr", BlockHash: one.ContentHash, Payload: []byte(`{"text":"a"}`)},
+		{Kind: "targets/fr", BlockHash: two.ContentHash, Payload: []byte(`{"text":"b"}`)},
+		{Kind: "targets/fr", BlockHash: three.ContentHash, Payload: []byte(`{"text":"c"}`)},
+		{Kind: "targets/de", BlockHash: one.ContentHash, Payload: []byte(`{"text":"x"}`)},
+		{Kind: "annotations/qa", BlockHash: one.ContentHash, Payload: []byte(`{"findings":[]}`)},
 	}
 	for _, o := range writes {
-		if err := sess.PutOverlay(o); err != nil {
-			t.Fatalf("put %+v: %v", o, err)
-		}
+		require.NoErrorf(t, sess.PutOverlay(o), "put %+v", o)
 	}
-	if err := sess.Commit(); err != nil {
-		t.Fatalf("commit: %v", err)
-	}
+	require.NoError(t, sess.Commit())
 
-	sess2, _ := bs.Begin(ctx)
+	sess2, err := bs.Begin(ctx)
+	require.NoError(t, err)
 	defer sess2.Close()
 
+	// A listed overlay carries the same key the block iterator reports for its
+	// block, so a caller can correlate the two without a second lookup.
 	var frHashes []string
 	for o, err := range sess2.ListOverlays("targets/fr") {
-		if err != nil {
-			t.Fatalf("list overlays: %v", err)
-		}
+		require.NoError(t, err)
 		frHashes = append(frHashes, o.BlockHash)
 	}
-	if len(frHashes) != 3 {
-		t.Fatalf("expected 3 fr overlays, got %d (%v)", len(frHashes), frHashes)
-	}
+	require.ElementsMatch(t, []string{one.ContentHash, two.ContentHash, three.ContentHash}, frHashes)
 
-	var qaCount int
+	var qaHashes []string
 	for o, err := range sess2.ListOverlays("annotations/qa") {
-		if err != nil {
-			t.Fatalf("list qa: %v", err)
-		}
-		if o.BlockHash != "h1" {
-			t.Fatalf("unexpected qa hash %q", o.BlockHash)
-		}
-		qaCount++
+		require.NoError(t, err)
+		qaHashes = append(qaHashes, o.BlockHash)
 	}
-	if qaCount != 1 {
-		t.Fatalf("expected 1 qa overlay, got %d", qaCount)
-	}
+	require.Equal(t, []string{one.ContentHash}, qaHashes)
 }
 
 func TestSession_OverlayNotFound(t *testing.T) {
@@ -254,23 +262,20 @@ func TestSession_ClosedRejects(t *testing.T) {
 func TestSession_DispatchByKind(t *testing.T) {
 	ctx := context.Background()
 	bs, cs, projectID := newTestStore(t)
+	block := seedBlock(t, cs, projectID, "blk-dispatch", "Hello")
 
 	sess, err := bs.Begin(ctx)
-	if err != nil {
-		t.Fatalf("begin: %v", err)
-	}
+	require.NoError(t, err)
 
 	writes := []blockstore.Overlay{
-		{Kind: "targets/fr", BlockHash: "h1", Payload: []byte(`{"text":"Bonjour","provider":"mock"}`)},
-		{Kind: "annotations/qa", BlockHash: "h1", Payload: []byte(`{"findings":[]}`)},
-		{Kind: "plugins/lint", BlockHash: "h1", Payload: []byte(`{"ruleId":"X"}`)},
+		{Kind: "targets/fr", BlockHash: block.ContentHash, Payload: []byte(`{"text":"Bonjour","provider":"mock"}`)},
+		{Kind: "annotations/qa", BlockHash: block.ContentHash, Payload: []byte(`{"findings":[]}`)},
+		{Kind: "plugins/lint", BlockHash: block.ContentHash, Payload: []byte(`{"ruleId":"X"}`)},
 	}
 	for _, o := range writes {
-		if err := sess.PutOverlay(o); err != nil {
-			t.Fatalf("put %s: %v", o.Kind, err)
-		}
+		require.NoErrorf(t, sess.PutOverlay(o), "put %s", o.Kind)
 	}
-	_ = sess.Commit()
+	require.NoError(t, sess.Commit())
 
 	// Direct SQL probe against each physical table to prove the
 	// dispatch picked the right destination.
@@ -278,62 +283,61 @@ func TestSession_DispatchByKind(t *testing.T) {
 	mustRowCount := func(q string, args ...any) {
 		t.Helper()
 		var count int
-		if err := db.QueryRow(q, args...).Scan(&count); err != nil {
-			t.Fatalf("probe %q: %v", q, err)
-		}
-		if count != 1 {
-			t.Fatalf("expected 1 row from %q, got %d", q, count)
-		}
+		require.NoErrorf(t, db.QueryRow(q, args...).Scan(&count), "probe %q", q)
+		require.Equalf(t, 1, count, "expected 1 row from %q", q)
 	}
+	// The target row is filed under the block's own id — where the block
+	// round-trip writes it and where hydration reads it back.
 	mustRowCount(`SELECT count(*) FROM translations WHERE project_id=? AND block_id=? AND locale=?`,
-		projectID, "h1", "fr")
+		projectID, block.ID, "fr")
 	mustRowCount(`SELECT count(*) FROM annotations WHERE project_id=? AND block_id=? AND kind=?`,
-		projectID, "h1", "annotations/qa")
+		projectID, block.ContentHash, "annotations/qa")
 	mustRowCount(`SELECT count(*) FROM overlays_ext WHERE project_id=? AND block_id=? AND kind=?`,
-		projectID, "h1", "plugins/lint")
+		projectID, block.ContentHash, "plugins/lint")
 
 	// Read-back round-trip through the polymorphic API.
-	sess2, _ := bs.Begin(ctx)
+	sess2, err := bs.Begin(ctx)
+	require.NoError(t, err)
 	defer sess2.Close()
 	for _, o := range writes {
 		got, err := sess2.GetOverlay(o.Kind, o.BlockHash)
-		if err != nil {
-			t.Fatalf("get %s: %v", o.Kind, err)
-		}
-		if got.Kind != o.Kind || got.BlockHash != o.BlockHash {
-			t.Fatalf("%s key mismatch: got %+v", o.Kind, got)
-		}
+		require.NoErrorf(t, err, "get %s", o.Kind)
+		require.Equal(t, o.Kind, got.Kind)
+		require.Equal(t, o.BlockHash, got.BlockHash)
 	}
 }
 
-// TestSession_Translations_PreservesOpaqueShape exercises the
-// graceful path where a caller writes `targets/*` with a payload that
-// doesn't fit the `{text, provider}` shape (e.g. a rich editor pushing
-// runs). The dispatcher preserves the body verbatim via metadata.
-func TestSession_Translations_PreservesOpaqueShape(t *testing.T) {
+// TestSession_Translations_KeepsWriterResidue pins what happens to payload
+// fields the Target model has no room for: the tool-config fingerprint an MT
+// or AI cache checks before reusing a target survives the round-trip, while
+// the target itself lands in the columns every platform reader consults.
+func TestSession_Translations_KeepsWriterResidue(t *testing.T) {
 	ctx := context.Background()
-	bs, _, _ := newTestStore(t)
-	sess, _ := bs.Begin(ctx)
+	bs, cs, projectID := newTestStore(t)
+	block := seedBlock(t, cs, projectID, "blk-residue", "Hello")
+	sess, err := bs.Begin(ctx)
+	require.NoError(t, err)
 
-	o := blockstore.Overlay{
+	require.NoError(t, sess.PutOverlay(blockstore.Overlay{
 		Kind:      "targets/de",
-		BlockHash: "h-opaque",
-		Payload:   []byte(`{"runs":[{"text":{"text":"Hallo"}}]}`),
-	}
-	if err := sess.PutOverlay(o); err != nil {
-		t.Fatalf("put: %v", err)
-	}
-	_ = sess.Commit()
+		BlockHash: block.ContentHash,
+		Payload:   []byte(`{"runs":[{"text":"Hallo"}],"provider":"mock","config":"fp-1"}`),
+	}))
+	require.NoError(t, sess.Commit())
 
-	sess2, _ := bs.Begin(ctx)
+	sess2, err := bs.Begin(ctx)
+	require.NoError(t, err)
 	defer sess2.Close()
-	got, err := sess2.GetOverlay("targets/de", "h-opaque")
-	if err != nil {
-		t.Fatalf("get: %v", err)
-	}
-	if string(got.Payload) != string(o.Payload) {
-		t.Fatalf("opaque payload didn't round-trip:\n  got %s\n want %s", got.Payload, o.Payload)
-	}
+	got, err := sess2.GetOverlay("targets/de", block.ContentHash)
+	require.NoError(t, err)
+	require.JSONEq(t,
+		`{"runs":[{"text":"Hallo"}],"text":"Hallo","provider":"mock","config":"fp-1"}`,
+		string(got.Payload))
+
+	rows, err := cs.GetBlocks(ctx, platstore.BlockQuery{ProjectID: projectID, Stream: "main", IDs: []string{block.ID}})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "Hallo", rows[0].Block.TargetText("de"))
 }
 
 // TestSession_PutBlock_CollectionScoped exercises the collection arg:

@@ -2,7 +2,10 @@ package blockstore
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
+
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // overlayTable is the destination table for a given overlay kind.
@@ -45,66 +48,136 @@ func splitKindOnce(kind string) (prefix, rest string) {
 	return before, after
 }
 
-// translationPayload captures the schema translation writers use
-// (`{"text":"…","provider":"…"}`) so the translations table keeps
-// text + provider in first-class columns instead of opaque JSON.
-// Callers that write richer payloads get the metadata column for
-// future fields without another migration.
-type translationPayload struct {
-	Text     string          `json:"text"`
-	Provider string          `json:"provider,omitempty"`
-	Metadata json.RawMessage `json:"metadata,omitempty"`
-}
-
-// encodeTranslationPayload reconstructs an overlay's payload from
-// the first-class columns the translations table stores separately.
-// Preserves the round-trip contract: callers that put `{text, provider,
-// metadata}` get the same JSON back out; callers that put an arbitrary
-// JSON body (e.g. a runs-shaped target from a rich editor) landed it
-// in the `metadata` column on write and we emit that verbatim here.
-func encodeTranslationPayload(text, provider string, metadata []byte) ([]byte, error) {
-	hasMetadata := hasJSONBody(metadata)
-	opaqueOnly := text == "" && provider == "" && hasMetadata
-	if opaqueOnly {
-		// Payload was opaque JSON without a text field — return
-		// the original body so the caller gets byte-identical reads.
-		return metadata, nil
-	}
-	p := translationPayload{Text: text, Provider: provider}
-	if hasMetadata {
-		p.Metadata = metadata
-	}
-	return json.Marshal(p)
-}
-
-// hasJSONBody reports whether the bytes hold JSON content more
-// meaningful than an empty object or null.
-func hasJSONBody(b []byte) bool {
-	if len(b) == 0 {
-		return false
-	}
-	s := string(b)
-	return s != "{}" && s != "null"
-}
-
-// decodeTranslationPayload splits the incoming payload into the three
-// columns the translations table stores separately:
+// A `targets/<locale>` overlay payload is not opaque: it is a projection of
+// model.Target, and the store reads it as one. The translate-family tools spell
+// the content three ways — `runs` (structure preserved), `text`, or `target` —
+// and carry the lifecycle status alongside it; the codec below is the one place
+// that knows which fields mean the target and which belong to the writer.
 //
-//   - `{"text": "…", "provider": "…", "metadata": …}` → text, provider,
-//     metadata populated from their fields.
-//   - any other JSON object (e.g. runs-shaped targets, legacy payloads
-//     a rich editor might push) → text+provider empty, metadata holds
-//     the original body so reads round-trip exactly.
-//   - non-JSON payloads → treated as a raw text string.
-func decodeTranslationPayload(payload []byte) (text, provider string, metadata []byte) {
-	var p translationPayload
-	if err := json.Unmarshal(payload, &p); err != nil {
-		return string(payload), "", nil
+// Anything the Target model has no room for (a tool's config fingerprint, the
+// provider label an MT cache checks) is residue: it survives verbatim in the
+// row's metadata column and comes back on the same read, so a tool's own
+// round-trip is unaffected while every platform reader sees the target itself.
+const (
+	fieldRuns   = "runs"
+	fieldText   = "text"
+	fieldTarget = "target"
+	fieldStatus = "status"
+	fieldOrigin = "origin"
+	fieldScore  = "score"
+)
+
+// decodeTargetPayload reads an overlay payload as the target it describes,
+// returning the target and the writer's residual fields.
+//
+// A payload that is not JSON at all is the target's plain text — the shape a
+// caller writing a bare string produces. JSON null is an empty target, not the
+// four letters.
+func decodeTargetPayload(payload []byte) (*model.Target, []byte, error) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &fields); err != nil {
+		return &model.Target{Runs: []model.Run{model.TextR(string(payload))}}, nil, nil
 	}
-	if p.Text == "" && p.Provider == "" {
-		// Payload didn't fit the `{text, provider}` shape — preserve
-		// the original body verbatim so GetOverlay echoes byte-for-byte.
-		return "", "", payload
+	if fields == nil {
+		return &model.Target{}, nil, nil
 	}
-	return p.Text, p.Provider, []byte(p.Metadata)
+
+	target := &model.Target{}
+	if raw, ok := fields[fieldRuns]; ok {
+		if err := json.Unmarshal(raw, &target.Runs); err != nil {
+			return nil, nil, fmt.Errorf("decode target runs: %w", err)
+		}
+	}
+	if len(target.Runs) == 0 {
+		for _, key := range []string{fieldText, fieldTarget} {
+			var text string
+			if raw, ok := fields[key]; ok && json.Unmarshal(raw, &text) == nil && text != "" {
+				target.Runs = []model.Run{model.TextR(text)}
+				break
+			}
+		}
+	}
+	if raw, ok := fields[fieldStatus]; ok {
+		if err := json.Unmarshal(raw, &target.Status); err != nil {
+			return nil, nil, fmt.Errorf("decode target status: %w", err)
+		}
+	}
+	if raw, ok := fields[fieldOrigin]; ok {
+		if err := json.Unmarshal(raw, &target.Origin); err != nil {
+			return nil, nil, fmt.Errorf("decode target origin: %w", err)
+		}
+	}
+	if raw, ok := fields[fieldScore]; ok {
+		if err := json.Unmarshal(raw, &target.Score); err != nil {
+			return nil, nil, fmt.Errorf("decode target score: %w", err)
+		}
+	}
+
+	residue := map[string]json.RawMessage{}
+	for k, v := range fields {
+		switch k {
+		case fieldRuns, fieldText, fieldTarget, fieldStatus, fieldOrigin, fieldScore:
+			continue
+		}
+		residue[k] = v
+	}
+	if len(residue) == 0 {
+		return target, nil, nil
+	}
+	extra, err := json.Marshal(residue)
+	if err != nil {
+		return nil, nil, fmt.Errorf("encode target payload residue: %w", err)
+	}
+	return target, extra, nil
+}
+
+// encodeTargetPayload renders a stored target back as an overlay payload,
+// carrying both the runs and their flattened text so a reader of either shape
+// finds what it asks for. The residue rides alongside, under the keys its
+// writer used.
+func encodeTargetPayload(target *model.Target, extra []byte) ([]byte, error) {
+	fields := map[string]json.RawMessage{}
+	if len(extra) > 0 {
+		if err := json.Unmarshal(extra, &fields); err != nil {
+			return nil, fmt.Errorf("decode target payload residue: %w", err)
+		}
+		if fields == nil {
+			fields = map[string]json.RawMessage{}
+		}
+	}
+	if target == nil {
+		return json.Marshal(fields)
+	}
+	set := func(key string, v any) error {
+		raw, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Errorf("encode target %s: %w", key, err)
+		}
+		fields[key] = raw
+		return nil
+	}
+	if len(target.Runs) > 0 {
+		if err := set(fieldRuns, target.Runs); err != nil {
+			return nil, err
+		}
+		if err := set(fieldText, model.RunsText(target.Runs)); err != nil {
+			return nil, err
+		}
+	}
+	if target.Status != "" {
+		if err := set(fieldStatus, target.Status); err != nil {
+			return nil, err
+		}
+	}
+	if target.Origin != (model.Origin{}) {
+		if err := set(fieldOrigin, target.Origin); err != nil {
+			return nil, err
+		}
+	}
+	if target.Score != 0 {
+		if err := set(fieldScore, target.Score); err != nil {
+			return nil, err
+		}
+	}
+	return json.Marshal(fields)
 }

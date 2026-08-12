@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"sync"
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	corestore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/blockstore"
 	"github.com/neokapi/neokapi/core/kbf"
 	"github.com/neokapi/neokapi/core/model"
@@ -117,6 +119,20 @@ type session struct {
 	opts       Options
 	collection string
 	closed     bool
+	// rowIDs memoizes overlay-key → `blocks.id` resolutions. A block's id is
+	// fixed for as long as the block exists, so one lookup per distinct key
+	// serves a session that writes an overlay per block.
+	rowMu  sync.Mutex
+	rowIDs map[string]string
+}
+
+// dialect names this session's SQL flavour the way bowrain/store's overlay
+// helpers spell it.
+func (s *session) dialect() string {
+	if s.opts.Dialect == SQLiteDialect {
+		return "sqlite"
+	}
+	return "pg"
 }
 
 func (s *session) Capabilities() blockstore.Capabilities {
@@ -357,24 +373,30 @@ func (s *session) ListOverlays(kind string) iter.Seq2[blockstore.Overlay, error]
 }
 
 // ─── table dispatchers ──────────────────────────────────────────
+//
+// Only the target dispatcher resolves the caller's key onto the block row it
+// belongs to (see blockkey.go). The annotations and plugin tables file their
+// rows under the key as given, which is a narrower contract than the target's:
+// their rows are written and read through this adapter alone, and an annotation
+// the block round-trip writes carries a different kind spelling and payload
+// envelope, so a shared key without a shared envelope would hand the block
+// hydrator a record it cannot decode. Tracked in #1888.
 
 func (s *session) getTranslation(kind, blockHash string) (blockstore.Overlay, error) {
 	_, locale := splitKindOnce(kind)
-	var (
-		text, provider string
-		metadata       []byte
-		updatedAtStr   string
-	)
-	row := s.opts.DB.QueryRowContext(s.ctx, s.sqlSelectTranslation(),
-		s.opts.ProjectID, s.opts.Stream, blockHash, locale,
-	)
-	if err := row.Scan(&text, &provider, &metadata, &updatedAtStr); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return blockstore.Overlay{}, blockstore.ErrNotFound
-		}
+	rowID, err := s.resolveBlockRow(blockHash)
+	if err != nil {
+		return blockstore.Overlay{}, err
+	}
+	stored, err := corestore.LoadBlockVariantTarget(s.ctx, s.opts.DB, s.dialect(),
+		s.opts.ProjectID, s.opts.Stream, rowID, locale)
+	if err != nil {
 		return blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: get translation: %w", err)
 	}
-	payload, err := encodeTranslationPayload(text, provider, metadata)
+	if stored == nil {
+		return blockstore.Overlay{}, blockstore.ErrNotFound
+	}
+	payload, err := encodeTargetPayload(stored.Target, stored.Extra)
 	if err != nil {
 		return blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: encode translation payload: %w", err)
 	}
@@ -382,7 +404,7 @@ func (s *session) getTranslation(kind, blockHash string) (blockstore.Overlay, er
 		Kind:      kind,
 		BlockHash: blockHash,
 		Payload:   payload,
-		UpdatedAt: parseTimestamp(updatedAtStr),
+		UpdatedAt: stored.UpdatedAt,
 	}, nil
 }
 
@@ -391,14 +413,20 @@ func (s *session) putTranslation(kind, blockHash string, payload []byte, updated
 	if locale == "" {
 		return fmt.Errorf("bowrain/blockstore: put translation: kind %q missing locale", kind)
 	}
-	text, provider, metadata := decodeTranslationPayload(payload)
-	if len(metadata) == 0 {
-		metadata = []byte("{}")
-	}
-	_, err := s.opts.DB.ExecContext(s.ctx, s.sqlUpsertTranslation(),
-		s.opts.ProjectID, s.opts.Stream, blockHash, locale, text, provider, metadata, updatedAt,
-	)
+	rowID, err := s.resolveBlockRow(blockHash)
 	if err != nil {
+		return err
+	}
+	target, extra, err := decodeTargetPayload(payload)
+	if err != nil {
+		return fmt.Errorf("bowrain/blockstore: put translation: %w", err)
+	}
+	var variant model.VariantKey
+	if err := variant.UnmarshalText([]byte(locale)); err != nil {
+		return fmt.Errorf("bowrain/blockstore: put translation: decode variant %q: %w", locale, err)
+	}
+	if err := corestore.UpsertBlockTarget(s.ctx, s.opts.DB, s.dialect(),
+		s.opts.ProjectID, s.opts.Stream, rowID, variant, target, extra, updatedAt); err != nil {
 		return fmt.Errorf("bowrain/blockstore: put translation: %w", err)
 	}
 	return nil
@@ -406,40 +434,42 @@ func (s *session) putTranslation(kind, blockHash string, payload []byte, updated
 
 func (s *session) listTranslations(kind string, yield func(blockstore.Overlay, error) bool) {
 	_, locale := splitKindOnce(kind)
-	rows, err := s.opts.DB.QueryContext(s.ctx, s.sqlListTranslations(),
-		s.opts.ProjectID, s.opts.Stream, locale,
-	)
+	stored, err := corestore.LoadVariantTargets(s.ctx, s.opts.DB, s.dialect(),
+		s.opts.ProjectID, s.opts.Stream, locale)
 	if err != nil {
 		yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: list translations: %w", err))
 		return
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var (
-			blockID, text, provider string
-			metadata                []byte
-			updatedAtStr            string
-		)
-		if err := rows.Scan(&blockID, &text, &provider, &metadata, &updatedAtStr); err != nil {
-			yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: list translations scan: %w", err))
-			return
-		}
-		payload, err := encodeTranslationPayload(text, provider, metadata)
+	if len(stored) == 0 {
+		return
+	}
+	rowIDs := make([]string, 0, len(stored))
+	for _, st := range stored {
+		rowIDs = append(rowIDs, st.BlockID)
+	}
+	keys, err := s.blockKeysByRow(rowIDs)
+	if err != nil {
+		yield(blockstore.Overlay{}, err)
+		return
+	}
+	for _, st := range stored {
+		payload, err := encodeTargetPayload(st.Target, st.Extra)
 		if err != nil {
 			yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: encode translation payload: %w", err))
 			return
 		}
+		key := keys[st.BlockID]
+		if key == "" {
+			key = st.BlockID
+		}
 		if !yield(blockstore.Overlay{
 			Kind:      kind,
-			BlockHash: blockID,
+			BlockHash: key,
 			Payload:   payload,
-			UpdatedAt: parseTimestamp(updatedAtStr),
+			UpdatedAt: st.UpdatedAt,
 		}, nil) {
 			return
 		}
-	}
-	if err := rows.Err(); err != nil {
-		yield(blockstore.Overlay{}, fmt.Errorf("bowrain/blockstore: list translations rows: %w", err))
 	}
 }
 
@@ -461,7 +491,7 @@ func (s *session) getExtOrAnnotation(kind, blockHash, table string) (blockstore.
 		Kind:      kind,
 		BlockHash: blockHash,
 		Payload:   payload,
-		UpdatedAt: parseTimestamp(updatedAtStr),
+		UpdatedAt: corestore.ParseOverlayTimestamp(updatedAtStr),
 	}, nil
 }
 
@@ -498,7 +528,7 @@ func (s *session) listExtOrAnnotation(kind, table string, yield func(blockstore.
 			Kind:      kind,
 			BlockHash: blockID,
 			Payload:   payload,
-			UpdatedAt: parseTimestamp(updatedAtStr),
+			UpdatedAt: corestore.ParseOverlayTimestamp(updatedAtStr),
 		}, nil) {
 			return
 		}
@@ -524,49 +554,6 @@ func (s *session) Close() error {
 }
 
 // ─── SQL helpers ────────────────────────────────────────────────
-
-func (s *session) sqlSelectTranslation() string {
-	switch s.opts.Dialect {
-	case SQLiteDialect:
-		return `SELECT text, provider, metadata, updated_at FROM translations
-			WHERE project_id = ? AND stream = ? AND block_id = ? AND locale = ?`
-	default:
-		return `SELECT text, provider, metadata, updated_at FROM translations
-			WHERE project_id = $1 AND stream = $2 AND block_id = $3 AND locale = $4`
-	}
-}
-
-func (s *session) sqlListTranslations() string {
-	switch s.opts.Dialect {
-	case SQLiteDialect:
-		return `SELECT block_id, text, provider, metadata, updated_at FROM translations
-			WHERE project_id = ? AND stream = ? AND locale = ? ORDER BY block_id`
-	default:
-		return `SELECT block_id, text, provider, metadata, updated_at FROM translations
-			WHERE project_id = $1 AND stream = $2 AND locale = $3 ORDER BY block_id`
-	}
-}
-
-func (s *session) sqlUpsertTranslation() string {
-	switch s.opts.Dialect {
-	case SQLiteDialect:
-		return `INSERT INTO translations (project_id, stream, block_id, locale, text, provider, metadata, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-			ON CONFLICT(project_id, stream, block_id, locale) DO UPDATE SET
-				text = excluded.text,
-				provider = excluded.provider,
-				metadata = excluded.metadata,
-				updated_at = excluded.updated_at`
-	default:
-		return `INSERT INTO translations (project_id, stream, block_id, locale, text, provider, metadata, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (project_id, stream, block_id, locale) DO UPDATE SET
-				text = EXCLUDED.text,
-				provider = EXCLUDED.provider,
-				metadata = EXCLUDED.metadata,
-				updated_at = EXCLUDED.updated_at`
-	}
-}
 
 // Annotations + overlays_ext share a SQL shape — one set of helpers
 // with the table name interpolated keeps them in lockstep.
@@ -608,28 +595,6 @@ func (s *session) sqlUpsertExtOrAnnotation(table string) string {
 				payload = EXCLUDED.payload,
 				updated_at = EXCLUDED.updated_at`
 	}
-}
-
-// parseTimestamp handles both the SQLite `datetime('now')` TEXT format
-// ("2006-01-02 15:04:05") and the Postgres TIMESTAMPTZ RFC 3339 form
-// that pgx returns as a string over the database/sql surface. Returns
-// the Unix-seconds value or 0 if the column was empty/unparseable.
-func parseTimestamp(s string) int64 {
-	if s == "" {
-		return 0
-	}
-	for _, layout := range []string{
-		time.RFC3339Nano,
-		time.RFC3339,
-		"2006-01-02 15:04:05.999999999 -0700 MST",
-		"2006-01-02 15:04:05.999999999Z07:00",
-		"2006-01-02 15:04:05",
-	} {
-		if t, err := time.Parse(layout, s); err == nil {
-			return t.Unix()
-		}
-	}
-	return 0
 }
 
 // Unused import guard — kbf is referenced via the aliased Block in
