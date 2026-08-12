@@ -81,14 +81,17 @@ jobs:
 
       # Both build stages reach Go: extraction regenerates the two inventories
       # through `go generate`, and compilation builds the embedded gettext
-      # catalogs from the committed JSON. This pins the toolchain the two stages
-      # would otherwise resolve from the runner's image, and warms the module
-      # cache they would otherwise download in full on every run.
-      - uses: ./.github/actions/setup-go-modules
+      # catalogs from the committed JSON. Only the toolchain is set up here.
+      #
+      # Deliberately NOT setup-go-modules: it primes every module in the
+      # workspace, and priming the ones these stages never touch writes hashes
+      # into `go.work.sum`. The gate below reads the whole tree and refuses a
+      # convergence run that changed a file outside the loop's scope, which is
+      # exactly right — a run that delivers content must not also be the run
+      # that edits the module graph.
+      - uses: actions/setup-go@v7
         with:
-          # Nothing here is race-instrumented, so the plain build cache is the
-          # one these stages share with the other non-test jobs.
-          cache-flavor: plain
+          go-version: "1.26.0"
 
       - name: Extract the source catalogs the loop carries
         run: make l10n-extract
