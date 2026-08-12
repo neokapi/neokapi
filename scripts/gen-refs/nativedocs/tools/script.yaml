@@ -22,7 +22,7 @@ overview: |
   it where the pipeline author — not the repository being processed — is the one
   deciding. The same classification withholds this tool from the agent surface,
   from the engine API, and from any recipe arriving inside a `.kpz`. See
-  [AD-038](/contribute/architecture/038-execution-trust).
+  [E-06](/contribute/architecture/engine/e-06-execution-trust).
 parameters:
   source:
     description: Where the script comes from.

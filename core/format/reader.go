@@ -71,7 +71,7 @@ type DataFormatReader interface {
 // The file-run path (core/flow.FileRunner) consults this marker to choose the
 // bounded-memory streaming path; readers that do not implement it keep the
 // read-fully-then-write buffered path unchanged. See
-// [AD-005](../../web/docs/contribute/architecture/005-format-system.md)
+// [E-02](../../web/docs/contribute/architecture/engine/e-02-format-system.md)
 // "Streaming readers and bounded-memory I/O".
 type StreamingReader interface {
 	// StreamingReader marks the capability. The method is a bare marker: its

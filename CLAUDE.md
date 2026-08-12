@@ -245,11 +245,22 @@ and flow name against the code before publishing.
 
 ## Where things are documented
 
-- **Architecture decisions** — `web/docs/contribute/architecture/`. Organized by
-  concern, not chronologically; each AD describes the *current* state of its
-  subsystem. When a subsystem evolves, **update the existing AD in place**
-  rather than appending a new one. Create a new AD only for a genuinely new
-  concern.
+- **Architecture decisions** — `web/docs/contribute/architecture/`, in six
+  series by concern, one directory each: **F** foundations (`foundations/`),
+  **E** engine (`engine/`), **C** context (`context/`), **S** surfaces
+  (`surfaces/`), **M** multilingual (`multilingual/`), **A** assurance
+  (`assurance/`). An AD is named for its series and position — `C-03`,
+  `e-01-processing-engine.md` — and the sidebar autogenerates from the tree, so
+  adding one means adding a file with a `sidebar_position`.
+
+  Each AD describes the *current* state of its subsystem and carries no
+  decision history — that lives in git. When a subsystem evolves, **update the
+  existing AD in place** rather than appending a new one. Create a new AD only
+  for a genuinely new concern, and retire one by redirecting its slug in
+  `web/docusaurus.config.ts`.
+
+  The corpus names no platform: `scripts/check-docs-bowrain-clean.sh` sweeps it
+  alongside the user-facing docs trees.
 - **Implementation notes** — `web/docs/contribute/implementation/`. Tactical
   detail (SQL schemas, API routes, pseudocode) kept out of the ADs.
 - **Contributor guides** — `web/docs/contribute/`: `formats.md`,

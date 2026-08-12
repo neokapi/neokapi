@@ -6,14 +6,14 @@
 // core/project's FormatSpec resolution to give a recipe's `format: {name:
 // exec}` any meaning. Its tests exercised only the dead runner, and its
 // `#nosec G204` justification ("argv supplied by trusted project config")
-// assumed a recipe is trusted, which is the assumption AD-038 exists to
+// assumed a recipe is trusted, which is the assumption E-06 exists to
 // refute. It was deleted rather than wired up.
 //
 // What remains is a registry entry so the name resolves and kapi-desktop's
 // FormatSelect keeps its option, plus a reader that refuses on Open. If a
 // declarative subprocess extractor is ever wanted, it arrives with a design
 // for how a recipe earns the right to name one — see
-// web/docs/contribute/architecture/038-execution-trust.md.
+// web/docs/contribute/architecture/engine/e-06-execution-trust.md.
 package exec
 
 import (

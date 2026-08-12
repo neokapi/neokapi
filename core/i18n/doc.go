@@ -5,7 +5,7 @@
 // build time by `go run ./core/i18n/gen/catalogs` from the committed
 // translated JSON under catalogs/, which is what a reviewer reads and what the
 // dogfood recipe writes. See
-// [AD-016](../../web/docs/contribute/architecture/016-metadata-i18n.md).
+// [M-07](../../web/docs/contribute/architecture/multilingual/m-07-metadata-i18n.md).
 //
 // The package exposes:
 //

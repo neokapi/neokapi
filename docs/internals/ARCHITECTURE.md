@@ -60,7 +60,7 @@ graph TB
 
 Documents flow through a channel-based concurrent pipeline. Each tool runs in
 its own goroutine. Buffered channels provide backpressure. See
-[AD-004: Processing engine](../../web/docs/contribute/architecture/004-processing-engine.md).
+[E-01: Processing engine](../../web/docs/contribute/architecture/engine/e-01-processing-engine.md).
 
 ## Package Layout
 
@@ -236,7 +236,7 @@ classDiagram
 
 Embedded content (HTML inside JSON, CDATA in XML) is modeled as nested
 Layers, each with its own DataFormat. See
-[AD-002: Content model](../../web/docs/contribute/architecture/002-content-model.md).
+[F-02: Content model](../../web/docs/contribute/architecture/foundations/f-02-content-model.md).
 
 ### Inline Content as Runs
 

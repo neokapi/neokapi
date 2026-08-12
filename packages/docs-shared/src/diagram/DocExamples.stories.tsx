@@ -101,9 +101,9 @@ export const ReactRoundTrip: Story = {
   ),
 };
 
-// contribute/architecture/001-vision-and-modules.md
+// contribute/architecture/foundations/f-01-framework-and-modules.md
 export const ModuleDependencies: Story = {
-  name: "Module dependency layering — AD-001",
+  name: "Module dependency layering — F-01",
   render: () => (
     <PipelineDiagram
       channelLabel=""
