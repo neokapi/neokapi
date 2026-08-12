@@ -210,12 +210,18 @@ func (r ChannelRef) Coordinates() map[string]string {
 	return out
 }
 
-// String renders the ref in the qualified form a recipe writes.
+// String renders the ref in the qualified form a recipe writes. A ref that sets
+// only one axis renders that axis alone: a profile addressed with no channel is
+// a point in its own right, and `profile/` would name a channel called nothing.
 func (r ChannelRef) String() string {
-	if r.Profile == "" {
+	switch {
+	case r.Profile == "":
 		return r.Channel
+	case r.Channel == "":
+		return r.Profile
+	default:
+		return r.Profile + "/" + r.Channel
 	}
-	return r.Profile + "/" + r.Channel
 }
 
 // ResolveChannel resolves one `channel:` reference against the declared
@@ -372,6 +378,13 @@ func (rc *ResolvedGovernance) ActiveAt(at time.Time) bool {
 // run, a check, a retrieval answer and a push cannot disagree about what
 // governs a file.
 type GovernancePoint struct {
+	// Profile names a profile directly, with no channel — the point a caller
+	// holds when it has a profile and no content location (an ad-hoc run, a
+	// question asked of one product's governance). It outranks Collection and
+	// Path, which name a location instead, and a name the recipe does not
+	// declare is an error rather than a fall-through: a caller that asked about
+	// a specific profile is not served by the project default.
+	Profile string
 	// Collection names a content collection. Used when Path is empty; an
 	// unknown name resolves the project's default point.
 	Collection string
@@ -454,6 +467,15 @@ func (p *KapiProject) ResolveGovernanceForPath(relPath string) (*ResolvedGoverna
 // finest first, with duplicates collapsed: an item that repeats its
 // collection's channel names one binding, not two.
 func (p *KapiProject) governanceLadder(pt GovernancePoint) ([]ChannelRef, error) {
+	if pt.Profile != "" {
+		if _, ok := p.Profiles[pt.Profile]; !ok {
+			return nil, fmt.Errorf("profile %q is not declared by this project (declared: %s)",
+				pt.Profile, p.declaredProfiles())
+		}
+		// A profile names one rung and no channel: there is no location under it
+		// to refine the answer with.
+		return []ChannelRef{{Profile: pt.Profile}}, nil
+	}
 	declared, subject, err := p.declaredChannelsFor(pt)
 	if err != nil {
 		return nil, err

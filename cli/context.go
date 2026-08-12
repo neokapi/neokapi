@@ -9,26 +9,85 @@ import (
 
 // The context retrieval surface (AD-037), CLI half.
 //
-// `kapi context search` and the `context_search` MCP tool are two wrappers over
-// one host function. That is deliberate: the surfaces drifted before — six CLI
-// retrieval verbs against three MCP tools, with no rule for which got exposed —
-// and the agent skill drives the CLI, so a CLI-only capability teaches an
-// assistant a surface that MCP does not have.
+// Retrieval is addressed by LOCATION (`kapi context <path>`, the `context://`
+// resources) or by CONTENT (`kapi context search`, the `context_search` tool),
+// never by store. Each half is two wrappers over one host function. That is
+// deliberate: the surfaces drifted before — six CLI retrieval verbs against
+// three MCP tools, with no rule for which got exposed — and the agent skill
+// drives the CLI, so a CLI-only capability teaches an assistant a surface that
+// MCP does not have.
 
-// NewContextCmd creates the context retrieval command group.
+// NewContextCmd creates the context retrieval command group, which is also the
+// by-location verb: `kapi context <path>` answers what applies at a place.
 func NewContextCmd(a *App) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "context",
+		Use:     "context [path]",
 		Short:   "Ask what this project's content context says",
 		GroupID: "work",
 		Long: `Retrieve the content context this project goes by — the terms, the
 voice and the rules that hold — without needing to know which store holds the
 answer.
 
+Two questions, and every asset-shaped lookup is one of them:
+
+  kapi context <path>          what applies HERE — the voice in force at that
+                               location, its guidance, the terms bound there
+  kapi context --profile <n>   the same answer for a named profile, when you
+                               have no file in hand
+  kapi context search <query>  what we know about THIS — terms, prior wording
+
 Communication is contextual: a legal notice is not a help article. Ask what the
-project says about a word or a phrase before you write, rather than learning it
-from a failing check afterwards.`,
+project says before you write, rather than learning it from a failing check
+afterwards.`,
+		Example: "  kapi context docs/guide.md\n" +
+			"  kapi context docs/guide.md --json\n" +
+			"  kapi context --profile marketing\n" +
+			"  kapi context search widget",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := ""
+			if len(args) == 1 {
+				path = args[0]
+			}
+			profile, _ := cmd.Flags().GetString("profile")
+			if path == "" && profile == "" {
+				return cmd.Help()
+			}
+
+			locale, _ := cmd.Flags().GetString("locale")
+			limit, _ := cmd.Flags().GetInt("limit")
+			req := host.ContextPointRequest{
+				Path:    path,
+				Profile: profile,
+				Locale:  model.LocaleID(locale),
+				Limit:   limit,
+			}
+
+			// One assembly for both this verb and the `context://` MCP
+			// resources (host.ContextSourcesAt).
+			src, cleanup := a.ContextSourcesAt(cmd, req)
+			defer cleanup()
+
+			res, err := host.ResolveContextAt(cmd.Context(), src, req)
+			if err != nil {
+				return err
+			}
+			// The answer renders itself (host.ContextAnswer implements
+			// output.TextFormatter), so the markdown a reader sees here is the
+			// body the MCP resource serves, and --json is the same document the
+			// resource's application/json rendering carries.
+			return output.Print(cmd, res)
+		},
 	}
+	cmd.Flags().String("profile", "", "answer for a named profile instead of a location")
+	cmd.Flags().StringP("locale", "l", "", "narrow the reported terms to one language")
+	cmd.Flags().Int("limit", host.DefaultContextTermsLimit, "max terms to render")
+	// The same project- and store-resolution flags every other project verb
+	// carries, so this command resolves the same way `terms` and `memory` do.
+	// The output format axis (--json among them) is persistent on the root.
+	AddProjectFlag(cmd)
+	AddResourceFlags(cmd)
+
 	cmd.AddCommand(newContextSearchCmd(a))
 	return cmd
 }

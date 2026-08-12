@@ -1,7 +1,7 @@
 ---
 sidebar_position: 3
 title: Context
-description: How kapi knows what your content should say — the two-axis context space a piece of content sits at (product and channel), the stores that govern each point (voice profile, terms, content memory), and the one question that reaches all of them.
+description: How kapi knows what your content should say — the two-axis context space a piece of content sits at (product and channel), the stores that govern each point (voice profile, terms, content memory), and the two questions that reach all of them.
 keywords: [kapi, context, voice profile, terms, content memory, product, channel, profiles, context search, governance, profile validity]
 ---
 
@@ -196,12 +196,47 @@ The same half-open window scopes an individual term, which is what lets a
 vocabulary survive a rename: _recognise the old name until March_ is a different
 instruction from _never use it_, and a context answer distinguishes them.
 
-## One question, every store
+## Two questions, never a store
 
 Because the stores govern one point together, you do not ask them one at a time.
-`kapi context search` — and the `context_search` tool over
-[MCP](/reference/mcp) — asks a single question across every store the project
-binds:
+You ask by **location** or by **content**, and never by store — which one holds
+the answer is kapi's business, not yours.
+
+| Question | Ask | Over [MCP](/reference/mcp) |
+| --- | --- | --- |
+| what applies **here**? | `kapi context <path>` | read `context://<path>` |
+| what do we know about **this**? | `kapi context search <query>` | call `context_search` |
+
+### What applies here
+
+Point `kapi context` at a file and it answers for the place that file sits: the
+point it resolved to, the voice profile in force with its full guidance, the
+terms bound there, and the governance windows around them — one document,
+written to be read by a person or dropped into a model's context.
+
+```bash
+kapi context docs/guide.md
+```
+
+It resolves through the same seam a run, a check and a push resolve through, so
+the voice you read for a file is the voice a run applies to it — including a
+content item's own `channel:`, and a profile whose window has closed.
+
+With no file in hand — an ad-hoc draft, a starter pack — name a profile instead:
+
+```bash
+kapi context --profile marketing
+```
+
+Add `--json` for the structured shape. Over MCP the two addresses are resources
+rather than tools, because reading what already applies at a place is not a call
+with arguments; `context://docs/guide.md?format=json` is the same document
+`--json` prints.
+
+### What do we know about this
+
+The other question takes a word or a phrase and asks it of every store the
+project binds:
 
 ```bash
 kapi context search "sign-in"
@@ -238,7 +273,8 @@ Context works on both sides of the moment content is written:
 - **Before** — the voice guide and the approved terms go into a writer's context
   (a person's, or an agent's), so a draft starts compliant rather than being
   corrected into compliance. The [agent skill](/kapi/get-started/use-with-claude)
-  injects them automatically; `context_search` fetches them on demand.
+  injects them automatically; `kapi context <path>` and `context_search` fetch
+  them on demand.
 - **After** — `kapi check` scores the result block by block against the same
   stores, with an exit code, so the rules hold in the editing loop and again in
   CI with no assistant present.
@@ -268,4 +304,5 @@ second context model.
 - [Keep terms consistent](/kapi/recipes/terminology-qa) — building and enforcing the terms store.
 - [The project store](/kapi/project-store) — where the derived index of this context lives.
 - [Project file reference](/reference/project-file#profiles-and-channels) — the `profiles:` and `channel:` fields in full.
-- [`kapi context search`](/reference/commands/context-search) — the command's own flags and output.
+- [`kapi context`](/reference/commands/context) — the by-location verb's own flags and output.
+- [`kapi context search`](/reference/commands/context-search) — the by-content verb's.

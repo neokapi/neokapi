@@ -295,11 +295,26 @@ export interface MCPTool {
 }
 
 /**
- * The generated MCP reference: the tools a live `kapi mcp` server answers to,
- * collected over an in-memory transport so the published table is the
- * registration source rendered rather than a hand copy of it.
+ * One address a `kapi mcp` server answers reads at, as a client sees it on
+ * `resources/templates/list`. The mime type is the rendering the address
+ * carries by default; a resource is read, not called, which is why it has an
+ * address and no parameters.
+ */
+export interface MCPResource {
+  uriTemplate: string;
+  name: string;
+  title?: string;
+  description: string;
+  mimeType: string;
+}
+
+/**
+ * The generated MCP reference: the tools and resources a live `kapi mcp` server
+ * answers to, collected over an in-memory transport so the published tables are
+ * the registration source rendered rather than a hand copy of it.
  */
 export interface MCPDataset {
   generatedAt: string;
   tools: MCPTool[];
+  resources?: MCPResource[];
 }

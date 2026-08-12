@@ -432,7 +432,36 @@ type VoiceResolveOptions struct {
 // Returns (profile, source, found, error). found is false (with nil error)
 // when the project carries no voice binding and no convention file.
 func (a *App) ResolveVoiceProfile(ctx context.Context, proj *project.KapiProject, root string, opts VoiceResolveOptions) (*coreprofile.VoiceProfile, string, bool, error) {
-	profile, rc, src, found, err := a.LoadCollectionVoice(ctx, proj, root, opts)
+	profile, _, src, found, err := a.ResolveVoiceAtPoint(ctx, proj, root, opts)
+	return profile, src, found, err
+}
+
+// ResolveVoiceAtPoint is ResolveVoiceProfile plus the governance that selected
+// the voice. A caller reporting what applies at a location needs both halves —
+// the composed profile it would write against, and the point, channel and
+// validity window that chose it — and resolving them twice is how the two come
+// to disagree.
+func (a *App) ResolveVoiceAtPoint(ctx context.Context, proj *project.KapiProject, root string, opts VoiceResolveOptions) (*coreprofile.VoiceProfile, *project.ResolvedGovernance, string, bool, error) {
+	if proj == nil {
+		return nil, nil, "", false, nil
+	}
+	rc, err := proj.ResolveGovernanceFor(opts.Point)
+	if err != nil {
+		return nil, nil, "", false, err
+	}
+	profile, src, found, err := a.resolveVoiceForGovernance(ctx, root, voiceStorePath(opts.StorePath, root), rc, opts)
+	return profile, rc, src, found, err
+}
+
+// resolveVoiceForGovernance loads the voice an already-resolved governance binds
+// and composes the locale, channel and persona overrides onto it.
+//
+// The governance is passed in rather than resolved here because a caller that
+// reports the point AND the voice must resolve the point exactly once: two
+// resolutions of the same request is how a reported coordinate and the guidance
+// under it come to describe different places.
+func (a *App) resolveVoiceForGovernance(ctx context.Context, root, storePath string, rc *project.ResolvedGovernance, opts VoiceResolveOptions) (*coreprofile.VoiceProfile, string, bool, error) {
+	profile, src, found, err := a.loadVoiceAtGovernance(ctx, root, storePath, rc)
 	if err != nil || !found {
 		return nil, "", false, err
 	}
@@ -475,14 +504,30 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 	if proj == nil {
 		return nil, nil, "", false, nil
 	}
-	storePath := opts.StorePath
-	if storePath == "" {
-		storePath = filepath.Join(root, "brand.db")
-	}
-
 	rc, err := proj.ResolveGovernanceFor(opts.Point)
 	if err != nil {
 		return nil, nil, "", false, err
+	}
+	profile, src, found, lerr := a.loadVoiceAtGovernance(ctx, root, voiceStorePath(opts.StorePath, root), rc)
+	return profile, rc, src, found, lerr
+}
+
+// voiceStorePath defaults an unset local voice store to the project root's
+// (the CLI's flag-free default resolves against the working directory instead,
+// via its resource flags).
+func voiceStorePath(storePath, root string) string {
+	if storePath != "" {
+		return storePath
+	}
+	return filepath.Join(root, "brand.db")
+}
+
+// loadVoiceAtGovernance loads the voice profile an already-resolved governance
+// binds, AS AUTHORED — the ladder LoadCollectionVoice documents, once the point
+// itself has been resolved.
+func (a *App) loadVoiceAtGovernance(ctx context.Context, root, storePath string, rc *project.ResolvedGovernance) (*coreprofile.VoiceProfile, string, bool, error) {
+	if rc == nil {
+		return nil, "", false, nil
 	}
 	// A profile that binds no `voice:` of its own is answered by its own
 	// directory before the project default is: `.kapi/profiles/<name>/voice.yaml`
@@ -492,21 +537,21 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 		conv := filepath.Join(root, project.RelStatePath(project.ProfilesDirName, rc.Profile, VoiceConventionalName))
 		p, lerr := loadProfileFile(conv)
 		if lerr != nil {
-			return nil, rc, "", false, lerr
+			return nil, "", false, lerr
 		}
 		if p != nil {
-			return p, rc, conv, true, nil
+			return p, conv, true, nil
 		}
 	}
 	profile, src, found, err := a.loadBoundVoiceProfile(ctx, rc.Voice, root, storePath, rc.VoiceField)
 	if err != nil {
-		return nil, rc, "", false, err
+		return nil, "", false, err
 	}
 	if !found {
 		for _, conv := range voiceProfileConventions(root) {
 			p, lerr := loadProfileFile(conv)
 			if lerr != nil {
-				return nil, rc, "", false, lerr
+				return nil, "", false, lerr
 			}
 			if p != nil {
 				profile, src, found = p, conv, true
@@ -514,7 +559,7 @@ func (a *App) LoadCollectionVoice(ctx context.Context, proj *project.KapiProject
 			}
 		}
 	}
-	return profile, rc, src, found, nil
+	return profile, src, found, nil
 }
 
 // VoiceConventionalName is the voice profile's filename at a conventional

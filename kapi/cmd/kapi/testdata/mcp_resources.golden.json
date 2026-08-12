@@ -1,0 +1,12 @@
+[
+  {
+    "uri_template": "context://profile/{name}{?format}",
+    "name": "context-for-profile",
+    "mime_type": "text/markdown"
+  },
+  {
+    "uri_template": "context://{+path}{?format}",
+    "name": "context-at-location",
+    "mime_type": "text/markdown"
+  }
+]

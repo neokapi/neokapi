@@ -36,12 +36,24 @@ func TestCuratedToolsDoNotShadowPorcelain(t *testing.T) {
 		"pseudo-translate": "pseudo_translate",
 		"term_lookup":      "context_search",
 		"tm_search":        "context_search",
-		"voice_guide":      "context_search",
+		"voice_guide":      "the context:// resources",
 		"recycle":          "up (recycling is invisible by design)",
 		"diff-leverage":    "up",
 	}
 	for name, replacement := range porcelain {
 		assert.Falsef(t, agentFacingTools[name],
 			"%q duplicates %q on the agent surface — pick one", name, replacement)
+	}
+}
+
+// TestByLocationIsAddressedNotCalled: the by-location primitive is a RESOURCE,
+// not a tool. That is what lets its rendering be a property of the read — a
+// mime type on the response — rather than a second tool per shape, which is the
+// conflation that made `voice_guide` (voice only, by name only, markdown only)
+// three narrow decisions wearing one name.
+func TestByLocationIsAddressedNotCalled(t *testing.T) {
+	for _, name := range []string{"voice_guide", "context_at", "context_location"} {
+		assert.Falsef(t, agentFacingTools[name],
+			"%q would re-open the by-location primitive as a tool; it is served at context://", name)
 	}
 }
