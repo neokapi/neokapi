@@ -106,10 +106,60 @@ func TestFenceOpaqueToSegmenter(t *testing.T) {
 			for _, s := range segs {
 				assert.Equal(t, segMarkdown, s.kind,
 					"fenced content must not open an MDX region: %q", body[s.start:s.end])
-				assert.False(t, s.unterminated)
+				assert.Equal(t, defectNone, s.defect)
 			}
 		})
 	}
+}
+
+// TestWrappedCodeSpanIsNotJSX covers the other way code puts an angle-bracket
+// token at column 0: an inline code span that wraps across a line break. The
+// continuation line is prose, not a JSX element.
+func TestWrappedCodeSpanIsNotJSX(t *testing.T) {
+	bodies := map[string]string{
+		"wrapped placeholder": "Every command below is invoked as `kapi\n<command>` (e.g. `kapi init`). See\n[Installation](/install).\n",
+		"wrapped in a note":   ":::note\nRun `kapi translate --provider\n<name>` when a provider is needed.\n:::\n",
+		"wrapped brace":       "Set the value with `kapi config set\n{key}` before the run.\n",
+		"three-line span":     "Run `go run ./scripts/scan -src\n<dir>/src -class\n<Class> -out gen.go`.\n",
+	}
+	for name, body := range bodies {
+		t.Run(name, func(t *testing.T) {
+			segs := scanSegments([]byte(body))
+			for _, s := range segs {
+				assert.Equal(t, segMarkdown, s.kind,
+					"a wrapped code span must not open an MDX region: %q", body[s.start:s.end])
+			}
+			assert.Equal(t, body, string(roundTrip(t, []byte(body))))
+		})
+	}
+}
+
+// TestCodeSpanOpacityStopsAtABlankLine verifies the paragraph bound: a code
+// span cannot contain a blank line, so an unclosed backtick does not make the
+// rest of the document opaque to JSX detection.
+func TestCodeSpanOpacityStopsAtABlankLine(t *testing.T) {
+	body := []byte("A stray ` backtick.\n\n<Callout>\n\nchild\n\n</Callout>\n")
+	segs := scanSegments(body)
+	var sawJSX bool
+	for _, s := range segs {
+		if s.kind == segJSX {
+			sawJSX = true
+			assert.Equal(t, defectNone, s.defect)
+		}
+	}
+	assert.True(t, sawJSX, "the element after the blank line is still JSX")
+}
+
+// TestStrayClosingTagReported verifies a closing tag with no opening tag is
+// named as such — the region is that tag alone, not the document's tail.
+func TestStrayClosingTagReported(t *testing.T) {
+	src := []byte("# Title\n\nProse.\n\n</content>\n")
+	err := readErr(t, src)
+	var se *StrayClosingTagError
+	require.ErrorAs(t, err, &se)
+	assert.Equal(t, 5, se.Line)
+	assert.Equal(t, "</content>", se.Tag)
+	assert.Contains(t, se.Error(), "has no opening tag")
 }
 
 // TestFencedAngleBracketDocumentReadsCompletely is the #1860 regression at the
@@ -140,7 +190,7 @@ func TestFenceInJSXChildrenKeepsElementBalanced(t *testing.T) {
 	segs := scanSegments(src)
 	require.NotEmpty(t, segs)
 	assert.Equal(t, segJSX, segs[0].kind)
-	assert.False(t, segs[0].unterminated, "the fence must not swallow the closing tag")
+	assert.Equal(t, defectNone, segs[0].defect, "the fence must not swallow the closing tag")
 	assert.Equal(t, len("<Callout>\n\n```\n<binary> version\n```\n\n</Callout>\n"), segs[0].end)
 
 	assert.Contains(t, translatableTexts(t, src), "After the element.")

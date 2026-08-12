@@ -168,6 +168,58 @@ func codeSpanEnd(body []byte, pos int) (int, bool) {
 	return 0, false
 }
 
+// codeSpanCovers reports whether pos sits inside an inline code span that
+// opened earlier in the same paragraph.
+//
+// A code span may cross a line break, so a wrapped one puts code at the start
+// of a continuation line:
+//
+//	there is no separate `bowrain` binary. Every command below is invoked as `kapi
+//	<command>` (e.g. `kapi init`, `kapi push`).
+//
+// `<command>` begins that line at column 0 and is not a JSX element. The walk
+// starts at the paragraph's first line — a code span cannot contain a blank
+// line — and skips complete spans.
+func codeSpanCovers(body []byte, lineStart, pos int) bool {
+	for i := paragraphStart(body, lineStart); i < pos; {
+		if body[i] == '`' {
+			if end, ok := codeSpanEnd(body, i); ok {
+				if end > pos {
+					return true
+				}
+				i = end
+				continue
+			}
+		}
+		i++
+	}
+	return false
+}
+
+// paragraphStart returns the start of the run of non-blank lines ending at the
+// line beginning at lineStart.
+func paragraphStart(body []byte, lineStart int) int {
+	start := lineStart
+	for start > 0 {
+		prev := lineStartBefore(body, start)
+		if blankLineAt(body, prev) {
+			break
+		}
+		start = prev
+	}
+	return start
+}
+
+// lineStartBefore returns the start index of the line preceding the one
+// beginning at pos, which must be a line start greater than zero.
+func lineStartBefore(body []byte, pos int) int {
+	i := pos - 2 // step over the preceding line's LF
+	for i >= 0 && body[i] != '\n' {
+		i--
+	}
+	return i + 1
+}
+
 // blankLineAt reports whether the line beginning at pos is blank (only
 // spaces and tabs before its line ending), end of document included.
 func blankLineAt(body []byte, pos int) bool {
