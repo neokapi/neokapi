@@ -30,11 +30,11 @@ make's business:
 `make -j`.
 
 Stages 1 and 3 exist because
-[AD-038](../../web/docs/contribute/architecture/038-execution-trust.md) refuses a
+[E-06](../../web/docs/contribute/architecture/engine/e-06-execution-trust.md) refuses a
 recipe that names a subprocess — "a recipe is trusted" is exactly the assumption
 execution trust exists to disprove. So the extractors and the catalog compilers
 stay outside the recipe, and stay make's job. That is the whole justification; if
-AD-038 is ever revisited, both stages become recipe declarations and this
+E-06 is ever revisited, both stages become recipe declarations and this
 document loses half its content.
 
 Stage 2 is one `kapi up`, and it is the same verb the nightly runs and the same
@@ -258,7 +258,7 @@ reversibly.
 
 | Piece | One-line justification |
 | --- | --- |
-| `l10n-extract` (and the six extractors under it) | AD-038: a recipe may not name a subprocess |
+| `l10n-extract` (and the six extractors under it) | E-06: a recipe may not name a subprocess |
 | `l10n-compile` | same; no runtime loads a catalog directly — the SPAs load compiled dictionaries, the emails rendered HTML, the Go binaries embedded MO |
 | `l10n-converge` | the loop itself, one `kapi up` over the whole recipe |
 | `l10n-build` | the build tier with no loop in it: what the byte gate regenerates and what a pull request may safely have committed back |

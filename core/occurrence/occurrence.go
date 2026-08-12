@@ -2,7 +2,7 @@
 //
 // "Which blocks use this term, in which collection and document, and in which
 // language?" is the first cross-layer question the merged project store makes
-// answerable ([AD-039]). The terms and the blocks live in one file, so the
+// answerable ([C-03]). The terms and the blocks live in one file, so the
 // question is a join rather than two lookups and a merge in application code —
 // and it is answerable with no server and no account, which is the point: a
 // connected project asks bowrain the same question over more dimensions, not a
@@ -12,14 +12,14 @@
 //
 // The live join above is one answer; the same occurrences also settle into the
 // project's property graph. BuildGraph (graph.go) computes the uses_term /
-// in_collection subgraph — block nodes keyed on content key (AD-036), concept
+// in_collection subgraph — block nodes keyed on content key (F-03), concept
 // and collection nodes on their ids — which a host writer upserts into
 // `graph_nodes` / `graph_edges`. UsesInCollections then answers "term → blocks →
 // collection" by traversal, a walk the two-table join has no shape for. The
 // identity vocabulary the graph keys on lives in graph.go, settled: a block is
 // its content, a coordinate is edge data.
 //
-// [AD-039]: https://neokapi.org/docs/contribute/architecture/039-local-context-graph-store
+// [C-03]: https://neokapi.org/docs/contribute/architecture/context/c-03-context-store-and-graph
 package occurrence
 
 import (

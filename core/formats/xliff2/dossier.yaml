@@ -32,7 +32,7 @@ learning_materials:
   - web/docs/reference/formats/xliff2.mdx
   - scripts/gen-refs/nativedocs/formats/xliff2.yaml
   - web/docs/kapi/bilingual-workflow.mdx
-  - web/docs/contribute/architecture/017-bilingual-format-interop.md
+  - web/docs/contribute/architecture/multilingual/m-01-bilingual-interop.md
   - web/docs/reference/kbf/vs-xliff.mdx
   - docs/internals/research/xliff2-design.md
 divergences:

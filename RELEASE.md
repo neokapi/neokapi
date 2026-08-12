@@ -88,7 +88,7 @@ bowrain Windows step skips it automatically.
 | Build + publish | CI (`release.yml` / `release-bowrain.yml`) | kapi: kapi CLI, Kapi Desktop, cask, `cli.json`. bowrain: `kapi-bowrain` plugin, Bowrain Desktop, Docker images, cask, plugin registry |
 | macOS signing | CI | Desktop `.app`/DMG — Developer ID + notarized; kapi CLI darwin binaries — Developer ID + notarized via quill |
 | Windows signing | **local Mac** | kapi/desktop `.exe` — Authenticode via the Certum cert through SimplySign. The track is inferred from the tag prefix (`v*` vs `bowrain-v*`). |
-| Plugin trust | CI (`release-bowrain.yml`) | `kapi-bowrain` tarballs cosign/Sigstore-signed (supply-chain, not OS code signing — see [AD-007](web/docs/contribute/architecture/007-plugin-system.md)) |
+| Plugin trust | CI (`release-bowrain.yml`) | `kapi-bowrain` tarballs cosign/Sigstore-signed (supply-chain, not OS code signing — see [E-05](web/docs/contribute/architecture/engine/e-05-plugin-system.md)) |
 
 Why Windows is split out: the Certum certificate is held in Certum's cloud HSM and
 reached through **SimplySign Desktop**, which only runs on a logged-in Mac — it
@@ -215,5 +215,5 @@ GitHub Actions repo secrets used by `release.yml`:
 - [`scripts/publish-windows-signed.sh`](scripts/publish-windows-signed.sh) — local Windows signing
 - [`scripts/quill-sign-darwin.sh`](scripts/quill-sign-darwin.sh) — macOS CLI signing in CI
 - [`Brewfile`](Brewfile) — maintainer toolchain
-- [AD-007: Plugin System](web/docs/contribute/architecture/007-plugin-system.md) — plugin signing vs. OS notarization
+- [E-05: Plugin System](web/docs/contribute/architecture/engine/e-05-plugin-system.md) — plugin signing vs. OS notarization
 - Tracking issue: [#655](https://github.com/neokapi/neokapi/issues/655)

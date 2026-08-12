@@ -61,7 +61,7 @@ type WriterConfigurable interface {
 // buffered (collect-all-blocks) skeleton path; the file-run path only wires a
 // streaming skeleton store when both the reader (StreamingReader) and the writer
 // (StreamingWriter) opt in. See
-// [AD-005](../../web/docs/contribute/architecture/005-format-system.md)
+// [E-02](../../web/docs/contribute/architecture/engine/e-02-format-system.md)
 // "Streaming readers and bounded-memory I/O".
 type StreamingWriter interface {
 	// StreamingWriter marks the capability. As with StreamingReader, the method

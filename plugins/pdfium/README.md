@@ -4,7 +4,7 @@ A Mode-C (daemon over a Unix socket, gRPC `BridgeService`) kapi plugin that read
 PDFs with Google's **PDFium** via [go-pdfium](https://github.com/klippa-app/go-pdfium)
 (cgo). On native builds there is no in-core PDF reader, so this plugin supplies the
 `.pdf` format outright; the browser uses PDFium compiled to WebAssembly instead
-(`core/formats/pdf/wasm_bridge.go`). See [AD-028](../../web/docs/contribute/architecture/028-pdf-reader-plugin.md)
+(`core/formats/pdf/wasm_bridge.go`). See [E-08](../../web/docs/contribute/architecture/engine/e-08-document-structure-tiers.md)
 for the full subsystem design.
 
 - **Correct text**, including CID/Type0 fonts and CJK.

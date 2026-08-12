@@ -15,9 +15,9 @@ This hub deliberately cross-links rather than restates. The canonical companions
 | Topic | Document |
 |---|---|
 | Step-by-step "add a format" tutorial (reader/writer/Run handling) | `web/docs/contribute/formats.md` (published, correct) |
-| Format-system architecture decision | `web/docs/contribute/architecture/005-format-system.md` |
-| Bilingual format interop | `web/docs/contribute/architecture/017-bilingual-format-interop.md` |
-| Parity testing decision | `web/docs/contribute/architecture/018-parity-testing.md` |
+| Format-system architecture decision | `web/docs/contribute/architecture/engine/e-02-format-system.md` |
+| Bilingual format interop | `web/docs/contribute/architecture/multilingual/m-01-bilingual-interop.md` |
+| Parity testing decision | `web/docs/contribute/architecture/assurance/a-02-parity.md` |
 | Round-trip / three-engine test harness | `docs/internals/roundtrip-testing.md` |
 | General testing conventions | `docs/internals/TESTING.md` |
 | Interface signatures | `docs/internals/INTERFACES.md` |
@@ -62,7 +62,7 @@ tests must assert the error is surfaced.)
 - `Layer` — structural grouping; nests for embedded content.
 - `Block` — `Source []Run`, `Targets map[VariantKey]*Target`, `Properties`,
   `Annotations`, stand-off `Overlays`. There is **no structural `Segment`** —
-  segmentation is an opt-in overlay (AD-002).
+  segmentation is an opt-in overlay (F-02).
 - `Run` — a union: `Text` / `Ph` / `PcOpen`+`PcClose` (paired by a shared string
   ID) / `Sub` (→ child `Block`) / `Plural` / `Select`.
 
@@ -70,7 +70,7 @@ Inline markup lives **in runs** (verbatim in `Run.Data`), not in the text, so it
 survives translation. Writers render with `model.RenderRunsWithData(runs)`,
 never `SourceText()` (which drops codes). Notes land in
 `block.Annotations["note"]`. Formats populate `Block` fields directly — they do
-**not** use tool capability views (`Annotate`/`Translate`/`Transform`, AD-006);
+**not** use tool capability views (`Annotate`/`Translate`/`Transform`, E-03);
 those are for tools, not formats. Writer value-resolution, shared by every
 writer: if `w.Locale` is set **and** `block.HasTarget(w.Locale)` →
 `TargetRuns(w.Locale)`, else `SourceRuns()` / raw.

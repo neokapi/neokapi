@@ -608,7 +608,7 @@ type ToolConfig interface {
 `BaseTool` implements `Process` once and dispatches each Part to the matching
 handler. Embed it and set only the handlers you need; unset handlers pass the
 Part through unchanged. For Blocks, set exactly **one** capability-typed
-handler — the parameter type bounds what the tool may write (AD-006):
+handler — the parameter type bounds what the tool may write (E-03):
 
 ```go
 // PartHandler handles a single non-block Part.
@@ -938,7 +938,7 @@ retired layer. Two documents own the plugin contract:
   note.
 - The **runtime transport** — manifest discovery, dispatch, and the A/B/C
   transport modes — is described in
-  [AD-007: Plugin system](../../web/docs/contribute/architecture/007-plugin-system.md).
+  [E-05: Plugin system](../../web/docs/contribute/architecture/engine/e-05-plugin-system.md).
 
 ### Discovery and dispatch (`cli/pluginhost`)
 

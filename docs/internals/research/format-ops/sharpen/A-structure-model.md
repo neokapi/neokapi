@@ -287,7 +287,7 @@ is no page container, page size, or page-level layer.
 
 ---
 
-## 9. The "target-asset" model (#904 / AD-029) — image localization is a Media swap + path-pairing, NOT a model type
+## 9. The "target-asset" model (#904 / M-03) — image localization is a Media swap + path-pairing, NOT a model type
 
 `core/model/target.go` (the variant-keyed `Target`, `:83-88`) has **no** asset
 field. There is no `TargetAsset` type in `core/model`. The image-as-localizable-
@@ -295,10 +295,10 @@ asset model is split between `model.Media` and `core/project`:
 
 - **The asset itself** = `model.Media` (`core/model/media.go:7-17`): `Data` |
   `BlobKey` | `URI` (priority order), `MimeType`, `Filename`, `AltText`, `Size`,
-  `Properties`. Carried as `PartMedia` (`part.go:19`). AD-029 (`:44-50`): the
+  `Properties`. Carried as `PartMedia` (`part.go:19`). M-03 (`:44-50`): the
   image reader "always emits the picture as a `model.Media` part — the unit a
   localization flow can replace wholesale." The image never enters the part
-  stream as bytes — emitted **by URI** (AD-029 `:60-65`).
+  stream as bytes — emitted **by URI** (M-03 `:60-65`).
 - **Per-locale variant pairing** = `project.AssetVariant` (`core/project/asset.go:30-34`):
   ```go
   type AssetVariant struct {
@@ -314,7 +314,7 @@ asset model is split between `model.Media` and `core/project`:
   for `"image"`; for these, an existing localized variant on disk is
   authoritative (`kapi run`/`merge` keep it rather than reprocess the source).
 - **Alt-text / caption** = a linked translatable Block, not a Media field
-  (AD-029 `:67-80`): `image/reader.go:213-214` emits a caption block with
+  (M-03 `:67-80`): `image/reader.go:213-214` emits a caption block with
   `SetSemanticRole(RoleCaption,0)` + `AddRelation(RelCaptionOf, "img1")`.
   `Media.AltText` stays the source value for display; per-locale lives in the
   caption block's `Targets`.
@@ -348,8 +348,8 @@ across `core/`/`providers/` (non-test):
 | **image** (+ kapi-vision tier-3) | ✓ caption / via vision | metadata | — | ✓ via vision | ✓ caption-of | `formats/image/reader.go:213-214` |
 | **docmeta** (shared) | ✓ | ✓ metadata | — | — | — | `core/docmeta/docmeta.go:65,67` |
 
-The depth ladder the user named maps onto AD-028's tier model
-(`web/docs/contribute/architecture/028-pdf-reader-plugin.md`) and AD-029's modes:
+The depth ladder the user named maps onto E-08's tier model
+(`web/docs/contribute/architecture/engine/e-08-document-structure-tiers.md`) and M-03's modes:
 
 - **Tier 1** = authoritative tagged structure tree (tagged PDF, OOXML styles,
   DocLang/Docling native roles).
@@ -361,7 +361,7 @@ The depth ladder the user named maps onto AD-028's tier model
   PP-DocLayoutV3 region roles + reading order, lowered via `PartsFromLayout` /
   `StructureFromLayout` (`layout.go:111-183`). Format-agnostic over any raster.
 
-For an **image** specifically (AD-029 `:36-42`), the depth modes are exactly the
+For an **image** specifically (M-03 `:36-42`), the depth modes are exactly the
 user's ladder: Media-only (metadata) → alt-text/caption → in-image OCR text →
 OCR+layout structure (regions+reading order, tables to cells)+geometry.
 
