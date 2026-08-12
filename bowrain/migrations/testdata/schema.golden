@@ -385,6 +385,16 @@ change_log_archive.logged_at timestamp with time zone NOT NULL
 change_log_archive.project_id text NOT NULL
 change_log_archive.seq bigint NOT NULL
 change_log_archive.stream text NOT NULL DEFAULT 'main'::text
+channel_alias_proposals.collection text NOT NULL DEFAULT ''::text
+channel_alias_proposals.created_at timestamp with time zone NOT NULL DEFAULT now()
+channel_alias_proposals.evidence text NOT NULL DEFAULT ''::text
+channel_alias_proposals.existing_channel text NOT NULL
+channel_alias_proposals.profile text NOT NULL DEFAULT ''::text
+channel_alias_proposals.project_id text NOT NULL DEFAULT ''::text
+channel_alias_proposals.proposed_channel text NOT NULL
+channel_alias_proposals.status text NOT NULL DEFAULT 'proposed'::text
+channel_alias_proposals.updated_at timestamp with time zone NOT NULL DEFAULT now()
+channel_alias_proposals.workspace_id text NOT NULL
 collections.connector_config text NOT NULL DEFAULT '{}'::text
 collections.context text NOT NULL DEFAULT '{}'::text
 collections.context_hash text NOT NULL DEFAULT ''::text
@@ -1236,6 +1246,7 @@ brand_voice_corrections brand_voice_corrections_pkey PRIMARY KEY (id)
 brand_voice_scores brand_voice_scores_pkey PRIMARY KEY (id)
 change_log change_log_pkey PRIMARY KEY (seq)
 change_log_archive change_log_archive_pkey PRIMARY KEY (seq)
+channel_alias_proposals channel_alias_proposals_pkey PRIMARY KEY (workspace_id, profile, proposed_channel, existing_channel)
 collections collections_pkey PRIMARY KEY (project_id, id)
 collections collections_project_id_fkey FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 connector_configs connector_configs_pkey PRIMARY KEY (workspace_id, id)
@@ -1466,6 +1477,7 @@ CREATE INDEX idx_changelog_correlation ON public.change_log USING btree (project
 CREATE INDEX idx_changelog_project_locale ON public.change_log USING btree (project_id, locale, seq)
 CREATE INDEX idx_changelog_project_seq ON public.change_log USING btree (project_id, seq)
 CREATE INDEX idx_changelog_stream ON public.change_log USING btree (project_id, stream, seq)
+CREATE INDEX idx_channel_alias_proposals_ws ON public.channel_alias_proposals USING btree (workspace_id, status)
 CREATE INDEX idx_collections_project ON public.collections USING btree (project_id)
 CREATE INDEX idx_connector_configs_ws ON public.connector_configs USING btree (workspace_id)
 CREATE INDEX idx_convergence_runs_project ON public.convergence_runs USING btree (project_id, created_at DESC)
@@ -1638,6 +1650,7 @@ CREATE UNIQUE INDEX brand_voice_corrections_pkey ON public.brand_voice_correctio
 CREATE UNIQUE INDEX brand_voice_scores_pkey ON public.brand_voice_scores USING btree (id)
 CREATE UNIQUE INDEX change_log_archive_pkey ON public.change_log_archive USING btree (seq)
 CREATE UNIQUE INDEX change_log_pkey ON public.change_log USING btree (seq)
+CREATE UNIQUE INDEX channel_alias_proposals_pkey ON public.channel_alias_proposals USING btree (workspace_id, profile, proposed_channel, existing_channel)
 CREATE UNIQUE INDEX collections_pkey ON public.collections USING btree (project_id, id)
 CREATE UNIQUE INDEX connector_configs_pkey ON public.connector_configs USING btree (workspace_id, id)
 CREATE UNIQUE INDEX convergence_run_events_pkey ON public.convergence_run_events USING btree (run_id, seq)
