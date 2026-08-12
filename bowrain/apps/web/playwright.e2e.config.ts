@@ -9,6 +9,7 @@ export default defineConfig({
   testMatch: [
     "brand-scan-onboarding.spec.ts",
     "claim-flow.spec.ts",
+    "context-explorer.spec.ts",
     "editor-happy-path.spec.ts",
     "open-in-desktop.spec.ts",
     "routing.spec.ts",

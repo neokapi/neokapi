@@ -31,6 +31,7 @@ import {
   Shield,
   Lock,
   Layers,
+  Compass,
   Network,
   FlaskConical,
   Activity,
@@ -235,6 +236,9 @@ export const subNavConfig = (): Record<string, SubNavItem[]> => ({
     // everything below is read at one of them. "Brand" is the default point's
     // label here, not the name of the surface.
     { id: "profiles", label: t("Profiles"), icon: <Layers /> },
+    // Standing somewhere and asking, rather than browsing one kind of thing:
+    // the explorer answers at a point, so it sits beside the points themselves.
+    { id: "explorer", label: t("Explorer"), icon: <Compass /> },
     { id: "concepts", label: t("Concepts"), icon: <Network /> },
     { id: "voice", label: t("Voice"), icon: <Palette /> },
     { id: "memory", label: t("Content memory"), icon: <Brain /> },

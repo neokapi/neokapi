@@ -104,6 +104,17 @@ describe("ScopeFilterBar", () => {
     expect(within(bar).queryByLabelText("Project")).not.toBeInTheDocument();
     expect(within(bar).getByText("site")).toBeInTheDocument();
   });
+
+  it("drops a dimension the source claims but the mount pins", () => {
+    // The source can answer across projects; this mount shows exactly one. A
+    // picker that renders and then refuses to move is worse than none.
+    const overreaching = makePinnedSource();
+    overreaching.capabilities = { ...overreaching.capabilities, free: ["project", "collection"] };
+    mountPinned(<ScopeFilterBar />, overreaching);
+    const bar = screen.getByTestId("scope-filter-bar");
+    expect(within(bar).queryByLabelText("Project")).not.toBeInTheDocument();
+    expect(within(bar).getByLabelText("Collection")).toBeInTheDocument();
+  });
 });
 
 describe("GovernsPane", () => {

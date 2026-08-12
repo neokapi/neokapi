@@ -380,6 +380,7 @@ export function WorkspaceLayout() {
     if (activeView !== "context") return undefined;
     const contextPath = `/${workspaceSlug}/context`;
     const rest = pathname.slice(contextPath.length).replace(/^\//, "");
+    if (rest.startsWith("explorer")) return "explorer";
     if (rest.startsWith("concepts")) return "concepts";
     if (rest.startsWith("voice")) return "voice";
     if (rest.startsWith("memory")) return "memory";

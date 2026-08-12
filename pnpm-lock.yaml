@@ -500,6 +500,9 @@ importers:
 
   bowrain/packages/app:
     dependencies:
+      '@neokapi/context-explorer':
+        specifier: '*'
+        version: link:../../../packages/context-explorer
       '@neokapi/flow-editor':
         specifier: '*'
         version: link:../../../packages/flow-editor
@@ -588,6 +591,9 @@ importers:
       '@neokapi/concept-ui':
         specifier: '*'
         version: link:../../../packages/concept-ui
+      '@neokapi/context-explorer':
+        specifier: '*'
+        version: link:../../../packages/context-explorer
       '@neokapi/contract-types':
         specifier: '*'
         version: link:../../../packages/contract-types

@@ -945,6 +945,15 @@ export type {
   BrandDashboardViewProps,
 } from "./brand-hub";
 
+// Context explorer — the framework component set (@neokapi/context-explorer)
+// with the dimensions free, over the workspace's own endpoints.
+export { ExplorerSection } from "./context-explorer/ExplorerSection";
+export type { ExplorerSectionProps } from "./context-explorer/ExplorerSection";
+export {
+  createRestContextSource,
+  WORKSPACE_FREE_DIMENSIONS,
+} from "./context-explorer/restContextSource";
+
 // Brand knowledge graph value exports (ordered constant arrays)
 export { RELATION_TYPES, OBSERVATION_KINDS, CHANGE_SET_STATUSES } from "./types/brand-graph";
 export type {
