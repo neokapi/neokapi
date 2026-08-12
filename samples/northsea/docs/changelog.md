@@ -20,16 +20,17 @@ names that have since been retired.
 Compass now calls a place alongside a **berth** everywhere in the interface and
 in this documentation. It was previously called a *mooring*.
 
-The API is unchanged: `mooring_id` remains `mooring_id`, because the field is
-part of the published contract and renaming it would break every integration
-that reads it. Entries in this changelog written before today keep the old word.
+The API is unchanged. The field that identifies the place stays exactly as it is,
+because it is part of the published contract and renaming it would break every
+integration that reads it. Entries in this changelog written before today keep
+the old word.
 
 ## 2025-11-04 — Compass 4.1
 
 - Mooring attributes gained a services column, so shore power, fresh water, and
   waste reception are visible in the plan.
-- The mooring list now hides moorings whose draught cannot accept the selected
-  vessel, rather than showing them as unavailable.
+- The list now hides any place alongside whose draught cannot accept the
+  selected vessel, rather than showing it as unavailable.
 
 ## 2025-09-16 — Tidewatch 2.0
 

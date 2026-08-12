@@ -57,10 +57,6 @@ vocabulary:
       replacement: use
       note: Business register; Northsea writes plainly
       severity: minor
-    - term: ship
-      replacement: vessel
-      note: The arrivals model calls everything a vessel; "ship" is the casual word
-      severity: major
 examples:
   - before: "Our seamless platform leverages best-in-class forecasting to guarantee safe movements."
     after: "Tidewatch compares the forecast with the constraints of the berth, and raises an alert when a movement stops being safe."
