@@ -48,25 +48,54 @@ type SeedContextResult struct {
 	Entries     int `json:"entries,omitempty"`
 	// Skipped counts sources already in the store at their current digest.
 	Skipped int `json:"skipped,omitempty"`
+	// Record reports the committed translations absorbed after the bundles —
+	// the other half of the rebuild (AD-009).
+	Record RecordAbsorbResult `json:"record,omitzero"`
 }
 
 // Compiled reports whether the pass wrote anything into the store.
 func (r SeedContextResult) Compiled() bool {
-	return r.TermsFiles > 0 || r.MemoryFiles > 0
+	return r.TermsFiles > 0 || r.MemoryFiles > 0 || r.Record.Absorbed()
 }
 
 // formatSeedLine renders a seeding pass as the one line a run prints before the
 // plan header — what git carried into the store this time.
 func formatSeedLine(r SeedContextResult) string {
+	var head string
 	switch {
 	case r.TermsFiles > 0 && r.MemoryFiles > 0:
-		return fmt.Sprintf("seeded: %d concept(s) and %d content-memory entry(ies) from %d committed source(s)",
+		head = fmt.Sprintf("seeded: %d concept(s) and %d content-memory entry(ies) from %d committed source(s)",
 			r.Concepts, r.Entries, r.TermsFiles+r.MemoryFiles)
 	case r.TermsFiles > 0:
-		return fmt.Sprintf("seeded: %d concept(s) from the committed terms source", r.Concepts)
-	default:
-		return fmt.Sprintf("seeded: %d content-memory entry(ies) from %d committed bundle(s)", r.Entries, r.MemoryFiles)
+		head = fmt.Sprintf("seeded: %d concept(s) from the committed terms source", r.Concepts)
+	case r.MemoryFiles > 0:
+		head = fmt.Sprintf("seeded: %d content-memory entry(ies) from %d committed bundle(s)", r.Entries, r.MemoryFiles)
 	}
+	rec := formatRecordLine(r.Record)
+	switch {
+	case head == "":
+		return rec
+	case rec == "":
+		return head
+	}
+	return head + "\n" + rec
+}
+
+// formatRecordLine renders what the committed translations taught the store, or
+// "" when they taught it nothing.
+func formatRecordLine(r RecordAbsorbResult) string {
+	if !r.Absorbed() {
+		return ""
+	}
+	line := fmt.Sprintf("absorbed: %d pair(s) from %d committed target document(s) — %d learned, %d reconciled",
+		r.Pairs, r.Documents, r.Learned, r.Reconciled)
+	if r.Contested > 0 {
+		line += fmt.Sprintf("; %d source string(s) the record answers more than one way", r.Contested)
+	}
+	if r.Refused > 0 {
+		line += fmt.Sprintf("; %d pair(s) refused for dropped inline codes", r.Refused)
+	}
+	return line
 }
 
 // contextSource is one committed context bundle a seeding pass considers.
@@ -115,14 +144,6 @@ func (a *App) SeedProjectContext(ctx context.Context, projectPath string) (SeedC
 	if err != nil {
 		return res, err
 	}
-	if len(sources) == 0 {
-		// Nothing committed: leave the store — and its stamps — untouched rather
-		// than opening it to record an empty map. A source that disappears while
-		// others remain is forgotten by the rebuild below; one that disappears
-		// alone costs a stale key, and the entries it compiled stay in the store
-		// either way (the importers upsert, they never delete).
-		return res, nil
-	}
 
 	db, err := a.ProjectDB(ctx, layout.Root)
 	if err != nil {
@@ -169,9 +190,23 @@ func (a *App) SeedProjectContext(ctx context.Context, projectPath string) (SeedC
 	}
 	// The stamp map is rebuilt from the sources this pass saw rather than merged
 	// into the stored one, so a bundle deleted from git stops being remembered.
-	if err := saveContextDigests(ctx, db, next); err != nil {
-		return res, err
+	// It is saved only when there were sources at all: a project with none is
+	// left with its stamps as they were rather than having an empty map written
+	// over them.
+	if len(sources) > 0 {
+		if err := saveContextDigests(ctx, db, next); err != nil {
+			return res, err
+		}
 	}
+
+	// The committed translations, after the bundles and never before them: on the
+	// pass that compiles both — a fresh clone — the record answers last, which is
+	// what makes the reviewed wording git carries supersede the accelerant.
+	record, rerr := a.absorbCommittedRecord(ctx, db, proj, projectPath, layout)
+	if rerr != nil {
+		return res, rerr
+	}
+	res.Record = record
 	return res, nil
 }
 

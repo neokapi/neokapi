@@ -226,11 +226,33 @@ terms store ([AD-010](010-terminology.md)), which is *source*, the memory is
   reconstructs from the committed translations (the per-locale `i18n/{lang}/`
   target catalogs) plus the human-curated, **read-only** committed
   `.memory.json` *seeds*. A cold or clobbered store is a performance hit,
-  not data loss. The rebuild happens on the read path: the convergence loop
-  compiles every committed bundle under `.kapi/memory/` — not only the primary
-  bound by `defaults.memory_source` — before it runs, keyed by each file's
-  content digest, so a fresh clone has its reviewed leverage without an explicit
-  import and an unchanged bundle costs a read and no writes.
+  not data loss. The rebuild happens on the read path, in two stages, both keyed
+  by content digest so an unchanged input costs a read and no writes:
+
+  1. **the seeds** — every committed bundle under `.kapi/memory/`, not only the
+     primary bound by `defaults.memory_source`.
+  2. **the committed translations** — each collection's per-locale target
+     document, paired with its source through the collection's own binding (the
+     same reader and format config on both sides) and absorbed as source→target
+     pairs. This is the half that carries wording no bundle holds: a translation
+     approved at a venue reaches git as the target artifact, and without reading
+     it back the reviewed wording lives in exactly one place that nothing in the
+     pipeline can see.
+
+  The record is absorbed **after** the seeds, so on the pass that compiles both —
+  a fresh clone — the committed translation supersedes the accelerant. Afterwards
+  each input has had its say and the stamp decides: only an artifact whose bytes
+  moved is applied again, which is what lets a later seed edit, a venue pull or
+  an approval stand rather than being overwritten by an unchanged file. A run
+  stamps the targets it writes itself, so a convergence never reads its own
+  output back as if a person had committed it.
+
+  Two rules keep the absorbed record honest. A pair whose target does not carry
+  its source's inline codes is refused rather than stored (`model.DiffRunCodes` —
+  the same predicate `recycle` fills by). And where the record answers one source
+  string more than one way, the answer the corpus repeats most often wins: no
+  text-keyed store can hold both, and holding both makes every occurrence
+  unfillable through the ambiguity rule above.
 - because it is additive and rebuildable it needs **no locking**: it tolerates
   last-write-wins or per-branch cache keys, unlike Terraform state, which must be
   locked because it is irreplaceable.

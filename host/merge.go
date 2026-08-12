@@ -295,6 +295,21 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 	// One write for the whole pass, not one per materialized block.
 	absorber := a.newMemoryAbsorber(tm)
 
+	// Materializing means writing what the store produced. A locale the store
+	// holds no target for produces source fallback for every block, and writing
+	// that over the committed translations destroys them — the exact loss on a
+	// fresh clone, where the catalogs are complete (so the loop correctly runs no
+	// pass, having nothing pending) and the block store is empty (so it has
+	// nothing to say). Silence is the honest output for a store with nothing to
+	// say; the locale's standing is what coverage already reports.
+	locales, err = localesWithStoredTargets(ctx, store, locales)
+	if err != nil {
+		return 0, fmt.Errorf("merge: read the stored targets: %w", err)
+	}
+	if len(locales) == 0 {
+		return 0, nil
+	}
+
 	written := 0
 	for _, f := range files {
 		srcFormat := f.Format
@@ -364,6 +379,29 @@ func (a *App) materializeFromProjectStore(ctx context.Context, out io.Writer, pr
 	}
 
 	return written, nil
+}
+
+// localesWithStoredTargets narrows a materialize pass to the locales the block
+// store actually holds a target for, preserving the caller's order. One overlay
+// is enough: the question is whether the store has anything to say about the
+// locale at all, not how far along it is.
+func localesWithStoredTargets(ctx context.Context, store blockstore.Store, locales []model.LocaleID) ([]model.LocaleID, error) {
+	sess, err := store.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer sess.Close()
+	var out []model.LocaleID
+	for _, locale := range locales {
+		for _, oerr := range sess.ListOverlays("targets/" + string(locale)) {
+			if oerr != nil {
+				return nil, oerr
+			}
+			out = append(out, locale)
+			break
+		}
+	}
+	return out, nil
 }
 
 // absorbStoreTargets reads the source blocks, applies the stored
