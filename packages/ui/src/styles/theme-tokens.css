@@ -9,7 +9,7 @@
 
 /* Prose/typeset layer — the `.typeset` styling for rendered markdown, imported
  * here so every consumer of theme-tokens.css picks it up with no per-app CSS
- * wiring (see components/ui/markdown.tsx + implementation/markdown-in-ui.md).
+ * wiring (see components/ui/markdown.tsx + implementation/repo/markdown-in-ui.md).
  * Kept at the top: CSS requires @import before other rules. */
 @import "./typeset.css";
 
