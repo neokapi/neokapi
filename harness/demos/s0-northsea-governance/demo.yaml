@@ -8,8 +8,8 @@ publishAs: monolingual-governance
 # real and its output is recorded exactly. Nothing here reaches a network.
 #
 # Two `kapi check --strict` runs exit 3 on purpose — a failing gate is the point
-# of acts 3 and 4 — so each declares `expectExit: 3`. A run where either passes
-# is a broken take: the acts that follow have nothing to correct.
+# of acts 3 and 4 — and each declares it with `expectExit: 3`, so a take where
+# the gate silently passed would fail the capture instead of shipping.
 terminal: shell
 brand: kapi
 cwd: ~/northsea
@@ -47,7 +47,7 @@ script:
   - command: kapi voice validate .kapi/voice.yaml
   - comment: You corrected a draft instead of writing one. Commit it, and the graph is versioned, diffable, reviewed source.
   - command: git add -A && git commit -qm "Adopt the context graph" && git log --oneline -1
-  - comment: One verb reconciles the committed sources into the store.
+  - comment: One verb reconciles the committed graph and the sources. No target languages, no provider, nothing to ask for.
   - command: kapi up
 
   # --- 2. Ask where you are ------------------------------------------------
@@ -59,21 +59,23 @@ script:
   - command: kapi context search mooring
 
   # --- 3. Checks are tests for prose ---------------------------------------
-  - comment: Now run the gates the way you run tests. Two findings, two different surfaces.
+  - comment: Now run the gates the way you run tests.
+  # The gate must fail here: one major finding is the substance of this beat.
   - command: kapi check --strict
     expectExit: 3
   - comment: The same run, in the shape CI reads.
   - command: kapi check --json --no-fail > findings.json
 
   # --- 4. Corrections teach the graph --------------------------------------
-  - comment: Both are wording the source got wrong, so correct the source.
+  - comment: Three of those are wording the source got wrong, so correct the source.
   - command: ksed -i 's/our seamless integration/our unified integration/' landing/index.html
+  - command: ksed -i 's/Release a mooring earlier/Release a berth earlier/' docs/berths.md
   - command: ksed -i 's/by ship name/by vessel name/' app/strings.en.json
   - comment: The reviewer also spots a word the graph has never been told about — "dock", where Northsea says berth. That is a decision, not an edit.
-  - command: echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"deprecated","replacement":"berth"}' > decisions.jsonl
-  - command: echo '{"kind":"voice","op":"add-rule","list":"forbidden","term":"dock","replacement":"berth","severity":"major"}' >> decisions.jsonl
+  - command: echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
   - command: kapi apply decisions.jsonl
   - comment: The graph learned. The next check finds what the last one passed.
+  # And again here: a decision that changed nothing would be no decision at all.
   - command: kapi check --strict
     expectExit: 3
   - command: ksed -i 's/could not dock when the pilot called/could not reach its berth when the pilot called/' landing/index.html
@@ -82,8 +84,8 @@ script:
   - comment: Converge, and read where you stand.
   - command: kapi up
   - command: kapi status
-  - comment: The pre-ship bar — every gate the project binds, over every surface.
-  - command: kapi check --ship
+  - comment: Green. What is left is the changelog and the API reference keeping a name the vocabulary retired — advisory, never blocking.
+  - command: kapi check --strict
 
 artifacts:
   - id: landing
@@ -127,8 +129,9 @@ narration:
       The recipe binds each surface to a point. The product is the profile; the
       channel is the surface it ships on. Nothing declares a taxonomy beside the
       content — the space is read out of what the recipe already says. Commit
-      it, and the graph is versioned, diffable, reviewed source.
-    caption: "committed: the graph is now reviewed source"
+      it, and one verb reconciles the graph with the sources. There is no second
+      pipeline, and nothing to sign in to.
+    caption: "committed, then converged — no target languages needed"
 
   - id: landing
     kind: artifact
@@ -152,19 +155,21 @@ narration:
     kind: terminal
     text: >
       Second, by content. Northsea renamed a place alongside from mooring to
-      berth. The graph answers with both halves: mooring is discouraged, say
-      berth — and the API field mooring underscore i-d is admitted, because the
-      wire contract keeps the name the vocabulary retired.
-    caption: "by content: the decision, and where it stops"
+      berth. The graph answers with both halves — mooring is discouraged, say
+      berth; the API field mooring underscore i-d is admitted, because the wire
+      contract keeps the name the vocabulary retired — and with every place each
+      one is actually used, and which surface it is used on.
+    caption: "by content: the decision, and everywhere it lands"
 
   - id: check
     kind: terminal
     text: >
-      Then the gates run the way tests run. Two findings, on two different
-      surfaces: a word the voice profile bans on the marketing page, and a
-      retired term inside an interface string. Each names the rule, the point it
-      is scoped to, and the fix. Exit code three, like a failing test.
-    caption: "two findings, two points, exit 3"
+      Then the gates run the way tests run. A banned word on the marketing page,
+      major. A retired term still in the documentation and in an interface
+      string, minor — because retiring a word should never fail somebody's
+      build. Each finding names the rule, the point it is scoped to, and the
+      fix.
+    caption: "one major, the rest advisory"
 
   - id: findings
     kind: artifact
@@ -177,20 +182,21 @@ narration:
   - id: correct
     kind: terminal
     text: >
-      Two of those are simply wrong wording, so the source is corrected. The
-      third is different. A reviewer notices the word dock on the landing page —
+      Three of those are simply wrong wording, so the source is corrected. The
+      fourth is different. A reviewer notices the word dock on the landing page —
       Northsea says berth — and the graph has never been told. That is a
-      decision, not an edit, so it is written down as one: a term entry for the
-      record, a voice rule for the gate.
+      decision, not an edit, so it is written down as one: a single entry, in
+      the vocabulary the whole project reads.
     caption: "a correction the graph keeps"
 
   - id: learned
     kind: terminal
     text: >
-      Run the check again and it finds what the previous run passed. The graph
-      learned from the work, not from a workshop. Fix the last one, converge,
-      and every gate the project binds is green — on a project with one language,
-      no server, and no credential.
+      Run the check again and it finds what the previous run passed. One
+      decision reached both the record and the gate. Fix the last one, converge,
+      and the project is green — with one language, no server, and no
+      credential. What remains is the changelog and the API reference keeping a
+      name the vocabulary retired, which the gate reports and never blocks.
     caption: "the next check enforces the decision"
 
   - id: outro

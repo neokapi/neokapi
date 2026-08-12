@@ -4,6 +4,13 @@ export interface RunResult {
   code: number | null;
   stdout: string;
   stderr: string;
+  /**
+   * Both streams in the order the chunks arrived — what a terminal would have
+   * shown. A recording that concatenates stdout and then stderr reorders any
+   * command that reports progress on one and its result on the other, which
+   * puts the answer above the work that produced it.
+   */
+  combined: string;
   timedOut: boolean;
 }
 
@@ -18,16 +25,20 @@ export function run(
     const child = spawn(cmd, args, { ...spawnOpts, stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
+    let combined = "";
     let timedOut = false;
     let timer: NodeJS.Timeout | undefined;
 
     child.stdout?.on("data", (d) => {
       const s = d.toString();
       stdout += s;
+      combined += s;
       onStdout?.(s);
     });
     child.stderr?.on("data", (d) => {
-      stderr += d.toString();
+      const s = d.toString();
+      stderr += s;
+      combined += s;
     });
     child.on("error", (err) => {
       if (timer) clearTimeout(timer);
@@ -35,7 +46,7 @@ export function run(
     });
     child.on("close", (code) => {
       if (timer) clearTimeout(timer);
-      resolve({ code, stdout, stderr, timedOut });
+      resolve({ code, stdout, stderr, combined, timedOut });
     });
 
     if (timeoutMs) {

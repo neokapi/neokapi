@@ -92,26 +92,40 @@ Terms
 ```
 
 **What the recipe cannot yet say.** The rename is not in the enforced
-vocabulary, and that is deliberate: `.kapi/voice.yaml` is the only surface a
-monolingual check enforces, its vocabulary is project-wide, and both the
-changelog and the API reference carry the retired word legitimately. A
-channel override cannot narrow vocabulary — `ChannelOverride` carries a tone and
-a style and nothing else — so today the ban would be everywhere or nowhere. The
-point beneath the file that would permit the retired name in exactly those two
-places is the open case named at the end of
+vocabulary, because it does not need to be. A **deprecated** term is enforced
+as a **minor** finding — retiring a word never fails anybody's build — so the
+changelog and the API reference keep the retired name, the gate says so, and
+nothing is blocked. The record and the gate agree without an exception
+mechanism.
+
+What is still missing is the exception itself. A vocabulary decision is
+project-wide: a channel override carries a tone and a style and no vocabulary,
+and a profile's `terms:` splits on the *product* axis, so there is no way to say
+"permitted in these two files". The point beneath the file that would say it is
+the open case named at the end of
 [C-02](../../web/docs/contribute/architecture/context/c-02-coordinates-and-governance.md).
-Until it exists, the rename lives in the record, where retrieval answers it, and
-the two historical surfaces are simply true.
+Until it exists, the advisory severity is what makes the arrangement liveable.
+
+The API reference also shows a defect rather than a limit. Two of its findings
+are on `mooring_id` — a term the graph separately declares **admitted** — being
+reported as the retired `mooring`, because the terms matcher matches substrings
+and does not prefer the longest declared term
+([#1914](https://github.com/neokapi/neokapi/issues/1914)). The voice-profile
+half of the same gate matches whole words. Those two findings are the bug, not
+the rename.
 
 ## The enforced vocabulary
 
-`.kapi/voice.yaml` bans two things a reader can check for, and the sample ships
-one violation of each so the gate has something to find:
+Two rules, from two sources, and the sample ships one violation of each:
 
-| Rule | Where the sample violates it | Point |
-| --- | --- | --- |
-| `seamless` → `unified` (major) | `landing/index.html`, in the Compass section | `northsea/landing` |
-| `ship` → `vessel` (major) | `app/strings.en.json`, `fleet.search.placeholder` | `northsea/app` |
+| Rule | Source | Severity | Where the sample violates it | Point |
+| --- | --- | --- | --- | --- |
+| `seamless` → `unified` | `.kapi/voice.yaml` | major | `landing/index.html`, Compass section | `northsea/landing` |
+| `ship` → `vessel` | `.kapi/terms.json` (deprecated) | minor | `app/strings.en.json`, `fleet.search.placeholder` | `northsea/app` |
+
+The severity difference is the point. A word the voice profile forbids is a
+defect; a word the vocabulary retired is a migration, and a migration that fails
+builds is a migration nobody finishes.
 
 A third word, `dock`, appears in the landing page testimonial and is **not**
 decided yet. It is the sample's correction: a reviewer decides it during the
@@ -123,36 +137,47 @@ From a copy of this directory (the commands assume kapi on `PATH`):
 
 ```bash
 kapi voice validate .kapi/voice.yaml      # the drafted profile is schema-valid
+kapi up                                   # reconcile the graph and the sources
 kapi context docs/berths.md               # where am I, and what governs here
-kapi context search mooring               # what do we call this, and why
-kapi check --strict                       # two findings, two points — exit 3
+kapi context search mooring               # what do we call this, and everywhere it lands
+kapi check --strict                       # exit 3 — one major, the rest advisory
 ```
 
-Correct the two violations, then teach the graph the third word:
+`kapi up` comes before the two questions on purpose: it is what compiles the
+committed terms into the store and builds the occurrence graph, so
+`kapi context search` can answer *where* a word is used and not only what it
+means.
+
+Correct the wording the source got wrong, then teach the graph a word it has
+never been told about:
 
 ```bash
 ksed -i 's/our seamless integration/our unified integration/' landing/index.html
+ksed -i 's/Release a mooring earlier/Release a berth earlier/' docs/berths.md
 ksed -i 's/by ship name/by vessel name/' app/strings.en.json
 
-echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"deprecated","replacement":"berth"}'  > decisions.jsonl
-echo '{"kind":"voice","op":"add-rule","list":"forbidden","term":"dock","replacement":"berth","severity":"major"}' >> decisions.jsonl
-kapi apply decisions.jsonl                # the decision lands in both records
-kapi check --strict                       # now it finds "dock" — exit 3
+echo '{"kind":"term","op":"upsert","term":"dock","locale":"en-GB","status":"forbidden","replacement":"berth"}' > decisions.jsonl
+kapi apply decisions.jsonl                # one entry, reaching record and gate
+kapi check --strict                       # now it finds "dock", major — exit 3
 ```
 
-Fix the last one and the gate is green:
+One entry is the whole decision. `forbidden` is chosen over `deprecated`
+deliberately: `dock` is a word Northsea does not use, not a name it is migrating
+away from, so it should stop a build.
+
+Fix the last one and converge:
 
 ```bash
 ksed -i 's/could not dock when the pilot called/could not reach its berth when the pilot called/' landing/index.html
-kapi check --strict                        # 100/100, exit 0
-kapi check --ship                          # voice, terminology and QA gates all pass
+kapi up                                    # 3 source files changed, re-extracted
+kapi status                                # the source axis, on one line
+kapi check --strict                        # exit 0, with four advisory findings left
 ```
 
-The change-set carries **both** a `term` entry and a `voice` entry for one
-decision. That is not redundancy: the term entry is the vocabulary record that
-retrieval answers from, and the voice entry is what a monolingual check
-enforces. A single decision has to reach both until the source-side terms gate
-exists ([#1904](https://github.com/neokapi/neokapi/issues/1904)).
+`kapi check --ship` runs the same gates plus the ship and source coverage gates
+and also passes here; it is left out of the recorded walkthrough only because
+its finding locations are still absolute paths
+([#1906](https://github.com/neokapi/neokapi/issues/1906), item 5).
 
 ## Every file round-trips
 
@@ -166,15 +191,26 @@ edited joins its sibling tags directly, the way extraction parity requires.
 
 ## Known gaps this sample exercises
 
-Running the journey above is also how these were found. Each is filed, and none
-of them is worked around in the sample beyond what is noted here.
+Running the journey is how these were found. The blockers are fixed; what is
+left is filed and visible in the sample's own output rather than worked around.
 
 | Gap | Issue |
 | --- | --- |
-| `kapi up` does not converge a project with no target languages; it seeds the context and then stops, and `kapi status` has nothing to report either | [#1900](https://github.com/neokapi/neokapi/issues/1900) |
-| `kapi context <path>` answers from the committed terms document while `kapi context search` answers from the derived store, so the two disagree until something has seeded the store | [#1901](https://github.com/neokapi/neokapi/issues/1901) |
-| `kapi apply` strips the comments from `.kapi/voice.yaml` the first time a `voice` entry lands | [#1903](https://github.com/neokapi/neokapi/issues/1903) |
-| No terms gate runs on a monolingual project, which is why one decision has to be written as two change-set entries | [#1904](https://github.com/neokapi/neokapi/issues/1904) |
+| The terms half of the gate matches substrings and ignores the longer declared term, so `mooring_id` — separately declared admitted — reports as the retired `mooring`. Two of the sample's four remaining findings are this | [#1914](https://github.com/neokapi/neokapi/issues/1914) |
+| A replacement handed to `kapi apply` never reaches the finding it should fix, because the concept it creates has no preferred sibling. The walkthrough's decision beat lands without a suggested fix | [#1915](https://github.com/neokapi/neokapi/issues/1915) |
+| `kapi check --ship` prints absolute paths in finding locations, where `kapi check` prints project-relative ones. This is why the walkthrough ends on `--strict` | [#1906](https://github.com/neokapi/neokapi/issues/1906) |
+| No point beneath the file, so a vocabulary decision cannot carry an exception for the two surfaces that legitimately keep a retired name. Advisory severity is what makes that liveable today | [C-02](../../web/docs/contribute/architecture/context/c-02-coordinates-and-governance.md) |
+
+Fixed while this sample was being built, each found by running the journey on
+it: [#1900](https://github.com/neokapi/neokapi/issues/1900) (monolingual
+`kapi up` and `kapi status`),
+[#1901](https://github.com/neokapi/neokapi/issues/1901) (the two retrieval
+surfaces disagreeing), [#1902](https://github.com/neokapi/neokapi/issues/1902)
+(the HTML writer reflowing an unedited document),
+[#1903](https://github.com/neokapi/neokapi/issues/1903) (`kapi apply` losing a
+governance file's comments), and
+[#1904](https://github.com/neokapi/neokapi/issues/1904) (no terms gate on a
+monolingual project).
 
 ## Where it is used
 

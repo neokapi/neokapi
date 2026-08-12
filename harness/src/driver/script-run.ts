@@ -85,7 +85,9 @@ export async function runScriptSteps(steps: ScriptStep[], opts: ScriptRunOptions
     events.push({ i: i++, kind: "command", text: command });
 
     const r = await sh(command, { cwd: opts.cwd, env: opts.env, timeoutMs: opts.timeoutMs });
-    let out = [r.stdout, r.stderr].filter((s) => s && s.trim()).join("\n").replace(/\n+$/, "");
+    // Both streams in arrival order, so a command that reports progress on
+    // stderr and its result on stdout records the way it read in the terminal.
+    let out = r.combined.replace(/\n+$/, "");
     if (opts.clean) out = opts.clean(out);
 
     const failed = r.code !== 0;
