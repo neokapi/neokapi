@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T03:55:43Z",
+  "generatedAt": "2026-08-12T16:44:22Z",
   "commands": [
     {
       "id": "add",
@@ -95,6 +95,12 @@
           "usage": "print the apply report as JSON",
           "default": "false",
           "type": "bool"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
         },
         {
           "name": "source-lang",
@@ -642,6 +648,12 @@
         {
           "name": "name",
           "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
           "type": "string"
         }
       ],
