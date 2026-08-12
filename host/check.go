@@ -17,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // checkReport wraps the canonical, platform-agnostic core/check.Report so the
@@ -132,6 +133,25 @@ func (a *App) checkProjectSources(cmd Command) ([]string, error) {
 	return files, nil
 }
 
+// applyProjectSourceLang adopts the project's declared source language when the
+// caller did not name one. Best-effort: no project, or one that will not load,
+// leaves the resolved language as it stands — that is the file-only shape, which
+// has no project language to adopt.
+func (a *App) applyProjectSourceLang(cmd Command) {
+	if cmd == nil || cmd.Flags().Changed("source-lang") {
+		return
+	}
+	path, err := ResolveProjectPath(cmd)
+	if err != nil || path == "" {
+		return
+	}
+	proj, err := project.LoadWithOptions(path, project.LoadOptions{SkipRequiresCheck: true})
+	if err != nil || proj.Defaults.SourceLanguage == "" {
+		return
+	}
+	a.SourceLang = string(proj.Defaults.SourceLanguage)
+}
+
 // runShipCheck is `kapi check --ship`: the project gate mode that absorbed the
 // retired `kapi verify` (#1078 C1) — kapi retires spellings outright rather than
 // carrying aliases, so this is now the only way in. It routes through the shared
@@ -198,6 +218,13 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		args = expanded
 	}
 
+	// The project's own source language, unless the caller named one. A term
+	// lookup matches the locale exactly, so content read in the wrong language
+	// is held to no vocabulary at all — and the flag's static default ("en")
+	// would otherwise shadow a project that writes en-GB. `check --ship` maps
+	// the same default for the same reason.
+	a.applyProjectSourceLang(cmd)
+
 	voice, err := a.newCheckVoice(cmd)
 	if err != nil {
 		return check.Report{}, err
@@ -209,6 +236,16 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 	}
 
 	opts := checkRunOptions{}
+	// The vocabulary the project decided travels with the profile: a term
+	// retired in the project's terms is a finding here, not only in retrieval.
+	// Opened once for the whole run rather than per file — every file in a
+	// project resolves the same store.
+	tb, releaseTerms, err := a.vocabularyTerms(cmd)
+	if err != nil {
+		return check.Report{}, err
+	}
+	defer releaseTerms()
+	opts.terms = tb
 	opts.maxChars, _ = cmd.Flags().GetInt("max-chars")
 	opts.maxWords, _ = cmd.Flags().GetInt("max-words")
 	opts.forbid, _ = cmd.Flags().GetStringSlice("forbid")
@@ -372,7 +409,11 @@ func applyStrictValidationGate(report *check.Report) {
 
 // checkRunOptions carries the resolved generic-check configuration.
 type checkRunOptions struct {
-	profile  *profile.VoiceProfile
+	profile *profile.VoiceProfile
+	// terms is the project's terms store, when it binds one: the vocabulary the
+	// project decided, enforced beside the profile's own lists. nil for a run
+	// with no project or no terminology.
+	terms    terms.Terminology
 	maxChars int
 	maxWords int
 	forbid   []string
@@ -421,7 +462,7 @@ func (a *App) collectFileDiagnostics(ctx context.Context, blocks []*model.Block,
 
 	// Brand vocabulary — separate annotation; runs when a profile is bound.
 	if opts.profile != nil {
-		vocab := coretools.NewVoiceVocabCheckTool(opts.profile, nil)
+		vocab := coretools.NewVoiceVocabCheckTool(opts.profile, opts.terms).InSourceLocale(model.LocaleID(a.SourceLang))
 		for _, b := range blocks {
 			if err := RunCheckTool(ctx, vocab, b); err != nil {
 				return nil, fmt.Errorf("voice vocabulary check %s: %w", DisplayName(file), err)

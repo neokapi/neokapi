@@ -21,7 +21,6 @@
 package project
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -32,6 +31,7 @@ import (
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/yamledit"
 
 	"gopkg.in/yaml.v3"
 )
@@ -561,6 +561,14 @@ func (c *Collection) IsBareEntry() bool {
 // For bare entries it wraps the promoted fields as a single-item slice
 // (carrying the bare entry's Extras through, so platform-specific per-item
 // fields survive).
+//
+// The collection's languages fold in the same way its base does: an item that
+// declares none of its own carries the collection's, so a consumer holding an
+// effective item needs no second lookup to know which languages apply to it.
+// Every host path resolves an item's languages with no collection in hand
+// (`ResolvedTargetLanguages(nil, defaults)`), so without this a collection-level
+// `target_languages:` was invisible to coverage, checks, the plan and the
+// convergence fan-out alike — declared in the recipe and silently unused.
 func (c *Collection) EffectiveItems() []ContentItem {
 	var items []ContentItem
 	if c.IsBareEntry() {
@@ -573,6 +581,14 @@ func (c *Collection) EffectiveItems() []ContentItem {
 	} else {
 		items = make([]ContentItem, len(c.Content))
 		copy(items, c.Content)
+	}
+	for i := range items {
+		if items[i].SourceLanguage == "" {
+			items[i].SourceLanguage = c.SourceLanguage
+		}
+		if len(items[i].TargetLanguages) == 0 {
+			items[i].TargetLanguages = c.TargetLanguages
+		}
 	}
 	if c.Base == "" {
 		return items
@@ -647,6 +663,28 @@ func (item *ContentItem) ResolvedTargetLanguages(coll *Collection, defaults Defa
 		return coll.TargetLanguages
 	}
 	return defaults.TargetLanguages
+}
+
+// DeclaresTargetLanguages reports whether the recipe names a target language
+// anywhere its content could be written to one: in `defaults.target_languages`,
+// or on a collection or item that also declares a target template. False means
+// the project is MONOLINGUAL — there is no per-language work to plan, price or
+// run, so a caller must not ask for an AI provider or quote a translation cost.
+//
+// It reads the recipe only: no glob expands, nothing is stat-ed. A caller that
+// needs the locales themselves resolves the content instead.
+func (p *KapiProject) DeclaresTargetLanguages() bool {
+	if len(p.Defaults.TargetLanguages) > 0 {
+		return true
+	}
+	for i := range p.Collections {
+		for _, item := range p.Collections[i].EffectiveItems() {
+			if item.Target != "" && len(item.TargetLanguages) > 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // FormatSpec is the per-item format override.
@@ -764,28 +802,23 @@ func LoadWithOptions(path string, opts LoadOptions) (*KapiProject, error) {
 	return &proj, nil
 }
 
-// Save writes a .kapi project file to the given path.
+// Save writes a recipe to the given path, keeping the comments and key order of
+// whatever recipe is already there and writing nothing at all when the
+// serialization is unchanged (core/yamledit).
+//
+// A recipe is committed, human-authored source — `kapi init` scaffolds it with a
+// commented tutorial — so a verb that touches one binding must not take the
+// explanation with it. And a save that writes nothing new is worse than untidy
+// here: the recipe sits at the repo root, which the erasure gate classifies as
+// foreign, so a convergence run that rewrote it — identical content and all — is
+// refused by name.
 func Save(path string, proj *KapiProject) error {
 	if proj.Version == "" {
 		proj.Version = CurrentVersion
 	}
-
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-	if err := enc.Encode(proj); err != nil {
-		return fmt.Errorf("marshal project: %w", err)
-	}
-
-	// Atomic write: temp file + rename to avoid corruption on crash.
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, buf.Bytes(), 0o644); err != nil {
+	if _, err := yamledit.WriteFile(path, proj, 0o644); err != nil {
 		return fmt.Errorf("write project file: %w", err)
 	}
-	if err := os.Rename(tmp, path); err != nil {
-		return fmt.Errorf("rename project file: %w", err)
-	}
-
 	return nil
 }
 

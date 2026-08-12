@@ -53,6 +53,10 @@ type UpPlanOutput struct {
 	// Subscription is true when that provider bills a personal subscription
 	// (claude-code): the token estimate is scale, not a metered API cost.
 	Subscription bool `json:"subscription,omitempty"`
+	// Monolingual reports a project that resolves no target locale: there is no
+	// per-language work to price. An empty Scopes list otherwise means the work
+	// is already done, and the two must not read the same.
+	Monolingual bool `json:"monolingual,omitempty"`
 	// Note documents the estimation method for agents reading the JSON.
 	Note string `json:"note"`
 }
@@ -66,6 +70,10 @@ const upPlanSubscriptionNote = "AI work runs on your Claude subscription — the
 
 // FormatText renders the plan as a table.
 func (o UpPlanOutput) FormatText(w io.Writer) error {
+	if o.Monolingual {
+		fmt.Fprintln(w, "No target languages configured: `kapi up` reconciles the source — it seeds the committed context, re-extracts the working tree and refreshes the occurrence graph. Nothing is translated and no provider is called.")
+		return nil
+	}
 	if len(o.Scopes) == 0 {
 		fmt.Fprintln(w, "Nothing to do: every unit has a committed target.")
 		return nil
@@ -177,6 +185,7 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	if err != nil {
 		return plan, err
 	}
+	plan.Monolingual = !proj.DeclaresTargetLanguages()
 	a.applyPlanProvider(&plan)
 	return plan, nil
 }

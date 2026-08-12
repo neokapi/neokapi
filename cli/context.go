@@ -133,9 +133,12 @@ terminology match and a wording match are not scored on comparable things.`,
 
 	cmd.Flags().StringP("locale", "l", "", "narrow results to one language")
 	cmd.Flags().Int("limit", host.DefaultContextSearchLimit, "max results per group")
-	// The same store-resolution flags every other store verb carries. Without
-	// them this command would resolve stores differently from `terms` and
-	// `memory` — a parity break inside the CLI, before MCP even enters it.
+	// The same project- and store-resolution flags every other project verb
+	// carries. Without them this command would resolve stores differently from
+	// `terms` and `memory` — a parity break inside the CLI, before MCP even
+	// enters it — and it could only ever be pointed at a project by standing in
+	// it, which no run under the isolation contract can do.
+	AddProjectFlag(cmd)
 	AddResourceFlags(cmd)
 	return cmd
 }

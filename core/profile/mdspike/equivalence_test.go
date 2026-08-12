@@ -8,9 +8,9 @@ import (
 
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/mdspike"
+	"github.com/neokapi/neokapi/core/yamledit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
 // repoRelative paths from this package to the two committed profiles. Named as
@@ -115,30 +115,31 @@ func TestHouseRulesAreDuplicatedToday(t *testing.T) {
 	}
 }
 
-// TestCommittedProfileIsMachineRewritten is the constraint that decides how far
-// a new authoring format can go. `kapi apply` with a brand add-rule entry does
-// not patch the committed profile — host.applyVoiceEntry loads it, upserts the
-// rule, and writes the whole struct back with yaml.Marshal
-// (host/apply_assets.go:723). Struct marshalling emits no comments, so the
-// header on each committed profile — including the one recording that the house
-// rules are duplicated — does not survive the first applied rule.
+// TestCommittedProfileSurvivesAWriteBack is the constraint that decides how far
+// a new authoring format can go. `kapi apply` with a voice add-rule entry loads
+// the committed profile, upserts the rule and writes it back
+// (host.writeProfileYAML), so a write-back that marshalled the struct over the
+// file would take the header with it — including the one recording that the
+// house rules are duplicated. The write goes through core/yamledit instead: the
+// value supplies the data, the document supplies its own commentary, and an
+// unchanged profile re-renders byte for byte.
 //
 // The read side of a markdown form is easy. This is the side that is not: a
 // write-back that marshals the *resolved* profile would inline every inherited
 // house rule into the child and silently undo the composition.
-func TestCommittedProfileIsMachineRewritten(t *testing.T) {
+func TestCommittedProfileSurvivesAWriteBack(t *testing.T) {
 	original, err := os.ReadFile(bowrainYAML)
 	require.NoError(t, err)
 	require.Contains(t, string(original), "duplicated from .kapi/voice.yaml",
 		"the committed file explains its own duplication in a comment")
 
-	// The same marshal host.writeProfileYAML performs.
-	rewritten, err := yaml.Marshal(loadYAML(t, bowrainYAML))
+	rewritten, err := yamledit.Marshal(original, loadYAML(t, bowrainYAML))
 	require.NoError(t, err)
 
-	assert.NotContains(t, string(rewritten), "duplicated from .kapi/voice.yaml",
-		"an applied rule rewrites the file and drops the comment")
-	assert.NotEqual(t, string(original), string(rewritten))
+	assert.Contains(t, string(rewritten), "duplicated from .kapi/voice.yaml",
+		"an applied rule must not drop the file's account of itself")
+	assert.Equal(t, string(original), string(rewritten),
+		"and a profile that did not change is not rewritten at all")
 }
 
 // TestInheritanceDeclaresHouseRulesOnce shows the resolved profile carrying the

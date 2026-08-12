@@ -23,6 +23,7 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/terms"
 )
 
 // Gate names for the project gates (`kapi check --ship`).
@@ -341,7 +342,19 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 			gates = append(gates, shipGate)
 		}
 		if proj.HasSourceGate() {
-			srcGate, err := a.verifySourceGate(CmdContext(cmd), proj, shipUnits)
+			// The source gate measures the source, so with no files named it
+			// reads the project's source content directly rather than the
+			// per-locale pairing: a monolingual project has a source to gate
+			// even though it resolves no unit. Named files are already their own
+			// source in shipUnits.
+			srcUnits := shipUnits
+			if len(args) == 0 {
+				srcUnits, err = a.SourceUnitsFromProject(proj, root)
+				if err != nil {
+					return verifyOutput{}, fmt.Errorf("resolve source content: %w", err)
+				}
+			}
+			srcGate, err := a.verifySourceGate(CmdContext(cmd), proj, srcUnits)
 			if err != nil {
 				return verifyOutput{}, err
 			}
@@ -495,6 +508,28 @@ func (a *App) projectTermsBound(cmd Command) (bool, error) {
 	return db.HasTerms(ctx)
 }
 
+// vocabularyTerms opens the terms store the vocabulary check enforces against,
+// with the release the caller must run. A project that binds no terminology gets
+// (nil, no-op, nil): the check then holds content to the voice profile's own
+// lists alone, which is the whole rule set such a project has.
+//
+// A store that is bound and will not open is an ERROR, not a nil store. Passing
+// nil is what a caller does when there is nothing to enforce, so degrading to it
+// here would report a project whose vocabulary could not be read as one that has
+// none — the gate silently narrowed to the profile while the report says it ran.
+func (a *App) vocabularyTerms(cmd Command) (terms.Terminology, func(), error) {
+	noop := func() {}
+	bound, err := a.projectTermsBound(cmd)
+	if err != nil || !bound {
+		return nil, noop, err
+	}
+	tb, _, release, err := a.OpenTermsSQLite(cmd)
+	if err != nil {
+		return nil, noop, fmt.Errorf("open the project terms for the vocabulary check: %w", err)
+	}
+	return tb, release, nil
+}
+
 // --- voice gate -------------------------------------------------------------
 
 // verifyVoice scores the source-language content against the project's bound
@@ -522,6 +557,13 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 	gate := verifyGateResult{Gate: gateVoice, Pass: true, Findings: []verifyFinding{}}
 	ctx := CmdContext(cmd)
 
+	// The project's own vocabulary, enforced beside the profile's lists.
+	tb, releaseTerms, err := a.vocabularyTerms(cmd)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseTerms()
+
 	governed := false
 	var allFindings []coreprofile.VoiceFinding
 	for _, f := range files {
@@ -537,7 +579,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		if rerr != nil {
 			return nil, fmt.Errorf("voice: read %s: %w", f, rerr)
 		}
-		vocab := coretools.NewVoiceVocabCheckTool(profile, nil)
+		vocab := coretools.NewVoiceVocabCheckTool(profile, tb).InSourceLocale(model.LocaleID(a.SourceLang))
 		for _, b := range blocks {
 			findings, verr := runVoiceVocabOnBlock(ctx, vocab, b)
 			if verr != nil {
@@ -707,6 +749,41 @@ func (a *App) UnitsFromProject(proj *project.KapiProject, root string, localeFil
 				DisplayPath: rel,
 			})
 		}
+	}
+	return units, nil
+}
+
+// SourceUnitsFromProject expands the project's content to one unit per declared
+// SOURCE file — no target, no locale. It is what the source-side derivations
+// (source readiness, the source gate) measure, because the source exists whether
+// or not the project has a target language to carry it into.
+//
+// UnitsFromProject cannot serve them: it pairs each source with a target per
+// locale, so a monolingual project resolves zero units and every source-side
+// answer computed over them reported an empty corpus — a project with content
+// read as having none.
+func (a *App) SourceUnitsFromProject(proj *project.KapiProject, root string) ([]VerifyUnit, error) {
+	ctx := project.NewProjectContext(proj, filepath.Join(root, "x.kapi"))
+	resolved, err := ctx.ResolveContent(a.FormatReg)
+	if err != nil {
+		return nil, err
+	}
+	seen := make(map[string]bool, len(resolved))
+	units := make([]VerifyUnit, 0, len(resolved))
+	for _, rf := range resolved {
+		if seen[rf.Path] {
+			continue
+		}
+		seen[rf.Path] = true
+		rel, relErr := filepath.Rel(root, rf.Path)
+		if relErr != nil {
+			rel = rf.Path
+		}
+		units = append(units, VerifyUnit{
+			SourcePath:  rf.Path,
+			Collection:  rf.Collection,
+			DisplayPath: rel,
+		})
 	}
 	return units, nil
 }

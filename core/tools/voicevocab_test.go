@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -245,15 +246,15 @@ func TestVoiceVocabCheckTermsConceptID(t *testing.T) {
 			ID:     "concept-cheap",
 			Source: terms.TermSourceBrandVocabulary,
 			Terms: []terms.Term{
-				{Text: "cheap", Locale: "", Status: model.TermForbidden},
-				{Text: "affordable", Locale: "", Status: model.TermPreferred},
+				{Text: "cheap", Locale: "en", Status: model.TermForbidden},
+				{Text: "affordable", Locale: "en", Status: model.TermPreferred},
 			},
 		},
 		Term:     terms.Term{Text: "cheap", Status: model.TermForbidden},
 		Position: model.TextRange{Start: 10, End: 15},
 	}}}
 
-	tool := tools.NewVoiceVocabCheckTool(nil, tb)
+	tool := tools.NewVoiceVocabCheckTool(nil, tb).InSourceLocale("en")
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -288,7 +289,7 @@ func TestVoiceVocabCheckTermsStandaloneConcept(t *testing.T) {
 		Position: model.TextRange{Start: 10, End: 15},
 	}}}
 
-	tool := tools.NewVoiceVocabCheckTool(nil, tb)
+	tool := tools.NewVoiceVocabCheckTool(nil, tb).InSourceLocale("en")
 
 	ctx := t.Context()
 	in := make(chan *model.Part, 1)
@@ -497,4 +498,129 @@ func TestVoiceVocabCheckAddsAnnotation(t *testing.T) {
 	assert.Equal(t, "voice-1", bva.ProfileID)
 	assert.Less(t, bva.Score, 100)
 	assert.Len(t, bva.Findings, 1)
+}
+
+// TestVoiceVocabCheckTermsStatuses: the vocabulary the project decided is
+// enforced from whichever source recorded it, and a retired term is a finding
+// carrying the preferred word as its fix. A brand-vocabulary-only filter
+// enforced a source `kapi apply` never writes to, so a term decision was visible
+// to retrieval and invisible to every gate.
+func TestVoiceVocabCheckTermsStatuses(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name         string
+		status       model.TermStatus
+		source       terms.TermSource
+		competitor   bool
+		wantFinding  bool
+		wantSeverity check.Severity
+		wantMessage  string
+	}{
+		{
+			name: "forbidden brand term", status: model.TermForbidden,
+			source:      terms.TermSourceBrandVocabulary,
+			wantFinding: true, wantSeverity: coreprofile.SeverityMajor, wantMessage: "Forbidden term",
+		},
+		{
+			name: "retired terminology term", status: model.TermDeprecated,
+			source:      terms.TermSourceTerminology,
+			wantFinding: true, wantSeverity: coreprofile.SeverityMinor, wantMessage: "Retired term",
+		},
+		{
+			name: "competitor term", status: model.TermAdmitted,
+			source:      terms.TermSourceTerminology,
+			competitor:  true,
+			wantFinding: true, wantSeverity: coreprofile.SeverityCritical, wantMessage: "Competitor term",
+		},
+		{
+			name: "admitted term is not a finding", status: model.TermAdmitted,
+			source: terms.TermSourceTerminology,
+		},
+		{
+			name: "preferred term is not a finding", status: model.TermPreferred,
+			source: terms.TermSourceTerminology,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tb := &fakeTerminology{matches: []terms.TermMatch{{
+				Concept: terms.Concept{
+					ID:     "c-mooring",
+					Source: tt.source,
+					Terms: []terms.Term{
+						{Text: "mooring", Locale: "en", Status: tt.status},
+						{Text: "berth", Locale: "en", Status: model.TermPreferred},
+					},
+				},
+				Term:     terms.Term{Text: "mooring", Locale: "en", Status: tt.status, CompetitorTerm: tt.competitor},
+				Position: model.TextRange{Start: 6, End: 13},
+			}}}
+
+			tool := tools.NewVoiceVocabCheckTool(nil, tb).InSourceLocale("en")
+			in := make(chan *model.Part, 1)
+			out := make(chan *model.Part, 1)
+			in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu1", "Every mooring is allocated")}
+			close(in)
+			require.NoError(t, tool.Process(t.Context(), in, out))
+
+			block := (<-out).Resource.(*model.Block)
+			ann, ok := model.AnnoAs[*coreprofile.VoiceAnnotation](block, "voice")
+			if !tt.wantFinding {
+				assert.False(t, ok, "a term in good standing is not a finding")
+				return
+			}
+			require.True(t, ok)
+			require.Len(t, ann.Findings, 1)
+			assert.Equal(t, tt.wantSeverity, ann.Findings[0].Severity)
+			assert.Contains(t, ann.Findings[0].Message, tt.wantMessage)
+			assert.Equal(t, "berth", ann.Findings[0].Metadata["replacement"],
+				"the preferred term in the same language is the fix")
+		})
+	}
+}
+
+// TestVoiceVocabCheckLooksUpTheSourceLanguage: the lookup matches a locale
+// exactly, so the tool asks in the language its content is written in — and in
+// the bare language beneath a regional one, since a vocabulary recorded as `en`
+// governs en-GB text just as much.
+func TestVoiceVocabCheckLooksUpTheSourceLanguage(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		locale model.LocaleID
+		want   []model.LocaleID
+	}{
+		{name: "regional locale asks in both", locale: "en-GB", want: []model.LocaleID{"en-GB", "en"}},
+		{name: "bare language asks once", locale: "nb", want: []model.LocaleID{"nb"}},
+		{name: "posix spelling", locale: "pt_BR", want: []model.LocaleID{"pt_BR", "pt"}},
+		{name: "no locale asks nothing", locale: "", want: nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tb := &recordingTerminology{}
+			tool := tools.NewVoiceVocabCheckTool(nil, tb).InSourceLocale(tt.locale)
+			in := make(chan *model.Part, 1)
+			out := make(chan *model.Part, 1)
+			in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu1", "Every mooring is allocated")}
+			close(in)
+			require.NoError(t, tool.Process(t.Context(), in, out))
+			<-out
+			assert.Equal(t, tt.want, tb.asked)
+		})
+	}
+}
+
+// recordingTerminology records the locales a lookup asked in, and finds nothing.
+type recordingTerminology struct {
+	fakeTerminology
+	asked []model.LocaleID
+}
+
+func (r *recordingTerminology) LookupAll(_ context.Context, _ string, opts terms.LookupOptions) ([]terms.TermMatch, error) {
+	r.asked = append(r.asked, opts.SourceLocale)
+	return nil, nil
 }

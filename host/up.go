@@ -15,6 +15,9 @@ import (
 // before executing — cost visibility before any tokens burn.
 func formatPlanLine(plan UpPlanOutput) string {
 	t := plan.Totals
+	if plan.Monolingual {
+		return "plan: no target languages — reconciling the source only"
+	}
 	if t.MissingTarget == 0 {
 		return "plan: every unit has a committed target — verifying gates"
 	}
@@ -132,8 +135,15 @@ func (a *App) ExecuteUp(cmd Command, projectPath string) error {
 	// none is configured anywhere and this is a terminal, walk through
 	// the compact provider wizard inline, then continue. Non-TTY runs
 	// keep the existing keys-only error path.
-	if err := a.EnsureAIProviderInteractive(cmd); err != nil {
-		return err
+	//
+	// A monolingual project is asked for none: it makes no provider calls, so
+	// demanding a key would stop the front-door journey — and in CI, where the
+	// wizard cannot run, stop it with an error about a provider nothing was
+	// going to use.
+	if proj.DeclaresTargetLanguages() {
+		if err := a.EnsureAIProviderInteractive(cmd); err != nil {
+			return err
+		}
 	}
 
 	passes, _ := cmd.Flags().GetInt("passes")

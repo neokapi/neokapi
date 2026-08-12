@@ -22,6 +22,10 @@ type StatusOutput struct {
 	Project string           `json:"project,omitempty"`
 	Source  *SourceCoverage  `json:"source,omitempty"`
 	Locales []LocaleCoverage `json:"locales"`
+	// Monolingual reports a project that names no target language. Its empty
+	// Locales list is then a fact about the project, not a project whose content
+	// has not been tracked yet, and the two need different reports.
+	Monolingual bool `json:"monolingual,omitempty"`
 	// Server is the connected-server delta, contributed by the bowrain plugin's
 	// server-status plumbing when the recipe binds a convergence venue. Absent
 	// for a pure local project. The cli module stays platform-neutral: it is
@@ -136,7 +140,11 @@ func (o StatusOutput) FormatText(w io.Writer) error {
 	if len(o.Locales) == 0 {
 		// The server and venue standing still render below: a connected
 		// project with nothing tracked yet must not hide where `up` would run.
-		fmt.Fprintln(w, "No target content tracked (no content collections with target locales).")
+		if o.Monolingual {
+			fmt.Fprintln(w, "Monolingual project: no target languages configured, so there is no per-language standing to report.")
+		} else {
+			fmt.Fprintln(w, "No target content tracked (no content collections with target locales).")
+		}
 	} else {
 		o.writeCoverageGrid(w)
 	}
@@ -541,12 +549,20 @@ func (a *App) RunStatus(cmd Command, _ []string) error {
 			return a.emitShipManifest(cmd, BuildShipManifest(cov))
 		}
 
-		src, err := a.computeSourceReadiness(cmd.Context(), proj, units)
+		// Source readiness is measured over the project's SOURCE files, not over
+		// the target units: the author's content stands whether or not a target
+		// language carries it anywhere. Read from the units, a monolingual
+		// project reported no source at all — the one axis it does have.
+		srcUnits, err := a.SourceUnitsFromProject(proj, root)
+		if err != nil {
+			return fmt.Errorf("resolve source content: %w", err)
+		}
+		src, err := a.computeSourceReadiness(cmd.Context(), proj, srcUnits)
 		if err != nil {
 			return fmt.Errorf("compute source readiness: %w", err)
 		}
 
-		out := StatusOutput{Project: proj.Name, Locales: cov}
+		out := StatusOutput{Project: proj.Name, Locales: cov, Monolingual: !proj.DeclaresTargetLanguages()}
 		if src.Total > 0 {
 			out.Source = &src
 		}

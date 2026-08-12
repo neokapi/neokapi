@@ -71,5 +71,11 @@ writes nothing. No AI provider is required.`,
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
 	f.StringVar(&a.Encoding, "encoding", "UTF-8", "input/output encoding")
 	inPlaceFlag = RegisterInPlace(f, "keep a backup of edited content files with --in-place=.bak")
+	// Asset entries are written into the project's committed sources, so apply
+	// is a project verb and names its project the way every other one does.
+	// Resolving only by walking up from the cwd made it unusable from anywhere
+	// but inside the tree — and unusable at all under the isolation contract,
+	// where discovery is off.
+	AddProjectFlag(cmd)
 	return cmd
 }
