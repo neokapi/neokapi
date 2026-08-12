@@ -237,7 +237,7 @@ collections:
 	a := &App{SourceLang: "en"}
 	cmd := newVoiceCheckCmd(a)
 
-	glossary, err := a.ResolveProjectGlossaryFor(cmd, "fr", "press-docs")
+	glossary, err := a.ResolveProjectGlossaryFor(cmd, "fr", project.GovernancePoint{Collection: "press-docs"})
 	require.NoError(t, err)
 	require.Len(t, glossary, 1)
 	assert.Equal(t, "Cancel", glossary[0].Source)

@@ -16,13 +16,13 @@ func TestProfileHitsRenderTheWindow(t *testing.T) {
 	windows := []project.ProfileWindow{
 		{Name: "spring-sale", Validity: &coregraph.Validity{ValidFrom: &from, ValidTo: &to}},
 	}
-	hits := profileHits(windows)
+	hits := profileHits(windows, time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC))
 	require.Len(t, hits, 1)
 	assert.Equal(t, "spring-sale", hits[0].Name)
 	assert.Equal(t, "2026-01-01", hits[0].ValidFrom, "midnight bounds render as bare dates")
 	assert.Equal(t, "2026-07-01", hits[0].ValidTo)
 
-	assert.Nil(t, profileHits(nil))
+	assert.Nil(t, profileHits(nil, time.Now()))
 }
 
 func TestValidityState(t *testing.T) {

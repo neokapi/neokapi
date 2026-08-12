@@ -451,14 +451,14 @@ func unboundGate(gate, binding, flag string) verifyGateResult {
 // terminology binding it does not have, and the gate would never be able to say
 // there is nothing to check.
 func (a *App) projectTermsBound(cmd Command) (bool, error) {
-	sel, err := a.ResolveTermsStore(cmd, "")
+	sel, err := a.ResolveTermsStore(cmd, project.GovernancePoint{})
 	if err != nil {
 		return false, err
 	}
 	if sel.Path != "" {
 		return true, nil
 	}
-	srcPath, err := a.resolveProjectTermsSourcePath(cmd, "")
+	srcPath, err := a.resolveProjectTermsSourcePath(cmd, project.GovernancePoint{})
 	if err != nil {
 		return false, err
 	}
@@ -483,12 +483,13 @@ func (a *App) projectTermsBound(cmd Command) (bool, error) {
 // profile — the gate only runs when there is something to check. Reuses the
 // voice check path (NewVoiceVocabCheckTool + CalculateScore).
 func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, args []string) (*verifyGateResult, error) {
-	profile, _, found, err := a.resolveProjectVoiceProfile(cmd, "", "", "")
+	// The voice is resolved per file, at the point that file sits at, so a gate
+	// over a governed project scores each file against the vocabulary in force
+	// there. A project binding no voice anywhere resolves none for any file and
+	// contributes no gate.
+	voice, err := a.newCheckVoice(cmd)
 	if err != nil {
 		return nil, err
-	}
-	if !found || profile == nil {
-		return nil, nil
 	}
 
 	minScore, _ := cmd.Flags().GetInt("min-score")
@@ -502,8 +503,17 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 	gate := verifyGateResult{Gate: gateVoice, Pass: true, Findings: []verifyFinding{}}
 	ctx := CmdContext(cmd)
 
+	governed := false
 	var allFindings []coreprofile.VoiceFinding
 	for _, f := range files {
+		profile, perr := voice.forFile(ctx, f)
+		if perr != nil {
+			return nil, perr
+		}
+		if profile == nil {
+			continue
+		}
+		governed = true
 		blocks, rerr := a.readBlocks(ctx, f, a.SourceLang)
 		if rerr != nil {
 			return nil, fmt.Errorf("voice: read %s: %w", f, rerr)
@@ -519,6 +529,12 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 			}
 			allFindings = append(allFindings, findings...)
 		}
+	}
+
+	if !governed {
+		// Nothing bound a voice at any of these files — there is no gate to
+		// report, which is what lets --voice say the binding is missing.
+		return nil, nil
 	}
 
 	score := coreprofile.CalculateScore(allFindings)
@@ -759,31 +775,40 @@ func expandTargetTemplate(itemPath, base, tmpl, sourceRel, locale, root string) 
 
 // --- terminology gate -------------------------------------------------------
 
-// verifyTerminology term-checks each target file against the project glossary,
-// reusing core/tools.NewTermCheckTool. The glossary is resolved per target
-// locale from the project terms store (ResolveProjectGlossary). A locale with no
-// glossary entries contributes no findings; a missing target file
-// (untranslated) is flagged by the QA gate, so terminology skips it.
+// verifyTerminology term-checks each target file against the glossary governing
+// it, reusing core/tools.NewTermCheckTool. The glossary is resolved per target
+// locale AND per point: the terms a profile binds govern that profile's content,
+// so a unit whose source sits under a per-item `channel:` override is checked
+// against the vocabulary in force there. A locale with no glossary entries
+// contributes no findings; a missing target file (untranslated) is flagged by
+// the QA gate, so terminology skips it.
 func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResult, error) {
 	ctx := CmdContext(cmd)
 	gate := verifyGateResult{Gate: gateTerms, Pass: true, Findings: []verifyFinding{}}
 
-	// Cache the glossary per locale — building it opens the terms store.
-	glossaryByLocale := map[string][]coretools.GlossaryEntry{}
-	glossaryFor := func(locale string) ([]coretools.GlossaryEntry, error) {
-		if g, ok := glossaryByLocale[locale]; ok {
+	root := ""
+	if projectPath, err := ResolveProjectPath(cmd); err == nil && projectPath != "" {
+		root = filepath.Dir(projectPath)
+	}
+
+	// Cache the glossary per (point, locale) — building it opens the terms store.
+	glossaries := map[string][]coretools.GlossaryEntry{}
+	glossaryFor := func(u VerifyUnit) ([]coretools.GlossaryEntry, error) {
+		point := a.unitGovernancePoint(root, u)
+		key := point.Collection + "\x00" + point.Path + "\x00" + u.Locale
+		if g, ok := glossaries[key]; ok {
 			return g, nil
 		}
-		g, err := a.ResolveProjectGlossary(cmd, locale)
+		g, err := a.ResolveProjectGlossaryFor(cmd, u.Locale, point)
 		if err != nil {
 			return nil, err
 		}
-		glossaryByLocale[locale] = g
+		glossaries[key] = g
 		return g, nil
 	}
 
 	for _, u := range units {
-		glossary, err := glossaryFor(u.Locale)
+		glossary, err := glossaryFor(u)
 		if err != nil {
 			return gate, err
 		}
@@ -832,6 +857,25 @@ func (a *App) verifyTerminology(cmd Command, units []VerifyUnit) (verifyGateResu
 		}
 	}
 	return gate, nil
+}
+
+// unitGovernancePoint is the point a verify unit's SOURCE file sits at — the
+// place its governance is bound, honouring a content item's own `channel:`. A
+// path outside the project root falls back to the unit's collection, and a unit
+// with neither to the project's default point.
+func (a *App) unitGovernancePoint(root string, u VerifyUnit) project.GovernancePoint {
+	if root != "" && u.SourcePath != "" {
+		abs := u.SourcePath
+		if !filepath.IsAbs(abs) {
+			if r, err := filepath.Abs(abs); err == nil {
+				abs = r
+			}
+		}
+		if rel, ok := projectRelPath(root, abs); ok {
+			return a.GovernancePointFor("", rel)
+		}
+	}
+	return a.GovernancePointFor(u.Collection, "")
 }
 
 // --- qa gate ----------------------------------------------------------------

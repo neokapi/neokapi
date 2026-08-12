@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/projectdb"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
@@ -54,7 +55,7 @@ func (a *App) ResolveTermsCmdStore(cmd Command) (StoreSelection, error) {
 	local, _ := cmd.Flags().GetBool("local")
 	file, _ := cmd.Flags().GetString("file")
 	if name == "" && file == "" && !local {
-		sel, err := a.ResolveTermsStore(cmd, "")
+		sel, err := a.ResolveTermsStore(cmd, project.GovernancePoint{})
 		if err != nil {
 			return StoreSelection{}, err
 		}

@@ -183,6 +183,13 @@ type App struct {
 	// holder means a second connection pool on one SQLite file.
 	projectStoresOnce sync.Once
 	projectStores     *projectStores
+
+	// governance holds the run's governance instant and the validity
+	// transitions already reported. Built lazily and pre-seeded into worker
+	// clones: the locales of one pass must resolve profile validity at one
+	// instant, and must report an expired profile once between them.
+	governanceOnce sync.Once
+	governance     *governanceRun
 }
 
 // ensurePluginRuntime lazily builds the shared plugin Runtime from the current

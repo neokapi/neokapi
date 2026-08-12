@@ -250,7 +250,7 @@ func (a *App) RunFlowAllLocales(ctx context.Context, opts FlowRunOptions, sink R
 	// its own bindings and its own tool chain. A recipe where no collection
 	// overrides anything yields exactly one group holding every input, so the
 	// pass structure, the event stream and the tool assembly are unchanged.
-	groups, err := groupInputsByBinding(proj, pctx.ProjectDir, opts.InputPaths)
+	groups, err := a.groupInputsByBinding(cmd, proj, pctx.ProjectDir, opts.InputPaths)
 	if err != nil {
 		return nil, err
 	}

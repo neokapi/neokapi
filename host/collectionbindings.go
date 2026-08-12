@@ -18,11 +18,13 @@ import (
 // same way produces exactly one group, so the common case keeps the single run,
 // the single tool chain, and the same event stream.
 type bindingGroup struct {
-	// Collection names the content collection whose governance this group
-	// carries. Empty means the project's default point — either because no
-	// collection claimed these files, or because the collection that did
-	// resolves to exactly the defaults.
-	Collection string
+	// Point is the place in the context space this group's files sit at, as one
+	// representative of them: every file in the group resolves to the same
+	// governance, so re-resolving through any of them yields the group's voice
+	// and terms. The zero point is the project's default one — either because
+	// nothing claimed these files, or because what did resolves to exactly the
+	// defaults.
+	Point project.GovernancePoint
 	// Inputs are the group's source files, in the order they were given.
 	Inputs []string
 	// bindings is the resolved governance, filled in by resolveGroupBindings.
@@ -31,27 +33,28 @@ type bindingGroup struct {
 }
 
 // groupInputsByBinding partitions inputPaths by the governance that applies to
-// each path, found through the collection that owns it
-// (project.CollectionForPath, the same glob matching used to resolve a file's
-// target). Paths outside the project root, and paths no content pattern claims,
-// sit at the project's default point.
+// each path, resolved per file through project.ResolveGovernanceFor — so a
+// content item's own `channel:` partitions its files out of the rest of its
+// collection, and a profile outside its validity window governs nothing.
+// Paths outside the project root, and paths no content pattern claims, sit at
+// the project's default point.
 //
-// Grouping is by what the channel reference *resolves to*, not by the reference
-// itself: every collection resolving to the same voice, terms and channel — two
-// collections on one profile's channel, say — stays in one group and shares one
-// tool chain. When no collection declares a channel at all, the whole input set
-// is one group naming no collection, which resolves the project-wide bindings
-// exactly as an ungrouped run always did.
+// Grouping is by what the point *resolves to*, not by the reference that
+// selected it: every file resolving to the same profile, voice, terms and
+// channel — two collections on one profile's channel, say — stays in one group
+// and shares one tool chain. When nothing declares a channel at all, the whole
+// input set is one group at the default point, which resolves the project-wide
+// bindings exactly as an ungrouped run always did.
 //
-// The error is an unresolvable channel reference (project.ResolveGovernance); a
-// recipe that loaded cleanly cannot produce one.
-func groupInputsByBinding(proj *project.KapiProject, projectDir string, inputPaths []string) ([]bindingGroup, error) {
+// The error is an unresolvable channel reference; a recipe that loaded cleanly
+// cannot produce one.
+func (a *App) groupInputsByBinding(cmd Command, proj *project.KapiProject, projectDir string, inputPaths []string) ([]bindingGroup, error) {
 	whole := []bindingGroup{{Inputs: inputPaths}}
 	if proj == nil || projectDir == "" || len(inputPaths) == 0 || !hasCollectionContext(proj) {
 		return whole, nil
 	}
 
-	defaultRC, err := proj.ResolveGovernance("")
+	defaultRC, err := a.ResolveGovernanceAtPoint(cmd, proj, a.GovernancePointFor("", ""))
 	if err != nil {
 		return nil, err
 	}
@@ -60,55 +63,64 @@ func groupInputsByBinding(proj *project.KapiProject, projectDir string, inputPat
 	var groups []bindingGroup
 	index := make(map[string]int, 2)
 	for _, in := range inputPaths {
-		collection := ""
+		point := a.GovernancePointFor("", "")
 		if rel, ok := projectRelPath(projectDir, in); ok {
-			collection = proj.CollectionForPath(rel)
+			point = a.GovernancePointFor("", rel)
 		}
-		rc, rerr := proj.ResolveGovernance(collection)
+		rc, rerr := a.ResolveGovernanceAtPoint(cmd, proj, point)
 		if rerr != nil {
 			return nil, rerr
 		}
 		key := bindingKey(rc)
 		if key == defaults {
-			// The collection is governed exactly as the project is: name no
-			// collection, so the group resolves through the identical
-			// project-wide path.
-			collection = ""
+			// This file is governed exactly as the project is: carry the empty
+			// point, so the group resolves through the identical project-wide
+			// path.
+			point = a.GovernancePointFor("", "")
 		}
 		i, seen := index[key]
 		if !seen {
 			i = len(groups)
 			index[key] = i
-			groups = append(groups, bindingGroup{Collection: collection})
+			groups = append(groups, bindingGroup{Point: point})
 		}
 		groups[i].Inputs = append(groups[i].Inputs, in)
 	}
 	return groups, nil
 }
 
-// hasCollectionContext reports whether any collection places itself somewhere
-// in the context space. Nothing to split on when none does — the answer that
-// keeps an ordinary recipe on its single, ungrouped run.
+// hasCollectionContext reports whether anything in the recipe places content
+// somewhere in the context space — a collection's channel, or a content item's
+// own. Nothing to split on when nothing does, which is the answer that keeps an
+// ordinary recipe on its single, ungrouped run.
 func hasCollectionContext(proj *project.KapiProject) bool {
 	for i := range proj.Collections {
 		if proj.Collections[i].Channel != "" {
 			return true
 		}
+		for _, item := range proj.Collections[i].EffectiveItems() {
+			if item.Channel != "" {
+				return true
+			}
+		}
 	}
 	return false
 }
 
-// bindingKey is the identity of resolved governance: two collections with equal
-// keys are governed identically and belong in one group.
+// bindingKey is the identity of resolved governance: two files with equal keys
+// are governed identically and belong in one group.
 //
-// The key is what the channel reference resolves to — the voice, the terms, and
+// The key is what the point resolves to — the profile, the voice, the terms and
 // the channel — not the reference that selected them. Channel counts because it
 // selects an override inside the profile, so one voice on two channels is two
-// voices in practice. The profile name does not: two collections on one
-// profile's channel produce the same run, and keying on the label would split it
-// for nothing.
+// voices in practice. The profile counts because a profile is answered by its
+// own directory: two profiles binding nothing in the recipe still resolve
+// different `.kapi/profiles/<name>/terms.json`. Two collections on one profile's
+// channel share a profile name, so nothing splits for nothing.
 func bindingKey(rc *project.ResolvedGovernance) string {
 	var b strings.Builder
+	b.WriteString(rc.Profile)
+	b.WriteByte(0)
 	b.WriteString(rc.Channel)
 	b.WriteByte(0)
 	if rc.Voice != nil {
@@ -129,7 +141,7 @@ func bindingKey(rc *project.ResolvedGovernance) string {
 // default-point group costs the one project-wide resolution it always did.
 func (a *App) resolveGroupBindings(cmd Command, proj *project.KapiProject, projectPath string, groups []bindingGroup) error {
 	for i := range groups {
-		b, err := a.resolveProjectBindings(cmd, proj, projectPath, groups[i].Collection)
+		b, err := a.resolveProjectBindings(cmd, proj, projectPath, groups[i].Point)
 		if err != nil {
 			return err
 		}

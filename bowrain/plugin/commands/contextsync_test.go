@@ -171,3 +171,47 @@ func TestBuildPushContext_NoCollectionsStillMakesAClaim(t *testing.T) {
 	assert.Empty(t, pushCtx.Entries)
 	assert.Equal(t, bowsync.ComputeContextHash(nil), pushCtx.Hash)
 }
+
+// TestBuildPushContext_ExpiredProfileCarriesNoCoordinates pins the push half of
+// profile validity: a push declares the governance actually in force, so a
+// collection whose profile has lapsed carries the coordinates it fell through
+// to — not a point the recipe names but nothing applies. The control is the same
+// recipe with the window open.
+func TestBuildPushContext_ExpiredProfileCarriesNoCoordinates(t *testing.T) {
+	tests := []struct {
+		name            string
+		validTo         string
+		wantCoordinates map[string]string
+		wantChannel     string
+	}{
+		{
+			name:            "an expired profile stops placing its content",
+			validTo:         "2020-01-01",
+			wantCoordinates: nil,
+			wantChannel:     "",
+		},
+		{
+			name:            "an open window is untouched",
+			validTo:         "",
+			wantCoordinates: map[string]string{"product": "kapi", "channel": "docs"},
+			wantChannel:     "docs",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proj := newGovernedProject(t)
+			prof := proj.Recipe.Profiles["kapi"]
+			prof.ValidTo = tt.validTo
+			proj.Recipe.Profiles["kapi"] = prof
+
+			pushCtx, _, err := BuildPushContext(t.Context(), proj, false)
+			require.NoError(t, err)
+
+			docs := entriesByName(pushCtx.Entries)["docs"]
+			require.NotNil(t, docs)
+			assert.Equal(t, tt.wantCoordinates, docs.Coordinates)
+			assert.Equal(t, tt.wantChannel, docs.Channel)
+		})
+	}
+}

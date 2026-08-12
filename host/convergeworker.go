@@ -82,6 +82,9 @@ func (a *App) convergeWorker(locale string, tap *convergeTap) *App {
 		// locales of one pass read and write one `.kapi/work/store.db`, so they must
 		// share the pool rather than open one each.
 		projectStores: a.ensureProjectStores(),
+		// And for governance: one instant for the whole pass, one report of a
+		// profile that expired under it.
+		governance: a.ensureGovernance(),
 	}
 }
 
@@ -151,6 +154,8 @@ var convergeWorkerFields = map[string]workerFieldPolicy{
 	"translator":          fieldShared,
 	"pluginRuntime":       fieldShared, // pre-seeded, never rebuilt per worker
 	"projectStores":       fieldShared, // pre-seeded: one store per project, not per locale
+	"governance":          fieldShared, // one instant and one transition report per run
+	"governanceOnce":      fieldOwned,  // a fresh Once that sees the pre-seeded state
 	"projectFlowTools":    fieldOwned,  // each worker builds its own tool instances
 	"convergeProgressTap": fieldOwned,  // one tap per locale
 	"pluginRuntimeOnce":   fieldOwned,  // a fresh Once that sees the pre-seeded runtime

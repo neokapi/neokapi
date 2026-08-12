@@ -290,6 +290,74 @@ type ResolvedGovernance struct {
 	// (or the default point) bounds nothing. ResolveGovernance carries it
 	// unfiltered — the as-declared view — while ResolveGovernanceAt applies it.
 	Validity *graph.Validity
+	// Fallback records a binding that did NOT govern because the resolution
+	// instant fell outside its window, and what governs in its place. nil when
+	// every declared binding was in force (the ordinary case) and for the
+	// as-declared view, which applies no window at all. A caller reports it:
+	// governance changing on a date has to be visible, never silent.
+	Fallback *GovernanceFallback
+}
+
+// GovernanceFallback is one profile that stopped governing because the run's
+// instant sits outside its declared window, together with the profile that
+// governs instead.
+type GovernanceFallback struct {
+	// Profile is the profile whose window excluded the instant.
+	Profile string
+	// Expired distinguishes the two boundaries: true when the instant is at or
+	// after valid_to, false when it is before valid_from.
+	Expired bool
+	// Boundary is the bound that excluded it — valid_to when Expired, else
+	// valid_from.
+	Boundary time.Time
+	// Governing names the profile that governs in its place, empty when
+	// resolution fell all the way through to the project's default point.
+	Governing string
+}
+
+// String renders the transition as the note a run, a check or a retrieval
+// answer prints — it names the rule that stopped applying, the date it stopped,
+// and what took over, because a governance change nobody is told about is
+// indistinguishable from a bug.
+func (f *GovernanceFallback) String() string {
+	if f == nil {
+		return ""
+	}
+	governing := "the project default"
+	if f.Governing != "" {
+		governing = fmt.Sprintf("profile %q", f.Governing)
+	}
+	if f.Expired {
+		return fmt.Sprintf("profile %q expired %s; governing with %s",
+			f.Profile, FormatValidityBound(&f.Boundary), governing)
+	}
+	return fmt.Sprintf("profile %q is not in force until %s; governing with %s",
+		f.Profile, FormatValidityBound(&f.Boundary), governing)
+}
+
+// FormatValidityBound renders a window bound as a bare date when it falls on
+// midnight UTC (the form a recipe usually authors), otherwise the full RFC3339
+// instant. A nil bound is open on that side and renders empty.
+func FormatValidityBound(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	u := t.UTC()
+	if u.Hour() == 0 && u.Minute() == 0 && u.Second() == 0 && u.Nanosecond() == 0 {
+		return u.Format("2006-01-02")
+	}
+	return u.Format(time.RFC3339)
+}
+
+// Ref renders the resolved governance back as the point it names, so a caller
+// carrying coordinates (a push, a graph write) carries what actually governed
+// rather than what the recipe declared. A governance that fell through to the
+// default point renders as the zero ref, which puts no coordinates on the wire.
+func (rc *ResolvedGovernance) Ref() ChannelRef {
+	if rc == nil {
+		return ChannelRef{}
+	}
+	return ChannelRef{Profile: rc.Profile, Channel: rc.Channel}
 }
 
 // ActiveAt reports whether this governance is in force at the given instant. A
@@ -298,78 +366,163 @@ func (rc *ResolvedGovernance) ActiveAt(at time.Time) bool {
 	return rc.Validity.Matches(graph.ScopeAt(at))
 }
 
-// ResolveGovernance returns the governance in force over the named content
-// collection.
-//
-// An empty or unknown collection name resolves the project's default point, so
-// a caller holding a path no collection claims — an ad-hoc file, a pattern that
-// matched nothing — keeps the project's voice rather than none. The error is a
-// channel reference that does not resolve; validation runs the same resolution
-// for every collection at load, so a project that loaded cleanly has no failure
-// left here.
-func (p *KapiProject) ResolveGovernance(collection string) (*ResolvedGovernance, error) {
-	ref := ChannelRef{}
-	if collection != "" {
-		for i := range p.Collections {
-			c := &p.Collections[i]
-			if c.Name != collection {
-				continue
-			}
-			r, err := p.ResolveChannel(c.Channel)
-			if err != nil {
-				return nil, fmt.Errorf("%s: %w", collectionSubject(i, c.Name), err)
-			}
-			ref = r
-			break
-		}
-	}
-	return p.governanceAt(ref), nil
+// GovernancePoint names the place in the context space to resolve governance
+// for, and the instant to resolve it at. It is the argument of the one
+// resolution function every caller goes through (ResolveGovernanceFor), so a
+// run, a check, a retrieval answer and a push cannot disagree about what
+// governs a file.
+type GovernancePoint struct {
+	// Collection names a content collection. Used when Path is empty; an
+	// unknown name resolves the project's default point.
+	Collection string
+	// Path is a project-relative, slash-separated file path. An item that claims
+	// it wins over Collection, because a file is the finest declared point: that
+	// item may carry its own `channel:`. A path no item claims falls back to
+	// Collection, then to the project's default point.
+	Path string
+	// At is the instant to resolve at — the run's wall clock. A profile whose
+	// window excludes it does not govern, and resolution falls through to the
+	// next binding as if it were absent. The zero value is the AS-DECLARED
+	// view: every declared binding governs and carries its window unapplied,
+	// which is what a surface reporting the recipe wants and what no run does.
+	At time.Time
 }
 
-// ResolveGovernanceForPath returns the governance in force over one file,
-// resolving the point the file sits at rather than the collection's as a whole.
-// It honors a per-item `channel:` override where the matching item declares one,
-// otherwise the item's collection channel — so one file in a docs collection can
-// ship on a different channel, or under a different profile, than its neighbours.
+// ResolveGovernanceFor resolves the governance in force at one point, at one
+// instant — the single resolution every production caller uses.
 //
-// relPath is project-relative and slash-separated; matching uses the same
-// first-match-wins glob walk as CollectionForPath. A path no item claims
-// resolves the project's default point.
-func (p *KapiProject) ResolveGovernanceForPath(relPath string) (*ResolvedGovernance, error) {
-	ref, _, err := p.channelRefForPath(relPath)
+// Resolution walks the declared bindings from the finest to the coarsest: a
+// content item's own `channel:`, then its collection's, then the project's
+// default point. A binding whose profile is outside its validity window at
+// pt.At is skipped exactly as if the recipe did not declare it, and the
+// transition is recorded on the result's Fallback so the caller can say so.
+//
+// The error is a channel reference that does not resolve; validation runs the
+// same resolution for every collection and every item at load, so a project
+// that loaded cleanly has no failure left here.
+func (p *KapiProject) ResolveGovernanceFor(pt GovernancePoint) (*ResolvedGovernance, error) {
+	ladder, err := p.governanceLadder(pt)
 	if err != nil {
 		return nil, err
 	}
-	return p.governanceAt(ref), nil
-}
-
-// channelRefForPath finds the channel binding in force for a file: the matching
-// item's own `channel:` when it declares one, otherwise its collection's. It
-// returns the resolved ref, the collection name (for error context), and any
-// resolution error. A path nothing matches yields the zero ref — the default
-// point — and no error.
-func (p *KapiProject) channelRefForPath(relPath string) (ChannelRef, string, error) {
-	for i := range p.Collections {
-		coll := &p.Collections[i]
-		for _, item := range coll.EffectiveItems() {
-			if item.Path == "" {
-				continue
+	var skipped *GovernanceFallback
+	for _, ref := range ladder {
+		rc := p.governanceAt(ref)
+		if pt.At.IsZero() || rc.ActiveAt(pt.At) {
+			if skipped != nil {
+				skipped.Governing = rc.Profile
+				rc.Fallback = skipped
 			}
-			if !MatchGlob(item.Path, relPath) {
-				continue
-			}
-			chosen := coll.Channel
-			if item.Channel != "" {
-				chosen = item.Channel
-			}
-			ref, err := p.ResolveChannel(chosen)
-			if err != nil {
-				return ChannelRef{}, coll.Name, fmt.Errorf("%s: %w", collectionSubject(i, coll.Name), err)
-			}
-			return ref, coll.Name, nil
+			return rc, nil
+		}
+		if skipped == nil {
+			skipped = newGovernanceFallback(rc, pt.At)
 		}
 	}
-	return ChannelRef{}, "", nil
+	rc := p.governanceAt(ChannelRef{})
+	rc.Fallback = skipped
+	return rc, nil
+}
+
+// ResolveGovernance returns the governance the recipe declares for the named
+// content collection, AS DECLARED: validity windows are carried on the result,
+// not applied. It is the view a surface reporting the recipe takes;
+// ResolveGovernanceFor with a non-zero At is the view a run takes.
+//
+// An empty or unknown collection name resolves the project's default point, so
+// a caller holding a path no collection claims — an ad-hoc file, a pattern that
+// matched nothing — keeps the project's voice rather than none.
+func (p *KapiProject) ResolveGovernance(collection string) (*ResolvedGovernance, error) {
+	return p.ResolveGovernanceFor(GovernancePoint{Collection: collection})
+}
+
+// ResolveGovernanceForPath returns the governance the recipe declares over one
+// file, resolving the point the file sits at rather than its collection's as a
+// whole: a per-item `channel:` override wins over the collection's, so one file
+// in a docs collection can ship on a different channel, or under a different
+// profile, than its neighbours.
+//
+// relPath is project-relative and slash-separated; matching uses the same
+// first-match-wins glob walk as CollectionForPath. A path no item claims
+// resolves the project's default point. Windows are carried, not applied —
+// ResolveGovernanceFor with a non-zero At applies them.
+func (p *KapiProject) ResolveGovernanceForPath(relPath string) (*ResolvedGovernance, error) {
+	return p.ResolveGovernanceFor(GovernancePoint{Path: relPath})
+}
+
+// governanceLadder returns the channel references that could govern a point,
+// finest first, with duplicates collapsed: an item that repeats its
+// collection's channel names one binding, not two.
+func (p *KapiProject) governanceLadder(pt GovernancePoint) ([]ChannelRef, error) {
+	declared, subject, err := p.declaredChannelsFor(pt)
+	if err != nil {
+		return nil, err
+	}
+	var ladder []ChannelRef
+	for _, ch := range declared {
+		if ch == "" {
+			continue
+		}
+		ref, rerr := p.ResolveChannel(ch)
+		if rerr != nil {
+			return nil, fmt.Errorf("%s: %w", subject, rerr)
+		}
+		if len(ladder) > 0 && ladder[len(ladder)-1] == ref {
+			continue
+		}
+		ladder = append(ladder, ref)
+	}
+	return ladder, nil
+}
+
+// declaredChannelsFor returns the `channel:` references a point declares, finest
+// first, together with the recipe subject to name in an error. A path is matched
+// against every item with the same first-match-wins glob walk as
+// CollectionForPath; a collection is looked up by name, and answers when no item
+// claimed the path.
+func (p *KapiProject) declaredChannelsFor(pt GovernancePoint) ([]string, string, error) {
+	if pt.Path != "" {
+		for i := range p.Collections {
+			coll := &p.Collections[i]
+			for _, item := range coll.EffectiveItems() {
+				if item.Path == "" || !MatchGlob(item.Path, pt.Path) {
+					continue
+				}
+				return []string{item.Channel, coll.Channel}, collectionSubject(i, coll.Name), nil
+			}
+		}
+		// A path nothing claims falls back to the collection the caller named,
+		// if any: an input outside the declared globs still belongs to the run
+		// that was scoped to that collection.
+	}
+	if pt.Collection == "" {
+		return nil, "", nil
+	}
+	for i := range p.Collections {
+		coll := &p.Collections[i]
+		if coll.Name != pt.Collection {
+			continue
+		}
+		return []string{coll.Channel}, collectionSubject(i, coll.Name), nil
+	}
+	return nil, "", nil
+}
+
+// newGovernanceFallback describes why a binding did not govern at an instant:
+// which boundary of its window excluded it, and when.
+func newGovernanceFallback(rc *ResolvedGovernance, at time.Time) *GovernanceFallback {
+	f := &GovernanceFallback{Profile: rc.Profile}
+	if rc.Validity == nil {
+		return f
+	}
+	if to := rc.Validity.ValidTo; to != nil && !at.Before(*to) {
+		f.Expired, f.Boundary = true, *to
+		return f
+	}
+	if from := rc.Validity.ValidFrom; from != nil {
+		f.Boundary = *from
+	}
+	return f
 }
 
 // governanceAt resolves the governance at one point.
@@ -402,19 +555,11 @@ func (p *KapiProject) governanceAt(ref ChannelRef) *ResolvedGovernance {
 
 // ResolveGovernanceAt resolves the governance in force over a collection AT a
 // point in time, honouring profile validity: a profile outside its declared
-// window does not govern, so resolution falls back to the project's default
-// point. Plain ResolveGovernance is the as-declared view (it carries the window
-// unfiltered); this is the as-of view a run takes when it wants an expired
-// profile to stop applying rather than merely be flagged.
+// window does not govern, so resolution falls through to the next binding.
+// Plain ResolveGovernance is the as-declared view; this is the as-of view a run
+// takes, and it is ResolveGovernanceFor with the collection and the instant.
 func (p *KapiProject) ResolveGovernanceAt(collection string, at time.Time) (*ResolvedGovernance, error) {
-	rc, err := p.ResolveGovernance(collection)
-	if err != nil {
-		return nil, err
-	}
-	if rc.Profile != "" && !rc.ActiveAt(at) {
-		return p.governanceAt(ChannelRef{}), nil
-	}
-	return rc, nil
+	return p.ResolveGovernanceFor(GovernancePoint{Collection: collection, At: at})
 }
 
 // ProfileWindow is a declared profile and its validity, for surfaces that report

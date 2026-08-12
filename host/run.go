@@ -170,7 +170,7 @@ func (a *App) RunFromProject(cmd Command, flowName, projectPath string, opts Run
 	// binding, and each group runs the flow with its own. A recipe where no
 	// collection overrides anything yields one group over every input — the
 	// single run, with the single tool chain, that this has always been.
-	groups, err := groupInputsByBinding(proj, ctx.ProjectDir, inputPaths)
+	groups, err := a.groupInputsByBinding(cmd, proj, ctx.ProjectDir, inputPaths)
 	if err != nil {
 		return err
 	}

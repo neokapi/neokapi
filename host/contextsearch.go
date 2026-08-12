@@ -153,6 +153,13 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 					if u.BlockID != "" {
 						where += " " + u.BlockID
 					}
+					// The point the file is governed at, when the recipe binds
+					// one: the same word can be admitted on one surface and
+					// discouraged on another, so "where" means the coordinate as
+					// much as the path.
+					if u.Point != "" {
+						where += " @" + u.Point
+					}
 					if u.Locale != "" {
 						where += " [" + u.Locale + "]"
 					}
@@ -246,6 +253,12 @@ type ContextTermUse struct {
 	BlockID  string `json:"block_id,omitempty"`
 	Locale   string `json:"locale,omitempty"`
 	Snippet  string `json:"snippet,omitempty"`
+	// Point is the place in the context space this document sits at, written
+	// `profile/channel`, resolved per file so a content item's own `channel:`
+	// shows where its files are actually governed. Empty when the document sits
+	// at the project's default point, or when no recipe was bound to resolve
+	// against.
+	Point string `json:"point,omitempty"`
 }
 
 // ContextPrecedentHit is one piece of previously-approved wording.
@@ -308,6 +321,14 @@ type ContextSearchSources struct {
 	// resolved recipe; empty for a project that bounds no profile, or a
 	// standalone-store query with no project in scope.
 	Profiles []ContextProfileHit
+
+	// Recipe is the project whose context space the answer resolves places
+	// against, so a term's uses can say where each one is governed. nil for a
+	// standalone-store query with no project in scope.
+	Recipe *project.KapiProject
+	// At is the instant governance is resolved at — the run's wall clock. The
+	// zero value reads the recipe as declared, applying no validity window.
+	At time.Time
 }
 
 // ContextSearchSourcesFor assembles the stores a context search reads — the one
@@ -358,12 +379,16 @@ func (a *App) ContextSearchSourcesFor(cmd Command, termsPath, memoryPath string)
 	// (the browser build) over the file-backed store.
 	src.Blocks = a.OccurrenceBlocks(cmd)
 
-	// The recipe's bounded governance profiles, so an answer can say which voice
-	// is in force and until when. Best-effort: a project that will not resolve or
-	// load simply contributes no profiles, exactly like a standalone-store query.
+	// The recipe: its bounded governance profiles, so an answer can say which
+	// voice is in force and until when, and the context space itself, so each
+	// place a term is used can say where it is governed. Best-effort — a project
+	// that will not resolve or load simply contributes neither, exactly like a
+	// standalone-store query.
+	src.At = a.GovernanceInstant()
 	if path, err := ResolveProjectPath(cmd); err == nil && path != "" {
 		if proj, err := project.Load(path); err == nil {
-			src.Profiles = profileHits(proj.ProfileWindows())
+			src.Recipe = proj
+			src.Profiles = profileHits(proj.ProfileWindows(), src.At)
 		}
 	}
 
@@ -441,17 +466,19 @@ func SearchContext(ctx context.Context, src ContextSearchSources, req ContextSea
 // profileHits renders the project's bounded governance profiles for a context
 // answer, reading each window against now so the caller sees at a glance whether
 // a profile is active, not yet in force, or expired.
-func profileHits(windows []project.ProfileWindow) []ContextProfileHit {
+func profileHits(windows []project.ProfileWindow, at time.Time) []ContextProfileHit {
 	if len(windows) == 0 {
 		return nil
 	}
-	now := time.Now()
+	if at.IsZero() {
+		at = time.Now()
+	}
 	out := make([]ContextProfileHit, 0, len(windows))
 	for _, w := range windows {
-		hit := ContextProfileHit{Name: w.Name, State: validityState(w.Validity, now)}
+		hit := ContextProfileHit{Name: w.Name, State: validityState(w.Validity, at)}
 		if w.Validity != nil {
-			hit.ValidFrom = formatValidityBound(w.Validity.ValidFrom)
-			hit.ValidTo = formatValidityBound(w.Validity.ValidTo)
+			hit.ValidFrom = project.FormatValidityBound(w.Validity.ValidFrom)
+			hit.ValidTo = project.FormatValidityBound(w.Validity.ValidTo)
 		}
 		out = append(out, hit)
 	}
@@ -472,20 +499,6 @@ func validityState(v *coregraph.Validity, at time.Time) string {
 		return "upcoming"
 	}
 	return "active"
-}
-
-// formatValidityBound renders a bound as a bare date when it falls on midnight
-// UTC (the form a recipe usually authors), otherwise the full RFC3339 instant. A
-// nil bound is open on that side.
-func formatValidityBound(t *time.Time) string {
-	if t == nil {
-		return ""
-	}
-	u := t.UTC()
-	if u.Hour() == 0 && u.Minute() == 0 && u.Second() == 0 && u.Nanosecond() == 0 {
-		return u.Format("2006-01-02")
-	}
-	return u.Format(time.RFC3339)
 }
 
 // contextTopUses is how many places a context answer names per term. A context
@@ -512,6 +525,7 @@ func countTermUses(ctx context.Context, src ContextSearchSources, hits []Context
 		byConcept[h.ConceptID] = append(byConcept[h.ConceptID], i)
 	}
 
+	places := &pointResolver{proj: src.Recipe, at: src.At, cache: map[string]string{}}
 	var notes []string
 	for conceptID, idx := range byConcept {
 		res, err := occurrence.Find(ctx, occurrence.Sources{Terms: src.Terms, Blocks: src.Blocks},
@@ -525,9 +539,10 @@ func countTermUses(ctx context.Context, src ContextSearchSources, hits []Context
 			continue
 		}
 		for _, i := range idx {
-			attachUses(&hits[i], res.Occurrences)
+			attachUses(&hits[i], res.Occurrences, places)
 		}
 	}
+	notes = append(notes, places.notes...)
 	sort.Strings(notes)
 	return notes
 }
@@ -535,7 +550,7 @@ func countTermUses(ctx context.Context, src ContextSearchSources, hits []Context
 // attachUses gives one hit the occurrences of its own term. Matching on the
 // term text keeps a per-language answer per-language: a concept's Norwegian
 // term is used where the Norwegian text uses it, not wherever the concept is.
-func attachUses(hit *ContextTermHit, occurrences []occurrence.Occurrence) {
+func attachUses(hit *ContextTermHit, occurrences []occurrence.Occurrence, places *pointResolver) {
 	blocks := map[string]bool{}
 	for _, o := range occurrences {
 		if !strings.EqualFold(o.Term, hit.Term) {
@@ -549,10 +564,54 @@ func attachUses(hit *ContextTermHit, occurrences []occurrence.Occurrence) {
 				BlockID:  o.BlockID,
 				Locale:   o.Locale,
 				Snippet:  o.Snippet,
+				Point:    places.pointOf(o.Document),
 			})
 		}
 	}
 	hit.UseBlocks = len(blocks)
+}
+
+// pointResolver answers "where is this document governed" for the places a term
+// is used, through the one resolution seam every other surface uses — so the
+// answer a writer reads and the voice a run applies to the same file come from
+// the same walk of the recipe, including a content item's own `channel:` and a
+// profile that has stopped governing.
+type pointResolver struct {
+	proj  *project.KapiProject
+	at    time.Time
+	cache map[string]string
+	notes []string
+	noted map[string]bool
+}
+
+// pointOf renders the point a document sits at as `profile/channel`, or "" for
+// the project's default point. A validity transition applied on the way is
+// carried into the answer's notes once, so a reader is never told a rule is in
+// force by a search that just watched it lapse.
+func (r *pointResolver) pointOf(document string) string {
+	if r == nil || r.proj == nil || document == "" {
+		return ""
+	}
+	if p, ok := r.cache[document]; ok {
+		return p
+	}
+	rc, err := r.proj.ResolveGovernanceFor(project.GovernancePoint{Path: document, At: r.at})
+	if err != nil {
+		r.cache[document] = ""
+		return ""
+	}
+	if rc.Fallback != nil {
+		if r.noted == nil {
+			r.noted = map[string]bool{}
+		}
+		if msg := rc.Fallback.String(); !r.noted[msg] {
+			r.noted[msg] = true
+			r.notes = append(r.notes, msg)
+		}
+	}
+	point := rc.Ref().String()
+	r.cache[document] = point
+	return point
 }
 
 // flagRetiredPrecedent marks prior wording containing a term this same search
