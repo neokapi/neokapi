@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -92,6 +93,10 @@ type SedOptions struct {
 	// sed's own -r is --regexp-extended and quietly repurposing it would edit a
 	// tree for someone who only asked for a different regexp dialect.
 	Recursive bool
+	// Force writes an edited document to a terminal even when it is binary,
+	// which the guard in binaryout.go otherwise refuses. gzip's -f, spelled
+	// long-only because ksed's -f is already --format.
+	Force bool
 }
 
 func (a *App) RunSed(ctx context.Context, args []string, t *tool.BaseTool, opts SedOptions) error {
@@ -104,11 +109,27 @@ func (a *App) RunSed(ctx context.Context, args []string, t *tool.BaseTool, opts 
 		return err
 	}
 	for _, file := range files {
-		if err := a.EditDocument(ctx, file, t, opts.WriteLocale, opts.InPlace, opts.BackupSuffix, os.Stdout); err != nil {
+		// One guard per document: each is judged on its own opening bytes, and
+		// a file that streams to the terminal must not license the next one.
+		out, flush := io.Writer(os.Stdout), func() error { return nil }
+		if !opts.InPlace && !opts.Force {
+			out, flush = a.guardedStdout()
+		}
+		err := a.EditDocument(ctx, file, t, opts.WriteLocale, opts.InPlace, opts.BackupSuffix, out)
+		if err == nil {
+			err = flush()
+		}
+		if err != nil {
 			// A cancelled context (Ctrl-C) is a global interrupt, not a per-file
 			// error: stop now and let cli.Run map it to exit 130 with no message.
 			if errors.Is(err, context.Canceled) {
 				return err
+			}
+			// The refusal replaces the write-path chain it arrived in rather
+			// than nesting inside it: the file is already named by the prefix
+			// below, and "write x.docx: write x.docx: …" tells no one anything.
+			if errors.Is(err, ErrBinaryStdout) {
+				err = errBinaryStdout("use -i to edit the file in place, redirect stdout to a file, or pass --force")
 			}
 			hadError = true
 			fmt.Fprintf(os.Stderr, "ksed: %s: %v\n", DisplayName(file), err)

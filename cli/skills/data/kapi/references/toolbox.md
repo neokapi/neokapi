@@ -88,6 +88,12 @@ it case-insensitive; `\1`…`\9` and `&` are backreferences; repeat `-e` for
 several substitutions. Default output is stdout; `-i` edits in place, `-i.bak`
 keeps a backup.
 
+**Editing a binary document at a terminal is refused.** A `.docx` edit writes a
+zip, so `ksed 's/a/b/' report.docx` with stdout on a terminal stops with
+`binary output not written to a terminal` and exit 2 rather than wedging it. Use
+`-i`, redirect to a file, or pass `--force`. Piped and redirected output is
+unaffected — which is what matters when you are driving it from a script.
+
 **Fidelity is semantic, not byte-exact.** `ksed` reads and rewrites through
 kapi's reader/writer, so everything that is not the edited text round-trips —
 but the document is re-serialized. That is exactly what you want for a `.docx`

@@ -39,6 +39,12 @@ import (
 // StdinName is the conventional path token for standard input.
 const StdinName = "-"
 
+// StdoutName is the same token on the output side: `kconv -o -` is the explicit
+// "write to standard output", which is also how it says "yes, even if the
+// document is binary and stdout is a terminal" (see binaryout.go). curl spells
+// the same opt-in `--output -`.
+const StdoutName = "-"
+
 // FallbackFormat is used when neither extension nor content sniffing resolves a
 // format — keeps stdin and unknown files working as plain text, like the
 // classic tools.

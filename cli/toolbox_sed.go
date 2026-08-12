@@ -14,6 +14,7 @@ func newSedCmd(a *App) *cobra.Command {
 		scripts     []string
 		targetLoc   string
 		recursive   bool
+		force       bool
 		inPlaceFlag *InPlaceFlag
 	)
 
@@ -32,6 +33,11 @@ single-byte delimiter works (s|a|b|). Pass several with repeated -e.
 By default the edited document is written to standard output (like sed); use -i
 to edit files in place, optionally keeping a backup (-i.bak). Edits apply to the
 source text unless --target LOCALE selects a translation.
+
+Editing a binary document (.docx, .idml, .epub, …) writes a binary document, so
+when standard output is a terminal that is refused rather than streamed at it —
+use -i, redirect stdout, or pass --force. Redirected or piped output is never
+touched.
 
 Directory arguments are walked with -R. It is spelled -R rather than -r because
 sed's own -r means --regexp-extended, and quietly repurposing it would rewrite a
@@ -75,6 +81,7 @@ With no FILE, or when FILE is "-", standard input is read.`,
 				InPlace:      inPlace,
 				BackupSuffix: backupSuffix,
 				Recursive:    recursive,
+				Force:        force,
 			})
 		},
 	}
@@ -83,6 +90,7 @@ With no FILE, or when FILE is "-", standard input is read.`,
 	f.StringArrayVarP(&scripts, "expression", "e", nil, "add a substitution script (repeatable; SCRIPT positional not needed)")
 	f.BoolVarP(&recursive, "recursive", "R", false, "recurse into directory arguments (-R, not -r: sed's -r is --regexp-extended)")
 	f.StringVar(&targetLoc, "target", "", "edit the target translation for LOCALE instead of the source")
+	f.BoolVar(&force, "force", false, "write an edited binary document (.docx, .idml, …) to the terminal anyway")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input/output format (default: auto-detect by extension/content)")
 	f.StringVar(&a.SourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
 	f.StringVar(&a.Encoding, "encoding", "UTF-8", "input/output encoding")

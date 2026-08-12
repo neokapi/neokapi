@@ -21,6 +21,12 @@ The target format comes from `--to` — a format id such as `markdown`, `html` o
 extension. With no `-o`, the result is written to standard output. With no file,
 or when the file is `-`, standard input is read.
 
+A conversion that produces a binary document — a same-format `.docx` round-trip,
+say — is refused rather than streamed at a terminal, the convention `gzip` and
+`xz` follow. Pass `-o FILE`, redirect stdout, or name standard output explicitly
+with `-o -` to ask for the bytes anyway. Redirected and piped output is never
+inspected.
+
 Several files convert in one run. Give `-o` a **directory** — a trailing slash,
 or a path that already is one — and each input is written to its own file there,
 named after the input and re-extensioned for the target format. With `-r`,
@@ -92,7 +98,7 @@ kconv -r docs --to html -o site/
 | Flag | Meaning |
 | ---- | ------- |
 | `-t, --to FORMAT` | Target format — a format id (`markdown`, `html`, `doclang`) or an extension (`md`). |
-| `-o, --output PATH` | Write to `PATH`; a directory (`-o out/`) writes one file per input. Default is standard output. |
+| `-o, --output PATH` | Write to `PATH`; a directory (`-o out/`) writes one file per input; `-` names standard output explicitly. Default is standard output. |
 | `-r, --recursive` | Recurse into directory arguments. |
 | `--target LOCALE` | Convert the translation for `LOCALE` instead of the source. |
 | `-f, --format` | Override input format detection (e.g. `-f docling`). |
