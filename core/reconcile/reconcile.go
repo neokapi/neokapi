@@ -118,8 +118,8 @@ const scopeProp = "\x00reconcile.scope"
 // reconcile one document at a time, but may pass the whole project's prior
 // units, which is what lets content moved between files keep its identity.
 //
-// Matching runs strongest signal first — both hashes, then context alone, then
-// content alone — and each pass consumes the priors it claims. A prior is
+// Matching runs strongest signal first — both hashes, then content alone, then
+// context alone — and each pass consumes the priors it claims. A prior is
 // therefore claimed at most once: two blocks can never resolve to the same key,
 // which is what keeps one block's approval from silently approving another.
 func Blocks(scope string, current []*model.Block, prior []Unit) []Result {

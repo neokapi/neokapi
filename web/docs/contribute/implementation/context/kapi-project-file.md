@@ -1,5 +1,5 @@
 ---
-sidebar_position: 7
+sidebar_position: 1
 title: kapi.yaml Project File Format
 description: Implementation note for C-01 — the KapiProject YAML schema, Collection/ContentItem and Defaults struct layouts, how extension extras are decoded, and how the kapi.yaml recipe is loaded, validated, and saved.
 keywords: [kapi project file, kapi.yaml, KapiProject, YAML schema, Collection, ContentItem, Defaults, project model, implementation note]
@@ -57,7 +57,7 @@ type Collection struct {
 // directory its matched paths are made relative to for target-token expansion.
 ```
 
-Flow definitions reuse `core/flow.StepsSpec` and `core/flow.FlowStep` (see [flow-steps-format](./flow-steps-format.md)).
+Flow definitions reuse `core/flow.StepsSpec` and `core/flow.FlowStep` (see [flow-steps-format](../engine/flow-steps-format.md)).
 
 ## Content model
 

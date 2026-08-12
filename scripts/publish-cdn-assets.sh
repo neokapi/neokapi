@@ -4,7 +4,7 @@
 # $DOCS_CDN_URL (cdn.<domain>, fronted by CloudFront), so the GitHub Pages
 # artifact stays small and deploys fast. One bucket backs both docs sites;
 # objects are scoped per-site (kapi/ vs bowrain/).
-# See web/docs/contribute/implementation/cdn-assets.md.
+# See web/docs/contribute/implementation/repo/cdn-assets.md.
 #
 # Families:
 #   wasm           web/static/wasm               → s3://$CDN_BUCKET/kapi/wasm/$VERSION/

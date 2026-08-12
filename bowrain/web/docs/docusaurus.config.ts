@@ -104,7 +104,7 @@ const config: Config = {
     // Offload walkthrough videos to the shared CDN (Cloudflare R2) when
     // configured — empty DOCS_CDN_URL keeps them same-origin (the default). This
     // site has no wasm/models; only ThemedVideo reads these. See the kapi config
-    // and web/docs/contribute/implementation/cdn-assets.md.
+    // and web/docs/contribute/implementation/repo/cdn-assets.md.
     cdnBaseUrl: process.env.DOCS_CDN_URL ?? "",
     cdnSitePrefix: "bowrain",
     cdnWasmVersion: process.env.DOCS_CDN_VERSION ?? "dev",

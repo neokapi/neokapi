@@ -468,7 +468,7 @@ a recipe writes when the profile is a file in the project, as it usually is.
 
 ### Flow Steps
 
-Each flow contains an ordered list of steps. See [Flow Steps Format](/contribute/implementation/flow-steps-format) for the full specification.
+Each flow contains an ordered list of steps. See [Flow Steps Format](/contribute/implementation/engine/flow-steps-format) for the full specification.
 
 ```yaml
 flows:
@@ -640,5 +640,5 @@ kapi translate -i file.json --target-lang fr
 ## See also
 
 - [C-01: Project model](/contribute/architecture/context/c-01-project-model) — the architectural decision behind the `kapi.yaml` recipe and its extension mechanism.
-- [kapi.yaml Project File Format](/contribute/implementation/kapi-project-file) — the implementation note: the `KapiProject`, `Defaults`, `Collection` and `Profile` struct layouts, the named-collection content shape, validation rules, and how platform extensions decode unknown keys.
-- [Flow Steps Format](/contribute/implementation/flow-steps-format) — the full step specification used by `flows`.
+- [kapi.yaml Project File Format](/contribute/implementation/context/kapi-project-file) — the implementation note: the `KapiProject`, `Defaults`, `Collection` and `Profile` struct layouts, the named-collection content shape, validation rules, and how platform extensions decode unknown keys.
+- [Flow Steps Format](/contribute/implementation/engine/flow-steps-format) — the full step specification used by `flows`.

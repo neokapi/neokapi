@@ -1,35 +1,51 @@
 ---
+sidebar_position: 1
 id: content-parity
-title: "Content-Model Parity Over the Sync Wire"
-description: "The lossless round-trip invariant for a Block across the kapi↔bowrain sync wire (model ↔ proto ↔ store), what must round-trip, and the extend-without-breaking checklist gated by the kitchen-sink conformance test."
-keywords: [content parity, sync wire, round-trip, overlays, SyncBlock, protoconvert, kitchen sink, conformance test, drift guard, neokapi]
+title: "Content-Model Parity Across Wire Projections"
+description: "The lossless round-trip invariant for a Block across the canonical content schema and every projection of it, what must round-trip, and the extend-without-breaking checklist gated by conformance tests."
+keywords: [content parity, wire schema, projection, round-trip, overlays, protoconvert, kitchen sink, conformance test, drift guard, neokapi]
 ---
 
-# Content-Model Parity Over the Sync Wire
+# Content-Model Parity Across Wire Projections
 
-This note records the parity contract for the kapi↔bowrain sync wire: a
-`model.Block` that kapi has locally must survive **push → store → pull**
-losslessly. It is the operational companion to
-[F-04: Content-Model Wire Schema](/contribute/architecture/foundations/f-04-wire-schema)
-(the canonical schema) and [F-02: Content Model](/contribute/architecture/foundations/f-02-content-model)
+This note records the parity contract that keeps a `model.Block` intact
+wherever it is serialized. It is the operational companion to
+[F-04: The content-model wire schema](/contribute/architecture/foundations/f-04-wire-schema)
+(the canonical schema and the projection rule) and
+[F-02: Content Model](/contribute/architecture/foundations/f-02-content-model)
 (the model itself).
 
 ## The invariant
 
-> A `model.Block` round-trips losslessly through every sync wire path:
-> **model → proto → model**, **model → JSON → model**, and the full
-> **model → wire → store → pull → model** chain.
+> A `model.Block` round-trips losslessly through the canonical schema —
+> **model → proto → model** and **model → canonical JSON → model** — and
+> through every projection of it for the fields that projection carries,
+> including the full **model → wire → store → read-back → model** chain of a
+> projection that persists.
 
-The canonical wire schema is the `neokapi.content.v1` protobuf
-(`core/proto/content/v1`), converted by `core/plugin/protoconvert`. Everything
-else — the sync-push envelope, the REST pull JSON, the store columns — is an
-explicitly-labeled projection. A projection may carry *fewer* fields than the
-canonical schema, but for the fields it does carry the round-trip must be exact.
+F-04 admits exactly one canonical serialization: the `neokapi.content.v1`
+protobuf in `core/proto/content/v1`, converted by `core/plugin/protoconvert`.
+Every other serialized shape — a transport envelope, a REST payload, a set of
+store columns — is an explicitly-labeled **projection**. A projection may carry
+*fewer* fields than the canonical schema, and it may add envelope properties of
+its own for the two dimensions F-04 keeps out of the canonical messages (target
+tone/channel, and per-target status, origin and score). What it may not do is
+change the meaning of a field it does carry: for those, the round-trip must be
+exact.
 
-## The sync wire paths
+That distinction is what makes parity testable. The canonical leg is proved
+once, in the framework, by `core/plugin/protoconvert`'s compat corpus and the
+canonical-JSON golden files. Each projection then proves only its own legs, and
+proves them the same way: a fully populated fixture, deep-equal after the trip,
+with reflect-driven guards that fail when a new model field is left unpopulated.
 
-There are two block projections on the sync wire, plus the content store between
-them:
+## A worked projection: the sync wire
+
+The kapi↔bowrain sync wire exercises more of the contract than any other
+projection — two block shapes with a content store between them — so it serves
+as the worked example. A connector, an archive format, or any other projection
+is held to the same three obligations: declare what it carries, convert it in
+both directions, and gate both directions with a populated fixture.
 
 | Path | Direction | Where | Overlay carriage |
 | --- | --- | --- | --- |
@@ -52,8 +68,10 @@ This is the one intentional divergence from the `BlockMessage` overlay rule.
 
 ## What must round-trip
 
-Populate every one of these in the kitchen-sink fixture
-(`bowrain/core/synctest.KitchenSinkBlock`) and assert it survives:
+The list below is the model's parity surface — what any projection's fixture
+has to populate before its round-trip test means anything. The sync wire's
+fixture is `bowrain/core/synctest.KitchenSinkBlock`; a new projection writes
+its own against the same list.
 
 - **Scalars**: `ID`, `Name`, `Type`, `MimeType`, `Translatable`,
   `PreserveWhitespace`, `IsReferent`, `SourceLocale`, `SourceStatus`.
@@ -77,13 +95,29 @@ Populate every one of these in the kitchen-sink fixture
   round-trips by type name + JSON as a `GenericAnnotation`, never dropped or
   panicking.
 
-`Block.Identity` is **derived** (recomputed by `model.ComputeIdentity`; its
-`ContentHash` rides in `SyncBlock.content_hash`) and is the only field the
-completeness guard allow-lists as intentionally not carried.
+`Block.Identity` is **derived** (recomputed by `model.ComputeIdentity`) and is
+the only field a completeness guard allow-lists as intentionally not carried. A
+projection that wants the hash available without recomputing it carries it in
+its own envelope, as the sync wire does in `SyncBlock.content_hash`.
 
 ## The conformance gate
 
-The parity contract is enforced by tests, not by review vigilance:
+The parity contract is enforced by tests, not by review vigilance.
+
+The canonical leg is gated in the framework, once for everyone:
+
+- **Schema uniqueness** (`core/proto/content/guard_test.go`,
+  `TestCanonicalContentSchemaIsUnique`): rejects a second Block, Run, or Segment
+  message defined outside `neokapi.content.v1`, which is what stops a projection
+  from quietly becoming a rival model definition.
+- **Compat corpus** (`core/plugin/protoconvert/compat_test.go`): model → proto →
+  model is identity across the Run kinds, overlays, multi-locale targets,
+  segmentation, skeleton refs, display hints, and registered annotations.
+- **Canonical JSON goldens** (`core/proto/content/v1/json_test.go`,
+  `TestCanonicalJSONGolden`): the checked-in bytes must reproduce, and must keep
+  decoding to the same messages.
+
+Each projection then gates its own legs. For the sync wire:
 
 - **Kitchen-sink round-trip** (`bowrain/core/sync/conformance_test.go`,
   `TestKitchenSinkRoundTrip`): model → proto → model is deep-equal for the fully
@@ -111,20 +145,27 @@ The parity contract is enforced by tests, not by review vigilance:
 
 Adding a Block/Run/Overlay field, or a new Run/Overlay kind:
 
-1. **`.proto`** — add the field to `SyncBlock` (or the canonical
-   `content.proto` message) and run `make -C bowrain proto` (never hand-edit the
-   generated `*.pb.go`).
-2. **Converter, both directions** — wire it in `bowrain/core/sync`
-   (`BlockToProto`/`ProtoToBlock`) **and** the JSON pull path
-   (`bowrain/core/client/sync_convert.go`, both directions).
-3. **Store** — if it must persist, add the column/serialization in
-   `bowrain/store` (and `sqlitestore`) and its (de)serialization.
-4. **Kitchen-sink fixture** — populate the new field/kind in
-   `synctest.KitchenSinkBlock` (and add a new kind to `synctest.AllRunKinds` /
-   `synctest.AllOverlayKinds`).
+1. **Canonical schema** — add the field to the `content.proto` message and run
+   `make proto` (never hand-edit the generated `*.pb.go`), then wire it into
+   `core/plugin/protoconvert` in both directions and extend the compat corpus.
+   Everything downstream reads the model through this schema, so it comes first.
+2. **Each projection's converters, both directions** — a projection that must
+   carry the field converts it on the way out and on the way back. On the sync
+   wire that is `bowrain/core/sync` (`BlockToProto`/`ProtoToBlock`) **and** the
+   JSON pull path (`bowrain/core/client/sync_convert.go`); a projection with its
+   own envelope message adds the field there too.
+3. **Persistence** — if a projection stores the field, add the column and its
+   (de)serialization. On the sync wire that is `bowrain/store` (and
+   `sqlitestore`).
+4. **Fixtures** — populate the new field or kind in every projection's fixture,
+   and add a new kind to the kind tables the round-trip tests iterate
+   (`synctest.AllRunKinds` / `synctest.AllOverlayKinds` for the sync wire).
 5. **Run the conformance tests** — they are the gate. Green means parity holds.
 
-## Known, deliberate limitations
+## Known, deliberate limitations of the sync-wire projection
+
+These are properties of that one projection, not of the contract. They are
+recorded here because a projection is required to say what it does not carry.
 
 - The **store persists a subset** of block fields (id/name/type/mime/
   translatable, source runs, properties, overlays, plus targets/annotations in

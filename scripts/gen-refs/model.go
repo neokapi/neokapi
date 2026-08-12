@@ -94,7 +94,7 @@ type EntryGroupMember struct {
 // Overview, Limitations, ProcessingNotes (and the per-parameter/example
 // help below) are markdown — rendered through the shared Markdown primitive
 // in the app UIs and through web/'s reference Markdown wrapper on the docs
-// site. See web/docs/contribute/implementation/markdown-in-ui.md.
+// site. See web/docs/contribute/implementation/repo/markdown-in-ui.md.
 type Doc struct {
 	Overview        string              `json:"overview,omitempty"` // markdown
 	Parameters      map[string]DocParam `json:"parameters,omitempty"`

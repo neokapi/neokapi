@@ -1,13 +1,16 @@
 ---
-sidebar_position: 13
+sidebar_position: 2
 title: "MCP Tools Reference"
-description: Implementation note for S-01 — where the kapi MCP server's tool handlers live, how a tool reaches the server, and what shape its result takes. The tool list itself is generated onto the MCP reference page.
+description: Implementation note for S-03 — where the kapi MCP server's tool handlers live, how a tool reaches the server, and what shape its result takes. The tool list itself is generated onto the MCP reference page.
 keywords: [MCP tools, kapi mcp, tool handlers, JSON-RPC, MCP server, implementation note, neokapi]
 ---
 
 # MCP Tools Reference
 
-Implementation detail for [S-01](/contribute/architecture/surfaces/s-01-kapi-cli).
+Implementation detail for
+[S-03: Agent surfaces](/contribute/architecture/surfaces/s-03-agent-surfaces),
+which decides that MCP is one of the two doors an assistant reaches kapi
+through.
 
 **The tool list is not here.** Tool names, descriptions, input schemas, the
 surface each belongs to, and the resource addresses the server answers reads at

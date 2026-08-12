@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 5
 title: Flow Steps Format
 description: Implementation note — the YAML steps-based flow format that compiles to the internal nodes-and-edges graph, including format detection rules, the FlowStep struct, and the StepsToGraph compilation algorithm.
 keywords: [flow steps format, YAML, steps, nodes, edges, StepsToGraph, flow compilation, implementation note]
@@ -32,7 +32,7 @@ type FlowStep struct {
 
 Tools that rewrite the source/model (redaction, a simplifier, normalization)
 are ordinary entries in `steps:`; there is no separate structural stage
-([E-03](../architecture/engine/e-03-tool-system.md)). A flow that declares the
+([E-03](../../architecture/engine/e-03-tool-system.md)). A flow that declares the
 removed `source_transforms:` field is rejected by `StepsToGraph` with a
 migration error pointing at E-03 and directing the author to list the
 transformers as ordered steps.
@@ -63,7 +63,7 @@ flow build/load gate and emits these diagnostics:
 
 Auto-assigned IDs follow `tool-N` pattern. Positions auto-layout left-to-right.
 The graph is tool nodes only; the flow's source and sink are bindings resolved
-at run time ([E-04](../architecture/engine/e-04-flows-and-io-binding.md)), not nodes.
+at run time ([E-04](../../architecture/engine/e-04-flows-and-io-binding.md)), not nodes.
 
 ## Examples
 

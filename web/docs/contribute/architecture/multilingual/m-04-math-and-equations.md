@@ -168,7 +168,7 @@ else.
 
 The sub-skeleton mechanism itself belongs to
 [E-02](../engine/e-02-format-system.md) and the
-[Skeleton Store](/contribute/implementation/skeleton-store) note. What this
+[Skeleton Store](/contribute/implementation/engine/skeleton-store) note. What this
 decision fixes is only the contract: the prose is translatable while the math is
 byte-exact.
 
@@ -195,4 +195,4 @@ recognizable to editors and preview in another.
 - [E-02: The format system](../engine/e-02-format-system.md) — the skeleton and the sub-skeleton mechanism, and the surfacing of non-translatable content
 - [S-04: The toolbox](../surfaces/s-04-toolbox.md) — the cross-format conversion that renders equations into each target's math idiom
 - [A-02: Parity](../assurance/a-02-parity.md) — why these carriers are excluded from the parity projection
-- [OMML math](/contribute/implementation/omml-math) — the coverage-approximation ledger, the AST node mapping, and the splice algorithm in detail
+- [OMML math](/contribute/implementation/multilingual/omml-math) — the coverage-approximation ledger, the AST node mapping, and the splice algorithm in detail

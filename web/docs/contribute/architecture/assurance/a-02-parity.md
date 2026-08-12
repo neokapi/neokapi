@@ -285,5 +285,5 @@ than a reason for the two repositories to share a build.
 - [F-04: The content-model wire schema](../foundations/f-04-wire-schema.md) — the schema the two repositories share
 - [E-02: The format system](../engine/e-02-format-system.md) — readers, defaults, and surfacing
 - [E-05: The plugin system](../engine/e-05-plugin-system.md) — the daemon dispatch the bridge uses
-- [Plugin protocol v1](/contribute/implementation/plugin-protocol-v1) — the conformance contract
+- [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1) — the conformance contract
 - [Format maturity](/format-maturity) — the published quality story

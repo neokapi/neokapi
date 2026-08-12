@@ -31,7 +31,7 @@ third-party plugins all use the same model. The default `kapi` binary is
 Apache-2.0 and ships zero vendor-plugin code.
 
 The contract is **versioned** and **independently verifiable**: the protocol is
-specified in [Plugin protocol v1](/contribute/implementation/plugin-protocol-v1), and
+specified in [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1), and
 `core/plugin/conformance` is that specification in executable form — a consumable
 Go package a plugin repository imports from a released kapi to self-report
 conformance in its own CI.
@@ -108,7 +108,7 @@ manifest-document revisions a kapi binary accepts. The full schema is embedded a
 `core/plugin/manifest/schema.json`; canonical Go types live in
 `core/plugin/manifest/manifest.go`. The wire contract — every manifest rule, all
 three transports, the Mode-C gRPC surface, and the conformance suite — is
-specified in [Plugin protocol v1](/contribute/implementation/plugin-protocol-v1).
+specified in [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1).
 
 ### Discovery
 
@@ -476,7 +476,7 @@ Actions are scarce. Intel users can run the arm64 binary under Rosetta.
 - [E-04: Flows and I/O binding](e-04-flows-and-io-binding.md) — the `source_connectors` capability as a provider binding
 - [E-08: Document structure tiers](e-08-document-structure-tiers.md) — the first-party PDF plugin in detail
 - [C-01: The project model](../context/c-01-project-model.md) — `requires:` and the recipe schema extensions plugins own
-- [Plugin protocol v1](/contribute/implementation/plugin-protocol-v1) — the versioned, language-neutral specification
+- [Plugin protocol v1](/contribute/implementation/engine/plugin-protocol-v1) — the versioned, language-neutral specification
 - [`core/plugin/manifest/`](https://github.com/neokapi/neokapi/tree/main/core/plugin/manifest) — Go types and embedded JSON Schema
 - [`host/pluginhost/`](https://github.com/neokapi/neokapi/tree/main/host/pluginhost) — host-side runtime (discovery, dispatch, daemon pool, registry, cosign)
 - [`examples/plugins/hello/`](https://github.com/neokapi/neokapi/tree/main/examples/plugins/hello) — minimal Go reference plugin

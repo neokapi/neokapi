@@ -4,7 +4,8 @@
 // These tests build the kapi binary and exercise complete user stories
 // against real files, verifying input/output of every command.
 //
-// Run with: go test -tags=e2e -count=1 -v ./kapi/e2e/
+// Run with: make test-e2e-kapi. The suite links go-sqlite3, so it needs
+// -tags "fts5,e2e" — one comma-joined flag, since repeated -tags do not union.
 package e2e
 
 import (

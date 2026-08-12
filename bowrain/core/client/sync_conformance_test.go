@@ -22,7 +22,7 @@ import (
 // block's Skeleton is always empty regardless of what the converter can carry.
 // The assertion below therefore pins converter fidelity, not store fidelity.
 //
-// See web/docs/contribute/implementation/content-parity.md.
+// See web/docs/contribute/implementation/foundations/content-parity.md.
 
 func TestSyncBlockJSONKitchenSinkRoundTrip(t *testing.T) {
 	orig := synctest.KitchenSinkBlock()

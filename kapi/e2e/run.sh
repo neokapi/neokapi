@@ -18,7 +18,12 @@ echo ""
 cd "$ROOT_DIR"
 
 echo "Running kapi CLI e2e tests..."
-go test -tags=e2e -count=1 -v ./kapi/e2e/
+# `make test-e2e-kapi` owns the tag set and the i18n-catalogs prerequisite, so
+# this wrapper defers to it rather than keeping a second spelling that can drift
+# out of it. Both tags must ride one comma-joined flag: `go` does not union
+# repeated -tags, the last occurrence wins, and a build that quietly loses fts5
+# fails only when a query reaches FTS5.
+make -C "$ROOT_DIR" test-e2e-kapi
 
 echo ""
 echo "All kapi CLI e2e tests passed!"

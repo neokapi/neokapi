@@ -19,7 +19,7 @@
  *
  * Owned + editable per the typeset philosophy ("the file lives in your
  * project"). Rendering is done by react-markdown; this only styles the output.
- * See web/docs/contribute/implementation/markdown-in-ui.md.
+ * See web/docs/contribute/implementation/repo/markdown-in-ui.md.
  *
  * Usage: wrap rendered markdown/HTML in `.typeset` (optionally a variant like
  * `.typeset-docs`). Opt a subtree out with `not-typeset` / `data-not-typeset`.

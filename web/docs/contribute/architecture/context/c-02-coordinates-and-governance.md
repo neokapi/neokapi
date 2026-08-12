@@ -256,5 +256,5 @@ which needs a point beneath the file that nothing declares yet.
   this resolution rendered.
 - [C-07: Voice profiles](c-07-voice-profiles.md) — what a profile binds, and how
   a channel refines it.
-- [kapi.yaml project file](../../implementation/kapi-project-file.md) — the
+- [kapi.yaml project file](../../implementation/context/kapi-project-file.md) — the
   schema reference.

@@ -137,7 +137,7 @@ Package `formats_test`, cwd = `core/formats/` (reads `"."` — line 46). Exempti
 
 ### 1.6 Rubric source of truth
 
-`docs/internals/format-maturity.md` — level table (lines 72–78), 9-dimension rubric table (91–101), "scorer v2" reproducibility section (39–64, documents floor + 3 quality dims + sticky anchor + repro-check invocation), file-signal quick reference (132–137), generated gap-analysis block (`<!-- BEGIN/END: gap-analysis report -->`, 139–256), open questions (258–286). Companion: `.skills/refresh-format-maturity/SKILL.md` ("score the 9 rubric dimensions", line 48–49), `.skills/implement-format/SKILL.md` (lines 18, 147, 171), `web/docs/contribute/implementation/implementing-formats.md:19`.
+`docs/internals/format-maturity.md` — level table (lines 72–78), 9-dimension rubric table (91–101), "scorer v2" reproducibility section (39–64, documents floor + 3 quality dims + sticky anchor + repro-check invocation), file-signal quick reference (132–137), generated gap-analysis block (`<!-- BEGIN/END: gap-analysis report -->`, 139–256), open questions (258–286). Companion: `.skills/refresh-format-maturity/SKILL.md` ("score the 9 rubric dimensions", line 48–49), `.skills/implement-format/SKILL.md` (lines 18, 147, 171), `web/docs/contribute/implementation/engine/implementing-formats.md:19`.
 
 ---
 
@@ -244,7 +244,7 @@ These give each axis the same "mechanically checkable floor" property the engine
 
 - `docs/internals/format-maturity.md`: add four ladder tables (V0–V3/E0–E3/K0–K3/C0–C3 entry criteria); update the level table intro (66–70: "a format sits at exactly one level" → one grade **per axis**); rewrite "scorer v2" §(39–64) as v3 incl. per-axis quality dims + repro invocation; tag each rubric row (91–101) with its axis; regenerate the gap-analysis block between the BEGIN/END markers (139–256).
 - `.skills/refresh-format-maturity/SKILL.md`: step 2 "score the 9 rubric dimensions" (48) and step 6 report (111–116) gain axes; step 1 mentions the new audit fields.
-- `.skills/implement-format/SKILL.md` (18, 147, 171) + `web/docs/contribute/implementation/implementing-formats.md:19`: rewording only.
+- `.skills/implement-format/SKILL.md` (18, 147, 171) + `web/docs/contribute/implementation/engine/implementing-formats.md:19`: rewording only.
 - Nav (`web/sidebars.ts:157`, `web/docusaurus.config.ts:231`): no change.
 
 ### 2.8 History & trend extension — without losing existing history

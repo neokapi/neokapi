@@ -1,5 +1,5 @@
 ---
-sidebar_position: 12
+sidebar_position: 7
 title: "Tool & Data Model Rationale"
 description: "Why the tool and data model is shaped the way it is: stand-off interpretations carried as positional Overlays and block-scoped Annotations under one typed payload registry, a typed consumes/produces IO contract over IOPorts, a uniform unit/segment iterator over segmentation overlays, and typed source/sink bindings that make flow validation and the flow editor coherent."
 keywords: [tool model, stand-off overlays, annotations, segmentation, IO contract, IOPort, consumes, produces, flow editor, source, sink, binding]

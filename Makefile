@@ -568,9 +568,15 @@ ci-i18n-react: ## Mirror the CI `neokapi-i18n` job: typecheck/validate/test/buil
 ci-build: i18n-catalogs ## Mirror the CI `build` job: build all three binaries (no fts5) + assert module isolation
 	@mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
 	@mkdir -p apps/kapi-desktop/frontend/dist && echo placeholder > apps/kapi-desktop/frontend/dist/index.html
-	cd kapi && go build -o ../bin/kapi ./cmd/kapi
-	cd bowrain/plugin && go build -o ../../bin/kapi-bowrain ./cmd/kapi-bowrain
-	cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
+	@# Deliberately no fts5 — this target proves the packages compile and the
+	@# module boundaries hold, and nothing here is ever executed. The binaries
+	@# go to a scratch directory rather than $(BIN_DIR) precisely because they
+	@# lack FTS5: a non-fts5 kapi left at bin/kapi still runs, and dies only on
+	@# its first memory or terms query.
+	@mkdir -p $(BIN_DIR)/ci-build
+	cd kapi && go build -o $(BIN_DIR)/ci-build/kapi ./cmd/kapi
+	cd bowrain/plugin && go build -o $(BIN_DIR)/ci-build/kapi-bowrain ./cmd/kapi-bowrain
+	cd bowrain && go build -o $(BIN_DIR)/ci-build/bowrain-server ./cmd/bowrain-server
 	GOWORK=off bash -c "go build ./..."
 	GOWORK=off bash -c "cd host && go build ./..."
 	GOWORK=off bash -c "cd cli && go build ./..."
@@ -2084,7 +2090,7 @@ bowrain-logo: ## Regenerate all bowrain logo/icon/favicon assets from the vector
 # into the Pages artifact / PR-preview bundle. The GitHub docs-assets /
 # bowrain-docs-assets releases are retired; these targets are the single publish
 # path. Auth via env: CDN_BUCKET + AWS credentials (an `aws sso login` profile
-# locally). See web/docs/contribute/implementation/cdn-assets.md.
+# locally). See web/docs/contribute/implementation/repo/cdn-assets.md.
 # wasm is also published by CI on each push-to-main docs build (versioned by
 # sha). The rest are published from the desktop where the harness produces them;
 # the vision model set is pulled from the pinned vision-models-v1 release.

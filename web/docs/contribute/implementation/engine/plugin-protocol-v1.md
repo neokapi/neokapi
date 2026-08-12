@@ -1,6 +1,6 @@
 ---
+sidebar_position: 9
 id: plugin-protocol-v1
-sidebar_position: 3
 title: "Plugin protocol v1"
 description: The versioned, language-neutral specification for kapi plugins — the manifest model, the three transport modes, the Mode-C gRPC surface and wire format, and the conformance suite an out-of-tree plugin repository runs against a released kapi to self-report conformance.
 keywords:

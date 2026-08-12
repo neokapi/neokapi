@@ -1,14 +1,15 @@
 ---
+sidebar_position: 1
 title: Multimodal content — implementation map
 ---
 
 # Multimodal content — implementation map
 
 Tactical notes for the multimodal surface described in
-[M-03](../architecture/multilingual/m-03-multimodal-content.md)
+[M-03](../../architecture/multilingual/m-03-multimodal-content.md)
 (extraction + refinement) and
-[M-03](../architecture/multilingual/m-03-multimodal-content.md) (vision). The
-content-model anchors are [F-02](../architecture/foundations/f-02-content-model.md):
+[M-03](../../architecture/multilingual/m-03-multimodal-content.md) (vision). The
+content-model anchors are [F-02](../../architecture/foundations/f-02-content-model.md):
 a block carries a temporal `TimingAnnotation`, a spatial `GeometryAnnotation`,
 and a recognition `Origin` (OCR/ASR, with confidence).
 

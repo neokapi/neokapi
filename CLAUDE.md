@@ -45,7 +45,7 @@ Non-obvious constraints:
   sat, …) are discovered at runtime via the unified manifest model and
   dispatched as subprocesses. `bowrain/plugin/*` is blank-imported into
   `kapi-bowrain`, not into `kapi`. See
-  [Note: Plugin model](web/docs/contribute/implementation/plugin-model.md).
+  [Note: Plugin model](web/docs/contribute/implementation/engine/plugin-model.md).
 
 ## Build
 
@@ -167,7 +167,7 @@ Remotion into light + dark `.webm`. Two things are easy to get wrong:
 - **Assets are not in git and not in GitHub releases.** They live only on the
   S3 + CloudFront CDN (`$DOCS_CDN_URL`) and are referenced by URL via
   `ThemedVideo` / `ThemedImage`; docs CI references them rather than recording.
-  See [CDN assets](web/docs/contribute/implementation/cdn-assets.md).
+  See [CDN assets](web/docs/contribute/implementation/repo/cdn-assets.md).
 
 Recordings and screenshots run against **real** neokapi infrastructure — real
 Keycloak OIDC via `compose.yaml`, the real `bowrain-server` binary, a real
