@@ -61,12 +61,12 @@ type ContextVoiceDTO struct {
 // re-modelled projection: the frontend already renders this shape, so the term
 // status vocabulary is defined once.
 type ContextGovernsResult struct {
-	Point         ContextPointDTO           `json:"point"`
-	Voice         *ContextVoiceDTO          `json:"voice,omitempty"`
-	Concepts      []ConceptDTO              `json:"concepts"`
-	ConceptsTotal int                       `json:"concepts_total"`
-	Profiles      []host.ContextProfileHit  `json:"profiles"`
-	Notes         []string                  `json:"notes"`
+	Point         ContextPointDTO          `json:"point"`
+	Voice         *ContextVoiceDTO         `json:"voice,omitempty"`
+	Concepts      []ConceptDTO             `json:"concepts"`
+	ConceptsTotal int                      `json:"concepts_total"`
+	Profiles      []host.ContextProfileHit `json:"profiles"`
+	Notes         []string                 `json:"notes"`
 }
 
 // ContextCollectionDTO is one collection at or under a point.
@@ -154,17 +154,28 @@ func (a *App) contextExplorerSources(
 	ctx context.Context,
 	op *openProject,
 ) (host.ContextSearchSources, func(), error) {
+	cmd, err := a.contextCommand(ctx, op)
+	if err != nil {
+		return host.ContextSearchSources{}, func() {}, err
+	}
+	src, cleanup := a.hostEngine().ContextSearchSourcesFor(cmd, "", "")
+	return src, cleanup, nil
+}
+
+// contextCommand carries the tab's own recipe path on the project flag, so the
+// flag-free openers resolve to the project this tab has open rather than to
+// whatever an upward walk from the process's working directory would find.
+func (a *App) contextCommand(ctx context.Context, op *openProject) (host.Command, error) {
 	if op.Project == nil || op.Path == "" {
-		return host.ContextSearchSources{}, func() {}, errors.New("the tab has no project recipe on disk")
+		return nil, errors.New("the tab has no project recipe on disk")
 	}
 	cmd := host.NewEnvCommand(ctx, "context-explorer")
 	host.AddProjectFlag(cmd)
 	host.AddResourceFlags(cmd)
 	if err := cmd.Flags().Set("project", op.Path); err != nil {
-		return host.ContextSearchSources{}, func() {}, fmt.Errorf("bind project: %w", err)
+		return nil, fmt.Errorf("bind project: %w", err)
 	}
-	src, cleanup := a.hostEngine().ContextSearchSourcesFor(cmd, "", "")
-	return src, cleanup, nil
+	return cmd, nil
 }
 
 // contextPoint resolves the governance in force at (collection, path) and
@@ -188,6 +199,43 @@ func contextPoint(
 		Ref:        rc.VoiceField,
 		Default:    ref.Profile == "",
 	}, rc, nil
+}
+
+// ContextAt answers "what governs here" for one FILE, through the same
+// by-location resolution `kapi context <path>` and the `context://` resource
+// serve.
+//
+// A file is the finest declared point, and it is the form the retrieval surface
+// owns: one function assembles the answer, so the desktop cannot report a
+// context the CLI would describe differently. The coarser forms — a collection,
+// a bare project — have no location to resolve and go through ContextGoverns.
+func (a *App) ContextAt(tabID, relPath string, limit int) (*host.ContextAnswer, error) {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return nil, fmt.Errorf("project tab %q not found", tabID)
+	}
+	if op.Project == nil || op.Path == "" {
+		return nil, errors.New("the tab has no project recipe on disk")
+	}
+	if relPath == "" {
+		return nil, errors.New("no path")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), contextExplorerTimeout)
+	defer cancel()
+
+	cmd, err := a.contextCommand(ctx, op)
+	if err != nil {
+		return nil, err
+	}
+	// The request resolves a path against the process's working directory, which
+	// is not the project root for a desktop tab.
+	req := host.ContextPointRequest{
+		Path:  filepath.Join(filepath.Dir(op.Path), relPath),
+		Limit: limit,
+	}
+	src, cleanup := a.hostEngine().ContextSourcesAt(cmd, req)
+	defer cleanup()
+	return host.ResolveContextAt(ctx, src, req)
 }
 
 // ContextGoverns answers "what governs here" for one point in the open project.

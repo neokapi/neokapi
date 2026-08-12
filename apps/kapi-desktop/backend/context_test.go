@@ -109,6 +109,33 @@ func TestContextGovernsResolvesTheFinestDeclaredPoint(t *testing.T) {
 	assert.True(t, appColl.Point.Default)
 }
 
+func TestContextAtAnswersThroughTheRetrievalSurface(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+	seedConcept(t, app, tab)
+
+	res, err := app.ContextAt(tab.ID, "docs/help/billing.json", 10)
+	require.NoError(t, err)
+	assert.Equal(t, "docs/help/billing.json", res.Point.Path)
+	assert.Equal(t, "support", res.Point.Profile)
+	assert.Equal(t, "docs", res.Point.Channel)
+	assert.False(t, res.Point.Default)
+
+	// The terms come back ranked and typed by the retrieval surface, so the
+	// desktop projects nothing of its own.
+	require.NotEmpty(t, res.Terms)
+	assert.Equal(t, "c-signin", res.Terms[0].ConceptID)
+	assert.True(t, res.Terms[0].Discouraged, "a rule to act on ranks before a word to reuse")
+}
+
+func TestContextAtRefusesAPathlessRequest(t *testing.T) {
+	app := NewApp()
+	tab, _ := newContextProject(t, app)
+
+	_, err := app.ContextAt(tab.ID, "", 10)
+	assert.Error(t, err, "a collection has no location to resolve")
+}
+
 func TestContextGovernsReportsAProfileWindow(t *testing.T) {
 	app := NewApp()
 	tab, _ := newContextProject(t, app)

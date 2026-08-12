@@ -27,6 +27,11 @@ import { call } from "../hooks/useApi";
 
 /** The Wails surface the source reads through, injectable for tests. */
 export interface ContextBackend {
+  /**
+   * The by-location answer for one file — the same resolution `kapi context
+   * <path>` and the `context://` resource serve.
+   */
+  at(tabID: string, path: string, limit: number): Promise<AtResult | null>;
   governs(
     tabID: string,
     collection: string,
@@ -78,6 +83,20 @@ interface ProfileWindowResult {
   valid_from?: string;
   valid_to?: string;
   state: string;
+}
+
+/**
+ * The by-location answer, verbatim from the retrieval surface. Its term rows
+ * are already the shape the panes render, so nothing here re-projects them.
+ */
+interface AtResult {
+  point: PointResult;
+  scope: string;
+  voice?: { name: string; source?: string; field?: string; guide?: string };
+  terms?: TermHit[];
+  terms_total?: number;
+  profiles?: ProfileWindowResult[];
+  notes?: string[];
 }
 
 interface GovernsResult {
@@ -157,6 +176,7 @@ interface OptionResult {
 
 /** The production backend: each method dispatches to its Wails binding. */
 export const wailsContextBackend: ContextBackend = {
+  at: (tabID, path, limit) => call<AtResult>("ContextAt", tabID, path, limit),
   governs: (tabID, collection, path, limit) =>
     call<GovernsResult>("ContextGoverns", tabID, collection, path, limit),
   lives: (tabID, collection, path, limit) =>
@@ -239,9 +259,22 @@ export function createLocalContextSource(
     capabilities: DESKTOP_CAPABILITIES,
 
     async governs(q: ScopedQuery): Promise<GovernanceAnswer> {
-      const res = required(
-        await backend.governs(tabID, q.scope.collection ?? "", q.scope.path ?? "", limitOf(q)),
-      );
+      // A file is the finest declared point and the form the retrieval surface
+      // owns, so it answers there rather than here. A collection has no
+      // location to resolve and takes the coarser path.
+      if (q.scope.path) {
+        const at = required(await backend.at(tabID, q.scope.path, limitOf(q)));
+        return {
+          point: at.point,
+          scope: "project",
+          voice: at.voice,
+          terms: at.terms ?? [],
+          terms_total: at.terms_total,
+          profiles: at.profiles ?? [],
+          notes: at.notes ?? [],
+        };
+      }
+      const res = required(await backend.governs(tabID, q.scope.collection ?? "", "", limitOf(q)));
       return {
         point: res.point,
         scope: "project",

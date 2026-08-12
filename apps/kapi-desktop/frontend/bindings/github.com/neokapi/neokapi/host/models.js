@@ -114,6 +114,192 @@ export class AIModelResolution {
 }
 
 /**
+ * ContextAnswer is what applies at one point.
+ */
+export class ContextAnswer {
+    /**
+     * Creates a new ContextAnswer instance.
+     * @param {Partial<ContextAnswer>} [$$source = {}] - The source object to create the ContextAnswer.
+     */
+    constructor($$source = {}) {
+        if (!("point" in $$source)) {
+            /**
+             * Point is the coordinate the request resolved to.
+             * @member
+             * @type {ContextPoint}
+             */
+            this["point"] = (new ContextPoint());
+        }
+        if (!("scope" in $$source)) {
+            /**
+             * Scope says how much could have been read, so a thin answer is readable:
+             * a project scope that reports no rules has not consulted a concept graph,
+             * because it has none.
+             * @member
+             * @type {ContextScope}
+             */
+            this["scope"] = ContextScope.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Voice is the profile in force and its rendered guidance, nil when no voice
+             * is bound at this point.
+             * @member
+             * @type {ContextVoice | null | undefined}
+             */
+            this["voice"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Terms are the terms bound at this point that are in force, ranked with the
+             * discouraged ones first — a rule to act on before a word to reuse.
+             * @member
+             * @type {ContextTermHit[] | undefined}
+             */
+            this["terms"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * TermsTotal is how many terms the point binds in all, so a capped list says
+             * what it is a part of.
+             * @member
+             * @type {number | undefined}
+             */
+            this["terms_total"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Profiles are the governance profiles whose validity is bounded, read
+             * against the answer's instant — which voice is in force, and until when.
+             * The same shape the by-content answer reports, because it is the same fact.
+             * @member
+             * @type {ContextProfileHit[] | undefined}
+             */
+            this["profiles"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Notes carries freshness and scope-shaped caveats. Present so a thin answer
+             * is never ambiguous between "nothing applies here" and "nothing could be
+             * consulted".
+             * @member
+             * @type {string[] | undefined}
+             */
+            this["notes"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextAnswer instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextAnswer}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType0;
+        const $$createField2_0 = $$createType2;
+        const $$createField3_0 = $$createType4;
+        const $$createField5_0 = $$createType6;
+        const $$createField6_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("point" in $$parsedSource) {
+            $$parsedSource["point"] = $$createField0_0($$parsedSource["point"]);
+        }
+        if ("voice" in $$parsedSource) {
+            $$parsedSource["voice"] = $$createField2_0($$parsedSource["voice"]);
+        }
+        if ("terms" in $$parsedSource) {
+            $$parsedSource["terms"] = $$createField3_0($$parsedSource["terms"]);
+        }
+        if ("profiles" in $$parsedSource) {
+            $$parsedSource["profiles"] = $$createField5_0($$parsedSource["profiles"]);
+        }
+        if ("notes" in $$parsedSource) {
+            $$parsedSource["notes"] = $$createField6_0($$parsedSource["notes"]);
+        }
+        return new ContextAnswer(/** @type {Partial<ContextAnswer>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextPoint is the coordinate an answer is about.
+ */
+export class ContextPoint {
+    /**
+     * Creates a new ContextPoint instance.
+     * @param {Partial<ContextPoint>} [$$source = {}] - The source object to create the ContextPoint.
+     */
+    constructor($$source = {}) {
+        if (/** @type {any} */(false)) {
+            /**
+             * Path is the location as asked about, project-relative and
+             * slash-separated. Empty for the by-name form.
+             * @member
+             * @type {string | undefined}
+             */
+            this["path"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Profile is the governance profile in force, empty at the project's
+             * default point.
+             * @member
+             * @type {string | undefined}
+             */
+            this["profile"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Channel is the surface the location ships on, empty when it binds none.
+             * @member
+             * @type {string | undefined}
+             */
+            this["channel"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Collection is the content collection claiming the path, empty when no
+             * collection does.
+             * @member
+             * @type {string | undefined}
+             */
+            this["collection"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Ref renders Profile and Channel as the recipe writes the binding
+             * (`profile/channel`). Empty at the project's default point.
+             * @member
+             * @type {string | undefined}
+             */
+            this["ref"] = undefined;
+        }
+        if (!("default" in $$source)) {
+            /**
+             * Default reports that resolution fell through to the project's default
+             * point — a real answer, and a different one from "no profile exists".
+             * @member
+             * @type {boolean}
+             */
+            this["default"] = false;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextPoint instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextPoint}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ContextPoint(/** @type {Partial<ContextPoint>} */($$parsedSource));
+    }
+}
+
+/**
  * ContextPrecedentHit is one piece of previously-approved wording.
  */
 export class ContextPrecedentHit {
@@ -172,7 +358,7 @@ export class ContextPrecedentHit {
      * @returns {ContextPrecedentHit}
      */
     static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType0;
+        const $$createField4_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("discouraged" in $$parsedSource) {
             $$parsedSource["discouraged"] = $$createField4_0($$parsedSource["discouraged"]);
@@ -262,6 +448,15 @@ export const ContextScope = {
      * ScopeWorkspace is a Bowrain-connected workspace: the full concept graph.
      */
     ScopeWorkspace: "workspace",
+
+    /**
+     * ScopeProfile is one voice profile and nothing else — a by-name answer with
+     * no project in scope, or one naming a profile no recipe declares. Narrower
+     * than a project on purpose: there is no terms store and no governance window
+     * behind it, and reporting that as an empty project scope would say the
+     * project holds no terminology when no project was consulted at all.
+     */
+    ScopeProfile: "profile",
 };
 
 /**
@@ -350,10 +545,10 @@ export class ContextSearchResult {
      * @returns {ContextSearchResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType2;
-        const $$createField3_0 = $$createType4;
+        const $$createField2_0 = $$createType4;
+        const $$createField3_0 = $$createType9;
         const $$createField4_0 = $$createType6;
-        const $$createField5_0 = $$createType0;
+        const $$createField5_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("terms" in $$parsedSource) {
             $$parsedSource["terms"] = $$createField2_0($$parsedSource["terms"]);
@@ -501,7 +696,7 @@ export class ContextTermHit {
      * @returns {ContextTermHit}
      */
     static createFrom($$source = {}) {
-        const $$createField12_0 = $$createType8;
+        const $$createField12_0 = $$createType11;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("top_uses" in $$parsedSource) {
             $$parsedSource["top_uses"] = $$createField12_0($$parsedSource["top_uses"]);
@@ -571,6 +766,66 @@ export class ContextTermUse {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ContextTermUse(/** @type {Partial<ContextTermUse>} */($$parsedSource));
+    }
+}
+
+/**
+ * ContextVoice is the voice in force at a point, with the guidance it renders.
+ */
+export class ContextVoice {
+    /**
+     * Creates a new ContextVoice instance.
+     * @param {Partial<ContextVoice>} [$$source = {}] - The source object to create the ContextVoice.
+     */
+    constructor($$source = {}) {
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Source is where the profile was loaded from: a path, `pack:<name>`, or
+             * `store:<name>`.
+             * @member
+             * @type {string | undefined}
+             */
+            this["source"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Field names the recipe key that bound it (`profiles.<name>.voice` or
+             * `defaults.voice`), so a caller that wants to change the answer knows which
+             * line to edit.
+             * @member
+             * @type {string | undefined}
+             */
+            this["field"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Guide is the profile rendered as prose for a model — the same rendering
+             * `kapi voice guide` prints and the translation prompt carries, so what an
+             * assistant reads here is what generation is held to.
+             * @member
+             * @type {string | undefined}
+             */
+            this["guide"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ContextVoice instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ContextVoice}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ContextVoice(/** @type {Partial<ContextVoice>} */($$parsedSource));
     }
 }
 
@@ -645,7 +900,7 @@ export class ConvergeLocaleResult {
      * @returns {ConvergeLocaleResult}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType9;
+        const $$createField3_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("pct" in $$parsedSource) {
             $$parsedSource["pct"] = $$createField3_0($$parsedSource["pct"]);
@@ -756,8 +1011,8 @@ export class ConvergeOutput {
      * @returns {ConvergeOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType11;
-        const $$createField4_0 = $$createType13;
+        const $$createField3_0 = $$createType14;
+        const $$createField4_0 = $$createType16;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("locales" in $$parsedSource) {
             $$parsedSource["locales"] = $$createField3_0($$parsedSource["locales"]);
@@ -924,8 +1179,8 @@ export class UpPlanOutput {
      * @returns {UpPlanOutput}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType15;
-        const $$createField2_0 = $$createType14;
+        const $$createField1_0 = $$createType18;
+        const $$createField2_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("scopes" in $$parsedSource) {
             $$parsedSource["scopes"] = $$createField1_0($$parsedSource["scopes"]);
@@ -1016,19 +1271,22 @@ export class UpPlanScope {
 }
 
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = ContextTermHit.createFrom;
-const $$createType2 = $Create.Array($$createType1);
-const $$createType3 = ContextPrecedentHit.createFrom;
+const $$createType0 = ContextPoint.createFrom;
+const $$createType1 = ContextVoice.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);
+const $$createType3 = ContextTermHit.createFrom;
 const $$createType4 = $Create.Array($$createType3);
 const $$createType5 = ContextProfileHit.createFrom;
 const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = ContextTermUse.createFrom;
-const $$createType8 = $Create.Array($$createType7);
-const $$createType9 = $Create.Map($Create.Any, $Create.Any);
-const $$createType10 = ConvergeLocaleResult.createFrom;
+const $$createType7 = $Create.Array($Create.Any);
+const $$createType8 = ContextPrecedentHit.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = ContextTermUse.createFrom;
 const $$createType11 = $Create.Array($$createType10);
-const $$createType12 = ParkedScope.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = UpPlanScope.createFrom;
-const $$createType15 = $Create.Array($$createType14);
+const $$createType12 = $Create.Map($Create.Any, $Create.Any);
+const $$createType13 = ConvergeLocaleResult.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = ParkedScope.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = UpPlanScope.createFrom;
+const $$createType18 = $Create.Array($$createType17);

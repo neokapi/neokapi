@@ -12,6 +12,20 @@ const SCOPE = { project: "Northsea", stream: "main", collection: "Docs" };
 /** A backend whose every method is a recording stub returning a canned answer. */
 function fakeBackend(over: Partial<ContextBackend> = {}): ContextBackend {
   return {
+    at: vi.fn().mockResolvedValue({
+      point: {
+        path: "docs/help/billing.json",
+        profile: "support",
+        channel: "docs",
+        default: false,
+      },
+      scope: "project",
+      voice: { name: "Support", guide: "Write plainly." },
+      terms: [{ concept_id: "c-signin", term: "sign in", discouraged: false }],
+      terms_total: 18,
+      profiles: [],
+      notes: [],
+    }),
     governs: vi.fn().mockResolvedValue({
       point: { profile: "support", channel: "docs", collection: "Docs", default: false },
       voice: { name: "Support", field: "profiles.support.voice" },
@@ -84,11 +98,26 @@ describe("createLocalContextSource", () => {
     expect(caps.relations).toBe("project");
   });
 
-  it("passes the tuple's collection and path to the backend", async () => {
+  it("answers a file through the by-location surface, untouched", async () => {
     const backend = fakeBackend();
     const source = createLocalContextSource(TAB, backend);
-    await source.governs({ scope: { ...SCOPE, path: "docs/help/billing.json" }, limit: 5 });
-    expect(backend.governs).toHaveBeenCalledWith(TAB, "Docs", "docs/help/billing.json", 5);
+    const answer = await source.governs({
+      scope: { ...SCOPE, path: "docs/help/billing.json" },
+      limit: 5,
+    });
+    expect(backend.at).toHaveBeenCalledWith(TAB, "docs/help/billing.json", 5);
+    expect(backend.governs).not.toHaveBeenCalled();
+    expect(answer.point.path).toBe("docs/help/billing.json");
+    expect(answer.terms_total).toBe(18);
+    expect(answer.voice?.guide).toBe("Write plainly.");
+  });
+
+  it("answers a collection through the coarser point, which has no location", async () => {
+    const backend = fakeBackend();
+    const source = createLocalContextSource(TAB, backend);
+    await source.governs({ scope: SCOPE, limit: 5 });
+    expect(backend.governs).toHaveBeenCalledWith(TAB, "Docs", "", 5);
+    expect(backend.at).not.toHaveBeenCalled();
   });
 
   it("flattens concepts into term rows, marking the discouraged one", async () => {

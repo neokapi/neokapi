@@ -9,6 +9,14 @@ afterEach(cleanup);
 
 function backend(): ContextBackend {
   return {
+    at: vi.fn().mockResolvedValue({
+      point: { profile: "support", channel: "docs", default: false },
+      scope: "project",
+      voice: { name: "Support" },
+      terms: [],
+      profiles: [],
+      notes: [],
+    }),
     governs: vi.fn().mockResolvedValue({
       point: { profile: "support", channel: "docs", collection: "Docs", default: false },
       voice: { name: "Support", field: "profiles.support.voice" },
