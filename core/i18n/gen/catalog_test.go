@@ -11,6 +11,8 @@ import (
 	"github.com/leonelquinteros/gotext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // fixtureRecipe is a two-collection recipe in the shape of the dogfood one:
@@ -312,4 +314,69 @@ func repoRoot(t *testing.T) string {
 		require.NotEqual(t, dir, parent, "no kapi.yaml above %s", dir)
 		dir = parent
 	}
+}
+
+// TestDiscoverLocales_AcceptsEitherSpellingOfThePattern pins the seam that
+// decides whether a committed catalog is seen at all. The two halves reach
+// discoverLocales in whichever form their producer used —
+// project.ResolveTargetPath names a file to write and so returns an OS-native
+// path, while the compiler passes slash form around — and a half spelled with
+// the wrong separator must not read as "this locale has no catalog". On a
+// platform whose separator is "/" the two spellings coincide; on Windows they
+// do not, and the case that fails there compiles no catalog at all while
+// reporting every locale as untranslated.
+func TestDiscoverLocales_AcceptsEitherSpellingOfThePattern(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"core/i18n/catalogs/nb.json":  `{"tools":{}}`,
+		"core/i18n/catalogs/qps.json": `{"tools":{}}`,
+	})
+
+	cases := []struct {
+		name   string
+		prefix string
+	}{
+		{"slash form, as the compiler passes it", "core/i18n/catalogs/"},
+		{"native form, as ResolveTargetPath returns it", filepath.FromSlash("core/i18n/catalogs/")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			locales, err := discoverLocales(root, tc.prefix, ".json")
+			require.NoError(t, err)
+			assert.Equal(t, []model.LocaleID{"nb", "qps"}, locales)
+		})
+	}
+}
+
+// TestDiscoverLocales_RootSpelledRelatively covers the invocation the release
+// build makes: `go run ./core/i18n/gen/catalogs` leaves root at its default
+// ".", and filepath.Glob cleans the matches it returns, so the fixed head
+// cannot be trimmed off a match by string identity with the glob it was
+// built from.
+func TestDiscoverLocales_RootSpelledRelatively(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"core/i18n/catalogs/nb.json": `{"tools":{}}`,
+	})
+	t.Chdir(root)
+
+	locales, err := discoverLocales(".", "core/i18n/catalogs/", ".json")
+	require.NoError(t, err)
+	assert.Equal(t, []model.LocaleID{"nb"}, locales)
+}
+
+// TestCompileCatalogs_ReportsSlashPaths pins the form every path the compiler
+// emits takes: the summaries name repo-relative artifacts and the log names
+// catalogs a reader may go and look for, so both are slash form on every
+// platform rather than the host's own spelling.
+func TestCompileCatalogs_ReportsSlashPaths(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"core/i18n/catalogs/nb.json": `{"tools":{"translate":{"description":"Oversett innhold med en LLM-leverandør"}}}`,
+	})
+
+	summaries, log := compile(t, root)
+	require.NotEmpty(t, summaries)
+	for _, s := range summaries {
+		assert.NotContains(t, s.Path, `\`, "a reported path is slash form")
+	}
+	assert.Contains(t, log, "core/i18n/catalogs/nb.mo")
+	assert.Contains(t, log, "host/i18n/catalogs/nb.json is not committed yet")
 }
