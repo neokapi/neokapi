@@ -161,7 +161,7 @@ func TestServerRebuildIsScopedAndIdempotent(t *testing.T) {
 	f := newWriterFixture(t)
 	ctx := t.Context()
 	require.NoError(t, f.terms.AddConcept(ctx, fwterms.Concept{
-		ID: "c-memory",
+		ID:    "c-memory",
 		Terms: []fwterms.Term{{Text: "content memory", Locale: "en", Status: model.TermApproved}},
 	}))
 	docs := f.seedProject(t, ctx, "docs-site", "docs", "docs", "The content memory recycles wording.")
@@ -189,7 +189,7 @@ func TestServerRenameIsAPropertyUpdate(t *testing.T) {
 	f := newWriterFixture(t)
 	ctx := t.Context()
 	require.NoError(t, f.terms.AddConcept(ctx, fwterms.Concept{
-		ID: "c-memory",
+		ID:    "c-memory",
 		Terms: []fwterms.Term{{Text: "content memory", Locale: "en", Status: model.TermApproved}},
 	}))
 	proj := f.seedProject(t, ctx, "docs-site", "docs", "docs", "The content memory recycles wording.")
