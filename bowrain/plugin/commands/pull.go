@@ -147,6 +147,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		}
 		out := output.PullOutput{Stream: conn.Stream(), DryRun: pullDryRun}
 		if cres != nil {
+			conn.ObserveTermsRef(cres.TermsRef)
 			out.ConceptsPulled = cres.Concepts
 			out.ConceptRelationsPulled = cres.Relations
 			out.TermsProjection = cli.FormatTermsProjection(cres.Projection)
@@ -187,6 +188,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		conn.SetConceptBaseline(baseline)
 	}
 	if cres != nil {
+		conn.ObserveTermsRef(cres.TermsRef)
 		out.ConceptsPulled = cres.Concepts
 		out.ConceptRelationsPulled = cres.Relations
 		out.TermsProjection = cli.FormatTermsProjection(cres.Projection)

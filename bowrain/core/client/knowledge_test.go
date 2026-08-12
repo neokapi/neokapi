@@ -354,7 +354,7 @@ func TestChangesetLifecycle(t *testing.T) {
 
 	submitted, gotSubmit := knowledgeWriteServer(t, http.StatusOK,
 		`{"id":"cs1","workspace_id":"ws1","name":"kapi push","status":"in_review","created_by":"alice","created_at":"2026-06-01T10:00:00Z","updated_at":"2026-06-01T10:10:00Z"}`)
-	done, err := submitted.SubmitChangeset(context.Background(), "cs1")
+	done, err := submitted.SubmitChangeset(context.Background(), "cs1", "")
 	require.NoError(t, err)
 	assert.Equal(t, http.MethodPost, gotSubmit.method)
 	assert.Equal(t, "/api/v1/acme/changesets/cs1/submit", gotSubmit.path)

@@ -13,7 +13,9 @@ import (
 	"testing"
 
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	"github.com/neokapi/neokapi/bowrain/core/config"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/bowrain/core/refcache"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/formats"
@@ -306,7 +308,7 @@ func TestPushConceptsOrdinaryEditAppliesDirectly(t *testing.T) {
 	})
 
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tb, baseline, false)
+	res, err := PushConcepts(context.Background(), client, tb, baseline, "", false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -337,7 +339,7 @@ func TestPushConceptsGovernedEditProposesChangeSet(t *testing.T) {
 	})
 
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tb, baseline, false)
+	res, err := PushConcepts(context.Background(), client, tb, baseline, "", false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -374,7 +376,7 @@ func TestPushConceptsDryRunNeitherWritesNorProposes(t *testing.T) {
 	})
 
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tb, baseline, true)
+	res, err := PushConcepts(context.Background(), client, tb, baseline, "", true)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -395,7 +397,7 @@ func TestPushConceptsUnchangedIsNoop(t *testing.T) {
 
 	// No local edit: the push must be a no-op.
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tb, baseline, false)
+	res, err := PushConcepts(context.Background(), client, tb, baseline, "", false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	assert.False(t, res.changed())
@@ -420,7 +422,7 @@ func TestPushConceptsNewConceptCreatesDirectly(t *testing.T) {
 	}))
 
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
-	res, err := PushConcepts(context.Background(), client, tb, baseline, false)
+	res, err := PushConcepts(context.Background(), client, tb, baseline, "", false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, 1, res.ConceptsApplied)
@@ -473,11 +475,12 @@ func TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt(t *testing.T)
 	proj, err := bproject.InitProject(root, recipe)
 	require.NoError(t, err)
 
-	// Simulate a prior block pull that advanced + saved the stream cursor, so the
-	// connector loads real block-sync state it will flush on its deferred Close().
-	seed := bproject.LoadSyncCache(proj.Layout)
-	seed.SetStreamCursor("main", 7)
-	require.NoError(t, seed.Save(proj.Layout))
+	// Simulate a prior block pull that advanced + saved the stream position, so
+	// the connector loads real block-sync state it will flush on its deferred
+	// Close().
+	seedRefs := refcache.Load(proj.Layout, config.NormalizeServerURL(srv.URL), "proj1")
+	seedRefs.Consume("main", 7)
+	require.NoError(t, seedRefs.Save(proj.Layout))
 
 	conn, err := bconn.NewSourceConnector(app, proj, reg)
 	require.NoError(t, err)
@@ -498,8 +501,9 @@ func TestConceptPull_BaselineSurvivesConnectorCloseThenPushReadsIt(t *testing.T)
 	// The baseline written by conceptPull must survive the connector's deferred
 	// Close() and coexist with the block-sync cursor.
 	reloaded := bproject.LoadSyncCache(proj.Layout)
-	assert.Equal(t, int64(7), reloaded.GetStreamCursor("main"),
-		"block-sync cursor must persist through the deferred conn.Close()")
+	assert.Equal(t, int64(7),
+		refcache.Load(proj.Layout, config.NormalizeServerURL(srv.URL), "proj1").Ref("main").Content,
+		"the block-sync position must persist through the deferred conn.Close()")
 	require.NotNil(t, reloaded.ConceptBaseline,
 		"concept baseline must survive the deferred conn.Close(), not be erased by it")
 	assert.Len(t, reloaded.ConceptBaseline.Concepts, 2)
@@ -533,7 +537,7 @@ func TestPushConceptsWithoutTermsSkips(t *testing.T) {
 	srv, _ := conceptSyncServer(t)
 	client := apiclient.NewWorkspaceBowrainClient(srv.URL, "acme", "proj1", "tok")
 
-	res, err := PushConcepts(context.Background(), client, nil, nil, false)
+	res, err := PushConcepts(context.Background(), client, nil, nil, "", false)
 	require.NoError(t, err)
 	assert.Nil(t, res, "push must skip when the project has no terms")
 }

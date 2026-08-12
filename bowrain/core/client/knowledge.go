@@ -640,9 +640,20 @@ func (c *BowrainClient) AppendChangesetOp(ctx context.Context, changesetID strin
 
 // SubmitChangeset moves a draft change-set into review and returns its refreshed
 // header (POST /api/v1/:ws/changesets/:id/submit).
-func (c *BowrainClient) SubmitChangeset(ctx context.Context, changesetID string) (*ChangeSet, error) {
+//
+// expectedTerms is the terms component of the ref this client last observed —
+// the compare-and-swap assertion. The ops in a change-set are a DIFF against
+// the terminology the client pulled, so a workspace whose terminology moved
+// since makes the proposal a description of a state that no longer exists; the
+// server refuses it with a conflict rather than letting a reviewer approve it.
+// An empty value asserts nothing.
+func (c *BowrainClient) SubmitChangeset(ctx context.Context, changesetID, expectedTerms string) (*ChangeSet, error) {
 	var out ChangeSet
-	if err := c.knowledgeWrite(ctx, http.MethodPost, "/changesets/"+url.PathEscape(changesetID)+"/submit", nil, &out); err != nil {
+	path := "/changesets/" + url.PathEscape(changesetID) + "/submit"
+	if expectedTerms != "" {
+		path += "?expected_terms_ref=" + url.QueryEscape(expectedTerms)
+	}
+	if err := c.knowledgeWrite(ctx, http.MethodPost, path, nil, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil

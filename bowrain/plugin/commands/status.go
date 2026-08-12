@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/bowrain/core/refcache"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/spf13/cobra"
@@ -51,6 +53,10 @@ type serverStatusJSON struct {
 // "never synced" about a project whose terminology was in flight. Awaiting
 // review is not the same as never sent.
 type terminologyJSON struct {
+	// PulledAt is when this project last reached the server, from the
+	// destination-keyed freshness refs. It reports; it decides nothing. What
+	// "still current?" is answered by is the ref's terms component, which is an
+	// identity of the terminology rather than a clock beside it.
 	PulledAt  string `json:"pulled_at"`
 	Concepts  int    `json:"concepts"`
 	Relations int    `json:"relations"`
@@ -87,13 +93,20 @@ func runServerStatus(cmd *cobra.Command, _ []string) error {
 		out.Project = proj.Recipe.Server.ProjectID()
 	}
 
-	// Terminology snapshot standing, read straight from the sync cache so it
+	// Terminology snapshot standing, read straight from the local caches so it
 	// costs no server round-trip and reports even when the server is down.
 	if b := project.LoadSyncCache(proj.Layout).ConceptBaseline; b != nil {
 		out.Terminology = &terminologyJSON{
-			PulledAt:  b.PulledAt.Format(timeRFC3339),
 			Concepts:  len(b.Concepts),
 			Relations: len(b.Relations),
+		}
+		if proj.Recipe.Server != nil {
+			refs := refcache.Load(proj.Layout,
+				config.NormalizeServerURL(proj.Recipe.Server.ServerURL()),
+				proj.Recipe.Server.ProjectID())
+			if !refs.ObservedAt.IsZero() {
+				out.Terminology.PulledAt = refs.ObservedAt.Format(timeRFC3339)
+			}
 		}
 	}
 	// And what this workspace has proposed and not had reviewed. This half does

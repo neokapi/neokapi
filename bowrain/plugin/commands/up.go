@@ -309,6 +309,9 @@ func runServerUp(cmd *cobra.Command, server *project.ServerSpec) error {
 		if baseline != nil {
 			conn.SetConceptBaseline(baseline)
 		}
+		if cres != nil {
+			conn.ObserveTermsRef(cres.TermsRef)
+		}
 		// The terminology return leg: reviewed decisions the pull brought back
 		// are merged into the committed terms source, so they are reviewable in
 		// `git diff` rather than living only in the gitignored store. Silence

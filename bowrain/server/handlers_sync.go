@@ -21,6 +21,7 @@ import (
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/id"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/storage/compression"
 )
@@ -72,6 +73,16 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		return serverErr(c, err)
 	}
 
+	// The freshness ref rides on the answer the push has already paid for, so
+	// the commit that follows knows what to assert without a second round trip.
+	// Best-effort: a ref that cannot be computed costs the push its
+	// compare-and-swap, never its content.
+	currentRef, refErr := bowsync.CurrentRef(c.Request().Context(),
+		s.streamRefSource(), req.ProjectID, req.Stream)
+	if refErr != nil {
+		currentRef = ref.Ref{}
+	}
+
 	// Fast path: root hash comparison. Only "unchanged" when the declared
 	// context matches too — otherwise the push proceeds carrying no chunks and
 	// a manifest that is nothing but the context.
@@ -83,6 +94,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 				"status":                 "unchanged",
 				"context_changed":        false,
 				"undeclared_collections": ctxDiff.Undeclared,
+				"ref":                    currentRef,
 			})
 		}
 	}
@@ -104,6 +116,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		"unchanged_item_count":   itemDiff.UnchangedCount,
 		"context_changed":        ctxDiff.Changed,
 		"undeclared_collections": ctxDiff.Undeclared,
+		"ref":                    currentRef,
 	})
 }
 
@@ -177,6 +190,11 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		// Decisions is the decisions content type, passed through the same way:
 		// the worker upserts it into the unit_decisions ledger after the chunks.
 		Decisions json.RawMessage `json:"decisions"`
+		// ExpectedRef is the compare-and-swap assertion: the governance
+		// components this push last observed. Checked here so a client waiting
+		// on `kapi push` is told at once, and again in the worker, which is
+		// where the write actually lands.
+		ExpectedRef ref.Ref `json:"expected_ref"`
 	}
 	if err := c.Bind(&manifest); err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
@@ -200,6 +218,21 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 				}
 			}
 		}
+	}
+
+	// The compare-and-swap, before anything is stored or queued.
+	//
+	// Only the components this manifest WRITES are asserted. A push carrying
+	// blocks and nothing else asserts nothing, so content traffic cannot be
+	// refused because governance moved beside it — which is the whole reason the
+	// ref has components rather than one number.
+	if err := s.assertGovernance(c.Request().Context(), manifest.ProjectID, manifest.Stream,
+		manifest.ExpectedRef,
+		writtenComponents(carriesRecords(manifest.Contexts), carriesRecords(manifest.Decisions))...); err != nil {
+		if resp, ok := governanceConflict(c, err); ok {
+			return resp
+		}
+		return serverErr(c, err)
 	}
 
 	// Enforce upload budget. Cheap and manifest-local, so it runs before the
@@ -356,7 +389,7 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 	}
 
 	// Get change log entries to determine what changed.
-	cs, err := s.Services.Project.GetChanges(ctx, projectID, cursor, locales, limit)
+	cs, err := s.Services.Project.GetChanges(ctx, projectID, stream, cursor, locales, limit)
 	if err != nil {
 		return serverErr(c, err)
 	}
@@ -365,6 +398,16 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 		Cursor:   cs.NewCursor,
 		HasMore:  cs.HasMore,
 		Contexts: s.pullContextEntries(ctx, projectID, stream),
+	}
+
+	// The freshness ref rides on the LAST page only. A client keeps the last
+	// page's ref and discards every earlier one, so computing it per page would
+	// be work whose answer is thrown away — and a pull is a client's cheapest
+	// contact with the server precisely because it stays cheap.
+	if !resp.HasMore {
+		if current, rerr := bowsync.CurrentRef(ctx, s.streamRefSource(), projectID, stream); rerr == nil {
+			resp.Ref = &current
+		}
 	}
 
 	// The decision ledger travels like the declared context: small, always
@@ -496,6 +539,34 @@ func (s *Server) pullContextEntries(ctx context.Context, projectID, stream strin
 		return strings.Compare(a.Name, b.Name)
 	})
 	return entries
+}
+
+// carriesRecords reports whether a manifest's raw payload holds at least one
+// record.
+//
+// The length of the raw message will not do: a JSON `null` is four bytes and an
+// empty array is two, so measuring the bytes makes a push that writes no
+// governance look like one that does — and then refuses it because governance
+// moved somewhere it never touched.
+func carriesRecords(raw json.RawMessage) bool {
+	var records []json.RawMessage
+	if err := json.Unmarshal(raw, &records); err != nil {
+		return false
+	}
+	return len(records) > 0
+}
+
+// writtenComponents names the governance components a push commit writes, and
+// so the only ones its compare-and-swap may assert.
+func writtenComponents(contexts, decisions bool) []ref.Component {
+	var out []ref.Component
+	if contexts {
+		out = append(out, ref.ComponentContext)
+	}
+	if decisions {
+		out = append(out, ref.ComponentDecisions)
+	}
+	return out
 }
 
 // syncCompressorPool is a lazily-initialized zstd compression pool for pull responses.

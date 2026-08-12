@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
@@ -298,7 +299,7 @@ func TestPushContextChanged_TracksTheRecipe(t *testing.T) {
 	conn.SetPushContext(newTestPushContext(entry))
 	assert.True(t, conn.PushContextChanged(), "a context the cache has never seen is a change")
 
-	conn.cache.ContextHash = bowsync.ContextHashOf([]*pb.SyncContextEntry{entry})
+	conn.refs.SetIdentity(conn.stream, ref.ComponentContext, bowsync.ContextHashOf([]*pb.SyncContextEntry{entry}))
 	assert.False(t, conn.PushContextChanged(), "the same context again is not a change")
 
 	conn.SetPushContext(newTestPushContext(entry, &pb.SyncContextEntry{

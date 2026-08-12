@@ -18,6 +18,7 @@ import (
 	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/ref"
 )
 
 // This file also carries the context content type's client half: the recipe's
@@ -61,6 +62,12 @@ type PushInitResponse struct {
 	// where content lives, so dropping one on a recipe edit would take the
 	// server-side content grouped under it with it.
 	UndeclaredCollections []string `json:"undeclared_collections,omitempty"`
+
+	// Ref is the server's freshness ref for the stream, as of this
+	// negotiation. It is what the commit that follows asserts, so a push does
+	// not pay a second round trip to learn what it last saw. Absent from a
+	// server too old to publish one.
+	Ref *ref.Ref `json:"ref,omitempty"`
 }
 
 // PushDiffRequest sends block-level hashes for one item.
@@ -103,6 +110,37 @@ type PushCommitRequest struct {
 	// the full set every push is correct first; a hash fast-path is an
 	// optimization this field's shape does not preclude.
 	Decisions []store.UnitDecision `json:"decisions,omitempty"`
+
+	// ExpectedRef is the compare-and-swap assertion: the governance components
+	// this push last observed on the server. The server asserts only the ones
+	// this manifest writes, and rejects with a conflict when one has moved.
+	ExpectedRef ref.Ref `json:"expected_ref,omitzero"`
+}
+
+// PushUnchanged is the push id a push reports when the negotiation found
+// nothing to send: no chunks were uploaded, no manifest was committed, and no
+// worker job exists to confirm. A caller reads it as "the server already holds
+// this state", never as "the server accepted a write".
+const PushUnchanged = "unchanged"
+
+// PushOption adjusts one push.
+type PushOption func(*pushSettings)
+
+type pushSettings struct {
+	expected ref.Ref
+}
+
+// AssertRef makes the push a compare-and-swap over the governance it carries:
+// the server refuses the commit when a component this push writes has moved
+// since observed.
+//
+// The value to pass is the ref the caller LAST OBSERVED — the cached one, not
+// one fetched at the start of this push. The payload was built by diffing
+// against the cached ref, so that is the state the write is correct against; a
+// freshly fetched value would happily accept a write computed from ground that
+// had already shifted.
+func AssertRef(observed ref.Ref) PushOption {
+	return func(s *pushSettings) { s.expected = observed }
 }
 
 // PushContext is everything the context content type contributes to one push:
@@ -198,7 +236,11 @@ const (
 // longer has) is ever required, the caller must pass the FULL block set so
 // ItemHashes / RootHash become authoritative, and this comment + the
 // deletion-ignoring sites below must be revisited together.
-func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, pushCtx *PushContext, decisions []store.UnitDecision) (*SyncPushResponse, error) {
+func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, pushCtx *PushContext, decisions []store.UnitDecision, opts ...PushOption) (*SyncPushResponse, error) {
+	var settings pushSettings
+	for _, opt := range opts {
+		opt(&settings)
+	}
 	// Guard a nil client: callers build the client from the recipe's server:
 	// block, which is absent until the project is connected. Return a clear
 	// error instead of a nil-pointer panic in projectPrefix/streamPrefix.
@@ -242,19 +284,22 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		// still takes this exit.
 		if len(decisions) == 0 {
 			return &SyncPushResponse{
-				PushID:                "unchanged",
+				PushID:                PushUnchanged,
 				UndeclaredCollections: initResp.UndeclaredCollections,
+				ServerRef:             initResp.Ref,
 			}, nil
 		}
 		commitResp, err := c.pushCommit(ctx, PushCommitRequest{
-			Stream:    c.stream,
-			Decisions: decisions,
+			Stream:      c.stream,
+			Decisions:   decisions,
+			ExpectedRef: settings.expected,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("push commit (decisions): %w", err)
 		}
 		if commitResp != nil {
 			commitResp.UndeclaredCollections = initResp.UndeclaredCollections
+			commitResp.ServerRef = initResp.Ref
 		}
 		return commitResp, nil
 	}
@@ -384,17 +429,19 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 		UploadID: initResp.UploadID,
 		// The server takes the stream from the authorized route path; this
 		// field only matters to a deployment whose commit route carries no ref.
-		Stream:    c.stream,
-		Chunks:    chunks,
-		Items:     itemsJSON,
-		Contexts:  contexts,
-		Decisions: decisions,
+		Stream:      c.stream,
+		Chunks:      chunks,
+		Items:       itemsJSON,
+		Contexts:    contexts,
+		Decisions:   decisions,
+		ExpectedRef: settings.expected,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("push commit: %w", err)
 	}
 	if commitResp != nil {
 		commitResp.UndeclaredCollections = initResp.UndeclaredCollections
+		commitResp.ServerRef = initResp.Ref
 		commitResp.ChunkCount = len(chunks)
 		for _, ch := range chunks {
 			commitResp.BlocksUploaded += ch.RecordCount

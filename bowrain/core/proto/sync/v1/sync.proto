@@ -25,6 +25,42 @@ import "core/proto/content/v1/content.proto";
 option go_package = "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1;syncv1";
 
 // ---------------------------------------------------------------------------
+// Freshness ref
+// ---------------------------------------------------------------------------
+
+// SyncRef is a stream's freshness ref: one composite value answering how far
+// what a client holds sits from what the server holds, on every axis at once
+// (core/ref.Ref).
+//
+// The four components are not the same kind of value. `content` is a monotonic
+// position in the stream's change feed — ahead and behind are meaningful and a
+// transfer resumes from it. The other three are identity hashes, compared for
+// equality and for nothing else: two unequal hashes carry no ordering, so the
+// ref reports that governance moved and leaves the resolution to a caller who
+// can ask a human.
+//
+// A writer asserts only the component it owns (SyncManifest.expected_ref), so
+// ordinary content traffic — which moves nothing but the position — can never
+// manufacture a governance conflict for a writer nowhere near it. An empty
+// component asserts nothing, which is what keeps the compare-and-swap additive:
+// a client that predates the ref sends none and writes exactly as before.
+message SyncRef {
+  // Content is the position in the stream's change feed (change_log.seq).
+  int64 content = 1;
+
+  // Context identifies the governing context: which collections exist, the
+  // point each occupies, and the voice profile governing it. It is the same
+  // fold SyncPushInit.context_hash negotiates on.
+  string context = 2;
+
+  // Terms identifies the governed terminology in force for the workspace.
+  string terms = 3;
+
+  // Decisions identifies the committed decision record for this stream.
+  string decisions = 4;
+}
+
+// ---------------------------------------------------------------------------
 // Push init — Merkle tree diff negotiation
 // ---------------------------------------------------------------------------
 
@@ -88,6 +124,11 @@ message SyncPushInitResponse {
   // lives, and a recipe edit is not consent to drop the server-side content
   // grouped under it. The symmetry with deleted_items is deliberate.
   repeated string undeclared_collections = 10;
+
+  // The server's current freshness ref for this stream, so a push that has
+  // already paid for a round trip does not pay for a second one to learn what
+  // it must assert in the commit that follows.
+  SyncRef ref = 11;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,6 +186,17 @@ message SyncManifest {
   // consistent state, so the collections must land in the same transaction as
   // the blocks that reference them.
   repeated SyncContextEntry contexts = 10;
+
+  // ExpectedRef is the compare-and-swap assertion: the governance components
+  // this push last observed on the server. The server rejects the commit when a
+  // component it asserts has moved since, and the client renders that as
+  // "governance moved — pull first".
+  //
+  // Only the components a push actually writes are asserted, and only the ones
+  // it carries a value for. The position is never asserted: block traffic moves
+  // it constantly and by design, and letting it fail a governance write is the
+  // conflation the composite ref exists to end.
+  SyncRef expected_ref = 11;
 }
 
 message ChunkRef {
@@ -428,4 +480,8 @@ message SyncPullResponse {
   // governance alone, because kapi.yaml is the authority for it. A
   // workspace-owned entry is the one a pull may act on.
   repeated SyncContextEntry contexts = 14;
+
+  // The server's freshness ref for this stream as of this page, so a pull
+  // refreshes what the next write must assert without a second round trip.
+  SyncRef ref = 15;
 }

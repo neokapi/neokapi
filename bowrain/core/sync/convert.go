@@ -8,18 +8,16 @@
 package sync
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"maps"
-	"slices"
 	"strconv"
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 	contentv1 "github.com/neokapi/neokapi/core/proto/content/v1"
+	"github.com/neokapi/neokapi/core/ref"
 )
 
 // BlockToProto converts a model.Block to a SyncBlock protobuf message.
@@ -347,34 +345,12 @@ func segmentToTarget(runs []model.Run, first *contentv1.SegmentMessage) *model.T
 // ComputeItemHash computes the Merkle hash for an item by hashing
 // all its block content hashes in sorted order.
 func ComputeItemHash(blockHashes map[string]string) string {
-	ids := make([]string, 0, len(blockHashes))
-	for id := range blockHashes {
-		ids = append(ids, id)
-	}
-	slices.Sort(ids)
-
-	h := sha256.New()
-	for _, id := range ids {
-		h.Write([]byte(id))
-		h.Write([]byte(blockHashes[id]))
-	}
-	return hex.EncodeToString(h.Sum(nil))
+	return ref.Fold(blockHashes)
 }
 
 // ComputeRootHash computes the project root hash from item hashes.
 func ComputeRootHash(itemHashes map[string]string) string {
-	names := make([]string, 0, len(itemHashes))
-	for name := range itemHashes {
-		names = append(names, name)
-	}
-	slices.Sort(names)
-
-	h := sha256.New()
-	for _, name := range names {
-		h.Write([]byte(name))
-		h.Write([]byte(itemHashes[name]))
-	}
-	return hex.EncodeToString(h.Sum(nil))
+	return ref.Fold(itemHashes)
 }
 
 // annotationEnvelope carries an annotation's concrete type alongside its JSON

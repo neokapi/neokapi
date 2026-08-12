@@ -125,14 +125,20 @@ func (s *ProjectService) Diff(ctx context.Context, from, to string) (*store.Vers
 	return s.store.Diff(ctx, from, to)
 }
 
-// GetChanges returns change log entries since the given cursor.
-func (s *ProjectService) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locales []string, limit int) (*store.ChangeSet, error) {
-	return s.store.GetChanges(ctx, projectID, "main", sinceCursor, locales, limit)
+// GetChanges returns change log entries since the given cursor, on one stream.
+//
+// The stream is a parameter because a cursor only means anything within one: a
+// pull that asked about a branch and was answered from the default stream
+// advanced the caller's position with sequence numbers belonging to content it
+// never received.
+func (s *ProjectService) GetChanges(ctx context.Context, projectID, stream string, sinceCursor int64, locales []string, limit int) (*store.ChangeSet, error) {
+	return s.store.GetChanges(ctx, projectID, stream, sinceCursor, locales, limit)
 }
 
-// LatestCursor returns the most recent change log sequence number for a project.
-func (s *ProjectService) LatestCursor(ctx context.Context, projectID string) (int64, error) {
-	return s.store.LatestCursor(ctx, projectID, "main")
+// LatestCursor returns the most recent change log sequence number on a stream —
+// the ref's content component.
+func (s *ProjectService) LatestCursor(ctx context.Context, projectID, stream string) (int64, error) {
+	return s.store.LatestCursor(ctx, projectID, stream)
 }
 
 // DeleteBlock deletes a block from a project.

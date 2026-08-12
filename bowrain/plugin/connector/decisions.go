@@ -2,9 +2,6 @@ package connector
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -145,20 +142,4 @@ func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulle
 		staged++
 	}
 	return staged, skipped, nil
-}
-
-// decisionsHashOf folds the wire decisions into one hash — the value the sync
-// cache compares to decide whether the record must travel. Serialization
-// order is the committed record's own (deterministic), so the hash is stable
-// across runs.
-func decisionsHashOf(decisions []platstore.UnitDecision) string {
-	if len(decisions) == 0 {
-		return ""
-	}
-	h := sha256.New()
-	enc := json.NewEncoder(h)
-	for _, d := range decisions {
-		_ = enc.Encode(d)
-	}
-	return hex.EncodeToString(h.Sum(nil))
 }

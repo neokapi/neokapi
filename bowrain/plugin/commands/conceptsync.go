@@ -11,7 +11,9 @@ import (
 	"time"
 
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	"github.com/neokapi/neokapi/bowrain/core/config"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/bowrain/core/refcache"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/graph"
@@ -106,6 +108,11 @@ type PullConceptsResult struct {
 	// recipe path to project into, and Written is false whenever the merge
 	// produced the bytes already in git.
 	Projection cli.TermsProjectionResult
+	// TermsRef is the terms component of the ref the server published for this
+	// workspace at the moment of the pull. It is what a later governed push
+	// asserts, and what replaces asking a timestamp whether a snapshot is
+	// still current. Empty when the server did not publish one.
+	TermsRef string
 }
 
 // PushConceptsResult holds what a concept push applied directly versus proposed
@@ -177,6 +184,16 @@ func PullConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *term
 				return nil, nil, fmt.Errorf("project reviewed terminology: %w", perr)
 			}
 			res.Projection = proj
+		}
+		// The terms component the workspace stands at, taken from the server
+		// rather than folded from what was just fetched. The two ought to
+		// agree, and asking removes the "ought": a client-side fold that
+		// disagreed by one relation would refuse every later governed push
+		// with a conflict nobody could find. Best-effort — a server too old to
+		// publish a ref leaves the component unobserved, and an unobserved
+		// component asserts nothing.
+		if current, rerr := client.Ref(ctx); rerr == nil {
+			res.TermsRef = current.Terms
 		}
 	}
 
@@ -305,7 +322,6 @@ func fetchConceptRelations(ctx context.Context, client *apiclient.BowrainClient,
 // baseline recorded in the sync cache.
 func buildBaseline(concepts []terms.Concept, relations []terms.ConceptRelation) *bproject.ConceptBaseline {
 	b := &bproject.ConceptBaseline{
-		PulledAt:  time.Now().UTC(),
 		Concepts:  make(map[string]bproject.BaselineConcept, len(concepts)),
 		Relations: make(map[string]bproject.BaselineRelation, len(relations)),
 	}
@@ -380,7 +396,12 @@ func conceptInfoToConcept(ci apiclient.ConceptInfo) terms.Concept {
 // `.kapi/terms.db`. The file question stopped distinguishing anything: every
 // subsystem's schema exists from the store's first open, so the store file being
 // there says only that some command ran in this project.
-func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *terms.SQLiteStore, baseline *bproject.ConceptBaseline, dryRun bool) (*PushConceptsResult, error) {
+//
+// expectedTerms is the terms component of the ref this project last observed —
+// the compare-and-swap assertion carried on the change-set submit. The plan
+// below is a DIFF against the baseline, so a workspace whose terminology moved
+// since makes every governed op a proposal about a state that no longer exists.
+func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *terms.SQLiteStore, baseline *bproject.ConceptBaseline, expectedTerms string, dryRun bool) (*PushConceptsResult, error) {
 	if tb == nil {
 		return nil, nil
 	}
@@ -427,7 +448,7 @@ func PushConcepts(ctx context.Context, client *apiclient.BowrainClient, tb *term
 
 	name := "kapi push " + time.Now().UTC().Format("2006-01-02 15:04")
 	desc := fmt.Sprintf("Governed terminology edits proposed by kapi push: %d operation(s).", len(plan.governed))
-	return plan.apply(ctx, client, name, desc)
+	return plan.apply(ctx, client, name, desc, expectedTerms)
 }
 
 // pushPlan is the classified diff a concept push executes: ordinary edits that
@@ -464,7 +485,7 @@ func (p pushPlan) isEmpty() bool {
 // relation edits land directly, then any governed ops are drafted into one
 // change-set (create → append-op → submit) named name. It stops at the first
 // error, returning the partial result so the caller can report what landed.
-func (p pushPlan) apply(ctx context.Context, client *apiclient.BowrainClient, name, desc string) (*PushConceptsResult, error) {
+func (p pushPlan) apply(ctx context.Context, client *apiclient.BowrainClient, name, desc, expectedTerms string) (*PushConceptsResult, error) {
 	res := &PushConceptsResult{}
 
 	for _, c := range p.creates {
@@ -505,7 +526,7 @@ func (p pushPlan) apply(ctx context.Context, client *apiclient.BowrainClient, na
 				return res, fmt.Errorf("append change-set op %q: %w", op.Op, err)
 			}
 		}
-		submitted, err := client.SubmitChangeset(ctx, cs.ID)
+		submitted, err := client.SubmitChangeset(ctx, cs.ID, expectedTerms)
 		if err != nil {
 			return res, fmt.Errorf("submit change-set %s: %w", cs.ID, err)
 		}
@@ -801,7 +822,7 @@ func conceptPush(ctx context.Context, proj *bproject.Project, dryRun bool) (*Pus
 	if err != nil {
 		return nil, err
 	}
-	res, err := PushConcepts(ctx, client, tb, cache.ConceptBaseline, dryRun)
+	res, err := PushConcepts(ctx, client, tb, cache.ConceptBaseline, observedTermsRef(proj), dryRun)
 	if err != nil {
 		return nil, err
 	}
@@ -889,6 +910,19 @@ func projectTermsIfAny(ctx context.Context, proj *bproject.Project) (*terms.SQLi
 		return nil, err
 	}
 	return db.Terms(), nil
+}
+
+// observedTermsRef reads the terms component this project last observed, for
+// the compare-and-swap on a governed push. Read from disk rather than from a
+// connector because a terminology push can run with no content transport beside
+// it; the value is only read here, so there is no writer to race.
+func observedTermsRef(proj *bproject.Project) string {
+	if proj.Recipe == nil || proj.Recipe.Server == nil {
+		return ""
+	}
+	return refcache.Load(proj.Layout,
+		config.NormalizeServerURL(proj.Recipe.Server.ServerURL()),
+		proj.Recipe.Server.ProjectID()).Ref(bproject.ResolveStream("", proj.Recipe.Server.Stream)).Terms
 }
 
 // changesetURL builds a best-effort link to review a change-set in the web hub
