@@ -30,7 +30,59 @@ const (
 	// formats never see it, and their entry-type switches ignore unknown
 	// types (no default case), so this addition is purely additive.
 	SkeletonLang SkeletonEntryType = 2
+	// SkeletonOriginal carries the source bytes that the NEXT SkeletonRef
+	// stands in for, paired with the text that ref renders to while nothing
+	// has edited its block. A reader emits it when extraction normalized the
+	// block — collapsing source line breaks inside the text, dropping edge
+	// whitespace — so the bytes it hands the writer differ from the bytes it
+	// read. A writer that understands it replays the original bytes in place
+	// of the ref when the block still renders to the paired text, and takes
+	// its ordinary ref path otherwise; a document nothing edited therefore
+	// round-trips byte-for-byte while an edited block keeps the normalized
+	// join that extraction parity depends on.
+	//
+	// Payload: EncodeSkeletonPair(rendered, original).
+	SkeletonOriginal SkeletonEntryType = 3
+	// SkeletonTrimmed carries source bytes a reader trimmed off the trailing
+	// edge of the text unit named by the PRECEDING SkeletonRef — whitespace
+	// that belongs to neither the extracted text nor any other skeleton entry,
+	// paired with the text that ref renders to while nothing has edited its
+	// block. A writer that understands it emits the bytes when the preceding
+	// block still renders to the paired text, restoring source formatting the
+	// extraction dropped, and suppresses them otherwise.
+	//
+	// Payload: EncodeSkeletonPair(rendered, trimmed).
+	SkeletonTrimmed SkeletonEntryType = 4
 )
+
+// EncodeSkeletonPair packs two byte strings into one length-prefixed payload:
+// a 4-byte big-endian length for a, then a, then b. Both SkeletonOriginal and
+// SkeletonTrimmed carry a pair whose first half is a block's rendered text —
+// content that can hold any byte — so a separator would need escaping and a
+// length prefix does not.
+func EncodeSkeletonPair(a, b []byte) []byte {
+	out := make([]byte, 4, 4+len(a)+len(b))
+	binary.BigEndian.PutUint32(out, uint32(len(a)))
+	out = append(out, a...)
+	out = append(out, b...)
+	return out
+}
+
+// DecodeSkeletonPair splits a payload written by EncodeSkeletonPair. ok is
+// false for a truncated payload, which a writer treats as an entry it cannot
+// act on rather than an error — the SkeletonRef beside it still carries the
+// content, so the round-trip degrades to the un-restored output instead of
+// losing text.
+func DecodeSkeletonPair(data []byte) (a, b []byte, ok bool) {
+	if len(data) < 4 {
+		return nil, nil, false
+	}
+	n := binary.BigEndian.Uint32(data[:4])
+	if uint64(n) > uint64(len(data)-4) {
+		return nil, nil, false
+	}
+	return data[4 : 4+n], data[4+n:], true
+}
 
 // SkeletonEntry is a single entry in the skeleton stream.
 type SkeletonEntry struct {
@@ -296,6 +348,24 @@ func (s *SkeletonStore) WriteRef(blockID string) {
 // Like WriteText it does not return an error; see WriteText for why.
 func (s *SkeletonStore) WriteLang(value string) {
 	s.writeEntry(SkeletonLang, []byte(value))
+}
+
+// WriteOriginal writes the source bytes the next block ref stands in for,
+// paired with the text that ref renders to unedited. See SkeletonOriginal for
+// the consumption contract. Like WriteText it does not return an error.
+func (s *SkeletonStore) WriteOriginal(rendered, original []byte) {
+	s.writeEntry(SkeletonOriginal, EncodeSkeletonPair(rendered, original))
+}
+
+// WriteTrimmed writes source bytes trimmed off the trailing edge of the
+// preceding block's text unit, paired with the text that block renders to
+// unedited. See SkeletonTrimmed for the consumption contract. Like WriteText
+// it does not return an error.
+func (s *SkeletonStore) WriteTrimmed(rendered, trimmed []byte) {
+	if len(trimmed) == 0 {
+		return
+	}
+	s.writeEntry(SkeletonTrimmed, EncodeSkeletonPair(rendered, trimmed))
 }
 
 func (s *SkeletonStore) writeEntry(typ SkeletonEntryType, data []byte) {

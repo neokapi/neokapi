@@ -8,8 +8,8 @@ publishAs: monolingual-governance
 # real and its output is recorded exactly. Nothing here reaches a network.
 #
 # Two `kapi check --strict` runs exit 3 on purpose — a failing gate is the point
-# of acts 3 and 4 — so `src/cli/audit.ts` reports this demo as having two
-# errors. That is the recording being correct, not broken.
+# of acts 3 and 4 — so each declares `expectExit: 3`. A run where either passes
+# is a broken take: the acts that follow have nothing to correct.
 terminal: shell
 brand: kapi
 cwd: ~/northsea
@@ -61,6 +61,7 @@ script:
   # --- 3. Checks are tests for prose ---------------------------------------
   - comment: Now run the gates the way you run tests. Two findings, two different surfaces.
   - command: kapi check --strict
+    expectExit: 3
   - comment: The same run, in the shape CI reads.
   - command: kapi check --json --no-fail > findings.json
 
@@ -74,6 +75,7 @@ script:
   - command: kapi apply decisions.jsonl
   - comment: The graph learned. The next check finds what the last one passed.
   - command: kapi check --strict
+    expectExit: 3
   - command: ksed -i 's/could not dock when the pilot called/could not reach its berth when the pilot called/' landing/index.html
 
   # --- 5. Converge ---------------------------------------------------------

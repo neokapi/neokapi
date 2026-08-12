@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import type { DemoLocaleOverlay, DemoManifest } from "../types.ts";
-import { DEMOS_DIR, demoSrcDir } from "./paths.ts";
+import { DEMOS_DIR } from "./paths.ts";
 
 /** A generated localized sidecar next to demo.yaml: demo.<bcp47>.yaml. */
 const LOCALE_SIDECAR_RE = /^demo\.([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,8})*)\.yaml$/;
@@ -19,8 +19,7 @@ const LOCALE_SIDECAR_RE = /^demo\.([a-zA-Z]{2,3}(?:-[a-zA-Z0-9]{2,8})*)\.yaml$/;
  *    a stale sidecar never blocks loading (regenerate via `make l10n`);
  *  - title/subtitle ride along when the sidecar carries a translation.
  */
-function loadLocaleSidecars(id: string, m: DemoManifest): Record<string, DemoLocaleOverlay> | undefined {
-  const dir = demoSrcDir(id);
+function loadLocaleSidecars(id: string, m: DemoManifest, dir: string): Record<string, DemoLocaleOverlay> | undefined {
   const overlays: Record<string, DemoLocaleOverlay> = {};
   for (const entry of fs.readdirSync(dir)) {
     const match = LOCALE_SIDECAR_RE.exec(entry);
@@ -48,18 +47,23 @@ function loadLocaleSidecars(id: string, m: DemoManifest): Record<string, DemoLoc
   return Object.keys(overlays).length > 0 ? overlays : undefined;
 }
 
-/** List demo ids (directories under demos/ that contain a demo.yaml), sorted. */
-export function listDemoIds(): string[] {
-  if (!fs.existsSync(DEMOS_DIR)) return [];
+/**
+ * List demo ids (directories under demos/ that contain a demo.yaml), sorted.
+ * `demos/_retired/` holds its manifests one level deeper and so is skipped.
+ * The root is a parameter only so tests can point at a fixture tree.
+ */
+export function listDemoIds(demosDir: string = DEMOS_DIR): string[] {
+  if (!fs.existsSync(demosDir)) return [];
   return fs
-    .readdirSync(DEMOS_DIR, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && fs.existsSync(path.join(DEMOS_DIR, d.name, "demo.yaml")))
+    .readdirSync(demosDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && fs.existsSync(path.join(demosDir, d.name, "demo.yaml")))
     .map((d) => d.name)
     .sort();
 }
 
-export function loadManifest(id: string): DemoManifest {
-  const file = path.join(demoSrcDir(id), "demo.yaml");
+export function loadManifest(id: string, demosDir: string = DEMOS_DIR): DemoManifest {
+  const dir = path.join(demosDir, id);
+  const file = path.join(dir, "demo.yaml");
   const raw = fs.readFileSync(file, "utf8");
   const m = YAML.parse(raw) as DemoManifest;
   if (!m.id) m.id = id;
@@ -76,6 +80,15 @@ export function loadManifest(id: string): DemoManifest {
     if (!Array.isArray(m.script) || m.script.length === 0) {
       throw new Error(`demo ${id}: terminal "shell" requires a non-empty "script"`);
     }
+    m.script.forEach((s, n) => {
+      if (s.expectExit === undefined) return;
+      const codes = Array.isArray(s.expectExit) ? s.expectExit : [s.expectExit];
+      if (codes.length === 0 || codes.some((c) => !Number.isInteger(c))) {
+        throw new Error(
+          `demo ${id}: script step ${n + 1} declares expectExit ${JSON.stringify(s.expectExit)} — give one exit code, or a non-empty list of them`,
+        );
+      }
+    });
   } else if (!isDesktop && !m.prompt) {
     throw new Error(`demo ${id}: prompt is required (or set terminal: shell/desktop)`);
   }
@@ -102,6 +115,6 @@ export function loadManifest(id: string): DemoManifest {
       `demo ${id}: inline "locales:" blocks are no longer supported — localized narration lives in generated demo.<lang>.yaml sidecars (make l10n). Fold the translations into .kapi/memory/demo-narration-<lang>.memory.json and delete the block.`,
     );
   }
-  m.locales = loadLocaleSidecars(id, m);
+  m.locales = loadLocaleSidecars(id, m, dir);
   return m;
 }

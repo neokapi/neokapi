@@ -157,12 +157,12 @@ exists ([#1904](https://github.com/neokapi/neokapi/issues/1904)).
 ## Every file round-trips
 
 Editing any file in this sample through kapi rewrites it byte-identically apart
-from the change itself, including `landing/index.html`. That is a property of
-how the landing page is **authored**, not a free one: the HTML writer
-re-serializes markup, so a page whose text blocks are wrapped across source
-lines comes back reflowed. Each text block here is one source line, and no
-inline element is the last child of a block container, which is the shape the
-writer emits.
+from the change itself, including `landing/index.html`. The HTML writer holds
+that for any pretty-printed page: whitespace the extraction trims off a text
+block travels with the skeleton, and a block nothing edited writes back the
+bytes the document held rather than the normalized join. Source line wrapping
+inside a paragraph therefore survives a round-trip, and a block that *was*
+edited joins its sibling tags directly, the way extraction parity requires.
 
 ## Known gaps this sample exercises
 
@@ -173,7 +173,6 @@ of them is worked around in the sample beyond what is noted here.
 | --- | --- |
 | `kapi up` does not converge a project with no target languages; it seeds the context and then stops, and `kapi status` has nothing to report either | [#1900](https://github.com/neokapi/neokapi/issues/1900) |
 | `kapi context <path>` answers from the committed terms document while `kapi context search` answers from the derived store, so the two disagree until something has seeded the store | [#1901](https://github.com/neokapi/neokapi/issues/1901) |
-| The HTML writer reflows a document it did not change; this sample's landing page is authored in the shape the writer emits so that it does not | [#1902](https://github.com/neokapi/neokapi/issues/1902) |
 | `kapi apply` strips the comments from `.kapi/voice.yaml` the first time a `voice` entry lands | [#1903](https://github.com/neokapi/neokapi/issues/1903) |
 | No terms gate runs on a monolingual project, which is why one decision has to be written as two change-set entries | [#1904](https://github.com/neokapi/neokapi/issues/1904) |
 

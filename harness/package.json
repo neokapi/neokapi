@@ -13,7 +13,9 @@
     "render": "tsx src/cli/run.ts --only=render",
     "studio": "remotion studio src/remotion/index.ts",
     "list": "tsx src/cli/run.ts --list",
-    "audit": "tsx src/cli/audit.ts"
+    "audit": "tsx src/cli/audit.ts",
+    "test": "tsx --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@remotion/bundler": "^4.0.0",

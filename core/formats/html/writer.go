@@ -204,6 +204,15 @@ func (w *Writer) loadOriginalContent() ([]byte, error) {
 // unrelated declarations (e.g. lang="de" in an en→fr document) and the
 // no-target case stay byte-exact.
 func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block, sourceLocale model.LocaleID, needsLangRewrite bool) error {
+	// pendingOriginal holds the source bytes of the SkeletonOriginal entry the
+	// next ref may replay, alongside the rendering that entry expects while the
+	// block is unedited.
+	var pendingOriginal, pendingRendered []byte
+	// lastRefRendered is what the most recent ref rendered to before encoding,
+	// which a following SkeletonTrimmed entry compares its own expectation
+	// against. lastRefResolved separates "rendered to the empty string" from
+	// "no ref has been replayed yet".
+	lastRefRendered, lastRefResolved := "", false
 	for {
 		entry, err := store.Next()
 		if errors.Is(err, io.EOF) {
@@ -212,17 +221,52 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 		if err != nil {
 			return fmt.Errorf("html writer: read skeleton: %w", err)
 		}
+		// An original applies to the ref that immediately follows it; any
+		// other entry in between means there is no such ref.
+		if entry.Type != format.SkeletonOriginal && entry.Type != format.SkeletonRef {
+			pendingOriginal, pendingRendered = nil, nil
+		}
 		switch entry.Type {
 		case format.SkeletonText:
 			if _, err := w.Output.Write(entry.Data); err != nil {
 				return err
 			}
+		case format.SkeletonOriginal:
+			rendered, original, ok := format.DecodeSkeletonPair(entry.Data)
+			if !ok {
+				continue
+			}
+			pendingRendered, pendingOriginal = rendered, original
+		case format.SkeletonTrimmed:
+			rendered, trimmed, ok := format.DecodeSkeletonPair(entry.Data)
+			if !ok || !lastRefResolved || string(rendered) != lastRefRendered {
+				continue
+			}
+			if _, err := w.Output.Write(trimmed); err != nil {
+				return err
+			}
 		case format.SkeletonRef:
+			original, expected := pendingOriginal, pendingRendered
+			pendingOriginal, pendingRendered = nil, nil
+			lastRefRendered, lastRefResolved = "", false
 			if block, ok := blocks[string(entry.Data)]; ok {
 				text := w.getBlockText(block)
+				lastRefRendered, lastRefResolved = text, true
 				if block.Translatable {
-					text = w.substituteBlockRefs(text, blocks)
-					text = htmlEncodeBlockText(text, block)
+					// Extraction normalized this block's whitespace, and
+					// nothing has edited it since: replay the bytes the
+					// document held rather than the normalized join, so an
+					// untouched document round-trips byte-for-byte. Attribute
+					// refs still substitute — a translated title= inside an
+					// inline tag belongs in the replayed span — but the
+					// encoding pass does not run, because the original bytes
+					// are already the document's own.
+					if original != nil && text == string(expected) {
+						text = w.substituteBlockRefs(string(original), blocks)
+					} else {
+						text = w.substituteBlockRefs(text, blocks)
+						text = htmlEncodeBlockText(text, block)
+					}
 				}
 				// Non-translatable content (a <noscript> fallback subtree, a
 				// JSON data island) was surfaced verbatim; write its bytes back

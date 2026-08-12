@@ -24,11 +24,19 @@
 VPX := vpx
 RUN := $(VPX) tsx src/cli/run.ts
 
-.PHONY: deps list studio videos render publish capture seed record narrate package
+.PHONY: deps check test typecheck list studio videos render publish capture seed record narrate package
 
 deps: ## Install node deps + Playwright chromium
 	corepack pnpm install
 	$(VPX) playwright install chromium
+
+check: typecheck test ## Typecheck + run the unit tests
+
+typecheck: ## Typecheck the harness sources
+	$(VPX) tsc --noEmit
+
+test: ## Run the unit tests (no kapi binary, no network, no stack)
+	$(VPX) tsx --test "src/**/*.test.ts"
 
 list: ## List available demos
 	$(RUN) --list

@@ -49,7 +49,7 @@ banner or tool-call chrome) and the title/outro cards use the kapi-only lockup
 spotlights — is identical to the Claude demos. `09-toolbox-find-replace` is the
 reference example.
 
-Two manifest keys belong to this class:
+Three manifest keys belong to this class:
 
 - `fixturesFrom: samples/<name>` seeds the sandbox from a committed sample
   project instead of the demo's own `fixtures/`, so the tree in the recording is
@@ -60,8 +60,25 @@ Two manifest keys belong to this class:
   carrying `-p`. The sandbox lives in `os.tmpdir()`, outside the repo, so the
   dogfood project is unreachable from it and the rest of the isolation contract
   still applies.
+- `expectExit:` on a single `script` step declares the exit code — or codes — the
+  command is recorded for. Every step is expected to exit 0 unless it says
+  otherwise, and a step that exits any other way fails the capture stage by name,
+  so a broken take cannot be narrated, rendered or published. Declare the
+  exception where the non-zero result *is* the beat:
 
-`s0-northsea-governance` uses both.
+  ```yaml
+  - command: kapi check --strict   # a gate that must fail on camera
+    expectExit: 3
+  - command: kgrep mooring *       # "found nothing" is a legitimate answer
+    expectExit: [0, 1]
+  ```
+
+  The declaration binds both ways: a step that declares 3 and exits 0 fails the
+  capture too, because the recording no longer shows what the demo says it shows.
+  A non-zero exit still reads as a failure on screen whether or not it was
+  declared — the declaration decides whether the take is sound, not how it looks.
+
+`s0-northsea-governance` uses all three.
 
 ## How it works (pipeline)
 
@@ -189,7 +206,12 @@ pnpm run demo 02-nextjs-zero-to-i18n -- --only=render --force
 
 pnpm run list                                 # list demos
 pnpm run studio                               # open the Remotion studio to preview
+
+pnpm test                                     # unit tests (no kapi, no network, no stack)
+pnpm run typecheck                            # tsc --noEmit
 ```
+
+`make check` runs both.
 
 Prerequisites: a logged-in `claude` CLI, Node ≥ 22, `ffmpeg`, Go + Homebrew `icu4c`
 (for building kapi), and a `GEMINI_API_KEY` in `.env` for the AI demos.
