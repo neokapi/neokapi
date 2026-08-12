@@ -12,6 +12,15 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 )
 
+// Execer abstracts *sql.DB and *sql.Tx so the overlay-sync writers work
+// against both transaction-scoped and pooled connections, exactly as Querier
+// does for the readers. One writer serves the block round-trip (inside the
+// store-blocks transaction) and the in-process blockstore adapter (on the
+// pool), so a target reaches the same columns whichever door it came through.
+type Execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
 // SyncBlockOverlays writes a block's targets and annotations into the
 // kind-specific overlay tables (translations, annotations), keyed for
 // access-pattern-specific indexes (#403 / #405).
@@ -20,15 +29,10 @@ import (
 // provided. Unspecified entries are left intact. This matches how
 // editors and single-locale translators naturally operate.
 //
-// Targets persist as runs-based variant records: the `translations.locale`
-// column stores the VariantKey text form ("fr-FR" or "fr-FR;tone=…"), and
-// `target_json` stores the full model.Target JSON (runs + status + origin +
-// score).
-//
 // dialect: "pg" | "sqlite".
 func SyncBlockOverlays(
 	ctx context.Context,
-	tx *sql.Tx,
+	ex Execer,
 	dialect string,
 	projectID, stream, blockID string,
 	targets map[model.VariantKey]*model.Target,
@@ -39,19 +43,8 @@ func SyncBlockOverlays(
 		if target == nil {
 			continue
 		}
-		keyText, err := key.MarshalText()
-		if err != nil {
-			return fmt.Errorf("encode variant key for block %s: %w", blockID, err)
-		}
-		targetJSON, err := json.Marshal(target)
-		if err != nil {
-			return fmt.Errorf("marshal target for block %s variant %s: %w", blockID, keyText, err)
-		}
-		if _, err := tx.ExecContext(ctx, sqlUpsertTranslation(dialect),
-			projectID, stream, blockID, string(keyText),
-			model.RunsText(target.Runs), string(targetJSON), now,
-		); err != nil {
-			return fmt.Errorf("upsert translation block=%s variant=%s: %w", blockID, keyText, err)
+		if err := UpsertBlockTarget(ctx, ex, dialect, projectID, stream, blockID, key, target, nil, now); err != nil {
+			return err
 		}
 	}
 
@@ -60,11 +53,62 @@ func SyncBlockOverlays(
 		if err != nil {
 			return fmt.Errorf("marshal annotation block=%s kind=%s: %w", blockID, kind, err)
 		}
-		if _, err := tx.ExecContext(ctx, sqlUpsertAnnotation(dialect),
+		if _, err := ex.ExecContext(ctx, sqlUpsertAnnotation(dialect),
 			projectID, stream, blockID, kind, body, now,
 		); err != nil {
 			return fmt.Errorf("upsert annotation block=%s kind=%s: %w", blockID, kind, err)
 		}
+	}
+	return nil
+}
+
+// UpsertBlockTarget writes one (block, variant) target row. It is the ONLY
+// writer of the translations table, because the row's four content columns are
+// four views of one thing and a writer that fills some of them makes the target
+// invisible to every reader that consults the others:
+//
+//   - `locale` is the VariantKey text form ("fr-FR" or "fr-FR;tone=…").
+//   - `target_json` is the full model.Target (runs + status + origin + score).
+//     It is the truth: block hydration, the review queue, the decision ledger,
+//     coverage and the context graph all read it.
+//   - `text` is model.RunsText of the same runs — placeholder-stripped, so it
+//     answers "what does this say" for history and search, never "what is the
+//     content".
+//   - `provider` is the producing engine off the same Origin.
+//
+// extra carries payload fields a writer keeps alongside the target that the
+// Target model has no room for (a tool's config fingerprint, say). It belongs
+// to whoever wrote the target, so a new target replaces it rather than
+// inheriting the previous writer's; nil writes an empty object.
+func UpsertBlockTarget(
+	ctx context.Context,
+	ex Execer,
+	dialect string,
+	projectID, stream, blockID string,
+	key model.VariantKey,
+	target *model.Target,
+	extra []byte,
+	now time.Time,
+) error {
+	if target == nil {
+		return fmt.Errorf("upsert translation block=%s: nil target", blockID)
+	}
+	keyText, err := key.MarshalText()
+	if err != nil {
+		return fmt.Errorf("encode variant key for block %s: %w", blockID, err)
+	}
+	targetJSON, err := json.Marshal(target)
+	if err != nil {
+		return fmt.Errorf("marshal target for block %s variant %s: %w", blockID, keyText, err)
+	}
+	if len(extra) == 0 {
+		extra = []byte("{}")
+	}
+	if _, err := ex.ExecContext(ctx, sqlUpsertTranslation(dialect),
+		projectID, stream, blockID, string(keyText),
+		model.RunsText(target.Runs), string(targetJSON), target.Origin.Engine, string(extra), now,
+	); err != nil {
+		return fmt.Errorf("upsert translation block=%s variant=%s: %w", blockID, keyText, err)
 	}
 	return nil
 }
@@ -174,6 +218,118 @@ func LoadBlockOverlays(
 		return nil, nil, fmt.Errorf("annotation rows: %w", err)
 	}
 	return targets, annotations, nil
+}
+
+// StoredTarget is one translations row as the store holds it: the variant it is
+// filed under, the model.Target it carries, and the writer's residual payload.
+type StoredTarget struct {
+	// BlockID is the row's block key — the store's own `blocks.id`.
+	BlockID string
+	// Variant is the row's locale column, decoded.
+	Variant model.VariantKey
+	// Target is the row's target_json. Never nil on a loaded row.
+	Target *model.Target
+	// Extra is the row's metadata column: the payload fields the writer kept
+	// alongside the target. An empty object when it kept none.
+	Extra []byte
+	// UpdatedAt is the row's write time in Unix seconds.
+	UpdatedAt int64
+}
+
+// LoadBlockVariantTarget reads one (block, variant) target row, or (nil, nil)
+// when the block has no target for that variant.
+func LoadBlockVariantTarget(
+	ctx context.Context,
+	db Querier,
+	dialect string,
+	projectID, stream, blockID, variant string,
+) (*StoredTarget, error) {
+	rows, err := db.QueryContext(ctx, sqlSelectTargetRow(dialect), projectID, stream, blockID, variant)
+	if err != nil {
+		return nil, fmt.Errorf("load target block=%s variant=%s: %w", blockID, variant, err)
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("load target block=%s variant=%s: %w", blockID, variant, err)
+		}
+		return nil, nil
+	}
+	st, err := scanStoredTarget(rows, blockID)
+	if err != nil {
+		return nil, err
+	}
+	return st, rows.Err()
+}
+
+// LoadVariantTargets reads every target row for one variant in a project
+// stream, ordered by block id so one corpus answers one query the same way
+// twice.
+func LoadVariantTargets(
+	ctx context.Context,
+	db Querier,
+	dialect string,
+	projectID, stream, variant string,
+) ([]StoredTarget, error) {
+	rows, err := db.QueryContext(ctx, sqlListTargetRowsByVariant(dialect), projectID, stream, variant)
+	if err != nil {
+		return nil, fmt.Errorf("list targets variant=%s: %w", variant, err)
+	}
+	defer rows.Close()
+	var out []StoredTarget
+	for rows.Next() {
+		st, err := scanStoredTarget(rows, "")
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *st)
+	}
+	return out, rows.Err()
+}
+
+// scanStoredTarget reads one (block_id, locale, target_json, metadata,
+// updated_at) row. blockID, when supplied, names a row the query already
+// scoped to one block and is used in error messages.
+func scanStoredTarget(rows *sql.Rows, blockID string) (*StoredTarget, error) {
+	var (
+		bid, keyText, targetJSON, extra, updatedAt string
+	)
+	if err := rows.Scan(&bid, &keyText, &targetJSON, &extra, &updatedAt); err != nil {
+		return nil, fmt.Errorf("scan target block=%s: %w", blockID, err)
+	}
+	st := &StoredTarget{BlockID: bid, Target: &model.Target{}, UpdatedAt: ParseOverlayTimestamp(updatedAt)}
+	if err := st.Variant.UnmarshalText([]byte(keyText)); err != nil {
+		return nil, fmt.Errorf("decode variant key block=%s key=%s: %w", bid, keyText, err)
+	}
+	if targetJSON != "" && targetJSON != "null" {
+		if err := json.Unmarshal([]byte(targetJSON), st.Target); err != nil {
+			return nil, fmt.Errorf("unmarshal target block=%s variant=%s: %w", bid, keyText, err)
+		}
+	}
+	st.Extra = []byte(extra)
+	return st, nil
+}
+
+// ParseOverlayTimestamp reads an overlay row's updated_at, which arrives as the
+// SQLite `datetime('now')` TEXT form ("2006-01-02 15:04:05") or the Postgres
+// TIMESTAMPTZ that pgx renders over the database/sql surface. Returns Unix
+// seconds, or 0 when the column was empty or unparseable.
+func ParseOverlayTimestamp(s string) int64 {
+	if s == "" {
+		return 0
+	}
+	for _, layout := range []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05.999999999 -0700 MST",
+		"2006-01-02 15:04:05.999999999Z07:00",
+		"2006-01-02 15:04:05",
+	} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t.Unix()
+		}
+	}
+	return 0
 }
 
 // LoadBlockTargetLocales returns the set of locales each block has a
@@ -309,18 +465,22 @@ func anyStrings(in []string) []any {
 
 func sqlUpsertTranslation(dialect string) string {
 	if dialect == "sqlite" {
-		return `INSERT INTO translations (project_id, stream, block_id, locale, text, target_json, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?)
+		return `INSERT INTO translations (project_id, stream, block_id, locale, text, target_json, provider, metadata, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 			ON CONFLICT(project_id, stream, block_id, locale) DO UPDATE SET
 				text = excluded.text,
 				target_json = excluded.target_json,
+				provider = excluded.provider,
+				metadata = excluded.metadata,
 				updated_at = excluded.updated_at`
 	}
-	return `INSERT INTO translations (project_id, stream, block_id, locale, text, target_json, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	return `INSERT INTO translations (project_id, stream, block_id, locale, text, target_json, provider, metadata, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (project_id, stream, block_id, locale) DO UPDATE SET
 			text = EXCLUDED.text,
 			target_json = EXCLUDED.target_json,
+			provider = EXCLUDED.provider,
+			metadata = EXCLUDED.metadata,
 			updated_at = EXCLUDED.updated_at`
 }
 
@@ -346,6 +506,21 @@ func sqlListTranslationsByBlocks(dialect string, nblocks int) string {
 	return `SELECT block_id, locale, target_json FROM translations
 		WHERE project_id = ` + placeholder(dialect, 1) + ` AND stream = ` + placeholder(dialect, 2) + `
 		AND block_id IN (` + placeholderList(dialect, 3, nblocks) + `)`
+}
+
+// sqlSelectTargetRow and sqlListTargetRowsByVariant read the whole target row —
+// the same column set, so a single-block read and a whole-variant listing
+// cannot disagree about what a target is.
+func sqlSelectTargetRow(dialect string) string {
+	return `SELECT block_id, locale, target_json, metadata, updated_at FROM translations
+		WHERE project_id = ` + placeholder(dialect, 1) + ` AND stream = ` + placeholder(dialect, 2) + `
+		AND block_id = ` + placeholder(dialect, 3) + ` AND locale = ` + placeholder(dialect, 4)
+}
+
+func sqlListTargetRowsByVariant(dialect string) string {
+	return `SELECT block_id, locale, target_json, metadata, updated_at FROM translations
+		WHERE project_id = ` + placeholder(dialect, 1) + ` AND stream = ` + placeholder(dialect, 2) + `
+		AND locale = ` + placeholder(dialect, 3) + ` ORDER BY block_id`
 }
 
 func sqlListAnnotationsByBlocks(dialect string, nblocks int) string {
