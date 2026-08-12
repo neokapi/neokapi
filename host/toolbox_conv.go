@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -101,6 +102,9 @@ func (a *App) RunConv(ctx context.Context, args []string, opts ConvOptions) erro
 			if errors.Is(cerr, context.Canceled) {
 				return cerr
 			}
+			if errors.Is(cerr, ErrBinaryStdout) {
+				cerr = errBinaryStdout("pass -o FILE, redirect stdout to a file, or pass `-o -` to write it here anyway")
+			}
 			// Report the bad file and continue, so one failure doesn't abort the
 			// rest — matching kgrep/ksed/kcat.
 			hadError = true
@@ -121,6 +125,11 @@ func (a *App) RunConv(ctx context.Context, args []string, opts ConvOptions) erro
 // for a same-format conversion; for a cross-format one they would be foreign to
 // the writer, so it reconstructs from the content model + structural layer.
 func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.FormatID, targetLoc model.LocaleID, outPath string) error {
+	// `-o -` is standard output named explicitly, not a file called "-".
+	stdout := outPath == StdoutName
+	if stdout {
+		outPath = ""
+	}
 	src, err := openDocSource(ctx, path)
 	if err != nil {
 		return err
@@ -195,12 +204,21 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	// the whole document for no reason, and did it a second time inside a writer
 	// that was already collecting. See #1710: neither buffer is visible while
 	// the other one exists.
+	flushOut := func() error { return nil }
 	if outPath != "" {
 		if err := writer.SetOutput(outPath); err != nil {
 			return err
 		}
-	} else if err := writer.SetOutputWriter(os.Stdout); err != nil {
-		return err
+	} else {
+		// Binary output at a terminal is refused here (see binaryout.go); `-o -`
+		// is the explicit "yes, stdout anyway", as it is for curl.
+		out := io.Writer(os.Stdout)
+		if !stdout {
+			out, flushOut = a.guardedStdout()
+		}
+		if err := writer.SetOutputWriter(out); err != nil {
+			return err
+		}
 	}
 	// Only a same-format round-trip consumes the original: a cross-format
 	// target reconstructs from the content model, and handing it foreign bytes
@@ -255,7 +273,9 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 	if err := writer.Close(); err != nil {
 		return fmt.Errorf("close %s: %w", DisplayName(path), err)
 	}
-	return nil
+	// After Close, so a document shorter than the sniff length is judged on the
+	// whole of itself rather than on however much the writer had flushed.
+	return flushOut()
 }
 
 // prepareOutputDir decides whether -o names an output directory rather than an
@@ -267,7 +287,9 @@ func (a *App) convertDocument(ctx context.Context, path string, toFmt registry.F
 // several documents, and silently converting only the last one is the failure
 // mode this rejects.
 func prepareOutputDir(out string, inputs int) (string, error) {
-	if out == "" {
+	// "" and "-" are both standard output; neither names a directory, and the
+	// several-inputs rule below does not apply to a stream.
+	if out == "" || out == StdoutName {
 		return "", nil
 	}
 	isDir := strings.HasSuffix(out, "/") || strings.HasSuffix(out, string(os.PathSeparator))
@@ -423,7 +445,7 @@ func (a *App) ResolveTargetFormat(to, outPath string) (registry.FormatID, error)
 		}
 		return "", fmt.Errorf("unknown target format %q — try a format id (markdown, html, doclang) or an extension (md, html)", to)
 	}
-	if outPath != "" {
+	if outPath != "" && outPath != StdoutName {
 		if det := a.writerForOutputPath(outPath); det != "" {
 			return det, nil
 		}

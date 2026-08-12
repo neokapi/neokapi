@@ -28,6 +28,13 @@ By default the edited document is written to standard output, like `sed`. Use
 `-i` to edit files in place, optionally keeping a backup (`-i.bak`). With no
 file, or when the file is `-`, standard input is read.
 
+Editing a binary document produces a binary document: a `.docx` goes back out as
+a zip. When standard output is a terminal, that is refused rather than streamed
+at it — use `-i`, redirect stdout to a file, or pass `--force` to ask for the
+bytes anyway. Redirected and piped output is never inspected, so `ksed … >
+out.docx` and `ksed … | kcat -` behave exactly as they always did. It is the
+same convention `gzip` and `xz` follow, for the same reason.
+
 ## Examples
 
 ```bash
@@ -58,6 +65,7 @@ ksed -R -i 's/colour/color/g' docs
 | `-i, --in-place[=SUFFIX]` | Edit files in place; append a backup `SUFFIX` if given (e.g. `-i.bak`). |
 | `-R, --recursive` | Recurse into directory arguments. |
 | `--target LOCALE` | Edit the translation for `LOCALE` instead of the source. |
+| `--force` | Write an edited binary document to the terminal anyway. |
 | `-f, --format` | Override format detection (e.g. `-f json`). |
 | `--source-lang` | Source language (default `en`). |
 | `--encoding` | Input/output encoding (default `UTF-8`). |

@@ -29,6 +29,11 @@ The target format is taken from --to, or inferred from the -o output extension.
 With no -o, the result is written to standard output. With no FILE, or "-",
 standard input is read.
 
+Converting to a binary format (.docx, .idml, …) writes a binary document, so
+when standard output is a terminal that is refused rather than streamed at it —
+pass -o FILE, redirect stdout, or ask for it explicitly with "-o -". Redirected
+or piped output is never touched.
+
 Several files convert in one run. Give -o a directory (a trailing slash, or a
 path that already is one) and each input is written to its own file there,
 named after the input and re-extensioned for the target format; the directory
@@ -61,7 +66,7 @@ document skeleton; a cross-format conversion reconstructs from the content model
 
 	f := cmd.Flags()
 	f.StringVarP(&to, "to", "t", "", "target format (e.g. markdown, html, doclang, or an extension like md)")
-	f.StringVarP(&outPath, "output", "o", "", "output file, or a directory (`-o out/`) to write one file per input (default: stdout)")
+	f.StringVarP(&outPath, "output", "o", "", "output file, a directory (`-o out/`) to write one file per input, or - for standard output (default: stdout)")
 	f.BoolVarP(&recursive, "recursive", "r", false, "recurse into directory arguments")
 	f.StringVar(&targetLoc, "target", "", "convert the target translation for LOCALE instead of the source")
 	f.StringVarP(&a.FormatFlag, "format", "f", "", "input format (default: auto-detect by extension/content)")
