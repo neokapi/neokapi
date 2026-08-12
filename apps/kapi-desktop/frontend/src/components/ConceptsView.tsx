@@ -16,7 +16,7 @@ import { createLocalConceptSource } from "../lib/localConceptSource";
  * the only one that can supply them. Observations are the same shape of thing
  * from the other direction: server-gathered external evidence.
  *
- * Kapi Desktop reads and edits a *local* termbase, so neither is available to it
+ * Kapi Desktop reads and edits a *local* terms store, so neither is available to it
  * (see `localConceptSource.ts` — it supplies no markets/observations/comments/
  * timeline/whereUsed). Leaving the slots wired rendered two permanently-empty
  * panels inviting a conversation the app cannot hold.

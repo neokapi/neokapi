@@ -54,7 +54,7 @@ Credits are spent by the AI operations Bowrain runs on your behalf:
 
 - **AI translation** — translating content, whether run as a batch flow or
   requested inline in the translation editor.
-- **Brand scans** — analyzing content to build or update a brand-voice profile.
+- **Context scans** — analyzing content to build or update a voice profile.
 
 Editing, reviewing, running non-AI checks, and reading content memory or
 terminology do not consume credits. Only the operations that call an AI model
@@ -140,5 +140,5 @@ downgraded to Free.
 - [Workspaces](/server/workspaces) — the unit a plan and its credits apply to.
 - [Members and roles](/server/members-and-roles) — invite teammates and manage
   seats.
-- [Brand voice](/server/brand-voice) — brand scans and the corrections that feed
+- [Voice & corrections](/server/context-voice) — context scans and the corrections that feed
   them.

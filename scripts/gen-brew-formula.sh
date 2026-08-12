@@ -112,7 +112,7 @@ if [ "$which" = both ] || [ "$which" = kapi ]; then
 {
   echo "class ${kapi_class} < Formula"
   # Keep under 80 characters — `brew audit --strict` rejects longer descriptions.
-  echo '  desc "AI-native localization framework — format-aware parsing and pluggable tools"'
+  echo '  desc "Format-aware content engine — parse, edit and check any format"'
   echo '  homepage "https://github.com/neokapi/neokapi"'
   # Declared explicitly, never inferred: Homebrew's Version.detect on a release
   # URL like .../v1.1.0/kapi_1.1.0_darwin_arm64.tar.gz returns "64" (it latches

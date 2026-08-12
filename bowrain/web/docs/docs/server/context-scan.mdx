@@ -1,23 +1,23 @@
 ---
-title: Brand scan
-sidebar_label: Brand scan
-description: Brand scan reads a corpus of existing brand material — pasted text, web pages, uploaded documents, or a public git repository — and drafts a brand voice profile and candidate terms for review before you adopt them.
-keywords: [brand scan, onboarding, brand voice, voice profile, terms, terminology, corpus, inference, bowrain]
+title: Context scan
+sidebar_label: Context scan
+description: A context scan reads a corpus of existing material — pasted text, web pages, uploaded documents, or a public git repository — and drafts a voice profile and candidate terms for review before you adopt them.
+keywords: [context scan, onboarding, voice profile, brand voice, terms, terminology, corpus, inference, bowrain]
 ---
 
 import { PhaseFlow, SwimlaneDiagram } from "@neokapi/docs-shared";
 
-# Brand scan
+# Context scan
 
-Adopting a brand voice from scratch means transcribing rules a team already
-follows but has rarely written down. **Brand scan** shortens that first step: it
-reads a corpus of existing brand material and drafts a
-[brand voice profile](/server/brand-voice) and candidate terms, which
-you review and edit before saving. It is an onboarding aid, not an authority —
-nothing it produces is enforced until you adopt it through the ordinary brand
-surfaces.
+Adopting a voice profile from scratch means transcribing rules a team already
+follows but has rarely written down. A **context scan** shortens that first step:
+it reads a corpus of material the team has already written and drafts a
+[voice profile](/server/context-voice) and candidate terms, which you review and
+edit before saving. It is an onboarding aid, not an authority — nothing it
+produces is enforced until you adopt it through the ordinary
+[Context](/server/context) surfaces.
 
-Brand scan runs before any bring-your-own provider key exists, so it always uses
+A scan runs before any bring-your-own provider key exists, so it always uses
 platform AI credits. The [credits](#credits-and-quota) it spends are reported on
 the job as it runs.
 
@@ -35,7 +35,7 @@ back a draft for review.
     { label: "Term candidates", sub: "term + definition + domain", edge: "extract terms" },
     { label: "Review", sub: "edit, test, then adopt", edge: "return draft" },
   ]}
-  caption="A scan reads sources into one corpus, infers a voice profile, extracts term candidates, and returns a draft to review. Nothing is saved to the brand until you adopt it."
+  caption="A scan reads sources into one corpus, infers a voice profile, extracts term candidates, and returns a draft to review. Nothing is saved to the graph until you adopt it."
 />
 
 The scan runs asynchronously. Creating one returns a job id; poll the scan until
@@ -73,7 +73,7 @@ is visible rather than silent.
 
 ### Voice profile
 
-The scan drafts a [voice profile](/server/brand-voice) with the same shape a
+The scan drafts a [voice profile](/server/context-voice) with the same shape a
 hand-authored one has — tone (personality, formality, emotion, humour), style
 rules (active voice, sentence length, point of view, contractions, prohibited
 patterns), vocabulary (preferred, forbidden, and competitor terms), and
@@ -96,15 +96,15 @@ a separate, deliberate step.
 
 ## Review, then adopt
 
-A scan never writes to the brand on its own. It produces a draft; adopting it is
+A scan never writes to the graph on its own. It produces a draft; adopting it is
 a deliberate second action, so the [separation between curation and
-governance](/server/brand#tiered-governance) holds from the very first profile.
+governance](/server/context#tiered-governance) holds from the very first profile.
 
 <SwimlaneDiagram
   actors={[
     { label: "You", sub: "manage_brand", role: "io" },
-    { label: "Brand scan", sub: "async job", role: "qa" },
-    { label: "Brand", sub: "profiles + terminology" },
+    { label: "Context scan", sub: "async job", role: "qa" },
+    { label: "Context", sub: "profiles + terminology" },
   ]}
   messages={[
     { from: 0, to: 1, label: "create scan from sources" },
@@ -113,7 +113,7 @@ governance](/server/brand#tiered-governance) holds from the very first profile.
     { from: 0, to: 1, label: "test edited draft against sample text", detail: "no AI cost" },
     { from: 0, to: 2, label: "adopt: save profile, promote terms" },
   ]}
-  caption="A scan returns a draft you review; adopting it saves a voice profile and promotes term candidates through the ordinary brand surfaces."
+  caption="A scan returns a draft you review; adopting it saves a voice profile and promotes term candidates through the ordinary Context surfaces."
 />
 
 While reviewing, you can **test a draft** against a sample of your own text: the
@@ -122,7 +122,7 @@ deterministic vocabulary matcher — no AI call, no credit cost — so you can a
 the draft and see the effect before committing to it.
 
 When the draft is ready, you adopt it through the ordinary surfaces: the edited
-voice profile is saved as a [brand voice profile](/server/brand-voice), and the
+voice profile is saved as a [voice profile](/server/context-voice), and the
 term candidates are promoted through [terminology](/server/terminology). The
 scan itself creates neither — it only hands you a draft to carry forward.
 
@@ -139,7 +139,7 @@ deducted.
 
 ## Under the hood
 
-- [The Brand hub](/server/brand) — the brand surfaces a scan feeds into.
-- [Brand voice & corrections](/server/brand-voice) — the profile a scan drafts,
+- [The Context hub](/server/context) — the surfaces a scan feeds into.
+- [Voice & corrections](/server/context-voice) — the profile a scan drafts,
   and how a saved profile is enforced.
 - [Billing and credits](/server/billing-and-credits) — the credits a scan spends.

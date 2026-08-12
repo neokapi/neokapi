@@ -20,7 +20,7 @@ import (
 func TestTermsImport_Monolingual(t *testing.T) {
 	dir := t.TempDir()
 	csvPath := filepath.Join(dir, "vocab.csv")
-	require.NoError(t, os.WriteFile(csvPath, []byte("term,definition\nBowrain,The localization platform\non-brand,Consistent with the voice profile\n"), 0o644))
+	require.NoError(t, os.WriteFile(csvPath, []byte("term,definition\nBowrain,The context graph across projects\non-brand,Consistent with the voice profile\n"), 0o644))
 
 	a := &App{TermsBackend: terms.NewInMemoryStore()}
 	cmd := newTermsImportCmd(a)
@@ -48,7 +48,7 @@ func TestTermsImport_Monolingual(t *testing.T) {
 	matches, err := a.TermsBackend.Lookup(ctx, "Bowrain", terms.LookupOptions{SourceLocale: model.LocaleID("en")})
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
-	assert.Equal(t, "The localization platform", matches[0].Concept.Definition)
+	assert.Equal(t, "The context graph across projects", matches[0].Concept.Definition)
 	assert.Len(t, matches[0].Concept.Terms, 1)
 }
 

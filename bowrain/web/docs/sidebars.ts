@@ -78,13 +78,13 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
-      label: "Voice & context",
+      label: "Context & voice",
       collapsible: false,
       className: "sidebar-section-heading",
       items: [
-        "server/brand",
-        "server/brand-scan",
-        "server/brand-voice",
+        "server/context",
+        "server/context-scan",
+        "server/context-voice",
       ],
     },
     {

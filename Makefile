@@ -251,7 +251,7 @@ lint: check-abs-paths check-vocabulary check-reference-provenance check-package-
 check-abs-paths: ## Guard: no absolute home path (/Users/…, /home/…, C:\Users\…) in tracked files
 	@./scripts/check-abs-paths.sh
 
-check-vocabulary: ## Guard: no retired framing (brand memory, brand-first, …) in user-facing prose
+check-vocabulary: ## Guard: no retired framing or retired vocabulary in prose, product strings and build metadata
 	@./scripts/check-vocabulary.sh
 
 check-reference-provenance: ## Guard: the committed reference dataset comes only from this repo (no okapi-bridge)

@@ -1,27 +1,29 @@
 ---
-title: Brand
-sidebar_label: Brand
-description: The Brand hub is Bowrain's front door to a team's brand language — a concept list, a per-concept dashboard with terms, geography, constraints, relations, and a timeline, voice and corrections, experiments with blast-radius previews and pilots, markets, observations, comments, and a tiered governance model.
-keywords: [brand, concepts, terminology, relations, markets, change-sets, experiments, blast radius, pilots, governance, observations, bowrain]
+title: Context
+sidebar_label: Context
+description: The Context hub is Bowrain's front door to the graph a workspace is governed by — a concept list, a per-concept dashboard with terms, geography, constraints, relations, and a timeline, voice and corrections, change-sets with blast-radius previews and pilots, markets, observations, comments, and a tiered governance model.
+keywords: [context graph, voice profile, concepts, terminology, relations, markets, change-sets, blast radius, pilots, governance, observations, bowrain]
 ---
 
 import { ThemedVideo } from "@neokapi/docs-shared";
 import { PhaseFlow, SwimlaneDiagram } from "@neokapi/docs-shared";
 
-# Brand
+# Context
 
-The **Brand** hub is where a team curates the language its content is written in.
-It gathers the terminology, the voice rules, the discussions, the history, and
-the consequences of a change onto one surface, so a single page can tell the
+The **Context** hub is where a team curates the language its content is written
+in. It gathers the terminology, the voice rules, the discussions, the history,
+and the consequences of a change onto one surface, so a single page can tell the
 whole story of a term: where it came from, what it replaced, where it is banned,
-how it is said in each market, and what it would cost to change.
+how it is said in each market, and what it would cost to change. Brand is the
+common case — the label most workspaces give their default profile — not the
+name of the mechanism.
 
 The hub is the front door. The deeper pages on
-[brand voice](/server/brand-voice) and [terminology](/server/terminology) cover
-their corners in detail; this page explains how they fit together and the
-governance that holds them. Starting from existing material rather than a blank
-hub, [brand scan](/server/brand-scan) reads a corpus and drafts a voice profile
-and term candidates to review.
+[voice & corrections](/server/context-voice) and
+[terminology](/server/terminology) cover their corners in detail; this page
+explains how they fit together and the governance that holds them. Starting from
+existing material rather than a blank hub, a [context scan](/server/context-scan)
+reads a corpus and drafts a voice profile and term candidates to review.
 
 <ThemedVideo
   sources={{
@@ -37,7 +39,7 @@ The unit the hub curates is the **concept** — the language-neutral notion
 Bowrain already uses for [terminology](/server/terminology): each carries terms
 across locales, every term with a lifecycle status, plus a domain and a
 definition. A forbidden term is not a separate kind of object; it is a concept
-whose term carries the `forbidden` status. Brand vocabulary rules reference the
+whose term carries the `forbidden` status. Voice vocabulary rules reference the
 same concepts, so terminology and voice cannot drift apart.
 
 The **Concepts** section opens on a searchable **list**: filter by term status,
@@ -53,7 +55,7 @@ about it:
 - its **timeline**: how the concept came to be;
 - and, on the platform, the **observations** and **discussion** attached to it.
 
-You read the brand one concept at a time, from the concept you care about
+You read the graph one concept at a time, from the concept you care about
 outward — there is no whole-graph canvas to navigate.
 
 ## Relations
@@ -133,13 +135,13 @@ part of the story.
 
 ## Voice and corrections
 
-The hub's **Voice** section is the team's brand voice profiles and the
+The hub's **Voice** section is the team's voice profiles and the
 correction-learning loop: correct content once and the rule that prevents the
 mistake from recurring is authored, versioned, and enforced. On the platform,
 every promoted rule is **concept-backed** — a promotion references the concept its
 term denotes, so a rule and the term it governs share one identity. The loop, its
 blast-radius preview, and progressive autonomy are covered in full on
-[Brand voice & corrections](/server/brand-voice).
+[Voice & corrections](/server/context-voice).
 
 ## Experiments: change-sets and pilots
 
@@ -238,7 +240,7 @@ stopped. It is the workspace-wide counterpart to a single concept's story.
 
 ## One hub, many surfaces
 
-The Brand hub is the same in the web app and the desktop app. The desktop app
+The Context hub is the same in the web app and the desktop app. The desktop app
 remains a working copy of the server — it proxies the same REST surface, and its
 views stay fresh through React Query's stale-time and refetch-on-focus; concepts
 and relations are edited inline in the hub against the server, never authored
@@ -263,6 +265,6 @@ so an assistant consults the hub's terminology rather than guessing.
 
 - [The context graph](/getting-started/the-context-graph) — the model the hub is a
   view onto.
-- [Brand voice & corrections](/server/brand-voice) — the loop that feeds Voice.
+- [Voice & corrections](/server/context-voice) — the loop that feeds Voice.
 - [Security and privacy](/server/security-and-privacy) — the separation-of-duties
   machinery governance reuses.

@@ -12,7 +12,7 @@
         <key>CFBundleVersion</key>
         <string>0.0.0-dev</string>
         <key>CFBundleGetInfoString</key>
-        <string>Localization Toolkit - powered by neokapi</string>
+        <string>Kapi — the context-aware content workbench</string>
         <key>CFBundleShortVersionString</key>
         <string>0.0.0-dev</string>
         <key>CFBundleIconFile</key>

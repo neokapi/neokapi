@@ -31,7 +31,7 @@ own server) and sign in. A personal workspace is created on first login.
    and published results flow back. See
    [Getting started on the server](/server/getting-started) and
    [Connectors](/server/connectors).
-2. **Establish the brand context.** Run a [brand scan](/server/brand-scan) over
+2. **Establish the brand context.** Run a [context scan](/server/context-scan) over
    content you already trust — it drafts a voice profile and term candidates for
    you to review and adopt. Vocabulary and content memory grow in the workspace
    from there.
@@ -40,7 +40,7 @@ own server) and sign in. A personal workspace is created on first login.
    what drifts.
 4. **Review and publish.** Step through the [Review surface](/server/review),
    approve what's right — corrections feed the
-   [learning loop](/server/brand-voice) — then export, or publish back through
+   [learning loop](/server/context-voice) — then export, or publish back through
    the connector.
 
 The end-to-end path for this route is

@@ -43,7 +43,7 @@ The loop can only enforce what the workspace has written down. Two surfaces
 carry that knowledge, and both are shared across every project in the
 workspace:
 
-- **A [brand voice profile](/server/brand-voice)** — a machine-readable
+- **A [voice profile](/server/context-voice)** — a machine-readable
   description of how your content should read: tone, style rules, preferred and
   forbidden vocabulary, before/after examples. Once saved, it runs as checks
   over everything the loop produces, and it keeps improving: corrections your
@@ -54,7 +54,7 @@ workspace:
   forbidden). Term suggestions appear in the editor, and term use is validated
   on generated translations.
 
-Starting from nothing, use [brand scan](/server/brand-scan): point it at
+Starting from nothing, use a [context scan](/server/context-scan): point it at
 material you already have — pasted copy, public web pages, uploaded documents —
 and it drafts a voice profile and term candidates for you to edit and
 adopt. Nothing a scan produces is enforced until you adopt it. Alternatively,
@@ -130,7 +130,7 @@ and term suggestions per block, and validation for inline tags. Every fix a
 reviewer makes here is also a signal — recurring corrections surface as
 candidate voice rules with a measured blast radius, and promoting one makes it
 an enforced check on every future generation
-(see [Brand voice & corrections](/server/brand-voice)).
+(see [Voice & corrections](/server/context-voice)).
 
 ## 5. Publish back
 
@@ -149,7 +149,7 @@ what its publish writes.
 ## What's next
 
 - [Keeping content caught up](/the-loop) — what a run does, who starts it, and where parked work goes
-- [Brand scan](/server/brand-scan) — draft a voice profile and terms from material you already have
-- [Brand voice & corrections](/server/brand-voice) — how corrections become enforced rules
+- [Context scan](/server/context-scan) — draft a voice profile and terms from material you already have
+- [Voice & corrections](/server/context-voice) — how corrections become enforced rules
 - [Connectors](/server/connectors) — every connector, including repositories and local files
 - [Review](/server/review) — approvals, QA findings, and bulk actions

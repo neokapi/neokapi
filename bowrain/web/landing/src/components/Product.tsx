@@ -29,7 +29,7 @@ const CAPABILITIES = [
   },
   {
     icon: Fingerprint,
-    title: t("Brand voice, scored"),
+    title: t("Voice profile, scored"),
     body: t(
       "Profiles hold tone, style, and vocabulary rules. Drafts score 0–100 across five dimensions; trends and drift show where a surface is sliding off voice.",
     ),

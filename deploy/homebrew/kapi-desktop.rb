@@ -10,7 +10,7 @@ cask "kapi-desktop" do
   url "https://github.com/neokapi/neokapi/releases/download/v#{version}/KapiDesktop-v#{version}-arm64.dmg",
       using: GitHubPrivateRepositoryReleaseDownloadStrategy
   name "Kapi"
-  desc "Desktop companion for the kapi localization CLI"
+  desc "Desktop workbench for a project's content context"
   homepage "https://github.com/neokapi/neokapi"
 
   depends_on formula: "neokapi/tap/kapi-cli"

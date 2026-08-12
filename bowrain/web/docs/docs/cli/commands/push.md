@@ -15,13 +15,13 @@ proposed terms, non-governed relations — apply directly through the concept
 endpoints. Governed edits — a term set to `forbidden` or `preferred`, an
 un-forbidding, a `replaced_by` relation, a concept delete — are bundled into a
 single submitted change-set **proposal** for review, the same separation of
-duties the [Brand](/server/brand#tiered-governance) hub enforces. Push reports
+duties the [Context](/server/context#tiered-governance) hub enforces. Push reports
 what applied directly versus what was proposed, with a link to review the
 change-set.
 
 When the recipe binds a brand voice profile (`defaults.brand_voice`, or a
 `brand.yaml` at the project root), push also carries it into the workspace
-[Brand](/server/brand) hub, matched by profile name: created on first push, a
+[Context](/server/context) hub, matched by profile name: created on first push, a
 no-op when the content is unchanged, and otherwise applied as a **new profile
 version** — the previous server-side state is archived in the version history,
 never overwritten, and vocabulary rules the server promoted from corrections
@@ -126,7 +126,7 @@ Push to Bowrain Server to:
 - **Share translations** with your team
 - **Trigger workflows** (AI translation, QA, terminology extraction)
 - **Send terminology edits** — ordinary edits land directly; governed edits
-  travel up as a [change-set](/server/brand#experiments-change-sets-and-pilots)
+  travel up as a [change-set](/server/context#experiments-change-sets-and-pilots)
   proposal
 - **Backup content** to the server
 - **Integrate with CI/CD** pipelines
