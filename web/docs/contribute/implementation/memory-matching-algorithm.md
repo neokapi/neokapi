@@ -1,13 +1,13 @@
 ---
 sidebar_position: 4
 title: "Content Memory Matching Algorithm"
-description: Implementation note for AD-009 — the three derived matching keys (plain, structural, generalized), how they are indexed in SQLite, and the fuzzy match scoring and adaptation pipeline in the memory package.
+description: Implementation note for C-09 — the three derived matching keys (plain, structural, generalized), how they are indexed in SQLite, and the fuzzy match scoring and adaptation pipeline in the memory package.
 keywords: [content memory matching, fuzzy match, memory, plain key, structural key, generalized key, implementation note, neokapi]
 ---
 
 # Content Memory Matching Algorithm
 
-This note provides implementation details for [AD-009](/contribute/architecture/009-content-memory).
+This note provides implementation details for [C-09](/contribute/architecture/context/c-09-content-memory).
 
 ## Derived matching keys
 

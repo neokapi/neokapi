@@ -162,7 +162,7 @@ Control flow:
 
 `media-refine` is a **source-`Transform`** ([AD-006](006-tool-system.md)): it
 rewrites source, so it runs in a flow's leading **source-transform stage** — the
-same slot redaction occupies ([AD-020](020-redaction.md)) — settling the source
+same slot redaction occupies ([C-10](context/c-10-redaction.md)) — settling the source
 before annotation and translation. It must access the source raster/track while it
 still exists; the vision tier-3 reader consumes and deletes the page raster before
 blocks reach tools, so `media-refine` runs *inside* the extraction boundary (the
@@ -261,7 +261,7 @@ not a browser one.
 - [AD-002 Content Model](002-content-model.md) — anchor facets (geometry/timing) and source `Origin` confidence this tier reads
 - [AD-006 Tool System](006-tool-system.md) — capability views, source-transform stage
 - [AD-011 AI Providers](011-ai-providers.md) — the multimodal `LLMProvider` this tier sends slices to
-- [AD-020 Content Redaction](020-redaction.md) — the recoverable-Transform precedent
+- [C-10 Content Redaction](context/c-10-redaction.md) — the recoverable-Transform precedent
 - [AD-021 SaT Segmenter Plugin](021-sat-segmenter-plugin.md) — native-stack plugin isolation template
 - [AD-027 Visual Editor](027-visual-editor-data-model.md) — renders source provenance and qa review findings
 - [AD-029 Vision and image adaptation](029-vision-and-image-adaptation.md) — the image instance of this pattern

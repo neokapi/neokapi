@@ -110,7 +110,7 @@ Lifecycle (owned by the executor, not the tool):
 
 1. At flow start the executor opens a `blockstore.Session` against the
    project's declared store backend (`memory`, `cache`, remote — see
-   [AD-008: Kapi Project Model](008-project-model.md)).
+   [C-01: Kapi Project Model](context/c-01-project-model.md)).
 2. For each tool the executor calls `SessionProcess` when the tool
    implements `SessionTool`, otherwise the plain streaming `Process`.
    Hybrid implementations are allowed: `SessionProcess` can read from
@@ -787,7 +787,7 @@ using the `Capability` and `SideEffects` a tool already declares:
 | Severity | Rule | Rationale |
 | --- | --- | --- |
 | Error | a transformer must not follow a step that produces a committed target — unless it produces the target port itself (unredact rewrites both sides coherently) | rewriting source orphans the targets, which anchor to it |
-| Error | a recoverable (redacting) transformer must run before any step that egresses source to a remote sink — except the step(s) producing an input its config-resolved contract *requires* | otherwise unprotected source leaks before redaction applies; a cloud NER feeding entity-driven redaction is the documented detection trade-off ([AD-020](020-redaction.md)) |
+| Error | a recoverable (redacting) transformer must run before any step that egresses source to a remote sink — except the step(s) producing an input its config-resolved contract *requires* | otherwise unprotected source leaks before redaction applies; a cloud NER feeding entity-driven redaction is the documented detection trade-off ([C-10](context/c-10-redaction.md)) |
 | Warning | a transformer placed later than its earliest valid slot (after its last required input) | every overlay present at apply time must be rebased; an earlier slot avoids the work |
 
 The remote-egress rule keys off a *remote source egress* side-effect

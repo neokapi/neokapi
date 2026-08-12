@@ -190,7 +190,7 @@ ordering. At the binding level their two uses are distinct:
   per-run work and the drift hazard of re-settling the canonical model on every
   run.
 - **Run brackets** — *paired, policy-bearing* transforms (redact … unredact,
-  [AD-020](020-redaction.md)) bracket a single run and may vary per run or
+  [C-10](context/c-10-redaction.md)) bracket a single run and may vary per run or
   provider. They are part of the **run's** source/sink wiring: the `Start`
   redacts the source binding, the `End` restores in the sink binding. The
   built-in `secure-translate` flow (redact · translate · unredact) is exactly
@@ -449,11 +449,11 @@ API write-back.
   middle; this AD names its endpoints.
 - [AD-005: Format System](005-format-system.md) — readers/writers are the `file`
   binding's implementation; skeleton round-trip is a sink concern.
-- [AD-008: Project Model](008-project-model.md) — the project block store as a
+- [C-01: Project Model](context/c-01-project-model.md) — the project block store as a
   source and sink.
 - [AD-025: KBF Family and the .kpz Package](025-kbf-package.md) — the `.kpz`
   workspace; process-only = the `store` sink; content-derived cached resume.
-- [AD-020: Content Redaction](020-redaction.md) — redact/unredact as run brackets
+- [C-10: Content Redaction](context/c-10-redaction.md) — redact/unredact as run brackets
   rather than ingest settlers.
 - [AD-002: Content Model](002-content-model.md) — overlays are the unit a sink
   commits and a source rehydrates.

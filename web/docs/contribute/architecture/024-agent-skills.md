@@ -222,8 +222,8 @@ through a single command, `kapi apply` (the write sibling of `kapi inspect`):
 | `content` | a block's text in a named `file` | byte-faithful format round-trip, drift- and inline-code guarded |
 | `term` | a term | committed `.terms.json` source → terms import → the terms tables of `.kapi/work/store.db` |
 | `memory` | a content-memory pair | committed `.memory.json` source → memory import → the memory tables of `.kapi/work/store.db` |
-| `voice` | a voice vocabulary rule | committed voice profile YAML → voice-store import ([AD-022](022-voice-profile.md)) |
-| `review` | a unit's review outcome | staged in the working set, published to `.kapi/state/` by `kapi commit` ([AD-033](033-project-state-model.md)) |
+| `voice` | a voice vocabulary rule | committed voice profile YAML → voice-store import ([C-07](context/c-07-voice-profiles.md)) |
+| `review` | a unit's review outcome | staged in the working set, published to `.kapi/state/` by `kapi commit` ([C-04](context/c-04-unit-state-and-decisions.md)) |
 | `recipe` | an allowlisted recipe field | the `kapi.yaml` recipe, via project load/save |
 
 Two properties make this one verb rather than five:
@@ -252,7 +252,7 @@ rule that justifies it — lands atomically, so the draft and the rule that gove
 future drafts move together.
 
 The MCP server exposes the same loop for non-CLI agents: `extract_content` (read
-leg) and `apply_edits` (the typed change-set, [AD-022](022-voice-profile.md)).
+leg) and `apply_edits` (the typed change-set, [C-07](context/c-07-voice-profiles.md)).
 
 ### Format editability is declarative
 
@@ -271,7 +271,7 @@ are resolved declaratively, without loading a plugin.
 The skills drive kapi through its **CLI**, not the MCP server. The CLI is the
 richer surface (it has the LLM-backed voice check, the credential store, the
 project resolution, the full toolbox), and an AI coding assistant already runs
-shell commands. The MCP voice / terminology / content-memory tools ([AD-022](022-voice-profile.md),
+shell commands. The MCP voice / terminology / content-memory tools ([C-07](context/c-07-voice-profiles.md),
 [AD-013](013-kapi-cli.md)) exist for parity with non-CLI agents (Cursor,
 generic MCP clients); the bundled skills themselves use the CLI.
 
@@ -313,7 +313,7 @@ output. The grep-style `ErrSilentExit` used by the toolbox
 
 - [AD-013: Kapi CLI](013-kapi-cli.md) — the command surface the skills drive and
   the exit-code contract they consume
-- [AD-022: Voice](022-voice-profile.md) — the voice commands a skill invokes,
+- [C-07: Voice](context/c-07-voice-profiles.md) — the voice commands a skill invokes,
   including the `--min-score` gate
 - [AD-023: Toolbox Utilities](023-toolbox-utilities.md) — the toolbox a skill
   drives and its grep-style exit codes; `kapi apply` is the deliberate,

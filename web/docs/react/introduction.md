@@ -77,7 +77,7 @@ The source text is the identifier. When the copy changes, you change the JSX —
 - **`t()` escape hatch** for the small set of strings that genuinely belong in data.
 - **Two build modes** — inline (zero runtime, builds per locale) and runtime (single bundle, dict loaded OTA).
 - **[In-context review](./in-context-review) on the running app** — ALT+click any string to see its source, edit its translation, and write it straight back to the `.kbf.json`; terms and QA findings paint onto the live text.
-- **A proper exchange format** — KBF (see [AD-008](/contribute/architecture/008-project-model)) — that carries structural context, placeholders, plural forms, and annotation overlays. Not a flat key-value JSON.
+- **A proper exchange format** — KBF (see [C-01](/contribute/architecture/context/c-01-project-model)) — that carries structural context, placeholders, plural forms, and annotation overlays. Not a flat key-value JSON.
 - **Full integration with `kapi`** for pseudo-translation, AI translation, QA, content-memory leverage, and terminology. The same toolchain that handles XLIFF, JSON, Markdown, HTML, and every other format kapi supports.
 
 ## When neokapi-i18n isn't the right fit

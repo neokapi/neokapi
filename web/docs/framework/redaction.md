@@ -26,7 +26,7 @@ local machine.
 />
 
 For the architecture and design decisions behind this, see
-[AD-020: Content Redaction](/contribute/architecture/020-redaction).
+[C-10: Content Redaction](/contribute/architecture/context/c-10-redaction).
 
 In the CLI, `redact` and `unredact` are pipeline steps: the built-in
 `secure-translate` flow runs redact → translate → unredact

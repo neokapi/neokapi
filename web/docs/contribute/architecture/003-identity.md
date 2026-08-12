@@ -104,7 +104,7 @@ The block-addressed store (`core/blockstore`) keys on this content hash. A
 blocks are written content-addressed and, once written, are immutable —
 tools append `Overlay` layers (targets, annotations, skeletons) keyed by
 `(kind, blockHash)` rather than rewriting blocks. This is the substrate kapi
-flows run against; see [AD-008: Project Model](008-project-model.md).
+flows run against; see [C-01: Project Model](context/c-01-project-model.md).
 
 ### Identity across revisions
 
@@ -252,4 +252,4 @@ reader IDs coexist without three-part composite keys everywhere in the stack.
 - [AD-001: Vision and Module Architecture](001-vision-and-modules.md)
 - [AD-002: Content Model](002-content-model.md) — `BlockIdentity` and content-hash identity
 - [AD-005: Format System](005-format-system.md) — where source IDs originate
-- [AD-008: Project Model](008-project-model.md) — the `core/blockstore` substrate that keys on the content hash
+- [C-01: Project Model](context/c-01-project-model.md) — the `core/blockstore` substrate that keys on the content hash

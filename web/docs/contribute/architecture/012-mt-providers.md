@@ -216,7 +216,7 @@ The rest of the flow is unchanged.
 ## Related
 
 - [AD-006: Tool System](006-tool-system.md) — Tool pattern and `BaseTool`
-- [AD-009: Content memory](009-content-memory.md) — memory leverage
+- [C-09: Content memory](context/c-09-content-memory.md) — memory leverage
   before MT
 - [AD-011: AI Providers](011-ai-providers.md) — richer provider interface
   for LLMs

@@ -1,13 +1,13 @@
 ---
 sidebar_position: 5
 title: "Terminology Data Model"
-description: Implementation note for AD-010 — the Go struct layout for Concept, Term, and their context dimensions, plus the SQL schema for the SQLite terms store and the import pipeline from TBX and CSV sources.
+description: Implementation note for C-08 — the Go struct layout for Concept, Term, and their context dimensions, plus the SQL schema for the SQLite terms store and the import pipeline from TBX and CSV sources.
 keywords: [terminology data model, Concept, Term, SQLite, TBX import, CSV, implementation note, neokapi]
 ---
 
 # Terminology Data Model
 
-This note provides implementation details for [AD-010](/contribute/architecture/010-terminology).
+This note provides implementation details for [C-08](/contribute/architecture/context/c-08-terms).
 
 ## Data Model: Concept-Oriented
 
@@ -95,9 +95,9 @@ Related AI and redaction tools (registered in `core/ai/tools/` and
 
 **`term-extract`** (Enrich, AI) -- LLM extraction of candidate terms. Uses an AI provider from [AD-011](/contribute/architecture/011-ai-providers).
 
-**`entity-extract`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: content-memory generalization ([AD-009](/contribute/architecture/009-content-memory)), do-not-translate markers, translation hints, and terminology candidate discovery. Should run early in the pipeline -- before `recycle`.
+**`entity-extract`** (Enrich, AI) -- Named entity annotation (people, organizations, products, dates, locations). Serves multiple purposes: content-memory generalization ([C-09](/contribute/architecture/context/c-09-content-memory)), do-not-translate markers, translation hints, and terminology candidate discovery. Should run early in the pipeline -- before `recycle`.
 
-**`redact`** (Transform) -- Privacy tool replacing entity values with typed placeholders (e.g., "John" -> `\{PERSON\}`) before external services. See [AD-020](/contribute/architecture/020-redaction).
+**`redact`** (Transform) -- Privacy tool replacing entity values with typed placeholders (e.g., "John" -> `\{PERSON\}`) before external services. See [C-10](/contribute/architecture/context/c-10-redaction).
 
 **`unredact`** (Transform) -- Restores original entity values after external processing. Paired with `redact`:
 `reader -> entity-extract -> redact -> [external MT] -> unredact -> writer`

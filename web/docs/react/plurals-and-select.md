@@ -129,7 +129,7 @@ one:   1 Nachricht
 other: Sie haben {n} Nachrichten
 ```
 
-while the English source stays flat. The target-side data model is handled by `@neokapi/kapi-format`'s `upgradeTargetToPlural` / `downgradePluralTarget` helpers. See [AD-008](/contribute/architecture/008-project-model) for the on-disk shape.
+while the English source stays flat. The target-side data model is handled by `@neokapi/kapi-format`'s `upgradeTargetToPlural` / `downgradePluralTarget` helpers. See [C-01](/contribute/architecture/context/c-01-project-model) for the on-disk shape.
 
 ## Runtime resolution
 

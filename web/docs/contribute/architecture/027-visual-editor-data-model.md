@@ -212,7 +212,7 @@ The canonical way to commit a target edit is on the content model itself:
 (with `SetTargetText` / `SetText` for the plain-text path —
 [AD-006](006-tool-system.md)). How a host application transports an edit to the
 model and persists the result — the project **`BlockStore`**
-([AD-008](008-project-model.md)), **KBF** files ([AD-025](025-kbf-package.md)), a
+([C-01](context/c-01-project-model.md)), **KBF** files ([AD-025](025-kbf-package.md)), a
 database — is the application's concern and outside this AD.
 
 The **round-trip** to byte-faithful output is a framework mechanism, independent
@@ -305,7 +305,7 @@ outside the framework.
 - [AD-002: Content Model](002-content-model.md) — Part/Block/Run, overlays, annotations, targets, the run-text projections the editor renders
 - [AD-005: Format System](005-format-system.md) — readers/writers and the skeleton that makes the round-trip byte-faithful
 - [AD-006: Tool System](006-tool-system.md) — capability-typed immutability, `SetTargetRuns`/`SetText`, and `RemapOverlays` overlay rebasing
-- [AD-008: Project Model](008-project-model.md) — the `BlockStore` that a host persists edits through
+- [C-01: Project Model](context/c-01-project-model.md) — the `BlockStore` that a host persists edits through
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — the desktop application that hosts the preview kit
 - [AD-017: Bilingual Format Interop](017-bilingual-format-interop.md) — the standalone-kapi `extract`/`merge` faithful round-trip
 - [AD-025: KBF Family and `.kpz` Package](025-kbf-package.md) — `.kbf.json` blocks and the `.overlays.jsonl` annotation sidecar

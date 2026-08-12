@@ -97,7 +97,7 @@ bindings. The main groups:
 
 - **Project operations** — `NewProject`, `OpenProject`, `SaveProject`,
   `SaveProjectAs`. Loads and writes `kapi.yaml` recipes
-  ([AD-008: Kapi Project Model](008-project-model.md)).
+  ([C-01: Kapi Project Model](context/c-01-project-model.md)).
 - **Flow CRUD** — add, remove, reorder, and configure flows within the
   open kapi project. Validates step schemas against the tool registry.
 - **Flow execution** — runs a flow through the framework's Executor and
@@ -225,7 +225,7 @@ projects backed by any store the framework supports.
   event streaming
 - [AD-006: Tool System](006-tool-system.md) — tool registry and schemas
 - [AD-007: Plugin System](007-plugin-system.md) — plugin install/update
-- [AD-008: Kapi Project Model](008-project-model.md) — `kapi.yaml` recipe
+- [C-01: Kapi Project Model](context/c-01-project-model.md) — `kapi.yaml` recipe
   and `.kapi/` state
 - [AD-011: AI Providers](011-ai-providers.md) — provider credential
   store

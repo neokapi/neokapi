@@ -225,7 +225,7 @@ definitions include:
 | `pseudo-translate` | Pseudo-translation for internationalization testing     |
 | `qa`               | Quality assurance checks on existing translations       |
 | `recycle`          | Leveraging prior translations from content memory       |
-| `secure-translate` | Redact sensitive content, AI-translate, then restore the originals locally ([AD-020](020-redaction.md)) |
+| `secure-translate` | Redact sensitive content, AI-translate, then restore the originals locally ([C-10](context/c-10-redaction.md)) |
 
 `kapi flows` lists only the *composed* (multi-tool) built-in flows —
 `translate-qa` and `secure-translate` — because single-tool definitions
