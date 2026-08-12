@@ -501,7 +501,7 @@ func TestReadInlineRuns(t *testing.T) {
     assert.Equal(t, "Click here for info", blocks[0].SourceText())
 
     // Inline codes are preserved as a PcOpen/PcClose pair on the source runs.
-    // (There is no Segment type — segmentation is an opt-in overlay, AD-002.)
+    // (There is no Segment type — segmentation is an opt-in overlay, F-02.)
     runs := blocks[0].SourceRuns()
     require.Len(t, runs, 4) // "Click ", <b>, "here", </b> + trailing text coalesces
     require.NotNil(t, runs[1].PcOpen)

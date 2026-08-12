@@ -363,7 +363,7 @@ type PartHandler func(part *model.Part) (*model.Part, error)
 // BaseTool implements Process once and dispatches each Part to the matching
 // handler. Embed it and set only the handlers you need; unset handlers pass the
 // Part through unchanged. For Blocks, set exactly ONE capability-typed handler —
-// the view it receives bounds what the tool may write (immutability, AD-006):
+// the view it receives bounds what the tool may write (immutability, E-03):
 //   Annotate(BlockView)  — read-only: overlays / annotations / properties
 //   Produce(VariantView) — writes the target; source read-only
 //   Transform(BlockView) — edit producer: returns an EditPlan the framework

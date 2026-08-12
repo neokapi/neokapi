@@ -7,13 +7,15 @@
 # context, and the CI loop page. R9 amends the no-mention rule to allow
 # AT MOST `MAX_SANCTIONED_CALLOUTS` of these neutral callouts; it does not
 # open the door to bowrain mentions anywhere else. bowrain is otherwise a
-# strictly DOWNSTREAM product (AD-001); its docs live in bowrain/web/docs/.
+# strictly DOWNSTREAM product (F-01); its docs live in bowrain/web/docs/.
 #
-# A second, separate exception is allowed only under web/docs/contribute/
-# (architecture + implementation), where genuine cross-module facts may name
-# bowrain — e.g. kapi-desktop's blank-import of bowrain/plugin/schema, the
-# kapi-*/bowrain-* skill split, and the module tree. That directory is not in
-# the user_facing sweep below, so it's untouched by either check here.
+# The architecture corpus is held to the same zero: it describes the framework
+# and nothing downstream of it, so it is swept below alongside the user-facing
+# trees. A second, separate exception survives only under
+# web/docs/contribute/implementation/, where genuine cross-module facts may name
+# bowrain — e.g. kapi-desktop's blank-import of bowrain/plugin/schema and the
+# module tree. That directory is not in the user_facing sweep below, so it's
+# untouched by either check here.
 #
 # Everything else user-facing (framework/kapi/react/reference/toolbox and the
 # docs home page, which is also the product landing page) must not mention
@@ -33,6 +35,7 @@ fail=0
 #    of those, repo-wide, so R9's "≤4" ceiling is enforced by CI rather than
 #    by convention.
 user_facing=(
+  web/docs/contribute/architecture
   web/docs/framework
   web/docs/kapi
   web/docs/react

@@ -114,7 +114,7 @@ func NewReader() *Reader {
 ```
 
 Inline content is a flat `[]model.Run` (see
-[AD-002: Content Model](/contribute/architecture/002-content-model)). An
+[F-02: Content Model](/contribute/architecture/foundations/f-02-content-model)). An
 opening tag becomes a `PcOpenRun`, its matching close a `PcCloseRun` with the
 same `ID`, and a self-closing construct a `PlaceholderRun`. When building one,
 look up the vocabulary entry and populate the rendering and constraint fields —

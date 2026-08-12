@@ -35,7 +35,7 @@ has not changed. Content collections group heterogeneous source files with
 different formats, writer outputs and language targets.
 
 The channel-based `Part → Tool → Part` model
-([AD-004](../004-processing-engine.md)) is a forward-only transform. It
+([E-01](../engine/e-01-processing-engine.md)) is a forward-only transform. It
 does not cover random-access reads, incremental work, or parallel tools writing
 independent annotation layers. A declarative recipe captures intent; a local
 store captures the working state.
@@ -45,9 +45,9 @@ share, back up and commit — discovered by a git-style upward walk, never named
 on a command. Sharing a project usually means sharing the folder. When a folder
 cannot travel — a hand-off to a translator, an archive, an air-gapped transfer —
 the single-file `.kpz` parcel carries the same state losslessly
-([AD-025](../025-kbf-package.md)), and a task-scoped bilingual
+([M-06](../multilingual/m-06-content-packages.md)), and a task-scoped bilingual
 `.kpz` is what goes to a reviewer
-([AD-017](../017-bilingual-format-interop.md)). The parcel is for
+([M-01](../multilingual/m-01-bilingual-interop.md)). The parcel is for
 boundaries, not a competing working model: you open it into a project, work in
 the folder, and pack to ship.
 
@@ -220,7 +220,7 @@ applied wherever that tool runs in a project flow. A flow step's own config
 overrides the preset per key, so a project pins its redaction rules or a
 pseudo-translation prefix once while an individual flow refines them. Resolution
 happens at tool construction, and the data-flow and placement gates
-([AD-006](../006-tool-system.md)) validate against the same merged config
+([E-03](../engine/e-03-tool-system.md)) validate against the same merged config
 the runtime uses — a preset that enables the redact tool's entity detection makes
 the upstream `entity` port required exactly as an inline config would.
 
@@ -232,7 +232,7 @@ the recipe filename is fixed, it is the only place the label lives; `kapi init`
 defaults it to the current directory's basename.
 
 The recipe holds provider **names** only. Credentials live in the OS keychain
-([AD-013](../013-kapi-cli.md)) or the environment. Nothing in the recipe
+([S-01](../surfaces/s-01-kapi-cli.md)) or the environment. Nothing in the recipe
 is secret; it is safe to commit.
 
 Discovery is git-style: kapi walks up from the current directory until it finds a
@@ -335,7 +335,7 @@ command once per collection with every matched file path streamed on stdin
 (NUL-separated) and reads NDJSON block records from stdout. The developer picks
 the package manager or binary path — kapi runs whatever `command` says verbatim,
 which is why the exec class is gated by explicit consent
-([AD-038](../038-execution-trust.md)).
+([E-06](../engine/e-06-execution-trust.md)).
 
 ### The store interface
 
@@ -464,7 +464,7 @@ staleness detection, generator identity and timestamps. Users do not hand-edit
 it; deleting it is safe, because it rebuilds from `store.db`.
 
 `.kapi/work/cache/extractions/<batch-id>/manifest.yaml` records each `kapi
-extract` run ([AD-017](../017-bilingual-format-interop.md)): the emitted
+extract` run ([M-01](../multilingual/m-01-bilingual-interop.md)): the emitted
 source→output pairs, per-file source SHA-256, leverage counts, the bilingual
 format version and the skeleton filenames. The batch id is stamped in each
 emitted bilingual file so `kapi merge` resolves a returning file back to the
@@ -491,9 +491,9 @@ right extraction without guessing from its name.
   `.kapi/work/store.db`.
 - [C-04: Unit state and the decision record](c-04-unit-state-and-decisions.md) —
   `.kapi/state/`.
-- [AD-004: Processing Engine](../004-processing-engine.md) — flow
+- [E-01: Processing Engine](../engine/e-01-processing-engine.md) — flow
   execution.
-- [AD-006: Tool System](../006-tool-system.md) — the `Tool` and
+- [E-03: Tool System](../engine/e-03-tool-system.md) — the `Tool` and
   `SessionTool` interfaces.
 - [Flow steps format](../../implementation/flow-steps-format.md) — the shared
   flow syntax.

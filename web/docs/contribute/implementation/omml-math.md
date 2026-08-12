@@ -1,14 +1,14 @@
 ---
 sidebar_position: 16
 title: OMML Math Conversion
-description: Implementation note for AD-032 — the cgo-free core/math converter from Office Math Markup Language (OMML) to portable LaTeX/MathML via a texmath-shaped Exp AST, the namespace-wrapping token-stream reader, the operator dictionary that separates math typography from m:nor prose, the byte-offset nor-splice algorithm the OpenXML sub-skeleton consumes, the public API surface, and a coverage-gap ledger of the documented OMML approximations.
+description: Implementation note for M-04 — the cgo-free core/math converter from Office Math Markup Language (OMML) to portable LaTeX/MathML via a texmath-shaped Exp AST, the namespace-wrapping token-stream reader, the operator dictionary that separates math typography from m:nor prose, the byte-offset nor-splice algorithm the OpenXML sub-skeleton consumes, the public API surface, and a coverage-gap ledger of the documented OMML approximations.
 keywords: [OMML, Office Math, MathML, LaTeX, equation translation, m:nor, texmath, Exp AST, byte-exact splice, sub-skeleton, core/math, implementation note, neokapi]
 ---
 
 # OMML Math Conversion
 
 Implementation details for the math-conversion subsystem decided in
-[AD-032: Math and Equations](../architecture/032-math-and-equations.md).
+[M-04: Math and Equations](../architecture/multilingual/m-04-math-and-equations.md).
 The package `core/math` (Go import `github.com/neokapi/neokapi/core/math`,
 package name `math`) is a **cgo-free, WASM-safe** converter between ECMA-376
 Part 1 §22.1 Office Math Markup Language (OMML) and two portable notations —
@@ -263,7 +263,7 @@ the verbatim OMML round-trip (which the host keeps independently).
 
 ## Related
 
-- [AD-032 Math and Equations](../architecture/032-math-and-equations.md) — the decision this note implements
-- [AD-002 Content Model](../architecture/002-content-model.md) — `Block`, `Run`, `Ph` (placeholder `Equiv`/`Disp`), and `SemanticRole`
-- [AD-018 Parity testing against Okapi](../architecture/018-parity-testing.md) — why `Ph.Equiv`/`Ph.Disp` and `SemanticRole` are parity-safe carriers
+- [M-04 Math and Equations](../architecture/multilingual/m-04-math-and-equations.md) — the decision this note implements
+- [F-02 Content Model](../architecture/foundations/f-02-content-model.md) — `Block`, `Run`, `Ph` (placeholder `Equiv`/`Disp`), and `SemanticRole`
+- [A-02 Parity testing against Okapi](../architecture/assurance/a-02-parity.md) — why `Ph.Equiv`/`Ph.Disp` and `SemanticRole` are parity-safe carriers
 - [Skeleton Store and Streaming HTML](/contribute/implementation/skeleton-store) — the skeleton mechanism the OMML sub-skeleton rides on

@@ -32,9 +32,9 @@ type FlowStep struct {
 
 Tools that rewrite the source/model (redaction, a simplifier, normalization)
 are ordinary entries in `steps:`; there is no separate structural stage
-([AD-006](../architecture/006-tool-system.md)). A flow that declares the
+([E-03](../architecture/engine/e-03-tool-system.md)). A flow that declares the
 removed `source_transforms:` field is rejected by `StepsToGraph` with a
-migration error pointing at AD-006 and directing the author to list the
+migration error pointing at E-03 and directing the author to list the
 transformers as ordered steps.
 
 ```yaml
@@ -63,7 +63,7 @@ flow build/load gate and emits these diagnostics:
 
 Auto-assigned IDs follow `tool-N` pattern. Positions auto-layout left-to-right.
 The graph is tool nodes only; the flow's source and sink are bindings resolved
-at run time ([AD-026](../architecture/026-flow-io-binding.md)), not nodes.
+at run time ([E-04](../architecture/engine/e-04-flows-and-io-binding.md)), not nodes.
 
 ## Examples
 

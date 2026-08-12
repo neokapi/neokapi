@@ -218,7 +218,7 @@ can override. Beyond locales and the parallelism/encoding knobs shown above:
 - `merge` (`MergeDefaults.ConflictPolicy`) — how `kapi merge` resolves a
   translator's target against an existing on-disk target or content-memory entry
   (`translator-wins` default, `existing-wins`, `newest-wins`). See
-  [AD-017](/contribute/architecture/017-bilingual-format-interop).
+  [M-01](/contribute/architecture/multilingual/m-01-bilingual-interop).
 - `memory` (`MemoryDefaults`) — the project's content memory:
   `fuzzy_threshold`, the pre-fill cutoff on `kapi extract` (default
   `DefaultFuzzyThreshold` = 75).

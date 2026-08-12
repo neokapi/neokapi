@@ -110,4 +110,4 @@ initKapiReview({ endpoint: "https://staging.example.com/review" });
 
 - [Translating with kapi](./translating-with-kapi) — where the terminology and QA findings come from.
 - [Configuration](./configuration#review--reviewkbfdir) — the `review` and `reviewKbfDir` options.
-- [AD-035](/contribute/architecture/035-in-context-review) — how it works underneath, and why.
+- [S-05](/contribute/architecture/surfaces/s-05-i18n-runtime) — how it works underneath, and why.

@@ -49,7 +49,7 @@ the caller receives pre-adapted targets.
 
 An entry stores per-locale `[]model.Run` sequences — the same inline-content
 representation used throughout the pipeline
-([AD-002](../002-content-model.md)). An entry is **multilingual**:
+([F-02](../foundations/f-02-content-model.md)). An entry is **multilingual**:
 each language is a peer variant in a map, with no authoritative source at the
 persistence layer; the lookup direction is supplied at the call site.
 
@@ -150,7 +150,7 @@ needed for the structural key, so no separate pre-processing step is required. B
 default it keys on the block's whole content — the verbatim case when no
 segmentation overlay is present. `LookupSegment` keys on a single segment span
 for the sentence-level leverage path
-([AD-017](../017-bilingual-format-interop.md)).
+([M-01](../multilingual/m-01-bilingual-interop.md)).
 
 ### The memory is state, not source
 
@@ -268,7 +268,7 @@ plain matching only.
 ### Pipeline integration
 
 The `recycle` tool is a translate-class tool
-([AD-006](../006-tool-system.md)): it reads each block's source, queries the
+([E-03](../engine/e-03-tool-system.md)): it reads each block's source, queries the
 memory, and where a match clears the fill threshold writes the target. It records
 the outcome on the block's properties — the match score and match type — which
 downstream tools read as context, so a translate step can skip what the memory
@@ -308,7 +308,7 @@ entity mappings, so the memory accumulates richer data over time.
   the state carrier this store is deliberately not.
 - [C-08: Terms](c-08-terms.md) — shared matching infrastructure and the
   source-versus-state contrast.
-- [AD-002: Content Model](../002-content-model.md) — run
+- [F-02: Content Model](../foundations/f-02-content-model.md) — run
   sequences, inline-code runs, entity annotations.
 - [Memory matching algorithm](../../implementation/memory-matching-algorithm.md)
   — trigram construction, the performance table, the TMX element mapping.
