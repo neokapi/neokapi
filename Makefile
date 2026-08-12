@@ -2090,7 +2090,7 @@ bowrain-logo: ## Regenerate all bowrain logo/icon/favicon assets from the vector
 # into the Pages artifact / PR-preview bundle. The GitHub docs-assets /
 # bowrain-docs-assets releases are retired; these targets are the single publish
 # path. Auth via env: CDN_BUCKET + AWS credentials (an `aws sso login` profile
-# locally). See web/docs/contribute/implementation/cdn-assets.md.
+# locally). See web/docs/contribute/implementation/repo/cdn-assets.md.
 # wasm is also published by CI on each push-to-main docs build (versioned by
 # sha). The rest are published from the desktop where the harness produces them;
 # the vision model set is pulled from the pinned vision-models-v1 release.
