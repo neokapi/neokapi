@@ -6,6 +6,10 @@ kind: use-case
 publishAs: monolingual-governance
 # A scripted plain-shell demo: every command is deterministic, so it runs for
 # real and its output is recorded exactly. Nothing here reaches a network.
+#
+# Two `kapi check --strict` runs exit 3 on purpose — a failing gate is the point
+# of acts 3 and 4 — so `src/cli/audit.ts` reports this demo as having two
+# errors. That is the recording being correct, not broken.
 terminal: shell
 brand: kapi
 cwd: ~/northsea
