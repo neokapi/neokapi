@@ -237,9 +237,45 @@ const config: Config = {
             from: "/kapi/recipes/gate-localization-in-ci",
             to: "/kapi/recipes/ship-gates-and-ci",
           },
+          // The architecture corpus is organized by concern in six series, each
+          // a directory. Every retired numeric slug keeps a redirect, and the
+          // pre-existing renames below point straight at the final route rather
+          // than chaining through one that no longer exists.
           {
             from: "/contribute/architecture/009-translation-memory",
-            to: "/contribute/architecture/009-content-memory",
+            to: "/contribute/architecture/context/c-09-content-memory",
+          },
+          {
+            from: "/contribute/architecture/008-project-model",
+            to: "/contribute/architecture/context/c-01-project-model",
+          },
+          {
+            from: "/contribute/architecture/009-content-memory",
+            to: "/contribute/architecture/context/c-09-content-memory",
+          },
+          {
+            from: "/contribute/architecture/010-terminology",
+            to: "/contribute/architecture/context/c-08-terms",
+          },
+          {
+            from: "/contribute/architecture/020-redaction",
+            to: "/contribute/architecture/context/c-10-redaction",
+          },
+          {
+            from: "/contribute/architecture/022-voice-profile",
+            to: "/contribute/architecture/context/c-07-voice-profiles",
+          },
+          {
+            from: "/contribute/architecture/033-project-state-model",
+            to: "/contribute/architecture/context/c-04-unit-state-and-decisions",
+          },
+          {
+            from: "/contribute/architecture/037-context-retrieval-surface",
+            to: "/contribute/architecture/context/c-06-retrieval",
+          },
+          {
+            from: "/contribute/architecture/039-local-context-graph-store",
+            to: "/contribute/architecture/context/c-03-context-store-and-graph",
           },
           {
             from: "/contribute/architecture/029-vision-and-image-localization",
