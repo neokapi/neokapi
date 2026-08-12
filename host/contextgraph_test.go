@@ -207,9 +207,9 @@ func TestMaterializeContextGraphSurvivesProjectRename(t *testing.T) {
 			assert.NotEqual(t, "neokapi", src.Scope.Project, "no edge survives under the old project key")
 			// Both endpoints still resolve to a node, so nothing dangles.
 			_, gerr := g.GetNode(ctx, e.Source)
-			assert.NoError(t, gerr, "edge %s source resolves", e.ID)
+			require.NoError(t, gerr, "edge %s source resolves", e.ID)
 			_, gerr = g.GetNode(ctx, e.Target)
-			assert.NoError(t, gerr, "edge %s target resolves", e.ID)
+			require.NoError(t, gerr, "edge %s target resolves", e.ID)
 		}
 	}
 
