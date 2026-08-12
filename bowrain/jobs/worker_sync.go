@@ -21,6 +21,7 @@ import (
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/core/ref"
 )
 
 // syncPushManifest matches the JSON manifest written by HandleSyncPushCommit.
@@ -42,6 +43,12 @@ type syncPushManifest struct {
 	// ledger after the chunks are stored — so decisions arriving with the
 	// content they judge can resolve their rows and project their status.
 	Decisions json.RawMessage `json:"decisions"`
+	// ExpectedRef is the compare-and-swap assertion the client sent: the
+	// governance components it last observed. The commit handler checks it too,
+	// so a waiting client is told at once — but the handler answers before the
+	// work is queued, and this is where the write actually happens, so the
+	// assertion is re-made here against the state it is about to change.
+	ExpectedRef ref.Ref `json:"expected_ref"`
 }
 
 type syncChunkRef struct {
@@ -167,6 +174,12 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	if projectRow != nil {
 		workspaceID = projectRow.WorkspaceID
 	}
+	if len(contextEntries) > 0 {
+		if err := assertContextRef(ctx, deps, projectID, stream, manifest.ExpectedRef); err != nil {
+			markJobFailed(ctx, deps, job.ID, err.Error())
+			return err
+		}
+	}
 	contextResult, err := reconcileContext(ctx, deps, projectID, stream, workspaceID, manifest.ActorID, contextEntries)
 	if err != nil {
 		markJobFailed(ctx, deps, job.ID, err.Error())
@@ -281,13 +294,23 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 	// this protocol keeps having to confess. A store without the ledger
 	// capability skips with a log line rather than failing content it can
 	// otherwise apply.
+	var decisions []store.UnitDecision
 	if len(manifest.Decisions) > 0 {
-		var decisions []store.UnitDecision
 		if err := json.Unmarshal(manifest.Decisions, &decisions); err != nil {
 			markJobFailed(ctx, deps, job.ID, "invalid decisions payload")
 			return fmt.Errorf("parse manifest decisions: %w", err)
 		}
+	}
+	// A payload that decodes to nothing is not a decisions write. Keying the
+	// work on the decoded records rather than on the raw bytes is what stops a
+	// JSON `null` — four bytes of nothing — from asserting a component this
+	// push never touches.
+	if len(decisions) > 0 {
 		if ds, ok := deps.ContentStore.(store.DecisionStore); ok {
+			if err := assertDecisionsRef(ctx, ds, projectID, stream, manifest.ExpectedRef); err != nil {
+				markJobFailed(ctx, deps, job.ID, err.Error())
+				return err
+			}
 			applied, derr := ds.UpsertUnitDecisions(ctx, projectID, stream, decisions)
 			if derr != nil {
 				markJobFailed(ctx, deps, job.ID, derr.Error())

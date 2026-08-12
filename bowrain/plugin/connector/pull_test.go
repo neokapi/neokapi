@@ -9,11 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	"github.com/neokapi/neokapi/bowrain/core/config"
 	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/bowrain/core/refcache"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
@@ -109,9 +110,10 @@ func newPullTestConnector(t *testing.T, srv *httptest.Server, targetLangs []stri
 	require.NoError(t, os.MkdirAll(filepath.Dir(abs), 0o755))
 	require.NoError(t, os.WriteFile(abs, []byte(`{"greeting":"Hello","farewell":"Goodbye"}`), 0o644))
 
-	cache := bproject.LoadSyncCache(proj.Layout)
-	cache.SetStreamCursor("main", startCursor)
-	require.NoError(t, cache.Save(proj.Layout))
+	serverURL := config.NormalizeServerURL(srv.URL)
+	refs := refcache.Load(proj.Layout, serverURL, projectID)
+	refs.Consume("main", startCursor)
+	require.NoError(t, refs.Save(proj.Layout))
 
 	client := apiclient.NewProjectBearerClient(srv.URL, projectID, "test-token")
 	client.SetStream("main")
@@ -121,9 +123,18 @@ func newPullTestConnector(t *testing.T, srv *httptest.Server, targetLangs []stri
 		client:    client,
 		formatReg: reg,
 		cache:     bproject.LoadSyncCache(proj.Layout),
+		refs:      refcache.Load(proj.Layout, serverURL, projectID),
 		stream:    "main",
 		maxBatch:  1000,
 	}
+}
+
+// reloadRefs reads the connector's freshness refs back from disk.
+func reloadRefs(t *testing.T, conn *BowrainSourceConnector) *refcache.Cache {
+	t.Helper()
+	return refcache.Load(conn.project.Layout,
+		config.NormalizeServerURL(conn.project.Recipe.Server.ServerURL()),
+		conn.project.Recipe.Server.ProjectID())
 }
 
 // TestPull_WriteFailureDoesNotAdvanceCursor verifies the core regression: when a
@@ -155,9 +166,8 @@ func TestPull_WriteFailureDoesNotAdvanceCursor(t *testing.T) {
 
 	// The cursor must remain at its pre-pull value so the next pull re-delivers
 	// the changes the failed write dropped (forward-only feed).
-	reloaded := bproject.LoadSyncCache(conn.project.Layout)
-	assert.Equal(t, startCursor, reloaded.GetStreamCursor("main"),
-		"cursor must not advance past an unwritten change")
+	assert.Equal(t, startCursor, reloadRefs(t, conn).Ref("main").Content,
+		"the position must not advance past an unwritten change")
 
 	// The partial success (fr) must still have been written to disk.
 	frPath := filepath.Join(conn.project.Root, "locales", "fr.json")
@@ -182,7 +192,6 @@ func TestSetConceptBaseline_PersistsThroughCloseWithPullState(t *testing.T) {
 	conn := newPullTestConnector(t, srv, targetLangs, startCursor)
 
 	baseline := &bproject.ConceptBaseline{
-		PulledAt: time.Now().UTC(),
 		Concepts: map[string]bproject.BaselineConcept{
 			"c-greeting": {Domain: "ui", Definition: "A salutation."},
 		},
@@ -201,9 +210,9 @@ func TestSetConceptBaseline_PersistsThroughCloseWithPullState(t *testing.T) {
 		conn.SetConceptBaseline(baseline)
 	}()
 
+	assert.Equal(t, serverCursor, reloadRefs(t, conn).Ref("main").Content,
+		"the block-sync position must persist through the deferred Close")
 	reloaded := bproject.LoadSyncCache(conn.project.Layout)
-	assert.Equal(t, serverCursor, reloaded.GetStreamCursor("main"),
-		"block-sync cursor must persist through the deferred Close")
 	require.NotNil(t, reloaded.ConceptBaseline,
 		"concept baseline must survive the deferred conn.Close(), not be erased by it")
 	assert.Len(t, reloaded.ConceptBaseline.Concepts, 1)
@@ -243,8 +252,7 @@ func TestPull_UnreadableFormatHoldsTheCursor(t *testing.T) {
 	assert.Contains(t, err.Error(), "no format is registered")
 	assert.Contains(t, err.Error(), "cursor not advanced")
 
-	reloaded := bproject.LoadSyncCache(conn.project.Layout)
-	assert.Equal(t, startCursor, reloaded.GetStreamCursor("main"),
+	assert.Equal(t, startCursor, reloadRefs(t, conn).Ref("main").Content,
 		"the cursor must not advance past translations that could not be written")
 }
 
@@ -265,8 +273,7 @@ func TestPull_AllWritesSucceedAdvancesCursor(t *testing.T) {
 	require.NotNil(t, res)
 	assert.Equal(t, 2, res.FilesWritten)
 
-	reloaded := bproject.LoadSyncCache(conn.project.Layout)
-	assert.Equal(t, serverCursor, reloaded.GetStreamCursor("main"),
+	assert.Equal(t, serverCursor, reloadRefs(t, conn).Ref("main").Content,
 		"cursor must advance to the server cursor when all writes succeed")
 
 	for _, loc := range targetLangs {

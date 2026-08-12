@@ -8,6 +8,7 @@ import (
 
 	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/bowrain/core/refcache"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
@@ -89,21 +90,27 @@ func TestNewSourceConnector_ClaimTokenFromCache(t *testing.T) {
 }
 
 // TestSyncCache_Persistence covers the round-trip the connector relies on:
-// cursors, claim token, and per-file block hashes survive Save + reload.
+// the claim token and the per-file block hashes survive Save + reload. Where
+// the stream stands is not here — that is the freshness ref, in its own
+// destination-keyed file.
 func TestSyncCache_Persistence(t *testing.T) {
 	proj, _ := newDiffTestProject(t, `{"greeting":"Hello"}`)
 
 	cache := bproject.LoadSyncCache(proj.Layout)
 	cache.ClaimToken = "clm_persist"
-	cache.SetStreamCursor("main", 42)
 	cache.Files["locales/en.json"] = &bproject.FileCache{Blocks: map[string]string{"b1": "h1"}}
 	require.NoError(t, cache.Save(proj.Layout))
 
 	reloaded := bproject.LoadSyncCache(proj.Layout)
 	assert.Equal(t, "clm_persist", reloaded.ClaimToken)
-	assert.Equal(t, int64(42), reloaded.GetStreamCursor("main"))
 	require.Contains(t, reloaded.Files, "locales/en.json")
 	assert.Equal(t, "h1", reloaded.Files["locales/en.json"].Blocks["b1"])
+
+	refs := refcache.Load(proj.Layout, "https://bowrain.example", "proj123")
+	refs.Consume("main", 42)
+	require.NoError(t, refs.Save(proj.Layout))
+	assert.Equal(t, int64(42),
+		refcache.Load(proj.Layout, "https://bowrain.example", "proj123").Ref("main").Content)
 }
 
 // TestListFiles_ContentIteration covers content iteration with the unified

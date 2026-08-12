@@ -3,7 +3,6 @@ package project
 import (
 	"sort"
 	"strings"
-	"time"
 )
 
 // ConceptBaseline is the snapshot a concept pull records into the sync cache:
@@ -17,10 +16,12 @@ import (
 // single reviewed change-set. The baseline carries only the fields a diff
 // needs, deliberately omitting volatile metadata (timestamps) that would
 // produce spurious diffs.
+// The snapshot carries no timestamp. Freshness is the ref's terms component —
+// an identity of the workspace terminology, compared for equality — and a
+// timestamp beside it would be a second answer to the same question that cannot
+// actually answer it: knowing when a snapshot was taken says nothing about
+// whether what it snapshotted has moved.
 type ConceptBaseline struct {
-	// PulledAt is when the snapshot was taken.
-	PulledAt time.Time `json:"pulled_at"`
-
 	// Concepts holds the pulled concepts keyed by concept ID.
 	Concepts map[string]BaselineConcept `json:"concepts,omitempty"`
 

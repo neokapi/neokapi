@@ -24,13 +24,16 @@ import (
 	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
+	"github.com/neokapi/neokapi/bowrain/core/refcache"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/host"
 )
@@ -95,6 +98,14 @@ type BowrainSourceConnector struct {
 	stream    string // resolved stream name
 	maxBatch  int    // Max blocks per push request
 
+	// refs is the project's freshness layer: per stream, the position this
+	// project has consumed and the governance identities its last contact with
+	// the server established. Every "is this worth sending?" and every
+	// compare-and-swap assertion reads it, and nothing else records those
+	// facts — the sync cache holds block hashes and claim tokens, and it used
+	// to hold three uncoordinated fragments of this one.
+	refs *refcache.Cache
+
 	// pushContext is the context content type this push carries: the
 	// collections the recipe declares, with their coordinates and resolved
 	// governance. Set by SetPushContext before Push; nil means the caller is
@@ -134,12 +145,12 @@ func NewSourceConnector(app *host.App, project *Project, formatReg *registry.For
 
 	cache := LoadSyncCache(project.Layout)
 
-	// The cache describes ONE server's view of this project: block hashes the
-	// server confirmed, stream cursors it issued, the context it holds. Pointed
-	// at a different server or project — switching between production and a
-	// local stack, or redirecting with BOWRAIN_PROJECT_URL — none of that
-	// describes the new destination, and reusing it makes the first push
-	// conclude nothing has changed and send nothing at all.
+	// The cache describes ONE server's view of this project: the block hashes
+	// the server confirmed. Pointed at a different server or project —
+	// switching between production and a local stack, or redirecting with
+	// BOWRAIN_PROJECT_URL — none of that describes the new destination, and
+	// reusing it makes the first push conclude nothing has changed and send
+	// nothing at all.
 	//
 	// The cache already recorded which server it belonged to; nothing ever
 	// compared it. Comparing it turns a silently empty push into a full one.
@@ -149,6 +160,10 @@ func NewSourceConnector(app *host.App, project *Project, formatReg *registry.For
 		cache.ServerURL = serverURL
 		cache.ProjectID = projectID
 	}
+
+	// The refs are destination-keyed in their own right: Load discards a file
+	// belonging to another server or project rather than reconciling it.
+	refs := refcache.Load(project.Layout, serverURL, projectID)
 
 	var client *apiclient.BowrainClient
 	switch {
@@ -196,6 +211,7 @@ func NewSourceConnector(app *host.App, project *Project, formatReg *registry.For
 		client:    client,
 		formatReg: formatReg,
 		cache:     cache,
+		refs:      refs,
 		stream:    stream,
 		maxBatch:  1000,
 	}, nil
@@ -212,6 +228,7 @@ func NewLocalConnector(app *host.App, project *Project, formatReg *registry.Form
 		project:   project,
 		formatReg: formatReg,
 		cache:     cache,
+		refs:      &refcache.Cache{},
 	}
 }
 
@@ -314,8 +331,8 @@ func (c *BowrainSourceConnector) Status(ctx context.Context) (*bowrainconn.SyncS
 
 	// Check remote changes by querying the server.
 	pendingPull := 0
-	if c.cache.GetStreamCursor(c.stream) > 0 {
-		resp, err := c.client.Pull(ctx, c.cache.GetStreamCursor(c.stream), nil, 1)
+	if consumed := c.refs.Ref(c.stream).Content; consumed > 0 {
+		resp, err := c.client.Pull(ctx, consumed, nil, 1)
 		if err == nil && len(resp.Blocks) > 0 {
 			pendingPull = len(resp.Blocks)
 			if resp.HasMore {
@@ -462,8 +479,8 @@ func (c *BowrainSourceConnector) Diff(ctx context.Context, paths []string) (*Dif
 	})
 
 	// Query the server for pending remote changes, mirroring Status.
-	if c.client != nil && c.cache.GetStreamCursor(c.stream) > 0 {
-		resp, err := c.client.Pull(ctx, c.cache.GetStreamCursor(c.stream), nil, 1)
+	if consumed := c.refs.Ref(c.stream).Content; c.client != nil && consumed > 0 {
+		resp, err := c.client.Pull(ctx, consumed, nil, 1)
 		if err == nil && len(resp.Blocks) > 0 {
 			diff.PendingPull = len(resp.Blocks)
 			if resp.HasMore {
@@ -513,9 +530,16 @@ func (c *BowrainSourceConnector) Configure(config map[string]string) error {
 	return nil
 }
 
-// Close saves the sync cache.
+// Close saves the sync cache and the freshness refs.
+//
+// Both, always: they record two halves of one contact with the server, and
+// writing one without the other leaves a project claiming content the server
+// holds at a position the server never issued.
 func (c *BowrainSourceConnector) Close() error {
-	return c.cache.Save(c.project.Layout)
+	if err := c.cache.Save(c.project.Layout); err != nil {
+		return err
+	}
+	return c.refs.Save(c.project.Layout)
 }
 
 // SetConceptBaseline records the governed-terminology baseline a concept pull
@@ -527,6 +551,21 @@ func (c *BowrainSourceConnector) Close() error {
 // push reloads this baseline to diff local terms edits against it.
 func (c *BowrainSourceConnector) SetConceptBaseline(b *bproject.ConceptBaseline) {
 	c.cache.ConceptBaseline = b
+}
+
+// ObserveTermsRef records the terms component a terminology pull observed on the
+// server, on the connector's in-memory refs — persisted by the same single
+// Close() as the baseline it belongs with, for the same reason: two writers to
+// one file mean the last one wins and the other's work is gone.
+//
+// An empty component is not recorded. A server too old to publish a ref says
+// nothing about terminology, and storing that silence as "no terminology" would
+// turn an old server into a permanent divergence report.
+func (c *BowrainSourceConnector) ObserveTermsRef(component string) {
+	if component == "" {
+		return
+	}
+	c.refs.SetIdentity(c.stream, ref.ComponentTerms, component)
 }
 
 // SetPushContext records the context content type the next Push carries: the
@@ -551,7 +590,7 @@ func (c *BowrainSourceConnector) PushContextChanged() bool {
 	if c.pushContext == nil {
 		return false
 	}
-	return c.cache.ContextHash != c.pushContext.Hash
+	return c.refs.Ref(c.stream).Context != c.pushContext.Hash
 }
 
 // Push sends source content from local files to Bowrain.
@@ -592,8 +631,8 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	if derr != nil {
 		return nil, derr
 	}
-	decisionsHash := decisionsHashOf(decisions)
-	decisionsChanged := decisionsHash != c.cache.DecisionsHash
+	decisionsHash := bowsync.DecisionsComponent(decisions)
+	decisionsChanged := decisionsHash != c.refs.Ref(c.stream).Decisions
 	if !decisionsChanged {
 		decisions = nil // unchanged: the server already holds this record
 	}
@@ -610,7 +649,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 		// Verify server still has our data. If the server was reset/rebuilt,
 		// the cached cursor will be stale and we need to force re-push.
 		if c.client != nil && len(blockMap) > 0 {
-			cursor := c.cache.GetStreamCursor(c.stream)
+			cursor := c.refs.Ref(c.stream).Content
 			if cursor > 0 {
 				// Quick probe: pull with cursor=0, limit=1 to check if server has data.
 				resp, err := c.client.Pull(ctx, 0, nil, 1)
@@ -647,7 +686,11 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 
 	// Push via init → diff → chunk → commit flow, carrying the declared
 	// context so the collections land in the same transaction as the items.
-	resp, err := c.client.Push(ctx, blocksByItem, itemMeta, c.pushContext, decisions)
+	// The compare-and-swap asserts the ref this project last observed, not one
+	// fetched now: the payload was built by diffing against the observed ref,
+	// so that is the state it is correct against.
+	resp, err := c.client.Push(ctx, blocksByItem, itemMeta, c.pushContext, decisions,
+		apiclient.AssertRef(c.refs.Ref(c.stream)))
 	if err != nil {
 		return nil, fmt.Errorf("push: %w", err)
 	}
@@ -714,20 +757,27 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 			fc.Assets[assetID] = blobKey
 		}
 	}
-	c.cache.SetStreamCursor(c.stream, lastCursor)
 	c.cache.LastSync = time.Now().UTC()
 	c.cache.ServerURL = c.project.Recipe.Server.ServerURL()
 	c.cache.ProjectID = c.project.Recipe.Server.ProjectID()
-	// Record the context this push carried, so the next one can skip the round
-	// trip when the recipe has not moved.
+
+	// The ref now records what this push put in force: the context it carried
+	// and the decision record it carried, so the next push can skip the round
+	// trip when neither has moved. Both are the values this client computed
+	// rather than values read back — the commit is queued, and the server's own
+	// ref does not show the write until the worker has applied it.
+	c.refs.Consume(c.stream, lastCursor)
 	if c.pushContext != nil {
-		c.cache.ContextHash = c.pushContext.Hash
+		c.refs.SetIdentity(c.stream, ref.ComponentContext, c.pushContext.Hash)
 	}
-	// And the decision record it carried, for the same reason.
-	c.cache.DecisionsHash = decisionsHash
+	c.refs.SetIdentity(c.stream, ref.ComponentDecisions, decisionsHash)
+	c.refs.Touch(time.Now())
 
 	if err := c.cache.Save(c.project.Layout); err != nil {
 		return nil, fmt.Errorf("save sync cache: %w", err)
+	}
+	if err := c.refs.Save(c.project.Layout); err != nil {
+		return nil, fmt.Errorf("save freshness refs: %w", err)
 	}
 
 	return &bowrainconn.PushResult{
@@ -955,9 +1005,14 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 		locales[i] = string(l)
 	}
 
-	cursor := c.cache.GetStreamCursor(c.stream)
+	cursor := c.refs.Ref(c.stream).Content
 	if opts.Force {
+		// A forced pull restarts the stream, and the recorded position must
+		// restart with it: the position is monotonic, so leaving it standing
+		// would let a server that was rebuilt below it answer every later pull
+		// with nothing at all.
 		cursor = 0
+		c.refs.Reset(c.stream)
 	}
 
 	// Pull blocks directly from the server using the rich pull response.
@@ -968,6 +1023,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	var allBlocks []apiclient.SyncBlock
 	var contexts []*pb.SyncContextEntry
 	var decisions []platstore.UnitDecision
+	var served *ref.Ref
 
 	for {
 		resp, err := c.client.Pull(ctx, cursor, locales, 1000)
@@ -979,12 +1035,15 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 		allBlocks = append(allBlocks, resp.Blocks...)
 		// The declared context is not cursor-driven — every page carries the
 		// current one — so the last page's is the one to keep. The decision
-		// ledger travels the same way.
+		// ledger and the freshness ref travel the same way.
 		if len(resp.Contexts) > 0 {
 			contexts = resp.Contexts
 		}
 		if len(resp.Decisions) > 0 {
 			decisions = resp.Decisions
+		}
+		if resp.Ref != nil {
+			served = resp.Ref
 		}
 		cursor = resp.Cursor
 
@@ -1139,11 +1198,24 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 			len(writeErrs), errors.Join(writeErrs...))
 	}
 
-	// Update cursor.
-	c.cache.SetStreamCursor(c.stream, cursor)
+	// Everything the pull brought down is on disk and in the store, so the
+	// project's ref may move: the position to what it consumed, and the
+	// governance identities to what the server published on the way. Recorded
+	// together and only here, after the writes above succeeded — the server's
+	// change feed is forward-only, so a ref advanced past an unwritten change
+	// is a change nobody ever sees again.
+	c.refs.Consume(c.stream, cursor)
+	if served != nil {
+		c.refs.Observe(c.stream, *served)
+	}
+	c.refs.Touch(time.Now())
+
 	c.cache.LastSync = time.Now().UTC()
 	if err := c.cache.Save(c.project.Layout); err != nil {
 		return nil, fmt.Errorf("save sync cache: %w", err)
+	}
+	if err := c.refs.Save(c.project.Layout); err != nil {
+		return nil, fmt.Errorf("save freshness refs: %w", err)
 	}
 
 	return &bowrainconn.PullResult{

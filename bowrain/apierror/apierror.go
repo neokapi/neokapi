@@ -40,6 +40,14 @@ const (
 	// CodeDependencyUnavailable is any other circuit-broken upstream (a CMS
 	// connector, the forge API, the mail relay). Same detail fields.
 	CodeDependencyUnavailable = "dependency_unavailable"
+
+	// CodeGovernanceMoved is a compare-and-swap failure on a stream's freshness
+	// ref: the write asserted the governance component it last observed, and
+	// that component had moved. Detail fields: "component", "expected",
+	// "actual". Retrying the identical request cannot succeed — the caller has
+	// to fetch what moved and decide what to do about it — which is why it is a
+	// 409 with its own code rather than a generic rejection.
+	CodeGovernanceMoved = "governance_moved"
 )
 
 // RequestID returns the per-request correlation ID set by
@@ -157,6 +165,11 @@ func MessageFor(code string, details map[string]any) string {
 			return fmt.Sprintf("The %v service is temporarily unavailable. This work is queued and will be retried automatically.", d)
 		}
 		return "An external service is temporarily unavailable. This work is queued and will be retried automatically."
+	case CodeGovernanceMoved:
+		if component, ok := details["component"]; ok {
+			return fmt.Sprintf("The project's %v moved on the server since this client last looked. Pull first, then send this again.", component)
+		}
+		return "Governance moved on the server since this client last looked. Pull first, then send this again."
 	}
 	if m, ok := messages[code]; ok {
 		return m

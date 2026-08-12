@@ -9,6 +9,7 @@ import (
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
+	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
@@ -40,15 +41,13 @@ func deciderRole(by string) string {
 // stored row does not already say — the idempotency test for re-pushes. Shared
 // with the SQLite store so the two backends cannot disagree on what counts as
 // a change.
+//
+// The comparison lives in bowrain/core/sync because the freshness ref's
+// decisions component is folded from the same field list. Two lists would let a
+// record the store skips as unchanged still move the component, and every
+// subsequent push would then be refused for a change nobody made.
 func DecisionUnchanged(old, next platstore.UnitDecision) bool {
-	return old.Status == next.Status &&
-		old.TargetHash == next.TargetHash &&
-		old.ReviewState == next.ReviewState &&
-		old.DecidedBy == next.DecidedBy &&
-		old.DecidedAt == next.DecidedAt &&
-		old.Note == next.Note &&
-		old.Parked == next.Parked &&
-		old.Assignee == next.Assignee
+	return coresync.SameDecision(old, next)
 }
 
 // UpsertUnitDecisions implements platstore.DecisionStore: idempotent

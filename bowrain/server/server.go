@@ -1293,6 +1293,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			// enforce rather than fail open.
 			flatSyncGroup.Use(s.ProjectAccessMiddleware())
 			flatSyncGroup.GET("/pull", s.HandleSyncPull)
+			flatSyncGroup.GET("/ref", s.HandleSyncRef)
 			flatSyncGroup.GET("/blocks", s.HandleSyncGetBlocks)
 			flatSyncGroup.GET("/status", s.HandleSyncPushStatus)
 			flatSyncGroup.POST("/push/init", s.HandleSyncPushInit)
@@ -1862,6 +1863,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group, aiLimit echo.Midd
 
 	// Sync — Bowrain AD-011: /:ws/:id/sync/:ref
 	g.GET("/:id/sync/:ref/pull", s.HandleSyncPull)
+	g.GET("/:id/sync/:ref/ref", s.HandleSyncRef)
 	g.GET("/:id/sync/:ref/blocks", s.HandleSyncGetBlocks)
 	g.GET("/:id/sync/:ref/status", s.HandleSyncPushStatus)
 	g.POST("/:id/sync/:ref/push/init", s.HandleSyncPushInit)

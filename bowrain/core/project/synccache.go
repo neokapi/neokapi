@@ -17,14 +17,20 @@ const SyncCacheFilename = "sync-cache.json"
 // SyncCache tracks the last known server state for incremental sync. It
 // lives at <state-dir>/work/cache/sync-cache.json (always gitignored — the file
 // holds claim tokens and is regenerable from server state).
+//
+// FRESHNESS IS NOT HERE. Where a stream stands — the position consumed and the
+// governance identities last confirmed — is one composite ref per stream, kept
+// by bowrain/core/refcache. This file holds what a push must know to build its
+// payload: the block hashes the server confirmed, the claim token, the cached
+// project metadata. The distinction is what the ref replaced: four freshness
+// fragments at three granularities lived here, nothing coordinated them, and a
+// push that answered "has anything moved?" from any one of them answered about
+// a different question than the next reader assumed.
 type SyncCache struct {
 	ServerURL string                `json:"server_url"`
 	ProjectID string                `json:"project_id"`
 	LastSync  time.Time             `json:"last_sync"`
 	Files     map[string]*FileCache `json:"files,omitempty"`
-
-	// StreamCursors tracks per-stream sync cursors keyed by stream name.
-	StreamCursors map[string]int64 `json:"stream_cursors,omitempty"`
 
 	// ActiveStream is the last stream name used for sync.
 	ActiveStream string `json:"active_stream,omitempty"`
@@ -41,22 +47,11 @@ type SyncCache struct {
 	// can diff local terms edits against what was pulled (ordinary edits go
 	// up directly, governed edits become a reviewed change-set). It is
 	// regenerable — every pull refreshes it.
+	//
+	// It is a DIFF BASIS, not a freshness record: whether it is still current
+	// is the ref's terms component, and the compare-and-swap on a governed push
+	// is what refuses a diff computed against ground that has moved.
 	ConceptBaseline *ConceptBaseline `json:"concept_baseline,omitempty"`
-
-	// ContextHash is the context the last push carried — the fold over every
-	// declared collection's entry (bowrain/core/sync.ContextHashOf). It is the
-	// local half of the context fast path: an unedited recipe is not worth a
-	// round trip, and a recipe that gained a collection or rebound a voice must
-	// reach the server even when no content moved. Regenerable — it is derived
-	// from the recipe, and losing it costs one redundant reconcile.
-	ContextHash string `json:"context_hash,omitempty"`
-
-	// DecisionsHash is the committed decision record the last push carried
-	// (sha256 over the wire serialization). A push whose content and context
-	// are unchanged but whose decisions differ must still commit — this is
-	// what notices. Same cache discipline as block hashes: keyed to this
-	// destination, rebuilt by re-sending (the server upserts idempotently).
-	DecisionsHash string `json:"decisions_hash,omitempty"`
 
 	// ServerContext records the collections the last pull observed on the
 	// server, keyed by collection name. It is an OBSERVATION, never an
@@ -96,31 +91,6 @@ type FileCache struct {
 	Assets map[string]string `json:"assets,omitempty"` // sourceID → blobKey (SHA-256)
 }
 
-// GetStreamCursor returns the cursor for a specific stream (defaulting to
-// "main" when stream is empty), or 0 when the stream has not been synced.
-func (c *SyncCache) GetStreamCursor(stream string) int64 {
-	if stream == "" {
-		stream = StreamMain
-	}
-	if c.StreamCursors != nil {
-		if cursor, ok := c.StreamCursors[stream]; ok {
-			return cursor
-		}
-	}
-	return 0
-}
-
-// SetStreamCursor updates the cursor for a specific stream.
-func (c *SyncCache) SetStreamCursor(stream string, cursor int64) {
-	if stream == "" {
-		stream = StreamMain
-	}
-	if c.StreamCursors == nil {
-		c.StreamCursors = map[string]int64{}
-	}
-	c.StreamCursors[stream] = cursor
-}
-
 // SyncCachePathFor returns the on-disk path of the bowrain sync cache for
 // the given Layout. Bowrain owns this path; the framework Layout has no
 // notion of a sync cache.
@@ -143,9 +113,6 @@ func LoadSyncCache(layout coreproj.Layout) *SyncCache {
 	if cache.Files == nil {
 		cache.Files = map[string]*FileCache{}
 	}
-	if cache.StreamCursors == nil {
-		cache.StreamCursors = map[string]int64{}
-	}
 	return &cache
 }
 
@@ -164,13 +131,10 @@ func (c *SyncCache) Save(layout coreproj.Layout) error {
 
 // NewEmptySyncCache returns a cache describing nothing yet synced. Callers use
 // it to discard a cache that belongs to a different server or project: what it
-// records — confirmed block hashes, issued stream cursors, the context the
-// server holds — is true of that destination and of no other.
+// records — the confirmed block hashes, the claim token, the project metadata —
+// is true of that destination and of no other.
 func NewEmptySyncCache() *SyncCache { return newEmptySyncCache() }
 
 func newEmptySyncCache() *SyncCache {
-	return &SyncCache{
-		Files:         map[string]*FileCache{},
-		StreamCursors: map[string]int64{},
-	}
+	return &SyncCache{Files: map[string]*FileCache{}}
 }

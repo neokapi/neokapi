@@ -433,6 +433,23 @@ func (s *Server) HandleSubmitChangeSet(c echo.Context) error {
 	if len(ops) == 0 {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "cannot submit an empty change-set"})
 	}
+
+	// The terms component's compare-and-swap.
+	//
+	// Submitting is the moment a proposal becomes something reviewers will act
+	// on, and a proposal is a DIFF: the client built these ops by comparing its
+	// terminology against the state it last pulled. If the workspace's
+	// terminology moved since, the diff describes a state that no longer
+	// exists — a term this proposal removes may have been re-promoted, a status
+	// it flips may already have been flipped — and merging it would apply an
+	// intention nobody now holds. Refusing here, rather than letting a reviewer
+	// approve a stale proposal, is the point.
+	if err := s.assertTermsRef(c, c.Param("ws")); err != nil {
+		if resp, ok := governanceConflict(c, err); ok {
+			return resp
+		}
+		return serverErr(c, err)
+	}
 	// An origin-carrying change-set is an automated proposal, and the origin
 	// admits one open proposal at a time. Identical ops make the submit
 	// idempotent: the new draft is abandoned and the open one is returned.

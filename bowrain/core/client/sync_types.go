@@ -5,6 +5,7 @@ import (
 
 	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/ref"
 )
 
 // SyncBlock carries the full block model through the sync boundary (Bowrain AD-009 Phase 7).
@@ -183,4 +184,11 @@ type RichPullResponse struct {
 	// last-writer-wins into its working store, where `kapi commit` remains
 	// the only door into the git-tracked record.
 	Decisions []store.UnitDecision `json:"decisions,omitempty"`
+
+	// Ref is the server's freshness ref for this stream. A pointer because a
+	// server too old to publish one and a server publishing an empty one are
+	// different facts: the first says nothing, the second says its governance
+	// is empty, and a client that conflated them would clear a cached ref on
+	// contact with a server that never mentioned it.
+	Ref *ref.Ref `json:"ref,omitempty"`
 }
