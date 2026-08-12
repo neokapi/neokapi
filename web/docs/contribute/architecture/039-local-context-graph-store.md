@@ -51,7 +51,7 @@ platform ([AD-033](033-project-state-model.md)).
 | terms | `terms/` ([AD-010](010-terminology.md)) | the committed `.terms.json` |
 | content memory | `memory/` ([AD-009](009-content-memory.md)) | the committed target files plus an optional `.memory.json` seed |
 | unit-state working set | `core/state` ([AD-033](033-project-state-model.md)) | the committed `.kapi/state/*.jsonl` shards |
-| `graph_nodes`, `graph_edges` | `host/storage/graph` | the four above |
+| `graph_nodes`, `graph_edges` | `host/storage/graph`, vocabulary in `core/contextgraph` | the four above, plus the recipe |
 
 Each subsystem owns its own schema and its own migration ledger
 (`storage.Migrate(db, "<subsystem>", …)`), so a subsystem evolves without
@@ -111,25 +111,60 @@ against the file being there:
 labelled, optionally time-bounded edges, both carrying JSON properties. What they
 carry:
 
-- **term ↔ block occurrence** — where a concept is actually used, filterable by
-  collection and coordinate;
-- **state ↔ unit** — which record blesses which unit, at which target hash;
-- **coordinates** — the recipe's context axes as nodes, so governance resolution
-  and retrieval traverse the same structure rather than re-deriving it.
+- **term ↔ block occurrence** (`uses_term`) — where a concept is actually used,
+  with the locale, the document and a use count on the edge;
+- **block ↔ collection** (`in_collection`) — membership;
+- **collection ↔ coordinate** (`governed_by`) — the point the recipe governs a
+  collection at, carrying the governing profile's validity window, so
+  governance resolution and retrieval traverse the same structure rather than
+  re-deriving it;
+- **unit state ↔ block** (`blesses`) — which record blesses which block, at
+  which target hash.
 
-Edges key on **durable identity** — the content key of a block
-([AD-003](003-identity.md)), the unit key of a state record — not on a reader's
-positional id, so a re-parse that renumbers a document does not orphan the graph.
+`host.MaterializeContextGraph` writes all four on the `kapi up` path, after
+extraction commits its block-write transaction. The subgraph is a pure
+projection: each pass clears the labels it owns and rebuilds them, so a delete
+of the store loses nothing that the recipe, the terms, the blocks and the
+committed state cannot rebuild.
 
-**The tables exist and are attached; nothing writes them yet.** `App.ProjectGraph`
-binds the property graph to the project store's own pool, so the `graph` ledger
-migrates beside the other four. The relationships themselves are computed at
-query time and handed back — `occurrence.Occurrence.Edge` is the term↔block edge,
-fully formed — but not persisted. Materializing them waits on the identity
-vocabulary settling: what a block node is called across a re-parse, how a
-coordinate is addressed, and whether a concept node is per-project or
-per-workspace. Edges written under a naming scheme we then change outlive the
-change, which is worse than not writing them.
+### Node identity carries the scope tuple
+
+`core/contextgraph` owns the identity vocabulary — labels, the scope tuple, the
+id scheme, and the node and edge constructors both writers call. An id is
+`<label>:<workspace>/<project>/<stream>:<local>`, with the separators
+percent-escaped inside each component so two different tuples can never render
+to one id.
+
+Two kinds of node, and the split decides what can be asked:
+
+- **Vocabulary nodes** — concepts, coordinates — are workspace-scoped. One
+  concept is one node however many projects use it, which is what makes "which
+  projects use this concept" a two-hop traversal instead of a join across
+  project boundaries.
+- **Instance nodes** — blocks, collections, unit states — carry `(project,
+  stream)`. Two projects' `docs` collections are two nodes. Two projects holding
+  identical wording hold two block nodes carrying the same content key, and
+  "same wording" is a content-key equality query: one shared node would say the
+  two instances are governed together, and an instance sits somewhere.
+
+**Dimensions are fields, not containment edges.** Every node carries its scope
+tuple as properties as well as in its id, so slicing a view by project or stream
+is a filter rather than a traversal. There is no project→project edge: projects
+relate by co-occurrence through the vocabulary they share.
+
+Within a scope, identity is **durable** — the content key of a block
+([AD-003](003-identity.md)), the unit key of a state record — not a reader's
+positional id, so a re-parse that renumbers a document rewrites the same rows
+rather than orphaning them.
+
+A scope value that changes changes the id, so **a rename is a deterministic
+re-key**. That is safe because a writer clears the scope it is about to write in
+the same pass: no row survives under the old key. Locally the project dimension
+is the recipe's project name — the only identity a disconnected project has — so
+a rename re-keys the whole projection, which is the rebuild every pass performs
+anyway. Server-side the project dimension is the workspace-issued project id,
+which a rename does not touch, so the display name rides as a property and the
+rule costs nothing there.
 
 ### Finding a term inside blocks
 
@@ -152,10 +187,19 @@ usage count on each term it reports.
 ### Local and server converge in shape
 
 Bowrain's Postgres spans workspaces, projects and streams. A local project answers
-the **same query shapes** over `store.db` with those dimensions fixed to one
+the **same query shapes** over `store.db` with those dimensions pinned to one
 value. Term-occurrence retrieval by collection and coordinate works with no server
 and no account; connecting one widens the scope rather than unlocking the
 question.
+
+The contract is enforced rather than described. The queries themselves —
+`contextgraph.Uses`, `ProjectsUsingConcept`, `CollectionsAtCoordinate`,
+`BlessingsOfBlock`, `BlocksWithContentKey` — are written once against a narrow
+read interface both stores satisfy, so there is one implementation rather than
+two agreeing by convention. `core/contextgraph/graphtest` is the shared
+query-shape suite: one fixture of a workspace with two projects sharing a
+concept, one table of expected answers, run against the project's SQLite store
+and the server's Postgres one.
 
 This is what keeps the two surfaces honest with each other: a query added for the
 server is expressible locally, and a local query does not have to be reinvented

@@ -319,21 +319,22 @@ func TestOccurrenceEdge(t *testing.T) {
 		BlockHash: "k1_abc", BlockID: "guide.intro", Document: "docs/guide.md",
 		Collection: "docs", Locale: "", Start: 4, End: 18,
 	}
-	e := o.Edge()
+	e := o.Edge(testScope)
 	assert.Equal(t, "uses_term", e.Label)
-	assert.Equal(t, "block:k1_abc", e.Source, "edges key on the block's durable identity")
-	assert.Equal(t, "concept:c-memory", e.Target)
+	assert.Equal(t, "block:/fixture/:k1_abc", e.Source, "edges key on the block's durable identity, qualified by scope")
+	assert.Equal(t, "concept://:c-memory", e.Target, "the concept is workspace vocabulary, not a project instance")
 	assert.Equal(t, "docs/guide.md", e.Properties["document"])
-	assert.Equal(t, o.Edge().ID, e.ID, "the id is deterministic")
+	assert.Equal(t, "fixture", e.Properties["project"], "the scope tuple rides as properties too")
+	assert.Equal(t, o.Edge(testScope).ID, e.ID, "the id is deterministic")
 
 	// The match position is not part of the identity: two uses of one term in one
 	// block are one relationship, counted, not two edges.
 	other := o
 	other.Start = 40
-	assert.Equal(t, e.ID, other.Edge().ID, "position does not split the relationship")
+	assert.Equal(t, e.ID, other.Edge(testScope).ID, "position does not split the relationship")
 
 	// Locale is: the same term in a different locale's text is a different edge.
 	nb := o
 	nb.Locale = "nb"
-	assert.NotEqual(t, e.ID, nb.Edge().ID, "locale is part of the relationship identity")
+	assert.NotEqual(t, e.ID, nb.Edge(testScope).ID, "locale is part of the relationship identity")
 }

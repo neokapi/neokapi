@@ -226,6 +226,12 @@ func ExtractToBlockStore(
 				Translatable: b.Translatable,
 				Source:       b.Source,
 			}
+			// The source file the block came from. It is what makes a stored
+			// block placeable — an occurrence names the document it was found
+			// in, and a unit-state record finds its block by (document, id) —
+			// and it is not recoverable from the block itself, because the
+			// store is keyed by content and holds no document rows.
+			kb.Properties.File = rf.Relative
 			if perr := sess.PutBlock(collection, kb); perr != nil {
 				_ = sess.Rollback()
 				return stats, fmt.Errorf("write block from %q: %w", rf.Relative, perr)
