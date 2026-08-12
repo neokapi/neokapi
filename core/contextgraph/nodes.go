@@ -120,11 +120,7 @@ func UsesTermEdge(s Scope, u UsesTerm) graph.Edge {
 	putIf(props, PropCollection, u.Collection)
 	putIf(props, PropDocument, u.Document)
 	putIf(props, PropBlockID, u.BlockID)
-	count := u.Count
-	if count < 1 {
-		count = 1
-	}
-	props[PropCount] = strconv.Itoa(count)
+	props[PropCount] = strconv.Itoa(max(u.Count, 1))
 	source := BlockNodeID(s, u.ContentKey)
 	target := ConceptNodeID(s, u.ConceptID)
 	return graph.Edge{

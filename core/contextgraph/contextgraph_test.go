@@ -124,8 +124,9 @@ func TestEdgeIDsAreDistinct(t *testing.T) {
 	source := BlockNodeID(s, "k1")
 	target := ConceptNodeID(s, "c1")
 	assert.NotEqual(t, EdgeID(EdgeUsesTerm, source, target, ""), EdgeID(EdgeUsesTerm, source, target, "nb"))
-	assert.Equal(t, EdgeID(EdgeUsesTerm, source, target, "nb"), EdgeID(EdgeUsesTerm, source, target, "nb"))
 	assert.NotEqual(t, EdgeID(EdgeUsesTerm, source, target), EdgeID(EdgeInCollection, source, target))
+	assert.Equal(t, "uses_term|"+source+"|"+target+"|nb", EdgeID(EdgeUsesTerm, source, target, "nb"),
+		"the id is the join of the nodes it relates, which contain no separator of its own")
 }
 
 // A block node carries its content key as a property as well as in its id: the
