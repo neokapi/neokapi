@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-11T06:28:24Z",
+  "generatedAt": "2026-08-12T03:55:43Z",
   "commands": [
     {
       "id": "add",
@@ -551,10 +551,57 @@
       "path": [
         "context"
       ],
-      "use": "context",
+      "use": "context [path]",
       "short": "Ask what this project's content context says",
-      "long": "Retrieve the content context this project goes by — the terms, the\nvoice and the rules that hold — without needing to know which store holds the\nanswer.\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says about a word or a phrase before you write, rather than learning it\nfrom a failing check afterwards.",
+      "long": "Retrieve the content context this project goes by — the terms, the\nvoice and the rules that hold — without needing to know which store holds the\nanswer.\n\nTwo questions, and every asset-shaped lookup is one of them:\n\n  kapi context \u003cpath\u003e          what applies HERE — the voice in force at that\n                               location, its guidance, the terms bound there\n  kapi context --profile \u003cn\u003e   the same answer for a named profile, when you\n                               have no file in hand\n  kapi context search \u003cquery\u003e  what we know about THIS — terms, prior wording\n\nCommunication is contextual: a legal notice is not a help article. Ask what the\nproject says before you write, rather than learning it from a failing check\nafterwards.",
       "groupID": "work",
+      "flags": [
+        {
+          "name": "file",
+          "usage": "explicit path to resource file",
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "usage": "max terms to render",
+          "default": "25",
+          "type": "int"
+        },
+        {
+          "name": "local",
+          "usage": "use resource in current directory",
+          "default": "false",
+          "type": "bool"
+        },
+        {
+          "name": "locale",
+          "shorthand": "l",
+          "usage": "narrow the reported terms to one language",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "usage": "named resource in KAPI_HOME (e.g. --name project-terms)",
+          "type": "string"
+        },
+        {
+          "name": "profile",
+          "usage": "answer for a named profile instead of a location",
+          "type": "string"
+        },
+        {
+          "name": "project",
+          "shorthand": "p",
+          "usage": "path to a kapi.yaml project recipe or its directory (auto-discovered from cwd if omitted)",
+          "type": "string"
+        }
+      ],
+      "examples": [
+        "kapi context docs/guide.md",
+        "kapi context docs/guide.md --json",
+        "kapi context --profile marketing",
+        "kapi context search widget"
+      ],
       "offlineCapable": true,
       "runnableInBrowser": true,
       "demoMode": false

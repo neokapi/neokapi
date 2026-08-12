@@ -21,9 +21,9 @@ retrieval command per store — not for voice, not for terms, not for content
 memory — because "which store holds the answer" is an implementation detail the
 caller should never have to know.
 
-The two surfaces are held in parity by construction: the MCP tools are thin
-wrappers over the same host functions the CLI verbs call, and a conformance test
-asserts the retrieval surfaces agree.
+The two surfaces are held in parity by construction: the MCP tools and resources
+are thin wrappers over the same host functions the CLI verbs call, and
+conformance tests assert the retrieval surfaces agree.
 
 ## Context
 
@@ -79,10 +79,13 @@ did not get. Silence would have been safer.
 
 Retrieval is addressed **by location** or **by content**, never by store.
 
-**By location** answers *what applies here*: the profile in force, its rendered
-guidance, the terms that apply, and any scoped rules. It resolves through
-`core/profile.ResolveContext` (workspace → project → stream → collection) and, as
-the coordinate work lands, file and passage overrides beneath it.
+**By location** answers *what applies here*: the point the location resolves to,
+the profile in force, its rendered guidance, the terms bound at that point, and
+the governance windows around them. It resolves through
+`project.ResolveGovernanceFor` — the seam a run, a check and a push resolve
+through — so the voice a writer reads for a file is the voice a run applies to
+it, including a content item's own `channel:` and a profile whose window has
+closed.
 
 **By content** answers *what do we know about this*: one query, every store the
 scope holds — terms and concepts, content memory, profile examples.
@@ -99,12 +102,28 @@ context://profile/<name>    what a named profile holds (packs, ad-hoc, "as if")
 
 CLI mirrors this as `kapi context <path>` and `kapi context --profile <name>`.
 
+`profile/` is reserved under the scheme, which is what lets one address space
+carry both forms. A name no recipe declares falls back to a voice profile of
+that name — the local store, then a built-in pack — because otherwise the
+by-name address would be unusable outside a project, which is the case it exists
+for.
+
+**Asking is a read, not a call.** The by-content primitive takes a query and is
+a tool; the by-location primitive names something that already exists and is a
+**resource**. That is not a cosmetic distinction: a resource is addressed, and
+an address is what makes the rendering a property rather than a second tool.
+
 ### Rendering is a property, not a command
 
 The by-location primitive renders as **prose for a model** (`text/markdown`) or
 **structured for a program** (`application/json`). MCP resources carry a mime
 type, so this is a property of the resource rather than a second entry point;
 the CLI expresses it as `--json`.
+
+On the wire the rendering rides on the address as `?format=json`, and the mime
+type on the response states which was served. A format nobody recognises is an
+error: a caller that asked for a shape it can parse must not be handed prose it
+cannot.
 
 This is what dissolves the `voice_guide` tool. It conflated three concerns —
 voice only, by name only, markdown only — into one narrow point. Once content is
@@ -163,6 +182,13 @@ content memory and a profile; bowrain resolves the full concept graph with
 relations, revisions and market scoping. A local result set is **explicitly
 scoped in its response** rather than silently thinner — a caller must be able to
 tell "this project holds no answer" from "this scope cannot hold one".
+
+Three reaches are named, and every answer carries one. `project` is the local
+project's stores. `workspace` is a connected concept graph. `profile` is one
+voice profile and nothing else — the by-name answer with no project behind it,
+which has no terminology and no governance window to read. Reporting that third
+case as an empty project scope would tell a caller the project holds no
+terminology when no project was consulted at all.
 
 ### Results are grouped, never merged into one ranking
 
@@ -223,10 +249,20 @@ registry tool regardless.
   `voice_guide` actively misleading rather than merely narrow.
 - **A new registry tool no longer becomes an agent tool by accident.** Exposure
   is a decision with a name attached.
-- **The by-location primitive ships shallower than it will end.** Until file and
-  passage overrides land, it resolves to collection level; the migration-guide
-  case — *the old name is permitted in these two paragraphs* — needs the
-  coordinate work. The by-content primitive has no such dependency.
-- **Parity is a test, not a convention.** MCP tools wrap the same host functions
-  the CLI verbs call, and a conformance test asserts the surfaces agree — the
-  drift that produced the table above cannot recur silently.
+- **The by-location primitive resolves to the file, not yet to the passage.** A
+  content item's own `channel:` is the finest declared point, so one file in a
+  collection can answer differently from its neighbours. The migration-guide case
+  — *the old name is permitted in these two paragraphs* — is what is left: it
+  needs a point beneath the file, which nothing declares yet.
+- **Parity is a test, not a convention.** The MCP tools and resources wrap the
+  same host functions the CLI verbs call, and conformance tests assert the
+  surfaces agree: `cli/context_path_test.go` pins the verb to the answer's own
+  rendering, `host/mcp_context_resource_test.go` pins the resource body to the
+  same bytes and its JSON to the same document, and
+  `kapi/cmd/kapi/mcp_snapshot_test.go` locks both the tool names and the
+  addresses as a contract. The drift that produced the table above cannot recur
+  silently.
+- **An address is a contract in the way a tool name is.** A caller writes
+  `context://` into its own prompts and configuration, so the URIs may be added
+  to and never renamed or dropped without an explicit decision — the same rule
+  the tool surface already lived by, now extended to the addresses.

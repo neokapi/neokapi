@@ -4,11 +4,11 @@ import type { MCPSurface, MCPTool } from "@neokapi/reference-data";
 
 /**
  * The generated MCP reference, rendered from mcp-tools.json — which gen-refs
- * produces by connecting to a real `kapi mcp` server and issuing tools/list,
- * and which a CI drift gate keeps honest.
+ * produces by connecting to a real `kapi mcp` server and issuing tools/list and
+ * resources/templates/list, and which a CI drift gate keeps honest.
  *
- * Nothing here is written by hand. Register, retire, or reword a tool and this
- * page follows, or the build fails.
+ * Nothing here is written by hand. Register, retire, or reword a tool or an
+ * address and this page follows, or the build fails.
  */
 
 function bySurface(surface: MCPSurface): MCPTool[] {
@@ -88,6 +88,35 @@ export function McpToolParams({ name }: { name: string }) {
             <td>{param.type || "—"}</td>
             <td>{param.required ? "yes" : "no"}</td>
             <td>{param.description ?? ""}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+/** Every address the server answers reads at, with the rendering it carries. */
+export function McpResourceList() {
+  const resources = mcpTools.resources ?? [];
+  return (
+    <table>
+      <thead>
+        <tr>
+          <th>Address</th>
+          <th>Renders as</th>
+          <th>What it answers</th>
+        </tr>
+      </thead>
+      <tbody>
+        {resources.map((resource) => (
+          <tr key={resource.uriTemplate}>
+            <td>
+              <code id={`resource-${resource.name}`}>{resource.uriTemplate}</code>
+            </td>
+            <td>
+              <code>{resource.mimeType}</code>
+            </td>
+            <td>{resource.description}</td>
           </tr>
         ))}
       </tbody>

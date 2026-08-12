@@ -42,6 +42,12 @@ const (
 	ScopeProject ContextScope = "project"
 	// ScopeWorkspace is a Bowrain-connected workspace: the full concept graph.
 	ScopeWorkspace ContextScope = "workspace"
+	// ScopeProfile is one voice profile and nothing else — a by-name answer with
+	// no project in scope, or one naming a profile no recipe declares. Narrower
+	// than a project on purpose: there is no terms store and no governance window
+	// behind it, and reporting that as an empty project scope would say the
+	// project holds no terminology when no project was consulted at all.
+	ScopeProfile ContextScope = "profile"
 )
 
 // ContextSearchRequest is one question put to the retrieval surface.
@@ -130,7 +136,7 @@ func (r *ContextSearchResult) FormatText(w io.Writer) error {
 				fmt.Fprintf(w, " (%s)", meta)
 			}
 			if t.ValidTo != "" {
-				fmt.Fprintf(w, " until %s", t.ValidTo)
+				fmt.Fprintf(w, " until %s", validityText(t.ValidTo))
 			}
 			// The domain is the axis that segments the graph — which part of the
 			// subject this concept belongs to. It was carried in the struct and
@@ -502,6 +508,19 @@ func profileHits(windows []project.ProfileWindow, at time.Time) []ContextProfile
 		out = append(out, hit)
 	}
 	return out
+}
+
+// validityText renders a bound a hit carries as RFC3339 the way a reader writes
+// it: a bare date when it falls on midnight UTC, the full instant otherwise.
+// The stored form stays RFC3339 — a program reading the JSON wants one shape —
+// and only the prose is shortened, by both answers, so a date reads the same
+// wherever it appears.
+func validityText(rfc3339 string) string {
+	t, err := time.Parse(time.RFC3339, rfc3339)
+	if err != nil {
+		return rfc3339
+	}
+	return project.FormatValidityBound(&t)
 }
 
 // validityState reads a window against an instant: expired once ValidTo has

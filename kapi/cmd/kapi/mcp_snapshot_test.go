@@ -109,3 +109,74 @@ func TestMCPToolSurfaceSnapshot(t *testing.T) {
 			"if this change is intentional (additive), regenerate with KAPI_UPDATE_GOLDEN=1 "+
 			"and document it in web/docs/reference/cli-contract.md")
 }
+
+// TestMCPResourceSurfaceSnapshot locks the addresses `kapi mcp` answers at.
+//
+// A resource URI is an address a caller writes into its own prompts and
+// configuration, so it is a contract in exactly the way a tool name is: it may
+// be added to, never renamed or dropped without an explicit decision. The mime
+// type is snapshotted with it, because the rendering is a property of the
+// address rather than a second one.
+//
+// Regenerate after an intentional change with:
+//
+//	KAPI_UPDATE_GOLDEN=1 go test ./cmd/kapi -run TestMCPResourceSurfaceSnapshot -tags fts5
+func TestMCPResourceSurfaceSnapshot(t *testing.T) {
+	app := &cli.App{}
+	app.InitRegistries()
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "kapi", Version: "test"}, nil)
+	cli.ApplyMCPToolFactories(server, app)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	serverTransport, clientTransport := mcp.NewInMemoryTransports()
+	serverSession, err := server.Connect(ctx, serverTransport, nil)
+	require.NoError(t, err)
+	defer serverSession.Close()
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "snapshot-test", Version: "test"}, nil)
+	session, err := client.Connect(ctx, clientTransport, nil)
+	require.NoError(t, err)
+	defer session.Close()
+
+	type resourceSnapshot struct {
+		URITemplate string `json:"uri_template"`
+		Name        string `json:"name"`
+		MIMEType    string `json:"mime_type"`
+	}
+	var snapshot []resourceSnapshot
+	params := &mcp.ListResourceTemplatesParams{}
+	for {
+		res, err := session.ListResourceTemplates(ctx, params)
+		require.NoError(t, err)
+		for _, tmpl := range res.ResourceTemplates {
+			snapshot = append(snapshot, resourceSnapshot{
+				URITemplate: tmpl.URITemplate, Name: tmpl.Name, MIMEType: tmpl.MIMEType,
+			})
+		}
+		if res.NextCursor == "" {
+			break
+		}
+		params.Cursor = res.NextCursor
+	}
+	require.NotEmpty(t, snapshot, "the context:// addresses are the by-location retrieval surface")
+	sort.Slice(snapshot, func(i, j int) bool { return snapshot[i].URITemplate < snapshot[j].URITemplate })
+
+	got, err := json.MarshalIndent(snapshot, "", "  ")
+	require.NoError(t, err)
+	got = append(got, '\n')
+
+	golden := filepath.Join("testdata", "mcp_resources.golden.json")
+	if os.Getenv("KAPI_UPDATE_GOLDEN") != "" {
+		require.NoError(t, os.MkdirAll(filepath.Dir(golden), 0o755))
+		require.NoError(t, os.WriteFile(golden, got, 0o644))
+		return
+	}
+	want, err := os.ReadFile(golden)
+	require.NoError(t, err, "golden file missing — run with KAPI_UPDATE_GOLDEN=1 to create it")
+	assert.Equal(t, string(want), string(got),
+		"MCP resource surface drift — the addresses are a stable contract; if this change is "+
+			"intentional (additive), regenerate with KAPI_UPDATE_GOLDEN=1 and document it in "+
+			"web/docs/reference/cli-contract.md")
+}

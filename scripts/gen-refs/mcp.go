@@ -23,18 +23,31 @@ const (
 	MCPSurfaceAllFlows = "all-flows"
 )
 
-// MCPDataset is the generated MCP reference: the tools `kapi mcp` serves, with
-// the descriptions and parameters an assistant actually receives.
+// MCPDataset is the generated MCP reference: what `kapi mcp` serves, with the
+// descriptions, parameters and addresses an assistant actually receives.
 //
 // It is collected the way a client collects them — by connecting to a real
-// server over an in-memory transport and issuing tools/list — so the published
-// table is the registration source rendered, not a hand copy of it. The hand
-// copy documented three tools that had been folded into `context_search`,
-// omitted the context-retrieval tools entirely, and taught a change-set kind
-// the write path rejects.
+// server over an in-memory transport and issuing tools/list and
+// resources/templates/list — so the published tables are the registration
+// source rendered, not a hand copy of it. The hand copy documented three tools
+// that had been folded into `context_search`, omitted the context-retrieval
+// tools entirely, and taught a change-set kind the write path rejects.
 type MCPDataset struct {
 	GeneratedAt string    `json:"generatedAt"`
 	Tools       []MCPTool `json:"tools"`
+	// Resources are the addresses reads are answered at. They carry no
+	// parameters: a resource is read rather than called, which is what lets its
+	// rendering be a property of the address.
+	Resources []MCPResource `json:"resources,omitempty"`
+}
+
+// MCPResource is one address as an MCP client sees it.
+type MCPResource struct {
+	URITemplate string `json:"uriTemplate"`
+	Name        string `json:"name"`
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description"`
+	MIMEType    string `json:"mimeType"`
 }
 
 // MCPTool is one tool as an MCP client sees it.
@@ -84,12 +97,56 @@ func collectMCPDataset(now string) (MCPDataset, error) {
 		tools = append(tools, t)
 	}
 	slices.SortFunc(tools, func(a, b MCPTool) int { return cmp.Compare(a.Name, b.Name) })
-	return MCPDataset{GeneratedAt: now, Tools: tools}, nil
+
+	// Resources do not vary by surface: the retrieval addresses are the default
+	// surface and the widened ones alike, because widening is about which TOOLS
+	// a caller may run, not about what it may read.
+	resources, err := listMCPResources(cli.MCPSurface{})
+	if err != nil {
+		return MCPDataset{}, fmt.Errorf("enumerate MCP resources: %w", err)
+	}
+	return MCPDataset{GeneratedAt: now, Tools: tools, Resources: resources}, nil
 }
 
-// listMCPTools starts a server with the given surface and reads its tool list
-// over an in-memory transport — the same call an assistant makes on connect.
-func listMCPTools(surface cli.MCPSurface) ([]MCPTool, error) {
+// listMCPResources reads the addresses a server answers at — the same
+// resources/templates/list an assistant issues on connect.
+func listMCPResources(surface cli.MCPSurface) ([]MCPResource, error) {
+	session, cleanup, err := connectMCP(surface)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+
+	ctx := context.Background()
+	var out []MCPResource
+	params := &mcp.ListResourceTemplatesParams{}
+	for {
+		res, err := session.ListResourceTemplates(ctx, params)
+		if err != nil {
+			return nil, fmt.Errorf("resources/templates/list: %w", err)
+		}
+		for _, tmpl := range res.ResourceTemplates {
+			out = append(out, MCPResource{
+				URITemplate: tmpl.URITemplate,
+				Name:        tmpl.Name,
+				Title:       tmpl.Title,
+				Description: tmpl.Description,
+				MIMEType:    tmpl.MIMEType,
+			})
+		}
+		if res.NextCursor == "" {
+			break
+		}
+		params.Cursor = res.NextCursor
+	}
+	slices.SortFunc(out, func(a, b MCPResource) int { return cmp.Compare(a.URITemplate, b.URITemplate) })
+	return out, nil
+}
+
+// connectMCP starts a server with the given surface and returns a connected
+// client session over an in-memory transport — the same handshake an assistant
+// makes. The returned cleanup closes both ends.
+func connectMCP(surface cli.MCPSurface) (*mcp.ClientSession, func(), error) {
 	app := &cli.App{MCPSurface: surface}
 	app.InitRegistries()
 
@@ -97,21 +154,37 @@ func listMCPTools(surface cli.MCPSurface) ([]MCPTool, error) {
 	cli.ApplyMCPToolFactories(server, app)
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	serverTransport, clientTransport := mcp.NewInMemoryTransports()
 	serverSession, err := server.Connect(ctx, serverTransport, nil)
 	if err != nil {
-		return nil, fmt.Errorf("connect server: %w", err)
+		cancel()
+		return nil, nil, fmt.Errorf("connect server: %w", err)
 	}
-	defer serverSession.Close()
 
 	client := mcp.NewClient(&mcp.Implementation{Name: "gen-refs", Version: "reference"}, nil)
 	session, err := client.Connect(ctx, clientTransport, nil)
 	if err != nil {
-		return nil, fmt.Errorf("connect client: %w", err)
+		_ = serverSession.Close()
+		cancel()
+		return nil, nil, fmt.Errorf("connect client: %w", err)
 	}
-	defer session.Close()
+	return session, func() {
+		_ = session.Close()
+		_ = serverSession.Close()
+		cancel()
+	}, nil
+}
 
+// listMCPTools starts a server with the given surface and reads its tool list
+// over an in-memory transport — the same call an assistant makes on connect.
+func listMCPTools(surface cli.MCPSurface) ([]MCPTool, error) {
+	session, cleanup, err := connectMCP(surface)
+	if err != nil {
+		return nil, err
+	}
+	defer cleanup()
+
+	ctx := context.Background()
 	var out []MCPTool
 	params := &mcp.ListToolsParams{}
 	for {

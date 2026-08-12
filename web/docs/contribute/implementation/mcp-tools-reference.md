@@ -9,8 +9,9 @@ keywords: [MCP tools, kapi mcp, tool handlers, JSON-RPC, MCP server, implementat
 
 Implementation detail for [AD-013](/contribute/architecture/013-kapi-cli).
 
-**The tool list is not here.** Tool names, descriptions, input schemas and the
-surface each belongs to are generated from a running server onto
+**The tool list is not here.** Tool names, descriptions, input schemas, the
+surface each belongs to, and the resource addresses the server answers reads at
+are generated from a running server onto
 [the MCP reference page](/reference/mcp), with a CI drift gate. A second,
 hand-maintained copy is how the published list came to document three tools
 that no longer existed and omit the ones that did. This note covers what a
@@ -33,7 +34,7 @@ server started inside a project scopes itself to it.
 
 | Handlers | Where |
 | --- | --- |
-| `context_search` | `host/mcp_context.go` |
+| `context_search`, the `context://` resources | `host/mcp_context.go` |
 | `up`, `up_plan` | `host/mcp_up.go` |
 | `check_text`, `check_file` | `host/mcp_check.go` |
 | `apply_edits` | `host/mcp_edit.go` (change-set kinds in `host/apply.go`) |
@@ -60,6 +61,21 @@ caller-supplied commands and JavaScript, and are withheld even under
 different decisions, and bundling them would make the first silently grant the
 second. `host/mcp_tools_curation_test.go` asserts this.
 
+## Resources, not only tools
+
+`registerContextResources` (`host/mcp_context.go`) registers the two
+`context://` addresses as **resource templates**, both with one handler: the URI
+itself says which address form was asked for, so dispatch never depends on which
+template the SDK matched — and both templates match
+`context://profile/x`, which would otherwise be a coin toss.
+
+The URI is split by hand rather than through `url.Parse`. Under `context://` the
+first path segment would be read as an authority and lowercased, silently
+renaming a location on a case-sensitive filesystem.
+
+Surface widening does not apply here: `--all-tools` and `--all-flows` govern
+which tools a caller may *run*, not what it may *read*.
+
 ## Result shapes
 
 Handlers return typed Go structs, which the SDK serializes into the result's
@@ -85,8 +101,10 @@ the block and retry rather than to force the write.
 ## The surface is a contract
 
 `kapi/cmd/kapi/mcp_snapshot_test.go` snapshots every tool name and input schema
-to `testdata/mcp_tools.golden.json`. Descriptions may evolve freely; names and
-input schemas may only be extended. Renaming a tool, removing one, or changing
-a field's type breaks agent integrations already in the field and needs an
-explicit decision — regenerate with `KAPI_UPDATE_GOLDEN=1` and record it in
+to `testdata/mcp_tools.golden.json`, and every resource address and mime type to
+`testdata/mcp_resources.golden.json`. Descriptions may evolve freely; names,
+input schemas and addresses may only be extended. Renaming a tool, removing one,
+changing a field's type, or moving an address breaks agent integrations already
+in the field and needs an explicit decision — regenerate with
+`KAPI_UPDATE_GOLDEN=1` and record it in
 [the CLI contract](/reference/cli-contract).

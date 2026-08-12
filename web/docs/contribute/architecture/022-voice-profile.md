@@ -330,8 +330,10 @@ server ([AD-013](013-kapi-cli.md)) so non-CLI agents get parity:
 
 These are hand-authored because each wraps a *resource* — a voice profile, a
 terms store, or a content-memory file — rather than a single processing tool.
-The rendered guide is reached through `context_search` / `context://`
-([AD-037](037-context-retrieval-surface.md)) rather than a tool of its own.
+The rendered guide is reached by reading `context://<path>` or
+`context://profile/<name>` ([AD-037](037-context-retrieval-surface.md)) rather
+than through a tool of its own: the guide is part of what applies at a point,
+not a thing to ask for separately.
 
 The registry's processing tools are exposed over MCP **generically** rather than
 curated by hand ([AD-006](006-tool-system.md), `host/mcp_tools.go`): each

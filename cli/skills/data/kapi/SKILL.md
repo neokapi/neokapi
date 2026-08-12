@@ -28,18 +28,27 @@ Two jobs follow from that, and they are the ones to reach for first:
   propose the profile, the terminology and the checks for the user to correct.
   They review a draft instead of authoring one. See
   [references/context-discovery.md](references/context-discovery.md).
-- **Context retrieval** — before you write or rewrite anything, ask what applies
-  *here*. One question, one call:
+- **Context retrieval** — before you write or rewrite anything, ask. There are
+  two questions and never a store, because which store holds the answer is not
+  something you should have to know:
 
   ```bash
-  kapi context search widget          # what do we call this, is it discouraged
+  kapi context docs/guide.md          # what applies HERE, at this location
+  kapi context --profile marketing    # the same, for a profile, with no file
+  kapi context search widget          # what do we know about THIS word
   kapi context search "sign in" --json
   ```
 
-  Over MCP the same question is `context_search`. It answers from every store
-  the project binds — terminology and previously-approved wording — so you do
-  not need to know which one holds the answer, and it says plainly when a store
-  was unreachable rather than returning a confident empty result.
+  `kapi context <path>` answers for the place a file sits: the point it resolved
+  to, the voice in force with its full guidance, and the terms bound there — one
+  document to read before you touch the file. `kapi context search` answers for
+  a word or a phrase, across every store the project binds.
+
+  Over MCP the same two are `context://<path>` (a resource you *read*, not a
+  tool you call — `context://profile/<name>` for the by-name form, and
+  `?format=json` for the structured shape) and the `context_search` tool. Both
+  say plainly when a store was unreachable rather than returning a confident
+  empty result, and both state what scope they answered from.
 
   Retrieve first, then write; a check that fails afterwards is the expensive way
   to learn the same fact.

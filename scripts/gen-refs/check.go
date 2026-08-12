@@ -251,10 +251,11 @@ func compareCommands(path string, want CommandDataset) string {
 	return ""
 }
 
-// compareMCPTools gates the committed MCP reference against the tools a live
-// `kapi mcp` server serves. Registering, retiring, or rewording a tool fails
-// this until the reference is regenerated, so /reference/mcp cannot teach an
-// assistant a tool the server does not answer to.
+// compareMCPTools gates the committed MCP reference against what a live
+// `kapi mcp` server serves — its tools and the addresses it answers reads at.
+// Registering, retiring, or rewording either fails this until the reference is
+// regenerated, so /reference/mcp cannot teach an assistant a tool the server
+// does not answer to, or an address it does not serve.
 func compareMCPTools(path string, want MCPDataset) string {
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -277,6 +278,17 @@ func compareMCPTools(path string, want MCPDataset) string {
 		if !jsonEqual(want.Tools[i], got.Tools[i]) {
 			return fmt.Sprintf("MCP tool %q is stale (name, description, surface, or parameters changed)",
 				want.Tools[i].Name)
+		}
+	}
+
+	if len(got.Resources) != len(want.Resources) {
+		return fmt.Sprintf("MCP resource count changed: committed %d, served %d",
+			len(got.Resources), len(want.Resources))
+	}
+	for i := range want.Resources {
+		if !jsonEqual(want.Resources[i], got.Resources[i]) {
+			return fmt.Sprintf("MCP resource %q is stale (address, description, or mime type changed)",
+				want.Resources[i].URITemplate)
 		}
 	}
 	return ""
