@@ -4,19 +4,24 @@
 # context moved with them.
 #
 # `kapi up` writes target-language artifacts — catalogs, narration sidecars,
-# runtime dictionaries. Regeneration rebuilds exactly those artifacts from
-# `.kapi/`, the committed context graph, so an artifact that reached the tree
-# without a matching `.kapi/` change survives only until the next regeneration
-# and is then overwritten from a context that never learned it. The wording is
-# gone, the run that produced it was green, and nothing said so.
+# runtime dictionaries — out of the project store. A checkout with no server
+# seeds that store from `.kapi/`, the committed context graph, so an artifact
+# that reached the tree without a matching `.kapi/` change is wording git holds
+# in exactly one place: the artifact. The next convergence that runs from a
+# colder store writes over it from a context that never learned it. The wording
+# is gone, the run that produced it was green, and nothing said so.
 #
 # This gate is what says so. It classifies everything the run left in the
 # working tree, using git for all path matching:
 #
 #   backing  — under .kapi/: a decision shard, terms, a memory seed, the voice
 #              profile, a profile. The context graph moved.
-#   derived  — the artifacts the loop owns (`make l10n-derived-paths`, the same
-#              set l10n-verify regenerates).
+#   derived  — every committed artifact the pipeline owns (`make
+#              l10n-owned-paths`): the target-language tier `kapi up` writes and
+#              the build tier the extractors and compilers write. Both are
+#              legitimate output of a convergence run; the byte gate covers only
+#              the second, which is why this gate reads the union rather than
+#              `make l10n-derived-paths`.
 #   foreign  — everything else. A convergence run has no business writing it, so
 #              its presence is a symptom of the run rather than content to
 #              deliver, whatever the delivery step stages.
@@ -212,14 +217,15 @@ EOF
   return 1
 }
 
-# resolve_derived prints the pathspecs the loop owns, read from the Makefile so
-# this gate and l10n-verify can never disagree about what "derived" means. An
-# empty or failed read is fatal rather than permissive: a gate that cannot name
-# the derived set would pass everything while looking armed.
+# resolve_derived prints every committed artifact the pipeline owns, read from
+# the Makefile so this gate and the delivery step can never disagree about what
+# a convergence run is allowed to have written. An empty or failed read is fatal
+# rather than permissive: a gate that cannot name the derived set would pass
+# everything while looking armed.
 resolve_derived() {
   local repo="$1" spec
-  if ! spec="$(make -C "$repo" -s l10n-derived-paths 2>/dev/null)" || [ -z "${spec//[[:space:]]/}" ]; then
-    echo "check-sync-backed: cannot read the derived set from 'make l10n-derived-paths' in ${repo}" >&2
+  if ! spec="$(make -C "$repo" -s l10n-owned-paths 2>/dev/null)" || [ -z "${spec//[[:space:]]/}" ]; then
+    echo "check-sync-backed: cannot read the derived set from 'make l10n-owned-paths' in ${repo}" >&2
     echo "check-sync-backed: pass --derived '<pathspecs>' for a checkout without the Makefile" >&2
     return 1
   fi
