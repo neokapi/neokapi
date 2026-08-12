@@ -18,6 +18,7 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/ref"
@@ -56,6 +57,7 @@ func newRefHarness(t *testing.T) *refHarness {
 
 	srv := shutdownOnCleanup(t, NewServer(DefaultConfig()))
 	srv.ContentStore = cs
+	srv.Services = service.NewServices(cs, nil, nil, nil)
 	return &refHarness{srv: srv, store: cs, project: p}
 }
 
@@ -186,6 +188,29 @@ func TestSyncRef_DeletingTheLocalCacheCostsOneRoundTrip(t *testing.T) {
 	assert.NotEmpty(t, first.Context)
 	assert.NotEmpty(t, first.Decisions)
 	assert.Greater(t, first.Content, int64(0))
+}
+
+// TestSyncPull_CarriesTheRef proves the field is really on the wire: a pull is
+// a client's cheapest contact with the server, and the ref rides on it so an
+// ordinary loop never has to ask for one.
+func TestSyncPull_CarriesTheRef(t *testing.T) {
+	h := newRefHarness(t)
+	h.declareCollection(t, "docs", "hash-docs")
+	h.decide(t, "u1", "approved")
+	h.storeBlocks(t, 2)
+
+	c, rec := h.ctx(t, http.MethodGet, "/pull?cursor=0", "")
+	require.NoError(t, h.srv.HandleSyncPull(c))
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var body struct {
+		HasMore bool     `json:"has_more"`
+		Ref     *ref.Ref `json:"ref"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	require.False(t, body.HasMore)
+	require.NotNil(t, body.Ref, "a final page carries the ref")
+	assert.Equal(t, h.currentRef(t), *body.Ref)
 }
 
 // commit posts a push commit manifest carrying the given assertion.

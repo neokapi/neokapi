@@ -49,7 +49,14 @@ type RefSource struct {
 //
 // A component whose source cannot be read is left empty rather than guessed. An
 // empty component compares as unknown, so a degraded read costs a client the
-// answer to one question and never gives it a wrong one.
+// answer to one question and never gives it a wrong one. A nil RefSource.Terms
+// is exactly that case: the caller did not offer a vocabulary to read, so the
+// terms component is unclaimed rather than empty.
+//
+// Each component is also available on its own, because they cost very different
+// amounts. The three read from the content store are indexed lookups on one
+// project; the terms component walks a workspace's whole vocabulary. A caller
+// that needs one should ask for one.
 func CurrentRef(ctx context.Context, src RefSource, projectID, stream string) (ref.Ref, error) {
 	if src.Content == nil {
 		return ref.Ref{}, errors.New("sync: ref requires a content store")
@@ -63,13 +70,13 @@ func CurrentRef(ctx context.Context, src RefSource, projectID, stream string) (r
 	}
 	out.Content = cursor
 
-	declared, err := contextComponent(ctx, src.Content, projectID, stream)
+	declared, err := ContextComponentOf(ctx, src.Content, projectID, stream)
 	if err != nil {
 		return ref.Ref{}, err
 	}
 	out.Context = declared
 
-	decisions, err := decisionsComponent(ctx, src.Content, projectID, stream)
+	decisions, err := DecisionsComponentOf(ctx, src.Content, projectID, stream)
 	if err != nil {
 		return ref.Ref{}, err
 	}
@@ -84,13 +91,13 @@ func CurrentRef(ctx context.Context, src RefSource, projectID, stream string) (r
 	return out, nil
 }
 
-// contextComponent folds the recipe-owned collections the server holds.
+// ContextComponentOf folds the recipe-owned collections the server holds.
 //
 // Only recipe-owned rows are folded, and that is the same restriction the push
 // negotiation makes: a workspace-owned collection was never the recipe's to
 // declare, so counting it would make every project whose hub created one read
 // as permanently diverged from a recipe that is perfectly current.
-func contextComponent(ctx context.Context, cs platstore.ContentStore, projectID, stream string) (string, error) {
+func ContextComponentOf(ctx context.Context, cs platstore.ContentStore, projectID, stream string) (string, error) {
 	collections, err := cs.ListCollections(ctx, projectID, stream)
 	if err != nil {
 		return "", fmt.Errorf("ref context component: %w", err)
@@ -112,8 +119,8 @@ func contextComponent(ctx context.Context, cs platstore.ContentStore, projectID,
 	return coresync.ComputeContextHash(hashes), nil
 }
 
-// decisionsComponent folds the stream's decision ledger.
-func decisionsComponent(ctx context.Context, cs platstore.ContentStore, projectID, stream string) (string, error) {
+// DecisionsComponentOf folds the stream's decision ledger.
+func DecisionsComponentOf(ctx context.Context, cs platstore.ContentStore, projectID, stream string) (string, error) {
 	ds, ok := cs.(platstore.DecisionStore)
 	if !ok {
 		return "", nil

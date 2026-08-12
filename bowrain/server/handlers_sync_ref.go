@@ -53,6 +53,11 @@ func (s *Server) HandleSyncRef(c echo.Context) error {
 // reason to withhold the three components that are perfectly readable — an
 // empty terms component compares as unknown, so the client simply learns
 // nothing about terminology this time.
+//
+// It is also the expensive half: the terms component walks a workspace's whole
+// vocabulary, while the other three are indexed lookups on one project. So this
+// belongs on the route that exists to answer for the ref, and not on the ones
+// that carry it as a convenience — see streamRefSource.
 func (s *Server) refSource(ctx context.Context, projectID string) bowsync.RefSource {
 	src := bowsync.RefSource{Content: s.ContentStore}
 	if s.wsStores == nil {
@@ -68,6 +73,19 @@ func (s *Server) refSource(ctx context.Context, projectID string) bowsync.RefSou
 	}
 	src.Terms = tb
 	return src
+}
+
+// streamRefSource is the ref a content route can afford: the three components
+// that come from this project's own rows.
+//
+// The terms component is deliberately absent, and the client's cache is what
+// makes that correct — an empty component is recorded as "this answer said
+// nothing", not as "there is no terminology", so a pull leaves the value a
+// terminology pull observed exactly where it was. Terminology freshness is the
+// terminology path's to refresh; making every page of every block pull list a
+// workspace vocabulary would buy nothing and cost that.
+func (s *Server) streamRefSource() bowsync.RefSource {
+	return bowsync.RefSource{Content: s.ContentStore}
 }
 
 // workspaceSlugForProject resolves the workspace a project belongs to. The slug
@@ -110,16 +128,35 @@ func (s *Server) assertGovernance(ctx context.Context, projectID, stream string,
 		return nil
 	}
 
-	current, err := bowsync.CurrentRef(ctx, s.refSource(ctx, projectID), projectID, stream)
-	if err != nil {
-		return err
-	}
 	for _, component := range components {
-		if err := ref.Assert(component, expected.Identity(component), current.Identity(component)); err != nil {
+		asserted := expected.Identity(component)
+		if asserted == "" {
+			continue
+		}
+		current, err := s.currentComponent(ctx, projectID, stream, component)
+		if err != nil {
+			return err
+		}
+		if err := ref.Assert(component, asserted, current); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// currentComponent reads one component in force. Reading them one at a time is
+// what keeps a write paying only for the governance it actually asserts.
+func (s *Server) currentComponent(ctx context.Context, projectID, stream string, component ref.Component) (string, error) {
+	switch component {
+	case ref.ComponentContext:
+		return bowsync.ContextComponentOf(ctx, s.ContentStore, projectID, stream)
+	case ref.ComponentDecisions:
+		return bowsync.DecisionsComponentOf(ctx, s.ContentStore, projectID, stream)
+	case ref.ComponentTerms:
+		return bowsync.TermsComponentOf(ctx, s.refSource(ctx, projectID).Terms)
+	default:
+		return "", nil
+	}
 }
 
 // assertTermsRef runs the terms component's compare-and-swap for a governance

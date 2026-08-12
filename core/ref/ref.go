@@ -28,6 +28,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"slices"
+	"strconv"
 )
 
 // Component names one axis of a ref. The values are stable identifiers: they
@@ -179,8 +180,8 @@ func Compare(local, remote Ref) Divergence {
 func comparePosition(local, remote int64) ComponentDiff {
 	d := ComponentDiff{
 		Component: ComponentContent,
-		Local:     fmt.Sprintf("%d", local),
-		Remote:    fmt.Sprintf("%d", remote),
+		Local:     strconv.FormatInt(local, 10),
+		Remote:    strconv.FormatInt(remote, 10),
 	}
 	switch {
 	case local == remote:

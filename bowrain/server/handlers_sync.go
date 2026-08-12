@@ -78,7 +78,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	// Best-effort: a ref that cannot be computed costs the push its
 	// compare-and-swap, never its content.
 	currentRef, refErr := bowsync.CurrentRef(c.Request().Context(),
-		s.refSource(c.Request().Context(), req.ProjectID), req.ProjectID, req.Stream)
+		s.streamRefSource(), req.ProjectID, req.Stream)
 	if refErr != nil {
 		currentRef = ref.Ref{}
 	}
@@ -400,11 +400,14 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 		Contexts: s.pullContextEntries(ctx, projectID, stream),
 	}
 
-	// The freshness ref travels like the declared context: small, always
-	// current, on every page. A pull is a client's cheapest contact with the
-	// server, so it is where a cache that was deleted comes back.
-	if current, rerr := bowsync.CurrentRef(ctx, s.refSource(ctx, projectID), projectID, stream); rerr == nil {
-		resp.Ref = &current
+	// The freshness ref rides on the LAST page only. A client keeps the last
+	// page's ref and discards every earlier one, so computing it per page would
+	// be work whose answer is thrown away — and a pull is a client's cheapest
+	// contact with the server precisely because it stays cheap.
+	if !resp.HasMore {
+		if current, rerr := bowsync.CurrentRef(ctx, s.streamRefSource(), projectID, stream); rerr == nil {
+			resp.Ref = &current
+		}
 	}
 
 	// The decision ledger travels like the declared context: small, always
