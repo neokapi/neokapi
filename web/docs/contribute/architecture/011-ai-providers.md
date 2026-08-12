@@ -448,9 +448,9 @@ these framework primitives.
 - [AD-004: Processing Engine](004-processing-engine.md) — flow execution
   and `ParallelBlockTool`
 - [AD-006: Tool System](006-tool-system.md) — Tool pattern
-- [AD-009: Content memory](009-content-memory.md) — `recycle`
+- [C-09: Content memory](context/c-09-content-memory.md) — `recycle`
   feeds context to AI tools
-- [AD-010: Terminology](010-terminology.md) — term annotations feed
+- [C-08: Terminology](context/c-08-terms.md) — term annotations feed
   context to AI tools
 - [AD-012: MT Providers](012-mt-providers.md) — complementary external MT
   services

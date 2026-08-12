@@ -1,13 +1,13 @@
 ---
 sidebar_position: 7
 title: kapi.yaml Project File Format
-description: Implementation note for AD-008 — the KapiProject YAML schema, Collection/ContentItem and Defaults struct layouts, how extension extras are decoded, and how the kapi.yaml recipe is loaded, validated, and saved.
+description: Implementation note for C-01 — the KapiProject YAML schema, Collection/ContentItem and Defaults struct layouts, how extension extras are decoded, and how the kapi.yaml recipe is loaded, validated, and saved.
 keywords: [kapi project file, kapi.yaml, KapiProject, YAML schema, Collection, ContentItem, Defaults, project model, implementation note]
 ---
 
 # kapi.yaml Project File Format
 
-Implementation notes for the `kapi.yaml` project file format. See [AD-008](/contribute/architecture/008-project-model) for the architectural decision.
+Implementation notes for the `kapi.yaml` project file format. See [C-01](/contribute/architecture/context/c-01-project-model) for the architectural decision.
 
 ## Schema
 
@@ -132,7 +132,7 @@ point.
 
 After a profile is selected, the collection's channel selects the override
 *inside* that profile's voice (`profile.VoiceProfile.Channels`,
-[AD-022](/contribute/architecture/022-voice-profile)), so a landing-page register
+[C-07](/contribute/architecture/context/c-07-voice-profiles)), so a landing-page register
 is authored once beside the voice it varies rather than duplicated into a voice
 file per product-and-channel pair. A channel the profile declares no override
 for is not an error — the base voice applies, which is the right answer for a
@@ -150,7 +150,7 @@ alongside this one — the input to profile resolution, not the recipe's answer.
 That is the recipe half, and it is an **authoring** half: the voice it names is
 loaded by the host and then handed to `profile.ResolveProfileFromContext` as
 `CollectionProfile` — the collection tier of the framework's single precedence
-chain ([AD-022](/contribute/architecture/022-voice-profile)) — so an explicit
+chain ([C-07](/contribute/architecture/context/c-07-voice-profiles)) — so an explicit
 per-call profile still outranks the recipe and a project governed from the
 server ranks its bindings identically. The point's channel goes in beside it as
 `CollectionConfig[PropertyChannel]`, and `ResolveProfile` applies the override.
@@ -250,7 +250,7 @@ database, `.kapi/work/store.db` — a derived index over the committed sources
 and the content files themselves — plus the working set of unit state staged since
 the last `kapi commit`. Every subsystem's tables live in that one file: block
 cache, terms store, content memory, working set, and the property graph. See
-[AD-039](/contribute/architecture/039-local-context-graph-store) for the store's
+[C-03](/contribute/architecture/context/c-03-context-store-and-graph) for the store's
 shape, its rebuild guarantees, and how it converges with the server's graph.
 
 ## Platform extensions and the venue
@@ -282,7 +282,7 @@ registered venue key with no recipe in hand (so a message about an absent block
 can still name the block to add), and `IsVenueKey(name)` tests one key. An
 unregistered key of the same name — a recipe loaded by a binary without the
 platform — reports no venue and no opinion. See
-[AD-008](/contribute/architecture/008-project-model) for the full extension
+[C-01](/contribute/architecture/context/c-01-project-model) for the full extension
 model.
 
 ## Validation Rules

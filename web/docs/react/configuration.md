@@ -468,5 +468,5 @@ compile`, or whatever script your project wires up).
 
 ## Next
 
-- [AD-008 Kapi Project Model](/contribute/architecture/008-project-model) — project layout and block store.
+- [C-01 Kapi Project Model](/contribute/architecture/context/c-01-project-model) — project layout and block store.
 - [kapi CLI overview](/kapi/cli) — translation commands that consume your `.kbf.json`.

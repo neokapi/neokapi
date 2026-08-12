@@ -24,9 +24,9 @@ notes describe the implementation.
 | [Session-Scoped Tool Authoring](session-tool-authoring.md) | [AD-006](/contribute/architecture/006-tool-system)        | Guide for writing tools against BlockStore          |
 | [Plugin Model](plugin-model.md)                            | [AD-007](/contribute/architecture/007-plugin-system)      | In-process registry contract for plugin binaries    |
 | [Plugin protocol v1](plugin-protocol-v1.md)                | [AD-007](/contribute/architecture/007-plugin-system)      | The versioned plugin contract: manifest rules, the three transports, the Mode-C gRPC surface and wire format, and the conformance suite |
-| [Kapi Project File](kapi-project-file.md)                  | [AD-008](/contribute/architecture/008-project-model)      | `kapi.yaml` recipe schema and examples              |
-| [Content Memory Matching Algorithm](memory-matching-algorithm.md) | [AD-009](/contribute/architecture/009-content-memory) | Tiered matching, TMX mapping                        |
-| [Terminology Data Model](terminology-data-model.md)        | [AD-010](/contribute/architecture/010-terminology)        | Go structs, Terminology interface                      |
+| [Kapi Project File](kapi-project-file.md)                  | [C-01](/contribute/architecture/context/c-01-project-model)      | `kapi.yaml` recipe schema and examples              |
+| [Content Memory Matching Algorithm](memory-matching-algorithm.md) | [C-09](/contribute/architecture/context/c-09-content-memory) | Tiered matching, TMX mapping                        |
+| [Terminology Data Model](terminology-data-model.md)        | [C-08](/contribute/architecture/context/c-08-terms)        | Go structs, Terminology interface                      |
 | [MCP Tools Reference](mcp-tools-reference.md)              | [AD-013](/contribute/architecture/013-kapi-cli)           | Tool specs, input/output schemas                    |
 | [CLI Conventions](cli-conventions.md)                      | [AD-013](/contribute/architecture/013-kapi-cli)           | Input/output/exit-code/project contracts, per-command surface table |
 | [Tool & Data Model Rationale](tool-data-model-redesign.md) | [AD-006](/contribute/architecture/006-tool-system) · [AD-002](/contribute/architecture/002-content-model) | Why stand-off overlays + annotations, a typed consumes/produces IO contract, a uniform unit iterator, and typed source/sink bindings |

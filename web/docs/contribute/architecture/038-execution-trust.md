@@ -58,7 +58,7 @@ forced:
 
 - **MCP** withholds both tools from the agent surface, and deliberately does
   not fold them into `--all-tools`, because *"show me every tool"* and *"let a
-  caller execute arbitrary commands"* are different requests (AD-037).
+  caller execute arbitrary commands"* are different requests (C-06).
 - **`.kpz` ingest** strips exec-class steps, their arming config, and
   exec-class format bindings from a package's recipe, because a package has
   crossed a trust boundary and a hostile packer simply will not sanitise on the

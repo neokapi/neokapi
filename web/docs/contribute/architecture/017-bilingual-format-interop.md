@@ -356,16 +356,16 @@ is absent.
 - **AD-005 (Format System)** — XLIFF 2.x writer/reader and PO
   reader/writer are the carriers; skeleton store is how byte-exact
   roundtrip works.
-- **AD-008 (Project Model)** — extract adds the extraction manifest
+- **C-01 (Project Model)** — extract adds the extraction manifest
   under `.kapi/work/cache/extractions/<id>/`. Conflict policy is a new
   `Defaults.Merge` section. Auto-discovery uses the existing
   `project.ResolveLayout` entry point.
-- **AD-009 (Content memory)** — `Lookup` becomes load-bearing
+- **C-09 (Content memory)** — `Lookup` becomes load-bearing
   for extract pre-fill. A `LookupSegment` method is added for
   per-span matching when a segmentation overlay is present. Merge
   extends the `Origin` provenance story with a `"merge"` source and
   the batch id in `Reference`.
-- **AD-010 (Terminology)** — term hints on extract, drawn from the terms
+- **C-08 (Terminology)** — term hints on extract, drawn from the terms
   store, are a natural follow-up (analogous to memory pre-fill). Not
   in v1.
 - **AD-013 (Kapi CLI)** — adds `extract` and `merge` top-level

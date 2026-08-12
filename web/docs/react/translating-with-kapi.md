@@ -150,7 +150,7 @@ A complete Makefile / package-scripts setup for a multi-locale app:
 ## Drive it from a project
 
 The commands above are ad-hoc — flags on every call, fine for a quick run. For an
-app you translate every release, a [`kapi.yaml` project file](/contribute/architecture/008-project-model)
+app you translate every release, a [`kapi.yaml` project file](/contribute/architecture/context/c-01-project-model)
 is the working model worth adopting: it captures the content patterns, target
 languages, flows, and defaults once, so you drive everything through named flows
 instead of repeating flags, and the project store accumulates content memory
@@ -200,7 +200,7 @@ in the recipe (for example `recycle` → `translate` → `qa`), then:
 }
 ```
 
-`kapi run` discovers the nearest `kapi.yaml` recipe (or pass `-p kapi.yaml`) and executes the flow with the project's declared source and target languages and defaults. See [Flows](/framework/flows) and the [project model](/contribute/architecture/008-project-model).
+`kapi run` discovers the nearest `kapi.yaml` recipe (or pass `-p kapi.yaml`) and executes the flow with the project's declared source and target languages and defaults. See [Flows](/framework/flows) and the [project model](/contribute/architecture/context/c-01-project-model).
 
 ## Drive it from Claude
 

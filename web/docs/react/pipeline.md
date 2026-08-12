@@ -123,7 +123,7 @@ A directory of per-file `.kbf.json` documents, mirroring your source tree
 - `documents` — one document for the source file, holding its `Block`s.
 - Optional targets / skeleton / annotation overlays (added by translators).
 
-See [AD-008](/contribute/architecture/008-project-model) for the full schema.
+See [C-01](/contribute/architecture/context/c-01-project-model) for the full schema.
 
 ### One block per
 
@@ -190,11 +190,11 @@ Two layouts, both clean:
 - **Locale-additive** — one `i18n/` tree where each block carries every target locale, filled in place (the default for `kapi translate i18n/ --target-lang …`). Simplest to version; all translations stay together.
 - **Recipe-driven per-locale files** — the source catalogs live under `i18n/src/` and kapi writes a separate file per locale under `i18n/{lang}/`, mapped by a `kapi.yaml` content entry (`path: i18n/src/**/*.kbf.json` → `target: i18n/{lang}/{path}.kbf.json`). This is what `kapi init --framework neokapi-i18n` scaffolds.
 
-Both keep everything under one `i18n/` directory. Because the source lives under `i18n/src/`, the source glob never matches the generated `i18n/{lang}/` targets — so there is no need for sibling `i18n-<lang>/` trees. See [AD-008](/contribute/architecture/008-project-model) for the project model and [Drive it from a project](./translating-with-kapi#drive-it-from-a-project) for the recipe.
+Both keep everything under one `i18n/` directory. Because the source lives under `i18n/src/`, the source glob never matches the generated `i18n/{lang}/` targets — so there is no need for sibling `i18n-<lang>/` trees. See [C-01](/contribute/architecture/context/c-01-project-model) for the project model and [Drive it from a project](./translating-with-kapi#drive-it-from-a-project) for the recipe.
 
 ### Project-driven flow with `kapi.yaml`
 
-If you already use a [`kapi.yaml` project file](/contribute/architecture/008-project-model) to define your workflow, declare each archive-backed collection with an `exec` format pointing at neokapi-i18n (or any other extractor):
+If you already use a [`kapi.yaml` project file](/contribute/architecture/context/c-01-project-model) to define your workflow, declare each archive-backed collection with an `exec` format pointing at neokapi-i18n (or any other extractor):
 
 ```yaml title="kapi.yaml"
 version: v1

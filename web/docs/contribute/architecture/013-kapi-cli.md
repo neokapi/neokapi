@@ -131,7 +131,7 @@ kapi stats file.json
 
 On project-aware commands, the `-p` / `--project` flag switches into
 project mode, loading a `kapi.yaml` recipe
-([AD-008: Kapi Project Model](008-project-model.md)) for defaults:
+([C-01: Kapi Project Model](context/c-01-project-model.md)) for defaults:
 
 ```bash
 kapi run translate -p kapi.yaml
@@ -367,7 +367,7 @@ implementation.
 - [AD-006: Tool System](006-tool-system.md) — Tool pattern exposed as
   top-level commands
 - [AD-007: Plugin System](007-plugin-system.md) — `kapi plugin`
-- [AD-008: Kapi Project Model](008-project-model.md) — `kapi.yaml` recipe
+- [C-01: Kapi Project Model](context/c-01-project-model.md) — `kapi.yaml` recipe
   loaded by `-p`
 - [AD-011: AI Providers](011-ai-providers.md) — provider credentials
 - [AD-014: Kapi Desktop](014-kapi-desktop.md) — GUI companion

@@ -136,7 +136,7 @@ positions beside data-flow validation at every flow build and load:
   remote-source-egress side effect, except a step producing an input the
   transformer's config-resolved contract requires (a cloud NER step feeding
   entity-driven redaction is the documented detection trade-off,
-  [AD-020](/contribute/architecture/020-redaction)). AI tools configured with
+  [C-10](/contribute/architecture/context/c-10-redaction)). AI tools configured with
   a local provider (ollama, demo) carry no egress effect.
 - **Warning** — a transformer placed later than its earliest valid slot, since
   every overlay present at apply time must be rebased.

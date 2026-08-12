@@ -66,7 +66,7 @@ the redis hash cache) the platform builds from this content.
 A second observation shaped the design: the project layout already separates
 **authoritative content** — the committed sources and the unit-state record —
 from everything a run derives from them, which is the project's one database
-(`.kapi/work/store.db`, [AD-039](039-local-context-graph-store.md)) plus the
+(`.kapi/work/store.db`, [C-03](context/c-03-context-store-and-graph.md)) plus the
 free-to-delete `.kapi/work/cache/`. The thing worth packaging is the *authoritative
 content*, never the derived stores or secrets.
 
@@ -103,7 +103,7 @@ general-purpose tools do not already give.
 The **suffix**, not the location, is what identifies a bundle, because a project
 is not limited to one per store. Terms is the exception that proves it: a project
 has exactly one set of terms, so it gets a conventional location
-([AD-010](010-terminology.md)) — `<root>/.kapi/terms.json`, then
+([C-08](context/c-08-terms.md)) — `<root>/.kapi/terms.json`, then
 `<root>/terms.json`. Content memory gets none, because a project accumulates a
 bundle per content surface (this repository's own dogfood commits one per surface
 under `.kapi/memory/`) and a fallback would have nothing single to name.
@@ -310,7 +310,7 @@ snapshot again finds the project it made and refreshes the state without asking.
 ### 7. Boundaries: workspace vs payload, and the two `.kpz` profiles
 
 Day-to-day work happens in an **ambient `.kapi` project**, discovered by a
-git-style upward walk ([AD-008](008-project-model.md)) — never named on a command.
+git-style upward walk ([C-01](context/c-01-project-model.md)) — never named on a command.
 A `.kpz` is a **parcel**: a thing that crosses a boundary, named only at that
 boundary. You do not *work inside* a `.kpz`; receiving one and working on it means
 opening it into a project (`unpack`, or an in-place open backed by the shadow
@@ -374,7 +374,7 @@ Both profiles are parcels — neither is a workspace.
   (`pack`/`unpack`) and a task-scoped **bilingual interchange** file
   (`extract`/`merge`) — neokapi's lossless interchange format for a translator or
   reviewer. A `.kpz` is always a *parcel*, never a *workspace*: day-to-day work is
-  the ambient `.kapi` project ([AD-008](008-project-model.md)), so the everyday
+  the ambient `.kapi` project ([C-01](context/c-01-project-model.md)), so the everyday
   loop never names a `.kpz`.
 
 ## Implementation
