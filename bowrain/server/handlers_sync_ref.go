@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -118,16 +119,6 @@ func (s *Server) workspaceSlugForProject(ctx context.Context, projectID string) 
 // An assertion the client did not make (an empty component) always passes,
 // which is what keeps the check additive for clients that predate it.
 func (s *Server) assertGovernance(ctx context.Context, projectID, stream string, expected ref.Ref, components ...ref.Component) error {
-	stated := false
-	for _, component := range components {
-		if expected.Identity(component) != "" {
-			stated = true
-		}
-	}
-	if !stated {
-		return nil
-	}
-
 	for _, component := range components {
 		asserted := expected.Identity(component)
 		if asserted == "" {
@@ -146,6 +137,10 @@ func (s *Server) assertGovernance(ctx context.Context, projectID, stream string,
 
 // currentComponent reads one component in force. Reading them one at a time is
 // what keeps a write paying only for the governance it actually asserts.
+//
+// A component with no reader is an error rather than an empty string: an empty
+// string passes every assertion, so answering that way would silently accept
+// exactly the write the caller asked to have checked.
 func (s *Server) currentComponent(ctx context.Context, projectID, stream string, component ref.Component) (string, error) {
 	switch component {
 	case ref.ComponentContext:
@@ -155,7 +150,7 @@ func (s *Server) currentComponent(ctx context.Context, projectID, stream string,
 	case ref.ComponentTerms:
 		return bowsync.TermsComponentOf(ctx, s.refSource(ctx, projectID).Terms)
 	default:
-		return "", nil
+		return "", fmt.Errorf("sync: no reader for the %s component", component)
 	}
 }
 
