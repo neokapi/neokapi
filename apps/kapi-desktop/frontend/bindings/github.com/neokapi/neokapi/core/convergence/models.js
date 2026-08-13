@@ -714,12 +714,16 @@ export const StallReason = {
     StallSourceNotReady: "source_not_ready",
 
     /**
-     * StallNoTargetLocales: the project has no configured target languages, so
-     * there is no locale to converge toward. This is a configuration hold, not
-     * an up-to-date state — a run over N source blocks with zero target locales
-     * must never read "converged". Adding a target language (and pushing/running
-     * again) lets the next run derive real pending work. The local venue refuses
-     * to start with the same message ("no target languages configured").
+     * StallNoTargetLocales: a project the venue holds for its per-language work
+     * has none to do, because it names no target language. It is a configuration
+     * hold rather than an up-to-date state: a run over N source blocks with zero
+     * target locales must never read "converged" at a venue whose whole purpose
+     * is the fan-out.
+     * 
+     * It is a SERVER-venue reason. The local venue reads the same recipe as
+     * monolingual — the front door, where one language is the answer rather than
+     * a missing setting — and reconciles the source alone, reporting the run as
+     * monolingual instead of stalled.
      */
     StallNoTargetLocales: "no_target_locales",
 };
