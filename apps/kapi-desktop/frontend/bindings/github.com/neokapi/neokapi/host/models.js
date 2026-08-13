@@ -1001,6 +1001,35 @@ export class ConvergeOutput {
              */
             this["stallReason"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Monolingual reports a run over a project that resolves no target locale at
+             * all: the source half of convergence ran and the per-locale fan-out was not
+             * applicable. Locales is empty for such a run, and a reader needs to tell
+             * that apart from a multilingual project whose locales all dropped out.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["monolingual"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * ExtractedFiles and ExtractedBlocks report the pre-pass re-extraction that
+             * brought the project store back in sync with the working tree. Both 0 when
+             * the store was already current. They are the "what moved" of a monolingual
+             * run, whose whole output is otherwise source-side.
+             * @member
+             * @type {number | undefined}
+             */
+            this["extractedFiles"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {number | undefined}
+             */
+            this["extractedBlocks"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }
@@ -1160,6 +1189,16 @@ export class UpPlanOutput {
              * @type {boolean | undefined}
              */
             this["subscription"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Monolingual reports a project that resolves no target locale: there is no
+             * per-language work to price. An empty Scopes list otherwise means the work
+             * is already done, and the two must not read the same.
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["monolingual"] = undefined;
         }
         if (!("note" in $$source)) {
             /**
