@@ -1,22 +1,31 @@
 import { test, expect, type Page } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
+import { selectMultiLocales } from "./locale-helper";
 
-// The Bowrain flow builder now renders the shared @neokapi/flow-editor
-// <FlowEditor> for the editing canvas (the same component kapi-desktop uses).
-// FlowBuilder still owns the flow list, toolbar, and new/save/delete chrome
-// (stable data-testids), while the canvas, tool palette, and node rendering
-// come from the shared editor — asserted here by visible text / roles.
+/**
+ * Flows are project-scoped: a project's Automations section holds Runs, Rules
+ * and Flows, and the Flows tab mounts the shared `@neokapi/flow-editor`
+ * <FlowsWorkspace> — the list, toolbar and new/save/delete chrome (stable
+ * data-testids) around the canonical <FlowEditor> canvas, which is asserted
+ * here by visible text / roles. The desktop serves the flow definitions from
+ * its own Wails bindings; the container and canvas are the same ones the web
+ * app and kapi-desktop render.
+ */
+async function openProjectFlows(page: Page) {
+  await setupLocalApp(page);
 
-// Quarantined in CI (#867): the @neokapi/flow-editor canvas suite passes locally
-// but flakes/times out under headless CI. Still runs locally.
-test.beforeEach(() => {
-  test.skip(!!process.env.CI, "Quarantined in CI — see #867");
-});
+  await page.getByTestId("onboarding-create-btn").click();
+  await page.getByTestId("project-name-input").fill("Flow Test");
+  await selectMultiLocales(page, "target-langs-input", ["fr"]);
+  await page.getByTestId("create-project-submit").click();
+
+  await page.getByTestId("subnav-automations").click();
+  await page.getByRole("button", { name: "Flows", exact: true }).click();
+  await expect(page.getByTestId("flow-builder")).toBeVisible();
+}
 
 test.beforeEach(async ({ page }) => {
-  await setupLocalApp(page);
-  // Navigate to the Flows view via sidebar icon
-  await page.getByTestId("nav-flows").click();
+  await openProjectFlows(page);
 });
 
 test("should display flow list with built-in flows", async ({ page }) => {
@@ -109,11 +118,16 @@ test("should offer the template library for an empty new flow", async ({ page })
 test("should add a tool to a new flow from the palette", async ({ page }) => {
   await createNewFlow(page);
 
-  // Dismiss the template library to reveal the tool palette + canvas.
+  // Dismiss the template library to reveal the canvas.
   await page.getByRole("button", { name: /empty canvas/i }).click();
 
-  // Add the translate tool from the palette (rendered as a button by name).
-  await page.getByRole("button", { name: "translate", exact: true }).click();
+  // The palette is a browse modal, so the canvas stays full-width: the
+  // canvas's Add affordance opens it, and a tool is a row in it. A row reads
+  // as name over description, and the description is what separates translate
+  // from pseudo-translate in the accessible name.
+  await page.getByRole("button", { name: "Add tool" }).click();
+  const palette = page.getByRole("dialog");
+  await palette.getByRole("button", { name: /translate Translate content using AI/ }).click();
 
   // The new tool node appears in the canvas.
   const editor = page.getByTestId("flow-editor");
