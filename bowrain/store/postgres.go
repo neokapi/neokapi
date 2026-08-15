@@ -11,13 +11,13 @@ import (
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/crypto"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // PostgresStore implements ContentStore using PostgreSQL.
@@ -263,7 +263,7 @@ func (s *PostgresStore) CreateCollection(ctx context.Context, c *platstore.Colle
 	if err != nil {
 		return fmt.Errorf("marshal collection context: %w", err)
 	}
-	c.Owner = coresync.NormalizeContextOwner(c.Owner)
+	c.Owner = venue.NormalizeContextOwner(c.Owner)
 
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at)
@@ -334,7 +334,7 @@ func (s *PostgresStore) UpdateCollection(ctx context.Context, c *platstore.Colle
 	if err != nil {
 		return fmt.Errorf("marshal collection context: %w", err)
 	}
-	c.Owner = coresync.NormalizeContextOwner(c.Owner)
+	c.Owner = venue.NormalizeContextOwner(c.Owner)
 
 	_, err = s.db.ExecContext(ctx,
 		`UPDATE collections SET name=$1, kind=$2, item_label=$3, stream=$4, connector_config=$5, context=$6, owner=$7, context_hash=$8, updated_at=$9
@@ -401,7 +401,7 @@ func (s *PostgresStore) scanCollectionPg(row scanner) (*platstore.Collection, er
 	if err := json.Unmarshal([]byte(contextJSON), &c.Context); err != nil {
 		c.Context = map[string]string{}
 	}
-	c.Owner = coresync.NormalizeContextOwner(c.Owner)
+	c.Owner = venue.NormalizeContextOwner(c.Owner)
 	return &c, nil
 }
 
@@ -879,7 +879,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 	return tx.Commit()
 }
 
-func (s *PostgresStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*platstore.StoredBlock, error) {
+func (s *PostgresStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*venue.StoredBlock, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, properties, overlays, stored_at, updated_at
@@ -889,7 +889,7 @@ func (s *PostgresStore) GetBlock(ctx context.Context, projectID, stream, blockID
 		return nil, fmt.Errorf("block %s not found in project %s", blockID, projectID)
 	}
 	stream = storeutil.DefaultStream(stream)
-	if err := HydrateOverlays(ctx, s.db.DB, "pg", projectID, stream, []*platstore.StoredBlock{sb}); err != nil {
+	if err := HydrateOverlays(ctx, s.db.DB, "pg", projectID, stream, []*venue.StoredBlock{sb}); err != nil {
 		return nil, err
 	}
 	return sb, nil
@@ -989,7 +989,7 @@ func pgBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterPg {
 	return blockFilterPg{join: join, where: strings.Join(where, " AND "), args: args}
 }
 
-func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*platstore.StoredBlock, error) {
+func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*venue.StoredBlock, error) {
 	f := pgBlockFilter(query, true)
 
 	// Constant skeleton + rendered fragments that carry $N placeholders only;
@@ -1011,7 +1011,7 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 	}
 	defer rows.Close()
 
-	var result []*platstore.StoredBlock
+	var result []*venue.StoredBlock
 	for rows.Next() {
 		sb, err := scanStoredBlockPg(rows)
 		if err != nil {
@@ -1430,8 +1430,8 @@ func scanItemPg(row scanner) (*platstore.Item, error) {
 	return &item, nil
 }
 
-func scanStoredBlockPg(row scanner) (*platstore.StoredBlock, error) {
-	var sb platstore.StoredBlock
+func scanStoredBlockPg(row scanner) (*venue.StoredBlock, error) {
+	var sb venue.StoredBlock
 	sb.Block = &model.Block{}
 	var sourceJSON, propsJSON, overlaysJSON string
 
@@ -1472,13 +1472,13 @@ func HydrateOverlays(
 	db Querier,
 	dialect string,
 	projectID, stream string,
-	blocks []*platstore.StoredBlock,
+	blocks []*venue.StoredBlock,
 ) error {
 	if len(blocks) == 0 {
 		return nil
 	}
 	ids := make([]string, 0, len(blocks))
-	byID := make(map[string]*platstore.StoredBlock, len(blocks))
+	byID := make(map[string]*venue.StoredBlock, len(blocks))
 	for _, sb := range blocks {
 		if sb == nil || sb.Block == nil {
 			continue
@@ -1560,7 +1560,7 @@ func logChange(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, chan
 // Asset CRUD (Bowrain AD-007)
 // ---------------------------------------------------------------------------
 
-func (s *PostgresStore) StoreAsset(ctx context.Context, projectID, stream string, asset *platstore.Asset) error {
+func (s *PostgresStore) StoreAsset(ctx context.Context, projectID, stream string, asset *venue.Asset) error {
 	stream = storeutil.DefaultStream(stream)
 	if asset.ID == "" {
 		asset.ID = id.New()
@@ -1623,7 +1623,7 @@ func (s *PostgresStore) StoreAsset(ctx context.Context, projectID, stream string
 	return tx.Commit()
 }
 
-func (s *PostgresStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*platstore.Asset, error) {
+func (s *PostgresStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*venue.Asset, error) {
 	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, blob_key, mime_type, filename,
@@ -1632,7 +1632,7 @@ func (s *PostgresStore) GetAsset(ctx context.Context, projectID, stream, assetID
 	return scanAsset(row)
 }
 
-func (s *PostgresStore) ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*platstore.Asset, error) {
+func (s *PostgresStore) ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*venue.Asset, error) {
 	stream = storeutil.DefaultStream(stream)
 	var rows *sql.Rows
 	var err error
@@ -1652,7 +1652,7 @@ func (s *PostgresStore) ListAssets(ctx context.Context, projectID, stream, itemN
 	}
 	defer rows.Close()
 
-	var result []*platstore.Asset
+	var result []*venue.Asset
 	for rows.Next() {
 		a, err := scanAsset(rows)
 		if err != nil {
@@ -1692,8 +1692,8 @@ type assetScanner interface {
 	Scan(dest ...any) error
 }
 
-func scanAsset(row assetScanner) (*platstore.Asset, error) {
-	var a platstore.Asset
+func scanAsset(row assetScanner) (*venue.Asset, error) {
+	var a venue.Asset
 	var propsJSON string
 	err := row.Scan(&a.ID, &a.ProjectID, &a.ItemName, &a.SourceID, &a.BlobKey, &a.MimeType,
 		&a.Filename, &a.SizeBytes, &a.AltText, &propsJSON, &a.ProcessingStatus, &a.ProcessingHint,
@@ -1711,7 +1711,7 @@ func scanAsset(row assetScanner) (*platstore.Asset, error) {
 // Asset Variants (Bowrain AD-007)
 // ---------------------------------------------------------------------------
 
-func (s *PostgresStore) StoreAssetVariant(ctx context.Context, projectID string, variant *platstore.AssetVariant) error {
+func (s *PostgresStore) StoreAssetVariant(ctx context.Context, projectID string, variant *venue.AssetVariant) error {
 	now := time.Now().UTC()
 	variant.CreatedAt = now
 	variant.UpdatedAt = now
@@ -1768,14 +1768,14 @@ func (s *PostgresStore) StoreAssetVariant(ctx context.Context, projectID string,
 	return tx.Commit()
 }
 
-func (s *PostgresStore) GetAssetVariant(ctx context.Context, _, assetID, locale string) (*platstore.AssetVariant, error) {
+func (s *PostgresStore) GetAssetVariant(ctx context.Context, _, assetID, locale string) (*venue.AssetVariant, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at
 		 FROM asset_variants WHERE asset_id=$1 AND locale=$2`, assetID, locale)
 	return scanAssetVariant(row)
 }
 
-func (s *PostgresStore) ListAssetVariants(ctx context.Context, _, assetID string) ([]*platstore.AssetVariant, error) {
+func (s *PostgresStore) ListAssetVariants(ctx context.Context, _, assetID string) ([]*venue.AssetVariant, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at
 		 FROM asset_variants WHERE asset_id=$1 ORDER BY locale`, assetID)
@@ -1784,7 +1784,7 @@ func (s *PostgresStore) ListAssetVariants(ctx context.Context, _, assetID string
 	}
 	defer rows.Close()
 
-	var result []*platstore.AssetVariant
+	var result []*venue.AssetVariant
 	for rows.Next() {
 		v, err := scanAssetVariant(rows)
 		if err != nil {
@@ -1795,8 +1795,8 @@ func (s *PostgresStore) ListAssetVariants(ctx context.Context, _, assetID string
 	return result, rows.Err()
 }
 
-func scanAssetVariant(row assetScanner) (*platstore.AssetVariant, error) {
-	var v platstore.AssetVariant
+func scanAssetVariant(row assetScanner) (*venue.AssetVariant, error) {
+	var v venue.AssetVariant
 	var propsJSON string
 	err := row.Scan(&v.AssetID, &v.Locale, &v.BlobKey, &v.Status, &v.MimeType,
 		&v.SizeBytes, &propsJSON, &v.CreatedAt, &v.UpdatedAt)

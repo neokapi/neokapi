@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // DefaultMaxSamples caps the number of inspectable sample blocks a blast radius
@@ -323,7 +324,7 @@ func (e *Engine) EvaluateChangeSet(ctx context.Context, workspaceID string, cs C
 	t := newTree(opts.maxSamples())
 	reach := newReachAcc()
 
-	walkErr := e.walkBlocks(ctx, workspaceID, opts, func(p *store.Project, stream string, b *store.StoredBlock, locale model.LocaleID, text, colID, colName string) error {
+	walkErr := e.walkBlocks(ctx, workspaceID, opts, func(p *store.Project, stream string, b *venue.StoredBlock, locale model.LocaleID, text, colID, colName string) error {
 		t.scan()
 
 		vNew, vResolved, vAffected, vPrescribed := voiceImpactForBlock(pairs, colID, colName, b.ID, text)
@@ -608,7 +609,7 @@ func (e *Engine) ConceptUsage(ctx context.Context, workspaceID, conceptID string
 
 	t := newTree(opts.maxSamples())
 
-	walkErr := e.walkBlocks(ctx, workspaceID, opts, func(p *store.Project, stream string, b *store.StoredBlock, locale model.LocaleID, text, colID, colName string) error {
+	walkErr := e.walkBlocks(ctx, workspaceID, opts, func(p *store.Project, stream string, b *venue.StoredBlock, locale model.LocaleID, text, colID, colName string) error {
 		t.scan()
 
 		matches, err := cTB.LookupAll(ctx, text, terms.LookupOptions{SourceLocale: locale})
@@ -665,7 +666,7 @@ func (e *Engine) walkBlocks(
 	ctx context.Context,
 	workspaceID string,
 	opts EvalOptions,
-	visit func(p *store.Project, stream string, b *store.StoredBlock, locale model.LocaleID, text, colID, colName string) error,
+	visit func(p *store.Project, stream string, b *venue.StoredBlock, locale model.LocaleID, text, colID, colName string) error,
 ) error {
 	projects, err := e.blocks.ListProjects(ctx)
 	if err != nil {
@@ -733,7 +734,7 @@ func newCollectionCache(e *Engine) *collectionCache {
 	return &collectionCache{engine: e, seen: map[string]collectionRef{}}
 }
 
-func (c *collectionCache) resolve(ctx context.Context, projectID, stream string, b *store.StoredBlock) (id, name string) {
+func (c *collectionCache) resolve(ctx context.Context, projectID, stream string, b *venue.StoredBlock) (id, name string) {
 	key := projectID + "\x00" + stream + "\x00" + b.ItemName
 	if ref, ok := c.seen[key]; ok {
 		return ref.id, ref.name
@@ -783,7 +784,7 @@ func (e *Engine) existingStreams(ctx context.Context, projectID string, names, b
 // resolveCollection maps a block to its collection via the BlockSource when it
 // implements CollectionResolver; otherwise (or on lookup failure) the block
 // groups under its item name with an empty collection ID.
-func (e *Engine) resolveCollection(ctx context.Context, projectID, stream string, b *store.StoredBlock) (id, name string) {
+func (e *Engine) resolveCollection(ctx context.Context, projectID, stream string, b *venue.StoredBlock) (id, name string) {
 	cr, ok := e.blocks.(CollectionResolver)
 	if ok && b.ItemName != "" {
 		if item, err := cr.GetItem(ctx, projectID, stream, b.ItemName); err == nil && item != nil && item.CollectionID != "" {
@@ -813,14 +814,14 @@ func (e *Engine) resolveCollection(ctx context.Context, projectID, stream string
 // content" — the most dangerous sentence this report can say, and it said it on
 // every real deployment. evalLocales already falls back to the project's
 // language for exactly this case; this is the other half of that fallback.
-func blockText(b *store.StoredBlock, p *store.Project, locale model.LocaleID) string {
+func blockText(b *venue.StoredBlock, p *store.Project, locale model.LocaleID) string {
 	if b.SourceLocale == "" && p != nil && locale == p.DefaultSourceLanguage {
 		return b.SourceText()
 	}
 	return b.Text(locale)
 }
 
-func evalLocales(opts EvalOptions, b *store.StoredBlock, p *store.Project) []model.LocaleID {
+func evalLocales(opts EvalOptions, b *venue.StoredBlock, p *store.Project) []model.LocaleID {
 	if len(opts.Locales) > 0 {
 		return opts.Locales
 	}

@@ -18,6 +18,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // These tests pin the source-review summons: a source change that needs a
@@ -290,7 +291,7 @@ func TestCreateSourceProposalTask_TellsTheDemotedApprovalsReviewer(t *testing.T)
 
 	// An approval by "reviewer", recorded the way the editor records one: the
 	// decider named by email when the auth store could resolve it.
-	_, err := h.cs.UpsertUnitDecisions(ctx, srcProject, "main", []platstore.UnitDecision{
+	_, err := h.cs.UpsertUnitDecisions(ctx, srcProject, "main", []venue.UnitDecision{
 		{
 			ItemName: "a.json", Unit: sb.SourceID, Variant: "fr",
 			ReviewState: "approved", DecidedBy: "reviewer@acme.test",
@@ -340,7 +341,7 @@ func TestPriorApprovers_EmptyWithoutAnApproval(t *testing.T) {
 
 // storedBlock reads back the project's single stored block, so a test can
 // address it by the id the store assigned rather than the id the reader used.
-func storedBlock(t *testing.T, cs *sqlitestore.SQLiteStore, projectID string) *platstore.StoredBlock {
+func storedBlock(t *testing.T, cs *sqlitestore.SQLiteStore, projectID string) *venue.StoredBlock {
 	t.Helper()
 	blocks, err := cs.GetBlocks(t.Context(), platstore.BlockQuery{ProjectID: projectID, Stream: "main"})
 	require.NoError(t, err)

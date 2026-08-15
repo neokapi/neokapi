@@ -14,8 +14,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -24,6 +22,8 @@ import (
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/stretchr/testify/require"
@@ -134,7 +134,7 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 			blockHashes[b.ID] = identity.ContentHash
 		}
 		blockHashesByItem[itemName] = blockHashes
-		itemHashes[itemName] = bowsync.ComputeItemHash(blockHashes)
+		itemHashes[itemName] = venue.ComputeItemHash(blockHashes)
 	}
 
 	basePath := "/api/v1/projects/" + projectID
@@ -222,7 +222,7 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 			if !neededIDs[b.ID] {
 				continue
 			}
-			syncBlocks = append(syncBlocks, bowsync.BlockToProto(b, itemName))
+			syncBlocks = append(syncBlocks, venue.BlockToProto(b, itemName))
 		}
 		if len(syncBlocks) == 0 {
 			continue

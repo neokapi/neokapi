@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // seedChannelProject creates a project holding one collection at one channel.
@@ -27,7 +27,7 @@ func seedChannelProject(t *testing.T, srv *Server, name, workspaceID, collection
 		ID: proj.ID + "-" + collection, ProjectID: proj.ID, Name: collection,
 		Kind: platstore.CollectionUploaded, Stream: "main",
 		Context: map[string]string{"product": "acme", "channel": channel},
-		Owner:   coresync.ContextOwnerRecipe,
+		Owner:   venue.ContextOwnerRecipe,
 	}))
 	return proj
 }
@@ -53,7 +53,7 @@ func TestChannelAliasProposalsRaisedOnPush(t *testing.T) {
 	assert.Equal(t, "website", proposals[0].ProposedChannel)
 	assert.Equal(t, "web", proposals[0].ExistingChannel)
 	assert.Equal(t, "acme", proposals[0].Profile)
-	assert.Equal(t, coresync.EvidencePrefix, proposals[0].Evidence)
+	assert.Equal(t, venue.EvidencePrefix, proposals[0].Evidence)
 	assert.Equal(t, arriving.ID, proposals[0].ProjectID)
 	assert.Equal(t, "docs", proposals[0].Collection)
 

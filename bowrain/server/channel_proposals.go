@@ -8,8 +8,8 @@ import (
 
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	fwproject "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/core/venue"
 
 	"github.com/labstack/echo/v4"
 )
@@ -54,7 +54,7 @@ func (s *Server) raiseChannelAliasProposals(ctx context.Context, proj *platstore
 
 	var proposals []platstore.ChannelAliasProposal
 	for profile, channels := range mine {
-		for _, alias := range coresync.ProposeChannelAliases(sortedKeys(channels), sortedKeys(theirs[profile])) {
+		for _, alias := range venue.ProposeChannelAliases(sortedKeys(channels), sortedKeys(theirs[profile])) {
 			proposals = append(proposals, platstore.ChannelAliasProposal{
 				WorkspaceID:     proj.WorkspaceID,
 				Profile:         profile,

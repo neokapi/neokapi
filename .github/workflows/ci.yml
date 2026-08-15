@@ -907,6 +907,8 @@ jobs:
         run: ./scripts/check-reference-provenance.sh
       - name: Guard — publishable packages declare a license and ship its text
         run: ./scripts/check-package-licenses.sh
+      - name: Guard — release archives ship the license text of the work inside
+        run: ./scripts/check-archive-licenses.sh
       - name: Guard — no compiled executable is tracked in git
         run: ./scripts/check-tracked-binaries.sh
 

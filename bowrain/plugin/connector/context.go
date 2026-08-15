@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
 )
 
@@ -63,7 +63,7 @@ func (c *BowrainSourceConnector) applyPulledContext(ctx context.Context, entries
 		if e == nil || e.Name == "" {
 			continue
 		}
-		owner := bowsync.NormalizeContextOwner(e.Owner)
+		owner := venue.NormalizeContextOwner(e.Owner)
 		observed[e.Name] = bproject.ServerCollection{
 			Coordinates:  maps.Clone(e.Coordinates),
 			Channel:      e.Channel,
@@ -72,7 +72,7 @@ func (c *BowrainSourceConnector) applyPulledContext(ctx context.Context, entries
 		}
 		result.Observed++
 
-		if !bowsync.IsRecipeOwned(owner) {
+		if !venue.IsRecipeOwned(owner) {
 			result.WorkspaceOwned = append(result.WorkspaceOwned, e.Name)
 			continue
 		}

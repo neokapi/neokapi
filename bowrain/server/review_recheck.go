@@ -14,6 +14,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/knowledge"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -57,7 +58,7 @@ const reviewRecheckGroup = "review-recheck"
 // locale — enough for both the forbidden-PRESENCE direction (RV-E, target text
 // only) and the mandated-ABSENCE direction (RV-F, which needs the source text and
 // its locale to know the concept is used and which rendering is mandated).
-type recheckOracle func(sb *platstore.StoredBlock, srcLoc, tgtLoc model.LocaleID) bool
+type recheckOracle func(sb *venue.StoredBlock, srcLoc, tgtLoc model.LocaleID) bool
 
 // subscribeReviewRecheck wires RV-E: a durable consumer group that reacts to
 //
@@ -183,7 +184,7 @@ func (s *Server) recheckConceptViolations(ctx context.Context, wsID, conceptID, 
 	// OLDER, unrelated term. Both the PRESENCE (RV-E) and ABSENCE (RV-F) directions
 	// are covered by the shared predicate; no brand profile applies to a concept
 	// change, hence nil.
-	violates := func(sb *platstore.StoredBlock, srcLoc, tgtLoc model.LocaleID) bool {
+	violates := func(sb *venue.StoredBlock, srcLoc, tgtLoc model.LocaleID) bool {
 		return !blockTermCompliant(ctx, sb.Block, srcLoc, tgtLoc, cTB, nil)
 	}
 	return s.recheckWorkspaceTargets(ctx, wsID, "concept:"+conceptID, violates, actor)
@@ -209,7 +210,7 @@ func (s *Server) recheckRuleViolations(ctx context.Context, wsID, profileID, ter
 	if lowerTerm == "" {
 		return nil
 	}
-	violates := func(sb *platstore.StoredBlock, _, tgtLoc model.LocaleID) bool {
+	violates := func(sb *venue.StoredBlock, _, tgtLoc model.LocaleID) bool {
 		for _, hit := range coreprofile.MatchVocabulary(profile, sb.Block.TargetText(tgtLoc)) {
 			if strings.ToLower(hit.Term) == lowerTerm {
 				return true
@@ -263,7 +264,7 @@ func (s *Server) recheckProjectTargets(ctx context.Context, proj *platstore.Proj
 		return fmt.Errorf("load blocks for %s: %w", proj.ID, err)
 	}
 
-	changed := map[string]*platstore.StoredBlock{} // deduped by block id — one store write per block
+	changed := map[string]*venue.StoredBlock{} // deduped by block id — one store write per block
 	affected := map[model.LocaleID]bool{}
 	for _, sb := range blocks {
 		if sb == nil || sb.Block == nil || !sb.Block.Translatable {

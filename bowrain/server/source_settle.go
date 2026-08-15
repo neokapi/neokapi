@@ -196,7 +196,7 @@ func settleBlockStatus(ctx context.Context, b *model.Block) {
 // differs from the hash its SourceStatus was last stamped against. A block with
 // no committed status (New) has nothing stale to reset. A block with a committed
 // status but no recorded hash is a status that has not yet been through a local
-// settle pass — e.g. an approval pushed from the wire (bowrain/core/sync carries
+// settle pass — e.g. an approval pushed from the wire (core/venue carries
 // __source_status but not the settled-hash). The first settle records the
 // current hash for it (stampSettledHash, always called), so any SUBSEQUENT
 // content edit is caught and re-gated. Because every push starts a convergence

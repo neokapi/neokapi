@@ -13,12 +13,11 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	"github.com/neokapi/neokapi/bowrain/core/store"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/model"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/ref"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // This file also carries the context content type's client half: the recipe's
@@ -109,7 +108,7 @@ type PushCommitRequest struct {
 	// as the content it judges. The server upserts idempotently, so sending
 	// the full set every push is correct first; a hash fast-path is an
 	// optimization this field's shape does not preclude.
-	Decisions []store.UnitDecision `json:"decisions,omitempty"`
+	Decisions []venue.UnitDecision `json:"decisions,omitempty"`
 
 	// ExpectedRef is the compare-and-swap assertion: the governance components
 	// this push last observed on the server. The server asserts only the ones
@@ -157,7 +156,7 @@ type PushContext struct {
 // computes — so an uncoordinated project negotiates "unchanged" rather than
 // re-reconciling nothing on every push.
 func NewPushContext(entries []*pb.SyncContextEntry) *PushContext {
-	return &PushContext{Entries: entries, Hash: bowsync.ContextHashOf(entries)}
+	return &PushContext{Entries: entries, Hash: venue.ContextHashOf(entries)}
 }
 
 // names returns the declared collection names, for the init negotiation.
@@ -236,7 +235,7 @@ const (
 // longer has) is ever required, the caller must pass the FULL block set so
 // ItemHashes / RootHash become authoritative, and this comment + the
 // deletion-ignoring sites below must be revisited together.
-func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, pushCtx *PushContext, decisions []store.UnitDecision, opts ...PushOption) (*SyncPushResponse, error) {
+func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, pushCtx *PushContext, decisions []venue.UnitDecision, opts ...PushOption) (*SyncPushResponse, error) {
 	var settings pushSettings
 	for _, opt := range opts {
 		opt(&settings)
@@ -262,9 +261,9 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 			blockHashes[convergence.BlockKey(b)] = identity.ContentHash
 		}
 		blockHashesByItem[itemName] = blockHashes
-		itemHashes[itemName] = bowsync.ComputeItemHash(blockHashes)
+		itemHashes[itemName] = venue.ComputeItemHash(blockHashes)
 	}
-	rootHash := bowsync.ComputeRootHash(itemHashes)
+	rootHash := venue.ComputeRootHash(itemHashes)
 
 	// 2. Init — send item hashes and the declared context.
 	initResp, err := c.pushInit(ctx, PushInitRequest{
@@ -367,7 +366,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*mod
 			if _, ok := neededIDs[convergence.BlockKey(b)]; !ok {
 				continue
 			}
-			sb := bowsync.BlockToProto(b, itemName)
+			sb := venue.BlockToProto(b, itemName)
 			// Skeleton is format scaffolding that belongs at the connector edge,
 			// not durably in the content store — the standing invariant keeps it
 			// off the default push wire. The proto field stays reserved for the

@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"strconv"
 
-	"github.com/neokapi/neokapi/bowrain/core/store"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // Wire-segment property keys carrying Target metadata across the JSON sync
@@ -26,7 +25,7 @@ const (
 )
 
 // StoredBlockToSyncBlock converts a StoredBlock to the JSON wire type.
-func StoredBlockToSyncBlock(sb *store.StoredBlock) SyncBlock {
+func StoredBlockToSyncBlock(sb *venue.StoredBlock) SyncBlock {
 	b := sb.Block
 	sync := SyncBlock{
 		ID:                 b.ID,
@@ -77,14 +76,14 @@ func StoredBlockToSyncBlock(sb *store.StoredBlock) SyncBlock {
 	// survives the pull. Only emitted when present (nil/empty encode to "[]",
 	// which we drop to keep the wire lean).
 	if len(b.Overlays) > 0 {
-		if data, err := bowsync.MarshalOverlays(b.Overlays); err == nil {
+		if data, err := venue.MarshalOverlays(b.Overlays); err == nil {
 			sync.Overlays = data
 		}
 	}
 
 	// Skeleton (polymorphic parts ride a discriminated codec so they survive).
 	if b.Skeleton != nil {
-		if data, err := bowsync.MarshalSkeleton(b.Skeleton); err == nil {
+		if data, err := venue.MarshalSkeleton(b.Skeleton); err == nil {
 			sync.Skeleton = data
 		}
 	}
@@ -106,7 +105,7 @@ func StoredBlockToSyncBlock(sb *store.StoredBlock) SyncBlock {
 
 // BlockToSyncBlock converts a model.Block and item name to the JSON wire type.
 func BlockToSyncBlock(b *model.Block, itemName string) SyncBlock {
-	sb := &store.StoredBlock{
+	sb := &venue.StoredBlock{
 		Block:    b,
 		ItemName: itemName,
 	}
@@ -115,8 +114,8 @@ func BlockToSyncBlock(b *model.Block, itemName string) SyncBlock {
 	return StoredBlockToSyncBlock(sb)
 }
 
-// AssetToSyncMedia converts a store.Asset to the JSON wire type.
-func AssetToSyncMedia(a *store.Asset) SyncMedia {
+// AssetToSyncMedia converts a venue.Asset to the JSON wire type.
+func AssetToSyncMedia(a *venue.Asset) SyncMedia {
 	return SyncMedia{
 		ID:         a.ID,
 		ItemName:   a.ItemName,
@@ -246,14 +245,14 @@ func SyncBlockToBlock(sb SyncBlock) *model.Block {
 	// overlay JSON codec (typed span values through the payload registry;
 	// unknown kinds degrade to a GenericAnnotation).
 	if len(sb.Overlays) > 0 {
-		if overlays, err := bowsync.UnmarshalOverlays(sb.Overlays); err == nil {
+		if overlays, err := venue.UnmarshalOverlays(sb.Overlays); err == nil {
 			b.Overlays = overlays
 		}
 	}
 
-	// Skeleton (discriminated codec — see bowsync.MarshalSkeleton).
+	// Skeleton (discriminated codec — see venue.MarshalSkeleton).
 	if len(sb.Skeleton) > 0 {
-		if skel, err := bowsync.UnmarshalSkeleton(sb.Skeleton); err == nil {
+		if skel, err := venue.UnmarshalSkeleton(sb.Skeleton); err == nil {
 			b.Skeleton = skel
 		}
 	}

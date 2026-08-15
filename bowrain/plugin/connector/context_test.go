@@ -7,14 +7,14 @@ import (
 
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -113,7 +113,7 @@ func TestApplyPulledContext_RecipeOwnedGovernanceIsNotApplied(t *testing.T) {
 		Coordinates:  map[string]string{"product": "bowrain"},
 		Channel:      "email",
 		VoiceProfile: "Someone Else's Voice",
-		Owner:        bowsync.ContextOwnerRecipe,
+		Owner:        venue.ContextOwnerRecipe,
 	}})
 
 	assert.Equal(t, 1, res.Observed)
@@ -135,7 +135,7 @@ func TestApplyPulledContext_RecipeOwnedGovernanceIsNotApplied(t *testing.T) {
 		Coordinates:  map[string]string{"product": "bowrain"},
 		Channel:      "email",
 		VoiceProfile: "Someone Else's Voice",
-		Owner:        bowsync.ContextOwnerRecipe,
+		Owner:        venue.ContextOwnerRecipe,
 	}, conn.cache.ServerContext["docs"])
 }
 
@@ -149,7 +149,7 @@ func TestApplyPulledContext_AgreementIsNotADivergence(t *testing.T) {
 		Name:        "docs",
 		Coordinates: map[string]string{"product": "kapi", "channel": "docs"},
 		Channel:     "docs",
-		Owner:       bowsync.ContextOwnerRecipe,
+		Owner:       venue.ContextOwnerRecipe,
 	}})
 
 	assert.Equal(t, 1, res.Observed)
@@ -166,12 +166,12 @@ func TestApplyPulledContext_WorkspaceOwnedIsRecorded(t *testing.T) {
 	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{
 		Name:        "uploads",
 		Coordinates: map[string]string{"product": "bowrain"},
-		Owner:       bowsync.ContextOwnerWorkspace,
+		Owner:       venue.ContextOwnerWorkspace,
 	}})
 
 	assert.Equal(t, []string{"uploads"}, res.WorkspaceOwned)
 	assert.Empty(t, res.Diverged)
-	assert.Equal(t, bowsync.ContextOwnerWorkspace, conn.cache.ServerContext["uploads"].Owner)
+	assert.Equal(t, venue.ContextOwnerWorkspace, conn.cache.ServerContext["uploads"].Owner)
 }
 
 // TestApplyPulledContext_UnownedEntryDefaultsToWorkspace pins the conservative
@@ -184,7 +184,7 @@ func TestApplyPulledContext_UnownedEntryDefaultsToWorkspace(t *testing.T) {
 	res := conn.applyPulledContext(t.Context(), []*pb.SyncContextEntry{{Name: "docs"}})
 
 	assert.Equal(t, []string{"docs"}, res.WorkspaceOwned)
-	assert.Equal(t, bowsync.ContextOwnerWorkspace, conn.cache.ServerContext["docs"].Owner)
+	assert.Equal(t, venue.ContextOwnerWorkspace, conn.cache.ServerContext["docs"].Owner)
 }
 
 // The voice used to be excluded from the comparison, so a collection whose
@@ -217,7 +217,7 @@ func TestApplyPulledContext_VoiceDivergenceIsReported(t *testing.T) {
 		Coordinates:  map[string]string{"product": "kapi", "channel": "docs"},
 		Channel:      "docs",
 		VoiceProfile: "Someone Else's Voice",
-		Owner:        bowsync.ContextOwnerRecipe,
+		Owner:        venue.ContextOwnerRecipe,
 	}})
 
 	assert.Equal(t, []string{"docs"}, res.Diverged,
@@ -245,7 +245,7 @@ func TestApplyPulledContext_SameVoiceIsSilent(t *testing.T) {
 		Coordinates:  map[string]string{"product": "kapi", "channel": "docs"},
 		Channel:      "docs",
 		VoiceProfile: "Kapi Docs Voice",
-		Owner:        bowsync.ContextOwnerRecipe,
+		Owner:        venue.ContextOwnerRecipe,
 	}})
 
 	assert.Equal(t, 1, res.Observed)
@@ -263,7 +263,7 @@ func TestApplyPulledContext_VoiceAppearingServerSideIsReported(t *testing.T) {
 		Coordinates:  map[string]string{"product": "kapi", "channel": "docs"},
 		Channel:      "docs",
 		VoiceProfile: "Workspace Default",
-		Owner:        bowsync.ContextOwnerRecipe,
+		Owner:        venue.ContextOwnerRecipe,
 	}})
 
 	assert.Equal(t, []string{"docs"}, res.Diverged)
@@ -281,7 +281,7 @@ func TestApplyPulledContext_WorkspaceOwnedVoiceIsNotADivergence(t *testing.T) {
 		Coordinates:  map[string]string{"product": "kapi", "channel": "docs"},
 		Channel:      "docs",
 		VoiceProfile: "Someone Else's Voice",
-		Owner:        bowsync.ContextOwnerWorkspace,
+		Owner:        venue.ContextOwnerWorkspace,
 	}})
 
 	assert.Empty(t, res.Diverged)
@@ -295,15 +295,15 @@ func TestPushContextChanged_TracksTheRecipe(t *testing.T) {
 	conn := newContextProject(t)
 	assert.False(t, conn.PushContextChanged(), "no declared context is not a change")
 
-	entry := &pb.SyncContextEntry{Name: "docs", Owner: bowsync.ContextOwnerRecipe}
+	entry := &pb.SyncContextEntry{Name: "docs", Owner: venue.ContextOwnerRecipe}
 	conn.SetPushContext(newTestPushContext(entry))
 	assert.True(t, conn.PushContextChanged(), "a context the cache has never seen is a change")
 
-	conn.refs.SetIdentity(conn.stream, ref.ComponentContext, bowsync.ContextHashOf([]*pb.SyncContextEntry{entry}))
+	conn.refs.SetIdentity(conn.stream, ref.ComponentContext, venue.ContextHashOf([]*pb.SyncContextEntry{entry}))
 	assert.False(t, conn.PushContextChanged(), "the same context again is not a change")
 
 	conn.SetPushContext(newTestPushContext(entry, &pb.SyncContextEntry{
-		Name: "marketing", Owner: bowsync.ContextOwnerRecipe,
+		Name: "marketing", Owner: venue.ContextOwnerRecipe,
 	}))
 	assert.True(t, conn.PushContextChanged(), "a newly declared collection is a change")
 }

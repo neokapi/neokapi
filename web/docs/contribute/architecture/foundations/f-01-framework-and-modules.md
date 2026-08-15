@@ -186,7 +186,7 @@ core/
     ai/               Model-backed pipeline tools, prompts, NER
     mt/               Translation-provider pipeline tools
     plugin/           Plugin system: gRPC host, loader, registry, protoconvert
-    proto/            Canonical content-model and engine protobuf schemas
+    proto/            Canonical content-model, engine, and sync protobuf schemas
     blockstore/       Block-addressed, append-only overlay store
     projectdb/        The project's local store handle
     project/          Recipe file format and layout resolution
@@ -198,6 +198,7 @@ core/
     occurrence/       Where a term is actually used
     reconcile/        Matching a fresh read against the previous one
     ref/              The composite freshness ref
+    venue/            Sync-wire conversion and the ref components a venue folds
     segment/          Segmentation engines and masking
     profile/          Voice-profile model
     redaction/        Span redaction and restoration

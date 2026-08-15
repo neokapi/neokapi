@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/core/model"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -56,9 +56,9 @@ func testContextEntries() []*pb.SyncContextEntry {
 			Channel:          "docs",
 			VoiceProfile:     "Acme Voice",
 			VoiceProfileJson: []byte(`{"name":"Acme Voice"}`),
-			Owner:            bowsync.ContextOwnerRecipe,
+			Owner:            venue.ContextOwnerRecipe,
 		},
-		{Name: "marketing", Owner: bowsync.ContextOwnerRecipe},
+		{Name: "marketing", Owner: venue.ContextOwnerRecipe},
 	}
 }
 
@@ -83,7 +83,7 @@ func TestPushCarriesDeclaredContext(t *testing.T) {
 	assert.Equal(t, "Acme Voice", rec.commit.Contexts[0].VoiceProfile)
 	assert.JSONEq(t, `{"name":"Acme Voice"}`, string(rec.commit.Contexts[0].VoiceProfileJson),
 		"the authored voice travels inside the push, not through a call beside it")
-	assert.Equal(t, bowsync.ContextOwnerRecipe, rec.commit.Contexts[0].Owner)
+	assert.Equal(t, venue.ContextOwnerRecipe, rec.commit.Contexts[0].Owner)
 	assert.NotEmpty(t, rec.commit.Contexts[0].ContentHash,
 		"each entry carries the hash the server compares against to stay idempotent")
 }
@@ -197,7 +197,7 @@ func TestPushContextIgnoresUnnamedEntries(t *testing.T) {
 // same hash a server holding none folds, so it reports "unchanged" instead of
 // reconciling nothing on every push.
 func TestPushContextEmptyFoldMatchesNoCollections(t *testing.T) {
-	assert.Equal(t, bowsync.ComputeContextHash(nil), NewPushContext(nil).Hash)
+	assert.Equal(t, venue.ComputeContextHash(nil), NewPushContext(nil).Hash)
 	assert.NotEmpty(t, NewPushContext(nil).Hash, "the empty fold is a real hash, not the empty string")
 }
 

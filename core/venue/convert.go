@@ -5,7 +5,7 @@
 // (core/proto/content/v1, converted by core/plugin/protoconvert — see
 // AD-034); this package only owns the sync-specific envelope (SyncBlock,
 // hashes, the *_json escapes) and the Merkle hash helpers.
-package sync
+package venue
 
 import (
 	"encoding/json"
@@ -13,10 +13,10 @@ import (
 	"maps"
 	"strconv"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/protoconvert"
 	contentv1 "github.com/neokapi/neokapi/core/proto/content/v1"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/ref"
 )
 

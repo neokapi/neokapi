@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The decisions content type, client half. Push carries the project's
@@ -49,7 +49,7 @@ func variantText(k model.VariantKey) string {
 // keys until the reconcile resolver is wired in, so the fallback IS the common
 // case today, and both eras satisfy the same rule: "the document the unit was
 // decided in, as the connector names items".
-func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]platstore.UnitDecision, error) {
+func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]venue.UnitDecision, error) {
 	units, err := state.ReadCommitted(c.project.Layout.UnitStateDir())
 	if err != nil {
 		return nil, fmt.Errorf("read committed unit state: %w", err)
@@ -65,13 +65,13 @@ func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]plat
 		}
 	}
 
-	out := make([]platstore.UnitDecision, 0, len(units))
+	out := make([]venue.UnitDecision, 0, len(units))
 	for _, u := range units {
 		item := u.Scope
 		if p, ok := docPaths[u.Scope]; ok && p != "" {
 			item = p
 		}
-		out = append(out, platstore.UnitDecision{
+		out = append(out, venue.UnitDecision{
 			ItemName:    item,
 			Unit:        u.Unit,
 			Variant:     variantText(u.Variant),
@@ -100,7 +100,7 @@ func (c *BowrainSourceConnector) committedDecisions(ctx context.Context) ([]plat
 // it must be counted, because the pull advances a forward-only stream cursor
 // and the server never offers that record again. An uncounted skip is a review
 // approval, and its attribution, gone with nothing anywhere saying so.
-func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulled []platstore.UnitDecision) (staged, skipped int, err error) {
+func (c *BowrainSourceConnector) stagePulledDecisions(ctx context.Context, pulled []venue.UnitDecision) (staged, skipped int, err error) {
 	if len(pulled) == 0 {
 		return 0, 0, nil
 	}

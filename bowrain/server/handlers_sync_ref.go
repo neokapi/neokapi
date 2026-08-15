@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"net/http"
 
+	bowsync "github.com/neokapi/neokapi/bowrain/sync"
+
 	"github.com/labstack/echo/v4"
 
 	"github.com/neokapi/neokapi/bowrain/apierror"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/ref"
 )
 

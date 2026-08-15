@@ -22,6 +22,7 @@ import (
 	brand "github.com/neokapi/neokapi/core/profile"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/core/venue"
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 	"golang.org/x/time/rate"
 )
@@ -952,7 +953,7 @@ func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob)
 
 // estimateTokens provides a rough token count estimate for a batch of blocks.
 // Uses ~4 characters per token as a heuristic (covers source + target).
-func estimateTokens(blocks []*store.StoredBlock) int {
+func estimateTokens(blocks []*venue.StoredBlock) int {
 	totalChars := 0
 	for _, sb := range blocks {
 		if sb.Block != nil && len(sb.Block.Source) > 0 {
@@ -1041,7 +1042,7 @@ func ProjectDNTTerms(proj *store.Project) []string {
 // committed below it — an authored/checked block a settle pass demoted or left
 // short. A non-translatable block (no source to gate) and a disabled gate
 // (SourceGateNone) always pass.
-func gateBlocksBySource(blocks []*store.StoredBlock, gate model.SourceGateLevel) []*store.StoredBlock {
+func gateBlocksBySource(blocks []*venue.StoredBlock, gate model.SourceGateLevel) []*venue.StoredBlock {
 	if gate == model.SourceGateNone {
 		return blocks
 	}
@@ -1059,7 +1060,7 @@ func gateBlocksBySource(blocks []*store.StoredBlock, gate model.SourceGateLevel)
 }
 
 // storedBlocksToParts converts stored blocks to Part slice (same as editor.go).
-func storedBlocksToParts(storedBlocks []*store.StoredBlock) []*model.Part {
+func storedBlocksToParts(storedBlocks []*venue.StoredBlock) []*model.Part {
 	parts := make([]*model.Part, 0, len(storedBlocks))
 	for _, sb := range storedBlocks {
 		parts = append(parts, &model.Part{

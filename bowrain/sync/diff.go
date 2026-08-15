@@ -4,7 +4,7 @@
 //
 // The pure model<->protobuf converters and the content-hash helpers
 // (ComputeItemHash, ComputeRootHash) live in the framework-only package
-// github.com/neokapi/neokapi/bowrain/core/sync so the bowrain/core push client
+// github.com/neokapi/neokapi/core/venue so the bowrain/core push client
 // can use them without importing the platform module.
 package sync
 
@@ -13,7 +13,7 @@ import (
 	"fmt"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // DiffEngine computes the difference between client and server state
@@ -158,7 +158,7 @@ func (d *DiffEngine) CheckRootHash(ctx context.Context, projectID, stream, clien
 	if err != nil {
 		return false, err
 	}
-	serverRoot := coresync.ComputeRootHash(serverHashes)
+	serverRoot := venue.ComputeRootHash(serverHashes)
 	return clientRootHash == serverRoot, nil
 }
 
@@ -184,7 +184,7 @@ func (d *DiffEngine) loadItemHashes(ctx context.Context, projectID, stream strin
 		if err != nil {
 			return nil, err
 		}
-		itemHashes[item.Name] = coresync.ComputeItemHash(blockHashes)
+		itemHashes[item.Name] = venue.ComputeItemHash(blockHashes)
 	}
 
 	// Cache the result.

@@ -8,8 +8,8 @@ import (
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 
-	"github.com/neokapi/neokapi/bowrain/core/store"
 	corestorage "github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // ---------------------------------------------------------------------------
@@ -89,7 +89,7 @@ type VariantUploadURLRequest struct {
 // Conversion helpers
 // ---------------------------------------------------------------------------
 
-func assetToResponse(a *store.Asset) AssetResponse {
+func assetToResponse(a *venue.Asset) AssetResponse {
 	return AssetResponse{
 		ID:               a.ID,
 		ProjectID:        a.ProjectID,
@@ -108,7 +108,7 @@ func assetToResponse(a *store.Asset) AssetResponse {
 	}
 }
 
-func variantToResponse(v *store.AssetVariant) AssetVariantResponse {
+func variantToResponse(v *venue.AssetVariant) AssetVariantResponse {
 	return AssetVariantResponse{
 		AssetID:    v.AssetID,
 		Locale:     v.Locale,
@@ -202,7 +202,7 @@ func (s *Server) HandleCreateAsset(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "mime_type is required"})
 	}
 
-	asset := &store.Asset{
+	asset := &venue.Asset{
 		ItemName:       req.ItemName,
 		SourceID:       req.SourceID,
 		BlobKey:        req.BlobKey,
@@ -344,7 +344,7 @@ func (s *Server) HandleCreateVariant(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "blob_key is required"})
 	}
 
-	variant := &store.AssetVariant{
+	variant := &venue.AssetVariant{
 		AssetID:    aid,
 		Locale:     req.Locale,
 		BlobKey:    req.BlobKey,

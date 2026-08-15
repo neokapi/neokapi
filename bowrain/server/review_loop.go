@@ -10,6 +10,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // This file connects governed review and delivery (DECISIONS R11). Approving the
@@ -56,7 +57,7 @@ func targetPendingReview(b *model.Block, loc model.LocaleID) bool {
 // localeHasPendingReview reports whether any translatable block still has a
 // target awaiting review for the locale. When it goes false for a locale, that
 // locale's open review task(s) can close.
-func localeHasPendingReview(blocks []*platstore.StoredBlock, loc model.LocaleID) bool {
+func localeHasPendingReview(blocks []*venue.StoredBlock, loc model.LocaleID) bool {
 	for _, sb := range blocks {
 		if sb != nil && targetPendingReview(sb.Block, loc) {
 			return true
@@ -74,7 +75,7 @@ func localeHasPendingReview(blocks []*platstore.StoredBlock, loc model.LocaleID)
 // completion correct even when task creation is imperfect (e.g. a member-less
 // project that only got unassigned/owner-routed tasks), and makes the UI queue
 // and the completion trigger agree exactly.
-func projectHasPendingReview(blocks []*platstore.StoredBlock, targets []model.LocaleID) bool {
+func projectHasPendingReview(blocks []*venue.StoredBlock, targets []model.LocaleID) bool {
 	for _, sb := range blocks {
 		if sb == nil {
 			continue

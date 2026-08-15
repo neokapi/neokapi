@@ -3,8 +3,8 @@ package client
 import (
 	"testing"
 
-	"github.com/neokapi/neokapi/bowrain/core/synctest"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue/venuetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +25,7 @@ import (
 // See web/docs/contribute/implementation/foundations/content-parity.md.
 
 func TestSyncBlockJSONKitchenSinkRoundTrip(t *testing.T) {
-	orig := synctest.KitchenSinkBlock()
+	orig := venuetest.KitchenSinkBlock()
 
 	wire := BlockToSyncBlock(orig, "kitchen.json")
 
@@ -38,7 +38,7 @@ func TestSyncBlockJSONKitchenSinkRoundTrip(t *testing.T) {
 	got := SyncBlockToBlock(wire)
 
 	// Identity is derived (recomputed), not carried; the JSON path never sets it.
-	want := synctest.KitchenSinkBlock()
+	want := venuetest.KitchenSinkBlock()
 	want.Identity = nil
 	got.Identity = nil
 
@@ -49,7 +49,7 @@ func TestSyncBlockJSONKitchenSinkRoundTrip(t *testing.T) {
 // push side already has: every overlay kind survives the JSON pull, with typed
 // span values rehydrated to their concrete type.
 func TestSyncBlockJSONOverlaysRoundTrip(t *testing.T) {
-	orig := synctest.KitchenSinkBlock()
+	orig := venuetest.KitchenSinkBlock()
 
 	got := SyncBlockToBlock(BlockToSyncBlock(orig, "kitchen.json"))
 

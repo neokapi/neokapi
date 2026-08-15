@@ -8,10 +8,10 @@ import (
 
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 )
 
 // contextsync.go builds the context content type a push carries: the
@@ -97,7 +97,7 @@ func BuildPushContext(ctx context.Context, proj *bproject.Project, dryRun bool) 
 		entry := &pb.SyncContextEntry{
 			Name:        coll.Name,
 			Coordinates: governance.Ref().Coordinates(),
-			Owner:       bowsync.ContextOwnerRecipe,
+			Owner:       venue.ContextOwnerRecipe,
 		}
 		if governance != nil {
 			entry.Channel = governance.Channel

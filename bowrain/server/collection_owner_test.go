@@ -8,7 +8,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,7 +35,7 @@ func seedOwnedCollection(t *testing.T, srv *Server, projectID, name, owner strin
 func TestOwnerGate_RecipeOwnedCollectionRefusesUpdate(t *testing.T) {
 	srv, cs, _ := newOriginTestServer(t)
 	proj := seedOriginProject(t, cs, "recipe-owned-update")
-	coll := seedOwnedCollection(t, srv, proj.ID, "docs", bowsync.ContextOwnerRecipe)
+	coll := seedOwnedCollection(t, srv, proj.ID, "docs", venue.ContextOwnerRecipe)
 	e := echo.New()
 
 	rec := httptest.NewRecorder()
@@ -61,7 +61,7 @@ func TestOwnerGate_RecipeOwnedCollectionRefusesDelete(t *testing.T) {
 	srv, cs, _ := newOriginTestServer(t)
 	proj := seedOriginProject(t, cs, "recipe-owned-delete")
 	require.NoError(t, EnsureDefaultCollection(t.Context(), cs, proj.ID))
-	coll := seedOwnedCollection(t, srv, proj.ID, "marketing", bowsync.ContextOwnerRecipe)
+	coll := seedOwnedCollection(t, srv, proj.ID, "marketing", venue.ContextOwnerRecipe)
 	e := echo.New()
 
 	rec := httptest.NewRecorder()
@@ -81,7 +81,7 @@ func TestOwnerGate_RecipeOwnedCollectionRefusesDelete(t *testing.T) {
 func TestOwnerGate_RecipeOwnedCollectionRefusesUpload(t *testing.T) {
 	srv, cs, _ := newOriginTestServer(t)
 	proj := seedOriginProject(t, cs, "recipe-owned-upload")
-	coll := seedOwnedCollection(t, srv, proj.ID, "docs", bowsync.ContextOwnerRecipe)
+	coll := seedOwnedCollection(t, srv, proj.ID, "docs", venue.ContextOwnerRecipe)
 	e := echo.New()
 
 	body, ct := multipartFiles(t, map[string]string{"app.json": `{"a":"b"}`})
@@ -103,7 +103,7 @@ func TestOwnerGate_WorkspaceOwnedCollectionStillMutable(t *testing.T) {
 	srv, cs, _ := newOriginTestServer(t)
 	proj := seedOriginProject(t, cs, "workspace-owned")
 	require.NoError(t, EnsureDefaultCollection(t.Context(), cs, proj.ID))
-	coll := seedOwnedCollection(t, srv, proj.ID, "uploads", bowsync.ContextOwnerWorkspace)
+	coll := seedOwnedCollection(t, srv, proj.ID, "uploads", venue.ContextOwnerWorkspace)
 	e := echo.New()
 
 	// Update applies.

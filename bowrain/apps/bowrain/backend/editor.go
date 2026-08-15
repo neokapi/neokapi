@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 	"github.com/neokapi/neokapi/memory/leverage"
 	"github.com/neokapi/neokapi/terms"
@@ -612,7 +613,7 @@ func blockInfoToBlock(bi BlockInfo) *model.Block {
 }
 
 // storedBlockToBlockInfo converts a StoredBlock to a BlockInfo.
-func storedBlockToBlockInfo(sb *store.StoredBlock, targetLocales []string) BlockInfo {
+func storedBlockToBlockInfo(sb *venue.StoredBlock, targetLocales []string) BlockInfo {
 	targetRuns := make(map[string][]RunInfo, len(targetLocales))
 	// Mirror the server's storedBlockToInfoResponse: targets carries, per
 	// locale, the committed plain text plus the per-locale review status
@@ -1272,7 +1273,7 @@ func computeStats(parts []*model.Part, targetLocale string) *TranslationStats {
 }
 
 // storedBlocksToParts wraps stored blocks as Part objects for tool processing.
-func storedBlocksToParts(storedBlocks []*store.StoredBlock) []*model.Part {
+func storedBlocksToParts(storedBlocks []*venue.StoredBlock) []*model.Part {
 	parts := make([]*model.Part, 0, len(storedBlocks))
 	for _, sb := range storedBlocks {
 		parts = append(parts, &model.Part{

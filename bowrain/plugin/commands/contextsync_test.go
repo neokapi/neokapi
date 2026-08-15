@@ -7,11 +7,11 @@ import (
 	"testing"
 
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -92,7 +92,7 @@ func TestBuildPushContext_CarriesDeclaredCollections(t *testing.T) {
 	require.NotNil(t, docs)
 	assert.Equal(t, map[string]string{"product": "kapi", "channel": "docs"}, docs.Coordinates)
 	assert.Equal(t, "docs", docs.Channel)
-	assert.Equal(t, bowsync.ContextOwnerRecipe, docs.Owner,
+	assert.Equal(t, venue.ContextOwnerRecipe, docs.Owner,
 		"a collection the recipe declares is git's, and says so on the wire")
 	assert.Equal(t, "Acme Voice", docs.VoiceProfile)
 
@@ -169,7 +169,7 @@ func TestBuildPushContext_NoCollectionsStillMakesAClaim(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, pushCtx)
 	assert.Empty(t, pushCtx.Entries)
-	assert.Equal(t, bowsync.ComputeContextHash(nil), pushCtx.Hash)
+	assert.Equal(t, venue.ComputeContextHash(nil), pushCtx.Hash)
 }
 
 // TestBuildPushContext_ExpiredProfileCarriesNoCoordinates pins the push half of

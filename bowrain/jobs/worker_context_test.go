@@ -6,13 +6,13 @@ import (
 	"testing"
 
 	brandstore "github.com/neokapi/neokapi/bowrain/brand"
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -41,9 +41,9 @@ func contextEntry(name string, coords map[string]string, channel, voice string, 
 		Channel:          channel,
 		VoiceProfile:     voice,
 		VoiceProfileJson: voiceJSON,
-		Owner:            bowsync.ContextOwnerRecipe,
+		Owner:            venue.ContextOwnerRecipe,
 	}
-	e.ContentHash = bowsync.ComputeContextEntryHash(e)
+	e.ContentHash = venue.ComputeContextEntryHash(e)
 	return e
 }
 
@@ -79,7 +79,7 @@ func TestReconcileContext_CreatesCollectionWithGovernance(t *testing.T) {
 	col, err := deps.ContentStore.GetCollectionByName(ctx, "p1", "docs", "main")
 	require.NoError(t, err)
 	require.NotNil(t, col)
-	assert.Equal(t, bowsync.ContextOwnerRecipe, col.Owner)
+	assert.Equal(t, venue.ContextOwnerRecipe, col.Owner)
 	assert.Equal(t, map[string]string{"product": "kapi", "channel": "docs"}, col.Context)
 	assert.Equal(t, entries[0].ContentHash, col.ContextHash)
 
@@ -205,7 +205,7 @@ func TestReconcileContext_WorkspaceOwnedIsNotReported(t *testing.T) {
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
 	require.NoError(t, deps.ContentStore.CreateCollection(ctx, &store.Collection{
-		ProjectID: "p1", Name: "uploads", Stream: "main", Owner: bowsync.ContextOwnerWorkspace,
+		ProjectID: "p1", Name: "uploads", Stream: "main", Owner: venue.ContextOwnerWorkspace,
 	}))
 
 	res, err := reconcileContext(ctx, deps, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
@@ -225,7 +225,7 @@ func TestReconcileContext_DeclaringClaimsAWorkspaceCollection(t *testing.T) {
 	newContextProject(t, ctx, deps, "p1", "ws1")
 
 	require.NoError(t, deps.ContentStore.CreateCollection(ctx, &store.Collection{
-		ProjectID: "p1", Name: "docs", Stream: "main", Owner: bowsync.ContextOwnerWorkspace,
+		ProjectID: "p1", Name: "docs", Stream: "main", Owner: venue.ContextOwnerWorkspace,
 	}))
 
 	res, err := reconcileContext(ctx, deps, "p1", "main", "ws1", "user-1", []*pb.SyncContextEntry{
@@ -237,7 +237,7 @@ func TestReconcileContext_DeclaringClaimsAWorkspaceCollection(t *testing.T) {
 
 	col, err := deps.ContentStore.GetCollectionByName(ctx, "p1", "docs", "main")
 	require.NoError(t, err)
-	assert.Equal(t, bowsync.ContextOwnerRecipe, col.Owner)
+	assert.Equal(t, venue.ContextOwnerRecipe, col.Owner)
 }
 
 // TestReconcileContext_ChangedVoiceLandsAsANewVersion pins the brand fold-in:

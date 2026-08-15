@@ -9,10 +9,10 @@ import (
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The decision ledger — the server side of core/state. A decision is a FACT
@@ -43,12 +43,12 @@ func deciderRole(by string) string {
 // with the SQLite store so the two backends cannot disagree on what counts as
 // a change.
 //
-// The comparison lives in bowrain/core/sync because the freshness ref's
+// The comparison lives in core/venue because the freshness ref's
 // decisions component is folded from the same field list. Two lists would let a
 // record the store skips as unchanged still move the component, and every
 // subsequent push would then be refused for a change nobody made.
-func DecisionUnchanged(old, next platstore.UnitDecision) bool {
-	return coresync.SameDecision(old, next)
+func DecisionUnchanged(old, next venue.UnitDecision) bool {
+	return venue.SameDecision(old, next)
 }
 
 // UpsertUnitDecisions implements platstore.DecisionStore: idempotent
@@ -58,7 +58,7 @@ func DecisionUnchanged(old, next platstore.UnitDecision) bool {
 // changes appends a block_history event and re-projects the target status,
 // when the unit resolves to a stored block and the decision still blesses the
 // current translation.
-func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stream string, decisions []platstore.UnitDecision) (int, error) {
+func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stream string, decisions []venue.UnitDecision) (int, error) {
 	if len(decisions) == 0 {
 		return 0, nil
 	}
@@ -77,7 +77,7 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 			continue
 		}
 
-		var old platstore.UnitDecision
+		var old venue.UnitDecision
 		var haveOld bool
 		row := tx.QueryRowContext(ctx,
 			`SELECT status, target_hash, content_hash, review_state, decided_by, decided_at, note, parked, assignee, updated
@@ -190,7 +190,7 @@ func (s *PostgresStore) UpsertUnitDecisions(ctx context.Context, projectID, stre
 }
 
 // ListUnitDecisions implements platstore.DecisionStore.
-func (s *PostgresStore) ListUnitDecisions(ctx context.Context, projectID, stream string) ([]platstore.UnitDecision, error) {
+func (s *PostgresStore) ListUnitDecisions(ctx context.Context, projectID, stream string) ([]venue.UnitDecision, error) {
 	stream = storeutil.DefaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT item_name, unit, variant, status, target_hash, content_hash, review_state,
@@ -203,9 +203,9 @@ func (s *PostgresStore) ListUnitDecisions(ctx context.Context, projectID, stream
 	}
 	defer rows.Close()
 
-	var out []platstore.UnitDecision
+	var out []venue.UnitDecision
 	for rows.Next() {
-		d := platstore.UnitDecision{ProjectID: projectID, Stream: stream}
+		d := venue.UnitDecision{ProjectID: projectID, Stream: stream}
 		if err := rows.Scan(&d.ItemName, &d.Unit, &d.Variant, &d.Status, &d.TargetHash, &d.ContentHash,
 			&d.ReviewState, &d.DecidedBy, &d.DecidedAt, &d.Note, &d.Parked, &d.Assignee, &d.Updated); err != nil {
 			return nil, fmt.Errorf("scan decision: %w", err)

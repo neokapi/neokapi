@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -56,7 +56,7 @@ func TestCurrentRef_ComponentsMoveIndependently(t *testing.T) {
 
 	require.NoError(t, cs.CreateCollection(ctx, &platstore.Collection{
 		ProjectID: projectID, Name: "docs", Kind: platstore.CollectionConnected,
-		Stream: "main", Owner: coresync.ContextOwnerRecipe, ContextHash: "h1",
+		Stream: "main", Owner: venue.ContextOwnerRecipe, ContextHash: "h1",
 	}))
 	afterContext, err := CurrentRef(ctx, src, projectID, "main")
 	require.NoError(t, err)
@@ -64,7 +64,7 @@ func TestCurrentRef_ComponentsMoveIndependently(t *testing.T) {
 	assert.Equal(t, afterContent.Content, afterContext.Content)
 	assert.Equal(t, afterContent.Decisions, afterContext.Decisions)
 
-	_, err = cs.UpsertUnitDecisions(ctx, projectID, "main", []platstore.UnitDecision{{
+	_, err = cs.UpsertUnitDecisions(ctx, projectID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "fr",
 		Status: "reviewed", ReviewState: "approved", DecidedBy: "ana", Updated: "2026-08-01T00:00:00Z",
 	}})
@@ -84,7 +84,7 @@ func TestCurrentRef_IsPerStream(t *testing.T) {
 
 	require.NoError(t, cs.CreateCollection(ctx, &platstore.Collection{
 		ProjectID: projectID, Name: "docs", Kind: platstore.CollectionConnected,
-		Stream: "main", Owner: coresync.ContextOwnerRecipe, ContextHash: "h1",
+		Stream: "main", Owner: venue.ContextOwnerRecipe, ContextHash: "h1",
 	}))
 
 	main, err := CurrentRef(ctx, src, projectID, "main")

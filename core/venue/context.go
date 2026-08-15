@@ -1,4 +1,4 @@
-package sync
+package venue
 
 import (
 	"crypto/sha256"
@@ -6,7 +6,7 @@ import (
 	"maps"
 	"slices"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 )
 
 // The context content type: a project's declared structure and governance —

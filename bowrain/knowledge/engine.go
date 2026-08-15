@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // ---------------------------------------------------------------------------
@@ -35,7 +36,7 @@ type BlockSource interface {
 	// exists before querying it (the walk always includes "main").
 	ListStreams(ctx context.Context, projectID string, includeArchived bool) ([]*store.Stream, error)
 	// GetBlocks returns the blocks matching the query (project + stream scoped).
-	GetBlocks(ctx context.Context, query store.BlockQuery) ([]*store.StoredBlock, error)
+	GetBlocks(ctx context.Context, query store.BlockQuery) ([]*venue.StoredBlock, error)
 }
 
 // CollectionResolver is an optional capability of a BlockSource: it maps a

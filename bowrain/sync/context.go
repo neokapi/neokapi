@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"slices"
 
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The server half of the context content type's negotiation: the diff between
@@ -37,7 +37,7 @@ type ContextDiffResult struct {
 }
 
 // CompareContext performs the context-level comparison. clientContextHash is
-// the fold the client computed over its entries (bowrain/core/sync.ContextHashOf);
+// the fold the client computed over its entries (core/venue.ContextHashOf);
 // declared is the collection names it carries.
 //
 // An empty clientContextHash means the push makes no claim about the declared
@@ -56,14 +56,14 @@ func (d *DiffEngine) CompareContext(ctx context.Context, projectID, stream, clie
 
 	serverHashes := make(map[string]string, len(collections))
 	for _, col := range collections {
-		if col == nil || !coresync.IsRecipeOwned(col.Owner) {
+		if col == nil || !venue.IsRecipeOwned(col.Owner) {
 			continue
 		}
 		serverHashes[col.Name] = col.ContextHash
 	}
 
 	result := &ContextDiffResult{
-		Changed: coresync.ComputeContextHash(serverHashes) != clientContextHash,
+		Changed: venue.ComputeContextHash(serverHashes) != clientContextHash,
 	}
 	for name := range serverHashes {
 		if !slices.Contains(declared, name) {

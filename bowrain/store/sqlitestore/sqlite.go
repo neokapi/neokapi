@@ -10,13 +10,13 @@ import (
 	"time"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/internal/storeutil"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // SQLiteStore implements ContentStore using SQLite via the shared storage layer.
@@ -223,7 +223,7 @@ func (s *SQLiteStore) CreateCollection(ctx context.Context, c *platstore.Collect
 	if err != nil {
 		return fmt.Errorf("marshal collection context: %w", err)
 	}
-	c.Owner = coresync.NormalizeContextOwner(c.Owner)
+	c.Owner = venue.NormalizeContextOwner(c.Owner)
 
 	_, err = s.db.ExecContext(ctx,
 		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, context, owner, context_hash, created_at, updated_at)
@@ -281,7 +281,7 @@ func (s *SQLiteStore) UpdateCollection(ctx context.Context, c *platstore.Collect
 	if err != nil {
 		return fmt.Errorf("marshal collection context: %w", err)
 	}
-	c.Owner = coresync.NormalizeContextOwner(c.Owner)
+	c.Owner = venue.NormalizeContextOwner(c.Owner)
 
 	_, err = s.db.ExecContext(ctx,
 		`UPDATE collections SET name=?, kind=?, item_label=?, stream=?, connector_config=?, context=?, owner=?, context_hash=?, updated_at=?
@@ -349,7 +349,7 @@ func scanCollection(row scanner) (*platstore.Collection, error) {
 	if err := json.Unmarshal([]byte(contextJSON), &c.Context); err != nil {
 		c.Context = map[string]string{}
 	}
-	c.Owner = coresync.NormalizeContextOwner(c.Owner)
+	c.Owner = venue.NormalizeContextOwner(c.Owner)
 	return &c, nil
 }
 
@@ -834,7 +834,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 	return tx.Commit()
 }
 
-func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*platstore.StoredBlock, error) {
+func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*venue.StoredBlock, error) {
 	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
@@ -844,7 +844,7 @@ func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, stream, blockID s
 	if err != nil {
 		return nil, fmt.Errorf("block %s not found in project %s", blockID, projectID)
 	}
-	if err := bstore.HydrateOverlays(ctx, s.db.DB, "sqlite", projectID, stream, []*platstore.StoredBlock{sb}); err != nil {
+	if err := bstore.HydrateOverlays(ctx, s.db.DB, "sqlite", projectID, stream, []*venue.StoredBlock{sb}); err != nil {
 		return nil, err
 	}
 	return sb, nil
@@ -944,7 +944,7 @@ func sqliteBlockFilter(query platstore.BlockQuery, withStatus bool) blockFilterS
 	return blockFilterSQLite{join: join, where: strings.Join(where, " AND "), args: append(joinArgs, whereArgs...)}
 }
 
-func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*platstore.StoredBlock, error) {
+func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*venue.StoredBlock, error) {
 	f := sqliteBlockFilter(query, true)
 
 	// Constant skeleton + rendered fragments carrying placeholders only; every
@@ -1407,8 +1407,8 @@ func scanProject(row scanner) (*platstore.Project, error) {
 	return &p, nil
 }
 
-func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
-	var sb platstore.StoredBlock
+func scanStoredBlock(row scanner) (*venue.StoredBlock, error) {
+	var sb venue.StoredBlock
 	sb.Block = &model.Block{}
 	var translatable int
 	var sourceJSON, propsJSON, overlaysJSON, storedStr, updatedStr string
@@ -1449,7 +1449,7 @@ func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 // Asset CRUD (Bowrain AD-007)
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteStore) StoreAsset(ctx context.Context, projectID, stream string, asset *platstore.Asset) error {
+func (s *SQLiteStore) StoreAsset(ctx context.Context, projectID, stream string, asset *venue.Asset) error {
 	stream = storeutil.DefaultStream(stream)
 	if asset.ID == "" {
 		asset.ID = id.New()
@@ -1515,7 +1515,7 @@ func (s *SQLiteStore) StoreAsset(ctx context.Context, projectID, stream string, 
 	return tx.Commit()
 }
 
-func (s *SQLiteStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*platstore.Asset, error) {
+func (s *SQLiteStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*venue.Asset, error) {
 	stream = storeutil.DefaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, blob_key, mime_type, filename,
@@ -1524,7 +1524,7 @@ func (s *SQLiteStore) GetAsset(ctx context.Context, projectID, stream, assetID s
 	return scanAsset(row)
 }
 
-func (s *SQLiteStore) ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*platstore.Asset, error) {
+func (s *SQLiteStore) ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*venue.Asset, error) {
 	stream = storeutil.DefaultStream(stream)
 	var rows *sql.Rows
 	var err error
@@ -1573,8 +1573,8 @@ func (s *SQLiteStore) DeleteAsset(ctx context.Context, projectID, stream, assetI
 // assetScanner is an alias for scanner (storage.Scanner).
 type assetScanner = scanner
 
-func scanAsset(row assetScanner) (*platstore.Asset, error) {
-	var a platstore.Asset
+func scanAsset(row assetScanner) (*venue.Asset, error) {
+	var a venue.Asset
 	var propsJSON, createdStr, updatedStr string
 	err := row.Scan(&a.ID, &a.ProjectID, &a.ItemName, &a.SourceID, &a.BlobKey, &a.MimeType,
 		&a.Filename, &a.SizeBytes, &a.AltText, &propsJSON, &a.ProcessingStatus, &a.ProcessingHint,
@@ -1594,7 +1594,7 @@ func scanAsset(row assetScanner) (*platstore.Asset, error) {
 // Asset Variants (Bowrain AD-007)
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteStore) StoreAssetVariant(ctx context.Context, projectID string, variant *platstore.AssetVariant) error {
+func (s *SQLiteStore) StoreAssetVariant(ctx context.Context, projectID string, variant *venue.AssetVariant) error {
 	now := time.Now().UTC()
 	variant.CreatedAt = now
 	variant.UpdatedAt = now
@@ -1654,14 +1654,14 @@ func (s *SQLiteStore) StoreAssetVariant(ctx context.Context, projectID string, v
 	return tx.Commit()
 }
 
-func (s *SQLiteStore) GetAssetVariant(ctx context.Context, _, assetID, locale string) (*platstore.AssetVariant, error) {
+func (s *SQLiteStore) GetAssetVariant(ctx context.Context, _, assetID, locale string) (*venue.AssetVariant, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at
 		 FROM asset_variants WHERE asset_id=? AND locale=?`, assetID, locale)
 	return scanAssetVariant(row)
 }
 
-func (s *SQLiteStore) ListAssetVariants(ctx context.Context, _, assetID string) ([]*platstore.AssetVariant, error) {
+func (s *SQLiteStore) ListAssetVariants(ctx context.Context, _, assetID string) ([]*venue.AssetVariant, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at
 		 FROM asset_variants WHERE asset_id=? ORDER BY locale`, assetID)
@@ -1671,8 +1671,8 @@ func (s *SQLiteStore) ListAssetVariants(ctx context.Context, _, assetID string) 
 	return storage.ScanRows(rows, scanAssetVariant)
 }
 
-func scanAssetVariant(row assetScanner) (*platstore.AssetVariant, error) {
-	var v platstore.AssetVariant
+func scanAssetVariant(row assetScanner) (*venue.AssetVariant, error) {
+	var v venue.AssetVariant
 	var propsJSON, createdStr, updatedStr string
 	err := row.Scan(&v.AssetID, &v.Locale, &v.BlobKey, &v.Status, &v.MimeType,
 		&v.SizeBytes, &propsJSON, &createdStr, &updatedStr)

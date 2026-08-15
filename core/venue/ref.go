@@ -1,9 +1,8 @@
-package sync
+package venue
 
 import (
 	"slices"
 
-	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/terms"
 )
@@ -29,7 +28,7 @@ import (
 // matters here: the committed record arrives in shard order and the server's
 // ledger arrives in SQL order, and the two must agree whenever they hold the
 // same decisions.
-func DecisionsComponent(decisions []store.UnitDecision) string {
+func DecisionsComponent(decisions []UnitDecision) string {
 	if len(decisions) == 0 {
 		return ""
 	}
@@ -47,7 +46,7 @@ func DecisionsComponent(decisions []store.UnitDecision) string {
 }
 
 // decisionKey is the ledger's own primary key, rendered for the fold.
-func decisionKey(d store.UnitDecision) string {
+func decisionKey(d UnitDecision) string {
 	return d.ItemName + "\x00" + d.Unit + "\x00" + d.Variant
 }
 
@@ -60,20 +59,20 @@ func decisionKey(d store.UnitDecision) string {
 // really did. Updated is excluded for that reason: it orders conflicting
 // records for last-writer-wins, and a replay that only bumped it writes
 // nothing, so counting it would report a change no reader could find.
-func DecisionIdentity(d store.UnitDecision) string {
+func DecisionIdentity(d UnitDecision) string {
 	return ref.Identity(decisionFields(d)...)
 }
 
 // SameDecision reports whether two records say the same thing about a unit —
 // the idempotency test a store applies before writing, and the equality the
 // decisions component is folded from.
-func SameDecision(a, b store.UnitDecision) bool {
+func SameDecision(a, b UnitDecision) bool {
 	return slices.Equal(decisionFields(a), decisionFields(b))
 }
 
 // decisionFields lists a decision's identity-bearing fields in a fixed order.
 // One list serves both the equality test and the hash, so the two cannot drift.
-func decisionFields(d store.UnitDecision) []string {
+func decisionFields(d UnitDecision) []string {
 	parked := "false"
 	if d.Parked {
 		parked = "true"

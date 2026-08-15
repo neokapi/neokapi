@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/terms"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The trial: what the checks say on one stream, before and after.
@@ -144,7 +145,7 @@ func (e *Engine) TrialFindings(ctx context.Context, workspaceID string, cs Chang
 	scoped.ProjectID = projectID
 	scoped.Streams = []string{stream}
 
-	walkErr := e.walkBlocks(ctx, workspaceID, scoped, func(p *store.Project, st string, b *store.StoredBlock, locale model.LocaleID, text, colID, colName string) error {
+	walkErr := e.walkBlocks(ctx, workspaceID, scoped, func(p *store.Project, st string, b *venue.StoredBlock, locale model.LocaleID, text, colID, colName string) error {
 		report.TotalBlocks++
 
 		raised, cleared, err := diffFindings(ctx, before, after, pairs, locale, text)

@@ -10,20 +10,21 @@ import (
 	"strconv"
 	"strings"
 
+	bowsync "github.com/neokapi/neokapi/bowrain/sync"
+
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/bowrain/core/store"
-	bowsynccore "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/jobs"
-	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/id"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/storage/compression"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The sync handlers scope to a stream via refParam (editor.go): every sync
@@ -518,7 +519,7 @@ func (s *Server) pullContextEntries(ctx context.Context, projectID, stream strin
 			Name:        col.Name,
 			Coordinates: col.Context,
 			Channel:     col.ConnectorConfig[coreprofile.PropertyChannel],
-			Owner:       bowsynccore.NormalizeContextOwner(col.Owner),
+			Owner:       venue.NormalizeContextOwner(col.Owner),
 			ContentHash: col.ContextHash,
 		}
 		if pid := col.ConnectorConfig[coreprofile.PropertyProfileID]; pid != "" {

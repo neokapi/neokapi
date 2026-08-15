@@ -6,6 +6,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,11 +20,11 @@ func blockWithTarget(id, source, target string, status model.TargetStatus) *mode
 	return b
 }
 
-func listDecisions(t *testing.T, s *PostgresStore, projectID string) map[string]platstore.UnitDecision {
+func listDecisions(t *testing.T, s *PostgresStore, projectID string) map[string]venue.UnitDecision {
 	t.Helper()
 	got, err := s.ListUnitDecisions(t.Context(), projectID, "main")
 	require.NoError(t, err)
-	byKey := map[string]platstore.UnitDecision{}
+	byKey := map[string]venue.UnitDecision{}
 	for _, d := range got {
 		byKey[d.ItemName+"|"+d.Unit+"|"+d.Variant] = d
 	}
@@ -61,7 +62,7 @@ func TestUnitDecisions_UpsertProjectsAndIsIdempotent(t *testing.T) {
 		blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated),
 	}))
 
-	decision := platstore.UnitDecision{
+	decision := venue.UnitDecision{
 		ItemName:    "en.json",
 		Unit:        "greeting",
 		Variant:     "nb",
@@ -73,7 +74,7 @@ func TestUnitDecisions_UpsertProjectsAndIsIdempotent(t *testing.T) {
 		Updated:     "2026-08-04T10:00:00Z",
 	}
 
-	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{decision})
+	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{decision})
 	require.NoError(t, err)
 	assert.Equal(t, 1, changed)
 	assert.Equal(t, model.TargetStatusReviewed, targetStatus(t, s, p.ID, "en.json", "greeting"),
@@ -86,7 +87,7 @@ func TestUnitDecisions_UpsertProjectsAndIsIdempotent(t *testing.T) {
 	assert.Equal(t, "approved", got.ReviewState)
 
 	// Identical replay: the idempotency the full-set-every-push wire relies on.
-	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{decision})
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{decision})
 	require.NoError(t, err)
 	assert.Zero(t, changed, "an identical record is a no-op")
 
@@ -96,13 +97,13 @@ func TestUnitDecisions_UpsertProjectsAndIsIdempotent(t *testing.T) {
 	newer.ReviewState = "signed-off"
 	newer.DecidedAt = "2026-08-04T11:00:00Z"
 	newer.Updated = "2026-08-04T11:00:00Z"
-	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{newer})
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{newer})
 	require.NoError(t, err)
 	assert.Equal(t, 1, changed)
 	assert.Equal(t, model.TargetStatusSignedOff, targetStatus(t, s, p.ID, "en.json", "greeting"))
 
 	// Replaying the OLD record must not roll the sign-off back.
-	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{decision})
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{decision})
 	require.NoError(t, err)
 	assert.Zero(t, changed, "an older record never rolls a newer decision back")
 	assert.Equal(t, model.TargetStatusSignedOff, targetStatus(t, s, p.ID, "en.json", "greeting"))
@@ -120,7 +121,7 @@ func TestUnitDecisions_StaleOnArrivalDoesNotProject(t *testing.T) {
 		blockWithTarget("greeting", "Hello", "Hei der", model.TargetStatusTranslated),
 	}))
 
-	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:     string(model.TargetStatusReviewed),
 		TargetHash: state.TargetHash("Hei"), // blesses a DIFFERENT translation
@@ -145,7 +146,7 @@ func TestUnitDecisions_SourceEditDemotesApproval(t *testing.T) {
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
 		blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated),
 	}))
-	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:     string(model.TargetStatusReviewed),
 		TargetHash: state.TargetHash("Hei"),
@@ -182,7 +183,7 @@ func TestUnitDecisions_RestoredSourceFindsItsApproval(t *testing.T) {
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{
 		blockWithTarget("greeting", "Hello", "Hei", model.TargetStatusTranslated),
 	}))
-	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:      string(model.TargetStatusReviewed),
 		TargetHash:  state.TargetHash("Hei"),
@@ -274,7 +275,7 @@ func TestTallyDecisionBasis(t *testing.T) {
 			if basis == "current" {
 				basis = state.SourceHash("Hello")
 			}
-			_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+			_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 				ItemName: "en.json", Unit: tt.unit, Variant: "nb",
 				Status:      string(model.TargetStatusReviewed),
 				TargetHash:  state.TargetHash("Hei"),
@@ -319,7 +320,7 @@ func TestUnitDecisions_StaleBasisDoesNotProject(t *testing.T) {
 		blockWithTarget("greeting", "Hello there", "Hei", model.TargetStatusTranslated),
 	}))
 
-	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:      string(model.TargetStatusReviewed),
 		TargetHash:  state.TargetHash("Hei"),

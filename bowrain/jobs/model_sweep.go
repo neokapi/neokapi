@@ -15,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	brand "github.com/neokapi/neokapi/core/profile"
 	coretools "github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // Measured steerability (model recommendation sweeps): the platform
@@ -133,12 +134,12 @@ func (c *SweepContext) Empty() bool {
 //
 // A block matching several traps is counted once under the first matching
 // category. Non-translatable and oversized blocks are skipped.
-func DeriveSweepFixtures(blocks []*store.StoredBlock, sc *SweepContext) []SweepFixture {
+func DeriveSweepFixtures(blocks []*venue.StoredBlock, sc *SweepContext) []SweepFixture {
 	if sc == nil {
 		return nil
 	}
 	// Deterministic visit order.
-	sorted := make([]*store.StoredBlock, 0, len(blocks))
+	sorted := make([]*venue.StoredBlock, 0, len(blocks))
 	for _, sb := range blocks {
 		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
 			continue

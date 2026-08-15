@@ -16,9 +16,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/core/model"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // TestSyncPushE2E exercises the full sync push protocol against a live server+worker.
@@ -62,8 +62,8 @@ func TestSyncPushE2E(t *testing.T) {
 		identity := model.ComputeIdentity(b)
 		blockHashes[b.ID] = identity.ContentHash
 	}
-	itemHash := bowsync.ComputeItemHash(blockHashes)
-	rootHash := bowsync.ComputeRootHash(map[string]string{"en.json": itemHash})
+	itemHash := venue.ComputeItemHash(blockHashes)
+	rootHash := venue.ComputeRootHash(map[string]string{"en.json": itemHash})
 
 	// 3. Init — send item hashes.
 	initBody, _ := json.Marshal(map[string]any{
@@ -96,7 +96,7 @@ func TestSyncPushE2E(t *testing.T) {
 	// 5. Upload chunk via proxy.
 	var syncBlocks []*pb.SyncBlock
 	for _, b := range blocks {
-		syncBlocks = append(syncBlocks, bowsync.BlockToProto(b, "en.json"))
+		syncBlocks = append(syncBlocks, venue.BlockToProto(b, "en.json"))
 	}
 	chunk := &pb.SyncChunk{
 		ContentType: "blocks",

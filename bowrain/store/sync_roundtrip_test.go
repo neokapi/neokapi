@@ -3,9 +3,9 @@ package store
 import (
 	"testing"
 
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
-	"github.com/neokapi/neokapi/bowrain/core/synctest"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
+	"github.com/neokapi/neokapi/core/venue/venuetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -32,10 +32,10 @@ func TestSyncOverlayFullChainRoundTrip(t *testing.T) {
 	p := createTestProject(t, s)
 
 	const item = "locales/en.json"
-	orig := synctest.KitchenSinkBlock()
+	orig := venuetest.KitchenSinkBlock()
 
 	// 1. Client push encode → 2. server ingest decode.
-	ingested, err := bowsync.ProtoToBlock(bowsync.BlockToProto(orig, item))
+	ingested, err := venue.ProtoToBlock(venue.BlockToProto(orig, item))
 	require.NoError(t, err)
 
 	// 3. Store the ingested block. Use the item-less StoreBlocks path so the
@@ -49,7 +49,7 @@ func TestSyncOverlayFullChainRoundTrip(t *testing.T) {
 	require.NotNil(t, stored)
 
 	// 5. Server pull encode → 6. client pull decode.
-	pulled, err := bowsync.ProtoToBlock(bowsync.BlockToProto(stored.Block, item))
+	pulled, err := venue.ProtoToBlock(venue.BlockToProto(stored.Block, item))
 	require.NoError(t, err)
 
 	// Headline: every overlay kind survives the whole chain with anchors, props,

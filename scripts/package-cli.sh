@@ -12,9 +12,17 @@
 # Archive shapes (must stay stable — referenced by formulae/registry/docs).
 # Names mirror the Homebrew naming: the CLI toolchain is the kapi-cli / kapi-*
 # family, the desktop app is plain "kapi" (see release.yml).
-#   kapi-cli_<ver>_<os>_<arch>.tar.gz        -> kapi               (linux/darwin)
+#   kapi-cli_<ver>_<os>_<arch>.tar.gz        -> kapi, LICENSE      (linux/darwin)
 #   kapi-bowrain_<ver>_<os>_<arch>.tar.gz    -> bowrain/{kapi-bowrain,manifest.json}
 #   kapi-bowrain_<ver>_windows_amd64.zip     -> bowrain/{kapi-bowrain.exe,manifest.json}
+#
+# Every archive carries the license text of the work inside it. Both licenses
+# this repository uses require it — Apache-2.0 §4(a) ("You must give any other
+# recipients of the Work or Derivative Works a copy of this License") and
+# AGPL-3.0 §4 ("give all recipients a copy of this License along with the
+# Program") — and the SPDX string in a manifest or a formula is a label, not the
+# grant. `scripts/check-archive-licenses.sh` packages a dummy tree and asserts
+# it, so an archive family added without license text fails rather than ships.
 #
 # Usage: package-cli.sh <version> <bins-dir> <out-dir> <manifest-json>
 #   bins-dir   holds the downloaded cli-bins-<os>-<arch>/ subdirectories
@@ -26,6 +34,12 @@ version="${1:?version required}"
 bins_dir="${2:?bins dir required}"
 out_dir="${3:?out dir required}"
 manifest="${4:?manifest.json path required}"
+
+# The license text each track ships, resolved from this script's location so the
+# packager works from any CWD.
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+kapi_license="$repo_root/LICENSE"
+[ -f "$kapi_license" ] || { echo "package-cli.sh: missing $kapi_license" >&2; exit 1; }
 
 mkdir -p "$out_dir"
 # Resolve to an absolute path: the Windows archive is created inside a
@@ -51,7 +65,8 @@ for d in "$bins_dir"/cli-bins-*; do
     mkdir -p "$stage"
     cp "$d/kapi" "$stage/kapi"
     chmod +x "$stage/kapi"
-    tar -czf "$out_dir/kapi-cli_${version}_${os}_${arch}.tar.gz" -C "$stage" kapi
+    cp "$kapi_license" "$stage/LICENSE"
+    tar -czf "$out_dir/kapi-cli_${version}_${os}_${arch}.tar.gz" -C "$stage" kapi LICENSE
   fi
 
   # --- kapi-bowrain plugin (bowrain/ dir + manifest.json) ---

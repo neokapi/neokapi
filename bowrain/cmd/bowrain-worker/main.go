@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"time"
 
+	bowsync "github.com/neokapi/neokapi/bowrain/sync"
+
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
@@ -34,7 +36,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/storage/blobcfg"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	sqltb "github.com/neokapi/neokapi/bowrain/terms"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/version"

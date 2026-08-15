@@ -22,6 +22,7 @@ import (
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // This file is the server venue of the convergence loop (strategy
@@ -640,10 +641,10 @@ func (o *convergenceOrchestrator) deriveFunc(projectID, stream string, localeFil
 		// fully covered (a check pass is pointless below full coverage — the
 		// locale is pending regardless). This bounds the expensive full-block
 		// read to runs approaching their gate.
-		var blocks []*platstore.StoredBlock
+		var blocks []*venue.StoredBlock
 		var blocksErr error
 		blocksLoaded := false
-		loadBlocks := func() ([]*platstore.StoredBlock, error) {
+		loadBlocks := func() ([]*venue.StoredBlock, error) {
 			if !blocksLoaded {
 				blocks, blocksErr = s.ContentStore.GetBlocks(ctx, platstore.BlockQuery{ProjectID: projectID, Stream: runStream(stream)})
 				blocksLoaded = true
@@ -716,7 +717,7 @@ func (o *convergenceOrchestrator) deriveFunc(projectID, stream string, localeFil
 // derive uses when the dashboard stats see zero units — the pending-work
 // question ("does a translatable block lack a target for a configured locale?")
 // must never depend on item rows existing.
-func blockCoverage(blocks []*platstore.StoredBlock, locale model.LocaleID) (total, translated int) {
+func blockCoverage(blocks []*venue.StoredBlock, locale model.LocaleID) (total, translated int) {
 	for _, sb := range blocks {
 		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
 			continue
@@ -733,7 +734,7 @@ func blockCoverage(blocks []*platstore.StoredBlock, locale model.LocaleID) (tota
 // blocks and returns how many carry an error-severity finding — the units the
 // gate must demote. At full coverage every translatable block has a target for
 // the locale, so the QA tool always reads a real translation.
-func countFailingBlocks(ctx context.Context, blocks []*platstore.StoredBlock, locale model.LocaleID) int {
+func countFailingBlocks(ctx context.Context, blocks []*venue.StoredBlock, locale model.LocaleID) int {
 	failing := 0
 	for _, sb := range blocks {
 		if sb.Block == nil || !sb.Block.Translatable {

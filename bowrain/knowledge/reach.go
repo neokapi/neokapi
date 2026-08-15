@@ -7,6 +7,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // The reach split: what a change-set's blast radius actually costs.
@@ -250,7 +251,7 @@ func (c *classAcc) class() ReachClass {
 // A translation with no committed runs is not a translation — the store keeps a
 // row for a target the moment one is queued — so an empty one is skipped rather
 // than counted as work a change would invalidate.
-func blockTargetLocales(b *store.StoredBlock) (locales, approved []string) {
+func blockTargetLocales(b *venue.StoredBlock) (locales, approved []string) {
 	if b == nil || b.Block == nil || len(b.Targets) == 0 {
 		return nil, nil
 	}

@@ -6,12 +6,12 @@ import (
 	"testing"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	pgstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/store/sqlitestore"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -43,7 +43,7 @@ func seedCoordinateProject(t *testing.T, cs platstore.ContentStore) string {
 		Kind:      platstore.CollectionConnected,
 		Stream:    "main",
 		Context:   map[string]string{"product": "kapimart", "surface": "web"},
-		Owner:     coresync.ContextOwnerRecipe,
+		Owner:     venue.ContextOwnerRecipe,
 		ConnectorConfig: map[string]string{
 			coreprofile.PropertyChannel: "web",
 			"type":                      "github",

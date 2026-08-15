@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	coresync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/ref"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/terms"
 )
 
@@ -104,7 +104,7 @@ func ContextComponentOf(ctx context.Context, cs platstore.ContentStore, projectI
 	}
 	hashes := make(map[string]string, len(collections))
 	for _, col := range collections {
-		if col == nil || !coresync.IsRecipeOwned(col.Owner) {
+		if col == nil || !venue.IsRecipeOwned(col.Owner) {
 			continue
 		}
 		hashes[col.Name] = col.ContextHash
@@ -116,7 +116,7 @@ func ContextComponentOf(ctx context.Context, cs platstore.ContentStore, projectI
 		// "current" against a server that has simply never been told.
 		return "", nil
 	}
-	return coresync.ComputeContextHash(hashes), nil
+	return venue.ComputeContextHash(hashes), nil
 }
 
 // DecisionsComponentOf folds the stream's decision ledger.
@@ -129,7 +129,7 @@ func DecisionsComponentOf(ctx context.Context, cs platstore.ContentStore, projec
 	if err != nil {
 		return "", fmt.Errorf("ref decisions component: %w", err)
 	}
-	return coresync.DecisionsComponent(decisions), nil
+	return venue.DecisionsComponent(decisions), nil
 }
 
 // TermsComponentOf folds a workspace's terminology into the terms component. It
@@ -148,5 +148,5 @@ func TermsComponentOf(ctx context.Context, source TermsSource) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("ref terms component relations: %w", err)
 	}
-	return coresync.TermsComponent(concepts, relations), nil
+	return venue.TermsComponent(concepts, relations), nil
 }

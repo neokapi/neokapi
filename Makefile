@@ -244,7 +244,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-vocabulary check-vocab-packs check-comment-history check-reference-provenance check-package-licenses check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-vocabulary check-vocab-packs check-comment-history check-reference-provenance check-package-licenses check-archive-licenses check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
@@ -265,6 +265,9 @@ check-lockfile-idempotent: ## Guard: re-resolving pnpm-lock.yaml with the pinned
 
 check-package-licenses: ## Guard: every non-private package.json declares a license and ships its LICENSE
 	@./scripts/check-package-licenses.sh
+
+check-archive-licenses: ## Guard: every release archive ships the license text of the work inside it
+	@./scripts/check-archive-licenses.sh
 
 check-tracked-binaries: ## Guard: no compiled executable (ELF/Mach-O/PE) is tracked in git
 	@./scripts/check-tracked-binaries.sh
@@ -383,6 +386,7 @@ endif
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		core/proto/content/v1/*.proto core/proto/engine/v1/*.proto \
+		core/proto/sync/v1/*.proto \
 		core/plugin/proto/v1/*.proto core/plugin/proto/v2/*.proto
 
 _fw-deps:
@@ -684,7 +688,7 @@ audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness
 	    if [ -n "$$bad" ]; then \
 	      echo "ERROR: bowrain/core must be framework-only — it imports the main bowrain module:"; \
 	      echo "$$bad" | sed 's/^/    /'; \
-	      echo "  (move the shared code into a low package under bowrain/core, e.g. bowrain/core/sync or bowrain/core/proto/sync/v1)"; \
+	      echo "  (move the shared code down to where both sides may reach it — the framework, e.g. core/venue or core/proto/sync/v1)"; \
 	      rc=1; \
 	    fi; \
 	  fi; \
@@ -2525,7 +2529,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test test-fast test-unit test-race test-verbose test-integration \
         parity-sandbox parity-test parity-publish parity-clean regen-okapi-fixtures check-eval batch-eval batch-eval-publish context-eval context-eval-publish context-eval-validate check-models update-model-prices update-model-catalog \
         contract-audit contract-audit-all contract-audit-clean okapi-failsafe-reports \
-        fmt vet lint check check-framework check-bowrain check-abs-paths check-vocabulary check-comment-history check-lockfile-idempotent check-package-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
+        fmt vet lint check check-framework check-bowrain check-abs-paths check-vocabulary check-comment-history check-lockfile-idempotent check-package-licenses check-archive-licenses check-tracked-binaries check-gofmt workspace-paths test-parallel \
         test-framework test-cli test-kapi test-platform test-bowrain-plugin test-bowrain \
         test-plugins test-sat-plugin test-check-plugin test-vision-plugin test-asr-plugin test-pdfium-plugin \
         bowrain-desktop-test \

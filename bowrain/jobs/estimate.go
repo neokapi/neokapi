@@ -6,6 +6,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 )
 
@@ -89,7 +90,7 @@ func EstimateConvergence(ctx context.Context, cs store.ContentStore, tm memory.S
 	// Partition source blocks by the gate. A disabled gate (none) admits every
 	// block, so Ready == Total and nothing is held — the estimate then covers the
 	// whole corpus, matching the run's raw-MT behavior.
-	var ready []*store.StoredBlock
+	var ready []*venue.StoredBlock
 	for _, sb := range blocks {
 		if sb == nil || sb.Block == nil || !sb.Block.Translatable {
 			continue
@@ -114,7 +115,7 @@ func EstimateConvergence(ctx context.Context, cs store.ContentStore, tm memory.S
 		work := EstimateLocaleWork{Locale: string(loc)}
 
 		// Pending = ready blocks with no target for this locale.
-		var pending []*store.StoredBlock
+		var pending []*venue.StoredBlock
 		for _, sb := range ready {
 			if hasLocaleTarget(sb.Block, target) {
 				continue

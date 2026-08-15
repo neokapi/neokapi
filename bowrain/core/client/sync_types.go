@@ -3,9 +3,9 @@ package client
 import (
 	"encoding/json"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	"github.com/neokapi/neokapi/bowrain/core/store"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/ref"
+	"github.com/neokapi/neokapi/core/venue"
 )
 
 // SyncBlock carries the full block model through the sync boundary (Bowrain AD-009 Phase 7).
@@ -27,7 +27,7 @@ type SyncBlock struct {
 	Annotations  json.RawMessage          `json:"annotations,omitempty"`
 	// Overlays are the block's positional, run-anchored stand-off layers
 	// (segmentation, term, entity, term-candidate, qa, alignment, plugin-defined),
-	// carried as the canonical overlay JSON (bowrain/core/sync.MarshalOverlays) so
+	// carried as the canonical overlay JSON (core/venue.MarshalOverlays) so
 	// a term/entity/segmentation marked in kapi survives push→store→pull. A span's
 	// typed Value rides as a discriminated {"type","data"} envelope, matching the
 	// annotations blob above.
@@ -183,7 +183,7 @@ type RichPullResponse struct {
 	// not cursor-driven: the ledger is small and the client reconciles it
 	// last-writer-wins into its working store, where `kapi commit` remains
 	// the only door into the git-tracked record.
-	Decisions []store.UnitDecision `json:"decisions,omitempty"`
+	Decisions []venue.UnitDecision `json:"decisions,omitempty"`
 
 	// Ref is the server's freshness ref for this stream. A pointer because a
 	// server too old to publish one and a server publishing an empty one are

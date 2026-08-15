@@ -6,6 +6,7 @@ import (
 	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,14 +26,14 @@ func TestUnitDecisions_SQLiteContract(t *testing.T) {
 	src.Target("nb").Status = model.TargetStatusTranslated
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{src}))
 
-	decision := platstore.UnitDecision{
+	decision := venue.UnitDecision{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:     string(model.TargetStatusReviewed),
 		TargetHash: state.TargetHash("Hei"),
 		DecidedBy:  "reviewer@example.com",
 		Updated:    "2026-08-04T10:00:00Z",
 	}
-	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{decision})
+	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{decision})
 	require.NoError(t, err)
 	assert.Equal(t, 1, changed)
 
@@ -53,7 +54,7 @@ func TestUnitDecisions_SQLiteContract(t *testing.T) {
 	assert.Equal(t, model.TargetStatusReviewed, status(), "approval projects onto the stored target")
 
 	// Idempotent replay.
-	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{decision})
+	changed, err = s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{decision})
 	require.NoError(t, err)
 	assert.Zero(t, changed)
 
@@ -88,7 +89,7 @@ func TestUnitDecisions_RestoredSourceFindsItsApproval_SQLite(t *testing.T) {
 	src.Target("nb").Status = model.TargetStatusTranslated
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{src}))
 
-	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+	_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:      string(model.TargetStatusReviewed),
 		TargetHash:  state.TargetHash("Hei"),
@@ -187,7 +188,7 @@ func TestTallyDecisionBasis_SQLite(t *testing.T) {
 			if basis == "current" {
 				basis = state.SourceHash("Hello")
 			}
-			_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+			_, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 				ItemName: "en.json", Unit: tt.unit, Variant: "nb",
 				Status:      string(model.TargetStatusReviewed),
 				TargetHash:  state.TargetHash("Hei"),
@@ -234,7 +235,7 @@ func TestUpsertUnitDecisions_StaleBasisDoesNotProject_SQLite(t *testing.T) {
 	src.Target("nb").Status = model.TargetStatusTranslated
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "main", "en.json", []*model.Block{src}))
 
-	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []platstore.UnitDecision{{
+	changed, err := s.UpsertUnitDecisions(ctx, p.ID, "main", []venue.UnitDecision{{
 		ItemName: "en.json", Unit: "greeting", Variant: "nb",
 		Status:      string(model.TargetStatusReviewed),
 		TargetHash:  state.TargetHash("Hei"),

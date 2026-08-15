@@ -12,7 +12,7 @@ import (
 // block's source-side metadata — it has no SourceStatus column — so the
 // source-first convergence gate would lose the status it stamps unless the
 // stores fold it into properties on write and lift it back out on read. The key
-// is identical to the one bowrain/core/sync uses on the wire, so the value
+// is identical to the one core/venue uses on the wire, so the value
 // round-trips losslessly across push → store → read.
 const PropSourceStatus = "__source_status"
 

@@ -23,18 +23,17 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	platstore "github.com/neokapi/neokapi/bowrain/core/store"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
 )
 
@@ -652,7 +651,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts bowrainconn.Push
 	if derr != nil {
 		return nil, derr
 	}
-	decisionsHash := bowsync.DecisionsComponent(decisions)
+	decisionsHash := venue.DecisionsComponent(decisions)
 	decisionsChanged := decisionsHash != c.refs.Ref(c.stream).Decisions
 	if !decisionsChanged {
 		decisions = nil // unchanged: the server already holds this record
@@ -1076,7 +1075,7 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts bowrainconn.Pull
 	// Collect all blocks across paginated responses.
 	var allBlocks []apiclient.SyncBlock
 	var contexts []*pb.SyncContextEntry
-	var decisions []platstore.UnitDecision
+	var decisions []venue.UnitDecision
 	var served *ref.Ref
 
 	for {

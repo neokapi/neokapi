@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	pb "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1"
-	bowsync "github.com/neokapi/neokapi/bowrain/core/sync"
 	syncengine "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/model"
+	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -35,7 +35,7 @@ func TestSyncPush_Init_Unchanged(t *testing.T) {
 	ctx := t.Context()
 	itemHashes, err := diffEngine.ExportItemHashes(ctx, pid, "main")
 	require.NoError(t, err)
-	rootHash := bowsync.ComputeRootHash(itemHashes)
+	rootHash := venue.ComputeRootHash(itemHashes)
 
 	// Init with matching root hash → unchanged.
 	body, _ := json.Marshal(map[string]any{
@@ -137,8 +137,8 @@ func TestSyncPush_FullPushFlow(t *testing.T) {
 		ContentType: "blocks",
 		RecordCount: 2,
 		Blocks: []*pb.SyncBlock{
-			bowsync.BlockToProto(b1, "en.json"),
-			bowsync.BlockToProto(b2, "en.json"),
+			venue.BlockToProto(b1, "en.json"),
+			venue.BlockToProto(b2, "en.json"),
 		},
 	}
 	chunkData, err := proto.Marshal(chunk)

@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/state"
+	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/memory"
 )
 
@@ -35,14 +36,14 @@ func PromoteDecisionsToMemory(
 	tm memory.Store,
 	projectID, stream string,
 	sourceLocale model.LocaleID,
-	decisions []store.UnitDecision,
+	decisions []venue.UnitDecision,
 ) (promoted, evicted int) {
 	if tm == nil || cs == nil || sourceLocale.IsEmpty() || len(decisions) == 0 {
 		return 0, 0
 	}
 
 	// One block load per item, not per decision.
-	byItem := map[string][]store.UnitDecision{}
+	byItem := map[string][]venue.UnitDecision{}
 	for _, d := range decisions {
 		if d.ItemName == "" || d.Unit == "" || d.Variant == "" {
 			continue
@@ -65,7 +66,7 @@ func PromoteDecisionsToMemory(
 				"project", projectID, "item", itemName, "error", err)
 			continue
 		}
-		bySource := map[string]*store.StoredBlock{}
+		bySource := map[string]*venue.StoredBlock{}
 		for _, sb := range rows {
 			if sb.SourceID != "" {
 				bySource[sb.SourceID] = sb

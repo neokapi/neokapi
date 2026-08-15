@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	bowsync "github.com/neokapi/neokapi/bowrain/sync"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -53,7 +55,6 @@ import (
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	bwblockstore "github.com/neokapi/neokapi/bowrain/store/blockstore"
-	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	coreblockstore "github.com/neokapi/neokapi/core/blockstore"
 )
 

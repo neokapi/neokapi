@@ -1,12 +1,12 @@
-// sync.proto — Sync protocol messages (Bowrain AD-009).
-// Defines the content layer for chunked, diff-based content sync.
+// sync.proto — Sync protocol messages.
+// Defines the content layer for chunked, diff-based content sync between a
+// project and a venue.
 //
-// These messages live in their own proto + Go package (syncv1) so the
-// framework-only bowrain/core module can import them for the push client
-// without pulling the editor/server gRPC service surface. The wire format is
-// unchanged from when these lived alongside the service protos — proto wire
-// encoding depends only on field numbers, not the proto/Go package name, and
-// no service proto references any Sync* message by name.
+// These messages live in their own proto + Go package (syncv1), beside the
+// canonical content schema, so any client can speak the sync wire without
+// pulling in a venue's service surface. The proto package name carries no
+// venue noun and the encoding depends only on field numbers, so the schema is
+// independent of where either side of the exchange lives.
 //
 // Run/segment content embeds the canonical content-model schema
 // (core/proto/content/v1, see AD-034) instead of redefining it. The former
@@ -22,7 +22,7 @@ package neokapi.sync.v1;
 
 import "core/proto/content/v1/content.proto";
 
-option go_package = "github.com/neokapi/neokapi/bowrain/core/proto/sync/v1;syncv1";
+option go_package = "github.com/neokapi/neokapi/core/proto/sync/v1;syncv1";
 
 // ---------------------------------------------------------------------------
 // Freshness ref
