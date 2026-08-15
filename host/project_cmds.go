@@ -319,7 +319,7 @@ func ScaffoldContentRecipe(name, sourceLocale string) []byte {
 	b.WriteString("    pack: professional-b2b\n")
 	b.WriteString(`
 # Content project: no target_languages. Point collections at the source files
-# to keep in voice, then run 'kapi run check' to score them. Block state lives
+# to keep in voice, then run 'kapi check' to score them. Block state lives
 # in the project store, .kapi/work/store.db.
 #
 # collections:
@@ -332,8 +332,9 @@ func ScaffoldContentRecipe(name, sourceLocale string) []byte {
 collections: []
 
 # The check flow scores content against the voice vocabulary (deterministic,
-# offline) and gates on the result. Add the AI-driven 'voice-check' step
-# for tone and voice scoring (needs an AI provider).
+# offline). 'kapi check' reports the score and gates on it; 'kapi run check'
+# runs the same flow over every tracked file. Add the AI-driven 'voice-check'
+# step for tone and voice scoring (needs an AI provider).
 flows:
   check:
     steps:

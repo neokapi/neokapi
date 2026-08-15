@@ -52,6 +52,9 @@ const WorkDirName = "work"
 // place.
 const StateGitignore = WorkDirName + "/\n" + LocalFiltersFilename + "\n"
 
+// StateGitignoreFilename is where StateGitignore is written, inside `.kapi/`.
+const StateGitignoreFilename = ".gitignore"
+
 // WorkDir returns the absolute path of the machine-state directory.
 func (l Layout) WorkDir() string {
 	return filepath.Join(l.StateDir, WorkDirName)
@@ -344,6 +347,19 @@ func EnsureLayout(layout Layout) error {
 	} {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("project: create %s: %w", filepath.Base(dir), err)
+		}
+	}
+
+	// The ignore rule belongs to the layout, not to one command: every surface
+	// that creates a state directory arrives here, and the directory is meant to
+	// be committed — so without it a first `git add` stages the store, the
+	// caches and the redaction vault, which the split above exists to keep out.
+	// Written only when absent, so a project that has edited its own rule keeps
+	// what it wrote.
+	ignorePath := filepath.Join(layout.StateDir, StateGitignoreFilename)
+	if _, err := os.Stat(ignorePath); errors.Is(err, os.ErrNotExist) {
+		if err := os.WriteFile(ignorePath, []byte(StateGitignore), 0o644); err != nil {
+			return fmt.Errorf("project: write %s: %w", StateGitignoreFilename, err)
 		}
 	}
 	return nil
