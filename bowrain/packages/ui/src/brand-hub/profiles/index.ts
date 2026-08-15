@@ -1,5 +1,7 @@
 export { ProfilesView, ProfilesSkeleton } from "./ProfilesView";
 export type { ProfilesViewProps } from "./ProfilesView";
+export { ContextOnboarding } from "./ContextOnboarding";
+export type { ContextOnboardingProps } from "./ContextOnboarding";
 export { ProfileDetailView, ProfileDetailSkeleton } from "./ProfileDetailView";
 export type { ProfileDetailViewProps } from "./ProfileDetailView";
 export { ProfileCard } from "./ProfileCard";

@@ -19,6 +19,8 @@ import { ListCapRow } from "./ListCapRow";
 import { LoopStatusRow, type LoopStatusData } from "./LoopStatusRow";
 import { ProjectFormDialog } from "./ProjectFormDialog";
 import type { ProjectFormData } from "./ProjectFormDialog";
+import { StarterPromptCard } from "./StarterPromptCard";
+import { TEST_IDS } from "../test-ids";
 import {
   FolderOpen,
   ArrowRight,
@@ -31,8 +33,6 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  Copy,
-  Check,
   UserPlus,
 } from "./icons";
 
@@ -90,9 +90,6 @@ function compactNumber(n: number): string {
   if (n < 1_000_000) return `${Math.round(n / 1000)}k`;
   return `${(n / 1_000_000).toFixed(1)}M`;
 }
-
-/** Docs entry point for the assistant-driven starter-pack flow. */
-const STARTER_PACK_DOCS_URL = "https://bowrain.cloud/docs/quickstart";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -346,54 +343,6 @@ function ProjectCard({
 // First run: one screen, three distinct ways in
 // ---------------------------------------------------------------------------
 
-/** Copyable prompt for the user's AI assistant (starter-pack onboarding). */
-function StarterPrompt({
-  workspaceName,
-  serverUrl,
-}: {
-  workspaceName?: string;
-  serverUrl?: string;
-}) {
-  const [copied, setCopied] = useState(false);
-
-  const target = workspaceName ? `the ${workspaceName} workspace` : "this workspace";
-  const prompt = `Install the kapi skill, then: set up a brand starter pack for ${target} and connect this project to Bowrain${serverUrl ? ` at ${serverUrl}` : ""}.`;
-
-  const handleCopy = useCallback(() => {
-    void navigator.clipboard?.writeText(prompt).then(
-      () => {
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
-      },
-      () => {},
-    );
-  }, [prompt]);
-
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-muted-foreground">Prompt for your assistant</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 gap-1 text-xs"
-          onClick={handleCopy}
-          data-testid="copy-starter-prompt"
-        >
-          {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-          {copied ? "Copied" : "Copy"}
-        </Button>
-      </div>
-      <pre
-        data-testid="starter-prompt"
-        className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-foreground/90"
-      >
-        {prompt}
-      </pre>
-    </div>
-  );
-}
-
 function OnboardingView({
   workspaceName,
   serverUrl,
@@ -426,7 +375,7 @@ function OnboardingView({
   );
 
   return (
-    <div data-testid="empty-projects">
+    <div data-testid={TEST_IDS.onboarding.emptyProjects}>
       {/* Page hero */}
       <div className="mx-auto mb-10 max-w-2xl text-center">
         {workspaceName && (
@@ -444,53 +393,27 @@ function OnboardingView({
       </div>
 
       {/* Hero card: assistant-driven starter pack */}
-      <Card className="relative mb-5 overflow-hidden border-primary/20 md:min-h-[300px]">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.06] to-transparent"
-        />
-        <CardContent className="relative grid items-start gap-8 px-6 py-6 md:grid-cols-[1.15fr_1fr] md:px-8 md:py-8">
-          <div>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                <Sparkles className="h-5 w-5 text-primary" />
-              </div>
-              <h3 className="text-base font-semibold">
-                Build your brand starter pack with your AI
-              </h3>
-            </div>
-            <p className="mb-4 text-sm leading-relaxed text-muted-foreground">
-              Point Claude — or any AI assistant with the kapi skill — at your website or
-              repository. It reads your material, drafts a voice profile and terminology, and pushes
-              both to this workspace, so every translation starts on brand.
+      <StarterPromptCard
+        className="mb-5"
+        workspaceName={workspaceName}
+        serverUrl={serverUrl}
+        footer={
+          onScanBrand && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              No assistant at hand?{" "}
+              <button
+                type="button"
+                onClick={onScanBrand}
+                data-testid="onboarding-scan-brand"
+                className="cursor-pointer border-none bg-transparent p-0 font-medium text-foreground underline underline-offset-2 hover:text-primary"
+              >
+                Run the hosted brand scan
+              </button>{" "}
+              instead.
             </p>
-            <a
-              href={STARTER_PACK_DOCS_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-            >
-              How the starter pack works
-              <ArrowRight className="h-3.5 w-3.5" />
-            </a>
-            {onScanBrand && (
-              <p className="mt-4 text-sm text-muted-foreground">
-                No assistant at hand?{" "}
-                <button
-                  type="button"
-                  onClick={onScanBrand}
-                  data-testid="onboarding-scan-brand"
-                  className="cursor-pointer border-none bg-transparent p-0 font-medium text-foreground underline underline-offset-2 hover:text-primary"
-                >
-                  Run the hosted brand scan
-                </button>{" "}
-                instead.
-              </p>
-            )}
-          </div>
-          <StarterPrompt workspaceName={workspaceName} serverUrl={serverUrl} />
-        </CardContent>
-      </Card>
+          )
+        }
+      />
 
       {/* Second row: project + team */}
       <div className="grid gap-5 sm:grid-cols-2">

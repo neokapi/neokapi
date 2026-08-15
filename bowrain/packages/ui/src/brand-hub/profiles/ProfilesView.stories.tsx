@@ -4,6 +4,7 @@ import { ProfilesView } from "./ProfilesView";
 import {
   emptyProfiles,
   fragmentedChannels,
+  governedButUndeclared,
   populatedProfiles,
   withProfiles,
 } from "../../stories/contextProfileFixtures";
@@ -29,8 +30,20 @@ type Story = StoryObj<typeof ProfilesView>;
 /** Several declared points, one of them ungoverned, plus an unbound voice. */
 export const Populated: Story = { decorators: [withProfiles(populatedProfiles)] };
 
-/** A workspace that has pushed nothing: one point, and what would declare more. */
-export const OnlyTheDefault: Story = { decorators: [withProfiles(emptyProfiles)] };
+/** Nothing governs anything yet: the front door offers both ways in. */
+export const Blank: Story = {
+  args: { serverUrl: "https://app.bowrain.cloud" },
+  decorators: [withProfiles(emptyProfiles)],
+};
+
+/** Blank, on a server that runs no scan jobs: the assistant lane alone. */
+export const BlankWithoutHostedScan: Story = {
+  args: { onScanBrand: undefined, serverUrl: "https://app.bowrain.cloud" },
+  decorators: [withProfiles(emptyProfiles)],
+};
+
+/** A voice on the default point, but nothing pushed: what would declare more. */
+export const OnlyTheDefault: Story = { decorators: [withProfiles(governedButUndeclared)] };
 
 /** No hosted scan configured, so the scan action is absent. */
 export const WithoutHostedScan: Story = {

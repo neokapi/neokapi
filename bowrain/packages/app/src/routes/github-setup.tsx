@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch, Link } from "@tanstack/react-router";
 import {
@@ -13,6 +13,8 @@ import {
   Label,
   Loader2,
   Plus,
+  StarterPromptCard,
+  TEST_IDS,
   useAnalytics,
   useApi,
   useAuth,
@@ -435,6 +437,19 @@ export function GithubSetupRoute() {
   // can't fork the flow mid-import. Holds the importing repo's full_name.
   const [importingRepo, setImportingRepo] = useState<string | null>(null);
 
+  // The repository this visit connected, and whether its content has landed.
+  // Holding the user here is the point: a repository has just been handed over,
+  // which is the one moment the assistant prompt below costs nothing to act on.
+  const [connected, setConnected] = useState<{ repository: string; projectId: string } | null>(
+    null,
+  );
+  const [imported, setImported] = useState(false);
+  const handleConnected = useCallback((info: { repository: string; projectId: string }) => {
+    setConnected(info);
+    setImported(false);
+  }, []);
+  const handleImported = useCallback(() => setImported(true), []);
+
   const projects = useQuery({
     ...projectsQueryOptions(api, activeSlug),
     enabled: !!user && !!activeSlug,
@@ -548,6 +563,7 @@ export function GithubSetupRoute() {
 
   const projectList = projects.data?.map((p) => ({ id: p.id, name: p.name })) ?? [];
   const unboundCount = repos.data?.filter((r) => !r.connector_id).length ?? 0;
+  const activeWorkspace = workspaces.data?.find((w) => w.slug === activeSlug);
 
   return (
     <Shell>
@@ -603,6 +619,8 @@ export function GithubSetupRoute() {
             projects={projectList}
             autoExpand={unboundCount === 1}
             locked={importingRepo !== null && importingRepo !== repo.full_name}
+            onConnected={handleConnected}
+            onImported={handleImported}
             onImportStateChange={(active) => {
               setImportingRepo((current) => {
                 if (active) return repo.full_name;
@@ -626,6 +644,39 @@ export function GithubSetupRoute() {
           </p>
         )}
       </div>
+
+      {connected && (
+        <div className="mt-5 flex flex-col gap-3" data-testid={TEST_IDS.onboarding.githubConnected}>
+          <StarterPromptCard
+            workspaceName={activeWorkspace?.name}
+            serverUrl={window.location.origin}
+            repoUrl={`https://github.com/${connected.repository}`}
+          />
+          {imported ? (
+            <div>
+              <Button
+                onClick={() =>
+                  void navigate({
+                    to: "/$workspace/p/$projectId/s/$stream",
+                    params: {
+                      workspace: activeSlug,
+                      projectId: connected.projectId,
+                      stream: "main",
+                    },
+                  })
+                }
+                data-testid={TEST_IDS.onboarding.githubOpenProject}
+              >
+                Open the project
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              The import runs in the background — the prompt above works while it does.
+            </p>
+          )}
+        </div>
+      )}
     </Shell>
   );
 }
@@ -665,6 +716,8 @@ function RepoRow({
   projects,
   autoExpand,
   locked,
+  onConnected,
+  onImported,
   onImportStateChange,
   onChanged,
 }: {
@@ -676,12 +729,15 @@ function RepoRow({
   autoExpand: boolean;
   /** Another repository's import is in flight: this row's controls lock. */
   locked: boolean;
+  /** Reports the bind that tied this repository to a project. */
+  onConnected: (info: { repository: string; projectId: string }) => void;
+  /** Reports that this repository's content has landed in its project. */
+  onImported: (info: { repository: string; projectId: string }) => void;
   /** Reports when this row's connect/import starts (true) or aborts (false). */
   onImportStateChange: (active: boolean) => void;
   onChanged: () => void;
 }) {
   const api = useApi();
-  const navigate = useNavigate();
   // Default to creating a project named after the repo — the first-time path
   // must be one obvious click; picking an existing project stays available.
   const [projectId, setProjectId] = useState("__new__");
@@ -731,6 +787,7 @@ function RepoRow({
     setImporting({ connectorId: res.connector_id, projectId: res.project_id });
     setImportStartedAt(Date.now());
     setNow(Date.now());
+    onConnected({ repository: repo.full_name, projectId: res.project_id });
     onChanged();
   };
 
@@ -823,15 +880,13 @@ function RepoRow({
     ? Math.max(0, Math.floor((now - importStartedAt) / 1000))
     : 0;
 
-  // The repository's content is in: hand over to the project page, where the
-  // dashboard and live run progress pick the story up.
+  // The repository's content is in. The page reports it and offers the way on
+  // rather than jumping there itself: the hand-over screen is where the
+  // assistant prompt lives, and a jump would take it away unread.
   useEffect(() => {
     if (!importing || importPhase !== "ready") return;
-    void navigate({
-      to: "/$workspace/p/$projectId/s/$stream",
-      params: { workspace: workspaceSlug, projectId: importing.projectId, stream: "main" },
-    });
-  }, [importing, importPhase, navigate, workspaceSlug]);
+    onImported({ repository: repo.full_name, projectId: importing.projectId });
+  }, [importing, importPhase, onImported, repo.full_name]);
 
   const boundProject = useMemo(
     () => projects.find((p) => p.id === repo.project_id),
@@ -864,6 +919,13 @@ function RepoRow({
               >
                 Retry import
               </Button>
+            </div>
+          ) : importPhase === "ready" ? (
+            <div
+              className="flex shrink-0 items-center gap-2"
+              data-testid={`imported-${repo.full_name}`}
+            >
+              <Badge>imported</Badge>
             </div>
           ) : (
             <div

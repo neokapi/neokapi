@@ -168,6 +168,14 @@ export { WorkspaceSwitcher } from "./components/WorkspaceSwitcher";
 export { LocaleSelect, MultiLocaleSelect } from "./components/LocaleSelect";
 export { ProjectDashboard } from "./components/ProjectDashboard";
 export type { ProjectDashboardProps } from "./components/ProjectDashboard";
+// The assistant lane, shared by every surface that offers it.
+export {
+  StarterPromptCard,
+  StarterPrompt,
+  starterPromptText,
+  STARTER_PACK_DOCS_URL,
+} from "./components/StarterPromptCard";
+export type { StarterPromptCardProps, StarterPromptProps } from "./components/StarterPromptCard";
 export { LoopStatusRow } from "./components/LoopStatusRow";
 export type {
   LoopActivitySummary,
@@ -898,6 +906,7 @@ export {
   // Profiles section — the hub's landing: one card per coordinate point.
   ProfilesView,
   ProfilesSkeleton,
+  ContextOnboarding,
   ProfileDetailView,
   ProfileDetailSkeleton,
   ProfileCard,
@@ -938,6 +947,7 @@ export {
 export type {
   BrandHubProps,
   ProfilesViewProps,
+  ContextOnboardingProps,
   ProfileDetailViewProps,
   ProfileCardProps,
   ConceptsSectionProps,

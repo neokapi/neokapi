@@ -18,14 +18,16 @@ import { GithubSetupRoute } from "./github-setup";
 const search = vi.hoisted(() => ({
   value: { installation_id: 147350515 } as Record<string, unknown>,
 }));
+const router = vi.hoisted(() => ({ navigate: vi.fn() }));
 vi.mock("@tanstack/react-router", () => ({
   useSearch: () => search.value,
-  useNavigate: () => vi.fn(),
+  useNavigate: () => router.navigate,
   Link: ({ children }: { children?: React.ReactNode }) => <a>{children}</a>,
 }));
 
 afterEach(() => {
   search.value = { installation_id: 147350515 };
+  router.navigate.mockClear();
 });
 
 const user: User = {
@@ -393,6 +395,65 @@ describe("GithubSetupRoute project path", () => {
     );
     // Never the raw JSON the incident showed.
     expect(notice.textContent).not.toContain('{"current"');
+  });
+});
+
+describe("GithubSetupRoute starter prompt", () => {
+  /** What the connector reports once the initial import has landed. */
+  const importedStatus = { lastSync: "2026-08-11T09:00:00Z", errors: [] as string[] };
+
+  it("offers the assistant prompt with the repository folded in, the moment it binds", async () => {
+    setup();
+
+    fireEvent.click(await screen.findByTestId("create-and-connect-acme/website"));
+
+    const panel = await screen.findByTestId("github-setup-connected");
+    expect(panel).toHaveTextContent("Build your brand starter pack with your AI");
+    const prompt = screen.getByTestId("starter-prompt").textContent ?? "";
+    expect(prompt).toContain("Install the kapi skill");
+    expect(prompt).toContain("read https://github.com/acme/website");
+    expect(prompt).toContain("the Ada Lovelace workspace");
+    // The import is still running, and the prompt does not wait for it.
+    expect(screen.getByTestId("importing-acme/website")).toBeInTheDocument();
+  });
+
+  it("keeps the user on the hand-over screen and offers the project explicitly", async () => {
+    setup({ overrides: { getConnectorStatus: vi.fn().mockResolvedValue(importedStatus) } });
+
+    fireEvent.click(await screen.findByTestId("create-and-connect-acme/website"));
+
+    const open = await screen.findByTestId("github-setup-open-project");
+    expect(screen.getByTestId("imported-acme/website")).toHaveTextContent("imported");
+    // Nothing navigated on its own — the prompt would have gone unread.
+    expect(router.navigate).not.toHaveBeenCalled();
+
+    fireEvent.click(open);
+    expect(router.navigate).toHaveBeenCalledWith({
+      to: "/$workspace/p/$projectId/s/$stream",
+      params: { workspace: "ada", projectId: "p-9", stream: "main" },
+    });
+  });
+
+  it("offers nothing before a repository is connected", async () => {
+    setup();
+
+    await screen.findByTestId("create-and-connect-acme/website");
+    expect(screen.queryByTestId("github-setup-connected")).not.toBeInTheDocument();
+  });
+
+  it("copies the prompt to the clipboard", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    setup();
+
+    fireEvent.click(await screen.findByTestId("create-and-connect-acme/website"));
+    fireEvent.click(await screen.findByTestId("copy-starter-prompt"));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+    expect(writeText.mock.calls[0][0]).toContain("read https://github.com/acme/website");
   });
 });
 

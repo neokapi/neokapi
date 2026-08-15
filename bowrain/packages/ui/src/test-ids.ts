@@ -100,6 +100,19 @@ export const TEST_IDS = {
     profileNameInput: "brand-profile-name-input",
   },
 
+  // ── Blank-slate onboarding (the assistant and hosted lanes) ──────
+  onboarding: {
+    emptyProjects: "empty-projects",
+    starterPromptCard: "starter-prompt-card",
+    starterPrompt: "starter-prompt",
+    copyStarterPrompt: "copy-starter-prompt",
+    contextLanes: "context-onboarding",
+    contextScanCard: "context-onboarding-scan",
+    contextScanButton: "context-onboarding-scan-btn",
+    githubConnected: "github-setup-connected",
+    githubOpenProject: "github-setup-open-project",
+  },
+
   // ── Brand scan (AI brand onboarding — epic 016) ──────────────────
   brandScan: {
     input: "brand-scan-input",

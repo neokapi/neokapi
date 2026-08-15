@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vite-plus/test";
 import type { ReactNode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
@@ -9,7 +9,11 @@ import type { Workspace } from "../types/api";
 import { ProfilesView } from "../brand-hub/profiles/ProfilesView";
 import { ProfileDetailView } from "../brand-hub/profiles/ProfileDetailView";
 import { CoordinateReadout } from "../brand-hub/profiles/Coordinates";
-import { emptyProfiles, populatedProfiles } from "../stories/contextProfileFixtures";
+import {
+  emptyProfiles,
+  governedButUndeclared,
+  populatedProfiles,
+} from "../stories/contextProfileFixtures";
 
 const workspace: Workspace = {
   id: "ws-1",
@@ -96,11 +100,54 @@ describe("ProfilesView", () => {
     expect(screen.getAllByText(/23 rules here/)).toHaveLength(3);
   });
 
-  it("tells a workspace with only the default point what would declare more", async () => {
+  it("offers both onboarding lanes at the front door of an empty workspace", async () => {
+    renderWithProviders(
+      <ProfilesView onOpenProfile={vi.fn()} onScanBrand={vi.fn()} serverUrl="https://bw.example" />,
+      adapterFor(emptyProfiles),
+    );
+
+    await waitFor(() => expect(screen.getByTestId("context-onboarding")).toBeInTheDocument());
+    // The assistant lane, with the same copyable prompt the blank-workspace
+    // landing offers.
+    expect(screen.getByText("Build your brand starter pack with your AI")).toBeInTheDocument();
+    const prompt = screen.getByTestId("starter-prompt").textContent ?? "";
+    expect(prompt).toContain("Install the kapi skill");
+    expect(prompt).toContain("the Demo workspace");
+    expect(prompt).toContain("https://bw.example");
+    // The hosted lane.
+    expect(screen.getByTestId("context-onboarding-scan-btn")).toBeInTheDocument();
+    // The deeper guidance is not what a workspace with nothing needs first.
+    expect(screen.queryByText("One point so far")).not.toBeInTheDocument();
+  });
+
+  it("fires the hosted scan from the landing empty state", async () => {
+    const onScanBrand = vi.fn();
+    renderWithProviders(
+      <ProfilesView onOpenProfile={vi.fn()} onScanBrand={onScanBrand} />,
+      adapterFor(emptyProfiles),
+    );
+
+    fireEvent.click(await screen.findByTestId("context-onboarding-scan-btn"));
+    expect(onScanBrand).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the assistant lane when the server runs no hosted scan", async () => {
     renderWithProviders(<ProfilesView onOpenProfile={vi.fn()} />, adapterFor(emptyProfiles));
+
+    await waitFor(() => expect(screen.getByTestId("context-onboarding")).toBeInTheDocument());
+    expect(screen.getByTestId("starter-prompt")).toBeInTheDocument();
+    expect(screen.queryByTestId("context-onboarding-scan")).not.toBeInTheDocument();
+  });
+
+  it("tells a workspace that has a voice but no points what would declare more", async () => {
+    renderWithProviders(
+      <ProfilesView onOpenProfile={vi.fn()} />,
+      adapterFor(governedButUndeclared),
+    );
 
     await waitFor(() => expect(screen.getByText("One point so far")).toBeInTheDocument());
     expect(screen.getByText(/kapi push/)).toBeInTheDocument();
+    expect(screen.queryByTestId("context-onboarding")).not.toBeInTheDocument();
   });
 });
 
