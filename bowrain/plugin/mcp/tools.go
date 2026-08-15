@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/bowrain/plugin/internal/projflow"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/locale"
@@ -21,6 +20,7 @@ import (
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	clioutput "github.com/neokapi/neokapi/host/output"
 	"github.com/neokapi/neokapi/host/venue/project"
+	"github.com/neokapi/neokapi/host/venue/source"
 )
 
 func init() {
@@ -205,7 +205,7 @@ func handleProjectStatus(ctx context.Context, a *cli.App) (*mcp.CallToolResult, 
 		},
 	}
 
-	conn, err := connector.NewSourceConnector(a, proj, a.FormatReg)
+	conn, err := source.NewSourceConnector(a, proj, a.FormatReg)
 	if err != nil {
 		// No server configured — return local info only.
 		return nil, out, nil
@@ -236,7 +236,7 @@ func handleProjectPush(ctx context.Context, a *cli.App, input MCPPushInput) (*mc
 		return nil, MCPPushOutput{}, err
 	}
 
-	conn, err := connector.NewSourceConnector(a, proj, a.FormatReg)
+	conn, err := source.NewSourceConnector(a, proj, a.FormatReg)
 	if err != nil {
 		return nil, MCPPushOutput{}, err
 	}
@@ -271,7 +271,7 @@ func handleProjectPull(ctx context.Context, a *cli.App, input MCPPullInput) (*mc
 		return nil, MCPPullOutput{}, err
 	}
 
-	conn, err := connector.NewSourceConnector(a, proj, a.FormatReg)
+	conn, err := source.NewSourceConnector(a, proj, a.FormatReg)
 	if err != nil {
 		return nil, MCPPullOutput{}, err
 	}
@@ -360,7 +360,7 @@ func handleProjectLsFast(a *cli.App, proj *project.Project, input MCPLsInput) (*
 }
 
 func handleProjectLsWithStats(ctx context.Context, a *cli.App, proj *project.Project, input MCPLsInput) (*mcp.CallToolResult, MCPLsOutput, error) {
-	conn := connector.NewLocalConnector(a, proj, a.FormatReg)
+	conn := source.NewLocalConnector(a, proj, a.FormatReg)
 
 	files, err := conn.ListFiles(ctx, nil)
 	if err != nil {

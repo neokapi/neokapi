@@ -38,12 +38,15 @@ Non-obvious constraints:
 - **kapi-desktop links neither cobra nor the cli module** — asserted by
   `make audit-modules` via `go list -deps ./backend/...`.
 - **License boundary.** Framework, host, cli, kapi and kapi-desktop are
-  Apache-2.0; `bowrain/` is AGPL-3.0. The line is drawn by **directory
-  containment under a `LICENSE` file** and by nothing else — there are no SPDX
-  headers, so moving a file between subtrees *is* relicensing it.
-  `make audit-modules` and the `module-boundaries` CI job assert the
-  consequence: **no Apache module reaches a package under `bowrain/`, with no
-  exception**. Do not add one. A type both sides need belongs below the line
+  Apache-2.0; `bowrain/` is AGPL-3.0, **except `bowrain/plugin/`, which is
+  Apache-2.0** — the `kapi-bowrain` binary is a client of the server, not a part
+  of it, and links nothing else under `bowrain/`. The line is drawn by
+  **directory containment under a `LICENSE` file** and by nothing else — there
+  are no SPDX headers, so moving a file between subtrees *is* relicensing it.
+  `make audit-modules` and the `module-boundaries` CI job assert both
+  consequences: **no Apache module reaches a package under `bowrain/`, with no
+  exception**, and the plugin binary's closure stays inside `bowrain/plugin/`.
+  Do not add an import exception. A type both sides need belongs below the line
   (`core/venue`, `host/venue/…`), never on an allowlist above it.
 - **`kapi` contains zero vendor-plugin code.** Plugins (bowrain, okapi-bridge,
   sat, …) are discovered at runtime via the unified manifest model and

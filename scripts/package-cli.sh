@@ -13,8 +13,8 @@
 # Names mirror the Homebrew naming: the CLI toolchain is the kapi-cli / kapi-*
 # family, the desktop app is plain "kapi" (see release.yml).
 #   kapi-cli_<ver>_<os>_<arch>.tar.gz        -> kapi, LICENSE      (linux/darwin)
-#   kapi-bowrain_<ver>_<os>_<arch>.tar.gz    -> bowrain/{kapi-bowrain,manifest.json}
-#   kapi-bowrain_<ver>_windows_amd64.zip     -> bowrain/{kapi-bowrain.exe,manifest.json}
+#   kapi-bowrain_<ver>_<os>_<arch>.tar.gz    -> bowrain/{kapi-bowrain,manifest.json,LICENSE}
+#   kapi-bowrain_<ver>_windows_amd64.zip     -> bowrain/{kapi-bowrain.exe,manifest.json,LICENSE}
 #
 # Every archive carries the license text of the work inside it. Both licenses
 # this repository uses require it — Apache-2.0 §4(a) ("You must give any other
@@ -39,7 +39,15 @@ manifest="${4:?manifest.json path required}"
 # packager works from any CWD.
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 kapi_license="$repo_root/LICENSE"
-[ -f "$kapi_license" ] || { echo "package-cli.sh: missing $kapi_license" >&2; exit 1; }
+# The plugin subtree carries its own LICENSE: kapi-bowrain is built from
+# bowrain/plugin and links nothing else under bowrain/, so it ships Apache-2.0
+# rather than the AGPL-3.0 of the server beside it. `make
+# check-module-boundaries` asserts that linkage, so if this ever becomes the
+# wrong text the build says so before a release does.
+plugin_license="$repo_root/bowrain/plugin/LICENSE"
+for f in "$kapi_license" "$plugin_license"; do
+  [ -f "$f" ] || { echo "package-cli.sh: missing $f" >&2; exit 1; }
+done
 
 mkdir -p "$out_dir"
 # Resolve to an absolute path: the Windows archive is created inside a
@@ -79,6 +87,7 @@ for d in "$bins_dir"/cli-bins-*; do
     cp "$kb_bin" "$stage/$(basename "$kb_bin")"
     chmod +x "$stage/$(basename "$kb_bin")" 2>/dev/null || true
     cp "$manifest" "$stage/manifest.json"
+    cp "$plugin_license" "$stage/LICENSE"
     if [ "$os" = "windows" ]; then
       ( cd "$work/kb-$os-$arch" && zip -qr "$out_dir/kapi-bowrain_${version}_${os}_${arch}.zip" bowrain )
     else

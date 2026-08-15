@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
-	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/venue/connector"
 	"github.com/neokapi/neokapi/host/venue/project"
+	bconn "github.com/neokapi/neokapi/host/venue/source"
 	"github.com/spf13/cobra"
 )
 

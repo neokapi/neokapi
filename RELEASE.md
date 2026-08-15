@@ -7,7 +7,20 @@ ships on its own cadence and version number:
 | Track | Tag | Workflow | Ships |
 |-------|-----|----------|-------|
 | **kapi** (Apache-2.0) | `vX.Y.Z` | [`release.yml`](.github/workflows/release.yml) | kapi CLI, Kapi Desktop, `kapi-cli` formula, `kapi` cask, `cli.json` self-update, winget |
-| **bowrain** (AGPL-3.0) | `bowrain-vX.Y.Z` | [`release-bowrain.yml`](.github/workflows/release-bowrain.yml) | `kapi-bowrain` plugin, Bowrain Desktop, `bowrain-server`/`worker`/`web`/`keycloak` images, `bowrain-cli` formula, `bowrain` cask, `manifest-plugins.json` registration |
+| **bowrain** (AGPL-3.0, except the plugin) | `bowrain-vX.Y.Z` | [`release-bowrain.yml`](.github/workflows/release-bowrain.yml) | `kapi-bowrain` plugin, Bowrain Desktop, `bowrain-server`/`worker`/`web`/`keycloak` images, `bowrain-cli` formula, `bowrain` cask, `manifest-plugins.json` registration |
+
+The bowrain track ships artifacts under two licenses, and the split is by
+artifact rather than by track. The server, worker, web and desktop are AGPL-3.0.
+The **`kapi-bowrain` plugin is Apache-2.0** (`bowrain/plugin/LICENSE`): it is
+built from `bowrain/plugin/` and links nothing else under `bowrain/`, so it is a
+client of the server rather than a part of it. `make check-module-boundaries`
+asserts that linkage on every pull request, because the plugin manifest, the
+plugin registry and the Homebrew formula all declare Apache-2.0 and a new import
+is all it would take to make them wrong.
+
+Every archive on both tracks carries the license text of the work inside it,
+staged by `scripts/package-cli.sh` and gated by
+`scripts/check-archive-licenses.sh`.
 
 The tag prefixes don't overlap (`v[0-9]*` vs `bowrain-v[0-9]*`), so a push to one
 track never triggers the other. (The per-plugin workflows own their own

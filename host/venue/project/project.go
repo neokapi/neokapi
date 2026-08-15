@@ -13,7 +13,7 @@
 //
 // The source connector itself (and its tests covering NewSourceConnector,
 // Push/Pull/Status, sync-cache persistence, target-path templating, and
-// content iteration) lives in bowrain/plugin/connector.
+// content iteration) lives in host/venue/source.
 package project
 
 import (

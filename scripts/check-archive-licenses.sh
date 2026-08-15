@@ -41,6 +41,7 @@ bash scripts/package-cli.sh 0.0.0-check "$work/bins" "$work/out" \
 # archive prefix : path inside the archive : SPDX id its text must match
 EXPECTED="
 kapi-cli_:LICENSE:Apache-2.0
+kapi-bowrain_:bowrain/LICENSE:Apache-2.0
 "
 
 # Identify a license by a phrase only that license contains.

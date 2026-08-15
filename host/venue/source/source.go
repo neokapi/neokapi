@@ -1,7 +1,7 @@
 // Package connector provides the bowrain Source connector implementation
 // (push/pull/status against a Bowrain server). It is the heavy in-process
 // integration layer that turns local files into synced server state.
-package connector
+package source
 
 import (
 	"bytes"

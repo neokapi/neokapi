@@ -39,7 +39,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/plugin/commands"
-	"github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v1"
@@ -47,6 +46,7 @@ import (
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	cliconfig "github.com/neokapi/neokapi/host/config"
 	bproject "github.com/neokapi/neokapi/host/venue/project"
+	"github.com/neokapi/neokapi/host/venue/source"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )
@@ -183,7 +183,7 @@ type daemonService struct {
 
 type projectEntry struct {
 	project   *bproject.Project
-	connector *connector.BowrainSourceConnector
+	connector *source.BowrainSourceConnector
 	formatReg *registry.FormatRegistry
 }
 
@@ -265,11 +265,11 @@ func (d *daemonService) projectFor(root string) (*projectEntry, error) {
 	}
 
 	formatReg := d.formatReg
-	conn, err := connector.NewSourceConnector(app, proj, formatReg)
+	conn, err := source.NewSourceConnector(app, proj, formatReg)
 	if err != nil {
 		// Some calls (ListFiles, Status) don't need the server, so fall
-		// back to a local-only connector.
-		conn = connector.NewLocalConnector(app, proj, formatReg)
+		// back to a local-only source.
+		conn = source.NewLocalConnector(app, proj, formatReg)
 	}
 
 	entry := &projectEntry{
