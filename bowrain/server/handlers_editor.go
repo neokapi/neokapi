@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
@@ -134,6 +135,15 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 		proj.DashboardVisibility = req.DashboardVisibility
 	}
 	if req.Properties != nil {
+		// Turning on the public ship feed is the same disclosure decision as a
+		// public dashboard, and properties are written raw, so the personal-
+		// workspace refusal has to be made here rather than only on the field
+		// that reads more like a setting.
+		if req.Properties[ShipFeedProperty] == "true" && s.AuthStore != nil {
+			if ws, wsErr := s.AuthStore.GetWorkspace(ctx, proj.WorkspaceID); wsErr == nil && ws.Type == platauth.WorkspaceTypePersonal {
+				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "personal workspaces cannot expose projects publicly"})
+			}
+		}
 		if proj.Properties == nil {
 			proj.Properties = make(map[string]string)
 		}
@@ -205,6 +215,13 @@ func (s *Server) HandleDeleteEditorProject(c echo.Context) error {
 	if err := s.ContentStore.ArchiveProject(c.Request().Context(), pid); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
+
+	// Archiving is the delete a person performs; permanent deletion empties the
+	// recycle bin afterwards. The funnel counts the first, so a project is
+	// counted deleted once whether or not its bytes are later dropped.
+	wsID, _ := c.Get("workspace_id").(string)
+	userID, _ := c.Get("user_id").(string)
+	s.trackEvent(userID, analytics.EventProjectDeleted, analytics.Props(wsID, pid))
 
 	return c.NoContent(http.StatusNoContent)
 }

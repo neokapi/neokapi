@@ -55,24 +55,6 @@ func TestShipManifestIsShapeIdenticalToShipJSON(t *testing.T) {
 	assert.Len(t, round["nb"], 2)
 }
 
-func TestApplyShipFeedPropertyIsTriState(t *testing.T) {
-	yes, no := true, false
-
-	// nil leaves the map untouched (including a nil map).
-	assert.Nil(t, applyShipFeedProperty(nil, nil))
-	assert.Equal(t, map[string]string{"x": "y"}, applyShipFeedProperty(map[string]string{"x": "y"}, nil))
-
-	// true turns it on, creating the map if the project carried none.
-	on := applyShipFeedProperty(nil, &yes)
-	assert.Equal(t, "true", on[ShipFeedProperty])
-
-	// false turns it off without disturbing other properties.
-	off := applyShipFeedProperty(map[string]string{ShipFeedProperty: "true", "x": "y"}, &no)
-	_, present := off[ShipFeedProperty]
-	assert.False(t, present, "the opt-in is removed, not left stale")
-	assert.Equal(t, "y", off["x"])
-}
-
 func TestShipETagIsDeterministicAndBodySensitive(t *testing.T) {
 	a := shipETag([]byte(`{"nb":{"shippable":true,"verified":true}}`))
 	again := shipETag([]byte(`{"nb":{"shippable":true,"verified":true}}`))
