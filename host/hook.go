@@ -314,7 +314,7 @@ func (a *App) RunHookPreEdit(cmd Command) error {
 	dec := PreToolUseDecision{HookSpecificOutput: preToolUseHookOutput{
 		HookEventName:            "PreToolUse",
 		PermissionDecision:       "deny",
-		PermissionDecisionReason: preEditDenyReason(root, target, source, locale),
+		PermissionDecisionReason: preEditDenyReason(root, target, source.Path, locale),
 	}}
 	enc := json.NewEncoder(cmd.OutOrStdout())
 	enc.SetEscapeHTML(false)
