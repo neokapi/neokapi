@@ -211,7 +211,11 @@ self_test() {
   # is the idempotence case — a second run over an unchanged tree must not open
   # a second pull request or leave a branch behind.
   out="$(run_case "$repo" bot/stream "chore: deliver" "${owned[@]}")"
-  if printf '%s\n' "$out" | grep -q "did not move" && [ ! -s "$GH_LOG" ] &&
+  # Every assertion below matches over a here-string rather than through a pipe.
+  # Under `set -o pipefail`, `printf … | grep -q` is a race: grep exits on the
+  # first match, printf takes EPIPE, and the pipeline reports the WRITE failure
+  # — so the louder the evidence, the likelier the test is to fail on it.
+  if grep -q "did not move" <<<"$out" && [ ! -s "$GH_LOG" ] &&
     ! git -C "$remote" show-ref --verify --quiet refs/heads/bot/stream; then
     ok "a quiet stream opens nothing and leaves no branch"
   else
@@ -221,7 +225,7 @@ self_test() {
   # Drift under the owned paths becomes a pull request.
   printf 'two\n' >"$repo/owned/a.json"
   out="$(run_case "$repo" bot/stream "chore: deliver" "${owned[@]}")"
-  if printf '%s\n' "$(cat "$GH_LOG")" | grep -q "pr create" &&
+  if grep -q "pr create" "$GH_LOG" &&
     git -C "$remote" show-ref --verify --quiet refs/heads/bot/stream; then
     ok "drift under the owned paths opens a pull request on the bot branch"
   else
@@ -237,8 +241,8 @@ self_test() {
   run_case "$repo" bot/stream "chore: deliver" "${owned[@]}" >/dev/null
   local delivered
   delivered="$(git -C "$repo" show --name-only --format= HEAD)"
-  if printf '%s\n' "$delivered" | grep -qx "owned/a.json" &&
-    ! printf '%s\n' "$delivered" | grep -qx "src/main.go"; then
+  if grep -qx "owned/a.json" <<<"$delivered" &&
+    ! grep -qx "src/main.go" <<<"$delivered"; then
     ok "an unowned change is not staged alongside an owned one"
   else
     fail "the delivery carried an unowned change" "$delivered"
@@ -268,7 +272,7 @@ self_test() {
   : >"$GH_LOG"
   run_case "$repo" bot/stream "chore: deliver" "${owned[@]}" >/dev/null
   delivered="$(git -C "$repo" show --name-only --format= HEAD)"
-  if printf '%s\n' "$delivered" | grep -qx "side/one/note.nb.yaml"; then
+  if grep -qx "side/one/note.nb.yaml" <<<"$delivered"; then
     ok "an untracked file under a glob pathspec is delivered"
   else
     fail "the glob pathspec did not reach git intact" "$delivered"
@@ -281,7 +285,7 @@ self_test() {
   rm -f "$repo/owned/a.json"
   : >"$GH_LOG"
   run_case "$repo" bot/stream "chore: deliver" "${owned[@]}" >/dev/null
-  if git -C "$repo" show --name-status --format= HEAD | grep -q "^D.*owned/a.json"; then
+  if grep -q "^D.*owned/a.json" <<<"$(git -C "$repo" show --name-status --format= HEAD)"; then
     ok "a removed artifact is delivered as a removal"
   else
     fail "a removal was not delivered" "$(git -C "$repo" show --name-status --format= HEAD)"

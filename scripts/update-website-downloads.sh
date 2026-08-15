@@ -13,6 +13,11 @@
 # signed.sh), simply appear once they exist. Re-run the script after that step to
 # fill them in.
 #
+# A platform with NO asset on the release is refused rather than written: the
+# page would otherwise replace working links with a heading and nothing under
+# it, which reads as "this platform has no download" and is worse than the
+# older links it overwrites.
+#
 # Usage:
 #   ./scripts/update-website-downloads.sh                          # latest STABLE kapi release
 #   ./scripts/update-website-downloads.sh v1.2.0-rc1               # a specific kapi tag (incl. pre-release)
@@ -70,39 +75,57 @@ echo ">> Reading assets for $TAG ..."
 ASSETS="$(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name')"
 [ -n "$ASSETS" ] || { echo "release $TAG has no assets."; exit 1; }
 
-have() { printf '%s\n' "$ASSETS" | grep -qxF "$1"; }
+# Here-string, not a pipe: under `set -o pipefail` a `printf … | grep -q` reports
+# the WRITE failure when grep exits on the first match and printf takes EPIPE.
+have() { grep -qxF "$1" <<<"$ASSETS"; }
 
-# Emit a markdown bullet "- **Label** — [`file`](url)" only when the asset exists.
-# Tracks how many of the requested links were missing (for the summary).
+# A platform's links, under its heading. The heading is emitted only when at
+# least one of its assets is on the release — a heading with nothing under it
+# reads as "this platform has no download" on a page whose whole job is to hand
+# out downloads, and it is strictly worse than the older links it would replace.
+# Platforms that resolved nothing are collected and reported as a refusal below,
+# so the page keeps what it has until the missing assets are published.
 MISSING=0
-link() { # <label> <asset>
-  local label="$1" asset="$2"
-  if have "$asset"; then
-    printf -- '- **%s** — [`%s`](%s/%s)\n' "$label" "$asset" "$BASE" "$asset"
-  else
-    MISSING=$((MISSING + 1))
-    echo ">> (skip, not yet on release) $asset" >&2
+EMPTY_SECTIONS=()
+section() { # <heading> <label> <asset> [<label> <asset> …]
+  local heading="$1"; shift
+  local lines="" hits=0
+  while [ "$#" -ge 2 ]; do
+    local label="$1" asset="$2"; shift 2
+    if have "$asset"; then
+      lines+="$(printf -- '- **%s** — [`%s`](%s/%s)' "$label" "$asset" "$BASE" "$asset")"$'\n'
+      hits=$((hits + 1))
+    else
+      MISSING=$((MISSING + 1))
+      echo ">> (skip, not yet on release) $asset" >&2
+    fi
+  done
+  if [ "$hits" -eq 0 ]; then
+    EMPTY_SECTIONS+=("$heading")
+    return 0
   fi
+  echo "$heading"
+  printf '%s' "$lines"
 }
 
 # --- kapi CLI binary downloads (family: kapi-cli_<ver>_<os>_<arch>) ---
 cli_block() {
   echo "Direct downloads for **kapi ${V}** (CLI):"
   echo
-  echo "**macOS** (Apple Silicon)"
-  link "macOS arm64"        "kapi-cli_${V}_darwin_arm64.tar.gz"
+  section "**macOS** (Apple Silicon)" \
+    "macOS arm64" "kapi-cli_${V}_darwin_arm64.tar.gz"
   echo
-  echo "**Linux**"
-  link "Linux amd64 (tar.gz)" "kapi-cli_${V}_linux_amd64.tar.gz"
-  link "Linux arm64 (tar.gz)" "kapi-cli_${V}_linux_arm64.tar.gz"
-  link "Linux amd64 (.deb)"   "kapi-cli_${V}_amd64.deb"
-  link "Linux arm64 (.deb)"   "kapi-cli_${V}_arm64.deb"
-  link "Linux amd64 (.rpm)"   "kapi-cli_${V}_amd64.rpm"
-  link "Linux arm64 (.rpm)"   "kapi-cli_${V}_arm64.rpm"
+  section "**Linux**" \
+    "Linux amd64 (tar.gz)" "kapi-cli_${V}_linux_amd64.tar.gz" \
+    "Linux arm64 (tar.gz)" "kapi-cli_${V}_linux_arm64.tar.gz" \
+    "Linux amd64 (.deb)" "kapi-cli_${V}_amd64.deb" \
+    "Linux arm64 (.deb)" "kapi-cli_${V}_arm64.deb" \
+    "Linux amd64 (.rpm)" "kapi-cli_${V}_amd64.rpm" \
+    "Linux arm64 (.rpm)" "kapi-cli_${V}_arm64.rpm"
   echo
-  echo "**Windows** (Authenticode-signed, portable zip)"
-  link "Windows amd64"      "kapi-cli_${V}_windows_amd64.zip"
-  link "Windows arm64"      "kapi-cli_${V}_windows_arm64.zip"
+  section "**Windows** (Authenticode-signed, portable zip)" \
+    "Windows amd64" "kapi-cli_${V}_windows_amd64.zip" \
+    "Windows arm64" "kapi-cli_${V}_windows_arm64.zip"
   echo
   echo "Verify a download against [\`checksums.txt\`](${BASE}/checksums.txt)."
 }
@@ -111,18 +134,18 @@ cli_block() {
 desktop_block() {
   echo "Direct downloads for **Kapi Desktop ${V}**:"
   echo
-  echo "**macOS** (Apple Silicon)"
-  link "macOS arm64 (.dmg)" "kapi-${V}-macOS-arm64.dmg"
+  section "**macOS** (Apple Silicon)" \
+    "macOS arm64 (.dmg)" "kapi-${V}-macOS-arm64.dmg"
   echo
-  echo "**Windows** (signed installer)"
-  link "Windows amd64 (installer)" "kapi-${V}-windows-amd64-setup.exe"
-  link "Windows arm64 (installer)" "kapi-${V}-windows-arm64-setup.exe"
-  link "Windows amd64 (portable zip)" "kapi-${V}-windows-amd64.zip"
-  link "Windows arm64 (portable zip)" "kapi-${V}-windows-arm64.zip"
+  section "**Windows** (signed installer)" \
+    "Windows amd64 (installer)" "kapi-${V}-windows-amd64-setup.exe" \
+    "Windows arm64 (installer)" "kapi-${V}-windows-arm64-setup.exe" \
+    "Windows amd64 (portable zip)" "kapi-${V}-windows-amd64.zip" \
+    "Windows arm64 (portable zip)" "kapi-${V}-windows-arm64.zip"
   echo
-  echo "**Linux**"
-  link "Linux amd64 (tar.gz)" "kapi-${V}-linux-amd64.tar.gz"
-  link "Linux arm64 (tar.gz)" "kapi-${V}-linux-arm64.tar.gz"
+  section "**Linux**" \
+    "Linux amd64 (tar.gz)" "kapi-${V}-linux-amd64.tar.gz" \
+    "Linux arm64 (tar.gz)" "kapi-${V}-linux-arm64.tar.gz"
 }
 
 # --- Bowrain Desktop downloads (family: bowrain-<ver>-<os>-<arch>) ---
@@ -131,16 +154,16 @@ desktop_block() {
 bowrain_desktop_block() {
   echo "Direct downloads for **Bowrain Desktop ${V}**:"
   echo
-  echo "**macOS** (Apple Silicon)"
-  link "macOS arm64 (.dmg)" "bowrain-${V}-macOS-arm64.dmg"
+  section "**macOS** (Apple Silicon)" \
+    "macOS arm64 (.dmg)" "bowrain-${V}-macOS-arm64.dmg"
   echo
-  echo "**Windows** (Authenticode-signed, portable zip)"
-  link "Windows amd64" "bowrain-${V}-windows-amd64.zip"
-  link "Windows arm64" "bowrain-${V}-windows-arm64.zip"
+  section "**Windows** (Authenticode-signed, portable zip)" \
+    "Windows amd64" "bowrain-${V}-windows-amd64.zip" \
+    "Windows arm64" "bowrain-${V}-windows-arm64.zip"
   echo
-  echo "**Linux**"
-  link "Linux amd64 (tar.gz)" "bowrain-${V}-linux-amd64.tar.gz"
-  link "Linux arm64 (tar.gz)" "bowrain-${V}-linux-arm64.tar.gz"
+  section "**Linux**" \
+    "Linux amd64 (tar.gz)" "bowrain-${V}-linux-amd64.tar.gz" \
+    "Linux arm64 (tar.gz)" "bowrain-${V}-linux-arm64.tar.gz"
   echo
   echo "Verify a download against [\`checksums.txt\`](${BASE}/checksums.txt)."
 }
@@ -160,16 +183,36 @@ splice() { # <marker-name> <content-file>
   mv "$tmp" "$PAGE"
 }
 
+# Generate first, splice second. A platform that resolved no asset at all means
+# this release cannot yet describe itself, and replacing the page's current
+# links with a set that silently omits a platform is a regression a reader has
+# no way to see. Refuse, leave the page alone, and name what is missing: the
+# order is forced — publish the assets, then refresh the page.
+refuse_if_a_platform_is_empty() {
+  [ "${#EMPTY_SECTIONS[@]}" -gt 0 ] || return 0
+  echo "refusing to update $PAGE for $TAG: no assets on the release for" >&2
+  local heading
+  for heading in "${EMPTY_SECTIONS[@]}"; do
+    echo "  - ${heading//\*/}" >&2
+  done
+  echo "The page keeps its current links. Publish the missing assets (the Windows" >&2
+  echo "binaries are signed out of band by scripts/publish-windows-signed.sh), then" >&2
+  echo "re-run this script." >&2
+  exit 1
+}
+
 if [ "$PRODUCT" = "kapi" ]; then
   cli_tmp="$(mktemp)"; desk_tmp="$(mktemp)"
   cli_block     > "$cli_tmp"
   desktop_block > "$desk_tmp"
+  refuse_if_a_platform_is_empty
   splice "downloads-cli"     "$cli_tmp"
   splice "downloads-desktop" "$desk_tmp"
   rm -f "$cli_tmp" "$desk_tmp"
 else
   bow_tmp="$(mktemp)"
   bowrain_desktop_block > "$bow_tmp"
+  refuse_if_a_platform_is_empty
   splice "downloads-bowrain-desktop" "$bow_tmp"
   rm -f "$bow_tmp"
 fi

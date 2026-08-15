@@ -16,9 +16,15 @@ name: Refresh website download links
 #                             in without a hand re-run).
 #
 # Track is derived from the tag family: v*  → kapi docs; bowrain-v* → bowrain
-# docs. Plugin releases (vision-v*, …) are ignored. Prereleases are skipped on
-# the release event — the public installation pages track the latest STABLE
-# download — but an explicit dispatch still runs (manual intent wins).
+# docs. Plugin releases (vision-v*, …) are ignored.
+#
+# A prerelease runs on the release event only while its own X.Y.Z has no stable
+# release yet. That is what the installation page already claims — "during the
+# 1.2.0 release-candidate phase that is the latest RC" — and it is self-clearing:
+# the day 1.2.0 ships, every later 1.2.0-rc* is skipped again, with nothing to
+# remember to turn off. Skipping every prerelease left the page's promise with no
+# mechanism behind it for the length of an RC phase. An explicit dispatch always
+# runs (manual intent wins).
 
 on:
   release:
@@ -51,6 +57,10 @@ jobs:
           REL_TAG: ${{ github.event.release.tag_name }}
           WD_TAG: ${{ inputs.tag }}
           RD_TAG: ${{ github.event.client_payload.tag }}
+          # Read-only release lookup, to ask whether this prerelease's own
+          # version already has a stable release. The workflow-level
+          # `contents: read` covers it.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           case "$EV" in
@@ -69,18 +79,28 @@ jobs:
 
           # Family → track. Anchored (v<digit> / bowrain-v<digit>) so plugin tag
           # families (vision-v*, kapi-asr-v*, …) never match.
-          track=""; ver=""
+          track=""; ver=""; prefix=""
           case "$tag" in
-            bowrain-v[0-9]*) track="bowrain"; ver="${tag#bowrain-v}" ;;
-            v[0-9]*)         track="kapi";    ver="${tag#v}" ;;
+            bowrain-v[0-9]*) track="bowrain"; ver="${tag#bowrain-v}"; prefix="bowrain-v" ;;
+            v[0-9]*)         track="kapi";    ver="${tag#v}";         prefix="v" ;;
           esac
           case "$ver" in *-*) pre="true" ;; *) pre="false" ;; esac
 
           should_run="true"
           [ -n "$track" ] || should_run="false"
           if [ "$EV" = "release" ] && [ "$pre" = "true" ]; then
-            should_run="false"
-            echo "prerelease $tag on the release event — installation docs track the latest STABLE download; skipping."
+            # A prerelease still refreshes the page while its own version has no
+            # stable release — that IS the current download during an RC phase,
+            # and it is what the page says it links to. Once the stable ships,
+            # later candidates for it stop moving the page, with no switch to
+            # remember.
+            stable="${prefix}${ver%%-*}"
+            if gh release view "$stable" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              should_run="false"
+              echo "prerelease $tag on the release event, and $stable is already released — installation docs track the stable download; skipping."
+            else
+              echo "prerelease $tag on the release event, and $stable is not released yet — it is the current download; refreshing."
+            fi
           fi
           [ -n "$track" ] || echo "tag '$tag' is not a kapi/bowrain release tag; skipping."
 
