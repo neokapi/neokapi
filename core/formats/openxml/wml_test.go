@@ -24,17 +24,6 @@ func skipStart(t *testing.T, d *xml.Decoder) {
 	require.NoError(t, err)
 }
 
-// hasInlineCodes reports whether any run in the sequence is an inline-code run
-// (anything other than a plain text run).
-func hasInlineCodes(runs []model.Run) bool {
-	for _, r := range runs {
-		if r.Text == nil {
-			return true
-		}
-	}
-	return false
-}
-
 func TestParseRunPropsEmpty(t *testing.T) {
 	input := `<w:rPr></w:rPr>`
 	d := xml.NewDecoder(bytes.NewReader([]byte(input)))
@@ -874,7 +863,7 @@ func TestFontMappingMergesRuns(t *testing.T) {
 	text := blocks[0].SourceText()
 	assert.Equal(t, "Hello World", text)
 	// Should have no spans since the merged font is "other" property, not a formatting span
-	assert.False(t, hasInlineCodes(blocks[0].Source))
+	assert.False(t, model.RunsHaveInlineCodes(blocks[0].Source))
 }
 
 // --- Code finder tests ---
@@ -894,7 +883,7 @@ func TestCodeFinderBasic(t *testing.T) {
 
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	assert.True(t, hasInlineCodes(blocks[0].Source), "should have code finder inline-code runs")
+	assert.True(t, model.RunsHaveInlineCodes(blocks[0].Source), "should have code finder inline-code runs")
 }
 
 func TestCodeFinderDisabled(t *testing.T) {
@@ -911,7 +900,7 @@ func TestCodeFinderDisabled(t *testing.T) {
 
 	blocks := parseDocXML(t, docXML, cfg)
 	require.Len(t, blocks, 1)
-	assert.False(t, hasInlineCodes(blocks[0].Source), "no spans when code finder disabled")
+	assert.False(t, model.RunsHaveInlineCodes(blocks[0].Source), "no spans when code finder disabled")
 }
 
 // --- Extract run fonts info tests ---

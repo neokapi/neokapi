@@ -2,8 +2,10 @@ package mdspike_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"testing/fstest"
+	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/profile"
 	"github.com/neokapi/neokapi/core/profile/mdspike"
@@ -72,6 +74,33 @@ func TestExampleRequiresBothSides(t *testing.T) {
 	_, err = load(t, "---\nname: x\n---\n\n## Example: tone\n\nnot a labelled paragraph\n")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not labelled")
+}
+
+// A voice profile is prose, so the paragraph quoted back in an error is
+// routinely non-ASCII — typographic punctuation, a Norwegian vowel, CJK. The
+// quote is shortened to fit the message, and a cut measured in bytes lands
+// mid-rune: %q renders the orphaned byte as a \xNN escape, so the author is
+// shown machine noise where their own sentence should end.
+func TestUnlabelledParagraphIsQuotedWholeRunes(t *testing.T) {
+	tests := []struct {
+		name string
+		para string
+	}{
+		{"norwegian vowels", "Skriv så leseren forstår hva hen får ut av å bruke løsningen vår her"},
+		{"typographic punctuation", "“Vi leverer” — og det er ikke et løfte, det er en beskrivelse av arbeidet"},
+		{"cjk", "これはドキュメントの文章であり、読者に向けて書かれたものである。長さは十分にある。"},
+		{"emoji straddling the cut", strings.Repeat("a", 39) + "🙂 trailing"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := load(t, "---\nname: x\n---\n\n## Example: tone\n\n"+tc.para+"\n")
+			require.Error(t, err)
+			assert.True(t, utf8.ValidString(err.Error()),
+				"error message %q is not valid UTF-8", err.Error())
+			assert.NotContains(t, err.Error(), `\x`,
+				"error message %q quoted the paragraph mid-rune", err.Error())
+		})
+	}
 }
 
 // TestHardWrappedProseNormalizes is what lets a markdown paragraph and a YAML

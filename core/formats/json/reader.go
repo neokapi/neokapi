@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -703,7 +702,7 @@ func (r *Reader) applyCodeFinder(block *model.Block) {
 func (r *Reader) matchSubfilter(path string) *format.SubfilterMapping {
 	for i := range r.cfg.Subfilters {
 		sf := &r.cfg.Subfilters[i]
-		if matchGlob(sf.Pattern, path) {
+		if format.MatchSubfilterPattern(sf.Pattern, path) {
 			return sf
 		}
 	}
@@ -813,12 +812,4 @@ func (r *Reader) Close() error {
 		return r.Doc.Reader.Close()
 	}
 	return nil
-}
-
-// matchGlob matches a path against a glob pattern.
-func matchGlob(pattern, path string) bool {
-	patternNorm := strings.ReplaceAll(pattern, ".", "/")
-	pathNorm := strings.ReplaceAll(path, ".", "/")
-	matched, _ := filepath.Match(patternNorm, pathNorm)
-	return matched
 }

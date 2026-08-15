@@ -26,6 +26,7 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/resilience"
 	"github.com/neokapi/neokapi/bowrain/safehttp"
+	"github.com/neokapi/neokapi/core/clip"
 )
 
 // Well-known PostHog Cloud hosts. A custom self-hosted URL is also accepted.
@@ -215,7 +216,7 @@ func (c *PostHogClient) Query(ctx context.Context, hogql string) ([][]any, error
 	case resp.StatusCode == http.StatusNotFound:
 		return nil, &PostHogError{Code: PostHogErrBadProject, Status: resp.StatusCode, Message: fmt.Sprintf("project %s not found (or the key cannot access it)", c.projectID)}
 	case resp.StatusCode < 200 || resp.StatusCode >= 300:
-		return nil, &PostHogError{Code: PostHogErrQuery, Status: resp.StatusCode, Message: fmt.Sprintf("query failed with status %d: %s", resp.StatusCode, truncate(string(data), 200))}
+		return nil, &PostHogError{Code: PostHogErrQuery, Status: resp.StatusCode, Message: fmt.Sprintf("query failed with status %d: %s", resp.StatusCode, clip.Runes(string(data), 200))}
 	}
 
 	var parsed hogQLResponse
@@ -572,11 +573,4 @@ func rowInt(v any) int64 {
 	default:
 		return 0
 	}
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
 }

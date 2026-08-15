@@ -2246,18 +2246,6 @@ func stripWMLElement(s, name string) string {
 	}
 }
 
-// runsHaveInlineCodes reports whether the run sequence contains any
-// non-text runs (placeholders or paired codes). The fast path for a
-// plain-text block short-circuits the walker below.
-func runsHaveInlineCodes(runs []model.Run) bool {
-	for _, r := range runs {
-		if r.Text == nil {
-			return true
-		}
-	}
-	return false
-}
-
 // countTextRuns returns the number of text-bearing model runs (one
 // per non-nil r.Text with non-empty Text). Used to gate the per-run
 // rPr sidecar alignment guard in renderWMLBlock — when this count
@@ -2429,7 +2417,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		// <w:r><w:t> with the flattened text. Pre-#592 behaviour for
 		// truly plain paragraphs (e.g. "Heading 1" inside a paragraph
 		// whose style already supplies all formatting).
-		if !runsHaveInlineCodes(runs) && sourceRPr == "" && effectiveRPr(0) == "" {
+		if !model.RunsHaveInlineCodes(runs) && sourceRPr == "" && effectiveRPr(0) == "" {
 			return `<w:r><w:t xml:space="preserve">` + xmlesc.Text(model.FlattenRuns(runs)) + `</w:t></w:r>`
 		}
 
@@ -2439,7 +2427,7 @@ func (w *Writer) renderWMLBlock(runs []model.Run, sourceRPr string, perRunRPr []
 		// adjacent same-rPr runs into one <w:r> carrying the shared
 		// rPr" behaviour for paragraphs that extracted as a single
 		// TextRun (after font-mapping + subtractProps + mergeRuns).
-		if !runsHaveInlineCodes(runs) {
+		if !model.RunsHaveInlineCodes(runs) {
 			return `<w:r><w:rPr>` + effectiveRPr(0) + `</w:rPr><w:t xml:space="preserve">` +
 				xmlesc.Text(model.FlattenRuns(runs)) + `</w:t></w:r>`
 		}
@@ -4700,7 +4688,7 @@ func (w *Writer) expandDrawingMarkers(payload string) string {
 
 // renderDMLBlock renders a run sequence as DrawingML runs.
 func (w *Writer) renderDMLBlock(runs []model.Run) string {
-	if !runsHaveInlineCodes(runs) {
+	if !model.RunsHaveInlineCodes(runs) {
 		return `<a:r><a:t>` + xmlesc.Text(model.FlattenRuns(runs)) + `</a:t></a:r>`
 	}
 
@@ -4812,7 +4800,7 @@ func (w *Writer) renderSMLBlock(runs []model.Run, block *model.Block) string {
 
 // renderSMLSharedString renders a run sequence as shared string <si> content.
 func (w *Writer) renderSMLSharedString(runs []model.Run) string {
-	if !runsHaveInlineCodes(runs) {
+	if !model.RunsHaveInlineCodes(runs) {
 		return `<t>` + xmlesc.Text(model.FlattenRuns(runs)) + `</t>`
 	}
 

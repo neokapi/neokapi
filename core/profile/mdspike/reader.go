@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/clip"
 	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/profile"
@@ -296,7 +297,7 @@ func parseExample(heading, text string) (profile.VoiceExample, error) {
 	for _, para := range paragraphs(text) {
 		m := labelRE.FindStringSubmatch(para)
 		if m == nil {
-			return ex, fmt.Errorf("example %q: paragraph %q is not labelled **Before:**, **After:** or **Why:**", heading, truncate(para, 40))
+			return ex, fmt.Errorf("example %q: paragraph %q is not labelled **Before:**, **After:** or **Why:**", heading, clip.Runes(para, 40))
 		}
 		switch m[1] {
 		case "Before":
@@ -386,11 +387,4 @@ type localeMeta struct {
 
 func hasPrefixFold(s, prefix string) bool {
 	return len(s) >= len(prefix) && strings.EqualFold(s[:len(prefix)], prefix)
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
 }

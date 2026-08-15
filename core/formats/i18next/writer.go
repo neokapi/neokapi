@@ -143,23 +143,12 @@ func (w *Writer) Close() error { return w.inner.Close() }
 // text-based value rendering reproduces the protected {{interpolation}} / $t()
 // codes verbatim. Blocks whose runs are already plain text are left unchanged.
 func flattenInlineCodes(b *model.Block, locale model.LocaleID) {
-	if runsHaveInlineCodes(b.Source) {
+	if model.RunsHaveInlineCodes(b.Source) {
 		b.SetSourceText(model.RenderRunsWithData(b.SourceRuns()))
 	}
 	if locale != "" {
-		if target := b.TargetRuns(locale); runsHaveInlineCodes(target) {
+		if target := b.TargetRuns(locale); model.RunsHaveInlineCodes(target) {
 			b.SetTargetText(locale, model.RenderRunsWithData(target))
 		}
 	}
-}
-
-// runsHaveInlineCodes reports whether any run in the sequence is a non-text
-// run (a protected inline code).
-func runsHaveInlineCodes(runs []model.Run) bool {
-	for i := range runs {
-		if runs[i].Text == nil {
-			return true
-		}
-	}
-	return false
 }

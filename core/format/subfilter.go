@@ -1,5 +1,10 @@
 package format
 
+import (
+	"path/filepath"
+	"strings"
+)
+
 // SubfilterResolver creates format readers/writers for embedded content.
 // Format readers that support subfiltering receive this via SetSubfilterResolver
 // and use it to delegate embedded content parsing to another format.
@@ -20,6 +25,22 @@ type SubfilterResolver interface {
 type SubfilterMapping struct {
 	Pattern string // content location pattern
 	Format  string // format reader/writer name (e.g., "html", "markdown")
+}
+
+// MatchSubfilterPattern reports whether a dotted structural path — a JSON key
+// path or an XML element path — matches a SubfilterMapping pattern.
+//
+// Both sides have their dots rewritten to slashes and are then compared with
+// filepath.Match, which gives `*` the segment-bounded meaning the pattern
+// syntax documents: "translations.*.html" selects one intermediate key, not an
+// arbitrary depth of them. A malformed pattern matches nothing rather than
+// erroring, so one bad mapping cannot fail a document that does not use it.
+func MatchSubfilterPattern(pattern, path string) bool {
+	matched, _ := filepath.Match(
+		strings.ReplaceAll(pattern, ".", "/"),
+		strings.ReplaceAll(path, ".", "/"),
+	)
+	return matched
 }
 
 // SubfilterAware marks format readers/writers that support subfiltering.

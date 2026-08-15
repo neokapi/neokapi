@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/neokapi/neokapi/core/clip"
 )
 
 // mcpProtocolVersion is the MCP revision the suite advertises in its
@@ -203,7 +205,7 @@ func (s *mcpSession) call(method string, params any) (*jsonrpcResponse, error) {
 		if err := s.dec.Decode(&resp); err != nil {
 			if stderr := s.stderrText(); stderr != "" {
 				return nil, fmt.Errorf("read %s response: %w (plugin stderr: %s)",
-					method, err, truncate(stderr, 300))
+					method, err, clip.Runes(stderr, 300))
 			}
 			return nil, fmt.Errorf("read %s response: %w", method, err)
 		}

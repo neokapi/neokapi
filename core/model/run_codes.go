@@ -2,6 +2,25 @@ package model
 
 import "sort"
 
+// RunsHaveInlineCodes reports whether a run sequence carries anything other
+// than plain text — a placeholder, a paired open/close, a subflow reference, a
+// plural or a select.
+//
+// It is the cheap gate in front of the expensive path: a block of pure text can
+// be handed to a translator, a writer, or an editor as a string, while one
+// holding codes has to travel as runs so the codes survive. The test is the
+// absence of Text rather than the presence of any particular code, so a run
+// kind added later counts as a code by default — which is the safe direction:
+// a new kind is treated as structure to preserve, not as text to flatten.
+func RunsHaveInlineCodes(runs []Run) bool {
+	for i := range runs {
+		if runs[i].Text == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // RunCodeSignature returns a comparable identity for an inline-code run — the
 // unit a translation has to preserve — or ok=false for runs that carry no code
 // of their own (text, plural, select).

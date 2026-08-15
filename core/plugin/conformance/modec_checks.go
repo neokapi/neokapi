@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/neokapi/neokapi/core/clip"
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -205,10 +206,10 @@ func (d *daemonSession) stderrText() string {
 func (d *daemonSession) diagnostics() string {
 	parts := []string{}
 	if s := d.stderrText(); s != "" {
-		parts = append(parts, "stderr: "+truncate(s, 300))
+		parts = append(parts, "stderr: "+clip.Runes(s, 300))
 	}
 	if s := d.logText(); s != "" {
-		parts = append(parts, "stdout: "+truncate(s, 300))
+		parts = append(parts, "stdout: "+clip.Runes(s, 300))
 	}
 	return strings.Join(parts, "; ")
 }
@@ -396,7 +397,7 @@ func checkModeCHandshake(ctx context.Context, r *runner) (Status, string, error)
 		sess.close()
 		detail := got.err.Error()
 		if got.line != "" {
-			detail = fmt.Sprintf("%s (first stdout line: %q)", detail, truncate(got.line, 200))
+			detail = fmt.Sprintf("%s (first stdout line: %q)", detail, clip.Runes(got.line, 200))
 		}
 		if diag := sess.diagnostics(); diag != "" {
 			detail = fmt.Sprintf("%s (%s)", detail, diag)
@@ -405,7 +406,7 @@ func checkModeCHandshake(ctx context.Context, r *runner) (Status, string, error)
 	}
 	if got.hs.Socket == "" {
 		sess.close()
-		return Fail, fmt.Sprintf("handshake %q omits \"socket\"", truncate(got.line, 200)), nil
+		return Fail, fmt.Sprintf("handshake %q omits \"socket\"", clip.Runes(got.line, 200)), nil
 	}
 	if !filepath.IsAbs(got.hs.Socket) {
 		sess.close()
@@ -749,9 +750,9 @@ func checkModeCSegmentRPC(ctx context.Context, r *runner) (Status, string, error
 		// RPC being reachable is all this check claims in that case.
 		if probe == nil {
 			return Pass, fmt.Sprintf("Segment(%q) is reachable; the engine declined the suite's sample text (%s)",
-				engine, truncate(e, 160)), nil
+				engine, clip.Runes(e, 160)), nil
 		}
-		return Fail, fmt.Sprintf("Segment(%q) returned error: %s", engine, truncate(e, 200)), nil
+		return Fail, fmt.Sprintf("Segment(%q) returned error: %s", engine, clip.Runes(e, 200)), nil
 	}
 	got := len(resp.GetBoundaries())
 	if got < minBoundaries {

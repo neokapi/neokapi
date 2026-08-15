@@ -260,7 +260,9 @@ func TestXMLSubfilter_Roundtrip(t *testing.T) {
 	assert.Contains(t, output, "<p>Rich content</p>")
 }
 
-func TestXMLMatchGlob(t *testing.T) {
+// The shared subfilter matcher read against XML element paths, which is the
+// vocabulary this reader hands it.
+func TestXMLMatchSubfilterPattern(t *testing.T) {
 	tests := []struct {
 		pattern string
 		path    string
@@ -274,7 +276,7 @@ func TestXMLMatchGlob(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.pattern+"_"+tt.path, func(t *testing.T) {
-			assert.Equal(t, tt.want, matchGlob(tt.pattern, tt.path))
+			assert.Equal(t, tt.want, format.MatchSubfilterPattern(tt.pattern, tt.path))
 		})
 	}
 }

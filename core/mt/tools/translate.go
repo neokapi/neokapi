@@ -122,7 +122,7 @@ func (t *MTTranslateTool) translate(v tool.VariantView) error {
 	}
 
 	sourceRuns := v.SourceRuns()
-	if hasInlineCodes(sourceRuns) {
+	if model.RunsHaveInlineCodes(sourceRuns) {
 		resp, err := t.provider.Translate(v.Context(), mtprovider.TranslateRequest{
 			Source:       model.RunsSemanticHTML(sourceRuns, t.vocab),
 			SourceLocale: t.sourceLocale,
@@ -163,17 +163,6 @@ func (t *MTTranslateTool) mtOrigin() model.Origin {
 		ProfileVersion:     t.profileVersion,
 		ContextFingerprint: t.contextFP,
 	}
-}
-
-// hasInlineCodes reports whether a Run sequence contains any non-text
-// run (Ph / PcOpen / PcClose / Sub / Plural / Select).
-func hasInlineCodes(runs []model.Run) bool {
-	for _, r := range runs {
-		if r.Text == nil {
-			return true
-		}
-	}
-	return false
 }
 
 // SessionProcess consults `targets/<locale>` overlays before hitting

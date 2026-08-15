@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/clip"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -238,9 +239,5 @@ func isBlank(s string) bool {
 // truncateText caps s to sampleTextLimit runes, appending an ellipsis when it
 // trims, so a sample stays light.
 func truncateText(s string) string {
-	r := []rune(s)
-	if len(r) <= sampleTextLimit {
-		return s
-	}
-	return string(r[:sampleTextLimit]) + "…"
+	return clip.Runes(s, sampleTextLimit)
 }
