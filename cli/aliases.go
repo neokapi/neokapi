@@ -135,6 +135,8 @@ var (
 	MemorySessionDetailFrom      = host.MemorySessionDetailFrom
 	MemorySessionRows            = host.MemorySessionRows
 	ErrNoInput                   = host.ErrNoInput
+	CollectionForAdd             = host.CollectionForAdd
+	CollectionRelativePath       = host.CollectionRelativePath
 	ContentTracks                = host.ContentTracks
 	DeduplicateVersionedFormats  = host.DeduplicateVersionedFormats
 	DemoteFailing                = host.DemoteFailing

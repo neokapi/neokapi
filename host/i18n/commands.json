@@ -3,7 +3,7 @@
     "commands": {
       "kapi": {
         "add": {
-          "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"",
+          "long": "Add file patterns to this project's content so kapi knows which files to\nprocess. Patterns support ** for recursive matching. Format is auto-detected\nfrom the extension unless --format is given.\n\nBy default each pattern becomes a bare entry, which the project's default point\ngoverns. --name puts them in a named collection instead, and --channel binds\nthat collection to a point in the context space (profile/channel), so a surface\nis governed by the voice that suits it rather than by the project default.\nAdding to a name that already exists extends that collection.\n\n  kapi add \"src/**/*.html\"\n  kapi add \"locales/*.json\" --format json\n  kapi add \"src/**/*.html\" \"content/**/*.md\"\n  kapi add \"support/**/*.md\" --name northsea-support --channel northsea/docs",
           "short": "Add file patterns to the project's content"
         },
         "apply": {
@@ -245,7 +245,7 @@
         },
         "long": "kapi parses any format into one unified content model, edits the content\ninside it, checks it, and writes it back byte-for-byte. It holds a project's\ncontent context — the terms, the voice and the rules it goes by — so you can\nconvert formats, translate with AI, and run quality checks against what\nactually applies.",
         "ls": {
-          "long": "List the files matched by the project's content collections (honoring the\nexclude list). With --stats, also show per-file block and word counts.\n\nIn a server-connected project (a recipe with a bowrain: block, with the\nbowrain plugin installed) a SYNC column reports each file's pending-push\nstanding (\"2 to push\" / \"synced\"), derived from the sync cache.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats",
+          "long": "List the files matched by the project's content collections (honoring the\nexclude list). With --stats, also show per-file block and word counts.\n\n--untracked inverts the question: the files kapi can read that NO collection\ntracks. That is what a surface added since the recipe was written looks like —\ngoverned by nothing, and invisible to every listing that starts from the\ncollections. Review it and declare what belongs; like an untracked file in a\nversion-control status, it is reported and never adopted.\n\nIn a server-connected project (a recipe with a bowrain: block, with the\nbowrain plugin installed) a SYNC column reports each file's pending-push\nstanding (\"2 to push\" / \"synced\"), derived from the sync cache.\n\n  kapi ls\n  kapi ls src/\n  kapi ls --stats\n  kapi ls --untracked",
           "short": "List the files the project's content tracks"
         },
         "mcp": {

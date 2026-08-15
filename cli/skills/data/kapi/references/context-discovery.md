@@ -1,24 +1,31 @@
-# Context discovery: from existing material → Bowrain
+# Context discovery: from existing material to a governed project
 
 An empty context is worth nothing, and nobody will write one from a blank page.
-So the first act is **discovery**: turn the user's site, repo, and materials into
+So the first act is **discovery**: turn the user's repo, site, and materials into
 a working content context — a voice profile, a terminology seed, and the checks
-that enforce both — then connect the project to a Bowrain server.
+that enforce both — and bind it to the content it governs.
+
+That is a complete journey in one language. Governing the source the user
+already has needs no second language, no server, and no provider credential.
+Target languages are one more axis on the same context, and connecting the
+project to a Bowrain server is a later step for teams who want review and
+approval off the machine — both are the last sections of this file, and neither
+is a prerequisite for any of the ones before it.
 
 The user corrects a first draft instead of authoring one. **You** do the reading
-and the drafting; kapi is the schema, the validator, and the transport.
+and the drafting; kapi is the schema, the validator, and the gate.
 
-This is the same correction loop that keeps the context current afterwards, not a
-separate onboarding mode — so the second half of this file is the **refresh**
+This is the same correction loop that keeps the context current afterwards, not
+a separate onboarding mode — so the second half of this file is the **refresh**
 flow: diffing new material against a context that already exists.
 
 ## 1. Gather
 
 Collect signal before drafting anything:
 
+- **The repo.** README, docs, marketing copy, UI strings, existing catalogs.
 - **The website.** Fetch the key pages yourself (your web tool, or `curl`) —
   home, product, about, one blog post — and read the live copy.
-- **The repo.** README, docs, marketing copy, UI strings, existing catalogs.
 - **Materials in opaque formats.** `kcat brochure.docx` prints the prose of a
   Word file or a deck ([toolbox.md](toolbox.md)); `kapi stats <file> --json`
   sizes what's there.
@@ -61,6 +68,11 @@ Three artifacts, all plain files the user can review before anything binds:
   and formats, with `target:` patterns where translations already exist. Those
   existing translations need no import step — the loop recycles them as content memory
   leverage, and `kapi push` carries them as block targets.
+
+  Surfaces with genuinely different registers belong at different **points**: a
+  named collection per surface, each bound to a `channel:` of the profile that
+  governs it. One voice profile carries them all; a channel override bends tone
+  and style without loosening the vocabulary.
 
 ## 3. Review with the user
 
@@ -116,20 +128,40 @@ kapi terms import vocab.csv -s en --monolingual --header
 
 The `apply` route keeps a committed source of truth; a bulk `terms import`
 writes only the derived index, so commit the imported term list itself. Then
-verify the whole context locally before pushing:
+compile the committed context and verify the whole thing locally:
 
 ```bash
+kapi up                      # reconcile the graph and the sources
 kapi check --ship --json     # voice + terminology (+ QA) gates — all green
 ```
 
 The recipe carries the bindings; the thresholds ride on the check itself: the
 voice gate's score bar is `--min-score` (default 80), not a recipe field, and a
 translation-coverage bar is an optional top-level `ship_gate:` (see
-[translate.md](translate.md)). Commit the context: the recipe and all of
-`.kapi/` — the voice profile, the sources under `.kapi/`, any imported term
-list, and `.kapi/state/`. Only `.kapi/work/` stays gitignored.
+[translate.md](translate.md)). Say which of these the project's CI should run,
+and on what — a check nobody runs governs nothing.
 
-## 5. Push to Bowrain
+Commit the context: the recipe and all of `.kapi/` — the voice profile, the
+sources under `.kapi/`, any imported term list, and `.kapi/state/`. Only
+`.kapi/work/` stays gitignored. Committing is what makes the graph reviewable:
+it arrives as untracked files next to content that is already committed, and the
+user reads `git status` and `git diff` to decide.
+
+## 5. Hand back a loop
+
+End by telling the user, concretely:
+
+- **What exists** — `kapi.yaml`, the voice profile, the committed terms source,
+  and the content mapping.
+- **The standing instruction** — run `kapi check --ship` before shipping content
+  and fix what it flags ([project.md](project.md)); in a translation project,
+  `kapi up` catches locales up ([translate.md](translate.md)).
+- **When to come back** — the triggers in *Refresh an existing context*, below.
+
+## 6. Connect to a Bowrain server (optional, last)
+
+A project is complete without this. Connect it when the user wants review,
+approval and terminology shared off the machine.
 
 Bowrain commands come from the `kapi-bowrain` plugin. Once the recipe declares
 a `bowrain:` block, running one of its verbs without the plugin installed offers
@@ -183,21 +215,11 @@ kapi push --concepts    # reconcile the local terms into the server's terminolog
 created on first push, a no-op when unchanged, a new server-side version when
 it changed — server-side edits are archived in the version history, never
 overwritten, and rules the server promoted from corrections are kept.
-`--no-brand` skips it. `voice.yaml` still travels in git, and
-`kapi check --ship` enforces it wherever the repo is checked out (dev
-machines, CI).
+`--no-brand` skips it. The profile still travels in git, and `kapi check --ship`
+enforces it wherever the repo is checked out (dev machines, CI).
 
-## 6. Hand back a loop
-
-End by telling the user, concretely:
-
-- **What exists** — `kapi.yaml`, `voice.yaml`, the committed terms source,
-  the content mapping, and (if pushed) the server project.
-- **The URLs** — the claim URL while unclaimed; the project and review URLs
-  once claimed.
-- **The standing instruction** — run `kapi check --ship` before shipping
-  content and fix what it flags ([project.md](project.md)); in a translation
-  project, `kapi up` catches locales up ([translate.md](translate.md)).
+Tell the user the claim URL while unclaimed, and the project and review URLs
+once claimed.
 
 ---
 
@@ -222,27 +244,65 @@ since been superseded fails the staleness gate, naming what moved. Re-running
 
 # Refresh an existing context
 
-When new material lands — a site relaunch, product renames, a batch of new
-pages — refresh the context against it. Never silently overwrite: every change is
-a proposal the user approves.
+A context is drafted once and corrected forever. Refresh is the second visit:
+the material has moved, and the record has to catch up — **as a proposal the
+user approves, never as a rewrite you perform**. Nothing under `.kapi/` and
+nothing in `kapi.yaml` changes before the user has seen the delta.
 
-## 1. Re-gather, read the baseline
+## When to refresh
 
-Fetch the new material as in step 1 above, then read what the context currently
-says:
+Refresh on a **change in the material**, not on a calendar:
+
+- **A surface appeared.** A directory of content nobody declared — a support
+  site, a new app, docs that moved. `kapi ls --untracked` is how you see it.
+- **A name changed.** A product, a feature, a company. The record still says
+  the old one, and the new material says the new one.
+- **The register drifted.** New copy the user is happy with keeps scoring badly,
+  or the guide describes a voice the material no longer has.
+- **The same finding keeps coming back**, and the user keeps overriding it. A
+  rule that is always wrong in one place is a rule that needs a decision.
+- **The user asks.** "Our brand changed", "we renamed X", "refresh our context".
+
+Time alone is not a trigger. A context nobody has changed in a year is not
+stale; it is settled. Refresh what moved, and leave the rest alone.
+
+## 1. Read the baseline — and write nothing
+
+This whole step is read-only. Do not edit a governance file while you are still
+working out what changed.
 
 ```bash
-kapi voice guide                            # the bound profile, rendered (no flag in a project)
-kapi terms export --format json          # every concept; or --format csv -s en -t fr for one pair
+kapi ls --untracked                 # readable files no collection governs
+kapi context docs/guide.md          # what governs one of the new files
+kapi context search "Tidewatch"     # what the record says about a name
+kapi voice guide                    # the bound profile, rendered
+kapi terms export --format json     # every concept; --format csv -s en -t fr for one pair
 ```
 
-`voice.yaml` itself is the profile baseline — read it directly for the exact
-vocabulary lists.
+`kapi ls --untracked` is the surfaces half of the diff: what is on disk, minus
+what the recipe declares. It reports and never adopts — a file appearing there
+is a candidate, not a decision. Expect true positives the user will decline (a
+README, a fixture, a vendored page); that is the report working.
 
-## 2. Propose a change-set
+The bound voice profile is the register baseline — read the file itself for the
+exact vocabulary lists.
 
-Diff the new signal against the baseline and draft the delta as typed
-entries — additions, retirements, replacements in one reviewable set:
+## 2. Draft the change-set
+
+Four kinds of delta, each with a route that writes only what the entry names.
+Every route **edits** the committed file rather than re-emitting it — comments
+and key order survive — so the user reviews a diff the size of the decision.
+Never hand-write a governance file you could reach through one of these routes:
+a rewritten file loses the user's comments and buries the change.
+
+| What moved | Route | What the user reviews |
+| --- | --- | --- |
+| A surface appeared | `kapi add <pattern> --name <collection> --channel <profile/channel>` | the `kapi.yaml` diff |
+| A term, a name, a rename | `kapi apply` entry, `kind:"term"` | the terms source diff |
+| A word to forbid or prefer | `kapi apply` entry, `kind:"voice"` | the voice profile diff |
+| Tone, style, `examples` | an edit to the profile YAML | the file diff |
+
+Terms and voice rules go in one change-set file, applied atomically:
 
 ```jsonl
 {"kind":"term","op":"upsert","term":"workspace","locale":"en","status":"preferred"}
@@ -253,21 +313,70 @@ entries — additions, retirements, replacements in one reviewable set:
 These are the same `term` and `voice` entry kinds `kapi apply` always takes —
 shapes in [edit.md → mixed change-sets](edit.md) and [voice.md](voice.md).
 Tone, style, and `examples` changes have no entry kind: propose them as an edit
-to `voice.yaml` and show the diff.
+to the profile YAML and show the diff.
 
-Present the change-set as adds / retires / replaces, each with its evidence
-(where the new term appeared, what the old one conflicts with). Apply only what
-the user approves; drop the rest.
-
-## 3. Apply, verify, push
+A new surface takes the point that suits it. `--name` puts the pattern in a
+named collection instead of a bare entry, and `--channel` binds that collection
+to a point in the context space, so the new content is governed by the register
+that fits it rather than by the project default:
 
 ```bash
-kapi apply changeset.jsonl       # terms + voice rules land atomically
-kapi voice validate voice.yaml   # if you edited the profile directly
-kapi check --ship --json         # the refreshed gates — green
-kapi push --concepts             # reconcile terminology with the server hub
+kapi add "support/**/*.md" --name acme-support --channel acme/docs
 ```
 
-A newly retired term starts flagging old usage on the next check — sweep for it
-while you're here (`kgrep`, [toolbox.md](toolbox.md)) and fix the hits through
-`kapi apply` content entries ([edit.md](edit.md)).
+If no declared channel fits, that is itself a proposal: a new channel on the
+profile, which is a recipe edit the user reviews.
+
+## 3. Review with the user
+
+Present the change-set as **adds / retires / replaces**, each with its evidence:
+where the new term appeared in the material, what the old one conflicts with,
+which file the new surface came from.
+
+Before approval, show the **blast radius** of every retirement. A retired term
+starts flagging existing content on the next check, and a user who learns that
+from a red build did not consent to it:
+
+```bash
+kapi terms occurrences "team space"      # where the word is used today
+kgrep -r "team space" docs/              # the same question over files not yet extracted
+```
+
+Then apply only what the user approved, and drop the rest. Do not fold a
+declined item into a later change-set "for consistency".
+
+## 4. Apply, converge, verify
+
+```bash
+kapi apply refresh.jsonl         # terms + voice rules land atomically
+kapi voice validate voice.yaml   # if you edited the profile directly
+kapi up                          # recompile the graph and re-extract the sources
+kapi check --ship --json         # the refreshed gates
+```
+
+Read the result as three separate facts: what the change-set applied, what the
+new gates now flag, and what the user has to do about it. A refresh that ends on
+a red gate is normal — the findings are the work the decision created.
+
+## 5. Sweep what the retirement now flags
+
+A newly retired term flags old usage everywhere it survives. Sweep for it while
+you are here (`kgrep`, [toolbox.md](toolbox.md)) and fix the hits through
+`kapi apply` content entries ([edit.md](edit.md)) — one change-set, reviewed the
+same way.
+
+Some hits are legitimate: a changelog entry or an API field keeps the name it
+was published with. Say so rather than rewriting history; a `deprecated` term is
+an advisory finding for exactly this reason, so the record and the gate can
+disagree in public without blocking anybody.
+
+## 6. Carry it to the server (only if connected)
+
+```bash
+kapi push --concepts    # reconcile the local terms with the workspace hub
+kapi push               # the corrected content
+```
+
+The voice profile travels with `kapi push`, versioned server-side rather than
+overwritten (§6 above). Terminology reconciles into the workspace hub, where a
+term the server already holds is matched rather than duplicated.

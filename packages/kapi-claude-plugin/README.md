@@ -1,8 +1,8 @@
 # neokapi-plugins — Claude Code marketplace
 
 The Claude Code plugin marketplace for [neokapi](https://github.com/neokapi/neokapi):
-keep your AI coding assistant on-brand and terminologically consistent, and
-publish content in every language and format.
+give your AI coding assistant the terms, voice and rules your project goes by,
+check every edit against them, and publish content in every language and format.
 
 ## Install
 
@@ -24,13 +24,16 @@ alongside the plugin so the skill matches your installed command surface.
 
 One `kapi` Agent Skill — a router `SKILL.md` that loads the relevant reference on
 demand (progressive disclosure) — plus two Claude Code hooks. It covers the loop
-**know-brand → author → check → fix → publish**:
+**know the context → author → check → fix → publish**:
 
+- **Discover & refresh the context** — draft a project's voice profile and
+  terminology from the repository it already has, then, when the material moves,
+  propose the delta as a change-set the user approves before anything is written.
 - **Author & edit** — read a document's blocks (`kapi inspect`), rewrite them, and
   write them back faithfully (`kapi apply`) in any format your editor can't open
   (Word, PowerPoint, JSON, XLIFF); no second model.
-- **Brand voice** — load a voice guide, score a draft (0–100 + findings), fix what
-  drifts; brand vocabulary and terminology enforced at the gate.
+- **Voice profile** — load a voice guide, score a draft (0–100 + findings), fix what
+  drifts; the project's vocabulary and terminology enforced at the gate.
 - **Translate & publish** — translate, enforce terminology, and round-trip into
   other languages and formats.
 - **i18n setup** — add i18n to a project.

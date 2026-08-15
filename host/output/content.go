@@ -81,11 +81,20 @@ type LsOutput struct {
 	// HasSync marks that per-file sync standing was merged in from the
 	// connected server's plumbing (kapi ls's sync column).
 	HasSync bool `json:"-"`
+	// Untracked inverts the listing: the files are the ones NO collection
+	// tracks (`kapi ls --untracked`). It travels in the JSON document because
+	// the two listings carry the same entry shape and a reader holding one of
+	// them cannot otherwise tell which question it answers.
+	Untracked bool `json:"untracked,omitempty"`
 }
 
 // FormatText renders the file list, with block/word columns when --stats is set.
 func (o LsOutput) FormatText(w io.Writer) error {
 	if len(o.Files) == 0 {
+		if o.Untracked {
+			fmt.Fprintln(w, "Every readable file is tracked by a collection.")
+			return nil
+		}
 		fmt.Fprintln(w, "No tracked files.")
 		return nil
 	}
@@ -113,9 +122,12 @@ func (o LsOutput) FormatText(w io.Writer) error {
 	t.Render()
 
 	fmt.Fprintln(w)
-	if o.HasStats {
+	switch {
+	case o.Untracked:
+		Note(w, "%d file(s) tracked by no collection", o.Total)
+	case o.HasStats:
 		Note(w, "%d file(s), %d blocks, %d words", o.Total, o.Blocks, o.Words)
-	} else {
+	default:
 		Note(w, "%d file(s)", o.Total)
 	}
 	return nil

@@ -47,6 +47,24 @@ func TestWalkProjectDir(t *testing.T) {
 		"visible directories are visited; hidden/ignored ones are pruned")
 }
 
+// TestWalkProjectDir_RelativeRoot: a root of "." is the caller's own working
+// directory, not a hidden entry. Pruning it returned an empty walk and no
+// error, so every listing built on this walk reported a project with no files.
+func TestWalkProjectDir_RelativeRoot(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(root, "page.md"), []byte("x"), 0o644))
+	t.Chdir(root)
+
+	var got []string
+	require.NoError(t, project.WalkProjectDir(".", func(rel string, info os.FileInfo) error {
+		if !info.IsDir() {
+			got = append(got, rel)
+		}
+		return nil
+	}))
+	assert.Equal(t, []string{"page.md"}, got)
+}
+
 func TestWalkProjectDir_VisitErrorStops(t *testing.T) {
 	root := t.TempDir()
 	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
