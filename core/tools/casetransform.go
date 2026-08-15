@@ -51,16 +51,6 @@ func (c *CaseTransformConfig) Validate() error {
 	return nil
 }
 
-// CaseTransformSchema returns the auto-generated schema for the case-transform tool.
-func CaseTransformSchema() *schema.ComponentSchema {
-	return schema.FromStruct(&CaseTransformConfig{}, schema.ToolMeta{
-		ID:          "case-transform",
-		Category:    schema.CategoryTextProcessing,
-		DisplayName: "Case Transform",
-		Description: "Transform text case (upper, lower, title)",
-	})
-}
-
 // NewCaseTransformFromConfig creates a case-transform tool from a config map.
 func NewCaseTransformFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	var cfg CaseTransformConfig

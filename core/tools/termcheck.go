@@ -55,17 +55,6 @@ func (c *TermCheckConfig) Validate() error {
 	return nil
 }
 
-// TermCheckSchema returns the auto-generated schema for the term-check tool.
-func TermCheckSchema() *schema.ComponentSchema {
-	return schema.FromStruct(&TermCheckConfig{}, schema.ToolMeta{
-		ID:          "term-check",
-		Category:    schema.CategoryQuality,
-		DisplayName: "Term Check",
-		Description: "Check terminology consistency across content",
-		Requires:    []string{schema.RequiresTargetLanguage},
-	})
-}
-
 // NewTermCheckFromConfig creates a term-check tool from a config map.
 func NewTermCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	var cfg TermCheckConfig

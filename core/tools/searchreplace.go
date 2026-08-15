@@ -63,18 +63,6 @@ func (c *SearchReplaceConfig) Validate() error {
 	return nil
 }
 
-// SearchReplaceSchema returns the auto-generated schema for the search-replace tool.
-func SearchReplaceSchema() *schema.ComponentSchema {
-	cfg := &SearchReplaceConfig{}
-	cfg.Reset()
-	return schema.FromStruct(cfg, schema.ToolMeta{
-		ID:          "search-replace",
-		Category:    schema.CategoryTextProcessing,
-		DisplayName: "Search Replace",
-		Description: "Find and replace patterns (literal or regex)",
-	})
-}
-
 // NewSearchReplaceFromConfig creates a search-replace tool from a config map.
 func NewSearchReplaceFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	cfg := &SearchReplaceConfig{}

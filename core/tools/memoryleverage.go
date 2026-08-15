@@ -185,20 +185,6 @@ func (c *MemoryLeverageConfig) Validate() error {
 	return nil
 }
 
-// MemoryLeverageSchema returns the auto-generated schema for the content-memory leverage tool.
-func MemoryLeverageSchema() *schema.ComponentSchema {
-	cfg := &MemoryLeverageConfig{}
-	cfg.Reset()
-	return schema.FromStruct(cfg, schema.ToolMeta{
-		ID:          "recycle",
-		Category:    schema.CategoryTranslation,
-		DisplayName: "Recycle",
-		Description: "Pre-fill translations from content memory",
-		Tags:        []string{schema.TagL10n},
-		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresSourceLanguage, schema.RequiresMemory},
-	})
-}
-
 // NewMemoryLeverageFromConfig creates a content-memory leverage tool from a config map.
 func NewMemoryLeverageFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
 	cfg := &MemoryLeverageConfig{}
