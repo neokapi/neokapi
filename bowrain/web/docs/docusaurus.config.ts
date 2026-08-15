@@ -22,8 +22,7 @@ const buildStamp = (() => {
 // URL of the kapi/neokapi docs site, used for cross-site links.
 // Defaults to the GitHub Pages production URL; override via env var locally
 // to point at a localhost build of the kapi site.
-const KAPI_WEB_SITE =
-  process.env.KAPI_WEB_SITE || "https://neokapi.github.io/web/neokapi/";
+const KAPI_WEB_SITE = process.env.KAPI_WEB_SITE || "https://neokapi.github.io/";
 
 // URL of the Bowrain marketing landing page (the bowrain-web Vite app that sits
 // at the apex root, with these docs one level deeper at /docs/). The top-left

@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 env:
-  KAPI_WEB_SITE: https://neokapi.github.io/web/neokapi/
+  KAPI_WEB_SITE: https://neokapi.github.io/
 
 jobs:
   build:

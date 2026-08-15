@@ -25,7 +25,9 @@ export function signupUrl(opts?: { plan?: string; seats?: number }): string {
 export const whoamiUrl = () => `${APP_URL}/api/v1/auth/whoami`;
 
 export const GITHUB_URL = "https://github.com/neokapi";
-export const KAPI_SITE_URL = "https://neokapi.github.io/web/neokapi/";
+// The kapi site is served from the Pages root; anything under /web/ is a build
+// path, not a published one.
+export const KAPI_SITE_URL = "https://neokapi.github.io/";
 
 // Relative to the deploy base: /web/bowrain/docs/ on GitHub Pages today,
 // /docs/ once bowrain.cloud serves the site.
