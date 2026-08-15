@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/stretchr/testify/assert"
@@ -179,7 +180,14 @@ func newPolicyWorkspace(t *testing.T) *policyWorkspace {
 	require.NotNil(t, srv.AuthStore)
 
 	ctx := t.Context()
-	ws := &platauth.Workspace{ID: "policy-ws", Name: "Policy", Slug: "policy", Type: platauth.WorkspaceTypeTeam}
+	// The Team plan, because these tests create several projects in one
+	// workspace and the plan limit is checked before the policy is: on Free the
+	// second create is refused with project_limit_reached, which is a 403 for
+	// the wrong reason and would read as the policy denying a member.
+	ws := &platauth.Workspace{
+		ID: "policy-ws", Name: "Policy", Slug: "policy",
+		Type: platauth.WorkspaceTypeTeam, Plan: string(billing.PlanTeam),
+	}
 	require.NoError(t, srv.AuthStore.CreateWorkspace(ctx, ws))
 	require.NoError(t, srv.AuthStore.SeedDefaultRoleTemplates(ctx, ws.ID))
 
@@ -249,6 +257,19 @@ func (pw *policyWorkspace) mintToken(t *testing.T, name, scopesJSON string) stri
 
 const policyProjectBody = `{"name":"Policy","default_source_language":"en","target_languages":["nb"]}`
 
+// assertCreateOutcome checks the status and, for a refusal, that the reason is
+// the policy rather than something else that also answers 403 — the plan's
+// project limit is checked in the same handler and would otherwise let a
+// billing refusal read as a permission one.
+func assertCreateOutcome(t *testing.T, rec *httptest.ResponseRecorder, want int) {
+	t.Helper()
+	assert.Equal(t, want, rec.Code, rec.Body.String())
+	if want == http.StatusForbidden {
+		assert.NotContains(t, rec.Body.String(), "project_limit_reached",
+			"refused by the plan limit, not by the policy under test")
+	}
+}
+
 // TestCreateWorkspaceProjectIsMemberLevel pins the deliberate asymmetry: any
 // workspace member may create a project, and a non-member may not.
 func TestCreateWorkspaceProjectIsMemberLevel(t *testing.T) {
@@ -267,7 +288,7 @@ func TestCreateWorkspaceProjectIsMemberLevel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := pw.do(t, http.MethodPost, "/api/v1/"+pw.slug+"/projects", tt.bearer, policyProjectBody)
-			assert.Equal(t, tt.want, rec.Code, rec.Body.String())
+			assertCreateOutcome(t, rec, tt.want)
 		})
 	}
 }
@@ -293,7 +314,7 @@ func TestCreateWorkspaceProjectHonorsTokenScopes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			token := pw.mintToken(t, tt.name, tt.scopes)
 			rec := pw.do(t, http.MethodPost, "/api/v1/"+pw.slug+"/projects", token, policyProjectBody)
-			assert.Equal(t, tt.want, rec.Code, rec.Body.String())
+			assertCreateOutcome(t, rec, tt.want)
 		})
 	}
 }
