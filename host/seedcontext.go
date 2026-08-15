@@ -100,7 +100,7 @@ func formatRecordLine(r RecordAbsorbResult) string {
 		line += fmt.Sprintf("; %d pair(s) refused for dropped inline codes", r.Refused)
 	}
 	if r.Superseded > 0 {
-		line += fmt.Sprintf("; %d pair(s) whose source was rewritten since the translation was decided", r.Superseded)
+		line += fmt.Sprintf("; %d pair(s) whose source was rewritten since the translation was written", r.Superseded)
 	}
 	return line
 }

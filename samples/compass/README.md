@@ -204,7 +204,8 @@ Running the journey is how these were found.
 
 | Gap | Issue |
 | --- | --- |
-| A committed translation identical to its source is dropped when the record is absorbed, so the loop has nothing to recycle for it and re-drafts it on every pass — silently invalidating the reviewer's approval. `settings.terminal` is *Terminal* in all four languages, and it is re-drafted here every time | [#1927](https://github.com/neokapi/neokapi/issues/1927) |
+| `settings.terminal` is *Terminal* in all four languages, and the `nb` one is approved. The loop now keeps it — and the QA gate reports it as untranslated on every run, because `target-same-as-source` is a gate failure with no reading of the decision that settles it | [#1973](https://github.com/neokapi/neokapi/issues/1973) |
+| Rewriting `alerts.acknowledge` makes work in all three locales, and the plan quotes one: it prices a produced unit by whether a target file exists, while the pass drafts whatever the content memory does not answer | [#1974](https://github.com/neokapi/neokapi/issues/1974) |
 
 Fixed while this sample was being built, each found by running the journey on it:
 `kapi status` reporting source readiness as `checked 0%` immediately after a
@@ -212,10 +213,16 @@ Fixed while this sample was being built, each found by running the journey on it
 ladder was re-derived from files a JSON catalog cannot write a per-block status
 into ([#1928](https://github.com/neokapi/neokapi/issues/1928)); the built-in
 `translate` flow's AI step overwriting every unit `recycle` had just
-filled from approved wording; `kapi apply` refusing the indented change-set that
-`kapi status --review --json --jq` prints, so the review round-trip did not
-compose; and `kapi commit` writing absolute machine paths into `.kapi/state/`
-when the recipe was named by a relative `-p`.
+filled from approved wording; the record absorber dropping a translation
+identical to its source, so `settings.terminal` was re-drafted on every pass and
+the reviewer's approval discarded with it
+([#1927](https://github.com/neokapi/neokapi/issues/1927)); a source rewrite
+mispairing every locale that held no decision, so `nb` and `nl` went on serving
+the translation of a deleted sentence
+([#1964](https://github.com/neokapi/neokapi/issues/1964)); `kapi apply` refusing
+the indented change-set that `kapi status --review --json --jq` prints, so the
+review round-trip did not compose; and `kapi commit` writing absolute machine
+paths into `.kapi/state/` when the recipe was named by a relative `-p`.
 
 ## Where it is used
 

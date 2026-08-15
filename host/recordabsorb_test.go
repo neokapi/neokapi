@@ -392,7 +392,14 @@ func TestAbsorbCommittedRecord_KeepsPulledApproval(t *testing.T) {
 // the decision carries the basis a live approval would.
 func approveRecordUnit(t *testing.T, a *App, recipe, key string) {
 	t.Helper()
-	changed, err := a.ApproveReviewUnit(context.Background(), recipe, "en", "nb", "src/nb.json", key, "reviewed")
+	approveRecordUnitIn(t, a, recipe, "nb", ".json", key)
+}
+
+// approveRecordUnitIn is the same for any locale of the fixture.
+func approveRecordUnitIn(t *testing.T, a *App, recipe, locale, ext, key string) {
+	t.Helper()
+	changed, err := a.ApproveReviewUnit(context.Background(), recipe, "en", locale,
+		"src/"+locale+ext, key, "reviewed")
 	require.NoError(t, err)
 	require.True(t, changed)
 }
@@ -490,4 +497,183 @@ func TestAbsorbCommittedRecord_SupersededOnlyWhileTheDecisionStillBlessesTheTarg
 	assert.Equal(t, 1, res.Record.Learned)
 	learned := storeEntries(t, a, root)["Good evening, world"]
 	assert.Equal(t, "God kveld, verden", learned.VariantText("nb"))
+}
+
+// A source rewrite is a fact about the SOURCE, so it mispairs every locale of
+// the unit. Only the decided locale had anything to contradict the adjacency
+// with, so the others learned the mispairing and went on serving the translation
+// of a deleted sentence — with the loop reporting them caught up.
+
+// newRecordProjectLocales writes the record fixture with more than one target
+// language, which is what makes "every locale" a question at all.
+func newRecordProjectLocales(t *testing.T, locales ...model.LocaleID) (a *App, root, recipe string) {
+	t.Helper()
+	a, root, recipe = newRecordProject(t, ".json")
+	proj, err := project.Load(recipe)
+	require.NoError(t, err)
+	proj.Defaults.TargetLanguages = locales
+	require.NoError(t, project.Save(recipe, proj))
+	return a, root, recipe
+}
+
+// TestAbsorbCommittedRecord_RewrittenSourceMispairsEveryLocale: one locale holds
+// a decision, two hold none. The block store still has the wording the committed
+// targets were produced against, and the corpus still answers it with exactly
+// those targets — which is what says they have not moved with the source. Every
+// one of them is kept under the sentence it translates, and the rewritten
+// sentence is left with no translation at all, because it has none.
+func TestAbsorbCommittedRecord_RewrittenSourceMispairsEveryLocale(t *testing.T) {
+	a, root, recipe := newRecordProjectLocales(t, "nb", "de", "nl")
+	writeDoc(t, root, "src/en.json", `{"greeting":"Hello world"}`)
+	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden"}`)
+	writeDoc(t, root, "src/de.json", `{"greeting":"Hallo Welt"}`)
+	writeDoc(t, root, "src/nl.json", `{"greeting":"Hallo wereld"}`)
+	ctx := context.Background()
+
+	extractRecordBlocks(t, a, recipe)
+	warm, err := a.SeedProjectContext(ctx, recipe)
+	require.NoError(t, err)
+	require.Equal(t, 1, warm.Record.Learned, "the corpus holds what the committed targets say")
+
+	// Only de is reviewed. The other two locales have nothing on record.
+	approveRecordUnitIn(t, a, recipe, "de", ".json", "greeting")
+
+	writeDoc(t, root, "src/en.json", `{"greeting":"Good evening, world"}`)
+
+	res, err := a.SeedProjectContext(ctx, recipe)
+	require.NoError(t, err)
+	assert.Equal(t, 3, res.Record.Superseded,
+		"the rewrite mispairs the undecided locales exactly as it mispairs the decided one")
+	assert.Zero(t, res.Record.Learned, "each pair is re-asserted under the source it already had")
+
+	entries := storeEntries(t, a, root)
+	_, wrong := entries["Good evening, world"]
+	assert.False(t, wrong, "no locale claims a translation of the rewritten sentence")
+	blessed := entries["Hello world"]
+	assert.Equal(t, "Hei verden", blessed.VariantText("nb"))
+	assert.Equal(t, "Hallo Welt", blessed.VariantText("de"))
+	assert.Equal(t, "Hallo wereld", blessed.VariantText("nl"),
+		"a locale with no decision keeps its wording under the sentence it translates too")
+}
+
+// TestAbsorbCommittedRecord_SourceAndTargetRewrittenTogetherIsTheFreshPairing is
+// the control that stops the rule above from becoming "refuse on any source
+// edit". A person who rewrites a sentence and its translation in one commit has
+// authored a pairing, not left a stale one — the corpus does not answer the old
+// wording with what is on disk, so nothing contradicts it and it is absorbed.
+// Without this the loop would take the new translation away from them and
+// re-draft over it.
+func TestAbsorbCommittedRecord_SourceAndTargetRewrittenTogetherIsTheFreshPairing(t *testing.T) {
+	a, root, recipe := newRecordProjectLocales(t, "nb", "de")
+	writeDoc(t, root, "src/en.json", `{"greeting":"Hello world"}`)
+	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden"}`)
+	writeDoc(t, root, "src/de.json", `{"greeting":"Hallo Welt"}`)
+	ctx := context.Background()
+
+	extractRecordBlocks(t, a, recipe)
+	_, err := a.SeedProjectContext(ctx, recipe)
+	require.NoError(t, err)
+
+	// nb moves with the source; de is left behind.
+	writeDoc(t, root, "src/en.json", `{"greeting":"Good evening, world"}`)
+	writeDoc(t, root, "src/nb.json", `{"greeting":"God kveld, verden"}`)
+
+	res, err := a.SeedProjectContext(ctx, recipe)
+	require.NoError(t, err)
+	assert.Equal(t, 1, res.Record.Superseded, "only the locale that stayed behind is mispaired")
+
+	entries := storeEntries(t, a, root)
+	fresh, held := entries["Good evening, world"], entries["Hello world"]
+	assert.Equal(t, "God kveld, verden", fresh.VariantText("nb"),
+		"the pairing a person authored is learned, not refused")
+	assert.Empty(t, fresh.VariantText("de"), "and the locale that did not move claims nothing")
+	assert.Equal(t, "Hallo Welt", held.VariantText("de"))
+}
+
+// TestAbsorbCommittedRecord_NoPriorSourceLeavesTheAdjacencyAlone: with nothing
+// extracted there is no record of what the targets were produced against, so
+// there is no rewrite to see. The absorber reads the documents as it always did
+// — the honest posture for a first pass on a fresh clone, where the store has
+// never described this project.
+func TestAbsorbCommittedRecord_NoPriorSourceLeavesTheAdjacencyAlone(t *testing.T) {
+	a, root, recipe := newRecordProject(t, ".json")
+	writeDoc(t, root, "src/en.json", `{"greeting":"Good evening, world"}`)
+	writeDoc(t, root, "src/nb.json", `{"greeting":"Hei verden"}`)
+
+	res, err := a.SeedProjectContext(context.Background(), recipe)
+	require.NoError(t, err)
+	assert.Zero(t, res.Record.Superseded)
+	assert.Equal(t, 1, res.Record.Learned)
+	learned := storeEntries(t, a, root)["Good evening, world"]
+	assert.Equal(t, "Hei verden", learned.VariantText("nb"))
+}
+
+// The identical pair. A translation legitimately equal to its source — a proper
+// noun, a product name, a short label — was dropped with the untranslated leaves
+// a catalog carries verbatim, so the loop never learned it, re-drafted it with
+// the provider on every pass, and overwrote the approval bound to it.
+func TestAbsorbCommittedRecord_IdenticalPair(t *testing.T) {
+	tests := []struct {
+		name        string
+		approve     bool
+		wantLearned int
+		wantMemory  string
+	}{
+		{
+			name:        "an approved identical translation is a decision, and is absorbed",
+			approve:     true,
+			wantLearned: 1,
+			wantMemory:  "Terminal",
+		},
+		{
+			name:        "an identical leaf nobody decided is an untranslated one",
+			approve:     false,
+			wantLearned: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			a, root, recipe := newRecordProject(t, ".json")
+			writeDoc(t, root, "src/en.json", `{"terminal":"Terminal"}`)
+			writeDoc(t, root, "src/nb.json", `{"terminal":"Terminal"}`)
+			if tc.approve {
+				approveRecordUnit(t, a, recipe, "terminal")
+			}
+
+			res, err := a.SeedProjectContext(context.Background(), recipe)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantLearned, res.Record.Learned)
+
+			entries := storeEntries(t, a, root)
+			if tc.wantMemory == "" {
+				assert.Empty(t, entries)
+				return
+			}
+			require.Len(t, entries, 1)
+			learned := entries["Terminal"]
+			assert.Equal(t, tc.wantMemory, learned.VariantText("nb"),
+				"recycle can fill the unit, so the AI step never sees it again")
+		})
+	}
+}
+
+// TestAbsorbCommittedRecord_ApprovalDoesNotSurviveAnEditToWhatItApproved: the
+// identical pair is admitted by the decision, not by the identity, so a decision
+// that no longer describes the translation on disk admits nothing. Otherwise an
+// approval of one wording would let any later identical target in behind it.
+func TestAbsorbCommittedRecord_ApprovalDoesNotSurviveAnEditToWhatItApproved(t *testing.T) {
+	a, root, recipe := newRecordProject(t, ".json")
+	writeDoc(t, root, "src/en.json", `{"terminal":"Terminal"}`)
+	writeDoc(t, root, "src/nb.json", `{"terminal":"Terminalen"}`)
+	approveRecordUnit(t, a, recipe, "terminal")
+
+	// The translation is edited to the source wording after the approval, so
+	// the decision on record judges wording that is no longer there.
+	writeDoc(t, root, "src/nb.json", `{"terminal":"Terminal"}`)
+
+	res, err := a.SeedProjectContext(context.Background(), recipe)
+	require.NoError(t, err)
+	assert.Zero(t, res.Record.Learned)
+	assert.Empty(t, storeEntries(t, a, root))
 }
