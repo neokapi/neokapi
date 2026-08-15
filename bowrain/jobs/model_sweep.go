@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -148,20 +147,6 @@ func DeriveSweepFixtures(blocks []*store.StoredBlock, sc *SweepContext) []SweepF
 	}
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Block.ID < sorted[j].Block.ID })
 
-	// Pre-compile the profile's mechanical prohibited style patterns; invalid
-	// regexes are skipped (they cannot be measured deterministically).
-	var prohibited []*regexp.Regexp
-	if sc.Profile != nil {
-		for _, p := range sc.Profile.Style.ProhibitedPatterns {
-			if p.Regex == "" {
-				continue
-			}
-			if re, err := regexp.Compile(p.Regex); err == nil {
-				prohibited = append(prohibited, re)
-			}
-		}
-	}
-
 	glossarySources := make([]string, 0, len(sc.Glossary))
 	for src := range sc.Glossary {
 		glossarySources = append(glossarySources, src)
@@ -172,7 +157,7 @@ func DeriveSweepFixtures(blocks []*store.StoredBlock, sc *SweepContext) []SweepF
 		switch {
 		case containsAnyTerm(text, glossarySources):
 			return "glossary"
-		case isVoiceTrap(text, sc.Profile, prohibited):
+		case isVoiceTrap(text, sc.Profile):
 			return "voice"
 		case containsAnyTerm(text, sc.DNT):
 			return "dnt"
@@ -243,19 +228,11 @@ func containsAnyTerm(text string, terms []string) bool {
 // rules (a forbidden/competitor term present in the source is likely to be
 // carried into a target unless steered) or matches a mechanical prohibited
 // style pattern.
-func isVoiceTrap(text string, profile *brand.VoiceProfile, prohibited []*regexp.Regexp) bool {
+func isVoiceTrap(text string, profile *brand.VoiceProfile) bool {
 	if profile == nil {
 		return false
 	}
-	if len(brand.MatchVocabulary(profile, text)) > 0 {
-		return true
-	}
-	for _, re := range prohibited {
-		if re.MatchString(text) {
-			return true
-		}
-	}
-	return false
+	return len(brand.MatchVocabulary(profile, text)) > 0 || len(brand.MatchPatterns(profile, text)) > 0
 }
 
 // SweepFixtureDigest keys sweep results to exactly what was measured: the
@@ -406,15 +383,14 @@ func countDNTFindings(b *model.Block) int {
 	return n
 }
 
-// sweepVoiceAdherent applies the brand-vocabulary bar: the target's
-// deterministic vocabulary score must clear the profile's on-brand bar. A nil
-// profile always passes (there is no voice to violate).
+// sweepVoiceAdherent applies the voice bar: the target's deterministic score —
+// vocabulary and prohibited style patterns — must clear the profile's on-brand
+// bar. A nil profile always passes (there is no voice to violate).
 func sweepVoiceAdherent(target string, profile *brand.VoiceProfile) bool {
 	if profile == nil {
 		return true
 	}
-	findings := brand.HitsToFindings(brand.MatchVocabulary(profile, target), target,
-		[]model.Run{{Text: &model.TextRun{Text: target}}})
+	findings := brand.Findings(profile, target, []model.Run{{Text: &model.TextRun{Text: target}}})
 	return brand.CalculateScore(findings).Overall >= profile.ComplianceBar()
 }
 

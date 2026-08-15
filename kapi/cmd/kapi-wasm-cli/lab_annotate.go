@@ -246,17 +246,21 @@ func termOverlay(ctx context.Context, runs []model.Run, source string) *model.Ov
 	return &model.Overlay{Type: model.OverlayTerm, Spans: spans}
 }
 
-// brandOverlay builds an OverlayQA over the source runs from the seeded brand
-// profile (profile.MatchVocabulary). Brand findings ride on the QA overlay type
-// (the model's fixed overlay enum has no dedicated brand type) and are tagged
-// with category="voice-vocabulary" plus the matched term, severity and any
-// preferred replacement. Returns nil when nothing matches.
+// brandOverlay builds an OverlayQA over the source runs from the seeded voice
+// profile — both halves of its deterministic gate, vocabulary
+// (profile.MatchVocabulary) and prohibited style patterns
+// (profile.MatchPatterns). Findings ride on the QA overlay type (the model's
+// fixed overlay enum has no dedicated voice type) and are tagged with
+// category="voice-vocabulary" or category="voice-pattern" plus the matched term
+// or rule, severity and any preferred replacement. Returns nil when nothing
+// matches.
 func brandOverlay(runs []model.Run, source string) *model.Overlay {
 	hits := profile.MatchVocabulary(brandProfile, source)
-	if len(hits) == 0 {
+	patterns := profile.MatchPatterns(brandProfile, source)
+	if len(hits) == 0 && len(patterns) == 0 {
 		return nil
 	}
-	spans := make([]model.Span, 0, len(hits))
+	spans := make([]model.Span, 0, len(hits)+len(patterns))
 	for _, h := range hits {
 		props := map[string]string{
 			"category": "voice-vocabulary",
@@ -277,6 +281,22 @@ func brandOverlay(runs []model.Run, source string) *model.Overlay {
 		spans = append(spans, model.Span{
 			Range: model.RunRangeForBytes(runs, h.Start, h.End),
 			Props: props,
+		})
+	}
+	for _, p := range patterns {
+		message := p.Description
+		if strings.TrimSpace(message) == "" {
+			message = fmt.Sprintf("Prohibited pattern %q matched", p.Regex)
+		}
+		spans = append(spans, model.Span{
+			Range: model.RunRangeForBytes(runs, p.Start, p.End),
+			Props: map[string]string{
+				"category": "voice-pattern",
+				"severity": string(p.Severity),
+				"kind":     "pattern",
+				"pattern":  p.Regex,
+				"message":  message,
+			},
 		})
 	}
 	return &model.Overlay{Type: model.OverlayQA, Spans: spans}

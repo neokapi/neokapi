@@ -8,9 +8,9 @@ import (
 	brand "github.com/neokapi/neokapi/core/profile"
 )
 
-// persistDraftVoiceScores runs the profile's deterministic vocabulary check
-// (brand.MatchVocabulary — the same zero-AI matcher behind every HTTP scoring
-// surface) over freshly persisted draft targets and stores one brand voice
+// persistDraftVoiceScores runs the profile's deterministic gate
+// (brand.Findings — the same zero-AI vocabulary and pattern matching behind
+// every HTTP scoring surface) over freshly persisted draft targets and stores one brand voice
 // score per block. This is what makes the dashboard's on-brand rate
 // voice-informed without any extra AI spend: every server-side draft the
 // convergence loop produces (content memory-recycled or AI-translated) leaves a measured
@@ -37,7 +37,7 @@ func persistDraftVoiceScores(ctx context.Context, deps *WorkerDeps, job *Transla
 		// Anchor findings to a single synthetic text run over the checked text,
 		// exactly like the HTTP check surfaces (HandleCheckBrandVoice).
 		runs := []model.Run{{Text: &model.TextRun{Text: text}}}
-		findings := brand.HitsToFindings(brand.MatchVocabulary(profile, text), text, runs)
+		findings := brand.Findings(profile, text, runs)
 		score := brand.CalculateScore(findings)
 		err := deps.BrandStore.StoreScore(ctx, &brand.StoredScore{
 			ProjectID:      job.ProjectID,

@@ -3,6 +3,8 @@ package host
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1274,20 +1276,21 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 // any output — verify only inspects content. The app-wide --format override
 // (a.FormatFlag) applies; ReadBlocksForCheck is the per-file-format variant.
 func (a *App) readBlocks(ctx context.Context, path, sourceLang string) ([]*model.Block, error) {
-	return a.readBlocksAs(ctx, path, a.FormatFlag, sourceLang)
+	return a.readBlocksAs(ctx, path, a.FormatFlag, nil, sourceLang)
 }
 
 // readBlocksAs is readBlocks with an explicit format override (empty =
-// detect by extension). It is the validation-off wrapper around
+// detect by extension) and the project format config to read under (nil = the
+// reader's defaults). It is the validation-off wrapper around
 // readBlocksValidated, so every caller that does not opt into Reader
 // Validation-Mode keeps the byte-identical lenient behavior.
-func (a *App) readBlocksAs(ctx context.Context, path, fmtName, sourceLang string) ([]*model.Block, error) {
+func (a *App) readBlocksAs(ctx context.Context, path, fmtName string, cfg map[string]any, sourceLang string) ([]*model.Block, error) {
 	// When the project document cache is open, serve unchanged files from it,
 	// streaming the parts one at a time and projecting out the translatable blocks
 	// — the read/coverage path never reconstructs output, so it never opens the
 	// skeleton. The key is namespaced ("rb|") and disjoint from the runner's key.
 	if a.docCache != nil {
-		configKey := readBlocksConfigKey(fmtName, sourceLang)
+		configKey := readBlocksConfigKey(fmtName, cfg, sourceLang)
 		if doc := a.docCache.OpenDocument(path, configKey); doc != nil {
 			blocks, err := streamTranslatableBlocks(ctx, doc)
 			_ = doc.Close()
@@ -1296,18 +1299,41 @@ func (a *App) readBlocksAs(ctx context.Context, path, fmtName, sourceLang string
 			}
 			// A corrupt log → fall through and re-parse (re-records the entry).
 		}
-		return a.recordAndCollectBlocks(ctx, path, fmtName, configKey, sourceLang)
+		return a.recordAndCollectBlocks(ctx, path, fmtName, cfg, configKey, sourceLang)
 	}
-	blocks, _, err := a.readBlocksValidated(ctx, path, fmtName, sourceLang, format.ValidationOff)
+	blocks, _, err := a.readBlocksValidated(ctx, path, fmtName, cfg, sourceLang, format.ValidationOff)
 	return blocks, err
 }
 
 // readBlocksConfigKey is the cache config key for the read/coverage path. It is
 // namespaced ("rb|") so it never collides with the flow runner's key for the
-// same file (the runner applies project format config the read path does not),
-// and read-path entries carry no skeleton (status writes no file).
-func readBlocksConfigKey(formatFlag, sourceLang string) string {
-	return "rb|" + formatFlag + "|" + sourceLang
+// same file, and read-path entries carry no skeleton (status writes no file).
+//
+// The format config is part of the key because it decides which text a reader
+// even emits: the same YAML read with and without the project's
+// keyPathPatterns yields different blocks, and a key blind to the config would
+// replay one run's blocks for the other's question.
+func readBlocksConfigKey(formatFlag string, cfg map[string]any, sourceLang string) string {
+	return "rb|" + formatFlag + "|" + formatConfigDigest(cfg) + "|" + sourceLang
+}
+
+// formatConfigDigest is a stable digest of a format config map — key order in a
+// Go map is randomized, so the keys are sorted before hashing and the same
+// config always digests identically. An empty config digests to "".
+func formatConfigDigest(cfg map[string]any) string {
+	if len(cfg) == 0 {
+		return ""
+	}
+	keys := make([]string, 0, len(cfg))
+	for k := range cfg {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	h := sha256.New()
+	for _, k := range keys {
+		fmt.Fprintf(h, "%s=%v\x00", k, cfg[k])
+	}
+	return hex.EncodeToString(h.Sum(nil)[:8])
 }
 
 // streamTranslatableBlocks streams a cached document's parts one at a time and
@@ -1331,7 +1357,7 @@ func streamTranslatableBlocks(ctx context.Context, doc flow.CachedDocument) ([]*
 // not the whole document. The recorded entry has no skeleton (the reader's
 // emitter is not wired): the read path never reconstructs output, and its "rb|"
 // key is disjoint from the runner's, so no writer ever reads a skeleton-less entry.
-func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName, configKey, sourceLang string) ([]*model.Block, error) {
+func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName string, cfg map[string]any, configKey, sourceLang string) ([]*model.Block, error) {
 	if fmtName == "" {
 		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {
@@ -1344,6 +1370,10 @@ func (a *App) recordAndCollectBlocks(ctx context.Context, path, fmtName, configK
 		return nil, fmt.Errorf("no reader for %q: %w", fmtName, err)
 	}
 	defer reader.Close()
+
+	if err := applyFormatConfig(reader, cfg); err != nil {
+		return nil, fmt.Errorf("apply format config for %q: %w", filepath.Base(path), err)
+	}
 
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -1427,7 +1457,7 @@ func streamIntoRecorder(ctx context.Context, reader format.DataFormatReader, rec
 // operational failure). With mode ValidationOff this is byte-identical to the
 // pre-RVM readBlocks: no diagnostics, errors propagate unchanged. fmtName
 // overrides format detection (empty = detect by extension).
-func (a *App) readBlocksValidated(ctx context.Context, path, fmtName, sourceLang string, mode format.ValidationMode) ([]*model.Block, []format.Diagnostic, error) {
+func (a *App) readBlocksValidated(ctx context.Context, path, fmtName string, cfg map[string]any, sourceLang string, mode format.ValidationMode) ([]*model.Block, []format.Diagnostic, error) {
 	if fmtName == "" {
 		detected, err := a.FormatReg.Detect(path, registry.DetectOptions{ExtensionOnly: true})
 		if err != nil {
@@ -1441,6 +1471,10 @@ func (a *App) readBlocksValidated(ctx context.Context, path, fmtName, sourceLang
 		return nil, nil, fmt.Errorf("no reader for %q: %w", fmtName, err)
 	}
 	defer reader.Close()
+
+	if err := applyFormatConfig(reader, cfg); err != nil {
+		return nil, nil, fmt.Errorf("apply format config for %q: %w", filepath.Base(path), err)
+	}
 
 	// Set the validation mode on the reader's config before Open. Formats that
 	// have not opted into RVM don't satisfy ValidationConfig; their ValidationMode

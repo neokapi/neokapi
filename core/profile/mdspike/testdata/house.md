@@ -15,7 +15,7 @@ style:
     - regex: '[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]'
       description: Emoji in committed prose
       severity: major
-    - regex: '\b\d+\+?\s+(?:built-in\s+)?(formats|tools|providers|filters|languages)\b'
+    - regex: '(^|[^\w.-])\d+\+?\s+(?:built-in\s+)?(formats|tools|providers|filters|languages)\b'
       description: Hardcoded counts that the code controls — name categories and link to the generated reference instead
       severity: critical
 vocabulary:
