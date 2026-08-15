@@ -31,8 +31,7 @@ func serveWithSecurityHeaders(t *testing.T, method, target string, tls bool, h e
 	return rec
 }
 
-// TestSecurityHeadersBaseline pins the headers every response carries. The
-// stack previously set none of them.
+// TestSecurityHeadersBaseline pins the headers every response carries.
 func TestSecurityHeadersBaseline(t *testing.T) {
 	rec := serveWithSecurityHeaders(t, http.MethodGet, "/api/v1/health", false, func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})

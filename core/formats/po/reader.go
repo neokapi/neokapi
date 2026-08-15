@@ -493,8 +493,8 @@ func (r *Reader) newPluralBlock(entry *poEntry, pf pluralForm, targetLocale mode
 // core/format/spec/blockevents.go, which excludes Annotations by design)
 // and don't change the emitted part stream, so this is parity-safe and
 // needs no extraction flag. It also recovers the `#.` extracted comments,
-// which the reader previously dropped entirely in normal mode and left as
-// opaque skeleton text in skeleton mode.
+// which otherwise reach no block at all in normal mode and ride as opaque
+// skeleton text in skeleton mode.
 func attachComments(block *model.Block, entry *poEntry) {
 	if len(entry.extractedComments) > 0 {
 		block.AddNote(&model.NoteAnnotation{

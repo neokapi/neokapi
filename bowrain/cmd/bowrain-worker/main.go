@@ -450,9 +450,9 @@ func runWorker(dbURL string) error {
 	g.Go(func() error {
 		mux := http.NewServeMux()
 		// Prometheus metrics (job outcomes, durations, in-flight, DB pool, Go
-		// runtime). The worker previously exported none. Gated the same way as
-		// the server's /metrics: a bearer token when BOWRAIN_METRICS_TOKEN is
-		// set, else loopback/private source IPs only.
+		// runtime). Gated the same way as the server's /metrics: a bearer token
+		// when BOWRAIN_METRICS_TOKEN is set, else loopback/private source IPs
+		// only.
 		mux.Handle("/metrics", observe.MetricsAccessMiddlewareStd(
 			os.Getenv("BOWRAIN_METRICS_TOKEN"), promhttp.Handler()))
 		// Liveness: the process is up. Cheap, dependency-free — used by the

@@ -13,12 +13,12 @@ import (
 )
 
 // The block store's bookkeeping — which extraction semantics wrote it, and what
-// each source file looked like when it did — used to be two sidecar files named
-// after the database (`blocks.db.kapiversion`, `blocks.db.sources.json`). A
-// stamp keyed off a database FILENAME means nothing once the block cache is one
-// schema inside a shared file, and a sidecar beside a merged store is a third
-// thing to keep consistent with it. Both live in `store_meta` now, so a stamp is
-// written by the same transaction that could write the blocks it describes.
+// each source file looked like when it did — lives in `store_meta`, not in
+// sidecar files named after the database. A stamp keyed off a database FILENAME
+// means nothing once the block cache is one schema inside a shared file, and a
+// sidecar beside a merged store is a third thing to keep consistent with it. In
+// `store_meta` a stamp is written by the same transaction that could write the
+// blocks it describes.
 //
 // This is the only implementation: the file-based one is gone and the sweep
 // deletes the sidecars it wrote.

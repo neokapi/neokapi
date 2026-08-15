@@ -108,7 +108,7 @@ mode of a stock .NET app.
 
 The best *message syntax* ever designed — structural divergence from the source
 (Fluent's own "asymmetric localization" model), terms, attributes, per-locale
-variants — with best-in-class runtime correctness
+variants — with runtime correctness at the top of the field
 (R=0). **But warn the user: ecosystem risk is the headline (E=3).**
 Maintainer energy has moved to Unicode MessageFormat 2 (whose design Fluent
 heavily informed); outside Mozilla, bindings are community-grade and PRs

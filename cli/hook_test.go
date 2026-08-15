@@ -221,7 +221,7 @@ func (r *failingReader) Read(p []byte) (int, error) {
 }
 
 // TestHookStop_WarnsOnUnreadableStdin asserts a read failure is reported as a
-// read failure, not as the empty payload it used to be conflated with.
+// read failure, never conflated with an empty payload.
 func TestHookStop_WarnsOnUnreadableStdin(t *testing.T) {
 	root, _ := writeVerifyProject(t)
 	t.Chdir(root)
@@ -236,8 +236,8 @@ func TestHookStop_WarnsOnUnreadableStdin(t *testing.T) {
 }
 
 // TestHookStop_WarnsOnUnloadableProject asserts a project that exists but cannot
-// be evaluated is reported — the gate is installed but inert, which used to be
-// indistinguishable from a project with no gates to run.
+// be evaluated is reported — the gate is installed but inert, which must not read
+// as a project with no gates to run.
 func TestHookStop_WarnsOnUnloadableProject(t *testing.T) {
 	root, _ := writeVerifyProject(t)
 	t.Chdir(root)

@@ -196,7 +196,7 @@ func TestTermsParity_SQLiteVsPostgres(t *testing.T) {
 	}{
 		{
 			// Exact "Install" under a now-scope: the expired copy is filtered on
-			// both backends (Postgres previously kept it).
+			// both backends.
 			name: "exact-validity-now",
 			lookup: func(tb terms.Terminology) ([]terms.TermMatch, error) {
 				return tb.Lookup(ctx, "Install", terms.LookupOptions{SourceLocale: "en", Scope: &now})
@@ -228,7 +228,7 @@ func TestTermsParity_SQLiteVsPostgres(t *testing.T) {
 		{
 			// LookupAll: "Save" occurs once in the text but in two concepts — the
 			// (text, position) de-dup collapses it to a single match on both
-			// backends (Postgres previously returned two).
+			// backends.
 			name: "lookupall-dedup",
 			lookup: func(tb terms.Terminology) ([]terms.TermMatch, error) {
 				return tb.LookupAll(ctx, "Please Save now", terms.LookupOptions{SourceLocale: "en"})

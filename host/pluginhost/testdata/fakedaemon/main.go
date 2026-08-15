@@ -197,10 +197,10 @@ func (f *fakeBridge) Process(stream pb.BridgeService_ProcessServer) error {
 	//
 	// Mirror the Java BridgeServiceImpl write-enabled check:
 	//   writeEnabled = header.hasOutput() || !header.getOutputLocale().isEmpty()
-	// Previously write mode was detected solely via OutputRef presence, but
-	// issue #636 fixed the Go client to omit OutputRef in inline-write mode
-	// (sending OutputRef{path:""} caused FileNotFoundException on the real
-	// Java daemon). Now write mode is also enabled when output_locale is set.
+	// OutputRef presence alone is not enough: the Go client omits OutputRef in
+	// inline-write mode (issue #636 — sending OutputRef{path:""} caused
+	// FileNotFoundException on the real Java daemon), so output_locale also
+	// enables write mode.
 	hasOutput := header.Header.Output != nil || header.Header.OutputLocale != ""
 	for {
 		req, err := stream.Recv()

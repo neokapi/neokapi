@@ -27,8 +27,8 @@ export interface ContextPanelProps {
 /**
  * ContextPanel renders the per-block linguistic context — content-memory matches,
  * terminology, and entities — in a single reusable surface. It is the one
- * source of truth shared by the Translate editor's Visual card and the Review
- * surface, replacing the formerly-duplicated content memory/term/entity blocks.
+ * source of truth for the content memory/term/entity blocks, shared by the
+ * Translate editor's Visual card and the Review surface.
  */
 export function ContextPanel({
   memoryMatches,

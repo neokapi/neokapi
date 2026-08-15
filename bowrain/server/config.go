@@ -44,8 +44,7 @@ type Config struct {
 	// no assignment ever existed; the claim is now removed rather than
 	// implemented, because implementing it would change confirmEmailURL — which
 	// falls back to the request host — into one that emits the IdP's origin in
-	// verification-email links. See AppPublicURL for the value this used to be
-	// borrowed for.
+	// verification-email links. AppPublicURL names this application's own origin.
 	OIDCPublicURL string
 
 	// AppPublicURL is the browser-facing origin of *this* application (e.g.

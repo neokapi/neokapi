@@ -84,8 +84,8 @@ func EffectiveAIModel(
 	// ai.provider / ai.model here: this query and the run must agree about what is
 	// stored, and they can only be guaranteed to agree by asking the same
 	// function. (ResolveAIDefault also attributes KAPI_AI_PROVIDER /
-	// KAPI_AI_MODEL, which this layer previously reached only by accident of
-	// viper's AutomaticEnv.)
+	// KAPI_AI_MODEL explicitly, rather than leaving them to viper's
+	// AutomaticEnv.)
 	if def := appconfig.ResolveAIDefault(cfg); def.Any() {
 		if def.Provider != "" {
 			res.Provider, res.ProviderOrigin = def.Provider, AIModelFromAppConfig

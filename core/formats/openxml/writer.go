@@ -1436,7 +1436,7 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 	// is FAITHFUL by default — there is no Word Style Optimisation pass;
 	// the only post-processing is the field-marker reversal + cross-source
 	// run fusions in postNonWSOForName. The name argument is retained for
-	// call-site symmetry (it was previously the WSO part gate).
+	// call-site symmetry.
 	postWML := func(_ string, data []byte) []byte {
 		return postNonWSOForName(data)
 	}

@@ -19,8 +19,8 @@ func requestID(c echo.Context) string {
 // httpErrorHandler is a single, consistent error handler for the whole API.
 //
 // It replaces Echo's default handler so that:
-//   - Every error response uses the ErrorResponse envelope (previously some
-//     handlers returned {"error":…} and echo.NewHTTPError returned {"message":…}).
+//   - Every error response uses the ErrorResponse envelope, so no handler emits
+//     a bare {"error":…} or echo.NewHTTPError's {"message":…} shape.
 //   - Every response carries a "reference" (the request ID) — the one ID a user
 //     can quote to drill down to logs and the Sentry issue.
 //   - 5xx responses do NOT leak internal error strings to the client; the raw

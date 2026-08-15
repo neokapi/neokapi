@@ -2,9 +2,9 @@ import type { BlockInfo, BlockStatusBucket, TargetEntry, TargetStatus } from "..
 
 /**
  * Single source of truth for per-block translation status, its derived CSS
- * classes, and the content memory/term score colourings. Previously this logic was
- * duplicated across TranslationEditor, VisualEditorCard, and TermSidebar; the
- * Translate / Review / Pre-process surfaces all import it from here.
+ * classes, and the content memory/term score colourings. TranslationEditor,
+ * VisualEditorCard and TermSidebar — and with them the Translate / Review /
+ * Pre-process surfaces — all import it from here.
  *
  * A block's `targets` entry is either a bare string (legacy payloads) or a
  * `TargetInfo` object carrying the per-locale `Target.Status` ladder value.

@@ -1217,7 +1217,7 @@ func (r *Reader) skelRef(id string) {
 }
 
 func (r *Reader) skelFlush() {
-	// no-op: we no longer buffer (each text write goes straight through)
+	// no-op: nothing is buffered — each text write goes straight through
 }
 
 // isXliffExtraAttrLegacy is the legacy streaming-path equivalent of

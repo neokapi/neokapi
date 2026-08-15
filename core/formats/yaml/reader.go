@@ -270,10 +270,9 @@ type scalarRange struct {
 // `# …` lines ABOVE a mapping entry, stored on the entry's KEY node — or
 // directly on a sequence-item / document scalar), LineComment (the trailing
 // inline `value # …` comment, stored on the value node), and FootComment
-// (the full-line `# …` lines BELOW an entry). The reader previously never
-// read any of these fields, so this context was dropped on ingestion (the
-// raw `#` text still rides the skeleton, so round-trip was — and stays —
-// byte-exact).
+// (the full-line `# …` lines BELOW an entry). The reader reads all three, so
+// this context survives ingestion. The raw `#` text also rides the skeleton,
+// so round-trip stays byte-exact either way.
 //
 // Comments are markup that stays verbatim in the skeleton; the note is an
 // ingestion-only copy of the comment prose. Annotations are NOT part of the

@@ -324,10 +324,55 @@ func TestBuilderWithItems(t *testing.T) {
 	assert.Equal(t, model.LocaleFrench, items[0].TargetLocale)
 }
 
+// The channel size is a buffer, not a budget: whatever it is set to, every part
+// fed in still reaches the output. A size below the part count must stream
+// rather than deadlock, and a non-positive size is ignored so the executor keeps
+// a usable default instead of an unbuffered or negative-length channel.
 func TestExecutorSetChannelSize(t *testing.T) {
-	executor := flow.NewExecutor()
-	executor.SetChannelSize(128)
-	// Just verify it doesn't panic; internal channel size is not exposed
+	const numParts = 64
+
+	for _, tc := range []struct {
+		name string
+		size int
+	}{
+		{"larger than the stream", 128},
+		{"smaller than the stream", 4},
+		{"one", 1},
+		{"zero is ignored", 0},
+		{"negative is ignored", -1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var counted atomic.Int64
+			f, err := flow.NewFlow("channel-size").
+				AddTool(countingTool("counter", &counted)).
+				Build()
+			require.NoError(t, err)
+
+			executor := flow.NewExecutor()
+			executor.SetChannelSize(tc.size)
+
+			in, out, wait := executor.ExecuteWithChannels(t.Context(), f)
+
+			go func() {
+				for i := range numParts {
+					in <- &model.Part{
+						Type:     model.PartBlock,
+						Resource: model.NewBlock(fmt.Sprintf("tu%d", i), fmt.Sprintf("Text %d", i)),
+					}
+				}
+				close(in)
+			}()
+
+			var results []*model.Part
+			for p := range out {
+				results = append(results, p)
+			}
+			require.NoError(t, wait())
+
+			assert.Len(t, results, numParts, "every part must reach the output")
+			assert.Equal(t, int64(numParts), counted.Load(), "every part must reach the tool")
+		})
+	}
 }
 
 // --- Parallel Execution Tests ---

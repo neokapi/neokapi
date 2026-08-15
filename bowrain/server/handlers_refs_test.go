@@ -12,8 +12,8 @@ import (
 )
 
 // TestListProjectRefs_UnifiedStreamsAndTags verifies the /:id/refs endpoint
-// returns BOTH streams and tags (finding #59: previously aliased to the
-// tags-only handler).
+// returns BOTH streams and tags, rather than aliasing the tags-only handler
+// (finding #59).
 func TestListProjectRefs_UnifiedStreamsAndTags(t *testing.T) {
 	srv, token := newTestServer(t)
 	e := srv.GetEcho()

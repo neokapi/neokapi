@@ -537,11 +537,9 @@ func (o *convergenceOrchestrator) driveWith(ctx context.Context, run *bstore.Con
 	// On completion (converged OR parked), the project's content enters the
 	// team's review queue — the single-player→multiplayer seam. Governed review
 	// is the default: only a project that explicitly set workflow_enabled=false
-	// skips the fan-out (the delegate checks). This replaces the retired
-	// create-review-tasks automation, for BOTH outcomes
-	// (converged is the common case that previously created tasks after
-	// translation completed), carrying the run/items/locales linkage the old
-	// rule's push_id/items carried. Failed/canceled runs create nothing.
+	// skips the fan-out (the delegate checks). The fan-out covers BOTH outcomes
+	// — converged is the common one — and carries the run/items/locales linkage.
+	// Failed/canceled runs create nothing.
 	// A source-not-ready hold produced no translations, so it routes to SOURCE
 	// review (below), not the translation review queue — skip the completion
 	// tasks in that case to avoid a "review translations" task for work that was

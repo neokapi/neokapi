@@ -722,8 +722,8 @@ func (r *FormatRegistry) findWriter(name FormatID) FormatWriterFactory {
 }
 
 // findLatest scans a map for entries matching "prefix@version" and returns the
-// value for the highest semantic version. This generic helper collapses the
-// previously separate findLatestReader and findLatestWriter functions.
+// value for the highest semantic version. One generic helper serves both the
+// reader and the writer maps.
 func findLatest[F any](m map[FormatID]F, name FormatID) (F, bool) {
 	prefix := string(name) + "@"
 	var bestVersion string

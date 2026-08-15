@@ -87,10 +87,10 @@ func TestOMMLOpaqueWhenDisabled(t *testing.T) {
 	assert.Empty(t, ph.Disp)
 }
 
-// A standalone display equation (an equation-only paragraph) — previously
-// dropped to skeleton with no block — now also surfaces a detached
-// non-translatable RoleFormula block carrying the portable math, so
-// cross-format export renders it. Fixture: equation.docx ((x+a)^n = ∑…).
+// A standalone display equation (an equation-only paragraph) surfaces a
+// detached non-translatable RoleFormula block carrying the portable math
+// alongside the skeleton, so cross-format export renders it. Fixture:
+// equation.docx ((x+a)^n = ∑…).
 func TestOMMLStandaloneSurfaced(t *testing.T) {
 	blk := findFormulaBlock(readFile(t, "testdata/math_block.docx"))
 	require.NotNil(t, blk, "standalone equation should surface as a RoleFormula block")

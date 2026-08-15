@@ -254,7 +254,7 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 	require.NoError(t, writer.Write(ctx, ch))
 	writer.Close()
 
-	// The original translation was empty and we now write "A & B < C",
+	// The original translation was empty and this writes "A & B < C",
 	// so the writer flips the opening tag to `type="unfinished"` to
 	// mirror okapi's APPROVED-property → unfinished behavior on
 	// content change.

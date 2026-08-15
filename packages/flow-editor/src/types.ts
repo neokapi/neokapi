@@ -142,9 +142,9 @@ export interface FlowSpec {
 /** Props for the FlowEditor component — fully decoupled from any backend. */
 /**
  * Run control for the editor's Run button (see FlowEditorProps.run). Groups the
- * previously-overlapping `onRun` / `runDisabled` / `running` flags: `disabled`
- * can mean "engine not ready" or "read-only replay", which must not read as
- * running, so `running` drives the spinner/"Running…" label independently.
+ * run flags so they cannot overlap: `disabled` can mean "engine not ready" or
+ * "read-only replay", which must not read as running, so `running` drives the
+ * spinner/"Running…" label independently.
  */
 export interface FlowRunControl {
   /** Called when the user requests to run the flow. Omit to hide the Run button. */

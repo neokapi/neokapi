@@ -384,9 +384,8 @@ func pgScanRelations(rows *sql.Rows, scope *graph.Scope) ([]fw.ConceptRelation, 
 
 // Lookup finds terms matching the source text. The tier gating, validity-scope
 // filter, status filter, Levenshtein scoring and sort live in the shared
-// fw.LookupTiered, so the Postgres and SQLite backends rank identically — and
-// Postgres now honors term validity (valid_from/valid_to), which it previously
-// ignored, by construction.
+// fw.LookupTiered, so the Postgres and SQLite backends rank identically and both
+// honor term validity (valid_from/valid_to) by construction.
 func (tb *PostgresStore) Lookup(ctx context.Context, sourceText string, opts fw.LookupOptions) ([]fw.TermMatch, error) {
 	return fw.LookupTiered(ctx, sourceText, opts, fw.TermCandidateSource{
 		Exact:           tb.queryExactTerms,
