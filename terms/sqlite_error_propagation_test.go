@@ -3,7 +3,9 @@ package terms_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -128,6 +130,52 @@ func TestUnreadableConceptFailsEveryReadPath(t *testing.T) {
 			assert.Contains(t, err.Error(), badID, "the error names the concept")
 			assert.True(t, strings.Contains(err.Error(), "properties"),
 				"the error says what could not be read, got: %v", err)
+		})
+	}
+}
+
+// failingWriter refuses every write, standing in for the destinations an export
+// actually meets: a full disk, a revoked quota, a closed pipe.
+type failingWriter struct{ err error }
+
+func (w failingWriter) Write([]byte) (int, error) { return 0, w.err }
+
+// TestExportToFailingWriterReportsError covers the other half of export safety:
+// the store read cleanly, and the bytes still have to arrive. A csv.Writer
+// buffers, so an export smaller than the buffer reaches the destination only at
+// Flush — which makes Flush, not Write, the call that discovers the destination
+// is broken. Both text exports must report that rather than returning nil over
+// a file that is empty or cut off mid-record.
+func TestExportToFailingWriterReportsError(t *testing.T) {
+	sentinel := errors.New("no space left on device")
+
+	export := map[string]func(context.Context, *terms.SQLiteStore, io.Writer) error{
+		"CSV": func(ctx context.Context, tb *terms.SQLiteStore, w io.Writer) error {
+			return terms.ExportCSV(ctx, tb, w, model.LocaleEnglish, model.LocaleFrench, true)
+		},
+		"TBX": func(ctx context.Context, tb *terms.SQLiteStore, w io.Writer) error {
+			return terms.ExportTBX(ctx, tb, w, terms.TBXExportOptions{})
+		},
+	}
+
+	for name, call := range export {
+		t.Run(name, func(t *testing.T) {
+			tb, err := terms.NewSQLiteStore(":memory:")
+			require.NoError(t, err)
+			defer tb.Close()
+			// Few enough concepts that the whole export fits the csv.Writer's
+			// buffer: the failure then surfaces only at Flush, which is the case
+			// a Write-only error check misses.
+			seedConcepts(t, tb, 3)
+
+			var ok bytes.Buffer
+			require.NoError(t, call(context.Background(), tb, &ok), "a working writer exports cleanly")
+			require.NotZero(t, ok.Len(), "the export has content to lose")
+			require.Less(t, ok.Len(), 4096, "the export must fit the buffer for this test to bite")
+
+			err = call(context.Background(), tb, failingWriter{err: sentinel})
+			require.Error(t, err, "an export that never reached the destination must not return nil")
+			assert.ErrorIs(t, err, sentinel, "the error names what the destination said")
 		})
 	}
 }

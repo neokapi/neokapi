@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -209,6 +210,31 @@ func (w *Writer) blockText(block *model.Block) string {
 	return block.SourceText()
 }
 
+// gridCoord reads a cell's row or column index off the properties the reader
+// records for exactly that purpose.
+//
+// A missing or unparseable coordinate is an error rather than a zero, because
+// zero is not a position this writer can emit: data rows are 1-based (the
+// reader counts from the first row after the header), so a cell at row 0 falls
+// outside the emit loop and is dropped. Defaulting therefore turned "these
+// parts do not describe a grid" into an empty file and a nil error — the shape
+// a whole-document conversion into CSV takes, since blocks from another format
+// carry no row or column at all.
+func gridCoord(props map[string]string, key, owner string) (int, error) {
+	raw, ok := props[key]
+	if !ok || raw == "" {
+		return 0, fmt.Errorf("csv writer: %q has no %s property: a cell needs a grid position, which parts from a non-tabular source do not carry", owner, key)
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		return 0, fmt.Errorf("csv writer: %q has %s=%q, which is not a cell index: %w", owner, key, raw, err)
+	}
+	if n < 0 {
+		return 0, fmt.Errorf("csv writer: %q has %s=%d, which is not a cell index", owner, key, n)
+	}
+	return n, nil
+}
+
 func (w *Writer) collectPart(part *model.Part) error {
 	switch part.Type {
 	case model.PartBlock:
@@ -223,16 +249,24 @@ func (w *Writer) collectPart(part *model.Part) error {
 			w.preambleRows = append(w.preambleRows, strings.Split(w.blockText(block), string(w.separator)))
 			return nil
 		}
-		col := 0
+		isHeader := block.SemanticRole() == model.RoleTableHeader || block.Properties["header"] == "true"
+		col, err := gridCoord(block.Properties, "column", block.ID)
+		if err != nil {
+			return err
+		}
+		// A header cell rebuilds the header row and has no row of its own.
 		row := 0
-		_, _ = fmt.Sscanf(block.Properties["column"], "%d", &col)
-		_, _ = fmt.Sscanf(block.Properties["row"], "%d", &row)
+		if !isHeader {
+			if row, err = gridCoord(block.Properties, "row", block.ID); err != nil {
+				return err
+			}
+		}
 		// Header cells carry the column labels and rebuild the header row; data
 		// cells fill the grid at their recorded position. A bilingual row block
 		// spans two columns rather than occupying one, so it has no single grid
 		// cell — the byte-exact skeleton path is what reproduces those tables.
 		switch {
-		case block.SemanticRole() == model.RoleTableHeader || block.Properties["header"] == "true":
+		case isHeader:
 			w.headerByCol[col] = w.blockText(block)
 		case block.Properties["target-cell"] == "true":
 		default:
@@ -257,10 +291,14 @@ func (w *Writer) collectPart(part *model.Part) error {
 			}
 		} else {
 			// Store data cell content
-			col := 0
-			row := 0
-			_, _ = fmt.Sscanf(data.Properties["column"], "%d", &col)
-			_, _ = fmt.Sscanf(data.Properties["row"], "%d", &row)
+			col, err := gridCoord(data.Properties, "column", data.Name)
+			if err != nil {
+				return err
+			}
+			row, err := gridCoord(data.Properties, "row", data.Name)
+			if err != nil {
+				return err
+			}
 			w.dataCells[cellRef{row: row, col: col}] = data.Properties["content"]
 			if col > w.maxCol {
 				w.maxCol = col
