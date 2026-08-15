@@ -2,7 +2,9 @@ package asciidoc
 
 import (
 	"context"
+	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 )
@@ -34,6 +36,16 @@ import (
 // That is geometry, but a cell's position in its table IS its structure; what a
 // counter would do instead is renumber every cell in the file when a paragraph
 // three sections up is deleted.
+//
+// A heading trail is written in the document's own language, so the same
+// paragraph is named `Install/Prerequisites/p` in the source and something else
+// entirely in its translation. Each name therefore has a translation-invariant
+// twin, carried on the block as model.StructureAnnotation.Address: the same path
+// with each section written as the identity of the heading that opened it
+// (`h2`, `h2#2`) rather than as its title. The name stays what everything else
+// keys on — reconcile's context hash, the state store, the XLIFF `name`
+// attribute — and the address answers the one question it cannot, which is
+// whether two blocks in two languages are the same unit.
 //
 // Block.ID is untouched: it stays the `tuN` skeleton join the writer matches on.
 
@@ -70,10 +82,64 @@ func (r *Reader) trail() []string {
 	return out
 }
 
+// addrTrail is trail over the section IDENTITIES rather than the section
+// titles: what a section is called varies by language, what it is does not.
+func (r *Reader) addrTrail() []string {
+	out := make([]string, 0, len(r.groupStack))
+	for _, f := range r.groupStack {
+		if f.kind == "section" && f.addr != "" {
+			out = append(out, f.addr)
+		}
+	}
+	return out
+}
+
 // sectionPath builds a structural path for a block at the current position:
 // the enclosing heading trail followed by segs.
 func (r *Reader) sectionPath(segs ...string) string {
 	return model.StructuralPath(append(r.trail(), segs...)...)
+}
+
+// blockAddress issues the translation-invariant address for a block whose
+// structural path is the given one (model.StructureAnnotation.Address): the
+// same path with the enclosing heading titles replaced by the identities of the
+// headings that opened them, so a source document and its translation address
+// the block identically. It returns "" when there is nothing to rewrite —
+// outside any section, or for a path that was not built from the current trail.
+//
+// A pending address set by emitHeading wins: a heading's own address is issued
+// before its section opens, because the section is named by it.
+func (r *Reader) blockAddress(path string) string {
+	if addr := r.pendingAddress; addr != "" {
+		r.pendingAddress = ""
+		return addr
+	}
+	prefix := model.StructuralPath(r.trail()...)
+	if prefix == "" {
+		return ""
+	}
+	rest, ok := strings.CutPrefix(path, prefix+model.PathSeparator)
+	if !ok {
+		return ""
+	}
+	return r.addrNames.Name(model.StructuralPath(append(r.addrTrail(), rest)...))
+}
+
+// headingAddress issues the address of a heading block, which is composed from
+// its PARENT trail — the heading is what opens the section beneath it, so it
+// cannot be addressed inside it. openSection reads the section's own segment
+// off the result.
+func (r *Reader) headingAddress(level int) string {
+	return r.addrNames.Name(model.StructuralPath(append(r.addrTrail(), fmt.Sprintf("h%d", level))...))
+}
+
+// lastSegment returns the final segment of a path — what a nested section
+// carries forward as its own identity.
+func lastSegment(path string) string {
+	if i := strings.LastIndex(path, model.PathSeparator); i >= 0 {
+		return path[i+1:]
+	}
+	return path
 }
 
 // blockName resolves the name a block is emitted under: a pending author anchor
@@ -89,11 +155,13 @@ func (r *Reader) blockName(path string) string {
 }
 
 // openSection opens a section group and records the segment that names
-// everything inside it.
-func (r *Reader) openSection(ctx context.Context, ch chan<- model.PartResult, level int, title string) bool {
+// everything inside it, plus the heading identity that addresses it.
+func (r *Reader) openSection(ctx context.Context, ch chan<- model.PartResult, level int, title, addr string) bool {
 	if !r.openGroup(ctx, ch, "section", "section", level, nil) {
 		return false
 	}
-	r.groupStack[len(r.groupStack)-1].title = title
+	top := &r.groupStack[len(r.groupStack)-1]
+	top.title = title
+	top.addr = addr
 	return true
 }

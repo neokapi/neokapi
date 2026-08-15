@@ -340,7 +340,7 @@ func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *projec
 		}
 		if missing {
 			// No target file yet: every translatable source unit is pending.
-			srcs, serr := a.readBlocks(ctx, u.SourcePath, a.SourceLang)
+			srcs, serr := a.readSource(ctx, u)
 			if serr != nil {
 				return UpPlanOutput{}, serr
 			}

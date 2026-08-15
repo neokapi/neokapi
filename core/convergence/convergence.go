@@ -129,6 +129,18 @@ func BlockKey(b *model.Block) string {
 	return b.ID
 }
 
+// BlockAddress is a block's TRANSLATION-INVARIANT unit identity, or "" when it
+// has none. It is the key that pairs a source file with its translation: a
+// structural name carries its ancestors' words, so the same paragraph is named
+// in each document's own language, while the address writes each of those
+// ancestors as its own structural identity instead
+// (model.StructureAnnotation.Address).
+//
+// Empty is the ordinary case, not a defect. A format whose names carry no
+// ancestor text — a key path, an element path, a catalog id — is already
+// invariant, and BlockKey pairs it.
+func BlockAddress(b *model.Block) string { return b.StructuralAddress() }
+
 // TargetState derives a translatable block's target-lifecycle state for a locale.
 // A committed Target.Status is authoritative; otherwise a present, non-empty
 // target counts as `translated` (the presence baseline) and an absent/empty

@@ -3366,6 +3366,17 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 			block.Translatable = false
 		}
 	}
+	// Stamp the translation-invariant address of the block's name, so a source
+	// file and its translation can be paired unit by unit even though a
+	// translated heading rewrites the readable name of everything beneath it.
+	// One site, because every named block passes here.
+	if part.Type == model.PartBlock {
+		if block, ok := part.Resource.(*model.Block); ok && block.Name != "" {
+			if addr := r.naming.AddressOf(block.Name); addr != "" {
+				block.SetStructuralAddress(addr)
+			}
+		}
+	}
 	// Apply inline code finder to blocks if enabled
 	if part.Type == model.PartBlock && r.cfg.UseCodeFinder {
 		if block, ok := part.Resource.(*model.Block); ok {

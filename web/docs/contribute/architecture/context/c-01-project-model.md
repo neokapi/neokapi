@@ -452,6 +452,16 @@ project defaults. Preset selection is resolved separately, through
 `resolver.ResolveFormatConfig`, which merges the named preset's config before the
 reader is opened.
 
+Reader config decides which text a reader emits at all, so it is part of a
+content unit's identity rather than a detail of one code path: the config a
+collection declares is `defaults.formats.<format>.config` overlaid by the
+content item's own `format.config`, and every path that reads a declared file
+reads it under that merged config — the flow run, extract, merge, and equally
+the measurement paths (coverage, status, the review queue, the bilingual
+checks), which resolve it per unit as they resolve content. A measurement blind
+to the config counts a different set of units than the run produced, so the
+percentage is a fraction over two denominators.
+
 **Plugin scoping** generalizes beyond detection: `AllowedTools()` filters the tool
 registry to tools from declared plugins plus built-ins, presets from undeclared
 plugins are excluded from preset selectors, and flows referencing tools from

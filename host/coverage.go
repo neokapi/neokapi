@@ -81,7 +81,7 @@ func (a *App) settleSourceStates(ctx context.Context, gateLevel model.SourceGate
 			continue
 		}
 		seen[u.SourcePath] = true
-		blocks, berr := a.readBlocks(ctx, u.SourcePath, a.SourceLang)
+		blocks, berr := a.readSource(ctx, u)
 		if berr != nil {
 			return nil, 0, berr
 		}
@@ -387,7 +387,7 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 			// .mo catalog, say). Per-unit measurement is impossible, so count by
 			// file-presence: the materialized target stands in for its source
 			// units as `translated`.
-			srcs, serr := a.readBlocks(ctx, u.SourcePath, a.SourceLang)
+			srcs, serr := a.readSource(ctx, u)
 			if serr != nil {
 				return nil, serr
 			}
@@ -400,7 +400,7 @@ func (a *App) ComputeShipCoverage(ctx context.Context, proj *project.KapiProject
 		}
 		if missing {
 			// No target file yet — every translatable source unit is untranslated.
-			srcs, serr := a.readBlocks(ctx, u.SourcePath, a.SourceLang)
+			srcs, serr := a.readSource(ctx, u)
 			if serr != nil {
 				return nil, serr
 			}

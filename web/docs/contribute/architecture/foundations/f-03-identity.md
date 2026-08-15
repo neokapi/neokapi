@@ -196,6 +196,34 @@ they were and are consumed as the context signal. That is the point of putting
 reconciliation beside the framework rather than inside the readers: readers keep
 reporting what the format actually says.
 
+#### Identity across languages
+
+Everything above answers "is this the same unit as before?" within one language.
+Pairing a source file with its translation asks a different question, and a
+structural name cannot answer it. Ancestors' text is a legitimate naming input —
+it is what makes `getting-started/install/p` readable to the translator who opens
+the extracted file — but it is written in the document's own language, so the
+translation names the same paragraph `kom-i-gang/installer/p`. Matching on the
+name alone reached only the blocks above the first heading.
+
+Each name therefore has a **translation-invariant twin**: the same structural
+path with every segment that came from another block's text replaced by that
+block's own structural identity. A heading is already addressed by its parent
+trail plus its ordinal among siblings — precisely so that rewording it moves one
+signal rather than two — so writing sections that way gives `h/h#2/p`, which
+reads the same in every language. Readers compose it beside the name and carry
+it on the block as `model.StructureAnnotation.Address`
+(`convergence.BlockAddress`). Only formats whose names embed ancestor text
+compose one; a key path, an element path or a catalog id is already invariant and
+composes none.
+
+The address is a second address, not a second name. Nothing keyed by the name
+moves — the context hash, the store key, the XLIFF `name` attribute — and the
+address is consulted for the one question the name cannot answer. The file-scan
+pairing (`host.OverlayTargets`) therefore matches on the name, then on the
+address, and only then falls back to document position under an equal-block-count
+guard, which is the last resort for formats that compose no address.
+
 ### The store key
 
 Reconciled identity says which unit is which. The block-addressed store

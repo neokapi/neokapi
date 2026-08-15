@@ -745,6 +745,66 @@ type VerifyUnit struct {
 	// displayPath is the path reported in findings (the target file, relative
 	// to the project root when possible).
 	DisplayPath string
+
+	// SourceFormat/SourceConfig and TargetFormat/TargetConfig are the reader
+	// binding the recipe declares for this unit's two files: the format name
+	// (empty = detect by extension) and the merged reader config —
+	// `defaults.formats[<format>].config` overlaid by the content item's own
+	// `format.config`, item wins per key.
+	//
+	// Measurement must read a file the way the run that produced it read it.
+	// Reader config decides which text a reader even emits — a markdown reader
+	// with `translateFrontMatter` emits the title and description as units,
+	// without it they are configuration — so a coverage path blind to the
+	// config counts a different set of units than the flow produced, and the
+	// percentage is a fraction over two denominators.
+	SourceFormat string
+	SourceConfig map[string]any
+	TargetFormat string
+	TargetConfig map[string]any
+}
+
+// readSource reads the unit's source file under its declared reader binding.
+func (a *App) readSource(ctx context.Context, u VerifyUnit) ([]*model.Block, error) {
+	name, cfg := a.unitFormat(u.SourceFormat, u.SourceConfig)
+	return a.readBlocksAs(ctx, u.SourcePath, name, cfg, a.SourceLang)
+}
+
+// readTarget reads the unit's target file under its declared reader binding.
+func (a *App) readTarget(ctx context.Context, u VerifyUnit) ([]*model.Block, error) {
+	name, cfg := a.unitFormat(u.TargetFormat, u.TargetConfig)
+	return a.readBlocksAs(ctx, u.TargetPath, name, cfg, a.SourceLang)
+}
+
+// unitFormat resolves the reader binding to read one of a unit's files under.
+// The app-wide --format override names one format for everything the caller
+// passed, so it displaces the recipe's binding entirely — config included,
+// since a config belongs to the format it was declared for.
+func (a *App) unitFormat(name string, cfg map[string]any) (string, map[string]any) {
+	if a.FormatFlag != "" {
+		return a.FormatFlag, nil
+	}
+	return name, cfg
+}
+
+// unitFormatBinding resolves the source- and target-side reader bindings for one
+// resolved content file.
+//
+// The target carries the source's binding because the target is written by the
+// source's writer: `merge --materialize` resolves the output format from the
+// source item, so the file on disk is in that format whatever its path suggests.
+// A target whose extension differs is the one shape that contradicts it — a
+// source read from `.po` and delivered as a compiled `.mo`, which is write-only
+// through the pipeline — and there the target is detected instead, so
+// bilingualBlocks still reaches its file-presence fallback rather than handing
+// binary to a text reader.
+func unitFormatBinding(proj *project.KapiProject, rf project.ResolvedFile, targetPath string) (srcFormat string, srcCfg map[string]any, tgtFormat string, tgtCfg map[string]any) {
+	srcFormat = rf.Format
+	srcCfg = mergedFormatConfig(proj, srcFormat, rf.Item)
+	if !strings.EqualFold(filepath.Ext(rf.Path), filepath.Ext(targetPath)) {
+		return srcFormat, srcCfg, "", nil
+	}
+	return srcFormat, srcCfg, srcFormat, srcCfg
 }
 
 // resolveVerifyUnits builds the list of (source, target, locale) units the
@@ -785,12 +845,17 @@ func (a *App) UnitsFromProject(proj *project.KapiProject, root string, localeFil
 			if relErr != nil {
 				rel = targetPath
 			}
+			srcFormat, srcCfg, tgtFormat, tgtCfg := unitFormatBinding(proj, rf, targetPath)
 			units = append(units, VerifyUnit{
-				SourcePath:  rf.Path,
-				TargetPath:  targetPath,
-				Locale:      string(loc),
-				Collection:  rf.Collection,
-				DisplayPath: rel,
+				SourcePath:   rf.Path,
+				TargetPath:   targetPath,
+				Locale:       string(loc),
+				Collection:   rf.Collection,
+				DisplayPath:  rel,
+				SourceFormat: srcFormat,
+				SourceConfig: srcCfg,
+				TargetFormat: tgtFormat,
+				TargetConfig: tgtCfg,
 			})
 		}
 	}
@@ -824,9 +889,11 @@ func (a *App) SourceUnitsFromProject(proj *project.KapiProject, root string) ([]
 			rel = rf.Path
 		}
 		units = append(units, VerifyUnit{
-			SourcePath:  rf.Path,
-			Collection:  rf.Collection,
-			DisplayPath: rel,
+			SourcePath:   rf.Path,
+			Collection:   rf.Collection,
+			DisplayPath:  rel,
+			SourceFormat: rf.Format,
+			SourceConfig: mergedFormatConfig(proj, rf.Format, rf.Item),
 		})
 	}
 	return units, nil
@@ -845,8 +912,17 @@ func (a *App) unitsFromArgs(proj *project.KapiProject, root string, args []strin
 	var units []VerifyUnit
 	for _, f := range files {
 		abs, _ := filepath.Abs(f)
-		src, loc, ok := matchTargetToSource(proj, root, abs)
-		if !ok {
+		var (
+			src                  string
+			loc                  string
+			srcFormat, tgtFormat string
+			srcCfg, tgtCfg       map[string]any
+		)
+		rf, matchedLoc, ok := matchTargetToSource(proj, root, abs)
+		if ok {
+			src, loc = rf.Path, matchedLoc
+			srcFormat, srcCfg, tgtFormat, tgtCfg = unitFormatBinding(proj, rf, abs)
+		} else {
 			// Monolingual fallback: pair the file with itself; locale from
 			// --locale or the first project target.
 			loc = localeFilter
@@ -863,10 +939,14 @@ func (a *App) unitsFromArgs(proj *project.KapiProject, root string, args []strin
 			rel = f
 		}
 		units = append(units, VerifyUnit{
-			SourcePath:  src,
-			TargetPath:  abs,
-			Locale:      loc,
-			DisplayPath: rel,
+			SourcePath:   src,
+			TargetPath:   abs,
+			Locale:       loc,
+			DisplayPath:  rel,
+			SourceFormat: srcFormat,
+			SourceConfig: srcCfg,
+			TargetFormat: tgtFormat,
+			TargetConfig: tgtCfg,
 		})
 	}
 	return units, nil
@@ -874,13 +954,13 @@ func (a *App) unitsFromArgs(proj *project.KapiProject, root string, args []strin
 
 // matchTargetToSource finds the content item whose target template (for some
 // project target language) expands to the given target file, returning the
-// matching source file and locale. Returns ok=false when no item matches.
-func matchTargetToSource(proj *project.KapiProject, root, targetAbs string) (sourcePath, locale string, ok bool) {
+// resolved source file and the locale. Returns ok=false when no item matches.
+func matchTargetToSource(proj *project.KapiProject, root, targetAbs string) (source project.ResolvedFile, locale string, ok bool) {
 	ctxReg := registry.NewFormatRegistry()
 	pctx := project.NewProjectContext(proj, filepath.Join(root, "x.kapi"))
 	resolved, err := pctx.ResolveContent(ctxReg)
 	if err != nil {
-		return "", "", false
+		return project.ResolvedFile{}, "", false
 	}
 	for _, rf := range resolved {
 		if rf.Item == nil || rf.Item.Target == "" {
@@ -890,11 +970,11 @@ func matchTargetToSource(proj *project.KapiProject, root, targetAbs string) (sou
 			candidate := expandTargetTemplate(rf.Item.Path, rf.Item.Base, rf.Item.Target, rf.Relative, string(loc), root)
 			candAbs, _ := filepath.Abs(candidate)
 			if candAbs == targetAbs {
-				return rf.Path, string(loc), true
+				return rf, string(loc), true
 			}
 		}
 	}
-	return "", "", false
+	return project.ResolvedFile{}, "", false
 }
 
 // expandTargetTemplate resolves a content item's target template for one source
@@ -1239,7 +1319,7 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 		return nil, false, fmt.Errorf("stat %s: %w", u.TargetPath, err)
 	}
 
-	sourceBlocks, err := a.readBlocks(ctx, u.SourcePath, a.SourceLang)
+	sourceBlocks, err := a.readSource(ctx, u)
 	if err != nil {
 		return nil, false, fmt.Errorf("read source %s: %w", u.SourcePath, err)
 	}
@@ -1250,7 +1330,7 @@ func (a *App) bilingualBlocks(ctx context.Context, u VerifyUnit) ([]*model.Block
 	if u.TargetPath == u.SourcePath {
 		targetBlocks = sourceBlocks
 	} else {
-		targetBlocks, err = a.readBlocks(ctx, u.TargetPath, a.SourceLang)
+		targetBlocks, err = a.readTarget(ctx, u)
 		if err != nil {
 			// The target file exists (we stat'd it above) but its format cannot
 			// be read back — e.g. a compiled .mo catalog, which is write-only

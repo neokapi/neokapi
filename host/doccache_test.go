@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/formats/jsx"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/version"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -183,6 +184,38 @@ func TestDocCache_PreservesBlockAnnotations(t *testing.T) {
 	ann, ok := raw.(*jsx.KBFAnnotation)
 	require.True(t, ok, "the rehydrated annotation is a *KBFAnnotation")
 	assert.Equal(t, "kRS4Hxwnmv9", ann.Hash, "the block content hash must survive cache replay")
+}
+
+// TestDocCache_EntryFromAnotherBuildIsAMiss pins that an entry another build
+// recorded is re-parsed rather than replayed. What a reader emits from a file is
+// decided by the reader's code as much as by the bytes: a release that names
+// blocks differently, or emits an annotation it did not emit before, produces a
+// different part stream from the same content hash, and replaying the previous
+// release's parse measures content the current reader would not produce.
+func TestDocCache_EntryFromAnotherBuildIsAMiss(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "m.json")
+	require.NoError(t, os.WriteFile(src, []byte(`{"a":"Apple"}`), 0o644))
+
+	c, err := OpenDocCache(filepath.Join(dir, "cache"))
+	require.NoError(t, err)
+	defer c.Close()
+
+	recorded := version.Version
+	t.Cleanup(func() { version.Version = recorded })
+
+	rec := c.RecordDocument(src, "k", "json")
+	require.NotNil(t, rec)
+	require.NoError(t, rec.Add(&model.Part{Type: model.PartBlock, Resource: mkBlock("a", "Apple")}))
+	require.NoError(t, rec.Commit())
+
+	doc := c.OpenDocument(src, "k")
+	require.NotNil(t, doc, "the build that recorded the entry replays it")
+	doc.Close()
+
+	version.Version = recorded + "+next"
+	assert.Nil(t, c.OpenDocument(src, "k"),
+		"another build must re-parse rather than replay a stream it did not produce")
 }
 
 func mkBlock(id, text string) *model.Block {

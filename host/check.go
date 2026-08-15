@@ -279,7 +279,19 @@ func (a *App) ComputeCheck(cmd Command, args []string) (check.Report, error) {
 		if opts.terms, err = vocab.forFile(ctx, sourcePath); err != nil {
 			return check.Report{}, err
 		}
-		unit := VerifyUnit{SourcePath: sourcePath, TargetPath: targetFile, Locale: targetLang, DisplayPath: targetFile}
+		// `--target` names the translated rendering of one source file, so both
+		// files carry the source's reader binding.
+		fmtName, fmtCfg := opts.formats.forFile(a, sourcePath)
+		unit := VerifyUnit{
+			SourcePath:   sourcePath,
+			TargetPath:   targetFile,
+			Locale:       targetLang,
+			DisplayPath:  targetFile,
+			SourceFormat: fmtName,
+			SourceConfig: fmtCfg,
+			TargetFormat: fmtName,
+			TargetConfig: fmtCfg,
+		}
 		blocks, missing, berr := a.bilingualBlocks(ctx, unit)
 		if berr != nil {
 			return check.Report{}, berr

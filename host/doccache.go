@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/core/version"
 )
 
 // hashKey returns a short stable hex digest used to name content-addressed cache
@@ -40,6 +41,15 @@ func hashKey(s string) string {
 // Invariant: a pure optimization over the files. The index key includes the
 // content hash + config, so a stale entry is never served; delete `.kapi/work/cache`
 // and a re-read reconstructs identical results.
+//
+// The key also carries the BUILD that recorded the entry. What a reader emits
+// for a given file and config is decided by the reader's code, not by the file
+// alone: a release that names blocks differently, emits an annotation it did not
+// emit before, or classifies one more span as content produces a different part
+// stream from the same bytes. Without the build in the key an upgraded kapi
+// replays the previous release's parse until the file itself changes, which is
+// the shape of bug the cache exists to be incapable of — a measurement taken
+// over content the current reader would not produce.
 type docCache struct {
 	DB  *storage.DB
 	dir string // directory holding the per-document logs + skeleton files
@@ -103,9 +113,14 @@ type docRow struct {
 	format      string
 }
 
+// buildKey namespaces a caller's config key by the build that recorded the
+// entry, so an entry another build produced reads as a miss and is re-parsed.
+func buildKey(configKey string) string { return version.Version + "\x00" + configKey }
+
 // lookup returns the fresh index row for (path, configKey), or ok=false when the
 // entry is missing or stale relative to the file on disk.
 func (c *docCache) lookup(path, configKey string, st os.FileInfo) (docRow, bool) {
+	configKey = buildKey(configKey)
 	var row docRow
 	var mtime, size int64
 	q := c.DB.QueryRow(
@@ -162,6 +177,7 @@ func (c *docCache) RecordDocument(path, configKey, formatName string) flow.Docum
 
 // newRecorder builds a docRecorder for a fresh parse, or nil on setup failure.
 func (c *docCache) newRecorder(path, configKey, formatName string) *docRecorder {
+	configKey = buildKey(configKey)
 	st, err := os.Stat(path)
 	if err != nil {
 		return nil

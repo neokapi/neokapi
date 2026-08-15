@@ -35,6 +35,17 @@ import (
 // signals reconcile grades independently), and
 // TestMarkdownNames_ShiftWithinTheSameSection for the pinned behaviour.
 //
+// A heading's text addresses everything beneath it, so the readable name of a
+// block in a translated document is written in that document's language:
+// `hva-den-leser/p` where its source says `what-it-reads/p`. Each name
+// therefore has a translation-invariant twin, carried on the block as
+// model.StructureAnnotation.Address and composed here alongside the name — the
+// same trail with each heading segment written as that heading's own identity
+// (`h`, `h#2`) instead of its slug, so `h/h#2/p` addresses the paragraph in
+// every language. The name stays what everything else keys on; the address
+// exists for the one question the name cannot answer, which is whether two
+// blocks in two languages are the same unit.
+//
 // The name is also read by people. `kapi extract` drives the source file's own
 // reader and hands the blocks to the XLIFF 2 writer, which writes a block's Name
 // as the unit's `name` attribute for any format that is not itself XLIFF (see
@@ -83,11 +94,13 @@ const fallbackSegment = "section"
 // truncation introduces.
 const maxSegmentRunes = 60
 
-// namingSection is one entry in the heading trail: the level that opened it and
-// the full segment path it addresses.
+// namingSection is one entry in the heading trail: the level that opened it,
+// the full segment path it addresses, and the same path with the heading's own
+// identity in place of its slug (see NamingState.address).
 type namingSection struct {
 	level int
 	segs  []string
+	addr  []string
 }
 
 // NamingState composes structural block names for one document read.
@@ -104,6 +117,16 @@ type NamingState struct {
 	builder  model.NameBuilder
 	sections []namingSection
 	scope    []string
+
+	// The parallel address trail. Every name the state hands out has a
+	// translation-invariant twin (model.StructureAnnotation.Address): the same
+	// path with each heading segment written as that heading's own identity
+	// rather than as its words. It is built alongside rather than derived
+	// afterwards, because the mapping from a slug back to the heading that
+	// produced it exists only here, while both trails are open.
+	addrBuilder model.NameBuilder
+	addrScope   []string
+	addresses   map[string]string
 }
 
 // Reset clears the state for a new document.
@@ -111,6 +134,19 @@ func (s *NamingState) Reset() {
 	s.builder.Reset()
 	s.sections = nil
 	s.scope = nil
+	s.addrBuilder.Reset()
+	s.addrScope = nil
+	s.addresses = nil
+}
+
+// AddressOf returns the translation-invariant address of a name this state
+// issued, or "" when the name is already invariant (a document with no headings
+// addresses every block by structure alone) or was not issued here.
+func (s *NamingState) AddressOf(name string) string {
+	if addr := s.addresses[name]; addr != name {
+		return addr
+	}
+	return ""
 }
 
 // prefix returns the current structural path — the innermost heading trail plus
@@ -125,10 +161,41 @@ func (s *NamingState) prefix() []string {
 	return append(segs, s.scope...)
 }
 
+// addrPrefix is prefix over the parallel address trail.
+func (s *NamingState) addrPrefix() []string {
+	var sectionSegs []string
+	if n := len(s.sections); n > 0 {
+		sectionSegs = s.sections[n-1].addr
+	}
+	segs := make([]string, 0, len(sectionSegs)+len(s.addrScope)+1)
+	segs = append(segs, sectionSegs...)
+	return append(segs, s.addrScope...)
+}
+
 // Name returns the name for a block of the given kind at the current position,
 // with an ordinal appended when that position genuinely repeats.
 func (s *NamingState) Name(kind string) string {
-	return s.builder.Name(model.StructuralPath(append(s.prefix(), kind)...))
+	name, addr := s.name(kind)
+	s.record(name, addr)
+	return name
+}
+
+// name issues the name and its invariant address together. Both builders
+// advance on every call, so the two trails stay in step even where one
+// disambiguates and the other does not.
+func (s *NamingState) name(kind string) (name, addr string) {
+	name = s.builder.Name(model.StructuralPath(append(s.prefix(), kind)...))
+	addr = s.addrBuilder.Name(model.StructuralPath(append(s.addrPrefix(), kind)...))
+	return name, addr
+}
+
+// record remembers a name's invariant address for the reader to stamp on the
+// block. The map is scoped to one document, like the builders' own.
+func (s *NamingState) record(name, addr string) {
+	if s.addresses == nil {
+		s.addresses = map[string]string{}
+	}
+	s.addresses[name] = addr
 }
 
 // Skip consumes the ordinal a block of this kind would have taken without
@@ -136,27 +203,34 @@ func (s *NamingState) Name(kind string) string {
 // cell still occupies its column, and an empty list item still occupies its
 // slot, so what follows is addressed by where it is rather than by how many
 // neighbours happened to carry text.
-func (s *NamingState) Skip(kind string) { _ = s.Name(kind) }
+func (s *NamingState) Skip(kind string) { _, _ = s.name(kind) }
 
 // Push enters a structure that owns its contents' ordinals — a list, a table, a
 // row — and returns the function that leaves it. Use it as `defer Push(...)()`.
 func (s *NamingState) Push(kind string) func() {
-	return s.pushSegment(lastSegment(s.Name(kind)))
+	name, addr := s.name(kind)
+	return s.pushSegment(lastSegment(name), lastSegment(addr))
 }
 
 // PushName enters a structure already addressed by a block name, so a list
 // item's nested content hangs off the item itself (`.../item#2/list/item`)
 // rather than off the list.
 func (s *NamingState) PushName(name string) func() {
-	return s.pushSegment(lastSegment(name))
+	addr := s.addresses[name]
+	if addr == "" {
+		addr = name
+	}
+	return s.pushSegment(lastSegment(name), lastSegment(addr))
 }
 
-func (s *NamingState) pushSegment(seg string) func() {
+func (s *NamingState) pushSegment(seg, addrSeg string) func() {
 	s.scope = append(s.scope, seg)
+	s.addrScope = append(s.addrScope, addrSeg)
 	depth := len(s.scope)
 	return func() {
 		if len(s.scope) >= depth {
 			s.scope = s.scope[:depth-1]
+			s.addrScope = s.addrScope[:depth-1]
 		}
 	}
 }
@@ -182,24 +256,37 @@ func (s *NamingState) pushSegment(seg string) func() {
 // The trail is built from headings only. A heading nested inside a list or a
 // blockquote (legal, and rare) addresses off its parent SECTION, so an open
 // scope cannot leak into every block that follows the list.
+//
+// The section's ADDRESS segment is the heading's own identity — the thing that
+// by construction does not move when the words do. That is what makes a
+// descendant's address survive translation: the words in the readable name are
+// the target document's, and the identity in the address is the same on both
+// sides.
 func (s *NamingState) Heading(level int, text string) string {
 	for len(s.sections) > 0 && s.sections[len(s.sections)-1].level >= level {
 		s.sections = s.sections[:len(s.sections)-1]
 	}
 
-	var parent []string
+	var parent, parentAddr []string
 	if n := len(s.sections); n > 0 {
 		parent = s.sections[n-1].segs
+		parentAddr = s.sections[n-1].addr
 	}
 
 	// The heading's own name, from the parent trail alone.
 	own := s.builder.Name(model.StructuralPath(appendSegment(parent, kindHeading)...))
+	ownAddr := s.addrBuilder.Name(model.StructuralPath(appendSegment(parentAddr, kindHeading)...))
+	s.record(own, ownAddr)
 
 	// The section it opens, addressed by its text. Two headings with the same
 	// text under one parent are disambiguated here, once, rather than leaving
 	// every block beneath them to interleave.
 	seg := lastSegment(s.builder.Name(model.StructuralPath(appendSegment(parent, headingSlug(text))...)))
-	s.sections = append(s.sections, namingSection{level: level, segs: appendSegment(parent, seg)})
+	s.sections = append(s.sections, namingSection{
+		level: level,
+		segs:  appendSegment(parent, seg),
+		addr:  appendSegment(parentAddr, lastSegment(ownAddr)),
+	})
 
 	return own
 }

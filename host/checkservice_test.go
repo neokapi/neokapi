@@ -86,13 +86,12 @@ func TestOverlayTargets(t *testing.T) {
 	assert.Empty(t, src[1].TargetText("fr"), "unmatched unit keeps an empty target")
 }
 
-// TestOverlayTargets_TranslatedStructuralNames covers a markdown pair whose
-// block keys are structural addresses built from heading slugs: translating a
-// heading re-addresses every block beneath it, so the key match reaches only the
-// blocks above the first heading. Equal block counts mean the target is the
-// source's own skeleton in another language, so the rest pair by position.
-// Without it a fully translated docs page measured one third translated, could
-// not be reviewed unit by unit, and could never clear a ship gate.
+// TestOverlayTargets_TranslatedStructuralNames covers blocks whose keys are
+// structural addresses built from heading slugs and which carry no invariant
+// address — a format that composes none, or a document read before one was
+// composed. Translating a heading re-addresses every block beneath it, so the
+// key match reaches only the blocks above the first heading, and equal block
+// counts are what license the rest to pair by position.
 func TestOverlayTargets_TranslatedStructuralNames(t *testing.T) {
 	src := []*model.Block{
 		{ID: "1", Name: "p", Translatable: true},
@@ -117,6 +116,78 @@ func TestOverlayTargets_TranslatedStructuralNames(t *testing.T) {
 	assert.Equal(t, "Hva den leser", src[1].TargetText("nb"), "keyed match")
 	assert.Equal(t, "Tre kilder, i denne rekkefølgen:", src[2].TargetText("nb"),
 		"a block whose address changed with its heading pairs by position")
+}
+
+// TestOverlayTargets_InvariantAddressPairsDivergedDocuments reads a real
+// markdown pair through the real reader: a source page and its translation,
+// headings included, with one paragraph the source does not have. The counts
+// differ, so the positional fallback cannot fire and every block under a
+// translated heading has a key that exists in neither document. They pair on the
+// invariant address, which is what makes the fix structural rather than a guard
+// on a guess: only the paragraph with nothing to pair with is left untranslated,
+// and it is left untranslated because it genuinely is.
+func TestOverlayTargets_InvariantAddressPairsDivergedDocuments(t *testing.T) {
+	const source = `# Tidewatch
+
+An opening paragraph.
+
+## What it reads
+
+The first paragraph of the section.
+
+## How it reports
+
+A paragraph under the second heading.
+
+A second paragraph under the second heading.
+`
+
+	// Translated, and one paragraph shorter under the second heading.
+	const translated = `# Tidevakt
+
+Et innledende avsnitt.
+
+## Hva den leser
+
+Det første avsnittet i seksjonen.
+
+## Hvordan den rapporterer
+
+Et avsnitt under den andre overskriften.
+`
+
+	dir := t.TempDir()
+	srcPath := filepath.Join(dir, "index.md")
+	tgtPath := filepath.Join(dir, "index.nb.md")
+	require.NoError(t, os.WriteFile(srcPath, []byte(source), 0o644))
+	require.NoError(t, os.WriteFile(tgtPath, []byte(translated), 0o644))
+
+	app := &App{}
+	app.InitRegistries()
+	ctx := context.Background()
+
+	srcBlocks, err := app.ReadBlocksForCheck(ctx, srcPath, "", "en")
+	require.NoError(t, err)
+	tgtBlocks, err := app.ReadBlocksForCheck(ctx, tgtPath, "", "en")
+	require.NoError(t, err)
+	require.NotEqual(t, len(srcBlocks), len(tgtBlocks),
+		"the counts must differ, or the positional fallback would carry the test")
+
+	OverlayTargets(srcBlocks, tgtBlocks, "nb")
+
+	got := map[string]string{}
+	for _, b := range srcBlocks {
+		got[b.SourceText()] = b.TargetText("nb")
+	}
+	assert.Equal(t, "Tidevakt", got["Tidewatch"])
+	assert.Equal(t, "Et innledende avsnitt.", got["An opening paragraph."])
+	assert.Equal(t, "Hva den leser", got["What it reads"])
+	assert.Equal(t, "Det første avsnittet i seksjonen.", got["The first paragraph of the section."],
+		"a block under a translated heading pairs on its invariant address")
+	assert.Equal(t, "Hvordan den rapporterer", got["How it reports"])
+	assert.Equal(t, "Et avsnitt under den andre overskriften.", got["A paragraph under the second heading."])
+	assert.Empty(t, got["A second paragraph under the second heading."],
+		"the one block the target genuinely does not have stays untranslated")
 }
 
 // TestOverlayTargets_DivergedDocumentKeepsKeyMatchOnly proves the positional
