@@ -187,7 +187,23 @@ basis-stale unit exactly as it treats one with no translation at all: it is in
 the pending set on any scope (gated or not — the `draft` tally would otherwise
 read an ungated scope as complete), it is priced in `kapi up --plan` on the same
 recycle-versus-AI split, and the pass produces a translation of the source the
-project has now. What the loop cannot do is decide, so the re-draft never
+project has now.
+
+Staleness is one reason a produced unit is work, and the plan carries the others
+on their own axis. What a pass spends a provider call on is decided by the
+content memory, not by a target file: the pipeline reads the source documents,
+`recycle` fills what the corpus answers, and `translate` drafts the remainder. So
+`kapi up --plan` asks the corpus about every unit it counts, and a produced unit
+the record does not pair with its source — a rewrite, an identical pair no
+approval stands behind, a pair refused for asymmetric inline codes — is reported
+as **unanswered** and priced. It is deliberately not folded into `stale`: stale
+means a decision's basis moved, which also drives the review worklist and
+shipping, and merging the two would make the plan and the run summary disagree.
+The plan judges a produced unit only once the record absorber has read its
+committed target at the bytes on disk (the digest stamps of
+[C-03](c-03-context-store-and-graph.md)); before that the corpus is unfinished,
+its silence means "not asked", and the plan says so rather than quoting either a
+free run or a provider call per translation the run will recycle. What the loop cannot do is decide, so the re-draft never
 restores the withdrawn approval: the unit returns at its presence baseline, in
 the review worklist, and the scope stays withheld until someone reviews the new
 pairing. A loop that refuses to ship drift it will not work on has no way to
@@ -234,6 +250,17 @@ other pair — a person read the pairing and said this wording is right, which i
 what proper nouns, product names and short labels look like when they are
 correct. Dropping those re-drafted them on every pass and overwrote the approval
 bound to each, which is the one thing the ledger exists to prevent.
+
+**A decision settles the check that guesses at it.** The QA rule
+`target-same-as-source` is a heuristic for "nobody translated this", and an
+approval is a person having read that exact pairing and answered the question it
+asks — so an approved identical target is not reported and does not fail the ship
+gate. The project's terms settle it the same way, for an entry whose target is
+its source. Both are one rule (`host.identicalTargetRule`) because two surfaces
+consult it: the QA gate `kapi check` fails on, and the check exclusions that
+demote a unit below `translated` during `kapi up`. Only that one finding is
+settled — a dropped placeholder on an approved unit is still a defect, and an
+approval licenses nothing about it.
 
 **A missing basis is unknown, not stale.** A record written before the basis was
 tracked says nothing about the source it blessed, and reading that silence as

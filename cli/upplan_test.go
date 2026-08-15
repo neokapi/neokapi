@@ -22,6 +22,13 @@ import (
 // "Hello, world." source (a.json), leaving b.json's "Goodbye." uncovered.
 func seedPlanMemory(t *testing.T, root string) {
 	t.Helper()
+	seedPlanEntry(t, root, "seed-1", "Hello, world.", "Hei, verden.")
+}
+
+// seedPlanEntry writes one exact en-US → nb-NO pair into the project content
+// memory.
+func seedPlanEntry(t *testing.T, root, id, source, target string) {
+	t.Helper()
 	db, err := projectdb.Open(t.Context(), project.Layout{
 		Root: root, StateDir: filepath.Join(root, project.StateDirName),
 	})
@@ -29,10 +36,10 @@ func seedPlanMemory(t *testing.T, root string) {
 	defer func() { require.NoError(t, db.Close()) }()
 	now := time.Now().UTC()
 	require.NoError(t, db.Memory().Add(t.Context(), memory.Entry{
-		ID: "seed-1",
+		ID: id,
 		Variants: map[model.LocaleID][]model.Run{
-			"en-US": {{Text: &model.TextRun{Text: "Hello, world."}}},
-			"nb-NO": {{Text: &model.TextRun{Text: "Hei, verden."}}},
+			"en-US": {{Text: &model.TextRun{Text: source}}},
+			"nb-NO": {{Text: &model.TextRun{Text: target}}},
 		},
 		HintSrcLang: "en-US",
 		CreatedAt:   now,
@@ -154,8 +161,29 @@ func TestUpPlan_NoWritesToExistingStore(t *testing.T) {
 }
 
 // TestUpPlan_ConvergedProjectHasNoWork: after a converged up, --plan reports
-// nothing to do.
+// nothing to do — when the corpus answers the units the targets hold. That, and
+// not the presence of a target file, is what "nothing to do" means: the pass
+// reads the source documents and fills from the content memory, so a unit it
+// cannot recycle is drafted however finished the target file looks.
 func TestUpPlan_ConvergedProjectHasNoWork(t *testing.T) {
+	a := processOnlyApp(t)
+	recipe, root := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
+	seedPlanMemory(t, root)
+	seedPlanEntry(t, root, "seed-2", "Goodbye.", "Farvel.")
+	out, err := runUp(t, a, recipe)
+	require.NoError(t, err, out)
+
+	a2 := processOnlyApp(t)
+	out2, err := runUp(t, a2, recipe, "--plan")
+	require.NoError(t, err, out2)
+	assert.Contains(t, out2, "Nothing to do")
+}
+
+// TestUpPlan_ProducedUnitsTheCorpusCannotFillAreWork is the same project with an
+// empty corpus: its targets exist and the next pass re-produces every one of
+// them, so a plan reporting nothing to do described a run that was going to
+// happen anyway — the under-pricing #1974 names.
+func TestUpPlan_ProducedUnitsTheCorpusCannotFillAreWork(t *testing.T) {
 	a := processOnlyApp(t)
 	recipe, _ := convergeFixture(t, []model.LocaleID{"nb-NO"}, gate.Gate{"translated": gate.Threshold{Pct: 100}})
 	out, err := runUp(t, a, recipe)
@@ -164,7 +192,8 @@ func TestUpPlan_ConvergedProjectHasNoWork(t *testing.T) {
 	a2 := processOnlyApp(t)
 	out2, err := runUp(t, a2, recipe, "--plan")
 	require.NoError(t, err, out2)
-	assert.Contains(t, out2, "Nothing to do")
+	assert.Contains(t, out2, "unanswered")
+	assert.Contains(t, out2, "the pass drafts them")
 }
 
 // TestEstimateTokens: the chars/4 heuristic rounds up and zeroes on empty.

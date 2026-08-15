@@ -181,11 +181,14 @@ func TestGetConvergePlan_ReportsPendingWorkAndDrift(t *testing.T) {
 	}
 }
 
-func TestGetConvergePlan_ConvergedProjectHasNoWork(t *testing.T) {
+func TestGetConvergePlan_AfterARunPricesWhatTheNextPassDrafts(t *testing.T) {
 	app := NewApp()
 	tab, _ := newConvergenceProject(t, app)
 
-	// Bring the project up to date, then re-plan: nothing left to do.
+	// Bring the project up to date, then re-plan. Every unit has a target now,
+	// and the pre-flight reads the same derivation `kapi up --plan` does: a pass
+	// fills from the content memory and drafts what it cannot fill, so a unit no
+	// corpus answers is work here too, however finished the target files look.
 	require.NoError(t, app.BringUpToDate(tab.ID))
 	require.Eventually(t, func() bool {
 		return app.GetRunState() == string(RunStateComplete)
@@ -193,8 +196,10 @@ func TestGetConvergePlan_ConvergedProjectHasNoWork(t *testing.T) {
 
 	plan, err := app.GetConvergePlan(tab.ID)
 	require.NoError(t, err)
-	assert.Equal(t, 0, plan.Plan.Totals.MissingTarget)
-	assert.Empty(t, plan.Plan.Scopes)
+	assert.Equal(t, 0, plan.Plan.Totals.MissingTarget, "every unit holds a target")
+	assert.Equal(t, 4, plan.Plan.Totals.Unanswered, "2 units × 2 locales the corpus cannot fill")
+	assert.Equal(t, 4, plan.Plan.Totals.AIRemaining, "and each of them is a provider call")
+	assert.Zero(t, plan.Plan.Totals.UnreadTargets, "the run read the committed targets it wrote")
 	assert.False(t, plan.StoreMissing, "the run's auto-extract populated the store")
 	assert.Zero(t, plan.ChangedFiles, "sources unchanged since the run's extract")
 }

@@ -80,10 +80,22 @@ func TestFormatPlanLine_PricesTheRedraft(t *testing.T) {
 			contains: []string{"3 unit(s) missing", "re-drafting 1 stale unit(s)", "2 exact-content memory", "2 AI"},
 		},
 		{
+			// The pass drafts what the corpus does not answer, so a produced unit
+			// the record never paired costs a provider call. Named on its own axis
+			// and priced with the rest.
+			name: "produced units the content memory does not answer are named and priced",
+			plan: UpPlanOutput{Totals: UpPlanScope{Unanswered: 3, AIRemaining: 3, TokenEstimate: 12}},
+			contains: []string{
+				"drafting 3 unit(s) the content memory does not answer",
+				"3 AI", "≈12 tokens",
+			},
+			absent: []string{"missing", "stale"},
+		},
+		{
 			name:     "nothing to do says so",
 			plan:     UpPlanOutput{},
-			contains: []string{"every unit has a committed target for the current source"},
-			absent:   []string{"stale"},
+			contains: []string{"every unit has a committed target the content memory answers"},
+			absent:   []string{"stale", "does not answer"},
 		},
 	}
 	for _, tc := range tests {

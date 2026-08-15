@@ -312,12 +312,20 @@ checks in the loop.
 
 ### The run is live
 
-`up` starts by printing a one-line **plan** — units missing a target, exact
-content-memory leverage, remaining AI work, a token estimate, and the provider it
-will use — so cost is visible before any tokens burn (preview before apply;
-`--plan` alone is the full dry-run table). It then renders progress as the loop
-runs: one line per locale, repainted in place on a terminal, a line per event on
-a plain stream.
+`up` starts by printing a one-line **plan** — the units the pass will work on,
+exact content-memory leverage, remaining AI work, a token estimate, and the
+provider it will use — so cost is visible before any tokens burn (preview before
+apply; `--plan` alone is the full dry-run table). It then renders progress as the
+loop runs: one line per locale, repainted in place on a terminal, a line per
+event on a plain stream.
+
+The plan asks what the pass asks. A pass reads the source documents, fills from
+the content memory, and drafts the remainder — so a unit costs a provider call
+when the corpus has no answer for its source, whatever a target file happens to
+hold. Missing units, **stale** ones (a decision's source moved) and
+**unanswered** ones (a target the record does not pair with its source) are named
+apart, because they mean different things to you, and priced together, because
+the run does not treat them differently.
 
 ```text
 kapi up · KapiMart · flow "default (built-in)" · anthropic/claude-sonnet-4-6 (your subscription)
@@ -393,8 +401,8 @@ no translation at all — and the plan quotes that work before any tokens burn:
 
 ```bash
 kapi up --plan
-# scope  missing  stale  content memory exact  AI work  ~tokens
-# de           0      1                     0        1        9
+# scope  missing  stale  unanswered  content memory exact  AI work  ~tokens
+# de           0      1           0                     0        1        9
 #
 # 1 unit(s) stale: their source changed since the translation was decided.
 # They are re-drafted against the current source (priced above) and return
