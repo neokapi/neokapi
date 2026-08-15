@@ -103,7 +103,7 @@ func (s *Server) HandleCompleteOnboarding(c echo.Context) error {
 	if req.Slug == "" {
 		return apiErr(c, http.StatusBadRequest, "slug is required")
 	}
-	w, err := s.Services.Auth.CompleteOnboarding(c.Request().Context(), userID, req.Slug, strings.TrimSpace(req.DisplayName))
+	w, firstWorkspace, err := s.Services.Auth.CompleteOnboarding(c.Request().Context(), userID, req.Slug, strings.TrimSpace(req.DisplayName))
 	if err != nil {
 		return apiErr(c, http.StatusBadRequest, err.Error())
 	}
@@ -112,6 +112,7 @@ func (s *Server) HandleCompleteOnboarding(c echo.Context) error {
 	// (once per workspace, ever), so the idempotent re-onboarding case cannot
 	// double-grant.
 	billing.EnsureTrialGrant(c.Request().Context(), s.BillingStore, w.ID)
+	s.greetNewAccount(c, userID, w, firstWorkspace)
 	w.Role = platauth.RoleOwner
 	return c.JSON(http.StatusOK, w)
 }

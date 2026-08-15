@@ -418,6 +418,77 @@ func TestRenderSubscriptionChangedContainsExpectedElements(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Welcome
+// ---------------------------------------------------------------------------
+
+func TestSendWelcome(t *testing.T) {
+	sender := &recordingSender{}
+	m, err := mailer.New(sender)
+	require.NoError(t, err)
+
+	err = m.SendWelcome(t.Context(), "new@example.com", "en", mailer.WelcomeData{
+		WorkspaceName: "Acme Corp",
+		WorkspaceURL:  "https://app.bowrain.cloud/acme",
+	})
+	require.NoError(t, err)
+
+	msg := sender.last()
+	assert.Equal(t, "new@example.com", msg.To)
+	assert.Contains(t, msg.Subject, "Welcome to Bowrain")
+	assert.Contains(t, msg.Subject, "Acme Corp")
+	assert.Contains(t, msg.Body, "Acme Corp")
+	assert.Contains(t, msg.Body, "https://app.bowrain.cloud/acme")
+	assert.Contains(t, msg.Body, "Open your workspace", "should contain CTA button text")
+}
+
+// The greeting has one job beyond greeting: say what Bowrain is and what to do
+// first. A render that drops either is a welcome that welcomes nobody anywhere,
+// so both are asserted rather than left to the eye.
+func TestRenderWelcomeCarriesTheOrientation(t *testing.T) {
+	sender := &recordingSender{}
+	m, err := mailer.New(sender)
+	require.NoError(t, err)
+
+	html, err := m.RenderWelcome("en", mailer.WelcomeData{
+		WorkspaceName: "TestWS",
+		WorkspaceURL:  "https://example.com/testws",
+	})
+	require.NoError(t, err)
+
+	assert.Contains(t, html, "Bowrain", "should contain brand name")
+	assert.Contains(t, html, "context graph", "should say what Bowrain is")
+	assert.Contains(t, html, "Three things to do first")
+	assert.Contains(t, html, "Point an AI assistant at your material")
+	assert.Contains(t, html, "Create a project")
+	assert.Contains(t, html, "Run the loop")
+	assert.Contains(t, html, "TestWS", "should contain workspace name")
+	assert.Contains(t, html, "https://example.com/testws", "should contain workspace URL")
+
+	// A greeting is not a sales call: no plan, no price, no upgrade path.
+	// Asserted through a bool so a hit prints the word rather than the whole
+	// rendered document.
+	for _, pitch := range []string{"upgrade", "Upgrade", "pricing", "Pricing", "free trial", "Get started"} {
+		assert.False(t, strings.Contains(html, pitch),
+			"the welcome email carries no sales pitch, and this render contains %q", pitch)
+	}
+}
+
+func TestRenderWelcomeHTMLEscaping(t *testing.T) {
+	sender := &recordingSender{}
+	m, err := mailer.New(sender)
+	require.NoError(t, err)
+
+	html, err := m.RenderWelcome("en", mailer.WelcomeData{
+		WorkspaceName: `Acme & "Co" <Ltd>`,
+		WorkspaceURL:  "https://example.com/ws?a=1&b=2",
+	})
+	require.NoError(t, err)
+
+	assert.Contains(t, html, "Acme &amp; &#34;Co&#34; &lt;Ltd&gt;")
+	assert.Contains(t, html, "a=1&amp;b=2")
+}
+
+// ---------------------------------------------------------------------------
 // Digest (raw HTML passthrough)
 // ---------------------------------------------------------------------------
 
@@ -545,6 +616,11 @@ func TestRenderAllTemplatesAllLocales(t *testing.T) {
 			return m.SendTaskAssigned(t.Context(), "to@example.com", l, mailer.TaskAssignedData{
 				WorkspaceName: "Acme", TaskTitle: "Fix terminology", TaskDescription: "Three terms",
 				Priority: "urgent", AssignerName: "Dana", TaskURL: "https://example.com/acme/tasks",
+			})
+		},
+		"welcome": func(l string) error {
+			return m.SendWelcome(t.Context(), "to@example.com", l, mailer.WelcomeData{
+				WorkspaceName: "Acme", WorkspaceURL: "https://example.com/acme",
 			})
 		},
 	}

@@ -8,5 +8,6 @@
   "payment-failed": "Payment failed for your subscription — {{.WorkspaceName}}",
   "review-request": "Waiting for your review: {{.ChangeSetName}} — {{.WorkspaceName}}",
   "subscription-changed": "Your subscription has been updated — {{.WorkspaceName}}",
-  "task-assigned": "{{.Priority}}: {{.TaskTitle}} — {{.WorkspaceName}}"
+  "task-assigned": "{{.Priority}}: {{.TaskTitle}} — {{.WorkspaceName}}",
+  "welcome": "Welcome to Bowrain — {{.WorkspaceName}}"
 }

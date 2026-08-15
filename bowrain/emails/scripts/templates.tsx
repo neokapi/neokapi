@@ -26,6 +26,7 @@ import EmailChangeVerifyEmail from "../src/email-change-verify.js";
 import ReviewRequestEmail from "../src/review-request.js";
 import JobFailedEmail from "../src/job-failed.js";
 import TaskAssignedEmail from "../src/task-assigned.js";
+import WelcomeEmail from "../src/welcome.js";
 
 /** Renders every template; returns file name (sans .html) → HTML. */
 export async function renderTemplates(): Promise<Record<string, string>> {
@@ -144,6 +145,14 @@ export async function renderTemplates(): Promise<Record<string, string>> {
       priority: "{{.Priority}}",
       assignerName: "{{.AssignerName}}",
       taskURL: "{{.TaskURL}}",
+    }),
+    { pretty: false },
+  );
+
+  out["welcome"] = await render(
+    WelcomeEmail({
+      workspaceName: "{{.WorkspaceName}}",
+      workspaceURL: "{{.WorkspaceURL}}",
     }),
     { pretty: false },
   );

@@ -124,6 +124,16 @@ func (s *PostgresAuthStore) UpdateUser(ctx context.Context, u *platauth.User) er
 	return nil
 }
 
+func (s *PostgresAuthStore) MarkUserOnboarded(ctx context.Context, userID string, at time.Time) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE users SET onboarded_at=$1 WHERE id=$2 AND onboarded_at IS NULL`, at, userID)
+	if err != nil {
+		return false, fmt.Errorf("mark user onboarded: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
+}
+
 // ---------------------------------------------------------------------------
 // Workspaces
 // ---------------------------------------------------------------------------

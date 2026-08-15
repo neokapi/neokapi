@@ -8,5 +8,6 @@
   "payment-failed": "▒ Þàýḿéñţ ƒàîļéđ ƒöŕ ýöüŕ šüƃšçŕîþţîöñ — {{.WorkspaceName}} ▒",
   "review-request": "▒ Ŵàîţîñĝ ƒöŕ ýöüŕ ŕéṽîéŵ: {{.ChangeSetName}} — {{.WorkspaceName}} ▒",
   "subscription-changed": "▒ Ýöüŕ šüƃšçŕîþţîöñ ĥàš ƃééñ üþđàţéđ — {{.WorkspaceName}} ▒",
-  "task-assigned": "▒ {{.Priority}}: {{.TaskTitle}} — {{.WorkspaceName}} ▒"
+  "task-assigned": "▒ {{.Priority}}: {{.TaskTitle}} — {{.WorkspaceName}} ▒",
+  "welcome": "▒ Ŵéļçöḿé ţö Ƃöŵŕàîñ — {{.WorkspaceName}} ▒"
 }

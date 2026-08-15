@@ -250,6 +250,40 @@ func TestGetWorkspaceBySlug_Roundtrip(t *testing.T) {
 	assert.Equal(t, "lookup-me", got.Slug)
 }
 
+// TestMarkUserOnboarded_OneWinner pins the conditional write: onboarded_at is
+// claimed once and by one caller, whatever else is happening on the row. A
+// once-per-account side effect — the welcome email — is gated on that claim, so
+// a second true here is a second greeting for the same person.
+func TestMarkUserOnboarded_OneWinner(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	seedUser(t, s, "onboard-1", "onboard1@example.com")
+
+	first := time.Now().UTC()
+	won, err := s.MarkUserOnboarded(ctx, "onboard-1", first)
+	require.NoError(t, err)
+	assert.True(t, won, "the first caller claims the marker")
+
+	won, err = s.MarkUserOnboarded(ctx, "onboard-1", first.Add(time.Hour))
+	require.NoError(t, err)
+	assert.False(t, won, "the marker is already claimed; a later caller is told so")
+
+	u, err := s.GetUser(ctx, "onboard-1")
+	require.NoError(t, err)
+	require.NotNil(t, u.OnboardedAt)
+	assert.WithinDuration(t, first, u.OnboardedAt.UTC(), time.Second,
+		"the losing call left the stamp where the winner put it")
+}
+
+func TestMarkUserOnboarded_UnknownUser(t *testing.T) {
+	s := newTestStore(t)
+
+	won, err := s.MarkUserOnboarded(context.Background(), "onboard-missing", time.Now().UTC())
+	require.NoError(t, err)
+	assert.False(t, won, "no row, no winner")
+}
+
 func TestEmailChangeRequest_CreateAndGet(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
