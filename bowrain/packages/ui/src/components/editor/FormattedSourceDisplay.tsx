@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { SpanInfo } from "../../types/api";
-import { getDefaultRegistry } from "../../vocabularies";
 import {
+  getDefaultRegistry,
   parseCodedSegments,
   semanticTooltip,
   tagColors,

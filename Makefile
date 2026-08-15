@@ -244,7 +244,7 @@ vet: ## Run go vet (all modules)
 	@$(MAKE) --no-print-directory _fw-vet
 	@$(MAKE) -C bowrain vet
 
-lint: check-abs-paths check-vocabulary check-reference-provenance check-package-licenses check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
+lint: check-abs-paths check-vocabulary check-vocab-packs check-reference-provenance check-package-licenses check-tracked-binaries check-extract-fixtures check-gofmt ## Run golangci-lint (all modules) + repo hygiene guards
 	@$(MAKE) --no-print-directory _fw-lint
 	@$(MAKE) -C bowrain lint
 
@@ -503,6 +503,12 @@ ci-test-all: ## Run all module tests with full CI flags locally
 # — provided libicu-dev is on PKG_CONFIG_PATH, which the lint CI job installs.
 
 ci-frontend: ## Mirror the CI `frontend` job: check/test/build the bowrain web frontends
+	# The vocabulary packs are also gated in reference-data-drift.yml, but that
+	# workflow's paths filter lists Go and reference-data sources — not the TS
+	# copies. A pull request that adds a second TS copy touches neither, so the
+	# gate would not run for the one change it exists to catch. This job has no
+	# path gate on pull requests, so the guard runs here too.
+	node scripts/format-ops/check-vocab-packs.mjs
 	# Guard against vite-plus / vite-alias version drift before any vp check runs,
 	# so the failure is an actionable one-liner rather than a puzzling TS2321.
 	bash scripts/audit-vite-alias.sh
@@ -1555,6 +1561,9 @@ l10n-extract-globs: ## Print each extract surface as "<dir><TAB><extract flags>"
 
 check-extract-fixtures: ## Guard: no test/story file is extracted, and each surface's make and package invocations agree
 	@node scripts/check-extract-fixtures.mjs
+
+check-vocab-packs: ## Guard: the vocabulary packs have exactly two homes (Go embed + one TS copy) and they agree
+	@node scripts/format-ops/check-vocab-packs.mjs
 
 l10n-review-export: bin/kapi ## Emit disposable TMX/CSV review views of the project store → l10n/review/
 	@mkdir -p l10n/review

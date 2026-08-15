@@ -58,6 +58,24 @@ export const lineBreak: SpanInfo = {
   data: "<br/>",
 };
 
+// A type no vocabulary pack defines. The registry derives its chip label from
+// the type name, so this renders "widget>" / "/widget" rather than "?>" / "/?".
+// The same pair exists in the bowrain kit's fixtures: both kits import one
+// registry, so the chip must read the same in both Storybooks.
+export const unknownOpen: SpanInfo = {
+  span_type: "opening",
+  type: "custom:widget",
+  id: "9",
+  data: "<widget>",
+};
+export const unknownClose: SpanInfo = {
+  span_type: "closing",
+  type: "custom:widget",
+  id: "9",
+  data: "</widget>",
+};
+export const unknownTypeSpans: SpanInfo[] = [unknownOpen, unknownClose];
+
 // Unicode markers used in coded text
 const O = "\uE001"; // opening
 const C = "\uE002"; // closing

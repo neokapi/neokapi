@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { InlineCodeLegend } from "../../components/editor/InlineCodeLegend";
-import { richSpans, simpleBoldSpans, linkAndItalicSpans } from "./fixtures";
+import { richSpans, simpleBoldSpans, linkAndItalicSpans, unknownTypeSpans } from "./fixtures";
 
 const meta: Meta<typeof InlineCodeLegend> = {
   title: "Editor/Tags/InlineCodeLegend",
@@ -35,6 +35,15 @@ export const BoldOnly: Story = {
 
 export const LinksAndItalic: Story = {
   render: () => <LegendWrapper spans={linkAndItalicSpans} />,
+};
+
+/**
+ * A span type no vocabulary pack defines. The chip reads "widget>", derived
+ * from the type name — the bowrain kit's story of the same name renders it
+ * identically, because both kits resolve through one registry.
+ */
+export const UnknownType: Story = {
+  render: () => <LegendWrapper spans={unknownTypeSpans} />,
 };
 
 export const Empty: Story = {

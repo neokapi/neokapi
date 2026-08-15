@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import type { SpanInfo } from "../../types/api";
-import { getDefaultRegistry } from "../../vocabularies";
-import { cn } from "@neokapi/ui-primitives";
+import { cn, getDefaultRegistry } from "@neokapi/ui-primitives";
 
 // ---------------------------------------------------------------------------
 // Props
