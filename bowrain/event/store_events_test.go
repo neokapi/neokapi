@@ -7,6 +7,7 @@ import (
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/bowrain/knowledge"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/testutil/pgtest"
 	"github.com/neokapi/neokapi/core/model"
@@ -106,6 +107,20 @@ func TestEventEmittingStoreCarriesOptionalCapabilities(t *testing.T) {
 	assert.True(t, ok, "the decision ledger must survive the wrapper")
 	_, ok = any(es).(store.BlockAccessStore)
 	assert.True(t, ok, "the access ladder must survive the wrapper")
+
+	// The knowledge engine reaches the content store through narrow interfaces
+	// and asserts for each one. The server hands it the wrapper, so a method the
+	// wrapper does not carry takes the whole capability with it: without
+	// StreamBindingStore a pilot silently binds no candidate voice profile and
+	// the trial reports none is bound; without CollectionResolver every affected
+	// block groups under its item name and the reach split's collection counts
+	// collapse to one bucket per file.
+	_, ok = any(es).(knowledge.StreamBindingStore)
+	assert.True(t, ok, "stream binding must survive the wrapper")
+	_, ok = any(es).(knowledge.CollectionResolver)
+	assert.True(t, ok, "collection resolution must survive the wrapper")
+	_, ok = any(es).(knowledge.BlockSource)
+	assert.True(t, ok, "the blast-radius block source must survive the wrapper")
 
 	aliases, ok := any(es).(store.ChannelAliasStore)
 	require.True(t, ok, "channel alias proposals must survive the wrapper")
