@@ -20,6 +20,14 @@
 # Rendering + publishing from existing captures need only node + ffmpeg. Capturing
 # also needs a built kapi (`make -C .. build`), the kapi-claude plugin bundle, and
 # Gemini/Anthropic credentials.
+#
+# TypeScript is pinned to 5.9.x here, not the repo-wide version. Every target
+# that bundles (studio, render, videos, package) goes through @remotion/bundler,
+# which consumes the TypeScript compiler API — `typescript.sys` and
+# `typescript.readConfigFile`. TypeScript 7.0 ships no compiler API, so on 7.0
+# both are undefined and the bundle fails; the stable API is targeted for 7.1.
+# Lift the pin when a @remotion/* release runs on the 7.1 compiler API, and the
+# harness rejoins the repo-wide TypeScript version. See README.md.
 
 VPX := vpx
 RUN := $(VPX) tsx src/cli/run.ts
