@@ -216,6 +216,25 @@ pnpm run typecheck                            # tsc --noEmit
 Prerequisites: a logged-in `claude` CLI, Node ≥ 22, `ffmpeg`, Go + Homebrew `icu4c`
 (for building kapi), and a `GEMINI_API_KEY` in `.env` for the AI demos.
 
+### The TypeScript pin
+
+The harness is a standalone pnpm project (`pnpm-workspace.yaml` with
+`packages: []`), and its `typescript` devDependency is pinned to `~5.9.3`
+instead of tracking the repo-wide TypeScript version.
+
+Everything that bundles — `studio`, `render`, `videos`, and the render/publish
+phases of `pnpm run demo` — goes through `@remotion/bundler`, whose esbuild
+loader consumes the TypeScript **compiler API**: it reaches for `typescript.sys`
+and `typescript.readConfigFile`. TypeScript 7.0 ships no compiler API at all, so
+on 7.0 both are `undefined` and every bundle fails. The stable compiler API is
+targeted for TypeScript 7.1, which no `@remotion/*` release runs on yet.
+
+Upgrade trigger: **a `@remotion/*` release running on the 7.1 compiler API.**
+At that point the pin is lifted and the harness rejoins the repo-wide TypeScript
+version. Nothing else here needs 5.9 — `tsc --noEmit` type-checks the sources
+under either major; the constraint is TypeScript as a *library* consumed by the
+bundler.
+
 ## Adding a demo
 
 1. `mkdir -p demos/<id>/fixtures` and add the starting project files.
