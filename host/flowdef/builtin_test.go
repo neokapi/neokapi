@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
@@ -32,6 +33,33 @@ func TestBuiltInFlows(t *testing.T) {
 	assert.True(t, ids["audio-to-subtitles"])
 	assert.True(t, ids["video-to-subtitles"])
 	assert.True(t, ids["image-ocr-translate"])
+}
+
+// TestTranslateFlowTranslatesOnlyTheRemainder proves the built-in translate
+// flow's AI step skips units the recycle step already filled. Its description
+// promises "content memory reuse, then AI translate"; with the tool's own
+// default the AI step re-translates every recycled unit, so the flow paid for a
+// model call per unit and shipped the model's wording over the project's own
+// approved wording.
+func TestTranslateFlowTranslatesOnlyTheRemainder(t *testing.T) {
+	var translateFlow *flow.FlowDefinition
+	for i, f := range BuiltInFlows() {
+		if f.ID == "translate" {
+			translateFlow = &BuiltInFlows()[i]
+			break
+		}
+	}
+	require.NotNil(t, translateFlow, "built-in translate flow")
+
+	var node *flow.FlowNode
+	for i, n := range translateFlow.Nodes {
+		if n.Name == "translate" {
+			node = &translateFlow.Nodes[i]
+			break
+		}
+	}
+	require.NotNil(t, node, "translate node in the translate flow")
+	assert.Equal(t, true, node.Config["skipMatched"])
 }
 
 // builtinGateReg builds a registry with the built-in and AI tools — the same

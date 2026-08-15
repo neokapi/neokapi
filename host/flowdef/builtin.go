@@ -26,9 +26,19 @@ func BuiltInFlows() []flow.FlowDefinition {
 			// content memory (a no-op without one), translate produces, and the
 			// deterministic qa pass verifies placeholders/tags before the
 			// result is written. The raw tool stays at `kapi exec translate`.
+			//
+			// skipMatched is what makes the chain mean "recycle, then translate
+			// the REMAINDER". The translate tool's own default is to translate
+			// every translatable block it is handed, which is right for `kapi
+			// exec translate` — you pointed it at the content — and wrong here:
+			// without it the AI step overwrites every unit recycle had just
+			// filled from approved wording, so a project with a full content
+			// memory paid for a model call per unit and shipped the model's
+			// answer instead of its own.
 			Nodes: []flow.FlowNode{
 				{ID: "recycle", Type: flow.NodeTool, Name: "recycle", Label: "Memory Reuse", Position: flow.NodePosition{X: 0, Y: 100}},
-				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 250, Y: 100}},
+				{ID: "translate", Type: flow.NodeTool, Name: "translate", Label: "Translate", Position: flow.NodePosition{X: 250, Y: 100},
+					Config: map[string]any{"skipMatched": true}},
 				{ID: "qa", Type: flow.NodeTool, Name: "qa", Label: "Checks", Position: flow.NodePosition{X: 500, Y: 100}},
 			},
 			Edges: []flow.FlowEdge{

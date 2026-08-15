@@ -1,0 +1,50 @@
+{
+  "nav": {
+    "berths": "Liegeplatzplan",
+    "fleet": "Flotte",
+    "alerts": "Warnungen",
+    "settings": "Einstellungen"
+  },
+  "berths": {
+    "title": "Liegeplatzplan",
+    "subtitle": "Alle Liegeplätze an diesem Terminal und was dafür gebucht ist.",
+    "empty": "Es liegt kein Schiff am Liegeplatz.",
+    "occupied": "{vessel} liegt bis {until} am Liegeplatz.",
+    "book": "Liegeplatz buchen",
+    "release": "Liegeplatz freigeben",
+    "released": "Liegeplatz freigegeben. Die nächste Ankunft kann dafür gebucht werden.",
+    "clearance": "Angegebener Tiefgang {draught} m gegenüber {available} m Wassertiefe.",
+    "count": "{count, plural, one {# Liegeplatz} other {# Liegeplätze}} an diesem Terminal."
+  },
+  "fleet": {
+    "title": "Flotte",
+    "search": {
+      "placeholder": "Nach Schiffsnamen suchen",
+      "empty": "Kein Schiff trägt diesen Namen."
+    },
+    "arriving": "Ankommend",
+    "alongside": "Am Liegeplatz",
+    "departed": "Ausgelaufen",
+    "eta": "Ankunft {eta}, Lotse an Bord {pilot}."
+  },
+  "alerts": {
+    "title": "Warnungen",
+    "empty": "Tidewatch hat für dieses Terminal keine Warnung ausgelöst.",
+    "raised": "Tidewatch hat für diese Bewegung eine Warnung ausgelöst.",
+    "clearance": "Die vorhergesagte Wassertiefe fällt um {time} unter die erforderliche Kielfreiheit.",
+    "acknowledge": "Bestätigen",
+    "acknowledged": "Bestätigt von {officer} um {time}.",
+    "count": "{count, plural, one {# offene Warnung} other {# offene Warnungen}}."
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "language": "Sprache",
+    "terminal": "Terminal",
+    "units": "Einheiten",
+    "saved": "Einstellungen gespeichert."
+  },
+  "errors": {
+    "offline": "Compass erreicht Tidewatch nicht. Der angezeigte Liegeplatzplan wurde um {time} gelesen.",
+    "denied": "Sie haben keine Berechtigung, diesen Liegeplatz zu ändern."
+  }
+}

@@ -54,6 +54,68 @@ func TestResolveProjectPath_ExplicitFlagWins(t *testing.T) {
 	assert.Equal(t, recipe, got)
 }
 
+// TestResolveProjectPath_ExplicitPathIsAbsolute proves a relative -p resolves
+// to the absolute recipe path. Callers take filepath.Dir of this value as the
+// project root and relativize against it before writing the committed record;
+// a root of "." relativizes nothing, which put an absolute machine path into
+// `.kapi/state/` — a file that exists to travel in git.
+func TestResolveProjectPath_ExplicitPathIsAbsolute(t *testing.T) {
+	unsetEnv(t, projectEnvVar)
+	dir := t.TempDir()
+	recipe := writeProject(t, dir, "relative")
+	t.Chdir(dir)
+
+	cmd := newTestCmd()
+	require.NoError(t, cmd.Flags().Set(projectFlagName, project.RecipeFileName))
+
+	got, err := ResolveProjectPath(cmd)
+	require.NoError(t, err)
+	assert.True(t, filepath.IsAbs(got), "want an absolute recipe path, got %q", got)
+	assertSamePath(t, recipe, got)
+}
+
+// TestResolveProjectPath_ExplicitDirectoryResolvesRecipe proves -p accepts a
+// project directory, which the flag's own help promises.
+func TestResolveProjectPath_ExplicitDirectoryResolvesRecipe(t *testing.T) {
+	unsetEnv(t, projectEnvVar)
+	dir := t.TempDir()
+	recipe := writeProject(t, dir, "dir")
+	t.Chdir(t.TempDir())
+
+	cmd := newTestCmd()
+	require.NoError(t, cmd.Flags().Set(projectFlagName, dir))
+
+	got, err := ResolveProjectPath(cmd)
+	require.NoError(t, err)
+	assertSamePath(t, recipe, got)
+}
+
+// TestResolveProjectPath_MissingExplicitPathIsPassedThrough proves an
+// unresolvable -p is returned unchanged, so the load that follows reports the
+// missing recipe once rather than this resolution reporting it first.
+func TestResolveProjectPath_MissingExplicitPathIsPassedThrough(t *testing.T) {
+	unsetEnv(t, projectEnvVar)
+	t.Chdir(t.TempDir())
+
+	cmd := newTestCmd()
+	require.NoError(t, cmd.Flags().Set(projectFlagName, "no/such/kapi.yaml"))
+
+	got, err := ResolveProjectPath(cmd)
+	require.NoError(t, err)
+	assert.Equal(t, "no/such/kapi.yaml", got)
+}
+
+// assertSamePath compares two paths after resolving symlinks, so a macOS
+// /var → /private/var temp dir does not read as a mismatch.
+func assertSamePath(t *testing.T, want, got string) {
+	t.Helper()
+	w, err := filepath.EvalSymlinks(want)
+	require.NoError(t, err)
+	g, err := filepath.EvalSymlinks(got)
+	require.NoError(t, err)
+	assert.Equal(t, w, g)
+}
+
 func TestResolveProjectPath_EnvVarFallback(t *testing.T) {
 	unsetEnv(t, noProjectEnvVar)
 	dir := t.TempDir()

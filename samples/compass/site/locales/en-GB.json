@@ -1,0 +1,56 @@
+{
+  "nav": {
+    "berths": "Berth plan",
+    "fleet": "Fleet",
+    "alerts": "Alerts",
+    "settings": "Settings"
+  },
+  "berths": {
+    "title": "Berth plan",
+    "subtitle": "Every berth at this terminal, and what is booked into it.",
+    "empty": "No vessel is alongside.",
+    "occupied": "{vessel} is alongside until {until}.",
+    "book": "Book a berth",
+    "release": "Release the berth",
+    "released": "Berth released. The next arrival can be booked into it.",
+    "clearance": "Declared draught {draught} m against {available} m of water.",
+    "count": "{count, plural, one {# berth} other {# berths}} at this terminal."
+  },
+  "fleet": {
+    "title": "Fleet",
+    "search": {
+      "placeholder": "Search by vessel name",
+      "empty": "No vessel matches that name."
+    },
+    "arriving": "Arriving",
+    "alongside": "Alongside",
+    "departed": "Departed",
+    "eta": "Arrives {eta}, pilot boarding {pilot}."
+  },
+  "alerts": {
+    "title": "Alerts",
+    "empty": "Tidewatch has raised no alert for this terminal.",
+    "raised": "Tidewatch raised an alert for this movement.",
+    "clearance": "Forecast depth falls below the required clearance at {time}.",
+    "acknowledge": "Acknowledge",
+    "acknowledged": "Acknowledged by {officer} at {time}.",
+    "count": "{count, plural, one {# open alert} other {# open alerts}}."
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "terminal": "Terminal",
+    "units": "Units",
+    "saved": "Settings saved."
+  },
+  "errors": {
+    "offline": "Compass cannot reach Tidewatch. The berth plan shown was read at {time}.",
+    "denied": "You do not have permission to change this berth."
+  },
+  "tide": {
+    "title": "Tide window",
+    "subtitle": "When the forecast allows this movement, and when it stops.",
+    "opens": "The window opens at {time}.",
+    "closes": "The window closes at {time}."
+  }
+}

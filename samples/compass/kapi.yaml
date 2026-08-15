@@ -1,0 +1,77 @@
+# Compass — one product, one surface, four languages.
+#
+# The same point the monolingual sample governs (northsea/app), with a locale
+# axis added and nothing else changed. The voice profile, the vocabulary and the
+# channel register are the ones already in force; `target_languages` is the only
+# line that makes this project multilingual.
+version: v1
+name: compass
+defaults:
+  source_language: en-GB
+  target_languages: [nb, de, nl]
+  # The loop writes the per-locale catalogs it converged. They are the committed
+  # record a reviewer reads in a diff, not a build artifact regenerated behind
+  # them.
+  materialize: on-converge
+  flow: converge
+  voice:
+    profile_file: .kapi/voice.yaml
+  terms_source: .kapi/terms.json
+  memory:
+    fuzzy_threshold: 75
+  exclude:
+    - "**/node_modules/**"
+    - "**/.git/**"
+
+profiles:
+  northsea:
+    channels: [app]
+    voice: .kapi/voice.yaml
+
+collections:
+  # Compass interface strings. One block per leaf key; the key path is the block
+  # name, so a target catalog diffs against its source key for key.
+  #
+  # The catalogs sit where the site loads them from. There is no copy step
+  # between the loop and the deployed page: `kapi up` writes site/locales/<lang>
+  # .json, and the page fetches exactly that.
+  - name: compass-app
+    channel: northsea/app
+    base: site/locales
+    content:
+      - path: en-GB.json
+        format:
+          name: json
+        target: "{lang}.json"
+
+# The two gates a language picker reads. They are independent: clearing the ship
+# gate makes a locale safe to offer, clearing the verified gate is what removes
+# the "AI" marker from it.
+#
+# One bar for every locale, deliberately. A per-locale bar would make the
+# picker's three states an artefact of the recipe rather than of the work.
+ship_gate:
+  translated: 100
+  reviewed: 50
+verified_gate:
+  reviewed: 100
+
+flows:
+  # Recycle first, then draft the remainder. skipMatched is what makes the second
+  # step mean "the remainder": without it the AI step re-translates the units
+  # recycle just filled from approved wording, and the project ships the model's
+  # answer over its own.
+  #
+  # provider: demo is the built-in offline stub — deterministic, keyless, and
+  # visibly synthetic, so this sample converges on a fresh clone with no
+  # credential and nobody mistakes its output for a translation.
+  converge:
+    steps:
+      - tool: recycle
+        config:
+          fillTarget: true
+          fillTargetThreshold: 100
+      - tool: translate
+        config:
+          provider: demo
+          skipMatched: true

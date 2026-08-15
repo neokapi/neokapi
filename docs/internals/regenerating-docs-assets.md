@@ -41,6 +41,7 @@ in env.
 | kapi Claude explainers (`claude-app-i18n`, `claude-translate-document`) | `kapi/get-started/use-with-claude.mdx` | harness demos `02`,`03` (live Claude) | `web/static/video/kapi/` |
 | kapi shell explainers (`kapi-checks-guardrail`, `toolbox-explainer`) | checks / toolbox pages | harness demos `05`,`09` (scripted shell) | `web/static/video/kapi/` |
 | kapi monolingual journey (`monolingual-governance`) | the monolingual governance page | harness demo `s0-northsea-governance` (scripted shell, seeded from `samples/northsea`) | `web/static/video/kapi/` |
+| kapi multilingual ship states (`multilingual-ship-states`) | the multilingual/ship-state page | harness demo `s1-compass-multilingual` (scripted shell, seeded from `samples/compass`) | `web/static/video/kapi/` |
 | Kapi Desktop tour (`kapi-desktop-*`) | `kapi/desktop/overview.mdx` | harness desktop demos (×6) | `web/static/video/kapi/` |
 | bowrain CLI scenes (`/video/bowrain-cli/0N-*.webm`) | bowrain walkthroughs | `make bowrain-kapi-scenes` (VHS, needs a server) | `bowrain/web/docs/static/video/bowrain-cli/` |
 | bowrain web walkthrough scenes (`/video/bowrain/<id>/0N-*.webm`) | bowrain walkthroughs | Playwright `scenes` (needs a server) + `stage-scenes.sh` | `bowrain/web/docs/static/video/bowrain/` |
