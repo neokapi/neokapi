@@ -349,19 +349,33 @@ self_test() {
   git -C "$repo" clean -qfd
   printf 'five\n' >"$repo/owned/a.json"
   : >"$GH_LOG"
-  local rc=0
+  local rc=0 summary="$tmp/step-summary.md"
+  : >"$summary"
   # Exported, not prefixed: the stub is an external script, so a shell variable
-  # it cannot read would make this case pass for the wrong reason.
-  export GH_CREATE_REFUSED=1 GITHUB_REPOSITORY=neokapi/neokapi
+  # it cannot read would make this case pass for the wrong reason. The three
+  # GitHub variables are pinned rather than inherited, because this suite also
+  # runs inside Actions: there GITHUB_REF_NAME is the branch under test, which
+  # is the base the compare URL is built from, and GITHUB_STEP_SUMMARY is the
+  # real job summary, which would collect this case's notice.
+  local had_ref="${GITHUB_REF_NAME-}" had_repo="${GITHUB_REPOSITORY-}"
+  local had_sum="${GITHUB_STEP_SUMMARY-}"
+  export GH_CREATE_REFUSED=1 GITHUB_REPOSITORY=neokapi/neokapi \
+    GITHUB_REF_NAME=main GITHUB_STEP_SUMMARY="$summary"
   out="$(run_case "$repo" bot/refused "chore: deliver" "${owned[@]}")" || rc=$?
-  unset GH_CREATE_REFUSED GITHUB_REPOSITORY
+  unset GH_CREATE_REFUSED
+  export GITHUB_REPOSITORY="$had_repo" GITHUB_REF_NAME="$had_ref"
+  export GITHUB_STEP_SUMMARY="$had_sum"
+
+  local expect="https://github.com/neokapi/neokapi/compare/main...bot/refused?expand=1"
   if [ "$rc" -ne 0 ] &&
     git -C "$remote" show-ref --verify --quiet refs/heads/bot/refused &&
-    grep -q "compare/main...bot/refused" <<<"$out" &&
+    grep -qF "$expect" <<<"$out" &&
+    grep -qF "$expect" "$summary" &&
     grep -q "not permitted to open pull requests" <<<"$out"; then
     ok "a refused pull request still delivers the branch, and says where to open it"
   else
-    fail "a refused pull request was not reported usefully (rc=$rc)" "$out" "gh: $(cat "$GH_LOG")"
+    fail "a refused pull request was not reported usefully (rc=$rc)" \
+      "$out" "summary: $(cat "$summary")" "gh: $(cat "$GH_LOG")"
   fi
 
   cd "$start"
