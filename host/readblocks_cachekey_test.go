@@ -1,6 +1,7 @@
 package host
 
 import (
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,11 +53,9 @@ func TestFormatConfigDigest_IsStableAcrossIterationOrder(t *testing.T) {
 		assert.Equal(t, want, formatConfigDigest(cfg))
 	}
 
-	// An equal config built in a different order digests the same.
+	// An equal config built as a separate map digests the same.
 	same := map[string]any{}
-	for k, v := range cfg {
-		same[k] = v
-	}
+	maps.Copy(same, cfg)
 	assert.Equal(t, want, formatConfigDigest(same))
 
 	assert.Empty(t, formatConfigDigest(nil), "no config is the reader's defaults")

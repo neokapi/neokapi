@@ -661,7 +661,13 @@ func (a *App) newCheckFormats(cmd Command) (*checkFormats, error) {
 	pctx := project.NewProjectContext(proj, filepath.Join(filepath.Dir(projectPath), "x.kapi"))
 	resolved, rerr := pctx.ResolveContent(a.FormatReg)
 	if rerr != nil {
-		return nil, rerr
+		// A recipe pattern that will not expand is a fault worth failing on — and
+		// the bare `kapi check` path fails on it, in checkProjectSources, before
+		// this runs. Naming a file is the other shape: the caller said which file
+		// to check, and an unrelated broken pattern elsewhere in the recipe must
+		// not stop them checking it. Fall back to detection, which is what naming
+		// a file did before there was a binding to fall back from.
+		return f, nil
 	}
 	for _, rf := range resolved {
 		if _, seen := f.byPath[rf.Path]; seen {

@@ -132,3 +132,30 @@ func TestCheck_FormatFlagStillOverridesTheProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.Positive(t, report.Target.Blocks, "the named override read the file")
 }
+
+// TestCheck_NamedFileSurvivesAnUnexpandablePattern: a recipe pattern that will
+// not expand is a fault, and the whole-project check fails on it — but naming a
+// file is the caller saying which file to check, and an unrelated broken pattern
+// elsewhere in the recipe must not stop them.
+func TestCheck_NamedFileSurvivesAnUnexpandablePattern(t *testing.T) {
+	root := writeFormatBoundProject(t)
+	recipe, err := os.ReadFile(filepath.Join(root, "kapi.yaml"))
+	require.NoError(t, err)
+	// An unclosed `[` is path.ErrBadPattern to doublestar.
+	broken := string(recipe) + `  - name: broken
+    content:
+      - path: "docs/[unclosed*.md"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(root, "kapi.yaml"), []byte(broken), 0o644))
+	t.Chdir(root)
+
+	a := &App{}
+	report, err := a.ComputeCheck(NewCheckCmd(a), []string{filepath.Join("docs", "page.md")})
+	require.NoError(t, err, "a named file stays checkable when another pattern is broken")
+	assert.Positive(t, report.Target.Blocks)
+
+	// The whole-project check still refuses a content set it cannot account for.
+	_, bareErr := a.ComputeCheck(NewCheckCmd(a), nil)
+	require.Error(t, bareErr)
+	assert.Contains(t, bareErr.Error(), "cannot be expanded")
+}
