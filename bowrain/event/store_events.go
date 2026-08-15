@@ -583,3 +583,34 @@ func (s *EventEmittingStore) GetLastEditor(ctx context.Context, projectID, block
 	}
 	return as.GetLastEditor(ctx, projectID, blockID)
 }
+
+// UpsertChannelAliasProposals forwards the optional ChannelAliasStore
+// capability. Same reason as the decision ledger above: the server holds the
+// wrapper, and an assertion against the wrapper's method set found nothing —
+// so the push raised no proposals and the listing answered "store not
+// configured", on a server whose store keeps the table perfectly well.
+func (s *EventEmittingStore) UpsertChannelAliasProposals(ctx context.Context, proposals []store.ChannelAliasProposal) (int, error) {
+	as, ok := s.inner.(store.ChannelAliasStore)
+	if !ok {
+		return 0, fmt.Errorf("content store %T keeps no channel alias proposals", s.inner)
+	}
+	return as.UpsertChannelAliasProposals(ctx, proposals)
+}
+
+// ListChannelAliasProposals forwards the optional ChannelAliasStore capability.
+func (s *EventEmittingStore) ListChannelAliasProposals(ctx context.Context, workspaceID, status string) ([]store.ChannelAliasProposal, error) {
+	as, ok := s.inner.(store.ChannelAliasStore)
+	if !ok {
+		return nil, fmt.Errorf("content store %T keeps no channel alias proposals", s.inner)
+	}
+	return as.ListChannelAliasProposals(ctx, workspaceID, status)
+}
+
+// JudgeChannelAliasProposal forwards the optional ChannelAliasStore capability.
+func (s *EventEmittingStore) JudgeChannelAliasProposal(ctx context.Context, j store.ChannelAliasJudgement) (bool, error) {
+	as, ok := s.inner.(store.ChannelAliasStore)
+	if !ok {
+		return false, fmt.Errorf("content store %T keeps no channel alias proposals", s.inner)
+	}
+	return as.JudgeChannelAliasProposal(ctx, j)
+}

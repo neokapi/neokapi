@@ -21,9 +21,11 @@ const workspace: Workspace = {
   role: "owner",
 };
 
-function adapterFor(response: unknown): ApiAdapter {
+function adapterFor(response: unknown, proposals: unknown = { proposals: [] }): ApiAdapter {
   return {
     listContextProfiles: vi.fn().mockResolvedValue(response),
+    listChannelProposals: vi.fn().mockResolvedValue(proposals),
+    judgeChannelProposal: vi.fn(),
   } as unknown as ApiAdapter;
 }
 
@@ -74,6 +76,24 @@ describe("ProfilesView", () => {
     await waitFor(() => expect(screen.getByText("Voices with no point")).toBeInTheDocument());
     // The card's heading and its voice row both name it.
     expect(screen.getAllByText("Support voice")).toHaveLength(2);
+  });
+
+  it("carries each point's check standing, and says so when a point has none", async () => {
+    renderWithProviders(<ProfilesView onOpenProfile={vi.fn()} />, adapterFor(populatedProfiles));
+
+    await waitFor(() => expect(screen.getByText("87")).toBeInTheDocument());
+    expect(screen.getByText(/412 checked blocks/)).toBeInTheDocument();
+    expect(screen.getByText(/23 findings/)).toBeInTheDocument();
+    // The other three points have never been checked.
+    expect(screen.getAllByText("Not checked yet")).toHaveLength(3);
+  });
+
+  it("carries the workspace vocabulary onto every card, with the point's own rules", async () => {
+    renderWithProviders(<ProfilesView onOpenProfile={vi.fn()} />, adapterFor(populatedProfiles));
+
+    await waitFor(() => expect(screen.getAllByText(/248 concepts/)).toHaveLength(4));
+    // A point with a voice narrows the vocabulary through it.
+    expect(screen.getAllByText(/23 rules here/)).toHaveLength(3);
   });
 
   it("tells a workspace with only the default point what would declare more", async () => {
@@ -133,6 +153,28 @@ describe("ProfileDetailView", () => {
 
     await waitFor(() => expect(screen.getByText("Brand scan")).toBeInTheDocument());
     expect(screen.getByText(/No scan yet/)).toBeInTheDocument();
+  });
+
+  it("reports the standing of the checks that resolved through this voice", async () => {
+    renderWithProviders(
+      <ProfileDetailView slug="channel~docs.product~bowrain" {...handlers} />,
+      adapterFor(populatedProfiles),
+    );
+
+    await waitFor(() => expect(screen.getByText("Standing")).toBeInTheDocument());
+    expect(screen.getByText("Voice score")).toBeInTheDocument();
+    expect(screen.getByText(/Across 412 checked blocks/)).toBeInTheDocument();
+    expect(screen.getByText(/Scoped by the voice, not the point/)).toBeInTheDocument();
+  });
+
+  it("says a point has never been checked rather than showing a zero", async () => {
+    renderWithProviders(
+      <ProfileDetailView slug="channel~app.product~bowrain" {...handlers} />,
+      adapterFor(populatedProfiles),
+    );
+
+    await waitFor(() => expect(screen.getByText("Standing")).toBeInTheDocument());
+    expect(screen.getByText(/Nothing here has been checked/)).toBeInTheDocument();
   });
 
   it("names a slug no profile answers to rather than rendering an empty page", async () => {

@@ -34,6 +34,61 @@ export interface Concept {
   }>;
 }
 
+/**
+ * One collection a recipe declares, as the context content type carries it:
+ * the point it sits at and the voice governing it. Mirrors
+ * sync.v1.SyncContextEntry.
+ */
+export interface SyncContextEntry {
+  name: string;
+  coordinates?: Record<string, string>;
+  channel?: string;
+  voice_profile?: string;
+  /** The authored profile, base64 of its JSON — the push carries the
+   *  governance itself, not merely a reference to one the server may hold. */
+  voice_profile_json?: string;
+  owner?: string;
+  content_hash?: string;
+}
+
+/** The workspace's observation that two channel slugs look like one channel. */
+export interface ChannelAliasProposal {
+  profile?: string;
+  proposed_channel: string;
+  existing_channel: string;
+  evidence?: string;
+  project_id?: string;
+  collection?: string;
+  status?: string;
+  judged_by?: string;
+  judged_at?: string;
+}
+
+/** The profile aggregation behind the Context hub's landing. */
+export interface ContextProfilesResponse {
+  profiles: Array<{
+    slug: string;
+    name: string;
+    label: string;
+    is_default: boolean;
+    declared: boolean;
+    coordinates?: Record<string, string>;
+    channel?: string;
+    voice?: { id: string; name: string };
+    collections: Array<{ name: string; project_name: string }>;
+    pending_changes: number;
+    checks?: {
+      score: number;
+      scored_blocks: number;
+      findings: number;
+      last_checked_at?: string;
+    };
+  }>;
+  axes: string[];
+  terms: { concept_count: number };
+  scan_scope: string;
+}
+
 export interface AutomationRule {
   id: string;
   name: string;
@@ -368,6 +423,72 @@ export class BowrainAPI {
 
   async searchTerms(wsSlug: string, query: string): Promise<unknown> {
     return this.get(`/workspaces/${wsSlug}/terms?q=${encodeURIComponent(query)}`);
+  }
+
+  // -----------------------------------------------------------------------
+  // Context: the points a workspace's content occupies, and the channel-slug
+  // equivalence the workspace observes between its projects
+  // -----------------------------------------------------------------------
+
+  /**
+   * Creates a project on the workspace-scoped route the sync and context
+   * endpoints share, so a project seeded here is addressable at
+   * /:ws/:id/... without a second id space.
+   */
+  async createWorkspaceProject(
+    wsSlug: string,
+    name: string,
+    sourceLanguage: string,
+    targetLanguages: string[],
+  ): Promise<Project> {
+    return this.post(`/${wsSlug}/projects`, {
+      name,
+      default_source_language: sourceLanguage,
+      target_languages: targetLanguages,
+    });
+  }
+
+  /**
+   * Pushes the context content type alone — the collections a recipe declares,
+   * with their coordinates and the voice governing each. No chunks, so the
+   * commit carries the recipe's structure and nothing else; the worker
+   * reconciles it, and the completed push is what makes slug fragmentation
+   * visible to the workspace.
+   */
+  async pushContext(
+    wsSlug: string,
+    projectId: string,
+    stream: string,
+    entries: SyncContextEntry[],
+  ): Promise<{ push_id: string }> {
+    return this.post(`/${wsSlug}/${projectId}/sync/${stream}/push/commit`, {
+      chunks: [],
+      contexts: entries,
+    });
+  }
+
+  async listContextProfiles(wsSlug: string): Promise<ContextProfilesResponse> {
+    return this.get(`/${wsSlug}/profiles`);
+  }
+
+  async listChannelProposals(
+    wsSlug: string,
+    status?: string,
+  ): Promise<{ proposals: ChannelAliasProposal[] }> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : "";
+    return this.get(`/${wsSlug}/context/channel-proposals${query}`);
+  }
+
+  async judgeChannelProposal(
+    wsSlug: string,
+    judgement: {
+      profile?: string;
+      proposed_channel: string;
+      existing_channel: string;
+      status: "accepted" | "dismissed";
+    },
+  ): Promise<ChannelAliasProposal> {
+    return this.post(`/${wsSlug}/context/channel-proposals/judge`, judgement);
   }
 
   // -----------------------------------------------------------------------

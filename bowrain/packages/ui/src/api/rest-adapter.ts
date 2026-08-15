@@ -200,6 +200,12 @@ import type {
   StartPilotRequest,
 } from "../types/brand-graph";
 import type { ContextProfilesResponse } from "../types/context-profiles";
+import type {
+  ChannelAliasJudgement,
+  ChannelAliasProposal,
+  ChannelAliasProposalsResponse,
+  ChannelProposalStatus,
+} from "../types/channel-proposals";
 
 /**
  * Encode a value for use as a single URL path segment, preserving the colon.
@@ -2588,6 +2594,24 @@ export class RestApiAdapter implements ApiAdapter {
 
   async listContextProfiles(workspaceSlug: string): Promise<ContextProfilesResponse> {
     return this.fetchJSON(`/api/v1/${workspaceSlug}/profiles`);
+  }
+
+  async listChannelProposals(
+    workspaceSlug: string,
+    status?: ChannelProposalStatus,
+  ): Promise<ChannelAliasProposalsResponse> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : "";
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/context/channel-proposals${query}`);
+  }
+
+  async judgeChannelProposal(
+    workspaceSlug: string,
+    judgement: ChannelAliasJudgement,
+  ): Promise<ChannelAliasProposal> {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/context/channel-proposals/judge`, {
+      method: "POST",
+      body: JSON.stringify(judgement),
+    });
   }
 
   async getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile> {

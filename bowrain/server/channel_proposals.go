@@ -108,6 +108,12 @@ func (s *Server) channelsByProfile(ctx context.Context, projectID, stream string
 // workspace holds. The pushing project is excluded so it cannot propose an
 // equivalence with itself — a project's own two channels are two channels, and
 // only its recipe gets to say otherwise.
+//
+// Each project is read on its default stream, resolved through
+// projectDefaultStream: a project created through the API carries no stream of
+// its own, and asking the store for the collections on the empty stream returns
+// none — which reads exactly like a workspace that holds no channels, and
+// silently proposes nothing.
 func (s *Server) workspaceChannelsByProfile(ctx context.Context, workspaceID, exceptProjectID string) (map[string]map[string]string, error) {
 	projects, err := s.ContentStore.ListProjects(ctx)
 	if err != nil {
@@ -118,7 +124,7 @@ func (s *Server) workspaceChannelsByProfile(ctx context.Context, workspaceID, ex
 		if p == nil || p.ID == exceptProjectID || p.WorkspaceID != workspaceID || p.Archived {
 			continue
 		}
-		byProfile, err := s.channelsByProfile(ctx, p.ID, p.DefaultStream)
+		byProfile, err := s.channelsByProfile(ctx, p.ID, projectDefaultStream(p))
 		if err != nil {
 			return nil, err
 		}
@@ -153,9 +159,9 @@ type channelProposalsResponse struct {
 // HandleListChannelAliasProposals reports the workspace's channel-slug
 // equivalence proposals: GET /:ws/context/channel-proposals.
 //
-// Read-only by design. Accepting a proposal records agreement between people;
-// it still rewrites nobody's recipe, so there is nothing here for a write to do
-// that a project's own recipe does not already do better.
+// Readable by anyone who may read content, because the listing says only what
+// the workspace already holds. Settling one takes the governance permission —
+// see HandleJudgeChannelAliasProposal.
 func (s *Server) HandleListChannelAliasProposals(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
 		return err
@@ -176,4 +182,81 @@ func (s *Server) HandleListChannelAliasProposals(c echo.Context) error {
 		proposals = []platstore.ChannelAliasProposal{}
 	}
 	return c.JSON(http.StatusOK, channelProposalsResponse{Proposals: proposals})
+}
+
+// channelProposalJudgement is the judge request's body: the proposal's key and
+// the verdict.
+type channelProposalJudgement struct {
+	Profile         string `json:"profile"`
+	ProposedChannel string `json:"proposed_channel"`
+	ExistingChannel string `json:"existing_channel"`
+	// Status is "accepted" or "dismissed".
+	Status string `json:"status"`
+}
+
+// HandleJudgeChannelAliasProposal settles one proposal:
+// POST /:ws/context/channel-proposals/judge.
+//
+// Both verdicts are records, not rewrites. Accepting says the two spellings name
+// one channel and the workspace will read them as one; it does not touch either
+// project's recipe, because resolution belongs to the recipe and happens
+// offline. Dismissing says they are two channels, and that is what stops the
+// next push from raising the pair again — the upsert leaves a judged row's
+// status alone, so a re-sighting refreshes where it was seen and nothing more.
+func (s *Server) HandleJudgeChannelAliasProposal(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+		return err
+	}
+	aliases, ok := s.ContentStore.(platstore.ChannelAliasStore)
+	if !ok {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+	wsID, _ := c.Get("workspace_id").(string)
+	if wsID == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "no workspace"})
+	}
+
+	var body channelProposalJudgement
+	if err := c.Bind(&body); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+	}
+	if body.Status != platstore.ChannelAliasAccepted && body.Status != platstore.ChannelAliasDismissed {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error: "status must be accepted or dismissed",
+		})
+	}
+	if body.ProposedChannel == "" || body.ExistingChannel == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error: "proposed_channel and existing_channel are required",
+		})
+	}
+
+	actor, _ := c.Get("user_id").(string)
+	found, err := aliases.JudgeChannelAliasProposal(c.Request().Context(), platstore.ChannelAliasJudgement{
+		WorkspaceID:     wsID,
+		Profile:         body.Profile,
+		ProposedChannel: body.ProposedChannel,
+		ExistingChannel: body.ExistingChannel,
+		Status:          body.Status,
+		JudgedBy:        actor,
+	})
+	if err != nil {
+		return serverErr(c, err)
+	}
+	if !found {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "no such proposal"})
+	}
+
+	proposals, err := aliases.ListChannelAliasProposals(c.Request().Context(), wsID, "")
+	if err != nil {
+		return serverErr(c, err)
+	}
+	for _, p := range proposals {
+		if p.Profile == body.Profile &&
+			p.ProposedChannel == body.ProposedChannel &&
+			p.ExistingChannel == body.ExistingChannel {
+			return c.JSON(http.StatusOK, p)
+		}
+	}
+	return c.JSON(http.StatusNotFound, ErrorResponse{Error: "no such proposal"})
 }

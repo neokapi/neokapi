@@ -188,6 +188,12 @@ import type {
   StartPilotRequest,
 } from "../types/brand-graph";
 import type { ContextProfilesResponse } from "../types/context-profiles";
+import type {
+  ChannelAliasJudgement,
+  ChannelAliasProposal,
+  ChannelAliasProposalsResponse,
+  ChannelProposalStatus,
+} from "../types/channel-proposals";
 
 /**
  * ApiAdapter abstracts the communication layer so that the same
@@ -1118,6 +1124,26 @@ export interface ApiAdapter {
    * server-side from what pushes declared; nothing here is separately stored.
    */
   listContextProfiles(workspaceSlug: string): Promise<ContextProfilesResponse>;
+
+  /**
+   * The workspace's channel-slug equivalence proposals: the pairs two projects
+   * spell differently that look like one channel. An omitted status returns
+   * every one, judged and unjudged alike.
+   */
+  listChannelProposals(
+    workspaceSlug: string,
+    status?: ChannelProposalStatus,
+  ): Promise<ChannelAliasProposalsResponse>;
+  /**
+   * Settles one proposal. Accepting records that the two spellings name one
+   * channel; dismissing records that they do not, and stops the next push's
+   * re-sighting from raising the pair again. Neither rewrites a project's slug:
+   * a recipe resolves its own coordinates, offline.
+   */
+  judgeChannelProposal(
+    workspaceSlug: string,
+    judgement: ChannelAliasJudgement,
+  ): Promise<ChannelAliasProposal>;
 
   listStarterPacks(): Promise<{ name: string; description: string }[]>;
   createProfileFromStarter(

@@ -171,9 +171,17 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       // authenticator handles. If there's a "Register" button, click it.
 
       // Wait for either:
-      // a) The passkey registration page (button id="authenticateWebAuthnButton")
+      // a) The passkey registration page
       // b) Direct redirect to the app (if passkey enrollment was skipped)
-      const passkeyButton = page.locator("#authenticateWebAuthnButton");
+      //
+      // The realm's required action is webauthn-register-passwordless, and the
+      // theme cases only on webauthn-register.ftl — so the page served is
+      // keycloakify's default, whose submit button carries no id of ours. Match
+      // the branded page's id OR that submit button, so the fixture recognizes
+      // whichever page the realm's required action produces.
+      const passkeyButton = page
+        .locator("#authenticateWebAuthnButton")
+        .or(page.getByRole("button", { name: /^register$/i }));
       const inApp = page
         .locator("[data-testid='nav-translate']")
         .or(page.getByText(/workspace|create.*workspace/i));

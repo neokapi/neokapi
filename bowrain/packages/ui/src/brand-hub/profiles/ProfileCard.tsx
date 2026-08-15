@@ -2,13 +2,15 @@ import { Badge, Card, cn } from "@neokapi/ui-primitives";
 import { One, Other, Plural } from "@neokapi/i18n-react/runtime";
 import type { ContextProfile } from "../../types/context-profiles";
 import { CoordinateReadout } from "./Coordinates";
-import { Folder, Palette } from "../../components/icons";
+import { BookOpen, Folder, Palette, ShieldCheck } from "../../components/icons";
 
 /** How many collections a card names before it counts the rest. */
 const NAMED_COLLECTIONS = 3;
 
 export interface ProfileCardProps {
   profile: ContextProfile;
+  /** The workspace vocabulary every profile shares, from the same aggregation. */
+  conceptCount?: number;
   onSelect: (slug: string) => void;
   className?: string;
 }
@@ -17,11 +19,14 @@ export interface ProfileCardProps {
  * One governance profile: the point, the voice governing it, and the content
  * that sits there.
  */
-export function ProfileCard({ profile, onSelect, className }: ProfileCardProps) {
+export function ProfileCard({ profile, conceptCount, onSelect, className }: ProfileCardProps) {
   const projects = new Set(profile.collections.map((c) => c.project_name));
   const named = profile.collections.slice(0, NAMED_COLLECTIONS);
   const rest = profile.collections.length - named.length;
   const unbound = !profile.declared && !profile.is_default;
+  const voiceRules = profile.voice
+    ? profile.voice.preferred_terms + profile.voice.forbidden_terms + profile.voice.competitor_terms
+    : 0;
 
   return (
     <Card
@@ -76,6 +81,49 @@ export function ProfileCard({ profile, onSelect, className }: ProfileCardProps) 
             </span>
           ) : (
             <span className="text-muted-foreground">No voice bound</span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <BookOpen className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="truncate text-muted-foreground">
+            <Plural count={conceptCount ?? 0}>
+              <One>{conceptCount ?? 0} concept</One>
+              <Other>{conceptCount ?? 0} concepts</Other>
+            </Plural>
+            {voiceRules > 0 && (
+              <span className="opacity-60">
+                {" · "}
+                <Plural count={voiceRules}>
+                  <One>{voiceRules} rule here</One>
+                  <Other>{voiceRules} rules here</Other>
+                </Plural>
+              </span>
+            )}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="size-3.5 shrink-0 text-muted-foreground" />
+          {profile.checks ? (
+            <span className="truncate text-muted-foreground">
+              <span className="font-medium text-foreground">{profile.checks.score}</span> from{" "}
+              <Plural count={profile.checks.scored_blocks}>
+                <One>{profile.checks.scored_blocks} checked block</One>
+                <Other>{profile.checks.scored_blocks} checked blocks</Other>
+              </Plural>
+              {profile.checks.findings > 0 && (
+                <span className="opacity-60">
+                  {" · "}
+                  <Plural count={profile.checks.findings}>
+                    <One>{profile.checks.findings} finding</One>
+                    <Other>{profile.checks.findings} findings</Other>
+                  </Plural>
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">Not checked yet</span>
           )}
         </div>
 

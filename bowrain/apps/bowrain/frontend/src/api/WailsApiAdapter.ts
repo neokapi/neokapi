@@ -138,6 +138,10 @@ import type {
   BrandScanJob,
   BrandScanCheckResult,
   ContextProfilesResponse,
+  ChannelAliasJudgement,
+  ChannelAliasProposal,
+  ChannelAliasProposalsResponse,
+  ChannelProposalStatus,
   BlockQueryOptions,
   BlockCounts,
   ItemInfo,
@@ -1373,6 +1377,26 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async listContextProfiles(workspaceSlug: string): Promise<ContextProfilesResponse> {
     return Backend.ListContextProfiles(workspaceSlug) as Promise<ContextProfilesResponse>;
+  }
+  async listChannelProposals(
+    workspaceSlug: string,
+    status?: ChannelProposalStatus,
+  ): Promise<ChannelAliasProposalsResponse> {
+    return Backend.ListChannelAliasProposals(
+      workspaceSlug,
+      status ?? "",
+    ) as Promise<ChannelAliasProposalsResponse>;
+  }
+  async judgeChannelProposal(
+    workspaceSlug: string,
+    judgement: ChannelAliasJudgement,
+  ): Promise<ChannelAliasProposal> {
+    return Backend.JudgeChannelAliasProposal(workspaceSlug, {
+      profile: judgement.profile ?? "",
+      proposed_channel: judgement.proposed_channel,
+      existing_channel: judgement.existing_channel,
+      status: judgement.status,
+    }) as Promise<ChannelAliasProposal>;
   }
   async getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile> {
     return Backend.GetBrandProfile(workspaceSlug, profileId) as Promise<VoiceProfile>;

@@ -27,6 +27,7 @@ export {
     BulkReviewArgs,
     BulkReviewView,
     CandidateRuleArgs,
+    ChannelAliasJudgementArgs,
     CollabSession,
     CollabUser,
     ConceptInfo,

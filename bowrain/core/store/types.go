@@ -818,9 +818,27 @@ type ChannelAliasProposal struct {
 	Collection string `json:"collection,omitempty"`
 	// Status is proposed | accepted | dismissed. Accepting records agreement;
 	// it still rewrites nothing.
-	Status    string `json:"status,omitempty"`
+	Status string `json:"status,omitempty"`
+	// JudgedBy and JudgedAt record who settled the proposal and when. They are
+	// distinct from UpdatedAt, which moves every time the same fragmentation is
+	// observed again: the sighting is fresh, the judgement is not.
+	JudgedBy  string `json:"judged_by,omitempty"`
+	JudgedAt  string `json:"judged_at,omitempty"`
 	CreatedAt string `json:"created_at,omitempty"`
 	UpdatedAt string `json:"updated_at,omitempty"`
+}
+
+// ChannelAliasJudgement settles one proposal: the key that identifies it, the
+// status a reviewer chose, and the reviewer.
+type ChannelAliasJudgement struct {
+	WorkspaceID     string
+	Profile         string
+	ProposedChannel string
+	ExistingChannel string
+	// Status is ChannelAliasAccepted or ChannelAliasDismissed.
+	Status string
+	// JudgedBy is the user id of the reviewer.
+	JudgedBy string
 }
 
 // Channel-alias proposal statuses.
@@ -842,6 +860,11 @@ type ChannelAliasStore interface {
 	// ListChannelAliasProposals returns a workspace's proposals, newest first.
 	// An empty status returns every one.
 	ListChannelAliasProposals(ctx context.Context, workspaceID, status string) ([]ChannelAliasProposal, error)
+	// JudgeChannelAliasProposal settles one proposal. It reports false when the
+	// workspace holds no such proposal, so a stale page cannot invent one.
+	// Accepting records equivalence between two spellings; it rewrites no
+	// project's slug, because resolution is the recipe's and stays offline.
+	JudgeChannelAliasProposal(ctx context.Context, j ChannelAliasJudgement) (bool, error)
 }
 
 // BlockAccessStore is the optional capability behind the block access ladder

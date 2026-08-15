@@ -4,6 +4,7 @@
 // shell frames each section; the section views run against the real
 // profile/concept/changeset/graph hooks.
 export * from "./profiles";
+export * from "./proposals";
 export * from "./shell";
 export * from "./concepts";
 export * from "./experiments";

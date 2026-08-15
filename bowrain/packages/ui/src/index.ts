@@ -905,6 +905,12 @@ export {
   CoordinateLine,
   useContextProfiles,
   useContextProfile,
+  // Channel names — the workspace's slug-equivalence proposals, judged here
+  // and resolved nowhere.
+  ChannelProposalsPanel,
+  useChannelProposals,
+  useJudgeChannelProposal,
+  channelProposalKey,
   TermStatusBadge,
   ChangeSetStatusBadge,
   changeSetStatusLabel,
@@ -1032,8 +1038,18 @@ export type {
   ContextProfileCollection,
   ContextProfileTerms,
   ContextProfileScan,
+  ContextProfileChecks,
   ContextProfilesResponse,
 } from "./types/context-profiles";
+
+// Channel-slug equivalence — the shape of GET/POST
+// /:ws/context/channel-proposals.
+export type {
+  ChannelAliasProposal,
+  ChannelAliasProposalsResponse,
+  ChannelAliasJudgement,
+  ChannelProposalStatus,
+} from "./types/channel-proposals";
 
 // Bravo (@bravo agent) — assistant-ui powered components
 export {

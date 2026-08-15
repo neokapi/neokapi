@@ -4,6 +4,7 @@
 import type { Decorator } from "@storybook/react";
 import type { ApiAdapter } from "../api/adapter";
 import type { ContextProfileVoice, ContextProfilesResponse } from "../types/context-profiles";
+import type { ChannelAliasProposalsResponse } from "../types/channel-proposals";
 import { createProvidersDecorator } from "./decorators";
 
 const voice = (id: string, name: string, version: number): ContextProfileVoice => ({
@@ -82,6 +83,12 @@ export const populatedProfiles: ContextProfilesResponse = {
       ],
       voice: voice("v-docs", "Bowrain docs voice", 3),
       pending_changes: 2,
+      checks: {
+        score: 87,
+        scored_blocks: 412,
+        findings: 23,
+        last_checked_at: "2026-06-13T09:12:00Z",
+      },
     },
     {
       slug: "channel~app.product~bowrain",
@@ -135,8 +142,44 @@ export const emptyProfiles: ContextProfilesResponse = {
   ],
 };
 
+/** A workspace whose two projects spell one channel two ways. */
+export const fragmentedChannels: ChannelAliasProposalsResponse = {
+  proposals: [
+    {
+      profile: "bowrain",
+      proposed_channel: "help",
+      existing_channel: "help-centre",
+      evidence: "one slug is a prefix of the other within the same product",
+      project_id: "p-support",
+      collection: "support-articles",
+      status: "proposed",
+      created_at: "2026-06-13T07:00:00Z",
+      updated_at: "2026-06-13T07:00:00Z",
+    },
+    {
+      profile: "bowrain",
+      proposed_channel: "marketing-site",
+      existing_channel: "marketingsite",
+      evidence: "the slugs differ only in case or separators",
+      project_id: "p-web",
+      collection: "landing",
+      status: "dismissed",
+      judged_by: "u-ada",
+      judged_at: "2026-06-12T16:20:00Z",
+      created_at: "2026-06-10T07:00:00Z",
+      updated_at: "2026-06-13T07:00:00Z",
+    },
+  ],
+};
+
 /** Serves one aggregation to every profile hook the story renders. */
-export const withProfiles = (response: ContextProfilesResponse): Decorator => {
-  const overrides: Partial<ApiAdapter> = { listContextProfiles: async () => response };
+export const withProfiles = (
+  response: ContextProfilesResponse,
+  proposals: ChannelAliasProposalsResponse = { proposals: [] },
+): Decorator => {
+  const overrides: Partial<ApiAdapter> = {
+    listContextProfiles: async () => response,
+    listChannelProposals: async () => proposals,
+  };
   return createProvidersDecorator(undefined, overrides);
 };

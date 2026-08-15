@@ -6,7 +6,15 @@ import { EmptyState, formatRelative } from "../shell/atoms";
 import { CoordinateReadout } from "./Coordinates";
 import { useContextProfile } from "./useContextProfiles";
 import type { ContextProfile, ContextProfileVoice } from "../../types/context-profiles";
-import { BookOpen, FlaskConical, Folder, Layers, Palette, Sparkles } from "../../components/icons";
+import {
+  BookOpen,
+  FlaskConical,
+  Folder,
+  Layers,
+  Palette,
+  ShieldCheck,
+  Sparkles,
+} from "../../components/icons";
 
 export interface ProfileDetailViewProps {
   slug: string;
@@ -151,6 +159,38 @@ export function ProfileDetailView({
               </p>
             )}
           </div>
+        </Section>
+
+        <Section icon={<ShieldCheck />} title="Standing">
+          {profile.checks ? (
+            <div className="space-y-3 text-sm">
+              <Stat
+                label="Voice score"
+                value={`${profile.checks.score}`}
+                hint={t(
+                  "{count, plural, one {Across # checked block, last {when}.} other {Across # checked blocks, last {when}.}}",
+                  {
+                    count: profile.checks.scored_blocks,
+                    when: formatRelative(profile.checks.last_checked_at),
+                  },
+                )}
+              />
+              <Stat
+                label="Open findings"
+                value={`${profile.checks.findings}`}
+                hint="What the checks raised on the content this voice governs."
+              />
+              <p className="text-xs text-muted-foreground">
+                Scoped by the voice, not the point: a stored check records the voice it resolved
+                through, so two points sharing one voice share this standing.
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Nothing here has been checked. A voice check runs over a collection&rsquo;s blocks and
+              stores what it scored, and that is what this reports.
+            </p>
+          )}
         </Section>
 
         <Section
