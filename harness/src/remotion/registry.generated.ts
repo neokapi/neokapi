@@ -104,5 +104,9 @@ export const DEMOS: RegistryEntry[] = [
   {
     "id": "s0-northsea-governance",
     "title": "Govern the content you already have"
+  },
+  {
+    "id": "s1-compass-multilingual",
+    "title": "A language appears when it is ready"
   }
 ];

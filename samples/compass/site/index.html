@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Compass — berth plan</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ink: #10202b;
+        --dim: #5b7182;
+        --line: #d3dee5;
+        --panel: #ffffff;
+        --ground: #eef3f6;
+        --mark: #7a5c00;
+        --mark-ground: #fdf3d4;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #e6eef3;
+          --dim: #93a7b4;
+          --line: #2b3d4a;
+          --panel: #14222c;
+          --ground: #0c161d;
+          --mark: #f0d485;
+          --mark-ground: #33290c;
+        }
+      }
+      * { box-sizing: border-box; }
+      /* An explicit display wins over the [hidden] attribute's own rule, so the
+         AI marker below needs this to stay hidden when it is set. */
+      [hidden] { display: none !important; }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      header {
+        display: flex;
+        align-items: baseline;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel);
+      }
+      header h1 { font-size: 1.05rem; margin: 0; letter-spacing: 0.01em; }
+      header .terminal { color: var(--dim); font-size: 0.9rem; }
+      header .picker { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
+      header label { color: var(--dim); font-size: 0.85rem; }
+      select {
+        font: inherit;
+        padding: 0.3rem 0.5rem;
+        color: var(--ink);
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+      }
+      main { max-width: 46rem; margin: 0 auto; padding: 1.5rem; }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 1.1rem 1.25rem;
+        margin-bottom: 1rem;
+      }
+      section h2 { font-size: 0.95rem; margin: 0 0 0.15rem; }
+      section p { margin: 0.15rem 0; }
+      section p.sub { color: var(--dim); font-size: 0.9rem; }
+      .row { display: flex; gap: 0.6rem; margin-top: 0.8rem; }
+      button {
+        font: inherit;
+        padding: 0.35rem 0.75rem;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: transparent;
+        color: var(--ink);
+      }
+      footer {
+        max-width: 46rem;
+        margin: 0 auto;
+        padding: 0 1.5rem 2rem;
+        color: var(--dim);
+        font-size: 0.85rem;
+      }
+      footer code { font-size: 0.85em; }
+      .marker {
+        display: inline-block;
+        margin-left: 0.4rem;
+        padding: 0 0.35rem;
+        border-radius: 3px;
+        background: var(--mark-ground);
+        color: var(--mark);
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        vertical-align: 0.1em;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Compass</h1>
+      <span class="terminal">Terminal 4 · Northsea Maritime Systems</span>
+      <div class="picker">
+        <label for="language">Language</label>
+        <select id="language"></select>
+        <span id="marker" class="marker" hidden>AI</span>
+      </div>
+    </header>
+
+    <main>
+      <section>
+        <h2 data-key="berths.title"></h2>
+        <p class="sub" data-key="berths.subtitle"></p>
+        <p data-key="berths.empty"></p>
+        <div class="row">
+          <button data-key="berths.book"></button>
+          <button data-key="berths.release"></button>
+        </div>
+      </section>
+
+      <section>
+        <h2 data-key="tide.title"></h2>
+        <p class="sub" data-key="tide.subtitle"></p>
+      </section>
+
+      <section>
+        <h2 data-key="alerts.title"></h2>
+        <p data-key="alerts.empty"></p>
+      </section>
+    </main>
+
+    <footer id="note"></footer>
+
+    <script src="./language-picker.js"></script>
+  </body>
+</html>

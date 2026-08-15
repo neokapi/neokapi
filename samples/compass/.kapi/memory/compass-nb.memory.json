@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-memory",
+  "entries": [
+    {
+      "id": "compass-nb:tide-title",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Tide window" }],
+        "nb": [{ "text": "Tidevannsvindu" }]
+      },
+      "created": "2026-02-11T08:30:00Z",
+      "updated": "2026-02-11T08:30:00Z"
+    },
+    {
+      "id": "compass-nb:tide-opens",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "The window opens at {time}." }],
+        "nb": [{ "text": "Vinduet åpner {time}." }]
+      },
+      "created": "2026-02-11T08:30:00Z",
+      "updated": "2026-02-11T08:30:00Z"
+    },
+    {
+      "id": "compass-nb:tide-closes",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "The window closes at {time}." }],
+        "nb": [{ "text": "Vinduet lukker {time}." }]
+      },
+      "created": "2026-02-11T08:30:00Z",
+      "updated": "2026-02-11T08:30:00Z"
+    }
+  ]
+}

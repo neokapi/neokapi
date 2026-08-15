@@ -1,0 +1,50 @@
+{
+  "nav": {
+    "berths": "Kaiplan",
+    "fleet": "Flåte",
+    "alerts": "Varsler",
+    "settings": "Innstillinger"
+  },
+  "berths": {
+    "title": "Kaiplan",
+    "subtitle": "Alle kaiplasser på denne terminalen, og hva som er booket inn på dem.",
+    "empty": "Ingen fartøy ligger til kai.",
+    "occupied": "{vessel} ligger til kai til {until}.",
+    "book": "Book en kaiplass",
+    "release": "Frigi kaiplassen",
+    "released": "Kaiplassen er frigitt. Neste ankomst kan bookes inn på den.",
+    "clearance": "Oppgitt dypgående {draught} m mot {available} m vann.",
+    "count": "{count, plural, one {# kaiplass} other {# kaiplasser}} på denne terminalen."
+  },
+  "fleet": {
+    "title": "Flåte",
+    "search": {
+      "placeholder": "Søk etter fartøysnavn",
+      "empty": "Ingen fartøy samsvarer med det navnet."
+    },
+    "arriving": "Ankommer",
+    "alongside": "Til kai",
+    "departed": "Avgått",
+    "eta": "Ankommer {eta}, los om bord {pilot}."
+  },
+  "alerts": {
+    "title": "Varsler",
+    "empty": "Tidewatch har ikke utløst noe varsel for denne terminalen.",
+    "raised": "Tidewatch utløste et varsel for denne bevegelsen.",
+    "clearance": "Prognosert dybde faller under nødvendig klaring {time}.",
+    "acknowledge": "Kvitter",
+    "acknowledged": "Kvittert av {officer} {time}.",
+    "count": "{count, plural, one {# åpent varsel} other {# åpne varsler}}."
+  },
+  "settings": {
+    "title": "Innstillinger",
+    "language": "Språk",
+    "terminal": "Terminal",
+    "units": "Enheter",
+    "saved": "Innstillingene er lagret."
+  },
+  "errors": {
+    "offline": "Compass når ikke Tidewatch. Kaiplanen som vises ble lest {time}.",
+    "denied": "Du har ikke tillatelse til å endre denne kaiplassen."
+  }
+}

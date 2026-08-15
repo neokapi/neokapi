@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0",
+  "kind": "kapi-memory",
+  "entries": [
+    {
+      "id": "compass-de:tide-title",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "Tide window" }],
+        "de": [{ "text": "Tidefenster" }]
+      },
+      "created": "2026-02-11T08:30:00Z",
+      "updated": "2026-02-11T08:30:00Z"
+    },
+    {
+      "id": "compass-de:tide-opens",
+      "hintSrcLang": "en-GB",
+      "variants": {
+        "en-GB": [{ "text": "The window opens at {time}." }],
+        "de": [{ "text": "Das Fenster öffnet um {time}." }]
+      },
+      "created": "2026-02-11T08:30:00Z",
+      "updated": "2026-02-11T08:30:00Z"
+    }
+  ]
+}

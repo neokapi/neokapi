@@ -1,0 +1,181 @@
+id: s1-compass-multilingual
+title: A language appears when it is ready
+subtitle: The same project, the same point, three more languages — converged, reviewed, and gated at the edge where a reader sees it.
+tagline: the picker is the gate.
+kind: use-case
+publishAs: multilingual-ship-states
+# A scripted plain-shell demo: every command is deterministic and offline. The AI
+# leg is the built-in `demo` provider, which needs no key and no network and
+# marks its own output, so a take costs nothing and claims nothing.
+terminal: shell
+brand: kapi
+cwd: ~/compass
+needsAi: false
+# The sandbox IS the Compass sample project, copied from samples/compass so the
+# recording and the sample a reader clones cannot drift apart.
+fixturesFrom: samples/compass
+project: true
+captureTimeoutSec: 240
+aspects:
+  - one point, one more axis
+  - recycle before AI
+  - review moves the edge
+  - ship states, not file presence
+
+script:
+  # --- 1. The same project, one more axis ---------------------------------
+  - comment: Compass is the Northsea product whose interface strings the monolingual sample already governs. Nothing about it has moved.
+  - command: cat kapi.yaml
+  - comment: One line makes it multilingual. The point is the one it always sat at.
+  - command: kapi context site/locales/en-GB.json | head -6
+  - comment: Both axes, on one screen. The source gained a Tide window panel last week; no language carries it.
+  - command: kapi status
+
+  # --- 2. What the site may offer today ------------------------------------
+  - comment: The deployed page builds its language picker from one file, and kapi writes it.
+  - command: kapi status --ship --emit site/ship.json
+  - command: cat site/ship.json
+  - comment: Nothing is offered. Four untranslated strings never fail a build — they do hold every language behind the ship gate, which is the honest answer.
+
+  # --- 3. Converge: recycle first, draft the remainder ---------------------
+  - comment: One verb. Approved wording is recycled; only what is left reaches a provider.
+  - command: kapi up
+  - comment: Norwegian and German clear the ship gate on drafted work. Dutch does not — nothing in it has been reviewed.
+  - command: kapi status
+  - command: kapi status --ship --emit site/ship.json
+  - command: cat site/ship.json
+
+  # --- 4. Review moves the edge --------------------------------------------
+  - comment: The review queue is already the shape of a change-set. This selects the Dutch a person wrote and leaves what the stub drafted.
+  - command: >-
+      kapi status --review --json --jq '.pending[]|select(.locale=="nl" and (.target|startswith("⟦")|not))|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > dutch.json
+  # The per-entry report goes to stderr, so the tail has to see stderr to trim it.
+  - command: kapi apply dutch.json 2>&1 | tail -3
+  - comment: Approvals are staged until they are committed. Then they are in the record, attributable, in git.
+  - command: kapi commit
+  - comment: Dutch is offered now — carrying the marker, because it is not signed off end to end.
+  - command: kapi status --ship --emit site/ship.json
+  - command: cat site/ship.json
+
+  # --- 5. Finish one, and its marker comes off -----------------------------
+  - comment: Finish Norwegian, and the same file says so.
+  - command: >-
+      kapi status --review --json --jq '.pending[]|select(.locale=="nb")|{kind:"review",op:"add",file,id:.key,locale,status:"reviewed"}' > norwegian.json
+  - command: kapi apply norwegian.json 2>&1 | tail -2
+  - command: kapi commit
+  - command: kapi status --ship --emit site/ship.json
+  - command: cat site/ship.json
+  - comment: Three languages, three standings, one derived answer. Nothing was configured per language.
+  - command: kapi status
+
+artifacts:
+  # The page fetches ship.json and a catalog, so it needs a server rather than a
+  # file:// load. The default server roots at the sandbox, so the path carries
+  # the site/ prefix; settleMs covers the two fetches before the shot.
+  - id: picker
+    caption: "site/index.html — the picker, built from ship.json"
+    source: url
+    path: /site/index.html
+    port: 4599
+    settleMs: 1500
+    width: 1200
+    height: 760
+  - id: ship
+    caption: "site/ship.json — locale → shippable, verified"
+    source: report
+    report: json
+    path: site/ship.json
+    reportTitle: "kapi status --ship"
+    reportSub: "the whole contract between the loop and the delivery edge"
+    width: 1200
+    height: 900
+
+narration:
+  - id: title
+    kind: title
+    text: >
+      A second language is not a second product. It is one more axis on content
+      that is already governed — and the interesting question is not how it gets
+      translated. It is who decides that a reader may see it.
+
+  - id: axis
+    kind: terminal
+    text: >
+      Compass is the product whose interface strings the monolingual sample
+      already governs. The recipe is the same recipe, the point is the same
+      point, the voice profile is the same profile. One line was added: three
+      target languages. Ask the graph where this content sits and it answers what
+      it answered before — northsea slash app.
+    caption: "the same point, one more axis"
+
+  - id: standing
+    kind: terminal
+    text: >
+      Both axes on one screen. The source gained a Tide window panel last week,
+      four strings, and no language carries it yet. That is not a failure
+      anywhere: target-language drift is the ordinary, continuous work. It is
+      enough, though, to hold every language behind the ship gate.
+    caption: "38 units, three languages, four strings behind"
+
+  - id: ship
+    kind: artifact
+    artifact: ship
+    text: >
+      This is the entire contract between the loop and the deployed site. Each
+      language, and two independent answers: is it safe to offer at all, and has
+      a person signed off every string in it. A build writes this file. A
+      language picker reads it. Nothing else passes between them.
+
+  - id: converge
+    kind: terminal
+    text: >
+      One verb converges. Approved wording is recycled first — thirty-six of
+      thirty-eight units for Norwegian come back from the project's own memory —
+      and only the remainder reaches a provider. The provider here is the offline
+      demo stub, which marks everything it produces, so nothing in this recording
+      is passed off as a translation.
+    caption: "recycle first; the remainder is the only thing drafted"
+
+  - id: gated
+    kind: terminal
+    text: >
+      Norwegian and German now clear the ship gate on drafted work, and are
+      offered marked. Dutch does not, and is not offered at all. Its file exists.
+      It holds Dutch. The gate has simply not cleared it, and a file being present
+      was never the decision.
+    caption: "blocked: review — the gate names what is missing"
+
+  - id: review
+    kind: terminal
+    text: >
+      Review is a change-set, and the queue is already in the shape of one. This
+      filter approves the Dutch a person wrote and leaves what the stub drafted —
+      which is the distinction the whole loop is built around. The approvals stage,
+      then commit into the project record: attributable, in git, bound to the
+      exact text they judged.
+    caption: "nineteen decisions, one commit"
+
+  - id: appears
+    kind: terminal
+    text: >
+      Dutch is offered now, carrying the marker. Finish Norwegian and the same
+      file drops its marker instead. Three languages, three different standings,
+      and not one of them was configured — every one of them is derived from the
+      work that was done.
+    caption: "the same file, after the review"
+
+  - id: picker
+    kind: artifact
+    artifact: picker
+    text: >
+      And this is where it lands. The picker offers what the gate cleared, marks
+      what no person has signed off, and does not offer what is not ready. A
+      reviewer approving a string in the morning is the reason a language is
+      there in the afternoon.
+
+  - id: outro
+    kind: outro
+    text: >
+      One point, one more axis, two gates. The loop recycles what was approved and
+      drafts only the rest; review moves the edge; and the edge is a file the site
+      reads. Nothing about the first journey had to change to get here.

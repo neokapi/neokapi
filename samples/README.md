@@ -7,10 +7,12 @@ throwaway fixture each time.
 | Sample | Shape | What it proves |
 | --- | --- | --- |
 | [`northsea/`](northsea/) | A complete repository: operator documentation, interface strings, a marketing page. One language, one product, four channels. | **S0** — the monolingual journey. Discover a context graph, ask where you are, gate prose the way tests gate code, land a correction as a decision, converge. No second language, no server, no provider credential. |
+| [`compass/`](compass/) | A deployable app: interface catalogs in four languages, a committed review record, and the page that reads them. | **S1** — the multilingual journey as an *extension* of S0: the same point, one more axis. Recycle before AI, review as a change-set, and two ship gates driving the deployed page's language picker — including a language deliberately left mid-loop. |
 | [`mart/`](mart/) | A dataset: source strings, a prose document, three target locales, terms and a content memory. | The multilingual material — recycling, partial coverage, plural and select messages, a review cast. Two brand instances (KapiMart, BowMart) share one design. |
 
-The two are complementary rather than alternatives: Northsea is a project you
-can run a loop in, Mart is content you can put through one.
+The three are complementary rather than alternatives: Northsea and Compass are
+projects you can run a loop in — the second is the first with a locale axis —
+and Mart is content you can put through one.
 
 ## Conventions
 

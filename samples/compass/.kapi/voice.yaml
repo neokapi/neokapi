@@ -1,0 +1,87 @@
+# Northsea house voice, as the app surface carries it.
+#
+# The same profile the monolingual sample binds, cut down to the one channel this
+# project ships on. It governs the source and it governs every translation of it:
+# a target is drafted under the register and the vocabulary in force at the point
+# its source sits at, so "vessel" does not become "ship" on the way into Dutch.
+name: Northsea
+description: >-
+  Northsea writes for people who are responsible for a movement. The reader is a
+  duty officer at 04:00 or an integrator reading a field name, not a prospect.
+  Say what happens, say what raised it, and stop.
+tone:
+  personality: [precise, calm, specific]
+  formality: formal
+  emotion: neutral
+  humor: none
+  guidelines: >-
+    Lead with the fact, then the consequence. Name the instrument that produced
+    a number. Never claim safety; state the constraint that was checked. One
+    idea per sentence. Where the interface and the documentation disagree about
+    a word, the documentation follows the interface.
+style:
+  active_voice: true
+  sentence_length: short
+  person_pov: second
+  contractions: never
+  prohibited_patterns:
+    - regex: '\b(world-class|best-in-class|industry-leading|game-changing|next-generation)\b'
+      description: Brochure framing — say what the software does instead
+      severity: major
+    - regex: '\b(guarantees?|ensures?)\s+(safety|safe\s)'
+      description: Northsea never claims safety; state the constraint that was checked
+      severity: critical
+vocabulary:
+  preferred_terms:
+    - term: berth
+      note: The place a vessel occupies alongside. The house term everywhere in prose and in the interface.
+    - term: vessel
+      note: Not "ship" and not "boat" — the arrivals model calls everything a vessel.
+    - term: alert
+      note: One statement about one movement. Never a general weather warning.
+    - term: Compass
+      note: The fleet and berth-plan product. Capitalised, never translated.
+    - term: Tidewatch
+      note: The forecasting and alerting product. Capitalised, never translated.
+  forbidden_terms:
+    - term: seamless
+      replacement: unified
+      note: Says nothing a reader can check
+      severity: major
+    - term: leverage
+      replacement: use
+      note: Business register; Northsea writes plainly
+      severity: minor
+examples:
+  - before: "Our seamless platform leverages best-in-class forecasting to guarantee safe movements."
+    after: "Tidewatch compares the forecast with the constraints of the berth, and raises an alert when a movement stops being safe."
+    explanation: Name the mechanism and the constraint; drop the claim and the brochure words
+    category: tone
+  - before: "You'll get an alert if there's a problem."
+    after: "Tidewatch raises an alert when the forecast depth falls below the required clearance."
+    explanation: No contractions, and the condition is stated rather than implied
+    category: style
+  - before: "Pick a mooring for the ship."
+    after: "Choose a berth for the vessel."
+    explanation: The house terms are berth and vessel
+    category: vocabulary
+
+# The register this one channel carries. A channel override changes tone and
+# style only — the vocabulary above is in force everywhere, which is what stops a
+# retired name from re-entering through a translation.
+channels:
+  app:
+    tone:
+      personality: [precise, plain]
+      formality: neutral
+      emotion: neutral
+      humor: none
+      guidelines: >-
+        Interface microcopy. A control is named for what it does; a message says
+        what happened and what the operator can do next. No full stop on a
+        button, no exclamation anywhere.
+    style:
+      active_voice: true
+      sentence_length: short
+      person_pov: second
+      contractions: never

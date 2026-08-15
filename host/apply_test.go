@@ -38,6 +38,55 @@ func TestReadChangeSetJSONLAndArray(t *testing.T) {
 	assert.Equal(t, "p1", got[0].ID)
 }
 
+// TestReadChangeSetIndentedStream proves the reader accepts a stream of
+// indented JSON objects — the shape `kapi status --review --json --jq '…'`
+// prints, since --jq always indents. Selecting the units to approve with the
+// product's own filter and piping them into `kapi apply` is the review
+// round-trip; a line-oriented reader broke it on the first line of the first
+// object.
+func TestReadChangeSetIndentedStream(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "reviews.json")
+	require.NoError(t, os.WriteFile(path, []byte(`{
+  "kind": "review",
+  "op": "add",
+  "file": "src/i18n/nb.json",
+  "id": "berth.title",
+  "locale": "nb",
+  "status": "reviewed"
+}
+{
+  "kind": "review",
+  "op": "add",
+  "file": "src/i18n/nb.json",
+  "id": "berth.empty",
+  "locale": "nb",
+  "status": "reviewed"
+}
+`), 0o644))
+	got, err := readChangeSet(context.Background(), path)
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, kindReview, got[0].Kind)
+	assert.Equal(t, "berth.title", got[0].ID)
+	assert.Equal(t, "berth.empty", got[1].ID)
+	assert.Equal(t, "nb", got[1].Locale)
+}
+
+// TestReadChangeSetReportsEntryOrdinal proves a malformed entry names its
+// position rather than failing anonymously.
+func TestReadChangeSetReportsEntryOrdinal(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "cs.jsonl")
+	require.NoError(t, os.WriteFile(path, []byte(
+		`{"kind":"term","op":"upsert","term":"t"}
+{"kind":"term","op":}
+`), 0o644))
+	_, err := readChangeSet(context.Background(), path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "entry 2")
+}
+
 // TestApplyContentFaithfulRoundTrip proves a content change-set lands through
 // the faithful round-trip: only the targeted value changes, the JSON skeleton is
 // byte-identical, and the report records the applied block. Matched by canonical

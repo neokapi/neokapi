@@ -46,6 +46,10 @@ func AddProjectFlag(cmd Command) {
 // Returns an empty path and nil error when nothing is found, so callers can
 // fall through to one-shot mode (commands that support it). Callers that
 // require a project should check for "" and return a clear error.
+//
+// A resolved path is absolute and names the recipe file, whichever branch
+// produced it — callers take filepath.Dir of it as the project root. See
+// recipeIn for why that matters.
 func ResolveProjectPath(cmd Command) (string, error) {
 	if cmd != nil {
 		if flag, _ := cmd.Flags().GetString(projectFlagName); flag != "" {
@@ -79,15 +83,33 @@ func ResolveProjectPath(cmd Command) (string, error) {
 }
 
 // recipeIn resolves a project location a user named — by flag or environment —
-// to the recipe file itself. Both spellings the flag help offers are accepted:
-// the recipe path, and the directory holding it. A path that is not a directory
-// is returned as given, so a recipe under any name still works and a typo
-// surfaces as the load error naming the path the user actually wrote.
+// to the absolute path of the recipe file itself. Both spellings the flag help
+// offers are accepted: the recipe path, and the directory holding it.
+//
+// Absolute is load-bearing, not tidiness. Callers take filepath.Dir of this
+// value as the project root and relativize the paths they write into the
+// committed record against it; handed `-p kapi.yaml` that root is ".", nothing
+// relativizes, and `kapi commit` wrote machine-specific absolute paths into
+// `.kapi/state/` — a file whose whole purpose is to travel in git. Discovery
+// already returns an absolute path, so only the branches a user spells were
+// affected.
+//
+// A path that does not resolve is returned as given, so a recipe under any name
+// still works and a typo surfaces as the load error naming the path the user
+// actually wrote.
 func recipeIn(path string) string {
-	if info, err := os.Stat(path); err == nil && info.IsDir() {
-		return filepath.Join(path, project.RecipeFileName)
+	info, err := os.Stat(path)
+	if err != nil {
+		return path
 	}
-	return path
+	if info.IsDir() {
+		path = filepath.Join(path, project.RecipeFileName)
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	return abs
 }
 
 // RequireProjectPath resolves the project path and returns an error when no

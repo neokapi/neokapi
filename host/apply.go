@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
@@ -242,24 +241,25 @@ func readChangeSet(ctx context.Context, path string) ([]changeEntry, error) {
 		break
 	}
 
+	// A stream of JSON values, decoded one at a time. JSONL is the shape this
+	// documents and the shape `kapi apply` prints in its own examples, but a
+	// decoder accepts it without caring where the newlines fall — which is what
+	// lets the product's two verbs compose: `kapi status --review --json --jq
+	// '…'` emits one indented object per selected unit, and that is a change-set
+	// too. A line scanner rejected it on the first line of the first object.
 	var entries []changeEntry
-	sc := bufio.NewScanner(br)
-	sc.Buffer(make([]byte, 0, 64*1024), 16*1024*1024)
-	line := 0
-	for sc.Scan() {
-		line++
-		raw := strings.TrimSpace(sc.Text())
-		if raw == "" {
-			continue
-		}
+	dec := json.NewDecoder(br)
+	n := 0
+	for {
 		var e changeEntry
-		if err := json.Unmarshal([]byte(raw), &e); err != nil {
-			return nil, fmt.Errorf("apply: parse change-set line %d: %w", line, err)
+		if err := dec.Decode(&e); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, fmt.Errorf("apply: parse change-set entry %d: %w", n+1, err)
 		}
+		n++
 		entries = append(entries, e)
-	}
-	if err := sc.Err(); err != nil {
-		return nil, err
 	}
 	return entries, nil
 }
