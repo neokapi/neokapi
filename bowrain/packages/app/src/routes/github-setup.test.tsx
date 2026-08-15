@@ -398,6 +398,12 @@ describe("GithubSetupRoute project path", () => {
   });
 });
 
+/**
+ * This route is covered here rather than in `bowrain/apps/web/e2e` because the
+ * e2e stack cannot reach GitHub: it configures no GitHub App, and every
+ * installation endpoint mints a token against api.github.com. Issue #1972 names
+ * the two pieces that would make the flow drivable end-to-end.
+ */
 describe("GithubSetupRoute starter prompt", () => {
   /** What the connector reports once the initial import has landed. */
   const importedStatus = { lastSync: "2026-08-11T09:00:00Z", errors: [] as string[] };
