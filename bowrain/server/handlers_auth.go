@@ -188,7 +188,7 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, fmt.Errorf("create user: %w", err))
 	}
-	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
+	s.trackUserLogin(c, user.ID, user.Email, user.CreatedAt)
 	s.emitAuthEvent(c, platev.EventAuthLogin, user.ID, user.Name, "oidc")
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
@@ -524,7 +524,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 	if err != nil {
 		return serverErr(c, fmt.Errorf("create user: %w", err))
 	}
-	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
+	s.trackUserLogin(c, user.ID, user.Email, user.CreatedAt)
 	s.emitAuthEvent(c, platev.EventAuthLogin, user.ID, user.Name, "oidc")
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
@@ -1000,7 +1000,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 	if err != nil {
 		return serverErr(c, fmt.Errorf("create user: %w", err))
 	}
-	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
+	s.trackUserLogin(c, user.ID, user.Email, user.CreatedAt)
 	s.emitAuthEvent(c, platev.EventAuthLogin, user.ID, user.Name, "oidc")
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)

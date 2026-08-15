@@ -3,9 +3,12 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
 	"github.com/neokapi/neokapi/bowrain/service"
@@ -102,6 +105,15 @@ func (s *Server) HandleCreateToken(c echo.Context) error {
 		Data:         auditData,
 	})
 
+	// The machine channel, counted where it starts. `machine` separates a token
+	// minted for a CI job or an agent from one a person mints for their own
+	// laptop; `scope` says what that channel was trusted with. Neither the token
+	// nor its name travels — a token name is something a person typed.
+	props := analytics.Props(workspaceID, "")
+	props["machine"] = token.AgentName != ""
+	props["scope"] = scopeActions(token.Scopes)
+	s.trackEvent(userID, analytics.EventAPITokenCreated, props)
+
 	return c.JSON(http.StatusCreated, CreateTokenResponse{
 		ID:          token.ID,
 		Name:        token.Name,
@@ -112,6 +124,33 @@ func (s *Server) HandleCreateToken(c echo.Context) error {
 		ExpiresAt:   token.ExpiresAt,
 		CreatedAt:   token.CreatedAt,
 	})
+}
+
+// scopeActions renders a token's scopes as the sorted, comma-joined set of
+// actions they grant. The raw scope strings carry project ids and language
+// constraints, which would splinter the analytics value into one bucket per
+// token; the action is the part that says what kind of channel this is.
+func scopeActions(scopesJSON string) string {
+	var scopes []string
+	if err := json.Unmarshal([]byte(scopesJSON), &scopes); err != nil {
+		return ""
+	}
+	seen := make(map[string]struct{}, len(scopes))
+	actions := make([]string, 0, len(scopes))
+	for _, s := range scopes {
+		resolved, err := platauth.ParseScope(s)
+		if err != nil {
+			continue
+		}
+		action := string(resolved.Action)
+		if _, dup := seen[action]; dup {
+			continue
+		}
+		seen[action] = struct{}{}
+		actions = append(actions, action)
+	}
+	slices.Sort(actions)
+	return strings.Join(actions, ",")
 }
 
 // HandleListTokens lists all API tokens for the workspace.
