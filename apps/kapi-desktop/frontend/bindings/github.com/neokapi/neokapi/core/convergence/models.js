@@ -402,6 +402,30 @@ export class LocaleCoverage {
              */
             this["aiReviewed"] = undefined;
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * Stale counts units whose decision was recorded against source wording that
+             * has since changed (state.UnitState.SourceStale). They tally at `draft` —
+             * a target exists, but it is not a translation of the source the project has
+             * now — and they hold the scope out of Shippable and Verified however the
+             * percentages read: a gate is a bar on quantity, and shipping a translation
+             * of a sentence that is gone is not a shortfall of quantity.
+             * @member
+             * @type {number | undefined}
+             */
+            this["stale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * BasisUnknown counts units holding a decision recorded before its basis
+             * was tracked. Such a decision says nothing about the source it blessed, so
+             * it keeps its rung and the scope ships — the count is what makes that
+             * assumption visible rather than silent.
+             * @member
+             * @type {number | undefined}
+             */
+            this["basisUnknown"] = undefined;
+        }
 
         Object.assign(this, $$source);
     }

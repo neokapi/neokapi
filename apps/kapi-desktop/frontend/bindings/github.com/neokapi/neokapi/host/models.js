@@ -881,6 +881,16 @@ export class ConvergeLocaleResult {
         }
         if (/** @type {any} */(false)) {
             /**
+             * Stale counts units whose translation was decided against source wording
+             * that has since changed. They hold the locale out of Shippable whether or
+             * not a gate applies: the loop cannot settle a pairing, only a person can.
+             * @member
+             * @type {number | undefined}
+             */
+            this["stale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
              * Materialized counts the target files written for this locale by the
              * post-loop materialize step (defaults.materialize: on-converge, or
              * --materialize). Only shippable locales materialize; a parked locale
@@ -1282,6 +1292,19 @@ export class UpPlanScope {
              * @type {number}
              */
             this["aiRemaining"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Stale is the count of units that HAVE a committed target whose decision
+             * was recorded against source wording that has since changed. It is
+             * reported beside MissingTarget rather than folded into it: this work is
+             * not a translation the loop can price, it is a pairing a person has to
+             * settle, and a cost estimate that quoted it would quote for work no
+             * provider is going to be asked to do.
+             * @member
+             * @type {number | undefined}
+             */
+            this["stale"] = undefined;
         }
         if (!("tokenEstimate" in $$source)) {
             /**
