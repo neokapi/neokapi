@@ -297,6 +297,49 @@ func TestMarshal_KeepsAuthoredBlankLines(t *testing.T) {
 	}
 }
 
+// TestMarshal_SpacingNeverChangesWhatTheDocumentSays covers the documents where
+// a blank line is not spacing at all: inside a block scalar it is content, and a
+// line that opens with a hash is only a comment outside one.
+func TestMarshal_SpacingNeverChangesWhatTheDocumentSays(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		authored string
+		want     string
+	}{
+		{
+			name:     "a blank line inside a block scalar",
+			authored: "name: North Sea\ndescription: |\n  A berth is allocated\n\n  on arrival.\n\nexamples:\n  - Movements are logged.\n",
+			want:     "name: Northsea\ndescription: |\n  A berth is allocated\n\n  on arrival.\n\nexamples:\n  - Movements are logged.\n",
+		},
+		{
+			name:     "trailing newlines a keep indicator makes content",
+			authored: "name: North Sea\ndescription: |+\n  A berth is allocated.\n\n\nexamples:\n  - Movements are logged.\n",
+			want:     "name: Northsea\ndescription: |+\n  A berth is allocated.\n\n\nexamples:\n  - Movements are logged.\n",
+		},
+		{
+			name:     "a hash inside a block scalar is not a comment",
+			authored: "name: North Sea\ndescription: |\n  # Berthing\n\nexamples:\n  - Movements are logged.\n",
+			want:     "name: Northsea\ndescription: |\n  # Berthing\n\nexamples:\n  - Movements are logged.\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			p := loaded(t, tt.authored)
+			p.Name = "Northsea"
+			out, err := yamledit.Marshal([]byte(tt.authored), p)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, string(out))
+
+			var reloaded profile
+			require.NoError(t, yamlUnmarshal(out, &reloaded))
+			assert.Equal(t, p.Description, reloaded.Description, "the write moved a line the scalar owns")
+			assert.Equal(t, p.Examples, reloaded.Examples)
+		})
+	}
+}
+
 // TestMarshal_KeepsTheAuthoredFormOfAnUnchangedKey pins the rule for a key whose
 // type accepts more than one spelling: the document decides, until the value
 // says something the document does not.
