@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -40,7 +42,7 @@ func newReviewLoopHarness(t *testing.T) (*Server, *stubForgeConnector, string, s
 
 	reg := platconn.NewRegistry()
 	stub := &stubForgeConnector{id: "conn-rl"}
-	reg.Register("forge", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
+	reg.Register("forge", venueconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return stub, nil
 	})
 	formatReg := registry.NewFormatRegistry()

@@ -166,7 +166,7 @@ const GO = {
   knowledgeTypes: "bowrain/knowledge/types.go",
   changeset: "bowrain/knowledge/changeset.go",
   task: "bowrain/store/task.go",
-  connector: "bowrain/core/connector/connector.go",
+  connector: "core/venue/connector/connector.go",
   handlersConnector: "bowrain/server/handlers_connector.go",
   handlersActivity: "bowrain/server/handlers_activity.go",
   handlersBilling: "bowrain/server/handlers_billing.go",

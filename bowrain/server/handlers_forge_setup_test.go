@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/labstack/echo/v4"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
@@ -588,7 +590,7 @@ func TestBindInstallationRepo_FetchFailureKeepsBinding(t *testing.T) {
 	// real forge connector's Status() re-runs the same clone, so the status
 	// probe fails with the same error on every poll — the stub mirrors that.
 	cloneErr := errors.New("git clone: fatal: could not read Username for 'https://github.com': terminal prompts disabled\n: exit status 128")
-	s.ConnectorReg.Register("forge", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
+	s.ConnectorReg.Register("forge", venueconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return &stubForgeConnector{id: "forge-" + config["name"], fetchErr: cloneErr, statusErr: cloneErr}, nil
 	})
 	pushed := make(chan platev.Event, 1)

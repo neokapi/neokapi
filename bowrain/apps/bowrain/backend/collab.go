@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
 
 // CollabUser identifies the current user for a collaboration session.

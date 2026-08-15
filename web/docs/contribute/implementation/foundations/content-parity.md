@@ -50,7 +50,7 @@ both directions, and gate both directions with a populated fixture.
 | Path | Direction | Where | Overlay carriage |
 | --- | --- | --- | --- |
 | **Proto push** | kapi → server | `core/venue` (`BlockToProto`/`ProtoToBlock`), message `SyncBlock` in `core/proto/sync/v1` | typed `neokapi.content.v1.OverlayMessage` (reuses `protoconvert.OverlayToProto`) |
-| **JSON pull** | server → kapi | `bowrain/core/client` (`StoredBlockToSyncBlock`/`SyncBlockToBlock`), JSON `SyncBlock` | discriminated JSON blob via `core/venue.MarshalOverlays` (matches the annotations blob idiom) |
+| **JSON pull** | server → kapi | `host/venue/client` (`StoredBlockToSyncBlock`/`SyncBlockToBlock`), JSON `SyncBlock` | discriminated JSON blob via `core/venue.MarshalOverlays` (matches the annotations blob idiom) |
 | **Store** | server persistence | `bowrain/store` (`StoreBlocks`/`GetBlock`) | `overlays` column, `bowrain/store.MarshalOverlays` → delegates to `core/venue` |
 
 The overlay JSON codec lives once in `core/venue` (`overlays_json.go`)
@@ -122,7 +122,7 @@ Each projection then gates its own legs. For the sync wire:
 - **Kitchen-sink round-trip** (`core/venue/conformance_test.go`,
   `TestKitchenSinkRoundTrip`): model → proto → model is deep-equal for the fully
   populated fixture. The JSON pull equivalent lives in
-  `bowrain/core/client/sync_conformance_test.go`.
+  `host/venue/client/sync_conformance_test.go`.
 - **Full chain** (`bowrain/store/sync_roundtrip_test.go`,
   `TestSyncOverlayFullChainRoundTrip`): model → proto → `StoreBlocks` →
   `GetBlock` → proto → model against a real Postgres testcontainer, proving the
@@ -152,7 +152,7 @@ Adding a Block/Run/Overlay field, or a new Run/Overlay kind:
 2. **Each projection's converters, both directions** — a projection that must
    carry the field converts it on the way out and on the way back. On the sync
    wire that is `core/venue` (`BlockToProto`/`ProtoToBlock`) **and** the
-   JSON pull path (`bowrain/core/client/sync_convert.go`); a projection with its
+   JSON pull path (`host/venue/client/sync_convert.go`); a projection with its
    own envelope message adds the field there too.
 3. **Persistence** — if a projection stores the field, add the column and its
    (de)serialization. On the sync wire that is `bowrain/store` (and

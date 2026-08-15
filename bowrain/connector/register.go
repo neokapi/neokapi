@@ -4,6 +4,7 @@ import (
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/forge"
 	"github.com/neokapi/neokapi/core/registry"
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 )
 
 // The registration functions below are split by *who supplies the config*, not
@@ -47,10 +48,10 @@ func RegisterServer(r *platconn.Registry, formatReg *registry.FormatRegistry) {
 // footprint is a working copy of the server, never a source of truth. The
 // desktop uses [RegisterRemote].
 func RegisterLocal(r *platconn.Registry, formatReg *registry.FormatRegistry) {
-	r.Register("file", platconn.CategoryFile, func(config map[string]string) (platconn.IntegrationConnector, error) {
+	r.Register("file", venueconn.CategoryFile, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewFileConnector(formatReg, config)
 	})
-	r.Register("git", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
+	r.Register("git", venueconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewGitConnector(formatReg, config)
 	})
 	registerForge(r, formatReg)
@@ -60,7 +61,7 @@ func RegisterLocal(r *platconn.Registry, formatReg *registry.FormatRegistry) {
 // registerForge registers the forge connector (GitHub / GitLab over the
 // forge API, with branch-and-PR delivery).
 func registerForge(r *platconn.Registry, formatReg *registry.FormatRegistry) {
-	r.Register("forge", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
+	r.Register("forge", venueconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewForgeConnector(formatReg, config)
 	})
 }
@@ -74,15 +75,15 @@ func registerForge(r *platconn.Registry, formatReg *registry.FormatRegistry) {
 // bowrain/safehttp), because a base URL in a connector config is tenant input
 // pointed at the network the server sits on.
 func RegisterRemote(r *platconn.Registry) {
-	r.Register("wordpress", platconn.CategoryCMS, func(config map[string]string) (platconn.IntegrationConnector, error) {
+	r.Register("wordpress", venueconn.CategoryCMS, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewWordPressConnector(config)
 	})
 
-	r.Register("figma", platconn.CategoryDesign, func(config map[string]string) (platconn.IntegrationConnector, error) {
+	r.Register("figma", venueconn.CategoryDesign, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewFigmaConnector(config)
 	})
 
-	r.Register("hubspot", platconn.CategoryMarketing, func(config map[string]string) (platconn.IntegrationConnector, error) {
+	r.Register("hubspot", venueconn.CategoryMarketing, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewHubSpotConnector(config)
 	})
 }
@@ -93,7 +94,7 @@ func RegisterRemote(r *platconn.Registry) {
 // rehydration on servers that configure an app; static-token forge configs
 // keep working unchanged.
 func RegisterForgeApp(r *platconn.Registry, formatReg *registry.FormatRegistry, app *forge.GitHubApp) {
-	r.Register("forge", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
+	r.Register("forge", venueconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewForgeConnectorWithApp(formatReg, config, app)
 	})
 }

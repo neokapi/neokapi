@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/neokapi/neokapi/bowrain/core/project"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/ref"
 	"github.com/neokapi/neokapi/core/ref/refcache"
+	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/spf13/cobra"
 )
 

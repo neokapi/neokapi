@@ -3,8 +3,8 @@ package commands
 import (
 	"testing"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/core/convergence"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

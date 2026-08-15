@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/store"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/venue"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

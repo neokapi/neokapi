@@ -4,7 +4,7 @@ import (
 	"errors"
 	"log/slog"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
 )
 
 // enqueue adds a typed mutation to the offline outbox for later replay. The op

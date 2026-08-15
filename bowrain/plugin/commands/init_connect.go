@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/neokapi/neokapi/bowrain/core/client"
-	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/host/venue/client"
+	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/spf13/cobra"
 )
 

@@ -20,8 +20,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/host/venue/client"
 )
 
 // EditorClient reaches the editor surface of the Bowrain REST API. Unlike the

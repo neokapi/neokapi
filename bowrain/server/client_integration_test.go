@@ -5,14 +5,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/host/venue/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // TestClientServerSyncContract runs the real bowrain HTTP client
-// (bowrain/core/client) against a real in-process server — the full echo router,
+// (host/venue/client) against a real in-process server — the full echo router,
 // real handlers, real auth — with NO mocking of routes.
 //
 // This is the contract test the codebase was missing. The CLI's

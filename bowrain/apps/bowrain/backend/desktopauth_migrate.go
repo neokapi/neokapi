@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/neokapi/neokapi/bowrain/core/config"
+	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/zalando/go-keyring"
 )
 
@@ -14,7 +14,7 @@ import (
 // persist its own tokens under keychain service "bowrain" (keys
 // "access-token"/"refresh-token") plus a bowrain-desktop/auth.json metadata
 // file — a stack entirely separate from the shared kapi/kapi-bowrain scheme in
-// bowrain/core/config. migrateLegacyDesktopAuth() folds any such credentials
+// host/venue/config. migrateLegacyDesktopAuth() folds any such credentials
 // into the shared store once, so an existing desktop login survives the switch
 // and a CLI login and a desktop login become mutually visible.
 const (
@@ -48,7 +48,7 @@ type legacyDesktopAuth struct {
 }
 
 // migrateLegacyDesktopAuth performs a one-time migration of desktop credentials
-// from the legacy scheme to the shared bowrain/core/config store. It is a no-op
+// from the legacy scheme to the shared host/venue/config store. It is a no-op
 // when the shared store already holds credentials (a CLI login, or a prior
 // migration) or when no legacy data exists. Cleanup of the legacy entries is
 // best-effort.

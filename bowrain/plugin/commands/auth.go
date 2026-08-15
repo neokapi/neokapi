@@ -11,13 +11,14 @@ import (
 	"os"
 	"time"
 
-	"github.com/neokapi/neokapi/bowrain/core/auth"
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
-	"github.com/neokapi/neokapi/bowrain/core/config"
+	venueauth "github.com/neokapi/neokapi/host/venue/auth"
+
 	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/cli"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
+	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/spf13/cobra"
 )
 
@@ -52,7 +53,7 @@ func performLogin(cmd *cobra.Command, serverURL string) (*config.StoredAuth, err
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	client := &auth.DeviceFlowClient{
+	client := &venueauth.DeviceFlowClient{
 		DeviceAuthURL: serverURL + "/api/v1/auth/device/start",
 		TokenURL:      serverURL + "/api/v1/auth/device/poll",
 		ClientID:      "kapi-cli",

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/labstack/echo/v4"
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -37,7 +39,7 @@ type ConnectorResolver interface {
 	GetConnector(workspaceID, id string) (connector.IntegrationConnector, error)
 	Fetch(ctx context.Context, workspaceID, connectorID, projectID string, opts connector.FetchOptions) ([]*connector.ContentItem, error)
 	Publish(ctx context.Context, workspaceID, connectorID, projectID string, opts connector.PublishOptions) error
-	ConnectorStatus(ctx context.Context, workspaceID, connectorID string) (*connector.SyncStatus, error)
+	ConnectorStatus(ctx context.Context, workspaceID, connectorID string) (*venueconn.SyncStatus, error)
 }
 
 // MembershipChecker validates that an authenticated principal belongs to a

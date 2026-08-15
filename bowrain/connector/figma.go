@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"time"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/safehttp"
 	"github.com/neokapi/neokapi/core/model"
@@ -72,9 +74,9 @@ func NewFigmaConnector(config map[string]string) (*FigmaConnector, error) {
 	}, nil
 }
 
-func (c *FigmaConnector) ID() string                  { return c.id }
-func (c *FigmaConnector) Name() string                { return c.connName }
-func (c *FigmaConnector) Category() platconn.Category { return platconn.CategoryDesign }
+func (c *FigmaConnector) ID() string                   { return c.id }
+func (c *FigmaConnector) Name() string                 { return c.connName }
+func (c *FigmaConnector) Category() venueconn.Category { return venueconn.CategoryDesign }
 
 func (c *FigmaConnector) Configure(config map[string]string) error {
 	maps.Copy(c.config, config)
@@ -117,7 +119,7 @@ func (c *FigmaConnector) List(ctx context.Context) ([]*platconn.ContentItem, err
 	return c.Fetch(ctx, platconn.FetchOptions{})
 }
 
-func (c *FigmaConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
+func (c *FigmaConnector) Status(ctx context.Context) (*venueconn.SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err
@@ -126,7 +128,7 @@ func (c *FigmaConnector) Status(ctx context.Context) (*platconn.SyncStatus, erro
 	for _, item := range items {
 		count += len(item.Blocks)
 	}
-	return &platconn.SyncStatus{
+	return &venueconn.SyncStatus{
 		ConnectorID: c.id,
 		LastSync:    time.Now(),
 		ItemCount:   count,

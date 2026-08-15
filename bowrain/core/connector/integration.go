@@ -1,3 +1,13 @@
+// Package connector defines the interface for the content systems a venue
+// reaches into — WordPress, Figma, HubSpot, a filesystem, a Git forge — named
+// Fetch/Publish from the venue's perspective, plus the registry that maps a
+// connector type to its factory.
+//
+// The mirror-image contract, implemented by the content source and named
+// Push/Pull from its perspective, is core/venue/connector: a source connector
+// runs wherever the content lives, so it needs no venue to compile. The
+// identity and lifecycle both perspectives embed lives there too, which is why
+// the two interfaces still share one ConnectorBase.
 package connector
 
 import (
@@ -5,6 +15,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 )
 
 // ContentItem represents a piece of content discovered by a connector.
@@ -45,7 +56,7 @@ type PublishOptions struct {
 // Used by server-side integrations (WordPress, Figma, HubSpot, filesystem, Git).
 // Terminology: from Bowrain's perspective.
 type IntegrationConnector interface {
-	ConnectorBase
+	venueconn.ConnectorBase
 
 	// Fetch retrieves source content FROM the external system INTO Bowrain.
 	Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error)

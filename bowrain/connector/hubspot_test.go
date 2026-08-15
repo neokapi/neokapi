@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -74,7 +76,7 @@ func TestHubSpotPull(t *testing.T) {
 
 func TestHubSpotCategory(t *testing.T) {
 	c := &HubSpotConnector{id: "test", config: map[string]string{}}
-	assert.Equal(t, platconn.CategoryMarketing, c.Category())
+	assert.Equal(t, venueconn.CategoryMarketing, c.Category())
 }
 
 // pullHubSpotFromURL is a test helper that fetches pages from a custom URL.

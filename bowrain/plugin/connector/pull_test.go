@@ -10,15 +10,15 @@ import (
 	"strings"
 	"testing"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
-	"github.com/neokapi/neokapi/bowrain/core/config"
-	bowrainconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/ref/refcache"
 	"github.com/neokapi/neokapi/core/registry"
+	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
+	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

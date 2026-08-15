@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neokapi/neokapi/bowrain/core/config"
+	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/zalando/go-keyring"
@@ -35,7 +35,7 @@ func TestGetDefaultServerURLTrimsTrailingSlash(t *testing.T) {
 
 // --- Auth persistence tests ---
 //
-// Desktop credentials now persist through the shared bowrain/core/config store
+// Desktop credentials now persist through the shared host/venue/config store
 // (keychain service "kapi", URL-namespaced keys, metadata at
 // $BOWRAIN_CONFIG_DIR/auth.json) — the same scheme the kapi CLI uses, which is
 // what makes a desktop login and a CLI login mutually visible. These tests
@@ -147,7 +147,7 @@ func TestDesktopAuthJSONFormat(t *testing.T) {
 
 // TestMigrateLegacyDesktopAuth verifies the one-time migration off the legacy
 // desktop-only keychain scheme ("bowrain" service + bowrain-desktop/auth.json)
-// into the shared bowrain/core/config store.
+// into the shared host/venue/config store.
 func TestMigrateLegacyDesktopAuth(t *testing.T) {
 	keyring.MockInit()
 	legacyDir := t.TempDir()

@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
-	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/neokapi/neokapi/bowrain/plugin/schema"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
+	"github.com/neokapi/neokapi/host/venue/config"
 )
 
 // ErrNotWorkspaceClaimed reports that a project is not claimed into a

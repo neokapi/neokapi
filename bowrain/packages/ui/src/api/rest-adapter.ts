@@ -250,7 +250,7 @@ interface CreditLedgerEntryDTO {
  * ConnectorSyncStatus so consumers never touch the wire casing.
  */
 /**
- * The wire shape of `core/connector.SyncStatus`, which the per-connector and
+ * The wire shape of `core/venue/connector.SyncStatus`, which the per-connector and
  * batch status routes both answer with verbatim. The adapter normalises it into
  * the camelCase {@link ConnectorSyncStatus} the surfaces read.
  */

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -50,9 +52,9 @@ func NewFileConnector(formatReg *registry.FormatRegistry, config map[string]stri
 	}, nil
 }
 
-func (c *FileConnector) ID() string                  { return c.id }
-func (c *FileConnector) Name() string                { return c.name }
-func (c *FileConnector) Category() platconn.Category { return platconn.CategoryFile }
+func (c *FileConnector) ID() string                   { return c.id }
+func (c *FileConnector) Name() string                 { return c.name }
+func (c *FileConnector) Category() venueconn.Category { return venueconn.CategoryFile }
 
 // resolve joins a connector-relative path onto the connector root and returns
 // the result only if it stays inside that root.
@@ -433,12 +435,12 @@ func (c *FileConnector) List(ctx context.Context) ([]*platconn.ContentItem, erro
 }
 
 // Status returns the current sync status.
-func (c *FileConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
+func (c *FileConnector) Status(ctx context.Context) (*venueconn.SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &platconn.SyncStatus{
+	return &venueconn.SyncStatus{
 		ConnectorID: c.id,
 		LastSync:    time.Now(),
 		ItemCount:   len(items),

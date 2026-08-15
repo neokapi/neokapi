@@ -11,10 +11,11 @@ import (
 	"strings"
 	"time"
 
-	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
-	"github.com/neokapi/neokapi/bowrain/core/config"
+	venueauth "github.com/neokapi/neokapi/host/venue/auth"
+
 	"github.com/neokapi/neokapi/bowrain/editorclient"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
+	"github.com/neokapi/neokapi/host/venue/config"
 )
 
 var errNotConnected = errors.New("not connected to server")
@@ -205,7 +206,7 @@ func (a *App) ConnectToServer(serverURL string) error {
 
 // wireRemoteRefresh configures the REST/SSE editor client to auto-refresh its
 // access token on 401 and persist the rotated tokens through the shared
-// bowrain/core/config store, keeping the cached auth in sync so a refresh
+// host/venue/config store, keeping the cached auth in sync so a refresh
 // triggered by any surface (including the CLI) is visible.
 func (a *App) wireRemoteRefresh(c *editorclient.EditorClient, serverURL string, stored *config.StoredAuth) {
 	if stored == nil || stored.RefreshToken == "" {
@@ -249,11 +250,11 @@ func (a *App) StartLogin(serverURL string) error {
 	}
 
 	// Generate PKCE code verifier + challenge.
-	verifier, err := platauth.GenerateCodeVerifier()
+	verifier, err := venueauth.GenerateCodeVerifier()
 	if err != nil {
 		return fmt.Errorf("generate PKCE verifier: %w", err)
 	}
-	challenge := platauth.ComputeCodeChallenge(verifier)
+	challenge := venueauth.ComputeCodeChallenge(verifier)
 
 	resultCh := make(chan *pkceResult, 1)
 
@@ -302,7 +303,7 @@ func (a *App) WaitForLogin() (bool, error) {
 			return false, result.Err
 		}
 
-		// Save tokens to the shared bowrain/core/config store (OS keychain +
+		// Save tokens to the shared host/venue/config store (OS keychain +
 		// non-secret metadata), so a desktop login and a kapi CLI login share
 		// one set of credentials.
 		stored := &config.StoredAuth{
@@ -436,7 +437,7 @@ func (a *App) Logout() {
 		}
 	}
 	a.Disconnect()
-	// Clear credentials from the shared bowrain/core/config store (keychain +
+	// Clear credentials from the shared host/venue/config store (keychain +
 	// metadata). Missing entries are not an error.
 	_ = config.DeleteAuth(serverURL)
 }
@@ -490,7 +491,7 @@ func (a *App) SelectWorkspace(slug string) error {
 
 // --- Auth persistence ---
 //
-// Desktop credentials live in the shared bowrain/core/config store — the same
+// Desktop credentials live in the shared host/venue/config store — the same
 // OS keychain scheme (service "kapi", URL-namespaced keys) and metadata file
 // (~/.config/bowrain/auth.json) the kapi CLI + kapi-bowrain plugin use. This is
 // what makes a desktop login and a CLI login mutually visible. loadDesktopAuth

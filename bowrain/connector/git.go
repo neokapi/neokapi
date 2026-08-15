@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/bowrain/forge"
 	"github.com/neokapi/neokapi/core/registry"
@@ -208,9 +210,9 @@ func (c *GitConnector) globalArgs() []string {
 	return []string{"-c", "http.followRedirects=false"}
 }
 
-func (c *GitConnector) ID() string                  { return c.id }
-func (c *GitConnector) Name() string                { return c.name }
-func (c *GitConnector) Category() platconn.Category { return platconn.CategoryCode }
+func (c *GitConnector) ID() string                   { return c.id }
+func (c *GitConnector) Name() string                 { return c.name }
+func (c *GitConnector) Category() venueconn.Category { return venueconn.CategoryCode }
 
 func (c *GitConnector) Configure(config map[string]string) error {
 	maps.Copy(c.config, config)
@@ -380,12 +382,12 @@ func (c *GitConnector) List(ctx context.Context) ([]*platconn.ContentItem, error
 	return filtered, nil
 }
 
-func (c *GitConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
+func (c *GitConnector) Status(ctx context.Context) (*venueconn.SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &platconn.SyncStatus{
+	return &venueconn.SyncStatus{
 		ConnectorID: c.id,
 		LastSync:    time.Now(),
 		ItemCount:   len(items),

@@ -1,3 +1,10 @@
+// Package auth implements the browser-less halves of OAuth 2.0 that a command
+// line client needs to obtain a venue token: the device authorization grant
+// (RFC 8628) and the PKCE challenge (RFC 7636).
+//
+// Both are pure protocol against the venue's token endpoint — no user model, no
+// workspace, no permission vocabulary — which is why they live with the client
+// that performs them rather than with the venue that answers them.
 package auth
 
 import (

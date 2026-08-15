@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/neokapi/neokapi/core/flow"
@@ -84,7 +86,7 @@ func TestFlowServiceExecuteFlow_TracksFlowRunCompleted(t *testing.T) {
 func TestConnectorServicePublish_TracksConnectorPublished(t *testing.T) {
 	s := newTestStore(t)
 	reg := connector.NewRegistry()
-	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
+	reg.Register("test", venueconn.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
 		return &testConnector{id: "conn-1"}, nil
 	})
 

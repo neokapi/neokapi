@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
-	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/neokapi/neokapi/bowrain/editorclient"
+	apiclient "github.com/neokapi/neokapi/host/venue/client"
+	"github.com/neokapi/neokapi/host/venue/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	venueauth "github.com/neokapi/neokapi/host/venue/auth"
+
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
@@ -49,7 +51,7 @@ func TestDeviceAuthStartRespectsForwardedHeaders(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp platauth.DeviceAuthResponse
+	var resp venueauth.DeviceAuthResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.Equal(t, "https://bowrain.mymac/device/verify", resp.VerificationURI)
 }
@@ -73,7 +75,7 @@ func TestHandleDeviceVerificationFormValues(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var startResp platauth.DeviceAuthResponse
+	var startResp venueauth.DeviceAuthResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &startResp))
 	userCode := startResp.UserCode
 	deviceCode := startResp.DeviceCode
@@ -126,7 +128,7 @@ func TestHandleDeviceAuthPollStoreRefreshTokenError(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var startResp platauth.DeviceAuthResponse
+	var startResp venueauth.DeviceAuthResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &startResp))
 	require.NotEmpty(t, startResp.UserCode)
 	require.NotEmpty(t, startResp.DeviceCode)

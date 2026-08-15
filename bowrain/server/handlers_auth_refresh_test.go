@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	venueauth "github.com/neokapi/neokapi/host/venue/auth"
+
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,7 +50,7 @@ func TestTokenRefresh_BodyPathReturnsTokens(t *testing.T) {
 	srv.GetEcho().ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
-	var resp platauth.TokenResponse
+	var resp venueauth.TokenResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.NotEmpty(t, resp.AccessToken, "CLI path must receive an access token in the body")
 	assert.NotEmpty(t, resp.RefreshToken, "CLI path must receive the rotated refresh token in the body")
@@ -82,7 +84,7 @@ func TestTokenRefresh_CookiePathRequiresCSRF(t *testing.T) {
 	srv.GetEcho().ServeHTTP(rec2, req2)
 	require.Equal(t, http.StatusOK, rec2.Code, rec2.Body.String())
 
-	var resp platauth.TokenResponse
+	var resp venueauth.TokenResponse
 	require.NoError(t, json.Unmarshal(rec2.Body.Bytes(), &resp))
 	assert.Empty(t, resp.AccessToken, "the cookie path must not echo the access token in the body")
 	assert.Empty(t, resp.RefreshToken, "the cookie path must not echo the 30-day refresh token in the body")

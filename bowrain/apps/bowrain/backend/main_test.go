@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 	keyring.MockInit()
 
 	// Isolate auth from the developer's real ~/.config/bowrain/auth.json. Desktop
-	// credentials now persist through the shared bowrain/core/config store, which
+	// credentials now persist through the shared host/venue/config store, which
 	// resolves its metadata file via BOWRAIN_CONFIG_DIR; pin it to a throwaway
 	// dir so no test reads or clobbers a real login. Individual auth tests
 	// override this with their own temp dir.

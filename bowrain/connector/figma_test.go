@@ -3,7 +3,8 @@ package connector
 import (
 	"testing"
 
-	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,5 +36,5 @@ func TestFigmaExtractTextNodes(t *testing.T) {
 
 func TestFigmaCategory(t *testing.T) {
 	c := &FigmaConnector{id: "test", config: map[string]string{}}
-	assert.Equal(t, platconn.CategoryDesign, c.Category())
+	assert.Equal(t, venueconn.CategoryDesign, c.Category())
 }

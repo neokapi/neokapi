@@ -4,9 +4,9 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
 	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/host/venue/client"
 	"github.com/spf13/cobra"
 )
 

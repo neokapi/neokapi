@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
+
 	platconn "github.com/neokapi/neokapi/bowrain/core/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,7 +61,7 @@ func TestWordPressFetch(t *testing.T) {
 		"url": withTestNetwork(t, srv),
 	})
 	require.NoError(t, err)
-	assert.Equal(t, platconn.CategoryCMS, c.Category())
+	assert.Equal(t, venueconn.CategoryCMS, c.Category())
 
 	items, err := c.Fetch(t.Context(), platconn.FetchOptions{})
 	require.NoError(t, err)

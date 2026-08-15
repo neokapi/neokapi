@@ -3,6 +3,8 @@ package connector
 import (
 	"fmt"
 	"sync"
+
+	venueconn "github.com/neokapi/neokapi/core/venue/connector"
 )
 
 // Factory creates a new IntegrationConnector instance with the given configuration.
@@ -11,7 +13,7 @@ type Factory func(config map[string]string) (IntegrationConnector, error)
 // Info describes a registered connector type.
 type Info struct {
 	Name     string
-	Category Category
+	Category venueconn.Category
 }
 
 // ConnectorInfo is a deprecated alias for [Info].
@@ -35,7 +37,7 @@ func NewRegistry() *Registry {
 }
 
 // Register adds a connector factory to the registry.
-func (r *Registry) Register(name string, category Category, factory Factory) {
+func (r *Registry) Register(name string, category venueconn.Category, factory Factory) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.factories[name] = factory
