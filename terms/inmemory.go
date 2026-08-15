@@ -345,7 +345,11 @@ func (tb *InMemoryStore) Lookup(_ context.Context, sourceText string, opts Looku
 	return matches, nil
 }
 
-// LookupAll finds all terms that appear in the given text.
+// LookupAll finds all terms that appear in the given text. The locale, domain,
+// source and status filtering happens here; the position scan, validity-scope
+// filter, de-duplication and longest-declared-match preference live in the
+// shared LookupAllTiered, so the in-memory store answers exactly what SQLite
+// and Postgres answer.
 func (tb *InMemoryStore) LookupAll(_ context.Context, sourceText string, opts LookupOptions) ([]TermMatch, error) {
 	tb.mu.RLock()
 	defer tb.mu.RUnlock()
@@ -355,8 +359,7 @@ func (tb *InMemoryStore) LookupAll(_ context.Context, sourceText string, opts Lo
 	}
 
 	opts = ApplyLookupDefaults(opts)
-	var matches []TermMatch
-	lowerSource := strings.ToLower(sourceText)
+	var candidates []LocaleTerm
 
 	for _, concept := range tb.concepts {
 		if !matchesDomain(concept, opts.Domains) {
@@ -373,48 +376,11 @@ func (tb *InMemoryStore) LookupAll(_ context.Context, sourceText string, opts Lo
 			if !MatchesStatus(term.Status, opts.StatusFilter) {
 				continue
 			}
-			if !MatchesScope(term.Validity, opts.Scope) {
-				continue
-			}
-
-			termText := term.Text
-			searchIn := sourceText
-			searchFor := termText
-			if !opts.CaseSensitive {
-				searchIn = lowerSource
-				searchFor = strings.ToLower(termText)
-			}
-
-			// Find all occurrences of this term in the text.
-			offset := 0
-			for {
-				idx := strings.Index(searchIn[offset:], searchFor)
-				if idx < 0 {
-					break
-				}
-				pos := offset + idx
-				matches = append(matches, TermMatch{
-					Concept:   concept,
-					Term:      term,
-					Score:     1.0,
-					MatchType: model.MatchStrategyExact,
-					Position:  model.TextRange{Start: pos, End: pos + len(searchFor)},
-				})
-				offset = pos + len(searchFor)
-			}
+			candidates = append(candidates, LocaleTerm{Concept: concept, Term: term})
 		}
 	}
 
-	// Sort by position in text.
-	slices.SortFunc(matches, func(a, b TermMatch) int {
-		if c := cmp.Compare(a.Position.Start, b.Position.Start); c != 0 {
-			return c
-		}
-		// Longer matches first for overlapping terms.
-		return cmp.Compare(b.Position.End, a.Position.End)
-	})
-
-	return matches, nil
+	return LookupAllTiered(sourceText, opts, candidates), nil
 }
 
 // Search performs a case-insensitive text search across terms and definitions.

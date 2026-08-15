@@ -105,7 +105,7 @@ is the gate; keep iterating until it's green. (The kapi Claude Code plugin also 
 this in as a Stop hook, so a failing gate keeps you working automatically.)
 
 ```bash
-kapi check --ship --json        # whole project; or: kapi check --ship <files> [--voice|--terms|--qa]
+kapi check --ship --json        # whole project; or: kapi check --ship <files> [--gate voice|terminology|qa]
 ```
 
 ## Then read the section that matches the task

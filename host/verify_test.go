@@ -243,7 +243,7 @@ func TestVerify_NoProject(t *testing.T) {
 	assert.Contains(t, err.Error(), "no kapi project")
 }
 
-// TestVerify_GateSelection asserts that --terms runs only the terminology gate.
+// TestVerify_GateSelection asserts that naming one gate runs only that gate.
 func TestVerify_GateSelection(t *testing.T) {
 	root, _ := writeVerifyProject(t)
 	t.Chdir(root)
@@ -253,7 +253,7 @@ func TestVerify_GateSelection(t *testing.T) {
 	AddProjectFlag(cmd)
 	AddVerifyFlags(cmd)
 	require.NoError(t, cmd.Flags().Set("json", "true"))
-	require.NoError(t, cmd.Flags().Set("terms", "true"))
+	require.NoError(t, cmd.Flags().Set(gateFlagName, gateTerms))
 
 	out, err := captureStdout(t, func() error { return a.RunVerify(cmd, nil) })
 	// The failing project's terminology gate fails, so verify returns the

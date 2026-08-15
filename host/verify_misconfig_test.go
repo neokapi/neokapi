@@ -57,13 +57,13 @@ func runVerifyGates(t *testing.T, flags map[string]string) (verifyOutput, error)
 	return parsed, runErr
 }
 
-// TestVerify_ExplicitVoiceUnboundFails asserts that requesting --voice on a
+// TestVerify_ExplicitVoiceUnboundFails asserts that naming the voice gate on a
 // project that binds no voice profile fails loudly (misconfiguration) instead of
 // silently passing.
 func TestVerify_ExplicitVoiceUnboundFails(t *testing.T) {
 	t.Chdir(writeUnboundProject(t))
 
-	out, runErr := runVerifyGates(t, map[string]string{"voice": "true"})
+	out, runErr := runVerifyGates(t, map[string]string{"gate": gateVoice})
 
 	require.ErrorIs(t, runErr, ErrQualityGate, "an explicitly-requested unbound gate must fail")
 	assert.Equal(t, ExitGate, ExitCode(nil, runErr))
@@ -78,12 +78,12 @@ func TestVerify_ExplicitVoiceUnboundFails(t *testing.T) {
 	require.Len(t, out.Gates, 1, "only the explicitly requested gate ran")
 }
 
-// TestVerify_ExplicitTermsUnboundFails asserts the same for --terms with no
-// bound terms.
+// TestVerify_ExplicitTermsUnboundFails asserts the same for the terminology
+// gate with no bound terms.
 func TestVerify_ExplicitTermsUnboundFails(t *testing.T) {
 	t.Chdir(writeUnboundProject(t))
 
-	out, runErr := runVerifyGates(t, map[string]string{"terms": "true"})
+	out, runErr := runVerifyGates(t, map[string]string{"gate": gateTerms})
 
 	require.ErrorIs(t, runErr, ErrQualityGate)
 	assert.Equal(t, ExitGate, ExitCode(nil, runErr))
@@ -104,7 +104,7 @@ func TestVerify_ExplicitTermsUnboundFails(t *testing.T) {
 func TestVerify_UnboundMisconfigNoFailReportsOnly(t *testing.T) {
 	t.Chdir(writeUnboundProject(t))
 
-	out, runErr := runVerifyGates(t, map[string]string{"voice": "true", "no-fail": "true"})
+	out, runErr := runVerifyGates(t, map[string]string{"gate": gateVoice, "no-fail": "true"})
 
 	require.NoError(t, runErr, "--no-fail must exit 0 even for a misconfig failure")
 	assert.Equal(t, ExitOK, ExitCode(nil, runErr))
@@ -136,13 +136,13 @@ func TestVerify_DefaultRunSkipsUnboundGates(t *testing.T) {
 }
 
 // TestVerify_ExplicitVoiceBoundRunsRealCheck asserts that when a voice profile IS
-// bound, --voice runs the real check (and fails on actual content) rather than
-// emitting the misconfiguration failure.
+// bound, naming the voice gate runs the real check (and fails on actual
+// content) rather than emitting the misconfiguration failure.
 func TestVerify_ExplicitVoiceBoundRunsRealCheck(t *testing.T) {
 	root, _ := writeVerifyProject(t)
 	t.Chdir(root)
 
-	out, runErr := runVerifyGates(t, map[string]string{"voice": "true"})
+	out, runErr := runVerifyGates(t, map[string]string{"gate": gateVoice})
 
 	require.ErrorIs(t, runErr, ErrQualityGate)
 	g, ok := gateByName(out, gateVoice)
@@ -182,12 +182,12 @@ collections:
 	return root
 }
 
-// TestVerify_ExplicitVoiceBoundPasses asserts that --voice passes (exit 0) when
-// a clean voice profile is bound over clean content.
+// TestVerify_ExplicitVoiceBoundPasses asserts that the voice gate passes (exit
+// 0) when a clean voice profile is bound over clean content.
 func TestVerify_ExplicitVoiceBoundPasses(t *testing.T) {
 	t.Chdir(writeCleanVoiceProject(t))
 
-	out, runErr := runVerifyGates(t, map[string]string{"voice": "true"})
+	out, runErr := runVerifyGates(t, map[string]string{"gate": gateVoice})
 
 	require.NoError(t, runErr, "a bound, satisfied voice gate must pass")
 	assert.Equal(t, ExitOK, ExitCode(nil, runErr))

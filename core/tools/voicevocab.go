@@ -104,8 +104,8 @@ func vocabularyLookupLocales(loc model.LocaleID) []model.LocaleID {
 }
 
 // preferredTerm answers "what should this say instead" for a matched term: the
-// preferred term its concept carries in the same language, or "" when the
-// concept names none.
+// preferred term its concept carries in the same language, or the replacement
+// the term's own note names when the concept carries no preferred sibling.
 //
 // The match is consulted first and the store second, because a lookup can return
 // either shape: the in-memory store hands back the whole concept, while the
@@ -113,24 +113,32 @@ func vocabularyLookupLocales(loc model.LocaleID) []model.LocaleID {
 // and definition but none of its other terms. Reading only the match therefore
 // left every finding from a real project without the alternative — the one part
 // of a vocabulary finding that says what to do.
+//
+// The note is the last resort rather than the first, because a concept that
+// carries both words is the better record and the one `kapi apply` now writes.
+// It still has to be read: a term decided before that, or imported from a
+// vocabulary that files each word separately, has the replacement in the note
+// and nowhere else, and a finding that names no alternative is the beat of the
+// correction loop that lands without its fix.
 func (t *VoiceVocabCheckTool) preferredTerm(ctx context.Context, m terms.TermMatch, loc model.LocaleID) (string, error) {
 	if pref := m.Concept.PreferredTerm(loc); pref != nil && pref.Text != "" {
 		return pref.Text, nil
 	}
 	if m.Concept.ID == "" || len(m.Concept.Terms) > 0 {
-		return "", nil // nothing to look up, or the concept was whole and named none
+		// Nothing to look up, or the concept was whole and named none.
+		return terms.ReplacementFromNote(m.Term.Note), nil
 	}
 	full, found, err := t.terminology.GetConcept(ctx, m.Concept.ID)
 	if err != nil {
 		return "", fmt.Errorf("read concept %s: %w", m.Concept.ID, err)
 	}
 	if !found {
-		return "", nil
+		return terms.ReplacementFromNote(m.Term.Note), nil
 	}
 	if pref := full.PreferredTerm(loc); pref != nil && pref.Text != "" {
 		return pref.Text, nil
 	}
-	return "", nil
+	return terms.ReplacementFromNote(m.Term.Note), nil
 }
 
 func (t *VoiceVocabCheckTool) annotateBlock(v tool.BlockView) error {

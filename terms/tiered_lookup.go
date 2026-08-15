@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/memory"
 )
@@ -180,6 +181,14 @@ type LocaleTerm struct {
 // filtering lives here so both backends honor it identically. Results sort by
 // start position, then longest match first.
 //
+// Occurrences are found by the shared check.TermMatcher — the same rule the
+// voice-profile vocabulary, the do-not-translate check and the occurrence graph
+// use — so a word is a hit for the whole gate or for none of it. Where two
+// declared terms cover the same words, the longer one wins: a project that has
+// declared `mooring_id` a concept of its own has said that those characters are
+// not a use of the retired `mooring` inside them, and reporting both would be
+// the graph contradicting itself.
+//
 // Postgres inherits the (text, position) de-duplication by construction; its
 // terms is workspace-scoped and carries no project_id, so the
 // project-priority preference is inert there while the de-duplication and
@@ -189,7 +198,7 @@ func LookupAllTiered(sourceText string, opts LookupOptions, terms []LocaleTerm) 
 		return nil
 	}
 	var matches []TermMatch
-	lowerSource := strings.ToLower(sourceText)
+	prepared := check.PrepareText(sourceText)
 
 	type matchKey struct {
 		text string
@@ -201,44 +210,35 @@ func LookupAllTiered(sourceText string, opts LookupOptions, terms []LocaleTerm) 
 		if !MatchesScope(entry.Term.Validity, opts.Scope) {
 			continue
 		}
-		searchIn := sourceText
-		searchFor := entry.Term.Text
-		if !opts.CaseSensitive {
-			searchIn = lowerSource
-			searchFor = strings.ToLower(entry.Term.Text)
+		matcher := check.NewTermMatcher(entry.Term.Text)
+		if opts.CaseSensitive {
+			matcher = check.NewCaseSensitiveTermMatcher(entry.Term.Text)
 		}
-		if searchFor == "" {
+		if matcher.Empty() {
 			continue
 		}
+		key := strings.ToLower(entry.Term.Text)
 
-		offset := 0
-		for {
-			idx := strings.Index(searchIn[offset:], searchFor)
-			if idx < 0 {
-				break
-			}
-			pos := offset + idx
-			key := matchKey{text: searchFor, pos: pos}
+		for _, hit := range matcher.FindIn(prepared) {
+			k := matchKey{text: key, pos: hit[0]}
 
 			m := TermMatch{
 				Concept:   entry.Concept,
 				Term:      entry.Term,
 				Score:     1.0,
 				MatchType: model.MatchStrategyExact,
-				Position:  model.TextRange{Start: pos, End: pos + len(searchFor)},
+				Position:  model.TextRange{Start: hit[0], End: hit[1]},
 			}
 
-			if existingIdx, exists := seen[key]; exists {
+			if existingIdx, exists := seen[k]; exists {
 				if opts.ProjectID != "" && entry.Concept.ProjectID == opts.ProjectID &&
 					matches[existingIdx].Concept.ProjectID != opts.ProjectID {
 					matches[existingIdx] = m
 				}
-			} else {
-				seen[key] = len(matches)
-				matches = append(matches, m)
+				continue
 			}
-
-			offset = pos + len(searchFor)
+			seen[k] = len(matches)
+			matches = append(matches, m)
 		}
 	}
 
@@ -253,5 +253,32 @@ func LookupAllTiered(sourceText string, opts LookupOptions, terms []LocaleTerm) 
 		}
 		return cmp.Compare(a.Concept.ID, b.Concept.ID)
 	})
-	return matches
+	return dropCoveredMatches(matches)
+}
+
+// dropCoveredMatches applies the longest-declared-match preference: a match
+// whose span falls strictly inside another match's span is not reported.
+// Matches that merely overlap, and matches covering exactly the same span, are
+// all kept — neither term contains the other, so both are genuinely used.
+//
+// It relies on the caller's sort (start ascending, then longest first), which
+// puts a covering match before everything it covers.
+func dropCoveredMatches(matches []TermMatch) []TermMatch {
+	if len(matches) < 2 {
+		return matches
+	}
+	kept := matches[:0]
+	var cover model.TextRange
+	covered := false
+	for _, m := range matches {
+		if covered && cover.End >= m.Position.End &&
+			!(cover.Start == m.Position.Start && cover.End == m.Position.End) {
+			continue
+		}
+		kept = append(kept, m)
+		if !covered || m.Position.End > cover.End {
+			cover, covered = m.Position, true
+		}
+	}
+	return kept
 }

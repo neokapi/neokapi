@@ -228,12 +228,19 @@ resolves governance per collection and executes once per distinct resolution. A
 recipe where no collection binds a channel runs unsplit, exactly as one that has
 never heard of the context space.
 
+A gate is the exception, and deliberately so: `kapi check` reads rather than
+writes, so it resolves per file and holds each one to the voice **and the
+vocabulary** in force where it sits. Both halves resolve through the same point,
+so a profile that binds its own `terms:` governs exactly the files its channels
+carry — which is how a surface keeps a name the vocabulary retired.
+
 ### Not yet built: a point beneath the file
 
 A content item's own `channel:` is the finest declared point, which means the
-finest governed unit is a file. The case that remains open is a passage —
-*the retired name is permitted in these two paragraphs of the migration guide* —
-which needs a point beneath the file that nothing declares yet.
+finest governed unit is a file — for voice and for vocabulary alike. The case
+that remains open is a passage — *the retired name is permitted in these two
+paragraphs of the migration guide* — which needs a point beneath the file that
+nothing declares yet.
 
 ## Consequences
 

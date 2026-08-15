@@ -23,7 +23,6 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/host/output"
-	"github.com/neokapi/neokapi/terms"
 )
 
 // Gate names for the project gates (`kapi check --ship`).
@@ -43,8 +42,13 @@ const DefaultVoiceMinScore = 80
 // gates. The shape is shared by the human and JSON renderers and is the unit
 // an AI assistant reads, fixes, and re-runs against.
 type verifyFinding struct {
-	Gate       string `json:"gate"`
-	File       string `json:"file,omitempty"`
+	Gate string `json:"gate"`
+	// File is the project-relative path, the way `kapi check` names it. An
+	// absolute path names a machine rather than a repository: it is unusable in
+	// a CI log or a recording, and it leaks the directory layout.
+	File string `json:"file,omitempty"`
+	// Block is the block the finding sits in, when the gate resolves one.
+	Block      string `json:"block,omitempty"`
 	Locale     string `json:"locale,omitempty"`
 	Severity   string `json:"severity"`
 	Message    string `json:"message"`
@@ -102,6 +106,12 @@ func (o verifyOutput) FormatText(w io.Writer) error {
 		s := t.Styles()
 		for _, f := range g.Findings {
 			loc := f.File
+			if f.Block != "" {
+				if loc != "" {
+					loc += ":"
+				}
+				loc += f.Block
+			}
 			if f.Locale != "" {
 				if loc != "" {
 					loc += " "
@@ -141,18 +151,28 @@ func severityCell(s *output.Styles, sev string) string {
 	}
 }
 
-// gateSelection records which gates the user asked to run. When no gate flag
-// is set, every gate runs (explicit is false). When at least one gate flag is
-// set, only the named gates run and explicit is true — which turns a gate whose
-// project binding is missing from a silent skip into a reported failure, so a CI
-// user who wrote `--voice`/`--terms` learns the gate is misconfigured rather
-// than seeing a false pass.
+// gateSelection records which gates the user asked to run. With no --gate, every
+// gate runs (explicit is false). With at least one, only the named gates run and
+// explicit is true — which turns a gate whose project binding is missing from a
+// silent skip into a reported failure, so a CI user who named a gate learns it is
+// misconfigured rather than seeing a false pass.
 type gateSelection struct {
 	voice    bool
 	terms    bool
 	qa       bool
 	explicit bool
 }
+
+// gateFlagName is the flag that names which project gates to run. One flag
+// naming gates by their own names, rather than a boolean per gate: the gates
+// share their names with other things a check command already flags (--voice is
+// the style-similarity opt-in, --terms is the do-not-translate boolean
+// elsewhere), and a selector that collides with them is a selector a user
+// cannot read off the help text.
+const gateFlagName = "gate"
+
+// selectableGates are the gate names --gate accepts, in the order they run.
+var selectableGates = []string{gateVoice, gateTerms, gateQA}
 
 // CmdContext returns the command's context, or context.Background() when the
 // command was invoked outside cobra's Execute (e.g. in unit tests) and has no
@@ -166,14 +186,26 @@ func CmdContext(cmd Command) context.Context {
 	return context.Background()
 }
 
-func resolveGateSelection(cmd Command) gateSelection {
-	b, _ := cmd.Flags().GetBool("voice")
-	t, _ := cmd.Flags().GetBool("terms")
-	q, _ := cmd.Flags().GetBool("qa")
-	if !b && !t && !q {
-		return gateSelection{voice: true, terms: true, qa: true, explicit: false}
+func resolveGateSelection(cmd Command) (gateSelection, error) {
+	named, _ := cmd.Flags().GetStringSlice(gateFlagName)
+	if len(named) == 0 {
+		return gateSelection{voice: true, terms: true, qa: true}, nil
 	}
-	return gateSelection{voice: b, terms: t, qa: q, explicit: true}
+	sel := gateSelection{explicit: true}
+	for _, n := range named {
+		switch strings.ToLower(strings.TrimSpace(n)) {
+		case gateVoice:
+			sel.voice = true
+		case gateTerms:
+			sel.terms = true
+		case gateQA:
+			sel.qa = true
+		default:
+			return gateSelection{}, fmt.Errorf("unknown gate %q — pass one of: %s",
+				n, strings.Join(selectableGates, ", "))
+		}
+	}
+	return sel, nil
 }
 
 // RunVerify orchestrates the verify gates, emits the structured result, and
@@ -231,7 +263,10 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 	// without server:) is most misleading — surface it here and in status.
 	a.WarnInertRecipeFields(cmd, proj)
 
-	sel := resolveGateSelection(cmd)
+	sel, err := resolveGateSelection(cmd)
+	if err != nil {
+		return verifyOutput{}, err
+	}
 	localeFilter, _ := cmd.Flags().GetString("locale")
 
 	// Resolve the source language: explicit --source-lang flag wins, else the
@@ -259,7 +294,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		case sel.explicit:
 			// --voice was requested but the project binds no voice profile. Fail
 			// loudly rather than skip, so the misconfiguration is visible.
-			gates = append(gates, unboundGate(gateVoice, "defaults.voice", "--voice"))
+			gates = append(gates, unboundGate(gateVoice, "defaults.voice"))
 		}
 	}
 
@@ -277,7 +312,7 @@ func (a *App) computeVerify(cmd Command, args []string) (verifyOutput, error) {
 		case bound:
 			runTerms = true
 		case sel.explicit:
-			gates = append(gates, unboundGate(gateTerms, "defaults.terms_source", "--terms"))
+			gates = append(gates, unboundGate(gateTerms, "defaults.terms_source"))
 		}
 	}
 
@@ -453,11 +488,12 @@ func buildVerifyOutput(gates []verifyGateResult) verifyOutput {
 }
 
 // unboundGate returns a failing gate result for a gate the user explicitly
-// requested (e.g. --voice) whose required project binding is missing. Surfacing
-// it as a failure — rather than silently skipping — means a CI user learns the
-// gate is misconfigured instead of seeing a false pass. The verdict is a normal
-// gate failure, so --no-fail still downgrades it to report-only (exit 0).
-func unboundGate(gate, binding, flag string) verifyGateResult {
+// named whose required project binding is missing. Surfacing it as a failure —
+// rather than silently skipping — means a CI user learns the gate is
+// misconfigured instead of seeing a false pass. The verdict is a normal gate
+// failure, so --no-fail still downgrades it to report-only (exit 0).
+func unboundGate(gate, binding string) verifyGateResult {
+	flag := "--" + gateFlagName + " " + gate
 	return verifyGateResult{
 		Gate: gate,
 		Pass: false,
@@ -508,28 +544,6 @@ func (a *App) projectTermsBound(cmd Command) (bool, error) {
 	return db.HasTerms(ctx)
 }
 
-// vocabularyTerms opens the terms store the vocabulary check enforces against,
-// with the release the caller must run. A project that binds no terminology gets
-// (nil, no-op, nil): the check then holds content to the voice profile's own
-// lists alone, which is the whole rule set such a project has.
-//
-// A store that is bound and will not open is an ERROR, not a nil store. Passing
-// nil is what a caller does when there is nothing to enforce, so degrading to it
-// here would report a project whose vocabulary could not be read as one that has
-// none — the gate silently narrowed to the profile while the report says it ran.
-func (a *App) vocabularyTerms(cmd Command) (terms.Terminology, func(), error) {
-	noop := func() {}
-	bound, err := a.projectTermsBound(cmd)
-	if err != nil || !bound {
-		return nil, noop, err
-	}
-	tb, _, release, err := a.OpenTermsSQLite(cmd)
-	if err != nil {
-		return nil, noop, fmt.Errorf("open the project terms for the vocabulary check: %w", err)
-	}
-	return tb, release, nil
-}
-
 // --- voice gate -------------------------------------------------------------
 
 // verifyVoice scores the source-language content against the project's bound
@@ -557,12 +571,12 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 	gate := verifyGateResult{Gate: gateVoice, Pass: true, Findings: []verifyFinding{}}
 	ctx := CmdContext(cmd)
 
-	// The project's own vocabulary, enforced beside the profile's lists.
-	tb, releaseTerms, err := a.vocabularyTerms(cmd)
+	// The vocabulary the project decided, enforced beside the profile's lists
+	// and resolved at the same point the profile is.
+	terminology, err := a.newCheckTerms(cmd)
 	if err != nil {
 		return nil, err
 	}
-	defer releaseTerms()
 
 	governed := false
 	var allFindings []coreprofile.VoiceFinding
@@ -574,10 +588,22 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 		if profile == nil {
 			continue
 		}
+		tb, terr := terminology.forFile(ctx, f)
+		if terr != nil {
+			return nil, terr
+		}
 		governed = true
 		blocks, rerr := a.readBlocks(ctx, f, a.SourceLang)
 		if rerr != nil {
 			return nil, fmt.Errorf("voice: read %s: %w", f, rerr)
+		}
+		// Findings name the file the way `kapi check` does — relative to the
+		// project, with the block — so one location format reads the same in a
+		// terminal, a CI log and a recording, and none of them carries the
+		// machine's directory layout.
+		display := f
+		if rel, ok := projectRelPath(root, f); ok {
+			display = rel
 		}
 		vocab := coretools.NewVoiceVocabCheckTool(profile, tb).InSourceLocale(model.LocaleID(a.SourceLang))
 		for _, b := range blocks {
@@ -586,7 +612,7 @@ func (a *App) verifyVoice(cmd Command, proj *project.KapiProject, root string, a
 				return nil, fmt.Errorf("voice: %s: %w", f, verr)
 			}
 			for _, fd := range findings {
-				gate.Findings = append(gate.Findings, voiceFindingToVerify(f, fd))
+				gate.Findings = append(gate.Findings, voiceFindingToVerify(display, blockKey(b), fd))
 			}
 			allFindings = append(allFindings, findings...)
 		}
@@ -638,7 +664,7 @@ func runVoiceVocabOnBlock(ctx context.Context, vocab *coretools.VoiceVocabCheckT
 	return nil, nil
 }
 
-func voiceFindingToVerify(file string, f coreprofile.VoiceFinding) verifyFinding {
+func voiceFindingToVerify(file, block string, f coreprofile.VoiceFinding) verifyFinding {
 	sev := "warning"
 	switch f.Severity {
 	case coreprofile.SeverityMajor, coreprofile.SeverityCritical:
@@ -647,6 +673,7 @@ func voiceFindingToVerify(file string, f coreprofile.VoiceFinding) verifyFinding
 	return verifyFinding{
 		Gate:       gateVoice,
 		File:       file,
+		Block:      block,
 		Severity:   sev,
 		Message:    f.Message,
 		Suggestion: f.Suggestion,
@@ -1488,14 +1515,20 @@ func sortFindings(fs []verifyFinding) {
 	})
 }
 
+// AddGateFlag registers the project-gate selector. It is registered separately
+// because `kapi check` carries the rest of the gate configuration under its own
+// flags and needs only this one.
+func AddGateFlag(cmd Command) {
+	cmd.Flags().StringSlice(gateFlagName, nil,
+		"with --ship: run only the named project gates ("+strings.Join(selectableGates, ", ")+"); repeatable")
+}
+
 // AddVerifyFlags registers the verify/check gate flags on cmd — shared by
 // the cobra factory and embedded surfaces (the Stop hook) so flag defaults
 // stay identical everywhere.
 func AddVerifyFlags(cmd Command) {
 	cmd.Flags().String("source-lang", "", "source language (overrides the project's source_language)")
-	cmd.Flags().Bool("voice", false, "run only the voice gate (combine with --terms/--qa to select several)")
-	cmd.Flags().Bool("terms", false, "run only the terminology gate")
-	cmd.Flags().Bool("qa", false, "run only the QA gate")
+	AddGateFlag(cmd)
 	cmd.Flags().Int("min-score", DefaultVoiceMinScore, "voice compliance score below which the voice gate fails")
 	cmd.Flags().String("locale", "", "scope terminology and QA to a single target locale (e.g. fr)")
 	cmd.Flags().String("termstore", "", "named terms or path to a terms store (defaults to the project terms store)")

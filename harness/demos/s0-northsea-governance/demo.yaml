@@ -84,7 +84,7 @@ script:
   - comment: Converge, and read where you stand.
   - command: kapi up
   - command: kapi status
-  - comment: Green. What is left is the changelog and the API reference keeping a name the vocabulary retired — advisory, never blocking.
+  - comment: Green. What is left is the changelog keeping a name the vocabulary retired — advisory, never blocking.
   - command: kapi check --strict
 
 artifacts:
@@ -195,8 +195,8 @@ narration:
       Run the check again and it finds what the previous run passed. One
       decision reached both the record and the gate. Fix the last one, converge,
       and the project is green — with one language, no server, and no
-      credential. What remains is the changelog and the API reference keeping a
-      name the vocabulary retired, which the gate reports and never blocks.
+      credential. What remains is the changelog keeping a name the vocabulary
+      retired, which the gate reports and never blocks.
     caption: "the next check enforces the decision"
 
   - id: outro

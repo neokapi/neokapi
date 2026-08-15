@@ -143,17 +143,21 @@ var ErrUnknownSubject = errors.New("occurrence: no such term or concept")
 //   - Matches of one term do not overlap: scanning is left to right, and each
 //     match resumes after the last. Matches of DIFFERENT terms may overlap, and
 //     both are reported — "memory" and "content memory" are two findings about
-//     the same words, and collapsing them would hide one.
+//     the same words, and collapsing them would hide one. This is where a
+//     question about uses parts company with the gate, which reports the longer
+//     declared term alone: a count of uses that dropped the narrower term would
+//     answer a question nobody asked.
 //   - Both the source text and every target text are searched, unless Locales
 //     says otherwise. A term's own language does not restrict where it is
 //     looked for: finding an English term still standing in a Norwegian target
 //     is exactly the kind of thing worth finding.
 //
-// This is deliberately stricter than terms.LookupAll, which is a plain
-// case-folding substring scan with no boundary rule. The two answer different
-// questions: lookup asks which terms might apply to a text and is scored and
-// over-inclusive by design, while this asks which blocks use a term and is read
-// as a fact.
+// The matching itself is check.TermMatcher, the one definition terms.LookupAll
+// and the voice-profile vocabulary rules also scan with, so a word is a use here
+// exactly where it is a finding there. What differs is what is done with the
+// matches: this reports every term that covers a passage, because it is read as
+// a fact about the text, while the gate keeps only the longest declared one,
+// because it is read as an instruction about what to write.
 func Find(ctx context.Context, src Sources, q Query) (*Result, error) {
 	if src.Terms == nil {
 		return nil, errors.New("occurrence: no terms store")
