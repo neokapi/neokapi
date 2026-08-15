@@ -7,11 +7,11 @@ import (
 	"slices"
 	"strings"
 
-	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	pb "github.com/neokapi/neokapi/core/proto/sync/v1"
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
+	bproject "github.com/neokapi/neokapi/host/venue/project"
 )
 
 // The context content type's pull half.

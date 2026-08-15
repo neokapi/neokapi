@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/schema"
+	"github.com/neokapi/neokapi/host/venue/schema"
 )
 
 // ResolveStream determines the active stream name using the resolution chain:

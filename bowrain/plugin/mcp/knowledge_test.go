@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
+	bproject "github.com/neokapi/neokapi/host/venue/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

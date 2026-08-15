@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	coreprofile "github.com/neokapi/neokapi/core/profile"
@@ -16,6 +15,7 @@ import (
 	"github.com/neokapi/neokapi/core/venue"
 	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
+	bproject "github.com/neokapi/neokapi/host/venue/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"

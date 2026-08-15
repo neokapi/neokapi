@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host/venue/schema"
 	"gopkg.in/yaml.v3"
 )
 
 // ─── Type aliases & re-exports for backward compatibility ─────────────
 //
-// The schema types and decoders live in bowrain/plugin/schema, which is
+// The schema types and decoders live in host/venue/schema, which is
 // the package the framework's project loader consults at validation time.
 // We alias them back here so existing call sites in bowrain CLI commands,
 // MCP tools, and the source connector keep compiling without churn.
@@ -181,7 +181,7 @@ func (r *Recipe) Save(path string) error {
 // in-memory (where the schema decoders never see the YAML) still get the
 // block-level checks. The fan-out is hand-coded; the drift-guard tests in
 // recipe_extensions_test.go pin it to the extension set registered by
-// bowrain/plugin/schema (see core/project.RegisteredExtensions), so a new
+// host/venue/schema (see core/project.RegisteredExtensions), so a new
 // schema block cannot be silently missed here.
 func (r *Recipe) Validate() error {
 	if err := r.KapiProject.Validate(); err != nil {

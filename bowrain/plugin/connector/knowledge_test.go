@@ -3,7 +3,7 @@ package connector
 import (
 	"testing"
 
-	bproject "github.com/neokapi/neokapi/bowrain/core/project"
+	bproject "github.com/neokapi/neokapi/host/venue/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

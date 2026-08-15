@@ -9,9 +9,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
-	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
-	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
@@ -19,6 +17,8 @@ import (
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
+	"github.com/neokapi/neokapi/host/venue/project"
+	"github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/bowrain/plugin/internal/projflow"
 	"github.com/neokapi/neokapi/cli"
@@ -21,6 +20,7 @@ import (
 	coreproj "github.com/neokapi/neokapi/core/project"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	clioutput "github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/host/venue/project"
 )
 
 func init() {

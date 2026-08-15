@@ -468,14 +468,12 @@ else
 	cd core && $(GOTEST_BASE) ./... -count=1
 endif
 
-test-bowrain-plugin: i18n-catalogs ## Run bowrain plugin tests (bowrain/plugin + bowrain/plugin/schema, separate go.mod)
+test-bowrain-plugin: i18n-catalogs ## Run bowrain plugin tests (bowrain/plugin, separate go.mod)
 	@mkdir -p $(COVER_DIR)
 ifdef CI
 	cd plugin && $(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain-plugin.out) $(_SHORT) -json ./... > ../test-results-bowrain-plugin.json
-	cd plugin/schema && $(GOTEST_BASE) $(call cov,$(COVER_DIR)/bowrain-plugin-schema.out) $(_SHORT) -json ./... > ../../test-results-bowrain-plugin-schema.json
 else
 	cd plugin && $(GOTEST_BASE) ./... -count=1
-	cd plugin/schema && $(GOTEST_BASE) ./... -count=1
 endif
 
 test-bowrain: i18n-catalogs ## Run bowrain module tests only

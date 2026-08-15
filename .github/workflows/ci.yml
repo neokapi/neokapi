@@ -521,20 +521,13 @@ jobs:
           in: bowrain/test-results-bowrain-plugin.json
           out: junit-bowrain-plugin.xml
 
-      - name: Convert plugin schema tests to JUnit XML
-        if: always()
-        uses: ./.github/actions/go-junit-report
-        with:
-          in: bowrain/test-results-bowrain-plugin-schema.json
-          out: junit-bowrain-plugin-schema.xml
-
       - name: Report test results
         uses: dorny/test-reporter@v3
         if: always()
         continue-on-error: true
         with:
           name: Bowrain Plugin Tests
-          path: junit-bowrain-plugin.xml,junit-bowrain-plugin-schema.xml
+          path: junit-bowrain-plugin.xml
           reporter: java-junit
 
       - name: Fail if tests failed
@@ -548,7 +541,6 @@ jobs:
           name: coverage-bowrain-plugin
           path: |
             coverage/bowrain-plugin.out
-            coverage/bowrain-plugin-schema.out
           retention-days: 1
 
   test-bowrain:
@@ -769,7 +761,7 @@ jobs:
             echo "mode: atomic" > coverage.out
           fi
           # Append remaining files (skip header line)
-          for f in cli.out host.out platform.out kapi.out bowrain-plugin.out bowrain-plugin-schema.out bowrain.out; do
+          for f in cli.out host.out platform.out kapi.out bowrain-plugin.out bowrain.out; do
             if [ -f "$f" ]; then
               tail -n +2 "$f" >> coverage.out
             fi

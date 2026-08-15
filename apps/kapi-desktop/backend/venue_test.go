@@ -3,8 +3,8 @@ package backend
 import (
 	"testing"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"

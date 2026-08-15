@@ -9,7 +9,7 @@ import (
 	// Register bowrain recipe extension decoders so the desktop app can
 	// load and validate *.kapi recipes that include bowrain-specific
 	// blocks (server, hooks, automations, assets, brand_voice).
-	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
+	_ "github.com/neokapi/neokapi/host/venue/schema"
 
 	"github.com/neokapi/neokapi/bowrain/apps/bowrain/backend"
 	"github.com/neokapi/neokapi/core/version"

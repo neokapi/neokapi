@@ -8,8 +8,6 @@ require (
 	github.com/mattn/go-isatty v0.0.24
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/neokapi/neokapi v0.0.0
-	github.com/neokapi/neokapi/bowrain/core v0.0.0
-	github.com/neokapi/neokapi/bowrain/plugin/schema v0.0.0
 	github.com/neokapi/neokapi/cli v0.0.0-00010101000000-000000000000
 	github.com/neokapi/neokapi/host v0.0.0
 	github.com/spf13/cobra v1.10.2
@@ -161,7 +159,6 @@ replace (
 	github.com/neokapi/neokapi => ../..
 	github.com/neokapi/neokapi/bowrain => ../
 	github.com/neokapi/neokapi/bowrain/core => ../core
-	github.com/neokapi/neokapi/bowrain/plugin/schema => ./schema
 	github.com/neokapi/neokapi/cli => ../../cli
 	github.com/neokapi/neokapi/host => ../../host
 )

@@ -608,7 +608,7 @@ ci-build: i18n-catalogs ## Mirror the CI `build` job: build all three binaries (
 # plugins/vision and plugins/pdfium had incomplete go.sum/go.mod. Tidy them here
 # so the module that no job builds still cannot rot.
 ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fail on drift
-	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain/plugin/schema bowrain \
+	@for dir in . host cli kapi apps/kapi-desktop bowrain/core bowrain/plugin bowrain \
 	            plugins/sat plugins/check plugins/vision plugins/asr plugins/av plugins/pdfium; do \
 	  echo "Checking $$dir..."; \
 	  (cd "$$dir" && go mod tidy); \
@@ -637,17 +637,17 @@ ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fai
 #
 # bowrain/core additionally gets an import-level assertion: its transitive
 # package imports (GOWORK=off go list -deps ./...) must contain NO package from
-# the main bowrain module — only bowrain/core/* and bowrain/plugin/schema are
-# allowed under the bowrain/ tree. This fails fast on a re-introduced
-# bowrain/sync or bowrain/proto/v1 import (which would otherwise re-add the
-# require + replace on the main bowrain module and re-couple the framework-only
-# core to redis/echo/the gRPC service surface).
+# the main bowrain module — only bowrain/core/* is allowed under the bowrain/
+# tree. This fails fast on a re-introduced bowrain/sync or bowrain/proto/v1
+# import (which would otherwise re-add the require + replace on the main bowrain
+# module and re-couple the framework-only core to redis/echo/the gRPC service
+# surface).
 #
 # Four more import-level (go list -deps) assertions, matched on PACKAGES so a
 # transitive dep cannot dodge them: every Apache-licensed module (., host, cli,
-# kapi, apps/kapi-desktop) must import no AGPL bowrain package except
-# bowrain/plugin/schema — the single license boundary, which also enforces
-# kapi↛bowrain; kapi must not link wails/echo; and the main bowrain module must
+# kapi, apps/kapi-desktop) must import NO AGPL bowrain package — the license
+# boundary, with no exception, which also enforces kapi↛bowrain; kapi must not
+# link wails/echo; and the main bowrain module must
 # not depend on cli. These replace the old `verify-isolation` target, which
 # matched on `go list -m all` and so false-flagged kapi's legitimately linked
 # go-keyring and (transitive) go-oidc — it errored on a green tree and ran in no
@@ -658,9 +658,9 @@ ci-tidy: ## Mirror the CI `tidy-check` job: go mod tidy across all modules + fai
 #   .                  framework — no host/cli/bowrain deps
 #   host               framework only — the cobra-free app runtime (NO cobra)
 #   cli                framework + host — the thin cobra shell; no bowrain dep
-#   bowrain/core       framework (+ plugin/schema) only — no cli AND no main bowrain dep
+#   bowrain/core       framework only — no cli AND no main bowrain dep
 #   kapi               framework + host + cli only — no bowrain dep
-#   apps/kapi-desktop  framework + host (+ plugin/schema) only — NO cli, NO cobra
+#   apps/kapi-desktop  framework + host only — NO cli, NO cobra
 #   bowrain/plugin     framework + host + cli + bowrain/core (bowrain behavior + the kapi-bowrain plugin binary)
 #   bowrain            framework + host + bowrain/core (the platform; host for the host/flowdef flow catalog)
 #
@@ -684,7 +684,7 @@ audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness
 	  if [ "$$dir" = "bowrain/core" ]; then \
 	    bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
 	              | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
-	              | grep -vE '^github\.com/neokapi/neokapi/bowrain/(core|plugin/schema)(/|$$)' || true ); \
+	              | grep -vE '^github\.com/neokapi/neokapi/bowrain/core(/|$$)' || true ); \
 	    if [ -n "$$bad" ]; then \
 	      echo "ERROR: bowrain/core must be framework-only — it imports the main bowrain module:"; \
 	      echo "$$bad" | sed 's/^/    /'; \
@@ -705,10 +705,9 @@ audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness
 	  case "$$dir" in \
 	    .|host|cli|kapi|apps/kapi-desktop) \
 	      bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps $$pkgs 2>/dev/null \
-	                | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
-	                | grep -vE '^github\.com/neokapi/neokapi/bowrain/plugin/schema(/|$$)' || true ); \
+	                | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' || true ); \
 	      if [ -n "$$bad" ]; then \
-	        echo "ERROR: Apache-licensed module $$dir imports an AGPL bowrain package (only bowrain/plugin/schema is allowed):"; \
+	        echo "ERROR: Apache-licensed module $$dir imports an AGPL bowrain package (there is no exception):"; \
 	        echo "$$bad" | sed 's/^/    /'; \
 	        rc=1; \
 	      fi; \
@@ -745,23 +744,43 @@ audit-modules: i18n-catalogs ## Assert module isolation + go.mod/go.sum tidiness
 	[ $$rc -eq 0 ] || exit 1
 	@echo "audit-modules: all module boundaries clean and go.mod/go.sum tidy"
 
-# check-module-boundaries asserts the two package-level license/architecture
+# check-module-boundaries asserts the package-level license/architecture
 # boundaries the tree relies on but no CI job enforced (audit-modules, which also
 # runs them, is a pre-push-only target): kapi-desktop must link neither cobra nor
-# the cli module — the Apache desktop stays cli-free — and bowrain/core must
-# import no package from the AGPL main bowrain module beyond core + plugin/schema.
+# the cli module — the Apache desktop stays cli-free — bowrain/core must import
+# no package from the AGPL main bowrain module, and no Apache-licensed module
+# may reach a package under the AGPL tree at all.
+#
+# That last assertion carries no exception list, and it must never grow one. The
+# separately-licensed recipe vocabulary that used to be the single allowed
+# import is a package under host now, so nothing Apache reaches into bowrain/ —
+# and an exception is how a boundary stops being one. If a package genuinely
+# needs to be read from both sides, it belongs below the line rather than on an
+# allowlist above it.
+#
 # Wired into CI as the `module-boundaries` job, gated on any_go OR kapi_desktop so
 # a desktop-only PR that reaches for cobra is still caught (any_go has no
 # apps/kapi-desktop filter).
-check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + bowrain/core framework-only
+APACHE_MODULES := . host cli kapi apps/kapi-desktop
+
+check-module-boundaries: i18n-catalogs ## Assert kapi-desktop cli/cobra-free + Apache modules link no AGPL
 	@bad=$$(cd apps/kapi-desktop && GOWORK=off $(GO) list -deps ./backend/... 2>/dev/null \
 	          | grep -E '^(github\.com/spf13/cobra|github\.com/neokapi/neokapi/cli)(/|$$)' || true); \
 	  if [ -n "$$bad" ]; then echo "ERROR: kapi-desktop must stay cobra-free and cli-free — it links:"; echo "$$bad" | sed 's/^/    /'; exit 1; fi
 	@bad=$$(cd bowrain/core && GOWORK=off $(GO) list -deps ./... 2>/dev/null \
 	          | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' \
-	          | grep -vE '^github\.com/neokapi/neokapi/bowrain/(core|plugin/schema)(/|$$)' || true); \
+	          | grep -vE '^github\.com/neokapi/neokapi/bowrain/core(/|$$)' || true); \
 	  if [ -n "$$bad" ]; then echo "ERROR: bowrain/core must be framework-only — it imports the main bowrain module:"; echo "$$bad" | sed 's/^/    /'; exit 1; fi
-	@echo "check-module-boundaries: kapi-desktop cli/cobra-free and bowrain/core framework-only"
+	@set -e; for dir in $(APACHE_MODULES); do \
+	  pkgs="./..."; [ "$$dir" = "apps/kapi-desktop" ] && pkgs="./backend/..."; \
+	  bad=$$( cd "$$dir" && GOWORK=off $(GO) list -deps $$pkgs 2>/dev/null \
+	            | grep -E '^github\.com/neokapi/neokapi/bowrain(/|$$)' || true ); \
+	  if [ -n "$$bad" ]; then \
+	    echo "ERROR: Apache-licensed module $$dir imports an AGPL bowrain package (there is no exception):"; \
+	    echo "$$bad" | sed 's/^/    /'; exit 1; \
+	  fi; \
+	done
+	@echo "check-module-boundaries: kapi-desktop cli/cobra-free, bowrain/core framework-only, Apache modules AGPL-free"
 
 # ── Parity (head-to-head against okapi-bridge) ──────────────────────────────
 #

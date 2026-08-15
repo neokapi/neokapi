@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/cli"
 	coreproj "github.com/neokapi/neokapi/core/project"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
+	bproject "github.com/neokapi/neokapi/host/venue/project"
 	"github.com/neokapi/neokapi/terms"
 	"github.com/neokapi/neokapi/terms/ktb"
 	"github.com/stretchr/testify/assert"

@@ -25,7 +25,6 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/neokapi/neokapi v0.0.0
 	github.com/neokapi/neokapi/bowrain/core v0.0.0
-	github.com/neokapi/neokapi/bowrain/plugin/schema v0.0.0-00010101000000-000000000000
 	github.com/neokapi/neokapi/host v0.0.0
 	github.com/posthog/posthog-go v1.23.0
 	github.com/prometheus/client_golang v1.24.1
@@ -166,6 +165,5 @@ require (
 replace (
 	github.com/neokapi/neokapi => ..
 	github.com/neokapi/neokapi/bowrain/core => ./core
-	github.com/neokapi/neokapi/bowrain/plugin/schema => ./plugin/schema
 	github.com/neokapi/neokapi/host => ../host
 )

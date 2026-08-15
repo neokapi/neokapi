@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/schema"
+	"github.com/neokapi/neokapi/host/venue/schema"
 )
 
 // StatusOutput represents sync status.

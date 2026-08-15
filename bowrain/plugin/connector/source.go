@@ -19,8 +19,6 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
-	bproject "github.com/neokapi/neokapi/bowrain/core/project"
-	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/core/convergence"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/format"
@@ -35,6 +33,8 @@ import (
 	"github.com/neokapi/neokapi/host"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
+	bproject "github.com/neokapi/neokapi/host/venue/project"
+	"github.com/neokapi/neokapi/host/venue/schema"
 )
 
 // Project is re-exported so callers can keep typing connector.Project.
@@ -46,7 +46,7 @@ type Project = bproject.Project
 type Recipe = bproject.Recipe
 
 // SyncCache is re-exported so this package can talk about the cache
-// owned by bowrain/core/project.
+// owned by host/venue/project.
 type SyncCache = bproject.SyncCache
 
 // FileCache is re-exported.
