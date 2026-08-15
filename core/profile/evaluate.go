@@ -31,13 +31,13 @@ type AggregateScore struct {
 
 // BlastRadius measures the impact of a voice change across content.
 type BlastRadius struct {
-	TotalBlocks        int                     `json:"total_blocks"`
-	AffectedBlocks     int                     `json:"affected_blocks"`
-	ImprovedBlocks     int                     `json:"improved_blocks"`
-	DegradedBlocks     int                     `json:"degraded_blocks"`
-	NewViolations      int                     `json:"new_violations"`
-	ResolvedViolations int                     `json:"resolved_violations"`
-	CriticalCount      int                     `json:"critical_count"`
+	TotalBlocks        int `json:"total_blocks"`
+	AffectedBlocks     int `json:"affected_blocks"`
+	ImprovedBlocks     int `json:"improved_blocks"`
+	DegradedBlocks     int `json:"degraded_blocks"`
+	NewViolations      int `json:"new_violations"`
+	ResolvedViolations int `json:"resolved_violations"`
+	CriticalCount      int `json:"critical_count"`
 	// PrescribedBlocks counts the affected blocks on which the candidate does
 	// more than flag: at least one violation it newly raises carries a
 	// replacement, so the guidance is "write this instead" rather than "look at

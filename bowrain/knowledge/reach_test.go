@@ -212,10 +212,10 @@ func TestReach_SurvivesTheStoredSummary(t *testing.T) {
 func TestBlockTargetLocales_SkipsEmptyAndCollapsesVariants(t *testing.T) {
 	b := srcBlock("b1", "g.md", "en-US", "text")
 	b.Targets = map[model.VariantKey]*model.Target{
-		model.Variant("nb"):                            model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusDraft),
-		{Locale: "nb", Channel: "email"}:               model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusReviewed),
-		model.Variant("de"):                            model.NewTarget(nil, model.TargetStatusDraft),
-		{Locale: "fr", Tone: "formal"}:                 model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusSignedOff),
+		model.Variant("nb"):              model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusDraft),
+		{Locale: "nb", Channel: "email"}: model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusReviewed),
+		model.Variant("de"):              model.NewTarget(nil, model.TargetStatusDraft),
+		{Locale: "fr", Tone: "formal"}:   model.NewTarget([]model.Run{model.TextR("t")}, model.TargetStatusSignedOff),
 	}
 
 	locales, approved := blockTargetLocales(b)
