@@ -124,7 +124,7 @@ func (c *BowrainClient) ApproveBrandScan(ctx context.Context, scanID string, req
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.doRequest(httpReq)
+	resp, err := c.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("request %s: %w", strings.TrimPrefix(path, "/"), err)
 	}
@@ -167,7 +167,7 @@ func (c *BowrainClient) UpsertBrandProfile(ctx context.Context, req BrandProfile
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.doRequest(httpReq)
+	resp, err := c.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("request brand-profiles/upsert: %w", err)
 	}

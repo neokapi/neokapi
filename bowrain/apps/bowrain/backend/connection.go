@@ -14,6 +14,7 @@ import (
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
+	"github.com/neokapi/neokapi/bowrain/editorclient"
 )
 
 var errNotConnected = errors.New("not connected to server")
@@ -91,7 +92,7 @@ func (a *App) connectWithToken(serverURL, token string) error {
 	serverURL = strings.TrimRight(serverURL, "/")
 
 	a.mu.Lock()
-	a.remoteHTTP = apiclient.NewEditorClient(serverURL, token)
+	a.remoteHTTP = editorclient.New(serverURL, token)
 	a.authInfo = &config.StoredAuth{
 		ServerURL:   serverURL,
 		AccessToken: token,
@@ -190,7 +191,7 @@ func (a *App) ConnectToServer(serverURL string) error {
 		return errors.New("token expired — please log in again")
 	}
 
-	editorClient := apiclient.NewEditorClient(serverURL, stored.AccessToken)
+	editorClient := editorclient.New(serverURL, stored.AccessToken)
 	a.wireRemoteRefresh(editorClient, serverURL, stored)
 
 	a.mu.Lock()
@@ -206,7 +207,7 @@ func (a *App) ConnectToServer(serverURL string) error {
 // access token on 401 and persist the rotated tokens through the shared
 // bowrain/core/config store, keeping the cached auth in sync so a refresh
 // triggered by any surface (including the CLI) is visible.
-func (a *App) wireRemoteRefresh(c *apiclient.BowrainClient, serverURL string, stored *config.StoredAuth) {
+func (a *App) wireRemoteRefresh(c *editorclient.EditorClient, serverURL string, stored *config.StoredAuth) {
 	if stored == nil || stored.RefreshToken == "" {
 		return
 	}
@@ -460,7 +461,7 @@ func (a *App) Disconnect() {
 
 // editorRemote returns the REST editor client and active workspace slug under
 // the lock. The client is nil when disconnected; callers gate on isConnected.
-func (a *App) editorRemote() (*apiclient.BowrainClient, string) {
+func (a *App) editorRemote() (*editorclient.EditorClient, string) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.remoteHTTP, a.activeWS

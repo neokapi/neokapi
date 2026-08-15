@@ -1,4 +1,4 @@
-package client
+package editorclient
 
 import (
 	"context"
@@ -83,7 +83,7 @@ func TestStreamProjectEvents(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	c := NewEditorClient(srv.URL, "tok")
+	c := New(srv.URL, "tok")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
@@ -107,7 +107,7 @@ func TestStreamProjectEventsBadStatus(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	c := NewEditorClient(srv.URL, "tok")
+	c := New(srv.URL, "tok")
 	err := c.StreamProjectEvents(context.Background(), "acme", "p1", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "403")

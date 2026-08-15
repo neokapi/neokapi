@@ -8,6 +8,7 @@ import (
 
 	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
+	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,7 +51,7 @@ func newGovTestApp(t *testing.T, handler http.HandlerFunc) (*App, *recordedReque
 	app.connState = StateConnected
 	app.serverURL = srv.URL
 	app.activeWS = "acme"
-	app.remoteHTTP = apiclient.NewEditorClient(srv.URL, "tok-xyz")
+	app.remoteHTTP = editorclient.New(srv.URL, "tok-xyz")
 	app.authInfo = &config.StoredAuth{ServerURL: srv.URL, AccessToken: "tok-xyz"}
 	app.mu.Unlock()
 

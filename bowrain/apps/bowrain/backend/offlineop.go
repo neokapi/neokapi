@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
+	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/neokapi/neokapi/core/model"
 )
 
@@ -38,7 +38,7 @@ const (
 // never on a bare string.
 type offlineOp interface {
 	opKind() opKind
-	replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error
+	replay(ctx context.Context, client *editorclient.EditorClient, ws string) error
 }
 
 // decodeOp reconstructs the typed op persisted under kind+payload. It returns
@@ -94,7 +94,7 @@ type updateBlockTargetOp struct{ UpdateBlockRequest }
 
 func (updateBlockTargetOp) opKind() opKind { return opUpdateBlockTarget }
 
-func (o updateBlockTargetOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o updateBlockTargetOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	// Plain-text replay: emit a single TextRun so the server receives the
 	// canonical Run sequence.
 	runs := []model.Run{{Text: &model.TextRun{Text: o.Text}}}
@@ -106,7 +106,7 @@ type updateBlockTargetRunsOp struct{ UpdateBlockTargetRunsRequest }
 
 func (updateBlockTargetRunsOp) opKind() opKind { return opUpdateBlockTargetRuns }
 
-func (o updateBlockTargetRunsOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o updateBlockTargetRunsOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	return client.UpdateBlockTargetRuns(ctx, ws, o.ProjectID, o.BlockID, o.TargetLocale, runInfosToRuns(o.Runs))
 }
 
@@ -124,7 +124,7 @@ type reviewBlockOp struct {
 
 func (reviewBlockOp) opKind() opKind { return opReviewBlock }
 
-func (o reviewBlockOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o reviewBlockOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	return client.ReviewBlock(ctx, ws, o.ProjectID, o.ItemName, o.BlockID, o.TargetLocale, o.Reviewed, o.Status)
 }
 
@@ -140,7 +140,7 @@ type addMemoryEntryOp struct {
 
 func (addMemoryEntryOp) opKind() opKind { return opAddMemoryEntry }
 
-func (o addMemoryEntryOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o addMemoryEntryOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	_, err := client.AddMemoryEntry(ctx, ws, o.Source, o.Target, o.SourceLocale, o.TargetLocale)
 	return err
 }
@@ -150,7 +150,7 @@ type updateMemoryEntryOp struct{ MemoryUpdateRequest }
 
 func (updateMemoryEntryOp) opKind() opKind { return opUpdateMemoryEntry }
 
-func (o updateMemoryEntryOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o updateMemoryEntryOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	return client.UpdateMemoryEntry(ctx, ws, o.EntryID, o.Source, o.Target, o.SourceLocale, o.TargetLocale)
 }
 
@@ -161,7 +161,7 @@ type deleteMemoryEntryOp struct {
 
 func (deleteMemoryEntryOp) opKind() opKind { return opDeleteMemoryEntry }
 
-func (o deleteMemoryEntryOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o deleteMemoryEntryOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	return client.DeleteMemoryEntry(ctx, ws, o.EntryID)
 }
 
@@ -172,7 +172,7 @@ type addConceptOp struct{ AddConceptRequest }
 
 func (addConceptOp) opKind() opKind { return opAddConcept }
 
-func (o addConceptOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o addConceptOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	_, err := client.EditorAddConcept(ctx, ws, o.Domain, o.Definition, termInfosToEditor(o.Terms))
 	return err
 }
@@ -182,7 +182,7 @@ type updateConceptOp struct{ UpdateConceptRequest }
 
 func (updateConceptOp) opKind() opKind { return opUpdateConcept }
 
-func (o updateConceptOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o updateConceptOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	return client.EditorUpdateConcept(ctx, ws, o.ConceptID, o.Domain, o.Definition, termInfosToEditor(o.Terms))
 }
 
@@ -193,7 +193,7 @@ type deleteConceptOp struct {
 
 func (deleteConceptOp) opKind() opKind { return opDeleteConcept }
 
-func (o deleteConceptOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o deleteConceptOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	return client.EditorDeleteConcept(ctx, ws, o.ConceptID)
 }
 
@@ -208,7 +208,7 @@ type addItemsOp struct {
 
 func (addItemsOp) opKind() opKind { return opAddItems }
 
-func (o addItemsOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o addItemsOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	_, err := client.UploadItems(ctx, ws, o.ProjectID, o.Files)
 	return err
 }
@@ -221,7 +221,7 @@ type removeItemOp struct {
 
 func (removeItemOp) opKind() opKind { return opRemoveItem }
 
-func (o removeItemOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o removeItemOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	_, err := client.RemoveItem(ctx, ws, o.ProjectID, o.ItemName)
 	return err
 }
@@ -235,7 +235,7 @@ type pseudoTranslateItemOp struct {
 
 func (pseudoTranslateItemOp) opKind() opKind { return opPseudoTranslateItem }
 
-func (o pseudoTranslateItemOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o pseudoTranslateItemOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	_, err := client.PseudoTranslateItem(ctx, ws, o.ProjectID, o.ItemName, o.TargetLocale)
 	return err
 }
@@ -249,7 +249,7 @@ type memoryTranslateItemOp struct {
 
 func (memoryTranslateItemOp) opKind() opKind { return opMemoryTranslateItem }
 
-func (o memoryTranslateItemOp) replay(ctx context.Context, client *apiclient.BowrainClient, ws string) error {
+func (o memoryTranslateItemOp) replay(ctx context.Context, client *editorclient.EditorClient, ws string) error {
 	_, err := client.MemoryTranslateItem(ctx, ws, o.ProjectID, o.ItemName, o.TargetLocale)
 	return err
 }

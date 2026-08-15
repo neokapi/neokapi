@@ -3,8 +3,8 @@ package backend
 import (
 	"testing"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
+	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +29,7 @@ func TestGetCollabSessionConnectedFallsBackToCachedUser(t *testing.T) {
 	app.connState = StateConnected
 	app.serverURL = unreachableURL
 	app.activeWS = "acme"
-	app.remoteHTTP = apiclient.NewEditorClient(unreachableURL, "tok-abc")
+	app.remoteHTTP = editorclient.New(unreachableURL, "tok-abc")
 	app.authInfo = &config.StoredAuth{
 		ServerURL:   unreachableURL,
 		AccessToken: "tok-abc",
@@ -57,7 +57,7 @@ func TestGetCollabSessionConnectedNoTokenErrors(t *testing.T) {
 	app.connState = StateConnected
 	app.serverURL = unreachableURL
 	app.activeWS = "acme"
-	app.remoteHTTP = apiclient.NewEditorClient(unreachableURL, "")
+	app.remoteHTTP = editorclient.New(unreachableURL, "")
 	app.authInfo = &config.StoredAuth{ServerURL: unreachableURL} // no AccessToken
 	app.mu.Unlock()
 
@@ -73,7 +73,7 @@ func TestGetCollabSessionUsesEmailWhenNameEmpty(t *testing.T) {
 	app.connState = StateConnected
 	app.serverURL = unreachableURL
 	app.activeWS = "acme"
-	app.remoteHTTP = apiclient.NewEditorClient(unreachableURL, "tok")
+	app.remoteHTTP = editorclient.New(unreachableURL, "tok")
 	app.authInfo = &config.StoredAuth{
 		ServerURL:   unreachableURL,
 		AccessToken: "tok",

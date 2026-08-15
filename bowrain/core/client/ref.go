@@ -25,7 +25,7 @@ func (c *BowrainClient) Ref(ctx context.Context) (ref.Ref, error) {
 	if err != nil {
 		return ref.Ref{}, err
 	}
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return ref.Ref{}, err
 	}

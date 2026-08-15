@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	apiclient "github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
+	"github.com/neokapi/neokapi/bowrain/editorclient"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +20,7 @@ func connectedApp(serverURL string) *App {
 	a.serverURL = serverURL
 	a.connState = StateConnected
 	a.authInfo = &config.StoredAuth{AccessToken: "tok-123"}
-	a.remoteHTTP = apiclient.NewEditorClient(serverURL, "tok-123")
+	a.remoteHTTP = editorclient.New(serverURL, "tok-123")
 	return a
 }
 

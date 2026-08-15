@@ -127,7 +127,7 @@ func (c *BowrainClient) EstimateConvergence(ctx context.Context) (*ConvergenceEs
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("estimate convergence: %w", err)
 	}
@@ -165,7 +165,7 @@ func (c *BowrainClient) StartConvergenceRun(ctx context.Context, req StartConver
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := c.doRequest(httpReq)
+	resp, err := c.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("start convergence run: %w", err)
 	}
@@ -193,7 +193,7 @@ func (c *BowrainClient) ListConvergenceRuns(ctx context.Context, limit int) ([]C
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("list convergence runs: %w", err)
 	}
@@ -215,7 +215,7 @@ func (c *BowrainClient) GetConvergenceRun(ctx context.Context, runID string) (*C
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("get convergence run: %w", err)
 	}
@@ -237,7 +237,7 @@ func (c *BowrainClient) CancelConvergenceRun(ctx context.Context, runID string) 
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return fmt.Errorf("cancel convergence run: %w", err)
 	}
@@ -310,7 +310,7 @@ func (c *BowrainClient) streamOnce(ctx context.Context, runID, lastID string, on
 	if lastID != "" {
 		req.Header.Set("Last-Event-ID", lastID)
 	}
-	c.applyAuth(req)
+	c.ApplyAuth(req)
 
 	streamClient := &http.Client{} // no timeout: SSE is long-lived, ctx cancels it
 	resp, err := streamClient.Do(req)
@@ -380,7 +380,7 @@ func (c *BowrainClient) SetConvergePolicy(ctx context.Context, policy string) er
 		return fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.doRequest(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return fmt.Errorf("set converge policy: %w", err)
 	}
