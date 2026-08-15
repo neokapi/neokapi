@@ -14,6 +14,8 @@ import {
   imgTag,
   underlineOpen,
   strikeOpen,
+  unknownOpen,
+  unknownClose,
 } from "../fixtures";
 
 const meta: Meta<typeof InlineCodeLegend> = {
@@ -35,6 +37,18 @@ type Story = StoryObj<typeof InlineCodeLegend>;
 export const Default: Story = {
   args: {
     spans: [boldOpen, boldClose, italicOpen, italicClose, linkOpen, linkClose],
+    onClose: fn(),
+  },
+};
+
+/**
+ * A span type no vocabulary pack defines. The chip reads "widget>", derived
+ * from the type name — the kapi kit's story of the same name renders it
+ * identically, because both kits resolve through one registry.
+ */
+export const UnknownType: Story = {
+  args: {
+    spans: [unknownOpen, unknownClose],
     onClose: fn(),
   },
 };

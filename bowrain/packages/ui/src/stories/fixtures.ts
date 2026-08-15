@@ -89,6 +89,23 @@ export const imgTag: SpanInfo = {
   id: "6",
   data: '<img src="logo.png"/>',
 };
+
+// A type no vocabulary pack defines. The registry derives its chip label from
+// the type name, so this renders "widget>" / "/widget" rather than "?>" / "/?".
+// The same pair exists in the kapi kit's fixtures: both kits import one
+// registry, so the chip must read the same in both Storybooks.
+export const unknownOpen: SpanInfo = {
+  span_type: "opening",
+  type: "custom:widget",
+  id: "9",
+  data: "<widget>",
+};
+export const unknownClose: SpanInfo = {
+  span_type: "closing",
+  type: "custom:widget",
+  id: "9",
+  data: "</widget>",
+};
 export const underlineOpen: SpanInfo = {
   span_type: "opening",
   type: "fmt:underline",

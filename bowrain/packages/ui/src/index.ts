@@ -454,8 +454,8 @@ export type {
   TagValidationResult,
   TagValidationIssue,
 } from "@neokapi/ui-primitives";
-export { VocabularyRegistry, getDefaultRegistry } from "./vocabularies";
-export type { SpanTypeInfo, ColorScheme, SpanConstraints } from "./vocabularies";
+export { VocabularyRegistry, getDefaultRegistry } from "@neokapi/ui-primitives";
+export type { SpanTypeInfo, ColorScheme, SpanConstraints } from "@neokapi/ui-primitives";
 
 // Context
 export { AuthProvider, useAuth } from "./context/AuthContext";
