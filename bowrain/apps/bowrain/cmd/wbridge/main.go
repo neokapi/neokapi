@@ -37,7 +37,7 @@ import (
 	"time"
 
 	// Parity with the desktop app: register bowrain recipe schema extensions.
-	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
+	_ "github.com/neokapi/neokapi/host/venue/schema"
 
 	"github.com/neokapi/neokapi/bowrain/apps/bowrain/backend"
 )

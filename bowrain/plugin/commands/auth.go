@@ -13,12 +13,12 @@ import (
 
 	venueauth "github.com/neokapi/neokapi/host/venue/auth"
 
-	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
-	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/cli"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
+	"github.com/neokapi/neokapi/host/venue/project"
+	"github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/spf13/cobra"
 )
 

@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/model"
 	coreproj "github.com/neokapi/neokapi/core/project"
@@ -22,6 +21,7 @@ import (
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
+	bproject "github.com/neokapi/neokapi/host/venue/project"
 )
 
 // The client half of the freshness layer: what a pull records, what survives a

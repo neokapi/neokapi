@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/graph"
@@ -18,6 +17,7 @@ import (
 	"github.com/neokapi/neokapi/core/ref/refcache"
 	apiclient "github.com/neokapi/neokapi/host/venue/client"
 	"github.com/neokapi/neokapi/host/venue/config"
+	bproject "github.com/neokapi/neokapi/host/venue/project"
 	"github.com/neokapi/neokapi/terms"
 	"golang.org/x/sync/errgroup"
 )

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/neokapi/neokapi/bowrain/core/project"
 	bconn "github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/core/venue/connector"
+	"github.com/neokapi/neokapi/host/venue/project"
 	"github.com/spf13/cobra"
 )
 

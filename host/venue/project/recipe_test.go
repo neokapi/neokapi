@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/schema" // ensure decoders are registered
+	"github.com/neokapi/neokapi/host/venue/schema" // ensure decoders are registered
 
 	coreproj "github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/ref"
@@ -196,7 +196,7 @@ name: myapp
 }
 
 func TestRecipe_TypeAliasesMatchSchema(t *testing.T) {
-	// The bowrain/core/project package re-exports schema types as
+	// The host/venue/project package re-exports schema types as
 	// type aliases for backward compatibility. These checks ensure the
 	// aliases haven't drifted into separate types.
 	var s ServerSpec

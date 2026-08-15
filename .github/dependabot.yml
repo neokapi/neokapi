@@ -99,7 +99,7 @@ updates:
         update-types: [minor, patch]
 
   - package-ecosystem: gomod
-    directory: /bowrain/plugin/schema
+    directory: /host/venue/schema
     schedule:
       interval: weekly
       day: monday

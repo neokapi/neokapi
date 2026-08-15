@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/neokapi/neokapi/bowrain/core/project"
 	clioutput "github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/host/venue/project"
 	"gopkg.in/yaml.v3"
 )
 

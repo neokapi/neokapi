@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
-	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	bproject "github.com/neokapi/neokapi/host/venue/project"
 )
 
 // These cases replay the first dogfood delivery, which wrote Norwegian over

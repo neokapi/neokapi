@@ -3,7 +3,7 @@ package commands
 import (
 	"testing"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/schema"
+	"github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/stretchr/testify/assert"
 )
 

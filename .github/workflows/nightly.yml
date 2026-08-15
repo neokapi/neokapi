@@ -76,8 +76,7 @@ jobs:
         run: |
           for f in test-results-framework.json test-results-cli.json \
                    test-results-kapi.json test-results-platform.json \
-                   test-results-bowrain.json test-results-bowrain-plugin.json \
-                   test-results-bowrain-plugin-schema.json; do
+                   test-results-bowrain.json test-results-bowrain-plugin.json; do
             [ -s "$f" ] || continue
             echo "── $f ──"
             bash scripts/print-go-test-failures.sh "$f"

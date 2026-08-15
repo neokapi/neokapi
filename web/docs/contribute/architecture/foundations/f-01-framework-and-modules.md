@@ -110,11 +110,11 @@ is the reason the runtime and the command shell are separate modules at all:
 - **CLI** depends on framework + host. Cobra lives here and nowhere below.
 - **Kapi** depends on framework + host + CLI.
 - **Kapi Desktop** depends on framework + host — **not** on the cli module and
-  **not** on Cobra — plus one small Apache-2.0 recipe-vocabulary module. That
-  module registers an extension's recipe keys with the framework's project
-  registry, which is how the desktop reads a recipe's declared run venue without
-  depending on the extension's implementation. Wails v3 is exactly why the desktop
-  is a separate module at all: the CLI build stays small.
+  **not** on Cobra. Recipe vocabulary for an extension reaches it through host:
+  a package there registers the extension's recipe keys with the framework's
+  project registry, which is how the desktop reads a recipe's declared run venue
+  without depending on the extension's implementation. Wails v3 is exactly why
+  the desktop is a separate module at all: the CLI build stays small.
 - **Plugin modules** depend on the framework only. Each builds a standalone
   binary that kapi discovers at runtime and dispatches as a subprocess, so no
   plugin's dependencies — ONNX runtimes, cgo raster libraries, media codecs —
@@ -150,8 +150,10 @@ Three further assertions run on top of the builds:
 - The desktop backend's transitive package list (`go list -deps ./backend/...`)
   must contain neither Cobra nor the cli module. Matching on *packages* rather
   than modules is deliberate: a transitive dependency cannot dodge it.
-- No Apache-2.0 module may reach a package under a separately-licensed tree
-  except the recipe-vocabulary package named above.
+- No Apache-2.0 module may reach a package under a separately-licensed tree.
+  There is no exception, and adding one is the failure mode this assertion
+  exists to prevent: a type both sides need belongs below the line, not on an
+  allowlist above it.
 
 The plugin modules are outside `go.work`, which means no workspace build would
 notice them drifting. `make ci-tidy` therefore tidies them alongside the
@@ -166,6 +168,13 @@ registries: they consume framework interfaces (content model, tools, flows,
 formats) and are discovered at runtime as subprocesses, never linked in. The
 gradient is one-directional, and because it is expressed as import topology, an
 accidental upward edge is a build failure rather than a review finding.
+
+A source file carries no license header: its license is a function of the
+nearest `LICENSE` file above it in the tree, and of nothing else. Two things
+follow. Moving a file between subtrees *is* relicensing it, with no metadata to
+keep in step — and equally, nothing in a file says what license it is under, so
+the import assertions above are the only thing standing between that property
+and an accident.
 
 ### Framework package layout
 

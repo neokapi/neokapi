@@ -11,7 +11,7 @@ import (
 	// app validates bowrain recipes (server, hooks, automations, assets,
 	// brand_voice, per-item collection/base/assets/asset_max_size). This
 	// pulls in extension decoders only — no heavy CLI / connector code.
-	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
+	_ "github.com/neokapi/neokapi/host/venue/schema"
 
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/host/desktopmenu"

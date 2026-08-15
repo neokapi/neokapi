@@ -4,10 +4,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/plugin/manifest"
 	"github.com/neokapi/neokapi/host"
+	"github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

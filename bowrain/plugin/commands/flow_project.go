@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/internal/projflow"
 	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/flow"
@@ -14,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	clioutput "github.com/neokapi/neokapi/host/output"
+	"github.com/neokapi/neokapi/host/venue/project"
 )
 
 // findProject wraps project.FindProject to return a simple error.

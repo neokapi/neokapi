@@ -4,7 +4,6 @@ go 1.26.0
 
 require (
 	github.com/neokapi/neokapi v0.0.0
-	github.com/neokapi/neokapi/bowrain/plugin/schema v0.0.0
 	github.com/neokapi/neokapi/host v0.0.0
 	github.com/stretchr/testify v1.11.1
 	github.com/wailsapp/wails/v3 v3.0.0-alpha2.104
@@ -150,6 +149,5 @@ require (
 
 replace (
 	github.com/neokapi/neokapi => ../../
-	github.com/neokapi/neokapi/bowrain/plugin/schema => ../../bowrain/plugin/schema
 	github.com/neokapi/neokapi/host => ../../host
 )

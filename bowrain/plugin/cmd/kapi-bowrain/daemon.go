@@ -38,7 +38,6 @@ import (
 	"syscall"
 	"time"
 
-	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands"
 	"github.com/neokapi/neokapi/bowrain/plugin/connector"
 	"github.com/neokapi/neokapi/cli"
@@ -47,6 +46,7 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 	bowrainconn "github.com/neokapi/neokapi/core/venue/connector"
 	cliconfig "github.com/neokapi/neokapi/host/config"
+	bproject "github.com/neokapi/neokapi/host/venue/project"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 )

@@ -27,7 +27,6 @@ jobs:
           - apps/kapi-desktop
           - bowrain/core
           - bowrain/plugin
-          - bowrain/plugin/schema
           - bowrain
     steps:
       - uses: actions/checkout@v7

@@ -21,8 +21,8 @@ one-way and enforced; violating one breaks `make audit-modules`.
 | Host — cobra-free runtime + services | `host/` | framework |
 | CLI — thin Cobra shell over host | `cli/` | framework, host |
 | Kapi — the `kapi` binary | `kapi/` | framework, host, cli |
-| Kapi Desktop — Wails v3 app | `apps/kapi-desktop/` | framework, host, `bowrain/plugin/schema` |
-| Bowrain Core | `bowrain/core/` | framework, `bowrain/plugin/schema` |
+| Kapi Desktop — Wails v3 app | `apps/kapi-desktop/` | framework, host |
+| Bowrain Core | `bowrain/core/` | framework |
 | Bowrain Plugin — `kapi-bowrain` binary | `bowrain/plugin/` | framework, host, cli, bowrain/core |
 | Bowrain — server/web/connectors | `bowrain/` | framework, host, bowrain/core |
 | SaT segmenter plugin | `plugins/sat/` | framework |
@@ -37,10 +37,14 @@ Non-obvious constraints:
   embedded runs use `host.EnvCommand`.
 - **kapi-desktop links neither cobra nor the cli module** — asserted by
   `make audit-modules` via `go list -deps ./backend/...`.
-- **License boundary.** Framework, host, cli, kapi, kapi-desktop and
-  `bowrain/plugin/schema` are Apache-2.0; the rest of `bowrain/` is AGPL-3.0.
-  `bowrain/plugin/schema` has its own `go.mod` precisely so kapi-desktop can
-  blank-import recipe vocabulary without taking on AGPL code. Keep it that way.
+- **License boundary.** Framework, host, cli, kapi and kapi-desktop are
+  Apache-2.0; `bowrain/` is AGPL-3.0. The line is drawn by **directory
+  containment under a `LICENSE` file** and by nothing else — there are no SPDX
+  headers, so moving a file between subtrees *is* relicensing it.
+  `make audit-modules` and the `module-boundaries` CI job assert the
+  consequence: **no Apache module reaches a package under `bowrain/`, with no
+  exception**. Do not add one. A type both sides need belongs below the line
+  (`core/venue`, `host/venue/…`), never on an allowlist above it.
 - **`kapi` contains zero vendor-plugin code.** Plugins (bowrain, okapi-bridge,
   sat, …) are discovered at runtime via the unified manifest model and
   dispatched as subprocesses. `bowrain/plugin/*` is blank-imported into

@@ -3,9 +3,9 @@ package commands
 import (
 	"testing"
 
-	bproject "github.com/neokapi/neokapi/bowrain/core/project"
 	"github.com/neokapi/neokapi/bowrain/plugin/commands/output"
-	"github.com/neokapi/neokapi/bowrain/plugin/schema"
+	bproject "github.com/neokapi/neokapi/host/venue/project"
+	"github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/stretchr/testify/assert"
 )
 

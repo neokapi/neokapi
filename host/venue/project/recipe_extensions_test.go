@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/schema"
 	coreproj "github.com/neokapi/neokapi/core/project"
+	"github.com/neokapi/neokapi/host/venue/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,14 +31,14 @@ func recipeExtensionFields(t *testing.T) []string {
 
 // TestRecipe_CoversAllRegisteredProjectExtensions is the schema-extension
 // drift guard: every project-scope extension registered by
-// bowrain/plugin/schema must have a matching typed field on Recipe (and
-// vice versa). When bowrain/plugin/schema registers a new top-level block,
+// host/venue/schema must have a matching typed field on Recipe (and
+// vice versa). When host/venue/schema registers a new top-level block,
 // this fails until Recipe grows the field — and the probe test below fails
 // until Recipe.Validate handles it — so a new block can't be silently
 // missed by the hand-written fan-out.
 func TestRecipe_CoversAllRegisteredProjectExtensions(t *testing.T) {
 	registered := coreproj.RegisteredExtensions(coreproj.ScopeProject)
-	require.NotEmpty(t, registered, "bowrain/plugin/schema should have registered project-scope extensions")
+	require.NotEmpty(t, registered, "host/venue/schema should have registered project-scope extensions")
 
 	// This module only links the bowrain schema, so every project-scope
 	// registration must belong to the bowrain group.
@@ -49,7 +49,7 @@ func TestRecipe_CoversAllRegisteredProjectExtensions(t *testing.T) {
 	}
 
 	assert.ElementsMatch(t, registered, recipeExtensionFields(t),
-		"Recipe's typed extension fields must match the project-scope extensions registered by bowrain/plugin/schema — add the missing field AND its Recipe.Validate fan-out")
+		"Recipe's typed extension fields must match the project-scope extensions registered by host/venue/schema — add the missing field AND its Recipe.Validate fan-out")
 }
 
 // TestRecipeValidate_FanOutPerExtensionBlock pins Recipe.Validate's

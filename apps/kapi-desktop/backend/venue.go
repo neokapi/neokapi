@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neokapi/neokapi/bowrain/plugin/schema"
+	"github.com/neokapi/neokapi/host/venue/schema"
 )
 
 // ProjectServer describes where a project's `kapi up` runs. A project whose

@@ -7,7 +7,7 @@
 // The blank import causes Go to load every sub-package this file depends
 // on, which in turn causes their init() functions to run:
 //
-//   - bowrain/plugin/schema     → registers extension decoders
+//   - host/venue/schema     → registers extension decoders
 //   - bowrain/plugin/commands   → registers CLI command factories
 //   - bowrain/plugin/mcp        → registers MCP tool factories
 //
@@ -22,5 +22,5 @@ package plugin
 import (
 	_ "github.com/neokapi/neokapi/bowrain/plugin/commands"
 	_ "github.com/neokapi/neokapi/bowrain/plugin/mcp"
-	_ "github.com/neokapi/neokapi/bowrain/plugin/schema"
+	_ "github.com/neokapi/neokapi/host/venue/schema"
 )

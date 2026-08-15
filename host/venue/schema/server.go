@@ -8,7 +8,7 @@
 //
 // Blank-importing this package teaches a host binary to validate and
 // round-trip bowrain recipes. The Go types (ServerSpec, HooksSpec, ...)
-// are aliased back into bowrain/core/project for backwards compatibility.
+// are aliased back into host/venue/project for backwards compatibility.
 package schema
 
 import (

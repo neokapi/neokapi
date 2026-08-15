@@ -6,7 +6,6 @@ use (
 	./bowrain
 	./bowrain/core
 	./bowrain/plugin
-	./bowrain/plugin/schema
 	./cli
 	./host
 	./kapi
