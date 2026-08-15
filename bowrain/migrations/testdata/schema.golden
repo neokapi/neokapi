@@ -389,6 +389,8 @@ channel_alias_proposals.collection text NOT NULL DEFAULT ''::text
 channel_alias_proposals.created_at timestamp with time zone NOT NULL DEFAULT now()
 channel_alias_proposals.evidence text NOT NULL DEFAULT ''::text
 channel_alias_proposals.existing_channel text NOT NULL
+channel_alias_proposals.judged_at timestamp with time zone NULL
+channel_alias_proposals.judged_by text NOT NULL DEFAULT ''::text
 channel_alias_proposals.profile text NOT NULL DEFAULT ''::text
 channel_alias_proposals.project_id text NOT NULL DEFAULT ''::text
 channel_alias_proposals.proposed_channel text NOT NULL
@@ -1104,6 +1106,7 @@ unclaimed_projects.name text NOT NULL
 unclaimed_projects.project_id text NOT NULL
 unclaimed_projects.target_languages text NOT NULL
 unit_decisions.assignee text NOT NULL DEFAULT ''::text
+unit_decisions.content_hash text NOT NULL DEFAULT ''::text
 unit_decisions.decided_at text NOT NULL DEFAULT ''::text
 unit_decisions.decided_by text NOT NULL DEFAULT ''::text
 unit_decisions.item_name text NOT NULL DEFAULT ''::text
