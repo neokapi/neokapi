@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -262,6 +263,37 @@ func TestPostHogTestConnection(t *testing.T) {
 	err = c.TestConnection(t.Context())
 	require.ErrorAs(t, err, &pe)
 	assert.Equal(t, PostHogErrBadHost, pe.Code)
+}
+
+// A failing PostHog query quotes the response body back unescaped, and that
+// body is whatever the instance wrote — a self-hosted deployment answers in its
+// own language. Shortening it by bytes cuts a rune in half, so the error text
+// carries a lone continuation byte all the way to the connect card, where JSON
+// encoding turns it into U+FFFD.
+func TestPostHogQueryErrorQuotesTheBodyAsValidUTF8(t *testing.T) {
+	// Three-byte runes, so the 200-byte offset a byte cut would use lands
+	// two bytes into a rune rather than on a boundary.
+	body := strings.Repeat("あ", 100) + " サーバー内部エラー"
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/projects/{pid}/query", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(body))
+	})
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	c, err := NewPostHogClient(withTestNetwork(t, srv), "12345", "phx_test_key_1234")
+	require.NoError(t, err)
+
+	_, err = c.Query(t.Context(), "SELECT 1")
+	var pe *PostHogError
+	require.ErrorAs(t, err, &pe)
+	assert.Equal(t, PostHogErrQuery, pe.Code)
+	assert.True(t, utf8.ValidString(pe.Message),
+		"error message %q is not valid UTF-8", pe.Message)
+	assert.NotContains(t, pe.Message, "�",
+		"error message cut the response body mid-rune")
 }
 
 func TestPostHogFetchDemandHappyPath(t *testing.T) {

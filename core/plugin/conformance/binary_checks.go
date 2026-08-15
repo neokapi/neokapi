@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/neokapi/neokapi/core/clip"
 	"github.com/neokapi/neokapi/core/credentials/providerenv"
 )
 
@@ -152,13 +153,13 @@ func checkBinaryVersion(ctx context.Context, r *runner) (Status, string, error) 
 	}
 	if res.exitCode != 0 {
 		return Fail, fmt.Sprintf("`version` exited %d (stderr: %s)",
-			res.exitCode, truncate(strings.TrimSpace(res.stderr), 200)), nil
+			res.exitCode, clip.Runes(strings.TrimSpace(res.stderr), 200)), nil
 	}
 	line := firstLine(res.stdout)
 	if line == "" {
 		return Fail, "`version` exited 0 but printed nothing on stdout", nil
 	}
-	return Pass, fmt.Sprintf("`version` → %q", truncate(line, 120)), nil
+	return Pass, fmt.Sprintf("`version` → %q", clip.Runes(line, 120)), nil
 }
 
 func checkBinaryVersionMatches(ctx context.Context, r *runner) (Status, string, error) {
@@ -175,9 +176,9 @@ func checkBinaryVersionMatches(ctx context.Context, r *runner) (Status, string, 
 	// "myplugin version 1.4.0"), since printing the name alongside is common
 	// and harmless.
 	if line == want || strings.Contains(line, want) {
-		return Pass, fmt.Sprintf("`version` output %q contains manifest version %q", truncate(line, 80), want), nil
+		return Pass, fmt.Sprintf("`version` output %q contains manifest version %q", clip.Runes(line, 80), want), nil
 	}
-	return Fail, fmt.Sprintf("`version` printed %q but the manifest declares %q", truncate(line, 80), want), nil
+	return Fail, fmt.Sprintf("`version` printed %q but the manifest declares %q", clip.Runes(line, 80), want), nil
 }
 
 func checkBinaryUnknownVerb(ctx context.Context, r *runner) (Status, string, error) {
@@ -207,10 +208,10 @@ func checkBinaryDoctor(ctx context.Context, r *runner) (Status, string, error) {
 	}
 	if res.exitCode != 0 {
 		return Fail, fmt.Sprintf("`doctor` exited %d (stderr: %s)",
-			res.exitCode, truncate(strings.TrimSpace(res.stderr), 200)), nil
+			res.exitCode, clip.Runes(strings.TrimSpace(res.stderr), 200)), nil
 	}
 	return Pass, fmt.Sprintf("`doctor` exited 0 (%s)",
-		truncate(firstLine(res.stdout+res.stderr), 120)), nil
+		clip.Runes(firstLine(res.stdout+res.stderr), 120)), nil
 }
 
 func modeAChecks() []registryEntry {
@@ -281,11 +282,11 @@ func checkModeACommandProbe(ctx context.Context, r *runner) (Status, string, err
 	if res.exitCode != probe.WantExit {
 		return Fail, fmt.Sprintf("`command %s` exited %d, want %d (stderr: %s)",
 			probe.Command, res.exitCode, probe.WantExit,
-			truncate(strings.TrimSpace(res.stderr), 200)), nil
+			clip.Runes(strings.TrimSpace(res.stderr), 200)), nil
 	}
 	if probe.WantStdout != "" && !strings.Contains(res.stdout, probe.WantStdout) {
 		return Fail, fmt.Sprintf("`command %s` stdout does not contain %q (got %q)",
-			probe.Command, probe.WantStdout, truncate(res.stdout, 200)), nil
+			probe.Command, probe.WantStdout, clip.Runes(res.stdout, 200)), nil
 	}
 	return Pass, fmt.Sprintf("`command %s` exited %d as expected", probe.Command, res.exitCode), nil
 }
@@ -297,13 +298,4 @@ func declaresCommand(r *runner, name string) bool {
 		}
 	}
 	return false
-}
-
-// truncate shortens s to at most n runes, marking the cut.
-func truncate(s string, n int) string {
-	runes := []rune(s)
-	if len(runes) <= n {
-		return s
-	}
-	return string(runes[:n]) + "…"
 }

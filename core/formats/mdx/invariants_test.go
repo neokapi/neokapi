@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/clip"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -254,11 +255,8 @@ func TestInvariantInlineCodeMarkupPreservedUnderTranslation(t *testing.T) {
 		"a closing backtick must follow the placeholder")
 }
 
-// truncate shortens a string for assertion messages.
+// truncate shortens a string for assertion messages, showing its newlines
+// rather than breaking the message across lines.
 func truncate(s string) string {
-	s = strings.ReplaceAll(s, "\n", "\\n")
-	if len(s) > 60 {
-		return s[:60] + "…"
-	}
-	return s
+	return clip.Runes(strings.ReplaceAll(s, "\n", "\\n"), 60)
 }

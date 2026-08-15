@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/core/clip"
 )
 
 // Driver is the corpus-sweep orchestrator. It never parses a corpus file
@@ -225,7 +227,7 @@ func (d *Driver) classifyExit(out *fileOutcome, werr error, stdout []byte, stder
 	}
 	out.Class = string(Crash)
 	if werr != nil {
-		out.Detail = fmt.Sprintf("worker exited without a result line: %v; stderr: %s", werr, truncate(stderr, 200))
+		out.Detail = fmt.Sprintf("worker exited without a result line: %v; stderr: %s", werr, oneLine(stderr, 200))
 	} else {
 		out.Detail = "worker exited 0 without a result line"
 	}
@@ -298,7 +300,7 @@ func (d *Driver) promote(formatID string, cf corpusFile, out fileOutcome) (promo
 		"  - path: %s\n    tier: A\n    origin: bug\n    sha256: %s\n    size: %d\n"+
 			"    license: Apache-2.0\n    redistributable: true\n    notes: %q",
 		relSeed, shaHex, len(data),
-		fmt.Sprintf("corpus-sweep %s promotion (file a bug; review minimization): %s", out.Class, truncate(out.Detail, 120)),
+		fmt.Sprintf("corpus-sweep %s promotion (file a bug; review minimization): %s", out.Class, oneLine(out.Detail, 120)),
 	)
 	return promotion{
 		Class:        out.Class,
@@ -343,10 +345,8 @@ func titleFormat(id string) string {
 	return strings.ToUpper(id[:1]) + id[1:]
 }
 
-func truncate(s string, n int) string {
-	s = strings.ReplaceAll(s, "\n", " ")
-	if len(s) <= n {
-		return s
-	}
-	return s[:n] + "…"
+// oneLine flattens s onto a single line and shortens it to n runes, for a
+// message that has to fit a bug-report title or a result field.
+func oneLine(s string, n int) string {
+	return clip.Runes(strings.ReplaceAll(s, "\n", " "), n)
 }

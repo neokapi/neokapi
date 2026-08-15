@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"github.com/neokapi/neokapi/core/clip"
 )
 
 // MockProvider implements LLMProvider for testing.
@@ -75,7 +77,7 @@ func (p *MockProvider) Chat(ctx context.Context, messages []Message) (*ChatRespo
 		}
 	}
 	return &ChatResponse{
-		Content: "Mock response to: " + truncate(lastMsg, 50),
+		Content: "Mock response to: " + clip.Runes(strings.TrimSpace(lastMsg), 50),
 		Model:   "mock-model",
 		Usage:   TokenUsage{InputTokens: 10, OutputTokens: 20},
 	}, nil
@@ -148,11 +150,3 @@ func (p *MockProvider) Close() error { return nil }
 
 // Compile-time check that MockProvider implements StreamingLLMProvider.
 var _ StreamingLLMProvider = (*MockProvider)(nil)
-
-func truncate(s string, maxLen int) string {
-	s = strings.TrimSpace(s)
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
-}
