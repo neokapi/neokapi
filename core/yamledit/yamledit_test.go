@@ -15,14 +15,46 @@ import (
 // so a key the type does not model is dropped rather than refused.
 func yamlUnmarshal(data []byte, into any) error { return yaml.Unmarshal(data, into) }
 
-// profile is a governance-file shape: nested mappings, a list of rules, and
-// enough fields to reorder.
+// profile is a governance-file shape: nested mappings, a list of rules, a key
+// that accepts two spellings, and enough fields to reorder.
 type profile struct {
 	Name        string   `yaml:"name"`
 	Description string   `yaml:"description,omitempty"`
+	Extends     *inherit `yaml:"extends,omitempty"`
 	Tone        tone     `yaml:"tone,omitempty"`
 	Vocabulary  vocab    `yaml:"vocabulary,omitempty"`
 	Examples    []string `yaml:"examples,omitempty"`
+}
+
+// inherit is a key whose type accepts a bare name or a mapping that says more,
+// and marshals back to whichever form its data implies. Every governance key of
+// this shape — a voice binding, a channel, a gate — is one a re-emitted document
+// can rewrite without anybody deciding to.
+type inherit struct {
+	Profile string `yaml:"profile,omitempty"`
+	Pack    string `yaml:"pack,omitempty"`
+}
+
+func (i *inherit) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		i.Profile = node.Value
+		return nil
+	}
+	type alias inherit
+	var decoded alias
+	if err := node.Decode(&decoded); err != nil {
+		return err
+	}
+	*i = inherit(decoded)
+	return nil
+}
+
+func (i inherit) MarshalYAML() (any, error) {
+	if i.Pack == "" {
+		return i.Profile, nil
+	}
+	type alias inherit
+	return alias(i), nil
 }
 
 type tone struct {
@@ -45,10 +77,14 @@ name: North Sea
 description: |
   Plain, exact writing
   for harbour operations.
+extends:
+  profile: house
+
 tone:
   # Restrained, because a berthing instruction is read under pressure.
   personality: [clear, restrained]
   formality: neutral
+
 vocabulary:
   # Marketing register: never in operational prose.
   forbidden_terms:
@@ -91,6 +127,10 @@ func TestMarshal_KeepsCommentsAcrossARealChange(t *testing.T) {
 	assert.Contains(t, got, "term: mooring", "and the change must land")
 	assert.Contains(t, got, "description: |", "a block scalar stays a block scalar")
 	assert.Contains(t, got, "personality: [clear, restrained]", "a flow sequence stays inline")
+	assert.Contains(t, got, "extends:\n  profile: house\n",
+		"a key the value did not change keeps the form it was authored in")
+	assert.Contains(t, got, "\n\ntone:\n", "the blank line above a section is authored punctuation")
+	assert.Contains(t, got, "\n\nvocabulary:\n")
 }
 
 func TestMarshal_PreservesAuthoredKeyOrder(t *testing.T) {
@@ -161,6 +201,158 @@ func TestMarshal_KeepsTheDocumentsIndentation(t *testing.T) {
 			out, err := yamledit.Marshal([]byte(tt.authored), loaded(t, tt.authored))
 			require.NoError(t, err)
 			assert.Equal(t, tt.authored, string(out))
+		})
+	}
+}
+
+// TestMarshal_KeepsAuthoredBlankLines drives every case through a real change,
+// because a write that changes nothing returns the document untouched and would
+// prove nothing: the spacing has to survive the emitter, not avoid it.
+func TestMarshal_KeepsAuthoredBlankLines(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		authored string
+		change   func(*profile)
+		want     string
+	}{
+		{
+			name:     "between top-level keys",
+			authored: "name: North Sea\n\ntone:\n  formality: neutral\n",
+			want:     "name: Northsea\n\ntone:\n  formality: neutral\n",
+		},
+		{
+			name:     "several in a row",
+			authored: "name: North Sea\n\n\n\ntone:\n  formality: neutral\n",
+			want:     "name: Northsea\n\n\n\ntone:\n  formality: neutral\n",
+		},
+		{
+			name:     "above a comment",
+			authored: "name: North Sea\n\n# Read under pressure.\ntone:\n  formality: neutral\n",
+			want:     "name: Northsea\n\n# Read under pressure.\ntone:\n  formality: neutral\n",
+		},
+		{
+			name:     "below a comment",
+			authored: "name: North Sea\n# Read under pressure.\n\ntone:\n  formality: neutral\n",
+			want:     "name: Northsea\n# Read under pressure.\n\ntone:\n  formality: neutral\n",
+		},
+		{
+			name:     "between two comment blocks",
+			authored: "name: North Sea\n\n# The register.\n\n# Read under pressure.\ntone:\n  formality: neutral\n",
+			want:     "name: Northsea\n\n# The register.\n\n# Read under pressure.\ntone:\n  formality: neutral\n",
+		},
+		{
+			name:     "leading",
+			authored: "\n\nname: North Sea\n",
+			want:     "\n\nname: Northsea\n",
+		},
+		{
+			name:     "trailing",
+			authored: "name: North Sea\n\n\n",
+			want:     "name: Northsea\n\n\n",
+		},
+		{
+			name:     "inside a nested mapping",
+			authored: "name: North Sea\ntone:\n  personality: [clear]\n\n  formality: neutral\n",
+			want:     "name: Northsea\ntone:\n  personality: [clear]\n\n  formality: neutral\n",
+		},
+		{
+			name:     "above a nested block",
+			authored: "name: North Sea\ntone:\n\n  formality: neutral\n",
+			want:     "name: Northsea\ntone:\n\n  formality: neutral\n",
+		},
+		{
+			name:     "between sequence items",
+			authored: "name: North Sea\nexamples:\n  - Berths are allocated on arrival.\n\n  - Movements are logged.\n",
+			want:     "name: Northsea\nexamples:\n  - Berths are allocated on arrival.\n\n  - Movements are logged.\n",
+		},
+		{
+			name:     "an appended item leaves the spacing above it alone",
+			authored: "name: North Sea\nexamples:\n  - Berths are allocated on arrival.\n\n  - Movements are logged.\n",
+			change: func(p *profile) {
+				p.Examples = append(p.Examples, "Pilots board outside the breakwater.")
+			},
+			want: "name: North Sea\nexamples:\n  - Berths are allocated on arrival.\n\n  - Movements are logged.\n  - Pilots board outside the breakwater.\n",
+		},
+		{
+			name:     "a removed key takes its own spacing and nothing else",
+			authored: "name: North Sea\n\ndescription: Plain writing.\n\ntone:\n  formality: neutral\n",
+			change:   func(p *profile) { p.Description = "" },
+			want:     "name: North Sea\n\ntone:\n  formality: neutral\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			p := loaded(t, tt.authored)
+			if tt.change != nil {
+				tt.change(p)
+			} else {
+				p.Name = "Northsea"
+			}
+			out, err := yamledit.Marshal([]byte(tt.authored), p)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, string(out))
+		})
+	}
+}
+
+// TestMarshal_KeepsTheAuthoredFormOfAnUnchangedKey pins the rule for a key whose
+// type accepts more than one spelling: the document decides, until the value
+// says something the document does not.
+func TestMarshal_KeepsTheAuthoredFormOfAnUnchangedKey(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		authored string
+		change   func(*profile)
+		want     string
+	}{
+		{
+			name:     "a mapping stays a mapping",
+			authored: "name: North Sea\nextends:\n  profile: house\n",
+			want:     "name: Northsea\nextends:\n  profile: house\n",
+		},
+		{
+			name:     "a scalar stays a scalar",
+			authored: "name: North Sea\nextends: house\n",
+			want:     "name: Northsea\nextends: house\n",
+		},
+		{
+			name:     "a flow mapping stays one",
+			authored: "name: North Sea\nextends: {profile: house}\n",
+			want:     "name: Northsea\nextends: {profile: house}\n",
+		},
+		{
+			name:     "the comment above it survives too",
+			authored: "name: North Sea\n# The profile this one starts from.\nextends:\n  profile: house\n",
+			want:     "name: Northsea\n# The profile this one starts from.\nextends:\n  profile: house\n",
+		},
+		{
+			name:     "a changed value takes the form its data implies",
+			authored: "name: North Sea\nextends:\n  profile: house\n",
+			change:   func(p *profile) { p.Extends.Profile = "harbour" },
+			want:     "name: North Sea\nextends: harbour\n",
+		},
+		{
+			name:     "a value that needs the long form gets it",
+			authored: "name: North Sea\nextends: house\n",
+			change:   func(p *profile) { p.Extends = &inherit{Pack: "operations"} },
+			want:     "name: North Sea\nextends:\n  pack: operations\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			p := loaded(t, tt.authored)
+			if tt.change != nil {
+				tt.change(p)
+			} else {
+				p.Name = "Northsea"
+			}
+			out, err := yamledit.Marshal([]byte(tt.authored), p)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, string(out))
 		})
 	}
 }
