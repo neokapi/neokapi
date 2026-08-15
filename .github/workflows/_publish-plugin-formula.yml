@@ -1,0 +1,130 @@
+name: Publish plugin Homebrew formula
+
+# Render one kapi plugin's Homebrew formula from the release's own checksums and
+# push it to neokapi/homebrew-tap. Called by release-asr.yml, release-av.yml,
+# release-pdfium.yml and release-vision.yml on their own `<plugin>-v*` tags.
+#
+# The tap was the last consumer of a plugin release that a release did not
+# update: the registry entry (`kapi plugin install`) was written by CI while the
+# formula (`brew install neokapi/tap/kapi-<plugin>`) waited on a hand edit. It
+# waited: kapi-asr sat at 0.1.0 for the two months after asr-v0.1.1 shipped, and
+# kapi-vision at 0.2.0 against vision-v0.2.2. This job closes that gap — the two
+# distribution channels now move on the same tag.
+#
+# Runs as part of the caller's workflow run, so `actions/download-artifact` sees
+# that run's per-leg checksum artifacts (<plugin>-checksum-<goos>-<goarch>).
+#
+# No-op with a notice when HOMEBREW_TAP_TOKEN is absent, matching the registry
+# jobs' behaviour without REGISTRY_TOKEN: a missing publishing credential must
+# not read as a failed release.
+
+on:
+  workflow_call:
+    inputs:
+      plugin:
+        description: "Plugin id — asr | av | pdfium | vision."
+        type: string
+        required: true
+      tag:
+        description: "Release tag the tarballs are attached to, e.g. asr-v0.1.1."
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+# The tap is a single repository and every release track pushes to it — the CLI
+# formulae and casks from release.yml, the bowrain formula from
+# release-bowrain.yml, a plugin formula from here. Serialize the pushes rather
+# than relying on the rebase retry below to sort out a three-way race.
+concurrency:
+  group: homebrew-tap-push
+  cancel-in-progress: false
+
+jobs:
+  formula:
+    name: Publish kapi-${{ inputs.plugin }} formula
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download checksum artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: ${{ inputs.plugin }}-checksum-*
+          path: plugin-checksums
+          merge-multiple: true
+
+      - name: Check for the tap credential
+        id: cred
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          PLUGIN: ${{ inputs.plugin }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOMEBREW_TAP_TOKEN:-}" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::HOMEBREW_TAP_TOKEN is not set — skipping the ${PLUGIN} formula push."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout homebrew-tap
+        if: steps.cred.outputs.run == 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: neokapi/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Render the formula
+        if: steps.cred.outputs.run == 'true'
+        env:
+          PLUGIN: ${{ inputs.plugin }}
+          TAG: ${{ inputs.tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # <plugin>-v<version> → <version>. The generator defaults the tag back
+          # to the same shape, but it is passed explicitly so a tag that ever
+          # departs from the convention still resolves its own download URLs.
+          VERSION="${TAG#"${PLUGIN}"-v}"
+          if [ "$VERSION" = "$TAG" ]; then
+            echo "::error::tag '${TAG}' is not a ${PLUGIN} release tag (expected ${PLUGIN}-v<version>)"
+            exit 1
+          fi
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          bash scripts/gen-brew-plugin-formula.sh \
+            "$PLUGIN" "$VERSION" "$REPO" plugin-checksums homebrew-tap/Formula "$TAG"
+
+      - name: Commit and push the formula
+        if: steps.cred.outputs.run == 'true'
+        working-directory: homebrew-tap
+        env:
+          PLUGIN: ${{ inputs.plugin }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "Formula/kapi-${PLUGIN}.rb"
+          if git diff --staged --quiet; then
+            echo "kapi-${PLUGIN} is already at ${TAG}; nothing to push."
+            exit 0
+          fi
+          git commit -m "kapi-${PLUGIN} ${VERSION}"
+          # A concurrent push from another track's tap job can still land between
+          # the checkout and the push; rebase onto it and retry rather than
+          # failing a release over an ordering.
+          for i in 1 2 3; do
+            if git push; then
+              echo "pushed kapi-${PLUGIN} ${TAG} to the tap."
+              exit 0
+            fi
+            echo "tap push rejected (attempt $i); rebasing onto the remote…"
+            git pull --rebase
+            sleep $((i * 5))
+          done
+          echo "::error::could not push the kapi-${PLUGIN} formula to the tap after three attempts."
+          exit 1

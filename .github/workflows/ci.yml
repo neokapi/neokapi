@@ -925,6 +925,15 @@ jobs:
       - name: Guard — scheduled output is delivered as a reviewable pull request
         run: ./scripts/auto-pr.sh --self-test
 
+      # Same reason again: the plugin formula generator runs only on a
+      # `<plugin>-v*` tag, so nothing before a release exercises it. Its
+      # self-test renders every plugin from a synthetic checksum set and checks
+      # that an incomplete one is refused — the failure mode that matters, since
+      # a formula with an empty platform block installs nothing and reports
+      # success.
+      - name: Guard — a plugin's Homebrew formula renders from its release
+        run: ./scripts/gen-brew-plugin-formula.sh --self-test
+
       # The fixture guard expands the extract globs the way the extractor does,
       # so it needs `fs/promises.glob` — Node 22. No dependencies: it reads the
       # flag sets from `make l10n-extract-globs` and globs the working tree.

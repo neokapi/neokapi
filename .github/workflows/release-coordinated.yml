@@ -16,12 +16,12 @@ name: Release (coordinated)
 #
 # Leave a version blank to ship only the other track through the gate.
 #
-# CAVEAT (verify on first use): running the tracks via workflow_call can change
-# the cosign keyless OIDC identity from `release*.yml@refs/tags/<tag>` to this
-# coordinator's ref. The registry-update steps record the former as the expected
-# `--cert-identity`, so a coordinated `cli.json` / `manifest-plugins.json` entry
-# may not verify under `kapi update` / `kapi plugin install`. Confirm the signer
-# identity (or fall back to independent tag pushes) before relying on it. See
+# Cosign identity: running a track via workflow_call resolves its workflow file
+# against THIS coordinator's ref, so the Fulcio SAN (the OIDC `job_workflow_ref`
+# claim) reads `release*.yml@<this ref>` rather than `@refs/tags/<tag>`. Both
+# registry-update steps compose their `--cert-identity` from `$GITHUB_REF`, which
+# is that same ref in either mode, so a coordinated entry verifies under `kapi
+# update` / `kapi plugin install` exactly as a tag-pushed one does. See
 # RELEASE.md → "Coordinated (simultaneous) release". Homebrew (sha256) is fine.
 
 on:

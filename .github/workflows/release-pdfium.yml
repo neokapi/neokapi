@@ -226,3 +226,16 @@ jobs:
             git commit -m "Register pdfium ${VERSION}"
             git push
           fi
+
+  # The tap formula, rendered from this run's checksum artifacts. Runs beside
+  # the registry write, not after it: `brew install` and `kapi plugin install`
+  # are two views of the same release and neither is the other's gate.
+  publish-pdfium-formula:
+    name: Publish kapi-pdfium Homebrew formula
+    if: startsWith(github.ref, 'refs/tags/pdfium-v')
+    needs: publish-pdfium-plugin
+    uses: ./.github/workflows/_publish-plugin-formula.yml
+    with:
+      plugin: pdfium
+      tag: ${{ github.ref_name }}
+    secrets: inherit

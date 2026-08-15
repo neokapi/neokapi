@@ -16,6 +16,15 @@ and publishes everything except the Windows binaries — those are produced as C
 artifacts and signed locally (Certum/SimplySign is a Mac-local step), then added
 to the published release.
 
+A plugin tag (`asr-v*`, `av-v*`, `pdfium-v*`, `vision-v*`) publishes its tarballs,
+registers them in `manifest-plugins.json`, **and** pushes its Homebrew formula —
+rendered from the release's own checksums by
+[`gen-brew-plugin-formula.sh`](scripts/gen-brew-plugin-formula.sh) via
+[`_publish-plugin-formula.yml`](.github/workflows/_publish-plugin-formula.yml).
+A plugin's presentation in the tap (description, install layout, self-check) is
+edited in that script's plugin table, never in the tap. `kapi-sat` and
+`kapi-check` are registry-only and have no formula.
+
 > The two tracks share the framework + `cli` modules, so the `kapi-bowrain`
 > plugin must stay protocol-compatible with the kapi CLI users have installed.
 > There is no CI-enforced compatibility gate yet, so cut a `bowrain-v*` release
@@ -51,16 +60,18 @@ track (`make release-windows` / `make release-bowrain-windows`).
 > a coordinated launch *moment*. winget (Microsoft's `winget-pkgs` PR queue) and
 > apt/yum propagation have their own latency and are not gated.
 
-> **Verify on the first coordinated release — cosign identity.** The archives are
-> cosign keyless-signed and the registry (`cli.json` / `manifest-plugins.json`)
-> records the expected signer as `…/release.yml@refs/tags/<tag>` /
-> `…/release-bowrain.yml@refs/tags/<tag>`. Running via `workflow_call` can change
-> the Fulcio certificate's SAN to the *coordinator* workflow/ref, which would make
-> `kapi update` / `kapi plugin install` reject the artifact. Before relying on a
-> coordinated release, confirm `cosign verify-blob` against the published archive
-> with the recorded identity, and adjust the `--cert-identity` in the
-> registry-update step (or fall back to independent tag pushes) if it differs.
-> Homebrew formulae/casks are unaffected (they verify by sha256, not cosign).
+> **Cosign identity across both trigger modes.** The archives are cosign
+> keyless-signed, and the registry (`cli.json` / `manifest-plugins.json`) records
+> the expected signer. That identity is the Fulcio certificate's SAN, which
+> carries the OIDC `job_workflow_ref` claim: the track's own workflow file at the
+> ref the run resolved it from. A tag push resolves it at `refs/tags/<tag>`; a
+> coordinated run resolves it at the *coordinator's* ref, because
+> `workflow_call` resolves `./.github/workflows/release.yml` against the caller.
+> Both registry steps therefore compose the identity from `$GITHUB_REF` rather
+> than from the release tag, so a coordinated release records the identity it
+> actually signed under and `kapi update` / `kapi plugin install` verify in
+> either mode. Homebrew formulae/casks are unaffected (they verify by sha256,
+> not cosign).
 
 ## TL;DR
 
@@ -132,7 +143,7 @@ GitHub Actions repo secrets used by `release.yml`:
 | `APPLE_DEVELOPER_ID_P12_BASE64`, `APPLE_DEVELOPER_ID_P12_PASSWORD` | Developer ID cert + key |
 | `APPLE_SIGN_IDENTITY`, `APPLE_TEAM_ID` | signing identity / team |
 | `APPLE_API_KEY_P8_BASE64`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID` | App Store Connect API key (notarization) |
-| `HOMEBREW_TAP_TOKEN`, `REGISTRY_TOKEN` | cask + plugin-registry updates |
+| `HOMEBREW_TAP_TOKEN`, `REGISTRY_TOKEN` | formula/cask + plugin-registry updates |
 
 ### Maintainer's Mac (for the Windows signing step)
 

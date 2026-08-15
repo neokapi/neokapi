@@ -571,7 +571,15 @@ jobs:
           done < dist/checksums.txt
 
           REPO_URL="https://github.com/${REPO}/releases/download/${REF_NAME}"
-          CERT_ID="https://github.com/${REPO}/.github/workflows/release.yml@refs/tags/${REF_NAME}"
+          # The signer identity cosign put in the certificate, not the one this
+          # release "ought" to have: Fulcio's SAN is the OIDC `job_workflow_ref`
+          # claim — this workflow file at the ref the run resolved it from. On a
+          # tag push that is refs/tags/<tag>; under release-coordinated.yml's
+          # workflow_call it is the coordinator's ref, and a recorded
+          # refs/tags/<tag> would make `kapi update` reject its own archive.
+          # $GITHUB_REF is that ref in both modes, so the recorded identity
+          # follows the trigger instead of assuming one.
+          CERT_ID="https://github.com/${REPO}/.github/workflows/release.yml@${GITHUB_REF}"
           RELEASED="$(date -u +%Y-%m-%d)"
           ISSUER="https://token.actions.githubusercontent.com"
 
@@ -1124,6 +1132,7 @@ jobs:
 
       # Publish the in-app-update feed (Phase 2) — see the bowrain job for notes.
       - name: Publish updater appcast (macOS)
+        id: appcast
         # Non-blocking: the cask's .dmg is already uploaded to the release above,
         # so a registry git stall here (a known macOS-runner connect-phase hang)
         # must never block cask publication or zombie the runner for hours. The
@@ -1147,6 +1156,23 @@ jobs:
           fi
           bash scripts/publish-appcast.sh Kapi kapi "$VERSION" "$REF_NAME" "$REPO" \
             apps/kapi-desktop/bin/Kapi.app darwin arm64
+
+      # continue-on-error keeps the release moving, and would otherwise leave a
+      # green job whose in-app-update feed never published — indistinguishable,
+      # from the outside, from "no update available". Say so where the release is
+      # read.
+      - name: Report a skipped macOS update feed
+        if: always() && steps.appcast.outcome == 'failure'
+        env:
+          REF_NAME: ${{ needs.setup.outputs.tag }}
+        run: |
+          echo "::error::The macOS in-app-update feed did not publish for ${REF_NAME}. The release itself is complete; re-run this job, or re-publish the feed by hand, before Kapi users on macOS can update in place."
+          {
+            echo "### macOS update feed not published"
+            echo
+            echo "\`appcast-kapi-darwin-arm64*.xml\` was not refreshed for \`${REF_NAME}\`."
+            echo "Existing installs will not be offered this version until it is."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Create ZIP
         if: runner.os == 'Windows'

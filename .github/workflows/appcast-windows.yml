@@ -18,6 +18,20 @@ on:
         description: "Release tag to publish the Windows update feed for (e.g. v1.2.3)"
         required: true
 
+# With no permissions block the job takes the repository default, which is
+# `read`. That is enough to download the signed zip — and not enough for
+# publish-appcast.sh's `gh release upload --clobber`, whose delete-then-upload
+# needs write. Every run since 2026-06-25 got as far as "Uploading
+# <app>-<version>-windows-<arch>.zip to release <tag>" and died there on
+# "HTTP 403: Resource not accessible by integration", so no Windows desktop user
+# has ever been offered an in-app update. The asset id in that message is the
+# one being clobbered, not one being read.
+#
+# The feed itself is written to the registry repo under REGISTRY_TOKEN, which
+# this does not affect.
+permissions:
+  contents: write
+
 jobs:
   publish:
     name: ${{ matrix.title }} ${{ matrix.arch }} appcast
