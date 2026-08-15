@@ -19,21 +19,29 @@ func formatPlanLine(plan UpPlanOutput) string {
 	if plan.Monolingual {
 		return "plan: no target languages — reconciling the source only"
 	}
-	if t.MissingTarget == 0 && t.Stale == 0 {
-		return "plan: every unit has a committed target for the current source — verifying gates"
+	if t.MissingTarget == 0 && t.Stale == 0 && t.Unanswered == 0 {
+		if t.UnreadTargets > 0 {
+			return fmt.Sprintf("plan: %d produced unit(s) not priced — the store has not read their committed "+
+				"translations yet, and this run reads them first", t.UnreadTargets)
+		}
+		return "plan: every unit has a committed target the content memory answers — verifying gates"
 	}
-	// The two kinds of work the run will do, then what it costs. A stale unit is
-	// named separately from a missing one because the reader is being told
-	// something extra about it — a person had decided it, and this run is going
-	// to spend a provider call replacing that decision's subject — but the
-	// leverage and token figures cover both, because the run does not treat them
-	// differently.
+	// The kinds of work the run will do, then what it costs. Each is named
+	// separately because the reader is being told something different about it —
+	// a stale unit is one a person had decided and this run is about to spend a
+	// provider call replacing that decision's subject; an unanswered one holds a
+	// translation the record does not stand behind, and the draft will replace it
+	// — but the leverage and token figures cover all of them, because the run
+	// does not treat them differently.
 	var work []string
 	if t.MissingTarget > 0 {
 		work = append(work, fmt.Sprintf("%d unit(s) missing", t.MissingTarget))
 	}
 	if t.Stale > 0 {
 		work = append(work, fmt.Sprintf("re-drafting %d stale unit(s) — their source changed since the translation was decided", t.Stale))
+	}
+	if t.Unanswered > 0 {
+		work = append(work, fmt.Sprintf("drafting %d unit(s) the content memory does not answer", t.Unanswered))
 	}
 	line := fmt.Sprintf("plan: %s · %d exact-content memory · %d AI · ≈%s tokens",
 		strings.Join(work, " · "), t.MemoryExact, t.AIRemaining, compactTokens(t.TokenEstimate))

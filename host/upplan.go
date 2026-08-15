@@ -18,20 +18,28 @@ import (
 	aiprovider "github.com/neokapi/neokapi/providers/ai"
 )
 
-// UpPlanScope is the planned work for one (collection, locale) scope: how many
-// units have no target yet, how many of those an exact content-memory hit would cover, and
-// what remains for AI translation with a rough token estimate.
+// UpPlanScope is the planned work for one (collection, locale) scope: the units
+// a convergence pass would spend work on, split by why they are work, how many of
+// them an exact content-memory hit would cover, and what remains for AI
+// translation with a rough token estimate.
+//
+// The three work axes partition the scope's work, so MissingTarget + Stale +
+// Unanswered always equals MemoryExact + AIRemaining: every unit the plan counts
+// is either recycled or drafted. A unit that is none of the three is not work —
+// it holds a target, no decision of its has moved, and the corpus answers its
+// source, so the pass fills it from the project's own record at no cost.
 type UpPlanScope struct {
 	Locale     string `json:"locale,omitempty"`
 	Collection string `json:"collection,omitempty"`
 	// MissingTarget is the count of translatable units with no committed
 	// target for the locale.
 	MissingTarget int `json:"missingTarget"`
-	// MemoryExact is the count of missing units covered by an exact-hash content-memory hit
-	// (the cheap leverage estimate — fuzzy leverage is not counted).
+	// MemoryExact is the count of counted units covered by an exact-hash
+	// content-memory hit (the cheap leverage estimate — fuzzy leverage is not
+	// counted).
 	MemoryExact int `json:"tmExact"`
-	// AIRemaining is the count of missing units left for AI translation
-	// after content-memory leverage.
+	// AIRemaining is the count of counted units left for AI translation after
+	// content-memory leverage — the provider calls a run makes.
 	AIRemaining int `json:"aiRemaining"`
 	// Stale is the count of units that HAVE a committed target whose decision
 	// was recorded against source wording that has since changed. The run
@@ -43,6 +51,26 @@ type UpPlanScope struct {
 	// owes a review, and the tokens are being spent on a unit a person had
 	// already decided.
 	Stale int `json:"stale,omitempty"`
+	// Unanswered is the count of units that HAVE a committed target which the
+	// project content memory does not answer: no decision of theirs has moved,
+	// but the corpus holds no exact answer for their source, so `recycle` cannot
+	// fill them and the pass drafts them again over what is on disk.
+	//
+	// It is its own axis because it is its own fact. `stale` means a decision's
+	// basis moved — it drives `blocked: stale`, the review worklist and shipping —
+	// and a produced unit the record never paired is none of that. Folding the two
+	// would put the plan and the run summary at odds, since the summary's re-draft
+	// count is the decision-based coverage tally.
+	Unanswered int `json:"unanswered,omitempty"`
+	// UnreadTargets is the count of produced units the plan declines to judge:
+	// their committed translation has not been read into the project store yet,
+	// so the corpus is unfinished and its silence about them means "not asked",
+	// not "the pass will draft this". A run reads them first — the seed phase
+	// absorbs the committed record before the pass — which is why this is a
+	// disclosure and not an axis of work: pricing them would quote a provider
+	// call for every translation the run is about to recycle, and quoting zero
+	// would promise a free run.
+	UnreadTargets int `json:"unreadTargets,omitempty"`
 	// TokenEstimate approximates the input tokens for the remaining AI work:
 	// source characters / 4 (a common chars-per-token heuristic — the
 	// providers expose no tokenizer here, so this is an estimate, not a
@@ -65,7 +93,8 @@ type UpPlanOutput struct {
 	Subscription bool `json:"subscription,omitempty"`
 	// Monolingual reports a project that resolves no target locale: there is no
 	// per-language work to price. An empty Scopes list otherwise means the work
-	// is already done, and the two must not read the same.
+	// is already done — or, with UnreadTargets set, that the plan has not been
+	// able to judge it yet. The three must not read the same.
 	Monolingual bool `json:"monolingual,omitempty"`
 	// Note documents the estimation method for agents reading the JSON.
 	Note string `json:"note"`
@@ -85,25 +114,41 @@ func (o UpPlanOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 	if len(o.Scopes) == 0 {
-		fmt.Fprintln(w, "Nothing to do: every unit has a committed target for the current source.")
+		if o.Totals.UnreadTargets > 0 {
+			fmt.Fprintf(w, "Not priced yet: this project's store has not read its committed translations, so "+
+				"what a run would recycle — and what it would draft — is not known. `kapi up` reads them "+
+				"before the pass; %d produced unit(s) wait on that.\n", o.Totals.UnreadTargets)
+			return nil
+		}
+		fmt.Fprintln(w, "Nothing to do: every unit has a committed target the project's content memory answers.")
 		return nil
 	}
 	fmt.Fprintf(w, "Plan for flow %q (dry run — nothing written, no provider calls):\n\n", o.Flow)
 	t := output.NewTable(w).Accent(0).
-		Headers("scope", "missing", "stale", "content memory exact", "AI work", "~tokens")
+		Headers("scope", "missing", "stale", "unanswered", "content memory exact", "AI work", "~tokens")
 	for _, s := range o.Scopes {
 		scope := s.Locale
 		if s.Collection != "" {
 			scope = s.Locale + "/" + s.Collection
 		}
-		t.Rowf(scope, s.MissingTarget, s.Stale, s.MemoryExact, s.AIRemaining, s.TokenEstimate)
+		t.Rowf(scope, s.MissingTarget, s.Stale, s.Unanswered, s.MemoryExact, s.AIRemaining, s.TokenEstimate)
 	}
-	t.Rowf("total", o.Totals.MissingTarget, o.Totals.Stale, o.Totals.MemoryExact, o.Totals.AIRemaining, o.Totals.TokenEstimate)
+	t.Rowf("total", o.Totals.MissingTarget, o.Totals.Stale, o.Totals.Unanswered,
+		o.Totals.MemoryExact, o.Totals.AIRemaining, o.Totals.TokenEstimate)
 	t.Render()
 	if o.Totals.Stale > 0 {
 		fmt.Fprintf(w, "\n  %d unit(s) stale: their source changed since the translation was decided. "+
 			"They are re-drafted against the current source (priced above) and return to review "+
 			"un-approved — `kapi status --review`.\n", o.Totals.Stale)
+	}
+	if o.Totals.Unanswered > 0 {
+		fmt.Fprintf(w, "\n  %d unit(s) unanswered: they hold a target the project's content memory does not "+
+			"account for, so the pass drafts them (priced above) and the draft replaces what is on disk.\n",
+			o.Totals.Unanswered)
+	}
+	if o.Totals.UnreadTargets > 0 {
+		fmt.Fprintf(w, "\n  %d produced unit(s) are not priced: the project store has not read their committed "+
+			"translations yet, and a run reads them before it drafts anything.\n", o.Totals.UnreadTargets)
 	}
 	// Always name the provider a run would resolve. A plan exists to answer
 	// "what will this do", and which provider does the work is part of that —
@@ -179,12 +224,10 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 	// work the plan owes the reader. Read out of the store on its own axis, not
 	// inside the memory branch — an injected MemoryBackend says where leverage
 	// comes from, and says nothing about whether the project has decisions.
-	// An absent store yields an empty index: no decisions, so nothing is stale.
-	var mem memory.ContentMemory
-	reviewed := reviewedIndex{}
-	if a.MemoryBackend != nil {
-		mem = a.MemoryBackend
-	}
+	// An absent store yields an empty index: no decisions, so nothing is stale,
+	// and no artifact has been absorbed, so the corpus has not finished being
+	// taught and a produced unit is not judged by it.
+	basis := upPlanBasis{memory: a.MemoryBackend}
 	layout, lerr := project.LayoutFor(projectPath)
 	if lerr != nil {
 		return UpPlanOutput{}, fmt.Errorf("resolve project layout for %s: %w", projectPath, lerr)
@@ -197,17 +240,18 @@ func (a *App) computeProjectPlan(ctx context.Context, proj *project.KapiProject,
 				"the work and overstate the spend; fix or remove the store before planning",
 				layout.StorePath(), derr)
 		}
-		if mem == nil {
+		if basis.memory == nil {
 			if m := db.Memory(); m != nil {
-				mem = m
+				basis.memory = m
 			}
 		}
 		if idx, rerr := a.loadReviewedCorrections(ctx, proj, layout.Root); rerr == nil {
-			reviewed = idx
+			basis.reviewed = idx
 		}
+		basis.settled = a.recordSettlement(ctx, db, proj, projectPath, layout.Root)
 	}
 
-	plan, err := a.computeUpPlan(ctx, mem, reviewed, proj, units)
+	plan, err := a.computeUpPlan(ctx, basis, proj, units)
 	if err != nil {
 		return plan, err
 	}
@@ -262,8 +306,18 @@ func (a *App) UpPlan(ctx context.Context, projectPath, sourceLang string) (*UpPl
 	return &plan, nil
 }
 
+// upPlanBasis is what a plan is derived against besides the units themselves:
+// the corpus a run would recycle from, the decisions it would read, and the
+// target artifacts the record absorber has already had its say about.
+type upPlanBasis struct {
+	memory   memory.ContentMemory
+	reviewed reviewedIndex
+	// settled keys absolute target paths; see App.recordSettlement.
+	settled map[string]bool
+}
+
 // computeUpPlan derives the per-scope work plan from the verify units.
-func (a *App) computeUpPlan(ctx context.Context, tm memory.ContentMemory, reviewed reviewedIndex, proj *project.KapiProject, units []VerifyUnit) (UpPlanOutput, error) {
+func (a *App) computeUpPlan(ctx context.Context, basis upPlanBasis, proj *project.KapiProject, units []VerifyUnit) (UpPlanOutput, error) {
 	type scopeKey struct{ Locale, Collection string }
 	scopes := map[scopeKey]*UpPlanScope{}
 	scopeFor := func(k scopeKey) *UpPlanScope {
@@ -294,6 +348,10 @@ func (a *App) computeUpPlan(ctx context.Context, tm memory.ContentMemory, review
 		}
 		s := scopeFor(scopeKey{Locale: u.Locale, Collection: u.Collection})
 		target := model.LocaleID(u.Locale)
+		// Whether the record absorber has already read this artifact at the bytes
+		// on disk, which decides whether the corpus's silence about its units is
+		// final (see App.recordSettlement).
+		settled := basis.settled[u.TargetPath]
 		for _, b := range blocks {
 			if !b.Translatable {
 				continue
@@ -303,25 +361,45 @@ func (a *App) computeUpPlan(ctx context.Context, tm memory.ContentMemory, review
 			// is an inline code flattened to "" and counted as missing, so every
 			// `kapi up` pass re-planned and re-translated a unit that was already
 			// done — billed AI work on content that needed none.
-			if !missing && model.RunsHaveContent(b.TargetRuns(target)) {
-				// Produced — but "a target exists" is not "the target translates
-				// this source". A unit whose decision blessed wording that has
-				// since been rewritten is drift the plan owes the reader, and
-				// reporting only presence is what let an edited sentence read as
-				// converged while its translation said something else.
-				//
-				// It is also WORK, and priced below with everything else. A plan
-				// that named the drift but quoted nothing for it described a run
-				// that would go on to spend tokens the reader had not been shown
-				// — the one thing a plan exists to prevent.
-				if reviewed.basisFor(b, u.Locale) != basisStale {
-					continue
-				}
-				s.Stale++
-			} else {
-				s.MissingTarget++
+			produced := !missing && model.RunsHaveContent(b.TargetRuns(target))
+			// A produced unit whose corpus answer the absorber has not settled yet
+			// cannot be judged: the seed phase runs before the pass and may pair
+			// this very target with its source. Asking now would price a provider
+			// call for every translation the run is about to recycle — so it is
+			// reported as unread rather than guessed at either way.
+			if produced && !settled && basis.reviewed.basisFor(b, u.Locale) != basisStale {
+				s.UnreadTargets++
+				continue
 			}
-			if planMemoryExactHit(ctx, tm, b, source, target) {
+			// The pass is driven by the corpus, not by the target files: `recycle`
+			// fills what the content memory answers exactly and `translate` drafts
+			// the remainder (skipMatched). So this is the question that decides
+			// what a unit costs, and it is put to every unit the plan counts.
+			answered := planMemoryExactHit(ctx, basis.memory, b, source, target)
+			switch {
+			case !produced:
+				s.MissingTarget++
+			case basis.reviewed.basisFor(b, u.Locale) == basisStale:
+				// A unit whose decision blessed wording that has since been
+				// rewritten is drift the plan owes the reader, and reporting only
+				// presence is what let an edited sentence read as converged while
+				// its translation said something else.
+				s.Stale++
+			case answered:
+				// Produced, current, and the corpus answers it: `recycle` fills the
+				// unit from the project's own record and the AI step skips it.
+				// Nothing to do, so nothing to price.
+				continue
+			default:
+				// Produced, and the record does not pair it with its source — a
+				// rewritten source, an identical pair no approval stands behind, a
+				// pair refused for asymmetric codes. `recycle` has nothing to fill
+				// it with, so the pass drafts it and the draft replaces what is on
+				// disk. Counting it by target presence quoted zero for exactly this
+				// work.
+				s.Unanswered++
+			}
+			if answered {
 				s.MemoryExact++
 				continue
 			}
@@ -338,12 +416,17 @@ func (a *App) computeUpPlan(ctx context.Context, tm memory.ContentMemory, review
 	}
 	out := UpPlanOutput{Flow: flowLabel, Note: upPlanNote}
 	for _, s := range scopes {
-		if s.MissingTarget == 0 && s.Stale == 0 {
+		// Unread targets are totalled from every scope, priced or not: a scope
+		// with no work to show still owes the reader the reason it has nothing
+		// to say about the units it holds.
+		out.Totals.UnreadTargets += s.UnreadTargets
+		if s.MissingTarget == 0 && s.Stale == 0 && s.Unanswered == 0 {
 			continue
 		}
 		out.Scopes = append(out.Scopes, *s)
 		out.Totals.MissingTarget += s.MissingTarget
 		out.Totals.Stale += s.Stale
+		out.Totals.Unanswered += s.Unanswered
 		out.Totals.MemoryExact += s.MemoryExact
 		out.Totals.AIRemaining += s.AIRemaining
 		out.Totals.TokenEstimate += s.TokenEstimate

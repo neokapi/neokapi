@@ -651,10 +651,20 @@ export interface UpPlanScope {
   collection?: string;
   /** Translatable units with no committed target for the locale. */
   missingTarget: number;
-  /** Missing units covered by an exact-hash content-memory hit. */
-  memoryExact: number;
-  /** Missing units left for AI translation after content-memory leverage. */
+  /** Units covered by an exact-hash content-memory hit. The wire name is the
+   *  backend's JSON tag, which the rename boundary leaves as it was. */
+  tmExact: number;
+  /** Units left for AI translation after content-memory leverage. */
   aiRemaining: number;
+  /** Produced units whose decision blessed source wording that has since
+   *  changed: the pass re-drafts them and they return to review. */
+  stale?: number;
+  /** Produced units the content memory does not answer — `recycle` cannot fill
+   *  them, so the pass drafts over what is on disk. */
+  unanswered?: number;
+  /** Produced units the plan declines to judge because the project store has
+   *  not read their committed translations yet. */
+  unreadTargets?: number;
   /** Rough input-token estimate for the remaining AI work (chars/4). */
   tokenEstimate: number;
 }

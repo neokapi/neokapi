@@ -717,7 +717,7 @@ func (a *App) deriveCoverage(ctx context.Context, cmd Command, proj *project.Kap
 	}
 	var excl *CheckExclusions
 	if withChecks {
-		excl, err = a.computeLoopCheckExclusions(ctx, cmd, units)
+		excl, err = a.computeLoopCheckExclusions(ctx, cmd, proj, root, units)
 		if err != nil {
 			return nil, nil, err
 		}

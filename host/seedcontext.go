@@ -279,9 +279,10 @@ func (a *App) ContextSourcesUnseeded(ctx context.Context, projectPath string) bo
 
 // projectStoreExists reports whether the project already has a store file. It
 // stats rather than opens, because opening creates one — the distinction a dry
-// run depends on.
-func projectStoreExists(projectPath string) bool {
-	layout, err := project.LayoutFor(projectPath)
+// run depends on. path is the recipe or the directory holding it: LayoutFor
+// resolves either, so a caller with a project root asks the same question.
+func projectStoreExists(path string) bool {
+	layout, err := project.LayoutFor(path)
 	if err != nil {
 		return false
 	}

@@ -180,7 +180,13 @@ export function ConvergenceHero({
 
   // ── Derived standing ──────────────────────────────────────────────────────
   const changed = (plan?.changedFiles ?? 0) + (plan?.removedFiles ?? 0);
-  const missing = plan?.plan?.totals?.missingTarget ?? 0;
+  const totalsPlanned = plan?.plan?.totals;
+  const missing = totalsPlanned?.missingTarget ?? 0;
+  // Every unit the plan prices, not only the ones with no target file. A pass is
+  // driven by the content memory, so a produced unit the corpus cannot fill is
+  // work the run will do — and a hero that read only `missing` claimed a project
+  // was up to date while the plan beside it quoted provider calls.
+  const planned = missing + (totalsPlanned?.stale ?? 0) + (totalsPlanned?.unanswered ?? 0);
   const parked = convergence?.review?.length ?? 0;
   const storeMissing = !!plan?.storeMissing;
   const versionStale = !!plan?.versionStale;
@@ -196,7 +202,7 @@ export function ConvergenceHero({
   // file-derived tally says, so it is drift in its own right — the state cannot
   // be trusted as converged until a run completes.
   const runFailed = lastRunError != null && lastRunError.kind !== "canceled";
-  const drifted = changed > 0 || missing > 0 || storeMissing || versionStale || runFailed;
+  const drifted = changed > 0 || planned > 0 || storeMissing || versionStale || runFailed;
   const upToDate = loaded && !drifted && !gatesUnmet;
 
   // The drift summary: only the non-zero pieces, joined with " · ".
@@ -525,9 +531,7 @@ export function ConvergePlanDialog({
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {s.missingTarget}
                   </TableCell>
-                  <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {s.memoryExact}
-                  </TableCell>
+                  <TableCell className="px-2 py-1.5 text-right tabular-nums">{s.tmExact}</TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {s.aiRemaining}
                   </TableCell>
@@ -543,7 +547,7 @@ export function ConvergePlanDialog({
                     {totals.missingTarget}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
-                    {totals.memoryExact}
+                    {totals.tmExact}
                   </TableCell>
                   <TableCell className="px-2 py-1.5 text-right tabular-nums">
                     {totals.aiRemaining}

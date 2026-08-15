@@ -105,6 +105,31 @@ describe("ConvergenceHero honesty", () => {
     expect(screen.queryByText("Up to date · all gates green")).not.toBeInTheDocument();
   });
 
+  it("does not report convergence when the plan prices work on produced units", () => {
+    // Every unit has a target, so `missingTarget` is zero — and the pass still
+    // drafts them, because the content memory does not answer their source. A
+    // hero reading only the missing count called that project up to date while
+    // the plan beside it quoted the provider calls.
+    const redraftPlan: ConvergePlan = {
+      ...convergedPlan,
+      plan: {
+        ...convergedPlan.plan,
+        totals: { missingTarget: 0, tmExact: 0, aiRemaining: 3, tokenEstimate: 12, unanswered: 3 },
+      },
+    };
+    render(
+      <ConvergenceHero
+        tabID="t1"
+        onBringUpToDate={vi.fn()}
+        convergence={gatedGreenReport}
+        plan={redraftPlan}
+        lastRunError={null}
+      />,
+    );
+    expect(screen.queryByText("Up to date · all gates green")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bring the project up to date" })).toBeEnabled();
+  });
+
   it("does not report convergence when the last run failed", () => {
     render(
       <ConvergenceHero

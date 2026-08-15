@@ -9,6 +9,7 @@ import (
 	"github.com/neokapi/neokapi/core/check"
 	"github.com/neokapi/neokapi/core/gate"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/tool"
 	coretools "github.com/neokapi/neokapi/core/tools"
 )
@@ -69,8 +70,17 @@ func (e *CheckExclusions) totalFailing() int {
 // missing target is already below every rung, so there is nothing to demote —
 // and they are annotate-only over blocks the coverage pass reads anyway (the
 // parse cache absorbs the re-read).
-func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, units []VerifyUnit) (*CheckExclusions, error) {
+func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, proj *project.KapiProject, root string, units []VerifyUnit) (*CheckExclusions, error) {
 	excl := &CheckExclusions{Failing: map[string]bool{}, ByLocale: map[string]int{}}
+
+	// The same rule `kapi check`'s QA gate applies to a target identical to its
+	// source. This set feeds the ship gate, so a question the two surfaces answer
+	// differently is a unit that passes the check and is held back by the
+	// coverage, in one project, on one run.
+	identical, err := a.newIdenticalTargetRule(ctx, cmd, proj, root)
+	if err != nil {
+		return nil, err
+	}
 
 	// Glossary per locale, resolved once (opens the terms store).
 	glossaryByLocale := map[string][]coretools.GlossaryEntry{}
@@ -133,7 +143,9 @@ func (a *App) computeLoopCheckExclusions(ctx context.Context, cmd Command, units
 			if err := RunCheckTool(ctx, qa, b); err != nil {
 				return nil, fmt.Errorf("qa check %s (%s): %w", u.DisplayPath, u.Locale, err)
 			}
-			fails := slices.ContainsFunc(check.Findings(tool.NewBlockViewWithContext(ctx, b)), qaFindingFails)
+			fails := slices.ContainsFunc(check.Findings(tool.NewBlockViewWithContext(ctx, b)), func(f check.Finding) bool {
+				return !identical.suppresses(f, b, u.Locale) && qaFindingFails(f)
+			})
 			if !fails && termTool != nil {
 				if err := RunCheckTool(ctx, termTool, b); err != nil {
 					return nil, fmt.Errorf("terminology check %s (%s): %w", u.DisplayPath, u.Locale, err)

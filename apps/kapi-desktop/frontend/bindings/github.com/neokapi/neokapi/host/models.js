@@ -1217,7 +1217,8 @@ export class UpPlanOutput {
             /**
              * Monolingual reports a project that resolves no target locale: there is no
              * per-language work to price. An empty Scopes list otherwise means the work
-             * is already done, and the two must not read the same.
+             * is already done — or, with UnreadTargets set, that the plan has not been
+             * able to judge it yet. The three must not read the same.
              * @member
              * @type {boolean | undefined}
              */
@@ -1255,9 +1256,16 @@ export class UpPlanOutput {
 }
 
 /**
- * UpPlanScope is the planned work for one (collection, locale) scope: how many
- * units have no target yet, how many of those an exact content-memory hit would cover, and
- * what remains for AI translation with a rough token estimate.
+ * UpPlanScope is the planned work for one (collection, locale) scope: the units
+ * a convergence pass would spend work on, split by why they are work, how many of
+ * them an exact content-memory hit would cover, and what remains for AI
+ * translation with a rough token estimate.
+ * 
+ * The three work axes partition the scope's work, so MissingTarget + Stale +
+ * Unanswered always equals MemoryExact + AIRemaining: every unit the plan counts
+ * is either recycled or drafted. A unit that is none of the three is not work —
+ * it holds a target, no decision of its has moved, and the corpus answers its
+ * source, so the pass fills it from the project's own record at no cost.
  */
 export class UpPlanScope {
     /**
@@ -1290,8 +1298,9 @@ export class UpPlanScope {
         }
         if (!("tmExact" in $$source)) {
             /**
-             * MemoryExact is the count of missing units covered by an exact-hash content-memory hit
-             * (the cheap leverage estimate — fuzzy leverage is not counted).
+             * MemoryExact is the count of counted units covered by an exact-hash
+             * content-memory hit (the cheap leverage estimate — fuzzy leverage is not
+             * counted).
              * @member
              * @type {number}
              */
@@ -1299,8 +1308,8 @@ export class UpPlanScope {
         }
         if (!("aiRemaining" in $$source)) {
             /**
-             * AIRemaining is the count of missing units left for AI translation
-             * after content-memory leverage.
+             * AIRemaining is the count of counted units left for AI translation after
+             * content-memory leverage — the provider calls a run makes.
              * @member
              * @type {number}
              */
@@ -1321,6 +1330,38 @@ export class UpPlanScope {
              * @type {number | undefined}
              */
             this["stale"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Unanswered is the count of units that HAVE a committed target which the
+             * project content memory does not answer: no decision of theirs has moved,
+             * but the corpus holds no exact answer for their source, so `recycle` cannot
+             * fill them and the pass drafts them again over what is on disk.
+             * 
+             * It is its own axis because it is its own fact. `stale` means a decision's
+             * basis moved — it drives `blocked: stale`, the review worklist and shipping —
+             * and a produced unit the record never paired is none of that. Folding the two
+             * would put the plan and the run summary at odds, since the summary's re-draft
+             * count is the decision-based coverage tally.
+             * @member
+             * @type {number | undefined}
+             */
+            this["unanswered"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * UnreadTargets is the count of produced units the plan declines to judge:
+             * their committed translation has not been read into the project store yet,
+             * so the corpus is unfinished and its silence about them means "not asked",
+             * not "the pass will draft this". A run reads them first — the seed phase
+             * absorbs the committed record before the pass — which is why this is a
+             * disclosure and not an axis of work: pricing them would quote a provider
+             * call for every translation the run is about to recycle, and quoting zero
+             * would promise a free run.
+             * @member
+             * @type {number | undefined}
+             */
+            this["unreadTargets"] = undefined;
         }
         if (!("tokenEstimate" in $$source)) {
             /**

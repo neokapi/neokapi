@@ -125,7 +125,7 @@ func TestUpPlan_PlaceholderOnlyTargetIsAlreadyProduced(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, units, 1)
 
-	plan, err := a.computeUpPlan(context.Background(), nil, reviewedIndex{}, proj, units)
+	plan, err := a.computeUpPlan(context.Background(), upPlanBasis{}, proj, units)
 	require.NoError(t, err)
 	assert.Zero(t, plan.Totals.MissingTarget,
 		"both units are produced; the placeholder-only one is not work to re-do")
@@ -164,7 +164,7 @@ func TestLoopChecks_PlaceholderOnlyTargetIsCheckable(t *testing.T) {
 	require.NoError(t, err)
 
 	cmd := NewEnvCommand(context.Background(), "check")
-	excl, err := a.computeLoopCheckExclusions(context.Background(), cmd, units)
+	excl, err := a.computeLoopCheckExclusions(context.Background(), cmd, proj, root, units)
 	require.NoError(t, err)
 	assert.Equal(t, 1, excl.totalFailing(),
 		"a produced placeholder-only target must reach the guardrails; its dropped code is a failure")

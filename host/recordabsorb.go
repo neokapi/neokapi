@@ -320,6 +320,45 @@ func (a *App) stampCommittedRecord(ctx context.Context, proj *project.KapiProjec
 	_ = saveRecordDigests(ctx, db, stamps)
 }
 
+// recordSettlement is the set of committed target artifacts the absorber has
+// already had its say about at the bytes they hold now — the ones the next pass
+// stamps as skipped. It is read-only: the stamps and a digest, no store write.
+//
+// The plan needs it to read the content memory's silence. What a run spends a
+// provider call on is a unit the corpus does not answer, but the corpus is only
+// finished being taught once the absorber has read the artifacts: before that,
+// silence about a produced unit means "not asked yet", and pricing it would quote
+// a provider call for every translation the run is about to recycle. After it,
+// silence is the absorber's answer — a pairing it declined — and the pass will
+// draft the unit.
+//
+// Keyed by absolute target path, expanded exactly as recordUnits and
+// UnitsFromProject both expand it, so the two resolutions cannot drift apart.
+func (a *App) recordSettlement(ctx context.Context, db *projectdb.DB, proj *project.KapiProject, projectPath, root string) map[string]bool {
+	settled := map[string]bool{}
+	if db == nil {
+		return settled
+	}
+	stamps := loadRecordDigests(ctx, db)
+	if len(stamps) == 0 {
+		return settled
+	}
+	units, err := recordUnits(a, proj, project.NewProjectContext(proj, projectPath), root)
+	if err != nil {
+		return settled
+	}
+	for _, u := range units {
+		digest, ok, derr := recordDigest(u)
+		if derr != nil || !ok {
+			continue
+		}
+		if stamps[u.targetRel] == digest {
+			settled[u.targetPath] = true
+		}
+	}
+	return settled
+}
+
 // writeRecordPairs resolves each source's winning target, reconciles the entries
 // already in the store that answer the same source differently, and writes the
 // whole set in one transaction followed by one index rebuild.

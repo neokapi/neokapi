@@ -139,9 +139,9 @@ kapi up
 
 ```
 seeded: 5 concept(s) and 5 content-memory entry(ies) from 3 committed source(s)
-absorbed: 85 pair(s) from 3 committed target document(s) — 29 learned, 0 reconciled
-plan: 26 unit(s) missing · 5 exact-content memory · 21 AI · ≈237 tokens
-  nb         38/38 units  (content memory 36 · AI 2)
+absorbed: 86 pair(s) from 3 committed target document(s) — 30 learned, 0 reconciled
+plan: 26 unit(s) missing · drafting 2 unit(s) the content memory does not answer · 5 exact-content memory · 23 AI · ≈241 tokens
+  nb         38/38 units  (content memory 37 · AI 1)
   de         38/38 units  (content memory 35 · AI 3)
   nl         38/38 units  (content memory 19 · AI 19)
 ```
@@ -192,7 +192,7 @@ The seven points the shaped samples are held to, as this sample meets them.
 | --- | --- | --- |
 | 1 | Onboarded through the discovery path — the graph arrives as reviewable files | **MET** — `kapi.yaml`, `.kapi/voice.yaml` and `.kapi/terms.json` are the drafted-then-corrected artifacts the monolingual sample established, carried forward rather than re-authored |
 | 2 | Governance bound at the point from day one; review workflow on | **MET** — `profiles.northsea` binds voice and channel; `.kapi/state/` carries 54 committed decisions before the loop is ever run |
-| 3 | First converge shows recycle numbers and an estimate before it spends | **MET** — `plan: 26 unit(s) missing · 5 exact-content memory · 21 AI · ≈237 tokens`, then per-locale `(content memory N · AI M)`. No credential is spent: the AI leg is the `demo` provider |
+| 3 | First converge shows recycle numbers and an estimate before it spends | **MET** — `plan: 26 unit(s) missing · drafting 2 unit(s) the content memory does not answer · 5 exact-content memory · 23 AI · ≈241 tokens`, then per-locale `(content memory N · AI M)` summing to the same 23. No credential is spent: the AI leg is the `demo` provider |
 | 4 | Governed review exercised, with a decision that changes an outcome | **MET** — the Dutch review moves `nl` from withheld to offered, and the Norwegian review removes its AI marker. Both are `kapi apply` + `kapi commit` round-trips landing in `.kapi/state/` |
 | 5 | Delivery proven | **MET** — `kapi up` materializes into `site/locales/`, `kapi status --ship --emit` writes `site/ship.json`, and the deployed page reads both. No copy step, no second pipeline |
 | 6 | Recorded as a harness walkthrough | **PARTIAL** — `harness/demos/s1-compass-multilingual/` is authored and capture-verified; render and CDN publish are blocked on [#1913](https://github.com/neokapi/neokapi/issues/1913) |
@@ -204,8 +204,7 @@ Running the journey is how these were found.
 
 | Gap | Issue |
 | --- | --- |
-| `settings.terminal` is *Terminal* in all four languages, and the `nb` one is approved. The loop now keeps it — and the QA gate reports it as untranslated on every run, because `target-same-as-source` is a gate failure with no reading of the decision that settles it | [#1973](https://github.com/neokapi/neokapi/issues/1973) |
-| Rewriting `alerts.acknowledge` makes work in all three locales, and the plan quotes one: it prices a produced unit by whether a target file exists, while the pass drafts whatever the content memory does not answer | [#1974](https://github.com/neokapi/neokapi/issues/1974) |
+| The render and CDN publish of the walkthrough | [#1913](https://github.com/neokapi/neokapi/issues/1913) |
 
 Fixed while this sample was being built, each found by running the journey on it:
 `kapi status` reporting source readiness as `checked 0%` immediately after a
@@ -219,7 +218,13 @@ the reviewer's approval discarded with it
 ([#1927](https://github.com/neokapi/neokapi/issues/1927)); a source rewrite
 mispairing every locale that held no decision, so `nb` and `nl` went on serving
 the translation of a deleted sentence
-([#1964](https://github.com/neokapi/neokapi/issues/1964)); `kapi apply` refusing
+([#1964](https://github.com/neokapi/neokapi/issues/1964)); the QA gate reporting
+that approved identical translation as untranslated, and disagreeing with the
+checks the loop runs about which units it holds back
+([#1973](https://github.com/neokapi/neokapi/issues/1973)); the plan pricing a
+produced unit by whether a target file exists while the pass drafts whatever the
+content memory does not answer, so a rewrite quoted one provider call and spent
+three ([#1974](https://github.com/neokapi/neokapi/issues/1974)); `kapi apply` refusing
 the indented change-set that `kapi status --review --json --jq` prints, so the
 review round-trip did not compose; and `kapi commit` writing absolute machine
 paths into `.kapi/state/` when the recipe was named by a relative `-p`.
