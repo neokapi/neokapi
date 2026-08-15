@@ -134,6 +134,11 @@ func (s *MCPServer) handleSuggestCorrections(ctx context.Context, req *mcp.CallT
 		return nil, suggestCorrectionsOutput{}, err
 	}
 
+	// Vocabulary only, deliberately: this tool rewrites text, and a term rule
+	// carries the replacement that makes a swap mechanical. A prohibited pattern
+	// describes a shape, not a substitution, so folding pattern findings in here
+	// would emit corrections with nothing to correct to. Patterns are reported by
+	// the scoring and check tools, which say what is wrong without rewriting it.
 	findings := coreprofile.HitsToFindings(coreprofile.MatchVocabulary(profile, input.Text), input.Text, nil)
 	var corrections []correction
 	corrected := input.Text
